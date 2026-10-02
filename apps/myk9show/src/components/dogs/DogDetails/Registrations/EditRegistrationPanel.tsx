@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { z } from 'zod';
 import { EditPanelWrapper } from '@/components/panels/edit/EditPanelWrapper';
+import { savedMessage } from '@/components/panels/edit/panelSaveErrors';
 import { useEditPanel } from '@/components/panels/edit/useEditPanel';
 import { Input } from '@/components/ui/input';
 import {
@@ -307,6 +308,7 @@ export function EditRegistrationPanel({
       schema={editRegistrationFormSchema}
       size="lg"
       saveLabel="Save Changes"
+      successMessage={savedMessage(undefined, 'Registration')}
       showUnsavedWarning={true}
     >
       <RegistrationFormFields />

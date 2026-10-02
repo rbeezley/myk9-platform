@@ -1137,7 +1137,7 @@ describe('ShowDetailsPage', () => {
     expect(screen.getByTestId('detail-hero')).toBeInTheDocument();
   });
 
-  it('shows success feedback after saving show edits', async () => {
+  it('leaves the saved toast to the edit panel so a save confirms once', async () => {
     const user = userEvent.setup();
     mockAuthContext.isSecretary = true;
     showEditPanelMock.impl = ({ onSave }) => (
@@ -1162,9 +1162,14 @@ describe('ShowDetailsPage', () => {
 
     await user.click(screen.getByRole('button', { name: /save mocked edit panel/i }));
 
-    await waitFor(() => {
-      expect(notificationsSuccessMock).toHaveBeenCalledWith('Show changes saved');
-    });
+    // The toast is EditPanelWrapper's now (see ShowEditPanel.saveToast.test);
+    // the page firing its own would confirm every save twice.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /save mocked edit panel/i })).toBeEnabled()
+    );
+    expect(notificationsSuccessMock).not.toHaveBeenCalledWith(
+      expect.stringMatching(/saved|updated/i)
+    );
   });
 
   it('keeps the acknowledged preview local without rewriting cold-query readers', async () => {

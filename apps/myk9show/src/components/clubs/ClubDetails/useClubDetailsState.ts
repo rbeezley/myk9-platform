@@ -198,12 +198,11 @@ export function useClubDetailsState(selectedClub: Club | null) {
       try {
         await updateClub(updatedClub);
         setShowEditPanel(false);
-        notifications.success('Club updated successfully');
       } catch (error) {
         logger.error('Failed to save club', 'clubs', { clubId: selectedClub.id }, error as Error);
-        notifications.error('Failed to save club', {
-          description: getErrorMessage(error),
-        });
+        // EditPanelWrapper keeps the panel open and reports the failure only
+        // when this rejects; swallowing it would close the panel on a failed save.
+        throw error;
       }
     },
     [selectedClub, updateClub]

@@ -32,7 +32,12 @@ import {
   transformWizardDataToShow,
 } from './showCreationWizardTransformers';
 import { grantShowOfficials, officialsDeferredOfflineMessage } from './grantShowOfficials';
-import { completePartialShowSave, isOfficialsNotAssignedError } from './showSaveErrors';
+import {
+  completePartialShowSave,
+  isOfficialsNotAssignedError,
+  showSaveFailureFeedback,
+} from './showSaveErrors';
+import { addedMessage, savedMessage } from '@/components/panels/edit/panelSaveErrors';
 import { saveShowAtomicOnline } from './saveShowAtomicOnline';
 import { buildRuleMap } from './buildRuleMap';
 import { createWizardClasses } from './createWizardClasses';
@@ -295,9 +300,9 @@ export function useShowCreationWizardActions({
           });
 
           if (status === 'draft' && !shouldShowCompletion) {
-            notifications.success(`"${savedShow.name}" saved as draft`);
+            notifications.success(`${savedShow.name} saved as draft`);
           } else if (!onCreatedRef.current) {
-            notifications.success(`"${savedShow.name}" created successfully`);
+            notifications.success(addedMessage(savedShow.name, 'Show'));
           }
 
           logger.info(`Show saved successfully (${status})`, 'wizard', {
@@ -448,11 +453,11 @@ export function useShowCreationWizardActions({
         if (!judgesSaved) {
           // The warning above already says what saved and what did not.
         } else if (editMode?.showId) {
-          notifications.success(`"${savedShow.name}" updated successfully`);
+          notifications.success(savedMessage(savedShow.name, 'Show'));
         } else if (status === 'draft' && !shouldShowCompletion) {
-          notifications.success(`"${savedShow.name}" saved as draft`);
+          notifications.success(`${savedShow.name} saved as draft`);
         } else if (!onCreatedRef.current) {
-          notifications.success(`"${savedShow.name}" created successfully`);
+          notifications.success(addedMessage(savedShow.name, 'Show'));
         }
 
         logger.info(`Show saved successfully (${status})`, 'wizard', {
@@ -496,11 +501,8 @@ export function useShowCreationWizardActions({
           queryClient.invalidateQueries({ queryKey: showQueryKeys.lists() });
         }
         logger.error('Error saving show', 'wizard', {}, error as Error);
-        notifications.error(
-          error instanceof Error
-            ? `Failed to create show: ${error.message}`
-            : 'Failed to create show. Please try again.'
-        );
+        const feedback = showSaveFailureFeedback(error);
+        notifications.error(feedback.title, { description: feedback.description });
       } finally {
         setIsLoading(false);
         isSavingRef.current = false;

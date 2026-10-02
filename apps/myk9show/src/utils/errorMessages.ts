@@ -73,20 +73,27 @@ export function getUserFriendlyError(error: unknown, fallback: string = DEFAULT_
     return fallback;
   }
 
-  // Extract code from Supabase / PostgREST error shapes
   const code = extractErrorCode(error);
-
   if (code) {
-    // Exact match
-    if (ERROR_CODE_MESSAGES[code]) return ERROR_CODE_MESSAGES[code];
-
-    // Prefix match
+    const exact = mappedErrorMessage(error);
+    if (exact) return exact;
     for (const [prefix, message] of Object.entries(ERROR_PREFIX_MAP)) {
       if (code.startsWith(prefix)) return message;
     }
   }
 
   return fallback;
+}
+
+/**
+ * The curated message for an error's exact SQLSTATE or application code, when
+ * one is mapped. Unlike {@link getUserFriendlyError} it never echoes a raw message, in
+ * development or production, so callers that must never show database text can
+ * use it directly.
+ */
+export function mappedErrorMessage(error: unknown): string | undefined {
+  const code = extractErrorCode(error);
+  return code ? ERROR_CODE_MESSAGES[code] : undefined;
 }
 
 /** Attempt to pull an error `code` from various error shapes. */

@@ -196,7 +196,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       throw error;
     }
     setFormData(prev => ({ ...prev, ...buildSavedFormDataUpdates(userData) }));
-    notifications.success('Person updated');
     logger.info('User data saved successfully', 'users', { userId: person.id });
   };
 

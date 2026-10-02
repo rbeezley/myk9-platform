@@ -7,6 +7,10 @@
  */
 
 import { useState, useEffect } from 'react';
+import { notifications } from '@/lib/notifications';
+import { friendlySaveError } from '@/utils/friendlySaveError';
+import { savedMessage } from '@/components/panels/edit/panelSaveErrors';
+import { useDiscardPrompt } from '@/components/panels/edit/DiscardChangesDialog';
 import {
   Sheet,
   SheetContent,
@@ -262,10 +266,11 @@ export function EntryEditDialog({
         return;
       }
 
+      notifications.success(savedMessage(`${entry.dogName}'s entry`));
       onUpdate();
       onOpenChange(false);
     } catch (err) {
-      setError('An unexpected error occurred while saving changes.');
+      setError(friendlySaveError(err).description);
       logger.error('Error saving entry edits:', 'entries', {}, err as Error);
     } finally {
       setIsSaving(false);
@@ -286,6 +291,13 @@ export function EntryEditDialog({
     }
     return false;
   };
+
+  // Cancel, Escape and the overlay ask first when edits are unsaved (H15). A
+  // close after a save calls onOpenChange directly: nothing is lost there.
+  const { requestClose, discardDialog } = useDiscardPrompt({
+    isDirty: hasChanges() && !isSaving,
+    close: () => onOpenChange(false),
+  });
 
   const getClassStatus = (classEntry: EntryClass): EntryClass['status'] => {
     const edit = classEdits[classEntry.id];
@@ -314,7 +326,13 @@ export function EntryEditDialog({
 
   return (
     <>
-      <Sheet open={open} onOpenChange={onOpenChange}>
+      <Sheet
+        open={open}
+        onOpenChange={isOpen => {
+          if (isOpen) onOpenChange(true);
+          else requestClose();
+        }}
+      >
         <SheetContent size="md">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
@@ -395,7 +413,7 @@ export function EntryEditDialog({
           </SheetBody>
 
           <SheetFooter>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
+            <Button variant="outline" onClick={requestClose}>
               Cancel
             </Button>
             {canModify && !isLoading && (
@@ -416,6 +434,8 @@ export function EntryEditDialog({
           </SheetFooter>
         </SheetContent>
       </Sheet>
+
+      {discardDialog}
 
       <RemoveFromClassDialog
         open={allowLeaveClass && pullDialog.open}

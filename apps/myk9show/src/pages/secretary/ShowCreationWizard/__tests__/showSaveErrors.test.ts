@@ -13,6 +13,7 @@ import {
   OfficialsNotAssignedError,
   isOfficialsNotAssignedError,
   officialsNotAssignedMessage,
+  showSaveFailureFeedback,
 } from '../showSaveErrors';
 
 describe('OfficialsNotAssignedError', () => {
@@ -52,5 +53,21 @@ describe('OfficialsNotAssignedError', () => {
     // duplicate show, since retrying mints a fresh UUID.
     expect(officialsNotAssignedMessage(1)).toMatch(/don.t create the show again/i);
     expect(officialsNotAssignedMessage(2)).toMatch(/2 official assignments/i);
+  });
+});
+
+describe('showSaveFailureFeedback (H1)', () => {
+  it('never shows the raw error text and says the wizard still holds the details', () => {
+    const feedback = showSaveFailureFeedback(
+      new Error(
+        'insert or update on table "shows" violates foreign key constraint "shows_club_id_fkey"'
+      )
+    );
+
+    expect(`${feedback.title} ${feedback.description}`).not.toMatch(
+      /shows_club_id_fkey|constraint/
+    );
+    expect(feedback.title).not.toMatch(/^Failed to create show:/);
+    expect(feedback.description).toContain('Your changes are still here.');
   });
 });

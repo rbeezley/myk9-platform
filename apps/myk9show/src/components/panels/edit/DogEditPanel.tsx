@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, createContext } from 'react';
 import { EditPanelWrapper } from './EditPanelWrapper';
+import { savedMessage } from './panelSaveErrors';
 import { useEditPanel } from './useEditPanel';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
@@ -236,6 +237,7 @@ export const DogEditPanel: React.FC<DogEditPanelProps> = ({
         enableAutoSave={enableAutoSave}
         saveLabel="Save Changes"
         cancelLabel="Cancel"
+        successMessage={data => savedMessage(data.callName || dogName)}
       >
         <DogEditForm />
       </EditPanelWrapper>

@@ -21,6 +21,7 @@ import ConfirmDeleteRegistrationDialog from './ConfirmDeleteRegistrationDialog';
 import { useDogRegistrationManagement } from '@/hooks/queries/useRegistrationsDatabase';
 import { useRegistrationsStore } from '@/store/registrationsStore';
 import { translateDogDbError } from '@/hooks/translateDogDbError';
+import { FriendlySaveError } from '@/utils/friendlySaveError';
 
 interface DogRegistrationDialogsProps {
   dog?: Dog | undefined;
@@ -114,7 +115,7 @@ export default function DogRegistrationDialogs({
           setIsAddOpen(false);
           resolve();
         },
-        onError: error => reject(new Error(translateDogDbError(error).message)),
+        onError: error => reject(new FriendlySaveError(translateDogDbError(error).message)),
       });
     });
 
@@ -128,7 +129,7 @@ export default function DogRegistrationDialogs({
             setSelectedRegistration(null);
             resolve();
           },
-          onError: error => reject(new Error(translateDogDbError(error).message)),
+          onError: error => reject(new FriendlySaveError(translateDogDbError(error).message)),
         }
       );
     });

@@ -1,4 +1,3 @@
-import { toast } from 'sonner';
 import { queryClient } from '@/lib/queryClient';
 import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import { upsertClassJudgeAssignment } from '@/services/database/judges';
@@ -81,8 +80,6 @@ export function useClassEditActions({ showId, updateClass }: UseClassEditActions
         queryClient.invalidateQueries({ queryKey: classKeys.byTrial(trialId) });
       }
       queryClient.invalidateQueries({ queryKey: classKeys.detail(classId) });
-
-      toast.success('Class updated successfully');
     } catch (error) {
       logger.error('Failed to update class', 'classes', { classId }, error as Error);
       throw error;

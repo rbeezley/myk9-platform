@@ -9,7 +9,6 @@ import { useBrowseClubsData } from '@/hooks/useBrowseClubsData';
 import { ClubsGridView, ClubsListView } from '@/components/clubs/browse';
 import { ClubsOfflineState } from '@/components/clubs/ClubsOfflineState';
 import { BrowseClubsSkeleton } from '@/components/common/SkeletonLoaders';
-import { notifications } from '@/lib/notifications';
 import { logger } from '@/services/LoggingService';
 import type { Club } from '@/types/club-types';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
@@ -123,10 +122,10 @@ const BrowseClubsPage: React.FC = () => {
         }
 
         setCreatePanelRequested(false);
-        notifications.success('Club created successfully');
       } catch (error) {
         logger.error('Failed to create club', 'clubs', {}, error as Error);
-        notifications.error('Failed to create club');
+        // Reject so the Add Club panel stays open with the form and reports it.
+        throw error;
       }
     },
     [addClub, selectClub, routerNavigate, searchParams, refreshPermissions]

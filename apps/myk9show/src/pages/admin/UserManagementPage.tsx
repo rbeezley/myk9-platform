@@ -15,7 +15,6 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { logger } from '@/services/LoggingService';
-import { notifications } from '@/lib/notifications';
 import { Plus, Download, Search, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 // Hooks and services
@@ -308,10 +307,8 @@ const UserManagementPage: React.FC = () => {
       });
       setSelectedUser(updatedUser);
       setShowUserEditPanel(false);
-      notifications.success('User updated successfully');
     } catch (err) {
       logger.error('Failed to update user:', 'pages', {}, err as Error);
-      notifications.error(getUserFriendlyError(err, 'Failed to update user'));
       throw err;
     }
   };

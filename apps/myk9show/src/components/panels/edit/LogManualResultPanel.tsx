@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { z } from 'zod';
 import { EditPanelWrapper } from './EditPanelWrapper';
+import { addedMessage } from './panelSaveErrors';
 import { useEditPanel } from './useEditPanel';
 import { FormField } from '@/components/common/FormField';
 import { Input } from '@/components/ui/input';
@@ -416,6 +417,7 @@ const LogManualResultPanel: React.FC<LogManualResultPanelProps> = ({
       onSave={handleSave}
       forceHasChanges
       saveLabel="Log Result"
+      successMessage={addedMessage(undefined, 'Result')}
       size="md"
     >
       <LogResultForm />

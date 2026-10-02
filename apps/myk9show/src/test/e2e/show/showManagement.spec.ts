@@ -51,8 +51,10 @@ test.describe('Show management workflow', () => {
 
     await expect(page.getByRole('heading', { name: 'Add Show', level: 2 })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Basics' })).toBeVisible();
-    await expect(page.getByText('Show Name *', { exact: true })).toBeVisible();
-    await expect(page.getByText('Show Dates *', { exact: true })).toBeVisible();
+    // The shared required marker reads "(required)" to assistive tech (MYK9-931), so assert
+    // the field is labelled AND required, not a literal "Show Name *" text node.
+    await expect(page.getByLabel(/^Show Name[\s*]*\(required\)/)).toBeVisible();
+    await expect(page.getByLabel(/^Show Dates[\s*]*\(required\)/)).toBeVisible();
     await expect(page.getByRole('button', { name: /^Next$/ })).toBeDisabled();
   });
 

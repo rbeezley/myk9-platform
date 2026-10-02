@@ -603,6 +603,12 @@ export class ShowCreationWizardPage {
       await this.page.waitForSelector('[role="grid"]', { timeout: 5000 });
       await this.navigateToDateInCalendar(trial.dateTime);
     }
+
+    // The start time is its own required field and is never defaulted (MYK9-931).
+    const startTime = lastTrialCard.getByLabel(/^Start Time/);
+    if (await startTime.isVisible().catch(() => false)) {
+      await startTime.fill('09:00 AM');
+    }
   }
 
   async addMultipleTrials(trials: TrialDetails[]) {

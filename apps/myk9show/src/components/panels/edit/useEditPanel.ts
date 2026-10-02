@@ -24,6 +24,14 @@ export interface EditPanelContextValue<T = Record<string, unknown>> {
    * the panel, so a second "Leave this page?" prompt is noise (MYK9-165).
    */
   runSelfNavigation: (navigate: () => void) => void;
+
+  /**
+   * A tab-bar click, routed through the create-mode walk (MYK9-931, decision 13):
+   * a forward jump passes the per-tab checks of every tab it skips. Present only
+   * when the panel gave the wrapper `steps`; tab bars fall back to their own
+   * setter when it is absent.
+   */
+  requestTab?: ((tab: string) => void) | undefined;
 }
 
 // Context for form data management

@@ -96,7 +96,13 @@ export interface WizardState {
     id: string; // temp ID for wizard
     /** Present only when the secretary explicitly overrides the suggested name. */
     nameOverride?: string | undefined;
-    dateTime: string; // ISO datetime string
+    /** The trial's day, `yyyy-MM-dd`, or '' while it has none (a cloned trial). */
+    trialDate: string;
+    /**
+     * The start-time box exactly as typed. With `trialDate` it is joined ONLY by
+     * `combineTrialDateTime`; nothing writes a default time into the date.
+     */
+    startTimeDraft?: string | undefined;
     eventNumber: string;
     trialType?: string | undefined; // e.g. 'Scent Work', 'Agility', 'Obedience'
     classes: Array<{

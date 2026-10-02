@@ -1,4 +1,4 @@
-import { render, screen } from '@/test/utils/testUtils';
+import { render, screen, fireEvent } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'react';
@@ -17,7 +17,8 @@ const wizardState = vi.hoisted(() => ({
   trials: [] as Array<{
     id: string;
     nameOverride?: string;
-    dateTime: string;
+    trialDate: string;
+    startTimeDraft?: string;
     trialType?: string;
     eventNumber: string;
     classes: unknown[];
@@ -47,13 +48,6 @@ vi.mock('@/components/ui/date-time-picker', () => ({
     <>
       <button
         type="button"
-        aria-label={`Change ${id} to same day`}
-        onClick={() => onChange?.(new Date(2026, 7, 1, 10))}
-      >
-        Same-day time
-      </button>
-      <button
-        type="button"
         aria-label={`Change ${id} to next day`}
         onClick={() => onChange?.(new Date(2026, 7, 2, 10))}
       >
@@ -67,7 +61,7 @@ function makeTrialView(existingTrials: TrialNameSource[] = []) {
   return createWizardTrialView(
     wizardState.trials.map(trial => ({
       id: trial.id,
-      trialDate: trial.dateTime,
+      trialDate: trial.trialDate,
       nameOverride: trial.nameOverride,
     })),
     existingTrials
@@ -205,13 +199,14 @@ describe('TrialConfigurationStep existing snapshot state', () => {
     wizardState.trials = [
       {
         id: 'draft-trial',
-        dateTime: '2026-08-01T08:00:00',
+        trialDate: '2026-08-01',
+        startTimeDraft: '08:00 AM',
         eventNumber: '',
         classes: [],
       },
     ];
     const { rerender } = renderTrialConfiguration();
-    expect(screen.getByLabelText('Trial Name *')).toHaveValue('Saturday Trial 1');
+    expect(screen.getByLabelText(/^Trial Name/)).toHaveValue('Saturday Trial 1');
     expect(screen.getByText('Saturday Trial 1')).toBeInTheDocument();
 
     const trialView = makeTrialView([
@@ -225,7 +220,8 @@ describe('TrialConfigurationStep existing snapshot state', () => {
             [
               {
                 id: 'draft-trial',
-                dateTime: '2026-08-01T08:00:00',
+                trialDate: '2026-08-01',
+                startTimeDraft: '08:00 AM',
                 eventNumber: '',
                 classes: [],
               },
@@ -239,10 +235,12 @@ describe('TrialConfigurationStep existing snapshot state', () => {
       </>
     );
 
-    expect(screen.getByLabelText('Trial Name *')).toHaveValue('Saturday Trial 2');
+    expect(screen.getByLabelText(/^Trial Name/)).toHaveValue('Saturday Trial 2');
     expect(screen.getByText('Saturday Trial 2')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Remove Saturday Trial 2' })).toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveTextContent('Saturday Trial 2 type is required');
+    expect(screen.getByRole('alert')).toHaveTextContent(
+      'Please select a type for Saturday Trial 2'
+    );
   });
 
   it('uses show-level copy for trials already scheduled on another day', () => {
@@ -260,14 +258,15 @@ describe('TrialConfigurationStep existing snapshot state', () => {
       {
         id: 'draft-trial',
         nameOverride: 'Custom Saturday Trial',
-        dateTime: '2026-08-01T08:00:00',
+        trialDate: '2026-08-01',
+        startTimeDraft: '08:00 AM',
         eventNumber: '',
         classes: [],
       },
     ];
 
     renderTrialConfiguration();
-    expect(screen.getByLabelText('Trial Name *')).toHaveValue('Custom Saturday Trial');
+    expect(screen.getByLabelText(/^Trial Name/)).toHaveValue('Custom Saturday Trial');
     await user.click(screen.getByRole('button', { name: 'Use suggested name' }));
 
     expect(wizardState.updateTrial).toHaveBeenCalledWith('draft-trial', {
@@ -280,7 +279,8 @@ describe('TrialConfigurationStep existing snapshot state', () => {
     wizardState.trials = [
       {
         id: 'draft-trial',
-        dateTime: '2026-08-01T08:00:00',
+        trialDate: '2026-08-01',
+        startTimeDraft: '08:00 AM',
         eventNumber: '',
         classes: [],
       },
@@ -291,29 +291,28 @@ describe('TrialConfigurationStep existing snapshot state', () => {
       screen.getByRole('button', { name: 'Change trial-draft-trial-dateTime to next day' })
     );
 
+    // The date control writes the day and nothing else: no time is folded in or defaulted.
     expect(wizardState.updateTrial).toHaveBeenCalledWith('draft-trial', {
-      dateTime: '2026-08-02T10:00:00',
+      trialDate: '2026-08-02',
     });
   });
 
-  it('keeps an auto-generated name when only the time changes', async () => {
-    const user = userEvent.setup();
+  it('keeps an auto-generated name when only the time changes', () => {
     wizardState.trials = [
       {
         id: 'draft-trial',
-        dateTime: '2026-08-01T08:00:00',
+        trialDate: '2026-08-01',
+        startTimeDraft: '08:00 AM',
         eventNumber: '',
         classes: [],
       },
     ];
 
     renderTrialConfiguration();
-    await user.click(
-      screen.getByRole('button', { name: 'Change trial-draft-trial-dateTime to same day' })
-    );
+    fireEvent.change(screen.getByLabelText(/^Start Time/), { target: { value: '10:00 AM' } });
 
     expect(wizardState.updateTrial).toHaveBeenCalledWith('draft-trial', {
-      dateTime: '2026-08-01T10:00:00',
+      startTimeDraft: '10:00 AM',
     });
   });
 });

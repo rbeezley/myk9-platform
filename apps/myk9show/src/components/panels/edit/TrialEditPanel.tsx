@@ -1,10 +1,9 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { z } from 'zod';
 import { EditPanelWrapper, type EditPanelDeleteOption } from './EditPanelWrapper';
 import { savedMessage } from './panelSaveErrors';
 import { useEditPanel } from './useEditPanel';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -15,15 +14,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Calendar as CalendarIcon, Clock, Info, Settings } from 'lucide-react';
-import { format } from 'date-fns';
-import { parseLocalDateString } from '@/utils/dateLocal';
+import { Clock, Info, Settings } from 'lucide-react';
 import type { Trial } from '@/components/trials/types/trial.types';
 import type { ClassStatusValue } from '@myk9/core';
 import { cn } from '@/lib/utils';
 import { FormField } from '@/components/common/FormField';
+import { TimeOfDayInput } from '@/components/common/TimeOfDayInput';
+import { TrialDateField } from '@/components/trials/TrialDateField';
+import { TrialStartTimeField } from '@/components/trials/TrialStartTimeField';
+import { parseLocalDateString } from '@/utils/dateLocal';
+import { format } from 'date-fns';
+import { usePanelValidationNavigation, type FieldLocation } from './usePanelValidationNavigation';
 
 interface TrialEditPanelProps {
   open: boolean;
@@ -127,9 +128,9 @@ type TabId = 'basic' | 'scheduling' | 'advanced';
 
 // Fields that belong to each tab (for touch-on-leave validation)
 const TAB_FIELDS: Record<TabId, (keyof TrialEditFormData)[]> = {
-  basic: ['name', 'trialNumber', 'eventNumber', 'status'],
-  scheduling: ['trialDate', 'order', 'plannedStartTime'],
-  advanced: [],
+  basic: ['name', 'trialNumber', 'eventNumber', 'status', 'trialType'],
+  scheduling: ['trialDate', 'order', 'plannedStartTime', 'timeStarted', 'timeEnded'],
+  advanced: ['type', 'image'],
 };
 
 // Form content component
@@ -152,11 +153,6 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange })
     [form, activeTab, onTabChange]
   );
 
-  // Date picker state
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    form?.data.trialDate ? parseLocalDateString(form.data.trialDate) : undefined
-  );
-
   // Handle input changes
   const handleInputChange = useCallback(
     (field: keyof TrialEditFormData) =>
@@ -174,13 +170,10 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange })
     [form]
   );
 
-  // Handle date changes
+  // The date control writes only the date; the start time is its own field.
   const handleDateChange = useCallback(
-    (date: Date | undefined) => {
-      setSelectedDate(date);
-      if (date) {
-        form?.setValue('trialDate', format(date, 'yyyy-MM-dd'));
-      }
+    (value: Date | undefined) => {
+      form?.setValue('trialDate', value ? format(value, 'yyyy-MM-dd') : '');
     },
     [form]
   );
@@ -367,34 +360,15 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange })
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <FormField label="Trial Date" fieldId="trialDate" required error={trialDateError}>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        id="trialDate"
-                        variant="outline"
-                        className={cn(
-                          'w-full justify-start text-left font-normal',
-                          !selectedDate && 'text-muted-foreground',
-                          trialDateError && 'border-destructive'
-                        )}
-                        {...form.getFieldProps('trialDate')}
-                        onBlur={() => form.touchField('trialDate')}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {selectedDate ? format(selectedDate, 'PPP') : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        mode="single"
-                        selected={selectedDate}
-                        onSelect={handleDateChange}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
-                </FormField>
+                <TrialDateField
+                  id="trialDate"
+                  value={
+                    form.data.trialDate ? parseLocalDateString(form.data.trialDate) : undefined
+                  }
+                  onChange={handleDateChange}
+                  error={trialDateError}
+                  onBlur={() => form.touchField('trialDate')}
+                />
 
                 <FormField label="Display Order" fieldId="order" required error={orderError}>
                   <Input
@@ -411,46 +385,35 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange })
                 </FormField>
               </div>
 
-              <FormField
-                label="Planned Start Time"
-                fieldId="plannedStartTime"
-                required
+              <TrialStartTimeField
+                id="plannedStartTime"
+                value={form.data.plannedStartTime}
+                onChange={value => form.setValue('plannedStartTime', value)}
                 error={plannedStartTimeError}
-              >
-                <Input
-                  id="plannedStartTime"
-                  value={form.data.plannedStartTime}
-                  onChange={handleInputChange('plannedStartTime')}
-                  onBlur={() => form.touchField('plannedStartTime')}
-                  placeholder="e.g., 09:00 AM"
-                  className={cn(plannedStartTimeError && 'border-destructive')}
-                  {...form.getFieldProps('plannedStartTime')}
-                />
-              </FormField>
+                onBlur={() => form.touchField('plannedStartTime')}
+              />
 
               <Separator />
 
               <div className="space-y-4">
                 <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-                  Actual Times (Optional)
+                  Actual Times (optional)
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <FormField label="Actual Start" fieldId="timeStarted">
-                    <Input
+                    <TimeOfDayInput
                       id="timeStarted"
                       value={form.data.timeStarted || ''}
-                      onChange={handleInputChange('timeStarted')}
-                      placeholder="e.g., 09:15 AM"
+                      onChange={value => form.setValue('timeStarted', value)}
                     />
                   </FormField>
 
                   <FormField label="Actual Finish" fieldId="timeEnded">
-                    <Input
+                    <TimeOfDayInput
                       id="timeEnded"
                       value={form.data.timeEnded || ''}
-                      onChange={handleInputChange('timeEnded')}
-                      placeholder="e.g., 12:30 PM"
+                      onChange={value => form.setValue('timeEnded', value)}
                     />
                   </FormField>
                 </div>
@@ -501,28 +464,15 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange })
   );
 };
 
-// Scroll to a field by id after the DOM updates
-function scrollToField(fieldId: string) {
-  requestAnimationFrame(() => {
-    const el = document.getElementById(fieldId);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      if (
-        el instanceof HTMLInputElement ||
-        el instanceof HTMLSelectElement ||
-        el instanceof HTMLTextAreaElement
-      ) {
-        el.focus();
-      }
-      const errorEl = document.getElementById(`${fieldId}-error`);
-      if (errorEl) {
-        errorEl.classList.remove('animate-pulse-error');
-        void errorEl.offsetWidth;
-        errorEl.classList.add('animate-pulse-error');
-      }
+// Field -> tab, for the shared failed-Save routing (MYK9-931, H4).
+const locateTrialField = (field: string): FieldLocation<TabId> | undefined => {
+  for (const tab of Object.keys(TAB_FIELDS) as TabId[]) {
+    if ((TAB_FIELDS[tab] as string[]).includes(field)) {
+      return { tab, elementId: field };
     }
-  });
-}
+  }
+  return undefined;
+};
 
 // Main component
 export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
@@ -534,7 +484,11 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
   enableAutoSave = false,
   onDelete,
 }) => {
-  const [activeTab, setActiveTab] = useState<TabId>('basic');
+  const { activeTab, setActiveTab, handleValidationFail } = usePanelValidationNavigation<TabId>(
+    'basic',
+    locateTrialField,
+    open
+  );
 
   // Convert trial data to form data
   const initialFormData = useMemo(() => trialToFormData(initialTrialData), [initialTrialData]);
@@ -549,17 +503,6 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
     },
     [onSave]
   );
-
-  // When validation fails, switch to the tab containing the first error and scroll to it
-  const handleValidationFail = useCallback((firstErrorField: string) => {
-    for (const [tab, fields] of Object.entries(TAB_FIELDS)) {
-      if ((fields as string[]).includes(firstErrorField)) {
-        setActiveTab(tab as TabId);
-        scrollToField(firstErrorField);
-        break;
-      }
-    }
-  }, []);
 
   return (
     <EditPanelWrapper<TrialEditFormData>

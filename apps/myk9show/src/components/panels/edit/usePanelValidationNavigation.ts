@@ -15,7 +15,13 @@ export interface FieldLocation<TTab extends string> {
  */
 export function usePanelValidationNavigation<TTab extends string>(
   initialTab: TTab,
-  locate: (field: string) => FieldLocation<TTab> | undefined
+  locate: (field: string) => FieldLocation<TTab> | undefined,
+  /**
+   * The panel's open state. Callers keep panels mounted while closed, so the tab
+   * must go back to `initialTab` on every closed -> open edge, not stay where the
+   * last session ended.
+   */
+  open = true
 ) {
   const [activeTab, setActiveTab] = useState<TTab>(initialTab);
 
@@ -24,6 +30,15 @@ export function usePanelValidationNavigation<TTab extends string>(
   // failure so the same field failing twice re-focuses.
   const [pendingFocus, setPendingFocus] = useState<{ elementId: string } | null>(null);
   const handledFocusRef = useRef<typeof pendingFocus>(null);
+
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) {
+      setActiveTab(initialTab);
+      setPendingFocus(null);
+    }
+  }
 
   const handleValidationFail = useCallback(
     (firstErrorField: string) => {

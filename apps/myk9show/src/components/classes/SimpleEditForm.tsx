@@ -1,6 +1,7 @@
 import React from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RequiredMark } from '@/components/common/RequiredMark';
 import {
   Select,
   SelectContent,
@@ -74,7 +75,8 @@ const SimpleEditForm: React.FC<SimpleEditFormProps> = ({
           <div className="grid grid-cols-3 gap-4 mt-4">
             <div className="space-y-3">
               <Label className="flex items-center text-sm font-medium">
-                Judge <span className="text-destructive ml-1">*</span>
+                Judge
+                <RequiredMark />
               </Label>
               <Select
                 value={trialClassData.judgeId}
@@ -109,7 +111,8 @@ const SimpleEditForm: React.FC<SimpleEditFormProps> = ({
             </div>
             <div className="space-y-3">
               <Label className="flex items-center text-sm font-medium">
-                Start Time <span className="text-destructive ml-1">*</span>
+                Start Time
+                <RequiredMark />
               </Label>
               <Input
                 type="datetime-local"
@@ -120,7 +123,8 @@ const SimpleEditForm: React.FC<SimpleEditFormProps> = ({
             </div>
             <div className="space-y-3">
               <Label className="flex items-center text-sm font-medium">
-                Status <span className="text-destructive ml-1">*</span>
+                Status
+                <RequiredMark />
               </Label>
               <Select
                 value={trialClassData.status}

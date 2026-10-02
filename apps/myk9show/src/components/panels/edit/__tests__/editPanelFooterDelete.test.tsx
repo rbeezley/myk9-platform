@@ -163,7 +163,7 @@ describe('create mode', () => {
         onDelete={option('club', 'x')}
       />
     );
-    expect(screen.getByText('Add Club', { selector: 'button' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Next: Contact/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^delete/i })).not.toBeInTheDocument();
   });
 
@@ -178,7 +178,7 @@ describe('create mode', () => {
         onDelete={option('person', 'x')}
       />
     );
-    expect(screen.getByText('Add Person', { selector: 'button' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^Next: Contact/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^delete/i })).not.toBeInTheDocument();
   });
 });

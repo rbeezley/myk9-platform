@@ -1,4 +1,5 @@
 import React from 'react';
+import { RequiredMark } from '@/components/common/RequiredMark';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -45,7 +46,8 @@ export const HostClubField: React.FC<HostClubFieldProps> = ({
   return (
     <div className="space-y-2 md:col-span-2">
       <Label htmlFor="show-host-club">
-        Host Club <span className="text-destructive">*</span>
+        Host Club
+        <RequiredMark />
       </Label>
       <div className="space-y-3">
         <SearchablePopover

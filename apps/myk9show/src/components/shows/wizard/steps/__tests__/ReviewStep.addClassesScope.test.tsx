@@ -41,7 +41,8 @@ vi.mock('@/store/wizardStore', () => ({
     trials: [
       {
         id: 'trial-1',
-        dateTime: '2026-07-01T08:00:00',
+        trialDate: '2026-07-01',
+        startTimeDraft: '08:00 AM',
         eventNumber: '',
         classes: [
           {
@@ -83,7 +84,7 @@ describe('ReviewStep scope', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /^add show$/i }));
     expect(onCreateShow).not.toHaveBeenCalled();
-    expect(screen.getByText(/show name is required/i)).toBeInTheDocument();
+    expect(screen.getByText(/please enter a show name/i)).toBeInTheDocument();
   });
 });
 

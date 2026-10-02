@@ -27,6 +27,11 @@ interface DateRangePickerProps {
   className?: string | undefined;
   disabled?: boolean | undefined;
   showTime?: boolean | undefined;
+  /**
+   * A first click of a new range normally clears the old end date until the second
+   * click. Set this where the end date is required (Edit Show) so it is never blank.
+   */
+  keepEndWhilePicking?: boolean | undefined;
   startDefaultTime?: string | undefined;
   endDefaultTime?: string | undefined;
   minDate?: Date | undefined;
@@ -68,6 +73,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   className,
   disabled = false,
   showTime = true,
+  keepEndWhilePicking = false,
   startDefaultTime = '8:00 AM',
   endDefaultTime = '5:00 PM',
   minDate,
@@ -116,11 +122,11 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
       }
       if (range.to) {
         onEndDateChange(nextRange.to);
-      } else if (range.from && !range.to) {
+      } else if (range.from && !range.to && !keepEndWhilePicking) {
         onEndDateChange(undefined);
       }
     },
-    [onStartDateChange, onEndDateChange, startTime, endTime]
+    [onStartDateChange, onEndDateChange, startTime, endTime, keepEndWhilePicking]
   );
 
   const handleStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {

@@ -40,6 +40,9 @@ vi.mock('@/components/ui/calendar', () => ({
       </button>
       <div data-testid="range-start-class">{classNames?.range_start}</div>
       <div data-testid="range-end-class">{classNames?.range_end}</div>
+      <button type="button" onClick={() => onSelect?.({ from: new Date(2026, 4, 20) })}>
+        First click only
+      </button>
       <button type="button" onClick={() => onSelect?.(undefined)}>
         Empty selection
       </button>
@@ -189,5 +192,37 @@ describe('DateRangePicker', () => {
 
     expect(onStartDateChange).not.toHaveBeenCalledWith(undefined);
     expect(onEndDateChange).not.toHaveBeenCalledWith(undefined);
+  });
+
+  it('by default a first click of a new range clears the old end date', async () => {
+    const user = userEvent.setup();
+    render(
+      <DateRangePicker
+        startDate={new Date(2026, 4, 11)}
+        endDate={new Date(2026, 4, 13)}
+        onStartDateChange={onStartDateChange}
+        onEndDateChange={onEndDateChange}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: /may 11, 2026/i }));
+    await user.click(screen.getByRole('button', { name: /first click only/i }));
+    expect(onEndDateChange).toHaveBeenCalledWith(undefined);
+  });
+
+  it('keepEndWhilePicking: a first click never blanks an existing (required) end date', async () => {
+    const user = userEvent.setup();
+    render(
+      <DateRangePicker
+        startDate={new Date(2026, 4, 11)}
+        endDate={new Date(2026, 4, 13)}
+        keepEndWhilePicking
+        onStartDateChange={onStartDateChange}
+        onEndDateChange={onEndDateChange}
+      />
+    );
+    await user.click(screen.getByRole('button', { name: /may 11, 2026/i }));
+    await user.click(screen.getByRole('button', { name: /first click only/i }));
+    expect(onStartDateChange).toHaveBeenCalled();
+    expect(onEndDateChange).not.toHaveBeenCalled();
   });
 });

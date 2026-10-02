@@ -1,4 +1,5 @@
 import React, { Suspense, useCallback, useMemo } from 'react';
+import { RequiredLegend, RequiredMark } from '@/components/common/RequiredMark';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -68,10 +69,12 @@ export const BasicsSection: React.FC<BasicsSectionProps> = ({
   return (
     <div>
       <SectionHeading>Basics</SectionHeading>
+      <RequiredLegend className="mb-3 text-xs text-muted-foreground" />
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="space-y-2">
           <Label htmlFor="show-name">
-            Show Name <span className="text-destructive">*</span>
+            Show Name
+            <RequiredMark />
           </Label>
           <Input
             id="show-name"
@@ -84,7 +87,8 @@ export const BasicsSection: React.FC<BasicsSectionProps> = ({
 
         <div className="space-y-2">
           <Label htmlFor="show-organization">
-            Organization <span className="text-destructive">*</span>
+            Organization
+            <RequiredMark />
           </Label>
           <Select
             value={organizationValue ?? show.organization ?? ''}
@@ -117,7 +121,8 @@ export const BasicsSection: React.FC<BasicsSectionProps> = ({
 
         <div className="space-y-2">
           <Label htmlFor="show-timezone">
-            Timezone <span className="text-destructive">*</span>
+            Timezone
+            <RequiredMark />
           </Label>
           <Select value={timezoneValue} onValueChange={value => onUpdate({ timezone: value })}>
             <SelectTrigger id="show-timezone" className="bg-input">
@@ -138,7 +143,8 @@ export const BasicsSection: React.FC<BasicsSectionProps> = ({
 
         <div className="space-y-2 md:col-span-2">
           <Label htmlFor="show-location">
-            Location <span className="text-destructive">*</span>
+            Location
+            <RequiredMark />
           </Label>
           <VenueAddressAutocomplete
             id="show-location"

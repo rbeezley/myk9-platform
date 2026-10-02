@@ -9,7 +9,12 @@ const mocks = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock('@/lib/notifications', () => ({
   notifications: { success: mocks.success, error: mocks.error, warning: vi.fn(), info: vi.fn() },
 }));
-vi.mock('@/services/database/users', () => ({ createUser: vi.fn() }));
+vi.mock('@/hooks/useRBAC', () => ({ useRBAC: () => ({ hasPermission: () => false }) }));
+vi.mock('@/services/database/users', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/database/users')>()),
+  createUser: vi.fn(),
+  fetchPersonEmailLockFacts: vi.fn().mockResolvedValue(null),
+}));
 vi.mock('@/services/replication/ReplicatedShowDeskPeopleTable', () => ({
   replicatedShowDeskPeopleTable: {
     createPerson: vi.fn(),
@@ -18,6 +23,10 @@ vi.mock('@/services/replication/ReplicatedShowDeskPeopleTable', () => ({
 }));
 
 const createUserMock = vi.mocked(createUser);
+
+async function toContact(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole('button', { name: /Next: Contact/ }));
+}
 
 async function fillName(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText(/First Name/i), 'Molly');
@@ -71,7 +80,8 @@ describe('CreateExhibitorDialog feedback (entry-flow Add Person)', () => {
     render(<CreateExhibitorDialog open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
 
     await fillName(user);
-    await user.click(screen.getByRole('button', { name: 'Add Person' }));
+    await toContact(user);
+    await user.click(await screen.findByRole('button', { name: 'Add Person' }));
 
     await waitFor(() => expect(mocks.success).toHaveBeenCalledWith('Molly Mailbox added'));
   });
@@ -87,13 +97,15 @@ describe('CreateExhibitorDialog feedback (entry-flow Add Person)', () => {
     render(<CreateExhibitorDialog open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
 
     await fillName(user);
-    await user.click(screen.getByRole('button', { name: 'Add Person' }));
+    await toContact(user);
+    await user.click(await screen.findByRole('button', { name: 'Add Person' }));
 
-    expect(
-      await screen.findByText(/Your changes are still here\. Try again\./)
-    ).toBeInTheDocument();
-    expect(screen.queryByText(/people_email_key/)).not.toBeInTheDocument();
+    await waitFor(() => expect(mocks.error).toHaveBeenCalled());
+    const [title, options] = mocks.error.mock.calls[0] as [string, { description: string }];
+    expect(`${title} ${options.description}`).toMatch(/Your changes are still here\. Try again\./);
+    expect(`${title} ${options.description}`).not.toMatch(/people_email_key/);
     expect(mocks.success).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('tab', { name: /Basic Info/ }));
     expect(screen.getByLabelText(/First Name/i)).toHaveValue('Molly');
   });
 
@@ -111,11 +123,15 @@ describe('CreateExhibitorDialog feedback (entry-flow Add Person)', () => {
     render(<CreateExhibitorDialog open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
 
     await fillName(user);
-    await user.click(screen.getByRole('button', { name: 'Add Person' }));
+    await toContact(user);
+    await user.click(await screen.findByRole('button', { name: 'Add Person' }));
 
-    expect(await screen.findByText(/This record already exists\./)).toBeInTheDocument();
-    expect(screen.queryByText(/Try again/)).not.toBeInTheDocument();
-    expect(screen.queryByText(/people_email_key/)).not.toBeInTheDocument();
+    await waitFor(() => expect(mocks.error).toHaveBeenCalled());
+    const [title, options] = mocks.error.mock.calls[0] as [string, { description: string }];
+    const copy = `${title} ${options.description}`;
+    expect(copy).toMatch(/This record already exists\./);
+    expect(copy).not.toMatch(/Try again/);
+    expect(copy).not.toMatch(/people_email_key/);
   });
 
   it('ignores Escape while the save is in flight, and the details survive a failure', async () => {
@@ -130,7 +146,8 @@ describe('CreateExhibitorDialog feedback (entry-flow Add Person)', () => {
     render(<CreateExhibitorDialog open onOpenChange={onOpenChange} onExhibitorCreated={vi.fn()} />);
 
     await fillName(user);
-    await user.click(screen.getByRole('button', { name: 'Add Person' }));
+    await toContact(user);
+    await user.click(await screen.findByRole('button', { name: 'Add Person' }));
     await screen.findByRole('button', { name: 'Saving...' });
 
     await user.keyboard('{Escape}');
@@ -138,7 +155,8 @@ describe('CreateExhibitorDialog feedback (entry-flow Add Person)', () => {
     expect(screen.queryByText('Discard changes?')).not.toBeInTheDocument();
 
     rejectSave(new Error('network down'));
-    expect(await screen.findByText(/Your changes are still here\./)).toBeInTheDocument();
+    await waitFor(() => expect(mocks.error).toHaveBeenCalled());
+    await user.click(screen.getByRole('tab', { name: /Basic Info/ }));
     expect(screen.getByLabelText(/First Name/i)).toHaveValue('Molly');
     expect(screen.getByLabelText(/Last Name/i)).toHaveValue('Mailbox');
   });
@@ -149,7 +167,8 @@ describe('CreateExhibitorDialog feedback (entry-flow Add Person)', () => {
     render(<CreateExhibitorDialog open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
 
     await fillName(user);
-    await user.click(screen.getByRole('button', { name: 'Add Person' }));
+    await toContact(user);
+    await user.click(await screen.findByRole('button', { name: 'Add Person' }));
 
     expect(await screen.findByRole('button', { name: 'Saving...' })).toBeInTheDocument();
   });

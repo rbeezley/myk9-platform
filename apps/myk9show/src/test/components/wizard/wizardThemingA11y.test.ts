@@ -21,7 +21,8 @@ const showDetailsStep = read(path.join(stepsDir, 'ShowDetailsStep.tsx'));
 // Step 1 was regrouped into per-concern section files under steps/sections/.
 // The date-range validation error (the pinned destructive token) now lives in
 // the Dates & Entry group.
-const datesEntrySection = read(path.join(stepsDir, 'sections/DatesEntrySection.tsx'));
+// The date errors render in the control Create and Edit share (MYK9-931).
+const datesEntrySection = read(path.join(stepsDir, '../../ShowDatesFields.tsx'));
 const trialConfigStep = read(path.join(stepsDir, 'TrialConfigurationStep.tsx'));
 const classSelectionStep = read(path.join(stepsDir, 'ClassSelectionStep.tsx'));
 const judgesPicker = read(path.join(stepsDir, 'JudgesPicker.tsx'));

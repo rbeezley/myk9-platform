@@ -1,7 +1,10 @@
 import React, { useMemo } from 'react';
+import { RequiredMark } from '@/components/common/RequiredMark';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { DateTimePicker } from '@/components/ui/date-time-picker';
+import { TrialDateField } from '@/components/trials/TrialDateField';
+import { TrialStartTimeField } from '@/components/trials/TrialStartTimeField';
+import { trialStartTimeIssues, trialStartTimeMessage } from '@/components/trials/trialDateTime';
 import {
   Select,
   SelectContent,
@@ -19,7 +22,7 @@ import { useTemplates } from '@/hooks/useTemplates';
 import { formatTrialTypeLabel } from '@/types/template.types';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import {
-  getDefaultTrialDateTime,
+  getDefaultTrialDate,
   getTrialCreationCopy,
   parseWizardDateTime,
   parseWizardDay,
@@ -77,7 +80,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
     const newErrors: Record<string, string> = {};
 
     if (submitted && trials.length === 0) {
-      newErrors.trials = 'At least one trial is required';
+      newErrors.trials = 'Please add at least one trial';
     }
 
     // Validate each trial
@@ -86,14 +89,14 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
       const trialName = effectiveTrialNames[index] ?? '';
 
       if (!trialName.trim()) {
-        newErrors[`${prefix}-name`] = 'Trial name is required';
+        newErrors[`${prefix}-name`] = 'Please enter a trial name';
       }
 
-      if (!trial.dateTime) {
-        newErrors[`${prefix}-dateTime`] = 'Trial date and time is required';
+      if (!trial.trialDate) {
+        newErrors[`${prefix}-dateTime`] = 'Please select a trial date';
       } else if (show.startDate && show.endDate) {
         // Check if trial date is within show date range
-        const trialDate = parseWizardDay(trial.dateTime) ?? new Date(trial.dateTime);
+        const trialDate = parseWizardDay(trial.trialDate) ?? new Date(trial.trialDate);
         const showStart = parseWizardDay(show.startDate) ?? new Date();
         const showEnd = parseWizardDay(show.endDate) ?? new Date();
 
@@ -102,13 +105,20 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
         }
       }
 
+      // Shown once the box was touched or Next was tried; Next and Review refuse regardless.
+      const startTimeIssue = trialStartTimeIssues(trial);
+      if (startTimeIssue && (submitted || trial.startTimeDraft !== undefined)) {
+        newErrors[`${prefix}-startTime`] = trialStartTimeMessage(startTimeIssue);
+      }
+
       // Event number required for AKC (needed for XML export); optional for UKC/Other
       if (!trial.trialType) {
-        newErrors[`${prefix}-trialType`] = 'Trial type is required';
+        newErrors[`${prefix}-trialType`] = 'Please select a trial type';
       }
 
       if (submitted && show.organization === 'AKC' && !trial.eventNumber?.trim()) {
-        newErrors[`${prefix}-eventNumber`] = 'Event number is required for AKC events';
+        newErrors[`${prefix}-eventNumber`] =
+          'Please enter an event number (required for AKC events)';
       }
     });
 
@@ -134,25 +144,29 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
   const handleAddTrial = () => {
     if (!canAddTrial) return;
 
-    const defaultDateTime = getDefaultTrialDateTime(
+    const defaultDate = getDefaultTrialDate(
       show.startDate,
       show.endDate,
-      trials.map(trial => trial.dateTime)
+      trials.map(trial => trial.trialDate)
     );
 
     addTrial({
       nameOverride: undefined,
-      dateTime: defaultDateTime,
+      trialDate: defaultDate,
       eventNumber: '',
       classes: [],
     });
   };
 
-  const handleTrialDateTimeChange = (trialId: string, date: Date | undefined) => {
-    if (date) {
-      const nextDateTime = format(date, "yyyy-MM-dd'T'HH:mm:ss");
-      updateTrial(trialId, { dateTime: nextDateTime });
-    }
+  // The date control writes the date and nothing else: no default time is ever folded in.
+  const handleTrialDateChange = (trialId: string, date: Date | undefined) => {
+    if (!date) return;
+    updateTrial(trialId, { trialDate: format(date, 'yyyy-MM-dd') });
+  };
+
+  // The box's raw text is the trial's start time, exactly as typed.
+  const handleTrialStartTimeChange = (trialId: string, text: string) => {
+    updateTrial(trialId, { startTimeDraft: text });
   };
 
   return (
@@ -291,7 +305,8 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                     <div className="grid grid-cols-3 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor={`trial-${trial.id}-name`}>
-                          Trial Name <span className="text-destructive">*</span>
+                          Trial Name
+                          <RequiredMark />
                         </Label>
                         <Input
                           id={`trial-${trial.id}-name`}
@@ -319,7 +334,8 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
 
                       <div className="space-y-2">
                         <Label htmlFor={`trial-${trial.id}-type`}>
-                          Trial Type <span className="text-destructive">*</span>
+                          Trial Type
+                          <RequiredMark />
                         </Label>
                         <Select
                           value={trial.trialType ?? ''}
@@ -349,9 +365,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                           className="flex items-center gap-1.5"
                         >
                           Event Number
-                          {show.organization === 'AKC' && (
-                            <span className="text-destructive">*</span>
-                          )}
+                          {show.organization === 'AKC' && <RequiredMark />}
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -387,16 +401,12 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor={`trial-${trial.id}-dateTime`}>
-                        Trial Date & Time <span className="text-destructive">*</span>
-                      </Label>
-                      <DateTimePicker
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <TrialDateField
                         id={`trial-${trial.id}-dateTime`}
-                        value={parseWizardDateTime(trial.dateTime)}
-                        onChange={date => handleTrialDateTimeChange(trial.id, date)}
-                        placeholder="Pick trial date and time"
-                        className="h-10"
+                        value={parseWizardDateTime(trial.trialDate)}
+                        onChange={date => handleTrialDateChange(trial.id, date)}
+                        error={errors[`trial-${index}-dateTime`]}
                         minDate={startOfDay(parseWizardDay(show.startDate) || new Date())}
                         maxDate={
                           show.endDate
@@ -404,14 +414,13 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                             : undefined
                         }
                         defaultMonth={parseWizardDay(show.startDate)}
-                        showTime={true}
-                        timeFormat="12h"
                       />
-                      {errors[`trial-${index}-dateTime`] && (
-                        <p className="text-sm text-destructive">
-                          {errors[`trial-${index}-dateTime`]}
-                        </p>
-                      )}
+                      <TrialStartTimeField
+                        id={`trial-${trial.id}-startTime`}
+                        value={trial.startTimeDraft ?? ''}
+                        onChange={text => handleTrialStartTimeChange(trial.id, text)}
+                        error={errors[`trial-${index}-startTime`]}
+                      />
                     </div>
                   </div>
                 );

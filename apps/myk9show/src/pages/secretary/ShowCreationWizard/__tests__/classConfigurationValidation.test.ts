@@ -13,7 +13,8 @@ function trial(
   return {
     id,
     trialType,
-    dateTime: '2026-06-01T09:00:00',
+    trialDate: '2026-06-01',
+    startTimeDraft: '09:00 AM',
     eventNumber: 'EVT-1',
     classes: [{ templateId: 'template-1', customizations }],
   };

@@ -22,7 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Building, Camera, ArrowRight } from 'lucide-react';
+import { Building, Camera } from 'lucide-react';
 import ClubPhotoDialog from '@/components/clubs/ClubPhotoDialog';
 import { AccentColorPicker } from '@/components/ui/accent-color-picker';
 import type { Club } from '@/types/club-types';
@@ -34,7 +34,6 @@ import {
   CLUB_TAB_LABEL,
   CLUB_TAB_ORDER,
   locateInvalidField,
-  countInvalidFieldsByTab,
   type ClubTabValue,
 } from './ClubEditPanel/validationTab';
 import { ClubContactCard } from './ClubEditPanel/ClubContactCard';
@@ -69,7 +68,7 @@ const ClubEditForm: React.FC<{
   activeTab: ClubTabValue;
   onTabChange: (tab: ClubTabValue) => void;
 }> = ({ clubId, mode, onClose, activeTab, onTabChange }) => {
-  const { data, form } = useEditPanel<ClubEditFormData>();
+  const { data, form, requestTab } = useEditPanel<ClubEditFormData>();
 
   // Photo dialog state
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
@@ -163,7 +162,9 @@ const ClubEditForm: React.FC<{
     <div className="space-y-6 p-6">
       <Tabs
         value={activeTab}
-        onValueChange={value => onTabChange(value as ClubTabValue)}
+        onValueChange={value =>
+          requestTab ? requestTab(value) : onTabChange(value as ClubTabValue)
+        }
         className="w-full"
       >
         <ClubTabsList mode={mode} data={data} errors={form?.errors ?? {}} />
@@ -381,22 +382,6 @@ const ClubEditPanelSession: React.FC<ClubEditPanelProps> = ({
   // A failed save moves to the tab holding the first invalid field (MYK9-891).
   const { activeTab, setActiveTab, handleValidationFail } =
     usePanelValidationNavigation<ClubTabValue>('basic', locateInvalidField);
-  const nextTab =
-    mode === 'create' ? CLUB_TAB_ORDER[CLUB_TAB_ORDER.indexOf(activeTab) + 1] : undefined;
-
-  // While a later section still has unresolved fields, "Next" is the primary
-  // action and Create Club is demoted (still enabled: clicking it routes to the
-  // missing field). Once nothing later is outstanding, Create Club is primary.
-  const [laterUnresolved, setLaterUnresolved] = useState(false);
-  const handleDataChange = useCallback(
-    (data: ClubEditFormData) => {
-      const counts = countInvalidFieldsByTab(data);
-      const later = CLUB_TAB_ORDER.slice(CLUB_TAB_ORDER.indexOf(activeTab) + 1);
-      setLaterUnresolved(later.some(tab => counts[tab] > 0));
-    },
-    [activeTab]
-  );
-  const nextIsPrimary = nextTab !== undefined && laterUnresolved;
 
   // Convert club data to form data
   const initialFormData = useMemo(() => clubToFormData(initialClubData), [initialClubData]);
@@ -437,22 +422,13 @@ const ClubEditPanelSession: React.FC<ClubEditPanelProps> = ({
         return mode === 'create' ? addedMessage(name, 'Club') : savedMessage(name, 'Club');
       }}
       onValidationFail={handleValidationFail}
-      onDataChange={handleDataChange}
-      saveVariant={nextIsPrimary ? 'outline' : 'default'}
-      footerActions={
-        nextTab ? (
-          <Button
-            type="button"
-            variant={nextIsPrimary ? 'default' : 'secondary'}
-            data-variant={nextIsPrimary ? 'default' : 'secondary'}
-            onClick={() => setActiveTab(nextTab)}
-            className="min-w-0 flex-1 gap-2 sm:flex-none"
-          >
-            Next: {CLUB_TAB_LABEL[nextTab]}
-            <ArrowRight className="h-4 w-4" />
-          </Button>
-        ) : undefined
-      }
+      steps={{
+        mode,
+        tabs: CLUB_TAB_ORDER.map(value => ({ value, label: CLUB_TAB_LABEL[value] })),
+        activeTab,
+        onTabChange: tab => setActiveTab(tab as ClubTabValue),
+        locate: locateInvalidField,
+      }}
     >
       <ClubEditForm
         clubId={clubId}

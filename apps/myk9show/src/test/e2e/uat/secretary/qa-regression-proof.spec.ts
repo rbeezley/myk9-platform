@@ -159,7 +159,7 @@ test.describe('Secretary QA regression proof', () => {
     await expect(scentWorkOption).toHaveCount(1);
     await scentWorkOption.click();
 
-    const trialDateTime = page.getByLabel(/Trial Date & Time/i);
+    const trialDateTime = page.getByLabel(/^Trial Date/i);
     await expect(trialDateTime).toBeVisible();
     await trialDateTime.press('Enter');
     const dialog = page.getByRole('dialog').filter({ has: page.getByRole('grid') });

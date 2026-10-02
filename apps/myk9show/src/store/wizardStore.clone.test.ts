@@ -10,7 +10,7 @@ function snapshot(sourceShowId: string, sourceShowName: string): CloneHydrationS
     trials: [
       {
         nameOverride: 'Cloned trial',
-        dateTime: '',
+        trialDate: '',
         eventNumber: '',
         trialType: 'Nosework',
         classes: [],
@@ -46,7 +46,7 @@ describe('wizard store clone hydration', () => {
   it('leaves the current draft unchanged when source hydration fails', () => {
     const store = useWizardStore.getState();
     store.updateShowData({ name: 'Existing draft' });
-    store.addTrial({ nameOverride: 'Existing trial', dateTime: '', eventNumber: '', classes: [] });
+    store.addTrial({ nameOverride: 'Existing trial', trialDate: '', eventNumber: '', classes: [] });
     const before = useWizardStore.getState();
     const generation = before.beginCloneHydration('source-1', 'Cloned show');
 

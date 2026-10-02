@@ -19,7 +19,7 @@ const cls = (element: string, level: string) => ({
 });
 
 const trial = (classes: ReturnType<typeof cls>[]): WizardTrial =>
-  ({ id: 'trial-1', dateTime: '', eventNumber: '', trialType: 'scent_work', classes }) as never;
+  ({ id: 'trial-1', trialDate: '', eventNumber: '', trialType: 'scent_work', classes }) as never;
 
 const stored = [{ trialId: 'trial-1', element: 'Container', level: 'Novice', section: 'A' }];
 

@@ -119,6 +119,9 @@ async function submitCreateClub(page: Page, expectedName: string) {
     { timeout: 15000 }
   );
 
+  // MYK9-931: Add Club only shows on the last tab; Next walks there.
+  const next = page.getByRole('button', { name: /^Next:/ });
+  while (await next.isVisible()) await next.click();
   await page.getByRole('button', { name: 'Add Club', exact: true }).click();
   await page.waitForURL(/\/clubs\/[0-9a-f-]{36}$/, { timeout: 15000 });
 
@@ -254,11 +257,14 @@ test.describe('Clubs UI — Create', () => {
     await expect(page.getByRole('heading', { name: CLUB_B_NAME })).not.toBeVisible();
   });
 
-  test('form validation — empty submit keeps Create button disabled', async ({ page }) => {
+  test('form validation — Next is blocked until the club has a name', async ({ page }) => {
     await gotoClubsBrowse(page);
     await openCreateClubDialog(page);
-    // Required: Club Name. Without it, Add Club is disabled.
-    await expect(page.getByRole('button', { name: 'Add Club', exact: true })).toBeDisabled();
+    // Required: Club Name. Without it, Next stays on Basic Info and says why;
+    // Add Club only exists on the last tab (MYK9-931).
+    await expect(page.getByRole('button', { name: 'Add Club', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: /^Next: Contact/ }).click();
+    await expect(page.getByTestId('edit-panel-step-blocked')).toBeVisible();
     await page.getByRole('button', { name: 'Cancel' }).click();
   });
 });

@@ -5,7 +5,7 @@
  * using the EditPanel context for data and update callbacks.
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo } from 'react';
 import { useEditPanel } from './useEditPanel';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -27,26 +27,27 @@ import { ShowEditFeesTab } from './ShowEditFeesTab';
 import { ShowEditPremiumTab } from './ShowEditPremiumTab';
 import { ShowEditAddJudgeDialog } from './ShowEditAddJudge';
 import { useShowEditJudgeCreate } from './useShowEditJudgeCreate';
-import { DEFAULT_SHOW_EDIT_TAB, type ShowEditTab } from '@/components/shows/showEditRoutes';
+import type { ShowEditTab } from '@/components/shows/showEditRoutes';
 
 interface ShowEditFormProps {
   /**
-   * Tab to open on. Deep links land here (F4/F12): a class surface with no judges to
-   * offer points at this panel's Judges tab, which is the one place that owns the show's
-   * judge roster.
+   * The tab showing. The panel owns it (deep links seed it, F4/F12: a class surface
+   * with no judges to offer points at the Judges tab, the one place that owns the
+   * show's judge roster) so a failed Save can move it (MYK9-931).
    */
-  initialTab?: ShowEditTab;
+  activeTab: ShowEditTab;
+  onTabChange: (tab: ShowEditTab) => void;
   /** The show's status when the panel opened; gates the Basic Info tab's
    * "Published" option (MYK9-579). */
   initialStatus?: string | undefined;
 }
 
 export const ShowEditForm: React.FC<ShowEditFormProps> = ({
-  initialTab = DEFAULT_SHOW_EDIT_TAB,
+  activeTab,
+  onTabChange,
   initialStatus,
 }) => {
   const { data, form } = useEditPanel<ShowEditFormData>();
-  const [activeTab, setActiveTab] = useState<string>(initialTab);
 
   // Store data
   const { templates } = useTemplateStore();
@@ -169,7 +170,11 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
 
   return (
     <div className="space-y-6 p-6">
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={value => onTabChange(value as ShowEditTab)}
+        className="w-full"
+      >
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-5 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
           <TabsTrigger value="basic" className="gap-2 rounded-lg transition-all duration-300">
             <Calendar className="h-4 w-4" />

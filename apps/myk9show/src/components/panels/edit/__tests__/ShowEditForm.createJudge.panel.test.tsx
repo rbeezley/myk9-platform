@@ -57,7 +57,7 @@ function renderPanel(onClose: () => void, onSave: () => void) {
           schema={schema}
           onSave={onSave}
         >
-          <ShowEditForm initialTab="judges" />
+          <ShowEditForm activeTab="judges" onTabChange={() => {}} />
         </EditPanelWrapper>
       </MemoryRouter>
     </QueryClientProvider>

@@ -67,6 +67,11 @@ interface BasicInfoTabProps {
   hasAdminPermission: boolean;
   canEditAdvancedFields: boolean;
   onOpenPhotoModal: () => void;
+  /**
+   * Create mode shows only what the create paths persist (name, email, phone,
+   * address). Photo, junior handler and bio are edited after the person exists.
+   */
+  isCreate?: boolean;
 }
 
 export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
@@ -74,6 +79,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   hasAdminPermission,
   canEditAdvancedFields,
   onOpenPhotoModal,
+  isCreate = false,
 }) => {
   const { data, form } = useEditPanel<UserFormData>();
   // `admin:manage` is held by site_admin only, which is who the database lets
@@ -88,34 +94,36 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* Profile Picture */}
-      <Card className="border-0 shadow-none bg-transparent">
-        <CardContent className="p-0">
-          <div className="flex items-center gap-4">
-            <Avatar className="h-16 w-16">
-              {data.profileImage ? (
-                <AvatarImage src={data.profileImage} alt={`${data.firstName} ${data.lastName}`} />
-              ) : null}
-              <AvatarFallback className="text-lg bg-muted">
-                {data.firstName && data.lastName ? (
-                  `${data.firstName[0]}${data.lastName[0]}`.toUpperCase()
-                ) : (
-                  <User className="h-6 w-6" />
-                )}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
-                Profile Picture
-              </p>
-              <Button variant="outline" size="sm" onClick={onOpenPhotoModal} className="gap-2">
-                <Camera className="h-3.5 w-3.5" />
-                Change Photo
-              </Button>
+      {/* Profile Picture: edited after creation, no create path stores it. */}
+      {!isCreate && (
+        <Card className="border-0 shadow-none bg-transparent">
+          <CardContent className="p-0">
+            <div className="flex items-center gap-4">
+              <Avatar className="h-16 w-16">
+                {data.profileImage ? (
+                  <AvatarImage src={data.profileImage} alt={`${data.firstName} ${data.lastName}`} />
+                ) : null}
+                <AvatarFallback className="text-lg bg-muted">
+                  {data.firstName && data.lastName ? (
+                    `${data.firstName[0]}${data.lastName[0]}`.toUpperCase()
+                  ) : (
+                    <User className="h-6 w-6" />
+                  )}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
+                  Profile Picture
+                </p>
+                <Button variant="outline" size="sm" onClick={onOpenPhotoModal} className="gap-2">
+                  <Camera className="h-3.5 w-3.5" />
+                  Change Photo
+                </Button>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Name Fields */}
       <div className="grid grid-cols-2 gap-4">
@@ -147,7 +155,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           IS their sign-in address, MYK9-136), and for anyone but a site admin
           once the person has entries or roles (MYK9-710): the database refuses
           those edits, so the editor does not offer them. */}
-      <FormField label="Email Address" fieldId="email" required error={emailError}>
+      <FormField label="Email Address" fieldId="email" optional error={emailError}>
         {emailLock.locked !== false ? (
           <>
             <Input
@@ -171,32 +179,36 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         )}
       </FormField>
 
-      {/* MYK9-570. Junior handler status is derived from the date of birth and the
+      {!isCreate && (
+        <>
+          {/* MYK9-570. Junior handler status is derived from the date of birth and the
           trial date, so this block sets the inputs, never a flag. MYK9-664: and
           it only SETS them — a manager never sees the stored date of birth. */}
-      <Separator />
-      <div className="space-y-4">
-        <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
-          Junior handler
-        </h4>
-        <JuniorHandlerFields
-          idPrefix="user-edit"
-          writeOnly
-          dateOfBirth={data.dateOfBirth ?? ''}
-          juniorHandlerNumbers={data.juniorHandlerNumbers ?? {}}
-          dateOfBirthError={dateOfBirthError}
-          onDateOfBirthChange={value => form?.setValue('dateOfBirth', value)}
-          // Updater, not a spread of the render closure: two registries changed
-          // in one tick (autofill, a paste into both) would otherwise lose the
-          // first.
-          onJuniorHandlerNumberChange={(registryId: RegistryId, value) =>
-            form?.setValue('juniorHandlerNumbers', (previous: unknown) => ({
-              ...((previous as Record<string, string>) ?? {}),
-              [registryId]: value,
-            }))
-          }
-        />
-      </div>
+          <Separator />
+          <div className="space-y-4">
+            <h4 className="text-sm font-medium text-muted-foreground uppercase tracking-wide">
+              Junior handler
+            </h4>
+            <JuniorHandlerFields
+              idPrefix="user-edit"
+              writeOnly
+              dateOfBirth={data.dateOfBirth ?? ''}
+              juniorHandlerNumbers={data.juniorHandlerNumbers ?? {}}
+              dateOfBirthError={dateOfBirthError}
+              onDateOfBirthChange={value => form?.setValue('dateOfBirth', value)}
+              // Updater, not a spread of the render closure: two registries changed
+              // in one tick (autofill, a paste into both) would otherwise lose the
+              // first.
+              onJuniorHandlerNumberChange={(registryId: RegistryId, value) =>
+                form?.setValue('juniorHandlerNumbers', (previous: unknown) => ({
+                  ...((previous as Record<string, string>) ?? {}),
+                  [registryId]: value,
+                }))
+              }
+            />
+          </div>
+        </>
+      )}
 
       <p className="text-sm text-muted-foreground">
         Role assignments are managed from the{' '}
@@ -206,7 +218,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         page so club and show scopes remain visible.
       </p>
 
-      {canEditAdvancedFields && (
+      {canEditAdvancedFields && !isCreate && (
         <>
           <Separator />
           <div className="space-y-4">

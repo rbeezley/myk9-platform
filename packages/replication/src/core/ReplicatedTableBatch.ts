@@ -274,9 +274,12 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
    * also reads the mutation queue (see `deleteRowsIfClean`). Rows with work are
    * returned in `kept` and left untouched.
    */
-  async deleteRowsIfClean(ids: Iterable<string>): Promise<DeleteRowsIfCleanResult> {
+  async deleteRowsIfClean(
+    ids: Iterable<string>,
+    remoteVersions?: ReadonlyMap<string, number>
+  ): Promise<DeleteRowsIfCleanResult> {
     const db = await this.getDb();
-    const result = await deleteRowsIfClean(db, this.tableName, ids);
+    const result = await deleteRowsIfClean(db, this.tableName, ids, remoteVersions);
     if (result.deleted.length > 0) {
       this.logger.log(`[${this.tableName}] Deleted ${result.deleted.length} clean rows`);
       this.notifyListeners();

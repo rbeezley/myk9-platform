@@ -44,22 +44,21 @@ export function useClassEditActions({ showId, updateClass }: UseClassEditActions
       throw new Error(`Can't save this class: ${connectionHint.toLowerCase()}.`);
     }
     try {
-      // Save the judge assignment FIRST (with replication sync) before updateClass,
-      // so React Query's onSuccess refetch reads fresh judge data from replication cache
+      // Required preparation/enqueue must succeed before the independent class write.
       const judgeId = (data as Record<string, unknown>).judgeId as string | undefined;
       const judgeChanged =
         judgeId !== undefined && judgeId !== '' && judgeId !== (originalJudgeId ?? undefined);
       if (judgeChanged && showId) {
+        await upsertClassJudgeAssignment(showId, classId, judgeId);
         try {
-          await upsertClassJudgeAssignment(showId, classId, judgeId);
           // Refresh replication cache so updateClass's onSuccess invalidation refetches fresh judge data
           await replicatedClassesTable.sync('');
         } catch (judgeError) {
-          logger.warn('Failed to save judge assignment', 'classes', {
+          logger.warn('Failed to refresh class cache after judge preparation', 'classes', {
             classId,
             error: judgeError instanceof Error ? judgeError.message : String(judgeError),
           });
-          // Continue to class update even if judge assignment fails
+          // Preparation succeeded; cache refresh is best-effort, like the later refresh.
         }
       }
 

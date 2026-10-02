@@ -44,6 +44,13 @@ export interface SyncReplicatedTableAdapter<TRemote, TLocal extends { id: string
    */
   getRemoteRowCount?: (context: RemoteRowCountContext) => Promise<number | undefined>;
   /**
+   * Which fetched rows belong to the population counted by getRemoteRowCount.
+   * Defaults to all rows. Adapters fetching tombstones alongside live rows but
+   * counting only live rows must exclude tombstones here, or a capped fetch
+   * could appear complete and authorize deletion of unfetched live rows.
+   */
+  countsTowardRemoteCoverage?: (remote: TRemote) => boolean;
+  /**
    * Ids of this scope's server rows the device deleted and has a DELETE queued
    * for. Read after the row count and added back to the local side of the
    * coverage check, so a pending delete never reads as a missing row (MYK9-762).
@@ -271,6 +278,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     });
 
     const serverIds = new Set<string>();
+    const coveredServerIds = getCoveredRemoteIds(remoteRows, adapter);
     // Collect clean rows for a single bulk IDB transaction (batchSet perf path).
     const cleanRowsToCache: TLocal[] = [];
     const serverVersionMap = new Map<string, number>();
@@ -390,7 +398,7 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       // cleaning up after it would delete the newest (MYK9-775 review P2). No
       // server count, no cleanup.
       expectedRemoteRows !== undefined &&
-      serverIds.size >= expectedRemoteRows &&
+      coveredServerIds.size >= expectedRemoteRows &&
       (await scopeEmptyIsProven())
     ) {
       const keep = await staleCleanupKeepIds(table, serverIds, await getLocalRowsForScope());
@@ -493,4 +501,16 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
 /** Rows the server already holds: everything but pending local creates. */
 export function countServerBackedRows(rows: readonly object[]): number {
   return rows.filter(row => (row as { _localOnly?: unknown })._localOnly !== true).length;
+}
+
+/** Count the same remote population as the adapter's server count, once per ID. */
+function getCoveredRemoteIds<TRemote, TLocal extends { id: string }>(
+  rows: readonly TRemote[],
+  adapter: SyncReplicatedTableAdapter<TRemote, TLocal>
+): Set<string> {
+  return new Set(
+    rows
+      .filter(row => adapter.countsTowardRemoteCoverage?.(row) !== false)
+      .map(row => String(adapter.getRemoteId(row)))
+  );
 }

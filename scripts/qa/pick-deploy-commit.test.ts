@@ -43,19 +43,18 @@ function makeRepo(mainCommits: number): Fixture {
   dirs.push(repo);
   git(repo, 'init', '-q', '-b', 'main');
   const shas: string[] = [];
-  const commit = (subject: string): string => {
-    git(repo, 'commit', '-q', '--allow-empty', '-m', subject);
-    return git(repo, 'rev-parse', 'HEAD');
-  };
+  // Plumbing preserves the real merge graph without invoking hooks/index work
+  // for sixty empty commits in each boundary fixture (MYK9-937).
+  const tree = git(repo, 'write-tree');
+  const commit = (subject: string, parents: string[] = []): string =>
+    git(repo, 'commit-tree', tree, '-m', subject, ...parents.flatMap(p => ['-p', p]));
   shas.push(commit('c0'));
-  git(repo, 'checkout', '-q', '-b', 'feature');
-  const sideSha = commit('side work');
-  git(repo, 'checkout', '-q', 'main');
-  shas.push(commit('c1'));
-  git(repo, 'merge', '-q', '--no-ff', '-m', 'merge feature', 'feature');
-  shas.push(git(repo, 'rev-parse', 'HEAD'));
-  for (let i = shas.length; i < mainCommits; i += 1) shas.push(commit(`c${i}`));
-  git(repo, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+  const sideSha = commit('side work', [shas[0]!]);
+  shas.push(commit('c1', [shas[0]!]));
+  shas.push(commit('merge feature', [shas[1]!, sideSha]));
+  for (let i = shas.length; i < mainCommits; i += 1) shas.push(commit(`c${i}`, [shas.at(-1)!]));
+  git(repo, 'update-ref', 'refs/heads/main', shas.at(-1)!);
+  git(repo, 'update-ref', 'refs/remotes/origin/main', shas.at(-1)!);
   return { repo, shas, sideSha };
 }
 

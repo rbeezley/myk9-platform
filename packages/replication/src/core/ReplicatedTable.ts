@@ -1103,8 +1103,11 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    * pending or failed mutation); the check and delete share one IndexedDB
    * transaction, so another tab cannot dirty a row in between (MYK9-922).
    */
-  async deleteRowsIfClean(ids: Iterable<string>): Promise<{ deleted: string[]; kept: string[] }> {
-    return this.batchManager.deleteRowsIfClean(ids);
+  async deleteRowsIfClean(
+    ids: Iterable<string>,
+    remoteVersions?: ReadonlyMap<string, number>
+  ): Promise<{ deleted: string[]; kept: string[] }> {
+    return this.batchManager.deleteRowsIfClean(ids, remoteVersions);
   }
 
   async clearCache(): Promise<void> {

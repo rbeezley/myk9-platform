@@ -298,6 +298,7 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
     setGrant({
       showId: pending.showId,
       role: pending.role,
+      ...(user?.id ? { authUserId: user.id } : {}),
       passcode: pending.passcode,
       source: 'passcode',
     });

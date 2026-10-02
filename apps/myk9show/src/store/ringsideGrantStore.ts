@@ -29,6 +29,8 @@ import { persistRingsideClaim } from '@/features/at-show/ringsideClaimCache';
 export interface RingsideGrant {
   /** The show this grant is scoped to. A grant for show X never applies to Y. */
   showId: string;
+  /** Session identity confirmed with the passcode claim. */
+  authUserId?: string;
   /** The ringside role the grant confers (from `validate-passcode`). */
   role: RingsideRole;
   /** Original normalized passcode, kept in memory only for ringside presence RPCs. */
@@ -98,8 +100,12 @@ export const useRingsideGrantStore = create<RingsideGrantState>()(set => ({
     // passes through (MYK9-834): persisting only from the rehydrate hook's own
     // effect missed the normal case, where `setGrant` is called directly and
     // the store already holding a grant short-circuits that effect entirely.
-    if (grant.source === 'passcode') {
-      persistRingsideClaim({ showId: grant.showId, role: grant.role });
+    if (grant.source === 'passcode' && !grant.unconfirmedOffline) {
+      persistRingsideClaim({
+        showId: grant.showId,
+        role: grant.role,
+        ...(grant.authUserId ? { authUserId: grant.authUserId } : {}),
+      });
     }
     set({ activeGrant: grant });
   },

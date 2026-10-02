@@ -57,6 +57,8 @@ export interface ReplicatedTrial {
   trial_date?: string | undefined;
   trial_number?: string | undefined;
 
+  deletedAt?: string | undefined;
+
   // Sync metadata
   _version?: number | undefined;
   _lastModified?: Date | undefined;
@@ -89,6 +91,7 @@ export function rowToTrial(row: TrialRow): ReplicatedTrial {
     imageUrl: row.image_url ?? undefined,
     timezone: row.timezone ?? undefined,
     registryId: row.registry_id ?? undefined,
+    deletedAt: row.deleted_at ?? undefined,
 
     // Map additional fields (from any as they might be missing in older types)
     trial_date: row.date,
@@ -198,15 +201,20 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
     // Rows with a queued DELETE, read after each fetch so a full fetch cannot
     // bring back a trial this device deleted before the DELETE uploads.
     let queuedDeleteIds = new Set<string>();
+    const skippedTombstoneIds = new Set<string>();
 
     const adapter: SyncReplicatedTableAdapter<TrialRow, ReplicatedTrial> = {
       ...this.getRowRefetchAdapter(),
       // A trial deleted here but not yet uploaded is still on the server; it
       // must not read as a missing row (MYK9-762).
       getPendingDeleteIds: ({ scope }) => this.pendingDeletes.coveredIds(scope.value),
+      countsTowardRemoteCoverage: remote => !remote.deleted_at,
       getRemoteRowCount: async ({ scope }) => {
         try {
-          let query = supabase.from('trials').select('id', { count: 'exact', head: true });
+          let query = supabase
+            .from('trials')
+            .select('id', { count: 'exact', head: true })
+            .is('deleted_at', null);
 
           if (scope.value) {
             query = query.eq('show_id', scope.value);
@@ -249,17 +257,37 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
           throw new Error(`Supabase query failed: ${error.message}`);
         }
 
+        // Tombstones are positive server evidence, including when the last active
+        // trial was deleted. The atomic engine helper protects dirty rows AND
+        // concurrent queued writes; never use an unconditional local delete.
+        const rows = data ?? [];
+        const tombstones = rows.filter(row => row.deleted_at);
+        await this.deleteRowsIfClean(
+          tombstones.map(row => String(row.id)),
+          new Map(
+            tombstones
+              .filter(row => typeof row.version === 'number')
+              .map(row => [String(row.id), row.version])
+          )
+        );
+        for (const row of tombstones) {
+          // Only dirty retained rows enter OCC reconciliation. Clean rows kept
+          // by the atomic version/queue guard must not be overwritten below.
+          if (!(await this.getReplicatedRow(String(row.id)))?.isDirty) {
+            skippedTombstoneIds.add(String(row.id));
+          }
+        }
         queuedDeleteIds = await this.pendingDeletes.allIds();
-        return data ?? [];
+        return rows;
       },
-      shouldSkipRemoteRow: remote => queuedDeleteIds.has(String(remote.id)),
+      shouldSkipRemoteRow: (remote, { local }) =>
+        queuedDeleteIds.has(String(remote.id)) ||
+        Boolean(remote.deleted_at && (!local || skippedTombstoneIds.has(String(remote.id)))),
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       filterLocalRows: (rows, scope) =>
-        scope.value ? rows.filter(r => r.showId === scope.value) : rows,
+        rows.filter(r => !r.deletedAt && (!scope.value || r.showId === scope.value)),
       resolveConflict: (_local, remote) => remote,
-      // Trials are hard-deleted, and an incremental fetch never sees a
-      // deletion, so a trial deleted on the server stayed on this device and
-      // its count could only drift UP — toward a false "ready" (MYK9-762). The
+      // Retain cleanup for legacy hard deletes (MYK9-762). The
       // fetch is filtered by show exactly as filterLocalRows is, so a full
       // fetch returns every trial of the scope; the engine keeps other shows'
       // trials and skips the cleanup after a fetch short of the server count.
@@ -292,16 +320,17 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
    * Get trials by show ID, through the show index (MYK9-792)
    */
   async getTrialsByShow(showId: string): Promise<ReplicatedTrial[]> {
-    return (await this.getByShowOrThrow(showId)).sort(
-      (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
-    );
+    return (await this.getByShowOrThrow(showId))
+      .filter(trial => !trial.deletedAt)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
   }
 
   /**
    * Get trial by ID
    */
   async getTrialById(trialId: string): Promise<ReplicatedTrial | null> {
-    return this.get(trialId);
+    const trial = await this.get(trialId);
+    return trial?.deletedAt ? null : trial;
   }
 
   /**
@@ -309,7 +338,7 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
    */
   async getTrialsByDate(date: string): Promise<ReplicatedTrial[]> {
     const allTrials = await this.getAllOrThrow();
-    return allTrials.filter(trial => trial.date === date);
+    return allTrials.filter(trial => !trial.deletedAt && trial.date === date);
   }
 
   /**

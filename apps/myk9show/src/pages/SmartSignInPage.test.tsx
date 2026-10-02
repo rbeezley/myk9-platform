@@ -438,6 +438,7 @@ describe('SmartSignInPage', () => {
     await user.click(screen.getByRole('button', { name: 'Join show' }));
 
     expect(setGrantSpy).toHaveBeenCalledWith({
+      authUserId: 'user-1',
       showId: 'show-x',
       role: 'judge',
       passcode: 'j9f3b',
@@ -466,6 +467,7 @@ describe('SmartSignInPage', () => {
     await user.click(screen.getByRole('button', { name: 'Join show' }));
 
     expect(setGrantSpy).toHaveBeenCalledWith({
+      authUserId: 'user-1',
       showId: 'show-qr',
       role: 'steward',
       passcode: 's7qr9',
@@ -496,6 +498,7 @@ describe('SmartSignInPage', () => {
     await user.click(screen.getByRole('button', { name: 'Join show' }));
 
     expect(setGrantSpy).toHaveBeenCalledWith({
+      authUserId: 'user-1',
       showId: 'show-x',
       role: 'judge',
       passcode: 'j9f3b',

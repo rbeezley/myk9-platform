@@ -216,7 +216,7 @@ export const mapReplicatedTrialToDbRow = (
       timezone: 'timezone',
       registry_id: 'registryId',
     }),
-    deleted_at: null,
+    deleted_at: trial.deletedAt ?? null,
   };
 
   // Attach show sub-object when provided

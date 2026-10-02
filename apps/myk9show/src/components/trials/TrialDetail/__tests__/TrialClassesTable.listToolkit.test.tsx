@@ -121,7 +121,12 @@ describe('TrialClassesTable list toolkit', () => {
     const { user } = renderTable({
       classes: [
         { ...make('c1', 'Containers'), level: 'Novice', section: 'A' },
-        { ...make('c2', 'Interior'), level: 'Novice', section: 'B' },
+        {
+          ...make('c2', 'Interior'),
+          level: 'Novice',
+          section: 'B',
+          startTime: '2026-06-15T13:30:00',
+        },
       ],
     });
     await user.type(screen.getByPlaceholderText('Search classes...'), 'Novice A');

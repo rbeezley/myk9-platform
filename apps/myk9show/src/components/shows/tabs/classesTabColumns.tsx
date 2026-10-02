@@ -51,9 +51,12 @@ export function buildClassesTabColumns({
     {
       accessorKey: 'element',
       header: 'Element',
-      // The "My entry" badge is shown beside the element.
+      // The "My entry" badge is shown beside the element, so it is part of what the column shows.
       meta: {
-        searchValue: (row: unknown) => ((row as ClassTableRow).userHasEntry ? 'My entry' : ''),
+        searchValue: (row: unknown) => {
+          const cls = row as ClassTableRow;
+          return cls.userHasEntry ? `${cls.element} My entry` : cls.element;
+        },
       },
       cell: ({ row }) => (
         <div className="flex min-w-0 flex-wrap items-center gap-2">

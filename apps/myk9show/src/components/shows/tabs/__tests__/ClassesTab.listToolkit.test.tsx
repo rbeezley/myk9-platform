@@ -235,6 +235,12 @@ describe('ClassesTab list toolkit', () => {
       ['status label (not started)', 'Not started', 'Containers'],
       ['time', '1:30 PM', 'Interior'],
       ['entry count', '11', 'Interior'],
+      // Word order and column boundaries do not matter: every word must be found somewhere.
+      ['element and level+section', 'Containers Novice A', 'Containers'],
+      ['reordered', 'novice a containers', 'Containers'],
+      ['element and section letter', 'Containers A', 'Containers'],
+      ['status and element', 'Completed Interior', 'Interior'],
+      ['a name-only token', 'c2', 'Interior'],
     ];
 
     describe.each([

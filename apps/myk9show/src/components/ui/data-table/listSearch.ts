@@ -42,23 +42,56 @@ export function searchableValues<TData>(
         : typeof def.accessorKey === 'string'
           ? readPath(row, def.accessorKey)
           : undefined;
-    const raw = asSearchable(accessed);
-    if (raw !== null) values.push(String(raw));
     const meta = column.meta as DataTableColumnMeta | undefined;
+    // What the column SHOWS wins over its stored value ("Not started" over "Scheduled", "MAY 10"
+    // over "2026-05-10"): she searches what she reads, and a stored ISO date would otherwise make
+    // every digit match every row.
     const shown = asSearchable(meta?.searchValue?.(row));
-    if (shown !== null) values.push(String(shown));
+    const raw = shown !== null && shown !== '' ? shown : asSearchable(accessed);
+    if (raw !== null) values.push(String(raw));
   });
   return values;
 }
 
+/** Name-like fields a row carries even when no column shows them (a class's own name, its trial). */
+const NAME_FIELDS = ['name', 'label', 'trialName', 'trialLabel'] as const;
+
+/** ONE lowercase haystack for the row: every column value, every displayed text, every name. */
+export function searchHaystack<TData>(
+  row: TData,
+  columns: ReadonlyArray<ColumnDef<TData, unknown>>
+): string {
+  const names = NAME_FIELDS.map(field => asSearchable(readPath(row, field)))
+    .filter((value): value is Searchable => value !== null)
+    .map(String);
+  return [...searchableValues(row, columns), ...names].join(' ').toLowerCase();
+}
+
+/** True when `token` appears in `haystack` starting at a word boundary ("a" finds "Novice A", not "Containers"). */
+function startsAWord(haystack: string, token: string): boolean {
+  let from = 0;
+  for (;;) {
+    const at = haystack.indexOf(token, from);
+    if (at === -1) return false;
+    if (at === 0 || !/[a-z0-9]/.test(haystack.charAt(at - 1))) return true;
+    from = at + 1;
+  }
+}
+
+/**
+ * A row matches when EVERY whitespace-separated word of the query starts a word somewhere in its
+ * haystack, so word order and column boundaries do not matter ("Containers Novice A" finds the
+ * row whose element is Containers and whose level shows "Novice A").
+ */
 export function matchesListSearch<TData>(
   row: TData,
   columns: ReadonlyArray<ColumnDef<TData, unknown>>,
   query: string
 ): boolean {
-  const needle = query.trim().toLowerCase();
-  if (needle === '') return true;
-  return searchableValues(row, columns).some(value => value.toLowerCase().includes(needle));
+  const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return true;
+  const haystack = searchHaystack(row, columns);
+  return tokens.every(token => startsAWord(haystack, token));
 }
 
 export function filterByListSearch<TData>(

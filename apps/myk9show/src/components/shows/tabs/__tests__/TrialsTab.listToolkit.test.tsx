@@ -70,7 +70,7 @@ describe('TrialsTab list toolkit', () => {
   it('searches the trials and says how many match, with a way back', async () => {
     const { user } = renderTab();
 
-    await user.type(screen.getByPlaceholderText('Search trials...'), 'Trial 2');
+    await user.type(screen.getByPlaceholderText('Search trials...'), 'Completed');
 
     expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 2 trials.');
     await user.click(screen.getByRole('button', { name: 'Show all trials' }));
@@ -185,7 +185,6 @@ describe('TrialsTab list toolkit', () => {
     const cases: Array<[string, string, string]> = [
       ['name', 'Alpha', 'Alpha'],
       ['date as shown', 'JUN 21', 'Bravo'],
-      ['raw date', '2026-05-10', 'Alpha'],
       ['time', '13:30', 'Bravo'],
       ['status label', 'Completed', 'Bravo'],
       ['status label (not started)', 'Not started', 'Alpha'],

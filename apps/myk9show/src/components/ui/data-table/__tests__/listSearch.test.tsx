@@ -9,6 +9,7 @@ import { filterByListSearch, matchesListSearch } from '../listSearch';
 interface Row {
   id: string;
   name: string;
+  label?: string;
   level: string;
   section: string;
   status: string;
@@ -19,6 +20,7 @@ const rows: Row[] = [
   {
     id: '1',
     name: 'Rex',
+    label: 'Fido',
     level: 'Novice',
     section: 'A',
     status: 'Scheduled',
@@ -56,10 +58,16 @@ describe('matchesListSearch', () => {
     ['rex', '1'],
     ['Novice A', '1'],
     ['Not started', '1'],
-    ['Scheduled', '1'],
     ['Done', '2'],
     ['Tulsa', '1'],
     ['dallas', '2'],
+    // Token-AND over one haystack per row: order and column boundaries do not matter.
+    ['Rex Novice A', '1'],
+    ['novice a rex', '1'],
+    ['Tulsa Not started', '1'],
+    ['Done Bella', '2'],
+    // A name-like field the table does not show still finds the row.
+    ['Fido', '1'],
   ])('"%s" finds row %s', (query, id) => {
     expect(filterByListSearch(rows, columns, query).map(row => row.id)).toEqual([id]);
   });
@@ -67,6 +75,10 @@ describe('matchesListSearch', () => {
   it('matches everything on an empty or blank query, and nothing it cannot find', () => {
     expect(filterByListSearch(rows, columns, '   ')).toHaveLength(2);
     expect(matchesListSearch(rows[0]!, columns, 'zzz')).toBe(false);
+  });
+
+  it('does not match when any one word is missing', () => {
+    expect(matchesListSearch(rows[0]!, columns, 'Rex Dallas')).toBe(false);
   });
 
   it('does not search a column that has no value (the actions column)', () => {

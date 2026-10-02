@@ -2,7 +2,6 @@ import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { queryKeys } from '@/lib/queryClient';
 import type { ClassWithCapacity } from '@/services/database/day-of-operations';
 import type { ShowMapClassInput } from '../showMapTypes';
 import { useMoveUpTargets } from '../useMoveUpTargets';
@@ -11,6 +10,24 @@ const mockGetClassesWithCapacity = vi.fn();
 vi.mock('@/services/database/day-of-operations', () => ({
   getClassesWithCapacity: (...args: unknown[]) => mockGetClassesWithCapacity(...args),
 }));
+
+// Replica change subscriptions: capture the listeners so a test can fire a change.
+const replicaListeners = vi.hoisted(() => ({
+  entries: new Set<() => void>(),
+  classes: new Set<() => void>(),
+}));
+vi.mock('@/services/replication', () => {
+  const table = (set: Set<() => void>) => ({
+    subscribe: (cb: () => void) => {
+      set.add(cb);
+      return () => set.delete(cb);
+    },
+  });
+  return {
+    replicatedEntriesTable: table(replicaListeners.entries),
+    replicatedClassesTable: table(replicaListeners.classes),
+  };
+});
 
 function showMapClass(id: string, level: string): ShowMapClassInput {
   return { id, trialId: 'trial-1', name: id, element: 'Container', level };
@@ -93,24 +110,34 @@ describe('useMoveUpTargets', () => {
     expect(result.current.targets.map(t => t.id)).toEqual(['advanced', 'master']);
   });
 
-  it('refetches when show classes or entries are invalidated while open', async () => {
-    mockGetClassesWithCapacity.mockResolvedValueOnce({
-      data: [capacity('advanced', 3), capacity('master', 2)],
-      error: null,
-    });
-    const { result } = renderHook(() => useMoveUpTargets('show-1', classes, 'novice', 'AKC'), {
-      wrapper,
-    });
-    await waitFor(() => expect(result.current.targets).toHaveLength(2));
+  it.each(['entries', 'classes'] as const)(
+    'recomputes when the %s replica changes while open (a freed seat shows up)',
+    async table => {
+      mockGetClassesWithCapacity.mockResolvedValueOnce({
+        data: [capacity('advanced', 3), capacity('master', 0)],
+        error: null,
+      });
+      const { result } = renderHook(() => useMoveUpTargets('show-1', classes, 'novice', 'AKC'), {
+        wrapper,
+      });
+      await waitFor(() => expect(result.current.targets.map(t => t.id)).toEqual(['advanced']));
 
-    mockGetClassesWithCapacity.mockResolvedValueOnce({
-      data: [capacity('advanced', 3), capacity('master', 0)],
-      error: null,
-    });
-    await act(async () => {
-      await queryClient.invalidateQueries({ queryKey: queryKeys.show('show-1') });
-    });
-    await waitFor(() => expect(result.current.targets.map(t => t.id)).toEqual(['advanced']));
-    expect(mockGetClassesWithCapacity).toHaveBeenCalledTimes(2);
+      mockGetClassesWithCapacity.mockResolvedValueOnce({
+        data: [capacity('advanced', 3), capacity('master', 1)],
+        error: null,
+      });
+      await act(async () => {
+        replicaListeners[table].forEach(listener => listener());
+      });
+      await waitFor(() =>
+        expect(result.current.targets.map(t => t.id)).toEqual(['advanced', 'master'])
+      );
+    }
+  );
+
+  it('does not subscribe to replica changes while no dialog is open', () => {
+    renderHook(() => useMoveUpTargets('show-1', classes, undefined, 'AKC'), { wrapper });
+    expect(replicaListeners.entries.size).toBe(0);
+    expect(replicaListeners.classes.size).toBe(0);
   });
 });

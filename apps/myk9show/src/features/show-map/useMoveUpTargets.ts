@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
-import { queryKeys } from '@/lib/queryClient';
+import { replicatedClassesTable, replicatedEntriesTable } from '@/services/replication';
 import { getClassesWithCapacity } from '@/services/database/day-of-operations';
 import { buildMoveUpTargets } from './buildMoveUpTargets';
 import type { ShowMapMoveUpTarget } from './ShowMapMoveUpDialog';
@@ -24,10 +24,8 @@ export function useMoveUpTargets(
   currentClassId: string | undefined,
   registryId: RegistryId
 ): { targets: ShowMapMoveUpTarget[]; capacityState: MoveUpCapacityState } {
-  const { data, isError } = useQuery({
-    // Under the show's classes root so the show-map action invalidations
-    // (show / showClasses) refetch it while the dialog is open.
-    queryKey: [...queryKeys.showClasses(showId), 'move-up-capacity', currentClassId],
+  const { data, isError, refetch } = useQuery({
+    queryKey: ['show-map', 'move-up-capacity', showId, currentClassId],
     enabled: Boolean(currentClassId),
     staleTime: 0,
     gcTime: 0,
@@ -40,6 +38,21 @@ export function useMoveUpTargets(
       return result.data ?? [];
     },
   });
+
+  // Refresh from the replica itself, not from query-key invalidation: entry
+  // mutations and realtime sync write the entries/classes replicas but do not
+  // reliably invalidate any key this hook could name. While the dialog is open,
+  // any change to either table re-reads capacity, so a freed seat appears.
+  const isOpen = Boolean(currentClassId);
+  useEffect(() => {
+    if (!isOpen) return;
+    const refresh = () => void refetch();
+    const stops = [
+      replicatedEntriesTable.subscribe(refresh, { emitCurrent: false }),
+      replicatedClassesTable.subscribe(refresh, { emitCurrent: false }),
+    ];
+    return () => stops.forEach(stop => stop());
+  }, [isOpen, refetch]);
 
   const targets = useMemo(() => {
     const spots = data ? new Map(data.map(cls => [cls.id, cls.available_spots])) : undefined;

@@ -24,13 +24,18 @@
 --   can_manage_show_person itself is NOT changed: people_update and other read
 --   and edit paths still use it. Only the delete arm goes.
 --
+--   delete_show_managed_person, the other show-manager person delete (unused by
+--   the app), becomes site admin only; its other guards stay. See its section.
+--
 -- SOURCES (LESSONS replace-function-latest), each the latest migration on
 -- origin/main that defines the function:
---   soft_delete_person   20261001235300_crud_standard_delete_not_found_code.sql
---   delete_preview       20261001233700_crud_standard_delete_preview.sql
--- Both bodies are copied verbatim except the removed arm and its comment.
+--   soft_delete_person          20261001235300_crud_standard_delete_not_found_code.sql
+--   delete_preview              20261001233700_crud_standard_delete_preview.sql
+--   delete_show_managed_person  20261002014700_myk9_921_show_managed_person_deleted_by.sql
+-- Every body is copied verbatim except the changed permission check and its comment.
 --
 -- Behavioral coverage: supabase/tests/myk9_934_person_delete_self_or_admin_test.sql
+-- and supabase/tests/myk9_921_show_managed_person_deleted_by_test.sql
 
 BEGIN;
 
@@ -326,8 +331,73 @@ BEGIN
 END;
 $function$;
 
+-- ---------------------------------------------------------------------------
+-- delete_show_managed_person: site admin only (owner decision on MYK9-934).
+--
+-- It let anyone who manages the show (can_manage_show) soft-delete an
+-- account-less person linked to that show with no live entries and no dogs: a
+-- second show-manager person delete. Nothing in the app calls it. The role arm
+-- becomes is_site_admin(); every other guard stays (the person must be linked
+-- through the show, have no sign-in account, no live entries, no live dogs),
+-- and so does the MYK9-921 deleted_by = auth uid stamp.
+--
+-- Why replace the check instead of REVOKE EXECUTE from authenticated: a site
+-- admin calls RPCs as `authenticated` too, so a revoke would remove the site
+-- admin's path as well, and a caller would get a bare privilege error instead
+-- of the 42501 "Permission denied" every other delete RPC raises.
+-- Not dropped: the generated types and the 921 behavioral test reference it.
+--
+-- SOURCE (LESSONS replace-function-latest): copied from the latest migration
+-- that defines it, 20261002014700_myk9_921_show_managed_person_deleted_by.sql.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.delete_show_managed_person(
+  p_show_id uuid,
+  p_person_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  -- MYK9-934: secretaries and club admins never delete a person.
+  if not (select public.is_site_admin()) then
+    RAISE EXCEPTION 'Permission denied' using errcode = '42501';
+  end if;
+
+  if not public.can_manage_show_person_for_show(p_show_id, p_person_id) then
+    RAISE EXCEPTION 'Person % is not managed through show %', p_person_id, p_show_id
+      using errcode = '42501';
+  end if;
+
+  -- deleted_by references auth.users(id): stamp the caller's auth uid, which
+  -- is also what the Undo window (private.can_undo_soft_delete) compares.
+  update public.people p
+  set deleted_at = now(),
+      deleted_by = (select auth.uid())
+  where p.id = p_person_id
+    and p.auth_user_id is null
+    and p.deleted_at is null
+    and not exists (
+      select 1
+      from public.entries e
+      where e.handler_id = p_person_id
+        and e.deleted_at is null
+    )
+    and not exists (
+      select 1
+      from public.dogs d
+      where (d.owner_id = p_person_id or d.co_owner_id = p_person_id)
+        and d.deleted_at is null
+    );
+end;
+$$;
+
 -- The live ACLs, restated (CREATE OR REPLACE keeps them): signed-in callers and
 -- service_role, never anon or PUBLIC.
+REVOKE ALL ON FUNCTION public.delete_show_managed_person(uuid, uuid) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.delete_show_managed_person(uuid, uuid) TO authenticated, service_role;
+
 REVOKE ALL ON FUNCTION public.soft_delete_person(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.soft_delete_person(uuid) TO authenticated, service_role;
 

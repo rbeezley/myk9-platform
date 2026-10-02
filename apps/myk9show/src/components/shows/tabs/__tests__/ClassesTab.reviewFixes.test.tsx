@@ -268,6 +268,32 @@ describe('ClassesTab review fixes', () => {
     });
   });
 
+  describe('judge override on a class the secretary has since hidden', () => {
+    const picker = () => screen.getByRole('combobox', { name: 'Judge for Class c1' });
+    const rowJudgedBy = (judgeId?: string) =>
+      classes.map(cls => (cls.id === 'c1' && judgeId ? { ...cls, judgeId } : cls));
+    const tabWith = (judgeId?: string) => (
+      <ClassesTab classes={rowJudgedBy(judgeId)} showId="s1" userHasEntries={false} />
+    );
+
+    it('shows A after: A cleared, class hidden, another device reassigns A, class unhidden', async () => {
+      const { user, rerender } = renderTab({ classes: rowJudgedBy('judge-1') });
+      await user.click(picker());
+      await user.click(await screen.findByRole('option', { name: 'Unassigned' }));
+      await waitFor(() => expect(picker()).toHaveTextContent('Unassigned'));
+
+      // Hide c1 (it does not match), let replication catch up, then another device assigns A.
+      const search = screen.getByPlaceholderText('Search classes...');
+      await user.type(search, 'Interior');
+      expect(screen.queryByText('Class c1')).not.toBeInTheDocument();
+      rerender(tabWith(undefined));
+      rerender(tabWith('judge-1'));
+      await user.clear(search);
+
+      await waitFor(() => expect(picker()).toHaveTextContent('Jane Judge'));
+    });
+  });
+
   describe('?view=mine without entries', () => {
     it('reads as All, since the Mine view is hidden', () => {
       renderTab({ viewId: 'mine', onViewChange: vi.fn(), userHasEntries: false });

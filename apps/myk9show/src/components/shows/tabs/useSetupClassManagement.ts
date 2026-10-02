@@ -35,6 +35,8 @@ export function useSetupClassManagement(
   showId: string,
   canManage: boolean,
   visibleClasses: ClassInfo[],
+  /** Every class of the show, unfiltered: what retries and judge-override expiry must see. */
+  allClasses: ClassInfo[],
   viewKey: string
 ) {
   const queryClient = useQueryClient();
@@ -57,12 +59,13 @@ export function useSetupClassManagement(
     resetKey: viewKey,
   });
 
+  // Selection stays on the visible rows, but a toast-driven "Retry failed" fires after the view,
+  // search or trial may have moved on, and re-checks each class against THIS map: built from the
+  // visible rows only, it would skip every class the secretary has since hidden.
   const classesById = useMemo(
     () =>
-      new Map(
-        visibleClasses.map(cls => [cls.id, { id: cls.id, name: cls.name, status: cls.status }])
-      ),
-    [visibleClasses]
+      new Map(allClasses.map(cls => [cls.id, { id: cls.id, name: cls.name, status: cls.status }])),
+    [allClasses]
   );
   const { bulkBusy, handleBulkDelete, handleBulkStatusChange } = useClassBulkActions({
     classesById,
@@ -105,8 +108,9 @@ export function useSetupClassManagement(
 
   // An override is spent the moment its row stops carrying `from` (the row caught up, or
   // someone else changed it). Dropping it then, not just ignoring it, is what stops it reviving
-  // when the judge later goes A -> B -> A and the row reads `from` again.
-  const spentIds = visibleClasses
+  // when the judge later goes A -> B -> A and the row reads `from` again. It checks every class,
+  // not just the visible ones: a class hidden while replication catches up must not keep it.
+  const spentIds = allClasses
     .filter(cls => {
       const override = assigned[cls.id];
       return override !== undefined && override.from !== normalizeJudgeId(cls.judgeId);

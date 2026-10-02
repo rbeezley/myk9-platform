@@ -113,6 +113,7 @@ export function ClassesTab({
     showId,
     canManageThisShow,
     filteredClasses,
+    classes,
     `${viewId}|${scope.scopeTrialId}|${scope.search}|${scope.element}`
   );
   const { selection } = manage;

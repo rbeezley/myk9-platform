@@ -36,7 +36,8 @@ vi.mock('@/hooks/queries/useClassesDatabase', () => ({
   useDeleteClassMutation: () => ({ mutate: vi.fn(), mutateAsync: deleteMutateAsync }),
   classKeys: { all: ['classes'], byTrial: (trialId: string) => ['classes', 'trial', trialId] },
 }));
-vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
+const toastError = vi.hoisted(() => vi.fn());
+vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: toastError, info: vi.fn() } }));
 
 function makeClass(id: string, trialId: string, patch: Partial<ClassInfo> = {}): ClassInfo {
   return {
@@ -137,6 +138,31 @@ describe('ClassesTab selection and bulk actions', () => {
       expect(deleteMutateAsync).toHaveBeenCalledWith({ id: 'c2' });
     });
     expect(deleteMutateAsync).toHaveBeenCalledTimes(2);
+  });
+
+  // The retry's "has anyone else changed it?" check reads the full class set, so classes the
+  // secretary has since searched away from are still retried.
+  it('"Retry failed" still retries a class a later search has hidden', async () => {
+    toastError.mockClear();
+    applyManualClassStatus.mockImplementation(async (classId: string) => {
+      if (classId === 'c1' && applyManualClassStatus.mock.calls.length === 1) {
+        throw new Error('offline');
+      }
+    });
+    const { user } = renderTab();
+    await user.click(screen.getByRole('checkbox', { name: 'Select all visible classes' }));
+    const bar = await screen.findByRole('toolbar', { name: 'Bulk actions' });
+    await user.click(within(bar).getByRole('button', { name: 'Bulk class actions' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Mark 2 of 2 Completed' }));
+    await waitFor(() => expect(toastError).toHaveBeenCalledTimes(1));
+
+    await user.type(screen.getByPlaceholderText('Search classes...'), 'zzz');
+    expect(screen.queryByText('Class c1')).not.toBeInTheDocument();
+    const retry = toastError.mock.calls[0]![1].action.onClick as (e: unknown) => void;
+    retry({ preventDefault: vi.fn() });
+
+    await waitFor(() => expect(applyManualClassStatus).toHaveBeenCalledTimes(3));
+    expect(applyManualClassStatus).toHaveBeenLastCalledWith('c1', 'Completed');
   });
 
   it('disables the bulk controls while a bulk delete is in flight', async () => {

@@ -6,9 +6,14 @@
 **Supersedes:** [`plan-overview-schedule-hub.md`](plan-overview-schedule-hub.md) § Phases 3–4 (MYK9-944, MYK9-945) and MYK9-951.
 **Read first:** [`INTENT.md`](INTENT.md) § Trial Secretary ("That was easy" — _absorb complexity, not add to it_) and [`plan-secretary-crud-consolidation.md`](plan-secretary-crud-consolidation.md) (MYK9-897).
 
-## Timing — nothing here ships before the first club test show
+## Timing — every phase ships before the first club test show
 
-The first club-run test show (planned for Oct 10, 2026; the date may slip) freezes the secretary pages about five days before it (owner decision, 2026-09-26). This plan moves the show-day page, which is the highest-reliability surface. **No code from this plan lands between the freeze and the end of that show, whenever it falls.** Phase 0 is decisions only and can happen any time; Phase 1 starts after the show, and the show itself is evidence for Phase 0 (what the secretary actually used on Show Day). If the show slips far enough, Phase 1 (Tools, low risk) may land before the freeze; Phases 2–4 still wait.
+**Owner decision, 2026-10-02:** all phases land before the first club-run test show (planned for Oct 10, 2026; the date may slip). This reverses the earlier "after the show" sequencing and overrides the pre-show secretary-page freeze for this work. Consequences:
+
+- Phase 0 decisions are needed immediately. Item 4 can no longer wait for the show; it uses the dress rehearsal or the owner's judgment.
+- Phases ship in order (1 → 2 → 3 → 4), one PR each, with the review floor `pnpm qa:review-tier` reports. Phases 2 and 4 touch the show-day page and need offline-reload proof before merge.
+- The dress rehearsal runs on the new home, not on Show Day, so it doubles as Phase 5's first pass.
+- If the show date holds and a phase is not solid by the rehearsal, the owner decides whether to ship it or hold it. Show Day stays live until Phase 4, so holding Phase 4 leaves a working fallback.
 
 ## Goal
 
@@ -69,8 +74,9 @@ Acceptance: Tools shows exactly two groups (render test, red on `main`); each mo
 1. **Extract the assembly.** Move the data assembly from `ShowWorkbenchShowDeskPage.tsx` + `ShowDeskPanel.tsx` (entries query + availability, class summaries with tallies, tree, pending signals, paperwork prints, snapshot, model) into one hook, e.g. `useSecretaryShowHome(showId)`. Show Day keeps working by calling the same hook — a refactor with no behavior change, proven by the existing cockpit and Show Day tests passing unchanged. This is the shared hook MYK9-951 asked for.
 2. **Mount it on Overview for managers.** `ShowManagementShell` renders the cockpit layout (attention strip, day-filtered schedule, selected-class panel with the checklist) where it renders `ShowOverviewTab` today, when `canManage`. Exhibitor/public paths (`ShowDetailTabs`) are untouched.
 3. **Rows gain the entry breakdown** (`buildClassEntryBreakdowns`) and the checklist count (`summarizeClassChecklist`) from the same assembly, so the row count and the panel can never disagree.
-4. **Day picker default and quiet mode** per Phase 0 decisions 2–3.
-5. **About this show**: one folded card (venue, judges, registry, Edit show, Share) and a "View as exhibitor" link.
+4. **Collapsible trials (owner, 2026-10-02).** Keep today's Overview pattern: each trial is a collapsible group (chevron, trial name, date and start, `N classes · N entries` pill). Day chips **All days · each show day** filter the groups. The default is All days, with the selected day's trials open and the others collapsed (the day comes from Phase 0 decision 2).
+5. **Quiet mode** per Phase 0 decision 3.
+6. **About this show**: one folded card (venue, judges, registry, Edit show, Share) and a "View as exhibitor" link.
 
 Show Day still exists in this phase (same hook), so a regression can be compared side by side.
 

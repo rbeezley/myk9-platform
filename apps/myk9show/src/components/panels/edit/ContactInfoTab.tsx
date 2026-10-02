@@ -9,9 +9,14 @@ import type { UserFormData } from './UserEditPanel.types';
 
 interface ContactInfoTabProps {
   canEditAdvancedFields: boolean;
+  /** Create mode hides emergency contact: no create path stores it. */
+  isCreate?: boolean;
 }
 
-export const ContactInfoTab: React.FC<ContactInfoTabProps> = ({ canEditAdvancedFields }) => {
+export const ContactInfoTab: React.FC<ContactInfoTabProps> = ({
+  canEditAdvancedFields,
+  isCreate = false,
+}) => {
   const { data, form } = useEditPanel<UserFormData>();
 
   const phoneError = form?.getError('phone');
@@ -94,7 +99,7 @@ export const ContactInfoTab: React.FC<ContactInfoTabProps> = ({ canEditAdvancedF
           </div>
         </div>
 
-        {canEditAdvancedFields && (
+        {canEditAdvancedFields && !isCreate && (
           <>
             <Separator />
             <div className="space-y-4">

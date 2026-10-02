@@ -14,12 +14,20 @@ export function parseTimeOfDay(text: string): { hours: number; minutes: number }
   return { hours, minutes };
 }
 
-/** One spelling for a time of day: "9:05 AM". Unparseable text comes back trimmed, untouched. */
+/** True when the text is a real time of day; empty or unparseable text means "no time". */
+export function hasTrialTime(text: string): boolean {
+  return parseTimeOfDay(text) !== null;
+}
+
+/**
+ * One spelling for a time of day: zero-padded 12-hour, "09:05 AM" — the form Edit
+ * Trial has always stored and validated. Unparseable text comes back trimmed.
+ */
 export function normalizeTimeOfDay(text: string): string {
   const parts = parseTimeOfDay(text);
   if (!parts) return text.trim();
   const date = new Date(2000, 0, 1, parts.hours, parts.minutes);
-  return format(date, 'h:mm a');
+  return format(date, 'hh:mm a');
 }
 
 /**

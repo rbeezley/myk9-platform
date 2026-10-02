@@ -78,6 +78,7 @@ export function useEditPanelSteps({ steps, schema, data, touchField }: UseEditPa
       return;
     }
     setAttemptedTab(null);
+    if (steps.beforeNext && steps.beforeNext(steps.activeTab, data) === false) return;
     steps.onTabChange(nextTab.value);
   }, [steps, nextTab, schema, data, touchField]);
 

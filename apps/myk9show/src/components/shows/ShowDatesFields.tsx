@@ -16,6 +16,11 @@ interface ShowDatesFieldsProps {
   datesError?: string | undefined;
   /** Shown under the entry period. */
   entryError?: string | undefined;
+  /**
+   * Edit stores date-only values, so it passes false and never shows a time it would
+   * drop; it also keeps the required end date while a new range is being picked.
+   */
+  dateOnly?: boolean | undefined;
 }
 
 /**
@@ -34,6 +39,7 @@ export const ShowDatesFields: React.FC<ShowDatesFieldsProps> = ({
   onEntryCloseChange,
   datesError,
   entryError,
+  dateOnly = false,
 }) => (
   <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
     <div className="space-y-2 md:col-span-2" data-testid="show-dates-field">
@@ -52,6 +58,8 @@ export const ShowDatesFields: React.FC<ShowDatesFieldsProps> = ({
         placeholder="Select show start and end dates"
         startDefaultTime="8:00 AM"
         endDefaultTime="5:00 PM"
+        showTime={!dateOnly}
+        keepEndWhilePicking={dateOnly}
       />
       {datesError && (
         <p id="show-dates-error" role="alert" className="text-sm text-destructive mt-1">
@@ -76,6 +84,8 @@ export const ShowDatesFields: React.FC<ShowDatesFieldsProps> = ({
         placeholder="Select entry open and close dates"
         startDefaultTime="8:00 AM"
         endDefaultTime="11:59 PM"
+        showTime={!dateOnly}
+        keepEndWhilePicking={dateOnly}
       />
       {entryError && (
         <p id="show-entry-period-error" role="alert" className="text-sm text-destructive mt-1">

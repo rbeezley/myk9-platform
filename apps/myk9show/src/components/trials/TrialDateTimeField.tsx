@@ -13,6 +13,8 @@ interface TrialDateTimeFieldProps {
   maxDate?: Date | undefined;
   defaultMonth?: Date | undefined;
   onBlur?: (() => void) | undefined;
+  /** The date is known but the start time is not (shows "time not set"). */
+  timeUnset?: boolean | undefined;
 }
 
 /**
@@ -29,6 +31,7 @@ export const TrialDateTimeField: React.FC<TrialDateTimeFieldProps> = ({
   maxDate,
   defaultMonth,
   onBlur,
+  timeUnset,
 }) => (
   <div className="space-y-2" data-testid="trial-date-time-field" onBlur={onBlur}>
     <Label htmlFor={id}>
@@ -45,6 +48,7 @@ export const TrialDateTimeField: React.FC<TrialDateTimeFieldProps> = ({
       maxDate={maxDate}
       defaultMonth={defaultMonth}
       showTime
+      timeUnset={timeUnset}
       timeFormat="12h"
     />
     {error && (

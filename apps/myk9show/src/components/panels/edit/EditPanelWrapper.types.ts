@@ -30,6 +30,8 @@ export interface EditPanelSteps {
   onTabChange: (tab: string) => void;
   /** The same field -> tab/element map the panel gives `usePanelValidationNavigation`. */
   locate: (field: string) => FieldLocation<string> | undefined;
+  /** Runs once the current tab's required fields pass; return false to stay on the tab. */
+  beforeNext?: (tab: string, data: unknown) => boolean;
 }
 
 export interface EditPanelWrapperProps<T = Record<string, unknown>> {

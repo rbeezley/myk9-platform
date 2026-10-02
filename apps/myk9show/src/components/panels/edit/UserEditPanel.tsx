@@ -225,9 +225,12 @@ const UserEditForm: React.FC<{
             hasAdminPermission={hasPermission('admin:manage')}
             canEditAdvancedFields={canEditAdvancedFields}
             onOpenPhotoModal={() => setIsPhotoModalOpen(true)}
+            isCreate={!userId}
           />
 
-          {hasPermission('admin:manage') && <ComplimentaryPremiumSection personId={userId} />}
+          {hasPermission('admin:manage') && userId && (
+            <ComplimentaryPremiumSection personId={userId} />
+          )}
         </TabsContent>
 
         {/* Contact Information Tab */}
@@ -235,7 +238,7 @@ const UserEditForm: React.FC<{
           value="contact"
           className="space-y-6 animate-in slide-in-from-bottom-2 duration-300 ease-out"
         >
-          <ContactInfoTab canEditAdvancedFields={canEditAdvancedFields} />
+          <ContactInfoTab canEditAdvancedFields={canEditAdvancedFields} isCreate={!userId} />
         </TabsContent>
 
         {/* Qualifications Tab - Only for Judges */}
@@ -335,6 +338,8 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
   onDelete,
   variant,
   notice,
+  onBeforeNext,
+  onDataChange,
   // showAdvancedFields = false,
 }) => {
   const isCreateMode = !userId;
@@ -345,6 +350,12 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
   const subtitle = isCreateMode ? 'Add a person profile' : `Editing profile for ${userName}`;
   // Convert user data to form data
   const initialFormData = useMemo(() => userToFormData(initialUserData), [initialUserData]);
+
+  // Stable identity: the wrapper re-runs its data effect whenever this changes.
+  const handleDataChange = useCallback(
+    (data: UserFormData) => onDataChange?.(formDataToUser(data)),
+    [onDataChange]
+  );
 
   // Handle save — persist profile data. Role assignments have their own
   // scope-aware surface in User Management.
@@ -375,6 +386,9 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
       onDelete={isCreateMode ? undefined : onDelete}
       {...(variant ? { variant } : {})}
       onValidationFail={handleValidationFail}
+      // A valid create form (e.g. a name prefilled from search) saves without edits.
+      forceHasChanges={isCreateMode}
+      {...(onDataChange ? { onDataChange: handleDataChange } : {})}
       {...(isCreateMode
         ? {
             steps: {
@@ -383,6 +397,12 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
               activeTab,
               onTabChange: (tab: string) => setActiveTab(tab as UserTabValue),
               locate: locateUserField,
+              ...(onBeforeNext
+                ? {
+                    beforeNext: (_tab: string, data: unknown) =>
+                      onBeforeNext(formDataToUser(data as UserFormData)),
+                  }
+                : {}),
             },
           }
         : {})}

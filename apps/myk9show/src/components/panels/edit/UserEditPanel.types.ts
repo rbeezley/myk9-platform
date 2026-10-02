@@ -17,6 +17,10 @@ export interface UserEditPanelProps {
   variant?: EditPanelVariant | undefined;
   /** Shown above the tabs (create mode): the entry flow's possible-duplicate card. */
   notice?: import('react').ReactNode;
+  /** Create mode: called as the user leaves Basic Info with Next; false keeps them there. */
+  onBeforeNext?: ((data: Partial<UserType>) => boolean) | undefined;
+  /** Create mode: called with the form's current values as they change. */
+  onDataChange?: ((data: Partial<UserType>) => void) | undefined;
 }
 
 // Form data interface matching PersonEditDialog expectations

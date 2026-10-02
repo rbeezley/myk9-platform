@@ -84,6 +84,27 @@ describe('show dates: create and edit render the same control', () => {
     expect(within(entry).getByRole('button', { name: /entry period/i })).toBeInTheDocument();
     expect(screen.queryByText('Entry Open Date')).not.toBeInTheDocument();
   });
+
+  it('Edit Show never offers a time it would throw away (dates are date-only)', async () => {
+    const { user } = render(
+      <Tabs value="basic">
+        <ShowEditBasicInfoTab
+          data={editData}
+          availableShowTypes={['AKC']}
+          clubs={[{ id: 'club-1', name: 'Club', clubNumber: '1' }]}
+          handleInputChange={() => vi.fn()}
+          handleSelectChange={() => vi.fn()}
+          handleDateChange={() => vi.fn()}
+        />
+      </Tabs>
+    );
+    const dates = screen.getByTestId('show-dates-field');
+    expect(within(dates).getByRole('button', { name: /show dates/i })).not.toHaveTextContent(
+      /\d:\d\d (AM|PM)/
+    );
+    await user.click(within(dates).getByRole('button', { name: /show dates/i }));
+    expect(screen.queryByText(/start time/i)).not.toBeInTheDocument();
+  });
 });
 
 describe('trial date and time: create and edit render the same control', () => {
@@ -144,6 +165,62 @@ describe('trial date and time: create and edit render the same control', () => {
     const start = await screen.findByLabelText('Actual Start');
     await user.type(start, '9:15pm');
     await user.tab();
-    expect(start).toHaveValue('9:15 PM');
+    expect(start).toHaveValue('09:15 PM');
+  });
+});
+
+describe('Edit Trial start time storage and display', () => {
+  const base = {
+    name: 'Saturday AM',
+    trialDate: '2026-05-02',
+    trialNumber: '1',
+    status: 'Upcoming' as Trial['status'],
+    eventNumber: '1',
+    order: '1',
+  };
+
+  it('shows a date with no start time as "time not set", not midnight', async () => {
+    const { user } = render(
+      <TrialEditPanel
+        open
+        onClose={vi.fn()}
+        trialId="t1"
+        trialName="Saturday AM"
+        initialTrialData={{ ...base, plannedStartTime: '' }}
+      />
+    );
+    await user.click(screen.getByRole('tab', { name: /scheduling/i }));
+    const field = await screen.findByTestId('trial-date-time-field');
+    expect(within(field).getByRole('button')).toHaveTextContent(/May 2, 2026/);
+    expect(within(field).getByRole('button')).toHaveTextContent(/time not set/i);
+    expect(within(field).getByRole('button')).not.toHaveTextContent(/12:00 AM/);
+  });
+
+  it('saves the picked time in the stored spelling', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const { user } = render(
+      <TrialEditPanel
+        open
+        onClose={vi.fn()}
+        trialId="t1"
+        trialName="Saturday AM"
+        onSave={onSave}
+        initialTrialData={{ ...base, plannedStartTime: '09:00 AM' }}
+      />
+    );
+    await user.click(screen.getByRole('tab', { name: /scheduling/i }));
+    const field = await screen.findByTestId('trial-date-time-field');
+    await user.click(within(field).getByRole('button'));
+    const time = await screen.findByPlaceholderText('8:00 AM');
+    await user.clear(time);
+    await user.type(time, '1:30 PM');
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await vi.waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0]?.[0]).toMatchObject({
+      trialDate: '2026-05-02',
+      plannedStartTime: '01:30 PM',
+    });
   });
 });

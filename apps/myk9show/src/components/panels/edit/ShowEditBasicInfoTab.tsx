@@ -234,6 +234,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
             </h4>
 
             <ShowDatesFields
+              dateOnly
               startDate={data.startDate ? toLocalDate(data.startDate) : undefined}
               endDate={data.endDate ? toLocalDate(data.endDate) : undefined}
               entryOpenDate={data.entryOpenDate ? toLocalDate(data.entryOpenDate) : undefined}

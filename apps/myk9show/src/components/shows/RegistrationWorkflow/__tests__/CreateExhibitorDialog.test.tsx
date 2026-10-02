@@ -210,7 +210,6 @@ describe('CreateExhibitorDialog', () => {
     await user.type(screen.getByLabelText(/Email Address/i), 'TERA@example.com');
 
     await toContact(user);
-    await user.click(await screen.findByRole('button', { name: 'Add Person' }));
 
     expect(await screen.findByText('Tera Handler')).toBeInTheDocument();
     expect(screen.queryByText('John Smith')).not.toBeInTheDocument();

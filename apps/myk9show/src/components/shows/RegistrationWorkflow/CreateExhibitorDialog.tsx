@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { UserEditPanel } from '@/components/panels/edit/UserEditPanel';
 import { PanelSaveHandledError } from '@/components/panels/edit/panelSaveErrors';
 import { CreateExhibitorDuplicates } from './CreateExhibitorDuplicates';
@@ -27,6 +27,26 @@ interface CreateExhibitorDialogProps {
   offlineFirst?: boolean;
 }
 
+/** The possible-duplicate card: announced, focused and scrolled into view when it appears. */
+const DuplicateNotice: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    ref.current?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    ref.current?.focus({ preventScroll: true });
+  }, []);
+  return (
+    <div
+      ref={ref}
+      role="alert"
+      tabIndex={-1}
+      data-testid="person-duplicate-notice"
+      className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-950 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {children}
+    </div>
+  );
+};
+
 /** Pre-fill the name from what the secretary searched for. */
 function nameFromSearch(searchQuery: string): Partial<PersonRecord> {
   const trimmed = searchQuery.trim();
@@ -53,8 +73,14 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
   offlineFirst = false,
 }) => {
   const { people, loadUsers } = useUserStore();
-  const [duplicates, setDuplicates] = useState<PersonIdentityCandidate[]>([]);
-  const [allowSeparate, setAllowSeparate] = useState(false);
+  // The candidates and the "add anyway" answer belong to ONE identity (name and
+  // email). Changing either re-opens the question, so a changed person is re-checked.
+  const [duplicates, setDuplicates] = useState<{
+    candidates: PersonIdentityCandidate[];
+    key: string;
+  }>({ candidates: [], key: '' });
+  const [allowedKey, setAllowedKey] = useState<string | null>(null);
+  const [identityKey, setIdentityKey] = useState('');
 
   // Loaded once the dialog opens: the duplicate check reads the whole roster.
   React.useEffect(() => {
@@ -64,31 +90,52 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
   const initialUserData = useMemo(() => nameFromSearch(searchQuery), [searchQuery]);
 
   const handleClose = () => {
-    setDuplicates([]);
-    setAllowSeparate(false);
+    setDuplicates({ candidates: [], key: '' });
+    setAllowedKey(null);
+    setIdentityKey('');
     onOpenChange(false);
   };
 
-  const handleSave = async (data: Partial<PersonRecord>) => {
-    if (!allowSeparate) {
-      const candidate = findLikelyDuplicatePersonCandidate(people, {
-        firstName: data.firstName ?? '',
-        lastName: data.lastName ?? '',
-        email: data.email ?? '',
-        phone: data.phone ?? '',
-        streetAddress: data.address ?? '',
-        city: data.city ?? '',
-        state: data.state ?? '',
-        zipCode: data.zipCode ?? '',
-      });
-      if (candidate) {
-        setDuplicates([candidate]);
-        // The card above the tabs explains this; the panel keeps the form open
-        // without a failure toast.
-        throw new PanelSaveHandledError();
-      }
+  const keyOf = (data: Partial<PersonRecord>) =>
+    [data.firstName, data.lastName, data.email]
+      .map(part => (part ?? '').trim().toLowerCase())
+      .join('|');
+
+  const handleDataChange = useCallback((data: Partial<PersonRecord>) => {
+    setIdentityKey(
+      [data.firstName, data.lastName, data.email]
+        .map(part => (part ?? '').trim().toLowerCase())
+        .join('|')
+    );
+  }, []);
+
+  /** True when the person looks like someone already on file and has not been waved through. */
+  const holdForDuplicate = (data: Partial<PersonRecord>): boolean => {
+    const key = keyOf(data);
+    if (allowedKey === key) return false;
+    const candidate = findLikelyDuplicatePersonCandidate(people, {
+      firstName: data.firstName ?? '',
+      lastName: data.lastName ?? '',
+      email: data.email ?? '',
+      phone: data.phone ?? '',
+      streetAddress: data.address ?? '',
+      city: data.city ?? '',
+      state: data.state ?? '',
+      zipCode: data.zipCode ?? '',
+    });
+    if (!candidate) {
+      setDuplicates({ candidates: [], key });
+      return false;
     }
-    setDuplicates([]);
+    setDuplicates({ candidates: [candidate], key });
+    return true;
+  };
+
+  const handleSave = async (data: Partial<PersonRecord>) => {
+    // The card above the tabs explains this; the panel keeps the form open
+    // without a failure toast.
+    if (holdForDuplicate(data)) throw new PanelSaveHandledError();
+    setDuplicates({ candidates: [], key: '' });
 
     if (offlineFirst) {
       const person = await replicatedShowDeskPeopleTable.createPerson({
@@ -147,21 +194,22 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
     });
   };
 
+  const shown = duplicates.key === identityKey ? duplicates.candidates : [];
   const notice =
-    duplicates.length > 0 ? (
-      <div className="mb-4 rounded-lg border border-amber-300 bg-amber-50 p-3 text-amber-950">
+    shown.length > 0 ? (
+      <DuplicateNotice>
         <CreateExhibitorDuplicates
-          duplicates={duplicates}
+          duplicates={shown}
           onSelect={candidate => {
             onDuplicateSelected?.(candidate.person);
             handleClose();
           }}
           onAddAnyway={() => {
-            setAllowSeparate(true);
-            setDuplicates([]);
+            setAllowedKey(identityKey);
+            setDuplicates({ candidates: [], key: '' });
           }}
         />
-      </div>
+      </DuplicateNotice>
     ) : null;
 
   return (
@@ -174,6 +222,8 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
       onSave={handleSave}
       variant="dialog"
       notice={notice}
+      onDataChange={handleDataChange}
+      onBeforeNext={data => !holdForDuplicate(data)}
     />
   );
 };

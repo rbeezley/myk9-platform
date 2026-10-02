@@ -21,7 +21,11 @@ import { cn } from '@/lib/utils';
 import { FormField } from '@/components/common/FormField';
 import { TimeOfDayInput } from '@/components/common/TimeOfDayInput';
 import { TrialDateTimeField } from '@/components/trials/TrialDateTimeField';
-import { composeTrialDateTime, splitTrialDateTime } from '@/components/trials/trialDateTime';
+import {
+  composeTrialDateTime,
+  hasTrialTime,
+  splitTrialDateTime,
+} from '@/components/trials/trialDateTime';
 import { usePanelValidationNavigation, type FieldLocation } from './usePanelValidationNavigation';
 
 interface TrialEditPanelProps {
@@ -363,6 +367,7 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange })
                   id="trialDate"
                   value={composeTrialDateTime(form.data.trialDate, form.data.plannedStartTime)}
                   onChange={handleDateTimeChange}
+                  timeUnset={!hasTrialTime(form.data.plannedStartTime)}
                   error={trialDateError ?? plannedStartTimeError}
                   onBlur={() => {
                     form.touchField('trialDate');

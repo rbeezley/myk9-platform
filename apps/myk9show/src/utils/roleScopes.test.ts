@@ -143,6 +143,27 @@ describe('canManageShowSurface', () => {
     ).toBe(true);
   });
 
+  it('denies a club scope held WITHOUT the matching global role (a guest with a stale scope)', () => {
+    expect(
+      canManageShowSurface({
+        isSecretary: false,
+        isAdmin: false,
+        hasRole: holdsNothing,
+        userWithRoles: secretaryUser,
+        clubId: 'club-1',
+      })
+    ).toBe(false);
+    expect(
+      canManageShowSurface({
+        isSecretary: false,
+        isAdmin: false,
+        hasRole: holdsNothing,
+        userWithRoles: clubAdminUser,
+        clubId: 'club-1',
+      })
+    ).toBe(false);
+  });
+
   // is_trial_secretary accepts `trial_secretary` too; create-show already did, manage did not.
   it('grants a trial_secretary scoped to this show’s club, with no global role held', () => {
     const trialSecretary = buildUser([{ ...secretaryClubScope, roleId: 'trial_secretary' }]);

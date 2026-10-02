@@ -62,14 +62,15 @@ export function hasClubAdminGrant(
  */
 export function hasClubSecretaryGrant(
   user: UserWithRoles | null | undefined,
-  clubId: string | undefined
+  clubId: string | undefined,
+  roleNames: readonly string[] = CLUB_SECRETARY_ROLE_NAMES
 ): boolean {
   if (!clubId) return false;
   return (user?.scopes ?? []).some(
     scope =>
       scope.scopeType === ScopeType.CLUB &&
       scope.scopeId === clubId &&
-      CLUB_SECRETARY_ROLE_NAMES.includes(scope.roleId)
+      roleNames.includes(scope.roleId)
   );
 }
 
@@ -116,7 +117,9 @@ export interface ShowSurfaceViewer {
  * staff controls to exhibitors (MYK9-123) or dropping the club scope.
  */
 export function canManageShowSurface({
+  isSecretary,
   isAdmin,
+  hasRole,
   userWithRoles,
   clubId,
 }: ShowSurfaceViewer): boolean {
@@ -125,7 +128,12 @@ export function canManageShowSurface({
   // a control that flashes in and then disappears is the same mistake-anxiety
   // bug as never gating it at all.
   if (!clubId) return false;
-  return hasClubStaffGrant(userWithRoles, { clubId });
+  // Each scope check is paired with the global role the user must also hold, so a stale or
+  // fixture scope with no role (a guest) grants nothing. `trial_secretary` is not a UserRole,
+  // so it has no global role to pair with; it is the same server helper, and counts on its scope.
+  if (isSecretary && hasClubSecretaryGrant(userWithRoles, clubId)) return true;
+  if (hasRole(UserRole.CLUB_ADMIN) && hasClubAdminGrant(userWithRoles, { clubId })) return true;
+  return hasClubSecretaryGrant(userWithRoles, clubId, ['trial_secretary']);
 }
 
 /** The staff roles that carry show-management rights over their club's shows. */

@@ -20,8 +20,7 @@ import EditRegistrationPanel from './EditRegistrationPanel';
 import ConfirmDeleteRegistrationDialog from './ConfirmDeleteRegistrationDialog';
 import { useDogRegistrationManagement } from '@/hooks/queries/useRegistrationsDatabase';
 import { useRegistrationsStore } from '@/store/registrationsStore';
-import { translateDogDbError } from '@/hooks/translateDogDbError';
-import { FriendlySaveError } from '@/utils/friendlySaveError';
+import { dogSaveFailure, dogSaveMessage } from '@/hooks/translateDogDbError';
 
 interface DogRegistrationDialogsProps {
   dog?: Dog | undefined;
@@ -102,7 +101,7 @@ export default function DogRegistrationDialogs({
 
   // The delete confirmation is a plain dialog with no error surface of its own,
   // so its failures need a toast.
-  const reportSaveError = (error: unknown) => toast.error(translateDogDbError(error).message);
+  const reportSaveError = (error: unknown) => toast.error(dogSaveMessage(error));
 
   // Add and Edit REJECT instead: EditPanelWrapper.wrappedSave catches, reports,
   // and deliberately does not close, so the user keeps the form they typed. Add
@@ -115,7 +114,7 @@ export default function DogRegistrationDialogs({
           setIsAddOpen(false);
           resolve();
         },
-        onError: error => reject(new FriendlySaveError(translateDogDbError(error).message)),
+        onError: error => reject(dogSaveFailure(error)),
       });
     });
 
@@ -129,7 +128,7 @@ export default function DogRegistrationDialogs({
             setSelectedRegistration(null);
             resolve();
           },
-          onError: error => reject(new FriendlySaveError(translateDogDbError(error).message)),
+          onError: error => reject(dogSaveFailure(error)),
         }
       );
     });

@@ -9,6 +9,14 @@ const migration = readFileSync(
   ),
   'utf8'
 );
+// MYK9-946 replaced the function again; it must still carry MYK9-105's write.
+const failClosedMigration = readFileSync(
+  resolve(
+    __dirname,
+    '../../../../../supabase/migrations/20261002191547_myk9_946_create_dog_ownership_fail_closed.sql'
+  ),
+  'utf8'
+);
 const dogStoreCompat = readFileSync(resolve(__dirname, '../../hooks/useDogStoreCompat.ts'), 'utf8');
 
 describe('create_dog_with_registrations created_at migration', () => {
@@ -27,5 +35,21 @@ describe('create_dog_with_registrations created_at migration', () => {
   it('stamps the normal online registration RPC payload in client order', () => {
     expect(dogStoreCompat).toContain('createRegistrationTimestamps');
     expect(dogStoreCompat).toContain('created_at: createdAts[index]!');
+  });
+
+  it('keeps the created_at write in the MYK9-946 fail-closed replacement', () => {
+    expect(failClosedMigration).toContain(
+      'CREATE OR REPLACE FUNCTION public.create_dog_with_registrations(p_dog jsonb, p_registrations jsonb)'
+    );
+    expect(failClosedMigration).toContain(
+      "COALESCE(NULLIF(v_reg->>'created_at', '')::timestamptz, NOW())"
+    );
+    expect(failClosedMigration).toContain(') IS NOT TRUE THEN');
+  });
+
+  it('drops the self-named co-owner arm from the MYK9-946 authorization', () => {
+    expect(failClosedMigration).not.toContain(
+      "(p_dog->>'co_owner_id')::uuid = public.get_my_person_id()"
+    );
   });
 });

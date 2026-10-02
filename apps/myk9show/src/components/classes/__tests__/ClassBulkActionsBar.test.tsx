@@ -132,7 +132,7 @@ describe('ClassBulkActionsBar', () => {
     await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
     await user.click(await screen.findByRole('menuitem', { name: /delete 2 of 2 selected/i }));
 
-    const dialog = await screen.findByRole('dialog', { name: 'Delete 2 classes?' });
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete 2 classes?' });
     expect(within(dialog).getByText('Class 1 and Class 2')).toBeInTheDocument();
     expect(deleteMocks.remove).not.toHaveBeenCalled();
     // Counts are summed across the selection, in words.
@@ -156,7 +156,7 @@ describe('ClassBulkActionsBar', () => {
     await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
     await user.click(await screen.findByRole('menuitem', { name: /delete 1 of 1 selected/i }));
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     const confirm = within(dialog).getByRole('button', { name: 'Delete class' });
     await waitFor(() => expect(confirm).toBeEnabled());
     await user.click(confirm);

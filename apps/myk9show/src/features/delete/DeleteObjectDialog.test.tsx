@@ -176,7 +176,7 @@ describe('DeleteObjectDialog names the item, its detail, what goes with it, and 
     mocks.preview.mockResolvedValue(preview);
     renderDialog(kind, [target]);
 
-    const dialog = await screen.findByRole('dialog', { name: title });
+    const dialog = await screen.findByRole('alertdialog', { name: title });
     expect(within(dialog).getByText(target.detail ?? '')).toBeVisible();
     const confirm = within(dialog).getByRole('button', { name: button });
     await waitFor(() => expect(confirm).toBeEnabled());
@@ -200,7 +200,7 @@ describe('DeleteObjectDialog always asks first', () => {
       onOpenChange,
     });
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     await waitFor(() =>
       expect(within(dialog).getByRole('button', { name: 'Delete show' })).toBeEnabled()
     );
@@ -225,7 +225,7 @@ describe('DeleteObjectDialog three states', () => {
     mocks.preview.mockReturnValue(new Promise(() => undefined));
     renderDialog('show', [{ id: 's1', name: 'Heartland Classic' }]);
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     expect(within(dialog).getByText('Checking what goes with this show…')).toBeVisible();
     expect(within(dialog).getByRole('button', { name: 'Delete show' })).toBeDisabled();
   });
@@ -238,7 +238,7 @@ describe('DeleteObjectDialog three states', () => {
     mocks.preview.mockResolvedValueOnce(counts());
     const { user } = renderDialog('trial', [{ id: 't1', name: 'Saturday T1', context: ctx }]);
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     expect(
       await within(dialog).findByText(
         "We couldn't check what goes with this trial, so Delete is off. Try again."
@@ -257,7 +257,7 @@ describe('DeleteObjectDialog three states', () => {
     mocks.preview.mockResolvedValueOnce(counts());
     const { user } = renderDialog('trial', [{ id: 't1', name: 'Saturday T1', context: ctx }]);
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     expect(await within(dialog).findByRole('button', { name: /try again/i })).toBeVisible();
     expect(within(dialog).queryByText(/^You're offline\./)).toBeNull();
 
@@ -271,7 +271,7 @@ describe('DeleteObjectDialog three states', () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     renderDialog('dog', [{ id: 'd1', name: 'Biscuit' }]);
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     expect(within(dialog).getByText(/^You're offline\./)).toBeVisible();
     expect(within(dialog).getByRole('button', { name: 'Delete dog' })).toBeDisabled();
     expect(mocks.preview).not.toHaveBeenCalled();
@@ -281,7 +281,7 @@ describe('DeleteObjectDialog three states', () => {
     mocks.preview.mockResolvedValue(counts({ trials: 1, entries: 5, paid: 3, blocking: 3 }));
     renderDialog('show', [{ id: 's1', name: 'Heartland Classic', context: ctx }]);
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     expect(
       await within(dialog).findByText('3 entries are paid. Cancel the show instead of deleting it.')
     ).toBeVisible();
@@ -298,7 +298,7 @@ describe('DeleteObjectDialog three states', () => {
       mocks.preview.mockResolvedValue(counts({ entries: 2, scored: 1, blocking: 1 }));
       renderDialog(kind, [{ id: `${kind}-1`, name: 'X', context: ctx }]);
 
-      const dialog = await screen.findByRole('dialog');
+      const dialog = await screen.findByRole('alertdialog');
       const link = await within(dialog).findByRole('link', { name: 'Withdraw / Pull entries' });
       expect(link).toHaveAttribute('href', '/shows/s1/entries');
       expect(within(dialog).getByRole('button', { name: `Delete ${kind}` })).toBeDisabled();
@@ -310,7 +310,7 @@ describe('DeleteObjectDialog three states', () => {
     const onOpenChange = vi.fn();
     renderDialog('entry', [{ id: 'e1', name: 'X', context: ctx }], { onOpenChange });
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     const link = await within(dialog).findByRole('link', { name: 'Withdraw / Pull entries' });
     await userEvent.click(link);
 
@@ -320,7 +320,7 @@ describe('DeleteObjectDialog three states', () => {
   it('blocked club and person: say what is in the way, with Delete off', async () => {
     mocks.preview.mockResolvedValue(counts({ shows: 2, blocking: 2 }));
     renderDialog('club', [{ id: 'k1', name: 'Heartland KC' }]);
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     expect(
       await within(dialog).findByText(
         'This club still has 2 shows. Delete or move its shows first.'
@@ -332,7 +332,7 @@ describe('DeleteObjectDialog three states', () => {
   it('allowed: Delete is on', async () => {
     mocks.preview.mockResolvedValue(counts({ entries: 1 }));
     renderDialog('class', [{ id: 'c1', name: 'Novice A', context: ctx }]);
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     await waitFor(() =>
       expect(within(dialog).getByRole('button', { name: 'Delete class' })).toBeEnabled()
     );
@@ -345,7 +345,7 @@ describe('DeleteObjectDialog three states', () => {
 
 describe('DeleteObjectDialog delete, Undo and refusals', () => {
   async function confirmDelete(user: ReturnType<typeof render>['user'], button: string) {
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     const confirm = within(dialog).getByRole('button', { name: button });
     await waitFor(() => expect(confirm).toBeEnabled());
     await user.click(confirm);
@@ -424,7 +424,7 @@ describe('DeleteObjectDialog with items already deleted elsewhere (MYK9-922)', (
     const onDeleted = vi.fn();
     renderDialog('dog', dogs, { onDeleted, onOpenChange });
 
-    const dialog = await screen.findByRole('dialog', { name: 'Delete 2 dogs?' });
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete 2 dogs?' });
     const confirm = within(dialog).getByRole('button', { name: 'Delete 2 dogs' });
     await waitFor(() => expect(confirm).toBeEnabled());
     expect(within(dialog).getByTestId('delete-already-gone')).toHaveTextContent(
@@ -444,7 +444,7 @@ describe('DeleteObjectDialog with items already deleted elsewhere (MYK9-922)', (
     const onDeleted = vi.fn();
     const { user } = renderDialog('dog', dogs, { onDeleted });
 
-    const dialog = await screen.findByRole('dialog', { name: 'Delete 2 dogs?' });
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete 2 dogs?' });
     const confirm = within(dialog).getByRole('button', { name: 'Delete 2 dogs' });
     await waitFor(() => expect(confirm).toBeEnabled());
     expect(mocks.purge).not.toHaveBeenCalled();
@@ -470,7 +470,7 @@ describe('DeleteObjectDialog with items already deleted elsewhere (MYK9-922)', (
     const target = { id: 's1', name: 'Heartland Classic', context: ctx };
     const { user } = renderDialog('show', [target], { onDeleted, onOpenChange });
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     const confirm = within(dialog).getByRole('button', { name: 'Delete show' });
     await waitFor(() => expect(confirm).toBeEnabled());
     expect(mocks.purge).not.toHaveBeenCalled();
@@ -498,7 +498,7 @@ describe('DeleteObjectDialog with items already deleted elsewhere (MYK9-922)', (
     const target = { id: 's-local', name: 'Draft Show', context: ctx };
     renderDialog('show', [target], { onDeleted });
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     expect(await within(dialog).findByTestId('delete-unsaved-work')).toHaveTextContent(
       "Finish saving first: 1 change on this device hasn't uploaded yet."
     );
@@ -513,7 +513,7 @@ describe('DeleteObjectDialog with items already deleted elsewhere (MYK9-922)', (
     const onDeleted = vi.fn();
     renderDialog('show', [{ id: 's1', name: 'Heartland Classic' }], { onDeleted });
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     expect(
       await within(dialog).findByText("You don't have permission to delete this show.")
     ).toBeVisible();
@@ -532,7 +532,7 @@ describe('DeleteObjectDialog: one device-wide unsaved-work check', () => {
     mocks.unsaved.mockResolvedValue({ total: 1, failed: 0 });
     renderDialog('class', [syncedClass]);
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     expect(await within(dialog).findByTestId('delete-unsaved-work')).toHaveTextContent(
       'Finish saving first'
     );
@@ -546,7 +546,7 @@ describe('DeleteObjectDialog: one device-wide unsaved-work check', () => {
     mocks.unsaved.mockResolvedValue({ total: 1, failed: 1 });
     renderDialog('class', [syncedClass]);
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     const notice = await within(dialog).findByTestId('delete-unsaved-work');
     expect(notice).toHaveTextContent(/failed to upload/);
     expect(notice).toHaveTextContent(/Retry or Discard/);
@@ -558,7 +558,7 @@ describe('DeleteObjectDialog: one device-wide unsaved-work check', () => {
     mocks.unsaved.mockRejectedValue(new Error('queue unavailable'));
     renderDialog('class', [syncedClass]);
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     expect(await within(dialog).findByTestId('delete-unsaved-work')).toHaveTextContent(
       "couldn't check"
     );
@@ -571,7 +571,7 @@ describe('DeleteObjectDialog: one device-wide unsaved-work check', () => {
     const onDeleted = vi.fn();
     const { user } = renderDialog('class', [syncedClass], { onDeleted });
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     const confirm = within(dialog).getByRole('button', { name: 'Delete class' });
     await waitFor(() => expect(confirm).toBeEnabled());
     expect(within(dialog).queryByTestId('delete-unsaved-work')).toBeNull();
@@ -586,7 +586,7 @@ describe('DeleteObjectDialog: one device-wide unsaved-work check', () => {
     mocks.unsaved.mockResolvedValue({ total: 2, failed: 0 });
     const { user } = renderDialog('class', [syncedClass]);
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     await within(dialog).findByTestId('delete-unsaved-work');
     mocks.unsaved.mockResolvedValue({ total: 0, failed: 0 });
     await user.click(within(dialog).getByRole('button', { name: 'Check again' }));
@@ -600,7 +600,7 @@ describe('DeleteObjectDialog: one device-wide unsaved-work check', () => {
     const onDeleted = vi.fn();
     const { user } = renderDialog('class', [syncedClass], { onDeleted });
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     const confirm = within(dialog).getByRole('button', { name: 'Delete class' });
     await waitFor(() => expect(confirm).toBeEnabled());
     mocks.unsaved.mockResolvedValue({ total: 1, failed: 0 });
@@ -632,7 +632,7 @@ describe('DeleteObjectDialog: the confirm is in flight while the unsaved-work re
     const onOpenChange = vi.fn();
     const { user } = renderDialog('class', [syncedClass], { onOpenChange });
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     const confirm = within(dialog).getByRole('button', { name: 'Delete class' });
     await waitFor(() => expect(confirm).toBeEnabled());
     const release = slowRecheck();
@@ -652,7 +652,7 @@ describe('DeleteObjectDialog: the confirm is in flight while the unsaved-work re
     mocks.preview.mockResolvedValue(counts());
     const { user, unmount } = renderDialog('class', [syncedClass]);
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     const confirm = within(dialog).getByRole('button', { name: 'Delete class' });
     await waitFor(() => expect(confirm).toBeEnabled());
     const release = slowRecheck();
@@ -668,7 +668,7 @@ describe('DeleteObjectDialog: the confirm is in flight while the unsaved-work re
     mocks.preview.mockResolvedValue(counts());
     const { user } = renderDialog('class', [syncedClass]);
 
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     const confirm = within(dialog).getByRole('button', { name: 'Delete class' });
     await waitFor(() => expect(confirm).toBeEnabled());
     mocks.unsaved.mockResolvedValue({ total: 1, failed: 0 });

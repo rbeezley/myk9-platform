@@ -95,14 +95,14 @@ describe('ShowBulkActionsBar', () => {
   }
 
   function dialog() {
-    return screen.getByRole('dialog');
+    return screen.getByRole('alertdialog');
   }
 
   /** Opens the shared delete dialog and presses Delete once the counts are in. */
   async function confirmBulkDelete(user: ReturnType<typeof userEvent.setup>) {
     await user.click(within(bulkBar()).getByRole('button', { name: /^delete$/i }));
     const confirm = within(
-      await screen.findByRole('dialog', { name: 'Delete 2 shows?' })
+      await screen.findByRole('alertdialog', { name: 'Delete 2 shows?' })
     ).getByRole('button', { name: 'Delete 2 shows' });
     await waitFor(() => expect(confirm).toBeEnabled());
     await user.click(confirm);
@@ -153,7 +153,7 @@ describe('ShowBulkActionsBar', () => {
       expect(purgeDeletedShow).toHaveBeenCalledWith('show-1');
       expect(purgeDeletedShow).toHaveBeenCalledWith('show-2');
     });
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
     expect(screen.queryByText(/failed to delete/i)).not.toBeInTheDocument();
     expect(onBulkComplete).toHaveBeenCalledTimes(1);
   });
@@ -172,7 +172,7 @@ describe('ShowBulkActionsBar', () => {
     await confirmBulkDelete(user);
 
     await waitFor(() => expect(purgeDeletedShow).toHaveBeenCalledWith('show-1'));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
     expect(screen.queryByText(/failed to delete/i)).not.toBeInTheDocument();
     expect(onBulkComplete).toHaveBeenCalledTimes(1);
   });

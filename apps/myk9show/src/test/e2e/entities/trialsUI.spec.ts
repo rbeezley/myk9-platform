@@ -252,7 +252,7 @@ test.describe('Trial Details — Delete', () => {
     await page.getByRole('menuitem', { name: /Delete Trial/i }).click();
 
     // The shared delete dialog (CRUD standard Phase 2).
-    const dialog = page.getByRole('dialog', { name: /^Delete the trial / });
+    const dialog = page.getByRole('alertdialog', { name: /^Delete the trial / });
     await expect(dialog).toBeVisible();
 
     // The user's request: the copy says what goes with it, as counts in words, and
@@ -278,7 +278,7 @@ test.describe('Trial Details — Delete', () => {
     await page.getByRole('button', { name: 'More actions', exact: true }).click();
     await page.getByRole('menuitem', { name: /Delete Trial/i }).click();
 
-    const dialog = page.getByRole('dialog', { name: /^Delete the trial / });
+    const dialog = page.getByRole('alertdialog', { name: /^Delete the trial / });
     await expect(dialog).toBeVisible();
 
     // A soft delete through soft_delete_trial (never a hard DELETE on /rest/v1/trials)

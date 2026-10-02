@@ -81,7 +81,7 @@ async function deleteThrough(
   title: string,
   button: string
 ) {
-  const dialog = await screen.findByRole('dialog', { name: title });
+  const dialog = await screen.findByRole('alertdialog', { name: title });
   expect(mocks.remove).not.toHaveBeenCalled();
   const confirm = within(dialog).getByRole('button', { name: button });
   await waitFor(() => expect(confirm).toBeEnabled());
@@ -185,7 +185,7 @@ describe('person page dog cards (used to delete on one click)', () => {
     await user.click(await screen.findByRole('menuitem', { name: /Delete/ }));
 
     expect(mocks.remove).not.toHaveBeenCalled();
-    const dialog = await screen.findByRole('dialog', { name: 'Delete the dog Biscuit?' });
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete the dog Biscuit?' });
     expect(within(dialog).getByText('Biscuit · owned by Jane Smith')).toBeVisible();
     await deleteThrough(user, 'Delete the dog Biscuit?', 'Delete dog');
     await waitFor(() =>

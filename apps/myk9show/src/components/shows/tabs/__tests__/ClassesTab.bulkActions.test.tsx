@@ -154,7 +154,7 @@ describe('ClassesTab selection and bulk actions', () => {
     await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
     await user.click(await screen.findByRole('menuitem', { name: /delete 2 of 2 selected/i }));
 
-    const dialog = await screen.findByRole('dialog', { name: 'Delete 2 classes?' });
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete 2 classes?' });
     expect(deleteMocks.remove).not.toHaveBeenCalled();
     const confirm = within(dialog).getByRole('button', { name: 'Delete 2 classes' });
     await waitFor(() => expect(confirm).toBeEnabled());
@@ -205,7 +205,7 @@ describe('ClassesTab selection and bulk actions', () => {
 
     await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
     await user.click(await screen.findByRole('menuitem', { name: /delete 2 of 2 selected/i }));
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     const confirm = within(dialog).getByRole('button', { name: 'Delete 2 classes' });
     await waitFor(() => expect(confirm).toBeEnabled());
     await user.click(confirm);
@@ -223,7 +223,7 @@ describe('ClassesTab selection and bulk actions', () => {
     await user.click(screen.getByRole('checkbox', { name: 'Select all visible classes' }));
     await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
     await user.click(await screen.findByRole('menuitem', { name: /delete 2 of 2 selected/i }));
-    const dialog = await screen.findByRole('dialog', { name: 'Delete 2 classes?' });
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete 2 classes?' });
     await waitFor(() =>
       expect(within(dialog).getByRole('button', { name: 'Delete 2 classes' })).toBeEnabled()
     );

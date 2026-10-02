@@ -328,14 +328,14 @@ test.describe('Dogs UI — Exhibitor own-dog CRUD', () => {
     await navigateToExhibitorDog(page);
     await openActionsMenu(page);
     await page.getByRole('menuitem', { name: /Delete/i }).click();
-    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.getByRole('alertdialog')).toBeVisible();
 
     const deleteResponsePromise = page.waitForResponse(
       r => r.url().includes('/rest/v1/rpc/soft_delete_dog'),
       { timeout: 15000 }
     );
     const confirm = page
-      .getByRole('dialog')
+      .getByRole('alertdialog')
       .getByRole('button', { name: 'Delete dog', exact: true });
     await expect(confirm).toBeEnabled();
     await confirm.click();
@@ -494,7 +494,7 @@ test.describe('Dogs UI — Delete (secretary)', () => {
     await openActionsMenu(page);
     await page.getByRole('menuitem', { name: /Delete/i }).click();
 
-    const dialog = page.getByRole('dialog');
+    const dialog = page.getByRole('alertdialog');
     await expect(dialog).toBeVisible();
     // Dog name appears in the dialog confirmation text
     await expect(dialog.getByText(new RegExp(DOG_B_NAME))).toBeVisible();
@@ -509,7 +509,7 @@ test.describe('Dogs UI — Delete (secretary)', () => {
     await openActionsMenu(page);
     await page.getByRole('menuitem', { name: /Delete/i }).click();
 
-    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.getByRole('alertdialog')).toBeVisible();
 
     // Soft-delete calls the soft_delete_dog RPC, not a direct dogs table DELETE
     const deleteResponsePromise = page.waitForResponse(
@@ -519,7 +519,7 @@ test.describe('Dogs UI — Delete (secretary)', () => {
 
     // The confirm button names the object — exact match avoids the "Delete" menu item
     const confirm = page
-      .getByRole('dialog')
+      .getByRole('alertdialog')
       .getByRole('button', { name: 'Delete dog', exact: true });
     await expect(confirm).toBeEnabled();
     await confirm.click();

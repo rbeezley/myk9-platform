@@ -117,7 +117,7 @@ test.describe('Classes UI — Delete class confirmation', () => {
     await page.getByRole('menuitem', { name: /Delete Class/i }).click();
 
     // The shared delete dialog (CRUD standard Phase 2): honest about Undo.
-    const alert = page.getByRole('dialog', { name: /^Delete the class / });
+    const alert = page.getByRole('alertdialog', { name: /^Delete the class / });
     await expect(alert).toBeVisible();
     await expect(alert.getByText(/You can undo this for 10 minutes/)).toBeVisible();
     await expect(alert).toHaveAccessibleName(/Container Master/i);
@@ -306,7 +306,7 @@ test.describe('Classes UI — Delete class cascade', () => {
     await classRow.locator('..').getByRole('button').last().click();
     await page.getByRole('menuitem', { name: /Delete Class/i }).click();
 
-    const alert = page.getByRole('dialog', { name: /^Delete the class / });
+    const alert = page.getByRole('alertdialog', { name: /^Delete the class / });
     await expect(alert).toBeVisible();
 
     // The user-observable contract is the cascade outcome, not the wire

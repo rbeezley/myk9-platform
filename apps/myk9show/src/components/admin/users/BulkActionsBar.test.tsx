@@ -268,7 +268,7 @@ describe('BulkActionsBar', () => {
 
       fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
 
-      const dialog = await screen.findByRole('dialog', { name: 'Delete 2 people?' });
+      const dialog = await screen.findByRole('alertdialog', { name: 'Delete 2 people?' });
       expect(within(dialog).getByText('John Doe and Jane Smith')).toBeInTheDocument();
       expect(within(dialog).getByRole('button', { name: 'Keep it' })).toBeInTheDocument();
       await waitFor(() =>
@@ -281,10 +281,10 @@ describe('BulkActionsBar', () => {
       render(<BulkActionsBar {...defaultProps} />);
 
       fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
-      const dialog = await screen.findByRole('dialog');
+      const dialog = await screen.findByRole('alertdialog');
       fireEvent.click(within(dialog).getByRole('button', { name: 'Keep it' }));
 
-      await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+      await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
       expect(deleteMocks.remove).not.toHaveBeenCalled();
     });
 
@@ -300,7 +300,7 @@ describe('BulkActionsBar', () => {
       );
 
       fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
-      const dialog = await screen.findByRole('dialog');
+      const dialog = await screen.findByRole('alertdialog');
       const confirm = within(dialog).getByRole('button', { name: 'Delete 2 people' });
       await waitFor(() => expect(confirm).toBeEnabled());
       fireEvent.click(confirm);
@@ -318,7 +318,7 @@ describe('BulkActionsBar', () => {
       render(<BulkActionsBar {...defaultProps} />);
 
       fireEvent.click(screen.getByRole('button', { name: /^delete$/i }));
-      const dialog = await screen.findByRole('dialog');
+      const dialog = await screen.findByRole('alertdialog');
 
       expect(
         await within(dialog).findByText(

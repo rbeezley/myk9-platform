@@ -1,6 +1,7 @@
 import { unwrap, type IDBPDatabase } from 'idb';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
+import { removeOrphanedLocalOnlyRow } from './mutation-row-sync';
 import { rebaseQueuedMutation, rewriteQueuedMutations } from './mutation-queue-rewrite';
 import { withQuotaEviction } from './quota-eviction';
 import { type PendingMutation, type ReplicatedRow } from './types';
@@ -244,6 +245,7 @@ export class MutationQueueStore {
     if (!failed || failed.authUserId !== authUserId) return false;
     await confirmOwner();
     await db.delete(REPLICATION_STORES.FAILED_MUTATIONS, mutationId);
+    await removeOrphanedLocalOnlyRow(db, failed);
     return true;
   }
 

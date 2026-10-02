@@ -1619,14 +1619,18 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     this._deletedIds.delete(entryId);
   }
 
-  /** A direct server soft-delete supersedes any queued local edit for this row. */
+  /**
+   * The server soft-deleted this entry: guard racing downloads and evict the
+   * row. A row that holds local work at this moment (dirty, local-only, or a
+   * pending or failed mutation, e.g. queued in another tab while the RPC ran) is
+   * left alone, queue and all, for normal sync: the server's trigger refuses an
+   * upload under a deleted parent and the replication layer reports it, which
+   * beats silently dropping the user's edit.
+   */
   async acknowledgeServerDeletion(entryId: string, deletedVersion: number): Promise<void> {
+    if (await this.hasUnsyncedLocalWork(entryId)) return;
     this._deletedIds.set(entryId, deletedVersion);
-    try {
-      await this.entryMutationManager?.discardPendingMutationsForRow('entries', entryId);
-    } finally {
-      await this.delete(entryId);
-    }
+    await this.delete(entryId);
   }
 }
 

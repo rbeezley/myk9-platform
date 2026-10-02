@@ -249,7 +249,9 @@ describe.each(['cards', 'table'])('ClassesTab row actions (%s view)', view => {
     await user.click(screen.getByRole('button', { name: 'Class actions for Containers Novice A' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Delete Class' }));
 
-    const dialog = await screen.findByRole('dialog', { name: /^Delete the class .*Containers/ });
+    const dialog = await screen.findByRole('alertdialog', {
+      name: /^Delete the class .*Containers/,
+    });
     expect(within(dialog).getByText('Novice Containers · Saturday Trial')).toBeVisible();
     expect(deleteMocks.remove).not.toHaveBeenCalled();
 

@@ -76,7 +76,7 @@ async function openBulkDelete(user: ReturnType<typeof setup>['user'], count: num
   await user.click(
     await screen.findByRole('menuitem', { name: new RegExp(`delete ${count} dogs?`, 'i') })
   );
-  return screen.findByRole('dialog');
+  return screen.findByRole('alertdialog');
 }
 
 describe('DogsBulkActionsBar', () => {

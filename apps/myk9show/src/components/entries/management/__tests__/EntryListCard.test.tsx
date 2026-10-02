@@ -242,7 +242,7 @@ describe('EntryListCard - check-in button affordance', () => {
 
     await user.click(screen.getByRole('button', { name: /remove entry for fido/i }));
 
-    const dialog = await screen.findByRole('dialog', { name: 'Delete the entry for Fido?' });
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete the entry for Fido?' });
     expect(deleteMocks.remove).not.toHaveBeenCalled();
 
     const confirm = within(dialog).getByRole('button', { name: 'Delete entry' });
@@ -270,7 +270,7 @@ describe('EntryListCard - check-in button affordance', () => {
     render(<EntryListCard {...defaultProps} onEntryRestored={onEntryRestored} />);
 
     await user.click(screen.getByRole('button', { name: /remove entry for fido/i }));
-    const dialog = await screen.findByRole('dialog', { name: 'Delete the entry for Fido?' });
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete the entry for Fido?' });
     const confirm = within(dialog).getByRole('button', { name: 'Delete entry' });
     await waitFor(() => expect(confirm).toBeEnabled());
     await user.click(confirm);

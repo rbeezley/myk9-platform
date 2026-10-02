@@ -209,7 +209,7 @@ describe('ClassesTab row actions with a cold, offline class query', () => {
   const openDelete = async (user: ReturnType<typeof renderTab>['user']) => {
     await user.click(screen.getByRole('button', { name: 'Class actions for Containers Novice A' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Delete Class' }));
-    return screen.findByRole('dialog');
+    return screen.findByRole('alertdialog');
   };
 
   it('Delete opens the shared dialog naming the replicated class', async () => {
@@ -245,7 +245,7 @@ describe('ClassesTab row actions with a cold, offline class query', () => {
       "We couldn't delete this class. Please try again."
     );
     expect(dialog).not.toHaveTextContent('Server said no');
-    expect(screen.getByRole('dialog')).toBeVisible();
+    expect(screen.getByRole('alertdialog')).toBeVisible();
   });
 
   it('a successful delete closes the dialog with no "couldn\'t load" error, though the class leaves the store', async () => {
@@ -263,7 +263,7 @@ describe('ClassesTab row actions with a cold, offline class query', () => {
     await waitFor(() =>
       expect(deleteMocks.remove).toHaveBeenCalledWith('class', 'c1', { override: false })
     );
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
     expect(toastError).not.toHaveBeenCalled();
   });
 

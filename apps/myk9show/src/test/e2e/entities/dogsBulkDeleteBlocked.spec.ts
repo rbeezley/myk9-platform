@@ -59,7 +59,7 @@ async function openBulkDelete(page: Page) {
   await page
     .getByRole('menuitem', { name: new RegExp(`delete ${BLOCKED_DOGS.length} dogs`, 'i') })
     .click();
-  const dialog = page.getByRole('dialog', { name: `Delete ${BLOCKED_DOGS.length} dogs?` });
+  const dialog = page.getByRole('alertdialog', { name: `Delete ${BLOCKED_DOGS.length} dogs?` });
   await expect(dialog).toBeVisible();
   return dialog;
 }
@@ -108,7 +108,7 @@ test.describe('bulk delete of dogs the server refuses', () => {
     // Asserted as geometry rather than presence because the bug was purely
     // layout: a dialog capped at 90vh with its button below its own bottom edge.
     const reach = await page.evaluate(count => {
-      const dialogEl = document.querySelector('[role="dialog"]');
+      const dialogEl = document.querySelector('[role="alertdialog"]');
       const button = Array.from(dialogEl?.querySelectorAll('button') ?? []).find(
         b => (b.textContent || '').trim() === `Delete ${count} dogs`
       );
@@ -129,7 +129,7 @@ test.describe('bulk delete of dogs the server refuses', () => {
 
     // Dismiss WITHOUT overriding — nothing is destroyed, nothing was sent.
     await dialog.getByRole('button', { name: 'Keep it', exact: true }).click();
-    await expect(page.getByRole('dialog')).toBeHidden();
+    await expect(page.getByRole('alertdialog')).toBeHidden();
     expect(deleteCalls).toEqual([]);
   });
 

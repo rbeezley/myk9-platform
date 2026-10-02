@@ -97,6 +97,13 @@ const spy = {
   entriesSync: vi.spyOn(replicatedEntriesTable, 'sync'),
   dogsSync: vi.spyOn(replicatedDogsTable, 'sync'),
   clubsSync: vi.spyOn(replicatedClubsTable, 'sync'),
+  // The purge-time guard (MYK9-922): true when the row holds work the server lacks.
+  showsWork: vi.spyOn(replicatedShowsTable, 'hasUnsyncedLocalWork'),
+  trialsWork: vi.spyOn(replicatedTrialsTable, 'hasUnsyncedLocalWork'),
+  classesWork: vi.spyOn(replicatedClassesTable, 'hasUnsyncedLocalWork'),
+  entriesWork: vi.spyOn(replicatedEntriesTable, 'hasUnsyncedLocalWork'),
+  dogsWork: vi.spyOn(replicatedDogsTable, 'hasUnsyncedLocalWork'),
+  clubsWork: vi.spyOn(replicatedClubsTable, 'hasUnsyncedLocalWork'),
 };
 const loaders = {
   loadShows: vi.fn(),
@@ -112,6 +119,16 @@ const asStore = <T>(value: unknown) => value as T;
 
 beforeEach(() => {
   for (const fn of Object.values(spy)) fn.mockReset().mockResolvedValue(undefined as never);
+  for (const fn of [
+    spy.showsWork,
+    spy.trialsWork,
+    spy.classesWork,
+    spy.entriesWork,
+    spy.dogsWork,
+    spy.clubsWork,
+  ]) {
+    fn.mockResolvedValue(false);
+  }
   for (const fn of Object.values(loaders)) fn.mockReset().mockResolvedValue(undefined);
   mocks.remove.mockReset().mockResolvedValue('deleted');
   mocks.restore.mockReset().mockResolvedValue(undefined);
@@ -270,5 +287,75 @@ describe.each(KINDS)('%s', kind => {
     await expect(reconcileLocalDeletion(kind, TARGETS[kind])).resolves.toBeUndefined();
     const restored = await restoreRecords(kind, [TARGETS[kind]]);
     expect(restored.failed).toEqual([]);
+  });
+});
+
+/**
+ * MYK9-922 round 9: the unsaved-work check runs BEFORE the server call, so an
+ * entry created or edited in another tab while the RPC is in flight is not seen
+ * by it. The purge therefore asks again, row by row, at the moment it drops the
+ * row: anything with local work survives for normal sync (the server refuses an
+ * upload under the deleted parent, and the replication layer reports it).
+ */
+describe('purge-time guard: a row that gained local work after the check survives', () => {
+  const WORK_SPY: Record<
+    LocalStoreName,
+    { mockResolvedValue: (value: boolean) => unknown } | undefined
+  > = {
+    shows: spy.showsWork,
+    trials: spy.trialsWork,
+    classes: spy.classesWork,
+    entries: spy.entriesWork,
+    dogs: spy.dogsWork,
+    clubs: spy.clubsWork,
+    people: undefined,
+  };
+
+  it('keeps only the entry that became dirty, and purges its siblings', async () => {
+    spy.entriesWork.mockImplementation(async id => id === 'e1');
+    await reconcileLocalDeletion('class', TARGETS.class);
+    expect(spy.entriesBatchDelete).not.toHaveBeenCalledWith(expect.arrayContaining(['e1']));
+    expect(useEntryStore.getState().entries.map(e => e.id)).toContain('e1');
+    expect(useClassStore.getState().entries.map(e => e.id)).toContain('e1');
+    // Same kind, an entry with no local work is still purged.
+    await reconcileLocalDeletion('trial', TARGETS.trial);
+    expect(spy.entriesBatchDelete).toHaveBeenCalledWith(['e2']);
+    expect(useEntryStore.getState().entries.map(e => e.id)).not.toContain('e2');
+  });
+
+  it.each(KINDS)(
+    '%s: when every in-scope row has local work, no store drops anything',
+    async kind => {
+      for (const name of LOCAL_STORES_BY_KIND[kind]) WORK_SPY[name]?.mockResolvedValue(true);
+      const before = {
+        shows: useShowStore.getState().shows,
+        trials: useTrialStore.getState().trials,
+        classes: useClassStore.getState().classes,
+        entries: useEntryStore.getState().entries,
+        clubs: useClubStore.getState().clubs,
+      };
+      await reconcileLocalDeletion(kind, TARGETS[kind]);
+      if (kind === 'person') return; // people are not replicated; nothing queues for them
+      expect(spy.showsDelete).not.toHaveBeenCalled();
+      expect(spy.trialsBatchDelete).not.toHaveBeenCalled();
+      expect(spy.classesBatchDelete).not.toHaveBeenCalled();
+      expect(spy.entriesBatchDelete).not.toHaveBeenCalled();
+      expect(spy.dogsDelete).not.toHaveBeenCalled();
+      expect(spy.clubsDelete).not.toHaveBeenCalled();
+      expect(useShowStore.getState().shows).toEqual(before.shows);
+      expect(useTrialStore.getState().trials).toEqual(before.trials);
+      expect(useClassStore.getState().classes).toEqual(before.classes);
+      expect(useEntryStore.getState().entries).toEqual(before.entries);
+      expect(useClubStore.getState().clubs).toEqual(before.clubs);
+    }
+  );
+
+  it('a row that is dirty at purge time but was clean at the check survives a real delete', async () => {
+    // Clean when deleteRecords checks the queue; dirty by the time the purge asks.
+    spy.entriesWork.mockImplementation(async id => id === 'e3');
+    const result = await deleteRecords('show', [TARGETS.show]);
+    expect(result.failed).toEqual([]);
+    expect(useEntryStore.getState().entries.map(e => e.id)).toContain('e3');
+    expect(spy.entriesBatchDelete.mock.calls.flatMap(([ids]) => ids).sort()).toEqual(['e1', 'e2']);
   });
 });

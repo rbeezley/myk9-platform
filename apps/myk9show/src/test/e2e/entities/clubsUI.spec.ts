@@ -359,7 +359,9 @@ test.describe('Clubs UI — Delete (only Club C, as platform admin)', () => {
     await page.getByRole('button', { name: 'Club options' }).click();
     await page.getByRole('menuitem', { name: /Delete Club/i }).click();
 
-    const confirmDialog = page.getByRole('dialog', { name: `Delete the club ${CLUB_C_NAME}?` });
+    const confirmDialog = page.getByRole('alertdialog', {
+      name: `Delete the club ${CLUB_C_NAME}?`,
+    });
     await expect(confirmDialog).toBeVisible();
 
     // Club delete is a soft delete through soft_delete_club (CRUD standard). Wait

@@ -37,6 +37,7 @@ import { deletePayload } from '../pendingDeletes';
 describe('ReplicatedEntriesTable pending deletes (MYK9-762)', () => {
   let table: ReplicatedEntriesTable;
   let pending: PendingMutation[];
+  let failed: PendingMutation[];
   let discardPending: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
@@ -44,6 +45,7 @@ describe('ReplicatedEntriesTable pending deletes (MYK9-762)', () => {
     await databaseManager.reset();
     engine.adapters.length = 0;
     pending = [];
+    failed = [];
     discardPending = vi.fn(async (_tableName: string, rowId: string) => {
       pending = pending.filter(mutation => mutation.rowId !== rowId);
     });
@@ -62,6 +64,9 @@ describe('ReplicatedEntriesTable pending deletes (MYK9-762)', () => {
         },
         getPendingMutationsForTable: async (tableName: string) =>
           pending.filter(mutation => mutation.tableName === tableName),
+        getPendingMutationsForRow: async (tableName: string, rowId: string) =>
+          pending.filter(mutation => mutation.tableName === tableName && mutation.rowId === rowId),
+        getFailedMutations: async () => failed,
         discardPendingMutationsForRow: discardPending,
         getPendingCount: async () => pending.length,
       })
@@ -136,22 +141,43 @@ describe('ReplicatedEntriesTable pending deletes (MYK9-762)', () => {
     ]);
   });
 
-  it('suppresses a server-acknowledged removal across queued writes and a racing download', async () => {
-    await seed({ id: 'e1', classId: 'c1', showId: 'show-1' });
-    pending.push(
-      fromAny<PendingMutation, unknown>({
-        tableName: 'entries',
-        operation: 'UPDATE',
-        rowId: 'e1',
-        data: { entry_status: 'confirmed' },
-      })
+  it.each([
+    ['a pending edit', 'pending'],
+    ['a failed upload', 'failed'],
+    ['a dirty row', 'dirty'],
+    ['a local-only row', 'local-only'],
+  ])('leaves a row holding %s for normal sync (MYK9-922)', async (_label, kind) => {
+    await seed(
+      {
+        id: 'e1',
+        classId: 'c1',
+        showId: 'show-1',
+        ...(kind === 'local-only' && { _localOnly: true }),
+      },
+      kind === 'dirty'
     );
+    const queued = fromAny<PendingMutation, unknown>({
+      tableName: 'entries',
+      operation: 'UPDATE',
+      rowId: 'e1',
+      data: { entry_status: 'confirmed' },
+    });
+    if (kind === 'pending') pending.push(queued);
+    if (kind === 'failed') failed.push(queued);
+
+    await table.acknowledgeServerDeletion('e1', 5);
+
+    expect(discardPending).not.toHaveBeenCalled();
+    expect(pending).toEqual(kind === 'pending' ? [queued] : []);
+    expect(await table.get('e1')).not.toBeNull();
+  });
+
+  it('suppresses a server-acknowledged removal across a racing download', async () => {
+    await seed({ id: 'e1', classId: 'c1', showId: 'show-1' });
 
     await table.acknowledgeServerDeletion('e1', 5);
     await table.sync('show-1');
 
-    expect(discardPending).toHaveBeenCalledWith('entries', 'e1');
-    expect(pending).toEqual([]);
     expect(await table.get('e1')).toBeNull();
     const adapter = engine.adapters[0] as SyncReplicatedTableAdapter<unknown, ReplicatedEntry>;
     expect(adapter.shouldSkipRemoteRow?.({ id: 'e1' }, { local: null })).toBe(true);

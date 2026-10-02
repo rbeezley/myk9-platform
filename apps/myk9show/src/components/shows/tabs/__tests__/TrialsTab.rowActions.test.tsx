@@ -184,7 +184,7 @@ describe.each(['cards', 'table'])('TrialsTab row actions (%s view)', view => {
     await user.click(screen.getByRole('button', { name: 'Trial actions for Saturday Trial 1' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Delete Trial' }));
 
-    const dialog = await screen.findByRole('dialog', {
+    const dialog = await screen.findByRole('alertdialog', {
       name: 'Delete the trial Saturday Trial 1?',
     });
     expect(
@@ -263,7 +263,7 @@ describe('TrialsTab trial delete', () => {
 
     await user.click(screen.getByRole('button', { name: 'Trial actions for Saturday Trial 1' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Delete Trial' }));
-    const dialog = await screen.findByRole('dialog', {
+    const dialog = await screen.findByRole('alertdialog', {
       name: 'Delete the trial Saturday Trial 1?',
     });
     const confirm = within(dialog).getByRole('button', { name: 'Delete trial' });
@@ -277,7 +277,7 @@ describe('TrialsTab trial delete', () => {
       expect(deleteMocks.remove).toHaveBeenCalledWith('trial', 't1', { override: false })
     );
     expect(deleteMocks.purge).toHaveBeenCalledWith('trial', expect.objectContaining({ id: 't1' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
     expect(useTrialStore.getState().trials.map(t => t.id)).not.toContain('t1');
     expect(toastError).not.toHaveBeenCalled();
   });
@@ -339,7 +339,7 @@ describe('TrialsTab trial save and delete failures', () => {
 
     await user.click(screen.getByRole('button', { name: 'Trial actions for Saturday Trial 1' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Delete Trial' }));
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     const confirm = within(dialog).getByRole('button', { name: 'Delete trial' });
     await waitFor(() => expect(confirm).toBeEnabled());
     await user.click(confirm);
@@ -347,7 +347,7 @@ describe('TrialsTab trial save and delete failures', () => {
     expect(await within(dialog).findByRole('alert')).toHaveTextContent(
       "You don't have permission to delete this trial."
     );
-    expect(screen.getByRole('dialog')).toBeVisible();
+    expect(screen.getByRole('alertdialog')).toBeVisible();
   });
 });
 
@@ -365,7 +365,7 @@ describe('TrialsTab trial delete in flight', () => {
   async function startDelete(user: ReturnType<typeof renderTab>['user']) {
     await user.click(screen.getByRole('button', { name: 'Trial actions for Saturday Trial 1' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Delete Trial' }));
-    const dialog = await screen.findByRole('dialog');
+    const dialog = await screen.findByRole('alertdialog');
     const confirm = within(dialog).getByRole('button', { name: 'Delete trial' });
     await waitFor(() => expect(confirm).toBeEnabled());
     await user.click(confirm);
@@ -388,12 +388,12 @@ describe('TrialsTab trial delete in flight', () => {
     expect(await within(dialog).findByRole('button', { name: /Deleting/ })).toBeDisabled();
     expect(within(dialog).getByRole('button', { name: 'Keep it' })).toBeDisabled();
     await user.keyboard('{Escape}');
-    expect(screen.getByRole('dialog')).toBeVisible();
+    expect(screen.getByRole('alertdialog')).toBeVisible();
     // Other rows stay locked, so no other trial's action can start underneath it.
     expect(screen.getByLabelText('Trial actions for Sunday Trial 2')).toBeDisabled();
 
     finishDelete();
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
     expect(toastError).not.toHaveBeenCalled();
   });
 
@@ -407,7 +407,7 @@ describe('TrialsTab trial delete in flight', () => {
     );
 
     await user.click(within(dialog).getByRole('button', { name: 'Keep it' }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
   });
 });
 

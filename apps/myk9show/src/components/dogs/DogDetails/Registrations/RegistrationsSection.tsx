@@ -34,6 +34,12 @@ interface RegistrationRecord {
 
 interface RegistrationsSectionProps {
   dog?: Dog;
+  /**
+   * Whether this viewer may change registrations (`canManageDogRegistrations`).
+   * Required so no caller can forget it. False renders a read-only list: no
+   * Edit / Delete menu and no "Edit registered name" button.
+   */
+  canEdit: boolean;
 }
 
 import { useRegistrationsStore } from '@/store/registrationsStore';
@@ -45,7 +51,7 @@ import { useRegistrationsStore } from '@/store/registrationsStore';
  * component can be mounted wherever the list is actually wanted and unmounted
  * everywhere else without taking the add/edit flow down with it.
  */
-export default function RegistrationsSection({ dog }: RegistrationsSectionProps) {
+export default function RegistrationsSection({ dog, canEdit }: RegistrationsSectionProps) {
   const dogId = dog?.id || '';
 
   // Use database hooks for data management
@@ -130,29 +136,31 @@ export default function RegistrationsSection({ dog }: RegistrationsSectionProps)
     <div className="grid gap-4 grid-cols-1">
       {(registrations as RegistrationRecord[]).map((reg: RegistrationRecord, idx: number) => (
         <SectionCard key={reg.id || idx} className="min-h-[170px] justify-between">
-          <div className="absolute top-4 right-4 z-10">
-            <ThreeDotMenu
-              items={[
-                {
-                  label: 'Edit',
-                  onClick: () => {
-                    setSelectedRegistration(reg as Registration);
-                    setIsEditRegistrationDialogOpen(true);
+          {canEdit && (
+            <div className="absolute top-4 right-4 z-10">
+              <ThreeDotMenu
+                items={[
+                  {
+                    label: 'Edit',
+                    onClick: () => {
+                      setSelectedRegistration(reg as Registration);
+                      setIsEditRegistrationDialogOpen(true);
+                    },
+                    icon: <Edit className="w-4 h-4 mr-2" />,
                   },
-                  icon: <Edit className="w-4 h-4 mr-2" />,
-                },
-                {
-                  label: 'Delete',
-                  onClick: () => {
-                    setSelectedRegistration(reg as Registration);
-                    setIsDeleteRegistrationDialogOpen(true);
+                  {
+                    label: 'Delete',
+                    onClick: () => {
+                      setSelectedRegistration(reg as Registration);
+                      setIsDeleteRegistrationDialogOpen(true);
+                    },
+                    icon: <Trash2 className="w-4 h-4 mr-2" />,
+                    className: 'text-destructive',
                   },
-                  icon: <Trash2 className="w-4 h-4 mr-2" />,
-                  className: 'text-destructive',
-                },
-              ]}
-            />
-          </div>
+                ]}
+              />
+            </div>
+          )}
           <div className="flex flex-col gap-2">
             <div className="font-semibold text-base mb-0.5">{reg.organization} Registration</div>
             <div className="text-xs text-muted-foreground mb-0.5">
@@ -177,18 +185,20 @@ export default function RegistrationsSection({ dog }: RegistrationsSectionProps)
                 <div className="font-semibold break-words">
                   {reg.registeredName || reg.registered_name}
                 </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-2 min-h-11"
-                  aria-label={`Edit ${reg.organization} registered name for ${reg.registeredName || reg.registered_name}`}
-                  onClick={() => {
-                    setSelectedRegistration(reg as Registration);
-                    setIsEditRegistrationDialogOpen(true);
-                  }}
-                >
-                  Edit registered name
-                </Button>
+                {canEdit && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-2 min-h-11"
+                    aria-label={`Edit ${reg.organization} registered name for ${reg.registeredName || reg.registered_name}`}
+                    onClick={() => {
+                      setSelectedRegistration(reg as Registration);
+                      setIsEditRegistrationDialogOpen(true);
+                    }}
+                  >
+                    Edit registered name
+                  </Button>
+                )}
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Registration Number</div>

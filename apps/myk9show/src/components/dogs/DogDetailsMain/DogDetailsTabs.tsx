@@ -14,7 +14,11 @@ import CareerSection from './CareerSection';
 import RecordsSection from './RecordsSection';
 import type { CareerView, RecordsView } from './dogDetailsSections';
 
-const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({ dog, role = 'exhibitor' }) => {
+const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({
+  dog,
+  role = 'exhibitor',
+  canEditRegistrations,
+}) => {
   const { isPremium, isLoading, canAuthorizePremium } = useSubscriptionGate();
   const { user } = useAuthContext();
   const { state, setSection, setView } = useDogDetailsNavigation();
@@ -33,7 +37,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({ dog, role = 'exhibitor'
     return (
       <div className="pt-6 space-y-8">
         <NonOwnerDogNote />
-        <RegistrationsSection dog={dog} />
+        <RegistrationsSection dog={dog} canEdit={canEditRegistrations} />
         <section>
           <h2 className="text-base font-semibold mb-3">Health Records</h2>
           <Suspense fallback={<TabContentSkeleton />}>
@@ -43,6 +47,10 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({ dog, role = 'exhibitor'
               isPremium={isPremium}
               canWrite={canAuthorizePremium}
               vaccinationsOnly
+              // The narrow surface is a non-owner, non-site-admin viewer. The live
+              // vaccinations INSERT/UPDATE/DELETE policies admit only the dog's
+              // owner/co-owner or a platform admin, so this view never writes.
+              readOnly
             />
           </Suspense>
         </section>

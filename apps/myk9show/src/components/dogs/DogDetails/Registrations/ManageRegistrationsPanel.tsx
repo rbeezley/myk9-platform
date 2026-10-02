@@ -44,7 +44,8 @@ export default function ManageRegistrationsPanel({
         </Button>
       }
     >
-      <RegistrationsSection dog={dog} />
+      {/* Mounted only behind canManageDogRegistrations (DogDetailsMain). */}
+      <RegistrationsSection dog={dog} canEdit />
     </SlideOverPanel>
   );
 }

@@ -313,6 +313,7 @@ describe('DogDetailsMain — owner resolution', () => {
 
   it('opens Add registration from a deep link without moving the reader off their section', async () => {
     mockRole = 'exhibitor';
+    mockViewerPersonId = DOG_OWNER_ID;
     mockPeople = [{ id: DOG_OWNER_ID, firstName: 'Jane', lastName: 'Smith' }];
     render(<DogDetailsMain dog={mockDog} />, {
       initialRoute: '/dogs/dog-1?section=career&addRegistration=true',

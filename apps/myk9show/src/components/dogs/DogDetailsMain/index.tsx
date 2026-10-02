@@ -84,11 +84,12 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   // section the link pointed at stays selected underneath it.
   useEffect(() => {
     if (searchParams.get('addRegistration') !== 'true') return;
+    // The server refuses registration writes to this viewer: drop the param, raise nothing.
     const next = new URLSearchParams(searchParams);
     next.delete('addRegistration');
-    setAddRegistrationDogId(dog.id);
+    if (canManageRegistrations) setAddRegistrationDogId(dog.id);
     setSearchParams(next, { replace: true });
-  }, [dog.id, searchParams, setSearchParams]);
+  }, [dog.id, searchParams, setSearchParams, canManageRegistrations]);
 
   // Owner — try store first, fall back to Supabase query
   const storeOwner: Owner | null = React.useMemo(() => {
@@ -302,7 +303,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
             dog={updatedDog}
             owner={owner}
             registrations={dbRegistrations}
-            onAddRegistration={openAddRegistration}
+            onAddRegistration={canManageRegistrations ? openAddRegistration : undefined}
             onManageRegistrations={
               canManageRegistrations ? () => setIsManageRegistrationsOpen(true) : undefined
             }
@@ -313,7 +314,11 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
             canOpenOwnerRecord={canOpenOwnerRecord}
           />
           <main className="flex-1 min-w-0">
-            <DogDetailsTabs dog={updatedDog} role={isSecretary ? 'secretary' : 'exhibitor'} />
+            <DogDetailsTabs
+              dog={updatedDog}
+              role={isSecretary ? 'secretary' : 'exhibitor'}
+              canEditRegistrations={canManageRegistrations}
+            />
           </main>
         </div>
       </PageShell>
@@ -332,14 +337,16 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
           dog={updatedDog}
         />
       )}
-      {/* Mounted once, for every role: the rail's Add, the list's per-row Edit
+      {/* Mounted once, for every viewer allowed to change registrations: the rail's Add, the list's per-row Edit
           and Delete, and the `?addRegistration=true` deep link all raise these,
           so they must not depend on any list being on screen. */}
-      <DogRegistrationDialogs
-        dog={updatedDog}
-        autoOpenAddDialog={addRegistrationDogId === dog.id}
-        onAddRequestConsumed={() => setAddRegistrationDogId(null)}
-      />
+      {canManageRegistrations && (
+        <DogRegistrationDialogs
+          dog={updatedDog}
+          autoOpenAddDialog={addRegistrationDogId === dog.id}
+          onAddRequestConsumed={() => setAddRegistrationDogId(null)}
+        />
+      )}
 
       <DogDialogs
         dog={updatedDog}

@@ -32,11 +32,29 @@ interface ClassCardProps {
   onClick?: () => void;
   /** Row actions menu (Setup: Edit / Delete); sits beside the status badge. */
   actions?: ReactNode;
+  /** Manager-only select checkbox (Setup bulk status); sits before the class name. */
+  selection?: ReactNode;
+  /** Manager-only judge picker (Setup); replaces the read-only judge line. */
+  judgeControl?: ReactNode;
+  /** Manager-only run-order position (Setup), shown under the level. */
+  order?: number | undefined;
+  /** The class a deep link (`?focus=`) is pointing at. */
+  focused?: boolean;
 }
 
 const LIVE_STATUSES = new Set(['In Progress', 'Paused']);
 
-export function ClassCard({ classInfo, hideRing, liveData, onClick, actions }: ClassCardProps) {
+export function ClassCard({
+  classInfo,
+  hideRing,
+  liveData,
+  onClick,
+  actions,
+  selection,
+  judgeControl,
+  order,
+  focused = false,
+}: ClassCardProps) {
   const isLive = LIVE_STATUSES.has(classInfo.status) && liveData;
   const progressPct =
     isLive && liveData.totalEntries > 0
@@ -46,19 +64,26 @@ export function ClassCard({ classInfo, hideRing, liveData, onClick, actions }: C
 
   return (
     <div
+      data-class-id={classInfo.id}
+      tabIndex={onClick ? 0 : -1}
       className={cn(
         'rounded-xl border border-border/50 bg-card p-4 space-y-3 transition-all',
         classInfo.userHasEntry && 'border-primary/30 bg-primary/5',
+        focused && 'ring-2 ring-accent-foreground/40 bg-accent/20',
         onClick && 'cursor-pointer hover:shadow-md hover:border-primary/30'
       )}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? e => e.key === 'Enter' && onClick() : undefined}
     >
       {/* Header: element/level + status */}
       <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0">
+        {selection && (
+          <div onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+            {selection}
+          </div>
+        )}
+        <div className="min-w-0 flex-1">
           {classInfo.userHasEntry && (
             <span className="mb-1 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
               My entry
@@ -69,6 +94,7 @@ export function ClassCard({ classInfo, hideRing, liveData, onClick, actions }: C
             {classInfo.level}
             {shouldShowSection(classInfo) && <span className="ml-1">{classInfo.section}</span>}
           </p>
+          {order != null && <p className="text-xs text-muted-foreground">Order: {order}</p>}
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <StatusBadge
@@ -82,8 +108,14 @@ export function ClassCard({ classInfo, hideRing, liveData, onClick, actions }: C
       </div>
 
       {/* Judge */}
-      {classInfo.judgeName && (
-        <p className="text-xs text-muted-foreground">Judge: {classInfo.judgeName}</p>
+      {judgeControl ? (
+        <div onClick={e => e.stopPropagation()} onKeyDown={e => e.stopPropagation()}>
+          {judgeControl}
+        </div>
+      ) : (
+        classInfo.judgeName && (
+          <p className="text-xs text-muted-foreground">Judge: {classInfo.judgeName}</p>
+        )
       )}
 
       {/* Time + Ring */}

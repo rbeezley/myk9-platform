@@ -62,6 +62,15 @@ describe('filterClassesForTab', () => {
     expect(result.map(c => c.id)).toEqual(['not-started', 'mine']);
   });
 
+  it('"in_progress" keeps only classes being scored', () => {
+    const live = [
+      ...classes,
+      cls({ id: 'live', status: 'In Progress', entryCount: 5, scoredCount: 2 }),
+    ];
+    const result = filterClassesForTab(live, { status: 'in_progress', mine: false });
+    expect(result.map(c => c.id)).toEqual(['live']);
+  });
+
   it('"completed" keeps only completed classes', () => {
     const result = filterClassesForTab(classes, { status: 'completed', mine: false });
     expect(result.map(c => c.id)).toEqual(['completed']);
@@ -79,6 +88,7 @@ describe('Classes tab views', () => {
     expect(views.map(v => [v.id, v.count])).toEqual([
       ['all', 20],
       ['pending', 20],
+      ['in_progress', 0],
       ['completed', 0],
       ['mine', 2],
     ]);

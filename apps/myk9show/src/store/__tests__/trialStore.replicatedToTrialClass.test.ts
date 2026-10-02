@@ -155,3 +155,27 @@ describe('class name survives the replication round trip', () => {
     );
   });
 });
+
+describe('mergeTrialClassData — judge assignment', () => {
+  const held = replicatedToTrialClass(makeReplicated({}));
+  const cleared = (judgeResolved?: boolean): ReplicatedClass => ({
+    ...makeReplicated({}),
+    judgeId: undefined,
+    judgeName: undefined,
+    ...(judgeResolved === undefined ? {} : { judgeResolved }),
+  });
+
+  it('honors a resolved row with no judge: the assignment was removed', () => {
+    expect(mergeTrialClassData(cleared(true), held).judgeId).toBe('');
+  });
+
+  it('keeps the judge already held when the lookup did not run', () => {
+    expect(mergeTrialClassData(cleared(false), held).judgeId).toBe('judge-1');
+    expect(mergeTrialClassData(cleared(), held).judgeId).toBe('judge-1');
+  });
+
+  it("takes a resolved row's own judge", () => {
+    const swapped = { ...makeReplicated({}), judgeId: 'judge-2', judgeResolved: true };
+    expect(mergeTrialClassData(swapped, held).judgeId).toBe('judge-2');
+  });
+});

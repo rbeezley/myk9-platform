@@ -9,7 +9,7 @@ import { getShowJudgesHref } from './showEditRoutes';
  *
  * F4 and F12 are the same dead end reached from two directions. A class judge can only
  * be chosen from the show's judge roster, and every surface that assigns one — the
- * creation wizard's class step, Manage Classes, the class Edit panel, Add Classes to
+ * creation wizard's class step, Setup → Classes, the class Edit panel, Add Classes to
  * Trial — rendered either nothing at all, a disabled control, or a disabled
  * "No judges assigned to this show" option. Each stated or implied the problem and none
  * offered a way out, so the secretary had to already know that judges live on a

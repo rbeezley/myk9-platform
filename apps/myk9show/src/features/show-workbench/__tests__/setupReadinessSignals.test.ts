@@ -106,7 +106,7 @@ describe('computeSetupReadinessSignals', () => {
     expect(signals).toContainEqual({
       id: 'no-classes',
       label: 'No classes built',
-      href: '/shows/show-1/classes/t1',
+      href: '/shows/show-1/setup?section=classes',
     });
   });
 
@@ -131,7 +131,7 @@ describe('computeSetupReadinessSignals', () => {
     expect(signals).toContainEqual({
       id: 'judges-missing',
       label: 'Judges not assigned',
-      href: '/shows/show-1/classes/t1',
+      href: '/shows/show-1/setup?section=classes',
     });
   });
 

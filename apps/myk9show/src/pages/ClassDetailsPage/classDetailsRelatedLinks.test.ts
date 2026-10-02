@@ -11,7 +11,11 @@ describe('buildClassDetailsRelatedLinks', () => {
     });
 
     expect(links).toEqual([
-      { key: 'class-management', label: 'Class Management', href: '/shows/show-1/classes/trial-1' },
+      {
+        key: 'class-management',
+        label: 'Setup → Classes',
+        href: '/shows/show-1/setup?section=classes&trialId=trial-1&focus=class-1',
+      },
       {
         key: 'entry-management',
         label: 'Entry Management',
@@ -42,7 +46,7 @@ describe('buildClassDetailsRelatedLinks', () => {
     expect(links).toEqual([]);
   });
 
-  it('omits the class-management link when trialId is not loaded', () => {
+  it('keeps the Setup → Classes link when trialId is not loaded, focused on the class alone', () => {
     const links = buildClassDetailsRelatedLinks({
       isStaff: true,
       showId: 'show-1',
@@ -51,6 +55,11 @@ describe('buildClassDetailsRelatedLinks', () => {
     });
 
     expect(links).toEqual([
+      {
+        key: 'class-management',
+        label: 'Setup → Classes',
+        href: '/shows/show-1/setup?section=classes&focus=class-1',
+      },
       {
         key: 'entry-management',
         label: 'Entry Management',
@@ -68,7 +77,11 @@ describe('buildClassDetailsRelatedLinks', () => {
     });
 
     expect(links).toEqual([
-      { key: 'class-management', label: 'Class Management', href: '/shows/show-1/classes/trial-1' },
+      {
+        key: 'class-management',
+        label: 'Setup → Classes',
+        href: '/shows/show-1/setup?section=classes&trialId=trial-1',
+      },
     ]);
   });
 

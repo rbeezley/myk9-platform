@@ -191,8 +191,8 @@ function AuthorizedShowManagementShell({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const entryDataUnavailable = entryDataState !== 'ready';
   const isShowDesk = activeManagementSection === 'show-day';
-  // `classes/:trialId` is Class Management, reached FROM Setup and not a tab of
-  // its own, so it keeps Setup lit rather than lighting nothing.
+  // The retired Class Management URL (`classes/:trialId`) redirects into Setup → Classes, so
+  // it keeps Setup lit for the frame it renders rather than lighting nothing.
   const activeTabId: ShowTabId =
     SHOW_TABS.find(tab => tab.path === activeManagementSection)?.id ??
     (activeManagementSection === 'classes' ? 'setup' : 'overview');

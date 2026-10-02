@@ -193,22 +193,13 @@ describe('CommandPalette contextual commands', () => {
     expect(screen.queryByText('Open Entry Management — all entries')).not.toBeInTheDocument();
   });
 
-  it('omits Class Management commands when the registered context has no trialId', () => {
-    mockAuth([UserRole.SECRETARY]);
-    registerEntryManagementContext();
-
-    render(<CommandPalette open onOpenChange={vi.fn()} />);
-
-    expect(screen.queryByText(/Open Class Management/)).not.toBeInTheDocument();
-  });
-
-  it('includes the Class Management command when the context has a trialId', () => {
+  it('offers no Class Management command: the page is now Setup → Classes', () => {
     mockAuth([UserRole.SECRETARY]);
     registerEntryManagementContext({ trialId: 'trial-1' });
 
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
-    expect(screen.getByText('Open Class Management — current trial')).toBeInTheDocument();
+    expect(screen.queryByText(/Open Class Management/)).not.toBeInTheDocument();
   });
 });
 

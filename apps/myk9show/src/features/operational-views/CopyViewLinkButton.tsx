@@ -1,6 +1,6 @@
 /**
- * Copy-link affordance for filtered operational views (Entry Management,
- * Class Management). Design Decision 6 / spec "Filtered views can be handed
+ * Copy-link affordance for filtered operational views (Entry Management).
+ * Design Decision 6 / spec "Filtered views can be handed
  * off by copied link" (openspec/changes/operational-views-and-display-presets).
  *
  * The copied URL is built from the surface's own normalized params (not raw
@@ -25,8 +25,8 @@ export interface CopyViewLinkButtonProps {
 
 /**
  * Copies `window.location.origin + href` — `href` MUST already be built from
- * the surface's normalizer output (e.g. `normalizeEntryManagementSearchParams`
- * or `getClassManagementHref`), never from raw `location.search`, so the
+ * the surface's normalizer output (e.g. `normalizeEntryManagementSearchParams`),
+ * never from raw `location.search`, so the
  * resulting URL only ever carries normalized, supported parameters.
  */
 export function CopyViewLinkButton({ href, label = 'Copy view link' }: CopyViewLinkButtonProps) {

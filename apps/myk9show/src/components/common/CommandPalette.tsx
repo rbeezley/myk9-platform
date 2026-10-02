@@ -288,8 +288,8 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
   const contextualCommands: CommandAction[] = useMemo(
     () =>
       // The action registry's list first (MYK9-630: the palette and the header
-      // Actions menu render ONE list), then the filtered Entry Management /
-      // Class Management presets an owner surface registered.
+      // Actions menu render ONE list), then the filtered Entry Management
+      // presets an owner surface registered.
       [...registryActionCommands, ...contextualNavCommands].map(command =>
         adaptCommandMenuCommand(
           command,

@@ -125,9 +125,9 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
     return Array.from(showTypesSet).sort();
   }, [templates]);
 
-  // Judges qualified for this show's organization. The RULE is shared with Manage
+  // Judges qualified for this show's organization. The RULE is shared with Setup →
   // Classes (`isQualifiedForOrganization`) rather than restated here -- the two had
-  // already drifted once, and Manage Classes lost the organization test entirely. The
+  // already drifted once, and the class judge picker lost the organization test entirely. The
   // projection differs (this tab also renders each judge's qualification detail), so
   // only the predicate is shared.
   const availableJudges = useMemo(() => {

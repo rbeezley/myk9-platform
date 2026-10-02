@@ -116,7 +116,7 @@ export function ShowMapToolbar({
               // and the colour-only cue cost real time during the secretary walk --
               // a scored class vanished from the tree while the header still said
               // "2 Classes", and only clicking Completed revealed that the default
-              // Active filter was hiding it. Manage Classes already does this.
+              // Active filter was hiding it. Setup → Classes already does this.
               aria-pressed={dayScope === item.value}
               onClick={() => onDayScopeChange(item.value)}
             >
@@ -140,7 +140,7 @@ export function ShowMapToolbar({
               // and the colour-only cue cost real time during the secretary walk --
               // a scored class vanished from the tree while the header still said
               // "2 Classes", and only clicking Completed revealed that the default
-              // Active filter was hiding it. Manage Classes already does this.
+              // Active filter was hiding it. Setup → Classes already does this.
               aria-pressed={completionScope === item.value}
               onClick={() => onCompletionScopeChange(item.value)}
             >

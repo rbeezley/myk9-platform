@@ -1,7 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
 import { ClassesTab } from '../ClassesTab';
 
 vi.mock('@/hooks/useShowManageScope', () => ({
@@ -37,11 +36,7 @@ function makeClass(overrides: Record<string, unknown> = {}) {
 }
 
 function renderTab(classes: ReturnType<typeof makeClass>[]) {
-  return render(
-    <MemoryRouter>
-      <ClassesTab classes={classes} showId="show-1" userHasEntries={false} />
-    </MemoryRouter>
-  );
+  return render(<ClassesTab classes={classes} showId="show-1" userHasEntries={false} />);
 }
 
 // The bespoke, self-hiding `StatusFilter` was replaced by the shared

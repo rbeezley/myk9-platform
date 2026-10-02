@@ -1,5 +1,5 @@
 /**
- * ClassBulkActionsBar — Class Management's multi-select bar, on the shared
+ * ClassBulkActionsBar — Setup → Classes' multi-select bar, on the shared
  * list-toolkit `FloatingBulkBar` (MYK9-811) instead of a bespoke fixed
  * bottom-0 div — consistent floating position/styling with every other kit
  * surface, and its own in-flow spacer replaces `useRegisterActionBar`'s

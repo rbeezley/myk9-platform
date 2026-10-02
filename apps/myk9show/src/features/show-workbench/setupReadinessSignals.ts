@@ -7,7 +7,7 @@ import {
   PREMIUM_CARD_ANCHOR,
   SHOW_STATUS_CONTROL_ANCHOR,
 } from './publishReadiness';
-import { getClassManagementHref } from '@/components/classes/classManagementFilters';
+import { getSetupClassesHref } from '@/pages/secretary/showSetupSections';
 
 export type SetupReadinessSignalId =
   | 'show-details-missing'
@@ -74,14 +74,9 @@ export function computeSetupReadinessSignals(input: SetupReadinessInput): SetupR
   const signals: SetupReadinessSignal[] = [];
   const showId = input.show.id;
   const firstTrialId = input.trials[0]?.id;
-  // Classes and judges are managed per trial; until a trial exists, the
-  // Trials tab is the right starting point for both. Route through the
-  // canonical Class Management href builder (not a hand-assembled path) so
-  // this link stays consistent with the surface's own normalizer even though
-  // neither signal maps to a curated status filter today.
-  const classWorkHref = firstTrialId
-    ? getClassManagementHref({ showId, trialId: firstTrialId })
-    : `/shows/${showId}?tab=trials`;
+  // Classes and judges are managed on Setup → Classes; until a trial exists, the
+  // Trials tab is the right starting point for both.
+  const classWorkHref = firstTrialId ? getSetupClassesHref(showId) : `/shows/${showId}?tab=trials`;
   if (!showDetailsComplete(input.show)) {
     signals.push({
       id: 'show-details-missing',

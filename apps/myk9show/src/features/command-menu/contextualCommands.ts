@@ -1,12 +1,10 @@
 import { ENTRY_MANAGEMENT_PRESETS } from '@/features/operational-views/operationalViews';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
-import { getClassManagementHref } from '@/components/classes/classManagementFilters';
 import type { CommandMenuCommand, CommandMenuContext } from './commandMenuTypes';
 
 /**
  * Contextual "current show" navigation commands (tasks 2.1/2.3): static,
- * show-scoped shortcuts into the canonical Entry Management / Class
- * Management owner lists, built from the curated presets in
+ * show-scoped shortcuts into the canonical Entry Management owner list, built from the curated presets in
  * `operationalViews.ts` and the canonical href builders — never a
  * palette-owned individual class/entry index (design.md Decision 2).
  *
@@ -45,21 +43,6 @@ export function buildContextualNavigationCommands(
         payment: filters.payment,
         mode: filters.mode,
       }),
-    });
-  }
-
-  // Class Management presets need a trial to scope into — omit entirely when
-  // the registered context has no trial selected (design.md: "omit rather
-  // than guess", per the implementation direction for this task).
-  if (ctx.trialId) {
-    const trialId = ctx.trialId;
-    commands.push({
-      id: 'command-menu-class-management-current-trial',
-      group: 'go-to',
-      label: 'Open Class Management — current trial',
-      sublabel: 'Current show',
-      showScope: ctx.showId,
-      href: getClassManagementHref({ showId: ctx.showId, trialId }),
     });
   }
 

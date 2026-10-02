@@ -68,9 +68,9 @@ The wizard creates all three in one pass. **Dashboard → Add Show.**
 
 - **Show details:** open the show → **Actions → Edit show details** (the Actions button sits in the top bar, left of the bell; on a phone it is the lightning icon). The edit panel opens over the section you are on.
 - **Add a judge to the show:** on the show page, choose **Edit**, then use the **Judges** tab.
-- **Add classes to a show that already exists:** on the trial's page or in **Manage Classes**, choose **Add Classes**; from **Setup → Classes** it is the same button. The wizard opens on the **Classes** step (on that trial's tab when you started from a trial) with Show Details and Trials locked, because you are only adding classes. **Back** and **Save** return you to the trial; to add a trial instead, use **Setup → Trials → Add Trial**.
+- **Add classes to a show that already exists:** on the trial's page or in **Setup → Classes**, choose **Add Classes**. The wizard opens on the **Classes** step (on that trial's tab when you started from a trial) with Show Details and Trials locked, because you are only adding classes. **Back** and **Save** return you to the trial; to add a trial instead, use **Setup → Trials → Add Trial**.
 - **Edit or delete a trial or class from Setup:** on **Setup → Trials** or **Setup → Classes**, open the **⋮** menu on that row and choose **Edit** or **Delete**. It opens the same edit panel and confirmation you get on the trial's or class's own page; clicking the row itself still opens its page. Deleting a trial or class also deletes its entries, so read the confirmation before you accept it.
-- **Change a class's judge:** **Manage Classes**, then the judge dropdown on that class's row.
+- **Change a class's judge:** **Setup → Classes**, then the judge dropdown on that class's row. To set many classes to the same status at once, tick their checkboxes and use the bar that appears.
 
 > A class's judge dropdown only offers judges already attached to the show. If the one you want isn't listed, add them on the Judges tab first, then come back.
 

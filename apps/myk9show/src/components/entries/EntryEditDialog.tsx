@@ -35,6 +35,7 @@ import { saveEntryEdits } from './saveEntryEdits';
 import { logger } from '@/services/LoggingService';
 import { useEditingPresence } from '@/features/show-presence/useEditingPresence';
 import { EntryStatusHistory } from './EntryStatusHistory';
+import { useEntryEditDelete } from './useEntryEditDelete';
 
 interface EntryData {
   id: string;
@@ -66,6 +67,13 @@ interface EntryEditDialogProps {
    * per-row chooser.
    */
   allowLeaveClass?: boolean;
+  /**
+   * After the shared delete dialog deleted the entry (a show manager's footer Delete).
+   * The sheet has already closed itself; refresh the list here.
+   */
+  onDeleted?: ((entryIds: string[]) => void) | undefined;
+  /** After Undo brought the deleted entry back. */
+  onRestored?: (() => void) | undefined;
 }
 
 export function EntryEditDialog({
@@ -76,12 +84,23 @@ export function EntryEditDialog({
   ignoreModificationDeadline = false,
   asShowManager = false,
   allowLeaveClass = true,
+  onDeleted,
+  onRestored,
 }: EntryEditDialogProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [canModify, setCanModify] = useState(false);
   const [modifyReason, setModifyReason] = useState<string | undefined>();
+  // The footer's Delete entry (CRUD standard Phase 3). While its dialog is open Save and every
+  // dismissal hold still, because its server call may be in flight.
+  const { deleteOpen, deleteButton, deleteDialog } = useEntryEditDelete({
+    entry,
+    enabled: asShowManager,
+    closeSheet: () => onOpenChange(false),
+    onDeleted,
+    onRestored,
+  });
 
   // Local state for edits
   const [classEdits, setClassEdits] = useState<
@@ -297,7 +316,7 @@ export function EntryEditDialog({
   const { requestClose, discardDialog } = useDiscardPrompt({
     isDirty: hasChanges(),
     close: () => onOpenChange(false),
-    blocked: isSaving,
+    blocked: isSaving || deleteOpen,
   });
 
   const getClassStatus = (classEntry: EntryClass): EntryClass['status'] => {
@@ -414,11 +433,15 @@ export function EntryEditDialog({
           </SheetBody>
 
           <SheetFooter>
-            <Button variant="outline" onClick={requestClose} disabled={isSaving}>
+            {deleteButton(isSaving)}
+            <Button variant="outline" onClick={requestClose} disabled={isSaving || deleteOpen}>
               Cancel
             </Button>
             {canModify && !isLoading && (
-              <Button onClick={handleSaveChanges} disabled={!hasChanges() || isSaving}>
+              <Button
+                onClick={handleSaveChanges}
+                disabled={!hasChanges() || isSaving || deleteOpen}
+              >
                 {isSaving ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -433,6 +456,7 @@ export function EntryEditDialog({
               </Button>
             )}
           </SheetFooter>
+          {deleteDialog}
         </SheetContent>
       </Sheet>
 

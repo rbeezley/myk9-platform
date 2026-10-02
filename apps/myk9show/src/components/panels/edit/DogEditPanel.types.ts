@@ -24,6 +24,8 @@ export interface DogEditContextType {
   onChangeStatus?: (() => void) | undefined;
 }
 
+import type { EditPanelDeleteOption } from './EditPanelDelete';
+
 export interface DogEditPanelProps {
   open: boolean;
   onClose: () => void;
@@ -37,6 +39,8 @@ export interface DogEditPanelProps {
   userRole?: UserRole;
   /** People list for owner selection (required for admins) */
   people?: PersonType[];
+  /** "Delete dog" in the footer. Omit for a viewer who cannot delete. */
+  onDelete?: EditPanelDeleteOption | undefined;
   /** Current lifecycle status, for the read-only Status row. */
   dogStatus?: DogStatus | undefined;
   /** Date of passing, already formatted for display. */

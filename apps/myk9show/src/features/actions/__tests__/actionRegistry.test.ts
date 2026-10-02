@@ -345,3 +345,23 @@ describe('mergeSearchOnlyHref', () => {
     expect(mergeSearchOnlyHref('?edit=true', '')).toBe('?edit=true');
   });
 });
+
+describe('Delete never lives in the Actions menu (CRUD standard decision 3)', () => {
+  it('offers no destructive or delete item to any viewer on any page', () => {
+    const kinds = ['trial', 'class', 'club', 'dog', 'person'] as const;
+    for (const viewer of [secretary, clubAdmin, exhibitor]) {
+      for (const pageObject of [null, ...kinds.map(kind => ({ kind }))]) {
+        for (const route of [
+          parseActionRouteContext(`/shows/${SHOW_ID}`),
+          parseActionRouteContext('/'),
+        ]) {
+          const actions = resolveActions(route, { ...viewer, pageObject });
+          for (const action of actions) {
+            expect(action.label).not.toMatch(/delete|remove/i);
+            expect(action.destructive).not.toBe(true);
+          }
+        }
+      }
+    }
+  });
+});

@@ -49,9 +49,8 @@ describe('club page-level actions (MYK9-928)', () => {
       <ClubHeader
         club={baseClub}
         onEditPhoto={noop}
-        onDeleteClub={noop}
+
         canEditBranding
-        canDeleteClub
       />
     );
 
@@ -59,11 +58,28 @@ describe('club page-level actions (MYK9-928)', () => {
     // Positive control: the header did render its overflow menu for this viewer.
     expect(screen.getByRole('button', { name: 'Club options' })).toBeInTheDocument();
   });
+
+  it('offers no Delete in the header menu for any viewer: it lives in the Edit panel footer', async () => {
+    const { user } = render(
+      <ClubHeader
+        club={{ ...baseClub, email: 'club@example.test' }}
+        onEditPhoto={noop}
+        canEditBranding
+        canAuthorizeClub
+        isClubAuthorized={false}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Club options' }));
+    // Positive control: the menu is open and carries its other items.
+    expect(await screen.findByText('Authorize Club')).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /delete/i })).not.toBeInTheDocument();
+  });
 });
 
 describe('club contact actions', () => {
   it('omits the options menu and contact actions when contact values are absent', () => {
-    render(<ClubHeader club={baseClub} onEditPhoto={noop} onDeleteClub={noop} />);
+    render(<ClubHeader club={baseClub} onEditPhoto={noop} />);
 
     expect(screen.queryByRole('button', { name: 'Club options' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /email/i })).not.toBeInTheDocument();
@@ -75,7 +91,7 @@ describe('club contact actions', () => {
 
     render(
       <>
-        <ClubHeader club={club} onEditPhoto={noop} onDeleteClub={noop} />
+        <ClubHeader club={club} onEditPhoto={noop} />
         <AboutTab club={club} />
       </>
     );
@@ -103,7 +119,7 @@ describe('club authorization control', () => {
         club={baseClub}
 
         onEditPhoto={noop}
-        onDeleteClub={noop}
+
         canAuthorizeClub
         isClubAuthorized={false}
         onAuthorizeClub={onAuthorizeClub}
@@ -127,7 +143,7 @@ describe('club authorization control', () => {
         club={baseClub}
 
         onEditPhoto={noop}
-        onDeleteClub={noop}
+
         canAuthorizeClub
         isClubAuthorized
         onRevokeAuthorization={onRevokeAuthorization}
@@ -165,7 +181,7 @@ describe('club authorization control', () => {
         club={baseClub}
 
         onEditPhoto={noop}
-        onDeleteClub={noop}
+
         canAuthorizeClub
         isClubAuthorized
         onRevokeAuthorization={onRevokeAuthorization}
@@ -195,7 +211,7 @@ describe('club authorization control', () => {
         club={baseClub}
 
         onEditPhoto={noop}
-        onDeleteClub={noop}
+
         canAuthorizeClub
         isClubAuthorized={false}
       />
@@ -209,7 +225,7 @@ describe('club authorization control', () => {
 
   it('shows the badge (but no menu item) for a non-site-admin viewer of an unauthorized club', () => {
     // P2-B: the club's own admin/secretary needs to know publish is blocked
-    // just as much as a site admin does — canDeleteClub is forced true here
+    // just as much as a site admin does — canEditBranding is forced true here
     // only so the options menu renders at all (contact-less baseClub has no
     // other menu action), to prove Authorize Club specifically is absent.
     render(
@@ -217,8 +233,8 @@ describe('club authorization control', () => {
         club={baseClub}
 
         onEditPhoto={noop}
-        onDeleteClub={noop}
-        canDeleteClub
+
+        canEditBranding
         canAuthorizeClub={false}
         isClubAuthorized={false}
       />
@@ -239,7 +255,7 @@ describe('club authorization control', () => {
         club={baseClub}
 
         onEditPhoto={noop}
-        onDeleteClub={noop}
+
         canAuthorizeClub={false}
         isClubAuthorized={false}
       />
@@ -256,7 +272,7 @@ describe('club authorization control', () => {
         club={baseClub}
 
         onEditPhoto={noop}
-        onDeleteClub={noop}
+
         canAuthorizeClub
         isClubAuthorized={false}
       />
@@ -273,7 +289,7 @@ describe('club authorization control', () => {
         club={baseClub}
 
         onEditPhoto={noop}
-        onDeleteClub={noop}
+
         canAuthorizeClub={false}
         isClubAuthorized
       />
@@ -288,7 +304,7 @@ describe('club authorization control', () => {
         club={baseClub}
 
         onEditPhoto={noop}
-        onDeleteClub={noop}
+
         canAuthorizeClub={false}
         isClubAuthorized
       />
@@ -303,7 +319,7 @@ describe('club authorization control', () => {
         club={baseClub}
 
         onEditPhoto={noop}
-        onDeleteClub={noop}
+
         canAuthorizeClub
         isClubAuthorized={undefined}
         isAuthorizationLoading
@@ -322,7 +338,7 @@ describe('club authorization control', () => {
         club={baseClub}
 
         onEditPhoto={noop}
-        onDeleteClub={noop}
+
         canAuthorizeClub
         isClubAuthorized={false}
         isAuthorizationUpdating
@@ -348,7 +364,7 @@ describe('club officials line', () => {
       secretaryNames: ['Pat Lee'],
     });
 
-    render(<ClubHeader club={baseClub} onEditPhoto={noop} onDeleteClub={noop} />);
+    render(<ClubHeader club={baseClub} onEditPhoto={noop} />);
 
     expect(await screen.findByTestId('club-admin-names')).toHaveTextContent(
       'Admins: Jane Doe, John Smith'
@@ -357,7 +373,7 @@ describe('club officials line', () => {
   });
 
   it('renders nothing when this viewer gets no officials back', async () => {
-    render(<ClubHeader club={baseClub} onEditPhoto={noop} onDeleteClub={noop} />);
+    render(<ClubHeader club={baseClub} onEditPhoto={noop} />);
 
     await waitFor(() => expect(getClubOfficials).toHaveBeenCalledWith(baseClub.id));
     expect(screen.queryByTestId('club-admin-names')).not.toBeInTheDocument();
@@ -371,7 +387,7 @@ describe('club officials line', () => {
       .mockRejectedValueOnce(new Error('network unavailable'))
       .mockResolvedValueOnce({ adminNames: ['Jane Doe'], secretaryNames: [] });
 
-    render(<ClubHeader club={baseClub} onEditPhoto={noop} onDeleteClub={noop} />);
+    render(<ClubHeader club={baseClub} onEditPhoto={noop} />);
 
     expect(await screen.findByRole('alert')).toHaveTextContent("Club officials couldn't load.");
     await user.click(screen.getByRole('button', { name: 'Try again' }));
@@ -382,7 +398,7 @@ describe('club officials line', () => {
   it('does not ask for officials on behalf of a signed-out guest', () => {
     (useAuthContext as Mock).mockImplementation(() => ({ user: null }));
 
-    render(<ClubHeader club={baseClub} onEditPhoto={noop} onDeleteClub={noop} />);
+    render(<ClubHeader club={baseClub} onEditPhoto={noop} />);
 
     expect(getClubOfficials).not.toHaveBeenCalled();
     expect(screen.queryByTestId('club-admin-names')).not.toBeInTheDocument();

@@ -51,7 +51,9 @@ vi.mock('./SecretaryRunSheet', () => ({
 }));
 
 vi.mock('@/components/panels/edit/ClassEditPanel', () => ({
-  ClassEditPanel: () => <div data-testid="class-edit-panel" />,
+  ClassEditPanel: ({ onDelete }: { onDelete?: { kind: string } }) => (
+    <div data-testid="class-edit-panel" data-delete-kind={onDelete?.kind ?? ''} />
+  ),
 }));
 
 vi.mock('@/features/delete/DeleteObjectDialog', () => ({
@@ -162,15 +164,11 @@ describe('ClassDetailsPage header actions', () => {
     });
     mockUseClassDetailsDialogs.mockReturnValue({
       editClassPanelOpen: false,
-      deleteDialogOpen: false,
       deleteEntryDialogOpen: false,
       entryToDelete: null,
       openEditClassPanel,
-      openDeleteDialog: vi.fn(),
-      closeDeleteDialog: vi.fn(),
       closeEditClassPanel: vi.fn(),
       closeDeleteEntryDialog: vi.fn(),
-      setDeleteDialogOpen: vi.fn(),
       setDeleteEntryDialogOpen: vi.fn(),
       openDeleteEntryDialog: vi.fn(),
     });
@@ -254,8 +252,9 @@ describe('ClassDetailsPage header actions', () => {
     expect(usePageEditTargetStore.getState().target?.kind).toBe('class');
     usePageEditTargetStore.getState().target?.run();
     expect(openEditClassPanel).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('menuitem', { name: /delete class/i })).toBeInTheDocument();
-    expect(screen.getByTestId('class-edit-panel')).toBeInTheDocument();
+    // Delete class is the Edit panel's footer button, never a header menu item.
+    expect(screen.queryByRole('menuitem', { name: /delete/i })).not.toBeInTheDocument();
+    expect(screen.getByTestId('class-edit-panel')).toHaveAttribute('data-delete-kind', 'class');
     // The shared delete dialog mounts only when Delete is chosen.
     expect(screen.queryByTestId('delete-class-dialog')).not.toBeInTheDocument();
   });
@@ -285,7 +284,7 @@ describe('ClassDetailsPage header actions', () => {
 
       expect(screen.queryByRole('button', { name: /^edit/i })).not.toBeInTheDocument();
       expect(usePageEditTargetStore.getState().target).toBeNull();
-      expect(screen.queryByRole('menuitem', { name: /delete class/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: /delete/i })).not.toBeInTheDocument();
       expect(screen.queryByTestId('class-edit-panel')).not.toBeInTheDocument();
       expect(screen.queryByTestId('delete-class-dialog')).not.toBeInTheDocument();
     });
@@ -335,7 +334,7 @@ describe('ClassDetailsPage header actions', () => {
       renderClassDetailsPage();
 
       expect(usePageEditTargetStore.getState().target?.kind).toBe('class');
-      expect(screen.getByRole('menuitem', { name: /delete class/i })).toBeInTheDocument();
+      expect(screen.getByTestId('class-edit-panel')).toHaveAttribute('data-delete-kind', 'class');
     });
 
     it('denies an admin of a different club', () => {

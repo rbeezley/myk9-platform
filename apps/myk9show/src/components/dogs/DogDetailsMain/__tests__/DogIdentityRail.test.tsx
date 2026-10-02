@@ -55,7 +55,6 @@ function renderRail(dog: Dog, props: Partial<React.ComponentProps<typeof DogIden
       dog={dog}
       owner={owner}
       onPhotoDialogOpen={() => {}}
-      onDeleteDialogOpen={() => {}}
       onStatusDialogOpen={() => {}}
       {...props}
     />
@@ -154,7 +153,6 @@ describe('DogIdentityRail', () => {
           owner={owner}
           canOpenOwnerRecord
           onPhotoDialogOpen={() => {}}
-          onDeleteDialogOpen={() => {}}
           onStatusDialogOpen={() => {}}
         />
         <Probe />
@@ -203,26 +201,25 @@ describe('DogIdentityRail', () => {
     expect(classes).not.toContain('focus:ring-2');
   });
 
-  // The ⋮ is the card's ONLY Delete affordance and its only menu route to
-  // status, so the rail's contract with it is pinned per role. Asserted as the
-  // prop object, which cannot drift from the real menu the way a mock item list
-  // could: identity checks are also stronger than clicking a stand-in.
-  it('hands the exhibitor menu photo, status and delete handlers, and no Edit (MYK9-928)', () => {
+  // The ⋮ is the card's route to photo and status, so the rail's contract with it
+  // is pinned per role. Asserted as the prop object, which cannot drift from the
+  // real menu the way a mock item list could: identity checks are also stronger
+  // than clicking a stand-in. Delete dog is the Edit panel's footer button, never
+  // a menu item (CRUD standard Phase 3).
+  it('hands the menu photo and status handlers, no Edit and no Delete (MYK9-928)', () => {
     const onPhotoDialogOpen = vi.fn();
     const onStatusDialogOpen = vi.fn();
-    const onDeleteDialogOpen = vi.fn();
     renderRail(base, {
       role: 'exhibitor',
       onPhotoDialogOpen,
       onStatusDialogOpen,
-      onDeleteDialogOpen,
     });
 
     // Edit dog is the first item of the header Actions menu, for every role.
     expect(menu().onEdit).toBeUndefined();
     expect(menu().onEditPhoto).toBe(onPhotoDialogOpen);
     expect(menu().onChangeStatus).toBe(onStatusDialogOpen);
-    expect(menu().onDelete).toBe(onDeleteDialogOpen);
+    expect(menu().onDelete).toBeUndefined();
   });
 
   it.each([['exhibitor'], ['secretary']] as const)(
@@ -235,9 +232,9 @@ describe('DogIdentityRail', () => {
   );
 
   it.each([['exhibitor'], ['secretary']] as const)(
-    'withholds the delete handler from a %s who cannot delete',
+    'never carries a delete handler for a %s',
     role => {
-      renderRail(base, { role, canDelete: false });
+      renderRail(base, { role });
       expect(menu().onDelete).toBeUndefined();
     }
   );

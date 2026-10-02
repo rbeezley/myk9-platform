@@ -10,11 +10,10 @@ import { MoreVertical } from 'lucide-react';
 interface TrialInfoProps {
   trial: Trial;
   onEdit: () => void;
-  onDelete: () => void;
   onAddPhoto: () => void;
 }
 
-export const TrialInfo = ({ trial, onEdit, onDelete, onAddPhoto }: TrialInfoProps) => {
+export const TrialInfo = ({ trial, onEdit, onAddPhoto }: TrialInfoProps) => {
   const formatTime = (time?: string) => {
     if (!time) return 'Not started';
     return time;
@@ -54,12 +53,6 @@ export const TrialInfo = ({ trial, onEdit, onDelete, onAddPhoto }: TrialInfoProp
               onClick={onEdit}
             >
               <i className="fas fa-edit mr-2"></i> Edit Details
-            </button>
-            <button
-              className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-gray-100 rounded"
-              onClick={onDelete}
-            >
-              <i className="fas fa-trash mr-2"></i> Delete
             </button>
           </PopoverContent>
         </Popover>

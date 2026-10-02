@@ -7,6 +7,7 @@ import type { Show } from '@/types/show-types';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { ShowStyle } from '@/features/registries';
 import type { GeneratedPremium } from '@/types/premium-types';
+import type { EditPanelDeleteOption } from './EditPanelDelete';
 
 export interface ShowEditPanelProps {
   open: boolean;
@@ -20,11 +21,11 @@ export interface ShowEditPanelProps {
   /** Tab the panel opens on; set by the `editTab` deep link (F4/F12). */
   initialTab?: ShowEditTab;
   /**
-   * Opens the caller's delete confirmation. When omitted the panel shows no
-   * delete row at all -- this panel is reused outside a show-management shell
-   * (ClubDetails), where deleting the show is not on offer.
+   * "Delete show" in the footer, with the item it deletes. When omitted the
+   * panel shows no delete at all -- this panel is reused outside a
+   * show-management shell (ClubDetails), where deleting the show is not on offer.
    */
-  onRequestDelete?: () => void;
+  onDelete?: EditPanelDeleteOption | undefined;
 }
 
 export interface ShowEditSaveData extends Partial<Show> {

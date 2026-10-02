@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { z } from 'zod';
-import { EditPanelWrapper } from './EditPanelWrapper';
+import { EditPanelWrapper, type EditPanelDeleteOption } from './EditPanelWrapper';
 import { savedMessage } from './panelSaveErrors';
 import { useEditPanel } from './useEditPanel';
 import { Input } from '@/components/ui/input';
@@ -35,6 +35,8 @@ interface TrialEditPanelProps {
   enableAutoSave?: boolean;
   showAdvancedFields?: boolean;
   organization?: string;
+  /** "Delete trial" in the footer. Omit for a viewer who cannot delete. */
+  onDelete?: EditPanelDeleteOption | undefined;
 }
 
 // Form data interface extending Trial for edit panel needs
@@ -530,6 +532,7 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
   initialTrialData,
   onSave,
   enableAutoSave = false,
+  onDelete,
 }) => {
   const [activeTab, setActiveTab] = useState<TabId>('basic');
 
@@ -571,6 +574,7 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
       enableAutoSave={enableAutoSave}
       saveLabel="Save Changes"
       cancelLabel="Cancel"
+      onDelete={onDelete}
       successMessage={savedMessage(trialName, 'Trial')}
       onValidationFail={handleValidationFail}
     >

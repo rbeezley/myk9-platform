@@ -20,7 +20,6 @@ export interface ClassEntryDisplay {
 
 export interface DialogState {
   editClassPanelOpen: boolean;
-  deleteDialogOpen: boolean;
   deleteEntryDialogOpen: boolean;
   entryToDelete: string | null;
 }

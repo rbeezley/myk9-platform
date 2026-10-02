@@ -108,3 +108,20 @@ export function canCreateShowForClub(
       CLUB_SHOW_CREATOR_ROLE_NAMES.includes(scope.roleId)
   );
 }
+
+/**
+ * Who may delete a show of this club, mirroring `soft_delete_show`
+ * (migration 20261001235300): `is_club_admin(club) OR is_trial_secretary(club) OR
+ * is_site_admin()`. That is the create-show rule, so it is the one function; a show with
+ * no club is a site-admin matter, as on the server. A secretary appointed to a single
+ * show holds no club-level grant and is refused. UI guidance only: the RPC stays the
+ * authority on submit.
+ */
+export function canDeleteShowForClub(
+  user: { roles?: readonly UserRole[]; scopes?: RoleScope[] } | null | undefined,
+  clubId: string | undefined
+): boolean {
+  if (!user) return false;
+  if (user.roles?.includes(UserRole.SITE_ADMIN)) return true;
+  return canCreateShowForClub(user, clubId);
+}

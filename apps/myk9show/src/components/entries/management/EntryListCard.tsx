@@ -349,16 +349,6 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                               )}
                             </>
                           )}
-                          <button
-                            type="button"
-                            role="menuitem"
-                            data-status-popover-action
-                            className="mt-2 flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm text-destructive hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
-                            onClick={() => setRemoveDialog({ open: true, entry })}
-                          >
-                            <Trash2 className="h-4 w-4" aria-hidden />
-                            Remove Entry
-                          </button>
                         </>
                       }
                     />

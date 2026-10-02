@@ -15,9 +15,32 @@ import type { TrialClass } from '@/components/trials/types/trial.types';
 import type { TrialWithClasses } from '@/hooks/useTrialDetailData';
 import type { Show } from '@/types/show-types';
 
+/** The trial as the shared delete dialog names it, whichever surface opens it. */
+const trialDeleteTarget = (trial: TrialWithClasses, label: string) => ({
+  id: trial.id,
+  name: label,
+  detail: trialDeleteDetail({
+    name: trial.name,
+    trialNumber: trial.trialNumber,
+    date: trial.trialDate,
+  }),
+  context: { showId: trial.showId, trialId: trial.id },
+});
+
+/** The class as the shared delete dialog names it, whichever surface opens it. */
+const classDeleteTarget = (classItem: TrialClass, trial: TrialWithClasses, trialLabel: string) => ({
+  id: classItem.id,
+  name: [classItem.element, classItem.level, classItem.section].filter(Boolean).join(' '),
+  detail: classDeleteDetail({
+    level: classItem.level,
+    element: classItem.element,
+    trialLabel,
+  }),
+  context: { showId: trial.showId, trialId: trial.id },
+});
+
 export interface TrialManagementDialogsHandle {
   openEditTrial: () => void;
-  openDeleteTrial: () => void;
   openEditClass: (classItem: TrialClass) => void;
   openDeleteClass: (classItem: TrialClass) => void;
 }
@@ -73,7 +96,6 @@ export const TrialManagementDialogs = forwardRef<
     ref,
     () => ({
       openEditTrial: () => setEditTrialPanelOpen(true),
-      openDeleteTrial: () => setDeleteTrialDialogOpen(true),
       openEditClass: (classItem: TrialClass) => {
         setSelectedClassForEdit(classItem);
         setEditClassPanelOpen(true);
@@ -130,6 +152,18 @@ export const TrialManagementDialogs = forwardRef<
         }
         initialTrialData={currentTrial || {}}
         {...(showOrganization ? { organization: showOrganization } : {})}
+        // Delete trial sits in the panel's footer (CRUD standard Phase 3). This host is
+        // staff-only, and the server's trial gate is can_manage_show, the same rule.
+        onDelete={
+          currentTrial
+            ? {
+                kind: 'trial',
+                objectLabel: 'trial',
+                targets: [trialDeleteTarget(currentTrial, trialLabel)],
+                onDeleted: handleTrialDeleted,
+              }
+            : undefined
+        }
         onSave={async trialData => {
           if (currentTrial?.id) {
             // Awaited: a failure rejects into EditPanelWrapper, which keeps the panel open with
@@ -150,18 +184,7 @@ export const TrialManagementDialogs = forwardRef<
             if (!open) closeDeleteTrial();
           }}
           kind="trial"
-          targets={[
-            {
-              id: currentTrial.id,
-              name: trialLabel,
-              detail: trialDeleteDetail({
-                name: currentTrial.name,
-                trialNumber: currentTrial.trialNumber,
-                date: currentTrial.trialDate,
-              }),
-              context: { showId: currentTrial.showId, trialId: currentTrial.id },
-            },
-          ]}
+          targets={[trialDeleteTarget(currentTrial, trialLabel)]}
           onDeleted={handleTrialDeleted}
         />
       )}
@@ -173,6 +196,15 @@ export const TrialManagementDialogs = forwardRef<
         className={selectedClassForEdit?.element || ''}
         initialClassData={selectedClassForEdit || {}}
         {...(parentShow?.id !== undefined && { showId: parentShow.id })}
+        onDelete={
+          selectedClassForEdit && currentTrial
+            ? {
+                kind: 'class',
+                objectLabel: 'class',
+                targets: [classDeleteTarget(selectedClassForEdit, currentTrial, trialLabel)],
+              }
+            : undefined
+        }
         onSave={async classData => {
           if (selectedClassForEdit?.id) {
             // Save judge assignment FIRST (with replication sync) before updateClass,
@@ -216,24 +248,7 @@ export const TrialManagementDialogs = forwardRef<
             }
           }}
           kind="class"
-          targets={[
-            {
-              id: selectedClassForDelete.id,
-              name: [
-                selectedClassForDelete.element,
-                selectedClassForDelete.level,
-                selectedClassForDelete.section,
-              ]
-                .filter(Boolean)
-                .join(' '),
-              detail: classDeleteDetail({
-                level: selectedClassForDelete.level,
-                element: selectedClassForDelete.element,
-                trialLabel,
-              }),
-              context: { showId: currentTrial.showId, trialId: currentTrial.id },
-            },
-          ]}
+          targets={[classDeleteTarget(selectedClassForDelete, currentTrial, trialLabel)]}
         />
       )}
     </>

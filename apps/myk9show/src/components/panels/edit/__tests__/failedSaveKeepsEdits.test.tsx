@@ -54,7 +54,7 @@ function DogHarness({ onUpdate }: { onUpdate: () => Promise<Dog | null> }) {
     <DogDialogs
       dog={current}
       isEditPanelOpen={open}
-      isDeleteDialogOpen={false}
+      canDelete
       isPhotoDialogOpen={false}
       photoPreview={null}
       isPhotoDragging={false}
@@ -63,7 +63,6 @@ function DogHarness({ onUpdate }: { onUpdate: () => Promise<Dog | null> }) {
       userRole={fromAny('admin')}
       people={[]}
       onEditPanelClose={() => setOpen(false)}
-      onDeleteDialogClose={vi.fn()}
       onUpdate={onUpdate}
       onPhotoDialogOpen={vi.fn()}
       onPhotoDrop={vi.fn()}

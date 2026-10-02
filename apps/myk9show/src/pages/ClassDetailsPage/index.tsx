@@ -7,7 +7,7 @@
 import { startTransition, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatTrialLabel } from '@myk9/core';
-import { ClipboardList, LayoutDashboard, MoreVertical, Trash2 } from 'lucide-react';
+import { ClipboardList, LayoutDashboard, MoreVertical } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import ClassDetailsMain from '@/components/classes/ClassDetailsMain';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
@@ -224,18 +224,11 @@ const ClassDetailsPage: React.FC = () => {
               <ClipboardList className="mr-2 h-4 w-4" />
               Requirements
             </DropdownMenuItem>
-            {canManageClass && (
-              <DropdownMenuItem onClick={dialogs.openDeleteDialog} className="text-destructive">
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete Class
-              </DropdownMenuItem>
-            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
     );
   }, [
-    dialogs.openDeleteDialog,
     setRequirementsPanelOpen,
     canManageClass,
     parentShow,
@@ -369,6 +362,33 @@ const ClassDetailsPage: React.FC = () => {
               className={currentClass?.element || ''}
               initialClassData={currentClass || {}}
               {...(parentShow?.id !== undefined && { showId: parentShow.id })}
+              // Delete class is the panel's footer button (CRUD standard Phase 3). This block is
+              // staff-only, and the server's class gate (can_manage_trial) is the same rule.
+              onDelete={
+                classId && currentClass
+                  ? {
+                      kind: 'class',
+                      objectLabel: 'class',
+                      targets: [
+                        {
+                          id: classId,
+                          name: classTitle ?? 'this class',
+                          detail: classDeleteDetail({
+                            level: currentClass.level,
+                            element: currentClass.element,
+                            trialLabel: parentTrialLabel,
+                          }),
+                          context: {
+                            showId: parentShow?.id,
+                            trialId: currentClass.trialId ?? trialId,
+                            classId,
+                          },
+                        },
+                      ],
+                      onDeleted: handleClassDeleted,
+                    }
+                  : undefined
+              }
               onSave={async classData => {
                 if (currentClass?.id) {
                   const updatedClass = { ...currentClass, ...classData };
@@ -376,31 +396,6 @@ const ClassDetailsPage: React.FC = () => {
                 }
               }}
             />
-
-            {dialogs.deleteDialogOpen && classId && currentClass && (
-              <DeleteObjectDialog
-                open
-                onOpenChange={dialogs.setDeleteDialogOpen}
-                kind="class"
-                targets={[
-                  {
-                    id: classId,
-                    name: classTitle ?? 'this class',
-                    detail: classDeleteDetail({
-                      level: currentClass.level,
-                      element: currentClass.element,
-                      trialLabel: parentTrialLabel,
-                    }),
-                    context: {
-                      showId: parentShow?.id,
-                      trialId: currentClass.trialId ?? trialId,
-                      classId,
-                    },
-                  },
-                ]}
-                onDeleted={handleClassDeleted}
-              />
-            )}
           </>
         )}
 

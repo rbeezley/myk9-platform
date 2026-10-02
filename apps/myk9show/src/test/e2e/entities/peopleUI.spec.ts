@@ -316,8 +316,9 @@ test.describe('People UI — Delete (secretary)', () => {
     await page.getByRole('link', { name: new RegExp(PERSON_A_LAST) }).click();
     await page.waitForURL(/\/people\/[^/]+/);
 
-    await page.getByRole('button', { name: 'More actions' }).click();
-    await page.getByRole('menuitem', { name: 'Delete' }).click();
+    // Delete person is the Edit panel's footer button, never a menu item (CRUD standard Phase 3).
+    await chooseAction(page, 'Edit person');
+    await page.getByRole('button', { name: 'Delete person', exact: true }).click();
 
     // INTENT (regression guard): delete must be blocked while the person
     // owns dogs. The shared dialog names the dog count from delete_preview and
@@ -340,8 +341,9 @@ test.describe('People UI — Delete (secretary)', () => {
     await page.getByRole('link', { name: new RegExp(PERSON_B_LAST) }).click();
     await page.waitForURL(/\/people\/[^/]+/);
 
-    await page.getByRole('button', { name: 'More actions' }).click();
-    await page.getByRole('menuitem', { name: 'Delete' }).click();
+    // Delete person is the Edit panel's footer button, never a menu item (CRUD standard Phase 3).
+    await chooseAction(page, 'Edit person');
+    await page.getByRole('button', { name: 'Delete person', exact: true }).click();
 
     const cancelDeleteDialog = page.getByRole('alertdialog', { name: /^Delete the person / });
     await expect(cancelDeleteDialog).toBeVisible();
@@ -356,8 +358,9 @@ test.describe('People UI — Delete (secretary)', () => {
     await page.getByRole('link', { name: new RegExp(PERSON_B_LAST) }).click();
     await page.waitForURL(/\/people\/[^/]+/);
 
-    await page.getByRole('button', { name: 'More actions' }).click();
-    await page.getByRole('menuitem', { name: 'Delete' }).click();
+    // Delete person is the Edit panel's footer button, never a menu item (CRUD standard Phase 3).
+    await chooseAction(page, 'Edit person');
+    await page.getByRole('button', { name: 'Delete person', exact: true }).click();
     const deleteDialog = page.getByRole('alertdialog', { name: /^Delete the person / });
     await expect(deleteDialog).toBeVisible();
 
@@ -442,16 +445,18 @@ test.describe('People UI — Admin CRUD lifecycle', () => {
     expect(updateResponse.ok()).toBe(true);
     await expect(page.getByText('555-4567')).toBeVisible();
 
-    await page.getByRole('button', { name: 'More actions' }).click();
-    await page.getByRole('menuitem', { name: 'Delete' }).click();
+    // Delete person is the Edit panel's footer button, never a menu item (CRUD standard Phase 3).
+    await chooseAction(page, 'Edit person');
+    await page.getByRole('button', { name: 'Delete person', exact: true }).click();
     const cancelDeleteDialog = page.getByRole('alertdialog', { name: /^Delete the person / });
     await expect(cancelDeleteDialog).toBeVisible();
     await cancelDeleteDialog.getByRole('button', { name: 'Keep it', exact: true }).click();
     await expect(cancelDeleteDialog).not.toBeVisible();
     await expect(page.getByRole('heading', { name: /Adminperson/, level: 1 })).toBeVisible();
 
-    await page.getByRole('button', { name: 'More actions' }).click();
-    await page.getByRole('menuitem', { name: 'Delete' }).click();
+    // Delete person is the Edit panel's footer button, never a menu item (CRUD standard Phase 3).
+    await chooseAction(page, 'Edit person');
+    await page.getByRole('button', { name: 'Delete person', exact: true }).click();
     const deleteDialog = page.getByRole('alertdialog', { name: /^Delete the person / });
     await expect(deleteDialog).toBeVisible();
 

@@ -16,7 +16,6 @@ interface HeroProfileCardProps {
   photo: string;
   phone: string;
   onEditPhoto: () => void;
-  onDelete: () => void;
   onChangeStatus?: (() => void) | undefined;
   changeStatusLabel?: string | undefined;
   changeStatusDisabled?: boolean | undefined;
@@ -25,8 +24,9 @@ interface HeroProfileCardProps {
    * The person is removed. Editing them is not an operation — the record is
    * readable so an admin can decide whether to restore it (MYK9-153), and a
    * banner says exactly that, so leaving Edit / photo / invitation live here
-   * would make the banner a liar. Delete stays: for a removed person it means
-   * permanent deletion, which is the other half of that decision.
+   * would make the banner a liar. Delete is not here either: a live person is
+   * deleted from the Edit panel's footer, and a removed one is purged only on
+   * Admin → Deleted Items.
    */
   isRemoved?: boolean;
   /** Send/resend a sign-in invitation (MYK9-134). Omit to hide the menu item. */
@@ -43,7 +43,6 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
   photo,
   phone,
   onEditPhoto,
-  onDelete,
   onChangeStatus,
   changeStatusLabel,
   changeStatusDisabled,
@@ -67,10 +66,10 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
       />
 
       {/* Row-level actions. Edit person is the first item of the header Actions
-          menu (MYK9-928), registered by the page only while the person is live. */}
+          menu (MYK9-928), registered by the page only while the person is live. Delete
+          person is the Edit panel's footer button, never a menu item. */}
       <div className="absolute top-6 right-6 z-10 flex items-center gap-1">
         <ThreeDotMenu
-          onDelete={onDelete}
           {...(onChangeStatus ? { onChangeStatus } : {})}
           {...(changeStatusLabel ? { changeStatusLabel } : {})}
           {...(changeStatusDisabled !== undefined ? { changeStatusDisabled } : {})}

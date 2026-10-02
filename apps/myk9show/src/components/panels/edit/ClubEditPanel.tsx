@@ -1,5 +1,9 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { EditPanelWrapper, type EditPanelSaveContext } from './EditPanelWrapper';
+import {
+  EditPanelWrapper,
+  type EditPanelDeleteOption,
+  type EditPanelSaveContext,
+} from './EditPanelWrapper';
 import { addedMessage, savedMessage } from './panelSaveErrors';
 import { useEditPanel } from './useEditPanel';
 import { Input } from '@/components/ui/input';
@@ -53,6 +57,8 @@ interface ClubEditPanelProps {
   showAdvancedFields?: boolean;
   /** Set to 'create' when adding a new club. Defaults to 'edit'. */
   mode?: 'create' | 'edit';
+  /** "Delete club" in the footer. Edit mode only; omit for a viewer who cannot delete. */
+  onDelete?: EditPanelDeleteOption | undefined;
 }
 
 // Form content component
@@ -370,6 +376,7 @@ const ClubEditPanelSession: React.FC<ClubEditPanelProps> = ({
   onSave,
   enableAutoSave = false,
   mode = 'edit',
+  onDelete,
 }) => {
   // A failed save moves to the tab holding the first invalid field (MYK9-891).
   const { activeTab, setActiveTab, handleValidationFail } =
@@ -424,6 +431,7 @@ const ClubEditPanelSession: React.FC<ClubEditPanelProps> = ({
       enableAutoSave={enableAutoSave}
       saveLabel={mode === 'create' ? 'Add Club' : 'Save Changes'}
       cancelLabel="Cancel"
+      onDelete={mode === 'edit' ? onDelete : undefined}
       successMessage={data => {
         const name = data.name || clubName;
         return mode === 'create' ? addedMessage(name, 'Club') : savedMessage(name, 'Club');

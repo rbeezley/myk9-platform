@@ -2,6 +2,8 @@ import type { ClassData } from '@/components/classes/types/classTypes';
 import type { TrialClass } from '@/components/trials/types/trial.types';
 import type { ClassStatusValue } from '@myk9/core';
 
+import type { EditPanelDeleteOption } from './EditPanelDelete';
+
 export interface ClassEditPanelProps {
   open: boolean;
   onClose: () => void;
@@ -12,6 +14,8 @@ export interface ClassEditPanelProps {
   enableAutoSave?: boolean;
   showId?: string;
   mode?: 'full' | 'simple'; // 'full' for ClassData with tabs, 'simple' for TrialClass
+  /** "Delete class" in the footer. Omit for a viewer who cannot delete. */
+  onDelete?: EditPanelDeleteOption | undefined;
 }
 
 // Form data interface for ClassData

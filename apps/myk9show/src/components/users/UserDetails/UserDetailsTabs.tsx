@@ -64,6 +64,11 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
   const handleDeleteDog = (dogId: string) => {
     setDogToDelete(userDogs.find(d => d.id === dogId) ?? null);
   };
+  const dogDeleteTarget = (dog: Dog) => ({
+    id: dog.id,
+    name: getDogDisplayName(dog),
+    detail: dogDeleteDetail({ callName: dog.callName, ownerName: dog.ownerName }),
+  });
 
   // Handler for adding a new dog
   const handleAddNewDog = () => {
@@ -157,6 +162,13 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
         }
         onSave={handleSaveDogEdit}
         enableAutoSave={false}
+        // Same reach as this page's dog-card menu Delete: the server preview refuses a dog
+        // the viewer may not delete before the button is ever enabled.
+        onDelete={
+          dogToEdit
+            ? { kind: 'dog', objectLabel: 'dog', targets: [dogDeleteTarget(dogToEdit)] }
+            : undefined
+        }
       />
       {dogToDelete && (
         <DeleteObjectDialog
@@ -165,16 +177,7 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
             if (!open) setDogToDelete(null);
           }}
           kind="dog"
-          targets={[
-            {
-              id: dogToDelete.id,
-              name: getDogDisplayName(dogToDelete),
-              detail: dogDeleteDetail({
-                callName: dogToDelete.callName,
-                ownerName: dogToDelete.ownerName,
-              }),
-            },
-          ]}
+          targets={[dogDeleteTarget(dogToDelete)]}
         />
       )}
       <AddDogPanel

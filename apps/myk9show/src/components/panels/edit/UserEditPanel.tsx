@@ -316,6 +316,7 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
   initialUserData,
   onSave,
   enableAutoSave = false,
+  onDelete,
   // showAdvancedFields = false,
 }) => {
   const isCreateMode = !userId;
@@ -350,6 +351,7 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
       enableAutoSave={enableAutoSave}
       saveLabel={isCreateMode ? 'Add Person' : 'Save Changes'}
       cancelLabel="Cancel"
+      onDelete={isCreateMode ? undefined : onDelete}
       successMessage={data => {
         const name = `${data.firstName} ${data.lastName}`.trim() || userName;
         return isCreateMode ? addedMessage(name, 'Person') : savedMessage(name, 'Person');

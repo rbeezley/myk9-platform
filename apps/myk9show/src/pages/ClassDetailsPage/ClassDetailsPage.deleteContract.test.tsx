@@ -25,17 +25,13 @@ vi.mock('@/features/delete/deleteServer', () => ({
 vi.mock('@/features/delete/deleteLocalState', () => ({
   reconcileLocalDeletion: deleteMocks.purge,
 }));
-// The page opens the delete dialog from its menu; these tests start with it open.
+// The edit panel starts open: Delete class is its footer button (CRUD standard Phase 3).
 vi.mock('./useClassDetailsDialogs', () => ({
   useClassDetailsDialogs: () => ({
     editClassPanelOpen: true,
     setEditClassPanelOpen: vi.fn(),
     openEditClassPanel: vi.fn(),
     closeEditClassPanel: vi.fn(),
-    deleteDialogOpen: mockDeleteDialogOpen.current,
-    setDeleteDialogOpen: vi.fn(),
-    openDeleteDialog: vi.fn(),
-    closeDeleteDialog: vi.fn(),
     deleteEntryDialogOpen: false,
     setDeleteEntryDialogOpen: vi.fn(),
     entryToDelete: null,
@@ -44,8 +40,6 @@ vi.mock('./useClassDetailsDialogs', () => ({
     closeDeleteEntryDialog: vi.fn(),
   }),
 }));
-// The modal delete dialog makes the rest of the page inert, so the save test keeps it closed.
-const mockDeleteDialogOpen = vi.hoisted(() => ({ current: true }));
 const updateClass = vi.hoisted(() => vi.fn());
 let mockConnectionHint: string | undefined;
 
@@ -70,26 +64,46 @@ vi.mock('./SecretaryRunSheet', () => ({ SecretaryRunSheet: () => null }));
 vi.mock('@/components/classes/ClassRequirementsPanel', () => ({
   ClassRequirementsPanel: () => null,
 }));
-// The panel exposes the page's save callback the way the real component calls it.
-vi.mock('@/components/panels/edit/ClassEditPanel', () => ({
-  ClassEditPanel: ({ onSave }: { onSave: (data: Partial<ClassData>) => Promise<void> }) => (
-    <button
-      type="button"
-      onClick={() => {
-        onSave({ judge: 'New Judge' }).then(
-          () => {
-            document.body.dataset.saveResult = 'resolved';
-          },
-          () => {
-            document.body.dataset.saveResult = 'rejected';
-          }
-        );
-      }}
-    >
-      save-class
-    </button>
-  ),
-}));
+// The panel is the real wrapper around a stub form, so its footer Delete and the shared dialog
+// it owns run for real; the stub exposes the page's save callback the way the panel calls it.
+vi.mock('@/components/panels/edit/ClassEditPanel', async () => {
+  const { EditPanelWrapper } = await import('@/components/panels/edit/EditPanelWrapper');
+  return {
+    ClassEditPanel: ({
+      onSave,
+      onDelete,
+    }: {
+      onSave: (data: Partial<ClassData>) => Promise<void>;
+      onDelete?: import('@/components/panels/edit/EditPanelDelete').EditPanelDeleteOption;
+    }) => (
+      <EditPanelWrapper
+        open
+        onClose={() => undefined}
+        title="Edit Class"
+        initialData={{}}
+        onSave={async () => undefined}
+        onDelete={onDelete}
+        variant="dialog"
+      >
+        <button
+          type="button"
+          onClick={() => {
+            onSave({ judge: 'New Judge' }).then(
+              () => {
+                document.body.dataset.saveResult = 'resolved';
+              },
+              () => {
+                document.body.dataset.saveResult = 'rejected';
+              }
+            );
+          }}
+        >
+          save-class
+        </button>
+      </EditPanelWrapper>
+    ),
+  };
+});
 
 import ClassDetailsPage from './index';
 
@@ -126,7 +140,6 @@ function renderPage() {
 describe('ClassDetailsPage delete / save failure contract', () => {
   beforeEach(() => {
     mockConnectionHint = undefined;
-    mockDeleteDialogOpen.current = true;
     delete document.body.dataset.saveResult;
     deleteMocks.preview.mockReset().mockResolvedValue({
       trials: 0,
@@ -171,7 +184,12 @@ describe('ClassDetailsPage delete / save failure contract', () => {
     vi.restoreAllMocks();
   });
 
+  async function openDelete(user: ReturnType<typeof renderPage>['user']) {
+    await user.click(screen.getByRole('button', { name: 'Delete class' }));
+  }
+
   async function pressDelete(user: ReturnType<typeof renderPage>['user']) {
+    await openDelete(user);
     const dialog = await screen.findByRole('alertdialog', {
       name: 'Delete the class Interior Novice A?',
     });
@@ -210,7 +228,8 @@ describe('ClassDetailsPage delete / save failure contract', () => {
 
   it('does not navigate or call the delete while offline', async () => {
     vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
-    renderPage();
+    const { user } = renderPage();
+    await openDelete(user);
 
     const dialog = await screen.findByRole('alertdialog', {
       name: 'Delete the class Interior Novice A?',
@@ -223,7 +242,6 @@ describe('ClassDetailsPage delete / save failure contract', () => {
   });
 
   it('rejects the panel save when the class update fails, resolves when it succeeds', async () => {
-    mockDeleteDialogOpen.current = false;
     updateClass.mockRejectedValueOnce(new Error('boom'));
     const { user } = renderPage();
 

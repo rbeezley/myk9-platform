@@ -88,12 +88,10 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
       <ClubHeader
         club={selectedClub}
         onEditPhoto={state.handleEditPhoto}
-        onDeleteClub={state.handleDeleteClub}
         onCoverUpload={state.handleCoverUpload}
         onCoverRemove={state.handleCoverRemove}
         isUploadingCover={state.isUploadingCover}
         canEditBranding={state.canEditBranding}
-        canDeleteClub={state.canDeleteClub}
         canAuthorizeClub={state.canAuthorizeClub}
         isClubAuthorized={state.isClubAuthorized}
         isAuthorizationLoading={state.isAuthorizationLoading}
@@ -195,8 +193,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
         onPhotoFileInput={state.handlePhotoFileInput}
         onPhotoCancel={state.handlePhotoCancel}
         onPhotoSave={state.handlePhotoSave}
-        showDeleteDialog={state.showDeleteDialog}
-        onDeleteDialogChange={state.setShowDeleteDialog}
+        canDeleteClub={state.canDeleteClub}
         onClubDeleted={state.handleClubDeleted}
         showAddMemberDialog={state.showAddMemberDialog}
         onAddMemberDialogChange={state.setShowAddMemberDialog}

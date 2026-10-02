@@ -41,7 +41,7 @@ function renderDialogs(props: Partial<React.ComponentProps<typeof DogDialogs>> =
     <DogDialogs
       dog={dog}
       isEditPanelOpen
-      isDeleteDialogOpen={false}
+      canDelete
       isPhotoDialogOpen={false}
       photoPreview={null}
       isPhotoDragging={false}
@@ -50,7 +50,6 @@ function renderDialogs(props: Partial<React.ComponentProps<typeof DogDialogs>> =
       userRole={UserRole.EXHIBITOR}
       people={[]}
       onEditPanelClose={() => {}}
-      onDeleteDialogClose={() => {}}
       onPhotoDialogOpen={() => {}}
       onPhotoDrop={() => {}}
       onPhotoDragOver={() => {}}

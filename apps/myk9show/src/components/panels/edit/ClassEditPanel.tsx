@@ -216,6 +216,7 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
   enableAutoSave = false,
   showId,
   mode = 'full',
+  onDelete,
 }) => {
   const isSimpleMode =
     mode === 'simple' ||
@@ -231,6 +232,7 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
     enableAutoSave,
     saveLabel: 'Save Changes',
     cancelLabel: 'Cancel',
+    onDelete,
     successMessage: savedMessage(className, 'Class'),
   };
 

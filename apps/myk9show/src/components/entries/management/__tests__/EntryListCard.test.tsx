@@ -264,6 +264,23 @@ describe('EntryListCard - check-in button affordance', () => {
     expect(screen.getByText('Request payment…')).toBeInTheDocument();
   });
 
+  it('has one Remove control per entry row: the status menu carries no duplicate', () => {
+    // CRUD standard Phase 3: the popover's "Remove Entry" went; the row's own Remove stays.
+    render(
+      <EntryListCard
+        {...defaultProps}
+        entries={[makeEntry({ paymentStatus: PaymentStatus.PENDING, paidAmount: 0 })]}
+      />
+    );
+
+    fireEvent.click(screen.getByText('Accepted'));
+
+    // Positive control: the status menu is open.
+    expect(screen.getByText('Payment')).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /remove entry/i })).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /remove entry for fido/i })).toHaveLength(1);
+  });
+
   it('asks through the shared delete dialog before removing an entry', async () => {
     deleteMocks.preview.mockResolvedValue({
       trials: 0,

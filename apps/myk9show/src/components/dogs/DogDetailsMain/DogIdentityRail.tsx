@@ -58,9 +58,7 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
   role = 'exhibitor',
   canOpenOwnerRecord = false,
   onPhotoDialogOpen,
-  onDeleteDialogOpen,
   onStatusDialogOpen,
-  canDelete = true,
   headingRef,
 }) => {
   const isSecretary = role === 'secretary';
@@ -161,7 +159,6 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
           <ThreeDotMenu
             onEditPhoto={onPhotoDialogOpen}
             onChangeStatus={onStatusDialogOpen}
-            onDelete={canDelete ? onDeleteDialogOpen : undefined}
             triggerClassName="h-11 w-11 rounded-full border border-border bg-card text-foreground shadow-sm hover:bg-accent"
           />
         </div>

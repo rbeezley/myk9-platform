@@ -1,5 +1,6 @@
 import type { User as UserType, JudgeQualification } from '@/types/user-types';
 import type { EditPanelDeleteOption } from './EditPanelDelete';
+import type { EditPanelVariant } from './EditPanelWrapper.types';
 
 export interface UserEditPanelProps {
   open: boolean;
@@ -12,6 +13,10 @@ export interface UserEditPanelProps {
   showAdvancedFields?: boolean;
   /** "Delete person" in the footer. Edit mode only; omit for a viewer who cannot delete. */
   onDelete?: EditPanelDeleteOption | undefined;
+  /** 'dialog' for the entry flow's Add Person; the default is the slide-over panel. */
+  variant?: EditPanelVariant | undefined;
+  /** Shown above the tabs (create mode): the entry flow's possible-duplicate card. */
+  notice?: import('react').ReactNode;
 }
 
 // Form data interface matching PersonEditDialog expectations

@@ -31,6 +31,8 @@ import {
   isScentWorkNovice,
 } from './ClassEditPanel.helpers';
 import { ClassEditForm } from './ClassEditForm';
+import { usePanelValidationNavigation } from './usePanelValidationNavigation';
+import { locateClassField, type ClassTabValue } from './ClassEditPanel.validationTab';
 import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
 import { getJudgeNameById } from '@/utils/buildAssignedJudges';
 import { formatJudgeAvailabilityWindow } from '@/utils/classJudgeDisplay';
@@ -218,6 +220,10 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
   mode = 'full',
   onDelete,
 }) => {
+  // A failed Save moves to the tab holding the first invalid field (MYK9-931).
+  const { activeTab, setActiveTab, handleValidationFail } =
+    usePanelValidationNavigation<ClassTabValue>('basic', locateClassField);
+
   const isSimpleMode =
     mode === 'simple' ||
     ('judgeId' in (initialClassData || {}) &&
@@ -269,8 +275,13 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
       initialData={initialFormData}
       onSave={handleSave}
       schema={classFullSchema}
+      onValidationFail={handleValidationFail}
     >
-      <ClassEditForm {...(showId !== undefined && { showId })} />
+      <ClassEditForm
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        {...(showId !== undefined && { showId })}
+      />
     </EditPanelWrapper>
   );
 };

@@ -21,6 +21,12 @@ import AvailabilityFormFields from '@/components/judges/AvailabilityFormFields';
 
 import type { UserEditPanelProps, UserFormData } from './UserEditPanel.types';
 import { userFormSchema, userToFormData, formDataToUser } from './UserEditPanel.helpers';
+import { usePanelValidationNavigation } from './usePanelValidationNavigation';
+import {
+  USER_CREATE_TABS,
+  locateUserField,
+  type UserTabValue,
+} from './UserEditPanel.validationTab';
 import { BasicInfoTab } from './BasicInfoTab';
 import { ContactInfoTab } from './ContactInfoTab';
 import { QualificationsTab } from './QualificationsTab';
@@ -32,7 +38,12 @@ export type { UserEditPanelProps, UserFormData } from './UserEditPanel.types';
 const TAB_TRIGGER_CLASS = 'gap-2 rounded-lg transition-all duration-300';
 
 // Form content component
-const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
+const UserEditForm: React.FC<{
+  userId: string;
+  activeTab: UserTabValue;
+  onTabChange: (tab: UserTabValue) => void;
+  notice?: React.ReactNode;
+}> = ({ userId, activeTab, onTabChange, notice }) => {
   const queryClient = useQueryClient();
   const { data, form } = useEditPanel<UserFormData>();
   const { user: currentUser } = useAuthContext();
@@ -173,7 +184,12 @@ const UserEditForm: React.FC<{ userId: string }> = ({ userId }) => {
 
   return (
     <div className="space-y-6 p-6">
-      <Tabs defaultValue="basic" className="w-full">
+      {notice}
+      <Tabs
+        value={activeTab}
+        onValueChange={value => onTabChange(value as UserTabValue)}
+        className="w-full"
+      >
         <TabsList
           className={`grid w-full ${isJudge ? 'grid-cols-4' : 'grid-cols-2'} bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out`}
         >
@@ -317,9 +333,14 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
   onSave,
   enableAutoSave = false,
   onDelete,
+  variant,
+  notice,
   // showAdvancedFields = false,
 }) => {
   const isCreateMode = !userId;
+  // A failed save, or Next, moves to the tab holding the first invalid field.
+  const { activeTab, setActiveTab, handleValidationFail } =
+    usePanelValidationNavigation<UserTabValue>('basic', locateUserField);
   const title = isCreateMode ? 'Add Person' : 'Edit Person';
   const subtitle = isCreateMode ? 'Add a person profile' : `Editing profile for ${userName}`;
   // Convert user data to form data
@@ -352,12 +373,30 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
       saveLabel={isCreateMode ? 'Add Person' : 'Save Changes'}
       cancelLabel="Cancel"
       onDelete={isCreateMode ? undefined : onDelete}
+      {...(variant ? { variant } : {})}
+      onValidationFail={handleValidationFail}
+      {...(isCreateMode
+        ? {
+            steps: {
+              mode: 'create' as const,
+              tabs: USER_CREATE_TABS,
+              activeTab,
+              onTabChange: (tab: string) => setActiveTab(tab as UserTabValue),
+              locate: locateUserField,
+            },
+          }
+        : {})}
       successMessage={data => {
         const name = `${data.firstName} ${data.lastName}`.trim() || userName;
         return isCreateMode ? addedMessage(name, 'Person') : savedMessage(name, 'Person');
       }}
     >
-      <UserEditForm userId={userId} />
+      <UserEditForm
+        userId={userId}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        notice={notice}
+      />
     </EditPanelWrapper>
   );
 };

@@ -114,6 +114,11 @@ test.describe('People UI — Create (secretary)', () => {
     await page.getByRole('textbox', { name: /First Name/ }).fill(PERSON_A_FIRST);
     await page.getByRole('textbox', { name: /Last Name/ }).fill(PERSON_A_LAST);
     await page.getByRole('textbox', { name: /Email Address/ }).fill(PERSON_A_EMAIL);
+    // MYK9-931: Basic Info -> Contact; Add Person is on the last tab.
+    await page
+      .getByRole('dialog', { name: 'Add Person' })
+      .getByRole('button', { name: /Next: Contact/ })
+      .click();
 
     // Wait for the create POST and the navigation to the new person's detail.
     const [createResponse] = await Promise.all([
@@ -151,6 +156,11 @@ test.describe('People UI — Create (secretary)', () => {
     await page.getByRole('textbox', { name: /First Name/ }).fill(PERSON_B_FIRST);
     await page.getByRole('textbox', { name: /Last Name/ }).fill(PERSON_B_LAST);
     await page.getByRole('textbox', { name: /Email Address/ }).fill(PERSON_B_EMAIL);
+    // MYK9-931: Basic Info -> Contact; Add Person is on the last tab.
+    await page
+      .getByRole('dialog', { name: 'Add Person' })
+      .getByRole('button', { name: /Next: Contact/ })
+      .click();
     const [resp] = await Promise.all([
       page.waitForResponse(
         r =>
@@ -175,17 +185,14 @@ test.describe('People UI — Create (secretary)', () => {
     // touched field doesn't work as a setup — hasChanges flips back to
     // false because the value matches the (empty) initial value.
     await page.getByRole('textbox', { name: /Last Name/ }).fill('OnlyLast');
-    // Clicking Save must surface the schema's first-name validation error
-    // and keep the dialog open. Use getByRole('alert') — the same text
-    // appears inline-under-the-field AND in the footer error summary, so
-    // getByText would hit a strict-mode collision.
+    // Next is blocked on Basic Info and says why (MYK9-931); the dialog stays open.
     await page
       .getByRole('dialog', { name: 'Add Person' })
-      .getByRole('button', { name: 'Add Person' })
+      .getByRole('button', { name: /Next: Contact/ })
       .click();
-    await expect(
-      page.getByRole('alert').filter({ hasText: 'Please enter a first name' })
-    ).toBeVisible();
+    await expect(page.getByTestId('edit-panel-step-blocked')).toContainText(
+      'Please enter a first name'
+    );
     await expect(page.getByRole('dialog', { name: 'Add Person' })).toBeVisible();
   });
 });
@@ -278,6 +285,9 @@ test.describe('People UI — Add Dog with Person as Owner (secretary)', () => {
 
     // Date of Birth
     await page.getByRole('textbox', { name: /Date of Birth/ }).fill('2020-01-15');
+
+    // MYK9-931: Add Dog only shows on the last tab; earlier tabs stay clickable.
+    await page.getByRole('dialog').getByRole('tab', { name: /Optional details/i }).click();
 
     // Submit
     const [resp] = await Promise.all([
@@ -404,6 +414,11 @@ test.describe('People UI — Admin CRUD lifecycle', () => {
     await page.getByRole('textbox', { name: /First Name/ }).fill(ADMIN_PERSON_FIRST);
     await page.getByRole('textbox', { name: /Last Name/ }).fill(ADMIN_PERSON_LAST);
     await page.getByRole('textbox', { name: /Email Address/ }).fill(ADMIN_PERSON_EMAIL);
+    // MYK9-931: Basic Info -> Contact; Add Person is on the last tab.
+    await page
+      .getByRole('dialog', { name: 'Add Person' })
+      .getByRole('button', { name: /Next: Contact/ })
+      .click();
 
     const [createResponse] = await Promise.all([
       page.waitForResponse(

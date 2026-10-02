@@ -25,6 +25,7 @@ import { getJudgeNameById } from '@/utils/buildAssignedJudges';
 import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
 import type { ClassEditFormData } from './ClassEditPanel.types';
 import { isScentWorkNovice } from './ClassEditPanel.helpers';
+import type { ClassTabValue } from './ClassEditPanel.validationTab';
 
 /** A requirement field with optional auto-fill from rules */
 function RequirementField({
@@ -61,7 +62,11 @@ function RequirementField({
 }
 
 // Full mode form for ClassData
-export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
+export const ClassEditForm: React.FC<{
+  showId?: string;
+  activeTab: ClassTabValue;
+  onTabChange: (tab: ClassTabValue) => void;
+}> = ({ showId, activeTab, onTabChange }) => {
   const { data, form } = useEditPanel<ClassEditFormData>();
   const { people } = useUserStore();
   const { shows } = useShowStore();
@@ -108,7 +113,11 @@ export const ClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
 
   return (
     <div className="space-y-6 p-6">
-      <Tabs defaultValue="basic" className="w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={value => onTabChange(value as ClassTabValue)}
+        className="w-full"
+      >
         <TabsList className="grid w-full grid-cols-4 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
           <TabsTrigger value="basic" className="gap-2 rounded-lg transition-all duration-300">
             <Settings className="h-4 w-4" />

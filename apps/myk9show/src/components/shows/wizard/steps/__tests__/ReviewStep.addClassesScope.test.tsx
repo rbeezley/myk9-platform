@@ -83,7 +83,7 @@ describe('ReviewStep scope', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /^add show$/i }));
     expect(onCreateShow).not.toHaveBeenCalled();
-    expect(screen.getByText(/show name is required/i)).toBeInTheDocument();
+    expect(screen.getByText(/please enter a show name/i)).toBeInTheDocument();
   });
 });
 

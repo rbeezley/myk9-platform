@@ -18,7 +18,7 @@ import { PanelSaveHandledError } from '../panelSaveErrors';
 import type { AddDogPanelProps, DogFormData } from './types';
 import { createInitialFormData } from './types';
 import { addDogSchema, isTabValid } from './validation';
-import { locateInvalidField } from './validationTab';
+import { locateInvalidField, DOG_STEP_TABS } from './validationTab';
 import { usePanelValidationNavigation } from '../usePanelValidationNavigation';
 import type { TabValue } from './types';
 import { buildDogSavedToast } from './dogSavedToast';
@@ -200,6 +200,13 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
       showUnsavedWarning={true}
       variant={variant}
       onValidationFail={handleValidationFail}
+      steps={{
+        mode: 'create',
+        tabs: DOG_STEP_TABS,
+        activeTab,
+        onTabChange: tab => setActiveTab(tab as TabValue),
+        locate: locateInvalidField,
+      }}
     >
       <AddDogPanelContent
         open={open}

@@ -299,7 +299,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
     const newErrors: Record<string, string> = {};
 
     if (submitted && totalClasses === 0) {
-      newErrors.classes = 'At least one class must be selected across all trials';
+      newErrors.classes = 'Please select at least one class across all trials';
     }
 
     // Check that each trial has completed the class creation process

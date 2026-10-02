@@ -208,7 +208,7 @@ describe('class step - which trials must have classes (MYK9-899)', () => {
       {},
       'class-selection'
     );
-    expect(messages).toContain('At least one class must be added to the trials');
+    expect(messages).toContain('Please add at least one class to the trials');
   });
 });
 
@@ -279,7 +279,7 @@ describe('validation scope: add-classes evaluates only the class rules (MYK9-899
         officialsUnknown: false,
         scope,
       })
-    ).toEqual(['At least one class must be configured']);
+    ).toEqual(['Please add at least one class']);
   });
 
   it('full scope still enforces every requirement on the same show (control)', () => {
@@ -295,12 +295,12 @@ describe('validation scope: add-classes evaluates only the class rules (MYK9-899
       }),
     ].join(' | ');
     for (const required of [
-      'Show name is required',
-      'Location is required',
-      'Club selection is required',
+      'Please enter a show name',
+      'Please enter a location',
+      'Please select a hosting club',
       'Please select a chair',
       'Please select a secretary',
-      'Entry open date is required',
+      'Please select an entry open date',
     ]) {
       expect(messages).toContain(required);
     }
@@ -313,7 +313,7 @@ describe('validation scope: add-classes evaluates only the class rules (MYK9-899
 // existing show that is already live keeps the window mandatory, so adding
 // trials or classes to it can never clear the window a published show needs.
 describe('Show Details step — entry window (MYK9-716)', () => {
-  const REQUIRED = ['Entry open date is required', 'Entry close date is required'];
+  const REQUIRED = ['Please select an entry open date', 'Please select an entry close date'];
   const windowless = () => baseShow({ entryOpenDate: '', entryCloseDate: '' });
   const trialView = {
     effectiveNamesByTrialId: new Map<string, string>(),

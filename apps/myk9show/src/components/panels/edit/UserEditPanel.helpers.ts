@@ -44,10 +44,13 @@ export const userFormSchema: z.ZodSchema<UserFormData> = z
       .string()
       .min(1, 'Please enter a last name')
       .refine(v => v.trim().length > 0, 'Please enter a last name'),
+    // Optional (MYK9-931): a mail-in entrant has no email. One Person form.
     email: z
       .string()
-      .min(1, 'Please enter an email address')
-      .regex(/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please enter a valid email address'),
+      .refine(
+        v => !v.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()),
+        'Please enter a valid email address'
+      ),
     phone: z
       .string()
       .refine(v => !v || /^[\d\s\-().+]+$/.test(v.trim()), 'Please enter a valid phone number'),

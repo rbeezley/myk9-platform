@@ -1,6 +1,7 @@
 import type React from 'react';
 import type { z } from 'zod';
 import type { EditPanelDeleteOption } from './EditPanelDelete';
+import type { FieldLocation } from './usePanelValidationNavigation';
 
 export type EditPanelVariant = 'panel' | 'dialog';
 
@@ -13,6 +14,22 @@ export interface EditPanelSaveContext {
    * still navigate, and the save can still fail (MYK9-165).
    */
   runSelfNavigation: (navigate: () => void) => void;
+}
+
+/**
+ * Tab walk for a tabbed panel (MYK9-931, owner decision 13). The panel owns the
+ * active tab (via `usePanelValidationNavigation`) and hands it here so the footer
+ * can walk it: in `create` mode every tab but the last shows "Next: <tab>" in
+ * place of Save, blocked while the current tab misses a required field; the last
+ * shows the save button ("Add <Object>"). `edit` mode shows Save on every tab.
+ */
+export interface EditPanelSteps {
+  mode: 'create' | 'edit';
+  tabs: ReadonlyArray<{ value: string; label: string }>;
+  activeTab: string;
+  onTabChange: (tab: string) => void;
+  /** The same field -> tab/element map the panel gives `usePanelValidationNavigation`. */
+  locate: (field: string) => FieldLocation<string> | undefined;
 }
 
 export interface EditPanelWrapperProps<T = Record<string, unknown>> {
@@ -56,6 +73,9 @@ export interface EditPanelWrapperProps<T = Record<string, unknown>> {
   onDelete?: EditPanelDeleteOption | undefined;
 
   variant?: EditPanelVariant;
+
+  /** Tab walk: Next on every tab but the last in create mode. Needs `schema`. */
+  steps?: EditPanelSteps;
 
   // For create forms where hasChanges tracking doesn't apply
   forceHasChanges?: boolean;

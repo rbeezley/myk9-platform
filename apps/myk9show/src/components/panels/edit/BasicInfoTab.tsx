@@ -147,7 +147,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           IS their sign-in address, MYK9-136), and for anyone but a site admin
           once the person has entries or roles (MYK9-710): the database refuses
           those edits, so the editor does not offer them. */}
-      <FormField label="Email Address" fieldId="email" required error={emailError}>
+      <FormField label="Email Address" fieldId="email" optional error={emailError}>
         {emailLock.locked !== false ? (
           <>
             <Input

@@ -92,7 +92,7 @@ const PanelHarness: React.FC<{ organization: string; client: QueryClient }> = ({
     <QueryClientProvider client={client}>
       <MemoryRouter>
         <EditPanelContext.Provider value={value}>
-          <ShowEditForm initialTab="judges" />
+          <ShowEditForm activeTab="judges" onTabChange={() => {}} />
           {/* Stands in for the panel footer's Save, which sits outside ShowEditForm. */}
           <button type="button" onClick={saveSpy}>
             Save Changes

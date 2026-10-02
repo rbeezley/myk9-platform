@@ -70,17 +70,17 @@ export function getReviewBlockingErrors(input: {
   const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
 
   if (scope === 'full') {
-    if (!show.name.trim()) result.push('Show name is required');
-    if (!show.startDate || !show.endDate) result.push('Show dates are required');
-    if (!show.location?.trim()) result.push('Location is required');
-    if (!show.clubId) result.push('Club selection is required');
+    if (!show.name.trim()) result.push('Please enter a show name');
+    if (!show.startDate || !show.endDate) result.push('Please select the show dates');
+    if (!show.location?.trim()) result.push('Please enter a location');
+    if (!show.clubId) result.push('Please select a hosting club');
     if (!officialsUnknown) {
       if (show.officials.chairman.length === 0) result.push('Please select a chair');
       if (show.officials.secretary.length === 0) result.push('Please select a secretary');
     }
-    if (trials.length === 0) result.push('At least one trial is required');
+    if (trials.length === 0) result.push('Please add at least one trial');
   }
-  if (totalClasses === 0) result.push('At least one class must be configured');
+  if (totalClasses === 0) result.push('Please add at least one class');
 
   return result;
 }
@@ -104,12 +104,12 @@ export function getShowDetailsValidationMessages(
 ): string[] {
   const messages: string[] = [];
 
-  if (!show.name?.trim()) messages.push('Show name is required');
-  if (!show.organization) messages.push('Organization is required');
-  if (!show.startDate) messages.push('Start date is required');
-  if (!show.endDate) messages.push('End date is required');
-  if (!show.location?.trim()) messages.push('Location is required');
-  if (!show.clubId) messages.push('Club selection is required');
+  if (!show.name?.trim()) messages.push('Please enter a show name');
+  if (!show.organization) messages.push('Please select an organization');
+  if (!show.startDate) messages.push('Please select a start date');
+  if (!show.endDate) messages.push('Please select an end date');
+  if (!show.location?.trim()) messages.push('Please enter a location');
+  if (!show.clubId) messages.push('Please select a hosting club');
   if (show.officials.chairman.length === 0) messages.push('Please select a chair');
   if (show.officials.secretary.length === 0) messages.push('Please select a secretary');
   // Mirrors the column CHECK so the secretary sees the problem here, not as a raw database
@@ -117,8 +117,8 @@ export function getShowDetailsValidationMessages(
   const juniorFeeError = juniorHandlerFeeError(show);
   if (juniorFeeError) messages.push(juniorFeeError);
   if (requireEntryWindow) {
-    if (!show.entryOpenDate) messages.push('Entry open date is required');
-    if (!show.entryCloseDate) messages.push('Entry close date is required');
+    if (!show.entryOpenDate) messages.push('Please select an entry open date');
+    if (!show.entryCloseDate) messages.push('Please select an entry close date');
   }
 
   // Normalize to YYYY-MM-DD so lexicographic comparison is date-only safe
@@ -159,16 +159,16 @@ export function getTrialValidationMessages(
   const messages: string[] = [];
   const requiresEventNumber = organization === 'AKC';
   if (trials.length === 0) {
-    messages.push('At least one trial is required');
+    messages.push('Please add at least one trial');
   } else {
     trials.forEach((trial, index) => {
       const trialName = trialView.effectiveNamesByTrialId.get(trial.id) ?? `Trial ${index + 1}`;
       if (!trialView.effectiveNamesByTrialId.get(trial.id)?.trim())
-        messages.push(`${trialName} name is required`);
-      if (!trial.trialType) messages.push(`${trialName} type is required`);
-      if (!trial.dateTime) messages.push(`${trialName} date and time is required`);
+        messages.push(`Please enter a name for ${trialName}`);
+      if (!trial.trialType) messages.push(`Please select a type for ${trialName}`);
+      if (!trial.dateTime) messages.push(`Please select a date and time for ${trialName}`);
       if (requiresEventNumber && !trial.eventNumber?.trim())
-        messages.push(`${trialName} event number is required for AKC events`);
+        messages.push(`Please enter an event number for ${trialName} (required for AKC events)`);
     });
   }
 
@@ -194,7 +194,7 @@ export function getClassValidationMessages(
 
   const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
   if (totalClasses === 0) {
-    messages.push('At least one class must be added to the trials');
+    messages.push('Please add at least one class to the trials');
   } else if (scope === 'full') {
     // Ensure every trial has at least one class
     trials.forEach(trial => {

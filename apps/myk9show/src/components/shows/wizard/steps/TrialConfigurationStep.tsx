@@ -1,7 +1,8 @@
 import React, { useMemo } from 'react';
+import { RequiredMark } from '@/components/common/RequiredMark';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { DateTimePicker } from '@/components/ui/date-time-picker';
+import { TrialDateTimeField } from '@/components/trials/TrialDateTimeField';
 import {
   Select,
   SelectContent,
@@ -77,7 +78,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
     const newErrors: Record<string, string> = {};
 
     if (submitted && trials.length === 0) {
-      newErrors.trials = 'At least one trial is required';
+      newErrors.trials = 'Please add at least one trial';
     }
 
     // Validate each trial
@@ -86,11 +87,11 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
       const trialName = effectiveTrialNames[index] ?? '';
 
       if (!trialName.trim()) {
-        newErrors[`${prefix}-name`] = 'Trial name is required';
+        newErrors[`${prefix}-name`] = 'Please enter a trial name';
       }
 
       if (!trial.dateTime) {
-        newErrors[`${prefix}-dateTime`] = 'Trial date and time is required';
+        newErrors[`${prefix}-dateTime`] = 'Please select a trial date and time';
       } else if (show.startDate && show.endDate) {
         // Check if trial date is within show date range
         const trialDate = parseWizardDay(trial.dateTime) ?? new Date(trial.dateTime);
@@ -104,11 +105,11 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
 
       // Event number required for AKC (needed for XML export); optional for UKC/Other
       if (!trial.trialType) {
-        newErrors[`${prefix}-trialType`] = 'Trial type is required';
+        newErrors[`${prefix}-trialType`] = 'Please select a trial type';
       }
 
       if (submitted && show.organization === 'AKC' && !trial.eventNumber?.trim()) {
-        newErrors[`${prefix}-eventNumber`] = 'Event number is required for AKC events';
+        newErrors[`${prefix}-eventNumber`] = 'Please enter an event number (required for AKC events)';
       }
     });
 
@@ -291,7 +292,8 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                     <div className="grid grid-cols-3 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor={`trial-${trial.id}-name`}>
-                          Trial Name <span className="text-destructive">*</span>
+                          Trial Name
+                          <RequiredMark />
                         </Label>
                         <Input
                           id={`trial-${trial.id}-name`}
@@ -319,7 +321,8 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
 
                       <div className="space-y-2">
                         <Label htmlFor={`trial-${trial.id}-type`}>
-                          Trial Type <span className="text-destructive">*</span>
+                          Trial Type
+                          <RequiredMark />
                         </Label>
                         <Select
                           value={trial.trialType ?? ''}
@@ -349,9 +352,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                           className="flex items-center gap-1.5"
                         >
                           Event Number
-                          {show.organization === 'AKC' && (
-                            <span className="text-destructive">*</span>
-                          )}
+                          {show.organization === 'AKC' && <RequiredMark />}
                           <TooltipProvider>
                             <Tooltip>
                               <TooltipTrigger asChild>
@@ -387,32 +388,19 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                       </div>
                     </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor={`trial-${trial.id}-dateTime`}>
-                        Trial Date & Time <span className="text-destructive">*</span>
-                      </Label>
-                      <DateTimePicker
-                        id={`trial-${trial.id}-dateTime`}
-                        value={parseWizardDateTime(trial.dateTime)}
-                        onChange={date => handleTrialDateTimeChange(trial.id, date)}
-                        placeholder="Pick trial date and time"
-                        className="h-10"
-                        minDate={startOfDay(parseWizardDay(show.startDate) || new Date())}
-                        maxDate={
-                          show.endDate
-                            ? startOfDay(parseWizardDay(show.endDate) || new Date())
-                            : undefined
-                        }
-                        defaultMonth={parseWizardDay(show.startDate)}
-                        showTime={true}
-                        timeFormat="12h"
-                      />
-                      {errors[`trial-${index}-dateTime`] && (
-                        <p className="text-sm text-destructive">
-                          {errors[`trial-${index}-dateTime`]}
-                        </p>
-                      )}
-                    </div>
+                    <TrialDateTimeField
+                      id={`trial-${trial.id}-dateTime`}
+                      value={parseWizardDateTime(trial.dateTime)}
+                      onChange={date => handleTrialDateTimeChange(trial.id, date)}
+                      error={errors[`trial-${index}-dateTime`]}
+                      minDate={startOfDay(parseWizardDay(show.startDate) || new Date())}
+                      maxDate={
+                        show.endDate
+                          ? startOfDay(parseWizardDay(show.endDate) || new Date())
+                          : undefined
+                      }
+                      defaultMonth={parseWizardDay(show.startDate)}
+                    />
                   </div>
                 );
               })}

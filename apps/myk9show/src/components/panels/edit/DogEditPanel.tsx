@@ -14,12 +14,17 @@ import PhotoDialog from '@/components/common/PhotoDialog';
 import type { DogEditContextType, DogEditPanelProps, DogFormData } from './DogEditPanel.types';
 import { dogToFormData, formDataToDog, dogFormSchema, isAdminRole } from './DogEditPanel.helpers';
 import { BasicInfoTab, RegistrationsTab, HealthRecordsTab } from './DogEditPanel.sections';
+import { usePanelValidationNavigation } from './usePanelValidationNavigation';
+import { locateDogField, type DogTabValue } from './DogEditPanel.validationTab';
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const DogEditContext = createContext<DogEditContextType>({ isAdmin: false, people: [] });
 
 // Form content component
-const DogEditForm: React.FC = () => {
+const DogEditForm: React.FC<{
+  activeTab: DogTabValue;
+  onTabChange: (tab: DogTabValue) => void;
+}> = ({ activeTab, onTabChange }) => {
   const { data, updateData } = useEditPanel<DogFormData>();
 
   // Photo dialog state
@@ -101,7 +106,11 @@ const DogEditForm: React.FC = () => {
 
   return (
     <div className="space-y-6 p-6">
-      <Tabs defaultValue="basic" className="w-full">
+      <Tabs
+        value={activeTab}
+        onValueChange={value => onTabChange(value as DogTabValue)}
+        className="w-full"
+      >
         <TabsList className="grid w-full grid-cols-2 bg-gradient-to-r from-muted/50 to-muted/30 border border-border/30 rounded-xl p-1 transition-all duration-300 ease-out">
           <TabsTrigger value="basic" className="gap-2 rounded-lg transition-all duration-300">
             <Dog className="h-4 w-4" />
@@ -195,6 +204,12 @@ export const DogEditPanel: React.FC<DogEditPanelProps> = ({
   onChangeStatus,
   onDelete,
 }) => {
+  // A failed Save moves to the tab holding the first invalid field (MYK9-931).
+  const { activeTab, setActiveTab, handleValidationFail } = usePanelValidationNavigation<DogTabValue>(
+    'basic',
+    locateDogField
+  );
+
   // Convert dog data to form data
   const initialFormData = useMemo(() => dogToFormData(initialDogData), [initialDogData]);
 
@@ -240,8 +255,9 @@ export const DogEditPanel: React.FC<DogEditPanelProps> = ({
         cancelLabel="Cancel"
         onDelete={onDelete}
         successMessage={data => savedMessage(data.callName || dogName)}
+        onValidationFail={handleValidationFail}
       >
-        <DogEditForm />
+        <DogEditForm activeTab={activeTab} onTabChange={setActiveTab} />
       </EditPanelWrapper>
     </DogEditContext.Provider>
   );

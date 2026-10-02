@@ -211,7 +211,7 @@ describe('TrialConfigurationStep existing snapshot state', () => {
       },
     ];
     const { rerender } = renderTrialConfiguration();
-    expect(screen.getByLabelText('Trial Name *')).toHaveValue('Saturday Trial 1');
+    expect(screen.getByLabelText(/^Trial Name/)).toHaveValue('Saturday Trial 1');
     expect(screen.getByText('Saturday Trial 1')).toBeInTheDocument();
 
     const trialView = makeTrialView([
@@ -239,10 +239,10 @@ describe('TrialConfigurationStep existing snapshot state', () => {
       </>
     );
 
-    expect(screen.getByLabelText('Trial Name *')).toHaveValue('Saturday Trial 2');
+    expect(screen.getByLabelText(/^Trial Name/)).toHaveValue('Saturday Trial 2');
     expect(screen.getByText('Saturday Trial 2')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Remove Saturday Trial 2' })).toBeInTheDocument();
-    expect(screen.getByRole('alert')).toHaveTextContent('Saturday Trial 2 type is required');
+    expect(screen.getByRole('alert')).toHaveTextContent('Please select a type for Saturday Trial 2');
   });
 
   it('uses show-level copy for trials already scheduled on another day', () => {
@@ -267,7 +267,7 @@ describe('TrialConfigurationStep existing snapshot state', () => {
     ];
 
     renderTrialConfiguration();
-    expect(screen.getByLabelText('Trial Name *')).toHaveValue('Custom Saturday Trial');
+    expect(screen.getByLabelText(/^Trial Name/)).toHaveValue('Custom Saturday Trial');
     await user.click(screen.getByRole('button', { name: 'Use suggested name' }));
 
     expect(wizardState.updateTrial).toHaveBeenCalledWith('draft-trial', {

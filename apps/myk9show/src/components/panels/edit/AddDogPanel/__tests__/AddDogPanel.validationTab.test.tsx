@@ -16,11 +16,12 @@ vi.mock('@/hooks/useDogStoreCompat', () => ({
 // MYK9-885: Save from the Registration tab listed call name / sex / date of
 // birth, which live on the Essential tab. Save must now take the user there.
 describe('AddDogPanel validation failure (MYK9-885)', () => {
-  it('moves from the Registration tab to the Essential tab and focuses call name', async () => {
+  it('moves from the last tab to the Essential tab and focuses call name', async () => {
     render(<AddDogPanel open onClose={vi.fn()} onDogCreated={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole('tab', { name: /registration/i }));
-    expect(screen.getByRole('tab', { name: /registration/i })).toHaveAttribute(
+    // Add Dog only exists on the last tab (MYK9-931); earlier tabs stay clickable.
+    fireEvent.click(screen.getByRole('tab', { name: /optional details/i }));
+    expect(screen.getByRole('tab', { name: /optional details/i })).toHaveAttribute(
       'aria-selected',
       'true'
     );

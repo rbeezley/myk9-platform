@@ -9,7 +9,7 @@
 import { useState, useEffect } from 'react';
 import { notifications } from '@/lib/notifications';
 import { friendlySaveError } from '@/utils/friendlySaveError';
-import { savedMessage } from '@/components/panels/edit/panelSaveErrors';
+import { offlineAwareMessage, savedMessage } from '@/components/panels/edit/panelSaveErrors';
 import { useDiscardPrompt } from '@/components/panels/edit/DiscardChangesDialog';
 import {
   Sheet,
@@ -266,7 +266,7 @@ export function EntryEditDialog({
         return;
       }
 
-      notifications.success(savedMessage(`${entry.dogName}'s entry`));
+      notifications.success(offlineAwareMessage(savedMessage(`${entry.dogName}'s entry`)));
       onUpdate();
       onOpenChange(false);
     } catch (err) {

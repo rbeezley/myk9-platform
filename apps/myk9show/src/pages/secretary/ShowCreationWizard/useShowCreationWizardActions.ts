@@ -35,9 +35,8 @@ import { grantShowOfficials, officialsDeferredOfflineMessage } from './grantShow
 import {
   completePartialShowSave,
   isOfficialsNotAssignedError,
-  showSaveFailureFeedback,
+  reportShowSaveFailure,
 } from './showSaveErrors';
-import { addedMessage, savedMessage } from '@/components/panels/edit/panelSaveErrors';
 import { saveShowAtomicOnline } from './saveShowAtomicOnline';
 import { buildRuleMap } from './buildRuleMap';
 import { createWizardClasses } from './createWizardClasses';
@@ -302,7 +301,7 @@ export function useShowCreationWizardActions({
           if (status === 'draft' && !shouldShowCompletion) {
             notifications.success(`${savedShow.name} saved as draft`);
           } else if (!onCreatedRef.current) {
-            notifications.success(addedMessage(savedShow.name, 'Show'));
+            notifications.success(`${savedShow.name} added`);
           }
 
           logger.info(`Show saved successfully (${status})`, 'wizard', {
@@ -453,11 +452,11 @@ export function useShowCreationWizardActions({
         if (!judgesSaved) {
           // The warning above already says what saved and what did not.
         } else if (editMode?.showId) {
-          notifications.success(savedMessage(savedShow.name, 'Show'));
+          notifications.success(`${savedShow.name} saved`);
         } else if (status === 'draft' && !shouldShowCompletion) {
           notifications.success(`${savedShow.name} saved as draft`);
         } else if (!onCreatedRef.current) {
-          notifications.success(addedMessage(savedShow.name, 'Show'));
+          notifications.success(`${savedShow.name} added`);
         }
 
         logger.info(`Show saved successfully (${status})`, 'wizard', {
@@ -501,8 +500,7 @@ export function useShowCreationWizardActions({
           queryClient.invalidateQueries({ queryKey: showQueryKeys.lists() });
         }
         logger.error('Error saving show', 'wizard', {}, error as Error);
-        const feedback = showSaveFailureFeedback(error);
-        notifications.error(feedback.title, { description: feedback.description });
+        reportShowSaveFailure(error);
       } finally {
         setIsLoading(false);
         isSavingRef.current = false;

@@ -7,10 +7,15 @@ import { EditPanelWrapper } from '../EditPanelWrapper';
 import { useEditPanel } from '../useEditPanel';
 import { PanelSaveHandledError } from '../panelSaveErrors';
 import { FriendlySaveError } from '@/utils/friendlySaveError';
+import { logger } from '@/services/LoggingService';
 
 const mocks = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
 vi.mock('@/lib/notifications', () => ({
   notifications: { success: mocks.success, error: mocks.error, warning: vi.fn(), info: vi.fn() },
+}));
+
+vi.mock('@/services/LoggingService', () => ({
+  logger: { error: vi.fn(), warn: vi.fn(), debug: vi.fn(), info: vi.fn() },
 }));
 
 const schema = z.object({ name: z.string().min(1, 'Please enter a name') });
@@ -58,6 +63,7 @@ describe('EditPanelWrapper feedback', () => {
   beforeEach(() => {
     mocks.success.mockClear();
     mocks.error.mockClear();
+    vi.mocked(logger.error).mockClear();
   });
 
   it('fires the saved toast from the wrapper after a successful save', async () => {
@@ -116,6 +122,53 @@ describe('EditPanelWrapper feedback', () => {
     await waitFor(() => expect(screen.getByLabelText('Name')).toHaveValue('Rexy'));
     expect(mocks.error).not.toHaveBeenCalled();
     expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('shows an authored refusal as is, without "Try again"', async () => {
+    const user = userEvent.setup();
+    renderPanel(
+      vi
+        .fn()
+        .mockRejectedValue(
+          Object.assign(new Error('Entries for this show closed on Oct 1.'), { code: '22023' })
+        )
+    );
+    await editAndSave(user);
+    await waitFor(() => expect(mocks.error).toHaveBeenCalled());
+    const description = mocks.error.mock.calls[0][1]?.description as string;
+    expect(description).toContain('Entries for this show closed on Oct 1.');
+    expect(description).not.toContain('Try again');
+  });
+
+  it('does not log a handled refusal as an error', async () => {
+    const user = userEvent.setup();
+    renderPanel(vi.fn().mockRejectedValue(new PanelSaveHandledError()));
+    await editAndSave(user);
+    await waitFor(() => expect(screen.getByLabelText('Name')).toHaveValue('Rexy'));
+    expect(logger.error).not.toHaveBeenCalled();
+  });
+
+  it('logs a real failure exactly once', async () => {
+    const user = userEvent.setup();
+    renderPanel(vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+    await editAndSave(user);
+    await waitFor(() => expect(mocks.error).toHaveBeenCalled());
+    expect(logger.error).toHaveBeenCalledTimes(1);
+  });
+
+  it('says a save made offline was kept on this device and will sync', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    const user = userEvent.setup();
+    renderPanel(vi.fn().mockResolvedValue(undefined), {
+      successMessage: (data: { name: string }) => `${data.name} saved`,
+    });
+    await editAndSave(user);
+    await waitFor(() =>
+      expect(mocks.success).toHaveBeenCalledWith(
+        "Rexy saved on this device — it will sync when you're back online"
+      )
+    );
+    vi.restoreAllMocks();
   });
 
   it('prompts before Cancel discards changes', async () => {

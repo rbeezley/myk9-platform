@@ -13,7 +13,7 @@ import type { Dog } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
-import { friendlySaveError } from '@/utils/friendlySaveError';
+import { friendlySaveMessage } from '@/utils/friendlySaveError';
 import { PanelSaveHandledError } from '../panelSaveErrors';
 import type { AddDogPanelProps, DogFormData } from './types';
 import { createInitialFormData } from './types';
@@ -138,7 +138,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
           )
         : await addDog(dogInput);
     } catch (error) {
-      setLocalSaveError(friendlySaveError(error).description);
+      setLocalSaveError(friendlySaveMessage(error));
       throw error;
     }
     // 4.E: a durable "Dog saved" confirmation. The panel used to just close

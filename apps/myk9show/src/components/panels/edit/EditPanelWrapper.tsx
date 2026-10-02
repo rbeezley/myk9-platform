@@ -12,7 +12,7 @@ import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { UnsavedChangesRouteGuard } from '@/components/navigation/UnsavedChangesRouteGuard';
 import { DiscardChangesDialog } from './DiscardChangesDialog';
-import { PanelSaveHandledError } from './panelSaveErrors';
+import { PanelSaveHandledError, offlineAwareMessage } from './panelSaveErrors';
 import { friendlySaveError } from '@/utils/friendlySaveError';
 
 export type EditPanelVariant = 'panel' | 'dialog';
@@ -290,8 +290,9 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   // One report for both save paths. A failed save keeps the form open and says
   // so in friendly words; the raw error text goes to the log only (H1).
   const reportSaveFailure = useCallback((error: unknown) => {
-    logger.error('Save failed:', 'components', {}, error as Error);
+    // A handled refusal is a UX path the panel already explained, not an error.
     if (error instanceof PanelSaveHandledError) return;
+    logger.error('Save failed:', 'components', {}, error as Error);
     const { title, description } = friendlySaveError(error);
     notifications.error(title, { description });
   }, []);
@@ -300,7 +301,9 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     (saved: T) => {
       if (successMessage === undefined) return;
       notifications.success(
-        typeof successMessage === 'function' ? successMessage(saved) : successMessage
+        offlineAwareMessage(
+          typeof successMessage === 'function' ? successMessage(saved) : successMessage
+        )
       );
     },
     [successMessage]

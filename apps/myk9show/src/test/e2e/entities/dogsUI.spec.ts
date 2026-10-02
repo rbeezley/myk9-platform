@@ -323,7 +323,7 @@ test.describe('Dogs UI — Exhibitor own-dog CRUD', () => {
     );
     await page.getByRole('button', { name: 'Save Changes' }).click();
     await patchResponsePromise;
-    await expect(page.getByText(/ saved$/).first()).toBeVisible();
+    await expect(page.getByText(`${EXHIBITOR_DOG_NAME} saved`, { exact: true })).toHaveCount(1);
 
     await navigateToExhibitorDog(page);
     await openActionsMenu(page);
@@ -461,7 +461,7 @@ test.describe('Dogs UI — Edit panel (secretary)', () => {
 
     // Panel closes and success toast appears
     await expect(page.getByRole('heading', { name: 'Edit Dog' })).not.toBeVisible();
-    await expect(page.getByText(/ saved$/).first()).toBeVisible();
+    await expect(page.getByText(`${DOG_A_NAME} saved`, { exact: true })).toHaveCount(1);
   });
 });
 
@@ -702,7 +702,7 @@ test.describe('Dogs UI — Owner change (secretary)', () => {
     );
     await page.getByRole('button', { name: 'Save Changes' }).click();
     await patchResponsePromise;
-    await expect(page.getByText(/ saved$/).first()).toBeVisible();
+    await expect(page.getByText(`${DOG_A_NAME} saved`, { exact: true })).toHaveCount(1);
 
     // Confirm via reload + reopen edit — the select#ownerId value is the
     // authoritative owner state (PATCH might have appeared to succeed

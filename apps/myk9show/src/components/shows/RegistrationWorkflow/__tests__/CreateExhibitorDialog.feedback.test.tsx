@@ -97,6 +97,27 @@ describe('CreateExhibitorDialog feedback (entry-flow Add Person)', () => {
     expect(screen.getByLabelText(/First Name/i)).toHaveValue('Molly');
   });
 
+  it('keeps the SQLSTATE so a duplicate email reads as a duplicate, not an outage', async () => {
+    createUserMock.mockResolvedValue(
+      fromAny({
+        data: null,
+        error: {
+          code: '23505',
+          message: 'duplicate key value violates unique constraint "people_email_key"',
+        },
+      })
+    );
+    const user = userEvent.setup();
+    render(<CreateExhibitorDialog open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
+
+    await fillName(user);
+    await user.click(screen.getByRole('button', { name: 'Add Person' }));
+
+    expect(await screen.findByText(/This record already exists\./)).toBeInTheDocument();
+    expect(screen.queryByText(/Try again/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/people_email_key/)).not.toBeInTheDocument();
+  });
+
   it('uses the one pending label, Saving...', async () => {
     createUserMock.mockReturnValue(new Promise(() => {}));
     const user = userEvent.setup();

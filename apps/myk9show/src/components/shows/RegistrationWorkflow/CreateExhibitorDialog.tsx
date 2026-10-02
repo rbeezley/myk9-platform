@@ -15,7 +15,7 @@ import { mapDatabaseToUser } from '@/services/mappers/userMappers';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { friendlySaveError } from '@/utils/friendlySaveError';
-import { addedMessage } from '@/components/panels/edit/panelSaveErrors';
+import { addedMessage, offlineAwareMessage } from '@/components/panels/edit/panelSaveErrors';
 import { useDiscardPrompt } from '@/components/panels/edit/DiscardChangesDialog';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { commonValidations } from '@/lib/validation';
@@ -165,7 +165,9 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
   };
 
   const confirmAdded = (data: ExhibitorFormData) =>
-    notifications.success(addedMessage(`${data.firstName} ${data.lastName}`.trim(), 'Person'));
+    notifications.success(
+      offlineAwareMessage(addedMessage(`${data.firstName} ${data.lastName}`.trim(), 'Person'))
+    );
 
   // Handle form submission
   const handleSubmit = form.handleSubmit(async (validatedData: ExhibitorFormData) => {
@@ -222,7 +224,9 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
       });
 
       if (error || !data) {
-        throw new Error(error?.message || 'Unable to add person.');
+        // The original error, not a copy: its SQLSTATE is what tells a duplicate
+        // email from an outage.
+        throw error ?? new Error('Unable to add person.');
       }
 
       const newExhibitor: User = {

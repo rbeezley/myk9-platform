@@ -193,6 +193,7 @@ export const DogEditPanel: React.FC<DogEditPanelProps> = ({
   dogStatus,
   dogDeceasedDate,
   onChangeStatus,
+  onDelete,
 }) => {
   // Convert dog data to form data
   const initialFormData = useMemo(() => dogToFormData(initialDogData), [initialDogData]);
@@ -237,6 +238,7 @@ export const DogEditPanel: React.FC<DogEditPanelProps> = ({
         enableAutoSave={enableAutoSave}
         saveLabel="Save Changes"
         cancelLabel="Cancel"
+        onDelete={onDelete}
         successMessage={data => savedMessage(data.callName || dogName)}
       >
         <DogEditForm />

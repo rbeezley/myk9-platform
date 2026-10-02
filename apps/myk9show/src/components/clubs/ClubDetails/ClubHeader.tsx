@@ -7,7 +7,6 @@ import {
   Award,
   Shield,
   MoreVertical,
-  Trash2,
   Camera,
   ShieldCheck,
   ShieldOff,
@@ -44,13 +43,11 @@ import { ClubOfficialsLine } from './ClubOfficialsLine';
 interface ClubHeaderProps {
   club: Club;
   onEditPhoto: () => void;
-  onDeleteClub: () => void;
   // Cover image upload props (optional — wired in Task 12)
   onCoverUpload?: (file: File) => void;
   onCoverRemove?: () => void;
   isUploadingCover?: boolean;
   canEditBranding?: boolean;
-  canDeleteClub?: boolean;
   // MYK9-572: site-admin-only authorize/revoke control. canAuthorizeClub
   // gates the affordance (mirrors set_club_authorization's own
   // is_site_admin() check); isClubAuthorized is undefined while loading.
@@ -65,12 +62,10 @@ interface ClubHeaderProps {
 export const ClubHeader: React.FC<ClubHeaderProps> = ({
   club,
   onEditPhoto,
-  onDeleteClub,
   onCoverUpload,
   onCoverRemove,
   isUploadingCover = false,
   canEditBranding = false,
-  canDeleteClub = false,
   canAuthorizeClub = false,
   isClubAuthorized,
   isAuthorizationLoading = false,
@@ -80,8 +75,7 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
 }) => {
   const handleAuthorizeClub = onAuthorizeClub ?? (() => {});
   const handleRevokeAuthorization = onRevokeAuthorization ?? (() => {});
-  // P3-C: revoking has no confirm today (unlike Delete Club, right below it
-  // in this same menu) even though it immediately blocks the club from
+  // P3-C: revoking has no confirm today even though it immediately blocks the club from
   // publishing any NEW show — cheap to fat-finger from a dropdown item.
   const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
   const palette = useMemo(
@@ -95,12 +89,7 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
     refetch: refetchOfficials,
   } = useClubOfficials(club.id);
   const hasMenuActions =
-    canEditBranding ||
-    canDeleteClub ||
-    canAuthorizeClub ||
-    !!contact.email ||
-    !!contact.phone ||
-    !!contact.website;
+    canEditBranding || canAuthorizeClub || !!contact.email || !!contact.phone || !!contact.website;
   // P3-3: the separator before the Authorize/Revoke item should only render
   // when something actually precedes it in the menu — otherwise a club with
   // ONLY the authorize affordance (no branding edit, no contact info) shows
@@ -191,15 +180,6 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
                       Authorize Club
                     </DropdownMenuItem>
                   )}
-                </>
-              )}
-              {canDeleteClub && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={onDeleteClub} className="text-destructive">
-                    <Trash2 className="mr-2 h-4 w-4" />
-                    Delete Club
-                  </DropdownMenuItem>
                 </>
               )}
             </DropdownMenuContent>

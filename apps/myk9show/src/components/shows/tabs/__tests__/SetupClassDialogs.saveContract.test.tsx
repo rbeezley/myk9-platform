@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { SetupClassDialogs } from '../SetupClassDialogs';
@@ -30,9 +29,16 @@ vi.mock('@/hooks/useClassStoreCompat', () => ({
 }));
 vi.mock('@/services/database/judges', () => ({ upsertClassJudgeAssignment: vi.fn() }));
 vi.mock('@/components/panels/edit/ClassEditPanel', () => ({
-  ClassEditPanel: ({ onSave }: { onSave: (data: Record<string, unknown>) => Promise<void> }) => (
+  ClassEditPanel: ({
+    onSave,
+    onDelete,
+  }: {
+    onSave: (data: Record<string, unknown>) => Promise<void>;
+    onDelete?: { kind: string; objectLabel: string; targets: { id: string; name: string }[] };
+  }) => (
     <button
       type="button"
+      data-delete={onDelete ? `${onDelete.kind}:${onDelete.targets[0]?.id}` : ''}
       onClick={() => {
         onSave({ judgeId: 'j2' }).then(
           () => {
@@ -47,9 +53,6 @@ vi.mock('@/components/panels/edit/ClassEditPanel', () => ({
       save
     </button>
   ),
-}));
-vi.mock('@/pages/ClassDetailsPage/DeleteClassDialog', () => ({
-  DeleteClassDialog: ({ children }: { children?: ReactNode }) => <div>{children}</div>,
 }));
 
 const renderDialogs = () =>
@@ -111,5 +114,10 @@ describe('SetupClassDialogs save contract', () => {
 
     await waitFor(() => expect(document.body.dataset.saveResult).toBe('resolved'));
     expect(updateClass).toHaveBeenCalledWith('c1', expect.objectContaining({ judgeId: 'j2' }));
+  });
+
+  it('gives the edit panel its footer Delete for this class', () => {
+    renderDialogs();
+    expect(screen.getByRole('button', { name: 'save' })).toHaveAttribute('data-delete', 'class:c1');
   });
 });

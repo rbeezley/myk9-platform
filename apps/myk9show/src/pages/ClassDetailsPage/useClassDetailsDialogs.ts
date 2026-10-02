@@ -10,9 +10,6 @@ export function useClassDetailsDialogs() {
   // Edit class panel
   const [editClassPanelOpen, setEditClassPanelOpen] = useState(false);
 
-  // Delete class dialog
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-
   // Delete entry dialog
   const [deleteEntryDialogOpen, setDeleteEntryDialogOpen] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<string | null>(null);
@@ -23,12 +20,6 @@ export function useClassDetailsDialogs() {
     setEditClassPanelOpen,
     openEditClassPanel: () => setEditClassPanelOpen(true),
     closeEditClassPanel: () => setEditClassPanelOpen(false),
-
-    // Delete class
-    deleteDialogOpen,
-    setDeleteDialogOpen,
-    openDeleteDialog: () => setDeleteDialogOpen(true),
-    closeDeleteDialog: () => setDeleteDialogOpen(false),
 
     // Delete entry
     deleteEntryDialogOpen,

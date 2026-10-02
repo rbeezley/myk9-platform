@@ -25,6 +25,17 @@ vi.mock('@/services/database/judges', () => ({
   fetchShowJudgesForPublish: saveHarness.publishJudges,
 }));
 
+// Who is looking: Delete show is offered only to the viewer soft_delete_show admits.
+const authHarness = vi.hoisted(() => ({
+  userWithRoles: { roles: ['site_admin'], scopes: [] } as {
+    roles: string[];
+    scopes: { scopeType: string; scopeId: string; roleId: string }[];
+  } | null,
+}));
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({ userWithRoles: authHarness.userWithRoles }),
+}));
+
 const manageScope = vi.hoisted(() => ({
   status: 'resolved' as 'resolved' | 'resolving' | 'unavailable',
   canManage: true,
@@ -127,12 +138,12 @@ vi.mock('@/components/panels/edit/ShowEditPanel', () => ({
   ShowEditPanel: ({
     open,
     onClose,
-    onRequestDelete,
+    onDelete,
     onSave,
   }: {
     open: boolean;
     onClose: () => void;
-    onRequestDelete?: () => void;
+    onDelete?: { kind: string; targets: { id: string; name: string }[] };
     onSave?: (data: Record<string, unknown>) => Promise<void>;
   }) =>
     open ? (
@@ -149,10 +160,10 @@ vi.mock('@/components/panels/edit/ShowEditPanel', () => ({
         >
           Save
         </button>
-        {onRequestDelete && (
-          <button type="button" data-testid="edit-panel-delete-row" onClick={onRequestDelete}>
-            Delete show
-          </button>
+        {onDelete && (
+          <span data-testid="edit-panel-delete-option">
+            {onDelete.kind}:{onDelete.targets[0]?.id}:{onDelete.targets[0]?.name}
+          </span>
         )}
       </div>
     ) : null,
@@ -526,12 +537,48 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('probe-url').textContent).toBe('/shows/show-1/entries');
   });
 
-  it('hands the edit panel the delete row, the only home Delete show has left', () => {
-    // Delete left the `...` menu and lives at the bottom of the edit panel now,
-    // so the panel MUST be given a trigger or the verb has no home at all.
+  it('hands the edit panel the delete option, the only home Delete show has', () => {
+    // Delete lives in the edit panel's footer, so the panel MUST be given the
+    // item to delete or the verb has no home at all.
     renderShell({}, '/shows/show-1', <InPageNavigator to="/shows/show-1?edit=true" />);
     fireEvent.click(screen.getByTestId('in-page-nav'));
-    expect(screen.getByTestId('edit-panel-delete-row')).toBeInTheDocument();
+    expect(screen.getByTestId('edit-panel-delete-option')).toHaveTextContent(
+      'show:show-1:Test Show'
+    );
+  });
+
+  it.each([
+    [
+      'a club admin of the show club',
+      { roles: [], scopes: [{ scopeType: 'club', scopeId: 'club-1', roleId: 'club_admin' }] },
+      true,
+    ],
+    [
+      'a secretary of the show club',
+      { roles: [], scopes: [{ scopeType: 'club', scopeId: 'club-1', roleId: 'secretary' }] },
+      true,
+    ],
+    [
+      'a secretary appointed to this show only',
+      { roles: [], scopes: [{ scopeType: 'show', scopeId: 'show-1', roleId: 'secretary' }] },
+      false,
+    ],
+    [
+      'a club admin of another club',
+      { roles: [], scopes: [{ scopeType: 'club', scopeId: 'club-2', roleId: 'club_admin' }] },
+      false,
+    ],
+    ['a viewer with no grants', { roles: ['exhibitor'], scopes: [] }, false],
+  ])('offers Delete show to %s: %s', (_label, user, offered) => {
+    authHarness.userWithRoles = user;
+    try {
+      renderShell({}, '/shows/show-1?edit=true');
+      // Positive control: the panel opened, so absence is the gate's.
+      expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
+      expect(screen.queryByTestId('edit-panel-delete-option') !== null).toBe(offered);
+    } finally {
+      authHarness.userWithRoles = { roles: ['site_admin'], scopes: [] };
+    }
   });
 
   it('still honours a cold ?edit=true deep link', () => {

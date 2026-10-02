@@ -319,9 +319,9 @@ test.describe('Dogs UI — Exhibitor own-dog CRUD', () => {
     await expect(page.getByText(`${EXHIBITOR_DOG_NAME} saved`, { exact: true })).toHaveCount(1);
 
     await navigateToExhibitorDog(page);
-    // The identity rail's ⋮ keeps Delete (MYK9-927 owns its placement).
-    await page.locator('[data-dog-identity]').getByRole('button', { name: 'More actions' }).click();
-    await page.getByRole('menuitem', { name: /Delete/i }).click();
+    // Delete dog is the Edit panel's footer button, never a menu item (CRUD standard Phase 3).
+    await chooseAction(page, 'Edit dog');
+    await page.getByRole('button', { name: 'Delete dog', exact: true }).click();
     await expect(page.getByRole('alertdialog')).toBeVisible();
 
     const deleteResponsePromise = page.waitForResponse(
@@ -386,7 +386,7 @@ test.describe('Dogs UI — Detail page (secretary)', () => {
     }
   });
 
-  test('actions menu shows Change Photo, Change Status, Delete', async ({ page }) => {
+  test('actions menu shows Change Photo and Change Status, and no Delete', async ({ page }) => {
     await navigateToDogA(page);
 
     // Open the identity rail's ⋮ (three-dot) menu
@@ -394,7 +394,8 @@ test.describe('Dogs UI — Detail page (secretary)', () => {
 
     await expect(page.getByRole('menuitem', { name: /Change Photo/i })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: /Change Status/i })).toBeVisible();
-    await expect(page.getByRole('menuitem', { name: /Delete/i })).toBeVisible();
+    // Delete dog is the Edit panel's footer button (CRUD standard Phase 3).
+    await expect(page.getByRole('menuitem', { name: /Delete/i })).toHaveCount(0);
 
     // Close menu
     await page.keyboard.press('Escape');
@@ -480,14 +481,10 @@ test.describe('Dogs UI — Delete (secretary)', () => {
     await page.waitForURL(/\/dogs\/[0-9a-f-]{36}$/);
   }
 
-  async function openActionsMenu(page: Page) {
-    await page.locator('[data-dog-identity]').getByRole('button', { name: 'More actions' }).click();
-  }
-
   test('Delete dialog cancel keeps dog on the page', async ({ page }) => {
     await navigateToDogB(page);
-    await openActionsMenu(page);
-    await page.getByRole('menuitem', { name: /Delete/i }).click();
+    await chooseAction(page, 'Edit dog');
+    await page.getByRole('button', { name: 'Delete dog', exact: true }).click();
 
     const dialog = page.getByRole('alertdialog');
     await expect(dialog).toBeVisible();
@@ -501,8 +498,8 @@ test.describe('Dogs UI — Delete (secretary)', () => {
 
   test('Confirm delete navigates to /dogs and dog no longer appears', async ({ page }) => {
     await navigateToDogB(page);
-    await openActionsMenu(page);
-    await page.getByRole('menuitem', { name: /Delete/i }).click();
+    await chooseAction(page, 'Edit dog');
+    await page.getByRole('button', { name: 'Delete dog', exact: true }).click();
 
     await expect(page.getByRole('alertdialog')).toBeVisible();
 

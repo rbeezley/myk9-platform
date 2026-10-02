@@ -35,6 +35,57 @@ export function hasScopedShowRole(
   );
 }
 
+/** Secretary role names `is_trial_secretary` accepts (`trial_secretary` is not a `UserRole`). */
+const CLUB_SECRETARY_ROLE_NAMES: readonly string[] = [UserRole.SECRETARY, 'trial_secretary'];
+
+/**
+ * Mirrors `is_club_admin(club)` (migration 156): an active club_admin grant whose
+ * `club_id` is this club, WHETHER OR NOT `show_id` is set. The client scope list
+ * keeps only one id per grant, so a club_admin grant pinned to a show shows up as a
+ * SHOW scope on that show's id; pass `showId` where the surface knows its show so
+ * that grant counts, as it does on the server.
+ */
+export function hasClubAdminGrant(
+  user: UserWithRoles | null | undefined,
+  { clubId, showId }: { clubId?: string | undefined; showId?: string | undefined }
+): boolean {
+  return (
+    hasScopedClubRole(user, UserRole.CLUB_ADMIN, clubId) ||
+    hasScopedShowRole(user, UserRole.CLUB_ADMIN, showId)
+  );
+}
+
+/**
+ * Mirrors `is_trial_secretary(club)` (migration 20260830210000): an active
+ * `secretary` or `trial_secretary` grant at CLUB level (`show_id IS NULL`). A
+ * secretary appointed to one show holds a SHOW scope and does not qualify.
+ */
+export function hasClubSecretaryGrant(
+  user: UserWithRoles | null | undefined,
+  clubId: string | undefined,
+  roleNames: readonly string[] = CLUB_SECRETARY_ROLE_NAMES
+): boolean {
+  if (!clubId) return false;
+  return (user?.scopes ?? []).some(
+    scope =>
+      scope.scopeType === ScopeType.CLUB &&
+      scope.scopeId === clubId &&
+      roleNames.includes(scope.roleId)
+  );
+}
+
+/**
+ * THE one club-staff rule: `is_club_admin(club) OR is_trial_secretary(club)`. Show
+ * management, show creation and show deletion all read it, so a role added to either
+ * server helper is added here once.
+ */
+export function hasClubStaffGrant(
+  user: UserWithRoles | null | undefined,
+  ids: { clubId?: string | undefined; showId?: string | undefined }
+): boolean {
+  return hasClubAdminGrant(user, ids) || hasClubSecretaryGrant(user, ids.clubId);
+}
+
 export interface ShowSurfaceViewer {
   isSecretary: boolean;
   isAdmin: boolean;
@@ -77,10 +128,12 @@ export function canManageShowSurface({
   // a control that flashes in and then disappears is the same mistake-anxiety
   // bug as never gating it at all.
   if (!clubId) return false;
-  if (isSecretary && hasScopedClubRole(userWithRoles, UserRole.SECRETARY, clubId)) return true;
-  return (
-    hasRole(UserRole.CLUB_ADMIN) && hasScopedClubRole(userWithRoles, UserRole.CLUB_ADMIN, clubId)
-  );
+  // Each scope check is paired with the global role the user must also hold, so a stale or
+  // fixture scope with no role (a guest) grants nothing. `trial_secretary` is not a UserRole,
+  // so it has no global role to pair with; it is the same server helper, and counts on its scope.
+  if (isSecretary && hasClubSecretaryGrant(userWithRoles, clubId)) return true;
+  if (hasRole(UserRole.CLUB_ADMIN) && hasClubAdminGrant(userWithRoles, { clubId })) return true;
+  return hasClubSecretaryGrant(userWithRoles, clubId, ['trial_secretary']);
 }
 
 /** The staff roles that carry show-management rights over their club's shows. */

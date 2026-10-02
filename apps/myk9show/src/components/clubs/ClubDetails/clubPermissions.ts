@@ -5,7 +5,8 @@
  * mocking the auth context, and so the hook stays under the 500-line ceiling.
  */
 import { ScopeType, UserRole } from '@/types/auth-types';
-import type { RoleScope } from '@/types/auth-types';
+import type { RoleScope, UserWithRoles } from '@/types/auth-types';
+import { hasClubStaffGrant } from '@/utils/roleScopes';
 
 export interface ClubPermissions {
   /** Mirrors clubs_update RLS — site_admin or club_admin for this club. */
@@ -74,24 +75,13 @@ export function computeClubPermissions(args: {
 }
 
 /**
- * Roles whose club-scoped grant lets the holder create a show for that club.
- * Mirrors the gate in `create_show_with_children` (migration 20260929233100):
- * `is_site_admin() OR is_club_admin(club) OR is_trial_secretary(club)`, where
- * `is_trial_secretary` accepts the `secretary` and `trial_secretary` role names.
- *
- * This is permission to CREATE a draft. It is deliberately not the club's
- * approval to publish (`clubs.authorized_at`), which gates publishing only.
- */
-const CLUB_SHOW_CREATOR_ROLE_NAMES: readonly string[] = [
-  UserRole.CLUB_ADMIN,
-  UserRole.SECRETARY,
-  'trial_secretary',
-];
-
-/**
  * The ONE client-side answer to "can this user create a show for this club?"
- * (MYK9-887, MYK9-890): used by the wizard's Basics step and the club page's
- * Add Show buttons. UI guidance only; the RPC remains the authority on submit.
+ * (MYK9-887, MYK9-890), mirroring `create_show_with_children`
+ * (`is_site_admin() OR is_club_admin(club) OR is_trial_secretary(club)`): used by the
+ * wizard's Basics step and the club page's Add Show buttons. The club rule is
+ * `hasClubStaffGrant`, shared with show management and show deletion. This is
+ * permission to CREATE a draft, deliberately not the club's approval to publish
+ * (`clubs.authorized_at`). UI guidance only; the RPC remains the authority on submit.
  */
 export function canCreateShowForClub(
   user: { roles?: readonly UserRole[]; scopes?: RoleScope[] } | null | undefined,
@@ -99,12 +89,21 @@ export function canCreateShowForClub(
 ): boolean {
   if (!user || !clubId) return false;
   if (user.roles?.includes(UserRole.SITE_ADMIN)) return true;
-  // Only CLUB-scoped rows count. A show-scoped row (user_roles.show_id set) never grants
-  // club-level create, matching is_trial_secretary's `show_id IS NULL`.
-  return (user.scopes ?? []).some(
-    scope =>
-      scope.scopeType === ScopeType.CLUB &&
-      scope.scopeId === clubId &&
-      CLUB_SHOW_CREATOR_ROLE_NAMES.includes(scope.roleId)
-  );
+  return hasClubStaffGrant(user as UserWithRoles, { clubId });
+}
+
+/**
+ * Who may delete a show, mirroring `soft_delete_show` (migration 20261001235300):
+ * `is_club_admin(club) OR is_trial_secretary(club) OR is_site_admin()`. `showId` lets a
+ * club_admin grant pinned to this show count, as `is_club_admin` accepts it; a show-pinned
+ * secretary does not (`is_trial_secretary` needs `show_id IS NULL`). A show with no club
+ * is a site-admin matter, as on the server.
+ */
+export function canDeleteShowForClub(
+  user: { roles?: readonly UserRole[]; scopes?: RoleScope[] } | null | undefined,
+  ids: { clubId?: string | undefined; showId?: string | undefined }
+): boolean {
+  if (!user) return false;
+  if (user.roles?.includes(UserRole.SITE_ADMIN)) return true;
+  return hasClubStaffGrant(user as UserWithRoles, ids);
 }

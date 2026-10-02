@@ -13,17 +13,42 @@ import type { Show } from '@/types/show-types';
 // The panels and the shared delete dialog are mocked to testid stubs; this suite
 // verifies that the imperative open* methods drive the right one open, and that
 // both deletes go through the ONE shared dialog with the right kind and target.
+const trialPanel = vi.hoisted(() => ({
+  onDelete: undefined as
+    { kind: string; objectLabel: string; targets: object[]; onDeleted?: () => void } | undefined,
+}));
 vi.mock('@/components/panels/edit/TrialEditPanel', () => ({
-  TrialEditPanel: ({ open }: { open: boolean }) =>
-    open ? <div data-testid="edit-trial-panel" /> : null,
+  TrialEditPanel: ({
+    open,
+    onDelete,
+  }: {
+    open: boolean;
+    onDelete?: typeof trialPanel.onDelete;
+  }) => {
+    trialPanel.onDelete = onDelete;
+    return open ? <div data-testid="edit-trial-panel" /> : null;
+  },
+}));
+const classPanel = vi.hoisted(() => ({
+  onDelete: undefined as { kind: string; objectLabel: string; targets: object[] } | undefined,
 }));
 vi.mock('@/components/panels/edit/ClassEditPanel', () => ({
-  ClassEditPanel: ({ open, onSave }: { open: boolean; onSave: (data: object) => Promise<void> }) =>
-    open ? (
+  ClassEditPanel: ({
+    open,
+    onSave,
+    onDelete,
+  }: {
+    open: boolean;
+    onSave: (data: object) => Promise<void>;
+    onDelete?: typeof classPanel.onDelete;
+  }) => {
+    classPanel.onDelete = onDelete;
+    return open ? (
       <div data-testid="edit-class-panel">
         <button onClick={() => void onSave({})}>Save class</button>
       </div>
-    ) : null,
+    ) : null;
+  },
 }));
 vi.mock('@/features/delete/DeleteObjectDialog', () => ({
   DeleteObjectDialog: ({
@@ -100,9 +125,29 @@ describe('TrialManagementDialogs', () => {
     expect(screen.getByTestId('edit-trial-panel')).toBeInTheDocument();
   });
 
-  it('openDeleteTrial() opens the shared delete dialog for this trial', () => {
+  it('hands the trial edit panel its Delete: the trial, named as the dialog names it', () => {
+    renderDialogs();
+    expect(trialPanel.onDelete).toMatchObject({
+      kind: 'trial',
+      objectLabel: 'trial',
+      targets: [
+        {
+          id: 't1',
+          name: 'Saturday Trial 1',
+          detail: 'Saturday Trial 1 · May 9, 2026',
+          context: { showId: 's1', trialId: 't1' },
+        },
+      ],
+    });
+  });
+
+  it('has no header route to a delete: the handle exposes no openDeleteTrial', () => {
     const { ref } = renderDialogs();
-    act(() => ref.current?.openDeleteTrial());
+    expect(ref.current).not.toHaveProperty('openDeleteTrial');
+  });
+
+  it('initialAction "delete" (the Setup row menu) opens the shared delete dialog for this trial', () => {
+    renderDialogs({ initialAction: 'delete' });
     const dialog = screen.getByTestId('delete-trial-dialog');
     const [target] = JSON.parse(dialog.dataset.target ?? '[]');
     expect(target).toMatchObject({
@@ -117,6 +162,23 @@ describe('TrialManagementDialogs', () => {
     const { ref } = renderDialogs();
     act(() => ref.current?.openEditClass(makeClass()));
     expect(screen.getByTestId('edit-class-panel')).toBeInTheDocument();
+  });
+
+  it('hands the class edit panel its Delete: the class, named as the dialog names it', () => {
+    const { ref } = renderDialogs();
+    act(() => ref.current?.openEditClass(makeClass()));
+    expect(classPanel.onDelete).toMatchObject({
+      kind: 'class',
+      objectLabel: 'class',
+      targets: [
+        {
+          id: 'c1',
+          name: 'Container Novice A',
+          detail: 'Novice Container · Saturday Trial 1',
+          context: { showId: 's1', trialId: 't1' },
+        },
+      ],
+    });
   });
 
   it('openDeleteClass() opens the shared delete dialog for that class (same purge as Setup)', () => {

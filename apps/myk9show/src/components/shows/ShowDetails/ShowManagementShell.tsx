@@ -15,7 +15,9 @@ import { LiveUpdateIndicator } from '@/features/show-live-sync/LiveUpdateIndicat
 import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
 import { LandingPageCard } from '@/features/premium/LandingPageCard';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
-import { DeleteObjectDialog, showDeleteDetail } from '@/features/delete';
+import { showDeleteDetail } from '@/features/delete';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { canDeleteShowForClub } from '@/components/clubs/ClubDetails/clubPermissions';
 import { type ShowDetailTabsProps } from '@/components/shows/ShowDetails/ShowDetailTabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { TabsContent } from '@/components/ui/tabs';
@@ -192,7 +194,12 @@ function AuthorizedShowManagementShell({
     if (editParam === 'true') openEditPanel();
   }
 
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  // Hidden for a viewer `soft_delete_show` would refuse (a show-scoped secretary, say).
+  const { userWithRoles } = useAuthContext();
+  const canDeleteShow = canDeleteShowForClub(userWithRoles, {
+    clubId: show.clubId,
+    showId: show.id,
+  });
   const entryDataUnavailable = entryDataState !== 'ready';
   const isShowDesk = activeManagementSection === 'show-day';
   // The retired Class Management URL (`classes/:trialId`) redirects into Setup → Classes, so
@@ -355,7 +362,23 @@ function AuthorizedShowManagementShell({
         showId={show.id || ''}
         showName={show.name || ''}
         initialShowData={show || {}}
-        onRequestDelete={() => setShowDeleteDialog(true)}
+        onDelete={
+          showId && canDeleteShow
+            ? {
+                kind: 'show',
+                objectLabel: 'show',
+                targets: [
+                  {
+                    id: showId,
+                    name: show.name || 'Untitled show',
+                    detail: showDeleteDetail(show),
+                    context: { showId },
+                  },
+                ],
+                onDeleted: handleShowDeleted,
+              }
+            : undefined
+        }
         onSave={async showData => {
           if (show.id) {
             const id = show.id;
@@ -436,22 +459,6 @@ function AuthorizedShowManagementShell({
           setShowEditPanel(false);
         }}
       />
-      {showDeleteDialog && showId && (
-        <DeleteObjectDialog
-          open={showDeleteDialog}
-          onOpenChange={setShowDeleteDialog}
-          kind="show"
-          targets={[
-            {
-              id: showId,
-              name: show.name || 'Untitled show',
-              detail: showDeleteDetail(show),
-              context: { showId },
-            },
-          ]}
-          onDeleted={handleShowDeleted}
-        />
-      )}
     </>
   );
 }

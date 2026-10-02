@@ -22,11 +22,8 @@ import { formatDisplayDate } from './utils';
 interface DogHeroProps {
   dog: Dog;
   onPhotoDialogOpen: () => void;
-  onDeleteDialogOpen: () => void;
   /** Required: the status badge itself is a button that raises the dialog. */
   onStatusDialogOpen: () => void;
-  /** When false, the Delete action is hidden (user fails the delete permission gate). */
-  canDelete?: boolean;
   /** Route-entry focus target (task 3.8): the page's main heading. */
   headingRef?: RefObject<HTMLHeadingElement | null>;
 }
@@ -34,9 +31,7 @@ interface DogHeroProps {
 const DogHero: React.FC<DogHeroProps> = ({
   dog,
   onPhotoDialogOpen,
-  onDeleteDialogOpen,
   onStatusDialogOpen,
-  canDelete = true,
   headingRef,
 }) => {
   const registeredName = getDogRegisteredName(dog);
@@ -119,7 +114,6 @@ const DogHero: React.FC<DogHeroProps> = ({
         <ThreeDotMenu
           onEditPhoto={onPhotoDialogOpen}
           onChangeStatus={onStatusDialogOpen}
-          onDelete={canDelete ? onDeleteDialogOpen : undefined}
           triggerClassName="h-11 w-11 rounded-full border border-border bg-card text-foreground shadow-sm hover:bg-accent"
         />
       }

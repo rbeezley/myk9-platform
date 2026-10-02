@@ -1,8 +1,9 @@
 /**
  * Every remaining delete entry point opens the ONE shared dialog, and nothing is
  * deleted until its Delete button is pressed. (The list rows, bulk bars, trial
- * and class surfaces have their own tests; these are the detail-page menus and
- * the person page's dog cards, which used to delete on a single click.)
+ * and class surfaces have their own tests; these are the Edit panel footers of
+ * the club, person and dog detail pages, and the person page's dog cards, which
+ * used to delete on a single click.)
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, waitFor, within } from '@testing-library/react';
@@ -25,17 +26,17 @@ vi.mock('./deleteUnsyncedWork', async importOriginal => ({
 vi.mock('./deleteServer', () => ({ softDeleteOnServer: mocks.remove, restoreOnServer: vi.fn() }));
 vi.mock('./deleteLocalState', () => ({ reconcileLocalDeletion: mocks.purge }));
 
-// Heavy panels the dialogs sit beside; not under test here.
-vi.mock('@/components/panels/edit/ClubEditPanel', () => ({ ClubEditPanel: () => null }));
+// The Edit panels are REAL (their footer owns Delete); only the heavy neighbours are stubbed.
+vi.mock('@/services/database/supabaseClient', () => ({ supabase: { from: vi.fn() } }));
+vi.mock('@/components/shows/WithdrawalPolicyCard', () => ({ WithdrawalPolicyCard: () => null }));
 vi.mock('@/components/clubs/ClubPhotoDialog', () => ({ default: () => null }));
 vi.mock('@/components/clubs/members/AddMemberDialog', () => ({ AddMemberDialog: () => null }));
 vi.mock('@/components/users/ProfilePhotoDialog', () => ({ default: () => null }));
-vi.mock('@/components/panels/edit', () => ({
-  UserEditPanel: () => null,
+vi.mock('@/components/panels/edit', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/components/panels/edit')>()),
   JudgeQualificationPanel: () => null,
   AddDogPanel: () => null,
 }));
-vi.mock('@/components/panels/edit/DogEditPanel', () => ({ DogEditPanel: () => null }));
 vi.mock('@/components/common/PhotoDialog', () => ({ default: () => null }));
 
 const dogs: Dog[] = [
@@ -79,10 +80,13 @@ beforeEach(() => {
 async function deleteThrough(
   user: ReturnType<typeof render>['user'],
   title: string,
-  button: string
+  button: string,
+  /** Looks at the dialog while it is still open, before the confirm click closes it. */
+  inspect?: (dialog: HTMLElement) => void
 ) {
   const dialog = await screen.findByRole('alertdialog', { name: title });
   expect(mocks.remove).not.toHaveBeenCalled();
+  inspect?.(dialog);
   const confirm = within(dialog).getByRole('button', { name: button });
   await waitFor(() => expect(confirm).toBeEnabled());
   await user.click(confirm);
@@ -91,14 +95,14 @@ async function deleteThrough(
 
 const noop = () => undefined;
 
-describe('club detail menu', () => {
+describe('club Edit panel footer', () => {
   it('opens the shared dialog with the club and its city, and deletes on confirm', async () => {
     const onClubDeleted = vi.fn();
     const club = { id: 'k1', name: 'Heartland KC', city: 'Omaha' } as unknown as Club;
     const { user } = render(
       <ClubDialogs
         club={club}
-        showEditPanel={false}
+        showEditPanel
         onCloseEditPanel={noop}
         onSaveEdit={async () => undefined}
         showPhotoDialog={false}
@@ -111,8 +115,7 @@ describe('club detail menu', () => {
         onPhotoFileInput={noop}
         onPhotoCancel={noop}
         onPhotoSave={async () => undefined}
-        showDeleteDialog
-        onDeleteDialogChange={noop}
+        canDeleteClub
         onClubDeleted={onClubDeleted}
         showAddMemberDialog={false}
         onAddMemberDialogChange={noop}
@@ -120,14 +123,17 @@ describe('club detail menu', () => {
       />
     );
 
-    const dialog = await deleteThrough(user, 'Delete the club Heartland KC?', 'Delete club');
-    expect(within(dialog).getByText('Heartland KC · Omaha')).toBeVisible();
+    expect(mocks.remove).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Delete club' }));
+    await deleteThrough(user, 'Delete the club Heartland KC?', 'Delete club', dialog =>
+      expect(within(dialog).getByText('Heartland KC · Omaha')).toBeVisible()
+    );
     await waitFor(() => expect(onClubDeleted).toHaveBeenCalled());
     expect(mocks.remove).toHaveBeenCalledWith('club', 'k1', { override: false });
   });
 });
 
-describe('person detail menu', () => {
+describe('person Edit panel footer', () => {
   it('opens the shared dialog for a live person, and deletes on confirm', async () => {
     const onPersonDeleted = vi.fn();
     const person = {
@@ -140,15 +146,11 @@ describe('person detail menu', () => {
       <UserDetailsDialogs
         person={person}
         formData={{ name: 'Jane Smith', photo: '' }}
-        canPermanentlyDelete={false}
-        onPermanentDeleteUser={async () => undefined}
-        isDeletingUser={false}
-        isEditModalOpen={false}
+        canDelete
+        isEditModalOpen
         setIsEditModalOpen={noop}
         isPhotoModalOpen={false}
         setIsPhotoModalOpen={noop}
-        isDeleteDialogOpen
-        setIsDeleteDialogOpen={noop}
         isQualificationsPanelOpen={false}
         setIsQualificationsPanelOpen={noop}
         previewImage={null}
@@ -165,8 +167,10 @@ describe('person detail menu', () => {
       />
     );
 
-    const dialog = await deleteThrough(user, 'Delete the person Jane Smith?', 'Delete person');
-    expect(within(dialog).getByText('jane@example.test')).toBeVisible();
+    await user.click(await screen.findByRole('button', { name: 'Delete person' }));
+    await deleteThrough(user, 'Delete the person Jane Smith?', 'Delete person', dialog =>
+      expect(within(dialog).getByText('jane@example.test')).toBeVisible()
+    );
     await waitFor(() => expect(onPersonDeleted).toHaveBeenCalled());
     expect(mocks.remove).toHaveBeenCalledWith('person', 'p1', { override: false });
   });
@@ -194,15 +198,15 @@ describe('person page dog cards (used to delete on one click)', () => {
   });
 });
 
-describe('dog detail menu', () => {
+describe('dog Edit panel footer', () => {
   it('opens the shared dialog and reports start and success to the page', async () => {
     const onDeleteStart = vi.fn();
     const onDeleted = vi.fn();
     const { user } = render(
       <DogDialogs
         dog={dogs[0] as Dog}
-        isEditPanelOpen={false}
-        isDeleteDialogOpen
+        isEditPanelOpen
+        canDelete
         isPhotoDialogOpen={false}
         photoPreview={null}
         isPhotoDragging={false}
@@ -211,7 +215,6 @@ describe('dog detail menu', () => {
         userRole={UserRole.EXHIBITOR}
         people={[]}
         onEditPanelClose={noop}
-        onDeleteDialogClose={noop}
         onDeleteStart={onDeleteStart}
         onDeleted={onDeleted}
         onPhotoDialogOpen={noop}
@@ -227,8 +230,90 @@ describe('dog detail menu', () => {
       />
     );
 
+    await user.click(await screen.findByRole('button', { name: 'Delete dog' }));
     await deleteThrough(user, 'Delete the dog Biscuit?', 'Delete dog');
     await waitFor(() => expect(onDeleted).toHaveBeenCalledWith('d1'));
     expect(onDeleteStart).toHaveBeenCalled();
+  });
+});
+
+describe('dog Edit panel footer, refused delete', () => {
+  it('reports start then failure, never success, and leaves the panel open with the reason', async () => {
+    mocks.remove.mockRejectedValue(new Error('boom'));
+    const onDeleteStart = vi.fn();
+    const onDeleted = vi.fn();
+    const onDeleteFailed = vi.fn();
+    const onEditPanelClose = vi.fn();
+    const { user } = render(
+      <DogDialogs
+        dog={dogs[0] as Dog}
+        isEditPanelOpen
+        canDelete
+        isPhotoDialogOpen={false}
+        photoPreview={null}
+        isPhotoDragging={false}
+        isSavingPhoto={false}
+        showCelebration={false}
+        userRole={UserRole.EXHIBITOR}
+        people={[]}
+        onEditPanelClose={onEditPanelClose}
+        onDeleteStart={onDeleteStart}
+        onDeleted={onDeleted}
+        onDeleteFailed={onDeleteFailed}
+        onPhotoDialogOpen={noop}
+        onPhotoDrop={noop}
+        onPhotoDragOver={noop}
+        onPhotoDragLeave={noop}
+        onPhotoFileInput={noop}
+        onPhotoSave={async () => true}
+        onSetUpdatedDog={noop}
+        onSetShowCelebration={noop}
+        onSetRecentUpdate={noop}
+        onSetIsEditPanelOpen={noop}
+      />
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Delete dog' }));
+    const dialog = await deleteThrough(user, 'Delete the dog Biscuit?', 'Delete dog');
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/couldn't delete/i);
+    expect(onDeleteStart).toHaveBeenCalled();
+    expect(onDeleteFailed).toHaveBeenCalled();
+    expect(onDeleted).not.toHaveBeenCalled();
+    expect(onEditPanelClose).not.toHaveBeenCalled();
+  });
+});
+
+describe('a viewer who cannot delete', () => {
+  it('sees no Delete dog in the panel footer, though the panel is open', async () => {
+    render(
+      <DogDialogs
+        dog={dogs[0] as Dog}
+        isEditPanelOpen
+        canDelete={false}
+        isPhotoDialogOpen={false}
+        photoPreview={null}
+        isPhotoDragging={false}
+        isSavingPhoto={false}
+        showCelebration={false}
+        userRole={UserRole.SECRETARY}
+        people={[]}
+        onEditPanelClose={noop}
+        onPhotoDialogOpen={noop}
+        onPhotoDrop={noop}
+        onPhotoDragOver={noop}
+        onPhotoDragLeave={noop}
+        onPhotoFileInput={noop}
+        onPhotoSave={async () => true}
+        onSetUpdatedDog={noop}
+        onSetShowCelebration={noop}
+        onSetRecentUpdate={noop}
+        onSetIsEditPanelOpen={noop}
+      />
+    );
+
+    // Positive control: the panel's footer rendered.
+    expect(await screen.findByRole('button', { name: 'Save Changes' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^delete/i })).not.toBeInTheDocument();
   });
 });

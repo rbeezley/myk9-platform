@@ -140,7 +140,6 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   // dog to its viewer only once access is checked, and the secretary's rail button and
   // the exhibitor's menu item this replaces had no narrower gate.
   usePageEditAction({ kind: 'dog', enabled: true, run: () => setIsEditPanelOpen(true) });
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
   const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -290,9 +289,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
         <DogHero
           dog={updatedDog}
           onPhotoDialogOpen={() => handlePhotoDialogOpen(true)}
-          onDeleteDialogOpen={() => setIsDeleteDialogOpen(true)}
           onStatusDialogOpen={openStatusDialog}
-          canDelete={canDeleteDog}
           headingRef={headingRef}
         />
         {/* Identity rail beside the content column; stacked below lg. */}
@@ -341,7 +338,6 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
       <DogDialogs
         dog={updatedDog}
         isEditPanelOpen={isEditPanelOpen}
-        isDeleteDialogOpen={isDeleteDialogOpen}
         isPhotoDialogOpen={isPhotoDialogOpen}
         photoPreview={photoPreview}
         isPhotoDragging={isPhotoDragging}
@@ -350,7 +346,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
         userRole={userRole}
         people={people}
         onEditPanelClose={() => setIsEditPanelOpen(false)}
-        onDeleteDialogClose={() => setIsDeleteDialogOpen(false)}
+        canDelete={canDeleteDog}
         onStatusDialogOpen={openStatusDialog}
         onDeleteStart={onDeleteStart}
         onDeleted={onDeleted}

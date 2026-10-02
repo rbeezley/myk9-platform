@@ -44,6 +44,7 @@ import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
+import { personDeleteDetail } from '@/features/delete';
 
 // Re-export types so external consumers keep working
 export type { UserFilter, SelectedUser } from './UserManagementPage.types';
@@ -461,6 +462,20 @@ const UserManagementPage: React.FC = () => {
           }
           initialUserData={selectedUser}
           onSave={handleEditPanelSave}
+          // This page is site-admin only, which is the widest soft_delete_person gate.
+          onDelete={{
+            kind: 'person',
+            objectLabel: 'person',
+            targets: [
+              {
+                id: selectedUser.id,
+                name:
+                  `${selectedUser.firstName || ''} ${selectedUser.lastName || ''}`.trim() ||
+                  'Unknown User',
+                detail: personDeleteDetail({ email: selectedUser.email, town: selectedUser.city }),
+              },
+            ],
+          }}
         />
       )}
 

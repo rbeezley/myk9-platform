@@ -6,10 +6,7 @@ import { buildUserEditSavePayload, buildSavedFormDataUpdates } from './userEditS
 import { notifications } from '@/lib/notifications';
 import { uploadProfilePhoto } from '@/services/imageUploadService';
 import { useUserStore } from '@/store/userStore';
-import {
-  useUpdateUserMutation,
-  usePermanentDeleteUserMutation,
-} from '@/hooks/queries/useUsersQuery';
+import { useUpdateUserMutation } from '@/hooks/queries/useUsersQuery';
 import UserDetailsTabs from '@/components/users/UserDetails/UserDetailsTabs';
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
@@ -28,6 +25,7 @@ import { RecordPageLayout } from '@/components/layout/record';
 import type { PropertySectionConfig } from '@/components/layout/record';
 import { extractPersonName, buildFormData } from './userDetailsTypes';
 import HeroProfileCard from './HeroProfileCard';
+import { canDeletePerson } from './personDeleteGate';
 import JudgeQualificationsCard from './JudgeQualificationsCard';
 import JudgeAvailabilityCard from './JudgeAvailabilityCard';
 import UserDetailsDialogs from './UserDetailsDialogs';
@@ -45,11 +43,9 @@ interface UserDetailsViewProps {
 const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user: currentUser, hasPermission } = useAuthContext();
+  const { user: currentUser, hasPermission, getUserRoles } = useAuthContext();
   const { loadUsers } = useUserStore();
   const updateUserMutation = useUpdateUserMutation();
-  const permanentDeleteMutation = usePermanentDeleteUserMutation();
-  const [isDeletingUser, setIsDeletingUser] = useState(false);
   const { people } = useRoleBasedPeople();
   const queryClient = useQueryClient();
 
@@ -116,7 +112,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
     enabled: !isRemoved,
     run: () => setIsEditModalOpen(true),
   });
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isQualificationsPanelOpen, setIsQualificationsPanelOpen] = useState(false);
   // Name the list the user actually came in through — a site admin arriving from
   // /admin/users gets Admin > Users > {name}, and "Users" returns to that exact
@@ -166,26 +161,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       navigate('/people', { replace: true });
     }
   }, [people, person.id, navigate]);
-
-  const handlePermanentDeleteUser = async () => {
-    setIsDeletingUser(true);
-    try {
-      await permanentDeleteMutation.mutateAsync({ id: person.id });
-      setIsDeleteDialogOpen(false);
-      notifications.success(`${extractPersonName(person).fullName} was permanently deleted`);
-      leaveAfterDelete();
-    } catch (error) {
-      logger.error(
-        'Failed to permanently delete person',
-        'users',
-        { userId: person.id },
-        error as Error
-      );
-      notifications.error(getUserFriendlyError(error, 'Failed to permanently delete person'));
-    } finally {
-      setIsDeletingUser(false);
-    }
-  };
 
   const handleQualificationsSaved = () => {
     loadUsers();
@@ -376,7 +351,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
               photo={formData.photo}
               isRemoved={isRemoved}
               onEditPhoto={() => setIsPhotoModalOpen(true)}
-              onDelete={() => setIsDeleteDialogOpen(true)}
               {...(canManageStatus
                 ? {
                     onChangeStatus: () => setIsStatusDialogOpen(true),
@@ -426,8 +400,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
             setSelectedFile(null);
           }
         }}
-        isDeleteDialogOpen={isDeleteDialogOpen}
-        setIsDeleteDialogOpen={setIsDeleteDialogOpen}
         isQualificationsPanelOpen={isQualificationsPanelOpen}
         setIsQualificationsPanelOpen={setIsQualificationsPanelOpen}
         previewImage={previewImage}
@@ -437,9 +409,9 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onPersonDeleted={leaveAfterDelete}
-        onPermanentDeleteUser={handlePermanentDeleteUser}
-        isDeletingUser={isDeletingUser}
-        canPermanentlyDelete={hasPermission('admin:manage')}
+        canDelete={
+          !isRemoved && canDeletePerson(person, { id: currentUser?.id, roles: getUserRoles() })
+        }
         onUserEditSave={handleUserEditSave}
         onQualificationsSaved={handleQualificationsSaved}
         isSavingPhoto={isSavingPhoto}

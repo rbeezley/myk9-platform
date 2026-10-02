@@ -57,9 +57,6 @@ export function useClubDetailsState(selectedClub: Club | null) {
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Delete club dialog state
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-
   // Add member dialog state
   const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
 
@@ -158,10 +155,6 @@ export function useClubDetailsState(selectedClub: Club | null) {
     enabled: canEditClub && Boolean(selectedClub),
     run: handleEditClub,
   });
-
-  const handleDeleteClub = useCallback(() => {
-    setShowDeleteDialog(true);
-  }, []);
 
   // The shared delete dialog (features/delete) soft-deletes the club through
   // soft_delete_club, purges it from this device and offers Undo; leave its page.
@@ -403,9 +396,6 @@ export function useClubDetailsState(selectedClub: Club | null) {
     handleEditClub,
     handleClubEditComplete,
     // Delete
-    showDeleteDialog,
-    setShowDeleteDialog,
-    handleDeleteClub,
     handleClubDeleted,
     // Photo
     showPhotoDialog,

@@ -66,7 +66,6 @@ export interface DogDetailsTabsProps {
 export interface DogDialogsProps {
   dog: Dog;
   isEditPanelOpen: boolean;
-  isDeleteDialogOpen: boolean;
   isPhotoDialogOpen: boolean;
   photoPreview: string | null;
   isPhotoDragging: boolean;
@@ -75,7 +74,11 @@ export interface DogDialogsProps {
   userRole: UserRole;
   people: User[];
   onEditPanelClose: () => void;
-  onDeleteDialogClose: () => void;
+  /**
+   * Whether the viewer may delete this dog (`useCanDeleteDog`, the `soft_delete_dog` gate).
+   * Delete dog is the Edit panel's footer button; false hides it.
+   */
+  canDelete: boolean;
   /** Raises the status dialog from inside the Edit Dog panel's Status row. */
   onStatusDialogOpen?: (() => void) | undefined;
   onDeleteStart?: (() => void) | undefined;

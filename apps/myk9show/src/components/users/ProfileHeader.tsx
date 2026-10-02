@@ -15,7 +15,6 @@ interface ProfileHeaderProps {
   email?: string;
   onEditPhoto: () => void;
   onEditProfile: () => void;
-  onDeleteProfile: () => void;
   cardClassName?: string;
   hideMenu?: boolean;
 }
@@ -30,7 +29,6 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
   email,
   onEditPhoto,
   onEditProfile,
-  onDeleteProfile,
   cardClassName,
   hideMenu = false,
 }) => {
@@ -41,11 +39,7 @@ const ProfileHeader: React.FC<ProfileHeaderProps> = ({
       {/* 3-dot menu */}
       {!hideMenu && (
         <div className="absolute top-4 right-4 z-10">
-          <ThreeDotMenu
-            onEdit={onEditProfile}
-            onDelete={onDeleteProfile}
-            onEditPhoto={onEditPhoto}
-          />
+          <ThreeDotMenu onEdit={onEditProfile} onEditPhoto={onEditPhoto} />
         </div>
       )}
       <button

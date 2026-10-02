@@ -144,27 +144,21 @@ test.describe('Trials Page - Action Buttons', () => {
     await expect(menu.getByRole('menuitem').first()).toHaveText('Edit trial');
   });
 
-  test('Delete action should be in dropdown menu', async ({ page }) => {
+  test('Delete is in the Edit panel footer, never in a header menu', async ({ page }) => {
     await navigateToTrialPage(page);
+    test.skip(
+      !/\/trials\/[0-9a-f-]{36}/.test(page.url()),
+      'no trial reachable from the first show'
+    );
 
-    const infoCard = page.locator('.myk9-show-info-card');
+    // CRUD standard Phase 3: no Delete on the page or in the Actions menu...
+    await expect(page.locator('button:has-text("Delete Trial")')).toHaveCount(0);
+    const menu = await openActionsMenu(page);
+    await expect(menu.getByRole('menuitem', { name: /delete/i })).toHaveCount(0);
 
-    if (await infoCard.isVisible({ timeout: 5000 }).catch(() => false)) {
-      // Delete should not be immediately visible
-      const deleteButton = page.locator('button:has-text("Delete Trial")');
-      await expect(deleteButton).not.toBeVisible();
-
-      // Open the dropdown menu
-      const moreButton = infoCard
-        .locator('button')
-        .filter({ has: page.locator('svg.lucide-more-vertical') });
-      if (await moreButton.isVisible()) {
-        await moreButton.click();
-
-        // Now Delete should be visible in dropdown
-        await expect(page.locator('[role="menuitem"]:has-text("Delete Trial")')).toBeVisible();
-      }
-    }
+    // ...it is the Edit panel's footer button.
+    await menu.getByRole('menuitem', { name: 'Edit trial' }).click();
+    await expect(page.getByRole('button', { name: 'Delete trial', exact: true })).toBeVisible();
   });
 });
 

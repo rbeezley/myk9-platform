@@ -22,7 +22,11 @@ const person = {
 } as unknown as User;
 
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ user: { id: 'viewer' }, hasPermission: () => false }),
+  useAuthContext: () => ({
+    user: { id: 'viewer' },
+    hasPermission: () => false,
+    getUserRoles: () => [],
+  }),
 }));
 vi.mock('@/hooks/useRoleBasedData', () => ({ useRoleBasedPeople: () => ({ people: [person] }) }));
 vi.mock('@/hooks/queries/useUsersQuery', () => ({

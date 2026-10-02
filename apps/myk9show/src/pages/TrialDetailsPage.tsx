@@ -20,12 +20,10 @@ import {
   LayoutDashboard,
   ClipboardList,
   DollarSign,
-  Trash2,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import ThreeDotMenu from '@/components/ui/ThreeDotMenu/ThreeDotMenu';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { usePageEditAction } from '@/features/actions/pageEditTarget';
 
@@ -338,7 +336,6 @@ const TrialDetailsPage: React.FC = () => {
 
   // Dialog triggers delegate to TrialManagementDialogs (it owns the dialog
   // state + save/delete logic); the page only opens them via the ref.
-  const handleDeleteTrial = () => dialogsRef.current?.openDeleteTrial();
   // The section's own Add Classes button (header and empty state) stays beside the list.
   const handleAddClassesFromTemplate = addClassesHref ? () => navigate(addClassesHref) : undefined;
   const handleEditClass = (classItem: TrialClass) => dialogsRef.current?.openEditClass(classItem);
@@ -388,16 +385,6 @@ const TrialDetailsPage: React.FC = () => {
                         <ClipboardList className="h-4 w-4 mr-2" />
                         Manage Entries
                       </Button>
-                      <ThreeDotMenu
-                        items={[
-                          {
-                            label: 'Delete Trial',
-                            icon: <Trash2 className="h-4 w-4" />,
-                            onClick: handleDeleteTrial,
-                            className: 'text-destructive',
-                          },
-                        ]}
-                      />
                     </>
                   )}
                 </div>

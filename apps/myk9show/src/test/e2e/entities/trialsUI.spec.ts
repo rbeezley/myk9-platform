@@ -248,9 +248,10 @@ test.describe('Trial Details — Delete', () => {
     await page.goto(`/shows/${seed.showId}/trials/${seed.trialId}`);
     await page.waitForLoadState('networkidle');
 
-    // Open the three-dot menu in the hero, then "Delete Trial".
-    await page.getByRole('button', { name: 'More actions', exact: true }).click();
-    await page.getByRole('menuitem', { name: /Delete Trial/i }).click();
+    // Delete trial is the Edit panel's footer button, never a header menu item (CRUD standard
+    // Phase 3): open the panel from the Actions menu, then press it.
+    await chooseAction(page, 'Edit trial');
+    await page.getByRole('button', { name: 'Delete trial', exact: true }).click();
 
     // The shared delete dialog (CRUD standard Phase 2).
     const dialog = page.getByRole('alertdialog', { name: /^Delete the trial / });
@@ -276,8 +277,8 @@ test.describe('Trial Details — Delete', () => {
     await page.goto(`/shows/${seed.showId}/trials/${seed.trialId}`);
     await page.waitForLoadState('networkidle');
 
-    await page.getByRole('button', { name: 'More actions', exact: true }).click();
-    await page.getByRole('menuitem', { name: /Delete Trial/i }).click();
+    await chooseAction(page, 'Edit trial');
+    await page.getByRole('button', { name: 'Delete trial', exact: true }).click();
 
     const dialog = page.getByRole('alertdialog', { name: /^Delete the trial / });
     await expect(dialog).toBeVisible();

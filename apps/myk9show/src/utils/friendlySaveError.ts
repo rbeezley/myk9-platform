@@ -50,6 +50,15 @@ const TECHNICAL_TEXT = new RegExp(
 );
 
 const MAX_AUTHORED_LENGTH = 300;
+
+/**
+ * Postgres system SQLSTATEs whose raw text describes our schema or the query,
+ * not the person's action. A guard of ours may raise one of these with a
+ * sentence; the raw text is told apart by its shape.
+ */
+const SYSTEM_DIAGNOSTIC_CODES = new Set(['42703', '42P01', '42883', '22P02', '23502', '21000']);
+const SYSTEM_DIAGNOSTIC_TEXT =
+  /\b(column|relation|function|operator|table|type)\b.*\b(does not exist|is ambiguous)\b|invalid input|null value|more than one row|does not exist|could not (identify|determine|choose)|syntax/i;
 const RETRYABLE_CODE = /^(08|40|53|57|PGRST)/;
 const JS_RUNTIME_ERRORS = [TypeError, ReferenceError, SyntaxError, RangeError, EvalError];
 
@@ -82,11 +91,17 @@ function classify(error: unknown): Classified {
   const code = typeof field(error, 'code') === 'string' ? (field(error, 'code') as string) : '';
   const retryable = RETRYABLE_CODE.test(code);
   if (isTechnicalFailure(error)) return { detail: undefined, retryable: true };
+  // PostgREST's own diagnostics (PGRST204 names a column, PGRST116 describes
+  // row counts) are never written for a person, whatever their text says.
+  if (code.startsWith('PGRST')) return { detail: undefined, retryable: true };
 
   const raw = typeof error === 'string' ? error : field(error, 'message');
   const message = typeof raw === 'string' ? raw.trim() : '';
   const authored =
-    message !== '' && message.length <= MAX_AUTHORED_LENGTH && !TECHNICAL_TEXT.test(message);
+    message !== '' &&
+    message.length <= MAX_AUTHORED_LENGTH &&
+    !TECHNICAL_TEXT.test(message) &&
+    !(SYSTEM_DIAGNOSTIC_CODES.has(code) && SYSTEM_DIAGNOSTIC_TEXT.test(message));
 
   // An authored sentence beats a code-mapped one: our own guards raise with
   // SQLSTATEs the map also covers (42501, 23514, MK*) and the sentence is the

@@ -50,6 +50,7 @@ import { ShowDeskCompactContext } from './ShowDeskCompactContext';
 import { applyShowFormDataToPremium } from './showFormPremiumSync';
 import { ShowPageHeaderActions } from './ShowPageHeaderActions';
 import { showHeroParent } from './showHeroParent';
+import type { HeroViewer } from '@/components/common/heroParentLink';
 
 export interface ShowManagementShellProps {
   show: Show;
@@ -66,6 +67,8 @@ export interface ShowManagementShellProps {
   sectionTabs: PrimaryTabDef[];
   entryDataState?: 'ready' | 'loading' | 'error';
   onRetryEntryData?: (() => void) | undefined;
+  /** Whether the hero's parent links may be followed (see `heroParentLink`). Safe default: no. */
+  heroViewer?: HeroViewer;
 }
 
 /**
@@ -134,6 +137,7 @@ function AuthorizedShowManagementShell({
   sectionTabs,
   entryDataState = 'ready',
   onRetryEntryData,
+  heroViewer = 'public',
   canManageShow,
 }: AuthorizedShowManagementShellProps) {
   const navigate = useNavigate();
@@ -234,7 +238,7 @@ function AuthorizedShowManagementShell({
               }
               name={show.name || 'Untitled Show'}
               headingLevel={1}
-              parent={showHeroParent(show, { canOpenClub: true })}
+              parent={showHeroParent(show, { viewer: heroViewer })}
               badges={
                 show.organization ? [{ label: show.organization, variant: 'default' as const }] : []
               }

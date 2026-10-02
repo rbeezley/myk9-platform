@@ -5,6 +5,7 @@ import type { Trial } from '@/components/trials/types/trial.types';
 import { formatClassTitle, shouldShowSection } from './ClassDetailsMain.helpers';
 import { StatusIcon, getStatusDescriptor } from '@/components/status';
 import { DetailHero, type HeroBadge } from '@/components/common/DetailHero';
+import { heroParentLink, type HeroViewer } from '@/components/common/heroParentLink';
 import { FactCell } from '@/components/common/FactCell';
 import { useClassEntryFee, type ClassFeeShow } from './useClassEntryFee';
 
@@ -26,6 +27,8 @@ interface ClassCompactHeaderProps {
   /** Page chrome kept beside the title (the class options menu); not page-level Edit. */
   actions?: React.ReactNode;
   className?: string;
+  /** Whether the parent trial link may be followed (`/trials/:id` is accountOnly). Safe default: no. */
+  viewer?: HeroViewer;
 }
 
 export function ClassCompactHeader({
@@ -34,6 +37,7 @@ export function ClassCompactHeader({
   parentShow,
   actions,
   className,
+  viewer = 'public',
 }: ClassCompactHeaderProps) {
   const entryFee = useClassEntryFee(parentShow, classData.entryFee);
   // Build class display name from element + level (hides level for Detective)
@@ -42,10 +46,12 @@ export function ClassCompactHeader({
   // The one shared trial label (name, then trial number); trialType is the sport
   // (e.g., "Scent Work") which we don't want here. The trial is the hero's parent.
   const parent = parentTrial
-    ? {
+    ? heroParentLink({
+        target: 'trial',
+        id: parentTrial.id,
         label: formatTrialLabel({ name: parentTrial.name, trialNumber: parentTrial.trialNumber }),
-        href: `/trials/${parentTrial.id}`,
-      }
+        viewer,
+      })
     : undefined;
 
   const status = getStatusDescriptor('class', classData.status);

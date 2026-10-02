@@ -363,6 +363,7 @@ describe('ShowManagementShell', () => {
         { label: 'Shows', href: '/shows' },
         { label: 'Test Show', href: '/shows/show-1' },
       ],
+      heroViewer: 'account',
     });
     const hero = within(screen.getByTestId('detail-hero'));
     expect(hero.getByRole('link', { name: 'Bergen KC' })).toHaveAttribute('href', '/clubs/club-1');

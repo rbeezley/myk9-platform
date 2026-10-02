@@ -33,6 +33,7 @@ import { usePageEditAction } from '@/features/actions/pageEditTarget';
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DetailHero } from '@/components/common/DetailHero';
+import { heroParentLink, heroViewerFromUser } from '@/components/common/heroParentLink';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { ErrorState } from '@/components/common/ErrorState';
 import { NotFoundState } from '@/components/common/NotFoundState';
@@ -70,7 +71,7 @@ const TrialDetailsPage: React.FC = () => {
   const { trialId, showId } = useParams<{ trialId: string; showId?: string }>();
   const navigate = useNavigate();
   const { trials, selectedTrialId, selectTrial } = useTrialStore();
-  const { isSecretary, isAdmin, hasRole, userWithRoles } = useAuthContext();
+  const { user, isSecretary, isAdmin, hasRole, userWithRoles } = useAuthContext();
   const dialogsRef = useRef<TrialManagementDialogsHandle>(null);
 
   // Current trial + its parent show, with the anon/cold-store by-id fallback the
@@ -355,7 +356,14 @@ const TrialDetailsPage: React.FC = () => {
               name={trialHero.title}
               headingLevel={1}
               parent={
-                parentShow ? { label: parentShow.name, href: `/shows/${parentShow.id}` } : undefined
+                parentShow
+                  ? heroParentLink({
+                      target: 'show',
+                      id: parentShow.id,
+                      label: parentShow.name,
+                      viewer: heroViewerFromUser(user),
+                    })
+                  : undefined
               }
               subtitle={trialHero.subtitle}
               metadata={heroMetadata}

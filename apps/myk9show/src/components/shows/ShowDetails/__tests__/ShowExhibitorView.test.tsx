@@ -133,12 +133,19 @@ describe('ShowExhibitorView detail-page header (MYK9-930)', () => {
         { label: 'Shows', href: '/shows' },
         { label: 'Test Show', href: '/shows/show-1' },
       ],
+      heroViewer: 'account',
     });
     expect(screen.getByRole('link', { name: 'Bergen KC' })).toHaveAttribute(
       'href',
       '/clubs/club-1'
     );
     expect(screen.getByRole('link', { name: 'Shows' })).toHaveAttribute('href', '/shows');
+  });
+
+  it('shows the club as plain text for a viewer who is not a signed-in account', () => {
+    renderView({ heroViewer: 'public' });
+    expect(screen.queryByRole('link', { name: 'Bergen KC' })).toBeNull();
+    expect(screen.getByText('Bergen KC')).toBeInTheDocument();
   });
 
   it('lets the hero own the page h1', () => {

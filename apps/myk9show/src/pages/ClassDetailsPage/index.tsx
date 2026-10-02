@@ -44,6 +44,7 @@ import { useMyEntriesInClass } from './useMyEntriesInClass';
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
+import { heroViewerFromUser } from '@/components/common/heroParentLink';
 import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { RelatedContextLinks } from '@/components/common/RelatedContextLinks';
@@ -302,6 +303,7 @@ const ClassDetailsPage: React.FC = () => {
           parentTrial={parentTrial}
           parentShow={parentShow}
           actions={headerActions}
+          viewer={heroViewerFromUser(user)}
         />
 
         <RelatedContextLinks items={relatedLinks} />

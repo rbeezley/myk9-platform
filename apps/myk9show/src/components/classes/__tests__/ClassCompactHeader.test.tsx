@@ -128,6 +128,7 @@ describe('ClassCompactHeader', () => {
         parentShow={undefined}
         classData={makeClassData()}
         parentTrial={makeTrial()}
+        viewer="account"
       />
     );
 
@@ -254,6 +255,7 @@ describe('ClassCompactHeader', () => {
         parentShow={undefined}
         classData={makeClassData()}
         parentTrial={makeTrial({ id: 'trial-9' })}
+        viewer="account"
       />
     );
     expect(screen.getByRole('link', { name: 'Saturday Trial 1' })).toHaveAttribute(

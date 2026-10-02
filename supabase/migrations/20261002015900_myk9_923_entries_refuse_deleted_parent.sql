@@ -18,8 +18,8 @@
 --  1. ONE PREDICATE  private.entry_deleted_parent(class, trial, show) returns
 --     'show', 'trial' or 'class' for the topmost deleted ancestor (the class's
 --     own trial and that trial's show are checked as well as the entry's own
---     trial_id/show_id), or NULL. It locks each ancestor FOR KEY SHARE, top-down
---     (show, trial, class), and reads deleted_at from the locked row version.
+--     trial_id/show_id), or NULL. Before reading, it takes the SHARED parent
+--     gate (below) on each ancestor, top-down: show, trial, class.
 --
 --  2. TRIGGERS ON entries  (the guard is in the table, so every writer is
 --     covered, including the replication queue's direct INSERT/UPDATE and the
@@ -40,26 +40,41 @@
 --     row, and the replication queue treats the resulting 23505 on a replayed
 --     insert as "my earlier attempt committed".
 --
---  3. THE RACE  soft_delete_show / _trial / _class now take FOR UPDATE on the
---     row they delete before the cascade (the existence SELECT gains FOR
---     UPDATE; nothing else in the bodies changes). FOR UPDATE conflicts with
---     the trigger's FOR KEY SHARE, so:
---       * an entry insert that locked the parent first finishes before the
---         delete's cascade statement starts, and the cascade (which takes a new
---         snapshot) tombstones it and judges it with the MK010 money guard;
---       * an insert that arrives after the delete locked the parent waits for
---         the delete to commit, then reads the committed deleted_at and refuses.
---     FOR KEY SHARE (not FOR SHARE) is deliberate: it does not conflict with an
---     ordinary UPDATE of the class/trial/show (status, counts), so two
---     concurrent inserts into one class, whose AFTER triggers both update that
---     class, cannot deadlock on it. It is the same lock the entries foreign keys
---     already take, only earlier.
---
+--  3. THE RACE  An insert that commits while a delete's cascade runs is not
+--     tombstoned by it. The parent gate serializes the two: a transaction-scoped
+--     advisory lock per parent, key (923, hashtext('<kind>:<id>')), taken
+--     through private.entry_parent_gate():
+--       * the entries triggers take it SHARED on show, trial and class;
+--       * soft_delete_show / _trial / _class take it EXCLUSIVE on their own row
+--         as their first statement (the only change in their bodies).
+--     An insert that holds the gate first finishes before the delete's
+--     existence check and cascade take their snapshots, so the cascade
+--     tombstones it and judges it with the MK010 money guard. An insert that
+--     arrives after the delete holds the gate waits for the commit, then reads
+--     deleted_at in a new snapshot and refuses.
+--     WHY ADVISORY AND NOT A ROW LOCK on the show/trial/class: FOR UPDATE on
+--     the parent row would also wait on, and block, every foreign-key check
+--     against it (armbands, waitlist and payment rows, not only entries) and
+--     auto_assign_armband_on_accept's FOR UPDATE of the show. The gate is taken
+--     only by entry inserts, parent changes, restores and the three deletes,
+--     never by an ordinary entry update, so status, scoring and check-in
+--     writes do not touch it.
+--     LOCK ORDER: gate before entry rows. The delete takes the gate before its
+--     cascade locks entries. move_up_entry (section 5) is the one RPC that
+--     locks an entry row (its source, FOR UPDATE) and then inserts; it now
+--     takes the target's gates first. A client class change (a direct UPDATE
+--     of class_id) necessarily holds the row before its trigger takes the
+--     gate; against a concurrent delete of the same parent it can end in a
+--     40P01, which the replication queue retries (isRetryableError).
+
 --  4. restore_entry  now refuses (MK013) under a deleted trial or show as well
 --     as a deleted class, naming the topmost one ("Restore the show first"),
 --     through the same predicate. The dog check is unchanged.
 --
---  5. restore_dog  no longer brings back an entry whose class, trial or show is
+--  5. move_up_entry  takes the target class's parent gates before it locks the
+--     source entry, so it follows gate-before-entry order (see 3).
+--
+--  6. restore_dog  no longer brings back an entry whose class, trial or show is
 --     deleted (it would now be refused, rolling back the whole dog restore).
 --     Such an entry stays tombstoned, exactly as restore_show/_trial/_class
 --     leave behind an entry whose dog is still deleted.
@@ -72,6 +87,7 @@
 -- pg_get_functiondef on live before editing:
 --   soft_delete_show / _class / _trial  20261001235300_crud_standard_delete_not_found_code.sql
 --   restore_entry / restore_dog         20261001214300_crud_standard_soft_delete_restore_rpcs.sql
+--   move_up_entry                       20260918193300_myk9_639_move_up_supersession.sql
 -- CREATE OR REPLACE keeps each function's owner (postgres), SECURITY DEFINER,
 -- empty search_path and ACL; the behavioral test asserts all four.
 --
@@ -86,9 +102,39 @@ BEGIN;
 -- ---------------------------------------------------------------------------
 -- 1. The predicate
 -- ---------------------------------------------------------------------------
--- SECURITY INVOKER: its only callers are the SECURITY DEFINER trigger function
--- and RPCs below, which run as postgres (RLS would otherwise hide a deleted
+-- SECURITY INVOKER (both): their only callers are the SECURITY DEFINER trigger
+-- function and RPCs below, which run as postgres (RLS would otherwise hide a deleted
 -- parent from a secretary and make it read as "no parent", i.e. live).
+CREATE OR REPLACE FUNCTION private.entry_parent_gate(
+  p_kind text,
+  p_id uuid,
+  p_exclusive boolean
+)
+RETURNS void
+LANGUAGE plpgsql
+VOLATILE
+SET search_path = ''
+AS $$
+BEGIN
+  IF p_id IS NULL THEN
+    RETURN;
+  END IF;
+  -- Two-int4 advisory keys live in a different key space from the one-bigint
+  -- pg_advisory_xact_lock(hashtext(show_id)) that auto_assign_armband_on_accept
+  -- takes, so the two never contend.
+  IF p_exclusive THEN
+    PERFORM pg_catalog.pg_advisory_xact_lock(923, pg_catalog.hashtext(p_kind || ':' || p_id::text));
+  ELSE
+    PERFORM pg_catalog.pg_advisory_xact_lock_shared(923, pg_catalog.hashtext(p_kind || ':' || p_id::text));
+  END IF;
+END;
+$$;
+
+COMMENT ON FUNCTION private.entry_parent_gate(text, uuid, boolean) IS
+  'MYK9-923: the transaction-scoped parent gate. Entry inserts, parent changes '
+  'and restores take it SHARED on show, trial and class; soft_delete_show/_trial/'
+  '_class take it EXCLUSIVE on their own row before the cascade.';
+
 CREATE OR REPLACE FUNCTION private.entry_deleted_parent(
   p_class_id uuid,
   p_trial_id uuid,
@@ -101,59 +147,50 @@ SET search_path = ''
 AS $$
 DECLARE
   v_class_trial_id uuid;
-  v_class_deleted boolean := false;
   v_trial_ids uuid[];
   v_show_ids uuid[];
-  v_trial_deleted boolean;
-  v_show_deleted boolean;
+  v_id uuid;
 BEGIN
-  -- Resolve the ancestry (the class's trial, every trial's show) without
-  -- locking, then lock top-down: show, trial, class.
+  -- Resolve the ancestry: the class's own trial, the entry's trial, and every
+  -- one of those trials' shows, plus the entry's show.
   IF p_class_id IS NOT NULL THEN
     SELECT c.trial_id INTO v_class_trial_id FROM public.classes c WHERE c.id = p_class_id;
   END IF;
 
-  v_trial_ids := array_remove(ARRAY[p_trial_id, v_class_trial_id], NULL);
+  SELECT array_agg(DISTINCT x ORDER BY x) INTO v_trial_ids
+  FROM unnest(ARRAY[p_trial_id, v_class_trial_id]) AS x
+  WHERE x IS NOT NULL;
 
-  SELECT array_agg(DISTINCT t.show_id) FILTER (WHERE t.show_id IS NOT NULL)
-  INTO v_show_ids
-  FROM public.trials t
-  WHERE t.id = ANY (v_trial_ids);
-
-  v_show_ids := array_remove(COALESCE(v_show_ids, '{}'::uuid[]) || p_show_id, NULL);
-
-  -- Lock and read, top-down. The locking SELECT returns the newest committed
-  -- version of a row a concurrent soft delete held FOR UPDATE.
-  SELECT COALESCE(bool_or(locked.deleted_at IS NOT NULL), false) INTO v_show_deleted
+  SELECT array_agg(DISTINCT ids.x ORDER BY ids.x) INTO v_show_ids
   FROM (
-    SELECT s.deleted_at FROM public.shows s
-    WHERE s.id = ANY (v_show_ids)
-    ORDER BY s.id
-    FOR KEY SHARE
-  ) locked;
-  IF v_show_deleted THEN
+    SELECT t.show_id AS x FROM public.trials t WHERE t.id = ANY (COALESCE(v_trial_ids, '{}'::uuid[]))
+    UNION ALL
+    SELECT p_show_id
+  ) ids
+  WHERE ids.x IS NOT NULL;
+
+  -- Shared gates, top-down and in id order within a level.
+  FOREACH v_id IN ARRAY COALESCE(v_show_ids, '{}'::uuid[]) LOOP
+    PERFORM private.entry_parent_gate('show', v_id, false);
+  END LOOP;
+  FOREACH v_id IN ARRAY COALESCE(v_trial_ids, '{}'::uuid[]) LOOP
+    PERFORM private.entry_parent_gate('trial', v_id, false);
+  END LOOP;
+  PERFORM private.entry_parent_gate('class', p_class_id, false);
+
+  -- Each query below takes a new snapshot (VOLATILE, READ COMMITTED), so a
+  -- delete that held a gate this function waited on is seen as committed.
+  IF EXISTS (SELECT 1 FROM public.shows s
+             WHERE s.id = ANY (COALESCE(v_show_ids, '{}'::uuid[])) AND s.deleted_at IS NOT NULL) THEN
     RETURN 'show';
   END IF;
-
-  SELECT COALESCE(bool_or(locked.deleted_at IS NOT NULL), false) INTO v_trial_deleted
-  FROM (
-    SELECT t.deleted_at FROM public.trials t
-    WHERE t.id = ANY (v_trial_ids)
-    ORDER BY t.id
-    FOR KEY SHARE
-  ) locked;
-  IF v_trial_deleted THEN
+  IF EXISTS (SELECT 1 FROM public.trials t
+             WHERE t.id = ANY (COALESCE(v_trial_ids, '{}'::uuid[])) AND t.deleted_at IS NOT NULL) THEN
     RETURN 'trial';
   END IF;
-
-  IF p_class_id IS NOT NULL THEN
-    SELECT c.deleted_at IS NOT NULL INTO v_class_deleted
-    FROM public.classes c
-    WHERE c.id = p_class_id
-    FOR KEY SHARE;
-    IF COALESCE(v_class_deleted, false) THEN
-      RETURN 'class';
-    END IF;
+  IF p_class_id IS NOT NULL
+     AND EXISTS (SELECT 1 FROM public.classes c WHERE c.id = p_class_id AND c.deleted_at IS NOT NULL) THEN
+    RETURN 'class';
   END IF;
 
   -- A parent that does not exist is not "deleted": the foreign key refuses it.
@@ -163,8 +200,8 @@ $$;
 
 COMMENT ON FUNCTION private.entry_deleted_parent(uuid, uuid, uuid) IS
   'MYK9-923: the topmost soft-deleted ancestor (show, trial or class) of an entry '
-  'with these ids, or NULL. Locks each ancestor FOR KEY SHARE, top-down, so a '
-  'concurrent soft_delete_* (which takes FOR UPDATE first) is serialized against it.';
+  'with these ids, or NULL. Takes the shared parent gate on each ancestor first, '
+  'top-down, so a concurrent soft_delete_* (exclusive gate) is serialized against it.';
 
 -- The table guard. SECURITY DEFINER so the predicate sees deleted parents the
 -- caller's RLS would hide.
@@ -209,6 +246,8 @@ COMMENT ON FUNCTION private.entries_refuse_deleted_parent() IS
   'MYK9-923: refuses (MK014) a live entry inserted or moved under a deleted class, '
   'trial or show, and (MK013) one restored under one. Fires on every writer.';
 
+REVOKE ALL ON FUNCTION private.entry_parent_gate(text, uuid, boolean)
+  FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION private.entry_deleted_parent(uuid, uuid, uuid)
   FROM PUBLIC, anon, authenticated, service_role;
 REVOKE ALL ON FUNCTION private.entries_refuse_deleted_parent()
@@ -237,8 +276,8 @@ CREATE TRIGGER trg_01_entries_refuse_deleted_parent
   EXECUTE FUNCTION private.entries_refuse_deleted_parent();
 
 -- ---------------------------------------------------------------------------
--- 2. soft_delete_show / _class / _trial: lock the row before the cascade.
---    Bodies copied from 20261001235300; only the FOR UPDATE lines are new.
+-- 2. soft_delete_show / _class / _trial: the exclusive parent gate first.
+--    Bodies copied from 20261001235300; only the gate PERFORM is new.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.soft_delete_show(p_show_id uuid, p_override boolean DEFAULT false)
  RETURNS void
@@ -254,13 +293,15 @@ DECLARE
   v_now TIMESTAMPTZ := NOW();
   v_user_id UUID := auth.uid();
 BEGIN
+  -- MYK9-923: the exclusive parent gate, before the existence check and the
+  -- cascade take their snapshots. Entry inserts under this show hold it shared.
+  PERFORM private.entry_parent_gate('show', p_show_id, true);
+
   SELECT s.club_id, TRUE
   INTO v_club_id, v_show_exists
   FROM public.shows s
   WHERE s.id = p_show_id
-    AND s.deleted_at IS NULL
-  -- MYK9-923: lock the show before the cascade; an entry insert holds it FOR KEY SHARE.
-  FOR UPDATE;
+    AND s.deleted_at IS NULL;
 
   IF NOT COALESCE(v_show_exists, FALSE) THEN
     RAISE EXCEPTION 'Show not found or already deleted' USING ERRCODE = 'P0002';
@@ -335,14 +376,16 @@ DECLARE
   v_now TIMESTAMPTZ := NOW();
   v_user_id UUID := auth.uid();
 BEGIN
+  -- MYK9-923: the exclusive parent gate, before the existence check and the
+  -- cascade take their snapshots. Entry inserts under this class hold it shared.
+  PERFORM private.entry_parent_gate('class', p_class_id, true);
+
   -- Resolve the parent trial. Returning NULL distinguishes "row gone" from
   -- "row not visible" once we run with SECURITY DEFINER (which bypasses
   -- the caller's RLS).
   SELECT c.trial_id INTO v_trial_id
   FROM public.classes c
-  WHERE c.id = p_class_id AND c.deleted_at IS NULL
-  -- MYK9-923: lock the class before the cascade; an entry insert holds it FOR KEY SHARE.
-  FOR UPDATE;
+  WHERE c.id = p_class_id AND c.deleted_at IS NULL;
 
   IF v_trial_id IS NULL THEN
     RAISE EXCEPTION 'Class not found or already deleted'
@@ -392,11 +435,13 @@ DECLARE
   v_now timestamptz := now();
   v_user_id uuid := auth.uid();
 BEGIN
+  -- MYK9-923: the exclusive parent gate, before the existence check and the
+  -- cascade take their snapshots. Entry inserts under this trial hold it shared.
+  PERFORM private.entry_parent_gate('trial', p_trial_id, true);
+
   SELECT t.show_id, t.name INTO v_show_id, v_name
   FROM public.trials t
-  WHERE t.id = p_trial_id AND t.deleted_at IS NULL
-  -- MYK9-923: lock the trial before the cascade; an entry insert holds it FOR KEY SHARE.
-  FOR UPDATE;
+  WHERE t.id = p_trial_id AND t.deleted_at IS NULL;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'Trial not found or already deleted' USING ERRCODE = 'P0002';
@@ -627,7 +672,212 @@ END;
 $function$;
 
 -- ---------------------------------------------------------------------------
--- 5. ACLs, restated as live has them (owner postgres; authenticated and
+-- 5. move_up_entry: take the target's parent gates before locking the source.
+--    Body copied from 20260918193300 (identical to live); only the gate
+--    PERFORM is new.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.move_up_entry(
+  p_entry_id uuid,
+  p_target_class_id uuid,
+  p_new_entry_id uuid,
+  p_reason text DEFAULT NULL
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path TO ''
+AS $function$
+DECLARE
+  v_source         public.entries%ROWTYPE;
+  v_target_show_id uuid;
+  v_target_trial_id uuid;
+  v_note           text;
+BEGIN
+  -- MYK9-923: gate before entry rows. The destination INSERT below takes the
+  -- target's parent gates (entries trigger); take them now, before locking the
+  -- source, so a concurrent soft_delete_* (gate first, then the entries it
+  -- cascades) cannot hold the gate while waiting on our source row. The
+  -- verdict is not used here: the target checks below and the trigger refuse
+  -- a deleted parent with their own messages.
+  PERFORM private.entry_deleted_parent(
+    p_target_class_id,
+    (SELECT c.trial_id FROM public.classes c WHERE c.id = p_target_class_id),
+    NULL
+  );
+
+  SELECT * INTO v_source
+  FROM public.entries
+  WHERE id = p_entry_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'That entry no longer exists.' USING ERRCODE = 'P0002';
+  END IF;
+
+  -- Restated authorization (see the header): identical to entries_update.
+  IF NOT public.can_manage_show(v_source.show_id) THEN
+    RAISE EXCEPTION 'You do not have permission to move entries in this show.'
+      USING ERRCODE = '42501';
+  END IF;
+
+  -- A dog who has been pulled, withdrawn, scratched, marked absent, already
+  -- moved, or soft-deleted is not movable. Refusing here is what lets the
+  -- move-back restore an unambiguous source, and what stops a pulled dog being
+  -- carried into a class the readiness counters then drop them from.
+  IF v_source.deleted_at IS NOT NULL
+     OR COALESCE(v_source.entry_status, '') IN
+        ('moved', 'withdrawn', 'scratched', 'absent', 'not_accepted')
+     OR v_source.check_in_status = 'pulled' THEN
+    RAISE EXCEPTION 'This entry is not in a state that can be moved.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  -- A run that has STARTED cannot be moved out of the class it started in --
+  -- the same rule `reverse_move_up_entry` applies to the destination, and for
+  -- the same reason. Marking the source `moved` excludes it from the class
+  -- rollup, the catalog and every registry report, so moving a scored entry
+  -- would VACATE a result from the class it was earned in. `completed`,
+  -- `in-ring` and `competing` all passed the movability guard above, which
+  -- refuses only the approval-dimension states.
+  --
+  -- `checked-in` and `at-gate` are deliberately still movable: the dog is
+  -- present and has not run, which is exactly when a secretary moves them.
+  IF COALESCE(v_source.is_scored, false)
+     OR COALESCE(v_source.is_in_ring, false)
+     OR COALESCE(v_source.entry_status, '') IN ('in-ring', 'competing', 'completed')
+     OR v_source.check_in_status IN ('in-ring', 'completed')
+     OR v_source.scoring_started_at IS NOT NULL
+     OR v_source.scoring_completed_at IS NOT NULL
+     OR v_source.ring_entry_time IS NOT NULL
+     OR COALESCE(v_source.result_status, 'pending') <> 'pending'
+     OR v_source.final_placement IS NOT NULL
+     OR COALESCE(v_source.points_earned, 0) <> 0
+     OR COALESCE(v_source.search_time_seconds, 0) <> 0
+     OR COALESCE(v_source.area1_time_seconds, 0) <> 0
+     OR COALESCE(v_source.area2_time_seconds, 0) <> 0
+     OR COALESCE(v_source.area3_time_seconds, 0) <> 0
+     OR COALESCE(v_source.area4_time_seconds, 0) <> 0
+     OR COALESCE(v_source.total_faults, 0) <> 0
+     OR COALESCE(v_source.total_correct_finds, 0) <> 0
+     OR COALESCE(v_source.total_incorrect_finds, 0) <> 0
+     OR COALESCE(v_source.no_finish_count, 0) <> 0
+     OR COALESCE(v_source.total_score, 0) <> 0
+     OR COALESCE(v_source.points_possible, 0) <> 0 THEN
+    RAISE EXCEPTION 'This run has already started, so the entry can no longer be moved.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  SELECT t.show_id, c.trial_id
+  INTO v_target_show_id, v_target_trial_id
+  FROM public.classes c
+  JOIN public.trials t ON t.id = c.trial_id
+  WHERE c.id = p_target_class_id
+    AND c.deleted_at IS NULL
+    AND t.deleted_at IS NULL;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'That class no longer exists.' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF v_target_show_id IS DISTINCT FROM v_source.show_id THEN
+    RAISE EXCEPTION 'An entry can only move within its own show.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  IF p_target_class_id = v_source.class_id THEN
+    RAISE EXCEPTION 'That entry is already in this class.' USING ERRCODE = '22023';
+  END IF;
+
+  -- The element/level ladder stays in the client (`utils/moveUpEligibility.ts`):
+  -- it is registry-aware and the registry lives on the trial, not on a CHECK.
+  -- What this function owns is what a stale or hostile client cannot be trusted
+  -- with -- who may write, that the row is movable, and that both halves land.
+
+  -- A dog already entered in the target class would otherwise die on
+  -- `entries_dog_class_unique_idx` with raw constraint text in the secretary's
+  -- toast. Say it in words instead, in the same 22023 the client already
+  -- renders verbatim.
+  IF EXISTS (
+    SELECT 1
+    FROM public.entries e
+    WHERE e.dog_id = v_source.dog_id
+      AND e.class_id = p_target_class_id
+      AND e.deleted_at IS NULL
+      -- Byte-identical to entries_dog_class_unique_idx's predicate above. A
+      -- COALESCE here would be STRICTER than the index: a NULL entry_status is
+      -- excluded from the index entirely, so the INSERT would have succeeded
+      -- while this refused it in words.
+      AND e.entry_status <> ALL (ARRAY['withdrawn'::text, 'scratched'::text])
+  ) THEN
+    RAISE EXCEPTION 'This dog is already entered in that class.' USING ERRCODE = '22023';
+  END IF;
+
+  v_note := 'Moved up from class ' || v_source.class_id::text
+            || COALESCE(': ' || NULLIF(btrim(p_reason), ''), '');
+
+  INSERT INTO public.entries (
+    id, dog_id, show_id, class_id, trial_id,
+    handler_id, handler, armband, jump_height,
+    entry_status, check_in_status,
+    payment_status, entry_fee,
+    is_day_of_show, entry_source, registration_id,
+    special_requests, moved_from_entry_id
+  )
+  VALUES (
+    p_new_entry_id, v_source.dog_id, v_source.show_id, p_target_class_id, v_target_trial_id,
+    v_source.handler_id, v_source.handler, v_source.armband, v_source.jump_height,
+    -- The dog's APPROVAL state travels; a move-up is not an acceptance. Writing
+    -- 'confirmed' unconditionally promoted a `pending-payment` or `submitted`
+    -- entry the secretary had never accepted, and a round trip then restored it
+    -- as 'confirmed' -- because the reverse restores from the destination.
+    --
+    -- The four REQUEST statuses are the exception, and they have to be: a
+    -- request is a request to move THIS entry, and it is fulfilled the moment
+    -- this function runs. `approveMoveUpRequestReplicated` requires the source
+    -- to be 'move-up-requested' before it calls here, so inheriting that status
+    -- put the destination straight back into `getPendingMoveUpRequests`'s
+    -- queue -- the secretary approves, the row reappears in front of them, and
+    -- approving again walks the dog another rung up the ladder. Same shape for
+    -- 'scratch-requested': an exhibitor's request against the OLD class must not
+    -- become a pending request against a class they never entered.
+    --
+    -- Kept in lockstep with MOVE_UP_REQUEST_STATUSES in
+    -- features/show-map/moveUpRequestStatuses.ts, which the contract test pins.
+    CASE
+      WHEN COALESCE(v_source.entry_status, '') IN (
+        'move-up-requested', 'move_up_requested', 'scratch-requested', 'scratch_requested'
+      ) THEN 'confirmed'
+      ELSE v_source.entry_status
+    END,
+    -- MYK9-640: a check-in travels, and ONLY as a check-in. 'pulled' cannot
+    -- reach here (refused above); 'in-ring', 'at-gate' and 'completed' describe
+    -- a run in the class being left, not the one being entered.
+    CASE WHEN v_source.check_in_status = 'checked-in' THEN 'checked-in' ELSE 'no-status' END,
+    -- Money-neutral. See the header.
+    'pending', 0,
+    -- Provenance, NOT money: who collected the entry and under which
+    -- enrollment. `entry_source` is the only field that proves UKC collected a
+    -- fee ('ukc_online'), and `is_day_of_show` is the day-of/pre-entry split --
+    -- both are per-BUCKET lines on the registry report, so losing them bills
+    -- the club for a run a registry already collected, and strands the
+    -- destination off the exhibitor's order card.
+    v_source.is_day_of_show, v_source.entry_source, v_source.registration_id,
+    v_note, p_entry_id
+  );
+
+  -- Deliberately does NOT touch the source's `special_requests`: the FK above is
+  -- the lineage, and that column is where a secretary writes "reactive dog,
+  -- needs the ramp".
+  UPDATE public.entries
+  SET entry_status = 'moved'
+  WHERE id = p_entry_id;
+
+  RETURN p_new_entry_id;
+END;
+$function$;
+
+-- ---------------------------------------------------------------------------
+-- 6. ACLs, restated as live has them (owner postgres; authenticated and
 --    service_role execute; never anon). CREATE OR REPLACE kept them already.
 -- ---------------------------------------------------------------------------
 REVOKE ALL ON FUNCTION public.soft_delete_show(uuid, boolean) FROM PUBLIC, anon;
@@ -635,11 +885,13 @@ REVOKE ALL ON FUNCTION public.soft_delete_class(uuid, boolean) FROM PUBLIC, anon
 REVOKE ALL ON FUNCTION public.soft_delete_trial(uuid, boolean) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.restore_entry(uuid) FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.restore_dog(uuid) FROM PUBLIC, anon;
+REVOKE ALL ON FUNCTION public.move_up_entry(uuid, uuid, uuid, text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.soft_delete_show(uuid, boolean) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.soft_delete_class(uuid, boolean) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.soft_delete_trial(uuid, boolean) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.restore_entry(uuid) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.restore_dog(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.move_up_entry(uuid, uuid, uuid, text) TO authenticated, service_role;
 
 NOTIFY pgrst, 'reload schema';
 

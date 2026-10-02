@@ -26,9 +26,13 @@
 --      the one under a deleted class tombstoned, instead of failing;
 --  10. the replaced functions keep SECURITY DEFINER, search_path, owner and
 --      grants; the new private helpers are not executable by client roles; both
---      triggers are installed and enabled.
--- The concurrency half (soft_delete_* FOR UPDATE vs the trigger's FOR KEY
--- SHARE) needs two sessions and is not asserted here.
+--      triggers are installed and enabled;
+--  11. the parent gate is really taken: an entry insert holds it SHARED on its
+--      show, trial and class, move_up_entry holds it on the target, and
+--      soft_delete_class holds it EXCLUSIVE on the class (read from pg_locks
+--      for this backend).
+-- The interleavings themselves (insert vs delete, move-up vs show delete)
+-- need two sessions and are not asserted here.
 --
 -- Parents are deleted with a direct UPDATE as postgres (which the direct-write
 -- block allows): it marks the parent deleted WITHOUT cascading, which is exactly
@@ -72,7 +76,22 @@ END;
 $$;
 
 GRANT EXECUTE ON FUNCTION pg_temp.expect(text, text, text) TO authenticated, service_role;
+-- The lock mode this backend holds on the parent gate (kind, id), or NULL.
+-- The gate is the two-int4 advisory key (923, hashtext('<kind>:<id>')); the
+-- second key shows in pg_locks.objid as an unsigned oid.
+CREATE FUNCTION pg_temp.gate_mode(p_kind text, p_id uuid)
+RETURNS text LANGUAGE sql AS $$
+  SELECT string_agg(l.mode, ',' ORDER BY l.mode)
+  FROM pg_locks l
+  WHERE l.locktype = 'advisory'
+    AND l.pid = pg_backend_pid()
+    AND l.objsubid = 2
+    AND l.classid = 923::oid
+    AND l.objid::text::bigint = (hashtext(p_kind || ':' || p_id::text)::bigint + 4294967296) % 4294967296;
+$$;
+
 GRANT EXECUTE ON FUNCTION pg_temp.refused(text, text, text, text) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION pg_temp.gate_mode(text, uuid) TO authenticated, service_role;
 
 -- ---------------------------------------------------------------------------
 -- Fixtures. People first, then auth.users, so handle_new_user adopts each
@@ -147,7 +166,9 @@ VALUES
   ('00000000-0000-0000-0000-000000923304', '00000000-0000-0000-0000-000000923210', 'K4 Buried', 'Buried', 'Novice B', 'upcoming', 'manual', 30),
   ('00000000-0000-0000-0000-000000923306', '00000000-0000-0000-0000-000000923200', 'K6 Vehicle', 'Vehicle', 'Novice B', 'upcoming', 'manual', 30),
   ('00000000-0000-0000-0000-000000923307', '00000000-0000-0000-0000-000000923220', 'K7 Container', 'Container', 'Novice B', 'upcoming', 'manual', 30),
-  ('00000000-0000-0000-0000-000000923308', '00000000-0000-0000-0000-000000923202', 'K8 Interior', 'Interior', 'Novice B', 'upcoming', 'manual', 30);
+  ('00000000-0000-0000-0000-000000923308', '00000000-0000-0000-0000-000000923202', 'K8 Interior', 'Interior', 'Novice B', 'upcoming', 'manual', 30),
+  ('00000000-0000-0000-0000-000000923309', '00000000-0000-0000-0000-000000923200', 'K9 Empty', 'Buried', 'Novice B', 'upcoming', 'manual', 30),
+  ('00000000-0000-0000-0000-000000923310', '00000000-0000-0000-0000-000000923200', 'K10 Exterior', 'Exterior', 'Novice B', 'upcoming', 'manual', 30);
 
 INSERT INTO public.dogs (id, name, call_name, breed, status, owner_id)
 SELECT ('00000000-0000-0000-0000-00000092340' || n)::uuid, 'MYK9-923 Dog ' || n, 'Dog' || n,
@@ -243,6 +264,13 @@ SELECT pg_temp.expect('positive control: the same direct insert into a live clas
   (SELECT count(*)::text FROM public.entries WHERE id = '00000000-0000-0000-0000-000000923705' AND deleted_at IS NULL),
   '1');
 
+-- 11. The insert took the shared gate on its show, trial and class.
+SELECT pg_temp.expect('an entry insert holds the shared gate on its show, trial and class',
+  pg_temp.gate_mode('show', '00000000-0000-0000-0000-000000923100') || '|'
+  || pg_temp.gate_mode('trial', '00000000-0000-0000-0000-000000923200') || '|'
+  || pg_temp.gate_mode('class', '00000000-0000-0000-0000-000000923301'),
+  'ShareLock|ShareLock|ShareLock');
+
 -- ---------------------------------------------------------------------------
 -- 3. Secretary on-behalf: submit_show_entries, submission_source 'organizer',
 --    into K3 (its trial is deleted).
@@ -287,6 +315,22 @@ WHERE id = '00000000-0000-0000-0000-000000923601';
 SELECT pg_temp.expect('an ordinary update of a live entry still lands',
   (SELECT check_in_status || '|' || class_id::text FROM public.entries WHERE id = '00000000-0000-0000-0000-000000923601'),
   'checked-in|00000000-0000-0000-0000-000000923301');
+
+-- 11. A successful move-up holds the gate on its target class (taken before
+-- it locks the source; the order itself is a two-session property).
+SELECT pg_temp.expect('move_up_entry into a live class still works',
+  public.move_up_entry('00000000-0000-0000-0000-000000923601',
+    '00000000-0000-0000-0000-000000923310', '00000000-0000-0000-0000-000000923713', NULL)::text,
+  '00000000-0000-0000-0000-000000923713');
+SELECT pg_temp.expect('move_up_entry holds the shared gate on the target class',
+  pg_temp.gate_mode('class', '00000000-0000-0000-0000-000000923310'),
+  'ShareLock');
+
+-- 11. soft_delete_class takes the gate EXCLUSIVE on the class it deletes.
+SELECT public.soft_delete_class('00000000-0000-0000-0000-000000923309');
+SELECT pg_temp.expect('soft_delete_class holds the exclusive gate on its class',
+  pg_temp.gate_mode('class', '00000000-0000-0000-0000-000000923309'),
+  'ExclusiveLock');
 
 -- ---------------------------------------------------------------------------
 -- 7. restore_entry. The secretary deletes ER1 and ER2 (entries only), then
@@ -408,8 +452,10 @@ SELECT pg_temp.expect('replaced functions keep SECURITY DEFINER, empty search_pa
       'public.soft_delete_class(uuid, boolean)'::regprocedure,
       'public.soft_delete_trial(uuid, boolean)'::regprocedure,
       'public.restore_entry(uuid)'::regprocedure,
-      'public.restore_dog(uuid)'::regprocedure)),
-  'restore_dog:true:search_path="":postgres:true:false,'
+      'public.restore_dog(uuid)'::regprocedure,
+      'public.move_up_entry(uuid, uuid, uuid, text)'::regprocedure)),
+  'move_up_entry:true:search_path="":postgres:true:false,'
+  || 'restore_dog:true:search_path="":postgres:true:false,'
   || 'restore_entry:true:search_path="":postgres:true:false,'
   || 'soft_delete_class:true:search_path="":postgres:true:false,'
   || 'soft_delete_show:true:search_path="":postgres:true:false,'
@@ -418,6 +464,7 @@ SELECT pg_temp.expect('replaced functions keep SECURITY DEFINER, empty search_pa
 SELECT pg_temp.expect('the new private helpers are not executable by client roles',
   (SELECT bool_or(has_function_privilege(r.rolname, f.oid, 'EXECUTE'))::text
      FROM (VALUES ('private.entry_deleted_parent(uuid, uuid, uuid)'::regprocedure),
+                  ('private.entry_parent_gate(text, uuid, boolean)'::regprocedure),
                   ('private.entries_refuse_deleted_parent()'::regprocedure)) AS f(oid)
      CROSS JOIN (VALUES ('anon'), ('authenticated'), ('service_role')) AS r(rolname)),
   'false');

@@ -28,11 +28,14 @@ import type { RegistryId } from '@/features/registries';
 export interface MoveUpClassIdentity {
   element?: string | null | undefined;
   level?: string | null | undefined;
+  /** Replicated rows carry the trial as camelCase or snake_case; either counts. */
+  trialId?: string | null | undefined;
+  trial_id?: string | null | undefined;
 }
 
 /**
  * True when `candidate` is a valid move-up destination from `current`:
- * same element, strictly higher level within `registryId`'s level ladder.
+ * same trial, same element, strictly higher level within `registryId`'s level ladder.
  * Returns false when either class lacks a resolvable element/level (the
  * conservative choice — never validate a move we can't reason about).
  */
@@ -42,6 +45,13 @@ export function isEligibleMoveUpTarget(
   registryId: RegistryId = 'AKC'
 ): boolean {
   if (!current.element || !current.level) return false;
+  // A move-up never crosses trials (MYK9-920): a UKC show's two same-day trials
+  // offer the same element/level ladder, so a class in the other trial looks like
+  // a valid target but would silently move the dog to a different trial. Unknown
+  // on either side is refused, like every other unresolvable input here.
+  const currentTrialId = current.trialId ?? current.trial_id;
+  const candidateTrialId = candidate.trialId ?? candidate.trial_id;
+  if (!currentTrialId || !candidateTrialId || currentTrialId !== candidateTrialId) return false;
   if (!candidate.element || !candidate.level) return false;
   if (candidate.element !== current.element) return false;
   // Both levels must be recognized BY THIS REGISTRY. An unknown/custom level ranks

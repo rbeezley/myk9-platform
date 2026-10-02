@@ -5,7 +5,7 @@ import { getShowMapNodeId } from './showMapTree';
 import { ShowMapStructureTable } from './ShowMapStructureTable';
 import { useShowPresenceRoster } from '@/features/show-presence/showPresenceContext';
 import { ShowMapMoveUpDialog } from './ShowMapMoveUpDialog';
-import { buildMoveUpTargets } from './buildMoveUpTargets';
+import { useMoveUpTargets } from './useMoveUpTargets';
 import { getTrialRegistry } from '@/features/registries';
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
 import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
@@ -224,10 +224,11 @@ function ShowMapTabView({
   // A show's trials always share one registry (scoping §7) — resolve once from the
   // first trial so move-up recognizes UKC/ASCA-only levels (Superior/Elite, Open).
   const registryId = useMemo(() => getTrialRegistry(trials[0]).id, [trials]);
-  const moveUpTargets = useMemo(
-    () => buildMoveUpTargets(classes, moveUpAction?.classId, registryId),
-    [classes, moveUpAction?.classId, registryId]
-  );
+  const {
+    targets: moveUpTargets,
+    capacityState: moveUpCapacityState,
+    capacityIsStale: moveUpCapacityIsStale,
+  } = useMoveUpTargets(show.id, classes, moveUpAction?.classId, registryId);
   const moveUpCurrentClass = moveUpAction?.classId
     ? tree.nodesById[`class:${moveUpAction.classId}`]
     : undefined;
@@ -360,6 +361,8 @@ function ShowMapTabView({
             node={moveUpAction ? tree.nodesById[moveUpAction.nodeId] : undefined}
             currentClass={moveUpCurrentClass}
             targets={moveUpTargets}
+            capacityState={moveUpCapacityState}
+            capacityIsStale={moveUpCapacityIsStale}
             isSubmitting={isExecuting}
             onOpenChange={open => {
               if (!open) closeMoveUpDialog();

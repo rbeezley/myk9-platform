@@ -1,49 +1,73 @@
 import { describe, expect, it } from 'vitest';
-import { isEligibleMoveUpTarget } from './moveUpEligibility';
+import { isEligibleMoveUpTarget, type MoveUpClassIdentity } from './moveUpEligibility';
+import type { RegistryId } from '@/features/registries';
+
+/** Same-trial wrapper so the level/element cases below stay about level/element. */
+function eligible(
+  current: MoveUpClassIdentity,
+  candidate: MoveUpClassIdentity,
+  registryId?: RegistryId
+): boolean {
+  return isEligibleMoveUpTarget(
+    { trialId: 't1', ...current },
+    { trialId: 't1', ...candidate },
+    registryId
+  );
+}
+
+describe('isEligibleMoveUpTarget - trial scope (MYK9-920)', () => {
+  const novice = { element: 'Container', level: 'Novice' };
+  const advanced = { element: 'Container', level: 'Advanced' };
+
+  it('rejects a higher same-element class in a DIFFERENT trial', () => {
+    expect(
+      isEligibleMoveUpTarget({ ...novice, trialId: 't1' }, { ...advanced, trialId: 't2' })
+    ).toBe(false);
+  });
+
+  it('accepts the same class in the same trial, camelCase or snake_case', () => {
+    expect(
+      isEligibleMoveUpTarget({ ...novice, trialId: 't1' }, { ...advanced, trial_id: 't1' })
+    ).toBe(true);
+  });
+
+  it('rejects when either trial is unknown', () => {
+    expect(isEligibleMoveUpTarget(novice, { ...advanced, trialId: 't1' })).toBe(false);
+    expect(isEligibleMoveUpTarget({ ...novice, trialId: 't1' }, advanced)).toBe(false);
+  });
+});
 
 describe('isEligibleMoveUpTarget', () => {
   it('accepts a strictly higher level within the same element', () => {
     expect(
-      isEligibleMoveUpTarget(
+      eligible(
         { element: 'Container', level: 'Novice' },
         { element: 'Container', level: 'Advanced' }
       )
     ).toBe(true);
     expect(
-      isEligibleMoveUpTarget(
-        { element: 'Interior', level: 'Advanced' },
-        { element: 'Interior', level: 'Master' }
-      )
+      eligible({ element: 'Interior', level: 'Advanced' }, { element: 'Interior', level: 'Master' })
     ).toBe(true);
   });
 
   it('rejects an equal level', () => {
     expect(
-      isEligibleMoveUpTarget(
-        { element: 'Container', level: 'Novice' },
-        { element: 'Container', level: 'Novice' }
-      )
+      eligible({ element: 'Container', level: 'Novice' }, { element: 'Container', level: 'Novice' })
     ).toBe(false);
   });
 
   it('rejects a lower level', () => {
     expect(
-      isEligibleMoveUpTarget(
-        { element: 'Buried', level: 'Master' },
-        { element: 'Buried', level: 'Novice' }
-      )
+      eligible({ element: 'Buried', level: 'Master' }, { element: 'Buried', level: 'Novice' })
     ).toBe(false);
   });
 
   it('rejects a different element even at a higher level (the F3 bug)', () => {
     expect(
-      isEligibleMoveUpTarget(
-        { element: 'Buried', level: 'Master' },
-        { element: 'Container', level: 'Novice' }
-      )
+      eligible({ element: 'Buried', level: 'Master' }, { element: 'Container', level: 'Novice' })
     ).toBe(false);
     expect(
-      isEligibleMoveUpTarget(
+      eligible(
         { element: 'Container', level: 'Novice' },
         { element: 'Interior', level: 'Excellent' }
       )
@@ -53,13 +77,10 @@ describe('isEligibleMoveUpTarget', () => {
   it('rejects an unknown/custom candidate level even from a known lower level', () => {
     // 999-rank sentinel must not read as "higher" than Novice.
     expect(
-      isEligibleMoveUpTarget(
-        { element: 'Container', level: 'Novice' },
-        { element: 'Container', level: 'Open' }
-      )
+      eligible({ element: 'Container', level: 'Novice' }, { element: 'Container', level: 'Open' })
     ).toBe(false);
     expect(
-      isEligibleMoveUpTarget(
+      eligible(
         { element: 'Container', level: 'Novice' },
         { element: 'Container', level: 'Mastres' } // misspelling
       )
@@ -68,44 +89,32 @@ describe('isEligibleMoveUpTarget', () => {
 
   it('rejects when the current level is unknown', () => {
     expect(
-      isEligibleMoveUpTarget(
-        { element: 'Container', level: 'Open' },
-        { element: 'Container', level: 'Master' }
-      )
+      eligible({ element: 'Container', level: 'Open' }, { element: 'Container', level: 'Master' })
     ).toBe(false);
   });
 
   it("treats the 'Masters' plural alias as the canonical 'Master' level", () => {
     // Higher than Advanced → eligible.
     expect(
-      isEligibleMoveUpTarget(
+      eligible(
         { element: 'Interior', level: 'Advanced' },
         { element: 'Interior', level: 'Masters' }
       )
     ).toBe(true);
     // Equal to Master → not a move-up.
     expect(
-      isEligibleMoveUpTarget(
-        { element: 'Interior', level: 'Master' },
-        { element: 'Interior', level: 'Masters' }
-      )
+      eligible({ element: 'Interior', level: 'Master' }, { element: 'Interior', level: 'Masters' })
     ).toBe(false);
   });
 
   it('rejects when either class lacks an element or level', () => {
     expect(
-      isEligibleMoveUpTarget(
-        { element: null, level: 'Novice' },
-        { element: 'Container', level: 'Advanced' }
-      )
+      eligible({ element: null, level: 'Novice' }, { element: 'Container', level: 'Advanced' })
     ).toBe(false);
     expect(
-      isEligibleMoveUpTarget(
-        { element: 'Container', level: 'Novice' },
-        { element: 'Container', level: null }
-      )
+      eligible({ element: 'Container', level: 'Novice' }, { element: 'Container', level: null })
     ).toBe(false);
-    expect(isEligibleMoveUpTarget({}, {})).toBe(false);
+    expect(eligible({}, {})).toBe(false);
   });
 });
 
@@ -123,29 +132,26 @@ describe('isEligibleMoveUpTarget', () => {
 describe('isEligibleMoveUpTarget — registry-aware (Phase 5b)', () => {
   it('without a registry arg (AKC default), UKC/ASCA-only levels are still rejected as unknown', () => {
     expect(
-      isEligibleMoveUpTarget(
+      eligible(
         { element: 'Container', level: 'Advanced' },
         { element: 'Container', level: 'Superior' }
       )
     ).toBe(false);
     expect(
-      isEligibleMoveUpTarget(
-        { element: 'Container', level: 'Advanced' },
-        { element: 'Container', level: 'Open' }
-      )
+      eligible({ element: 'Container', level: 'Advanced' }, { element: 'Container', level: 'Open' })
     ).toBe(false);
   });
 
   it('recognizes UKC Superior/Elite when passed the UKC registry', () => {
     expect(
-      isEligibleMoveUpTarget(
+      eligible(
         { element: 'Container', level: 'Advanced' },
         { element: 'Container', level: 'Superior' },
         'UKC'
       )
     ).toBe(true);
     expect(
-      isEligibleMoveUpTarget(
+      eligible(
         { element: 'Container', level: 'Superior' },
         { element: 'Container', level: 'Elite' },
         'UKC'
@@ -153,7 +159,7 @@ describe('isEligibleMoveUpTarget — registry-aware (Phase 5b)', () => {
     ).toBe(true);
     // Still rejects AKC-only 'Detective' under UKC.
     expect(
-      isEligibleMoveUpTarget(
+      eligible(
         { element: 'Container', level: 'Advanced' },
         { element: 'Container', level: 'Detective' },
         'UKC'
@@ -163,14 +169,14 @@ describe('isEligibleMoveUpTarget — registry-aware (Phase 5b)', () => {
 
   it('recognizes ASCA Open as a higher level than Novice (Open is ASCA-only, unknown to AKC)', () => {
     expect(
-      isEligibleMoveUpTarget(
+      eligible(
         { element: 'Container', level: 'Novice' },
         { element: 'Container', level: 'Open' },
         'ASCA'
       )
     ).toBe(true);
     expect(
-      isEligibleMoveUpTarget(
+      eligible(
         { element: 'Container', level: 'Open' },
         { element: 'Container', level: 'Advanced' },
         'ASCA'
@@ -178,7 +184,7 @@ describe('isEligibleMoveUpTarget — registry-aware (Phase 5b)', () => {
     ).toBe(true);
     // Equal level (Open → Open) is not a move-up.
     expect(
-      isEligibleMoveUpTarget(
+      eligible(
         { element: 'Container', level: 'Open' },
         { element: 'Container', level: 'Open' },
         'ASCA'
@@ -193,7 +199,7 @@ describe('isEligibleMoveUpTarget — registry-aware (Phase 5b)', () => {
     // check against any Container/Interior/Exterior/Vehicle source regardless of
     // registry, and the missing level fails the element/level guard outright.
     expect(
-      isEligibleMoveUpTarget(
+      eligible(
         { element: 'Container', level: 'Excellent' },
         { element: 'Champion' }, // no level — matches the real generated shape
         'ASCA'

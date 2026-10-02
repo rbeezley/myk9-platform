@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { z } from 'zod';
 import { EditPanelWrapper } from './EditPanelWrapper';
+import { savedMessage } from './panelSaveErrors';
 import { useEditPanel } from './useEditPanel';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -570,6 +571,7 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
       enableAutoSave={enableAutoSave}
       saveLabel="Save Changes"
       cancelLabel="Cancel"
+      successMessage={savedMessage(trialName, 'Trial')}
       onValidationFail={handleValidationFail}
     >
       <TrialEditForm activeTab={activeTab} onTabChange={setActiveTab} />

@@ -7,21 +7,13 @@ import { cn } from '@/lib/utils';
 import { EditPanelContext, EditPanelContextValue } from './useEditPanel';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
-import { getErrorMessage } from '@myk9/core';
 import { useFormValidation, FormValidation } from '@/hooks/useFormValidation';
 import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { UnsavedChangesRouteGuard } from '@/components/navigation/UnsavedChangesRouteGuard';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { DiscardChangesDialog } from './DiscardChangesDialog';
+import { PanelSaveHandledError, offlineAwareMessage } from './panelSaveErrors';
+import { friendlySaveError } from '@/utils/friendlySaveError';
 
 export type EditPanelVariant = 'panel' | 'dialog';
 
@@ -72,43 +64,20 @@ export interface EditPanelWrapperProps<T = Record<string, unknown>> {
   // For create forms where hasChanges tracking doesn't apply
   forceHasChanges?: boolean;
 
+  /**
+   * The confirmation toast shown once the save succeeds: "‹Name› saved" after
+   * an edit, "‹Name› added" after a create (`savedMessage` / `addedMessage`).
+   * Owned here so every save path confirms the same way and callers do not
+   * fire their own. Omit only where the caller's toast carries a next-step
+   * action the wrapper cannot express (Add Dog).
+   */
+  successMessage?: string | ((data: T) => string);
+
   // Callbacks
   onDataChange?: (data: T, hasChanges: boolean) => void;
   onValidationChange?: (isValid: boolean, errors: string[]) => void;
   onAutoSave?: (data: T) => Promise<void> | void;
   onValidationFail?: (firstErrorField: string) => void;
-}
-
-function UnsavedChangesDialog({
-  open,
-  onOpenChange,
-  onDiscard,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onDiscard: () => void;
-}) {
-  return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Discard changes?</AlertDialogTitle>
-          <AlertDialogDescription>
-            You have unsaved changes. They will be lost if you close without saving.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Keep editing</AlertDialogCancel>
-          <AlertDialogAction
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            onClick={onDiscard}
-          >
-            Discard changes
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
 }
 
 // Dummy schema used when no schema is provided (satisfies rules of hooks).
@@ -138,6 +107,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   className,
   variant = 'panel',
   forceHasChanges = false,
+  successMessage,
   onDataChange,
   onValidationChange,
   onAutoSave,
@@ -162,15 +132,23 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   // forget to memoize initialData would otherwise wipe in-progress user edits
   // on every parent re-render — deep-equality guards against that. Legacy path
   // skips the stringify cost entirely.
+  // Edits outlive a changed baseline. A failed save can change `initialData`
+  // underneath the form (a caller's optimistic update, then its rollback), and
+  // resetting then would wipe what the user typed while the toast says "Your
+  // changes are still here". So initial data re-seeds the form only when the
+  // panel (re)opens or the form holds no edits of its own.
+  const wasOpenRef = useRef(open);
   const lastInitialDataJsonRef = useRef<string | null>(null);
   useEffect(() => {
     if (!useSchemaPath) return;
+    const reopened = open && !wasOpenRef.current;
     const nextJson = JSON.stringify(initialData);
-    if (nextJson === lastInitialDataJsonRef.current) return;
+    if (nextJson === lastInitialDataJsonRef.current && !reopened) return;
+    if (open && !reopened && form.hasChanges) return;
     lastInitialDataJsonRef.current = nextJson;
     form.reset(initialData);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialData, useSchemaPath]);
+  }, [initialData, useSchemaPath, open]);
 
   // --- Legacy path: useState owns state ---
   const [legacyData, setLegacyData] = useState<T>(initialData);
@@ -184,13 +162,19 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
 
   // Update legacy data when initialData changes
   useEffect(() => {
-    if (!useSchemaPath) {
-      setLegacyData(initialData);
-      setLegacyHasChanges(false);
-      setIsTouched(false);
-      setLastAutoSave(Date.now());
-    }
-  }, [initialData, useSchemaPath]);
+    if (useSchemaPath) return;
+    if (open && wasOpenRef.current && legacyHasChanges) return;
+    setLegacyData(initialData);
+    setLegacyHasChanges(false);
+    setIsTouched(false);
+    setLastAutoSave(Date.now());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialData, useSchemaPath, open]);
+
+  // Declared after both re-seed effects so they read the previous open state.
+  useEffect(() => {
+    wasOpenRef.current = open;
+  }, [open]);
 
   // Unified accessors
   const data = useSchemaPath ? form.data : legacyData;
@@ -317,23 +301,43 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     [onClose, runSelfNavigation]
   );
 
+  // One report for both save paths. A failed save keeps the form open and says
+  // so in friendly words; the raw error text goes to the log only (H1).
+  const reportSaveFailure = useCallback((error: unknown) => {
+    // A handled refusal is a UX path the panel already explained, not an error.
+    if (error instanceof PanelSaveHandledError) return;
+    logger.error('Save failed:', 'components', {}, error as Error);
+    const { title, description } = friendlySaveError(error);
+    notifications.error(title, { description });
+  }, []);
+
+  const confirmSaved = useCallback(
+    (saved: T) => {
+      if (successMessage === undefined) return;
+      notifications.success(
+        offlineAwareMessage(
+          typeof successMessage === 'function' ? successMessage(saved) : successMessage
+        )
+      );
+    },
+    [successMessage]
+  );
+
   // Handle save — schema path delegates to form.handleSubmit
   const wrappedSave = useCallback(
     async (validatedData: T) => {
       try {
         setIsLoading(true);
         await onSave(validatedData, { runSelfNavigation });
+        confirmSaved(validatedData);
         closeWithoutRouteGuard();
       } catch (error) {
-        logger.error('Save failed:', 'components', {}, error as Error);
-        notifications.error('Failed to save changes', {
-          description: getErrorMessage(error),
-        });
+        reportSaveFailure(error);
       } finally {
         setIsLoading(false);
       }
     },
-    [onSave, closeWithoutRouteGuard, runSelfNavigation]
+    [onSave, closeWithoutRouteGuard, runSelfNavigation, confirmSaved, reportSaveFailure]
   );
 
   const handleSave = useMemo(() => {
@@ -352,12 +356,10 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         setIsLoading(true);
         await onSave(legacyData, { runSelfNavigation });
         setLegacyHasChanges(false);
+        confirmSaved(legacyData);
         closeWithoutRouteGuard();
       } catch (error) {
-        logger.error('Save failed:', 'components', {}, error as Error);
-        notifications.error('Failed to save changes', {
-          description: getErrorMessage(error),
-        });
+        reportSaveFailure(error);
       } finally {
         setIsLoading(false);
       }
@@ -372,6 +374,8 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     closeWithoutRouteGuard,
     runSelfNavigation,
     onValidationFail,
+    confirmSaved,
+    reportSaveFailure,
   ]);
 
   const actionBarRef = useRegisterActionBar<HTMLDivElement>();
@@ -392,12 +396,15 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
 
   const handleClose = useCallback(() => {
     if (confirmedCloseRef.current) return;
+    // A save in flight may still fail, and closing now would drop the form it
+    // fails back to.
+    if (isLoading) return;
     if (hasChanges && showUnsavedWarning) {
       setShowUnsavedDialog(true);
       return;
     }
     closeWithoutRouteGuard();
-  }, [hasChanges, showUnsavedWarning, closeWithoutRouteGuard]);
+  }, [hasChanges, showUnsavedWarning, closeWithoutRouteGuard, isLoading]);
 
   const routeLeaveGuard = (
     <UnsavedChangesRouteGuard
@@ -539,7 +546,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
           </DialogContent>
         </Dialog>
 
-        <UnsavedChangesDialog
+        <DiscardChangesDialog
           open={showUnsavedDialog}
           onOpenChange={setShowUnsavedDialog}
           onDiscard={() => {
@@ -575,7 +582,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         </div>
       </SlideOverPanel>
 
-      <UnsavedChangesDialog
+      <DiscardChangesDialog
         open={showUnsavedDialog}
         onOpenChange={setShowUnsavedDialog}
         onDiscard={() => {

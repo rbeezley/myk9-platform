@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { EditPanelWrapper, type EditPanelSaveContext } from './EditPanelWrapper';
+import { addedMessage, savedMessage } from './panelSaveErrors';
 import { useEditPanel } from './useEditPanel';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -423,6 +424,10 @@ const ClubEditPanelSession: React.FC<ClubEditPanelProps> = ({
       enableAutoSave={enableAutoSave}
       saveLabel={mode === 'create' ? 'Add Club' : 'Save Changes'}
       cancelLabel="Cancel"
+      successMessage={data => {
+        const name = data.name || clubName;
+        return mode === 'create' ? addedMessage(name, 'Club') : savedMessage(name, 'Club');
+      }}
       onValidationFail={handleValidationFail}
       onDataChange={handleDataChange}
       saveVariant={nextIsPrimary ? 'outline' : 'default'}

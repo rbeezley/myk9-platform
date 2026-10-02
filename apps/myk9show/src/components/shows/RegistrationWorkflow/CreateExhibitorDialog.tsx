@@ -5,14 +5,18 @@ import { Input } from '@/components/ui/input';
 import { FormField } from '@/components/common/FormField';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { User as UserIcon, AlertTriangle, CheckCircle } from 'lucide-react';
+import { User as UserIcon, AlertTriangle } from 'lucide-react';
+import { CreateExhibitorDuplicates } from './CreateExhibitorDuplicates';
 import { User } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
 import { createUser } from '@/services/database/users';
 import { mapDatabaseToUser } from '@/services/mappers/userMappers';
 import { logger } from '@/services/LoggingService';
+import { notifications } from '@/lib/notifications';
+import { friendlySaveError } from '@/utils/friendlySaveError';
+import { addedMessage, offlineAwareMessage } from '@/components/panels/edit/panelSaveErrors';
+import { useDiscardPrompt } from '@/components/panels/edit/DiscardChangesDialog';
 import { useFormValidation } from '@/hooks/useFormValidation';
 import { commonValidations } from '@/lib/validation';
 import { useUserStore } from '@/store/userStore';
@@ -160,6 +164,11 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
     }
   };
 
+  const confirmAdded = (data: ExhibitorFormData) =>
+    notifications.success(
+      offlineAwareMessage(addedMessage(`${data.firstName} ${data.lastName}`.trim(), 'Person'))
+    );
+
   // Handle form submission
   const handleSubmit = form.handleSubmit(async (validatedData: ExhibitorFormData) => {
     setIsCreating(true);
@@ -198,6 +207,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
         onExhibitorCreated(newExhibitor, {
           pendingMutationIds,
         });
+        confirmAdded(validatedData);
         handleClose();
         return;
       }
@@ -214,7 +224,9 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
       });
 
       if (error || !data) {
-        throw new Error(error?.message || 'Unable to add person.');
+        // The original error, not a copy: its SQLSTATE is what tells a duplicate
+        // email from an outage.
+        throw error ?? new Error('Unable to add person.');
       }
 
       const newExhibitor: User = {
@@ -225,12 +237,13 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
       };
 
       onExhibitorCreated(newExhibitor);
+      confirmAdded(validatedData);
       handleClose();
     } catch (error) {
       logger.error('Error creating exhibitor:', 'shows', {}, error as Error);
-      setCreateError(
-        error instanceof Error ? error.message : 'We could not add that person. Please try again.'
-      );
+      // Friendly copy only: the raw message can carry database text (H1). The
+      // form stays open with everything the secretary typed.
+      setCreateError(friendlySaveError(error).description);
     } finally {
       setIsCreating(false);
     }
@@ -245,6 +258,15 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
     onOpenChange(false);
   };
 
+  // Cancel, Escape and the overlay all ask first when the form holds typed
+  // details (H15). Closing after a save or picking a duplicate calls
+  // handleClose directly: nothing is lost there.
+  const { requestClose, discardDialog } = useDiscardPrompt({
+    isDirty: form.hasChanges,
+    close: handleClose,
+    blocked: isCreating,
+  });
+
   // Handle selecting existing duplicate
   const handleSelectDuplicate = (candidate: PersonIdentityCandidate) => {
     onDuplicateSelected?.(candidate.person);
@@ -258,226 +280,168 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
   const phoneError = form.getError('phone');
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <UserIcon className="h-5 w-5" />
-            Add Person
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog
+        open={open}
+        onOpenChange={isOpen => {
+          if (isOpen) onOpenChange(true);
+          else requestClose();
+        }}
+      >
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <UserIcon className="h-5 w-5" />
+              Add Person
+            </DialogTitle>
+          </DialogHeader>
 
-        <Tabs
-          value={activeTab}
-          onValueChange={value => setActiveTab(value as 'create' | 'duplicates')}
-        >
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="create" className="flex items-center gap-2">
-              <UserIcon className="h-4 w-4" />
-              New Person
-            </TabsTrigger>
-            <TabsTrigger value="duplicates" className="flex items-center gap-2">
-              <AlertTriangle className="h-4 w-4" />
-              Possible Duplicates
-              {duplicates.length > 0 && (
-                <Badge variant="destructive" className="ml-1">
-                  {duplicates.length}
-                </Badge>
-              )}
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="create" className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormField label="First Name" fieldId="firstName" required error={firstNameError}>
-                <Input
-                  id="firstName"
-                  value={form.data.firstName}
-                  onChange={e => handleFieldChange('firstName', e.target.value)}
-                  placeholder="Enter first name"
-                  {...form.getFieldProps('firstName')}
-                />
-              </FormField>
-
-              <FormField label="Last Name" fieldId="lastName" required error={lastNameError}>
-                <Input
-                  id="lastName"
-                  value={form.data.lastName}
-                  onChange={e => handleFieldChange('lastName', e.target.value)}
-                  placeholder="Enter last name"
-                  {...form.getFieldProps('lastName')}
-                />
-              </FormField>
-            </div>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <FormField label="Email Address" fieldId="email" error={emailError}>
-                <Input
-                  id="email"
-                  type="email"
-                  value={form.data.email}
-                  onChange={e => handleFieldChange('email', e.target.value)}
-                  placeholder="Enter email address (optional)"
-                  {...form.getFieldProps('email')}
-                />
-              </FormField>
-
-              <FormField label="Phone Number" fieldId="phone" error={phoneError}>
-                <Input
-                  id="phone"
-                  value={form.data.phone}
-                  onChange={e => handleFieldChange('phone', e.target.value)}
-                  placeholder="Enter phone number (optional)"
-                  {...form.getFieldProps('phone')}
-                />
-              </FormField>
-            </div>
-
-            <FormField label="Street Address" fieldId="streetAddress">
-              <Input
-                id="streetAddress"
-                value={form.data.streetAddress}
-                onChange={e => handleFieldChange('streetAddress', e.target.value)}
-                placeholder="Enter street address"
-              />
-            </FormField>
-
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <FormField label="City" fieldId="city">
-                <Input
-                  id="city"
-                  value={form.data.city}
-                  onChange={e => handleFieldChange('city', e.target.value)}
-                  placeholder="Enter city"
-                />
-              </FormField>
-
-              <FormField label="State" fieldId="state">
-                <Input
-                  id="state"
-                  value={form.data.state}
-                  onChange={e => handleFieldChange('state', e.target.value)}
-                  placeholder="State"
-                />
-              </FormField>
-
-              <FormField label="ZIP Code" fieldId="zipCode">
-                <Input
-                  id="zipCode"
-                  value={form.data.zipCode}
-                  onChange={e => handleFieldChange('zipCode', e.target.value)}
-                  placeholder="ZIP"
-                />
-              </FormField>
-            </div>
-
-            {duplicates.length > 0 && (
-              <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  We found {duplicates.length} potential duplicate(s). Please check the "Possible
-                  Duplicates" tab to ensure you're not adding a duplicate person.
-                </AlertDescription>
-              </Alert>
-            )}
-
-            {createError && (
-              <Alert variant="destructive">
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>{createError}</AlertDescription>
-              </Alert>
-            )}
-          </TabsContent>
-
-          <TabsContent value="duplicates" className="space-y-4">
-            {duplicates.length === 0 ? (
-              <div className="text-center py-8 text-muted-foreground">
-                <CheckCircle className="h-12 w-12 mx-auto mb-2 text-green-500" />
-                <p>No potential duplicates found.</p>
-                <p className="text-sm">You can proceed with adding the new person.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  Found {duplicates.length} potential duplicate(s). Review these carefully:
-                </p>
-
-                {duplicates.map(candidate => (
-                  <div key={candidate.person.id} className="border rounded-lg p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <h4 className="font-semibold">
-                            {candidate.person.firstName} {candidate.person.lastName}
-                          </h4>
-                          <Badge variant={candidate.score >= 10 ? 'destructive' : 'secondary'}>
-                            Possible match
-                          </Badge>
-                        </div>
-
-                        <div className="space-y-1 text-sm text-muted-foreground">
-                          <p>Email: {candidate.person.email}</p>
-                          <p>Phone: {candidate.person.phone}</p>
-                          {candidate.person.streetAddress && (
-                            <p>
-                              Address: {candidate.person.streetAddress}, {candidate.person.city},{' '}
-                              {candidate.person.state} {candidate.person.zipCode}
-                            </p>
-                          )}
-                        </div>
-
-                        <div className="mt-2">
-                          <p className="text-xs text-muted-foreground mb-1">Match reasons:</p>
-                          <div className="flex flex-wrap gap-1">
-                            {candidate.reasons.map((reason, reasonIdx) => (
-                              <Badge key={reasonIdx} variant="outline" className="text-xs">
-                                {reason}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleSelectDuplicate(candidate)}
-                        className="ml-4"
-                      >
-                        Use This Person
-                      </Button>
-                    </div>
-                  </div>
-                ))}
-
-                <Separator />
-
-                <div className="text-center">
-                  <p className="text-sm text-muted-foreground mb-2">
-                    None of these match? Continue adding a new person.
-                  </p>
-                  <Button variant="outline" onClick={() => setActiveTab('create')}>
-                    Add Person Anyway
-                  </Button>
-                </div>
-              </div>
-            )}
-          </TabsContent>
-        </Tabs>
-
-        <div className="flex justify-end gap-3 pt-4 border-t">
-          <Button variant="outline" onClick={handleClose}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={isCreating || activeTab === 'duplicates'}
-            className="min-w-[100px]"
+          <Tabs
+            value={activeTab}
+            onValueChange={value => setActiveTab(value as 'create' | 'duplicates')}
           >
-            {isCreating ? 'Adding...' : 'Add Person'}
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="create" className="flex items-center gap-2">
+                <UserIcon className="h-4 w-4" />
+                New Person
+              </TabsTrigger>
+              <TabsTrigger value="duplicates" className="flex items-center gap-2">
+                <AlertTriangle className="h-4 w-4" />
+                Possible Duplicates
+                {duplicates.length > 0 && (
+                  <Badge variant="destructive" className="ml-1">
+                    {duplicates.length}
+                  </Badge>
+                )}
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="create" className="space-y-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField label="First Name" fieldId="firstName" required error={firstNameError}>
+                  <Input
+                    id="firstName"
+                    value={form.data.firstName}
+                    onChange={e => handleFieldChange('firstName', e.target.value)}
+                    placeholder="Enter first name"
+                    {...form.getFieldProps('firstName')}
+                  />
+                </FormField>
+
+                <FormField label="Last Name" fieldId="lastName" required error={lastNameError}>
+                  <Input
+                    id="lastName"
+                    value={form.data.lastName}
+                    onChange={e => handleFieldChange('lastName', e.target.value)}
+                    placeholder="Enter last name"
+                    {...form.getFieldProps('lastName')}
+                  />
+                </FormField>
+              </div>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <FormField label="Email Address" fieldId="email" error={emailError}>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={form.data.email}
+                    onChange={e => handleFieldChange('email', e.target.value)}
+                    placeholder="Enter email address (optional)"
+                    {...form.getFieldProps('email')}
+                  />
+                </FormField>
+
+                <FormField label="Phone Number" fieldId="phone" error={phoneError}>
+                  <Input
+                    id="phone"
+                    value={form.data.phone}
+                    onChange={e => handleFieldChange('phone', e.target.value)}
+                    placeholder="Enter phone number (optional)"
+                    {...form.getFieldProps('phone')}
+                  />
+                </FormField>
+              </div>
+
+              <FormField label="Street Address" fieldId="streetAddress">
+                <Input
+                  id="streetAddress"
+                  value={form.data.streetAddress}
+                  onChange={e => handleFieldChange('streetAddress', e.target.value)}
+                  placeholder="Enter street address"
+                />
+              </FormField>
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <FormField label="City" fieldId="city">
+                  <Input
+                    id="city"
+                    value={form.data.city}
+                    onChange={e => handleFieldChange('city', e.target.value)}
+                    placeholder="Enter city"
+                  />
+                </FormField>
+
+                <FormField label="State" fieldId="state">
+                  <Input
+                    id="state"
+                    value={form.data.state}
+                    onChange={e => handleFieldChange('state', e.target.value)}
+                    placeholder="State"
+                  />
+                </FormField>
+
+                <FormField label="ZIP Code" fieldId="zipCode">
+                  <Input
+                    id="zipCode"
+                    value={form.data.zipCode}
+                    onChange={e => handleFieldChange('zipCode', e.target.value)}
+                    placeholder="ZIP"
+                  />
+                </FormField>
+              </div>
+
+              {duplicates.length > 0 && (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    We found {duplicates.length} potential duplicate(s). Please check the "Possible
+                    Duplicates" tab to ensure you're not adding a duplicate person.
+                  </AlertDescription>
+                </Alert>
+              )}
+
+              {createError && (
+                <Alert variant="destructive">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>{createError}</AlertDescription>
+                </Alert>
+              )}
+            </TabsContent>
+
+            <TabsContent value="duplicates" className="space-y-4">
+              <CreateExhibitorDuplicates
+                duplicates={duplicates}
+                onSelect={handleSelectDuplicate}
+                onAddAnyway={() => setActiveTab('create')}
+              />
+            </TabsContent>
+          </Tabs>
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button variant="outline" onClick={requestClose} disabled={isCreating}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={isCreating || activeTab === 'duplicates'}
+              className="min-w-[100px]"
+            >
+              {isCreating ? 'Saving...' : 'Add Person'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+      {discardDialog}
+    </>
   );
 };

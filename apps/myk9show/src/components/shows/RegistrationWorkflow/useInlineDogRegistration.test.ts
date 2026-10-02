@@ -13,7 +13,7 @@ vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
 }));
 vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }));
 vi.mock('@/hooks/translateDogDbError', () => ({
-  translateDogDbError: (error: Error) => ({ message: error.message }),
+  dogSaveMessage: (error: Error) => error.message,
 }));
 
 import { toDogRegistrationInsert, useInlineDogRegistration } from './useInlineDogRegistration';

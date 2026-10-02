@@ -327,7 +327,9 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
               arrayLengthBefore: currentUpcomingShows.length,
               arrayLengthAfter: updatedClub.upcomingShows.length,
             });
-            clubStore.updateClub(updatedClub);
+            // Awaited: updateClub rejects on a failed write, and the catch below
+            // already reports a club that could not take the new show.
+            await clubStore.updateClub(updatedClub);
 
             // Verify the update worked
             setTimeout(() => {

@@ -157,7 +157,7 @@ describe('UserDetailsView edit save', () => {
     // and it is the same branch that skips closing the panel.
     await waitFor(() =>
       expect(notifyError).toHaveBeenCalledWith(
-        'Failed to save changes',
+        "Couldn't save your changes",
         expect.objectContaining({ description: expect.stringMatching(/only a site admin/i) })
       )
     );
@@ -190,7 +190,7 @@ describe('UserDetailsView edit save', () => {
         updates: expect.objectContaining({ phone: NEW_PHONE }),
       })
     );
-    expect(notifySuccess).toHaveBeenCalledWith('Person updated');
+    expect(notifySuccess).toHaveBeenCalledWith('Mail In saved');
     expect(notifyError).not.toHaveBeenCalled();
     expect(screen.getByText(NEW_PHONE)).toBeInTheDocument();
   });

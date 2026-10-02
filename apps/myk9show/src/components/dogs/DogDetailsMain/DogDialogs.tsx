@@ -114,7 +114,6 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
                   // Show success celebration
                   startCelebration(`${dog.callName} updated!`);
 
-                  toast.success('Changes saved successfully');
                   onSetIsEditPanelOpen(false);
                 } else {
                   throw new Error('No data returned from update');
@@ -127,9 +126,10 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
               logger.error('Failed to save dog data', 'dogs', { dogId: dog.id }, error as Error);
               // Revert optimistic update
               onSetUpdatedDog(previousDog);
-              // Show error to user
-              toast.error('Failed to save changes. Please try again.');
-              // Keep panel open so user can retry
+              // Reject so EditPanelWrapper keeps the panel open with the user's
+              // edits and reports the failure; resolving here would close it and
+              // announce a save that did not happen.
+              throw error;
             }
           }}
           enableAutoSave={false}

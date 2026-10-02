@@ -1,3 +1,5 @@
+import { friendlySaveError } from '@/utils/friendlySaveError';
+import { notifications } from '@/lib/notifications';
 import type { ShowPasscodes } from '@myk9/core';
 /**
  * Distinguishes "the show was not created" from "the show WAS created but its
@@ -95,4 +97,18 @@ export function completePartialShowSave(
   }
 
   ctx.navigate(`/shows/${error.showId}`);
+}
+
+/**
+ * Toast for a show save that failed outright (H1). The wizard keeps the
+ * secretary's entries, so the copy says so and shows an authored message when
+ * there is one.
+ */
+export function showSaveFailureFeedback(error: unknown): { title: string; description: string } {
+  return friendlySaveError(error);
+}
+
+export function reportShowSaveFailure(error: unknown): void {
+  const { title, description } = showSaveFailureFeedback(error);
+  notifications.error(title, { description });
 }

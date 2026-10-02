@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { EditPanelWrapper } from './EditPanelWrapper';
+import { addedMessage, savedMessage } from './panelSaveErrors';
 import { useEditPanel } from './useEditPanel';
 import { JudgeQualificationPanel } from './JudgeQualificationPanel';
 import { Button } from '@/components/ui/button';
@@ -349,6 +350,10 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
       enableAutoSave={enableAutoSave}
       saveLabel={isCreateMode ? 'Add Person' : 'Save Changes'}
       cancelLabel="Cancel"
+      successMessage={data => {
+        const name = `${data.firstName} ${data.lastName}`.trim() || userName;
+        return isCreateMode ? addedMessage(name, 'Person') : savedMessage(name, 'Person');
+      }}
     >
       <UserEditForm userId={userId} />
     </EditPanelWrapper>

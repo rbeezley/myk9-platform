@@ -13,7 +13,8 @@ import type { Dog } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
-import { getErrorMessage } from '@myk9/core';
+import { friendlySaveMessage } from '@/utils/friendlySaveError';
+import { PanelSaveHandledError } from '../panelSaveErrors';
 import type { AddDogPanelProps, DogFormData } from './types';
 import { createInitialFormData } from './types';
 import { addDogSchema, isTabValid } from './validation';
@@ -45,13 +46,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   offlineDependsOn,
   onEnterShowWithDog,
 }) => {
-  const {
-    addDog,
-    addDogOfflineFirst,
-    dogs,
-    isLoading: isSaving,
-    error: saveError,
-  } = useDogStoreCompat();
+  const { addDog, addDogOfflineFirst, dogs, error: saveError } = useDogStoreCompat();
   const [localSaveError, setLocalSaveError] = useState<string | null>(null);
   const [duplicateCandidate, setDuplicateCandidate] = useState<DogIdentityCandidate | null>(null);
   const [allowSeparateDog, setAllowSeparateDog] = useState(false);
@@ -97,7 +92,9 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
 
       if (candidate) {
         setDuplicateCandidate(candidate);
-        throw new Error('This looks like a dog already in myK9. Review the match before saving.');
+        // The duplicate card in the panel body already explains this; the wrapper
+        // keeps the form open without a failure toast (M18).
+        throw new PanelSaveHandledError();
       }
     }
 
@@ -141,7 +138,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
           )
         : await addDog(dogInput);
     } catch (error) {
-      setLocalSaveError(getErrorMessage(error));
+      setLocalSaveError(friendlySaveMessage(error));
       throw error;
     }
     // 4.E: a durable "Dog saved" confirmation. The panel used to just close
@@ -198,7 +195,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
       onSave={handleSave}
       forceHasChanges
       size="xl"
-      saveLabel={isSaving ? 'Adding...' : 'Add Dog'}
+      saveLabel="Add Dog"
       enableAutoSave={false}
       showUnsavedWarning={true}
       variant={variant}

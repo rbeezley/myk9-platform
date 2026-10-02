@@ -9,6 +9,7 @@ import { Club } from '@/types/club-types';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { getErrorMessage } from '@myk9/core';
+import { friendlySaveError } from '@/utils/friendlySaveError';
 import { uploadClubCover, deleteImage } from '@/services/imageUploadService';
 import { getActiveClubMembers, getClubMembers } from '@/services/database/club-memberships/members';
 import { canCreateShowForClub, computeClubPermissions, hasClubAdminScope } from './clubPermissions';
@@ -207,12 +208,11 @@ export function useClubDetailsState(selectedClub: Club | null) {
       try {
         await updateClub(updatedClub);
         setShowEditPanel(false);
-        notifications.success('Club updated successfully');
       } catch (error) {
         logger.error('Failed to save club', 'clubs', { clubId: selectedClub.id }, error as Error);
-        notifications.error('Failed to save club', {
-          description: getErrorMessage(error),
-        });
+        // EditPanelWrapper keeps the panel open and reports the failure only
+        // when this rejects; swallowing it would close the panel on a failed save.
+        throw error;
       }
     },
     [selectedClub, updateClub]
@@ -270,7 +270,17 @@ export function useClubDetailsState(selectedClub: Club | null) {
           ...selectedClub,
           logo: savedImage,
         };
-        await updateClub(updatedClub);
+        try {
+          await updateClub(updatedClub);
+        } catch (error) {
+          // The dialog stays open with the chosen image; a rejection reaching
+          // the dialog's click handler would be unhandled.
+          logger.error('Logo save failed', 'clubs', { clubId: selectedClub.id }, error as Error);
+          notifications.error("Couldn't save the logo", {
+            description: friendlySaveError(error).description,
+          });
+          return;
+        }
         setPreviewImage(null);
         setShowPhotoDialog(false);
       }

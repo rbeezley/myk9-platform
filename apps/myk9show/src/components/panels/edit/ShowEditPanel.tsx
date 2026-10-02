@@ -3,6 +3,7 @@ import { Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { z } from 'zod';
 import { EditPanelWrapper } from './EditPanelWrapper';
+import { savedMessage } from './panelSaveErrors';
 import type { ShowEditPanelProps, ShowEditFormData } from './ShowEditPanel.types';
 import { showToFormData, formDataToShowSaveData } from './ShowEditPanel.helpers';
 import { showSchemas } from '@/lib/validation';
@@ -66,6 +67,7 @@ export const ShowEditPanel: React.FC<ShowEditPanelProps> = ({
       enableAutoSave={enableAutoSave}
       saveLabel="Save Changes"
       cancelLabel="Cancel"
+      successMessage={data => savedMessage(data.name || showName)}
     >
       {/* Advisory heads-up if another staff member already has this show open. */}
       <EditingBadge entityType="show" entityId={showId} className="mb-3" />

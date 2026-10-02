@@ -309,7 +309,7 @@ test.describe('Clubs UI — Detail Page (Club A)', () => {
 
     await page.getByRole('button', { name: 'Save Changes' }).click();
     await updateResponsePromise;
-    await expect(page.getByText('Club updated successfully')).toBeVisible();
+    await expect(page.getByText(`${CLUB_A_NAME} saved`, { exact: true })).toHaveCount(1);
 
     await page.reload({ waitUntil: 'networkidle' });
     await page.getByRole('tab', { name: /About/i }).click();

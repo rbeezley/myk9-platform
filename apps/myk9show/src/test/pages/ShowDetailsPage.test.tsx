@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ShowDetailsPage from '@/pages/ShowDetailsPage';
 import { ShowWorkbenchSetupPage } from '@/pages/secretary/ShowWorkbenchSetupPage';
 import type { GeneratedPremium } from '@/types/premium-types';
+import { friendlySaveError } from '@/utils/friendlySaveError';
 
 const publishExperienceMock = vi.hoisted(() => vi.fn());
 const runPremiumPublishOperationMock = vi.hoisted(() => vi.fn());
@@ -1137,7 +1138,7 @@ describe('ShowDetailsPage', () => {
     expect(screen.getByTestId('detail-hero')).toBeInTheDocument();
   });
 
-  it('shows success feedback after saving show edits', async () => {
+  it('leaves the saved toast to the edit panel so a save confirms once', async () => {
     const user = userEvent.setup();
     mockAuthContext.isSecretary = true;
     showEditPanelMock.impl = ({ onSave }) => (
@@ -1162,9 +1163,14 @@ describe('ShowDetailsPage', () => {
 
     await user.click(screen.getByRole('button', { name: /save mocked edit panel/i }));
 
-    await waitFor(() => {
-      expect(notificationsSuccessMock).toHaveBeenCalledWith('Show changes saved');
-    });
+    // The toast is EditPanelWrapper's now (see ShowEditPanel.saveToast.test);
+    // the page firing its own would confirm every save twice.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: /save mocked edit panel/i })).toBeEnabled()
+    );
+    expect(notificationsSuccessMock).not.toHaveBeenCalledWith(
+      expect.stringMatching(/saved|updated/i)
+    );
   });
 
   it('keeps the acknowledged preview local without rewriting cold-query readers', async () => {
@@ -1351,9 +1357,9 @@ describe('ShowDetailsPage', () => {
             publishExperience: true,
             generatedPremium: makeGeneratedPremium('heritage'),
           }).catch(error => {
-            notificationsErrorMock('Failed to save changes', {
-              description: error instanceof Error ? error.message : String(error),
-            });
+            // What EditPanelWrapper reports for a rejected onSave.
+            const { title, description } = friendlySaveError(error);
+            notificationsErrorMock(title, { description });
           });
         }}
       >
@@ -1366,8 +1372,9 @@ describe('ShowDetailsPage', () => {
     await user.click(screen.getByRole('button', { name: /save mocked edit panel/i }));
 
     await waitFor(() => {
-      expect(notificationsErrorMock).toHaveBeenCalledWith('Failed to save changes', {
-        description: "Set this show's organization to AKC or UKC in Show settings, then try again.",
+      expect(notificationsErrorMock).toHaveBeenCalledWith("Couldn't save your changes", {
+        description:
+          "Set this show's organization to AKC or UKC in Show settings, then try again. Your changes are still here.",
       });
     });
     expect(screen.getByRole('button', { name: /save mocked edit panel/i })).toBeInTheDocument();

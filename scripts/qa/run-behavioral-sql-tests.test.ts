@@ -125,6 +125,7 @@ const launchCriticalSqlTests = [
   'crud_standard_delete_preview_test.sql',
   'myk9_921_show_managed_person_deleted_by_test.sql',
   'myk9_934_person_delete_self_or_admin_test.sql',
+  'myk9_946_create_dog_ownership_test.sql',
   'myk9_923_entries_refuse_deleted_parent_test.sql',
   'myk9_822_blocking_entries_rpc_test.sql',
   'show_email_delivery_history_test.sql',

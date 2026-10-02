@@ -132,6 +132,7 @@ TEST_FILES=(
   "$TEST_DIR/crud_standard_delete_preview_test.sql"
   "$TEST_DIR/myk9_921_show_managed_person_deleted_by_test.sql"
   "$TEST_DIR/myk9_934_person_delete_self_or_admin_test.sql"
+  "$TEST_DIR/myk9_946_create_dog_ownership_test.sql"
   "$TEST_DIR/myk9_923_entries_refuse_deleted_parent_test.sql"
   "$TEST_DIR/myk9_822_blocking_entries_rpc_test.sql"
   "$TEST_DIR/user_roles_show_manager_read_test.sql"

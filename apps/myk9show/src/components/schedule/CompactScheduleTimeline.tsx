@@ -11,6 +11,8 @@ import { useScheduleTimeline } from '@/hooks/queries/useScheduleTimeline';
 import { cn } from '@/lib/utils';
 import { countLabel } from '@/utils/pluralize';
 import { getSetupClassesHref } from '@/pages/secretary/showSetupSections';
+import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
+import { ClassEntryBreakdownLine } from './ClassEntryBreakdownLine';
 import { ClassStartTimeEditor } from './ClassStartTimeEditor';
 import { AddTrialLink, TrialManagerLinks } from './CompactScheduleManagerLinks';
 import { formatStartTime } from './schedule-timeline.utils';
@@ -22,7 +24,11 @@ const MAX_VISIBLE_CLASSES_PER_TRIAL = 6;
 interface CompactScheduleTimelineProps {
   showId: string;
   canEditSchedule?: boolean | undefined;
+  /** Manager-only and only once entries loaded; absent means show the plain entry count. */
+  entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
 }
+
+const NO_ENTRIES: ClassEntryBreakdown = { entered: 0, pending: 0 };
 
 interface CompactClassRow extends LevelDetail {
   element: string;
@@ -55,12 +61,14 @@ function CompactClassRowView({
   trialId,
   trialLevels,
   canEditSchedule,
+  breakdown,
 }: {
   row: CompactClassRow;
   showId: string;
   trialId: string;
   trialLevels: readonly LevelDetail[];
   canEditSchedule: boolean;
+  breakdown: ClassEntryBreakdown | undefined;
 }) {
   const classHref = getShowMapClassHref(showId, trialId, row.classId);
   const timeLabel = formatStartTime(row.startTime) ?? <NotSet />;
@@ -68,34 +76,43 @@ function CompactClassRowView({
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border bg-card px-3 py-2.5 sm:flex-row sm:items-center sm:gap-4">
-      <Link
-        to={classHref}
-        aria-label={`Open ${row.className}`}
-        className="min-w-0 flex-1 rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="font-medium text-card-foreground">{row.className}</span>
-          <StatusBadge
-            family="class"
-            status={row.status}
-            variant="outline"
-            className="px-1.5 py-0.5 text-xs"
+      <div className="min-w-0 flex-1">
+        <Link
+          to={classHref}
+          aria-label={`Open ${row.className}`}
+          className="block rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-medium text-card-foreground">{row.className}</span>
+            <StatusBadge
+              family="class"
+              status={row.status}
+              variant="outline"
+              className="px-1.5 py-0.5 text-xs"
+            />
+          </div>
+          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+            <span className="inline-flex items-center gap-1">
+              <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
+              {canEditSchedule ? 'Scheduled' : timeLabel}
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <UserRound className="h-3.5 w-3.5" aria-hidden="true" />
+              {judgeLabel}
+            </span>
+            {!breakdown && <span>{countLabel(row.entryCount, 'entry', 'entries')}</span>}
+          </div>
+        </Link>
+        {breakdown && (
+          <ClassEntryBreakdownLine
+            breakdown={breakdown}
+            showId={showId}
+            trialId={trialId}
+            classId={row.classId}
+            className={row.className}
           />
-        </div>
-        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
-          <span className="inline-flex items-center gap-1">
-            <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
-            {canEditSchedule ? 'Scheduled' : timeLabel}
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <UserRound className="h-3.5 w-3.5" aria-hidden="true" />
-            {judgeLabel}
-          </span>
-          <span>
-            {row.entryCount} {row.entryCount === 1 ? 'entry' : 'entries'}
-          </span>
-        </div>
-      </Link>
+        )}
+      </div>
 
       {canEditSchedule ? (
         <ClassStartTimeEditor
@@ -124,12 +141,14 @@ function CompactTrialGroup({
   showId,
   canEditSchedule,
   defaultOpen,
+  entryBreakdownByClassId,
 }: {
   day: DayTimelineData;
   trial: TrialTimelineData;
   showId: string;
   canEditSchedule: boolean;
   defaultOpen: boolean;
+  entryBreakdownByClassId: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const rows = useMemo(() => flattenTrialClasses(trial), [trial]);
@@ -139,7 +158,13 @@ function CompactTrialGroup({
   const trialLevels = trial.elements.flatMap(element => element.levels);
   const label = trialLabel(trial);
   const classCount = countLabel(rows.length, 'class', 'classes');
-  const entryTotal = rows.reduce((sum, row) => sum + row.entryCount, 0);
+  const breakdownFor = (classId: string) =>
+    entryBreakdownByClassId ? (entryBreakdownByClassId.get(classId) ?? NO_ENTRIES) : undefined;
+  // With a breakdown, the total is the rows' entered + pending, so the header and rows agree.
+  const entryTotal = rows.reduce((sum, row) => {
+    const breakdown = breakdownFor(row.classId);
+    return sum + (breakdown ? breakdown.entered + breakdown.pending : row.entryCount);
+  }, 0);
   const trialCountLabel = canEditSchedule
     ? `${classCount} · ${countLabel(entryTotal, 'entry', 'entries')}`
     : classCount;
@@ -183,6 +208,7 @@ function CompactTrialGroup({
                 trialId={trial.trialId}
                 trialLevels={trialLevels}
                 canEditSchedule={canEditSchedule}
+                breakdown={breakdownFor(row.classId)}
               />
             ))}
             {hiddenCount > 0 && (
@@ -218,6 +244,7 @@ function CompactTrialGroup({
 export function CompactScheduleTimeline({
   showId,
   canEditSchedule = false,
+  entryBreakdownByClassId,
 }: CompactScheduleTimelineProps) {
   const { data, isLoading, error, refetch } = useScheduleTimeline(showId);
   const trialCount = data?.reduce((count, day) => count + day.trials.length, 0) ?? 0;
@@ -290,6 +317,7 @@ export function CompactScheduleTimeline({
               showId={showId}
               canEditSchedule={canEditSchedule}
               defaultOpen={trialCount === 1 || index === 0}
+              entryBreakdownByClassId={entryBreakdownByClassId}
             />
           ))
         )}

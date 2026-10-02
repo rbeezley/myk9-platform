@@ -2,6 +2,7 @@ import { useScheduleTimeline } from '@/hooks/queries/useScheduleTimeline';
 import { Card } from '@/components/ui/card';
 import { DaySection } from './DaySection';
 import { CompactScheduleTimeline } from './CompactScheduleTimeline';
+import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 
 // Reserve vertical space while the schedule query is in flight so the rest
 // of the show detail page (the panels rendered below it) doesn't get pushed
@@ -18,15 +19,24 @@ interface ScheduleTimelineProps {
   canEditSchedule?: boolean | undefined;
   /** Uses the compact audience-facing Overview projection. */
   compact?: boolean | undefined;
+  /** Compact only: manager entry counts per class. */
+  entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
 }
 
 export function ScheduleTimeline({
   showId,
   canEditSchedule = false,
   compact = false,
+  entryBreakdownByClassId,
 }: ScheduleTimelineProps) {
   if (compact) {
-    return <CompactScheduleTimeline showId={showId} canEditSchedule={canEditSchedule} />;
+    return (
+      <CompactScheduleTimeline
+        showId={showId}
+        canEditSchedule={canEditSchedule}
+        entryBreakdownByClassId={entryBreakdownByClassId}
+      />
+    );
   }
 
   return <FullScheduleTimeline showId={showId} canEditSchedule={canEditSchedule} />;

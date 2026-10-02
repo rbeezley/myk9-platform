@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Outlet, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ import { type ShowDetailTabsProps } from '@/components/shows/ShowDetails/ShowDet
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { TabsContent } from '@/components/ui/tabs';
 import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
+import { buildClassEntryBreakdowns } from '@/features/entry-operations/classEntryBreakdown';
 import { getShowStyle } from '@/features/registries';
 import {
   premiumPublishDraftKey,
@@ -201,6 +202,13 @@ function AuthorizedShowManagementShell({
     showId: show.id,
   });
   const entryDataUnavailable = entryDataState !== 'ready';
+  const entryBreakdownByClassId = useMemo(
+    () =>
+      canManageShow && !entryDataUnavailable
+        ? buildClassEntryBreakdowns(tabs.mapEntries)
+        : undefined,
+    [canManageShow, entryDataUnavailable, tabs.mapEntries]
+  );
   const isShowDesk = activeManagementSection === 'show-day';
   // The retired Class Management URL (`classes/:trialId`) redirects into Setup → Classes, so
   // it keeps Setup lit for the frame it renders rather than lighting nothing.
@@ -346,6 +354,7 @@ function AuthorizedShowManagementShell({
                   canManageShow={canManageShow}
                   judges={tabs.judges}
                   classes={tabs.classes}
+                  entryBreakdownByClassId={entryBreakdownByClassId}
                   onViewClasses={() => navigate(`${canonicalShowHref}/setup?section=classes`)}
                 />
               )}

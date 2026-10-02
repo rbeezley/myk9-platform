@@ -32,6 +32,7 @@ import { DataTablePagination } from './data-table-pagination';
 import { type DataTableColumnMeta, getColumnLayoutClasses } from './types';
 import { DataTableToolbar } from './data-table-toolbar';
 import { DataTableSearch } from './data-table-search';
+import { matchesListSearch } from './listSearch';
 
 export type { ColumnDef } from '@tanstack/react-table';
 export { DataTableColumnHeader } from './data-table-column-header';
@@ -45,6 +46,7 @@ export type {
 } from './types';
 export { DataTableToolbar, useDataTableContext } from './data-table-toolbar';
 export { DataTableSearch } from './data-table-search';
+export { filterByListSearch, matchesListSearch } from './listSearch';
 export { EditableCell } from './data-table-editable-cell';
 export type { EditableCellProps } from './data-table-editable-cell';
 export { TimeInput } from './data-table-time-input';
@@ -280,7 +282,9 @@ export function DataTable<TData>({
     ...(manualSorting ? {} : { getSortedRowModel: getSortedRowModel() }),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    globalFilterFn: 'includesString',
+    // The shared list search, read from these columns: what a column shows finds its row.
+    globalFilterFn: (row, _columnId, query) =>
+      matchesListSearch(row.original, allColumns, String(query ?? '')),
   });
 
   useRevealRow(table, revealRow, onRowRevealed);

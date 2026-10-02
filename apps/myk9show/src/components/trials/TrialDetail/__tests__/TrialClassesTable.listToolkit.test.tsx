@@ -129,4 +129,33 @@ describe('TrialClassesTable list toolkit', () => {
     expect(screen.getByText('Containers')).toBeInTheDocument();
     expect(screen.queryByText('Interior')).not.toBeInTheDocument();
   });
+
+  describe('search finds a class by every value its columns show', () => {
+    const base = (id: string, element: string): TrialClass => ({
+      ...make(id, element),
+      level: id === 'c1' ? 'Novice' : 'Open',
+      section: id === 'c1' ? 'A' : 'B',
+      judgeName: id === 'c1' ? 'Jane Judge' : 'Joe Judge',
+      status: id === 'c1' ? 'Scheduled' : 'Completed',
+      startTime: id === 'c1' ? '2026-06-15T09:00:00' : '2026-06-15T13:30:00',
+      entries: id === 'c1' ? 4 : 11,
+    });
+    const rows = [base('c1', 'Containers'), base('c2', 'Interior')];
+    const cases: Array<[string, string, string]> = [
+      ['element', 'Containers', 'Containers'],
+      ['level and section', 'Novice A', 'Containers'],
+      ['judge', 'Joe Judge', 'Interior'],
+      ['status', 'Completed', 'Interior'],
+      ['status (not started)', 'Not started', 'Containers'],
+      ['start time as shown', '1:30 PM', 'Interior'],
+      ['entry count', '11', 'Interior'],
+    ];
+    it.each(cases)('%s', async (_label, query, expected) => {
+      localStorage.setItem('view-pref-trial-classes', 'table');
+      const { user } = renderTable({ classes: rows });
+      await user.type(screen.getByPlaceholderText('Search classes...'), query);
+      expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 2 classes.');
+      expect(screen.getByText(expected)).toBeInTheDocument();
+    });
+  });
 });

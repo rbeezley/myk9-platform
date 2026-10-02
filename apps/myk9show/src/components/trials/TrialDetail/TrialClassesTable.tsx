@@ -3,7 +3,11 @@ import ClassRowActionsMenu from '@/components/classes/ClassRowActionsMenu';
 import { useNavigate } from 'react-router-dom';
 import { TrialClass } from '../types/trial.types';
 import { type ColumnDef, type SortingFn } from '@tanstack/react-table';
-import { DataTable, type DataTableColumnMeta } from '@/components/ui/data-table';
+import {
+  DataTable,
+  filterByListSearch,
+  type DataTableColumnMeta,
+} from '@/components/ui/data-table';
 import { Layers, Plus } from 'lucide-react';
 import {
   ListEmptyState,
@@ -15,11 +19,21 @@ import { useViewPreference } from '@/hooks/useViewPreference';
 import { defaultListView } from '@/utils/defaultListView';
 import { getClassDetailHref } from '@/utils/classDetailHref';
 import { TrialClassesCards } from './TrialClassesCards';
-import { StatusBadge } from '@/components/status';
+import { StatusBadge, getStatusDescriptor } from '@/components/status';
 import { shouldShowLevel, shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
 import { compareLevels } from '@/utils/schedule-summary';
 
 const CLASS_NOUN = ['class', 'classes'] as const;
+
+function formatStartTime(startTime: string | undefined): string {
+  return startTime
+    ? new Date(String(startTime)).toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true,
+      })
+    : 'TBD';
+}
 
 // The canonical progression (`compareLevels`, `@/utils/schedule-summary`) is
 // the same one the show wizard and `ClassesTab` use — an ad-hoc table here
@@ -54,24 +68,7 @@ export const TrialClassesTable = ({
   // Staff open on the table, a visitor on cards; her own choice is remembered (decision 8).
   const [viewMode, setViewMode] = useViewPreference('trial-classes', defaultListView(canManage));
   const [search, setSearch] = useState('');
-  const searchText = search.trim().toLowerCase();
-  const visibleClasses = useMemo(
-    () =>
-      searchText === ''
-        ? classes
-        : classes.filter(cls =>
-            [
-              cls.element,
-              cls.level,
-              cls.section,
-              // The level and section as the table shows them ("Novice A").
-              `${cls.level} ${cls.section}`,
-              cls.judgeName ?? '',
-              cls.name ?? '',
-            ].some(text => text.toLowerCase().includes(searchText))
-          ),
-    [classes, searchText]
-  );
+  const searchText = search.trim();
   const openClass = (classId: string) =>
     startTransition(() => navigate(getClassDetailHref(showId, trialId ?? '', classId)));
   // Only staff may add classes — gate the handler at the source so the
@@ -110,14 +107,9 @@ export const TrialClassesTable = ({
         accessorKey: 'startTime',
         header: 'Start Time',
         sortingFn: 'datetime',
-        cell: ({ row }) =>
-          row.original.startTime
-            ? new Date(String(row.original.startTime)).toLocaleTimeString('en-US', {
-                hour: 'numeric',
-                minute: '2-digit',
-                hour12: true,
-              })
-            : 'TBD',
+        // Shown as "9:00 AM", so that is findable as well as the stored timestamp.
+        meta: { searchValue: (row: unknown) => formatStartTime((row as TrialClass).startTime) },
+        cell: ({ row }) => formatStartTime(row.original.startTime),
       },
       {
         accessorKey: 'entries',
@@ -149,6 +141,11 @@ export const TrialClassesTable = ({
       {
         accessorKey: 'status',
         header: 'Status',
+        // Shown as "Not started" for a stored "Scheduled".
+        meta: {
+          searchValue: (row: unknown) =>
+            getStatusDescriptor('class', (row as TrialClass).status).label,
+        },
         cell: ({ row }) => (
           <StatusBadge
             family="class"
@@ -188,6 +185,12 @@ export const TrialClassesTable = ({
         : []),
     ],
     [canManage, onEditClass, onDeleteClass, showId, trialId, navigate]
+  );
+
+  // The one search, read from the columns the table renders (so it finds what the table shows).
+  const visibleClasses = useMemo(
+    () => filterByListSearch(classes, columns, searchText),
+    [classes, columns, searchText]
   );
 
   if (classes.length === 0) {

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { StatusBadge } from '@/components/status';
+import { StatusBadge, getStatusDescriptor } from '@/components/status';
 import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
 import { compareLevels } from '@/utils/schedule-summary';
 import type { ColumnDef } from '@/components/ui/data-table';
@@ -51,6 +51,10 @@ export function buildClassesTabColumns({
     {
       accessorKey: 'element',
       header: 'Element',
+      // The "My entry" badge is shown beside the element.
+      meta: {
+        searchValue: (row: unknown) => ((row as ClassTableRow).userHasEntry ? 'My entry' : ''),
+      },
       cell: ({ row }) => (
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <span>{row.original.element}</span>
@@ -68,6 +72,13 @@ export function buildClassesTabColumns({
     {
       accessorKey: 'level',
       header: 'Level',
+      // Shown as "Novice A": the level and its section.
+      meta: {
+        searchValue: (row: unknown) => {
+          const cls = row as ClassTableRow;
+          return shouldShowSection(cls) ? `${cls.level} ${cls.section}` : cls.level;
+        },
+      },
       sortingFn: (rowA, rowB) => compareLevels(rowA.original.level, rowB.original.level),
       cell: ({ row }) => (
         <>
@@ -81,7 +92,12 @@ export function buildClassesTabColumns({
     {
       accessorKey: 'judgeName',
       header: 'Judge',
-      meta: { responsiveHide: 'md' as const, interactive: canManage },
+      meta: {
+        responsiveHide: 'md' as const,
+        interactive: canManage,
+        // An unassigned class shows "TBD".
+        searchValue: (row: unknown) => (row as ClassTableRow).judgeName || 'TBD',
+      },
       cell: ({ row }) =>
         canManage ? (
           judge(row.original)
@@ -108,6 +124,11 @@ export function buildClassesTabColumns({
     {
       accessorKey: 'status',
       header: 'Status',
+      // Shown as "Not started" for a stored "Scheduled".
+      meta: {
+        searchValue: (row: unknown) =>
+          getStatusDescriptor('class', (row as ClassTableRow).status).label,
+      },
       cell: ({ row }) => (
         <StatusBadge
           family="class"

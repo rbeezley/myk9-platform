@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { ListOptionsFilterField, ListView } from '@/components/list-toolkit';
 import type { ClassInfo } from './classInfo';
+import { buildClassesTabColumns } from './classesTabColumns';
 import {
   activeClassesTabViewId,
   buildClassesTabViews,
@@ -23,6 +24,8 @@ interface ScopeInput {
   requestedTrialId: string | null | undefined;
   viewId: string;
   setViewId: (id: string) => void;
+  /** The table hides its Ring column, so search must not find a row by it. */
+  hideRing?: boolean;
 }
 
 /**
@@ -37,8 +40,21 @@ export function useClassesTabScope({
   requestedTrialId,
   viewId,
   setViewId,
+  hideRing = false,
 }: ScopeInput) {
   const [search, setSearch] = useState('');
+  const searchColumns = useMemo(
+    () =>
+      buildClassesTabColumns({
+        canManage: false,
+        hideRing,
+        selectAll: () => null,
+        select: () => null,
+        judge: () => null,
+        rowMenu: () => null,
+      }),
+    [hideRing]
+  );
   const [element, setElement] = useState('all');
 
   const trialOptions = useMemo(() => listTrialOptions(classes, trials), [classes, trials]);
@@ -55,10 +71,11 @@ export function useClassesTabScope({
     () => filterClassesForTab(scopedClasses, classesTabViewFilters(viewId)),
     [scopedClasses, viewId]
   );
-  // Search and element only exist for managers; everyone else keeps the view alone.
+  // One search for everyone, read from the table's own columns (no renderers needed to read them);
+  // the element filter is a manager's. Readers keep element 'all'.
   const filteredClasses = useMemo(
-    () => (scopeToTrial ? narrowClasses(viewClasses, search, element) : viewClasses),
-    [viewClasses, scopeToTrial, search, element]
+    () => narrowClasses(viewClasses, search, element, searchColumns),
+    [viewClasses, search, element, searchColumns]
   );
 
   const elementField: ListOptionsFilterField = useMemo(() => {
@@ -73,10 +90,10 @@ export function useClassesTabScope({
         value,
         label: value,
         // "How many would picking this element show": the open view, any search aside.
-        count: narrowClasses(viewClasses, '', value).length,
+        count: narrowClasses(viewClasses, '', value, searchColumns).length,
       })),
     };
-  }, [scopedClasses, viewClasses, element]);
+  }, [scopedClasses, viewClasses, element, searchColumns]);
 
   const isNarrowed = viewId !== 'all' || search !== '' || element !== 'all';
   const clearFilters = () => {

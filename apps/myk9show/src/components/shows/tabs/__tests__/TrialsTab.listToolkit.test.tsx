@@ -162,4 +162,58 @@ describe('TrialsTab list toolkit', () => {
       expect(container.querySelector('table')).not.toBeNull();
     });
   });
+
+  describe('search finds a trial by every value its columns show', () => {
+    const searchTrials = [
+      makeTrial('s1', 'Alpha', {
+        trialDate: '2026-05-10',
+        status: 'Scheduled',
+        trialType: 'scent_work',
+        plannedStartTime: '08:00',
+      }),
+      makeTrial('s2', 'Bravo', {
+        trialDate: '2026-06-21',
+        status: 'Completed',
+        trialType: 'rally',
+        plannedStartTime: '13:30',
+      }),
+    ];
+    const searchStats = {
+      s1: { classCount: 2, entryCount: 8, completedClasses: 0 },
+      s2: { classCount: 2, entryCount: 8, completedClasses: 2 },
+    };
+    const cases: Array<[string, string, string]> = [
+      ['name', 'Alpha', 'Alpha'],
+      ['date as shown', 'JUN 21', 'Bravo'],
+      ['raw date', '2026-05-10', 'Alpha'],
+      ['time', '13:30', 'Bravo'],
+      ['status label', 'Completed', 'Bravo'],
+      ['status label (not started)', 'Not started', 'Alpha'],
+    ];
+    it.each(cases)('%s', async (_label, query, expected) => {
+      const { user } = render(
+        <TrialsTab trials={searchTrials} showId="show-1" trialStats={searchStats} />
+      );
+      await user.type(screen.getByPlaceholderText('Search trials...'), query);
+      expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 2 trials.');
+      expect(screen.getByText(expected)).toBeInTheDocument();
+    });
+
+    it('exports exactly the rows on screen under a search', async () => {
+      const { user } = render(
+        <TrialsTab trials={searchTrials} showId="show-1" trialStats={searchStats} />
+      );
+      await user.type(screen.getByPlaceholderText('Search trials...'), 'Bravo');
+      const download = captureCsvDownload();
+      try {
+        registeredPageExports()[0]!.run();
+        const lines = download.csv().split('\n');
+        expect(lines).toHaveLength(2);
+        expect(lines[1]).toContain('"Bravo"');
+      } finally {
+        download.restore();
+        resetPageExports();
+      }
+    });
+  });
 });

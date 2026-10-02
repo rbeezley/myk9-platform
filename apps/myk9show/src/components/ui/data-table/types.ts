@@ -51,6 +51,11 @@ export interface DataTableColumnMeta {
    * scroll edge (admin users roster, 2026-09).
    */
   stickyRight?: boolean;
+  /**
+   * Text this column shows when it differs from its accessor value (a status label, a formatted
+   * date). The shared list search (`listSearch.ts`) finds the row by it as well as by the value.
+   */
+  searchValue?: (row: unknown) => string | number | null | undefined;
   /** Set true when this column renders buttons, links, inputs, or menus. */
   interactive?: boolean;
   /** Enable inline editing for this column */

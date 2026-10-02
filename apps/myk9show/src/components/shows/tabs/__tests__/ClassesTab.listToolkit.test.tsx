@@ -202,4 +202,72 @@ describe('ClassesTab list toolkit', () => {
       expect(container.querySelector('table')).not.toBeNull();
     });
   });
+
+  describe('one search, found by every value the columns show (managers and readers alike)', () => {
+    const searchRows = [
+      makeClass('c1', {
+        element: 'Containers',
+        level: 'Novice',
+        section: 'A',
+        judgeName: 'Jane Judge',
+        status: 'Scheduled',
+        time: '9:00 AM',
+        ring: 1,
+        entryCount: 4,
+      }),
+      makeClass('c2', {
+        element: 'Interior',
+        level: 'Open',
+        section: 'B',
+        judgeName: 'Joe Judge',
+        status: 'Completed',
+        time: '1:30 PM',
+        ring: 2,
+        entryCount: 11,
+        userHasEntry: true,
+      }),
+    ];
+    const cases: Array<[string, string, string]> = [
+      ['element', 'Interior', 'Interior'],
+      ['level and section', 'Novice A', 'Containers'],
+      ['judge', 'Joe Judge', 'Interior'],
+      ['status label', 'Completed', 'Interior'],
+      ['status label (not started)', 'Not started', 'Containers'],
+      ['time', '1:30 PM', 'Interior'],
+      ['entry count', '11', 'Interior'],
+    ];
+
+    describe.each([
+      ['a manager', true],
+      ['a reader', false],
+    ])('as %s', (_who, manage) => {
+      it.each(cases)('%s', async (_label, query, expected) => {
+        mockCanManage = manage;
+        localStorage.setItem('view-pref-classes', 'table');
+        const { user } = renderTab(false, searchRows);
+        await user.type(screen.getByPlaceholderText('Search classes...'), query);
+        expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 2 classes.');
+        expect(screen.getAllByText(expected).length).toBeGreaterThan(0);
+      });
+
+      it('has exactly one search box, and the export matches the rows on screen', async () => {
+        mockCanManage = manage;
+        localStorage.setItem('view-pref-classes', 'table');
+        const { user } = renderTab(false, searchRows);
+        expect(screen.getAllByPlaceholderText(/search/i)).toHaveLength(1);
+        await user.type(screen.getByPlaceholderText('Search classes...'), 'Joe Judge');
+
+        const download = captureCsvDownload();
+        try {
+          registeredPageExports()[0]!.run();
+          const lines = download.csv().split('\n');
+          expect(lines).toHaveLength(2);
+          expect(lines[1]).toContain('"Interior"');
+        } finally {
+          download.restore();
+          resetPageExports();
+        }
+      });
+    });
+  });
 });

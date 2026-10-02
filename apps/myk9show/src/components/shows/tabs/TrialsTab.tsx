@@ -14,7 +14,7 @@ import {
 import type { Trial } from '@/components/trials/types/trial.types';
 import { deriveTrialStatusKey, formatTrialLabel, type ClassStatusValue } from '@myk9/core';
 import { parseLocalDateString } from '@/utils/dateLocal';
-import { DataTable, type ColumnDef } from '@/components/ui/data-table';
+import { DataTable, filterByListSearch, type ColumnDef } from '@/components/ui/data-table';
 import { formatTrialTypeLabel } from '@/types/template.types';
 import { StatusBadge, getStatusDescriptor } from '@/components/status';
 import { usePageExportAction } from '@/features/actions/pageEditTarget';
@@ -82,10 +82,30 @@ interface TrialRow {
   hasStarted?: boolean;
 }
 
+/** The status the row's badge shows ("Not started", "In progress"), derived from its classes. */
+function trialStatusLabel(row: TrialRow): string {
+  return getStatusDescriptor(
+    'trial',
+    deriveTrialStatusKey({
+      trialStatus: row.status,
+      classCount: row.classCount,
+      completedCount: row.completedClasses,
+      hasStarted: row.hasStarted,
+    })
+  ).label;
+}
+
 const baseTrialColumns: ColumnDef<TrialRow, unknown>[] = [
   {
     accessorKey: 'trialDate',
     header: 'Date',
+    // Shown as "MAY 10", so that is findable as well as the stored date.
+    meta: {
+      searchValue: (row: unknown) => {
+        const parts = getDateParts((row as TrialRow).trialDate);
+        return parts ? `${parts.month} ${parts.day}` : '';
+      },
+    },
     cell: ({ row }) => {
       const parts = getDateParts(row.original.trialDate);
       return parts ? `${parts.month} ${parts.day}` : '\u2014';
@@ -112,6 +132,7 @@ const baseTrialColumns: ColumnDef<TrialRow, unknown>[] = [
   {
     accessorKey: 'status',
     header: 'Status',
+    meta: { searchValue: (row: unknown) => trialStatusLabel(row as TrialRow) },
     cell: ({ row }) => (
       <StatusBadge
         family="trial"
@@ -231,27 +252,15 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
     [trials, trialStats, statusFilter]
   );
   const searchText = search.trim().toLowerCase();
-  const filteredTrials = useMemo(
-    () =>
-      searchText === ''
-        ? viewTrials
-        : viewTrials.filter(trial =>
-            [
-              formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber }),
-              trial.trialType ? formatTrialTypeLabel(trial.trialType) : '',
-            ].some(text => text.toLowerCase().includes(searchText))
-          ),
-    [viewTrials, searchText]
-  );
   const narrowed = statusFilter !== 'all' || searchText !== '';
   const showAll = () => {
     setStatusFilter('all');
     setSearch('');
   };
 
-  const tableData = useMemo<TrialRow[]>(
+  const viewRows = useMemo<TrialRow[]>(
     () =>
-      filteredTrials.map(trial => ({
+      viewTrials.map(trial => ({
         id: trial.id,
         trialDate: trial.trialDate,
         name: formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber }),
@@ -262,8 +271,17 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
         status: trial.status,
         ...(trialStats[trial.id] || EMPTY_STATS),
       })),
-    [filteredTrials, trialStats]
+    [viewTrials, trialStats]
   );
+  // The one search, read from the columns the table renders (so it finds what the table shows).
+  const tableData = useMemo(
+    () => filterByListSearch(viewRows, trialColumns, search),
+    [viewRows, trialColumns, search]
+  );
+  const filteredTrials = useMemo(() => {
+    const shown = new Set(tableData.map(row => row.id));
+    return viewTrials.filter(trial => shown.has(trial.id));
+  }, [viewTrials, tableData]);
 
   // The whole-list export the table's own button used to be (owner decision 4: header Actions menu).
   usePageExportAction({
@@ -281,15 +299,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           row.classCount,
           row.entryCount ?? '',
           row.completedClasses > 0 ? `${row.completedClasses}/${row.classCount}` : '',
-          getStatusDescriptor(
-            'trial',
-            deriveTrialStatusKey({
-              trialStatus: row.status,
-              classCount: row.classCount,
-              completedCount: row.completedClasses,
-              hasStarted: row.hasStarted,
-            })
-          ).label,
+          trialStatusLabel(row),
         ])
       ),
   });

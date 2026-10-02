@@ -103,6 +103,7 @@ export function ClassesTab({
     requestedTrialId,
     viewId,
     setViewId,
+    hideRing,
   });
   const { filteredClasses } = scope;
   const selectTrial = (nextTrialId: string) => {
@@ -283,14 +284,13 @@ export function ClassesTab({
           showAllInEmptyState: filteredClasses.length === 0,
         }}
         viewToggle={<ListViewToggle active={viewMode} onChange={setViewMode} />}
+        search={{ value: scope.search, onChange: scope.setSearch }}
         {...(canManageThisShow
           ? {
               manage: {
                 trials: scope.trialOptions,
                 trialId: scope.scopeTrialId,
                 onTrialChange: selectTrial,
-                search: scope.search,
-                onSearchChange: scope.setSearch,
                 elementField: scope.elementField,
               },
             }
@@ -310,10 +310,10 @@ export function ClassesTab({
           tableId="classesTab"
           columns={classColumns}
           data={tableData}
-          // A manager has the toolbar's search, the one search: a second filter inside the table
-          // would let select-all or a bulk action reach rows it hides. A reader has no toolbar
-          // search and no selection, so the table's own search stays for them.
-          showSearch={!canManageThisShow}
+          // The toolbar's search is the one search, for managers and readers alike: a second
+          // filter inside the table would let select-all, a bulk action or the export reach
+          // rows it hides.
+          showSearch={false}
           revealRow={focusClassId ? { id: focusClassId, key: focusVisitKey } : null}
           onRowRevealed={focusClassRow}
           getRowClassName={cls =>

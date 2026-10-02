@@ -32,13 +32,13 @@ interface ClassesTabToolbarProps {
   };
   /** The view toggle, shown on the right of the result line. */
   viewToggle: ReactNode;
-  /** Managers only: the trial being managed, the search box and the element filter. */
+  /** The one search box, for managers and readers alike. */
+  search: { value: string; onChange: (value: string) => void };
+  /** Managers only: the trial being managed and the element filter. */
   manage?: {
     trials: TrialOption[];
     trialId: string | null;
     onTrialChange: (trialId: string) => void;
-    search: string;
-    onSearchChange: (value: string) => void;
     elementField: ListOptionsFilterField;
   };
 }
@@ -50,6 +50,7 @@ export function ClassesTabToolbar({
   onSelectView,
   result,
   viewToggle,
+  search,
   manage,
 }: ClassesTabToolbarProps) {
   return (
@@ -60,39 +61,37 @@ export function ClassesTabToolbar({
         activeId={activeViewId}
         onSelect={onSelectView}
       />
-      {manage && (
-        <div className="flex flex-wrap items-center gap-3">
-          {manage.trials.length > 1 && manage.trialId && (
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-foreground" aria-hidden="true">
-                Trial:
-              </span>
-              <Select
-                value={manage.trialId}
-                onValueChange={value => value && manage.onTrialChange(value)}
-              >
-                <SelectTrigger className="min-w-48" aria-label="Trial">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {manage.trials.map(trial => (
-                    <SelectItem key={trial.id} value={trial.id}>
-                      {trial.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-          <ListFilterBar
-            className="min-w-0 flex-1"
-            searchValue={manage.search}
-            onSearchChange={manage.onSearchChange}
-            searchPlaceholder="Search classes..."
-            fields={[manage.elementField]}
-          />
-        </div>
-      )}
+      <div className="flex flex-wrap items-center gap-3">
+        {manage && manage.trials.length > 1 && manage.trialId && (
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium text-foreground" aria-hidden="true">
+              Trial:
+            </span>
+            <Select
+              value={manage.trialId}
+              onValueChange={value => value && manage.onTrialChange(value)}
+            >
+              <SelectTrigger className="min-w-48" aria-label="Trial">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {manage.trials.map(trial => (
+                  <SelectItem key={trial.id} value={trial.id}>
+                    {trial.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        <ListFilterBar
+          className="min-w-0 flex-1"
+          searchValue={search.value}
+          onSearchChange={search.onChange}
+          searchPlaceholder="Search classes..."
+          fields={manage ? [manage.elementField] : []}
+        />
+      </div>
       <ListResultLine
         ready
         shown={result.shown}

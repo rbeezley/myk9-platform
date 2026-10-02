@@ -8,7 +8,6 @@ import { buildSecretaryCockpitSnapshot } from './cockpit/buildSecretaryCockpitSn
 import { buildClassPaperworkMap } from './cockpit/buildClassPaperworkMap';
 import { useShowPaperworkPrints } from './cockpit/useShowPaperworkPrints';
 import { ShowDeskToolsSheet, type ShowDeskToolSection } from './ShowDeskToolsSheet';
-import { ShowMapEntryReviewSheet } from './ShowMapEntryReviewSheet';
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
 import { ShowMapMoveUpDialog } from './ShowMapMoveUpDialog';
 import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
@@ -80,10 +79,6 @@ export default function ShowDeskPanel({
     messageAction,
     closeMessageDialog,
     confirmMessageHandler,
-    reviewAction,
-    closeReviewSheet,
-    confirmReviewApprove,
-    isApprovingReview,
     isExecuting,
   } = executor;
 
@@ -179,8 +174,6 @@ export default function ShowDeskPanel({
   const moveUpCurrentClass = moveUpAction?.classId
     ? tree.nodesById[`class:${moveUpAction.classId}`]
     : undefined;
-  const reviewNode = reviewAction ? tree.nodesById[reviewAction.nodeId] : undefined;
-  const reviewParent = reviewNode?.parentId ? tree.nodesById[reviewNode.parentId] : undefined;
 
   return (
     <div className="space-y-4">
@@ -251,18 +244,6 @@ export default function ShowDeskPanel({
             isSubmitting={isExecuting}
             onOpenChange={open => !open && closeMessageDialog()}
             onConfirm={body => confirmMessageHandler({ body })}
-          />
-          <ShowMapEntryReviewSheet
-            open={Boolean(reviewAction)}
-            onClose={closeReviewSheet}
-            onApprove={confirmReviewApprove}
-            isApproving={isApprovingReview}
-            entryDisplay={reviewNode?.entryDisplay}
-            parentClassLabel={
-              reviewNode?.type === 'dog-entry'
-                ? reviewNode.dogEntryDisplay?.classLabel
-                : reviewParent?.label
-            }
           />
         </>
       )}

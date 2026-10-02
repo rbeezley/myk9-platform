@@ -2,8 +2,6 @@ import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   getShowMapHandlerMessageTarget,
-  approveShowMapEntry,
-  bulkApproveShowMapEntries,
   markShowMapClassComplete,
   markShowMapClassStarted,
   markShowMapEntryCheckedIn,
@@ -158,21 +156,10 @@ describe('showMapActionMutations', () => {
     expect(mockFrom).not.toHaveBeenCalled();
   });
 
-  it('approves a Show Desk review entry through the replicated entry table', async () => {
-    await approveShowMapEntry('entry-1');
+  it('offers no approve of its own: Entry Management is the one home of approve (MYK9-919)', async () => {
+    const mutations: Record<string, unknown> = await import('../showMapActionMutations');
 
-    expect(mockUpdateReplicatedEntryStatus).toHaveBeenCalledWith('entry-1', 'confirmed');
-    expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
-    expect(mockFrom).not.toHaveBeenCalled();
-  });
-
-  it('bulk approves Show Desk review entries through replicated entry mutations', async () => {
-    await bulkApproveShowMapEntries(['entry-1', 'entry-2']);
-
-    expect(mockUpdateReplicatedEntryStatus).toHaveBeenCalledWith('entry-1', 'confirmed');
-    expect(mockUpdateReplicatedEntryStatus).toHaveBeenCalledWith('entry-2', 'confirmed');
-    expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
-    expect(mockFrom).not.toHaveBeenCalled();
+    expect(Object.keys(mutations).filter(name => /approve/i.test(name))).toEqual([]);
   });
 
   it('surfaces replicated check-in update failures', async () => {

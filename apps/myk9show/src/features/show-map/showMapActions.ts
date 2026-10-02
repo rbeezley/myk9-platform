@@ -3,6 +3,7 @@ import { getClassAttention } from './attention';
 import {
   getShowMapClassHref,
   getShowMapReportHref,
+  getShowMapReviewEntryHref,
   getShowMapTrialScheduleHref,
 } from './showMapRoutes';
 import {
@@ -257,6 +258,11 @@ function isActionEligibleForScope(
   return !isNodeScheduledAfter(state.tree, node, state.now);
 }
 
+function withReviewEntryHref(tree: ShowMapTree): { href?: string } {
+  const href = getShowMapReviewEntryHref(getRootShowId(tree));
+  return href ? { href } : {};
+}
+
 function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAction[] {
   if (node.type === 'dog-entry') {
     const entryId = getEntrySourceId(node);
@@ -275,6 +281,7 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
         recommended: true,
         createsAttention: true,
         ...(node.dogEntryDisplay?.classId ? { classId: node.dogEntryDisplay.classId } : {}),
+        ...withReviewEntryHref(tree),
       },
     ];
   }
@@ -292,6 +299,7 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
         icon: ClipboardList,
         recommended: true,
         createsAttention: true,
+        ...withReviewEntryHref(tree),
       });
     }
     // Edit score deep-links into the paper-scoring screen at this entry's

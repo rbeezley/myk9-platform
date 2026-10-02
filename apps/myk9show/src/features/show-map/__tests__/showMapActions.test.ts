@@ -12,6 +12,7 @@ import {
   SHOW_MAP_RECOMMENDED_ACTION_LIMIT,
   showMapBadgeTargets,
 } from '../showMapActions';
+import { resolveShowMapActionExecution } from '../showMapActionExecution';
 import type { Show } from '@/types/show-types';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import type { ShowMapClassInput } from '../showMapTypes';
@@ -93,9 +94,13 @@ describe('showMapActions', () => {
       nodeId: 'entry:entry-submitted',
       label: 'Review entry',
     });
-    // review-entry is a dialog action now (opens the entry review sheet)
-    // and intentionally carries no href.
-    expect(actions[0].href).toBeUndefined();
+    // MYK9-919: Entry Management is the one home of approve. Show Map's review
+    // action is a link to its pending review queue, never an approve of its own.
+    expect(actions[0].href).toBe('/shows/show-1/entries?mode=review&attention=pending');
+    expect(resolveShowMapActionExecution(actions[0])).toEqual({
+      kind: 'navigate',
+      href: '/shows/show-1/entries?mode=review&attention=pending',
+    });
     expect(actions.map(action => action.id)).toContain('score-class');
   });
 

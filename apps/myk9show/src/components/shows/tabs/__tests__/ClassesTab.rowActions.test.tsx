@@ -206,9 +206,13 @@ describe.each(['cards', 'table'])('ClassesTab row actions (%s view)', view => {
     ).toBeVisible();
   });
 
-  it('shows Add Classes only when the viewer manages THIS show, whatever the global permission', () => {
+  it('has no Add Classes toolbar button for anyone: it is a header Actions menu item (MYK9-928)', () => {
     const first = renderTab();
-    expect(screen.getByRole('button', { name: 'Add Classes' })).toBeVisible();
+    // Positive control: this viewer manages the show, so the row menus rendered.
+    expect(
+      screen.getByRole('button', { name: 'Class actions for Interior Advanced B' })
+    ).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Add Classes' })).not.toBeInTheDocument();
     first.unmount();
 
     mockCanManage = false;
@@ -230,6 +234,19 @@ describe.each(['cards', 'table'])('ClassesTab row actions (%s view)', view => {
     mockCanManage = false;
     renderTab();
     expect(screen.queryByRole('button', { name: /^Class actions for/ })).not.toBeInTheDocument();
+  });
+
+  it('lists Edit first on the class row menu, ahead of the waitlist link and status choices (MYK9-928)', async () => {
+    const { user } = renderTab();
+
+    await user.click(screen.getByRole('button', { name: 'Class actions for Interior Advanced B' }));
+    await screen.findByRole('menuitem', { name: 'Edit Class' });
+
+    const labels = screen.getAllByRole('menuitem').map(item => item.textContent?.trim());
+    expect(labels[0]).toBe('Edit Class');
+    expect(labels.at(-1)).toBe('Delete Class');
+    // Positive control: the row-specific items are in the same menu, between them.
+    expect(labels).toContain('View waitlist');
   });
 
   it('Edit opens the real class edit panel for that class', async () => {

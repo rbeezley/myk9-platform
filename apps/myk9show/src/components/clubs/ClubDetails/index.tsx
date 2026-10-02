@@ -87,13 +87,11 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
       {/* Enhanced Header with logo and club info */}
       <ClubHeader
         club={selectedClub}
-        onEditClub={state.handleEditClub}
         onEditPhoto={state.handleEditPhoto}
         onDeleteClub={state.handleDeleteClub}
         onCoverUpload={state.handleCoverUpload}
         onCoverRemove={state.handleCoverRemove}
         isUploadingCover={state.isUploadingCover}
-        canEditClub={state.canEditClub}
         canEditBranding={state.canEditBranding}
         canDeleteClub={state.canDeleteClub}
         canAuthorizeClub={state.canAuthorizeClub}

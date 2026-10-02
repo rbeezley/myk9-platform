@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { useCommandMenuCommands } from '../useCommandMenuCommands';
 import { resolveActions } from '@/features/actions/actionRegistry';
+import { usePageEditAction, usePageEditTargetStore } from '@/features/actions/pageEditTarget';
 
 const viewer = vi.hoisted(() => ({ canOperate: true }));
 
@@ -28,6 +29,7 @@ vi.mock('@/hooks/useShowManageScope', () => ({
 }));
 
 beforeEach(() => {
+  usePageEditTargetStore.setState({ target: null, owner: null, addClassesTrialId: null });
   viewer.canOperate = true;
 });
 
@@ -93,5 +95,50 @@ describe('command palette show actions come from the action registry', () => {
     });
 
     expect(result.current.actionCommands).toEqual([]);
+  });
+});
+
+describe('command palette offers the detail page own actions off a show route (MYK9-928)', () => {
+  it('finds "Edit dog" on a dog page and runs it', () => {
+    const run = vi.fn();
+    const { result } = renderHook(
+      () => {
+        usePageEditAction({ kind: 'dog', enabled: true, run });
+        return useCommandMenuCommands();
+      },
+      { wrapper: wrapperAt('/dogs/dog-1') }
+    );
+
+    const edit = result.current.actionCommands.find(c => c.label === 'Edit dog');
+    expect(edit).toBeDefined();
+    edit?.run?.();
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it('offers only the page-owned items there, not the role-wide Add Show / Show Management', () => {
+    const { result } = renderHook(
+      () => {
+        usePageEditAction({ kind: 'person', enabled: true, run: vi.fn() });
+        return useCommandMenuCommands();
+      },
+      { wrapper: wrapperAt('/people/p1') }
+    );
+    expect(result.current.actionCommands.map(c => c.label)).toEqual(['Edit person']);
+  });
+
+  it('offers a trial page its Add classes too', () => {
+    const { result } = renderHook(
+      () => {
+        usePageEditAction({
+          kind: 'trial',
+          enabled: true,
+          run: vi.fn(),
+          addClassesHref: '/wizard?trialId=t1',
+        });
+        return useCommandMenuCommands();
+      },
+      { wrapper: wrapperAt('/trials/t1') }
+    );
+    expect(result.current.actionCommands.map(c => c.label)).toEqual(['Edit trial', 'Add classes']);
   });
 });

@@ -32,6 +32,7 @@ import UserDetailsDialogs from './UserDetailsDialogs';
 import AccountStatusDialog from '@/components/users/AccountStatusDialog';
 import type { AccountStatus } from '@/components/users/AccountStatusDialog';
 import { useSendUserInvitation } from './useSendUserInvitation';
+import { usePageEditAction } from '@/features/actions/pageEditTarget';
 import '@/styles/myk9-user-details.css';
 import '@/styles/myk9-show-details.css';
 
@@ -106,6 +107,13 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
 
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  // Edit person is the first item of the header Actions menu (MYK9-928), offered only while
+  // the person is live: a removed record is readable, not editable, and its banner says so.
+  usePageEditAction({
+    kind: 'person',
+    enabled: !isRemoved,
+    run: () => setIsEditModalOpen(true),
+  });
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isQualificationsPanelOpen, setIsQualificationsPanelOpen] = useState(false);
   // Name the list the user actually came in through — a site admin arriving from
@@ -350,7 +358,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
             phone={formData.phone}
             isRemoved={isRemoved}
             onEditPhoto={() => setIsPhotoModalOpen(true)}
-            onEdit={() => setIsEditModalOpen(true)}
             onDelete={() => setIsDeleteDialogOpen(true)}
             {...(canManageStatus
               ? {

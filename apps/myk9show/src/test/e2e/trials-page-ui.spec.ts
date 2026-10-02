@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { signInAsSecretary } from './helpers/testUsers';
+import { openActionsMenu } from './helpers/actionsMenu';
 
 /**
  * E2E Tests for Trials Page UI/UX Improvements
@@ -8,7 +9,7 @@ import { signInAsSecretary } from './helpers/testUsers';
  * Tests the following features:
  * - Statistics cards show contextual information (not misleading percent changes)
  * - Trial info card does not show Order field
- * - Edit button is visible (not hidden in dropdown)
+ * - Edit trial is the header Actions menu's first item, with no page-level Edit button
  * - Trial navigation (prev/next) when multiple trials exist
  * - Empty state shows icon and improved messaging
  * - Search has shortened placeholder
@@ -126,16 +127,21 @@ test.describe('Trials Page - Action Buttons', () => {
     await login(page);
   });
 
-  test('Edit button should be visible without opening dropdown', async ({ page }) => {
+  test('Edit trial is the first item of the header Actions menu, not a page button', async ({
+    page,
+  }) => {
     await navigateToTrialPage(page);
+    test.skip(
+      !/\/trials\/[0-9a-f-]{36}/.test(page.url()),
+      'no trial reachable from the first show'
+    );
 
-    const infoCard = page.locator('.myk9-show-info-card');
+    // MYK9-928: no visible page-level Edit button.
+    await expect(page.locator('button[title="Edit Trial"]')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
 
-    if (await infoCard.isVisible({ timeout: 5000 }).catch(() => false)) {
-      // Look for visible Edit button with title
-      const editButton = page.locator('button[title="Edit Trial"]');
-      await expect(editButton).toBeVisible();
-    }
+    const menu = await openActionsMenu(page);
+    await expect(menu.getByRole('menuitem').first()).toHaveText('Edit trial');
   });
 
   test('Delete action should be in dropdown menu', async ({ page }) => {

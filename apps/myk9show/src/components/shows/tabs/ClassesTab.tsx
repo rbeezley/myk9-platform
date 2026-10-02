@@ -4,12 +4,12 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { ClassCard } from './ClassCard';
-import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ClassBulkActionsBar } from '@/components/classes/ClassBulkActionsBar';
 import { ClassJudgeSelect } from '@/components/classes/ClassJudgeSelect';
 import { useSetupClassManagement } from './useSetupClassManagement';
 import { Search, Plus } from 'lucide-react';
+import { useSetupAddClassesTrial } from '@/features/actions/pageEditTarget';
 import { compareLevels } from '@/utils/schedule-summary';
 import { DataTable } from '@/components/ui/data-table';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
@@ -109,6 +109,8 @@ export function ClassesTab({
   // Judge assignment, status and bulk actions (moved here from the retired Class Management page).
   // Changing the view, trial, search or element clears the selection, so a bulk action never
   // reaches rows the secretary can no longer see.
+  // The header Actions menu's Add classes opens the wizard on the trial picked here (MYK9-928).
+  useSetupAddClassesTrial(canManageThisShow ? scope.scopeTrialId : null);
   const manage = useSetupClassManagement(
     showId,
     canManageThisShow,
@@ -257,16 +259,7 @@ export function ClassesTab({
         actions={
           <>
             <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
-            {canManageThisShow && (
-              <Button
-                size="sm"
-                onClick={() => navigate(getAddClassesHref(showId, scope.scopeTrialId ?? undefined))}
-                className="gap-1.5"
-              >
-                <Plus className="h-4 w-4" />
-                Add Classes
-              </Button>
-            )}
+            {/* Add classes is the header Actions menu's (MYK9-928); the empty state keeps its own button. */}
           </>
         }
         {...(canManageThisShow

@@ -7,7 +7,7 @@
 import { startTransition, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatTrialLabel } from '@myk9/core';
-import { ClipboardList, LayoutDashboard, MoreVertical, Pencil, Trash2 } from 'lucide-react';
+import { ClipboardList, LayoutDashboard, MoreVertical, Trash2 } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import ClassDetailsMain from '@/components/classes/ClassDetailsMain';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
@@ -23,6 +23,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
+import { usePageEditAction } from '@/features/actions/pageEditTarget';
 import { useClassReleasedResults } from '@/hooks/queries/useClassReleasedResults';
 import { useClassEditActions } from '@/hooks/useClassEditActions';
 import { useClassDetailsData } from './useClassDetailsData';
@@ -206,12 +207,6 @@ const ClassDetailsPage: React.FC = () => {
             Manage Entries
           </Button>
         )}
-        {canManageClass && (
-          <Button variant="outline" size="sm" onClick={dialogs.openEditClassPanel}>
-            <Pencil className="mr-1.5 h-3.5 w-3.5" />
-            Edit
-          </Button>
-        )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="Class options">
@@ -240,7 +235,6 @@ const ClassDetailsPage: React.FC = () => {
       </div>
     );
   }, [
-    dialogs.openEditClassPanel,
     dialogs.openDeleteDialog,
     setRequirementsPanelOpen,
     canManageClass,
@@ -250,6 +244,14 @@ const ClassDetailsPage: React.FC = () => {
     navigate,
     classId,
   ]);
+
+  // Edit class is the header Actions menu's (MYK9-928), behind the same gate the hero Edit
+  // button had. Registered with the panel's opener, so it opens THIS page's panel.
+  usePageEditAction({
+    kind: 'class',
+    enabled: canManageClass && !!currentClass,
+    run: dialogs.openEditClassPanel,
+  });
 
   // Early returns for different states. A guest's class is the server's
   // answer only (MYK9-785), so its states never fall through to the ones below.

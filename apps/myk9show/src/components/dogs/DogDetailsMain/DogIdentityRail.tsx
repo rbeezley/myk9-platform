@@ -57,7 +57,6 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
   onRetryRegistrations,
   role = 'exhibitor',
   canOpenOwnerRecord = false,
-  onEditPanelOpen,
   onPhotoDialogOpen,
   onDeleteDialogOpen,
   onStatusDialogOpen,
@@ -160,12 +159,9 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
             the two read as a pair of card controls, not page furniture. */}
         <div className="absolute right-3 top-3">
           <ThreeDotMenu
-            onEdit={onEditPanelOpen}
             onEditPhoto={onPhotoDialogOpen}
             onChangeStatus={onStatusDialogOpen}
             onDelete={canDelete ? onDeleteDialogOpen : undefined}
-            editLabel="Edit Dog"
-            {...(isSecretary ? { hideEdit: true } : {})}
             triggerClassName="h-11 w-11 rounded-full border border-border bg-card text-foreground shadow-sm hover:bg-accent"
           />
         </div>
@@ -308,14 +304,6 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
           </div>
           {ownerBody}
         </div>
-        {isSecretary && (
-          <div className="mt-6">
-            <Button variant="outline" className="min-h-11 w-full gap-1.5" onClick={onEditPanelOpen}>
-              <Pencil className="h-4 w-4" />
-              Edit
-            </Button>
-          </div>
-        )}
       </div>
     </aside>
   );

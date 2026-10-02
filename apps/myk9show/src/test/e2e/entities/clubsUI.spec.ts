@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { signInAsAdmin, signInAsExhibitor } from '../helpers/testUsers';
+import { actionsTrigger, chooseAction } from '../helpers/actionsMenu';
 
 /**
  * Comprehensive UI test for the Clubs section.
@@ -293,7 +294,7 @@ test.describe('Clubs UI — Detail Page (Club A)', () => {
 
   test('site admin can edit club description and persist it', async ({ page }) => {
     await openClubA(page);
-    await page.getByRole('button', { name: 'Edit' }).click();
+    await chooseAction(page, 'Edit club');
     await page
       .getByRole('textbox', { name: 'Description' })
       .fill('Club A - updated by site-admin UI audit');
@@ -331,7 +332,8 @@ test.describe('Clubs UI — Non-admin permissions', () => {
       .first()
       .click();
     await page.waitForURL(/\/clubs\/[0-9a-f-]{36}$/);
-    await expect(page.getByRole('button', { name: 'Edit' })).not.toBeVisible();
+    // An exhibitor has no page action at all, so the header Actions menu is absent (MYK9-928).
+    await expect(actionsTrigger(page)).toHaveCount(0);
 
     await page.getByRole('button', { name: 'Club options' }).click();
     await expect(page.getByRole('menuitem', { name: /Change Photo/i })).not.toBeVisible();

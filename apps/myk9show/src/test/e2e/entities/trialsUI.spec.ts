@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { signInAsSecretary } from '../helpers/testUsers';
+import { chooseAction } from '../helpers/actionsMenu';
 
 /**
  * UI tests for the Trials feature (secretary role).
@@ -195,8 +196,8 @@ test.describe('Trial Details — Edit', () => {
     await page.goto(`/shows/${seed.showId}/trials/${seed.trialId}`);
     await page.waitForLoadState('networkidle');
 
-    // The DetailHero "Edit" button opens the TrialEditPanel.
-    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    // "Edit trial" in the header Actions menu opens the TrialEditPanel (MYK9-928).
+    await chooseAction(page, 'Edit trial');
     await expect(page.getByText('Edit Trial', { exact: false })).toBeVisible();
 
     const newName = `E2E Trial Renamed ${RUN_ID}`;

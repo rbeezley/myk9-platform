@@ -26,8 +26,8 @@ const handlers = () => ({
 const ids = (user: User, h = handlers()) => buildUserRowActions(user, h).map(action => action.id);
 
 describe('buildUserRowActions', () => {
-  it('offers the full edit set for a live user', () => {
-    expect(ids(liveUser)).toEqual(['view', 'edit', 'roles', 'delete']);
+  it('offers the full edit set for a live user, Edit first (MYK9-928)', () => {
+    expect(ids(liveUser)).toEqual(['edit', 'view', 'roles', 'delete']);
   });
 
   it('offers profile, restore and permanent delete for a removed user', () => {
@@ -57,7 +57,7 @@ describe('buildUserRowActions', () => {
   it('omits role management when no handler is supplied', () => {
     const h = handlers();
     const actions = buildUserRowActions(liveUser, { ...h, onManageRoles: undefined });
-    expect(actions.map(a => a.id)).toEqual(['view', 'edit', 'delete']);
+    expect(actions.map(a => a.id)).toEqual(['edit', 'view', 'delete']);
   });
 
   it('offers the state-appropriate account lifecycle action', () => {

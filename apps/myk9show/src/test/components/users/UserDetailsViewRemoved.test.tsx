@@ -10,6 +10,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { User } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
+import { usePageEditTargetStore } from '@/features/actions/pageEditTarget';
 
 const hasPermission = vi.fn(() => true);
 const restoreUser = vi.fn(async () => ({ data: {}, error: null as unknown }));
@@ -74,6 +75,7 @@ const renderView = (p: User) =>
 describe('UserDetailsView — removed people', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    usePageEditTargetStore.setState({ target: null, owner: null });
     hasPermission.mockReturnValue(true);
     restoreUser.mockResolvedValue({ data: {}, error: null });
   });
@@ -119,19 +121,25 @@ describe('UserDetailsView — removed people', () => {
     expect(await screen.findByRole('menuitem', { name: /delete/i })).toBeInTheDocument();
 
     expect(screen.queryByRole('menuitem', { name: /edit person/i })).not.toBeInTheDocument();
+    // Edit person is the header Actions menu's now (MYK9-928); a removed record registers none.
+    expect(usePageEditTargetStore.getState().target).toBeNull();
     expect(screen.queryByRole('menuitem', { name: /change photo/i })).not.toBeInTheDocument();
     expect(
       screen.queryByRole('menuitem', { name: /invitation|sign-in link/i })
     ).not.toBeInTheDocument();
   });
 
-  it('keeps edit affordances on a live record', async () => {
+  it('keeps edit affordances on a live record: Edit person in the Actions menu, photo in the row menu', async () => {
     const user = userEvent.setup();
     renderView(person());
 
     await user.click(screen.getByRole('button', { name: /more actions/i }));
 
-    expect(await screen.findByRole('menuitem', { name: /edit person/i })).toBeInTheDocument();
+    // Positive control: the menu opened, and carries the person-level items that stay.
+    expect(await screen.findByRole('menuitem', { name: /change photo/i })).toBeInTheDocument();
+    // MYK9-928: no page-level Edit item here; it registered for the header Actions menu.
+    expect(screen.queryByRole('menuitem', { name: /edit person/i })).not.toBeInTheDocument();
+    expect(usePageEditTargetStore.getState().target?.kind).toBe('person');
   });
 
   it('explains the removal without offering Restore to a viewer who cannot', () => {

@@ -21,6 +21,7 @@ import DogDialogs from './DogDialogs';
 import DogStatusDialog from '@/components/dogs/DogStatusDialog';
 import { saveDogPhoto, validateImageFile } from './utils';
 import { useRouteEntryFocus } from './useRouteEntryFocus';
+import { usePageEditAction } from '@/features/actions/pageEditTarget';
 import DogRegistrationDialogs from '@/components/dogs/DogDetails/Registrations/DogRegistrationDialogs';
 import ManageRegistrationsPanel from '@/components/dogs/DogDetails/Registrations/ManageRegistrationsPanel';
 import type { DogDetailsMainProps } from './types';
@@ -132,6 +133,10 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
 
   // Dialog state
   const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
+  // Edit dog is the first item of the header Actions menu (MYK9-928). The page shows the
+  // dog to its viewer only once access is checked, and the secretary's rail button and
+  // the exhibitor's menu item this replaces had no narrower gate.
+  usePageEditAction({ kind: 'dog', enabled: true, run: () => setIsEditPanelOpen(true) });
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
   const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
@@ -290,7 +295,6 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
             onRetryRegistrations={() => void refetchRegistrations()}
             role={isSecretary ? 'secretary' : 'exhibitor'}
             canOpenOwnerRecord={canOpenOwnerRecord}
-            onEditPanelOpen={() => setIsEditPanelOpen(true)}
             onPhotoDialogOpen={() => handlePhotoDialogOpen(true)}
             onDeleteDialogOpen={() => setIsDeleteDialogOpen(true)}
             onStatusDialogOpen={openStatusDialog}

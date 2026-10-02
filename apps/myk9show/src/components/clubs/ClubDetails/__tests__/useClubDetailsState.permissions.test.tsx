@@ -8,7 +8,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import React from 'react';
-import { renderHook } from '@testing-library/react';
+import { act, renderHook } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ScopeType, UserRole } from '@/types/auth-types';
@@ -45,6 +45,7 @@ vi.mock('@/services/database/club-memberships/members', () => ({
 
 const { useClubDetailsState } = await import('../useClubDetailsState');
 const { hasClubAdminScope } = await import('../clubPermissions');
+const { usePageEditTargetStore } = await import('@/features/actions/pageEditTarget');
 
 function clubScope(roleId: UserRole, scopeId: string): RoleScope {
   return {
@@ -168,6 +169,47 @@ describe('useClubDetailsState permissions (MYK9-359)', () => {
     expect(mockAuth.hasPermission).not.toHaveBeenCalled();
     expect(result.current.canManageMembers).toBe(false);
     expect(result.current.canEditClub).toBe(false);
+  });
+});
+
+describe('useClubDetailsState registers Edit club for the header Actions menu (MYK9-928)', () => {
+  beforeEach(() => {
+    mockAuth.userWithRoles = null;
+    usePageEditTargetStore.setState({ target: null, owner: null });
+  });
+
+  it('registers for a club admin of THIS club, and its run opens the edit panel', () => {
+    mockAuth.userWithRoles = userWith(
+      [UserRole.CLUB_ADMIN],
+      [clubScope(UserRole.CLUB_ADMIN, CLUB_A)]
+    );
+    const { result } = renderState();
+    expect(result.current.showEditPanel).toBe(false);
+
+    expect(usePageEditTargetStore.getState().target?.kind).toBe('club');
+    act(() => usePageEditTargetStore.getState().target?.run());
+
+    expect(result.current.showEditPanel).toBe(true);
+  });
+
+  it('registers for a site admin', () => {
+    mockAuth.userWithRoles = userWith([UserRole.SITE_ADMIN], []);
+    renderState();
+    expect(usePageEditTargetStore.getState().target?.kind).toBe('club');
+  });
+
+  it.each([
+    [
+      'a club admin of a different club',
+      [UserRole.CLUB_ADMIN],
+      [clubScope(UserRole.CLUB_ADMIN, CLUB_B)],
+    ],
+    ['a secretary of this club', [UserRole.SECRETARY], [clubScope(UserRole.SECRETARY, CLUB_A)]],
+    ['an exhibitor', [UserRole.EXHIBITOR], []],
+  ] as const)('registers nothing for %s', (_label, roles, scopes) => {
+    mockAuth.userWithRoles = userWith([...roles], [...scopes]);
+    renderState();
+    expect(usePageEditTargetStore.getState().target).toBeNull();
   });
 });
 

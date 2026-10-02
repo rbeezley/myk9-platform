@@ -1,7 +1,6 @@
 import { useState, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
 import { Calendar, Plus } from 'lucide-react';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { ViewToggle } from '@/components/common/ViewToggle';
@@ -246,12 +245,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
         )}
         <div className="ml-auto flex items-center gap-2">
           <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
-          {canManageThisShow && (
-            <Button size="sm" onClick={openWizard} className="gap-1.5">
-              <Plus className="h-4 w-4" />
-              Add Trial
-            </Button>
-          )}
+          {/* Add Trial is the header Actions menu's (MYK9-928); the empty state keeps its own button. */}
         </div>
       </div>
 

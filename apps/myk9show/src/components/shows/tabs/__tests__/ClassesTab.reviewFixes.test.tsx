@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
+import { usePageEditTargetStore } from '@/features/actions/pageEditTarget';
 import { ClassesTab, type ClassInfo } from '../ClassesTab';
 
 // MYK9-924 review round 3: one search (the toolbar's), focus that survives pagination and
@@ -170,13 +171,16 @@ describe('ClassesTab review fixes', () => {
       expect(await screen.findByRole('option', { name: /August 3/ })).toBeInTheDocument();
     });
 
-    it('opens Add Classes on that trial', async () => {
-      const { user } = renderTab({ trials, trialId: 't3', onTrialChange: vi.fn() });
+    // Migrated from "opens Add Classes on that trial" (MYK9-928): the toolbar button became the
+    // header Actions menu's show-wide "Add classes", which must still open on the picked trial.
+    it("hands the picked trial to the header Actions menu's Add classes, and takes it back on leave", () => {
+      usePageEditTargetStore.setState({ addClassesTrialId: null });
+      const { unmount } = renderTab({ trials, trialId: 't3', onTrialChange: vi.fn() });
 
-      await user.click(screen.getByRole('button', { name: 'Add Classes' }));
+      expect(usePageEditTargetStore.getState().addClassesTrialId).toBe('t3');
 
-      expect(navigate).toHaveBeenCalledTimes(1);
-      expect(navigate.mock.calls[0]![0]).toContain('t3');
+      unmount();
+      expect(usePageEditTargetStore.getState().addClassesTrialId).toBeNull();
     });
 
     it('keeps the requested trial when the whole show has no classes', async () => {

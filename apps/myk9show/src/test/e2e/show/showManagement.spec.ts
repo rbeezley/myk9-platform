@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { signInAsSecretary } from '../uat/shared/auth';
+import { chooseAction } from '../helpers/actionsMenu';
 
 async function openFirstShowFromBrowse(page: Page): Promise<string> {
   await page.goto('/shows', { waitUntil: 'domcontentloaded' });
@@ -66,9 +67,10 @@ test.describe('Show management workflow', () => {
     await expect(page.getByTestId('header-actions-trigger')).toBeVisible({ timeout: 15000 });
     await page.getByTestId('header-actions-trigger').click();
     // "Open Entry Management" was renamed "Open Entries" by #2331; the hero's
-    // Edit button became this menu's "Edit show details" (MYK9-736).
+    // The header Edit button is gone: "Edit show" is this menu's first item (MYK9-736, MYK9-928).
     await expect(page.getByRole('menuitem', { name: 'Open Entries' })).toBeVisible();
-    await expect(page.getByRole('menuitem', { name: 'Edit show details' })).toBeVisible();
+    await expect(page.getByRole('menuitem').first()).toHaveText('Edit show');
+    await expect(page.getByRole('button', { name: 'Edit show', exact: true })).toHaveCount(0);
     await page.keyboard.press('Escape');
 
     // MYK9-630 phase 2: the five standalone page links above the tab strip are
@@ -100,27 +102,22 @@ test.describe('Show management workflow', () => {
     await signInAsSecretary(page, '/shows');
     const showId = await openFirstShowFromBrowse(page);
 
+    // MYK9-928: both add actions are items of the header Actions menu, not Setup toolbar buttons.
     await page.goto(`/shows/${showId}?tab=trials`, { waitUntil: 'domcontentloaded' });
-    await page.getByRole('tab', { name: /^Trials/ }).click();
-    const addTrialButton = page.getByRole('button', { name: 'Add Trial', exact: true }).first();
-    await expect(addTrialButton).toBeVisible({ timeout: 15000 });
     await Promise.all([
       page.waitForURL(
         new RegExp(`/secretary/create-show/wizard\\?showId=${showId}&mode=add-trials`)
       ),
-      addTrialButton.click(),
+      chooseAction(page, 'Add Trial'),
     ]);
     await expect(page.getByRole('heading', { name: 'Add Trials', level: 2 })).toBeVisible();
 
     await page.goto(`/shows/${showId}?tab=classes`, { waitUntil: 'domcontentloaded' });
-    await page.getByRole('tab', { name: /^Classes/ }).click();
-    const addClassesButton = page.getByRole('button', { name: 'Add Classes', exact: true }).first();
-    await expect(addClassesButton).toBeVisible({ timeout: 15000 });
     await Promise.all([
       page.waitForURL(
         new RegExp(`/secretary/create-show/wizard\\?showId=${showId}&mode=add-classes`)
       ),
-      addClassesButton.click(),
+      chooseAction(page, 'Add classes'),
     ]);
     await expect(page.getByRole('heading', { name: /Classes \(\d+\)/ })).toBeVisible();
   });

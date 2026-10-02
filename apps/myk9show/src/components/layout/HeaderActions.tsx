@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronDown, Zap } from 'lucide-react';
+import { ChevronDown, MoreHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -56,7 +56,7 @@ export function HeaderActions() {
           ) : (
             <>
               <span className="sr-only">Actions</span>
-              <Zap className="h-4 w-4" aria-hidden="true" />
+              <MoreHorizontal className="h-4 w-4" aria-hidden="true" />
             </>
           )}
         </Button>

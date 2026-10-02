@@ -4,6 +4,7 @@ import { render } from '@/test/utils/testUtils';
 import DogDetailsMain from '../index';
 import type { Dog } from '@/types/dog-types';
 import { mapReplicatedDogToDbRow, mapDatabaseToDog } from '@/services/mappers/dogMappers';
+import { useShowStore } from '@/store/showStore';
 import { rowToDog } from '@/services/replication/ReplicatedDogsTable';
 
 // MYK9-912: which dog-page surface renders depends on the viewer's RELATIONSHIP
@@ -27,6 +28,8 @@ const baseDog: Dog = {
 let mockRoles: string[] = ['secretary'];
 let mockPersonId: string | undefined;
 let mockPeople: { id: string; user_id?: string }[] = [];
+let mockIsAdmin = false;
+let mockScopes: { scopeType: string; roleId: string; scopeId: string }[] = [];
 
 vi.mock('@/store/userStore', () => ({
   useUserStore: (selector: (s: { people: unknown[] }) => unknown) =>
@@ -35,7 +38,8 @@ vi.mock('@/store/userStore', () => ({
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
-    userWithRoles: { id: VIEWER_AUTH_UID, databaseUserId: mockPersonId },
+    isAdmin: mockIsAdmin,
+    userWithRoles: { id: VIEWER_AUTH_UID, databaseUserId: mockPersonId, scopes: mockScopes },
     getUserRoles: () => mockRoles,
     hasRole: (role: string) => mockRoles.includes(role),
   }),
@@ -106,6 +110,9 @@ describe('DogDetailsMain — view follows the viewer’s relationship to the dog
     mockRoles = ['secretary'];
     mockPersonId = undefined;
     mockPeople = [];
+    mockIsAdmin = false;
+    mockScopes = [];
+    useShowStore.setState({ shows: [] });
   });
 
   it('gives a secretary who owns the dog the full exhibitor view', () => {
@@ -159,5 +166,51 @@ describe('DogDetailsMain — view follows the viewer’s relationship to the dog
     mockPersonId = OWNER_PERSON_ID;
     render(<DogDetailsMain dog={baseDog} />);
     expect(hasFullView()).toBe(true);
+  });
+
+  // MYK9-935: the narrow surface says where entries and results live.
+  describe('non-owner secretary note', () => {
+    const CLUB_A = '22222222-0000-4000-8000-0000000000c1';
+    const CLUB_B = '22222222-0000-4000-8000-0000000000c2';
+    const show = (id: string, clubId: string) => ({ id, clubId, name: `Show ${id}` }) as never;
+    const asNonOwnerSecretary = (clubs: string[]) => {
+      mockRoles = ['secretary'];
+      mockPersonId = OTHER_PERSON_ID;
+      mockScopes = clubs.map(scopeId => ({ scopeType: 'club', roleId: 'secretary', scopeId }));
+    };
+    const noteLink = () => screen.getByRole('link', { name: /Go to my shows/ });
+
+    it('shows the note and a shows-list link by default', () => {
+      asNonOwnerSecretary([CLUB_A]);
+      render(<DogDetailsMain dog={baseDog} />);
+      expect(screen.getByText('Entries and results live with each show.')).toBeInTheDocument();
+      expect(noteLink()).toHaveAttribute('href', '/secretary/dashboard');
+    });
+
+    it('links straight to the Entries page when the viewer manages exactly one show', () => {
+      asNonOwnerSecretary([CLUB_A]);
+      useShowStore.setState({ shows: [show('s1', CLUB_A), show('s2', CLUB_B)] });
+      render(<DogDetailsMain dog={baseDog} />);
+      expect(noteLink()).toHaveAttribute('href', '/shows/s1/entries');
+    });
+
+    it('falls back to the shows list when the viewer manages several shows', () => {
+      asNonOwnerSecretary([CLUB_A]);
+      useShowStore.setState({ shows: [show('s1', CLUB_A), show('s3', CLUB_A)] });
+      render(<DogDetailsMain dog={baseDog} />);
+      expect(noteLink()).toHaveAttribute('href', '/secretary/dashboard');
+    });
+
+    it.each([
+      ['owner secretary', ['secretary', 'exhibitor'], OWNER_PERSON_ID, false],
+      ['plain exhibitor', ['exhibitor'], OTHER_PERSON_ID, false],
+      ['site admin', ['site_admin'], OTHER_PERSON_ID, true],
+    ])('does not show the note to a %s', (_label, roles, personId, admin) => {
+      mockRoles = roles;
+      mockPersonId = personId;
+      mockIsAdmin = admin;
+      render(<DogDetailsMain dog={baseDog} />);
+      expect(screen.queryByText('Entries and results live with each show.')).toBeNull();
+    });
   });
 });

@@ -6,6 +6,7 @@ import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { getDogDisplayName } from '@/types/dog-types';
 import type { DogDetailsTabsProps } from './types';
+import NonOwnerDogNote from './NonOwnerDogNote';
 import ActivityTab from './ActivityTab';
 import { useDogDetailsNavigation } from './useDogDetailsNavigation';
 import { TopLevelSectionNav } from './DogDetailsSectionNav';
@@ -31,6 +32,7 @@ const DogDetailsTabs: React.FC<DogDetailsTabsProps> = ({ dog, role = 'exhibitor'
   if (isSecretary) {
     return (
       <div className="pt-6 space-y-8">
+        <NonOwnerDogNote />
         <RegistrationsSection dog={dog} />
         <section>
           <h2 className="text-base font-semibold mb-3">Health Records</h2>

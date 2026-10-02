@@ -111,7 +111,7 @@ test.describe('Browse entries', () => {
 
     // The decision point is inside the "Add entry" popover, which Base UI does
     // not mount until the trigger is clicked.
-    await page.getByRole('button', { name: 'Add entry', exact: true }).click();
+    await page.getByRole('button', { name: 'Add Entry', exact: true }).click();
     await expect(page.getByRole('group', { name: 'Add entries' })).toBeVisible();
     await expect(page.getByRole('button', { name: 'Add entry for my dog' })).toBeVisible();
     await page.getByRole('button', { name: 'Add entry for someone else' }).click();

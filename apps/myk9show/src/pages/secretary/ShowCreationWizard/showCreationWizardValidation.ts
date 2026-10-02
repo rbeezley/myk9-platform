@@ -75,8 +75,8 @@ export function getReviewBlockingErrors(input: {
     if (!show.location?.trim()) result.push('Location is required');
     if (!show.clubId) result.push('Club selection is required');
     if (!officialsUnknown) {
-      if (show.officials.chairman.length === 0) result.push('Show chairman is required');
-      if (show.officials.secretary.length === 0) result.push('Show secretary is required');
+      if (show.officials.chairman.length === 0) result.push('Please select a chair');
+      if (show.officials.secretary.length === 0) result.push('Please select a secretary');
     }
     if (trials.length === 0) result.push('At least one trial is required');
   }
@@ -110,8 +110,8 @@ export function getShowDetailsValidationMessages(
   if (!show.endDate) messages.push('End date is required');
   if (!show.location?.trim()) messages.push('Location is required');
   if (!show.clubId) messages.push('Club selection is required');
-  if (show.officials.chairman.length === 0) messages.push('Show chairman is required');
-  if (show.officials.secretary.length === 0) messages.push('Show secretary is required');
+  if (show.officials.chairman.length === 0) messages.push('Please select a chair');
+  if (show.officials.secretary.length === 0) messages.push('Please select a secretary');
   // Mirrors the column CHECK so the secretary sees the problem here, not as a raw database
   // error on the final save. ASCA hides the field, so its stale value is never checked.
   const juniorFeeError = juniorHandlerFeeError(show);

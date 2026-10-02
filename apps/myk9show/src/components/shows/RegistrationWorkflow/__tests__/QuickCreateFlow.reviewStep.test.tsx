@@ -94,12 +94,38 @@ describe('QuickCreateFlow review step', () => {
     expect(screen.getByText(/Born: 2021-09-30 \(\d+ yrs? old\)/)).toBeInTheDocument();
   });
 
-  it('MYK9-832 #6: tells the secretary the exhibitor/dog are already saved, not that Complete Setup will add them', async () => {
+  it('MYK9-832 #6: tells the secretary the person/dog are already saved, not that Complete Setup will add them', async () => {
     await reachReviewStep();
 
     expect(
       screen.getByText(/already been saved\. Complete Setup to use them for this registration\./)
     ).toBeInTheDocument();
     expect(screen.queryByText(/will be added to the system/)).not.toBeInTheDocument();
+  });
+});
+
+describe('QuickCreateFlow wording', () => {
+  // The record is a Person and the verb is "add"; "exhibitor" and "create" are gone from the
+  // visible copy. The mock button stands in for the real dialog and keeps its own label.
+  const visibleCopy = () => (document.body.textContent ?? '').replace('Mock Create Exhibitor', '');
+
+  it('says Person and add on the first step and once the person is added', async () => {
+    render(<QuickCreateFlow open onOpenChange={vi.fn()} onFlowCompleted={vi.fn()} mode="single" />);
+
+    expect(screen.getByRole('heading', { name: 'Add Person' })).toBeInTheDocument();
+    expect(visibleCopy()).not.toMatch(/exhibitor|\bcreat(e|ing)\b/i);
+
+    fireEvent.click(screen.getByText('Mock Create Exhibitor'));
+    // The flow moves on to the dogs step; Back returns to the person step, which confirms it.
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByText('Person Added')).toBeInTheDocument();
+    expect(visibleCopy()).not.toMatch(/exhibitor|\bcreat(e|ing)\b/i);
+  });
+
+  it('says Person on the review step', async () => {
+    await reachReviewStep();
+
+    expect(screen.getByText('Person Information')).toBeInTheDocument();
+    expect(visibleCopy()).not.toMatch(/exhibitor|\bcreat(e|ing)\b/i);
   });
 });

@@ -23,8 +23,8 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
     await expect(page.getByRole('button', { name: /Show Dates/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /Entry Period/i })).toBeVisible();
     await expect(page.getByLabel(/Location/i)).toBeVisible();
-    await expect(page.getByText('Show Chairman *', { exact: true })).toBeVisible();
-    await expect(page.getByText('Show Secretary *', { exact: true })).toBeVisible();
+    await expect(page.getByText('Chair *', { exact: true })).toBeVisible();
+    await expect(page.getByText('Secretary *', { exact: true })).toBeVisible();
     await expect(page.getByText(/\d+ items? remaining/i)).toBeVisible();
 
     await page.getByRole('button', { name: /^Next$/ }).click();
@@ -55,7 +55,7 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
       'Show Dates': page.getByRole('button', { name: /Show Dates/i }),
       'Entry Period': page.getByRole('button', { name: /Entry Period/i }),
       'Locate address': page.getByRole('button', { name: /Locate address/i }),
-      'Show Chairman': page.getByRole('button', { name: /Show Chairman/i }),
+      Chair: page.getByRole('button', { name: /^(?:Select )?Chair\b/i }),
     };
     for (const [name, control] of Object.entries(controls)) {
       const box = await control.boundingBox();
@@ -226,7 +226,7 @@ async function selectFirstShowToClone(page: Page) {
 }
 
 async function selectFirstChairman(page: Page) {
-  await selectFirstOfficial(page, 'Show Chairman', 'Search show chairman…');
+  await selectFirstOfficial(page, 'Chair', 'Search chair…');
 }
 
 /**
@@ -341,11 +341,11 @@ test.describe('Show Creation Wizard - sticky chrome (MYK9-510)', () => {
 });
 
 async function selectFirstSecretary(page: Page) {
-  await selectFirstOfficial(page, 'Show Secretary', 'Search show secretary…');
+  await selectFirstOfficial(page, 'Secretary', 'Search secretary…');
 }
 
 async function selectFirstOfficial(page: Page, label: string, searchPlaceholder: string) {
-  const trigger = page.getByRole('button', { name: new RegExp(label, 'i') });
+  const trigger = page.getByRole('button', { name: new RegExp(`^(?:Select )?${label}\\b`, 'i') });
   await expect(trigger).toBeVisible();
   await trigger.click();
 

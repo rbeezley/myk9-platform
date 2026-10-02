@@ -26,7 +26,7 @@ export function EntryRowActionMenu({ entry, ...handlers }: EntryRowActionMenuPro
 
   return (
     <>
-      <RowActionMenu actions={actions} size="sm" label={`Actions for ${entry.dogName}`} />
+      <RowActionMenu actions={actions} size="touch" label={`Actions for ${entry.dogName}`} />
       {dialog}
     </>
   );

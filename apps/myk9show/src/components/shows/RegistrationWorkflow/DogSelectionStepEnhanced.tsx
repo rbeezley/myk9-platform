@@ -422,14 +422,14 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
           <div className="text-center py-8 space-y-4">
             <p className="text-muted-foreground">No dogs found.</p>
             <p className="text-sm text-muted-foreground">
-              Search for an existing dog or create a new exhibitor and dog.
+              Search for an existing dog or add a new person and dog.
             </p>
             {canCreateNew && (
               <div className="space-y-3">
                 <Alert>
                   <UserPlus className="h-4 w-4" />
                   <AlertDescription>
-                    As a secretary, you can create new exhibitors and dogs for registration.
+                    As a secretary, you can add new people and dogs for entries.
                   </AlertDescription>
                 </Alert>
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
@@ -438,7 +438,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
                     className="flex items-center gap-2"
                   >
                     <UserPlus className="h-4 w-4" />
-                    Create Exhibitor & Dog(s)
+                    Add Person & Dog(s)
                   </Button>
                   <Button
                     variant="outline"
@@ -446,7 +446,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
                     className="flex items-center gap-2"
                   >
                     <UserPlus className="h-4 w-4" />
-                    Create Exhibitor Only
+                    Add Person Only
                   </Button>
                 </div>
               </div>

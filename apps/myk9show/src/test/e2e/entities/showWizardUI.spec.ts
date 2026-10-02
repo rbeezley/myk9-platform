@@ -35,8 +35,8 @@ test.describe('Show Wizard UI — Step 1 (secretary)', () => {
     await expect(page.getByText('Show Dates *', { exact: true })).toBeVisible();
     await expect(page.getByText('Entry Period', { exact: true })).toBeVisible();
     await expect(page.getByText('Location *', { exact: true })).toBeVisible();
-    await expect(page.getByText('Show Chairman *', { exact: true })).toBeVisible();
-    // Show Secretary auto-set to the signed-in user.
+    await expect(page.getByText('Chair *', { exact: true })).toBeVisible();
+    // Secretary auto-set to the signed-in user.
     await expect(page.getByText('You', { exact: true })).toBeVisible();
 
     // Next stays enabled with required fields missing; pressing it lists what

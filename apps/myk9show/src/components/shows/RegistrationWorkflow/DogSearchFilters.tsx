@@ -143,16 +143,16 @@ export function DogSearchFilters({
           </div>
 
           <div className="space-y-2">
-            <label className="text-sm font-medium">Gender</label>
+            <label className="text-sm font-medium">Sex</label>
             <Select
               value={filters.genderFilter}
               onValueChange={value => setFilters(prev => ({ ...prev, genderFilter: value }))}
             >
               <SelectTrigger>
-                <SelectValue placeholder="All Genders" />
+                <SelectValue placeholder="Any sex" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Genders</SelectItem>
+                <SelectItem value="">Any sex</SelectItem>
                 {filterOptions.genders.map(gender => (
                   <SelectItem key={gender} value={gender || ''}>
                     {gender}

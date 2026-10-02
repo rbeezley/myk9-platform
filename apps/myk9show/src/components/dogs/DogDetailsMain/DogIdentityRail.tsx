@@ -17,7 +17,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn, getInitials } from '@/lib/utils';
 import { badgeVariants } from '@/utils/badgeVariants';
-import { formatDogAge, getDogRegisteredName } from '@/types/dog-types';
+import { formatDogAge, getDogDisplayName, getDogRegisteredName } from '@/types/dog-types';
 import { DogRegistryTable } from '@/components/dogs/common/DogRegistryTable';
 import { buildDogCardRegistryModel } from '@/components/dogs/common/dogRegistryModel';
 import { DOG_STATUS_BADGES, getDogSexBadge } from '@/components/dogs/common/dogStatusBadges';
@@ -56,6 +56,7 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
   registrationsLoading = false,
   onRetryRegistrations,
   role = 'exhibitor',
+  canOpenOwnerRecord = false,
   onEditPanelOpen,
   onPhotoDialogOpen,
   onDeleteDialogOpen,
@@ -90,9 +91,17 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
     <>
       {owner.id === 'loading' ? (
         <span className="text-sm font-semibold text-muted-foreground">{owner.name}</span>
-      ) : owner.id !== 'unknown' ? (
+      ) : owner.id !== 'unknown' && canOpenOwnerRecord ? (
         <Link
           to={`/people/${owner.id}`}
+          // The person's breadcrumb returns to this dog, not to the People list.
+          state={{
+            backTo: {
+              href: `/dogs/${dog.id}`,
+              label: getDogDisplayName(dog),
+              parent: { label: 'Dogs', href: '/dogs' },
+            },
+          }}
           className="text-sm font-semibold hover:text-primary transition-colors"
         >
           {owner.name}

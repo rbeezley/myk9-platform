@@ -137,3 +137,19 @@ describe('class Edit panel with an empty roster', () => {
     expect(screen.queryByRole('combobox', { name: /judge/i })).toBeNull();
   });
 });
+
+describe('the show edit tab names', () => {
+  // The save-error copy tells the secretary to "open the show's Officials tab", so that
+  // tab has to be called Officials; the premium tab is called Premium everywhere else.
+  it('names the tabs Basic Info, Officials, Judges, Fees and Premium', () => {
+    render(<ShowEditPanel open onClose={vi.fn()} {...baseProps} />);
+
+    expect(screen.getAllByRole('tab').map(t => (t.textContent ?? '').trim())).toEqual([
+      'Basic Info',
+      'Officials',
+      'Judges',
+      'Fees',
+      'Premium',
+    ]);
+  });
+});

@@ -110,7 +110,7 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
     firstName.trim() !== '' && lastName.trim() !== '' && email.trim() !== '' && phone.trim() !== '';
 
   // Slug derived from `label` so two OfficialPickers on the same page (e.g.
-  // "Show Chairman" + "Show Secretary") don't collide on element ids.
+  // "Chair" + "Secretary") don't collide on element ids.
   const idSlug = label
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')

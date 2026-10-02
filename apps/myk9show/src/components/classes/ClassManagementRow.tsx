@@ -183,6 +183,7 @@ export const ClassManagementRow: React.FC<ClassManagementRowProps> = ({
           <div className="flex gap-1">
             <RowActionMenu
               align="end"
+              size="touch"
               label={`More actions for ${cls.name || 'Untitled Class'}`}
               actions={[
                 {

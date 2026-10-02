@@ -181,9 +181,9 @@ describe('Edit Dog BasicInfoTab accessible names (MYK9-88)', () => {
       </DogEditContext.Provider>
     );
 
-  it('gives the gender combobox an accessible name from its visible label', () => {
+  it('gives the sex combobox an accessible name from its visible label', () => {
     renderTab();
-    expect(screen.getByRole('combobox', { name: /^Gender/ })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /^Sex/ })).toBeInTheDocument();
   });
 
   it('keeps the change-photo action named by its visible text', () => {

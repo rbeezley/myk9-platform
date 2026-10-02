@@ -21,7 +21,7 @@ const ClassRowActionsMenu: React.FC<ClassRowActionsMenuProps> = ({ onView, onEdi
     },
   ];
 
-  return <RowActionMenu actions={actions} size="sm" label="Class actions" />;
+  return <RowActionMenu actions={actions} size="touch" label="Class actions" />;
 };
 
 export default ClassRowActionsMenu;

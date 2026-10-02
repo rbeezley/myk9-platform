@@ -34,7 +34,7 @@ test.describe('Secretary Entry Creation', () => {
     await page.goto(`/secretary/entries/${TEST_SHOW_ID}`);
     await page.waitForSelector('text=Entry Management', { timeout: 10000 });
 
-    await expect(page.getByRole('button', { name: 'Add entry', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add Entry', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /refresh/i })).toBeVisible();
   });
 
@@ -45,7 +45,7 @@ test.describe('Secretary Entry Creation', () => {
 
     // The decision point is inside the "Add entry" popover, which is not
     // mounted until the trigger is clicked.
-    await page.getByRole('button', { name: 'Add entry', exact: true }).click();
+    await page.getByRole('button', { name: 'Add Entry', exact: true }).click();
     await page.getByRole('button', { name: 'Add entry for someone else' }).click();
     await page.waitForURL(`**/secretary/register/${TEST_SHOW_ID}`, { timeout: 10000 });
     await expect(page).toHaveURL(`/secretary/register/${TEST_SHOW_ID}`);

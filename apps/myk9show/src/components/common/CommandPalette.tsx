@@ -251,7 +251,7 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
     if (canManageUsers) {
       commands.push({
         id: 'add-person',
-        title: 'Add New User',
+        title: 'Add Person',
         icon: <Plus className="h-4 w-4" />,
         action: () =>
           startTransition(() => {

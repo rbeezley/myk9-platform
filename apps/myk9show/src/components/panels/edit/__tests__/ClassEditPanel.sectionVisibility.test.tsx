@@ -182,3 +182,14 @@ describe('ClassEditForm (full mode) — Section field visibility', () => {
     expect(screen.queryByLabelText('Section')).not.toBeInTheDocument();
   });
 });
+
+describe('ClassEditForm (full mode) — fee labels', () => {
+  // MYK9-917: the same two fees read the same way here as on the show wizard and show edit.
+  it('names the fees "Pre-Entry Fee" and "Day-of-Show Fee", with no ($) suffix', async () => {
+    const { user } = renderFullPanel('Novice', 'Interior');
+    await user.click(screen.getByRole('tab', { name: /requirements/i }));
+    expect(await screen.findByLabelText('Pre-Entry Fee')).toBeInTheDocument();
+    expect(screen.getByLabelText('Day-of-Show Fee')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/\(\$\)/)).not.toBeInTheDocument();
+  });
+});

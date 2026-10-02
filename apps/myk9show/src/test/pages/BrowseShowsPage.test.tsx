@@ -94,8 +94,18 @@ vi.mock('@/components/common/PageShell', () => ({
   ),
 }));
 vi.mock('@/components/common/PageHeader', () => ({
-  PageHeader: ({ actions }: { actions?: React.ReactNode }) => (
-    <div data-testid="page-header">{actions}</div>
+  PageHeader: ({
+    actions,
+    title,
+    showTitle,
+  }: {
+    actions?: React.ReactNode;
+    title: string;
+    showTitle?: boolean;
+  }) => (
+    <div data-testid="page-header" data-title={title} data-show-title={String(Boolean(showTitle))}>
+      {actions}
+    </div>
   ),
 }));
 vi.mock('@/components/common/SearchBar', () => ({
@@ -352,6 +362,15 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
         expect(screen.getByTestId('shows-cards')).toBeInTheDocument();
       });
       expect(screen.queryByTestId('shows-table')).not.toBeInTheDocument();
+    });
+
+    it('asks for a visible "Find Shows" title, not a screen-reader-only one', async () => {
+      renderWithProviders(<BrowseShowsPage />);
+
+      // The real PageHeader renders the title visibly only when told to (showTitle).
+      const header = await screen.findByTestId('page-header');
+      expect(header).toHaveAttribute('data-title', 'Find Shows');
+      expect(header).toHaveAttribute('data-show-title', 'true');
     });
 
     it('honors an explicit table view URL for guests', async () => {

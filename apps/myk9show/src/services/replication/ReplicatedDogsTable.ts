@@ -56,6 +56,8 @@ export interface ReplicatedDog {
   sex?: string | undefined;
   dateOfBirth?: string | undefined;
   ownerId?: string | undefined;
+  /** Read-only here: `toSupabaseRow` never writes it back. */
+  coOwnerId?: string | undefined;
   height?: string | undefined;
   weight?: string | undefined;
   color?: string | undefined;
@@ -97,6 +99,7 @@ export function rowToDog(row: DogRow): ReplicatedDog {
     sex: row.sex ?? undefined,
     dateOfBirth: row.date_of_birth ?? undefined,
     ownerId: row.owner_id ?? undefined,
+    coOwnerId: row.co_owner_id ?? undefined,
     height: row.height ?? undefined,
     weight: row.weight ?? undefined,
     color: row.color ?? undefined,

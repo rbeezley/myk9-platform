@@ -117,6 +117,9 @@ async function openEditPanelAndChangePhone() {
   await user.click(screen.getByRole('button', { name: /more actions/i }));
   await user.click(await screen.findByRole('menuitem', { name: /edit person/i }));
   const panel = await screen.findByRole('dialog');
+  expect(
+    within(panel).getByText('Edit Person', { selector: 'h2, h3, [role="heading"]' })
+  ).toBeInTheDocument();
   await user.click(within(panel).getByRole('tab', { name: /contact/i }));
   const phone = await within(panel).findByLabelText(/phone number/i);
   await user.clear(phone);
@@ -184,7 +187,7 @@ describe('UserDetailsView edit save', () => {
         updates: expect.objectContaining({ phone: NEW_PHONE }),
       })
     );
-    expect(notifySuccess).toHaveBeenCalled();
+    expect(notifySuccess).toHaveBeenCalledWith('Person updated');
     expect(notifyError).not.toHaveBeenCalled();
     expect(screen.getByText(NEW_PHONE)).toBeInTheDocument();
   });

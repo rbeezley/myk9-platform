@@ -230,3 +230,17 @@ describe('ClassCompactHeader', () => {
     expect(trialValue).toHaveTextContent('\u2014');
   });
 });
+
+describe('ClassCompactHeader trial label', () => {
+  // The one shared trial label: the trial's name first, never "Trial " + a number.
+  it('shows the trial name through formatTrialLabel', () => {
+    render(
+      <ClassCompactHeader
+        parentShow={undefined}
+        classData={makeClassData()}
+        parentTrial={makeTrial({ name: 'Saturday AM', trialNumber: '2' })}
+      />
+    );
+    expect(screen.getByText('Saturday AM')).toBeInTheDocument();
+  });
+});

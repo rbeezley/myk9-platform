@@ -8,7 +8,7 @@ export const dogFormSchema = z.object({
   // MYK9-90 §5.1 — `.trim()` before `.min(1)`; see AddDogPanel/validation.ts.
   // `dogs.call_name` is NOT NULL, so "   " is not an acceptable identifier.
   callName: z.string().trim().min(1, 'Please enter a call name'),
-  gender: z.string().min(1, 'Please select a gender'),
+  gender: z.string().min(1, 'Please select a sex'),
   dateOfBirth: z.string().min(1, 'Please enter a date of birth'),
   color: z.string(),
   weight: z.string(),

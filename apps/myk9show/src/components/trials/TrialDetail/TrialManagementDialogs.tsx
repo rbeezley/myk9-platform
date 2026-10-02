@@ -175,7 +175,11 @@ export const TrialManagementDialogs = forwardRef<
         open={editTrialPanelOpen}
         onClose={closeEditTrial}
         trialId={currentTrial?.id || ''}
-        trialName={currentTrial?.type || currentTrial?.trialNumber || ''}
+        trialName={
+          currentTrial
+            ? formatTrialLabel({ name: currentTrial.name, trialNumber: currentTrial.trialNumber })
+            : ''
+        }
         initialTrialData={currentTrial || {}}
         {...(showOrganization ? { organization: showOrganization } : {})}
         onSave={async trialData => {

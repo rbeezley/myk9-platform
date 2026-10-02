@@ -46,3 +46,21 @@ describe('ClubsListView', () => {
     expect(screen.getByRole('button', { name: /compact density/i })).toBeInTheDocument();
   });
 });
+
+describe('ClubsListView empty cells', () => {
+  it('shows an em dash, not a hyphen, for a missing type and location', () => {
+    localStorage.clear();
+    const bare = {
+      ...clubs[0],
+      id: 'club-2',
+      name: 'Bare Club',
+      clubType: undefined,
+      address: undefined,
+    } as unknown as Club;
+    render(<ClubsListView clubs={[bare]} clubShowCounts={new Map()} />);
+
+    const row = screen.getByText('Bare Club').closest('tr') as HTMLElement;
+    expect(row).toHaveTextContent('—');
+    expect(row.textContent).not.toMatch(/(^|[^\w])-($|[^\w])/);
+  });
+});

@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react';
 import { useQueries } from '@tanstack/react-query';
-import { classifyPreviewError } from './deleteErrors';
+import { classifyPreviewError, isAlreadyGoneError } from './deleteErrors';
 import { fetchDeletePreview, sumPreviews } from './deletePreview';
 import type { DeleteObjectKind, DeletePreview, DeletePreviewState } from './deleteTypes';
 
@@ -30,10 +30,16 @@ export const deletePreviewKey = (kind: DeleteObjectKind, id: string) =>
   ['delete-preview', kind, id] as const;
 
 export interface DeletePreviewResult {
-  /** The summed state the dialog renders. */
+  /** The summed state over the items that still exist. */
   state: DeletePreviewState;
-  /** Per item, in target order; undefined until that item's counts arrive. */
+  /** Per item, in target order; undefined until that item's counts arrive (and for a gone item). */
   perItem: (DeletePreview | undefined)[];
+  /**
+   * Items the server says are already gone (P0002: missing or already deleted,
+   * e.g. another device deleted them). They are not part of `state`: a stale
+   * item drops out of the delete instead of blocking the rest.
+   */
+  goneIds: string[];
   retry: () => void;
 }
 
@@ -45,7 +51,9 @@ export interface DeletePreviewResult {
  * - any item still loading, or re-fetching over an older answer, is pending
  *   (React Query keeps the previous open's `data` through a refetch; a number
  *   with a fetch in flight over it is not a fact about now, MYK9-600);
- * - any item failing makes the whole dialog unavailable;
+ * - an item the server reports as already gone (P0002) is not a failure: it is
+ *   listed in `goneIds` and left out of the summed state;
+ * - any other item failing makes the whole dialog unavailable;
  * - `gcTime: 0` so a closed dialog does not leave counts behind for the next.
  */
 export function useDeletePreview(
@@ -68,8 +76,16 @@ export function useDeletePreview(
     })),
   });
 
+  const isGone = (query: (typeof queries)[number]) =>
+    query.isError && !query.isFetching && isAlreadyGoneError(query.error);
+  const goneIds = ids.filter((_, index) => {
+    const query = queries[index];
+    return query !== undefined && isGone(query);
+  });
+  const live = queries.filter(query => !isGone(query));
+
   const retry = () => {
-    for (const query of queries) {
+    for (const query of live) {
       if (query.isError) void query.refetch();
     }
   };
@@ -82,33 +98,36 @@ export function useDeletePreview(
     return {
       state: { status: 'unavailable', reason: 'offline', isRetrying: false },
       perItem,
+      goneIds: [],
       retry,
     };
   }
 
-  const failed = queries.find(query => query.isError);
+  const failed = live.find(query => query.isError);
   if (failed) {
     return {
       state: {
         status: 'unavailable',
         reason: classifyPreviewError(failed.error),
-        isRetrying: queries.some(query => query.isFetching),
+        isRetrying: live.some(query => query.isFetching),
       },
       perItem,
+      goneIds,
       retry,
     };
   }
 
-  if (ids.length === 0 || queries.some(query => query.isFetching || query.data === undefined)) {
-    return { state: { status: 'pending' }, perItem, retry };
+  if (ids.length === 0 || live.some(query => query.isFetching || query.data === undefined)) {
+    return { state: { status: 'pending' }, perItem, goneIds, retry };
   }
 
   return {
     state: {
       status: 'ready',
-      preview: sumPreviews(queries.map(query => query.data as DeletePreview)),
+      preview: sumPreviews(live.map(query => query.data as DeletePreview)),
     },
     perItem,
+    goneIds,
     retry,
   };
 }

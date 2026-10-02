@@ -1,8 +1,16 @@
 /**
  * Server refusals → plain language. No raw database text ever reaches the user
  * from the delete path: every SQLSTATE the soft-delete, restore and preview RPCs
- * raise (20261001214300, 20261001233700, MK001/MK002 from earlier migrations) is
- * named here, and anything else gets a generic sentence.
+ * raise (20261001214300, 20261001233700, 20261001235300, MK001/MK002 from
+ * earlier migrations) is named here, and anything else gets a generic sentence.
+ *
+ * Everything here reads the SQLSTATE alone, never the message (MYK9-922). The
+ * server gives each meaning its own code:
+ *   P0002  the row does not exist or is already deleted (restore: not deleted);
+ *   42501  the row is live and the caller may not act on it.
+ * Guessing from message text read a refusal as "already deleted" (and purged a
+ * live dog from this device) and a deleted record as a refusal (and blocked a
+ * whole bulk delete); the codes cannot be misread either way.
  */
 import { objectNoun } from './deleteObjectCopy';
 import type { DeleteObjectKind, DeletePreviewUnavailableReason } from './deleteTypes';
@@ -10,15 +18,21 @@ import { SHOW_STILL_SAVING } from '@/services/database/shows/deleteOutcome';
 
 interface ErrorLike {
   code?: unknown;
-  message?: unknown;
 }
 
-function fieldsOf(error: unknown): { code: string; message: string } {
+function fieldsOf(error: unknown): { code: string } {
   const e = (error && typeof error === 'object' ? error : {}) as ErrorLike;
-  return {
-    code: typeof e.code === 'string' ? e.code : '',
-    message: typeof e.message === 'string' ? e.message : '',
-  };
+  return { code: typeof e.code === 'string' ? e.code : '' };
+}
+
+/** P0002 (no_data_found): the row does not exist or is already deleted. */
+export const PG_NO_DATA_FOUND = 'P0002';
+/** 42501 (insufficient_privilege): the row is live; the caller may not act on it. */
+export const PG_INSUFFICIENT_PRIVILEGE = '42501';
+
+/** True when the server said the row is already gone (another device, a retry). */
+export function isAlreadyGoneError(error: unknown): boolean {
+  return fieldsOf(error).code === PG_NO_DATA_FOUND;
 }
 
 function isOffline(): boolean {
@@ -35,21 +49,14 @@ function isOffline(): boolean {
 export type DeleteFailureKind =
   'already-deleted' | 'blocked' | 'forbidden' | 'still-saving' | 'offline' | 'failed';
 
-/**
- * What a failed soft_delete_<object> call means. "Not found or already deleted"
- * shares 42501 with "Permission denied" on show/trial/class/entry, so the message
- * is the only discriminator (the same reading as `classifyShowDeleteError`).
- */
+/** What a failed soft_delete_<object> call means, by SQLSTATE only. */
 export function classifyDeleteError(error: unknown): DeleteFailureKind {
-  const { code, message } = fieldsOf(error);
-  if (code === SHOW_STILL_SAVING || /still saving/i.test(message)) return 'still-saving';
+  const { code } = fieldsOf(error);
+  if (code === SHOW_STILL_SAVING) return 'still-saving';
   if (code === 'MK010' || code === 'MK011' || code === 'MK001' || code === 'MK002')
     return 'blocked';
-  // soft_delete_dog says "not found or permission denied" for BOTH a missing row and a
-  // row the caller no longer owns, so it proves nothing is deleted: refuse, never purge.
-  if (/permission denied/i.test(message) && code === '42501') return 'forbidden';
-  if (/not found|already deleted/i.test(message) || code === 'P0002') return 'already-deleted';
-  if (code === '42501') return 'forbidden';
+  if (code === PG_NO_DATA_FOUND) return 'already-deleted';
+  if (code === PG_INSUFFICIENT_PRIVILEGE) return 'forbidden';
   if (isOffline()) return 'offline';
   return 'failed';
 }
@@ -87,8 +94,8 @@ export function deleteErrorMessage(kind: DeleteObjectKind, error: unknown): stri
 
 /** The sentence shown when Undo (restore_<object>) fails. */
 export function restoreErrorMessage(kind: DeleteObjectKind, error: unknown): string {
-  const { code, message } = fieldsOf(error);
-  if (code === '42501') {
+  const { code } = fieldsOf(error);
+  if (code === PG_INSUFFICIENT_PRIVILEGE) {
     return 'The 10 minutes to undo this are over. Ask a myK9 administrator to restore it.';
   }
   if (code === 'MK013') {
@@ -102,7 +109,7 @@ export function restoreErrorMessage(kind: DeleteObjectKind, error: unknown): str
             : 'class or dog';
     return `This can't come back while its ${parent} is deleted. Restore the ${parent} first.`;
   }
-  if (code === 'P0002' || /not deleted/i.test(message)) {
+  if (code === PG_NO_DATA_FOUND) {
     return `${thisThing(kind).replace(/^t/, 'T')} is already back.`;
   }
   if (isOffline()) {
@@ -111,11 +118,15 @@ export function restoreErrorMessage(kind: DeleteObjectKind, error: unknown): str
   return `We couldn't bring back ${thisThing(kind)}. Please try again.`;
 }
 
-/** Why a delete_preview read failed, for the dialog's "unknown" state. */
+/**
+ * Why a delete_preview read failed, for the dialog's "unknown" state. A P0002
+ * never reaches here: `useDeletePreview` reads it as "already gone" and drops
+ * that item from the delete instead of blocking it.
+ */
 export function classifyPreviewError(error: unknown): DeletePreviewUnavailableReason {
   const { code } = fieldsOf(error);
   if (isOffline()) return 'offline';
-  if (code === '42501' && classifyDeleteError(error) === 'forbidden') return 'forbidden';
+  if (code === PG_INSUFFICIENT_PRIVILEGE) return 'forbidden';
   return 'failed';
 }
 
@@ -124,11 +135,6 @@ export function classifyPreviewError(error: unknown): DeletePreviewUnavailableRe
  * (window over, parent still deleted, already back) is not worth a second try.
  */
 export function isRetryableRestoreError(error: unknown): boolean {
-  const { code, message } = fieldsOf(error);
-  return !(
-    code === '42501' ||
-    code === 'MK013' ||
-    code === 'P0002' ||
-    /not deleted/i.test(message)
-  );
+  const { code } = fieldsOf(error);
+  return !(code === PG_INSUFFICIENT_PRIVILEGE || code === 'MK013' || code === PG_NO_DATA_FOUND);
 }

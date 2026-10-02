@@ -1,12 +1,11 @@
 /**
- * What a failed `soft_delete_show` call means, read from the RPC's own
- * messages (migration 20260515113000). Both refusals carry ERRCODE 42501, so
- * the code cannot tell them apart; the message is the only discriminator.
+ * What a failed `soft_delete_show` call means, read from its SQLSTATE alone
+ * (migration 20261001235300, MYK9-922), never from the message:
  *
- * - "Show not found" / "Show not found or already deleted": the row is
- *   already soft-deleted (or never existed). For a client that still lists the
- *   show, that is the outcome the user asked for, so callers treat it as done.
- * - "Permission denied": the caller may not delete this show. A real failure.
+ * - P0002: the row is already soft-deleted (or never existed). For a client
+ *   that still lists the show, that is the outcome the user asked for, so
+ *   callers treat it as done.
+ * - 42501: the show is live and the caller may not delete it. A real failure.
  */
 
 export type ShowDeleteFailure = 'already-deleted' | 'permission-denied' | 'still-saving' | 'failed';
@@ -19,16 +18,14 @@ const messageOf = (error: unknown): string =>
     ? String((error as { message?: unknown }).message ?? '')
     : '';
 
+const codeOf = (error: unknown): unknown => (error as { code?: unknown } | null)?.code;
+
 export function classifyShowDeleteError(error: unknown): ShowDeleteFailure {
   const message = messageOf(error);
   // Matched by message too: showStore.deleteShow rethrows a plain Error, dropping the code.
-  if (
-    (error as { code?: unknown } | null)?.code === SHOW_STILL_SAVING ||
-    /still saving/i.test(message)
-  )
-    return 'still-saving';
-  if (/show not found/i.test(message)) return 'already-deleted';
-  if (/permission denied/i.test(message)) return 'permission-denied';
+  if (codeOf(error) === SHOW_STILL_SAVING || /still saving/i.test(message)) return 'still-saving';
+  if (codeOf(error) === 'P0002') return 'already-deleted';
+  if (codeOf(error) === '42501') return 'permission-denied';
   return 'failed';
 }
 

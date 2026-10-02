@@ -192,6 +192,18 @@ export function deletedToast(kind: DeleteObjectKind, targets: readonly DeleteTar
   return `${countOf(kind, targets.length)} deleted`;
 }
 
+/** The preview found every item already deleted elsewhere: nothing left to delete. */
+export function alreadyDeletedToast(
+  kind: DeleteObjectKind,
+  targets: readonly DeleteTarget[]
+): string {
+  if (targets.length === 1) {
+    const noun = objectNoun(kind);
+    return `${noun.charAt(0).toUpperCase()}${noun.slice(1)} was already deleted: ${targets[0]?.name ?? ''}`;
+  }
+  return `${countOf(kind, targets.length)} were already deleted`;
+}
+
 export function restoredToast(kind: DeleteObjectKind, count: number): string {
   if (count === 1) {
     const noun = objectNoun(kind);

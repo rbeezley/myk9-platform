@@ -22,6 +22,7 @@ import {
   classifyDeleteError,
   classifyPreviewError,
   deleteErrorMessage,
+  isRetryableRestoreError,
   restoreErrorMessage,
 } from './deleteErrors';
 import { parseDeletePreview } from './deletePreview';
@@ -70,8 +71,8 @@ describe('deleteRecords: the one client delete service', () => {
     ]);
   });
 
-  it('treats "already deleted" as gone: purged, but not offered for Undo', async () => {
-    mocks.remove.mockRejectedValue({ code: '42501', message: 'Show not found or already deleted' });
+  it('treats "already deleted" (P0002) as gone: purged, but not offered for Undo', async () => {
+    mocks.remove.mockRejectedValue({ code: 'P0002', message: 'Show not found or already deleted' });
 
     const result = await deleteRecords('show', [show]);
 
@@ -183,6 +184,48 @@ describe('server refusals in plain language (no raw error text)', () => {
   });
 });
 
+describe('the SQLSTATE decides, never the message (MYK9-922)', () => {
+  it('a 42501 is forbidden even when its message says "not found or already deleted": never purged', async () => {
+    const refusal = { code: '42501', message: 'Trial not found or already deleted' };
+    expect(classifyDeleteError(refusal)).toBe('forbidden');
+    mocks.remove.mockReset().mockRejectedValue(refusal);
+    mocks.purge.mockReset();
+
+    const result = await deleteRecords('trial', [{ id: 't1', name: 'Saturday T1' }]);
+
+    expect(mocks.purge).not.toHaveBeenCalled();
+    expect(result.alreadyGone).toEqual([]);
+    expect(result.failed.map(f => f.message)).toEqual([
+      "You don't have permission to delete this trial.",
+    ]);
+  });
+
+  it('a P0002 is already gone whatever its message says', () => {
+    expect(classifyDeleteError({ code: 'P0002', message: 'Permission denied' })).toBe(
+      'already-deleted'
+    );
+  });
+
+  it('a message alone (no code) is a plain failure, not "already deleted"', () => {
+    expect(classifyDeleteError({ message: 'Show not found or already deleted' })).toBe('failed');
+  });
+
+  it('restore: P0002 is "already back" and final; a "not deleted" message without the code is retryable', () => {
+    expect(restoreErrorMessage('dog', { code: 'P0002', message: 'x' })).toBe(
+      'This dog is already back.'
+    );
+    expect(isRetryableRestoreError({ code: 'P0002', message: 'x' })).toBe(false);
+    expect(restoreErrorMessage('dog', { message: 'Dog not found or not deleted' })).toBe(
+      "We couldn't bring back this dog. Please try again."
+    );
+    expect(isRetryableRestoreError({ message: 'Dog not found or not deleted' })).toBe(true);
+  });
+
+  it('preview: a 42501 is forbidden even when its message says "not found"', () => {
+    expect(classifyPreviewError({ code: '42501', message: 'Show not found' })).toBe('forbidden');
+  });
+});
+
 describe('an ambiguous "not found or permission denied" refusal', () => {
   const ambiguous = { code: '42501', message: 'Dog not found or permission denied' };
 
@@ -198,12 +241,6 @@ describe('an ambiguous "not found or permission denied" refusal', () => {
     expect(result.failed.map(f => f.message)).toEqual([
       "You don't have permission to delete this dog.",
     ]);
-  });
-
-  it('still reads an unambiguous "already deleted" as already gone', () => {
-    expect(
-      classifyDeleteError({ code: '42501', message: 'Trial not found or already deleted' })
-    ).toBe('already-deleted');
   });
 });
 

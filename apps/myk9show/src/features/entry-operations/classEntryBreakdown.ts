@@ -1,4 +1,7 @@
-import { getEntryStatusKind } from '@/services/entryDisplay/entryDisplaySelectors';
+import {
+  getEntryStatusKind,
+  type EntryStatusKind,
+} from '@/services/entryDisplay/entryDisplaySelectors';
 import { mapEntryStatus } from '@/services/entryDisplay/entryStatusUiAdapter';
 import { EntryStatus } from '@/types/show-registration-types';
 
@@ -21,7 +24,13 @@ interface EntryRowLike {
   deleted_at?: unknown;
 }
 
-const ENTERED_KINDS = new Set(['accepted', 'in_ring', 'completed', 'absent', 'move_up_requested']);
+const ENTERED_KINDS: ReadonlySet<EntryStatusKind> = new Set<EntryStatusKind>([
+  'accepted',
+  'in_ring',
+  'completed',
+  'absent',
+  'move_up_requested',
+]);
 
 export function buildClassEntryBreakdowns(
   entries: readonly EntryRowLike[]
@@ -36,11 +45,9 @@ export function buildClassEntryBreakdowns(
       (kind === 'accepted' || kind === 'not_accepted') &&
       mapEntryStatus(raw) === EntryStatus.PENDING;
     const isPending = kind === 'pending' || keptPendingByOverride;
-    const isEntered = !isPending && ENTERED_KINDS.has(kind);
-    if (!isPending && !isEntered) continue;
+    if (!isPending && !ENTERED_KINDS.has(kind)) continue;
     const breakdown = result.get(entry.class_id) ?? { entered: 0, pending: 0 };
-    if (isPending) breakdown.pending += 1;
-    else breakdown.entered += 1;
+    breakdown[isPending ? 'pending' : 'entered'] += 1;
     result.set(entry.class_id, breakdown);
   }
   return result;

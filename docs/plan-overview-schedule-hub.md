@@ -2,7 +2,7 @@
 
 > **Status:** Active
 
-**Linear:** MYK9-942 (done) → MYK9-948 → MYK9-943 → MYK9-944 (each blocks the next); MYK9-945 under MYK9-897 · **Date:** 2026-10-02 (revised the same day against `origin/main` @ `6e38d748f`) · **Related:** [MYK9-897](https://linear.app/myk9-platform/issue/MYK9-897) / [`plan-secretary-crud-consolidation.md`](plan-secretary-crud-consolidation.md)
+**Linear:** MYK9-942, MYK9-948, MYK9-943 shipped; MYK9-944 and MYK9-945 superseded by [`plan-secretary-show-home.md`](plan-secretary-show-home.md) · **Date:** 2026-10-02 (revised the same day against `origin/main` @ `6e38d748f`) · **Related:** [MYK9-897](https://linear.app/myk9-platform/issue/MYK9-897) / [`plan-secretary-crud-consolidation.md`](plan-secretary-crud-consolidation.md)
 **Read first:** [`INTENT.md`](INTENT.md) § Trial Secretary ("That was easy" — _absorb complexity, not add to it_) and [`archive/plan-show-map-workbench-collapse.md`](archive/plan-show-map-workbench-collapse.md) (the precedent for deleting a surface instead of rearranging it).
 
 ## Goal
@@ -86,6 +86,8 @@ Acceptance (assertion-first): breakdown tests including `paid` / `promotion-expi
 
 ## Phase 3 — Remove the Show Map view from Setup ([MYK9-944](https://linear.app/myk9-platform/issue/MYK9-944))
 
+> **Superseded 2026-10-02** by [`plan-secretary-show-home.md`](plan-secretary-show-home.md): the owner chose one secretary home that absorbs Show Day and Setup, so this phase is folded into its Phase 4 / Phase 3.
+
 1. **Walk first (decision gate).** As `secretary@myk9t.com` on a seeded show, open Setup → Show Map and record anything it shows that the schedule (after Phases 1–2), Entries or Class details cannot: the "all exhibitors" by-dog branch and the day/completion filters are the candidates. If something has no other home, name where it moves before deleting. Default: delete.
 2. Remove `'map'` from `SETUP_SECTIONS`; `?section=map` and the legacy `?tab=map` redirect to Overview.
 3. Delete `ShowMapTab` and the parts of `features/show-map/` that only it uses. **Keep** everything the Show Day cockpit imports (`showMapTree`, `showMapActions`, `showDeskPendingSignals`, dialogs used by `ShowDeskPanel`, …). Prove each deletion with a grep (code **and** `*.md`) and a green typecheck, not by name.
@@ -94,6 +96,8 @@ Acceptance (assertion-first): breakdown tests including `paid` / `promotion-expi
 Acceptance: Setup shows two views (Trials, Classes) with a render test asserting it (red on `main`); `?section=map` and `?tab=map` land on Overview; typecheck, lint and suite green; e2e specs that opened the map updated.
 
 ## Phase 4 — Decide Setup's future (after MYK9-898) ([MYK9-945](https://linear.app/myk9-platform/issue/MYK9-945))
+
+> **Superseded 2026-10-02** by [`plan-secretary-show-home.md`](plan-secretary-show-home.md): the owner chose one secretary home that absorbs Show Day and Setup, so this phase is folded into its Phase 4 / Phase 3.
 
 Not code. After the real-secretary observation (MYK9-898) runs, review: did she start work from the schedule? Did she find Setup → Classes from the schedule's "Manage classes" link, or from the tab? If the tab is unused, propose folding Trials and Classes somewhere else (e.g. reached only from the schedule) as a new plan; if it is used, close this question. Filed as a follow-up under MYK9-897.
 

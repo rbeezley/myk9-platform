@@ -13,7 +13,12 @@
 --
 -- WHAT CHANGES
 --
---   Only the authorization predicate. Everything else is copied verbatim from
+--   Only the authorization predicate, which also loses its co-owner arm (owner
+--   decision, 2026-10-02): `p_dog->>'co_owner_id' = get_my_person_id()` admitted
+--   any caller who named themself as co-owner, for ANY owner_id, and the INSERT
+--   never writes co_owner_id, so the new row did not even record them. No app
+--   or edge-function caller sends co_owner_id to this RPC; a co_owner_id in
+--   p_dog is still ignored, as before. Everything else is copied verbatim from
 --   the latest definition (20260727120000_create_dog_with_registrations_created_at,
 --   identical to live pg_get_functiondef on 2026-10-02): the signature,
 --   SECURITY DEFINER, the empty search_path, the 22023/42501/23505 error codes,
@@ -23,7 +28,10 @@
 --   = ... THEN RETURN v_existing_dog_id`) is left as is: a NULL there makes
 --   PL/pgSQL take the ELSE path and RAISE 23505, which already fails closed, and
 --   a caller with no people row and no privileged role is now refused before
---   reaching it.
+--   reaching it. Its co-owner arms read the EXISTING dog's stored co_owner_id,
+--   not a caller claim, and a non-privileged caller only reaches them with
+--   v_owner_id = get_my_person_id(), so they hand an existing dog back only to
+--   its recorded owner or co-owner.
 --
 --   The ACL is restated as live: authenticated and service_role, never anon or
 --   PUBLIC.
@@ -85,9 +93,10 @@ BEGIN
   -- people row (an anonymous ringside-passcode session), so each arm is
   -- coalesced to false and the caller is refused unless the whole
   -- authorization IS TRUE. `IF NOT (NULL)` used to skip the refusal.
+  -- The co-owner arm is gone (owner decision): naming yourself as
+  -- co_owner_id admitted any owner_id, and co_owner_id is never written.
   IF (
     coalesce(v_owner_id = public.get_my_person_id(), false)
-    OR coalesce((p_dog->>'co_owner_id') IS NOT NULL AND (p_dog->>'co_owner_id')::uuid = public.get_my_person_id(), false)
     OR coalesce(v_is_privileged, false)
   ) IS NOT TRUE THEN
     RAISE EXCEPTION 'not authorized to create a dog for owner %', v_owner_id

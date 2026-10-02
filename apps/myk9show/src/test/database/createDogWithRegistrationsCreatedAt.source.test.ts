@@ -46,4 +46,10 @@ describe('create_dog_with_registrations created_at migration', () => {
     );
     expect(failClosedMigration).toContain(') IS NOT TRUE THEN');
   });
+
+  it('drops the self-named co-owner arm from the MYK9-946 authorization', () => {
+    expect(failClosedMigration).not.toContain(
+      "(p_dog->>'co_owner_id')::uuid = public.get_my_person_id()"
+    );
+  });
 });

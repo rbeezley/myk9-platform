@@ -2,7 +2,8 @@
 -- closed when the caller has no people row. get_my_person_id() is NULL for an
 -- anonymous ringside-passcode session, and `IF NOT (NULL OR NULL OR false)`
 -- skipped the refusal, so such a caller could create a dog plus registrations
--- under any owner_id.
+-- under any owner_id. The same migration drops the co-owner arm (owner
+-- decision): naming yourself as co_owner_id admitted any owner_id.
 --
 -- Properties asserted here:
 --   * the function stays SECURITY DEFINER, executable by authenticated, never
@@ -18,10 +19,12 @@
 --         existing dog id to it);
 --       - an unrelated caller WITH a people row, both plain and via the
 --         duplicate-registration branch;
---   * POSITIVE CONTROLS: the owner creating their own dog, a caller naming
---     themself as co-owner, and a trial secretary creating a dog for someone
---     else all succeed and write the dog and its registration; the owner
---     re-using their existing dog's registration number gets that dog back.
+--       - a caller WITH a people row naming themself as co_owner_id for
+--         someone else's owner_id (the removed co-owner arm);
+--   * POSITIVE CONTROLS: the owner creating their own dog and a trial
+--     secretary creating a dog for someone else both succeed and write the dog
+--     and its registration; the owner re-using their existing dog's
+--     registration number gets that dog back.
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
 
@@ -30,7 +33,7 @@ BEGIN;
 -- ---------------------------------------------------------------------------
 -- Fixtures. People first, then auth.users; handle_new_user() adopts each row.
 --   946101 owner O                    946102 unrelated U
---   946103 trial secretary S          946104 co-owner caller C
+--   946103 trial secretary S          946104 self-named co-owner C
 --   946105 anonymous session (is_anonymous = true): handle_new_user() skips it,
 --          so it has NO people row, exactly like a ringside-passcode session.
 -- people.id (9460xx) and auth uid (9461xx) are deliberately different.
@@ -174,7 +177,7 @@ END;
 $$;
 
 -- ---------------------------------------------------------------------------
--- 2. Refusals. Dog ids 946071..946075 must never be written.
+-- 2. Refusals. Dog ids 946071..946076 must never be written.
 -- ---------------------------------------------------------------------------
 SET LOCAL ROLE authenticated;
 
@@ -221,6 +224,14 @@ SELECT pg_temp.expect_sqlstate(
   pg_temp.create_sql('00000000-0000-0000-0000-000000946075', '00000000-0000-0000-0000-000000946011', NULL, 'MYK9946EXIST'),
   '42501', 'unrelated person: an existing dog''s registration under its owner is refused');
 
+-- 2c. A caller with a people row naming themself as co-owner of someone
+--     else's dog: the co-owner arm is gone.
+SELECT pg_temp.act_as('00000000-0000-0000-0000-000000946104');
+SELECT pg_temp.expect_sqlstate(
+  pg_temp.create_sql('00000000-0000-0000-0000-000000946076', '00000000-0000-0000-0000-000000946011',
+                     '00000000-0000-0000-0000-000000946014', 'MYK9946COO1'),
+  '42501', 'self-named co-owner: a dog for someone else''s owner_id is refused');
+
 RESET ROLE;
 
 DO $$
@@ -229,7 +240,7 @@ BEGIN
     SELECT 1 FROM public.dogs
     WHERE id IN ('00000000-0000-0000-0000-000000946071', '00000000-0000-0000-0000-000000946072',
                  '00000000-0000-0000-0000-000000946073', '00000000-0000-0000-0000-000000946074',
-                 '00000000-0000-0000-0000-000000946075')
+                 '00000000-0000-0000-0000-000000946075', '00000000-0000-0000-0000-000000946076')
   ) THEN
     RAISE EXCEPTION 'FAIL a refused call still created a dog';
   END IF;
@@ -237,8 +248,8 @@ BEGIN
     SELECT 1 FROM public.dog_registrations
     WHERE dog_id IN ('00000000-0000-0000-0000-000000946071', '00000000-0000-0000-0000-000000946072',
                      '00000000-0000-0000-0000-000000946073', '00000000-0000-0000-0000-000000946074',
-                     '00000000-0000-0000-0000-000000946075')
-       OR registration_number IN ('MYK9946ANON1', 'MYK9946ANON2', 'MYK9946UNR1')
+                     '00000000-0000-0000-0000-000000946075', '00000000-0000-0000-0000-000000946076')
+       OR registration_number IN ('MYK9946ANON1', 'MYK9946ANON2', 'MYK9946UNR1', 'MYK9946COO1')
   ) THEN
     RAISE EXCEPTION 'FAIL a refused call still created a dog registration';
   END IF;
@@ -250,7 +261,7 @@ END;
 $$;
 
 -- ---------------------------------------------------------------------------
--- 3. Positive controls: owner, co-owner, trial secretary.
+-- 3. Positive controls: owner, owner duplicate, trial secretary.
 -- ---------------------------------------------------------------------------
 SET LOCAL ROLE authenticated;
 
@@ -276,16 +287,6 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS owner: a duplicate registration returns the existing dog';
 
-  -- Co-owner C names themself as co_owner_id.
-  PERFORM pg_temp.act_as('00000000-0000-0000-0000-000000946104');
-  EXECUTE pg_temp.create_sql('00000000-0000-0000-0000-000000946083', '00000000-0000-0000-0000-000000946011',
-                             '00000000-0000-0000-0000-000000946014', 'MYK9946COO1')
-    INTO v_id;
-  IF v_id IS DISTINCT FROM '00000000-0000-0000-0000-000000946083'::uuid THEN
-    RAISE EXCEPTION 'FAIL co-owner: expected the new dog id, got %', v_id;
-  END IF;
-  RAISE NOTICE 'PASS co-owner: naming themself as co-owner succeeds';
-
   -- Trial secretary S creates a dog for the unrelated person U.
   PERFORM pg_temp.act_as('00000000-0000-0000-0000-000000946103');
   IF NOT public.is_trial_secretary() THEN
@@ -308,9 +309,8 @@ BEGIN
       JOIN public.dog_registrations dr ON dr.dog_id = d.id
       WHERE (d.id, d.owner_id, dr.registration_number) IN (
         ('00000000-0000-0000-0000-000000946081'::uuid, '00000000-0000-0000-0000-000000946011'::uuid, 'MYK9946OWN1'),
-        ('00000000-0000-0000-0000-000000946083'::uuid, '00000000-0000-0000-0000-000000946011'::uuid, 'MYK9946COO1'),
         ('00000000-0000-0000-0000-000000946084'::uuid, '00000000-0000-0000-0000-000000946012'::uuid, 'MYK9946SEC1')
-      )) <> 3 THEN
+      )) <> 2 THEN
     RAISE EXCEPTION 'FAIL a positive control did not write its dog and registration';
   END IF;
   IF EXISTS (SELECT 1 FROM public.dogs WHERE id = '00000000-0000-0000-0000-000000946082') THEN

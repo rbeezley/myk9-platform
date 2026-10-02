@@ -1,3 +1,8 @@
+import {
+  captureCsvDownload,
+  registeredPageExports,
+  resetPageExports,
+} from '@/test/utils/csvDownload';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen, render, within } from '@/test/utils/testUtils';
 import BrowsePeoplePage from '../BrowsePeoplePage';
@@ -122,5 +127,44 @@ describe('BrowsePeoplePage list frame', () => {
     expect(banner).toHaveTextContent(/couldn't refresh/i);
     await user.click(within(banner).getByRole('button', { name: 'Try again' }));
     expect(handleRetry).toHaveBeenCalledOnce();
+  });
+
+  it('registers a whole-list Export CSV page action in the table view, no ticking needed', () => {
+    render(<BrowsePeoplePage />);
+    expect(registeredPageExports().map(item => item.id)).toEqual(['people']);
+
+    const download = captureCsvDownload();
+    try {
+      registeredPageExports()[0]!.run();
+      const lines = download.csv().split('\n');
+      expect(lines[0]).toBe('Name,Email,Roles,Location');
+      expect(lines).toHaveLength(2);
+      expect(lines[1]).toContain('"Ada Handler"');
+    } finally {
+      download.restore();
+      resetPageExports();
+    }
+  });
+
+  it('offers no people export in the cards view or for an empty roster', () => {
+    localStorage.setItem('view-pref-people', 'cards');
+    render(<BrowsePeoplePage />);
+    expect(registeredPageExports()).toEqual([]);
+  });
+
+  it("neutralises a leading formula character in a person's name", () => {
+    data = {
+      ...baseData(),
+      filteredPeople: [{ ...person, id: 'p9', firstName: '=HYPERLINK("x")', lastName: 'Evil' }],
+    };
+    render(<BrowsePeoplePage />);
+    const download = captureCsvDownload();
+    try {
+      registeredPageExports()[0]!.run();
+      expect(download.csv()).toContain('"\t=HYPERLINK');
+    } finally {
+      download.restore();
+      resetPageExports();
+    }
   });
 });

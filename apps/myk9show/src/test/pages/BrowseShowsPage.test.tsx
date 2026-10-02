@@ -1,3 +1,8 @@
+import {
+  captureCsvDownload,
+  registeredPageExports,
+  resetPageExports,
+} from '@/test/utils/csvDownload';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, act, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -426,6 +431,46 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
         expect(screen.getByTestId('shows-cards')).toBeInTheDocument();
       });
       expect(screen.queryByTestId('shows-table')).not.toBeInTheDocument();
+    });
+
+    // MYK9-929 review: the table's Export CSV is a page action now, for every tab's shows.
+    it('registers a whole-list Export CSV page action in the table view, with the old columns', async () => {
+      setupMocks({ user: createMockUser(UserRole.SECRETARY, 'secretary-1') });
+      renderWithProviders(<BrowseShowsPage />, { route: '/shows?tab=managing' });
+      await waitFor(() => {
+        expect(screen.getByTestId('shows-table')).toBeInTheDocument();
+      });
+
+      expect(registeredPageExports().map(item => item.id)).toEqual(['shows']);
+      const download = captureCsvDownload();
+      try {
+        registeredPageExports()[0]!.run();
+        const lines = download.csv().split('\n');
+        expect(lines[0]).toBe('Show,Dates,Location,Entries,Organization,Status,Host Club');
+        expect(lines).toHaveLength(mockShows.length + 1);
+        expect(lines[1]).toContain('"Spring Agility Trial"');
+      } finally {
+        download.restore();
+        resetPageExports();
+      }
+    });
+
+    it('registers the export on the public Find Shows table too, and not in cards view', async () => {
+      localStorage.setItem('view-pref-shows-find', 'table');
+      renderWithProviders(<BrowseShowsPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId('shows-table')).toBeInTheDocument();
+      });
+      expect(registeredPageExports().map(item => item.id)).toEqual(['shows']);
+      resetPageExports();
+    });
+
+    it('offers no export in the cards view', async () => {
+      renderWithProviders(<BrowseShowsPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId('shows-cards')).toBeInTheDocument();
+      });
+      expect(registeredPageExports()).toEqual([]);
     });
 
     it('renders the month scrubber with All upcoming selected', async () => {

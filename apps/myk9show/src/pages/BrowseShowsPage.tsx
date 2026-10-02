@@ -43,6 +43,9 @@ import {
   ListViewToggle,
 } from '@/components/list-toolkit';
 import { useViewPreference } from '@/hooks/useViewPreference';
+import { usePageExportAction } from '@/features/actions/pageEditTarget';
+import { exportRowsCsv } from '@/utils/downloadCsv';
+import { SHOWS_EXPORT_HEADERS, showsExportRows } from '@/components/shows/browse/showsExport';
 import { ErrorState } from '@/components/common/ErrorState';
 
 // Extracted hooks and components
@@ -250,6 +253,14 @@ const BrowseShowsPage: React.FC = () => {
     },
     [selectedTab, setSelectedTab, user]
   );
+
+  // The whole-list export the table's own button used to be (owner decision 4): this tab's shows
+  // as filtered, in the table view.
+  usePageExportAction({
+    id: 'shows',
+    enabled: viewMode === 'table' && enhancedShows.length > 0,
+    run: () => exportRowsCsv('shows', SHOWS_EXPORT_HEADERS, showsExportRows(enhancedShows)),
+  });
 
   // Handle a view change: remember it, and drop a `?view=` link's override so the choice sticks.
   const handleViewModeChange = useCallback(

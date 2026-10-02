@@ -8,6 +8,12 @@ import { ListEmptyState, ListViewToggle } from '@/components/list-toolkit';
 import { ErrorState } from '@/components/common/ErrorState';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useViewPreference } from '@/hooks/useViewPreference';
+import { usePageExportAction } from '@/features/actions/pageEditTarget';
+import { exportRowsCsv } from '@/utils/downloadCsv';
+import {
+  PEOPLE_EXPORT_HEADERS,
+  peopleExportRows,
+} from '@/components/users/browse/peopleBulkActions';
 import { defaultListView } from '@/utils/defaultListView';
 import { useRBAC } from '@/hooks/useRBAC';
 import { PERMISSIONS } from '@/services/auth/rbacService';
@@ -67,6 +73,14 @@ const BrowsePeoplePage: React.FC = () => {
     setSelectedPeople([]);
     setSelectionEpoch(epoch => epoch + 1);
   }, []);
+
+  // The whole-list export the table's own button used to be (owner decision 4): the filtered
+  // roster, in the table view, so no row needs ticking first.
+  usePageExportAction({
+    id: 'people',
+    enabled: viewMode === 'table' && filteredPeople.length > 0,
+    run: () => exportRowsCsv('people', PEOPLE_EXPORT_HEADERS, peopleExportRows(filteredPeople)),
+  });
 
   const canCreatePeople = !rbacLoading && hasPermission(PERMISSIONS.PEOPLE_CREATE);
 

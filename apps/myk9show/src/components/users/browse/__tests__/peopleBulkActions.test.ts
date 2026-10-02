@@ -26,8 +26,15 @@ describe('exportPeopleCSV', () => {
     exportPeopleCSV(SELECTED);
 
     const csv = await capture.getCsv();
-    expect(csv).toContain('Ada Lovelace,ada@example.com');
-    expect(csv).toContain('Grace Hopper,grace@example.com');
+    expect(csv).toContain('"Ada Lovelace","ada@example.com"');
+    expect(csv).toContain('"Grace Hopper","grace@example.com"');
+    capture.restore();
+  });
+
+  it('neutralises a leading formula character (the one guarded CSV builder)', async () => {
+    const capture = setupCsvCapture();
+    exportPeopleCSV([person({ id: 'p-9', firstName: '=1+1', lastName: 'X' })]);
+    expect(await capture.getCsv()).toContain('"\t=1+1 X"');
     capture.restore();
   });
 });

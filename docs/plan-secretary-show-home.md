@@ -58,16 +58,17 @@ Each phase is its own PR and leaves the app shippable. Show Day stays reachable 
 
 ### Phase 1 — Slim the Tools (shippable on today's Show Day)
 
-| Tool                                                         | Move to                                 | Notes                                                                                                              |
-| ------------------------------------------------------------ | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| People at show, Self check-in, Access codes                  | **Tools → Check-in**                    | Remove the duplicate Access codes card from Overview (`ShowAccessCodesCard` in `ShowOverviewTab`) for managers     |
-| Volunteers, Judge hospitality, Tasks and notes, Incident log | **Tools → Show logistics**              | —                                                                                                                  |
-| Add entries                                                  | **Entries** tab                         | Verify Entries already offers the same three doors (own dog, someone else's, late entry); add only what is missing |
-| Emergency trial packet                                       | **Reports**                             | It is a print; group with the other printables                                                                     |
-| Show closeout                                                | **Results**                             | Results already lists what blocks closeout                                                                         |
-| Schedule slip script                                         | The class panel's expected-start change | Offer the wording where the time is changed                                                                        |
+Owner decisions 2026-10-02 (MYK9-953 decision 1):
 
-Acceptance: Tools shows exactly two groups (render test, red on `main`); each moved tool is reachable from its new home with a test; no tool is lost (inventory test listing all 11 and their homes); browser walk as `secretary@myk9t.com`.
+| Tool                                                                | Move to                                 | Notes                                                                                                                                                                                                      |
+| ------------------------------------------------------------------- | --------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| People at show, Self check-in, Access codes, Emergency trial packet | **Tools → Show day**                    | Remove the duplicate Access codes card from Overview (`ShowAccessCodesCard` in `ShowOverviewTab`) for managers. The packet keeps its own prepare-and-confirm flow; whether it moves to Reports is MYK9-959 |
+| Volunteers, Judge hospitality, Tasks and notes, Incident log        | **Tools → Show logistics**              | —                                                                                                                                                                                                          |
+| Add entries                                                         | **Entries** tab                         | Verify Entries already offers the same three doors (own dog, someone else's, late entry); add only what is missing                                                                                         |
+| Show closeout                                                       | **Results, step 3 "Close the show"**    | After Review & release and Submit to registry (`ShowResultsSection.tsx`). Mount `ShowCloseoutSummary` + `CloseOutShowAction` unchanged; drop its three shortcut buttons                                    |
+| Schedule slip script                                                | The class panel's expected-start change | Offer the wording where the time is changed                                                                                                                                                                |
+
+Acceptance: Tools shows exactly two groups (render test, red on `main`); Results shows three steps with a deep link to Close the show; each moved tool is reachable from its new home with a test; no tool is lost (inventory test listing all 11 and their homes); browser walk as `secretary@myk9t.com`.
 
 ### Phase 2 — The home: Show Day's cockpit becomes the manager Overview
 

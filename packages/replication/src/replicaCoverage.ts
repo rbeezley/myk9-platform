@@ -1,3 +1,4 @@
+import type { SyncReplicatedTableAdapter } from './syncReplicatedTable.types';
 /**
  * How many of the server's rows this device accounts for, compared against a
  * server row count by the sync engine's partial-replica check and by the app's
@@ -55,4 +56,16 @@ export async function staleCleanupKeepIds(
     if (!inScope.has(String(row.id))) keep.add(String(row.id));
   }
   return keep;
+}
+
+/** Count the same remote population as the adapter's server count, once per ID. */
+export function getCoveredRemoteIds<TRemote, TLocal extends { id: string }>(
+  rows: readonly TRemote[],
+  adapter: SyncReplicatedTableAdapter<TRemote, TLocal>
+): Set<string> {
+  return new Set(
+    rows
+      .filter(row => adapter.countsTowardRemoteCoverage?.(row) !== false)
+      .map(row => String(adapter.getRemoteId(row)))
+  );
 }

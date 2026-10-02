@@ -31,7 +31,7 @@
 
 ## 7. Integration and delivery
 
-- [ ] 7.1 Run validation ladder, shuffled app suite, typecheck/lint, migration/version guard and code-quality ratchet; record exact statuses and stop any hanging runner per AGENTS.
+- [x] 7.1 Run validation ladder, shuffled app suite, typecheck/lint, migration/version guard and code-quality ratchet; record exact statuses and stop any hanging runner per AGENTS.
 - [ ] 7.2 Conduct task reviews and required independent/broad review, address defects, record per-risk commit/PR units; verify no unrelated changes.
 - [x] 7.3 Update all canonical Linear contracts with implementation/proof and unresolved operational gates; keep In Progress until closure proof complete. Prepare MYK9-639/648 verification prerequisites without shared payment/fixture operations.
 - [ ] 7.4 Obtain necessary delivery approval after concrete reviewable work, then PR/CI/review/merge and authorized migration/deploy proof. Archive only after relevant gates pass.

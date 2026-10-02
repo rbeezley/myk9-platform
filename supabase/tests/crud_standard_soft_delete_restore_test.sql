@@ -16,7 +16,12 @@
 --     service_role write and the RPCs still work;
 --   * Undo: the deleter restores within 10 minutes, not after; a different
 --     non-admin never; a site admin always; a NULL deleted_by only an admin;
---   * a restore refuses (MK013) to bring a row back under a deleted parent.
+--   * a restore refuses (MK013) to bring a row back under a deleted parent;
+--   * NOT FOUND vs PERMISSION (MYK9-922, 20261001235300): every soft_delete_*
+--     raises P0002 for a missing or already-deleted row, for every caller, and
+--     42501 (message never "not found") only for a live row the caller may not
+--     delete; every restore_* raises P0002 for a missing or not-deleted row; the
+--     replaced functions keep SECURITY DEFINER, search_path, owner and grants.
 --
 -- Timestamps: every statement in this transaction shares one now(), so rows are
 -- backdated (as postgres, which the trigger allows) to make stamps differ and to
@@ -1290,6 +1295,254 @@ BEGIN
     RAISE EXCEPTION 'FAIL restore_entry could not bring the entry back once its dog was live (%)', 'show';
   END IF;
   RAISE NOTICE 'PASS restore_entry brings the entry back after the dog is restored (after show)';
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 13. NOT FOUND vs PERMISSION (MYK9-922, 20261001235300). The client branches
+--     on the SQLSTATE alone: P0002 = already gone (drop it from the device),
+--     42501 = refused (show the error). Fresh fixtures, so nothing above
+--     changes what is live here.
+--       live:    show 915938 > trial 915948 > class 915958 > entry 915988,
+--                dog 915968 (the exhibitor's), club 915028 (no shows),
+--                person 915014 (the exhibitor)
+--       deleted: show 915939, trial 915949, class 915959, entry 915989,
+--                dog 915969, person 915019, club 915029
+--       missing: 915999 (no row in any table)
+-- ---------------------------------------------------------------------------
+CREATE FUNCTION pg_temp.expect_sqlstate(p_sql text, p_state text, p_label text)
+RETURNS void
+LANGUAGE plpgsql
+AS $f$
+BEGIN
+  BEGIN
+    EXECUTE p_sql;
+  EXCEPTION WHEN OTHERS THEN
+    IF SQLSTATE <> p_state THEN
+      RAISE EXCEPTION 'FAIL %: SQLSTATE % (%), expected %', p_label, SQLSTATE, SQLERRM, p_state;
+    END IF;
+    IF p_state = '42501' AND SQLERRM ~* 'not found' THEN
+      RAISE EXCEPTION 'FAIL %: a permission refusal says "not found" (%)', p_label, SQLERRM;
+    END IF;
+    RAISE NOTICE 'PASS % (%)', p_label, p_state;
+    RETURN;
+  END;
+  RAISE EXCEPTION 'FAIL %: succeeded, expected SQLSTATE %', p_label, p_state;
+END;
+$f$;
+
+INSERT INTO public.clubs (id, name, authorized_at, deleted_at)
+VALUES
+  ('00000000-0000-0000-0000-000000915028', 'MYK9-922 Live Club', now(), NULL),
+  ('00000000-0000-0000-0000-000000915029', 'MYK9-922 Deleted Club', now(), now() - interval '1 hour');
+
+INSERT INTO public.shows (id, name, organization, start_date, end_date, status, club_id, deleted_at)
+VALUES
+  ('00000000-0000-0000-0000-000000915938', 'MYK9-922 Live Show', 'AKC', current_date, current_date, 'draft', '00000000-0000-0000-0000-000000915021', NULL),
+  ('00000000-0000-0000-0000-000000915939', 'MYK9-922 Deleted Show', 'AKC', current_date, current_date, 'draft', '00000000-0000-0000-0000-000000915021', now() - interval '1 hour');
+
+INSERT INTO public.trials (id, show_id, name, date, deleted_at)
+VALUES
+  ('00000000-0000-0000-0000-000000915948', '00000000-0000-0000-0000-000000915938', 'MYK9-922 Live Trial', current_date, NULL),
+  ('00000000-0000-0000-0000-000000915949', '00000000-0000-0000-0000-000000915938', 'MYK9-922 Deleted Trial', current_date, now() - interval '1 hour');
+
+INSERT INTO public.classes (id, trial_id, name, deleted_at)
+VALUES
+  ('00000000-0000-0000-0000-000000915958', '00000000-0000-0000-0000-000000915948', 'MYK9-922 Live Class', NULL),
+  ('00000000-0000-0000-0000-000000915959', '00000000-0000-0000-0000-000000915948', 'MYK9-922 Deleted Class', now() - interval '1 hour');
+
+INSERT INTO public.dogs (id, call_name, breed, owner_id, deleted_at)
+VALUES
+  ('00000000-0000-0000-0000-000000915968', 'MYK9-922 Live Dog', 'Border Collie', '00000000-0000-0000-0000-000000915014', NULL),
+  ('00000000-0000-0000-0000-000000915969', 'MYK9-922 Deleted Dog', 'Border Collie', '00000000-0000-0000-0000-000000915014', now() - interval '1 hour');
+
+INSERT INTO public.dog_registrations (dog_id, organization, registration_number, registered_name)
+VALUES ('00000000-0000-0000-0000-000000915968', 'AKC', 'SW9922968', 'MYK9-922 Live Dog');
+
+INSERT INTO public.entries (id, class_id, trial_id, show_id, dog_id, payment_status, is_scored, result_status, deleted_at)
+VALUES
+  ('00000000-0000-0000-0000-000000915988', '00000000-0000-0000-0000-000000915958', '00000000-0000-0000-0000-000000915948', '00000000-0000-0000-0000-000000915938', '00000000-0000-0000-0000-000000915968', 'pending', false, 'pending', NULL),
+  ('00000000-0000-0000-0000-000000915989', '00000000-0000-0000-0000-000000915958', '00000000-0000-0000-0000-000000915948', '00000000-0000-0000-0000-000000915938', '00000000-0000-0000-0000-000000915968', 'pending', false, 'pending', now() - interval '1 hour');
+
+INSERT INTO public.people (id, first_name, last_name, email, deleted_at)
+VALUES ('00000000-0000-0000-0000-000000915019', 'MYK9-922', 'Deleted', 'myk9922-del@example.test', now() - interval '1 hour');
+
+DO $$
+BEGIN
+  IF (SELECT count(*) FROM (
+        SELECT id FROM public.shows WHERE id = '00000000-0000-0000-0000-000000915938' AND deleted_at IS NULL
+        UNION ALL SELECT id FROM public.trials WHERE id = '00000000-0000-0000-0000-000000915948' AND deleted_at IS NULL
+        UNION ALL SELECT id FROM public.classes WHERE id = '00000000-0000-0000-0000-000000915958' AND deleted_at IS NULL
+        UNION ALL SELECT id FROM public.entries WHERE id = '00000000-0000-0000-0000-000000915988' AND deleted_at IS NULL
+        UNION ALL SELECT id FROM public.dogs WHERE id = '00000000-0000-0000-0000-000000915968' AND deleted_at IS NULL
+        UNION ALL SELECT id FROM public.clubs WHERE id = '00000000-0000-0000-0000-000000915028' AND deleted_at IS NULL
+        UNION ALL SELECT id FROM public.people WHERE id = '00000000-0000-0000-0000-000000915014' AND deleted_at IS NULL
+      ) live) <> 7
+     OR (SELECT count(*) FROM (
+        SELECT id FROM public.shows WHERE id = '00000000-0000-0000-0000-000000915939' AND deleted_at IS NOT NULL
+        UNION ALL SELECT id FROM public.trials WHERE id = '00000000-0000-0000-0000-000000915949' AND deleted_at IS NOT NULL
+        UNION ALL SELECT id FROM public.classes WHERE id = '00000000-0000-0000-0000-000000915959' AND deleted_at IS NOT NULL
+        UNION ALL SELECT id FROM public.entries WHERE id = '00000000-0000-0000-0000-000000915989' AND deleted_at IS NOT NULL
+        UNION ALL SELECT id FROM public.dogs WHERE id = '00000000-0000-0000-0000-000000915969' AND deleted_at IS NOT NULL
+        UNION ALL SELECT id FROM public.clubs WHERE id = '00000000-0000-0000-0000-000000915029' AND deleted_at IS NOT NULL
+        UNION ALL SELECT id FROM public.people WHERE id = '00000000-0000-0000-0000-000000915019' AND deleted_at IS NOT NULL
+      ) gone) <> 7 THEN
+    RAISE EXCEPTION 'FIXTURE the MYK9-922 live/deleted rows were not seeded';
+  END IF;
+END;
+$$;
+
+-- One row per object drives every assertion: the soft-delete and restore call
+-- (%L is the id under test), a live id and an already-deleted id.
+CREATE TEMP TABLE myk9_922_calls (kind text, del text, res text, live uuid, gone uuid) ON COMMIT DROP;
+INSERT INTO myk9_922_calls VALUES
+  ('show', 'SELECT public.soft_delete_show(%L)', 'SELECT count(*) FROM public.restore_show(%L)',
+   '00000000-0000-0000-0000-000000915938', '00000000-0000-0000-0000-000000915939'),
+  ('trial', 'SELECT count(*) FROM public.soft_delete_trial(%L)', 'SELECT count(*) FROM public.restore_trial(%L)',
+   '00000000-0000-0000-0000-000000915948', '00000000-0000-0000-0000-000000915949'),
+  ('class', 'SELECT public.soft_delete_class(%L)', 'SELECT count(*) FROM public.restore_class(%L)',
+   '00000000-0000-0000-0000-000000915958', '00000000-0000-0000-0000-000000915959'),
+  ('entry', 'SELECT public.soft_delete_entry(%L)', 'SELECT public.restore_entry(%L)',
+   '00000000-0000-0000-0000-000000915988', '00000000-0000-0000-0000-000000915989'),
+  ('dog', 'SELECT public.soft_delete_dog(%L)', 'SELECT public.restore_dog(%L)',
+   '00000000-0000-0000-0000-000000915968', '00000000-0000-0000-0000-000000915969'),
+  ('person', 'SELECT count(*) FROM public.soft_delete_person(%L)', 'SELECT count(*) FROM public.restore_person(%L)',
+   '00000000-0000-0000-0000-000000915014', '00000000-0000-0000-0000-000000915019'),
+  ('club', 'SELECT count(*) FROM public.soft_delete_club(%L)', 'SELECT count(*) FROM public.restore_club(%L)',
+   '00000000-0000-0000-0000-000000915028', '00000000-0000-0000-0000-000000915029');
+GRANT SELECT ON myk9_922_calls TO authenticated;
+
+SET LOCAL ROLE authenticated;
+
+-- 13a. P0002 for a missing or already-deleted row, for three callers who differ
+--      in what they may delete: the outsider (nothing), the secretary (her
+--      club's shows), the site admin (everything). Restore: P0002 for a missing
+--      row and for a row that is not deleted.
+DO $$
+DECLARE
+  v_sub text;
+  c record;
+BEGIN
+  FOREACH v_sub IN ARRAY ARRAY[
+    '00000000-0000-0000-0000-000000915102',
+    '00000000-0000-0000-0000-000000915101',
+    '00000000-0000-0000-0000-000000915103'
+  ] LOOP
+    PERFORM set_config('request.jwt.claim.sub', v_sub, true);
+    PERFORM set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', v_sub), true);
+    FOR c IN SELECT * FROM myk9_922_calls LOOP
+      PERFORM pg_temp.expect_sqlstate(format(c.del, '00000000-0000-0000-0000-000000915999'),
+        'P0002', format('caller %s: soft_delete_%s on a missing row', right(v_sub, 6), c.kind));
+      PERFORM pg_temp.expect_sqlstate(format(c.del, c.gone),
+        'P0002', format('caller %s: soft_delete_%s on an already deleted row', right(v_sub, 6), c.kind));
+      PERFORM pg_temp.expect_sqlstate(format(c.res, '00000000-0000-0000-0000-000000915999'),
+        'P0002', format('caller %s: restore_%s on a missing row', right(v_sub, 6), c.kind));
+      PERFORM pg_temp.expect_sqlstate(format(c.res, c.live),
+        'P0002', format('caller %s: restore_%s on a row that is not deleted', right(v_sub, 6), c.kind));
+    END LOOP;
+  END LOOP;
+END;
+$$;
+
+-- 13b. 42501, with a permission-only message, for a LIVE row the caller may not
+--      delete: the outsider on all seven, the secretary on the club (site admin
+--      only) and the dog (owner only).
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000915102', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000915102","role":"authenticated"}', true);
+SELECT pg_temp.expect_sqlstate(format(c.del, c.live), '42501',
+  format('outsider: soft_delete_%s on a live row is refused', c.kind))
+FROM myk9_922_calls c;
+
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000915101', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000915101","role":"authenticated"}', true);
+SELECT pg_temp.expect_sqlstate(format(c.del, c.live), '42501',
+  format('secretary: soft_delete_%s on a live row is refused', c.kind))
+FROM myk9_922_calls c WHERE c.kind IN ('club', 'dog');
+
+RESET ROLE;
+
+-- 13c. Nothing in 13a/13b changed a row: every refusal rolled back.
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM public.shows WHERE id = '00000000-0000-0000-0000-000000915938' AND deleted_at IS NOT NULL)
+     OR EXISTS (SELECT 1 FROM public.trials WHERE id = '00000000-0000-0000-0000-000000915948' AND deleted_at IS NOT NULL)
+     OR EXISTS (SELECT 1 FROM public.classes WHERE id = '00000000-0000-0000-0000-000000915958' AND deleted_at IS NOT NULL)
+     OR EXISTS (SELECT 1 FROM public.entries WHERE id = '00000000-0000-0000-0000-000000915988' AND deleted_at IS NOT NULL)
+     OR EXISTS (SELECT 1 FROM public.dogs WHERE id = '00000000-0000-0000-0000-000000915968' AND deleted_at IS NOT NULL)
+     OR EXISTS (SELECT 1 FROM public.clubs WHERE id = '00000000-0000-0000-0000-000000915028' AND deleted_at IS NOT NULL)
+     OR EXISTS (SELECT 1 FROM public.people WHERE id = '00000000-0000-0000-0000-000000915014' AND deleted_at IS NOT NULL)
+     OR EXISTS (SELECT 1 FROM public.shows WHERE id = '00000000-0000-0000-0000-000000915939' AND deleted_at IS NULL)
+     OR EXISTS (SELECT 1 FROM public.dogs WHERE id = '00000000-0000-0000-0000-000000915969' AND deleted_at IS NULL) THEN
+    RAISE EXCEPTION 'FAIL a refused or not-found call changed a row';
+  END IF;
+  RAISE NOTICE 'PASS no refused or not-found call changed a row';
+END;
+$$;
+
+-- 13d. The permission rules did not move: the secretary deletes her club's live
+--      entry and the owner her own live dog (the paths 13b refused to others).
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000915101', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000915101","role":"authenticated"}', true);
+SELECT public.soft_delete_entry('00000000-0000-0000-0000-000000915988');
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000915104', true);
+SELECT set_config('request.jwt.claims', '{"sub":"00000000-0000-0000-0000-000000915104","role":"authenticated"}', true);
+SELECT public.soft_delete_dog('00000000-0000-0000-0000-000000915968');
+RESET ROLE;
+
+DO $$
+BEGIN
+  IF (SELECT deleted_at FROM public.entries WHERE id = '00000000-0000-0000-0000-000000915988') IS NULL
+     OR (SELECT deleted_at FROM public.dogs WHERE id = '00000000-0000-0000-0000-000000915968') IS NULL THEN
+    RAISE EXCEPTION 'FAIL the secretary or the owner could no longer delete what they may';
+  END IF;
+  RAISE NOTICE 'PASS the secretary still deletes her entry and the owner her dog';
+END;
+$$;
+
+-- 13e. The replaced functions kept SECURITY DEFINER, their search_path, the
+--      owner the rest of the family has, and EXECUTE for authenticated and
+--      service_role only (not anon, not PUBLIC).
+DO $$
+DECLARE
+  r record;
+  v_family_owner oid := (SELECT proowner FROM pg_proc WHERE oid = 'public.restore_show(uuid)'::regprocedure);
+BEGIN
+  FOR r IN
+    SELECT p.oid::regprocedure AS fn, p.prosecdef, p.proconfig, p.proowner, v.path
+    FROM (VALUES
+      ('public.soft_delete_show(uuid, boolean)', 'search_path=""'),
+      ('public.soft_delete_trial(uuid, boolean)', 'search_path=""'),
+      ('public.soft_delete_class(uuid, boolean)', 'search_path=""'),
+      ('public.soft_delete_entry(uuid, boolean)', 'search_path=""'),
+      ('public.soft_delete_club(uuid)', 'search_path=""'),
+      ('public.soft_delete_person(uuid)', 'search_path=""'),
+      ('public.soft_delete_dog(uuid)', 'search_path=public')
+    ) AS v(sig, path)
+    JOIN pg_proc p ON p.oid = v.sig::regprocedure
+  LOOP
+    IF NOT r.prosecdef THEN
+      RAISE EXCEPTION 'FAIL % is no longer SECURITY DEFINER', r.fn;
+    END IF;
+    IF r.proconfig IS DISTINCT FROM ARRAY[r.path] THEN
+      RAISE EXCEPTION 'FAIL % has proconfig %, expected {%}', r.fn, r.proconfig, r.path;
+    END IF;
+    IF r.proowner <> v_family_owner THEN
+      RAISE EXCEPTION 'FAIL % changed owner', r.fn;
+    END IF;
+    IF has_function_privilege('anon', r.fn, 'EXECUTE') THEN
+      RAISE EXCEPTION 'FAIL anon can execute %', r.fn;
+    END IF;
+    IF EXISTS (SELECT 1 FROM pg_proc p, aclexplode(p.proacl) a
+               WHERE p.oid = r.fn AND a.grantee = 0 AND a.privilege_type = 'EXECUTE') THEN
+      RAISE EXCEPTION 'FAIL PUBLIC can execute %', r.fn;
+    END IF;
+    IF NOT has_function_privilege('authenticated', r.fn, 'EXECUTE')
+       OR NOT has_function_privilege('service_role', r.fn, 'EXECUTE') THEN
+      RAISE EXCEPTION 'FAIL authenticated or service_role lost EXECUTE on %', r.fn;
+    END IF;
+  END LOOP;
+  RAISE NOTICE 'PASS the seven replaced soft_delete_* functions kept definer, search_path, owner and grants';
 END;
 $$;
 

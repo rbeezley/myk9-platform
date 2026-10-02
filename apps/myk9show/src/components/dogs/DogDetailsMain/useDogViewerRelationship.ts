@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useUserStore } from '@/store/userStore';
 import { resolveViewerPersonId } from '@/utils/viewerPerson';
@@ -25,11 +25,11 @@ export function useDogViewerRelationship(
   const { userWithRoles, personId, personIdentityState, rbacLoading } = useAuthContext();
   const people = useUserStore(state => state.people);
   const accountId = userWithRoles?.id ?? null;
-  const resolvedAccountRef = useRef<string | null>(null);
+  const [resolvedFor, setResolvedFor] = useState<string | null>(null);
   const [timedOutFor, setTimedOutFor] = useState<string | null>(null);
 
   const offline = typeof navigator !== 'undefined' && navigator.onLine === false;
-  const gaveUp = offline || resolvedAccountRef.current === accountId || timedOutFor === accountId;
+  const gaveUp = offline || resolvedFor === accountId || timedOutFor === accountId;
   const relationship = resolveDogRelationship({
     dog,
     viewerPersonId: resolveViewerPersonId(userWithRoles, people) ?? personId,
@@ -39,11 +39,11 @@ export function useDogViewerRelationship(
   });
 
   const pending = relationship.kind === 'pending';
+  // Latch the first resolution for this account (adjusting state during render is
+  // the supported way to derive it, and avoids a pending flash between renders).
+  if (!pending && resolvedFor !== accountId) setResolvedFor(accountId);
   useEffect(() => {
-    if (!pending) {
-      resolvedAccountRef.current = accountId;
-      return;
-    }
+    if (!pending) return;
     const timer = setTimeout(() => setTimedOutFor(accountId), IDENTITY_WAIT_MS);
     return () => clearTimeout(timer);
   }, [pending, accountId]);

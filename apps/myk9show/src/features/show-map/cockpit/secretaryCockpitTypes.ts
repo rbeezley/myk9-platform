@@ -128,6 +128,8 @@ export interface SecretaryCockpitClass {
   entryCount?: number | null;
   scoredCount?: number | null;
   closeout?: CockpitCloseoutState | null;
+  /** The tree's wrap-up value; `closeout` folds signed and unsigned together, the checklist cannot. */
+  wrapUpStatus?: string | null;
   judgeName?: string | null;
   operationalArea?: {
     kind: OperationalAreaKind;

@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { render } from '@/test/utils/testUtils';
@@ -160,5 +160,77 @@ describe('SecretaryCockpitFocusedClass paperwork', () => {
 
     await user.click(screen.getByText('Print history (2)'));
     expect(screen.getByText(/9:10 AM by Morgan · marked incorrect/)).toBeInTheDocument();
+  });
+});
+
+describe('SecretaryCockpitFocusedClass checklist (MYK9-948)', () => {
+  function renderChecklist(source: SecretaryCockpitClass, model: FocusedClassModel = focused) {
+    return render(
+      <SecretaryCockpitFocusedClass
+        focused={model}
+        sourceClass={source}
+        trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
+        attention={[]}
+        timeZone="America/Chicago"
+        canManageShow
+        onCommand={vi.fn()}
+      />
+    );
+  }
+
+  it('lists all seven items with a done count, keeping print controls on print items', () => {
+    renderChecklist(sourceClass);
+
+    const checklist = screen.getByRole('region', { name: 'Class checklist' });
+    const items = within(checklist).getAllByRole('listitem');
+    expect(items.map(item => item.textContent)).toEqual([
+      expect.stringContaining('Check-in sheet'),
+      expect.stringContaining('Score sheets'),
+      expect.stringContaining('Class started'),
+      expect.stringContaining('Scoring complete'),
+      expect.stringContaining('Preliminary results'),
+      expect.stringContaining('Ribbon labels'),
+      expect.stringContaining('Judge signature collected'),
+    ]);
+    expect(within(checklist).getByText('0 of 7 done')).toBeInTheDocument();
+    expect(
+      within(items[0]!).getByRole('button', { name: 'Record as printed' })
+    ).toBeInTheDocument();
+    expect(within(items[4]!).getByText('Nothing to print yet')).toBeInTheDocument();
+  });
+
+  it('checks items off from class state and print records, in any order', () => {
+    renderChecklist(
+      {
+        ...sourceClass,
+        lifecycle: 'complete',
+        scoredCount: 8,
+        wrapUpStatus: 'needs-judge-signature',
+      },
+      { ...focused, paperwork: [{ ...focused.paperwork[0]!, state: 'current' }] }
+    );
+
+    const checklist = screen.getByRole('region', { name: 'Class checklist' });
+    expect(within(checklist).getByText('3 of 7 done')).toBeInTheDocument();
+  });
+
+  it('keeps armband labels as other paperwork, outside the checklist', () => {
+    renderChecklist(sourceClass, {
+      ...focused,
+      paperwork: [
+        ...focused.paperwork,
+        {
+          reportId: 'armband-labels',
+          label: 'Armband labels',
+          state: 'unconfirmed',
+          evidence: 'computed',
+        },
+      ],
+    });
+
+    const checklist = screen.getByRole('region', { name: 'Class checklist' });
+    expect(within(checklist).queryByText('Armband labels')).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Other paperwork' })).toBeInTheDocument();
+    expect(screen.getByText('Armband labels')).toBeInTheDocument();
   });
 });

@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
@@ -71,19 +71,23 @@ describe('ShowMapMoveUpDialog capacity state (MYK9-920)', () => {
         { id: 'c3', label: 'Container Master', isFull: true },
       ])
     );
-    await userEvent.click(screen.getByRole('combobox'));
-    expect(screen.getByText('Full')).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: /Container Master/ })).toHaveAttribute(
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('combobox'));
+    await screen.findByRole('listbox');
+    expect(await screen.findByText('Full')).toBeInTheDocument();
+    expect(await screen.findByRole('option', { name: /Container Master/ })).toHaveAttribute(
       'aria-disabled',
       'true'
     );
   });
 
   it('disables Move when the selected class fills while the dialog is open', async () => {
+    const user = userEvent.setup();
     const view = render(dialog('ready'));
-    await userEvent.click(screen.getByRole('combobox'));
-    await userEvent.click(screen.getByRole('option', { name: /Container Advanced/ }));
-    expect(screen.getByRole('button', { name: 'Move entry' })).toBeEnabled();
+    await user.click(screen.getByRole('combobox'));
+    await screen.findByRole('listbox');
+    await user.click(await screen.findByRole('option', { name: /Container Advanced/ }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Move entry' })).toBeEnabled());
 
     view.rerender(dialog('ready', [{ id: 'c2', label: 'Container Advanced', isFull: true }]));
     expect(screen.getByRole('button', { name: 'Move entry' })).toBeDisabled();

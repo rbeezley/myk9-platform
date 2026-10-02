@@ -249,8 +249,8 @@ describe('BrowseClubsPage (shared primitives migration)', () => {
 
     renderPage();
 
-    expect(screen.getByText('No clubs match your filters')).toBeInTheDocument();
-    expect(screen.getByText('Clear Filters')).toBeInTheDocument();
+    expect(screen.getByText('No clubs match your search or filters.')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Show all clubs' }).length).toBeGreaterThan(0);
   });
 
   it('renders SearchBar with correct placeholder', () => {
@@ -265,6 +265,15 @@ describe('BrowseClubsPage (shared primitives migration)', () => {
 
     expect(screen.getByTitle('Cards view')).toBeInTheDocument();
     expect(screen.getByTitle('Table view')).toBeInTheDocument();
+  });
+
+  it('puts the labelled view toggle in the result line', () => {
+    renderPage();
+
+    const resultLine = screen.getByRole('status').parentElement as HTMLElement;
+    expect(resultLine).toContainElement(screen.getByTitle('Cards view'));
+    expect(resultLine).toHaveTextContent('Cards');
+    expect(resultLine).toHaveTextContent('Table');
   });
 
   it('renders the result line showing correct numbers', () => {

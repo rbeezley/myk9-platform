@@ -112,7 +112,6 @@ const SELECT_COLUMN: DisplayColumnDef<Dog, unknown> = {
   enableHiding: false,
   meta: {
     interactive: true,
-    exportDisabled: true,
     // MYK9-592: forces this column to STICKY_LEFT_LEAD_WIDTH_CLASS and pins it
     // at left-0 above the Name column, which pins right after it instead of
     // at left-0 itself (see `stickyLeft: { afterLead: true }` below) — the
@@ -167,8 +166,6 @@ function buildColumns(hasLeadColumn: boolean): ColumnDef<Dog>[] {
       header: 'Name',
       meta: {
         stickyLeft: hasLeadColumn ? { afterLead: true } : true,
-        exportHeader: 'Name',
-        exportValue: (dog: unknown) => getDogDisplayName(dog as Dog),
       } satisfies DataTableColumnMeta,
       cell: ({ row }) => {
         const dog = row.original;
@@ -209,8 +206,6 @@ function buildColumns(hasLeadColumn: boolean): ColumnDef<Dog>[] {
       // anyway. A test pins the breakpoint against those device widths.
       meta: {
         responsiveHide: 'lg',
-        exportHeader: 'Breed',
-        exportValue: (dog: unknown) => (dog as Dog).breed || '',
       } satisfies DataTableColumnMeta,
       cell: ({ row }) => (
         <span className="text-muted-foreground truncate">{getDogBreedLabel(row.original)}</span>
@@ -221,8 +216,6 @@ function buildColumns(hasLeadColumn: boolean): ColumnDef<Dog>[] {
       header: 'Sex',
       meta: {
         responsiveHide: 'lg',
-        exportHeader: 'Sex',
-        exportValue: (dog: unknown) => (dog as Dog).sex || '',
       } satisfies DataTableColumnMeta,
       cell: ({ row }) => getSexBadge(row.original.sex),
     },
@@ -230,7 +223,7 @@ function buildColumns(hasLeadColumn: boolean): ColumnDef<Dog>[] {
       id: OWNER_COLUMN_ID,
       accessorFn: dog => dog.ownerName || '',
       header: 'Owner',
-      meta: { exportHeader: 'Owner', exportValue: (dog: unknown) => (dog as Dog).ownerName || '' },
+
       cell: ({ row }) => (
         <span className="text-muted-foreground truncate">{row.original.ownerName || '—'}</span>
       ),
@@ -238,10 +231,7 @@ function buildColumns(hasLeadColumn: boolean): ColumnDef<Dog>[] {
     {
       accessorKey: 'status',
       header: 'Status',
-      meta: {
-        exportHeader: 'Status',
-        exportValue: (dog: unknown) => (dog as Dog).status || 'active',
-      },
+      meta: {},
       cell: ({ row }) => getStatusBadge(row.original.status),
     },
   ];

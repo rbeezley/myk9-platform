@@ -5,19 +5,21 @@
  * surface, and its own in-flow spacer replaces `useRegisterActionBar`'s
  * measured height.
  *
- * Renders the shared class action catalog (`classActions.ts`) via
- * `RowActionMenu`/`toBulkActions` as the bar's one child, the same pattern the
- * admin Users bar uses for its "More" dropdown — the status catalog is a
- * dynamic, per-status-value list, too many entries for individual
- * `BulkBarButton`s. Bulk status change (MYK9-59) dispatches directly through
+ * Renders the shared class action catalog (`classActions.ts`) via `toBulkActions` as named
+ * buttons (MYK9-929): the status catalog is a dynamic, per-status-value list, so it sits under
+ * one named "Change status" menu; Export and Delete are their own buttons. Bulk status change
+ * (MYK9-59) dispatches directly through
  * `onBulkStatusChange` — `classActions.ts`'s `runBulkAndClear` clears the
  * selection only when the handler resolves to something other than `false`,
  * i.e. only on full success. Bulk delete opens the shared `DeleteObjectDialog`
  * (counts, blockers, Undo) and clears the selection once the delete lands.
  */
 import { useState } from 'react';
-import { RowActionMenu, toBulkActions } from '@/components/ui/RowActionMenu';
-import { FloatingBulkBar } from '@/components/list-toolkit';
+import { Download } from 'lucide-react';
+import { toBulkActions } from '@/components/ui/RowActionMenu';
+import { BulkBarActions, BulkBarButton, FloatingBulkBar } from '@/components/list-toolkit';
+import { exportRowsCsv } from '@/utils/downloadCsv';
+import { CLASS_EXPORT_HEADERS, classExportRows } from './classesExport';
 import { DeleteObjectDialog, classDeleteDetail, type DeleteTargetContext } from '@/features/delete';
 import { classActions, type ClassActionItem, type ClassActionHandlers } from './classActions';
 
@@ -29,6 +31,11 @@ export type ClassBarItem = ClassActionItem & {
   trialId?: string | undefined;
   level?: string | null | undefined;
   element?: string | null | undefined;
+  section?: string | null | undefined;
+  judgeName?: string | null | undefined;
+  entryCount?: number | null | undefined;
+  time?: string | null | undefined;
+  ring?: number | string | null | undefined;
   trialLabel?: string | undefined;
 };
 
@@ -80,6 +87,15 @@ export function ClassBulkActionsBar({
     bulkBusy ? { ...action, disabled: true } : action
   );
 
+  const handleExport = () =>
+    exportRowsCsv(
+      'classes',
+      CLASS_EXPORT_HEADERS,
+      classExportRows(
+        selectedClasses.map(cls => ({ ...cls, trialLabel: cls.trialLabel || trialLabel }))
+      )
+    );
+
   return (
     <>
       <FloatingBulkBar
@@ -88,12 +104,14 @@ export function ClassBulkActionsBar({
         onClear={onClear}
         busy={bulkBusy}
       >
-        <RowActionMenu
-          actions={actions}
-          size="touch"
-          label="Bulk class actions"
+        <BulkBarActions actions={actions} menuLabel="Change status" disabled={bulkBusy} />
+        <BulkBarButton
+          onClick={handleExport}
+          icon={<Download className="h-4 w-4" aria-hidden="true" />}
           disabled={bulkBusy}
-        />
+        >
+          Export
+        </BulkBarButton>
       </FloatingBulkBar>
 
       {confirmDeleteIds !== null && (

@@ -85,9 +85,9 @@ describe('ShowStatusPill', () => {
       expect(screen.getByText('Draft')).toBeInTheDocument();
     });
 
-    it('renders a qualified label for published status', () => {
+    it('renders "Published" for published status, the show family label', () => {
       render(<ShowStatusPill {...WINDOW} showId="show-1" status="published" />);
-      expect(screen.getByText('Published show')).toBeInTheDocument();
+      expect(screen.getByText('Published')).toBeInTheDocument();
     });
 
     it('renders "Upcoming" label for upcoming status', () => {
@@ -95,9 +95,9 @@ describe('ShowStatusPill', () => {
       expect(screen.getByText('Upcoming')).toBeInTheDocument();
     });
 
-    it('renders "In Progress" label for in_progress status', () => {
+    it('renders "In progress" label for in_progress status', () => {
       render(<ShowStatusPill {...WINDOW} showId="show-1" status="in_progress" />);
-      expect(screen.getByText('In Progress')).toBeInTheDocument();
+      expect(screen.getByText('In progress')).toBeInTheDocument();
     });
 
     it('renders "Completed" label for completed status', () => {

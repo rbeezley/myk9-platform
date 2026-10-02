@@ -1,3 +1,8 @@
+import {
+  captureCsvDownload,
+  registeredPageExports,
+  resetPageExports,
+} from '@/test/utils/csvDownload';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -202,7 +207,7 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
 
     renderPage();
 
-    expect(screen.getByText('No dogs visible to you yet')).toBeInTheDocument();
+    expect(screen.getByText('No dogs yet')).toBeInTheDocument();
     expect(
       screen.getByText(
         'No dogs are visible to you yet. Dogs added by any exhibitor, or by you, will show up here.'
@@ -226,7 +231,7 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
     renderPage();
 
     expect(screen.queryByText(/add your first dog/i)).not.toBeInTheDocument();
-    expect(screen.getByText('No dogs visible to you yet')).toBeInTheDocument();
+    expect(screen.getByText('No dogs yet')).toBeInTheDocument();
   });
 
   it('tells an exhibitor with no dogs to add their first one', () => {
@@ -255,8 +260,8 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
 
     renderPage();
 
-    expect(screen.getByText('No dogs match your filters')).toBeInTheDocument();
-    expect(screen.getByText('Clear Filters')).toBeInTheDocument();
+    expect(screen.getByText('No dogs match your search or filters.')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: 'Show all dogs' }).length).toBeGreaterThan(0);
   });
 
   it('renders dog table view by default', () => {
@@ -264,6 +269,43 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
 
     expect(screen.getByRole('columnheader', { name: 'Name' })).toBeInTheDocument();
     expect(screen.getByRole('columnheader', { name: 'Breed' })).toBeInTheDocument();
+  });
+
+  it('puts the labelled view toggle in the result line for staff', () => {
+    renderPage();
+
+    const resultLine = screen.getByRole('status').parentElement as HTMLElement;
+    expect(resultLine).toContainElement(screen.getByTitle('Table view'));
+    expect(resultLine).toHaveTextContent('Cards');
+    expect(resultLine).toHaveTextContent('Table');
+  });
+
+  it('registers a whole-list Export CSV page action for staff, so no row needs ticking', () => {
+    mockBrowseDogsReturn = {
+      ...mockBrowseDogsReturn,
+      dogs: [makeDog(), makeDog({ id: 'dog-2', callName: 'Zed' })],
+      filteredDogs: [makeDog(), makeDog({ id: 'dog-2', callName: 'Zed' })],
+    };
+    renderPage();
+    const registered = registeredPageExports();
+    expect(registered.map(item => item.id)).toEqual(['dogs']);
+
+    const download = captureCsvDownload();
+    try {
+      registered[0]!.run();
+      const lines = download.csv().split('\n');
+      expect(lines[0]).toBe('Name,Breed,Sex,Owner,Status');
+      expect(lines).toHaveLength(3);
+    } finally {
+      download.restore();
+      resetPageExports();
+    }
+  });
+
+  it('offers no export to an exhibitor on the card-only My Dogs', () => {
+    mockGetUserRoles.mockReturnValue([UserRole.EXHIBITOR]);
+    renderPage();
+    expect(registeredPageExports()).toEqual([]);
   });
 
   it('renders dog cards by default for exhibitor-only users', () => {
@@ -495,7 +537,7 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
       renderPage();
 
       expect(screen.getByTestId('dogs-skeleton')).toBeInTheDocument();
-      expect(screen.queryByText('No dogs visible to you yet')).not.toBeInTheDocument();
+      expect(screen.queryByText('No dogs yet')).not.toBeInTheDocument();
     });
 
     it('offers a retry instead of "No dogs yet" when identity never resolves', () => {
@@ -511,7 +553,7 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
 
       expect(screen.getByText("We couldn't confirm your account")).toBeInTheDocument();
       expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
-      expect(screen.queryByText('No dogs visible to you yet')).not.toBeInTheDocument();
+      expect(screen.queryByText('No dogs yet')).not.toBeInTheDocument();
     });
 
     it('retries the RBAC lookup, not just the dogs query', async () => {
@@ -544,7 +586,7 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
 
       renderPage();
 
-      expect(screen.getByText('No dogs visible to you yet')).toBeInTheDocument();
+      expect(screen.getByText('No dogs yet')).toBeInTheDocument();
     });
   });
 

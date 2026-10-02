@@ -51,14 +51,11 @@ export interface DataTableColumnMeta {
    * scroll edge (admin users roster, 2026-09).
    */
   stickyRight?: boolean;
-  /** Label to use when exporting this column to CSV. */
-  exportHeader?: string;
-  /** Return a plain export value for this column. Defaults to the column value. */
-  exportValue?: (row: unknown) => string | number | boolean | null | undefined;
-  /** Exclude this column from CSV export. */
-  exportDisabled?: boolean;
-  /** Export this column even while it is hidden on screen. */
-  exportHidden?: boolean;
+  /**
+   * Text this column shows when it differs from its accessor value (a status label, a formatted
+   * date). The shared list search (`listSearch.ts`) finds the row by it as well as by the value.
+   */
+  searchValue?: (row: unknown) => string | number | null | undefined;
   /** Set true when this column renders buttons, links, inputs, or menus. */
   interactive?: boolean;
   /** Enable inline editing for this column */

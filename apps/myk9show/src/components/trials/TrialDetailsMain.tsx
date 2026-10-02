@@ -126,6 +126,7 @@ const TrialDetailsMain: React.FC<TrialDetailsMainProps> = ({
 
         <TrialClassesTable
           classes={trial.classes || []}
+          showId={trial.showId}
           trialId={trial.id}
           canManage={canManage}
           {...(onAddClassesFromTemplate !== undefined && { onAddClassesFromTemplate })}

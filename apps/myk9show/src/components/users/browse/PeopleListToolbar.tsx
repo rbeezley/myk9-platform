@@ -60,6 +60,7 @@ export function PeopleListToolbar({
         noun={PEOPLE_NOUN}
         filtered={hasActiveFilters}
         onShowAll={onClearAll}
+        showAllInEmptyState={matchCount === 0}
       >
         {resultLineExtra}
       </ListResultLine>

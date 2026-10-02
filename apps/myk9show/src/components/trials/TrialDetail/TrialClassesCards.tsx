@@ -9,9 +9,11 @@ import {
   type ClassDetailsData,
 } from '@/components/classes/ClassDetailsPopover';
 import { ClassWarningBanners } from '@/components/classes/ClassWarningBanners';
+import { getClassDetailHref } from '@/utils/classDetailHref';
 
 interface TrialClassesCardsProps {
   classes: TrialClass[];
+  showId: string;
   trialId: string;
   /** Staff-only gate for the per-card edit menu. Deny by default. */
   canManage?: boolean;
@@ -43,6 +45,7 @@ function formatStartTime(startTime: string | undefined): string | undefined {
  */
 export function TrialClassesCards({
   classes,
+  showId,
   trialId,
   canManage = false,
   onEditClass,
@@ -118,7 +121,9 @@ export function TrialClassesCards({
                     isOfflineScoring={classItem.isOfflineScoring}
                   />
                 }
-                onCardClick={() => startTransition(() => navigate(`/classes/${classItem.id}`))}
+                onCardClick={() =>
+                  startTransition(() => navigate(getClassDetailHref(showId, trialId, classItem.id)))
+                }
                 {...(canManage && {
                   onMenuClick: () => {
                     onEditClass(classItem);

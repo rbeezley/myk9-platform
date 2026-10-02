@@ -92,10 +92,10 @@ describe('PermissionAuditPage DataTable migration', () => {
     expect(screen.queryByText('Total Events')).not.toBeInTheDocument();
   });
 
-  it('renders column visibility toggle', async () => {
+  it('has no Columns control (owner decision 4)', async () => {
     render(<PermissionAuditPage />);
     await screen.findByRole('table');
-    expect(screen.getByRole('button', { name: /toggle columns/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /toggle columns/i })).not.toBeInTheDocument();
   });
 
   it('renders all audit log rows as flat list', async () => {

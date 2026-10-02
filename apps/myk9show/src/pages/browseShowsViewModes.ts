@@ -7,7 +7,9 @@ export const VIEW_MODES = [
   { key: 'map', label: 'Map', icon: 'map' as const },
 ];
 
-const VALID_VIEW_MODES: ReadonlySet<string> = new Set(VIEW_MODES.map(mode => mode.key));
+export const VIEW_MODE_KEYS: readonly string[] = VIEW_MODES.map(mode => mode.key);
+
+const VALID_VIEW_MODES: ReadonlySet<string> = new Set(VIEW_MODE_KEYS);
 
 export function parseViewMode(value: string | null): ViewMode | null {
   return value && VALID_VIEW_MODES.has(value) ? (value as ViewMode) : null;

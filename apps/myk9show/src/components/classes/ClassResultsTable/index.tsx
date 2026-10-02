@@ -17,6 +17,7 @@ import {
   ListFilterBar,
   ListResultLine,
   ListViewTabs,
+  ListViewToggle,
   type ListView,
 } from '@/components/list-toolkit';
 import '@/styles/myk9-show-details.css';
@@ -25,8 +26,9 @@ import type { CheckInStatus } from '@myk9/core';
 import { matchesAny } from '@myk9/core';
 import { useClassResults } from './useClassResults';
 import { useResultColumns } from './columns';
-import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
-import { ViewToggle } from '@/components/common/ViewToggle';
+import { usePageExportAction } from '@/features/actions/pageEditTarget';
+import { exportRowsCsv } from '@/utils/downloadCsv';
+import { useViewPreference } from '@/hooks/useViewPreference';
 import { EntryCardGrid } from './EntryCardGrid';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
@@ -204,6 +206,36 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
     onCheckInClick: setStatusPickerEntry,
   });
 
+  // The whole-list export the table's own button used to be (owner decision 4: header Actions menu).
+  usePageExportAction({
+    id: 'class-results',
+    enabled: effectiveViewMode === 'table' && filteredRows.length > 0,
+    run: () =>
+      exportRowsCsv(
+        'class-results',
+        [
+          'Armband',
+          'Dog',
+          'Handler',
+          'Placement',
+          'Qualification',
+          'Search Time',
+          'Faults',
+          'Check-in',
+        ],
+        filteredRows.map(row => [
+          row.armband,
+          row.dogName,
+          row.handlerName,
+          row.placement,
+          row.qualification,
+          row.searchTime,
+          row.faults,
+          row.checkInStatus,
+        ])
+      ),
+  });
+
   const dragColumns = useMemo<ColumnDef<ScoringRow, unknown>[]>(
     () => (showDragHandles ? [DRAG_HANDLE_COL, ...columns] : columns),
     [showDragHandles, columns]
@@ -237,13 +269,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
               </Badge>
             </div>
             <div className="flex items-center gap-2">
-              {classId && (
-                <ViewToggle
-                  modes={CARD_TABLE_MODES}
-                  active={effectiveViewMode}
-                  onChange={setViewMode}
-                />
-              )}
+              {classId && <ListViewToggle active={effectiveViewMode} onChange={setViewMode} />}
               {canEdit && !isClosed && (
                 <Button variant="outline" size="sm" onClick={() => setRunOrderDialogOpen(true)}>
                   <ListOrdered className="h-4 w-4" />

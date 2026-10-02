@@ -19,7 +19,7 @@
  */
 
 import * as React from 'react';
-import { MoreVertical, MoreHorizontal } from 'lucide-react';
+import { MoreVertical, MoreHorizontal, ChevronDown } from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -67,6 +67,11 @@ export interface RowActionMenuProps {
   /** Trigger glyph. Vertical dots is the default; horizontal matches admin tables. */
   icon?: 'vertical' | 'horizontal';
   size?: TriggerSize;
+  /**
+   * Replaces the bare dots with a named button ("Change status ▾"). Used where the menu is the
+   * only way to reach a group of actions, so a reader sees what it holds before opening it.
+   */
+  triggerLabel?: string;
   triggerClassName?: string;
   contentClassName?: string;
   /** Disable the whole trigger. */
@@ -117,6 +122,7 @@ export function RowActionMenu({
   label = 'Row actions',
   icon = 'vertical',
   size = 'md',
+  triggerLabel,
   triggerClassName,
   contentClassName,
   disabled,
@@ -140,17 +146,32 @@ export function RowActionMenu({
   return (
     <DropdownMenu {...rootProps}>
       <DropdownMenuTrigger asChild nativeButton>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          aria-label={label}
-          disabled={disabled}
-          className={cn(TRIGGER_SIZE[size], 'p-0 shrink-0', triggerClassName)}
-        >
-          <span className="sr-only">{label}</span>
-          <Glyph className={glyphSize} />
-        </Button>
+        {triggerLabel ? (
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={disabled}
+            className={cn(
+              'h-11 shrink-0 gap-2 whitespace-nowrap rounded-xl px-3 text-sm font-medium',
+              triggerClassName
+            )}
+          >
+            {triggerLabel}
+            <ChevronDown className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        ) : (
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            aria-label={label}
+            disabled={disabled}
+            className={cn(TRIGGER_SIZE[size], 'p-0 shrink-0', triggerClassName)}
+          >
+            <span className="sr-only">{label}</span>
+            <Glyph className={glyphSize} />
+          </Button>
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent align={align} className={cn('w-48', contentClassName)}>
         {sections.map((section, sectionIndex) => {

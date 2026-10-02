@@ -92,13 +92,16 @@ export function EmptyState({
       )}
     >
       {/* Icon */}
-      <IconContainer
-        icon={icon}
-        size={sizeConfig.iconSize}
-        variant="default"
-        className="mb-6 opacity-60"
-        hover={false}
-      />
+      {/* Stable test id: e2e specs look for the empty state's icon (trials-page-ui). */}
+      <div data-testid="empty-state-icon" className="contents">
+        <IconContainer
+          icon={icon}
+          size={sizeConfig.iconSize}
+          variant="default"
+          className="mb-6 opacity-60"
+          hover={false}
+        />
+      </div>
 
       {/* Content */}
       <div className={cn('space-y-3', sizeConfig.maxWidth)}>

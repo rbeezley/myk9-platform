@@ -26,7 +26,7 @@ import { TRIAL_SECRETARY_ONLY_REASON } from './trialSecretaryAccess';
  * React state the pure resolver has no access to. `useCurrentActions` binds
  * each one to a real callback; nothing else may invent a command.
  */
-export type ActionCommand = 'publish-premium' | 'edit-object';
+export type ActionCommand = 'publish-premium' | 'edit-object' | 'page-export';
 
 /**
  * The objects whose DETAIL page owns an Edit panel (the show's own Edit is a
@@ -118,6 +118,11 @@ export interface ActionViewer {
    * focused on it, as the toolbar button it replaced did.
    */
   addClassesTrialId?: string | null | undefined;
+  /**
+   * Whole-list "Export CSV" actions the lists on screen registered (`usePageExportAction`), by
+   * list id. They form the menu's last group.
+   */
+  pageExports?: ReadonlyArray<{ id: string }> | undefined;
 }
 
 const SHOW_PATH = /^\/shows\/([^/]+)(?:\/|$)/;
@@ -323,6 +328,13 @@ function buildPageObjectActions(pageObject: PageObject | null | undefined): AppA
  * or the role-wide one) behind a divider.
  */
 export function resolveActions(route: ActionRouteContext, viewer: ActionViewer): AppAction[] {
+  const exports: AppAction[] = (viewer.pageExports ?? []).map((item, index) => ({
+    id: `page-export-${item.id}`,
+    label: 'Export CSV',
+    command: 'page-export',
+    pageOwned: true,
+    ...(index === 0 ? { separatorBefore: true } : {}),
+  }));
   const own = buildPageObjectActions(viewer.pageObject);
   // One "Add classes": a trial page's own (focused on that trial) replaces the show-wide one.
   const hasTrialAddClasses = own.some(action => action.id === 'trial-add-classes');
@@ -331,11 +343,12 @@ export function resolveActions(route: ActionRouteContext, viewer: ActionViewer):
       ? buildShowActions(route.showId, route.shellMounted, viewer)
       : buildRoleWideActions(viewer)
   ).filter(action => !(hasTrialAddClasses && action.id === 'show-add-classes'));
-  if (own.length === 0) return context;
+  if (own.length === 0) return [...context, ...exports];
   return [
     ...own,
     ...context.map((action, index) =>
       index === 0 ? { ...action, separatorBefore: true } : action
     ),
+    ...exports,
   ];
 }

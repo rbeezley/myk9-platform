@@ -6,9 +6,11 @@ import { useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Clock, Dog, ArrowUpCircle, Trash2 } from 'lucide-react';
-import { DataTable, type ColumnDef } from '@/components/ui/data-table';
+import { DataTable, filterByListSearch, type ColumnDef } from '@/components/ui/data-table';
 import type { WaitlistEntry, ClassWithWaitlistCount, ActionDialogState } from './types';
 import { formatEntryDateTime } from '@/lib/format/dates';
+import { usePageExportAction } from '@/features/actions/pageEditTarget';
+import { exportRowsCsv } from '@/utils/downloadCsv';
 
 interface WaitlistTableProps {
   entries: WaitlistEntry[];
@@ -117,6 +119,23 @@ export function WaitlistTable({
     () => buildColumns(selectedClass, handleOfferSpot, handleRemove),
     [selectedClass, handleOfferSpot, handleRemove]
   );
+
+  // The whole-list export the table's own button used to be: exactly the rows on screen, found by
+  // the same shared search the table applies.
+  const exportRows = useMemo(
+    () =>
+      filterByListSearch(entries, columns, searchTerm).map(entry => [
+        entry.position,
+        entry.dog?.call_name ?? entry.dog?.name ?? '',
+        entry.created_at ?? '',
+      ]),
+    [entries, columns, searchTerm]
+  );
+  usePageExportAction({
+    id: 'waitlist',
+    enabled: exportRows.length > 0,
+    run: () => exportRowsCsv('waitlist', ['Position', 'Dog', 'Added'], exportRows),
+  });
 
   return (
     <Card>

@@ -22,7 +22,6 @@ describe('getColumnLayoutClasses', () => {
   it('returns nothing for a column with no layout meta', () => {
     expect(getColumnLayoutClasses(undefined, 'header')).toBe('');
     expect(getColumnLayoutClasses({}, 'body')).toBe('');
-    expect(getColumnLayoutClasses({ exportHeader: 'Name' }, 'body')).toBe('');
   });
 
   it('hides a responsiveHide column below its breakpoint and shows it at or above', () => {

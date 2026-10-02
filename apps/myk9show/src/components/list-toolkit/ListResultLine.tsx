@@ -15,6 +15,11 @@ interface ListResultLineProps {
   filtered: boolean;
   /** Clears search, view and field filters. The button shows only while filtered. */
   onShowAll: () => void;
+  /**
+   * True while the list's `ListEmptyState` is showing its own "Show all …" button, so this line
+   * does not repeat it: one button, one place.
+   */
+  showAllInEmptyState?: boolean;
   selectAll?: {
     selectedCount: number;
     onSelectAll: () => void;
@@ -61,6 +66,7 @@ export function ListResultLine({
   noun,
   filtered,
   onShowAll,
+  showAllInEmptyState = false,
   selectAll,
   announce = true,
   ready = true,
@@ -80,7 +86,7 @@ export function ListResultLine({
       >
         {statusSentence({ shown, total, noun, filtered })}
       </p>
-      {filtered && (
+      {filtered && !showAllInEmptyState && (
         <button type="button" onClick={onShowAll} className={LINK_BUTTON}>
           Show all {noun[1]}
         </button>

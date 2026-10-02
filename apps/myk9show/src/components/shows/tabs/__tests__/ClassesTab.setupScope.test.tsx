@@ -121,12 +121,12 @@ describe('ClassesTab Setup scope', () => {
       expect(onTrialChange).toHaveBeenCalledWith('t2');
     });
 
-    it('gives a reader the whole show: no trial picker, no search, every trial listed', () => {
+    it('gives a reader the whole show: no trial picker, one search, every trial listed', () => {
       mockCanManage = false;
       renderTab();
 
       expect(screen.queryByRole('combobox', { name: 'Trial' })).not.toBeInTheDocument();
-      expect(screen.queryByPlaceholderText('Search classes...')).not.toBeInTheDocument();
+      expect(screen.getAllByPlaceholderText('Search classes...')).toHaveLength(1);
       expect(screen.getByText('Exterior')).toBeInTheDocument();
       expect(screen.getByText('Containers')).toBeInTheDocument();
     });

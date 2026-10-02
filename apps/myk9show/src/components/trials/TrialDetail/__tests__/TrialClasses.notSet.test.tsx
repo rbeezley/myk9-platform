@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
 import { TrialClassesTable } from '../TrialClassesTable';
 import { TrialClassesCards } from '../TrialClassesCards';
@@ -43,8 +43,20 @@ const filled = {
 } as unknown as TrialClass;
 
 describe('trial class table Not set (MYK9-930)', () => {
+  // A visitor opens on cards (decision 8); these read the table, so choose it.
+  beforeEach(() => {
+    localStorage.setItem('view-pref-trial-classes', 'table');
+  });
+
   it('reads Not set, muted, for a class with no judge and no start time', () => {
-    render(<TrialClassesTable classes={[blank]} onEditClass={vi.fn()} onDeleteClass={vi.fn()} />);
+    render(
+      <TrialClassesTable
+        showId="s1"
+        classes={[blank]}
+        onEditClass={vi.fn()}
+        onDeleteClass={vi.fn()}
+      />
+    );
 
     const notSet = screen.getAllByText('Not set');
     expect(notSet).toHaveLength(2);
@@ -53,7 +65,14 @@ describe('trial class table Not set (MYK9-930)', () => {
   });
 
   it('positive control: a filled class shows its judge and no Not set', () => {
-    render(<TrialClassesTable classes={[filled]} onEditClass={vi.fn()} onDeleteClass={vi.fn()} />);
+    render(
+      <TrialClassesTable
+        showId="s1"
+        classes={[filled]}
+        onEditClass={vi.fn()}
+        onDeleteClass={vi.fn()}
+      />
+    );
 
     expect(screen.getByText('Jane Smith')).toBeInTheDocument();
     expect(screen.queryByText('Not set')).not.toBeInTheDocument();
@@ -65,6 +84,7 @@ describe('trial class cards Not set (MYK9-930)', () => {
     render(
       <TrialClassesCards
         classes={[blank]}
+        showId="s1"
         trialId="t1"
         onEditClass={vi.fn()}
         onDeleteClass={vi.fn()}

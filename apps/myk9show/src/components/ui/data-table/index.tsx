@@ -1,8 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
-import { pickExportColumns } from './exportColumns';
 import { useRevealRow, type RevealRow } from './useRevealRow';
-import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { clearStaleColumnVisibility } from '@/hooks/useColumnVisibility';
 import {
   type VisibilityState,
   type ColumnDef,
@@ -11,7 +10,6 @@ import {
   type ColumnFiltersState,
   type RowSelectionState,
   type Table as TanstackTable,
-  type Column,
   useReactTable,
   getCoreRowModel,
   getSortedRowModel,
@@ -34,9 +32,7 @@ import { DataTablePagination } from './data-table-pagination';
 import { type DataTableColumnMeta, getColumnLayoutClasses } from './types';
 import { DataTableToolbar } from './data-table-toolbar';
 import { DataTableSearch } from './data-table-search';
-import { DataTableColumnToggle } from './data-table-column-toggle';
-import { Button } from '@/components/ui/button';
-import { Download, RotateCcw, Rows3 } from 'lucide-react';
+import { matchesListSearch } from './listSearch';
 
 export type { ColumnDef } from '@tanstack/react-table';
 export { DataTableColumnHeader } from './data-table-column-header';
@@ -50,7 +46,7 @@ export type {
 } from './types';
 export { DataTableToolbar, useDataTableContext } from './data-table-toolbar';
 export { DataTableSearch } from './data-table-search';
-export { DataTableColumnToggle } from './data-table-column-toggle';
+export { filterByListSearch, matchesListSearch } from './listSearch';
 export { EditableCell } from './data-table-editable-cell';
 export type { EditableCellProps } from './data-table-editable-cell';
 export { TimeInput } from './data-table-time-input';
@@ -73,8 +69,8 @@ interface DataTableProps<TData> {
   onSelectionChange?: (selectedRows: TData[]) => void;
   getRowId?: (row: TData) => string;
   /**
-   * Columns hidden until the user shows them from the Columns menu. A stored
-   * per-table choice wins over this default.
+   * Columns hidden by default. There is no Columns menu (owner decision 4), so this is the
+   * only thing that decides which columns show.
    */
   defaultColumnVisibility?: VisibilityState;
   toolbar?: (props: { table: TanstackTable<TData> }) => ReactNode;
@@ -86,14 +82,6 @@ interface DataTableProps<TData> {
    * Ignored when a custom `toolbar` is supplied.
    */
   showSearch?: boolean;
-  /**
-   * Whether the default toolbar renders its built-in "Export CSV" button.
-   * Defaults to `true`. Set to `false` when the page owns export — the built-in
-   * one exports the rows the table was handed, which is only the current page
-   * on a surface that paginates outside the table, so two exports side by side
-   * silently disagree about scope.
-   */
-  showExport?: boolean;
   emptyState?: ReactNode;
   noResultsMessage?: ReactNode;
   loading?: boolean;
@@ -109,20 +97,12 @@ interface DataTableProps<TData> {
   onSortingChange?: (sorting: SortingState) => void;
   className?: string;
   getRowClassName?: (data: TData) => string;
-  /**
-   * Controlled density (operational-views-and-display-presets, Design
-   * Decision 3). When provided, overrides the table's own per-`tableId`
-   * localStorage density and hides the built-in toggle — the caller (a
-   * surface-level `DensityControl`) owns density instead, so there is one
-   * density control per surface, not two.
-   */
-  density?: TableDensity;
   /** Turns to the page holding one row, then reports it rendered (see `useRevealRow`). */
   revealRow?: RevealRow | null;
   onRowRevealed?: (id: string) => void;
 }
 
-export type TableDensity = 'comfortable' | 'compact';
+const NO_HIDDEN_COLUMNS: VisibilityState = {};
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -141,17 +121,6 @@ function readStoredPageSize(
   }
 }
 
-function readStoredDensity(tableId: string | undefined): TableDensity {
-  if (!tableId) return 'comfortable';
-  try {
-    return localStorage.getItem(`datatable-density-${tableId}`) === 'compact'
-      ? 'compact'
-      : 'comfortable';
-  } catch {
-    return 'comfortable';
-  }
-}
-
 function writeStorageValue(key: string, value: string) {
   try {
     localStorage.setItem(key, value);
@@ -160,48 +129,9 @@ function writeStorageValue(key: string, value: string) {
   }
 }
 
-function escapeCsvValue(value: unknown): string {
-  if (value == null) return '';
-  const text = String(value);
-  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
-
-function getExportColumnLabel<TData>(column: Column<TData, unknown>): string {
-  const columnDef = column.columnDef as ColumnDef<TData, unknown>;
-  const meta = columnDef.meta as DataTableColumnMeta | undefined;
-  if (meta?.exportHeader) return meta.exportHeader;
-  if (typeof columnDef.header === 'string') return columnDef.header;
-  return column.id;
-}
-
-function exportTableCsv<TData>(table: TanstackTable<TData>, tableId: string) {
-  const columns = pickExportColumns(table.getAllLeafColumns());
-  const rows = table.getFilteredRowModel().rows;
-
-  const header = columns.map(column => escapeCsvValue(getExportColumnLabel(column))).join(',');
-  const body = rows.map(row =>
-    columns
-      .map(column => {
-        const meta = column.columnDef.meta as DataTableColumnMeta | undefined;
-        const value = meta?.exportValue ? meta.exportValue(row.original) : row.getValue(column.id);
-        return escapeCsvValue(value);
-      })
-      .join(',')
-  );
-  const csv = [header, ...body].join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${tableId}-${new Date().toISOString().slice(0, 10)}.csv`;
-  try {
-    document.body.appendChild(link);
-    link.click();
-  } finally {
-    link.remove();
-    URL.revokeObjectURL(url);
-  }
-}
+// One comfortable row size (owner decision 4, MYK9-929): no density control.
+const headerCellClassName = 'px-4 py-3';
+const bodyCellClassName = 'px-4 py-3';
 
 function isInteractiveElement(target: EventTarget | null, boundary: Element): boolean {
   if (!(target instanceof Element)) return false;
@@ -236,7 +166,6 @@ export function DataTable<TData>({
   },
   toolbar,
   showSearch = true,
-  showExport = true,
   emptyState,
   noResultsMessage,
   loading = false,
@@ -247,7 +176,6 @@ export function DataTable<TData>({
   onSortingChange,
   className,
   getRowClassName,
-  density: controlledDensity,
   defaultColumnVisibility,
   revealRow,
   onRowRevealed,
@@ -256,19 +184,17 @@ export function DataTable<TData>({
   const [internalSorting, setInternalSorting] = useState<SortingState>(initialSorting ?? []);
   const sorting = controlledSorting ?? internalSorting;
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = useColumnVisibility(
-    tableId,
-    defaultColumnVisibility
-  );
+  // Column defaults only: nothing in the UI changes visibility, and a choice stored by the old
+  // Columns menu is cleared once so it cannot keep a column hidden.
+  const columnVisibility = defaultColumnVisibility ?? NO_HIDDEN_COLUMNS;
+  useEffect(() => {
+    clearStaleColumnVisibility(tableId);
+  }, [tableId]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [pagination, setPagination] = useState({
     pageIndex: 0,
     pageSize: readStoredPageSize(tableId, pageSize, resolvedPageSizeOptions),
   });
-  const [internalDensity, setInternalDensity] = useState<TableDensity>(() =>
-    readStoredDensity(tableId)
-  );
-  const density = controlledDensity ?? internalDensity;
   const [internalGlobalFilter, setInternalGlobalFilter] = useState('');
 
   const globalFilterValue = controlledGlobalFilter ?? internalGlobalFilter;
@@ -278,11 +204,6 @@ export function DataTable<TData>({
     if (!tableId) return;
     writeStorageValue(`datatable-page-size-${tableId}`, String(pagination.pageSize));
   }, [pagination.pageSize, tableId]);
-
-  useEffect(() => {
-    if (!tableId || controlledDensity) return;
-    writeStorageValue(`datatable-density-${tableId}`, internalDensity);
-  }, [internalDensity, tableId, controlledDensity]);
 
   // Prepend selection column if selectable
   const allColumns = useMemo(() => {
@@ -343,10 +264,6 @@ export function DataTable<TData>({
       onSortingChange?.(next);
     },
     onColumnFiltersChange: setColumnFilters,
-    onColumnVisibilityChange: updater => {
-      const next = typeof updater === 'function' ? updater(columnVisibility) : updater;
-      setColumnVisibility(next);
-    },
     onRowSelectionChange: updater => {
       const next = typeof updater === 'function' ? updater(rowSelection) : updater;
       setRowSelection(next);
@@ -365,7 +282,9 @@ export function DataTable<TData>({
     ...(manualSorting ? {} : { getSortedRowModel: getSortedRowModel() }),
     getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    globalFilterFn: 'includesString',
+    // The shared list search, read from these columns: what a column shows finds its row.
+    globalFilterFn: (row, _columnId, query) =>
+      matchesListSearch(row.original, allColumns, String(query ?? '')),
   });
 
   useRevealRow(table, revealRow, onRowRevealed);
@@ -377,21 +296,6 @@ export function DataTable<TData>({
     return getColumnLayoutClasses(colDef?.meta as DataTableColumnMeta | undefined, cell);
   };
 
-  const resetTableView = () => {
-    const resetSorting = initialSorting ?? [];
-    if (!controlledSorting) setInternalSorting(resetSorting);
-    onSortingChange?.(resetSorting);
-    setColumnFilters([]);
-    setColumnVisibility(defaultColumnVisibility ?? {});
-    setRowSelection({});
-    setGlobalFilterValue('');
-    setPagination({ pageIndex: 0, pageSize });
-    if (!controlledDensity) setInternalDensity('comfortable');
-  };
-
-  const headerCellClassName = density === 'compact' ? 'px-3 py-2' : 'px-4 py-3';
-  const bodyCellClassName = density === 'compact' ? 'px-3 py-2' : 'px-4 py-3';
-
   return (
     <div
       data-datatable
@@ -399,42 +303,10 @@ export function DataTable<TData>({
     >
       {toolbar
         ? toolbar({ table })
-        : tableId && (
+        : tableId &&
+          showSearch && (
             <DataTableToolbar table={table}>
-              {showSearch && <DataTableSearch />}
-              <DataTableColumnToggle />
-              {showExport && (
-                <Button
-                  variant="outline"
-                  className="h-11 text-xs"
-                  onClick={() => exportTableCsv(table, tableId)}
-                >
-                  <Download className="h-3.5 w-3.5 mr-1" />
-                  Export CSV
-                </Button>
-              )}
-              {!controlledDensity && (
-                <Button
-                  variant="outline"
-                  className="h-11 text-xs"
-                  onClick={() =>
-                    setInternalDensity(internalDensity === 'compact' ? 'comfortable' : 'compact')
-                  }
-                  aria-pressed={density === 'compact'}
-                >
-                  <Rows3 className="h-3.5 w-3.5 mr-1" />
-                  {density === 'compact' ? 'Comfortable density' : 'Compact density'}
-                </Button>
-              )}
-              <Button
-                variant="ghost"
-                className="h-11 text-xs"
-                onClick={resetTableView}
-                aria-label="Reset table view"
-              >
-                <RotateCcw className="h-3.5 w-3.5 mr-1" />
-                Reset view
-              </Button>
+              <DataTableSearch />
             </DataTableToolbar>
           )}
 

@@ -50,6 +50,7 @@ import { getEntryManagementHref } from '@/features/entry-operations/entryAttenti
 import { RelatedContextLinks } from '@/components/common/RelatedContextLinks';
 import { buildClassDetailsRelatedLinks } from './classDetailsRelatedLinks';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
+import { getClassDetailHref } from '@/utils/classDetailHref';
 
 const ClassDetailsPage: React.FC = () => {
   const navigate = useNavigate();
@@ -178,7 +179,13 @@ const ClassDetailsPage: React.FC = () => {
       crumbs.push({ label: trialLabel, href: `/trials/${parentTrial.id}` });
     }
     const classLabel = currentClass ? formatClassTitle(currentClass) || 'Class' : 'Class';
-    crumbs.push({ label: classLabel, href: `/classes/${classId}` });
+    crumbs.push({
+      label: classLabel,
+      href:
+        parentShow && parentTrial && classId
+          ? getClassDetailHref(parentShow.id, parentTrial.id, classId)
+          : `/classes/${classId}`,
+    });
     return crumbs;
   }, [parentShow, parentTrial, currentClass, classId]);
 

@@ -489,7 +489,7 @@ test.describe('People UI — Admin CRUD lifecycle', () => {
 
     await page.waitForURL(/\/people/, { timeout: 10000 });
     await page.getByPlaceholder('Search people by name or email...').fill(ADMIN_PERSON_EMAIL);
-    await expect(page.getByText('No people match your filters')).toBeVisible();
+    await expect(page.getByText('No people match your search or filters.')).toBeVisible();
     await expect(page.getByText(ADMIN_PERSON_EMAIL)).not.toBeVisible();
   });
 });

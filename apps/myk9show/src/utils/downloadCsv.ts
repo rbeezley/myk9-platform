@@ -1,3 +1,5 @@
+import { buildCsvContent } from './csvEscape';
+
 /**
  * Triggers a browser download of CSV text — the same Blob + anchor-click
  * mechanism `useEntryManagementActions.handleExportCSV` uses, factored out so
@@ -11,8 +13,25 @@ export function downloadCsv(filename: string, csvContent: string): void {
   link.download = filename;
   document.body.appendChild(link);
   link.click();
-  setTimeout(() => {
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  }, 100);
+  // Remove the link now; only the URL revoke waits (the timer must not touch `document`, which
+  // can be gone by then, e.g. after a test environment tears down).
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 100);
+}
+
+/** The dated file name every list Export uses: `dogs-export-2026-10-02.csv`. */
+export function exportFilename(noun: string): string {
+  return `${noun}-export-${new Date().toISOString().slice(0, 10)}.csv`;
+}
+
+/**
+ * Downloads rows as a CSV through the one guarded builder (`csvEscape.ts`: every cell quoted, a
+ * leading `=` `+` `-` `@` neutralised), under a dated name. Every list's Export goes through here.
+ */
+export function exportRowsCsv(
+  noun: string,
+  headers: readonly string[],
+  rows: ReadonlyArray<ReadonlyArray<string | number | null | undefined>>
+): void {
+  downloadCsv(exportFilename(noun), buildCsvContent(headers, rows));
 }

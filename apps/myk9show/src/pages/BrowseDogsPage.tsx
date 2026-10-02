@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Plus, Search, PawPrint } from 'lucide-react';
+import { Plus, PawPrint } from 'lucide-react';
 import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
 import { useCurrentUserPersonId, useRosterIsOwnDogsOnly } from '@/hooks/useRoleBasedData';
 import { useRBAC } from '@/hooks/useRBAC';
@@ -18,17 +18,26 @@ import type { DogFilters } from '@/components/dogs/browse/dogBrowseFilters';
 import { BrowseDogsSkeleton } from '@/components/common/SkeletonLoaders';
 import { AddDogPanel } from '@/components/panels/edit';
 import type { Dog as DogType } from '@/types/dog-types';
-import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
+import { useViewPreference } from '@/hooks/useViewPreference';
+import { defaultListView } from '@/utils/defaultListView';
+import { usePageExportAction } from '@/features/actions/pageEditTarget';
+import { exportRowsCsv } from '@/utils/downloadCsv';
+import { dogExportHeaders, dogExportRows } from '@/components/dogs/browse/dogsExport';
 import { UserRole } from '@/types/auth-types';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
-import { ViewToggle } from '@/components/common/ViewToggle';
 import { ErrorState } from '@/components/common/ErrorState';
 import { EmptyState } from '@/components/common/EmptyState';
 import { ListPagination } from '@/components/common/ListPagination';
-import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-toolkit';
+import {
+  ListEmptyState,
+  ListFilterBar,
+  ListResultLine,
+  ListViewTabs,
+  ListViewToggle,
+} from '@/components/list-toolkit';
 
 const DOG_NOUN = ['dog', 'dogs'] as const;
 
@@ -55,7 +64,7 @@ const BrowseDogsPage: React.FC = () => {
   // that renders differently because "these are all mine" stays in step with
   // the data instead of re-deriving it from a role (MYK9-219 review).
   const ownDogsOnly = useRosterIsOwnDogsOnly();
-  const [viewMode, setViewMode] = useViewPreference('dogs', isExhibitorOnly ? 'cards' : 'table');
+  const [viewMode, setViewMode] = useViewPreference('dogs', defaultListView(!isExhibitorOnly));
   const [showCreateDogPanel, setShowCreateDogPanel] = useState(
     () => searchParams.get('add') === 'true'
   );
@@ -97,6 +106,17 @@ const BrowseDogsPage: React.FC = () => {
   // (management-capable roles, not exhibitor-only roster view). No per-action
   // RBAC — see design.md decision D1.
   const canBulkManageDogs = !rbacLoading && !isExhibitorOnly && hasPermission('dog:update');
+  // The whole-list export the table's own button used to be: staff, table view, something to export.
+  usePageExportAction({
+    id: 'dogs',
+    enabled: !isExhibitorOnly && viewMode === 'table' && filteredDogs.length > 0,
+    run: () =>
+      exportRowsCsv(
+        'dogs',
+        dogExportHeaders(!ownDogsOnly),
+        dogExportRows(filteredDogs, !ownDogsOnly)
+      ),
+  });
   // Delete is a stricter gate than update — secretaries have `dog:update` but not
   // `dog:delete`. Without this the bulk Delete action would offer an operation the
   // `soft_delete_dog` RPC rejects per-dog (Codex finding).
@@ -227,11 +247,13 @@ const BrowseDogsPage: React.FC = () => {
       );
     }
 
-    if (filteredDogs.length === 0 && !hasActiveFilters) {
+    if (filteredDogs.length === 0) {
       return (
-        <EmptyState
+        <ListEmptyState
           icon={PawPrint}
-          title={isExhibitorOnly ? 'No dogs yet' : 'No dogs visible to you yet'}
+          noun={DOG_NOUN}
+          filtered={hasActiveFilters}
+          onShowAll={handleClearAllFilters}
           description={
             isExhibitorOnly
               ? 'Add your first dog to start tracking titles, training, and health records.'
@@ -246,18 +268,6 @@ const BrowseDogsPage: React.FC = () => {
                 }
               : null
           }
-        />
-      );
-    }
-
-    if (filteredDogs.length === 0 && hasActiveFilters) {
-      return (
-        <EmptyState
-          icon={Search}
-          title="No dogs match your filters"
-          description="Try a different search, or clear the filters to see every dog again."
-          action={{ label: 'Clear Filters', onClick: handleClearAllFilters }}
-          variant="filter"
         />
       );
     }
@@ -313,35 +323,26 @@ const BrowseDogsPage: React.FC = () => {
               activeId={activeViewId}
               onSelect={handleSelectView}
             />
-            <div className="flex flex-wrap items-start gap-2">
-              <div className="min-w-0 flex-1">
-                <ListFilterBar
-                  searchValue={filters.search}
-                  onSearchChange={handleSearchChange}
-                  searchPlaceholder={
-                    isExhibitorOnly
-                      ? 'Search your dogs by name or breed...'
-                      : 'Search dogs by name, breed, or owner...'
-                  }
-                  fields={[]}
-                />
-              </div>
-              {!isExhibitorOnly && (
-                <ViewToggle
-                  modes={CARD_TABLE_MODES}
-                  active={viewMode}
-                  onChange={setViewMode}
-                  className="shrink-0"
-                />
-              )}
-            </div>
+            <ListFilterBar
+              searchValue={filters.search}
+              onSearchChange={handleSearchChange}
+              searchPlaceholder={
+                isExhibitorOnly
+                  ? 'Search your dogs by name or breed...'
+                  : 'Search dogs by name, breed, or owner...'
+              }
+              fields={[]}
+            />
             <ListResultLine
               shown={filteredDogs.length}
               total={dogs.length}
               noun={DOG_NOUN}
               filtered={hasActiveFilters}
               onShowAll={handleClearAllFilters}
-            />
+              showAllInEmptyState={identityResolved && filteredDogs.length === 0}
+            >
+              {!isExhibitorOnly && <ListViewToggle active={viewMode} onChange={setViewMode} />}
+            </ListResultLine>
           </div>
 
           {/* Dog Cards / Table */}
@@ -352,6 +353,7 @@ const BrowseDogsPage: React.FC = () => {
               selectedDogs={dogSelection.selectedItems}
               onClear={dogSelection.clearSelection}
               canDelete={canDeleteDogs}
+              includeOwner={!ownDogsOnly}
             />
           )}
         </>

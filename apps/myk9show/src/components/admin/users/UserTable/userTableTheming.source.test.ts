@@ -96,13 +96,12 @@ describe('the table inherits the app font (Montserrat), never SF Pro', () => {
 
 // The page slices rows before handing them to the table, so any control the
 // table owns sees only the current page. Sorting was lifted to the page for
-// exactly this reason; search and export are switched off for it. Both defaults
-// are `true`, so dropping these props reintroduces a search box that finds
-// nothing on other pages and an export that quietly covers 25 rows.
+// exactly this reason; search is switched off for it. The default
+// is `true`, so dropping this prop reintroduces a search box that finds
+// nothing on other pages.
 describe('table-owned controls that would inherit the wrong scope are off', () => {
-  it('the built-in search and export are disabled', () => {
+  it('the built-in search is disabled', () => {
     expect(tableSrc).toContain('showSearch={false}');
-    expect(tableSrc).toContain('showExport={false}');
   });
 
   it('sorting is delegated to the page rather than done in the table', () => {

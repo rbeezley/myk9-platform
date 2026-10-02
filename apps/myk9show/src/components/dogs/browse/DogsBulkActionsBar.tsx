@@ -1,14 +1,17 @@
 /**
  * DogsBulkActionsBar — the dogs browse table's multi-select bulk bar
  * (design.md decision D2/D3, tasks.md slice 3.4), on the shared list-toolkit
- * `FloatingBulkBar` shell (MYK9-796) with a `RowActionMenu` resolved from
- * `dogActions` as its one action trigger. Status-change actions dispatch
+ * `FloatingBulkBar` shell (MYK9-796). Named buttons (MYK9-929): Change status (a menu resolved
+ * from `dogActions`), Export, and Delete. Status-change actions dispatch
  * directly through `useUpdateDogMutation`; delete opens the shared
  * `DeleteObjectDialog` (counts, paid/scored blockers named up front, Undo).
  */
 import { useRef, useState, useEffect } from 'react';
-import { RowActionMenu, toBulkActions } from '@/components/ui/RowActionMenu';
-import { FloatingBulkBar } from '@/components/list-toolkit';
+import { Download } from 'lucide-react';
+import { toBulkActions } from '@/components/ui/RowActionMenu';
+import { BulkBarActions, BulkBarButton, FloatingBulkBar } from '@/components/list-toolkit';
+import { exportRowsCsv } from '@/utils/downloadCsv';
+import { dogExportHeaders, dogExportRows } from './dogsExport';
 import { useUpdateDogMutation } from '@/hooks/queries/useDogsDatabase';
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
 import { getDogDisplayName, type Dog, type DogStatus } from '@/types/dog-types';
@@ -26,12 +29,15 @@ interface DogsBulkActionsBarProps {
    * Per-dog ownership rejections still surface as honest partial-failures.
    */
   canDelete?: boolean;
+  /** Whether the Export carries an Owner column; false when every dog is the viewer's own. */
+  includeOwner?: boolean;
 }
 
 export function DogsBulkActionsBar({
   selectedDogs,
   onClear,
   canDelete = false,
+  includeOwner = true,
 }: DogsBulkActionsBarProps) {
   const updateDogMutation = useUpdateDogMutation();
   const [pendingDelete, setPendingDelete] = useState<Dog[] | null>(null);
@@ -89,10 +95,24 @@ export function DogsBulkActionsBar({
 
   const isBusy = statusDispatch.isBusy;
 
+  const handleExport = () =>
+    exportRowsCsv(
+      'dogs',
+      dogExportHeaders(includeOwner),
+      dogExportRows(selectedDogs, includeOwner)
+    );
+
   return (
     <>
       <FloatingBulkBar count={count} noun={DOG_NOUN} onClear={onClear} busy={isBusy}>
-        <RowActionMenu actions={actions} size="touch" label="Bulk actions" disabled={isBusy} />
+        <BulkBarActions actions={actions} menuLabel="Change status" disabled={isBusy} />
+        <BulkBarButton
+          onClick={handleExport}
+          icon={<Download className="h-4 w-4" aria-hidden="true" />}
+          disabled={isBusy}
+        >
+          Export
+        </BulkBarButton>
       </FloatingBulkBar>
 
       {pendingDelete !== null && (

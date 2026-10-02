@@ -30,6 +30,11 @@ let mockPersonId: string | undefined;
 let mockPeople: { id: string; user_id?: string }[] = [];
 let mockIsAdmin = false;
 let mockScopes: { scopeType: string; roleId: string; scopeId: string }[] = [];
+let mockClubContext: { status: string; clubId?: string } = { status: 'loading' };
+
+vi.mock('@/hooks/useValidatedClubContext', () => ({
+  useCurrentValidatedClubContext: () => mockClubContext,
+}));
 
 vi.mock('@/store/userStore', () => ({
   useUserStore: (selector: (s: { people: unknown[] }) => unknown) =>
@@ -112,6 +117,7 @@ describe('DogDetailsMain — view follows the viewer’s relationship to the dog
     mockPeople = [];
     mockIsAdmin = false;
     mockScopes = [];
+    mockClubContext = { status: 'loading' };
     useShowStore.setState({ shows: [] });
   });
 
@@ -150,8 +156,42 @@ describe('DogDetailsMain — view follows the viewer’s relationship to the dog
     render(<DogDetailsMain dog={dogViaReplicaPath(OWNER_PERSON_ID, CO_OWNER_PERSON_ID)} />);
     expect(hasFullView()).toBe(false);
     expect(screen.getByText('registrations section')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Manage registrations' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
+  });
+
+  // Manage registrations follows the server's dog_registrations write policy:
+  // owner, site admin or the secretary role. Club admins are refused.
+  describe('Manage registrations on the narrow surface', () => {
+    const manage = () => screen.queryByRole('button', { name: 'Manage registrations' });
+
+    it('is offered to a non-owner secretary, and mounts the panel', () => {
+      mockRoles = ['secretary'];
+      mockPersonId = OTHER_PERSON_ID;
+      render(<DogDetailsMain dog={baseDog} />);
+      expect(hasFullView()).toBe(false);
+      expect(manage()).toBeInTheDocument();
+      expect(screen.getByTestId('manage-registrations')).toBeInTheDocument();
+    });
+
+    it.each([
+      ['club admin only', ['club_admin']],
+      ['club admin + exhibitor', ['club_admin', 'exhibitor']],
+    ])('is not offered to a non-owner %s, and no panel mounts', (_label, roles) => {
+      mockRoles = roles;
+      mockPersonId = OTHER_PERSON_ID;
+      render(<DogDetailsMain dog={baseDog} />);
+      expect(hasFullView()).toBe(false);
+      expect(manage()).not.toBeInTheDocument();
+      expect(screen.queryByTestId('manage-registrations')).not.toBeInTheDocument();
+    });
+
+    it('gives a club admin who owns the dog the full view with the action', () => {
+      mockRoles = ['club_admin', 'exhibitor'];
+      mockPersonId = OWNER_PERSON_ID;
+      render(<DogDetailsMain dog={baseDog} />);
+      expect(hasFullView()).toBe(true);
+      expect(manage()).toBeInTheDocument();
+    });
   });
 
   it('does not treat the auth uid as a person id', () => {
@@ -201,7 +241,37 @@ describe('DogDetailsMain — view follows the viewer’s relationship to the dog
       expect(noteLink()).toHaveAttribute('href', '/secretary/dashboard');
     });
 
+    describe('club admin without the secretary role', () => {
+      it.each([
+        ['club admin only', ['club_admin']],
+        ['club admin + exhibitor', ['club_admin', 'exhibitor']],
+      ])('%s gets the note linking to Our Shows for their club', (_label, roles) => {
+        mockRoles = roles;
+        mockPersonId = OTHER_PERSON_ID;
+        mockClubContext = { status: 'ready', clubId: CLUB_A };
+        render(<DogDetailsMain dog={baseDog} />);
+        expect(screen.getByText('Entries and results live with each show.')).toBeInTheDocument();
+        expect(noteLink()).toHaveAttribute('href', `/shows?club=${CLUB_A}`);
+      });
+
+      it('falls back to /shows when the club context is not ready', () => {
+        mockRoles = ['club_admin'];
+        mockPersonId = OTHER_PERSON_ID;
+        render(<DogDetailsMain dog={baseDog} />);
+        expect(noteLink()).toHaveAttribute('href', '/shows');
+      });
+
+      it('keeps the secretary target for a club admin who is also a secretary', () => {
+        mockRoles = ['club_admin', 'secretary'];
+        mockPersonId = OTHER_PERSON_ID;
+        mockClubContext = { status: 'ready', clubId: CLUB_A };
+        render(<DogDetailsMain dog={baseDog} />);
+        expect(noteLink()).toHaveAttribute('href', '/secretary/dashboard');
+      });
+    });
+
     it.each([
+      ['club admin owner', ['club_admin'], OWNER_PERSON_ID, false],
       ['owner secretary', ['secretary', 'exhibitor'], OWNER_PERSON_ID, false],
       ['plain exhibitor', ['exhibitor'], OTHER_PERSON_ID, false],
       ['site admin', ['site_admin'], OTHER_PERSON_ID, true],

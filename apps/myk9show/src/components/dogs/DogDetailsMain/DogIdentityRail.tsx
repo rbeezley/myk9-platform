@@ -181,11 +181,11 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
         ) : (
           <p className="text-xs text-muted-foreground">No registrations yet.</p>
         )}
-        {/* Always mounted for an exhibitor — not gated on the row count, and not
+        {/* Always mounted for anyone allowed to manage (canManageDogRegistrations) — not gated on the row count, and not
             on the read succeeding. Unmounting it while the panel is open (last
             registration deleted, or a refetch failing) takes away the element
             SlideOverPanel returns focus to, dropping focus on <body>. */}
-        {!isSecretary && onManageRegistrations && (
+        {onManageRegistrations && (
           <button
             type="button"
             onClick={onManageRegistrations}

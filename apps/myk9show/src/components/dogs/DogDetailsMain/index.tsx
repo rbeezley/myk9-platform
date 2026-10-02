@@ -7,6 +7,7 @@ import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
 import { useCanDeleteDog } from '@/hooks/useRoleBasedData';
 import { useViewerOwnsDog } from '@/hooks/useViewerOwnsDog';
 import { UserRole } from '@/types/auth-types';
+import { canManageDogRegistrations, usesNarrowDogSurface } from './dogViewerAccess';
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
 import { toPageHeaderCrumbs } from '@/components/common/pageHeaderCrumbs';
@@ -41,10 +42,13 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   const people = useUserStore(state => state.people);
   const { getUserRoles, hasRole } = useAuthContext();
   const userRole = getPrimaryRole(getUserRoles());
-  // MYK9-912: the narrow secretary surface is for a secretary looking at someone
-  // else's dog. A secretary who owns or co-owns the dog gets the full view.
+  // MYK9-912 / MYK9-935: the narrow surface is for a secretary or club admin
+  // looking at someone else's dog, decided by role membership. An owner or
+  // co-owner gets the full view whatever their roles.
   const viewerOwnsDog = useViewerOwnsDog(dog);
-  const isSecretary = userRole === 'secretary' && !viewerOwnsDog;
+  const viewer = { hasRole, viewerOwnsDog };
+  const isSecretary = usesNarrowDogSurface(viewer);
+  const canManageRegistrations = canManageDogRegistrations(viewer);
   // Same check as the /people/:id route guard, so the owner is a link only for someone who can open it.
   const canOpenOwnerRecord = hasRole(UserRole.SECRETARY) || hasRole(UserRole.SITE_ADMIN);
   // Mirror the soft_delete_dog RPC gate so the Delete action is hidden (not
@@ -299,7 +303,9 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
             owner={owner}
             registrations={dbRegistrations}
             onAddRegistration={openAddRegistration}
-            onManageRegistrations={() => setIsManageRegistrationsOpen(true)}
+            onManageRegistrations={
+              canManageRegistrations ? () => setIsManageRegistrationsOpen(true) : undefined
+            }
             registrationsFailed={registrationsFailed}
             registrationsLoading={registrationsLoading}
             onRetryRegistrations={() => void refetchRegistrations()}
@@ -319,7 +325,7 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
           and since Overview no longer carries a registrations list, that is the
           exhibitor's only route to edit or delete one. Pinned by a DOM-order
           test in ownerResolution.test.tsx. */}
-      {!isSecretary && (
+      {canManageRegistrations && (
         <ManageRegistrationsPanel
           open={isManageRegistrationsOpen}
           onClose={() => setIsManageRegistrationsOpen(false)}

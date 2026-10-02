@@ -89,13 +89,17 @@ test.describe('bulk delete of dogs the server refuses', () => {
     });
 
     const dialog = await openBulkDelete(page);
-    await expect(
-      dialog.getByText(/has paid or scored entries|have paid or scored entries/)
-    ).toBeVisible({
-      timeout: 15_000,
-    });
+    // Scoped to the blocked-reason paragraph: each name also appears in the
+    // dialog description, so a dialog-wide getByText is a strict-mode ambiguity.
+    const blockedReason = dialog.getByTestId('delete-blocked-reason');
+    await expect(blockedReason).toContainText(
+      /has paid or scored entries|have paid or scored entries/,
+      {
+        timeout: 15_000,
+      }
+    );
     for (const name of BLOCKED_DOGS) {
-      await expect(dialog.getByText(new RegExp(name))).toBeVisible();
+      await expect(blockedReason).toContainText(name);
     }
     const confirm = dialog.getByRole('button', { name: `Delete ${BLOCKED_DOGS.length} dogs` });
     await expect(confirm).toBeDisabled();

@@ -14,7 +14,7 @@ const mocks = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
   toastInfo: vi.fn(),
-  unsynced: vi.fn(),
+  unsaved: vi.fn(),
 }));
 
 vi.mock('./deletePreview', async importOriginal => ({
@@ -31,7 +31,7 @@ vi.mock('./deleteLocalState', () => ({
 }));
 vi.mock('./deleteUnsyncedWork', async importOriginal => ({
   ...(await importOriginal<typeof import('./deleteUnsyncedWork')>()),
-  hasUnsyncedWork: mocks.unsynced,
+  deviceHasUnsavedWork: mocks.unsaved,
 }));
 vi.mock('sonner', () => ({
   toast: {
@@ -83,7 +83,7 @@ beforeEach(() => {
   mocks.restore.mockResolvedValue(undefined);
   mocks.purge.mockResolvedValue(undefined);
   mocks.refresh.mockResolvedValue(undefined);
-  mocks.unsynced.mockResolvedValue(false);
+  mocks.unsaved.mockResolvedValue({ total: 0, failed: 0 });
 });
 
 afterEach(() => {
@@ -488,25 +488,21 @@ describe('DeleteObjectDialog with items already deleted elsewhere (MYK9-922)', (
     expect(mocks.toastInfo.mock.calls[0]?.[0]).toBe('Show was already deleted: Heartland Classic');
   });
 
-  it('a locally created show the server has never seen is "still saving": not purged, not deleted', async () => {
+  it('a gone show while the device has unsaved work: Delete is off, nothing is purged', async () => {
     mocks.preview.mockRejectedValue({
       code: 'P0002',
       message: 'Show not found or already deleted',
     });
-    mocks.unsynced.mockResolvedValue(true);
+    mocks.unsaved.mockResolvedValue({ total: 1, failed: 0 });
     const onDeleted = vi.fn();
     const target = { id: 's-local', name: 'Draft Show', context: ctx };
-    const { user } = renderDialog('show', [target], { onDeleted });
+    renderDialog('show', [target], { onDeleted });
 
     const dialog = await screen.findByRole('dialog');
-    const confirm = within(dialog).getByRole('button', { name: 'Delete show' });
-    await waitFor(() => expect(confirm).toBeEnabled());
-    await user.click(confirm);
-
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
-      'This show is still saving. Try again in a moment.'
+    expect(await within(dialog).findByTestId('delete-unsaved-work')).toHaveTextContent(
+      "Finish saving first: 1 change on this device hasn't uploaded yet."
     );
-    expect(mocks.unsynced).toHaveBeenCalledWith('show', 's-local');
+    expect(within(dialog).getByRole('button', { name: 'Delete show' })).toBeDisabled();
     expect(mocks.purge).not.toHaveBeenCalled();
     expect(mocks.remove).not.toHaveBeenCalled();
     expect(onDeleted).not.toHaveBeenCalled();
@@ -523,6 +519,95 @@ describe('DeleteObjectDialog with items already deleted elsewhere (MYK9-922)', (
     ).toBeVisible();
     expect(within(dialog).getByRole('button', { name: 'Delete show' })).toBeDisabled();
     expect(mocks.purge).not.toHaveBeenCalled();
+    expect(onDeleted).not.toHaveBeenCalled();
+  });
+});
+
+describe('DeleteObjectDialog: one device-wide unsaved-work check', () => {
+  const syncedClass = { id: 'c1', name: 'Novice Container', context: ctx };
+
+  it('a synced class with an unsynced local entry: Delete is off, nothing is purged', async () => {
+    // The class itself has nothing queued; its entry was created here and has not uploaded.
+    mocks.preview.mockResolvedValue(counts({ entries: 1 }));
+    mocks.unsaved.mockResolvedValue({ total: 1, failed: 0 });
+    renderDialog('class', [syncedClass]);
+
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByTestId('delete-unsaved-work')).toHaveTextContent(
+      'Finish saving first'
+    );
+    expect(within(dialog).getByRole('button', { name: 'Delete class' })).toBeDisabled();
+    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(mocks.purge).not.toHaveBeenCalled();
+  });
+
+  it('a failed upload names that it failed and keeps Delete off', async () => {
+    mocks.preview.mockResolvedValue(counts());
+    mocks.unsaved.mockResolvedValue({ total: 1, failed: 1 });
+    renderDialog('class', [syncedClass]);
+
+    const dialog = await screen.findByRole('dialog');
+    const notice = await within(dialog).findByTestId('delete-unsaved-work');
+    expect(notice).toHaveTextContent(/failed to upload/);
+    expect(notice).toHaveTextContent(/Retry or Discard/);
+    expect(within(dialog).getByRole('button', { name: 'Delete class' })).toBeDisabled();
+  });
+
+  it('an unreadable queue keeps Delete off and offers Check again', async () => {
+    mocks.preview.mockResolvedValue(counts());
+    mocks.unsaved.mockRejectedValue(new Error('queue unavailable'));
+    renderDialog('class', [syncedClass]);
+
+    const dialog = await screen.findByRole('dialog');
+    expect(await within(dialog).findByTestId('delete-unsaved-work')).toHaveTextContent(
+      "couldn't check"
+    );
+    expect(within(dialog).getByRole('button', { name: 'Delete class' })).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: 'Check again' })).toBeVisible();
+  });
+
+  it('a clean queue: Delete is enabled and deletes', async () => {
+    mocks.preview.mockResolvedValue(counts());
+    const onDeleted = vi.fn();
+    const { user } = renderDialog('class', [syncedClass], { onDeleted });
+
+    const dialog = await screen.findByRole('dialog');
+    const confirm = within(dialog).getByRole('button', { name: 'Delete class' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    expect(within(dialog).queryByTestId('delete-unsaved-work')).toBeNull();
+    await user.click(confirm);
+    await waitFor(() =>
+      expect(mocks.remove).toHaveBeenCalledWith('class', 'c1', expect.anything())
+    );
+  });
+
+  it('Check again lets Delete through once the work has uploaded', async () => {
+    mocks.preview.mockResolvedValue(counts());
+    mocks.unsaved.mockResolvedValue({ total: 2, failed: 0 });
+    const { user } = renderDialog('class', [syncedClass]);
+
+    const dialog = await screen.findByRole('dialog');
+    await within(dialog).findByTestId('delete-unsaved-work');
+    mocks.unsaved.mockResolvedValue({ total: 0, failed: 0 });
+    await user.click(within(dialog).getByRole('button', { name: 'Check again' }));
+    await waitFor(() =>
+      expect(within(dialog).getByRole('button', { name: 'Delete class' })).toBeEnabled()
+    );
+  });
+
+  it('work queued after the dialog opened is caught again at confirm', async () => {
+    mocks.preview.mockResolvedValue(counts());
+    const onDeleted = vi.fn();
+    const { user } = renderDialog('class', [syncedClass], { onDeleted });
+
+    const dialog = await screen.findByRole('dialog');
+    const confirm = within(dialog).getByRole('button', { name: 'Delete class' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    mocks.unsaved.mockResolvedValue({ total: 1, failed: 0 });
+    await user.click(confirm);
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Finish saving first');
+    expect(mocks.remove).not.toHaveBeenCalled();
     expect(onDeleted).not.toHaveBeenCalled();
   });
 });

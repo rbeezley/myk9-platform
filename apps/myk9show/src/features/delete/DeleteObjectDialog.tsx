@@ -19,7 +19,12 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
 import { useShowStore } from '@/store/showStore';
 import { ForceDeleteOverride } from '@/components/dogs/common/ForceDeleteOverride';
-import { alreadyDeletedToast, partialFailureMessage } from './deleteObjectCopy';
+import {
+  alreadyDeletedToast,
+  partialFailureMessage,
+  UNSAVED_WORK_CHECK_FAILED,
+  unsavedWorkNotice,
+} from './deleteObjectCopy';
 import {
   deleteRecords,
   invalidateAfterDelete,
@@ -29,6 +34,7 @@ import {
 import { offerUndoToast } from './deleteUndoToast';
 import { DeleteObjectDialogView, type DeleteBlockedAction } from './DeleteObjectDialogView';
 import { useDeletePreview } from './useDeletePreview';
+import { useUnsavedWork, type UnsavedWorkState } from './useUnsavedWork';
 import type { DeleteObjectKind, DeleteTarget } from './deleteTypes';
 
 export interface DeleteObjectDialogProps {
@@ -84,6 +90,7 @@ export function DeleteObjectDialog({
   const { hasRole } = useAuthContext();
   const ids = targets.map(target => target.id);
   const { state, perItem, goneIds, retry } = useDeletePreview(kind, ids, open);
+  const unsaved = useUnsavedWork(open);
   // An item the preview found already gone (P0002) is shown as such and left out
   // of the counts and the delete. Opening the dialog changes nothing: it is
   // reconciled on this device only when the user confirms.
@@ -106,9 +113,25 @@ export function DeleteObjectDialog({
     onOpenChange(false);
   };
 
+  const unsavedMessage = (current: UnsavedWorkState): string | null =>
+    current.status === 'unsaved'
+      ? unsavedWorkNotice(current.total, current.failed)
+      : current.status === 'error'
+        ? UNSAVED_WORK_CHECK_FAILED
+        : null;
+
   const handleConfirm = async () => {
-    setIsDeleting(true);
     setErrorMessage(null);
+    // Looked at again now, not trusted from when the dialog opened: work may
+    // have been queued since, and a delete would purge it.
+    const fresh = await unsaved.recheck();
+    const blockedMessage = unsavedMessage(fresh);
+    if (blockedMessage) {
+      setErrorMessage(blockedMessage);
+      onDeleteFailed?.();
+      return;
+    }
+    setIsDeleting(true);
     onDeleteStart?.();
     let result: DeleteRecordsResult;
     try {
@@ -178,6 +201,8 @@ export function DeleteObjectDialog({
       previewState={state}
       perItem={livePerItem}
       onRetry={retry}
+      unsavedWork={unsaved.state}
+      onRecheckUnsaved={() => void unsaved.recheck()}
       isDeleting={isDeleting}
       errorMessage={errorMessage}
       blockedAction={blockedActionFor(kind, liveTargets)}

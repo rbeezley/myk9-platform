@@ -10,13 +10,15 @@
 import type { QueryClient } from '@tanstack/react-query';
 import {
   classifyDeleteError,
+  isAlreadyGoneError,
   deleteErrorMessage,
   isRetryableRestoreError,
   restoreErrorMessage,
 } from './deleteErrors';
 import { reconcileLocalDeletion, reconcileLocalRestore } from './deleteLocalState';
 import { restoreOnServer, softDeleteOnServer, type ServerDeleteOptions } from './deleteServer';
-import { hasUnsyncedWork, stillSavingError } from './deleteUnsyncedWork';
+import { fetchDeletePreview } from './deletePreview';
+import { deviceHasUnsavedWork, stillSavingError } from './deleteUnsyncedWork';
 import { UNDO_WINDOW_MS, type DeleteObjectKind, type DeleteTarget } from './deleteTypes';
 
 export interface DeleteFailure {
@@ -62,10 +64,26 @@ export async function deleteRecords(
   const alreadyGone: DeleteTarget[] = [];
   const failed: DeleteFailure[] = [];
 
+  // Defensive final check, before the server is called at all: unsaved work on
+  // this device may not be on the server yet, and a cascade would purge it. An
+  // unreadable queue is refused too (never a pass).
+  let refusal: unknown;
+  try {
+    if ((await deviceHasUnsavedWork()).total > 0) refusal = stillSavingError();
+  } catch (error) {
+    refusal = error;
+  }
+  if (refusal !== undefined) {
+    return {
+      deleted,
+      alreadyGone,
+      failed: targets.map(target => ({ target, message: deleteErrorMessage(kind, refusal) })),
+      deletedAt: Date.now(),
+    };
+  }
+
   await forEachLimited(targets, async target => {
     try {
-      // Before the server is called at all: unsynced work may not be there yet.
-      if (await hasUnsyncedWork(kind, target.id)) throw stillSavingError();
       const outcome = await softDeleteOnServer(kind, target.id, options);
       (outcome === 'already-deleted' ? alreadyGone : deleted).push(target);
     } catch (error) {
@@ -109,13 +127,16 @@ export async function reconcileGoneTargets(
 ): Promise<ReconcileGoneResult> {
   const reconciled: DeleteTarget[] = [];
   const failed: DeleteFailure[] = [];
+  if (targets.length === 0) return { reconciled, failed };
+  try {
+    if ((await deviceHasUnsavedWork()).total > 0) throw stillSavingError();
+  } catch (error) {
+    return {
+      reconciled,
+      failed: targets.map(target => ({ target, message: deleteErrorMessage(kind, error) })),
+    };
+  }
   for (const target of targets) {
-    try {
-      if (await hasUnsyncedWork(kind, target.id)) throw stillSavingError();
-    } catch (error) {
-      failed.push({ target, message: deleteErrorMessage(kind, error) });
-      continue;
-    }
     await reconcileLocalDeletion(kind, target);
     reconciled.push(target);
   }
@@ -132,6 +153,15 @@ export interface RestoreRecordsResult {
   failed: DeleteFailure[];
 }
 
+async function isLiveOnServer(kind: DeleteObjectKind, id: string): Promise<boolean> {
+  try {
+    await fetchDeletePreview(kind, id);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export async function restoreRecords(
   kind: DeleteObjectKind,
   targets: readonly DeleteTarget[]
@@ -142,12 +172,17 @@ export async function restoreRecords(
     try {
       await restoreOnServer(kind, target.id);
     } catch (error) {
-      failed.push({
-        target,
-        message: restoreErrorMessage(kind, error),
-        retryable: isRetryableRestoreError(error),
-      });
-      return;
+      // P0002 on a retry may mean the FIRST restore committed and only its
+      // response was lost. The server's own read says which: a record it can
+      // preview is live, so Undo did its job; anything else is a real failure.
+      if (!(isAlreadyGoneError(error) && (await isLiveOnServer(kind, target.id)))) {
+        failed.push({
+          target,
+          message: restoreErrorMessage(kind, error),
+          retryable: isRetryableRestoreError(error),
+        });
+        return;
+      }
     }
     restored.push(target);
     await reconcileLocalRestore(kind, target);

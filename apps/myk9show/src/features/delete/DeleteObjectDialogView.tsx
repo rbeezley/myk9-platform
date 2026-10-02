@@ -21,7 +21,10 @@ import {
   KEEP_LABEL,
   undoSentence,
   unknownReason,
+  unsavedWorkNotice,
+  UNSAVED_WORK_CHECK_FAILED,
 } from './deleteObjectCopy';
+import type { UnsavedWorkState } from './useUnsavedWork';
 import {
   deleteGateOf,
   type DeleteObjectKind,
@@ -57,6 +60,12 @@ export interface DeleteObjectDialogViewProps {
    */
   overrideControl?: React.ReactNode;
   overrideArmed?: boolean | undefined;
+  /**
+   * Changes on this device that have not uploaded. While anything is unsaved (or
+   * not yet known) Delete is off, whatever the counts say.
+   */
+  unsavedWork?: UnsavedWorkState | undefined;
+  onRecheckUnsaved?: (() => void) | undefined;
 }
 
 // A destructive OUTLINE, not solid red: Delete sits next to Keep it, and the
@@ -79,13 +88,18 @@ export function DeleteObjectDialogView({
   blockedAction,
   overrideControl,
   overrideArmed = false,
+  unsavedWork = { status: 'clean' },
+  onRecheckUnsaved,
 }: DeleteObjectDialogViewProps) {
   const count = targets.length;
   const gate = deleteGateOf(previewState);
   const single = count === 1 ? targets[0] : undefined;
   const canOverride = gate === 'blocked' && overrideControl !== undefined;
   const deleteDisabled =
-    isDeleting || gate === 'unknown' || (gate === 'blocked' && !(canOverride && overrideArmed));
+    isDeleting ||
+    unsavedWork.status !== 'clean' ||
+    gate === 'unknown' ||
+    (gate === 'blocked' && !(canOverride && overrideArmed));
 
   const blockedTargets =
     gate === 'blocked' && count > 1
@@ -128,6 +142,25 @@ export function DeleteObjectDialogView({
       }
     >
       <div className="space-y-3" data-testid="delete-object-body" data-gate={gate}>
+        {(unsavedWork.status === 'unsaved' || unsavedWork.status === 'error') && (
+          <div
+            className="rounded-md border border-destructive/40 bg-destructive/5 p-3 space-y-2"
+            data-testid="delete-unsaved-work"
+          >
+            <p className="text-sm font-medium text-foreground" role="status">
+              {unsavedWork.status === 'unsaved'
+                ? unsavedWorkNotice(unsavedWork.total, unsavedWork.failed)
+                : UNSAVED_WORK_CHECK_FAILED}
+            </p>
+            {onRecheckUnsaved && (
+              <Button type="button" variant="outline" size="touch" onClick={onRecheckUnsaved}>
+                <RefreshCw className="mr-2 h-4 w-4" aria-hidden="true" />
+                Check again
+              </Button>
+            )}
+          </div>
+        )}
+
         {previewState.status === 'pending' && (
           <p className="flex items-center gap-2 text-sm text-muted-foreground" role="status">
             <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />

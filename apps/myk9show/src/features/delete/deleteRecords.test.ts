@@ -6,7 +6,8 @@ const mocks = vi.hoisted(() => ({
   purge: vi.fn(),
   refresh: vi.fn(),
   order: [] as string[],
-  unsynced: vi.fn(),
+  unsaved: vi.fn(),
+  preview: vi.fn(),
 }));
 
 vi.mock('./deleteServer', () => ({
@@ -20,7 +21,11 @@ vi.mock('./deleteLocalState', () => ({
 
 vi.mock('./deleteUnsyncedWork', async importOriginal => ({
   ...(await importOriginal<typeof import('./deleteUnsyncedWork')>()),
-  hasUnsyncedWork: mocks.unsynced,
+  deviceHasUnsavedWork: mocks.unsaved,
+}));
+vi.mock('./deletePreview', async importOriginal => ({
+  ...(await importOriginal<typeof import('./deletePreview')>()),
+  fetchDeletePreview: mocks.preview,
 }));
 
 import { canStillUndo, deleteRecords, restoreRecords } from './deleteRecords';
@@ -35,7 +40,8 @@ import { parseDeletePreview } from './deletePreview';
 import { UNDO_WINDOW_MS } from './deleteTypes';
 
 beforeEach(() => {
-  mocks.unsynced.mockReset().mockResolvedValue(false);
+  mocks.unsaved.mockReset().mockResolvedValue({ total: 0, failed: 0 });
+  mocks.preview.mockReset();
 });
 
 const show = { id: 'show-1', name: 'Heartland Classic' };
@@ -51,30 +57,23 @@ describe('deleteRecords: the one client delete service', () => {
     });
   });
 
-  it('refuses an item with unsynced local work as "still saving", before the server is called', async () => {
-    mocks.unsynced.mockImplementation(async (_kind: string, id: string) => id === 't-local');
+  it('refuses EVERY target while the device has unsaved work, before the server is called', async () => {
+    mocks.unsaved.mockResolvedValue({ total: 2, failed: 1 });
 
-    const result = await deleteRecords('trial', [
-      { id: 't-local', name: 'Local trial' },
-      { id: 't-synced', name: 'Synced trial' },
+    const result = await deleteRecords('class', [
+      { id: 'c1', name: 'C1' },
+      { id: 'c2', name: 'C2' },
     ]);
 
-    expect(mocks.remove).toHaveBeenCalledTimes(1);
-    expect(mocks.remove).toHaveBeenCalledWith('trial', 't-synced', {});
-    expect(mocks.purge).not.toHaveBeenCalledWith(
-      'trial',
-      expect.objectContaining({ id: 't-local' })
-    );
-    expect(result.failed).toEqual([
-      {
-        target: { id: 't-local', name: 'Local trial' },
-        message: 'This trial is still saving. Try again in a moment.',
-      },
-    ]);
+    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(mocks.purge).not.toHaveBeenCalled();
+    expect(result.deleted).toEqual([]);
+    expect(result.failed.map(f => f.target.id)).toEqual(['c1', 'c2']);
+    expect(result.failed[0]?.message).toMatch(/^Finish saving first/);
   });
 
   it('an unreadable queue is a failure, never a pass', async () => {
-    mocks.unsynced.mockRejectedValue(new Error('queue unavailable'));
+    mocks.unsaved.mockRejectedValue(new Error('queue unavailable'));
     const result = await deleteRecords('class', [{ id: 'c1', name: 'C1' }]);
     expect(mocks.remove).not.toHaveBeenCalled();
     expect(mocks.purge).not.toHaveBeenCalled();
@@ -159,6 +158,34 @@ describe('restoreRecords: Undo', () => {
     expect(result.restored.map(t => t.id)).toEqual(['t1']);
   });
 
+  it('a retry that gets P0002 after the first restore committed reconciles as restored', async () => {
+    mocks.restore.mockRejectedValueOnce({
+      code: 'P0002',
+      message: 'Trial not found or not deleted',
+    });
+    mocks.preview.mockResolvedValue({});
+
+    const result = await restoreRecords('trial', [
+      { id: 't1', name: 'T1', context: { showId: 's1' } },
+    ]);
+
+    expect(mocks.preview).toHaveBeenCalledWith('trial', 't1');
+    expect(mocks.refresh).toHaveBeenCalledWith('trial', expect.objectContaining({ id: 't1' }));
+    expect(result.restored.map(t => t.id)).toEqual(['t1']);
+    expect(result.failed).toEqual([]);
+  });
+
+  it('a P0002 for a record that is not live is a real failure', async () => {
+    mocks.restore.mockRejectedValueOnce({ code: 'P0002', message: 'x' });
+    mocks.preview.mockRejectedValue({ code: 'P0002', message: 'gone' });
+
+    const result = await restoreRecords('trial', [{ id: 't1', name: 'T1' }]);
+
+    expect(mocks.refresh).not.toHaveBeenCalled();
+    expect(result.restored).toEqual([]);
+    expect(result.failed).toHaveLength(1);
+  });
+
   it('maps a closed Undo window (42501) and a deleted parent (MK013) to plain language', async () => {
     mocks.restore.mockRejectedValueOnce({ code: '42501', message: 'Permission denied' });
     const late = await restoreRecords('entry', [{ id: 'e1', name: 'Biscuit' }]);
@@ -218,8 +245,8 @@ describe('server refusals in plain language (no raw error text)', () => {
   });
 
   it('a show with unsynced work is "still saving", not a failure', () => {
-    expect(deleteErrorMessage('show', { code: 'SHOW_STILL_SAVING', message: 'x' })).toBe(
-      'This show is still saving. Try again in a moment.'
+    expect(deleteErrorMessage('show', { code: 'SHOW_STILL_SAVING', message: 'x' })).toMatch(
+      /^Finish saving first/
     );
   });
 });

@@ -1,36 +1,60 @@
 /**
- * "Is this item still saving?" for every kind that has a replica. A row created
- * here, or with any mutation still queued, may not be on the server yet (or may
- * be committed with its response lost), so the server cannot tell "not found"
- * from "not uploaded yet": a delete (or an "already deleted" purge) then would
- * drop work the queue is about to upload. Reads only; never touches the queue.
- * A queue that cannot be read throws: an unreadable queue is never a pass.
+ * "Is anything on this device still saving?" One question, no per-kind scope
+ * walk. A delete cascades to children, and a child created here (or with a
+ * queued score, or an INSERT that failed and sits in the failed queue) is work
+ * the server can neither count nor restore. Walking each kind's descendants
+ * missed those twice, so the rule is device-wide instead: delete is unavailable
+ * while ANY mutation is pending or failed, or any row the delete could touch
+ * exists only on this device. Reads only; never touches the queue. A queue that
+ * cannot be read throws: an unreadable queue is never a pass.
  */
 import { mutationManager } from '@/services/replication/sharedMutationManager';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
+import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
+import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
+import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
+import { replicatedClubsTable } from '@/services/replication/ReplicatedClubsTable';
 import { SHOW_STILL_SAVING } from '@/services/database/shows/deleteOutcome';
-import type { DeleteObjectKind } from './deleteTypes';
 
-/** The replicated table each kind queues its mutations under. A person has none. */
-const MUTATION_TABLE: Record<DeleteObjectKind, string | undefined> = {
-  show: 'shows',
-  trial: 'trials',
-  class: 'classes',
-  entry: 'entries',
-  dog: 'dogs',
-  club: 'clubs',
-  person: undefined,
-};
-
-export async function hasUnsyncedWork(kind: DeleteObjectKind, id: string): Promise<boolean> {
-  // The show also counts a row created here that has not uploaded (`_localOnly`).
-  if (kind === 'show') return replicatedShowsTable.hasUnsyncedWork(id);
-  const table = MUTATION_TABLE[kind];
-  if (!table) return false;
-  return (await mutationManager.getPendingMutationsForRow(table, id)).length > 0;
+export interface UnsavedWork {
+  /** Changes on this device that have not uploaded (pending + failed, or local-only rows if more). */
+  total: number;
+  /** Of those, uploads that failed and need Retry or Discard (the sync error notice). */
+  failed: number;
 }
 
-/** The error a still-saving item is refused with; `classifyDeleteError` reads its code. */
+export const NO_UNSAVED_WORK: UnsavedWork = { total: 0, failed: 0 };
+
+/** The replicas a delete can touch (everything `deleteLocalState` purges). */
+const DELETE_REPLICAS = [
+  replicatedShowsTable,
+  replicatedTrialsTable,
+  replicatedClassesTable,
+  replicatedEntriesTable,
+  replicatedDogsTable,
+  replicatedClubsTable,
+] as const;
+
+async function countLocalOnlyRows(): Promise<number> {
+  const tables = await Promise.all(
+    DELETE_REPLICAS.map(async table => (await table.getAllOrThrow()) as { _localOnly?: boolean }[])
+  );
+  return tables.reduce((sum, rows) => sum + rows.filter(row => row._localOnly === true).length, 0);
+}
+
+export async function deviceHasUnsavedWork(): Promise<UnsavedWork> {
+  const [pending, failed, localOnly] = await Promise.all([
+    mutationManager.getPendingCount(),
+    mutationManager.getFailedMutations(),
+    countLocalOnlyRows(),
+  ]);
+  // A local-only row normally has its INSERT pending or failed; do not count it twice.
+  const total = Math.max(pending + failed.length, localOnly);
+  return { total, failed: failed.length };
+}
+
+/** The error a still-saving delete is refused with; `classifyDeleteError` reads its code. */
 export function stillSavingError(): { code: string; message: string } {
   return { code: SHOW_STILL_SAVING, message: 'Still saving' };
 }

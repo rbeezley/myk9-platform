@@ -82,7 +82,7 @@ export function deleteErrorMessage(kind: DeleteObjectKind, error: unknown): stri
     case 'forbidden':
       return `You don't have permission to delete ${thisThing(kind)}.`;
     case 'still-saving':
-      return `${thisThing(kind).replace(/^t/, 'T')} is still saving. Try again in a moment.`;
+      return "Finish saving first: this device has changes that haven't uploaded yet.";
     case 'offline':
       return "You're offline. Deleting needs a connection. Try again when you're back online.";
     case 'already-deleted':

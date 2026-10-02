@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => ({ remove: vi.fn(), restore: vi.fn() }));
 // Nothing queued in these tests: the queue itself is covered by deleteUnsyncedWork's own test.
 vi.mock('./deleteUnsyncedWork', async importOriginal => ({
   ...(await importOriginal<typeof import('./deleteUnsyncedWork')>()),
-  hasUnsyncedWork: vi.fn().mockResolvedValue(false),
+  deviceHasUnsavedWork: vi.fn().mockResolvedValue({ total: 0, failed: 0 }),
 }));
 vi.mock('./deleteServer', () => ({
   softDeleteOnServer: mocks.remove,

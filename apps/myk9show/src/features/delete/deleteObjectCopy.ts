@@ -174,6 +174,23 @@ export function unknownReason(
   }
 }
 
+/**
+ * Delete is off while this device has changes that have not uploaded: a delete
+ * would purge work the server can neither count nor bring back.
+ */
+export function unsavedWorkNotice(total: number, failed: number): string {
+  const lead =
+    total === 1
+      ? "Finish saving first: 1 change on this device hasn't uploaded yet."
+      : `Finish saving first: ${total} changes on this device haven't uploaded yet.`;
+  if (failed === 0) return lead;
+  const which = failed === total ? (failed === 1 ? 'It' : 'They') : `${failed} of them`;
+  return `${lead} ${which} failed to upload: use Retry or Discard on the sync error notice, then check again.`;
+}
+
+export const UNSAVED_WORK_CHECK_FAILED =
+  "We couldn't check whether this device has changes still saving, so Delete is off. Check again.";
+
 /** The link a blocked delete offers. Pull and Withdraw are named as two paths. */
 export function blockedActionLabel(kind: DeleteObjectKind): string | null {
   if (kind === 'show') return 'Cancel show';

@@ -1,47 +1,75 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const mocks = vi.hoisted(() => ({ pending: vi.fn(), showUnsynced: vi.fn() }));
+const mocks = vi.hoisted(() => {
+  const rows: Record<string, ReturnType<typeof vi.fn>> = {};
+  const replica = (name: string) => {
+    rows[name] = vi.fn();
+    return { getAllOrThrow: rows[name] };
+  };
+  return { pendingCount: vi.fn(), failed: vi.fn(), rows, replica };
+});
+
 vi.mock('@/services/replication/sharedMutationManager', () => ({
-  mutationManager: { getPendingMutationsForRow: mocks.pending },
+  mutationManager: { getPendingCount: mocks.pendingCount, getFailedMutations: mocks.failed },
 }));
 vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
-  replicatedShowsTable: { hasUnsyncedWork: mocks.showUnsynced },
+  replicatedShowsTable: mocks.replica('shows'),
+}));
+vi.mock('@/services/replication/ReplicatedTrialsTable', () => ({
+  replicatedTrialsTable: mocks.replica('trials'),
+}));
+vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
+  replicatedClassesTable: mocks.replica('classes'),
+}));
+vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
+  replicatedEntriesTable: mocks.replica('entries'),
+}));
+vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
+  replicatedDogsTable: mocks.replica('dogs'),
+}));
+vi.mock('@/services/replication/ReplicatedClubsTable', () => ({
+  replicatedClubsTable: mocks.replica('clubs'),
 }));
 
-import { hasUnsyncedWork } from './deleteUnsyncedWork';
+import { deviceHasUnsavedWork } from './deleteUnsyncedWork';
 
-describe('hasUnsyncedWork: every kind with a replica, not only shows', () => {
+describe('deviceHasUnsavedWork: one device-wide check', () => {
   beforeEach(() => {
-    mocks.pending.mockReset().mockResolvedValue([]);
-    mocks.showUnsynced.mockReset().mockResolvedValue(false);
+    mocks.pendingCount.mockReset().mockResolvedValue(0);
+    mocks.failed.mockReset().mockResolvedValue([]);
+    for (const fn of Object.values(mocks.rows)) fn.mockReset().mockResolvedValue([]);
   });
 
-  it('a show asks the shows table, which also counts a row created here', async () => {
-    mocks.showUnsynced.mockResolvedValue(true);
-    await expect(hasUnsyncedWork('show', 's1')).resolves.toBe(true);
-    expect(mocks.showUnsynced).toHaveBeenCalledWith('s1');
+  it('a clean device has nothing unsaved', async () => {
+    await expect(deviceHasUnsavedWork()).resolves.toEqual({ total: 0, failed: 0 });
   });
 
-  it.each([
-    ['trial', 'trials'],
-    ['class', 'classes'],
-    ['entry', 'entries'],
-    ['dog', 'dogs'],
-    ['club', 'clubs'],
-  ] as const)('a %s with a queued mutation is unsynced (table %s)', async (kind, table) => {
-    mocks.pending.mockResolvedValue([{ id: 'm1' }]);
-    await expect(hasUnsyncedWork(kind, 'x1')).resolves.toBe(true);
-    expect(mocks.pending).toHaveBeenCalledWith(table, 'x1');
+  it('any pending mutation, on any table, counts', async () => {
+    mocks.pendingCount.mockResolvedValue(3);
+    await expect(deviceHasUnsavedWork()).resolves.toEqual({ total: 3, failed: 0 });
   });
 
-  it('nothing queued is synced; an unreadable queue throws', async () => {
-    await expect(hasUnsyncedWork('trial', 't1')).resolves.toBe(false);
-    mocks.pending.mockRejectedValue(new Error('queue unavailable'));
-    await expect(hasUnsyncedWork('trial', 't1')).rejects.toThrow('queue unavailable');
+  it('a failed mutation (e.g. a rejected INSERT) counts and is named as failed', async () => {
+    mocks.failed.mockResolvedValue([{ id: 'm1' }]);
+    await expect(deviceHasUnsavedWork()).resolves.toEqual({ total: 1, failed: 1 });
   });
 
-  it('a person has no replica to wait on', async () => {
-    await expect(hasUnsyncedWork('person', 'p1')).resolves.toBe(false);
-    expect(mocks.pending).not.toHaveBeenCalled();
+  it('a local-only row counts even with nothing queued, in any replica a delete touches', async () => {
+    mocks.rows.entries!.mockResolvedValue([{ id: 'e1', _localOnly: true }, { id: 'e2' }]);
+    await expect(deviceHasUnsavedWork()).resolves.toEqual({ total: 1, failed: 0 });
+  });
+
+  it('a local-only row whose INSERT is pending is not counted twice', async () => {
+    mocks.pendingCount.mockResolvedValue(1);
+    mocks.rows.classes!.mockResolvedValue([{ id: 'c1', _localOnly: true }]);
+    await expect(deviceHasUnsavedWork()).resolves.toEqual({ total: 1, failed: 0 });
+  });
+
+  it('an unreadable queue or replica throws: never a pass', async () => {
+    mocks.pendingCount.mockRejectedValue(new Error('queue unavailable'));
+    await expect(deviceHasUnsavedWork()).rejects.toThrow('queue unavailable');
+    mocks.pendingCount.mockResolvedValue(0);
+    mocks.rows.dogs!.mockRejectedValue(new Error('replica unreadable'));
+    await expect(deviceHasUnsavedWork()).rejects.toThrow('replica unreadable');
   });
 });

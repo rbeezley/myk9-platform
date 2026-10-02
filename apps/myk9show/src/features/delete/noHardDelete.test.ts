@@ -23,7 +23,7 @@ const recorded = vi.hoisted(() => ({
 // Nothing queued in these tests: the queue itself is covered by deleteUnsyncedWork's own test.
 vi.mock('./deleteUnsyncedWork', async importOriginal => ({
   ...(await importOriginal<typeof import('./deleteUnsyncedWork')>()),
-  hasUnsyncedWork: vi.fn().mockResolvedValue(false),
+  deviceHasUnsavedWork: vi.fn().mockResolvedValue({ total: 0, failed: 0 }),
 }));
 vi.mock('@/services/database/supabaseClient', () => {
   /** A PostgREST-ish builder that records every method called on a table. */

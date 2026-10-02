@@ -30,7 +30,7 @@ vi.mock('@/features/delete/deletePreview', async importOriginal => ({
 }));
 vi.mock('@/features/delete/deleteUnsyncedWork', async importOriginal => ({
   ...(await importOriginal<typeof import('@/features/delete/deleteUnsyncedWork')>()),
-  hasUnsyncedWork: vi.fn().mockResolvedValue(false),
+  deviceHasUnsavedWork: vi.fn().mockResolvedValue({ total: 0, failed: 0 }),
 }));
 vi.mock('@/features/delete/deleteServer', () => ({
   softDeleteOnServer: deleteMocks.remove,

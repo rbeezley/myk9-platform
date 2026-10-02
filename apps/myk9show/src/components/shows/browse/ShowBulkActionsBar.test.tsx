@@ -36,6 +36,12 @@ vi.mock('@/features/delete/deletePreview', async importOriginal => ({
   }),
 }));
 
+// Nothing queued in these tests: the queue itself is covered by deleteUnsyncedWork's own test.
+vi.mock('@/features/delete/deleteUnsyncedWork', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/delete/deleteUnsyncedWork')>()),
+  deviceHasUnsavedWork: vi.fn().mockResolvedValue({ total: 0, failed: 0 }),
+}));
+
 vi.mock('@/lib/notifications', () => ({
   notifications: {
     error: vi.fn(),
@@ -201,7 +207,7 @@ describe('ShowBulkActionsBar', () => {
     await confirmBulkDelete(user);
 
     expect(await within(dialog()).findByRole('alert')).toHaveTextContent(
-      'Summer Classic: This show is still saving. Try again in a moment.'
+      "Summer Classic: Finish saving first: this device has changes that haven't uploaded yet."
     );
     expect(purgeDeletedShow).not.toHaveBeenCalled();
     expect(onBulkComplete).not.toHaveBeenCalled();

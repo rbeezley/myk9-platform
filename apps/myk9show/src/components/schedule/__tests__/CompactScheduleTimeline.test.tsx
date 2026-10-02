@@ -161,6 +161,92 @@ describe('CompactScheduleTimeline', () => {
     expect(screen.queryByRole('button', { name: /edit start time/i })).not.toBeInTheDocument();
   });
 
+  describe('as a launcher for managers (MYK9-942)', () => {
+    function trialWithClasses(count: number): DayTimelineData[] {
+      const day = mockData[0] as DayTimelineData;
+      const trial = day.trials[0]!;
+      const element = trial.elements[0]!;
+      const template = element.levels[0]!;
+      const levels = Array.from({ length: count }, (_, index) => ({
+        ...template,
+        classId: `class-${index + 1}`,
+        className: `Container Class ${index + 1}`,
+        entryCount: 2,
+      }));
+      return [{ ...day, trials: [{ ...trial, elements: [{ ...element, levels }] }] }];
+    }
+
+    it('links Add Trial and all classes to the setup pages, never the legacy ?tab=classes', () => {
+      render(<CompactScheduleTimeline showId="show-1" canEditSchedule />);
+
+      expect(screen.getByRole('link', { name: 'Add Trial' })).toHaveAttribute(
+        'href',
+        '/secretary/create-show/wizard?showId=show-1&mode=add-trials'
+      );
+      expect(screen.getByRole('link', { name: /view all classes/i })).toHaveAttribute(
+        'href',
+        '/shows/show-1/setup?section=classes'
+      );
+      for (const link of screen.getAllByRole('link')) {
+        expect(link.getAttribute('href')).not.toContain('tab=classes');
+      }
+    });
+
+    it("links each trial to adding classes and to that trial's class management", () => {
+      render(<CompactScheduleTimeline showId="show-1" canEditSchedule />);
+
+      expect(screen.getByRole('link', { name: /add classes to trial 1/i })).toHaveAttribute(
+        'href',
+        '/secretary/create-show/wizard?showId=show-1&mode=add-classes&trialId=trial-1'
+      );
+      expect(screen.getByRole('link', { name: /manage classes in trial 1/i })).toHaveAttribute(
+        'href',
+        '/shows/show-1/setup?section=classes&trialId=trial-1'
+      );
+    });
+
+    it('lists every class in a trial with no overflow link', () => {
+      mockReturnData = trialWithClasses(8);
+      render(<CompactScheduleTimeline showId="show-1" canEditSchedule />);
+
+      expect(screen.getByText('Container Class 8')).toBeInTheDocument();
+      expect(screen.queryByText(/more classes/i)).not.toBeInTheDocument();
+    });
+
+    it("shows the trial's total entries next to its class count", () => {
+      mockReturnData = trialWithClasses(3);
+      render(<CompactScheduleTimeline showId="show-1" canEditSchedule />);
+
+      expect(screen.getByText('3 classes · 6 entries')).toBeInTheDocument();
+    });
+
+    it('offers Add Trial on an empty schedule and Add Classes on a trial with none', () => {
+      mockReturnData = [];
+      const { rerender } = render(<CompactScheduleTimeline showId="show-1" canEditSchedule />);
+      expect(screen.getByRole('link', { name: 'Add Trial' })).toBeInTheDocument();
+
+      mockReturnData = trialWithClasses(0);
+      rerender(<CompactScheduleTimeline showId="show-1" canEditSchedule />);
+      expect(screen.getByText('No classes scheduled.')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /add classes to trial 1/i })).toBeInTheDocument();
+    });
+
+    it('leaves the exhibitor view unchanged: capped list, no launcher links or entry totals', () => {
+      mockReturnData = trialWithClasses(8);
+      render(<CompactScheduleTimeline showId="show-1" />);
+
+      expect(screen.queryByText('Container Class 7')).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /view 2 more classes/i })).toHaveAttribute(
+        'href',
+        '/shows/show-1?tab=classes'
+      );
+      expect(screen.getByText('8 classes')).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'Add Trial' })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /add classes to/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /manage classes in/i })).not.toBeInTheDocument();
+    });
+  });
+
   it('keeps loading, error, and empty states honest', () => {
     mockIsLoading = true;
     const { rerender } = render(<CompactScheduleTimeline showId="show-1" />);

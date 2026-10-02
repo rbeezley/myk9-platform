@@ -48,15 +48,19 @@ export async function undoDelete({
     onRestored?.(restored);
   }
   if (failed.length > 0) {
-    const message = failed[0]?.message ?? '';
     // Sonner dismissed the original toast when Undo was pressed, so a transient
-    // failure needs its own Undo, for the failed items only, and only until the
+    // failure needs its own Undo, for the retryable items only, and only until the
     // ORIGINAL window closes (the server's can_undo_soft_delete is authoritative;
-    // past it, undoDelete says who can restore).
+    // past it, undoDelete says who can restore). A permanent refusal (MK013, a
+    // closed window) is reported on its own: it must never suppress, or ride on,
+    // the retry for the items that can still come back.
     const remaining = UNDO_WINDOW_MS - (now() - deletedAt);
-    if (failed.every(f => f.retryable) && remaining > 0) {
-      const retryTargets = failed.map(f => f.target);
-      toast.error(message, {
+    const retryable = remaining > 0 ? failed.filter(f => f.retryable) : [];
+    const permanent = failed.filter(f => !retryable.includes(f));
+    if (permanent[0]) toast.error(permanent[0].message);
+    if (retryable[0]) {
+      const retryTargets = retryable.map(f => f.target);
+      toast.error(retryable[0].message, {
         duration: remaining,
         action: {
           label: 'Undo',
@@ -72,8 +76,6 @@ export async function undoDelete({
           },
         },
       });
-    } else {
-      toast.error(message);
     }
   }
 }

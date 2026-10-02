@@ -17,6 +17,11 @@ vi.mock('./deletePreview', async importOriginal => ({
   ...(await importOriginal<typeof import('./deletePreview')>()),
   fetchDeletePreview: mocks.preview,
 }));
+// Nothing queued in these tests: the queue itself is covered by deleteUnsyncedWork's own test.
+vi.mock('./deleteUnsyncedWork', async importOriginal => ({
+  ...(await importOriginal<typeof import('./deleteUnsyncedWork')>()),
+  hasUnsyncedWork: vi.fn().mockResolvedValue(false),
+}));
 vi.mock('./deleteServer', () => ({ softDeleteOnServer: mocks.remove, restoreOnServer: vi.fn() }));
 vi.mock('./deleteLocalState', () => ({ reconcileLocalDeletion: mocks.purge }));
 

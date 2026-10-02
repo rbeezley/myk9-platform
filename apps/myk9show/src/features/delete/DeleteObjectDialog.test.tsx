@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
   toastInfo: vi.fn(),
+  unsynced: vi.fn(),
 }));
 
 vi.mock('./deletePreview', async importOriginal => ({
@@ -27,6 +28,10 @@ vi.mock('./deleteServer', () => ({
 vi.mock('./deleteLocalState', () => ({
   reconcileLocalDeletion: mocks.purge,
   reconcileLocalRestore: mocks.refresh,
+}));
+vi.mock('./deleteUnsyncedWork', async importOriginal => ({
+  ...(await importOriginal<typeof import('./deleteUnsyncedWork')>()),
+  hasUnsyncedWork: mocks.unsynced,
 }));
 vi.mock('sonner', () => ({
   toast: {
@@ -78,6 +83,7 @@ beforeEach(() => {
   mocks.restore.mockResolvedValue(undefined);
   mocks.purge.mockResolvedValue(undefined);
   mocks.refresh.mockResolvedValue(undefined);
+  mocks.unsynced.mockResolvedValue(false);
 });
 
 afterEach(() => {
@@ -409,7 +415,28 @@ describe('DeleteObjectDialog with items already deleted elsewhere (MYK9-922)', (
     { id: 'd3', name: 'Scout' },
   ];
 
-  it('one stale item in a bulk selection drops out; the rest can still be deleted', async () => {
+  it('opening the dialog changes nothing locally: a stale item is named, not counted, and Delete stays on', async () => {
+    mocks.preview.mockImplementation(async (_kind: string, id: string) => {
+      if (id === 'd2') throw gone;
+      return counts();
+    });
+    const onOpenChange = vi.fn();
+    const onDeleted = vi.fn();
+    renderDialog('dog', dogs, { onDeleted, onOpenChange });
+
+    const dialog = await screen.findByRole('dialog', { name: 'Delete 2 dogs?' });
+    const confirm = within(dialog).getByRole('button', { name: 'Delete 2 dogs' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    expect(within(dialog).getByTestId('delete-already-gone')).toHaveTextContent(
+      'Already deleted: Pepper'
+    );
+    expect(mocks.purge).not.toHaveBeenCalled();
+    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(onDeleted).not.toHaveBeenCalled();
+    expect(onOpenChange).not.toHaveBeenCalled();
+  });
+
+  it('one stale item in a bulk selection is reconciled only on confirm; the rest are deleted', async () => {
     mocks.preview.mockImplementation(async (_kind: string, id: string) => {
       if (id === 'd2') throw gone;
       return counts();
@@ -420,12 +447,12 @@ describe('DeleteObjectDialog with items already deleted elsewhere (MYK9-922)', (
     const dialog = await screen.findByRole('dialog', { name: 'Delete 2 dogs?' });
     const confirm = within(dialog).getByRole('button', { name: 'Delete 2 dogs' });
     await waitFor(() => expect(confirm).toBeEnabled());
-    // The stale dog is reconciled on this device, with no Undo offered for it.
-    await waitFor(() => expect(mocks.purge).toHaveBeenCalledWith('dog', dogs[1]));
+    expect(mocks.purge).not.toHaveBeenCalled();
 
     await user.click(confirm);
 
     await waitFor(() => expect(onDeleted).toHaveBeenCalled());
+    expect(mocks.purge).toHaveBeenCalledWith('dog', dogs[1]);
     expect(mocks.remove.mock.calls.map(call => call[1])).toEqual(['d1', 'd3']);
     const result = onDeleted.mock.calls[0]?.[0] as DeleteRecordsResult;
     expect(result.deleted.map(t => t.id)).toEqual(['d1', 'd3']);
@@ -433,7 +460,7 @@ describe('DeleteObjectDialog with items already deleted elsewhere (MYK9-922)', (
     expect(mocks.toastSuccess.mock.calls[0]?.[0]).toBe('2 dogs deleted');
   });
 
-  it('when every item is already gone: reconciled, closed, reported to the caller, nothing deleted', async () => {
+  it('when every item is already gone: stays open and untouched until confirm, then reconciled and reported', async () => {
     mocks.preview.mockRejectedValue({
       code: 'P0002',
       message: 'Show not found or already deleted',
@@ -441,7 +468,16 @@ describe('DeleteObjectDialog with items already deleted elsewhere (MYK9-922)', (
     const onDeleted = vi.fn();
     const onOpenChange = vi.fn();
     const target = { id: 's1', name: 'Heartland Classic', context: ctx };
-    renderDialog('show', [target], { onDeleted, onOpenChange });
+    const { user } = renderDialog('show', [target], { onDeleted, onOpenChange });
+
+    const dialog = await screen.findByRole('dialog');
+    const confirm = within(dialog).getByRole('button', { name: 'Delete show' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    expect(mocks.purge).not.toHaveBeenCalled();
+    expect(onDeleted).not.toHaveBeenCalled();
+    expect(onOpenChange).not.toHaveBeenCalled();
+
+    await user.click(confirm);
 
     await waitFor(() => expect(onDeleted).toHaveBeenCalled());
     expect(mocks.purge).toHaveBeenCalledWith('show', target);
@@ -450,6 +486,30 @@ describe('DeleteObjectDialog with items already deleted elsewhere (MYK9-922)', (
     expect(mocks.remove).not.toHaveBeenCalled();
     expect(mocks.toastSuccess).not.toHaveBeenCalled();
     expect(mocks.toastInfo.mock.calls[0]?.[0]).toBe('Show was already deleted: Heartland Classic');
+  });
+
+  it('a locally created show the server has never seen is "still saving": not purged, not deleted', async () => {
+    mocks.preview.mockRejectedValue({
+      code: 'P0002',
+      message: 'Show not found or already deleted',
+    });
+    mocks.unsynced.mockResolvedValue(true);
+    const onDeleted = vi.fn();
+    const target = { id: 's-local', name: 'Draft Show', context: ctx };
+    const { user } = renderDialog('show', [target], { onDeleted });
+
+    const dialog = await screen.findByRole('dialog');
+    const confirm = within(dialog).getByRole('button', { name: 'Delete show' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      'This show is still saving. Try again in a moment.'
+    );
+    expect(mocks.unsynced).toHaveBeenCalledWith('show', 's-local');
+    expect(mocks.purge).not.toHaveBeenCalled();
+    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(onDeleted).not.toHaveBeenCalled();
   });
 
   it('a permission refusal (42501) is never read as gone, whatever its message says', async () => {

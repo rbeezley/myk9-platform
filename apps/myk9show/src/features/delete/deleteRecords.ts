@@ -16,6 +16,7 @@ import {
 } from './deleteErrors';
 import { reconcileLocalDeletion, reconcileLocalRestore } from './deleteLocalState';
 import { restoreOnServer, softDeleteOnServer, type ServerDeleteOptions } from './deleteServer';
+import { hasUnsyncedWork, stillSavingError } from './deleteUnsyncedWork';
 import { UNDO_WINDOW_MS, type DeleteObjectKind, type DeleteTarget } from './deleteTypes';
 
 export interface DeleteFailure {
@@ -63,6 +64,8 @@ export async function deleteRecords(
 
   await forEachLimited(targets, async target => {
     try {
+      // Before the server is called at all: unsynced work may not be there yet.
+      if (await hasUnsyncedWork(kind, target.id)) throw stillSavingError();
       const outcome = await softDeleteOnServer(kind, target.id, options);
       (outcome === 'already-deleted' ? alreadyGone : deleted).push(target);
     } catch (error) {
@@ -86,6 +89,37 @@ export async function deleteRecords(
     failed: failed.sort((a, b) => byOrder(a.target, b.target)),
     deletedAt: Date.now(),
   };
+}
+
+export interface ReconcileGoneResult {
+  /** Gone on the server and now gone from this device. */
+  reconciled: DeleteTarget[];
+  /** Not purged: still saving, or the queue could not be read. */
+  failed: DeleteFailure[];
+}
+
+/**
+ * Items the preview found already gone (P0002), reconciled on this device only
+ * when the user confirms. A target with unsynced local work is NOT purged: the
+ * "gone" answer may only mean it has not uploaded yet (same rule as a delete).
+ */
+export async function reconcileGoneTargets(
+  kind: DeleteObjectKind,
+  targets: readonly DeleteTarget[]
+): Promise<ReconcileGoneResult> {
+  const reconciled: DeleteTarget[] = [];
+  const failed: DeleteFailure[] = [];
+  for (const target of targets) {
+    try {
+      if (await hasUnsyncedWork(kind, target.id)) throw stillSavingError();
+    } catch (error) {
+      failed.push({ target, message: deleteErrorMessage(kind, error) });
+      continue;
+    }
+    await reconcileLocalDeletion(kind, target);
+    reconciled.push(target);
+  }
+  return { reconciled, failed };
 }
 
 /** Undo is offered to the deleter only inside the server's 10-minute window. */

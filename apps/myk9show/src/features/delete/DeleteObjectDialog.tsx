@@ -20,11 +20,15 @@ import { UserRole } from '@/types/auth-types';
 import { useShowStore } from '@/store/showStore';
 import { ForceDeleteOverride } from '@/components/dogs/common/ForceDeleteOverride';
 import { alreadyDeletedToast, partialFailureMessage } from './deleteObjectCopy';
-import { deleteRecords, invalidateAfterDelete, type DeleteRecordsResult } from './deleteRecords';
+import {
+  deleteRecords,
+  invalidateAfterDelete,
+  reconcileGoneTargets,
+  type DeleteRecordsResult,
+} from './deleteRecords';
 import { offerUndoToast } from './deleteUndoToast';
 import { DeleteObjectDialogView, type DeleteBlockedAction } from './DeleteObjectDialogView';
 import { useDeletePreview } from './useDeletePreview';
-import { splitAlreadyGone, useReconcileAlreadyGone } from './useAlreadyGoneTargets';
 import type { DeleteObjectKind, DeleteTarget } from './deleteTypes';
 
 export interface DeleteObjectDialogProps {
@@ -80,13 +84,13 @@ export function DeleteObjectDialog({
   const { hasRole } = useAuthContext();
   const ids = targets.map(target => target.id);
   const { state, perItem, goneIds, retry } = useDeletePreview(kind, ids, open);
-  // An item another device already deleted (the preview's P0002) leaves the
-  // delete, and this device, instead of blocking the rest of the selection.
-  const { liveTargets, goneTargets } = splitAlreadyGone(targets, goneIds);
-  const livePerItem = perItem.filter((_, index) => !goneIds.includes(ids[index] ?? ''));
-  // Everything was already gone: keep naming the items, with Delete off, while
-  // this device catches up and the dialog closes.
-  const allGone = targets.length > 0 && liveTargets.length === 0;
+  // An item the preview found already gone (P0002) is shown as such and left out
+  // of the counts and the delete. Opening the dialog changes nothing: it is
+  // reconciled on this device only when the user confirms.
+  const goneSet = new Set(goneIds);
+  const liveTargets = targets.filter(target => !goneSet.has(target.id));
+  const goneTargets = targets.filter(target => goneSet.has(target.id));
+  const livePerItem = perItem.filter((_, index) => !goneSet.has(ids[index] ?? ''));
   const [isDeleting, setIsDeleting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   // Re-arms by mounting: callers render this only while open, so every open
@@ -102,12 +106,6 @@ export function DeleteObjectDialog({
     onOpenChange(false);
   };
 
-  useReconcileAlreadyGone(kind, targets, goneTargets, gone => {
-    notifications.info(alreadyDeletedToast(kind, gone));
-    close();
-    onDeleted?.({ deleted: [], alreadyGone: gone, failed: [], deletedAt: Date.now() });
-  });
-
   const handleConfirm = async () => {
     setIsDeleting(true);
     setErrorMessage(null);
@@ -117,8 +115,14 @@ export function DeleteObjectDialog({
       result = await deleteRecords(kind, liveTargets, {
         override: allowOverride && overrideArmed,
       });
-      // The preview's already-gone items are gone too, for the caller's selection.
-      result = { ...result, alreadyGone: [...goneTargets, ...result.alreadyGone] };
+      // The preview's already-gone items leave this device now, unless they are
+      // still saving (then they are refused like any other delete, not purged).
+      const reconciled = await reconcileGoneTargets(kind, goneTargets);
+      result = {
+        ...result,
+        alreadyGone: [...reconciled.reconciled, ...result.alreadyGone],
+        failed: [...result.failed, ...reconciled.failed],
+      };
     } catch {
       // deleteRecords maps every failure itself; this is only a guard.
       setIsDeleting(false);
@@ -136,7 +140,7 @@ export function DeleteObjectDialog({
       const first = result.failed[0];
       setErrorMessage(
         first
-          ? liveTargets.length > 1
+          ? targets.length > 1
             ? `${first.target.name}: ${first.message}`
             : first.message
           : null
@@ -145,6 +149,8 @@ export function DeleteObjectDialog({
       return;
     }
 
+    if (result.deleted.length === 0)
+      notifications.info(alreadyDeletedToast(kind, result.alreadyGone));
     offerUndoToast({
       kind,
       deleted: result.deleted,
@@ -153,7 +159,7 @@ export function DeleteObjectDialog({
       onRestored,
     });
     if (result.failed.length > 0) {
-      notifications.error(partialFailureMessage(kind, result.failed.length, liveTargets.length), {
+      notifications.error(partialFailureMessage(kind, result.failed.length, targets.length), {
         description: result.failed[0]?.message,
       });
     }
@@ -167,8 +173,9 @@ export function DeleteObjectDialog({
       onCancel={close}
       onConfirm={() => void handleConfirm()}
       kind={kind}
-      targets={allGone ? targets : liveTargets}
-      previewState={allGone ? { status: 'pending' } : state}
+      targets={liveTargets.length === 0 ? targets : liveTargets}
+      alreadyGoneTargets={goneTargets}
+      previewState={state}
       perItem={livePerItem}
       onRetry={retry}
       isDeleting={isDeleting}

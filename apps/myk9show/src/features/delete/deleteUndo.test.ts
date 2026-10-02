@@ -165,4 +165,36 @@ describe('the Undo toast', () => {
     await vi.waitFor(() => expect(mocks.restore).toHaveBeenCalledTimes(1));
     expect(mocks.restore).toHaveBeenCalledWith('show', 's2');
   });
+
+  it('a permanent refusal mixed with a transient failure: Undo is offered for the retryable item only, the refusal is reported apart', async () => {
+    const deletedAt = 1_000;
+    const refused = { id: 's2', name: 'Prairie Open' };
+    const flaky = { id: 's3', name: 'Lakeside Trial' };
+    mocks.restore.mockImplementation((_kind: string, id: string) => {
+      if (id === 's2') return Promise.reject({ code: 'MK013', message: 'Restore the club first' });
+      if (id === 's3') return Promise.reject(new TypeError('Failed to fetch'));
+      return Promise.resolve();
+    });
+    await undoDelete({
+      kind: 'show',
+      deleted: [show, refused, flaky],
+      deletedAt,
+      queryClient: new QueryClient(),
+      now: () => deletedAt + 60_000,
+    });
+
+    const withUndo = mocks.toastError.mock.calls.filter(([, options]) => options?.action);
+    const plain = mocks.toastError.mock.calls.filter(([, options]) => !options?.action);
+    expect(withUndo).toHaveLength(1);
+    expect(withUndo[0]?.[1]).toMatchObject({ duration: UNDO_WINDOW_MS - 60_000 });
+    expect(plain).toHaveLength(1);
+    expect(plain[0]?.[0]).toBe(
+      "This can't come back while its club is deleted. Restore the club first."
+    );
+
+    mocks.restore.mockReset().mockResolvedValue(undefined);
+    withUndo[0]?.[1].action.onClick();
+    await vi.waitFor(() => expect(mocks.restore).toHaveBeenCalledTimes(1));
+    expect(mocks.restore).toHaveBeenCalledWith('show', 's3');
+  });
 });

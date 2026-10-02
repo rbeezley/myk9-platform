@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   purge: vi.fn(),
   refresh: vi.fn(),
   order: [] as string[],
+  unsynced: vi.fn(),
 }));
 
 vi.mock('./deleteServer', () => ({
@@ -15,6 +16,11 @@ vi.mock('./deleteServer', () => ({
 vi.mock('./deleteLocalState', () => ({
   reconcileLocalDeletion: mocks.purge,
   reconcileLocalRestore: mocks.refresh,
+}));
+
+vi.mock('./deleteUnsyncedWork', async importOriginal => ({
+  ...(await importOriginal<typeof import('./deleteUnsyncedWork')>()),
+  hasUnsyncedWork: mocks.unsynced,
 }));
 
 import { canStillUndo, deleteRecords, restoreRecords } from './deleteRecords';
@@ -28,6 +34,10 @@ import {
 import { parseDeletePreview } from './deletePreview';
 import { UNDO_WINDOW_MS } from './deleteTypes';
 
+beforeEach(() => {
+  mocks.unsynced.mockReset().mockResolvedValue(false);
+});
+
 const show = { id: 'show-1', name: 'Heartland Classic' };
 
 describe('deleteRecords: the one client delete service', () => {
@@ -39,6 +49,36 @@ describe('deleteRecords: the one client delete service', () => {
     mocks.purge.mockReset().mockImplementation(async () => {
       mocks.order.push('purge');
     });
+  });
+
+  it('refuses an item with unsynced local work as "still saving", before the server is called', async () => {
+    mocks.unsynced.mockImplementation(async (_kind: string, id: string) => id === 't-local');
+
+    const result = await deleteRecords('trial', [
+      { id: 't-local', name: 'Local trial' },
+      { id: 't-synced', name: 'Synced trial' },
+    ]);
+
+    expect(mocks.remove).toHaveBeenCalledTimes(1);
+    expect(mocks.remove).toHaveBeenCalledWith('trial', 't-synced', {});
+    expect(mocks.purge).not.toHaveBeenCalledWith(
+      'trial',
+      expect.objectContaining({ id: 't-local' })
+    );
+    expect(result.failed).toEqual([
+      {
+        target: { id: 't-local', name: 'Local trial' },
+        message: 'This trial is still saving. Try again in a moment.',
+      },
+    ]);
+  });
+
+  it('an unreadable queue is a failure, never a pass', async () => {
+    mocks.unsynced.mockRejectedValue(new Error('queue unavailable'));
+    const result = await deleteRecords('class', [{ id: 'c1', name: 'C1' }]);
+    expect(mocks.remove).not.toHaveBeenCalled();
+    expect(mocks.purge).not.toHaveBeenCalled();
+    expect(result.failed).toHaveLength(1);
   });
 
   it('soft-deletes on the server first, then purges this device', async () => {

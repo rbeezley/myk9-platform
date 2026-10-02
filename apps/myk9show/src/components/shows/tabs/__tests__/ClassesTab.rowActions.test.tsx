@@ -48,6 +48,10 @@ vi.mock('@/features/delete/deletePreview', async importOriginal => ({
   ...(await importOriginal<typeof import('@/features/delete/deletePreview')>()),
   fetchDeletePreview: deleteMocks.preview,
 }));
+vi.mock('@/features/delete/deleteUnsyncedWork', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/delete/deleteUnsyncedWork')>()),
+  hasUnsyncedWork: vi.fn().mockResolvedValue(false),
+}));
 vi.mock('@/features/delete/deleteServer', () => ({
   softDeleteOnServer: deleteMocks.remove,
   restoreOnServer: vi.fn(),

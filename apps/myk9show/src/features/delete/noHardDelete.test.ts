@@ -20,6 +20,11 @@ const recorded = vi.hoisted(() => ({
   tableCalls: [] as Array<{ table: string; method: string }>,
 }));
 
+// Nothing queued in these tests: the queue itself is covered by deleteUnsyncedWork's own test.
+vi.mock('./deleteUnsyncedWork', async importOriginal => ({
+  ...(await importOriginal<typeof import('./deleteUnsyncedWork')>()),
+  hasUnsyncedWork: vi.fn().mockResolvedValue(false),
+}));
 vi.mock('@/services/database/supabaseClient', () => {
   /** A PostgREST-ish builder that records every method called on a table. */
   function tableBuilder(table: string) {

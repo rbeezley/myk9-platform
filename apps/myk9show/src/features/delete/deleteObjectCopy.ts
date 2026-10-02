@@ -204,6 +204,14 @@ export function alreadyDeletedToast(
   return `${countOf(kind, targets.length)} were already deleted`;
 }
 
+/** In the dialog: items another device already deleted. They are not counted or deleted again. */
+export function alreadyDeletedNotice(targets: readonly DeleteTarget[]): string {
+  const names = targets.map(target => target.name).join(', ');
+  return `Already deleted: ${names}. ${
+    targets.length === 1 ? 'It is' : 'They are'
+  } not counted here, and ${targets.length === 1 ? 'it leaves' : 'they leave'} this device when you confirm.`;
+}
+
 export function restoredToast(kind: DeleteObjectKind, count: number): string {
   if (count === 1) {
     const noun = objectNoun(kind);

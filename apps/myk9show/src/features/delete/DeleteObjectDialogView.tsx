@@ -12,6 +12,7 @@ import {
   blockedActionLabel,
   blockedReason,
   bulkBlockedReason,
+  alreadyDeletedNotice,
   bulkNameList,
   cascadeSentence,
   deleteButtonLabel,
@@ -42,6 +43,8 @@ export interface DeleteObjectDialogViewProps {
   kind: DeleteObjectKind;
   targets: readonly DeleteTarget[];
   previewState: DeletePreviewState;
+  /** Items the server says are already deleted: named, not counted, never blocking. */
+  alreadyGoneTargets?: readonly DeleteTarget[] | undefined;
   /** Per-target previews (same order as `targets`), to name blocked items in a bulk delete. */
   perItem?: readonly (DeletePreview | undefined)[] | undefined;
   onRetry?: (() => void) | undefined;
@@ -69,6 +72,7 @@ export function DeleteObjectDialogView({
   targets,
   previewState,
   perItem,
+  alreadyGoneTargets = [],
   onRetry,
   isDeleting = false,
   errorMessage,
@@ -188,6 +192,12 @@ export function DeleteObjectDialogView({
             <p className="text-sm text-muted-foreground">{undoSentence(count)}</p>
             {canOverride && overrideControl}
           </>
+        )}
+
+        {alreadyGoneTargets.length > 0 && (
+          <p className="text-sm text-muted-foreground" data-testid="delete-already-gone">
+            {alreadyDeletedNotice(alreadyGoneTargets)}
+          </p>
         )}
 
         {errorMessage && (

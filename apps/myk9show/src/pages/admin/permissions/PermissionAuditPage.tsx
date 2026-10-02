@@ -6,20 +6,9 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { History, Filter, Calendar, Shield, Settings, Download, RefreshCw } from 'lucide-react';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  DataTable,
-  DataTableToolbar,
-  DataTableSearch,
-  type ColumnDef,
-} from '@/components/ui/data-table';
+import { History, Shield, Settings, Download, RefreshCw } from 'lucide-react';
+import { DataTable, filterByListSearch, type ColumnDef } from '@/components/ui/data-table';
+import { ListFilterBar, ListResultLine, type ListFilterField } from '@/components/list-toolkit';
 import type { DataTableColumnMeta } from '@/components/ui/data-table';
 import { rbacService } from '@/services/rbac/RBACService';
 import type { PermissionAuditLog } from '@/types/rbac-types';
@@ -157,12 +146,21 @@ const columns: ColumnDef<PermissionAuditLog, unknown>[] = [
   },
 ];
 
+const EVENT_NOUN = ['event', 'events'] as const;
+const DEFAULT_DATE_RANGE = '7d';
+const DATE_RANGE_OPTIONS = [
+  { value: '1d', label: 'Last 24 hours' },
+  { value: '30d', label: 'Last 30 days' },
+  { value: '90d', label: 'Last 90 days' },
+];
+
 const PermissionAuditPage: React.FC = () => {
+  const [searchTerm, setSearchTerm] = useState('');
   const [auditLogs, setAuditLogs] = useState<PermissionAuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionFilter, setActionFilter] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<string>('7d');
+  const [dateRange, setDateRange] = useState<string>(DEFAULT_DATE_RANGE);
 
   const loadAuditLogs = useCallback(async () => {
     try {
@@ -239,6 +237,37 @@ const PermissionAuditPage: React.FC = () => {
     () => [...new Set(auditLogs.map(log => log.action))].sort(),
     [auditLogs]
   );
+
+  const visibleLogs = useMemo(
+    () => filterByListSearch(filteredLogs, columns, searchTerm),
+    [filteredLogs, searchTerm]
+  );
+  const hasSearch = searchTerm.trim() !== '';
+
+  const filterFields: ListFilterField[] = [
+    {
+      kind: 'options',
+      key: 'dateRange',
+      label: 'Date range',
+      // 7 days is the unfiltered default, so it is the "all" entry.
+      allLabel: 'Last 7 days',
+      options: DATE_RANGE_OPTIONS,
+      value: dateRange === DEFAULT_DATE_RANGE ? null : dateRange,
+      onChange: value => setDateRange(value ?? DEFAULT_DATE_RANGE),
+    },
+    {
+      kind: 'options',
+      key: 'action',
+      label: 'Action',
+      allLabel: 'All actions',
+      options: actionTypes.map(actionType => ({
+        value: actionType,
+        label: formatAction(actionType),
+      })),
+      value: actionFilter === 'all' ? null : actionFilter,
+      onChange: value => setActionFilter(value ?? 'all'),
+    },
+  ];
 
   // Summarise the FILTERED rows, not every fetched row — the headline sits
   // directly above the table and must agree with what it is summarising.
@@ -329,65 +358,49 @@ const PermissionAuditPage: React.FC = () => {
             )}
           </div>
 
-          <div>
+          <div className="space-y-3">
+            <ListFilterBar
+              searchValue={searchTerm}
+              onSearchChange={setSearchTerm}
+              searchPlaceholder="Search audit logs"
+              fields={filterFields}
+            />
+            <ListResultLine
+              shown={visibleLogs.length}
+              total={auditLogs.length}
+              noun={EVENT_NOUN}
+              filtered={hasSearch || actionFilter !== 'all'}
+              onShowAll={() => {
+                setSearchTerm('');
+                setActionFilter('all');
+              }}
+            >
+              <Button
+                variant="outline"
+                className="h-11"
+                disabled={filteredLogs.length === 0}
+                onClick={handleExport}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </Button>
+            </ListResultLine>
             <DataTable
               tableId="permissionAudit"
               scrollAreaLabel="Permission audit log table"
               columns={columns}
-              data={filteredLogs}
+              data={visibleLogs}
+              showSearch={false}
               initialSorting={[{ id: 'created_at', desc: true }]}
               emptyState={
                 <div className="text-center py-8">
                   <History className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                   <h3 className="text-lg font-medium mb-2">No audit events found</h3>
                   <p className="text-muted-foreground">
-                    Try a wider date range or clear the action filter.
+                    Try a wider date range or clear the search and action filter.
                   </p>
                 </div>
               }
-              toolbar={({ table }) => (
-                <DataTableToolbar table={table}>
-                  <DataTableSearch placeholder="Search audit logs..." />
-                  <Select value={dateRange} onValueChange={setDateRange}>
-                    <SelectTrigger className="h-11 w-full text-sm sm:w-40" aria-label="Date range">
-                      <Calendar className="mr-2 h-4 w-4" />
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="1d">Last 24 hours</SelectItem>
-                      <SelectItem value="7d">Last 7 days</SelectItem>
-                      <SelectItem value="30d">Last 30 days</SelectItem>
-                      <SelectItem value="90d">Last 90 days</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Select value={actionFilter} onValueChange={setActionFilter}>
-                    <SelectTrigger
-                      className="h-11 w-full text-sm sm:w-44"
-                      aria-label="Action filter"
-                    >
-                      <Filter className="mr-2 h-4 w-4" />
-                      <SelectValue placeholder="Filter by action" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Actions</SelectItem>
-                      {actionTypes.map(actionType => (
-                        <SelectItem key={actionType} value={actionType}>
-                          {formatAction(actionType)}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Button
-                    variant="outline"
-                    className="h-11"
-                    disabled={filteredLogs.length === 0}
-                    onClick={handleExport}
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Export
-                  </Button>
-                </DataTableToolbar>
-              )}
             />
           </div>
         </div>

@@ -45,24 +45,24 @@ describe('PermissionInventory', () => {
     expect(screen.getByText('entry:create')).toBeVisible();
   });
 
-  it('shows the match-count badge', () => {
+  it('shows the result line', () => {
     render(<PermissionInventory permissions={permissions} />);
-    expect(screen.getByText('3 of 3 permissions')).toBeInTheDocument();
+    expect(screen.getByText('Showing all 3 permissions.')).toBeInTheDocument();
   });
 
   it('filters by search term across name, code, and resource', () => {
     render(<PermissionInventory permissions={permissions} />);
-    fireEvent.change(screen.getByLabelText('Search permissions'), {
+    fireEvent.change(screen.getByLabelText('Search permissions by name, code, or resource'), {
       target: { value: 'entry' },
     });
     expect(screen.getByText('Create Entries')).toBeInTheDocument();
     expect(screen.queryByText('Manage Shows')).not.toBeInTheDocument();
-    expect(screen.getByText('1 of 3 permissions')).toBeInTheDocument();
+    expect(screen.getByText('Showing 1 of 3 permissions.')).toBeInTheDocument();
   });
 
   it('shows an empty state when no permission matches the search', () => {
     render(<PermissionInventory permissions={permissions} />);
-    fireEvent.change(screen.getByLabelText('Search permissions'), {
+    fireEvent.change(screen.getByLabelText('Search permissions by name, code, or resource'), {
       target: { value: 'nonexistent-xyz' },
     });
     expect(screen.getByText('No permissions found')).toBeInTheDocument();

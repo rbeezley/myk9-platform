@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent } from '@testing-library/react';
-import { render, screen } from '@/test/utils/testUtils';
+import { render, screen, userEvent } from '@/test/utils/testUtils';
 import SystemHealthPage from './SystemHealthPage';
 import type { SystemHealthSnapshot } from '@/features/admin-system-health/systemHealthTypes';
 import type { SystemHealthData } from '@/features/admin-system-health/useSystemHealthSnapshots';
@@ -116,7 +116,12 @@ describe('SystemHealthPage', () => {
     expect(screen.getByText(/last run took 1\.5s/)).toBeInTheDocument();
   });
 
-  it('offers a real Run now action without discarding the selected filter', () => {
+  async function pickView(user: ReturnType<typeof userEvent.setup>, name: RegExp) {
+    await user.click(screen.getByRole('combobox', { name: /show: filter checks by status/i }));
+    await user.click(await screen.findByRole('option', { name }));
+  }
+
+  it('offers a real Run now action without discarding the selected filter', async () => {
     const latest = freshSnapshot();
     const mutateAsync = vi.fn().mockResolvedValue({ completed: true });
     mockedRunHealthCheck.mockReturnValue({
@@ -127,36 +132,42 @@ describe('SystemHealthPage', () => {
     } as unknown as ReturnType<typeof useRunSystemHealthCheck>);
     mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest] } }));
 
-    render(<SystemHealthPage />);
-    fireEvent.click(screen.getByRole('button', { name: /^Failing 0$/ }));
+    const { user } = render(<SystemHealthPage />);
+    await pickView(user, /^Failing \(0\)$/);
     fireEvent.click(screen.getByRole('button', { name: 'Run now' }));
 
     expect(mutateAsync).toHaveBeenCalledTimes(1);
     expect(screen.getByText(/nothing in this bucket/i)).toBeInTheDocument();
   });
 
-  it('derives every count from one array, so no two badges can disagree', () => {
+  it('derives every count from one array, so no two badges can disagree', async () => {
     const latest = freshSnapshot(); // one ok + one warn
     mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest] } }));
 
-    render(<SystemHealthPage />);
+    const { user } = render(<SystemHealthPage />);
 
-    // Verdict chips and filter tabs read the same summary.
-    expect(screen.getByRole('button', { name: /^All 2$/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Failing 0$/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Unverified 1$/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^Passing 1$/ })).toBeInTheDocument();
+    // Verdict chips and the view select read the same summary.
+    await user.click(screen.getByRole('combobox', { name: /show: filter checks by status/i }));
+    expect(await screen.findByRole('option', { name: 'All (2)' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Failing (0)' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Unverified (1)' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Passing (1)' })).toBeInTheDocument();
   });
 
-  it('filters the list to the tab the admin picked', () => {
+  it('filters the list to the view the admin picked and can show all again', async () => {
     const latest = freshSnapshot();
     mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest] } }));
 
-    render(<SystemHealthPage />);
-    fireEvent.click(screen.getByRole('button', { name: /^Failing 0$/ }));
+    const { user } = render(<SystemHealthPage />);
+    await pickView(user, /^Failing \(0\)$/);
 
     expect(screen.queryByText('Migration parity')).not.toBeInTheDocument();
     expect(screen.getByText(/nothing in this bucket/i)).toBeInTheDocument();
+    expect(screen.getByText('Showing 0 of 2 checks.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Show all checks' }));
+    expect(screen.getByText('Migration parity')).toBeInTheDocument();
+    expect(screen.getByText('Showing all 2 checks.')).toBeInTheDocument();
   });
 
   it('shows a stale warning when the latest run is older than the threshold', () => {
@@ -274,7 +285,7 @@ describe('SystemHealthPage', () => {
     expect(screen.getByText(/Review the affected diagnostics/i)).toBeInTheDocument();
   });
 
-  it('renders coverage incomplete as a distinct state with a next action', () => {
+  it('renders coverage incomplete as a distinct state with a next action', async () => {
     const latest = freshSnapshot({
       checks: [
         {
@@ -289,11 +300,13 @@ describe('SystemHealthPage', () => {
     });
     mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest] } }));
 
-    render(<SystemHealthPage />);
+    const { user } = render(<SystemHealthPage />);
 
-    // A check whose own coverage is incomplete cannot report success, so it
-    // carries the amber word rather than being downgraded to a plain warning.
-    expect(screen.getByText('Unverified')).toBeInTheDocument();
+    // A check whose own coverage is incomplete cannot report success, so it is
+    // counted in the amber Unverified view rather than as a pass.
+    await user.click(screen.getByRole('combobox', { name: /show: filter checks by status/i }));
+    expect(await screen.findByRole('option', { name: 'Unverified (1)' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
 
     fireEvent.click(screen.getByRole('button', { name: /Manual check/i }));
     expect(screen.getByText('Operations Runbook')).toBeInTheDocument();

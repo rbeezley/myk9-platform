@@ -80,7 +80,7 @@ describe('PermissionAuditPage DataTable migration', () => {
   it('renders action filter control', async () => {
     render(<PermissionAuditPage />);
     await screen.findByRole('table');
-    expect(screen.getByRole('combobox', { name: /action filter/i })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /^action$/i })).toBeInTheDocument();
   });
 
   it('renders a compact audit summary above the table', async () => {
@@ -117,6 +117,31 @@ describe('PermissionAuditPage DataTable migration', () => {
     expect(within(revokeRow).getByText('role_name:')).toBeInTheDocument();
     expect(within(revokeRow).getByText('secretary')).toBeInTheDocument();
     expect(within(revokeRow).getByText('club-heartland')).toBeInTheDocument();
+  });
+
+  it('narrows rows with the Action filter and reports the count', async () => {
+    const { user } = render(<PermissionAuditPage />);
+    await screen.findByRole('table');
+    expect(screen.getByText('Showing all 3 events.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('combobox', { name: /^action$/i }));
+    await user.click(await screen.findByRole('option', { name: 'Role Revoked' }));
+
+    expect(screen.getAllByRole('row')).toHaveLength(2);
+    expect(screen.getByText('Showing 1 of 3 events.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Show all events' }));
+    expect(screen.getAllByRole('row')).toHaveLength(4);
+  });
+
+  it('searches the audit log and reports the count', async () => {
+    const { user } = render(<PermissionAuditPage />);
+    await screen.findByRole('table');
+
+    await user.type(screen.getByPlaceholderText(/search audit/i), 'heartland');
+
+    expect(screen.getAllByRole('row')).toHaveLength(2);
+    expect(screen.getByText('Showing 1 of 3 events.')).toBeInTheDocument();
   });
 
   it('renders export button', async () => {

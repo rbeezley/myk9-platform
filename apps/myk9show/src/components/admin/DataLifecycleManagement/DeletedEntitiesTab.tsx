@@ -17,88 +17,30 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import {
-  Theater,
-  Trophy,
-  ListChecks,
-  ClipboardList,
-  Dog,
-  Building2,
-  Users,
-  Shield,
-  AlertTriangle,
-  Trash2,
-  Loader2,
-} from 'lucide-react';
-import { supabase } from '@/services/database/supabaseClient';
+import { Shield, AlertTriangle, Trash2, Loader2 } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
-
-import { getDeletedShows, restoreShow, hardDeleteShow } from '@/services/database/shows';
+import {
+  ListResultLine,
+  ListViewTabs,
+  patchSearchParams,
+  type ListView,
+} from '@/components/list-toolkit';
 import { permanentDeleteRefusalMessage } from '@/services/database/permanentDeleteRefusal';
-import { getDeletedTrials, restoreTrial, hardDeleteTrial } from '@/services/database/trials';
-import { getDeletedClasses, restoreClass, hardDeleteClass } from '@/services/database/classes';
-import { getDeletedEntries, restoreEntry, hardDeleteEntry } from '@/services/database/entries';
-import { getDeletedDogs, restoreDog, hardDeleteDog } from '@/services/database/dogs';
-import { getDeletedClubs, restoreClub, hardDeleteClub } from '@/services/database/clubs';
-import { getDeletedUsers, restoreUser, hardDeleteUser } from '@/services/database/users';
 
 import { DeletedEntitySection } from './DeletedEntitySection';
 import {
-  describeRestoreDog,
-  fetchAndMap,
-  mapClass,
-  mapClub,
-  mapDog,
-  mapEntry,
-  mapPerson,
-  mapShow,
-  mapTrial,
-} from './deletedEntityMappers';
-import type { DeletedEntity, EntityType, EntitySectionConfig, SelectedEntity } from './types';
+  ENTITY_LABEL,
+  ENTITY_SECTIONS,
+  emptyCounts,
+  fetchDeletedCounts,
+  isEntityType,
+} from './deletedEntityConfig';
+import type { EntityType, SelectedEntity } from './types';
 
-/* ------------------------------------------------------------------ */
-/*  Table name lookup for count queries                                */
-/* ------------------------------------------------------------------ */
-
-const TABLE_FOR_TYPE = {
-  show: 'shows',
-  trial: 'trials',
-  class: 'classes',
-  entry: 'entries',
-  dog: 'dogs',
-  club: 'clubs',
-  person: 'people',
-} as const;
-
-/*
- * dogs/shows/classes/people hide soft-deleted rows at the RLS layer, so a direct
- * `.from(table).not('deleted_at', ...)` count returns 0 for admins (the section
- * would never render). Count these through the same admin-gated RPC the list
- * reads use; the others (trials/entries/clubs) count fine via a direct head query.
- */
-const DELETED_COUNT_RPC: Partial<
-  Record<
-    EntityType,
-    'get_deleted_dogs' | 'get_deleted_shows' | 'get_deleted_classes' | 'get_deleted_people'
-  >
-> = {
-  dog: 'get_deleted_dogs',
-  show: 'get_deleted_shows',
-  class: 'get_deleted_classes',
-  person: 'get_deleted_people',
-};
-
-const ENTITY_LABEL: Record<EntityType, string> = {
-  show: 'Show',
-  trial: 'Trial',
-  class: 'Class',
-  entry: 'Entry',
-  dog: 'Dog',
-  club: 'Club',
-  person: 'Person',
-};
+const ITEM_NOUN = ['deleted item', 'deleted items'] as const;
 
 /* ------------------------------------------------------------------ */
 /*  Component                                                          */
@@ -108,15 +50,7 @@ export function DeletedEntitiesTab() {
   const { user } = useAuthContext();
 
   // Counts per entity type
-  const [counts, setCounts] = useState<Record<EntityType, number>>({
-    show: 0,
-    trial: 0,
-    class: 0,
-    entry: 0,
-    dog: 0,
-    club: 0,
-    person: 0,
-  });
+  const [counts, setCounts] = useState<Record<EntityType, number>>(emptyCounts);
   const [isLoadingCounts, setIsLoadingCounts] = useState(true);
   const [isActionLoading, setIsActionLoading] = useState(false);
   const [actionVersion, setActionVersion] = useState(0);
@@ -131,42 +65,7 @@ export function DeletedEntitiesTab() {
   const fetchCounts = useCallback(async () => {
     setIsLoadingCounts(true);
     try {
-      const types = Object.keys(TABLE_FOR_TYPE) as EntityType[];
-      const results = await Promise.all(
-        types.map(async type => {
-          const rpc = DELETED_COUNT_RPC[type];
-          if (rpc) {
-            // RLS hides these tombstones from direct selects; count via the RPC.
-            const { data, error } = await supabase.rpc(rpc);
-            if (error) {
-              logger.warn(`Failed to fetch deleted count for ${type}`, 'trash', { error });
-            }
-            return { type, count: data?.length ?? 0 };
-          }
-          const { count, error } = await supabase
-            .from(TABLE_FOR_TYPE[type])
-            .select('id', { count: 'exact', head: true })
-            .not('deleted_at', 'is', null);
-          if (error) {
-            logger.warn(`Failed to fetch deleted count for ${type}`, 'trash', { error });
-          }
-          return { type, count: count ?? 0 };
-        })
-      );
-
-      const next: Record<EntityType, number> = {
-        show: 0,
-        trial: 0,
-        class: 0,
-        entry: 0,
-        dog: 0,
-        club: 0,
-        person: 0,
-      };
-      for (const { type, count } of results) {
-        next[type] = count;
-      }
-      setCounts(next);
+      setCounts(await fetchDeletedCounts());
     } catch (_err) {
       logger.error('Failed to fetch deleted entity counts', 'trash');
     } finally {
@@ -177,81 +76,6 @@ export function DeletedEntitiesTab() {
   useEffect(() => {
     fetchCounts();
   }, [fetchCounts]);
-
-  /* ---- Section configs ------------------------------------------- */
-
-  const sections: EntitySectionConfig[] = useMemo(
-    () => [
-      {
-        type: 'show' as EntityType,
-        label: 'Shows',
-        icon: Theater,
-        iconColor: 'text-purple-600',
-        fetchDeleted: () => fetchAndMap(getDeletedShows, mapShow),
-        restore: restoreShow,
-        hardDelete: hardDeleteShow,
-      },
-      {
-        type: 'trial' as EntityType,
-        label: 'Trials',
-        icon: Trophy,
-        iconColor: 'text-amber-600',
-        fetchDeleted: () => fetchAndMap(getDeletedTrials, mapTrial),
-        restore: restoreTrial,
-        hardDelete: hardDeleteTrial,
-      },
-      {
-        type: 'class' as EntityType,
-        label: 'Classes',
-        icon: ListChecks,
-        iconColor: 'text-blue-600',
-        fetchDeleted: () => fetchAndMap(getDeletedClasses, mapClass),
-        restore: restoreClass,
-        hardDelete: hardDeleteClass,
-      },
-      {
-        type: 'entry' as EntityType,
-        label: 'Entries',
-        icon: ClipboardList,
-        iconColor: 'text-green-600',
-        fetchDeleted: () => fetchAndMap(getDeletedEntries, mapEntry),
-        restore: restoreEntry,
-        hardDelete: hardDeleteEntry,
-      },
-      {
-        type: 'dog' as EntityType,
-        label: 'Dogs',
-        icon: Dog,
-        iconColor: 'text-orange-600',
-        fetchDeleted: () => fetchAndMap(getDeletedDogs, mapDog),
-        restore: restoreDog,
-        describeRestore: describeRestoreDog,
-        hardDelete: hardDeleteDog,
-      },
-      {
-        type: 'club' as EntityType,
-        label: 'Clubs',
-        icon: Building2,
-        iconColor: 'text-teal-600',
-        fetchDeleted: () => fetchAndMap(getDeletedClubs, mapClub),
-        restore: restoreClub,
-        hardDelete: hardDeleteClub,
-      },
-      {
-        type: 'person' as EntityType,
-        label: 'People',
-        // The only entity here whose removed record is readable — see
-        // EntitySectionConfig.recordHref.
-        recordHref: (item: DeletedEntity) => `/people/${item.id}`,
-        icon: Users,
-        iconColor: 'text-indigo-600',
-        fetchDeleted: () => fetchAndMap(getDeletedUsers, mapPerson),
-        restore: restoreUser,
-        hardDelete: hardDeleteUser,
-      },
-    ],
-    []
-  );
 
   /* ---- Dialog handlers ------------------------------------------- */
 
@@ -273,7 +97,7 @@ export function DeletedEntitiesTab() {
     if (!restoreTarget) return;
     setIsActionLoading(true);
     try {
-      const config = sections.find(s => s.type === restoreTarget.type);
+      const config = ENTITY_SECTIONS.find(s => s.type === restoreTarget.type);
       if (config) {
         const label = ENTITY_LABEL[restoreTarget.type];
         // Restore services return { error } rather than throwing; surface it so a
@@ -304,13 +128,13 @@ export function DeletedEntitiesTab() {
       setRestoreTarget(null);
       setIsActionLoading(false);
     }
-  }, [restoreTarget, sections, user?.id]);
+  }, [restoreTarget, user?.id]);
 
   const handleConfirmDelete = useCallback(async () => {
     if (!deleteTarget) return;
     setIsActionLoading(true);
     try {
-      const config = sections.find(s => s.type === deleteTarget.type);
+      const config = ENTITY_SECTIONS.find(s => s.type === deleteTarget.type);
       if (config) {
         const label = ENTITY_LABEL[deleteTarget.type];
         const result = (await config.hardDelete(deleteTarget.id)) as
@@ -344,11 +168,29 @@ export function DeletedEntitiesTab() {
       setDeleteTarget(null);
       setIsActionLoading(false);
     }
-  }, [deleteTarget, sections]);
+  }, [deleteTarget]);
 
   /* ---- Derived --------------------------------------------------- */
 
   const totalDeleted = Object.values(counts).reduce((a, b) => a + b, 0);
+
+  // One view per entity type, with its live count. A type with nothing in the
+  // trash drops out unless it is the view the URL asks for.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const typeParam = searchParams.get('type');
+  const activeType: EntityType | null = isEntityType(typeParam) ? typeParam : null;
+  const views = useMemo<ListView[]>(
+    () => [
+      { id: 'all', label: 'All', count: totalDeleted },
+      ...ENTITY_SECTIONS.filter(
+        config => counts[config.type] > 0 || config.type === activeType
+      ).map(config => ({ id: config.type, label: config.label, count: counts[config.type] })),
+    ],
+    [counts, totalDeleted, activeType]
+  );
+  const visibleSections = activeType
+    ? ENTITY_SECTIONS.filter(config => config.type === activeType)
+    : ENTITY_SECTIONS;
 
   /* ---- Render ---------------------------------------------------- */
 
@@ -382,11 +224,32 @@ export function DeletedEntitiesTab() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-1">
-          {sections.map(config => (
+          <div className="pb-3">
+            <ListViewTabs
+              label="Filter deleted items by type"
+              views={views}
+              activeId={activeType ?? 'all'}
+              onSelect={id =>
+                patchSearchParams(setSearchParams, { type: id === 'all' ? null : id })
+              }
+            />
+            <ListResultLine
+              className="mt-2"
+              shown={activeType ? counts[activeType] : totalDeleted}
+              total={totalDeleted}
+              noun={ITEM_NOUN}
+              filtered={activeType !== null}
+              onShowAll={() => patchSearchParams(setSearchParams, { type: null })}
+            />
+          </div>
+          {visibleSections.map(config => (
             <DeletedEntitySection
-              key={config.type}
+              // The view is part of the key: a single-type view mounts its
+              // section open, an All view mounts it collapsed.
+              key={`${config.type}:${activeType ?? 'all'}`}
               config={config}
               count={counts[config.type]}
+              defaultOpen={activeType !== null}
               lastActionType={lastActionType}
               actionVersion={actionVersion}
               isActionLoading={isActionLoading}

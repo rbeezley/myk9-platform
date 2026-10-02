@@ -16,6 +16,8 @@ import { cn } from '@/lib/utils';
 interface DeletedEntitySectionProps {
   config: EntitySectionConfig;
   count: number;
+  /** Mount expanded (and load the records), as the single-type view does. */
+  defaultOpen?: boolean;
   lastActionType: EntityType | null;
   actionVersion: number;
   isActionLoading: boolean;
@@ -26,13 +28,14 @@ interface DeletedEntitySectionProps {
 export function DeletedEntitySection({
   config,
   count,
+  defaultOpen = false,
   lastActionType,
   actionVersion,
   isActionLoading,
   onRestore,
   onDelete,
 }: DeletedEntitySectionProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(defaultOpen);
   const [items, setItems] = useState<DeletedEntity[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [hasFetched, setHasFetched] = useState(false);
@@ -60,6 +63,10 @@ export function DeletedEntitySection({
     },
     [hasFetched, loadItems]
   );
+
+  useEffect(() => {
+    if (defaultOpen && !hasFetched) loadItems();
+  }, [defaultOpen, hasFetched, loadItems]);
 
   // Re-fetch items only when this section's entity type was affected
   useEffect(() => {

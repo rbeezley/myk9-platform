@@ -91,16 +91,17 @@ describe('RolesOverviewTable', () => {
 
   it('filters rows as the admin types', async () => {
     const { user } = renderTable();
-    await user.type(screen.getByRole('searchbox', { name: /search roles/i }), 'ring');
+    await user.type(screen.getByRole('textbox', { name: /search roles/i }), 'ring');
     expect(screen.queryByText('Show Secretary')).not.toBeInTheDocument();
     expect(screen.getByText('Ring Helper')).toBeInTheDocument();
+    expect(screen.getByText(/^Showing 1 of \d+ roles\.$/)).toBeInTheDocument();
   });
 
   it('tells the admin when a search matches nothing, and offers a way back', async () => {
     const { user } = renderTable();
-    await user.type(screen.getByRole('searchbox', { name: /search roles/i }), 'zzzz');
+    await user.type(screen.getByRole('textbox', { name: /search roles/i }), 'zzzz');
     expect(screen.getByText(/no roles match/i)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /clear search/i }));
+    await user.click(screen.getByRole('button', { name: 'Show all roles' }));
     expect(screen.getByText('Show Secretary')).toBeInTheDocument();
   });
 
@@ -124,7 +125,7 @@ describe('RolesOverviewTable', () => {
 
   it('shows an empty-search-result state distinct from the empty-system state', async () => {
     const { user } = renderTable();
-    await user.type(screen.getByRole('searchbox', { name: /search roles/i }), 'zzzz');
+    await user.type(screen.getByRole('textbox', { name: /search roles/i }), 'zzzz');
     expect(screen.getByText(/no roles match/i)).toBeInTheDocument();
   });
 

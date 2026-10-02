@@ -68,11 +68,21 @@ describe('AdminHelpPage', () => {
     expect(screen.queryByText('Subscription')).not.toBeInTheDocument();
   });
 
-  it('shows parked entries when the toggle is enabled', async () => {
+  async function pick(
+    user: ReturnType<typeof userEvent.setup>,
+    field: RegExp,
+    option: RegExp | string
+  ) {
+    await user.click(screen.getByRole('combobox', { name: field }));
+    await user.click(await screen.findByRole('option', { name: option }));
+  }
+
+  it('shows parked entries when the Parked pages filter is set to Shown', async () => {
     const user = userEvent.setup();
     render(<AdminHelpPage />);
-    await user.click(screen.getByRole('checkbox', { name: /show parked/i }));
+    await pick(user, /^parked pages$/i, 'Shown');
     expect(screen.getAllByText('Subscription').length).toBeGreaterThan(0);
+    expect(screen.getByText('Showing all 3 pages.')).toBeInTheDocument();
   });
 
   it('filters by search term across title and description', async () => {
@@ -81,5 +91,31 @@ describe('AdminHelpPage', () => {
     await user.type(screen.getByPlaceholderText(/search pages/i), 'exhibitor');
     expect(screen.getByText('My Shows')).toBeInTheDocument();
     expect(screen.queryByText('Admin Dashboard')).not.toBeInTheDocument();
+  });
+
+  it('narrows the list with the Role filter and reports the count', async () => {
+    const user = userEvent.setup();
+    render(<AdminHelpPage />);
+    expect(screen.getByText('Showing 2 of 3 pages.')).toBeInTheDocument();
+
+    await pick(user, /^role$/i, 'Exhibitor');
+
+    expect(screen.getByText('My Shows')).toBeInTheDocument();
+    expect(screen.queryByText('Admin Dashboard')).not.toBeInTheDocument();
+    expect(screen.getByText('Showing 1 of 3 pages.')).toBeInTheDocument();
+  });
+
+  it('shows every page, parked included, from Show all pages', async () => {
+    const user = userEvent.setup();
+    render(<AdminHelpPage />);
+    await user.type(screen.getByPlaceholderText(/search pages/i), 'zzzz');
+    expect(screen.getByText(/no pages match the current filters/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Show all pages' }));
+
+    expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
+    expect(screen.getByText('My Shows')).toBeInTheDocument();
+    expect(screen.getAllByText('Subscription').length).toBeGreaterThan(0);
+    expect(screen.getByText('Showing all 3 pages.')).toBeInTheDocument();
   });
 });

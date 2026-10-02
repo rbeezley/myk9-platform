@@ -45,16 +45,18 @@ import {
 import { useOperatorAlerts } from '@/features/admin-system-health/useOperatorAlerts';
 import { summarizeAlerts } from '@/features/admin-system-health/operatorAlertsSelectors';
 import { cn } from '@/lib/utils';
+import { ListResultLine, ListViewTabs, type ListView } from '@/components/list-toolkit';
 import { OperatorAlertsSection } from './OperatorAlertsSection';
 import {
   BoardCard,
   BoardError,
   BoardSkeleton,
   Eyebrow,
-  FilterTabs,
   VerdictChips,
 } from './SystemHealth/HealthBoardPrimitives';
 import { HealthCheckRow } from './SystemHealth/HealthCheckRow';
+
+const CHECK_NOUN = ['check', 'checks'] as const;
 
 /** The `daily-health-check` pg_cron entry: `0 7 * * *`, i.e. 07:00 UTC. */
 const SCHEDULE_UTC_HOUR = 7;
@@ -283,6 +285,15 @@ export default function SystemHealthPage() {
   const checks = useMemo(() => buildCheckHistories(snapshots, undefined, now), [snapshots, now]);
   const summary = useMemo(() => summarizeChecks(checks), [checks]);
   const visible = useMemo(() => filterChecks(checks, filter), [checks, filter]);
+  const views = useMemo<ListView[]>(
+    () => [
+      { id: 'all', label: 'All', count: summary.total },
+      { id: 'fail', label: 'Failing', count: summary.failing },
+      { id: 'warn', label: 'Unverified', count: summary.unverified },
+      { id: 'ok', label: 'Passing', count: summary.passing },
+    ],
+    [summary]
+  );
 
   if (isLoading) {
     return (
@@ -406,16 +417,19 @@ export default function SystemHealthPage() {
               overflows its column — clipping the status badge clean off the page
               rather than truncating the detail text. */}
           <div className="flex min-w-0 flex-col gap-3">
-            <FilterTabs
-              ariaLabel="Filter checks by status"
-              active={filter}
-              onChange={setFilter}
-              tabs={[
-                { value: 'all', label: 'All', count: summary.total },
-                { value: 'fail', label: 'Failing', count: summary.failing },
-                { value: 'warn', label: 'Unverified', count: summary.unverified },
-                { value: 'ok', label: 'Passing', count: summary.passing },
-              ]}
+            <ListViewTabs
+              label="Filter checks by status"
+              views={views}
+              activeId={filter}
+              onSelect={id => setFilter(id as CheckFilter)}
+            />
+            <ListResultLine
+              ready={checks.length > 0}
+              shown={visible.length}
+              total={checks.length}
+              noun={CHECK_NOUN}
+              filtered={filter !== 'all'}
+              onShowAll={() => setFilter('all')}
             />
 
             {checks.length === 0 ? (

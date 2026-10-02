@@ -205,49 +205,6 @@ test.describe('Classes Page - Mobile Responsiveness', () => {
   });
 });
 
-test.describe('Classes Page - Secretary Class Management', () => {
-  test.beforeEach(async ({ page }) => {
-    await login(page, adminUser);
-  });
-
-  test('should navigate to class management page', async ({ page }) => {
-    // Navigate to a trial and look for class management
-    await page.goto('/trials', { waitUntil: 'networkidle' });
-    await page.waitForTimeout(2000);
-
-    // Click on first trial
-    const trialItem = page.locator('[class*="cursor-pointer"]').first();
-    if ((await trialItem.count()) > 0) {
-      await trialItem.click();
-      await page.waitForTimeout(1000);
-    }
-  });
-
-  test('should display status filter with correct options', async ({ page }) => {
-    await page.goto('/secretary/class-management/test-trial', { waitUntil: 'networkidle' });
-    await page.waitForTimeout(1000);
-
-    // Look for status filter dropdown
-    const statusFilter = page.locator('select, [role="combobox"]').filter({ hasText: /status/i });
-    if ((await statusFilter.count()) > 0) {
-      // Click to open dropdown
-      await statusFilter.first().click();
-
-      // Check for valid options
-      const options = page.locator('[role="option"], option');
-      const optionTexts: string[] = [];
-      const count = await options.count();
-      for (let i = 0; i < count; i++) {
-        const text = await options.nth(i).textContent();
-        if (text) optionTexts.push(text);
-      }
-
-      // Should not include "Pending"
-      expect(optionTexts.some(t => t === 'Pending')).toBeFalsy();
-    }
-  });
-});
-
 test.describe('Classes Page - View Toggle', () => {
   test.beforeEach(async ({ page }) => {
     await login(page, adminUser);

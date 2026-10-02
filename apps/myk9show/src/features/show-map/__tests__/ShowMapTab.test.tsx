@@ -34,12 +34,14 @@ vi.mock('@/services/replication', () => ({
   replicatedClassesTable: {
     updateClass: (...args: unknown[]) => mockUpdateClass(...args),
     getClassById: (...args: unknown[]) => mockGetReplicatedClassById(...args),
+    subscribe: () => () => undefined,
   },
   replicatedEntriesTable: {
     updateEntry: (...args: unknown[]) => mockUpdateReplicatedEntry(...args),
     moveUpEntryViaRpc: (...args: unknown[]) => mockMoveUpEntryViaRpc(...args),
     getEntryById: (...args: unknown[]) => mockGetReplicatedEntryById(...args),
     getEntriesByClass: (...args: unknown[]) => mockGetReplicatedEntriesByClass(...args),
+    subscribe: () => () => undefined,
   },
   replicatedTrialsTable: {
     // Defaults to undefined (→ getTrialRegistry falls back to AKC), matching this

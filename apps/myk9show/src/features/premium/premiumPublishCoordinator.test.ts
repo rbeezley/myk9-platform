@@ -144,7 +144,9 @@ describe('premium publish coordinator', () => {
       return { publishedAt: 'now', premiumUrl: 'url' };
     });
     const first = runPremiumPublishOperation(operation());
-    await Promise.resolve();
+    // publishExperience is loaded with a dynamic import, so the in-flight
+    // operation reaches the mock a few ticks after the call.
+    await vi.waitFor(() => expect(release).toBeTypeOf('function'));
     await expect(
       runPremiumPublishOperation(operation({ mode: 'draft', intentKey: 'draft:changed' }))
     ).rejects.toMatchObject({ code: 'intent-conflict' });

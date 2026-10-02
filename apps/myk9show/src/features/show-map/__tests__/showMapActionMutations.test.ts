@@ -2,8 +2,6 @@ import { createDatabaseError } from '@/services/database/databaseError';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   getShowMapHandlerMessageTarget,
-  approveShowMapEntry,
-  bulkApproveShowMapEntries,
   markShowMapClassComplete,
   markShowMapClassStarted,
   markShowMapEntryCheckedIn,
@@ -130,7 +128,7 @@ describe('showMapActionMutations', () => {
       }
       return Promise.resolve({
         id: 'class-2',
-        trialId: 'trial-2',
+        trialId: 'trial-1',
         name: 'Advanced A',
         element: 'Container',
         level: 'Advanced',
@@ -158,21 +156,10 @@ describe('showMapActionMutations', () => {
     expect(mockFrom).not.toHaveBeenCalled();
   });
 
-  it('approves a Show Desk review entry through the replicated entry table', async () => {
-    await approveShowMapEntry('entry-1');
+  it('offers no approve of its own: Entry Management is the one home of approve (MYK9-919)', async () => {
+    const mutations: Record<string, unknown> = await import('../showMapActionMutations');
 
-    expect(mockUpdateReplicatedEntryStatus).toHaveBeenCalledWith('entry-1', 'confirmed');
-    expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
-    expect(mockFrom).not.toHaveBeenCalled();
-  });
-
-  it('bulk approves Show Desk review entries through replicated entry mutations', async () => {
-    await bulkApproveShowMapEntries(['entry-1', 'entry-2']);
-
-    expect(mockUpdateReplicatedEntryStatus).toHaveBeenCalledWith('entry-1', 'confirmed');
-    expect(mockUpdateReplicatedEntryStatus).toHaveBeenCalledWith('entry-2', 'confirmed');
-    expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
-    expect(mockFrom).not.toHaveBeenCalled();
+    expect(Object.keys(mutations).filter(name => /approve/i.test(name))).toEqual([]);
   });
 
   it('surfaces replicated check-in update failures', async () => {
@@ -206,6 +193,7 @@ describe('showMapActionMutations', () => {
       previousCheckInStatus: 'checked-in',
       previousSpecialRequests: 'Bring paper form',
       previousWithdrawalReason: null,
+      previousWithdrawalReasonCode: null,
     });
   });
 
@@ -217,11 +205,14 @@ describe('showMapActionMutations', () => {
         previousCheckInStatus: 'checked-in',
         previousSpecialRequests: 'Bring paper form',
         previousWithdrawalReason: null,
+        previousWithdrawalReasonCode: 'in_season',
       });
 
       expect(mockUpdateReplicatedEntry).toHaveBeenCalledWith(
         'entry-1',
         expect.objectContaining({
+          withdrawalReasonCode: 'in_season',
+          withdrawal_reason_code: 'in_season',
           entryStatus: 'checked-in',
           entry_status: 'checked-in',
           checkInStatus: 'checked-in',
@@ -254,6 +245,7 @@ describe('showMapActionMutations', () => {
         previousCheckInStatus: null,
         previousSpecialRequests: null,
         previousWithdrawalReason: null,
+        previousWithdrawalReasonCode: null,
       });
 
       expect(mockUpdateReplicatedEntry).toHaveBeenCalledWith(
@@ -435,6 +427,25 @@ describe('showMapActionMutations', () => {
     expect(mockFrom).not.toHaveBeenCalled();
   });
 
+  it('refuses a move-up into a class in ANOTHER trial (MYK9-920), writing nothing', async () => {
+    mockGetReplicatedClassById.mockImplementation((id: string) =>
+      Promise.resolve({
+        id,
+        trialId: id === 'class-1' ? 'trial-1' : 'trial-2',
+        name: id === 'class-1' ? 'Novice A' : 'Advanced A',
+        element: 'Container',
+        level: id === 'class-1' ? 'Novice' : 'Advanced',
+        maxEntries: 50,
+      })
+    );
+
+    await expect(
+      moveUpShowMapEntry({ entryId: 'entry-1', targetClassId: 'class-2' })
+    ).rejects.toThrow('not a valid move-up target');
+    expect(mockMoveUpEntryViaRpc).not.toHaveBeenCalled();
+    expect(mockUpdateReplicatedEntry).not.toHaveBeenCalled();
+  });
+
   it('does not touch the source when the server refuses the move', async () => {
     // The RPC is the whole operation: if it fails, nothing happened. There is no
     // half-landed state left for a rollback to repair, which is the shape the
@@ -465,7 +476,7 @@ describe('showMapActionMutations', () => {
       }
       return Promise.resolve({
         id: 'class-2',
-        trialId: 'trial-2',
+        trialId: 'trial-1',
         name: 'Advanced A',
         element: 'Container',
         level: 'Advanced',
@@ -503,7 +514,7 @@ describe('showMapActionMutations', () => {
               }
             : {
                 id: 'class-2',
-                trialId: 'trial-2',
+                trialId: 'trial-1',
                 name: 'Advanced A',
                 element: 'Container',
                 level: 'Advanced',
@@ -534,7 +545,7 @@ describe('showMapActionMutations', () => {
             }
           : {
               id: 'class-2',
-              trialId: 'trial-2',
+              trialId: 'trial-1',
               name: 'Advanced A',
               element: 'Container',
               level: 'Advanced',
@@ -570,7 +581,7 @@ describe('showMapActionMutations', () => {
       }
       return Promise.resolve({
         id: 'class-2',
-        trialId: 'trial-2',
+        trialId: 'trial-1',
         name: 'Advanced A',
         element: 'Container',
         level: 'Advanced',

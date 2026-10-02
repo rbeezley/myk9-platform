@@ -166,12 +166,12 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       leaveAfterDelete();
     } catch (error) {
       logger.error(
-        'Failed to permanently delete user',
+        'Failed to permanently delete person',
         'users',
         { userId: person.id },
         error as Error
       );
-      notifications.error(getUserFriendlyError(error, 'Failed to permanently delete user'));
+      notifications.error(getUserFriendlyError(error, 'Failed to permanently delete person'));
     } finally {
       setIsDeletingUser(false);
     }
@@ -196,7 +196,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       throw error;
     }
     setFormData(prev => ({ ...prev, ...buildSavedFormDataUpdates(userData) }));
-    notifications.success('User updated successfully');
+    notifications.success('Person updated');
     logger.info('User data saved successfully', 'users', { userId: person.id });
   };
 

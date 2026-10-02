@@ -1,5 +1,5 @@
 import { supabase } from '@/services/database/supabaseClient';
-import { publishExperience } from '@/features/experience/publishExperience';
+import { importPublishExperience } from './importPublishExperience';
 import {
   classifyPremiumPublishError,
   isMissingPremiumPublishRpc,
@@ -50,6 +50,17 @@ const ATTEMPT_SCHEMA_VERSION = 4;
 export const GENERATED_PREMIUM_INTENT_KEY = 'generated-current-sources';
 const attemptByShowId = new Map<string, PremiumPublishAttempt>();
 let hydrated = false;
+
+// The module promise is shared so concurrent publishes resolve one import, and
+// dropped on failure so a transient chunk-load error does not stick.
+let publishExperienceModule: ReturnType<typeof importPublishExperience> | null = null;
+function loadPublishExperience() {
+  publishExperienceModule ??= importPublishExperience().catch(error => {
+    publishExperienceModule = null;
+    throw error;
+  });
+  return publishExperienceModule;
+}
 
 function getAttemptStorage(): Storage | null {
   try {
@@ -250,6 +261,10 @@ async function runLockedPremiumPublishOperation(
   let priorAttempt: PremiumPublishAttempt | undefined;
   let publisherId = '';
   try {
+    // Load the publisher before reserving or persisting anything: a chunk-load
+    // failure (usually a stale tab after a deploy) must not bump the server
+    // publish version or leave a persisted attempt behind.
+    const { publishExperience } = await loadPublishExperience();
     publisherId = await getPremiumPublisherId();
     priorAttempt = attemptByShowId.get(showId);
     // Generated-source retries reconcile before calling the LLM. Authored
@@ -314,6 +329,7 @@ export function resetPremiumPublishCoordinatorForTests(options?: {
 }): void {
   attemptByShowId.clear();
   inFlightByShowId.clear();
+  publishExperienceModule = null;
   hydrated = false;
   if (!options?.preserveStorage) {
     const storage = getAttemptStorage();

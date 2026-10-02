@@ -340,7 +340,7 @@ const EntryManagementPage: React.FC = () => {
             <PopoverTrigger asChild>
               <Button type="button" disabled={!selectedShowId} className="gap-2">
                 <Plus className="h-4 w-4" aria-hidden />
-                Add entry
+                Add Entry
               </Button>
             </PopoverTrigger>
             <PopoverContent align="end" className="w-auto">

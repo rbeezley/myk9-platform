@@ -91,7 +91,7 @@ export const ClubsListView: React.FC<ClubsListViewProps> = ({ clubs, clubShowCou
               {row.original.typeLabel}
             </Badge>
           ) : (
-            <span className="text-muted-foreground">-</span>
+            <span className="text-muted-foreground">—</span>
           ),
       },
       {
@@ -102,7 +102,7 @@ export const ClubsListView: React.FC<ClubsListViewProps> = ({ clubs, clubShowCou
           exportValue: (club: unknown) => (club as ClubTableRow).location,
         },
         cell: ({ row }) => (
-          <span className="text-muted-foreground">{row.original.location || '-'}</span>
+          <span className="text-muted-foreground">{row.original.location || '—'}</span>
         ),
       },
       {

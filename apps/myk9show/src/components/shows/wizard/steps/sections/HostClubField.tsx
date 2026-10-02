@@ -101,9 +101,7 @@ export const HostClubField: React.FC<HostClubFieldProps> = ({
         >
           <Link to={createClubHref}>
             <Plus className="mr-2 h-4 w-4" />
-            {selectedClub
-              ? 'Not the right club? Create New Club'
-              : 'Club not listed? Create New Club'}
+            {selectedClub ? 'Not the right club? Add Club' : 'Club not listed? Add Club'}
           </Link>
         </Button>
       </div>

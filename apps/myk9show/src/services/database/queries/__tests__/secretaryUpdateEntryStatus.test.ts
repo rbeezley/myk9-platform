@@ -128,6 +128,8 @@ describe('secretaryEntryQueries — entry_status updates', () => {
         status: 'scratched',
         checkInStatus: 'pulled',
         check_in_status: 'pulled',
+        withdrawalReasonCode: null,
+        withdrawal_reason_code: null,
       });
     });
   });

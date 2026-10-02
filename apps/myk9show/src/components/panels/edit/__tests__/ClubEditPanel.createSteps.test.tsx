@@ -1,5 +1,5 @@
 /**
- * MYK9-891: after Basic Info the Create Club footer read as "ready to submit"
+ * MYK9-891: after Basic Info the Add Club footer read as "ready to submit"
  * while the required Contact fields were still blank. The panel now marks each
  * section's status, offers "Next: <section>", and a failed submit lands on the
  * first section with a missing field, focusing that field.
@@ -65,7 +65,7 @@ describe('ClubEditPanel create mode — guided sections', () => {
     await user.click(screen.getByRole('button', { name: /Next: Premium/ }));
     expect(tab(/^Premium/)).toHaveAttribute('aria-selected', 'true');
     expect(screen.queryByRole('button', { name: /Next:/ })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Create Club' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add Club' })).toBeInTheDocument();
   });
 
   it('a failed submit from Basic Info lands on Contact, focuses the first missing field and flags the tab', async () => {
@@ -73,7 +73,7 @@ describe('ClubEditPanel create mode — guided sections', () => {
     const onSave = renderCreate();
     await user.type(await screen.findByRole('textbox', { name: /Club Name/ }), 'Heartland');
 
-    await user.click(screen.getByRole('button', { name: 'Create Club' }));
+    await user.click(screen.getByRole('button', { name: 'Add Club' }));
 
     await waitFor(() => expect(tab(/^Contact/)).toHaveAttribute('aria-selected', 'true'));
     await waitFor(() => expect(document.activeElement).toHaveAttribute('id', 'email'));
@@ -97,7 +97,7 @@ describe('ClubEditPanel create mode — guided sections', () => {
     await user.type(screen.getByRole('textbox', { name: /State/ }), 'NE');
     await user.type(screen.getByRole('textbox', { name: /ZIP Code/ }), '68102');
 
-    await user.click(screen.getByRole('button', { name: 'Create Club' }));
+    await user.click(screen.getByRole('button', { name: 'Add Club' }));
 
     await waitFor(() => expect(onSave).toHaveBeenCalledTimes(1));
     expect(onSave.mock.calls[0]?.[0]).toMatchObject({
@@ -147,7 +147,7 @@ describe('ClubEditPanel create mode — guided sections', () => {
     await user.type(await screen.findByRole('textbox', { name: /Club Name/ }), 'Heartland');
     expect(screen.getByTestId('club-tab-status-contact')).not.toHaveAttribute('data-error');
 
-    await user.click(screen.getByRole('button', { name: 'Create Club' }));
+    await user.click(screen.getByRole('button', { name: 'Add Club' }));
     await waitFor(() =>
       expect(screen.getByTestId('club-tab-status-contact')).toHaveAttribute('data-error', 'true')
     );
@@ -195,13 +195,13 @@ describe('ClubEditPanel create mode — guided sections', () => {
     expect(tabsListMounts).toHaveBeenCalledTimes(2);
   });
 
-  it('makes Next primary and Create Club secondary until nothing later is outstanding', async () => {
+  it('makes Next primary and Add Club secondary until nothing later is outstanding', async () => {
     const user = userEvent.setup();
     renderCreate();
     await user.type(await screen.findByRole('textbox', { name: /Club Name/ }), 'Heartland');
 
     const next = () => screen.getByRole('button', { name: /Next: Contact/ });
-    const create = () => screen.getByRole('button', { name: 'Create Club' });
+    const create = () => screen.getByRole('button', { name: 'Add Club' });
     expect(next()).toHaveAttribute('data-variant', 'default');
     expect(create()).toHaveAttribute('data-variant', 'outline');
     expect(create()).toBeEnabled();
@@ -217,7 +217,7 @@ describe('ClubEditPanel create mode — guided sections', () => {
     await user.type(screen.getByRole('textbox', { name: /State/ }), 'NE');
     await user.type(screen.getByRole('textbox', { name: /ZIP Code/ }), '68102');
 
-    // Everything required is resolved: Create Club is the primary action again.
+    // Everything required is resolved: Add Club is the primary action again.
     expect(create()).toHaveAttribute('data-variant', 'default');
     expect(screen.getByRole('button', { name: /Next: Premium/ })).toHaveAttribute(
       'data-variant',

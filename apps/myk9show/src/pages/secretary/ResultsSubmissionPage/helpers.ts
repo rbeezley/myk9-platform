@@ -110,7 +110,7 @@ export function buildAKCSubmissionReadiness(input: {
           : `${unmappable.length} classes are not set up as AKC classes: ${named}.`,
       details:
         // The exact gesture, named after the buttons and headings the secretary
-        // will actually read: ClassManagementPage's "Add Classes" opens the show
+        // will actually read: Setup → Classes' "Add Classes" opens the show
         // wizard's add-classes mode (MYK9-899), whose class step has a
         // "Select Template for <trial>" card, then "Select Classes for <trial>".
         `Delete ${unmappable.length === 1 ? 'this class' : 'these classes'}, then add ` +

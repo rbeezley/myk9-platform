@@ -19,7 +19,7 @@ const MIGRATED_FILES = [
   'components/shows/ShowInfoCard.tsx',
   'components/clubs/ClubDetails/UpcomingShowsTab.tsx',
   'components/clubs/ClubDetails/PastShowsTab.tsx',
-  'components/shows/tabs/ClassesTab.tsx',
+  'components/shows/tabs/classInfo.ts',
   'features/show-map/showMapTree.ts',
 ];
 

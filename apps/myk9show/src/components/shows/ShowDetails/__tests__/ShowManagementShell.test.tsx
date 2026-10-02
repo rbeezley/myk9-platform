@@ -314,7 +314,7 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('probe-url')).toHaveTextContent('/shows/show-1/show-day');
   });
 
-  it('keeps Setup lit on Class Management, which is reached from it', () => {
+  it('keeps Setup lit on the retired Class Management URL, which redirects into it', () => {
     renderShell({ activeManagementSection: 'classes' }, '/shows/show-1/classes/trial-1');
     expect(screen.getByRole('tab', { name: /^Setup/ })).toHaveAttribute('aria-selected', 'true');
   });

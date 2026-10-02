@@ -54,36 +54,12 @@ export function sourceIdFromShowMapNodeId(nodeId: string, expectedType: string):
   return sourceId.length > 0 ? sourceId : null;
 }
 
-export function entryIdFromShowMapNodeId(nodeId: string): string | null {
-  return (
-    sourceIdFromShowMapNodeId(nodeId, 'entry') ?? sourceIdFromShowMapNodeId(nodeId, 'dog-entry')
-  );
-}
-
 export async function markShowMapEntryCheckedIn(entryId: string): Promise<void> {
   await updateReplicatedCheckInStatus(entryId, 'checked-in');
 }
 
 function readEntryStatus(entry: Awaited<ReturnType<typeof replicatedEntriesTable.getEntryById>>) {
   return entry?.entryStatus ?? entry?.entry_status ?? entry?.status ?? null;
-}
-
-export async function approveShowMapEntry(entryId: string): Promise<string | null> {
-  const entry = await replicatedEntriesTable.getEntryById(entryId);
-  const mutationId = await replicatedEntriesTable.updateEntryStatus(entryId, 'confirmed');
-
-  await logReplicatedEntryStatusChange({
-    entryId,
-    fromStatus: readEntryStatus(entry),
-    toStatus: 'confirmed',
-    action: 'approve_entry',
-  });
-
-  return mutationId;
-}
-
-export async function bulkApproveShowMapEntries(entryIds: string[]): Promise<(string | null)[]> {
-  return Promise.all(entryIds.map(entryId => approveShowMapEntry(entryId)));
 }
 
 export async function markShowMapClassStarted(classId: string): Promise<void> {
@@ -100,6 +76,7 @@ export interface ShowMapScratchUndoInput {
   previousCheckInStatus: string | null;
   previousSpecialRequests: string | null;
   previousWithdrawalReason: string | null;
+  previousWithdrawalReasonCode: string | null;
 }
 
 export async function scratchShowMapEntry(
@@ -116,6 +93,9 @@ export async function scratchShowMapEntry(
   const previousWithdrawalReason =
     currentEntry?.withdrawalReason ?? currentEntry?.withdrawal_reason ?? null;
 
+  const previousWithdrawalReasonCode =
+    currentEntry?.withdrawalReasonCode ?? currentEntry?.withdrawal_reason_code ?? null;
+
   const trimmed = reason?.trim();
   await updateReplicatedDayOfScratch(entryId, trimmed || 'Marked no-show from Show Map');
 
@@ -125,6 +105,7 @@ export async function scratchShowMapEntry(
     previousCheckInStatus,
     previousSpecialRequests,
     previousWithdrawalReason,
+    previousWithdrawalReasonCode,
   };
 }
 
@@ -147,6 +128,8 @@ export async function undoShowMapScratch(input: ShowMapScratchUndoInput): Promis
     special_requests: input.previousSpecialRequests,
     withdrawalReason: input.previousWithdrawalReason,
     withdrawal_reason: input.previousWithdrawalReason,
+    withdrawalReasonCode: input.previousWithdrawalReasonCode,
+    withdrawal_reason_code: input.previousWithdrawalReasonCode,
   });
 
   await logReplicatedEntryStatusChange({

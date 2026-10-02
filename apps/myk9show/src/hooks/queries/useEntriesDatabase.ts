@@ -63,7 +63,7 @@ export const useVerifiedEntriesByShowQuery = (showId: string, enabled = true) =>
 /**
  * Canonical staff read for show-scoped entry work.
  *
- * Show Desk, Class Details, Class Management, and Entry Management must share
+ * Show Desk, Class Details, Setup → Classes, and Entry Management must share
  * this cache identity so a cold per-show replica cannot look populated on one
  * surface and confidently empty on another.
  */

@@ -15,13 +15,6 @@ import type { TablesUpdate } from '@/types/supabase';
 import { getReplicatedDayOfEntries } from './replicatedReadAdapter';
 
 /**
- * Day-of pull — re-exported from the canonical lifecycle seam. The lifecycle
- * version writes `entry_status='scratched'`, `check_in_status='pulled'`,
- * `withdrawal_reason`, and `special_requests`, and emits an audit log entry.
- */
-export { pullEntryDayOf as pullEntry } from '../entries/lifecycle';
-
-/**
  * Get entries eligible for pulling (accepted but not yet run)
  */
 export const getPullableEntries = async (showId: string) => {

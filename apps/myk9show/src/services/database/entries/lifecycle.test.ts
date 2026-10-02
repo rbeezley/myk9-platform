@@ -7,7 +7,6 @@ import {
   removeEntryAsManager,
   restoreEntryStatus,
   pullEntry,
-  pullEntryDayOf,
   setEntryLifecycleStatus,
   transitionEntryLifecycle,
   waitlistEntry,
@@ -187,43 +186,6 @@ describe('Entry lifecycle transitions', () => {
       undefined,
       'in_season'
     );
-  });
-
-  describe('scratch-request workflow', () => {
-    it('pullEntryDayOf writes pulled side-effects and logs the transition', async () => {
-      await pullEntryDayOf('entry-1', 'Handler injury');
-
-      const write = supabaseUpdates[0];
-      expect(write).toBeDefined();
-      expect(write!.payload).toEqual(
-        expect.objectContaining({
-          entry_status: 'scratched',
-          check_in_status: 'pulled',
-          withdrawal_reason: 'Handler injury',
-          special_requests: 'Handler injury',
-        })
-      );
-      expect(auditLog).toHaveBeenCalledWith(
-        expect.objectContaining({
-          metadata: expect.objectContaining({
-            action: 'scratch_entry_day_of',
-            reason: 'Handler injury',
-            checkInStatus: 'pulled',
-          }),
-        })
-      );
-    });
-
-    it('pullEntryDayOf falls back to "Pulled day-of" when no reason is supplied', async () => {
-      await pullEntryDayOf('entry-1');
-
-      expect(supabaseUpdates[0]!.payload).toEqual(
-        expect.objectContaining({
-          withdrawal_reason: 'Pulled day-of',
-          special_requests: 'Pulled day-of',
-        })
-      );
-    });
   });
 
   describe('move-up workflow', () => {

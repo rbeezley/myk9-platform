@@ -78,7 +78,7 @@ describe('CreateExhibitorDialog', () => {
     await user.type(screen.getByLabelText(/State/i), 'TX');
     await user.type(screen.getByLabelText(/ZIP Code/i), '75001');
 
-    await user.click(screen.getByRole('button', { name: 'Create Exhibitor' }));
+    await user.click(screen.getByRole('button', { name: 'Add Person' }));
 
     await waitFor(() => {
       expect(createUserMock).toHaveBeenCalledWith({
@@ -138,7 +138,7 @@ describe('CreateExhibitorDialog', () => {
     await user.type(screen.getByLabelText(/State/i), 'TX');
     await user.type(screen.getByLabelText(/ZIP Code/i), '75001');
 
-    await user.click(screen.getByRole('button', { name: 'Create Exhibitor' }));
+    await user.click(screen.getByRole('button', { name: 'Add Person' }));
 
     // A paper form with no email or phone must not be blocked by validation
     // that invents contact data the secretary was never given (MYK9-832 #5).
@@ -203,7 +203,7 @@ describe('CreateExhibitorDialog', () => {
     expect(await screen.findByText('Tera Handler')).toBeInTheDocument();
     expect(screen.queryByText('John Smith')).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Use This User' }));
+    await user.click(screen.getByRole('button', { name: 'Use This Person' }));
 
     expect(onDuplicateSelected).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'person-existing-1' })
@@ -234,7 +234,7 @@ describe('CreateExhibitorDialog', () => {
     await user.type(screen.getByLabelText(/State/i), 'TX');
     await user.type(screen.getByLabelText(/ZIP Code/i), '75001');
 
-    await user.click(screen.getByRole('button', { name: 'Create Exhibitor' }));
+    await user.click(screen.getByRole('button', { name: 'Add Person' }));
 
     await waitFor(() => {
       expect(mockCreatePerson).toHaveBeenCalledWith({
@@ -261,5 +261,17 @@ describe('CreateExhibitorDialog', () => {
         { pendingMutationIds: ['person-mutation-1'] }
       );
     });
+  });
+});
+
+describe('CreateExhibitorDialog wording', () => {
+  it('is titled and submitted as "Add Person"', () => {
+    render(<CreateExhibitorDialog open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
+    expect(screen.getByRole('heading', { name: 'Add Person' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add Person' })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /new person/i })).toBeInTheDocument();
+    // No "exhibitor" or "create/creating" anywhere in what the secretary reads.
+    const copy = screen.getByRole('dialog').textContent ?? '';
+    expect(copy).not.toMatch(/exhibitor|\bcreat(e|ing)\b/i);
   });
 });

@@ -84,7 +84,7 @@ export const APP_SHORTCUTS: readonly AppShortcutMeta[] = [
   { id: 'create-dog', label: 'Add Dog', keys: 'C D', category: 'actions', commandId: 'add-dog' },
   {
     id: 'create-person',
-    label: 'Create Person',
+    label: 'Add Person',
     keys: 'C P',
     category: 'actions',
     commandId: 'add-person',

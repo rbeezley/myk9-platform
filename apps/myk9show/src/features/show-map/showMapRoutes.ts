@@ -1,3 +1,4 @@
+import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { getPaperScoringClassHref } from '@/pages/scoring/scoringRoutes';
 import type { ReportScope } from '@/lib/reports/types';
 
@@ -31,4 +32,16 @@ export function getShowMapReportHref({ reportId, scope }: ShowMapReportHrefInput
   if (scope.kind === 'trial' || scope.kind === 'class') params.set('trialId', scope.trialId);
   if (scope.kind === 'class') params.set('classId', scope.classId);
   return `/shows/${scope.showId}/reports?${params.toString()}`;
+}
+
+/**
+ * MYK9-919: Entry Management is the one home of approve. Show Map's "Review
+ * entry" links to its pending review queue (the same destination as the Show
+ * Desk's "entries waiting for review" signal) instead of approving in place, so
+ * every approve runs the canonical write, audit and decision-email prompt.
+ */
+export function getShowMapReviewEntryHref(showId: string | null | undefined): string | undefined {
+  return showId
+    ? getEntryManagementHref({ showId, attention: 'pending', mode: 'review' })
+    : undefined;
 }

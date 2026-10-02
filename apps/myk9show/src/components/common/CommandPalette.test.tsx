@@ -143,7 +143,7 @@ describe('CommandPalette role scoping', () => {
 
     expect(screen.queryByText('Users')).not.toBeInTheDocument();
     expect(screen.queryByText('Alice Handler')).not.toBeInTheDocument();
-    expect(screen.queryByText('Add New User')).not.toBeInTheDocument();
+    expect(screen.queryByText('Add Person')).not.toBeInTheDocument();
     expect(screen.getByText('Add Dog')).toBeInTheDocument();
   });
 
@@ -154,7 +154,7 @@ describe('CommandPalette role scoping', () => {
 
     expect(screen.getByText('Users')).toBeInTheDocument();
     expect(screen.getByText('Alice Handler')).toBeInTheDocument();
-    expect(screen.getByText('Add New User')).toBeInTheDocument();
+    expect(screen.getByText('Add Person')).toBeInTheDocument();
     expect(screen.getByText('Add Show')).toBeInTheDocument();
   });
 
@@ -164,7 +164,7 @@ describe('CommandPalette role scoping', () => {
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
     expect(screen.getByText('Users')).toBeInTheDocument();
-    expect(screen.getByText('Add New User')).toBeInTheDocument();
+    expect(screen.getByText('Add Person')).toBeInTheDocument();
   });
 });
 
@@ -193,22 +193,13 @@ describe('CommandPalette contextual commands', () => {
     expect(screen.queryByText('Open Entry Management — all entries')).not.toBeInTheDocument();
   });
 
-  it('omits Class Management commands when the registered context has no trialId', () => {
-    mockAuth([UserRole.SECRETARY]);
-    registerEntryManagementContext();
-
-    render(<CommandPalette open onOpenChange={vi.fn()} />);
-
-    expect(screen.queryByText(/Open Class Management/)).not.toBeInTheDocument();
-  });
-
-  it('includes the Class Management command when the context has a trialId', () => {
+  it('offers no Class Management command: the page is now Setup → Classes', () => {
     mockAuth([UserRole.SECRETARY]);
     registerEntryManagementContext({ trialId: 'trial-1' });
 
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
-    expect(screen.getByText('Open Class Management — current trial')).toBeInTheDocument();
+    expect(screen.queryByText(/Open Class Management/)).not.toBeInTheDocument();
   });
 });
 
@@ -219,7 +210,7 @@ describe('CommandPalette Entry Management context', () => {
 
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
-    const actionTitles = ['Add Dog', 'Add New User', 'Add Show'];
+    const actionTitles = ['Add Dog', 'Add Person', 'Add Show'];
     for (const title of actionTitles) {
       expect(screen.getByText(title)).toBeInTheDocument();
     }
@@ -360,12 +351,12 @@ describe('CommandPalette shortcuts-help footer (task 3.1/3.2)', () => {
 });
 
 describe('CommandPalette permission suppression role matrix (task 3.2)', () => {
-  it('exhibitor: no Users nav, no people data, no Add New User action', () => {
+  it('exhibitor: no Users nav, no people data, no Add Person action', () => {
     mockAuth([UserRole.EXHIBITOR]);
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
     expect(screen.queryByText('Users')).not.toBeInTheDocument();
-    expect(screen.queryByText('Add New User')).not.toBeInTheDocument();
+    expect(screen.queryByText('Add Person')).not.toBeInTheDocument();
     expect(screen.queryByText('Add Show')).not.toBeInTheDocument();
   });
 
@@ -374,7 +365,7 @@ describe('CommandPalette permission suppression role matrix (task 3.2)', () => {
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
     expect(screen.getByText('Users')).toBeInTheDocument();
-    expect(screen.queryByText('Add New User')).not.toBeInTheDocument();
+    expect(screen.queryByText('Add Person')).not.toBeInTheDocument();
     expect(screen.queryByText('Add Show')).not.toBeInTheDocument();
   });
 
@@ -383,6 +374,6 @@ describe('CommandPalette permission suppression role matrix (task 3.2)', () => {
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
     expect(screen.getByText('Users')).toBeInTheDocument();
-    expect(screen.getByText('Add New User')).toBeInTheDocument();
+    expect(screen.getByText('Add Person')).toBeInTheDocument();
   });
 });

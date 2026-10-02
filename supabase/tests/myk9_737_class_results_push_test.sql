@@ -101,9 +101,9 @@ VALUES
   -- C: default show, held for manual release by a class override.
   ('00000000-0000-0000-0000-0000007370c1', '00000000-0000-0000-0000-000000737003',
    'MYK9-737 C held', 'in_progress', false, NULL, NULL),
-  -- D: default show, running, soft-deleted.
+  -- D: default show, running, soft-deleted (after its entry is inserted, below).
   ('00000000-0000-0000-0000-0000007370d1', '00000000-0000-0000-0000-000000737003',
-   'MYK9-737 D deleted', 'in_progress', false, NULL, now()),
+   'MYK9-737 D deleted', 'in_progress', false, NULL, NULL),
   -- E: default show, running (health arm: a stalled first attempt).
   ('00000000-0000-0000-0000-0000007370e1', '00000000-0000-0000-0000-000000737003',
    'MYK9-737 E stalled', 'in_progress', false, NULL, NULL),
@@ -176,6 +176,13 @@ VALUES
   ('00000000-0000-0000-0000-00000073e092', NULL, '00000000-0000-0000-0000-000000737091',
    '00000000-0000-0000-0000-000000737002', '00000000-0000-0000-0000-000000737003', NULL,
    'absent', 'no-status', true, 'absent', now());
+
+-- Class D is soft-deleted only now, after its entry exists: since MYK9-923 an
+-- entry cannot be inserted under a deleted class. A direct UPDATE (no cascade)
+-- leaves D's scored entry live, so arm 4 still proves that the deleted CLASS,
+-- not a missing result, is what keeps it from queueing.
+UPDATE public.classes SET deleted_at = now()
+WHERE id = '00000000-0000-0000-0000-0000007370d1';
 
 -- Inserting entries must not have moved any fixture class.
 DO $$

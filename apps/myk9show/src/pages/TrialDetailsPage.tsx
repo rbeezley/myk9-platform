@@ -14,7 +14,7 @@ import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClass
 import { TabsContent } from '@/components/ui/tabs';
 import { FinancialSummary } from '@/components/secretary/FinancialSummary';
 import { TrialEntriesTable } from '@/components/trials/TrialDetail/TrialEntriesTable';
-import { TrialClass } from '@/components/trials/types/trial.types';
+import type { TrialClass } from '@/components/trials/types/trial.types';
 import {
   Calendar,
   LayoutDashboard,
@@ -50,6 +50,20 @@ import { StatusIcon, getStatusDescriptor } from '@/components/status';
 const AUTHENTICATED_TAB_IDS = ['overview', 'entries'] as const;
 const MANAGEMENT_TAB_IDS = ['financials'] as const;
 const TAB_IDS = [...AUTHENTICATED_TAB_IDS, ...MANAGEMENT_TAB_IDS] as const;
+
+/**
+ * Hero title and subtitle for a trial: the shared trial label, with the trial number added as a
+ * subtitle only when it says something the title does not.
+ */
+function trialHeroText(
+  name: string | null | undefined,
+  trialNumber: string | number | null | undefined
+) {
+  const title = formatTrialLabel({ name, trialNumber });
+  const number =
+    trialNumber === null || trialNumber === undefined ? '' : String(trialNumber).trim();
+  return { title, subtitle: number !== '' && number !== title.trim() ? number : undefined };
+}
 
 const TrialDetailsPage: React.FC = () => {
   const { trialId, showId } = useParams<{ trialId: string; showId?: string }>();
@@ -222,12 +236,18 @@ const TrialDetailsPage: React.FC = () => {
     };
   }, [classCount, currentTrial?.status, trialClassSummary]);
 
+  const trialHero = useMemo(
+    () => trialHeroText(currentTrial?.name, currentTrial?.trialNumber),
+    [currentTrial?.name, currentTrial?.trialNumber]
+  );
+
   // Metadata for DetailHero — must be before early returns (rules of hooks)
+  const trialDate = currentTrial?.trialDate;
   const heroMetadata = useMemo(() => {
     const items = [];
-    if (currentTrial?.trialDate) {
+    if (trialDate) {
       items.push({
-        label: new Date(currentTrial.trialDate + 'T00:00:00').toLocaleDateString(),
+        label: new Date(trialDate + 'T00:00:00').toLocaleDateString(),
         icon: <Calendar className="h-4 w-4" />,
       });
     }
@@ -237,7 +257,7 @@ const TrialDetailsPage: React.FC = () => {
       });
     }
     return items;
-  }, [currentTrial?.trialDate, classCount]);
+  }, [trialDate, classCount]);
 
   // Prev/next navigation for hero
   const prevNextNav = (
@@ -317,18 +337,11 @@ const TrialDetailsPage: React.FC = () => {
     <PageShell>
       {trialWithClasses ? (
         <>
-          <PageHeader
-            breadcrumbs={breadcrumbs}
-            title={currentTrial?.type || currentTrial?.trialNumber || 'Trial'}
-          />
+          <PageHeader breadcrumbs={breadcrumbs} title={trialHero.title} />
 
           <DetailHero
-            name={currentTrial?.type || currentTrial?.trialNumber || 'Trial'}
-            subtitle={
-              currentTrial?.type !== currentTrial?.trialNumber
-                ? currentTrial?.trialNumber
-                : undefined
-            }
+            name={trialHero.title}
+            subtitle={trialHero.subtitle}
             metadata={heroMetadata}
             badges={statusBadge ? [statusBadge] : []}
             secondaryActions={

@@ -297,11 +297,11 @@ describe('secretary show phase redirects', () => {
     });
   });
 
-  it('redirects legacy trial class management to the show workbench class route', async () => {
+  it('redirects legacy trial class management to the show Setup → Classes tab', async () => {
     renderSecretaryRoutes('/trials/trial-1/classes');
 
     expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
-      '/shows/show-1/classes/trial-1'
+      '/shows/show-1/setup?section=classes'
     );
   });
 
@@ -318,7 +318,7 @@ describe('secretary show phase redirects', () => {
       trialQueryMock.resolve?.();
     });
     expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
-      '/shows/show-1/classes/trial-1'
+      '/shows/show-1/setup?section=classes'
     );
     expect(screen.queryByTestId('secretary-dashboard')).not.toBeInTheDocument();
   });

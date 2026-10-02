@@ -63,7 +63,7 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
               />
             </FormField>
 
-            <FormField label="Day of Show Fee" fieldId="dayOfShowFee" error={dayOfShowFeeError}>
+            <FormField label="Day-of-Show Fee" fieldId="dayOfShowFee" error={dayOfShowFeeError}>
               <CurrencyInput
                 id="dayOfShowFee"
                 value={data.dayOfShowFee}

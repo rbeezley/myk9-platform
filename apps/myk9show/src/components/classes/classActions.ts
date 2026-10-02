@@ -1,5 +1,5 @@
 /**
- * Class Management's shared action catalog — one `EntityAction` definition per
+ * Setup → Classes' shared action catalog — one `EntityAction` definition per
  * status transition plus delete, projected into `RowActionMenu` for both the
  * per-row "3-dot" menu and the bulk-selection menu via `toRowActions`/`toBulkActions`.
  *

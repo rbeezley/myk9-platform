@@ -118,3 +118,11 @@ describe('ShowEditBasicInfoTab status dropdown (MYK9-579)', () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe('ShowEditBasicInfoTab — club label', () => {
+  it('calls the club field "Host Club"', () => {
+    renderTab('draft');
+    expect(screen.getByText('Host Club')).toBeInTheDocument();
+    expect(screen.queryByText('Hosting Club')).not.toBeInTheDocument();
+  });
+});

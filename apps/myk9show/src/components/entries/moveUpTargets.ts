@@ -2,17 +2,18 @@
  * Move-up target eligibility for the Entries Management approve dialog.
  *
  * The same-element + strictly-higher-level rule lives in
- * `@/utils/moveUpEligibility` so every move-up surface (Entries Management,
+ * `@/utils/moveUpTargetSelection` so every move-up surface (Entries Management,
  * Show Map, Show Desk) and the write-path mutation share one definition. This
- * module just adds the capacity filter and the ClassWithCapacity shape.
+ * module just binds it to the ClassWithCapacity shape.
  */
-import { isEligibleMoveUpTarget } from '@/utils/moveUpEligibility';
+import { selectMoveUpTargetClasses } from '@/utils/moveUpTargetSelection';
 import type { ClassWithCapacity } from '@/services/database/day-of-operations';
 import type { RegistryId } from '@/features/registries';
 
 /**
  * Given the full set of classes for a show and the id of the request's current
  * class, return the classes a dog may legitimately move up into:
+ *   - in the same trial as the current class (MYK9-920)
  *   - same element as the current class
  *   - a strictly higher level than the current class
  *   - with at least one available spot
@@ -28,16 +29,10 @@ export function getAvailableMoveUpTargets(
   currentClassId: string | null,
   registryId: RegistryId = 'AKC'
 ): ClassWithCapacity[] {
-  if (!currentClassId) return [];
-
-  const current = classes.find(cls => cls.id === currentClassId);
-  if (!current) return [];
-
-  return classes.filter(cls => {
-    if (cls.id === currentClassId) return false;
-    if (cls.available_spots <= 0) return false;
-    return isEligibleMoveUpTarget(current, cls, registryId);
-  });
+  // Entries Management has always hidden full classes; that stays its own view rule.
+  return selectMoveUpTargetClasses(classes, currentClassId, registryId, cls => cls.available_spots)
+    .filter(target => !target.isFull)
+    .map(target => target.cls);
 }
 
 /**

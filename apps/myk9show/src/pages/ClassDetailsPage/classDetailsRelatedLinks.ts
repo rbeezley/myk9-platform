@@ -1,4 +1,4 @@
-import { getClassManagementHref } from '@/components/classes/classManagementFilters';
+import { getSetupClassesHref } from '@/pages/secretary/showSetupSections';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import type { RelatedContextLinkItem } from '@/components/common/RelatedContextLinks';
 
@@ -11,8 +11,8 @@ export interface ClassDetailsRelatedLinksInput {
 
 /**
  * Related-context links for Class Details, beyond what the existing
- * Show -> Trial -> Class breadcrumb already covers: Class Management
- * (scoped to the trial) and Entry Management (scoped to this class).
+ * Show -> Trial -> Class breadcrumb already covers: Setup -> Classes
+ * (scoped to the trial, this class focused) and Entry Management (scoped to this class).
  *
  * Staff-gated. Only renders a link when every ID it needs is already
  * loaded — no link is built from a partially-loaded class.
@@ -29,13 +29,14 @@ export function buildClassDetailsRelatedLinks({
 
   const items: RelatedContextLinkItem[] = [];
 
-  if (trialId) {
-    items.push({
-      key: 'class-management',
-      label: 'Class Management',
-      href: getClassManagementHref({ showId, trialId }),
-    });
-  }
+  items.push({
+    key: 'class-management',
+    label: 'Setup → Classes',
+    href: getSetupClassesHref(showId, undefined, {
+      trialId: trialId ?? undefined,
+      focusClassId: classId ?? undefined,
+    }),
+  });
 
   if (classId) {
     items.push({

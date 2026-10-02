@@ -313,8 +313,8 @@ export function SecretaryCockpitFocusedClass({
         </section>
 
         {/* F29b phase 2a: run order had a three-hop dead end -- the run sheet sends you
-            to Show Desk, Show Desk's "Run order and class setup" link lands on Manage
-            Classes, and Manage Classes has no run-order control. This is that control.
+            to Show Desk, Show Desk's "Run order and class setup" link lands on class
+            setup, and class setup has no run-order control. This is that control.
             It sits OUTSIDE the Entries section on purpose: that section is gated on
             `entryRows`, which is filtered by STRANDED_ENTRY_ACTION_IDS, and auto-sort
             availability has nothing to do with which actions are stranded. Nesting it

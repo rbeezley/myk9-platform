@@ -287,6 +287,12 @@ export function isRetryableError(error: unknown): boolean {
       return false;
     }
 
+    // MYK9-923: the entries trigger refuses an entry under a deleted class,
+    // trial or show. The parent stays deleted, so a retry can never land.
+    if (code === 'MK014') {
+      return false;
+    }
+
     // RLS / insufficient-privilege denials need a role/permission fix.
     if (isAuthorizationError(error)) {
       return false;

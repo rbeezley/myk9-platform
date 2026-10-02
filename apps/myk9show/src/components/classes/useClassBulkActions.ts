@@ -1,5 +1,5 @@
 /**
- * Bulk-status dispatch for Class Management. (Bulk delete is the shared
+ * Bulk-status dispatch for Setup → Classes. (Bulk delete is the shared
  * `DeleteObjectDialog`, opened by `ClassBulkActionsBar`.)
  *
  * STATUS change (MYK9-59) dispatches `applyManualClassStatus` per class — the

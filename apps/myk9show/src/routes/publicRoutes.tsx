@@ -10,6 +10,7 @@
  */
 
 import { LegacyShowClassCreateRedirect } from './LegacyClassCreateRedirect';
+import { LegacyShowClassManagementRedirect } from './LegacyClassManagementRedirect';
 import { lazy, type ReactNode } from 'react';
 import { Route, Navigate, useParams } from 'react-router-dom';
 import { BarChart3, ClipboardList } from 'lucide-react';
@@ -22,7 +23,6 @@ import { ClassDetailsRedirect } from './ClassDetailsRedirect';
 import { MyEntriesRedirect } from './MyEntriesRedirect';
 import { ComingSoonPage, type ComingSoonPageProps } from '@/components/common/ComingSoonPage';
 import { features } from '@/config/features';
-import DogDetailPage from '@/pages/DogDetailPage';
 import ShowDetailsPrototype from '@/pages/ShowDetailsPrototype';
 import {
   SHOW_MANAGEMENT_SECTIONS,
@@ -44,6 +44,7 @@ function featurePage(enabled: boolean, page: ReactNode, coming: ComingSoonPagePr
 
 // Public page lazy imports
 const BrowseDogsPage = lazy(() => import('@/pages/BrowseDogsPage'));
+const DogDetailPage = lazy(() => import('@/pages/DogDetailPage'));
 const BrowseClubsPage = lazy(() => import('@/pages/BrowseClubsPage'));
 const ClubDetailPage = lazy(() => import('@/pages/ClubDetailPage'));
 const ShowDetailsPage = lazy(() => import('@/pages/ShowDetailsPage'));
@@ -56,9 +57,6 @@ const ShowWorkbenchShowDeskPage = lazy(() =>
   import('@/pages/secretary/ShowWorkbenchShowDeskPage').then(m => ({
     default: m.ShowWorkbenchShowDeskPage,
   }))
-);
-const ClassManagementPage = lazy(() =>
-  import('@/pages/secretary/ClassManagementPage').then(m => ({ default: m.ClassManagementPage }))
 );
 const EntryManagementPage = lazy(() => import('@/pages/secretary/EntryManagementPage'));
 const ReportsPage = lazy(() => import('@/pages/secretary/ReportsPage'));
@@ -204,16 +202,8 @@ export const PublicRoutes = () => (
           element={<LegacyShowSectionRedirect target={target} />}
         />
       ))}
-      <Route
-        path="classes/:trialId"
-        element={
-          <ShowManagementSectionRoute>
-            <SuspenseWrapper>
-              <ClassManagementPage />
-            </SuspenseWrapper>
-          </ShowManagementSectionRoute>
-        }
-      />
+      {/* Retired Class Management page (MYK9-924): its judge and status controls live on Setup → Classes. */}
+      <Route path="classes/:trialId" element={<LegacyShowClassManagementRedirect />} />
       {/* Retired Class Creation page (MYK9-899): bounces into the wizard's add-classes mode. */}
       <Route path="classes/:trialId/create" element={<LegacyShowClassCreateRedirect />} />
     </Route>

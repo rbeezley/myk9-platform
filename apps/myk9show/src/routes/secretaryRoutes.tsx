@@ -8,6 +8,7 @@
 import { lazy, useEffect } from 'react';
 import { Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import { LegacyTrialClassCreateRedirect } from './LegacyClassCreateRedirect';
+import { LegacyTrialClassManagementRedirect } from './LegacyClassManagementRedirect';
 import { ProtectedRoute } from '@/context/AuthContext';
 import { PageTransition } from '@/components/common/PageTransition';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
@@ -17,8 +18,6 @@ import { SuspenseWrapper } from './utils/SuspenseWrapper';
 import { useShowStore } from '@/store/showStore';
 import { useToastStore } from '@/store/toastStore';
 import { LegacySecretaryShowRedirect } from '@/routes/showRouteRedirects';
-import { ErrorState } from '@/components/common/ErrorState';
-import { useTrialRedirectTarget } from './useTrialRedirectTarget';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 
 // Secretary Dashboard (replaces old PipelineDashboard)
@@ -220,37 +219,6 @@ const SecretaryIndexRedirect = () => {
 
   return <Navigate to={showId ? `/shows/${showId}/setup` : '/secretary/dashboard'} replace />;
 };
-
-const LegacyClassManagementRedirect = () => {
-  const { trialId } = useParams<{ trialId: string }>();
-
-  if (!trialId) {
-    return <Navigate to="/secretary/dashboard" replace />;
-  }
-
-  return <LegacyClassManagementRedirectForTrial key={trialId} trialId={trialId} />;
-};
-
-function LegacyClassManagementRedirectForTrial({ trialId }: { trialId: string }) {
-  const target = useTrialRedirectTarget(trialId);
-
-  if (target.status === 'found') {
-    return <Navigate to={`/shows/${target.showId}/classes/${trialId}`} replace />;
-  }
-  if (target.status === 'error') {
-    return (
-      <ErrorState
-        message="We couldn't load this trial. Check your connection and try again."
-        onRetry={target.retry}
-        headingLevel={1}
-      />
-    );
-  }
-  if (target.status === 'absent') {
-    return <Navigate to="/secretary/dashboard" replace />;
-  }
-  return <LoadingSkeleton variant="cards" count={2} />;
-}
 
 /** All secretary routes — rendered inside UnifiedAppLayout */
 export const SecretaryRoutes = () => (
@@ -464,7 +432,7 @@ export const SecretaryRoutes = () => (
       path="/trials/:trialId/classes"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <LegacyClassManagementRedirect />
+          <LegacyTrialClassManagementRedirect />
         </ProtectedRoute>
       }
     />

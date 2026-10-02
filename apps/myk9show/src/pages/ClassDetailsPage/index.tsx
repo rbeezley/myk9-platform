@@ -214,7 +214,7 @@ const ClassDetailsPage: React.FC = () => {
         )}
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="Class options">
               <MoreVertical className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
@@ -222,7 +222,7 @@ const ClassDetailsPage: React.FC = () => {
             {canManageClass && parentShow?.id && (
               <DropdownMenuItem onClick={() => navigate(`/shows/${parentShow.id}/show-day`)}>
                 <LayoutDashboard className="mr-2 h-4 w-4" />
-                Open in Workbench
+                Show Day
               </DropdownMenuItem>
             )}
             <DropdownMenuItem onClick={() => setRequirementsPanelOpen(true)}>

@@ -1,5 +1,5 @@
 /**
- * ClassBulkActionsBar — Class Management's multi-select bar, on the shared
+ * ClassBulkActionsBar — Setup → Classes' multi-select bar, on the shared
  * list-toolkit `FloatingBulkBar` (MYK9-811) instead of a bespoke fixed
  * bottom-0 div — consistent floating position/styling with every other kit
  * surface, and its own in-flow spacer replaces `useRegisterActionBar`'s
@@ -18,13 +18,22 @@
 import { useState } from 'react';
 import { RowActionMenu, toBulkActions } from '@/components/ui/RowActionMenu';
 import { FloatingBulkBar } from '@/components/list-toolkit';
-import { DeleteObjectDialog, type DeleteTargetContext } from '@/features/delete';
+import { DeleteObjectDialog, classDeleteDetail, type DeleteTargetContext } from '@/features/delete';
 import { classActions, type ClassActionItem, type ClassActionHandlers } from './classActions';
 
 const CLASS_NOUN = ['class', 'classes'] as const;
 
+/** A selected class, with what the delete dialog names it by when the page knows it. */
+export type ClassBarItem = ClassActionItem & {
+  /** The class's own trial, so Undo re-syncs the right trial even when the selection spans trials. */
+  trialId?: string | undefined;
+  level?: string | null | undefined;
+  element?: string | null | undefined;
+  trialLabel?: string | undefined;
+};
+
 interface ClassBulkActionsBarProps {
-  selectedClasses: ClassActionItem[];
+  selectedClasses: ClassBarItem[];
   bulkBusy: boolean;
   onBulkStatusChange: (
     classIds: string[],
@@ -32,7 +41,7 @@ interface ClassBulkActionsBarProps {
     onFullSuccess?: () => void
   ) => Promise<boolean>;
   onClear: () => void;
-  /** The trial the classes are in, for the delete dialog's identifying detail. */
+  /** Fallback trial label for classes that carry none of their own. */
   trialLabel?: string | undefined;
   /** Where the classes sit, for the delete's refresh and its Withdraw / Pull link. */
   context?: DeleteTargetContext | undefined;
@@ -96,12 +105,24 @@ export function ClassBulkActionsBar({
           kind="class"
           targets={selectedClasses
             .filter(cls => confirmDeleteIds.includes(cls.id))
-            .map(cls => ({
-              id: cls.id,
-              name: cls.name || 'Untitled class',
-              ...(trialLabel ? { detail: trialLabel } : {}),
-              context: { ...context, classId: cls.id },
-            }))}
+            .map(cls => {
+              const detail =
+                classDeleteDetail({
+                  level: cls.level,
+                  element: cls.element,
+                  trialLabel: cls.trialLabel || trialLabel,
+                }) ?? trialLabel;
+              return {
+                id: cls.id,
+                name: cls.name || 'Untitled class',
+                ...(detail ? { detail } : {}),
+                context: {
+                  ...context,
+                  ...(cls.trialId ? { trialId: cls.trialId } : {}),
+                  classId: cls.id,
+                },
+              };
+            })}
           onDeleted={() => onClear()}
         />
       )}

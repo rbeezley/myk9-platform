@@ -8,11 +8,10 @@ import { buildSecretaryCockpitSnapshot } from './cockpit/buildSecretaryCockpitSn
 import { buildClassPaperworkMap } from './cockpit/buildClassPaperworkMap';
 import { useShowPaperworkPrints } from './cockpit/useShowPaperworkPrints';
 import { ShowDeskToolsSheet, type ShowDeskToolSection } from './ShowDeskToolsSheet';
-import { ShowMapEntryReviewSheet } from './ShowMapEntryReviewSheet';
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
 import { ShowMapMoveUpDialog } from './ShowMapMoveUpDialog';
 import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
-import { buildMoveUpTargets } from './buildMoveUpTargets';
+import { useMoveUpTargets } from './useMoveUpTargets';
 import { computeShowDeskPendingSignals } from './showDeskPendingSignals';
 import { computeShowDeskStatus } from './showDeskStatus';
 import { getRankedActions } from './showMapActions';
@@ -80,10 +79,6 @@ export default function ShowDeskPanel({
     messageAction,
     closeMessageDialog,
     confirmMessageHandler,
-    reviewAction,
-    closeReviewSheet,
-    confirmReviewApprove,
-    isApprovingReview,
     isExecuting,
   } = executor;
 
@@ -171,12 +166,14 @@ export default function ShowDeskPanel({
   );
 
   const registryId = getTrialRegistry(trials[0]).id;
-  const moveUpTargets = buildMoveUpTargets(classes, moveUpAction?.classId, registryId);
+  const {
+    targets: moveUpTargets,
+    capacityState: moveUpCapacityState,
+    capacityIsStale: moveUpCapacityIsStale,
+  } = useMoveUpTargets(show.id, classes, moveUpAction?.classId, registryId);
   const moveUpCurrentClass = moveUpAction?.classId
     ? tree.nodesById[`class:${moveUpAction.classId}`]
     : undefined;
-  const reviewNode = reviewAction ? tree.nodesById[reviewAction.nodeId] : undefined;
-  const reviewParent = reviewNode?.parentId ? tree.nodesById[reviewNode.parentId] : undefined;
 
   return (
     <div className="space-y-4">
@@ -225,6 +222,8 @@ export default function ShowDeskPanel({
             node={moveUpAction ? tree.nodesById[moveUpAction.nodeId] : undefined}
             currentClass={moveUpCurrentClass}
             targets={moveUpTargets}
+            capacityState={moveUpCapacityState}
+            capacityIsStale={moveUpCapacityIsStale}
             isSubmitting={isExecuting}
             onOpenChange={open => !open && closeMoveUpDialog()}
             onConfirm={confirmMoveUp}
@@ -245,18 +244,6 @@ export default function ShowDeskPanel({
             isSubmitting={isExecuting}
             onOpenChange={open => !open && closeMessageDialog()}
             onConfirm={body => confirmMessageHandler({ body })}
-          />
-          <ShowMapEntryReviewSheet
-            open={Boolean(reviewAction)}
-            onClose={closeReviewSheet}
-            onApprove={confirmReviewApprove}
-            isApproving={isApprovingReview}
-            entryDisplay={reviewNode?.entryDisplay}
-            parentClassLabel={
-              reviewNode?.type === 'dog-entry'
-                ? reviewNode.dogEntryDisplay?.classLabel
-                : reviewParent?.label
-            }
           />
         </>
       )}

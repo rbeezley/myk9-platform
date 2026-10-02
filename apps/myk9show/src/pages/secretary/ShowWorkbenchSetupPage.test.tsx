@@ -10,7 +10,30 @@ vi.mock('@/components/shows/tabs/TrialsTab', () => ({
   TrialsTab: () => <div data-testid="trials-view" />,
 }));
 vi.mock('@/components/shows/tabs/ClassesTab', () => ({
-  ClassesTab: () => <div data-testid="classes-view" />,
+  ClassesTab: ({
+    viewId,
+    trialId,
+    focusClassId,
+    onViewChange,
+    onTrialChange,
+  }: {
+    viewId: string;
+    trialId: string | null;
+    focusClassId: string | null;
+    onViewChange: (viewId: string) => void;
+    onTrialChange: (trialId: string) => void;
+  }) => (
+    <div
+      data-testid="classes-view"
+      data-view={viewId}
+      data-trial={trialId ?? ''}
+      data-focus={focusClassId ?? ''}
+    >
+      <button onClick={() => onViewChange('completed')}>pick completed</button>
+      <button onClick={() => onViewChange('all')}>pick all</button>
+      <button onClick={() => onTrialChange('t2')}>pick trial 2</button>
+    </div>
+  ),
 }));
 vi.mock('@/features/show-map/ShowMapTab', () => ({
   default: ({ canManageShow }: { canManageShow: boolean }) => (
@@ -96,6 +119,74 @@ describe('ShowWorkbenchSetupPage', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Show Map' }));
     expect(await screen.findByTestId('map-view')).toBeInTheDocument();
     expect(screen.getByTestId('probe-url').textContent).toBe('/shows/show-1/setup?section=map');
+  });
+
+  describe('Classes section URL state', () => {
+    it('reads the view, trial and focus from the URL', async () => {
+      renderSetup('/shows/show-1/setup?section=classes&view=pending&trialId=t1&focus=c9');
+      const classes = await screen.findByTestId('classes-view');
+      expect(classes).toHaveAttribute('data-view', 'pending');
+      expect(classes).toHaveAttribute('data-trial', 't1');
+      expect(classes).toHaveAttribute('data-focus', 'c9');
+    });
+
+    it('reads an unknown view as All', async () => {
+      renderSetup('/shows/show-1/setup?section=classes&view=nonsense');
+      expect(await screen.findByTestId('classes-view')).toHaveAttribute('data-view', 'all');
+    });
+
+    it('writes a picked view into the URL, drops the one-shot focus, and keeps the rest', async () => {
+      renderSetup('/shows/show-1/setup?section=classes&trialId=t1&focus=c9');
+      await userEvent.click(await screen.findByRole('button', { name: 'pick completed' }));
+      expect(screen.getByTestId('probe-url').textContent).toBe(
+        '/shows/show-1/setup?section=classes&trialId=t1&view=completed'
+      );
+      expect(screen.getByTestId('classes-view')).toHaveAttribute('data-view', 'completed');
+    });
+
+    it('takes the view out of the URL when All is picked', async () => {
+      renderSetup('/shows/show-1/setup?section=classes&view=completed');
+      await userEvent.click(await screen.findByRole('button', { name: 'pick all' }));
+      expect(screen.getByTestId('probe-url').textContent).toBe(
+        '/shows/show-1/setup?section=classes'
+      );
+    });
+
+    it('writes a picked trial into the URL', async () => {
+      renderSetup('/shows/show-1/setup?section=classes');
+      await userEvent.click(await screen.findByRole('button', { name: 'pick trial 2' }));
+      expect(screen.getByTestId('probe-url').textContent).toBe(
+        '/shows/show-1/setup?section=classes&trialId=t2'
+      );
+    });
+
+    it('does not carry the Classes view, trial or focus to the other sections', async () => {
+      renderSetup(
+        '/shows/show-1/setup?section=classes&view=completed&trialId=t1&focus=c9&returnTo=%2Fshows%2Fshow-1%2Fshow-day'
+      );
+      await userEvent.click(await screen.findByRole('button', { name: 'Trials' }));
+      expect(screen.getByTestId('probe-url').textContent).toBe(
+        '/shows/show-1/setup?returnTo=%2Fshows%2Fshow-1%2Fshow-day'
+      );
+      await userEvent.click(screen.getByRole('button', { name: 'Classes' }));
+      expect(await screen.findByTestId('classes-view')).toHaveAttribute('data-view', 'all');
+    });
+  });
+
+  describe('Show Desk return link', () => {
+    it('offers the way back when the Show Desk sent the secretary here', async () => {
+      renderSetup(
+        '/shows/show-1/setup?section=classes&returnTo=%2Fshows%2Fshow-1%2Fshow-day%3Ffilter%3Din-progress'
+      );
+      const link = await screen.findByRole('link', { name: /back to show desk/i });
+      expect(link).toHaveAttribute('href', '/shows/show-1/show-day?filter=in-progress');
+    });
+
+    it('offers nothing when the visit did not come from the Show Desk', async () => {
+      renderSetup('/shows/show-1/setup?section=classes');
+      await screen.findByTestId('classes-view');
+      expect(screen.queryByRole('link', { name: /back to show desk/i })).toBeNull();
+    });
   });
 
   it('hides Show Map, and never selects it, when the viewer cannot see one', async () => {

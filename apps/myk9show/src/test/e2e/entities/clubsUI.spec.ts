@@ -5,7 +5,7 @@ import { signInAsAdmin, signInAsExhibitor } from '../helpers/testUsers';
  * Comprehensive UI test for the Clubs section.
  *
  * Unlike clubCRUD.spec.ts (which calls service functions via page.evaluate),
- * this exercises the actual UI: New Club dialog, search/filter, view toggle,
+ * this exercises the actual UI: Add Club dialog, search/filter, view toggle,
  * detail page tabs, members, branding, edit, and delete.
  *
  * Strategy:
@@ -44,8 +44,8 @@ async function gotoClubsBrowse(page: Page) {
 }
 
 async function openCreateClubDialog(page: Page) {
-  await page.getByRole('button', { name: 'New Club' }).click();
-  await expect(page.getByRole('dialog', { name: 'Create Club' })).toBeVisible();
+  await page.getByRole('button', { name: 'Add Club' }).click();
+  await expect(page.getByRole('dialog', { name: 'Add Club' })).toBeVisible();
 }
 
 interface ClubFormData {
@@ -118,7 +118,7 @@ async function submitCreateClub(page: Page, expectedName: string) {
     { timeout: 15000 }
   );
 
-  await page.getByRole('button', { name: 'Create Club', exact: true }).click();
+  await page.getByRole('button', { name: 'Add Club', exact: true }).click();
   await page.waitForURL(/\/clubs\/[0-9a-f-]{36}$/, { timeout: 15000 });
 
   const insertResponse = await insertResponsePromise.catch(() => null);
@@ -141,7 +141,7 @@ test.describe('Clubs UI — Browse Page', () => {
 
   test('loads club list with header and toolbar', async ({ page }) => {
     await gotoClubsBrowse(page);
-    await expect(page.getByRole('button', { name: 'New Club' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add Club' })).toBeVisible();
     await expect(page.getByRole('textbox', { name: /Search clubs by name/ })).toBeVisible();
     // The Club Type filter was cut (MYK9-906); target view toggles by exact
     // aria-label ("Table view" not "Table", which also matches "Reset table view").
@@ -256,8 +256,8 @@ test.describe('Clubs UI — Create', () => {
   test('form validation — empty submit keeps Create button disabled', async ({ page }) => {
     await gotoClubsBrowse(page);
     await openCreateClubDialog(page);
-    // Required: Club Name. Without it, Create Club is disabled.
-    await expect(page.getByRole('button', { name: 'Create Club', exact: true })).toBeDisabled();
+    // Required: Club Name. Without it, Add Club is disabled.
+    await expect(page.getByRole('button', { name: 'Add Club', exact: true })).toBeDisabled();
     await page.getByRole('button', { name: 'Cancel' }).click();
   });
 });
@@ -324,7 +324,7 @@ test.describe('Clubs UI — Non-admin permissions', () => {
 
   test('exhibitor cannot create, edit branding, or delete clubs', async ({ page }) => {
     await page.goto('/clubs', { waitUntil: 'networkidle' });
-    await expect(page.getByRole('button', { name: 'New Club' })).not.toBeVisible();
+    await expect(page.getByRole('button', { name: 'Add Club' })).not.toBeVisible();
 
     await page
       .getByRole('link', { name: new RegExp(CLUB_C_NAME) })

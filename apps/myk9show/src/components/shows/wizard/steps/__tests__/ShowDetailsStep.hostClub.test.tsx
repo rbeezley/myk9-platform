@@ -152,8 +152,6 @@ describe('ShowDetailsStep opened from an existing club (MYK9-889)', () => {
     renderStep('?clubId=c1');
     expect(screen.getByText(/Hosting club: Summit K9 Masters/)).toBeInTheDocument();
     expect(screen.getByText(/nothing to create/i)).toBeInTheDocument();
-    expect(
-      screen.getByRole('link', { name: /not the right club\? create new club/i })
-    ).toBeVisible();
+    expect(screen.getByRole('link', { name: /not the right club\? add club/i })).toBeVisible();
   });
 });

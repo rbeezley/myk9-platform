@@ -132,6 +132,44 @@ describe('ShowMapRowActionsMenu', () => {
     expect(separator.compareDocumentPosition(firstAllItem)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   });
 
+  it('Review entry links to the Entries pending review queue and never approves in place (MYK9-919)', async () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [classes[0]!],
+      entries: [
+        {
+          id: 'entry-submitted',
+          class_id: 'class-active',
+          dog: { call_name: 'Bella' },
+          entry_status: 'submitted',
+        },
+      ],
+    });
+    const entryNode = tree.nodesById['entry:entry-submitted'];
+    if (!entryNode) throw new Error('Expected submitted entry node');
+    const onAction = vi.fn();
+    const onNavigate = vi.fn();
+
+    const { user } = render(
+      <ShowMapRowActionsMenu
+        node={entryNode}
+        tree={tree}
+        onAction={onAction}
+        onNavigate={onNavigate}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: /actions for/i }));
+    await screen.findByRole('menu');
+    const [reviewItem] = screen.getAllByRole('menuitem', { name: /review entry/i });
+    if (!reviewItem) throw new Error('Expected a Review entry menu item');
+    await user.click(reviewItem);
+
+    expect(onNavigate).toHaveBeenCalledWith('/shows/show-1/entries?mode=review&attention=pending');
+    expect(onAction).not.toHaveBeenCalled();
+  });
+
   it('keeps disabled actions out of Recommended but exposes their disabled reason', async () => {
     const tree = buildShowMapTree({
       show,

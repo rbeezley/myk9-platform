@@ -1,7 +1,7 @@
 /**
  * ShowEditForm - Internal form component for ShowEditPanel
  *
- * Renders the tabbed form (Basic Info, Personnel, Judges, Fees)
+ * Renders the tabbed form (Basic Info, Officials, Judges, Fees)
  * using the EditPanel context for data and update callbacks.
  */
 
@@ -125,9 +125,9 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
     return Array.from(showTypesSet).sort();
   }, [templates]);
 
-  // Judges qualified for this show's organization. The RULE is shared with Manage
+  // Judges qualified for this show's organization. The RULE is shared with Setup →
   // Classes (`isQualifiedForOrganization`) rather than restated here -- the two had
-  // already drifted once, and Manage Classes lost the organization test entirely. The
+  // already drifted once, and the class judge picker lost the organization test entirely. The
   // projection differs (this tab also renders each judge's qualification detail), so
   // only the predicate is shared.
   const availableJudges = useMemo(() => {
@@ -177,7 +177,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
           </TabsTrigger>
           <TabsTrigger value="personnel" className="gap-2 rounded-lg transition-all duration-300">
             <Users className="h-4 w-4" />
-            Personnel
+            Officials
           </TabsTrigger>
           <TabsTrigger value="judges" className="gap-2 rounded-lg transition-all duration-300">
             <UserCheck className="h-4 w-4" />
@@ -189,7 +189,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
           </TabsTrigger>
           <TabsTrigger value="premium" className="gap-2 rounded-lg transition-all duration-300">
             <FileText className="h-4 w-4" />
-            Experience
+            Premium
           </TabsTrigger>
         </TabsList>
 
@@ -214,7 +214,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Users className="h-5 w-5" />
-                Key Personnel
+                Officials
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">

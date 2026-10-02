@@ -84,7 +84,7 @@ Late-entry mode does **not** relax the entry-close deadline. That exemption is R
 | Secretary dashboard, no shows yet    | Add your first show                                  |
 | Show page — Trials tab, Show Map     | Add Trial                                            |
 | Show page — Classes tab              | Add Classes                                          |
-| Trial page, Class Management         | Add Classes (opens the show wizard add-classes mode) |
+| Trial page, Setup → Classes          | Add Classes (opens the show wizard add-classes mode) |
 | Dogs page, person profile            | Add Dog                                              |
 | Add-dog panel — title, save button   | Add Dog                                              |
 | Command menu                         | Add Dog / Add Show                                   |

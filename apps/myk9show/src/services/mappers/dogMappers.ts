@@ -185,6 +185,7 @@ export const mapReplicatedDogToDbRow = (
     sex?: string | undefined;
     dateOfBirth?: string | undefined;
     ownerId?: string | undefined;
+    coOwnerId?: string | undefined;
     height?: string | undefined;
     weight?: string | undefined;
     color?: string | undefined;
@@ -225,7 +226,7 @@ export const mapReplicatedDogToDbRow = (
       status: 'status',
       deceased_date: 'deceasedDate',
     }),
-    co_owner_id: null,
+    co_owner_id: d.coOwnerId ?? null,
     deleted_at: d.deletedAt ?? d.deleted_at ?? null,
     owner: options?.owner ?? null,
     registrations: options?.registrations ?? [],
@@ -296,6 +297,7 @@ export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
     weight: dbDog.weight ? String(dbDog.weight) : undefined,
     height: dbDog.height ? String(dbDog.height) : undefined,
     ownerId: dbDog.owner_id as string,
+    ...(typeof dbDog.co_owner_id === 'string' ? { coOwnerId: dbDog.co_owner_id } : {}),
     ownerName: dbDog.owner
       ? `${(dbDog.owner as Record<string, unknown>).first_name} ${(dbDog.owner as Record<string, unknown>).last_name}`.trim()
       : '',

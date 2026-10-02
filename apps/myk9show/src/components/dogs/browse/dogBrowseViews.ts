@@ -2,7 +2,7 @@
  * The Dogs browse page's built-in views (list-toolkit rollout, MYK9-796):
  * All / Active / Retired / Deceased, replacing the (until now unfiltered)
  * `DogStatus` column with a `ListViewTabs` row. Same convention as
- * `pages/admin/userListViews.ts` and `components/classes/classManagementViews.ts`:
+ * `pages/admin/userListViews.ts` and `components/shows/tabs/classesTabViews.ts`:
  * a view is active only when every OTHER filter matches its preset exactly
  * (search excluded — it narrows within a view), and each view's count is
  * taken over the whole roster with search blanked, independent of the

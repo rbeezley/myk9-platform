@@ -2,11 +2,11 @@
  * Which judges a show may pick from.
  *
  * Extracted because two surfaces had drifted apart. `ShowEditForm`'s Judges tab required
- * an active qualification **for the show's organization**; `ClassManagementPage` required
- * only that the qualification be active, with no organization test at all — so on an AKC
- * show its per-class judge dropdown offered UKC- and ASCA-only judges, who cannot
- * lawfully judge it and would then appear on the show's judge roster and its registry
- * paperwork.
+ * an active qualification **for the show's organization**; the Class Management page (since
+ * merged into Setup → Classes) required only that the qualification be active, with no
+ * organization test at all — so on an AKC show its per-class judge dropdown offered UKC- and
+ * ASCA-only judges, who cannot lawfully judge it and would then appear on the show's judge
+ * roster and its registry paperwork.
  *
  * The roster is not a separate list: `showMappers` derives `show.assignedJudges` from
  * every `judge_assignments` row for the show, so assigning a judge to a class is what

@@ -12,10 +12,12 @@ interface SetupRowActionsMenuProps {
   busy?: boolean;
   /** Another row's action is being prepared: disabled, but this row's own label is kept. */
   locked?: boolean;
+  /** Row-specific actions listed above Edit / Delete (a class's waitlist link and status). */
+  extraActions?: RowAction[];
 }
 
 /**
- * Edit / Delete for one Setup row (MYK9-900). The row itself still opens the
+ * Edit / Delete (plus any row-specific `extraActions`) for one Setup row (MYK9-900). The row itself still opens the
  * detail page; this menu opens the existing edit panel and delete dialog for
  * that row. The wrapper stops click AND keydown: the row/card navigates on
  * both, and React events bubble out of the menu's portal into the row.
@@ -27,9 +29,18 @@ export function SetupRowActionsMenu({
   onDelete,
   busy = false,
   locked = false,
+  extraActions = [],
 }: SetupRowActionsMenuProps) {
+  const hasExtras = extraActions.some(action => !action.hidden);
   const actions: RowAction[] = [
-    { id: 'edit', label: `Edit ${subject}`, icon: <Pencil />, onSelect: onEdit },
+    ...extraActions,
+    {
+      id: 'edit',
+      label: `Edit ${subject}`,
+      icon: <Pencil />,
+      onSelect: onEdit,
+      separatorBefore: hasExtras,
+    },
     {
       id: 'delete',
       label: `Delete ${subject}`,

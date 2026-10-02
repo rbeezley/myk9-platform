@@ -86,3 +86,12 @@ describe('ReviewStep scope', () => {
     expect(screen.getByText(/show name is required/i)).toBeInTheDocument();
   });
 });
+
+describe('ReviewStep official labels', () => {
+  it('labels the chairman line "Chair"', () => {
+    render(<ReviewStep trialView={trialView} onCreateShow={vi.fn()} />);
+
+    expect(screen.getByText('Chair')).toBeInTheDocument();
+    expect(screen.queryByText('Chairman')).not.toBeInTheDocument();
+  });
+});

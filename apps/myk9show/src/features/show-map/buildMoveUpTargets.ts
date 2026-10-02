@@ -1,15 +1,12 @@
 /**
- * Shared move-up target builder for the Show Map and Show Desk surfaces.
- *
- * Both surfaces previously built targets as "every class except the current
- * one", which offered the same semantically invalid options (lower levels,
- * cross-element) that Entries Management was fixed to exclude. This builder
- * applies the canonical same-element + strictly-higher-level rule from
- * `@/utils/moveUpEligibility` so all three surfaces agree.
+ * Move-up target builder for the Show Map and Show Desk surfaces. The rule
+ * itself (same trial, same element, strictly higher level, free seat) lives in
+ * `@/utils/moveUpTargetSelection`, shared with Entries Management; this adds
+ * the Show Map labels and trial detail.
  */
 import { formatTrialLabel } from '@myk9/core';
 import { buildClassDisambiguator, buildFullClassLabel } from '@/features/_shared/classLabel';
-import { isEligibleMoveUpTarget } from '@/utils/moveUpEligibility';
+import { selectMoveUpTargetClasses } from '@/utils/moveUpTargetSelection';
 import type { ShowMapMoveUpTarget } from './ShowMapMoveUpDialog';
 import type { BuildShowMapTreeInput } from './showMapTypes';
 import type { RegistryId } from '@/features/registries';
@@ -20,19 +17,25 @@ import type { RegistryId } from '@/features/registries';
  * UKC/ASCA-only levels (Superior/Elite, Open) are recognized. See
  * isEligibleMoveUpTarget's NOT COVERED note re: ASCA's standalone Champion class.
  *
- * Restricted to the entry's OWN trial (MYK9-825): a UKC show's two same-day
- * trials both offer the same element/level ladder, so without this a class in
- * trial 2 read as a valid, indistinguishable-looking move-up target for an
- * entry in trial 1, and confirming it silently moved the entry across trials.
+ * Restricted to the entry's OWN trial (MYK9-825, now enforced inside
+ * isEligibleMoveUpTarget itself, MYK9-920). When `availableSpotsByClassId` is
+ * supplied, a class with no free seat stays listed, flagged `isFull`. Capacity
+ * is advisory: the write path refuses a full class either way.
  */
 export function buildMoveUpTargets(
   classes: BuildShowMapTreeInput['classes'],
   currentClassId: string | undefined,
-  registryId: RegistryId = 'AKC'
+  registryId: RegistryId = 'AKC',
+  availableSpotsByClassId?: ReadonlyMap<string, number>
 ): ShowMapMoveUpTarget[] {
   const current = currentClassId ? classes.find(cls => cls.id === currentClassId) : undefined;
   if (!current) return [];
 
+  // The one shared rule (MYK9-920), identical to the Entries Management approve
+  // dialog: same trial, same element, higher level
+  const targets = selectMoveUpTargetClasses(classes, current.id, registryId, cls =>
+    availableSpotsByClassId?.get(cls.id)
+  );
   const sameTrial = classes.filter(cls => cls.trialId === current.trialId);
   // Scoped to the entry's own trial: a same-shaped class in another trial is
   // never a collision to disambiguate, it's excluded entirely by the filter above.
@@ -45,9 +48,8 @@ export function buildMoveUpTargets(
     }))
   );
 
-  return sameTrial
-    .filter(cls => cls.id !== currentClassId && isEligibleMoveUpTarget(current, cls, registryId))
-    .map(cls => {
+  return targets
+    .map(({ cls, isFull }) => {
       const identity = {
         name: cls.name,
         element: cls.element,
@@ -56,6 +58,7 @@ export function buildMoveUpTargets(
       };
       return {
         id: cls.id,
+        isFull,
         label: buildFullClassLabel(identity, disambiguate(identity), cls.name),
         detail: [
           cls.trialDate,

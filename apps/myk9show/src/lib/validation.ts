@@ -70,7 +70,7 @@ export const dogSchemas = {
     name: commonValidations.name,
     callName: commonValidations.optionalString,
     breed: commonValidations.required,
-    gender: z.enum(['Male', 'Female'], { message: 'Please select a gender' }),
+    gender: z.enum(['Male', 'Female'], { message: 'Please select a sex' }),
     dateOfBirth: commonValidations.date.optional(),
     color: commonValidations.optionalString,
     weight: commonValidations.optionalString,

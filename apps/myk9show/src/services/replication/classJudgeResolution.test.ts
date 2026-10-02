@@ -26,6 +26,7 @@ vi.mock('@/services/database/supabaseClient', async importOriginal => {
 });
 
 import type { ReplicatedClass } from './ReplicatedClassesTable';
+import { mergeTrialClassData, replicatedToTrialClass } from '@/store/trial-store-helpers';
 
 const { ReplicatedClassesTable, rowToClass } = await import('./ReplicatedClassesTable');
 const { resolveJudgeNamesForClassRows } = await import('./resolveClassJudgeNames');
@@ -263,5 +264,59 @@ describe('MYK9-494 P3 — name and person id come from the same assignment', () 
 
     mockRpc.mockRejectedValue(new Error('offline'));
     await expect(fetchShowJudgeNameParts(SHOW_ID)).resolves.toBeNull();
+  });
+});
+
+// The trial store treats `judgeResolved === true` with no judge as "the assignment was removed"
+// (`mergeTrialClassData`). That is only safe if a row can never be resolved when the lookup did
+// not run, so chain the real producer into the real merge.
+describe('judgeResolved -> mergeTrialClassData, end to end', () => {
+  const held = replicatedToTrialClass({
+    id: CLASS_ID,
+    name: 'Interior Advanced',
+    judgeId: JUDGE_ID,
+    judgeName: 'Test Judge',
+  } as ReplicatedClass);
+  const unassignedRow = { ...CLASS_ROW, judge_assignments: [] };
+
+  async function syncUnassigned(): Promise<ReplicatedClass> {
+    const judgeByClassId = await resolveJudgeNamesForClassRows([unassignedRow]);
+    return rowToClass({
+      ...unassignedRow,
+      _judge: judgeByClassId.get(CLASS_ID) ?? null,
+      _judgeResolved: judgeByClassId.has(CLASS_ID),
+    } as never);
+  }
+
+  it('keeps the held judge when the lookup failed, even for a row with no assignment', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'network' } });
+    const row = await syncUnassigned();
+
+    expect(row.judgeResolved).toBe(false);
+    expect(mergeTrialClassData(row, held).judgeId).toBe(JUDGE_ID);
+  });
+
+  it('keeps the held judge when the trial lookup failed and the RPC never ran', async () => {
+    mockFrom.mockImplementation(() => {
+      const builder: Record<string, unknown> = {};
+      for (const method of ['select', 'in']) builder[method] = () => builder;
+      builder.then = (onFulfilled: unknown) =>
+        Promise.resolve({ data: null, error: { message: 'trials down' } }).then(
+          onFulfilled as never
+        );
+      return builder;
+    });
+    const row = await syncUnassigned();
+
+    expect(row.judgeResolved).toBe(false);
+    expect(mergeTrialClassData(row, held).judgeId).toBe(JUDGE_ID);
+  });
+
+  it('clears the judge when the lookup ran and found none', async () => {
+    mockRpc.mockResolvedValue({ data: [], error: null });
+    const row = await syncUnassigned();
+
+    expect(row.judgeResolved).toBe(true);
+    expect(mergeTrialClassData(row, held).judgeId).toBe('');
   });
 });

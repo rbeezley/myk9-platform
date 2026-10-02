@@ -15,7 +15,8 @@ begin;
 insert into public.clubs (id, name)
 values ('00000000-0000-0000-0000-000000561001', 'MYK9-561 Club');
 
--- A: open (no close date). B: entries closed ten days ago. C: soft-deleted.
+-- A: open (no close date). B: entries closed ten days ago. C: soft-deleted
+-- (after its entry is inserted, below).
 -- D: the close day ITSELF, which is the only value that separates the guard's
 -- `>` from a `>=` — ten days out, `>`, `>=` and a timezone-dropped variant all
 -- agree, so show B alone cannot pin the boundary.
@@ -34,7 +35,7 @@ values
     current_date, current_date, '00000000-0000-0000-0000-000000561001', 'published',
     ((current_date - 10)::text || ' 00:00:00+00')::timestamptz, null),
   ('00000000-0000-0000-0000-000000561005', 'MYK9-561 Show C', 'AKC',
-    current_date, current_date, '00000000-0000-0000-0000-000000561001', 'published', null, now()),
+    current_date, current_date, '00000000-0000-0000-0000-000000561001', 'published', null, null),
   ('00000000-0000-0000-0000-000000561008', 'MYK9-561 Show D', 'AKC',
     current_date, current_date, '00000000-0000-0000-0000-000000561001', 'published',
     (current_date::text || ' 00:00:00+00')::timestamptz, null);
@@ -115,6 +116,12 @@ values
     '00000000-0000-0000-0000-000000561153', '00000000-0000-0000-0000-000000561008',
     '00000000-0000-0000-0000-000000561009', '00000000-0000-0000-0000-000000561013',
     'confirmed', 'pending', 25, 'no-status', '8"');
+
+-- Show C is soft-deleted only now, after its entry exists: since MYK9-923 an
+-- entry cannot be inserted under a deleted show. A direct UPDATE (no cascade)
+-- leaves the entry live, which is the state the guard below is about.
+update public.shows set deleted_at = now()
+ where id = '00000000-0000-0000-0000-000000561005';
 
 -- 561132 paid: the deliberate difference from withdraw_own_entry — changing a
 -- height moves no money, so a PAID entry stays editable by its owner.

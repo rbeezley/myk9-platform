@@ -464,7 +464,12 @@ const BrowseShowsPage: React.FC = () => {
             same destination differently — and with the "Entered as exhibitor" tab
             gone this page is unambiguously about finding, not about what you
             already entered. */}
-          <PageHeader breadcrumbs={breadcrumbs} title="Find Shows" actions={actionButtons} />
+          <PageHeader
+            breadcrumbs={breadcrumbs}
+            title="Find Shows"
+            actions={actionButtons}
+            showTitle
+          />
 
           <div className="flex flex-col gap-3">
             {isManagingTab && managingViews.length > 0 && (

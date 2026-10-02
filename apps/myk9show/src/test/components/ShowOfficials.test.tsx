@@ -78,7 +78,7 @@ describe('ShowOfficials', () => {
   it('renders role labels', () => {
     mockData = fullData;
     renderWithQuery(<ShowOfficials showId="show-1" />);
-    expect(screen.getByText('Chairman')).toBeInTheDocument();
+    expect(screen.getByText('Chair')).toBeInTheDocument();
     expect(screen.getByText('Secretary')).toBeInTheDocument();
   });
 

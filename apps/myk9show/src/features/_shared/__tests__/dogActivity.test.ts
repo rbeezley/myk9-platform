@@ -5,6 +5,7 @@ import {
   getEntryDisplayDate,
   type DogActivityEntry,
 } from '../dogActivity';
+import { deriveResultReleaseDisplay } from '@/features/result-card';
 
 const TODAY = new Date(2026, 6, 2);
 
@@ -315,6 +316,54 @@ describe('per-trial dates on a multi-day show (MYK9-806)', () => {
 
     expect(activity.recentResults.map(e => e.id)).toEqual(['day-1-scored']);
     expect(activity.upcoming.map(e => e.id)).toEqual(['day-5-upcoming']);
+  });
+
+  it('lists today’s scored run as a preliminary result and tomorrow’s unscored run as upcoming on a show still running (MYK9-869)', () => {
+    // Show runs Sep 27-29; today is Sep 28. The show has neither ended nor is
+    // it all ahead, so a gate keyed on the show's start OR end date would
+    // misfile one of these two rows.
+    const today = new Date(2026, 8, 28);
+    const runningShow = {
+      id: 'dec1a55e-0000-0000-0000-000000000004',
+      name: 'Heartland Scent Work Week',
+      start_date: '2026-09-27',
+      end_date: '2026-09-29',
+    };
+    const activity = deriveDogActivity(
+      [
+        entry({
+          id: '831292ce-e4ec-4dba-9d4c-b76eb88890aa',
+          show: runningShow,
+          trial: { date: '2026-09-28', timezone: 'America/Chicago' },
+          entry_status: 'completed',
+          is_scored: true,
+          result_status: 'qualified',
+          search_time_seconds: 43.21,
+          final_placement: 1,
+          class_results_released_at: null,
+        }),
+        entry({
+          id: '4c1b7f0e-6a52-4d1e-9a3b-2f6d8e5c7a10',
+          show: runningShow,
+          trial: { date: '2026-09-29', timezone: 'America/Chicago' },
+        }),
+      ],
+      today
+    );
+
+    expect(activity.recentResults.map(e => e.id)).toEqual([
+      '831292ce-e4ec-4dba-9d4c-b76eb88890aa',
+    ]);
+    expect(activity.upcoming.map(e => e.id)).toEqual(['4c1b7f0e-6a52-4d1e-9a3b-2f6d8e5c7a10']);
+    // Placement stays withheld and the row reads preliminary until released.
+    const [scored] = activity.recentResults;
+    const release = deriveResultReleaseDisplay({
+      resultsReleasedAt: scored.class_results_released_at,
+      resultStatus: scored.result_status,
+      finalPlacement: Number(scored.final_placement),
+    });
+    expect(release.isPreliminary).toBe(true);
+    expect(release.placement).toBeUndefined();
   });
 
   it('does not throw when a trial carries an invalid, non-empty IANA timezone string', () => {

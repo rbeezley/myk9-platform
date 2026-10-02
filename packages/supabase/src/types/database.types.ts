@@ -12766,6 +12766,7 @@ export type Database = {
         }[]
       }
       custom_access_token_hook: { Args: { event: Json }; Returns: Json }
+      delete_preview: { Args: { p_id: string; p_scope: string }; Returns: Json }
       delete_show_managed_person: {
         Args: { p_person_id: string; p_show_id: string }
         Returns: undefined

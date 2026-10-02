@@ -247,6 +247,48 @@ describe('CompactScheduleTimeline', () => {
     });
   });
 
+  describe('entry breakdown for managers (MYK9-943)', () => {
+    const breakdowns = new Map([['class-1', { entered: 6, pending: 2 }]]);
+
+    it('shows entered and a pending link to that class review, instead of the raw entry count', () => {
+      render(
+        <CompactScheduleTimeline
+          showId="show-1"
+          canEditSchedule
+          entryBreakdownByClassId={breakdowns}
+        />
+      );
+
+      expect(screen.getByText('6 entered')).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: '2 pending in Container Novice' })).toHaveAttribute(
+        'href',
+        '/shows/show-1/entries?mode=review&attention=pending&trial=trial-1&class=class-1'
+      );
+      expect(screen.queryByText('8 entries')).not.toBeInTheDocument();
+      expect(screen.getByText('1 class · 8 entries')).toBeInTheDocument();
+    });
+
+    it('reads a class with no entries as 0 entered, with no pending link', () => {
+      render(
+        <CompactScheduleTimeline
+          showId="show-1"
+          canEditSchedule
+          entryBreakdownByClassId={new Map()}
+        />
+      );
+
+      expect(screen.getByText('0 entered')).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: /pending in/ })).not.toBeInTheDocument();
+    });
+
+    it('keeps the plain entry count when no breakdown is available (visitor, or entries still loading)', () => {
+      render(<CompactScheduleTimeline showId="show-1" canEditSchedule />);
+
+      expect(screen.getByText('8 entries')).toBeInTheDocument();
+      expect(screen.queryByText(/entered$/)).not.toBeInTheDocument();
+    });
+  });
+
   it('keeps loading, error, and empty states honest', () => {
     mockIsLoading = true;
     const { rerender } = render(<CompactScheduleTimeline showId="show-1" />);

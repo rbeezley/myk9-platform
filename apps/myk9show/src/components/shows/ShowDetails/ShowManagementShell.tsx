@@ -22,6 +22,7 @@ import { type ShowDetailTabsProps } from '@/components/shows/ShowDetails/ShowDet
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { TabsContent } from '@/components/ui/tabs';
 import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
+import { buildClassEntryBreakdowns } from '@/features/entry-operations/classEntryBreakdown';
 import { getShowStyle } from '@/features/registries';
 import {
   premiumPublishDraftKey,
@@ -346,6 +347,11 @@ function AuthorizedShowManagementShell({
                   canManageShow={canManageShow}
                   judges={tabs.judges}
                   classes={tabs.classes}
+                  entryBreakdownByClassId={
+                    canManageShow && !entryDataUnavailable
+                      ? buildClassEntryBreakdowns(tabs.mapEntries)
+                      : undefined
+                  }
                   onViewClasses={() => navigate(`${canonicalShowHref}/setup?section=classes`)}
                 />
               )}

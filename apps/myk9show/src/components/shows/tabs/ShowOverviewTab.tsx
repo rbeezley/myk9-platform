@@ -9,6 +9,7 @@ import { MoreFromClub } from '@/components/shows/overview/MoreFromClub';
 import { ShareEvent } from '@/components/shows/overview/ShareEvent';
 import { ShowAccessCodesCard } from '@/components/secretary/ShowAccessCodesCard';
 import { Button } from '@/components/ui/button';
+import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 import { summarizeShowClasses, type ShowClassSummaryClass } from './showClassSummary';
 
 const baseUrl =
@@ -21,6 +22,8 @@ interface ShowOverviewTabProps {
   canManageShow?: boolean;
   judges?: ShowJudgeAssignment[];
   classes?: ShowClassSummaryClass[];
+  /** Manager-only, and only once entries have loaded; see `CompactScheduleTimeline`. */
+  entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
   onViewClasses?: () => void;
 }
 
@@ -30,6 +33,7 @@ export function ShowOverviewTab({
   canManageShow = false,
   judges,
   classes,
+  entryBreakdownByClassId,
   onViewClasses,
 }: ShowOverviewTabProps) {
   const shareData = useMemo(
@@ -96,7 +100,12 @@ export function ShowOverviewTab({
               </div>
             </section>
           ) : null}
-          <ScheduleSummary showId={show.id} canEditSchedule={canManageShow} compact />
+          <ScheduleSummary
+            showId={show.id}
+            canEditSchedule={canManageShow}
+            compact
+            entryBreakdownByClassId={entryBreakdownByClassId}
+          />
           <VenueMap location={show.location} />
         </div>
 

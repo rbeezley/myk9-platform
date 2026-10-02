@@ -1,9 +1,7 @@
 /**
- * Staff delete a person through the footer Delete with PRODUCTION React Query
- * defaults (refetchOnMount: true). The gate's authorization read must not share
- * the dialog's `delete_preview` query: opening the dialog mounts a second
- * observer that refetches, and if that flipped the gate to false the panel would
- * drop `onDelete` and unmount the confirmation mid-flow.
+ * Delete person in the Edit panel footer, with the STATIC gate and production React Query
+ * defaults (refetchOnMount: true): each role's visibility, the plain refusal a secretary gets
+ * on a stranger, and a dialog that never unmounts while its own preview refetches.
  */
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -34,7 +32,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
     hasContextPermission: () => false,
     hasPermission: () => false,
     getUserRoles: () => [],
-    user: { id: 'staff-auth' },
+    user: { id: 'viewer-auth' },
     userWithRoles: null,
   }),
 }));
@@ -46,7 +44,7 @@ vi.mock('@/components/panels/edit', async importOriginal => ({
 }));
 
 import UserDetailsDialogs from './UserDetailsDialogs';
-import { useCanDeletePerson } from './useCanDeletePerson';
+import { canDeletePerson } from './personDeleteGate';
 
 const NOTHING = {
   trials: 0,
@@ -67,17 +65,19 @@ const person = {
 } as unknown as User;
 const noop = () => undefined;
 
-function Harness({ onPersonDeleted }: { onPersonDeleted: () => void }) {
-  const canDelete = useCanDeletePerson(
-    person,
-    { id: 'staff-auth', roles: [UserRole.SECRETARY] },
-    false
+function renderFooter(roles: UserRole[], authId: string, onPersonDeleted = vi.fn()) {
+  // Production defaults: every new observer refetches on mount.
+  const client = new QueryClient();
+  const wrapper = ({ children }: { children: ReactNode }) => (
+    <MemoryRouter>
+      <QueryClientProvider client={client}>{children}</QueryClientProvider>
+    </MemoryRouter>
   );
-  return (
+  const rendered = render(
     <UserDetailsDialogs
       person={person}
       formData={{ name: 'Jane Smith', photo: '' }}
-      canDelete={canDelete}
+      canDelete={canDeletePerson(person, { id: authId, roles })}
       isEditModalOpen
       setIsEditModalOpen={noop}
       isPhotoModalOpen={false}
@@ -95,53 +95,58 @@ function Harness({ onPersonDeleted }: { onPersonDeleted: () => void }) {
       onQualificationsSaved={noop}
       onPhotoSave={noop}
       onFileInput={noop}
-    />
+    />,
+    { wrapper }
   );
+  return { ...rendered, user: userEvent.setup(), onPersonDeleted };
 }
 
-describe('staff delete a person with production query defaults', () => {
+describe('Delete person in the Edit panel footer', () => {
   beforeEach(() => {
     mocks.preview.mockReset().mockResolvedValue(NOTHING);
     mocks.remove.mockReset().mockResolvedValue(undefined);
     mocks.purge.mockReset().mockResolvedValue(undefined);
   });
 
-  it('keeps the confirmation mounted while the dialog refetches its own preview, and completes', async () => {
-    // Production defaults: refetchOnMount stays true, so every new observer refetches.
-    const client = new QueryClient();
-    const wrapper = ({ children }: { children: ReactNode }) => (
-      <MemoryRouter>
-        <QueryClientProvider client={client}>{children}</QueryClientProvider>
-      </MemoryRouter>
-    );
-    const onPersonDeleted = vi.fn();
-    render(<Harness onPersonDeleted={onPersonDeleted} />, { wrapper });
-    const user = userEvent.setup();
+  it.each([
+    ['a site admin', [UserRole.SITE_ADMIN], 'auth-9', true],
+    ['the person themselves', [UserRole.EXHIBITOR], 'auth-1', true],
+    ['a secretary', [UserRole.SECRETARY], 'auth-9', true],
+    ['a club admin', [UserRole.CLUB_ADMIN], 'auth-9', true],
+    ['another exhibitor', [UserRole.EXHIBITOR], 'auth-9', false],
+    ['a judge', [UserRole.JUDGE], 'auth-9', false],
+  ])('%s: visible is %s', async (_label, roles, authId, visible) => {
+    renderFooter(roles, authId);
+    // Positive control: the footer rendered.
+    expect(await screen.findByRole('button', { name: /save changes/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Delete person' }) !== null).toBe(visible);
+  });
 
-    // The gate resolved from the server's answer.
-    const footerDelete = await screen.findByRole('button', { name: 'Delete person' });
+  it('tells a secretary on a stranger why, and offers no working Delete', async () => {
+    mocks.preview.mockRejectedValue({ code: '42501', message: 'Permission denied' });
+    const { user } = renderFooter([UserRole.SECRETARY], 'auth-9');
 
-    // From here the dialog's own preview read stays pending for a while, like a slow network.
-    let release: (value: typeof NOTHING) => void = noop;
-    mocks.preview.mockImplementation(
-      () =>
-        new Promise<typeof NOTHING>(resolve => {
-          release = resolve;
-        })
-    );
-    await user.click(footerDelete);
+    await user.click(await screen.findByRole('button', { name: 'Delete person' }));
     const dialog = await screen.findByRole('alertdialog', {
       name: 'Delete the person Jane Smith?',
     });
 
-    // The authorization read is separate: the footer button and the dialog both survive.
-    await waitFor(() => expect(mocks.preview).toHaveBeenCalled());
-    expect(screen.getByRole('alertdialog', { name: 'Delete the person Jane Smith?' })).toBe(dialog);
     expect(
-      screen.getAllByRole('button', { name: 'Delete person', hidden: true }).length
-    ).toBeGreaterThanOrEqual(2);
+      await within(dialog).findByText(
+        /You can only delete people who have entries in shows you manage, and your own account\./
+      )
+    ).toBeInTheDocument();
+    expect(within(dialog).getByRole('button', { name: 'Delete person' })).toBeDisabled();
+    expect(mocks.remove).not.toHaveBeenCalled();
+  });
 
-    release(NOTHING);
+  it('keeps the dialog mounted while its own preview refetches, and completes the delete', async () => {
+    const { user, onPersonDeleted } = renderFooter([UserRole.SECRETARY], 'auth-9');
+    await user.click(await screen.findByRole('button', { name: 'Delete person' }));
+    const dialog = await screen.findByRole('alertdialog', {
+      name: 'Delete the person Jane Smith?',
+    });
+
     const confirm = within(dialog).getByRole('button', { name: 'Delete person' });
     await waitFor(() => expect(confirm).toBeEnabled());
     expect(screen.getByRole('alertdialog', { name: 'Delete the person Jane Smith?' })).toBe(dialog);

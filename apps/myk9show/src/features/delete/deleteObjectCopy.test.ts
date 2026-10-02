@@ -137,6 +137,10 @@ describe('delete dialog copy', () => {
     expect(unknownReason('trial', 'forbidden', 1)).toBe(
       "You don't have permission to delete this trial."
     );
+    // Show staff see Delete on any person; the server then refuses a stranger, so say why.
+    expect(unknownReason('person', 'forbidden', 1)).toBe(
+      "You don't have permission to delete this person. You can only delete people who have entries in shows you manage, and your own account."
+    );
     expect(unknownReason('class', 'failed', 2)).toBe(
       "We couldn't check what goes with these classes, so Delete is off. Try again."
     );

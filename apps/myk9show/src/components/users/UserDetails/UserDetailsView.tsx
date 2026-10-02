@@ -23,7 +23,7 @@ import { RecordPageLayout } from '@/components/layout/record';
 import type { PropertySectionConfig } from '@/components/layout/record';
 import { extractPersonName, buildFormData } from './userDetailsTypes';
 import HeroProfileCard from './HeroProfileCard';
-import { useCanDeletePerson } from './useCanDeletePerson';
+import { canDeletePerson } from './personDeleteGate';
 import JudgeQualificationsCard from './JudgeQualificationsCard';
 import JudgeAvailabilityCard from './JudgeAvailabilityCard';
 import UserDetailsDialogs from './UserDetailsDialogs';
@@ -57,11 +57,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
   const { firstName, lastName, fullName } = extractPersonName(person);
 
-  const canDeletePerson = useCanDeletePerson(
-    person,
-    { id: currentUser?.id, roles: getUserRoles() },
-    isRemoved
-  );
   const canManageStatus = hasPermission('admin:manage') && !isRemoved;
   const isCurrentUser = currentUser?.id === person.id || currentUser?.id === person.user_id;
   const statusActionDisabled = accountStatus === 'active' && isCurrentUser;
@@ -392,7 +387,9 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onPersonDeleted={leaveAfterDelete}
-        canDelete={canDeletePerson}
+        canDelete={
+          !isRemoved && canDeletePerson(person, { id: currentUser?.id, roles: getUserRoles() })
+        }
         onUserEditSave={handleUserEditSave}
         onQualificationsSaved={handleQualificationsSaved}
         isSavingPhoto={isSavingPhoto}

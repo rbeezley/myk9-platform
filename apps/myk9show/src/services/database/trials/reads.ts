@@ -160,21 +160,8 @@ export const getTrialsByShow = async (showId: string) => {
         replicatedShowsTable.getShowById(showId),
       ]);
 
-      // MYK9-911: a trial this device deleted keeps coming back from the server
-      // until its queued DELETE uploads, and an emptied store is exactly when the
-      // online verification runs. Name those ids so the read drops them.
-      const locallyDeletedIds = [
-        ...(await replicatedTrialsTable.pendingDeletes.coveredIds(showId)),
-      ];
-
       if (!show) {
-        const online = await postgrestGetTrialsByShow(showId);
-        const gone = new Set(locallyDeletedIds);
-        return {
-          ...online,
-          locallyDeletedIds,
-          data: online.data.filter(row => !gone.has(String(row.id))),
-        };
+        return await postgrestGetTrialsByShow(showId);
       }
 
       const sortedTrials = sortedCopy(
@@ -182,7 +169,7 @@ export const getTrialsByShow = async (showId: string) => {
         compareDateAsc(trial => trial.date)
       );
       const data = sortedTrials.map(trial => mapReplicatedTrialToDbRow(trial, { show }));
-      return { data, error: null, locallyDeletedIds };
+      return { data, error: null };
     },
     postgrest: () => postgrestGetTrialsByShow(showId),
     table: 'trial',

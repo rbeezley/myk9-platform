@@ -1,4 +1,3 @@
-import type { RefObject } from 'react';
 import type { Dog, DogInput, Owner } from '@/types/dog-types';
 import type { User } from '@/types/user-types';
 import type { UserRole } from '@/types/auth-types';
@@ -43,14 +42,6 @@ export interface DogIdentityRailProps {
    * owner's name is plain text rather than a link to a page that would refuse them.
    */
   canOpenOwnerRecord?: boolean;
-  onPhotoDialogOpen: () => void;
-  onDeleteDialogOpen: () => void;
-  /** Required: the status badge itself is a button that raises the dialog. */
-  onStatusDialogOpen: () => void;
-  /** When false, the Delete action is hidden (user fails the delete permission gate). */
-  canDelete?: boolean;
-  /** Route-entry focus target (task 3.8) — the page's main heading. */
-  headingRef?: RefObject<HTMLHeadingElement | null>;
 }
 
 export interface DogInfoCardsProps {

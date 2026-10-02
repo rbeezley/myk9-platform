@@ -7,9 +7,19 @@ interface NotFoundStateProps {
   backTo: string;
   backLabel: string;
   className?: string;
+  /** Replaces "<Entity> Not Found" when the record exists but this viewer cannot open it. */
+  heading?: string;
+  description?: string;
 }
 
-export function NotFoundState({ entityName, backTo, backLabel, className }: NotFoundStateProps) {
+export function NotFoundState({
+  entityName,
+  backTo,
+  backLabel,
+  className,
+  heading,
+  description,
+}: NotFoundStateProps) {
   const navigate = useNavigate();
 
   return (
@@ -23,10 +33,10 @@ export function NotFoundState({ entityName, backTo, backLabel, className }: NotF
       <div className="bg-muted rounded-full p-4 mb-4">
         <FileQuestion className="h-10 w-10 text-muted-foreground" />
       </div>
-      <h1 className="text-lg font-semibold mb-2">{entityName} Not Found</h1>
+      <h1 className="text-lg font-semibold mb-2">{heading ?? `${entityName} Not Found`}</h1>
       <p className="text-muted-foreground mb-6">
-        The {entityName.toLowerCase()} you&apos;re looking for doesn&apos;t exist or has been
-        removed.
+        {description ??
+          `The ${entityName.toLowerCase()} you're looking for doesn't exist or has been removed.`}
       </p>
       <button
         onClick={() => navigate(backTo)}

@@ -128,6 +128,31 @@ describe('CompactScheduleTimeline', () => {
     );
   });
 
+  it('reads Not set, muted, for a class with no judge and no start time (MYK9-930)', () => {
+    const day = mockData[0] as DayTimelineData;
+    const trial = day.trials[0]!;
+    const element = trial.elements[0]!;
+    mockReturnData = [
+      {
+        ...day,
+        trials: [
+          {
+            ...trial,
+            elements: [
+              { ...element, levels: [{ ...element.levels[0]!, judgeName: '', startTime: null }] },
+            ],
+          },
+        ],
+      },
+    ];
+    render(<CompactScheduleTimeline showId="show-1" />);
+
+    const notSet = screen.getAllByText('Not set');
+    expect(notSet.length).toBeGreaterThanOrEqual(2);
+    for (const el of notSet) expect(el).toHaveClass('text-muted-foreground');
+    expect(screen.queryByText(/TBD/)).not.toBeInTheDocument();
+  });
+
   it('shows manager start-time editors only when enabled', () => {
     const { rerender } = render(<CompactScheduleTimeline showId="show-1" canEditSchedule />);
     expect(screen.getByRole('button', { name: /edit start time for start/i })).toBeInTheDocument();

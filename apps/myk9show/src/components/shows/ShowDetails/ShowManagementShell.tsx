@@ -48,6 +48,8 @@ import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { ShowDeskCompactContext } from './ShowDeskCompactContext';
 import { applyShowFormDataToPremium } from './showFormPremiumSync';
 import { ShowPageHeaderActions } from './ShowPageHeaderActions';
+import { showHeroParent } from './showHeroParent';
+import type { HeroViewer } from '@/components/common/heroParentLink';
 
 export interface ShowManagementShellProps {
   show: Show;
@@ -64,6 +66,8 @@ export interface ShowManagementShellProps {
   sectionTabs: PrimaryTabDef[];
   entryDataState?: 'ready' | 'loading' | 'error';
   onRetryEntryData?: (() => void) | undefined;
+  /** Whether the hero's parent links may be followed (see `heroParentLink`). Safe default: no. */
+  heroViewer?: HeroViewer;
 }
 
 /**
@@ -132,6 +136,7 @@ function AuthorizedShowManagementShell({
   sectionTabs,
   entryDataState = 'ready',
   onRetryEntryData,
+  heroViewer = 'public',
   canManageShow,
 }: AuthorizedShowManagementShellProps) {
   const navigate = useNavigate();
@@ -198,7 +203,8 @@ function AuthorizedShowManagementShell({
   const goToTab = (id: string) => {
     const tab = SHOW_TABS.find(item => item.id === id);
     if (!tab) return;
-    navigate(tab.path ? `${canonicalShowHref}/${tab.path}` : canonicalShowHref);
+    // Replace, never push (owner decision 5): Back from a tab leaves the show.
+    navigate(tab.path ? `${canonicalShowHref}/${tab.path}` : canonicalShowHref, { replace: true });
   };
 
   // The shared dialog has already purged the show and refreshed its lists.
@@ -219,6 +225,7 @@ function AuthorizedShowManagementShell({
             <PageHeader
               breadcrumbs={breadcrumbs}
               title={show.name || 'Show Details'}
+              omitTitle
               actions={<ShowPageHeaderActions showId={show.id} armbandCount={armbandCount} />}
             />
 
@@ -229,7 +236,8 @@ function AuthorizedShowManagementShell({
                 ) : undefined
               }
               name={show.name || 'Untitled Show'}
-              subtitle={show.clubName || undefined}
+              headingLevel={1}
+              parent={showHeroParent(show, { viewer: heroViewer })}
               badges={
                 show.organization ? [{ label: show.organization, variant: 'default' as const }] : []
               }

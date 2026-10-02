@@ -44,6 +44,7 @@ import { useMyEntriesInClass } from './useMyEntriesInClass';
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
+import { heroViewerFromUser } from '@/components/common/heroParentLink';
 import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { RelatedContextLinks } from '@/components/common/RelatedContextLinks';
@@ -130,7 +131,7 @@ const ClassDetailsPage: React.FC = () => {
       } else if (currentClass?.trialId) {
         navigate(`/trials/${currentClass.trialId}`);
       } else {
-        navigate('/classes');
+        navigate(parentShow?.id ? `/shows/${parentShow.id}` : '/shows');
       }
     });
   };
@@ -269,7 +270,7 @@ const ClassDetailsPage: React.FC = () => {
   }
 
   if (classId && !currentClass && trialClasses.length > 0) {
-    return <ClassNotFoundState />;
+    return <ClassNotFoundState showId={showId} trialId={trialId} />;
   }
 
   if (!classId || !currentClass) {
@@ -295,13 +296,14 @@ const ClassDetailsPage: React.FC = () => {
     <ShowPresenceProvider showId={parentShow?.id}>
       <PageShell>
         <ShowDeskReturnLink showId={parentShow?.id} />
-        <PageHeader breadcrumbs={breadcrumbs} title={className} />
+        <PageHeader breadcrumbs={breadcrumbs} title={className} omitTitle />
 
         <ClassCompactHeader
           classData={currentClass}
           parentTrial={parentTrial}
           parentShow={parentShow}
           actions={headerActions}
+          viewer={heroViewerFromUser(user)}
         />
 
         <RelatedContextLinks items={relatedLinks} />
@@ -355,7 +357,11 @@ const ClassDetailsPage: React.FC = () => {
             onDeleteEntry={handleDeleteEntry}
           />
         ) : null}
+      </PageShell>
 
+      {/* Outside PageShell: SlideOverPanel is not portaled, so inside the shell's `space-y-6` a
+          fixed overlay would pick up a 24px top margin. */}
+      <>
         {/* Dialogs */}
         {/* Class-lifecycle panels are mounted only for staff, not merely left
             closed: an unmounted panel cannot be opened by a stray handler and
@@ -433,7 +439,7 @@ const ClassDetailsPage: React.FC = () => {
           element={currentClass?.element || ''}
           level={currentClass?.level || ''}
         />
-      </PageShell>
+      </>
     </ShowPresenceProvider>
   );
 };

@@ -236,7 +236,9 @@ describe('DogDetailsTabs navigation', () => {
   describe('Back/Forward behavior', () => {
     // Uses a real BrowserRouter (not MemoryRouter) so window.history.back()/
     // forward() exercise the same popstate path a real Back button does.
-    it('moving from Overview to Career and back with browser Back restores Overview, then Forward restores Career', async () => {
+    // MYK9-930, owner decision 5: a section change REPLACES the history entry, so
+    // Back leaves the dog instead of stepping back through sections.
+    it('moving from Overview to Career adds no history entry, so Back leaves the dog', async () => {
       window.history.pushState({}, '', '/dogs/dog-1');
       const { user } = render(
         <Routes>
@@ -244,15 +246,15 @@ describe('DogDetailsTabs navigation', () => {
         </Routes>,
         { initialRoute: '' }
       );
+      const entriesBefore = window.history.length;
 
       await user.click(screen.getByRole('tab', { name: 'Career' }));
       expect(screen.getByRole('tab', { name: 'Career' })).toHaveAttribute('aria-selected', 'true');
+      expect(window.location.search).toContain('section=career');
+      expect(window.history.length).toBe(entriesBefore);
 
-      window.history.back();
-      await screen.findByRole('tab', { name: 'Overview', selected: true });
-
-      window.history.forward();
-      await screen.findByRole('tab', { name: 'Career', selected: true });
+      await user.click(screen.getByRole('tab', { name: 'Overview' }));
+      expect(window.history.length).toBe(entriesBefore);
     });
   });
 

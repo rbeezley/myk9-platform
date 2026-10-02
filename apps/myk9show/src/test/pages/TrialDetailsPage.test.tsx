@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
@@ -137,21 +137,49 @@ vi.mock('@/components/trials/TrialDetail/TrialEntriesTable', () => ({
 
 // Shared primitives — pass through so we can assert content.
 vi.mock('@/components/common/PageShell', () => ({
-  PageShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
+  PageShell: ({ children }: { children: React.ReactNode }) => (
+    <div data-testid="page-shell">{children}</div>
+  ),
 }));
 vi.mock('@/components/common/PageHeader', () => ({
-  PageHeader: ({ title }: { title: string }) => <div data-testid="page-header">{title}</div>,
+  PageHeader: ({
+    title,
+    breadcrumbs,
+    omitTitle,
+  }: {
+    title: string;
+    breadcrumbs: Array<{ label: string; href: string }>;
+    omitTitle?: boolean;
+  }) => (
+    <div>
+      <div data-testid="page-header" data-omit-title={String(Boolean(omitTitle))}>
+        {title}
+      </div>
+      <nav aria-label="Breadcrumb">
+        {breadcrumbs.map(crumb => (
+          <a key={crumb.href} href={crumb.href}>
+            {crumb.label}
+          </a>
+        ))}
+      </nav>
+    </div>
+  ),
 }));
 vi.mock('@/components/common/DetailHero', () => ({
   DetailHero: ({
     name,
     secondaryActions,
+    parent,
+    headingLevel,
   }: {
     name: string;
     secondaryActions?: React.ReactNode;
+    parent?: { label: string; href: string };
+    headingLevel?: number;
   }) => (
-    <div data-testid="detail-hero">
+    <div data-testid="detail-hero" data-heading-level={headingLevel}>
       <span data-testid="hero-name">{name}</span>
+      {parent && <a href={parent.href}>{parent.label}</a>}
       <div data-testid="hero-secondary">{secondaryActions}</div>
     </div>
   ),
@@ -203,6 +231,9 @@ function renderPage(initialEntry = '/trials/trial-1') {
       <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
           <Route path="/trials/:trialId" element={<TrialDetailsPage />} />
+          <Route path="/shows" element={<div data-testid="shows-list" />} />
+          <Route path="/shows/:showId" element={<div data-testid="show-page" />} />
+          <Route path="/shows/:showId/trials/:trialId" element={<TrialDetailsPage />} />
           <Route path="/secretary/create-show/wizard" element={<WizardLocation />} />
         </Routes>
       </MemoryRouter>
@@ -284,6 +315,30 @@ describe('TrialDetailsPage', () => {
 
     expect(screen.queryByText('Loading trial...')).not.toBeInTheDocument();
     expect(screen.getByText(/doesn't exist/i)).toBeInTheDocument();
+  });
+
+  it('not-found is the shared state, in the page shell, with the parent list as its button', async () => {
+    mockTrials = [];
+    mockFallbackTrial = null;
+
+    renderPage();
+
+    expect(screen.getByTestId('page-shell')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: 'Trial Not Found' })).toBeInTheDocument();
+    // The old copy was an ErrorState whose "retry" navigated away.
+    expect(screen.queryByRole('button', { name: /try again|retry/i })).not.toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'Back to Shows' }));
+    expect(screen.getByTestId('shows-list')).toBeInTheDocument();
+  });
+
+  it('not-found goes back to the parent show when the URL names one', async () => {
+    mockTrials = [];
+    mockFallbackTrial = null;
+
+    renderPage('/shows/show-1/trials/trial-1');
+
+    await userEvent.click(screen.getByRole('button', { name: 'Back to Show' }));
+    expect(screen.getByTestId('show-page')).toBeInTheDocument();
   });
 
   it('shows a load error (not "doesn\'t exist") when the anon fallback query errors', () => {
@@ -368,6 +423,41 @@ describe('TrialDetailsPage', () => {
     expect(screen.getByTestId('wizard-location')).toHaveTextContent(
       '/secretary/create-show/wizard?showId=show-1&mode=add-classes&trialId=trial-1'
     );
+  });
+
+  describe('detail-page header (MYK9-930)', () => {
+    function warmTrial() {
+      mockAuthContext.user = { id: 'user-1' };
+      mockAuthContext.isSecretary = true;
+      mockTrials = [makeFallbackTrial() as unknown as Record<string, unknown>];
+      mockSelectedTrialId = 'trial-1';
+      mockShows = [{ id: 'show-1', name: 'Heartland Scent Work Classic', clubId: 'club-1' }];
+    }
+
+    it('breadcrumb links up through Shows and the parent show', () => {
+      warmTrial();
+      renderPage();
+
+      const trail = within(screen.getByRole('navigation', { name: 'Breadcrumb' }));
+      expect(trail.getByRole('link', { name: 'Shows' })).toHaveAttribute('href', '/shows');
+      expect(trail.getByRole('link', { name: 'Heartland Scent Work Classic' })).toHaveAttribute(
+        'href',
+        '/shows/show-1'
+      );
+    });
+
+    it('hero carries the parent show as a link and owns the page h1', () => {
+      warmTrial();
+      renderPage();
+
+      const hero = within(screen.getByTestId('detail-hero'));
+      expect(hero.getByRole('link', { name: 'Heartland Scent Work Classic' })).toHaveAttribute(
+        'href',
+        '/shows/show-1'
+      );
+      expect(screen.getByTestId('detail-hero')).toHaveAttribute('data-heading-level', '1');
+      expect(screen.getByTestId('page-header')).toHaveAttribute('data-omit-title', 'true');
+    });
   });
 
   describe('page actions live in the header Actions menu (MYK9-928)', () => {

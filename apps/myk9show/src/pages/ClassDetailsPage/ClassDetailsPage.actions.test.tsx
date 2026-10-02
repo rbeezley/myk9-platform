@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen } from '@/test/utils/testUtils';
+import { screen, within } from '@/test/utils/testUtils';
 import { render } from '@/test/utils/testUtils';
 import type { ClassData } from '@/components/classes/types/classTypes';
 import { usePageEditTargetStore } from '@/features/actions/pageEditTarget';
@@ -33,7 +33,23 @@ vi.mock('@/components/common/PageShell', () => ({
 }));
 
 vi.mock('@/components/common/PageHeader', () => ({
-  PageHeader: () => <div data-testid="page-header" />,
+  PageHeader: ({
+    breadcrumbs = [],
+    omitTitle,
+  }: {
+    breadcrumbs?: Array<{ label: string; href: string }>;
+    omitTitle?: boolean;
+  }) => (
+    <div data-testid="page-header" data-omit-title={String(Boolean(omitTitle))}>
+      <nav aria-label="Breadcrumb">
+        {breadcrumbs.map(crumb => (
+          <a key={crumb.href} href={crumb.href}>
+            {crumb.label}
+          </a>
+        ))}
+      </nav>
+    </div>
+  ),
 }));
 
 vi.mock('@/components/classes/ClassCompactHeader', () => ({
@@ -133,6 +149,95 @@ function mockManageScope(scope: {
     manageScope: { clubId: undefined, ...scope },
   });
 }
+
+describe('ClassDetailsPage detail-page header (MYK9-930)', () => {
+  function mountSecretaryClass() {
+    mockUseAuthContext.mockReturnValue({
+      user: { id: 'secretary-1' },
+      isSecretary: true,
+      isAdmin: false,
+      hasRole: () => false,
+      userWithRoles: { id: 'secretary-1', scopes: [] },
+    });
+    mockUseClassDetailsDialogs.mockReturnValue({
+      editClassPanelOpen: false,
+      deleteDialogOpen: false,
+      deleteEntryDialogOpen: false,
+      entryToDelete: null,
+      openEditClassPanel: vi.fn(),
+      openDeleteDialog: vi.fn(),
+      closeDeleteDialog: vi.fn(),
+      closeEditClassPanel: vi.fn(),
+      closeDeleteEntryDialog: vi.fn(),
+      setDeleteDialogOpen: vi.fn(),
+      setDeleteEntryDialogOpen: vi.fn(),
+      openDeleteEntryDialog: vi.fn(),
+    });
+    mockUseClassDetailsData.mockReturnValue({
+      classId: 'class-1',
+      trialId: 'trial-1',
+      classes: [currentClass],
+      currentClass,
+      trialClasses: [currentClass],
+      localRawEntries: [],
+      dbRawEntries: [],
+      classEntries: [],
+      entriesLoading: false,
+      entriesError: null,
+      manageScope: {
+        status: 'resolved',
+        canManage: true,
+        canOperate: true,
+        hasOperationalStaffRole: true,
+        clubId: 'club-1',
+      },
+      parentTrial: { id: 'trial-1', showId: 'show-1', trialNumber: 'Saturday Trial 1' },
+      parentShow: { id: 'show-1', name: 'Spring Classic', organization: 'AKC', clubId: 'club-1' },
+      dogs: [],
+      updateClass: vi.fn(),
+      deleteClass: vi.fn(),
+    });
+  }
+
+  it('breadcrumb links up through Shows, the show and the trial', () => {
+    mountSecretaryClass();
+    renderClassDetailsPage();
+
+    const trail = within(screen.getByRole('navigation', { name: 'Breadcrumb' }));
+    expect(trail.getByRole('link', { name: 'Shows' })).toHaveAttribute('href', '/shows');
+    expect(trail.getByRole('link', { name: 'Spring Classic' })).toHaveAttribute(
+      'href',
+      '/shows/show-1'
+    );
+    expect(trail.getByRole('link', { name: 'Saturday Trial 1' })).toHaveAttribute(
+      'href',
+      '/trials/trial-1'
+    );
+  });
+
+  it('lets the hero own the h1, so the breadcrumb header renders no title', () => {
+    mountSecretaryClass();
+    renderClassDetailsPage();
+
+    expect(screen.getByTestId('page-header')).toHaveAttribute('data-omit-title', 'true');
+  });
+
+  it('shows the shared not-found state, in the page shell, when the class is gone', async () => {
+    mountSecretaryClass();
+    mockUseClassDetailsData.mockReturnValue({
+      ...mockUseClassDetailsData(),
+      currentClass: null,
+      classes: [],
+      trialClasses: [currentClass],
+    });
+    const { user } = renderClassDetailsPage();
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Class Not Found' })).toBeInTheDocument();
+    // `/classes` is not a list page; the way back is the parent trial.
+    await user.click(screen.getByRole('button', { name: 'Back to Trial' }));
+    expect(screen.getByTestId('location')).toHaveTextContent('/trials/trial-1');
+  });
+});
 
 describe('ClassDetailsPage header actions', () => {
   beforeEach(() => {

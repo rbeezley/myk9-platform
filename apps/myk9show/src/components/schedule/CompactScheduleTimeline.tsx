@@ -5,6 +5,7 @@ import { formatTrialLabel } from '@myk9/core';
 import { Card } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { StatusBadge } from '@/components/status';
+import { NotSet } from '@/components/common/NotSet';
 import { getShowMapClassHref, getShowMapTrialHref } from '@/features/show-map/showMapRoutes';
 import { useScheduleTimeline } from '@/hooks/queries/useScheduleTimeline';
 import { cn } from '@/lib/utils';
@@ -58,8 +59,8 @@ function CompactClassRowView({
   canEditSchedule: boolean;
 }) {
   const classHref = getShowMapClassHref(showId, trialId, row.classId);
-  const timeLabel = formatStartTime(row.startTime) ?? 'Start time TBD';
-  const judgeLabel = row.judgeName || 'Judge TBD';
+  const timeLabel = formatStartTime(row.startTime) ?? <NotSet />;
+  const judgeLabel = row.judgeName || <NotSet />;
 
   return (
     <div className="flex flex-col gap-2 rounded-lg border border-border bg-card px-3 py-2.5 sm:flex-row sm:items-center sm:gap-4">

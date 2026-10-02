@@ -32,6 +32,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { CoverImageUpload } from '@/components/ui/cover-image-upload';
+import { DetailHero, type HeroBadge } from '@/components/common/DetailHero';
 import { Club } from '@/types/club-types';
 import { generatePalette } from '@/lib/branding';
 import { getClubInitials } from './utils';
@@ -122,18 +123,19 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
   const handleUpload = onCoverUpload ?? (() => {});
   const handleRemove = onCoverRemove ?? (() => {});
 
-  return (
-    <div className="mb-10 bg-card border border-border rounded-2xl relative overflow-hidden">
-      {/* Actions positioned absolutely in top-right corner (above cover) */}
+  // The options menu and the accent bar sit over the cover banner, inside the
+  // hero card (DetailHero's `banner` slot).
+  const banner = (
+    <div className="relative">
+      {/* Edit club is the first item of the header Actions menu (MYK9-928), not a button here. */}
       <div className="absolute top-4 right-4 z-20 flex items-center gap-1">
-        {/* Edit club is the first item of the header Actions menu (MYK9-928), not a button here. */}
         {hasMenuActions && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild nativeButton>
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-10 w-10 p-0 bg-black/30 hover:bg-black/50 text-white"
+                className="h-11 w-11 p-0 bg-black/30 hover:bg-black/50 text-white"
                 aria-label="Club options"
               >
                 <MoreVertical className="h-5 w-5" />
@@ -240,159 +242,120 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
           <div className="absolute inset-0 bg-gradient-to-t from-black/30 to-transparent" />
         </div>
       </CoverImageUpload>
+    </div>
+  );
 
-      {/* Info area with overlapping logo */}
-      <div className="relative px-8 pb-8 pt-10">
-        {/* Floating logo — overlaps cover/info boundary */}
-        <div className="absolute -top-8 left-8">
-          {club.logo ? (
-            <img
-              src={club.logo}
-              alt={club.name}
-              className={`w-16 h-16 rounded-xl border-[3px] border-card object-cover shadow-lg transition-opacity ${
-                canEditBranding ? 'cursor-pointer hover:opacity-80' : ''
-              }`}
-              onClick={canEditBranding ? onEditPhoto : undefined}
-              title={canEditBranding ? 'Click to edit club logo' : undefined}
-            />
-          ) : (
-            <div
-              className={`w-16 h-16 rounded-xl border-[3px] border-card shadow-lg flex items-center justify-center transition-opacity ${
-                canEditBranding ? 'cursor-pointer hover:opacity-80' : ''
-              }`}
-              style={{ backgroundColor: palette?.primaryDark ?? '#1e293b' }}
-              onClick={canEditBranding ? onEditPhoto : undefined}
-              title={canEditBranding ? 'Click to add club logo' : undefined}
-            >
-              <span
-                className="text-lg font-bold"
-                style={{ color: palette?.onPrimary ?? '#94a3b8' }}
-              >
-                {getClubInitials(club.name)}
-              </span>
-            </div>
-          )}
-        </div>
+  const logo = club.logo ? (
+    <img
+      src={club.logo}
+      alt={club.name}
+      className={`w-16 h-16 rounded-xl object-cover shadow-sm transition-opacity ${
+        canEditBranding ? 'cursor-pointer hover:opacity-80' : ''
+      }`}
+      onClick={canEditBranding ? onEditPhoto : undefined}
+      title={canEditBranding ? 'Click to edit club logo' : undefined}
+    />
+  ) : (
+    <div
+      className={`w-16 h-16 rounded-xl shadow-sm flex items-center justify-center transition-opacity ${
+        canEditBranding ? 'cursor-pointer hover:opacity-80' : ''
+      }`}
+      style={{ backgroundColor: palette?.primaryDark ?? '#1e293b' }}
+      onClick={canEditBranding ? onEditPhoto : undefined}
+      title={canEditBranding ? 'Click to add club logo' : undefined}
+    >
+      <span className="text-lg font-bold" style={{ color: palette?.onPrimary ?? '#94a3b8' }}>
+        {getClubInitials(club.name)}
+      </span>
+    </div>
+  );
 
-        {/* Club details */}
-        <div className="flex flex-col md:flex-row items-start gap-4">
-          <div className="flex-1 text-left">
-            {foundedYear && (
-              <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground mb-1">
-                Founded {foundedYear}
-              </p>
-            )}
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              <h1 className="text-3xl font-bold text-foreground min-w-0">{club.name}</h1>
-              {/* P2-B: visible to ANY viewer who can see this club at all
-                  (clubs_select already scopes that) — a club's own
-                  admin/secretary needs to know WHY publish is blocked just
-                  as much as a site admin does. Only the Authorize/Revoke
-                  MENU items above stay site-admin-only. */}
-              {isClubAuthorized === false && (
-                <span
-                  data-testid="club-unauthorized-badge"
-                  title={CLUB_UNAUTHORIZED_MESSAGE}
-                  className="inline-flex shrink-0 items-center gap-1 rounded-full bg-warning/10 border border-warning/30 px-2.5 py-0.5 text-xs font-medium text-warning"
-                >
-                  <ShieldAlert className="h-3 w-3" />
-                  Unauthorized
-                </span>
-              )}
-            </div>
-            {officialsError ? (
-              <div
-                role="alert"
-                className="mb-2 flex flex-wrap items-center gap-2 text-sm text-destructive"
-              >
-                <span>Club officials couldn't load.</span>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="h-11"
-                  onClick={() => void refetchOfficials()}
-                >
-                  Try again
-                </Button>
-              </div>
-            ) : (
-              <ClubOfficialsLine
-                adminNames={officials?.adminNames ?? []}
-                secretaryNames={officials?.secretaryNames ?? []}
-              />
-            )}
-            {/* MYK9-855: the badge alone only reads on hover (the `title`
-                above), which a touch device never shows. Say in visible text
-                what is pending and who acts on it next, instead of leaving
-                the requester with a bare "Unauthorized" word. */}
-            {isClubAuthorized === false && (
-              <p
-                data-testid="club-unauthorized-notice"
-                className="mb-2 max-w-2xl text-sm text-muted-foreground"
-              >
-                {canAuthorizeClub
-                  ? 'Pending myK9 authorization. Authorize this club from the ⋮ menu above to unlock show publishing and the public club directory.'
-                  : 'Pending myK9 authorization — a myK9 operator reviews new clubs and will authorize this one soon. You can build shows now; publishing unlocks once the club is authorized.'}
-              </p>
-            )}
-            {(club.address?.city || club.address?.state) && (
-              <div className="flex items-center gap-2 text-muted-foreground mb-2">
-                <MapPin className="w-4 h-4" />
-                {[club.address?.city, club.address?.state].filter(Boolean).join(', ')}
-              </div>
-            )}
-            {club.clubNumber && (
-              <div className="flex items-center gap-2 text-muted-foreground mb-4">
-                <Shield className="w-4 h-4" />
-                Club #{club.clubNumber}
-              </div>
-            )}
-            <div className="flex gap-2 flex-wrap">
-              {club.clubType && (
-                <div className="flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-medium">
-                  <Award className="w-3 h-3" />
-                  {club.clubType.charAt(0).toUpperCase() + club.clubType.slice(1)} Club
-                </div>
-              )}
-              {foundedYear && (
-                <div className="flex items-center gap-1 px-3 py-1 bg-secondary/10 text-secondary-foreground rounded-full text-xs font-medium">
-                  <Shield className="w-3 h-3" />
-                  Founded {foundedYear}
-                </div>
-              )}
-            </div>
-            {/* Quick contact actions */}
-            {(contact.email || contact.phone) && (
-              <div className="flex gap-2 mt-4">
-                {contact.email && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-9 px-3"
-                    onClick={() => window.open(contact.email!, '_self')}
-                    title={`Email: ${club.email}`}
-                  >
-                    <Mail className="w-4 h-4 mr-2" />
-                    Email
-                  </Button>
-                )}
-                {contact.phone && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-9 px-3"
-                    onClick={() => window.open(contact.phone!, '_self')}
-                    title={`Call: ${club.phone}`}
-                  >
-                    <Phone className="w-4 h-4 mr-2" />
-                    Call
-                  </Button>
-                )}
-              </div>
-            )}
-          </div>
+  const location = [club.address?.city, club.address?.state].filter(Boolean).join(', ');
+  // Owner decision 6: an optional blank field is hidden, not shown as a dash.
+  const facts = [
+    ...(location ? [{ label: location, icon: <MapPin className="h-4 w-4" /> }] : []),
+    ...(club.clubNumber
+      ? [{ label: `Club #${club.clubNumber}`, icon: <Shield className="h-4 w-4" /> }]
+      : []),
+  ];
+
+  // P2-B: visible to ANY viewer who can see this club at all (clubs_select
+  // already scopes that) -- a club's own admin/secretary needs to know WHY
+  // publish is blocked just as much as a site admin does. Only the
+  // Authorize/Revoke MENU items above stay site-admin-only.
+  const badges: HeroBadge[] = [
+    ...(club.clubType
+      ? [
+          {
+            label: `${club.clubType.charAt(0).toUpperCase()}${club.clubType.slice(1)} Club`,
+            variant: 'default' as const,
+            icon: <Award className="h-3 w-3" />,
+          },
+        ]
+      : []),
+    ...(isClubAuthorized === false
+      ? [
+          {
+            label: 'Unauthorized',
+            variant: 'warning' as const,
+            icon: <ShieldAlert className="h-3 w-3" />,
+            title: CLUB_UNAUTHORIZED_MESSAGE,
+            testId: 'club-unauthorized-badge',
+          },
+        ]
+      : []),
+  ];
+
+  const details = (
+    <>
+      {officialsError ? (
+        <div role="alert" className="flex flex-wrap items-center gap-2 text-sm text-destructive">
+          <span>Club officials couldn't load.</span>
+          <Button
+            type="button"
+            variant="outline"
+            className="h-11"
+            onClick={() => void refetchOfficials()}
+          >
+            Try again
+          </Button>
         </div>
-      </div>
+      ) : (
+        <ClubOfficialsLine
+          adminNames={officials?.adminNames ?? []}
+          secretaryNames={officials?.secretaryNames ?? []}
+        />
+      )}
+      {/* MYK9-855: the badge alone only reads on hover (the `title` above),
+          which a touch device never shows. Say in visible text what is pending
+          and who acts on it next, instead of leaving the requester with a bare
+          "Unauthorized" word. */}
+      {isClubAuthorized === false && (
+        <p
+          data-testid="club-unauthorized-notice"
+          className="max-w-2xl text-sm text-muted-foreground"
+        >
+          {canAuthorizeClub
+            ? 'Pending myK9 authorization. Authorize this club from the ⋮ menu above to unlock show publishing and the public club directory.'
+            : 'Pending myK9 authorization — a myK9 operator reviews new clubs and will authorize this one soon. You can build shows now; publishing unlocks once the club is authorized.'}
+        </p>
+      )}
+    </>
+  );
+
+  return (
+    <>
+      <DetailHero
+        banner={banner}
+        cover={logo}
+        coverClassName="w-16"
+        eyebrow={foundedYear ? `Founded ${foundedYear}` : undefined}
+        name={club.name}
+        headingLevel={1}
+        badges={badges}
+        metadata={facts}
+        details={details}
+      />
 
       <AlertDialog open={showRevokeConfirm} onOpenChange={setShowRevokeConfirm}>
         <AlertDialogContent>
@@ -417,6 +380,6 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div>
+    </>
   );
 };

@@ -7,7 +7,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import type { User } from '@/types/user-types';
 
@@ -20,6 +20,7 @@ const removed = {
 } as User;
 
 const roleBasedPeople = { people: [live], isLoading: false };
+const canAccess = vi.hoisted(() => ({ value: true }));
 const rbac = { hasPermission: vi.fn(() => true) };
 const deletedQuery = vi.fn(() => ({
   data: null as User | null,
@@ -31,7 +32,7 @@ const deletedQuerySpy = vi.fn();
 
 vi.mock('@/hooks/useRoleBasedData', () => ({
   useRoleBasedPeople: () => roleBasedPeople,
-  useCanAccessPerson: () => true,
+  usePersonAccess: () => (canAccess.value ? 'allowed' : 'denied'),
 }));
 
 vi.mock('@/hooks/useRBAC', () => ({
@@ -75,6 +76,7 @@ function renderAt(id: string) {
 describe('PersonDetailPage — removed people', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    canAccess.value = true;
     rbac.hasPermission = vi.fn(() => true);
     deletedQuery.mockReturnValue({ data: null, isLoading: false, error: null, refetch: vi.fn() });
   });
@@ -114,15 +116,37 @@ describe('PersonDetailPage — removed people', () => {
     renderAt('gone-1');
 
     expect(deletedQuerySpy).toHaveBeenCalledWith('gone-1', false);
-    expect(screen.getByTestId('browse')).toHaveTextContent('/people');
+    // MYK9-930 (H8): the shared Not Found state, not a silent bounce.
+    expect(screen.getByRole('heading', { level: 1, name: 'Person Not Found' })).toBeInTheDocument();
+    expect(screen.queryByTestId('browse')).not.toBeInTheDocument();
   });
 
-  it('still bounces when the id is nobody at all', () => {
+  it('says so, in the page shell, when the id is nobody at all', () => {
     deletedQuery.mockReturnValue({ data: null, isLoading: false, error: null, refetch: vi.fn() });
 
     renderAt('nobody');
 
-    expect(screen.getByTestId('browse')).toHaveTextContent('/people');
+    expect(screen.getByRole('heading', { level: 1, name: 'Person Not Found' })).toBeInTheDocument();
+    expect(screen.getByTestId('app-shell-page')).toBeInTheDocument();
+    expect(screen.queryByTestId('browse')).not.toBeInTheDocument();
+  });
+
+  it('not-found has the people list as its one button', async () => {
+    deletedQuery.mockReturnValue({ data: null, isLoading: false, error: null, refetch: vi.fn() });
+
+    renderAt('nobody');
+    fireEvent.click(screen.getByRole('button', { name: 'Back to People' }));
+
+    expect(await screen.findByTestId('browse')).toHaveTextContent('/people');
+  });
+
+  it("tells a viewer who may not open the record so, rather than that it doesn't exist", () => {
+    canAccess.value = false;
+
+    renderAt('live-1');
+
+    expect(screen.getByRole('heading', { name: "You can't open this person" })).toBeInTheDocument();
+    expect(screen.queryByTestId('details')).not.toBeInTheDocument();
   });
 
   it('waits for the removed-person read rather than bouncing mid-flight', () => {

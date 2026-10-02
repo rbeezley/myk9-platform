@@ -1,7 +1,12 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { PageShell } from '@/components/common/PageShell';
+import { NotFoundState } from '@/components/common/NotFoundState';
+import { ErrorState } from '@/components/common/ErrorState';
+import { getUserFriendlyError } from '@/utils/errorMessages';
+import { resolveDetailPageState } from './detailPageState';
 import { useUserStore } from '@/store/userStore';
-import { useRoleBasedDogs, useCanAccessDog } from '@/hooks/useRoleBasedData';
+import { useRoleBasedDogs, useDogAccess } from '@/hooks/useRoleBasedData';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import DogDetailsMain from '@/components/dogs/DogDetailsMain';
 import type { Dog } from '@/types/dog-types';
@@ -25,8 +30,8 @@ const DogDetailPage: React.FC = () => {
   );
 
   const dogs = useRoleBasedDogs();
-  const { isLoading, isFetching, updateDog } = useDogStoreCompat();
-  const canAccessDog = useCanAccessDog(id || '');
+  const { isLoading, isFetching, error, refetch, updateDog } = useDogStoreCompat();
+  const access = useDogAccess(id || '');
   const people = useUserStore(state => state.people);
 
   // Get fromPerson context for breadcrumbs (Users > Person > Dog)
@@ -48,19 +53,6 @@ const DogDetailPage: React.FC = () => {
   }, [dogs, id, createdDog]);
 
   const dog = resolvedDog ?? (isDeleteInFlight ? dogBeingDeleted : null);
-
-  // Redirect to /dogs if dog not found or no access after loading.
-  // Skip while isFetching — post-create refetch may not have resolved yet.
-  // Skip while createdDog is available — it was just created and is valid.
-  // Skip while a delete this page started is in flight — see above.
-  useEffect(() => {
-    if (createdDog || isLoading || isFetching || isDeleteInFlight) return;
-    if (dogs.length > 0 && id) {
-      if (!canAccessDog || !dogs.find(d => d.id === id)) {
-        navigate('/dogs', { replace: true, state: { accessDenied: true } });
-      }
-    }
-  }, [createdDog, isLoading, isFetching, isDeleteInFlight, dogs, id, canAccessDog, navigate]);
 
   // The id as of NOW: a delete that lands after the user moved to another dog
   // reports itself in the toast without moving their page.
@@ -86,26 +78,75 @@ const DogDetailPage: React.FC = () => {
     setDogBeingDeleted(null);
   }
 
-  if ((isLoading && !isDeleteInFlight) || (!dog && dogs.length === 0 && !createdDog)) {
-    return (
-      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
-        <div className="h-8 w-48 bg-muted/50 rounded-lg animate-pulse" />
-        <div className="flex gap-6">
-          <div className="h-48 w-48 bg-muted/50 rounded-xl animate-pulse shrink-0" />
-          <div className="flex-1 space-y-4">
-            <div className="h-6 w-64 bg-muted/50 rounded animate-pulse" />
-            <div className="h-4 w-40 bg-muted/50 rounded animate-pulse" />
-            <div className="h-4 w-56 bg-muted/50 rounded animate-pulse" />
-            <div className="h-4 w-32 bg-muted/50 rounded animate-pulse" />
+  // ONE decision for every state (`detailPageState`): a read failure always wins so its retry
+  // is reachable; an unresolved identity or an in-flight read is loading, never "not found".
+  // A dog already in hand (just created, or held while its delete runs) keeps the page up, so
+  // a background refresh failing never unmounts a delete dialog mid-flight.
+  const state = resolveDetailPageState({
+    identity: access === 'unresolved' ? 'unresolved' : 'resolved',
+    read:
+      error && !dog
+        ? 'error'
+        : (isLoading && !isDeleteInFlight) || (!dog && (isFetching || dogs.length === 0))
+          ? 'loading'
+          : 'success',
+    recordPresent: !!id && !!dog,
+    access: access === 'denied' ? 'denied' : 'allowed',
+  });
+
+  switch (state) {
+    case 'loading':
+      return (
+        <PageShell>
+          <div role="status" aria-label="Loading dog" className="space-y-6">
+            <div className="h-8 w-48 bg-muted/50 rounded-lg animate-pulse" />
+            <div className="flex gap-6">
+              <div className="h-48 w-48 bg-muted/50 rounded-xl animate-pulse shrink-0" />
+              <div className="flex-1 space-y-4">
+                <div className="h-6 w-64 bg-muted/50 rounded animate-pulse" />
+                <div className="h-4 w-40 bg-muted/50 rounded animate-pulse" />
+                <div className="h-4 w-56 bg-muted/50 rounded animate-pulse" />
+                <div className="h-4 w-32 bg-muted/50 rounded animate-pulse" />
+              </div>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              {[1, 2, 3, 4].map(i => (
+                <div key={i} className="h-24 bg-muted/50 rounded-lg animate-pulse" />
+              ))}
+            </div>
           </div>
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="h-24 bg-muted/50 rounded-lg animate-pulse" />
-          ))}
-        </div>
-      </div>
-    );
+        </PageShell>
+      );
+    case 'error':
+      return (
+        <PageShell>
+          <ErrorState
+            message="Couldn't load this dog."
+            description={getUserFriendlyError(error, 'Check your connection and try again.')}
+            onRetry={() => refetch()}
+          />
+        </PageShell>
+      );
+    case 'denied':
+      return (
+        <PageShell>
+          <NotFoundState
+            entityName="Dog"
+            heading="You can't open this dog"
+            description="This dog belongs to someone else, so it isn't available to you."
+            backTo="/dogs"
+            backLabel="Back to Dogs"
+          />
+        </PageShell>
+      );
+    case 'notFound':
+      return (
+        <PageShell>
+          <NotFoundState entityName="Dog" backTo="/dogs" backLabel="Back to Dogs" />
+        </PageShell>
+      );
+    case 'ready':
+      break;
   }
 
   if (!dog) return null;

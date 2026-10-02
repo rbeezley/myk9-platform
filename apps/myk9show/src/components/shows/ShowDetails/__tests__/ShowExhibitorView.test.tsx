@@ -11,18 +11,39 @@ import type { EntryStatusInfo } from '@/utils/entryStatusUtils';
 vi.mock('@/components/common/PageShell', () => ({
   PageShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
-vi.mock('@/components/common/PageHeader', () => ({ PageHeader: () => <div /> }));
+vi.mock('@/components/common/PageHeader', () => ({
+  PageHeader: ({
+    breadcrumbs = [],
+    omitTitle,
+  }: {
+    breadcrumbs?: Array<{ label: string; href: string }>;
+    omitTitle?: boolean;
+  }) => (
+    <nav aria-label="Breadcrumb" data-omit-title={String(Boolean(omitTitle))}>
+      {breadcrumbs.map(crumb => (
+        <a key={crumb.href} href={crumb.href}>
+          {crumb.label}
+        </a>
+      ))}
+    </nav>
+  ),
+}));
 vi.mock('@/components/common/DetailHero', () => ({
   DetailHero: ({
     badges,
     secondaryActions,
     closedMessage,
+    parent,
+    headingLevel,
   }: {
     badges: { label: string }[];
     secondaryActions?: React.ReactNode;
     closedMessage?: string;
+    parent?: { label: string; href: string };
+    headingLevel?: number;
   }) => (
-    <div data-testid="detail-hero">
+    <div data-testid="detail-hero" data-heading-level={headingLevel}>
+      {parent && <a href={parent.href}>{parent.label}</a>}
       {badges.map(b => (
         <span key={b.label} data-testid="hero-badge">
           {b.label}
@@ -46,7 +67,7 @@ vi.mock('../ShowDetailTabs', () => ({
 }));
 
 function makeShow(): Show {
-  return { id: 'show-1', name: 'Test Show' } as Show;
+  return { id: 'show-1', name: 'Test Show', clubId: 'club-1', clubName: 'Bergen KC' } as Show;
 }
 
 function makeEntryStatus(overrides: Partial<EntryStatusInfo> = {}): EntryStatusInfo {
@@ -104,6 +125,43 @@ function renderView(overrides: Partial<ShowExhibitorViewProps> = {}) {
   );
   return props;
 }
+
+describe('ShowExhibitorView detail-page header (MYK9-930)', () => {
+  it('links the hero to the host club and the breadcrumb up to Shows', () => {
+    renderView({
+      breadcrumbs: [
+        { label: 'Shows', href: '/shows' },
+        { label: 'Test Show', href: '/shows/show-1' },
+      ],
+      heroViewer: 'account',
+    });
+    expect(screen.getByRole('link', { name: 'Bergen KC' })).toHaveAttribute(
+      'href',
+      '/clubs/club-1'
+    );
+    expect(screen.getByRole('link', { name: 'Shows' })).toHaveAttribute('href', '/shows');
+  });
+
+  it('shows the club as plain text for a viewer who is not a signed-in account', () => {
+    renderView({ heroViewer: 'public' });
+    expect(screen.queryByRole('link', { name: 'Bergen KC' })).toBeNull();
+    expect(screen.getByText('Bergen KC')).toBeInTheDocument();
+  });
+
+  it('lets the hero own the page h1', () => {
+    renderView();
+    expect(screen.getByTestId('detail-hero')).toHaveAttribute('data-heading-level', '1');
+    expect(screen.getByRole('navigation', { name: 'Breadcrumb' })).toHaveAttribute(
+      'data-omit-title',
+      'true'
+    );
+  });
+
+  it('shows no club link for a show with no host club', () => {
+    renderView({ show: { id: 'show-1', name: 'Test Show' } as Show });
+    expect(screen.queryByRole('link', { name: 'Bergen KC' })).toBeNull();
+  });
+});
 
 describe('ShowExhibitorView', () => {
   it('does not expose the management Edit action to exhibitors', () => {

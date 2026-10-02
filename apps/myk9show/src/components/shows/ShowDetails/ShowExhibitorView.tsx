@@ -13,6 +13,8 @@ import {
 } from '@/components/shows/ShowDetails/ShowDetailTabs';
 import type { EntryStatus, EntryStatusInfo } from '@/utils/entryStatusUtils';
 import type { Show } from '@/types/show-types';
+import { showHeroParent } from './showHeroParent';
+import type { HeroViewer } from '@/components/common/heroParentLink';
 
 const ENTRY_STATUS_HERO_VARIANT: Record<
   EntryStatus,
@@ -44,6 +46,8 @@ export interface ShowExhibitorViewProps {
   isWaitingForEntryDefault: boolean;
   /** The fully-built tab props (shared with the management shell). */
   tabs: ShowDetailTabsProps;
+  /** Whether the hero's parent links may be followed (see `heroParentLink`). Safe default: no. */
+  heroViewer?: HeroViewer;
 }
 
 /**
@@ -61,12 +65,13 @@ export function ShowExhibitorView({
   isManagementSection,
   isWaitingForEntryDefault,
   tabs,
+  heroViewer = 'public',
 }: ShowExhibitorViewProps) {
   const hasClasses = tabs.classes.length > 0;
 
   return (
     <PageShell>
-      <PageHeader breadcrumbs={breadcrumbs} title={show.name || 'Show Details'} />
+      <PageHeader breadcrumbs={breadcrumbs} title={show.name || 'Show Details'} omitTitle />
 
       <DetailHero
         cover={
@@ -75,7 +80,8 @@ export function ShowExhibitorView({
           ) : undefined
         }
         name={show.name || 'Untitled Show'}
-        subtitle={show.clubName || undefined}
+        headingLevel={1}
+        parent={showHeroParent(show, { viewer: heroViewer })}
         badges={[
           ...(show.organization ? [{ label: show.organization, variant: 'default' as const }] : []),
           {

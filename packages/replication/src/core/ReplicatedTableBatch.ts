@@ -20,6 +20,7 @@ import type { Logger } from '../dependencies';
 import { REPLICATION_STORES } from './DatabaseManager';
 import { MAX_CHUNK_SIZE } from '../constants';
 import { withQuotaEviction } from '../quota-eviction';
+import { deleteRowsIfClean, type DeleteRowsIfCleanResult } from './deleteRowsIfClean';
 
 /**
  * Batch operations manager for a replicated table
@@ -266,6 +267,21 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
     this.logger.log(`[${this.tableName}] Batch deleted ${ids.length} rows`);
 
     this.notifyListeners();
+  }
+
+  /**
+   * Delete the rows that hold no unsynced local work, in ONE transaction that
+   * also reads the mutation queue (see `deleteRowsIfClean`). Rows with work are
+   * returned in `kept` and left untouched.
+   */
+  async deleteRowsIfClean(ids: Iterable<string>): Promise<DeleteRowsIfCleanResult> {
+    const db = await this.getDb();
+    const result = await deleteRowsIfClean(db, this.tableName, ids);
+    if (result.deleted.length > 0) {
+      this.logger.log(`[${this.tableName}] Deleted ${result.deleted.length} clean rows`);
+      this.notifyListeners();
+    }
+    return result;
   }
 
   /**

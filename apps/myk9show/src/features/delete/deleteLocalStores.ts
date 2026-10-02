@@ -24,7 +24,7 @@ import { useClubStore } from '@/store/clubStore';
 import { useEntryStore } from '@/store/entryStore';
 import { useUserStore } from '@/store/userStore';
 import { entryInScope, quietly, type LocalScope } from './deleteLocalScope';
-import { splitByLocalWork } from './deleteLocalWork';
+import { purgeCleanRows } from './deleteLocalWork';
 import type { DeleteObjectKind, DeleteTarget } from './deleteTypes';
 
 export type LocalStoreName =
@@ -72,8 +72,6 @@ interface LocalStore {
   restore: (input: RestoreInput) => Promise<void>;
 }
 
-const ids = (set: ReadonlySet<string>): string[] => [...set];
-
 /** Show scopes whose entries an Undo must re-read: the known show, else every show. */
 async function entryShowScopes({ kind, target }: RestoreInput): Promise<string[]> {
   if (kind === 'show') return [target.id];
@@ -91,10 +89,17 @@ async function classTrialScopes({ kind, target }: RestoreInput): Promise<string[
 
 export const LOCAL_STORES: Record<LocalStoreName, LocalStore> = {
   shows: {
-    // purgeDeletedShow drops the shows replica row and the show store copy.
+    // The replica rows go atomically (clean ones only); the store copy then drops
+    // exactly the deleted ids, as `purgeDeletedShow` would, without re-deleting a
+    // replica row another tab may have just dirtied.
     purge: async scope => {
-      const { purge } = await splitByLocalWork(replicatedShowsTable, scope.showIds);
-      for (const id of purge) await useShowStore.getState().purgeDeletedShow(id);
+      if (scope.showIds.size === 0) return;
+      const { deleted } = await purgeCleanRows(replicatedShowsTable, scope.showIds);
+      if (deleted.size === 0) return;
+      useShowStore.setState(state => ({
+        shows: state.shows.filter(show => !deleted.has(show.id)),
+        selectedShowId: deleted.has(state.selectedShowId) ? '' : state.selectedShowId,
+      }));
     },
     restore: async () => {
       await replicatedShowsTable.sync('');
@@ -102,12 +107,10 @@ export const LOCAL_STORES: Record<LocalStoreName, LocalStore> = {
     },
   },
   trials: {
-    purge: async (scope, id) => {
+    purge: async scope => {
       if (scope.trialIds.size === 0) return;
-      const { purge } = await splitByLocalWork(replicatedTrialsTable, scope.trialIds);
-      const gone = new Set(purge);
+      const { deleted: gone } = await purgeCleanRows(replicatedTrialsTable, scope.trialIds);
       if (gone.size === 0) return;
-      await quietly('trials:replica', id, () => replicatedTrialsTable.batchDelete(ids(gone)));
       useTrialStore.setState(state => {
         const trialClasses = { ...state.trialClasses };
         for (const trialId of gone) delete trialClasses[trialId];
@@ -126,12 +129,10 @@ export const LOCAL_STORES: Record<LocalStoreName, LocalStore> = {
     },
   },
   classes: {
-    purge: async (scope, id) => {
+    purge: async scope => {
       if (scope.classIds.size === 0) return;
-      const { purge } = await splitByLocalWork(replicatedClassesTable, scope.classIds);
-      const gone = new Set(purge);
+      const { deleted: gone } = await purgeCleanRows(replicatedClassesTable, scope.classIds);
       if (gone.size === 0) return;
-      await quietly('classes:replica', id, () => replicatedClassesTable.batchDelete(ids(gone)));
       useTrialStore.setState(state => ({
         trialClasses: Object.fromEntries(
           Object.entries(state.trialClasses).map(([trialId, classes]) => [
@@ -161,19 +162,18 @@ export const LOCAL_STORES: Record<LocalStoreName, LocalStore> = {
   },
   entries: {
     purge: async (scope, id) => {
-      let replicaIds: string[] = [];
+      let deleted = new Set<string>();
       let kept = new Set<string>();
       let checked = false;
       await quietly('entries:replica', id, async () => {
         const rows = await replicatedEntriesTable.getAllOrThrow();
-        const split = await splitByLocalWork(
+        const result = await purgeCleanRows(
           replicatedEntriesTable,
           rows.filter(row => entryInScope(scope, row)).map(row => row.id)
         );
-        replicaIds = split.purge;
-        kept = split.kept;
+        deleted = result.deleted;
+        kept = result.kept;
         checked = true;
-        if (replicaIds.length > 0) await replicatedEntriesTable.batchDelete(replicaIds);
       });
       // A directly-targeted entry is in scope even if the replica read failed; an
       // entry holding local work is never dropped from a store copy either. If the
@@ -181,8 +181,7 @@ export const LOCAL_STORES: Record<LocalStoreName, LocalStore> = {
       const inScope = (entry: { id: string }) =>
         checked &&
         !kept.has(entry.id) &&
-        (entryInScope(scope, entry as Parameters<typeof entryInScope>[1]) ||
-          replicaIds.includes(entry.id));
+        (entryInScope(scope, entry as Parameters<typeof entryInScope>[1]) || deleted.has(entry.id));
       useEntryStore.setState(state => ({ entries: state.entries.filter(e => !inScope(e)) }));
       useClassStore.setState(state => ({ entries: state.entries.filter(e => !inScope(e)) }));
     },
@@ -204,25 +203,17 @@ export const LOCAL_STORES: Record<LocalStoreName, LocalStore> = {
   dogs: {
     // dogStore.dogs is a deprecated no-op shim; the dogs replica is the dog directory.
     purge: async (scope, id) => {
-      for (const dogId of scope.dogIds) {
-        await quietly('dogs:replica', id, async () => {
-          if (await replicatedDogsTable.hasUnsyncedLocalWork(dogId)) return;
-          await replicatedDogsTable.delete(dogId);
-        });
-      }
+      if (scope.dogIds.size === 0) return;
+      await quietly('dogs:replica', id, () => purgeCleanRows(replicatedDogsTable, scope.dogIds));
     },
     restore: async ({ target }) => {
       await quietly('dogs:sync', target.id, () => replicatedDogsTable.sync(''));
     },
   },
   clubs: {
-    purge: async (scope, id) => {
+    purge: async scope => {
       if (scope.clubIds.size === 0) return;
-      const { purge } = await splitByLocalWork(replicatedClubsTable, scope.clubIds);
-      const gone = new Set(purge);
-      for (const clubId of gone) {
-        await quietly('clubs:replica', id, () => replicatedClubsTable.delete(clubId));
-      }
+      const { deleted: gone } = await purgeCleanRows(replicatedClubsTable, scope.clubIds);
       useClubStore.setState(state => ({
         clubs: state.clubs.filter(club => !gone.has(club.id)),
         selectedClubId: gone.has(state.selectedClubId) ? '' : state.selectedClubId,

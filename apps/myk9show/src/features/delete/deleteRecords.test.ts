@@ -173,6 +173,7 @@ describe('restoreRecords: Undo', () => {
     expect(mocks.refresh).toHaveBeenCalledWith('trial', expect.objectContaining({ id: 't1' }));
     expect(result.restored.map(t => t.id)).toEqual(['t1']);
     expect(result.failed).toEqual([]);
+    expect(result.warnings).toEqual([]);
   });
 
   it('a P0002 for a record that is not live is a real failure', async () => {
@@ -184,6 +185,9 @@ describe('restoreRecords: Undo', () => {
     expect(mocks.refresh).not.toHaveBeenCalled();
     expect(result.restored).toEqual([]);
     expect(result.failed).toHaveLength(1);
+    // Never "already back": the record was purged, it is not live.
+    expect(result.failed[0]?.message).toBe('This trial can no longer be restored.');
+    expect(result.failed[0]?.retryable).toBe(false);
   });
 
   it('maps a closed Undo window (42501) and a deleted parent (MK013) to plain language', async () => {
@@ -277,9 +281,9 @@ describe('the SQLSTATE decides, never the message (MYK9-922)', () => {
     expect(classifyDeleteError({ message: 'Show not found or already deleted' })).toBe('failed');
   });
 
-  it('restore: P0002 is "already back" and final; a "not deleted" message without the code is retryable', () => {
+  it('restore: P0002 is final and never claims the record is back (live ones are reconciled as restored); a "not deleted" message without the code is retryable', () => {
     expect(restoreErrorMessage('dog', { code: 'P0002', message: 'x' })).toBe(
-      'This dog is already back.'
+      'This dog can no longer be restored.'
     );
     expect(isRetryableRestoreError({ code: 'P0002', message: 'x' })).toBe(false);
     expect(restoreErrorMessage('dog', { message: 'Dog not found or not deleted' })).toBe(

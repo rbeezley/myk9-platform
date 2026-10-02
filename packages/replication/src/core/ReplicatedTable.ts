@@ -1098,6 +1098,15 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     return this.batchManager.batchDelete(ids);
   }
 
+  /**
+   * Atomically delete the rows with no unsynced local work (dirty, `_localOnly`,
+   * pending or failed mutation); the check and delete share one IndexedDB
+   * transaction, so another tab cannot dirty a row in between (MYK9-922).
+   */
+  async deleteRowsIfClean(ids: Iterable<string>): Promise<{ deleted: string[]; kept: string[] }> {
+    return this.batchManager.deleteRowsIfClean(ids);
+  }
+
   async clearCache(): Promise<void> {
     await this.batchManager.clearCache();
 

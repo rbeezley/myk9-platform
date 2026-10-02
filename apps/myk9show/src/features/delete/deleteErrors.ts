@@ -110,7 +110,9 @@ export function restoreErrorMessage(kind: DeleteObjectKind, error: unknown): str
     return `This can't come back while its ${parent} is deleted. Restore the ${parent} first.`;
   }
   if (code === PG_NO_DATA_FOUND) {
-    return `${thisThing(kind).replace(/^t/, 'T')} is already back.`;
+    // Reached only when the record is NOT live (`restoreRecords` reads a live one
+    // as restored first), so it was permanently purged: never say "already back".
+    return `${thisThing(kind).replace(/^t/, 'T')} can no longer be restored.`;
   }
   if (isOffline()) {
     return "You're offline. Undo needs a connection. Try again when you're back online.";
@@ -132,7 +134,7 @@ export function classifyPreviewError(error: unknown): DeletePreviewUnavailableRe
 
 /**
  * Whether pressing Undo again could succeed. A refusal the server will repeat
- * (window over, parent still deleted, already back) is not worth a second try.
+ * (window over, parent still deleted, record purged) is not worth a second try.
  */
 export function isRetryableRestoreError(error: unknown): boolean {
   const { code } = fieldsOf(error);

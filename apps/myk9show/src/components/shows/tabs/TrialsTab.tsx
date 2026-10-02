@@ -18,6 +18,7 @@ import { DataTable, filterByListSearch, type ColumnDef } from '@/components/ui/d
 import { formatTrialTypeLabel } from '@/types/template.types';
 import { StatusBadge, getStatusDescriptor } from '@/components/status';
 import { usePageExportAction } from '@/features/actions/pageEditTarget';
+import { getAddTrialsHref } from '@/pages/secretary/ShowCreationWizard/addTrialsHref';
 import { exportRowsCsv } from '@/utils/downloadCsv';
 import { toast } from 'sonner';
 import { hydrateThenResolve } from '@/utils/hydrateThenResolve';
@@ -304,8 +305,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
       ),
   });
 
-  const openWizard = () =>
-    navigate(`/secretary/create-show/wizard?showId=${showId}&mode=add-trials`);
+  const openWizard = () => navigate(getAddTrialsHref(showId));
 
   return (
     <div className="space-y-4">

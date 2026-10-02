@@ -4,6 +4,7 @@ import {
 } from '@/pages/RegistrationWizardPage.routes';
 import { SHOW_SHELL_CHILD_SEGMENTS } from '@/routes/showManagementSections';
 import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
+import { getAddTrialsHref } from '@/pages/secretary/ShowCreationWizard/addTrialsHref';
 import { TRIAL_SECRETARY_ONLY_REASON } from './trialSecretaryAccess';
 
 /**
@@ -251,7 +252,7 @@ function buildShowActions(
     {
       id: 'show-add-new-trial',
       label: 'Add Trial',
-      href: `/secretary/create-show/wizard?showId=${encoded}&mode=add-trials`,
+      href: getAddTrialsHref(showId),
     },
     {
       // The show-level door into the one class-create flow (the Setup toolbar

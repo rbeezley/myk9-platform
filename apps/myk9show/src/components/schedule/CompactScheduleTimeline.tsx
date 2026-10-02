@@ -9,10 +9,14 @@ import { NotSet } from '@/components/common/NotSet';
 import { getShowMapClassHref, getShowMapTrialHref } from '@/features/show-map/showMapRoutes';
 import { useScheduleTimeline } from '@/hooks/queries/useScheduleTimeline';
 import { cn } from '@/lib/utils';
+import { countLabel } from '@/utils/pluralize';
+import { getSetupClassesHref } from '@/pages/secretary/showSetupSections';
 import { ClassStartTimeEditor } from './ClassStartTimeEditor';
+import { AddTrialLink, TrialManagerLinks } from './CompactScheduleManagerLinks';
 import { formatStartTime } from './schedule-timeline.utils';
 import type { DayTimelineData, LevelDetail, TrialTimelineData } from './schedule-timeline.types';
 
+// Visitors only: managers see every class, since a hidden class can't be started from here (MYK9-942).
 const MAX_VISIBLE_CLASSES_PER_TRIAL = 6;
 
 interface CompactScheduleTimelineProps {
@@ -129,32 +133,40 @@ function CompactTrialGroup({
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const rows = useMemo(() => flattenTrialClasses(trial), [trial]);
-  const visibleRows = rows.slice(0, MAX_VISIBLE_CLASSES_PER_TRIAL);
+  const visibleRows = canEditSchedule ? rows : rows.slice(0, MAX_VISIBLE_CLASSES_PER_TRIAL);
   const hiddenCount = Math.max(0, rows.length - visibleRows.length);
   const trialHref = getShowMapTrialHref(showId, trial.trialId);
   const trialLevels = trial.elements.flatMap(element => element.levels);
+  const label = trialLabel(trial);
+  const classCount = countLabel(rows.length, 'class', 'classes');
+  const entryTotal = rows.reduce((sum, row) => sum + row.entryCount, 0);
+  const trialCountLabel = canEditSchedule
+    ? `${classCount} · ${countLabel(entryTotal, 'entry', 'entries')}`
+    : classCount;
 
   return (
     <Collapsible open={open} onOpenChange={setOpen} className="rounded-xl border border-border">
       <CollapsibleTrigger asChild>
         <button
           type="button"
-          className="flex min-h-12 w-full items-center gap-3 px-4 py-3 text-left hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
-          aria-label={`${open ? 'Collapse' : 'Expand'} ${trialLabel(trial)} on ${formatScheduleDate(day.date)}`}
+          className="flex min-h-12 w-full flex-wrap items-center gap-x-3 gap-y-1.5 px-4 py-3 text-left hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset sm:flex-nowrap"
+          aria-label={`${open ? 'Collapse' : 'Expand'} ${label} on ${formatScheduleDate(day.date)}`}
         >
           <ChevronDown
             className={cn('h-4 w-4 shrink-0 transition-transform', !open && '-rotate-90')}
             aria-hidden="true"
           />
-          <span className="min-w-0 flex-1">
-            <span className="block font-semibold text-foreground">{trialLabel(trial)}</span>
+          {/* At phone width the count pill wraps under the date instead of squeezing it; 1.75rem
+              and the pill's ml-7 are the chevron (1rem) plus gap-x-3. */}
+          <span className="min-w-0 flex-1 basis-[calc(100%-1.75rem)] sm:basis-0">
+            <span className="block font-semibold text-foreground">{label}</span>
             <span className="block text-sm text-muted-foreground">
               {formatScheduleDate(day.date)}
               {trial.plannedStartTime ? ` · Starts ${formatStartTime(trial.plannedStartTime)}` : ''}
             </span>
           </span>
-          <span className="shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground">
-            {rows.length} {rows.length === 1 ? 'class' : 'classes'}
+          <span className="ml-7 shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground sm:ml-0">
+            {trialCountLabel}
           </span>
         </button>
       </CollapsibleTrigger>
@@ -181,6 +193,13 @@ function CompactTrialGroup({
                 View {hiddenCount} more {hiddenCount === 1 ? 'class' : 'classes'}
                 <ExternalLink className="h-4 w-4" aria-hidden="true" />
               </Link>
+            )}
+          </div>
+        )}
+        {(rows.length > 0 || canEditSchedule) && (
+          <div className="mt-2 flex flex-wrap items-center gap-x-4">
+            {canEditSchedule && (
+              <TrialManagerLinks showId={showId} trialId={trial.trialId} trialLabel={label} />
             )}
             <Link
               to={trialHref}
@@ -236,6 +255,7 @@ export function CompactScheduleTimeline({
       <Card className="space-y-2 p-4">
         <h2 className="text-lg font-semibold">Show schedule</h2>
         <p className="text-sm text-muted-foreground">No schedule is available yet.</p>
+        {canEditSchedule && <AddTrialLink showId={showId} />}
       </Card>
     );
   }
@@ -249,13 +269,16 @@ export function CompactScheduleTimeline({
             Classes are grouped by trial. Select a class for details.
           </p>
         </div>
-        <Link
-          to={`/shows/${showId}?tab=classes`}
-          className="inline-flex min-h-11 items-center gap-1 rounded-md border border-border px-3 text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          View all classes
-          <ExternalLink className="h-4 w-4" aria-hidden="true" />
-        </Link>
+        <div className="flex flex-wrap items-center gap-2">
+          {canEditSchedule && <AddTrialLink showId={showId} />}
+          <Link
+            to={canEditSchedule ? getSetupClassesHref(showId) : `/shows/${showId}?tab=classes`}
+            className="inline-flex min-h-11 items-center gap-1 rounded-md border border-border px-3 text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            View all classes
+            <ExternalLink className="h-4 w-4" aria-hidden="true" />
+          </Link>
+        </div>
       </div>
       <div className="space-y-3">
         {data.map(day =>

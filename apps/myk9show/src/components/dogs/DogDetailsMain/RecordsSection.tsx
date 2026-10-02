@@ -30,6 +30,8 @@ interface RecordsSectionProps {
   onViewChange?: (view: RecordsView) => void;
   /** Secretary surface: Health only, no Premium gate, vaccinations-only content. */
   vaccinationsOnly?: boolean;
+  /** Hide add/edit/delete in the vaccinations-only view. */
+  readOnly?: boolean;
 }
 
 /**
@@ -44,11 +46,17 @@ const RecordsSection: React.FC<RecordsSectionProps> = ({
   canWrite,
   onViewChange,
   vaccinationsOnly = false,
+  readOnly: forceReadOnly = false,
 }) => {
   if (vaccinationsOnly) {
     return (
       <Suspense fallback={<TabContentSkeleton />}>
-        <HealthRecordsSection user={{ isPremium }} dogId={dogId} vaccinationsOnly />
+        <HealthRecordsSection
+          user={{ isPremium }}
+          dogId={dogId}
+          vaccinationsOnly
+          readOnly={forceReadOnly}
+        />
       </Suspense>
     );
   }

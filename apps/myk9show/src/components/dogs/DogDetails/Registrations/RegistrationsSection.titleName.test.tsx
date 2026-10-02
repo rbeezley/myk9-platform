@@ -85,7 +85,7 @@ describe('registration name editing', () => {
     const { user } = render(
       <>
         <DogRegistrationDialogs dog={dog} />
-        <RegistrationsSection dog={dog} />
+        <RegistrationsSection dog={dog} canEdit />
       </>
     );
 
@@ -173,7 +173,7 @@ describe('registration name editing', () => {
   it('adds no second Add control to the empty state', () => {
     mocks.registrations.mockReturnValue([]);
     const dog = { id: 'dog-1', callName: 'Test Dog' } as Dog;
-    render(<RegistrationsSection dog={dog} />);
+    render(<RegistrationsSection dog={dog} canEdit />);
 
     expect(screen.getByText('No Registrations Found')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^Add registration$/i })).toBeNull();

@@ -21,8 +21,6 @@ import { describe, expect, it } from 'vitest';
  *     picked Date, so its values are genuine instants encoding local
  *     midnight. Reading those as calendar days would be WRONG — east of UTC
  *     a local-midnight pick lands on the previous UTC day.
- *   - `wizardTrial.dateTime` on the write path is formatted from that same
- *     local Date into the calendar day the user chose.
  *   - The rest are `new Date()` (now) or a real timestamptz.
  *
  * So each occurrence is declared below with the reason it is an instant. A
@@ -44,7 +42,6 @@ const DECLARED_INSTANT_CALL_SITES: Record<string, string[]> = {
     'show.entryCloseDate',
     'show.entryOpenDate',
     'show.startDate',
-    'trial.dateTime',
   ],
   // `new Date(now)` — an instant, deliberately rendered in US/Eastern.
   'features/admin-overview/easternDay.ts': ['now'],
@@ -52,12 +49,6 @@ const DECLARED_INSTANT_CALL_SITES: Record<string, string[]> = {
   'features/at-show/useRingsideEntryShows.ts': [''],
   // A show-incident timestamptz, rendered WITH a time (`timeStyle: 'short'`).
   'features/show-workbench/IncidentLogCard.tsx': ['value'],
-  // Write path: formats the wizard's local Date into the chosen calendar day
-  // / clock time for persistence.
-  // The saved start time of a wizard trial, read from the same local wall-clock dateTime.
-  'pages/secretary/ShowCreationWizard/trialPlannedStartTime.ts': ['trial.dateTime'],
-  'pages/secretary/ShowCreationWizard/showCreationWizardTransformers.ts': ['wizardTrial.dateTime'],
-  'pages/secretary/ShowCreationWizard/useShowCreationWizardActions.ts': ['wizardTrial.dateTime'],
 };
 
 const SRC = join(__dirname, '..');
@@ -104,7 +95,7 @@ describe('MYK9-384 format(new Date(...)) inventory', () => {
     // Guards the whole test: a broken regex or walker would report {} and
     // every assertion below would pass while checking nothing.
     const found = scan();
-    expect(Object.keys(found).length).toBeGreaterThanOrEqual(5);
+    expect(Object.keys(found).length).toBeGreaterThanOrEqual(4);
     expect(found['components/shows/wizard/steps/ReviewStep.tsx']).toContain('show.startDate');
   });
 

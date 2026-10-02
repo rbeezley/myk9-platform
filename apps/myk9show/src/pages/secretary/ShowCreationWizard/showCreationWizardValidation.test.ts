@@ -126,7 +126,8 @@ describe('class-selection step registry validation', () => {
     const trials = [
       {
         id: 'trial-1',
-        dateTime: '2026-08-29T08:00:00',
+        trialDate: '2026-08-29',
+        startTimeDraft: '08:00 AM',
         eventNumber: 'EVT-1',
         trialType: 'scent_work',
         classes: [
@@ -166,7 +167,8 @@ describe('class step - which trials must have classes (MYK9-899)', () => {
   };
   const mk = (id: string, classes: unknown[]) => ({
     id,
-    dateTime: '2026-08-29T08:00:00',
+    trialDate: '2026-08-29',
+    startTimeDraft: '08:00 AM',
     eventNumber: 'EVT-1',
     trialType: 'scent_work',
     classes,
@@ -227,7 +229,7 @@ describe('validation scope: add-classes evaluates only the class rules (MYK9-899
   });
   const trial = {
     id: 'trial-1',
-    dateTime: '',
+    trialDate: '',
     eventNumber: '',
     trialType: 'scent_work',
     classes: [
@@ -354,7 +356,8 @@ describe('trial start time draft (MYK9-931)', () => {
       [
         {
           id: 't1',
-          dateTime: '2026-08-15T08:00:00',
+          trialDate: '2026-08-15',
+          startTimeDraft: '08:00 AM',
           eventNumber: '1',
           trialType: 'Scent Work',
           classes: [],

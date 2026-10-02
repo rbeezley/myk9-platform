@@ -46,7 +46,8 @@ vi.mock('@/store/wizardStore', () => ({
       {
         id: 't1',
         nameOverride: 'Saturday Trial',
-        dateTime: '2026-07-01T09:00:00',
+        trialDate: '2026-07-01',
+        startTimeDraft: '09:00 AM',
         eventNumber: '1',
         trialType: 'Scent Work',
         ...(mocks.draft !== undefined ? { startTimeDraft: mocks.draft } : {}),

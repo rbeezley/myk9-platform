@@ -250,7 +250,7 @@ const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
   onUseExistingDog,
   onCreateSeparateDog,
 }) => {
-  const { form, runSelfNavigation } = useEditPanel<DogFormData>();
+  const { form, runSelfNavigation, requestTab } = useEditPanel<DogFormData>();
 
   // The hook needs form to manage registrations/photos via context
   const uiState = useAddDogForm({ open, form });
@@ -346,7 +346,12 @@ const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
         )}
 
         {/* Tabbed Content */}
-        <Tabs value={activeTab} onValueChange={value => onActiveTabChange(value as TabValue)}>
+        <Tabs
+          value={activeTab}
+          onValueChange={value =>
+            requestTab ? requestTab(value) : onActiveTabChange(value as TabValue)
+          }
+        >
           <TabNavigation
             isBasicValid={isBasicValid}
             hasRegistrations={hasRegistrations}

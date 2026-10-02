@@ -2,7 +2,6 @@
  * Data transformation utilities for the Show Creation Wizard
  */
 
-import { format } from 'date-fns';
 import type { Show } from '@/types/show-types';
 import type { ShowInput } from '@/store/showStore';
 import type { ClassData } from '@/components/classes/types/classTypes';
@@ -43,7 +42,8 @@ export interface WizardShowData {
 export interface WizardTrial {
   id: string;
   nameOverride?: string | undefined;
-  dateTime: string;
+  /** The trial's day, `yyyy-MM-dd`, or '' while it has none. */
+  trialDate: string;
   /** The start-time box as typed (see wizardStore); the source of truth for the saved time. */
   startTimeDraft?: string | undefined;
   eventNumber: string;
@@ -157,7 +157,7 @@ export function createClassDataFromWizard(
           id: classId,
           trialId: trialId,
           trial: trialView.effectiveNamesByTrialId.get(wizardTrial.id) ?? '',
-          trialDate: format(new Date(wizardTrial.dateTime), 'yyyy-MM-dd'),
+          trialDate: wizardTrial.trialDate,
           trialNumber:
             wizardTrial.eventNumber || trialView.effectiveNamesByTrialId.get(wizardTrial.id) || '',
           classOrder: String(index + 1),
@@ -272,7 +272,7 @@ export function transformWizardDataToShow(
   const showTrials = trials.map((trial, index) => ({
     id: trial.id,
     name: trialView.effectiveNamesByTrialId.get(trial.id) ?? '',
-    date: trial.dateTime,
+    date: trial.trialDate,
     trialNumber: `${index + 1}`,
     status: 'Upcoming',
   }));

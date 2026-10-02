@@ -17,7 +17,8 @@ const wizardState = vi.hoisted(() => ({
   trials: [] as Array<{
     id: string;
     nameOverride?: string;
-    dateTime: string;
+    trialDate: string;
+    startTimeDraft?: string;
     trialType?: string;
     eventNumber: string;
     classes: unknown[];
@@ -60,7 +61,7 @@ function makeTrialView(existingTrials: TrialNameSource[] = []) {
   return createWizardTrialView(
     wizardState.trials.map(trial => ({
       id: trial.id,
-      trialDate: trial.dateTime,
+      trialDate: trial.trialDate,
       nameOverride: trial.nameOverride,
     })),
     existingTrials
@@ -198,7 +199,8 @@ describe('TrialConfigurationStep existing snapshot state', () => {
     wizardState.trials = [
       {
         id: 'draft-trial',
-        dateTime: '2026-08-01T08:00:00',
+        trialDate: '2026-08-01',
+        startTimeDraft: '08:00 AM',
         eventNumber: '',
         classes: [],
       },
@@ -218,7 +220,8 @@ describe('TrialConfigurationStep existing snapshot state', () => {
             [
               {
                 id: 'draft-trial',
-                dateTime: '2026-08-01T08:00:00',
+                trialDate: '2026-08-01',
+                startTimeDraft: '08:00 AM',
                 eventNumber: '',
                 classes: [],
               },
@@ -255,7 +258,8 @@ describe('TrialConfigurationStep existing snapshot state', () => {
       {
         id: 'draft-trial',
         nameOverride: 'Custom Saturday Trial',
-        dateTime: '2026-08-01T08:00:00',
+        trialDate: '2026-08-01',
+        startTimeDraft: '08:00 AM',
         eventNumber: '',
         classes: [],
       },
@@ -275,7 +279,8 @@ describe('TrialConfigurationStep existing snapshot state', () => {
     wizardState.trials = [
       {
         id: 'draft-trial',
-        dateTime: '2026-08-01T08:00:00',
+        trialDate: '2026-08-01',
+        startTimeDraft: '08:00 AM',
         eventNumber: '',
         classes: [],
       },
@@ -286,9 +291,9 @@ describe('TrialConfigurationStep existing snapshot state', () => {
       screen.getByRole('button', { name: 'Change trial-draft-trial-dateTime to next day' })
     );
 
-    // The date control moves the day only; the trial keeps its time.
+    // The date control writes the day and nothing else: no time is folded in or defaulted.
     expect(wizardState.updateTrial).toHaveBeenCalledWith('draft-trial', {
-      dateTime: '2026-08-02T08:00:00',
+      trialDate: '2026-08-02',
     });
   });
 
@@ -296,7 +301,8 @@ describe('TrialConfigurationStep existing snapshot state', () => {
     wizardState.trials = [
       {
         id: 'draft-trial',
-        dateTime: '2026-08-01T08:00:00',
+        trialDate: '2026-08-01',
+        startTimeDraft: '08:00 AM',
         eventNumber: '',
         classes: [],
       },
@@ -307,7 +313,6 @@ describe('TrialConfigurationStep existing snapshot state', () => {
 
     expect(wizardState.updateTrial).toHaveBeenCalledWith('draft-trial', {
       startTimeDraft: '10:00 AM',
-      dateTime: '2026-08-01T10:00:00',
     });
   });
 });

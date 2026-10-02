@@ -50,7 +50,7 @@ const UserEditForm: React.FC<{
   notice?: React.ReactNode;
 }> = ({ userId, activeTab, onTabChange, notice }) => {
   const queryClient = useQueryClient();
-  const { data, form } = useEditPanel<UserFormData>();
+  const { data, form, requestTab } = useEditPanel<UserFormData>();
   const { user: currentUser } = useAuthContext();
   const { hasPermission } = useRBAC();
   const { loadUsers } = useUserStore();
@@ -192,7 +192,9 @@ const UserEditForm: React.FC<{
       {notice}
       <Tabs
         value={activeTab}
-        onValueChange={value => onTabChange(value as UserTabValue)}
+        onValueChange={value =>
+          requestTab ? requestTab(value) : onTabChange(value as UserTabValue)
+        }
         className="w-full"
       >
         <TabsList

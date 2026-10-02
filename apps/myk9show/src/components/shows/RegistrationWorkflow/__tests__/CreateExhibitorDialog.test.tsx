@@ -281,6 +281,8 @@ describe('CreateExhibitorDialog wording', () => {
     const user = userEvent.setup();
     render(<CreateExhibitorDialog open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
     expect(screen.getByRole('heading', { name: 'Add Person' })).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/First Name/i), 'Pat');
+    await user.type(screen.getByLabelText(/Last Name/i), 'Paperform');
     await user.click(screen.getByRole('tab', { name: /Contact/ }));
     expect(screen.getByRole('button', { name: 'Add Person' })).toBeInTheDocument();
     // No "exhibitor" or "create/creating" anywhere in what the secretary reads.

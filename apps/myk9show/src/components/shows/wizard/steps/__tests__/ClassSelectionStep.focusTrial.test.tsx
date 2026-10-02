@@ -40,7 +40,7 @@ import { ClassSelectionStep } from '../ClassSelectionStep';
 const trial = (id: string, name: string) => ({
   id,
   nameOverride: name,
-  dateTime: '',
+  trialDate: '',
   eventNumber: '',
   trialType: 'Scent Work',
   classes: [],

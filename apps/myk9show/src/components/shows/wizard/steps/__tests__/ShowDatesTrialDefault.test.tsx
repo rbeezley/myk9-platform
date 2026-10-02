@@ -3,7 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DatesEntrySection } from '../sections/DatesEntrySection';
 import TrialConfigurationStep from '../TrialConfigurationStep';
-import { getDefaultTrialDateTime } from '../TrialConfigurationStep.helpers';
+import { getDefaultTrialDate } from '../TrialConfigurationStep.helpers';
 import { useWizardStore } from '@/store/wizardStore';
 import { createWizardTrialView } from '@/utils/wizardTrialNames';
 import { format } from 'date-fns';
@@ -18,7 +18,7 @@ function TrialsHarness() {
   const trialView = createWizardTrialView(
     trials.map(trial => ({
       id: trial.id,
-      trialDate: trial.dateTime,
+      trialDate: trial.trialDate,
       nameOverride: trial.nameOverride,
     })),
     []
@@ -94,7 +94,10 @@ describe('show dates and trial default (MYK9-884, MYK9-892, MYK9-888)', () => {
     render(<TrialsHarness />);
     await user.click((await screen.findAllByRole('button', { name: 'Add First Trial' }))[0]!);
 
-    expect(useWizardStore.getState().trials.map(t => t.dateTime)).toEqual(['2026-08-15T08:00:00']);
+    const [added] = useWizardStore.getState().trials;
+    expect(added?.trialDate).toBe('2026-08-15');
+    // Adding a trial picks a day only: the start time is typed, never defaulted.
+    expect(added?.startTimeDraft).toBeUndefined();
   });
 
   it('tells the user what Add Another Trial and Next do, on the Add button itself', async () => {
@@ -118,7 +121,7 @@ describe('show dates and trial default (MYK9-884, MYK9-892, MYK9-888)', () => {
 
     await user.click(add);
     await user.click(screen.getAllByRole('button', { name: 'Add Another Trial' })[0]!);
-    expect(useWizardStore.getState().trials.map(t => t.dateTime.slice(0, 10))).toEqual([
+    expect(useWizardStore.getState().trials.map(t => t.trialDate)).toEqual([
       '2026-08-14',
       '2026-08-14',
       '2026-08-15',
@@ -134,7 +137,8 @@ describe('show dates and trial default (MYK9-884, MYK9-892, MYK9-888)', () => {
     });
     store.addTrial({
       nameOverride: undefined,
-      dateTime: '2026-07-01T08:00:00',
+      trialDate: '2026-07-01',
+      startTimeDraft: '08:00 AM',
       eventNumber: '',
       classes: [],
     });
@@ -155,6 +159,6 @@ describe('show dates and trial default (MYK9-884, MYK9-892, MYK9-888)', () => {
     const start = new Date(2026, 7, 14, 8).toISOString();
     const existing = ['2026-08-14T08:00:00', '2026-08-14T09:00:00'];
 
-    expect(getDefaultTrialDateTime(start, '', existing)).toBe('2026-08-15T08:00:00');
+    expect(getDefaultTrialDate(start, '', existing)).toBe('2026-08-15');
   });
 });

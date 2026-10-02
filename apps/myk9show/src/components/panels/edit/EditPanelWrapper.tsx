@@ -361,6 +361,15 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     />
   );
 
+  // Create-mode tab walk: Next replaces Save until the last tab (decision 13).
+  const stepsState = useEditPanelSteps({
+    steps,
+    schema,
+    data,
+    touchField: field => form.touchField(field),
+    open,
+  });
+
   // Context value
   const contextValue: EditPanelContextValue<Record<string, unknown>> = {
     form: useSchemaPath ? (form as unknown as FormValidation<Record<string, unknown>>) : undefined,
@@ -373,20 +382,12 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     isLoading,
     setIsLoading,
     runSelfNavigation,
+    requestTab: stepsState.requestTab,
   };
 
   // Save and Close hold still while the delete dialog is open: its server call
   // may be in flight, and a save racing a delete would write to a gone row.
   const controlsBlocked = isLoading || deleteOpen;
-
-  // Create-mode tab walk: Next replaces Save until the last tab (decision 13).
-  const stepsState = useEditPanelSteps({
-    steps,
-    schema,
-    data,
-    touchField: field => form.touchField(field),
-    open,
-  });
 
   // The item is gone, so its unsaved edits are moot: close without the discard
   // prompt or the route guard, then let the caller navigate away.

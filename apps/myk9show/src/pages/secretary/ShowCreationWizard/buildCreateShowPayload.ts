@@ -7,7 +7,7 @@ import { deriveRegistryId, resolveBrowserTrialTimezone } from '@/features/regist
 import { resolvePremiumStyle, type PremiumStyle } from '@/types/premium-types';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import type { JudgeDetailsMap, ShowStatus } from './show-creation-wizard-types';
-import { plannedStartTimeForSave } from './trialPlannedStartTime';
+import { plannedStartTimeForSave, requireTrialDate } from './trialPlannedStartTime';
 import { normalizeWizardClassSelections } from './classConfigurationValidation';
 import { assertJuniorHandlerFee, wizardJuniorHandlerFee } from './wizardJuniorHandlerFee';
 import {
@@ -154,9 +154,7 @@ export function buildCreateShowPayload(
       timezone,
       id: trialId,
       name: trialName,
-      date: wizardTrial.dateTime
-        ? toLocalDateOnly(wizardTrial.dateTime)
-        : toLocalDateOnly(new Date().toISOString()),
+      date: requireTrialDate(wizardTrial, trialName),
       trial_number: trialName,
       status: 'upcoming',
       trial_type: wizardTrial.trialType || show.organization || null,

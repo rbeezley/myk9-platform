@@ -41,7 +41,8 @@ vi.mock('@/store/wizardStore', () => ({
     trials: [
       {
         id: 'trial-1',
-        dateTime: '2026-07-01T08:00:00',
+        trialDate: '2026-07-01',
+        startTimeDraft: '08:00 AM',
         eventNumber: '',
         classes: [
           {

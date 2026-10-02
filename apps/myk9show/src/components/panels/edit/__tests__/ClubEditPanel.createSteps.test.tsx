@@ -108,14 +108,12 @@ describe('ClubEditPanel create mode — guided sections', () => {
     await waitFor(() => expect(document.activeElement).toHaveAttribute('id', 'email'));
   });
 
-  it('a failed Add Club from Premium lands on the first tab with a missing field and focuses it', async () => {
+  it('jumping to Premium over an unfinished Contact lands on Contact, flags it and focuses the first missing field', async () => {
     const user = userEvent.setup();
     const onSave = renderCreate();
     await user.type(await screen.findByRole('textbox', { name: /Club Name/ }), 'Heartland');
-    // Earlier tabs stay clickable: jump straight to Premium, skipping Contact.
+    // Forward jumps pass every tab's check (decision 13): Contact is unfinished.
     await user.click(tab(/^Premium/));
-
-    await user.click(screen.getByRole('button', { name: 'Add Club' }));
 
     await waitFor(() => expect(tab(/^Contact/)).toHaveAttribute('aria-selected', 'true'));
     await waitFor(() => expect(document.activeElement).toHaveAttribute('id', 'email'));
@@ -143,7 +141,8 @@ describe('ClubEditPanel create mode — guided sections', () => {
   it('every mapped field has a focus target on the tab it names', async () => {
     const user = userEvent.setup();
     renderCreate();
-    await screen.findByRole('textbox', { name: /Club Name/ });
+    // Basic Info must pass before Contact can be opened from the tab bar.
+    await user.type(await screen.findByRole('textbox', { name: /Club Name/ }), 'Heartland');
     const missing: string[] = [];
     for (const name of ['basic', 'contact'] as const) {
       await user.click(
@@ -159,6 +158,7 @@ describe('ClubEditPanel create mode — guided sections', () => {
   it('keeps one to-complete count per tab as fields are typed', async () => {
     const user = userEvent.setup();
     renderCreate();
+    await user.type(await screen.findByRole('textbox', { name: /Club Name/ }), 'Heartland');
     await user.click(await screen.findByRole('tab', { name: /^Contact/ }));
     const status = () => screen.getByTestId('club-tab-status-contact');
     expect(status()).toHaveTextContent('6 to complete');
@@ -182,7 +182,6 @@ describe('ClubEditPanel create mode — guided sections', () => {
     expect(screen.getByTestId('club-tab-status-contact')).not.toHaveAttribute('data-error');
 
     await user.click(tab(/^Premium/));
-    await user.click(screen.getByRole('button', { name: 'Add Club' }));
     await waitFor(() =>
       expect(screen.getByTestId('club-tab-status-contact')).toHaveAttribute('data-error', 'true')
     );

@@ -94,3 +94,35 @@ describe('buildEditModeDraft timezone', () => {
     expect(draft.show.timezone).toBe('America/New_York');
   });
 });
+
+// MYK9-931: an existing trial's date and start time are carried into the draft as
+// SEPARATE fields, so Review shows (and an edit saves) what the trial already has.
+describe('buildEditModeDraft trial schedule', () => {
+  const build = (plannedStartTime: string | undefined) =>
+    buildEditModeDraft({
+      editMode: { showId: 'show-1', mode: 'add-classes' } as never,
+      existingShow: show([]),
+      showTrials: [
+        {
+          id: 't1',
+          name: 'Saturday',
+          trialDate: '2026-10-10',
+          ...(plannedStartTime !== undefined ? { plannedStartTime } : {}),
+        },
+      ] as never,
+      existingClasses: [],
+      people: [],
+    }).trials[0];
+
+  it('keeps the existing date and normalises the existing start time', () => {
+    const trial = build('9:00 AM');
+    expect(trial?.trialDate).toBe('2026-10-10');
+    expect(trial?.startTimeDraft).toBe('09:00 AM');
+  });
+
+  it('leaves the time unset (not defaulted) when the trial has none', () => {
+    const trial = build(undefined);
+    expect(trial?.trialDate).toBe('2026-10-10');
+    expect(trial?.startTimeDraft).toBeUndefined();
+  });
+});

@@ -161,7 +161,7 @@ const ShowCreationWizardPageContent: React.FC = () => {
       createWizardTrialView(
         trials.map(trial => ({
           id: trial.id,
-          trialDate: trial.dateTime,
+          trialDate: trial.trialDate,
           nameOverride: trial.nameOverride,
         })),
         persistedNameSources

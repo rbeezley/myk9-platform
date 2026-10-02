@@ -76,7 +76,7 @@ export function buildCloneSnapshot(args: {
 
     return {
       nameOverride: trial.name || 'Trial',
-      dateTime: '',
+      trialDate: '',
       eventNumber: '',
       trialType: trial.trialType,
       classes: sourceClasses.map(cls => {

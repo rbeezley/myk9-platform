@@ -44,7 +44,7 @@ function TrialsHarness() {
   const trialView = createWizardTrialView(
     trials.map(trial => ({
       id: trial.id,
-      trialDate: trial.dateTime,
+      trialDate: trial.trialDate,
       nameOverride: trial.nameOverride,
     })),
     []
@@ -139,7 +139,8 @@ describe('trial date and start time: create and edit render the same two control
   it('the wizard trial card uses the shared date field and start-time field', async () => {
     useWizardStore.getState().addTrial({
       nameOverride: undefined,
-      dateTime: '2026-08-15T08:00:00',
+      trialDate: '2026-08-15',
+      startTimeDraft: '08:00 AM',
       eventNumber: '',
       classes: [],
     });
@@ -161,7 +162,8 @@ describe('trial date and start time: create and edit render the same two control
     const user = userEvent.setup();
     useWizardStore.getState().addTrial({
       nameOverride: undefined,
-      dateTime: '2026-08-15T08:00:00',
+      trialDate: '2026-08-15',
+      startTimeDraft: '08:00 AM',
       eventNumber: '',
       classes: [],
     });
@@ -169,12 +171,34 @@ describe('trial date and start time: create and edit render the same two control
     const time = within(await screen.findByTestId('trial-start-time-field')).getByRole('textbox');
     await user.clear(time);
     await user.type(time, '1:30 PM');
-    expect(useWizardStore.getState().trials[0]?.dateTime).toBe('2026-08-15T13:30:00');
+    // The box's text is the start time, exactly as typed; the date is untouched.
+    expect(useWizardStore.getState().trials[0]?.startTimeDraft).toBe('1:30 PM');
+    expect(useWizardStore.getState().trials[0]?.trialDate).toBe('2026-08-15');
 
     await user.clear(time);
     // What is visible is what is validated: a blank time is no time.
     expect(useWizardStore.getState().trials[0]?.startTimeDraft).toBe('');
     expect(await screen.findAllByText(/start time/i)).not.toHaveLength(0);
+  });
+});
+
+describe('the wizard stores a trial date and its typed time separately', () => {
+  it('a time typed before any date is kept, and no date or default time appears', async () => {
+    const user = userEvent.setup();
+    useWizardStore.getState().addTrial({
+      nameOverride: undefined,
+      trialDate: '',
+      eventNumber: '',
+      classes: [],
+    });
+    render(<TrialsHarness />);
+    const time = within(await screen.findByTestId('trial-start-time-field')).getByRole('textbox');
+    expect(time).toHaveValue('');
+    await user.type(time, '10:15 AM');
+
+    const [stored] = useWizardStore.getState().trials;
+    expect(stored?.startTimeDraft).toBe('10:15 AM');
+    expect(stored?.trialDate).toBe('');
   });
 });
 

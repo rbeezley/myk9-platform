@@ -32,7 +32,7 @@ interface ShowData {
 interface Trial {
   id: string;
   nameOverride?: string | undefined;
-  dateTime: string;
+  trialDate: string;
   eventNumber: string;
   trialType?: string | undefined;
   classes: Array<{
@@ -65,6 +65,7 @@ export function getReviewBlockingErrors(input: {
   show: ShowData;
   trials: readonly {
     id?: string;
+    trialDate?: string;
     startTimeDraft?: string | undefined;
     classes: readonly unknown[];
   }[];
@@ -90,11 +91,10 @@ export function getReviewBlockingErrors(input: {
     if (trials.length === 0) result.push('Please add at least one trial');
     // The typed start time is what is validated: a cleared or invalid box blocks Review too.
     trials.forEach((trial, index) => {
+      const name = (trial.id ? trialNameOf?.(trial.id) : undefined) || `Trial ${index + 1}`;
+      if (!trial.trialDate) result.push(`Please select a date for ${name}`);
       const issue = trialStartTimeIssues(trial);
-      if (issue) {
-        const name = (trial.id ? trialNameOf?.(trial.id) : undefined) || `Trial ${index + 1}`;
-        result.push(trialStartTimeMessage(issue, name));
-      }
+      if (issue) result.push(trialStartTimeMessage(issue, name));
     });
   }
   if (totalClasses === 0) result.push('Please add at least one class');
@@ -183,7 +183,7 @@ export function getTrialValidationMessages(
       if (!trialView.effectiveNamesByTrialId.get(trial.id)?.trim())
         messages.push(`Please enter a name for ${trialName}`);
       if (!trial.trialType) messages.push(`Please select a type for ${trialName}`);
-      if (!trial.dateTime) messages.push(`Please select a date and time for ${trialName}`);
+      if (!trial.trialDate) messages.push(`Please select a date for ${trialName}`);
       const startTimeIssue = trialStartTimeIssues(trial);
       if (startTimeIssue) messages.push(trialStartTimeMessage(startTimeIssue, trialName));
       if (requiresEventNumber && !trial.eventNumber?.trim())

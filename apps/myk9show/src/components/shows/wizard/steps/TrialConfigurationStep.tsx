@@ -4,12 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { TrialDateField } from '@/components/trials/TrialDateField';
 import { TrialStartTimeField } from '@/components/trials/TrialStartTimeField';
-import {
-  formatTimeOfDay,
-  parseTimeOfDay,
-  trialStartTimeIssues,
-  trialStartTimeMessage,
-} from '@/components/trials/trialDateTime';
+import { trialStartTimeIssues, trialStartTimeMessage } from '@/components/trials/trialDateTime';
 import {
   Select,
   SelectContent,
@@ -27,7 +22,7 @@ import { useTemplates } from '@/hooks/useTemplates';
 import { formatTrialTypeLabel } from '@/types/template.types';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
 import {
-  getDefaultTrialDateTime,
+  getDefaultTrialDate,
   getTrialCreationCopy,
   parseWizardDateTime,
   parseWizardDay,
@@ -49,12 +44,6 @@ interface TrialConfigurationStepProps {
   /** Retry the existing-show trial snapshot read. */
   onRetryExistingTrials?: (() => void | Promise<void>) | undefined;
 }
-
-/** The time part of a wizard dateTime ("2026-08-15T13:30:00") as "01:30 PM"; 8:00 AM when absent. */
-const startTimeText = (dateTime: string): string => {
-  const at = parseWizardDateTime(dateTime);
-  return at ? formatTimeOfDay(at.getHours(), at.getMinutes()) : formatTimeOfDay(8, 0);
-};
 
 export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
   className,
@@ -103,11 +92,11 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
         newErrors[`${prefix}-name`] = 'Please enter a trial name';
       }
 
-      if (!trial.dateTime) {
-        newErrors[`${prefix}-dateTime`] = 'Please select a trial date and time';
+      if (!trial.trialDate) {
+        newErrors[`${prefix}-dateTime`] = 'Please select a trial date';
       } else if (show.startDate && show.endDate) {
         // Check if trial date is within show date range
-        const trialDate = parseWizardDay(trial.dateTime) ?? new Date(trial.dateTime);
+        const trialDate = parseWizardDay(trial.trialDate) ?? new Date(trial.trialDate);
         const showStart = parseWizardDay(show.startDate) ?? new Date();
         const showEnd = parseWizardDay(show.endDate) ?? new Date();
 
@@ -116,8 +105,11 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
         }
       }
 
+      // Shown once the box was touched or Next was tried; Next and Review refuse regardless.
       const startTimeIssue = trialStartTimeIssues(trial);
-      if (startTimeIssue) newErrors[`${prefix}-startTime`] = trialStartTimeMessage(startTimeIssue);
+      if (startTimeIssue && (submitted || trial.startTimeDraft !== undefined)) {
+        newErrors[`${prefix}-startTime`] = trialStartTimeMessage(startTimeIssue);
+      }
 
       // Event number required for AKC (needed for XML export); optional for UKC/Other
       if (!trial.trialType) {
@@ -152,39 +144,29 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
   const handleAddTrial = () => {
     if (!canAddTrial) return;
 
-    const defaultDateTime = getDefaultTrialDateTime(
+    const defaultDate = getDefaultTrialDate(
       show.startDate,
       show.endDate,
-      trials.map(trial => trial.dateTime)
+      trials.map(trial => trial.trialDate)
     );
 
     addTrial({
       nameOverride: undefined,
-      dateTime: defaultDateTime,
+      trialDate: defaultDate,
       eventNumber: '',
       classes: [],
     });
   };
 
-  // The date control writes only the date part; the time part is kept (8:00 AM by default).
+  // The date control writes the date and nothing else: no default time is ever folded in.
   const handleTrialDateChange = (trialId: string, date: Date | undefined) => {
     if (!date) return;
-    const current = trials.find(trial => trial.id === trialId)?.dateTime ?? '';
-    const timePart = current.slice(11, 19) || '08:00:00';
-    updateTrial(trialId, { dateTime: `${format(date, 'yyyy-MM-dd')}T${timePart}` });
+    updateTrial(trialId, { trialDate: format(date, 'yyyy-MM-dd') });
   };
 
-  // The box's raw text is stored as typed; valid text also becomes the trial's time.
+  // The box's raw text is the trial's start time, exactly as typed.
   const handleTrialStartTimeChange = (trialId: string, text: string) => {
-    const parts = parseTimeOfDay(text);
-    const current = trials.find(trial => trial.id === trialId)?.dateTime ?? '';
-    const day = current.slice(0, 10);
-    const hh = String(parts?.hours ?? 0).padStart(2, '0');
-    const mm = String(parts?.minutes ?? 0).padStart(2, '0');
-    updateTrial(trialId, {
-      startTimeDraft: text,
-      ...(parts && day ? { dateTime: `${day}T${hh}:${mm}:00` } : {}),
-    });
+    updateTrial(trialId, { startTimeDraft: text });
   };
 
   return (
@@ -422,7 +404,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                       <TrialDateField
                         id={`trial-${trial.id}-dateTime`}
-                        value={parseWizardDateTime(trial.dateTime)}
+                        value={parseWizardDateTime(trial.trialDate)}
                         onChange={date => handleTrialDateChange(trial.id, date)}
                         error={errors[`trial-${index}-dateTime`]}
                         minDate={startOfDay(parseWizardDay(show.startDate) || new Date())}
@@ -435,7 +417,7 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                       />
                       <TrialStartTimeField
                         id={`trial-${trial.id}-startTime`}
-                        value={trial.startTimeDraft ?? startTimeText(trial.dateTime)}
+                        value={trial.startTimeDraft ?? ''}
                         onChange={text => handleTrialStartTimeChange(trial.id, text)}
                         error={errors[`trial-${index}-startTime`]}
                       />

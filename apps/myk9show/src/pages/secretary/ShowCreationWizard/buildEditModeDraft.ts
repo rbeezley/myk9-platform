@@ -1,3 +1,4 @@
+import { hasTrialTime, normalizeTimeOfDay } from '@/components/trials/trialDateTime';
 /**
  * Builds the wizard draft from an existing show when the wizard is opened in an
  * edit mode (`add-trials` / `add-classes` / `edit-show`). Extracted from
@@ -69,7 +70,10 @@ export function buildEditModeDraft({
           return {
             id: trial.id,
             nameOverride: trial.type || trial.name || 'Trial',
-            dateTime: trial.trialDate,
+            trialDate: trial.trialDate,
+            ...(trial.plannedStartTime && hasTrialTime(trial.plannedStartTime)
+              ? { startTimeDraft: normalizeTimeOfDay(trial.plannedStartTime) }
+              : {}),
             eventNumber: trial.eventNumber || '',
             trialType: trial.trialType || undefined,
             classes: wizardClasses,

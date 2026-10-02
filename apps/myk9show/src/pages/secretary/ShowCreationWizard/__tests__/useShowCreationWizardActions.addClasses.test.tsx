@@ -76,7 +76,8 @@ beforeEach(() => {
     trials: [
       {
         id: 'trial-1',
-        dateTime: '2026-10-10T08:00:00',
+        trialDate: '2026-10-10',
+        startTimeDraft: '08:00 AM',
         eventNumber: '',
         trialType: 'scent_work',
         classes: [

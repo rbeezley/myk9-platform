@@ -2,6 +2,7 @@ import {
   getReviewBlockingErrors,
   type ValidationScope,
 } from '@/pages/secretary/ShowCreationWizard/showCreationWizardValidation';
+import { trialScheduleLabel } from '@/components/trials/trialDateTime';
 import { isWizardStepAllowed } from '@/pages/secretary/ShowCreationWizard/show-creation-wizard-types';
 import React, { useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
@@ -362,7 +363,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                       <div>
                         <div className="text-sm text-muted-foreground">Date & Time</div>
                         <div className="text-foreground font-medium">
-                          {format(new Date(trial.dateTime), "MMM d, yyyy 'at' h:mm a")}
+                          {trialScheduleLabel(trial)}
                         </div>
                       </div>
                       <div>

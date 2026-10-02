@@ -50,7 +50,7 @@ function currentTrialView() {
   return createWizardTrialView(
     trials.map(trial => ({
       id: trial.id,
-      trialDate: trial.dateTime,
+      trialDate: trial.trialDate,
       nameOverride: trial.nameOverride,
     })),
     []
@@ -105,7 +105,8 @@ describe('ClassSelectionStep retained cloned classes', () => {
         {
           id: 'trial-1',
           nameOverride: 'Saturday Trial',
-          dateTime: '2026-10-01T08:00:00.000Z',
+          trialDate: '2026-10-01',
+          startTimeDraft: '08:00 AM',
           eventNumber: 'SW-1',
           trialType: 'Scent Work',
           classes: [
@@ -190,7 +191,8 @@ describe('ClassSelectionStep retained cloned classes', () => {
         {
           id: 'trial-1',
           nameOverride: 'Saturday Trial',
-          dateTime: '2026-10-01T08:00:00.000Z',
+          trialDate: '2026-10-01',
+          startTimeDraft: '08:00 AM',
           eventNumber: 'SW-1',
           trialType: 'Scent Work',
           classes: [],

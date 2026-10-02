@@ -13,21 +13,21 @@ export { parseWizardDateTime, parseWizardDay } from '@/utils/wizardTrialDates';
 const TRIALS_PER_DAY = 2;
 
 /**
- * Default date-time for a newly added trial: 8:00 AM on the first SHOW day that
+ * Default DATE for a newly added trial: the first SHOW day that
  * has fewer than two trials, else the show's last day. It reads only the show
  * dates and the trials already added, never the entry period (MYK9-884).
  */
-export function getDefaultTrialDateTime(
+export function getDefaultTrialDate(
   showStartDate: string | undefined,
   showEndDate: string | undefined,
-  existingTrialDateTimes: string[]
+  existingTrialDates: string[]
 ): string {
   const start = parseWizardDay(showStartDate) ?? startOfDay(new Date());
   const parsedEnd = parseWizardDay(showEndDate);
   const end = parsedEnd && parsedEnd >= start ? parsedEnd : undefined;
   const used = new Map<string, number>();
-  for (const dateTime of existingTrialDateTimes) {
-    const day = parseWizardDay(dateTime);
+  for (const trialDate of existingTrialDates) {
+    const day = parseWizardDay(trialDate);
     if (!day) continue;
     const key = format(day, 'yyyy-MM-dd');
     used.set(key, (used.get(key) ?? 0) + 1);
@@ -41,9 +41,8 @@ export function getDefaultTrialDateTime(
       break;
     }
   }
-  // A local wall-clock 8:00 AM on the chosen calendar day, not an instant.
-  const eightAm = new Date(chosen.getFullYear(), chosen.getMonth(), chosen.getDate(), 8);
-  return format(eightAm, "yyyy-MM-dd'T'HH:mm:ss");
+  // A calendar day only: the start time is its own field and is never defaulted.
+  return format(chosen, 'yyyy-MM-dd');
 }
 
 interface TrialTypeTemplateOption {

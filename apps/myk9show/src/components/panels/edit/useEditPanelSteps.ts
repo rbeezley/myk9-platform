@@ -43,12 +43,27 @@ interface UseEditPanelStepsArgs {
   open: boolean;
 }
 
+function focusLater(elementId: string) {
+  const focus = () => {
+    const el = document.getElementById(elementId);
+    el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+    el?.focus({ preventScroll: true });
+  };
+  focus();
+  // The target tab may only be mounted after the switch renders.
+  requestAnimationFrame(focus);
+}
+
 /**
- * Footer state for a create-mode tab walk (MYK9-931). `nextTab` is set on every
- * tab but the last while creating. `goNext` moves on when the current tab has no
- * outstanding required field; otherwise it touches those fields (so each shows
- * its own inline error), focuses the first, and `blockedMessage` says why. The
- * message is derived from live data, so it clears the moment the field is fixed.
+ * Footer and tab-bar state for a create-mode tab walk (MYK9-931, decision 13).
+ *
+ * `nextTab` is set on every tab but the last while creating. `goNext` and
+ * `requestTab` share ONE gate: a move forward is allowed only when every tab
+ * before the destination passes its per-tab check. Otherwise the user is held on
+ * (or returned to) the first unfinished tab, its fields are touched so each shows
+ * its own error, the first is focused, and `blockedMessage` says why. The message
+ * is derived from live data, so it clears the moment the field is fixed. Backward
+ * moves and edit mode are never gated.
  */
 export function useEditPanelSteps({
   steps,
@@ -78,22 +93,57 @@ export function useEditPanelSteps({
       : first.message
     : null;
 
+  /** True when the user may arrive at tab `targetIndex`; otherwise holds them on the first unfinished tab. */
+  const mayReach = useCallback(
+    (targetIndex: number): boolean => {
+      if (!steps) return true;
+      if (schema) {
+        for (let i = 0; i < targetIndex; i += 1) {
+          const tab = steps.tabs[i];
+          if (!tab) continue;
+          const missing = issuesOnTab(schema, data, tab.value, steps.locate);
+          const firstMissing = missing[0];
+          if (!firstMissing) continue;
+          for (const issue of missing) touchField(issue.field);
+          setAttemptedTab(tab.value);
+          if (tab.value !== steps.activeTab) steps.onTabChange(tab.value);
+          focusLater(firstMissing.elementId);
+          return false;
+        }
+      }
+      if (
+        index >= 0 &&
+        index < targetIndex &&
+        steps.beforeNext &&
+        steps.beforeNext(steps.activeTab, data) === false
+      ) {
+        return false;
+      }
+      setAttemptedTab(null);
+      return true;
+    },
+    [steps, schema, data, touchField, index]
+  );
+
   const goNext = useCallback(() => {
     if (!steps || !nextTab) return;
-    const missing = schema ? issuesOnTab(schema, data, steps.activeTab, steps.locate) : [];
-    const firstMissing = missing[0];
-    if (firstMissing) {
-      for (const issue of missing) touchField(issue.field);
-      setAttemptedTab(steps.activeTab);
-      const el = document.getElementById(firstMissing.elementId);
-      el?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-      el?.focus({ preventScroll: true });
-      return;
-    }
-    setAttemptedTab(null);
-    if (steps.beforeNext && steps.beforeNext(steps.activeTab, data) === false) return;
-    steps.onTabChange(nextTab.value);
-  }, [steps, nextTab, schema, data, touchField]);
+    if (mayReach(index + 1)) steps.onTabChange(nextTab.value);
+  }, [steps, nextTab, mayReach, index]);
 
-  return { nextTab, blockedMessage, goNext };
+  /** A tab-bar click. Create mode gates forward jumps; everything else goes straight through. */
+  const requestTab = useCallback(
+    (target: string) => {
+      if (!steps) return;
+      const targetIndex = steps.tabs.findIndex(tab => tab.value === target);
+      if (steps.mode !== 'create' || targetIndex <= index || targetIndex < 0) {
+        setAttemptedTab(null);
+        steps.onTabChange(target);
+        return;
+      }
+      if (mayReach(targetIndex)) steps.onTabChange(target);
+    },
+    [steps, index, mayReach]
+  );
+
+  return { nextTab, blockedMessage, goNext, requestTab: steps ? requestTab : undefined };
 }

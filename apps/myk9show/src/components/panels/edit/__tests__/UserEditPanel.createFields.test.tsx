@@ -53,6 +53,8 @@ describe('UserEditPanel create mode shows only persisted fields', () => {
     );
     await screen.findByLabelText(/First Name/);
     const basic = shownFieldIds();
+    await user.type(screen.getByLabelText(/First Name/), 'Pat');
+    await user.type(screen.getByLabelText(/Last Name/), 'Paperform');
     await user.click(screen.getByRole('tab', { name: /^Contact/ }));
     await screen.findByLabelText(/Phone Number/);
     const all = Array.from(new Set([...basic, ...shownFieldIds()])).sort();

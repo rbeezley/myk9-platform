@@ -37,6 +37,8 @@ describe('steps panels reopen on their first tab', () => {
       onSave: vi.fn(),
     };
     const { rerender } = render(<UserEditPanel open {...props} />);
+    await user.type(await screen.findByLabelText(/First Name/), 'Pat');
+    await user.type(screen.getByLabelText(/Last Name/), 'Paperform');
     await user.click(await screen.findByRole('tab', { name: /^Contact/ }));
     expect(await screen.findByRole('button', { name: 'Add Person' })).toBeInTheDocument();
 
@@ -80,7 +82,15 @@ describe('steps panels reopen on their first tab', () => {
       mode: 'create' as const,
     };
     const { rerender } = render(<ClubEditPanel open {...props} />);
-    await user.click(await screen.findByRole('tab', { name: /^Premium/ }));
+    await user.type(await screen.findByRole('textbox', { name: /Club Name/ }), 'Heartland');
+    await user.click(screen.getByRole('button', { name: /Next: Contact/ }));
+    await user.type(await screen.findByRole('textbox', { name: /Email Address/ }), 'c@example.com');
+    await user.type(screen.getByRole('textbox', { name: /Phone Number/ }), '555-123-4567');
+    await user.type(screen.getByRole('textbox', { name: /Street Address/ }), '1 Main St');
+    await user.type(screen.getByRole('textbox', { name: /City/ }), 'Omaha');
+    await user.type(screen.getByRole('textbox', { name: /State/ }), 'NE');
+    await user.type(screen.getByRole('textbox', { name: /ZIP Code/ }), '68102');
+    await user.click(screen.getByRole('button', { name: /Next: Premium/ }));
     expect(await screen.findByRole('button', { name: 'Add Club' })).toBeInTheDocument();
 
     rerender(<ClubEditPanel open={false} {...props} />);
@@ -93,12 +103,16 @@ describe('steps panels reopen on their first tab', () => {
   it('Add Dog', async () => {
     const user = userEvent.setup();
     const props = { onClose: () => {}, onDogCreated: vi.fn() };
-    const { rerender } = render(<AddDogPanel open {...props} />);
+    const { rerender } = render(<AddDogPanel open {...props} currentUserPersonId="p1" />);
+    await user.type(await screen.findByLabelText(/Call Name/i), 'Rex');
+    await user.click(screen.getByRole('combobox', { name: /^Sex/ }));
+    await user.click(await screen.findByRole('option', { name: /^Male/ }));
+    await user.type(screen.getByLabelText(/Date of Birth/), '2020-06-15');
     await user.click(await screen.findByRole('tab', { name: /optional details/i }));
     expect(await screen.findByRole('button', { name: 'Add Dog' })).toBeInTheDocument();
 
-    rerender(<AddDogPanel open={false} {...props} />);
-    rerender(<AddDogPanel open {...props} />);
+    rerender(<AddDogPanel open={false} {...props} currentUserPersonId="p1" />);
+    rerender(<AddDogPanel open {...props} currentUserPersonId="p1" />);
 
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /Next: Registration/ })).toBeInTheDocument()

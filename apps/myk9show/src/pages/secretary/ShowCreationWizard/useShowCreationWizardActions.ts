@@ -7,7 +7,6 @@ import { useCallback, useRef } from 'react';
 import { useNavigate, type NavigateFunction } from 'react-router-dom';
 import type { SelfNavigationRef } from '@/components/navigation/UnsavedChangesRouteGuard';
 import { useQueryClient } from '@tanstack/react-query';
-import { format } from 'date-fns';
 import type { ShowPasscodes } from '@myk9/core';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
@@ -39,7 +38,7 @@ import {
 } from './showSaveErrors';
 import { saveShowAtomicOnline } from './saveShowAtomicOnline';
 import { buildRuleMap } from './buildRuleMap';
-import { plannedStartTimeForSave } from './trialPlannedStartTime';
+import { plannedStartTimeForSave, requireTrialDate } from './trialPlannedStartTime';
 import { createWizardClasses } from './createWizardClasses';
 import { createDraftShow, finishShowSave } from './showSaveCompletion';
 import {
@@ -161,9 +160,7 @@ export function useShowCreationWizardActions({
           name: trialName,
           registryId,
           timezone,
-          trialDate: wizardTrial.dateTime
-            ? format(new Date(wizardTrial.dateTime), 'yyyy-MM-dd')
-            : '',
+          trialDate: requireTrialDate(wizardTrial, trialName),
           trialNumber: trialName,
           status: 'Upcoming',
           eventNumber: wizardTrial.eventNumber || '',

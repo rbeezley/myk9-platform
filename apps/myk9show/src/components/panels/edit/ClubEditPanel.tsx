@@ -68,7 +68,7 @@ const ClubEditForm: React.FC<{
   activeTab: ClubTabValue;
   onTabChange: (tab: ClubTabValue) => void;
 }> = ({ clubId, mode, onClose, activeTab, onTabChange }) => {
-  const { data, form } = useEditPanel<ClubEditFormData>();
+  const { data, form, requestTab } = useEditPanel<ClubEditFormData>();
 
   // Photo dialog state
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
@@ -162,7 +162,9 @@ const ClubEditForm: React.FC<{
     <div className="space-y-6 p-6">
       <Tabs
         value={activeTab}
-        onValueChange={value => onTabChange(value as ClubTabValue)}
+        onValueChange={value =>
+          requestTab ? requestTab(value) : onTabChange(value as ClubTabValue)
+        }
         className="w-full"
       >
         <ClubTabsList mode={mode} data={data} errors={form?.errors ?? {}} />

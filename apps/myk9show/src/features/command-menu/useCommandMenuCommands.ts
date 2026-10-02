@@ -37,15 +37,17 @@ export function useCommandMenuCommands(): CommandMenuCommands {
   const navigationCommands = useMemo(() => buildContextualNavigationCommands(context), [context]);
 
   const actionCommands = useMemo<CommandMenuCommand[]>(() => {
-    if (route.kind !== 'show') return [];
+    // Off a show route only the detail page's own actions apply (Edit dog, Edit person...);
+    // the role-wide header items (Add Show...) have their own palette entries.
+    const inShow = route.kind === 'show';
     return actions
-      .filter(action => !action.disabledReason)
+      .filter(action => !action.disabledReason && (inShow || action.pageOwned))
       .map(action => ({
         id: `command-menu-action-${action.id}`,
         group: 'actions' as const,
         label: action.label,
-        sublabel: 'Current show',
-        showScope: route.showId,
+        sublabel: inShow ? 'Current show' : 'Current page',
+        ...(route.kind === 'show' ? { showScope: route.showId } : {}),
         // A registry item is either a destination or a side effect, and the
         // palette adapter already honours both. Spreading conditionally keeps
         // `href: undefined` out of the object, which `exactOptionalPropertyTypes`

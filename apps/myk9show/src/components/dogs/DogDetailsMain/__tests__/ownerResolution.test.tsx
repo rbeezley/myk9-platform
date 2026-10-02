@@ -6,6 +6,7 @@ import DogDetailsMain from '../index';
 import type { Dog } from '@/types/dog-types';
 import type { User } from '@/types/user-types';
 import { useRegistrationsStore } from '@/store/registrationsStore';
+import { usePageEditTargetStore } from '@/features/actions/pageEditTarget';
 
 // ---------------------------------------------------------------------------
 // Minimal Dog fixture
@@ -124,7 +125,9 @@ vi.mock('../DogDetailsTabs', () => ({
 }));
 
 vi.mock('../DogDialogs', () => ({
-  default: () => <div data-testid="dog-dialogs" />,
+  default: ({ isEditPanelOpen }: { isEditPanelOpen?: boolean }) => (
+    <div data-testid="dog-dialogs" data-edit-open={String(Boolean(isEditPanelOpen))} />
+  ),
 }));
 
 vi.mock('@/components/dogs/DogStatusDialog', () => ({
@@ -149,7 +152,26 @@ describe('DogDetailsMain — owner resolution', () => {
     mockPeople = [];
     mockRole = 'secretary';
     mockRegistrations = [];
+    usePageEditTargetStore.setState({ target: null, owner: null });
   });
+
+  // MYK9-928: Edit dog is the header Actions menu's first item for every viewer of the
+  // page. The secretary's rail button and the exhibitor's menu item are both gone.
+  it.each(['secretary', 'exhibitor'])(
+    'registers Edit dog for a %s, with no visible Edit button, and run opens the panel',
+    role => {
+      mockRole = role;
+      render(<DogDetailsMain dog={mockDog} />);
+
+      expect(screen.queryByRole('button', { name: /^edit$/i })).not.toBeInTheDocument();
+      expect(usePageEditTargetStore.getState().target?.kind).toBe('dog');
+      expect(screen.getByTestId('dog-dialogs')).toHaveAttribute('data-edit-open', 'false');
+
+      act(() => usePageEditTargetStore.getState().target?.run());
+
+      expect(screen.getByTestId('dog-dialogs')).toHaveAttribute('data-edit-open', 'true');
+    }
+  );
 
   it('renders owner name immediately when found in the people store, with no Supabase query', async () => {
     const storeOwner: User = {

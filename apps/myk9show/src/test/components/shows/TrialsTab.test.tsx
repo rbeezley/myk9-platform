@@ -240,14 +240,17 @@ describe('TrialsTab', () => {
     expect(screen.getByText('3')).toBeInTheDocument();
   });
 
-  it('shows Add Trial button when the viewer manages this show', () => {
+  it('has no Add Trial toolbar button once trials exist; the empty state keeps its own (MYK9-928)', () => {
     mockCanManageThisShow = true;
     const trials = [makeTrial({ id: 't1' })];
     const stats = { t1: { classCount: 0, entryCount: 0, completedClasses: 0 } };
 
-    render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
+    const { unmount } = render(<TrialsTab trials={trials} showId="show-1" trialStats={stats} />);
+    expect(screen.queryByText('Add Trial')).not.toBeInTheDocument();
+    unmount();
 
-    expect(screen.getByText('Add Trial')).toBeInTheDocument();
+    render(<TrialsTab trials={[]} showId="show-1" trialStats={{}} />);
+    expect(screen.getByRole('button', { name: 'Add Trial' })).toBeInTheDocument();
   });
 
   it('hides Add Trial button when the viewer holds the global permission but does not manage this show', () => {

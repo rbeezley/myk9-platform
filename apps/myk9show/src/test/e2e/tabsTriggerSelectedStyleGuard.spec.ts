@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { signInAsExhibitor } from './helpers/testUsers';
+import { chooseAction } from './helpers/actionsMenu';
 
 /**
  * MYK9-612: `@myk9/ui` `TabsTrigger` wraps Base UI's Tabs (packages/ui/src/
@@ -62,8 +63,7 @@ test('Edit Dog panel: the active tab gets the primitive opaque background; neith
   await firstDog.click();
   await page.waitForURL(/\/dogs\/[0-9a-f-]{36}/, { waitUntil: 'commit' });
 
-  await page.locator('[data-dog-identity]').getByRole('button', { name: 'More actions' }).click();
-  await page.getByRole('menuitem', { name: 'Edit Dog' }).click();
+  await chooseAction(page, 'Edit dog');
 
   const activeTab = page.getByRole('tab', { name: /Basic Info/ });
   const inactiveTab = page.getByRole('tab', { name: /More for this dog/ });

@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test';
 import { signInAsExhibitor } from './helpers/testUsers';
+import { chooseAction } from './helpers/actionsMenu';
 
 /**
  * MYK9-88 — the Add/Edit dog sex/gender comboboxes and the Add-dog photo action
@@ -67,13 +68,8 @@ for (const vp of VIEWPORTS) {
     test('Edit Dog names its gender combobox and photo action', async ({ page }) => {
       await signInAsExhibitor(page, '/dogs');
       await openFirstDogDetail(page);
-      // MYK9-518: the exhibitor's Edit moved into the identity rail's overflow
-      // menu; the standalone Edit button is now secretary-only.
-      await page
-        .locator('[data-dog-identity]')
-        .getByRole('button', { name: 'More actions' })
-        .click();
-      await page.getByRole('menuitem', { name: 'Edit Dog' }).click();
+      // MYK9-928: Edit dog is the first item of the header Actions menu, for every role.
+      await chooseAction(page, 'Edit dog');
 
       const gender = page.getByRole('combobox', { name: /^Sex/ });
       await expect(gender).toMatchAriaSnapshot(`- combobox "Sex (required)"`);

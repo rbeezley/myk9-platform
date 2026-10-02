@@ -331,7 +331,7 @@ describe('TrialClassesTable', () => {
   });
 
   describe('Add Classes Button', () => {
-    it('shows Add Classes button in header when classes exist and user can manage', () => {
+    it('has no Add Classes button in the header: it is the Actions menu item (MYK9-928)', () => {
       renderWithRouter(
         <TrialClassesTable
           classes={mockClasses}
@@ -342,7 +342,9 @@ describe('TrialClassesTable', () => {
         />
       );
 
-      expect(screen.getByRole('button', { name: /add classes/i })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /add classes/i })).not.toBeInTheDocument();
+      // Positive control: the table did render for this managing viewer.
+      expect(screen.getByRole('heading', { name: /classes \(/i })).toBeInTheDocument();
     });
   });
 

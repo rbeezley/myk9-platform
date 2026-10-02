@@ -19,11 +19,12 @@ import {
   MessageSquare,
   Gift,
   ChevronDown,
+  PencilLine,
   Trash2,
   CreditCard,
-  PencilLine,
 } from 'lucide-react';
 import { EntryStatus } from '@/types/show-registration-types';
+import { RowActionMenu } from '@/components/ui/RowActionMenu';
 import {
   getEffectivePaymentStatus,
   getEntryStatusBadge,
@@ -147,23 +148,32 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                 Assign
               </button>
             )}
+            {/* The row menu is always present for a viewer who can edit, whatever the entry's
+                status or classes: Edit entry is its first item (MYK9-928). */}
+            {onOpenEditEntry && (
+              <div className="ml-auto">
+                <RowActionMenu
+                  size="touch"
+                  label={`Actions for ${entry.dogName}`}
+                  actions={[
+                    {
+                      id: 'edit',
+                      label: 'Edit entry',
+                      icon: <PencilLine />,
+                      onSelect: () => onOpenEditEntry(entry),
+                    },
+                  ]}
+                />
+              </div>
+            )}
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              className="ml-auto min-h-11 px-2 text-muted-foreground"
-              aria-label={`Edit entry for ${entry.dogName}`}
-              onClick={() => onOpenEditEntry?.(entry)}
-              disabled={!onOpenEditEntry}
-            >
-              <PencilLine className="h-4 w-4" />
-              <span className="sr-only">Edit entry</span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="min-h-11 px-2 text-muted-foreground hover:text-destructive"
+              className={cn(
+                'min-h-11 px-2 text-muted-foreground hover:text-destructive',
+                !onOpenEditEntry && 'ml-auto'
+              )}
               aria-label={`Remove entry for ${entry.dogName}`}
               onClick={() => setRemoveDialog({ open: true, entry })}
             >

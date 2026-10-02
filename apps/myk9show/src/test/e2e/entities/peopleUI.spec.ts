@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { TEST_USERS, signInAsSecretary, signInAsAdmin } from '../helpers/testUsers';
+import { chooseAction } from '../helpers/actionsMenu';
 
 /**
  * UI-driven e2e tests for the People section — secretary role.
@@ -221,7 +222,7 @@ test.describe('People UI — Detail + Edit (secretary)', () => {
     await page.getByRole('link', { name: new RegExp(PERSON_A_LAST) }).click();
     await page.waitForURL(/\/people\/[^/]+/);
 
-    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await chooseAction(page, 'Edit person');
     await expect(page.getByRole('dialog', { name: 'Edit Person' })).toBeVisible();
     await page.getByRole('tab', { name: 'Contact' }).click();
     await page.getByRole('textbox', { name: 'Phone Number' }).fill('555-7890');
@@ -424,7 +425,7 @@ test.describe('People UI — Admin CRUD lifecycle', () => {
     ).toBeVisible();
     await expect(page.getByRole('link', { name: ADMIN_PERSON_EMAIL })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await chooseAction(page, 'Edit person');
     await expect(page.getByRole('dialog', { name: 'Edit Person' })).toBeVisible();
     await page.getByRole('tab', { name: 'Contact' }).click();
     await page.getByRole('textbox', { name: 'Phone Number' }).fill('555-4567');

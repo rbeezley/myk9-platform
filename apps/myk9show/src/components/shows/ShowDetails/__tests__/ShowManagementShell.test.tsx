@@ -251,30 +251,17 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('status-pill')).toBeInTheDocument();
   });
 
-  it('shows an Edit show button in the page header that opens the existing edit panel (MYK9-904)', () => {
+  it('carries no visible page-level action button: Edit show lives in the Actions menu (MYK9-928)', () => {
     renderShell();
     const header = screen.getByTestId('page-header-actions');
+    expect(within(header).queryByRole('button', { name: /edit/i })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Edit show' })).toBeNull();
     expect(screen.queryByTestId('edit-panel-open')).toBeNull();
-    const button = within(header).getByRole('button', { name: 'Edit show' });
-    // Default size is h-11 (44px, INTENT's touch floor); `sm` is 32px.
-    expect(button).toHaveClass('h-11');
-    fireEvent.click(button);
-    expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
-  });
-
-  it('renders no Edit show button for a viewer who cannot manage the show (MYK9-904)', () => {
-    manageScope.canManage = false;
-    try {
-      renderShell();
-      expect(screen.queryByRole('button', { name: 'Edit show' })).toBeNull();
-    } finally {
-      manageScope.canManage = true;
-    }
   });
 
   it('carries no hero Edit button: editing is the header Actions menu item (MYK9-736)', () => {
     // The hero's Edit sat under the status pill at ordinary desktop widths.
-    // "Edit show details" in the Actions menu lands `?edit=true`, which the
+    // "Edit show" in the Actions menu lands `?edit=true`, which the
     // tests below prove opens the same panel.
     renderShell();
 
@@ -425,7 +412,7 @@ describe('ShowManagementShell', () => {
 
   it('no longer carries its own overflow menu', () => {
     // MYK9-630: the `...` menu is deleted. Its five items moved -- editing to
-    // the header Actions menu ("Edit show details", MYK9-736), Copy link and
+    // the header Actions menu ("Edit show", MYK9-736, MYK9-928), Copy link and
     // Preview to the Overview landing card, Delete into the Show Edit panel.
     renderShell();
     expect(screen.queryByRole('button', { name: /more show actions/i })).toBeNull();

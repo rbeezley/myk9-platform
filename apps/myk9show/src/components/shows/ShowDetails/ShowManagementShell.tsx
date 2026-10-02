@@ -220,13 +220,7 @@ function AuthorizedShowManagementShell({
             <PageHeader
               breadcrumbs={breadcrumbs}
               title={show.name || 'Show Details'}
-              actions={
-                <ShowPageHeaderActions
-                  showId={show.id}
-                  armbandCount={armbandCount}
-                  onEdit={openEditPanel}
-                />
-              }
+              actions={<ShowPageHeaderActions showId={show.id} armbandCount={armbandCount} />}
             />
 
             <DetailHero

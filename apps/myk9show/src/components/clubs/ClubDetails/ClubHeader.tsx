@@ -42,14 +42,12 @@ import { ClubOfficialsLine } from './ClubOfficialsLine';
 
 interface ClubHeaderProps {
   club: Club;
-  onEditClub: () => void;
   onEditPhoto: () => void;
   onDeleteClub: () => void;
   // Cover image upload props (optional — wired in Task 12)
   onCoverUpload?: (file: File) => void;
   onCoverRemove?: () => void;
   isUploadingCover?: boolean;
-  canEditClub?: boolean;
   canEditBranding?: boolean;
   canDeleteClub?: boolean;
   // MYK9-572: site-admin-only authorize/revoke control. canAuthorizeClub
@@ -65,13 +63,11 @@ interface ClubHeaderProps {
 
 export const ClubHeader: React.FC<ClubHeaderProps> = ({
   club,
-  onEditClub,
   onEditPhoto,
   onDeleteClub,
   onCoverUpload,
   onCoverRemove,
   isUploadingCover = false,
-  canEditClub = false,
   canEditBranding = false,
   canDeleteClub = false,
   canAuthorizeClub = false,
@@ -130,16 +126,7 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
     <div className="mb-10 bg-card border border-border rounded-2xl relative overflow-hidden">
       {/* Actions positioned absolutely in top-right corner (above cover) */}
       <div className="absolute top-4 right-4 z-20 flex items-center gap-1">
-        {canEditClub && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="bg-black/30 hover:bg-black/50 text-white"
-            onClick={onEditClub}
-          >
-            Edit
-          </Button>
-        )}
+        {/* Edit club is the first item of the header Actions menu (MYK9-928), not a button here. */}
         {hasMenuActions && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild nativeButton>

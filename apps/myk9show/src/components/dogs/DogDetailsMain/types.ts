@@ -43,7 +43,6 @@ export interface DogIdentityRailProps {
    * owner's name is plain text rather than a link to a page that would refuse them.
    */
   canOpenOwnerRecord?: boolean;
-  onEditPanelOpen: () => void;
   onPhotoDialogOpen: () => void;
   onDeleteDialogOpen: () => void;
   /** Required: the status badge itself is a button that raises the dialog. */

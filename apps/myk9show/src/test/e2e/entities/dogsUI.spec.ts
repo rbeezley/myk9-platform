@@ -1,5 +1,6 @@
 import { test, expect, type Locator, type Page } from '@playwright/test';
 import { signInAsSecretary, signInAsExhibitor } from '../helpers/testUsers';
+import { chooseAction, openActionsMenu as openHeaderActionsMenu } from '../helpers/actionsMenu';
 
 /**
  * UI-driven e2e tests for the Dogs section — secretary role.
@@ -285,14 +286,6 @@ test.describe('Dogs UI — Exhibitor own-dog CRUD', () => {
     await page.waitForURL(/\/dogs\/[0-9a-f-]{36}$/);
   }
 
-  // MYK9-518 moved the exhibitor's Edit out of a standalone rail button and into
-  // the identity rail's overflow menu, so anchor on the menu trigger itself. The
-  // rail is scoped by `data-dog-identity` because Overview's other sections
-  // render their own row menus.
-  async function openActionsMenu(page: Page) {
-    await page.locator('[data-dog-identity]').getByRole('button', { name: 'More actions' }).click();
-  }
-
   test('exhibitor creates, edits, and deletes their own dog', async ({ page }) => {
     await gotoMyDogsBrowse(page);
     await page.getByRole('button', { name: 'Add Dog' }).click();
@@ -312,8 +305,8 @@ test.describe('Dogs UI — Exhibitor own-dog CRUD', () => {
     await page.waitForURL(/\/dogs\/[0-9a-f-]{36}$/, { timeout: 10000 });
     await expect(page.getByRole('heading', { name: EXHIBITOR_DOG_NAME })).toBeVisible();
 
-    await openActionsMenu(page);
-    await page.getByRole('menuitem', { name: 'Edit Dog' }).click();
+    // MYK9-928: Edit dog is the first item of the header Actions menu.
+    await chooseAction(page, 'Edit dog');
     await expect(page.getByRole('heading', { name: 'Edit Dog' })).toBeVisible();
     await page.locator('input#color').fill('Blue Merle');
 
@@ -326,7 +319,8 @@ test.describe('Dogs UI — Exhibitor own-dog CRUD', () => {
     await expect(page.getByText('Changes saved successfully')).toBeVisible();
 
     await navigateToExhibitorDog(page);
-    await openActionsMenu(page);
+    // The identity rail's ⋮ keeps Delete (MYK9-927 owns its placement).
+    await page.locator('[data-dog-identity]').getByRole('button', { name: 'More actions' }).click();
     await page.getByRole('menuitem', { name: /Delete/i }).click();
     await expect(page.getByRole('alertdialog')).toBeVisible();
 
@@ -373,8 +367,12 @@ test.describe('Dogs UI — Detail page (secretary)', () => {
     await expect(page.getByRole('tab', { name: /Registrations/i })).toBeVisible();
     await expect(page.getByRole('tab', { name: /Health Records/i })).toBeVisible();
 
-    // Edit button (exact to avoid matching inline "Edit Sex", "Edit Breed", etc. aria-labels)
-    await expect(page.getByRole('button', { name: 'Edit', exact: true })).toBeVisible();
+    // No page-level Edit button (exact to avoid matching inline "Edit Sex", "Edit Breed", etc.
+    // aria-labels): Edit dog is the first item of the header Actions menu (MYK9-928).
+    await expect(page.getByRole('button', { name: 'Edit', exact: true })).toHaveCount(0);
+    const menu = await openHeaderActionsMenu(page);
+    await expect(menu.getByRole('menuitem').first()).toHaveText('Edit dog');
+    await page.keyboard.press('Escape');
   });
 
   test('tab navigation stays on the same dog page', async ({ page }) => {
@@ -391,10 +389,8 @@ test.describe('Dogs UI — Detail page (secretary)', () => {
   test('actions menu shows Change Photo, Change Status, Delete', async ({ page }) => {
     await navigateToDogA(page);
 
-    // Open the ⋮ (three-dot) menu next to Edit
-    const editBtn = page.getByRole('button', { name: 'Edit', exact: true });
-    // The ⋮ button is the sibling in the same flex row — use its SVG to find it
-    await editBtn.locator('..').getByRole('button').last().click();
+    // Open the identity rail's ⋮ (three-dot) menu
+    await page.locator('[data-dog-identity]').getByRole('button', { name: 'More actions' }).click();
 
     await expect(page.getByRole('menuitem', { name: /Change Photo/i })).toBeVisible();
     await expect(page.getByRole('menuitem', { name: /Change Status/i })).toBeVisible();
@@ -419,7 +415,7 @@ test.describe('Dogs UI — Edit panel (secretary)', () => {
     await page.getByPlaceholder('Search dogs by name, breed, or owner...').fill(DOG_A_NAME);
     await page.getByRole('link', { name: new RegExp(DOG_A_NAME) }).click();
     await page.waitForURL(/\/dogs\/[0-9a-f-]{36}$/);
-    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await chooseAction(page, 'Edit dog');
     await expect(page.getByRole('heading', { name: 'Edit Dog' })).toBeVisible();
   }
 
@@ -485,8 +481,7 @@ test.describe('Dogs UI — Delete (secretary)', () => {
   }
 
   async function openActionsMenu(page: Page) {
-    const editBtn = page.getByRole('button', { name: 'Edit', exact: true });
-    await editBtn.locator('..').getByRole('button').last().click();
+    await page.locator('[data-dog-identity]').getByRole('button', { name: 'More actions' }).click();
   }
 
   test('Delete dialog cancel keeps dog on the page', async ({ page }) => {
@@ -649,7 +644,7 @@ test.describe('Dogs UI — Owner change (secretary)', () => {
 
   test('Owner select shows in Edit Dog and lists multiple people', async ({ page }) => {
     await navigateToDogA(page);
-    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await chooseAction(page, 'Edit dog');
     await expect(page.getByRole('heading', { name: 'Edit Dog' })).toBeVisible();
 
     // OwnerSelectionField waits for the people query — let the select attach
@@ -680,7 +675,7 @@ test.describe('Dogs UI — Owner change (secretary)', () => {
     await navigateToDogA(page);
 
     // First change: → Alice Martin
-    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await chooseAction(page, 'Edit dog');
     await expect(page.getByRole('heading', { name: 'Edit Dog' })).toBeVisible();
     // Wait for the enabled (post-load) select — OwnerSelectionField renders
     // a disabled <select id="ownerId"> while usePeopleQuery loads, then
@@ -709,7 +704,7 @@ test.describe('Dogs UI — Owner change (secretary)', () => {
     // pre-migration-161 but RLS silently affected 0 rows; checking the select
     // value detects that regression).
     await page.reload({ waitUntil: 'networkidle' });
-    await page.getByRole('button', { name: 'Edit', exact: true }).click();
+    await chooseAction(page, 'Edit dog');
     await expect(page.getByRole('heading', { name: 'Edit Dog' })).toBeVisible();
     const ownerSelect2 = page.locator('select#ownerId:not([disabled])');
     await ownerSelect2.waitFor({ state: 'attached', timeout: 10000 });

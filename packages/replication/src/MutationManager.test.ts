@@ -1701,6 +1701,12 @@ describe('MutationManager', () => {
     });
 
     describe('discarding a failed local-only INSERT (MYK9-922)', () => {
+      // The discard cleanup holds one IndexedDB transaction across several awaits;
+      // fake-indexeddb cannot keep a transaction alive across them under fake timers.
+      beforeEach(() => {
+        vi.useRealTimers();
+      });
+
       const localRow = (id: string, localOnly: boolean) => ({
         tableName: 'entries',
         id,

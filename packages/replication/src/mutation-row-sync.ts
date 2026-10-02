@@ -68,19 +68,38 @@ export async function removeOrphanedLocalOnlyRow(
   discarded: PendingMutation
 ): Promise<void> {
   if (discarded.operation !== 'INSERT') return;
-  const key = [discarded.tableName, String(discarded.rowId)];
-  const row = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, key)) as
-    ReplicatedRow<unknown> | undefined;
-  const data = row?.data as { _localOnly?: unknown } | null | undefined;
-  if (!row || data === null || typeof data !== 'object' || data._localOnly !== true) return;
+  const rowId = String(discarded.rowId);
+  const key = [discarded.tableName, rowId];
 
-  const stillReferenced = async (store: string) =>
-    ((await db.getAll(store)) as PendingMutation[]).some(
-      m => m.tableName === discarded.tableName && String(m.rowId) === String(discarded.rowId)
-    );
-  if (await stillReferenced(REPLICATION_STORES.PENDING_MUTATIONS)) return;
-  if (await stillReferenced(REPLICATION_STORES.FAILED_MUTATIONS)) return;
-  await db.delete(REPLICATION_STORES.REPLICATED_TABLES, key);
+  // The row and both queues are read, and the row deleted, in ONE readwrite
+  // transaction (the deleteRowsIfClean pattern, MYK9-922): another tab that queues
+  // work for this row either commits before it (the row is kept) or after it (and
+  // recreates the row itself). Every await here is an IndexedDB request: awaiting
+  // anything else would let the transaction auto-commit early.
+  const tx = db.transaction(
+    [
+      REPLICATION_STORES.REPLICATED_TABLES,
+      REPLICATION_STORES.PENDING_MUTATIONS,
+      REPLICATION_STORES.FAILED_MUTATIONS,
+    ],
+    'readwrite'
+  );
+  const rows = tx.objectStore(REPLICATION_STORES.REPLICATED_TABLES);
+  const failed = (await tx
+    .objectStore(REPLICATION_STORES.FAILED_MUTATIONS)
+    .index('tableName')
+    .getAll(discarded.tableName)) as PendingMutation[];
+  const row = (await rows.get(key)) as ReplicatedRow<unknown> | undefined;
+  const pending = await tx
+    .objectStore(REPLICATION_STORES.PENDING_MUTATIONS)
+    .index('tableName_rowId')
+    .count(key);
+  const data = row?.data as { _localOnly?: unknown } | null | undefined;
+  if (row && data !== null && typeof data === 'object' && data._localOnly === true) {
+    const failedForRow = failed.some(m => String(m.rowId) === rowId);
+    if (pending === 0 && !failedForRow) await rows.delete(key);
+  }
+  await tx.done;
 }
 
 export function remapDogIdReferences<T extends Record<string, unknown>>(

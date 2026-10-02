@@ -103,7 +103,7 @@ const DogHero: React.FC<DogHeroProps> = ({
                 // `badgeVariants`' base ring is on `:focus`, written for a <div>
                 // that can never match it. Live on a real <button>, that would
                 // leave a ring behind after a mouse click.
-                'cursor-pointer hover:brightness-110 focus:ring-0',
+                'min-h-11 min-w-11 cursor-pointer hover:brightness-110 focus:ring-0',
                 'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
               )}
             >

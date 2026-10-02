@@ -129,6 +129,14 @@ describe('DogHero (MYK9-930)', () => {
     expect(menu().onDelete).toBeUndefined();
   });
 
+  it('keeps the status badge button a 44px tap target', () => {
+    renderHero({ ...base, status: 'retired' });
+    expect(screen.getByRole('button', { name: /retired.*change status/i })).toHaveClass(
+      'min-h-11',
+      'min-w-11'
+    );
+  });
+
   it('keeps the photo action at least 44px and named for assistive technology', () => {
     renderHero(base);
     expect(screen.getByRole('button', { name: 'Edit dog photo' })).toHaveClass('h-11', 'w-11');

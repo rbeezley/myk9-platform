@@ -93,6 +93,17 @@ describe('club hero (MYK9-930)', () => {
     expect(screen.queryByText('Not set')).not.toBeInTheDocument();
   });
 
+  it('keeps the options menu trigger a 44px tap target', () => {
+    render(
+      <ClubHeader
+        club={{ ...heroClub, email: 'a@b.example' }}
+        onEditPhoto={noop}
+        onDeleteClub={noop}
+      />
+    );
+    expect(screen.getByRole('button', { name: 'Club options' })).toHaveClass('h-11', 'w-11');
+  });
+
   it('keeps the cover banner and accent bar inside the hero card', () => {
     render(
       <ClubHeader

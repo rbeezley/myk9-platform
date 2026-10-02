@@ -258,7 +258,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
             render: person.email ? (
               <a
                 href={`mailto:${person.email}`}
-                className="text-sm font-medium text-primary hover:text-primary/80 transition-colors duration-200 hover:underline break-all"
+                className="inline-flex min-h-11 min-w-11 items-center text-sm font-medium text-primary hover:text-primary/80 transition-colors duration-200 hover:underline break-all"
               >
                 {person.email}
               </a>
@@ -270,7 +270,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
             render: formData.phone ? (
               <a
                 href={`tel:${formData.phone.replace(/[^\d]/g, '')}`}
-                className="text-sm font-medium text-primary hover:text-primary/80 transition-colors duration-200 hover:underline"
+                className="inline-flex min-h-11 min-w-11 items-center text-sm font-medium text-primary hover:text-primary/80 transition-colors duration-200 hover:underline"
               >
                 {formData.phone}
               </a>

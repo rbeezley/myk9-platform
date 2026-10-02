@@ -42,8 +42,10 @@ const ClubDetailPage: React.FC = () => {
             {!isGuest && ' Your saved club information is still safe.'}
           </p>
           <div className="flex flex-wrap justify-center gap-3">
-            <Button onClick={retry}>Try again</Button>
-            <Button asChild variant="outline">
+            <Button onClick={retry} className="min-h-11">
+              Try again
+            </Button>
+            <Button asChild variant="outline" className="min-h-11">
               <Link to="/clubs">Back to clubs</Link>
             </Button>
           </div>

@@ -127,6 +127,17 @@ describe('Person detail page frame (MYK9-930)', () => {
     expect(screen.getByText('2 dogs')).toBeInTheDocument();
   });
 
+  // docs/INTENT.md: every tap target is at least 44x44px. These two links are the
+  // only call and email actions on the page, so they are inline-flex 44px targets.
+  it('makes the tel and mailto links 44px tap targets', () => {
+    render(<UserDetailsView person={person} />);
+
+    for (const name of ['555-0100', 'grace@example.test']) {
+      const link = screen.getByRole('link', { name });
+      expect(link).toHaveClass('inline-flex', 'items-center', 'min-h-11', 'min-w-11');
+    }
+  });
+
   it('offers no hero Email or Call button; the phone is a tel link in the contact card', () => {
     render(<UserDetailsView person={person} />);
 

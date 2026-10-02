@@ -135,7 +135,7 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-10 w-10 p-0 bg-black/30 hover:bg-black/50 text-white"
+                className="h-11 w-11 p-0 bg-black/30 hover:bg-black/50 text-white"
                 aria-label="Club options"
               >
                 <MoreVertical className="h-5 w-5" />

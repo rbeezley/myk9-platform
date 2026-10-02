@@ -75,8 +75,15 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
   // Derive validation errors from current state (no useState needed). One choke point shared
   // with the step validators; add-classes only ever evaluates the class rules.
   const errors = useMemo(
-    () => getReviewBlockingErrors({ show, trials, officialsUnknown, scope }),
-    [show, trials, officialsUnknown, scope]
+    () =>
+      getReviewBlockingErrors({
+        show,
+        trials,
+        officialsUnknown,
+        scope,
+        trialNameOf: id => trialView.effectiveNamesByTrialId.get(id) ?? '',
+      }),
+    [show, trials, officialsUnknown, scope, trialView]
   );
 
   const reportBlockingErrors = () => {

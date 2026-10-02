@@ -655,3 +655,29 @@ describe('buildCreateShowPayload', () => {
     expect(localEntities.classes[0]!._syncStatus).toBe('synced');
   });
 });
+
+describe('trial start time comes from the validated typed draft (MYK9-931)', () => {
+  const build = (trial: WizardTrial) =>
+    buildCreateShowPayload(baseShow, [trial], {}, new Map(), 'unpublished');
+
+  it('refuses to build while a trial start time is blank', () => {
+    expect(() => build({ ...baseTrial, startTimeDraft: '' })).toThrow(
+      /start time for Saturday Trial/
+    );
+  });
+
+  it('refuses to build while a trial start time is invalid', () => {
+    expect(() => build({ ...baseTrial, startTimeDraft: 'soon' })).toThrow(
+      /valid start time for Saturday Trial/
+    );
+  });
+
+  it('saves a valid edited time exactly as typed', () => {
+    const { rpcInput } = build({
+      ...baseTrial,
+      dateTime: '2026-06-01T09:00:00',
+      startTimeDraft: '10:15 AM',
+    });
+    expect(rpcInput.p_trials[0]?.planned_start_time).toBe('10:15 AM');
+  });
+});

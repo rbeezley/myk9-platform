@@ -32,3 +32,28 @@ export function normalizeTimeOfDay(text: string): string {
   if (!parts) return text.trim();
   return formatTimeOfDay(parts.hours, parts.minutes);
 }
+
+export type TrialStartTimeIssue = 'blank' | 'invalid';
+
+/**
+ * THE start-time rule for a wizard trial (MYK9-931). The box's typed text
+ * (`startTimeDraft`) is the single source of truth: Next, Review and the save
+ * payload all ask this one function. A trial that was never edited has no draft
+ * and no issue; a draft that is blank or not a time is one.
+ */
+export function trialStartTimeIssues(trial: {
+  startTimeDraft?: string | undefined;
+}): TrialStartTimeIssue | null {
+  const draft = trial.startTimeDraft;
+  if (draft === undefined) return null;
+  if (draft.trim() === '') return 'blank';
+  return hasTrialTime(draft) ? null : 'invalid';
+}
+
+/** The sentence for an issue; with a trial name it names the trial. */
+export function trialStartTimeMessage(issue: TrialStartTimeIssue, trialName?: string): string {
+  const forTrial = trialName ? ` for ${trialName}` : '';
+  return issue === 'blank'
+    ? `Please enter a start time${forTrial}`
+    : `Please enter a valid start time${forTrial} (e.g., 9:00 AM)`;
+}

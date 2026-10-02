@@ -44,6 +44,8 @@ export interface WizardTrial {
   id: string;
   nameOverride?: string | undefined;
   dateTime: string;
+  /** The start-time box as typed (see wizardStore); the source of truth for the saved time. */
+  startTimeDraft?: string | undefined;
   eventNumber: string;
   trialType?: string | undefined;
   classes: Array<{

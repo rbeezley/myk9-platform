@@ -54,7 +54,8 @@ const DECLARED_INSTANT_CALL_SITES: Record<string, string[]> = {
   'features/show-workbench/IncidentLogCard.tsx': ['value'],
   // Write path: formats the wizard's local Date into the chosen calendar day
   // / clock time for persistence.
-  'pages/secretary/ShowCreationWizard/buildCreateShowPayload.ts': ['wizardTrial.dateTime'],
+  // The saved start time of a wizard trial, read from the same local wall-clock dateTime.
+  'pages/secretary/ShowCreationWizard/trialPlannedStartTime.ts': ['trial.dateTime'],
   'pages/secretary/ShowCreationWizard/showCreationWizardTransformers.ts': ['wizardTrial.dateTime'],
   'pages/secretary/ShowCreationWizard/useShowCreationWizardActions.ts': ['wizardTrial.dateTime'],
 };

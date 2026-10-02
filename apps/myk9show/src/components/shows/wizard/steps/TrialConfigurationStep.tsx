@@ -4,7 +4,12 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { TrialDateField } from '@/components/trials/TrialDateField';
 import { TrialStartTimeField } from '@/components/trials/TrialStartTimeField';
-import { formatTimeOfDay, hasTrialTime, parseTimeOfDay } from '@/components/trials/trialDateTime';
+import {
+  formatTimeOfDay,
+  parseTimeOfDay,
+  trialStartTimeIssues,
+  trialStartTimeMessage,
+} from '@/components/trials/trialDateTime';
 import {
   Select,
   SelectContent,
@@ -111,12 +116,8 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
         }
       }
 
-      if (trial.startTimeDraft !== undefined && !hasTrialTime(trial.startTimeDraft)) {
-        newErrors[`${prefix}-startTime`] =
-          trial.startTimeDraft.trim() === ''
-            ? 'Please enter a start time'
-            : 'Please enter a valid start time (e.g., 9:00 AM)';
-      }
+      const startTimeIssue = trialStartTimeIssues(trial);
+      if (startTimeIssue) newErrors[`${prefix}-startTime`] = trialStartTimeMessage(startTimeIssue);
 
       // Event number required for AKC (needed for XML export); optional for UKC/Other
       if (!trial.trialType) {

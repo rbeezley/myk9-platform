@@ -1,4 +1,4 @@
-import { hasTrialTime } from '@/components/trials/trialDateTime';
+import { trialStartTimeIssues, trialStartTimeMessage } from '@/components/trials/trialDateTime';
 /**
  * Validation logic for the Show Creation Wizard
  */
@@ -63,12 +63,18 @@ export function getValidationScope(editMode: Pick<EditMode, 'mode'> | undefined)
  */
 export function getReviewBlockingErrors(input: {
   show: ShowData;
-  trials: readonly { classes: readonly unknown[] }[];
+  trials: readonly {
+    id?: string;
+    startTimeDraft?: string | undefined;
+    classes: readonly unknown[];
+  }[];
+  /** Names a trial in its messages. */
+  trialNameOf?: (trialId: string) => string;
   /** True when the show's officials could not be READ; unknown is not absent. */
   officialsUnknown: boolean;
   scope: ValidationScope;
 }): string[] {
-  const { show, trials, officialsUnknown, scope } = input;
+  const { show, trials, officialsUnknown, scope, trialNameOf } = input;
   const result: string[] = [];
   const totalClasses = trials.reduce((sum, trial) => sum + trial.classes.length, 0);
 
@@ -82,6 +88,14 @@ export function getReviewBlockingErrors(input: {
       if (show.officials.secretary.length === 0) result.push('Please select a secretary');
     }
     if (trials.length === 0) result.push('Please add at least one trial');
+    // The typed start time is what is validated: a cleared or invalid box blocks Review too.
+    trials.forEach((trial, index) => {
+      const issue = trialStartTimeIssues(trial);
+      if (issue) {
+        const name = (trial.id ? trialNameOf?.(trial.id) : undefined) || `Trial ${index + 1}`;
+        result.push(trialStartTimeMessage(issue, name));
+      }
+    });
   }
   if (totalClasses === 0) result.push('Please add at least one class');
 
@@ -170,14 +184,8 @@ export function getTrialValidationMessages(
         messages.push(`Please enter a name for ${trialName}`);
       if (!trial.trialType) messages.push(`Please select a type for ${trialName}`);
       if (!trial.dateTime) messages.push(`Please select a date and time for ${trialName}`);
-      const draft = trial.startTimeDraft;
-      if (draft !== undefined && !hasTrialTime(draft)) {
-        messages.push(
-          draft.trim() === ''
-            ? `Please enter a start time for ${trialName}`
-            : `Please enter a valid start time for ${trialName} (e.g., 9:00 AM)`
-        );
-      }
+      const startTimeIssue = trialStartTimeIssues(trial);
+      if (startTimeIssue) messages.push(trialStartTimeMessage(startTimeIssue, trialName));
       if (requiresEventNumber && !trial.eventNumber?.trim())
         messages.push(`Please enter an event number for ${trialName} (required for AKC events)`);
     });

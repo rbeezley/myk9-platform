@@ -1,5 +1,7 @@
 -- MYK9-939: NULL handler ownership must fail closed for unrelated callers.
 -- Preserve the existing RPC eligibility, optimistic concurrency and grants.
+BEGIN;
+
 CREATE OR REPLACE FUNCTION public.withdraw_own_entry(
   p_entry_id uuid,
   p_fields jsonb,

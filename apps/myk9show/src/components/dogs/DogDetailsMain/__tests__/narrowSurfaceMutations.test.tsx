@@ -82,7 +82,6 @@ vi.mock('../DogDialogs', () => ({ default: () => null }));
 vi.mock('@/components/dogs/DogStatusDialog', () => ({ default: () => null }));
 vi.mock('@/components/common/Breadcrumb', () => ({ default: () => <nav /> }));
 
-
 describe('DogDetailsMain narrow surface — registration and health mutations follow the server', () => {
   beforeEach(() => {
     mockRoles = [];

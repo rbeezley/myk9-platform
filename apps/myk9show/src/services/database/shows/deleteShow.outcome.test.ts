@@ -15,10 +15,10 @@ describe('deleteShow outcome', () => {
     rpc.mockReset();
   });
 
-  it.each(['Show not found', 'Show not found or already deleted'])(
-    'treats the RPC refusal "%s" as already deleted, not a failure',
+  it.each(['Show not found or already deleted', 'any text at all'])(
+    'treats P0002 ("%s") as already deleted, not a failure',
     async message => {
-      rpc.mockResolvedValue({ data: null, error: { message, code: '42501' } });
+      rpc.mockResolvedValue({ data: null, error: { message, code: 'P0002' } });
 
       const result = await deleteShow('show-1');
 
@@ -28,6 +28,16 @@ describe('deleteShow outcome', () => {
       expect(result).toMatchObject({ alreadyDeleted: true });
     }
   );
+
+  it('a 42501 is a refusal even when its message says "Show not found" (MYK9-922)', async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: 'Show not found', code: '42501' } });
+
+    const result = await deleteShow('show-1');
+
+    expect(result.data).toBeNull();
+    expect(result).not.toHaveProperty('alreadyDeleted');
+    expect(classifyShowDeleteError(result.error)).toBe('permission-denied');
+  });
 
   it('still reports Permission denied as an error the caller can name', async () => {
     rpc.mockResolvedValue({ data: null, error: { message: 'Permission denied', code: '42501' } });

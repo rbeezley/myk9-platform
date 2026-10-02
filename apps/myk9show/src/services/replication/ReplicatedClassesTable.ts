@@ -784,17 +784,6 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     }
     return repaired;
   }
-
-  /**
-   * Delete a class locally and queue DELETE mutation for Supabase sync
-   */
-  async deleteClass(classId: string): Promise<string | null> {
-    await this.delete(classId);
-    const mutationId = await this.queueMutation('DELETE', classId, { id: classId });
-    this._lastMutationId = mutationId;
-    logger.log(`[${this.getTableName()}] Deleted class ${classId}`);
-    return mutationId;
-  }
 }
 
 // Singleton export

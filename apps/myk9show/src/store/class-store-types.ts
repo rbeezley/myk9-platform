@@ -93,13 +93,11 @@ export interface ClassStoreState {
   // Local-First Class Actions
   addClass: (classData: ClassInput) => Promise<SyncableClassData>;
   updateClass: (id: string, updates: Partial<ClassInput>) => Promise<SyncableClassData | null>;
-  deleteClass: (id: string) => Promise<void>;
   getClassById: (id: string) => SyncableClassData | null;
   getClassesByTrialId: (trialId: string) => SyncableClassData[];
 
   // Local-First Entry Actions
   updateEntry: (id: string, updates: Partial<EntryInput>) => Promise<SyncableEntryData | null>;
-  deleteEntry: (id: string) => Promise<void>;
   getEntryById: (id: string) => SyncableEntryData | null;
   getEntriesByClass: (classId: string) => SyncableEntryData[];
 

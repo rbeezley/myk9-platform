@@ -28,10 +28,10 @@ import type { DogDetailsMainProps } from './types';
 const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   dog,
   fromPerson,
-  onDelete,
-  onForceDelete,
+  onDeleteStart,
+  onDeleted,
+  onDeleteFailed,
   onUpdate,
-  isDeleting,
 }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const people = useUserStore(state => state.people);
@@ -44,14 +44,9 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
   // Same check as the /people/:id route guard, so the owner is a link only for someone who can open it.
   const canOpenOwnerRecord = hasRole(UserRole.SECRETARY) || hasRole(UserRole.SITE_ADMIN);
   // Mirror the soft_delete_dog RPC gate so the Delete action is hidden (not
-  // failed) when the user can't delete; restore copy only shows to admins who
-  // can reach the admin-only restore UI.
+  // failed) when the user can't delete. The admin override lives in the shared
+  // delete dialog.
   const canDeleteDog = useCanDeleteDog(dog.id);
-  const canRestoreDog = hasRole(UserRole.SITE_ADMIN);
-  // Same population as restore today, but a separate decision: this one unlocks
-  // the force_delete_dog override, whose real gate is is_platform_admin() in the
-  // function itself. Keep it named for what it authorises.
-  const canForceDeleteDog = hasRole(UserRole.SITE_ADMIN);
 
   // Route-entry focus/scroll (task 3.8, design.md Decision 10): a dog-card
   // click or a Career/Records deep link lands on the main heading; browser
@@ -342,15 +337,13 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
         showCelebration={showCelebration}
         userRole={userRole}
         people={people}
-        canRestore={canRestoreDog}
-        canForceDelete={canForceDeleteDog}
         onEditPanelClose={() => setIsEditPanelOpen(false)}
         onDeleteDialogClose={() => setIsDeleteDialogOpen(false)}
         onStatusDialogOpen={openStatusDialog}
-        onDelete={onDelete}
-        onForceDelete={onForceDelete}
+        onDeleteStart={onDeleteStart}
+        onDeleted={onDeleted}
+        onDeleteFailed={onDeleteFailed}
         onUpdate={onUpdate}
-        isDeleting={isDeleting ?? false}
         onPhotoDialogOpen={handlePhotoDialogOpen}
         onPhotoDrop={handlePhotoDrop}
         onPhotoDragOver={handlePhotoDragOver}

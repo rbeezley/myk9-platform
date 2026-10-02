@@ -145,7 +145,7 @@ export function useClassDetailsData() {
   const isResultsView = location.pathname.endsWith('/results');
 
   // Store hooks
-  const { classes, updateClass, deleteClass } = useClassStoreCompat();
+  const { classes, updateClass } = useClassStoreCompat();
   const { dogs } = useDogStoreCompat();
   const dogsById = useMemo(() => new Map(dogs.map(d => [d.id, d])), [dogs]);
   const { trials, trialClasses: replicatedTrialClasses } = useTrialStore();
@@ -393,6 +393,5 @@ export function useClassDetailsData() {
 
     // Actions
     updateClass,
-    deleteClass,
   };
 }

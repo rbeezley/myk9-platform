@@ -187,7 +187,7 @@ const EntryManagementPage: React.FC = () => {
     handleExportCSV,
     handleCompEntry,
     handleUncompEntry,
-    handleRemoveEntry,
+    handleEntryRemoved,
     handleSendDecisionEmail,
   } = useEntryManagementActions({
     entries,
@@ -503,7 +503,7 @@ const EntryManagementPage: React.FC = () => {
                   })
                 }
                 onUncompEntry={handleUncompEntry}
-                onRemoveEntry={handleRemoveEntry}
+                onEntryRemoved={handleEntryRemoved}
                 onBulkStatusChange={handleEnrollmentBulkStatusChange}
                 paymentLedger={paymentLedger}
                 onSendDecisionEmail={async (registrationId, message, amountDue) => {

@@ -15,12 +15,10 @@ import {
   useClassesByTrialQuery,
   useCreateClassMutation,
   useUpdateClassMutation,
-  useDeleteClassMutation,
   useClassStatisticsQuery,
   useEntriesQuery,
   useEntriesByClassQuery,
   useUpdateEntryMutation,
-  useDeleteEntryMutation,
 } from '@/hooks/queries/useClassesDatabase';
 import { useVerifiedEntriesByShowQuery } from '@/hooks/queries/useEntriesDatabase';
 import {
@@ -54,10 +52,8 @@ export const useClassStoreCompat = (showId?: string) => {
 
   const createClassMutation = useCreateClassMutation();
   const updateClassMutation = useUpdateClassMutation();
-  const deleteClassMutation = useDeleteClassMutation();
 
   const updateEntryMutation = useUpdateEntryMutation();
-  const deleteEntryMutation = useDeleteEntryMutation();
 
   // Convert database results to classStore format for backward compatibility
   const classes = useMemo(() => {
@@ -80,9 +76,7 @@ export const useClassStoreCompat = (showId?: string) => {
     currentEntriesQuery.isLoading,
     createClassMutation.isPending,
     updateClassMutation.isPending,
-    deleteClassMutation.isPending,
-    updateEntryMutation.isPending,
-    deleteEntryMutation.isPending
+    updateEntryMutation.isPending
   );
 
   const error = useMemo(
@@ -92,18 +86,14 @@ export const useClassStoreCompat = (showId?: string) => {
         currentEntriesQuery.error,
         createClassMutation.error,
         updateClassMutation.error,
-        deleteClassMutation.error,
-        updateEntryMutation.error,
-        deleteEntryMutation.error
+        updateEntryMutation.error
       ),
     [
       classesQuery.error,
       currentEntriesQuery.error,
       createClassMutation.error,
       updateClassMutation.error,
-      deleteClassMutation.error,
       updateEntryMutation.error,
-      deleteEntryMutation.error,
     ]
   );
 
@@ -126,11 +116,6 @@ export const useClassStoreCompat = (showId?: string) => {
     return result ? mapDatabaseToClass(result) : null;
   };
 
-  const deleteClass = async (id: string): Promise<void> => {
-    if (!id) throw new Error('Class ID is required for deletion');
-    await deleteClassMutation.mutateAsync({ id });
-  };
-
   const getClassById = (id: string): SyncableClassData | null => {
     return classes.find(cls => cls.id === id) || null;
   };
@@ -148,10 +133,6 @@ export const useClassStoreCompat = (showId?: string) => {
     const dbUpdates = mapEntryInputToUpdate(updates);
     const result = await updateEntryMutation.mutateAsync({ id, updates: dbUpdates });
     return result ? mapDatabaseToEntry(result) : null;
-  };
-
-  const deleteEntry = async (id: string): Promise<void> => {
-    await deleteEntryMutation.mutateAsync({ id });
   };
 
   const getEntryById = (id: string): SyncableEntryData | null => {
@@ -205,13 +186,11 @@ export const useClassStoreCompat = (showId?: string) => {
     // Class Operations (compatible with classStore API)
     addClass,
     updateClass,
-    deleteClass,
     getClassById,
     getClassesByTrialId,
 
     // Entry Operations (compatible with classStore API)
     updateEntry,
-    deleteEntry,
     getEntryById,
     getEntriesByClass,
 
@@ -251,9 +230,7 @@ export const useClassStoreCompat = (showId?: string) => {
     // Individual mutation states for fine-grained control
     isCreatingClass: createClassMutation.isPending,
     isUpdatingClass: updateClassMutation.isPending,
-    isDeletingClass: deleteClassMutation.isPending,
     isUpdatingEntry: updateEntryMutation.isPending,
-    isDeletingEntry: deleteEntryMutation.isPending,
 
     // Legacy compatibility flags
     _usingDatabase: true,

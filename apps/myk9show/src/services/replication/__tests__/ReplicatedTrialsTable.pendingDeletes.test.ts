@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fromAny } from '@total-typescript/shoehorn';
 import type { MutationManager, PendingMutation } from '@myk9/replication';
 import { ReplicatedTrialsTable, type ReplicatedTrial } from '../ReplicatedTrialsTable';
+import { deletePayload } from '../pendingDeletes';
 
 const server = vi.hoisted(() => ({
   rows: [] as Array<Record<string, unknown>>,
@@ -93,6 +94,21 @@ const serverRow = (id: string, showId: string) => ({
   updated_at: '2026-09-25T00:00:00Z',
 });
 
+/**
+ * A DELETE an earlier client queued. No app path queues a trial DELETE any more
+ * (CRUD standard Phase 2: trials are soft-deleted through soft_delete_trial), but
+ * a device can still hold one in its queue, and the sync must keep honouring it.
+ */
+async function queuedDeleteFromEarlierClient(
+  table: ReplicatedTrialsTable,
+  queue: ReturnType<typeof fakeQueue>,
+  id: string
+) {
+  const row = await table.get(id);
+  await queue.manager.queueMutation('trials', 'DELETE', id, deletePayload(id, row));
+  await table.delete(id);
+}
+
 describe('ReplicatedTrialsTable pending and server deletes (MYK9-762)', () => {
   let table: ReplicatedTrialsTable;
   let queue: ReturnType<typeof fakeQueue>;
@@ -112,39 +128,25 @@ describe('ReplicatedTrialsTable pending and server deletes (MYK9-762)', () => {
     await databaseManager.reset();
   });
 
-  it('records the show on the DELETE of a synced trial, and only the id for a pending create', async () => {
+  it('counts a queued DELETE of a synced trial as covered for its show only', async () => {
     await table.set('t1', trial('t1', 'show-1'));
     await table.set('local', trial('local', 'show-1', { _localOnly: true }), true);
 
-    await table.deleteTrial('t1');
-    await table.deleteTrial('local');
+    await queuedDeleteFromEarlierClient(table, queue, 't1');
+    await queuedDeleteFromEarlierClient(table, queue, 'local');
 
-    expect(queue.pending.map(m => [m.operation, m.rowId, m.data])).toEqual([
-      ['DELETE', 't1', { id: 't1', show_id: 'show-1' }],
-      ['DELETE', 'local', { id: 'local' }],
-    ]);
     await expect(table.pendingDeletes.coveredIds('show-1')).resolves.toEqual(new Set(['t1']));
     await expect(table.pendingDeletes.coveredIds('show-2')).resolves.toEqual(new Set());
   });
 
-  it('queues the DELETE before removing the local row', async () => {
-    await table.set('t1', trial('t1', 'show-1'));
-    let rowWhenQueued: unknown = 'not queued';
-    queue.manager.queueMutation.mockImplementationOnce(async (_t, _op, rowId: string) => {
-      rowWhenQueued = await table.get(rowId);
-      return 'm-1';
-    });
-
-    await table.deleteTrial('t1');
-
-    expect(rowWhenQueued).toMatchObject({ id: 't1' });
-    expect(await table.get('t1')).toBeNull();
+  it('exposes no method that queues a trial DELETE (soft delete goes through the RPC)', () => {
+    expect('deleteTrial' in table).toBe(false);
   });
 
   it('does not bring back a trial whose DELETE is still queued, even on a full fetch', async () => {
     await table.set('t1', trial('t1', 'show-1'));
     await table.set('t2', trial('t2', 'show-1'));
-    await table.deleteTrial('t2');
+    await queuedDeleteFromEarlierClient(table, queue, 't2');
     // The DELETE has not uploaded: the server still has, and counts, t2.
     server.rows = [serverRow('t1', 'show-1'), serverRow('t2', 'show-1')];
     server.count = 2;
@@ -163,7 +165,7 @@ describe('ReplicatedTrialsTable pending and server deletes (MYK9-762)', () => {
       { lastIncrementalSyncAt: 1000, lastFullSyncAt: Date.now() },
       { scopeValue: 'show-1' }
     );
-    await table.deleteTrial('t2');
+    await queuedDeleteFromEarlierClient(table, queue, 't2');
     server.rows = [];
     server.count = 2;
 

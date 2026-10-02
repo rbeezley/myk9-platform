@@ -63,19 +63,6 @@ function sqlFunctionBody(migration: string, signature: string): string {
   return migration.slice(start, bodyEnd);
 }
 
-const reads = readFileSync(
-  resolve(repoRoot, 'apps/myk9show/src/services/database/entries/reads.ts'),
-  'utf8'
-);
-
-function clientFunctionBody(): string {
-  const start = reads.indexOf('export const countBlockingEntriesByDog');
-  expect(start).toBeGreaterThan(-1);
-  const end = reads.indexOf('\n};', start);
-  expect(end).toBeGreaterThan(start);
-  return reads.slice(start, end);
-}
-
 describe('delete-blocking entry predicate (MYK9-822)', () => {
   it("soft_delete_dog's MK002 guard calls the shared private predicate", () => {
     const migration = latestMigrationDefining("USING ERRCODE = 'MK002'");
@@ -106,19 +93,6 @@ describe('delete-blocking entry predicate (MYK9-822)', () => {
     for (const status of ['refunded', 'waived']) {
       expect(body, `predicate blocks on ${status}`).not.toContain(status);
     }
-  });
-
-  it('the client calls the RPC, never a hand-rolled PostgREST filter', () => {
-    // Regression guard for the bug this migration fixes: a PostgREST filter
-    // naming result_status inside an `or()` 403s the WHOLE request (MYK9-799)
-    // because authenticated has no column-SELECT grant on it. The RPC
-    // sidesteps that by running SECURITY DEFINER, so the client must never go
-    // back to composing its own filter over `entries`.
-    const body = clientFunctionBody();
-    expect(body).toContain(".rpc('count_blocking_entries_by_dog'");
-    expect(body).toContain('p_dog_id: dogId');
-    expect(body).not.toContain('.or(');
-    expect(body).not.toContain("supabase.from('entries')");
   });
 
   it("delete_preview's dog branch counts with the same shared predicate", () => {

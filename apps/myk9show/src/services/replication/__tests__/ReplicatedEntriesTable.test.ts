@@ -1402,7 +1402,7 @@ describe('ReplicatedEntriesTable', () => {
         classId: 'class-1',
         armband: '101',
       });
-      await table.deleteEntry('entry-1');
+      await table.acknowledgeServerDeletion('entry-1', 1);
 
       const remoteEntries = [
         {
@@ -2047,7 +2047,7 @@ describe('ReplicatedEntriesTable', () => {
 
     it('does not resurrect an entry deleted locally this session', async () => {
       await seedSet('entry-del', { id: 'entry-del', classId: 'class-1' });
-      await table.deleteEntry('entry-del');
+      await table.acknowledgeServerDeletion('entry-del', 1);
       const { maybeSingle } = mockViewSingleRowFetch({ data: serverRow, error: null });
 
       await expect(table.updateCheckInStatus('entry-del', 'checked-in')).rejects.toThrow(
@@ -2074,7 +2074,7 @@ describe('ReplicatedEntriesTable', () => {
       // unhandled-rejection window while the awaits below run.
       const assertion = expect(writePromise).rejects.toThrow('Entry entry-race not found');
       await Promise.resolve(); // let the fetch start
-      await table.deleteEntry('entry-race');
+      await table.acknowledgeServerDeletion('entry-race', 1);
       resolveFetch!({ data: { ...serverRow, id: 'entry-race' }, error: null });
 
       await assertion;

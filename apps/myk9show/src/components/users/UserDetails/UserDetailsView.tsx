@@ -5,11 +5,9 @@ import { logger } from '@/services/LoggingService';
 import { buildUserEditSavePayload, buildSavedFormDataUpdates } from './userEditSavePayload';
 import { notifications } from '@/lib/notifications';
 import { uploadProfilePhoto } from '@/services/imageUploadService';
-import { getErrorMessage } from '@myk9/core';
 import { useUserStore } from '@/store/userStore';
 import {
   useUpdateUserMutation,
-  useDeleteUserMutation,
   usePermanentDeleteUserMutation,
 } from '@/hooks/queries/useUsersQuery';
 import UserDetailsTabs from '@/components/users/UserDetails/UserDetailsTabs';
@@ -47,7 +45,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const { user: currentUser, hasPermission } = useAuthContext();
   const { loadUsers } = useUserStore();
   const updateUserMutation = useUpdateUserMutation();
-  const deleteUserMutation = useDeleteUserMutation();
   const permanentDeleteMutation = usePermanentDeleteUserMutation();
   const [isDeletingUser, setIsDeletingUser] = useState(false);
   const { people } = useRoleBasedPeople();
@@ -159,23 +156,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       navigate('/people', { replace: true });
     }
   }, [people, person.id, navigate]);
-
-  const handleDeleteUser = async () => {
-    setIsDeletingUser(true);
-    try {
-      logger.debug('Deleting user', 'users', { userId: person.id });
-      await deleteUserMutation.mutateAsync({ id: person.id });
-      setIsDeleteDialogOpen(false);
-      notifications.success('Person deleted');
-      leaveAfterDelete();
-      logger.info('Person deleted', 'users', { userId: person.id });
-    } catch (error) {
-      logger.error('Failed to delete user', 'users', { userId: person.id }, error as Error);
-      notifications.error('Failed to delete person', { description: getErrorMessage(error) });
-    } finally {
-      setIsDeletingUser(false);
-    }
-  };
 
   const handlePermanentDeleteUser = async () => {
     setIsDeletingUser(true);
@@ -428,7 +408,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
-        onDeleteUser={handleDeleteUser}
+        onPersonDeleted={leaveAfterDelete}
         onPermanentDeleteUser={handlePermanentDeleteUser}
         isDeletingUser={isDeletingUser}
         canPermanentlyDelete={hasPermission('admin:manage')}

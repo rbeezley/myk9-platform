@@ -328,13 +328,17 @@ test.describe('Dogs UI — Exhibitor own-dog CRUD', () => {
     await navigateToExhibitorDog(page);
     await openActionsMenu(page);
     await page.getByRole('menuitem', { name: /Delete/i }).click();
-    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.getByRole('alertdialog')).toBeVisible();
 
     const deleteResponsePromise = page.waitForResponse(
       r => r.url().includes('/rest/v1/rpc/soft_delete_dog'),
       { timeout: 15000 }
     );
-    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    const confirm = page
+      .getByRole('alertdialog')
+      .getByRole('button', { name: 'Delete dog', exact: true });
+    await expect(confirm).toBeEnabled();
+    await confirm.click();
     await deleteResponsePromise;
 
     await page.waitForURL(/\/dogs(\?|$|#)/, { timeout: 10000 });
@@ -490,12 +494,12 @@ test.describe('Dogs UI — Delete (secretary)', () => {
     await openActionsMenu(page);
     await page.getByRole('menuitem', { name: /Delete/i }).click();
 
-    const dialog = page.getByRole('dialog');
+    const dialog = page.getByRole('alertdialog');
     await expect(dialog).toBeVisible();
     // Dog name appears in the dialog confirmation text
     await expect(dialog.getByText(new RegExp(DOG_B_NAME))).toBeVisible();
 
-    await page.getByRole('button', { name: 'Cancel' }).click();
+    await dialog.getByRole('button', { name: 'Keep it' }).click();
     // Still on Dog B detail page
     await expect(page).toHaveURL(/\/dogs\/[0-9a-f-]{36}$/);
   });
@@ -505,7 +509,7 @@ test.describe('Dogs UI — Delete (secretary)', () => {
     await openActionsMenu(page);
     await page.getByRole('menuitem', { name: /Delete/i }).click();
 
-    await expect(page.getByRole('dialog')).toBeVisible();
+    await expect(page.getByRole('alertdialog')).toBeVisible();
 
     // Soft-delete calls the soft_delete_dog RPC, not a direct dogs table DELETE
     const deleteResponsePromise = page.waitForResponse(
@@ -513,8 +517,12 @@ test.describe('Dogs UI — Delete (secretary)', () => {
       { timeout: 15000 }
     );
 
-    // The red confirm button — exact match avoids the "Delete" menu item
-    await page.getByRole('button', { name: 'Delete', exact: true }).click();
+    // The confirm button names the object — exact match avoids the "Delete" menu item
+    const confirm = page
+      .getByRole('alertdialog')
+      .getByRole('button', { name: 'Delete dog', exact: true });
+    await expect(confirm).toBeEnabled();
+    await confirm.click();
     await deleteResponsePromise;
 
     await page.waitForURL(/\/dogs(\?|$|#)/, { timeout: 10000 });

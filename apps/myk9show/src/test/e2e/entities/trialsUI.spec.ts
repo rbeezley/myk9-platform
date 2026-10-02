@@ -251,16 +251,18 @@ test.describe('Trial Details — Delete', () => {
     await page.getByRole('button', { name: 'More actions', exact: true }).click();
     await page.getByRole('menuitem', { name: /Delete Trial/i }).click();
 
-    const dialog = page.getByRole('dialog', { name: 'Delete Trial' });
+    // The shared delete dialog (CRUD standard Phase 2).
+    const dialog = page.getByRole('alertdialog', { name: /^Delete the trial / });
     await expect(dialog).toBeVisible();
 
-    // The user's request: warning copy must mention classes and entries.
-    await expect(dialog).toContainText(/classes/i);
-    await expect(dialog).toContainText(/entries/i);
-    await expect(dialog).toContainText(/cannot be undone/i);
+    // The user's request: the copy says what goes with it, as counts in words, and
+    // is honest that the delete can be undone.
+    await expect(dialog).toContainText(/This also removes its .*classes? and .*entr(y|ies)\./);
+    await expect(dialog).toContainText(/You can undo this for 10 minutes/);
+    await expect(dialog).not.toContainText(/cannot be undone/i);
 
-    // Cancel doesn't delete — sanity check before running the destructive path.
-    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    // Keep it doesn't delete — sanity check before running the destructive path.
+    await dialog.getByRole('button', { name: 'Keep it' }).click();
     await expect(dialog).not.toBeVisible();
 
     const beforeCounts = await fetchTrialChildCounts(page, seed.trialId);
@@ -276,20 +278,22 @@ test.describe('Trial Details — Delete', () => {
     await page.getByRole('button', { name: 'More actions', exact: true }).click();
     await page.getByRole('menuitem', { name: /Delete Trial/i }).click();
 
-    const dialog = page.getByRole('dialog', { name: 'Delete Trial' });
+    const dialog = page.getByRole('alertdialog', { name: /^Delete the trial / });
     await expect(dialog).toBeVisible();
 
-    // Wait for the DELETE roundtrip on /rest/v1/trials before we expect
-    // navigation off the trial page.
+    // A soft delete through soft_delete_trial (never a hard DELETE on /rest/v1/trials)
+    // before we expect navigation off the trial page.
     const deleteResponsePromise = page.waitForResponse(
       resp =>
-        resp.url().includes('/rest/v1/trials') &&
-        resp.request().method() === 'DELETE' &&
+        resp.url().includes('/rest/v1/rpc/soft_delete_trial') &&
+        resp.request().method() === 'POST' &&
         resp.status() < 400,
       { timeout: 15000 }
     );
 
-    await dialog.getByRole('button', { name: /Delete/i }).click();
+    const confirm = dialog.getByRole('button', { name: 'Delete trial', exact: true });
+    await expect(confirm).toBeEnabled();
+    await confirm.click();
     await deleteResponsePromise;
 
     // After the delete, the page should redirect off the trial detail URL

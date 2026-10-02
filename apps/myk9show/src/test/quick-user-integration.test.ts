@@ -61,7 +61,6 @@ describe('User Integration - Import Validation', () => {
       useUsersSearchQuery,
       useCreateUserMutation,
       useUpdateUserMutation,
-      useDeleteUserMutation,
       useUserManagement,
     } = await import('@/hooks/queries/useUsersDatabase');
 
@@ -70,7 +69,6 @@ describe('User Integration - Import Validation', () => {
     expect(useUsersSearchQuery).toBeDefined();
     expect(useCreateUserMutation).toBeDefined();
     expect(useUpdateUserMutation).toBeDefined();
-    expect(useDeleteUserMutation).toBeDefined();
     expect(useUserManagement).toBeDefined();
   });
 

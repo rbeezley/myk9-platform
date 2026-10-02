@@ -35,16 +35,10 @@ export { SECRETARY_ENTRIES_READ_ERROR, SECRETARY_SHOW_READ_ERROR } from './secre
 export { hardDeleteEntry, restoreEntry, getDeletedEntries } from './admin';
 export { entryInvalidationKeys } from './invalidation';
 export type { EntryChange } from './invalidation';
-export {
-  executeStatusChange,
-  executeBulkStatusChange,
-  executeRemoveEntry,
-} from './management-actions';
+export { executeStatusChange, executeBulkStatusChange } from './management-actions';
 export type {
   StatusChangeAdapters,
   BulkStatusChangeAdapters,
-  RemoveEntryAdapters,
   StatusChangeParams,
   BulkStatusChangeParams,
-  RemoveEntryParams,
 } from './management-actions';

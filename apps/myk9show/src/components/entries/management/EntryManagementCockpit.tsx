@@ -71,7 +71,7 @@ interface EntryManagementCockpitProps {
   onOpenArmbandDialog: (entry: EntryManagementEntry) => void;
   onOpenCompDialog: (entry: EntryManagementEntry) => void;
   onUncompEntry: (entryId: string) => void;
-  onRemoveEntry: (entryId: string) => void;
+  onEntryRemoved: (entryId: string) => void;
   onBulkStatusChange: (
     entryIds: string[],
     status: EntryStatus,
@@ -103,7 +103,7 @@ export function EntryManagementCockpit({
   onOpenArmbandDialog,
   onOpenCompDialog,
   onUncompEntry,
-  onRemoveEntry,
+  onEntryRemoved,
   onBulkStatusChange,
   onSendDecisionEmail,
   onRefresh,
@@ -321,6 +321,7 @@ export function EntryManagementCockpit({
                 : {})}
               onStatusChange={handleStatusChangeWithDecisionPrompt}
               onEntryRefunded={onRefresh}
+              onEntryRestored={onRefresh}
               onCheckInStatusChange={onCheckInStatusChange}
               onOpenEditEntry={onOpenEditEntry}
               onOpenArmbandDialog={onOpenArmbandDialog}
@@ -329,7 +330,7 @@ export function EntryManagementCockpit({
                 if (entry) onOpenCompDialog(entry);
               }}
               onUncompEntry={onUncompEntry}
-              onRemoveEntry={onRemoveEntry}
+              onEntryRemoved={onEntryRemoved}
               showCheckInStatus={false}
               matchingEntryIds={
                 new Set(cockpit.matchingEntryIdsByGroup.get(cockpit.focusedGroup.groupKey) ?? [])

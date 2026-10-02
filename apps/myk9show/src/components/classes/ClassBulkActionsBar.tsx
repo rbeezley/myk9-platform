@@ -12,36 +12,48 @@
  * `BulkBarButton`s. Bulk status change (MYK9-59) dispatches directly through
  * `onBulkStatusChange` — `classActions.ts`'s `runBulkAndClear` clears the
  * selection only when the handler resolves to something other than `false`,
- * i.e. only on full success, same as bulk delete's post-confirm clear. Bulk
- * delete stays destructive and keeps a confirmation dialog (design.md
- * decision D3/D6).
+ * i.e. only on full success. Bulk delete opens the shared `DeleteObjectDialog`
+ * (counts, blockers, Undo) and clears the selection once the delete lands.
  */
 import { useState } from 'react';
 import { RowActionMenu, toBulkActions } from '@/components/ui/RowActionMenu';
-import { DeleteConfirmationDialog } from '@/components/base';
 import { FloatingBulkBar } from '@/components/list-toolkit';
+import { DeleteObjectDialog, classDeleteDetail, type DeleteTargetContext } from '@/features/delete';
 import { classActions, type ClassActionItem, type ClassActionHandlers } from './classActions';
 
 const CLASS_NOUN = ['class', 'classes'] as const;
 
+/** A selected class, with what the delete dialog names it by when the page knows it. */
+export type ClassBarItem = ClassActionItem & {
+  /** The class's own trial, so Undo re-syncs the right trial even when the selection spans trials. */
+  trialId?: string | undefined;
+  level?: string | null | undefined;
+  element?: string | null | undefined;
+  trialLabel?: string | undefined;
+};
+
 interface ClassBulkActionsBarProps {
-  selectedClasses: ClassActionItem[];
+  selectedClasses: ClassBarItem[];
   bulkBusy: boolean;
-  onBulkDelete: (classIds: string[], onFullSuccess?: () => void) => Promise<boolean>;
   onBulkStatusChange: (
     classIds: string[],
     status: string,
     onFullSuccess?: () => void
   ) => Promise<boolean>;
   onClear: () => void;
+  /** Fallback trial label for classes that carry none of their own. */
+  trialLabel?: string | undefined;
+  /** Where the classes sit, for the delete's refresh and its Withdraw / Pull link. */
+  context?: DeleteTargetContext | undefined;
 }
 
 export function ClassBulkActionsBar({
   selectedClasses,
   bulkBusy,
-  onBulkDelete,
   onBulkStatusChange,
   onClear,
+  trialLabel,
+  context,
 }: ClassBulkActionsBarProps) {
   const [confirmDeleteIds, setConfirmDeleteIds] = useState<string[] | null>(null);
 
@@ -50,7 +62,7 @@ export function ClassBulkActionsBar({
   const handlers: ClassActionHandlers = {
     // Return `false` (not `undefined`) — the resolver's runBulkAndClear clears the
     // selection on any non-`false` result, but opening the confirm dialog isn't the
-    // delete itself. The real clear happens after `onBulkDelete` runs on confirm.
+    // delete itself. The real clear happens once the shared dialog's delete lands.
     onBulkDelete: eligibleIds => {
       setConfirmDeleteIds(eligibleIds);
       return false;
@@ -84,20 +96,36 @@ export function ClassBulkActionsBar({
         />
       </FloatingBulkBar>
 
-      <DeleteConfirmationDialog
-        open={confirmDeleteIds !== null}
-        onOpenChange={open => {
-          if (!open) setConfirmDeleteIds(null);
-        }}
-        onConfirm={() => {
-          const ids = confirmDeleteIds ?? [];
-          setConfirmDeleteIds(null);
-          void onBulkDelete(ids, onClear);
-        }}
-        entityName={`${confirmDeleteIds?.length ?? 0} class${(confirmDeleteIds?.length ?? 0) === 1 ? '' : 'es'}`}
-        entityType="Class"
-        isDeleting={bulkBusy}
-      />
+      {confirmDeleteIds !== null && (
+        <DeleteObjectDialog
+          open
+          onOpenChange={open => {
+            if (!open) setConfirmDeleteIds(null);
+          }}
+          kind="class"
+          targets={selectedClasses
+            .filter(cls => confirmDeleteIds.includes(cls.id))
+            .map(cls => {
+              const detail =
+                classDeleteDetail({
+                  level: cls.level,
+                  element: cls.element,
+                  trialLabel: cls.trialLabel || trialLabel,
+                }) ?? trialLabel;
+              return {
+                id: cls.id,
+                name: cls.name || 'Untitled class',
+                ...(detail ? { detail } : {}),
+                context: {
+                  ...context,
+                  ...(cls.trialId ? { trialId: cls.trialId } : {}),
+                  classId: cls.id,
+                },
+              };
+            })}
+          onDeleted={() => onClear()}
+        />
+      )}
     </>
   );
 }

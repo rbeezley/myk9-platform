@@ -1,15 +1,51 @@
 import type { ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@/test/utils/testUtils';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import type { ClassData } from '@/components/classes/types/classTypes';
 
-// MYK9-900: Class Details hands DeleteClassDialog / ClassEditPanel a promise that REJECTS on
-// failure. A failed delete must not navigate away from a class that still exists, and a failed
-// save must reject into the panel (which keeps the user's edits open).
+// MYK9-900: a failed delete must not navigate away from a class that still exists, and a failed
+// save must reject into the panel (which keeps the user's edits open). Delete is the shared
+// DeleteObjectDialog (CRUD standard Phase 2); only its server and device halves are mocked.
 
 const mockUseClassDetailsData = vi.hoisted(() => vi.fn());
-const deleteClass = vi.hoisted(() => vi.fn());
+const deleteMocks = vi.hoisted(() => ({ preview: vi.fn(), remove: vi.fn(), purge: vi.fn() }));
+vi.mock('@/features/delete/deletePreview', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/delete/deletePreview')>()),
+  fetchDeletePreview: deleteMocks.preview,
+}));
+vi.mock('@/features/delete/deleteUnsyncedWork', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/delete/deleteUnsyncedWork')>()),
+  deviceHasUnsavedWork: vi.fn().mockResolvedValue({ total: 0, failed: 0 }),
+}));
+vi.mock('@/features/delete/deleteServer', () => ({
+  softDeleteOnServer: deleteMocks.remove,
+  restoreOnServer: vi.fn(),
+}));
+vi.mock('@/features/delete/deleteLocalState', () => ({
+  reconcileLocalDeletion: deleteMocks.purge,
+}));
+// The page opens the delete dialog from its menu; these tests start with it open.
+vi.mock('./useClassDetailsDialogs', () => ({
+  useClassDetailsDialogs: () => ({
+    editClassPanelOpen: true,
+    setEditClassPanelOpen: vi.fn(),
+    openEditClassPanel: vi.fn(),
+    closeEditClassPanel: vi.fn(),
+    deleteDialogOpen: mockDeleteDialogOpen.current,
+    setDeleteDialogOpen: vi.fn(),
+    openDeleteDialog: vi.fn(),
+    closeDeleteDialog: vi.fn(),
+    deleteEntryDialogOpen: false,
+    setDeleteEntryDialogOpen: vi.fn(),
+    entryToDelete: null,
+    setEntryToDelete: vi.fn(),
+    openDeleteEntryDialog: vi.fn(),
+    closeDeleteEntryDialog: vi.fn(),
+  }),
+}));
+// The modal delete dialog makes the rest of the page inert, so the save test keeps it closed.
+const mockDeleteDialogOpen = vi.hoisted(() => ({ current: true }));
 const updateClass = vi.hoisted(() => vi.fn());
 let mockConnectionHint: string | undefined;
 
@@ -31,18 +67,10 @@ vi.mock('@/components/classes/ClassCompactHeader', () => ({
 }));
 vi.mock('@/components/classes/ClassDetailsMain', () => ({ default: () => null }));
 vi.mock('./SecretaryRunSheet', () => ({ SecretaryRunSheet: () => null }));
-vi.mock('@/components/entries/RemoveEntryDialog', () => ({ RemoveEntryDialog: () => null }));
 vi.mock('@/components/classes/ClassRequirementsPanel', () => ({
   ClassRequirementsPanel: () => null,
 }));
-// The dialogs expose the page's callbacks the way the real components call them.
-vi.mock('./DeleteClassDialog', () => ({
-  DeleteClassDialog: ({ onConfirm }: { onConfirm: () => Promise<void> }) => (
-    <button type="button" onClick={() => onConfirm().catch(() => undefined)}>
-      confirm-delete
-    </button>
-  ),
-}));
+// The panel exposes the page's save callback the way the real component calls it.
 vi.mock('@/components/panels/edit/ClassEditPanel', () => ({
   ClassEditPanel: ({ onSave }: { onSave: (data: Partial<ClassData>) => Promise<void> }) => (
     <button
@@ -98,8 +126,20 @@ function renderPage() {
 describe('ClassDetailsPage delete / save failure contract', () => {
   beforeEach(() => {
     mockConnectionHint = undefined;
+    mockDeleteDialogOpen.current = true;
     delete document.body.dataset.saveResult;
-    deleteClass.mockReset();
+    deleteMocks.preview.mockReset().mockResolvedValue({
+      trials: 0,
+      classes: 0,
+      entries: 2,
+      shows: 0,
+      dogs: 0,
+      paid: 0,
+      scored: 0,
+      blocking: 0,
+    });
+    deleteMocks.remove.mockReset().mockResolvedValue(undefined);
+    deleteMocks.purge.mockReset().mockResolvedValue(undefined);
     updateClass.mockReset();
     mockUseClassDetailsData.mockReturnValue({
       classId: 'class-1',
@@ -124,47 +164,66 @@ describe('ClassDetailsPage delete / save failure contract', () => {
       parentShow: { id: 'show-1', name: 'Spring Classic', organization: 'AKC', clubId: 'club-1' },
       dogs: [],
       updateClass,
-      deleteClass,
     });
   });
 
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  async function pressDelete(user: ReturnType<typeof renderPage>['user']) {
+    const dialog = await screen.findByRole('alertdialog', {
+      name: 'Delete the class Interior Novice A?',
+    });
+    const confirm = within(dialog).getByRole('button', { name: 'Delete class' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
+    return dialog;
+  }
+
   it('navigates to the trial only after the delete succeeds', async () => {
-    deleteClass.mockResolvedValue(undefined);
     const { user } = renderPage();
 
-    await user.click(screen.getByRole('button', { name: 'confirm-delete' }));
+    await pressDelete(user);
 
-    expect(deleteClass).toHaveBeenCalledWith('class-1');
+    await waitFor(() =>
+      expect(deleteMocks.remove).toHaveBeenCalledWith('class', 'class-1', { override: false })
+    );
     await waitFor(() =>
       expect(screen.getByTestId('location')).toHaveTextContent('/trials/trial-1')
     );
   });
 
   it('does not navigate when the delete fails', async () => {
-    deleteClass.mockRejectedValue(new Error('boom'));
+    deleteMocks.remove.mockRejectedValue(new Error('boom'));
     const { user } = renderPage();
 
-    await user.click(screen.getByRole('button', { name: 'confirm-delete' }));
+    const dialog = await pressDelete(user);
 
-    await waitFor(() => expect(deleteClass).toHaveBeenCalled());
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      "We couldn't delete this class. Please try again."
+    );
     expect(screen.getByTestId('location')).toHaveTextContent(
       '/shows/show-1/trials/trial-1/classes/class-1'
     );
   });
 
   it('does not navigate or call the delete while offline', async () => {
-    mockConnectionHint = 'Needs a connection';
-    const { user } = renderPage();
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+    renderPage();
 
-    await user.click(screen.getByRole('button', { name: 'confirm-delete' }));
-
-    expect(deleteClass).not.toHaveBeenCalled();
+    const dialog = await screen.findByRole('alertdialog', {
+      name: 'Delete the class Interior Novice A?',
+    });
+    expect(within(dialog).getByRole('button', { name: 'Delete class' })).toBeDisabled();
+    expect(deleteMocks.remove).not.toHaveBeenCalled();
     expect(screen.getByTestId('location')).toHaveTextContent(
       '/shows/show-1/trials/trial-1/classes/class-1'
     );
   });
 
   it('rejects the panel save when the class update fails, resolves when it succeeds', async () => {
+    mockDeleteDialogOpen.current = false;
     updateClass.mockRejectedValueOnce(new Error('boom'));
     const { user } = renderPage();
 

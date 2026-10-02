@@ -52,7 +52,7 @@ const baseProps = {
   onStatusChange: vi.fn(),
   onCheckInStatusChange: vi.fn(),
   onOpenArmbandDialog: vi.fn(),
-  onRemoveEntry: vi.fn(),
+  onEntryRemoved: vi.fn(),
 };
 
 describe('EntryListCard junior fee marker', () => {

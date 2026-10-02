@@ -4,7 +4,7 @@ import { ClassesTab, type ClassInfo } from '../ClassesTab';
 
 // MYK9-924: selection and bulk actions on Setup → Classes, ported from the retired Class
 // Management page's bulk-selection tests. Selection follows the view and the trial; bulk delete
-// soft-deletes through the shared mutation; bulk status never reaches another trial's classes.
+// is the shared `DeleteObjectDialog`; bulk status never reaches another trial's classes.
 
 vi.mock('@/hooks/useShowManageScope', () => ({
   useShowManageScope: () => ({ status: 'resolved', canManage: true }),
@@ -29,11 +29,35 @@ vi.mock('@/services/database/judges', () => ({ upsertClassJudgeAssignment: vi.fn
 const applyManualClassStatus = vi.hoisted(() => vi.fn());
 vi.mock('@/services/show-day/classStatusMutations', () => ({ applyManualClassStatus }));
 
-// Bulk delete reuses `useDeleteClassMutation.mutateAsync` per class: the same soft delete and
-// cache invalidation as single-class delete, never the replicated table's hard DELETE.
-const deleteMutateAsync = vi.hoisted(() => vi.fn());
+// Bulk delete is the shared delete dialog (features/delete): its server and device halves.
+const deleteMocks = vi.hoisted(() => ({ preview: vi.fn(), remove: vi.fn(), purge: vi.fn() }));
+vi.mock('@/features/delete/deletePreview', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/delete/deletePreview')>()),
+  fetchDeletePreview: deleteMocks.preview,
+}));
+vi.mock('@/features/delete/deleteUnsyncedWork', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/delete/deleteUnsyncedWork')>()),
+  deviceHasUnsavedWork: vi.fn().mockResolvedValue({ total: 0, failed: 0 }),
+}));
+vi.mock('@/features/delete/deleteServer', () => ({
+  softDeleteOnServer: deleteMocks.remove,
+  restoreOnServer: vi.fn(),
+}));
+vi.mock('@/features/delete/deleteLocalState', () => ({
+  reconcileLocalDeletion: deleteMocks.purge,
+  reconcileLocalRestore: vi.fn(),
+}));
+const NOTHING_BLOCKS = {
+  trials: 0,
+  classes: 0,
+  entries: 0,
+  shows: 0,
+  dogs: 0,
+  paid: 0,
+  scored: 0,
+  blocking: 0,
+};
 vi.mock('@/hooks/queries/useClassesDatabase', () => ({
-  useDeleteClassMutation: () => ({ mutate: vi.fn(), mutateAsync: deleteMutateAsync }),
   classKeys: { all: ['classes'], byTrial: (trialId: string) => ['classes', 'trial', trialId] },
 }));
 const toastError = vi.hoisted(() => vi.fn());
@@ -72,8 +96,9 @@ describe('ClassesTab selection and bulk actions', () => {
   beforeEach(() => {
     applyManualClassStatus.mockReset();
     applyManualClassStatus.mockResolvedValue(undefined);
-    deleteMutateAsync.mockReset();
-    deleteMutateAsync.mockResolvedValue({ id: 'x', name: null });
+    deleteMocks.preview.mockReset().mockResolvedValue(NOTHING_BLOCKS);
+    deleteMocks.remove.mockReset().mockResolvedValue(undefined);
+    deleteMocks.purge.mockReset().mockResolvedValue(undefined);
   });
 
   it('select all and bulk status stay inside the trial being managed', async () => {
@@ -122,22 +147,24 @@ describe('ClassesTab selection and bulk actions', () => {
     expect(screen.queryByText('1 class selected')).not.toBeInTheDocument();
   });
 
-  it('bulk delete asks first, then soft-deletes every selected class through the shared mutation', async () => {
+  it('bulk delete asks first, then soft-deletes every selected class through the shared dialog', async () => {
     const { user } = renderTab();
     await user.click(screen.getByRole('checkbox', { name: 'Select all visible classes' }));
 
     await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
     await user.click(await screen.findByRole('menuitem', { name: /delete 2 of 2 selected/i }));
 
-    expect(deleteMutateAsync).not.toHaveBeenCalled();
-    const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: /delete/i }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete 2 classes?' });
+    expect(deleteMocks.remove).not.toHaveBeenCalled();
+    const confirm = within(dialog).getByRole('button', { name: 'Delete 2 classes' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
 
     await waitFor(() => {
-      expect(deleteMutateAsync).toHaveBeenCalledWith({ id: 'c1' });
-      expect(deleteMutateAsync).toHaveBeenCalledWith({ id: 'c2' });
+      expect(deleteMocks.remove).toHaveBeenCalledWith('class', 'c1', { override: false });
+      expect(deleteMocks.remove).toHaveBeenCalledWith('class', 'c2', { override: false });
     });
-    expect(deleteMutateAsync).toHaveBeenCalledTimes(2);
+    expect(deleteMocks.remove).toHaveBeenCalledTimes(2);
   });
 
   // The retry's "has anyone else changed it?" check reads the full class set, so classes the
@@ -165,26 +192,50 @@ describe('ClassesTab selection and bulk actions', () => {
     expect(applyManualClassStatus).toHaveBeenLastCalledWith('c1', 'Completed');
   });
 
-  it('disables the bulk controls while a bulk delete is in flight', async () => {
+  it('a bulk delete in flight cannot be sent twice', async () => {
     const resolvers: Array<() => void> = [];
-    deleteMutateAsync.mockImplementation(
-      () => new Promise(resolve => resolvers.push(() => resolve({ id: 'x', name: null })))
+    deleteMocks.remove.mockImplementation(
+      () =>
+        new Promise<void>(resolve => {
+          resolvers.push(resolve);
+        })
     );
     const { user } = renderTab();
     await user.click(screen.getByRole('checkbox', { name: 'Select all visible classes' }));
 
     await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
     await user.click(await screen.findByRole('menuitem', { name: /delete 2 of 2 selected/i }));
-    await user.click(
-      within(await screen.findByRole('dialog')).getByRole('button', { name: /delete/i })
-    );
+    const dialog = await screen.findByRole('alertdialog');
+    const confirm = within(dialog).getByRole('button', { name: 'Delete 2 classes' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
 
-    await waitFor(() =>
-      expect(screen.getByRole('button', { name: /bulk class actions/i })).toBeDisabled()
-    );
-    expect(deleteMutateAsync).toHaveBeenCalledTimes(2);
+    expect(await within(dialog).findByRole('button', { name: /Deleting/ })).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: 'Keep it' })).toBeDisabled();
+    await waitFor(() => expect(deleteMocks.remove).toHaveBeenCalledTimes(2));
 
     resolvers.forEach(resolve => resolve());
     await waitFor(() => expect(screen.queryByText(/selected/i)).not.toBeInTheDocument());
+  });
+
+  it('hands each class its own trial to the delete, so Undo re-syncs the right trial', async () => {
+    const { user } = renderTab();
+    await user.click(screen.getByRole('checkbox', { name: 'Select all visible classes' }));
+    await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /delete 2 of 2 selected/i }));
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete 2 classes?' });
+    await waitFor(() =>
+      expect(within(dialog).getByRole('button', { name: 'Delete 2 classes' })).toBeEnabled()
+    );
+    await user.click(within(dialog).getByRole('button', { name: 'Delete 2 classes' }));
+    await waitFor(() => expect(deleteMocks.remove).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(deleteMocks.purge).toHaveBeenCalledTimes(2));
+    expect(deleteMocks.purge).toHaveBeenCalledWith(
+      'class',
+      expect.objectContaining({
+        id: 'c1',
+        context: expect.objectContaining({ showId: 's1', trialId: 't1', classId: 'c1' }),
+      })
+    );
   });
 });

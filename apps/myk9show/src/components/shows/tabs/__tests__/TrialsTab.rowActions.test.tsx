@@ -28,6 +28,34 @@ vi.mock('@/services/replication', async importOriginal => {
   };
 });
 
+// The shared delete dialog's server and device halves (features/delete).
+const deleteMocks = vi.hoisted(() => ({ preview: vi.fn(), remove: vi.fn(), purge: vi.fn() }));
+vi.mock('@/features/delete/deletePreview', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/delete/deletePreview')>()),
+  fetchDeletePreview: deleteMocks.preview,
+}));
+vi.mock('@/features/delete/deleteUnsyncedWork', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/delete/deleteUnsyncedWork')>()),
+  deviceHasUnsavedWork: vi.fn().mockResolvedValue({ total: 0, failed: 0 }),
+}));
+vi.mock('@/features/delete/deleteServer', () => ({
+  softDeleteOnServer: deleteMocks.remove,
+  restoreOnServer: vi.fn(),
+}));
+vi.mock('@/features/delete/deleteLocalState', () => ({
+  reconcileLocalDeletion: deleteMocks.purge,
+}));
+const NOTHING_BLOCKS = {
+  trials: 0,
+  classes: 6,
+  entries: 12,
+  shows: 0,
+  dogs: 0,
+  paid: 0,
+  scored: 0,
+  blocking: 0,
+};
+
 let mockCanManage = true;
 let mockScopeStatus: 'resolved' | 'resolving' | 'unavailable' = 'resolved';
 vi.mock('@/hooks/useRBAC', () => ({
@@ -97,6 +125,8 @@ const renderTab = () => render(<TrialsTab trials={trials} showId="s1" trialStats
 describe.each(['cards', 'table'])('TrialsTab row actions (%s view)', view => {
   beforeEach(() => {
     mockNavigate.mockClear();
+    deleteMocks.preview.mockReset().mockResolvedValue(NOTHING_BLOCKS);
+    deleteMocks.remove.mockReset().mockResolvedValue(undefined);
     mockCanManage = true;
     mockScopeStatus = 'resolved';
     mockViewMode = view;
@@ -154,10 +184,13 @@ describe.each(['cards', 'table'])('TrialsTab row actions (%s view)', view => {
     await user.click(screen.getByRole('button', { name: 'Trial actions for Saturday Trial 1' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Delete Trial' }));
 
-    const dialog = await screen.findByRole('dialog');
-    expect(within(dialog).getByText(/Are you sure you want to delete/)).toBeVisible();
-    expect(within(dialog).getByText('Saturday Trial 1')).toBeVisible();
-    expect(within(dialog).getByText(/all of its classes and entries/)).toBeVisible();
+    const dialog = await screen.findByRole('alertdialog', {
+      name: 'Delete the trial Saturday Trial 1?',
+    });
+    expect(
+      await within(dialog).findByText('This also removes its 6 classes and 12 entries.')
+    ).toBeVisible();
+    expect(deleteMocks.remove).not.toHaveBeenCalled();
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
@@ -209,31 +242,43 @@ describe('TrialsTab Edit trial initializes from the selected trial', () => {
   });
 });
 
-// Codex round 5: with a cold trial store (rows fed by the server read) the actions hydrate the
-// store first, and an unresolvable trial errors instead of opening a dialog that silently no-ops.
 describe('TrialsTab trial delete', () => {
   beforeEach(() => {
     toastError.mockClear();
+    deleteMocks.preview.mockReset().mockResolvedValue(NOTHING_BLOCKS);
+    deleteMocks.remove.mockReset().mockResolvedValue(undefined);
+    deleteMocks.purge
+      .mockReset()
+      .mockImplementation(async (_kind: string, target: { id: string }) => {
+        useTrialStore.setState(state => ({ trials: state.trials.filter(t => t.id !== target.id) }));
+      });
     mockCanManage = true;
     mockScopeStatus = 'resolved';
     mockViewMode = 'cards';
     seedStore();
   });
 
-  it('deleting removes the trial from the store, closes the dialog and shows no error', async () => {
-    const deleteTrial = vi.fn(async (id: string) => {
-      useTrialStore.setState(state => ({ trials: state.trials.filter(t => t.id !== id) }));
-    });
-    useTrialStore.setState({ deleteTrial });
+  it('asks through the shared dialog, deletes, purges and closes with no error', async () => {
     const { user } = renderTab();
 
     await user.click(screen.getByRole('button', { name: 'Trial actions for Saturday Trial 1' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Delete Trial' }));
-    const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: 'Delete Trial' }));
+    const dialog = await screen.findByRole('alertdialog', {
+      name: 'Delete the trial Saturday Trial 1?',
+    });
+    const confirm = within(dialog).getByRole('button', { name: 'Delete trial' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    expect(
+      within(dialog).getByText('This also removes its 6 classes and 12 entries.')
+    ).toBeVisible();
+    await user.click(confirm);
 
-    await waitFor(() => expect(deleteTrial).toHaveBeenCalledWith('t1'));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(deleteMocks.remove).toHaveBeenCalledWith('trial', 't1', { override: false })
+    );
+    expect(deleteMocks.purge).toHaveBeenCalledWith('trial', expect.objectContaining({ id: 't1' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
+    expect(useTrialStore.getState().trials.map(t => t.id)).not.toContain('t1');
     expect(toastError).not.toHaveBeenCalled();
   });
 });
@@ -285,77 +330,89 @@ describe('TrialsTab trial save and delete failures', () => {
     expect(toastError).not.toHaveBeenCalled();
   });
 
-  it('a failed delete keeps the dialog open and shows the error', async () => {
-    const deleteTrial = vi.fn().mockRejectedValue(new Error('Trial with id t1 not found'));
-    useTrialStore.setState({ deleteTrial });
+  it('a refused delete keeps the dialog open and says why in plain language', async () => {
+    deleteMocks.preview.mockReset().mockResolvedValue(NOTHING_BLOCKS);
+    deleteMocks.remove
+      .mockReset()
+      .mockRejectedValue({ code: '42501', message: 'Permission denied' });
     const { user } = renderTab();
 
     await user.click(screen.getByRole('button', { name: 'Trial actions for Saturday Trial 1' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Delete Trial' }));
-    const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: 'Delete Trial' }));
+    const dialog = await screen.findByRole('alertdialog');
+    const confirm = within(dialog).getByRole('button', { name: 'Delete trial' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
 
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/not found/i);
-    expect(screen.getByRole('dialog')).toBeVisible();
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      "You don't have permission to delete this trial."
+    );
+    expect(screen.getByRole('alertdialog')).toBeVisible();
   });
 });
 
 describe('TrialsTab trial delete in flight', () => {
   beforeEach(() => {
     toastError.mockClear();
+    deleteMocks.preview.mockReset().mockResolvedValue(NOTHING_BLOCKS);
+    deleteMocks.purge.mockReset().mockResolvedValue(undefined);
     mockCanManage = true;
     mockScopeStatus = 'resolved';
     mockViewMode = 'cards';
     seedStore();
   });
 
-  it('cannot be dismissed while pending, and closes only when the delete completes', async () => {
-    let finishDelete: () => void = () => undefined;
-    const deleteTrial = vi.fn(
-      (id: string) =>
-        new Promise<void>(resolve => {
-          finishDelete = () => {
-            useTrialStore.setState(state => ({ trials: state.trials.filter(t => t.id !== id) }));
-            resolve();
-          };
-        })
-    );
-    useTrialStore.setState({ deleteTrial });
-    const { user } = renderTab();
-
+  async function startDelete(user: ReturnType<typeof renderTab>['user']) {
     await user.click(screen.getByRole('button', { name: 'Trial actions for Saturday Trial 1' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Delete Trial' }));
-    const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: 'Delete Trial' }));
+    const dialog = await screen.findByRole('alertdialog');
+    const confirm = within(dialog).getByRole('button', { name: 'Delete trial' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
+    return dialog;
+  }
 
-    // Pending: Cancel is disabled, the action says Deleting…, and Escape does not dismiss.
+  it('cannot be dismissed while pending, and closes only when the delete completes', async () => {
+    let finishDelete: () => void = () => undefined;
+    deleteMocks.remove.mockReset().mockImplementation(
+      () =>
+        new Promise<void>(resolve => {
+          finishDelete = resolve;
+        })
+    );
+    const { user } = renderTab();
+
+    const dialog = await startDelete(user);
+
+    // Pending: Keep it is disabled, the action says Deleting, and Escape does not dismiss.
     expect(await within(dialog).findByRole('button', { name: /Deleting/ })).toBeDisabled();
-    expect(within(dialog).getByRole('button', { name: /cancel/i })).toBeDisabled();
+    expect(within(dialog).getByRole('button', { name: 'Keep it' })).toBeDisabled();
     await user.keyboard('{Escape}');
-    expect(screen.getByRole('dialog')).toBeVisible();
+    expect(screen.getByRole('alertdialog')).toBeVisible();
     // Other rows stay locked, so no other trial's action can start underneath it.
     expect(screen.getByLabelText('Trial actions for Sunday Trial 2')).toBeDisabled();
 
     finishDelete();
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
     expect(toastError).not.toHaveBeenCalled();
   });
 
   it('after a failure the dialog can be dismissed again', async () => {
-    useTrialStore.setState({ deleteTrial: vi.fn().mockRejectedValue(new Error('nope')) });
+    deleteMocks.remove.mockReset().mockRejectedValue(new Error('nope'));
     const { user } = renderTab();
 
-    await user.click(screen.getByRole('button', { name: 'Trial actions for Saturday Trial 1' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Delete Trial' }));
-    const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: 'Delete Trial' }));
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('nope');
+    const dialog = await startDelete(user);
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      "We couldn't delete this trial. Please try again."
+    );
 
-    await user.click(within(dialog).getByRole('button', { name: /cancel/i }));
-    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await user.click(within(dialog).getByRole('button', { name: 'Keep it' }));
+    await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
   });
 });
 
+// Codex round 5: with a cold trial store (rows fed by the server read) the actions hydrate the
+// store first, and an unresolvable trial errors instead of opening a dialog that silently no-ops.
 describe('TrialsTab row actions with a cold trial store', () => {
   beforeEach(() => {
     toastError.mockClear();

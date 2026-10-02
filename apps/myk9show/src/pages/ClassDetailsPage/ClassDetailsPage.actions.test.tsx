@@ -52,12 +52,8 @@ vi.mock('@/components/panels/edit/ClassEditPanel', () => ({
   ClassEditPanel: () => <div data-testid="class-edit-panel" />,
 }));
 
-vi.mock('./DeleteClassDialog', () => ({
-  DeleteClassDialog: () => <div data-testid="delete-class-dialog" />,
-}));
-
-vi.mock('@/components/entries/RemoveEntryDialog', () => ({
-  RemoveEntryDialog: () => null,
+vi.mock('@/features/delete/DeleteObjectDialog', () => ({
+  DeleteObjectDialog: ({ kind }: { kind: string }) => <div data-testid={`delete-${kind}-dialog`} />,
 }));
 
 vi.mock('@/components/classes/ClassRequirementsPanel', () => ({
@@ -252,7 +248,8 @@ describe('ClassDetailsPage header actions', () => {
     expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
     expect(screen.getByRole('menuitem', { name: /delete class/i })).toBeInTheDocument();
     expect(screen.getByTestId('class-edit-panel')).toBeInTheDocument();
-    expect(screen.getByTestId('delete-class-dialog')).toBeInTheDocument();
+    // The shared delete dialog mounts only when Delete is chosen.
+    expect(screen.queryByTestId('delete-class-dialog')).not.toBeInTheDocument();
   });
 
   // MYK9-123: this route is public, so an exhibitor lands here from a show page.

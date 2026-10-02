@@ -6,11 +6,8 @@
 
 import { startTransition, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { toast } from 'sonner';
 import { formatTrialLabel } from '@myk9/core';
 import { ClipboardList, LayoutDashboard, MoreVertical, Pencil, Trash2 } from 'lucide-react';
-import { logger } from '@/services/LoggingService';
-import { useEntryStore } from '@/store/entryStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import ClassDetailsMain from '@/components/classes/ClassDetailsMain';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
@@ -37,9 +34,8 @@ import {
   GuestClassUnavailableState,
   LoadingClassState,
 } from './ClassStates';
-import { DeleteClassDialog } from './DeleteClassDialog';
-import type { ShowEntry } from './types';
-import { RemoveEntryDialog } from '@/components/entries/RemoveEntryDialog';
+import { resolveEntryToRemove } from './resolveEntryToRemove';
+import { DeleteObjectDialog, classDeleteDetail, entryDeleteDetail } from '@/features/delete';
 import { ExhibitorClassCallout } from './ExhibitorClassCallout';
 import { SecretaryRunSheet } from './SecretaryRunSheet';
 import { ClassReadinessStrip } from './ClassReadinessStrip';
@@ -78,13 +74,11 @@ const ClassDetailsPage: React.FC = () => {
     manageScope,
     dogs,
     updateClass,
-    deleteClass,
   } = useClassDetailsData();
 
-  const { saveClass, removeClass } = useClassEditActions({
+  const { saveClass } = useClassEditActions({
     showId: parentShow?.id,
     updateClass,
-    deleteClass,
   });
 
   // Dialog state
@@ -126,11 +120,9 @@ const ClassDetailsPage: React.FC = () => {
   const exhibitorRawEntries = showReleasedResults ? releasedResults.rawEntries : dbRawEntries;
 
   // Handlers
-  // Rejects when the delete fails: DeleteClassDialog stays open and shows why, and we do not
-  // navigate away from a class that still exists.
-  const handleConfirmDeleteClass = async () => {
-    if (!classId) return;
-    await removeClass(classId);
+  // The shared delete dialog has deleted the class (soft, with Undo) and purged it from this
+  // device; leave the page of a class that is gone.
+  const handleClassDeleted = () => {
     startTransition(() => {
       if (trialId) {
         navigate(`/trials/${trialId}`);
@@ -146,40 +138,17 @@ const ClassDetailsPage: React.FC = () => {
     dialogs.openDeleteEntryDialog(entryId);
   };
 
-  const entryToRemove = dialogs.entryToDelete
-    ? (localRawEntries.find(e => (e as ShowEntry).id === dialogs.entryToDelete) as
-        ShowEntry | undefined)
+  const classTitle = currentClass ? formatClassTitle(currentClass) || undefined : undefined;
+  const parentTrialLabel = parentTrial
+    ? formatTrialLabel({ name: parentTrial.name, trialNumber: parentTrial.trialNumber })
     : undefined;
-  const removeDog = entryToRemove && dogs.find(d => d.id === entryToRemove.dogId);
-  const entryToRemoveView = entryToRemove && {
-    dogName: removeDog?.callName || removeDog?.name || 'Unknown Dog',
-    handler: entryToRemove.registrationData?.handler || undefined,
-    armband: entryToRemove.registrationData?.armband || undefined,
-    hasResults: Boolean(
-      entryToRemove.competitionData?.time ||
-      entryToRemove.competitionData?.score ||
-      entryToRemove.competitionData?.placement
-    ),
-  };
-
-  const handleConfirmDeleteEntry = async () => {
-    if (dialogs.entryToDelete) {
-      try {
-        const { deleteEntry } = useEntryStore.getState();
-        await deleteEntry(dialogs.entryToDelete);
-        toast.success('Entry deleted successfully');
-      } catch (error) {
-        logger.error(
-          'Failed to delete entry',
-          'classes',
-          { entryId: dialogs.entryToDelete },
-          error as Error
-        );
-        toast.error('Failed to delete entry');
-      }
-      dialogs.closeDeleteEntryDialog();
-    }
-  };
+  const entryToRemove = resolveEntryToRemove(dialogs.entryToDelete, {
+    localRawEntries,
+    dbRawEntries,
+    classEntries,
+    dogs,
+  });
+  const entryToRemoveName = entryToRemove?.dogName ?? 'this dog';
 
   // Rejects on failure so ClassEditPanel stays open with the user's edits.
   const handleSaveClassEdit = async (data: Partial<typeof currentClass>) => {
@@ -406,25 +375,54 @@ const ClassDetailsPage: React.FC = () => {
               }}
             />
 
-            <DeleteClassDialog
-              open={dialogs.deleteDialogOpen}
-              onOpenChange={dialogs.setDeleteDialogOpen}
-              currentClass={currentClass}
-              onConfirm={handleConfirmDeleteClass}
-            />
+            {dialogs.deleteDialogOpen && classId && currentClass && (
+              <DeleteObjectDialog
+                open
+                onOpenChange={dialogs.setDeleteDialogOpen}
+                kind="class"
+                targets={[
+                  {
+                    id: classId,
+                    name: classTitle ?? 'this class',
+                    detail: classDeleteDetail({
+                      level: currentClass.level,
+                      element: currentClass.element,
+                      trialLabel: parentTrialLabel,
+                    }),
+                    context: {
+                      showId: parentShow?.id,
+                      trialId: currentClass.trialId ?? trialId,
+                      classId,
+                    },
+                  },
+                ]}
+                onDeleted={handleClassDeleted}
+              />
+            )}
           </>
         )}
 
-        <RemoveEntryDialog
-          open={dialogs.deleteEntryDialogOpen}
-          onOpenChange={dialogs.setDeleteEntryDialogOpen}
-          dogName={entryToRemoveView?.dogName}
-          className={currentClass ? formatClassTitle(currentClass) || undefined : undefined}
-          handler={entryToRemoveView?.handler ?? 'Unknown'}
-          armband={entryToRemoveView?.armband ?? 'N/A'}
-          hasResults={entryToRemoveView?.hasResults}
-          onConfirm={handleConfirmDeleteEntry}
-        />
+        {dialogs.deleteEntryDialogOpen && entryToRemove && (
+          <DeleteObjectDialog
+            open
+            onOpenChange={open => {
+              if (!open) dialogs.closeDeleteEntryDialog();
+            }}
+            kind="entry"
+            targets={[
+              {
+                id: entryToRemove.id,
+                name: entryToRemoveName,
+                detail: entryDeleteDetail({
+                  callName: entryToRemoveName,
+                  handlerName: entryToRemove.handlerName,
+                  className: classTitle,
+                }),
+                context: { showId: parentShow?.id, trialId, classId },
+              },
+            ]}
+          />
+        )}
 
         <ClassRequirementsPanel
           open={requirementsPanelOpen}

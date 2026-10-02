@@ -30,7 +30,7 @@ import { supabase } from '@/services/database/supabaseClient';
 import { verifySecretaryEmptyShow } from '@/services/database/entries/secretaryEmptyProof';
 import type { Database } from '@/types/supabase';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
-import { deletePayload, PendingDeletes } from './pendingDeletes';
+import { PendingDeletes } from './pendingDeletes';
 import {
   entryToSupabaseRow,
   rowToEntry,
@@ -1611,29 +1611,26 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
   }
 
   /**
-   * Delete an entry locally and queue DELETE mutation for Supabase sync.
-   * Also marks the ID so the download sync won't resurrect it this session.
+   * Undo of a server soft-delete (restore_entry): stop guarding the row, so the
+   * next download brings it back even if its version did not move past the one
+   * recorded at delete time.
    */
-  async deleteEntry(entryId: string): Promise<string | null> {
-    this._deletedIds.set(entryId, null);
-    // Read before removing: the payload records the entry's show when it was
-    // already on the server, so readiness can count the pending delete.
-    const entry = await this.get(entryId);
-    await this.delete(entryId);
-    const mutationId = await this.queueMutation('DELETE', entryId, deletePayload(entryId, entry));
-    this._lastMutationId = mutationId;
-    logger.log(`[${this.getTableName()}] Deleted entry ${entryId}`);
-    return mutationId;
+  forgetServerDeletion(entryId: string): void {
+    this._deletedIds.delete(entryId);
   }
 
-  /** A direct server soft-delete supersedes any queued local edit for this row. */
+  /**
+   * The server soft-deleted this entry: guard racing downloads and evict the
+   * row. A row that holds local work at this moment (dirty, local-only, or a
+   * pending or failed mutation, e.g. queued in another tab while the RPC ran) is
+   * left alone, queue and all, for normal sync: the server's trigger refuses an
+   * upload under a deleted parent and the replication layer reports it, which
+   * beats silently dropping the user's edit.
+   */
   async acknowledgeServerDeletion(entryId: string, deletedVersion: number): Promise<void> {
+    if (await this.hasUnsyncedLocalWork(entryId)) return;
     this._deletedIds.set(entryId, deletedVersion);
-    try {
-      await this.entryMutationManager?.discardPendingMutationsForRow('entries', entryId);
-    } finally {
-      await this.delete(entryId);
-    }
+    await this.delete(entryId);
   }
 }
 

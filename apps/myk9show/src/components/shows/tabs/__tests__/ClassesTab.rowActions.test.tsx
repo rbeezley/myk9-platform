@@ -1,10 +1,10 @@
-import { render, screen, within } from '@/test/utils/testUtils';
+import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useTrialStore } from '@/store/trialStore';
 import { ClassesTab, type ClassInfo } from '../ClassesTab';
 
-// MYK9-900: Setup → Classes rows get Edit / Delete that open the SAME ClassEditPanel and
-// DeleteClassDialog Class Details uses. Managers only; the row still opens detail.
+// MYK9-900: Setup → Classes rows get Edit / Delete that open the SAME ClassEditPanel Class Details
+// uses, and the one shared delete dialog. Managers only; the row still opens detail.
 
 const mockNavigate = vi.hoisted(() => vi.fn());
 vi.mock('react-router-dom', async () => {
@@ -42,7 +42,34 @@ vi.mock('@/hooks/useViewPreference', () => ({
   ],
 }));
 
-const deleteClass = vi.hoisted(() => vi.fn());
+// The shared delete dialog's server and device halves (features/delete).
+const deleteMocks = vi.hoisted(() => ({ preview: vi.fn(), remove: vi.fn(), purge: vi.fn() }));
+vi.mock('@/features/delete/deletePreview', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/delete/deletePreview')>()),
+  fetchDeletePreview: deleteMocks.preview,
+}));
+vi.mock('@/features/delete/deleteUnsyncedWork', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/delete/deleteUnsyncedWork')>()),
+  deviceHasUnsavedWork: vi.fn().mockResolvedValue({ total: 0, failed: 0 }),
+}));
+vi.mock('@/features/delete/deleteServer', () => ({
+  softDeleteOnServer: deleteMocks.remove,
+  restoreOnServer: vi.fn(),
+}));
+vi.mock('@/features/delete/deleteLocalState', () => ({
+  reconcileLocalDeletion: deleteMocks.purge,
+}));
+const NOTHING_BLOCKS = {
+  trials: 0,
+  classes: 0,
+  entries: 4,
+  shows: 0,
+  dogs: 0,
+  paid: 0,
+  scored: 0,
+  blocking: 0,
+};
+
 const updateClass = vi.hoisted(() => vi.fn());
 const storeClasses = vi.hoisted(() => [
   {
@@ -114,7 +141,7 @@ vi.mock('@/services/replication', async importOriginal => {
   };
 });
 vi.mock('@/hooks/useClassStoreCompat', () => ({
-  useClassStoreCompat: () => ({ classes: storeClasses, updateClass, deleteClass }),
+  useClassStoreCompat: () => ({ classes: storeClasses, updateClass }),
 }));
 vi.mock('@/services/database/judges', () => ({ upsertClassJudgeAssignment: vi.fn() }));
 
@@ -161,8 +188,9 @@ describe.each(['cards', 'table'])('ClassesTab row actions (%s view)', view => {
       loadTrialClasses: async () => undefined,
     });
     mockNavigate.mockClear();
-    deleteClass.mockReset();
-    deleteClass.mockResolvedValue(undefined);
+    deleteMocks.preview.mockReset().mockResolvedValue(NOTHING_BLOCKS);
+    deleteMocks.remove.mockReset().mockResolvedValue(undefined);
+    deleteMocks.purge.mockReset().mockResolvedValue(undefined);
     mockCanManage = true;
     mockScopeStatus = 'resolved';
     mockViewMode = view;
@@ -215,20 +243,25 @@ describe.each(['cards', 'table'])('ClassesTab row actions (%s view)', view => {
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
-  it('Delete opens the real Delete Class dialog and deletes that class only on confirm', async () => {
+  it('Delete opens the shared dialog and deletes that class only on confirm', async () => {
     const { user } = renderTab();
 
     await user.click(screen.getByRole('button', { name: 'Class actions for Containers Novice A' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Delete Class' }));
 
-    const dialog = await screen.findByRole('alertdialog');
-    expect(within(dialog).getByText('Delete Class')).toBeVisible();
-    expect(within(dialog).getByText(/Containers Novice A/)).toBeVisible();
-    expect(deleteClass).not.toHaveBeenCalled();
+    const dialog = await screen.findByRole('alertdialog', {
+      name: /^Delete the class .*Containers/,
+    });
+    expect(within(dialog).getByText('Novice Containers · Saturday Trial')).toBeVisible();
+    expect(deleteMocks.remove).not.toHaveBeenCalled();
 
-    await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+    const confirm = within(dialog).getByRole('button', { name: 'Delete class' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
 
-    expect(deleteClass).toHaveBeenCalledWith('c1');
+    await waitFor(() =>
+      expect(deleteMocks.remove).toHaveBeenCalledWith('class', 'c1', { override: false })
+    );
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 

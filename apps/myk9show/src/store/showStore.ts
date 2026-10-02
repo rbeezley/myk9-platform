@@ -3,11 +3,6 @@ import type { StoreShow as Show } from '@/types/show-types';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import { mockShows } from '@/mockData/mockShows';
 import { shouldUseMockData } from '@/config/dataSource';
-import {
-  performCascadingDelete,
-  previewCascadingDelete,
-  type CascadingDeletePreview,
-} from '@/utils/cascadingDelete';
 import { replicatedShowsTable, type ReplicatedShow } from '@/services/replication';
 import {
   replicatedClubsTable,
@@ -231,8 +226,6 @@ interface ShowStore {
   addShowLegacy: (show: Show) => void;
   updateShowLegacy: (show: Show) => void;
   removeShow: (id: string) => void;
-  removeShowCascading: (id: string) => void;
-  previewCascadingDelete: (id: string) => CascadingDeletePreview | null;
 
   // Selection
   selectShow: (id: string) => void;
@@ -633,35 +626,6 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         shows: state.shows.filter(s => s.id !== id),
       };
     }),
-
-  removeShowCascading: id =>
-    set(state => {
-      reportInfo('store', 'Starting cascading delete for show', { showId: id });
-
-      // Perform cascading delete of all related data
-      const result = performCascadingDelete(id);
-
-      // Remove the show itself
-      const updatedShows = state.shows.filter(s => s.id !== id);
-
-      reportInfo('store', 'Cascading delete completed', {
-        showDeleted: id,
-        ...result,
-      });
-
-      return {
-        shows: updatedShows,
-        selectedShowId: state.selectedShowId === id ? '' : state.selectedShowId,
-      };
-    }),
-
-  previewCascadingDelete: (id: string): CascadingDeletePreview | null => {
-    const state = useShowStore.getState();
-    const show = state.shows.find((s: Show) => s.id === id);
-    if (!show) return null;
-
-    return previewCascadingDelete(id, show.name);
-  },
 
   // Selection
   selectShow: (id: string) => set({ selectedShowId: id }),

@@ -9,7 +9,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { RemoveEntryDialog } from '../RemoveEntryDialog';
+import { DeleteObjectDialog, entryDeleteDetail } from '@/features/delete';
 import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicator';
 import { getStatusDescriptor } from '@/components/status';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -50,7 +50,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
   onOpenEditEntry,
   onCompEntry,
   onUncompEntry,
-  onRemoveEntry,
+  onEntryRemoved,
   showCheckInStatus = true,
   matchingEntryIds,
   emailStatusMap,
@@ -60,6 +60,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
   hidePaymentBadge,
   hideHeader,
   onEntryRefunded,
+  onEntryRestored,
   onPaymentRequested,
   lifecycleDecisionEmailStatusMap,
   onReviewLifecycleEmail,
@@ -104,13 +105,6 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
       }
     }
     setWithdrawalDialog({ open: false, entryId: null });
-  };
-
-  const confirmRemoveEntry = () => {
-    if (removeDialog.entry) {
-      onRemoveEntry(removeDialog.entry.id);
-    }
-    setRemoveDialog({ open: false, entry: null });
   };
 
   const entryList = (
@@ -453,13 +447,29 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
         entry={requestPaymentDialog.entry}
         onRequested={() => onPaymentRequested?.()}
       />
-      <RemoveEntryDialog
-        open={removeDialog.open}
-        onOpenChange={open => !open && setRemoveDialog({ open: false, entry: null })}
-        dogName={removeDialog.entry?.dogName}
-        className={removeDialog.entry?.classes[0]?.name}
-        onConfirm={confirmRemoveEntry}
-      />
+      {removeDialog.open && removeDialog.entry && (
+        <DeleteObjectDialog
+          open
+          onOpenChange={open => !open && setRemoveDialog({ open: false, entry: null })}
+          kind="entry"
+          targets={[
+            {
+              id: removeDialog.entry.id,
+              name: removeDialog.entry.dogName,
+              detail: entryDeleteDetail({
+                callName: removeDialog.entry.dogName,
+                handlerName: removeDialog.entry.handlerName,
+                className: removeDialog.entry.classes[0]?.name,
+              }),
+              context: { showId: removeDialog.entry.showId },
+            },
+          ]}
+          onDeleted={({ deleted, alreadyGone }) => {
+            for (const target of [...deleted, ...alreadyGone]) onEntryRemoved(target.id);
+          }}
+          onRestored={() => onEntryRestored?.()}
+        />
+      )}
     </TooltipProvider>
   );
 };

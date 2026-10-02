@@ -5,8 +5,6 @@ import { isAccountSession, isPublicGuest } from '@/hooks/guestServerRead';
 import { usePublicShowDetailQuery } from './publicShowDetailQuery';
 import type { Show, ShowInput } from '@/types/show-types';
 import { isValidUUID } from '@/utils/validation';
-import { useShowStore } from '@/store/showStore';
-import { deleteShowRecord } from '@/services/showDeletion';
 import {
   getAllShows,
   getShowById,
@@ -324,55 +322,6 @@ export const useUpdateShowMutation = () => {
 };
 
 /**
- * Delete a show (soft delete)
- */
-export const useDeleteShowMutation = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ id, deletedBy }: { id: string; deletedBy?: string }) => {
-      const { error } = await deleteShowRecord(id, deletedBy);
-      if (error) throw error;
-      // Purge the replica before onSuccess invalidates (queries read it first).
-      await useShowStore.getState().purgeDeletedShow(id);
-      return { id };
-    },
-    onMutate: async ({ id: deletedId }) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: showQueryKeys.lists() });
-
-      // Snapshot the previous value
-      const previousShows = queryClient.getQueryData(showQueryKeys.lists());
-
-      // Optimistically update by removing the show
-      if (previousShows) {
-        queryClient.setQueryData<Show[]>(showQueryKeys.lists(), old => {
-          if (!old) return [];
-          return old.filter(show => show.id !== deletedId);
-        });
-      }
-
-      return { previousShows };
-    },
-    onError: (_err, _variables, context) => {
-      // If the mutation fails, use the context to roll back
-      if (context?.previousShows) {
-        queryClient.setQueryData(showQueryKeys.lists(), context.previousShows);
-      }
-    },
-    onSuccess: ({ id }) => {
-      // Remove from detail cache
-      queryClient.removeQueries({ queryKey: showQueryKeys.detail(id) });
-
-      // Invalidate all related queries to ensure consistency
-      queryClient.invalidateQueries({ queryKey: showQueryKeys.all });
-      queryClient.invalidateQueries({ queryKey: showQueryKeys.statistics() });
-      queryClient.invalidateQueries({ queryKey: showQueryKeys.withEntryCounts() });
-    },
-  });
-};
-
-/**
  * Get deleted shows query
  */
 export const useDeletedShowsQuery = () => {
@@ -450,7 +399,6 @@ export const useShowManagement = () => {
   const queryClient = useQueryClient();
   const createMutation = useCreateShowMutation();
   const updateMutation = useUpdateShowMutation();
-  const deleteMutation = useDeleteShowMutation();
 
   const prefetchShow = (id: string) => {
     return queryClient.prefetchQuery({
@@ -472,12 +420,10 @@ export const useShowManagement = () => {
     // Mutations
     createShow: createMutation.mutateAsync,
     updateShow: updateMutation.mutateAsync,
-    deleteShow: deleteMutation.mutateAsync,
 
     // Mutation states
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
-    isDeleting: deleteMutation.isPending,
 
     // Cache management
     prefetchShow,
@@ -486,6 +432,5 @@ export const useShowManagement = () => {
     // Error states
     createError: createMutation.error,
     updateError: updateMutation.error,
-    deleteError: deleteMutation.error,
   };
 };

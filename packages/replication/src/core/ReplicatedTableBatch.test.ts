@@ -272,4 +272,87 @@ describe('ReplicatedTableBatchManager', () => {
       expect(notifyListeners).toHaveBeenCalled();
     });
   });
+
+  describe('deleteRowsIfClean (MYK9-922)', () => {
+    const mutation = (id: string, rowId: string, authUserId = 'someone-else') => ({
+      id,
+      authUserId,
+      tableName,
+      operation: 'UPDATE',
+      rowId,
+      data: {},
+      timestamp: 1,
+      retries: 0,
+      status: 'pending',
+    });
+
+    it('deletes clean rows and reports them as deleted', async () => {
+      await batchManager.batchSet([
+        { id: '1', name: 'Rex' },
+        { id: '2', name: 'Buddy' },
+      ]);
+
+      const result = await batchManager.deleteRowsIfClean(['1', '2', 'missing']);
+
+      expect(result).toEqual({ deleted: ['1', '2'], kept: [] });
+      expect(await getAllRows()).toHaveLength(0);
+    });
+
+    it('keeps dirty, local-only, pending-mutation and failed-mutation rows', async () => {
+      await batchManager.batchSet([
+        { id: 'clean', name: 'a' },
+        { id: 'dirty', name: 'b' },
+        { id: 'local', name: 'c', _localOnly: true } as TestEntity,
+        { id: 'pending', name: 'd' },
+        { id: 'failed', name: 'e' },
+      ]);
+      const dirty = await db.get(REPLICATION_STORES.REPLICATED_TABLES, [tableName, 'dirty']);
+      await db.put(REPLICATION_STORES.REPLICATED_TABLES, { ...dirty, isDirty: true });
+      await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation('m1', 'pending'));
+      await db.put(REPLICATION_STORES.FAILED_MUTATIONS, mutation('m2', 'failed'));
+
+      const result = await batchManager.deleteRowsIfClean([
+        'clean',
+        'dirty',
+        'local',
+        'pending',
+        'failed',
+      ]);
+
+      expect(result.deleted).toEqual(['clean']);
+      expect([...result.kept].sort()).toEqual(['dirty', 'failed', 'local', 'pending']);
+      const left = (await getAllRows()).map(r => r.id).sort();
+      expect(left).toEqual(['dirty', 'failed', 'local', 'pending']);
+    });
+
+    it('does not purge a row another tab dirties while the purge is starting', async () => {
+      await batchManager.batchSet([{ id: '1', name: 'Rex' }]);
+
+      // The other tab's write transaction is created first, as in the race: it
+      // must be seen by the check, because both run in ordered readwrite txs.
+      const otherTab = db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation('m1', '1'));
+      const result = await batchManager.deleteRowsIfClean(['1']);
+      await otherTab;
+
+      expect(result).toEqual({ deleted: [], kept: ['1'] });
+      expect(await getAllRows()).toHaveLength(1);
+    });
+
+    it('checks and deletes in a single readwrite transaction over replica and queue stores', async () => {
+      await batchManager.batchSet([{ id: '1', name: 'Rex' }]);
+      const spy = vi.spyOn(db, 'transaction');
+
+      await batchManager.deleteRowsIfClean(['1']);
+
+      expect(spy).toHaveBeenCalledTimes(1);
+      expect(spy).toHaveBeenCalledWith(
+        [
+          REPLICATION_STORES.REPLICATED_TABLES,
+          REPLICATION_STORES.PENDING_MUTATIONS,
+          REPLICATION_STORES.FAILED_MUTATIONS,
+        ],
+        'readwrite'
+      );
+    });
+  });
 });

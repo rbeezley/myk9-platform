@@ -9,7 +9,6 @@ import {
   getClassesByTrialId,
   createClass,
   updateClass,
-  deleteClass,
   hardDeleteClass,
   restoreClass,
   getDeletedClasses,
@@ -20,7 +19,6 @@ import {
   getAllEntries,
   getEntriesByClassId,
   updateEntry,
-  deleteEntry,
   hardDeleteEntry,
   restoreEntry,
   getDeletedEntries,
@@ -247,36 +245,6 @@ export const useUpdateClassMutation = () => {
   });
 };
 
-/**
- * Delete a class (soft delete)
- */
-export const useDeleteClassMutation = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ id, deletedBy }: { id: string; deletedBy?: string }) => {
-      const { data, error } = await deleteClass(id, deletedBy);
-      if (error) throw error;
-      return data;
-    },
-    onSuccess: (_data, { id }) => {
-      // Remove from cache
-      queryClient.removeQueries({ queryKey: classKeys.detail(id) });
-
-      // Invalidate related queries
-      queryClient.invalidateQueries({ queryKey: classKeys.lists() });
-      queryClient.invalidateQueries({ queryKey: classKeys.statistics() });
-
-      // Invalidate trial-specific caches (we don't know which trial, so invalidate all)
-      queryClient.invalidateQueries({ queryKey: [...classKeys.all, 'trial'] });
-
-      entryInvalidationKeys({ classId: id }).forEach(k =>
-        queryClient.invalidateQueries({ queryKey: k })
-      );
-    },
-  });
-};
-
 // ===== ENTRY MUTATIONS =====
 
 /**
@@ -301,49 +269,6 @@ export const useUpdateEntryMutation = () => {
         queryClient.invalidateQueries({ queryKey: classKeys.detail(updatedEntry.class_id) });
       } else {
         entryInvalidationKeys({}).forEach(k => queryClient.invalidateQueries({ queryKey: k }));
-      }
-    },
-  });
-};
-
-/**
- * Delete an entry
- */
-export const useDeleteEntryMutation = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ id, deletedBy }: { id: string; deletedBy?: string }) => {
-      // Get the entry first to know which class/show to update
-      const entryData = queryClient.getQueriesData({ queryKey: entryKeys.all });
-      let classId: string | null = null;
-      let showId: string | null = null;
-      let dogId: string | null = null;
-
-      // Find context from cached data
-      for (const [, data] of entryData) {
-        if (Array.isArray(data)) {
-          const entry = data.find((e: unknown) => (e as { id: string }).id === id) as
-            { id: string; class_id?: string; show_id?: string; dog_id?: string } | undefined;
-          if (entry?.class_id) {
-            classId = entry.class_id;
-            showId = entry.show_id ?? null;
-            dogId = entry.dog_id ?? null;
-            break;
-          }
-        }
-      }
-
-      const { data, error } = await deleteEntry(id, deletedBy);
-      if (error) throw error;
-      return { data, classId, showId, dogId };
-    },
-    onSuccess: ({ classId, showId, dogId }) => {
-      entryInvalidationKeys(
-        classId ? { classId, ...(showId ? { showId } : {}), ...(dogId ? { dogId } : {}) } : {}
-      ).forEach(k => queryClient.invalidateQueries({ queryKey: k }));
-      if (classId) {
-        queryClient.invalidateQueries({ queryKey: classKeys.detail(classId) });
       }
     },
   });

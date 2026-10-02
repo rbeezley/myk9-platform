@@ -13,7 +13,6 @@ import {
   useUsersByRoleQuery,
   useCreateUserMutation,
   useUpdateUserMutation,
-  useDeleteUserMutation,
   useUserStatisticsQuery,
 } from '@/hooks/queries/useUsersDatabase';
 import {
@@ -31,7 +30,6 @@ export const useUserStoreCompat = () => {
   const usersQuery = useUsersQuery();
   const createMutation = useCreateUserMutation();
   const updateMutation = useUpdateUserMutation();
-  const deleteMutation = useDeleteUserMutation();
   const statisticsQuery = useUserStatisticsQuery();
 
   // Convert database results to User format for backward compatibility
@@ -44,24 +42,15 @@ export const useUserStoreCompat = () => {
   const people = users;
 
   // Aggregate loading states
-  const isLoading =
-    usersQuery.isLoading ||
-    createMutation.isPending ||
-    updateMutation.isPending ||
-    deleteMutation.isPending;
+  const isLoading = usersQuery.isLoading || createMutation.isPending || updateMutation.isPending;
 
   // Aggregate error states (prioritize by recency)
   const error = useMemo(() => {
-    const errors = [
-      usersQuery.error,
-      createMutation.error,
-      updateMutation.error,
-      deleteMutation.error,
-    ].filter(Boolean);
+    const errors = [usersQuery.error, createMutation.error, updateMutation.error].filter(Boolean);
 
     if (errors.length === 0) return null;
     return errors[0]?.message || 'An error occurred';
-  }, [usersQuery.error, createMutation.error, updateMutation.error, deleteMutation.error]);
+  }, [usersQuery.error, createMutation.error, updateMutation.error]);
 
   // userStore-compatible API
   const addUser = async (userData: UserInput): Promise<User> => {
@@ -74,10 +63,6 @@ export const useUserStoreCompat = () => {
     const dbUpdates = mapUserInputToUpdate(updates);
     const result = await updateMutation.mutateAsync({ id, updates: dbUpdates });
     return result ? mapDatabaseToUser(result) : null;
-  };
-
-  const deleteUser = async (id: string): Promise<void> => {
-    await deleteMutation.mutateAsync({ id });
   };
 
   const getUserById = (id: string): User | null => {
@@ -147,10 +132,6 @@ export const useUserStoreCompat = () => {
     updateUser(user.id, userInput);
   };
 
-  const removeUser = (id: string | number): void => {
-    deleteUser(String(id));
-  };
-
   // Additional utility methods
   const setUsers = (): void => {
     // In React Query mode, this doesn't directly set users
@@ -172,7 +153,6 @@ export const useUserStoreCompat = () => {
     // Operations (compatible with userStore API)
     addUser,
     updateUser,
-    deleteUser,
     getUserById,
     getUsersByRole,
     searchUsers,
@@ -181,7 +161,6 @@ export const useUserStoreCompat = () => {
     // Legacy methods for backward compatibility
     addUserLegacy,
     updateUserLegacy,
-    removeUser,
     setUsers,
     loadUsers,
 
@@ -197,7 +176,6 @@ export const useUserStoreCompat = () => {
     // Individual mutation states for fine-grained control
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
-    isDeleting: deleteMutation.isPending,
 
     // Legacy compatibility flags
     _usingDatabase: true,

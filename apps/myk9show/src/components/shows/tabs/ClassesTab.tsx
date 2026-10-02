@@ -362,9 +362,12 @@ export function ClassesTab({
       )}
       {canManageThisShow && (
         <ClassBulkActionsBar
-          selectedClasses={selection.selectedItems}
+          selectedClasses={selection.selectedItems.map(cls => ({
+            ...cls,
+            trialLabel: classTrialLabel(cls),
+          }))}
           bulkBusy={manage.bulkBusy}
-          onBulkDelete={manage.handleBulkDelete}
+          context={{ showId }}
           onBulkStatusChange={manage.handleBulkStatusChange}
           onClear={selection.clearSelection}
         />

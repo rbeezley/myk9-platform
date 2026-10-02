@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { useUrlTab } from '@/hooks/useUrlTab';
 import { useNavigate } from 'react-router-dom';
 import { useClubStore } from '@/store/clubStore';
-import { useDeleteClubMutation } from '@/hooks/queries/useClubsDatabase';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { UserRole } from '@/types/auth-types';
 import { Club } from '@/types/club-types';
@@ -44,11 +43,6 @@ const CLUB_TAB_IDS = ['upcoming', 'past', 'about', 'members', 'branding'] as con
 export function useClubDetailsState(selectedClub: Club | null) {
   const navigate = useNavigate();
   const { updateClub } = useClubStore();
-  // Delete via the service mutation (real DB soft-delete + cache invalidation),
-  // NOT clubStore.removeClub — that only cleared the local cache / queued a
-  // replication DELETE that never reached the DB, so clubs "deleted" from the UI
-  // resurrected on sync and never showed up in the restore UI.
-  const deleteClubMutation = useDeleteClubMutation();
   // Tab state — URL-synced
   const [activeTab, setActiveTabRaw] = useUrlTab(CLUB_TAB_IDS, 'upcoming');
   const setActiveTab = setActiveTabRaw as (tab: ClubTab) => void;
@@ -63,7 +57,6 @@ export function useClubDetailsState(selectedClub: Club | null) {
 
   // Delete club dialog state
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
 
   // Add member dialog state
   const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
@@ -160,50 +153,11 @@ export function useClubDetailsState(selectedClub: Club | null) {
     setShowDeleteDialog(true);
   }, []);
 
-  const handleConfirmDelete = useCallback(async () => {
-    logger.debug('handleConfirmDelete called', 'clubs', {
-      selectedClub: selectedClub?.name,
-      userWithRoles: userWithRoles?.id,
-      databaseUserId: userWithRoles?.databaseUserId,
-    });
-
-    if (!selectedClub) {
-      logger.error('No club selected for deletion', 'clubs');
-      setShowDeleteDialog(false);
-      return;
-    }
-
-    if (!userWithRoles || !userWithRoles.databaseUserId) {
-      logger.error('No user context or database user ID available for deletion', 'clubs');
-      setShowDeleteDialog(false);
-      return;
-    }
-
-    logger.info('Starting deletion process', 'clubs', {
-      clubId: selectedClub.id,
-      clubName: selectedClub.name,
-      authUserId: userWithRoles.id,
-      databaseUserId: userWithRoles.databaseUserId,
-      userEmail: userWithRoles.email,
-    });
-
-    setIsDeleting(true);
-    try {
-      logger.debug('Soft-deleting club via service mutation', 'clubs');
-      await deleteClubMutation.mutateAsync(selectedClub.id);
-      logger.info('Club deletion completed successfully', 'clubs', { clubId: selectedClub.id });
-      setShowDeleteDialog(false);
-      navigate('/clubs');
-    } catch (error) {
-      logger.error('Club deletion failed', 'clubs', { clubId: selectedClub.id }, error as Error);
-      setShowDeleteDialog(false);
-      notifications.error('Failed to delete club', {
-        description: getErrorMessage(error),
-      });
-    } finally {
-      setIsDeleting(false);
-    }
-  }, [selectedClub, userWithRoles, deleteClubMutation, navigate]);
+  // The shared delete dialog (features/delete) soft-deletes the club through
+  // soft_delete_club, purges it from this device and offers Undo; leave its page.
+  const handleClubDeleted = useCallback(() => {
+    navigate('/clubs');
+  }, [navigate]);
 
   const handleClubEditComplete = useCallback(
     async (formData: Partial<Club>) => {
@@ -432,9 +386,8 @@ export function useClubDetailsState(selectedClub: Club | null) {
     // Delete
     showDeleteDialog,
     setShowDeleteDialog,
-    isDeleting,
     handleDeleteClub,
-    handleConfirmDelete,
+    handleClubDeleted,
     // Photo
     showPhotoDialog,
     setShowPhotoDialog,

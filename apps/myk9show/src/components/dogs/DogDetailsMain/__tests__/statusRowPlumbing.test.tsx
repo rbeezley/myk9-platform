@@ -49,7 +49,6 @@ function renderDialogs(props: Partial<React.ComponentProps<typeof DogDialogs>> =
       showCelebration={false}
       userRole={UserRole.EXHIBITOR}
       people={[]}
-      isDeleting={false}
       onEditPanelClose={() => {}}
       onDeleteDialogClose={() => {}}
       onPhotoDialogOpen={() => {}}

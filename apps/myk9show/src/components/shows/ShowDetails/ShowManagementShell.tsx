@@ -15,7 +15,7 @@ import { LiveUpdateIndicator } from '@/features/show-live-sync/LiveUpdateIndicat
 import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
 import { LandingPageCard } from '@/features/premium/LandingPageCard';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
-import DeleteShowDialog from '@/components/shows/ShowDetails/dialogs/DeleteShowDialog';
+import { DeleteObjectDialog, showDeleteDetail } from '@/features/delete';
 import { type ShowDetailTabsProps } from '@/components/shows/ShowDetails/ShowDetailTabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { TabsContent } from '@/components/ui/tabs';
@@ -202,11 +202,8 @@ function AuthorizedShowManagementShell({
     navigate(tab.path ? `${canonicalShowHref}/${tab.path}` : canonicalShowHref);
   };
 
-  const handleConfirmDelete = () => {
-    setShowDeleteDialog(false);
-    queryClient.invalidateQueries({ queryKey: ['shows'] });
-    setTimeout(() => navigate('/shows'), 100);
-  };
+  // The shared dialog has already purged the show and refreshed its lists.
+  const handleShowDeleted = () => navigate('/shows');
 
   return (
     <>
@@ -440,12 +437,19 @@ function AuthorizedShowManagementShell({
         }}
       />
       {showDeleteDialog && showId && (
-        <DeleteShowDialog
+        <DeleteObjectDialog
           open={showDeleteDialog}
           onOpenChange={setShowDeleteDialog}
-          showId={showId}
-          onDelete={handleConfirmDelete}
-          showName={show.name || 'Unknown Show'}
+          kind="show"
+          targets={[
+            {
+              id: showId,
+              name: show.name || 'Untitled show',
+              detail: showDeleteDetail(show),
+              context: { showId },
+            },
+          ]}
+          onDeleted={handleShowDeleted}
         />
       )}
     </>

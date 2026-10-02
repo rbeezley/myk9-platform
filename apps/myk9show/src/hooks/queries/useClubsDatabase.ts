@@ -6,7 +6,6 @@ import {
   getClubById,
   createClub,
   updateClub,
-  deleteClub,
   searchClubs,
   searchClubsByLocation,
   getActiveClubs,
@@ -259,46 +258,12 @@ export const useUpdateClubMutation = () => {
 };
 
 /**
- * Delete a club
- */
-export const useDeleteClubMutation = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await deleteClub(id);
-      if (error) throw error;
-      return { id };
-    },
-    onSuccess: ({ id }) => {
-      // Remove from all caches
-      queryClient.setQueryData<Club[]>(clubQueryKeys.lists(), old => {
-        if (!old) return [];
-        return old.filter(club => club.id !== id);
-      });
-
-      queryClient.setQueryData<Club[]>(clubQueryKeys.active(), old => {
-        if (!old) return [];
-        return old.filter(club => club.id !== id);
-      });
-
-      // Remove from detail cache
-      queryClient.removeQueries({ queryKey: clubQueryKeys.detail(id) });
-
-      // Invalidate all related queries to ensure consistency
-      queryClient.invalidateQueries({ queryKey: clubQueryKeys.all });
-    },
-  });
-};
-
-/**
  * Composite hook for common club management operations
  */
 export const useClubManagement = () => {
   const queryClient = useQueryClient();
   const createMutation = useCreateClubMutation();
   const updateMutation = useUpdateClubMutation();
-  const deleteMutation = useDeleteClubMutation();
 
   const prefetchClub = (id: string) => {
     return queryClient.prefetchQuery({
@@ -320,12 +285,10 @@ export const useClubManagement = () => {
     // Mutations
     createClub: createMutation.mutateAsync,
     updateClub: updateMutation.mutateAsync,
-    deleteClub: deleteMutation.mutateAsync,
 
     // Mutation states
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
-    isDeleting: deleteMutation.isPending,
 
     // Cache management
     prefetchClub,
@@ -334,6 +297,5 @@ export const useClubManagement = () => {
     // Error states
     createError: createMutation.error,
     updateError: updateMutation.error,
-    deleteError: deleteMutation.error,
   };
 };

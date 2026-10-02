@@ -1,6 +1,7 @@
 import React from 'react';
 import ProfilePhotoDialog from '@/components/users/ProfilePhotoDialog';
 import { AdminDeleteUserDialog } from '@/components/admin/users/AdminDeleteUserDialog';
+import { DeleteObjectDialog, personDeleteDetail } from '@/features/delete';
 import { JudgeQualificationPanel, UserEditPanel } from '@/components/panels/edit';
 import type { User as UserType } from '@/types/user-types';
 interface UserDetailsDialogsProps {
@@ -32,7 +33,8 @@ interface UserDetailsDialogsProps {
   onDrop: (e: React.DragEvent) => void;
   onDragOver: (e: React.DragEvent) => void;
   onDragLeave: (e: React.DragEvent) => void;
-  onDeleteUser: () => Promise<void>;
+  /** After the shared delete dialog removed this person (soft, with Undo). */
+  onPersonDeleted: () => void;
   onUserEditSave: (userData: Partial<UserType>) => Promise<void>;
   onQualificationsSaved: () => void;
   onPhotoSave: () => void | Promise<void>;
@@ -60,16 +62,16 @@ const UserDetailsDialogs: React.FC<UserDetailsDialogsProps> = ({
   onDrop,
   onDragOver,
   onDragLeave,
-  onDeleteUser,
+  onPersonDeleted,
   onUserEditSave,
   onQualificationsSaved,
   onPhotoSave,
   isSavingPhoto,
   onFileInput,
 }) => {
-  // The owns-live-dogs guard lives inside AdminDeleteUserDialog, which queries
-  // the dogs itself and names them. This page used to pass a count and render
-  // its own copy of that check — two guards, one of which could go stale.
+  // A live person goes through the shared delete dialog, whose server preview
+  // names the dogs they still own (the owns-dogs guard) before Delete is enabled.
+  // An already removed person can only be purged, by a site admin.
   return (
     <>
       {/* Edit Person Panel */}
@@ -101,18 +103,33 @@ const UserDetailsDialogs: React.FC<UserDetailsDialogsProps> = ({
         isSaving={isSavingPhoto ?? false}
       />
 
+      {isDeleteDialogOpen && !person.deletedAt && (
+        <DeleteObjectDialog
+          open
+          onOpenChange={open => {
+            if (!open) setIsDeleteDialogOpen(false);
+          }}
+          kind="person"
+          targets={[
+            {
+              id: person.id,
+              name: formData.name,
+              detail: personDeleteDetail({ email: person.email, town: person.city }),
+            },
+          ]}
+          onDeleted={onPersonDeleted}
+        />
+      )}
       <AdminDeleteUserDialog
-        open={isDeleteDialogOpen}
+        open={isDeleteDialogOpen && Boolean(person.deletedAt) && canPermanentlyDelete}
         onOpenChange={open => {
           if (!open) setIsDeleteDialogOpen(false);
         }}
-        onSoftDelete={onDeleteUser}
+        onSoftDelete={() => undefined}
         onPermanentDelete={onPermanentDeleteUser}
         entityName={formData.name}
         isDeleting={isDeletingUser}
-        personId={person.id}
-        allowPermanent={canPermanentlyDelete}
-        alreadyRemoved={Boolean(person.deletedAt)}
+        alreadyRemoved
       />
 
       {/* Judge Qualifications Panel */}

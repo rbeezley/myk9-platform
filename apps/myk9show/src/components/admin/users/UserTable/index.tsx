@@ -1,10 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { type SortingState } from '@tanstack/react-table';
 import { DataTable } from '@/components/ui/data-table';
 import { useQueryClient } from '@tanstack/react-query';
-import { useUserStore } from '@/store/userStore';
 import {
   usePermanentDeleteUserMutation,
   useUpdateUserMutation,
@@ -15,6 +13,7 @@ import { getUserFriendlyError } from '@/utils/errorMessages';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import AccountStatusDialog from '@/components/users/AccountStatusDialog';
 import { AdminDeleteUserDialog } from '../AdminDeleteUserDialog';
+import { DeleteObjectDialog, personDeleteDetail } from '@/features/delete';
 import '@/styles/myk9-table.css';
 
 import { User } from '@/types/user-types';
@@ -51,14 +50,12 @@ export const UserTable: React.FC<UserTableProps> = ({
   const [isDeleting, setIsDeleting] = useState(false);
   const [restoringId, setRestoringId] = useState<string | null>(null);
   const [statusTarget, setStatusTarget] = useState<User | null>(null);
-  const { deleteUser } = useUserStore();
   // `user` is the raw Supabase auth user (auth uuid); `userWithRoles` is the
   // enriched one carrying `databaseUserId`, the caller's people-row id.
   const { user: currentUser, userWithRoles, hasPermission } = useAuthContext();
   const permanentDeleteMutation = usePermanentDeleteUserMutation();
   const updateUserMutation = useUpdateUserMutation();
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
 
   // Handle row actions
   const handleDeleteUser = useCallback((user: User) => setDeleteTarget(user), []);
@@ -102,28 +99,6 @@ export const UserTable: React.FC<UserTableProps> = ({
     },
     [restoringId, queryClient]
   );
-
-  const confirmDelete = async () => {
-    if (!deleteTarget) return;
-    setIsDeleting(true);
-    try {
-      await deleteUser(deleteTarget.id);
-      toast.success(`${getUserFullName(deleteTarget)} was removed`, {
-        description: 'They can be restored from this list or from Deleted Items.',
-        action: {
-          label: 'Deleted Items',
-          onClick: () => navigate('/admin/deleted-items'),
-        },
-      });
-      setDeleteTarget(null);
-    } catch (err) {
-      // Surface the actionable guard message (e.g. "owns dogs") if the DB blocked
-      // it — e.g. when the dialog's owned-dogs pre-check was bypassed.
-      toast.error(getUserFriendlyError(err, 'Failed to delete user'));
-    } finally {
-      setIsDeleting(false);
-    }
-  };
 
   const confirmPermanentDelete = async () => {
     if (!deleteTarget) return;
@@ -245,17 +220,37 @@ export const UserTable: React.FC<UserTableProps> = ({
         {...(onPageSizeChange ? { onPageSizeChange } : {})}
       />
 
+      {/* A live person: the shared delete dialog (soft, with Undo). An already
+          removed person: the permanent purge, a site-admin action that stays here. */}
+      {deleteTarget && !deleteTarget.deletedAt && (
+        <DeleteObjectDialog
+          open
+          onOpenChange={open => {
+            if (!open) setDeleteTarget(null);
+          }}
+          kind="person"
+          targets={[
+            {
+              id: deleteTarget.id,
+              name: getUserFullName(deleteTarget),
+              detail: personDeleteDetail({
+                email: deleteTarget.email,
+                town: deleteTarget.city,
+              }),
+            },
+          ]}
+        />
+      )}
       <AdminDeleteUserDialog
-        open={!!deleteTarget}
+        open={!!deleteTarget?.deletedAt}
         onOpenChange={open => {
           if (!open) setDeleteTarget(null);
         }}
-        onSoftDelete={confirmDelete}
+        onSoftDelete={() => undefined}
         onPermanentDelete={confirmPermanentDelete}
         entityName={deleteTarget ? getUserFullName(deleteTarget) : ''}
         isDeleting={isDeleting}
-        alreadyRemoved={Boolean(deleteTarget?.deletedAt)}
-        {...(deleteTarget ? { personId: deleteTarget.id } : {})}
+        alreadyRemoved
       />
 
       {statusTarget && (

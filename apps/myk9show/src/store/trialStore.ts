@@ -191,38 +191,6 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
     }
   },
 
-  deleteTrial: async (id: string): Promise<void> => {
-    try {
-      set({ isLoading: true, error: null });
-
-      const trialExists = get().trials.some(t => t.id === id);
-      if (!trialExists) {
-        // Throw, never resolve: the delete dialog closes on success.
-        throw new Error(`Trial with id ${id} not found`);
-      }
-
-      // Delete from replicated table and queue DELETE mutation for Supabase
-      await replicatedTrialsTable.deleteTrial(id);
-
-      // Optimistic delete - remove immediately (including trial classes)
-      set(state => {
-        const { [id]: _removed, ...remainingClasses } = state.trialClasses;
-        void _removed; // Suppress unused variable warning
-        return {
-          trials: state.trials.filter(t => t.id !== id),
-          trialClasses: remainingClasses,
-          isLoading: false,
-          // Clear selection if deleted trial was selected
-          selectedTrialId: state.selectedTrialId === id ? null : state.selectedTrialId,
-        };
-      });
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to delete trial';
-      set({ error: errorMessage, isLoading: false });
-      throw error;
-    }
-  },
-
   getTrialById: (id: string): SyncableTrial | null => {
     return get().trials.find(t => t.id === id) || null;
   },
@@ -501,33 +469,6 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
       return updatedClass;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update trial class';
-      set({ error: errorMessage });
-      throw error;
-    }
-  },
-
-  deleteTrialClass: async (trialId: string, classId: string): Promise<void> => {
-    try {
-      const classes = get().trialClasses[trialId] || [];
-      const classExists = classes.some(c => c.id === classId);
-
-      if (!classExists) {
-        const error = `Trial class with id ${classId} not found in trial ${trialId}`;
-        set({ error });
-        return;
-      }
-
-      // Persist first, then update state
-      await replicatedClassesTable.delete(classId);
-
-      set(state => ({
-        trialClasses: {
-          ...state.trialClasses,
-          [trialId]: (state.trialClasses[trialId] || []).filter(c => c.id !== classId),
-        },
-      }));
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to delete trial class';
       set({ error: errorMessage });
       throw error;
     }

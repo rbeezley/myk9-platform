@@ -2,20 +2,15 @@
  * ShowBulkActionsBar — the Managing tab's floating bulk-action bar
  * (list-toolkit rollout, MYK9-798): Mark completed, Mark cancelled, Export,
  * Delete. Composes the shared `FloatingBulkBar`/`BulkBarButton` for the
- * floating shell; the dispatch (updateShow/deleteShow) and confirmation
- * dialogs below are unchanged from the page's original bar.
+ * floating shell. Delete goes through the shared `DeleteObjectDialog`, the
+ * one delete path for every core object (CRUD standard Phase 2).
  */
 
 import React, { useState } from 'react';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { updateShow } from '@/services/database/shows';
-import { deleteShowRecord } from '@/services/showDeletion';
-import {
-  classifyShowDeleteError,
-  showDeleteFailureMessage,
-} from '@/services/database/shows/deleteOutcome';
-import { useShowStore } from '@/store/showStore';
+import { DeleteObjectDialog, showDeleteDetail } from '@/features/delete';
 import { Trash2, AlertCircle, Download, XCircle, CalendarCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -150,63 +145,6 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
     }
   };
 
-  const handleBulkDelete = async () => {
-    setIsProcessing(true);
-    setError(null);
-
-    try {
-      logger.debug('Bulk show delete', 'shows', {
-        showIds: selectedShows.map(s => s.id),
-      });
-
-      const results = await Promise.all(
-        selectedShows.map(async show => ({ show, result: await deleteShowRecord(show.id) }))
-      );
-      const failures = results.filter(({ result }) => result.error);
-      const failedCount = failures.length;
-
-      // A delete that landed (or found the show already deleted) leaves every
-      // list now, not on the next sync: the replica never delivers tombstones.
-      const { purgeDeletedShow } = useShowStore.getState();
-      await Promise.all(
-        results.filter(({ result }) => !result.error).map(({ show }) => purgeDeletedShow(show.id))
-      );
-
-      const failureMessage = showDeleteFailureMessage(
-        failures.map(({ show, result }) => ({
-          name: show.name,
-          kind: classifyShowDeleteError(result.error),
-        }))
-      );
-
-      if (failedCount === selectedShows.length) {
-        setError(failureMessage ?? 'Failed to delete the selected shows. Please try again.');
-        return;
-      }
-      if (failedCount > 0) {
-        // Partial failure: refresh + clear selection so already-deleted shows
-        // drop out of the list and a retry can't re-delete them.
-        notifications.error(`Failed to delete ${failedCount} of ${selectedShows.length} shows.`, {
-          description: failureMessage
-            ? `${failureMessage} The other shows were deleted.`
-            : 'The other shows were deleted. Re-select the failed shows to retry.',
-        });
-        closeDialog();
-        onBulkComplete();
-        return;
-      }
-
-      logger.info('Bulk delete complete', 'shows', { count: selectedShows.length });
-
-      closeDialog();
-      onBulkComplete();
-    } catch {
-      setError('Failed to delete shows. Please try again.');
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   if (selectedShows.length === 0) {
     return null;
   }
@@ -330,52 +268,23 @@ export const ShowBulkActionsBar: React.FC<ShowBulkActionsBarProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={currentDialog === 'delete'} onOpenChange={() => closeDialog()}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Shows</DialogTitle>
-            <DialogDescription>
-              Delete {selectedShows.length} selected show
-              {selectedShows.length !== 1 ? 's' : ''}?
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {error && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>{error}</AlertDescription>
-              </Alert>
-            )}
-
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>
-                This removes the show, its trials, classes and entries from myK9Show.
-              </AlertDescription>
-            </Alert>
-
-            <div className="max-h-40 overflow-y-auto space-y-1">
-              {selectedShows.map(show => (
-                <div key={show.id} className="text-sm p-2 bg-muted rounded">
-                  {show.name}
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={closeDialog}>
-              Cancel
-            </Button>
-            <Button variant="destructive" onClick={handleBulkDelete} disabled={isProcessing}>
-              <Trash2 className="h-4 w-4 mr-2" />
-              {isProcessing ? 'Deleting...' : 'Delete Shows'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Delete: the shared dialog (counts, blockers, Undo). */}
+      {currentDialog === 'delete' && (
+        <DeleteObjectDialog
+          open
+          onOpenChange={open => {
+            if (!open) closeDialog();
+          }}
+          kind="show"
+          targets={selectedShows.map(show => ({
+            id: show.id,
+            name: show.name,
+            detail: showDeleteDetail(show),
+            context: { showId: show.id },
+          }))}
+          onDeleted={() => onBulkComplete()}
+        />
+      )}
     </>
   );
 };

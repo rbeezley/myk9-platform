@@ -1,5 +1,6 @@
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
-import { DeleteClassDialog } from '@/pages/ClassDetailsPage/DeleteClassDialog';
+import { DeleteObjectDialog, classDeleteDetail } from '@/features/delete';
+import { formatClassTitle } from '@/components/classes/ClassDetailsMain.helpers';
 import type { ClassData } from '@/components/classes/types/classTypes';
 import type { SetupClassAction } from './setupClassSnapshot';
 import { useClassEditActions } from '@/hooks/useClassEditActions';
@@ -15,17 +16,17 @@ interface SetupClassDialogsProps {
  * The existing class edit panel and delete dialog, opened from a Setup row (MYK9-900), working
  * on the snapshot the tab resolved when the action started; nothing here re-resolves the class
  * (a successful delete removes it from the stores while the confirm is still finishing). Saves
- * and deletes go through `useClassEditActions`, the same hook Class Details uses. Mounted only
+ * go through `useClassEditActions`, the same hook Class Details uses, and deletes through the
+ * shared `DeleteObjectDialog`, the same delete and purge as every class surface. Mounted only
  * while an action is pending so the page does not subscribe to class and entry queries it
  * never reads.
  */
 export function SetupClassDialogs({ showId, pending, onClose }: SetupClassDialogsProps) {
-  const { updateClass, deleteClass } = useClassStoreCompat();
-  const { saveClass, removeClass } = useClassEditActions({ showId, updateClass, deleteClass });
+  const { updateClass } = useClassStoreCompat();
+  const { saveClass } = useClassEditActions({ showId, updateClass });
   const currentClass = pending.classSnapshot;
 
-  // Both reject on failure: the panel stays open with the edits, and the dialog stays open
-  // with the reason. On success the panel closes itself and the dialog calls onOpenChange(false).
+  // Rejects on failure: the panel stays open with the edits. On success it closes itself.
   const handleSave = async (data: Partial<ClassData>) => {
     await saveClass(
       currentClass.id,
@@ -46,13 +47,24 @@ export function SetupClassDialogs({ showId, pending, onClose }: SetupClassDialog
       onSave={async classData => handleSave(classData as Partial<ClassData>)}
     />
   ) : (
-    <DeleteClassDialog
+    <DeleteObjectDialog
       open
       onOpenChange={open => {
         if (!open) onClose();
       }}
-      currentClass={currentClass}
-      onConfirm={() => removeClass(currentClass.id)}
+      kind="class"
+      targets={[
+        {
+          id: currentClass.id,
+          name: formatClassTitle(currentClass) || 'this class',
+          detail: classDeleteDetail({
+            level: currentClass.level,
+            element: currentClass.element,
+            trialLabel: currentClass.trial,
+          }),
+          context: { showId, trialId: pending.trialId, classId: currentClass.id },
+        },
+      ]}
     />
   );
 }

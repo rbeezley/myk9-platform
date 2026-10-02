@@ -1700,6 +1700,69 @@ describe('MutationManager', () => {
       expect(pending).toHaveLength(0);
     });
 
+    describe('discarding a failed local-only INSERT (MYK9-922)', () => {
+      const localRow = (id: string, localOnly: boolean) => ({
+        tableName: 'entries',
+        id,
+        data: { id, ...(localOnly && { _localOnly: true }) },
+        version: 1,
+        lastSyncedAt: 0,
+        lastAccessedAt: 0,
+        isDirty: true,
+        syncStatus: 'pending' as const,
+      });
+      const failedInsert = (id: string, rowId: string) => ({
+        ...makeMutation({ id, operation: 'INSERT', rowId, data: { id: rowId } }),
+        status: 'failed' as const,
+        failedAt: Date.now(),
+      });
+      const rowExists = async (rowId: string) =>
+        (await mockDb.get(REPLICATION_STORES.REPLICATED_TABLES, ['entries', rowId])) !== undefined;
+
+      it('removes the orphaned _localOnly replica row with it', async () => {
+        await mockDb.put(REPLICATION_STORES.REPLICATED_TABLES, localRow('e-orphan', true));
+        await mockDb.put(REPLICATION_STORES.FAILED_MUTATIONS, failedInsert('f1', 'e-orphan'));
+
+        await manager.discardFailedMutation('f1');
+
+        expect(await rowExists('e-orphan')).toBe(false);
+      });
+
+      it('keeps the row when another mutation still points at it', async () => {
+        await mockDb.put(REPLICATION_STORES.REPLICATED_TABLES, localRow('e-busy', true));
+        await mockDb.put(REPLICATION_STORES.FAILED_MUTATIONS, failedInsert('f2', 'e-busy'));
+        await mockDb.put(
+          REPLICATION_STORES.PENDING_MUTATIONS,
+          makeMutation({ id: 'p2', rowId: 'e-busy' })
+        );
+
+        await manager.discardFailedMutation('f2');
+
+        expect(await rowExists('e-busy')).toBe(true);
+      });
+
+      it('keeps a server-backed row (not _localOnly)', async () => {
+        await mockDb.put(REPLICATION_STORES.REPLICATED_TABLES, localRow('e-server', false));
+        await mockDb.put(REPLICATION_STORES.FAILED_MUTATIONS, failedInsert('f3', 'e-server'));
+
+        await manager.discardFailedMutation('f3');
+
+        expect(await rowExists('e-server')).toBe(true);
+      });
+
+      it('keeps the row when discarding a failed UPDATE', async () => {
+        await mockDb.put(REPLICATION_STORES.REPLICATED_TABLES, localRow('e-upd', true));
+        await mockDb.put(REPLICATION_STORES.FAILED_MUTATIONS, {
+          ...failedInsert('f4', 'e-upd'),
+          operation: 'UPDATE',
+        });
+
+        await manager.discardFailedMutation('f4');
+
+        expect(await rowExists('e-upd')).toBe(true);
+      });
+    });
+
     it('getFailedMutations lists archived failures', async () => {
       await mockDb.put(REPLICATION_STORES.FAILED_MUTATIONS, {
         ...makeMutation({ id: 'mut-list-failed' }),

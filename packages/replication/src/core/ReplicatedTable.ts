@@ -185,6 +185,31 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /**
+   * True when this device holds work for the row that the server may not have:
+   * the row is dirty or exists only locally (`_localOnly`), or a pending or
+   * failed mutation points at it. Callers that purge a row for a server-side
+   * removal use this at purge time, so a create or edit queued a moment earlier
+   * (this tab or another) is left for normal sync instead of being dropped.
+   * Throws when the queue cannot be read: an unreadable queue is never a pass.
+   */
+  public async hasUnsyncedLocalWork(rowId: string): Promise<boolean> {
+    const id = String(rowId);
+    const row = await this.getReplicatedRow(id);
+    if (!row) return false;
+    const data = row.data as { _localOnly?: unknown } | null;
+    if (row.isDirty || data?._localOnly === true) return true;
+    if (!this.mutationManager) return false;
+    const [pending, failed] = await Promise.all([
+      this.mutationManager.getPendingMutationsForRow(this.tableName, id),
+      this.mutationManager.getFailedMutations(),
+    ]);
+    return (
+      pending.length > 0 ||
+      failed.some(m => m.tableName === this.tableName && String(m.rowId) === id)
+    );
+  }
+
+  /**
    * Rebuild a full Supabase UPDATE payload from a local row after conflict
    * resolution. Subclasses with direct full-row UPDATE mutations should override
    * this with their table mapper; RPC/delta-only tables can keep the default.
@@ -1071,6 +1096,15 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
   async batchDelete(ids: string[]): Promise<void> {
     return this.batchManager.batchDelete(ids);
+  }
+
+  /**
+   * Atomically delete the rows with no unsynced local work (dirty, `_localOnly`,
+   * pending or failed mutation); the check and delete share one IndexedDB
+   * transaction, so another tab cannot dirty a row in between (MYK9-922).
+   */
+  async deleteRowsIfClean(ids: Iterable<string>): Promise<{ deleted: string[]; kept: string[] }> {
+    return this.batchManager.deleteRowsIfClean(ids);
   }
 
   async clearCache(): Promise<void> {

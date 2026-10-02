@@ -153,34 +153,6 @@ export const useClassStore = create<ClassStoreState>()((set, get): ClassStoreSta
     }
   },
 
-  deleteClass: async (id: string): Promise<void> => {
-    try {
-      set({ isLoading: true, error: null });
-
-      const classExists = get().classes.some(c => c.id === id);
-      if (!classExists) {
-        const error = `Class with id ${id} not found`;
-        set({ error, isLoading: false });
-        return;
-      }
-
-      // Delete from replicated table and queue DELETE mutation for Supabase
-      await replicatedClassesTable.deleteClass(id);
-
-      // Optimistic delete - remove class and associated entries immediately
-      set(state => ({
-        classes: state.classes.filter(c => c.id !== id),
-        entries: state.entries.filter(e => e.classId !== id),
-        isLoading: false,
-        selectedClassId: state.selectedClassId === id ? null : state.selectedClassId,
-      }));
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to delete class';
-      set({ error: errorMessage, isLoading: false });
-      throw error;
-    }
-  },
-
   getClassById: (id: string): SyncableClassData | null => {
     return get().classes.find(c => c.id === id) || null;
   },
@@ -242,32 +214,6 @@ export const useClassStore = create<ClassStoreState>()((set, get): ClassStoreSta
       return updatedEntry;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update entry';
-      set({ error: errorMessage, isLoading: false });
-      throw error;
-    }
-  },
-
-  deleteEntry: async (id: string): Promise<void> => {
-    try {
-      set({ isLoading: true, error: null });
-
-      const entryExists = get().entries.some(e => e.id === id);
-      if (!entryExists) {
-        const error = `Entry with id ${id} not found`;
-        set({ error, isLoading: false });
-        return;
-      }
-
-      // Delete from replicated table and queue DELETE mutation for Supabase
-      await replicatedEntriesTable.deleteEntry(id);
-
-      // Optimistic delete - remove immediately
-      set(state => ({
-        entries: state.entries.filter(e => e.id !== id),
-        isLoading: false,
-      }));
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Failed to delete entry';
       set({ error: errorMessage, isLoading: false });
       throw error;
     }

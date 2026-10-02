@@ -6,7 +6,6 @@ import {
   getUserById,
   createUser,
   updateUser,
-  deleteUser,
   hardDeleteUser,
   restoreUser,
   getDeletedUsers,
@@ -211,52 +210,6 @@ export const useUpdateUserMutation = () => {
 };
 
 // Delete user mutation (soft delete)
-export const useDeleteUserMutation = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ id, deletedBy }: { id: string; deletedBy?: string }) => {
-      const { data, error } = await deleteUser(id, deletedBy);
-      if (error) throw error;
-      return data;
-    },
-    onMutate: async ({ id: deletedId }) => {
-      // Cancel any outgoing refetches
-      await queryClient.cancelQueries({ queryKey: queryKeys.people });
-
-      // Snapshot the previous value
-      const previousUsers = queryClient.getQueryData(queryKeys.people);
-
-      // Optimistically update by removing the user
-      if (previousUsers) {
-        queryClient.setQueryData(queryKeys.people, (old: unknown) => {
-          const users = old as Array<{ id: string }>;
-          return users.filter(user => user.id !== deletedId);
-        });
-      }
-
-      return { previousUsers };
-    },
-    onError: (_err, _variables, context) => {
-      // If the mutation fails, use the context to roll back
-      if (context?.previousUsers) {
-        queryClient.setQueryData(queryKeys.people, context.previousUsers);
-      }
-    },
-    onSuccess: (_deletedData, { id: deletedId }) => {
-      // Remove from cache completely
-      queryClient.removeQueries({ queryKey: queryKeys.person(deletedId) });
-
-      // Invalidate users list
-      invalidateQueries.all('people');
-
-      // Invalidate statistics since count changed
-      queryClient.invalidateQueries({ queryKey: ['users', 'statistics'] });
-      queryClient.invalidateQueries({ queryKey: ['users', 'with-dog-counts'] });
-    },
-  });
-};
-
 // Get deleted users query
 export const useDeletedUsersQuery = () => {
   return useQuery({
@@ -333,7 +286,6 @@ export const useUserManagement = () => {
   const usersQuery = useUsersQuery();
   const createMutation = useCreateUserMutation();
   const updateMutation = useUpdateUserMutation();
-  const deleteMutation = useDeleteUserMutation();
   const prefetchUser = usePrefetchUser();
 
   return {
@@ -348,9 +300,6 @@ export const useUserManagement = () => {
 
     updateUser: updateMutation.mutate,
     isUpdating: updateMutation.isPending,
-
-    deleteUser: deleteMutation.mutate,
-    isDeleting: deleteMutation.isPending,
 
     // Utilities
     prefetchUser,

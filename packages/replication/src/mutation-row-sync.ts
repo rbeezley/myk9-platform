@@ -57,6 +57,32 @@ export async function markReplicatedRowSynced(
   });
 }
 
+/**
+ * A discarded failed INSERT for a row that exists only on this device leaves
+ * that `_localOnly` row behind: nothing will ever upload or remove it, and every
+ * "is anything unsaved" check would count it forever. Drop the row with the
+ * mutation, unless another mutation (pending or failed) still points at it.
+ */
+export async function removeOrphanedLocalOnlyRow(
+  db: IDBPDatabase,
+  discarded: PendingMutation
+): Promise<void> {
+  if (discarded.operation !== 'INSERT') return;
+  const key = [discarded.tableName, String(discarded.rowId)];
+  const row = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, key)) as
+    ReplicatedRow<unknown> | undefined;
+  const data = row?.data as { _localOnly?: unknown } | null | undefined;
+  if (!row || data === null || typeof data !== 'object' || data._localOnly !== true) return;
+
+  const stillReferenced = async (store: string) =>
+    ((await db.getAll(store)) as PendingMutation[]).some(
+      m => m.tableName === discarded.tableName && String(m.rowId) === String(discarded.rowId)
+    );
+  if (await stillReferenced(REPLICATION_STORES.PENDING_MUTATIONS)) return;
+  if (await stillReferenced(REPLICATION_STORES.FAILED_MUTATIONS)) return;
+  await db.delete(REPLICATION_STORES.REPLICATED_TABLES, key);
+}
+
 export function remapDogIdReferences<T extends Record<string, unknown>>(
   data: T,
   oldDogId: string,

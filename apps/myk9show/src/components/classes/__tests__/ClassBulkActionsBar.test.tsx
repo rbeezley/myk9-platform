@@ -1,27 +1,45 @@
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { ClassBulkActionsBar } from '../ClassBulkActionsBar';
 import type { ClassActionItem } from '../classActions';
+
+// The shared delete dialog's server and device halves (features/delete).
+const deleteMocks = vi.hoisted(() => ({ preview: vi.fn(), remove: vi.fn(), purge: vi.fn() }));
+vi.mock('@/features/delete/deletePreview', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/delete/deletePreview')>()),
+  fetchDeletePreview: deleteMocks.preview,
+}));
+vi.mock('@/features/delete/deleteUnsyncedWork', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/delete/deleteUnsyncedWork')>()),
+  deviceHasUnsavedWork: vi.fn().mockResolvedValue({ total: 0, failed: 0 }),
+}));
+vi.mock('@/features/delete/deleteServer', () => ({
+  softDeleteOnServer: deleteMocks.remove,
+  restoreOnServer: vi.fn(),
+}));
+vi.mock('@/features/delete/deleteLocalState', () => ({
+  reconcileLocalDeletion: deleteMocks.purge,
+}));
 
 function cls(id: string, status: string, name = `Class ${id}`): ClassActionItem {
   return { id, name, status };
 }
 
 function setup(selectedClasses: ClassActionItem[], bulkBusy = false) {
-  const onBulkDelete = vi.fn().mockResolvedValue(true);
   const onBulkStatusChange = vi.fn().mockResolvedValue(true);
   const onClear = vi.fn();
   const utils = render(
     <ClassBulkActionsBar
       selectedClasses={selectedClasses}
       bulkBusy={bulkBusy}
-      onBulkDelete={onBulkDelete}
       onBulkStatusChange={onBulkStatusChange}
       onClear={onClear}
+      trialLabel="Saturday Trial 1"
+      context={{ showId: 's1', trialId: 't1' }}
     />
   );
-  return { ...utils, onBulkDelete, onBulkStatusChange, onClear };
+  return { ...utils, onBulkStatusChange, onClear };
 }
 
 describe('ClassBulkActionsBar', () => {
@@ -86,7 +104,6 @@ describe('ClassBulkActionsBar', () => {
       <ClassBulkActionsBar
         selectedClasses={[cls('1', 'Scheduled')]}
         bulkBusy={false}
-        onBulkDelete={vi.fn()}
         onBulkStatusChange={onBulkStatusChange}
         onClear={onClear}
       />
@@ -98,26 +115,56 @@ describe('ClassBulkActionsBar', () => {
     expect(onClear).not.toHaveBeenCalled();
   });
 
-  it('delete opens a confirmation dialog instead of dispatching immediately', async () => {
-    const { user, onBulkDelete } = setup([cls('1', 'Scheduled'), cls('2', 'Scheduled')]);
+  it('delete opens the shared dialog instead of dispatching immediately', async () => {
+    deleteMocks.preview.mockReset().mockResolvedValue({
+      trials: 0,
+      classes: 0,
+      entries: 3,
+      shows: 0,
+      dogs: 0,
+      paid: 0,
+      scored: 0,
+      blocking: 0,
+    });
+    deleteMocks.remove.mockReset().mockResolvedValue(undefined);
+    const { user } = setup([cls('1', 'Scheduled'), cls('2', 'Scheduled')]);
 
     await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
     await user.click(await screen.findByRole('menuitem', { name: /delete 2 of 2 selected/i }));
 
-    expect(onBulkDelete).not.toHaveBeenCalled();
-    expect(await screen.findByRole('dialog')).toBeInTheDocument();
+    const dialog = await screen.findByRole('alertdialog', { name: 'Delete 2 classes?' });
+    expect(within(dialog).getByText('Class 1 and Class 2')).toBeInTheDocument();
+    expect(deleteMocks.remove).not.toHaveBeenCalled();
+    // Counts are summed across the selection, in words.
+    expect(await within(dialog).findByText('This also removes their 6 entries.')).toBeVisible();
   });
 
-  it('delete dispatches onBulkDelete only after the dialog is confirmed', async () => {
-    const { user, onBulkDelete } = setup([cls('1', 'Scheduled')]);
+  it('deletes only after the dialog is confirmed, then clears the selection', async () => {
+    deleteMocks.preview.mockReset().mockResolvedValue({
+      trials: 0,
+      classes: 0,
+      entries: 0,
+      shows: 0,
+      dogs: 0,
+      paid: 0,
+      scored: 0,
+      blocking: 0,
+    });
+    deleteMocks.remove.mockReset().mockResolvedValue(undefined);
+    const { user, onClear } = setup([cls('1', 'Scheduled')]);
 
     await user.click(screen.getByRole('button', { name: /bulk class actions/i }));
     await user.click(await screen.findByRole('menuitem', { name: /delete 1 of 1 selected/i }));
 
-    const dialog = await screen.findByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: /delete/i }));
+    const dialog = await screen.findByRole('alertdialog');
+    const confirm = within(dialog).getByRole('button', { name: 'Delete class' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
 
-    expect(onBulkDelete).toHaveBeenCalledWith(['1'], expect.any(Function));
+    await waitFor(() =>
+      expect(deleteMocks.remove).toHaveBeenCalledWith('class', '1', { override: false })
+    );
+    await waitFor(() => expect(onClear).toHaveBeenCalled());
   });
 
   it('disables the bulk menu trigger while busy', () => {

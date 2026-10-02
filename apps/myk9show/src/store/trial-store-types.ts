@@ -94,7 +94,6 @@ export interface TrialStore {
     updates: Partial<TrialInput>,
     userId: string
   ) => Promise<SyncableTrial | null>;
-  deleteTrial: (id: string) => Promise<void>;
   getTrialById: (id: string) => SyncableTrial | null;
   getTrialsByShow: (showId: string) => SyncableTrial[];
 
@@ -127,7 +126,6 @@ export interface TrialStore {
     updates: Partial<TrialClassInput>,
     userId: string
   ) => Promise<SyncableTrialClass | null>;
-  deleteTrialClass: (trialId: string, classId: string) => Promise<void>;
   getTrialClassesByTrial: (trialId: string) => SyncableTrialClass[];
 
   // Legacy Trial Class methods

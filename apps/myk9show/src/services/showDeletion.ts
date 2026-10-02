@@ -1,4 +1,4 @@
-import { deleteShow } from '@/services/database/shows/writes';
+import { deleteShow, type SoftDeleteOptions } from '@/services/database/shows/writes';
 import { createDatabaseError } from '@/services/database/databaseError';
 import { SHOW_STILL_SAVING } from '@/services/database/shows/deleteOutcome';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
@@ -14,7 +14,11 @@ import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTabl
  * queue; the caller tells the user it is still saving. A queue that cannot be
  * read is an error, never a pass.
  */
-export async function deleteShowRecord(id: string, deletedBy?: string) {
+export async function deleteShowRecord(
+  id: string,
+  deletedBy?: string,
+  options: SoftDeleteOptions = {}
+) {
   try {
     if (await replicatedShowsTable.hasUnsyncedWork(id)) {
       const error = Object.assign(createDatabaseError(new Error('Show is still saving'), 'show'), {
@@ -25,5 +29,5 @@ export async function deleteShowRecord(id: string, deletedBy?: string) {
   } catch (error) {
     return { data: null, error: createDatabaseError(error, 'show', 'soft_delete') };
   }
-  return deleteShow(id, deletedBy);
+  return deleteShow(id, deletedBy, options);
 }

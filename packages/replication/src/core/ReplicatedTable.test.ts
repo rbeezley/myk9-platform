@@ -116,6 +116,47 @@ describe('ReplicatedTable', () => {
       expect(result).not.toBeNull();
     });
 
+    describe('hasUnsyncedLocalWork (MYK9-922)', () => {
+      const withQueue = (pending: unknown[], failed: unknown[]) =>
+        table.setMutationManager({
+          getPendingMutationsForRow: vi.fn(async () => pending),
+          getFailedMutations: vi.fn(async () => failed),
+        } as unknown as import('../MutationManager').MutationManager);
+
+      it('is false for a clean synced row and for a missing row', async () => {
+        withQueue([], []);
+        await table.set('1', { id: '1', name: 'Rex' });
+        await expect(table.hasUnsyncedLocalWork('1')).resolves.toBe(false);
+        await expect(table.hasUnsyncedLocalWork('nope')).resolves.toBe(false);
+      });
+
+      it('is true for a dirty row', async () => {
+        withQueue([], []);
+        await table.set('1', { id: '1', name: 'Rex' }, true);
+        await expect(table.hasUnsyncedLocalWork('1')).resolves.toBe(true);
+      });
+
+      it('is true for a _localOnly row', async () => {
+        withQueue([], []);
+        await table.set('1', { id: '1', name: 'Rex', _localOnly: true } as TestEntity);
+        await expect(table.hasUnsyncedLocalWork('1')).resolves.toBe(true);
+      });
+
+      it('is true for a clean row with a pending mutation', async () => {
+        withQueue([{ id: 'm1' }], []);
+        await table.set('1', { id: '1', name: 'Rex' });
+        await expect(table.hasUnsyncedLocalWork('1')).resolves.toBe(true);
+      });
+
+      it('is true for a clean row with a failed mutation on THIS row only', async () => {
+        await table.set('1', { id: '1', name: 'Rex' });
+        withQueue([], [{ tableName: table.getTableName(), rowId: '2' }]);
+        await expect(table.hasUnsyncedLocalWork('1')).resolves.toBe(false);
+        withQueue([], [{ tableName: table.getTableName(), rowId: '1' }]);
+        await expect(table.hasUnsyncedLocalWork('1')).resolves.toBe(true);
+      });
+    });
+
     it('holds the write slot from a dirty cache write through queue persistence', async () => {
       const release = vi.fn();
       const manager = {

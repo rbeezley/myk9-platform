@@ -67,7 +67,7 @@ export function useSetupClassManagement(
       new Map(allClasses.map(cls => [cls.id, { id: cls.id, name: cls.name, status: cls.status }])),
     [allClasses]
   );
-  const { bulkBusy, handleBulkDelete, handleBulkStatusChange } = useClassBulkActions({
+  const { bulkBusy, handleBulkStatusChange } = useClassBulkActions({
     classesById,
   });
 
@@ -136,7 +136,6 @@ export function useSetupClassManagement(
   return {
     selection,
     bulkBusy,
-    handleBulkDelete,
     handleBulkStatusChange,
     handleStatusChange,
     availableJudges,

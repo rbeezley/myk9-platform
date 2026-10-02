@@ -1,14 +1,6 @@
 /**
- * Bulk-delete + bulk-status dispatch for Setup → Classes.
- *
- * DELETE reuses `useDeleteClassMutation` per class — the SAME mutation single-class
- * delete uses, which delegates to the `soft_delete_class` SECURITY DEFINER RPC
- * (recoverable, entry-cascading, atomic) AND runs the full onSuccess cache
- * invalidation (detail removal, lists, statistics, all-trial caches, entry
- * queries). Dispatching the raw `deleteClass` service directly would skip those
- * invalidations and leave mounted class-detail/scoring/entry views stale after a
- * bulk delete (Codex review). Using `replicatedClassesTable.deleteClass` would
- * queue a raw hard DELETE that cascade-removes entries irrecoverably.
+ * Bulk-status dispatch for Setup → Classes. (Bulk delete is the shared
+ * `DeleteObjectDialog`, opened by `ClassBulkActionsBar`.)
  *
  * STATUS change (MYK9-59) dispatches `applyManualClassStatus` per class — the
  * same canonical replicated mutation the row path and Show Map use, so
@@ -18,18 +10,12 @@
  * `classesById`, which the caller keeps current) against that snapshot, so a
  * class another actor has since moved is skipped rather than overwritten.
  *
- * Both dispatches share the busy latch semantics via a combined `bulkBusy` —
- * one instance of `useBulkDispatch` per action so delete and status retries
- * don't collide in the same in-flight ref, but the bar disables while either
- * is running (matches the single shared latch the bar previously relied on
- * for delete alone).
- *
  * Uses `useBulkDispatch`'s `Promise.allSettled` fold + in-flight latch + summary
  * toast (design.md decision D3), matching Entry Management's pattern.
  */
 import { useCallback, useEffect, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { classKeys, useDeleteClassMutation } from '@/hooks/queries/useClassesDatabase';
+import { classKeys } from '@/hooks/queries/useClassesDatabase';
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
 import {
   applyManualClassStatus,
@@ -43,7 +29,6 @@ export interface UseClassBulkActionsOptions {
 
 export interface UseClassBulkActionsResult {
   bulkBusy: boolean;
-  handleBulkDelete: (classIds: string[], onFullSuccess?: () => void) => Promise<boolean>;
   handleBulkStatusChange: (
     classIds: string[],
     status: string,
@@ -55,7 +40,6 @@ export function useClassBulkActions({
   classesById,
 }: UseClassBulkActionsOptions): UseClassBulkActionsResult {
   const queryClient = useQueryClient();
-  const deleteClassMutation = useDeleteClassMutation();
 
   // Toast-driven retries fire AFTER later renders have produced a fresher
   // classesById — a closure over the prop would still read the dispatch-time
@@ -71,26 +55,7 @@ export function useClassBulkActions({
     [classesById]
   );
 
-  const deleteDispatch = useBulkDispatch<string>({ getLabel: label });
   const statusDispatch = useBulkDispatch<string>({ getLabel: label });
-
-  const handleBulkDelete = useCallback(
-    async (classIds: string[], onFullSuccess?: () => void) => {
-      if (classIds.length === 0) return false;
-      // Per-class via the shared mutation: soft delete + all cache invalidations,
-      // identical to single-class delete. allSettled isolates per-item failures.
-      const outcome = await deleteDispatch.run(
-        classIds,
-        async classId => {
-          await deleteClassMutation.mutateAsync({ id: classId });
-        },
-        { onFullSuccess }
-      );
-      // null = latched no-op — treat as not-done so the selection is kept.
-      return outcome !== null && outcome.failed.length === 0;
-    },
-    [deleteDispatch, deleteClassMutation]
-  );
 
   const handleBulkStatusChange = useCallback(
     async (classIds: string[], status: string, onFullSuccess?: () => void) => {
@@ -107,8 +72,7 @@ export function useClassBulkActions({
         classIds,
         async classId => {
           await applyManualClassStatus(classId, status as ManualClassStatus);
-          // Invalidate PER SUCCEEDED ITEM (mirrors how delete stays fresh via
-          // useDeleteClassMutation's onSuccess): this is the only seam that also
+          // Invalidate PER SUCCEEDED ITEM: this is the only seam that also
           // covers toast-driven retries, which run inside useBulkDispatch after
           // any page-level wrapper has already returned. Partial success still
           // refreshes the succeeded rows. Invalidate the whole classKeys family
@@ -131,8 +95,7 @@ export function useClassBulkActions({
   );
 
   return {
-    bulkBusy: deleteDispatch.isBusy || statusDispatch.isBusy,
-    handleBulkDelete,
+    bulkBusy: statusDispatch.isBusy,
     handleBulkStatusChange,
   };
 }

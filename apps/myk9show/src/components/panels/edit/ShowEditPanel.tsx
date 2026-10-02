@@ -77,7 +77,7 @@ export const ShowEditPanel: React.FC<ShowEditPanelProps> = ({
           "Delete show is a red destructive row with confirm at the bottom of the
           Show Edit panel, never in the Actions menu"). Below the form, and last,
           so it is never the thing a hurried secretary reaches first; the confirm
-          dialog is the caller's existing DeleteShowDialog. */}
+          dialog is the shared DeleteObjectDialog (features/delete). */}
       {onRequestDelete && (
         <div className="mt-8 rounded-md border border-destructive/40 bg-destructive/5 p-4">
           <h3 className="text-sm font-semibold text-destructive">Delete this show</h3>

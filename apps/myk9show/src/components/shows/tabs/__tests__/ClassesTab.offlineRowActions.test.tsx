@@ -6,7 +6,7 @@ import type { SyncableTrialClass } from '@/store/trial-store-types';
 
 // MYK9-900 (Codex P2): after an offline reload the React Query class list is empty/paused, but
 // Setup still shows the class from the replicated trialStore. Edit and Delete must resolve it
-// from there, and offline writes must say "needs a connection" rather than fail silently.
+// from there, and an offline delete must say it needs a connection rather than fail silently.
 
 const toastError = vi.hoisted(() => vi.fn());
 vi.mock('sonner', () => ({ toast: { error: toastError, success: vi.fn(), warning: vi.fn() } }));
@@ -29,11 +29,28 @@ vi.mock('@/hooks/useViewPreference', () => ({
 let mockConnectionHint: string | undefined;
 vi.mock('@/hooks/useConnectionHint', () => ({ useConnectionHint: () => mockConnectionHint }));
 
-const deleteClass = vi.hoisted(() => vi.fn());
 const updateClass = vi.hoisted(() => vi.fn());
 // Cold, offline query cache: the list is empty.
 vi.mock('@/hooks/useClassStoreCompat', () => ({
-  useClassStoreCompat: () => ({ classes: [], updateClass, deleteClass }),
+  useClassStoreCompat: () => ({ classes: [], updateClass }),
+}));
+
+// The shared delete dialog's server and device halves (features/delete).
+const deleteMocks = vi.hoisted(() => ({ preview: vi.fn(), remove: vi.fn(), purge: vi.fn() }));
+vi.mock('@/features/delete/deletePreview', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/delete/deletePreview')>()),
+  fetchDeletePreview: deleteMocks.preview,
+}));
+vi.mock('@/features/delete/deleteUnsyncedWork', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/delete/deleteUnsyncedWork')>()),
+  deviceHasUnsavedWork: vi.fn().mockResolvedValue({ total: 0, failed: 0 }),
+}));
+vi.mock('@/features/delete/deleteServer', () => ({
+  softDeleteOnServer: deleteMocks.remove,
+  restoreOnServer: vi.fn(),
+}));
+vi.mock('@/features/delete/deleteLocalState', () => ({
+  reconcileLocalDeletion: deleteMocks.purge,
 }));
 const replicatedSync = vi.hoisted(() => vi.fn());
 // Scripted replica read failures (IndexedDB init/read errors): consumed one per getClassById call.
@@ -148,7 +165,19 @@ describe('ClassesTab row actions with a cold, offline class query', () => {
     replicatedSync.mockReset().mockResolvedValue(undefined);
     readScript.calls = [];
     useTrialStore.setState({ loadTrialClasses: async () => undefined });
-    deleteClass.mockReset();
+    deleteMocks.preview.mockReset().mockResolvedValue({
+      trials: 0,
+      classes: 0,
+      entries: 3,
+      shows: 0,
+      dogs: 0,
+      paid: 0,
+      scored: 0,
+      blocking: 0,
+    });
+    deleteMocks.remove.mockReset().mockResolvedValue(undefined);
+    deleteMocks.purge.mockReset().mockResolvedValue(undefined);
+    vi.restoreAllMocks();
     updateClass.mockReset();
     mockConnectionHint = undefined;
     useTrialStore.setState({ trialClasses: { t1: [replicatedClass] } });
@@ -177,58 +206,63 @@ describe('ClassesTab row actions with a cold, offline class query', () => {
     expect(within(panel).getByDisplayValue('Containers')).toBeVisible();
   });
 
-  it('Delete opens the dialog naming the replicated class', async () => {
-    const { user } = renderTab();
-
+  const openDelete = async (user: ReturnType<typeof renderTab>['user']) => {
     await user.click(screen.getByRole('button', { name: 'Class actions for Containers Novice A' }));
     await user.click(await screen.findByRole('menuitem', { name: 'Delete Class' }));
+    return screen.findByRole('alertdialog');
+  };
 
-    const dialog = await screen.findByRole('alertdialog');
-    expect(within(dialog).getByText(/Containers Novice A/)).toBeVisible();
+  it('Delete opens the shared dialog naming the replicated class', async () => {
+    const { user } = renderTab();
+
+    const dialog = await openDelete(user);
+    expect(dialog).toHaveAccessibleName(/^Delete the class .*Containers/);
+    expect(within(dialog).getByText('Novice Containers · Saturday Trial')).toBeVisible();
     expect(toastError).not.toHaveBeenCalled();
   });
 
-  it('confirming Delete while offline keeps the dialog open and says it needs a connection', async () => {
-    mockConnectionHint = 'Needs a connection';
+  it('offline: Delete stays off and the dialog says it needs a connection', async () => {
+    vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
     const { user } = renderTab();
 
-    await user.click(screen.getByRole('button', { name: 'Class actions for Containers Novice A' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Delete Class' }));
-    const dialog = await screen.findByRole('alertdialog');
-    await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+    const dialog = await openDelete(user);
 
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/needs a connection/i);
-    expect(deleteClass).not.toHaveBeenCalled();
-    expect(screen.getByRole('alertdialog')).toBeVisible();
+    expect(within(dialog).getByText(/^You're offline\. Deleting needs a connection/)).toBeVisible();
+    expect(within(dialog).getByRole('button', { name: 'Delete class' })).toBeDisabled();
+    expect(deleteMocks.remove).not.toHaveBeenCalled();
   });
 
-  it('a failed delete keeps the dialog open with an error', async () => {
-    deleteClass.mockRejectedValue(new Error('Server said no'));
+  it('a failed delete keeps the dialog open with a plain-language error', async () => {
+    deleteMocks.remove.mockRejectedValue(new Error('Server said no'));
     const { user } = renderTab();
 
-    await user.click(screen.getByRole('button', { name: 'Class actions for Containers Novice A' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Delete Class' }));
-    const dialog = await screen.findByRole('alertdialog');
-    await user.click(within(dialog).getByRole('button', { name: 'Delete' }));
+    const dialog = await openDelete(user);
+    const confirm = within(dialog).getByRole('button', { name: 'Delete class' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
 
-    expect(await within(dialog).findByRole('alert')).toHaveTextContent('Server said no');
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(
+      "We couldn't delete this class. Please try again."
+    );
+    expect(dialog).not.toHaveTextContent('Server said no');
     expect(screen.getByRole('alertdialog')).toBeVisible();
   });
 
   it('a successful delete closes the dialog with no "couldn\'t load" error, though the class leaves the store', async () => {
-    // A real delete removes the class from the replicated store before the confirm finishes.
-    deleteClass.mockImplementation(async () => {
+    // The purge removes the class from the replicated store before the confirm finishes.
+    deleteMocks.purge.mockImplementation(async () => {
       useTrialStore.setState({ trialClasses: {} });
     });
     const { user } = renderTab();
 
-    await user.click(screen.getByRole('button', { name: 'Class actions for Containers Novice A' }));
-    await user.click(await screen.findByRole('menuitem', { name: 'Delete Class' }));
-    await user.click(
-      within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Delete' })
-    );
+    const dialog = await openDelete(user);
+    const confirm = within(dialog).getByRole('button', { name: 'Delete class' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    await user.click(confirm);
 
-    expect(deleteClass).toHaveBeenCalledWith('c1');
+    await waitFor(() =>
+      expect(deleteMocks.remove).toHaveBeenCalledWith('class', 'c1', { override: false })
+    );
     await waitFor(() => expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument());
     expect(toastError).not.toHaveBeenCalled();
   });
@@ -256,7 +290,7 @@ describe('ClassesTab row actions with a cold, offline class query', () => {
     await user.click(await screen.findByRole('menuitem', { name: 'Delete Class' }));
 
     await waitFor(() => expect(toastError).toHaveBeenCalled());
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('cold store: hydrates that trial from the replica, then opens the editor', async () => {

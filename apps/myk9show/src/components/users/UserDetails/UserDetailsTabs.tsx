@@ -7,12 +7,13 @@ import { PawPrint, Plus } from 'lucide-react';
 import AssociatedDogsSection from '../AssociatedDogsSection';
 import { DogEditPanel } from '@/components/panels/edit/DogEditPanel';
 import { AddDogPanel } from '@/components/panels/edit';
-import type { User, Dog } from '@/types/dog-types';
+import { getDogDisplayName, type User, type Dog } from '@/types/dog-types';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
 import { mapDogToDogInput } from '@/services/mappers/dogMappers';
 import { saveDogPhoto, formatDisplayDate } from '@/components/dogs/DogDetailsMain/utils';
 import { selectOwnedDogs } from '@/utils/dogOwnership';
+import { DeleteObjectDialog, dogDeleteDetail } from '@/features/delete';
 
 interface PeopleDetailsTabsProps {
   selectedUser: User;
@@ -20,7 +21,7 @@ interface PeopleDetailsTabsProps {
 
 const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) => {
   const navigate = useNavigate();
-  const { dogs, updateDog, deleteDog } = useDogStoreCompat();
+  const { dogs, updateDog } = useDogStoreCompat();
   const { getUserRoles } = useAuthContext();
 
   // Get actual Dog objects by owner relationship
@@ -58,9 +59,10 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
     return result.success;
   };
 
-  // Handler for deleting a dog
+  // Delete always asks first, through the shared dialog (it used to delete on one click).
+  const [dogToDelete, setDogToDelete] = useState<Dog | null>(null);
   const handleDeleteDog = (dogId: string) => {
-    deleteDog(dogId);
+    setDogToDelete(userDogs.find(d => d.id === dogId) ?? null);
   };
 
   // Handler for adding a new dog
@@ -156,6 +158,25 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
         onSave={handleSaveDogEdit}
         enableAutoSave={false}
       />
+      {dogToDelete && (
+        <DeleteObjectDialog
+          open
+          onOpenChange={open => {
+            if (!open) setDogToDelete(null);
+          }}
+          kind="dog"
+          targets={[
+            {
+              id: dogToDelete.id,
+              name: getDogDisplayName(dogToDelete),
+              detail: dogDeleteDetail({
+                callName: dogToDelete.callName,
+                ownerName: dogToDelete.ownerName,
+              }),
+            },
+          ]}
+        />
+      )}
       <AddDogPanel
         open={isCreatePanelOpen}
         onClose={() => setIsCreatePanelOpen(false)}

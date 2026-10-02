@@ -374,25 +374,6 @@ describe('userStore (with database integration)', () => {
         updates: updateData,
       });
     });
-
-    it('should delete a person', async () => {
-      const mockMutateAsync = vi.fn().mockResolvedValue(undefined);
-      mockUseDeleteUserMutation.mockReturnValue({
-        mutateAsync: mockMutateAsync,
-        isPending: false,
-        error: null,
-      });
-
-      const { result } = renderHook(() => useUserStoreCompat(), {
-        wrapper: createWrapper(),
-      });
-
-      await act(async () => {
-        await result.current.deleteUser('user-1');
-      });
-
-      expect(mockMutateAsync).toHaveBeenCalledWith({ id: 'user-1' });
-    });
   });
 
   describe('Query Operations', () => {
@@ -621,44 +602,6 @@ describe('userStore (with database integration)', () => {
           email: 'updated@example.com',
         }),
       });
-    });
-
-    it('should support legacy removePerson method with string ID', async () => {
-      const mockMutateAsync = vi.fn().mockResolvedValue(undefined);
-      mockUseDeleteUserMutation.mockReturnValue({
-        mutateAsync: mockMutateAsync,
-        isPending: false,
-        error: null,
-      });
-
-      const { result } = renderHook(() => useUserStoreCompat(), {
-        wrapper: createWrapper(),
-      });
-
-      await act(async () => {
-        result.current.removeUser('user-1');
-      });
-
-      expect(mockMutateAsync).toHaveBeenCalledWith({ id: 'user-1' });
-    });
-
-    it('should support legacy removePerson method with number ID', async () => {
-      const mockMutateAsync = vi.fn().mockResolvedValue(undefined);
-      mockUseDeleteUserMutation.mockReturnValue({
-        mutateAsync: mockMutateAsync,
-        isPending: false,
-        error: null,
-      });
-
-      const { result } = renderHook(() => useUserStoreCompat(), {
-        wrapper: createWrapper(),
-      });
-
-      await act(async () => {
-        result.current.removeUser(123);
-      });
-
-      expect(mockMutateAsync).toHaveBeenCalledWith({ id: '123' });
     });
   });
 

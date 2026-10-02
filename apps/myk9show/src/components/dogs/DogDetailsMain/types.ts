@@ -7,11 +7,13 @@ import type { DogCardRegistration } from '@/components/dogs/common/dogRegistryMo
 export interface DogDetailsMainProps {
   dog: Dog;
   fromPerson?: User | undefined;
-  onDelete?: () => Promise<void>;
-  /** Platform-admin override of the paid/scored refusal (force_delete_dog). */
-  onForceDelete?: () => Promise<void>;
+  /** The shared delete dialog started deleting this dog. */
+  onDeleteStart?: (() => void) | undefined;
+  /** After the shared delete dialog deleted this dog (soft, with Undo). */
+  onDeleted?: ((dogId: string) => void) | undefined;
+  /** The delete did not happen (refused or failed); the dialog stays open. */
+  onDeleteFailed?: (() => void) | undefined;
   onUpdate?: (id: string, updates: Partial<DogInput>) => Promise<Dog | null>;
-  isDeleting?: boolean;
 }
 
 export interface EditableValueProps {
@@ -82,17 +84,14 @@ export interface DogDialogsProps {
   showCelebration: boolean;
   userRole: UserRole;
   people: User[];
-  isDeleting?: boolean;
-  /** Whether the current user can restore a deleted dog (drives the warning copy). */
-  canRestore?: boolean;
-  /** Platform admin: may override the paid/scored delete refusal. */
-  canForceDelete?: boolean;
   onEditPanelClose: () => void;
   onDeleteDialogClose: () => void;
   /** Raises the status dialog from inside the Edit Dog panel's Status row. */
   onStatusDialogOpen?: (() => void) | undefined;
-  onDelete?: (() => Promise<void>) | undefined;
-  onForceDelete?: (() => Promise<void>) | undefined;
+  onDeleteStart?: (() => void) | undefined;
+  /** After the shared delete dialog deleted this dog. */
+  onDeleted?: ((dogId: string) => void) | undefined;
+  onDeleteFailed?: (() => void) | undefined;
   onUpdate?: ((id: string, updates: Partial<DogInput>) => Promise<Dog | null>) | undefined;
   onPhotoDialogOpen: (open: boolean) => void;
   onPhotoDrop: (e: React.DragEvent) => void;

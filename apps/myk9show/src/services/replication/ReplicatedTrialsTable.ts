@@ -19,7 +19,7 @@ import {
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
-import { deletePayload, PendingDeletes } from './pendingDeletes';
+import { PendingDeletes } from './pendingDeletes';
 import type { Database } from '@/types/supabase';
 
 /**
@@ -378,22 +378,6 @@ export class ReplicatedTrialsTable extends ReplicatedTable<ReplicatedTrial> {
     );
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated trial ${trialId}`);
-    return mutationId;
-  }
-
-  /**
-   * Queue a DELETE for Supabase sync, then remove the trial locally. Queued
-   * first so there is no moment when the row is gone here with no DELETE on
-   * record — a sync then would fetch it back (MYK9-762). The payload records
-   * the trial's show when it was already on the server, which is what lets
-   * offline readiness count the pending delete (see pendingDeletes).
-   */
-  async deleteTrial(trialId: string): Promise<string | null> {
-    const trial = await this.get(trialId);
-    const mutationId = await this.queueMutation('DELETE', trialId, deletePayload(trialId, trial));
-    await this.delete(trialId);
-    this._lastMutationId = mutationId;
-    logger.log(`[${this.getTableName()}] Deleted trial ${trialId}`);
     return mutationId;
   }
 }

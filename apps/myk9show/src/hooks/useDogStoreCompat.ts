@@ -12,7 +12,6 @@ import {
   useDogsByOwnerQuery,
   useCreateDogMutation,
   useUpdateDogMutation,
-  useDeleteDogMutation,
   useDogStatisticsQuery,
 } from '@/hooks/queries/useDogsDatabase';
 import {
@@ -51,7 +50,6 @@ export const useDogStoreCompat = () => {
   const dogsQuery = useDogsQuery();
   const createMutation = useCreateDogMutation();
   const updateMutation = useUpdateDogMutation();
-  const deleteMutation = useDeleteDogMutation();
   const statisticsQuery = useDogStatisticsQuery();
 
   // Convert database results to Dog format for backward compatibility
@@ -64,19 +62,12 @@ export const useDogStoreCompat = () => {
   const isLoading = aggregateLoadingStates(
     dogsQuery.isLoading,
     createMutation.isPending,
-    updateMutation.isPending,
-    deleteMutation.isPending
+    updateMutation.isPending
   );
 
   const error = useMemo(
-    () =>
-      aggregateQueryErrors(
-        dogsQuery.error,
-        createMutation.error,
-        updateMutation.error,
-        deleteMutation.error
-      ),
-    [dogsQuery.error, createMutation.error, updateMutation.error, deleteMutation.error]
+    () => aggregateQueryErrors(dogsQuery.error, createMutation.error, updateMutation.error),
+    [dogsQuery.error, createMutation.error, updateMutation.error]
   );
 
   const runDogMutation = async <T>(op: () => Promise<T>): Promise<T> => {
@@ -312,17 +303,6 @@ export const useDogStoreCompat = () => {
     return localDog;
   };
 
-  const deleteDog = async (id: string, deletedBy?: string): Promise<void> => {
-    await runDogMutation(() =>
-      deleteMutation.mutateAsync({ id, ...(deletedBy !== undefined && { deletedBy }) })
-    );
-    // The IndexedDB row is removed inside `useDeleteDogMutation`'s `mutationFn`
-    // (exhibitor-ux-remediation) — before its `onSuccess` invalidate, so no
-    // refetch can resurrect the deleted dog, and every caller of the mutation
-    // gets the same guarantee rather than only this one.
-    await queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
-  };
-
   const getDogById = (id: string): Dog | null => {
     return dogs.find(dog => dog.id === id) || null;
   };
@@ -353,7 +333,6 @@ export const useDogStoreCompat = () => {
     addDog,
     addDogOfflineFirst,
     updateDog,
-    deleteDog,
     getDogById,
     getDogsByOwner,
     getSyncStatus,
@@ -370,7 +349,6 @@ export const useDogStoreCompat = () => {
     // Individual mutation states for fine-grained control
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
-    isDeleting: deleteMutation.isPending,
 
     // Legacy compatibility flags
     _usingDatabase: true,

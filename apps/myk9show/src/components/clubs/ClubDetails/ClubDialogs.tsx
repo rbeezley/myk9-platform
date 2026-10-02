@@ -3,7 +3,7 @@ import { Club } from '@/types/club-types';
 import type { ClubMember } from '@/types/club-membership-types';
 import { ClubEditPanel } from '@/components/panels/edit/ClubEditPanel';
 import ClubPhotoDialog from '../ClubPhotoDialog';
-import { DeleteConfirmationDialog } from '@/components/base/DeleteConfirmationDialog';
+import { DeleteObjectDialog, clubDeleteDetail } from '@/features/delete';
 import { AddMemberDialog } from '../members/AddMemberDialog';
 
 interface ClubDialogsProps {
@@ -26,8 +26,8 @@ interface ClubDialogsProps {
   // Delete dialog
   showDeleteDialog: boolean;
   onDeleteDialogChange: (open: boolean) => void;
-  onConfirmDelete: () => Promise<void>;
-  isDeleting: boolean;
+  /** After the shared dialog deleted the club. */
+  onClubDeleted: () => void;
   // Add member dialog
   showAddMemberDialog: boolean;
   onAddMemberDialogChange: (open: boolean) => void;
@@ -51,8 +51,7 @@ export const ClubDialogs: React.FC<ClubDialogsProps> = ({
   onPhotoSave,
   showDeleteDialog,
   onDeleteDialogChange,
-  onConfirmDelete,
-  isDeleting,
+  onClubDeleted,
   showAddMemberDialog,
   onAddMemberDialogChange,
   members,
@@ -84,16 +83,15 @@ export const ClubDialogs: React.FC<ClubDialogsProps> = ({
         onSave={onPhotoSave}
       />
 
-      {/* Delete Club Confirmation Dialog */}
-      <DeleteConfirmationDialog
-        open={showDeleteDialog}
-        onOpenChange={onDeleteDialogChange}
-        onConfirm={onConfirmDelete}
-        entityName={club.name}
-        entityType="Club"
-        description="This will mark the club as deleted and hide it from normal view. An administrator can restore it later if needed."
-        isDeleting={isDeleting}
-      />
+      {showDeleteDialog && (
+        <DeleteObjectDialog
+          open
+          onOpenChange={onDeleteDialogChange}
+          kind="club"
+          targets={[{ id: club.id, name: club.name, detail: clubDeleteDetail(club) }]}
+          onDeleted={onClubDeleted}
+        />
+      )}
 
       {/* Add Member Dialog */}
       <AddMemberDialog

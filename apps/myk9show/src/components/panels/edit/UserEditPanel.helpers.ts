@@ -33,63 +33,72 @@ const judgeQualificationSchema = z.object({
   status: z.enum(['Active', 'Suspended', 'Expired']),
 });
 
-// Zod schema for UserFormData
-export const userFormSchema: z.ZodSchema<UserFormData> = z
-  .object({
-    firstName: z
-      .string()
-      .min(1, 'Please enter a first name')
-      .refine(v => v.trim().length > 0, 'Please enter a first name'),
-    lastName: z
-      .string()
-      .min(1, 'Please enter a last name')
-      .refine(v => v.trim().length > 0, 'Please enter a last name'),
-    // Optional (MYK9-931): a mail-in entrant has no email. One Person form.
-    email: z
-      .string()
-      .refine(
-        v => !v.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()),
-        'Please enter a valid email address'
-      ),
-    phone: z
-      .string()
-      .refine(v => !v || /^[\d\s\-().+]+$/.test(v.trim()), 'Please enter a valid phone number'),
-    address: z.string(),
-    city: z.string(),
-    state: z.string(),
-    zipCode: z.string(),
-    dateOfBirth: dateOfBirthSchema,
-    juniorHandlerNumbers: z.record(z.string(), z.string()),
-    profileImage: z.string().optional(),
-    judgeQualifications: z.array(judgeQualificationSchema),
-    roles: z.array(z.string()),
-    bio: z.string().optional(),
-    website: z.string().optional(),
-    emergencyContact: z.string().optional(),
-    emergencyPhone: z.string().optional(),
-  })
-  .superRefine((data, ctx) => {
-    // Conditional address validation: if any address field is filled, city and state are required
-    const hasAddressInfo =
-      data.address?.trim() || data.city?.trim() || data.state?.trim() || data.zipCode?.trim();
+// The fields shared by Add and Edit Person.
+const userFormObject = z.object({
+  firstName: z
+    .string()
+    .min(1, 'Please enter a first name')
+    .refine(v => v.trim().length > 0, 'Please enter a first name'),
+  lastName: z
+    .string()
+    .min(1, 'Please enter a last name')
+    .refine(v => v.trim().length > 0, 'Please enter a last name'),
+  // Optional (MYK9-931): a mail-in entrant has no email. One Person form.
+  email: z
+    .string()
+    .refine(
+      v => !v.trim() || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim()),
+      'Please enter a valid email address'
+    ),
+  phone: z
+    .string()
+    .refine(v => !v || /^[\d\s\-().+]+$/.test(v.trim()), 'Please enter a valid phone number'),
+  address: z.string(),
+  city: z.string(),
+  state: z.string(),
+  zipCode: z.string(),
+  dateOfBirth: dateOfBirthSchema,
+  juniorHandlerNumbers: z.record(z.string(), z.string()),
+  profileImage: z.string().optional(),
+  judgeQualifications: z.array(judgeQualificationSchema),
+  roles: z.array(z.string()),
+  bio: z.string().optional(),
+  website: z.string().optional(),
+  emergencyContact: z.string().optional(),
+  emergencyPhone: z.string().optional(),
+});
 
-    if (hasAddressInfo) {
-      if (!data.city?.trim()) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Please enter a city when providing address information',
-          path: ['city'],
-        });
-      }
-      if (!data.state?.trim()) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'Please enter a state when providing address information',
-          path: ['state'],
-        });
-      }
+// Edit: a partly filled address must at least name a city and state.
+// Zod schema for UserFormData
+export const userFormSchema: z.ZodSchema<UserFormData> = userFormObject.superRefine((data, ctx) => {
+  // Conditional address validation: if any address field is filled, city and state are required
+  const hasAddressInfo =
+    data.address?.trim() || data.city?.trim() || data.state?.trim() || data.zipCode?.trim();
+
+  if (hasAddressInfo) {
+    if (!data.city?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Please enter a city when providing address information',
+        path: ['city'],
+      });
     }
-  }) as z.ZodSchema<UserFormData>;
+    if (!data.state?.trim()) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Please enter a state when providing address information',
+        path: ['state'],
+      });
+    }
+  }
+}) as z.ZodSchema<UserFormData>;
+
+/**
+ * Add Person (MYK9-931): every address part is optional and independent. A mail-in
+ * paper entry may carry only a ZIP or only a street, and the create paths store
+ * each part on its own, so asking for city and state would force invented data.
+ */
+export const userCreateFormSchema = userFormObject as unknown as z.ZodSchema<UserFormData>;
 
 // Convert UserType to form data
 export const userToFormData = (user: Partial<UserType>): UserFormData => {

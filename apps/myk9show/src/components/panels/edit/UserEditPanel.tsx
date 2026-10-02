@@ -20,7 +20,12 @@ import { useUserStore } from '@/store/userStore';
 import AvailabilityFormFields from '@/components/judges/AvailabilityFormFields';
 
 import type { UserEditPanelProps, UserFormData } from './UserEditPanel.types';
-import { userFormSchema, userToFormData, formDataToUser } from './UserEditPanel.helpers';
+import {
+  userFormSchema,
+  userCreateFormSchema,
+  userToFormData,
+  formDataToUser,
+} from './UserEditPanel.helpers';
 import { usePanelValidationNavigation } from './usePanelValidationNavigation';
 import {
   USER_CREATE_TABS,
@@ -379,7 +384,7 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
       size="xl"
       initialData={initialFormData}
       onSave={handleSave}
-      schema={userFormSchema}
+      schema={isCreateMode ? userCreateFormSchema : userFormSchema}
       enableAutoSave={enableAutoSave}
       saveLabel={isCreateMode ? 'Add Person' : 'Save Changes'}
       cancelLabel="Cancel"

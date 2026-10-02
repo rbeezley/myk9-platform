@@ -43,7 +43,9 @@ vi.mock('../PastShowsTab', () => ({ PastShowsTab: () => null }));
 vi.mock('../AboutTab', () => ({ AboutTab: () => null }));
 vi.mock('../MembersTab', () => ({ MembersTab: () => null }));
 vi.mock('../BrandingTab', () => ({ BrandingTab: () => null }));
-vi.mock('../ClubDialogs', () => ({ ClubDialogs: () => null }));
+vi.mock('../ClubDialogs', () => ({
+  ClubDialogs: () => <div data-testid="club-dialogs" />,
+}));
 vi.mock('../ClubShowsUnsettled', () => ({ ClubShowsUnsettled: () => null }));
 
 const club = {
@@ -62,6 +64,16 @@ const club = {
 } as Club;
 
 describe('ClubDetails page frame (MYK9-930)', () => {
+  // SlideOverPanel is not portaled: inside PageShell's `space-y-6` it would pick up a
+  // 24px top margin on a fixed overlay. Dialogs and panels render OUTSIDE the shell.
+  it('renders its dialogs and edit panel outside the PageShell spacing container', () => {
+    render(<ClubDetails selectedClub={club} />);
+
+    const shell = screen.getByTestId('app-shell-page');
+    expect(shell).toContainElement(screen.getByTestId('club-hero-title'));
+    expect(shell).not.toContainElement(screen.getByTestId('club-dialogs'));
+  });
+
   it('sits in the one detail-page shell, not its own 1440px container with extra top padding', () => {
     render(<ClubDetails selectedClub={club} />);
 

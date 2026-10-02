@@ -349,64 +349,68 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   );
 
   return (
-    <PageShell>
-      <RecordPageLayout
-        storageKey="myk9:person"
-        breadcrumb={
-          <PageHeader
-            breadcrumbs={toPageHeaderCrumbs(breadcrumbItems, location.pathname)}
-            title={fullName}
-            omitTitle
-          />
-        }
-        banner={
-          <PersonLifecycleBanner
-            deletedAt={person.deletedAt}
-            status={accountStatus}
-            {...(isRemoved && canRestore ? { onRestore: handleRestore } : {})}
-            isRestoring={isRestoring}
-          />
-        }
-        hero={
-          <HeroProfileCard
-            person={person}
-            firstName={firstName}
-            lastName={lastName}
-            fullName={fullName}
-            photo={formData.photo}
-            isRemoved={isRemoved}
-            onEditPhoto={() => setIsPhotoModalOpen(true)}
-            onDelete={() => setIsDeleteDialogOpen(true)}
-            {...(canManageStatus
-              ? {
-                  onChangeStatus: () => setIsStatusDialogOpen(true),
-                  changeStatusLabel:
-                    accountStatus === 'suspended' ? 'Reinstate account' : 'Suspend account',
-                  changeStatusDisabled: statusActionDisabled,
-                  ...(statusActionDisabled
-                    ? { changeStatusDescription: 'You cannot suspend your own account' }
-                    : {}),
-                }
-              : {})}
-            onSendInvitation={
-              !isRemoved && canInvite
-                ? () =>
-                    sendInvitation({
-                      personId: person.id,
-                      email: person.email,
-                      firstName,
-                      roleNames: (person.roles ?? []).map(String),
-                    })
-                : undefined
-            }
-            sendInvitationLabel={hasSignInAccount ? 'Send Sign-In Link' : 'Send Invitation'}
-            sendInvitationDisabled={isSending}
-          />
-        }
-        properties={properties}
-        tabsContent={centerContent}
-      />
+    <>
+      <PageShell>
+        <RecordPageLayout
+          storageKey="myk9:person"
+          breadcrumb={
+            <PageHeader
+              breadcrumbs={toPageHeaderCrumbs(breadcrumbItems, location.pathname)}
+              title={fullName}
+              omitTitle
+            />
+          }
+          banner={
+            <PersonLifecycleBanner
+              deletedAt={person.deletedAt}
+              status={accountStatus}
+              {...(isRemoved && canRestore ? { onRestore: handleRestore } : {})}
+              isRestoring={isRestoring}
+            />
+          }
+          hero={
+            <HeroProfileCard
+              person={person}
+              firstName={firstName}
+              lastName={lastName}
+              fullName={fullName}
+              photo={formData.photo}
+              isRemoved={isRemoved}
+              onEditPhoto={() => setIsPhotoModalOpen(true)}
+              onDelete={() => setIsDeleteDialogOpen(true)}
+              {...(canManageStatus
+                ? {
+                    onChangeStatus: () => setIsStatusDialogOpen(true),
+                    changeStatusLabel:
+                      accountStatus === 'suspended' ? 'Reinstate account' : 'Suspend account',
+                    changeStatusDisabled: statusActionDisabled,
+                    ...(statusActionDisabled
+                      ? { changeStatusDescription: 'You cannot suspend your own account' }
+                      : {}),
+                  }
+                : {})}
+              onSendInvitation={
+                !isRemoved && canInvite
+                  ? () =>
+                      sendInvitation({
+                        personId: person.id,
+                        email: person.email,
+                        firstName,
+                        roleNames: (person.roles ?? []).map(String),
+                      })
+                  : undefined
+              }
+              sendInvitationLabel={hasSignInAccount ? 'Send Sign-In Link' : 'Send Invitation'}
+              sendInvitationDisabled={isSending}
+            />
+          }
+          properties={properties}
+          tabsContent={centerContent}
+        />
+      </PageShell>
 
+      {/* Dialogs and panels: OUTSIDE PageShell. SlideOverPanel is not portaled, so inside
+          the shell's `space-y-6` a fixed overlay would pick up a 24px top margin. */}
       <UserDetailsDialogs
         person={person}
         formData={{
@@ -482,7 +486,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
           isUpdating={updateUserMutation.isPending}
         />
       )}
-    </PageShell>
+    </>
   );
 };
 

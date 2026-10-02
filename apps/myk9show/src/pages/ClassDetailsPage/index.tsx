@@ -355,7 +355,11 @@ const ClassDetailsPage: React.FC = () => {
             onDeleteEntry={handleDeleteEntry}
           />
         ) : null}
+      </PageShell>
 
+      {/* Outside PageShell: SlideOverPanel is not portaled, so inside the shell's `space-y-6` a
+          fixed overlay would pick up a 24px top margin. */}
+      <>
         {/* Dialogs */}
         {/* Class-lifecycle panels are mounted only for staff, not merely left
             closed: an unmounted panel cannot be opened by a stray handler and
@@ -433,7 +437,7 @@ const ClassDetailsPage: React.FC = () => {
           element={currentClass?.element || ''}
           level={currentClass?.level || ''}
         />
-      </PageShell>
+      </>
     </ShowPresenceProvider>
   );
 };

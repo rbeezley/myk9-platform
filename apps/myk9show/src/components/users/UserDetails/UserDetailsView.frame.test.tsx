@@ -33,7 +33,9 @@ vi.mock('./useSendUserInvitation', () => ({
   useSendUserInvitation: () => ({ sendInvitation: vi.fn(), isSending: false }),
 }));
 vi.mock('./UserDetailsTabs', () => ({ default: () => <div data-testid="user-tabs" /> }));
-vi.mock('./UserDetailsDialogs', () => ({ default: () => null }));
+vi.mock('./UserDetailsDialogs', () => ({
+  default: () => <div data-testid="person-dialogs" />,
+}));
 vi.mock('./JudgeQualificationsCard', () => ({ default: () => null }));
 vi.mock('./JudgeAvailabilityCard', () => ({ default: () => null }));
 vi.mock('@/components/users/AccountStatusDialog', () => ({ default: () => null }));
@@ -50,6 +52,16 @@ function Providers({ children }: { children: React.ReactNode }) {
 }
 
 describe('Person detail page frame (MYK9-930)', () => {
+  // SlideOverPanel is not portaled: inside PageShell's `space-y-6` it would pick up a
+  // 24px top margin on a fixed overlay. Dialogs and panels render OUTSIDE the shell.
+  it('renders its dialogs and edit panel outside the PageShell spacing container', () => {
+    render(<UserDetailsView person={person} />);
+
+    const shell = screen.getByTestId('app-shell-page');
+    expect(shell).toContainElement(screen.getByRole('heading', { level: 1 }));
+    expect(shell).not.toContainElement(screen.getByTestId('person-dialogs'));
+  });
+
   it('sits in the one detail-page shell, not its own 1440px container', () => {
     render(<UserDetailsView person={person} />);
 

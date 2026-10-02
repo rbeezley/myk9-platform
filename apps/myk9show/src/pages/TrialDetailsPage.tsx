@@ -345,85 +345,89 @@ const TrialDetailsPage: React.FC = () => {
     dialogsRef.current?.openDeleteClass(classItem);
 
   return (
-    <PageShell>
-      {trialWithClasses ? (
-        <>
-          <PageHeader breadcrumbs={breadcrumbs} title={trialHero.title} omitTitle />
+    <>
+      <PageShell>
+        {trialWithClasses ? (
+          <>
+            <PageHeader breadcrumbs={breadcrumbs} title={trialHero.title} omitTitle />
 
-          <DetailHero
-            name={trialHero.title}
-            headingLevel={1}
-            parent={
-              parentShow ? { label: parentShow.name, href: `/shows/${parentShow.id}` } : undefined
-            }
-            subtitle={trialHero.subtitle}
-            metadata={heroMetadata}
-            badges={statusBadge ? [statusBadge] : []}
-            secondaryActions={
-              <div className="flex items-center gap-2">
-                {showTrials.length > 1 && prevNextNav}
-                {canManageTrial && entryManagementShowId && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        navigate(
-                          getEntryManagementHref({
-                            showId: entryManagementShowId,
-                            trialId: trialId ?? null,
-                          })
-                        )
-                      }
-                    >
-                      <ClipboardList className="h-4 w-4 mr-2" />
-                      Manage Entries
-                    </Button>
-                    <ThreeDotMenu
-                      items={[
-                        {
-                          label: 'Delete Trial',
-                          icon: <Trash2 className="h-4 w-4" />,
-                          onClick: handleDeleteTrial,
-                          className: 'text-destructive',
-                        },
-                      ]}
-                    />
-                  </>
-                )}
-              </div>
-            }
-          />
+            <DetailHero
+              name={trialHero.title}
+              headingLevel={1}
+              parent={
+                parentShow ? { label: parentShow.name, href: `/shows/${parentShow.id}` } : undefined
+              }
+              subtitle={trialHero.subtitle}
+              metadata={heroMetadata}
+              badges={statusBadge ? [statusBadge] : []}
+              secondaryActions={
+                <div className="flex items-center gap-2">
+                  {showTrials.length > 1 && prevNextNav}
+                  {canManageTrial && entryManagementShowId && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          navigate(
+                            getEntryManagementHref({
+                              showId: entryManagementShowId,
+                              trialId: trialId ?? null,
+                            })
+                          )
+                        }
+                      >
+                        <ClipboardList className="h-4 w-4 mr-2" />
+                        Manage Entries
+                      </Button>
+                      <ThreeDotMenu
+                        items={[
+                          {
+                            label: 'Delete Trial',
+                            icon: <Trash2 className="h-4 w-4" />,
+                            onClick: handleDeleteTrial,
+                            className: 'text-destructive',
+                          },
+                        ]}
+                      />
+                    </>
+                  )}
+                </div>
+              }
+            />
 
-          <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setActiveTab}>
-            <TabsContent value="overview">
-              <TrialDetailsMain
-                trial={trialWithClasses}
-                statistics={trialStatistics}
-                canManage={canManageTrial}
-                {...(handleAddClassesFromTemplate && {
-                  onAddClassesFromTemplate: handleAddClassesFromTemplate,
-                })}
-                onEditClass={handleEditClass}
-                onDeleteClass={handleDeleteClass}
-              />
-            </TabsContent>
+            <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setActiveTab}>
+              <TabsContent value="overview">
+                <TrialDetailsMain
+                  trial={trialWithClasses}
+                  statistics={trialStatistics}
+                  canManage={canManageTrial}
+                  {...(handleAddClassesFromTemplate && {
+                    onAddClassesFromTemplate: handleAddClassesFromTemplate,
+                  })}
+                  onEditClass={handleEditClass}
+                  onDeleteClass={handleDeleteClass}
+                />
+              </TabsContent>
 
-            <TabsContent value="entries">
-              <TrialEntriesTable trialId={trialWithClasses.id} />
-            </TabsContent>
+              <TabsContent value="entries">
+                <TrialEntriesTable trialId={trialWithClasses.id} />
+              </TabsContent>
 
-            <TabsContent value="financials">
-              <FinancialSummary trialId={trialWithClasses.id} />
-            </TabsContent>
-          </PrimaryTabs>
-        </>
-      ) : (
-        <div role="status" aria-label="Loading trial details">
-          <DetailPageSkeleton />
-        </div>
-      )}
+              <TabsContent value="financials">
+                <FinancialSummary trialId={trialWithClasses.id} />
+              </TabsContent>
+            </PrimaryTabs>
+          </>
+        ) : (
+          <div role="status" aria-label="Loading trial details">
+            <DetailPageSkeleton />
+          </div>
+        )}
+      </PageShell>
 
+      {/* Outside PageShell: SlideOverPanel is not portaled, so inside the shell's `space-y-6` a
+          fixed overlay would pick up a 24px top margin. */}
       {/* Staff-only management dialogs (add classes, edit/delete trial,
           edit/delete class). The page triggers them via dialogsRef. */}
       {canManageTrial && (
@@ -433,7 +437,7 @@ const TrialDetailsPage: React.FC = () => {
           parentShow={parentShow}
         />
       )}
-    </PageShell>
+    </>
   );
 };
 

@@ -92,7 +92,12 @@ export function matchesListSearch<TData>(
   const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
   if (tokens.length === 0) return true;
   const haystack = searchHaystack(row, columns);
-  return tokens.every(token => startsAWord(haystack, token));
+  const words = haystack.split(/[^a-z0-9]+/).filter(Boolean);
+  return tokens.every(token =>
+    // A number must equal a whole numeric word ("2" finds "Trial 2", never "2026"; "05" stays
+    // "05"); anything else matches at the start of a word.
+    /^\d+$/.test(token) ? words.includes(token) : startsAWord(haystack, token)
+  );
 }
 
 export function filterByListSearch<TData>(

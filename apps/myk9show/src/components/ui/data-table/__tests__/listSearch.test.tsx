@@ -78,6 +78,26 @@ describe('matchesListSearch', () => {
     expect(matchesListSearch(rows[0]!, columns, 'zzz')).toBe(false);
   });
 
+  it('matches a number only as a whole numeric word', () => {
+    const dated = [
+      { id: 'a', name: 'Trial 2', date: '2026-05-10' },
+      { id: 'b', name: 'Trial 1', date: '2026-05-10' },
+    ];
+    const cols: ColumnDef<(typeof dated)[number], unknown>[] = [
+      { accessorKey: 'name', header: 'Name' },
+      { accessorKey: 'date', header: 'Date' },
+    ];
+    // "2" is Trial 2, not the start of "2026".
+    expect(filterByListSearch(dated, cols, '2').map(row => row.id)).toEqual(['a']);
+    expect(filterByListSearch(dated, cols, 'Trial 2').map(row => row.id)).toEqual(['a']);
+    // The date still matches whole, by part, and with its leading zero kept.
+    expect(filterByListSearch(dated, cols, '2026-05-10')).toHaveLength(2);
+    expect(filterByListSearch(dated, cols, '2026')).toHaveLength(2);
+    expect(filterByListSearch(dated, cols, '05')).toHaveLength(2);
+    expect(filterByListSearch(dated, cols, '10')).toHaveLength(2);
+    expect(filterByListSearch(dated, cols, '5')).toHaveLength(0);
+  });
+
   it('does not match when any one word is missing', () => {
     expect(matchesListSearch(rows[0]!, columns, 'Rex Dallas')).toBe(false);
   });

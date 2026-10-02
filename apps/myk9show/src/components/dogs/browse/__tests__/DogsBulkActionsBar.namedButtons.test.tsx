@@ -1,16 +1,12 @@
 import { screen } from '@testing-library/react';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { captureCsvDownload } from '@/test/utils/csvDownload';
 import { render } from '@/test/utils/testUtils';
 import type { Dog } from '@/types/dog-types';
 import { DogsBulkActionsBar } from '../DogsBulkActionsBar';
 
 // MYK9-929 (M10 + owner decision 4): the Dogs bulk bar names its buttons, and Export lives here.
 
-const downloadCsv = vi.hoisted(() => vi.fn());
-vi.mock('@/utils/downloadCsv', async importOriginal => ({
-  ...(await importOriginal<typeof import('@/utils/downloadCsv')>()),
-  downloadCsv,
-}));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 vi.mock('@/hooks/queries/useDogsDatabase', () => ({
   useUpdateDogMutation: () => ({ mutateAsync: vi.fn() }),
@@ -27,8 +23,12 @@ const dog = (id: string): Dog => ({
 });
 
 describe('DogsBulkActionsBar named buttons', () => {
+  let download: ReturnType<typeof captureCsvDownload>;
   beforeEach(() => {
-    downloadCsv.mockReset();
+    download = captureCsvDownload();
+  });
+  afterEach(() => {
+    download.restore();
   });
 
   it('offers Change status, Export and Delete as named buttons and no bare Bulk actions menu', () => {
@@ -52,9 +52,7 @@ describe('DogsBulkActionsBar named buttons', () => {
     );
     await user.click(screen.getByRole('button', { name: 'Export' }));
 
-    expect(downloadCsv).toHaveBeenCalledOnce();
-    const [filename, csv] = downloadCsv.mock.calls[0] as [string, string];
-    expect(filename).toMatch(/^dogs-export-\d{4}-\d{2}-\d{2}\.csv$/);
+    const csv = download.csv();
     expect(csv.split('\n')).toHaveLength(3);
     expect(csv).toContain('Dog 1');
     expect(csv).toContain('Dog 2');
@@ -65,12 +63,10 @@ describe('DogsBulkActionsBar named buttons', () => {
       <DogsBulkActionsBar selectedDogs={[dog('1')]} onClear={vi.fn()} canDelete />
     );
     await withOwner.user.click(screen.getByRole('button', { name: 'Export' }));
-    expect((downloadCsv.mock.calls[0] as [string, string])[1].split('\n')[0]).toBe(
-      'Name,Breed,Sex,Owner,Status'
-    );
+    expect(download.csv().split('\n')[0]).toBe('Name,Breed,Sex,Owner,Status');
     withOwner.unmount();
-
-    downloadCsv.mockReset();
+    download.restore();
+    download = captureCsvDownload();
     const ownOnly = render(
       <DogsBulkActionsBar
         selectedDogs={[dog('1')]}
@@ -80,7 +76,7 @@ describe('DogsBulkActionsBar named buttons', () => {
       />
     );
     await ownOnly.user.click(screen.getByRole('button', { name: 'Export' }));
-    const csv = (downloadCsv.mock.calls[0] as [string, string])[1];
+    const csv = download.csv();
     expect(csv.split('\n')[0]).toBe('Name,Breed,Sex,Status');
     expect(csv).toContain('Border Collie');
     expect(csv).toContain('male');

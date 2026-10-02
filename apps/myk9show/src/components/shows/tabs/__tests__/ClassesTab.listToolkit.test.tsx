@@ -1,5 +1,10 @@
+import {
+  captureCsvDownload,
+  registeredPageExports,
+  resetPageExports,
+} from '@/test/utils/csvDownload';
 import { render, screen, within } from '@/test/utils/testUtils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClassesTab, type ClassInfo } from '../ClassesTab';
 
 // MYK9-929: Setup → Classes follows the shared list rules. The real `useViewPreference` runs here
@@ -8,8 +13,9 @@ import { ClassesTab, type ClassInfo } from '../ClassesTab';
 // class-detail URL.
 
 let mockCanManage = true;
+let mockScopeStatus: 'resolved' | 'resolving' = 'resolved';
 vi.mock('@/hooks/useShowManageScope', () => ({
-  useShowManageScope: () => ({ status: 'resolved', canManage: mockCanManage }),
+  useShowManageScope: () => ({ status: mockScopeStatus, canManage: mockCanManage }),
 }));
 vi.mock('@/hooks/useRBAC', () => ({ useRBAC: () => ({ hasPermission: () => true }) }));
 vi.mock('@/hooks/useConnectionHint', () => ({ useConnectionHint: () => undefined }));
@@ -57,6 +63,7 @@ describe('ClassesTab list toolkit', () => {
   beforeEach(() => {
     localStorage.clear();
     mockCanManage = true;
+    mockScopeStatus = 'resolved';
     navigate.mockReset();
     Element.prototype.scrollIntoView = vi.fn();
   });
@@ -146,6 +153,53 @@ describe('ClassesTab list toolkit', () => {
       const { user } = renderTab();
       await user.click(screen.getByText('Interior'));
       expect(navigate).toHaveBeenCalledWith('/shows/s1/trials/t1/classes/c2');
+    });
+  });
+
+  describe('Export CSV page action (the table button it replaced)', () => {
+    afterEach(() => {
+      resetPageExports();
+    });
+
+    it('registers one in the table view that exports the whole list, no ticking needed', () => {
+      renderTab();
+      const registered = registeredPageExports();
+      expect(registered.map(item => item.id)).toEqual(['classes']);
+
+      const download = captureCsvDownload();
+      try {
+        registered[0]!.run();
+        const lines = download.csv().split('\n');
+        expect(lines[0]).toBe('Trial,Element,Level,Section,Judge,Time,Ring,Status,Entries');
+        expect(lines).toHaveLength(3);
+      } finally {
+        download.restore();
+      }
+    });
+
+    it('registers nothing in cards view', () => {
+      localStorage.setItem('view-pref-classes', 'cards');
+      renderTab();
+      expect(registeredPageExports()).toEqual([]);
+    });
+  });
+
+  describe("no default-view flicker while the viewer's role resolves", () => {
+    it('holds the list body until the role is known, rather than flashing the wrong view', () => {
+      mockScopeStatus = 'resolving';
+      mockCanManage = false;
+      const { container } = renderTab();
+      expect(container.querySelector('table')).toBeNull();
+      expect(screen.queryByTestId('class-card')).not.toBeInTheDocument();
+      expect(screen.queryByText('Containers')).not.toBeInTheDocument();
+      expect(screen.queryByText('Trial 1')).not.toBeInTheDocument();
+    });
+
+    it('shows her remembered view at once, since the role cannot change it', () => {
+      mockScopeStatus = 'resolving';
+      localStorage.setItem('view-pref-classes', 'table');
+      const { container } = renderTab();
+      expect(container.querySelector('table')).not.toBeNull();
     });
   });
 });

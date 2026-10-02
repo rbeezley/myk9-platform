@@ -1,3 +1,8 @@
+import {
+  captureCsvDownload,
+  registeredPageExports,
+  resetPageExports,
+} from '@/test/utils/csvDownload';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -273,6 +278,34 @@ describe('BrowseDogsPage (shared primitives migration)', () => {
     expect(resultLine).toContainElement(screen.getByTitle('Table view'));
     expect(resultLine).toHaveTextContent('Cards');
     expect(resultLine).toHaveTextContent('Table');
+  });
+
+  it('registers a whole-list Export CSV page action for staff, so no row needs ticking', () => {
+    mockBrowseDogsReturn = {
+      ...mockBrowseDogsReturn,
+      dogs: [makeDog(), makeDog({ id: 'dog-2', callName: 'Zed' })],
+      filteredDogs: [makeDog(), makeDog({ id: 'dog-2', callName: 'Zed' })],
+    };
+    renderPage();
+    const registered = registeredPageExports();
+    expect(registered.map(item => item.id)).toEqual(['dogs']);
+
+    const download = captureCsvDownload();
+    try {
+      registered[0]!.run();
+      const lines = download.csv().split('\n');
+      expect(lines[0]).toBe('Name,Breed,Sex,Owner,Status');
+      expect(lines).toHaveLength(3);
+    } finally {
+      download.restore();
+      resetPageExports();
+    }
+  });
+
+  it('offers no export to an exhibitor on the card-only My Dogs', () => {
+    mockGetUserRoles.mockReturnValue([UserRole.EXHIBITOR]);
+    renderPage();
+    expect(registeredPageExports()).toEqual([]);
   });
 
   it('renders dog cards by default for exhibitor-only users', () => {

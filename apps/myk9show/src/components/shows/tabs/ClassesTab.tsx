@@ -4,6 +4,9 @@ import { ListEmptyState, ListViewToggle } from '@/components/list-toolkit';
 import { useViewPreference } from '@/hooks/useViewPreference';
 import { defaultListView } from '@/utils/defaultListView';
 import { getClassDetailHref } from '@/utils/classDetailHref';
+import { usePageExportAction } from '@/features/actions/pageEditTarget';
+import { exportRowsCsv } from '@/utils/downloadCsv';
+import { CLASS_EXPORT_HEADERS, classExportRows } from '@/components/classes/classesExport';
 import { ClassCard } from './ClassCard';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ClassBulkActionsBar } from '@/components/classes/ClassBulkActionsBar';
@@ -79,10 +82,17 @@ export function ClassesTab({
   // club, the scope the show shell's Edit show button uses. The global permission is not
   // club-scoped, and this tab also renders on the public show page. Resolving / unavailable
   // read as no.
-  const canManageThisShow = useShowManageScope(showId).canManage;
+  const manageScope = useShowManageScope(showId);
+  const canManageThisShow = manageScope.canManage;
   // Staff open on the table, an exhibitor or visitor on cards, even one who holds entries in the
   // show (decision 8). Her own choice is remembered.
-  const [viewMode, setViewMode] = useViewPreference('classes', defaultListView(canManageThisShow));
+  // The default is held until the role is known (no flash of the wrong view); a view she already
+  // chose shows at once.
+  const [viewMode, setViewMode, hasStoredView] = useViewPreference(
+    'classes',
+    defaultListView(canManageThisShow)
+  );
+  const viewReady = manageScope.status !== 'resolving' || hasStoredView;
 
   // Managers work one trial at a time, so select-all, bulk status and bulk delete never span
   // trials; everyone else reads the whole show.
@@ -218,6 +228,19 @@ export function ClassesTab({
     ]
   );
 
+  // The whole-list export the table's own button used to be (owner decision 4: header Actions
+  // menu), so exporting needs no ticked rows.
+  usePageExportAction({
+    id: 'classes',
+    enabled: viewReady && viewMode === 'table' && filteredClasses.length > 0,
+    run: () =>
+      exportRowsCsv(
+        'classes',
+        CLASS_EXPORT_HEADERS,
+        classExportRows(filteredClasses.map(cls => ({ ...cls, trialLabel: classTrialLabel(cls) })))
+      ),
+  });
+
   if (classes.length === 0) {
     return (
       <ListEmptyState
@@ -257,6 +280,7 @@ export function ClassesTab({
           total: scope.scopedClasses.length,
           narrowed: scope.isNarrowed,
           onClearFilters: scope.clearFilters,
+          showAllInEmptyState: filteredClasses.length === 0,
         }}
         viewToggle={<ListViewToggle active={viewMode} onChange={setViewMode} />}
         {...(canManageThisShow
@@ -273,7 +297,7 @@ export function ClassesTab({
           : {})}
       />
 
-      {filteredClasses.length === 0 ? (
+      {!viewReady ? null : filteredClasses.length === 0 ? (
         <ListEmptyState
           icon={Search}
           noun={CLASS_NOUN}

@@ -1,5 +1,10 @@
+import {
+  captureCsvDownload,
+  registeredPageExports,
+  resetPageExports,
+} from '@/test/utils/csvDownload';
 import { render, screen, within } from '@/test/utils/testUtils';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TrialsTab } from '../TrialsTab';
 import type { Trial } from '@/components/trials/types/trial.types';
 
@@ -8,8 +13,9 @@ import type { Trial } from '@/components/trials/types/trial.types';
 // one empty-state wording. The real `useViewPreference` runs here (localStorage), unmocked.
 
 let mockCanManage = true;
+let mockScopeStatus: 'resolved' | 'resolving' = 'resolved';
 vi.mock('@/hooks/useShowManageScope', () => ({
-  useShowManageScope: () => ({ status: 'resolved', canManage: mockCanManage }),
+  useShowManageScope: () => ({ status: mockScopeStatus, canManage: mockCanManage }),
 }));
 
 const navigate = vi.hoisted(() => vi.fn());
@@ -44,6 +50,7 @@ describe('TrialsTab list toolkit', () => {
   beforeEach(() => {
     localStorage.clear();
     mockCanManage = true;
+    mockScopeStatus = 'resolved';
     navigate.mockReset();
   });
 
@@ -107,5 +114,52 @@ describe('TrialsTab list toolkit', () => {
     ).toBeInTheDocument();
     await user.click(screen.getAllByRole('button', { name: 'Show all trials' })[0]!);
     expect(screen.getByRole('status')).toHaveTextContent('Showing all 2 trials.');
+  });
+
+  describe('Export CSV page action (the table button it replaced)', () => {
+    afterEach(() => {
+      resetPageExports();
+    });
+
+    it("registers one in the table view, with the table's columns, and not in cards", () => {
+      renderTab();
+      const registered = registeredPageExports();
+      expect(registered.map(item => item.id)).toEqual(['trials']);
+
+      const download = captureCsvDownload();
+      try {
+        registered[0]!.run();
+        const [header, first] = download.csv().split('\n');
+        expect(header).toBe('Date,Trial Name,Type,Time,Classes,Entries,Scored,Status');
+        expect(first).toContain('"Trial 1"');
+      } finally {
+        download.restore();
+      }
+    });
+
+    it('registers nothing in cards view or for an empty list', async () => {
+      localStorage.setItem('view-pref-trials', 'cards');
+      renderTab();
+      expect(registeredPageExports()).toEqual([]);
+    });
+  });
+
+  describe("no default-view flicker while the viewer's role resolves", () => {
+    it('holds the list body until the role is known, rather than flashing the wrong view', () => {
+      mockScopeStatus = 'resolving';
+      mockCanManage = false;
+      const { container } = renderTab();
+      expect(container.querySelector('table')).toBeNull();
+      expect(screen.queryByTestId('class-card')).not.toBeInTheDocument();
+      expect(screen.queryByText('Containers')).not.toBeInTheDocument();
+      expect(screen.queryByText('Trial 1')).not.toBeInTheDocument();
+    });
+
+    it('shows her remembered view at once, since the role cannot change it', () => {
+      mockScopeStatus = 'resolving';
+      localStorage.setItem('view-pref-trials', 'table');
+      const { container } = renderTab();
+      expect(container.querySelector('table')).not.toBeNull();
+    });
   });
 });

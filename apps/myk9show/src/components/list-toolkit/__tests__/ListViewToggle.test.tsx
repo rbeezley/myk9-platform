@@ -67,4 +67,27 @@ describe('ListEmptyState', () => {
     expect(onShowAll).toHaveBeenCalledOnce();
     expect(screen.queryByRole('button', { name: /clear filters/i })).not.toBeInTheDocument();
   });
+
+  it('does not repeat "Show all" when the result line has already handed it to the empty state', () => {
+    render(
+      <>
+        <ListResultLine
+          shown={0}
+          total={5}
+          noun={['club', 'clubs']}
+          filtered
+          onShowAll={vi.fn()}
+          showAllInEmptyState
+        />
+        <ListEmptyState
+          icon={Building2}
+          noun={['club', 'clubs']}
+          filtered
+          onShowAll={vi.fn()}
+          action={null}
+        />
+      </>
+    );
+    expect(screen.getAllByRole('button', { name: 'Show all clubs' })).toHaveLength(1);
+  });
 });

@@ -186,8 +186,9 @@ const BrowsePeoplePage: React.FC = () => {
 
   return (
     <PageShell>
-      {/* Error state */}
-      {error && !isLoading && (
+      {/* Error state: only when there is nothing to show. A failed background refresh keeps the
+          cached rows and says so inline (below). */}
+      {error && !isLoading && people.length === 0 && (
         <ErrorState message="We couldn't load people." onRetry={handleRetry} />
       )}
 
@@ -197,7 +198,7 @@ const BrowsePeoplePage: React.FC = () => {
       )}
 
       {/* Normal content */}
-      {(!isLoading || people.length > 0) && !error && (
+      {(!isLoading || people.length > 0) && !(error && people.length === 0) && (
         <>
           <PageHeader
             breadcrumbs={breadcrumbs}
@@ -205,6 +206,18 @@ const BrowsePeoplePage: React.FC = () => {
             actions={addPersonButton}
             showTitle
           />
+
+          {error && (
+            <div
+              role="alert"
+              className="flex flex-wrap items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm"
+            >
+              <span>We couldn&apos;t refresh people. Showing what we have.</span>
+              <Button variant="outline" className="h-11" onClick={handleRetry}>
+                Try again
+              </Button>
+            </div>
+          )}
 
           <PeopleListToolbar
             people={people}

@@ -3,7 +3,6 @@ import { render, screen } from '@/test/utils/testUtils';
 import type { RowAction } from '@/components/ui/RowActionMenu';
 import { BulkBarActions } from '../BulkBarActions';
 import { FloatingBulkBar } from '../FloatingBulkBar';
-import { buildCsv } from '@/utils/downloadCsv';
 
 // MYK9-929, M10: bulk actions are named buttons on every list, never a bare ⋮ "Bulk actions".
 
@@ -52,17 +51,5 @@ describe('BulkBarActions', () => {
   it('shows no menu button when there are no menu actions', () => {
     setup([{ id: 'delete', label: 'Delete', variant: 'destructive', onSelect: vi.fn() }]);
     expect(screen.queryByRole('button', { name: 'Change status' })).not.toBeInTheDocument();
-  });
-});
-
-describe('buildCsv', () => {
-  it('quotes commas, quotes and line breaks, and leaves blanks empty', () => {
-    expect(
-      buildCsv([
-        ['Name', 'Note'],
-        ['Rex, Jr.', 'says "hi"'],
-        ['Fido', null],
-      ])
-    ).toBe('Name,Note\n"Rex, Jr.","says ""hi"""\nFido,');
   });
 });

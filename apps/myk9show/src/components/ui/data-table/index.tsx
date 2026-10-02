@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { useRevealRow, type RevealRow } from './useRevealRow';
-import { useColumnVisibility } from '@/hooks/useColumnVisibility';
+import { clearStaleColumnVisibility } from '@/hooks/useColumnVisibility';
 import {
   type VisibilityState,
   type ColumnDef,
@@ -67,8 +67,8 @@ interface DataTableProps<TData> {
   onSelectionChange?: (selectedRows: TData[]) => void;
   getRowId?: (row: TData) => string;
   /**
-   * Columns hidden until the user shows them from the Columns menu. A stored
-   * per-table choice wins over this default.
+   * Columns hidden by default. There is no Columns menu (owner decision 4), so this is the
+   * only thing that decides which columns show.
    */
   defaultColumnVisibility?: VisibilityState;
   toolbar?: (props: { table: TanstackTable<TData> }) => ReactNode;
@@ -99,6 +99,8 @@ interface DataTableProps<TData> {
   revealRow?: RevealRow | null;
   onRowRevealed?: (id: string) => void;
 }
+
+const NO_HIDDEN_COLUMNS: VisibilityState = {};
 
 const DEFAULT_PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
 
@@ -180,10 +182,12 @@ export function DataTable<TData>({
   const [internalSorting, setInternalSorting] = useState<SortingState>(initialSorting ?? []);
   const sorting = controlledSorting ?? internalSorting;
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = useColumnVisibility(
-    tableId,
-    defaultColumnVisibility
-  );
+  // Column defaults only: nothing in the UI changes visibility, and a choice stored by the old
+  // Columns menu is cleared once so it cannot keep a column hidden.
+  const columnVisibility = defaultColumnVisibility ?? NO_HIDDEN_COLUMNS;
+  useEffect(() => {
+    clearStaleColumnVisibility(tableId);
+  }, [tableId]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [pagination, setPagination] = useState({
     pageIndex: 0,
@@ -258,10 +262,6 @@ export function DataTable<TData>({
       onSortingChange?.(next);
     },
     onColumnFiltersChange: setColumnFilters,
-    onColumnVisibilityChange: updater => {
-      const next = typeof updater === 'function' ? updater(columnVisibility) : updater;
-      setColumnVisibility(next);
-    },
     onRowSelectionChange: updater => {
       const next = typeof updater === 'function' ? updater(rowSelection) : updater;
       setRowSelection(next);

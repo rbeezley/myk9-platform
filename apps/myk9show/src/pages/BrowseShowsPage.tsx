@@ -490,6 +490,7 @@ const BrowseShowsPage: React.FC = () => {
               noun={SHOW_NOUN}
               filtered={hasActiveFilters}
               onShowAll={clearAllFilters}
+              showAllInEmptyState={enhancedShows.length === 0 && viewMode !== 'map'}
               {...(isManagingTab
                 ? {
                     selectAll: {

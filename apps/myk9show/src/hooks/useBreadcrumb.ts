@@ -3,6 +3,7 @@ import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import type { User } from '@/types/user-types';
 import { getDogDisplayName, type Dog } from '@/types/dog-types';
+import { getClassDetailHref } from '@/utils/classDetailHref';
 
 interface BreadcrumbItem {
   label: string;
@@ -90,7 +91,11 @@ export const useBreadcrumb = ({
     if (classId && className) {
       items.push({
         label: className,
-        ...(currentPage !== 'class' && { href: `/classes/${classId}` }),
+        ...(currentPage !== 'class' && {
+          // The one class-detail URL; the legacy /classes/:id redirect only when a show or trial is missing.
+          href:
+            show && trial ? getClassDetailHref(show.id, trial.id, classId) : `/classes/${classId}`,
+        }),
         id: classId,
         isCurrentPage: currentPage === 'class',
       });

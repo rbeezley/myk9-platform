@@ -20,6 +20,9 @@ import { AddDogPanel } from '@/components/panels/edit';
 import type { Dog as DogType } from '@/types/dog-types';
 import { useViewPreference } from '@/hooks/useViewPreference';
 import { defaultListView } from '@/utils/defaultListView';
+import { usePageExportAction } from '@/features/actions/pageEditTarget';
+import { exportRowsCsv } from '@/utils/downloadCsv';
+import { dogExportHeaders, dogExportRows } from '@/components/dogs/browse/dogsExport';
 import { UserRole } from '@/types/auth-types';
 
 // Shared primitives
@@ -103,6 +106,17 @@ const BrowseDogsPage: React.FC = () => {
   // (management-capable roles, not exhibitor-only roster view). No per-action
   // RBAC — see design.md decision D1.
   const canBulkManageDogs = !rbacLoading && !isExhibitorOnly && hasPermission('dog:update');
+  // The whole-list export the table's own button used to be: staff, table view, something to export.
+  usePageExportAction({
+    id: 'dogs',
+    enabled: !isExhibitorOnly && viewMode === 'table' && filteredDogs.length > 0,
+    run: () =>
+      exportRowsCsv(
+        'dogs',
+        dogExportHeaders(!ownDogsOnly),
+        dogExportRows(filteredDogs, !ownDogsOnly)
+      ),
+  });
   // Delete is a stricter gate than update — secretaries have `dog:update` but not
   // `dog:delete`. Without this the bulk Delete action would offer an operation the
   // `soft_delete_dog` RPC rejects per-dog (Codex finding).
@@ -325,6 +339,7 @@ const BrowseDogsPage: React.FC = () => {
               noun={DOG_NOUN}
               filtered={hasActiveFilters}
               onShowAll={handleClearAllFilters}
+              showAllInEmptyState={identityResolved && filteredDogs.length === 0}
             >
               {!isExhibitorOnly && <ListViewToggle active={viewMode} onChange={setViewMode} />}
             </ListResultLine>

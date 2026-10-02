@@ -60,9 +60,15 @@ export const TrialClassesTable = ({
       searchText === ''
         ? classes
         : classes.filter(cls =>
-            [cls.element, cls.level, cls.section, cls.judgeName ?? '', cls.name ?? ''].some(text =>
-              text.toLowerCase().includes(searchText)
-            )
+            [
+              cls.element,
+              cls.level,
+              cls.section,
+              // The level and section as the table shows them ("Novice A").
+              `${cls.level} ${cls.section}`,
+              cls.judgeName ?? '',
+              cls.name ?? '',
+            ].some(text => text.toLowerCase().includes(searchText))
           ),
     [classes, searchText]
   );
@@ -176,7 +182,7 @@ export const TrialClassesTable = ({
                   </div>
                 );
               },
-              meta: { interactive: true, exportDisabled: true } satisfies DataTableColumnMeta,
+              meta: { interactive: true } satisfies DataTableColumnMeta,
             } satisfies ColumnDef<TrialClass, unknown>,
           ]
         : []),
@@ -221,6 +227,7 @@ export const TrialClassesTable = ({
           noun={CLASS_NOUN}
           filtered={searchText !== ''}
           onShowAll={() => setSearch('')}
+          showAllInEmptyState={visibleClasses.length === 0}
         >
           <ListViewToggle active={viewMode} onChange={setViewMode} />
         </ListResultLine>

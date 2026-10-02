@@ -1,3 +1,5 @@
+import { buildCsvContent } from './csvEscape';
+
 /**
  * Triggers a browser download of CSV text — the same Blob + anchor-click
  * mechanism `useEntryManagementActions.handleExportCSV` uses, factored out so
@@ -17,18 +19,19 @@ export function downloadCsv(filename: string, csvContent: string): void {
   }, 100);
 }
 
-function csvCell(value: unknown): string {
-  if (value == null) return '';
-  const text = String(value);
-  return /[",\n\r]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
-}
-
-/** CSV text from rows (the first is the header). Quotes what needs it; null and undefined read blank. */
-export function buildCsv(rows: ReadonlyArray<ReadonlyArray<unknown>>): string {
-  return rows.map(row => row.map(csvCell).join(',')).join('\n');
-}
-
-/** The dated file name every bulk-bar Export uses: `dogs-export-2026-10-02.csv`. */
+/** The dated file name every list Export uses: `dogs-export-2026-10-02.csv`. */
 export function exportFilename(noun: string): string {
   return `${noun}-export-${new Date().toISOString().slice(0, 10)}.csv`;
+}
+
+/**
+ * Downloads rows as a CSV through the one guarded builder (`csvEscape.ts`: every cell quoted, a
+ * leading `=` `+` `-` `@` neutralised), under a dated name. Every list's Export goes through here.
+ */
+export function exportRowsCsv(
+  noun: string,
+  headers: readonly string[],
+  rows: ReadonlyArray<ReadonlyArray<string | number | null | undefined>>
+): void {
+  downloadCsv(exportFilename(noun), buildCsvContent(headers, rows));
 }

@@ -51,14 +51,6 @@ export interface DataTableColumnMeta {
    * scroll edge (admin users roster, 2026-09).
    */
   stickyRight?: boolean;
-  /** Label to use when exporting this column to CSV. */
-  exportHeader?: string;
-  /** Return a plain export value for this column. Defaults to the column value. */
-  exportValue?: (row: unknown) => string | number | boolean | null | undefined;
-  /** Exclude this column from CSV export. */
-  exportDisabled?: boolean;
-  /** Export this column even while it is hidden on screen. */
-  exportHidden?: boolean;
   /** Set true when this column renders buttons, links, inputs, or menus. */
   interactive?: boolean;
   /** Enable inline editing for this column */

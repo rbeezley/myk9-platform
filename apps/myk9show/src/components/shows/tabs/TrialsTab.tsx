@@ -16,7 +16,9 @@ import { deriveTrialStatusKey, formatTrialLabel, type ClassStatusValue } from '@
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import { formatTrialTypeLabel } from '@/types/template.types';
-import { StatusBadge } from '@/components/status';
+import { StatusBadge, getStatusDescriptor } from '@/components/status';
+import { usePageExportAction } from '@/features/actions/pageEditTarget';
+import { exportRowsCsv } from '@/utils/downloadCsv';
 import { toast } from 'sonner';
 import { hydrateThenResolve } from '@/utils/hydrateThenResolve';
 import { replicatedTrialsTable } from '@/services/replication';
@@ -135,9 +137,16 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
   // club, the scope the show shell's Edit show button uses. The global permission is not
   // club-scoped, and this tab also renders on the public show page. Resolving / unavailable
   // read as no.
-  const canManageThisShow = useShowManageScope(showId).canManage;
-  // Staff open on the table, a visitor on cards; her own choice is remembered (decision 8).
-  const [viewMode, setViewMode] = useViewPreference('trials', defaultListView(canManageThisShow));
+  const manageScope = useShowManageScope(showId);
+  const canManageThisShow = manageScope.canManage;
+  // Staff open on the table, a visitor on cards; her own choice is remembered (decision 8). The
+  // default is held until the role is known, so a manager never sees cards flash first; a view
+  // she already chose shows at once.
+  const [viewMode, setViewMode, hasStoredView] = useViewPreference(
+    'trials',
+    defaultListView(canManageThisShow)
+  );
+  const viewReady = manageScope.status !== 'resolving' || hasStoredView;
   // Row Edit / Delete (MYK9-900) open the same panel and dialog the trial's own page uses.
   // The trial is a SNAPSHOT taken when the action starts: a successful delete removes it from
   // the store while the dialog is still finishing, and the dialog must not vanish or re-resolve
@@ -206,7 +215,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
               header: () => <span className="sr-only">Actions</span>,
               enableSorting: false,
               enableHiding: false,
-              meta: { interactive: true, exportDisabled: true },
+              meta: { interactive: true },
               cell: ({ row }) => trialRowMenu(row.original.id, row.original.name),
             },
           ]
@@ -256,6 +265,35 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
     [filteredTrials, trialStats]
   );
 
+  // The whole-list export the table's own button used to be (owner decision 4: header Actions menu).
+  usePageExportAction({
+    id: 'trials',
+    enabled: viewReady && viewMode === 'table' && tableData.length > 0,
+    run: () =>
+      exportRowsCsv(
+        'trials',
+        ['Date', 'Trial Name', 'Type', 'Time', 'Classes', 'Entries', 'Scored', 'Status'],
+        tableData.map(row => [
+          row.trialDate,
+          row.name,
+          row.trialTypeLabel ?? '',
+          row.plannedStartTime ?? '',
+          row.classCount,
+          row.entryCount ?? '',
+          row.completedClasses > 0 ? `${row.completedClasses}/${row.classCount}` : '',
+          getStatusDescriptor(
+            'trial',
+            deriveTrialStatusKey({
+              trialStatus: row.status,
+              classCount: row.classCount,
+              completedCount: row.completedClasses,
+              hasStarted: row.hasStarted,
+            })
+          ).label,
+        ])
+      ),
+  });
+
   const openWizard = () =>
     navigate(`/secretary/create-show/wizard?showId=${showId}&mode=add-trials`);
 
@@ -284,6 +322,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
               noun={TRIAL_NOUN}
               filtered={narrowed}
               onShowAll={showAll}
+              showAllInEmptyState={filteredTrials.length === 0}
             >
               <ListViewToggle active={viewMode} onChange={setViewMode} />
             </ListResultLine>
@@ -303,7 +342,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
             canManageThisShow ? { label: 'Add Trial', onClick: openWizard, icon: Plus } : null
           }
         />
-      ) : filteredTrials.length === 0 ? (
+      ) : !viewReady ? null : filteredTrials.length === 0 ? (
         <ListEmptyState
           icon={Calendar}
           noun={TRIAL_NOUN}

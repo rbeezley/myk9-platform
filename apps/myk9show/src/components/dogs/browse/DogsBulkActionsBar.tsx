@@ -10,7 +10,8 @@ import { useRef, useState, useEffect } from 'react';
 import { Download } from 'lucide-react';
 import { toBulkActions } from '@/components/ui/RowActionMenu';
 import { BulkBarActions, BulkBarButton, FloatingBulkBar } from '@/components/list-toolkit';
-import { buildCsv, downloadCsv, exportFilename } from '@/utils/downloadCsv';
+import { exportRowsCsv } from '@/utils/downloadCsv';
+import { dogExportHeaders, dogExportRows } from './dogsExport';
 import { useUpdateDogMutation } from '@/hooks/queries/useDogsDatabase';
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
 import { getDogDisplayName, type Dog, type DogStatus } from '@/types/dog-types';
@@ -95,18 +96,10 @@ export function DogsBulkActionsBar({
   const isBusy = statusDispatch.isBusy;
 
   const handleExport = () =>
-    downloadCsv(
-      exportFilename('dogs'),
-      buildCsv([
-        ['Name', 'Breed', 'Sex', ...(includeOwner ? ['Owner'] : []), 'Status'],
-        ...selectedDogs.map(dog => [
-          getDogDisplayName(dog),
-          dog.breed,
-          dog.sex,
-          ...(includeOwner ? [dog.ownerName] : []),
-          dog.status ?? 'active',
-        ]),
-      ])
+    exportRowsCsv(
+      'dogs',
+      dogExportHeaders(includeOwner),
+      dogExportRows(selectedDogs, includeOwner)
     );
 
   return (

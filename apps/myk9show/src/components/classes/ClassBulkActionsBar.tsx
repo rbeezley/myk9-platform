@@ -18,7 +18,8 @@ import { useState } from 'react';
 import { Download } from 'lucide-react';
 import { toBulkActions } from '@/components/ui/RowActionMenu';
 import { BulkBarActions, BulkBarButton, FloatingBulkBar } from '@/components/list-toolkit';
-import { buildCsv, downloadCsv, exportFilename } from '@/utils/downloadCsv';
+import { exportRowsCsv } from '@/utils/downloadCsv';
+import { CLASS_EXPORT_HEADERS, classExportRows } from './classesExport';
 import { DeleteObjectDialog, classDeleteDetail, type DeleteTargetContext } from '@/features/delete';
 import { classActions, type ClassActionItem, type ClassActionHandlers } from './classActions';
 
@@ -33,6 +34,8 @@ export type ClassBarItem = ClassActionItem & {
   section?: string | null | undefined;
   judgeName?: string | null | undefined;
   entryCount?: number | null | undefined;
+  time?: string | null | undefined;
+  ring?: number | string | null | undefined;
   trialLabel?: string | undefined;
 };
 
@@ -85,20 +88,12 @@ export function ClassBulkActionsBar({
   );
 
   const handleExport = () =>
-    downloadCsv(
-      exportFilename('classes'),
-      buildCsv([
-        ['Trial', 'Element', 'Level', 'Section', 'Judge', 'Status', 'Entries'],
-        ...selectedClasses.map(cls => [
-          cls.trialLabel || trialLabel,
-          cls.element,
-          cls.level,
-          cls.section,
-          cls.judgeName,
-          cls.status,
-          cls.entryCount,
-        ]),
-      ])
+    exportRowsCsv(
+      'classes',
+      CLASS_EXPORT_HEADERS,
+      classExportRows(
+        selectedClasses.map(cls => ({ ...cls, trialLabel: cls.trialLabel || trialLabel }))
+      )
     );
 
   return (

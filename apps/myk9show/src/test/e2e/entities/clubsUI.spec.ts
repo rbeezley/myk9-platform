@@ -164,7 +164,7 @@ test.describe('Clubs UI — Browse Page', () => {
     const search = page.getByRole('textbox', { name: /Search clubs by name/ });
     await search.fill('NoMatchXYZ123');
     await expect(page.getByText(/No clubs match your search or filters/i)).toBeVisible();
-    await page.getByRole('button', { name: 'Show all clubs' }).first().click();
+    await page.getByRole('button', { name: 'Show all clubs' }).click();
     await expect(search).toHaveValue('');
   });
 });

@@ -5,6 +5,8 @@ import { type ColumnDef } from '@tanstack/react-table';
 import { DataTable } from '@/components/ui/data-table';
 import { getClubInitials } from '@/components/clubs/ClubDetails/utils';
 import { CLUB_TYPES } from '@/types/club-types';
+import { usePageExportAction } from '@/features/actions/pageEditTarget';
+import { exportRowsCsv } from '@/utils/downloadCsv';
 import type { Club } from '@/types/club-types';
 
 interface ClubsListViewProps {
@@ -44,13 +46,30 @@ export const ClubsListView: React.FC<ClubsListViewProps> = ({ clubs, clubShowCou
     [clubs, clubShowCounts]
   );
 
+  // The whole-list export the table's own button used to be (owner decision 4: header Actions menu).
+  usePageExportAction({
+    id: 'clubs',
+    enabled: rows.length > 0,
+    run: () =>
+      exportRowsCsv(
+        'clubs',
+        ['Club', 'Type', 'Location', 'Members', 'Upcoming Shows'],
+        rows.map(row => [
+          row.name,
+          row.typeLabel || '',
+          row.location,
+          row.memberCount,
+          row.upcomingShowCount,
+        ])
+      ),
+  });
+
   const columns = React.useMemo<ColumnDef<ClubTableRow>[]>(
     () => [
       {
         id: 'name',
         accessorFn: club => club.name,
         header: 'Club',
-        meta: { exportHeader: 'Club', exportValue: (club: unknown) => (club as Club).name },
         cell: ({ row }) => {
           const club = row.original;
           return (
@@ -82,8 +101,6 @@ export const ClubsListView: React.FC<ClubsListViewProps> = ({ clubs, clubShowCou
         header: 'Type',
         meta: {
           responsiveHide: 'md',
-          exportHeader: 'Type',
-          exportValue: (club: unknown) => (club as ClubTableRow).typeLabel || '',
         },
         cell: ({ row }) =>
           row.original.typeLabel ? (
@@ -97,10 +114,7 @@ export const ClubsListView: React.FC<ClubsListViewProps> = ({ clubs, clubShowCou
       {
         accessorKey: 'location',
         header: 'Location',
-        meta: {
-          exportHeader: 'Location',
-          exportValue: (club: unknown) => (club as ClubTableRow).location,
-        },
+        meta: {},
         cell: ({ row }) => (
           <span className="text-muted-foreground">{row.original.location || '—'}</span>
         ),
@@ -110,18 +124,13 @@ export const ClubsListView: React.FC<ClubsListViewProps> = ({ clubs, clubShowCou
         header: 'Members',
         meta: {
           responsiveHide: 'lg',
-          exportHeader: 'Members',
-          exportValue: (club: unknown) => (club as ClubTableRow).memberCount,
         },
         cell: ({ row }) => <span>{row.original.memberCount}</span>,
       },
       {
         accessorKey: 'upcomingShowCount',
         header: 'Upcoming Shows',
-        meta: {
-          exportHeader: 'Upcoming Shows',
-          exportValue: (club: unknown) => (club as ClubTableRow).upcomingShowCount,
-        },
+        meta: {},
         cell: ({ row }) => <span>{row.original.upcomingShowCount}</span>,
       },
     ],

@@ -110,4 +110,17 @@ describe('BrowsePeoplePage list frame', () => {
     await user.click(screen.getByRole('button', { name: 'Try Again' }));
     expect(handleRetry).toHaveBeenCalledOnce();
   });
+
+  it('keeps the cached rows and offers Try again when a background refresh fails', async () => {
+    data = { ...baseData(), error: new Error('refresh failed') };
+    const { user } = render(<BrowsePeoplePage />);
+
+    // The roster is still on screen...
+    expect(screen.getByTestId('people-table')).toBeInTheDocument();
+    // ...with a visible, inline way to retry rather than a full-page error.
+    const banner = screen.getByRole('alert');
+    expect(banner).toHaveTextContent(/couldn't refresh/i);
+    await user.click(within(banner).getByRole('button', { name: 'Try again' }));
+    expect(handleRetry).toHaveBeenCalledOnce();
+  });
 });

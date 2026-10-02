@@ -38,7 +38,7 @@ export function buildClassesTabColumns({
       header: selectAll,
       enableSorting: false,
       enableHiding: false,
-      meta: { interactive: true, exportDisabled: true },
+      meta: { interactive: true },
       cell: ({ row }) => select(row.original),
     });
   }
@@ -130,7 +130,7 @@ export function buildClassesTabColumns({
       header: () => <span className="sr-only">Actions</span>,
       enableSorting: false,
       enableHiding: false,
-      meta: { interactive: true, exportDisabled: true },
+      meta: { interactive: true },
       cell: ({ row }) => rowMenu(row.original),
     });
   }

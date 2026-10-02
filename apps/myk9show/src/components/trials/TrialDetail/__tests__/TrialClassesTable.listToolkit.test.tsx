@@ -115,4 +115,18 @@ describe('TrialClassesTable list toolkit', () => {
     await user.click(screen.getAllByText('Not started')[1]!);
     expect(navigate).toHaveBeenCalledWith('/shows/s1/trials/t1/classes/c2');
   });
+
+  it('finds a class by the level and section the table shows ("Novice A")', async () => {
+    localStorage.setItem('view-pref-trial-classes', 'table');
+    const { user } = renderTable({
+      classes: [
+        { ...make('c1', 'Containers'), level: 'Novice', section: 'A' },
+        { ...make('c2', 'Interior'), level: 'Novice', section: 'B' },
+      ],
+    });
+    await user.type(screen.getByPlaceholderText('Search classes...'), 'Novice A');
+    expect(screen.getByRole('status')).toHaveTextContent('Showing 1 of 2 classes.');
+    expect(screen.getByText('Containers')).toBeInTheDocument();
+    expect(screen.queryByText('Interior')).not.toBeInTheDocument();
+  });
 });

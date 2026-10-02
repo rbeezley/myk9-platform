@@ -29,10 +29,7 @@ const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
     accessorKey: 'name',
     header: 'Show',
     accessorFn: show => (show.name ?? '').toLowerCase(),
-    meta: {
-      exportHeader: 'Show',
-      exportValue: (show: unknown) => (show as EnhancedShow).name || '',
-    },
+    meta: {},
     cell: ({ row }) => {
       // events can repeat the organization (seed data does); say it once.
       const subline = [
@@ -53,13 +50,7 @@ const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
     id: 'dateRange',
     header: 'Dates',
     accessorFn: show => show.startDate ?? '',
-    meta: {
-      exportHeader: 'Dates',
-      exportValue: (show: unknown) => {
-        const row = show as EnhancedShow;
-        return row.startDate ? formatShowsTableDateRange(row.startDate, row.endDate) : '';
-      },
-    },
+    meta: {},
     cell: ({ row }) => (
       <span className="whitespace-nowrap text-muted-foreground">
         {row.original.startDate
@@ -72,10 +63,7 @@ const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
     accessorKey: 'location',
     header: 'Location',
     accessorFn: show => (show.location ?? '').toLowerCase(),
-    meta: {
-      exportHeader: 'Location',
-      exportValue: (show: unknown) => (show as EnhancedShow).location || '',
-    },
+    meta: {},
     cell: ({ row }) => {
       // Two lines (venue / city) instead of one truncated string, so the column
       // needs no horizontal scroll to be readable (MYK9-427).
@@ -93,13 +81,7 @@ const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
     id: 'entries',
     header: 'Entries',
     accessorFn: show => getEntryStatus(show, show.userHasEntries).label,
-    meta: {
-      exportHeader: 'Entries',
-      exportValue: (show: unknown) => {
-        const row = show as EnhancedShow;
-        return getEntryStatus(row, row.userHasEntries).label;
-      },
-    },
+    meta: {},
     cell: ({ row }) => (
       <EntryStatusBadge
         show={row.original}
@@ -112,11 +94,7 @@ const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
     accessorKey: 'organization',
     header: 'Organization',
     accessorFn: show => (show.organization ?? '').toLowerCase(),
-    meta: {
-      exportHeader: 'Organization',
-      exportValue: (show: unknown) => (show as EnhancedShow).organization || '',
-      exportHidden: true,
-    },
+    meta: {},
     cell: ({ row }) => (
       <span className="text-muted-foreground truncate">
         {row.original.organization || '\u2014'}
@@ -127,11 +105,7 @@ const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
     accessorKey: 'status',
     header: 'Status',
     accessorFn: show => (show.status ?? '').toLowerCase(),
-    meta: {
-      exportHeader: 'Status',
-      exportValue: (show: unknown) => (show as EnhancedShow).status || '',
-      exportHidden: true,
-    },
+    meta: {},
     cell: ({ row }) => (
       <StatusBadge
         family="show"
@@ -144,10 +118,7 @@ const DATA_COLUMNS: ColumnDef<EnhancedShow, unknown>[] = [
     accessorKey: 'clubName',
     header: 'Host Club',
     accessorFn: show => (show.clubName ?? '').toLowerCase(),
-    meta: {
-      exportHeader: 'Host Club',
-      exportValue: (show: unknown) => (show as EnhancedShow).clubName || '',
-    },
+    meta: {},
     cell: ({ row }) => (
       <span className="text-muted-foreground truncate">{row.original.clubName || '\u2014'}</span>
     ),
@@ -179,7 +150,7 @@ export const ShowsTableView: React.FC<ShowsTableViewProps> = ({
             onClick={(e: React.MouseEvent) => e.stopPropagation()}
           />
         ) : null,
-      meta: { interactive: true, exportDisabled: true } satisfies DataTableColumnMeta,
+      meta: { interactive: true } satisfies DataTableColumnMeta,
     };
     return [selectCol, ...DATA_COLUMNS];
   }, [canManageShow, hasSelection, isSelected, onToggleSelect]);

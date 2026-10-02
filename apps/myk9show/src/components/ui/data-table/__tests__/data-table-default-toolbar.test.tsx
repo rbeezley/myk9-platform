@@ -72,4 +72,24 @@ describe('DataTable default toolbar', () => {
 
     expect(localStorage.getItem('datatable-page-size-test-page-size')).toBe('50');
   });
+
+  // Columns can no longer be toggled, so a hide stored by the old Columns menu must not stick.
+  it('ignores a column hidden by an old stored preference, and clears the stale key', () => {
+    localStorage.setItem('datatable-cols-test-stale', JSON.stringify({ value: false }));
+    render(<DataTable tableId="test-stale" columns={columns} data={data} />);
+    expect(screen.getByRole('columnheader', { name: /value/i })).toBeInTheDocument();
+    expect(localStorage.getItem('datatable-cols-test-stale')).toBeNull();
+  });
+
+  it('still honours a column the caller hides by default', () => {
+    render(
+      <DataTable
+        tableId="test-default"
+        columns={columns}
+        data={data}
+        defaultColumnVisibility={{ value: false }}
+      />
+    );
+    expect(screen.queryByRole('columnheader', { name: /value/i })).not.toBeInTheDocument();
+  });
 });

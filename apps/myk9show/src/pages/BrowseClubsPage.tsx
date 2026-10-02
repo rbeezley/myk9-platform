@@ -223,6 +223,7 @@ const BrowseClubsPage: React.FC = () => {
               noun={CLUB_NOUN}
               filtered={hasActiveFilters}
               onShowAll={clearAllFilters}
+              showAllInEmptyState={filteredClubs.length === 0}
             >
               <ListViewToggle active={viewMode} onChange={setViewMode} />
             </ListResultLine>

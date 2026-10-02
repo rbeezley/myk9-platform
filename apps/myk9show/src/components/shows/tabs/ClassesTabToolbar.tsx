@@ -27,6 +27,8 @@ interface ClassesTabToolbarProps {
     total: number;
     narrowed: boolean;
     onClearFilters: () => void;
+    /** The empty state below already offers "Show all". */
+    showAllInEmptyState: boolean;
   };
   /** The view toggle, shown on the right of the result line. */
   viewToggle: ReactNode;
@@ -98,6 +100,7 @@ export function ClassesTabToolbar({
         noun={CLASS_NOUN}
         filtered={result.narrowed}
         onShowAll={result.onClearFilters}
+        showAllInEmptyState={result.showAllInEmptyState}
       >
         {viewToggle}
       </ListResultLine>

@@ -14,7 +14,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-/** The fields the dialog names; a full `ClassData` fits, and so does a Class Management row. */
+/** The fields the dialog names; a full `ClassData` fits, and so does a Setup → Classes row. */
 export interface DeleteClassDialogClass {
   element?: string | null | undefined;
   level?: string | null | undefined;

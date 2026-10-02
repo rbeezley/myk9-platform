@@ -109,7 +109,7 @@ export const useShowQuery = (id: string): UseQueryResult<Show> => {
     // here to help management deep links resolve offline bought nothing — the
     // offline-durable source is the replicated show store, and a forced fetch
     // just fails — while costing `useShowWithQuery`, useTrialDetailData,
-    // ClassManagementPage, SmartSignInPage and ClassDetailsPage their offline
+    // the Setup → Classes tab, SmartSignInPage and ClassDetailsPage their offline
     // pause, surfacing query errors during show-day flows (CLAUDE.md § Key
     // Patterns / Offline-first data).
     //

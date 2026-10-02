@@ -8,7 +8,7 @@
  *
  * `editTab` extends that to say WHICH tab. It exists for F4/F12: the show's judge roster
  * is owned by the Judges tab, and every surface that assigns a judge to a class — the
- * creation wizard, Manage Classes, the class Edit panel, Add Classes — could only offer
+ * creation wizard, Setup → Classes, the class Edit panel, Add Classes — could only offer
  * a list it had no way to extend. Rather than reimplement judge management in four
  * places (which this phase of the project explicitly tries to stop), each links here.
  */

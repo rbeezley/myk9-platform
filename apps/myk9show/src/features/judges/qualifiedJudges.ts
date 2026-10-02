@@ -2,8 +2,8 @@
  * Which judges a show may pick from.
  *
  * Extracted because two surfaces had drifted apart. `ShowEditForm`'s Judges tab required
- * an active qualification **for the show's organization**; `the Class Management page` required
- * only that the qualification be active, with no organization test at all — so on an AKC
+ * an active qualification **for the show's organization**; the Class Management page (since
+ * merged into Setup → Classes) required only that the qualification be active, with no organization test at all — so on an AKC
  * show its per-class judge dropdown offered UKC- and ASCA-only judges, who cannot
  * lawfully judge it and would then appear on the show's judge roster and its registry
  * paperwork.

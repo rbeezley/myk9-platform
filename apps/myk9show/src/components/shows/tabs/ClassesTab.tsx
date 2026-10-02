@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { EmptyState } from '@/components/common/EmptyState';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
@@ -10,72 +10,35 @@ import { ClassBulkActionsBar } from '@/components/classes/ClassBulkActionsBar';
 import { ClassJudgeSelect } from '@/components/classes/ClassJudgeSelect';
 import { useSetupClassManagement } from './useSetupClassManagement';
 import { Search, Plus } from 'lucide-react';
-import { formatTrialLabel, type ClassStatusValue } from '@myk9/core';
-import { formatEntryDate } from '@/lib/format/dates';
 import { compareLevels } from '@/utils/schedule-summary';
-import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
-import { DataTable, type ColumnDef } from '@/components/ui/data-table';
-import { StatusBadge } from '@/components/status';
-import { ListViewTabs } from '@/components/list-toolkit';
+import { DataTable } from '@/components/ui/data-table';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
-import { SetupRowActionsMenu } from './SetupRowActionsMenu';
-import { toast } from 'sonner';
 import { SetupClassDialogs } from './SetupClassDialogs';
-import { resolveSetupClass, type SetupClassAction } from './setupClassSnapshot';
 import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
-import {
-  activeClassesTabViewId,
-  buildClassesTabViews,
-  classesTabViewFilters,
-  filterClassesForTab,
-} from './classesTabViews';
+import { ClassesTabToolbar } from './ClassesTabToolbar';
+import { buildClassesTabColumns, type ClassTableRow } from './classesTabColumns';
+import { classTrialLabel, type ClassInfo } from './classInfo';
+import { useClassesTabScope } from './useClassesTabScope';
+import { useClassRowActions } from './useClassRowActions';
 
-export interface ClassInfo {
-  id: string;
-  name: string;
-  element: string;
-  level: string;
-  section: string;
-  judgeName: string;
-  /** The assigned judge's person id; absent on the public read, which cannot assign. */
-  judgeId?: string;
-  trialId: string;
-  time: string;
-  ring: number;
-  status: ClassStatusValue;
-  entryCount: number | null;
-  scoredCount?: number;
-  isScoringFinalized?: boolean;
-  hasActiveEntries?: boolean;
-  userHasEntry: boolean;
-  trialDate?: string;
-  trialNumber?: string;
-  trialName?: string;
-}
+export type { ClassInfo };
 
 interface ClassesTabProps {
   classes: ClassInfo[];
   showId: string;
   userHasEntries: boolean;
   hideRing?: boolean;
-  /** The view to open on (`?view=` on the Setup route); unknown ids fall back to All. */
-  initialViewId?: string;
-}
-
-interface ClassTableRow extends ClassInfo {
-  trialLabel: string;
-}
-
-function formatTrialDate(dateStr: string): string {
-  // Long weekday style ("Saturday, August 1, 2026") via the shared date module
-  // (UX walk remediation 2.A); falls back to the raw string if unparseable.
-  return formatEntryDate(dateStr, { style: 'long' }) || dateStr;
-}
-
-/** The class's trial label (MYK9-704), or '' when the class carries no trial at all. */
-function classTrialPart(cls: ClassInfo): string {
-  if (!cls.trialName && !cls.trialNumber) return '';
-  return formatTrialLabel({ name: cls.trialName, trialNumber: cls.trialNumber });
+  /**
+   * The open view. With `onViewChange` the caller owns it (Setup keeps it in `?view=`); without,
+   * the tab keeps it itself. Unknown ids read as All.
+   */
+  viewId?: string;
+  onViewChange?: (viewId: string) => void;
+  /** The trial a manager is working (Setup: `?trialId=`); the show's first trial when absent. */
+  trialId?: string | null;
+  onTrialChange?: (trialId: string) => void;
+  /** A class to scroll to and focus once it renders (Setup: `?focus=`). */
+  focusClassId?: string | null;
 }
 
 export function ClassesTab({
@@ -83,7 +46,11 @@ export function ClassesTab({
   showId,
   userHasEntries,
   hideRing = false,
-  initialViewId = 'all',
+  viewId: controlledViewId,
+  onViewChange,
+  trialId: controlledTrialId,
+  onTrialChange,
+  focusClassId = null,
 }: ClassesTabProps) {
   const navigate = useNavigate();
   const [storedViewMode, setViewModePreference, hasStoredViewPreference] = useViewPreference(
@@ -91,18 +58,20 @@ export function ClassesTab({
     userHasEntries ? 'cards' : 'table'
   );
   const [viewModeTouched, setViewModeTouched] = useState(false);
-  // Always starts on the whole show (Oct 10 rehearsal: a secretary who also
-  // holds entries in the show must land on "All", never auto-scoped to
-  // "Mine" — that scoping is now one pressable view among four, not a
-  // silent default). See `classesTabViews.ts`.
-  const [viewId, setViewId] = useState(initialViewId);
+  // Always opens on the whole show (Oct 10 rehearsal: a secretary who also holds entries in
+  // the show must land on "All", never auto-scoped to "Mine" — that scoping is one pressable
+  // view among five, not a silent default). See `classesTabViews.ts`. Setup keeps the view in
+  // the URL, so back / forward and shared links follow it.
+  const [localViewId, setLocalViewId] = useState('all');
+  const viewId = onViewChange ? (controlledViewId ?? 'all') : localViewId;
+  const setViewId = onViewChange ?? setLocalViewId;
+  const [localTrialId, setLocalTrialId] = useState<string | null>(null);
+  const requestedTrialId = onTrialChange ? controlledTrialId : localTrialId;
   // ONE predicate for every manage affordance here (Add, row Edit / Delete): THIS show's owning
   // club, the scope the show shell's Edit show button uses. The global permission is not
   // club-scoped, and this tab also renders on the public show page. Resolving / unavailable
   // read as no.
   const canManageThisShow = useShowManageScope(showId).canManage;
-  // Row Edit / Delete (MYK9-900): the existing class panel and dialog, opened in place.
-  const [pendingAction, setPendingAction] = useState<SetupClassAction | null>(null);
   const viewMode =
     userHasEntries && !hasStoredViewPreference && !viewModeTouched ? 'cards' : storedViewMode;
 
@@ -111,18 +80,35 @@ export function ClassesTab({
     setViewModePreference(mode);
   };
 
-  const viewFilters = classesTabViewFilters(viewId);
-  const views = useMemo(() => buildClassesTabViews(classes), [classes]);
-  const activeViewId = activeClassesTabViewId(viewFilters);
-  const filteredClasses = useMemo(
-    () => filterClassesForTab(classes, viewFilters),
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- viewFilters is derived from viewId
-    [classes, viewId]
-  );
+  // Managers work one trial at a time, so select-all, bulk status and bulk delete never span
+  // trials; everyone else reads the whole show.
+  const scope = useClassesTabScope({
+    classes,
+    scopeToTrial: canManageThisShow,
+    requestedTrialId,
+    viewId,
+    setViewId,
+  });
+  const { filteredClasses, viewFilters } = scope;
+  const selectTrial = (nextTrialId: string) => {
+    scope.setElement('all');
+    (onTrialChange ?? setLocalTrialId)(nextTrialId);
+  };
 
-  // Judge assignment and bulk status (moved here from the retired Class Management page).
-  const manage = useSetupClassManagement(showId, canManageThisShow, filteredClasses, viewId);
+  // Judge assignment, status and bulk actions (moved here from the retired Class Management page).
+  // Changing the view, trial, search or element clears the selection, so a bulk action never
+  // reaches rows the secretary can no longer see.
+  const manage = useSetupClassManagement(
+    showId,
+    canManageThisShow,
+    filteredClasses,
+    `${viewId}|${scope.scopeTrialId}|${scope.search}|${scope.element}`
+  );
   const { selection } = manage;
+  const { pendingAction, setPendingAction, hydratingClassId, classRowMenu } = useClassRowActions(
+    showId,
+    manage.handleStatusChange
+  );
 
   // Group classes by trial (date + number)
   const groupedByTrial = useMemo(() => {
@@ -130,10 +116,7 @@ export function ClassesTab({
     for (const cls of filteredClasses) {
       const key = `${cls.trialDate || ''}|${cls.trialNumber || ''}`;
       if (!groups.has(key)) {
-        const datePart = cls.trialDate ? formatTrialDate(cls.trialDate) : '';
-        const trialPart = classTrialPart(cls);
-        const label = [datePart, trialPart].filter(Boolean).join(' — ');
-        groups.set(key, { label: label || 'Unassigned', classes: [] });
+        groups.set(key, { label: classTrialLabel(cls) || 'Unassigned', classes: [] });
       }
       groups.get(key)!.classes.push(cls);
     }
@@ -152,54 +135,25 @@ export function ClassesTab({
 
   // Flat table data with trial label for the DataTable view
   const tableData = useMemo<ClassTableRow[]>(
-    () =>
-      filteredClasses.map(cls => ({
-        ...cls,
-        trialLabel: [cls.trialDate ? formatTrialDate(cls.trialDate) : '', classTrialPart(cls)]
-          .filter(Boolean)
-          .join(' \u2014 '),
-      })),
+    () => filteredClasses.map(cls => ({ ...cls, trialLabel: classTrialLabel(cls) })),
     [filteredClasses]
   );
 
-  // Resolve the class BEFORE any dialog mounts (replicated store, else the by-id read Class
-  // Details uses for a cold session), and keep that snapshot: the dialogs never re-resolve.
-  const [hydratingClassId, setHydratingClassId] = useState<string | null>(null);
-  // ONE action in flight: every row menu is locked while one resolves, and a result that is not
-  // from the latest request is ignored, so a slow earlier request can never replace the dialog
-  // the user is editing in.
-  const latestActionRequest = useRef(0);
-  const openClassAction = async (cls: ClassInfo, action: SetupClassAction['action']) => {
-    const request = ++latestActionRequest.current;
-    setHydratingClassId(cls.id);
-    try {
-      const classSnapshot = await resolveSetupClass(cls.id, cls.trialId);
-      if (request !== latestActionRequest.current) return;
-      if (!classSnapshot) {
-        toast.error("We couldn't load this class. Please refresh and try again.");
-        return;
-      }
-      setPendingAction({ action, classSnapshot, trialId: cls.trialId, requestId: request });
-    } catch {
-      // Any unexpected failure reads the same as "not found": say so, never fail silently.
-      if (request === latestActionRequest.current) {
-        toast.error("We couldn't load this class. Please refresh and try again.");
-      }
-    } finally {
-      if (request === latestActionRequest.current) setHydratingClassId(null);
-    }
-  };
-
-  const classRowMenu = (cls: ClassInfo) => (
-    <SetupRowActionsMenu
-      subject="Class"
-      rowLabel={[cls.element, cls.level, cls.section].filter(Boolean).join(' ')}
-      busy={hydratingClassId === cls.id}
-      locked={hydratingClassId !== null || pendingAction !== null}
-      onEdit={() => void openClassAction(cls, 'edit')}
-      onDelete={() => void openClassAction(cls, 'delete')}
-    />
-  );
+  // A deep link (`?focus=<classId>`, from the Show Desk) scrolls to its class and focuses it
+  // once, after the row exists in whichever layout is showing.
+  const focusedOnce = useRef<string | null>(null);
+  useEffect(() => {
+    if (!focusClassId || focusedOnce.current === focusClassId) return;
+    const row = Array.from(
+      document.querySelectorAll<HTMLElement>('[data-class-id], [data-row-id]')
+    ).find(el => (el.dataset.classId ?? el.dataset.rowId) === focusClassId);
+    if (!row) return;
+    focusedOnce.current = focusClassId;
+    row.scrollIntoView?.({ block: 'center' });
+    // A table row with interactive cells is not tabbable; make it focusable for this jump only.
+    if (!row.hasAttribute('tabindex')) row.tabIndex = -1;
+    row.focus({ preventScroll: true });
+  }, [focusClassId, filteredClasses, viewMode]);
 
   const classSelectCheckbox = (cls: ClassInfo) => (
     <Checkbox
@@ -220,12 +174,12 @@ export function ClassesTab({
     />
   );
 
-  const classColumns = useMemo<ColumnDef<ClassTableRow, unknown>[]>(() => {
-    const cols: ColumnDef<ClassTableRow, unknown>[] = [];
-    if (canManageThisShow) {
-      cols.push({
-        id: 'select',
-        header: () => (
+  const classColumns = useMemo(
+    () =>
+      buildClassesTabColumns({
+        canManage: canManageThisShow,
+        hideRing,
+        selectAll: () => (
           <Checkbox
             checked={selection.isAllSelected}
             indeterminate={selection.isPartiallySelected}
@@ -233,115 +187,21 @@ export function ClassesTab({
             aria-label="Select all visible classes"
           />
         ),
-        enableSorting: false,
-        enableHiding: false,
-        meta: { interactive: true, exportDisabled: true },
-        cell: ({ row }) => classSelectCheckbox(row.original),
-      });
-    }
-    cols.push(
-      {
-        accessorKey: 'trialLabel',
-        header: 'Trial',
-        meta: { responsiveHide: 'md' as const },
-      },
-      {
-        accessorKey: 'element',
-        header: 'Element',
-        cell: ({ row }) => (
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <span>{row.original.element}</span>
-            {row.original.userHasEntry && (
-              <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary">
-                My entry
-              </span>
-            )}
-          </div>
-        ),
-      },
-      {
-        accessorKey: 'level',
-        header: 'Level',
-        sortingFn: (rowA, rowB) => compareLevels(rowA.original.level, rowB.original.level),
-        cell: ({ row }) => (
-          <>
-            {row.original.level}
-            {shouldShowSection(row.original) && (
-              <span className="ml-1 text-muted-foreground">{row.original.section}</span>
-            )}
-          </>
-        ),
-      },
-      {
-        accessorKey: 'judgeName',
-        header: 'Judge',
-        meta: { responsiveHide: 'md' as const, interactive: canManageThisShow },
-        cell: ({ row }) =>
-          canManageThisShow ? (
-            classJudgeSelect(row.original)
-          ) : (
-            <span className="text-muted-foreground">{row.original.judgeName || 'TBD'}</span>
-          ),
-      },
-      {
-        accessorKey: 'time',
-        header: 'Time',
-        meta: { responsiveHide: 'sm' as const },
-      }
-    );
-
-    if (!hideRing) {
-      cols.push({
-        accessorKey: 'ring',
-        header: 'Ring',
-        meta: { responsiveHide: 'sm' as const },
-      });
-    }
-
-    cols.push(
-      {
-        accessorKey: 'status',
-        header: 'Status',
-        cell: ({ row }) => {
-          return (
-            <StatusBadge
-              family="class"
-              status={row.original.status}
-              className="px-2 py-0.5 rounded text-xs font-medium"
-              variant="outline"
-            />
-          );
-        },
-      },
-      {
-        accessorKey: 'entryCount',
-        header: 'Entries',
-        cell: ({ row }) => row.original.entryCount ?? '—',
-      }
-    );
-
-    if (canManageThisShow) {
-      cols.push({
-        id: 'actions',
-        header: () => <span className="sr-only">Actions</span>,
-        enableSorting: false,
-        enableHiding: false,
-        meta: { interactive: true, exportDisabled: true },
-        cell: ({ row }) => classRowMenu(row.original),
-      });
-    }
-
-    return cols;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- classRowMenu only closes over stable setters and hydratingClassId
-  }, [
-    hideRing,
-    canManageThisShow,
-    hydratingClassId,
-    pendingAction,
-    selection.selectedItems,
-    manage.availableJudges,
-    manage.judgeIdFor,
-  ]);
+        select: classSelectCheckbox,
+        judge: classJudgeSelect,
+        rowMenu: classRowMenu,
+      }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the renderers only close over the values listed (rebuilding every render would close an open row menu)
+    [
+      hideRing,
+      canManageThisShow,
+      hydratingClassId,
+      pendingAction,
+      selection.selectedItems,
+      manage.availableJudges,
+      manage.judgeIdFor,
+    ]
+  );
 
   if (classes.length === 0) {
     return (
@@ -364,54 +224,77 @@ export function ClassesTab({
 
   // "Mine" is hidden when the signed-in user holds no entries in the show —
   // it would only ever read "Mine (0)" (MineToggle's `hidden` prop, before it).
-  const visibleViews = userHasEntries ? views : views.filter(view => view.id !== 'mine');
+  const visibleViews = userHasEntries
+    ? scope.views
+    : scope.views.filter(view => view.id !== 'mine');
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <ListViewTabs
-          label="Class views"
-          views={visibleViews}
-          activeId={activeViewId}
-          onSelect={setViewId}
-        />
-        <div className="flex flex-wrap items-center gap-2 sm:ml-auto">
-          <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
-          {canManageThisShow && (
-            <Button
-              size="sm"
-              onClick={() => navigate(getAddClassesHref(showId))}
-              className="gap-1.5"
-            >
-              <Plus className="h-4 w-4" />
-              Add Classes
-            </Button>
-          )}
-        </div>
-      </div>
+      <ClassesTabToolbar
+        views={visibleViews}
+        activeViewId={scope.activeViewId}
+        onSelectView={setViewId}
+        actions={
+          <>
+            <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
+            {canManageThisShow && (
+              <Button
+                size="sm"
+                onClick={() => navigate(getAddClassesHref(showId, scope.scopeTrialId ?? undefined))}
+                className="gap-1.5"
+              >
+                <Plus className="h-4 w-4" />
+                Add Classes
+              </Button>
+            )}
+          </>
+        }
+        {...(canManageThisShow
+          ? {
+              manage: {
+                trials: scope.trialOptions,
+                trialId: scope.scopeTrialId,
+                onTrialChange: selectTrial,
+                search: scope.search,
+                onSearchChange: scope.setSearch,
+                elementField: scope.elementField,
+                shown: filteredClasses.length,
+                total: scope.scopedClasses.length,
+                narrowed: scope.isNarrowed,
+                onClearFilters: scope.clearFilters,
+              },
+            }
+          : {})}
+      />
 
-      {filteredClasses.length === 0 && classes.length > 0 ? (
+      {filteredClasses.length === 0 ? (
         <EmptyState
           icon={Search}
           variant="filter"
           size="sm"
           title={
-            viewFilters.mine
-              ? 'None of your entered classes match.'
-              : viewFilters.status === 'pending'
-                ? 'All classes completed!'
-                : viewFilters.status === 'completed'
-                  ? 'No classes completed yet.'
-                  : 'No classes match the current filter.'
+            scope.search !== '' || scope.element !== 'all'
+              ? 'No classes match the current filter.'
+              : viewFilters.mine
+                ? 'None of your entered classes match.'
+                : viewFilters.status === 'pending'
+                  ? 'All classes completed!'
+                  : viewFilters.status === 'in_progress'
+                    ? 'No classes in progress.'
+                    : viewFilters.status === 'completed'
+                      ? 'No classes completed yet.'
+                      : 'No classes match the current filter.'
           }
-          action={{ label: 'Show all classes', onClick: () => setViewId('all') }}
+          action={{ label: 'Show all classes', onClick: scope.clearFilters }}
         />
       ) : viewMode === 'table' ? (
         <DataTable
           tableId="classesTab"
           columns={classColumns}
           data={tableData}
-          getRowClassName={cls => (cls.userHasEntry ? 'bg-primary/5' : '')}
+          getRowClassName={cls =>
+            cls.id === focusClassId ? 'bg-accent/20' : cls.userHasEntry ? 'bg-primary/5' : ''
+          }
           initialSorting={[
             { id: 'trialLabel', desc: false },
             { id: 'element', desc: false },
@@ -433,11 +316,13 @@ export function ClassesTab({
                   key={cls.id}
                   classInfo={cls}
                   hideRing={hideRing}
+                  focused={cls.id === focusClassId}
                   {...(canManageThisShow
                     ? {
                         actions: classRowMenu(cls),
                         selection: classSelectCheckbox(cls),
                         judgeControl: classJudgeSelect(cls),
+                        order: cls.classOrder,
                       }
                     : {})}
                   onClick={() =>

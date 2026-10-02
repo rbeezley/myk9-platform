@@ -22,22 +22,31 @@ function renderAt(url: string) {
 }
 
 describe('LegacyShowClassManagementRedirect', () => {
-  it('sends the old page to Setup → Classes for the same show', () => {
+  it('sends the old page to Setup → Classes for the same show and trial', () => {
     renderAt('/shows/show-1/classes/trial-1');
-    expect(screen.getByTestId('landed')).toHaveTextContent('/shows/show-1/setup?section=classes');
-  });
-
-  it('carries the filters that map to a Classes view and drops the rest', () => {
-    renderAt('/shows/show-1/classes/trial-1?status=completed&element=Interior&focus=c1');
     expect(screen.getByTestId('landed')).toHaveTextContent(
-      '/shows/show-1/setup?section=classes&view=completed'
+      '/shows/show-1/setup?section=classes&trialId=trial-1'
     );
   });
 
-  it('maps the not-started lifecycle filter to the Pending view', () => {
-    renderAt('/shows/show-1/classes/trial-1?status=not_started');
+  it('carries the trial, view, focus and return link, and drops element and search', () => {
+    renderAt(
+      '/shows/show-1/classes/trial-1?status=completed&element=Interior&search=x&focus=c1&returnTo=%2Fshows%2Fshow-1%2Fshow-day'
+    );
     expect(screen.getByTestId('landed')).toHaveTextContent(
-      '/shows/show-1/setup?section=classes&view=pending'
+      '/shows/show-1/setup?section=classes&view=completed&trialId=trial-1&focus=c1&returnTo=%2Fshows%2Fshow-1%2Fshow-day'
+    );
+  });
+
+  it.each([
+    ['not_started', '&view=pending'],
+    ['in_progress', '&view=in_progress'],
+    ['completed', '&view=completed'],
+    ['all', ''],
+  ])('maps the %s lifecycle filter to its Classes view', (status, view) => {
+    renderAt(`/shows/show-1/classes/trial-1?status=${status}`);
+    expect(screen.getByTestId('landed')).toHaveTextContent(
+      `/shows/show-1/setup?section=classes${view}&trialId=trial-1`
     );
   });
 });

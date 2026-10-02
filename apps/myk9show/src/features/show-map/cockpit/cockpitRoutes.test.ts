@@ -86,7 +86,9 @@ describe('Show Desk context routes', () => {
         classId: 'class/1',
         returnTo,
       })
-    ).toBe(`/shows/show-1/setup?section=classes&returnTo=${encodeURIComponent(returnTo)}`);
+    ).toBe(
+      `/shows/show-1/setup?section=classes&trialId=trial-1&focus=class%2F1&returnTo=${encodeURIComponent(returnTo)}`
+    );
 
     expect(getCockpitPaperScoringHref({ classId: 'class/1', returnTo })).toBe(
       `/scoring/classes/class%2F1/entries?mode=split&returnTo=${encodeURIComponent(returnTo)}`

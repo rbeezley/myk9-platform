@@ -1,5 +1,5 @@
 /**
- * Bulk-delete + bulk-status dispatch for Class Management.
+ * Bulk-delete + bulk-status dispatch for Setup → Classes.
  *
  * DELETE reuses `useDeleteClassMutation` per class — the SAME mutation single-class
  * delete uses, which delegates to the `soft_delete_class` SECURITY DEFINER RPC

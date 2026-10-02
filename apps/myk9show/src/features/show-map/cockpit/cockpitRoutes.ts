@@ -101,7 +101,11 @@ export function getCockpitClassManagementHref(input: {
   classId: string;
   returnTo: string;
 }): string {
-  return withReturnTo(getSetupClassesHref(input.showId), input.returnTo);
+  return getSetupClassesHref(input.showId, undefined, {
+    trialId: input.trialId,
+    focusClassId: input.classId,
+    returnTo: input.returnTo,
+  });
 }
 
 export function getCockpitPaperScoringHref(input: { classId: string; returnTo: string }): string {

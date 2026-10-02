@@ -36,6 +36,10 @@ interface ClassCardProps {
   selection?: ReactNode;
   /** Manager-only judge picker (Setup); replaces the read-only judge line. */
   judgeControl?: ReactNode;
+  /** Manager-only run-order position (Setup), shown under the level. */
+  order?: number | undefined;
+  /** The class a deep link (`?focus=`) is pointing at. */
+  focused?: boolean;
 }
 
 const LIVE_STATUSES = new Set(['In Progress', 'Paused']);
@@ -48,6 +52,8 @@ export function ClassCard({
   actions,
   selection,
   judgeControl,
+  order,
+  focused = false,
 }: ClassCardProps) {
   const isLive = LIVE_STATUSES.has(classInfo.status) && liveData;
   const progressPct =
@@ -58,14 +64,16 @@ export function ClassCard({
 
   return (
     <div
+      data-class-id={classInfo.id}
+      tabIndex={onClick ? 0 : -1}
       className={cn(
         'rounded-xl border border-border/50 bg-card p-4 space-y-3 transition-all',
         classInfo.userHasEntry && 'border-primary/30 bg-primary/5',
+        focused && 'ring-2 ring-accent-foreground/40 bg-accent/20',
         onClick && 'cursor-pointer hover:shadow-md hover:border-primary/30'
       )}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
-      tabIndex={onClick ? 0 : undefined}
       onKeyDown={onClick ? e => e.key === 'Enter' && onClick() : undefined}
     >
       {/* Header: element/level + status */}
@@ -86,6 +94,7 @@ export function ClassCard({
             {classInfo.level}
             {shouldShowSection(classInfo) && <span className="ml-1">{classInfo.section}</span>}
           </p>
+          {order != null && <p className="text-xs text-muted-foreground">Order: {order}</p>}
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <StatusBadge

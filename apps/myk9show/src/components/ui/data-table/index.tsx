@@ -527,6 +527,7 @@ export function DataTable<TData>({
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() ? 'selected' : undefined}
+                  data-row-id={row.id}
                   className={cn(
                     // `group/row` exists so a left-pinned cell CAN mirror this
                     // row's selected state; that mirror is dormant until some

@@ -160,9 +160,10 @@ describe('ClassesTab opening view', () => {
     judgesQuery.mockReturnValue({ data: [] });
   });
 
-  it('opens on the view the Setup URL asked for', () => {
+  it('shows the view the Setup URL asked for', () => {
     renderTab({
-      initialViewId: 'completed',
+      viewId: 'completed',
+      onViewChange: vi.fn(),
       classes: [{ ...classes[0]!, status: 'Completed' }, classes[1]!],
     });
 

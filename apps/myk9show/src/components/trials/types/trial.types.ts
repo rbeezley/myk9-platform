@@ -61,6 +61,8 @@ export interface TrialClass {
   isResultsReviewed?: boolean | undefined;
   /** Secretary-controlled sort order within the trial (for Kanban reorder) */
   displayOrder?: number | undefined;
+  /** The class's run-order position (`classes.class_order`), shown on Setup → Classes. */
+  runOrder?: number | undefined;
   // Optional fields for enhanced class cards
   lastResultAt?: string | undefined;
   timeLimits?: string[] | undefined;

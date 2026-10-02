@@ -7,7 +7,9 @@ import { TrialsTab } from '@/components/shows/tabs/TrialsTab';
 import { ClassesTab } from '@/components/shows/tabs/ClassesTab';
 import { EntryDataUnavailablePanel } from '@/components/shows/ShowDetails/EntryDataUnavailablePanel';
 import { useShowManagementOutlet } from '@/components/shows/ShowDetails/showManagementOutlet';
+import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import {
+  SETUP_CLASSES_PARAMS,
   SETUP_SECTIONS,
   resolveSetupClassesView,
   resolveSetupSection,
@@ -60,6 +62,24 @@ export function ShowWorkbenchSetupPage() {
         const params = new URLSearchParams(previous);
         if (next === 'trials') params.delete('section');
         else params.set('section', next);
+        // The Classes section's own params (view, trial, focus) do not follow you out of it.
+        for (const key of SETUP_CLASSES_PARAMS) params.delete(key);
+        return params;
+      },
+      { replace: true, preventScrollReset: true }
+    );
+  };
+
+  // The Classes section keeps its view and trial in the URL, so the address bar, back / forward
+  // and a shared link always agree with what is on screen.
+  const setClassesParam = (key: 'view' | 'trialId', value: string | null) => {
+    setSearchParams(
+      previous => {
+        const params = new URLSearchParams(previous);
+        if (value === null || (key === 'view' && value === 'all')) params.delete(key);
+        else params.set(key, value);
+        // Landing on a deep-linked class is one-shot: moving on drops the focus.
+        params.delete('focus');
         return params;
       },
       { replace: true, preventScrollReset: true }
@@ -68,6 +88,7 @@ export function ShowWorkbenchSetupPage() {
 
   return (
     <div className="mt-4 space-y-4">
+      <ShowDeskReturnLink showId={show.id} />
       <div className="flex flex-wrap gap-2" role="group" aria-label="Setup section">
         {sections.map(item => {
           const isActive = item.id === section;
@@ -98,7 +119,11 @@ export function ShowWorkbenchSetupPage() {
           classes={classes}
           showId={show.id}
           userHasEntries={hasUserEntries}
-          initialViewId={resolveSetupClassesView(searchParams.get('view'))}
+          viewId={resolveSetupClassesView(searchParams.get('view'))}
+          onViewChange={view => setClassesParam('view', view)}
+          trialId={searchParams.get('trialId')}
+          onTrialChange={trial => setClassesParam('trialId', trial)}
+          focusClassId={searchParams.get('focus')}
           hideRing={trials.some(
             trial =>
               trial.trialType === 'Scent Work' ||

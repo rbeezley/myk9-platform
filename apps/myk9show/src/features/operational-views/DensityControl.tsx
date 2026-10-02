@@ -4,8 +4,8 @@
  * action menu are always rendered by the surface's table regardless of this
  * value; this component never toggles those off.
  *
- * Shared between Entry Management and Class Management so there is exactly
- * one density control implementation, matching the "one preset system" rule
+ * Used by Entry Management (the only surface left on the operational-view model), so there
+ * is exactly one density control implementation, matching the "one preset system" rule
  * in operationalViews.ts.
  */
 import { LayoutList, Rows3 } from 'lucide-react';

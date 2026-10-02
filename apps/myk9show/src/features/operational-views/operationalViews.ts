@@ -4,7 +4,7 @@
  * See openspec/changes/operational-views-and-display-presets/{proposal,design}.md
  * and specs/operational-views/spec.md for the binding contract (Decisions 1-6).
  *
- * ## Task 1.1 — Inventory (Entry Management + Class Management)
+ * ## Task 1.1 — Inventory (Entry Management)
  *
  * Entry Management's URL normalizers serialize the legacy operational-view
  * model to search params:
@@ -27,18 +27,8 @@
  *     re-synced from URL on mount) and row `selection` (in-memory Set, cleared
  *     on filter/view changes per Design Decision 4).
  *
- * Class Management (`pages/secretary/ClassManagementPage.tsx`) currently keeps
- * `searchTerm`, `statusFilter` (raw CLASS_STATUS value or 'all'), and
- * `elementFilter` (raw element string or 'all') in local `useState` — NONE of
- * this is URL-backed today. Status filters compare the RAW class status
- * string, not the lifecycle bucket (`deriveClassLifecycleValue`) used for the
- * page's summary tiles (not_started / in_progress / completed). Per Design
- * Decision 1, a `normalizeClassManagementSearchParams` sibling of the Entry
- * Management normalizer is required in a later batch of this change to make
- * this state URL-addressable; this batch defines the class lifecycle filter
- * (allowlisted) and search term as the supported class-surface filter values,
- * deferring the raw per-org `element` value (open-ended, org-specific) out of
- * the curated-preset allowlist.
+ * Class Management used to be the second surface here; it merged into Setup → Classes
+ * (MYK9-924), whose views are `classesTabViews.ts`, so it has no operational-view model.
  */
 
 import {
@@ -68,36 +58,13 @@ export const OPERATIONAL_VIEW_SERIALIZATION_VERSION = 1;
 // Surface ownership
 // ---------------------------------------------------------------------------
 
-export const OPERATIONAL_VIEW_SURFACE_IDS = ['entry-management', 'class-management'] as const;
+export const OPERATIONAL_VIEW_SURFACE_IDS = ['entry-management'] as const;
 export type OperationalViewSurfaceId = (typeof OPERATIONAL_VIEW_SURFACE_IDS)[number];
 
 export function isOperationalViewSurfaceId(
   value: string | null | undefined
 ): value is OperationalViewSurfaceId {
   return OPERATIONAL_VIEW_SURFACE_IDS.includes(value as OperationalViewSurfaceId);
-}
-
-// ---------------------------------------------------------------------------
-// Class Management filter values (new — not yet URL-backed; see inventory)
-// ---------------------------------------------------------------------------
-
-/**
- * Allowlisted class-surface status filter. This is the LIFECYCLE bucket
- * (matches `ClassLifecycleValue` minus 'unknown'/'cancelled', which are not
- * curated-preset destinations), not the raw per-org class status string.
- */
-export const CLASS_MANAGEMENT_STATUS_FILTER_VALUES = [
-  'all',
-  'not_started',
-  'in_progress',
-  'completed',
-] as const;
-export type ClassManagementStatusFilter = (typeof CLASS_MANAGEMENT_STATUS_FILTER_VALUES)[number];
-
-export function isClassManagementStatusFilter(
-  value: string | null | undefined
-): value is ClassManagementStatusFilter {
-  return CLASS_MANAGEMENT_STATUS_FILTER_VALUES.includes(value as ClassManagementStatusFilter);
 }
 
 // ---------------------------------------------------------------------------
@@ -144,10 +111,6 @@ export const ENTRY_MANAGEMENT_OPTIONAL_COLUMN_VALUES = [
 ] as const;
 export type EntryManagementOptionalColumn =
   (typeof ENTRY_MANAGEMENT_OPTIONAL_COLUMN_VALUES)[number];
-
-export const CLASS_MANAGEMENT_OPTIONAL_COLUMN_VALUES = ['judge', 'element', 'schedule'] as const;
-export type ClassManagementOptionalColumn =
-  (typeof CLASS_MANAGEMENT_OPTIONAL_COLUMN_VALUES)[number];
 
 export interface OperationalViewDisplaySettings<TColumn extends string> {
   density?: OperationalViewDensity;
@@ -200,21 +163,7 @@ export interface EntryManagementOperationalView {
   display?: OperationalViewDisplaySettings<EntryManagementOptionalColumn>;
 }
 
-export interface ClassManagementOperationalView {
-  surface: 'class-management';
-  version: typeof OPERATIONAL_VIEW_SERIALIZATION_VERSION;
-  filters: {
-    status: ClassManagementStatusFilter;
-    search: string;
-  };
-  scope?: {
-    showId?: string;
-    trialId?: string;
-  };
-  display?: OperationalViewDisplaySettings<ClassManagementOptionalColumn>;
-}
-
-export type OperationalView = EntryManagementOperationalView | ClassManagementOperationalView;
+export type OperationalView = EntryManagementOperationalView;
 
 // ---------------------------------------------------------------------------
 // Per-surface validators
@@ -286,46 +235,11 @@ export function validateEntryManagementView(value: unknown): EntryManagementOper
   };
 }
 
-export function validateClassManagementView(value: unknown): ClassManagementOperationalView | null {
-  if (!value || typeof value !== 'object') return null;
-  const raw = value as Record<string, unknown>;
-  if (raw.surface !== 'class-management') return null;
-  if (raw.version !== OPERATIONAL_VIEW_SERIALIZATION_VERSION) return null;
-
-  const filtersRaw = (raw.filters ?? {}) as Record<string, unknown>;
-  const status = isClassManagementStatusFilter(
-    typeof filtersRaw.status === 'string' ? filtersRaw.status : null
-  )
-    ? (filtersRaw.status as ClassManagementStatusFilter)
-    : 'all';
-  const search = typeof filtersRaw.search === 'string' ? filtersRaw.search : '';
-
-  const scope = sanitizeScope(raw.scope);
-  const display = sanitizeDisplaySettings(
-    raw.display as OperationalViewDisplaySettings<ClassManagementOptionalColumn> | undefined,
-    CLASS_MANAGEMENT_OPTIONAL_COLUMN_VALUES
-  );
-
-  const classScope: { showId?: string; trialId?: string } = {};
-  if (scope?.showId) classScope.showId = scope.showId;
-  if (scope?.trialId) classScope.trialId = scope.trialId;
-  const hasClassScope = Object.keys(classScope).length > 0;
-
-  return {
-    surface: 'class-management',
-    version: OPERATIONAL_VIEW_SERIALIZATION_VERSION,
-    filters: { status, search },
-    ...(hasClassScope ? { scope: classScope } : {}),
-    ...(display ? { display } : {}),
-  };
-}
-
 /** Validate an unknown value against whichever surface it claims to be. Returns null on a shape/surface mismatch. */
 export function validateOperationalView(value: unknown): OperationalView | null {
   if (!value || typeof value !== 'object') return null;
   const surface = (value as Record<string, unknown>).surface;
   if (surface === 'entry-management') return validateEntryManagementView(value);
-  if (surface === 'class-management') return validateClassManagementView(value);
   return null;
 }
 
@@ -341,26 +255,12 @@ export const ENTRY_MANAGEMENT_PRESET_IDS = [
 ] as const;
 export type EntryManagementPresetId = (typeof ENTRY_MANAGEMENT_PRESET_IDS)[number];
 
-export const CLASS_MANAGEMENT_PRESET_IDS = [
-  'not-started',
-  'in-progress',
-  'completed',
-  'all-classes',
-] as const;
-export type ClassManagementPresetId = (typeof CLASS_MANAGEMENT_PRESET_IDS)[number];
-
-export type OperationalViewPresetId = EntryManagementPresetId | ClassManagementPresetId;
+export type OperationalViewPresetId = EntryManagementPresetId;
 
 export function isEntryManagementPresetId(
   value: string | null | undefined
 ): value is EntryManagementPresetId {
   return ENTRY_MANAGEMENT_PRESET_IDS.includes(value as EntryManagementPresetId);
-}
-
-export function isClassManagementPresetId(
-  value: string | null | undefined
-): value is ClassManagementPresetId {
-  return CLASS_MANAGEMENT_PRESET_IDS.includes(value as ClassManagementPresetId);
 }
 
 export interface OperationalViewPresetDefinition<TView extends OperationalView> {
@@ -420,49 +320,6 @@ export const ENTRY_MANAGEMENT_PRESETS: Record<
       surface: 'entry-management',
       version: OPERATIONAL_VIEW_SERIALIZATION_VERSION,
       filters: { attention: 'all', payment: 'all', mode: 'review', view: 'table' },
-    }),
-  },
-};
-
-/** Classes: Not started, In progress, Completed, All classes — Design Decision 2, show-day language. */
-export const CLASS_MANAGEMENT_PRESETS: Record<
-  ClassManagementPresetId,
-  OperationalViewPresetDefinition<ClassManagementOperationalView>
-> = {
-  'not-started': {
-    id: 'not-started',
-    label: 'Not started',
-    build: () => ({
-      surface: 'class-management',
-      version: OPERATIONAL_VIEW_SERIALIZATION_VERSION,
-      filters: { status: 'not_started', search: '' },
-    }),
-  },
-  'in-progress': {
-    id: 'in-progress',
-    label: 'In progress',
-    build: () => ({
-      surface: 'class-management',
-      version: OPERATIONAL_VIEW_SERIALIZATION_VERSION,
-      filters: { status: 'in_progress', search: '' },
-    }),
-  },
-  completed: {
-    id: 'completed',
-    label: 'Completed',
-    build: () => ({
-      surface: 'class-management',
-      version: OPERATIONAL_VIEW_SERIALIZATION_VERSION,
-      filters: { status: 'completed', search: '' },
-    }),
-  },
-  'all-classes': {
-    id: 'all-classes',
-    label: 'All classes',
-    build: () => ({
-      surface: 'class-management',
-      version: OPERATIONAL_VIEW_SERIALIZATION_VERSION,
-      filters: { status: 'all', search: '' },
     }),
   },
 };

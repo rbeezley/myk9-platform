@@ -300,6 +300,7 @@ const ShowDetailsPage: React.FC = () => {
         section: cls.section || '',
         judgeName: cls.judgeName || '',
         ...(cls.judgeId ? { judgeId: cls.judgeId } : {}),
+        ...(cls.runOrder != null ? { classOrder: cls.runOrder } : {}),
         trialId: trial.id,
         time: cls.startTime || '',
         ring: 0,

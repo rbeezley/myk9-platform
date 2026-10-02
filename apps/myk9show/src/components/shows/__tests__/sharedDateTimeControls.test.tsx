@@ -6,6 +6,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import { screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { Tabs } from '@/components/ui/tabs';
 import { useWizardStore } from '@/store/wizardStore';
@@ -107,8 +108,35 @@ describe('show dates: create and edit render the same control', () => {
   });
 });
 
-describe('trial date and time: create and edit render the same control', () => {
-  it('the wizard trial card uses the shared trial date-time field', async () => {
+const trialBase = {
+  name: 'Saturday AM',
+  trialDate: '2026-05-02',
+  trialNumber: '1',
+  status: 'Upcoming' as Trial['status'],
+  eventNumber: '1',
+  order: '1',
+};
+
+async function openScheduling(
+  initial: Partial<Trial>,
+  onSave = vi.fn().mockResolvedValue(undefined)
+) {
+  const view = render(
+    <TrialEditPanel
+      open
+      onClose={vi.fn()}
+      trialId="t1"
+      trialName="Saturday AM"
+      onSave={onSave}
+      initialTrialData={{ ...trialBase, ...initial }}
+    />
+  );
+  await view.user.click(screen.getByRole('tab', { name: /scheduling/i }));
+  return { ...view, onSave };
+}
+
+describe('trial date and start time: create and edit render the same two controls', () => {
+  it('the wizard trial card uses the shared date field and start-time field', async () => {
     useWizardStore.getState().addTrial({
       nameOverride: undefined,
       dateTime: '2026-08-15T08:00:00',
@@ -116,149 +144,94 @@ describe('trial date and time: create and edit render the same control', () => {
       classes: [],
     });
     render(<TrialsHarness />);
-    expect(await screen.findByTestId('trial-date-time-field')).toBeInTheDocument();
+    expect(await screen.findByTestId('trial-date-field')).toBeInTheDocument();
+    expect(screen.getByTestId('trial-start-time-field')).toBeInTheDocument();
   });
 
-  it('Edit Trial renders it too, with the time in the same control, not a free-text box', async () => {
-    const { user } = render(
-      <TrialEditPanel
-        open
-        onClose={vi.fn()}
-        trialId="t1"
-        trialName="Saturday AM"
-        initialTrialData={{
-          name: 'Saturday AM',
-          trialDate: '2026-05-02',
-          trialNumber: '1',
-          status: 'Upcoming' as Trial['status'],
-          plannedStartTime: '09:00 AM',
-          eventNumber: '1',
-          order: '1',
-        }}
-      />
+  it('Edit Trial renders the very same two controls', async () => {
+    await openScheduling({ plannedStartTime: '09:00 AM' });
+    const date = await screen.findByTestId('trial-date-field');
+    expect(within(date).getByRole('button')).toHaveTextContent(/May 2, 2026/);
+    expect(within(screen.getByTestId('trial-start-time-field')).getByRole('textbox')).toHaveValue(
+      '09:00 AM'
     );
-    await user.click(screen.getByRole('tab', { name: /scheduling/i }));
-    const field = await screen.findByTestId('trial-date-time-field');
-    expect(within(field).getByRole('button')).toHaveTextContent(/May 2, 2026 at 9:00 AM/);
-    expect(screen.queryByPlaceholderText('e.g., 09:00 AM')).not.toBeInTheDocument();
+  });
+
+  it('the wizard time field writes a valid time into the trial and blocks on a bad one', async () => {
+    const user = userEvent.setup();
+    useWizardStore.getState().addTrial({
+      nameOverride: undefined,
+      dateTime: '2026-08-15T08:00:00',
+      eventNumber: '',
+      classes: [],
+    });
+    render(<TrialsHarness />);
+    const time = within(await screen.findByTestId('trial-start-time-field')).getByRole('textbox');
+    await user.clear(time);
+    await user.type(time, '1:30 PM');
+    expect(useWizardStore.getState().trials[0]?.dateTime).toBe('2026-08-15T13:30:00');
+
+    await user.clear(time);
+    // What is visible is what is validated: a blank time is no time.
+    expect(useWizardStore.getState().trials[0]?.startTimeDraft).toBe('');
+    expect(await screen.findAllByText(/start time/i)).not.toHaveLength(0);
+  });
+});
+
+describe('Edit Trial start time is its own field; the draft is what is validated', () => {
+  it('clearing the time and saving shows the validation error and saves nothing', async () => {
+    const { user, onSave } = await openScheduling({ plannedStartTime: '09:00 AM' });
+    const time = within(await screen.findByTestId('trial-start-time-field')).getByRole('textbox');
+    await user.clear(time);
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+    expect((await screen.findAllByText(/valid time/i)).length).toBeGreaterThan(0);
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('an invalid time shows the error and saves nothing', async () => {
+    const { user, onSave } = await openScheduling({ plannedStartTime: '09:00 AM' });
+    const time = within(await screen.findByTestId('trial-start-time-field')).getByRole('textbox');
+    await user.clear(time);
+    await user.type(time, 'soon');
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+    expect((await screen.findAllByText(/valid time/i)).length).toBeGreaterThan(0);
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it('a valid time saves exactly what was typed', async () => {
+    const { user, onSave } = await openScheduling({ plannedStartTime: '09:00 AM' });
+    const time = within(await screen.findByTestId('trial-start-time-field')).getByRole('textbox');
+    await user.clear(time);
+    await user.type(time, '10:15 AM');
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+    await vi.waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0]?.[0]).toMatchObject({
+      trialDate: '2026-05-02',
+      plannedStartTime: '10:15 AM',
+    });
+  });
+
+  it('a date change with an empty time keeps the time empty', async () => {
+    const { user, onSave } = await openScheduling({ plannedStartTime: '' });
+    const date = await screen.findByTestId('trial-date-field');
+    await user.click(within(date).getByRole('button'));
+    await user.click(await screen.findByRole('button', { name: /May 15th/ }));
+    await user.keyboard('{Escape}');
+
+    expect(within(date).getByRole('button')).toHaveTextContent(/May 15, 2026/);
+    expect(within(screen.getByTestId('trial-start-time-field')).getByRole('textbox')).toHaveValue(
+      ''
+    );
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+    expect(onSave).not.toHaveBeenCalled();
+    expect((await screen.findAllByText(/valid time/i)).length).toBeGreaterThan(0);
   });
 
   it('Actual Start and Finish normalise typed times to one spelling', async () => {
-    const { user } = render(
-      <TrialEditPanel
-        open
-        onClose={vi.fn()}
-        trialId="t1"
-        trialName="Saturday AM"
-        initialTrialData={{
-          name: 'Saturday AM',
-          trialDate: '2026-05-02',
-          trialNumber: '1',
-          status: 'Upcoming' as Trial['status'],
-          plannedStartTime: '09:00 AM',
-          eventNumber: '1',
-          order: '1',
-        }}
-      />
-    );
-    await user.click(screen.getByRole('tab', { name: /scheduling/i }));
+    const { user } = await openScheduling({ plannedStartTime: '09:00 AM' });
     const start = await screen.findByLabelText('Actual Start');
     await user.type(start, '9:15pm');
     await user.tab();
     expect(start).toHaveValue('09:15 PM');
-  });
-});
-
-describe('Edit Trial start time storage and display', () => {
-  const base = {
-    name: 'Saturday AM',
-    trialDate: '2026-05-02',
-    trialNumber: '1',
-    status: 'Upcoming' as Trial['status'],
-    eventNumber: '1',
-    order: '1',
-  };
-
-  it('shows a date with no start time as "time not set", not midnight', async () => {
-    const { user } = render(
-      <TrialEditPanel
-        open
-        onClose={vi.fn()}
-        trialId="t1"
-        trialName="Saturday AM"
-        initialTrialData={{ ...base, plannedStartTime: '' }}
-      />
-    );
-    await user.click(screen.getByRole('tab', { name: /scheduling/i }));
-    const field = await screen.findByTestId('trial-date-time-field');
-    expect(within(field).getByRole('button')).toHaveTextContent(/May 2, 2026/);
-    expect(within(field).getByRole('button')).toHaveTextContent(/time not set/i);
-    expect(within(field).getByRole('button')).not.toHaveTextContent(/12:00 AM/);
-  });
-
-  it('saves the picked time in the stored spelling', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    const { user } = render(
-      <TrialEditPanel
-        open
-        onClose={vi.fn()}
-        trialId="t1"
-        trialName="Saturday AM"
-        onSave={onSave}
-        initialTrialData={{ ...base, plannedStartTime: '09:00 AM' }}
-      />
-    );
-    await user.click(screen.getByRole('tab', { name: /scheduling/i }));
-    const field = await screen.findByTestId('trial-date-time-field');
-    await user.click(within(field).getByRole('button'));
-    const time = await screen.findByPlaceholderText('8:00 AM');
-    await user.clear(time);
-    await user.type(time, '1:30 PM');
-    await user.keyboard('{Escape}');
-    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
-
-    await vi.waitFor(() => expect(onSave).toHaveBeenCalled());
-    expect(onSave.mock.calls[0]?.[0]).toMatchObject({
-      trialDate: '2026-05-02',
-      plannedStartTime: '01:30 PM',
-    });
-  });
-
-  it('changing the date never invents a start time: only an explicit time writes one', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
-    const { user } = render(
-      <TrialEditPanel
-        open
-        onClose={vi.fn()}
-        trialId="t1"
-        trialName="Saturday AM"
-        onSave={onSave}
-        initialTrialData={{ ...base, plannedStartTime: '' }}
-      />
-    );
-    await user.click(screen.getByRole('tab', { name: /scheduling/i }));
-    const field = await screen.findByTestId('trial-date-time-field');
-    await user.click(within(field).getByRole('button'));
-    await user.click(await screen.findByRole('button', { name: /May 15th/ }));
-    await user.keyboard('{Escape}');
-
-    // The new date is kept, the time is still unset (not 12:00 AM)...
-    expect(within(field).getByRole('button')).toHaveTextContent(/May 15, 2026/);
-    expect(within(field).getByRole('button')).toHaveTextContent(/time not set/i);
-    // ...and a start time is still demanded: Save refuses and says so.
-    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
-    expect(onSave).not.toHaveBeenCalled();
-    expect((await screen.findAllByText(/valid time/i)).length).toBeGreaterThan(0);
-
-    // An explicit time then saves, with the date picked above.
-    await user.click(within(field).getByRole('button'));
-    await user.type(await screen.findByPlaceholderText('8:00 AM'), '10:15 AM');
-    await user.keyboard('{Escape}');
-    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
-    await vi.waitFor(() => expect(onSave).toHaveBeenCalled());
-    expect(onSave.mock.calls[0]?.[0]).toMatchObject({
-      trialDate: '2026-05-15',
-      plannedStartTime: '10:15 AM',
-    });
   });
 });

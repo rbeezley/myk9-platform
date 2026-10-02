@@ -20,12 +20,10 @@ import type { ClassStatusValue } from '@myk9/core';
 import { cn } from '@/lib/utils';
 import { FormField } from '@/components/common/FormField';
 import { TimeOfDayInput } from '@/components/common/TimeOfDayInput';
-import { TrialDateTimeField } from '@/components/trials/TrialDateTimeField';
-import {
-  composeTrialDateTime,
-  hasTrialTime,
-  splitTrialDateTime,
-} from '@/components/trials/trialDateTime';
+import { TrialDateField } from '@/components/trials/TrialDateField';
+import { TrialStartTimeField } from '@/components/trials/TrialStartTimeField';
+import { parseLocalDateString } from '@/utils/dateLocal';
+import { format } from 'date-fns';
 import { usePanelValidationNavigation, type FieldLocation } from './usePanelValidationNavigation';
 
 interface TrialEditPanelProps {
@@ -172,14 +170,10 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange })
     [form]
   );
 
-  // One picker holds both the date and the start time; store them as the two fields.
-  const handleDateTimeChange = useCallback(
-    (value: Date | undefined, meta?: { timeSet: boolean }) => {
-      if (!value) return;
-      const { trialDate, plannedStartTime } = splitTrialDateTime(value);
-      // A date picked while the time is unset moves the date only: midnight is the
-      // picker's placeholder, not a time anyone chose.
-      form?.setValues(meta?.timeSet === false ? { trialDate } : { trialDate, plannedStartTime });
+  // The date control writes only the date; the start time is its own field.
+  const handleDateChange = useCallback(
+    (value: Date | undefined) => {
+      form?.setValue('trialDate', value ? format(value, 'yyyy-MM-dd') : '');
     },
     [form]
   );
@@ -366,16 +360,14 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange })
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <TrialDateTimeField
+                <TrialDateField
                   id="trialDate"
-                  value={composeTrialDateTime(form.data.trialDate, form.data.plannedStartTime)}
-                  onChange={handleDateTimeChange}
-                  timeUnset={!hasTrialTime(form.data.plannedStartTime)}
-                  error={trialDateError ?? plannedStartTimeError}
-                  onBlur={() => {
-                    form.touchField('trialDate');
-                    form.touchField('plannedStartTime');
-                  }}
+                  value={
+                    form.data.trialDate ? parseLocalDateString(form.data.trialDate) : undefined
+                  }
+                  onChange={handleDateChange}
+                  error={trialDateError}
+                  onBlur={() => form.touchField('trialDate')}
                 />
 
                 <FormField label="Display Order" fieldId="order" required error={orderError}>
@@ -392,6 +384,14 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange })
                   />
                 </FormField>
               </div>
+
+              <TrialStartTimeField
+                id="plannedStartTime"
+                value={form.data.plannedStartTime}
+                onChange={value => form.setValue('plannedStartTime', value)}
+                error={plannedStartTimeError}
+                onBlur={() => form.touchField('plannedStartTime')}
+              />
 
               <Separator />
 
@@ -468,7 +468,7 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange })
 const locateTrialField = (field: string): FieldLocation<TabId> | undefined => {
   for (const tab of Object.keys(TAB_FIELDS) as TabId[]) {
     if ((TAB_FIELDS[tab] as string[]).includes(field)) {
-      return { tab, elementId: field === 'plannedStartTime' ? 'trialDate' : field };
+      return { tab, elementId: field };
     }
   }
   return undefined;

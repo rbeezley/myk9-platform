@@ -97,6 +97,11 @@ export interface WizardState {
     /** Present only when the secretary explicitly overrides the suggested name. */
     nameOverride?: string | undefined;
     dateTime: string; // ISO datetime string
+    /**
+     * The start-time box exactly as typed. Valid text is also folded into `dateTime`;
+     * blank or invalid text is kept here so the step can refuse to continue on what is visible.
+     */
+    startTimeDraft?: string | undefined;
     eventNumber: string;
     trialType?: string | undefined; // e.g. 'Scent Work', 'Agility', 'Obedience'
     classes: Array<{

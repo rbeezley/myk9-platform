@@ -1,3 +1,4 @@
+import { hasTrialTime } from '@/components/trials/trialDateTime';
 /**
  * Validation logic for the Show Creation Wizard
  */
@@ -39,6 +40,8 @@ interface Trial {
     customizations: Record<string, unknown>;
     judgeId?: string | undefined;
   }>;
+  /** The start-time box as typed (see wizardStore). */
+  startTimeDraft?: string | undefined;
 }
 
 /**
@@ -167,6 +170,14 @@ export function getTrialValidationMessages(
         messages.push(`Please enter a name for ${trialName}`);
       if (!trial.trialType) messages.push(`Please select a type for ${trialName}`);
       if (!trial.dateTime) messages.push(`Please select a date and time for ${trialName}`);
+      const draft = trial.startTimeDraft;
+      if (draft !== undefined && !hasTrialTime(draft)) {
+        messages.push(
+          draft.trim() === ''
+            ? `Please enter a start time for ${trialName}`
+            : `Please enter a valid start time for ${trialName} (e.g., 9:00 AM)`
+        );
+      }
       if (requiresEventNumber && !trial.eventNumber?.trim())
         messages.push(`Please enter an event number for ${trialName} (required for AKC events)`);
     });

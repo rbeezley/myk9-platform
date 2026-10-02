@@ -9,20 +9,13 @@ import { cn } from '@/lib/utils';
 
 interface DateTimePickerProps {
   value?: Date | undefined;
-  /**
-   * `meta.timeSet` is false when the date moved but the time box holds no valid time
-   * (a date picked while "time not set"): the Date then carries midnight only because
-   * a Date must carry something, and the caller must not store it as a chosen time.
-   */
-  onChange?: ((date: Date | undefined, meta?: { timeSet: boolean }) => void) | undefined;
+  onChange?: ((date: Date | undefined) => void) | undefined;
   placeholder?: string | undefined;
   className?: string | undefined;
   minDate?: Date | undefined;
   maxDate?: Date | undefined;
   disabled?: boolean | undefined;
   showTime?: boolean | undefined;
-  /** The date is set but its time is not: show "time not set" and a blank time box, not midnight. */
-  timeUnset?: boolean | undefined;
   timeFormat?: '12h' | '24h' | undefined;
   /** Default time shown when no value is set (e.g. "5:00 PM"). Defaults to "8:00 AM". */
   defaultTime?: string | undefined;
@@ -30,34 +23,6 @@ interface DateTimePickerProps {
   defaultMonth?: Date | undefined;
   /** id on the trigger button so a sibling <label htmlFor> connects for a11y. */
   id?: string | undefined;
-}
-
-function parseTime(timeStr: string, format: '12h' | '24h') {
-  if (format === '12h') {
-    const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?$/);
-    if (match) {
-      let hours = parseInt(match[1]);
-      const minutes = parseInt(match[2]);
-      const period = match[3]?.toUpperCase();
-
-      if (period === 'PM' && hours !== 12) hours += 12;
-      if (period === 'AM' && hours === 12) hours = 0;
-
-      if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
-        return { hours, minutes };
-      }
-    }
-  } else {
-    const match = timeStr.match(/^(\d{1,2}):(\d{2})$/);
-    if (match) {
-      const hours = parseInt(match[1]);
-      const minutes = parseInt(match[2]);
-      if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
-        return { hours, minutes };
-      }
-    }
-  }
-  return null;
 }
 
 export const DateTimePicker: React.FC<DateTimePickerProps> = ({
@@ -69,7 +34,6 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
   maxDate,
   disabled = false,
   showTime = true,
-  timeUnset = false,
   timeFormat = '12h',
   defaultTime = '8:00 AM',
   defaultMonth,
@@ -78,11 +42,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
   const [open, setOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(value);
   const [timeValue, setTimeValue] = useState(
-    value && !timeUnset
-      ? format(value, timeFormat === '12h' ? 'hh:mm a' : 'HH:mm')
-      : timeUnset
-        ? ''
-        : defaultTime
+    value ? format(value, timeFormat === '12h' ? 'hh:mm a' : 'HH:mm') : defaultTime
   );
 
   // Sync internal state when value prop changes using render-time sync
@@ -91,22 +51,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
   if (valueKey !== prevValueKey) {
     setPrevValueKey(valueKey);
     setSelectedDate(value);
-    // A change that came FROM the time box ("1:30" while typing "1:30 PM") must not
-    // rewrite what is being typed.
-    const typed = parseTime(timeValue, timeFormat);
-    const echoesTyping =
-      !!value &&
-      !!typed &&
-      typed.hours === value.getHours() &&
-      typed.minutes === value.getMinutes();
-    if (!echoesTyping)
-      setTimeValue(
-        value && !timeUnset
-          ? format(value, timeFormat === '12h' ? 'hh:mm a' : 'HH:mm')
-          : timeUnset
-            ? ''
-            : defaultTime
-      );
+    setTimeValue(value ? format(value, timeFormat === '12h' ? 'hh:mm a' : 'HH:mm') : defaultTime);
   }
 
   const handleDateSelect = (date: Date | undefined) => {
@@ -124,7 +69,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
     }
 
     setSelectedDate(date);
-    onChange?.(date, { timeSet: time !== null });
+    onChange?.(date);
   };
 
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -137,15 +82,42 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
         const newDate = new Date(selectedDate);
         newDate.setHours(time.hours);
         newDate.setMinutes(time.minutes);
-        onChange?.(newDate, { timeSet: true });
+        onChange?.(newDate);
       }
     }
+  };
+
+  const parseTime = (timeStr: string, format: '12h' | '24h') => {
+    if (format === '12h') {
+      const match = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM|am|pm)?$/);
+      if (match) {
+        let hours = parseInt(match[1]);
+        const minutes = parseInt(match[2]);
+        const period = match[3]?.toUpperCase();
+
+        if (period === 'PM' && hours !== 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
+
+        if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+          return { hours, minutes };
+        }
+      }
+    } else {
+      const match = timeStr.match(/^(\d{1,2}):(\d{2})$/);
+      if (match) {
+        const hours = parseInt(match[1]);
+        const minutes = parseInt(match[2]);
+        if (hours >= 0 && hours <= 23 && minutes >= 0 && minutes <= 59) {
+          return { hours, minutes };
+        }
+      }
+    }
+    return null;
   };
 
   const formatDisplay = () => {
     if (!selectedDate) return '';
     const dateStr = format(selectedDate, 'MMM d, yyyy');
-    if (showTime && timeUnset) return `${dateStr} · time not set`;
     if (showTime) {
       const timeStr = format(selectedDate, timeFormat === '12h' ? 'h:mm a' : 'HH:mm');
       return `${dateStr} at ${timeStr}`;

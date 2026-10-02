@@ -2,7 +2,9 @@ import React, { useMemo } from 'react';
 import { RequiredMark } from '@/components/common/RequiredMark';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { TrialDateTimeField } from '@/components/trials/TrialDateTimeField';
+import { TrialDateField } from '@/components/trials/TrialDateField';
+import { TrialStartTimeField } from '@/components/trials/TrialStartTimeField';
+import { formatTimeOfDay, hasTrialTime, parseTimeOfDay } from '@/components/trials/trialDateTime';
 import {
   Select,
   SelectContent,
@@ -42,6 +44,12 @@ interface TrialConfigurationStepProps {
   /** Retry the existing-show trial snapshot read. */
   onRetryExistingTrials?: (() => void | Promise<void>) | undefined;
 }
+
+/** The time part of a wizard dateTime ("2026-08-15T13:30:00") as "01:30 PM"; 8:00 AM when absent. */
+const startTimeText = (dateTime: string): string => {
+  const at = parseWizardDateTime(dateTime);
+  return at ? formatTimeOfDay(at.getHours(), at.getMinutes()) : formatTimeOfDay(8, 0);
+};
 
 export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
   className,
@@ -103,6 +111,13 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
         }
       }
 
+      if (trial.startTimeDraft !== undefined && !hasTrialTime(trial.startTimeDraft)) {
+        newErrors[`${prefix}-startTime`] =
+          trial.startTimeDraft.trim() === ''
+            ? 'Please enter a start time'
+            : 'Please enter a valid start time (e.g., 9:00 AM)';
+      }
+
       // Event number required for AKC (needed for XML export); optional for UKC/Other
       if (!trial.trialType) {
         newErrors[`${prefix}-trialType`] = 'Please select a trial type';
@@ -150,11 +165,25 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
     });
   };
 
-  const handleTrialDateTimeChange = (trialId: string, date: Date | undefined) => {
-    if (date) {
-      const nextDateTime = format(date, "yyyy-MM-dd'T'HH:mm:ss");
-      updateTrial(trialId, { dateTime: nextDateTime });
-    }
+  // The date control writes only the date part; the time part is kept (8:00 AM by default).
+  const handleTrialDateChange = (trialId: string, date: Date | undefined) => {
+    if (!date) return;
+    const current = trials.find(trial => trial.id === trialId)?.dateTime ?? '';
+    const timePart = current.slice(11, 19) || '08:00:00';
+    updateTrial(trialId, { dateTime: `${format(date, 'yyyy-MM-dd')}T${timePart}` });
+  };
+
+  // The box's raw text is stored as typed; valid text also becomes the trial's time.
+  const handleTrialStartTimeChange = (trialId: string, text: string) => {
+    const parts = parseTimeOfDay(text);
+    const current = trials.find(trial => trial.id === trialId)?.dateTime ?? '';
+    const day = current.slice(0, 10);
+    const hh = String(parts?.hours ?? 0).padStart(2, '0');
+    const mm = String(parts?.minutes ?? 0).padStart(2, '0');
+    updateTrial(trialId, {
+      startTimeDraft: text,
+      ...(parts && day ? { dateTime: `${day}T${hh}:${mm}:00` } : {}),
+    });
   };
 
   return (
@@ -389,19 +418,27 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                       </div>
                     </div>
 
-                    <TrialDateTimeField
-                      id={`trial-${trial.id}-dateTime`}
-                      value={parseWizardDateTime(trial.dateTime)}
-                      onChange={date => handleTrialDateTimeChange(trial.id, date)}
-                      error={errors[`trial-${index}-dateTime`]}
-                      minDate={startOfDay(parseWizardDay(show.startDate) || new Date())}
-                      maxDate={
-                        show.endDate
-                          ? startOfDay(parseWizardDay(show.endDate) || new Date())
-                          : undefined
-                      }
-                      defaultMonth={parseWizardDay(show.startDate)}
-                    />
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                      <TrialDateField
+                        id={`trial-${trial.id}-dateTime`}
+                        value={parseWizardDateTime(trial.dateTime)}
+                        onChange={date => handleTrialDateChange(trial.id, date)}
+                        error={errors[`trial-${index}-dateTime`]}
+                        minDate={startOfDay(parseWizardDay(show.startDate) || new Date())}
+                        maxDate={
+                          show.endDate
+                            ? startOfDay(parseWizardDay(show.endDate) || new Date())
+                            : undefined
+                        }
+                        defaultMonth={parseWizardDay(show.startDate)}
+                      />
+                      <TrialStartTimeField
+                        id={`trial-${trial.id}-startTime`}
+                        value={trial.startTimeDraft ?? startTimeText(trial.dateTime)}
+                        onChange={text => handleTrialStartTimeChange(trial.id, text)}
+                        error={errors[`trial-${index}-startTime`]}
+                      />
+                    </div>
                   </div>
                 );
               })}

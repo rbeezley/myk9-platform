@@ -14,6 +14,7 @@ import {
   getReviewBlockingErrors,
   getValidationScope,
   getShowDetailsValidationMessages,
+  getTrialValidationMessages,
   getValidationMessagesForStep,
 } from './showCreationWizardValidation';
 
@@ -341,5 +342,32 @@ describe('Show Details step — entry window (MYK9-716)', () => {
     expect(getShowDetailsValidationMessages(show)).toContain(
       'Entry close date must be on or after entry open date'
     );
+  });
+});
+
+describe('trial start time draft (MYK9-931)', () => {
+  it('a blank or invalid typed start time blocks the trial step by name', () => {
+    const view = {
+      effectiveNamesByTrialId: new Map([['t1', 'Saturday Trial']]),
+    } as unknown as Parameters<typeof getTrialValidationMessages>[1];
+    const trial = (startTimeDraft?: string) =>
+      [
+        {
+          id: 't1',
+          dateTime: '2026-08-15T08:00:00',
+          eventNumber: '1',
+          trialType: 'Scent Work',
+          classes: [],
+          ...(startTimeDraft !== undefined ? { startTimeDraft } : {}),
+        },
+      ] as unknown as Parameters<typeof getTrialValidationMessages>[0];
+    expect(getTrialValidationMessages(trial(), view, 'UKC')).toEqual([]);
+    expect(getTrialValidationMessages(trial('1:30 PM'), view, 'UKC')).toEqual([]);
+    expect(getTrialValidationMessages(trial(''), view, 'UKC')).toEqual([
+      'Please enter a start time for Saturday Trial',
+    ]);
+    expect(getTrialValidationMessages(trial('soon'), view, 'UKC')).toEqual([
+      'Please enter a valid start time for Saturday Trial (e.g., 9:00 AM)',
+    ]);
   });
 });

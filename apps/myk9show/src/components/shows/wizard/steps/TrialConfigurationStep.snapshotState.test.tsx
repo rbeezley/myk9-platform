@@ -1,4 +1,4 @@
-import { render, screen } from '@/test/utils/testUtils';
+import { render, screen, fireEvent } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ComponentProps } from 'react';
@@ -45,13 +45,6 @@ vi.mock('@/components/ui/date-time-picker', () => ({
     onChange?: (date: Date | undefined) => void;
   }) => (
     <>
-      <button
-        type="button"
-        aria-label={`Change ${id} to same day`}
-        onClick={() => onChange?.(new Date(2026, 7, 1, 10))}
-      >
-        Same-day time
-      </button>
       <button
         type="button"
         aria-label={`Change ${id} to next day`}
@@ -293,13 +286,13 @@ describe('TrialConfigurationStep existing snapshot state', () => {
       screen.getByRole('button', { name: 'Change trial-draft-trial-dateTime to next day' })
     );
 
+    // The date control moves the day only; the trial keeps its time.
     expect(wizardState.updateTrial).toHaveBeenCalledWith('draft-trial', {
-      dateTime: '2026-08-02T10:00:00',
+      dateTime: '2026-08-02T08:00:00',
     });
   });
 
-  it('keeps an auto-generated name when only the time changes', async () => {
-    const user = userEvent.setup();
+  it('keeps an auto-generated name when only the time changes', () => {
     wizardState.trials = [
       {
         id: 'draft-trial',
@@ -310,11 +303,10 @@ describe('TrialConfigurationStep existing snapshot state', () => {
     ];
 
     renderTrialConfiguration();
-    await user.click(
-      screen.getByRole('button', { name: 'Change trial-draft-trial-dateTime to same day' })
-    );
+    fireEvent.change(screen.getByLabelText(/^Start Time/), { target: { value: '10:00 AM' } });
 
     expect(wizardState.updateTrial).toHaveBeenCalledWith('draft-trial', {
+      startTimeDraft: '10:00 AM',
       dateTime: '2026-08-01T10:00:00',
     });
   });

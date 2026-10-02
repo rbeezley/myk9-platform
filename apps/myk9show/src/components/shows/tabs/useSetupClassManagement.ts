@@ -103,6 +103,23 @@ export function useSetupClassManagement(
     },
   });
 
+  // An override is spent the moment its row stops carrying `from` (the row caught up, or
+  // someone else changed it). Dropping it then, not just ignoring it, is what stops it reviving
+  // when the judge later goes A -> B -> A and the row reads `from` again.
+  const spentIds = visibleClasses
+    .filter(cls => {
+      const override = assigned[cls.id];
+      return override !== undefined && override.from !== normalizeJudgeId(cls.judgeId);
+    })
+    .map(cls => cls.id);
+  if (spentIds.length > 0) {
+    setAssigned(previous => {
+      const next = { ...previous };
+      for (const id of spentIds) delete next[id];
+      return next;
+    });
+  }
+
   const judgeIdFor = useCallback(
     (cls: ClassInfo): string | null => {
       const rowJudgeId = normalizeJudgeId(cls.judgeId);

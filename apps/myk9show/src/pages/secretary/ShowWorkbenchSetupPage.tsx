@@ -63,6 +63,8 @@ export function ShowWorkbenchSetupPage() {
         if (next === 'trials') params.delete('section');
         else params.set('section', next);
         // The Classes section's own params (view, trial, focus) do not follow you out of it.
+        // `returnTo` (the Show Desk way back) is not one of them, on purpose: it follows the
+        // secretary across Trials, Classes and Show Map until they leave Setup.
         for (const key of SETUP_CLASSES_PARAMS) params.delete(key);
         return params;
       },
@@ -121,6 +123,7 @@ export function ShowWorkbenchSetupPage() {
           userHasEntries={hasUserEntries}
           viewId={resolveSetupClassesView(searchParams.get('view'))}
           onViewChange={view => setClassesParam('view', view)}
+          trials={trials}
           trialId={searchParams.get('trialId')}
           onTrialChange={trial => setClassesParam('trialId', trial)}
           focusClassId={searchParams.get('focus')}

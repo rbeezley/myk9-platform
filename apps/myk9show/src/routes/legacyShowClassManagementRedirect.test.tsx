@@ -38,6 +38,8 @@ describe('LegacyShowClassManagementRedirect', () => {
     );
   });
 
+  // Pending ("not completed") also holds in-progress classes; no narrower view exists, so the
+  // old not-started link is a deliberate widening (see LegacyClassManagementRedirect.tsx).
   it.each([
     ['not_started', '&view=pending'],
     ['in_progress', '&view=in_progress'],

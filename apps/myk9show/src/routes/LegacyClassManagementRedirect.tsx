@@ -14,6 +14,10 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { useTrialRedirectTarget } from './useTrialRedirectTarget';
 import { getSetupClassesHref } from '@/pages/secretary/showSetupSections';
 
+// `not_started` has no view of its own: the Classes views are All, Pending, In progress,
+// Completed and Mine, and Pending is "anything not completed", so an old not-started link widens
+// to also show in-progress classes. Pending is the narrowest view that still includes every
+// not-started class; pinned in legacyShowClassManagementRedirect.test.tsx.
 const VIEW_FOR_LEGACY_STATUS: Readonly<Record<string, string>> = {
   not_started: 'pending',
   in_progress: 'in_progress',

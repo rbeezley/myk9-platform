@@ -17,6 +17,7 @@ vi.mock('@/hooks/queries/useJudgesWithQualifications', () => ({
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', () => ({
   useNavigate: () => mockNavigate,
+  useLocation: () => ({ key: 'default' }),
 }));
 
 vi.mock('@/hooks/useShowManageScope', () => ({

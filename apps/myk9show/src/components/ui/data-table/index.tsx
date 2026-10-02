@@ -1,6 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { pickExportColumns } from './exportColumns';
+import { useRevealRow, type RevealRow } from './useRevealRow';
 import { useColumnVisibility } from '@/hooks/useColumnVisibility';
 import {
   type VisibilityState,
@@ -116,6 +117,9 @@ interface DataTableProps<TData> {
    * density control per surface, not two.
    */
   density?: TableDensity;
+  /** Turns to the page holding one row, then reports it rendered (see `useRevealRow`). */
+  revealRow?: RevealRow | null;
+  onRowRevealed?: (id: string) => void;
 }
 
 export type TableDensity = 'comfortable' | 'compact';
@@ -245,6 +249,8 @@ export function DataTable<TData>({
   getRowClassName,
   density: controlledDensity,
   defaultColumnVisibility,
+  revealRow,
+  onRowRevealed,
 }: DataTableProps<TData>) {
   const resolvedPageSizeOptions = pageSizeOptions ?? DEFAULT_PAGE_SIZE_OPTIONS;
   const [internalSorting, setInternalSorting] = useState<SortingState>(initialSorting ?? []);
@@ -361,6 +367,8 @@ export function DataTable<TData>({
     getPaginationRowModel: getPaginationRowModel(),
     globalFilterFn: 'includesString',
   });
+
+  useRevealRow(table, revealRow, onRowRevealed);
 
   const getLayoutClass = (columnId: string, cell: 'header' | 'body') => {
     const colDef = allColumns.find(

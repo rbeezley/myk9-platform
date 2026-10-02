@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { EmptyState } from '@/components/common/EmptyState';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { ViewToggle } from '@/components/common/ViewToggle';
@@ -20,6 +20,7 @@ import { buildClassesTabColumns, type ClassTableRow } from './classesTabColumns'
 import { classTrialLabel, type ClassInfo } from './classInfo';
 import { useClassesTabScope } from './useClassesTabScope';
 import { useClassRowActions } from './useClassRowActions';
+import type { ShowTrial } from './classesTabScope';
 
 export type { ClassInfo };
 
@@ -37,6 +38,8 @@ interface ClassesTabProps {
   /** The trial a manager is working (Setup: `?trialId=`); the show's first trial when absent. */
   trialId?: string | null;
   onTrialChange?: (trialId: string) => void;
+  /** The show's trials, so a trial with no classes yet can still be picked and added to. */
+  trials?: readonly ShowTrial[];
   /** A class to scroll to and focus once it renders (Setup: `?focus=`). */
   focusClassId?: string | null;
 }
@@ -50,9 +53,11 @@ export function ClassesTab({
   onViewChange,
   trialId: controlledTrialId,
   onTrialChange,
+  trials,
   focusClassId = null,
 }: ClassesTabProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [storedViewMode, setViewModePreference, hasStoredViewPreference] = useViewPreference(
     'classes',
     userHasEntries ? 'cards' : 'table'
@@ -63,10 +68,15 @@ export function ClassesTab({
   // view among five, not a silent default). See `classesTabViews.ts`. Setup keeps the view in
   // the URL, so back / forward and shared links follow it.
   const [localViewId, setLocalViewId] = useState('all');
-  const viewId = onViewChange ? (controlledViewId ?? 'all') : localViewId;
+  const requestedViewId = onViewChange ? (controlledViewId ?? 'all') : localViewId;
+  // "Mine" is hidden for a user with no entries, so a `?view=mine` link reads as All.
+  const viewId = requestedViewId === 'mine' && !userHasEntries ? 'all' : requestedViewId;
   const setViewId = onViewChange ?? setLocalViewId;
   const [localTrialId, setLocalTrialId] = useState<string | null>(null);
-  const requestedTrialId = onTrialChange ? controlledTrialId : localTrialId;
+  // A deep link names the class it wants, so its trial wins over a `?trialId=` that does not
+  // hold it. Choosing another trial drops the focus (Setup clears `?focus=`), ending the override.
+  const focusTrialId = focusClassId ? classes.find(cls => cls.id === focusClassId)?.trialId : null;
+  const requestedTrialId = focusTrialId ?? (onTrialChange ? controlledTrialId : localTrialId);
   // ONE predicate for every manage affordance here (Add, row Edit / Delete): THIS show's owning
   // club, the scope the show shell's Edit show button uses. The global permission is not
   // club-scoped, and this tab also renders on the public show page. Resolving / unavailable
@@ -84,6 +94,7 @@ export function ClassesTab({
   // trials; everyone else reads the whole show.
   const scope = useClassesTabScope({
     classes,
+    trials,
     scopeToTrial: canManageThisShow,
     requestedTrialId,
     viewId,
@@ -140,20 +151,27 @@ export function ClassesTab({
   );
 
   // A deep link (`?focus=<classId>`, from the Show Desk) scrolls to its class and focuses it
-  // once, after the row exists in whichever layout is showing.
+  // once per visit (the location key changes on each followed link, so the same link followed
+  // again focuses again), after the row exists in whichever layout is showing. The table turns
+  // to the page holding the row first (`revealRow`); cards have no pages.
+  const focusVisitKey = `${location.key}|${focusClassId ?? ''}`;
   const focusedOnce = useRef<string | null>(null);
-  useEffect(() => {
-    if (!focusClassId || focusedOnce.current === focusClassId) return;
+  const focusClassRow = (classId: string) => {
     const row = Array.from(
       document.querySelectorAll<HTMLElement>('[data-class-id], [data-row-id]')
-    ).find(el => (el.dataset.classId ?? el.dataset.rowId) === focusClassId);
+    ).find(el => (el.dataset.classId ?? el.dataset.rowId) === classId);
     if (!row) return;
-    focusedOnce.current = focusClassId;
+    focusedOnce.current = focusVisitKey;
     row.scrollIntoView?.({ block: 'center' });
     // A table row with interactive cells is not tabbable; make it focusable for this jump only.
     if (!row.hasAttribute('tabindex')) row.tabIndex = -1;
     row.focus({ preventScroll: true });
-  }, [focusClassId, filteredClasses, viewMode]);
+  };
+  useEffect(() => {
+    if (!focusClassId || viewMode === 'table' || focusedOnce.current === focusVisitKey) return;
+    focusClassRow(focusClassId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- focusClassRow only closes over the visit key listed
+  }, [focusClassId, focusVisitKey, filteredClasses, viewMode]);
 
   const classSelectCheckbox = (cls: ClassInfo) => (
     <Checkbox
@@ -292,6 +310,12 @@ export function ClassesTab({
           tableId="classesTab"
           columns={classColumns}
           data={tableData}
+          // A manager has the toolbar's search, the one search: a second filter inside the table
+          // would let select-all or a bulk action reach rows it hides. A reader has no toolbar
+          // search and no selection, so the table's own search stays for them.
+          showSearch={!canManageThisShow}
+          revealRow={focusClassId ? { id: focusClassId, key: focusVisitKey } : null}
+          onRowRevealed={focusClassRow}
           getRowClassName={cls =>
             cls.id === focusClassId ? 'bg-accent/20' : cls.userHasEntry ? 'bg-primary/5' : ''
           }

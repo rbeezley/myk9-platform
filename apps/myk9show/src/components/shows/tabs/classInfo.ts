@@ -32,15 +32,24 @@ function formatTrialDate(dateStr: string): string {
   return formatEntryDate(dateStr, { style: 'long' }) || dateStr;
 }
 
-/** The class's trial label (MYK9-704), or '' when the class carries no trial at all. */
-function classTrialPart(cls: ClassInfo): string {
-  if (!cls.trialName && !cls.trialNumber) return '';
-  return formatTrialLabel({ name: cls.trialName, trialNumber: cls.trialNumber });
+interface TrialLabelParts {
+  trialDate?: string | undefined;
+  trialNumber?: string | undefined;
+  trialName?: string | undefined;
 }
 
-/** "Saturday, August 1, 2026 — Trial 1": the trial a class belongs to, '' when it has none. */
-export function classTrialLabel(cls: ClassInfo): string {
-  return [cls.trialDate ? formatTrialDate(cls.trialDate) : '', classTrialPart(cls)]
+/** "Saturday, August 1, 2026 — Trial 1" from a trial's parts (MYK9-704), '' when it has none. */
+export function trialLabelFor(parts: TrialLabelParts): string {
+  const trialPart =
+    !parts.trialName && !parts.trialNumber
+      ? ''
+      : formatTrialLabel({ name: parts.trialName, trialNumber: parts.trialNumber });
+  return [parts.trialDate ? formatTrialDate(parts.trialDate) : '', trialPart]
     .filter(Boolean)
     .join(' — ');
+}
+
+/** The trial a class belongs to, '' when it has none. */
+export function classTrialLabel(cls: ClassInfo): string {
+  return trialLabelFor(cls);
 }

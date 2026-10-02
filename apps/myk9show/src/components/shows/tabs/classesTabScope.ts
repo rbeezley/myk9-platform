@@ -1,15 +1,41 @@
 import { matchesAny } from '@myk9/core';
 import type { ClassInfo } from './classInfo';
-import { classTrialLabel } from './classInfo';
+import { classTrialLabel, trialLabelFor } from './classInfo';
 
 export interface TrialOption {
   id: string;
   label: string;
 }
 
-/** The show's trials in date order, one per trial the classes name. */
-export function listTrialOptions(classes: ClassInfo[]): TrialOption[] {
+/** A trial the show has, whether or not any class names it yet. */
+export interface ShowTrial {
+  id: string;
+  trialDate: string;
+  trialNumber: string;
+  name?: string | undefined;
+}
+
+/**
+ * The show's trials in date order. The show's own trial list comes first so a trial with no
+ * classes yet stays pickable (and Add Classes can open on it); the classes fill in any trial
+ * the list does not carry (the public read has no trial list).
+ */
+export function listTrialOptions(
+  classes: ClassInfo[],
+  trials: readonly ShowTrial[] = []
+): TrialOption[] {
   const seen = new Map<string, { label: string; sortKey: string }>();
+  for (const trial of trials) {
+    seen.set(trial.id, {
+      label:
+        trialLabelFor({
+          trialDate: trial.trialDate,
+          trialNumber: trial.trialNumber,
+          trialName: trial.name,
+        }) || 'Trial',
+      sortKey: `${trial.trialDate || ''}|${trial.trialNumber || ''}`,
+    });
+  }
   for (const cls of classes) {
     if (seen.has(cls.trialId)) continue;
     seen.set(cls.trialId, {

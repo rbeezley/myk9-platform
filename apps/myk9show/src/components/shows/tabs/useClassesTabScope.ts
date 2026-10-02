@@ -7,10 +7,17 @@ import {
   classesTabViewFilters,
   filterClassesForTab,
 } from './classesTabViews';
-import { listTrialOptions, narrowClasses, resolveScopeTrialId } from './classesTabScope';
+import {
+  listTrialOptions,
+  narrowClasses,
+  resolveScopeTrialId,
+  type ShowTrial,
+} from './classesTabScope';
 
 interface ScopeInput {
   classes: ClassInfo[];
+  /** The show's trials, so one with no classes yet is still a scope. */
+  trials?: readonly ShowTrial[] | undefined;
   /** Managers work one trial at a time; everyone else reads the whole show. */
   scopeToTrial: boolean;
   requestedTrialId: string | null | undefined;
@@ -25,6 +32,7 @@ interface ScopeInput {
  */
 export function useClassesTabScope({
   classes,
+  trials,
   scopeToTrial,
   requestedTrialId,
   viewId,
@@ -33,7 +41,7 @@ export function useClassesTabScope({
   const [search, setSearch] = useState('');
   const [element, setElement] = useState('all');
 
-  const trialOptions = useMemo(() => listTrialOptions(classes), [classes]);
+  const trialOptions = useMemo(() => listTrialOptions(classes, trials), [classes, trials]);
   const scopeTrialId = scopeToTrial ? resolveScopeTrialId(trialOptions, requestedTrialId) : null;
   const scopedClasses = useMemo(
     () => (scopeTrialId ? classes.filter(cls => cls.trialId === scopeTrialId) : classes),

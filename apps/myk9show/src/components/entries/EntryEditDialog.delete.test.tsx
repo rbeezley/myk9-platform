@@ -72,6 +72,7 @@ async function renderSheet(props: Partial<React.ComponentProps<typeof EntryEditD
       onOpenChange={onOpenChange}
       onUpdate={vi.fn()}
       asShowManager
+      canDelete
       {...props}
     />
   );
@@ -96,8 +97,15 @@ describe('EntryEditDialog footer Delete', () => {
   });
 
   it('is absent for an exhibitor, who withdraws rather than deletes', async () => {
-    await renderSheet({ asShowManager: false });
+    await renderSheet({ asShowManager: false, canDelete: false });
     // Positive control: the footer rendered.
+    expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^delete/i })).not.toBeInTheDocument();
+  });
+
+  it('is absent when the host does not resolve a manage gate for this show (a show-scoped secretary)', async () => {
+    // asShowManager only says "this is the manager surface"; it is not the delete gate.
+    await renderSheet({ asShowManager: true, canDelete: false });
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^delete/i })).not.toBeInTheDocument();
   });

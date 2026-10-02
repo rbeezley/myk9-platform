@@ -119,9 +119,11 @@ describe('EntryListCard - Edit entry lives in an always-present row menu (MYK9-9
     }
   );
 
-  it('renders no row menu when the viewer has no editor to open', () => {
-    render(<EntryListCard {...defaultProps} entries={[makeEntry()]} />);
-    expect(screen.queryByRole('button', { name: 'Actions for Fido' })).not.toBeInTheDocument();
+  it('renders the row menu without Edit when the viewer has no editor to open', async () => {
+    const { user } = render(<EntryListCard {...defaultProps} entries={[makeEntry()]} />);
+    await user.click(screen.getByRole('button', { name: 'Actions for Fido' }));
+    expect(screen.queryByRole('menuitem', { name: 'Edit entry' })).not.toBeInTheDocument();
+    expect(await screen.findByRole('menuitem', { name: 'Remove entry' })).toBeInTheDocument();
   });
 });
 
@@ -278,7 +280,28 @@ describe('EntryListCard - check-in button affordance', () => {
     // Positive control: the status menu is open.
     expect(screen.getByText('Payment')).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /remove entry/i })).not.toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: /remove entry for fido/i })).toHaveLength(1);
+    // The bare trash icon is gone: Remove is the row menu's last item.
+    expect(
+      screen.queryByRole('button', { name: /remove entry for fido/i })
+    ).not.toBeInTheDocument();
+  });
+
+  it('lists Remove entry last in the row menu, after Edit entry', async () => {
+    const user = userEvent.setup();
+    render(<EntryListCard {...defaultProps} onOpenEditEntry={vi.fn()} />);
+
+    await user.click(screen.getByRole('button', { name: 'Actions for Fido' }));
+    const items = (await screen.findAllByRole('menuitem')).map(item => item.textContent);
+    expect(items).toEqual(['Edit entry', 'Remove entry']);
+  });
+
+  it('keeps the row menu, with Remove entry alone, where no Edit is offered', async () => {
+    const user = userEvent.setup();
+    render(<EntryListCard {...defaultProps} />);
+
+    await user.click(screen.getByRole('button', { name: 'Actions for Fido' }));
+    const items = (await screen.findAllByRole('menuitem')).map(item => item.textContent);
+    expect(items).toEqual(['Remove entry']);
   });
 
   it('asks through the shared delete dialog before removing an entry', async () => {
@@ -297,7 +320,8 @@ describe('EntryListCard - check-in button affordance', () => {
     const onEntryRemoved = vi.fn();
     render(<EntryListCard {...defaultProps} onEntryRemoved={onEntryRemoved} />);
 
-    await user.click(screen.getByRole('button', { name: /remove entry for fido/i }));
+    await user.click(screen.getByRole('button', { name: 'Actions for Fido' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Remove entry' }));
 
     const dialog = await screen.findByRole('alertdialog', { name: 'Delete the entry for Fido?' });
     expect(deleteMocks.remove).not.toHaveBeenCalled();
@@ -326,7 +350,8 @@ describe('EntryListCard - check-in button affordance', () => {
     const onEntryRestored = vi.fn();
     render(<EntryListCard {...defaultProps} onEntryRestored={onEntryRestored} />);
 
-    await user.click(screen.getByRole('button', { name: /remove entry for fido/i }));
+    await user.click(screen.getByRole('button', { name: 'Actions for Fido' }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Remove entry' }));
     const dialog = await screen.findByRole('alertdialog', { name: 'Delete the entry for Fido?' });
     const confirm = within(dialog).getByRole('button', { name: 'Delete entry' });
     await waitFor(() => expect(confirm).toBeEnabled());

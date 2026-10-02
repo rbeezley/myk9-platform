@@ -237,6 +237,53 @@ describe('dog Edit panel footer', () => {
   });
 });
 
+describe('dog Edit panel footer, refused delete', () => {
+  it('reports start then failure, never success, and leaves the panel open with the reason', async () => {
+    mocks.remove.mockRejectedValue(new Error('boom'));
+    const onDeleteStart = vi.fn();
+    const onDeleted = vi.fn();
+    const onDeleteFailed = vi.fn();
+    const onEditPanelClose = vi.fn();
+    const { user } = render(
+      <DogDialogs
+        dog={dogs[0] as Dog}
+        isEditPanelOpen
+        canDelete
+        isPhotoDialogOpen={false}
+        photoPreview={null}
+        isPhotoDragging={false}
+        isSavingPhoto={false}
+        showCelebration={false}
+        userRole={UserRole.EXHIBITOR}
+        people={[]}
+        onEditPanelClose={onEditPanelClose}
+        onDeleteStart={onDeleteStart}
+        onDeleted={onDeleted}
+        onDeleteFailed={onDeleteFailed}
+        onPhotoDialogOpen={noop}
+        onPhotoDrop={noop}
+        onPhotoDragOver={noop}
+        onPhotoDragLeave={noop}
+        onPhotoFileInput={noop}
+        onPhotoSave={async () => true}
+        onSetUpdatedDog={noop}
+        onSetShowCelebration={noop}
+        onSetRecentUpdate={noop}
+        onSetIsEditPanelOpen={noop}
+      />
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Delete dog' }));
+    const dialog = await deleteThrough(user, 'Delete the dog Biscuit?', 'Delete dog');
+
+    expect(await within(dialog).findByRole('alert')).toHaveTextContent(/couldn't delete/i);
+    expect(onDeleteStart).toHaveBeenCalled();
+    expect(onDeleteFailed).toHaveBeenCalled();
+    expect(onDeleted).not.toHaveBeenCalled();
+    expect(onEditPanelClose).not.toHaveBeenCalled();
+  });
+});
+
 describe('a viewer who cannot delete', () => {
   it('sees no Delete dog in the panel footer, though the panel is open', async () => {
     render(

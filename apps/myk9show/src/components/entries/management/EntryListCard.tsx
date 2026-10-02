@@ -148,37 +148,31 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                 Assign
               </button>
             )}
-            {/* The row menu is always present for a viewer who can edit, whatever the entry's
-                status or classes: Edit entry is its first item (MYK9-928). */}
-            {onOpenEditEntry && (
-              <div className="ml-auto">
-                <RowActionMenu
-                  size="touch"
-                  label={`Actions for ${entry.dogName}`}
-                  actions={[
-                    {
-                      id: 'edit',
-                      label: 'Edit entry',
-                      icon: <PencilLine />,
-                      onSelect: () => onOpenEditEntry(entry),
-                    },
-                  ]}
-                />
-              </div>
-            )}
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className={cn(
-                'min-h-11 px-2 text-muted-foreground hover:text-destructive',
-                !onOpenEditEntry && 'ml-auto'
-              )}
-              aria-label={`Remove entry for ${entry.dogName}`}
-              onClick={() => setRemoveDialog({ open: true, entry })}
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            {/* The row menu is always present, whatever the entry's status or classes: Edit
+                entry first (MYK9-928, when offered), Remove entry last (one Remove per row,
+                in the row menu, through the shared dialog). */}
+            <div className="ml-auto">
+              <RowActionMenu
+                size="touch"
+                label={`Actions for ${entry.dogName}`}
+                actions={[
+                  {
+                    id: 'edit',
+                    label: 'Edit entry',
+                    icon: <PencilLine />,
+                    onSelect: () => onOpenEditEntry?.(entry),
+                    hidden: !onOpenEditEntry,
+                  },
+                  {
+                    id: 'remove',
+                    label: 'Remove entry',
+                    icon: <Trash2 />,
+                    variant: 'destructive',
+                    onSelect: () => setRemoveDialog({ open: true, entry }),
+                  },
+                ]}
+              />
+            </div>
           </div>
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground mb-2">

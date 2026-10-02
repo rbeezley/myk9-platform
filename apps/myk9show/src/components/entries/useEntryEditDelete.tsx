@@ -3,8 +3,8 @@
  * button, the shared confirm dialog, and the open state the sheet needs so Save and
  * every dismissal hold still while that dialog is open.
  *
- * `soft_delete_entry` requires `can_manage_show`, the rule behind `asShowManager`, so
- * only a show manager gets the controls; an exhibitor withdraws instead.
+ * `soft_delete_entry` requires `can_manage_show` for the entry's show, so the host passes
+ * `enabled` from its own per-show manage gate; an exhibitor withdraws instead.
  */
 import { useState } from 'react';
 import { entryDeleteDetail } from '@/features/delete';

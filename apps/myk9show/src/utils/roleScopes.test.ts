@@ -143,6 +143,20 @@ describe('canManageShowSurface', () => {
     ).toBe(true);
   });
 
+  // is_trial_secretary accepts `trial_secretary` too; create-show already did, manage did not.
+  it('grants a trial_secretary scoped to this show’s club, with no global role held', () => {
+    const trialSecretary = buildUser([{ ...secretaryClubScope, roleId: 'trial_secretary' }]);
+    expect(
+      canManageShowSurface({
+        isSecretary: false,
+        isAdmin: false,
+        hasRole: holdsNothing,
+        userWithRoles: trialSecretary,
+        clubId: 'club-1',
+      })
+    ).toBe(true);
+  });
+
   it('denies a secretary viewing another club’s show', () => {
     expect(
       canManageShowSurface({

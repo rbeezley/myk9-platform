@@ -31,7 +31,7 @@ vi.mock('./useClassDetailsDialogs', () => ({
     editClassPanelOpen: true,
     setEditClassPanelOpen: vi.fn(),
     openEditClassPanel: vi.fn(),
-    closeEditClassPanel: vi.fn(),
+    closeEditClassPanel: closeEditPanel,
     deleteEntryDialogOpen: false,
     setDeleteEntryDialogOpen: vi.fn(),
     entryToDelete: null,
@@ -41,6 +41,7 @@ vi.mock('./useClassDetailsDialogs', () => ({
   }),
 }));
 const updateClass = vi.hoisted(() => vi.fn());
+const closeEditPanel = vi.hoisted(() => vi.fn());
 let mockConnectionHint: string | undefined;
 
 vi.mock('@/hooks/useConnectionHint', () => ({ useConnectionHint: () => mockConnectionHint }));
@@ -78,7 +79,7 @@ vi.mock('@/components/panels/edit/ClassEditPanel', async () => {
     }) => (
       <EditPanelWrapper
         open
-        onClose={() => undefined}
+        onClose={closeEditPanel}
         title="Edit Class"
         initialData={{}}
         onSave={async () => undefined}
@@ -154,6 +155,7 @@ describe('ClassDetailsPage delete / save failure contract', () => {
     deleteMocks.remove.mockReset().mockResolvedValue(undefined);
     deleteMocks.purge.mockReset().mockResolvedValue(undefined);
     updateClass.mockReset();
+    closeEditPanel.mockReset();
     mockUseClassDetailsData.mockReturnValue({
       classId: 'class-1',
       trialId: 'trial-1',
@@ -210,6 +212,8 @@ describe('ClassDetailsPage delete / save failure contract', () => {
     await waitFor(() =>
       expect(screen.getByTestId('location')).toHaveTextContent('/trials/trial-1')
     );
+    // The Edit panel the Delete button lives in closes too, exactly once.
+    expect(closeEditPanel).toHaveBeenCalledTimes(1);
   });
 
   it('does not navigate when the delete fails', async () => {
@@ -224,6 +228,8 @@ describe('ClassDetailsPage delete / save failure contract', () => {
     expect(screen.getByTestId('location')).toHaveTextContent(
       '/shows/show-1/trials/trial-1/classes/class-1'
     );
+    // A refused delete leaves the Edit panel open.
+    expect(closeEditPanel).not.toHaveBeenCalled();
   });
 
   it('does not navigate or call the delete while offline', async () => {

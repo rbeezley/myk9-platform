@@ -452,10 +452,8 @@ test.describe('People UI — Admin CRUD lifecycle', () => {
     await expect(cancelDeleteDialog).toBeVisible();
     await cancelDeleteDialog.getByRole('button', { name: 'Keep it', exact: true }).click();
     await expect(cancelDeleteDialog).not.toBeVisible();
+    // Keep it leaves the Edit panel open, so its footer Delete is still there.
     await expect(page.getByRole('heading', { name: /Adminperson/, level: 1 })).toBeVisible();
-
-    // Delete person is the Edit panel's footer button, never a menu item (CRUD standard Phase 3).
-    await chooseAction(page, 'Edit person');
     await page.getByRole('button', { name: 'Delete person', exact: true }).click();
     const deleteDialog = page.getByRole('alertdialog', { name: /^Delete the person / });
     await expect(deleteDialog).toBeVisible();

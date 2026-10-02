@@ -344,7 +344,7 @@ describe('EnrollmentCard', () => {
     // entry Pending — same reason Lane 2.2 (#827) omitted bulk Waitlist from
     // the table multi-select bar.
     render(<EnrollmentCard {...defaultProps} />);
-    fireEvent.click(screen.getByRole('button', { name: /actions/i }));
+    fireEvent.click(screen.getByRole('button', { name: /^actions$/i }));
 
     // Registration decisions remain reachable here…
     expect(screen.getByText('Accept all')).toBeTruthy();

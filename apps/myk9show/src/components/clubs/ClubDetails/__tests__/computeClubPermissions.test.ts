@@ -104,6 +104,16 @@ describe('canDeleteShowForClub (mirrors soft_delete_show)', () => {
       true,
     ],
     [
+      'a club_admin grant pinned to this show (is_club_admin ignores show_id)',
+      viewer([], [scope('club_admin', ScopeType.SHOW, 'show-1')]),
+      true,
+    ],
+    [
+      'a club_admin grant pinned to a different show',
+      viewer([], [scope('club_admin', ScopeType.SHOW, 'show-9')]),
+      false,
+    ],
+    [
       'a secretary appointed to one show only',
       viewer([], [scope('secretary', ScopeType.SHOW, 'club-1')]),
       false,
@@ -115,12 +125,12 @@ describe('canDeleteShowForClub (mirrors soft_delete_show)', () => {
     ],
     ['an exhibitor', viewer([UserRole.EXHIBITOR]), false],
   ])('%s: %s', (_label, user, expected) => {
-    expect(canDeleteShowForClub(user, 'club-1')).toBe(expected);
+    expect(canDeleteShowForClub(user, { clubId: 'club-1', showId: 'show-1' })).toBe(expected);
   });
 
   it('is false with no signed-in user, and a club-less show is a site admin matter', () => {
-    expect(canDeleteShowForClub(null, 'club-1')).toBe(false);
-    expect(canDeleteShowForClub(viewer([UserRole.SECRETARY]), undefined)).toBe(false);
-    expect(canDeleteShowForClub(viewer([UserRole.SITE_ADMIN]), undefined)).toBe(true);
+    expect(canDeleteShowForClub(null, { clubId: 'club-1' })).toBe(false);
+    expect(canDeleteShowForClub(viewer([UserRole.SECRETARY]), {})).toBe(false);
+    expect(canDeleteShowForClub(viewer([UserRole.SITE_ADMIN]), {})).toBe(true);
   });
 });

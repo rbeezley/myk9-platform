@@ -191,7 +191,7 @@ function AuthorizedShowManagementShell({
 
   // Hidden for a viewer `soft_delete_show` would refuse (a show-scoped secretary, say).
   const { userWithRoles } = useAuthContext();
-  const canDeleteShow = canDeleteShowForClub(userWithRoles, show.clubId);
+  const canDeleteShow = canDeleteShowForClub(userWithRoles, { clubId: show.clubId, showId: show.id });
   const entryDataUnavailable = entryDataState !== 'ready';
   const isShowDesk = activeManagementSection === 'show-day';
   // The retired Class Management URL (`classes/:trialId`) redirects into Setup → Classes, so

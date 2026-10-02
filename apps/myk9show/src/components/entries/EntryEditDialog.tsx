@@ -68,6 +68,11 @@ interface EntryEditDialogProps {
    */
   allowLeaveClass?: boolean;
   /**
+   * The viewer may delete this entry: `soft_delete_entry` is `can_manage_show` for THIS
+   * show, which the host resolves (a show-manager surface is not enough on its own).
+   */
+  canDelete?: boolean;
+  /**
    * After the shared delete dialog deleted the entry (a show manager's footer Delete).
    * The sheet has already closed itself; refresh the list here.
    */
@@ -84,6 +89,7 @@ export function EntryEditDialog({
   ignoreModificationDeadline = false,
   asShowManager = false,
   allowLeaveClass = true,
+  canDelete = false,
   onDeleted,
   onRestored,
 }: EntryEditDialogProps) {
@@ -96,7 +102,7 @@ export function EntryEditDialog({
   // dismissal hold still, because its server call may be in flight.
   const { deleteOpen, deleteButton, deleteDialog } = useEntryEditDelete({
     entry,
-    enabled: asShowManager,
+    enabled: canDelete,
     closeSheet: () => onOpenChange(false),
     onDeleted,
     onRestored,

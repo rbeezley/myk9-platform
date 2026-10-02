@@ -322,7 +322,7 @@ describe('per-trial dates on a multi-day show (MYK9-806)', () => {
     // Show runs Sep 27-29; today is Sep 28. The show has neither ended nor is
     // it all ahead, so a gate keyed on the show's start OR end date would
     // misfile one of these two rows.
-    const today = new Date(2026, 8, 28);
+    const today = new Date('2026-09-28T17:00:00Z'); // noon Sep 28 in Chicago, any runner TZ
     const runningShow = {
       id: 'dec1a55e-0000-0000-0000-000000000004',
       name: 'Heartland Scent Work Week',

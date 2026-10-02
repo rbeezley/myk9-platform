@@ -43,3 +43,28 @@ describe('sign-in email refusals in production builds', () => {
     ).toBe(SIGN_IN_EMAIL_UNVERIFIABLE_MESSAGE);
   });
 });
+
+// MYK9-923. The entries trigger refuses an entry under a deleted class, trial or
+// show with SQLSTATE MK014, from every writer (checkout, desk entry, class
+// change). In production the raw message is discarded, so the code must map.
+describe('entry under a deleted parent in production builds', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('says the class, trial or show was deleted instead of a generic failure', () => {
+    vi.stubEnv('DEV', false);
+
+    expect(
+      getUserFriendlyError(
+        {
+          code: 'MK014',
+          message: 'This class has been deleted, so it can no longer take entries.',
+        },
+        'Failed to create entry'
+      )
+    ).toBe(
+      'This class, trial or show has been deleted, so it can no longer take entries. Refresh to see the current schedule.'
+    );
+  });
+});

@@ -66,10 +66,6 @@ values
    current_date, current_date, '00000000-0000-0000-0000-000000126001', 'draft'),
   ('00000000-0000-0000-0000-000000126004', 'MYK9-126 Deleted', 'AKC',
    current_date, current_date, '00000000-0000-0000-0000-000000126001', 'published');
-update public.shows
-set deleted_at = now()
-where id = '00000000-0000-0000-0000-000000126004';
-
 insert into public.user_roles (
   user_id, role_id, club_id, show_id, is_active, expires_at, auth_user_id
 )
@@ -130,6 +126,13 @@ insert into public.entries (
    '00000000-0000-0000-0000-000000126010', '00000000-0000-0000-0000-000000126004',
    '00000000-0000-0000-0000-000000126007', '00000000-0000-0000-0000-000000126013',
    'confirmed', 'paid', 25);
+
+-- The deleted show is soft-deleted only now, after its entry exists: since
+-- MYK9-923 an entry cannot be inserted under a deleted show. A direct UPDATE
+-- (no cascade) leaves the entry live, the definer-only edge asserted below.
+update public.shows
+set deleted_at = now()
+where id = '00000000-0000-0000-0000-000000126004';
 
 -- Function surface: authenticated may execute, anon must not.
 do $$

@@ -34,6 +34,10 @@ export const ERROR_CODE_MESSAGES: Record<string, string> = {
   // MYK9-632: the word is Pull everywhere a person reads it. The SQLSTATE and
   // the stored `entry_status` keep their spellings.
   MK002: 'This dog has paid or scored entries. Pull or refund them before deleting.',
+  // MYK9-923: the entries trigger refuses an entry under a deleted class, trial
+  // or show, whichever writer sent it.
+  MK014:
+    'This class, trial or show has been deleted, so it can no longer take entries. Refresh to see the current schedule.',
 
   // Application-level refusals (MYK9-136). These carry copy that is the whole
   // point of the refusal, so they must be mapped — this function discards the

@@ -15,9 +15,10 @@ const SECRETARY_SHOWS_PATH = '/secretary/dashboard';
  * and Health Records, on purpose. Entries and results live with each show, so
  * say where, instead of rebuilding them here.
  *
- * A secretary with one managed show goes straight to its Entries page; zero or
- * several go to the secretary dashboard (the /secretary/* guard admits the
- * secretary role). A club admin without the secretary role cannot open that
+ * Exactly one managed show goes straight to its Entries page for everyone (that
+ * route's guard, useShowManageScope, admits a club admin for their own club's
+ * show). Otherwise a secretary goes to the secretary dashboard (the /secretary/*
+ * guard admits the secretary role); a club admin without it cannot open that
  * guard, so they get the sidebar's "Our Shows" target, /shows?club=<clubId>,
  * from the same validated club context, or /shows until it is ready.
  */
@@ -28,9 +29,10 @@ const NonOwnerDogNote: React.FC = () => {
   const isSecretary = hasRole(UserRole.SECRETARY);
   const clubId = clubContext.status === 'ready' ? clubContext.clubId : null;
   const href = useMemo(() => {
-    if (!isSecretary) return clubId ? `/shows?club=${clubId}` : '/shows';
     const managed = filterManagedShows(shows, managedClubIds({ isAdmin, userWithRoles }));
-    return managed.length === 1 ? `/shows/${managed[0].id}/entries` : SECRETARY_SHOWS_PATH;
+    if (managed.length === 1) return `/shows/${managed[0].id}/entries`;
+    if (!isSecretary) return clubId ? `/shows?club=${clubId}` : '/shows';
+    return SECRETARY_SHOWS_PATH;
   }, [isSecretary, clubId, shows, isAdmin, userWithRoles]);
 
   return (
@@ -44,7 +46,7 @@ const NonOwnerDogNote: React.FC = () => {
         </p>
         <Link
           to={href}
-          className="mt-2 inline-block font-medium text-primary underline-offset-4 hover:underline"
+          className="mt-1 inline-flex min-h-11 items-center rounded-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           Go to my shows →
         </Link>

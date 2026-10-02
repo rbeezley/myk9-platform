@@ -227,6 +227,12 @@ describe('DogDetailsMain — view follows the viewer’s relationship to the dog
       expect(noteLink()).toHaveAttribute('href', '/secretary/dashboard');
     });
 
+    it('gives the note link a 44px touch target', () => {
+      asNonOwnerSecretary([CLUB_A]);
+      render(<DogDetailsMain dog={baseDog} />);
+      expect(noteLink()).toHaveClass('min-h-11', 'inline-flex', 'items-center');
+    });
+
     it('links straight to the Entries page when the viewer manages exactly one show', () => {
       asNonOwnerSecretary([CLUB_A]);
       useShowStore.setState({ shows: [show('s1', CLUB_A), show('s2', CLUB_B)] });
@@ -252,6 +258,16 @@ describe('DogDetailsMain — view follows the viewer’s relationship to the dog
         render(<DogDetailsMain dog={baseDog} />);
         expect(screen.getByText('Entries and results live with each show.')).toBeInTheDocument();
         expect(noteLink()).toHaveAttribute('href', `/shows?club=${CLUB_A}`);
+      });
+
+      it('links straight to the Entries page when the club admin manages exactly one show', () => {
+        mockRoles = ['club_admin'];
+        mockPersonId = OTHER_PERSON_ID;
+        mockClubContext = { status: 'ready', clubId: CLUB_A };
+        mockScopes = [{ scopeType: 'club', roleId: 'club_admin', scopeId: CLUB_A }];
+        useShowStore.setState({ shows: [show('s1', CLUB_A), show('s2', CLUB_B)] });
+        render(<DogDetailsMain dog={baseDog} />);
+        expect(noteLink()).toHaveAttribute('href', '/shows/s1/entries');
       });
 
       it('falls back to /shows when the club context is not ready', () => {

@@ -194,6 +194,12 @@ export class MutationQueueStore {
     return failed.filter(mutation => mutation.authUserId === authUserId);
   }
 
+  /** Every account's failed mutations on this device, as a bare count. */
+  async getDeviceFailedCount(): Promise<number> {
+    const db = await databaseManager.getDatabase('MutationManager');
+    return db.count(REPLICATION_STORES.FAILED_MUTATIONS);
+  }
+
   async retryFailedMutation(
     mutationId: string,
     authUserId: string,

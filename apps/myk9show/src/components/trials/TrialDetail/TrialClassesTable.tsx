@@ -206,21 +206,13 @@ export const TrialClassesTable = ({
             <p className="text-sm text-muted-foreground">Manage the classes for this trial</p>
           )}
         </div>
+        {/* Add classes is the header Actions menu's; the empty state above keeps its own button. */}
         <div className="flex items-center gap-2">
           <ViewToggle
             modes={TRIAL_CLASSES_VIEW_MODES}
             active={viewMode}
             onChange={v => setViewMode(v as ViewMode)}
           />
-          {canAddClasses && (
-            <Button
-              onClick={onAddClassesFromTemplate}
-              className="myk9-action-button myk9-action-button-primary"
-            >
-              <Plus className="h-4 w-4" />
-              Add Classes
-            </Button>
-          )}
         </div>
       </div>
 

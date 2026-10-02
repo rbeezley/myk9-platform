@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { signInAsSecretary } from '../helpers/testUsers';
+import { chooseAction } from '../helpers/actionsMenu';
 
 /**
  * UI test for the Classes-on-a-Trial workflow that the secretary uses.
@@ -31,7 +32,7 @@ const TRIAL_URL = `/shows/${TEST_SHOW_ID}/trials/${TEST_TRIAL_ID}`;
 async function gotoTrial(page: Page) {
   await page.goto(TRIAL_URL, { waitUntil: 'networkidle' });
   // Wait until the classes table mounts (data hydrated from replication).
-  await expect(page.getByRole('button', { name: 'Add Classes' })).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole('heading', { name: /^Classes \(/ })).toBeVisible({ timeout: 15000 });
 }
 
 test.describe('Classes UI — Add Classes (show wizard, add-classes mode)', () => {
@@ -44,7 +45,8 @@ test.describe('Classes UI — Add Classes (show wizard, add-classes mode)', () =
   }) => {
     await gotoTrial(page);
 
-    await page.getByRole('button', { name: 'Add Classes' }).click();
+    // MYK9-928: Add classes is the trial page's header Actions menu item.
+    await chooseAction(page, 'Add classes');
 
     // MYK9-899: the one class-create flow is the wizard's add-classes mode, focused on the
     // trial the secretary launched from.

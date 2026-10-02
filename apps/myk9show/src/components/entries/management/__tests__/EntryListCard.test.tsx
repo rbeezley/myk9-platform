@@ -85,6 +85,26 @@ const defaultProps = {
   onEntryRemoved: vi.fn(),
 };
 
+describe('EntryListCard - Edit entry lives in the row menu (MYK9-928)', () => {
+  it('has no pencil button; Edit entry is the first item of the row menu', async () => {
+    const user = userEvent.setup();
+    const onOpenEditEntry = vi.fn();
+    const entry = makeEntry();
+    render(<EntryListCard {...defaultProps} entries={[entry]} onOpenEditEntry={onOpenEditEntry} />);
+
+    expect(screen.queryByRole('button', { name: /edit entry for Fido/i })).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', { name: /change entry status for Fido in Novice A/i })
+    );
+    const items = screen.getAllByRole('menuitem');
+    expect(items[0]).toHaveTextContent('Edit entry');
+
+    await user.click(items[0] as HTMLElement);
+    expect(onOpenEditEntry).toHaveBeenCalledWith(entry);
+  });
+});
+
 describe('EntryListCard - check-in button affordance', () => {
   it('renders check-in status button with cursor-pointer class', () => {
     render(<EntryListCard {...defaultProps} />);

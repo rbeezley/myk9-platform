@@ -1,10 +1,11 @@
-import { render, screen } from '@testing-library/react';
+import { act, render, screen } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import TrialDetailsPage from '@/pages/TrialDetailsPage';
 import type { Trial } from '@/components/trials/types/trial.types';
+import { usePageEditTargetStore } from '@/features/actions/pageEditTarget';
 
 // ---------------------------------------------------------------------------
 // Lane 3.7 regression: a logged-out guest never syncs the trial store, so the
@@ -124,7 +125,10 @@ vi.mock('@/components/trials/TrialDetailsMain', () => ({
     </div>
   ),
 }));
-vi.mock('@/components/panels/edit/TrialEditPanel', () => ({ TrialEditPanel: () => null }));
+vi.mock('@/components/panels/edit/TrialEditPanel', () => ({
+  TrialEditPanel: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="trial-edit-panel" /> : null,
+}));
 vi.mock('@/components/panels/edit/ClassEditPanel', () => ({ ClassEditPanel: () => null }));
 vi.mock('@/components/secretary/FinancialSummary', () => ({ FinancialSummary: () => null }));
 vi.mock('@/components/trials/TrialDetail/TrialEntriesTable', () => ({
@@ -232,6 +236,7 @@ describe('TrialDetailsPage', () => {
     mockAuthContext.isSecretary = false;
     mockAuthContext.isAdmin = false;
     mockAuthContext.hasRole.mockReturnValue(false);
+    usePageEditTargetStore.setState({ target: null, owner: null });
   });
 
   it('renders a skeleton while the trial fallback is still loading', () => {
@@ -363,5 +368,64 @@ describe('TrialDetailsPage', () => {
     expect(screen.getByTestId('wizard-location')).toHaveTextContent(
       '/secretary/create-show/wizard?showId=show-1&mode=add-classes&trialId=trial-1'
     );
+  });
+
+  describe('page actions live in the header Actions menu (MYK9-928)', () => {
+    function secretaryOnWarmStore() {
+      mockAuthContext.user = { id: 'user-1' };
+      mockAuthContext.isSecretary = true;
+      mockTrials = [makeFallbackTrial() as unknown as Record<string, unknown>];
+      mockSelectedTrialId = 'trial-1';
+      mockShows = [{ id: 'show-1', name: 'Heartland Scent Work Classic', clubId: 'club-1' }];
+    }
+
+    it('renders no Edit button in the hero, and registers Edit trial for the Actions menu', () => {
+      secretaryOnWarmStore();
+      renderPage();
+
+      expect(screen.queryByRole('button', { name: /^edit/i })).not.toBeInTheDocument();
+      expect(usePageEditTargetStore.getState().target).toMatchObject({
+        kind: 'trial',
+        addClassesHref:
+          '/secretary/create-show/wizard?showId=show-1&mode=add-classes&trialId=trial-1',
+      });
+    });
+
+    it('opens the trial Edit panel when the registered Edit runs', () => {
+      secretaryOnWarmStore();
+      renderPage();
+      expect(screen.queryByTestId('trial-edit-panel')).not.toBeInTheDocument();
+
+      act(() => usePageEditTargetStore.getState().target?.run());
+
+      expect(screen.getByTestId('trial-edit-panel')).toBeInTheDocument();
+    });
+
+    it('registers nothing for a viewer scoped to another club (the old button gate)', () => {
+      secretaryOnWarmStore();
+      mockShows = [{ id: 'show-1', name: 'Heartland', clubId: 'someone-elses-club' }];
+      renderPage();
+
+      expect(usePageEditTargetStore.getState().target).toBeNull();
+    });
+
+    it('registers nothing for a guest', () => {
+      mockTrials = [];
+      mockFallbackTrial = makeFallbackTrial();
+      mockFallbackShow = { id: 'show-1', name: 'Heartland', organization: 'AKC', clubId: 'club-1' };
+      renderPage();
+
+      expect(usePageEditTargetStore.getState().target).toBeNull();
+    });
+
+    it('withdraws the registration when the page unmounts', () => {
+      secretaryOnWarmStore();
+      const { unmount } = renderPage();
+      expect(usePageEditTargetStore.getState().target).not.toBeNull();
+
+      unmount();
+
+      expect(usePageEditTargetStore.getState().target).toBeNull();
+    });
   });
 });

@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import { Check, ChevronDown, Loader2 } from 'lucide-react';
+import { Check, ChevronDown, Loader2, PencilLine } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { StatusBadge, StatusIcon, getStatusDescriptor } from '@/components/status';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -17,6 +17,11 @@ interface EntryStatusPopoverProps {
     status: EntryStatus
   ) => void | boolean | Promise<boolean | void>;
   additionalContent?: ReactNode;
+  /**
+   * Opens the entry's edit dialog. Rendered as the FIRST item of the menu, above the
+   * status choices: Edit is first on every row menu (MYK9-928). Omit to hide it.
+   */
+  onEdit?: (() => void) | undefined;
 }
 
 export function EntryStatusPopover({
@@ -24,6 +29,7 @@ export function EntryStatusPopover({
   entryClassName,
   onStatusChange,
   additionalContent,
+  onEdit,
 }: EntryStatusPopoverProps) {
   const [open, setOpen] = useState(false);
   const [pendingActionId, setPendingActionId] = useState<string | null>(null);
@@ -89,6 +95,23 @@ export function EntryStatusPopover({
           </button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-64 p-2" role="menu">
+          {onEdit && (
+            <>
+              <button
+                type="button"
+                role="menuitem"
+                className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+                onClick={() => {
+                  setOpen(false);
+                  onEdit();
+                }}
+              >
+                <PencilLine className="h-4 w-4" aria-hidden />
+                Edit entry
+              </button>
+              <div role="separator" className="my-2 border-t" />
+            </>
+          )}
           <p className="px-2 pb-1 text-sm font-semibold">Change status</p>
           <div
             role="menuitem"

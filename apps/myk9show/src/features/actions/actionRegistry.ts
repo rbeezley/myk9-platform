@@ -3,6 +3,7 @@ import {
   buildSecretaryRegistrationPath,
 } from '@/pages/RegistrationWizardPage.routes';
 import { SHOW_SHELL_CHILD_SEGMENTS } from '@/routes/showManagementSections';
+import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 import { TRIAL_SECRETARY_ONLY_REASON } from './trialSecretaryAccess';
 
 /**
@@ -25,7 +26,25 @@ import { TRIAL_SECRETARY_ONLY_REASON } from './trialSecretaryAccess';
  * React state the pure resolver has no access to. `useCurrentActions` binds
  * each one to a real callback; nothing else may invent a command.
  */
-export type ActionCommand = 'publish-premium';
+export type ActionCommand = 'publish-premium' | 'edit-object';
+
+/**
+ * The objects whose DETAIL page owns an Edit panel (the show's own Edit is a
+ * search-only link, because its shell is mounted by the router). A page tells the
+ * header it is on screen and the viewer may edit it by registering one of these
+ * (`usePageEditAction`), so the gate is the page's own -- the one its old Edit
+ * button used -- and the header menu needs no second copy of it.
+ */
+export type EditableObjectKind = 'trial' | 'class' | 'club' | 'dog' | 'person';
+
+export interface PageObject {
+  kind: EditableObjectKind;
+  /**
+   * Where "Add classes" goes, for a trial page whose viewer may add them. Absent
+   * means no such action is offered (read-only viewer, or no show to open it on).
+   */
+  addClassesHref?: string | undefined;
+}
 
 export interface AppAction {
   id: string;
@@ -84,6 +103,11 @@ export interface ActionViewer {
   canCreateShows: boolean;
   /** Holds a show-management staff role anywhere (drives the role-wide list). */
   isShowManagementStaff: boolean;
+  /**
+   * The detail page on screen, when its viewer may edit it. Registered by the page
+   * itself so the gate is the one its Edit button used (MYK9-928).
+   */
+  pageObject?: PageObject | null | undefined;
 }
 
 const SHOW_PATH = /^\/shows\/([^/]+)(?:\/|$)/;
@@ -180,12 +204,50 @@ function buildShowActions(
     ...(viewer.canOperateShow ? {} : { disabledReason: TRIAL_SECRETARY_ONLY_REASON }),
   };
 
+  const operatorOnly = viewer.canOperateShow ? {} : { disabledReason: TRIAL_SECRETARY_ONLY_REASON };
+
+  // Group order (docs/plan-crud-standard.md): Edit, then Add, then the rest,
+  // then status changes. Edit first on every page, so the one place to look
+  // for "change this" is the same everywhere.
   return [
-    entryForSomeoneElse,
+    {
+      // The show's one edit entry point (MYK9-736, MYK9-928): there is no header
+      // Edit button any more, and a "Show Details" item here was only a self-link
+      // on the page it named. Same audience as the button it replaced -- this
+      // whole list is `canManageShow`-gated, exactly like `ShowManagementShell`,
+      // which owns the panel.
+      //
+      // SEARCH-ONLY where the shell is mounted, so the panel opens on the
+      // section the secretary is already on: an absolute `/shows/:id?edit=true`
+      // walked them off Entry Management to Overview and stranded them there
+      // when they closed it. On a SIBLING route (`/register`, `/trials/...`) no
+      // shell is mounted, so a relative param would sit in the URL with nothing
+      // to consume it; there the item goes to the show page, where the panel
+      // lives.
+      id: 'show-settings',
+      label: 'Edit show',
+      aliases: ['show details', 'edit show details', 'settings'],
+      href: shellMounted ? '?edit=true' : `/shows/${encoded}?edit=true`,
+    },
+    { ...entryForSomeoneElse, separatorBefore: true },
     {
       id: 'show-enter-own-dogs',
       label: 'Add entry for my dog',
       href: buildExhibitorRegistrationPath(showId),
+    },
+    {
+      id: 'show-add-new-trial',
+      label: 'Add Trial',
+      href: `/secretary/create-show/wizard?showId=${encoded}&mode=add-trials`,
+      ...operatorOnly,
+    },
+    {
+      // The show-level door into the one class-create flow (the Setup toolbar
+      // button it replaces); a trial page offers its own, focused on that trial.
+      id: 'show-add-classes',
+      label: 'Add classes',
+      href: getAddClassesHref(showId),
+      ...operatorOnly,
     },
     {
       id: 'show-open-entry-management',
@@ -198,12 +260,6 @@ function buildShowActions(
       href: `/shows/${encoded}/show-day`,
     },
     {
-      id: 'show-add-new-trial',
-      label: 'Add Trial',
-      href: `/secretary/create-show/wizard?showId=${encoded}&mode=add-trials`,
-      ...(viewer.canOperateShow ? {} : { disabledReason: TRIAL_SECRETARY_ONLY_REASON }),
-    },
-    {
       // Runs the Premium List card's OWN flow, from whatever section the
       // secretary is on. It was a link to the card's anchor, which the router
       // could not honour: a pushed hash is not fragment navigation, so at
@@ -213,25 +269,6 @@ function buildShowActions(
       label: 'Generate & publish premium',
       command: 'publish-premium',
       separatorBefore: true,
-    },
-    {
-      // The show's one edit entry point (MYK9-736): the hero's Edit button sat
-      // under the status pill at ordinary desktop widths, and a "Show Details"
-      // item here was only a self-link on the page it named. Same audience as
-      // the button it replaces -- this whole list is `canManageShow`-gated,
-      // exactly like `ShowManagementShell`, which owns the panel.
-      //
-      // SEARCH-ONLY where the shell is mounted, so the panel opens on the
-      // section the secretary is already on: an absolute `/shows/:id?edit=true`
-      // walked them off Entry Management to Overview and stranded them there
-      // when they closed it. On a SIBLING route (`/register`, `/trials/...`) no
-      // shell is mounted, so a relative param would sit in the URL with nothing
-      // to consume it; there the item goes to the show page, where the panel
-      // lives.
-      id: 'show-settings',
-      label: 'Edit show details',
-      aliases: ['show details', 'settings', 'edit show'],
-      href: shellMounted ? '?edit=true' : `/shows/${encoded}?edit=true`,
     },
   ];
 }
@@ -252,10 +289,43 @@ function buildRoleWideActions(viewer: ActionViewer): AppAction[] {
 }
 
 /**
+ * The Edit (and Add) item(s) for the detail page on screen. Edit is always the
+ * first item; there is no page-level Edit button anywhere (MYK9-928).
+ */
+function buildPageObjectActions(pageObject: PageObject | null | undefined): AppAction[] {
+  if (!pageObject) return [];
+  const { kind } = pageObject;
+  const actions: AppAction[] = [
+    { id: `${kind}-edit`, label: `Edit ${kind}`, command: 'edit-object' },
+  ];
+  if (kind === 'trial' && pageObject.addClassesHref) {
+    actions.push({
+      id: 'trial-add-classes',
+      label: 'Add classes',
+      href: pageObject.addClassesHref,
+    });
+  }
+  return actions;
+}
+
+/**
  * The ordered actions for one route context. An empty list means the header
  * button is HIDDEN, not disabled.
+ *
+ * A detail page's own group comes first, then the context's list (the show's,
+ * or the role-wide one) behind a divider.
  */
 export function resolveActions(route: ActionRouteContext, viewer: ActionViewer): AppAction[] {
-  if (route.kind === 'show') return buildShowActions(route.showId, route.shellMounted, viewer);
-  return buildRoleWideActions(viewer);
+  const own = buildPageObjectActions(viewer.pageObject);
+  const context =
+    route.kind === 'show'
+      ? buildShowActions(route.showId, route.shellMounted, viewer)
+      : buildRoleWideActions(viewer);
+  if (own.length === 0) return context;
+  return [
+    ...own,
+    ...context.map((action, index) =>
+      index === 0 ? { ...action, separatorBefore: true } : action
+    ),
+  ];
 }

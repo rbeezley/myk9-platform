@@ -54,7 +54,6 @@ function renderRail(dog: Dog, props: Partial<React.ComponentProps<typeof DogIden
     <DogIdentityRail
       dog={dog}
       owner={owner}
-      onEditPanelOpen={() => {}}
       onPhotoDialogOpen={() => {}}
       onDeleteDialogOpen={() => {}}
       onStatusDialogOpen={() => {}}
@@ -124,14 +123,12 @@ describe('DogIdentityRail', () => {
     expect(screen.getByText('Golden Retriever')).toBeInTheDocument();
   });
 
-  it('keeps secretary editing available without a placeholder verification action', () => {
-    const onEditPanelOpen = vi.fn();
-    renderRail(base, { role: 'secretary', onEditPanelOpen });
+  it('offers a secretary no Edit button and no placeholder verification action (MYK9-928)', () => {
+    renderRail(base, { role: 'secretary' });
     expect(screen.getByText('Primary contact')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /verify for entry/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /enter a show/i })).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: /^Edit$/ }));
-    expect(onEditPanelOpen).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('button', { name: /^edit( dog)?$/i })).not.toBeInTheDocument();
   });
 
   it('shows the owner as plain text and offers Enter a show for an exhibitor', () => {
@@ -156,7 +153,6 @@ describe('DogIdentityRail', () => {
           dog={base}
           owner={owner}
           canOpenOwnerRecord
-          onEditPanelOpen={() => {}}
           onPhotoDialogOpen={() => {}}
           onDeleteDialogOpen={() => {}}
           onStatusDialogOpen={() => {}}
@@ -211,35 +207,32 @@ describe('DogIdentityRail', () => {
   // status, so the rail's contract with it is pinned per role. Asserted as the
   // prop object, which cannot drift from the real menu the way a mock item list
   // could: identity checks are also stronger than clicking a stand-in.
-  it('hands the exhibitor menu Edit Dog plus photo, status and delete handlers', () => {
-    const onEditPanelOpen = vi.fn();
+  it('hands the exhibitor menu photo, status and delete handlers, and no Edit (MYK9-928)', () => {
     const onPhotoDialogOpen = vi.fn();
     const onStatusDialogOpen = vi.fn();
     const onDeleteDialogOpen = vi.fn();
     renderRail(base, {
       role: 'exhibitor',
-      onEditPanelOpen,
       onPhotoDialogOpen,
       onStatusDialogOpen,
       onDeleteDialogOpen,
     });
 
-    expect(menu().editLabel).toBe('Edit Dog');
-    expect(menu().hideEdit).toBeUndefined();
-    expect(menu().onEdit).toBe(onEditPanelOpen);
+    // Edit dog is the first item of the header Actions menu, for every role.
+    expect(menu().onEdit).toBeUndefined();
     expect(menu().onEditPhoto).toBe(onPhotoDialogOpen);
     expect(menu().onChangeStatus).toBe(onStatusDialogOpen);
     expect(menu().onDelete).toBe(onDeleteDialogOpen);
   });
 
-  // The secretary already has a dedicated Edit button on the card, so the menu
-  // suppresses its own Edit item — the `hideEdit` that the two per-role menus
-  // carried before they were collapsed into one, and which the collapse dropped.
-  it('suppresses the menu Edit item for a secretary, who has a dedicated button', () => {
-    renderRail(base, { role: 'secretary' });
-    expect(menu().hideEdit).toBe(true);
-    expect(screen.getByRole('button', { name: /^Edit$/ })).toBeInTheDocument();
-  });
+  it.each([['exhibitor'], ['secretary']] as const)(
+    'carries no Edit item or button for a %s: it is in the Actions menu',
+    role => {
+      renderRail(base, { role });
+      expect(menu().onEdit).toBeUndefined();
+      expect(screen.queryByRole('button', { name: /^edit( dog)?$/i })).not.toBeInTheDocument();
+    }
+  );
 
   it.each([['exhibitor'], ['secretary']] as const)(
     'withholds the delete handler from a %s who cannot delete',

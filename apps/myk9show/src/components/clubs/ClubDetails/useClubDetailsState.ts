@@ -12,6 +12,7 @@ import { getErrorMessage } from '@myk9/core';
 import { uploadClubCover, deleteImage } from '@/services/imageUploadService';
 import { getActiveClubMembers, getClubMembers } from '@/services/database/club-memberships/members';
 import { canCreateShowForClub, computeClubPermissions, hasClubAdminScope } from './clubPermissions';
+import { usePageEditAction } from '@/features/actions/pageEditTarget';
 import { canOpenCreateShowWizard } from '@/routes/createShowWizardAccess';
 import { useClubAuthorizationControl } from './useClubAuthorizationControl';
 import { clubShowsStat, useClubShows } from './useClubShows';
@@ -148,6 +149,14 @@ export function useClubDetailsState(selectedClub: Club | null) {
   const handleEditClub = useCallback(() => {
     setShowEditPanel(true);
   }, []);
+
+  // Edit club is the first item of the header Actions menu (MYK9-928), behind the
+  // clubs_update gate the ghost Edit button on the club header carried.
+  usePageEditAction({
+    kind: 'club',
+    enabled: canEditClub && Boolean(selectedClub),
+    run: handleEditClub,
+  });
 
   const handleDeleteClub = useCallback(() => {
     setShowDeleteDialog(true);

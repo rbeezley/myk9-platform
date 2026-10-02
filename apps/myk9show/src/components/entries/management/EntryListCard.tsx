@@ -13,16 +13,7 @@ import { DeleteObjectDialog, entryDeleteDetail } from '@/features/delete';
 import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicator';
 import { getStatusDescriptor } from '@/components/status';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import {
-  Users,
-  Hash,
-  MessageSquare,
-  Gift,
-  ChevronDown,
-  Trash2,
-  CreditCard,
-  PencilLine,
-} from 'lucide-react';
+import { Users, Hash, MessageSquare, Gift, ChevronDown, Trash2, CreditCard } from 'lucide-react';
 import { EntryStatus } from '@/types/show-registration-types';
 import {
   getEffectivePaymentStatus,
@@ -151,19 +142,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
               type="button"
               variant="ghost"
               size="sm"
-              className="ml-auto min-h-11 px-2 text-muted-foreground"
-              aria-label={`Edit entry for ${entry.dogName}`}
-              onClick={() => onOpenEditEntry?.(entry)}
-              disabled={!onOpenEditEntry}
-            >
-              <PencilLine className="h-4 w-4" />
-              <span className="sr-only">Edit entry</span>
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="min-h-11 px-2 text-muted-foreground hover:text-destructive"
+              className="ml-auto min-h-11 px-2 text-muted-foreground hover:text-destructive"
               aria-label={`Remove entry for ${entry.dogName}`}
               onClick={() => setRemoveDialog({ open: true, entry })}
             >
@@ -286,6 +265,7 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                       entry={entry}
                       entryClassName={cls.name}
                       onStatusChange={onStatusChange}
+                      onEdit={onOpenEditEntry ? () => onOpenEditEntry(entry) : undefined}
                       additionalContent={
                         <>
                           <p className="px-2 pb-1 text-xs font-medium text-muted-foreground">

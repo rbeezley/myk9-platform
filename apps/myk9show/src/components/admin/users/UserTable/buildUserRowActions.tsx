@@ -73,8 +73,8 @@ export function buildUserRowActions(user: User, handlers: UserRowActionHandlers)
     ];
   }
 
+  // Edit is first on every row menu (MYK9-928).
   return [
-    view,
     {
       id: 'edit',
       label: 'Edit user',
@@ -82,6 +82,7 @@ export function buildUserRowActions(user: User, handlers: UserRowActionHandlers)
       onSelect: () => onEdit(user),
       className: 'myk9-table-dropdown-item',
     },
+    view,
     ...(onManageRoles
       ? [
           {

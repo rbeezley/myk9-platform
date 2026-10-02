@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import AppHeader from './AppHeader';
+import { usePageEditAction, usePageEditTargetStore } from '@/features/actions/pageEditTarget';
 import { generatedPremium } from '@/features/premium/__tests__/fixtures/generatedPremium';
 import { usePremiumPublishStore } from '@/features/premium/useGenerateAndPublishPremium';
 import { resetPremiumPublishCoordinatorForTests } from '@/features/premium/premiumPublishCoordinator';
@@ -210,7 +211,7 @@ describe('AppHeader Actions menu — secretary on a show route', () => {
     expect(trigger.compareDocumentPosition(bell) & 4).toBeTruthy();
   });
 
-  it('opens on click and lists the seven decided actions in order', async () => {
+  it('opens on click and lists the decided actions in group order', async () => {
     const user = userEvent.setup();
     render(<AppHeader />, { initialRoute: SHOW_ROUTE });
 
@@ -223,14 +224,16 @@ describe('AppHeader Actions menu — secretary on a show route', () => {
       .getAllByRole('menuitem')
       .map(item => item.textContent?.trim());
 
+    // Group order (MYK9-928): Edit, Add, then navigation, then status.
     expect(labels).toEqual([
+      'Edit show',
       'Add entry for someone else',
       'Add entry for my dog',
+      'Add Trial',
+      'Add classes',
       'Open Entries',
       'Open Show Day',
-      'Add Trial',
       'Generate & publish premium',
-      'Edit show details',
     ]);
   });
 
@@ -449,7 +452,7 @@ describe('AppHeader Actions menu — the two items that are not plain destinatio
     await user.click(screen.getByRole('button', { name: /^actions$/i }));
     const menu = await screen.findByRole('menu');
     const editLink = within(menu).getByTestId('header-action-show-settings');
-    expect(editLink).toHaveTextContent('Edit show details');
+    expect(editLink).toHaveTextContent('Edit show');
     expect(editLink).toHaveAttribute('href', '/shows/show-1/entries?edit=true');
     await user.click(editLink);
 
@@ -545,5 +548,82 @@ describe('the premium item says what the Premium List card says', () => {
 
     await user.click(item);
     await waitFor(() => expect(premiumEdges.generate).toHaveBeenCalledWith('show-1'));
+  });
+});
+
+/**
+ * A detail page registering its Edit (MYK9-928), end to end through the REAL header menu:
+ * the page is what the old Edit button was, and the menu is where its item now lives.
+ */
+function TrialPageStub({ run, enabled = true }: { run: () => void; enabled?: boolean }) {
+  usePageEditAction({
+    kind: 'trial',
+    enabled,
+    run,
+    addClassesHref: '/secretary/create-show/wizard?showId=show-1&mode=add-classes&trialId=t1',
+  });
+  return <p>Trial page</p>;
+}
+
+describe('AppHeader Actions menu — a detail page registers its Edit (MYK9-928)', () => {
+  const TRIAL_ROUTE = '/shows/show-1/trials/t1';
+
+  beforeEach(() => {
+    usePageEditTargetStore.setState({ target: null, owner: null });
+  });
+
+  it('lists Edit trial first, then Add classes, then the show list behind a divider', async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <AppHeader />
+        <TrialPageStub run={vi.fn()} />
+      </>,
+      { initialRoute: TRIAL_ROUTE }
+    );
+
+    await user.click(screen.getByRole('button', { name: /^actions$/i }));
+    const menu = await screen.findByRole('menu');
+    const labels = within(menu)
+      .getAllByRole('menuitem')
+      .map(item => item.textContent?.trim());
+
+    expect(labels.slice(0, 3)).toEqual(['Edit trial', 'Add classes', 'Edit show']);
+    expect(within(menu).getAllByRole('separator').length).toBeGreaterThan(0);
+  });
+
+  it('runs the page Edit when the item is chosen', async () => {
+    const user = userEvent.setup();
+    const run = vi.fn();
+    render(
+      <>
+        <AppHeader />
+        <TrialPageStub run={run} />
+      </>,
+      { initialRoute: TRIAL_ROUTE }
+    );
+
+    await user.click(screen.getByRole('button', { name: /^actions$/i }));
+    await user.click(await screen.findByRole('menuitem', { name: 'Edit trial' }));
+
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides the page Edit from a viewer the page did not register it for', async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <AppHeader />
+        <TrialPageStub run={vi.fn()} enabled={false} />
+      </>,
+      { initialRoute: TRIAL_ROUTE }
+    );
+
+    await user.click(screen.getByRole('button', { name: /^actions$/i }));
+    const menu = await screen.findByRole('menu');
+
+    expect(within(menu).queryByRole('menuitem', { name: 'Edit trial' })).not.toBeInTheDocument();
+    // Positive control: the show's own list is still there.
+    expect(within(menu).getByRole('menuitem', { name: 'Edit show' })).toBeInTheDocument();
   });
 });

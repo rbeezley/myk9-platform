@@ -1,5 +1,5 @@
 /**
- * ThreeDotMenu — user/dog/profile overflow menu (View / Edit / photo / status /
+ * ThreeDotMenu — user/dog/profile overflow menu (Edit / View / photo / status /
  * qualifications / Delete). A thin adapter over the canonical {@link RowActionMenu}
  * primitive: the prop API is preserved so its call sites don't change, but all menu
  * behavior (trigger, a11y, destructive token, separators) now lives in one place.
@@ -61,11 +61,12 @@ const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
 }) => {
   const actions: RowAction[] = [];
 
-  if (onView) {
-    actions.push({ id: 'view', label: viewLabel, icon: <Eye />, onSelect: onView });
-  }
+  // Edit is first on every row menu (MYK9-928).
   if (onEdit && !hideEdit) {
     actions.push({ id: 'edit', label: editLabel, icon: <Pencil />, onSelect: onEdit });
+  }
+  if (onView) {
+    actions.push({ id: 'view', label: viewLabel, icon: <Eye />, onSelect: onView });
   }
   if (onEditPhoto) {
     actions.push({ id: 'photo', label: 'Change Photo', icon: <Camera />, onSelect: onEditPhoto });

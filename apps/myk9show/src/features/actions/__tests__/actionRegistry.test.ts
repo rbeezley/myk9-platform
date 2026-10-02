@@ -102,21 +102,22 @@ const SIBLING_CONTEXT = { kind: 'show', showId: SHOW_ID, shellMounted: false } a
 describe('resolveActions — secretary on a show', () => {
   const actions = resolveActions(SHOW_CONTEXT, secretary);
 
-  it('puts Edit show details last and opens the edit panel where the secretary stands', () => {
-    // MYK9-736: the hero's Edit button moved here. Search-only where the shell
-    // is mounted, so the panel opens over the section the secretary is on and
-    // closing it leaves them there.
-    const last = actions[actions.length - 1];
-    expect(last?.id).toBe('show-settings');
-    expect(last?.label).toBe('Edit show details');
-    expect(last?.href).toBe('?edit=true');
+  it('puts Edit show first and opens the edit panel where the secretary stands', () => {
+    // MYK9-928: Edit is the first item of every page's Actions menu and the
+    // header button is gone. Search-only where the shell is mounted, so the panel
+    // opens over the section the secretary is on and closing it leaves them there.
+    const first = actions[0];
+    expect(first?.id).toBe('show-settings');
+    expect(first?.label).toBe('Edit show');
+    expect(first?.href).toBe('?edit=true');
+    expect(first?.separatorBefore).toBeUndefined();
     expect(actions.some(action => action.href?.endsWith('/setup'))).toBe(false);
   });
 
-  it('sends Edit show details to the show page from a sibling route, where the panel lives', () => {
+  it('sends Edit show to the show page from a sibling route, where the panel lives', () => {
     const siblingActions = resolveActions(SIBLING_CONTEXT, secretary);
     const details = siblingActions.find(action => action.id === 'show-settings');
-    expect(details?.label).toBe('Edit show details');
+    expect(details?.label).toBe('Edit show');
     expect(details?.href).toBe(`/shows/${SHOW_ID}?edit=true`);
   });
 
@@ -130,27 +131,29 @@ describe('resolveActions — secretary on a show', () => {
     expect(actions.some(action => action.href?.includes('#'))).toBe(false);
   });
 
-  it('returns the seven decided items in order', () => {
+  it('returns the items in group order: Edit, Add, navigation, status', () => {
     expect(actions.map(a => a.id)).toEqual([
+      'show-settings',
       'show-add-mail-in-entry',
       'show-enter-own-dogs',
+      'show-add-new-trial',
+      'show-add-classes',
       'show-open-entry-management',
       'show-open-show-desk',
-      'show-add-new-trial',
       'show-generate-publish-premium',
-      'show-settings',
     ]);
   });
 
   it('links to the canonical routes rather than re-implementing them', () => {
     expect(actions.map(a => a.href)).toEqual([
+      '?edit=true', // the edit panel, over the current section
       `/secretary/register/${SHOW_ID}`,
       `/shows/${SHOW_ID}/register`,
+      `/secretary/create-show/wizard?showId=${SHOW_ID}&mode=add-trials`,
+      `/secretary/create-show/wizard?showId=${SHOW_ID}&mode=add-classes`,
       `/shows/${SHOW_ID}/entries`,
       `/shows/${SHOW_ID}/show-day`,
-      `/secretary/create-show/wizard?showId=${SHOW_ID}&mode=add-trials`,
       undefined, // the premium flow is a command, not a place
-      '?edit=true', // the edit panel, over the current section
     ]);
   });
 
@@ -163,8 +166,9 @@ describe('resolveActions — secretary on a show', () => {
     }
   });
 
-  it('separates the daily work from the setup verbs', () => {
+  it('separates the groups: Add after Edit, status after the rest', () => {
     expect(actions.filter(a => a.separatorBefore).map(a => a.id)).toEqual([
+      'show-add-mail-in-entry',
       'show-generate-publish-premium',
     ]);
   });
@@ -173,17 +177,16 @@ describe('resolveActions — secretary on a show', () => {
     expect(actions.every(a => a.disabledReason === undefined)).toBe(true);
   });
 
-  it('reads as five to seven items', () => {
-    expect(actions.length).toBeGreaterThanOrEqual(5);
-    expect(actions.length).toBeLessThanOrEqual(7);
+  it('stays a short menu', () => {
+    expect(actions.length).toBeLessThanOrEqual(10);
   });
 });
 
 describe('resolveActions — club admin on a show', () => {
   const actions = resolveActions(SHOW_CONTEXT, clubAdmin);
 
-  it('keeps the same seven items', () => {
-    expect(actions).toHaveLength(7);
+  it('keeps the same eight items', () => {
+    expect(actions).toHaveLength(8);
   });
 
   it('greys mail-in entry with a reason, because /secretary/register is secretary-only', () => {
@@ -191,15 +194,20 @@ describe('resolveActions — club admin on a show', () => {
     expect(mailIn?.disabledReason).toBe('Trial secretary access only');
   });
 
-  it('greys Add Trial for club admins, because trial setup is secretary-only', () => {
-    const addTrial = actions.find(a => a.id === 'show-add-new-trial');
-    expect(addTrial?.disabledReason).toBe('Trial secretary access only');
+  it('greys Add Trial and Add classes for club admins, because trial setup is secretary-only', () => {
+    for (const id of ['show-add-new-trial', 'show-add-classes']) {
+      expect(actions.find(a => a.id === id)?.disabledReason, id).toBe(
+        'Trial secretary access only'
+      );
+    }
   });
 
   it('leaves the rest available', () => {
     expect(
       actions
-        .filter(a => !['show-add-mail-in-entry', 'show-add-new-trial'].includes(a.id))
+        .filter(
+          a => !['show-add-mail-in-entry', 'show-add-new-trial', 'show-add-classes'].includes(a.id)
+        )
         .every(a => !a.disabledReason)
     ).toBe(true);
   });
@@ -225,6 +233,67 @@ describe('resolveActions — role-wide list', () => {
   it('omits create-a-show for staff who cannot create shows', () => {
     const actions = resolveActions({ kind: 'global' }, { ...secretary, canCreateShows: false });
     expect(actions.map(a => a.id)).toEqual(['open-show-management']);
+  });
+});
+
+describe('resolveActions — the object a detail page registers (MYK9-928)', () => {
+  const GLOBAL = { kind: 'global' } as const;
+
+  it.each([
+    ['trial', 'Edit trial'],
+    ['class', 'Edit class'],
+    ['club', 'Edit club'],
+    ['dog', 'Edit dog'],
+    ['person', 'Edit person'],
+  ] as const)(
+    'puts "%s" Edit first as a command, with no destination of its own',
+    (kind, label) => {
+      const actions = resolveActions(GLOBAL, { ...secretary, pageObject: { kind } });
+      expect(actions[0]).toMatchObject({ id: `${kind}-edit`, label, command: 'edit-object' });
+      expect(actions[0]?.href).toBeUndefined();
+      expect(actions[0]?.separatorBefore).toBeUndefined();
+    }
+  );
+
+  it('offers an exhibitor their dog Edit and nothing else', () => {
+    expect(
+      resolveActions(GLOBAL, { ...exhibitor, pageObject: { kind: 'dog' } }).map(a => a.id)
+    ).toEqual(['dog-edit']);
+  });
+
+  it('offers nothing extra when the page registered no object (gate closed)', () => {
+    expect(resolveActions(GLOBAL, { ...exhibitor, pageObject: null })).toEqual([]);
+    expect(resolveActions(GLOBAL, exhibitor)).toEqual([]);
+  });
+
+  it('puts the trial group first, then the show list behind a divider', () => {
+    const actions = resolveActions(SIBLING_CONTEXT, {
+      ...secretary,
+      pageObject: { kind: 'trial', addClassesHref: '/secretary/create-show/wizard?mode=x' },
+    });
+    expect(actions.slice(0, 3).map(a => a.id)).toEqual([
+      'trial-edit',
+      'trial-add-classes',
+      'show-settings',
+    ]);
+    expect(actions[1]?.href).toBe('/secretary/create-show/wizard?mode=x');
+    expect(actions[2]?.separatorBefore).toBe(true);
+  });
+
+  it('omits trial Add classes when the page has no destination for it', () => {
+    const actions = resolveActions(SIBLING_CONTEXT, {
+      ...secretary,
+      pageObject: { kind: 'trial' },
+    });
+    expect(actions.map(a => a.id)).not.toContain('trial-add-classes');
+  });
+
+  it('gives an exhibitor on a trial page no show actions, so the page edit stands alone', () => {
+    expect(
+      resolveActions(SIBLING_CONTEXT, { ...exhibitor, pageObject: { kind: 'class' } }).map(
+        a => a.id
+      )
+    ).toEqual(['class-edit']);
   });
 });
 

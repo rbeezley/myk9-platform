@@ -16,7 +16,6 @@ interface HeroProfileCardProps {
   photo: string;
   phone: string;
   onEditPhoto: () => void;
-  onEdit: () => void;
   onDelete: () => void;
   onChangeStatus?: (() => void) | undefined;
   changeStatusLabel?: string | undefined;
@@ -44,7 +43,6 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
   photo,
   phone,
   onEditPhoto,
-  onEdit,
   onDelete,
   onChangeStatus,
   changeStatusLabel,
@@ -68,14 +66,10 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
                       opacity-0 hover:opacity-100 transition-opacity duration-700"
       />
 
-      {/* Actions — everything lives in the one menu. Edit had a standalone
-          button beside it AND an entry in the menu suppressed by `hideEdit`;
-          one affordance in one place reads calmer and stops the two drifting.
-          `onEdit` is passed only when the person is live, which is what
-          `isRemoved` used to achieve by hiding the button. */}
+      {/* Row-level actions. Edit person is the first item of the header Actions
+          menu (MYK9-928), registered by the page only while the person is live. */}
       <div className="absolute top-6 right-6 z-10 flex items-center gap-1">
         <ThreeDotMenu
-          {...(isRemoved ? {} : { onEdit })}
           onDelete={onDelete}
           {...(onChangeStatus ? { onChangeStatus } : {})}
           {...(changeStatusLabel ? { changeStatusLabel } : {})}
@@ -84,7 +78,6 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
           {...(isRemoved ? {} : { onEditPhoto, onSendInvitation })}
           sendInvitationLabel={sendInvitationLabel}
           sendInvitationDisabled={sendInvitationDisabled}
-          editLabel="Edit Person"
         />
       </div>
 

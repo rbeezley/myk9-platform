@@ -4,6 +4,7 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { PERMISSIONS, UserRole } from '@/types/auth-types';
 import { usePremiumPublishControl } from '@/features/premium/usePremiumPublishControl';
+import { usePageEditTargetStore } from './pageEditTarget';
 import {
   mergeSearchOnlyHref,
   parseActionRouteContext,
@@ -49,9 +50,15 @@ export function useCurrentActions(): CurrentActions {
     scope.status === 'resolved' && scope.canManage
   );
 
+  // The detail page on screen, when it registered an Edit it lets this viewer use.
+  const pageTarget = usePageEditTargetStore(state => state.target);
+  const pageKind = pageTarget?.kind;
+  const pageAddClassesHref = pageTarget?.addClassesHref;
+
   const resolved = useMemo(
     () =>
       resolveActions(route, {
+        pageObject: pageKind ? { kind: pageKind, addClassesHref: pageAddClassesHref } : null,
         // Fail closed while ownership is still resolving: an empty list hides
         // the button, which is honest, where a flashed-then-withdrawn menu is
         // the mistake-anxiety bug docs/INTENT.md names.
@@ -60,7 +67,16 @@ export function useCurrentActions(): CurrentActions {
         canCreateShows,
         isShowManagementStaff,
       }),
-    [route, scope.status, scope.canManage, scope.canOperate, canCreateShows, isShowManagementStaff]
+    [
+      route,
+      scope.status,
+      scope.canManage,
+      scope.canOperate,
+      canCreateShows,
+      isShowManagementStaff,
+      pageKind,
+      pageAddClassesHref,
+    ]
   );
 
   // Bind each `command` to its real callback. THE one place that may: the
@@ -72,6 +88,10 @@ export function useCurrentActions(): CurrentActions {
         // A search-only destination keeps the section's own query params.
         if (action.href?.startsWith('?')) {
           return { ...action, href: mergeSearchOnlyHref(action.href, search) };
+        }
+        // The page's own Edit panel, opened by the page that registered it.
+        if (action.command === 'edit-object') {
+          return pageTarget ? { ...action, run: pageTarget.run } : action;
         }
         if (action.command !== 'publish-premium') return action;
         return {
@@ -86,7 +106,7 @@ export function useCurrentActions(): CurrentActions {
             : {}),
         };
       }),
-    [resolved, search, premium.action.label, premium.action.disabledReason, premium.run]
+    [resolved, search, pageTarget, premium.action.label, premium.action.disabledReason, premium.run]
   );
 
   return { route, actions };

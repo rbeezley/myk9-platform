@@ -141,9 +141,11 @@ describe.each(['cards', 'table'])('TrialsTab row actions (%s view)', view => {
     expect(screen.getByRole('button', { name: 'Trial actions for Sunday Trial 2' })).toBeVisible();
   });
 
-  it('shows Add Trial only when the viewer manages THIS show, whatever the global permission', () => {
+  it('has no Add Trial toolbar button for anyone: it is a header Actions menu item (MYK9-928)', () => {
     const first = renderTab();
-    expect(screen.getByRole('button', { name: 'Add Trial' })).toBeVisible();
+    // Positive control: this viewer manages the show, so the row menus rendered.
+    expect(screen.getByRole('button', { name: 'Trial actions for Sunday Trial 2' })).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'Add Trial' })).not.toBeInTheDocument();
     first.unmount();
 
     mockCanManage = false;
@@ -165,6 +167,18 @@ describe.each(['cards', 'table'])('TrialsTab row actions (%s view)', view => {
     mockCanManage = false;
     renderTab();
     expect(screen.queryByRole('button', { name: /^Trial actions for/ })).not.toBeInTheDocument();
+  });
+
+  it('lists Edit first on the trial row menu, Delete last (MYK9-928)', async () => {
+    const { user } = renderTab();
+
+    await user.click(screen.getByRole('button', { name: 'Trial actions for Sunday Trial 2' }));
+    await screen.findByRole('menuitem', { name: 'Edit Trial' });
+
+    expect(screen.getAllByRole('menuitem').map(item => item.textContent?.trim())).toEqual([
+      'Edit Trial',
+      'Delete Trial',
+    ]);
   });
 
   it('Edit opens the real trial edit panel for that trial', async () => {

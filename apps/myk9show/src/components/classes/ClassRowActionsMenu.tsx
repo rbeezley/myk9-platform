@@ -10,8 +10,8 @@ interface ClassRowActionsMenuProps {
 
 const ClassRowActionsMenu: React.FC<ClassRowActionsMenuProps> = ({ onView, onEdit, onDelete }) => {
   const actions: RowAction[] = [
-    { id: 'view', label: 'View Details', icon: <Eye />, onSelect: onView },
     { id: 'edit', label: 'Edit Class', icon: <Pencil />, onSelect: onEdit },
+    { id: 'view', label: 'View Details', icon: <Eye />, onSelect: onView },
     {
       id: 'delete',
       label: 'Delete Class',

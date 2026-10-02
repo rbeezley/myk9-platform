@@ -65,6 +65,46 @@ describe('entry status action definitions', () => {
   });
 });
 
+describe('EntryStatusPopover Edit entry (MYK9-928)', () => {
+  const triggerName = /change entry status for Fido in Novice A/i;
+
+  it('lists Edit entry FIRST in the row menu, ahead of the status choices, and runs it', async () => {
+    const user = userEvent.setup();
+    const onEdit = vi.fn();
+    render(
+      <EntryStatusPopover
+        entry={makeEntry()}
+        entryClassName="Novice A"
+        onStatusChange={vi.fn()}
+        onEdit={onEdit}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: triggerName }));
+    const items = screen.getAllByRole('menuitem');
+    expect(items[0]).toHaveTextContent('Edit entry');
+    // Positive control: the status choices are in the same menu, after it.
+    expect(screen.getByRole('menuitem', { name: 'Accept' })).toBeInTheDocument();
+
+    await user.click(items[0] as HTMLElement);
+
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole('menu')).not.toBeInTheDocument();
+  });
+
+  it('offers no Edit entry item when the caller supplies no editor', async () => {
+    const user = userEvent.setup();
+    render(
+      <EntryStatusPopover entry={makeEntry()} entryClassName="Novice A" onStatusChange={vi.fn()} />
+    );
+
+    await user.click(screen.getByRole('button', { name: triggerName }));
+
+    expect(screen.getByRole('menuitem', { name: 'Accept' })).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /edit entry/i })).not.toBeInTheDocument();
+  });
+});
+
 describe('EntryStatusPopover', () => {
   it('opens from a real button and dispatches the shared action on pointer and keyboard activation', async () => {
     const user = userEvent.setup();

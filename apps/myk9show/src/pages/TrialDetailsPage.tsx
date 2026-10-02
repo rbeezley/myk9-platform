@@ -20,7 +20,6 @@ import {
   LayoutDashboard,
   ClipboardList,
   DollarSign,
-  Pencil,
   Trash2,
   ChevronLeft,
   ChevronRight,
@@ -28,6 +27,7 @@ import {
 import { Button } from '@/components/ui/button';
 import ThreeDotMenu from '@/components/ui/ThreeDotMenu/ThreeDotMenu';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
+import { usePageEditAction } from '@/features/actions/pageEditTarget';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -95,6 +95,21 @@ const TrialDetailsPage: React.FC = () => {
     clubId: parentShow?.clubId,
   });
   const entryManagementShowId = currentTrial?.showId || showId;
+
+  // Edit trial and Add classes are the header Actions menu's (MYK9-928), gated by this
+  // page's own staff gate, which the hero buttons they replace used. One class-create
+  // flow: the show wizard's add-classes mode, opened on this trial. No resolvable show
+  // means no flow to open, so the action is withheld, not dead.
+  const addClassesShowId = currentTrial?.showId || showId;
+  const addClassesHref = addClassesShowId
+    ? getAddClassesHref(addClassesShowId, trialId)
+    : undefined;
+  usePageEditAction({
+    kind: 'trial',
+    enabled: canManageTrial && !!currentTrial,
+    run: () => dialogsRef.current?.openEditTrial(),
+    addClassesHref,
+  });
 
   // Tab state — URL-synced. Pass only the tabs this visitor may see so a
   // hidden management tab in `?tab=` falls back to 'overview' instead of
@@ -321,14 +336,9 @@ const TrialDetailsPage: React.FC = () => {
 
   // Dialog triggers delegate to TrialManagementDialogs (it owns the dialog
   // state + save/delete logic); the page only opens them via the ref.
-  const handleEditTrial = () => dialogsRef.current?.openEditTrial();
   const handleDeleteTrial = () => dialogsRef.current?.openDeleteTrial();
-  // One class-create flow: the show wizard's add-classes mode, opened on this trial.
-  // No resolvable show means no flow to open, so the button is withheld, not dead.
-  const addClassesShowId = currentTrial?.showId || showId;
-  const handleAddClassesFromTemplate = addClassesShowId
-    ? () => navigate(getAddClassesHref(addClassesShowId, trialId))
-    : undefined;
+  // The section's own Add Classes button (header and empty state) stays beside the list.
+  const handleAddClassesFromTemplate = addClassesHref ? () => navigate(addClassesHref) : undefined;
   const handleEditClass = (classItem: TrialClass) => dialogsRef.current?.openEditClass(classItem);
   const handleDeleteClass = (classItem: TrialClass) =>
     dialogsRef.current?.openDeleteClass(classItem);
@@ -363,10 +373,6 @@ const TrialDetailsPage: React.FC = () => {
                     >
                       <ClipboardList className="h-4 w-4 mr-2" />
                       Manage Entries
-                    </Button>
-                    <Button variant="outline" size="sm" onClick={handleEditTrial}>
-                      <Pencil className="h-4 w-4 mr-2" />
-                      Edit
                     </Button>
                     <ThreeDotMenu
                       items={[

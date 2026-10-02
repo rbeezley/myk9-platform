@@ -4,7 +4,6 @@ import { EmptyState } from '@/components/common/EmptyState';
 import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
 import { ViewToggle } from '@/components/common/ViewToggle';
 import { ClassCard } from './ClassCard';
-import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ClassBulkActionsBar } from '@/components/classes/ClassBulkActionsBar';
 import { ClassJudgeSelect } from '@/components/classes/ClassJudgeSelect';
@@ -257,16 +256,7 @@ export function ClassesTab({
         actions={
           <>
             <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
-            {canManageThisShow && (
-              <Button
-                size="sm"
-                onClick={() => navigate(getAddClassesHref(showId, scope.scopeTrialId ?? undefined))}
-                className="gap-1.5"
-              >
-                <Plus className="h-4 w-4" />
-                Add Classes
-              </Button>
-            )}
+            {/* Add classes is the header Actions menu's (MYK9-928); the empty state keeps its own button. */}
           </>
         }
         {...(canManageThisShow

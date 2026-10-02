@@ -4,10 +4,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { screen } from '@/test/utils/testUtils';
 import { render } from '@/test/utils/testUtils';
 import type { ClassData } from '@/components/classes/types/classTypes';
+import { usePageEditTargetStore } from '@/features/actions/pageEditTarget';
 
 const mockUseClassDetailsData = vi.hoisted(() => vi.fn());
 const mockUseClassDetailsDialogs = vi.hoisted(() => vi.fn());
 const mockUseAuthContext = vi.hoisted(() => vi.fn());
+const openEditClassPanel = vi.hoisted(() => vi.fn());
 
 vi.mock('@/hooks/useConnectionHint', () => ({ useConnectionHint: () => undefined }));
 vi.mock('./useClassDetailsData', () => ({
@@ -134,6 +136,8 @@ function mockManageScope(scope: {
 
 describe('ClassDetailsPage header actions', () => {
   beforeEach(() => {
+    openEditClassPanel.mockReset();
+    usePageEditTargetStore.setState({ target: null, owner: null });
     // A club-scoped secretary grant for THIS show's club (club-1). A secretary
     // with no scopes cannot exist — every secretary row in user_roles carries a
     // club_id, and the server's is_trial_secretary(club) matches on it — so the
@@ -161,7 +165,7 @@ describe('ClassDetailsPage header actions', () => {
       deleteDialogOpen: false,
       deleteEntryDialogOpen: false,
       entryToDelete: null,
-      openEditClassPanel: vi.fn(),
+      openEditClassPanel,
       openDeleteDialog: vi.fn(),
       closeDeleteDialog: vi.fn(),
       closeEditClassPanel: vi.fn(),
@@ -242,10 +246,14 @@ describe('ClassDetailsPage header actions', () => {
     );
   });
 
-  it('offers class-lifecycle controls to a secretary', () => {
+  it('offers class-lifecycle controls to a secretary, with Edit in the Actions menu (MYK9-928)', () => {
     renderClassDetailsPage();
 
-    expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
+    // No visible page-level Edit button; the header Actions menu carries "Edit class".
+    expect(screen.queryByRole('button', { name: /^edit/i })).not.toBeInTheDocument();
+    expect(usePageEditTargetStore.getState().target?.kind).toBe('class');
+    usePageEditTargetStore.getState().target?.run();
+    expect(openEditClassPanel).toHaveBeenCalledTimes(1);
     expect(screen.getByRole('menuitem', { name: /delete class/i })).toBeInTheDocument();
     expect(screen.getByTestId('class-edit-panel')).toBeInTheDocument();
     // The shared delete dialog mounts only when Delete is chosen.
@@ -275,7 +283,8 @@ describe('ClassDetailsPage header actions', () => {
     it('hides Edit Class and Delete Class, and mounts neither panel', () => {
       renderClassDetailsPage();
 
-      expect(screen.queryByRole('button', { name: /^edit$/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: /^edit/i })).not.toBeInTheDocument();
+      expect(usePageEditTargetStore.getState().target).toBeNull();
       expect(screen.queryByRole('menuitem', { name: /delete class/i })).not.toBeInTheDocument();
       expect(screen.queryByTestId('class-edit-panel')).not.toBeInTheDocument();
       expect(screen.queryByTestId('delete-class-dialog')).not.toBeInTheDocument();
@@ -325,7 +334,7 @@ describe('ClassDetailsPage header actions', () => {
 
       renderClassDetailsPage();
 
-      expect(screen.getByRole('button', { name: /^edit$/i })).toBeInTheDocument();
+      expect(usePageEditTargetStore.getState().target?.kind).toBe('class');
       expect(screen.getByRole('menuitem', { name: /delete class/i })).toBeInTheDocument();
     });
 
@@ -341,7 +350,7 @@ describe('ClassDetailsPage header actions', () => {
 
       renderClassDetailsPage();
 
-      expect(screen.queryByRole('button', { name: /^edit$/i })).not.toBeInTheDocument();
+      expect(usePageEditTargetStore.getState().target).toBeNull();
       expect(screen.queryByRole('menuitem', { name: /delete class/i })).not.toBeInTheDocument();
     });
   });

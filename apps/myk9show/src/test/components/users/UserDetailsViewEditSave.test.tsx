@@ -13,7 +13,7 @@
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
@@ -21,6 +21,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import UserDetailsView from '@/components/users/UserDetails/UserDetailsView';
 import type { User } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
+import { usePageEditTargetStore } from '@/features/actions/pageEditTarget';
 
 const { mutateAsync, notifySuccess, notifyError, hasPermission } = vi.hoisted(() => ({
   mutateAsync: vi.fn(),
@@ -114,8 +115,8 @@ function renderView() {
 
 async function openEditPanelAndChangePhone() {
   const user = userEvent.setup();
-  await user.click(screen.getByRole('button', { name: /more actions/i }));
-  await user.click(await screen.findByRole('menuitem', { name: /edit person/i }));
+  // Edit person is the header Actions menu's item (MYK9-928); run what it runs.
+  act(() => usePageEditTargetStore.getState().target?.run());
   const panel = await screen.findByRole('dialog');
   expect(
     within(panel).getByText('Edit Person', { selector: 'h2, h3, [role="heading"]' })

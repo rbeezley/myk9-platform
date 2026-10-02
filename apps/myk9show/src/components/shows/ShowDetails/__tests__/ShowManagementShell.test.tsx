@@ -25,6 +25,17 @@ vi.mock('@/services/database/judges', () => ({
   fetchShowJudgesForPublish: saveHarness.publishJudges,
 }));
 
+// Who is looking: Delete show is offered only to the viewer soft_delete_show admits.
+const authHarness = vi.hoisted(() => ({
+  userWithRoles: { roles: ['site_admin'], scopes: [] } as {
+    roles: string[];
+    scopes: { scopeType: string; scopeId: string; roleId: string }[];
+  } | null,
+}));
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({ userWithRoles: authHarness.userWithRoles }),
+}));
+
 const manageScope = vi.hoisted(() => ({
   status: 'resolved' as 'resolved' | 'resolving' | 'unavailable',
   canManage: true,
@@ -37,19 +48,41 @@ vi.mock('@/components/common/PageShell', () => ({
   PageShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 vi.mock('@/components/common/PageHeader', () => ({
-  PageHeader: ({ actions }: { actions?: React.ReactNode }) => (
-    <div data-testid="page-header-actions">{actions}</div>
+  PageHeader: ({
+    actions,
+    breadcrumbs = [],
+    omitTitle,
+  }: {
+    actions?: React.ReactNode;
+    breadcrumbs?: Array<{ label: string; href: string }>;
+    omitTitle?: boolean;
+  }) => (
+    <div data-testid="page-header-actions" data-omit-title={String(Boolean(omitTitle))}>
+      <nav aria-label="Breadcrumb">
+        {breadcrumbs.map(crumb => (
+          <a key={crumb.href} href={crumb.href}>
+            {crumb.label}
+          </a>
+        ))}
+      </nav>
+      {actions}
+    </div>
   ),
 }));
 vi.mock('@/components/common/DetailHero', () => ({
   DetailHero: ({
     headerActions,
     primaryAction,
+    parent,
+    headingLevel,
   }: {
     headerActions?: React.ReactNode;
     primaryAction?: { label: string; onClick: () => void };
+    parent?: { label: string; href: string };
+    headingLevel?: number;
   }) => (
-    <div data-testid="detail-hero">
+    <div data-testid="detail-hero" data-heading-level={headingLevel}>
+      {parent && <a href={parent.href}>{parent.label}</a>}
       <div data-testid="detail-hero-header-actions">{headerActions}</div>
       {primaryAction && (
         <div data-testid="detail-hero-side-actions">
@@ -105,12 +138,12 @@ vi.mock('@/components/panels/edit/ShowEditPanel', () => ({
   ShowEditPanel: ({
     open,
     onClose,
-    onRequestDelete,
+    onDelete,
     onSave,
   }: {
     open: boolean;
     onClose: () => void;
-    onRequestDelete?: () => void;
+    onDelete?: { kind: string; targets: { id: string; name: string }[] };
     onSave?: (data: Record<string, unknown>) => Promise<void>;
   }) =>
     open ? (
@@ -127,10 +160,10 @@ vi.mock('@/components/panels/edit/ShowEditPanel', () => ({
         >
           Save
         </button>
-        {onRequestDelete && (
-          <button type="button" data-testid="edit-panel-delete-row" onClick={onRequestDelete}>
-            Delete show
-          </button>
+        {onDelete && (
+          <span data-testid="edit-panel-delete-option">
+            {onDelete.kind}:{onDelete.targets[0]?.id}:{onDelete.targets[0]?.name}
+          </span>
         )}
       </div>
     ) : null,
@@ -145,7 +178,13 @@ vi.mock('@/store/showStore', () => ({
 }));
 
 function makeShow(): Show {
-  return { id: 'show-1', name: 'Test Show', status: 'Upcoming', clubId: 'club-1' } as Show;
+  return {
+    id: 'show-1',
+    name: 'Test Show',
+    status: 'Upcoming',
+    clubId: 'club-1',
+    clubName: 'Bergen KC',
+  } as Show;
 }
 
 function makeTabs(): ShowDetailTabsProps {
@@ -189,14 +228,14 @@ function shellProps(overrides: Partial<ShowManagementShellProps>): ShowManagemen
 
 function renderShell(
   overrides: Partial<ShowManagementShellProps> = {},
-  initialRoute = '/shows/show-1',
+  initialRoute: string | string[] = '/shows/show-1',
   extra?: React.ReactNode
 ) {
   const props = shellProps(overrides);
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const renderTree = () => (
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={[initialRoute]}>
+      <MemoryRouter initialEntries={Array.isArray(initialRoute) ? initialRoute : [initialRoute]}>
         {extra}
         <Routes>
           <Route path="/shows/:id" element={<ShowManagementShell {...props} />}>
@@ -232,6 +271,15 @@ beforeEach(() => {
 function LocationProbe() {
   const location = useLocation();
   return <span data-testid="probe-url">{`${location.pathname}${location.search}`}</span>;
+}
+
+function BackButton() {
+  const navigate = useNavigate();
+  return (
+    <button type="button" data-testid="go-back" onClick={() => navigate(-1)}>
+      back
+    </button>
+  );
 }
 
 function InPageNavigator({ to }: { to: string }) {
@@ -299,6 +347,45 @@ describe('ShowManagementShell', () => {
     renderShell({}, '/shows/show-1', <LocationProbe />);
     fireEvent.click(screen.getByRole('tab', { name: /^Show Day/ }));
     expect(screen.getByTestId('probe-url')).toHaveTextContent('/shows/show-1/show-day');
+  });
+
+  it('replaces history on a tab change, so Back leaves the show instead of stepping through tabs', () => {
+    renderShell(
+      {},
+      ['/shows', '/shows/show-1'],
+      <>
+        <LocationProbe />
+        <BackButton />
+      </>
+    );
+    fireEvent.click(screen.getByRole('tab', { name: /^Setup/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /^Entries/ }));
+    expect(screen.getByTestId('probe-url')).toHaveTextContent('/shows/show-1/entries');
+
+    fireEvent.click(screen.getByTestId('go-back'));
+
+    // Two tab changes, one Back: the page before the show, not Setup.
+    expect(screen.getByTestId('probe-url')).toHaveTextContent(/^\/shows$/);
+  });
+
+  it('links the hero to the host club and renders the breadcrumb trail up to Shows', () => {
+    renderShell({
+      breadcrumbs: [
+        { label: 'Shows', href: '/shows' },
+        { label: 'Test Show', href: '/shows/show-1' },
+      ],
+      heroViewer: 'account',
+    });
+    const hero = within(screen.getByTestId('detail-hero'));
+    expect(hero.getByRole('link', { name: 'Bergen KC' })).toHaveAttribute('href', '/clubs/club-1');
+    const trail = within(screen.getByRole('navigation', { name: 'Breadcrumb' }));
+    expect(trail.getByRole('link', { name: 'Shows' })).toHaveAttribute('href', '/shows');
+  });
+
+  it('lets the hero own the page h1 so the header renders no second title', () => {
+    renderShell();
+    expect(screen.getByTestId('detail-hero')).toHaveAttribute('data-heading-level', '1');
+    expect(screen.getByTestId('page-header-actions')).toHaveAttribute('data-omit-title', 'true');
   });
 
   it('keeps Setup lit on the retired Class Management URL, which redirects into it', () => {
@@ -450,12 +537,48 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('probe-url').textContent).toBe('/shows/show-1/entries');
   });
 
-  it('hands the edit panel the delete row, the only home Delete show has left', () => {
-    // Delete left the `...` menu and lives at the bottom of the edit panel now,
-    // so the panel MUST be given a trigger or the verb has no home at all.
+  it('hands the edit panel the delete option, the only home Delete show has', () => {
+    // Delete lives in the edit panel's footer, so the panel MUST be given the
+    // item to delete or the verb has no home at all.
     renderShell({}, '/shows/show-1', <InPageNavigator to="/shows/show-1?edit=true" />);
     fireEvent.click(screen.getByTestId('in-page-nav'));
-    expect(screen.getByTestId('edit-panel-delete-row')).toBeInTheDocument();
+    expect(screen.getByTestId('edit-panel-delete-option')).toHaveTextContent(
+      'show:show-1:Test Show'
+    );
+  });
+
+  it.each([
+    [
+      'a club admin of the show club',
+      { roles: [], scopes: [{ scopeType: 'club', scopeId: 'club-1', roleId: 'club_admin' }] },
+      true,
+    ],
+    [
+      'a secretary of the show club',
+      { roles: [], scopes: [{ scopeType: 'club', scopeId: 'club-1', roleId: 'secretary' }] },
+      true,
+    ],
+    [
+      'a secretary appointed to this show only',
+      { roles: [], scopes: [{ scopeType: 'show', scopeId: 'show-1', roleId: 'secretary' }] },
+      false,
+    ],
+    [
+      'a club admin of another club',
+      { roles: [], scopes: [{ scopeType: 'club', scopeId: 'club-2', roleId: 'club_admin' }] },
+      false,
+    ],
+    ['a viewer with no grants', { roles: ['exhibitor'], scopes: [] }, false],
+  ])('offers Delete show to %s: %s', (_label, user, offered) => {
+    authHarness.userWithRoles = user;
+    try {
+      renderShell({}, '/shows/show-1?edit=true');
+      // Positive control: the panel opened, so absence is the gate's.
+      expect(screen.getByTestId('edit-panel-open')).toBeInTheDocument();
+      expect(screen.queryByTestId('edit-panel-delete-option') !== null).toBe(offered);
+    } finally {
+      authHarness.userWithRoles = { roles: ['site_admin'], scopes: [] };
+    }
   });
 
   it('still honours a cold ?edit=true deep link', () => {

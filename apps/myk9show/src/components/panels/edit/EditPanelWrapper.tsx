@@ -1,115 +1,31 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { z } from 'zod';
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { Button } from '@/components/ui/button';
-import { Save, X, AlertCircle } from 'lucide-react';
+import { Save, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EditPanelContext, EditPanelContextValue } from './useEditPanel';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
-import { getErrorMessage } from '@myk9/core';
 import { useFormValidation, FormValidation } from '@/hooks/useFormValidation';
 import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { UnsavedChangesRouteGuard } from '@/components/navigation/UnsavedChangesRouteGuard';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
+import { DiscardChangesDialog } from './DiscardChangesDialog';
+import { PanelSaveHandledError, offlineAwareMessage } from './panelSaveErrors';
+import { friendlySaveError } from '@/utils/friendlySaveError';
+import { EditPanelDeleteButton, EditPanelDeleteDialog } from './EditPanelDelete';
+import type { DeleteRecordsResult } from '@/features/delete';
+import { EditPanelErrorSummary } from './EditPanelErrorSummary';
+import type { EditPanelWrapperProps } from './EditPanelWrapper.types';
 
-export type EditPanelVariant = 'panel' | 'dialog';
+export type { EditPanelDeleteOption } from './EditPanelDelete';
 
-export interface EditPanelSaveContext {
-  /**
-   * Wrap any navigation the save itself performs (e.g. routing to the record
-   * just created) so the unsaved-changes route guard stands down for exactly
-   * that call. Suppressing for the whole save instead would leave the form
-   * unguarded for the duration of a slow request — during which the user can
-   * still navigate, and the save can still fail (MYK9-165).
-   */
-  runSelfNavigation: (navigate: () => void) => void;
-}
-
-export interface EditPanelWrapperProps<T = Record<string, unknown>> {
-  // Panel configuration
-  open: boolean;
-  onClose: () => void;
-  title: string;
-  subtitle?: string;
-  size?: 'sm' | 'md' | 'lg' | 'xl';
-
-  // Data management
-  initialData: T;
-  onSave: (data: T, context: EditPanelSaveContext) => Promise<void> | void;
-
-  // Form configuration
-  children: React.ReactNode;
-  schema?: z.ZodSchema<T>; // NEW: Zod schema for validation
-  validateData?: (data: T) => string[] | null; // LEGACY: console warning when used
-
-  // Advanced features
-  enableAutoSave?: boolean;
-  autoSaveInterval?: number; // milliseconds
-  showUnsavedWarning?: boolean;
-
-  // Customization
-  saveLabel?: string;
-  /** 'outline' demotes Save while another control (e.g. a Next step) is the primary action. */
-  saveVariant?: 'default' | 'outline';
-  cancelLabel?: string;
-  footerActions?: React.ReactNode;
-  headerActions?: React.ReactNode;
-  className?: string;
-
-  variant?: EditPanelVariant;
-
-  // For create forms where hasChanges tracking doesn't apply
-  forceHasChanges?: boolean;
-
-  // Callbacks
-  onDataChange?: (data: T, hasChanges: boolean) => void;
-  onValidationChange?: (isValid: boolean, errors: string[]) => void;
-  onAutoSave?: (data: T) => Promise<void> | void;
-  onValidationFail?: (firstErrorField: string) => void;
-}
-
-function UnsavedChangesDialog({
-  open,
-  onOpenChange,
-  onDiscard,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  onDiscard: () => void;
-}) {
-  return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Discard changes?</AlertDialogTitle>
-          <AlertDialogDescription>
-            You have unsaved changes. They will be lost if you close without saving.
-          </AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
-          <AlertDialogCancel>Keep editing</AlertDialogCancel>
-          <AlertDialogAction
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            onClick={onDiscard}
-          >
-            Discard changes
-          </AlertDialogAction>
-        </AlertDialogFooter>
-      </AlertDialogContent>
-    </AlertDialog>
-  );
-}
+export type {
+  EditPanelSaveContext,
+  EditPanelVariant,
+  EditPanelWrapperProps,
+} from './EditPanelWrapper.types';
 
 // Dummy schema used when no schema is provided (satisfies rules of hooks).
 // IMPORTANT: Do not read form.isValid/form.errors on the legacy path — the dummy
@@ -136,8 +52,10 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   footerActions,
   headerActions,
   className,
+  onDelete,
   variant = 'panel',
   forceHasChanges = false,
+  successMessage,
   onDataChange,
   onValidationChange,
   onAutoSave,
@@ -162,15 +80,23 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   // forget to memoize initialData would otherwise wipe in-progress user edits
   // on every parent re-render — deep-equality guards against that. Legacy path
   // skips the stringify cost entirely.
+  // Edits outlive a changed baseline. A failed save can change `initialData`
+  // underneath the form (a caller's optimistic update, then its rollback), and
+  // resetting then would wipe what the user typed while the toast says "Your
+  // changes are still here". So initial data re-seeds the form only when the
+  // panel (re)opens or the form holds no edits of its own.
+  const wasOpenRef = useRef(open);
   const lastInitialDataJsonRef = useRef<string | null>(null);
   useEffect(() => {
     if (!useSchemaPath) return;
+    const reopened = open && !wasOpenRef.current;
     const nextJson = JSON.stringify(initialData);
-    if (nextJson === lastInitialDataJsonRef.current) return;
+    if (nextJson === lastInitialDataJsonRef.current && !reopened) return;
+    if (open && !reopened && form.hasChanges) return;
     lastInitialDataJsonRef.current = nextJson;
     form.reset(initialData);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialData, useSchemaPath]);
+  }, [initialData, useSchemaPath, open]);
 
   // --- Legacy path: useState owns state ---
   const [legacyData, setLegacyData] = useState<T>(initialData);
@@ -180,28 +106,29 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   const [isLoading, setIsLoading] = useState(false);
   const [, setLastAutoSave] = useState<number>(Date.now());
   const [isTouched, setIsTouched] = useState(false);
-  const [showAllErrors, setShowAllErrors] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
   // Update legacy data when initialData changes
   useEffect(() => {
-    if (!useSchemaPath) {
-      setLegacyData(initialData);
-      setLegacyHasChanges(false);
-      setIsTouched(false);
-      setLastAutoSave(Date.now());
-    }
-  }, [initialData, useSchemaPath]);
+    if (useSchemaPath) return;
+    if (open && wasOpenRef.current && legacyHasChanges) return;
+    setLegacyData(initialData);
+    setLegacyHasChanges(false);
+    setIsTouched(false);
+    setLastAutoSave(Date.now());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialData, useSchemaPath, open]);
+
+  // Declared after both re-seed effects so they read the previous open state.
+  useEffect(() => {
+    wasOpenRef.current = open;
+  }, [open]);
 
   // Unified accessors
   const data = useSchemaPath ? form.data : legacyData;
   const hasChanges = useSchemaPath ? form.hasChanges : legacyHasChanges;
   const isValid = useSchemaPath ? form.isValid : legacyIsValid;
   const errors = useSchemaPath ? Object.values(form.errors) : legacyErrors;
-  const errorCount = useSchemaPath ? Object.keys(form.errors).length : legacyErrors.length;
-
-  useEffect(() => {
-    if (errorCount <= 2) setShowAllErrors(false);
-  }, [errorCount]);
 
   // Legacy: Track changes and validate
   useEffect(() => {
@@ -317,23 +244,43 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     [onClose, runSelfNavigation]
   );
 
+  // One report for both save paths. A failed save keeps the form open and says
+  // so in friendly words; the raw error text goes to the log only (H1).
+  const reportSaveFailure = useCallback((error: unknown) => {
+    // A handled refusal is a UX path the panel already explained, not an error.
+    if (error instanceof PanelSaveHandledError) return;
+    logger.error('Save failed:', 'components', {}, error as Error);
+    const { title, description } = friendlySaveError(error);
+    notifications.error(title, { description });
+  }, []);
+
+  const confirmSaved = useCallback(
+    (saved: T) => {
+      if (successMessage === undefined) return;
+      notifications.success(
+        offlineAwareMessage(
+          typeof successMessage === 'function' ? successMessage(saved) : successMessage
+        )
+      );
+    },
+    [successMessage]
+  );
+
   // Handle save — schema path delegates to form.handleSubmit
   const wrappedSave = useCallback(
     async (validatedData: T) => {
       try {
         setIsLoading(true);
         await onSave(validatedData, { runSelfNavigation });
+        confirmSaved(validatedData);
         closeWithoutRouteGuard();
       } catch (error) {
-        logger.error('Save failed:', 'components', {}, error as Error);
-        notifications.error('Failed to save changes', {
-          description: getErrorMessage(error),
-        });
+        reportSaveFailure(error);
       } finally {
         setIsLoading(false);
       }
     },
-    [onSave, closeWithoutRouteGuard, runSelfNavigation]
+    [onSave, closeWithoutRouteGuard, runSelfNavigation, confirmSaved, reportSaveFailure]
   );
 
   const handleSave = useMemo(() => {
@@ -352,12 +299,10 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         setIsLoading(true);
         await onSave(legacyData, { runSelfNavigation });
         setLegacyHasChanges(false);
+        confirmSaved(legacyData);
         closeWithoutRouteGuard();
       } catch (error) {
-        logger.error('Save failed:', 'components', {}, error as Error);
-        notifications.error('Failed to save changes', {
-          description: getErrorMessage(error),
-        });
+        reportSaveFailure(error);
       } finally {
         setIsLoading(false);
       }
@@ -372,6 +317,8 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     closeWithoutRouteGuard,
     runSelfNavigation,
     onValidationFail,
+    confirmSaved,
+    reportSaveFailure,
   ]);
 
   const actionBarRef = useRegisterActionBar<HTMLDivElement>();
@@ -387,17 +334,23 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
       confirmedCloseRef.current = false;
     } else {
       setShowUnsavedDialog(false);
+      setDeleteOpen(false);
     }
   }, [open]);
 
   const handleClose = useCallback(() => {
     if (confirmedCloseRef.current) return;
+    // A save in flight may still fail, and closing now would drop the form it
+    // fails back to.
+    if (isLoading) return;
+    // The delete dialog is answering for this panel: leaving now would orphan it.
+    if (deleteOpen) return;
     if (hasChanges && showUnsavedWarning) {
       setShowUnsavedDialog(true);
       return;
     }
     closeWithoutRouteGuard();
-  }, [hasChanges, showUnsavedWarning, closeWithoutRouteGuard]);
+  }, [hasChanges, showUnsavedWarning, closeWithoutRouteGuard, isLoading, deleteOpen]);
 
   const routeLeaveGuard = (
     <UnsavedChangesRouteGuard
@@ -421,50 +374,40 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     runSelfNavigation,
   };
 
-  const visibleErrors = showAllErrors ? errors : errors.slice(0, 2);
-  const hiddenErrorCount = Math.max(0, errorCount - visibleErrors.length);
+  // Save and Close hold still while the delete dialog is open: its server call
+  // may be in flight, and a save racing a delete would write to a gone row.
+  const controlsBlocked = isLoading || deleteOpen;
+
+  // The item is gone, so its unsaved edits are moot: close without the discard
+  // prompt or the route guard, then let the caller navigate away.
+  const handleDeleted = (result: DeleteRecordsResult) => {
+    confirmedCloseRef.current = true;
+    setDeleteOpen(false);
+    runSelfNavigation(() => {
+      onClose();
+      onDelete?.onDeleted?.(result);
+    });
+  };
 
   // Footer content. Dialogs register this whole footer below; SlideOverPanel
   // registers its generic footer container so every slide-out consumer gets
   // the same toast clearance without each caller remembering the hook.
   const footer = (
     <div className="flex w-full flex-col gap-3">
-      {errorCount > 0 && (
-        <div
-          role="alert"
-          aria-live="polite"
-          className="w-full rounded-lg border border-destructive/20 bg-destructive/10 px-3 py-2 text-sm text-destructive"
-        >
-          <div className="flex items-start gap-2">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-            <div className="min-w-0 flex-1">
-              <p className="font-medium">Please fix the following errors:</p>
-              <ul className="mt-1 space-y-1">
-                {visibleErrors.map((error, index) => (
-                  <li key={`${error}-${index}`}>• {error}</li>
-                ))}
-              </ul>
-              {errorCount > 2 && (
-                <button
-                  type="button"
-                  className="mt-1 min-h-11 rounded-md font-medium underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  aria-expanded={showAllErrors}
-                  onClick={() => setShowAllErrors(current => !current)}
-                >
-                  {showAllErrors
-                    ? 'Show fewer errors'
-                    : `Show ${hiddenErrorCount} more ${hiddenErrorCount === 1 ? 'error' : 'errors'}`}
-                </button>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+      <EditPanelErrorSummary errors={errors} />
 
       <div
         data-testid="edit-panel-action-row"
         className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2"
       >
+        {onDelete && (
+          <EditPanelDeleteButton
+            option={onDelete}
+            disabled={controlsBlocked}
+            onOpen={() => setDeleteOpen(true)}
+            className="order-last sm:order-none"
+          />
+        )}
         <div
           data-testid="edit-panel-status-group"
           className="flex min-w-0 flex-1 items-center gap-4"
@@ -494,7 +437,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
           <Button
             variant="outline"
             onClick={handleClose}
-            disabled={isLoading}
+            disabled={controlsBlocked}
             className="min-w-0 flex-1 gap-2 transition-all duration-200 hover:scale-105 active:scale-95 sm:flex-none"
           >
             <X className="h-4 w-4" />
@@ -506,8 +449,8 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
             onClick={handleSave}
             disabled={
               useSchemaPath
-                ? (!hasChanges && !forceHasChanges) || isLoading
-                : (!hasChanges && !forceHasChanges) || !isValid || isLoading
+                ? (!hasChanges && !forceHasChanges) || controlsBlocked
+                : (!hasChanges && !forceHasChanges) || !isValid || controlsBlocked
             }
             className="min-w-0 flex-1 gap-2 transition-all duration-200 hover:scale-105 active:scale-95 sm:flex-none"
           >
@@ -517,6 +460,33 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         </div>
       </div>
     </div>
+  );
+
+  // In the dialog variant it is mounted INSIDE the dialog so Base UI treats it as
+  // a nested dialog: a sibling would sit under the outer dialog's inert layer.
+  const deleteDialog = onDelete && (
+    <EditPanelDeleteDialog
+      option={onDelete}
+      open={deleteOpen}
+      onOpenChange={setDeleteOpen}
+      onDeleted={handleDeleted}
+    />
+  );
+
+  // The prompts that answer for this panel, rendered beside it in both variants.
+  const overlays = (
+    <>
+      <DiscardChangesDialog
+        open={showUnsavedDialog}
+        onOpenChange={setShowUnsavedDialog}
+        onDiscard={() => {
+          confirmedCloseRef.current = true;
+          setShowUnsavedDialog(false);
+          closeWithoutRouteGuard();
+        }}
+      />
+      {routeLeaveGuard}
+    </>
   );
 
   if (variant === 'dialog') {
@@ -536,19 +506,11 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
             <div ref={actionBarRef} className="border-t px-6 py-4 shrink-0">
               {footer}
             </div>
+            {deleteDialog}
           </DialogContent>
         </Dialog>
 
-        <UnsavedChangesDialog
-          open={showUnsavedDialog}
-          onOpenChange={setShowUnsavedDialog}
-          onDiscard={() => {
-            confirmedCloseRef.current = true;
-            setShowUnsavedDialog(false);
-            closeWithoutRouteGuard();
-          }}
-        />
-        {routeLeaveGuard}
+        {overlays}
       </EditPanelContext.Provider>
     );
   }
@@ -565,7 +527,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         footer={footer}
         headerActions={headerActions}
         className={cn('edit-panel-wrapper', className)}
-        preventClose={hasChanges && showUnsavedWarning}
+        preventClose={(hasChanges && showUnsavedWarning) || deleteOpen}
       >
         <div className="flex flex-col h-full animate-in fade-in-0 duration-300 ease-out">
           {/* Main content - no overflow here, SlideOverPanel handles scrolling */}
@@ -575,16 +537,8 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         </div>
       </SlideOverPanel>
 
-      <UnsavedChangesDialog
-        open={showUnsavedDialog}
-        onOpenChange={setShowUnsavedDialog}
-        onDiscard={() => {
-          confirmedCloseRef.current = true;
-          setShowUnsavedDialog(false);
-          closeWithoutRouteGuard();
-        }}
-      />
-      {routeLeaveGuard}
+      {overlays}
+      {deleteDialog}
     </EditPanelContext.Provider>
   );
 }

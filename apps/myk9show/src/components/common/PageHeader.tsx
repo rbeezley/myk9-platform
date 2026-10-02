@@ -19,6 +19,11 @@ interface PageHeaderProps {
    * where the largest visible heading would otherwise be a section label.
    */
   showTitle?: boolean;
+  /**
+   * The page's `DetailHero` is its `h1` (`headingLevel={1}`), so render no title
+   * here at all: one page, one `h1`.
+   */
+  omitTitle?: boolean;
 }
 
 export function PageHeader({
@@ -27,10 +32,11 @@ export function PageHeader({
   actions,
   className,
   showTitle = false,
+  omitTitle = false,
 }: PageHeaderProps) {
   return (
     <div className={cn('space-y-1', className)}>
-      {!showTitle && <h1 className="sr-only">{title}</h1>}
+      {!showTitle && !omitTitle && <h1 className="sr-only">{title}</h1>}
       {/* Wrap, don't overflow: on phones the actions drop below the
           breadcrumb instead of pushing the page into a horizontal pan. */}
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">

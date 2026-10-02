@@ -78,7 +78,9 @@ export async function saveShowAtomicOnline(
     ) => Promise<{ error: { message: string } | null }>
   )('create_show_with_children', rpcInput as unknown as Record<string, unknown>);
   if (rpcError) {
-    throw new Error(rpcError.message);
+    // Keep the SQLSTATE and diagnostics on the thrown error: a bare message
+    // would let a PostgREST diagnostic read as authored text downstream.
+    throw Object.assign(new Error(rpcError.message), rpcError);
   }
 
   // Ask the database to generate + hash + insert the 4 role passcodes in a

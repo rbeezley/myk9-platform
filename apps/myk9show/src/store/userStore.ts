@@ -132,7 +132,10 @@ export const useUserStore = create<UserStore>()(
           const { data: dbUser, error: dbError } = await createUser(dbUserData);
 
           if (dbError || !dbUser) {
-            throw new Error(dbError?.message || 'Failed to create user in database');
+            throw Object.assign(
+              new Error(dbError?.message || 'Failed to create user in database'),
+              dbError ?? {}
+            );
           }
 
           const newPersonId = (dbUser as Record<string, unknown>).id as string;
@@ -284,7 +287,10 @@ export const useUserStore = create<UserStore>()(
           const { data: dbUser, error: dbError } = await updateUserInDb(id, dbUpdates);
 
           if (dbError || !dbUser) {
-            throw new Error(dbError?.message || 'Failed to update user in database');
+            throw Object.assign(
+              new Error(dbError?.message || 'Failed to update user in database'),
+              dbError ?? {}
+            );
           }
 
           // Map database result to User object

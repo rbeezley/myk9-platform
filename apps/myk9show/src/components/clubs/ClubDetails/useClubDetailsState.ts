@@ -9,6 +9,7 @@ import { Club } from '@/types/club-types';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { getErrorMessage } from '@myk9/core';
+import { friendlySaveError } from '@/utils/friendlySaveError';
 import { uploadClubCover, deleteImage } from '@/services/imageUploadService';
 import { getActiveClubMembers, getClubMembers } from '@/services/database/club-memberships/members';
 import { canCreateShowForClub, computeClubPermissions, hasClubAdminScope } from './clubPermissions';
@@ -55,9 +56,6 @@ export function useClubDetailsState(selectedClub: Club | null) {
   const [showPhotoDialog, setShowPhotoDialog] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-
-  // Delete club dialog state
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   // Add member dialog state
   const [showAddMemberDialog, setShowAddMemberDialog] = useState(false);
@@ -158,10 +156,6 @@ export function useClubDetailsState(selectedClub: Club | null) {
     run: handleEditClub,
   });
 
-  const handleDeleteClub = useCallback(() => {
-    setShowDeleteDialog(true);
-  }, []);
-
   // The shared delete dialog (features/delete) soft-deletes the club through
   // soft_delete_club, purges it from this device and offers Undo; leave its page.
   const handleClubDeleted = useCallback(() => {
@@ -207,12 +201,11 @@ export function useClubDetailsState(selectedClub: Club | null) {
       try {
         await updateClub(updatedClub);
         setShowEditPanel(false);
-        notifications.success('Club updated successfully');
       } catch (error) {
         logger.error('Failed to save club', 'clubs', { clubId: selectedClub.id }, error as Error);
-        notifications.error('Failed to save club', {
-          description: getErrorMessage(error),
-        });
+        // EditPanelWrapper keeps the panel open and reports the failure only
+        // when this rejects; swallowing it would close the panel on a failed save.
+        throw error;
       }
     },
     [selectedClub, updateClub]
@@ -270,7 +263,17 @@ export function useClubDetailsState(selectedClub: Club | null) {
           ...selectedClub,
           logo: savedImage,
         };
-        await updateClub(updatedClub);
+        try {
+          await updateClub(updatedClub);
+        } catch (error) {
+          // The dialog stays open with the chosen image; a rejection reaching
+          // the dialog's click handler would be unhandled.
+          logger.error('Logo save failed', 'clubs', { clubId: selectedClub.id }, error as Error);
+          notifications.error("Couldn't save the logo", {
+            description: friendlySaveError(error).description,
+          });
+          return;
+        }
         setPreviewImage(null);
         setShowPhotoDialog(false);
       }
@@ -393,9 +396,6 @@ export function useClubDetailsState(selectedClub: Club | null) {
     handleEditClub,
     handleClubEditComplete,
     // Delete
-    showDeleteDialog,
-    setShowDeleteDialog,
-    handleDeleteClub,
     handleClubDeleted,
     // Photo
     showPhotoDialog,

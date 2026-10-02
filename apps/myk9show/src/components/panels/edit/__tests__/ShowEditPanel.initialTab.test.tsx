@@ -45,20 +45,46 @@ describe('the Judges tab when no qualified judges exist', () => {
   });
 });
 
-describe('the delete row at the bottom of the panel', () => {
-  // MYK9-630 decision: Delete show left the header `...` menu (deleted) and is a
-  // red destructive row here, last, behind the caller's existing confirm dialog.
-  it('calls the caller back so the existing confirm dialog runs', async () => {
-    const onRequestDelete = vi.fn();
+vi.mock('@/features/delete/DeleteObjectDialog', () => ({
+  DeleteObjectDialog: ({ targets }: { targets: { name: string }[] }) => (
+    <div role="dialog" aria-label="Delete confirmation">
+      {targets[0]?.name}
+    </div>
+  ),
+}));
+
+describe('Delete show in the panel footer', () => {
+  // CRUD standard Phase 3: Delete show is the footer's far-left button, on the
+  // same row as Cancel and Save, behind the shared confirm dialog.
+  const onDelete = {
+    kind: 'show' as const,
+    objectLabel: 'show',
+    targets: [{ id: 'show-1', name: 'Heartland' }],
+  };
+
+  it('sits first in the footer row and opens the shared dialog', async () => {
     const { user } = render(
-      <ShowEditPanel open onClose={vi.fn()} onRequestDelete={onRequestDelete} {...baseProps} />
+      <ShowEditPanel open onClose={vi.fn()} onDelete={onDelete} {...baseProps} />
     );
 
-    await user.click(screen.getByRole('button', { name: /delete show/i }));
-    expect(onRequestDelete).toHaveBeenCalledTimes(1);
+    const row = screen.getByTestId('edit-panel-action-row');
+    const button = screen.getByRole('button', { name: 'Delete show' });
+    expect(row.firstElementChild).toBe(button);
+    expect(screen.queryByRole('dialog', { name: 'Delete confirmation' })).toBeNull();
+
+    await user.click(button);
+    expect(screen.getByRole('dialog', { name: 'Delete confirmation' })).toHaveTextContent(
+      'Heartland'
+    );
   });
 
-  it('shows no delete row where the caller offers no delete', () => {
+  it('leaves no red row at the bottom of the form', () => {
+    render(<ShowEditPanel open onClose={vi.fn()} onDelete={onDelete} {...baseProps} />);
+    expect(screen.queryByText('Delete this show')).toBeNull();
+    expect(screen.getAllByRole('button', { name: /delete show/i })).toHaveLength(1);
+  });
+
+  it('shows no delete where the caller offers none', () => {
     // The panel is reused outside a show-management shell (ClubDetails), where
     // deleting the show is not on offer; a dead red button would be a lie.
     render(<ShowEditPanel open onClose={vi.fn()} {...baseProps} />);

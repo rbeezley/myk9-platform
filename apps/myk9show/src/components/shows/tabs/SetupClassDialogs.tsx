@@ -36,6 +36,17 @@ export function SetupClassDialogs({ showId, pending, onClose }: SetupClassDialog
     );
   };
 
+  const target = {
+    id: currentClass.id,
+    name: formatClassTitle(currentClass) || 'this class',
+    detail: classDeleteDetail({
+      level: currentClass.level,
+      element: currentClass.element,
+      trialLabel: currentClass.trial,
+    }),
+    context: { showId, trialId: pending.trialId, classId: currentClass.id },
+  };
+
   return pending.action === 'edit' ? (
     <ClassEditPanel
       open
@@ -44,6 +55,7 @@ export function SetupClassDialogs({ showId, pending, onClose }: SetupClassDialog
       className={currentClass.element || ''}
       initialClassData={currentClass}
       showId={showId}
+      onDelete={{ kind: 'class', objectLabel: 'class', targets: [target] }}
       onSave={async classData => handleSave(classData as Partial<ClassData>)}
     />
   ) : (
@@ -53,18 +65,7 @@ export function SetupClassDialogs({ showId, pending, onClose }: SetupClassDialog
         if (!open) onClose();
       }}
       kind="class"
-      targets={[
-        {
-          id: currentClass.id,
-          name: formatClassTitle(currentClass) || 'this class',
-          detail: classDeleteDetail({
-            level: currentClass.level,
-            element: currentClass.element,
-            trialLabel: currentClass.trial,
-          }),
-          context: { showId, trialId: pending.trialId, classId: currentClass.id },
-        },
-      ]}
+      targets={[target]}
     />
   );
 }

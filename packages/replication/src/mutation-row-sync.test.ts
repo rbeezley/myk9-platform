@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
-import { markReplicatedRowSynced } from './mutation-row-sync';
+import { markReplicatedRowSynced, removeOrphanedLocalOnlyRow } from './mutation-row-sync';
 import type { PendingMutation, ReplicatedRow } from './types';
 
 describe('markReplicatedRowSynced', () => {
@@ -211,5 +211,132 @@ describe('markReplicatedRowSynced — an uploaded create is server-backed (MYK9-
     await db.put(REPLICATION_STORES.REPLICATED_TABLES, created);
     await markReplicatedRowSynced(db, mutation('UPDATE'));
     expect((await stored()).data._localOnly).toBe(true);
+  });
+});
+
+describe('removeOrphanedLocalOnlyRow', () => {
+  beforeEach(async () => {
+    await databaseManager.reset();
+    // reset() keeps the stored rows: start each test from empty queues and replica.
+    const db = await databaseManager.getDatabase('orphan-setup');
+    for (const store of [
+      REPLICATION_STORES.REPLICATED_TABLES,
+      REPLICATION_STORES.PENDING_MUTATIONS,
+      REPLICATION_STORES.FAILED_MUTATIONS,
+    ]) {
+      await db.clear(store);
+    }
+  });
+
+  afterEach(async () => {
+    await databaseManager.reset();
+  });
+
+  const localOnlyRow: ReplicatedRow<{ id: string; _localOnly: boolean }> = {
+    tableName: 'dogs',
+    id: 'orphan-dog',
+    data: { id: 'orphan-dog', _localOnly: true },
+    version: 1,
+    lastSyncedAt: 1,
+    lastAccessedAt: 1,
+    isDirty: true,
+    syncStatus: 'pending',
+  };
+  const discarded: PendingMutation = {
+    id: 'discarded',
+    tableName: 'dogs',
+    operation: 'INSERT',
+    rowId: 'orphan-dog',
+    data: { id: 'orphan-dog' },
+    timestamp: 1,
+    retries: 0,
+    status: 'failed',
+    authUserId: 'user-1',
+  };
+
+  it('drops an orphaned local-only row', async () => {
+    const db = await databaseManager.getDatabase('orphan-test');
+    await db.put(REPLICATION_STORES.REPLICATED_TABLES, localOnlyRow);
+    await removeOrphanedLocalOnlyRow(db, discarded);
+    await expect(
+      db.get(REPLICATION_STORES.REPLICATED_TABLES, ['dogs', 'orphan-dog'])
+    ).resolves.toBeUndefined();
+  });
+
+  it('keeps the row when a pending mutation still points at it', async () => {
+    const db = await databaseManager.getDatabase('orphan-pending-test');
+    await db.put(REPLICATION_STORES.REPLICATED_TABLES, localOnlyRow);
+    await db.put(REPLICATION_STORES.PENDING_MUTATIONS, {
+      ...discarded,
+      id: 'other',
+      operation: 'UPDATE',
+      status: 'pending',
+    });
+    await removeOrphanedLocalOnlyRow(db, discarded);
+    await expect(
+      db.get(REPLICATION_STORES.REPLICATED_TABLES, ['dogs', 'orphan-dog'])
+    ).resolves.toBeDefined();
+  });
+
+  it('never deletes a row that gained a mutation from another tab mid-cleanup (one transaction)', async () => {
+    const db = await databaseManager.getDatabase('orphan-race-test');
+    await db.put(REPLICATION_STORES.REPLICATED_TABLES, localOnlyRow);
+
+    // Another tab queues an edit the way a real writer does: row and mutation in
+    // one transaction. It fires at the last moment the cleanup could see it: right
+    // after the final queue read (separate-transaction code) or as the cleanup's
+    // own transaction opens (single-transaction code, where it must then wait).
+    let raced: Promise<unknown> | undefined;
+    let fired = false;
+    const race = () => {
+      if (fired) return;
+      fired = true;
+      raced = (async () => {
+        const tx = db.transaction(
+          [REPLICATION_STORES.REPLICATED_TABLES, REPLICATION_STORES.PENDING_MUTATIONS],
+          'readwrite'
+        );
+        await tx.objectStore(REPLICATION_STORES.REPLICATED_TABLES).put(localOnlyRow);
+        await tx.objectStore(REPLICATION_STORES.PENDING_MUTATIONS).put({
+          ...discarded,
+          id: 'raced',
+          operation: 'UPDATE',
+          status: 'pending',
+        });
+        await tx.done;
+      })();
+    };
+    const spied = new Proxy(db, {
+      get(target, prop) {
+        const value = Reflect.get(target, prop) as unknown;
+        if (typeof value !== 'function') return value;
+        const method = value.bind(target) as (...args: unknown[]) => unknown;
+        if (prop === 'getAll') {
+          return async (store: string, ...rest: unknown[]) => {
+            const result = await method(store, ...rest);
+            if (store === REPLICATION_STORES.FAILED_MUTATIONS) race();
+            return result;
+          };
+        }
+        if (prop === 'transaction') {
+          return (...args: unknown[]) => {
+            const tx = method(...args);
+            race();
+            return tx;
+          };
+        }
+        return method;
+      },
+    });
+
+    await removeOrphanedLocalOnlyRow(spied, discarded);
+    expect(raced).toBeDefined();
+    await raced;
+
+    const pending = await db.get(REPLICATION_STORES.PENDING_MUTATIONS, 'raced');
+    const row = await db.get(REPLICATION_STORES.REPLICATED_TABLES, ['dogs', 'orphan-dog']);
+    expect(pending).toBeDefined();
+    // Never the broken state: a queued mutation whose row was deleted.
+    expect(row).toBeDefined();
   });
 });

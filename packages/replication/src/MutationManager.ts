@@ -240,15 +240,14 @@ export class MutationManager {
   // FAILED MUTATION MANAGEMENT
   // ========================================
 
-  /**
-   * List permanently failed mutations awaiting user review.
-   *
-   * Mutations land here when they exhaust retries or hit a non-retryable
-   * error (RLS rejection, constraint violation, expired auth). They are
-   * never deleted automatically — the user must retry or discard them.
-   */
+  /** This user's permanently failed mutations (retries exhausted or non-retryable); kept until retried or discarded. */
   async getFailedMutations(): Promise<PendingMutation[]> {
     return this.readAsCurrentUser(id => this.queueStore.getFailedMutations(id));
+  }
+
+  /** Every account's failed mutations on this device, as a bare count (the delete guard). */
+  async getDeviceFailedCount(): Promise<number> {
+    return this.queueStore.getDeviceFailedCount();
   }
 
   /**

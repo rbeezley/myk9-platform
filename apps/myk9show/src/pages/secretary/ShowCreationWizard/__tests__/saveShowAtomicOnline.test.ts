@@ -54,6 +54,8 @@ vi.mock('@/lib/notifications', () => ({
   },
 }));
 
+import { friendlySaveError } from '@/utils/friendlySaveError';
+
 // Import after mocks so the module-under-test picks them up.
 import { OfficialsNotAssignedError } from '../showSaveErrors';
 import { saveShowAtomicOnline as saveShowAtomicOnlineWithView } from '../saveShowAtomicOnline';
@@ -110,6 +112,27 @@ describe('saveShowAtomicOnline', () => {
     addShowLegacyMock.mockReset();
     notificationsWarningMock.mockReset();
     existingShowsMock.current = [];
+  });
+
+  it('keeps the SQLSTATE of a failed rpc so a PostgREST diagnostic never reads as authored text', async () => {
+    rpcMock.mockResolvedValue({
+      error: { code: 'PGRST204', message: "Could not find the 'nickname' column of 'shows'" },
+    });
+
+    const failure = await saveShowAtomicOnline({
+      show: baseShow,
+      trials: baseTrials,
+      judgeDetails: {},
+      clubs: [],
+      status: 'unpublished',
+      queryClient: makeQueryClient(),
+      triggerSync: vi.fn().mockResolvedValue(undefined),
+    }).catch((error: unknown) => error);
+
+    expect(friendlySaveError(failure)).toEqual({
+      title: "Couldn't save your changes",
+      description: 'Your changes are still here. Try again.',
+    });
   });
 
   it('calls supabase.rpc with create_show_with_children and the built payload', async () => {

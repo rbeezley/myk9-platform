@@ -4,6 +4,8 @@
  * throw it, with the original attached as `cause` for log forwarding.
  */
 
+import { FriendlySaveError, friendlySaveMessage } from '@/utils/friendlySaveError';
+
 const PG_UNIQUE_VIOLATION = '23505';
 const PG_FOREIGN_KEY_VIOLATION = '23503';
 const PG_INSUFFICIENT_PRIVILEGE = '42501';
@@ -16,7 +18,12 @@ function withCause(message: string, cause: unknown): Error {
   return err;
 }
 
-export function translateDogDbError(err: unknown): Error {
+/**
+ * The translated Error when `err` is a case we know, otherwise null. Callers
+ * that reach a person must brand or show only a match: an unrecognised error
+ * (a network TypeError, a PostgREST diagnostic) is not authored text.
+ */
+export function matchDogDbError(err: unknown): Error | null {
   const base = err instanceof Error ? err : new Error(String(err));
 
   const raw = err as { code?: unknown; message?: unknown } | null;
@@ -51,5 +58,29 @@ export function translateDogDbError(err: unknown): Error {
     return withCause('You do not have permission to save this dog.', err);
   }
 
-  return base;
+  return null;
+}
+
+/** Translated when known; otherwise the original error, untouched (code and all). */
+export function rethrownDogDbError(err: unknown): unknown {
+  return matchDogDbError(err) ?? err;
+}
+
+export function translateDogDbError(err: unknown): Error {
+  return matchDogDbError(err) ?? (err instanceof Error ? err : new Error(String(err)));
+}
+
+/**
+ * What a save panel rejects with: a branded sentence for a known translation,
+ * the original error for everything else, so `friendlySaveError` can still tell
+ * a network failure from a refusal.
+ */
+export function dogSaveFailure(err: unknown): unknown {
+  const match = matchDogDbError(err);
+  return match ? new FriendlySaveError(match.message) : err;
+}
+
+/** One sentence for a toast, with the same known-or-generic rule. */
+export function dogSaveMessage(err: unknown): string {
+  return friendlySaveMessage(dogSaveFailure(err));
 }

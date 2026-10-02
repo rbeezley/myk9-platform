@@ -309,7 +309,7 @@ test.describe('Clubs UI — Detail Page (Club A)', () => {
 
     await page.getByRole('button', { name: 'Save Changes' }).click();
     await updateResponsePromise;
-    await expect(page.getByText('Club updated successfully')).toBeVisible();
+    await expect(page.getByText(`${CLUB_A_NAME} saved`, { exact: true })).toHaveCount(1);
 
     await page.reload({ waitUntil: 'networkidle' });
     await page.getByRole('tab', { name: /About/i }).click();
@@ -358,8 +358,10 @@ test.describe('Clubs UI — Delete (only Club C, as platform admin)', () => {
     await page.waitForURL(/\/clubs\/[0-9a-f-]{36}$/);
     await expect(page.getByRole('heading', { name: CLUB_C_NAME })).toBeVisible();
 
-    await page.getByRole('button', { name: 'Club options' }).click();
-    await page.getByRole('menuitem', { name: /Delete Club/i }).click();
+    // Delete club is the Edit panel's footer button, never a header menu item (CRUD standard
+    // Phase 3): open the panel from the Actions menu, then press it.
+    await chooseAction(page, 'Edit club');
+    await page.getByRole('button', { name: 'Delete club', exact: true }).click();
 
     const confirmDialog = page.getByRole('alertdialog', {
       name: `Delete the club ${CLUB_C_NAME}?`,

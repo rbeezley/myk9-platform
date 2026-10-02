@@ -293,14 +293,16 @@ describe('MYK9-494 — cold PostgREST path supplies the confirmed judge', () => 
 });
 
 describe('MYK9-494 — the exhibitor schedule renders the judge', () => {
-  it('renders the confirmed judge and keeps TBD only where nobody is confirmed', async () => {
+  it('renders the confirmed judge and reads Not set only where nobody is confirmed', async () => {
     stubWarmStores(await hydrateReplicatedClasses());
 
     render(<CompactScheduleTimeline showId={SHOW_ID} />);
 
     expect(await screen.findByText('Test Judge')).toBeInTheDocument();
-    // Buried Master (invited only) and Container Novice A (unassigned) stay TBD.
-    expect(screen.getAllByText('Judge TBD')).toHaveLength(2);
+    // Buried Master (invited only) and Container Novice A (unassigned) read "Not set"
+    // (MYK9-930); the judge cell is the only blank on these rows (start times are set).
+    expect(screen.getAllByText('Not set')).toHaveLength(2);
+    expect(screen.queryByText(/TBD/)).not.toBeInTheDocument();
     expect(screen.queryByText('Invited Judge')).not.toBeInTheDocument();
   });
 });

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen } from '@/test/utils/testUtils';
+import { screen, within } from '@/test/utils/testUtils';
 import { render } from '@/test/utils/testUtils';
 import type { ClassData } from '@/components/classes/types/classTypes';
 import { usePageEditTargetStore } from '@/features/actions/pageEditTarget';
@@ -33,7 +33,23 @@ vi.mock('@/components/common/PageShell', () => ({
 }));
 
 vi.mock('@/components/common/PageHeader', () => ({
-  PageHeader: () => <div data-testid="page-header" />,
+  PageHeader: ({
+    breadcrumbs = [],
+    omitTitle,
+  }: {
+    breadcrumbs?: Array<{ label: string; href: string }>;
+    omitTitle?: boolean;
+  }) => (
+    <div data-testid="page-header" data-omit-title={String(Boolean(omitTitle))}>
+      <nav aria-label="Breadcrumb">
+        {breadcrumbs.map(crumb => (
+          <a key={crumb.href} href={crumb.href}>
+            {crumb.label}
+          </a>
+        ))}
+      </nav>
+    </div>
+  ),
 }));
 
 vi.mock('@/components/classes/ClassCompactHeader', () => ({
@@ -51,7 +67,9 @@ vi.mock('./SecretaryRunSheet', () => ({
 }));
 
 vi.mock('@/components/panels/edit/ClassEditPanel', () => ({
-  ClassEditPanel: () => <div data-testid="class-edit-panel" />,
+  ClassEditPanel: ({ onDelete }: { onDelete?: { kind: string } }) => (
+    <div data-testid="class-edit-panel" data-delete-kind={onDelete?.kind ?? ''} />
+  ),
 }));
 
 vi.mock('@/features/delete/DeleteObjectDialog', () => ({
@@ -134,6 +152,95 @@ function mockManageScope(scope: {
   });
 }
 
+describe('ClassDetailsPage detail-page header (MYK9-930)', () => {
+  function mountSecretaryClass() {
+    mockUseAuthContext.mockReturnValue({
+      user: { id: 'secretary-1' },
+      isSecretary: true,
+      isAdmin: false,
+      hasRole: () => false,
+      userWithRoles: { id: 'secretary-1', scopes: [] },
+    });
+    mockUseClassDetailsDialogs.mockReturnValue({
+      editClassPanelOpen: false,
+      deleteDialogOpen: false,
+      deleteEntryDialogOpen: false,
+      entryToDelete: null,
+      openEditClassPanel: vi.fn(),
+      openDeleteDialog: vi.fn(),
+      closeDeleteDialog: vi.fn(),
+      closeEditClassPanel: vi.fn(),
+      closeDeleteEntryDialog: vi.fn(),
+      setDeleteDialogOpen: vi.fn(),
+      setDeleteEntryDialogOpen: vi.fn(),
+      openDeleteEntryDialog: vi.fn(),
+    });
+    mockUseClassDetailsData.mockReturnValue({
+      classId: 'class-1',
+      trialId: 'trial-1',
+      classes: [currentClass],
+      currentClass,
+      trialClasses: [currentClass],
+      localRawEntries: [],
+      dbRawEntries: [],
+      classEntries: [],
+      entriesLoading: false,
+      entriesError: null,
+      manageScope: {
+        status: 'resolved',
+        canManage: true,
+        canOperate: true,
+        hasOperationalStaffRole: true,
+        clubId: 'club-1',
+      },
+      parentTrial: { id: 'trial-1', showId: 'show-1', trialNumber: 'Saturday Trial 1' },
+      parentShow: { id: 'show-1', name: 'Spring Classic', organization: 'AKC', clubId: 'club-1' },
+      dogs: [],
+      updateClass: vi.fn(),
+      deleteClass: vi.fn(),
+    });
+  }
+
+  it('breadcrumb links up through Shows, the show and the trial', () => {
+    mountSecretaryClass();
+    renderClassDetailsPage();
+
+    const trail = within(screen.getByRole('navigation', { name: 'Breadcrumb' }));
+    expect(trail.getByRole('link', { name: 'Shows' })).toHaveAttribute('href', '/shows');
+    expect(trail.getByRole('link', { name: 'Spring Classic' })).toHaveAttribute(
+      'href',
+      '/shows/show-1'
+    );
+    expect(trail.getByRole('link', { name: 'Saturday Trial 1' })).toHaveAttribute(
+      'href',
+      '/trials/trial-1'
+    );
+  });
+
+  it('lets the hero own the h1, so the breadcrumb header renders no title', () => {
+    mountSecretaryClass();
+    renderClassDetailsPage();
+
+    expect(screen.getByTestId('page-header')).toHaveAttribute('data-omit-title', 'true');
+  });
+
+  it('shows the shared not-found state, in the page shell, when the class is gone', async () => {
+    mountSecretaryClass();
+    mockUseClassDetailsData.mockReturnValue({
+      ...mockUseClassDetailsData(),
+      currentClass: null,
+      classes: [],
+      trialClasses: [currentClass],
+    });
+    const { user } = renderClassDetailsPage();
+
+    expect(screen.getByRole('heading', { level: 1, name: 'Class Not Found' })).toBeInTheDocument();
+    // `/classes` is not a list page; the way back is the parent trial.
+    await user.click(screen.getByRole('button', { name: 'Back to Trial' }));
+    expect(screen.getByTestId('location')).toHaveTextContent('/trials/trial-1');
+  });
+});
+
 describe('ClassDetailsPage header actions', () => {
   beforeEach(() => {
     openEditClassPanel.mockReset();
@@ -162,15 +269,11 @@ describe('ClassDetailsPage header actions', () => {
     });
     mockUseClassDetailsDialogs.mockReturnValue({
       editClassPanelOpen: false,
-      deleteDialogOpen: false,
       deleteEntryDialogOpen: false,
       entryToDelete: null,
       openEditClassPanel,
-      openDeleteDialog: vi.fn(),
-      closeDeleteDialog: vi.fn(),
       closeEditClassPanel: vi.fn(),
       closeDeleteEntryDialog: vi.fn(),
-      setDeleteDialogOpen: vi.fn(),
       setDeleteEntryDialogOpen: vi.fn(),
       openDeleteEntryDialog: vi.fn(),
     });
@@ -254,8 +357,9 @@ describe('ClassDetailsPage header actions', () => {
     expect(usePageEditTargetStore.getState().target?.kind).toBe('class');
     usePageEditTargetStore.getState().target?.run();
     expect(openEditClassPanel).toHaveBeenCalledTimes(1);
-    expect(screen.getByRole('menuitem', { name: /delete class/i })).toBeInTheDocument();
-    expect(screen.getByTestId('class-edit-panel')).toBeInTheDocument();
+    // Delete class is the Edit panel's footer button, never a header menu item.
+    expect(screen.queryByRole('menuitem', { name: /delete/i })).not.toBeInTheDocument();
+    expect(screen.getByTestId('class-edit-panel')).toHaveAttribute('data-delete-kind', 'class');
     // The shared delete dialog mounts only when Delete is chosen.
     expect(screen.queryByTestId('delete-class-dialog')).not.toBeInTheDocument();
   });
@@ -285,7 +389,7 @@ describe('ClassDetailsPage header actions', () => {
 
       expect(screen.queryByRole('button', { name: /^edit/i })).not.toBeInTheDocument();
       expect(usePageEditTargetStore.getState().target).toBeNull();
-      expect(screen.queryByRole('menuitem', { name: /delete class/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: /delete/i })).not.toBeInTheDocument();
       expect(screen.queryByTestId('class-edit-panel')).not.toBeInTheDocument();
       expect(screen.queryByTestId('delete-class-dialog')).not.toBeInTheDocument();
     });
@@ -335,7 +439,7 @@ describe('ClassDetailsPage header actions', () => {
       renderClassDetailsPage();
 
       expect(usePageEditTargetStore.getState().target?.kind).toBe('class');
-      expect(screen.getByRole('menuitem', { name: /delete class/i })).toBeInTheDocument();
+      expect(screen.getByTestId('class-edit-panel')).toHaveAttribute('data-delete-kind', 'class');
     });
 
     it('denies an admin of a different club', () => {

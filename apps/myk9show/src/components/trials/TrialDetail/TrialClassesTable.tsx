@@ -20,6 +20,7 @@ import { defaultListView } from '@/utils/defaultListView';
 import { getClassDetailHref } from '@/utils/classDetailHref';
 import { TrialClassesCards } from './TrialClassesCards';
 import { StatusBadge, getStatusDescriptor } from '@/components/status';
+import { NotSet } from '@/components/common/NotSet';
 import { shouldShowLevel, shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
 import { compareLevels } from '@/utils/schedule-summary';
 
@@ -32,7 +33,7 @@ function formatStartTime(startTime: string | undefined): string {
         minute: '2-digit',
         hour12: true,
       })
-    : 'TBD';
+    : 'Not set';
 }
 
 // The canonical progression (`compareLevels`, `@/utils/schedule-summary`) is
@@ -101,15 +102,17 @@ export const TrialClassesTable = ({
       {
         id: 'judgeName',
         header: 'Judge',
-        accessorFn: cls => cls.judgeName || 'TBD',
+        accessorFn: cls => cls.judgeName || '',
+        cell: ({ row }) => row.original.judgeName || <NotSet />,
       },
       {
         accessorKey: 'startTime',
         header: 'Start Time',
         sortingFn: 'datetime',
-        // Shown as "9:00 AM", so that is findable as well as the stored timestamp.
+        // Shown as "9:00 AM" (or "Not set"), so that is findable as well as the stored timestamp.
         meta: { searchValue: (row: unknown) => formatStartTime((row as TrialClass).startTime) },
-        cell: ({ row }) => formatStartTime(row.original.startTime),
+        cell: ({ row }) =>
+          row.original.startTime ? formatStartTime(row.original.startTime) : <NotSet />,
       },
       {
         accessorKey: 'entries',

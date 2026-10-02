@@ -1,5 +1,6 @@
 import React, { useCallback, useMemo } from 'react';
 import { EditPanelWrapper } from './EditPanelWrapper';
+import { savedMessage } from './panelSaveErrors';
 import { useEditPanel } from './useEditPanel';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -215,6 +216,7 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
   enableAutoSave = false,
   showId,
   mode = 'full',
+  onDelete,
 }) => {
   const isSimpleMode =
     mode === 'simple' ||
@@ -230,6 +232,8 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
     enableAutoSave,
     saveLabel: 'Save Changes',
     cancelLabel: 'Cancel',
+    onDelete,
+    successMessage: savedMessage(className, 'Class'),
   };
 
   if (isSimpleMode) {

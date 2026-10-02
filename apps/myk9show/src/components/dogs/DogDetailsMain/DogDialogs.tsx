@@ -2,7 +2,7 @@ import React, { lazy, Suspense, useRef, useEffect } from 'react';
 import { toast } from 'sonner';
 import { logger } from '@/services/LoggingService';
 import { DogEditPanelSkeleton, PhotoDialogSkeleton } from './Skeletons';
-import { DeleteObjectDialog, dogDeleteDetail } from '@/features/delete';
+import { dogDeleteDetail } from '@/features/delete';
 import { getDogDisplayName } from '@/types/dog-types';
 import {
   convertDogToDogInput,
@@ -21,7 +21,6 @@ const PhotoDialog = lazy(() => import('@/components/common/PhotoDialog'));
 const DogDialogs: React.FC<DogDialogsProps> = ({
   dog,
   isEditPanelOpen,
-  isDeleteDialogOpen,
   isPhotoDialogOpen,
   photoPreview,
   isPhotoDragging,
@@ -30,7 +29,7 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
   userRole,
   people,
   onEditPanelClose,
-  onDeleteDialogClose,
+  canDelete,
   onStatusDialogOpen,
   onDeleteStart,
   onDeleted,
@@ -83,6 +82,26 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
           dogStatus={dog.status}
           dogDeceasedDate={dog.deceasedDate ? formatDisplayDate(dog.deceasedDate) : undefined}
           onChangeStatus={onStatusDialogOpen}
+          // Delete dog is the panel's footer button, gated like soft_delete_dog (owner,
+          // co-owner or site admin). The site-admin override lives in the shared dialog.
+          onDelete={
+            canDelete
+              ? {
+                  kind: 'dog',
+                  objectLabel: 'dog',
+                  targets: [
+                    {
+                      id: dog.id,
+                      name: getDogDisplayName(dog),
+                      detail: dogDeleteDetail({ callName: dog.callName, ownerName: dog.ownerName }),
+                    },
+                  ],
+                  onDeleteStart,
+                  onDeleted: () => onDeleted?.(dog.id),
+                  onDeleteFailed,
+                }
+              : undefined
+          }
           onSave={async updatedDogData => {
             // Store previous state for rollback on error
             const previousDog = { ...dog };
@@ -114,7 +133,6 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
                   // Show success celebration
                   startCelebration(`${dog.callName} updated!`);
 
-                  toast.success('Changes saved successfully');
                   onSetIsEditPanelOpen(false);
                 } else {
                   throw new Error('No data returned from update');
@@ -127,36 +145,15 @@ const DogDialogs: React.FC<DogDialogsProps> = ({
               logger.error('Failed to save dog data', 'dogs', { dogId: dog.id }, error as Error);
               // Revert optimistic update
               onSetUpdatedDog(previousDog);
-              // Show error to user
-              toast.error('Failed to save changes. Please try again.');
-              // Keep panel open so user can retry
+              // Reject so EditPanelWrapper keeps the panel open with the user's
+              // edits and reports the failure; resolving here would close it and
+              // announce a save that did not happen.
+              throw error;
             }
           }}
           enableAutoSave={false}
         />
       </Suspense>
-
-      {isDeleteDialogOpen && (
-        // The shared delete dialog: counts and the paid/scored blocker from the
-        // server, the site-admin force-delete opt-in, and Undo (features/delete).
-        <DeleteObjectDialog
-          open
-          onOpenChange={open => {
-            if (!open) onDeleteDialogClose();
-          }}
-          kind="dog"
-          targets={[
-            {
-              id: dog.id,
-              name: getDogDisplayName(dog),
-              detail: dogDeleteDetail({ callName: dog.callName, ownerName: dog.ownerName }),
-            },
-          ]}
-          onDeleteStart={onDeleteStart}
-          onDeleted={() => onDeleted?.(dog.id)}
-          onDeleteFailed={onDeleteFailed}
-        />
-      )}
 
       {/* Edit Photo Dialog with Personal Touch */}
       <Suspense fallback={<PhotoDialogSkeleton />}>

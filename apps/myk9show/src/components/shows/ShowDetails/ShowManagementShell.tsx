@@ -15,7 +15,9 @@ import { LiveUpdateIndicator } from '@/features/show-live-sync/LiveUpdateIndicat
 import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
 import { LandingPageCard } from '@/features/premium/LandingPageCard';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
-import { DeleteObjectDialog, showDeleteDetail } from '@/features/delete';
+import { showDeleteDetail } from '@/features/delete';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { canDeleteShowForClub } from '@/components/clubs/ClubDetails/clubPermissions';
 import { type ShowDetailTabsProps } from '@/components/shows/ShowDetails/ShowDetailTabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { TabsContent } from '@/components/ui/tabs';
@@ -42,13 +44,14 @@ import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { SHOW_TABS, type ShowTabId } from '@/routes/showManagementSections';
 import { SETUP_PUBLISH_ANCHOR } from '@/features/show-workbench/setupReadinessSignals';
 import { SHOW_STATUS_CONTROL_ANCHOR } from '@/features/show-workbench/publishReadiness';
-import { notifications } from '@/lib/notifications';
 import type { Show } from '@/types/show-types';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
 import { ShowDeskCompactContext } from './ShowDeskCompactContext';
 import { applyShowFormDataToPremium } from './showFormPremiumSync';
 import { ShowPageHeaderActions } from './ShowPageHeaderActions';
+import { showHeroParent } from './showHeroParent';
+import type { HeroViewer } from '@/components/common/heroParentLink';
 
 export interface ShowManagementShellProps {
   show: Show;
@@ -65,6 +68,8 @@ export interface ShowManagementShellProps {
   sectionTabs: PrimaryTabDef[];
   entryDataState?: 'ready' | 'loading' | 'error';
   onRetryEntryData?: (() => void) | undefined;
+  /** Whether the hero's parent links may be followed (see `heroParentLink`). Safe default: no. */
+  heroViewer?: HeroViewer;
 }
 
 /**
@@ -133,6 +138,7 @@ function AuthorizedShowManagementShell({
   sectionTabs,
   entryDataState = 'ready',
   onRetryEntryData,
+  heroViewer = 'public',
   canManageShow,
 }: AuthorizedShowManagementShellProps) {
   const navigate = useNavigate();
@@ -188,7 +194,12 @@ function AuthorizedShowManagementShell({
     if (editParam === 'true') openEditPanel();
   }
 
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  // Hidden for a viewer `soft_delete_show` would refuse (a show-scoped secretary, say).
+  const { userWithRoles } = useAuthContext();
+  const canDeleteShow = canDeleteShowForClub(userWithRoles, {
+    clubId: show.clubId,
+    showId: show.id,
+  });
   const entryDataUnavailable = entryDataState !== 'ready';
   const isShowDesk = activeManagementSection === 'show-day';
   // The retired Class Management URL (`classes/:trialId`) redirects into Setup → Classes, so
@@ -199,7 +210,8 @@ function AuthorizedShowManagementShell({
   const goToTab = (id: string) => {
     const tab = SHOW_TABS.find(item => item.id === id);
     if (!tab) return;
-    navigate(tab.path ? `${canonicalShowHref}/${tab.path}` : canonicalShowHref);
+    // Replace, never push (owner decision 5): Back from a tab leaves the show.
+    navigate(tab.path ? `${canonicalShowHref}/${tab.path}` : canonicalShowHref, { replace: true });
   };
 
   // The shared dialog has already purged the show and refreshed its lists.
@@ -220,6 +232,7 @@ function AuthorizedShowManagementShell({
             <PageHeader
               breadcrumbs={breadcrumbs}
               title={show.name || 'Show Details'}
+              omitTitle
               actions={<ShowPageHeaderActions showId={show.id} armbandCount={armbandCount} />}
             />
 
@@ -230,7 +243,8 @@ function AuthorizedShowManagementShell({
                 ) : undefined
               }
               name={show.name || 'Untitled Show'}
-              subtitle={show.clubName || undefined}
+              headingLevel={1}
+              parent={showHeroParent(show, { viewer: heroViewer })}
               badges={
                 show.organization ? [{ label: show.organization, variant: 'default' as const }] : []
               }
@@ -348,7 +362,23 @@ function AuthorizedShowManagementShell({
         showId={show.id || ''}
         showName={show.name || ''}
         initialShowData={show || {}}
-        onRequestDelete={() => setShowDeleteDialog(true)}
+        onDelete={
+          showId && canDeleteShow
+            ? {
+                kind: 'show',
+                objectLabel: 'show',
+                targets: [
+                  {
+                    id: showId,
+                    name: show.name || 'Untitled show',
+                    detail: showDeleteDetail(show),
+                    context: { showId },
+                  },
+                ],
+                onDeleted: handleShowDeleted,
+              }
+            : undefined
+        }
         onSave={async showData => {
           if (show.id) {
             const id = show.id;
@@ -426,26 +456,9 @@ function AuthorizedShowManagementShell({
               await persistShowChanges();
             }
           }
-          notifications.success('Show changes saved');
           setShowEditPanel(false);
         }}
       />
-      {showDeleteDialog && showId && (
-        <DeleteObjectDialog
-          open={showDeleteDialog}
-          onOpenChange={setShowDeleteDialog}
-          kind="show"
-          targets={[
-            {
-              id: showId,
-              name: show.name || 'Untitled show',
-              detail: showDeleteDetail(show),
-              context: { showId },
-            },
-          ]}
-          onDeleted={handleShowDeleted}
-        />
-      )}
     </>
   );
 }

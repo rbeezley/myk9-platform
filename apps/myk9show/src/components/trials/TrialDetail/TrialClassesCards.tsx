@@ -103,7 +103,7 @@ export function TrialClassesCards({
             <div>
               <ClassCard
                 className={className}
-                judgeName={classItem.judgeName || 'TBD'}
+                judgeName={classItem.judgeName || 'Not set'}
                 {...(startTime !== undefined && { plannedStartTime: startTime })}
                 status={classItem.status}
                 entryCount={classItem.entries}

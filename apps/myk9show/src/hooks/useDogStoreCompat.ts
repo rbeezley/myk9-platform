@@ -29,7 +29,7 @@ import { logger } from '@/services/LoggingService';
 import { queryKeys } from '@/lib/queryClient';
 import { aggregateQueryErrors, aggregateLoadingStates } from '@/hooks/storeCompatUtils';
 import { syncDogRegistrations } from '@/hooks/dogStoreCompatHelpers';
-import { translateDogDbError } from '@/hooks/translateDogDbError';
+import { rethrownDogDbError } from '@/hooks/translateDogDbError';
 import { supabase } from '@/lib/supabase';
 import { selectOwnedDogs } from '@/utils/dogOwnership';
 import {
@@ -74,7 +74,7 @@ export const useDogStoreCompat = () => {
     try {
       return await op();
     } catch (err) {
-      throw translateDogDbError(err);
+      throw rethrownDogDbError(err);
     }
   };
 
@@ -124,7 +124,7 @@ export const useDogStoreCompat = () => {
             p_registrations: registrationsPayload,
           }
         );
-        if (rpcError) throw translateDogDbError(rpcError);
+        if (rpcError) throw rethrownDogDbError(rpcError);
 
         const savedDogId = typeof rpcDogId === 'string' ? rpcDogId : dogId;
         if (savedDogId !== dogId) {

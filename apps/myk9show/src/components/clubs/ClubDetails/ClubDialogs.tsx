@@ -3,7 +3,7 @@ import { Club } from '@/types/club-types';
 import type { ClubMember } from '@/types/club-membership-types';
 import { ClubEditPanel } from '@/components/panels/edit/ClubEditPanel';
 import ClubPhotoDialog from '../ClubPhotoDialog';
-import { DeleteObjectDialog, clubDeleteDetail } from '@/features/delete';
+import { clubDeleteDetail } from '@/features/delete';
 import { AddMemberDialog } from '../members/AddMemberDialog';
 
 interface ClubDialogsProps {
@@ -23,9 +23,12 @@ interface ClubDialogsProps {
   onPhotoFileInput: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onPhotoCancel: () => void;
   onPhotoSave: (savedImage: string | null) => Promise<void>;
-  // Delete dialog
-  showDeleteDialog: boolean;
-  onDeleteDialogChange: (open: boolean) => void;
+  /**
+   * Whether the viewer may delete this club (site admin: `computeClubPermissions`,
+   * the same rule as `soft_delete_club`). The shared dialog is opened from the Edit
+   * panel's footer.
+   */
+  canDeleteClub: boolean;
   /** After the shared dialog deleted the club. */
   onClubDeleted: () => void;
   // Add member dialog
@@ -49,8 +52,7 @@ export const ClubDialogs: React.FC<ClubDialogsProps> = ({
   onPhotoFileInput,
   onPhotoCancel,
   onPhotoSave,
-  showDeleteDialog,
-  onDeleteDialogChange,
+  canDeleteClub,
   onClubDeleted,
   showAddMemberDialog,
   onAddMemberDialogChange,
@@ -66,6 +68,16 @@ export const ClubDialogs: React.FC<ClubDialogsProps> = ({
         clubName={club.name}
         initialClubData={club}
         onSave={onSaveEdit}
+        onDelete={
+          canDeleteClub
+            ? {
+                kind: 'club',
+                objectLabel: 'club',
+                targets: [{ id: club.id, name: club.name, detail: clubDeleteDetail(club) }],
+                onDeleted: onClubDeleted,
+              }
+            : undefined
+        }
       />
 
       {/* Club Photo Dialog */}
@@ -82,16 +94,6 @@ export const ClubDialogs: React.FC<ClubDialogsProps> = ({
         onCancel={onPhotoCancel}
         onSave={onPhotoSave}
       />
-
-      {showDeleteDialog && (
-        <DeleteObjectDialog
-          open
-          onOpenChange={onDeleteDialogChange}
-          kind="club"
-          targets={[{ id: club.id, name: club.name, detail: clubDeleteDetail(club) }]}
-          onDeleted={onClubDeleted}
-        />
-      )}
 
       {/* Add Member Dialog */}
       <AddMemberDialog

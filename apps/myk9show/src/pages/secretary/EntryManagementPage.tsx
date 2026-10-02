@@ -602,6 +602,9 @@ const EntryManagementPage: React.FC = () => {
           onUpdate={() => loadEntries(selectedShowId)}
           ignoreModificationDeadline
           asShowManager
+          canDelete={manageScope.status === 'resolved' && manageScope.canManage}
+          onDeleted={entryIds => entryIds.forEach(handleEntryRemoved)}
+          onRestored={() => loadEntries(selectedShowId)}
         />
       )}
     </div>

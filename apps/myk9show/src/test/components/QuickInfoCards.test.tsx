@@ -26,10 +26,27 @@ describe('QuickInfoCards', () => {
     expect(screen.getByText('Mar 15')).toBeInTheDocument();
   });
 
-  it('displays TBD when entry close date is missing', () => {
+  // Owner decision 6 (MYK9-930): a field the secretary should fill reads "Not
+  // set" in muted text. "TBD" read as the show's own promise to decide later.
+  it('shows Not set, muted, when the entry close date is missing', () => {
     const showWithoutCloseDate = { ...baseShow, entryCloseDate: '' };
     render(<QuickInfoCards show={showWithoutCloseDate as Show} />);
-    expect(screen.getByText('TBD')).toBeInTheDocument();
+    expect(screen.getByText('Not set')).toHaveClass('text-muted-foreground');
+    expect(screen.queryByText('TBD')).not.toBeInTheDocument();
+  });
+
+  it('shows a free show (fee 0) as a fee, not Not set', () => {
+    const free = { ...baseShow, preEntryFee: 0 as unknown as string };
+    render(<QuickInfoCards show={free as Show} />);
+    expect(screen.getByText('$0.00')).toBeInTheDocument();
+    expect(screen.queryByText('Not set')).not.toBeInTheDocument();
+  });
+
+  it('shows Not set for a missing location and a missing entry fee', () => {
+    const bare = { ...baseShow, location: '', preEntryFee: '', entryCloseDate: '' };
+    render(<QuickInfoCards show={bare as Show} />);
+    expect(screen.getAllByText('Not set')).toHaveLength(3);
+    expect(screen.queryByText('TBD')).not.toBeInTheDocument();
   });
 
   it('displays entry fee', () => {

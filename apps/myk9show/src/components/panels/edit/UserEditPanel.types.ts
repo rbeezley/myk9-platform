@@ -1,4 +1,5 @@
 import type { User as UserType, JudgeQualification } from '@/types/user-types';
+import type { EditPanelDeleteOption } from './EditPanelDelete';
 
 export interface UserEditPanelProps {
   open: boolean;
@@ -9,6 +10,8 @@ export interface UserEditPanelProps {
   onSave?: (userData: Partial<UserType>) => Promise<void>;
   enableAutoSave?: boolean;
   showAdvancedFields?: boolean;
+  /** "Delete person" in the footer. Edit mode only; omit for a viewer who cannot delete. */
+  onDelete?: EditPanelDeleteOption | undefined;
 }
 
 // Form data interface matching PersonEditDialog expectations

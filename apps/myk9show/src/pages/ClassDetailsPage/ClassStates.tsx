@@ -4,7 +4,6 @@
  * Renders different UI states: not found, empty, loading
  */
 
-import { startTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
@@ -14,28 +13,27 @@ import { ErrorState } from '@/components/common/ErrorState';
 import { NotFoundState } from '@/components/common/NotFoundState';
 
 /**
- * Shown when the requested class doesn't exist
+ * Shown when the requested class doesn't exist (or a guest may not see it).
+ * The shared not-found state, whose one button is the parent: the trial when the
+ * URL names one, else the show, else the shows list. `/classes` is not a list page.
  */
-export function ClassNotFoundState() {
-  const navigate = useNavigate();
+export function ClassNotFoundState({
+  showId,
+  trialId,
+}: {
+  showId?: string | undefined;
+  trialId?: string | undefined;
+}) {
+  const target = trialId
+    ? { backTo: `/trials/${trialId}`, backLabel: 'Back to Trial' }
+    : showId
+      ? { backTo: `/shows/${showId}`, backLabel: 'Back to Show' }
+      : { backTo: '/shows', backLabel: 'Back to Shows' };
 
   return (
-    <div className="myk9-class-page flex items-center justify-center min-h-screen">
-      <div className="text-center">
-        <h1 className="text-2xl font-bold text-foreground mb-4">Class Not Found</h1>
-        <p className="text-muted-foreground mb-4">The class you're looking for doesn't exist.</p>
-        <button
-          onClick={() => {
-            startTransition(() => {
-              navigate('/classes');
-            });
-          }}
-          className="myk9-action-button myk9-action-button-primary"
-        >
-          Back to Classes
-        </button>
-      </div>
-    </div>
+    <PageShell>
+      <NotFoundState entityName="Class" {...target} />
+    </PageShell>
   );
 }
 
@@ -159,13 +157,5 @@ export function GuestClassUnavailableState({
 
 /** A class anon may not see in this show. Links back to the public show page. */
 export function GuestClassNotFoundState({ showId }: { showId: string | undefined }) {
-  return (
-    <PageShell>
-      <NotFoundState
-        entityName="Class"
-        backTo={showId ? `/shows/${showId}` : '/shows'}
-        backLabel="Back to Show"
-      />
-    </PageShell>
-  );
+  return <ClassNotFoundState showId={showId} />;
 }

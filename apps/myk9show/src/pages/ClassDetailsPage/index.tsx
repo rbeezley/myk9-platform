@@ -7,7 +7,7 @@
 import { startTransition, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatTrialLabel } from '@myk9/core';
-import { ClipboardList, LayoutDashboard, MoreVertical, Trash2 } from 'lucide-react';
+import { ClipboardList, LayoutDashboard, MoreVertical } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import ClassDetailsMain from '@/components/classes/ClassDetailsMain';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
@@ -44,6 +44,7 @@ import { useMyEntriesInClass } from './useMyEntriesInClass';
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
+import { heroViewerFromUser } from '@/components/common/heroParentLink';
 import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { RelatedContextLinks } from '@/components/common/RelatedContextLinks';
@@ -131,7 +132,7 @@ const ClassDetailsPage: React.FC = () => {
       } else if (currentClass?.trialId) {
         navigate(`/trials/${currentClass.trialId}`);
       } else {
-        navigate('/classes');
+        navigate(parentShow?.id ? `/shows/${parentShow.id}` : '/shows');
       }
     });
   };
@@ -231,18 +232,11 @@ const ClassDetailsPage: React.FC = () => {
               <ClipboardList className="mr-2 h-4 w-4" />
               Requirements
             </DropdownMenuItem>
-            {canManageClass && (
-              <DropdownMenuItem onClick={dialogs.openDeleteDialog} className="text-destructive">
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete Class
-              </DropdownMenuItem>
-            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
     );
   }, [
-    dialogs.openDeleteDialog,
     setRequirementsPanelOpen,
     canManageClass,
     parentShow,
@@ -276,7 +270,7 @@ const ClassDetailsPage: React.FC = () => {
   }
 
   if (classId && !currentClass && trialClasses.length > 0) {
-    return <ClassNotFoundState />;
+    return <ClassNotFoundState showId={showId} trialId={trialId} />;
   }
 
   if (!classId || !currentClass) {
@@ -302,13 +296,14 @@ const ClassDetailsPage: React.FC = () => {
     <ShowPresenceProvider showId={parentShow?.id}>
       <PageShell>
         <ShowDeskReturnLink showId={parentShow?.id} />
-        <PageHeader breadcrumbs={breadcrumbs} title={className} />
+        <PageHeader breadcrumbs={breadcrumbs} title={className} omitTitle />
 
         <ClassCompactHeader
           classData={currentClass}
           parentTrial={parentTrial}
           parentShow={parentShow}
           actions={headerActions}
+          viewer={heroViewerFromUser(user)}
         />
 
         <RelatedContextLinks items={relatedLinks} />
@@ -362,7 +357,11 @@ const ClassDetailsPage: React.FC = () => {
             onDeleteEntry={handleDeleteEntry}
           />
         ) : null}
+      </PageShell>
 
+      {/* Outside PageShell: SlideOverPanel is not portaled, so inside the shell's `space-y-6` a
+          fixed overlay would pick up a 24px top margin. */}
+      <>
         {/* Dialogs */}
         {/* Class-lifecycle panels are mounted only for staff, not merely left
             closed: an unmounted panel cannot be opened by a stray handler and
@@ -376,6 +375,33 @@ const ClassDetailsPage: React.FC = () => {
               className={currentClass?.element || ''}
               initialClassData={currentClass || {}}
               {...(parentShow?.id !== undefined && { showId: parentShow.id })}
+              // Delete class is the panel's footer button (CRUD standard Phase 3). This block is
+              // staff-only, and the server's class gate (can_manage_trial) is the same rule.
+              onDelete={
+                classId && currentClass
+                  ? {
+                      kind: 'class',
+                      objectLabel: 'class',
+                      targets: [
+                        {
+                          id: classId,
+                          name: classTitle ?? 'this class',
+                          detail: classDeleteDetail({
+                            level: currentClass.level,
+                            element: currentClass.element,
+                            trialLabel: parentTrialLabel,
+                          }),
+                          context: {
+                            showId: parentShow?.id,
+                            trialId: currentClass.trialId ?? trialId,
+                            classId,
+                          },
+                        },
+                      ],
+                      onDeleted: handleClassDeleted,
+                    }
+                  : undefined
+              }
               onSave={async classData => {
                 if (currentClass?.id) {
                   const updatedClass = { ...currentClass, ...classData };
@@ -383,31 +409,6 @@ const ClassDetailsPage: React.FC = () => {
                 }
               }}
             />
-
-            {dialogs.deleteDialogOpen && classId && currentClass && (
-              <DeleteObjectDialog
-                open
-                onOpenChange={dialogs.setDeleteDialogOpen}
-                kind="class"
-                targets={[
-                  {
-                    id: classId,
-                    name: classTitle ?? 'this class',
-                    detail: classDeleteDetail({
-                      level: currentClass.level,
-                      element: currentClass.element,
-                      trialLabel: parentTrialLabel,
-                    }),
-                    context: {
-                      showId: parentShow?.id,
-                      trialId: currentClass.trialId ?? trialId,
-                      classId,
-                    },
-                  },
-                ]}
-                onDeleted={handleClassDeleted}
-              />
-            )}
           </>
         )}
 
@@ -440,7 +441,7 @@ const ClassDetailsPage: React.FC = () => {
           element={currentClass?.element || ''}
           level={currentClass?.level || ''}
         />
-      </PageShell>
+      </>
     </ShowPresenceProvider>
   );
 };

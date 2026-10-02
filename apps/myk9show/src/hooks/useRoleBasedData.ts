@@ -82,6 +82,55 @@ export function useRoleBasedPeople() {
 }
 
 /**
+ * Whether the viewer may open one record, with "not decided yet" kept apart from
+ * "no". An unresolved identity (no RBAC yet, or no `people` row for the viewer yet)
+ * must never read as a refusal, or a cold boot tells a person their own record
+ * does not exist (MYK9-930 review).
+ *
+ * `missing` is a record that is on no roster at all, for a viewer who would
+ * otherwise be checked against ownership.
+ */
+export type RecordAccess = 'unresolved' | 'allowed' | 'denied' | 'missing';
+
+function isStaffViewer(hasRole: (role: UserRole) => boolean): boolean {
+  return (
+    hasRole(UserRole.SITE_ADMIN) || hasRole(UserRole.CLUB_ADMIN) || hasRole(UserRole.SECRETARY)
+  );
+}
+
+export function useDogAccess(dogId: string): RecordAccess {
+  const { userWithRoles, hasRole } = useAuthContext();
+  const { dogs } = useDogStoreCompat();
+  const allPeople = useUserStore(state => state.people);
+
+  return useMemo(() => {
+    if (!userWithRoles) return 'unresolved';
+    if (isStaffViewer(hasRole)) return 'allowed';
+
+    const viewerPersonId = resolveViewerPersonId(userWithRoles, allPeople);
+    if (!viewerPersonId) return 'unresolved';
+
+    const dog = dogs.find(d => d.id === dogId);
+    if (!dog) return 'missing';
+    return dog.ownerId === viewerPersonId ? 'allowed' : 'denied';
+  }, [userWithRoles, hasRole, dogs, dogId, allPeople]);
+}
+
+export function usePersonAccess(personId: string): RecordAccess {
+  const { userWithRoles, hasRole } = useAuthContext();
+  const allPeople = useUserStore(state => state.people);
+
+  return useMemo(() => {
+    if (!userWithRoles) return 'unresolved';
+    if (isStaffViewer(hasRole)) return 'allowed';
+
+    const viewerPersonId = resolveViewerPersonId(userWithRoles, allPeople);
+    if (!viewerPersonId) return 'unresolved';
+    return personId === viewerPersonId ? 'allowed' : 'denied';
+  }, [userWithRoles, hasRole, personId, allPeople]);
+}
+
+/**
  * Hook to check if the current user owns a specific dog
  */
 export function useCanAccessDog(dogId: string): boolean {

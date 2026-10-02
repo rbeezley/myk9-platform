@@ -3,6 +3,8 @@ import { Plus, Calendar, History, Info, Users, Palette } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
+import { PageShell } from '@/components/common/PageShell';
+import { PageHeader } from '@/components/common/PageHeader';
 import { logger } from '@/services/LoggingService';
 import type { ClubDetailsProps, ClubTab } from './types';
 import { ClubHeader } from './ClubHeader';
@@ -83,103 +85,113 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
   }
 
   return (
-    <div className="max-w-[1440px] mx-auto px-6 py-20">
-      {/* Enhanced Header with logo and club info */}
-      <ClubHeader
-        club={selectedClub}
-        onEditPhoto={state.handleEditPhoto}
-        onDeleteClub={state.handleDeleteClub}
-        onCoverUpload={state.handleCoverUpload}
-        onCoverRemove={state.handleCoverRemove}
-        isUploadingCover={state.isUploadingCover}
-        canEditBranding={state.canEditBranding}
-        canDeleteClub={state.canDeleteClub}
-        canAuthorizeClub={state.canAuthorizeClub}
-        isClubAuthorized={state.isClubAuthorized}
-        isAuthorizationLoading={state.isAuthorizationLoading}
-        isAuthorizationUpdating={state.isAuthorizationUpdating}
-        onAuthorizeClub={state.handleAuthorizeClub}
-        onRevokeAuthorization={state.handleRevokeAuthorization}
-      />
+    <>
+      <PageShell>
+        <PageHeader
+          breadcrumbs={[
+            { label: 'Clubs', href: '/clubs' },
+            { label: selectedClub.name, href: `/clubs/${selectedClub.id}` },
+          ]}
+          title={selectedClub.name}
+          omitTitle
+        />
 
-      {!state.canEditClub && (
-        <div className="mb-6 rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
-          You can view this club, but you do not have permission to edit club details.
-        </div>
-      )}
+        {/* The hero: logo, name, badges, facts, officials */}
+        <ClubHeader
+          club={selectedClub}
+          onEditPhoto={state.handleEditPhoto}
+          onCoverUpload={state.handleCoverUpload}
+          onCoverRemove={state.handleCoverRemove}
+          isUploadingCover={state.isUploadingCover}
+          canEditBranding={state.canEditBranding}
+          canAuthorizeClub={state.canAuthorizeClub}
+          isClubAuthorized={state.isClubAuthorized}
+          isAuthorizationLoading={state.isAuthorizationLoading}
+          isAuthorizationUpdating={state.isAuthorizationUpdating}
+          onAuthorizeClub={state.handleAuthorizeClub}
+          onRevokeAuthorization={state.handleRevokeAuthorization}
+        />
 
-      {/* Statistics Cards */}
-      <ClubStatistics stats={state.stats} onTabChange={handleStatCardClick} />
+        {!state.canEditClub && (
+          <div className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+            You can view this club, but you do not have permission to edit club details.
+          </div>
+        )}
 
-      {/* Tabs Section */}
-      <div ref={tabsRef} className="mb-6">
-        <PrimaryTabs
-          tabs={tabDefs}
-          value={state.activeTab}
-          onValueChange={value => state.setActiveTab(value as ClubTab)}
-        >
-          <TabsContent value="upcoming" className="pt-6">
-            <div className="flex justify-end mb-4">
-              {upcomingShows.length > 0 && state.canAddShow && (
-                <Button onClick={state.handleAddShow} className="min-h-[44px]">
-                  <Plus className="w-5 h-5 mr-2" />
-                  Add Show
-                </Button>
+        {/* Statistics Cards */}
+        <ClubStatistics stats={state.stats} onTabChange={handleStatCardClick} />
+
+        {/* Tabs Section */}
+        <div ref={tabsRef}>
+          <PrimaryTabs
+            tabs={tabDefs}
+            value={state.activeTab}
+            onValueChange={value => state.setActiveTab(value as ClubTab)}
+          >
+            <TabsContent value="upcoming" className="pt-6">
+              <div className="flex justify-end mb-4">
+                {upcomingShows.length > 0 && state.canAddShow && (
+                  <Button onClick={state.handleAddShow} className="min-h-[44px]">
+                    <Plus className="w-5 h-5 mr-2" />
+                    Add Show
+                  </Button>
+                )}
+              </div>
+              {showsStatus === 'ready' ? (
+                <UpcomingShowsTab
+                  shows={upcomingShows}
+                  onViewShowDetails={state.handleViewShowDetails}
+                  onRegisterForShow={state.handleRegisterForShow}
+                  onAddShow={state.canAddShow ? state.handleAddShow : undefined}
+                />
+              ) : (
+                <ClubShowsUnsettled status={showsStatus} onRetry={state.retryShows} />
               )}
-            </div>
-            {showsStatus === 'ready' ? (
-              <UpcomingShowsTab
-                shows={upcomingShows}
-                onViewShowDetails={state.handleViewShowDetails}
-                onRegisterForShow={state.handleRegisterForShow}
-                onAddShow={state.canAddShow ? state.handleAddShow : undefined}
-              />
-            ) : (
-              <ClubShowsUnsettled status={showsStatus} onRetry={state.retryShows} />
-            )}
-          </TabsContent>
+            </TabsContent>
 
-          <TabsContent value="past" className="pt-6">
-            {showsStatus === 'ready' ? (
-              <PastShowsTab shows={pastShows} onViewShowDetails={state.handleViewShowDetails} />
-            ) : (
-              <ClubShowsUnsettled status={showsStatus} onRetry={state.retryShows} />
-            )}
-          </TabsContent>
+            <TabsContent value="past" className="pt-6">
+              {showsStatus === 'ready' ? (
+                <PastShowsTab shows={pastShows} onViewShowDetails={state.handleViewShowDetails} />
+              ) : (
+                <ClubShowsUnsettled status={showsStatus} onRetry={state.retryShows} />
+              )}
+            </TabsContent>
 
-          <TabsContent value="about" className="pt-6">
-            <AboutTab club={selectedClub} />
-          </TabsContent>
+            <TabsContent value="about" className="pt-6">
+              <AboutTab club={selectedClub} />
+            </TabsContent>
 
-          <TabsContent value="members" className="pt-6">
-            <MembersTab
-              club={selectedClub}
-              members={state.activeMembers}
-              isLoading={state.isMembersLoading}
-              isRefreshing={state.isMembersRefreshing}
-              isError={state.isMembersError}
-              onRetry={() => void state.retryMembers()}
-              canManageMembers={state.canManageMembers}
-              onAddMember={state.handleAddMember}
-            />
-          </TabsContent>
-
-          {state.canEditBranding && (
-            <TabsContent value="branding" className="pt-6">
-              <BrandingTab
+            <TabsContent value="members" className="pt-6">
+              <MembersTab
                 club={selectedClub}
-                onSaveAccentColor={state.handleSaveAccentColor}
-                onEditPhoto={state.handleEditPhoto}
-                onCoverUpload={state.handleCoverUpload}
-                onCoverRemove={state.handleCoverRemove}
-                isUploadingCover={state.isUploadingCover}
+                members={state.activeMembers}
+                isLoading={state.isMembersLoading}
+                isRefreshing={state.isMembersRefreshing}
+                isError={state.isMembersError}
+                onRetry={() => void state.retryMembers()}
+                canManageMembers={state.canManageMembers}
+                onAddMember={state.handleAddMember}
               />
             </TabsContent>
-          )}
-        </PrimaryTabs>
-      </div>
 
-      {/* All Dialogs and Panels */}
+            {state.canEditBranding && (
+              <TabsContent value="branding" className="pt-6">
+                <BrandingTab
+                  club={selectedClub}
+                  onSaveAccentColor={state.handleSaveAccentColor}
+                  onEditPhoto={state.handleEditPhoto}
+                  onCoverUpload={state.handleCoverUpload}
+                  onCoverRemove={state.handleCoverRemove}
+                  isUploadingCover={state.isUploadingCover}
+                />
+              </TabsContent>
+            )}
+          </PrimaryTabs>
+        </div>
+      </PageShell>
+
+      {/* All Dialogs and Panels: OUTSIDE PageShell. SlideOverPanel is not portaled, so inside
+          the shell's `space-y-6` a fixed overlay would pick up a 24px top margin. */}
       <ClubDialogs
         club={selectedClub}
         showEditPanel={state.showEditPanel}
@@ -195,14 +207,13 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
         onPhotoFileInput={state.handlePhotoFileInput}
         onPhotoCancel={state.handlePhotoCancel}
         onPhotoSave={state.handlePhotoSave}
-        showDeleteDialog={state.showDeleteDialog}
-        onDeleteDialogChange={state.setShowDeleteDialog}
+        canDeleteClub={state.canDeleteClub}
         onClubDeleted={state.handleClubDeleted}
         showAddMemberDialog={state.showAddMemberDialog}
         onAddMemberDialogChange={state.setShowAddMemberDialog}
         members={state.clubMembers}
       />
-    </div>
+    </>
   );
 };
 

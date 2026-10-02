@@ -1,7 +1,6 @@
 import React from 'react';
 import ProfilePhotoDialog from '@/components/users/ProfilePhotoDialog';
-import { AdminDeleteUserDialog } from '@/components/admin/users/AdminDeleteUserDialog';
-import { DeleteObjectDialog, personDeleteDetail } from '@/features/delete';
+import { personDeleteDetail } from '@/features/delete';
 import { JudgeQualificationPanel, UserEditPanel } from '@/components/panels/edit';
 import type { User as UserType } from '@/types/user-types';
 interface UserDetailsDialogsProps {
@@ -11,20 +10,14 @@ interface UserDetailsDialogsProps {
     photo: string;
   };
   /**
-   * Whether the viewer may destroy the record outright, not merely remove it.
-   * The roster has always offered both; this page offered neither honestly —
-   * its dialog said "permanently remove … cannot be undone" while calling the
-   * SOFT delete. Both surfaces now open the same dialog (MYK9-153, F5).
+   * Whether the viewer may delete this person (`canDeletePerson`, the
+   * `soft_delete_person` gate). Delete person is the Edit panel's footer button.
    */
-  canPermanentlyDelete: boolean;
-  onPermanentDeleteUser: () => Promise<void>;
-  isDeletingUser: boolean;
+  canDelete: boolean;
   isEditModalOpen: boolean;
   setIsEditModalOpen: (open: boolean) => void;
   isPhotoModalOpen: boolean;
   setIsPhotoModalOpen: (open: boolean) => void;
-  isDeleteDialogOpen: boolean;
-  setIsDeleteDialogOpen: (open: boolean) => void;
   isQualificationsPanelOpen: boolean;
   setIsQualificationsPanelOpen: (open: boolean) => void;
   previewImage: string | null;
@@ -45,15 +38,11 @@ interface UserDetailsDialogsProps {
 const UserDetailsDialogs: React.FC<UserDetailsDialogsProps> = ({
   person,
   formData,
-  canPermanentlyDelete,
-  onPermanentDeleteUser,
-  isDeletingUser,
+  canDelete,
   isEditModalOpen,
   setIsEditModalOpen,
   isPhotoModalOpen,
   setIsPhotoModalOpen,
-  isDeleteDialogOpen,
-  setIsDeleteDialogOpen,
   isQualificationsPanelOpen,
   setIsQualificationsPanelOpen,
   previewImage,
@@ -69,9 +58,9 @@ const UserDetailsDialogs: React.FC<UserDetailsDialogsProps> = ({
   isSavingPhoto,
   onFileInput,
 }) => {
-  // A live person goes through the shared delete dialog, whose server preview
-  // names the dogs they still own (the owns-dogs guard) before Delete is enabled.
-  // An already removed person can only be purged, by a site admin.
+  // A live person is deleted from the Edit panel's footer, through the shared dialog whose
+  // server preview names the dogs they still own (the owns-dogs guard) before Delete is
+  // enabled. A removed person has no Edit panel; a site admin purges them on Deleted Items.
   return (
     <>
       {/* Edit Person Panel */}
@@ -83,6 +72,22 @@ const UserDetailsDialogs: React.FC<UserDetailsDialogsProps> = ({
         initialUserData={person}
         onSave={onUserEditSave}
         enableAutoSave={false}
+        onDelete={
+          canDelete && !person.deletedAt
+            ? {
+                kind: 'person',
+                objectLabel: 'person',
+                targets: [
+                  {
+                    id: person.id,
+                    name: formData.name,
+                    detail: personDeleteDetail({ email: person.email, town: person.city }),
+                  },
+                ],
+                onDeleted: onPersonDeleted,
+              }
+            : undefined
+        }
       />
 
       <ProfilePhotoDialog
@@ -101,35 +106,6 @@ const UserDetailsDialogs: React.FC<UserDetailsDialogsProps> = ({
         }}
         onSave={onPhotoSave}
         isSaving={isSavingPhoto ?? false}
-      />
-
-      {isDeleteDialogOpen && !person.deletedAt && (
-        <DeleteObjectDialog
-          open
-          onOpenChange={open => {
-            if (!open) setIsDeleteDialogOpen(false);
-          }}
-          kind="person"
-          targets={[
-            {
-              id: person.id,
-              name: formData.name,
-              detail: personDeleteDetail({ email: person.email, town: person.city }),
-            },
-          ]}
-          onDeleted={onPersonDeleted}
-        />
-      )}
-      <AdminDeleteUserDialog
-        open={isDeleteDialogOpen && Boolean(person.deletedAt) && canPermanentlyDelete}
-        onOpenChange={open => {
-          if (!open) setIsDeleteDialogOpen(false);
-        }}
-        onSoftDelete={() => undefined}
-        onPermanentDelete={onPermanentDeleteUser}
-        entityName={formData.name}
-        isDeleting={isDeletingUser}
-        alreadyRemoved
       />
 
       {/* Judge Qualifications Panel */}

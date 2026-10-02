@@ -13,6 +13,7 @@ import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
 import { mapDogToDogInput } from '@/services/mappers/dogMappers';
 import { saveDogPhoto, formatDisplayDate } from '@/components/dogs/DogDetailsMain/utils';
 import { selectOwnedDogs } from '@/utils/dogOwnership';
+import { useCanDeleteDog } from '@/hooks/useRoleBasedData';
 import { DeleteObjectDialog, dogDeleteDetail } from '@/features/delete';
 
 interface PeopleDetailsTabsProps {
@@ -64,6 +65,13 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
   const handleDeleteDog = (dogId: string) => {
     setDogToDelete(userDogs.find(d => d.id === dogId) ?? null);
   };
+  // soft_delete_dog is owner (or site admin) only; the card menu Delete stays as it was.
+  const canDeleteEditedDog = useCanDeleteDog(dogToEdit?.id ?? '');
+  const dogDeleteTarget = (dog: Dog) => ({
+    id: dog.id,
+    name: getDogDisplayName(dog),
+    detail: dogDeleteDetail({ callName: dog.callName, ownerName: dog.ownerName }),
+  });
 
   // Handler for adding a new dog
   const handleAddNewDog = () => {
@@ -157,6 +165,12 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
         }
         onSave={handleSaveDogEdit}
         enableAutoSave={false}
+        // Gated like the dog page: `useCanDeleteDog` mirrors soft_delete_dog (owner or site admin).
+        onDelete={
+          dogToEdit && canDeleteEditedDog
+            ? { kind: 'dog', objectLabel: 'dog', targets: [dogDeleteTarget(dogToEdit)] }
+            : undefined
+        }
       />
       {dogToDelete && (
         <DeleteObjectDialog
@@ -165,16 +179,7 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
             if (!open) setDogToDelete(null);
           }}
           kind="dog"
-          targets={[
-            {
-              id: dogToDelete.id,
-              name: getDogDisplayName(dogToDelete),
-              detail: dogDeleteDetail({
-                callName: dogToDelete.callName,
-                ownerName: dogToDelete.ownerName,
-              }),
-            },
-          ]}
+          targets={[dogDeleteTarget(dogToDelete)]}
         />
       )}
       <AddDogPanel

@@ -6,12 +6,11 @@ import { buildUserEditSavePayload, buildSavedFormDataUpdates } from './userEditS
 import { notifications } from '@/lib/notifications';
 import { uploadProfilePhoto } from '@/services/imageUploadService';
 import { useUserStore } from '@/store/userStore';
-import {
-  useUpdateUserMutation,
-  usePermanentDeleteUserMutation,
-} from '@/hooks/queries/useUsersQuery';
+import { useUpdateUserMutation } from '@/hooks/queries/useUsersQuery';
 import UserDetailsTabs from '@/components/users/UserDetails/UserDetailsTabs';
-import { Breadcrumb } from '@/components/common/Breadcrumb';
+import { PageShell } from '@/components/common/PageShell';
+import { PageHeader } from '@/components/common/PageHeader';
+import { toPageHeaderCrumbs } from '@/components/common/pageHeaderCrumbs';
 import { buildRecordBreadcrumb, readRecordBackTo } from '@/components/common/recordBackTo';
 import { PersonLifecycleBanner } from './PersonLifecycleBanner';
 import { restoreUser } from '@/services/database/users';
@@ -26,6 +25,7 @@ import { RecordPageLayout } from '@/components/layout/record';
 import type { PropertySectionConfig } from '@/components/layout/record';
 import { extractPersonName, buildFormData } from './userDetailsTypes';
 import HeroProfileCard from './HeroProfileCard';
+import { canDeletePerson } from './personDeleteGate';
 import JudgeQualificationsCard from './JudgeQualificationsCard';
 import JudgeAvailabilityCard from './JudgeAvailabilityCard';
 import UserDetailsDialogs from './UserDetailsDialogs';
@@ -43,11 +43,9 @@ interface UserDetailsViewProps {
 const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user: currentUser, hasPermission } = useAuthContext();
+  const { user: currentUser, hasPermission, getUserRoles } = useAuthContext();
   const { loadUsers } = useUserStore();
   const updateUserMutation = useUpdateUserMutation();
-  const permanentDeleteMutation = usePermanentDeleteUserMutation();
-  const [isDeletingUser, setIsDeletingUser] = useState(false);
   const { people } = useRoleBasedPeople();
   const queryClient = useQueryClient();
 
@@ -114,7 +112,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
     enabled: !isRemoved,
     run: () => setIsEditModalOpen(true),
   });
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [isQualificationsPanelOpen, setIsQualificationsPanelOpen] = useState(false);
   // Name the list the user actually came in through — a site admin arriving from
   // /admin/users gets Admin > Users > {name}, and "Users" returns to that exact
@@ -165,26 +162,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
     }
   }, [people, person.id, navigate]);
 
-  const handlePermanentDeleteUser = async () => {
-    setIsDeletingUser(true);
-    try {
-      await permanentDeleteMutation.mutateAsync({ id: person.id });
-      setIsDeleteDialogOpen(false);
-      notifications.success(`${extractPersonName(person).fullName} was permanently deleted`);
-      leaveAfterDelete();
-    } catch (error) {
-      logger.error(
-        'Failed to permanently delete person',
-        'users',
-        { userId: person.id },
-        error as Error
-      );
-      notifications.error(getUserFriendlyError(error, 'Failed to permanently delete person'));
-    } finally {
-      setIsDeletingUser(false);
-    }
-  };
-
   const handleQualificationsSaved = () => {
     loadUsers();
   };
@@ -204,7 +181,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       throw error;
     }
     setFormData(prev => ({ ...prev, ...buildSavedFormDataUpdates(userData) }));
-    notifications.success('Person updated');
     logger.info('User data saved successfully', 'users', { userId: person.id });
   };
 
@@ -256,13 +232,24 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
             render: person.email ? (
               <a
                 href={`mailto:${person.email}`}
-                className="text-sm font-medium text-primary hover:text-primary/80 transition-colors duration-200 hover:underline break-all"
+                className="inline-flex min-h-11 min-w-11 items-center text-sm font-medium text-primary hover:text-primary/80 transition-colors duration-200 hover:underline break-all"
               >
                 {person.email}
               </a>
             ) : undefined,
           },
-          { label: 'Phone', value: formData.phone || null },
+          {
+            label: 'Phone',
+            value: formData.phone || null,
+            render: formData.phone ? (
+              <a
+                href={`tel:${formData.phone.replace(/[^\d]/g, '')}`}
+                className="inline-flex min-h-11 min-w-11 items-center text-sm font-medium text-primary hover:text-primary/80 transition-colors duration-200 hover:underline"
+              >
+                {formData.phone}
+              </a>
+            ) : undefined,
+          },
         ],
       },
       {
@@ -337,58 +324,66 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
 
   return (
     <>
-      <RecordPageLayout
-        storageKey="myk9:person"
-        breadcrumb={<Breadcrumb showHomeIcon items={breadcrumbItems} />}
-        banner={
-          <PersonLifecycleBanner
-            deletedAt={person.deletedAt}
-            status={accountStatus}
-            {...(isRemoved && canRestore ? { onRestore: handleRestore } : {})}
-            isRestoring={isRestoring}
-          />
-        }
-        hero={
-          <HeroProfileCard
-            person={person}
-            firstName={firstName}
-            lastName={lastName}
-            fullName={fullName}
-            photo={formData.photo}
-            phone={formData.phone}
-            isRemoved={isRemoved}
-            onEditPhoto={() => setIsPhotoModalOpen(true)}
-            onDelete={() => setIsDeleteDialogOpen(true)}
-            {...(canManageStatus
-              ? {
-                  onChangeStatus: () => setIsStatusDialogOpen(true),
-                  changeStatusLabel:
-                    accountStatus === 'suspended' ? 'Reinstate account' : 'Suspend account',
-                  changeStatusDisabled: statusActionDisabled,
-                  ...(statusActionDisabled
-                    ? { changeStatusDescription: 'You cannot suspend your own account' }
-                    : {}),
-                }
-              : {})}
-            onSendInvitation={
-              !isRemoved && canInvite
-                ? () =>
-                    sendInvitation({
-                      personId: person.id,
-                      email: person.email,
-                      firstName,
-                      roleNames: (person.roles ?? []).map(String),
-                    })
-                : undefined
-            }
-            sendInvitationLabel={hasSignInAccount ? 'Send Sign-In Link' : 'Send Invitation'}
-            sendInvitationDisabled={isSending}
-          />
-        }
-        properties={properties}
-        tabsContent={centerContent}
-      />
+      <PageShell>
+        <RecordPageLayout
+          storageKey="myk9:person"
+          breadcrumb={
+            <PageHeader
+              breadcrumbs={toPageHeaderCrumbs(breadcrumbItems, location.pathname)}
+              title={fullName}
+              omitTitle
+            />
+          }
+          banner={
+            <PersonLifecycleBanner
+              deletedAt={person.deletedAt}
+              status={accountStatus}
+              {...(isRemoved && canRestore ? { onRestore: handleRestore } : {})}
+              isRestoring={isRestoring}
+            />
+          }
+          hero={
+            <HeroProfileCard
+              person={person}
+              firstName={firstName}
+              lastName={lastName}
+              fullName={fullName}
+              photo={formData.photo}
+              isRemoved={isRemoved}
+              onEditPhoto={() => setIsPhotoModalOpen(true)}
+              {...(canManageStatus
+                ? {
+                    onChangeStatus: () => setIsStatusDialogOpen(true),
+                    changeStatusLabel:
+                      accountStatus === 'suspended' ? 'Reinstate account' : 'Suspend account',
+                    changeStatusDisabled: statusActionDisabled,
+                    ...(statusActionDisabled
+                      ? { changeStatusDescription: 'You cannot suspend your own account' }
+                      : {}),
+                  }
+                : {})}
+              onSendInvitation={
+                !isRemoved && canInvite
+                  ? () =>
+                      sendInvitation({
+                        personId: person.id,
+                        email: person.email,
+                        firstName,
+                        roleNames: (person.roles ?? []).map(String),
+                      })
+                  : undefined
+              }
+              sendInvitationLabel={hasSignInAccount ? 'Send Sign-In Link' : 'Send Invitation'}
+              sendInvitationDisabled={isSending}
+            />
+          }
+          properties={properties}
+          tabsContent={centerContent}
+        />
+      </PageShell>
 
+      {/* Dialogs and panels: OUTSIDE PageShell. SlideOverPanel is not portaled, so inside
+          the shell's `space-y-6` a fixed overlay would pick up a 24px top margin. */}
       <UserDetailsDialogs
         person={person}
         formData={{
@@ -405,8 +400,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
             setSelectedFile(null);
           }
         }}
-        isDeleteDialogOpen={isDeleteDialogOpen}
-        setIsDeleteDialogOpen={setIsDeleteDialogOpen}
         isQualificationsPanelOpen={isQualificationsPanelOpen}
         setIsQualificationsPanelOpen={setIsQualificationsPanelOpen}
         previewImage={previewImage}
@@ -416,9 +409,9 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onPersonDeleted={leaveAfterDelete}
-        onPermanentDeleteUser={handlePermanentDeleteUser}
-        isDeletingUser={isDeletingUser}
-        canPermanentlyDelete={hasPermission('admin:manage')}
+        canDelete={
+          !isRemoved && canDeletePerson(person, { id: currentUser?.id, roles: getUserRoles() })
+        }
         onUserEditSave={handleUserEditSave}
         onQualificationsSaved={handleQualificationsSaved}
         isSavingPhoto={isSavingPhoto}

@@ -49,9 +49,8 @@ describe('club page-level actions (MYK9-928)', () => {
       <ClubHeader
         club={baseClub}
         onEditPhoto={noop}
-        onDeleteClub={noop}
+
         canEditBranding
-        canDeleteClub
       />
     );
 
@@ -59,29 +58,106 @@ describe('club page-level actions (MYK9-928)', () => {
     // Positive control: the header did render its overflow menu for this viewer.
     expect(screen.getByRole('button', { name: 'Club options' })).toBeInTheDocument();
   });
+
+  it('offers no Delete in the header menu for any viewer: it lives in the Edit panel footer', async () => {
+    const { user } = render(
+      <ClubHeader
+        club={{ ...baseClub, email: 'club@example.test' }}
+        onEditPhoto={noop}
+        canEditBranding
+        canAuthorizeClub
+        isClubAuthorized={false}
+      />
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Club options' }));
+    // Positive control: the menu is open and carries its other items.
+    expect(await screen.findByText('Authorize Club')).toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /delete/i })).not.toBeInTheDocument();
+  });
+});
+
+describe('club hero (MYK9-930)', () => {
+  const heroClub: Club = {
+    ...baseClub,
+    founded: new Date(2008, 5, 1),
+    clubType: 'scent' as Club['clubType'],
+  };
+
+  it('owns the page h1 with the club name', () => {
+    render(<ClubHeader club={heroClub} onEditPhoto={noop} />);
+    expect(screen.getByRole('heading', { level: 1, name: 'Heartland Club' })).toBeInTheDocument();
+  });
+
+  it('carries the facts row: location, club number, club type and founding year', () => {
+    render(<ClubHeader club={heroClub} onEditPhoto={noop} />);
+    expect(screen.getByText('Tulsa, OK')).toBeInTheDocument();
+    expect(screen.getByText('Club #HC-1')).toBeInTheDocument();
+    expect(screen.getByText(/scent club/i)).toBeInTheDocument();
+    expect(screen.getByText('Founded 2008')).toBeInTheDocument();
+  });
+
+  it('hides facts the club has not filled in (an optional blank field is hidden)', () => {
+    render(
+      <ClubHeader
+        club={{ ...baseClub, clubNumber: undefined, address: undefined } as unknown as Club}
+        onEditPhoto={noop}
+      />
+    );
+    expect(screen.queryByText(/club #/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('Not set')).not.toBeInTheDocument();
+  });
+
+  it('keeps the options menu trigger a 44px tap target', () => {
+    render(<ClubHeader club={{ ...heroClub, email: 'a@b.example' }} onEditPhoto={noop} />);
+    expect(screen.getByRole('button', { name: 'Club options' })).toHaveClass('h-11', 'w-11');
+  });
+
+  it('keeps the cover banner and accent bar inside the hero card', () => {
+    render(<ClubHeader club={{ ...heroClub, accentColor: '#336699' }} onEditPhoto={noop} />);
+    expect(screen.getByTestId('gradient-placeholder')).toBeInTheDocument();
+    expect(screen.getByTestId('accent-bar')).toBeInTheDocument();
+  });
+
+  it('renders no visible action buttons: contact and photo actions live in the options menu', () => {
+    render(
+      <ClubHeader
+        club={{ ...heroClub, email: 'a@b.example', phone: '555-0100' }}
+        onEditPhoto={noop}
+
+        canEditBranding
+      />
+    );
+    expect(screen.queryByRole('button', { name: /^email$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^call$/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Club options' })).toBeInTheDocument();
+  });
 });
 
 describe('club contact actions', () => {
   it('omits the options menu and contact actions when contact values are absent', () => {
-    render(<ClubHeader club={baseClub} onEditPhoto={noop} onDeleteClub={noop} />);
+    render(<ClubHeader club={baseClub} onEditPhoto={noop} />);
 
     expect(screen.queryByRole('button', { name: 'Club options' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /email/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /call/i })).not.toBeInTheDocument();
   });
 
-  it('renders only the usable partial contact destinations', () => {
+  it('renders only the usable partial contact destinations', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
     const club = { ...baseClub, email: ' contact@heartland.example ', phone: '   ' };
 
     render(
       <>
-        <ClubHeader club={club} onEditPhoto={noop} onDeleteClub={noop} />
+        <ClubHeader club={club} onEditPhoto={noop} />
         <AboutTab club={club} />
       </>
     );
 
-    expect(screen.getByRole('button', { name: /email/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /call/i })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Club options' }));
+    expect(await screen.findByText('Email Club')).toBeInTheDocument();
+    expect(screen.queryByText('Call Club')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'contact@heartland.example' })).toHaveAttribute(
       'href',
       'mailto:contact@heartland.example'
@@ -103,7 +179,7 @@ describe('club authorization control', () => {
         club={baseClub}
 
         onEditPhoto={noop}
-        onDeleteClub={noop}
+
         canAuthorizeClub
         isClubAuthorized={false}
         onAuthorizeClub={onAuthorizeClub}
@@ -127,7 +203,7 @@ describe('club authorization control', () => {
         club={baseClub}
 
         onEditPhoto={noop}
-        onDeleteClub={noop}
+
         canAuthorizeClub
         isClubAuthorized
         onRevokeAuthorization={onRevokeAuthorization}
@@ -165,7 +241,7 @@ describe('club authorization control', () => {
         club={baseClub}
 
         onEditPhoto={noop}
-        onDeleteClub={noop}
+
         canAuthorizeClub
         isClubAuthorized
         onRevokeAuthorization={onRevokeAuthorization}
@@ -195,7 +271,7 @@ describe('club authorization control', () => {
         club={baseClub}
 
         onEditPhoto={noop}
-        onDeleteClub={noop}
+
         canAuthorizeClub
         isClubAuthorized={false}
       />
@@ -209,7 +285,7 @@ describe('club authorization control', () => {
 
   it('shows the badge (but no menu item) for a non-site-admin viewer of an unauthorized club', () => {
     // P2-B: the club's own admin/secretary needs to know publish is blocked
-    // just as much as a site admin does — canDeleteClub is forced true here
+    // just as much as a site admin does — canEditBranding is forced true here
     // only so the options menu renders at all (contact-less baseClub has no
     // other menu action), to prove Authorize Club specifically is absent.
     render(
@@ -217,8 +293,8 @@ describe('club authorization control', () => {
         club={baseClub}
 
         onEditPhoto={noop}
-        onDeleteClub={noop}
-        canDeleteClub
+
+        canEditBranding
         canAuthorizeClub={false}
         isClubAuthorized={false}
       />
@@ -239,7 +315,7 @@ describe('club authorization control', () => {
         club={baseClub}
 
         onEditPhoto={noop}
-        onDeleteClub={noop}
+
         canAuthorizeClub={false}
         isClubAuthorized={false}
       />
@@ -256,7 +332,7 @@ describe('club authorization control', () => {
         club={baseClub}
 
         onEditPhoto={noop}
-        onDeleteClub={noop}
+
         canAuthorizeClub
         isClubAuthorized={false}
       />
@@ -273,7 +349,7 @@ describe('club authorization control', () => {
         club={baseClub}
 
         onEditPhoto={noop}
-        onDeleteClub={noop}
+
         canAuthorizeClub={false}
         isClubAuthorized
       />
@@ -288,7 +364,7 @@ describe('club authorization control', () => {
         club={baseClub}
 
         onEditPhoto={noop}
-        onDeleteClub={noop}
+
         canAuthorizeClub={false}
         isClubAuthorized
       />
@@ -303,7 +379,7 @@ describe('club authorization control', () => {
         club={baseClub}
 
         onEditPhoto={noop}
-        onDeleteClub={noop}
+
         canAuthorizeClub
         isClubAuthorized={undefined}
         isAuthorizationLoading
@@ -322,7 +398,7 @@ describe('club authorization control', () => {
         club={baseClub}
 
         onEditPhoto={noop}
-        onDeleteClub={noop}
+
         canAuthorizeClub
         isClubAuthorized={false}
         isAuthorizationUpdating
@@ -348,7 +424,7 @@ describe('club officials line', () => {
       secretaryNames: ['Pat Lee'],
     });
 
-    render(<ClubHeader club={baseClub} onEditPhoto={noop} onDeleteClub={noop} />);
+    render(<ClubHeader club={baseClub} onEditPhoto={noop} />);
 
     expect(await screen.findByTestId('club-admin-names')).toHaveTextContent(
       'Admins: Jane Doe, John Smith'
@@ -357,7 +433,7 @@ describe('club officials line', () => {
   });
 
   it('renders nothing when this viewer gets no officials back', async () => {
-    render(<ClubHeader club={baseClub} onEditPhoto={noop} onDeleteClub={noop} />);
+    render(<ClubHeader club={baseClub} onEditPhoto={noop} />);
 
     await waitFor(() => expect(getClubOfficials).toHaveBeenCalledWith(baseClub.id));
     expect(screen.queryByTestId('club-admin-names')).not.toBeInTheDocument();
@@ -371,7 +447,7 @@ describe('club officials line', () => {
       .mockRejectedValueOnce(new Error('network unavailable'))
       .mockResolvedValueOnce({ adminNames: ['Jane Doe'], secretaryNames: [] });
 
-    render(<ClubHeader club={baseClub} onEditPhoto={noop} onDeleteClub={noop} />);
+    render(<ClubHeader club={baseClub} onEditPhoto={noop} />);
 
     expect(await screen.findByRole('alert')).toHaveTextContent("Club officials couldn't load.");
     await user.click(screen.getByRole('button', { name: 'Try again' }));
@@ -382,7 +458,7 @@ describe('club officials line', () => {
   it('does not ask for officials on behalf of a signed-out guest', () => {
     (useAuthContext as Mock).mockImplementation(() => ({ user: null }));
 
-    render(<ClubHeader club={baseClub} onEditPhoto={noop} onDeleteClub={noop} />);
+    render(<ClubHeader club={baseClub} onEditPhoto={noop} />);
 
     expect(getClubOfficials).not.toHaveBeenCalled();
     expect(screen.queryByTestId('club-admin-names')).not.toBeInTheDocument();

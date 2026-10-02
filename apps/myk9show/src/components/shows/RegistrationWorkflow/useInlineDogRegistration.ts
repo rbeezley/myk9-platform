@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { useCreateRegistrationMutation } from '@/hooks/queries/useRegistrationsDatabase';
-import { translateDogDbError } from '@/hooks/translateDogDbError';
+import { dogSaveMessage } from '@/hooks/translateDogDbError';
 import type { Registration } from '@/types/dog-types';
 import type { DbDogRegistrationInsert } from '@/types/database-mappings';
 
@@ -41,7 +41,7 @@ export function useInlineDogRegistration(onSaved?: () => void) {
       onSaved?.();
       return true;
     } catch (error) {
-      toast.error(translateDogDbError(error).message);
+      toast.error(dogSaveMessage(error));
       return false;
     }
   };

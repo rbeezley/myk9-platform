@@ -39,7 +39,8 @@ function makeTrial(overrides: Partial<Trial> = {}): Trial {
 describe('ClassCompactHeader', () => {
   it('renders class name from element and level', () => {
     render(<ClassCompactHeader parentShow={undefined} classData={makeClassData()} />);
-    expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('Container Novice');
+    // The hero owns the page's one h1 (the header renders no second title).
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Container Novice');
   });
 
   it('renders status badge with correct variant', () => {
@@ -127,14 +128,15 @@ describe('ClassCompactHeader', () => {
         parentShow={undefined}
         classData={makeClassData()}
         parentTrial={makeTrial()}
+        viewer="account"
       />
     );
 
     expect(screen.getByText('Judge')).toBeInTheDocument();
     expect(screen.getByText('Jane Smith')).toBeInTheDocument();
 
-    expect(screen.getByText('Trial')).toBeInTheDocument();
-    expect(screen.getByText('Saturday Trial 1')).toBeInTheDocument();
+    // The trial is the hero's parent link now, not a facts-strip cell.
+    expect(screen.getByRole('link', { name: 'Saturday Trial 1' })).toBeInTheDocument();
 
     expect(screen.getByText('Date')).toBeInTheDocument();
     // The date should be formatted via toLocaleDateString
@@ -165,9 +167,29 @@ describe('ClassCompactHeader', () => {
     const { container } = render(<ClassCompactHeader parentShow={undefined} classData={minimal} />);
     expect(container).toBeTruthy();
 
-    // Missing values should show a dash
-    const dashValues = screen.getAllByText('\u2014');
-    expect(dashValues.length).toBeGreaterThan(0);
+    // Owner decision 6: a field the secretary should fill reads "Not set"; an
+    // optional blank field is hidden, not dashed.
+    expect(screen.getByText('Judge').closest('[data-testid="metadata-item"]')).toHaveTextContent(
+      'Not set'
+    );
+    expect(
+      screen.getByText('Entry Fee').closest('[data-testid="metadata-item"]')
+    ).toHaveTextContent('Not set');
+    expect(screen.queryByText('Max Entries')).not.toBeInTheDocument();
+    expect(screen.queryByText('Time Limit')).not.toBeInTheDocument();
+    expect(screen.queryByText('\u2014')).not.toBeInTheDocument();
+  });
+
+  it('shows Not set in muted text', () => {
+    render(
+      <ClassCompactHeader
+        parentShow={undefined}
+        classData={makeClassData({ judge: '', trialDate: undefined })}
+      />
+    );
+    const notSet = screen.getAllByText('Not set');
+    expect(notSet.length).toBeGreaterThanOrEqual(2);
+    for (const el of notSet) expect(el).toHaveClass('text-muted-foreground');
   });
 
   it('renders actions slot when provided', () => {
@@ -222,12 +244,24 @@ describe('ClassCompactHeader', () => {
     expect(screen.getByText('3')).toBeInTheDocument();
   });
 
-  it('shows dash for trial when no parentTrial is provided', () => {
+  it('has no parent link when no parentTrial is provided', () => {
     render(<ClassCompactHeader parentShow={undefined} classData={makeClassData()} />);
-    // The Trial metadata field should show a dash
-    const trialLabel = screen.getByText('Trial');
-    const trialValue = trialLabel.closest('[data-testid="metadata-item"]');
-    expect(trialValue).toHaveTextContent('\u2014');
+    expect(screen.queryByRole('link')).not.toBeInTheDocument();
+  });
+
+  it('links the hero to the parent trial (owner decision 11, M16)', () => {
+    render(
+      <ClassCompactHeader
+        parentShow={undefined}
+        classData={makeClassData()}
+        parentTrial={makeTrial({ id: 'trial-9' })}
+        viewer="account"
+      />
+    );
+    expect(screen.getByRole('link', { name: 'Saturday Trial 1' })).toHaveAttribute(
+      'href',
+      '/trials/trial-9'
+    );
   });
 });
 

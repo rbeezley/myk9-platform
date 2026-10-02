@@ -254,6 +254,24 @@ describe('MutationManager authenticated ownership', () => {
     expect(await db.get(REPLICATION_STORES.PENDING_MUTATIONS, 'mine')).toBeDefined();
   });
 
+  it('counts failed mutations for every account on the device, exposing only a number', async () => {
+    await db.put(
+      REPLICATION_STORES.FAILED_MUTATIONS,
+      mutation('mine', 'user-b', { status: 'failed', failedAt: 1 })
+    );
+    await db.put(
+      REPLICATION_STORES.FAILED_MUTATIONS,
+      mutation('theirs', 'user-a', { status: 'failed', failedAt: 1 })
+    );
+    await db.put(
+      REPLICATION_STORES.FAILED_MUTATIONS,
+      mutation('legacy-failed', undefined, { status: 'failed', failedAt: 1 })
+    );
+    currentUserId.mockResolvedValue('user-b');
+
+    await expect(manager.getDeviceFailedCount()).resolves.toBe(3);
+  });
+
   it('isolates row-level queue inspection, reconciliation, and discard by owner', async () => {
     await db.put(
       REPLICATION_STORES.PENDING_MUTATIONS,

@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
+import { PageShell } from '@/components/common/PageShell';
+import { NotFoundState } from '@/components/common/NotFoundState';
 import { useUserStore } from '@/store/userStore';
 import { useRoleBasedDogs, useCanAccessDog } from '@/hooks/useRoleBasedData';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
@@ -49,18 +51,20 @@ const DogDetailPage: React.FC = () => {
 
   const dog = resolvedDog ?? (isDeleteInFlight ? dogBeingDeleted : null);
 
-  // Redirect to /dogs if dog not found or no access after loading.
-  // Skip while isFetching — post-create refetch may not have resolved yet.
-  // Skip while createdDog is available — it was just created and is valid.
-  // Skip while a delete this page started is in flight — see above.
-  useEffect(() => {
-    if (createdDog || isLoading || isFetching || isDeleteInFlight) return;
-    if (dogs.length > 0 && id) {
-      if (!canAccessDog || !dogs.find(d => d.id === id)) {
-        navigate('/dogs', { replace: true, state: { accessDenied: true } });
-      }
-    }
-  }, [createdDog, isLoading, isFetching, isDeleteInFlight, dogs, id, canAccessDog, navigate]);
+  // A dog that is not on the roster, or one this viewer may not open, is the shared
+  // Not Found state (MYK9-930, audit H8), not a silent bounce to the list that throws
+  // away the URL the user asked for.
+  // Not while isFetching -- a post-create refetch may not have resolved yet, nor while
+  // createdDog is available (just created, valid), nor while a delete this page started
+  // is in flight (see above).
+  const dogNotFound =
+    !createdDog &&
+    !isLoading &&
+    !isFetching &&
+    !isDeleteInFlight &&
+    dogs.length > 0 &&
+    !!id &&
+    (!canAccessDog || !dogs.find(d => d.id === id));
 
   // The id as of NOW: a delete that lands after the user moved to another dog
   // reports itself in the toast without moving their page.
@@ -88,7 +92,7 @@ const DogDetailPage: React.FC = () => {
 
   if ((isLoading && !isDeleteInFlight) || (!dog && dogs.length === 0 && !createdDog)) {
     return (
-      <div className="max-w-4xl mx-auto px-4 py-8 space-y-6">
+      <PageShell>
         <div className="h-8 w-48 bg-muted/50 rounded-lg animate-pulse" />
         <div className="flex gap-6">
           <div className="h-48 w-48 bg-muted/50 rounded-xl animate-pulse shrink-0" />
@@ -104,7 +108,15 @@ const DogDetailPage: React.FC = () => {
             <div key={i} className="h-24 bg-muted/50 rounded-lg animate-pulse" />
           ))}
         </div>
-      </div>
+      </PageShell>
+    );
+  }
+
+  if (dogNotFound) {
+    return (
+      <PageShell>
+        <NotFoundState entityName="Dog" backTo="/dogs" backLabel="Back to Dogs" />
+      </PageShell>
     );
   }
 

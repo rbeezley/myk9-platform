@@ -11,7 +11,9 @@ import {
   usePermanentDeleteUserMutation,
 } from '@/hooks/queries/useUsersQuery';
 import UserDetailsTabs from '@/components/users/UserDetails/UserDetailsTabs';
-import { Breadcrumb } from '@/components/common/Breadcrumb';
+import { PageShell } from '@/components/common/PageShell';
+import { PageHeader } from '@/components/common/PageHeader';
+import { toPageHeaderCrumbs } from '@/components/common/pageHeaderCrumbs';
 import { buildRecordBreadcrumb, readRecordBackTo } from '@/components/common/recordBackTo';
 import { PersonLifecycleBanner } from './PersonLifecycleBanner';
 import { restoreUser } from '@/services/database/users';
@@ -262,7 +264,18 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
               </a>
             ) : undefined,
           },
-          { label: 'Phone', value: formData.phone || null },
+          {
+            label: 'Phone',
+            value: formData.phone || null,
+            render: formData.phone ? (
+              <a
+                href={`tel:${formData.phone.replace(/[^\d]/g, '')}`}
+                className="text-sm font-medium text-primary hover:text-primary/80 transition-colors duration-200 hover:underline"
+              >
+                {formData.phone}
+              </a>
+            ) : undefined,
+          },
         ],
       },
       {
@@ -336,10 +349,16 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   );
 
   return (
-    <>
+    <PageShell>
       <RecordPageLayout
         storageKey="myk9:person"
-        breadcrumb={<Breadcrumb showHomeIcon items={breadcrumbItems} />}
+        breadcrumb={
+          <PageHeader
+            breadcrumbs={toPageHeaderCrumbs(breadcrumbItems, location.pathname)}
+            title={fullName}
+            omitTitle
+          />
+        }
         banner={
           <PersonLifecycleBanner
             deletedAt={person.deletedAt}
@@ -355,7 +374,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
             lastName={lastName}
             fullName={fullName}
             photo={formData.photo}
-            phone={formData.phone}
             isRemoved={isRemoved}
             onEditPhoto={() => setIsPhotoModalOpen(true)}
             onDelete={() => setIsDeleteDialogOpen(true)}
@@ -464,7 +482,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
           isUpdating={updateUserMutation.isPending}
         />
       )}
-    </>
+    </PageShell>
   );
 };
 

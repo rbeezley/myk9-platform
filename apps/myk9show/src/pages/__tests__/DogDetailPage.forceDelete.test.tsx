@@ -10,7 +10,7 @@ import { UserRole } from '@/types/auth-types';
  * started on this page is running, the dog is purged from this device before
  * the dialog finishes, so the roster the page reads says the dog is gone. The
  * page must stay mounted (and the dialog with it) and must not bounce the admin
- * to /dogs with a false `accessDenied`. On success it leaves for /dogs once; on
+ * to /dogs, and must not show a false "Dog Not Found". On success it leaves for /dogs once; on
  * failure it stays; a late success never yanks the admin off another dog.
  *
  * The roster, the redirect effect and the router are real. Only DogDetailsMain
@@ -213,11 +213,13 @@ describe('DogDetailPage while its own delete runs (MYK9-595)', () => {
     // The route reuses this component; the latch belongs to dog-1 only.
     await user.click(screen.getByRole('link', { name: 'Go to an unknown dog' }));
 
+    // MYK9-930 (H8): an unknown dog is the shared Not Found state, not a silent
+    // bounce to the list that throws away the URL the user asked for.
+    expect(await screen.findByRole('heading', { name: 'Dog Not Found' })).toBeInTheDocument();
+    expect(screen.queryByText('dogs-list-page')).not.toBeInTheDocument();
+    expect(navigateSpy).not.toHaveBeenCalled();
+    await user.click(screen.getByRole('button', { name: 'Back to Dogs' }));
     expect(await screen.findByText('dogs-list-page')).toBeInTheDocument();
-    expect(navigateSpy).toHaveBeenCalledWith('/dogs', {
-      replace: true,
-      state: { accessDenied: true },
-    });
   });
 
   it('does not yank the admin off ANOTHER dog when the delete succeeds late', async () => {

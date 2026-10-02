@@ -159,27 +159,31 @@ describe('UserDetailsView', () => {
     });
   });
 
-  describe('Quick Actions', () => {
-    it('should render Email button when email is provided', () => {
+  // MYK9-930 (decision 11): the person's header is the calm shared hero, so the
+  // Email and Call buttons are gone; the contact card carries both as links.
+  describe('Contact links', () => {
+    it('links the email address in the contact card', () => {
       const user = createMockUser({
         email: 'test@example.com',
       });
 
       renderWithRouter(<UserDetailsView person={user} />);
 
-      const emailLink = screen.getByRole('link', { name: /email/i });
+      const emailLink = screen.getByRole('link', { name: 'test@example.com' });
       expect(emailLink).toHaveAttribute('href', 'mailto:test@example.com');
+      expect(screen.queryByRole('link', { name: /^email$/i })).not.toBeInTheDocument();
     });
 
-    it('should render Call button when phone is provided', () => {
+    it('links the phone number in the contact card', () => {
       const user = createMockUser({
         phone: '555-123-4567',
       });
 
       renderWithRouter(<UserDetailsView person={user} />);
 
-      const callLink = screen.getByRole('link', { name: /call/i });
+      const callLink = screen.getByRole('link', { name: '555-123-4567' });
       expect(callLink).toHaveAttribute('href', 'tel:5551234567');
+      expect(screen.queryByRole('link', { name: /^call$/i })).not.toBeInTheDocument();
     });
 
     it('should not render Email button when email is not provided', () => {
@@ -335,8 +339,8 @@ describe('UserDetailsView', () => {
   });
 
   describe('Breadcrumb origin', () => {
-    // The breadcrumb navigates with buttons rather than anchors, so "where does
-    // it go" can only be asserted by going there.
+    // The breadcrumb is the shared PageHeader's: real links, so where each goes
+    // can be read off its href as well as by going there.
     const renderFrom = (state: unknown) =>
       render(
         <QueryClientProvider client={queryClient}>
@@ -361,23 +365,23 @@ describe('UserDetailsView', () => {
     it('claims the People trail on a direct visit', () => {
       renderFrom(undefined);
 
-      expect(screen.getByRole('button', { name: 'People' })).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Users' })).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'People' })).toHaveAttribute('href', '/people');
+      expect(screen.queryByRole('link', { name: 'Users' })).not.toBeInTheDocument();
     });
 
     it('names the admin trail when the roster sent us here', () => {
       renderFrom(adminOrigin);
 
-      expect(screen.getByRole('button', { name: 'Admin' })).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Users' })).toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'People' })).not.toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Admin' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'Users' })).toBeInTheDocument();
+      expect(screen.queryByRole('link', { name: 'People' })).not.toBeInTheDocument();
     });
 
     it('goes back to the exact roster, filters intact', async () => {
       const user = userEvent.setup();
       renderFrom(adminOrigin);
 
-      await user.click(screen.getByRole('button', { name: 'Users' }));
+      await user.click(screen.getByRole('link', { name: 'Users' }));
 
       expect(screen.getByTestId('probe-path')).toHaveTextContent('/admin/users');
       expect(screen.getByTestId('probe-search')).toHaveTextContent('?q=ada&role=judge');
@@ -386,7 +390,7 @@ describe('UserDetailsView', () => {
     it('ignores an off-site origin', () => {
       renderFrom({ backTo: { href: 'https://evil.example', label: 'Users' } });
 
-      expect(screen.getByRole('button', { name: 'People' })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: 'People' })).toBeInTheDocument();
     });
   });
 

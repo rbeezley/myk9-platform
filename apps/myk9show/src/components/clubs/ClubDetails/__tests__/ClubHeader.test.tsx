@@ -61,6 +61,65 @@ describe('club page-level actions (MYK9-928)', () => {
   });
 });
 
+describe('club hero (MYK9-930)', () => {
+  const heroClub: Club = {
+    ...baseClub,
+    founded: new Date(2008, 5, 1),
+    clubType: 'scent' as Club['clubType'],
+  };
+
+  it('owns the page h1 with the club name', () => {
+    render(<ClubHeader club={heroClub} onEditPhoto={noop} onDeleteClub={noop} />);
+    expect(screen.getByRole('heading', { level: 1, name: 'Heartland Club' })).toBeInTheDocument();
+  });
+
+  it('carries the facts row: location, club number, club type and founding year', () => {
+    render(<ClubHeader club={heroClub} onEditPhoto={noop} onDeleteClub={noop} />);
+    expect(screen.getByText('Tulsa, OK')).toBeInTheDocument();
+    expect(screen.getByText('Club #HC-1')).toBeInTheDocument();
+    expect(screen.getByText(/scent club/i)).toBeInTheDocument();
+    expect(screen.getByText('Founded 2008')).toBeInTheDocument();
+  });
+
+  it('hides facts the club has not filled in (an optional blank field is hidden)', () => {
+    render(
+      <ClubHeader
+        club={{ ...baseClub, clubNumber: undefined, address: undefined } as unknown as Club}
+        onEditPhoto={noop}
+        onDeleteClub={noop}
+      />
+    );
+    expect(screen.queryByText(/club #/i)).not.toBeInTheDocument();
+    expect(screen.queryByText('Not set')).not.toBeInTheDocument();
+  });
+
+  it('keeps the cover banner and accent bar inside the hero card', () => {
+    render(
+      <ClubHeader
+        club={{ ...heroClub, accentColor: '#336699' }}
+        onEditPhoto={noop}
+        onDeleteClub={noop}
+      />
+    );
+    expect(screen.getByTestId('gradient-placeholder')).toBeInTheDocument();
+    expect(screen.getByTestId('accent-bar')).toBeInTheDocument();
+  });
+
+  it('renders no visible action buttons: contact and photo actions live in the options menu', () => {
+    render(
+      <ClubHeader
+        club={{ ...heroClub, email: 'a@b.example', phone: '555-0100' }}
+        onEditPhoto={noop}
+        onDeleteClub={noop}
+        canEditBranding
+      />
+    );
+    expect(screen.queryByRole('button', { name: /^email$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^call$/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Club options' })).toBeInTheDocument();
+  });
+});
+
 describe('club contact actions', () => {
   it('omits the options menu and contact actions when contact values are absent', () => {
     render(<ClubHeader club={baseClub} onEditPhoto={noop} onDeleteClub={noop} />);
@@ -70,7 +129,9 @@ describe('club contact actions', () => {
     expect(screen.queryByRole('button', { name: /call/i })).not.toBeInTheDocument();
   });
 
-  it('renders only the usable partial contact destinations', () => {
+  it('renders only the usable partial contact destinations', async () => {
+    const { default: userEvent } = await import('@testing-library/user-event');
+    const user = userEvent.setup();
     const club = { ...baseClub, email: ' contact@heartland.example ', phone: '   ' };
 
     render(
@@ -80,8 +141,9 @@ describe('club contact actions', () => {
       </>
     );
 
-    expect(screen.getByRole('button', { name: /email/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /call/i })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Club options' }));
+    expect(await screen.findByText('Email Club')).toBeInTheDocument();
+    expect(screen.queryByText('Call Club')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'contact@heartland.example' })).toHaveAttribute(
       'href',
       'mailto:contact@heartland.example'

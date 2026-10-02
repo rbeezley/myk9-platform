@@ -35,6 +35,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { DetailHero } from '@/components/common/DetailHero';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { ErrorState } from '@/components/common/ErrorState';
+import { NotFoundState } from '@/components/common/NotFoundState';
 import { DetailPageSkeleton } from '@/components/common/SkeletonLoaders';
 import { useUrlTab } from '@/hooks/useUrlTab';
 
@@ -325,10 +326,10 @@ const TrialDetailsPage: React.FC = () => {
   if (trialId && !currentTrial && (trials.length > 0 || fallbackTrialResolved)) {
     return (
       <PageShell>
-        <ErrorState
-          message="The trial you're looking for doesn't exist."
-          onRetry={() => navigate(showId ? `/shows/${showId}` : '/shows')}
-          headingLevel={1}
+        <NotFoundState
+          entityName="Trial"
+          backTo={showId ? `/shows/${showId}` : '/shows'}
+          backLabel={showId ? 'Back to Show' : 'Back to Shows'}
         />
       </PageShell>
     );
@@ -347,10 +348,14 @@ const TrialDetailsPage: React.FC = () => {
     <PageShell>
       {trialWithClasses ? (
         <>
-          <PageHeader breadcrumbs={breadcrumbs} title={trialHero.title} />
+          <PageHeader breadcrumbs={breadcrumbs} title={trialHero.title} omitTitle />
 
           <DetailHero
             name={trialHero.title}
+            headingLevel={1}
+            parent={
+              parentShow ? { label: parentShow.name, href: `/shows/${parentShow.id}` } : undefined
+            }
             subtitle={trialHero.subtitle}
             metadata={heroMetadata}
             badges={statusBadge ? [statusBadge] : []}

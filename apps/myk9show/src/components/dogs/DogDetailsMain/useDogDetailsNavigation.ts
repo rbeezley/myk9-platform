@@ -25,8 +25,9 @@ export function useDogDetailsNavigation(): {
 
   const setSection = useCallback(
     (section: DogDetailsSection) => {
+      // Replace, never push (owner decision 5): Back from a section leaves the dog.
       setSearchParams(prev => applyDogDetailsState(prev, { section, view: null }), {
-        replace: false,
+        replace: true,
       });
     },
     [setSearchParams]
@@ -35,7 +36,7 @@ export function useDogDetailsNavigation(): {
   const setView = useCallback(
     (view: DogDetailsView) => {
       setSearchParams(prev => applyDogDetailsState(prev, { section: state.section, view }), {
-        replace: false,
+        replace: true,
       });
     },
     [setSearchParams, state.section]

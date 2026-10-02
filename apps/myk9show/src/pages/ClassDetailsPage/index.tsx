@@ -130,7 +130,7 @@ const ClassDetailsPage: React.FC = () => {
       } else if (currentClass?.trialId) {
         navigate(`/trials/${currentClass.trialId}`);
       } else {
-        navigate('/classes');
+        navigate(parentShow?.id ? `/shows/${parentShow.id}` : '/shows');
       }
     });
   };
@@ -269,7 +269,7 @@ const ClassDetailsPage: React.FC = () => {
   }
 
   if (classId && !currentClass && trialClasses.length > 0) {
-    return <ClassNotFoundState />;
+    return <ClassNotFoundState showId={showId} trialId={trialId} />;
   }
 
   if (!classId || !currentClass) {
@@ -295,7 +295,7 @@ const ClassDetailsPage: React.FC = () => {
     <ShowPresenceProvider showId={parentShow?.id}>
       <PageShell>
         <ShowDeskReturnLink showId={parentShow?.id} />
-        <PageHeader breadcrumbs={breadcrumbs} title={className} />
+        <PageHeader breadcrumbs={breadcrumbs} title={className} omitTitle />
 
         <ClassCompactHeader
           classData={currentClass}

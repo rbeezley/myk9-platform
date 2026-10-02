@@ -31,26 +31,26 @@ export function RecordPageLayout({
   const hasLeftSidebar = properties && properties.length > 0;
 
   return (
-    <div className={cn('max-w-[1440px] mx-auto', className)}>
+    <div className={cn('mx-auto', className)}>
       {/* Top bar: breadcrumb + actions */}
       {(breadcrumb || actions) && (
-        <div className="flex items-center justify-between px-6 py-3">
+        <div className="flex items-center justify-between pb-3">
           <div className="flex-1">{breadcrumb}</div>
           {actions && <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>}
         </div>
       )}
 
       {/* Lifecycle banner — above stats and hero, never below them */}
-      {banner && <div className="px-6 pb-4">{banner}</div>}
+      {banner && <div className="pb-4">{banner}</div>}
 
       {/* Stats row */}
-      {stats && <div className="px-6 pb-4">{stats}</div>}
+      {stats && <div className="pb-4">{stats}</div>}
 
       {/* Hero section (profile card, etc.) */}
-      {hero && <div className="px-6 pb-6">{hero}</div>}
+      {hero && <div className="pb-6">{hero}</div>}
 
       {/* Two-panel body */}
-      <div className="flex flex-col xl:flex-row gap-6 px-6 pb-8">
+      <div className="flex flex-col xl:flex-row gap-6 pb-8">
         {/* Left sidebar — properties */}
         {hasLeftSidebar && (
           <aside className="w-full xl:w-[280px] xl:min-w-[280px] xl:flex-shrink-0 space-y-3">

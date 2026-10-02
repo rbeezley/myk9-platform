@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { InlineEditableField } from '@/components/common/InlineEditableField';
+import { NotSet } from '@/components/common/NotSet';
 import type { PropertySectionConfig } from './RecordPageLayout.types';
 
 interface PropertySectionProps {
@@ -103,7 +104,7 @@ export function PropertySection({ section, storagePrefix }: PropertySectionProps
                       {field.suffix}
                     </>
                   ) : (
-                    <span className="text-muted-foreground/50 italic font-normal">Not set</span>
+                    <NotSet />
                   ))}
               </div>
             </div>

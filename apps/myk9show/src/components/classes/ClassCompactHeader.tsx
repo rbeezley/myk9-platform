@@ -1,17 +1,19 @@
 import { formatTrialLabel } from '@myk9/core';
-import { cn } from '@/lib/utils';
 import { formatFee } from '@/utils/format';
 import type { ClassData } from './types/classTypes';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { formatClassTitle, shouldShowSection } from './ClassDetailsMain.helpers';
-import { StatusBadge } from '@/components/status';
+import { StatusIcon, getStatusDescriptor } from '@/components/status';
+import { DetailHero, type HeroBadge } from '@/components/common/DetailHero';
+import { NotSet } from '@/components/common/NotSet';
 import { useClassEntryFee, type ClassFeeShow } from './useClassEntryFee';
 
-// --- Metadata item sub-component ---
+// --- Facts row cell ---
 
 interface MetadataItemProps {
   label: string;
-  value: string;
+  /** `null` is a blank the secretary should fill: it reads "Not set". */
+  value: string | null;
 }
 
 function MetadataItem({ label, value }: MetadataItemProps) {
@@ -21,17 +23,17 @@ function MetadataItem({ label, value }: MetadataItemProps) {
       className="flex-1 min-w-[120px] px-4 py-2.5 border-r border-border/50 last:border-r-0"
     >
       <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
-      <div className="text-sm font-medium mt-0.5">{value}</div>
+      <div className="text-sm font-medium mt-0.5">{value ?? <NotSet />}</div>
     </div>
   );
 }
 
 // --- Date formatting (matches ClassDetailsPage pattern) ---
 
-function formatClassDate(dateStr: string | undefined): string {
-  if (!dateStr) return '\u2014';
+function formatClassDate(dateStr: string | undefined): string | null {
+  if (!dateStr) return null;
   const d = new Date(dateStr + 'T00:00:00');
-  return isNaN(d.getTime()) ? '\u2014' : d.toLocaleDateString();
+  return isNaN(d.getTime()) ? null : d.toLocaleDateString();
 }
 
 // --- Main component ---
@@ -41,6 +43,7 @@ interface ClassCompactHeaderProps {
   parentTrial?: Trial | undefined;
   /** Required so the page cannot drop it: the fee shown depends on the show (MYK9-724 F52). */
   parentShow: ClassFeeShow | undefined;
+  /** Page chrome kept beside the title (the class options menu); not page-level Edit. */
   actions?: React.ReactNode;
   className?: string;
 }
@@ -54,64 +57,56 @@ export function ClassCompactHeader({
 }: ClassCompactHeaderProps) {
   const entryFee = useClassEntryFee(parentShow, classData.entryFee);
   // Build class display name from element + level (hides level for Detective)
-  const className_ = formatClassTitle(classData) || 'Class';
+  const classTitle = formatClassTitle(classData) || 'Class';
 
-  // Trial display value — the one shared trial label (name, then trial number);
-  // trialType is the sport (e.g., "Scent Work") which we don't want here
-  const trialDisplay = parentTrial
-    ? formatTrialLabel({ name: parentTrial.name, trialNumber: parentTrial.trialNumber })
-    : '\u2014';
+  // The one shared trial label (name, then trial number); trialType is the sport
+  // (e.g., "Scent Work") which we don't want here. The trial is the hero's parent.
+  const parent = parentTrial
+    ? {
+        label: formatTrialLabel({ name: parentTrial.name, trialNumber: parentTrial.trialNumber }),
+        href: `/trials/${parentTrial.id}`,
+      }
+    : undefined;
 
-  // Build metadata fields
-  const metadataFields: MetadataItemProps[] = [
-    { label: 'Judge', value: classData.judge || '\u2014' },
-    { label: 'Trial', value: trialDisplay },
+  const status = getStatusDescriptor('class', classData.status);
+  const badge: HeroBadge = {
+    label: status.label,
+    variant: 'default',
+    icon: <StatusIcon family="class" status={classData.status} size="sm" decorative />,
+  };
+
+  // Owner decision 6: a field the secretary should fill reads "Not set"; an
+  // optional blank field is hidden.
+  const facts: MetadataItemProps[] = [
+    { label: 'Judge', value: classData.judge || null },
     { label: 'Date', value: formatClassDate(classData.trialDate) },
-    {
-      label: 'Entry Fee',
-      value: entryFee != null ? formatFee(entryFee) : '\u2014',
-    },
-    {
-      label: 'Max Entries',
-      value: classData.maxEntries != null ? String(classData.maxEntries) : '\u2014',
-    },
-    { label: 'Time Limit', value: classData.timeLimit1 || '\u2014' },
+    { label: 'Entry Fee', value: entryFee != null ? formatFee(entryFee) : null },
   ];
-
-  // Conditional officials
-  if (classData.gateSteward) {
-    metadataFields.push({ label: 'Gate Steward', value: classData.gateSteward });
+  if (classData.maxEntries != null) {
+    facts.push({ label: 'Max Entries', value: String(classData.maxEntries) });
   }
+  if (classData.timeLimit1) facts.push({ label: 'Time Limit', value: classData.timeLimit1 });
+  if (classData.gateSteward) facts.push({ label: 'Gate Steward', value: classData.gateSteward });
   if (classData.tableSteward) {
-    metadataFields.push({ label: 'Table Steward', value: classData.tableSteward });
+    facts.push({ label: 'Table Steward', value: classData.tableSteward });
   }
 
   return (
-    <div className={cn('rounded-xl border border-border/50 bg-card overflow-hidden', className)}>
-      {/* Top row */}
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 p-6">
-        <div className="space-y-1.5">
-          <div className="flex items-center gap-3 flex-wrap">
-            <h2 className="text-xl font-bold">{className_}</h2>
-            <StatusBadge
-              family="class"
-              status={classData.status}
-              className="rounded-full px-2.5 py-0.5 text-sm font-medium"
-            />
-          </div>
-          {shouldShowSection(classData) && (
-            <div className="text-sm text-muted-foreground">Section {classData.section}</div>
-          )}
+    <DetailHero
+      name={classTitle}
+      headingLevel={1}
+      parent={parent}
+      subtitle={shouldShowSection(classData) ? `Section ${classData.section}` : undefined}
+      badges={[badge]}
+      secondaryActions={actions}
+      footer={
+        <div className="flex flex-wrap">
+          {facts.map(field => (
+            <MetadataItem key={field.label} label={field.label} value={field.value} />
+          ))}
         </div>
-        {actions && <div className="flex items-center gap-2 flex-shrink-0">{actions}</div>}
-      </div>
-
-      {/* Metadata strip */}
-      <div className="flex flex-wrap border-t border-border/50 bg-muted/30">
-        {metadataFields.map(field => (
-          <MetadataItem key={field.label} label={field.label} value={field.value} />
-        ))}
-      </div>
-    </div>
+      }
+      {...(className ? { className } : {})}
+    />
   );
 }

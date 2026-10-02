@@ -13,6 +13,7 @@ import {
 } from '@/components/shows/ShowDetails/ShowDetailTabs';
 import type { EntryStatus, EntryStatusInfo } from '@/utils/entryStatusUtils';
 import type { Show } from '@/types/show-types';
+import { showHeroParent } from './showHeroParent';
 
 const ENTRY_STATUS_HERO_VARIANT: Record<
   EntryStatus,
@@ -66,7 +67,7 @@ export function ShowExhibitorView({
 
   return (
     <PageShell>
-      <PageHeader breadcrumbs={breadcrumbs} title={show.name || 'Show Details'} />
+      <PageHeader breadcrumbs={breadcrumbs} title={show.name || 'Show Details'} omitTitle />
 
       <DetailHero
         cover={
@@ -75,7 +76,8 @@ export function ShowExhibitorView({
           ) : undefined
         }
         name={show.name || 'Untitled Show'}
-        subtitle={show.clubName || undefined}
+        headingLevel={1}
+        parent={showHeroParent(show)}
         badges={[
           ...(show.organization ? [{ label: show.organization, variant: 'default' as const }] : []),
           {

@@ -3,6 +3,8 @@ import { Plus, Calendar, History, Info, Users, Palette } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
+import { PageShell } from '@/components/common/PageShell';
+import { PageHeader } from '@/components/common/PageHeader';
 import { logger } from '@/services/LoggingService';
 import type { ClubDetailsProps, ClubTab } from './types';
 import { ClubHeader } from './ClubHeader';
@@ -83,8 +85,17 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
   }
 
   return (
-    <div className="max-w-[1440px] mx-auto px-6 py-20">
-      {/* Enhanced Header with logo and club info */}
+    <PageShell>
+      <PageHeader
+        breadcrumbs={[
+          { label: 'Clubs', href: '/clubs' },
+          { label: selectedClub.name, href: `/clubs/${selectedClub.id}` },
+        ]}
+        title={selectedClub.name}
+        omitTitle
+      />
+
+      {/* The hero: logo, name, badges, facts, officials */}
       <ClubHeader
         club={selectedClub}
         onEditPhoto={state.handleEditPhoto}
@@ -103,7 +114,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
       />
 
       {!state.canEditClub && (
-        <div className="mb-6 rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+        <div className="rounded-md border border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
           You can view this club, but you do not have permission to edit club details.
         </div>
       )}
@@ -112,7 +123,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
       <ClubStatistics stats={state.stats} onTabChange={handleStatCardClick} />
 
       {/* Tabs Section */}
-      <div ref={tabsRef} className="mb-6">
+      <div ref={tabsRef}>
         <PrimaryTabs
           tabs={tabDefs}
           value={state.activeTab}
@@ -202,7 +213,7 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
         onAddMemberDialogChange={state.setShowAddMemberDialog}
         members={state.clubMembers}
       />
-    </div>
+    </PageShell>
   );
 };
 

@@ -167,9 +167,9 @@ export function useCanAccessDog(dogId: string): boolean {
  * Deliberately NARROWER than useCanAccessDog: secretaries and club admins can
  * *view* any dog but the RPC rejects their delete, so they must not see it.
  *
- * Co-owner is deliberately omitted: delete stays owner-only in the UI even
- * though the RPC also allows a co-owner. `Dog.coOwnerId` exists for the view
- * choice in useViewerOwnsDog (MYK9-912), not for destructive rights.
+ * Co-owner included (MYK9-934, owner decision 2026-10-02): the UI gate is
+ * exactly the RPC's, so a co-owner sees Delete. No role grants it: a secretary
+ * or club admin passes only as the dog's owner or co-owner.
  */
 export function useCanDeleteDog(dogId: string): boolean {
   const { userWithRoles, hasRole } = useAuthContext();
@@ -184,7 +184,7 @@ export function useCanDeleteDog(dogId: string): boolean {
     if (!dog) return false;
 
     const userPersonId = resolveViewerPersonId(userWithRoles, allPeople);
-    return !!userPersonId && dog.ownerId === userPersonId;
+    return !!userPersonId && (dog.ownerId === userPersonId || dog.coOwnerId === userPersonId);
   }, [userWithRoles, hasRole, dogs, dogId, allPeople]);
 }
 

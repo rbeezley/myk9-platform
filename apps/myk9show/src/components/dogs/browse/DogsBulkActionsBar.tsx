@@ -21,8 +21,8 @@ interface DogsBulkActionsBarProps {
   selectedDogs: Dog[];
   onClear: () => void;
   /**
-   * Whether the current user may delete dogs (`dog:delete`). When false the bulk
-   * Delete action is not offered at all — status changes (`dog:update`) remain.
+   * Whether the current user may bulk-delete dogs (site admin only, MYK9-934). When
+   * false the bulk Delete action is not offered at all — status changes remain.
    * Per-dog ownership rejections still surface as honest partial-failures.
    */
   canDelete?: boolean;
@@ -82,7 +82,7 @@ export function DogsBulkActionsBar({
     // eslint-disable-next-line react-hooks/refs -- handleBulkSetStatus reads selectedDogsRef only inside the async retry (an event-handler path), never during render; toBulkActions stores it as onSelect and does not invoke it while rendering.
     { onBulkSetStatus: handleBulkSetStatus, onBulkDelete: handleBulkDelete },
     dogActions
-    // Hide Delete entirely when the user lacks `dog:delete` — showing it disabled
+    // Hide Delete entirely when the user may not delete — showing it disabled
     // with "no dogs can be deleted" would misattribute a permission gate to
     // eligibility. Status changes (dog:update) remain.
   ).filter(action => canDelete || action.id !== 'delete');

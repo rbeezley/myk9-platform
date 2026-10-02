@@ -97,10 +97,11 @@ const BrowseDogsPage: React.FC = () => {
   // (management-capable roles, not exhibitor-only roster view). No per-action
   // RBAC — see design.md decision D1.
   const canBulkManageDogs = !rbacLoading && !isExhibitorOnly && hasPermission('dog:update');
-  // Delete is a stricter gate than update — secretaries have `dog:update` but not
-  // `dog:delete`. Without this the bulk Delete action would offer an operation the
-  // `soft_delete_dog` RPC rejects per-dog (Codex finding).
-  const canDeleteDogs = !rbacLoading && !isExhibitorOnly && hasPermission('dog:delete');
+  // Bulk Delete is site admin only (MYK9-934). soft_delete_dog admits the owner, a
+  // co-owner or a site admin, and secretaries and club admins never delete a dog; only
+  // the site admin passes for every dog in a roster selection. Not `dog:delete`: the
+  // exhibitor role grants it, so it leaked to every secretary who also exhibits.
+  const canDeleteDogs = !rbacLoading && getUserRoles().includes(UserRole.SITE_ADMIN);
 
   const dogSelection = useBulkSelection({
     items: filteredDogs,

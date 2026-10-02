@@ -137,9 +137,10 @@ describe('delete dialog copy', () => {
     expect(unknownReason('trial', 'forbidden', 1)).toBe(
       "You don't have permission to delete this trial."
     );
-    // Show staff see Delete on any person; the server then refuses a stranger, so say why.
+    // MYK9-934: the person gate is exactly the server's, so a person refusal carries no
+    // special rule text (show staff never see Delete on a person).
     expect(unknownReason('person', 'forbidden', 1)).toBe(
-      "You don't have permission to delete this person. You can only delete people who have entries in shows you manage, and your own account."
+      "You don't have permission to delete this person."
     );
     expect(unknownReason('class', 'failed', 2)).toBe(
       "We couldn't check what goes with these classes, so Delete is off. Try again."

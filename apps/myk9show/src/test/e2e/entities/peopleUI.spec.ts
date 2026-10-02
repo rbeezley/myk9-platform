@@ -11,7 +11,8 @@ import { chooseAction } from '../helpers/actionsMenu';
  *   - Person A keeps a dog at the end (asserts delete-gating).
  *   - Person B is created and deleted within the suite.
  *
- * Auth: secretary fixture plus E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD for site admin.
+ * Auth: secretary fixture plus E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD for site admin. Deleting a
+ *   person is site admin or self only (MYK9-934), so the delete tests run as the site admin.
  */
 
 test.describe.configure({ mode: 'serial' });
@@ -309,6 +310,31 @@ test.describe('People UI — Add Dog with Person as Owner (secretary)', () => {
 test.describe('People UI — Delete (secretary)', () => {
   test.beforeEach(async ({ page }) => {
     await signInAsSecretary(page);
+  });
+
+  // MYK9-934: secretaries and club admins never delete a person. The Edit panel opens (positive
+  // control: its Save Changes button) and carries no Delete person.
+  test('a secretary is never offered Delete person', async ({ page }) => {
+    await page.goto('/people');
+    await page.getByRole('link', { name: new RegExp(PERSON_B_LAST) }).click();
+    await page.waitForURL(/\/people\/[^/]+/);
+
+    await chooseAction(page, 'Edit person');
+    await expect(page.getByRole('button', { name: 'Save Changes' })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Delete person', exact: true })).toHaveCount(0);
+  });
+});
+
+// Deleting a person is a site-admin (or self) action (MYK9-934), so the delete gating runs as
+// the site admin.
+test.describe('People UI — Delete (site admin)', () => {
+  test.skip(
+    !ADMIN_EMAIL || !ADMIN_PASSWORD,
+    'E2E_ADMIN_EMAIL / E2E_ADMIN_PASSWORD not set — skipping site-admin People delete coverage'
+  );
+
+  test.beforeEach(async ({ page }) => {
+    await signInAsAdmin(page);
   });
 
   test('Delete Person A — blocked because they own a dog', async ({ page }) => {

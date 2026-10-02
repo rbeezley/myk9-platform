@@ -228,18 +228,30 @@ describe('useCanDeleteDog (mirrors the soft_delete_dog RPC gate)', () => {
     expect(result.current).toBe(true);
   });
 
-  // MYK9-912: co-owner drives the dog-page VIEW, never destructive rights.
-  it('keeps delete owner-only: a secretary who co-owns the dog cannot, the owner can', () => {
-    withRole(role => role === UserRole.SECRETARY || role === UserRole.EXHIBITOR);
-    const coOwned = { ...makeDog('co-dog', 'legacy-person'), coOwnerId: 'person-1' };
-    const owned = makeDog('owned-dog', 'person-1');
-    vi.mocked(useDogStoreCompat).mockReturnValue({
-      dogs: [coOwned, owned],
-      isLoading: false,
-      error: null,
-    } as ReturnType<typeof useDogStoreCompat>);
+  // MYK9-934 (owner decision 2026-10-02): a dog is deleted by its owner, a co-owner or a site
+  // admin, exactly soft_delete_dog's gate. Supersedes MYK9-912's owner-only UI pin. The role
+  // grants nothing: a secretary or club admin passes only as the dog's owner or co-owner.
+  it.each([UserRole.EXHIBITOR, UserRole.SECRETARY, UserRole.CLUB_ADMIN])(
+    'lets a %s who co-owns the dog delete it, as soft_delete_dog does',
+    role => {
+      withRole(r => r === role);
+      const coOwned = { ...makeDog('co-dog', 'legacy-person'), coOwnerId: 'person-1' };
+      const owned = makeDog('owned-dog', 'person-1');
+      const strangers = { ...makeDog('other-dog', 'legacy-person'), coOwnerId: 'someone-else' };
+      vi.mocked(useDogStoreCompat).mockReturnValue({
+        dogs: [coOwned, owned, strangers],
+        isLoading: false,
+        error: null,
+      } as ReturnType<typeof useDogStoreCompat>);
 
-    expect(renderHook(() => useCanDeleteDog('co-dog')).result.current).toBe(false);
-    expect(renderHook(() => useCanDeleteDog('owned-dog')).result.current).toBe(true);
+      expect(renderHook(() => useCanDeleteDog('co-dog')).result.current).toBe(true);
+      expect(renderHook(() => useCanDeleteDog('owned-dog')).result.current).toBe(true);
+      expect(renderHook(() => useCanDeleteDog('other-dog')).result.current).toBe(false);
+    }
+  );
+
+  it('does not let a club admin delete a dog they neither own nor co-own', () => {
+    withRole(role => role === UserRole.CLUB_ADMIN);
+    expect(renderHook(() => useCanDeleteDog('legacy-dog')).result.current).toBe(false);
   });
 });

@@ -101,6 +101,17 @@ describe('isRetryableError', () => {
       expect(isRetryableError({ message: 'nope', code: '23505' })).toBe(false); // unique violation
       expect(isRetryableError({ message: 'denied', code: '42501' })).toBe(false); // RLS
     });
+
+    // MYK9-923: an entry upload under a deleted class, trial or show is refused
+    // by the entries trigger. Retrying cannot succeed, so it dead-letters at once.
+    it('dead-letters an entry refused because its class, trial or show is deleted (MK014)', () => {
+      expect(
+        isRetryableError({
+          message: 'This class has been deleted, so it can no longer take entries.',
+          code: 'MK014',
+        })
+      ).toBe(false);
+    });
   });
 
   describe('DOMException and IndexedDB errors (regression)', () => {

@@ -123,6 +123,8 @@ const launchCriticalSqlTests = [
   'myk9_607_608_dog_delete_audit_restore_test.sql',
   'crud_standard_soft_delete_restore_test.sql',
   'crud_standard_delete_preview_test.sql',
+  'myk9_921_show_managed_person_deleted_by_test.sql',
+  'myk9_923_entries_refuse_deleted_parent_test.sql',
   'myk9_822_blocking_entries_rpc_test.sql',
   'show_email_delivery_history_test.sql',
   'user_roles_show_manager_read_test.sql',

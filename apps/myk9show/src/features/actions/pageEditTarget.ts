@@ -23,6 +23,9 @@ interface PageEditTargetState {
   target: PageEditTarget | null;
   /** The registration that currently owns `target`, so a stale cleanup cannot clear a newer one. */
   owner: symbol | null;
+  /** Setup -> Classes' selected trial, so the show-wide "Add classes" opens focused on it. */
+  addClassesTrialId: string | null;
+  setAddClassesTrialId: (trialId: string | null) => void;
   register: (owner: symbol, target: PageEditTarget) => void;
   clear: (owner: symbol) => void;
 }
@@ -30,6 +33,8 @@ interface PageEditTargetState {
 export const usePageEditTargetStore = create<PageEditTargetState>(set => ({
   target: null,
   owner: null,
+  addClassesTrialId: null,
+  setAddClassesTrialId: addClassesTrialId => set({ addClassesTrialId }),
   register: (owner, target) => set({ owner, target }),
   clear: owner => set(state => (state.owner === owner ? { owner: null, target: null } : state)),
 }));
@@ -71,4 +76,15 @@ export function usePageEditAction({
     });
     return () => usePageEditTargetStore.getState().clear(owner);
   }, [kind, enabled, addClassesHref]);
+}
+
+/**
+ * Setup -> Classes tells the header Actions menu which trial is selected, so "Add classes"
+ * opens the wizard on it (the toolbar button this replaced did). Cleared on leave.
+ */
+export function useSetupAddClassesTrial(trialId: string | null | undefined): void {
+  useEffect(() => {
+    usePageEditTargetStore.getState().setAddClassesTrialId(trialId ?? null);
+    return () => usePageEditTargetStore.getState().setAddClassesTrialId(null);
+  }, [trialId]);
 }

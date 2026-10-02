@@ -108,6 +108,11 @@ export interface ActionViewer {
    * itself so the gate is the one its Edit button used (MYK9-928).
    */
   pageObject?: PageObject | null | undefined;
+  /**
+   * The trial Setup -> Classes has selected, so the show-wide "Add classes" opens the wizard
+   * focused on it, as the toolbar button it replaced did.
+   */
+  addClassesTrialId?: string | null | undefined;
 }
 
 const SHOW_PATH = /^\/shows\/([^/]+)(?:\/|$)/;
@@ -204,8 +209,6 @@ function buildShowActions(
     ...(viewer.canOperateShow ? {} : { disabledReason: TRIAL_SECRETARY_ONLY_REASON }),
   };
 
-  const operatorOnly = viewer.canOperateShow ? {} : { disabledReason: TRIAL_SECRETARY_ONLY_REASON };
-
   // Group order (docs/plan-crud-standard.md): Edit, then Add, then the rest,
   // then status changes. Edit first on every page, so the one place to look
   // for "change this" is the same everywhere.
@@ -239,15 +242,13 @@ function buildShowActions(
       id: 'show-add-new-trial',
       label: 'Add Trial',
       href: `/secretary/create-show/wizard?showId=${encoded}&mode=add-trials`,
-      ...operatorOnly,
     },
     {
       // The show-level door into the one class-create flow (the Setup toolbar
       // button it replaces); a trial page offers its own, focused on that trial.
       id: 'show-add-classes',
       label: 'Add classes',
-      href: getAddClassesHref(showId),
-      ...operatorOnly,
+      href: getAddClassesHref(showId, viewer.addClassesTrialId),
     },
     {
       id: 'show-open-entry-management',
@@ -317,10 +318,13 @@ function buildPageObjectActions(pageObject: PageObject | null | undefined): AppA
  */
 export function resolveActions(route: ActionRouteContext, viewer: ActionViewer): AppAction[] {
   const own = buildPageObjectActions(viewer.pageObject);
-  const context =
+  // One "Add classes": a trial page's own (focused on that trial) replaces the show-wide one.
+  const hasTrialAddClasses = own.some(action => action.id === 'trial-add-classes');
+  const context = (
     route.kind === 'show'
       ? buildShowActions(route.showId, route.shellMounted, viewer)
-      : buildRoleWideActions(viewer);
+      : buildRoleWideActions(viewer)
+  ).filter(action => !(hasTrialAddClasses && action.id === 'show-add-classes'));
   if (own.length === 0) return context;
   return [
     ...own,

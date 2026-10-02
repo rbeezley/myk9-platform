@@ -19,6 +19,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import UserDetailsView from '@/components/users/UserDetails/UserDetailsView';
+import { HeaderActions } from '@/components/layout/HeaderActions';
 import type { User } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
 import { usePageEditTargetStore } from '@/features/actions/pageEditTarget';
@@ -36,6 +37,7 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     user: { id: 'current-user-id' },
     getUserRoles: () => ['secretary'],
+    hasRole: () => false,
     hasPermission,
   }),
 }));
@@ -191,5 +193,30 @@ describe('UserDetailsView edit save', () => {
     expect(notifySuccess).toHaveBeenCalledWith('Person updated');
     expect(notifyError).not.toHaveBeenCalled();
     expect(screen.getByText(NEW_PHONE)).toBeInTheDocument();
+  });
+});
+
+describe('Edit person through the REAL header Actions menu (MYK9-928)', () => {
+  // The last hop: the page registered its Edit, the menu renders it, the click opens the
+  // panel. Each half has unit tests; only this one proves they are wired to each other.
+  it('lists Edit person, and choosing it opens the person edit panel', async () => {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const user = userEvent.setup();
+    render(
+      <QueryClientProvider client={client}>
+        <MemoryRouter>
+          <HeaderActions />
+          <UserDetailsView person={person} />
+        </MemoryRouter>
+      </QueryClientProvider>
+    );
+
+    await user.click(screen.getByTestId('header-actions-trigger'));
+    await user.click(await screen.findByRole('menuitem', { name: 'Edit person' }));
+
+    const panel = await screen.findByRole('dialog');
+    expect(
+      within(panel).getByText('Edit Person', { selector: 'h2, h3, [role="heading"]' })
+    ).toBeInTheDocument();
   });
 });

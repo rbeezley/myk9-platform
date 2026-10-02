@@ -4,7 +4,11 @@ import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useCurrentActions } from '@/features/actions/useCurrentActions';
-import { usePageEditAction, usePageEditTargetStore } from '@/features/actions/pageEditTarget';
+import {
+  usePageEditAction,
+  usePageEditTargetStore,
+  useSetupAddClassesTrial,
+} from '@/features/actions/pageEditTarget';
 import type { ShowManageScope, ShowManageScopeStatus } from '@/hooks/useShowManageScope';
 
 const SHOW_ID = 'dededede-0000-0000-0000-000000000010';
@@ -56,7 +60,7 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 beforeEach(() => {
-  usePageEditTargetStore.setState({ target: null, owner: null });
+  usePageEditTargetStore.setState({ target: null, owner: null, addClassesTrialId: null });
   scope.status = 'resolved';
   scope.canManage = true;
   scope.canOperate = true;
@@ -177,5 +181,20 @@ describe('useCurrentActions — a detail page registers its Edit (MYK9-928)', ()
     expect(result.current.actions.map(action => action.id)).toEqual(['dog-edit']);
     unmount();
     expect(usePageEditTargetStore.getState().target).toBeNull();
+  });
+});
+
+describe('useCurrentActions — Setup hands its picked trial to Add classes (MYK9-928)', () => {
+  it('puts the registered trial into the show-wide Add classes href', () => {
+    const { result } = renderHook(
+      () => {
+        useSetupAddClassesTrial('t3');
+        return useCurrentActions();
+      },
+      { wrapper }
+    );
+    expect(result.current.actions.find(a => a.id === 'show-add-classes')?.href).toBe(
+      `/secretary/create-show/wizard?showId=${SHOW_ID}&mode=add-classes&trialId=t3`
+    );
   });
 });

@@ -52,12 +52,14 @@ export function useCurrentActions(): CurrentActions {
 
   // The detail page on screen, when it registered an Edit it lets this viewer use.
   const pageTarget = usePageEditTargetStore(state => state.target);
+  const addClassesTrialId = usePageEditTargetStore(state => state.addClassesTrialId);
   const pageKind = pageTarget?.kind;
   const pageAddClassesHref = pageTarget?.addClassesHref;
 
   const resolved = useMemo(
     () =>
       resolveActions(route, {
+        addClassesTrialId,
         pageObject: pageKind ? { kind: pageKind, addClassesHref: pageAddClassesHref } : null,
         // Fail closed while ownership is still resolving: an empty list hides
         // the button, which is honest, where a flashed-then-withdrawn menu is
@@ -76,6 +78,7 @@ export function useCurrentActions(): CurrentActions {
       isShowManagementStaff,
       pageKind,
       pageAddClassesHref,
+      addClassesTrialId,
     ]
   );
 

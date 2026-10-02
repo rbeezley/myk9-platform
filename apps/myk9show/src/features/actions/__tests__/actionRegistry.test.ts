@@ -194,21 +194,25 @@ describe('resolveActions — club admin on a show', () => {
     expect(mailIn?.disabledReason).toBe('Trial secretary access only');
   });
 
-  it('greys Add Trial and Add classes for club admins, because trial setup is secretary-only', () => {
+  it('lets an owning-club admin without the secretary role add trials and classes (MYK9-928)', () => {
+    // The old Setup toolbar buttons were gated on show management, and the wizard admits
+    // CLUB_ADMIN, so the relocated items are too.
     for (const id of ['show-add-new-trial', 'show-add-classes']) {
-      expect(actions.find(a => a.id === id)?.disabledReason, id).toBe(
-        'Trial secretary access only'
-      );
+      const item = actions.find(a => a.id === id);
+      expect(item, id).toBeDefined();
+      expect(item?.disabledReason, id).toBeUndefined();
     }
+  });
+
+  it('keeps mail-in entry greyed, the one Add the secretary role alone owns', () => {
+    expect(actions.find(a => a.id === 'show-add-mail-in-entry')?.disabledReason).toBe(
+      'Trial secretary access only'
+    );
   });
 
   it('leaves the rest available', () => {
     expect(
-      actions
-        .filter(
-          a => !['show-add-mail-in-entry', 'show-add-new-trial', 'show-add-classes'].includes(a.id)
-        )
-        .every(a => !a.disabledReason)
+      actions.filter(a => a.id !== 'show-add-mail-in-entry').every(a => !a.disabledReason)
     ).toBe(true);
   });
 });
@@ -278,6 +282,31 @@ describe('resolveActions — the object a detail page registers (MYK9-928)', () 
     ]);
     expect(actions[1]?.href).toBe('/secretary/create-show/wizard?mode=x');
     expect(actions[2]?.separatorBefore).toBe(true);
+  });
+
+  it('offers ONE Add classes on a trial page: the trial-focused one replaces the show-wide one', () => {
+    const actions = resolveActions(SIBLING_CONTEXT, {
+      ...secretary,
+      pageObject: { kind: 'trial', addClassesHref: '/wizard?trialId=t1' },
+    });
+    expect(actions.filter(a => a.label === 'Add classes').map(a => a.id)).toEqual([
+      'trial-add-classes',
+    ]);
+  });
+
+  it('keeps the show-wide Add classes on a trial page that registered no trial one', () => {
+    const actions = resolveActions(SIBLING_CONTEXT, {
+      ...secretary,
+      pageObject: { kind: 'trial' },
+    });
+    expect(actions.map(a => a.id)).toContain('show-add-classes');
+  });
+
+  it("carries Setup's selected trial into the show Add classes", () => {
+    const actions = resolveActions(SHOW_CONTEXT, { ...secretary, addClassesTrialId: 't3' });
+    expect(actions.find(a => a.id === 'show-add-classes')?.href).toBe(
+      `/secretary/create-show/wizard?showId=${SHOW_ID}&mode=add-classes&trialId=t3`
+    );
   });
 
   it('omits trial Add classes when the page has no destination for it', () => {

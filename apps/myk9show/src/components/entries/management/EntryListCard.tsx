@@ -13,8 +13,18 @@ import { DeleteObjectDialog, entryDeleteDetail } from '@/features/delete';
 import { CheckInStatusIndicator } from '@/components/common/CheckInStatusIndicator';
 import { getStatusDescriptor } from '@/components/status';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { Users, Hash, MessageSquare, Gift, ChevronDown, Trash2, CreditCard } from 'lucide-react';
+import {
+  Users,
+  Hash,
+  MessageSquare,
+  Gift,
+  ChevronDown,
+  PencilLine,
+  Trash2,
+  CreditCard,
+} from 'lucide-react';
 import { EntryStatus } from '@/types/show-registration-types';
+import { RowActionMenu } from '@/components/ui/RowActionMenu';
 import {
   getEffectivePaymentStatus,
   getEntryStatusBadge,
@@ -138,11 +148,32 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                 Assign
               </button>
             )}
+            {/* The row menu is always present for a viewer who can edit, whatever the entry's
+                status or classes: Edit entry is its first item (MYK9-928). */}
+            {onOpenEditEntry && (
+              <div className="ml-auto">
+                <RowActionMenu
+                  size="touch"
+                  label={`Actions for ${entry.dogName}`}
+                  actions={[
+                    {
+                      id: 'edit',
+                      label: 'Edit entry',
+                      icon: <PencilLine />,
+                      onSelect: () => onOpenEditEntry(entry),
+                    },
+                  ]}
+                />
+              </div>
+            )}
             <Button
               type="button"
               variant="ghost"
               size="sm"
-              className="ml-auto min-h-11 px-2 text-muted-foreground hover:text-destructive"
+              className={cn(
+                'min-h-11 px-2 text-muted-foreground hover:text-destructive',
+                !onOpenEditEntry && 'ml-auto'
+              )}
               aria-label={`Remove entry for ${entry.dogName}`}
               onClick={() => setRemoveDialog({ open: true, entry })}
             >
@@ -265,7 +296,6 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
                       entry={entry}
                       entryClassName={cls.name}
                       onStatusChange={onStatusChange}
-                      onEdit={onOpenEditEntry ? () => onOpenEditEntry(entry) : undefined}
                       additionalContent={
                         <>
                           <p className="px-2 pb-1 text-xs font-medium text-muted-foreground">

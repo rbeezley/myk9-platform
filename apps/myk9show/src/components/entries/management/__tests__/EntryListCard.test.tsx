@@ -85,23 +85,43 @@ const defaultProps = {
   onEntryRemoved: vi.fn(),
 };
 
-describe('EntryListCard - Edit entry lives in the row menu (MYK9-928)', () => {
-  it('has no pencil button; Edit entry is the first item of the row menu', async () => {
-    const user = userEvent.setup();
-    const onOpenEditEntry = vi.fn();
-    const entry = makeEntry();
-    render(<EntryListCard {...defaultProps} entries={[entry]} onOpenEditEntry={onOpenEditEntry} />);
+describe('EntryListCard - Edit entry lives in an always-present row menu (MYK9-928)', () => {
+  const cases: Array<[string, Partial<EntryManagementEntry>]> = [
+    ['an ordinary entry', {}],
+    ['a MOVED entry, which has no status popover', { entryStatus: EntryStatus.MOVED }],
+    [
+      'an entry with no status transitions',
+      { entryStatus: EntryStatus.CANCELLED, classes: [makeClass()] },
+    ],
+    ['an entry with no classes', { classes: [] }],
+  ];
 
-    expect(screen.queryByRole('button', { name: /edit entry for Fido/i })).not.toBeInTheDocument();
+  it.each(cases)(
+    '%s: has no pencil, and Edit entry is the first row-menu item',
+    async (_n, over) => {
+      const user = userEvent.setup();
+      const onOpenEditEntry = vi.fn();
+      const entry = makeEntry(over);
+      render(
+        <EntryListCard {...defaultProps} entries={[entry]} onOpenEditEntry={onOpenEditEntry} />
+      );
 
-    await user.click(
-      screen.getByRole('button', { name: /change entry status for Fido in Novice A/i })
-    );
-    const items = screen.getAllByRole('menuitem');
-    expect(items[0]).toHaveTextContent('Edit entry');
+      expect(
+        screen.queryByRole('button', { name: /edit entry for Fido/i })
+      ).not.toBeInTheDocument();
 
-    await user.click(items[0] as HTMLElement);
-    expect(onOpenEditEntry).toHaveBeenCalledWith(entry);
+      await user.click(screen.getByRole('button', { name: 'Actions for Fido' }));
+      const items = await screen.findAllByRole('menuitem');
+      expect(items[0]).toHaveTextContent('Edit entry');
+
+      await user.click(items[0] as HTMLElement);
+      expect(onOpenEditEntry).toHaveBeenCalledWith(entry);
+    }
+  );
+
+  it('renders no row menu when the viewer has no editor to open', () => {
+    render(<EntryListCard {...defaultProps} entries={[makeEntry()]} />);
+    expect(screen.queryByRole('button', { name: 'Actions for Fido' })).not.toBeInTheDocument();
   });
 });
 

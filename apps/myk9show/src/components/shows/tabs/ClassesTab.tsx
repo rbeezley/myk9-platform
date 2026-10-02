@@ -9,6 +9,7 @@ import { ClassBulkActionsBar } from '@/components/classes/ClassBulkActionsBar';
 import { ClassJudgeSelect } from '@/components/classes/ClassJudgeSelect';
 import { useSetupClassManagement } from './useSetupClassManagement';
 import { Search, Plus } from 'lucide-react';
+import { useSetupAddClassesTrial } from '@/features/actions/pageEditTarget';
 import { compareLevels } from '@/utils/schedule-summary';
 import { DataTable } from '@/components/ui/data-table';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
@@ -108,6 +109,8 @@ export function ClassesTab({
   // Judge assignment, status and bulk actions (moved here from the retired Class Management page).
   // Changing the view, trial, search or element clears the selection, so a bulk action never
   // reaches rows the secretary can no longer see.
+  // The header Actions menu's Add classes opens the wizard on the trial picked here (MYK9-928).
+  useSetupAddClassesTrial(canManageThisShow ? scope.scopeTrialId : null);
   const manage = useSetupClassManagement(
     showId,
     canManageThisShow,

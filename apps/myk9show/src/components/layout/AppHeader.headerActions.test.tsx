@@ -354,13 +354,13 @@ describe('AppHeader Actions trigger — the wordmark has to fit beside it', () =
     expect(visibleText(bothVisible)).toBe('ActionsVisible');
   });
 
-  it('renders icon-only below the sm breakpoint, keeping the name for assistive tech', () => {
+  it('keeps the written label at phone width: every page action lives here now (MYK9-928)', () => {
     mockLabelBreakpoint(false);
     render(<AppHeader />, { initialRoute: SHOW_ROUTE });
 
     const trigger = screen.getByTestId('header-actions-trigger');
-    expect(visibleText(trigger)).toBe('');
-    // The control is still a named, expandable button — only its label is visual-free.
+    // Edit and the Add verbs have no other door, so a novice must be able to read the way in.
+    expect(visibleText(trigger)).toBe('Actions');
     expect(screen.getByRole('button', { name: /^actions$/i })).toBe(trigger);
     expect(trigger).toHaveAttribute('aria-expanded', 'false');
   });

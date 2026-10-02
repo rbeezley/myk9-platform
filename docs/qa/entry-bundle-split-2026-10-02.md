@@ -4,7 +4,7 @@ Scope: the shared entry chunk that every cold load transfers. The per-route requ
 
 ## Result
 
-Static import closure of `index.html` (entry chunk plus the `modulepreload`ed vendor chunks), esbuild-minified production build of `apps/myk9show`. Before is `origin/main` at `b37e7a36c`; after is the same commit with this change (re-measured after merging main on 2026-10-02).
+Static import closure of `index.html` (entry chunk plus the `modulepreload`ed vendor chunks), esbuild-minified production build of `apps/myk9show`. Before is `origin/main` at `b37e7a36c`; after is the same commit with this change. All numbers in this document were measured on 2026-10-02, after merging main into the branch.
 
 | Measure                       |      Before |       After | Change |
 | ----------------------------- | ----------: | ----------: | -----: |
@@ -67,4 +67,10 @@ pnpm exec vite build --minify esbuild --outDir /tmp/dist-x   # also writes dist/
 
 Then walk the static `import` graph from the `<script type="module">` in `index.html` and sum raw and gzip sizes. For load time, build with any placeholder `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`, serve with `vite preview --outDir`, and load `/` in Chromium with the CDP throttling above.
 
-Note: the default terser build on this machine's Node 22.22 emitted an entry chunk that `node --check` rejects (`Export 'ACTIVE_JUDGE_ASSIGNMENT_STATUSES' is not defined`) on unmodified `main`, so the numbers above use esbuild minification. CI builds with Node 22.12; this is flagged for a separate look, not diagnosed.
+## Known issue: terser builds on this machine fail `node --check`
+
+Observed while measuring, not diagnosed, and not caused by this change. The `vite build` default (terser) entry chunk fails `node --check` with `SyntaxError: Export '<name>' is not defined in module`: `ACTIVE_JUDGE_ASSIGNMENT_STATUSES` on unmodified `origin/main`, `ACTIVE_COMPOSITE_ITEM` on this branch. It reproduced with `NODE_ENV` unset and `NODE_ENV=production`, and with sourcemaps on and off, so the exported name varies but the failure does not. The terser entry chunk is also far smaller than the esbuild one (about 359 KB versus 1.86 MB on this branch), which suggests terser is dropping declarations that Rollup's trailing `export { … }` list still names.
+
+Environment: Node 22.22.0 here (CI pins 22.12.0), terser 5.51.2, vite 7.3.6, 4 CPUs. Whether the Node version is involved is unknown. The 2026-09-28 baseline saw a 3.54 MB entry from a CI-style build, so a build elsewhere does not show this.
+
+All numbers above use `--minify esbuild` for that reason; they are comparable with each other and with the baseline's chunk sizes, but they are not the bytes a terser build would ship. Next step for whoever picks this up: run `node --check` on a terser-built entry chunk in CI (or the deployed one) and, if it passes there, bisect the `terserOptions` in `apps/myk9show/vite.config.ts` (`unused`, `hoist_vars`, `collapse_vars`, `pure_getters`) on this machine.

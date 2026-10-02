@@ -48,10 +48,8 @@ const ShowEditPanelSession: React.FC<ShowEditPanelProps> = ({
   // ShowPresenceProvider (e.g. when this panel is reused in ClubDetails).
   useEditingPresence('show', open ? showId : undefined);
 
-  const { activeTab, setActiveTab, handleValidationFail } = usePanelValidationNavigation<ShowEditTab>(
-    initialTab ?? DEFAULT_SHOW_EDIT_TAB,
-    locateShowField
-  );
+  const { activeTab, setActiveTab, handleValidationFail } =
+    usePanelValidationNavigation<ShowEditTab>(initialTab ?? DEFAULT_SHOW_EDIT_TAB, locateShowField);
 
   // Convert show data to form data
   const initialFormData = useMemo(() => showToFormData(initialShowData), [initialShowData]);

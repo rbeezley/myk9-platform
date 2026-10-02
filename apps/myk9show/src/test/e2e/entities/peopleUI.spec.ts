@@ -287,7 +287,10 @@ test.describe('People UI — Add Dog with Person as Owner (secretary)', () => {
     await page.getByRole('textbox', { name: /Date of Birth/ }).fill('2020-01-15');
 
     // MYK9-931: Add Dog only shows on the last tab; earlier tabs stay clickable.
-    await page.getByRole('dialog').getByRole('tab', { name: /Optional details/i }).click();
+    await page
+      .getByRole('dialog')
+      .getByRole('tab', { name: /Optional details/i })
+      .click();
 
     // Submit
     const [resp] = await Promise.all([

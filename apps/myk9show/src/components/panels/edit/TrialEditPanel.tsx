@@ -22,10 +22,7 @@ import { FormField } from '@/components/common/FormField';
 import { TimeOfDayInput } from '@/components/common/TimeOfDayInput';
 import { TrialDateTimeField } from '@/components/trials/TrialDateTimeField';
 import { composeTrialDateTime, splitTrialDateTime } from '@/components/trials/trialDateTime';
-import {
-  usePanelValidationNavigation,
-  type FieldLocation,
-} from './usePanelValidationNavigation';
+import { usePanelValidationNavigation, type FieldLocation } from './usePanelValidationNavigation';
 
 interface TrialEditPanelProps {
   open: boolean;

@@ -109,7 +109,8 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
       }
 
       if (submitted && show.organization === 'AKC' && !trial.eventNumber?.trim()) {
-        newErrors[`${prefix}-eventNumber`] = 'Please enter an event number (required for AKC events)';
+        newErrors[`${prefix}-eventNumber`] =
+          'Please enter an event number (required for AKC events)';
       }
     });
 

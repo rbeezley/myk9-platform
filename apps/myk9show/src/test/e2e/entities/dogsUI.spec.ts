@@ -236,7 +236,10 @@ test.describe('Dogs UI — Create (secretary)', () => {
     );
 
     // MYK9-931: Add Dog only shows on the last tab; earlier tabs stay clickable.
-    await page.getByRole('dialog').getByRole('tab', { name: /Optional details/i }).click();
+    await page
+      .getByRole('dialog')
+      .getByRole('tab', { name: /Optional details/i })
+      .click();
     await page.getByRole('dialog').getByRole('button', { name: 'Add Dog', exact: true }).click();
     await createResponsePromise;
 
@@ -261,7 +264,10 @@ test.describe('Dogs UI — Create (secretary)', () => {
       { timeout: 15000 }
     );
     // MYK9-931: Add Dog only shows on the last tab; earlier tabs stay clickable.
-    await page.getByRole('dialog').getByRole('tab', { name: /Optional details/i }).click();
+    await page
+      .getByRole('dialog')
+      .getByRole('tab', { name: /Optional details/i })
+      .click();
     await page.getByRole('dialog').getByRole('button', { name: 'Add Dog', exact: true }).click();
     await createResponsePromise;
 
@@ -304,7 +310,10 @@ test.describe('Dogs UI — Exhibitor own-dog CRUD', () => {
       { timeout: 15000 }
     );
     // MYK9-931: Add Dog only shows on the last tab; earlier tabs stay clickable.
-    await page.getByRole('dialog').getByRole('tab', { name: /Optional details/i }).click();
+    await page
+      .getByRole('dialog')
+      .getByRole('tab', { name: /Optional details/i })
+      .click();
     await page.getByRole('dialog').getByRole('button', { name: 'Add Dog', exact: true }).click();
     await createResponsePromise;
 

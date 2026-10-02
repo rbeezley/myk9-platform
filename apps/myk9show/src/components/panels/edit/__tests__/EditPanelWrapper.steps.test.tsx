@@ -94,7 +94,9 @@ function Harness({
       title="Thing"
       variant="dialog"
       initialData={
-        mode === 'create' ? { name: '', phone: '', note: '' } : { name: 'Rex', phone: '1', note: '' }
+        mode === 'create'
+          ? { name: '', phone: '', note: '' }
+          : { name: 'Rex', phone: '1', note: '' }
       }
       schema={schema}
       onSave={onSave}

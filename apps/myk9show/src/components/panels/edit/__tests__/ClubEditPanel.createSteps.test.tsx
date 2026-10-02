@@ -44,7 +44,10 @@ function renderCreate(onSave = vi.fn().mockResolvedValue(undefined)) {
 const tab = (name: RegExp) => screen.getByRole('tab', { name });
 
 async function fillContact(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(await screen.findByRole('textbox', { name: /Email Address/ }), 'club@example.com');
+  await user.type(
+    await screen.findByRole('textbox', { name: /Email Address/ }),
+    'club@example.com'
+  );
   await user.type(screen.getByRole('textbox', { name: /Phone Number/ }), '555-123-4567');
   await user.type(screen.getByRole('textbox', { name: /Street Address/ }), '1 Main St');
   await user.type(screen.getByRole('textbox', { name: /City/ }), 'Omaha');

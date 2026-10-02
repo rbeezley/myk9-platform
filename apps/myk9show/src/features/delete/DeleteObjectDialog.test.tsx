@@ -611,3 +611,70 @@ describe('DeleteObjectDialog: one device-wide unsaved-work check', () => {
     expect(onDeleted).not.toHaveBeenCalled();
   });
 });
+
+describe('DeleteObjectDialog: the confirm is in flight while the unsaved-work recheck runs', () => {
+  const syncedClass = { id: 'c1', name: 'Novice Container', context: ctx };
+
+  function slowRecheck() {
+    let release: (work: { total: number; failed: number }) => void = () => undefined;
+    // Only the recheck is slow; the delete service's own later reads answer at once.
+    mocks.unsaved.mockImplementationOnce(
+      () =>
+        new Promise(resolve => {
+          release = resolve;
+        })
+    );
+    return (work = { total: 0, failed: 0 }) => release(work);
+  }
+
+  it('Keep it and Escape cannot dismiss mid-recheck, so the delete is never an orphan', async () => {
+    mocks.preview.mockResolvedValue(counts());
+    const onOpenChange = vi.fn();
+    const { user } = renderDialog('class', [syncedClass], { onOpenChange });
+
+    const dialog = await screen.findByRole('dialog');
+    const confirm = within(dialog).getByRole('button', { name: 'Delete class' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    const release = slowRecheck();
+    await user.click(confirm);
+
+    await waitFor(() =>
+      expect(within(dialog).getByRole('button', { name: 'Keep it' })).toBeDisabled()
+    );
+    await user.keyboard('{Escape}');
+    expect(onOpenChange).not.toHaveBeenCalled();
+
+    release();
+    await waitFor(() => expect(mocks.remove).toHaveBeenCalledTimes(1));
+  });
+
+  it('a dialog unmounted mid-recheck never deletes', async () => {
+    mocks.preview.mockResolvedValue(counts());
+    const { user, unmount } = renderDialog('class', [syncedClass]);
+
+    const dialog = await screen.findByRole('dialog');
+    const confirm = within(dialog).getByRole('button', { name: 'Delete class' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    const release = slowRecheck();
+    await user.click(confirm);
+    unmount();
+    release();
+    await new Promise(resolve => setTimeout(resolve, 20));
+
+    expect(mocks.remove).not.toHaveBeenCalled();
+  });
+
+  it('a blocked recheck re-enables Keep it', async () => {
+    mocks.preview.mockResolvedValue(counts());
+    const { user } = renderDialog('class', [syncedClass]);
+
+    const dialog = await screen.findByRole('dialog');
+    const confirm = within(dialog).getByRole('button', { name: 'Delete class' });
+    await waitFor(() => expect(confirm).toBeEnabled());
+    mocks.unsaved.mockResolvedValue({ total: 1, failed: 0 });
+    await user.click(confirm);
+
+    await within(dialog).findByRole('alert');
+    expect(within(dialog).getByRole('button', { name: 'Keep it' })).toBeEnabled();
+  });
+});

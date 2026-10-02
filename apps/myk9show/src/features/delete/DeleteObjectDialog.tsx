@@ -12,7 +12,7 @@
  * INTENT: no surface deletes without this dialog. A caller only decides WHEN to
  * open it and what to do after (navigate away, clear a selection).
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { notifications } from '@/lib/notifications';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -98,7 +98,19 @@ export function DeleteObjectDialog({
   const liveTargets = targets.filter(target => !goneSet.has(target.id));
   const goneTargets = targets.filter(target => goneSet.has(target.id));
   const livePerItem = perItem.filter((_, index) => !goneSet.has(ids[index] ?? ''));
+  // In flight from the click, through the unsaved-work recheck, to the server
+  // answer. The ref is the synchronous latch (a second click cannot start another
+  // run before state commits); the state drives Keep it / Delete / dismissal off.
   const [isDeleting, setIsDeleting] = useState(false);
+  const inFlightRef = useRef(false);
+  // True only while mounted AND open; false once the dialog is gone or closed.
+  const mountedRef = useRef(open);
+  useEffect(() => {
+    mountedRef.current = open;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, [open]);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   // Re-arms by mounting: callers render this only while open, so every open
   // starts unticked (same rule as DeleteDogDialog, MYK9-600).
@@ -121,17 +133,26 @@ export function DeleteObjectDialog({
         : null;
 
   const handleConfirm = async () => {
+    if (inFlightRef.current) return;
+    inFlightRef.current = true;
+    setIsDeleting(true);
     setErrorMessage(null);
     // Looked at again now, not trusted from when the dialog opened: work may
     // have been queued since, and a delete would purge it.
     const fresh = await unsaved.recheck();
+    // Closed or unmounted while looking: nothing the user can still see asked for this.
+    if (!mountedRef.current) {
+      inFlightRef.current = false;
+      return;
+    }
     const blockedMessage = unsavedMessage(fresh);
     if (blockedMessage) {
+      inFlightRef.current = false;
+      setIsDeleting(false);
       setErrorMessage(blockedMessage);
       onDeleteFailed?.();
       return;
     }
-    setIsDeleting(true);
     onDeleteStart?.();
     let result: DeleteRecordsResult;
     try {
@@ -148,11 +169,13 @@ export function DeleteObjectDialog({
       };
     } catch {
       // deleteRecords maps every failure itself; this is only a guard.
+      inFlightRef.current = false;
       setIsDeleting(false);
       setErrorMessage('Something went wrong. Please try again.');
       onDeleteFailed?.();
       return;
     }
+    inFlightRef.current = false;
     setIsDeleting(false);
     invalidateAfterDelete(queryClient, kind);
 

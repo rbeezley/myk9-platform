@@ -84,7 +84,10 @@ const currentClass: ClassData = {
   section: 'A',
 };
 
-function mockData(competitionData: Record<string, unknown>) {
+function mockData(
+  competitionData: Record<string, unknown>,
+  overrides: Record<string, unknown> = {}
+) {
   mockUseClassDetailsData.mockReturnValue({
     classId: 'class-1',
     trialId: 'trial-1',
@@ -114,6 +117,7 @@ function mockData(competitionData: Record<string, unknown>) {
     parentShow: { id: 'show-1', name: 'Spring Classic', organization: 'AKC', clubId: 'club-1' },
     dogs: [{ id: 'dog-1', name: 'Rex Registered', callName: 'Rex' }],
     updateClass: vi.fn(),
+    ...overrides,
   });
 }
 
@@ -178,5 +182,45 @@ describe('ClassDetailsPage remove-entry dialog', () => {
     await waitFor(() =>
       expect(deleteMocks.remove).toHaveBeenCalledWith('entry', 'entry-1', { override: false })
     );
+  });
+
+  it('opens for an entry only the query supplied (not in the local entry store)', async () => {
+    mockData(
+      {},
+      {
+        localRawEntries: [],
+        dbRawEntries: [
+          {
+            id: 'entry-1',
+            dog_id: 'dog-1',
+            handler: 'Query Handler',
+            dog: { id: 'dog-1', name: 'Rex Registered', call_name: 'Rex' },
+          },
+        ],
+        classEntries: [
+          {
+            id: 'entry-1',
+            armband: '7',
+            handler: 'Query Handler',
+            dog: 'Rex',
+            status: '',
+            score: '',
+            time: '',
+            placement: '',
+            classId: 'class-1',
+          },
+        ],
+      }
+    );
+    const { user } = render(<ClassDetailsPage />, {
+      initialRoute: '/shows/show-1/trials/trial-1/classes/class-1',
+    });
+
+    await user.click(screen.getByRole('button', { name: /row trash/i }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Delete the entry for Rex?' });
+    expect(
+      within(dialog).getByText('Rex · handled by Query Handler · Interior Novice A')
+    ).toBeVisible();
   });
 });

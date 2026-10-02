@@ -34,7 +34,7 @@ import {
   GuestClassUnavailableState,
   LoadingClassState,
 } from './ClassStates';
-import type { ShowEntry } from './types';
+import { resolveEntryToRemove } from './resolveEntryToRemove';
 import { DeleteObjectDialog, classDeleteDetail, entryDeleteDetail } from '@/features/delete';
 import { ExhibitorClassCallout } from './ExhibitorClassCallout';
 import { SecretaryRunSheet } from './SecretaryRunSheet';
@@ -142,12 +142,13 @@ const ClassDetailsPage: React.FC = () => {
   const parentTrialLabel = parentTrial
     ? formatTrialLabel({ name: parentTrial.name, trialNumber: parentTrial.trialNumber })
     : undefined;
-  const entryToRemove = dialogs.entryToDelete
-    ? (localRawEntries.find(e => (e as ShowEntry).id === dialogs.entryToDelete) as
-        ShowEntry | undefined)
-    : undefined;
-  const removeDog = entryToRemove && dogs.find(d => d.id === entryToRemove.dogId);
-  const entryToRemoveName = removeDog?.callName || removeDog?.name || 'this dog';
+  const entryToRemove = resolveEntryToRemove(dialogs.entryToDelete, {
+    localRawEntries,
+    dbRawEntries,
+    classEntries,
+    dogs,
+  });
+  const entryToRemoveName = entryToRemove?.dogName ?? 'this dog';
 
   // Rejects on failure so ClassEditPanel stays open with the user's edits.
   const handleSaveClassEdit = async (data: Partial<typeof currentClass>) => {
@@ -414,7 +415,7 @@ const ClassDetailsPage: React.FC = () => {
                 name: entryToRemoveName,
                 detail: entryDeleteDetail({
                   callName: entryToRemoveName,
-                  handlerName: entryToRemove.registrationData?.handler,
+                  handlerName: entryToRemove.handlerName,
                   className: classTitle,
                 }),
                 context: { showId: parentShow?.id, trialId, classId },

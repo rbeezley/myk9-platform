@@ -351,9 +351,7 @@ describe('per-trial dates on a multi-day show (MYK9-806)', () => {
       today
     );
 
-    expect(activity.recentResults.map(e => e.id)).toEqual([
-      '831292ce-e4ec-4dba-9d4c-b76eb88890aa',
-    ]);
+    expect(activity.recentResults.map(e => e.id)).toEqual(['831292ce-e4ec-4dba-9d4c-b76eb88890aa']);
     expect(activity.upcoming.map(e => e.id)).toEqual(['4c1b7f0e-6a52-4d1e-9a3b-2f6d8e5c7a10']);
     // Placement stays withheld and the row reads preliminary until released.
     const [scored] = activity.recentResults;

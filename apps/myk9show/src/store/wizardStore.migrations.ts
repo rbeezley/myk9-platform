@@ -1,7 +1,37 @@
+import { formatTimeOfDay } from '@/components/trials/trialDateTime';
+
 const LEGACY_GENERATED_NAME =
   /^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday) Trial [1-9]\d*$/;
 
-export const WIZARD_STORE_VERSION = 1;
+export const WIZARD_STORE_VERSION = 2;
+
+/** Legacy inputs were formatted as local wall-clock ISO, never as UTC instants. */
+function recoverSchedule(trial: Record<string, unknown>): Record<string, unknown> {
+  if (typeof trial.dateTime !== 'string') return trial;
+  const match = trial.dateTime.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})$/);
+  if (!match) return trial;
+  const [, year, month, day, hours, minutes, seconds] = match;
+  const date = new Date(0);
+  date.setUTCFullYear(Number(year), Number(month) - 1, Number(day));
+  if (
+    date.getUTCFullYear() !== Number(year) ||
+    date.getUTCMonth() !== Number(month) - 1 ||
+    date.getUTCDate() !== Number(day) ||
+    Number(hours) > 23 ||
+    Number(minutes) > 59 ||
+    Number(seconds) > 59
+  )
+    return trial;
+  return {
+    ...trial,
+    ...(!Object.prototype.hasOwnProperty.call(trial, 'trialDate')
+      ? { trialDate: `${year}-${month}-${day}` }
+      : {}),
+    ...(!Object.prototype.hasOwnProperty.call(trial, 'startTimeDraft')
+      ? { startTimeDraft: formatTimeOfDay(Number(hours), Number(minutes)) }
+      : {}),
+  };
+}
 
 /** Convert persisted generated labels to derived defaults and retain custom names as overrides. */
 export function migrateWizardState(persistedState: unknown, version: number): unknown {
@@ -17,7 +47,8 @@ export function migrateWizardState(persistedState: unknown, version: number): un
     trials: state.trials.map(value => {
       if (!value || typeof value !== 'object') return value;
 
-      const trial = value as Record<string, unknown>;
+      const trial = recoverSchedule(value as Record<string, unknown>);
+      if (version >= 1) return trial;
       const rest = { ...trial };
       const name = rest.name;
       delete rest.name;

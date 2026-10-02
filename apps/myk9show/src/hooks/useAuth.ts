@@ -4,7 +4,8 @@ import { rbacService } from '@/services/rbac/RBACService';
 import { captureAuthEmailRequestFailure } from '@/services/observability/sentry';
 import { clearAppearanceCache } from '@/context/themeClasses';
 import { replicatedClassesTable } from '@/services/replication';
-import { persistRingsideClaim } from '@/features/at-show/ringsideClaimCache';
+import { ringsideClaimMatchesUser } from '@/features/at-show/ringsideClaimCache';
+import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 import type { User } from '@supabase/supabase-js';
 import {
   decodeOAuthRoleIntent,
@@ -127,14 +128,18 @@ export function useAuth() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let authEventReceived = false;
+    let disposed = false;
     // Get initial session
     supabase.auth
       .getSession()
       .then(({ data: { session } }) => {
+        if (disposed || authEventReceived) return;
         setUser(session?.user ?? null);
         setLoading(false);
       })
       .catch(() => {
+        if (disposed || authEventReceived) return;
         setLoading(false);
       });
 
@@ -142,6 +147,7 @@ export function useAuth() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      authEventReceived = true;
       setUser(session?.user ?? null);
       setLoading(false);
 
@@ -166,25 +172,25 @@ export function useAuth() {
       // explicit signOut, suspension-forced, session expiry, or another tab —
       // so the next user on a shared browser doesn't inherit them.
       //
-      // The ringside offline-reload fallback cache (ringsideClaimCache.ts)
-      // rides along on the same event for the same reason (MYK9-834): it must
-      // never outlive a real sign-out (Account menu → useAuth().signOut() is
-      // the only production caller, and this listener is the single choke
-      // point every sign-out — that one included — passes through), and a new
-      // SIGNED_IN is a different identity taking over this device, so any
-      // claim cached for whoever was here before must not leak into that
-      // identity's own offline fallback. A genuinely-still-valid passcode
-      // grant re-persists immediately after via `setGrant` (ringsideGrantStore.ts).
+      // SIGNED_IN also fires when auth-js reaffirms the existing session on
+      // refocus. Preserve only a claim bound to that confirmed identity; a
+      // different account or an unbound legacy claim must be invalidated.
       if (_event === 'SIGNED_OUT') {
         clearAppearanceCache();
-        persistRingsideClaim(null);
+        useRingsideGrantStore.getState().clearGrant();
       }
-      if (_event === 'SIGNED_IN') {
-        persistRingsideClaim(null);
+      if (
+        _event === 'SIGNED_IN' &&
+        (!session?.user?.id ||
+          (!ringsideClaimMatchesUser(session.user.id) &&
+            useRingsideGrantStore.getState().activeGrant?.authUserId !== session.user.id))
+      ) {
+        useRingsideGrantStore.getState().clearGrant();
       }
     });
 
     return () => {
+      disposed = true;
       subscription.unsubscribe();
     };
   }, []);

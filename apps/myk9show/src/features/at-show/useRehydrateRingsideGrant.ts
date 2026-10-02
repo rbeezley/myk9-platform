@@ -52,9 +52,10 @@
  * REVALIDATION ON RECONNECT (Codex review, MYK9-834): an offline-fallback
  * grant is unconfirmed by construction — it was never re-checked against the
  * live session, only against a cache. If the device comes back online and the
- * session turns out to be genuinely dead (`loading` is false and `user` is
- * null with real network available), an `unconfirmedOffline` grant still on
- * record is now known-stale and is cleared. Scoped ONLY to that flag: a grant
+ * session turns out to be genuinely dead or lacks the matching passcode
+ * claim (`loading` is false with real network available), an
+ * `unconfirmedOffline` grant still on record is cleared. A matching live
+ * claim confirms the grant and removes the offline marker. Scoped ONLY to that flag: a grant
  * set by ordinary entry (`SmartSignInPage`) or claim-derivation can likewise
  * observe a momentarily-null `user` while the just-created session's
  * `onAuthStateChange` event is still propagating, and that race is a already
@@ -119,7 +120,11 @@ export function useRehydrateRingsideGrant(
   // Only an offline-fallback grant is subject to reconnect revalidation — see
   // the module docstring for why an ordinary grant must NOT be swept up here.
   const staleGrant =
-    resolvable && storeRole && !user && isOnline && activeGrant?.unconfirmedOffline === true;
+    resolvable &&
+    storeRole &&
+    isOnline &&
+    activeGrant?.unconfirmedOffline === true &&
+    deriveRingsideRoleFromClaim(user, showId) !== storeRole;
 
   useEffect(() => {
     if (!resolvable) return;
@@ -127,13 +132,35 @@ export function useRehydrateRingsideGrant(
       clearGrant();
       return;
     }
-    if (storeRole) return;
+    if (storeRole) {
+      if (
+        isOnline &&
+        user?.id &&
+        activeGrant?.unconfirmedOffline &&
+        deriveRingsideRoleFromClaim(user, showId) === storeRole
+      ) {
+        setGrant({ ...activeGrant, authUserId: user.id, unconfirmedOffline: false });
+        return;
+      }
+      // Entry-time grants may precede AuthContext's updated session. Bind only
+      // once the real server-stamped claim confirms this same show and role.
+      if (
+        user?.id &&
+        deriveRingsideRoleFromClaim(user, showId) === storeRole &&
+        !activeGrant?.unconfirmedOffline &&
+        activeGrant?.authUserId !== user.id
+      ) {
+        setGrant({ ...activeGrant!, authUserId: user.id });
+      }
+      return;
+    }
     if (claimRole) {
       // `setGrant` itself persists the confirmed claim to the offline-reload
       // fallback cache (ringsideGrantStore.ts) — no need to do it here too.
       setGrant({
         showId: showId!,
         role: claimRole,
+        ...(user?.id ? { authUserId: user.id } : {}),
         sessionId: crypto.randomUUID(),
         source: 'passcode',
       });
@@ -150,6 +177,9 @@ export function useRehydrateRingsideGrant(
     }
   }, [
     resolvable,
+    isOnline,
+    user,
+    activeGrant,
     staleGrant,
     storeRole,
     claimRole,

@@ -18,6 +18,7 @@ vi.mock('@/services/database/supabaseClient', () => {
     const filters: Array<[string, unknown]> = [];
     const builder = {
       gt: () => builder,
+      is: () => builder,
       order: () => builder,
       eq: (column: string, value: unknown) => {
         filters.push([column, value]);

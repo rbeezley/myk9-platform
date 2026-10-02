@@ -41,6 +41,8 @@ function isRingsideRole(value: unknown): value is RingsideRole {
 export interface CachedRingsideClaim {
   showId: string;
   role: RingsideRole;
+  /** Identity of the session that confirmed this claim (absent on legacy caches). */
+  authUserId?: string;
 }
 
 /** Snapshot the confirmed claim, or clear it (explicit sign-out / revocation). */
@@ -52,7 +54,11 @@ export function persistRingsideClaim(claim: CachedRingsideClaim | null): void {
     }
     window.localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ showId: claim.showId, role: claim.role })
+      JSON.stringify({
+        showId: claim.showId,
+        role: claim.role,
+        ...(claim.authUserId ? { authUserId: claim.authUserId } : {}),
+      })
     );
   } catch {
     // Best-effort: private browsing / storage quota. The reload still works —
@@ -70,5 +76,22 @@ export function readPersistedRingsideClaim(showId: string): RingsideRole | null 
     return isRingsideRole(parsed.role) ? parsed.role : null;
   } catch {
     return null;
+  }
+}
+
+/** Compare a confirmed sign-in to the identity bound to the durable claim. */
+export function ringsideClaimMatchesUser(authUserId: string): boolean {
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const claim = JSON.parse(raw) as Partial<CachedRingsideClaim> | null;
+    return (
+      !!claim &&
+      claim.authUserId === authUserId &&
+      typeof claim.showId === 'string' &&
+      isRingsideRole(claim.role)
+    );
+  } catch {
+    return false;
   }
 }

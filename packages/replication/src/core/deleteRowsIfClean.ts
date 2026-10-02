@@ -25,7 +25,8 @@ export interface DeleteRowsIfCleanResult {
 export async function deleteRowsIfClean(
   db: IDBPDatabase,
   tableName: string,
-  ids: Iterable<string>
+  ids: Iterable<string>,
+  remoteVersions?: ReadonlyMap<string, number>
 ): Promise<DeleteRowsIfCleanResult> {
   const unique = [...new Set([...ids].map(String))];
   const result: DeleteRowsIfCleanResult = { deleted: [], kept: [] };
@@ -57,7 +58,14 @@ export async function deleteRowsIfClean(
       data?._localOnly === true ||
       failedRowIds.has(id) ||
       (await pending.count([tableName, id])) > 0;
-    if (holdsWork) {
+    // A delayed deletion snapshot cannot erase a newer authorized restore.
+    // Check its token inside the same transaction as the delete and queues.
+    const remoteVersion = remoteVersions?.get(id);
+    const newerSnapshot =
+      remoteVersion !== undefined &&
+      row.serverVersion !== undefined &&
+      row.serverVersion > remoteVersion;
+    if (holdsWork || newerSnapshot) {
       result.kept.push(id);
     } else {
       await rows.delete([tableName, id]);

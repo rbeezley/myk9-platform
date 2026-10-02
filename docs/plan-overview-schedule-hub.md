@@ -1,8 +1,8 @@
-# Overview Schedule as the Secretary's Hub — status, next steps, and a lighter Setup
+# Overview Schedule as the Secretary's Hub — status, a class checklist, and a lighter Setup
 
 > **Status:** Active
 
-**Linear:** MYK9-942 → 943 → 944 (each blocks the next); MYK9-945 under MYK9-897 · **Date:** 2026-10-02 (revised the same day against `origin/main` @ `6e38d748f`) · **Related:** [MYK9-897](https://linear.app/myk9-platform/issue/MYK9-897) / [`plan-secretary-crud-consolidation.md`](plan-secretary-crud-consolidation.md)
+**Linear:** MYK9-942 (done) → MYK9-948 → MYK9-943 → MYK9-944 (each blocks the next); MYK9-945 under MYK9-897 · **Date:** 2026-10-02 (revised the same day against `origin/main` @ `6e38d748f`) · **Related:** [MYK9-897](https://linear.app/myk9-platform/issue/MYK9-897) / [`plan-secretary-crud-consolidation.md`](plan-secretary-crud-consolidation.md)
 **Read first:** [`INTENT.md`](INTENT.md) § Trial Secretary ("That was easy" — _absorb complexity, not add to it_) and [`archive/plan-show-map-workbench-collapse.md`](archive/plan-show-map-workbench-collapse.md) (the precedent for deleting a surface instead of rearranging it).
 
 ## Goal
@@ -30,7 +30,7 @@ All of that is forms and bulk actions, which fails the test above, so it cannot 
 
 ## Duplication question (CLAUDE.md § consolidate)
 
-_Does this duplicate an existing page?_ No. It removes one view (Setup → Show Map) and adds only links into Entries, Show Day, Setup → Classes and Class details. No entry list, approval, scratch, scoring or bulk UI is rebuilt on Overview. The next-step chip reuses the Show Day cockpit's action rule (`getPrimaryActionForNode` in `features/show-map/showMapActions.ts`), so there is one rule for "what's next for this class", not two.
+_Does this duplicate an existing page?_ No. It removes one view (Setup → Show Map) and adds only links into Entries, Show Day, Setup → Classes and Class details. No entry list, approval, scratch, scoring or bulk UI is rebuilt on Overview. The class checklist lives in one place (Show Day's focused-class panel); Overview shows only its progress count and links to it, so there is one checklist, not two.
 
 ## Current state (verified on `origin/main`, 2026-10-02)
 
@@ -54,27 +54,42 @@ _Does this duplicate an existing page?_ No. It removes one view (Setup → Show 
 
 Acceptance: a manager can add a trial, add classes to a trial, and open that trial's Class Management from the schedule; no `?tab=classes` link remains; exhibitor/public Overview renders unchanged (render test for both roles).
 
-## Phase 2 — Status and one next-step chip per class ([MYK9-943](https://linear.app/myk9-platform/issue/MYK9-943))
+## Phase 2 — A per-class checklist, and its progress on Overview
+
+**Revised 2026-10-02 (owner decision).** The first version put one "next-step chip" per class on the schedule, chosen by the Show Day action rule. Two problems surfaced: applied to every class, that rule shows "Mark Class Started" on every unstarted class weeks before the show (Show Day only shows chips for the selected day); and a single next step hides work, because things happen out of order (sheets reprinted after a move-up, results printed before the signature). The replacement is a **checklist** that shows every item with its own status, checked off by the system when it can tell or by the secretary when the work happened outside the app. The trial-level "N classes need attention" rollup is dropped: matching Show Day's count would mean loading its paperwork-print and time-of-day inputs on Overview.
+
+### Phase 2a — Class checklist on Show Day ([MYK9-948](https://linear.app/myk9-platform/issue/MYK9-948))
+
+Grow the focused-class panel's existing **Paperwork** section (`SecretaryCockpitFocusedClass.tsx`, built from `buildClassPaperworkMap.ts`, print status replicated offline, **Mark printed** via `PaperworkPrintConfirmationDialog`) into a **Class checklist**, with no gating between items:
+
+| Item                                  | Source                                        | Checked off by                              |
+| ------------------------------------- | --------------------------------------------- | ------------------------------------------- |
+| Check-in sheet printed (gate steward) | `check-in-sheet` paperwork record             | System when printed in-app, or Mark printed |
+| Score sheets printed (judge)          | `scoresheet` paperwork record                 | Same                                        |
+| Class started                         | class status                                  | System                                      |
+| Scoring complete                      | scored count = entry count, or class complete | System                                      |
+| Preliminary results printed           | `results-sheet` paperwork record              | System or Mark printed                      |
+| Ribbon labels printed                 | `result-labels` paperwork record              | System or Mark printed                      |
+| Judge signature collected             | class wrap-up status                          | System                                      |
+
+One pure builder derives the items and a done / not done / unknown state for each, so Overview can reuse it. Unknown (for example, print records unavailable) never reads as done. Works for any day the panel opens, so printing 1–2 weeks before the show is covered. Check-in and score sheets are normally printed together; a combined one-click print of both is a separate idea (the Reports page prints one report per link today).
+
+### Phase 2b — Breakdown and checklist progress on Overview ([MYK9-943](https://linear.app/myk9-platform/issue/MYK9-943))
 
 Each class row (manager-only) shows:
 
-- **Entry breakdown**, e.g. `18 entered · 2 pending · 1 waitlist`. Counts only, never names. Compute from `mapEntries` with the **same status buckets Entries uses** (`paid` and `promotion-expired` count as pending). Reuse or extract the existing bucketing helper; never invent a third.
-- **At most one next-step chip**, chosen by `getPrimaryActionForNode` on the class node, so Overview and the Show Day cockpit always agree. The chip is always a **link**:
-  - action has an `href` → link to it (pending → `getClassReviewHref`, missing info → `getClassMissingInformationHref`, payment due → `getClassPaymentDueHref`);
-  - action is a mutation (`mark-class-started`, scratch, move-up, …) → link to Show Day `?focus=<classId>`, so the mutation happens in the cockpit with its confirm dialog;
-  - no action → no chip.
-- Trial header: one rollup, e.g. `3 classes need attention`, linking to Show Day `?filter=needs-attention&day=<date>`.
+- **Entry breakdown**, e.g. `18 entered · 2 pending · 1 waitlist`, from `mapEntries` with the canonical `getOperationalEntryState` (`features/entry-operations/attentionClassification.ts`), so `paid` and `promotion-expired` count as pending exactly as Entries does. Counts only, never names. **"N pending" links** to `getClassReviewHref` for that class.
+- **Checklist progress**, e.g. `4 of 7 done` (with `· 1 unknown` when an item is unknown), from the 2a builder, linking to Show Day focused on the class (`getShowDeskHref` with `selectedDay` = trial date and `focusedClassId`).
+- Data: `mapTrials` / `mapClasses` / `mapEntries` passed from `ShowManagementShell`, already loaded through replication; **no new direct PostgREST reads**. While entry data is loading or errored, show no breakdown rather than zeros.
 
-Offline: everything reads from data the shell already loaded through replication; **no new direct PostgREST reads**.
-
-Acceptance (assertion-first): unit tests that map a class node in each phase (pending entries, ready to start, in ring, needs closeout, closed) to the exact chip label and **exact href**, written red first; a render test on the real `mapEntries` shape proving the counts reach the row (last-hop drop lesson); exhibitor Overview shows no chips or breakdowns; offline reload still renders counts and chips.
+Acceptance (assertion-first): breakdown tests including `paid` / `promotion-expired` as pending and terminal statuses excluded, written red first; exact hrefs for both links; a render test on the real `mapEntries` shape proving counts and progress reach the row (last-hop drop lesson); exhibitor Overview shows neither; offline reload still renders both.
 
 ## Phase 3 — Remove the Show Map view from Setup ([MYK9-944](https://linear.app/myk9-platform/issue/MYK9-944))
 
 1. **Walk first (decision gate).** As `secretary@myk9t.com` on a seeded show, open Setup → Show Map and record anything it shows that the schedule (after Phases 1–2), Entries or Class details cannot: the "all exhibitors" by-dog branch and the day/completion filters are the candidates. If something has no other home, name where it moves before deleting. Default: delete.
 2. Remove `'map'` from `SETUP_SECTIONS`; `?section=map` and the legacy `?tab=map` redirect to Overview.
 3. Delete `ShowMapTab` and the parts of `features/show-map/` that only it uses. **Keep** everything the Show Day cockpit imports (`showMapTree`, `showMapActions`, `showDeskPendingSignals`, dialogs used by `ShowDeskPanel`, …). Prove each deletion with a grep (code **and** `*.md`) and a green typecheck, not by name.
-4. Drop `canShowMap` / `map*` outlet props if nothing else reads them (Phase 2 may now be their reader; check).
+4. Drop `canShowMap` / `map*` outlet props if nothing else reads them (Phase 2b is now a reader; check).
 
 Acceptance: Setup shows two views (Trials, Classes) with a render test asserting it (red on `main`); `?section=map` and `?tab=map` land on Overview; typecheck, lint and suite green; e2e specs that opened the map updated.
 
@@ -85,8 +100,8 @@ Not code. After the real-secretary observation (MYK9-898) runs, review: did she 
 ## Testing (every phase)
 
 - Unit + render tests per phase, run shuffled (`pnpm vitest run --sequence.shuffle`).
-- `pnpm typecheck`, `pnpm lint`, `pnpm qa:code-quality-ratchet`. `CompactScheduleTimeline.tsx` is ~275 lines; put the chip, breakdown and trial-header links in sibling modules rather than growing it past 500.
-- Browser walk as `secretary@myk9t.com` at 1440px and 375px: follow every new link and chip type and confirm the landing page is pre-filtered to that trial/class; confirm an exhibitor's Overview is unchanged.
+- `pnpm typecheck`, `pnpm lint`, `pnpm qa:code-quality-ratchet`. `CompactScheduleTimeline.tsx` is ~275 lines; put the breakdown, progress and trial-header links in sibling modules rather than growing it past 500.
+- Browser walk as `secretary@myk9t.com` at 1440px and 375px: follow every new link and confirm the landing page is pre-filtered to that trial/class; confirm an exhibitor's Overview is unchanged.
 
 ## Non-goals
 

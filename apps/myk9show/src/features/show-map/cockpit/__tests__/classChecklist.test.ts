@@ -139,6 +139,37 @@ describe('buildClassChecklist', () => {
     expect(result['judge-signature']).toBe('unknown');
   });
 
+  it('says unknown, not "Nothing to print yet" or "signed", when entries cannot be read', () => {
+    // Show Day nulls both counts when its entries read is paused or empty-without-error; the
+    // tree then sees zero entries, so no paperwork rows exist and a Complete class classifies
+    // as ready-for-wrap-up ("no entry needed a signature") -- neither is a fact.
+    const items = buildClassChecklist({
+      lifecycle: 'complete',
+      entryCount: null,
+      scoredCount: null,
+      wrapUpStatus: SHOW_MAP_WRAP_UP_STATUS.CLASS_READY_FOR_WRAP_UP,
+      paperwork: [],
+    });
+    const byId = Object.fromEntries(items.map(item => [item.id, item]));
+    for (const id of ['check-in-sheet', 'scoresheet', 'results-sheet', 'result-labels']) {
+      expect(byId[id]?.state).toBe('unknown');
+      expect(byId[id]?.detail).toBeUndefined();
+    }
+    expect(byId['judge-signature']?.state).toBe('unknown');
+  });
+
+  it('says why the signature is done when no entry needed one', () => {
+    const signature = buildClassChecklist({
+      ...NOT_STARTED,
+      lifecycle: 'complete',
+      entryCount: 0,
+      scoredCount: 0,
+      wrapUpStatus: SHOW_MAP_WRAP_UP_STATUS.CLASS_READY_FOR_WRAP_UP,
+    }).find(item => item.id === 'judge-signature');
+    expect(signature?.state).toBe('done');
+    expect(signature?.detail).toBe('No entries to sign');
+  });
+
   it('is empty for a cancelled class', () => {
     expect(buildClassChecklist({ ...NOT_STARTED, lifecycle: 'cancelled' })).toEqual([]);
   });

@@ -47,22 +47,40 @@ const PRINT_STATE: Record<SecretaryCockpitPaperwork['state'], ClassChecklistStat
   unknown: 'unknown',
 };
 
-// "Ready for wrap-up" means no entry needed a signature (all pulled or scratched).
 const SIGNED: ReadonlySet<string> = new Set([
   SHOW_MAP_WRAP_UP_STATUS.SIGNED_BY_JUDGE,
   SHOW_MAP_WRAP_UP_STATUS.SUBMITTED_TO_REGISTRY,
-  SHOW_MAP_WRAP_UP_STATUS.CLASS_READY_FOR_WRAP_UP,
 ]);
 
+// `entriesKnown` is false when Show Day could not read the entries (it nulls both counts). The
+// tree then sees zero entries: no paperwork rows exist, and a Complete class classifies as
+// "ready for wrap-up". Neither is a fact about the class, so both read as unknown.
 function printItem(
   id: ClassChecklistItemId,
   label: string,
-  paperwork: readonly SecretaryCockpitPaperwork[]
+  paperwork: readonly SecretaryCockpitPaperwork[],
+  entriesKnown: boolean
 ): ClassChecklistItem {
   const row = paperwork.find(item => item.reportId === id);
-  return row
-    ? { id, label, state: PRINT_STATE[row.state], paperwork: row }
-    : { id, label, state: 'todo', detail: 'Nothing to print yet' };
+  if (row) return { id, label, state: PRINT_STATE[row.state], paperwork: row };
+  return entriesKnown
+    ? { id, label, state: 'todo', detail: 'Nothing to print yet' }
+    : { id, label, state: 'unknown' };
+}
+
+function signatureItem(input: ClassChecklistInput, entriesKnown: boolean): ClassChecklistItem {
+  const base = { id: 'judge-signature' as const, label: 'Judge signature collected' };
+  const status = input.wrapUpStatus;
+  if (status && SIGNED.has(status)) return { ...base, state: 'done' };
+  if (status === SHOW_MAP_WRAP_UP_STATUS.CLASS_READY_FOR_WRAP_UP) {
+    // Every entry was pulled or scratched, so nothing needed signing.
+    return entriesKnown
+      ? { ...base, state: 'done', detail: 'No entries to sign' }
+      : { ...base, state: 'unknown' };
+  }
+  if (status || input.lifecycle === 'not-started' || entriesKnown)
+    return { ...base, state: 'todo' };
+  return { ...base, state: 'unknown' };
 }
 
 export function buildClassChecklist(input: ClassChecklistInput): ClassChecklistItem[] {
@@ -86,22 +104,14 @@ export function buildClassChecklist(input: ClassChecklistInput): ClassChecklistI
       ? { detail: `${input.scoredCount} of ${input.entryCount} scored` }
       : {}),
   };
-  const signature: ClassChecklistState = input.wrapUpStatus
-    ? SIGNED.has(input.wrapUpStatus)
-      ? 'done'
-      : 'todo'
-    : countsKnown || lifecycleKnown
-      ? 'todo'
-      : 'unknown';
-
   return [
-    printItem('check-in-sheet', 'Check-in sheet', input.paperwork),
-    printItem('scoresheet', 'Score sheets', input.paperwork),
+    printItem('check-in-sheet', 'Check-in sheet', input.paperwork, countsKnown),
+    printItem('scoresheet', 'Score sheets', input.paperwork, countsKnown),
     { id: 'class-started', label: 'Class started', state: started },
     scoring,
-    printItem('results-sheet', 'Preliminary results', input.paperwork),
-    printItem('result-labels', 'Ribbon labels', input.paperwork),
-    { id: 'judge-signature', label: 'Judge signature collected', state: signature },
+    printItem('results-sheet', 'Preliminary results', input.paperwork, countsKnown),
+    printItem('result-labels', 'Ribbon labels', input.paperwork, countsKnown),
+    signatureItem(input, countsKnown),
   ];
 }
 

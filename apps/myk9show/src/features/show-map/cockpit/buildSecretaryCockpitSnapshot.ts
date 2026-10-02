@@ -290,6 +290,7 @@ export function buildSecretaryCockpitSnapshot({
         entryCount: classItem.entryCount ?? null,
         scoredCount: classItem.scoredCount ?? null,
         closeout: closeoutFor(node?.wrapUpStatus?.value),
+        wrapUpStatus: node?.wrapUpStatus?.value ?? null,
         judgeName: classItem.judgeName ?? null,
         operationalArea:
           node?.ringLabel && node.ringLabel !== '—'

@@ -168,11 +168,7 @@ export function unknownReason(
     case 'offline':
       return "You're offline. Deleting needs a connection, so Delete is off until you're back online.";
     case 'forbidden':
-      // Show staff are offered Delete on any person (the client cannot see whose entries are in
-      // their shows), so the server's refusal has to explain the rule.
-      return kind === 'person' && count === 1
-        ? `You don't have permission to delete ${thing}. You can only delete people who have entries in shows you manage, and your own account.`
-        : `You don't have permission to delete ${thing}.`;
+      return `You don't have permission to delete ${thing}.`;
     case 'failed':
       return `We couldn't check what goes with ${thing}, so Delete is off. Try again.`;
   }

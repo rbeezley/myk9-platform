@@ -71,7 +71,7 @@ describe('DB migration sanity contracts', () => {
     expect(policy).not.toContain('auth_user_id IS NULL   -- new person');
   });
 
-  it('keeps delete_show_managed_person scoped to the authorized show', () => {
+  it('keeps delete_show_managed_person site-admin only and scoped to the show', () => {
     const { file, sql } = latestMigrationContaining(/delete_show_managed_person/i);
     const fn = sliceBetween(
       sql,
@@ -80,6 +80,10 @@ describe('DB migration sanity contracts', () => {
     );
 
     expect(basename(file)).not.toBe('20260524122000_club_role_review_fixes.sql');
+    // MYK9-934: show managers never delete a person; the role check is site admin only.
+    // Behavior: supabase/tests/myk9_921_show_managed_person_deleted_by_test.sql.
+    expect(fn).toContain('if not (select public.is_site_admin()) then');
+    expect(fn).not.toContain('public.can_manage_show(p_show_id)');
     expect(fn).toContain('public.can_manage_show_person_for_show(p_show_id, p_person_id)');
     expect(fn).toContain('RAISE EXCEPTION');
     expect(fn).toContain('Person % is not managed through show %');

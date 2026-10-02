@@ -1,7 +1,8 @@
 /**
- * Delete person in the Edit panel footer, with the STATIC gate and production React Query
- * defaults (refetchOnMount: true): each role's visibility, the plain refusal a secretary gets
- * on a stranger, and a dialog that never unmounts while its own preview refetches.
+ * Delete person in the Edit panel footer, with the real gate and production React Query
+ * defaults (refetchOnMount: true): each role's visibility (MYK9-934: site admin or self only),
+ * the plain refusal when the server still says no, and a dialog that never unmounts while its
+ * own preview refetches.
  */
 import type { ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -56,9 +57,13 @@ const NOTHING = {
   scored: 0,
   blocking: 0,
 };
+// Real shapes: people.id and the mapped auth uid are different uuids.
+const PERSON_ID = '6f1c2a3b-0d4e-4f5a-8b6c-7d8e9f0a1b2c';
+const PERSON_AUTH_UID = 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d';
+const OTHER_AUTH_UID = 'f0e1d2c3-b4a5-4968-8776-655443322110';
 const person = {
-  id: 'p1',
-  user_id: 'auth-1',
+  id: PERSON_ID,
+  user_id: PERSON_AUTH_UID,
   firstName: 'Jane',
   lastName: 'Smith',
   email: 'jane@example.test',
@@ -109,12 +114,12 @@ describe('Delete person in the Edit panel footer', () => {
   });
 
   it.each([
-    ['a site admin', [UserRole.SITE_ADMIN], 'auth-9', true],
-    ['the person themselves', [UserRole.EXHIBITOR], 'auth-1', true],
-    ['a secretary', [UserRole.SECRETARY], 'auth-9', true],
-    ['a club admin', [UserRole.CLUB_ADMIN], 'auth-9', true],
-    ['another exhibitor', [UserRole.EXHIBITOR], 'auth-9', false],
-    ['a judge', [UserRole.JUDGE], 'auth-9', false],
+    ['a site admin', [UserRole.SITE_ADMIN], OTHER_AUTH_UID, true],
+    ['the person themselves', [UserRole.EXHIBITOR], PERSON_AUTH_UID, true],
+    ['a secretary', [UserRole.SECRETARY], OTHER_AUTH_UID, false],
+    ['a club admin', [UserRole.CLUB_ADMIN], OTHER_AUTH_UID, false],
+    ['another exhibitor', [UserRole.EXHIBITOR], OTHER_AUTH_UID, false],
+    ['a judge', [UserRole.JUDGE], OTHER_AUTH_UID, false],
   ])('%s: visible is %s', async (_label, roles, authId, visible) => {
     renderFooter(roles, authId);
     // Positive control: the footer rendered.
@@ -122,9 +127,9 @@ describe('Delete person in the Edit panel footer', () => {
     expect(screen.queryByRole('button', { name: 'Delete person' }) !== null).toBe(visible);
   });
 
-  it('tells a secretary on a stranger why, and offers no working Delete', async () => {
+  it('says plainly when the server still refuses, and offers no working Delete', async () => {
     mocks.preview.mockRejectedValue({ code: '42501', message: 'Permission denied' });
-    const { user } = renderFooter([UserRole.SECRETARY], 'auth-9');
+    const { user } = renderFooter([UserRole.SITE_ADMIN], OTHER_AUTH_UID);
 
     await user.click(await screen.findByRole('button', { name: 'Delete person' }));
     const dialog = await screen.findByRole('alertdialog', {
@@ -132,16 +137,14 @@ describe('Delete person in the Edit panel footer', () => {
     });
 
     expect(
-      await within(dialog).findByText(
-        /You can only delete people who have entries in shows you manage, and your own account\./
-      )
+      await within(dialog).findByText("You don't have permission to delete this person.")
     ).toBeInTheDocument();
     expect(within(dialog).getByRole('button', { name: 'Delete person' })).toBeDisabled();
     expect(mocks.remove).not.toHaveBeenCalled();
   });
 
   it('keeps the dialog mounted while its own preview refetches, and completes the delete', async () => {
-    const { user, onPersonDeleted } = renderFooter([UserRole.SECRETARY], 'auth-9');
+    const { user, onPersonDeleted } = renderFooter([UserRole.SITE_ADMIN], OTHER_AUTH_UID);
     await user.click(await screen.findByRole('button', { name: 'Delete person' }));
     const dialog = await screen.findByRole('alertdialog', {
       name: 'Delete the person Jane Smith?',
@@ -153,6 +156,6 @@ describe('Delete person in the Edit panel footer', () => {
     await user.click(confirm);
 
     await waitFor(() => expect(onPersonDeleted).toHaveBeenCalledTimes(1));
-    expect(mocks.remove).toHaveBeenCalledWith('person', 'p1', { override: false });
+    expect(mocks.remove).toHaveBeenCalledWith('person', PERSON_ID, { override: false });
   });
 });

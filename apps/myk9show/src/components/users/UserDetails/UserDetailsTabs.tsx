@@ -165,7 +165,7 @@ const PeopleDetailsTabs: React.FC<PeopleDetailsTabsProps> = ({ selectedUser }) =
         }
         onSave={handleSaveDogEdit}
         enableAutoSave={false}
-        // Gated like the dog page: `useCanDeleteDog` mirrors soft_delete_dog (owner or site admin).
+        // Gated like the dog page: `useCanDeleteDog` mirrors soft_delete_dog (owner, co-owner or site admin).
         onDelete={
           dogToEdit && canDeleteEditedDog
             ? { kind: 'dog', objectLabel: 'dog', targets: [dogDeleteTarget(dogToEdit)] }

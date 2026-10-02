@@ -12,38 +12,6 @@ import type { SyncableShowEntry } from '@/store/entry-store-types';
  */
 
 /**
- * Get status badge component based on show status
- */
-export function getStatusBadge(status: string): React.ReactNode {
-  switch (status) {
-    case 'Upcoming':
-      return React.createElement(
-        Badge,
-        {
-          className: 'bg-success/10 text-success border-success/20 border',
-        },
-        'Upcoming'
-      );
-    case 'Completed':
-      return React.createElement(
-        Badge,
-        {
-          className: 'bg-muted/10 text-muted-foreground border-muted/20 border',
-        },
-        'Completed'
-      );
-    default:
-      return React.createElement(
-        Badge,
-        {
-          className: 'bg-muted text-muted-foreground border-border border',
-        },
-        status
-      );
-  }
-}
-
-/**
  * Color mapping for show type badges
  */
 const TYPE_BADGE_COLORS: Record<string, string> = {

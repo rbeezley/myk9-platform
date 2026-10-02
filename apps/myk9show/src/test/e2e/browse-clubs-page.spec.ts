@@ -88,7 +88,7 @@ test.describe('Browse Clubs Page', () => {
       await searchInput.fill('zzzznonexistentclubname');
       await page.waitForTimeout(400);
 
-      const noResults = page.locator('text=No clubs match your filters');
+      const noResults = page.locator('text=No clubs match your search or filters.');
       const noClubs = page.locator('text=No clubs yet');
       // One of these should appear
       const visible = (await noResults.isVisible()) || (await noClubs.isVisible());

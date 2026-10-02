@@ -99,7 +99,7 @@ describe('wizard step set per edit mode (MYK9-899)', () => {
     useWizardStore.setState({
       trials: trialIdsInShow.map(id => ({
         id,
-        dateTime: '',
+        trialDate: '',
         eventNumber: '',
         classes: [],
       })) as never,
@@ -187,7 +187,7 @@ describe('wizard step set per edit mode (MYK9-899)', () => {
       // The class step auto-assigning a lone judge marks the store dirty; nothing is selected.
       useWizardStore.setState({
         isDirty: true,
-        trials: [{ id: 'trial-1', dateTime: '', eventNumber: '', classes }] as never,
+        trials: [{ id: 'trial-1', trialDate: '', eventNumber: '', classes }] as never,
       });
       await waitFor(() => expect(screen.getByTestId('step-content')).toHaveTextContent('step-2'));
       return view;

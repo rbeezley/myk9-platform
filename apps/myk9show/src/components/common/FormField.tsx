@@ -1,11 +1,14 @@
 import React from 'react';
 import { Label } from '@/components/ui/label/label';
 import { cn } from '@/lib/utils';
+import { OptionalMark, RequiredMark } from './RequiredMark';
 
 interface FormFieldProps {
   label: string;
   fieldId: string;
   required?: boolean;
+  /** Marks the field "(optional)" in the one standard spelling. */
+  optional?: boolean;
   error?: string | undefined;
   hint?: string | undefined;
   hintClassName?: string | undefined;
@@ -17,6 +20,7 @@ export function FormField({
   label,
   fieldId,
   required = false,
+  optional = false,
   error,
   hint,
   hintClassName,
@@ -30,14 +34,8 @@ export function FormField({
     >
       <Label htmlFor={fieldId}>
         {label}
-        {required && (
-          <>
-            <span className="text-destructive ml-0.5" aria-hidden="true">
-              *
-            </span>
-            <span className="sr-only">(required)</span>
-          </>
-        )}
+        {required && <RequiredMark />}
+        {!required && optional && <OptionalMark />}
       </Label>
 
       {hint && (

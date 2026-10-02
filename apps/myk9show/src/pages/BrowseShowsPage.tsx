@@ -35,10 +35,18 @@ import { canManageShowSurface, filterManagedShows, managedClubIds } from '@/util
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
-import { ViewToggle } from '@/components/common/ViewToggle';
-import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-toolkit';
+import {
+  ListEmptyState,
+  ListFilterBar,
+  ListResultLine,
+  ListViewTabs,
+  ListViewToggle,
+} from '@/components/list-toolkit';
+import { useViewPreference } from '@/hooks/useViewPreference';
+import { usePageExportAction } from '@/features/actions/pageEditTarget';
+import { exportRowsCsv } from '@/utils/downloadCsv';
+import { SHOWS_EXPORT_HEADERS, showsExportRows } from '@/components/shows/browse/showsExport';
 import { ErrorState } from '@/components/common/ErrorState';
-import { EmptyState } from '@/components/common/EmptyState';
 
 // Extracted hooks and components
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -52,10 +60,12 @@ import { ShowsMapPanel } from '@/components/shows/browse/ShowsMapPanel';
 import { useViewerLocation } from '@/features/location/useViewerLocation';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { getBrowseShowsCountUserId, getBrowseShowsTabCount } from '@/utils/browseShowsUtils';
-import { VIEW_MODES, parseViewMode, type ViewMode } from './browseShowsViewModes';
+import { VIEW_MODES, VIEW_MODE_KEYS, parseViewMode, type ViewMode } from './browseShowsViewModes';
 import { getDefaultViewMode, SHOWS_OFFLINE, SHOWS_UNAVAILABLE } from './browseShowsPage.helpers';
 import { buildShowBrowseFilterFields } from './showBrowseFilterFields';
 import { activeManagingViewId, buildManagingViews, managingViewFilters } from './showManagingViews';
+
+const SHOW_NOUN = ['show', 'shows'] as const;
 
 const BrowseShowsPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -87,10 +97,14 @@ const BrowseShowsPage: React.FC = () => {
   // (MYK9-798: "Public pages: no bulk bar").
   const isManagingTab = selectedTab === 'managing';
 
-  // View mode state (still URL-synced manually — useUrlTab only manages ?tab=)
-  const defaultViewMode = getDefaultViewMode(selectedTab);
-  const initialViewMode = parseViewMode(searchParams.get('view')) ?? defaultViewMode;
-  const [viewMode, setViewMode] = useState<ViewMode>(initialViewMode);
+  // Her own choice is remembered (MYK9-929, M9), Find Shows and Managing apart since their
+  // defaults differ. A shared `?view=` link still wins for the visit that opened it.
+  const [storedViewMode, setStoredViewMode] = useViewPreference<ViewMode>(
+    isManagingTab ? 'shows-managing' : 'shows-find',
+    getDefaultViewMode(selectedTab),
+    VIEW_MODE_KEYS
+  );
+  const viewMode = parseViewMode(searchParams.get('view')) ?? storedViewMode;
   const [isTabSwitching, setIsTabSwitching] = useState(false);
   const [isViewModeChanging, setIsViewModeChanging] = useState(false);
 
@@ -224,25 +238,6 @@ const BrowseShowsPage: React.FC = () => {
     return () => clearTimeout(timeoutId);
   }, [isViewModeChanging, viewMode]);
 
-  // Update view mode URL param (tab is handled by useUrlTab)
-  const updateViewModeParam = useCallback(
-    (newViewMode: ViewMode) => {
-      setSearchParams(
-        prev => {
-          const next = new URLSearchParams(prev);
-          if (newViewMode === defaultViewMode) {
-            next.delete('view');
-          } else {
-            next.set('view', newViewMode);
-          }
-          return next;
-        },
-        { replace: true }
-      );
-    },
-    [defaultViewMode, setSearchParams]
-  );
-
   // Handle tab change with permission check and loading state
   const handleTabChange = useCallback(
     (newTab: string) => {
@@ -259,28 +254,35 @@ const BrowseShowsPage: React.FC = () => {
     [selectedTab, setSelectedTab, user]
   );
 
-  // Handle view mode change with URL update and loading state
+  // The whole-list export the table's own button used to be (owner decision 4): this tab's shows
+  // as filtered, in the table view.
+  usePageExportAction({
+    id: 'shows',
+    enabled: viewMode === 'table' && enhancedShows.length > 0,
+    run: () => exportRowsCsv('shows', SHOWS_EXPORT_HEADERS, showsExportRows(enhancedShows)),
+  });
+
+  // Handle a view change: remember it, and drop a `?view=` link's override so the choice sticks.
   const handleViewModeChange = useCallback(
     (key: string) => {
-      const newViewMode = key as ViewMode;
-      if (newViewMode === viewMode) return;
+      const newViewMode = parseViewMode(key);
+      if (!newViewMode || newViewMode === viewMode) return;
 
       setIsViewModeChanging(true);
-      setViewMode(newViewMode);
-      updateViewModeParam(newViewMode);
+      setStoredViewMode(newViewMode);
+      if (searchParams.has('view')) {
+        setSearchParams(
+          prev => {
+            const next = new URLSearchParams(prev);
+            next.delete('view');
+            return next;
+          },
+          { replace: true }
+        );
+      }
     },
-    [updateViewModeParam, viewMode]
+    [searchParams, setSearchParams, setStoredViewMode, viewMode]
   );
-
-  // Sync view mode from URL on mount and param changes. `?club=` (and every
-  // other filter param) is owned by `useUrlFilters` inside useBrowseShowsFilters
-  // — re-syncing it here too would give the same value two writers (MYK9-221).
-  useEffect(() => {
-    const viewFromUrl = parseViewMode(searchParams.get('view')) ?? defaultViewMode;
-    if (viewFromUrl !== viewMode) {
-      queueMicrotask(() => setViewMode(viewFromUrl));
-    }
-  }, [defaultViewMode, searchParams]);
 
   // Breadcrumb items for PageHeader
   const breadcrumbs = useMemo(() => {
@@ -377,16 +379,13 @@ const BrowseShowsPage: React.FC = () => {
   const renderShowsView = () => {
     if (enhancedShows.length === 0 && viewMode !== 'map') {
       return (
-        <EmptyState
+        <ListEmptyState
           icon={Search}
-          title={hasActiveFilters ? 'No matching shows' : 'No shows yet'}
-          description={
-            hasActiveFilters
-              ? 'Try clearing a filter or broadening your search.'
-              : 'Shows will appear here as they are added. Try searching by discipline or club name above.'
-          }
-          action={hasActiveFilters ? { label: 'Clear Filters', onClick: clearAllFilters } : null}
-          variant={hasActiveFilters ? 'filter' : 'default'}
+          noun={SHOW_NOUN}
+          filtered={hasActiveFilters}
+          onShowAll={clearAllFilters}
+          description="Shows will appear here as they are added. Try searching by discipline or club name above."
+          action={null}
         />
       );
     }
@@ -499,9 +498,10 @@ const BrowseShowsPage: React.FC = () => {
             <ListResultLine
               shown={allEnhancedShows.length}
               total={tabShows.length}
-              noun={['show', 'shows']}
+              noun={SHOW_NOUN}
               filtered={hasActiveFilters}
               onShowAll={clearAllFilters}
+              showAllInEmptyState={enhancedShows.length === 0 && viewMode !== 'map'}
               {...(isManagingTab
                 ? {
                     selectAll: {
@@ -511,11 +511,10 @@ const BrowseShowsPage: React.FC = () => {
                   }
                 : {})}
             >
-              <ViewToggle
+              <ListViewToggle
                 modes={VIEW_MODES}
                 active={viewMode}
                 onChange={handleViewModeChange}
-                showLabels
               />
             </ListResultLine>
           </div>

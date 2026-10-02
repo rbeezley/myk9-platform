@@ -12,8 +12,11 @@ const { mockCreatePerson, mockGetPendingPersonMutationIdsForRow } = vi.hoisted((
   mockGetPendingPersonMutationIdsForRow: vi.fn(),
 }));
 
-vi.mock('@/services/database/users', () => ({
+vi.mock('@/hooks/useRBAC', () => ({ useRBAC: () => ({ hasPermission: () => false }) }));
+vi.mock('@/services/database/users', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/database/users')>()),
   createUser: vi.fn(),
+  fetchPersonEmailLockFacts: vi.fn().mockResolvedValue(null),
 }));
 
 vi.mock('@/services/replication/ReplicatedShowDeskPeopleTable', () => ({
@@ -24,6 +27,10 @@ vi.mock('@/services/replication/ReplicatedShowDeskPeopleTable', () => ({
 }));
 
 const createUserMock = vi.mocked(createUser);
+
+async function toContact(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(await screen.findByRole('button', { name: /Next: Contact/ }));
+}
 
 describe('CreateExhibitorDialog', () => {
   beforeEach(() => {
@@ -72,13 +79,14 @@ describe('CreateExhibitorDialog', () => {
     await user.type(screen.getByLabelText(/First Name/i), 'Molly');
     await user.type(screen.getByLabelText(/Last Name/i), 'Mailbox');
     await user.type(screen.getByLabelText(/Email Address/i), 'molly.mailbox@example.com');
+    await toContact(user);
     await user.type(screen.getByLabelText(/Phone Number/i), '555-1000');
     await user.type(screen.getByLabelText(/Street Address/i), '123 Paper Trail');
     await user.type(screen.getByLabelText(/City/i), 'Envelope');
     await user.type(screen.getByLabelText(/State/i), 'TX');
     await user.type(screen.getByLabelText(/ZIP Code/i), '75001');
 
-    await user.click(screen.getByRole('button', { name: 'Add Person' }));
+    await user.click(await screen.findByRole('button', { name: 'Add Person' }));
 
     await waitFor(() => {
       expect(createUserMock).toHaveBeenCalledWith({
@@ -133,12 +141,13 @@ describe('CreateExhibitorDialog', () => {
 
     await user.type(screen.getByLabelText(/First Name/i), 'Pat');
     await user.type(screen.getByLabelText(/Last Name/i), 'Paperform');
+    await toContact(user);
     await user.type(screen.getByLabelText(/Street Address/i), '9 Rural Route');
     await user.type(screen.getByLabelText(/City/i), 'Envelope');
     await user.type(screen.getByLabelText(/State/i), 'TX');
     await user.type(screen.getByLabelText(/ZIP Code/i), '75001');
 
-    await user.click(screen.getByRole('button', { name: 'Add Person' }));
+    await user.click(await screen.findByRole('button', { name: 'Add Person' }));
 
     // A paper form with no email or phone must not be blocked by validation
     // that invents contact data the secretary was never given (MYK9-832 #5).
@@ -200,6 +209,8 @@ describe('CreateExhibitorDialog', () => {
     await user.type(screen.getByLabelText(/Last Name/i), 'Handler');
     await user.type(screen.getByLabelText(/Email Address/i), 'TERA@example.com');
 
+    await toContact(user);
+
     expect(await screen.findByText('Tera Handler')).toBeInTheDocument();
     expect(screen.queryByText('John Smith')).not.toBeInTheDocument();
 
@@ -228,13 +239,14 @@ describe('CreateExhibitorDialog', () => {
     await user.type(screen.getByLabelText(/First Name/i), 'Molly');
     await user.type(screen.getByLabelText(/Last Name/i), 'Mailbox');
     await user.type(screen.getByLabelText(/Email Address/i), 'molly.mailbox@example.com');
+    await toContact(user);
     await user.type(screen.getByLabelText(/Phone Number/i), '555-1000');
     await user.type(screen.getByLabelText(/Street Address/i), '123 Paper Trail');
     await user.type(screen.getByLabelText(/City/i), 'Envelope');
     await user.type(screen.getByLabelText(/State/i), 'TX');
     await user.type(screen.getByLabelText(/ZIP Code/i), '75001');
 
-    await user.click(screen.getByRole('button', { name: 'Add Person' }));
+    await user.click(await screen.findByRole('button', { name: 'Add Person' }));
 
     await waitFor(() => {
       expect(mockCreatePerson).toHaveBeenCalledWith({
@@ -265,11 +277,14 @@ describe('CreateExhibitorDialog', () => {
 });
 
 describe('CreateExhibitorDialog wording', () => {
-  it('is titled and submitted as "Add Person"', () => {
+  it('is titled and submitted as "Add Person"', async () => {
+    const user = userEvent.setup();
     render(<CreateExhibitorDialog open onOpenChange={vi.fn()} onExhibitorCreated={vi.fn()} />);
     expect(screen.getByRole('heading', { name: 'Add Person' })).toBeInTheDocument();
+    await user.type(screen.getByLabelText(/First Name/i), 'Pat');
+    await user.type(screen.getByLabelText(/Last Name/i), 'Paperform');
+    await user.click(screen.getByRole('tab', { name: /Contact/ }));
     expect(screen.getByRole('button', { name: 'Add Person' })).toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /new person/i })).toBeInTheDocument();
     // No "exhibitor" or "create/creating" anywhere in what the secretary reads.
     const copy = screen.getByRole('dialog').textContent ?? '';
     expect(copy).not.toMatch(/exhibitor|\bcreat(e|ing)\b/i);

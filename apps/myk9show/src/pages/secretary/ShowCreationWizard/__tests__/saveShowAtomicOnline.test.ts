@@ -65,7 +65,7 @@ function saveShowAtomicOnline(args: Omit<SaveShowAtomicOnlineArgs, 'trialView'>)
   const trialView = createWizardTrialView(
     args.trials.map(trial => ({
       id: trial.id,
-      trialDate: trial.dateTime,
+      trialDate: trial.trialDate,
       nameOverride: trial.nameOverride,
     })),
     []
@@ -288,7 +288,8 @@ describe('saveShowAtomicOnline', () => {
     const invalidTrial: WizardTrial = {
       id: 'wizard-trial-invalid',
       trialType: 'Scent Work',
-      dateTime: '2026-06-01T09:00:00',
+      trialDate: '2026-06-01',
+      startTimeDraft: '09:00 AM',
       eventNumber: 'EVT-INVALID',
       classes: [
         {

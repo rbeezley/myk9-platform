@@ -1,3 +1,8 @@
+import {
+  captureCsvDownload,
+  registeredPageExports,
+  resetPageExports,
+} from '@/test/utils/csvDownload';
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
@@ -205,5 +210,24 @@ describe('ClassResultsTable released-results tab default', () => {
     );
     // Staff keep the Pending default — scored entry hidden until they switch tabs.
     expect(screen.queryByText('Buddy')).not.toBeInTheDocument();
+  });
+
+  it('registers an Export CSV page action for the visible results, in the table view', () => {
+    render(<ClassResultsTable {...readOnlyProps} resultsReleasedAt="2026-06-16T00:00:00Z" />);
+    const registered = registeredPageExports();
+    expect(registered.map(item => item.id)).toEqual(['class-results']);
+
+    const download = captureCsvDownload();
+    try {
+      registered[0]!.run();
+      const lines = download.csv().split('\n');
+      expect(lines[0]).toBe(
+        'Armband,Dog,Handler,Placement,Qualification,Search Time,Faults,Check-in'
+      );
+      expect(lines).toHaveLength(3);
+    } finally {
+      download.restore();
+      resetPageExports();
+    }
   });
 });

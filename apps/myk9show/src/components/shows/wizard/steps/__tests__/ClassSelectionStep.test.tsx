@@ -76,7 +76,7 @@ function fakeWizardState(organization: string): Record<string, unknown> {
       {
         id: 'trial-1',
         nameOverride: 'Saturday Trial',
-        dateTime: '',
+        trialDate: '',
         eventNumber: '',
         trialType: organization === 'UKC' ? 'Nosework' : 'Scent Detection',
         classes: [],

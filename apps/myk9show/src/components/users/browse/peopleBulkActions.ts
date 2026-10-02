@@ -6,36 +6,26 @@
 
 import { toast } from 'sonner';
 import type { User } from '@/types/user-types';
+import { exportRowsCsv } from '@/utils/downloadCsv';
 
 export function getFullName(person: User): string {
   return `${person.firstName || ''} ${person.lastName || ''}`.trim() || 'Unknown';
 }
 
-function escapeCsvCell(value: string): string {
-  return /[",\n\r]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+/** The People list's CSV columns, shared by the whole-list page export and the bulk bar's. */
+export const PEOPLE_EXPORT_HEADERS = ['Name', 'Email', 'Roles', 'Location'] as const;
+
+export function peopleExportRows(people: readonly User[]): string[][] {
+  return people.map(person => [
+    getFullName(person),
+    person.email ?? '',
+    (person.roles ?? []).join(', '),
+    [person.city, person.state].filter(Boolean).join(', '),
+  ]);
 }
 
 export function exportPeopleCSV(people: User[]): void {
-  const rows = [
-    ['Name', 'Email', 'Roles', 'Location'].join(','),
-    ...people.map(person =>
-      [
-        getFullName(person),
-        person.email ?? '',
-        (person.roles ?? []).join(';'),
-        [person.city, person.state].filter(Boolean).join(', '),
-      ]
-        .map(escapeCsvCell)
-        .join(',')
-    ),
-  ];
-  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `people-export-${new Date().toISOString().slice(0, 10)}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  exportRowsCsv('people', PEOPLE_EXPORT_HEADERS, peopleExportRows(people));
 }
 
 export async function copyPeopleEmails(people: User[]): Promise<void> {

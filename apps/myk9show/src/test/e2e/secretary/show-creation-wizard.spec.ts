@@ -23,8 +23,8 @@ test.describe('Trial Secretary - Show Creation Wizard', () => {
     await expect(page.getByRole('button', { name: /Show Dates/i })).toBeVisible();
     await expect(page.getByRole('button', { name: /Entry Period/i })).toBeVisible();
     await expect(page.getByLabel(/Location/i)).toBeVisible();
-    await expect(page.getByText('Chair *', { exact: true })).toBeVisible();
-    await expect(page.getByText('Secretary *', { exact: true })).toBeVisible();
+    await expect(page.getByLabel(/^Chair[\s*]*\(required\)/)).toBeVisible();
+    await expect(page.getByLabel(/^Secretary[\s*]*\(required\)/)).toBeVisible();
     await expect(page.getByText(/\d+ items? remaining/i)).toBeVisible();
 
     await page.getByRole('button', { name: /^Next$/ }).click();

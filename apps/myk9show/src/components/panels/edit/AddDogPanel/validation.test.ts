@@ -332,3 +332,33 @@ describe('isTabValid', () => {
     expect(isTabValid('optional', createInitialFormData())).toBe(true);
   });
 });
+
+describe('registration validation names the row and the field (MYK9-931)', () => {
+  const messages = (registrations: Registration[]) => {
+    const result = addDogSchema.safeParse(validFormData({ registrations }));
+    return result.success ? [] : result.error.issues.map(i => i.message);
+  };
+
+  it('accepts complete registrations', () => {
+    expect(messages([validRegistration()])).toEqual([]);
+  });
+
+  it('names the row and the missing field instead of "Invalid registrations"', () => {
+    expect(messages([validRegistration(), validRegistration({ registrationNumber: '' })])).toEqual([
+      'Registration 2 needs a registration number',
+    ]);
+    expect(messages([validRegistration({ registeredName: '' })])).toEqual([
+      'Registration 1 needs a registered name',
+    ]);
+    expect(messages([validRegistration({ breed: '' })])).toEqual(['Registration 1 needs a breed']);
+    expect(messages([validRegistration({ organization: '' })])).toEqual([
+      'Registration 1 needs an organization',
+    ]);
+  });
+
+  it('says what is wrong with a malformed registration number', () => {
+    expect(messages([validRegistration({ registrationNumber: 'AKC 12 !' })])).toEqual([
+      'Registration 1 has an invalid registration number (letters, numbers, - and / only)',
+    ]);
+  });
+});

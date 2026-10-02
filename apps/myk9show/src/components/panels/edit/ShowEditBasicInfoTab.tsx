@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Calendar } from 'lucide-react';
-import { DateTimePicker } from '@/components/ui/date-time-picker';
+import { ShowDatesFields } from '@/components/shows/ShowDatesFields';
 import { FormField } from '@/components/common/FormField';
 import type { FormValidation } from '@/hooks/useFormValidation';
 import { toLocalDate } from '@/utils/date-format';
@@ -82,7 +82,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
 
             <FormField label="Organization" fieldId="organization">
               <Select value={data.organization} onValueChange={handleSelectChange('organization')}>
-                <SelectTrigger>
+                <SelectTrigger id="organization">
                   <SelectValue placeholder="Select type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -115,7 +115,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
               }
             >
               <Select value={data.status} onValueChange={handleSelectChange('status')}>
-                <SelectTrigger>
+                <SelectTrigger id="status">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -183,6 +183,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
           <FormField label="Host Club" fieldId="clubId" required error={clubError}>
             <Select value={data.clubId} onValueChange={handleSelectChange('clubId')}>
               <SelectTrigger
+                id="clubId"
                 className={clubError ? 'border-destructive' : ''}
                 {...form?.getFieldProps('clubId')}
               >
@@ -232,47 +233,19 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
               Important Dates
             </h4>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <FormField label="Start Date" fieldId="startDate" required error={startDateError}>
-                <DateTimePicker
-                  value={data.startDate ? toLocalDate(data.startDate) : undefined}
-                  onChange={handleDateChange('startDate')}
-                  placeholder="Select start date"
-                  showTime={true}
-                  className={startDateError ? 'border-destructive' : ''}
-                />
-              </FormField>
-
-              <FormField label="End Date" fieldId="endDate" required error={endDateError}>
-                <DateTimePicker
-                  value={data.endDate ? toLocalDate(data.endDate) : undefined}
-                  onChange={handleDateChange('endDate')}
-                  placeholder="Select end date"
-                  showTime={true}
-                  className={endDateError ? 'border-destructive' : ''}
-                />
-              </FormField>
-
-              <FormField label="Entry Open Date" fieldId="entryOpenDate" error={entryOpenError}>
-                <DateTimePicker
-                  value={data.entryOpenDate ? toLocalDate(data.entryOpenDate) : undefined}
-                  onChange={handleDateChange('entryOpenDate')}
-                  placeholder="Select entry open date"
-                  showTime={true}
-                  className={entryOpenError ? 'border-destructive' : ''}
-                />
-              </FormField>
-
-              <FormField label="Entry Close Date" fieldId="entryCloseDate" error={entryCloseError}>
-                <DateTimePicker
-                  value={data.entryCloseDate ? toLocalDate(data.entryCloseDate) : undefined}
-                  onChange={handleDateChange('entryCloseDate')}
-                  placeholder="Select entry close date"
-                  showTime={true}
-                  className={entryCloseError ? 'border-destructive' : ''}
-                />
-              </FormField>
-            </div>
+            <ShowDatesFields
+              dateOnly
+              startDate={data.startDate ? toLocalDate(data.startDate) : undefined}
+              endDate={data.endDate ? toLocalDate(data.endDate) : undefined}
+              entryOpenDate={data.entryOpenDate ? toLocalDate(data.entryOpenDate) : undefined}
+              entryCloseDate={data.entryCloseDate ? toLocalDate(data.entryCloseDate) : undefined}
+              onStartDateChange={handleDateChange('startDate')}
+              onEndDateChange={handleDateChange('endDate')}
+              onEntryOpenChange={handleDateChange('entryOpenDate')}
+              onEntryCloseChange={handleDateChange('entryCloseDate')}
+              datesError={startDateError ?? endDateError}
+              entryError={entryOpenError ?? entryCloseError}
+            />
           </div>
         </CardContent>
       </Card>

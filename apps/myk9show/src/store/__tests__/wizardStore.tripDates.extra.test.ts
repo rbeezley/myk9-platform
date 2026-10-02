@@ -4,14 +4,15 @@ import { realignTrialsToShowDates } from '@/utils/wizardTrialDates';
 
 const local = (y: number, m: number, d: number) => new Date(y, m - 1, d, 8).toISOString();
 const store = () => useWizardStore.getState();
-const t = (dateTime: string) => ({ dateTime });
+const t = (trialDate: string) => ({ trialDate });
 
 describe('step header navigation realigns like Next (MYK9-884)', () => {
   const seedOldTrial = () => {
     store().updateShowData({ startDate: local(2026, 7, 1), endDate: local(2026, 7, 1) });
     store().addTrial({
       nameOverride: undefined,
-      dateTime: '2026-07-01T08:00:00',
+      trialDate: '2026-07-01',
+      startTimeDraft: '08:00 AM',
       eventNumber: '',
       classes: [],
     });
@@ -25,7 +26,7 @@ describe('step header navigation realigns like Next (MYK9-884)', () => {
 
     store().goToStep(3);
 
-    expect(store().trials.map(x => x.dateTime)).toEqual(['2026-08-15T08:00:00']);
+    expect(store().trials.map(x => x.trialDate)).toEqual(['2026-08-15']);
     expect(store().currentStep).toBe(1);
     expect(store().trialsMovedCount).toBe(1);
   });
@@ -55,24 +56,20 @@ describe('moved-dates count does not survive a new draft', () => {
 describe('realignTrialsToShowDates keeps in-range trials in place', () => {
   it('clamps only the out-of-range trial when the start moves inside the trials', () => {
     const out = realignTrialsToShowDates(
-      [t('2026-01-10T08:00:00'), t('2026-01-11T08:00:00'), t('2026-01-12T08:00:00')],
+      [t('2026-01-10'), t('2026-01-11'), t('2026-01-12')],
       local(2026, 1, 11),
       local(2026, 1, 12)
     );
-    expect(out.map(x => x.dateTime)).toEqual([
-      '2026-01-11T08:00:00',
-      '2026-01-11T08:00:00',
-      '2026-01-12T08:00:00',
-    ]);
+    expect(out.map(x => x.trialDate)).toEqual(['2026-01-11', '2026-01-11', '2026-01-12']);
   });
 
   it('shifts every trial when all of them are outside the new range', () => {
     const out = realignTrialsToShowDates(
-      [t('2026-08-14T08:00:00'), t('2026-08-15T09:00:00')],
+      [t('2026-08-14'), t('2026-08-15')],
       local(2026, 9, 12),
       local(2026, 9, 13)
     );
-    expect(out.map(x => x.dateTime)).toEqual(['2026-09-12T08:00:00', '2026-09-13T09:00:00']);
+    expect(out.map(x => x.trialDate)).toEqual(['2026-09-12', '2026-09-13']);
   });
 });
 
@@ -81,7 +78,8 @@ describe('moved-dates notice flag', () => {
     store().updateShowData({ startDate: local(2026, 7, 1), endDate: local(2026, 7, 1) });
     store().addTrial({
       nameOverride: undefined,
-      dateTime: '2026-07-01T08:00:00',
+      trialDate: '2026-07-01',
+      startTimeDraft: '08:00 AM',
       eventNumber: '',
       classes: [],
     });

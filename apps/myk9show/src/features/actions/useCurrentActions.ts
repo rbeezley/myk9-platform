@@ -53,6 +53,8 @@ export function useCurrentActions(): CurrentActions {
   // The detail page on screen, when it registered an Edit it lets this viewer use.
   const pageTarget = usePageEditTargetStore(state => state.target);
   const addClassesTrialId = usePageEditTargetStore(state => state.addClassesTrialId);
+  const pageExports = usePageEditTargetStore(state => state.exports);
+  const pageExportIds = pageExports.map(item => item.id).join('|');
   const pageKind = pageTarget?.kind;
   const pageAddClassesHref = pageTarget?.addClassesHref;
 
@@ -61,6 +63,7 @@ export function useCurrentActions(): CurrentActions {
       resolveActions(route, {
         addClassesTrialId,
         pageObject: pageKind ? { kind: pageKind, addClassesHref: pageAddClassesHref } : null,
+        pageExports: pageExportIds === '' ? [] : pageExportIds.split('|').map(id => ({ id })),
         // Fail closed while ownership is still resolving: an empty list hides
         // the button, which is honest, where a flashed-then-withdrawn menu is
         // the mistake-anxiety bug docs/INTENT.md names.
@@ -79,6 +82,7 @@ export function useCurrentActions(): CurrentActions {
       pageKind,
       pageAddClassesHref,
       addClassesTrialId,
+      pageExportIds,
     ]
   );
 
@@ -96,6 +100,10 @@ export function useCurrentActions(): CurrentActions {
         if (action.command === 'edit-object') {
           return pageTarget ? { ...action, run: pageTarget.run } : action;
         }
+        if (action.command === 'page-export') {
+          const exported = pageExports.find(item => `page-export-${item.id}` === action.id);
+          return exported ? { ...action, run: exported.run } : action;
+        }
         if (action.command !== 'publish-premium') return action;
         return {
           ...action,
@@ -109,7 +117,15 @@ export function useCurrentActions(): CurrentActions {
             : {}),
         };
       }),
-    [resolved, search, pageTarget, premium.action.label, premium.action.disabledReason, premium.run]
+    [
+      resolved,
+      search,
+      pageTarget,
+      pageExports,
+      premium.action.label,
+      premium.action.disabledReason,
+      premium.run,
+    ]
   );
 
   return { route, actions };

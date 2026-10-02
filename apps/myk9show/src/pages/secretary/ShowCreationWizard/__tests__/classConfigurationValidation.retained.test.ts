@@ -47,7 +47,8 @@ const validNew = {
 function persistedTrial(classes: WizardTrial['classes'], trialType?: string): WizardTrial {
   return {
     id: TRIAL_ID,
-    dateTime: '2026-10-10T09:00:00',
+    trialDate: '2026-10-10',
+    startTimeDraft: '09:00 AM',
     eventNumber: 'EVT-1',
     ...(trialType === undefined ? {} : { trialType }),
     classes,

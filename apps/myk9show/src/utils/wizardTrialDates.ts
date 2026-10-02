@@ -19,7 +19,7 @@ export function parseWizardDay(str: string | undefined): Date | undefined {
 }
 
 interface DatedTrial {
-  dateTime: string;
+  trialDate: string;
 }
 
 /**
@@ -28,7 +28,7 @@ interface DatedTrial {
  * against an earlier date would otherwise keep it.
  * - Every dated trial inside [start, end]: nothing changes.
  * - Every dated trial outside it (the show moved wholesale): all shift by
- *   (new start - earliest trial day), keeping time of day and relative day
+ *   (new start - earliest trial day), keeping the relative day
  *   structure, then clamp into the range.
  * - A mix: only the out-of-range trials are clamped; trials already inside the
  *   range stay exactly where the secretary put them.
@@ -46,7 +46,7 @@ export function realignTrialsToShowDates<T extends DatedTrial>(
   const isInside = (day: Date) => day >= newStart && (!newEnd || day <= newEnd);
 
   const dated = trials.flatMap(trial => {
-    const at = parseWizardDateTime(trial.dateTime);
+    const at = parseWizardDateTime(trial.trialDate);
     return at ? [{ trial, at, day: startOfDay(at) }] : [];
   });
   if (dated.length === 0 || dated.every(({ day }) => isInside(day))) return trials;
@@ -62,16 +62,7 @@ export function realignTrialsToShowDates<T extends DatedTrial>(
     let target = addDays(entry.day, delta);
     if (target < newStart) target = newStart;
     if (newEnd && target > newEnd) target = newEnd;
-    const { at } = entry;
-    const moved = new Date(
-      target.getFullYear(),
-      target.getMonth(),
-      target.getDate(),
-      at.getHours(),
-      at.getMinutes(),
-      at.getSeconds()
-    );
-    const dateTime = format(moved, "yyyy-MM-dd'T'HH:mm:ss");
-    return dateTime === trial.dateTime ? trial : { ...trial, dateTime };
+    const trialDate = format(target, 'yyyy-MM-dd');
+    return trialDate === trial.trialDate ? trial : { ...trial, trialDate };
   });
 }

@@ -56,15 +56,15 @@ describe('ClassesTab table view', () => {
     expect(screen.getByText('Handler Discrimination')).toBeInTheDocument();
   });
 
-  it('switches to card view when entry ownership resolves after mount, still showing the whole show', () => {
+  // Decision 8 (MYK9-929): an exhibitor or visitor opens on cards, with or without entries.
+  it('opens a non-manager on cards whether or not entry ownership has resolved', () => {
     const { rerender } = render(
       <ClassesTab classes={mockClasses} showId="s1" userHasEntries={false} />
     );
-    expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader')).not.toBeInTheDocument();
 
     rerender(<ClassesTab classes={mockClasses} showId="s1" userHasEntries />);
-    expect(screen.queryByText(/showing your entered classes first/i)).not.toBeInTheDocument();
-    expect(screen.queryByPlaceholderText(/search/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('columnheader')).not.toBeInTheDocument();
     expect(screen.getByText('Handler Discrimination')).toBeInTheDocument();
   });
 
@@ -75,6 +75,7 @@ describe('ClassesTab table view', () => {
   });
 
   it('renders sortable column headers including Trial', () => {
+    localStorage.setItem('view-pref-classes', 'table');
     render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries={false} />);
     const headers = screen.getAllByRole('columnheader');
     const headerTexts = headers.map(h => h.textContent ?? '');
@@ -85,11 +86,13 @@ describe('ClassesTab table view', () => {
   });
 
   it('renders search input', () => {
+    localStorage.setItem('view-pref-classes', 'table');
     render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries={false} />);
     expect(screen.getByPlaceholderText(/search/i)).toBeInTheDocument();
   });
 
   it('filters rows on search', async () => {
+    localStorage.setItem('view-pref-classes', 'table');
     const { user } = render(
       <ClassesTab classes={mockClasses} showId="s1" userHasEntries={false} />
     );
@@ -100,8 +103,9 @@ describe('ClassesTab table view', () => {
     expect(screen.queryByText('Handler Discrimination')).not.toBeInTheDocument();
   });
 
-  it('renders column visibility toggle', () => {
+  it('has no Columns control (owner decision 4)', () => {
+    localStorage.setItem('view-pref-classes', 'table');
     render(<ClassesTab classes={mockClasses} showId="s1" userHasEntries={false} />);
-    expect(screen.getByRole('button', { name: /toggle columns/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /toggle columns/i })).not.toBeInTheDocument();
   });
 });

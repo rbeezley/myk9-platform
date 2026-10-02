@@ -1,8 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { EmptyState } from '@/components/common/EmptyState';
-import { useViewPreference, CARD_TABLE_MODES } from '@/hooks/useViewPreference';
-import { ViewToggle } from '@/components/common/ViewToggle';
+import { ListEmptyState, ListViewToggle } from '@/components/list-toolkit';
+import { useViewPreference } from '@/hooks/useViewPreference';
+import { defaultListView } from '@/utils/defaultListView';
+import { getClassDetailHref } from '@/utils/classDetailHref';
+import { usePageExportAction } from '@/features/actions/pageEditTarget';
+import { exportRowsCsv } from '@/utils/downloadCsv';
+import { CLASS_EXPORT_HEADERS, classExportRows } from '@/components/classes/classesExport';
 import { ClassCard } from './ClassCard';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ClassBulkActionsBar } from '@/components/classes/ClassBulkActionsBar';
@@ -23,6 +27,8 @@ import { useClassRowActions } from './useClassRowActions';
 import type { ShowTrial } from './classesTabScope';
 
 export type { ClassInfo };
+
+const CLASS_NOUN = ['class', 'classes'] as const;
 
 interface ClassesTabProps {
   classes: ClassInfo[];
@@ -58,11 +64,6 @@ export function ClassesTab({
 }: ClassesTabProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [storedViewMode, setViewModePreference, hasStoredViewPreference] = useViewPreference(
-    'classes',
-    userHasEntries ? 'cards' : 'table'
-  );
-  const [viewModeTouched, setViewModeTouched] = useState(false);
   // Always opens on the whole show (Oct 10 rehearsal: a secretary who also holds entries in
   // the show must land on "All", never auto-scoped to "Mine" — that scoping is one pressable
   // view among five, not a silent default). See `classesTabViews.ts`. Setup keeps the view in
@@ -81,14 +82,17 @@ export function ClassesTab({
   // club, the scope the show shell's Edit show button uses. The global permission is not
   // club-scoped, and this tab also renders on the public show page. Resolving / unavailable
   // read as no.
-  const canManageThisShow = useShowManageScope(showId).canManage;
-  const viewMode =
-    userHasEntries && !hasStoredViewPreference && !viewModeTouched ? 'cards' : storedViewMode;
-
-  const setViewMode = (mode: string) => {
-    setViewModeTouched(true);
-    setViewModePreference(mode);
-  };
+  const manageScope = useShowManageScope(showId);
+  const canManageThisShow = manageScope.canManage;
+  // Staff open on the table, an exhibitor or visitor on cards, even one who holds entries in the
+  // show (decision 8). Her own choice is remembered.
+  // The default is held until the role is known (no flash of the wrong view); a view she already
+  // chose shows at once.
+  const [viewMode, setViewMode, hasStoredView] = useViewPreference(
+    'classes',
+    defaultListView(canManageThisShow)
+  );
+  const viewReady = manageScope.status !== 'resolving' || hasStoredView;
 
   // Managers work one trial at a time, so select-all, bulk status and bulk delete never span
   // trials; everyone else reads the whole show.
@@ -99,8 +103,9 @@ export function ClassesTab({
     requestedTrialId,
     viewId,
     setViewId,
+    hideRing,
   });
-  const { filteredClasses, viewFilters } = scope;
+  const { filteredClasses } = scope;
   const selectTrial = (nextTrialId: string) => {
     scope.setElement('all');
     (onTrialChange ?? setLocalTrialId)(nextTrialId);
@@ -224,11 +229,26 @@ export function ClassesTab({
     ]
   );
 
+  // The whole-list export the table's own button used to be (owner decision 4: header Actions
+  // menu), so exporting needs no ticked rows.
+  usePageExportAction({
+    id: 'classes',
+    enabled: viewReady && viewMode === 'table' && filteredClasses.length > 0,
+    run: () =>
+      exportRowsCsv(
+        'classes',
+        CLASS_EXPORT_HEADERS,
+        classExportRows(filteredClasses.map(cls => ({ ...cls, trialLabel: classTrialLabel(cls) })))
+      ),
+  });
+
   if (classes.length === 0) {
     return (
-      <EmptyState
+      <ListEmptyState
         icon={Search}
-        title="No classes scheduled"
+        noun={CLASS_NOUN}
+        filtered={false}
+        onShowAll={scope.clearFilters}
         description="Classes for this show haven't been set up yet."
         action={
           canManageThisShow
@@ -256,59 +276,44 @@ export function ClassesTab({
         views={visibleViews}
         activeViewId={scope.activeViewId}
         onSelectView={setViewId}
-        actions={
-          <>
-            <ViewToggle modes={CARD_TABLE_MODES} active={viewMode} onChange={setViewMode} />
-            {/* Add classes is the header Actions menu's (MYK9-928); the empty state keeps its own button. */}
-          </>
-        }
+        result={{
+          shown: filteredClasses.length,
+          total: scope.scopedClasses.length,
+          narrowed: scope.isNarrowed,
+          onClearFilters: scope.clearFilters,
+          showAllInEmptyState: filteredClasses.length === 0,
+        }}
+        viewToggle={<ListViewToggle active={viewMode} onChange={setViewMode} />}
+        search={{ value: scope.search, onChange: scope.setSearch }}
         {...(canManageThisShow
           ? {
               manage: {
                 trials: scope.trialOptions,
                 trialId: scope.scopeTrialId,
                 onTrialChange: selectTrial,
-                search: scope.search,
-                onSearchChange: scope.setSearch,
                 elementField: scope.elementField,
-                shown: filteredClasses.length,
-                total: scope.scopedClasses.length,
-                narrowed: scope.isNarrowed,
-                onClearFilters: scope.clearFilters,
               },
             }
           : {})}
       />
 
-      {filteredClasses.length === 0 ? (
-        <EmptyState
+      {!viewReady ? null : filteredClasses.length === 0 ? (
+        <ListEmptyState
           icon={Search}
-          variant="filter"
-          size="sm"
-          title={
-            scope.search !== '' || scope.element !== 'all'
-              ? 'No classes match the current filter.'
-              : viewFilters.mine
-                ? 'None of your entered classes match.'
-                : viewFilters.status === 'pending'
-                  ? 'All classes completed!'
-                  : viewFilters.status === 'in_progress'
-                    ? 'No classes in progress.'
-                    : viewFilters.status === 'completed'
-                      ? 'No classes completed yet.'
-                      : 'No classes match the current filter.'
-          }
-          action={{ label: 'Show all classes', onClick: scope.clearFilters }}
+          noun={CLASS_NOUN}
+          filtered
+          onShowAll={scope.clearFilters}
+          action={null}
         />
       ) : viewMode === 'table' ? (
         <DataTable
           tableId="classesTab"
           columns={classColumns}
           data={tableData}
-          // A manager has the toolbar's search, the one search: a second filter inside the table
-          // would let select-all or a bulk action reach rows it hides. A reader has no toolbar
-          // search and no selection, so the table's own search stays for them.
-          showSearch={!canManageThisShow}
+          // The toolbar's search is the one search, for managers and readers alike: a second
+          // filter inside the table would let select-all, a bulk action or the export reach
+          // rows it hides.
+          showSearch={false}
           revealRow={focusClassId ? { id: focusClassId, key: focusVisitKey } : null}
           onRowRevealed={focusClassRow}
           getRowClassName={cls =>
@@ -319,7 +324,7 @@ export function ClassesTab({
             { id: 'element', desc: false },
             { id: 'level', desc: false },
           ]}
-          onRowClick={cls => navigate(`/shows/${showId}/trials/${cls.trialId}/classes/${cls.id}`)}
+          onRowClick={cls => navigate(getClassDetailHref(showId, cls.trialId, cls.id))}
         />
       ) : (
         groupedByTrial.map(group => (
@@ -344,9 +349,7 @@ export function ClassesTab({
                         order: cls.classOrder,
                       }
                     : {})}
-                  onClick={() =>
-                    navigate(`/shows/${showId}/trials/${cls.trialId}/classes/${cls.id}`)
-                  }
+                  onClick={() => navigate(getClassDetailHref(showId, cls.trialId, cls.id))}
                 />
               ))}
             </div>

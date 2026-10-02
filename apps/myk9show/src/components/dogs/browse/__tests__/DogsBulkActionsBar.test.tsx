@@ -72,10 +72,12 @@ function setup(dogs: Dog[], canDelete = true) {
 
 /** Opens the bulk delete for `count` dogs; returns the shared dialog. */
 async function openBulkDelete(user: ReturnType<typeof setup>['user'], count: number) {
-  await user.click(screen.getByRole('button', { name: /bulk actions/i }));
-  await user.click(
-    await screen.findByRole('menuitem', { name: new RegExp(`delete ${count} dogs?`, 'i') })
+  const button = screen.getByRole('button', { name: 'Delete' });
+  expect(button).toHaveAttribute(
+    'title',
+    expect.stringMatching(new RegExp(`delete ${count} dogs?`, 'i'))
   );
+  await user.click(button);
   return screen.findByRole('alertdialog');
 }
 
@@ -122,7 +124,7 @@ describe('DogsBulkActionsBar', () => {
 
   it('mark retired dispatches useUpdateDogMutation for eligible dogs and clears selection', async () => {
     const { user, onClear } = setup([dog('1', 'active'), dog('2', 'retired')]);
-    await user.click(screen.getByRole('button', { name: /bulk actions/i }));
+    await user.click(screen.getByRole('button', { name: 'Change status' }));
     await user.click(await screen.findByRole('menuitem', { name: /mark 1 of 2 dogs retired/i }));
 
     await waitFor(() => {
@@ -159,7 +161,7 @@ describe('DogsBulkActionsBar', () => {
     let resolve!: () => void;
     updateDogMutateAsync.mockImplementation(() => new Promise<void>(r => (resolve = r)));
     const { user } = setup([dog('1', 'active'), dog('2', 'active')]);
-    await user.click(screen.getByRole('button', { name: /bulk actions/i }));
+    await user.click(screen.getByRole('button', { name: 'Change status' }));
     await user.click(await screen.findByRole('menuitem', { name: /mark 2 dogs retired/i }));
 
     // In flight: Clear is disabled so the selection can't be dropped mid-batch.
@@ -171,17 +173,17 @@ describe('DogsBulkActionsBar', () => {
 
   it('does not offer bulk delete when the user cannot delete dogs', async () => {
     const { user } = setup([dog('1'), dog('2')], false);
-    await user.click(screen.getByRole('button', { name: /bulk actions/i }));
+    await user.click(screen.getByRole('button', { name: 'Change status' }));
     // Status change (dog:update) is still offered; Delete (dog:delete) is absent.
     expect(
       await screen.findByRole('menuitem', { name: /mark 2 dogs retired/i })
     ).toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /delete/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
   });
 
   it('dispatches one update per eligible dog when marking several at once', async () => {
     const { user } = setup([dog('1', 'active'), dog('2', 'active'), dog('3', 'active')]);
-    await user.click(screen.getByRole('button', { name: /bulk actions/i }));
+    await user.click(screen.getByRole('button', { name: 'Change status' }));
     await user.click(await screen.findByRole('menuitem', { name: /mark 3 dogs retired/i }));
 
     // Regression guard: a per-dog dispatch would trip the in-flight latch and
@@ -201,7 +203,7 @@ describe('DogsBulkActionsBar', () => {
   it('retry skips a dog whose fresh status no longer matches its status at first dispatch', async () => {
     updateDogMutateAsync.mockResolvedValueOnce(undefined).mockRejectedValueOnce(new Error('boom'));
     const { user, rerender } = setup([dog('1', 'active'), dog('2', 'active')]);
-    await user.click(screen.getByRole('button', { name: /bulk actions/i }));
+    await user.click(screen.getByRole('button', { name: 'Change status' }));
     await user.click(await screen.findByRole('menuitem', { name: /mark 2 dogs retired/i }));
 
     await waitFor(() => expect(updateDogMutateAsync).toHaveBeenCalledTimes(2));

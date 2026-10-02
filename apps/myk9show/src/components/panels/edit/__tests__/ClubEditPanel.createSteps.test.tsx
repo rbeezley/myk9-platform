@@ -43,6 +43,18 @@ function renderCreate(onSave = vi.fn().mockResolvedValue(undefined)) {
 
 const tab = (name: RegExp) => screen.getByRole('tab', { name });
 
+async function fillContact(user: ReturnType<typeof userEvent.setup>) {
+  await user.type(
+    await screen.findByRole('textbox', { name: /Email Address/ }),
+    'club@example.com'
+  );
+  await user.type(screen.getByRole('textbox', { name: /Phone Number/ }), '555-123-4567');
+  await user.type(screen.getByRole('textbox', { name: /Street Address/ }), '1 Main St');
+  await user.type(screen.getByRole('textbox', { name: /City/ }), 'Omaha');
+  await user.type(screen.getByRole('textbox', { name: /State/ }), 'NE');
+  await user.type(screen.getByRole('textbox', { name: /ZIP Code/ }), '68102');
+}
+
 describe('ClubEditPanel create mode — guided sections', () => {
   it('flags Contact as still required once Basic Info is filled', async () => {
     const user = userEvent.setup();
@@ -56,24 +68,52 @@ describe('ClubEditPanel create mode — guided sections', () => {
     expect(screen.getByTestId('club-tab-status-premium')).toHaveTextContent('Optional');
   });
 
-  it('offers Next: Contact from Basic Info and Next: Premium from Contact, then stops', async () => {
+  it('walks Basic Info, Contact, Premium with Next, and offers Add Club only on Premium', async () => {
     const user = userEvent.setup();
     renderCreate();
-    await user.click(await screen.findByRole('button', { name: /Next: Contact/ }));
+    await user.type(await screen.findByRole('textbox', { name: /Club Name/ }), 'Heartland');
+    expect(screen.queryByRole('button', { name: 'Add Club' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Next: Contact/ }));
     expect(tab(/^Contact/)).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByRole('button', { name: 'Add Club' })).not.toBeInTheDocument();
 
+    await fillContact(user);
     await user.click(screen.getByRole('button', { name: /Next: Premium/ }));
     expect(tab(/^Premium/)).toHaveAttribute('aria-selected', 'true');
     expect(screen.queryByRole('button', { name: /Next:/ })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Add Club' })).toBeInTheDocument();
   });
 
-  it('a failed submit from Basic Info lands on Contact, focuses the first missing field and flags the tab', async () => {
+  it('blocks Next from Basic Info, with a message, until the club has a name', async () => {
+    const user = userEvent.setup();
+    renderCreate();
+    await user.click(await screen.findByRole('button', { name: /Next: Contact/ }));
+
+    expect(tab(/^Basic Info/)).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByTestId('edit-panel-step-blocked')).toHaveTextContent(
+      'Please enter a name'
+    );
+    await waitFor(() => expect(document.activeElement).toHaveAttribute('id', 'name'));
+  });
+
+  it('blocks Next from Contact while a required contact field is blank', async () => {
+    const user = userEvent.setup();
+    renderCreate();
+    await user.type(await screen.findByRole('textbox', { name: /Club Name/ }), 'Heartland');
+    await user.click(screen.getByRole('button', { name: /Next: Contact/ }));
+    await user.click(await screen.findByRole('button', { name: /Next: Premium/ }));
+
+    expect(tab(/^Contact/)).toHaveAttribute('aria-selected', 'true');
+    expect(await screen.findByTestId('edit-panel-step-blocked')).toBeInTheDocument();
+    await waitFor(() => expect(document.activeElement).toHaveAttribute('id', 'email'));
+  });
+
+  it('jumping to Premium over an unfinished Contact lands on Contact, flags it and focuses the first missing field', async () => {
     const user = userEvent.setup();
     const onSave = renderCreate();
     await user.type(await screen.findByRole('textbox', { name: /Club Name/ }), 'Heartland');
-
-    await user.click(screen.getByRole('button', { name: 'Add Club' }));
+    // Forward jumps pass every tab's check (decision 13): Contact is unfinished.
+    await user.click(tab(/^Premium/));
 
     await waitFor(() => expect(tab(/^Contact/)).toHaveAttribute('aria-selected', 'true'));
     await waitFor(() => expect(document.activeElement).toHaveAttribute('id', 'email'));
@@ -86,16 +126,8 @@ describe('ClubEditPanel create mode — guided sections', () => {
     const onSave = renderCreate();
     await user.type(await screen.findByRole('textbox', { name: /Club Name/ }), 'Heartland');
     await user.click(screen.getByRole('button', { name: /Next: Contact/ }));
-
-    await user.type(
-      await screen.findByRole('textbox', { name: /Email Address/ }),
-      'club@example.com'
-    );
-    await user.type(screen.getByRole('textbox', { name: /Phone Number/ }), '555-123-4567');
-    await user.type(screen.getByRole('textbox', { name: /Street Address/ }), '1 Main St');
-    await user.type(screen.getByRole('textbox', { name: /City/ }), 'Omaha');
-    await user.type(screen.getByRole('textbox', { name: /State/ }), 'NE');
-    await user.type(screen.getByRole('textbox', { name: /ZIP Code/ }), '68102');
+    await fillContact(user);
+    await user.click(screen.getByRole('button', { name: /Next: Premium/ }));
 
     await user.click(screen.getByRole('button', { name: 'Add Club' }));
 
@@ -109,7 +141,8 @@ describe('ClubEditPanel create mode — guided sections', () => {
   it('every mapped field has a focus target on the tab it names', async () => {
     const user = userEvent.setup();
     renderCreate();
-    await screen.findByRole('textbox', { name: /Club Name/ });
+    // Basic Info must pass before Contact can be opened from the tab bar.
+    await user.type(await screen.findByRole('textbox', { name: /Club Name/ }), 'Heartland');
     const missing: string[] = [];
     for (const name of ['basic', 'contact'] as const) {
       await user.click(
@@ -125,7 +158,8 @@ describe('ClubEditPanel create mode — guided sections', () => {
   it('keeps one to-complete count per tab as fields are typed', async () => {
     const user = userEvent.setup();
     renderCreate();
-    await user.click(await screen.findByRole('button', { name: /Next: Contact/ }));
+    await user.type(await screen.findByRole('textbox', { name: /Club Name/ }), 'Heartland');
+    await user.click(await screen.findByRole('tab', { name: /^Contact/ }));
     const status = () => screen.getByTestId('club-tab-status-contact');
     expect(status()).toHaveTextContent('6 to complete');
     // Phone width shows a bare count; the full phrase stays readable to assistive tech.
@@ -147,7 +181,7 @@ describe('ClubEditPanel create mode — guided sections', () => {
     await user.type(await screen.findByRole('textbox', { name: /Club Name/ }), 'Heartland');
     expect(screen.getByTestId('club-tab-status-contact')).not.toHaveAttribute('data-error');
 
-    await user.click(screen.getByRole('button', { name: 'Add Club' }));
+    await user.click(tab(/^Premium/));
     await waitFor(() =>
       expect(screen.getByTestId('club-tab-status-contact')).toHaveAttribute('data-error', 'true')
     );
@@ -193,36 +227,6 @@ describe('ClubEditPanel create mode — guided sections', () => {
     rerender(<ClubEditPanel open onClose={() => {}} {...props} />);
     await screen.findByRole('tab', { name: /^Contact/ });
     expect(tabsListMounts).toHaveBeenCalledTimes(2);
-  });
-
-  it('makes Next primary and Add Club secondary until nothing later is outstanding', async () => {
-    const user = userEvent.setup();
-    renderCreate();
-    await user.type(await screen.findByRole('textbox', { name: /Club Name/ }), 'Heartland');
-
-    const next = () => screen.getByRole('button', { name: /Next: Contact/ });
-    const create = () => screen.getByRole('button', { name: 'Add Club' });
-    expect(next()).toHaveAttribute('data-variant', 'default');
-    expect(create()).toHaveAttribute('data-variant', 'outline');
-    expect(create()).toBeEnabled();
-
-    await user.click(next());
-    await user.type(
-      await screen.findByRole('textbox', { name: /Email Address/ }),
-      'club@example.com'
-    );
-    await user.type(screen.getByRole('textbox', { name: /Phone Number/ }), '555-123-4567');
-    await user.type(screen.getByRole('textbox', { name: /Street Address/ }), '1 Main St');
-    await user.type(screen.getByRole('textbox', { name: /City/ }), 'Omaha');
-    await user.type(screen.getByRole('textbox', { name: /State/ }), 'NE');
-    await user.type(screen.getByRole('textbox', { name: /ZIP Code/ }), '68102');
-
-    // Everything required is resolved: Add Club is the primary action again.
-    expect(create()).toHaveAttribute('data-variant', 'default');
-    expect(screen.getByRole('button', { name: /Next: Premium/ })).toHaveAttribute(
-      'data-variant',
-      'secondary'
-    );
   });
 
   it('summarises unresolved counts in one polite live region that ignores same-count typing', async () => {

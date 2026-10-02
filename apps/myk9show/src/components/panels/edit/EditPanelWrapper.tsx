@@ -1,8 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { z } from 'zod';
 import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
-import { Button } from '@/components/ui/button';
-import { Save, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EditPanelContext, EditPanelContextValue } from './useEditPanel';
 import { logger } from '@/services/LoggingService';
@@ -14,9 +12,11 @@ import { UnsavedChangesRouteGuard } from '@/components/navigation/UnsavedChanges
 import { DiscardChangesDialog } from './DiscardChangesDialog';
 import { PanelSaveHandledError, offlineAwareMessage } from './panelSaveErrors';
 import { friendlySaveError } from '@/utils/friendlySaveError';
-import { EditPanelDeleteButton, EditPanelDeleteDialog } from './EditPanelDelete';
+import { EditPanelDeleteDialog } from './EditPanelDelete';
 import type { DeleteRecordsResult } from '@/features/delete';
-import { EditPanelErrorSummary } from './EditPanelErrorSummary';
+import { EditPanelFooter } from './EditPanelFooter';
+import { RequiredLegend } from '@/components/common/RequiredMark';
+import { useEditPanelSteps } from './useEditPanelSteps';
 import type { EditPanelWrapperProps } from './EditPanelWrapper.types';
 
 export type { EditPanelDeleteOption } from './EditPanelDelete';
@@ -60,6 +60,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   onValidationChange,
   onAutoSave,
   onValidationFail,
+  steps,
 }: EditPanelWrapperProps<T>) {
   // Determine which path to use
   const useSchemaPath = !!schema;
@@ -360,6 +361,15 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     />
   );
 
+  // Create-mode tab walk: Next replaces Save until the last tab (decision 13).
+  const stepsState = useEditPanelSteps({
+    steps,
+    schema,
+    data,
+    touchField: field => form.touchField(field),
+    open,
+  });
+
   // Context value
   const contextValue: EditPanelContextValue<Record<string, unknown>> = {
     form: useSchemaPath ? (form as unknown as FormValidation<Record<string, unknown>>) : undefined,
@@ -372,6 +382,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     isLoading,
     setIsLoading,
     runSelfNavigation,
+    requestTab: stepsState.requestTab,
   };
 
   // Save and Close hold still while the delete dialog is open: its server call
@@ -393,73 +404,44 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   // registers its generic footer container so every slide-out consumer gets
   // the same toast clearance without each caller remembering the hook.
   const footer = (
-    <div className="flex w-full flex-col gap-3">
-      <EditPanelErrorSummary errors={errors} />
+    <EditPanelFooter
+      errors={errors}
+      onDelete={onDelete}
+      onOpenDelete={() => setDeleteOpen(true)}
+      controlsBlocked={controlsBlocked}
+      hasChanges={hasChanges}
+      enableAutoSave={enableAutoSave}
+      footerActions={footerActions}
+      cancelLabel={cancelLabel}
+      onCancel={handleClose}
+      saveVariant={saveVariant}
+      saveLabel={saveLabel}
+      saveDisabled={
+        useSchemaPath
+          ? (!hasChanges && !forceHasChanges) || controlsBlocked
+          : (!hasChanges && !forceHasChanges) || !isValid || controlsBlocked
+      }
+      saving={isLoading}
+      onSave={handleSave}
+      nextTab={stepsState.nextTab}
+      onNext={stepsState.goNext}
+      stepBlockedMessage={stepsState.blockedMessage}
+    />
+  );
 
-      <div
-        data-testid="edit-panel-action-row"
-        className="flex w-full flex-wrap items-center justify-between gap-x-4 gap-y-2"
-      >
-        {onDelete && (
-          <EditPanelDeleteButton
-            option={onDelete}
-            disabled={controlsBlocked}
-            onOpen={() => setDeleteOpen(true)}
-            className="order-last sm:order-none"
-          />
-        )}
-        <div
-          data-testid="edit-panel-status-group"
-          className="flex min-w-0 flex-1 items-center gap-4"
-        >
-          {/* Status indicators */}
-          {hasChanges && (
-            <div
-              role="status"
-              aria-label="Unsaved changes"
-              className="flex items-center gap-2 text-sm text-muted-foreground animate-in fade-in-0 slide-in-from-left-1 duration-200 ease-out"
-            >
-              <div className="h-2 w-2 rounded-full bg-amber-500 animate-pulse" aria-hidden />
-              <span className="hidden sm:inline" aria-hidden>
-                Unsaved changes
-              </span>
-            </div>
+  // Create forms carry required markers; say once what the asterisk means.
+  const body = (
+    <>
+      {steps?.mode === 'create' && (
+        <RequiredLegend
+          className={cn(
+            'text-xs text-muted-foreground',
+            variant === 'dialog' ? 'pb-3' : 'px-6 pt-4'
           )}
-
-          {enableAutoSave && <div className="text-xs text-muted-foreground">Auto-save enabled</div>}
-        </div>
-
-        <div
-          data-testid="edit-panel-action-group"
-          className="flex w-full shrink-0 flex-wrap items-center gap-2 sm:w-auto"
-        >
-          {footerActions}
-          <Button
-            variant="outline"
-            onClick={handleClose}
-            disabled={controlsBlocked}
-            className="min-w-0 flex-1 gap-2 transition-all duration-200 hover:scale-105 active:scale-95 sm:flex-none"
-          >
-            <X className="h-4 w-4" />
-            {cancelLabel}
-          </Button>
-          <Button
-            variant={saveVariant}
-            data-variant={saveVariant}
-            onClick={handleSave}
-            disabled={
-              useSchemaPath
-                ? (!hasChanges && !forceHasChanges) || controlsBlocked
-                : (!hasChanges && !forceHasChanges) || !isValid || controlsBlocked
-            }
-            className="min-w-0 flex-1 gap-2 transition-all duration-200 hover:scale-105 active:scale-95 sm:flex-none"
-          >
-            <Save className="h-4 w-4" />
-            {isLoading ? 'Saving...' : saveLabel}
-          </Button>
-        </div>
-      </div>
-    </div>
+        />
+      )}
+      {children}
+    </>
   );
 
   // In the dialog variant it is mounted INSIDE the dialog so Base UI treats it as
@@ -502,7 +484,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
             <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
               <DialogTitle>{title}</DialogTitle>
             </DialogHeader>
-            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">{children}</div>
+            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">{body}</div>
             <div ref={actionBarRef} className="border-t px-6 py-4 shrink-0">
               {footer}
             </div>
@@ -532,7 +514,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         <div className="flex flex-col h-full animate-in fade-in-0 duration-300 ease-out">
           {/* Main content - no overflow here, SlideOverPanel handles scrolling */}
           <div className="flex-1 animate-in slide-in-from-bottom-1 duration-400 ease-out">
-            {children}
+            {body}
           </div>
         </div>
       </SlideOverPanel>

@@ -14,6 +14,7 @@ import {
   getReviewBlockingErrors,
   getValidationScope,
   getShowDetailsValidationMessages,
+  getTrialValidationMessages,
   getValidationMessagesForStep,
 } from './showCreationWizardValidation';
 
@@ -125,7 +126,8 @@ describe('class-selection step registry validation', () => {
     const trials = [
       {
         id: 'trial-1',
-        dateTime: '2026-08-29T08:00:00',
+        trialDate: '2026-08-29',
+        startTimeDraft: '08:00 AM',
         eventNumber: 'EVT-1',
         trialType: 'scent_work',
         classes: [
@@ -165,7 +167,8 @@ describe('class step - which trials must have classes (MYK9-899)', () => {
   };
   const mk = (id: string, classes: unknown[]) => ({
     id,
-    dateTime: '2026-08-29T08:00:00',
+    trialDate: '2026-08-29',
+    startTimeDraft: '08:00 AM',
     eventNumber: 'EVT-1',
     trialType: 'scent_work',
     classes,
@@ -208,7 +211,7 @@ describe('class step - which trials must have classes (MYK9-899)', () => {
       {},
       'class-selection'
     );
-    expect(messages).toContain('At least one class must be added to the trials');
+    expect(messages).toContain('Please add at least one class to the trials');
   });
 });
 
@@ -226,7 +229,7 @@ describe('validation scope: add-classes evaluates only the class rules (MYK9-899
   });
   const trial = {
     id: 'trial-1',
-    dateTime: '',
+    trialDate: '',
     eventNumber: '',
     trialType: 'scent_work',
     classes: [
@@ -279,7 +282,7 @@ describe('validation scope: add-classes evaluates only the class rules (MYK9-899
         officialsUnknown: false,
         scope,
       })
-    ).toEqual(['At least one class must be configured']);
+    ).toEqual(['Please add at least one class']);
   });
 
   it('full scope still enforces every requirement on the same show (control)', () => {
@@ -295,12 +298,12 @@ describe('validation scope: add-classes evaluates only the class rules (MYK9-899
       }),
     ].join(' | ');
     for (const required of [
-      'Show name is required',
-      'Location is required',
-      'Club selection is required',
+      'Please enter a show name',
+      'Please enter a location',
+      'Please select a hosting club',
       'Please select a chair',
       'Please select a secretary',
-      'Entry open date is required',
+      'Please select an entry open date',
     ]) {
       expect(messages).toContain(required);
     }
@@ -313,7 +316,7 @@ describe('validation scope: add-classes evaluates only the class rules (MYK9-899
 // existing show that is already live keeps the window mandatory, so adding
 // trials or classes to it can never clear the window a published show needs.
 describe('Show Details step — entry window (MYK9-716)', () => {
-  const REQUIRED = ['Entry open date is required', 'Entry close date is required'];
+  const REQUIRED = ['Please select an entry open date', 'Please select an entry close date'];
   const windowless = () => baseShow({ entryOpenDate: '', entryCloseDate: '' });
   const trialView = {
     effectiveNamesByTrialId: new Map<string, string>(),
@@ -341,5 +344,33 @@ describe('Show Details step — entry window (MYK9-716)', () => {
     expect(getShowDetailsValidationMessages(show)).toContain(
       'Entry close date must be on or after entry open date'
     );
+  });
+});
+
+describe('trial start time draft (MYK9-931)', () => {
+  it('a blank or invalid typed start time blocks the trial step by name', () => {
+    const view = {
+      effectiveNamesByTrialId: new Map([['t1', 'Saturday Trial']]),
+    } as unknown as Parameters<typeof getTrialValidationMessages>[1];
+    const trial = (startTimeDraft?: string) =>
+      [
+        {
+          id: 't1',
+          trialDate: '2026-08-15',
+          startTimeDraft: '08:00 AM',
+          eventNumber: '1',
+          trialType: 'Scent Work',
+          classes: [],
+          ...(startTimeDraft !== undefined ? { startTimeDraft } : {}),
+        },
+      ] as unknown as Parameters<typeof getTrialValidationMessages>[0];
+    expect(getTrialValidationMessages(trial(), view, 'UKC')).toEqual([]);
+    expect(getTrialValidationMessages(trial('1:30 PM'), view, 'UKC')).toEqual([]);
+    expect(getTrialValidationMessages(trial(''), view, 'UKC')).toEqual([
+      'Please enter a start time for Saturday Trial',
+    ]);
+    expect(getTrialValidationMessages(trial('soon'), view, 'UKC')).toEqual([
+      'Please enter a valid start time for Saturday Trial (e.g., 9:00 AM)',
+    ]);
   });
 });

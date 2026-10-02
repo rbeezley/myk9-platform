@@ -1,4 +1,6 @@
-import { matchesAny } from '@myk9/core';
+import type { ColumnDef } from '@/components/ui/data-table';
+import { matchesListSearch } from '@/components/ui/data-table/listSearch';
+import type { ClassTableRow } from './classesTabColumns';
 import type { ClassInfo } from './classInfo';
 import { classTrialLabel, trialLabelFor } from './classInfo';
 
@@ -59,11 +61,19 @@ export function resolveScopeTrialId(
   return options.find(option => option.id === requested)?.id ?? options[0]?.id ?? null;
 }
 
-/** Text search over the class name, element and level, plus the element filter. */
-export function narrowClasses(classes: ClassInfo[], search: string, element: string): ClassInfo[] {
+/**
+ * The element filter, then the one list search read from the table's own columns, so typing what
+ * a row shows (its level and section, judge, status, time) finds it.
+ */
+export function narrowClasses(
+  classes: ClassInfo[],
+  search: string,
+  element: string,
+  columns: ReadonlyArray<ColumnDef<ClassTableRow, unknown>>
+): ClassInfo[] {
   return classes.filter(
     cls =>
       (element === 'all' || cls.element === element) &&
-      matchesAny([cls.name, cls.element, cls.level], search)
+      matchesListSearch({ ...cls, trialLabel: classTrialLabel(cls) }, columns, search)
   );
 }

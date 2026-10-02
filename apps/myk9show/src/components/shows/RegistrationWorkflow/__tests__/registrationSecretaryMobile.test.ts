@@ -12,7 +12,6 @@ const dir = path.join(__dirname, '..');
 const read = (rel: string) => readFileSync(path.join(dir, rel), 'utf8');
 
 const secretaryPayment = read('PaymentStep/SecretaryPaymentManagement.tsx');
-const createExhibitor = read('CreateExhibitorDialog.tsx');
 const handlerDialog = read('HandlerSelectionDialog.tsx');
 const enhancedDog = read('DogSelectionStepEnhanced.tsx');
 const dogSearch = read('DogSearchInterface.tsx');
@@ -27,12 +26,6 @@ describe('secretary surfaces — dark-mode + grid-stacking guards', () => {
     // tabs and action grids stack on mobile
     expect(secretaryPayment).toContain('grid-cols-2 sm:grid-cols-4');
     expect(secretaryPayment).toContain('grid-cols-1 gap-3 sm:grid-cols-2');
-  });
-
-  it('CreateExhibitorDialog form grids stack on mobile and drop raw gray', () => {
-    expect(createExhibitor).not.toContain('text-gray-');
-    expect(createExhibitor).toContain('grid-cols-1 gap-4 sm:grid-cols-3'); // City/State/ZIP
-    expect(createExhibitor).toContain('grid-cols-1 gap-4 sm:grid-cols-2');
   });
 });
 

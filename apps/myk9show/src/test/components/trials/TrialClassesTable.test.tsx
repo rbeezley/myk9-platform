@@ -61,24 +61,28 @@ const mockHandlers = {
 describe('TrialClassesTable', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // These tests exercise the table; a remembered choice beats the role's default view.
+    localStorage.setItem('view-pref-trial-classes', 'table');
   });
 
   describe('Empty State', () => {
     it('displays icon in empty state', () => {
       renderWithRouter(
         <TrialClassesTable
+          showId="show-1"
           classes={[]}
           onEditClass={mockHandlers.onEditClass}
           onDeleteClass={mockHandlers.onDeleteClass}
         />
       );
 
-      expect(screen.getByTestId('empty-state-icon')).toBeInTheDocument();
+      expect(screen.getByTestId('empty-state')).toBeInTheDocument();
     });
 
     it('displays the management call-to-action for staff', () => {
       renderWithRouter(
         <TrialClassesTable
+          showId="show-1"
           classes={[]}
           canManage
           onEditClass={mockHandlers.onEditClass}
@@ -95,6 +99,7 @@ describe('TrialClassesTable', () => {
     it('displays a neutral read-only message for non-staff (no management pitch)', () => {
       renderWithRouter(
         <TrialClassesTable
+          showId="show-1"
           classes={[]}
           onEditClass={mockHandlers.onEditClass}
           onDeleteClass={mockHandlers.onDeleteClass}
@@ -113,6 +118,7 @@ describe('TrialClassesTable', () => {
     it('shows Add Classes button when handler provided and user can manage', () => {
       renderWithRouter(
         <TrialClassesTable
+          showId="show-1"
           classes={[]}
           canManage
           onAddClassesFromTemplate={mockHandlers.onAddClassesFromTemplate}
@@ -128,6 +134,7 @@ describe('TrialClassesTable', () => {
       const user = userEvent.setup();
       renderWithRouter(
         <TrialClassesTable
+          showId="show-1"
           classes={[]}
           canManage
           onAddClassesFromTemplate={mockHandlers.onAddClassesFromTemplate}
@@ -145,6 +152,7 @@ describe('TrialClassesTable', () => {
     it('has concise search placeholder', () => {
       renderWithRouter(
         <TrialClassesTable
+          showId="show-1"
           classes={mockClasses}
           onEditClass={mockHandlers.onEditClass}
           onDeleteClass={mockHandlers.onDeleteClass}
@@ -159,6 +167,7 @@ describe('TrialClassesTable', () => {
       const user = userEvent.setup({ delay: null });
       renderWithRouter(
         <TrialClassesTable
+          showId="show-1"
           classes={mockClasses}
           onEditClass={mockHandlers.onEditClass}
           onDeleteClass={mockHandlers.onDeleteClass}
@@ -183,6 +192,7 @@ describe('TrialClassesTable', () => {
       const user = userEvent.setup({ delay: null });
       renderWithRouter(
         <TrialClassesTable
+          showId="show-1"
           classes={mockClasses}
           onEditClass={mockHandlers.onEditClass}
           onDeleteClass={mockHandlers.onDeleteClass}
@@ -193,9 +203,13 @@ describe('TrialClassesTable', () => {
       await user.type(searchInput, 'NonexistentClass');
 
       // DataTableSearch debounces 300ms — wait for filter to apply
-      await waitFor(() => expect(screen.getByText(/no classes found/i)).toBeInTheDocument(), {
-        timeout: 1000,
-      });
+      await waitFor(
+        () =>
+          expect(
+            screen.getByRole('heading', { name: 'No classes match your search or filters.' })
+          ).toBeInTheDocument(),
+        { timeout: 1000 }
+      );
     });
   });
 
@@ -203,6 +217,7 @@ describe('TrialClassesTable', () => {
     it('displays all classes when no filter is applied', () => {
       renderWithRouter(
         <TrialClassesTable
+          showId="show-1"
           classes={mockClasses}
           onEditClass={mockHandlers.onEditClass}
           onDeleteClass={mockHandlers.onDeleteClass}
@@ -214,33 +229,17 @@ describe('TrialClassesTable', () => {
       expect(screen.getByText('Exterior')).toBeInTheDocument();
     });
 
-    it('shows class count in header', () => {
+    it('says how many classes it shows in the result line', () => {
       renderWithRouter(
         <TrialClassesTable
+          showId="show-1"
           classes={mockClasses}
           onEditClass={mockHandlers.onEditClass}
           onDeleteClass={mockHandlers.onDeleteClass}
         />
       );
 
-      expect(screen.getByText(/classes \(3\)/i)).toBeInTheDocument();
-    });
-
-    it('still shows total count in header when search is active', async () => {
-      const user = userEvent.setup();
-      renderWithRouter(
-        <TrialClassesTable
-          classes={mockClasses}
-          onEditClass={mockHandlers.onEditClass}
-          onDeleteClass={mockHandlers.onDeleteClass}
-        />
-      );
-
-      const searchInput = screen.getByPlaceholderText('Search classes...');
-      await user.type(searchInput, 'Novice');
-
-      // Header always shows total count; filtering is handled inside DataTable
-      expect(screen.getByText(/classes \(3\)/i)).toBeInTheDocument();
+      expect(screen.getByRole('status')).toHaveTextContent('Showing all 3 classes.');
     });
   });
 
@@ -248,6 +247,7 @@ describe('TrialClassesTable', () => {
     it('has table and card view toggle buttons', () => {
       renderWithRouter(
         <TrialClassesTable
+          showId="show-1"
           classes={mockClasses}
           onEditClass={mockHandlers.onEditClass}
           onDeleteClass={mockHandlers.onDeleteClass}
@@ -261,6 +261,7 @@ describe('TrialClassesTable', () => {
     it('defaults to table view', () => {
       renderWithRouter(
         <TrialClassesTable
+          showId="show-1"
           classes={mockClasses}
           onEditClass={mockHandlers.onEditClass}
           onDeleteClass={mockHandlers.onDeleteClass}
@@ -292,6 +293,7 @@ describe('TrialClassesTable', () => {
       };
       const { container } = renderWithRouter(
         <TrialClassesTable
+          showId="show-1"
           classes={[...mockClasses, openLevel]}
           onEditClass={mockHandlers.onEditClass}
           onDeleteClass={mockHandlers.onDeleteClass}
@@ -318,6 +320,7 @@ describe('TrialClassesTable', () => {
     it('displays status badges for each class', () => {
       renderWithRouter(
         <TrialClassesTable
+          showId="show-1"
           classes={mockClasses}
           onEditClass={mockHandlers.onEditClass}
           onDeleteClass={mockHandlers.onDeleteClass}
@@ -334,6 +337,7 @@ describe('TrialClassesTable', () => {
     it('has no Add Classes button in the header: it is the Actions menu item (MYK9-928)', () => {
       renderWithRouter(
         <TrialClassesTable
+          showId="show-1"
           classes={mockClasses}
           canManage
           onAddClassesFromTemplate={mockHandlers.onAddClassesFromTemplate}
@@ -344,7 +348,7 @@ describe('TrialClassesTable', () => {
 
       expect(screen.queryByRole('button', { name: /add classes/i })).not.toBeInTheDocument();
       // Positive control: the table did render for this managing viewer.
-      expect(screen.getByRole('heading', { name: /classes \(/i })).toBeInTheDocument();
+      expect(screen.getByRole('status')).toHaveTextContent('Showing all 3 classes.');
     });
   });
 
@@ -355,6 +359,7 @@ describe('TrialClassesTable', () => {
     it('hides the Add Classes button in the header even when a handler is provided', () => {
       renderWithRouter(
         <TrialClassesTable
+          showId="show-1"
           classes={mockClasses}
           onAddClassesFromTemplate={mockHandlers.onAddClassesFromTemplate}
           onEditClass={mockHandlers.onEditClass}
@@ -368,6 +373,7 @@ describe('TrialClassesTable', () => {
     it('hides the Add Classes button in the empty state even when a handler is provided', () => {
       renderWithRouter(
         <TrialClassesTable
+          showId="show-1"
           classes={[]}
           onAddClassesFromTemplate={mockHandlers.onAddClassesFromTemplate}
           onEditClass={mockHandlers.onEditClass}
@@ -381,6 +387,7 @@ describe('TrialClassesTable', () => {
     it('hides the row Actions column (no Edit/Delete affordances)', () => {
       renderWithRouter(
         <TrialClassesTable
+          showId="show-1"
           classes={mockClasses}
           onEditClass={mockHandlers.onEditClass}
           onDeleteClass={mockHandlers.onDeleteClass}
@@ -393,6 +400,7 @@ describe('TrialClassesTable', () => {
     it('hides the "Manage the classes for this trial" subtitle', () => {
       renderWithRouter(
         <TrialClassesTable
+          showId="show-1"
           classes={mockClasses}
           onEditClass={mockHandlers.onEditClass}
           onDeleteClass={mockHandlers.onDeleteClass}
@@ -405,6 +413,7 @@ describe('TrialClassesTable', () => {
     it('still renders the class list read-only (classes remain visible)', () => {
       renderWithRouter(
         <TrialClassesTable
+          showId="show-1"
           classes={mockClasses}
           onEditClass={mockHandlers.onEditClass}
           onDeleteClass={mockHandlers.onDeleteClass}
@@ -420,6 +429,7 @@ describe('TrialClassesTable', () => {
     it('shows the Actions column when canManage is true', () => {
       renderWithRouter(
         <TrialClassesTable
+          showId="show-1"
           classes={mockClasses}
           canManage
           onEditClass={mockHandlers.onEditClass}

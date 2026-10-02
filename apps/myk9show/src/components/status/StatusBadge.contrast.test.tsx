@@ -5,6 +5,7 @@ import { render } from '@/test/utils/testUtils';
 import {
   CLASS_STATUS_VALUES,
   ENTRY_STATUS_VALUES,
+  SHOW_STATUS_VALUES,
   TRIAL_STATUS_VALUES,
   getStatusDescriptor,
   getStatusSurfaceClasses,
@@ -32,6 +33,7 @@ describe('rendered status badge contrast', () => {
     ['entry', ENTRY_STATUS_VALUES],
     ['class', CLASS_STATUS_VALUES],
     ['trial', TRIAL_STATUS_VALUES],
+    ['show', SHOW_STATUS_VALUES],
   ];
 
   it('renders every status with its semantic composited surface', () => {
@@ -52,7 +54,10 @@ describe('rendered status badge contrast', () => {
     const badges = [...container.querySelectorAll<HTMLElement>('div.inline-flex')];
 
     expect(badges).toHaveLength(
-      ENTRY_STATUS_VALUES.length + CLASS_STATUS_VALUES.length + TRIAL_STATUS_VALUES.length
+      ENTRY_STATUS_VALUES.length +
+        CLASS_STATUS_VALUES.length +
+        TRIAL_STATUS_VALUES.length +
+        SHOW_STATUS_VALUES.length
     );
     statuses.forEach(([family, values], familyIndex) => {
       values.forEach((status, statusIndex) => {

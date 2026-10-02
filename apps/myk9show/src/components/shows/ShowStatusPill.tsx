@@ -24,6 +24,11 @@ import {
   entryWindowPublishError,
 } from '@/features/payments/onlineEntryGate';
 import { getShowEditHref } from '@/components/shows/showEditRoutes';
+import {
+  SHOW_STATUS_VALUES,
+  getStatusDescriptor,
+  getStatusSurfaceClasses,
+} from '@/components/status';
 
 interface ShowStatusPillProps {
   showId: string;
@@ -38,32 +43,22 @@ interface ShowStatusPillProps {
   entryCloseDate: string | null | undefined;
 }
 
-const STATUS_CONFIG: Record<string, { label: string; className: string }> = {
-  draft: {
-    label: 'Draft',
-    className: 'bg-warning/10 border border-warning/30 text-warning ',
-  },
-  published: {
-    label: 'Published show',
-    className: 'bg-success/10 border border-success/30 text-success ',
-  },
-  upcoming: {
-    label: 'Upcoming',
-    className: 'bg-info/10 border border-info/30 text-info ',
-  },
-  in_progress: {
-    label: 'In Progress',
-    className: 'bg-warning/10 border border-warning/30 text-warning ',
-  },
-  completed: {
-    label: 'Completed',
-    className: 'bg-muted border border-border text-muted-foreground',
-  },
-  cancelled: {
-    label: 'Cancelled',
-    className: 'bg-destructive/10 border border-destructive/30 text-destructive ',
-  },
-};
+/**
+ * The pill's label and colour come from the shared status grammar's `show` family (MYK9-929, M5),
+ * so a show reads the same here as in the table. An unrecognised status shows its raw text, muted.
+ */
+function pillConfig(status: string): { label: string; className: string } {
+  if (!(SHOW_STATUS_VALUES as readonly string[]).includes(status)) {
+    return {
+      label: status,
+      className: 'bg-muted border border-border text-muted-foreground',
+    };
+  }
+  return {
+    label: getStatusDescriptor('show', status).label,
+    className: `${getStatusSurfaceClasses('show', status)} border border-border`,
+  };
+}
 
 const TRANSITIONS: Record<string, { label: string; next: string }[]> = {
   draft: [{ label: 'Publish Show', next: 'published' }],
@@ -85,10 +80,7 @@ export function ShowStatusPill({
   const navigate = useNavigate();
   const clubAccountQuery = useClubStripeAccount(clubId);
   const clubAuthQuery = useClubAuthorization(clubId);
-  const config = STATUS_CONFIG[status] ?? {
-    label: status,
-    className: 'bg-muted border border-border text-muted-foreground',
-  };
+  const config = pillConfig(status);
   const transitions = TRANSITIONS[status] ?? [];
   // The entry dates live on the Edit panel's Basic Info tab.
   const setEntryWindowAction = {

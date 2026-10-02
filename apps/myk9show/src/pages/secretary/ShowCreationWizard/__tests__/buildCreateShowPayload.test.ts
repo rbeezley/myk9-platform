@@ -14,7 +14,7 @@ function buildCreateShowPayload(
   const trialView = createWizardTrialView(
     trials.map(trial => ({
       id: trial.id,
-      trialDate: trial.dateTime,
+      trialDate: trial.trialDate,
       nameOverride: trial.nameOverride,
     })),
     []
@@ -46,7 +46,8 @@ const baseShow: WizardShowData = {
 const baseTrial: WizardTrial = {
   id: 'wizard-trial-1',
   nameOverride: 'Saturday Trial',
-  dateTime: '2026-06-01T09:00:00',
+  trialDate: '2026-06-01',
+  startTimeDraft: '09:00 AM',
   eventNumber: 'EVT-001',
   trialType: 'Scent Work',
   classes: [],
@@ -610,11 +611,10 @@ describe('buildCreateShowPayload', () => {
       expect(rpcInput.p_show.entry_close_date).toBe('2026-05-14');
     });
 
-    it('sends local-date strings for trial date', () => {
-      const lateNight = new Date(2026, 4, 14, 23, 59, 0).toISOString();
+    it('sends the trial date exactly as stored (a calendar day, never an instant)', () => {
       const { rpcInput } = buildCreateShowPayload(
         baseShow,
-        [{ ...baseTrial, dateTime: lateNight }],
+        [{ ...baseTrial, trialDate: '2026-05-14' }],
         {},
         new Map(),
         'unpublished'
@@ -653,5 +653,31 @@ describe('buildCreateShowPayload', () => {
       'unpublished'
     );
     expect(localEntities.classes[0]!._syncStatus).toBe('synced');
+  });
+});
+
+describe('trial start time comes from the validated typed draft (MYK9-931)', () => {
+  const build = (trial: WizardTrial) =>
+    buildCreateShowPayload(baseShow, [trial], {}, new Map(), 'unpublished');
+
+  it('refuses to build while a trial start time is blank', () => {
+    expect(() => build({ ...baseTrial, startTimeDraft: '' })).toThrow(
+      /start time for Saturday Trial/
+    );
+  });
+
+  it('refuses to build while a trial start time is invalid', () => {
+    expect(() => build({ ...baseTrial, startTimeDraft: 'soon' })).toThrow(
+      /valid start time for Saturday Trial/
+    );
+  });
+
+  it('saves a valid edited time exactly as typed', () => {
+    const { rpcInput } = build({
+      ...baseTrial,
+      trialDate: '2026-06-01',
+      startTimeDraft: '10:15 AM',
+    });
+    expect(rpcInput.p_trials[0]?.planned_start_time).toBe('10:15 AM');
   });
 });

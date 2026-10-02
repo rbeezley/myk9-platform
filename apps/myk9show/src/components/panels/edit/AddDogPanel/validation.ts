@@ -53,6 +53,24 @@ const isRegistration = (v: unknown): v is Registration => {
   );
 };
 
+/** What is wrong with one registration, as a phrase after "Registration N", or null. */
+function registrationProblem(value: unknown): string | null {
+  if (isRegistration(value)) return null;
+  const r = (value && typeof value === 'object' ? value : {}) as Record<string, unknown>;
+  const blank = (v: unknown) => typeof v !== 'string' || v.trim().length === 0;
+  if (blank(r.organization)) return 'needs an organization';
+  if (blank(r.registeredName)) return 'needs a registered name';
+  if (blank(r.breed)) return 'needs a breed';
+  if (blank(r.registrationNumber)) return 'needs a registration number';
+  if (!REG_NUMBER_PATTERN.test(r.registrationNumber as string)) {
+    return 'has an invalid registration number (letters, numbers, - and / only)';
+  }
+  if (!(REGISTRATION_STATUS_VALUES as readonly string[]).includes(r.status as string)) {
+    return 'needs a valid status';
+  }
+  return 'has a value that is too long or invalid';
+}
+
 /**
  * Zod schema for AddDogPanel form data.
  * Replaces the legacy validateDogData function.
@@ -115,9 +133,20 @@ export const addDogSchema = z.object({
       val => !val || val.startsWith('data:image/') || /^https?:\/\//i.test(val),
       'Photo must be an image'
     ),
-  registrations: z.custom<Registration[]>(val => Array.isArray(val) && val.every(isRegistration), {
-    message: 'Invalid registrations',
-  }),
+  registrations: z
+    .custom<Registration[]>(val => Array.isArray(val), { message: 'Invalid registrations' })
+    .superRefine((registrations, ctx) => {
+      // Name the row and the field, so the user is not left hunting (MYK9-931).
+      registrations.forEach((registration, index) => {
+        const problem = registrationProblem(registration);
+        if (problem) {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: `Registration ${index + 1} ${problem}`,
+          });
+        }
+      });
+    }),
 });
 
 /**

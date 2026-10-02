@@ -248,7 +248,7 @@ describe('CloneFromShowCombobox', () => {
           trials: [
             {
               nameOverride: 'Friday Trial 1',
-              dateTime: '',
+              trialDate: '',
               eventNumber: '',
               trialType: 'Nosework',
               classes: [
@@ -366,7 +366,7 @@ describe('CloneFromShowCombobox', () => {
         trials: [
           expect.objectContaining({
             nameOverride: 'Friday Trial 1',
-            dateTime: '',
+            trialDate: '',
             eventNumber: '',
             trialType: 'Nosework',
             classes: [

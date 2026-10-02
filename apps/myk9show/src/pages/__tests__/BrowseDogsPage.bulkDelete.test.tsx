@@ -68,7 +68,7 @@ vi.mock('@/components/panels/edit', () => ({ AddDogPanel: () => null }));
 
 import BrowseDogsPage from '../BrowseDogsPage';
 
-async function openBulkMenu() {
+async function selectOneDog() {
   const user = userEvent.setup();
   render(
     <QueryClientProvider
@@ -80,9 +80,9 @@ async function openBulkMenu() {
     </QueryClientProvider>
   );
   await user.click(await screen.findByRole('checkbox', { name: 'Select Max' }));
-  await user.click(await screen.findByRole('button', { name: /bulk actions/i }));
-  // Positive control: the menu is open and status changes are offered.
-  expect(await screen.findByRole('menuitem', { name: /mark 1 dog retired/i })).toBeInTheDocument();
+  // Positive control: the bulk bar is up with its named buttons (MYK9-929 list kit).
+  expect(await screen.findByRole('button', { name: 'Change status' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Export' })).toBeInTheDocument();
 }
 
 describe('BrowseDogsPage bulk Delete gate (MYK9-934)', () => {
@@ -97,13 +97,13 @@ describe('BrowseDogsPage bulk Delete gate (MYK9-934)', () => {
     ['a club admin', [UserRole.CLUB_ADMIN]],
   ])('%s is not offered Delete', async (_label, roles) => {
     mockRoles = roles;
-    await openBulkMenu();
-    expect(screen.queryByRole('menuitem', { name: /delete/i })).not.toBeInTheDocument();
+    await selectOneDog();
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument();
   });
 
   it('a site admin is offered Delete', async () => {
     mockRoles = [UserRole.SITE_ADMIN];
-    await openBulkMenu();
-    expect(screen.getByRole('menuitem', { name: /delete 1 dog/i })).toBeInTheDocument();
+    await selectOneDog();
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument();
   });
 });

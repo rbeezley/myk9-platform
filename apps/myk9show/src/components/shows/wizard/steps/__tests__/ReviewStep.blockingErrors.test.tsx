@@ -59,7 +59,7 @@ describe('ReviewStep — blocking errors must actually block', () => {
   it('does not claim the configuration is complete while errors are listed', () => {
     render(<ReviewStep trialView={trialView} />);
 
-    expect(screen.getByText(/at least one trial is required/i)).toBeInTheDocument();
+    expect(screen.getByText(/please add at least one trial/i)).toBeInTheDocument();
     expect(screen.queryByText(/show configuration complete/i)).not.toBeInTheDocument();
   });
 
@@ -71,7 +71,7 @@ describe('ReviewStep — blocking errors must actually block', () => {
 
     expect(onCreateShow).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith(
-      expect.stringMatching(/at least one trial is required/i)
+      expect.stringMatching(/please add at least one trial/i)
     );
   });
 });

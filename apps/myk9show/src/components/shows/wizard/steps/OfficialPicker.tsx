@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { RequiredMark } from '@/components/common/RequiredMark';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -135,7 +136,8 @@ export const OfficialPicker: React.FC<OfficialPickerProps> = ({
   return (
     <div className="space-y-2">
       <Label htmlFor={triggerId}>
-        {label} {required && <span className="text-destructive">*</span>}
+        {label}
+        {required && <RequiredMark />}
       </Label>
 
       {!showCreateForm && (

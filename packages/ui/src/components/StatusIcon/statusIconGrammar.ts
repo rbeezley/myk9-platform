@@ -1,4 +1,4 @@
-export type StatusFamily = 'entry' | 'class' | 'trial';
+export type StatusFamily = 'entry' | 'class' | 'trial' | 'show';
 
 export type StatusShape =
   'not-started' | 'pending' | 'in-progress' | 'complete' | 'needs-attention';
@@ -99,6 +99,17 @@ export const TRIAL_STATUS_VALUES = [
   'in-progress',
   'completed',
   'cancelled',
+] as const;
+
+export const SHOW_STATUS_VALUES = [
+  'no-status',
+  'draft',
+  'published',
+  'upcoming',
+  'in_progress',
+  'completed',
+  'cancelled',
+  'archived',
 ] as const;
 
 function descriptor(
@@ -232,18 +243,33 @@ export const TRIAL_STATUS_DESCRIPTORS = {
   cancelled: descriptor('cancelled', 'Cancelled', 'complete', 'text-destructive'),
 } satisfies Record<(typeof TRIAL_STATUS_VALUES)[number], StatusDescriptor>;
 
+// A show's own status (MYK9-929, M5): one label and one colour per status wherever a show is
+// drawn (table, cards, header pill). Sentence case, like every other family.
+export const SHOW_STATUS_DESCRIPTORS = {
+  'no-status': descriptor('no-status', 'No Status', 'not-started', 'text-muted-foreground'),
+  draft: descriptor('draft', 'Draft', 'pending', 'text-warning'),
+  published: descriptor('published', 'Published', 'complete', 'text-success'),
+  upcoming: descriptor('upcoming', 'Upcoming', 'not-started', 'text-info'),
+  in_progress: descriptor('in_progress', 'In progress', 'in-progress', 'text-info'),
+  completed: descriptor('completed', 'Completed', 'complete', 'text-success'),
+  cancelled: descriptor('cancelled', 'Cancelled', 'complete', 'text-destructive'),
+  archived: descriptor('archived', 'Archived', 'complete', 'text-muted-foreground'),
+} satisfies Record<(typeof SHOW_STATUS_VALUES)[number], StatusDescriptor>;
+
 const STATUS_DESCRIPTORS: Readonly<
   Record<StatusFamily, Readonly<Record<string, StatusDescriptor>>>
 > = {
   entry: ENTRY_STATUS_DESCRIPTORS,
   class: CLASS_STATUS_DESCRIPTORS,
   trial: TRIAL_STATUS_DESCRIPTORS,
+  show: SHOW_STATUS_DESCRIPTORS,
 };
 
 const FALLBACK_STATUS_BY_FAMILY: Readonly<Record<StatusFamily, string>> = {
   entry: 'no-status',
   class: 'no-status',
   trial: 'no-status',
+  show: 'no-status',
 };
 
 const CLASS_STATUS_ALIASES: Readonly<Record<string, keyof typeof CLASS_STATUS_DESCRIPTORS>> = {

@@ -147,6 +147,8 @@ test('secretary can create a mail-in exhibitor and dog without auth user creatio
   await page.getByLabel(/First Name/i).fill('Molly');
   await page.getByLabel(/Last Name/i).fill('Mailbox');
   await page.getByLabel(/Email Address/i).fill('molly.mailbox@example.com');
+  // MYK9-931: Add Person walks Basic Info -> Contact; Add Person is on the last tab.
+  await page.getByRole('button', { name: /Next: Contact/ }).click();
   await page.getByLabel(/Phone Number/i).fill('555-1000');
   await page.getByLabel(/Street Address/i).fill('123 Paper Trail');
   await page.getByLabel(/City/i).fill('Envelope');
@@ -189,6 +191,8 @@ test('secretary can create a mail-in exhibitor and dog without auth user creatio
   await registrationDialog.getByRole('button', { name: 'Save Registration' }).click();
 
   await expect(dogDialog.getByText('Mailbox Special Delivery')).toBeVisible();
+  // MYK9-931: Add Dog only shows on the last tab; earlier tabs stay clickable.
+  await dogDialog.getByRole('tab', { name: /Optional details/i }).click();
   await dogDialog.getByRole('button', { name: 'Add Dog', exact: true }).click();
 
   await expect(page.getByRole('heading', { name: 'Dogs Added (1):' })).toBeVisible({

@@ -26,6 +26,8 @@ export interface BrowsePeopleData {
   setFilters: React.Dispatch<React.SetStateAction<PeopleFilters>>;
   hasActiveFilters: boolean;
   clearAllFilters: () => void;
+  /** Reloads the roster after a failed load (the error state's Try Again). */
+  handleRetry: () => void;
 }
 
 /**
@@ -67,7 +69,10 @@ const URL_FILTER_OPTIONS = {
 };
 
 export function useBrowsePeopleData(): BrowsePeopleData {
-  const { people, isLoading, error } = useRoleBasedPeople();
+  const { people, isLoading, error, refetch } = useRoleBasedPeople();
+  const handleRetry = useCallback(() => {
+    void refetch();
+  }, [refetch]);
 
   // URL-backed so a refresh, back-navigation, or shared link keeps the same
   // result set (MYK9-221). Same [values, setValues] contract as useState.
@@ -103,5 +108,6 @@ export function useBrowsePeopleData(): BrowsePeopleData {
     setFilters,
     hasActiveFilters,
     clearAllFilters,
+    handleRetry,
   };
 }

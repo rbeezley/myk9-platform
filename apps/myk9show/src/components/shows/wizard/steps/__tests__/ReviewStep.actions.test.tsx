@@ -39,7 +39,8 @@ vi.mock('@/store/wizardStore', () => ({
       {
         id: 'trial-1',
         nameOverride: 'Trial 1',
-        dateTime: '2026-07-01T09:00:00Z',
+        trialDate: '2026-07-01',
+        startTimeDraft: '09:00 AM',
         type: 'scent_work',
         classes: [{ id: 'class-1', name: 'Novice A', level: 'novice', element: 'container' }],
       },

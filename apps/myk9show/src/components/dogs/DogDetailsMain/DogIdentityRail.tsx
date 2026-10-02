@@ -1,6 +1,7 @@
 /**
- * DogIdentityRail — the dog's "passport": photo, names, badges, key facts,
- * registry table, owner and actions, in one column beside the page content.
+ * DogIdentityRail — the dog's "passport": key facts, registry table, owner and
+ * the entry action, in one column beside the page content. The photo, names,
+ * badges and menu moved into the page's DetailHero (DogHero, MYK9-930).
  *
  * Replaces the hero card plus the About / Owner contact / Registrations
  * sidebar cards (docs/plan-dog-detail-passport-rail.md). The registry table
@@ -10,17 +11,12 @@
 
 import React, { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Camera, Mail, Pencil, Phone, Plus } from 'lucide-react';
-import ThreeDotMenu from '@/components/common/ThreeDotMenu';
+import { Mail, Phone, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { cn, getInitials } from '@/lib/utils';
-import { badgeVariants } from '@/utils/badgeVariants';
-import { formatDogAge, getDogDisplayName, getDogRegisteredName } from '@/types/dog-types';
+import { cn } from '@/lib/utils';
+import { formatDogAge, getDogDisplayName } from '@/types/dog-types';
 import { DogRegistryTable } from '@/components/dogs/common/DogRegistryTable';
 import { buildDogCardRegistryModel } from '@/components/dogs/common/dogRegistryModel';
-import { DOG_STATUS_BADGES, getDogSexBadge } from '@/components/dogs/common/dogStatusBadges';
 import { withEntryDogContext } from '@/features/registration/entryDogContext';
 import { formatDisplayDate } from './utils';
 import type { DogIdentityRailProps } from './types';
@@ -57,20 +53,9 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
   onRetryRegistrations,
   role = 'exhibitor',
   canOpenOwnerRecord = false,
-  onPhotoDialogOpen,
-  onStatusDialogOpen,
-  headingRef,
 }) => {
   const isSecretary = role === 'secretary';
   const [now] = useState(() => Date.now());
-  const registeredName = getDogRegisteredName(dog);
-  const sexBadge = getDogSexBadge(dog.sex);
-  const statusBadge = DOG_STATUS_BADGES[dog.status || 'active'];
-  const deceasedSuffix =
-    dog.status === 'deceased' && dog.deceasedDate
-      ? ` — ${formatDisplayDate(dog.deceasedDate)}`
-      : '';
-
   const registry = useMemo(
     () => buildDogCardRegistryModel(registrations ?? dog.registrations),
     [registrations, dog.registrations]
@@ -129,86 +114,7 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
       data-dog-identity
       className="rounded-xl bg-card border border-border overflow-hidden lg:w-[320px] lg:flex-shrink-0"
     >
-      <div className="relative h-32 lg:h-44 bg-card-secondary flex items-center justify-center">
-        <Avatar className="h-24 w-24 lg:h-28 lg:w-28">
-          {dog.imageUrl ? (
-            <AvatarImage
-              src={dog.imageUrl}
-              alt={`${dog.callName}'s photo`}
-              className="object-cover"
-            />
-          ) : (
-            <AvatarFallback className="bg-primary/10 text-4xl font-semibold text-primary">
-              {getInitials(dog.callName)}
-            </AvatarFallback>
-          )}
-        </Avatar>
-        <button
-          type="button"
-          onClick={onPhotoDialogOpen}
-          aria-label="Edit dog photo"
-          className="absolute right-3 bottom-3 flex h-11 w-11 items-center justify-center rounded-full border border-border bg-card text-foreground shadow-sm hover:bg-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-        >
-          <Camera className="h-5 w-5" />
-        </button>
-        {/* The card's one overflow menu, in its top-right corner — same place
-            for every role, rather than trailing whichever primary button that
-            role happens to get. Chromed to match the photo button below it so
-            the two read as a pair of card controls, not page furniture. */}
-        <div className="absolute right-3 top-3">
-          <ThreeDotMenu
-            onEditPhoto={onPhotoDialogOpen}
-            onChangeStatus={onStatusDialogOpen}
-            triggerClassName="h-11 w-11 rounded-full border border-border bg-card text-foreground shadow-sm hover:bg-accent"
-          />
-        </div>
-      </div>
-
       <div className="p-4 lg:p-5">
-        {/* tabIndex=-1: not in tab order, only a route-entry focus target. */}
-        <h1
-          ref={headingRef}
-          tabIndex={-1}
-          className="text-xl lg:text-2xl font-semibold tracking-tight text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-sm"
-        >
-          {dog.callName}
-        </h1>
-        {registeredName && (
-          <p className="text-sm italic text-muted-foreground mt-0.5">{registeredName}</p>
-        )}
-        <div className="mt-2.5 flex flex-wrap gap-1.5">
-          {sexBadge && (
-            <Badge variant="secondary" className={sexBadge.className}>
-              {sexBadge.label}
-            </Badge>
-          )}
-          {statusBadge && (
-            /* The badge announces the lifecycle state, so it is also the control
-               that changes it. The ThreeDotMenu item opens the same dialog, kept
-               for parity with the card's other actions. */
-            <button
-              type="button"
-              onClick={onStatusDialogOpen}
-              aria-haspopup="dialog"
-              title="Change status"
-              className={cn(
-                badgeVariants({ variant: 'secondary' }),
-                statusBadge.className,
-                // `badgeVariants`' base ring is on `:focus`, written for a <div>
-                // that can never match it. Live on a real <button>, that would
-                // leave a ring behind after a mouse click.
-                'cursor-pointer hover:brightness-110 focus:ring-0',
-                'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
-              )}
-            >
-              {statusBadge.label}
-              {deceasedSuffix}
-              <Pencil className="ml-1 h-3 w-3" aria-hidden="true" />
-              <span className="sr-only"> — change status</span>
-            </button>
-          )}
-        </div>
-
         {!isSecretary && (
           <div className="mt-4">
             <Button variant="default" className="min-h-11 w-full gap-1.5" asChild>

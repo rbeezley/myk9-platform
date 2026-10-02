@@ -7,7 +7,9 @@ import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
 import { useCanDeleteDog } from '@/hooks/useRoleBasedData';
 import { useViewerOwnsDog } from '@/hooks/useViewerOwnsDog';
 import { UserRole } from '@/types/auth-types';
-import Breadcrumb from '@/components/common/Breadcrumb';
+import { PageShell } from '@/components/common/PageShell';
+import { PageHeader } from '@/components/common/PageHeader';
+import { toPageHeaderCrumbs } from '@/components/common/pageHeaderCrumbs';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
 import { getDogDisplayName, type Dog, type DogStatus, type Owner } from '@/types/dog-types';
 import { useRegistrationsByDogQuery } from '@/hooks/queries/useRegistrationsDatabase';
@@ -15,6 +17,7 @@ import { supabase } from '@/services/database/supabaseClient';
 import { logger } from '@/services/LoggingService';
 import '@/styles/myk9-show-details.css';
 
+import DogHero from './DogHero';
 import DogIdentityRail from './DogIdentityRail';
 import DogDetailsTabs from './DogDetailsTabs';
 import DogDialogs from './DogDialogs';
@@ -277,12 +280,20 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
 
   return (
     <>
-      <div className="max-w-[1440px] mx-auto pt-2 pb-6 lg:py-6">
-        <div className="px-6 py-2 lg:py-3">
-          <Breadcrumb items={breadcrumbItems} showHomeIcon={true} />
-        </div>
+      <PageShell>
+        <PageHeader
+          breadcrumbs={toPageHeaderCrumbs(breadcrumbItems, `/dogs/${updatedDog.id}`)}
+          title={getDogDisplayName(updatedDog)}
+          omitTitle
+        />
+        <DogHero
+          dog={updatedDog}
+          onPhotoDialogOpen={() => handlePhotoDialogOpen(true)}
+          onStatusDialogOpen={openStatusDialog}
+          headingRef={headingRef}
+        />
         {/* Identity rail beside the content column; stacked below lg. */}
-        <div className="flex flex-col lg:flex-row lg:items-start gap-4 lg:gap-6 px-6 pb-8">
+        <div className="flex flex-col lg:flex-row lg:items-start gap-4 lg:gap-6">
           <DogIdentityRail
             dog={updatedDog}
             owner={owner}
@@ -294,15 +305,12 @@ const DogDetailsMain: React.FC<DogDetailsMainProps> = ({
             onRetryRegistrations={() => void refetchRegistrations()}
             role={isSecretary ? 'secretary' : 'exhibitor'}
             canOpenOwnerRecord={canOpenOwnerRecord}
-            onPhotoDialogOpen={() => handlePhotoDialogOpen(true)}
-            onStatusDialogOpen={openStatusDialog}
-            headingRef={headingRef}
           />
           <main className="flex-1 min-w-0">
             <DogDetailsTabs dog={updatedDog} role={isSecretary ? 'secretary' : 'exhibitor'} />
           </main>
         </div>
-      </div>
+      </PageShell>
 
       {/* ORDER IS LOAD-BEARING. SlideOverPanel does not portal and its root is
           `fixed inset-0 z-50`, so among equal-z siblings the LATER one paints on

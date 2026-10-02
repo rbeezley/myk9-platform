@@ -8,7 +8,9 @@ import { uploadProfilePhoto } from '@/services/imageUploadService';
 import { useUserStore } from '@/store/userStore';
 import { useUpdateUserMutation } from '@/hooks/queries/useUsersQuery';
 import UserDetailsTabs from '@/components/users/UserDetails/UserDetailsTabs';
-import { Breadcrumb } from '@/components/common/Breadcrumb';
+import { PageShell } from '@/components/common/PageShell';
+import { PageHeader } from '@/components/common/PageHeader';
+import { toPageHeaderCrumbs } from '@/components/common/pageHeaderCrumbs';
 import { buildRecordBreadcrumb, readRecordBackTo } from '@/components/common/recordBackTo';
 import { PersonLifecycleBanner } from './PersonLifecycleBanner';
 import { restoreUser } from '@/services/database/users';
@@ -230,13 +232,24 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
             render: person.email ? (
               <a
                 href={`mailto:${person.email}`}
-                className="text-sm font-medium text-primary hover:text-primary/80 transition-colors duration-200 hover:underline break-all"
+                className="inline-flex min-h-11 min-w-11 items-center text-sm font-medium text-primary hover:text-primary/80 transition-colors duration-200 hover:underline break-all"
               >
                 {person.email}
               </a>
             ) : undefined,
           },
-          { label: 'Phone', value: formData.phone || null },
+          {
+            label: 'Phone',
+            value: formData.phone || null,
+            render: formData.phone ? (
+              <a
+                href={`tel:${formData.phone.replace(/[^\d]/g, '')}`}
+                className="inline-flex min-h-11 min-w-11 items-center text-sm font-medium text-primary hover:text-primary/80 transition-colors duration-200 hover:underline"
+              >
+                {formData.phone}
+              </a>
+            ) : undefined,
+          },
         ],
       },
       {
@@ -311,57 +324,66 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
 
   return (
     <>
-      <RecordPageLayout
-        storageKey="myk9:person"
-        breadcrumb={<Breadcrumb showHomeIcon items={breadcrumbItems} />}
-        banner={
-          <PersonLifecycleBanner
-            deletedAt={person.deletedAt}
-            status={accountStatus}
-            {...(isRemoved && canRestore ? { onRestore: handleRestore } : {})}
-            isRestoring={isRestoring}
-          />
-        }
-        hero={
-          <HeroProfileCard
-            person={person}
-            firstName={firstName}
-            lastName={lastName}
-            fullName={fullName}
-            photo={formData.photo}
-            phone={formData.phone}
-            isRemoved={isRemoved}
-            onEditPhoto={() => setIsPhotoModalOpen(true)}
-            {...(canManageStatus
-              ? {
-                  onChangeStatus: () => setIsStatusDialogOpen(true),
-                  changeStatusLabel:
-                    accountStatus === 'suspended' ? 'Reinstate account' : 'Suspend account',
-                  changeStatusDisabled: statusActionDisabled,
-                  ...(statusActionDisabled
-                    ? { changeStatusDescription: 'You cannot suspend your own account' }
-                    : {}),
-                }
-              : {})}
-            onSendInvitation={
-              !isRemoved && canInvite
-                ? () =>
-                    sendInvitation({
-                      personId: person.id,
-                      email: person.email,
-                      firstName,
-                      roleNames: (person.roles ?? []).map(String),
-                    })
-                : undefined
-            }
-            sendInvitationLabel={hasSignInAccount ? 'Send Sign-In Link' : 'Send Invitation'}
-            sendInvitationDisabled={isSending}
-          />
-        }
-        properties={properties}
-        tabsContent={centerContent}
-      />
+      <PageShell>
+        <RecordPageLayout
+          storageKey="myk9:person"
+          breadcrumb={
+            <PageHeader
+              breadcrumbs={toPageHeaderCrumbs(breadcrumbItems, location.pathname)}
+              title={fullName}
+              omitTitle
+            />
+          }
+          banner={
+            <PersonLifecycleBanner
+              deletedAt={person.deletedAt}
+              status={accountStatus}
+              {...(isRemoved && canRestore ? { onRestore: handleRestore } : {})}
+              isRestoring={isRestoring}
+            />
+          }
+          hero={
+            <HeroProfileCard
+              person={person}
+              firstName={firstName}
+              lastName={lastName}
+              fullName={fullName}
+              photo={formData.photo}
+              isRemoved={isRemoved}
+              onEditPhoto={() => setIsPhotoModalOpen(true)}
+              {...(canManageStatus
+                ? {
+                    onChangeStatus: () => setIsStatusDialogOpen(true),
+                    changeStatusLabel:
+                      accountStatus === 'suspended' ? 'Reinstate account' : 'Suspend account',
+                    changeStatusDisabled: statusActionDisabled,
+                    ...(statusActionDisabled
+                      ? { changeStatusDescription: 'You cannot suspend your own account' }
+                      : {}),
+                  }
+                : {})}
+              onSendInvitation={
+                !isRemoved && canInvite
+                  ? () =>
+                      sendInvitation({
+                        personId: person.id,
+                        email: person.email,
+                        firstName,
+                        roleNames: (person.roles ?? []).map(String),
+                      })
+                  : undefined
+              }
+              sendInvitationLabel={hasSignInAccount ? 'Send Sign-In Link' : 'Send Invitation'}
+              sendInvitationDisabled={isSending}
+            />
+          }
+          properties={properties}
+          tabsContent={centerContent}
+        />
+      </PageShell>
 
+      {/* Dialogs and panels: OUTSIDE PageShell. SlideOverPanel is not portaled, so inside
+          the shell's `space-y-6` a fixed overlay would pick up a 24px top margin. */}
       <UserDetailsDialogs
         person={person}
         formData={{

@@ -81,6 +81,7 @@ function renderPage(path: string, queryClient = createTestQueryClient()) {
   return render(
     <Routes>
       <Route path="/clubs/:id" element={<ClubDetailPage />} />
+      <Route path="/clubs" element={<div data-testid="clubs-list" />} />
     </Routes>,
     { initialRoute: path, queryClient }
   );
@@ -129,8 +130,17 @@ describe('ClubDetailPage signed-in readiness outcomes', () => {
 
     renderPage('/clubs/missing-club');
 
-    expect(screen.getByRole('heading', { name: 'Club not found' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Back to clubs' })).toHaveAttribute('href', '/clubs');
+    expect(screen.getByRole('heading', { level: 1, name: 'Club Not Found' })).toBeInTheDocument();
+    expect(screen.getByTestId('app-shell-page')).toBeInTheDocument();
+  });
+
+  it('not-found goes back to the clubs list through the shared state', async () => {
+    state.clubReadiness = 'fresh';
+
+    const { user } = renderPage('/clubs/missing-club');
+    await user.click(screen.getByRole('button', { name: 'Back to Clubs' }));
+
+    expect(screen.getByTestId('clubs-list')).toBeInTheDocument();
   });
 
   it('renders retryable unavailable copy without exposing internal failure details', async () => {
@@ -165,7 +175,7 @@ describe('ClubDetailPage signed-out viewer (MYK9-747)', () => {
 
     renderPage('/clubs/club-revoked');
 
-    expect(await screen.findByRole('heading', { name: 'Club not found' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Club Not Found' })).toBeInTheDocument();
     expect(screen.queryByTestId('club-details')).not.toBeInTheDocument();
     expect(getPublicClubById).toHaveBeenCalledWith('club-revoked');
     expect(state.replicaReads).toBe(0);
@@ -204,7 +214,7 @@ describe('ClubDetailPage signed-out viewer (MYK9-747)', () => {
     // Revoked since the earlier visit: the server now returns no row.
     await act(async () => resolveFresh(null));
 
-    expect(await screen.findByRole('heading', { name: 'Club not found' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Club Not Found' })).toBeInTheDocument();
     expect(screen.queryByText('Cached Before Revocation')).not.toBeInTheDocument();
   });
 
@@ -228,7 +238,7 @@ describe('ClubDetailPage signed-out viewer (MYK9-747)', () => {
 
     expect(screen.getByText("You're offline")).toBeInTheDocument();
     expect(screen.getByText('Connect to the internet to see this club.')).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Club not found' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Club Not Found' })).not.toBeInTheDocument();
     expect(screen.queryByTestId('club-details')).not.toBeInTheDocument();
     expect(getPublicClubById).not.toHaveBeenCalled();
     expect(state.replicaReads).toBe(0);
@@ -240,7 +250,7 @@ describe('ClubDetailPage signed-out viewer (MYK9-747)', () => {
     renderPage('/clubs/club-1');
 
     expect(screen.getByTestId('detail-skeleton')).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Club not found' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Club Not Found' })).not.toBeInTheDocument();
   });
 
   it('renders the unavailable state, not not-found, when the read fails, and retries the server', async () => {

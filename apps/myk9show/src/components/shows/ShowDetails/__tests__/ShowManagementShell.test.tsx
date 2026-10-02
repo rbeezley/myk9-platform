@@ -48,19 +48,41 @@ vi.mock('@/components/common/PageShell', () => ({
   PageShell: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
 vi.mock('@/components/common/PageHeader', () => ({
-  PageHeader: ({ actions }: { actions?: React.ReactNode }) => (
-    <div data-testid="page-header-actions">{actions}</div>
+  PageHeader: ({
+    actions,
+    breadcrumbs = [],
+    omitTitle,
+  }: {
+    actions?: React.ReactNode;
+    breadcrumbs?: Array<{ label: string; href: string }>;
+    omitTitle?: boolean;
+  }) => (
+    <div data-testid="page-header-actions" data-omit-title={String(Boolean(omitTitle))}>
+      <nav aria-label="Breadcrumb">
+        {breadcrumbs.map(crumb => (
+          <a key={crumb.href} href={crumb.href}>
+            {crumb.label}
+          </a>
+        ))}
+      </nav>
+      {actions}
+    </div>
   ),
 }));
 vi.mock('@/components/common/DetailHero', () => ({
   DetailHero: ({
     headerActions,
     primaryAction,
+    parent,
+    headingLevel,
   }: {
     headerActions?: React.ReactNode;
     primaryAction?: { label: string; onClick: () => void };
+    parent?: { label: string; href: string };
+    headingLevel?: number;
   }) => (
-    <div data-testid="detail-hero">
+    <div data-testid="detail-hero" data-heading-level={headingLevel}>
+      {parent && <a href={parent.href}>{parent.label}</a>}
       <div data-testid="detail-hero-header-actions">{headerActions}</div>
       {primaryAction && (
         <div data-testid="detail-hero-side-actions">
@@ -156,7 +178,13 @@ vi.mock('@/store/showStore', () => ({
 }));
 
 function makeShow(): Show {
-  return { id: 'show-1', name: 'Test Show', status: 'Upcoming', clubId: 'club-1' } as Show;
+  return {
+    id: 'show-1',
+    name: 'Test Show',
+    status: 'Upcoming',
+    clubId: 'club-1',
+    clubName: 'Bergen KC',
+  } as Show;
 }
 
 function makeTabs(): ShowDetailTabsProps {
@@ -200,14 +228,14 @@ function shellProps(overrides: Partial<ShowManagementShellProps>): ShowManagemen
 
 function renderShell(
   overrides: Partial<ShowManagementShellProps> = {},
-  initialRoute = '/shows/show-1',
+  initialRoute: string | string[] = '/shows/show-1',
   extra?: React.ReactNode
 ) {
   const props = shellProps(overrides);
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const renderTree = () => (
     <QueryClientProvider client={qc}>
-      <MemoryRouter initialEntries={[initialRoute]}>
+      <MemoryRouter initialEntries={Array.isArray(initialRoute) ? initialRoute : [initialRoute]}>
         {extra}
         <Routes>
           <Route path="/shows/:id" element={<ShowManagementShell {...props} />}>
@@ -243,6 +271,15 @@ beforeEach(() => {
 function LocationProbe() {
   const location = useLocation();
   return <span data-testid="probe-url">{`${location.pathname}${location.search}`}</span>;
+}
+
+function BackButton() {
+  const navigate = useNavigate();
+  return (
+    <button type="button" data-testid="go-back" onClick={() => navigate(-1)}>
+      back
+    </button>
+  );
 }
 
 function InPageNavigator({ to }: { to: string }) {
@@ -310,6 +347,45 @@ describe('ShowManagementShell', () => {
     renderShell({}, '/shows/show-1', <LocationProbe />);
     fireEvent.click(screen.getByRole('tab', { name: /^Show Day/ }));
     expect(screen.getByTestId('probe-url')).toHaveTextContent('/shows/show-1/show-day');
+  });
+
+  it('replaces history on a tab change, so Back leaves the show instead of stepping through tabs', () => {
+    renderShell(
+      {},
+      ['/shows', '/shows/show-1'],
+      <>
+        <LocationProbe />
+        <BackButton />
+      </>
+    );
+    fireEvent.click(screen.getByRole('tab', { name: /^Setup/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /^Entries/ }));
+    expect(screen.getByTestId('probe-url')).toHaveTextContent('/shows/show-1/entries');
+
+    fireEvent.click(screen.getByTestId('go-back'));
+
+    // Two tab changes, one Back: the page before the show, not Setup.
+    expect(screen.getByTestId('probe-url')).toHaveTextContent(/^\/shows$/);
+  });
+
+  it('links the hero to the host club and renders the breadcrumb trail up to Shows', () => {
+    renderShell({
+      breadcrumbs: [
+        { label: 'Shows', href: '/shows' },
+        { label: 'Test Show', href: '/shows/show-1' },
+      ],
+      heroViewer: 'account',
+    });
+    const hero = within(screen.getByTestId('detail-hero'));
+    expect(hero.getByRole('link', { name: 'Bergen KC' })).toHaveAttribute('href', '/clubs/club-1');
+    const trail = within(screen.getByRole('navigation', { name: 'Breadcrumb' }));
+    expect(trail.getByRole('link', { name: 'Shows' })).toHaveAttribute('href', '/shows');
+  });
+
+  it('lets the hero own the page h1 so the header renders no second title', () => {
+    renderShell();
+    expect(screen.getByTestId('detail-hero')).toHaveAttribute('data-heading-level', '1');
+    expect(screen.getByTestId('page-header-actions')).toHaveAttribute('data-omit-title', 'true');
   });
 
   it('keeps Setup lit on the retired Class Management URL, which redirects into it', () => {

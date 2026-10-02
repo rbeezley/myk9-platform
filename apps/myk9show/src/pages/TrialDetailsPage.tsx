@@ -31,8 +31,10 @@ import { usePageEditAction } from '@/features/actions/pageEditTarget';
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
 import { DetailHero } from '@/components/common/DetailHero';
+import { heroParentLink, heroViewerFromUser } from '@/components/common/heroParentLink';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { ErrorState } from '@/components/common/ErrorState';
+import { NotFoundState } from '@/components/common/NotFoundState';
 import { DetailPageSkeleton } from '@/components/common/SkeletonLoaders';
 import { useUrlTab } from '@/hooks/useUrlTab';
 
@@ -67,7 +69,7 @@ const TrialDetailsPage: React.FC = () => {
   const { trialId, showId } = useParams<{ trialId: string; showId?: string }>();
   const navigate = useNavigate();
   const { trials, selectedTrialId, selectTrial } = useTrialStore();
-  const { isSecretary, isAdmin, hasRole, userWithRoles } = useAuthContext();
+  const { user, isSecretary, isAdmin, hasRole, userWithRoles } = useAuthContext();
   const dialogsRef = useRef<TrialManagementDialogsHandle>(null);
 
   // Current trial + its parent show, with the anon/cold-store by-id fallback the
@@ -323,10 +325,10 @@ const TrialDetailsPage: React.FC = () => {
   if (trialId && !currentTrial && (trials.length > 0 || fallbackTrialResolved)) {
     return (
       <PageShell>
-        <ErrorState
-          message="The trial you're looking for doesn't exist."
-          onRetry={() => navigate(showId ? `/shows/${showId}` : '/shows')}
-          headingLevel={1}
+        <NotFoundState
+          entityName="Trial"
+          backTo={showId ? `/shows/${showId}` : '/shows'}
+          backLabel={showId ? 'Back to Show' : 'Back to Shows'}
         />
       </PageShell>
     );
@@ -341,71 +343,86 @@ const TrialDetailsPage: React.FC = () => {
     dialogsRef.current?.openDeleteClass(classItem);
 
   return (
-    <PageShell>
-      {trialWithClasses ? (
-        <>
-          <PageHeader breadcrumbs={breadcrumbs} title={trialHero.title} />
+    <>
+      <PageShell>
+        {trialWithClasses ? (
+          <>
+            <PageHeader breadcrumbs={breadcrumbs} title={trialHero.title} omitTitle />
 
-          <DetailHero
-            name={trialHero.title}
-            subtitle={trialHero.subtitle}
-            metadata={heroMetadata}
-            badges={statusBadge ? [statusBadge] : []}
-            secondaryActions={
-              <div className="flex items-center gap-2">
-                {showTrials.length > 1 && prevNextNav}
-                {canManageTrial && entryManagementShowId && (
-                  <>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        navigate(
-                          getEntryManagementHref({
-                            showId: entryManagementShowId,
-                            trialId: trialId ?? null,
-                          })
-                        )
-                      }
-                    >
-                      <ClipboardList className="h-4 w-4 mr-2" />
-                      Manage Entries
-                    </Button>
-                  </>
-                )}
-              </div>
-            }
-          />
+            <DetailHero
+              name={trialHero.title}
+              headingLevel={1}
+              parent={
+                parentShow
+                  ? heroParentLink({
+                      target: 'show',
+                      id: parentShow.id,
+                      label: parentShow.name,
+                      viewer: heroViewerFromUser(user),
+                    })
+                  : undefined
+              }
+              subtitle={trialHero.subtitle}
+              metadata={heroMetadata}
+              badges={statusBadge ? [statusBadge] : []}
+              secondaryActions={
+                <div className="flex items-center gap-2">
+                  {showTrials.length > 1 && prevNextNav}
+                  {canManageTrial && entryManagementShowId && (
+                    <>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() =>
+                          navigate(
+                            getEntryManagementHref({
+                              showId: entryManagementShowId,
+                              trialId: trialId ?? null,
+                            })
+                          )
+                        }
+                      >
+                        <ClipboardList className="h-4 w-4 mr-2" />
+                        Manage Entries
+                      </Button>
+                    </>
+                  )}
+                </div>
+              }
+            />
 
-          <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setActiveTab}>
-            <TabsContent value="overview">
-              <TrialDetailsMain
-                trial={trialWithClasses}
-                statistics={trialStatistics}
-                canManage={canManageTrial}
-                {...(handleAddClassesFromTemplate && {
-                  onAddClassesFromTemplate: handleAddClassesFromTemplate,
-                })}
-                onEditClass={handleEditClass}
-                onDeleteClass={handleDeleteClass}
-              />
-            </TabsContent>
+            <PrimaryTabs tabs={tabDefs} value={activeTab} onValueChange={setActiveTab}>
+              <TabsContent value="overview">
+                <TrialDetailsMain
+                  trial={trialWithClasses}
+                  statistics={trialStatistics}
+                  canManage={canManageTrial}
+                  {...(handleAddClassesFromTemplate && {
+                    onAddClassesFromTemplate: handleAddClassesFromTemplate,
+                  })}
+                  onEditClass={handleEditClass}
+                  onDeleteClass={handleDeleteClass}
+                />
+              </TabsContent>
 
-            <TabsContent value="entries">
-              <TrialEntriesTable trialId={trialWithClasses.id} />
-            </TabsContent>
+              <TabsContent value="entries">
+                <TrialEntriesTable trialId={trialWithClasses.id} />
+              </TabsContent>
 
-            <TabsContent value="financials">
-              <FinancialSummary trialId={trialWithClasses.id} />
-            </TabsContent>
-          </PrimaryTabs>
-        </>
-      ) : (
-        <div role="status" aria-label="Loading trial details">
-          <DetailPageSkeleton />
-        </div>
-      )}
+              <TabsContent value="financials">
+                <FinancialSummary trialId={trialWithClasses.id} />
+              </TabsContent>
+            </PrimaryTabs>
+          </>
+        ) : (
+          <div role="status" aria-label="Loading trial details">
+            <DetailPageSkeleton />
+          </div>
+        )}
+      </PageShell>
 
+      {/* Outside PageShell: SlideOverPanel is not portaled, so inside the shell's `space-y-6` a
+          fixed overlay would pick up a 24px top margin. */}
       {/* Staff-only management dialogs (add classes, edit/delete trial,
           edit/delete class). The page triggers them via dialogsRef. */}
       {canManageTrial && (
@@ -415,7 +432,7 @@ const TrialDetailsPage: React.FC = () => {
           parentShow={parentShow}
         />
       )}
-    </PageShell>
+    </>
   );
 };
 

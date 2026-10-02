@@ -47,13 +47,12 @@ test.describe('club surface integrity — read-only', () => {
     await expect(page.getByRole('menuitem', { name: 'Call Club' })).not.toBeVisible();
 
     await page.goto(`/clubs/${MISSING_CLUB_ID}`, { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Club not found' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Club Not Found' })).toBeVisible({
       timeout: 30_000,
     });
-    await expect(page.getByRole('link', { name: 'Back to clubs' })).toHaveAttribute(
-      'href',
-      '/clubs'
-    );
+    await page.getByRole('button', { name: 'Back to Clubs' }).click();
+    await expect(page).toHaveURL('/clubs');
+    await page.goBack();
     await expectNoHorizontalOverflow(page);
     expect(errors).toEqual([]);
   });

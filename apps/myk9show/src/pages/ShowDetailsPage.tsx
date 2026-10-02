@@ -26,6 +26,7 @@ import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { ShowPublicLanding } from '@/components/shows/ShowDetails/ShowPublicLanding';
 import { ShowManagementShell } from '@/components/shows/ShowDetails/ShowManagementShell';
 import { ShowExhibitorView } from '@/components/shows/ShowDetails/ShowExhibitorView';
+import { heroViewerFromUser } from '@/components/common/heroParentLink';
 import { type ShowDetailTabsProps } from '@/components/shows/ShowDetails/ShowDetailTabs';
 import { resolveShowAudience } from './ShowDetailsPage.audience';
 import {
@@ -562,6 +563,7 @@ const ShowDetailsPage: React.FC = () => {
     <ShowPresenceProvider showId={id}>
       {audience === 'management' ? (
         <ShowManagementShell
+          heroViewer={heroViewerFromUser(user)}
           show={actualCurrentShow}
           showId={showId}
           breadcrumbs={breadcrumbs}
@@ -576,6 +578,7 @@ const ShowDetailsPage: React.FC = () => {
         />
       ) : (
         <ShowExhibitorView
+          heroViewer={heroViewerFromUser(user)}
           show={actualCurrentShow}
           breadcrumbs={breadcrumbs}
           catalogEntryCount={classEntryCountsUnavailable ? null : catalogEntryCount}

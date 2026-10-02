@@ -1,43 +1,8 @@
 import { useLocation } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@/test/utils/testUtils';
 import type { Dog, Owner } from '@/types/dog-types';
 import DogIdentityRail from '../DogIdentityRail';
-
-/**
- * Captures the props the rail hands the menu. Deliberately does NOT re-render
- * the menu's item list: doing that made the mock a second implementation of
- * ThreeDotMenu's own ordering and `hideEdit` logic, which could drift from the
- * real one while these tests stayed green. Item order and labels belong to
- * `ThreeDotMenu.test.tsx`; what belongs HERE is the rail's contract -- which
- * handlers it supplies, and whether it suppresses Edit for this role.
- */
-const menuProps: ThreeDotMenuProps[] = [];
-vi.mock('@/components/common/ThreeDotMenu', () => ({
-  default: (props: ThreeDotMenuProps) => {
-    menuProps.push(props);
-    return <div data-testid="three-dot-menu" />;
-  },
-}));
-
-interface ThreeDotMenuProps {
-  onView?: (() => void) | undefined;
-  onEdit?: (() => void) | undefined;
-  onEditPhoto?: (() => void) | undefined;
-  onChangeStatus?: (() => void) | undefined;
-  onDelete?: (() => void) | undefined;
-  viewLabel?: string | undefined;
-  editLabel?: string | undefined;
-  changeStatusLabel?: string | undefined;
-  hideEdit?: boolean | undefined;
-  triggerClassName?: string | undefined;
-}
-
-/** The single menu the card rendered. */
-function menu(): ThreeDotMenuProps {
-  expect(menuProps).toHaveLength(1);
-  return menuProps[0] as ThreeDotMenuProps;
-}
 
 const owner: Owner = { id: 'owner-1', name: 'Jane Smith', email: 'jane@example.com', phone: '' };
 const base = {
@@ -50,15 +15,7 @@ const base = {
 } satisfies Dog;
 
 function renderRail(dog: Dog, props: Partial<React.ComponentProps<typeof DogIdentityRail>> = {}) {
-  return render(
-    <DogIdentityRail
-      dog={dog}
-      owner={owner}
-      onPhotoDialogOpen={() => {}}
-      onStatusDialogOpen={() => {}}
-      {...props}
-    />
-  );
+  return render(<DogIdentityRail dog={dog} owner={owner} {...props} />);
 }
 
 function daysAgo(days: number): string {
@@ -68,10 +25,6 @@ function daysAgo(days: number): string {
     d.getDate()
   ).padStart(2, '0')}`;
 }
-
-beforeEach(() => {
-  menuProps.length = 0;
-});
 
 describe('DogIdentityRail', () => {
   it('hides invalid measurements instead of showing NaN', () => {
@@ -148,13 +101,7 @@ describe('DogIdentityRail', () => {
     );
     render(
       <>
-        <DogIdentityRail
-          dog={base}
-          owner={owner}
-          canOpenOwnerRecord
-          onPhotoDialogOpen={() => {}}
-          onStatusDialogOpen={() => {}}
-        />
+        <DogIdentityRail dog={base} owner={owner} canOpenOwnerRecord />
         <Probe />
       </>
     );
@@ -169,75 +116,6 @@ describe('DogIdentityRail', () => {
       },
     });
   });
-
-  it('wears the same sex and status badges as the /dogs card', () => {
-    renderRail({ ...base, status: 'retired' });
-    expect(screen.getByText('Female')).toBeInTheDocument();
-    expect(screen.getByText('Retired')).toBeInTheDocument();
-  });
-
-  // The badge is what announces the lifecycle state, so it has to be what
-  // changes it: before this, status was reachable ONLY from the overflow menu
-  // and the badge beside it was inert, which is where people looked first.
-  it('opens the status dialog from the status badge itself', () => {
-    const onStatusDialogOpen = vi.fn();
-    renderRail({ ...base, status: 'retired' }, { onStatusDialogOpen });
-    const badgeButton = screen.getByRole('button', { name: /retired.*change status/i });
-    fireEvent.click(badgeButton);
-    expect(onStatusDialogOpen).toHaveBeenCalledTimes(1);
-  });
-
-  // The badge carries `badgeVariants`, whose BASE ring is on `:focus` — written
-  // for a <div> that can never match it. On a real <button> that means a ring
-  // left behind after a mouse click, so the resolved class list must keep only
-  // the `focus-visible` ring. Asserted on tailwind-merge's OUTPUT, which is the
-  // thing that actually decides the conflict.
-  it('rings the status badge on keyboard focus only, not after a mouse click', () => {
-    renderRail({ ...base, status: 'retired' }, { onStatusDialogOpen: vi.fn() });
-    const badge = screen.getByRole('button', { name: /retired.*change status/i });
-    const classes = badge.className.split(/\s+/);
-    expect(classes).toContain('focus:ring-0');
-    expect(classes).toContain('focus-visible:ring-2');
-    expect(classes).not.toContain('focus:ring-2');
-  });
-
-  // The ⋮ is the card's route to photo and status, so the rail's contract with it
-  // is pinned per role. Asserted as the prop object, which cannot drift from the
-  // real menu the way a mock item list could: identity checks are also stronger
-  // than clicking a stand-in. Delete dog is the Edit panel's footer button, never
-  // a menu item (CRUD standard Phase 3).
-  it('hands the menu photo and status handlers, no Edit and no Delete (MYK9-928)', () => {
-    const onPhotoDialogOpen = vi.fn();
-    const onStatusDialogOpen = vi.fn();
-    renderRail(base, {
-      role: 'exhibitor',
-      onPhotoDialogOpen,
-      onStatusDialogOpen,
-    });
-
-    // Edit dog is the first item of the header Actions menu, for every role.
-    expect(menu().onEdit).toBeUndefined();
-    expect(menu().onEditPhoto).toBe(onPhotoDialogOpen);
-    expect(menu().onChangeStatus).toBe(onStatusDialogOpen);
-    expect(menu().onDelete).toBeUndefined();
-  });
-
-  it.each([['exhibitor'], ['secretary']] as const)(
-    'carries no Edit item or button for a %s: it is in the Actions menu',
-    role => {
-      renderRail(base, { role });
-      expect(menu().onEdit).toBeUndefined();
-      expect(screen.queryByRole('button', { name: /^edit( dog)?$/i })).not.toBeInTheDocument();
-    }
-  );
-
-  it.each([['exhibitor'], ['secretary']] as const)(
-    'never carries a delete handler for a %s',
-    role => {
-      renderRail(base, { role });
-      expect(menu().onDelete).toBeUndefined();
-    }
-  );
 
   // The old sidebar card held the ONLY ordinary path into the add panel;
   // RegistrationsSection's empty state deliberately carries no action, so
@@ -294,19 +172,5 @@ describe('DogIdentityRail', () => {
     expect(screen.queryByText('No registrations yet.')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
     expect(onRetryRegistrations).toHaveBeenCalledTimes(1);
-  });
-
-  it('keeps the photo action at least 44px and named for assistive technology', () => {
-    renderRail(base);
-    expect(screen.getByRole('button', { name: 'Edit dog photo' })).toHaveClass('h-11', 'w-11');
-  });
-
-  it('keeps a populated photo and its edit action in the same compact panel', () => {
-    renderRail({ ...base, imageUrl: 'https://example.com/maple.jpg' });
-    expect(screen.getByRole('img', { name: "Maple's photo" })).toHaveAttribute(
-      'src',
-      'https://example.com/maple.jpg'
-    );
-    expect(screen.getByRole('button', { name: 'Edit dog photo' })).toBeInTheDocument();
   });
 });

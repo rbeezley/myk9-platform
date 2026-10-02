@@ -1,13 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
-import { Input } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { useCallback, useMemo } from 'react';
+import { useListUrlParams } from '@/hooks/useListUrlParams';
+import { ListFilterBar, ListResultLine, type ListFilterField } from '@/components/list-toolkit';
 import { UserRole } from '@/types/auth-types';
 import { fullRouteRegistry } from '@/routes/routeRegistry';
 import { pageDirectory } from '../data/pageDirectory';
@@ -27,19 +20,43 @@ const ROLE_ORDER: { role: UserRole; title: string; key: string }[] = [
 ];
 
 const ALL = 'all';
+const ROLE_VALUES = ROLE_ORDER.map(r => r.role);
 
 const CATEGORIES = Array.from(new Set(pageDirectory.map(e => e.category))).sort();
+
+const PAGE_NOUN = ['page', 'pages'] as const;
+
+const CLASSIFICATION_OPTIONS = [
+  { value: 'critical-path', label: 'Critical path' },
+  { value: 'park', label: 'Park' },
+  { value: 'hidden', label: 'Hidden' },
+];
+
+const STATUS_OPTIONS = [
+  { value: 'working', label: 'Working' },
+  { value: 'stub', label: 'Stub' },
+  { value: 'known-issues', label: 'Known issues' },
+];
 
 const ROUTE_DIFF = routeDiff(fullRouteRegistry, pageDirectory);
 
 export function AdminHelpPage() {
-  const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState<UserRole | typeof ALL>(ALL);
-  const [categoryFilter, setCategoryFilter] = useState<string>(ALL);
-  const [classificationFilter, setClassificationFilter] = useState<string>(ALL);
-  const [statusFilter, setStatusFilter] = useState<string>(ALL);
-  const [showParked, setShowParked] = useState(false);
-  const [showHidden, setShowHidden] = useState(false);
+  const { searchParams, patch, readOneOf } = useListUrlParams();
+  const search = searchParams.get('q') ?? '';
+  const roleFilter = readOneOf('role', ROLE_VALUES) ?? ALL;
+  const categoryFilter = readOneOf('category', CATEGORIES) ?? ALL;
+  const classificationFilter =
+    readOneOf(
+      'classification',
+      CLASSIFICATION_OPTIONS.map(o => o.value)
+    ) ?? ALL;
+  const statusFilter =
+    readOneOf(
+      'status',
+      STATUS_OPTIONS.map(o => o.value)
+    ) ?? ALL;
+  const showParked = searchParams.get('parked') === 'shown';
+  const showHidden = searchParams.get('hidden') === 'shown';
 
   const { data: ids, isLoading } = useExampleIds();
 
@@ -73,6 +90,76 @@ export function AdminHelpPage() {
     showHidden,
   ]);
 
+  const filterFields: ListFilterField[] = [
+    {
+      kind: 'options',
+      key: 'role',
+      label: 'Role',
+      allLabel: 'All roles',
+      options: ROLE_ORDER.map(r => ({ value: r.role, label: r.title })),
+      value: roleFilter === ALL ? null : roleFilter,
+      onChange: value => patch({ role: value }),
+    },
+    {
+      kind: 'options',
+      key: 'category',
+      label: 'Category',
+      allLabel: 'All categories',
+      options: CATEGORIES.map(c => ({ value: c, label: c })),
+      value: categoryFilter === ALL ? null : categoryFilter,
+      onChange: value => patch({ category: value }),
+    },
+    {
+      kind: 'options',
+      key: 'classification',
+      label: 'Classification',
+      allLabel: 'All classifications',
+      options: CLASSIFICATION_OPTIONS,
+      value: classificationFilter === ALL ? null : classificationFilter,
+      onChange: value => patch({ classification: value }),
+    },
+    {
+      kind: 'options',
+      key: 'status',
+      label: 'Status',
+      allLabel: 'All statuses',
+      options: STATUS_OPTIONS,
+      value: statusFilter === ALL ? null : statusFilter,
+      onChange: value => patch({ status: value }),
+    },
+    // Parked and hidden pages are left out until asked for, so each is a
+    // two-way field whose unfiltered entry is "Hidden".
+    {
+      kind: 'options',
+      key: 'parked',
+      label: 'Parked pages',
+      allLabel: 'Hidden',
+      options: [{ value: 'shown', label: 'Shown' }],
+      value: showParked ? 'shown' : null,
+      onChange: value => patch({ parked: value === 'shown' ? 'shown' : null }),
+    },
+    {
+      kind: 'options',
+      key: 'hidden',
+      label: 'Hidden/dev pages',
+      allLabel: 'Hidden',
+      options: [{ value: 'shown', label: 'Shown' }],
+      value: showHidden ? 'shown' : null,
+      onChange: value => patch({ hidden: value === 'shown' ? 'shown' : null }),
+    },
+  ];
+
+  const showAllPages = () =>
+    patch({
+      q: null,
+      role: null,
+      category: null,
+      classification: null,
+      status: null,
+      parked: 'shown',
+      hidden: 'shown',
+    });
+
   const grouped = useMemo(() => {
     return ROLE_ORDER.map(r => ({
       ...r,
@@ -104,82 +191,19 @@ export function AdminHelpPage() {
         </p>
       </header>
 
-      <div className="space-y-3 rounded-lg border bg-card p-3">
-        <Input
-          aria-label="Search help pages"
-          placeholder="Search pages by title, description, path…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-        <div className="grid gap-2 md:grid-cols-4">
-          <Select value={roleFilter} onValueChange={v => setRoleFilter(v as UserRole | typeof ALL)}>
-            <SelectTrigger>
-              <SelectValue placeholder="Role" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All roles</SelectItem>
-              {ROLE_ORDER.map(r => (
-                <SelectItem key={r.role} value={r.role}>
-                  {r.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger>
-              <SelectValue placeholder="Category" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All categories</SelectItem>
-              {CATEGORIES.map(c => (
-                <SelectItem key={c} value={c}>
-                  {c}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Select value={classificationFilter} onValueChange={setClassificationFilter}>
-            <SelectTrigger>
-              <SelectValue placeholder="Classification" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All classifications</SelectItem>
-              <SelectItem value="critical-path">Critical path</SelectItem>
-              <SelectItem value="park">Park</SelectItem>
-              <SelectItem value="hidden">Hidden</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger>
-              <SelectValue placeholder="Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All statuses</SelectItem>
-              <SelectItem value="working">Working</SelectItem>
-              <SelectItem value="stub">Stub</SelectItem>
-              <SelectItem value="known-issues">Known issues</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-wrap gap-4">
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox
-              checked={showParked}
-              onCheckedChange={v => setShowParked(v === true)}
-              aria-label="Show parked pages"
-            />
-            Show parked pages
-          </label>
-          <label className="flex items-center gap-2 text-sm">
-            <Checkbox
-              checked={showHidden}
-              onCheckedChange={v => setShowHidden(v === true)}
-              aria-label="Show hidden / dev pages"
-            />
-            Show hidden/dev pages
-          </label>
-        </div>
-      </div>
+      <ListFilterBar
+        searchValue={search}
+        onSearchChange={value => patch({ q: value || null })}
+        searchPlaceholder="Search pages by title, description, path"
+        fields={filterFields}
+      />
+      <ListResultLine
+        shown={filtered.length}
+        total={pageDirectory.length}
+        noun={PAGE_NOUN}
+        filtered={filtered.length !== pageDirectory.length}
+        onShowAll={showAllPages}
+      />
 
       {grouped.length === 0 && (
         <div className="rounded-lg border p-6 text-center text-muted-foreground">

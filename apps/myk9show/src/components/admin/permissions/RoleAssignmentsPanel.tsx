@@ -7,6 +7,7 @@
  * affordance here; that is the duplication this panel was created to end.
  */
 
+import { useListUrlParams } from '@/hooks/useListUrlParams';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -29,12 +30,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {
-  DataTable,
-  DataTableToolbar,
-  DataTableSearch,
-  type ColumnDef,
-} from '@/components/ui/data-table';
+import { DataTable, filterByListSearch, type ColumnDef } from '@/components/ui/data-table';
+import { ListFilterBar, ListResultLine } from '@/components/list-toolkit';
 import type { DataTableColumnMeta } from '@/components/ui/data-table';
 import { rbacService } from '@/services/rbac/RBACService';
 import type { UserRole, Role } from '@/types/rbac-types';
@@ -232,7 +229,13 @@ function makeColumns(
   ];
 }
 
+const SEARCH_PARAM = 'assign_q';
+const ASSIGNMENT_NOUN = ['assignment', 'assignments'] as const;
+
 export const RoleAssignmentsPanel: React.FC = () => {
+  const { searchParams, patch } = useListUrlParams();
+  const searchTerm = searchParams.get(SEARCH_PARAM) ?? '';
+  const setSearchTerm = (value: string) => patch({ [SEARCH_PARAM]: value || null });
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -290,6 +293,12 @@ export const RoleAssignmentsPanel: React.FC = () => {
       ),
     []
   );
+
+  const visibleAssignments = useMemo(
+    () => filterByListSearch(userRoles, columns, searchTerm),
+    [userRoles, columns, searchTerm]
+  );
+  const hasSearch = searchTerm.trim() !== '';
 
   const activeAssignmentCount = userRoles.filter(assignment => assignment.is_active).length;
   const personCount = new Set(userRoles.map(assignment => assignment.user_id)).size;
@@ -351,24 +360,39 @@ export const RoleAssignmentsPanel: React.FC = () => {
         </span>
       </div>
 
+      <ListFilterBar
+        searchValue={searchTerm}
+        onSearchChange={setSearchTerm}
+        searchPlaceholder="Search by user, role, or scope"
+        fields={[]}
+      />
+
+      <ListResultLine
+        shown={visibleAssignments.length}
+        total={userRoles.length}
+        noun={ASSIGNMENT_NOUN}
+        filtered={hasSearch}
+        onShowAll={() => setSearchTerm('')}
+      />
+
       <div>
         <DataTable
           tableId="userRoleAssignments"
           scrollAreaLabel="User role assignments table"
           columns={columns}
-          data={userRoles}
+          data={visibleAssignments}
+          showSearch={false}
           emptyState={
             <div className="text-center py-8">
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
               <h3 className="text-lg font-medium mb-2">No assignments found</h3>
-              <p className="text-muted-foreground">No role assignments have been made yet</p>
+              <p className="text-muted-foreground">
+                {hasSearch
+                  ? 'No role assignments match your search'
+                  : 'No role assignments have been made yet'}
+              </p>
             </div>
           }
-          toolbar={({ table }) => (
-            <DataTableToolbar table={table}>
-              <DataTableSearch placeholder="Search by user, role, or scope..." />
-            </DataTableToolbar>
-          )}
         />
       </div>
 

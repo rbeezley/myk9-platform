@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render, userEvent } from '@/test/utils/testUtils';
+import { UrlProbe, readUrlParams } from '@/test/utils/UrlProbe';
 
 vi.mock('../hooks/useExampleIds', () => ({
   useExampleIds: () => ({
@@ -68,11 +69,21 @@ describe('AdminHelpPage', () => {
     expect(screen.queryByText('Subscription')).not.toBeInTheDocument();
   });
 
-  it('shows parked entries when the toggle is enabled', async () => {
+  async function pick(
+    user: ReturnType<typeof userEvent.setup>,
+    field: RegExp,
+    option: RegExp | string
+  ) {
+    await user.click(screen.getByRole('combobox', { name: field }));
+    await user.click(await screen.findByRole('option', { name: option }));
+  }
+
+  it('shows parked entries when the Parked pages filter is set to Shown', async () => {
     const user = userEvent.setup();
     render(<AdminHelpPage />);
-    await user.click(screen.getByRole('checkbox', { name: /show parked/i }));
+    await pick(user, /^parked pages$/i, 'Shown');
     expect(screen.getAllByText('Subscription').length).toBeGreaterThan(0);
+    expect(screen.getByText('Showing all 3 pages.')).toBeInTheDocument();
   });
 
   it('filters by search term across title and description', async () => {
@@ -81,5 +92,68 @@ describe('AdminHelpPage', () => {
     await user.type(screen.getByPlaceholderText(/search pages/i), 'exhibitor');
     expect(screen.getByText('My Shows')).toBeInTheDocument();
     expect(screen.queryByText('Admin Dashboard')).not.toBeInTheDocument();
+  });
+
+  it('narrows the list with the Role filter and reports the count', async () => {
+    const user = userEvent.setup();
+    render(<AdminHelpPage />);
+    expect(screen.getByText('Showing 2 of 3 pages.')).toBeInTheDocument();
+
+    await pick(user, /^role$/i, 'Exhibitor');
+
+    expect(screen.getByText('My Shows')).toBeInTheDocument();
+    expect(screen.queryByText('Admin Dashboard')).not.toBeInTheDocument();
+    expect(screen.getByText('Showing 1 of 3 pages.')).toBeInTheDocument();
+  });
+
+  it('shows every page, parked included, from Show all pages', async () => {
+    const user = userEvent.setup();
+    render(<AdminHelpPage />);
+    await user.type(screen.getByPlaceholderText(/search pages/i), 'zzzz');
+    expect(screen.getByText(/no pages match the current filters/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Show all pages' }));
+
+    expect(screen.getByText('Admin Dashboard')).toBeInTheDocument();
+    expect(screen.getByText('My Shows')).toBeInTheDocument();
+    expect(screen.getAllByText('Subscription').length).toBeGreaterThan(0);
+    expect(screen.getByText('Showing all 3 pages.')).toBeInTheDocument();
+  });
+
+  it('applies filters from the URL on mount', () => {
+    render(<AdminHelpPage />, {
+      initialRoute: '/admin/help?role=exhibitor&parked=shown&q=sub',
+    });
+    expect(screen.getByText('Showing 1 of 3 pages.')).toBeInTheDocument();
+    expect(screen.getAllByText('Subscription').length).toBeGreaterThan(0);
+    expect(screen.queryByText('My Shows')).not.toBeInTheDocument();
+  });
+
+  it('ignores an unknown role value in the URL', () => {
+    render(<AdminHelpPage />, { initialRoute: '/admin/help?role=bogus' });
+    expect(screen.getByText('Showing 2 of 3 pages.')).toBeInTheDocument();
+  });
+
+  it('writes controls to the URL and keeps unrelated params', async () => {
+    const user = userEvent.setup();
+    render(
+      <>
+        <AdminHelpPage />
+        <UrlProbe />
+      </>,
+      { initialRoute: '/admin/help?keep=1' }
+    );
+
+    await user.type(screen.getByPlaceholderText(/search pages/i), 'dash');
+    await user.click(screen.getByRole('combobox', { name: /^role$/i }));
+    await user.click(await screen.findByRole('option', { name: 'Site Admin' }));
+    await user.click(screen.getByRole('combobox', { name: /^parked pages$/i }));
+    await user.click(await screen.findByRole('option', { name: 'Shown' }));
+
+    const params = readUrlParams(screen.getByTestId('url-search').textContent);
+    expect(params.get('q')).toBe('dash');
+    expect(params.get('role')).toBe('site_admin');
+    expect(params.get('parked')).toBe('shown');
+    expect(params.get('keep')).toBe('1');
   });
 });

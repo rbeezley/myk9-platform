@@ -126,54 +126,6 @@ export function HistoryStrip({ runs, label }: { runs: CheckRun[]; label: string 
   );
 }
 
-export interface FilterTab<T extends string> {
-  value: T;
-  label: string;
-  count: number;
-}
-
-/** Filter tabs whose counts are always passed in, never recomputed locally.
- *
- * Semantically these are toggle buttons in a group, not ARIA tabs: there is no
- * tabpanel and no roving focus, so `role="tab"` would promise arrow-key
- * behavior that does not exist. */
-export function FilterTabs<T extends string>({
-  tabs,
-  active,
-  onChange,
-  ariaLabel,
-}: {
-  tabs: FilterTab<T>[];
-  active: T;
-  onChange: (value: T) => void;
-  ariaLabel: string;
-}) {
-  return (
-    <div role="group" aria-label={ariaLabel} className="flex flex-wrap gap-1">
-      {tabs.map(tab => {
-        const selected = tab.value === active;
-        return (
-          <button
-            key={tab.value}
-            type="button"
-            aria-pressed={selected}
-            onClick={() => onChange(tab.value)}
-            className={cn(
-              'min-h-10 rounded-full px-3 py-1 text-xs font-medium transition-colors',
-              'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-              selected
-                ? 'bg-foreground text-background'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-            )}
-          >
-            {tab.label} <span className="font-mono tabular-nums">{tab.count}</span>
-          </button>
-        );
-      })}
-    </div>
-  );
-}
-
 /** Card shell — one radius, one padding, one border for the whole board. */
 export function BoardCard({ children, className }: { children: ReactNode; className?: string }) {
   return (

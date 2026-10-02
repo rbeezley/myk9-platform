@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fireEvent } from '@testing-library/react';
 import { render, screen, userEvent } from '@/test/utils/testUtils';
+import { useLocation } from 'react-router-dom';
 import SystemHealthPage from './SystemHealthPage';
 import type { SystemHealthSnapshot } from '@/features/admin-system-health/systemHealthTypes';
 import type { SystemHealthData } from '@/features/admin-system-health/useSystemHealthSnapshots';
@@ -76,6 +77,10 @@ function freshSnapshot(overrides: Partial<SystemHealthSnapshot> = {}): SystemHea
     runDurationMs: 1500,
     ...overrides,
   };
+}
+
+function UrlProbe() {
+  return <output data-testid="url-search">{useLocation().search}</output>;
 }
 
 describe('SystemHealthPage', () => {
@@ -168,6 +173,25 @@ describe('SystemHealthPage', () => {
     await user.click(screen.getByRole('button', { name: 'Show all checks' }));
     expect(screen.getByText('Migration parity')).toBeInTheDocument();
     expect(screen.getByText('Showing all 2 checks.')).toBeInTheDocument();
+  });
+
+  it('applies the status view from the URL on mount and keeps unrelated params', async () => {
+    const latest = freshSnapshot();
+    mockedHook.mockReturnValue(hookState({ data: { latest, history: [latest] } }));
+
+    const { user } = render(
+      <>
+        <SystemHealthPage />
+        <UrlProbe />
+      </>,
+      { initialRoute: '/admin/health?status=fail&keep=1' }
+    );
+
+    expect(screen.getByText('Showing 0 of 2 checks.')).toBeInTheDocument();
+    await pickView(user, /^Passing \(1\)$/);
+    const params = new URLSearchParams(screen.getByTestId('url-search').textContent ?? '');
+    expect(params.get('status')).toBe('ok');
+    expect(params.get('keep')).toBe('1');
   });
 
   it('shows a stale warning when the latest run is older than the threshold', () => {

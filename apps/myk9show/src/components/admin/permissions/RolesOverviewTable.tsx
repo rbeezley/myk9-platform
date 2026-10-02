@@ -6,7 +6,8 @@
  * delete affordances here — that is the duplication this table exists to end.
  * See docs/plan-permissions-overview-roles-console.md.
  */
-import React, { useMemo, useState } from 'react';
+import { useListUrlParams } from '@/hooks/useListUrlParams';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
 import { AlertCircle, ChevronRight, RefreshCw } from 'lucide-react';
@@ -33,6 +34,7 @@ export interface RolesOverviewTableProps {
   auditFailed?: boolean;
 }
 
+const SEARCH_PARAM = 'roles_q';
 const ROLE_NOUN = ['role', 'roles'] as const;
 
 export const RolesOverviewTable: React.FC<RolesOverviewTableProps> = ({
@@ -43,7 +45,9 @@ export const RolesOverviewTable: React.FC<RolesOverviewTableProps> = ({
   onRetry,
   auditFailed = false,
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const { searchParams, patch } = useListUrlParams();
+  const searchTerm = searchParams.get(SEARCH_PARAM) ?? '';
+  const setSearchTerm = (value: string) => patch({ [SEARCH_PARAM]: value || null });
   const visibleRoles = useMemo(() => filterRoles(roles, searchTerm), [roles, searchTerm]);
 
   if (error) {

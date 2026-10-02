@@ -2,6 +2,7 @@
  * View the audit trail for permission changes.
  */
 
+import { useListUrlParams } from '@/hooks/useListUrlParams';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -148,6 +149,7 @@ const columns: ColumnDef<PermissionAuditLog, unknown>[] = [
 
 const EVENT_NOUN = ['event', 'events'] as const;
 const DEFAULT_DATE_RANGE = '7d';
+const DATE_RANGES = ['1d', '7d', '30d', '90d'] as const;
 const DATE_RANGE_OPTIONS = [
   { value: '1d', label: 'Last 24 hours' },
   { value: '30d', label: 'Last 30 days' },
@@ -155,12 +157,18 @@ const DATE_RANGE_OPTIONS = [
 ];
 
 const PermissionAuditPage: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const { searchParams, patch, readOneOf } = useListUrlParams();
+  const searchTerm = searchParams.get('audit_q') ?? '';
+  const setSearchTerm = (value: string) => patch({ audit_q: value || null });
   const [auditLogs, setAuditLogs] = useState<PermissionAuditLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [actionFilter, setActionFilter] = useState<string>('all');
-  const [dateRange, setDateRange] = useState<string>(DEFAULT_DATE_RANGE);
+  const actionFilter = searchParams.get('audit_action') ?? 'all';
+  const setActionFilter = (value: string) =>
+    patch({ audit_action: value === 'all' ? null : value });
+  const dateRange = readOneOf('audit_range', DATE_RANGES) ?? DEFAULT_DATE_RANGE;
+  const setDateRange = (value: string) =>
+    patch({ audit_range: value === DEFAULT_DATE_RANGE ? null : value });
 
   const loadAuditLogs = useCallback(async () => {
     try {
@@ -369,11 +377,8 @@ const PermissionAuditPage: React.FC = () => {
               shown={visibleLogs.length}
               total={auditLogs.length}
               noun={EVENT_NOUN}
-              filtered={hasSearch || actionFilter !== 'all'}
-              onShowAll={() => {
-                setSearchTerm('');
-                setActionFilter('all');
-              }}
+              filtered={hasSearch || actionFilter !== 'all' || dateRange !== DEFAULT_DATE_RANGE}
+              onShowAll={() => patch({ audit_q: null, audit_action: null, audit_range: null })}
             >
               <Button
                 variant="outline"

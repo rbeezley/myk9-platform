@@ -1,4 +1,5 @@
 import { render, screen, waitFor, within } from '@/test/utils/testUtils';
+import { UrlProbe, readUrlParams } from '@/test/utils/UrlProbe';
 import { vi } from 'vitest';
 
 vi.mock('@/services/rbac/RBACService', () => ({
@@ -272,5 +273,27 @@ describe('RoleAssignmentsPanel', () => {
     expect(screen.getByRole('alertdialog')).toHaveTextContent(
       'Are you sure you want to revoke the "Judge" role from dave@example.com for Club: unresolved (club-missing)?'
     );
+  });
+
+  it('applies the search from the URL and writes edits back without dropping other params', async () => {
+    const { user } = render(
+      <>
+        <RoleAssignmentsPanel />
+        <UrlProbe />
+      </>,
+      { initialRoute: '/admin/permissions?tab=assignments&assign_q=Blue%20Ridge' }
+    );
+    await screen.findByRole('table');
+
+    expect(screen.getByText('bob@example.com')).toBeInTheDocument();
+    expect(screen.queryByText('alice@example.com')).not.toBeInTheDocument();
+
+    const box = screen.getByPlaceholderText('Search by user, role, or scope');
+    await user.clear(box);
+    await user.type(box, 'alice');
+
+    const params = readUrlParams(screen.getByTestId('url-search').textContent);
+    expect(params.get('assign_q')).toBe('alice');
+    expect(params.get('tab')).toBe('assignments');
   });
 });

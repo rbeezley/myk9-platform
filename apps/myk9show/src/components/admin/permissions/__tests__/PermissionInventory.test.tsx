@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent } from '@/test/utils/testUtils';
+import { UrlProbe, readUrlParams } from '@/test/utils/UrlProbe';
 import type { Permission } from '@/types/rbac-types';
 import { PermissionInventory } from '../PermissionInventory';
 
@@ -93,5 +94,24 @@ describe('PermissionInventory', () => {
     const codes = screen.getAllByText(/^show:/);
     expect(codes[0]).toHaveTextContent('show:manage');
     expect(codes[1]).toHaveTextContent('show:view');
+  });
+
+  it('applies the search from the URL and writes edits back without dropping other params', () => {
+    render(
+      <>
+        <PermissionInventory permissions={permissions} />
+        <UrlProbe />
+      </>,
+      { initialRoute: '/admin/permissions?tab=permissions&perms_q=entry' }
+    );
+
+    expect(screen.getByText('Showing 1 of 3 permissions.')).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Search permissions by name, code, or resource'), {
+      target: { value: 'show' },
+    });
+
+    const params = readUrlParams(screen.getByTestId('url-search').textContent);
+    expect(params.get('perms_q')).toBe('show');
+    expect(params.get('tab')).toBe('permissions');
   });
 });

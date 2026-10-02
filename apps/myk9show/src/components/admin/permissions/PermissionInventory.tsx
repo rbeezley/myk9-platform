@@ -7,6 +7,7 @@
  * the role matrix of PermissionGrid (which is per-role) or the change-log of
  * PermissionAuditPage.
  */
+import { useListUrlParams } from '@/hooks/useListUrlParams';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { ListFilterBar, ListResultLine } from '@/components/list-toolkit';
@@ -27,6 +28,7 @@ interface PermissionInventoryProps {
   onRetry?: () => void;
 }
 
+const SEARCH_PARAM = 'perms_q';
 const PERMISSION_NOUN = ['permission', 'permissions'] as const;
 
 export const PermissionInventory: React.FC<PermissionInventoryProps> = ({
@@ -35,7 +37,9 @@ export const PermissionInventory: React.FC<PermissionInventoryProps> = ({
   error = null,
   onRetry,
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const { searchParams, patch } = useListUrlParams();
+  const searchTerm = searchParams.get(SEARCH_PARAM) ?? '';
+  const setSearchTerm = (value: string) => patch({ [SEARCH_PARAM]: value || null });
   const [openResources, setOpenResources] = useState<Set<string>>(new Set());
 
   const permissionsByResource = useMemo(() => {

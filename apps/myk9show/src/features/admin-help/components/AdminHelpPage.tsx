@@ -1,4 +1,5 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
+import { useListUrlParams } from '@/hooks/useListUrlParams';
 import { ListFilterBar, ListResultLine, type ListFilterField } from '@/components/list-toolkit';
 import { UserRole } from '@/types/auth-types';
 import { fullRouteRegistry } from '@/routes/routeRegistry';
@@ -19,6 +20,7 @@ const ROLE_ORDER: { role: UserRole; title: string; key: string }[] = [
 ];
 
 const ALL = 'all';
+const ROLE_VALUES = ROLE_ORDER.map(r => r.role);
 
 const CATEGORIES = Array.from(new Set(pageDirectory.map(e => e.category))).sort();
 
@@ -39,13 +41,22 @@ const STATUS_OPTIONS = [
 const ROUTE_DIFF = routeDiff(fullRouteRegistry, pageDirectory);
 
 export function AdminHelpPage() {
-  const [search, setSearch] = useState('');
-  const [roleFilter, setRoleFilter] = useState<UserRole | typeof ALL>(ALL);
-  const [categoryFilter, setCategoryFilter] = useState<string>(ALL);
-  const [classificationFilter, setClassificationFilter] = useState<string>(ALL);
-  const [statusFilter, setStatusFilter] = useState<string>(ALL);
-  const [showParked, setShowParked] = useState(false);
-  const [showHidden, setShowHidden] = useState(false);
+  const { searchParams, patch, readOneOf } = useListUrlParams();
+  const search = searchParams.get('q') ?? '';
+  const roleFilter = readOneOf('role', ROLE_VALUES) ?? ALL;
+  const categoryFilter = readOneOf('category', CATEGORIES) ?? ALL;
+  const classificationFilter =
+    readOneOf(
+      'classification',
+      CLASSIFICATION_OPTIONS.map(o => o.value)
+    ) ?? ALL;
+  const statusFilter =
+    readOneOf(
+      'status',
+      STATUS_OPTIONS.map(o => o.value)
+    ) ?? ALL;
+  const showParked = searchParams.get('parked') === 'shown';
+  const showHidden = searchParams.get('hidden') === 'shown';
 
   const { data: ids, isLoading } = useExampleIds();
 
@@ -87,7 +98,7 @@ export function AdminHelpPage() {
       allLabel: 'All roles',
       options: ROLE_ORDER.map(r => ({ value: r.role, label: r.title })),
       value: roleFilter === ALL ? null : roleFilter,
-      onChange: value => setRoleFilter((value as UserRole | null) ?? ALL),
+      onChange: value => patch({ role: value }),
     },
     {
       kind: 'options',
@@ -96,7 +107,7 @@ export function AdminHelpPage() {
       allLabel: 'All categories',
       options: CATEGORIES.map(c => ({ value: c, label: c })),
       value: categoryFilter === ALL ? null : categoryFilter,
-      onChange: value => setCategoryFilter(value ?? ALL),
+      onChange: value => patch({ category: value }),
     },
     {
       kind: 'options',
@@ -105,7 +116,7 @@ export function AdminHelpPage() {
       allLabel: 'All classifications',
       options: CLASSIFICATION_OPTIONS,
       value: classificationFilter === ALL ? null : classificationFilter,
-      onChange: value => setClassificationFilter(value ?? ALL),
+      onChange: value => patch({ classification: value }),
     },
     {
       kind: 'options',
@@ -114,7 +125,7 @@ export function AdminHelpPage() {
       allLabel: 'All statuses',
       options: STATUS_OPTIONS,
       value: statusFilter === ALL ? null : statusFilter,
-      onChange: value => setStatusFilter(value ?? ALL),
+      onChange: value => patch({ status: value }),
     },
     // Parked and hidden pages are left out until asked for, so each is a
     // two-way field whose unfiltered entry is "Hidden".
@@ -125,7 +136,7 @@ export function AdminHelpPage() {
       allLabel: 'Hidden',
       options: [{ value: 'shown', label: 'Shown' }],
       value: showParked ? 'shown' : null,
-      onChange: value => setShowParked(value === 'shown'),
+      onChange: value => patch({ parked: value === 'shown' ? 'shown' : null }),
     },
     {
       kind: 'options',
@@ -134,19 +145,20 @@ export function AdminHelpPage() {
       allLabel: 'Hidden',
       options: [{ value: 'shown', label: 'Shown' }],
       value: showHidden ? 'shown' : null,
-      onChange: value => setShowHidden(value === 'shown'),
+      onChange: value => patch({ hidden: value === 'shown' ? 'shown' : null }),
     },
   ];
 
-  const showAllPages = () => {
-    setSearch('');
-    setRoleFilter(ALL);
-    setCategoryFilter(ALL);
-    setClassificationFilter(ALL);
-    setStatusFilter(ALL);
-    setShowParked(true);
-    setShowHidden(true);
-  };
+  const showAllPages = () =>
+    patch({
+      q: null,
+      role: null,
+      category: null,
+      classification: null,
+      status: null,
+      parked: 'shown',
+      hidden: 'shown',
+    });
 
   const grouped = useMemo(() => {
     return ROLE_ORDER.map(r => ({
@@ -181,7 +193,7 @@ export function AdminHelpPage() {
 
       <ListFilterBar
         searchValue={search}
-        onSearchChange={setSearch}
+        onSearchChange={value => patch({ q: value || null })}
         searchPlaceholder="Search pages by title, description, path"
         fields={filterFields}
       />

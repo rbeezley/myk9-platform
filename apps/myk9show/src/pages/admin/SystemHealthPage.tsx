@@ -45,6 +45,7 @@ import {
 import { useOperatorAlerts } from '@/features/admin-system-health/useOperatorAlerts';
 import { summarizeAlerts } from '@/features/admin-system-health/operatorAlertsSelectors';
 import { cn } from '@/lib/utils';
+import { useListUrlParams } from '@/hooks/useListUrlParams';
 import { ListResultLine, ListViewTabs, type ListView } from '@/components/list-toolkit';
 import { OperatorAlertsSection } from './OperatorAlertsSection';
 import {
@@ -56,6 +57,7 @@ import {
 } from './SystemHealth/HealthBoardPrimitives';
 import { HealthCheckRow } from './SystemHealth/HealthCheckRow';
 
+const CHECK_FILTERS: readonly CheckFilter[] = ['all', 'fail', 'warn', 'ok'];
 const CHECK_NOUN = ['check', 'checks'] as const;
 
 /** The `daily-health-check` pg_cron entry: `0 7 * * *`, i.e. 07:00 UTC. */
@@ -278,7 +280,9 @@ export default function SystemHealthPage() {
     const clock = window.setInterval(() => setNow(Date.now()), 60_000);
     return () => window.clearInterval(clock);
   }, []);
-  const [filter, setFilter] = useState<CheckFilter>('all');
+  const { patch, readOneOf } = useListUrlParams();
+  const filter = readOneOf('status', CHECK_FILTERS) ?? 'all';
+  const setFilter = (next: CheckFilter) => patch({ status: next === 'all' ? null : next });
   const [openKey, setOpenKey] = useState<string | null>(null);
 
   const snapshots = useMemo(() => data?.history ?? [], [data]);

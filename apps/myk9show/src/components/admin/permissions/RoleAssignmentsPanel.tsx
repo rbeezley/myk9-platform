@@ -7,6 +7,7 @@
  * affordance here; that is the duplication this panel was created to end.
  */
 
+import { useListUrlParams } from '@/hooks/useListUrlParams';
 import React, { useState, useEffect, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -228,10 +229,13 @@ function makeColumns(
   ];
 }
 
+const SEARCH_PARAM = 'assign_q';
 const ASSIGNMENT_NOUN = ['assignment', 'assignments'] as const;
 
 export const RoleAssignmentsPanel: React.FC = () => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const { searchParams, patch } = useListUrlParams();
+  const searchTerm = searchParams.get(SEARCH_PARAM) ?? '';
+  const setSearchTerm = (value: string) => patch({ [SEARCH_PARAM]: value || null });
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
   const [roles, setRoles] = useState<Role[]>([]);
   const [isLoading, setIsLoading] = useState(true);

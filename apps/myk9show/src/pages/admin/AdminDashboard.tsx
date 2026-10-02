@@ -21,7 +21,8 @@
  * "what reads the number", not "where does the block go".
  */
 
-import { useMemo, useState } from 'react';
+import { useListUrlParams } from '@/hooks/useListUrlParams';
+import { useMemo } from 'react';
 import { useNow } from '@/hooks/useNow';
 import { Link } from 'react-router-dom';
 import { Settings, Users } from 'lucide-react';
@@ -99,12 +100,18 @@ function StatTile({
   );
 }
 
+const TRIAGE_FILTERS: readonly (TriageCategory | 'all')[] = ['all', 'money', 'service', 'deadline'];
+
 export default function AdminDashboard() {
   const { firstName } = useAuthContext();
   // Ticks with the queries (60s). Frozen-at-mount `now` meant staleness could
   // never trip after load and "checked X ago" never aged on a long-lived tab.
   const now = useNow(60_000);
-  const [triageFilter, setTriageFilter] = useState<TriageCategory | 'all'>('all');
+  // Namespaced (`triage`) so it cannot collide with other dashboard params.
+  const { patch, readOneOf } = useListUrlParams();
+  const triageFilter = readOneOf('triage', TRIAGE_FILTERS) ?? 'all';
+  const setTriageFilter = (next: TriageCategory | 'all') =>
+    patch({ triage: next === 'all' ? null : next });
 
   const health = useSystemHealthSnapshots();
   const alerts = useOperatorAlerts();

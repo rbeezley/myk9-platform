@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 import { ClassesTab, type ClassInfo } from '../ClassesTab';
 
 // MYK9-924 review round 3: one search (the toolbar's), focus that survives pagination and
@@ -170,6 +171,14 @@ describe('ClassesTab review fixes', () => {
 
       expect(navigate).toHaveBeenCalledTimes(1);
       expect(navigate.mock.calls[0]![0]).toContain('t3');
+    });
+
+    it('keeps the requested trial when the whole show has no classes', async () => {
+      const { user } = renderTab({ classes: [], trials, trialId: 't2', onTrialChange: vi.fn() });
+
+      await user.click(screen.getByRole('button', { name: 'Add Classes' }));
+
+      expect(navigate).toHaveBeenCalledWith(getAddClassesHref('s1', 't2'));
     });
   });
 

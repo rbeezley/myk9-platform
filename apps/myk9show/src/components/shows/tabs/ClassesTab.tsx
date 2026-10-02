@@ -231,7 +231,8 @@ export function ClassesTab({
           canManageThisShow
             ? {
                 label: 'Add Classes',
-                onClick: () => navigate(getAddClassesHref(showId)),
+                onClick: () =>
+                  navigate(getAddClassesHref(showId, scope.scopeTrialId ?? requestedTrialId)),
                 icon: Plus,
               }
             : null

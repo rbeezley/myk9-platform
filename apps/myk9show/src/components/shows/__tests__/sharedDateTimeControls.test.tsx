@@ -223,4 +223,42 @@ describe('Edit Trial start time storage and display', () => {
       plannedStartTime: '01:30 PM',
     });
   });
+
+  it('changing the date never invents a start time: only an explicit time writes one', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const { user } = render(
+      <TrialEditPanel
+        open
+        onClose={vi.fn()}
+        trialId="t1"
+        trialName="Saturday AM"
+        onSave={onSave}
+        initialTrialData={{ ...base, plannedStartTime: '' }}
+      />
+    );
+    await user.click(screen.getByRole('tab', { name: /scheduling/i }));
+    const field = await screen.findByTestId('trial-date-time-field');
+    await user.click(within(field).getByRole('button'));
+    await user.click(await screen.findByRole('button', { name: /May 15th/ }));
+    await user.keyboard('{Escape}');
+
+    // The new date is kept, the time is still unset (not 12:00 AM)...
+    expect(within(field).getByRole('button')).toHaveTextContent(/May 15, 2026/);
+    expect(within(field).getByRole('button')).toHaveTextContent(/time not set/i);
+    // ...and a start time is still demanded: Save refuses and says so.
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+    expect(onSave).not.toHaveBeenCalled();
+    expect((await screen.findAllByText(/valid time/i)).length).toBeGreaterThan(0);
+
+    // An explicit time then saves, with the date picked above.
+    await user.click(within(field).getByRole('button'));
+    await user.type(await screen.findByPlaceholderText('8:00 AM'), '10:15 AM');
+    await user.keyboard('{Escape}');
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+    await vi.waitFor(() => expect(onSave).toHaveBeenCalled());
+    expect(onSave.mock.calls[0]?.[0]).toMatchObject({
+      trialDate: '2026-05-15',
+      plannedStartTime: '10:15 AM',
+    });
+  });
 });

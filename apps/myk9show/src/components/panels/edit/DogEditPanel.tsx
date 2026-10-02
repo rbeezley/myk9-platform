@@ -206,7 +206,7 @@ export const DogEditPanel: React.FC<DogEditPanelProps> = ({
 }) => {
   // A failed Save moves to the tab holding the first invalid field (MYK9-931).
   const { activeTab, setActiveTab, handleValidationFail } =
-    usePanelValidationNavigation<DogTabValue>('basic', locateDogField);
+    usePanelValidationNavigation<DogTabValue>('basic', locateDogField, open);
 
   // Convert dog data to form data
   const initialFormData = useMemo(() => dogToFormData(initialDogData), [initialDogData]);

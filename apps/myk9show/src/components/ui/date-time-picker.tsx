@@ -9,7 +9,12 @@ import { cn } from '@/lib/utils';
 
 interface DateTimePickerProps {
   value?: Date | undefined;
-  onChange?: ((date: Date | undefined) => void) | undefined;
+  /**
+   * `meta.timeSet` is false when the date moved but the time box holds no valid time
+   * (a date picked while "time not set"): the Date then carries midnight only because
+   * a Date must carry something, and the caller must not store it as a chosen time.
+   */
+  onChange?: ((date: Date | undefined, meta?: { timeSet: boolean }) => void) | undefined;
   placeholder?: string | undefined;
   className?: string | undefined;
   minDate?: Date | undefined;
@@ -119,7 +124,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
     }
 
     setSelectedDate(date);
-    onChange?.(date);
+    onChange?.(date, { timeSet: time !== null });
   };
 
   const handleTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -132,7 +137,7 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({
         const newDate = new Date(selectedDate);
         newDate.setHours(time.hours);
         newDate.setMinutes(time.minutes);
-        onChange?.(newDate);
+        onChange?.(newDate, { timeSet: true });
       }
     }
   };

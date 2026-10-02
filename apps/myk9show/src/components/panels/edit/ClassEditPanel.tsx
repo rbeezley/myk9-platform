@@ -222,7 +222,7 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
 }) => {
   // A failed Save moves to the tab holding the first invalid field (MYK9-931).
   const { activeTab, setActiveTab, handleValidationFail } =
-    usePanelValidationNavigation<ClassTabValue>('basic', locateClassField);
+    usePanelValidationNavigation<ClassTabValue>('basic', locateClassField, open);
 
   const isSimpleMode =
     mode === 'simple' ||

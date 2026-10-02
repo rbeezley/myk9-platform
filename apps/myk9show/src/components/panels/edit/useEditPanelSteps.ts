@@ -39,6 +39,8 @@ interface UseEditPanelStepsArgs {
   schema: z.ZodTypeAny | undefined;
   data: unknown;
   touchField: (field: string) => void;
+  /** The panel's open state; a reopened panel starts with no "blocked" message. */
+  open: boolean;
 }
 
 /**
@@ -48,8 +50,19 @@ interface UseEditPanelStepsArgs {
  * its own inline error), focuses the first, and `blockedMessage` says why. The
  * message is derived from live data, so it clears the moment the field is fixed.
  */
-export function useEditPanelSteps({ steps, schema, data, touchField }: UseEditPanelStepsArgs) {
+export function useEditPanelSteps({
+  steps,
+  schema,
+  data,
+  touchField,
+  open,
+}: UseEditPanelStepsArgs) {
   const [attemptedTab, setAttemptedTab] = useState<string | null>(null);
+  const [prevOpen, setPrevOpen] = useState(open);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    if (open) setAttemptedTab(null);
+  }
 
   const index = steps ? steps.tabs.findIndex(tab => tab.value === steps.activeTab) : -1;
   const nextTab = steps?.mode === 'create' && index >= 0 ? steps.tabs[index + 1] : undefined;

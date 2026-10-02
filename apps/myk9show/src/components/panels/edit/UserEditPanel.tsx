@@ -345,7 +345,7 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
   const isCreateMode = !userId;
   // A failed save, or Next, moves to the tab holding the first invalid field.
   const { activeTab, setActiveTab, handleValidationFail } =
-    usePanelValidationNavigation<UserTabValue>('basic', locateUserField);
+    usePanelValidationNavigation<UserTabValue>('basic', locateUserField, open);
   const title = isCreateMode ? 'Add Person' : 'Edit Person';
   const subtitle = isCreateMode ? 'Add a person profile' : `Editing profile for ${userName}`;
   // Convert user data to form data

@@ -385,6 +385,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     schema,
     data,
     touchField: field => form.touchField(field),
+    open,
   });
 
   // The item is gone, so its unsaved edits are moot: close without the discard

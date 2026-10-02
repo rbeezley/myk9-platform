@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 interface TrialDateTimeFieldProps {
   id: string;
   value: Date | undefined;
-  onChange: (date: Date | undefined) => void;
+  onChange: (date: Date | undefined, meta?: { timeSet: boolean }) => void;
   error?: string | undefined;
   minDate?: Date | undefined;
   maxDate?: Date | undefined;

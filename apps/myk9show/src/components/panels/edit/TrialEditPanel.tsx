@@ -174,9 +174,12 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange })
 
   // One picker holds both the date and the start time; store them as the two fields.
   const handleDateTimeChange = useCallback(
-    (value: Date | undefined) => {
+    (value: Date | undefined, meta?: { timeSet: boolean }) => {
       if (!value) return;
-      form?.setValues(splitTrialDateTime(value));
+      const { trialDate, plannedStartTime } = splitTrialDateTime(value);
+      // A date picked while the time is unset moves the date only: midnight is the
+      // picker's placeholder, not a time anyone chose.
+      form?.setValues(meta?.timeSet === false ? { trialDate } : { trialDate, plannedStartTime });
     },
     [form]
   );
@@ -483,7 +486,8 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
 }) => {
   const { activeTab, setActiveTab, handleValidationFail } = usePanelValidationNavigation<TabId>(
     'basic',
-    locateTrialField
+    locateTrialField,
+    open
   );
 
   // Convert trial data to form data

@@ -32,6 +32,12 @@ vi.mock('@/hooks/queries/useJudgesWithQualifications', () => ({
         lastName: 'Judge',
         judgeQualifications: [{ status: 'Active', organization: 'AKC' }],
       },
+      {
+        id: 'judge-2',
+        firstName: 'Joe',
+        lastName: 'Judge',
+        judgeQualifications: [{ status: 'Active', organization: 'AKC' }],
+      },
     ],
   }),
 }));
@@ -201,6 +207,64 @@ describe('ClassesTab review fixes', () => {
 
       again(undefined);
       await waitFor(() => expect(picker()).toHaveTextContent('Unassigned'));
+    });
+  });
+
+  // The picker shows the judge on the store row it is handed (after `mergeTrialClassData`), so
+  // each change another device or a remount makes must reach the picker.
+  describe('judge picker follows the class row', () => {
+    const picker = () => screen.getByRole('combobox', { name: 'Judge for Class c1' });
+    const rowJudgedBy = (judgeId?: string) =>
+      classes.map(cls => (cls.id === 'c1' && judgeId ? { ...cls, judgeId } : cls));
+    const tabWith = (judgeId?: string) => (
+      <ClassesTab classes={rowJudgedBy(judgeId)} showId="s1" userHasEntries={false} />
+    );
+
+    it('shows Unassigned when a remote update clears the judge', async () => {
+      const { rerender } = renderTab({ classes: rowJudgedBy('judge-1') });
+      await waitFor(() => expect(picker()).toHaveTextContent('Jane Judge'));
+
+      rerender(tabWith(undefined));
+
+      await waitFor(() => expect(picker()).toHaveTextContent('Unassigned'));
+    });
+
+    it('keeps a local clear across a remount, and a later reassignment still shows', async () => {
+      const { user, unmount } = renderTab({ classes: rowJudgedBy('judge-1') });
+      await user.click(picker());
+      await user.click(await screen.findByRole('option', { name: 'Unassigned' }));
+      await waitFor(() => expect(picker()).toHaveTextContent('Unassigned'));
+      unmount();
+
+      const second = renderTab({ classes: rowJudgedBy(undefined) });
+      await waitFor(() => expect(picker()).toHaveTextContent('Unassigned'));
+
+      second.rerender(tabWith('judge-1'));
+      await waitFor(() => expect(picker()).toHaveTextContent('Jane Judge'));
+    });
+
+    it('follows a reassignment from another device, A -> B -> A', async () => {
+      const { rerender } = renderTab({ classes: rowJudgedBy('judge-1') });
+      await waitFor(() => expect(picker()).toHaveTextContent('Jane Judge'));
+
+      rerender(tabWith('judge-2'));
+      await waitFor(() => expect(picker()).toHaveTextContent('Joe Judge'));
+
+      rerender(tabWith('judge-1'));
+      await waitFor(() => expect(picker()).toHaveTextContent('Jane Judge'));
+    });
+
+    it('shows A again after a LOCAL clear and then another device re-assigns A', async () => {
+      const { user, rerender } = renderTab({ classes: rowJudgedBy('judge-1') });
+      await user.click(picker());
+      await user.click(await screen.findByRole('option', { name: 'Unassigned' }));
+      await waitFor(() => expect(picker()).toHaveTextContent('Unassigned'));
+
+      rerender(tabWith(undefined));
+      await waitFor(() => expect(picker()).toHaveTextContent('Unassigned'));
+      rerender(tabWith('judge-1'));
+
+      await waitFor(() => expect(picker()).toHaveTextContent('Jane Judge'));
     });
   });
 

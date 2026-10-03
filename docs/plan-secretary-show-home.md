@@ -53,8 +53,8 @@ Each phase is its own PR and leaves the app shippable. Show Day stays reachable 
 1. **Tools moves:** as in the Phase 1 table (Show closeout to Results step 3; the emergency trial packet stays in Tools → Show day).
 2. **Day picker default:** today on a show day; the first show day before the show; the last show day after it.
 3. **Quiet mode:** hide the "now" marker and the "starts in N minutes" preparation reminders unless the selected day is today.
-4. **Unused tools:** judged from the dress rehearsal or the owner's judgment, not by waiting for the show.
-5. **MYK9-898:** retarget the real-secretary observation at the new home (Phase 5, MYK9-958).
+4. **Usage audit:** a used/unused checklist of the Show Day tools and filters, ticked at the Oct 6 dress rehearsal (first pass) and the Oct 10 show (second pass). Anything unused is a deletion candidate, not a migration; nothing is deleted without the owner's yes.
+5. **MYK9-898:** retarget the real-secretary observation at the new home instead of the Setup row menus Phase 3 removes, update its task list to match, and run it at the Oct 10 show (Phase 5, MYK9-958).
 
 ### Phase 1 — Slim the Tools (shippable on today's Show Day)
 

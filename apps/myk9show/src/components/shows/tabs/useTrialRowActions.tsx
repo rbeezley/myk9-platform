@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -36,32 +36,35 @@ export function useTrialRowActions(showId: string, enabled: boolean) {
   // ONE action in flight: every row menu is locked while one resolves, and a result that is not
   // from the latest request is ignored.
   const latestActionRequest = useRef(0);
-  const openTrialAction = async (trialId: string, action: 'edit' | 'delete') => {
-    const request = ++latestActionRequest.current;
-    setHydratingTrialId(trialId);
-    try {
-      // The store first; if the trial is not there, sync this show's trials into the replica and
-      // reload the store (offline or a failed sync falls through to the error below).
-      const trial = await hydrateThenResolve({
-        readStore: () => useTrialStore.getState().trials.find(t => t.id === trialId),
-        sync: () => replicatedTrialsTable.sync(showId, { forceFullSync: true }),
-        reload: () => useTrialStore.getState().loadTrials(),
-      });
-      if (request !== latestActionRequest.current) return;
-      if (!trial) {
-        toast.error("We couldn't load this trial. Please refresh and try again.");
-        return;
+  const openTrialAction = useCallback(
+    async (trialId: string, action: 'edit' | 'delete') => {
+      const request = ++latestActionRequest.current;
+      setHydratingTrialId(trialId);
+      try {
+        // The store first; if the trial is not there, sync this show's trials into the replica and
+        // reload the store (offline or a failed sync falls through to the error below).
+        const trial = await hydrateThenResolve({
+          readStore: () => useTrialStore.getState().trials.find(t => t.id === trialId),
+          sync: () => replicatedTrialsTable.sync(showId, { forceFullSync: true }),
+          reload: () => useTrialStore.getState().loadTrials(),
+        });
+        if (request !== latestActionRequest.current) return;
+        if (!trial) {
+          toast.error("We couldn't load this trial. Please refresh and try again.");
+          return;
+        }
+        setPendingTrialAction({ trial, action, requestId: request });
+      } catch {
+        // Any unexpected failure reads the same as "not found": say so, never fail silently.
+        if (request === latestActionRequest.current) {
+          toast.error("We couldn't load this trial. Please refresh and try again.");
+        }
+      } finally {
+        if (request === latestActionRequest.current) setHydratingTrialId(null);
       }
-      setPendingTrialAction({ trial, action, requestId: request });
-    } catch {
-      // Any unexpected failure reads the same as "not found": say so, never fail silently.
-      if (request === latestActionRequest.current) {
-        toast.error("We couldn't load this trial. Please refresh and try again.");
-      }
-    } finally {
-      if (request === latestActionRequest.current) setHydratingTrialId(null);
-    }
-  };
+    },
+    [showId]
+  );
   // Tied to the request that started the action: a late completion from an earlier one must not
   // clear a newer selection (and discard its edits).
   const finishTrialAction = (requestId: number) =>
@@ -71,28 +74,35 @@ export function useTrialRowActions(showId: string, enabled: boolean) {
    * `withDetails` adds "Trial details" for surfaces whose trial row does not
    * already open the trial page (the show home's collapsible headings).
    */
-  const trialRowMenu = (trialId: string, label: string, withDetails = false) => (
-    <SetupRowActionsMenu
-      subject="Trial"
-      rowLabel={label}
-      {...(withDetails && {
-        extraActions: [
-          {
-            id: 'trial-details',
-            label: 'Trial details',
-            icon: <FileText />,
-            onSelect: () =>
-              navigate(
-                `/shows/${encodeURIComponent(showId)}/trials/${encodeURIComponent(trialId)}`
-              ),
-          },
-        ],
-      })}
-      busy={hydratingTrialId === trialId}
-      locked={hydratingTrialId !== null || pendingTrialAction !== null}
-      onEdit={() => void openTrialAction(trialId, 'edit')}
-      onDelete={() => void openTrialAction(trialId, 'delete')}
-    />
+  // Memoized on what it renders: TrialsTab's table builds its actions column from this, and a
+  // new function each render replaced the column and closed an open menu on any parent render
+  // (Codex review of #2691).
+  const actionLocked = hydratingTrialId !== null || pendingTrialAction !== null;
+  const trialRowMenu = useCallback(
+    (trialId: string, label: string, withDetails = false) => (
+      <SetupRowActionsMenu
+        subject="Trial"
+        rowLabel={label}
+        {...(withDetails && {
+          extraActions: [
+            {
+              id: 'trial-details',
+              label: 'Trial details',
+              icon: <FileText />,
+              onSelect: () =>
+                navigate(
+                  `/shows/${encodeURIComponent(showId)}/trials/${encodeURIComponent(trialId)}`
+                ),
+            },
+          ],
+        })}
+        busy={hydratingTrialId === trialId}
+        locked={actionLocked}
+        onEdit={() => void openTrialAction(trialId, 'edit')}
+        onDelete={() => void openTrialAction(trialId, 'delete')}
+      />
+    ),
+    [actionLocked, hydratingTrialId, navigate, openTrialAction, showId]
   );
 
   const trialDialogs =

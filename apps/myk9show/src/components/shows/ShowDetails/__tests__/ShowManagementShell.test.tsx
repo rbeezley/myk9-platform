@@ -121,8 +121,18 @@ vi.mock('@/components/shows/ShowDetails/ShowSyncStatus', () => ({
   ShowSyncStatus: () => <div data-testid="sync-status" />,
 }));
 vi.mock('@/features/premium/PremiumDownloadCard', () => ({
-  PremiumDownloadCard: ({ canManageShow }: { canManageShow: boolean }) => (
-    <div data-testid="premium-download-card" data-can-manage={String(canManageShow)} />
+  PremiumDownloadCard: ({
+    canManageShow,
+    showStaleBadge,
+  }: {
+    canManageShow: boolean;
+    showStaleBadge?: boolean;
+  }) => (
+    <div
+      data-testid="premium-download-card"
+      data-can-manage={String(canManageShow)}
+      data-show-stale-badge={String(showStaleBadge)}
+    />
   ),
 }));
 vi.mock('@/features/premium/LandingPageCard', () => ({
@@ -315,6 +325,16 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('sync-status')).toBeInTheDocument();
   });
 
+  // The deleted Show Day header warned when show data changed after the
+  // premium was published; on the home that warning is the premium card's.
+  it('turns on the premium card stale warning for managers', () => {
+    renderShell();
+    expect(screen.getByTestId('premium-download-card')).toHaveAttribute(
+      'data-show-stale-badge',
+      'true'
+    );
+  });
+
   it('carries no visible page-level action button: Edit show lives in the Actions menu (MYK9-928)', () => {
     renderShell();
     const header = screen.getByTestId('page-header-actions');
@@ -417,6 +437,14 @@ describe('ShowManagementShell', () => {
 
   it('renders the staff armband lookup only when armbands exist', () => {
     renderShell({ armbandCount: 3 });
+    expect(screen.getByTestId('armband-lookup')).toHaveTextContent('Armband lookup for show-1');
+  });
+
+  // Codex P2 on MYK9-957: an unread count (loading, offline, failed) is not
+  // zero. Hiding the lookup then leaves the secretary nothing to retry; the
+  // deleted Show Day header kept it, and its URL now lands here.
+  it('keeps the staff armband lookup when the armband count is unknown', () => {
+    renderShell({ armbandCount: undefined });
     expect(screen.getByTestId('armband-lookup')).toHaveTextContent('Armband lookup for show-1');
   });
 

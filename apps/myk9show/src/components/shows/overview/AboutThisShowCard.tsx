@@ -44,7 +44,7 @@ export function AboutThisShowCard({
       <div className="flex flex-wrap items-center gap-2 px-4 py-2">
         <CollapsibleTrigger className="group flex min-h-11 flex-1 items-center justify-start gap-2 py-2 text-left font-semibold hover:no-underline">
           <span aria-hidden="true" className="shrink-0">
-            <ChevronDown className="h-4 w-4 -rotate-90 text-muted-foreground transition-transform group-data-[open]:rotate-0" />
+            <ChevronDown className="h-4 w-4 -rotate-90 text-muted-foreground transition-transform group-data-[panel-open]:rotate-0" />
           </span>
           About this show
           {show.location ? (

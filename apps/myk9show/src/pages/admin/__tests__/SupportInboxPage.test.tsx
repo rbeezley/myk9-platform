@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@/test/utils/testUtils';
+import { UrlProbe, readUrlParams } from '@/test/utils/UrlProbe';
 import { render } from '@/test/utils/testUtils';
 import SupportInboxPage from '../SupportInboxPage';
 import type { SupportTicket } from '@/features/support/supportTickets';
@@ -40,6 +41,10 @@ vi.mock('@/features/support/SupportTicketThread', () => ({
     </div>
   ),
 }));
+
+function viewPicker() {
+  return screen.getByRole('combobox', { name: 'Show: Support tickets' });
+}
 
 function makeTicket(overrides: Partial<SupportTicket> = {}): SupportTicket {
   return {
@@ -94,7 +99,7 @@ describe('SupportInboxPage', () => {
     render(<SupportInboxPage />, { initialRoute: '/admin/support?status=all&ticketId=ticket-2' });
 
     expect(screen.getAllByRole('heading', { name: 'Support Inbox' })).toHaveLength(2);
-    expect(screen.getByText('Payment receipt question')).toBeInTheDocument();
+    expect(screen.getAllByText('Payment receipt question').length).toBeGreaterThan(0);
     expect(screen.getByTestId('support-thread')).toHaveTextContent('ticket-2:true');
     expect(screen.getByText('Diagnostics')).toBeInTheDocument();
     expect(screen.getAllByText('/at-show/show-1').length).toBeGreaterThan(0);
@@ -108,6 +113,94 @@ describe('SupportInboxPage', () => {
       '/admin/users?userId=owner-1'
     );
     expect(screen.getByText('Next checks')).toBeInTheDocument();
+  });
+
+  it('defaults to Open, counts every status, and says what it is showing', () => {
+    hookState.tickets = [
+      makeTicket({ id: 't-open-1' }),
+      makeTicket({ id: 't-open-2', subject: 'Second open' }),
+      makeTicket({ id: 't-wait', subject: 'Waiting one', status: 'waiting' }),
+      makeTicket({ id: 't-done', subject: 'Done one', status: 'resolved' }),
+    ];
+
+    render(<SupportInboxPage />, { initialRoute: '/admin/support' });
+
+    expect(viewPicker()).toHaveTextContent('Open (2)');
+    expect(screen.getByText('Showing 2 of 4 tickets.')).toBeInTheDocument();
+    expect(screen.getByText('Second open')).toBeInTheDocument();
+    expect(screen.queryByText('Waiting one')).not.toBeInTheDocument();
+    expect(screen.queryByText('Done one')).not.toBeInTheDocument();
+  });
+
+  it('applies the URL status on mount and ignores an unknown value', () => {
+    hookState.tickets = [
+      makeTicket({ id: 't-open', subject: 'Open one' }),
+      makeTicket({ id: 't-wait', subject: 'Waiting one', status: 'waiting' }),
+    ];
+
+    const { unmount } = render(<SupportInboxPage />, {
+      initialRoute: '/admin/support?status=waiting',
+    });
+    expect(viewPicker()).toHaveTextContent('Waiting (1)');
+    expect(screen.getAllByText('Waiting one').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Open one')).not.toBeInTheDocument();
+    unmount();
+
+    render(<SupportInboxPage />, { initialRoute: '/admin/support?status=bogus' });
+    expect(viewPicker()).toHaveTextContent('Open (1)');
+  });
+
+  it('writes the picked view to the URL, drops the ticket, and keeps unrelated params', async () => {
+    hookState.tickets = [
+      makeTicket({ id: 't-open', subject: 'Open one' }),
+      makeTicket({ id: 't-wait', subject: 'Waiting one', status: 'waiting' }),
+    ];
+    const { user } = render(
+      <>
+        <SupportInboxPage />
+        <UrlProbe />
+      </>,
+      { initialRoute: '/admin/support?ticketId=t-open&tab=keep' }
+    );
+
+    await user.click(viewPicker());
+    await user.click(await screen.findByRole('option', { name: 'Waiting (1)' }));
+
+    const params = readUrlParams(screen.getByTestId('url-search').textContent);
+    expect(params.get('status')).toBe('waiting');
+    expect(params.get('ticketId')).toBeNull();
+    expect(params.get('tab')).toBe('keep');
+    expect(screen.getAllByText('Waiting one').length).toBeGreaterThan(0);
+
+    // Back to the default view clears the param instead of writing status=open.
+    await user.click(viewPicker());
+    await user.click(await screen.findByRole('option', { name: 'Open (1)' }));
+    const back = readUrlParams(screen.getByTestId('url-search').textContent);
+    expect(back.get('status')).toBeNull();
+    expect(back.get('tab')).toBe('keep');
+  });
+
+  it('"Show all tickets" widens to All in one URL update', async () => {
+    hookState.tickets = [
+      makeTicket({ id: 't-open', subject: 'Open one' }),
+      makeTicket({ id: 't-wait', subject: 'Waiting one', status: 'waiting' }),
+    ];
+    const { user } = render(
+      <>
+        <SupportInboxPage />
+        <UrlProbe />
+      </>,
+      { initialRoute: '/admin/support?ticketId=t-open&tab=keep' }
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Show all tickets' }));
+
+    const params = readUrlParams(screen.getByTestId('url-search').textContent);
+    expect(params.get('status')).toBe('all');
+    expect(params.get('ticketId')).toBeNull();
+    expect(params.get('tab')).toBe('keep');
+    expect(screen.getByText('Showing all 2 tickets.')).toBeInTheDocument();
+    expect(screen.getAllByText('Waiting one').length).toBeGreaterThan(0);
   });
 
   it('renders a resolved owner identity', () => {
@@ -181,10 +274,9 @@ describe('SupportInboxPage', () => {
     render(<SupportInboxPage />, { initialRoute: '/admin/support?status=all&ticketId=ticket-1' });
 
     expect(screen.getByRole('alert')).toHaveTextContent('Support service timed out.');
-    expect(screen.getByRole('button', { name: 'Open (—)' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Waiting (—)' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Resolved (—)' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'All (—)' })).toBeInTheDocument();
+    expect(viewPicker()).toHaveTextContent('All (—)');
+    expect(viewPicker()).not.toHaveTextContent('(0)');
+    expect(screen.queryByText(/^Showing/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeEnabled();
     expect(screen.queryByText('Ring gate is blocked')).not.toBeInTheDocument();
     expect(screen.queryByText(/No all tickets/i)).not.toBeInTheDocument();
@@ -215,7 +307,8 @@ describe('SupportInboxPage', () => {
     render(<SupportInboxPage />, { initialRoute: '/admin/support' });
 
     expect(screen.getByRole('status')).toHaveTextContent('Loading support tickets');
-    expect(screen.getByRole('button', { name: 'Open (—)' })).toBeInTheDocument();
+    expect(viewPicker()).toHaveTextContent('Open (—)');
+    expect(screen.queryByText(/^Showing/)).not.toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(screen.queryByText(/No open tickets/i)).not.toBeInTheDocument();
     expect(screen.queryByText('No ticket selected')).not.toBeInTheDocument();
@@ -239,7 +332,7 @@ describe('SupportInboxPage', () => {
     rerender(<SupportInboxPage />);
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Open (1)' })).toBeInTheDocument();
+    expect(viewPicker()).toHaveTextContent('All (1)');
     expect(screen.getByRole('heading', { name: 'Ring gate is blocked' })).toBeInTheDocument();
     expect(screen.getByTestId('support-thread')).toHaveTextContent('ticket-1:true');
   });
@@ -256,7 +349,7 @@ describe('SupportInboxPage', () => {
     rerender(<SupportInboxPage />);
 
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Open (0)' })).toBeInTheDocument();
+    expect(viewPicker()).toHaveTextContent('Open (0)');
     expect(screen.getByText('No open tickets')).toBeInTheDocument();
     expect(screen.getByText('No ticket selected')).toBeInTheDocument();
   });

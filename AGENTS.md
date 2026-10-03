@@ -69,6 +69,7 @@ Redirect check output to a file and echo the real exit status — a pipe through
 - **UI library (myK9Show):** Base UI via shadcn/ui — NOT Radix (Radix stagnated after WorkOS acquisition)
 - **Deleted monorepo app:** `apps/myk9q` was removed after ringside functionality moved into myK9Show `/at-show` and shared packages
 - **Database:** Unified Supabase project (`myk9-platform`)
+- **Refunds are never automatic; they require human approval.** Code that finds money it cannot honor queues a `refund_requests` row and alerts; only a person's action (a refund dialog, or the admin approval in `stripe-approve-refund`) may call `refunds.create`.
 - **Formatting:** Prettier (`.prettierrc` at the root). Claude Code formats on every file edit through a hook; Codex's PostToolUse hook runs `scripts/qa/format-changed.sh` after every tool call; CI's Quality Checks runs `pnpm format:check:changed` on the files changed since the merge base (#2121). `.astro` files and one runbook are deliberately ignored, with the reason in `.prettierignore`.
 
 ## Database Configuration

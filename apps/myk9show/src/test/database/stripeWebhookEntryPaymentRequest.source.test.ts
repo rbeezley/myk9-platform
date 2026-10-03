@@ -74,18 +74,17 @@ describe('stripe-webhook entry_payment_request branch', () => {
     expect(source).toContain("orderError.code !== '23505'");
   });
 
-  it('auto-refunds invalid paid-for-nothing link charges through Stripe with an explicit amount', () => {
+  it('queues invalid paid-for-nothing link charges for refund approval with an explicit amount', () => {
     expect(source).toContain('updateOutcome.refundDecision');
     expect(source).toContain('loadEntryPaymentLineItemFeesFromStripe');
     expect(lineItemSource).toContain('listLineItems');
     expect(lineItemSource).toContain("expand: ['data.price.product']");
     expect(lineItemSource).toContain('product.metadata?.entry_id');
-    expect(source).toContain('stripe.refunds.create');
-    expect(source).toContain('payment_intent: input.paymentIntentId');
-    expect(source).toContain('amount: input.amountCents');
-    expect(source).toContain('entry_payment_request_auto_refund');
-    expect(source).toContain('reconcileCreatedMakeWholeRefund');
-    expect(source).toContain('resolveRefundLedgerAction(refund.status)');
+    // MYK9-876: refunds are never automatic — the webhook queues, an admin approves.
+    expect(source).not.toContain('refunds.create');
+    expect(source).toContain("kind: 'entry_payment_link'");
+    expect(source).toContain('paymentIntentId: input.paymentIntentId');
+    expect(source).toContain('amountCents: input.amountCents');
     expect(source).not.toMatch(/\.update\(\{[^}]*status: 'refunded'/s);
     expect(source).toContain('allFromAppRefund');
   });

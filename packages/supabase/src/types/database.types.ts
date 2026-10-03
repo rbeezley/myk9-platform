@@ -5522,6 +5522,85 @@ export type Database = {
         }
         Relationships: []
       }
+      refund_requests: {
+        Row: {
+          amount_cents: number
+          approved_at: string | null
+          approved_by_auth_user_id: string | null
+          cart_id: string | null
+          created_at: string
+          detail: Json
+          entry_payment_link_id: string | null
+          id: string
+          kind: string
+          reason: string
+          refunded_at: string | null
+          show_id: string | null
+          status: string
+          stripe_checkout_session_id: string
+          stripe_payment_intent_id: string
+          stripe_refund_id: string | null
+        }
+        Insert: {
+          amount_cents: number
+          approved_at?: string | null
+          approved_by_auth_user_id?: string | null
+          cart_id?: string | null
+          created_at?: string
+          detail?: Json
+          entry_payment_link_id?: string | null
+          id?: string
+          kind: string
+          reason: string
+          refunded_at?: string | null
+          show_id?: string | null
+          status?: string
+          stripe_checkout_session_id: string
+          stripe_payment_intent_id: string
+          stripe_refund_id?: string | null
+        }
+        Update: {
+          amount_cents?: number
+          approved_at?: string | null
+          approved_by_auth_user_id?: string | null
+          cart_id?: string | null
+          created_at?: string
+          detail?: Json
+          entry_payment_link_id?: string | null
+          id?: string
+          kind?: string
+          reason?: string
+          refunded_at?: string | null
+          show_id?: string | null
+          status?: string
+          stripe_checkout_session_id?: string
+          stripe_payment_intent_id?: string
+          stripe_refund_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "refund_requests_cart_id_fkey"
+            columns: ["cart_id"]
+            isOneToOne: false
+            referencedRelation: "entry_carts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refund_requests_entry_payment_link_id_fkey"
+            columns: ["entry_payment_link_id"]
+            isOneToOne: false
+            referencedRelation: "entry_payment_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refund_requests_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       result_submissions: {
         Row: {
           id: string

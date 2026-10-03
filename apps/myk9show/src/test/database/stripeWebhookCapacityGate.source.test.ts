@@ -101,10 +101,12 @@ describe('stripe webhook online cart capacity gate', () => {
     expect(capacityGateMigration).toContain('waitlist_entry_id := v_waitlist_entry.id');
   });
 
-  it('refunds no-service overflow lines instead of leaving paid missing entries', () => {
+  it('queues no-service overflow lines for refund approval instead of leaving paid missing entries', () => {
     expect(webhookSource).toContain('decideCartOverflowRefund');
-    expect(webhookSource).toContain('issueCartOverflowAutoRefund');
-    expect(webhookSource).toContain("type: 'entry_cart_overflow_auto_refund'");
+    expect(webhookSource).toContain('queueCartOverflowRefund');
+    expect(webhookSource).toContain("kind: 'cart_overflow'");
+    // MYK9-876: refunds are never automatic.
+    expect(webhookSource).not.toContain('refunds.create');
     expect(webhookSource).toContain('waitlistedCartItemIds');
     expect(webhookSource).toContain('deniedCartItemIds');
     expect(webhookSource).not.toContain('Paid entries missing — manual reconciliation needed');

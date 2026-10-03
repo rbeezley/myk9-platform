@@ -2,7 +2,8 @@
 // colocated vitest).
 //
 // The handler skips reconciliation for refunds it already recorded itself
-// (per-entry refund, auto-refund, or the bulk show-cancellation refund).
+// (per-entry refund, an approved queued refund, or the bulk show-cancellation
+// refund).
 // Before this, a bulk show-cancellation refund fell through to the dashboard
 // -refund reconcile path on EVERY entry's charge.refunded delivery, flooding
 // admin with one false-critical alert per entry (MP-06). But a show refund
@@ -12,6 +13,8 @@
 // process kill, since it arrives via webhook and survives the function's
 // death).
 
+import { APPROVED_REFUND_METADATA_TYPE } from './refundRequests.ts';
+
 export interface ChargeRefundLike {
   metadata?: {
     entry_id?: string;
@@ -20,11 +23,24 @@ export interface ChargeRefundLike {
   } | null;
 }
 
+/**
+ * Metadata `type`s of refunds the app created itself (MYK9-876). The app can
+ * now create only `approved_refund_request` refunds, issued by
+ * stripe-approve-refund after a site admin approves a queued request. The two
+ * auto-refund types are LEGACY: the webhook no longer creates them, but Stripe
+ * still lists the refunds already made under them on every later
+ * `charge.refunded` for those charges, and they were booked when created.
+ */
+export const APP_REFUND_METADATA_TYPES: ReadonlySet<string> = new Set([
+  APPROVED_REFUND_METADATA_TYPE,
+  'entry_payment_request_auto_refund',
+  'entry_cart_overflow_auto_refund',
+]);
+
 export function isAppOriginatedRefund(refund: ChargeRefundLike): boolean {
   return !!(
     refund.metadata?.entry_id ||
-    refund.metadata?.type === 'entry_payment_request_auto_refund' ||
-    refund.metadata?.type === 'entry_cart_overflow_auto_refund' ||
+    APP_REFUND_METADATA_TYPES.has(refund.metadata?.type ?? '') ||
     refund.metadata?.show_refund
   );
 }

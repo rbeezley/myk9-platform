@@ -22,7 +22,6 @@ import {
   extractProcessingFeeCents,
   resolveAcceptedEntrySnapshot,
   refundKindFromMetadata,
-  MAKE_WHOLE_METADATA_KEY,
 } from '../_shared/orderSnapshot.ts';
 import { loadEntryPaymentLineItemFeesFromStripe } from '../_shared/entryPaymentLineItems.ts';
 import {
@@ -53,6 +52,12 @@ import {
   type PaymentReconciliationEntry,
 } from './paymentReconciliationLoader.ts';
 import { listAllChargeRefunds, resolveRefundLedgerAction } from '../_shared/refundLifecycle.ts';
+import {
+  claimAbandonedCartRefund,
+  queueRefundForApproval,
+  REFUNDABLE_ABANDONED_CART_STATUSES,
+  type RefundQueueDeps,
+} from '../_shared/refundRequests.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
@@ -77,6 +82,13 @@ const stripe = new Stripe(stripeSecret, {
 const stripeLivemode = isStripeLiveMode(stripeSecret);
 
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+// Refunds are never automatic (MYK9-876): charges this webhook cannot honor are
+// queued in refund_requests for a site admin to approve.
+const refundQueueDeps: RefundQueueDeps = {
+  rpc: (fn, args) => supabase.rpc(fn, args),
+  alertAdmin,
+};
 
 type OnlinePaidEntryCapacityOutcome = {
   outcome: 'created_entry' | 'waitlisted' | 'denied';
@@ -394,7 +406,7 @@ async function handleDisputeCreated(dispute: Stripe.Dispute) {
  *
  * This is the single writer of both refund columns for the whole refund story,
  * and it runs for EVERY refund source — per-entry app refunds, make-whole
- * auto-refunds, bulk show-cancellation refunds, and dashboard refunds alike.
+ * refunds approved from the queue, bulk show-cancellation refunds, and dashboard refunds alike.
  * Before this, app-originated refunds returned early and never recorded a
  * refund at all, so reconciliation silently understated exactly the refunds the
  * app itself issued.
@@ -410,7 +422,7 @@ async function handleDisputeCreated(dispute: Stripe.Dispute) {
  * ATTRIBUTION: `kind` is recorded per refund at booking time — 'make_whole' from
  * the make-whole writers (which know their own refund's id), 'post_hoc' from the
  * `charge.refunded` sweep. The upsert never overwrites `kind`, so a make-whole
- * refund the auto-refund writer already booked is never demoted to a post-hoc
+ * refund the approval writer already booked is never demoted to a post-hoc
  * platform loss by a later delivery, whatever the ordering.
  *
  * NEVER pass `charge.amount_refunded`: it is a CUMULATIVE total across both
@@ -484,41 +496,6 @@ async function recordOrderRefundCents(
     console.error(`Refund for ${paymentIntentId} matched no stripe_orders row`);
   }
   return rows;
-}
-
-interface CreatedRefundLedgerResult {
-  attemptedBooking: boolean;
-  rows: RecordedRefundRow[] | null;
-}
-
-/**
- * Stripe can return an in-flight Refund from `refunds.create`. Only succeeded
- * money belongs in the order ledger; `refund.updated` owns the later outcome.
- */
-async function reconcileCreatedMakeWholeRefund(
-  paymentIntentId: string,
-  refund: Stripe.Refund
-): Promise<CreatedRefundLedgerResult> {
-  const action = resolveRefundLedgerAction(refund.status);
-  if (action === 'defer') {
-    console.log(
-      `Created refund ${refund.id} remains ${refund.status ?? 'unknown'} — waiting for refund.updated`
-    );
-    return { attemptedBooking: false, rows: [] };
-  }
-  if (action === 'fail' || action === 'cancel') {
-    await handleTerminalRefund(refund, action === 'cancel' ? 'canceled' : 'failed');
-    return { attemptedBooking: false, rows: [] };
-  }
-
-  return {
-    attemptedBooking: true,
-    rows: await recordOrderRefundCents(paymentIntentId, {
-      refundId: refund.id,
-      amountCents: refund.amount,
-      kind: 'make_whole',
-    }),
-  };
 }
 
 /**
@@ -603,7 +580,7 @@ async function handleChargeRefunded(charge: Stripe.Charge, eventId: string) {
         refundId: refund.id,
         amountCents: refund.amount ?? 0,
         // Read the kind off the Stripe object rather than assuming post_hoc.
-        // A make-whole auto-refund stamps MAKE_WHOLE_METADATA_KEY at creation,
+        // An approved make-whole refund stamps MAKE_WHOLE_METADATA_KEY at creation,
         // so this sweep attributes it correctly even when it wins the race
         // against that writer. Assuming 'post_hoc' here booked make-whole money
         // as a permanent platform loss (Codex round-7 finding).
@@ -955,6 +932,29 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     return;
   }
 
+  // MYK9-874: the exhibitor abandoned the cart while this Checkout page stayed
+  // payable, then paid it. The fulfillment claim below needs 'active', so it
+  // can never win; hold the cart for an approved refund instead (and return
+  // 2xx on every re-delivery rather than failing the claim forever).
+  if (
+    REFUNDABLE_ABANDONED_CART_STATUSES.has(cart.status) &&
+    cart.stripe_checkout_session_id === session.id
+  ) {
+    const abandonedSession = await stripe.checkout.sessions.retrieve(session.id);
+    const abandonedGate = decideFreshSessionGate(abandonedSession);
+    if (abandonedGate.action === 'skip') {
+      console.log(`Checkout session ${session.id}: ${abandonedGate.reason} — waiting`);
+      return;
+    }
+    const outcome = await claimAbandonedCartRefund(refundQueueDeps, {
+      cartId,
+      sessionId: session.id,
+      paymentIntentId: extractPaymentIntentId(session.payment_intent),
+      amountCents: abandonedGate.amountTotalCents,
+    });
+    if (outcome !== 'not_refundable') return;
+  }
+
   // Refuse a paid session the cart no longer points at: the exhibitor started
   // checkout, abandoned the Stripe tab, changed the cart, then paid the OLD
   // page — entries from the CURRENT cart would not match the stale charge
@@ -1201,6 +1201,17 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     if (existingOrder) {
       console.log(`Cart ${cartId} already processed with order ${existingOrder.id} — skipping`);
       return;
+    }
+    // MYK9-874: the cart was abandoned after the read above. The RPC claims it
+    // for refund only if it is abandoned/expired and still on this session.
+    if (dupIntentId) {
+      const abandonedOutcome = await claimAbandonedCartRefund(refundQueueDeps, {
+        cartId,
+        sessionId: session.id,
+        paymentIntentId: dupIntentId,
+        amountCents: freshTotalCents,
+      });
+      if (abandonedOutcome !== 'not_refundable') return;
     }
     if (dupIntentId) {
       const { data: intentEntries } = await supabase
@@ -1534,8 +1545,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
        created ${entryIds.length} paid entries, ${waitlistedLines.length} waitlist rows,
        and ${deniedLines.length} denied lines. Failed no-service lines:
        ${failedLines.length}.</p>
-       <p>The webhook will auto-refund the denied/waitlisted/no-service share when
-       it can derive the amount.</p>`,
+       <p>The denied/waitlisted/no-service share is queued for refund approval
+       when the amount can be derived.</p>`,
       { source: 'stripe-webhook', dedupeKey: `cart-overflow-${session.id}` }
     );
   }
@@ -1558,9 +1569,9 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     stripe_checkout_session_id: session.id,
     // COLLECTION INVARIANT (see _shared/orderSnapshot.ts): amount_cents is the
     // GROSS amount the customer was actually charged — the full session total,
-    // NOT pre-netted by the cart-overflow auto-refund. The overflow share is
-    // recorded as a refund in refunded_cents (by issueCartOverflowAutoRefund
-    // and/or the charge.refunded handler), so collected = amount_cents −
+    // NOT pre-netted by the cart-overflow refund. The overflow share is
+    // recorded as a refund once a site admin approves it (by
+    // stripe-approve-refund and/or the charge.refunded handler), so collected = amount_cents −
     // refunded_cents subtracts it EXACTLY ONCE. Pre-netting here as well made a
     // fully-invalid cart report NEGATIVE collections (review finding A).
     // Denied/waitlisted/no-service cart lines remain explicit metadata and never
@@ -1663,7 +1674,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   }
 
   if (noServiceLineIds.length > 0) {
-    await issueCartOverflowAutoRefund({
+    await queueCartOverflowRefund({
       session,
       paymentIntentId,
       decision: overflowRefundDecision,
@@ -1671,6 +1682,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
       waitlistedCartItemIds: waitlistedLines.map(line => line.cartItemId),
       deniedCartItemIds: deniedLines.map(line => line.cartItemId),
       failedCartItemIds: failedLines.map(line => line.cartItemId),
+      cartId,
+      showId: cart.show_id ?? null,
     });
   }
 
@@ -1741,11 +1754,11 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       `<p>Checkout session <code>${session.id}</code> (entry_payment_request) was PAID,
        but no <code>entry_payment_links</code> row matches it. No entries were marked
        paid and Stripe will not retry.</p>
-       <p>Recovery: verify the payment in Stripe and refund it, or stamp the entries
-       manually.</p>`,
+       <p>The full charge is queued for refund approval; or stamp the entries
+       manually instead of approving it.</p>`,
       { source: 'stripe-webhook', dedupeKey: `payment-link-no-record-${session.id}` }
     );
-    await issueEntryPaymentAutoRefund({
+    await queueEntryPaymentRefund({
       session,
       paymentIntentId,
       amountCents: freshAmountTotalCents,
@@ -1808,7 +1821,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       `<p>Session <code>${session.id}</code> was PAID, but these entries it was created for
        are gone (deleted/withdrawn since): <code>${result.missingEntryIds.join(', ')}</code>
        (payment intent <code>${paymentIntentId ?? 'unknown'}</code>).</p>
-       <p>The webhook will auto-refund the invalid portion after recording payment history.</p>`,
+       <p>The invalid portion is queued for refund approval after recording payment history.</p>`,
       { source: 'stripe-webhook', dedupeKey: `payment-link-missing-entries-${session.id}` }
     );
   }
@@ -1822,7 +1835,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       `<p>Session <code>${session.id}</code> was PAID, but these entries are no longer
        active in the show: <code>${result.inactiveEntryIds.join(', ')}</code>
        (payment intent <code>${paymentIntentId ?? 'unknown'}</code>).</p>
-       <p>The webhook will auto-refund the invalid portion after recording payment history.</p>`,
+       <p>The invalid portion is queued for refund approval after recording payment history.</p>`,
       { source: 'stripe-webhook', dedupeKey: `payment-link-inactive-entries-${session.id}` }
     );
   }
@@ -2044,7 +2057,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
   // ACCEPTED entries and their authoritative Checkout line-item fees — the same
   // way the cart path uses paidEntrySubtotalCents — NOT by back-deriving the
   // split from the session total. The session total includes lines that were
-  // never accepted (missing/inactive/already-paid entries, auto-refunded below),
+  // never accepted (missing/inactive/already-paid entries, queued for refund below),
   // so deriving from it overstated platform_fee_cents on every partial-invalid
   // order AND forced `amount == subtotal + fee` to hold by construction, which
   // made the tie-out `amount == subtotal + fee + make_whole` fail by exactly the
@@ -2110,8 +2123,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       `<p>Session <code>${session.id}</code> paid for entries that were already paid:
        <code>${updateOutcome.alreadyPaidEntryIds.join(', ')}</code> (payment intent
        <code>${paymentIntentId ?? 'unknown'}</code>).</p>
-       <p>The webhook will auto-refund the invalid portion; if the exhibitor received
-       no new paid entries, it refunds the full charge including platform fee.</p>`,
+       <p>The invalid portion is queued for refund approval; if the exhibitor received
+       no new paid entries, the queued refund is the full charge including platform fee.</p>`,
       { source: 'stripe-webhook', dedupeKey: `payment-link-already-paid-${session.id}` }
     );
   }
@@ -2144,17 +2157,18 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     const decision = updateOutcome.refundDecision;
 
     if (decision.action === 'refund') {
-      await issueEntryPaymentAutoRefund({
+      await queueEntryPaymentRefund({
         session,
         paymentIntentId,
         amountCents: decision.amountCents,
         reason: decision.reason,
         invalidEntryIds,
         linkId: link.id,
+        showId: (link.show_id as string | null) ?? null,
       });
     } else if (decision.action === 'needs_manual_amount') {
       await alertAdmin(
-        'Payment link auto-refund needs manual amount',
+        'Payment link refund needs manual amount',
         `<p>Session <code>${session.id}</code> was PAID and has invalid entries
          <code>${invalidEntryIds.join(', ')}</code>, but the webhook could not derive
          fees for: <code>${decision.missingFeeEntryIds.join(', ')}</code>.</p>
@@ -2164,9 +2178,9 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       );
     } else if (decision.action === 'cannot_refund') {
       await alertAdmin(
-        'Payment link auto-refund could not be created',
+        'Payment link refund could not be queued',
         `<p>Session <code>${session.id}</code> was PAID and has invalid entries
-         <code>${invalidEntryIds.join(', ')}</code>, but auto-refund could not run:
+         <code>${invalidEntryIds.join(', ')}</code>, but no refund could be queued:
          <code>${decision.reason}</code>.</p>`,
         { source: 'stripe-webhook', dedupeKey: `payment-link-refund-cannot-refund-${session.id}` }
       );
@@ -2356,120 +2370,30 @@ async function loadEntryPaymentLineItemFees(sessionId: string): Promise<Map<stri
   return new Map<string, number>();
 }
 
-async function issueEntryPaymentAutoRefund(input: {
+/** Queue a payment-link refund for approval (MYK9-876: never automatic). */
+async function queueEntryPaymentRefund(input: {
   session: Stripe.Checkout.Session;
   paymentIntentId: string | null;
   amountCents: number | null;
   reason: 'no_link_record' | 'full_make_whole' | 'partial_invalid_entries';
   invalidEntryIds: string[];
   linkId: string | null;
+  showId?: string | null;
 }) {
-  if (!input.paymentIntentId || !input.amountCents || input.amountCents <= 0) {
-    await alertAdmin(
-      'Payment link auto-refund could not be created',
-      `<p>Session <code>${input.session.id}</code> needs an auto-refund, but the
-       payment intent or amount was missing (payment intent
-       <code>${input.paymentIntentId ?? 'unknown'}</code>, amount
-       <code>${input.amountCents ?? 'unknown'}</code>).</p>`,
-      {
-        source: 'stripe-webhook',
-        dedupeKey: `payment-link-refund-missing-inputs-${input.session.id}`,
-      }
-    );
-    return;
-  }
-
-  try {
-    // Safe with reason in the key: callers first close the payment-link row, so
-    // later webhook deliveries return before they can issue a second refund.
-    const refund = await stripe.refunds.create(
-      {
-        payment_intent: input.paymentIntentId,
-        amount: input.amountCents,
-        metadata: {
-          type: 'entry_payment_request_auto_refund',
-          // RACE-PROOF ATTRIBUTION: `charge.refunded` can arrive BEFORE this
-          // writer books its own ledger row, and the ledger upsert deliberately
-          // never overwrites `kind`. Without a marker ON THE STRIPE OBJECT the
-          // sweep would book this make-whole refund as 'post_hoc' and it would
-          // stay a permanent (wrong) platform loss. Stripe carries this metadata
-          // on every delivery, so the kind is knowable regardless of order.
-          [MAKE_WHOLE_METADATA_KEY]: 'true',
-          checkout_session_id: input.session.id,
-          entry_payment_link_id: input.linkId ?? '',
-          reason: input.reason,
-          invalid_entry_ids: JSON.stringify(input.invalidEntryIds),
-        },
-      },
-      { idempotencyKey: `entry-payment-request-auto-refund-${input.session.id}-${input.reason}` }
-    );
-    console.error(
-      `AUTO-REFUND: ${refund.id} refunded ${refund.amount}¢ for payment-link session ${input.session.id} (${input.reason})`
-    );
-    await alertAdmin(
-      'Payment link charge auto-refunded',
-      `<p>Auto-refund <code>${refund.id}</code> refunded
-       ${(refund.amount / 100).toFixed(2)} USD for Checkout Session
-       <code>${input.session.id}</code> (payment intent
-       <code>${input.paymentIntentId}</code>).</p>
-       <p>Reason: <code>${input.reason}</code>${
-         input.invalidEntryIds.length > 0
-           ? `; invalid entries: <code>${input.invalidEntryIds.join(', ')}</code>`
-           : ''
-       }.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `payment-link-refund-issued-${refund.id}` }
-    );
-
-    // COLLECTION INVARIANT + ATTRIBUTION: a payment-link auto-refund returns
-    // money for entries that were never accepted (no link record / invalid
-    // entries), so it is a MAKE-WHOLE refund, not a platform loss. Record it
-    // here rather than waiting for charge.refunded: that handler treats this
-    // refund as app-originated and a missed delivery would leave the order
-    // looking collected in full.
-    //
-    // The Stripe refund id is the ledger PRIMARY KEY, so a duplicate delivery is
-    // an upsert of the same row and two make-whole refunds on one intent are two
-    // rows that simply sum. Booking `kind: 'make_whole'` HERE, at creation time,
-    // is what lets the later `charge.refunded` sweep leave the kind alone. The
-    // recompute owns the status transition — 'refunded' IFF FULLY refunded — so
-    // there is deliberately no status update here.
-    const ledgerResult = await reconcileCreatedMakeWholeRefund(input.paymentIntentId, refund);
-
-    // FAIL CLOSED (finding 5): a failed or unmatched ledger write leaves the
-    // order looking collected in full. Alert instead of silently continuing.
-    if (
-      ledgerResult.attemptedBooking &&
-      (ledgerResult.rows === null || ledgerResult.rows.length === 0)
-    ) {
-      await alertAdmin(
-        'Payment link auto-refund issued but not recorded on the order',
-        `<p>Auto-refund <code>${refund.id}</code> succeeded for session
-         <code>${input.session.id}</code> (payment intent
-         <code>${input.paymentIntentId}</code>), but the refund could not be
-         written to <code>stripe_orders</code>.</p>
-         <p>The order still reports the full amount as collected. Set
-         <code>make_whole_refunded_cents</code> by hand to clear the drift.</p>`,
-        {
-          source: 'stripe-webhook',
-          dedupeKey: `payment-link-refund-order-update-failed-${refund.id}`,
-        }
-      );
-    }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(
-      `CRITICAL: auto-refund failed for payment-link session ${input.session.id}:`,
-      err
-    );
-    await alertAdmin(
-      'Payment link auto-refund FAILED',
-      `<p>Session <code>${input.session.id}</code> needs an auto-refund of
-       ${(input.amountCents / 100).toFixed(2)} USD, but Stripe refund creation failed:</p>
-       <pre>${message}</pre>
-       <p>Recovery: refund payment intent <code>${input.paymentIntentId}</code> manually.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `payment-link-refund-failed-${input.session.id}` }
-    );
-  }
+  const invalid = input.invalidEntryIds.length
+    ? ` Invalid entries: <code>${input.invalidEntryIds.join(', ')}</code>.`
+    : '';
+  await queueRefundForApproval(refundQueueDeps, {
+    kind: 'entry_payment_link',
+    sessionId: input.session.id,
+    paymentIntentId: input.paymentIntentId,
+    amountCents: input.amountCents,
+    reason: input.reason,
+    summaryHtml: `A payment-link charge could not be honored in full.${invalid}`,
+    detail: { invalid_entry_ids: input.invalidEntryIds },
+    entryPaymentLinkId: input.linkId,
+    showId: input.showId ?? null,
+  });
 }
 
 function normalizeCapacityOutcome(data: unknown): OnlinePaidEntryCapacityOutcome | null {
@@ -2526,7 +2450,8 @@ function serializeCartOverflowRefundDecision(decision: CartOverflowRefundDecisio
   };
 }
 
-async function issueCartOverflowAutoRefund(input: {
+/** Queue the cart-overflow refund for approval (MYK9-876: never automatic). */
+async function queueCartOverflowRefund(input: {
   session: Stripe.Checkout.Session;
   paymentIntentId: string | null;
   decision: CartOverflowRefundDecision;
@@ -2534,12 +2459,14 @@ async function issueCartOverflowAutoRefund(input: {
   waitlistedCartItemIds: string[];
   deniedCartItemIds: string[];
   failedCartItemIds: string[];
+  cartId: string;
+  showId: string | null;
 }) {
   if (input.decision.action === 'none') return;
 
   if (input.decision.action === 'needs_manual_amount') {
     await alertAdmin(
-      'Cart overflow auto-refund needs manual amount',
+      'Cart overflow refund needs manual amount',
       `<p>Session <code>${input.session.id}</code> has no-service cart items
        <code>${input.invalidCartItemIds.join(', ')}</code>, but the webhook could not
        derive collected line amounts for:
@@ -2556,10 +2483,10 @@ async function issueCartOverflowAutoRefund(input: {
 
   if (input.decision.action === 'cannot_refund') {
     await alertAdmin(
-      'Cart overflow auto-refund could not be created',
+      'Cart overflow refund could not be queued',
       `<p>Session <code>${input.session.id}</code> has no-service cart items
-       <code>${input.invalidCartItemIds.join(', ')}</code>, but auto-refund could not
-       run: <code>${input.decision.reason}</code>.</p>`,
+       <code>${input.invalidCartItemIds.join(', ')}</code>, but no refund could be
+       queued: <code>${input.decision.reason}</code>.</p>`,
       {
         source: 'stripe-webhook',
         dedupeKey: `cart-overflow-refund-cannot-refund-${input.session.id}`,
@@ -2568,92 +2495,23 @@ async function issueCartOverflowAutoRefund(input: {
     return;
   }
 
-  try {
-    const refund = await stripe.refunds.create(
-      {
-        payment_intent: input.paymentIntentId!,
-        amount: input.decision.amountCents,
-        metadata: {
-          type: 'entry_cart_overflow_auto_refund',
-          // Race-proof attribution — see MAKE_WHOLE_METADATA_KEY.
-          [MAKE_WHOLE_METADATA_KEY]: 'true',
-          checkout_session_id: input.session.id,
-          reason: input.decision.reason,
-          invalid_cart_item_ids: JSON.stringify(input.invalidCartItemIds),
-          waitlisted_cart_item_ids: JSON.stringify(input.waitlistedCartItemIds),
-          denied_cart_item_ids: JSON.stringify(input.deniedCartItemIds),
-          failed_cart_item_ids: JSON.stringify(input.failedCartItemIds),
-        },
-      },
-      {
-        idempotencyKey: `entry-cart-overflow-auto-refund-${input.session.id}-${input.decision.reason}`,
-      }
-    );
-    console.error(
-      `AUTO-REFUND: ${refund.id} refunded ${refund.amount}¢ for cart overflow session ${input.session.id} (${input.decision.reason})`
-    );
-    await alertAdmin(
-      'Cart overflow charge auto-refunded',
-      `<p>Auto-refund <code>${refund.id}</code> refunded
-       ${(refund.amount / 100).toFixed(2)} USD for Checkout Session
-       <code>${input.session.id}</code>.</p>
-       <p>Reason: <code>${input.decision.reason}</code>; no-service cart items:
-       <code>${input.invalidCartItemIds.join(', ')}</code>.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `cart-overflow-refund-issued-${refund.id}` }
-    );
-
-    // COLLECTION INVARIANT: amount_cents on the order we just inserted is the
-    // GROSS charge, so this refund must be recorded to keep
-    // `collected = amount_cents − make_whole_refunded_cents − refunded_cents`
-    // right. Write it here rather than waiting for charge.refunded: that handler
-    // treats this refund as app-originated, and a missed/late delivery would
-    // leave the order looking collected in full.
-    //
-    // ATTRIBUTION: cart overflow refunds lines that were NEVER accepted, so this
-    // is a MAKE-WHOLE refund, not a platform loss — the platform earned no fee
-    // and made no club transfer on those lines. Recorded as makeWholeCents so
-    // the later cumulative charge.refunded delivery nets it out of the post-hoc
-    // figure instead of double counting it.
-    //
-    // The Stripe refund id is the ledger PRIMARY KEY (a duplicate delivery is an
-    // upsert of the same row), `kind: 'make_whole'` is booked HERE at creation
-    // time so the later charge.refunded sweep cannot demote it to a post-hoc
-    // loss, and the recompute owns the status transition ('refunded' IFF FULLY
-    // refunded), so no status is stamped here.
-    const ledgerResult = await reconcileCreatedMakeWholeRefund(input.paymentIntentId!, refund);
-
-    // FAIL CLOSED (finding 5): don't leave a refunded charge reading as collected
-    // in full without saying so.
-    if (
-      ledgerResult.attemptedBooking &&
-      (ledgerResult.rows === null || ledgerResult.rows.length === 0)
-    ) {
-      await alertAdmin(
-        'Cart overflow auto-refund issued but not recorded on the order',
-        `<p>Auto-refund <code>${refund.id}</code> succeeded for session
-         <code>${input.session.id}</code>, but the refund could not be written to
-         <code>stripe_orders</code>.</p>
-         <p>The order still reports the full amount as collected. Set
-         <code>make_whole_refunded_cents</code> by hand to clear the drift.</p>`,
-        {
-          source: 'stripe-webhook',
-          dedupeKey: `cart-overflow-refund-order-update-failed-${refund.id}`,
-        }
-      );
-    }
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    console.error(`CRITICAL: cart overflow auto-refund failed for ${input.session.id}:`, err);
-    await alertAdmin(
-      'Cart overflow auto-refund FAILED',
-      `<p>Session <code>${input.session.id}</code> needs an auto-refund of
-       ${(input.decision.amountCents / 100).toFixed(2)} USD, but Stripe refund
-       creation failed:</p><pre>${message}</pre>
-       <p>Recovery: refund payment intent <code>${input.paymentIntentId}</code>
-       manually.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `cart-overflow-refund-failed-${input.session.id}` }
-    );
-  }
+  await queueRefundForApproval(refundQueueDeps, {
+    kind: 'cart_overflow',
+    sessionId: input.session.id,
+    paymentIntentId: input.paymentIntentId,
+    amountCents: input.decision.amountCents,
+    reason: input.decision.reason,
+    summaryHtml: `Paid cart lines could not be served (no-service cart items:
+      <code>${input.invalidCartItemIds.join(', ')}</code>).`,
+    detail: {
+      invalid_cart_item_ids: input.invalidCartItemIds,
+      waitlisted_cart_item_ids: input.waitlistedCartItemIds,
+      denied_cart_item_ids: input.deniedCartItemIds,
+      failed_cart_item_ids: input.failedCartItemIds,
+    },
+    cartId: input.cartId,
+    showId: input.showId,
+  });
 }
 
 /**

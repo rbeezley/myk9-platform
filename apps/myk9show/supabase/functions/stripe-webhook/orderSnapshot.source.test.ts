@@ -60,7 +60,7 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     const ledgerWrite = body.indexOf('recordOrderRefundCents(');
     const appRefundEarlyReturn = body.indexOf('if (allFromAppRefund) {');
     expect(ledgerWrite).toBeGreaterThan(-1);
-    // App-originated refunds (per-entry, auto-refund, show refund) return early;
+    // App-originated refunds (per-entry, approved queue refund, show refund) return early;
     // the refunds must already be recorded by then or reconciliation understates.
     expect(ledgerWrite).toBeLessThan(appRefundEarlyReturn);
   });
@@ -124,22 +124,16 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     expect(body).toContain('Succeeded refund arrived before its order');
   });
 
-  it('gates newly created auto-refunds on Stripe status before booking', () => {
-    const helperStart = webhookSource.indexOf('async function reconcileCreatedMakeWholeRefund');
-    const helperEnd = webhookSource.indexOf('\nasync function', helperStart + 1);
-    const helper = webhookSource.slice(helperStart, helperEnd);
-    expect(helper).toContain('resolveRefundLedgerAction(refund.status)');
-    expect(helper).toContain("if (action === 'defer')");
-    expect(helper).toContain("if (action === 'fail' || action === 'cancel')");
-    expect(helper).toContain('recordOrderRefundCents(paymentIntentId, {');
-    expect(helper).toMatch(/amountCents:\s*refund\.amount/);
-    expect(helper).toMatch(/kind:\s*'make_whole'/);
-
-    for (const functionName of ['issueCartOverflowAutoRefund', 'issueEntryPaymentAutoRefund']) {
+  it('never creates a refund itself: unhonorable charges are queued for approval (MYK9-876)', () => {
+    // Booking an APPROVED refund as make-whole, and only once Stripe reports it
+    // succeeded, moved to _shared/refundApproval.ts (behavioral vitest there).
+    expect(webhookSource).not.toContain('refunds.create');
+    for (const functionName of ['queueCartOverflowRefund', 'queueEntryPaymentRefund']) {
       const start = webhookSource.indexOf(`async function ${functionName}`);
+      expect(start).toBeGreaterThan(-1);
       const end = webhookSource.indexOf('\nasync function', start + 1);
       const body = webhookSource.slice(start, end);
-      expect(body).toContain('reconcileCreatedMakeWholeRefund(');
+      expect(body).toContain('queueRefundForApproval(refundQueueDeps, {');
       expect(body).not.toContain('recordOrderRefundCents(');
     }
   });
@@ -181,36 +175,6 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     // Word-boundary: metadata.paid_amount_cents legitimately carries the
     // paid-only figure; the amount_cents COLUMN must not.
     expect(webhookSource).not.toMatch(/\bamount_cents: paidOrderAmountCents/);
-  });
-
-  it('records the cart-overflow auto-refund it issues as MAKE-WHOLE, not post-hoc', () => {
-    const start = webhookSource.indexOf('async function issueCartOverflowAutoRefund');
-    const end = webhookSource.indexOf('\nasync function', start + 1);
-    const body = webhookSource.slice(start, end);
-    expect(body).toContain('reconcileCreatedMakeWholeRefund(input.paymentIntentId!, refund)');
-    // Cart overflow refunds lines NEVER accepted: no fee earned, no club
-    // transfer, so it must never land in refunded_cents as a platform loss.
-    expect(body).not.toContain('chargeTotalCents');
-    // The Stripe refund id is the ledger PRIMARY KEY, so a duplicate delivery is
-    // an upsert of the same row rather than a second add.
-    expect(body).toContain('ledgerResult.attemptedBooking');
-    // Fail closed: an unwritten refund leaves the order looking collected in
-    // full, so it must alert rather than continue silently (finding 5).
-    expect(body).toContain('ledgerResult.rows === null || ledgerResult.rows.length === 0');
-    // No status stamp here — record_order_refund_cents owns the transition and
-    // stamps 'refunded' IFF fully refunded.
-    expect(body).not.toMatch(/\.update\(\{[^}]*status: 'refunded'/s);
-  });
-
-  it('records the payment-link make-whole auto-refund as MAKE-WHOLE too', () => {
-    const start = webhookSource.indexOf('async function issueEntryPaymentAutoRefund');
-    const end = webhookSource.indexOf('\nasync function', start + 1);
-    const body = webhookSource.slice(start, end);
-    expect(body).toContain('reconcileCreatedMakeWholeRefund(input.paymentIntentId, refund)');
-    expect(body).not.toContain('chargeTotalCents');
-    expect(body).toContain('ledgerResult.attemptedBooking');
-    expect(body).toContain('ledgerResult.rows === null || ledgerResult.rows.length === 0');
-    expect(body).not.toMatch(/\.update\(\{[^}]*status: 'refunded'/s);
   });
 
   it('tolerates delayed balance-transaction data by alerting pending, not zeroing', () => {

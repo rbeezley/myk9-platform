@@ -30,6 +30,12 @@ vi.mock('@/features/admin-system-health/useOperatorAlerts', () => ({
   OPERATOR_ALERTS_QUERY_KEY: ['admin', 'system-health', 'operator-alerts'],
 }));
 
+// Refunds awaiting approval (MYK9-876): same isolation as the alerts section.
+vi.mock('@/features/admin-system-health/useRefundRequests', () => ({
+  useRefundRequests: vi.fn(() => ({ data: [], isLoading: false, error: null })),
+  useApproveRefundRequest: vi.fn(() => ({ mutateAsync: vi.fn(), isPending: false })),
+}));
+
 const mockedHook = vi.mocked(useSystemHealthSnapshots);
 const mockedRunHealthCheck = vi.mocked(useRunSystemHealthCheck);
 const mockedOperatorAlertsHook = vi.mocked(useOperatorAlerts);
@@ -232,6 +238,7 @@ describe('SystemHealthPage', () => {
 
     expect(screen.getByText(/system health didn.t load/i)).toBeInTheDocument();
     expect(screen.getByText('Unresolved alerts')).toBeInTheDocument();
+    expect(screen.getByText('Refunds awaiting approval')).toBeInTheDocument();
   });
 
   it('renders a loading state while fetching', () => {
@@ -250,6 +257,7 @@ describe('SystemHealthPage', () => {
     render(<SystemHealthPage />);
 
     expect(screen.getByText('Unresolved alerts')).toBeInTheDocument();
+    expect(screen.getByText('Refunds awaiting approval')).toBeInTheDocument();
   });
 
   it('renders a per-check history strip, oldest run first', () => {

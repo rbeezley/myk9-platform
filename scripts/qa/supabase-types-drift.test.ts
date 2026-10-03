@@ -332,7 +332,9 @@ describe('supabase-types-drift.sh', () => {
   it('reports no drift when one side wraps an object across lines and the other keeps it on one', () => {
     // Prettier keeps an object multi-line when its source had a newline after
     // `{`, so the same type read as changed lines until objects were collapsed.
-    const committed = types({ functions: { graphql: 'Args: {\n          query: string\n        }' } });
+    const committed = types({
+      functions: { graphql: 'Args: {\n          query: string\n        }' },
+    });
     const generated = types({ functions: { graphql: 'Args: { query: string }' } });
     expect(committed).not.toBe(generated);
     const result = run(committed, generated);

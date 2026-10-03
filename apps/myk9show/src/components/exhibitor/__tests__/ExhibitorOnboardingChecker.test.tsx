@@ -183,6 +183,36 @@ describe('ExhibitorOnboardingChecker', () => {
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
+  // The latch must be taken even when the session STARTS on an exempt show-day
+  // route, or the first non-exempt navigation would latch the newer role set.
+  it('does not redirect for a role granted mid-session that started on /at-show', () => {
+    mockPathname = '/at-show/show-1/class/c1';
+    setupMocks({ roles: [UserRole.EXHIBITOR] });
+    const view = renderChecker();
+
+    setupMocks({ roles: [UserRole.EXHIBITOR, UserRole.JUDGE] }); // RBAC re-poll
+    view.rerender(
+      <ExhibitorOnboardingChecker>
+        <div>Dashboard content</div>
+      </ExhibitorOnboardingChecker>
+    );
+    mockPathname = '/shows'; // navigate into the main app
+    view.rerender(
+      <ExhibitorOnboardingChecker>
+        <div>Dashboard content</div>
+      </ExhibitorOnboardingChecker>
+    );
+
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('runs the new role step on the next app load (fresh mount)', () => {
+    mockPathname = '/shows';
+    setupMocks({ roles: [UserRole.EXHIBITOR, UserRole.JUDGE], onboardedRoles: [] });
+    renderChecker();
+    expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
+  });
+
   it('does not redirect while RBAC is still loading', () => {
     setupMocks({ rbacLoading: true, roles: [], onboardingCompleted: false });
     renderChecker();

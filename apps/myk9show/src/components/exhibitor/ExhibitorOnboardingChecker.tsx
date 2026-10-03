@@ -64,14 +64,20 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
   // "A new role starts its step on the next sign-in", not mid-session: RBAC
   // re-polls every few minutes, and a role granted while someone is working
   // must not yank them off their page. The role set is latched the first time
-  // RBAC settles for this user in this app session.
+  // auth and RBAC settle for this user in this app session — BEFORE any path,
+  // anonymous or profile check returns, so a session that starts on an exempt
+  // show-day route (/at-show, /scoring, /tv) is latched too. Only the redirect
+  // decision depends on the path.
   const latchedRolesRef = useRef<{ userId: string; roles: readonly UserRole[] } | null>(null);
 
-  const isLoading = authLoading || rbacLoading || profileLoading;
-
   useEffect(() => {
-    if (isLoading) return;
-    if (!user) return;
+    if (!user || authLoading || rbacLoading) return;
+    if (latchedRolesRef.current?.userId !== user.id) {
+      latchedRolesRef.current = { userId: user.id, roles: userWithRoles?.roles ?? [] };
+    }
+    const sessionRoles = latchedRolesRef.current.roles;
+
+    if (profileLoading) return;
     if (isExemptPath(location.pathname)) return;
     if (profileError) return;
 
@@ -88,14 +94,10 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
     // complete without a backend. An unsettled query is "unknown".
     if (!profileSettled) return;
 
-    if (latchedRolesRef.current?.userId !== user.id) {
-      latchedRolesRef.current = { userId: user.id, roles: userWithRoles?.roles ?? [] };
-    }
-
     const steps = buildOnboardingSteps({
       hasProfile: Boolean(profile),
       baseCompleted: Boolean(profile?.onboarding_completed_at),
-      roles: latchedRolesRef.current.roles,
+      roles: sessionRoles,
       onboardedRoles: profile ? profile.onboarded_roles : [],
     });
 
@@ -103,7 +105,9 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
       navigate('/onboarding', { replace: true });
     }
   }, [
-    isLoading,
+    authLoading,
+    rbacLoading,
+    profileLoading,
     user,
     userWithRoles?.roles,
     profile,

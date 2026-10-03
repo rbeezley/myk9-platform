@@ -39,6 +39,24 @@ describe('canManageDogRegistrations', () => {
   ])('%s -> %s', (_label, roles, owns, expected) => {
     expect(canManageDogRegistrations(viewer(roles, owns))).toBe(expected);
   });
+
+  // MYK9-941: the server lets a co-owner write registrations, so the page must
+  // offer the action to a co-owner end to end (relationship -> gates), not only
+  // to a viewer already flagged as owning the dog.
+  it.each([
+    ['exhibitor co-owner', [UserRole.EXHIBITOR]],
+    ['club admin co-owner', [UserRole.CLUB_ADMIN]],
+  ])('%s may manage registrations', (_label, roles) => {
+    const OWNER = '11111111-0000-4000-8000-0000000000b1';
+    const CO_OWNER = '11111111-0000-4000-8000-0000000000b2';
+    const relationship = resolveDogRelationship({
+      dog: { ownerId: OWNER, coOwnerId: CO_OWNER },
+      viewerPersonId: CO_OWNER,
+      gaveUp: false,
+    });
+    const gates = deriveDogPageGates(relationship, (r: UserRole) => roles.includes(r));
+    expect(gates?.canManageRegistrations).toBe(true);
+  });
 });
 
 describe('resolveDogRelationship', () => {

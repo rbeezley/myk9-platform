@@ -46,17 +46,17 @@ export function getSelectClassesHref(
  * The show home's query for a URL that used to point at the retired Setup tab
  * (MYK9-957). `?section=classes` opens Select classes and keeps its view,
  * trial and focus; Trials and Show Map land on the home, dropping the
- * Classes-only params that would mean something else there. `returnTo` (a
- * way back to Show Day, which is now the home itself) is dropped too.
+ * Classes-only params that would mean something else there, and `returnTo`
+ * (Select classes' Done restores it; the home itself has no use for it).
  */
 export function legacySetupToHomeSearch(search: URLSearchParams): URLSearchParams {
   const params = new URLSearchParams(search);
   const section = params.get('section');
   params.delete('section');
-  params.delete('returnTo');
   if (section === 'classes') {
     params.set('select', SELECT_CLASSES);
   } else {
+    params.delete('returnTo');
     for (const key of SELECT_CLASSES_PARAMS) params.delete(key);
   }
   return params;

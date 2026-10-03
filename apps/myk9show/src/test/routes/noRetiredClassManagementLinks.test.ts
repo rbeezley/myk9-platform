@@ -54,7 +54,12 @@ function collectHrefs(): string[] {
   hrefs.push(
     getSelectClassesHref('s1'),
     getSelectClassesHref('s1', 'in_progress', { trialId: 't1', focusClassId: 'c1' }),
-    getCockpitClassManagementHref({ showId: 's1', trialId: 't1', classId: 'c1' })
+    getCockpitClassManagementHref({
+      showId: 's1',
+      trialId: 't1',
+      classId: 'c1',
+      returnTo: '/shows/s1',
+    })
   );
   hrefs.push(
     ...computeSetupReadinessSignals({ show, trials, classes: [], judges: [] }).map(s => s.href)

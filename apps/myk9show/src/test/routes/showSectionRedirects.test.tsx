@@ -204,11 +204,13 @@ describe('legacy show section URLs land on the tab that absorbed them', () => {
     );
   });
 
-  it("opens Select classes from Setup's Classes section, keeping its view, trial and focus", async () => {
+  it("opens Select classes from Setup's Classes section, keeping its view, trial, focus and returnTo", async () => {
     renderAt(
       '/shows/show-1/setup?section=classes&view=pending&trialId=t1&focus=c1&returnTo=%2Fshows%2Fshow-1%2Fshow-day'
     );
-    await expectLandsAt('/shows/show-1?view=pending&trialId=t1&focus=c1&select=classes');
+    await expectLandsAt(
+      '/shows/show-1?view=pending&trialId=t1&focus=c1&returnTo=%2Fshows%2Fshow-1%2Fshow-day&select=classes'
+    );
   });
 
   it.each([['trials'], ['map']])(

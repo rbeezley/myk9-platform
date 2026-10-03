@@ -17,6 +17,8 @@ export interface ExhibitorProfile {
   subscription_expires_at: string | null;
   stripe_customer_id: string | null;
   onboarding_completed_at: string | null;
+  /** Role onboarding steps finished (MYK9-970); a held role missing here gets its step once. */
+  onboarded_roles: string[];
   created_at: string;
   updated_at: string;
   person?: {
@@ -68,6 +70,7 @@ function mapToExhibitorProfile(data: Record<string, unknown>): ExhibitorProfile 
     subscription_expires_at: data.subscription_expires_at as string | null,
     stripe_customer_id: data.stripe_customer_id as string | null,
     onboarding_completed_at: (data.onboarding_completed_at as string | null) ?? null,
+    onboarded_roles: Array.isArray(data.onboarded_roles) ? (data.onboarded_roles as string[]) : [],
     created_at: (data.created_at as string) || new Date().toISOString(),
     updated_at: (data.updated_at as string) || new Date().toISOString(),
     ...(personData !== undefined && { person: personData }),
@@ -208,38 +211,33 @@ export function useExhibitorProfile() {
     },
   });
 
-  // Mark onboarding as complete
+  // Mark onboarding as complete. `roleSteps` are the role steps just finished
+  // (MYK9-970); they merge into onboarded_roles so each role's step runs once.
+  // An existing completion stamp is kept, so a role-only rerun does not move it.
   const completeOnboardingMutation = useMutation({
-    mutationFn: async (): Promise<string> => {
+    mutationFn: async (roleSteps: readonly string[]): Promise<string> => {
       if (!user?.id) throw new Error('User not authenticated');
       if (!profile?.id) throw new Error('No exhibitor profile found');
 
       const completedAt = new Date().toISOString();
+      const completion = {
+        onboarding_completed_at: profile.onboarding_completed_at ?? completedAt,
+        onboarded_roles: Array.from(new Set([...(profile.onboarded_roles ?? []), ...roleSteps])),
+      };
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error } = await (supabase.from('exhibitor_profiles') as any)
-        .update({ onboarding_completed_at: completedAt })
+      const { error } = await supabase
+        .from('exhibitor_profiles')
+        .update(completion)
         .eq('id', profile.id);
 
       if (error) throw error;
       const completedProfile: ExhibitorProfile = {
         ...profile,
-        onboarding_completed_at: completedAt,
+        ...completion,
         updated_at: completedAt,
       };
       queryClient.setQueryData(['exhibitorProfile', user.id], completedProfile);
       return completedAt;
-    },
-    onSuccess: completedAt => {
-      queryClient.setQueryData<ExhibitorProfile | null>(['exhibitorProfile', user?.id], current =>
-        current
-          ? {
-              ...current,
-              onboarding_completed_at: completedAt,
-              updated_at: completedAt,
-            }
-          : current
-      );
     },
   });
 

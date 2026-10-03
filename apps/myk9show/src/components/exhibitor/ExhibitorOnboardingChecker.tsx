@@ -1,26 +1,35 @@
 /**
- * Component that checks if the current user needs to complete onboarding.
- * Wraps children and redirects to /onboarding when:
- *   - user is authenticated
- *   - the profile query has SETTLED (see profileSettled — an unresolved query
- *     is "unknown", never "no profile"), and
- *   - no exhibitor_profiles row exists (needsOnboarding), OR
- *   - onboarding has not been completed (onboarding_completed_at is null)
+ * Sends a signed-in user to /onboarding while they have onboarding steps left.
  *
- * but is no longer rendered here.
+ * One rule for everyone (MYK9-970): `buildOnboardingSteps` decides, the same
+ * function the onboarding page renders from. Staff are no longer exempt — they
+ * get profile, dogs (skippable) and their role steps like everyone else.
+ *
+ * Redirects only when:
+ *   - the user is authenticated and not an anonymous passcode session,
+ *   - the profile query has SETTLED (an unresolved query is "unknown", never
+ *     "no profile"),
+ *   - the current route is not exempt (auth, legal, ringside, TV display), and
+ *   - there is at least one step left.
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
+import { buildOnboardingSteps } from '@/pages/onboarding/onboardingSteps';
+import type { UserRole } from '@/types/auth-types';
 
 interface ExhibitorOnboardingCheckerProps {
   children: React.ReactNode;
 }
 
-// Routes that should never trigger an onboarding redirect (auth pages, the
-// onboarding route itself, legal pages, and TV display).
+// Routes that should never trigger an onboarding redirect: auth pages, the
+// onboarding route itself, legal pages, the ringside surface and TV display.
+//
+// INTENT: /at-show and /tv are show-day surfaces. A judge signing in at the ring
+// must land on the scoresheet, never on a setup form ("invisible technology");
+// their role step waits for the next visit to the main app.
 const EXEMPT_PATHS = [
   '/onboarding',
   '/sign-in',
@@ -30,6 +39,8 @@ const EXEMPT_PATHS = [
   '/auth/callback',
   '/terms',
   '/privacy',
+  '/at-show',
+  '/tv',
 ];
 
 function isExemptPath(pathname: string): boolean {
@@ -37,10 +48,9 @@ function isExemptPath(pathname: string): boolean {
 }
 
 export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingCheckerProps) {
-  const { user, loading: authLoading, isSecretary, hasRole } = useAuthContext();
+  const { user, userWithRoles, loading: authLoading, rbacLoading } = useAuthContext();
   const {
-    needsOnboarding,
-    onboardingCompleted,
+    profile,
     profileSettled,
     isLoading: profileLoading,
     error: profileError,
@@ -48,7 +58,13 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
   const navigate = useNavigate();
   const location = useLocation();
 
-  const isLoading = authLoading || profileLoading;
+  // "A new role starts its step on the next sign-in", not mid-session: RBAC
+  // re-polls every few minutes, and a role granted while someone is working
+  // must not yank them off their page. The role set is latched the first time
+  // RBAC settles for this user in this app session.
+  const latchedRolesRef = useRef<{ userId: string; roles: readonly UserRole[] } | null>(null);
+
+  const isLoading = authLoading || rbacLoading || profileLoading;
 
   useEffect(() => {
     if (isLoading) return;
@@ -56,44 +72,42 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
     if (isExemptPath(location.pathname)) return;
     if (profileError) return;
 
-    // Anonymous (passcode ringside) sessions are NOT exhibitors. As of migration
-    // 20260625000000 they have no exhibitor_profiles row by design, so
-    // `needsOnboarding` is true for them — but routing a passcode judge/steward to
-    // exhibitor onboarding is wrong (it bounces them out of /at-show). They carry
-    // their ringside role in the client grant, not RBAC, so the hasRole() checks
-    // below never match. Exempt them explicitly.
+    // Anonymous (passcode ringside) sessions are NOT accounts. As of migration
+    // 20260625000000 they have no exhibitor_profiles row by design, and they
+    // carry their ringside role in the client grant, not RBAC. Never onboard them.
     if (user.is_anonymous) return;
-
-    // Secretaries, site admins, judges, and club admins don't have exhibitor_profiles
-    // rows — they are staff roles, not exhibitors. Never route them to exhibitor onboarding.
-    if (isSecretary || hasRole('site_admin') || hasRole('judge') || hasRole('club_admin')) return;
 
     // MYK9-347: only redirect once the profile query has actually reported.
     // `profileLoading` is `isPending && isFetching`, and a query PAUSED after a
     // connectivity drop is pending but not fetching — so the guards above let it
-    // through with `profile === undefined`. That makes `onboardingCompleted`
-    // false for a fully onboarded exhibitor and strands them on /onboarding,
-    // which they cannot complete without a backend. An unsettled query is
-    // "unknown", not "no profile".
-    //
-    // The error case is already handled by the `profileError` guard above; this
-    // covers the third state, which has neither data nor an error.
+    // through with `profile === undefined`, which would read as "no profile" for
+    // a fully onboarded user and strand them on /onboarding, which they cannot
+    // complete without a backend. An unsettled query is "unknown".
     if (!profileSettled) return;
 
-    if (needsOnboarding || !onboardingCompleted) {
+    if (latchedRolesRef.current?.userId !== user.id) {
+      latchedRolesRef.current = { userId: user.id, roles: userWithRoles?.roles ?? [] };
+    }
+
+    const steps = buildOnboardingSteps({
+      hasProfile: Boolean(profile),
+      baseCompleted: Boolean(profile?.onboarding_completed_at),
+      roles: latchedRolesRef.current.roles,
+      onboardedRoles: profile?.onboarded_roles ?? [],
+    });
+
+    if (steps.length > 0) {
       navigate('/onboarding', { replace: true });
     }
   }, [
     isLoading,
     user,
-    needsOnboarding,
-    onboardingCompleted,
+    userWithRoles?.roles,
+    profile,
     profileSettled,
     profileError,
     navigate,
     location.pathname,
-    hasRole,
-    isSecretary,
   ]);
 
   return <>{children}</>;

@@ -85,7 +85,7 @@ beforeEach(() => {
 });
 
 describe('ExhibitorOnboardingPage', () => {
-  it('shows a skeleton while authenticated exhibitor context is still loading', () => {
+  it('shows a skeleton while authenticated context is still loading', () => {
     mockUseAuthContext.mockReturnValue({
       user: { id: 'auth-user-id' } as User,
       userWithRoles: null,
@@ -95,21 +95,20 @@ describe('ExhibitorOnboardingPage', () => {
 
     render(<ExhibitorOnboardingPage />);
 
-    expect(
-      screen.getByRole('status', { name: 'Loading exhibitor onboarding' })
-    ).toBeInTheDocument();
+    expect(screen.getByRole('status', { name: 'Loading onboarding' })).toBeInTheDocument();
     expect(document.querySelector('.animate-spin')).toBeNull();
   });
 
-  it('redirects secretary users to the secretary dashboard instead of rendering exhibitor onboarding', async () => {
+  // MYK9-970: the STAFF_ROLES skip is gone. A secretary gets the same flow as
+  // everyone else instead of being bounced to their dashboard.
+  it('gives a secretary the onboarding flow instead of redirecting them to a dashboard', () => {
     setupAuth([UserRole.SECRETARY]);
 
     render(<ExhibitorOnboardingPage />);
 
-    await waitFor(() => {
-      expect(navigateMock).toHaveBeenCalledWith('/secretary/dashboard', { replace: true });
-    });
-    expect(screen.queryByText('Tell us about yourself')).not.toBeInTheDocument();
+    expect(screen.getByText('Tell us about yourself')).toBeInTheDocument();
+    expect(screen.getByText('1 of 4')).toBeInTheDocument();
+    expect(navigateMock).not.toHaveBeenCalled();
   });
 
   it('renders the onboarding wizard for exhibitor users', () => {
@@ -376,7 +375,7 @@ describe('ExhibitorOnboardingPage', () => {
 
     render(<ExhibitorOnboardingPage />);
 
-    const shell = screen.getByRole('status', { name: 'Loading exhibitor onboarding' });
+    const shell = screen.getByRole('status', { name: 'Loading onboarding' });
     expect(shell.className).toContain('pt-[calc(var(--app-header-height,3rem)+1rem)]');
     // `p-4` padded the top by a flat 1rem, which is what put it behind the header.
     expect(shell.className).not.toMatch(/\bp-4\b/);

@@ -19,7 +19,7 @@ Filter state stays in the URL (existing `userListParams.ts` codec), so every fil
 
 ## Duplication check
 
-- `components/common/FilterChips.tsx` (browse pages) is a public-facing chip row with no counts, no date ranges and no search; the kit is the admin-table counterpart. Converging the two is a follow-up once Dogs/Entries adopt the kit.
+- The old `components/common/FilterChips.tsx`, `ListControls.tsx` and `ResultsCount.tsx` were deleted under MYK9-817; `apps/myk9show/src/test/ci/listToolkitGuard.test.ts` fails if any page imports a retired per-page list control.
 - The legacy device-local `SavedViewsControl` was removed after its only mounted caller was retired; the kit's view tabs remain built-in, URL-backed presets. No user-defined saved views in this change.
 - `UserFilters.tsx` (the expandable filter panel) and `UserManagementStats.tsx` (stat cards) are **deleted** — the filter bar and view tabs replace them.
 

@@ -116,14 +116,8 @@ vi.mock('@/components/common/PageHeader', () => ({
 vi.mock('@/components/common/SearchBar', () => ({
   SearchBar: () => <div data-testid="search-bar" />,
 }));
-vi.mock('@/components/common/FilterChips', () => ({
-  FilterChips: () => <div data-testid="filter-chips" />,
-}));
 vi.mock('@/components/common/ViewToggle', () => ({
   ViewToggle: () => <div data-testid="view-toggle" />,
-}));
-vi.mock('@/components/common/ResultsCount', () => ({
-  ResultsCount: () => <span data-testid="results-count" />,
 }));
 vi.mock('@/components/common/ErrorState', () => ({
   ErrorState: ({ message }: { message: string }) => <div data-testid="error-state">{message}</div>,

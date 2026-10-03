@@ -133,6 +133,21 @@ normalize_or_stop "$GENERATED" "$tmp/generated.layout.ts" "generated"
 strip_platform_metadata "$tmp/committed.layout.ts" > "$tmp/committed.ts"
 strip_platform_metadata "$tmp/generated.layout.ts" > "$tmp/generated.norm.ts"
 
+# Object names are read from the layout-preserving output above, which the
+# header patterns' fixed indents depend on. The line diff is a different
+# question: Prettier keeps an object multi-line when its source had a newline
+# after `{`, so `graphql: { Args: {...} }` printed multi-line on one side and
+# one-line on the other read as hundreds of changed lines (MYK9-950 follow-up).
+# `--object-wrap collapse` removes that source-layout dependence, so the diff
+# is taken over a second, collapsed rendering of the same stripped text.
+collapse_objects() {
+  "$PRETTIER" --no-config --parser typescript --quote-props as-needed --print-width 100 \
+    --object-wrap collapse < "$1" > "$2" 2> "$tmp/prettier.err" \
+    || not_a_verdict "could not re-format $1 with collapsed objects"
+}
+collapse_objects "$tmp/committed.ts" "$tmp/committed.collapsed.ts"
+collapse_objects "$tmp/generated.norm.ts" "$tmp/generated.collapsed.ts"
+
 # One line per object: <schema>.<section>.<name>, e.g. public.Tables.entries or
 # public.Functions.get_show_judges. Tracks the 2-space schema and 4-space
 # section headers so a name is never reported without its home. The object
@@ -150,11 +165,11 @@ object_headers "$tmp/generated.norm.ts" > "$tmp/generated.objects"
 
 live_only="$(comm -13 "$tmp/committed.objects" "$tmp/generated.objects")"
 committed_only="$(comm -23 "$tmp/committed.objects" "$tmp/generated.objects")"
-line_delta="$(diff "$tmp/committed.ts" "$tmp/generated.norm.ts" | grep -c '^[<>]' || true)"
+line_delta="$(diff "$tmp/committed.collapsed.ts" "$tmp/generated.collapsed.ts" | grep -c '^[<>]' || true)"
 # `diff` exits 1 when the files differ, so every use of it here needs a guard:
 # under `set -e` an unguarded call aborts the script, and inside the report
 # block that abort produces a silently EMPTY summary rather than any error.
-{ diff -U2 "$tmp/committed.ts" "$tmp/generated.norm.ts" || true; } | tail -n +3 > "$tmp/full.diff"
+{ diff -U2 "$tmp/committed.collapsed.ts" "$tmp/generated.collapsed.ts" || true; } | tail -n +3 > "$tmp/full.diff"
 
 count() { if [[ -z "$1" ]]; then echo 0; else printf '%s\n' "$1" | wc -l | tr -d ' '; fi; }
 as_list() {

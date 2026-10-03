@@ -88,7 +88,7 @@ export function computeSetupReadinessSignals(input: SetupReadinessInput): SetupR
     signals.push({
       id: 'no-trials',
       label: 'No trials yet',
-      href: `/shows/${showId}?tab=trials`,
+      href: `/shows/${showId}`,
     });
   }
   if (input.classes.length === 0) {

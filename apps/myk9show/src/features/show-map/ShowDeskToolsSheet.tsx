@@ -187,7 +187,7 @@ function ShowDeskToolsSheetContent({
       data-layout={activeWideTool ? 'wide' : 'compact'}
     >
       <SheetHeader className="border-b px-6 py-4 text-left">
-        <SheetTitle>Show Desk tools</SheetTitle>
+        <SheetTitle>Show tools</SheetTitle>
         <SheetDescription>
           Show-day lookups and codes, plus volunteers, hospitality, tasks, and incidents.
         </SheetDescription>

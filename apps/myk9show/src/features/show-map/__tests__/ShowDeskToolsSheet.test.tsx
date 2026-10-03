@@ -108,14 +108,14 @@ describe('ShowDeskToolsSheet', () => {
   it('keeps the sheet closed by default (tool content not rendered)', () => {
     renderSheet();
 
-    expect(screen.queryByRole('dialog', { name: /show desk tools/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: /show tools/i })).not.toBeInTheDocument();
     expect(screen.queryByTestId('add-entries-tool')).not.toBeInTheDocument();
   });
 
   it('opens a requested tool directly for cross-page deep links', () => {
     renderSheet({ requestedToolId: 'broadcast' });
 
-    expect(screen.getByRole('dialog', { name: /show desk tools/i })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /show tools/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /schedule slip script/i })).toHaveAttribute(
       'aria-expanded',
       'true'
@@ -128,8 +128,8 @@ describe('ShowDeskToolsSheet', () => {
 
     await user.click(screen.getByRole('button', { name: /tools/i }));
 
-    expect(screen.getByRole('dialog', { name: /show desk tools/i })).toBeInTheDocument();
-    expect(screen.getByRole('dialog', { name: /show desk tools/i })).toHaveAttribute(
+    expect(screen.getByRole('dialog', { name: /show tools/i })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /show tools/i })).toHaveAttribute(
       'data-layout',
       'compact'
     );
@@ -193,14 +193,14 @@ describe('ShowDeskToolsSheet', () => {
 
     await user.click(screen.getByRole('button', { name: /tools/i }));
 
-    expect(screen.getByRole('dialog', { name: /show desk tools/i })).toHaveAttribute(
+    expect(screen.getByRole('dialog', { name: /show tools/i })).toHaveAttribute(
       'data-layout',
       'compact'
     );
 
     await user.click(screen.getByRole('button', { name: /people at show/i }));
 
-    expect(screen.getByRole('dialog', { name: /show desk tools/i })).toHaveAttribute(
+    expect(screen.getByRole('dialog', { name: /show tools/i })).toHaveAttribute(
       'data-layout',
       'wide'
     );
@@ -210,11 +210,11 @@ describe('ShowDeskToolsSheet', () => {
     const { user } = renderSheet();
 
     await user.click(screen.getByRole('button', { name: /tools/i }));
-    expect(screen.getByRole('dialog', { name: /show desk tools/i })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /show tools/i })).toBeInTheDocument();
 
     await user.keyboard('{Escape}');
 
-    expect(screen.queryByRole('dialog', { name: /show desk tools/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: /show tools/i })).not.toBeInTheDocument();
   });
 
   it('shows the actionable count in destructive style when > 0', () => {

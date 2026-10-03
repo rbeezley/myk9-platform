@@ -4,7 +4,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import ShowDetailsPage from '@/pages/ShowDetailsPage';
-import { ShowWorkbenchSetupPage } from '@/pages/secretary/ShowWorkbenchSetupPage';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { friendlySaveError } from '@/utils/friendlySaveError';
 
@@ -361,14 +360,6 @@ function renderPage(showId = 'show-1', subPath = '', query = '') {
         <PageLocationProbe />
         <Routes>
           <Route path="/shows/:id" element={<ShowDetailsPage />}>
-            <Route
-              path="show-day"
-              element={<div data-testid="canonical-child">Show Desk child</div>}
-            />
-            {/* The REAL Setup page: `?tab=map|trials|classes` redirects here
-                now (MYK9-630 phase 2), and a placeholder would let the redirect
-                land somewhere that renders none of the three views. */}
-            <Route path="setup" element={<ShowWorkbenchSetupPage />} />
             <Route path="entries" element={<div data-testid="canonical-entries-child" />} />
           </Route>
         </Routes>
@@ -862,7 +853,7 @@ describe('ShowDetailsPage', () => {
     // Positive control that the MANAGER shell rendered at all -- otherwise the
     // absence below would pass on any page. It used to be the `...` trigger,
     // which MYK9-630 phase 1 deleted, then the section nav, which phase 2 did.
-    expect(screen.getByRole('tab', { name: /^Setup$/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^Entries/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /premium list/i })).toBeNull();
   });
 
@@ -879,7 +870,7 @@ describe('ShowDetailsPage', () => {
     expect(screen.getByTestId('hero-secondary-actions')).toBeEmptyDOMElement();
   });
 
-  it('gives a manager ONE row of six tabs and no standalone page links', () => {
+  it('gives a manager ONE row of four tabs and no standalone page links (MYK9-957)', () => {
     // MYK9-630 phase 2 (Richard: "there are 11 or more and difficult to tell if
     // they are tabs or links or buttons"). The five-link row above the old
     // six-tab strip is deleted: Show Desk, Entry Management, Reports, Results
@@ -890,7 +881,7 @@ describe('ShowDetailsPage', () => {
 
     expect(
       screen.getAllByRole('tab').map(tab => tab.textContent?.replace(/\d+$/, '').trim())
-    ).toEqual(['Overview', 'Setup', 'Entries', 'Show Day', 'Results', 'Reports']);
+    ).toEqual(['Overview', 'Entries', 'Results', 'Reports']);
     expect(screen.queryByTestId('canonical-show-management-nav')).not.toBeInTheDocument();
     expect(screen.queryByRole('combobox', { name: /show management section/i })).toBeNull();
     for (const label of ['Show Desk', 'Entry Management', 'Reports', 'Results', 'Submit Results']) {
@@ -911,12 +902,12 @@ describe('ShowDetailsPage', () => {
     expect(list?.className).not.toMatch(/w-\[\d/);
   });
 
-  it('hides the six management tabs from exhibitors with entries', () => {
+  it('hides the management tabs from exhibitors with entries', () => {
     seedOwnedEntry();
     renderPage();
 
     expect(screen.queryByTestId('canonical-show-management-nav')).not.toBeInTheDocument();
-    expect(screen.queryByRole('tab', { name: /^Show Day$/ })).toBeNull();
+    expect(screen.queryByRole('tab', { name: /^Reports$/ })).toBeNull();
     expect(screen.getByRole('tab', { name: /^My Entries/ })).toBeInTheDocument();
   });
 
@@ -928,26 +919,12 @@ describe('ShowDetailsPage', () => {
     // There is no menu left to open: Edit and Delete moved into the Show Edit
     // panel's own surface, Preview moved to the Overview landing card.
     expect(screen.queryByRole('button', { name: /more show actions/i })).toBeNull();
-    expect(screen.getByRole('tab', { name: /^Setup$/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^Entries/ })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /preview public page/i })).not.toBeInTheDocument();
     expect(
       screen.queryByRole('menuitem', { name: /manage in workbench/i })
     ).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /manage in workbench/i })).not.toBeInTheDocument();
-  });
-
-  it('renders Show Desk below its compact context instead of the full hero', () => {
-    mockAuthContext.isSecretary = true;
-
-    renderPage('show-1', '/show-day');
-
-    expect(screen.queryByTestId('detail-hero')).not.toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Show Desk context' })).toBeInTheDocument();
-    expect(screen.getByTestId('canonical-child')).toHaveTextContent('Show Desk child');
-    expect(screen.getByRole('tab', { name: /^Show Day$/ })).toHaveAttribute(
-      'aria-selected',
-      'true'
-    );
   });
 
   // Regression: the Show Desk publish exception links to #setup-publish on the
@@ -982,32 +959,10 @@ describe('ShowDetailsPage', () => {
       style: 'headline',
     };
 
-    renderPage('show-1', '/show-day');
+    renderPage('show-1', '/entries');
 
     expect(screen.queryByTestId('headline-landing')).not.toBeInTheDocument();
-    expect(screen.getByTestId('canonical-child')).toHaveTextContent('Show Desk child');
-  });
-
-  it('renders the public Show Map as read-only for show managers', async () => {
-    mockAuthContext.isSecretary = true;
-    getEntriesForShowMock.mockResolvedValue({ data: [], error: null });
-    getEntriesByShowMock.mockReset();
-    getEntriesByShowMock.mockResolvedValue({ data: [], error: null, resultsReadComplete: true });
-    mockAuthContext.rbacLoading = false;
-    mockTrials = [
-      {
-        id: 'trial-1',
-        showId: 'show-1',
-        trialDate: '2026-03-22',
-        trialNumber: '1',
-        name: 'Trial 1',
-      },
-    ];
-
-    renderPage('show-1', '', '?tab=map');
-
-    const showMap = await screen.findByTestId('show-map-tab');
-    expect(showMap).toHaveAttribute('data-can-manage', 'false');
+    expect(screen.getByTestId('canonical-entries-child')).toBeInTheDocument();
   });
 
   it('pauses manager entry-derived counts when secretary entries fail to load', async () => {
@@ -1030,9 +985,9 @@ describe('ShowDetailsPage', () => {
       'trial-1': [{ id: 'class-1', element: 'Container', level: 'Novice' }],
     };
 
-    renderPage('show-1', '', '?tab=map');
+    renderPage('show-1', '/entries');
 
-    expect(await screen.findAllByText("Couldn't load entry counts.")).toHaveLength(2);
+    expect(await screen.findAllByText("Couldn't load entry counts.")).toHaveLength(1);
     expect(screen.getByTestId('hero-footer')).toHaveTextContent('Total EntriesUnavailable');
     expect(screen.queryByText('Total Entries0')).not.toBeInTheDocument();
     expect(screen.queryByTestId('show-map-tab')).not.toBeInTheDocument();
@@ -1383,67 +1338,6 @@ describe('ShowDetailsPage', () => {
     );
   });
 
-  it('computes per-trial entry counts from the entryCountByClassId index', async () => {
-    // 1 trial, 2 classes, 3 entries split 2/1, plus 1 entry with undefined class_id
-    mockTrials = [
-      {
-        id: 'trial-1',
-        showId: 'show-1',
-        trialDate: '2026-03-22',
-        trialNumber: '1',
-        name: 'Trial 1',
-      },
-    ];
-    mockTrialClasses = {
-      'trial-1': [
-        {
-          id: 'class-a',
-          element: 'Container',
-          level: 'Novice',
-          section: '',
-          judgeName: '',
-          startTime: '',
-          status: 'Scheduled',
-          completedEntries: 0,
-        },
-        {
-          id: 'class-b',
-          element: 'Interior',
-          level: 'Novice',
-          section: '',
-          judgeName: '',
-          startTime: '',
-          status: 'Scheduled',
-          completedEntries: 0,
-        },
-      ],
-    };
-    mockShowEntries = [
-      { id: 'e1', show_id: 'show-1', class_id: 'class-a' },
-      { id: 'e2', show_id: 'show-1', class_id: 'class-a' },
-      { id: 'e3', show_id: 'show-1', class_id: 'class-b' },
-      // e4 has no class_id — must not contribute to any class's count
-      { id: 'e4', show_id: 'show-1' },
-    ];
-    getEntriesForShowMock.mockResolvedValue({ data: mockShowEntries, error: null });
-    mockAuthContext.isSecretary = true;
-
-    // A manager opens Trials on the table (decision 8); this reads the card's count line.
-    localStorage.setItem('view-pref-trials', 'cards');
-    try {
-      renderPage('show-1', '', '?tab=trials');
-
-      // TrialsTab renders "<count> entries" — trialStats for trial-1 = 3 (class-a:2 + class-b:1)
-      // e4 has no class_id, so it must not be counted.
-      const strong = await screen.findByText((content, el) => {
-        return el?.tagName === 'STRONG' && content === '3';
-      });
-      expect(strong.closest('span')?.parentElement).toHaveTextContent('entries');
-    } finally {
-      localStorage.removeItem('view-pref-trials');
-    }
-  });
-
   describe('a club admin, who manages this show (MYK9-630 phase 3)', () => {
     // REWRITTEN. #2180 admitted a club-scoped CLUB ADMIN to the section routes
     // (`canManageShowSurface`) but held them on the exhibitor surface with a
@@ -1473,28 +1367,21 @@ describe('ShowDetailsPage', () => {
       };
     });
 
-    it('renders the Setup page, not a blank body, at /shows/:id/setup', async () => {
-      renderPage('show-1', '/setup');
+    it('renders a management page, not a blank body, at a section URL', async () => {
+      renderPage('show-1', '/entries');
 
-      expect(await screen.findByRole('group', { name: /setup section/i })).toBeInTheDocument();
+      expect(await screen.findByTestId('canonical-entries-child')).toBeInTheDocument();
     });
 
-    it('gets the six-tab management strip, like a secretary', () => {
+    it('gets the four-tab management strip, like a secretary', () => {
       renderPage();
 
-      for (const label of [
-        /^Overview/,
-        /^Setup/,
-        /^Entries/,
-        /^Show Day/,
-        /^Results/,
-        /^Reports/,
-      ]) {
+      for (const label of [/^Overview/, /^Entries/, /^Results/, /^Reports/]) {
         expect(screen.getByRole('tab', { name: label })).toBeInTheDocument();
       }
     });
 
-    it('has ONE Show Map — inside Setup, not a second tab on the exhibitor strip', () => {
+    it('has no Show Map tab (it went with Setup, MYK9-957)', () => {
       renderPage();
 
       expect(screen.queryByRole('tab', { name: /^Show Map/ })).toBeNull();
@@ -1527,7 +1414,7 @@ describe('ShowDetailsPage', () => {
       // this fixture has no entries, the audience resolves to 'public', no tab
       // strip is built, and a bare absence check stays green while the rule it
       // guards is broken (REV-2341 lens P, P6).
-      expect(screen.getByRole('tab', { name: /^Show Day/ })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /^Results/ })).toBeInTheDocument();
 
       expect(screen.queryByRole('tab', { name: /^My Entries/ })).toBeNull();
       expect(screen.queryByRole('tab', { name: /^Trials/ })).toBeNull();
@@ -1565,7 +1452,7 @@ describe('ShowDetailsPage', () => {
     });
   });
 
-  describe('manager deep links into the six tabs (MYK9-634, MYK9-630 AC3)', () => {
+  describe('manager deep links into the tabs (MYK9-634, MYK9-630 AC3)', () => {
     beforeEach(() => {
       mockAuthContext.isSecretary = true;
     });
@@ -1637,14 +1524,15 @@ describe('ShowDetailsPage', () => {
       expect(screen.queryByTestId('my-entries-tab')).toBeNull();
     });
 
+    // MYK9-957: Setup is the show home now; classes open Select classes.
     it.each([
-      ['?tab=trials', 'section=trials'],
-      ['?tab=classes', 'section=classes'],
-      ['?tab=map', 'section=map'],
-    ])('sends a manager from %s into Setup', async (query, _section) => {
+      ['?tab=trials', '/shows/show-1'],
+      ['?tab=classes', '/shows/show-1?select=classes'],
+      ['?tab=map', '/shows/show-1'],
+    ])('sends a manager from %s to %s', async (query, landing) => {
       renderPage('show-1', '', query);
 
-      expect(await screen.findByRole('group', { name: /setup section/i })).toBeInTheDocument();
+      await waitFor(() => expect(screen.getByTestId('page-location').textContent).toBe(landing));
     });
 
     it("leaves an exhibitor's own ?tab=my-entries alone", async () => {

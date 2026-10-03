@@ -119,9 +119,9 @@ test('Entry Management deep-links to the existing Check-in desk', async ({ page 
   await page.getByRole('link', { name: 'Open Check-in desk' }).click();
 
   await expect(page).toHaveURL(
-    new RegExp(`/shows/${LIVE_SECRETARY_SHOW_ID}/show-day\\?tool=people-at-show`)
+    new RegExp(`/shows/${LIVE_SECRETARY_SHOW_ID}\\?tool=people-at-show`)
   );
-  const toolsDialog = page.getByRole('dialog', { name: 'Show Desk tools' });
+  const toolsDialog = page.getByRole('dialog', { name: 'Show tools' });
   await expect(toolsDialog).toBeVisible();
   const peopleAtShow = page.getByRole('button', { name: /People at show/i });
   await expect(peopleAtShow).toHaveAttribute('aria-expanded', 'true');

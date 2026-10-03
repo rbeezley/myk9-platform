@@ -115,7 +115,7 @@ async function openShowDesk(page: Page) {
 
 async function openToolsPanel(page: Page) {
   await page.getByRole('button', { name: /^Tools/ }).click();
-  const toolsPanel = page.getByRole('dialog', { name: /show desk tools/i });
+  const toolsPanel = page.getByRole('dialog', { name: /show tools/i });
   await expect(toolsPanel).toBeVisible({ timeout: 10000 });
   return toolsPanel;
 }

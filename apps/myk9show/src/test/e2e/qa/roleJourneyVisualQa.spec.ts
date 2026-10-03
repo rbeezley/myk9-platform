@@ -136,7 +136,7 @@ async function assertSecretaryStates(page: Page) {
   const toolsPanelTrigger = page.getByRole('button', { name: /open tools panel/i });
   await expect(toolsPanelTrigger).toBeVisible();
   await toolsPanelTrigger.click();
-  const toolsPanel = page.getByRole('dialog', { name: /show desk tools/i });
+  const toolsPanel = page.getByRole('dialog', { name: /show tools/i });
   await expect(toolsPanel).toBeVisible();
   await page.keyboard.press('Escape');
   await expect(toolsPanel).not.toBeVisible();

@@ -26,23 +26,21 @@
 
 ![Secretary dashboard listing managed shows with a needs-attention summary](../screenshots/S-01.png)
 
-Open a show and you get **one row of six tabs**. Everything in this guide lives on one of them:
+Open a show and you get **one row of four tabs**. Everything in this guide lives on one of them:
 
-| Tab          | What it is                                                                                  |
-| ------------ | ------------------------------------------------------------------------------------------- |
-| **Overview** | The show at a glance, plus publishing the premium and the public landing page.              |
-| **Setup**    | Trials, Classes and the Show Map.                                                           |
-| **Entries**  | Everything to do with entries: who's in, who's paid, who's waiting, who pulled out.         |
-| **Show Day** | Everything to do with running the show: classes, run order, check-in, volunteers, closeout. |
-| **Results**  | Reviewing and releasing results, then submitting them to the organization.                  |
-| **Reports**  | Printing: labels, check-in sheets, score sheets, catalogs and organization reports.         |
+| Tab          | What it is                                                                                                                    |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| **Overview** | Your show home: the schedule by trial and day, each class's work and checklist, setting up trials and classes, and **Tools**. |
+| **Entries**  | Everything to do with entries: who's in, who's paid, who's waiting, who pulled out.                                           |
+| **Results**  | Reviewing and releasing results, submitting them to the organization, then closing the show.                                  |
+| **Reports**  | Printing: labels, check-in sheets, score sheets, catalogs and organization reports.                                           |
 
-Most day-of jobs live behind **Show Day → Tools**.
+Most day-of jobs live behind **Overview → Tools**.
 
-> **Renamed, September 2026.** Entry Management is now the **Entries** tab and Show Desk is now
-> **Show Day**; Submit Results is a step inside **Results**. Old bookmarks still work — they
-> redirect to the matching tab. Screenshots below still show the previous names and are being
-> regenerated.
+> **Changed, October 2026.** Setup and Show Day are now part of **Overview** — one view before,
+> during and after the show. Show closeout is the last step of **Results**, and adding entries
+> (including late entries) lives on **Entries**. Old bookmarks still work — they redirect to the
+> matching place. Screenshots below still show the previous layout and are being regenerated.
 
 ---
 
@@ -68,9 +66,9 @@ The wizard creates all three in one pass. **Dashboard → Add Show.**
 
 - **Show details:** open the show → **Actions → Edit show** (the Actions button sits in the top bar, left of the bell; on a phone it is the lightning icon). The edit panel opens over the section you are on.
 - **Add a judge to the show:** on the show page, choose **Edit**, then use the **Judges** tab.
-- **Add classes to a show that already exists:** on the trial's page or in **Setup → Classes**, choose **Add Classes**. The wizard opens on the **Classes** step (on that trial's tab when you started from a trial) with Show Details and Trials locked, because you are only adding classes. **Back** and **Save** return you to the trial; to add a trial instead, use **Setup → Trials → Add Trial**.
-- **Edit or delete a trial or class from Setup:** on **Setup → Trials** or **Setup → Classes**, open the **⋮** menu on that row and choose **Edit** or **Delete**. It opens the same edit panel and confirmation you get on the trial's or class's own page; clicking the row itself still opens its page. Deleting a trial or class also deletes its entries, so read the confirmation before you accept it.
-- **Change a class's judge:** **Setup → Classes**, then the judge dropdown on that class's row. To set many classes to the same status at once, tick their checkboxes and use the bar that appears.
+- **Add classes to a show that already exists:** on **Overview**, choose **Add Classes** on the trial's heading (or on the trial's own page). The wizard opens on the **Classes** step with Show Details and Trials locked, because you are only adding classes. To add a trial instead, use **Add Trial** at the top of **Overview**.
+- **Edit or delete a trial or class:** on **Overview**, open the **⋮** menu on a trial's heading and choose **Edit Trial** or **Delete Trial**; for a class, click it and use **Edit class** or **Delete class** in its panel. They open the same edit panel and confirmation you get on the trial's or class's own page. Deleting a trial or class also deletes its entries, so read the confirmation before you accept it.
+- **Change a class's judge, or several classes at once:** **Overview → Select classes**, then the judge dropdown on that class's row. To set many classes in one trial to the same status, export them or delete them, tick their checkboxes and use the bar that appears. **Done** returns you to the schedule.
 
 > A class's judge dropdown only offers judges already attached to the show. If the one you want isn't listed, add them on the Judges tab first, then come back.
 
@@ -105,7 +103,7 @@ The **Show:** menu across the top lists the queues — _Needs review_, _Missing 
 
 ## 5 · Take a late or walk-in entry on show day
 
-**Show Day → Tools → Late entry.** Same flow as entering for someone else.
+**Entries → Add Entry → Add late entry.** Same flow as entering for someone else.
 
 ## 6 · Manage the wait list
 
@@ -156,13 +154,13 @@ Payment status shows on every registration row in **Entries**, and refunds are r
 
 ## 10 · Set the run order
 
-**Show Day → click the class → Run order.**
+**Overview → click the class → Run order.**
 
 ![Show Desk focused class showing the Run order control and Move up on each entry](../screenshots/S-15.png)
 
 Choose **Armband ↑**, **Armband ↓**, or **Random**. The order applies immediately and appears on check-in sheets and at ringside.
 
-> You can also reach this from a class's page — **Set run order** takes you straight to that class on **Show Day**.
+> You can also reach this from a class's page — **Set run order** takes you straight to that class on **Overview**.
 
 > **Known limitation:** there's no drag-and-drop yet, so you can't hand-place one dog into a specific slot. The three presets above are all that's available.
 
@@ -180,11 +178,11 @@ Choose **Armband ↑**, **Armband ↓**, or **Random**. The order applies immedi
 
 ## 13 · Ringside access codes
 
-**Show Day → Tools → access codes.** Separate codes for Admin, Judge, Steward, and Exhibitor. Copy a code, copy a share link, print a slip, or regenerate if a code gets out.
+**Overview → Tools → Access codes.** Separate codes for Admin, Judge, Steward, and Exhibitor. Copy a code, copy a share link, print a slip, or regenerate if a code gets out.
 
 ## 14 · Volunteer scheduling
 
-**Show Day → Tools → Volunteers.** Add volunteers and assign them to per-class slots grouped by trial.
+**Overview → Tools → Volunteers.** Add volunteers and assign them to per-class slots grouped by trial.
 
 ---
 
@@ -192,7 +190,7 @@ Choose **Armband ↑**, **Armband ↓**, or **Random**. The order applies immedi
 
 ## 15 · Move a dog up
 
-**Show Day → click the class → Entries → Move up** on that dog's row.
+**Overview → click the class → Entries → Move up** on that dog's row.
 
 Choose the target class and give a reason. Targets are restricted to the same element at a strictly higher level, so you can't move a dog somewhere ineligible.
 
@@ -202,11 +200,11 @@ Choose the target class and give a reason. Targets are restricted to the same el
 
 ## 16 · Check dogs in
 
-**Show Day → click the class → Enter paper scores** shows the run sheet, with a check-in control on every dog's row.
+**Overview → click the class → Enter paper scores** shows the run sheet, with a check-in control on every dog's row.
 
 ## 17 · Enter results from paper scoresheets
 
-Same run sheet: **Show Day → click the class → Enter paper scores.**
+Same run sheet: **Overview → click the class → Enter paper scores.**
 
 Per dog, record Q / NQ / ABS / EX, the search time, and any faults. Search time is digit-masked — type `4520` for 45.20 seconds.
 
@@ -222,7 +220,7 @@ Per dog, record Q / NQ / ABS / EX, the search time, and any faults. Search time 
 
 ## 19 · Release results to exhibitors
 
-**Show Day → Results** (the show's Results control).
+**Results → Review & release.**
 
 ![Results page showing readiness and the Immediately, After Class and After Review presets](../screenshots/S-20.png)
 
@@ -267,7 +265,7 @@ Each renders the registry's own instructions and layout.
 
 ## 22 · Close out the show
 
-**Show Day → Closeout.**
+**Results → Close the show.**
 
 1. Read the reconciliation — entries, day-of entries, collected at the show, waived, and pulled or no-show — and check the totals match what you took.
 2. Choose **Close Out Show** and confirm.

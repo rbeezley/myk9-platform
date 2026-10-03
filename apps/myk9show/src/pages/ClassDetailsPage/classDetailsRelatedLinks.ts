@@ -31,7 +31,7 @@ export function buildClassDetailsRelatedLinks({
 
   items.push({
     key: 'class-management',
-    label: 'Setup → Classes',
+    label: 'Select classes',
     href: getSelectClassesHref(showId, undefined, {
       trialId: trialId ?? undefined,
       focusClassId: classId ?? undefined,

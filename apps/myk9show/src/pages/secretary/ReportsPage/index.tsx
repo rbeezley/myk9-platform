@@ -365,7 +365,7 @@ export default function ReportsPage() {
             to={`/shows/${linkShowId}?tool=emergency-trial-packet`}
             className="font-medium text-foreground underline underline-offset-4"
           >
-            Open it in Show Desk tools
+            Open it in Show tools
           </Link>
           .
         </p>

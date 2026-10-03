@@ -129,7 +129,7 @@ describe('useMyShows', () => {
     const { result } = renderHook(() => useMyShows([show]));
     expect(result.current.attentionNeeded).toHaveLength(1);
     expect(result.current.attentionNeeded[0].kind).toBe('urgent');
-    expect(result.current.attentionNeeded[0].href).toBe('/shows/multi-day-attn/show-day');
+    expect(result.current.attentionNeeded[0].href).toBe('/shows/multi-day-attn');
   });
 
   it('places a published future show in the upcoming bucket', () => {
@@ -298,19 +298,19 @@ describe('useMyShows', () => {
   it('today attention href points to the show-desk sub-route', () => {
     const show = makeShow({ id: 'show-today', startDate: TODAY, status: 'in_progress' });
     const { result } = renderHook(() => useMyShows([show]));
-    expect(result.current.attentionNeeded[0].href).toBe('/shows/show-today/show-day');
+    expect(result.current.attentionNeeded[0].href).toBe('/shows/show-today');
   });
 
   it('draft attention href points to the show setup sub-route', () => {
     const show = makeShow({ id: 'show-draft', startDate: FUTURE_30, status: 'draft' });
     const { result } = renderHook(() => useMyShows([show]));
-    expect(result.current.attentionNeeded[0].href).toBe('/shows/show-draft/setup');
+    expect(result.current.attentionNeeded[0].href).toBe('/shows/show-draft');
   });
 
   it('draft attention href points to setup even when the show starts today', () => {
     const show = makeShow({ id: 'show-draft-today', startDate: TODAY, status: 'draft' });
     const { result } = renderHook(() => useMyShows([show]));
-    expect(result.current.attentionNeeded[0].href).toBe('/shows/show-draft-today/setup');
+    expect(result.current.attentionNeeded[0].href).toBe('/shows/show-draft-today');
   });
 
   it('closing-soon attention href points to the show setup sub-route', () => {
@@ -321,6 +321,6 @@ describe('useMyShows', () => {
       entryCloseDate: FUTURE_7,
     });
     const { result } = renderHook(() => useMyShows([show]));
-    expect(result.current.attentionNeeded[0].href).toBe('/shows/show-upcoming/setup');
+    expect(result.current.attentionNeeded[0].href).toBe('/shows/show-upcoming');
   });
 });

@@ -221,7 +221,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Shows',
     status: 'working',
-    linksTo: ['/shows/:id', '/shows/:showId/setup', '/secretary/create-show/wizard'],
+    linksTo: ['/shows/:id', '/secretary/create-show/wizard'],
   },
   {
     path: '/results/dashboard',
@@ -245,26 +245,6 @@ export const pageDirectory: readonly PageEntry[] = [
     linksTo: ['/shows', '/secretary/dashboard'],
   },
   {
-    path: '/shows/:showId/setup',
-    title: 'Show Setup',
-    description: 'Configure trials, classes, officials, rings, and show-day readiness settings.',
-    roles: [UserRole.SECRETARY, UserRole.SITE_ADMIN],
-    classification: 'critical-path',
-    category: 'Shows',
-    status: 'working',
-    linksTo: ['/secretary/dashboard', '/shows/:showId/show-day', '/shows/:showId/results'],
-  },
-  {
-    path: '/shows/:showId/show-day',
-    title: 'Show Desk',
-    description: 'Day-of command center for class flow, ring status, and closeout readiness.',
-    roles: [UserRole.SECRETARY, UserRole.SITE_ADMIN],
-    classification: 'critical-path',
-    category: 'Shows',
-    status: 'working',
-    linksTo: ['/shows/:showId/setup', '/shows/:showId/entries', '/shows/:showId/results'],
-  },
-  {
     path: '/shows/:showId/entries',
     title: 'Entry Management',
     description: 'Review, approve, and manage show entries from one canonical show page.',
@@ -272,7 +252,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Entries',
     status: 'working',
-    linksTo: ['/shows/:showId/setup', '/shows/:showId/reports'],
+    linksTo: ['/shows/:id', '/shows/:showId/reports'],
   },
   {
     path: '/shows/:showId/reports',
@@ -282,7 +262,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Reports',
     status: 'working',
-    linksTo: ['/shows/:showId/show-day', '/shows/:showId/results'],
+    linksTo: ['/shows/:id', '/shows/:showId/results'],
   },
   {
     path: '/shows/:showId/results',
@@ -292,7 +272,7 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Results',
     status: 'working',
-    linksTo: ['/shows/:showId/show-day', '/shows/:showId/reports'],
+    linksTo: ['/shows/:id', '/shows/:showId/reports'],
   },
   {
     path: '/people',
@@ -320,13 +300,14 @@ export const pageDirectory: readonly PageEntry[] = [
   },
   {
     path: '/shows/:id',
-    title: 'Show Details',
-    description: 'Per-show detail page: trials, classes, judges, run order.',
+    title: 'Show Details / show home',
+    description:
+      'Per-show page. Exhibitors see trials, classes and judges; managers get the show home (schedule, class work, setup and Tools), which absorbed Setup and Show Day (MYK9-957).',
     roles: [UserRole.EXHIBITOR, UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN],
     classification: 'critical-path',
     category: 'Shows',
     status: 'working',
-    linksTo: ['/shows', '/shows/:showId/register', '/shows/:showId/setup'],
+    linksTo: ['/shows', '/shows/:showId/register', '/shows/:showId/entries', '/shows/:showId/results'],
   },
   {
     path: '/shows/:showId/trials/:trialId',

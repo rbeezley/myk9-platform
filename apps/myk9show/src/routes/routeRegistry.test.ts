@@ -39,8 +39,10 @@ describe('routeRegistry', () => {
   });
 
   it('registers canonical show management route patterns', () => {
-    expect(fullRouteRegistry['/shows/:showId/setup']).toBeDefined();
-    expect(fullRouteRegistry['/shows/:showId/show-day']).toBeDefined();
+    // Setup and Show Day are redirects into the show home now (MYK9-957).
+    expect(fullRouteRegistry['/shows/:showId/setup']).toBeUndefined();
+    expect(fullRouteRegistry['/shows/:showId/show-day']).toBeUndefined();
+    expect(fullRouteRegistry['/shows/:showId/entries']).toBeDefined();
     expect(fullRouteRegistry['/shows/:showId/results']).toBeDefined();
   });
 

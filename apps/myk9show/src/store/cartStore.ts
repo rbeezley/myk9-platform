@@ -797,6 +797,33 @@ export const useCartStore = create<CartState>()(
           }
 
           try {
+            // MYK9-975: an open Checkout page can still be paid after this. The
+            // webhook refunds a late payment only on a cart that is abandoned
+            // AND still holds that session id, so abandon the cart, leave its
+            // session id (and lines, as evidence) untouched, and hand back a
+            // fresh empty cart; abandoning also frees the one-active-cart slot.
+            if (cart.stripe_checkout_session_id) {
+              const { error: abandonError } = await supabase
+                .from('entry_carts')
+                .update({ status: 'abandoned' })
+                .eq('id', cart.id);
+              if (abandonError) {
+                logger.error(
+                  'Error abandoning cart with an open checkout',
+                  'cartStore',
+                  { cartId: cart.id },
+                  abandonError
+                );
+                throw abandonError;
+              }
+              const fresh = await get().createCart(cart.show_id, cart.exhibitor_id, {
+                isCurrent: guard,
+              });
+              // The abandoned cart must not stay on screen if no new one opened.
+              if (!fresh) write({ cart: null });
+              return fresh !== null;
+            }
+
             const { error: deleteError } = await supabase
               .from('entry_cart_items')
               .delete()

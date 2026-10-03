@@ -19,6 +19,7 @@ DECLARE
   v_bare uuid := gen_random_uuid();
   v_done uuid := gen_random_uuid();
   v_absent_class uuid := gen_random_uuid();
+  v_reopened uuid := gen_random_uuid();
   v_d uuid;
   v_version_before integer;
   v_version_after integer;
@@ -170,6 +171,22 @@ BEGIN
     RAISE EXCEPTION 'AT.9 FAIL: status %, start %, end %', v_status, v_start, v_end;
   END IF;
   RAISE NOTICE 'AT.9 PASS: an emptied class has no timing';
+
+  -- AT.10 A historical row: a reopened class kept an old finish and has no
+  -- start. When it completes again, the finish is raised to the new start, never
+  -- left before it (the migration's backfill applies the same bound).
+  INSERT INTO public.classes (id, trial_id, name, status, actual_end_time)
+    VALUES (v_reopened, v_trial, 'Reopened', 'upcoming', t_ring - interval '1 hour');
+  INSERT INTO public.entries (class_id, show_id, trial_id, entry_status, check_in_status, is_scored,
+                              result_status, ring_entry_time, scoring_completed_at)
+    VALUES (v_reopened, v_show, v_trial, 'checked-in', 'checked-in', true, 'qualified', t_ring, t_ring);
+  SELECT status, actual_start_time, actual_end_time INTO v_status, v_start, v_end
+    FROM public.classes WHERE id = v_reopened;
+  IF v_status IS DISTINCT FROM 'completed' OR v_start IS DISTINCT FROM t_ring
+     OR v_end IS NULL OR v_end < v_start THEN
+    RAISE EXCEPTION 'AT.10 FAIL: status %, start %, end %', v_status, v_start, v_end;
+  END IF;
+  RAISE NOTICE 'AT.10 PASS: an old finish is never left before a new start';
 END;
 $$;
 

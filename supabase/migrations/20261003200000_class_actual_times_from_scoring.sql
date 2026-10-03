@@ -204,8 +204,14 @@ COMMENT ON FUNCTION public.refresh_class_scoring_state(uuid) IS
 UPDATE public.classes c
 SET
   actual_start_time = COALESCE(c.actual_start_time, timing.first_activity),
+  -- The same bound as the function's completion branch: a reopened class can
+  -- keep an old finish and gain a later start here (Codex review of #2701).
+  -- GREATEST ignores NULLs, so a missing side never erases the other.
   actual_end_time = CASE
-    WHEN c.status = 'completed' THEN COALESCE(c.actual_end_time, timing.last_scored)
+    WHEN c.status = 'completed' THEN GREATEST(
+      COALESCE(c.actual_end_time, timing.last_scored),
+      COALESCE(c.actual_start_time, timing.first_activity)
+    )
     ELSE c.actual_end_time
   END
 FROM (

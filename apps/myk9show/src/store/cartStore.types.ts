@@ -21,6 +21,13 @@ export type EntryCartItemInsert = Database['public']['Tables']['entry_cart_items
 export type EnsureCartResult =
   { kind: 'ready'; cart: CartWithDetails } | { kind: 'failed'; error: string };
 
+/** How many of a Finish Payment link's entries recovery left out (MYK9-873). */
+export interface DroppedRecoveryEntries {
+  cartId: string;
+  requested: number;
+  dropped: number;
+}
+
 // Cart status enum
 export type CartStatus = 'active' | 'submitted' | 'abandoned' | 'expired';
 
@@ -157,6 +164,14 @@ export interface CartState {
    */
   droppedClosedClassItems: DroppedCartItem[];
   dismissDroppedClosedClassItems: () => void;
+
+  /**
+   * A Finish Payment link named entries the recovered cart could not hold
+   * (paid since, withdrawn, no longer open for payment), MYK9-873. Persisted
+   * until dismissed or the next recovery, like `droppedClosedClassItems`.
+   */
+  droppedRecoveryEntries: DroppedRecoveryEntries | null;
+  dismissDroppedRecoveryEntries: () => void;
 
   // Actions
   loadCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;

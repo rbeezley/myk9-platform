@@ -2,7 +2,11 @@ import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
 
 import { calculateCartTotals } from './cartStore.helpers';
-import type { CartItemWithDetails, EntryCartItemInsert } from './cartStore.types';
+import type {
+  CartItemWithDetails,
+  DroppedRecoveryEntries,
+  EntryCartItemInsert,
+} from './cartStore.types';
 
 export interface RecoverableEntryRow {
   id: string;
@@ -227,4 +231,22 @@ export const recoverCartItemsFromEntryIds = async ({
   }
 
   return recoveredItems;
+};
+
+/**
+ * How many of the entries a Finish Payment link named did NOT come back as cart
+ * lines (MYK9-873). Recovery keeps only entries that are still unpaid, still
+ * open for payment and still this exhibitor's, so a link opened after some were
+ * paid or withdrawn rebuilds a smaller cart. Counted by `entry_id`, so it covers
+ * every reason a line went missing. Null when nothing was left out.
+ */
+export const summarizeDroppedRecoveryEntries = (
+  cartId: string,
+  entryIds: string[],
+  items: Pick<CartItemWithDetails, 'entry_id'>[]
+): DroppedRecoveryEntries | null => {
+  const requested = new Set(entryIds.filter(Boolean));
+  const recovered = new Set(items.map(item => item.entry_id).filter(Boolean));
+  const dropped = [...requested].filter(id => !recovered.has(id)).length;
+  return dropped > 0 ? { cartId, requested: requested.size, dropped } : null;
 };

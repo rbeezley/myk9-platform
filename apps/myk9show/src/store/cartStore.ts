@@ -35,6 +35,7 @@ import {
   findRecoverableEntries,
   loadCartItemsByCartId,
   recoverCartItemsFromEntryIds,
+  summarizeDroppedRecoveryEntries,
 } from './cartStore.recovery';
 import type { RecoverableEntryRow } from './cartStore.recovery';
 import { reconcileCartItemsAgainstExistingEntries } from './cartStore.reconciliation';
@@ -72,6 +73,7 @@ export const useCartStore = create<CartState>()(
         lastSyncedAt: null,
         expirationWarning: false,
         droppedClosedClassItems: [],
+        droppedRecoveryEntries: null,
 
         // Load existing cart for a show
         loadCart: async (showId: string, exhibitorId: string) => {
@@ -302,6 +304,7 @@ export const useCartStore = create<CartState>()(
           // Exact-entry recovery rebuilds only the explicit unpaid entries. It
           // never sweeps unrelated pending entries into checkout or backfills a
           // partially emptied cart.
+          let recoveryNotice: Pick<CartState, 'droppedRecoveryEntries'> | null = null;
           if (items.length === 0 && options.recoveryEntryIds?.length) {
             items = await recoverCartItemsFromEntryIds({
               cartId: cartData.id,
@@ -312,6 +315,13 @@ export const useCartStore = create<CartState>()(
                 ? { recoverableEntries: recoverableEntriesForCart }
                 : {}),
             });
+            recoveryNotice = {
+              droppedRecoveryEntries: summarizeDroppedRecoveryEntries(
+                cartData.id,
+                options.recoveryEntryIds,
+                items
+              ),
+            };
           }
 
           // A recovered draft may be months old: drop classes that closed or filled since.
@@ -347,6 +357,7 @@ export const useCartStore = create<CartState>()(
               closure.dropped,
               cartData.id
             ),
+            ...recoveryNotice,
           });
 
           return cartWithDetails;
@@ -1001,6 +1012,7 @@ export const useCartStore = create<CartState>()(
         setError: (error: string | null) => set({ error }),
 
         dismissDroppedClosedClassItems: () => set({ droppedClosedClassItems: [] }),
+        dismissDroppedRecoveryEntries: () => set({ droppedRecoveryEntries: null }),
 
         reset: () => {
           // Drop every write still in flight (MYK9-651) and forget in-flight
@@ -1020,6 +1032,7 @@ export const useCartStore = create<CartState>()(
             lastSyncedAt: null,
             expirationWarning: false,
             droppedClosedClassItems: [],
+            droppedRecoveryEntries: null,
           });
         },
       }),
@@ -1028,6 +1041,7 @@ export const useCartStore = create<CartState>()(
         partialize: state => ({
           lastSyncedAt: state.lastSyncedAt,
           droppedClosedClassItems: state.droppedClosedClassItems,
+          droppedRecoveryEntries: state.droppedRecoveryEntries,
           cartRecoveryInfo: state.cart
             ? {
                 id: state.cart.id,

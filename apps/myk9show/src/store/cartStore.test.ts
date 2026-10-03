@@ -463,6 +463,88 @@ describe('cartStore payment recovery', () => {
     });
   });
 
+  // MYK9-873: a Finish Payment link that names entries the cart cannot hold
+  // (paid since, withdrawn, no longer open) must say so, not silently shrink.
+  function scriptRecovery(liveEntryIds: string[]) {
+    let itemLoadCount = 0;
+    const recoveredItems = liveEntryIds.map((entryId, index) => ({
+      ...hydratedItem,
+      id: `item-${index + 1}`,
+      class_id: `class-${index + 1}`,
+      entry_id: entryId,
+    }));
+    mockFrom.mockImplementation(
+      (table: string) =>
+        new MockQueryBuilder(table, call => {
+          if (call.table === 'entry_carts' && call.select === RECOVERABLE_CART_LOOKUP_COLUMNS) {
+            return { data: expiredCartLookup, error: null };
+          }
+          if (call.table === 'entry_carts' && call.updatePayload) {
+            return { data: null, error: null };
+          }
+          if (call.table === 'entry_carts') {
+            return { data: { ...hydratedCart, subtotal_cents: 0, total_cents: 0 }, error: null };
+          }
+          if (call.table === 'entry_cart_items' && call.upsertPayload) {
+            return { data: null, error: null };
+          }
+          if (call.table === 'entry_cart_items') {
+            itemLoadCount += 1;
+            return { data: itemLoadCount === 1 ? [] : recoveredItems, error: null };
+          }
+          if (call.table === 'exhibitor_profiles') {
+            return { data: { person_id: 'person-1' }, error: null };
+          }
+          if (call.table === 'dogs') {
+            return { data: [{ id: 'dog-1' }], error: null };
+          }
+          if (call.table === 'entries') {
+            return {
+              data: liveEntryIds.map((id, index) => ({
+                id,
+                class_id: `class-${index + 1}`,
+                dog_id: 'dog-1',
+                handler_id: null,
+                entry_fee: 25,
+                jump_height: null,
+                special_requests: null,
+                payment_status: 'pending',
+              })),
+              error: null,
+            };
+          }
+          return { data: null, error: null };
+        })
+    );
+  }
+
+  it('records how many linked entries recovery could not put in the cart', async () => {
+    scriptRecovery(['entry-1']);
+
+    const cart = await useCartStore.getState().loadActiveCart('exhibitor-1', {
+      showId: 'show-1',
+      recoveryEntryIds: ['entry-1', 'entry-2', 'entry-3'],
+    });
+
+    expect(cart?.items).toHaveLength(1);
+    expect(useCartStore.getState().droppedRecoveryEntries).toEqual({
+      cartId: 'cart-expired',
+      requested: 3,
+      dropped: 2,
+    });
+  });
+
+  it('records nothing when every linked entry is recovered', async () => {
+    scriptRecovery(['entry-1', 'entry-2']);
+
+    await useCartStore.getState().loadActiveCart('exhibitor-1', {
+      showId: 'show-1',
+      recoveryEntryIds: ['entry-1', 'entry-2'],
+    });
+
+    expect(useCartStore.getState().droppedRecoveryEntries).toBeNull();
+  });
+
   it('drops stale loaded cart lines whose matching live entry is no longer pending', async () => {
     queryCalls.length = 0;
     mockFrom.mockImplementation(

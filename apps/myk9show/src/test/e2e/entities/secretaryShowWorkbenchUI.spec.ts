@@ -108,7 +108,8 @@ test.describe('Secretary show management UI', () => {
 
 async function openShowSetup(page: Page) {
   await signInAsSecretary(page, `/shows/${SHOW_ID}/setup`);
-  await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}$`));
+  // The cockpit may write focus/anchor into the query once classes load.
+  await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}(?:\\?|$)`));
   await expect(page.getByRole('heading', { name: 'Show schedule' })).toBeVisible({
     timeout: 15000,
   });
@@ -117,7 +118,7 @@ async function openShowSetup(page: Page) {
 async function openShowDesk(page: Page) {
   // The retired Show Day URL still lands on the home (MYK9-957 redirect).
   await signInAsSecretary(page, `/shows/${SHOW_ID}/show-day`);
-  await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}$`));
+  await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}(?:\\?|$)`));
   await expect(page.getByRole('button', { name: /^Tools/ })).toBeVisible({
     timeout: 15000,
   });

@@ -68,7 +68,6 @@ export const SWEEP_GROUPS: readonly SweepGroup[] = [
     routes: [
       { id: 'dashboard', path: '/secretary/dashboard', landing: true },
       { id: 'show-overview', path: '/shows/{secretaryShowId}' },
-      { id: 'show-desk', path: '/shows/{secretaryShowId}/show-day' },
       { id: 'entry-management', path: '/shows/{secretaryShowId}/entries' },
       { id: 'reports', path: '/shows/{secretaryShowId}/reports' },
       { id: 'results-control', path: '/shows/{secretaryShowId}/results' },

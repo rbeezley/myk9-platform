@@ -263,7 +263,10 @@ export interface SettleDeps extends RefundQueueDeps {
   retrieveRefund: (refundId: string) => Promise<SettlingRefund>;
 }
 
-export type SettleOutcome = 'not_approved_refund' | 'not_found' | 'updated' | 'unchanged' | 'error';
+export type SettleOutcome =
+  'not_approved_refund' | 'not_found' | 'updated' | 'unchanged' | 'conflict' | 'error';
+
+const MAX_SETTLE_ROUNDS = 3;
 
 interface SettleRow {
   outcome: string;
@@ -293,19 +296,40 @@ export async function settleApprovedRefund(
     return 'not_approved_refund';
   }
 
+  // Compare-and-set (Codex round 3 on #2689): read the attempt's version
+  // BEFORE re-reading Stripe, settle against it, and on 'conflict' (another
+  // write landed in between) read both again. Never overwrite blind.
   let current: SettlingRefund = refund;
-  try {
-    current = await deps.retrieveRefund(refund.id);
-  } catch (err) {
-    console.error(`Could not re-read refund ${refund.id}; using the event's copy:`, err);
+  let status: AttemptStatus = toAttemptStatus(refund.status);
+  let data: unknown = null;
+  let error: { message: string } | null = null;
+  for (let round = 0; round < MAX_SETTLE_ROUNDS; round += 1) {
+    const version = await deps.rpc('refund_attempt_version', { p_stripe_refund_id: refund.id });
+    if (version.error) {
+      error = version.error;
+      break;
+    }
+    if (typeof version.data !== 'number') {
+      // The approval records the id right after Stripe answers; an event that
+      // beats it is ignored here and the approval writes the status it saw.
+      console.log(`Refund ${refund.id} matches no refund attempt yet — ignored`);
+      return 'not_found';
+    }
+    try {
+      current = await deps.retrieveRefund(refund.id);
+    } catch (err) {
+      console.error(`Could not re-read refund ${refund.id}; using the event's copy:`, err);
+    }
+    status = toAttemptStatus(current.status);
+    ({ data, error } = await deps.rpc('settle_refund_attempt', {
+      p_stripe_refund_id: refund.id,
+      p_expected_version: version.data,
+      p_status: status,
+      p_failure_reason: current.failure_reason ?? null,
+    }));
+    const outcomeRow = (Array.isArray(data) ? data[0] : data) as SettleRow | null;
+    if (error || outcomeRow?.outcome !== 'conflict') break;
   }
-  const status = toAttemptStatus(current.status);
-
-  const { data, error } = await deps.rpc('settle_refund_attempt', {
-    p_stripe_refund_id: refund.id,
-    p_status: status,
-    p_failure_reason: current.failure_reason ?? null,
-  });
   if (error) {
     await deps.alertAdmin(
       'Approved refund changed at Stripe but its attempt was not updated',
@@ -320,10 +344,14 @@ export async function settleApprovedRefund(
 
   const row = (Array.isArray(data) ? data[0] : data) as SettleRow | null;
   if (!row || row.outcome === 'not_found') {
-    // The approval records the id right after Stripe answers; an event that
-    // beats it is ignored here and the approval writes the status it saw.
     console.log(`Refund ${refund.id} matches no refund attempt yet — ignored`);
     return 'not_found';
+  }
+  if (row.outcome === 'conflict') {
+    // Still contended after MAX_SETTLE_ROUNDS: nothing written; the next event
+    // for this refund settles it.
+    console.error(`Refund ${refund.id}: attempt kept changing; left for the next event`);
+    return 'conflict';
   }
 
   if ((row.live_attempts ?? 0) > 1) {

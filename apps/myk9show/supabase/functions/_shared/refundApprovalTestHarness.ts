@@ -1,7 +1,8 @@
 // In-memory refund_requests + refund_request_attempts and Stripe refunds for
 // refundApproval.test.ts. The rpc fake mirrors the SQL contract of
 // 20261003013900 (begin_refund_attempt, record_refund_attempt,
-// settle_refund_attempt, and the trigger-derived request status); the SQL
+// refund_attempt_version, settle_refund_attempt with their version
+// compare-and-set, and the trigger-derived request status); the SQL
 // itself is covered by supabase/tests/myk9_876_874_refund_request_claims_test.sql
 // (CI only).
 import type { ApprovalRefund, RefundApprovalDeps } from './refundApproval';
@@ -13,6 +14,8 @@ export interface FakeAttempt {
   refundId: string | null;
   status: AttemptStatus;
   failureReason: string | null;
+  /** Compare-and-set token (Codex round 3): bumped by every write. */
+  version: number;
 }
 
 export function harness(
@@ -35,6 +38,7 @@ export function harness(
 
   const nextStatus = (current: AttemptStatus, reported: AttemptStatus) =>
     reported === 'pending' && current !== 'pending' ? current : reported;
+  const isDead = (s: AttemptStatus) => s === 'failed' || s === 'canceled';
 
   function requestState(): { status: string; lastFailure: string | null } {
     if (attempts.some(a => a.status === 'succeeded'))
@@ -42,7 +46,7 @@ export function harness(
     if (attempts.some(a => a.status === 'pending'))
       return { status: 'awaiting_stripe', lastFailure: null };
     const latest = [...attempts].sort((x, y) => y.attemptNo - x.attemptNo)[0];
-    if (latest && (latest.status === 'failed' || latest.status === 'canceled')) {
+    if (latest && isDead(latest.status)) {
       return {
         status: 'failed',
         lastFailure: `${latest.status}: ${latest.failureReason ?? 'no reason given'}`,
@@ -51,101 +55,86 @@ export function harness(
     return { status: 'pending', lastFailure: null };
   }
 
+  const beginRow = (outcome: string, attempt: FakeAttempt | null) => ({
+    outcome,
+    attempt_id: attempt?.id ?? null,
+    attempt_no: attempt?.attemptNo ?? null,
+    stripe_refund_id: attempt?.refundId ?? null,
+    attempt_version: attempt?.version ?? null,
+    kind: 'abandoned_cart',
+    stripe_payment_intent_id: 'pi_1',
+    stripe_checkout_session_id: 'cs_1',
+    amount_cents: 4200,
+    reason: 'cart_abandoned',
+  });
+
   const rpc: RefundApprovalDeps['rpc'] = async (fn, args) => {
     rpcCalls.push({ fn, args });
     if (fn === 'begin_refund_attempt') {
-      const base = {
-        kind: 'abandoned_cart',
-        stripe_payment_intent_id: 'pi_1',
-        stripe_checkout_session_id: 'cs_1',
-        amount_cents: 4200,
-        reason: 'cart_abandoned',
-      };
       const succeeded = attempts.find(a => a.status === 'succeeded');
-      if (succeeded) {
-        return {
-          data: [
-            {
-              outcome: 'already_refunded',
-              attempt_id: succeeded.id,
-              attempt_no: succeeded.attemptNo,
-              stripe_refund_id: succeeded.refundId,
-              ...base,
-            },
-          ],
-          error: null,
-        };
-      }
-      if (opts.fulfilled) {
-        return {
-          data: [{ outcome: 'fulfilled', attempt_id: null, attempt_no: null, ...base }],
-          error: null,
-        };
-      }
+      if (succeeded) return { data: [beginRow('already_refunded', succeeded)], error: null };
+      if (opts.fulfilled) return { data: [beginRow('fulfilled', null)], error: null };
       const pending = attempts.find(a => a.status === 'pending');
-      if (pending) {
-        return {
-          data: [
-            {
-              outcome: 'resume',
-              attempt_id: pending.id,
-              attempt_no: pending.attemptNo,
-              stripe_refund_id: pending.refundId,
-              ...base,
-            },
-          ],
-          error: null,
-        };
-      }
+      if (pending) return { data: [beginRow('resume', pending)], error: null };
       const attempt: FakeAttempt = {
         id: `att-${attempts.length + 1}`,
         attemptNo: attempts.length + 1,
         refundId: null,
         status: 'pending',
         failureReason: null,
+        version: 1,
       };
       attempts.push(attempt);
-      return {
-        data: [
-          {
-            outcome: 'claimed',
-            attempt_id: attempt.id,
-            attempt_no: attempt.attemptNo,
-            stripe_refund_id: null,
-            ...base,
-          },
-        ],
-        error: null,
-      };
+      return { data: [beginRow('claimed', attempt)], error: null };
     }
     if (fn === 'record_refund_attempt') {
       const attempt = attempts.find(a => a.id === args.p_attempt_id);
-      if (!attempt) return { data: 'not_found', error: null };
+      if (!attempt) return { data: [{ outcome: 'not_found' }], error: null };
+      const row = (outcome: string) => ({
+        data: [
+          {
+            outcome,
+            attempt_status: attempt.status,
+            stripe_refund_id: attempt.refundId,
+            attempt_version: attempt.version,
+          },
+        ],
+        error: null,
+      });
       if (attempts.some(a => a.refundId === args.p_stripe_refund_id && a.id !== attempt.id)) {
-        return { data: 'refund_on_other_attempt', error: null };
+        return row('refund_on_other_attempt');
       }
-      if (attempt.refundId !== null && attempt.refundId !== args.p_stripe_refund_id) {
-        return { data: 'attempt_has_other_refund', error: null };
-      }
+      if (attempt.version !== args.p_expected_version) return row('conflict');
+      if (attempt.refundId !== null || attempt.status !== 'pending') return row('already_recorded');
       attempt.refundId = args.p_stripe_refund_id as string;
-      attempt.status = nextStatus(attempt.status, args.p_status as AttemptStatus);
-      attempt.failureReason =
-        attempt.status === 'failed' || attempt.status === 'canceled'
-          ? ((args.p_failure_reason as string | null) ?? attempt.failureReason)
-          : null;
-      return { data: 'recorded', error: null };
+      attempt.status = args.p_status as AttemptStatus;
+      attempt.failureReason = isDead(attempt.status)
+        ? ((args.p_failure_reason as string | null) ?? null)
+        : null;
+      attempt.version += 1;
+      return row('recorded');
+    }
+    if (fn === 'refund_attempt_version') {
+      const attempt = attempts.find(a => a.refundId === args.p_stripe_refund_id);
+      return { data: attempt ? attempt.version : null, error: null };
     }
     if (fn === 'settle_refund_attempt') {
       const attempt = attempts.find(a => a.refundId === args.p_stripe_refund_id);
       if (!attempt) return { data: [{ outcome: 'not_found' }], error: null };
-      const status = nextStatus(attempt.status, args.p_status as AttemptStatus);
-      const outcome = status === attempt.status ? 'unchanged' : 'updated';
-      if (outcome === 'updated') {
+      let status = nextStatus(attempt.status, args.p_status as AttemptStatus);
+      let outcome: string;
+      if (attempt.version !== args.p_expected_version) {
+        outcome = 'conflict';
+        status = attempt.status;
+      } else if (status === attempt.status) {
+        outcome = 'unchanged';
+      } else {
+        outcome = 'updated';
         attempt.status = status;
-        attempt.failureReason =
-          status === 'failed' || status === 'canceled'
-            ? ((args.p_failure_reason as string | null) ?? attempt.failureReason)
-            : null;
+        attempt.failureReason = isDead(status)
+          ? ((args.p_failure_reason as string | null) ?? attempt.failureReason)
+          : null;
+        attempt.version += 1;
       }
       return {
         data: [
@@ -156,6 +145,7 @@ export function harness(
             request_status: requestState().status,
             live_attempts: attempts.filter(a => a.status === 'pending' || a.status === 'succeeded')
               .length,
+            attempt_version: attempt.version,
           },
         ],
         error: null,

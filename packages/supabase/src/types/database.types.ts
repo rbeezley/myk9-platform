@@ -5533,6 +5533,7 @@ export type Database = {
           status: string
           stripe_refund_id: string | null
           updated_at: string
+          version: number
         }
         Insert: {
           approved_by_auth_user_id: string
@@ -5544,6 +5545,7 @@ export type Database = {
           status?: string
           stripe_refund_id?: string | null
           updated_at?: string
+          version?: number
         }
         Update: {
           approved_by_auth_user_id?: string
@@ -5555,6 +5557,7 @@ export type Database = {
           status?: string
           stripe_refund_id?: string | null
           updated_at?: string
+          version?: number
         }
         Relationships: [
           {

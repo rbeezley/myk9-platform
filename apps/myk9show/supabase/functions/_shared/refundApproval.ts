@@ -16,9 +16,14 @@
 //   3. otherwise a refund is created with idempotency key
 //      refund-request-<id>-<n>, so concurrent clicks on one attempt get one
 //      Stripe refund;
-//   4. record_refund_attempt writes the refund to THAT attempt only. The
-//      request's status is derived from its attempts in the database, so the
-//      webhook (settleApprovedRefund) and this function never race on it.
+//   4. record_refund_attempt writes the refund to THAT attempt only, as a
+//      compare-and-set on the version begin_refund_attempt returned, and only
+//      as the attempt's FIRST observation (Codex round 3 on #2689). A
+//      'conflict' or 'already_recorded' writes nothing: this function then
+//      reports the attempt's CURRENT state, never the stale response it holds.
+//      After that only the webhook (settleApprovedRefund) changes the
+//      attempt. The request's status is derived from its attempts in the
+//      database, so nothing here races on it.
 
 import { MAKE_WHOLE_METADATA_KEY } from './orderSnapshot.ts';
 import {
@@ -78,6 +83,14 @@ interface BeginRow {
   amount_cents: number | null;
   reason: string | null;
   stripe_refund_id: string | null;
+  attempt_version: number | null;
+}
+
+interface RecordRow {
+  outcome: string;
+  attempt_status: string | null;
+  stripe_refund_id: string | null;
+  attempt_version: number | null;
 }
 
 const DEAD_STATUSES = new Set(['failed', 'canceled']);
@@ -170,6 +183,7 @@ export async function approveRefundRequest(
     (claim.outcome !== 'claimed' && claim.outcome !== 'resume') ||
     !claim.attempt_id ||
     !claim.attempt_no ||
+    !claim.attempt_version ||
     !claim.stripe_payment_intent_id ||
     !claim.amount_cents
   ) {
@@ -230,15 +244,21 @@ export async function approveRefundRequest(
     return { status: 502, body: { error: 'stripe_refund_failed' } };
   }
 
-  const attemptStatus = toAttemptStatus(refund.status);
-  const { data: recorded, error: recordError } = await deps.rpc('record_refund_attempt', {
+  const { data: recordData, error: recordError } = await deps.rpc('record_refund_attempt', {
     p_attempt_id: claim.attempt_id,
+    p_expected_version: claim.attempt_version,
     p_stripe_refund_id: refund.id,
-    p_status: attemptStatus,
+    p_status: toAttemptStatus(refund.status),
     p_failure_reason: refund.failure_reason ?? null,
   });
-  if (recordError || recorded !== 'recorded') {
-    const why = recordError?.message ?? String(recorded);
+  const recorded = (Array.isArray(recordData) ? recordData[0] : recordData) as RecordRow | null;
+  const outcome = recorded?.outcome;
+  if (
+    recordError ||
+    !recorded ||
+    (outcome !== 'recorded' && outcome !== 'conflict' && outcome !== 'already_recorded')
+  ) {
+    const why = recordError?.message ?? String(outcome);
     await deps.alertAdmin(
       'Approved refund issued but not recorded on its attempt',
       `<p>Stripe refund <code>${refund.id}</code> (${refund.status}) for request
@@ -252,13 +272,22 @@ export async function approveRefundRequest(
       : { status: 409, body: { error: 'refund_attempt_conflict' } };
   }
 
+  // What is TRUE now: the status this call wrote, or (conflict /
+  // already_recorded) the attempt's current status — never the possibly stale
+  // response this call is holding.
+  const attemptStatus = toAttemptStatus(recorded.attempt_status);
+  const refundId = recorded.stripe_refund_id ?? refund.id;
   if (attemptStatus === 'failed' || attemptStatus === 'canceled') {
-    // The request now reads 'failed' and is back in the queue.
+    // The request now reads 'failed' (unless another attempt succeeded).
     return { status: 502, body: { error: `stripe_refund_${attemptStatus}` } };
   }
   if (attemptStatus === 'pending') {
     // NOT refunded until Stripe says so; the webhook settles this attempt.
-    return { status: 202, body: { outcome: 'pending', refund_id: refund.id } };
+    return { status: 202, body: { outcome: 'pending', refund_id: refundId } };
+  }
+  if (outcome !== 'recorded') {
+    // Settled as succeeded by another writer, which booked the ledger.
+    return { status: 200, body: { outcome: 'refunded', refund_id: refundId } };
   }
 
   // Book the succeeded refund now; the ledger is keyed on the refund id, so

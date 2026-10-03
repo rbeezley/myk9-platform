@@ -39,6 +39,7 @@ describe('approveRefundRequest', () => {
     });
     expect(h.rpcCalls.find(c => c.fn === 'record_refund_attempt')?.args).toEqual({
       p_attempt_id: 'att-1',
+      p_expected_version: 1,
       p_stripe_refund_id: 're_1',
       p_status: 'succeeded',
       p_failure_reason: null,
@@ -103,13 +104,16 @@ describe('approveRefundRequest', () => {
     expect(h.rpcCalls.some(c => c.fn === 'record_order_refund_cents')).toBe(false);
   });
 
-  it('resuming an open attempt reuses its refund instead of creating another', async () => {
+  it('resuming an open attempt reuses its refund and leaves settling to the webhook', async () => {
     const h = harness({ createStatus: 'pending' });
     await approveRefundRequest(h.deps, INPUT);
     h.stripeSets('re_1', 'succeeded');
+    // The approval only records an attempt's FIRST observation (Codex round 3).
     const resumed = await approveRefundRequest(h.deps, INPUT);
-    expect(resumed).toEqual({ status: 200, body: { outcome: 'refunded', refund_id: 're_1' } });
+    expect(resumed).toEqual({ status: 202, body: { outcome: 'pending', refund_id: 're_1' } });
     expect(h.created).toHaveLength(1);
+    await settleApprovedRefund(h.settleDeps, h.stripeRefunds[0]);
+    expect(h.requestState().status).toBe('refunded');
   });
 
   it('stops when another attempt for the request still has a live refund at Stripe', async () => {
@@ -237,25 +241,28 @@ describe('attempt orderings', () => {
     await settleApprovedRefund(h.settleDeps, h.stripeSets('re_1', 'failed'));
     await approveRefundRequest(h.deps, INPUT);
 
-    // Approval 1's record_refund_attempt call lands late.
+    // Approval 1's record_refund_attempt call lands late, carrying the version
+    // its begin_refund_attempt read.
     const late = await h.deps.rpc('record_refund_attempt', {
       p_attempt_id: 'att-1',
+      p_expected_version: 1,
       p_stripe_refund_id: 're_1',
       p_status: 'pending',
       p_failure_reason: null,
     });
-    expect(late.data).toBe('recorded');
+    expect((late.data as { outcome: string }[])[0].outcome).toBe('conflict');
     expect(h.attempts.map(a => [a.status, a.refundId])).toEqual([
       ['failed', 're_1'],
       ['pending', 're_2'],
     ]);
     const stolen = await h.deps.rpc('record_refund_attempt', {
       p_attempt_id: 'att-2',
+      p_expected_version: h.attempts[1].version,
       p_stripe_refund_id: 're_1',
       p_status: 'pending',
       p_failure_reason: null,
     });
-    expect(stolen.data).toBe('refund_on_other_attempt');
+    expect((stolen.data as { outcome: string }[])[0].outcome).toBe('refund_on_other_attempt');
   });
 
   it('a late failure of an OLD attempt after a newer one succeeded leaves the request refunded', async () => {
@@ -285,6 +292,93 @@ describe('attempt orderings', () => {
       body: { error: 'stripe_refund_canceled' },
     });
     expect(h.requestState().status).toBe('failed');
+  });
+});
+
+/** Codex round 3 on #2689: compare-and-set on every attempt write. */
+describe('round 3 interleavings', () => {
+  const tick = () => new Promise(resolve => setTimeout(resolve, 0));
+
+  it('a delayed approval holding a stale success never overwrites the failure the webhook recorded', async () => {
+    const h = harness({ createStatus: 'pending' });
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    // Approval A gets Stripe's answer ("succeeded" at that moment) but stalls
+    // before recording it.
+    const depsA = {
+      ...h.deps,
+      createRefund: async (params: Parameters<typeof h.deps.createRefund>[0], key: string) => {
+        const refund = await h.deps.createRefund(params, key);
+        const stale = { ...refund, status: 'succeeded' };
+        await gate;
+        return stale;
+      },
+    };
+    const approvalA = approveRefundRequest(depsA, INPUT);
+    await tick();
+
+    // Approval B records the same refund (pending); the webhook then settles it failed.
+    expect((await approveRefundRequest(h.deps, INPUT)).status).toBe(202);
+    await settleApprovedRefund(
+      h.settleDeps,
+      h.stripeSets('re_1', 'failed', 'expired_or_canceled_card')
+    );
+    expect(h.attempts[0]).toMatchObject({ status: 'failed', version: 3 });
+
+    release();
+    const resultA = await approvalA;
+
+    expect(resultA).toEqual({ status: 502, body: { error: 'stripe_refund_failed' } });
+    expect(h.attempts[0]).toMatchObject({ status: 'failed', version: 3 });
+    expect(h.requestState()).toEqual({
+      status: 'failed',
+      lastFailure: 'failed: expired_or_canceled_card',
+    });
+    expect(h.rpcCalls.some(c => c.fn === 'record_order_refund_cents')).toBe(false);
+    expect(
+      h.rpcCalls.filter(c => c.fn === 'record_refund_attempt').map(c => c.args.p_expected_version)
+    ).toEqual([1, 1]);
+  });
+
+  it('a webhook that read the version before a newer settle retries instead of overwriting', async () => {
+    const h = harness({ createStatus: 'pending' });
+    await approveRefundRequest(h.deps, INPUT);
+    // W1 reads the version and Stripe ("succeeded"), then stalls.
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    let firstRead = true;
+    const w1Deps = {
+      ...h.settleDeps,
+      retrieveRefund: async (id: string) => {
+        const copy = await h.settleDeps.retrieveRefund(id);
+        if (firstRead) {
+          firstRead = false;
+          const stale = { ...copy, status: 'succeeded' };
+          await gate;
+          return stale;
+        }
+        return copy;
+      },
+    };
+    const w1 = settleApprovedRefund(w1Deps, h.stripeRefunds[0]);
+    await tick();
+
+    // W2: Stripe now says failed.
+    await settleApprovedRefund(h.settleDeps, h.stripeSets('re_1', 'failed'));
+    release();
+
+    await expect(w1).resolves.toBe('unchanged');
+    expect(h.attempts[0].status).toBe('failed');
+    const settles = h.rpcCalls.filter(c => c.fn === 'settle_refund_attempt');
+    expect(settles.map(c => [c.args.p_expected_version, c.args.p_status])).toEqual([
+      [2, 'failed'], // W2
+      [2, 'succeeded'], // W1's stale write: conflict, nothing written
+      [3, 'failed'], // W1 re-reads the version and Stripe, and agrees
+    ]);
   });
 });
 

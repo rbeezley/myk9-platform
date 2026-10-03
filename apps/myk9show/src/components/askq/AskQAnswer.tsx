@@ -1,16 +1,27 @@
-import { useState } from 'react';
-import { useReducedMotion } from '@/features/_shared/hooks/useReducedMotion';
 import { TERA_WORKING_COPY, TOOL_LABELS } from './askq-config';
-import { TeraAvatar, TeraFace } from './TeraAvatar';
+import { TeraAnswerMark, useFoundIt } from './TeraAnswerMark';
+import { TeraAvatar } from './TeraAvatar';
 
 interface AskQAnswerProps {
   query: string;
   answer: string;
   toolsUsed: string[];
   isStreaming: boolean;
+  /** True once the answer completed successfully (not a failure mid-stream). */
+  isComplete?: boolean;
 }
 
-export function AskQAnswer({ query, answer, toolsUsed, isStreaming }: AskQAnswerProps) {
+export function AskQAnswer({
+  query,
+  answer,
+  toolsUsed,
+  isStreaming,
+  isComplete = false,
+}: AskQAnswerProps) {
+  // Tracked here, mounted since the working state, not in the mark: an answer
+  // whose text and completion land together mounts its mark already done.
+  const [foundIt, clearFoundIt] = useFoundIt(isStreaming, isComplete);
+
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
@@ -21,7 +32,7 @@ export function AskQAnswer({ query, answer, toolsUsed, isStreaming }: AskQAnswer
 
       {answer ? (
         <div className="flex items-start gap-2">
-          <TeraAnswerMark isStreaming={isStreaming} />
+          <TeraAnswerMark foundIt={foundIt} onDone={clearFoundIt} />
           <div className="min-w-0 flex-1 bg-muted/50 px-3.5 py-3 rounded-xl rounded-tl-sm">
             <p className="text-sm whitespace-pre-wrap leading-relaxed">
               {answer}
@@ -52,30 +63,6 @@ export function AskQAnswer({ query, answer, toolsUsed, isStreaming }: AskQAnswer
       ) : null}
     </div>
   );
-}
-
-/**
- * The answer's sender mark. When an answer finishes streaming, Tera plays
- * "Found it" once (MYK9-851), then settles on her static face. It never delays
- * the text, which has already landed; reduced motion keeps the face.
- */
-function TeraAnswerMark({ isStreaming }: { isStreaming: boolean }) {
-  const reducedMotion = useReducedMotion();
-  const [wasStreaming, setWasStreaming] = useState(isStreaming);
-  const [foundIt, setFoundIt] = useState(false);
-  if (wasStreaming !== isStreaming) {
-    setWasStreaming(isStreaming);
-    setFoundIt(wasStreaming && !isStreaming);
-  }
-
-  if (foundIt && !reducedMotion) {
-    return (
-      <span data-testid="tera-found-it" className="flex-none">
-        <TeraAvatar state="found-it" size={40} onEnded={() => setFoundIt(false)} />
-      </span>
-    );
-  }
-  return <TeraFace />;
 }
 
 /** Tera's working state, shared by every AskQ surface that shows a loading state. */

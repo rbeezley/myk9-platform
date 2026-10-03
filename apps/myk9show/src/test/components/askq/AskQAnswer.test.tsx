@@ -86,9 +86,28 @@ describe('AskQAnswer', () => {
     function renderStreamingThenDone() {
       const props = { query: 'q', answer: 'Buddy qualified.', toolsUsed: [] as string[] };
       const view = render(<AskQAnswer {...props} isStreaming={true} />);
-      view.rerender(<AskQAnswer {...props} isStreaming={false} />);
+      view.rerender(<AskQAnswer {...props} isStreaming={false} isComplete />);
       return view;
     }
+
+    // Codex P2: leaving streaming is not success. A network failure after
+    // partial text must keep the plain face.
+    it('does not play when streaming ends without a successful completion', () => {
+      const props = { query: 'q', answer: 'Partial answ', toolsUsed: [] as string[] };
+      const view = render(<AskQAnswer {...props} isStreaming={true} />);
+      view.rerender(<AskQAnswer {...props} isStreaming={false} isComplete={false} />);
+      expect(screen.queryByTestId('tera-found-it')).toBeNull();
+      expect(screen.getByTestId('tera-face')).toBeInTheDocument();
+    });
+
+    // Codex P2: tokens and done can land in one frame, so the answer text and
+    // its mark mount already complete. The answer itself saw the pending state.
+    it('plays when the whole answer and completion land in one update', () => {
+      const props = { query: 'q', toolsUsed: [] as string[] };
+      const view = render(<AskQAnswer {...props} answer="" isStreaming={true} />);
+      view.rerender(<AskQAnswer {...props} answer="All at once." isStreaming={false} isComplete />);
+      expect(screen.getByTestId('tera-found-it')).toBeInTheDocument();
+    });
 
     it('plays once when the answer finishes streaming, then settles on the face', () => {
       const { container } = renderStreamingThenDone();
@@ -104,7 +123,15 @@ describe('AskQAnswer', () => {
     });
 
     it('does not play for an answer that was already complete when shown', () => {
-      render(<AskQAnswer query="q" answer="Done earlier." toolsUsed={[]} isStreaming={false} />);
+      render(
+        <AskQAnswer
+          query="q"
+          answer="Done earlier."
+          toolsUsed={[]}
+          isStreaming={false}
+          isComplete
+        />
+      );
       expect(screen.queryByTestId('tera-found-it')).toBeNull();
       expect(screen.getByTestId('tera-face')).toBeInTheDocument();
     });

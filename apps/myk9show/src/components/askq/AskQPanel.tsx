@@ -325,6 +325,7 @@ export function AskQPanel() {
             answer={activeAskQ.answer}
             toolsUsed={activeAskQ.toolsUsed}
             isStreaming={activeAskQ.status === 'streaming'}
+            isComplete={activeAskQ.status === 'done'}
           />
 
           {activeAskQ.status === 'done' && activeMode !== 'operator-support' && (

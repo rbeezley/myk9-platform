@@ -138,7 +138,7 @@ Acceptance: redirect table tested route by route; no remaining link to `/show-da
   - The header "Open Show Day" action is deleted.
   - `noRetiredClassManagementLinks.test.ts` now fails on any built link to `/setup`, `/show-day` or `/show-desk`.
 - **Deleted:** `ShowWorkbenchSetupPage`, `showSetupSections`, `ShowDeskCompactContext`, and `ShowMapTab` with the 10 modules only it used, plus their tests. `ShowWorkbenchShowDeskPage` stays as the home's component (its `surface` prop is gone), as does `useShowMapWorkbenchState`.
-- **Kept for now:** the `canShowMap` and `map*` props on `ShowDetailTabs`, which are now unused by managers. They are filed for cleanup as MYK9-962 rather than widening this PR.
+- **Removed in MYK9-962:** the `canShowMap` and `map*` props on `ShowDetailTabs`, their `ShowDetailsPage` builders, and the `features.showMap` flag, all unused after this change.
 - **Guides:** the secretary and club-admin guides describe the four tabs. The AskQ assets (`supabase/functions/_shared/askq/documentAssets.ts`) were already stale on `main` before this change (generated from an older guide), and regenerating them breaks `supportMode.test.ts`. They were left untouched here and need their own regenerate-and-deploy.
 
 ### Phase 5 — Verify with a real secretary

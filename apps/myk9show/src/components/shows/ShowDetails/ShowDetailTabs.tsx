@@ -11,11 +11,6 @@ import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type {
-  ShowMapTrialInput,
-  ShowMapClassInput,
-  ShowMapEntryInput,
-} from '@/features/show-map/showMapTypes';
-import type {
   SubmittedEntryDbRow,
   SubmittedEntryReadState,
 } from '@/features/exhibitor-entry/submittedEntryProjection';
@@ -27,7 +22,6 @@ export interface ShowDetailTabsProps {
   activeTab: string;
   onTabChange: (tab: string) => void;
   canManageShow: boolean;
-  canShowMap: boolean;
   isAuthenticated: boolean;
   hasUserEntries: boolean;
   judges: ShowJudgeAssignment[];
@@ -36,11 +30,6 @@ export interface ShowDetailTabsProps {
   /** Effective trials — store rows when warm, anon public rows when cold. */
   trials: Trial[];
   trialStats: Record<string, TrialStats>;
-  // Show Map renders from the raw store-derived data (managers only), distinct
-  // from the effective/cold-fallback data the other tabs use.
-  mapTrials: ShowMapTrialInput[];
-  mapClasses: ShowMapClassInput[];
-  mapEntries: ShowMapEntryInput[];
   entryDataState?: 'ready' | 'loading' | 'error';
   onRetryEntryData?: (() => void) | undefined;
   exhibitorEntryRows?: readonly SubmittedEntryDbRow[];
@@ -55,13 +44,7 @@ export interface ShowDetailTabsProps {
  * phase 3 put club admins on that same surface. So the manager-only Entries and
  * Show Map panels that used to live here are gone — Entries IS Entry Management
  * now (AC3: the stub tab and its private `getEntriesByShow` read are deleted),
- * and Show Map is a view inside Setup. There is exactly ONE Show Map for a
- * manager again; the second copy on this strip existed only while club admins
- * had no tabs of their own.
- *
- * `canShowMap`, `mapTrials`, `mapClasses` and `mapEntries` stay on these props
- * because this object IS the outlet context the six tab pages read (Setup's map
- * view is the only consumer); nothing on this strip renders them.
+ * and the manager Show Map is gone from this strip (MYK9-957 deleted Setup).
  */
 export function ShowDetailTabs({
   show,

@@ -66,15 +66,6 @@ function renderTabs(overrides: Partial<ShowDetailTabsProps> = {}) {
     classes: [],
     trials: [],
     trialStats: {},
-    // `canShowMap`, `mapTrials`, `mapClasses` and `mapEntries` are still on
-    // `ShowDetailTabsProps` because that object IS the outlet context the six
-    // tab pages read (Setup's map view is the only consumer). `ShowDetailTabs`
-    // itself no longer destructures them, so the fixture does not supply them —
-    // carrying them here made the deleted panel look covered.
-    canShowMap: false,
-    mapTrials: [],
-    mapClasses: [],
-    mapEntries: [],
     ...overrides,
   };
   return { props, ...render(<ShowDetailTabs {...props} />) };

@@ -1,25 +1,20 @@
 /**
- * The secretary show page is ONE row of six tabs, and every tab is a real page
- * (MYK9-630 phase 2; `docs/plan-secretary-show-actions.md` § "Phase 2 — one row
- * of six tabs"). Overview is `/shows/:id` itself; the other five are children.
+ * The secretary show page is ONE row of four tabs, and every tab is a real page
+ * (MYK9-630 phase 2; `docs/plan-secretary-show-actions.md`). Overview is
+ * `/shows/:id` itself -- the secretary's show home, which absorbed Setup and
+ * Show Day (MYK9-957, `docs/plan-secretary-show-home.md`); the other three are
+ * children.
  *
  * This file is the single source of that row: the tab strip, the router's
  * child routes, the legacy redirects and the actions registry all read it, so
  * a seventh tab cannot appear in one of them and not the others.
  */
 
-export const SHOW_TAB_IDS = [
-  'overview',
-  'setup',
-  'entries',
-  'show-day',
-  'results',
-  'reports',
-] as const;
+export const SHOW_TAB_IDS = ['overview', 'entries', 'results', 'reports'] as const;
 
 export type ShowTabId = (typeof SHOW_TAB_IDS)[number];
 
-export type ShowManagementSectionPath = 'setup' | 'entries' | 'show-day' | 'results' | 'reports';
+export type ShowManagementSectionPath = 'entries' | 'results' | 'reports';
 
 export interface ShowTabDef {
   id: ShowTabId;
@@ -28,17 +23,15 @@ export interface ShowTabDef {
   path: '' | ShowManagementSectionPath;
 }
 
-/** The six tabs, in the decided order (Richard, 2026-09-17). */
+/** The four tabs, in order (owner, 2026-10-02: Setup and Show Day folded into Overview). */
 export const SHOW_TABS: readonly ShowTabDef[] = [
   { id: 'overview', label: 'Overview', path: '' },
-  { id: 'setup', label: 'Setup', path: 'setup' },
   { id: 'entries', label: 'Entries', path: 'entries' },
-  { id: 'show-day', label: 'Show Day', path: 'show-day' },
   { id: 'results', label: 'Results', path: 'results' },
   { id: 'reports', label: 'Reports', path: 'reports' },
 ];
 
-/** The five tabs that are child routes of `/shows/:id` (Overview is the index). */
+/** The tabs that are child routes of `/shows/:id` (Overview is the index). */
 export const SHOW_MANAGEMENT_SECTIONS: readonly {
   id: ShowTabId;
   label: string;
@@ -56,10 +49,20 @@ export const SHOW_MANAGEMENT_SECTIONS: readonly {
  * `submit-results` carries a query param instead of its own route: Submit
  * Results is a STEP inside Results now, not a peer of it.
  */
-export const LEGACY_SHOW_SECTION_REDIRECTS: Readonly<
-  Record<string, { path: ShowManagementSectionPath; search?: Record<string, string> }>
-> = {
-  'show-desk': { path: 'show-day' },
+export interface LegacyShowSectionTarget {
+  /** Tab path; '' is the show home (Overview). */
+  path: '' | ShowManagementSectionPath;
+  search?: Record<string, string>;
+  /** Rewrite the retired Setup tab's own params (`legacySetupToHomeSearch`). */
+  fromSetup?: true;
+}
+
+export const LEGACY_SHOW_SECTION_REDIRECTS: Readonly<Record<string, LegacyShowSectionTarget>> = {
+  // MYK9-957: Show Day and Setup are the home now. The cockpit's own params
+  // (day, filter, focus, anchor, tool, view) ride along unchanged.
+  'show-day': { path: '' },
+  'show-desk': { path: '' },
+  setup: { path: '', fromSetup: true },
   'entry-management': { path: 'entries' },
   'results-control': { path: 'results' },
   'submit-results': { path: 'results', search: { step: 'submit' } },
@@ -75,9 +78,9 @@ export const LEGACY_SHOW_TAB_PARAM_REDIRECTS: Readonly<
   Record<string, { path: '' | ShowManagementSectionPath; search?: Record<string, string> }>
 > = {
   overview: { path: '' },
-  map: { path: 'setup', search: { section: 'map' } },
-  trials: { path: 'setup', search: { section: 'trials' } },
-  classes: { path: 'setup', search: { section: 'classes' } },
+  map: { path: '' },
+  trials: { path: '' },
+  classes: { path: '', search: { select: 'classes' } },
   'my-entries': { path: 'entries' },
   results: { path: 'results' },
 };

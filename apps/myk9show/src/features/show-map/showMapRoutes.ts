@@ -24,7 +24,7 @@ export function getShowMapClassScoringHref(classId: string): string {
 }
 
 export function getShowMapTrialScheduleHref(showId: string): string {
-  return `/shows/${showId}/setup`;
+  return `/shows/${showId}`;
 }
 
 export function getShowMapReportHref({ reportId, scope }: ShowMapReportHrefInput): string {

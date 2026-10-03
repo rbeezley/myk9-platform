@@ -52,8 +52,9 @@ function buildAttentionItems(
 
   for (const show of shows) {
     const phase = phases.get(show.id);
-    const setupHref = `/shows/${show.id}/setup`;
-    const showDeskHref = `/shows/${show.id}/show-day`;
+    // One home per show (MYK9-957): setup and show-day work both happen there.
+    const setupHref = `/shows/${show.id}`;
+    const showDeskHref = `/shows/${show.id}`;
 
     if (show.status === 'draft') {
       items.push({

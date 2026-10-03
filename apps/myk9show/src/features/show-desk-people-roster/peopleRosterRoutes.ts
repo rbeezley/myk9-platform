@@ -69,5 +69,5 @@ export function getShowDeskPeopleAtShowHref(input: {
   // cockpit filter and drop it on the next cockpit URL rewrite, resetting
   // the roster to "All exhibitors" on reopen/refresh (MYK9-825/826).
   if (input.filter) params.set('view', input.filter);
-  return `/shows/${encodeURIComponent(input.showId)}/show-day?${params.toString()}`;
+  return `/shows/${encodeURIComponent(input.showId)}?${params.toString()}`;
 }

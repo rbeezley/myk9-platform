@@ -33,8 +33,6 @@ interface ShowDeskPanelProps extends BuildShowMapTreeInput {
   actionableIncomplete?: boolean | undefined;
   /** Entered/pending per class for the schedule rows (MYK9-943); absent until read. */
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
-  /** `home` on the secretary's Overview (MYK9-955); Show Day otherwise. */
-  surface?: 'home' | 'show-day';
 }
 
 // INTENT: This is the secretary's live operations cockpit. It projects the
@@ -53,7 +51,6 @@ export default function ShowDeskPanel({
   actionableTone,
   actionableIncomplete,
   entryBreakdownByClassId,
-  surface = 'show-day',
 }: ShowDeskPanelProps) {
   const location = useLocation();
   const state = useShowMapWorkbenchState({
@@ -186,12 +183,12 @@ export default function ShowDeskPanel({
   return (
     <div className="space-y-4">
       <PhaseShell
-        title={surface === 'home' ? 'Your show' : 'Show Desk'}
-        kicker={surface === 'home' ? 'Before, during and after the show' : 'During the show'}
+        title="Your show"
+        kicker="Before, during and after the show"
         actions={
           tools && tools.length > 0 ? (
             <div className="flex flex-wrap items-center gap-2">
-              {surface === 'home' && canManageShow && <ShowHomeSetupLinks showId={show.id} />}
+              {canManageShow && <ShowHomeSetupLinks showId={show.id} />}
               <ShowDeskToolsSheet
                 showId={show.id}
                 tools={tools}

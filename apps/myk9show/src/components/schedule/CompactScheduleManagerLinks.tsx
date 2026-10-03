@@ -4,7 +4,7 @@ import { buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 import { getAddTrialsHref } from '@/pages/secretary/ShowCreationWizard/addTrialsHref';
-import { getSetupClassesHref } from '@/pages/secretary/showSetupSections';
+import { getSelectClassesHref } from '@/pages/secretary/selectClassesRoutes';
 
 const inlineLinkClass =
   'inline-flex min-h-11 items-center gap-1 px-1 text-sm font-medium text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
@@ -43,7 +43,7 @@ export function TrialManagerLinks({
         Add Classes
       </Link>
       <Link
-        to={getSetupClassesHref(showId, undefined, { trialId })}
+        to={getSelectClassesHref(showId, undefined, { trialId })}
         aria-label={`Manage classes in ${trialLabel}`}
         className={inlineLinkClass}
       >

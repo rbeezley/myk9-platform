@@ -10,7 +10,7 @@ import { getShowMapClassHref, getShowMapTrialHref } from '@/features/show-map/sh
 import { useScheduleTimeline } from '@/hooks/queries/useScheduleTimeline';
 import { cn } from '@/lib/utils';
 import { countLabel } from '@/utils/pluralize';
-import { getSetupClassesHref } from '@/pages/secretary/showSetupSections';
+import { getSelectClassesHref } from '@/pages/secretary/selectClassesRoutes';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 import { ClassEntryBreakdownLine } from './ClassEntryBreakdownLine';
 import { ClassStartTimeEditor } from './ClassStartTimeEditor';
@@ -299,7 +299,7 @@ export function CompactScheduleTimeline({
         <div className="flex flex-wrap items-center gap-2">
           {canEditSchedule && <AddTrialLink showId={showId} />}
           <Link
-            to={canEditSchedule ? getSetupClassesHref(showId) : `/shows/${showId}?tab=classes`}
+            to={canEditSchedule ? getSelectClassesHref(showId) : `/shows/${showId}?tab=classes`}
             className="inline-flex min-h-11 items-center gap-1 rounded-md border border-border px-3 text-sm font-medium text-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             View all classes

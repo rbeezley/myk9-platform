@@ -23,8 +23,6 @@ import {
   ListChecks,
   ClipboardList,
   Medal,
-  SlidersHorizontal,
-  CalendarClock,
   FileText,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
@@ -59,9 +57,7 @@ export function resolveResultsTabCount(query: {
 
 const SHOW_TAB_ICONS: Record<ShowTabId, LucideIcon> = {
   overview: LayoutDashboard,
-  setup: SlidersHorizontal,
   entries: ClipboardList,
-  'show-day': CalendarClock,
   results: Medal,
   reports: FileText,
 };

@@ -58,13 +58,10 @@ const EMPTY_TASKS: SecretaryTask[] = [];
 const ShowDeskPanel = lazy(() => import('@/features/show-map/ShowDeskPanel'));
 
 /**
- * The secretary's working surface. Mounted at `/shows/:id/show-day` and, since
- * MYK9-955, as the manager Overview (`surface="home"`): one component, so the
- * two can never drift while Show Day still exists (it goes in Phase 4).
+ * The secretary's show home: the manager Overview at `/shows/:id` (MYK9-955),
+ * which absorbed Show Day and Setup (MYK9-957).
  */
-export function ShowWorkbenchShowDeskPage({
-  surface = 'show-day',
-}: { surface?: 'home' | 'show-day' } = {}) {
+export function ShowWorkbenchShowDeskPage() {
   const params = useParams<{ showId?: string; id?: string }>();
   const showId = params.showId ?? params.id;
   const { show: currentShow, isLoading } = useFastShowDetails(showId);
@@ -430,7 +427,6 @@ export function ShowWorkbenchShowDeskPage({
           actionableTone={actionable.tone}
           actionableIncomplete={actionable.incomplete}
           entryBreakdownByClassId={entryBreakdownByClassId}
-          surface={surface}
         />
       </Suspense>
     </TrialSecretaryAccessProvider>

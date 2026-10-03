@@ -48,16 +48,6 @@ const DogDetailPage = lazy(() => import('@/pages/DogDetailPage'));
 const BrowseClubsPage = lazy(() => import('@/pages/BrowseClubsPage'));
 const ClubDetailPage = lazy(() => import('@/pages/ClubDetailPage'));
 const ShowDetailsPage = lazy(() => import('@/pages/ShowDetailsPage'));
-const ShowWorkbenchSetupPage = lazy(() =>
-  import('@/pages/secretary/ShowWorkbenchSetupPage').then(m => ({
-    default: m.ShowWorkbenchSetupPage,
-  }))
-);
-const ShowWorkbenchShowDeskPage = lazy(() =>
-  import('@/pages/secretary/ShowWorkbenchShowDeskPage').then(m => ({
-    default: m.ShowWorkbenchShowDeskPage,
-  }))
-);
 const EntryManagementPage = lazy(() => import('@/pages/secretary/EntryManagementPage'));
 const ReportsPage = lazy(() => import('@/pages/secretary/ReportsPage'));
 const ShowResultsSection = lazy(() => import('@/pages/secretary/ShowResultsSection'));
@@ -94,9 +84,7 @@ const CheckoutSuccessPage = lazy(() => import('@/pages/CheckoutSuccessPage'));
 const CheckoutCancelPage = lazy(() => import('@/pages/CheckoutCancelPage'));
 
 const SHOW_MANAGEMENT_SECTION_ELEMENTS: Record<ShowManagementSectionPath, ReactNode> = {
-  setup: <ShowWorkbenchSetupPage />,
   entries: <EntryManagementPage />,
-  'show-day': <ShowWorkbenchShowDeskPage />,
   results: <ShowResultsSection />,
   reports: <ReportsPage />,
 };
@@ -202,7 +190,7 @@ export const PublicRoutes = () => (
           element={<LegacyShowSectionRedirect target={target} />}
         />
       ))}
-      {/* Retired Class Management page (MYK9-924): its judge and status controls live on Setup → Classes. */}
+      {/* Retired Class Management page (MYK9-924): its judge and status controls live in the show home's Select classes. */}
       <Route path="classes/:trialId" element={<LegacyShowClassManagementRedirect />} />
       {/* Retired Class Creation page (MYK9-899): bounces into the wizard's add-classes mode. */}
       <Route path="classes/:trialId/create" element={<LegacyShowClassCreateRedirect />} />

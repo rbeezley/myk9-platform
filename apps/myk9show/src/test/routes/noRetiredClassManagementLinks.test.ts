@@ -4,7 +4,7 @@ import { buildContextualNavigationCommands } from '@/features/command-menu/conte
 import { getCockpitClassManagementHref } from '@/features/show-map/cockpit/cockpitRoutes';
 import { computeSetupReadinessSignals } from '@/features/show-workbench/setupReadinessSignals';
 import { buildClassDetailsRelatedLinks } from '@/pages/ClassDetailsPage/classDetailsRelatedLinks';
-import { getSetupClassesHref } from '@/pages/secretary/showSetupSections';
+import { getSelectClassesHref } from '@/pages/secretary/selectClassesRoutes';
 import { LEGACY_SHOW_TAB_PARAM_REDIRECTS, SHOW_TABS } from '@/routes/showManagementSections';
 import type { Show } from '@/types/show-types';
 import type { SyncableTrial } from '@/store/trial-store-types';
@@ -51,8 +51,8 @@ function collectHrefs(): string[] {
     )
   );
   hrefs.push(
-    getSetupClassesHref('s1'),
-    getSetupClassesHref('s1', 'in_progress', { trialId: 't1', focusClassId: 'c1', returnTo }),
+    getSelectClassesHref('s1'),
+    getSelectClassesHref('s1', 'in_progress', { trialId: 't1', focusClassId: 'c1', returnTo }),
     getCockpitClassManagementHref({ showId: 's1', trialId: 't1', classId: 'c1', returnTo })
   );
   hrefs.push(

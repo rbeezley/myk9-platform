@@ -362,7 +362,7 @@ export default function ReportsPage() {
         <p className="mb-6 text-sm text-muted-foreground">
           Need the emergency paper fallback?{' '}
           <Link
-            to={`/shows/${linkShowId}/show-day?tool=emergency-trial-packet`}
+            to={`/shows/${linkShowId}?tool=emergency-trial-packet`}
             className="font-medium text-foreground underline underline-offset-4"
           >
             Open it in Show Desk tools

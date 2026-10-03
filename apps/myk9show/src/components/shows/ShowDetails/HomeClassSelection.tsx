@@ -5,10 +5,7 @@ import { Button } from '@/components/ui/button';
 import { EntryDataUnavailablePanel } from '@/components/shows/ShowDetails/EntryDataUnavailablePanel';
 import type { ShowDetailTabsProps } from '@/components/shows/ShowDetails/ShowDetailTabs';
 import { SetupClassesSection } from '@/components/shows/tabs/SetupClassesSection';
-import { SETUP_CLASSES_PARAMS } from '@/pages/secretary/showSetupSections';
-
-/** The URL value that opens "Select classes" on the show home. */
-export const SELECT_CLASSES = 'classes';
+import { SELECT_CLASSES_PARAMS } from '@/pages/secretary/selectClassesRoutes';
 
 /**
  * "Select classes" on the show home (MYK9-956): Class Management in place,
@@ -33,7 +30,7 @@ export function HomeClassSelection({
       previous => {
         const params = new URLSearchParams(previous);
         params.delete('select');
-        for (const key of SETUP_CLASSES_PARAMS) params.delete(key);
+        for (const key of SELECT_CLASSES_PARAMS) params.delete(key);
         return params;
       },
       { replace: true, preventScrollReset: true }

@@ -50,7 +50,6 @@ const MIGRATED_RENDERERS = [
   'components/shows/tabs/ClassCard.tsx',
   'components/shows/tabs/TrialsTab.tsx',
   'components/trials/TrialDetail/TrialClassesCards.tsx',
-  'features/show-map/ShowMapStatusBadge.tsx',
   'features/pipeline/components/ClassPipelineCard.tsx',
   'features/pipeline/components/ScoringDaySummary.tsx',
   'features/show-desk-people-roster/ShowDeskPeopleRoster.tsx',

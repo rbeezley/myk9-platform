@@ -6,7 +6,7 @@ import { ListTree } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { RunSheetRow } from './RunSheetRow';
 import { useRunSheetState } from './useRunSheetState';
-import { getShowDeskHref } from '@/features/show-map/cockpit/cockpitRoutes';
+import { getShowHomeHref } from '@/features/show-map/cockpit/cockpitRoutes';
 import { toLocalDateOnly } from '@/utils/date-format';
 
 interface SecretaryRunSheetProps {
@@ -77,7 +77,7 @@ export function SecretaryRunSheet({
             // class focused, and the control only appears for a focused class -- so
             // following it showed nothing to reorder. The day matters just as much:
             // see `classDay` above.
-            to={getShowDeskHref({
+            to={getShowHomeHref({
               showId: parentShowId,
               state: {
                 filter: 'all',

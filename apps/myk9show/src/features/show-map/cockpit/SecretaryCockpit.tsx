@@ -13,6 +13,7 @@ import { ALL_DAYS, buildSecretaryCockpitModel } from './secretaryCockpitModel';
 import { useSecretaryCockpitUrlState } from './useSecretaryCockpitUrlState';
 import { CockpitActionLink } from './CockpitActionLink';
 import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
+import { useFocusedClassSetupActions } from './FocusedClassSetupActions';
 import { SecretaryCockpitSchedule } from './SecretaryCockpitSchedule';
 import { getCockpitAnchorElementId } from './cockpitRoutes';
 import type {
@@ -41,6 +42,8 @@ export function SecretaryCockpit({
   const { state, updateState } = useSecretaryCockpitUrlState();
   // Setup → Trials' Edit / Delete, on each trial heading (MYK9-956).
   const { trialRowMenu, trialDialogs } = useTrialRowActions(snapshot.showId, canManageShow);
+  // Held here, not in the panel, so a layout switch at 1280px cannot close an open editor.
+  const { renderClassActions, classDialogs } = useFocusedClassSetupActions(snapshot.showId);
   const renderTrialActions = (trialId: string, label: string) => (
     <>
       <Button asChild variant="ghost" size="sm" className="min-h-11 gap-1">
@@ -79,6 +82,14 @@ export function SecretaryCockpit({
       canManageShow={canManageShow}
       onCommand={onCommand}
       {...(runOrder !== undefined && { runOrder })}
+      {...(canManageShow &&
+        trial && {
+          setupActions: renderClassActions(
+            model.focusedClass.id,
+            trial.id,
+            model.focusedClass.name
+          ),
+        })}
     />
   ) : null;
 
@@ -95,6 +106,7 @@ export function SecretaryCockpit({
     if (Object.keys(updates).length > 0) updateState(updates, { replace: true });
   }, [
     focusedId,
+    model.day.allDays,
     model.day.selected,
     state.anchor,
     state.focusedClassId,
@@ -226,6 +238,7 @@ export function SecretaryCockpit({
         )}
       </div>
       {trialDialogs}
+      {canManageShow && classDialogs}
     </div>
   );
 }

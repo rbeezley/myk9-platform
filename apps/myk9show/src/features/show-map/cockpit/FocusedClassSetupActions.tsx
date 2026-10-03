@@ -4,32 +4,27 @@ import { Button } from '@/components/ui/button';
 import { SetupClassDialogs } from '@/components/shows/tabs/SetupClassDialogs';
 import { useClassRowActions } from '@/components/shows/tabs/useClassRowActions';
 
-const NO_STATUS_CHANGE = () => {};
-
 /**
  * Edit class / Delete class on the show home's class panel (MYK9-956): the same
  * resolve-then-open flow and the same panel and dialog as Setup → Classes.
+ *
+ * A hook, held by the cockpit rather than the panel: the focused panel moves
+ * between the inline and split layouts at 1280px, which remounts it, and an
+ * editor living inside it would close and lose its edits on a tablet rotation
+ * (Codex review of #2691). The buttons render in the panel; the pending
+ * action and the dialogs stay with the cockpit.
  */
-export function FocusedClassSetupActions({
-  showId,
-  classId,
-  trialId,
-  classLabel,
-}: {
-  showId: string;
-  classId: string;
-  trialId: string;
-  classLabel: string;
-}) {
+export function useFocusedClassSetupActions(showId: string) {
   const { pendingAction, setPendingAction, hydratingClassId, openClassAction } = useClassRowActions(
     showId,
-    NO_STATUS_CHANGE
+    // Status changes on the home go through the panel's own status control.
+    () => {}
   );
   const locked = hydratingClassId !== null || pendingAction !== null;
-  const target = { id: classId, trialId };
 
-  return (
-    <>
+  const renderClassActions = (classId: string, trialId: string, classLabel: string) => {
+    const target = { id: classId, trialId };
+    return (
       <div className="flex flex-wrap gap-2">
         <Button
           type="button"
@@ -56,19 +51,22 @@ export function FocusedClassSetupActions({
           Delete class
         </Button>
       </div>
-      {pendingAction && (
-        <SetupClassDialogs
-          key={pendingAction.requestId}
-          showId={showId}
-          pending={pendingAction}
-          // Tied to THIS action: a late close from an earlier one must not clear a newer one.
-          onClose={() =>
-            setPendingAction(current =>
-              current?.requestId === pendingAction.requestId ? null : current
-            )
-          }
-        />
-      )}
-    </>
-  );
+    );
+  };
+
+  const classDialogs = pendingAction ? (
+    <SetupClassDialogs
+      key={pendingAction.requestId}
+      showId={showId}
+      pending={pendingAction}
+      // Tied to THIS action: a late close from an earlier one must not clear a newer one.
+      onClose={() =>
+        setPendingAction(current =>
+          current?.requestId === pendingAction.requestId ? null : current
+        )
+      }
+    />
+  ) : null;
+
+  return { renderClassActions, classDialogs };
 }

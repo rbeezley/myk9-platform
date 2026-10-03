@@ -26,6 +26,11 @@ vi.mock('@/store/showStore', () => ({
 }));
 vi.mock('../setShowOnlineEntries', () => ({ setShowOnlineEntries: h.setShowOnlineEntries }));
 vi.mock('@/hooks/useNetworkStatus', () => ({ useIsOnline: () => h.online }));
+const syncTable = vi.hoisted(() => vi.fn(async (_table: string) => {}));
+vi.mock('@/context/ReplicationSyncContext', async () => {
+  const { createContext } = await import('react');
+  return { ReplicationSyncContext: createContext({ syncTable }) };
+});
 vi.mock('../useClubStripeAccount', () => ({
   useClubStripeAccount: () => ({ data: h.payouts, isLoading: false, isError: false }),
 }));
@@ -64,6 +69,33 @@ describe('useOnlineEntriesSwitch', () => {
 
     expect(h.setShowOnlineEntries).toHaveBeenCalledWith('show-1', false);
     expect(toast.success).toHaveBeenCalledWith(ONLINE_ENTRIES_OFF_TOAST);
+  });
+
+  // Codex round 5: the confirmed value shows at once, without touching the
+  // replica, and the show sync is asked to bring the row.
+  it('shows the server-confirmed value right away and asks the show sync for the row', async () => {
+    h.show = show({ onlineEntriesEnabled: true });
+    const { result } = renderHook(() => useOnlineEntriesSwitch('show-1'), { wrapper });
+
+    await act(() => result.current.setEnabled(false));
+
+    expect(result.current.value).toBe(false);
+    expect(syncTable).toHaveBeenCalledWith('shows');
+  });
+
+  it('a later replica value wins over the confirmed one', async () => {
+    h.show = show({ onlineEntriesEnabled: true });
+    const { result, rerender } = renderHook(() => useOnlineEntriesSwitch('show-1'), { wrapper });
+
+    await act(() => result.current.setEnabled(false));
+    expect(result.current.value).toBe(false);
+
+    // Another device turned it back on before this device's sync landed: the
+    // newer replica row wins even though its value equals the one the
+    // confirmation was made over.
+    h.show = show({ onlineEntriesEnabled: true });
+    rerender();
+    expect(result.current.value).toBe(true);
   });
 
   it('refuses to turn entries on for a public show without payouts, writing nothing', async () => {

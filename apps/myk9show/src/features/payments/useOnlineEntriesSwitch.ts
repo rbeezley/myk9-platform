@@ -7,18 +7,20 @@
  * queued show UPDATE can be rebuilt into a full row on a stale token. Flipping
  * it calls the online-only RPC set_show_online_entries (setShowOnlineEntries),
  * which writes that one column; the switch is disabled while offline. The
- * value shown is the live replica row, refreshed after each change.
+ * value shown is the live replica row, or the server-confirmed value until the
+ * show sync brings the row (the replica is never written here).
  *
  * Turning it on for a public show needs the club's Stripe payouts, the same
  * rule the publish gate enforces (MK003). The check here is the friendly
  * early answer; the trigger stays the backstop, and its refusal reaches the
  * secretary through the sync-failure toast (PUBLISH_GATE_MESSAGES).
  */
-import { useState } from 'react';
+import { useContext, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useShowStore } from '@/store/showStore';
 import { useIsOnline } from '@/hooks/useNetworkStatus';
+import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 import { setShowOnlineEntries } from './setShowOnlineEntries';
 import { useClubStripeAccount } from './useClubStripeAccount';
 import {
@@ -47,12 +49,30 @@ export interface OnlineEntriesSwitch {
   setEnabled: (next: boolean) => Promise<void>;
 }
 
+/**
+ * What the server confirmed, and the replica row it was confirmed over. The
+ * confirmed value is shown only while the store still holds that same row
+ * object; any newer row (the show sync landing, another device's change, any
+ * replica refresh) wins, so a stale confirmation can never outlive the next
+ * refresh. Never written into the replica; the incremental show sync owns
+ * that.
+ */
+interface Confirmed {
+  value: boolean;
+  rowAtConfirm: object;
+}
+
 export function useOnlineEntriesSwitch(showId: string | undefined): OnlineEntriesSwitch {
   const show = useShowStore(state =>
     showId ? state.shows.find(candidate => candidate.id === showId) : undefined
   );
-  const value =
+  const replicaValue =
     typeof show?.onlineEntriesEnabled === 'boolean' ? show.onlineEntriesEnabled : undefined;
+  const [confirmed, setConfirmed] = useState<Confirmed | null>(null);
+  const value =
+    confirmed && show && confirmed.rowAtConfirm === show ? confirmed.value : replicaValue;
+  // Optional: the provider wraps the app; a test without it simply skips the pull.
+  const syncTable = useContext(ReplicationSyncContext)?.syncTable;
   const stripe = useClubStripeAccount(show?.clubId);
   const navigate = useNavigate();
   const [pending, setPending] = useState(false);
@@ -75,6 +95,10 @@ export function useOnlineEntriesSwitch(showId: string | undefined): OnlineEntrie
     setPending(true);
     try {
       await setShowOnlineEntries(showId, next);
+      if (show) setConfirmed({ value: next, rowAtConfirm: show });
+      // The RPC bumped updated_at/version: the normal incremental show sync
+      // pulls the row through its own conflict-safe merge.
+      void syncTable?.('shows');
       toast.success(next ? ONLINE_ENTRIES_ON_TOAST : ONLINE_ENTRIES_OFF_TOAST);
     } catch (error) {
       toast.error(publishGateDbErrorMessage(error) ?? ONLINE_ENTRIES_SAVE_FAILED);

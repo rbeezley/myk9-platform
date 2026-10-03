@@ -71,6 +71,8 @@ const APPROVAL_ERRORS: Record<string, string> = {
   claim_failed: 'The approval could not be recorded. Nothing was refunded; try again.',
   refund_exists_for_other_attempt:
     'Not refunded: Stripe still has a live refund for this request from an earlier approval. Check the payment in Stripe.',
+  stripe_unreachable: "Couldn't reach Stripe to check this refund. Nothing was changed; try again.",
+  settle_busy: 'This refund was being updated while we checked. Nothing was changed; try again.',
   refund_attempt_conflict:
     'The refund could not be matched to this approval. Check the payment in Stripe before trying again.',
 };

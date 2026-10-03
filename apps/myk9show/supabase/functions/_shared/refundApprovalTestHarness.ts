@@ -1,12 +1,13 @@
 // In-memory refund_requests + refund_request_attempts and Stripe refunds for
 // refundApproval.test.ts. The rpc fake mirrors the SQL contract of
-// 20261003013900 (begin_refund_attempt, record_refund_attempt,
-// refund_attempt_version, settle_refund_attempt with their version
+// 20261003013900 (begin_refund_attempt, refund_attempt_state, the attach-only
+// record_refund_attempt, settle_refund_attempt with their version
 // compare-and-set, and the trigger-derived request status); the SQL
 // itself is covered by supabase/tests/myk9_876_874_refund_request_claims_test.sql
 // (CI only).
 import type { ApprovalRefund, RefundApprovalDeps } from './refundApproval';
-import type { AttemptStatus, SettleDeps, SettlingRefund } from './refundRequests';
+import type { AttemptStatus, SettlingRefund } from './refundRequests';
+import type { SettleDeps } from './refundSettlement';
 
 export interface FakeAttempt {
   id: string;
@@ -34,6 +35,8 @@ export function harness(
   const alerts: string[] = [];
   const pageRequests: (string | undefined)[] = [];
   let createThrows = opts.createThrows ?? false;
+  // Stripe unreachable for reads (retrieve and list).
+  let stripeDown = false;
   let createStatus = opts.createStatus ?? 'succeeded';
 
   const nextStatus = (current: AttemptStatus, reported: AttemptStatus) =>
@@ -88,6 +91,7 @@ export function harness(
       return { data: [beginRow('claimed', attempt)], error: null };
     }
     if (fn === 'record_refund_attempt') {
+      // Attach-only: never writes a status (Codex round 4).
       const attempt = attempts.find(a => a.id === args.p_attempt_id);
       if (!attempt) return { data: [{ outcome: 'not_found' }], error: null };
       const row = (outcome: string) => ({
@@ -105,26 +109,37 @@ export function harness(
         return row('refund_on_other_attempt');
       }
       if (attempt.version !== args.p_expected_version) return row('conflict');
-      if (attempt.refundId !== null || attempt.status !== 'pending') return row('already_recorded');
+      if (attempt.refundId !== null) return row('already_recorded');
       attempt.refundId = args.p_stripe_refund_id as string;
-      attempt.status = args.p_status as AttemptStatus;
-      attempt.failureReason = isDead(attempt.status)
-        ? ((args.p_failure_reason as string | null) ?? null)
-        : null;
       attempt.version += 1;
       return row('recorded');
     }
-    if (fn === 'refund_attempt_version') {
-      const attempt = attempts.find(a => a.refundId === args.p_stripe_refund_id);
-      return { data: attempt ? attempt.version : null, error: null };
+    if (fn === 'refund_attempt_state') {
+      const attempt = attempts.find(a => a.attemptNo === args.p_attempt_no);
+      if (args.p_request_id !== 'rr-1' || !attempt) return { data: [], error: null };
+      return {
+        data: [
+          {
+            attempt_id: attempt.id,
+            attempt_version: attempt.version,
+            stripe_refund_id: attempt.refundId,
+            attempt_status: attempt.status,
+            stripe_payment_intent_id: 'pi_1',
+          },
+        ],
+        error: null,
+      };
     }
     if (fn === 'settle_refund_attempt') {
-      const attempt = attempts.find(a => a.refundId === args.p_stripe_refund_id);
+      const attempt = attempts.find(a => a.id === args.p_attempt_id);
       if (!attempt) return { data: [{ outcome: 'not_found' }], error: null };
       let status = nextStatus(attempt.status, args.p_status as AttemptStatus);
       let outcome: string;
       if (attempt.version !== args.p_expected_version) {
         outcome = 'conflict';
+        status = attempt.status;
+      } else if (attempt.refundId === null) {
+        outcome = 'no_refund';
         status = attempt.status;
       } else if (status === attempt.status) {
         outcome = 'unchanged';
@@ -163,6 +178,7 @@ export function harness(
     alertAdmin,
     // Stripe lists newest first, a page at a time.
     listRefundsPage: async ({ starting_after }) => {
+      if (stripeDown) throw new Error('stripe unreachable');
       pageRequests.push(starting_after);
       const newestFirst = [...stripeRefunds].reverse();
       const start = starting_after ? newestFirst.findIndex(r => r.id === starting_after) + 1 : 0;
@@ -176,7 +192,7 @@ export function harness(
       if (createThrows) throw new Error('card_declined');
       // Stripe idempotency: the same key returns the same refund.
       const prior = byKey.get(key);
-      if (prior) return prior;
+      if (prior) return { ...prior };
       const refund = {
         id: `re_${created.length + 1}`,
         amount: params.amount,
@@ -186,20 +202,19 @@ export function harness(
       created.push({ key, metadata: params.metadata, amount: params.amount });
       stripeRefunds.push(refund);
       byKey.set(key, refund);
-      return refund;
+      return { ...refund };
     },
-  };
-
-  /** The webhook's deps: retrieve returns Stripe's CURRENT copy of a refund. */
-  const settleDeps: SettleDeps = {
-    rpc,
-    alertAdmin,
+    // Stripe's CURRENT copy of a refund.
     retrieveRefund: async id => {
+      if (stripeDown) throw new Error('stripe unreachable');
       const found = stripeRefunds.find(r => r.id === id);
       if (!found) throw new Error(`No such refund: ${id}`);
       return { ...found } as SettlingRefund;
     },
   };
+
+  /** The webhook's deps: the same Stripe reads, no create. */
+  const settleDeps: SettleDeps = deps;
 
   /** Stripe changes a refund's state (the event may arrive later, or never). */
   function stripeSets(refundId: string, status: string, failureReason?: string) {
@@ -226,6 +241,9 @@ export function harness(
     },
     setCreateStatus: (v: string) => {
       createStatus = v;
+    },
+    setStripeDown: (v: boolean) => {
+      stripeDown = v;
     },
   };
 }

@@ -138,8 +138,8 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     }
   });
 
-  it('settles an approved queued refund on every refund lifecycle event (Codex rounds 1-2, #2689)', () => {
-    // The behaviour lives in _shared/refundRequests.ts settleApprovedRefund
+  it('settles an approved queued refund on every refund lifecycle event (Codex rounds 1-4, #2689)', () => {
+    // The behaviour lives in _shared/refundSettlement.ts settleApprovedRefund
     // (vitest in refundApproval.test.ts); this pins that each handler calls it.
     for (const handler of [
       'async function handleRefundUpdated',

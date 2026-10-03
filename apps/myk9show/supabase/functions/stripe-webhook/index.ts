@@ -56,10 +56,10 @@ import {
   claimAbandonedCartRefund,
   queueRefundForApproval,
   REFUNDABLE_ABANDONED_CART_STATUSES,
-  settleApprovedRefund,
   type RefundQueueDeps,
-  type SettleDeps,
+  type SettlingRefund,
 } from '../_shared/refundRequests.ts';
+import { settleApprovedRefund, type SettleDeps } from '../_shared/refundSettlement.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
@@ -92,11 +92,17 @@ const refundQueueDeps: RefundQueueDeps = {
   alertAdmin,
 };
 
-// Approved queued refunds settle on their own attempt row, from the refund's
-// CURRENT state at Stripe (Codex rounds 1-2 on #2689).
+// Approved queued refunds settle on their own attempt row, ONLY from the
+// refund's CURRENT state at Stripe (Codex rounds 1-4 on #2689). The event
+// names the attempt; its payload status is never written. If Stripe cannot be
+// reached, settleApprovedRefund throws and this webhook answers 5xx.
 const refundSettleDeps: SettleDeps = {
   ...refundQueueDeps,
-  retrieveRefund: id => stripe.refunds.retrieve(id),
+  retrieveRefund: async id => (await stripe.refunds.retrieve(id)) as SettlingRefund,
+  listRefundsPage: async params => {
+    const page = await stripe.refunds.list(params);
+    return { data: page.data as SettlingRefund[], has_more: page.has_more };
+  },
 };
 
 type OnlinePaidEntryCapacityOutcome = {
@@ -269,9 +275,12 @@ async function handleEvent(event: Stripe.Event) {
  * The ENTRY-level refund columns are still the operator's job — the alert stays,
  * because the entry stamp and any re-issue are manual.
  *
- * NEVER THROWS: a bookkeeping failure must not disturb a committed payment or
- * make Stripe redeliver indefinitely. A failed reversal is reported in the alert
- * and the drift stays visible rather than silently "handled".
+ * NEVER THROWS for a bookkeeping failure: it must not disturb a committed
+ * payment or make Stripe redeliver indefinitely. A failed reversal is reported
+ * in the alert and the drift stays visible rather than silently "handled". The
+ * one exception is an APPROVED queued refund whose attempt could not be settled
+ * from Stripe (Stripe unreachable): that throws first, before any bookkeeping,
+ * so Stripe redelivers (Codex round 4 on #2689).
  */
 async function handleRefundFailed(refund: Stripe.Refund) {
   await handleTerminalRefund(refund, 'failed');
@@ -290,7 +299,8 @@ async function handleRefundUpdated(refund: Stripe.Refund) {
     return;
   }
 
-  // An approved queued refund: update its own attempt (Codex P1, #2689).
+  // An approved queued refund: settle its own attempt from Stripe (Codex P1,
+  // #2689). Throws (5xx, Stripe redelivers) when nothing could be written.
   await settleApprovedRefund(refundSettleDeps, refund);
 
   const paymentIntentId = extractPaymentIntentId(refund.payment_intent);
@@ -321,8 +331,10 @@ async function handleRefundUpdated(refund: Stripe.Refund) {
 }
 
 async function handleTerminalRefund(refund: Stripe.Refund, terminalState: 'failed' | 'canceled') {
-  // An approved queued refund: update its own attempt, which reopens the
-  // request when no other attempt succeeded (Codex P1, #2689).
+  // An approved queued refund: settle its own attempt from Stripe, which
+  // reopens the request when no other attempt succeeded (Codex P1, #2689).
+  // Throws (5xx, Stripe redelivers) when nothing could be written; it runs
+  // first, so a redelivery repeats nothing below.
   await settleApprovedRefund(refundSettleDeps, refund);
   const entryId = refund.metadata?.entry_id ?? null;
   console.error(

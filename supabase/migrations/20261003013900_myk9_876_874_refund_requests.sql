@@ -25,8 +25,8 @@
 --
 -- 3. public.refund_request_attempts — one row per approval that tried to
 --    refund a request (Codex review rounds 1-2 on #2689). Each attempt owns
---    AT MOST ONE Stripe refund, written once, and the webhook updates only the
---    attempt whose stripe_refund_id matches the refund it received. The
+--    AT MOST ONE Stripe refund, written once, and a settle changes only that
+--    one attempt. The
 --    request's status and last_failure are DERIVED from its attempts by a
 --    trigger in the same transaction as every attempt write, never set by a
 --    caller, so a delayed event or a delayed approval can only change its own
@@ -41,10 +41,15 @@
 --
 --    Every attempt write is a compare-and-set on attempts.version (Codex
 --    round 3 on #2689): the caller passes the version it read, a mismatch
---    returns 'conflict' and writes nothing. The approval
---    (record_refund_attempt) may only record an attempt's FIRST observation
---    (no refund id yet); only the webhook (settle_refund_attempt), which
---    re-reads the refund from Stripe, may change a status after that.
+--    returns 'conflict' and writes nothing.
+--
+--    ONE SETTLE PATH, STRIPE THE ONLY TRUTH (Codex round 4 on #2689).
+--    record_refund_attempt attaches a refund id and never a status;
+--    settle_refund_attempt is the only status writer, and its only caller is
+--    settleAttemptFromStripe (refundSettlement.ts), which reads the attempt's
+--    version, re-reads the refund from Stripe, then settles as a
+--    compare-and-set. The webhook and the admin's "Check status" both go
+--    through it; if Stripe cannot be reached nothing is written.
 --
 --    LOCK ORDER: refund_requests row, then refund_request_attempts row. Every
 --    RPC that writes attempts locks the request first, and the recompute
@@ -179,7 +184,7 @@ CREATE TABLE public.refund_request_attempts (
   -- 1, 2, 3 ... per request; the Stripe idempotency key is
   -- refund-request-<request_id>-<attempt_no>.
   attempt_no integer NOT NULL CHECK (attempt_no > 0),
-  -- Written ONCE (record_refund_attempt); the webhook finds the attempt by it.
+  -- Written ONCE (record_refund_attempt); never the source of a status.
   stripe_refund_id text UNIQUE,
   -- Stripe's refund status ('requires_action' is stored as 'pending').
   status text NOT NULL DEFAULT 'pending'
@@ -407,7 +412,8 @@ $$;
 
 -- ============================================================================
 -- 5. Attempt RPCs (service_role only). stripe-approve-refund authorises the
---    site admin before calling begin/record; stripe-webhook calls settle.
+--    site admin before calling begin; settleAttemptFromStripe (approval and
+--    webhook alike) calls state, record and settle.
 -- ============================================================================
 
 -- Start (or resume) the approval of one request. Under the request's row lock:
@@ -532,22 +538,19 @@ AS $$
   END
 $$;
 
--- The approval records the FIRST observation of its attempt's refund, once:
---   recorded                  written (refund id + the status Stripe returned)
---   conflict                  the attempt changed since begin_refund_attempt
---                             read it (version mismatch): nothing written
---   already_recorded          the attempt already holds a refund: nothing
---                             written; after this only the webhook settles it
+-- Attach a Stripe refund id to its attempt, once (Codex rounds 3-4 on #2689).
+-- It writes the id ONLY, never a status: every status comes from
+-- settle_refund_attempt, after a caller re-reads the refund from Stripe.
+--   recorded                  the id is now on the attempt
+--   conflict                  the attempt changed since the caller read it
+--                             (version mismatch): nothing written
+--   already_recorded          the attempt already holds a refund: nothing written
 --   refund_on_other_attempt   that Stripe refund belongs to another attempt
 --   not_found
--- Returns the attempt's state AFTER the call, so a refused caller reports
--- what is true rather than what it saw.
 CREATE OR REPLACE FUNCTION public.record_refund_attempt(
   p_attempt_id uuid,
   p_expected_version integer,
-  p_stripe_refund_id text,
-  p_status text,
-  p_failure_reason text DEFAULT NULL
+  p_stripe_refund_id text
 )
 RETURNS TABLE (
   outcome text,
@@ -565,9 +568,8 @@ DECLARE
   v_attempt public.refund_request_attempts%ROWTYPE;
   v_outcome text;
 BEGIN
-  IF p_stripe_refund_id IS NULL OR p_expected_version IS NULL
-     OR p_status NOT IN ('pending', 'succeeded', 'failed', 'canceled') THEN
-    RAISE EXCEPTION 'record_refund_attempt: a version, a Stripe refund id and a Stripe status are required'
+  IF p_stripe_refund_id IS NULL OR p_expected_version IS NULL THEN
+    RAISE EXCEPTION 'record_refund_attempt: a version and a Stripe refund id are required'
       USING errcode = '22023';
   END IF;
 
@@ -589,13 +591,11 @@ BEGIN
     v_outcome := 'refund_on_other_attempt';
   ELSIF v_attempt.version <> p_expected_version THEN
     v_outcome := 'conflict';
-  ELSIF v_attempt.stripe_refund_id IS NOT NULL OR v_attempt.status <> 'pending' THEN
+  ELSIF v_attempt.stripe_refund_id IS NOT NULL THEN
     v_outcome := 'already_recorded';
   ELSE
     UPDATE public.refund_request_attempts a
        SET stripe_refund_id = p_stripe_refund_id,
-           status = p_status,
-           failure_reason = CASE WHEN p_status IN ('failed', 'canceled') THEN p_failure_reason END,
            version = a.version + 1,
            updated_at = now()
      WHERE a.id = p_attempt_id
@@ -608,28 +608,38 @@ BEGIN
 END;
 $$;
 
--- The version of the attempt that owns a Stripe refund, or NULL. stripe-webhook
--- reads it BEFORE it re-reads the refund from Stripe, then settles with it.
-CREATE OR REPLACE FUNCTION public.refund_attempt_version(p_stripe_refund_id text)
-RETURNS integer
+-- One attempt as the settle routine reads it BEFORE it asks Stripe: its id,
+-- version, refund id (NULL until attached) and the request's payment intent.
+-- No row: no such attempt.
+CREATE OR REPLACE FUNCTION public.refund_attempt_state(p_request_id uuid, p_attempt_no integer)
+RETURNS TABLE (
+  attempt_id uuid,
+  attempt_version integer,
+  stripe_refund_id text,
+  attempt_status text,
+  stripe_payment_intent_id text
+)
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
 SET search_path = ''
 AS $$
-  SELECT a.version FROM public.refund_request_attempts a
-   WHERE a.stripe_refund_id = p_stripe_refund_id
+  SELECT a.id, a.version, a.stripe_refund_id, a.status, r.stripe_payment_intent_id
+    FROM public.refund_request_attempts a
+    JOIN public.refund_requests r ON r.id = a.request_id
+   WHERE a.request_id = p_request_id AND a.attempt_no = p_attempt_no
 $$;
 
--- stripe-webhook: apply Stripe's CURRENT status for one refund to the attempt
--- that owns it, and to nothing else, as a compare-and-set on the version the
--- caller read before re-reading Stripe. 'conflict' means another write landed
--- in between: nothing written; the caller re-reads the version and Stripe and
--- tries again. A refund no attempt owns is 'not_found' (logged and ignored).
--- live_attempts counts the request's pending/succeeded attempts after the
--- write; above 1 means two refunds are live for one request.
+-- The ONLY status writer (Codex round 4 on #2689): settleAttemptFromStripe
+-- calls it with the refund's CURRENT state, re-read from Stripe after it read
+-- the attempt's version. A compare-and-set on that version: 'conflict' means
+-- another write landed in between, nothing is written, and the caller reads
+-- the version and Stripe again. An attempt with no refund attached is
+-- 'no_refund' (nothing to settle). live_attempts counts the request's
+-- pending/succeeded attempts after the write; above 1 means two refunds are
+-- live for one request.
 CREATE OR REPLACE FUNCTION public.settle_refund_attempt(
-  p_stripe_refund_id text,
+  p_attempt_id uuid,
   p_expected_version integer,
   p_status text,
   p_failure_reason text DEFAULT NULL
@@ -653,14 +663,14 @@ DECLARE
   v_status text;
   v_outcome text;
 BEGIN
-  IF p_stripe_refund_id IS NULL OR p_expected_version IS NULL
+  IF p_attempt_id IS NULL OR p_expected_version IS NULL
      OR p_status NOT IN ('pending', 'succeeded', 'failed', 'canceled') THEN
-    RAISE EXCEPTION 'settle_refund_attempt: a version, a Stripe refund id and a Stripe status are required'
+    RAISE EXCEPTION 'settle_refund_attempt: an attempt, a version and a Stripe status are required'
       USING errcode = '22023';
   END IF;
 
   SELECT a.request_id INTO v_request_id
-    FROM public.refund_request_attempts a WHERE a.stripe_refund_id = p_stripe_refund_id;
+    FROM public.refund_request_attempts a WHERE a.id = p_attempt_id;
   IF v_request_id IS NULL THEN
     RETURN QUERY SELECT 'not_found'::text, NULL::uuid, NULL::text, NULL::text, NULL::integer,
       NULL::integer;
@@ -670,12 +680,15 @@ BEGIN
   PERFORM 1 FROM public.refund_requests r WHERE r.id = v_request_id FOR UPDATE;
   SELECT * INTO v_attempt
     FROM public.refund_request_attempts a
-   WHERE a.stripe_refund_id = p_stripe_refund_id
+   WHERE a.id = p_attempt_id
    FOR UPDATE;
 
   v_status := public.refund_attempt_next_status(v_attempt.status, p_status);
   IF v_attempt.version <> p_expected_version THEN
     v_outcome := 'conflict';
+    v_status := v_attempt.status;
+  ELSIF v_attempt.stripe_refund_id IS NULL THEN
+    v_outcome := 'no_refund';
     v_status := v_attempt.status;
   ELSIF v_status = v_attempt.status THEN
     v_outcome := 'unchanged';
@@ -710,11 +723,11 @@ REVOKE ALL ON FUNCTION public.begin_refund_attempt(uuid, uuid)
   FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.refund_attempt_next_status(text, text)
   FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.record_refund_attempt(uuid, integer, text, text, text)
+REVOKE ALL ON FUNCTION public.record_refund_attempt(uuid, integer, text)
   FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.refund_attempt_version(text)
+REVOKE ALL ON FUNCTION public.refund_attempt_state(uuid, integer)
   FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.settle_refund_attempt(text, integer, text, text)
+REVOKE ALL ON FUNCTION public.settle_refund_attempt(uuid, integer, text, text)
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.claim_abandoned_cart_refund(uuid, text, text, integer, jsonb)
   TO service_role;
@@ -722,8 +735,8 @@ GRANT EXECUTE ON FUNCTION public.request_refund_approval(text, text, text, integ
   TO service_role;
 GRANT EXECUTE ON FUNCTION public.begin_refund_attempt(uuid, uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.refund_attempt_next_status(text, text) TO service_role;
-GRANT EXECUTE ON FUNCTION public.record_refund_attempt(uuid, integer, text, text, text) TO service_role;
-GRANT EXECUTE ON FUNCTION public.refund_attempt_version(text) TO service_role;
-GRANT EXECUTE ON FUNCTION public.settle_refund_attempt(text, integer, text, text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.record_refund_attempt(uuid, integer, text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.refund_attempt_state(uuid, integer) TO service_role;
+GRANT EXECUTE ON FUNCTION public.settle_refund_attempt(uuid, integer, text, text) TO service_role;
 
 COMMIT;

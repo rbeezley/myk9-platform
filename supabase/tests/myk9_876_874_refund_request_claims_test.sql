@@ -43,12 +43,14 @@
 --       O7 settle for a refund no attempt owns -> 'not_found', no writes.
 --       O8 a second pending attempt is refused by the index (23505).
 --       O10 a canceled latest attempt reads failed with its status.
---       O11 (Codex round 3) two approvals on one attempt: B records, the
---          webhook settles 'failed', then A's delayed 'succeeded' carries a
---          stale version -> 'conflict', nothing written; with a current
---          version it is still 'already_recorded'.
---       O12 (Codex round 3) two webhook deliveries: W1 read the version,
---          W2 settles 'failed', then W1's stale 'succeeded' -> 'conflict'.
+--       O11 (Codex rounds 3-4) attaching a refund id writes no status; B
+--          attaches and the settle path records 'failed'; A's delayed attach
+--          and A's delayed settle carry a stale version -> 'conflict',
+--          nothing written; with a current version it is 'already_recorded'.
+--       O12 (Codex round 3) two settles: W1 read the attempt state, W2
+--          settles 'failed', then W1's stale 'succeeded' -> 'conflict'.
+--       O14 (Codex round 4) settling an attempt with no refund attached is
+--          'no_refund' and writes nothing.
 --       O13 (Codex round 3) LOCK ORDER, structurally: the recompute trigger
 --          locks the request before it reads attempts, and record/settle
 --          lock the request before the attempt. (The interleaving itself
@@ -146,9 +148,9 @@ BEGIN
     'public.claim_abandoned_cart_refund(uuid, text, text, integer, jsonb)',
     'public.request_refund_approval(text, text, text, integer, text, jsonb, uuid, uuid, uuid)',
     'public.begin_refund_attempt(uuid, uuid)',
-    'public.record_refund_attempt(uuid, integer, text, text, text)',
-    'public.refund_attempt_version(text)',
-    'public.settle_refund_attempt(text, integer, text, text)',
+    'public.record_refund_attempt(uuid, integer, text)',
+    'public.refund_attempt_state(uuid, integer)',
+    'public.settle_refund_attempt(uuid, integer, text, text)',
     'public.refund_attempt_next_status(text, text)'
   ] LOOP
     IF has_function_privilege('anon', v_fn, 'EXECUTE')
@@ -360,21 +362,35 @@ RETURNS text LANGUAGE sql AS $f$
     FROM public.refund_request_attempts a WHERE a.id = p_attempt
 $f$;
 
--- Record / settle with the attempt's CURRENT version (a caller that just read it).
-CREATE FUNCTION pg_temp.rec(p_attempt uuid, p_refund text, p_status text, p_reason text DEFAULT NULL)
-RETURNS text LANGUAGE sql AS $f$
-  SELECT r.outcome FROM public.record_refund_attempt(
-    p_attempt,
-    (SELECT a.version FROM public.refund_request_attempts a WHERE a.id = p_attempt),
-    p_refund, p_status, p_reason) AS r
-$f$;
-
+-- What settleAttemptFromStripe does, with the attempt's CURRENT version (a
+-- caller that just read it): attach the refund id, then settle the status
+-- Stripe reports. Returns the ATTACH outcome.
 CREATE FUNCTION pg_temp.settle(p_refund text, p_status text, p_reason text DEFAULT NULL)
 RETURNS TABLE (outcome text, request_id uuid, attempt_status text, request_status text,
                live_attempts integer, attempt_version integer)
 LANGUAGE sql AS $f$
   SELECT * FROM public.settle_refund_attempt(
-    p_refund, COALESCE(public.refund_attempt_version(p_refund), 1), p_status, p_reason)
+    COALESCE((SELECT a.id FROM public.refund_request_attempts a WHERE a.stripe_refund_id = p_refund),
+             gen_random_uuid()),
+    COALESCE((SELECT a.version FROM public.refund_request_attempts a
+               WHERE a.stripe_refund_id = p_refund), 1),
+    p_status, p_reason)
+$f$;
+
+CREATE FUNCTION pg_temp.rec(p_attempt uuid, p_refund text, p_status text, p_reason text DEFAULT NULL)
+RETURNS text LANGUAGE plpgsql AS $f$
+DECLARE
+  v_outcome text;
+BEGIN
+  SELECT r.outcome INTO v_outcome FROM public.record_refund_attempt(
+    p_attempt,
+    (SELECT a.version FROM public.refund_request_attempts a WHERE a.id = p_attempt),
+    p_refund) AS r;
+  IF v_outcome = 'recorded' THEN
+    PERFORM pg_temp.settle(p_refund, p_status, p_reason);
+  END IF;
+  RETURN v_outcome;
+END;
 $f$;
 
 CREATE FUNCTION pg_temp.expect_eq(p_actual text, p_expected text, p_label text)
@@ -586,7 +602,7 @@ BEGIN
 END;
 $$;
 
--- O11 (Codex round 3) delayed approval after the webhook settled ------------
+-- O11 (Codex round 3) a delayed writer after the attempt was settled ------
 DO $$
 DECLARE
   v_req uuid := pg_temp.new_request('cs_876_o11');
@@ -595,23 +611,26 @@ DECLARE
   v_s record;
 BEGIN
   SELECT * INTO v_b FROM public.begin_refund_attempt(v_req, '00000000-0000-0000-0000-000000876102');
-  -- Approvals A and B both read version v_b.attempt_version. B records first.
-  SELECT * INTO v_r FROM public.record_refund_attempt(
-    v_b.attempt_id, v_b.attempt_version, 're_o11', 'pending');
-  PERFORM pg_temp.expect_eq(v_r.outcome, 'recorded', 'O11 approval B records the refund');
+  -- Approvals A and B both read version v_b.attempt_version. B attaches first.
+  SELECT * INTO v_r FROM public.record_refund_attempt(v_b.attempt_id, v_b.attempt_version, 're_o11');
+  PERFORM pg_temp.expect_eq(v_r.outcome || ' ' || v_r.attempt_status, 'recorded pending',
+    'O11 attaching a refund id writes no status');
   SELECT * INTO v_s FROM public.settle_refund_attempt(
-    're_o11', v_r.attempt_version, 'failed', 'expired_or_canceled_card');
-  PERFORM pg_temp.expect_eq(v_s.outcome, 'updated', 'O11 the webhook settles it failed');
+    v_b.attempt_id, v_r.attempt_version, 'failed', 'expired_or_canceled_card');
+  PERFORM pg_temp.expect_eq(v_s.outcome, 'updated', 'O11 the settle path records the failure');
 
-  -- A's delayed write of the stale success it saw.
-  SELECT * INTO v_r FROM public.record_refund_attempt(
-    v_b.attempt_id, v_b.attempt_version, 're_o11', 'succeeded');
+  -- A's delayed attach and A's delayed settle, both on the version it read.
+  SELECT * INTO v_r FROM public.record_refund_attempt(v_b.attempt_id, v_b.attempt_version, 're_o11');
   PERFORM pg_temp.expect_eq(v_r.outcome || ' ' || v_r.attempt_status, 'conflict failed',
-    'O11 a delayed approval with a stale version writes nothing and reports the truth');
+    'O11 a delayed attach with a stale version writes nothing and reports the truth');
+  SELECT * INTO v_s FROM public.settle_refund_attempt(
+    v_b.attempt_id, v_b.attempt_version + 1, 'succeeded');
+  PERFORM pg_temp.expect_eq(v_s.outcome || ' ' || v_s.attempt_status, 'conflict failed',
+    'O11 a delayed settle with a stale version writes nothing');
   PERFORM pg_temp.expect_eq(pg_temp.request_state(v_req), 'failed | failed: expired_or_canceled_card',
     'O11 the request stays failed');
   PERFORM pg_temp.expect_eq(pg_temp.rec(v_b.attempt_id, 're_o11', 'succeeded'), 'already_recorded',
-    'O11 even with a current version the approval never overwrites a recorded attempt');
+    'O11 even with a current version an attempt never takes a second attach');
 END;
 $$;
 
@@ -620,19 +639,42 @@ DO $$
 DECLARE
   v_req uuid := pg_temp.new_request('cs_876_o12');
   v_b record;
-  v_w1 integer;
+  v_w1 record;
   v_s record;
 BEGIN
   SELECT * INTO v_b FROM public.begin_refund_attempt(v_req, '00000000-0000-0000-0000-000000876102');
   PERFORM pg_temp.rec(v_b.attempt_id, 're_o12', 'pending');
-  v_w1 := public.refund_attempt_version('re_o12');   -- W1 reads, then re-reads Stripe slowly
-  SELECT * INTO v_s FROM public.settle_refund_attempt('re_o12', v_w1, 'failed', 'lost_or_stolen_card');
+  -- W1 reads the attempt, then re-reads Stripe slowly.
+  SELECT * INTO v_w1 FROM public.refund_attempt_state(v_req, v_b.attempt_no);
+  PERFORM pg_temp.expect_eq(v_w1.stripe_refund_id || ' ' || v_w1.stripe_payment_intent_id,
+    're_o12 pi_cs_876_o12', 'O12 refund_attempt_state reads the attached refund and the intent');
+  SELECT * INTO v_s FROM public.settle_refund_attempt(
+    v_w1.attempt_id, v_w1.attempt_version, 'failed', 'lost_or_stolen_card');
   PERFORM pg_temp.expect_eq(v_s.outcome, 'updated', 'O12 W2 settles failed');
-  SELECT * INTO v_s FROM public.settle_refund_attempt('re_o12', v_w1, 'succeeded');
+  SELECT * INTO v_s FROM public.settle_refund_attempt(v_w1.attempt_id, v_w1.attempt_version, 'succeeded');
   PERFORM pg_temp.expect_eq(v_s.outcome || ' ' || v_s.attempt_status, 'conflict failed',
     'O12 W1''s stale success is a conflict, not a write');
   PERFORM pg_temp.expect_eq(pg_temp.request_state(v_req), 'failed | failed: lost_or_stolen_card',
     'O12 the request stays failed');
+END;
+$$;
+
+-- O14 (Codex round 4) nothing settles an attempt with no refund attached ------
+DO $$
+DECLARE
+  v_req uuid := pg_temp.new_request('cs_876_o14');
+  v_b record;
+  v_s record;
+BEGIN
+  SELECT * INTO v_b FROM public.begin_refund_attempt(v_req, '00000000-0000-0000-0000-000000876102');
+  SELECT * INTO v_s FROM public.settle_refund_attempt(v_b.attempt_id, v_b.attempt_version, 'failed');
+  PERFORM pg_temp.expect_eq(v_s.outcome || ' ' || v_s.attempt_status, 'no_refund pending',
+    'O14 settling an attempt with no refund attached writes nothing');
+  PERFORM pg_temp.expect_eq(pg_temp.request_state(v_req), 'awaiting_stripe',
+    'O14 the request still waits on the open attempt');
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*)::text FROM public.refund_attempt_state(v_req, 99)), '0',
+    'O14 refund_attempt_state finds no unknown attempt');
 END;
 $$;
 RESET ROLE;
@@ -651,8 +693,8 @@ BEGIN
     RAISE EXCEPTION 'FAIL O13 the recompute trigger must lock the request before reading attempts';
   END IF;
   FOREACH v_fn IN ARRAY ARRAY[
-    'public.record_refund_attempt(uuid, integer, text, text, text)',
-    'public.settle_refund_attempt(text, integer, text, text)'
+    'public.record_refund_attempt(uuid, integer, text)',
+    'public.settle_refund_attempt(uuid, integer, text, text)'
   ] LOOP
     SELECT p.prosrc INTO v_src FROM pg_proc p WHERE p.oid = v_fn::regprocedure;
     IF regexp_instr(v_src, 'refund_requests r WHERE r\.id = v_request_id FOR UPDATE') = 0

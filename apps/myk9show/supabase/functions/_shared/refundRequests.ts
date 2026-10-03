@@ -241,7 +241,10 @@ export const REFUNDABLE_ABANDONED_CART_STATUSES: ReadonlySet<string> = new Set([
   'refund_pending',
 ]);
 
-/** The Stripe Refund fields the attempt lifecycle reads. */
+/**
+ * The Stripe Refund fields the attempt lifecycle reads. Settling an attempt
+ * lives in refundSettlement.ts (settleAttemptFromStripe), its one writer.
+ */
 export interface SettlingRefund {
   id: string;
   amount: number;
@@ -256,135 +259,4 @@ export type AttemptStatus = 'pending' | 'succeeded' | 'failed' | 'canceled';
 export function toAttemptStatus(status: string | null | undefined): AttemptStatus {
   if (status === 'succeeded' || status === 'failed' || status === 'canceled') return status;
   return 'pending';
-}
-
-export interface SettleDeps extends RefundQueueDeps {
-  /** `stripe.refunds.retrieve` — the refund's CURRENT state, not the event's. */
-  retrieveRefund: (refundId: string) => Promise<SettlingRefund>;
-}
-
-export type SettleOutcome =
-  'not_approved_refund' | 'not_found' | 'updated' | 'unchanged' | 'conflict' | 'error';
-
-const MAX_SETTLE_ROUNDS = 3;
-
-interface SettleRow {
-  outcome: string;
-  request_id: string | null;
-  attempt_status: string | null;
-  request_status: string | null;
-  live_attempts: number | null;
-}
-
-/**
- * stripe-webhook's half of the attempt lifecycle (refund.updated,
- * refund.failed, charge.refunded). Only a refund stamped
- * `type=approved_refund_request` is considered, and it updates ONLY the
- * attempt that owns that Stripe refund id (settle_refund_attempt); the
- * request's status is derived from its attempts in the database. The refund
- * is re-read from Stripe so a delayed or reordered event writes Stripe's
- * current state, not a stale one. Never throws.
- */
-export async function settleApprovedRefund(
-  deps: SettleDeps,
-  refund: SettlingRefund
-): Promise<SettleOutcome> {
-  if (
-    refund.metadata?.type !== APPROVED_REFUND_METADATA_TYPE ||
-    !refund.metadata?.[REFUND_REQUEST_METADATA_KEY]
-  ) {
-    return 'not_approved_refund';
-  }
-
-  // Compare-and-set (Codex round 3 on #2689): read the attempt's version
-  // BEFORE re-reading Stripe, settle against it, and on 'conflict' (another
-  // write landed in between) read both again. Never overwrite blind.
-  let current: SettlingRefund = refund;
-  let status: AttemptStatus = toAttemptStatus(refund.status);
-  let data: unknown = null;
-  let error: { message: string } | null = null;
-  for (let round = 0; round < MAX_SETTLE_ROUNDS; round += 1) {
-    const version = await deps.rpc('refund_attempt_version', { p_stripe_refund_id: refund.id });
-    if (version.error) {
-      error = version.error;
-      break;
-    }
-    if (typeof version.data !== 'number') {
-      // The approval records the id right after Stripe answers; an event that
-      // beats it is ignored here and the approval writes the status it saw.
-      console.log(`Refund ${refund.id} matches no refund attempt yet — ignored`);
-      return 'not_found';
-    }
-    try {
-      current = await deps.retrieveRefund(refund.id);
-    } catch (err) {
-      console.error(`Could not re-read refund ${refund.id}; using the event's copy:`, err);
-    }
-    status = toAttemptStatus(current.status);
-    ({ data, error } = await deps.rpc('settle_refund_attempt', {
-      p_stripe_refund_id: refund.id,
-      p_expected_version: version.data,
-      p_status: status,
-      p_failure_reason: current.failure_reason ?? null,
-    }));
-    const outcomeRow = (Array.isArray(data) ? data[0] : data) as SettleRow | null;
-    if (error || outcomeRow?.outcome !== 'conflict') break;
-  }
-  if (error) {
-    await deps.alertAdmin(
-      'Approved refund changed at Stripe but its attempt was not updated',
-      `<p>Stripe refund <code>${refund.id}</code> is <code>${status}</code>, but updating
-       its refund attempt failed:</p><pre>${error.message}</pre>
-       <p>The approval queue may show the wrong state for this refund until the next
-       Stripe event for it, or an admin approval, re-reads it.</p>`,
-      { source: SOURCE, dedupeKey: `refund-attempt-settle-failed-${refund.id}-${status}` }
-    );
-    return 'error';
-  }
-
-  const row = (Array.isArray(data) ? data[0] : data) as SettleRow | null;
-  if (!row || row.outcome === 'not_found') {
-    console.log(`Refund ${refund.id} matches no refund attempt yet — ignored`);
-    return 'not_found';
-  }
-  if (row.outcome === 'conflict') {
-    // Still contended after MAX_SETTLE_ROUNDS: nothing written; the next event
-    // for this refund settles it.
-    console.error(`Refund ${refund.id}: attempt kept changing; left for the next event`);
-    return 'conflict';
-  }
-
-  if ((row.live_attempts ?? 0) > 1) {
-    await deps.alertAdmin(
-      'Two refunds are live for one refund request — check for a double refund',
-      `<p>Refund request <code>${row.request_id}</code> has ${row.live_attempts} attempts
-       that are pending or succeeded at Stripe (latest change: refund
-       <code>${refund.id}</code> is <code>${status}</code>). The customer may be refunded
-       twice. Check the payment in Stripe.</p>`,
-      { source: SOURCE, dedupeKey: `refund-request-double-live-${row.request_id}` }
-    );
-  }
-
-  if (row.outcome === 'updated' && (status === 'failed' || status === 'canceled')) {
-    const reason = `${status}: ${current.failure_reason ?? 'no reason given'}`;
-    const reopened = row.request_status === 'failed';
-    await deps.alertAdmin(
-      reopened
-        ? 'Approved refund failed at Stripe — back in the approval queue'
-        : 'An approved refund attempt failed at Stripe',
-      `<p>Stripe refund <code>${refund.id}</code> (${dollars(refund.amount)} USD) for request
-       <code>${row.request_id}</code> ended <code>${reason}</code>.</p>
-       <p>${
-         reopened
-           ? 'The customer was NOT paid. The request is back under <strong>Refunds awaiting approval</strong> on /admin/health; approving it again issues a new refund.'
-           : `The request reads <code>${row.request_status}</code> from its other attempts.`
-       }</p>`,
-      {
-        source: SOURCE,
-        dedupeKey: `refund-attempt-failed-${refund.id}`,
-        detail: { refund_request_id: row.request_id, stripe_refund_id: refund.id, reason },
-      }
-    );
-  }
-  return row.outcome === 'updated' ? 'updated' : 'unchanged';
 }

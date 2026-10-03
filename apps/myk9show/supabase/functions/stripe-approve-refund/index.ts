@@ -94,6 +94,8 @@ Deno.serve(async req => {
           const page = await stripe.refunds.list(params);
           return { data: page.data as ApprovalRefund[], has_more: page.has_more };
         },
+        // "Check status" settles from Stripe's CURRENT state (Codex round 4).
+        retrieveRefund: async id => (await stripe.refunds.retrieve(id)) as ApprovalRefund,
         createRefund: async (params, idempotencyKey) =>
           (await stripe.refunds.create(params, { idempotencyKey })) as ApprovalRefund,
       },

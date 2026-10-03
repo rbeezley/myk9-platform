@@ -7,7 +7,8 @@ import {
   listAllIntentRefunds,
   type ApprovalRefund,
 } from './refundApproval';
-import { settleApprovedRefund, toAttemptStatus } from './refundRequests';
+import { toAttemptStatus } from './refundRequests';
+import { settleApprovedRefund } from './refundSettlement';
 import { harness } from './refundApprovalTestHarness';
 
 const INPUT = { requestId: 'rr-1', actorAuthUserId: 'admin-uid' };
@@ -37,10 +38,15 @@ describe('approveRefundRequest', () => {
       fn: 'begin_refund_attempt',
       args: { p_request_id: 'rr-1', p_actor_auth_user_id: 'admin-uid' },
     });
+    // The create response only supplies the id; the status is re-read from Stripe.
     expect(h.rpcCalls.find(c => c.fn === 'record_refund_attempt')?.args).toEqual({
       p_attempt_id: 'att-1',
       p_expected_version: 1,
       p_stripe_refund_id: 're_1',
+    });
+    expect(h.rpcCalls.find(c => c.fn === 'settle_refund_attempt')?.args).toEqual({
+      p_attempt_id: 'att-1',
+      p_expected_version: 2,
       p_status: 'succeeded',
       p_failure_reason: null,
     });
@@ -104,15 +110,13 @@ describe('approveRefundRequest', () => {
     expect(h.rpcCalls.some(c => c.fn === 'record_order_refund_cents')).toBe(false);
   });
 
-  it('resuming an open attempt reuses its refund and leaves settling to the webhook', async () => {
+  it('"Check status" on an open attempt settles its refund from Stripe without creating another', async () => {
     const h = harness({ createStatus: 'pending' });
     await approveRefundRequest(h.deps, INPUT);
     h.stripeSets('re_1', 'succeeded');
-    // The approval only records an attempt's FIRST observation (Codex round 3).
     const resumed = await approveRefundRequest(h.deps, INPUT);
-    expect(resumed).toEqual({ status: 202, body: { outcome: 'pending', refund_id: 're_1' } });
+    expect(resumed).toEqual({ status: 200, body: { outcome: 'refunded', refund_id: 're_1' } });
     expect(h.created).toHaveLength(1);
-    await settleApprovedRefund(h.settleDeps, h.stripeRefunds[0]);
     expect(h.requestState().status).toBe('refunded');
   });
 
@@ -156,21 +160,26 @@ describe('settleApprovedRefund (webhook)', () => {
     await approveRefundRequest(h.deps, INPUT);
     const staleEvent = { ...h.stripeRefunds[0], status: 'pending' };
     h.stripeSets('re_1', 'succeeded');
-    await expect(settleApprovedRefund(h.settleDeps, staleEvent)).resolves.toBe('updated');
+    await expect(settleApprovedRefund(h.settleDeps, staleEvent)).resolves.toBe('settled');
     expect(h.attempts[0].status).toBe('succeeded');
     expect(h.requestState().status).toBe('refunded');
   });
 
-  it('a refund no attempt owns yet is ignored', async () => {
+  it('a refund naming an attempt that does not exist is ignored', async () => {
     const h = harness();
     h.stripeRefunds.push({
       id: 're_early',
       amount: 1,
       status: 'succeeded',
-      metadata: { type: 'approved_refund_request', refund_request_id: 'rr-1' },
+      metadata: {
+        type: 'approved_refund_request',
+        refund_request_id: 'rr-1',
+        refund_attempt_no: '5',
+      },
     });
     await expect(settleApprovedRefund(h.settleDeps, h.stripeRefunds[0])).resolves.toBe('not_found');
     expect(h.alerts).toEqual([]);
+    expect(h.rpcCalls.map(c => c.fn)).toEqual(['refund_attempt_state']);
   });
 
   it('a failure reopens the request with its reason and alerts', async () => {
@@ -208,7 +217,7 @@ describe('attempt orderings', () => {
 
     // Stripe's current state for re_1 is failed, so the stale success event
     // re-reads it and leaves attempt 1 failed.
-    await expect(settleApprovedRefund(h.settleDeps, oldSuccessEvent)).resolves.toBe('unchanged');
+    await expect(settleApprovedRefund(h.settleDeps, oldSuccessEvent)).resolves.toBe('settled');
     expect(h.attempts.map(a => [a.attemptNo, a.status, a.refundId])).toEqual([
       [1, 'failed', 're_1'],
       [2, 'pending', 're_2'],
@@ -247,8 +256,6 @@ describe('attempt orderings', () => {
       p_attempt_id: 'att-1',
       p_expected_version: 1,
       p_stripe_refund_id: 're_1',
-      p_status: 'pending',
-      p_failure_reason: null,
     });
     expect((late.data as { outcome: string }[])[0].outcome).toBe('conflict');
     expect(h.attempts.map(a => [a.status, a.refundId])).toEqual([
@@ -259,8 +266,6 @@ describe('attempt orderings', () => {
       p_attempt_id: 'att-2',
       p_expected_version: h.attempts[1].version,
       p_stripe_refund_id: 're_1',
-      p_status: 'pending',
-      p_failure_reason: null,
     });
     expect((stolen.data as { outcome: string }[])[0].outcome).toBe('refund_on_other_attempt');
   });
@@ -299,7 +304,7 @@ describe('attempt orderings', () => {
 describe('round 3 interleavings', () => {
   const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 
-  it('a delayed approval holding a stale success never overwrites the failure the webhook recorded', async () => {
+  it('a delayed approval holding a stale success never overwrites the failure Stripe reports', async () => {
     const h = harness({ createStatus: 'pending' });
     let release!: () => void;
     const gate = new Promise<void>(resolve => {
@@ -337,9 +342,10 @@ describe('round 3 interleavings', () => {
       lastFailure: 'failed: expired_or_canceled_card',
     });
     expect(h.rpcCalls.some(c => c.fn === 'record_order_refund_cents')).toBe(false);
+    // A never wrote the status its create call returned; B attached the id once.
     expect(
       h.rpcCalls.filter(c => c.fn === 'record_refund_attempt').map(c => c.args.p_expected_version)
-    ).toEqual([1, 1]);
+    ).toEqual([1]);
   });
 
   it('a webhook that read the version before a newer settle retries instead of overwriting', async () => {
@@ -371,14 +377,135 @@ describe('round 3 interleavings', () => {
     await settleApprovedRefund(h.settleDeps, h.stripeSets('re_1', 'failed'));
     release();
 
-    await expect(w1).resolves.toBe('unchanged');
+    await expect(w1).resolves.toBe('settled');
     expect(h.attempts[0].status).toBe('failed');
     const settles = h.rpcCalls.filter(c => c.fn === 'settle_refund_attempt');
     expect(settles.map(c => [c.args.p_expected_version, c.args.p_status])).toEqual([
+      [2, 'pending'], // the approval's own settle after create
       [2, 'failed'], // W2
       [2, 'succeeded'], // W1's stale write: conflict, nothing written
       [3, 'failed'], // W1 re-reads the version and Stripe, and agrees
     ]);
+  });
+});
+
+/** Codex round 4 on #2689: one settle path, Stripe the only truth. */
+describe('round 4: settleAttemptFromStripe is the only settle path', () => {
+  it('a missed failure webhook: "Check status" settles it, the request reads failed, and Approve again works', async () => {
+    const h = harness({ createStatus: 'pending' });
+    await approveRefundRequest(h.deps, INPUT);
+    h.stripeSets('re_1', 'failed', 'expired_or_canceled_card'); // no webhook arrives
+
+    const checked = await approveRefundRequest(h.deps, INPUT);
+    expect(checked).toEqual({ status: 502, body: { error: 'stripe_refund_failed' } });
+    expect(h.requestState()).toEqual({
+      status: 'failed',
+      lastFailure: 'failed: expired_or_canceled_card',
+    });
+
+    h.setCreateStatus('succeeded');
+    expect(await approveRefundRequest(h.deps, INPUT)).toEqual({
+      status: 200,
+      body: { outcome: 'refunded', refund_id: 're_2' },
+    });
+    expect(h.attempts.map(a => [a.attemptNo, a.status])).toEqual([
+      [1, 'failed'],
+      [2, 'succeeded'],
+    ]);
+  });
+
+  it('a failure before the refund id was attached: "Check status" finds the refund on Stripe and settles it', async () => {
+    const h = harness({ createStatus: 'pending' });
+    await approveRefundRequest(h.deps, INPUT);
+    h.attempts[0].refundId = null; // the approval died between create and attach
+    h.stripeSets('re_1', 'failed', 'lost_or_stolen_card');
+
+    const checked = await approveRefundRequest(h.deps, INPUT);
+    expect(checked).toEqual({ status: 502, body: { error: 'stripe_refund_failed' } });
+    expect(h.attempts[0]).toMatchObject({ refundId: 're_1', status: 'failed' });
+    expect(h.created).toHaveLength(1);
+    expect(h.requestState().status).toBe('failed');
+  });
+
+  it('the failure webhook itself attaches and settles an attempt whose id was never recorded', async () => {
+    const h = harness({ createStatus: 'pending' });
+    await approveRefundRequest(h.deps, INPUT);
+    h.attempts[0].refundId = null;
+    const event = h.stripeSets('re_1', 'failed', 'lost_or_stolen_card');
+
+    await expect(settleApprovedRefund(h.settleDeps, event)).resolves.toBe('settled');
+    expect(h.attempts[0]).toMatchObject({ refundId: 're_1', status: 'failed' });
+  });
+
+  it('Stripe unreachable: "Check status" writes nothing and asks to try again', async () => {
+    const h = harness({ createStatus: 'pending' });
+    await approveRefundRequest(h.deps, INPUT);
+    h.stripeSets('re_1', 'failed');
+    const before = { ...h.attempts[0] };
+    const settlesBefore = h.rpcCalls.filter(c => c.fn === 'settle_refund_attempt').length;
+    h.setStripeDown(true);
+
+    expect(await approveRefundRequest(h.deps, INPUT)).toEqual({
+      status: 503,
+      body: { error: 'stripe_unreachable' },
+    });
+    expect(h.attempts[0]).toEqual(before);
+    expect(h.rpcCalls.filter(c => c.fn === 'settle_refund_attempt')).toHaveLength(settlesBefore);
+    expect(h.created).toHaveLength(1);
+    expect(h.requestState().status).toBe('awaiting_stripe');
+  });
+
+  it('Stripe unreachable: the webhook throws (5xx, Stripe redelivers) and writes nothing', async () => {
+    const h = harness({ createStatus: 'pending' });
+    await approveRefundRequest(h.deps, INPUT);
+    const event = h.stripeSets('re_1', 'failed');
+    const before = { ...h.attempts[0] };
+    h.setStripeDown(true);
+
+    await expect(settleApprovedRefund(h.settleDeps, event)).rejects.toThrow(/stripe_unreachable/);
+    expect(h.attempts[0]).toEqual(before);
+  });
+
+  it('a stale SUCCESS payload while Stripe is unreachable never marks the attempt succeeded', async () => {
+    const h = harness({ createStatus: 'pending' });
+    await approveRefundRequest(h.deps, INPUT);
+    const staleSuccess = { ...h.stripeRefunds[0], status: 'succeeded' };
+    h.stripeSets('re_1', 'failed', 'expired_or_canceled_card');
+    h.setStripeDown(true);
+
+    await expect(settleApprovedRefund(h.settleDeps, staleSuccess)).rejects.toThrow();
+    expect(h.attempts[0].status).toBe('pending');
+    expect(h.rpcCalls.some(c => c.fn === 'record_order_refund_cents')).toBe(false);
+
+    // Stripe's redelivery once it is reachable settles the TRUE state.
+    h.setStripeDown(false);
+    await expect(settleApprovedRefund(h.settleDeps, staleSuccess)).resolves.toBe('settled');
+    expect(h.requestState()).toEqual({
+      status: 'failed',
+      lastFailure: 'failed: expired_or_canceled_card',
+    });
+  });
+
+  it('a create whose settle cannot reach Stripe reports the refund submitted, with its id attached', async () => {
+    const h = harness({ createStatus: 'succeeded' });
+    const unreachable = {
+      ...h.deps,
+      retrieveRefund: async () => {
+        throw new Error('stripe unreachable');
+      },
+    };
+    expect(await approveRefundRequest(unreachable, INPUT)).toEqual({
+      status: 202,
+      body: { outcome: 'pending', refund_id: 're_1' },
+    });
+    expect(h.attempts[0]).toMatchObject({ refundId: 're_1', status: 'pending' });
+    expect(h.rpcCalls.some(c => c.fn === 'record_order_refund_cents')).toBe(false);
+
+    expect(await approveRefundRequest(h.deps, INPUT)).toEqual({
+      status: 200,
+      body: { outcome: 'refunded', refund_id: 're_1' },
+    });
+    expect(h.created).toHaveLength(1);
   });
 });
 

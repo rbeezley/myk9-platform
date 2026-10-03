@@ -125,6 +125,13 @@ describe('watch-pr-checks harness', () => {
     expect(result.stdout).toContain('SELF-TEST FAIL [draft-ready-stale-skip');
   });
 
+  it('rejects a selector that ignores the status-context createdAt timestamp', () => {
+    const result = runMutated('(.startedAt // .createdAt // "")', '(.startedAt // "")');
+
+    expect(result.status).toBe(4);
+    expect(result.stdout).toContain('SELF-TEST FAIL [ctx-newer-failure-createdAt');
+  });
+
   it('keeps the Vercel quota note off non-Vercel failures', () => {
     const result = runMutated('case "$n" in Vercel*) ;; *) return 1 ;; esac', ':');
 

@@ -101,8 +101,11 @@ JQ_DEFS='
   # run and job ids monotonically; status contexts have neither, so they read 0.
   def runid: ((.detailsUrl // "") | capture("/runs/(?<n>[0-9]+)")? | .n | tonumber) // 0;
   def jobid: ((.detailsUrl // "") | capture("/job/(?<n>[0-9]+)")? | .n | tonumber) // 0;
-  # A queued job can carry the zero date; that is "unknown", never "oldest".
-  def started: (.startedAt // "") | if startswith("0001") then "" else . end;
+  # CheckRuns report startedAt. StatusContexts (Vercel, Review gate) report
+  # createdAt in the raw GraphQL object and `gh` surfaces it as startedAt; read
+  # both so duplicate contexts always order by time. A queued job can carry the
+  # zero date; that is "unknown", never "oldest".
+  def started: (.startedAt // .createdAt // "") | if startswith("0001") then "" else . end;
   # THE ORDERING RULE (MYK9-947). Among the attempts sharing a check name the
   # CURRENT one is the highest job id: a re-run, a draft->ready run and the
   # replacement of a cancelled run each get a NEW job id. startedAt breaks ties
@@ -281,6 +284,25 @@ self_test() {
   # 18. A fresh failure beats an old skip too.
   check_both fresh-failure-beats-old-skip 'required-failed:Test' \
     "$(row 'Quality Checks' CI SUCCESS 2026-10-02T20:10:00Z 200 4),$(row Test CI SKIPPED 2026-10-02T20:00:00Z 100 2),$(row Test CI FAILURE 2026-10-02T20:10:00Z 200 5)"
+
+  # 21. Status contexts (Vercel, Review gate) have no job id, so duplicates are
+  #     ordered by their timestamp alone: `gh` reports it as startedAt, the raw
+  #     GraphQL object as createdAt. Both spellings, both array orders.
+  ctx() { # ctx <context> <state> <timestamp> <field: startedAt|createdAt>
+    printf '{"context":"%s","state":"%s","%s":"%s"}' "$1" "$2" "$4" "$3"
+  }
+  local f
+  for f in startedAt createdAt; do
+    local base="$(row 'Quality Checks' CI SUCCESS 2026-10-02T20:00:00Z 100 1),$(row Test CI SUCCESS 2026-10-02T20:00:00Z 100 2)"
+    check_both "ctx-newer-failure-$f" 'preview-failed:Vercel - app' \
+      "$base,$(ctx 'Vercel - app' SUCCESS 2026-10-02T20:00:00Z $f),$(ctx 'Vercel - app' FAILURE 2026-10-02T20:05:00Z $f)"
+    check_both "ctx-newer-success-$f" 'green' \
+      "$base,$(ctx 'Vercel - app' FAILURE 2026-10-02T20:00:00Z $f),$(ctx 'Vercel - app' SUCCESS 2026-10-02T20:05:00Z $f)"
+  done
+  got=$(verdict "{\"statusCheckRollup\":[$(row 'Quality Checks' CI SUCCESS 2026-10-02T20:00:00Z 100 1),$(row Test CI SUCCESS 2026-10-02T20:00:00Z 100 2),$(ctx 'Review gate' FAILURE 2026-10-02T20:05:00Z createdAt),$(ctx 'Review gate' SUCCESS 2026-10-02T20:00:00Z createdAt)]}" '["Quality Checks","Test","Review gate"]')
+  [ "$got" = "required-failed:Review gate" ] || { echo "SELF-TEST FAIL [ctx-required-failure]: expected 'required-failed:Review gate', got '$got'"; ok=1; }
+  got=$(verdict "{\"statusCheckRollup\":[$(row 'Quality Checks' CI SUCCESS 2026-10-02T20:00:00Z 100 1),$(row Test CI SUCCESS 2026-10-02T20:00:00Z 100 2),$(ctx 'Review gate' SUCCESS 2026-10-02T20:00:00Z createdAt),$(ctx 'Review gate' FAILURE 2026-10-02T20:05:00Z createdAt)]}" '["Quality Checks","Test","Review gate"]')
+  [ "$got" = "required-failed:Review gate" ] || { echo "SELF-TEST FAIL [ctx-required-failure/new-last]: expected 'required-failed:Review gate', got '$got'"; ok=1; }
 
   # 19. A pending REQUIRED name is never listed as non-required outstanding, and
   #     a superseded unanswered attempt is not listed at all.

@@ -10,6 +10,7 @@ import {
   getCockpitSubmitResultsHref,
   getShowDeskHref,
   normalizeCockpitUrlState,
+  resolveShowDeskReturn,
   resolveShowDeskReturnHref,
   writeCockpitUrlState,
 } from './cockpitRoutes';
@@ -146,6 +147,27 @@ describe('Show Desk context routes', () => {
     expect(resolveShowDeskReturnHref('//evil.example/shows/show-1/show-day', 'show-1')).toBeNull();
     expect(resolveShowDeskReturnHref('/shows/show-2/show-day', 'show-1')).toBeNull();
     expect(resolveShowDeskReturnHref('/shows/show-1/reports', 'show-1')).toBeNull();
+  });
+
+  // MYK9-955: the show home (/shows/:id) is a cockpit origin too, so a deep
+  // link opened from it returns there, named for what it is.
+  it('returns to the show home, keeping its state, as "Back to show"', () => {
+    expect(resolveShowDeskReturn('/shows/show-1?focus=class-1&anchor=class-1', 'show-1')).toEqual({
+      href: '/shows/show-1?focus=class-1&anchor=class-1',
+      label: 'Back to show',
+    });
+    expect(resolveShowDeskReturn('/shows/show-1/show-day', 'show-1')?.label).toBe(
+      'Back to Show Desk'
+    );
+    expect(resolveShowDeskReturn('/shows/show-2', 'show-1')).toBeNull();
+    expect(resolveShowDeskReturn('/shows/show-1/entries', 'show-1')).toBeNull();
+  });
+
+  it('treats a missing day as All days and never writes it back', () => {
+    expect(normalizeCockpitUrlState(new URLSearchParams()).selectedDay).toBe('all');
+    expect(
+      writeCockpitUrlState(new URLSearchParams(), { selectedDay: 'all', filter: 'all' }).toString()
+    ).toBe('');
   });
 
   it('still accepts the LEGACY /show-desk spelling and canonicalizes it forward', () => {

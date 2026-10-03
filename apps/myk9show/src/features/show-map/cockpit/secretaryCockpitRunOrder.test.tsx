@@ -62,6 +62,7 @@ const FOCUSED: FocusedClassModel = {
   attentionCount: 0,
   closeout: 'none',
   primaryAction: null,
+  checklist: null,
   actualStart: { evidence: 'unknown', value: null },
   actualFinish: { evidence: 'unknown', value: null },
   paperwork: [],

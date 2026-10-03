@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { Outlet, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -21,8 +21,7 @@ import { canDeleteShowForClub } from '@/components/clubs/ClubDetails/clubPermiss
 import { type ShowDetailTabsProps } from '@/components/shows/ShowDetails/ShowDetailTabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { TabsContent } from '@/components/ui/tabs';
-import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
-import { buildClassEntryBreakdowns } from '@/features/entry-operations/classEntryBreakdown';
+import { AboutThisShowCard } from '@/components/shows/overview/AboutThisShowCard';
 import { getShowStyle } from '@/features/registries';
 import {
   premiumPublishDraftKey,
@@ -53,6 +52,12 @@ import { applyShowFormDataToPremium } from './showFormPremiumSync';
 import { ShowPageHeaderActions } from './ShowPageHeaderActions';
 import { showHeroParent } from './showHeroParent';
 import type { HeroViewer } from '@/components/common/heroParentLink';
+
+const ShowHomeCockpit = lazy(() =>
+  import('@/pages/secretary/ShowWorkbenchShowDeskPage').then(module => ({
+    default: module.ShowWorkbenchShowDeskPage,
+  }))
+);
 
 export interface ShowManagementShellProps {
   show: Show;
@@ -202,13 +207,6 @@ function AuthorizedShowManagementShell({
     showId: show.id,
   });
   const entryDataUnavailable = entryDataState !== 'ready';
-  const entryBreakdownByClassId = useMemo(
-    () =>
-      canManageShow && !entryDataUnavailable
-        ? buildClassEntryBreakdowns(tabs.mapEntries)
-        : undefined,
-    [canManageShow, entryDataUnavailable, tabs.mapEntries]
-  );
   const isShowDesk = activeManagementSection === 'show-day';
   // The retired Class Management URL (`classes/:trialId`) redirects into Setup → Classes, so
   // it keeps Setup lit for the frame it renders rather than lighting nothing.
@@ -348,15 +346,15 @@ function AuthorizedShowManagementShell({
               {activeManagementSection ? (
                 <Outlet context={tabs} />
               ) : (
-                <ShowOverviewTab
-                  show={show}
-                  isAuthenticated={true}
-                  canManageShow={canManageShow}
-                  judges={tabs.judges}
-                  classes={tabs.classes}
-                  entryBreakdownByClassId={entryBreakdownByClassId}
-                  onViewClasses={() => navigate(`${canonicalShowHref}/setup?section=classes`)}
-                />
+                // MYK9-955: the manager Overview IS the secretary's home -- the
+                // Show Day cockpit, one consistent view before, during and
+                // after the show. Exhibitors keep ShowOverviewTab (ShowDetailTabs).
+                <div className="space-y-4">
+                  <AboutThisShowCard show={show} judges={tabs.judges} />
+                  <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
+                    <ShowHomeCockpit surface="home" />
+                  </Suspense>
+                </div>
               )}
             </TabsContent>
           </PrimaryTabs>

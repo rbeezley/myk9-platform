@@ -19,6 +19,7 @@ import { resolveShowMapActionExecution } from './showMapActionExecution';
 import { useShowMapWorkbenchState } from './useShowMapWorkbenchState';
 import type { ShowDeskActionableTone } from './showDeskActionable';
 import type { BuildShowMapTreeInput } from './showMapTypes';
+import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 import { getTrialRegistry } from '@/features/registries';
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 
@@ -29,6 +30,10 @@ interface ShowDeskPanelProps extends BuildShowMapTreeInput {
   actionableCount?: number | undefined;
   actionableTone?: ShowDeskActionableTone | undefined;
   actionableIncomplete?: boolean | undefined;
+  /** Entered/pending per class for the schedule rows (MYK9-943); absent until read. */
+  entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
+  /** `home` on the secretary's Overview (MYK9-955); Show Day otherwise. */
+  surface?: 'home' | 'show-day';
 }
 
 // INTENT: This is the secretary's live operations cockpit. It projects the
@@ -46,6 +51,8 @@ export default function ShowDeskPanel({
   actionableCount,
   actionableTone,
   actionableIncomplete,
+  entryBreakdownByClassId,
+  surface = 'show-day',
 }: ShowDeskPanelProps) {
   const location = useLocation();
   const state = useShowMapWorkbenchState({
@@ -178,8 +185,8 @@ export default function ShowDeskPanel({
   return (
     <div className="space-y-4">
       <PhaseShell
-        title="Show Desk"
-        kicker="During the show"
+        title={surface === 'home' ? 'Your show' : 'Show Desk'}
+        kicker={surface === 'home' ? 'Before, during and after the show' : 'During the show'}
         actions={
           tools && tools.length > 0 ? (
             <ShowDeskToolsSheet
@@ -202,6 +209,7 @@ export default function ShowDeskPanel({
         </div>
       )}
       <SecretaryCockpit
+        entryBreakdownByClassId={entryBreakdownByClassId}
         snapshot={snapshot}
         canManageShow={canManageShow}
         onCommand={runCommand}

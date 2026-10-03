@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 
-import { buildSecretaryCockpitModel } from './secretaryCockpitModel';
+import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
+import { ALL_DAYS, buildSecretaryCockpitModel } from './secretaryCockpitModel';
 import { useSecretaryCockpitUrlState } from './useSecretaryCockpitUrlState';
 import { CockpitActionLink } from './CockpitActionLink';
 import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
@@ -21,6 +22,7 @@ export function SecretaryCockpit({
   canManageShow,
   onCommand,
   runOrder,
+  entryBreakdownByClassId,
 }: {
   snapshot: SecretaryCockpitSnapshot;
   canManageShow: boolean;
@@ -30,6 +32,8 @@ export function SecretaryCockpit({
    * read-only or test render can omit it; the menu simply does not appear.
    */
   runOrder?: SecretaryCockpitRunOrderControls | undefined;
+  /** Entered/pending per class for the schedule rows (MYK9-943); absent until read. */
+  entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
 }) {
   const { state, updateState } = useSecretaryCockpitUrlState();
   const [showAllAttention, setShowAllAttention] = useState(false);
@@ -61,7 +65,8 @@ export function SecretaryCockpit({
 
   useEffect(() => {
     const updates: Parameters<typeof updateState>[0] = {};
-    if (model.day.selected && state.selectedDay !== model.day.selected) {
+    // All days is the URL's default (no `day`), so it is never written back.
+    if (!model.day.allDays && model.day.selected && state.selectedDay !== model.day.selected) {
       updates.selectedDay = model.day.selected;
     }
     if (focusedId && state.focusedClassId !== focusedId) {
@@ -93,12 +98,25 @@ export function SecretaryCockpit({
       {model.day.available.length > 1 && (
         <div className="flex flex-wrap items-center gap-2" aria-label="Show day">
           <CalendarDays className="h-4 w-4 text-muted-foreground" />
+          <Button
+            type="button"
+            size="sm"
+            variant={model.day.allDays ? 'default' : 'outline'}
+            aria-pressed={model.day.allDays}
+            className="min-h-11"
+            onClick={() =>
+              updateState({ selectedDay: ALL_DAYS, focusedClassId: undefined, anchor: undefined })
+            }
+          >
+            All days
+          </Button>
           {model.day.available.map(day => (
             <Button
               key={day}
               type="button"
               size="sm"
-              variant={model.day.selected === day ? 'default' : 'outline'}
+              variant={!model.day.allDays && model.day.selected === day ? 'default' : 'outline'}
+              aria-pressed={!model.day.allDays && model.day.selected === day}
               className="min-h-11"
               onClick={() =>
                 updateState({ selectedDay: day, focusedClassId: undefined, anchor: undefined })
@@ -154,6 +172,8 @@ export function SecretaryCockpit({
 
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] xl:grid-rows-[auto_auto] xl:gap-5">
         <SecretaryCockpitSchedule
+          showId={snapshot.showId}
+          entryBreakdownByClassId={entryBreakdownByClassId}
           model={model}
           sourceClasses={snapshot.classes}
           sourceTrials={snapshot.trials}

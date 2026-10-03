@@ -52,6 +52,7 @@ function renderSchedule(snapshot: SecretaryCockpitSnapshot, filter: 'all' | 'nee
   });
   return render(
     <SecretaryCockpitSchedule
+      showId="show-1"
       model={model}
       sourceClasses={snapshot.classes}
       sourceTrials={snapshot.trials}
@@ -76,13 +77,13 @@ describe('SecretaryCockpitSchedule empty states', () => {
     renderSchedule(snapshotWithNoTrials, 'needs-attention');
 
     expect(screen.getByText('No Classes are scheduled for this day yet.')).toBeInTheDocument();
-    expect(screen.queryByText('No Classes match this filter today.')).not.toBeInTheDocument();
+    expect(screen.queryByText('No Classes match this filter.')).not.toBeInTheDocument();
   });
 
   it('reports a filter mismatch when Classes exist today but none match the active filter', () => {
     renderSchedule(snapshotWithUnmatchedFilter, 'needs-attention');
 
-    expect(screen.getByText('No Classes match this filter today.')).toBeInTheDocument();
+    expect(screen.getByText('No Classes match this filter.')).toBeInTheDocument();
     expect(
       screen.queryByText('No Classes are scheduled for this day yet.')
     ).not.toBeInTheDocument();
@@ -174,6 +175,7 @@ describe('SecretaryCockpitSchedule view tabs', () => {
     });
     const { user } = render(
       <SecretaryCockpitSchedule
+        showId="show-1"
         model={model}
         sourceClasses={snapshotWithMixedStates.classes}
         sourceTrials={snapshotWithMixedStates.trials}
@@ -218,6 +220,7 @@ describe('SecretaryCockpitSchedule offline', () => {
     });
     const { user } = render(
       <SecretaryCockpitSchedule
+        showId="show-1"
         model={model}
         sourceClasses={snapshotWithMixedStates.classes}
         sourceTrials={snapshotWithMixedStates.trials}

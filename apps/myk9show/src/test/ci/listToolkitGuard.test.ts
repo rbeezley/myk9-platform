@@ -52,9 +52,13 @@ const EXEMPT_IMPORTERS: Record<string, string> = {};
  */
 const ARIA_PRESSED_DECLARED: Record<string, { count: number; reason: string }> = {
   'features/show-map/ShowMapToolbar.tsx': { count: 2, reason: 'filter row, not yet replaced' },
-  'features/show-map/cockpit/SecretaryCockpitSchedule.tsx': {
+  'features/show-map/cockpit/CockpitTrialGroup.tsx': {
     count: 1,
     reason: 'focus toggle on a schedule row, not a filter',
+  },
+  'features/show-map/cockpit/SecretaryCockpit.tsx': {
+    count: 2,
+    reason: 'show-day picker (All days / one day, MYK9-955): a day row, not yet replaced',
   },
   'features/at-show/AtShowScoresheetPage.tsx': { count: 1, reason: 'ringside scoring toggle' },
   'features/operational-views/EntryDisplayPresetControl.tsx': {

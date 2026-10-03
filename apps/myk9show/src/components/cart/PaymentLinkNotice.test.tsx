@@ -144,6 +144,19 @@ describe('PaymentLinkNotice', () => {
     expect(container).toBeEmptyDOMElement();
   });
 
+  // INTENT.md 44px touch floor (Codex P2 on 96f89a03d): `min-h-11` is 44px, and
+  // the shared Button's `touch` size; `sm` (h-8, 32px) is below the floor.
+  it('every control in the notice meets the 44px touch floor', () => {
+    setup({ payableIds: ['e1', 'e2', 'e3'] }, [], vi.fn());
+
+    const addBack = screen.getByRole('button', { name: 'Add them back to your cart' });
+    expect(addBack).toHaveClass('min-h-11');
+    expect(addBack).not.toHaveClass('h-8');
+    expect(myEntriesLink()).toHaveClass('min-h-11');
+    const dismiss = screen.getByRole('button', { name: 'Dismiss' });
+    expect(dismiss).toHaveClass('min-h-[44px]', 'min-w-[44px]');
+  });
+
   it('dismisses', () => {
     setup({ payableIds: [] }, null);
 

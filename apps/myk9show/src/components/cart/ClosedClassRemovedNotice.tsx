@@ -132,14 +132,18 @@ export function PaymentLinkNotice({
         </p>
       ))}
       {copy.addBack && onAddBack && (
-        <Button variant="outline" size="sm" className="mt-2" onClick={onAddBack}>
+        <Button variant="outline" size="touch" className="mt-2" onClick={onAddBack}>
           {`Add ${copy.addBack} back to your cart`}
         </Button>
       )}
       {copy.linkToMyEntries && (
         <p className="mt-1">
           See where each one stands in{' '}
-          <Link to="/exhibitor/entries" className="font-medium underline underline-offset-2">
+          {/* 44px touch floor (INTENT.md) without breaking the sentence. */}
+          <Link
+            to="/exhibitor/entries"
+            className="inline-flex min-h-11 items-center font-medium underline underline-offset-2"
+          >
             My Entries
           </Link>
           .

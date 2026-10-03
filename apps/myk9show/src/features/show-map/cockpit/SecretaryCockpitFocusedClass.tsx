@@ -8,6 +8,8 @@ import type { SecretaryCockpitRunOrderControls } from './secretaryCockpitTypes';
 import { CockpitActionLink } from './CockpitActionLink';
 import { ClassChecklistSection } from './ClassChecklistSection';
 import { ClassStatusControl, ExpectedStartControl } from './ClassOperationalControls';
+import { AnnounceDelayButton } from './AnnounceDelayButton';
+import { getStartDelayMinutes } from './cockpitTime';
 import { formatTrialIdentity } from './secretaryCockpitModel';
 import type {
   FocusedClassModel,
@@ -17,6 +19,7 @@ import type {
 } from './secretaryCockpitTypes';
 
 export function SecretaryCockpitFocusedClass({
+  showId,
   focused,
   sourceClass,
   trial,
@@ -26,6 +29,7 @@ export function SecretaryCockpitFocusedClass({
   onCommand,
   runOrder,
 }: {
+  showId: string;
   focused: FocusedClassModel | null;
   sourceClass: SecretaryCockpitClass | null;
   trial: SecretaryCockpitTrial | null;
@@ -43,6 +47,13 @@ export function SecretaryCockpitFocusedClass({
       </aside>
     );
   }
+
+  const delayMinutes = getStartDelayMinutes({
+    scheduledStart: sourceClass.scheduledStart ?? null,
+    revisedExpectedStart: sourceClass.revisedExpectedStart ?? null,
+    trialDate: trial.date,
+    timeZone,
+  });
 
   return (
     <aside className="overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm xl:sticky xl:top-[calc(var(--app-top-inset,3rem)+1rem)]">
@@ -94,6 +105,13 @@ export function SecretaryCockpitFocusedClass({
               <div className="mt-1 text-xs text-muted-foreground">
                 Scheduled {sourceClass.scheduledStart}
               </div>
+            )}
+            {canManageShow && delayMinutes !== null && (
+              <AnnounceDelayButton
+                showId={showId}
+                className={focused.name}
+                delayMinutes={delayMinutes}
+              />
             )}
           </div>
           <div>

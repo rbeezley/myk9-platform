@@ -3,7 +3,6 @@ import {
   type ShowDayReconciliationEntry,
 } from './showDayReconciliationSummary';
 import type { ShowIncidentSummary } from './showIncidents';
-import type { ShowWorkbenchClassSummary } from './showWorkbenchTypes';
 
 export interface CloseoutShowSummary {
   id: string;
@@ -130,14 +129,5 @@ export function selectCloseoutCascadeTargets(input: {
     showId: input.show.id,
     trialIds: input.trials.filter(trial => needsCascade(trial.status)).map(trial => trial.id),
     classIds: input.classes.filter(cls => needsCascade(cls.status)).map(cls => cls.id),
-  };
-}
-
-export function toCloseoutClassSummary(cls: ShowWorkbenchClassSummary): CloseoutClassSummary {
-  return {
-    id: cls.id,
-    status: cls.status,
-    entryCount: cls.entryCount,
-    scoredCount: cls.scoredCount,
   };
 }

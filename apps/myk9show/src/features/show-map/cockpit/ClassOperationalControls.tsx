@@ -15,7 +15,7 @@ import { applyManualClassStatus } from '@/services/show-day/classStatusMutations
 import { setRevisedExpectedStart } from '@/services/show-day/classTimingMutations';
 import { cn } from '@/lib/utils';
 
-import { clockTimeToInstant, instantToClockTime } from './cockpitTime';
+import { clockTimeToInstant, instantToClockTime, scheduledClockValue } from './cockpitTime';
 import type { CockpitLifecycle } from './secretaryCockpitTypes';
 
 const STATUS_OPTIONS: readonly { value: ClassStatusValue; label: string }[] = [
@@ -138,15 +138,6 @@ export function ClassStatusControl({
       </DropdownMenuContent>
     </DropdownMenu>
   );
-}
-
-function scheduledClockValue(value: string | null): string {
-  const match = value?.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
-  if (!match) return '';
-  let hour = Number(match[1]);
-  const meridiem = match[3]?.toUpperCase();
-  if (meridiem) hour = (hour % 12) + (meridiem === 'PM' ? 12 : 0);
-  return `${String(hour).padStart(2, '0')}:${match[2]}`;
 }
 
 export function ExpectedStartControl({

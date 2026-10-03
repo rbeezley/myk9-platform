@@ -178,6 +178,8 @@ describe('EntryManagementPage at /secretary/entries, where the URL names no show
     expect(
       await screen.findByRole('button', { name: /add entry for someone else/i })
     ).toBeDisabled();
-    expect(screen.getByText('Trial secretary access only')).toBeInTheDocument();
+    // The late-entry door (moved here by MYK9-954) carries the same gate.
+    expect(screen.getByRole('button', { name: /add late entry/i })).toBeDisabled();
+    expect(screen.getAllByText('Trial secretary access only')).toHaveLength(2);
   });
 });

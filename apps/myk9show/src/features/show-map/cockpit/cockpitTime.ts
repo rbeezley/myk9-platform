@@ -49,3 +49,43 @@ export function instantToClockTime(value: string | null | undefined, timeZone: s
   const parts = partsFor(instant, timeZone);
   return `${String(parts.hour).padStart(2, '0')}:${String(parts.minute).padStart(2, '0')}`;
 }
+
+/** A class's scheduled start ("9:30 AM" or "14:00") as a 24-hour "HH:MM", or ''. */
+export function scheduledClockValue(value: string | null): string {
+  const match = value?.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+  if (!match) return '';
+  let hour = Number(match[1]);
+  const meridiem = match[3]?.toUpperCase();
+  if (meridiem) hour = (hour % 12) + (meridiem === 'PM' ? 12 : 0);
+  return `${String(hour).padStart(2, '0')}:${match[2]}`;
+}
+
+/**
+ * Whole minutes the revised expected start runs behind the scheduled start, or
+ * `null` when the class is not running late (no revision, earlier, or no
+ * scheduled time to compare against).
+ */
+export function getStartDelayMinutes({
+  scheduledStart,
+  revisedExpectedStart,
+  trialDate,
+  timeZone,
+}: {
+  scheduledStart: string | null;
+  revisedExpectedStart: string | null;
+  trialDate: string;
+  timeZone: string;
+}): number | null {
+  const scheduledClock = scheduledClockValue(scheduledStart);
+  if (!revisedExpectedStart || !scheduledClock) return null;
+  let scheduledInstant: string;
+  try {
+    scheduledInstant = clockTimeToInstant(trialDate, scheduledClock, timeZone);
+  } catch {
+    return null;
+  }
+  const minutes = Math.round(
+    (new Date(revisedExpectedStart).getTime() - new Date(scheduledInstant).getTime()) / 60_000
+  );
+  return Number.isFinite(minutes) && minutes > 0 ? minutes : null;
+}

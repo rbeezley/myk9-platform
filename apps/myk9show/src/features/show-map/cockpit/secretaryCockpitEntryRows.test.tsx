@@ -146,6 +146,7 @@ describe('cockpit entry rows carry the stranded actions', () => {
     const onCommand = vi.fn();
     const { unmount } = render(
       <SecretaryCockpitFocusedClass
+        showId="show-1"
         focused={focused}
         sourceClass={snapshot.classes[0] ?? null}
         trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
@@ -167,6 +168,7 @@ describe('cockpit entry rows carry the stranded actions', () => {
     // An exhibitor-facing render must not get the manager control.
     render(
       <SecretaryCockpitFocusedClass
+        showId="show-1"
         focused={focused}
         sourceClass={snapshot.classes[0] ?? null}
         trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}

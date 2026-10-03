@@ -16,8 +16,22 @@ import { cn } from '@/lib/utils';
 import { loadOpenToolIds, saveOpenToolIds } from './showDeskToolsState';
 import type { ShowDeskActionableTone } from './showDeskActionable';
 
+/**
+ * The two Tools groups (owner, 2026-10-02 — MYK9-954). Every other job the
+ * sheet used to hold now lives where the work happens: Add entries on Entries,
+ * Show closeout as Results step 3, the delay script on the class's expected
+ * start. A tool must name its group, so a new one cannot land ungrouped.
+ */
+const SHOW_DESK_TOOL_GROUPS = [
+  { id: 'show-day', label: 'Show day' },
+  { id: 'show-logistics', label: 'Show logistics' },
+] as const;
+
+export type ShowDeskToolGroupId = (typeof SHOW_DESK_TOOL_GROUPS)[number]['id'];
+
 export interface ShowDeskToolSection {
   id: string;
+  group: ShowDeskToolGroupId;
   title: string;
   summary: string;
   content: ReactNode;
@@ -175,7 +189,7 @@ function ShowDeskToolsSheetContent({
       <SheetHeader className="border-b px-6 py-4 text-left">
         <SheetTitle>Show Desk tools</SheetTitle>
         <SheetDescription>
-          Entries, people lookup, hospitality, incidents, delay scripts, tasks, and access codes.
+          Show-day lookups and codes, plus volunteers, hospitality, tasks, and incidents.
         </SheetDescription>
       </SheetHeader>
       <ShowDeskToolSections
@@ -212,46 +226,61 @@ function ShowDeskToolSections({
     });
   };
 
-  return (
-    <div className="flex-1 space-y-3 overflow-y-auto px-6 py-4">
-      {tools.map(tool => {
-        const isOpen = openToolIds.has(tool.id) || tool.id === requestedToolId;
+  const renderTool = (tool: ShowDeskToolSection) => {
+    const isOpen = openToolIds.has(tool.id) || tool.id === requestedToolId;
 
-        return (
-          <Collapsible
-            key={tool.id}
-            open={isOpen}
-            onOpenChange={open => toggleTool(tool.id, open)}
-            className="rounded-md border bg-background"
+    return (
+      <Collapsible
+        key={tool.id}
+        open={isOpen}
+        onOpenChange={open => toggleTool(tool.id, open)}
+        className="rounded-md border bg-background"
+      >
+        <CollapsibleTrigger asChild>
+          <button
+            type="button"
+            className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           >
-            <CollapsibleTrigger asChild>
-              <button
-                type="button"
-                className="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
-              >
-                <ChevronRight
-                  className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', {
-                    'rotate-90': isOpen,
-                  })}
-                  aria-hidden="true"
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="block font-medium leading-none text-foreground">
-                    {tool.title}
-                  </span>
-                  <span className="mt-1 block text-sm text-muted-foreground">{tool.summary}</span>
-                </span>
-                {tool.attentionLabel && (
-                  <Badge variant="destructive" className="shrink-0">
-                    {tool.attentionLabel}
-                  </Badge>
-                )}
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <div className="border-t p-4">{tool.content}</div>
-            </CollapsibleContent>
-          </Collapsible>
+            <ChevronRight
+              className={cn('h-4 w-4 shrink-0 text-muted-foreground transition-transform', {
+                'rotate-90': isOpen,
+              })}
+              aria-hidden="true"
+            />
+            <span className="min-w-0 flex-1">
+              <span className="block font-medium leading-none text-foreground">{tool.title}</span>
+              <span className="mt-1 block text-sm text-muted-foreground">{tool.summary}</span>
+            </span>
+            {tool.attentionLabel && (
+              <Badge variant="destructive" className="shrink-0">
+                {tool.attentionLabel}
+              </Badge>
+            )}
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="border-t p-4">{tool.content}</div>
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  };
+
+  return (
+    <div className="flex-1 space-y-6 overflow-y-auto px-6 py-4">
+      {SHOW_DESK_TOOL_GROUPS.map(group => {
+        const groupTools = tools.filter(tool => tool.group === group.id);
+        if (groupTools.length === 0) return null;
+        const headingId = `show-desk-tools-group-${group.id}`;
+        return (
+          <section key={group.id} aria-labelledby={headingId} className="space-y-3">
+            <h3
+              id={headingId}
+              className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
+            >
+              {group.label}
+            </h3>
+            {groupTools.map(renderTool)}
+          </section>
         );
       })}
     </div>

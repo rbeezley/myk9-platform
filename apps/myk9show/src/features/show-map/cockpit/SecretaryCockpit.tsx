@@ -47,6 +47,7 @@ export function SecretaryCockpit({
   );
   const focusedPanel = model.focusedClass ? (
     <SecretaryCockpitFocusedClass
+      showId={snapshot.showId}
       focused={model.focusedClass}
       sourceClass={sourceClass}
       trial={trial}

@@ -3,7 +3,6 @@ import {
   buildCloseoutReadiness,
   isShowClosedOut,
   selectCloseoutCascadeTargets,
-  toCloseoutClassSummary,
 } from '../showCloseOutShow';
 
 describe('showCloseOutShow helpers', () => {
@@ -67,32 +66,6 @@ describe('showCloseOutShow helpers', () => {
       showId: 'show-1',
       trialIds: ['trial-open'],
       classIds: ['class-open'],
-    });
-  });
-
-  it('normalizes class summaries from the show workbench shape', () => {
-    expect(
-      toCloseoutClassSummary({
-        id: 'class-1',
-        name: 'Container Novice',
-        element: 'Container',
-        level: 'Novice',
-        section: 'A',
-        judgeName: 'Pat Judge',
-        trialId: 'trial-1',
-        time: '9:00 AM',
-        status: 'In Progress',
-        entryCount: 12,
-        scoredCount: 10,
-        trialDate: '2026-05-01',
-        trialNumber: '1',
-        trialName: 'Trial 1',
-      })
-    ).toEqual({
-      id: 'class-1',
-      status: 'In Progress',
-      entryCount: 12,
-      scoredCount: 10,
     });
   });
 

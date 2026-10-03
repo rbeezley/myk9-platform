@@ -18,7 +18,7 @@ export interface ExhibitorProfile {
   stripe_customer_id: string | null;
   onboarding_completed_at: string | null;
   /** Role onboarding steps finished (MYK9-970); a held role missing here gets its step once. */
-  onboarded_roles: string[];
+  onboarded_roles: string[] | null;
   created_at: string;
   updated_at: string;
   person?: {
@@ -70,7 +70,10 @@ function mapToExhibitorProfile(data: Record<string, unknown>): ExhibitorProfile 
     subscription_expires_at: data.subscription_expires_at as string | null,
     stripe_customer_id: data.stripe_customer_id as string | null,
     onboarding_completed_at: (data.onboarding_completed_at as string | null) ?? null,
-    onboarded_roles: Array.isArray(data.onboarded_roles) ? (data.onboarded_roles as string[]) : [],
+    // null = unknown: the column was not returned (not yet migrated), never "none done".
+    onboarded_roles: Array.isArray(data.onboarded_roles)
+      ? (data.onboarded_roles as string[])
+      : null,
     created_at: (data.created_at as string) || new Date().toISOString(),
     updated_at: (data.updated_at as string) || new Date().toISOString(),
     ...(personData !== undefined && { person: personData }),

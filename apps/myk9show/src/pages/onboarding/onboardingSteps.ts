@@ -42,14 +42,21 @@ export interface OnboardingState {
   /** exhibitor_profiles.onboarding_completed_at is set. */
   baseCompleted: boolean;
   roles: readonly UserRole[];
-  onboardedRoles: readonly string[];
+  /**
+   * exhibitor_profiles.onboarded_roles. `null` means UNKNOWN — the column was
+   * not returned (a database not yet migrated) — and is never read as "no role
+   * step done": an unknown answer must not push staff into a role step (the
+   * MYK9-347 rule for the profile query, applied to this column).
+   */
+  onboardedRoles: readonly string[] | null;
 }
 
 /** Held roles whose step has not been finished, in run order. */
 export function pendingRoleSteps(
   roles: readonly UserRole[],
-  onboardedRoles: readonly string[]
+  onboardedRoles: readonly string[] | null
 ): OnboardingRoleStep[] {
+  if (onboardedRoles === null) return [];
   return ROLE_STEP_ROLES.filter(role => roles.includes(role) && !onboardedRoles.includes(role));
 }
 

@@ -139,7 +139,7 @@ function OnboardingWizard({ user, roles }: { user: User; roles: readonly UserRol
         hasProfile: Boolean(profile),
         baseCompleted,
         roles,
-        onboardedRoles: onboardedRoles ?? [],
+        onboardedRoles: profile ? (onboardedRoles ?? null) : [],
       }),
     [profile, baseCompleted, roles, onboardedRoles]
   );

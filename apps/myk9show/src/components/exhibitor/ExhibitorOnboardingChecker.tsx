@@ -93,7 +93,7 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
       hasProfile: Boolean(profile),
       baseCompleted: Boolean(profile?.onboarding_completed_at),
       roles: latchedRolesRef.current.roles,
-      onboardedRoles: profile?.onboarded_roles ?? [],
+      onboardedRoles: profile ? profile.onboarded_roles : [],
     });
 
     if (steps.length > 0) {

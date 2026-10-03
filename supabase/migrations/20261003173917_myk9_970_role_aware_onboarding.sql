@@ -18,10 +18,16 @@
 --    The value only decides which onboarding screen a user sees, so a user
 --    writing their own array grants nothing.
 --
---    No backfill: existing users who finished exhibitor onboarding keep
---    `onboarding_completed_at`, so they never see profile/dogs again. Staff who
---    were never offered their role step get it once — that is the point of the
---    change (e.g. judges entering their judge numbers).
+--    Backfill (below): an account that already finished onboarding is marked
+--    as having done the role steps for the roles it holds TODAY. Role steps
+--    start from this release: a role gained from now on runs its step once.
+--    Without it every onboarded staff account — including the club's live
+--    secretaries the week of the Oct 10 show and the E2E staff accounts — would
+--    be pulled into onboarding on its next page load. Existing judges lose
+--    nothing: every judge_qualifications row on the live database already has
+--    a judge_number (2 of 2, checked 2026-10-03). Accounts that never finished
+--    onboarding (staff the old flow skipped) are NOT backfilled: they get the
+--    full flow — profile, dogs, their role steps — which is the change.
 --
 -- 2. public.set_my_judge_numbers(p_numbers jsonb)
 --    judge_qualifications writes are staff-only (068 policies; the
@@ -44,6 +50,20 @@ ALTER TABLE public.exhibitor_profiles
 ALTER TABLE public.exhibitor_profiles
   ADD CONSTRAINT exhibitor_profiles_onboarded_roles_known
   CHECK (onboarded_roles <@ ARRAY['judge', 'secretary', 'club_admin']::text[]);
+
+UPDATE public.exhibitor_profiles ep
+SET onboarded_roles = held.roles
+FROM (
+  SELECT p.auth_user_id, array_agg(DISTINCT r.name ORDER BY r.name) AS roles
+  FROM public.people p
+  JOIN public.user_roles ur ON ur.user_id = p.id AND ur.is_active
+  JOIN public.roles r ON r.id = ur.role_id
+  WHERE p.auth_user_id IS NOT NULL
+    AND r.name IN ('judge', 'secretary', 'club_admin')
+  GROUP BY p.auth_user_id
+) AS held
+WHERE ep.auth_user_id = held.auth_user_id
+  AND ep.onboarding_completed_at IS NOT NULL;
 
 COMMENT ON COLUMN public.exhibitor_profiles.onboarded_roles IS
   'Role onboarding steps this account has finished (judge, secretary, club_admin). A held role missing from this array gets its onboarding step once (MYK9-970).';

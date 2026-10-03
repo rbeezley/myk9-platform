@@ -69,6 +69,13 @@ describe('buildOnboardingSteps', () => {
     ).toEqual([]);
   });
 
+  it('never invents role steps when onboarded_roles is unknown (column not returned)', () => {
+    expect(firstRun([UserRole.SECRETARY], { baseCompleted: true, onboardedRoles: null })).toEqual(
+      []
+    );
+    expect(firstRun([UserRole.SECRETARY], { onboardedRoles: null })).toEqual(['dogs', 'welcome']);
+  });
+
   it('skips a role step already recorded even on a first run', () => {
     expect(firstRun([UserRole.JUDGE], { onboardedRoles: ['judge'] })).toEqual(['dogs', 'welcome']);
   });

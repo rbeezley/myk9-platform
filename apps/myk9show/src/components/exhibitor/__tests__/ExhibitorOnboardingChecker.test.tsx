@@ -39,7 +39,7 @@ interface MockSetup {
   profileLoading?: boolean;
   hasProfile?: boolean;
   onboardingCompleted?: boolean;
-  onboardedRoles?: string[];
+  onboardedRoles?: string[] | null;
   profileSettled?: boolean;
   error?: Error | null;
 }
@@ -124,6 +124,14 @@ describe('ExhibitorOnboardingChecker', () => {
 
   it('does not redirect once the role step is recorded', () => {
     setupMocks({ roles: [UserRole.JUDGE, UserRole.EXHIBITOR], onboardedRoles: ['judge'] });
+    renderChecker();
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  // A database without the column returns no onboarded_roles key; the mapper
+  // reports null. Unknown is not "no role step done" (MYK9-347's rule).
+  it('does not redirect an onboarded secretary when onboarded_roles is unknown', () => {
+    setupMocks({ roles: [UserRole.SECRETARY], onboardedRoles: null });
     renderChecker();
     expect(mockNavigate).not.toHaveBeenCalled();
   });

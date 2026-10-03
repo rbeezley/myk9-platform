@@ -12,6 +12,8 @@ import { ShowStatusPill } from '@/components/shows/ShowStatusPill';
 import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
 import { ShowPresenceStack } from '@/features/show-presence/ShowPresenceStack';
 import { LiveUpdateIndicator } from '@/features/show-live-sync/LiveUpdateIndicator';
+import { OfflineReadyBadge } from '@/features/offline-readiness/OfflineReadyBadge';
+import { ShowSyncStatus } from '@/components/shows/ShowDetails/ShowSyncStatus';
 import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
 import { LandingPageCard } from '@/features/premium/LandingPageCard';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
@@ -248,6 +250,9 @@ function AuthorizedShowManagementShell({
             metadata={[]}
             headerActions={
               <>
+                {/* Offline readiness and "Save now" (MYK9-957: was on Show Day). */}
+                <ShowSyncStatus />
+                <OfflineReadyBadge showId={show.id} />
                 <LiveUpdateIndicator />
                 <ShowPresenceStack />
                 <span id={SHOW_STATUS_CONTROL_ANCHOR} className="scroll-mt-20">

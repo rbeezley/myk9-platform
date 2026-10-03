@@ -112,6 +112,14 @@ vi.mock('@/features/show-presence/ShowPresenceStack', () => ({
 vi.mock('@/features/show-live-sync/LiveUpdateIndicator', () => ({
   LiveUpdateIndicator: () => <div data-testid="live-indicator" />,
 }));
+vi.mock('@/features/offline-readiness/OfflineReadyBadge', () => ({
+  OfflineReadyBadge: ({ showId }: { showId: string }) => (
+    <div data-testid="offline-ready-badge" data-show-id={showId} />
+  ),
+}));
+vi.mock('@/components/shows/ShowDetails/ShowSyncStatus', () => ({
+  ShowSyncStatus: () => <div data-testid="sync-status" />,
+}));
 vi.mock('@/features/premium/PremiumDownloadCard', () => ({
   PremiumDownloadCard: ({ canManageShow }: { canManageShow: boolean }) => (
     <div data-testid="premium-download-card" data-can-manage={String(canManageShow)} />
@@ -296,6 +304,15 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('presence-stack')).toBeInTheDocument();
     expect(screen.getByTestId('live-indicator')).toBeInTheDocument();
     expect(screen.getByTestId('status-pill')).toBeInTheDocument();
+  });
+
+  // Codex P2 on MYK9-957: these lived in the deleted Show Day compact context.
+  // The badge's "Save now" is the only on-page way to hydrate a device before
+  // it goes offline, so the home must carry it.
+  it('mounts offline readiness and the sync status on the show home', () => {
+    renderShell();
+    expect(screen.getByTestId('offline-ready-badge')).toHaveAttribute('data-show-id', 'show-1');
+    expect(screen.getByTestId('sync-status')).toBeInTheDocument();
   });
 
   it('carries no visible page-level action button: Edit show lives in the Actions menu (MYK9-928)', () => {

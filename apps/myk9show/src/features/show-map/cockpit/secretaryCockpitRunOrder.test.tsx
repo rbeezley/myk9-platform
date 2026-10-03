@@ -90,6 +90,7 @@ function renderPanel(overrides: Record<string, unknown> = {}) {
   const onAutoSort = vi.fn();
   render(
     <SecretaryCockpitFocusedClass
+      showId="show-1"
       focused={FOCUSED}
       sourceClass={SOURCE_CLASS}
       trial={TRIAL}
@@ -141,6 +142,7 @@ describe('run order is reachable from the focused-class panel', () => {
     const onAutoSort = vi.fn();
     render(
       <SecretaryCockpitFocusedClass
+        showId="show-1"
         focused={{ ...FOCUSED, entryRows: [] }}
         sourceClass={{ ...SOURCE_CLASS, entryCount: 8 }}
         trial={TRIAL}

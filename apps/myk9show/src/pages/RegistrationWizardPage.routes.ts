@@ -19,7 +19,8 @@ export function resolveRegistrationExitPath(
   isLateEntryMode: boolean
 ): string | null {
   if (!isLateEntryMode) return null;
-  return `/shows/${encodeURIComponent(showId)}/show-day`;
+  // The late-entry door lives on Entries (MYK9-954), so that is where it returns.
+  return `/shows/${encodeURIComponent(showId)}/entries`;
 }
 
 /**
@@ -39,11 +40,11 @@ export function resolveRegistrationExit(
   showId: string,
   opts: { isLateEntryMode: boolean; isInsideSidebar: boolean }
 ): RegistrationExitTarget {
-  // Secretary show-desk late-entry: return to the Show Desk it launched from.
+  // Secretary late entry: return to Entries, where the door lives (MYK9-954).
   if (opts.isLateEntryMode) {
     return {
-      path: `/shows/${encodeURIComponent(showId)}/show-day`,
-      label: 'Back to Show Desk',
+      path: resolveRegistrationExitPath(showId, true),
+      label: 'Back to Entries',
     };
   }
   // Exhibitor self-service: they arrived from the public show page. Navigate
@@ -59,6 +60,9 @@ export function resolveRegistrationExit(
   // secretary surface, so fall back to history and keep the label generic.
   return { path: null, label: 'Back' };
 }
+
+/** The staff receipt's done button: late entry and mail-in both finish on Entries. */
+export const STAFF_RECEIPT_DONE_LABEL = 'Return to Entry Management';
 
 export function resolveRegistrationCompletionPath(
   showId: string,

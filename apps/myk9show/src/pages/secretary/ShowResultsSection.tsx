@@ -6,26 +6,29 @@ import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 
 const ResultsControlPage = lazy(() => import('@/pages/secretary/ResultsControlPage'));
 const ResultsSubmissionPage = lazy(() => import('@/pages/secretary/ResultsSubmissionPage'));
+const ShowCloseStep = lazy(() => import('@/pages/secretary/ShowCloseStep'));
 
 const RESULTS_STEPS = [
   { id: 'release', label: 'Review & release' },
   { id: 'submit', label: 'Submit to registry' },
+  { id: 'close', label: 'Close the show' },
 ] as const;
 
 type ResultsStepId = (typeof RESULTS_STEPS)[number]['id'];
 
 function resolveResultsStep(raw: string | null): ResultsStepId {
-  return raw === 'submit' ? 'submit' : 'release';
+  return RESULTS_STEPS.find(item => item.id === raw)?.id ?? 'release';
 }
 
 /**
  * The Results tab (MYK9-630 phase 2). Submit Results stopped being a peer of
  * Results and became the second STEP of it: a secretary reviews and releases,
  * then submits to the registry, and the old `/submit-results` URL redirects to
- * `?step=submit` here.
+ * `?step=submit` here. Show Day's closeout became the third step,
+ * `?step=close` (MYK9-954).
  *
- * Both steps are the existing pages, mounted unchanged — links, not
- * re-implementations. This file owns nothing but which of the two is showing.
+ * Every step is an existing page or card, mounted unchanged — links, not
+ * re-implementations. This file owns nothing but which step is showing.
  */
 export default function ShowResultsSection() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -66,7 +69,13 @@ export default function ShowResultsSection() {
         })}
       </div>
       <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
-        {step === 'submit' ? <ResultsSubmissionPage /> : <ResultsControlPage />}
+        {step === 'submit' ? (
+          <ResultsSubmissionPage />
+        ) : step === 'close' ? (
+          <ShowCloseStep />
+        ) : (
+          <ResultsControlPage />
+        )}
       </Suspense>
     </div>
   );

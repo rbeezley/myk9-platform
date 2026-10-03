@@ -110,6 +110,12 @@ vi.mock('@/hooks/queries/useTrialEntries', () => ({
   useTrialEntries: () => ({ data: [], isLoading: false }),
 }));
 vi.mock('@/services/AuditService', () => ({ auditService: { log: vi.fn() } }));
+vi.mock('@/services/database/day-of-operations', () => ({
+  getClassesWithCapacity: vi.fn(async () => ({
+    data: [{ class_id: 'class-1', available_spots: 2 }],
+    error: null,
+  })),
+}));
 
 /**
  * Mounted at the page's REAL path. The show id has to come from the route for
@@ -185,7 +191,11 @@ describe('EntryManagementPage derives its gate from the one manage scope', () =>
     expect(
       await screen.findByRole('button', { name: /add entry for someone else/i })
     ).toBeDisabled();
-    expect(screen.getByText('Trial secretary access only')).toBeInTheDocument();
+    // MYK9-954: the late-entry door moved here from Show Day's Tools with the
+    // same gate (`/secretary/register/:id` is secretary-only).
+    expect(screen.getByRole('button', { name: /add late entry/i })).toBeDisabled();
+    // One reason per control, so a focused button has its own description.
+    expect(screen.getAllByText('Trial secretary access only')).toHaveLength(2);
     // The exhibitor wizard carries no role requirement, so this one stays live.
     expect(screen.getByRole('button', { name: /add entry for my dog/i })).toBeEnabled();
   });
@@ -199,6 +209,10 @@ describe('EntryManagementPage derives its gate from the one manage scope', () =>
     expect(
       await screen.findByRole('button', { name: /add entry for someone else/i })
     ).toBeEnabled();
+    // All three doors Show Day's "Add entries" tool offered live here now.
+    expect(screen.getByRole('button', { name: /add entry for my dog/i })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Late entry' })).toBeInTheDocument();
+    expect(await screen.findByText('1 class with space')).toBeInTheDocument();
     expect(screen.queryByText('Trial secretary access only')).toBeNull();
   });
 

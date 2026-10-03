@@ -3,7 +3,6 @@ import {
   buildCloseoutReadiness,
   isShowClosedOut,
   selectCloseoutCascadeTargets,
-  toCloseoutClassSummary,
 } from '../showCloseOutShow';
 
 describe('showCloseOutShow helpers', () => {
@@ -48,6 +47,21 @@ describe('showCloseOutShow helpers', () => {
     ).toEqual({ hasConcerns: false, concerns: [] });
   });
 
+  // Codex review of #2681: holding the close until both reads succeed stranded
+  // an offline secretary; reading them as empty hid open incidents. Unread is
+  // listed as its own concern, and the close stays available.
+  it('lists unread incidents and submissions as concerns instead of claiming none', () => {
+    expect(
+      buildCloseoutReadiness({ classes: [], entries: [], incidents: null, submissions: null })
+    ).toEqual({
+      hasConcerns: true,
+      concerns: [
+        'Result submissions could not be checked, so whether results were sent is unknown.',
+        'The incident log could not be checked, so open reportable incidents are unknown.',
+      ],
+    });
+  });
+
   it('selects only open show hierarchy rows for cascade', () => {
     expect(
       selectCloseoutCascadeTargets({
@@ -67,32 +81,6 @@ describe('showCloseOutShow helpers', () => {
       showId: 'show-1',
       trialIds: ['trial-open'],
       classIds: ['class-open'],
-    });
-  });
-
-  it('normalizes class summaries from the show workbench shape', () => {
-    expect(
-      toCloseoutClassSummary({
-        id: 'class-1',
-        name: 'Container Novice',
-        element: 'Container',
-        level: 'Novice',
-        section: 'A',
-        judgeName: 'Pat Judge',
-        trialId: 'trial-1',
-        time: '9:00 AM',
-        status: 'In Progress',
-        entryCount: 12,
-        scoredCount: 10,
-        trialDate: '2026-05-01',
-        trialNumber: '1',
-        trialName: 'Trial 1',
-      })
-    ).toEqual({
-      id: 'class-1',
-      status: 'In Progress',
-      entryCount: 12,
-      scoredCount: 10,
     });
   });
 

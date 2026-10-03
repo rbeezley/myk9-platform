@@ -1,7 +1,5 @@
 import { lazy, Suspense, useMemo } from 'react';
-import { FileBarChart, ListChecks, Send } from 'lucide-react';
-import { Link, useParams } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
+import { useParams } from 'react-router-dom';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
@@ -13,17 +11,8 @@ import { ShowAccessCodesCard } from '@/components/secretary/ShowAccessCodesCard'
 import { JudgeHospitalityCard } from '@/features/show-workbench/JudgeHospitalityCard';
 import { IncidentLogCard } from '@/features/show-workbench/IncidentLogCard';
 import { EmergencyTrialPacketTool } from '@/features/emergency-trial-packet/EmergencyTrialPacketTool';
-import { SecretaryAddEntriesDecision } from '@/features/registration/SecretaryAddEntriesDecision';
-import { ScheduleSlipScriptCard } from '@/features/show-workbench/ScheduleSlipScriptCard';
 import { TasksNotesCard } from '@/features/show-workbench/TasksNotesCard';
 import { VolunteersCard } from '@/features/show-workbench/VolunteersCard';
-import { WorkbenchLateEntryAction } from '@/features/show-workbench/WorkbenchLateEntryAction';
-import { ShowCloseoutSummary } from '@/features/show-workbench/ShowCloseoutSummary';
-import { CloseOutShowAction } from '@/features/show-workbench/CloseOutShowAction';
-import {
-  toCloseoutClassSummary,
-  type CloseoutTrialSummary,
-} from '@/features/show-workbench/showCloseOutShow';
 import { ShowDeskPeopleRoster } from '@/features/show-desk-people-roster/ShowDeskPeopleRoster';
 import { SHOW_DESK_PEOPLE_AT_SHOW_TOOL_ID } from '@/features/show-desk-people-roster/peopleRosterRoutes';
 import { SelfCheckinTool } from '@/features/show-workbench/SelfCheckinTool';
@@ -49,8 +38,7 @@ import {
   tallyEntriesByClass,
 } from './showDeskEntryAvailability';
 import { ShowDeskEntriesUnavailable } from './ShowDeskEntriesUnavailable';
-import type { ShowDayReconciliationEntry } from '@/features/show-workbench/showDayReconciliationSummary';
-import { useShowDeskCollectionWindow } from './useShowDeskCollectionWindow';
+import { ShowDeskEntriesFailed } from './ShowDeskEntriesFailed';
 import type { ShowMapEntryInput } from '@/features/show-map/showMapTypes';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
 import { isValidUUID } from '@/utils/validation';
@@ -95,20 +83,16 @@ export function ShowWorkbenchShowDeskPage() {
     isEnabled: Boolean(showId),
   });
   const showMapEntries = showEntries as unknown as ShowMapEntryInput[];
-  // No cast: SecretaryEntry must carry every field the closeout card reads.
-  const reconciliationEntries: ShowDayReconciliationEntry[] = showEntries;
   const { data: showJudgeRoster = [] } = useShowJudges(showId);
   // "May this viewer OPERATE this show?" — strictly narrower than "may they
-  // manage it". Three controls on this page route into
-  // `ProtectedRoute(SECRETARY | SITE_ADMIN)` paths (`/secretary/register/:id`
-  // twice, `/secretary/volunteers` once), so for a club admin — whom MYK9-630
-  // phase 3 puts on this tab — they were enabled buttons that dead-ended on a
-  // bare "You don't have permission to access this page." wall. Same gate and
-  // same one-line reason the header Actions menu already uses for the identical
-  // mail-in item, so the two doors to one action cannot disagree.
+  // manage it". Volunteers routes into a `ProtectedRoute(SECRETARY |
+  // SITE_ADMIN)` path (`/secretary/volunteers`), so for a club admin — whom
+  // MYK9-630 phase 3 puts on this tab — it was an enabled button that dead-ended
+  // on a bare "You don't have permission to access this page." wall. Same gate
+  // and same one-line reason the header Actions menu uses, so the two doors to
+  // one action cannot disagree.
   const manageScope = useShowManageScope(showId);
   const secretaryOnlyReason = trialSecretaryOnlyReason(manageScope);
-  const canOperateShow = secretaryOnlyReason === undefined;
   const { data: resultSubmissions = [] } = useResultSubmissions(showId || '');
 
   const entryTallies = useMemo(() => tallyEntriesByClass(showEntries), [showEntries]);
@@ -155,20 +139,6 @@ export function ShowWorkbenchShowDeskPage() {
         }));
       }),
     [associatedTrials, entriesKnown, entryTallies, trialClasses]
-  );
-  const closeoutClasses = useMemo(() => showClasses.map(toCloseoutClassSummary), [showClasses]);
-  const deskWindow = useShowDeskCollectionWindow(
-    currentShow?.startDate,
-    currentShow?.endDate,
-    associatedTrials
-  );
-  const closeoutTrials = useMemo<CloseoutTrialSummary[]>(
-    () =>
-      associatedTrials.map(trial => ({
-        id: trial.id,
-        status: trial.status,
-      })),
-    [associatedTrials]
   );
 
   const showMapTrials = useMemo(() => {
@@ -268,12 +238,14 @@ export function ShowWorkbenchShowDeskPage() {
     [hospitalityReminderCount, incidentsKnown, incidentSummary.reportableCount, tasksOpenCount]
   );
 
+  // The order inside each group is the order in the sheet (MYK9-954).
   const showDeskTools = useMemo<ShowDeskToolSection[]>(() => {
     if (!currentShow) return [];
 
     return [
       {
         id: SHOW_DESK_PEOPLE_AT_SHOW_TOOL_ID,
+        group: 'show-day',
         title: 'People at show',
         summary: 'Look up exhibitors, armbands, class entries, and check-in status',
         layout: 'wide',
@@ -290,6 +262,7 @@ export function ShowWorkbenchShowDeskPage() {
       },
       {
         id: 'self-checkin',
+        group: 'show-day',
         title: 'Self check-in',
         summary: 'Control exhibitor self check-in by show, trial, or class',
         layout: 'wide',
@@ -308,42 +281,52 @@ export function ShowWorkbenchShowDeskPage() {
         ),
       },
       {
-        id: 'add-entries',
-        title: 'Add entries',
-        summary: "Choose your own dog, someone else's, or a late entry without leaving Show Desk",
-        // Open on arrival for the trial secretary, whose show day this is.
-        // Collapsed for a manager who is not one: two of its three controls are
-        // greyed for them, and a section that opens onto mostly-disabled
-        // buttons reads as a broken page rather than as a permission.
-        defaultOpen: canOperateShow,
+        id: 'access-codes',
+        group: 'show-day',
+        title: 'Access codes',
+        summary: 'Share judge and ringside entry codes',
         content: (
-          <div className="flex flex-col gap-3">
-            <SecretaryAddEntriesDecision
-              showId={currentShow.id}
-              mailInDisabledReason={secretaryOnlyReason}
-            />
-            <WorkbenchLateEntryAction
-              showId={currentShow.id}
-              disabledReason={secretaryOnlyReason}
-            />
-          </div>
+          <ShowAccessCodesCard
+            showId={currentShow.id}
+            showName={currentShow.name}
+            showDate={currentShow.startDate}
+            canLoadCodes
+            canRegenerate
+          />
         ),
       },
       {
         id: 'emergency-trial-packet',
+        group: 'show-day',
         title: 'Emergency trial packet',
         summary: 'Prepare or confirm the printed paper fallback for this show',
         layout: 'wide',
         content: <EmergencyTrialPacketTool show={currentShow} />,
       },
       {
+        id: 'volunteers',
+        group: 'show-logistics',
+        title: 'Volunteers',
+        summary: 'Track helper assignments and gaps',
+        content: <VolunteersCard showId={currentShow.id} disabledReason={secretaryOnlyReason} />,
+      },
+      {
         id: 'judge-hospitality',
+        group: 'show-logistics',
         title: 'Judge hospitality',
         summary: 'Track judge meals, breaks, and show-day notes',
         content: <JudgeHospitalityCard showId={currentShow.id} judges={hospitalityJudges} />,
       },
       {
+        id: 'tasks-notes',
+        group: 'show-logistics',
+        title: 'Tasks and notes',
+        summary: 'Keep show-specific reminders together',
+        content: <TasksNotesCard showId={currentShow.id} clubId={currentShow.clubId} />,
+      },
+      {
         id: 'incident-log',
+        group: 'show-logistics',
         title: 'Incident log',
         summary: 'Record incidents while details are fresh',
         ...(incidentAttentionLabel !== undefined && {
@@ -361,103 +344,15 @@ export function ShowWorkbenchShowDeskPage() {
           />
         ),
       },
-      {
-        id: 'schedule-slip',
-        title: 'Schedule slip script',
-        summary: 'Draft calm wording for schedule changes',
-        content: (
-          <ScheduleSlipScriptCard
-            showId={currentShow.id}
-            showName={currentShow.name}
-            defaultClassName={showClasses[0]?.name ?? ''}
-          />
-        ),
-      },
-      {
-        id: 'access-codes',
-        title: 'Access codes',
-        summary: 'Share judge and ringside entry codes',
-        content: (
-          <ShowAccessCodesCard
-            showId={currentShow.id}
-            showName={currentShow.name}
-            showDate={currentShow.startDate}
-            canLoadCodes
-            canRegenerate
-          />
-        ),
-      },
-      {
-        id: 'volunteers',
-        title: 'Volunteers',
-        summary: 'Track helper assignments and gaps',
-        content: <VolunteersCard showId={currentShow.id} disabledReason={secretaryOnlyReason} />,
-      },
-      {
-        id: 'tasks-notes',
-        title: 'Tasks and notes',
-        summary: 'Keep show-specific reminders together',
-        content: <TasksNotesCard showId={currentShow.id} clubId={currentShow.clubId} />,
-      },
-      {
-        id: 'show-closeout',
-        title: 'Show closeout',
-        summary: 'Verify final work and close the Show',
-        layout: 'wide',
-        content: (
-          <div className="space-y-4">
-            <ShowCloseoutSummary
-              showId={currentShow.id}
-              entries={reconciliationEntries}
-              deskWindow={deskWindow}
-            />
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
-                <Link to={`/shows/${currentShow.id}/results`}>
-                  <ListChecks className="h-5 w-5" />
-                  <span className="text-left">Results</span>
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
-                <Link to={`/shows/${currentShow.id}/reports`}>
-                  <FileBarChart className="h-5 w-5" />
-                  <span className="text-left">Reports</span>
-                </Link>
-              </Button>
-              <Button asChild variant="outline" className="h-auto justify-start gap-3 p-4">
-                <Link to={`/shows/${currentShow.id}/results?step=submit`}>
-                  <Send className="h-5 w-5" />
-                  <span className="text-left">Submit results</span>
-                </Link>
-              </Button>
-            </div>
-            <CloseOutShowAction
-              show={{ id: currentShow.id, status: currentShow.status }}
-              trials={closeoutTrials}
-              classes={closeoutClasses}
-              entries={reconciliationEntries}
-              incidents={incidentSummary}
-              submissions={resultSubmissions}
-            />
-          </div>
-        ),
-      },
     ];
   }, [
     associatedTrials,
-    canOperateShow,
     currentShow,
-    closeoutClasses,
-    closeoutTrials,
-    deskWindow,
     effectiveJudges,
     hospitalityJudges,
     incidentAttentionLabel,
     incidentEntryOptions,
-    incidentSummary,
-    reconciliationEntries,
     refetchShowEntries,
-    resultSubmissions,
     showClasses,
     showEntries,
     showEntriesError,
@@ -490,22 +385,10 @@ export function ShowWorkbenchShowDeskPage() {
   // both these branches promises not to do.
   if (showEntriesIsError && showEntries.length === 0) {
     return (
-      <div className="rounded-md border border-destructive/40 bg-destructive/5 p-4 text-sm">
-        <p className="font-medium text-destructive">Couldn't load show entries.</p>
-        <p className="mt-1 text-muted-foreground">
-          Entry counts, People at show, Show Map, and closeout are paused so they do not show a
-          false zero-entry state.
-        </p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="mt-3"
-          onClick={() => void refetchShowEntries()}
-        >
-          Retry
-        </Button>
-      </div>
+      <ShowDeskEntriesFailed
+        pausedWhat="Entry counts, People at show, and Show Map are"
+        onRetry={() => void refetchShowEntries()}
+      />
     );
   }
 

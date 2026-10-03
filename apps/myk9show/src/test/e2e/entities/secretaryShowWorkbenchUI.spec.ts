@@ -61,13 +61,10 @@ test.describe('Secretary show management UI', () => {
     await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}/show-day`));
     const toolsPanel = await openToolsPanel(page);
     await expect(toolsPanel.getByRole('button', { name: /Message Show/i })).toHaveCount(0);
-    await expect(toolsPanel.getByRole('button', { name: /Add entries/i })).toBeVisible();
-    await expect(toolsPanel.getByRole('group', { name: 'Add entries' })).toBeVisible();
-    await expect(toolsPanel.getByRole('button', { name: 'Add entry for my dog' })).toBeVisible();
-    await expect(
-      toolsPanel.getByRole('button', { name: 'Add entry for someone else' })
-    ).toBeVisible();
-    await expect(toolsPanel.getByRole('button', { name: 'Add late entry' })).toBeVisible();
+    // MYK9-954: two groups; Add entries moved to the Entries tab.
+    await expect(toolsPanel.getByRole('heading', { name: 'Show day' })).toBeVisible();
+    await expect(toolsPanel.getByRole('heading', { name: 'Show logistics' })).toBeVisible();
+    await expect(toolsPanel.getByRole('button', { name: /Add entries/i })).toHaveCount(0);
     await toolsPanel.getByRole('button', { name: /close/i }).click();
     await expectWorkbenchSection(page, 'Show status');
     await expectWorkbenchSection(page, 'Pending signals');
@@ -92,13 +89,9 @@ test.describe('Secretary show management UI', () => {
     await incidentLog.getByRole('button', { name: /Reset/i }).click();
     await expect(saveIncident).toBeDisabled();
 
-    await toolsPanel.getByRole('button', { name: /Delay scripts/i }).click();
-    const scheduleDelay = toolsPanel.getByRole('region', { name: 'Schedule delay script' });
-    await scheduleDelay.getByLabel('Delay minutes').fill('20');
-    await scheduleDelay.getByLabel('Affected class').fill('Container Novice A');
-    await expect(scheduleDelay.getByLabel('PA script')).toContainText('20 minutes');
-    await expect(scheduleDelay.getByRole('button', { name: /Copy script/i })).toBeVisible();
-    await expect(scheduleDelay.getByRole('button', { name: /Post announcement/i })).toBeVisible();
+    // MYK9-954: the delay script moved to the class panel's "Announce the
+    // delay", offered once a class's expected start runs late; covered by
+    // SecretaryCockpitFocusedClass.test.tsx.
 
     await expectBrowserHealthClean(testInfo);
   });
@@ -115,13 +108,13 @@ async function openShowSetup(page: Page) {
 async function openShowDesk(page: Page) {
   await signInAsSecretary(page, `/shows/${SHOW_ID}/show-day`);
   await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}/show-day`));
-  await expect(page.getByRole('button', { name: /open tools panel/i })).toBeVisible({
+  await expect(page.getByRole('button', { name: /^Tools/ })).toBeVisible({
     timeout: 15000,
   });
 }
 
 async function openToolsPanel(page: Page) {
-  await page.getByRole('button', { name: /open tools panel/i }).click();
+  await page.getByRole('button', { name: /^Tools/ }).click();
   const toolsPanel = page.getByRole('dialog', { name: /show desk tools/i });
   await expect(toolsPanel).toBeVisible({ timeout: 10000 });
   return toolsPanel;

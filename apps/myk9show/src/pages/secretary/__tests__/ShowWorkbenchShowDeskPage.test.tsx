@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -122,7 +122,7 @@ vi.mock('@/features/show-map/ShowDeskPanel', () => ({
   }: {
     entries: unknown[];
     classes: Array<{ entryCount: number; scoredCount: number }>;
-    tools: Array<{ id: string; content: ReactNode; defaultOpen?: boolean }>;
+    tools: Array<{ id: string; group: string; content: ReactNode; defaultOpen?: boolean }>;
   }) => (
     <div data-testid="show-desk-panel">
       <div data-testid="panel-entry-count">{entries.length}</div>
@@ -132,17 +132,20 @@ vi.mock('@/features/show-map/ShowDeskPanel', () => ({
       <div data-testid="panel-class-scored-counts">
         {classes.map(cls => cls.scoredCount).join(',')}
       </div>
-      {/* The three this file already exercised, PLUS the two that carry
-          secretary-only destinations. A mock that renders a subset can only
+      {/* The two this file already exercised, PLUS the one that carries a
+          secretary-only destination. A mock that renders a subset can only
           answer the authorization question for the subset -- which is how the
           add-entries and volunteers controls went ungated for a club admin in
           the first place (REV-2341 P1). Rendering every tool is not an option
           here: several mount heavy children this file does not stub. Each id is
           listed, so adding a tool with a secretary-only link and not listing it
           is a visible omission rather than a silent one. */}
-      {(
-        ['people-at-show', 'self-checkin', 'show-closeout', 'add-entries', 'volunteers'] as const
-      ).map(id => {
+      <ol data-testid="tool-inventory">
+        {tools.map(tool => (
+          <li key={tool.id}>{`${tool.group}:${tool.id}`}</li>
+        ))}
+      </ol>
+      {(['people-at-show', 'self-checkin', 'volunteers'] as const).map(id => {
         const tool = tools.find(item => item.id === id);
         if (!tool) return null;
         return (
@@ -180,12 +183,6 @@ vi.mock('@/features/show-workbench/SelfCheckinTool', () => ({
 
 vi.mock('@/hooks/useShowManageScope', () => ({
   useShowManageScope: () => manageScopeState.value,
-}));
-
-vi.mock('@/features/show-workbench/ShowCloseoutSummary', () => ({
-  ShowCloseoutSummary: ({ entries }: { entries: unknown[] }) => (
-    <div data-testid="closeout-entry-count">{entries.length}</div>
-  ),
 }));
 
 function renderPage(initialEntries?: unknown[]) {
@@ -240,7 +237,7 @@ describe('ShowWorkbenchShowDeskPage', () => {
     expect(screen.queryByTestId('show-desk-panel')).not.toBeInTheDocument();
   });
 
-  it('feeds Show Desk, People roster, and closeout from the same show-scoped entries', async () => {
+  it('feeds Show Desk and People roster from the same show-scoped entries', async () => {
     trialStoreState.trials = [
       {
         id: 'trial-1',
@@ -278,12 +275,33 @@ describe('ShowWorkbenchShowDeskPage', () => {
     expect(screen.getByTestId('panel-class-scored-counts')).toHaveTextContent('3');
     expect(screen.getByTestId('people-roster-entry-count')).toHaveTextContent('8');
     expect(screen.getByTestId('people-roster-class-entry-counts')).toHaveTextContent('8');
-    expect(screen.getByTestId('closeout-entry-count')).toHaveTextContent('8');
     expect(screen.getByTestId('self-checkin-tool')).toHaveTextContent('Self check-in for show-1');
-    expect(screen.getByRole('link', { name: 'Results' })).toHaveAttribute(
-      'href',
-      '/shows/show-1/results'
-    );
+  });
+
+  // MYK9-954: the sheet used to hold eleven tools. Eight stay, in two groups;
+  // three moved to where the work happens, each with its own test there:
+  //   add-entries   -> Entries "Add Entry" (EntryManagementPage.manageGate.test.tsx)
+  //   show-closeout -> Results step 3 "Close the show" (ShowResultsSection.test.tsx)
+  //   schedule-slip -> the class's expected-start change (SecretaryCockpitFocusedClass.test.tsx)
+  it('keeps exactly eight tools in two groups, in sheet order', async () => {
+    getEntriesForShowMock.mockResolvedValue({ data: [], error: null });
+
+    renderPage();
+
+    expect(await screen.findByTestId('show-desk-panel')).toBeInTheDocument();
+    const inventory = within(screen.getByTestId('tool-inventory'))
+      .getAllByRole('listitem')
+      .map(item => item.textContent);
+    expect(inventory).toEqual([
+      'show-day:people-at-show',
+      'show-day:self-checkin',
+      'show-day:access-codes',
+      'show-day:emergency-trial-packet',
+      'show-logistics:volunteers',
+      'show-logistics:judge-hospitality',
+      'show-logistics:tasks-notes',
+      'show-logistics:incident-log',
+    ]);
   });
 
   it('keeps cached Show Desk counts visible when a background refresh fails', async () => {
@@ -395,12 +413,11 @@ describe('ShowWorkbenchShowDeskPage', () => {
   });
   describe('a club admin — manages this show but is not its trial secretary', () => {
     // REV-2341 lens P, P1. MYK9-630 phase 3 puts Show Day in a club admin's
-    // primary nav. Three controls in the page BODY route into
-    // `ProtectedRoute(SECRETARY | SITE_ADMIN)` paths — "Add entry for someone else" and
-    // "Add late entry" (`/secretary/register/:showId`) and "Open volunteer
-    // scheduling" (`/secretary/volunteers`) — and all three were enabled, so a
-    // click landed on a chrome-less "You don't have permission" wall. The header
-    // Actions menu had greyed the identical mail-in item with a reason all along.
+    // primary nav. "Open volunteer scheduling" routes into a
+    // `ProtectedRoute(SECRETARY | SITE_ADMIN)` path (`/secretary/volunteers`)
+    // and was enabled, so a click landed on a chrome-less "You don't have
+    // permission" wall. The two add-entry doors that carried the same gate moved
+    // to Entries with MYK9-954 and are tested there.
     beforeEach(() => {
       manageScopeState.value = {
         status: 'resolved',
@@ -416,8 +433,8 @@ describe('ShowWorkbenchShowDeskPage', () => {
       renderPage();
       expect(await screen.findByTestId('show-desk-panel')).toBeInTheDocument();
 
-      // The generic form of the bug, not three named buttons: nothing the
-      // viewer can actually press may lead somewhere they will be refused.
+      // The generic form of the bug, not a named button: nothing the viewer can
+      // actually press may lead somewhere they will be refused.
       const enabledSecretaryLinks = screen
         .queryAllByRole('link')
         .filter(link => !link.hasAttribute('aria-disabled'))
@@ -425,36 +442,14 @@ describe('ShowWorkbenchShowDeskPage', () => {
         .filter(href => href.startsWith('/secretary/'));
       expect(enabledSecretaryLinks).toEqual([]);
 
-      for (const name of [
-        /add entry for someone else/i,
-        /add late entry/i,
-        /open volunteer scheduling/i,
-      ]) {
-        expect(screen.getByRole('button', { name })).toBeDisabled();
-      }
+      expect(screen.getByRole('button', { name: /open volunteer scheduling/i })).toBeDisabled();
     });
 
     it('says why, in the same sentence the Actions menu uses', async () => {
       renderPage();
       expect(await screen.findByTestId('show-desk-panel')).toBeInTheDocument();
 
-      // Three controls, three reasons — one per control, so a focused button
-      // has its own description rather than a note somewhere on the page.
-      expect(screen.getAllByText('Trial secretary access only')).toHaveLength(3);
-    });
-
-    it('does not open the Add entries section onto mostly-disabled buttons', async () => {
-      renderPage();
-      expect(await screen.findByTestId('show-desk-panel')).toBeInTheDocument();
-
-      expect(screen.getByTestId('tool-add-entries')).toHaveAttribute('data-default-open', 'false');
-    });
-
-    it('keeps "Add entry for my dog" live — that wizard has no role requirement', async () => {
-      renderPage();
-      expect(await screen.findByTestId('show-desk-panel')).toBeInTheDocument();
-
-      expect(screen.getByRole('button', { name: /add entry for my dog/i })).toBeEnabled();
+      expect(screen.getAllByText('Trial secretary access only')).toHaveLength(1);
     });
   });
 
@@ -463,16 +458,14 @@ describe('ShowWorkbenchShowDeskPage', () => {
       getEntriesForShowMock.mockResolvedValue({ data: [], error: null });
     });
 
-    it('gets all three controls live and the Add entries section open', async () => {
+    it('gets volunteer scheduling live', async () => {
       renderPage();
       expect(await screen.findByTestId('show-desk-panel')).toBeInTheDocument();
 
-      expect(screen.getByRole('button', { name: /add entry for someone else/i })).toBeEnabled();
       expect(screen.getByRole('link', { name: /open volunteer scheduling/i })).toHaveAttribute(
         'href',
         expect.stringContaining('/secretary/volunteers')
       );
-      expect(screen.getByTestId('tool-add-entries')).toHaveAttribute('data-default-open', 'true');
       expect(screen.queryByText('Trial secretary access only')).toBeNull();
     });
   });

@@ -56,7 +56,7 @@ The two paths at the add-entry decision point differ by **whose dog**, which rea
 
 ### Modes are not reasons
 
-**Late entry** keeps its name (**"Add late entry"**). It is not a reason for the ordinary action — it is a different operation: it carries its own URL mode, returns to the Show Desk instead of the show page, switches entry creation to the offline-first path, and turns off the client-side fullness check. The secretary needs to know which one they are in. Contrast with "mail-in", which changed nothing about what the software did.
+**Late entry** keeps its name (**"Add late entry"**). It is not a reason for the ordinary action — it is a different operation: it carries its own URL mode, returns to Entries (where its door lives since MYK9-954) instead of the show page, switches entry creation to the offline-first path, and turns off the client-side fullness check. The secretary needs to know which one they are in. Contrast with "mail-in", which changed nothing about what the software did.
 
 Late-entry mode does **not** relax the entry-close deadline. That exemption is RBAC — `getEntryCloseSubmitBlocker` exits early for any non-exhibitor workflow and deliberately ignores the URL flag, since any exhibitor can append it.
 
@@ -71,11 +71,10 @@ Late-entry mode does **not** relax the entry-close deadline. That exemption is R
 | Show page — never entered            | Enter This Show                                      |
 | Show page — already entered          | Add Entry                                            |
 | My Entries → Actions menu            | Add entry                                            |
-| Show Desk — add-entries card         | Add entries                                          |
 | Entries Management — popover trigger | Add entry                                            |
 | …decision point, own dog             | Add entry for my dog                                 |
 | …decision point, on behalf           | Add entry for someone else                           |
-| Show Desk late-entry card            | Late entry / Add late entry                          |
+| Entries popover late-entry card      | Late entry / Add late entry                          |
 | Per-class entries table              | Add Entry                                            |
 | Offline / ringside entry form        | Add Entry                                            |
 | Header + command menu                | Add entry for my dog / Add entry for someone else    |

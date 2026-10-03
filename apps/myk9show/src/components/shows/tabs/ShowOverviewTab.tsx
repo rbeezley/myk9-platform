@@ -114,15 +114,11 @@ export function ShowOverviewTab({
           <ShowOfficials showId={show.id} />
           <JudgesList judges={judges ?? show.assignedJudges} />
           <ShareEvent shareData={shareData} />
-          {isAuthenticated && (
-            <ShowAccessCodesCard
-              showId={show.id}
-              showName={show.name}
-              canLoadCodes
-              // Server authorization determines the visible role union.
-              // Only managers receive the destructive reset control.
-              canRegenerate={canManageShow}
-            />
+          {/* Staff who are not managers (judges, stewards) see the codes the
+              server projects for them. Managers have the full card, with the
+              reset, in Tools -> Show day (MYK9-954), so no second copy here. */}
+          {isAuthenticated && !canManageShow && (
+            <ShowAccessCodesCard showId={show.id} showName={show.name} canLoadCodes />
           )}
         </div>
       </div>

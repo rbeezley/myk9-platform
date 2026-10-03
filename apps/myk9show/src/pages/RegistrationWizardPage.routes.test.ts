@@ -3,6 +3,7 @@ import {
   resolveRegistrationExit,
   resolveRegistrationExitPath,
   resolveRegistrationCompletionPath,
+  STAFF_RECEIPT_DONE_LABEL,
 } from './RegistrationWizardPage.routes';
 
 describe('resolveRegistrationExit (UX walk 4.D — labels tell the truth)', () => {
@@ -14,12 +15,13 @@ describe('resolveRegistrationExit (UX walk 4.D — labels tell the truth)', () =
     expect(target).toEqual({ path: '/shows/show-1', label: 'Back to show' });
   });
 
-  it('show-desk late entry exits to the Show Desk and names it', () => {
+  // MYK9-954: the late-entry door moved from Show Day's Tools to Entries.
+  it('late entry exits to Entries, where it was started, and names it', () => {
     const target = resolveRegistrationExit('show-1', {
       isLateEntryMode: true,
       isInsideSidebar: true,
     });
-    expect(target).toEqual({ path: '/shows/show-1/show-day', label: 'Back to Show Desk' });
+    expect(target).toEqual({ path: '/shows/show-1/entries', label: 'Back to Entries' });
   });
 
   it('secretary "Add entries" falls back to history with a generic label', () => {
@@ -38,7 +40,7 @@ describe('resolveRegistrationExit (UX walk 4.D — labels tell the truth)', () =
       isLateEntryMode: true,
       isInsideSidebar: false,
     });
-    expect(target.label).toBe('Back to Show Desk');
+    expect(target.label).toBe('Back to Entries');
   });
 
   it('encodes the show id in the destination path', () => {
@@ -51,17 +53,28 @@ describe('resolveRegistrationExit (UX walk 4.D — labels tell the truth)', () =
 });
 
 describe('resolveRegistrationExitPath / CompletionPath', () => {
-  it('exit path is null for non-late entry, show-desk for late entry', () => {
+  it('exit path is null for non-late entry, Entries for late entry', () => {
     expect(resolveRegistrationExitPath('s1', false)).toBeNull();
-    expect(resolveRegistrationExitPath('s1', true)).toBe('/shows/s1/show-day');
+    expect(resolveRegistrationExitPath('s1', true)).toBe('/shows/s1/entries');
   });
 
-  it('completion lands on the show page normally, show-desk for late entry', () => {
+  it('completion lands on the show page normally, Entries for late entry', () => {
     expect(resolveRegistrationCompletionPath('s1', false)).toBe('/shows/s1');
-    expect(resolveRegistrationCompletionPath('s1', true)).toBe('/shows/s1/show-day');
+    expect(resolveRegistrationCompletionPath('s1', true)).toBe('/shows/s1/entries');
   });
 
   it('completion returns secretary mail-in entries to Entry Management', () => {
     expect(resolveRegistrationCompletionPath('s1', false, true)).toBe('/shows/s1/entries');
+  });
+});
+
+// Review of #2681: the late-entry receipt still said "Return to Show Desk"
+// after its completion path moved to Entries. Staff receipts now all finish on
+// Entries, so one label names that destination.
+describe('staff receipt label', () => {
+  it('names Entry Management, where both staff completions land', () => {
+    expect(resolveRegistrationCompletionPath('s1', true)).toBe('/shows/s1/entries');
+    expect(resolveRegistrationCompletionPath('s1', false, true)).toBe('/shows/s1/entries');
+    expect(STAFF_RECEIPT_DONE_LABEL).toBe('Return to Entry Management');
   });
 });

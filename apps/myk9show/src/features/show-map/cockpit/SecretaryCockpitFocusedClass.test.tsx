@@ -25,6 +25,9 @@ vi.mock('@/services/replication', () => ({
 }));
 vi.mock('@/lib/undoToast', () => ({ showUndoToast: vi.fn() }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock('@/features/show-workbench/workbenchAnnouncementPost', () => ({
+  useWorkbenchAnnouncementPost: () => ({ postAnnouncement: vi.fn() }),
+}));
 
 const focused: FocusedClassModel = {
   id: 'class-1',
@@ -86,6 +89,7 @@ describe('SecretaryCockpitFocusedClass paperwork', () => {
   it('can explicitly record existing paperwork and offers Undo', async () => {
     const { user } = render(
       <SecretaryCockpitFocusedClass
+        showId="show-1"
         focused={focused}
         sourceClass={sourceClass}
         trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
@@ -144,6 +148,7 @@ describe('SecretaryCockpitFocusedClass paperwork', () => {
     };
     const { user } = render(
       <SecretaryCockpitFocusedClass
+        showId="show-1"
         focused={staleFocused}
         sourceClass={sourceClass}
         trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
@@ -167,6 +172,7 @@ describe('SecretaryCockpitFocusedClass checklist (MYK9-948)', () => {
   function renderChecklist(source: SecretaryCockpitClass, model: FocusedClassModel = focused) {
     return render(
       <SecretaryCockpitFocusedClass
+        showId="show-1"
         focused={model}
         sourceClass={source}
         trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
@@ -232,5 +238,76 @@ describe('SecretaryCockpitFocusedClass checklist (MYK9-948)', () => {
     expect(within(checklist).queryByText('Armband labels')).not.toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Other paperwork' })).toBeInTheDocument();
     expect(screen.getByText('Armband labels')).toBeInTheDocument();
+  });
+});
+
+// MYK9-954: the Tools "Schedule slip script" moved to where the delay is set.
+describe('SecretaryCockpitFocusedClass delay announcement', () => {
+  function renderPanel(source: SecretaryCockpitClass, canManageShow = true) {
+    return render(
+      <SecretaryCockpitFocusedClass
+        showId="show-1"
+        focused={focused}
+        sourceClass={source}
+        trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
+        attention={[]}
+        timeZone="America/Chicago"
+        canManageShow={canManageShow}
+        onCommand={vi.fn()}
+      />
+    );
+  }
+
+  it('opens the delay script on this class and the minutes it runs late', async () => {
+    // 9:00 AM scheduled; revised to 9:45 AM Chicago time.
+    const { user } = renderPanel({
+      ...sourceClass,
+      revisedExpectedStart: '2026-07-20T14:45:00.000Z',
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Announce the delay' }));
+
+    const dialog = screen.getByRole('dialog', { name: 'Announce the delay' });
+    expect(within(dialog).getByLabelText('Affected class')).toHaveValue('Container Novice');
+    expect(within(dialog).getByLabelText('Delay minutes')).toHaveValue('45');
+    expect((within(dialog).getByLabelText('PA script') as HTMLTextAreaElement).value).toContain(
+      'about 45 minutes behind'
+    );
+  });
+
+  it('is not offered when the class is on time, or to a viewer who cannot manage the show', () => {
+    const { unmount } = renderPanel(sourceClass);
+    expect(screen.queryByRole('button', { name: 'Announce the delay' })).toBeNull();
+    unmount();
+
+    renderPanel({ ...sourceClass, revisedExpectedStart: '2026-07-20T14:45:00.000Z' }, false);
+    expect(screen.queryByRole('button', { name: 'Announce the delay' })).toBeNull();
+  });
+
+  it('is offered with editable minutes when the class has no scheduled start', async () => {
+    const { user } = renderPanel({
+      ...sourceClass,
+      scheduledStart: null,
+      revisedExpectedStart: '2026-07-20T14:45:00.000Z',
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Announce the delay' }));
+    const dialog = screen.getByRole('dialog', { name: 'Announce the delay' });
+    expect(within(dialog).getByText(/is running behind\. Set the minutes/)).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Delay minutes')).toHaveValue('30');
+  });
+
+  it('is not offered when a revised start runs early', () => {
+    renderPanel({ ...sourceClass, revisedExpectedStart: '2026-07-20T13:45:00.000Z' });
+    expect(screen.queryByRole('button', { name: 'Announce the delay' })).toBeNull();
+  });
+
+  it('is not offered once the class has started, even with a revised start on record', () => {
+    renderPanel({
+      ...sourceClass,
+      lifecycle: 'in-progress',
+      revisedExpectedStart: '2026-07-20T14:45:00.000Z',
+    });
+    expect(screen.queryByRole('button', { name: 'Announce the delay' })).toBeNull();
   });
 });

@@ -48,13 +48,13 @@ This plan **deletes** two tabs (Show Day, Setup) and one duplicate schedule. The
 
 Each phase is its own PR and leaves the app shippable. Show Day stays reachable until Phase 4, so show-day behavior never depends on an unfinished merge.
 
-### Phase 0 — Decisions (no code; any time)
+### Phase 0 — Decisions (done, owner 2026-10-02, MYK9-953)
 
-1. Owner confirms the four Tools moves (Phase 1 table).
-2. Owner confirms the day picker's default: today on a show day; the first show day before the show; the last show day after it.
-3. Owner confirms what the home shows before the show where Show Day shows time-of-day prompts (the "now" marker and "starts in N minutes" preparation reminders): proposal — hide both unless the selected day is today.
-4. After the test show: note which Show Day tools and filters were actually used at the show. Anything unused is a deletion candidate, not a migration.
-5. Sequence against MYK9-898 (real-secretary observation, MYK9-897): it measures Setup row menus. Either run it before Phase 3 or retarget it at the new home. Owner decides.
+1. **Tools moves:** as in the Phase 1 table (Show closeout to Results step 3; the emergency trial packet stays in Tools → Show day).
+2. **Day picker default:** today on a show day; the first show day before the show; the last show day after it.
+3. **Quiet mode:** hide the "now" marker and the "starts in N minutes" preparation reminders unless the selected day is today.
+4. **Usage audit:** a used/unused checklist of the Show Day tools and filters, ticked at the Oct 6 dress rehearsal (first pass) and the Oct 10 show (second pass). Anything unused is a deletion candidate, not a migration; nothing is deleted without the owner's yes.
+5. **MYK9-898:** retarget the real-secretary observation at the new home instead of the Setup row menus Phase 3 removes, update its task list to match, and run it at the Oct 10 show (Phase 5, MYK9-958).
 
 ### Phase 1 — Slim the Tools (shippable on today's Show Day)
 

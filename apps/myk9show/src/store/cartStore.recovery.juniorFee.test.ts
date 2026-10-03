@@ -95,11 +95,13 @@ describe('findRecoverableEntries carries the stored fee to the quote', () => {
         show: { pre_entry_fee: 30, day_of_show_fee: 45, start_date: '2099-05-01' },
       },
     ];
-    const rows = await findRecoverableEntries({
+    const lookup = await findRecoverableEntries({
       showId: 'show-1',
       exhibitorId: 'exhibitor-1',
       entryIds: ['entry-1'],
     });
+    if (!lookup.ok) throw new Error('lookup failed');
+    const rows = lookup.value;
     expect(tables.selectedEntryColumns).toContain('entry_fee');
     expect(rows).toHaveLength(1);
     expect(getAuthoritativeEntryFeeCents(rows[0])).toBe(1500);

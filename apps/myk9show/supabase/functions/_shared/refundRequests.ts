@@ -265,6 +265,51 @@ export async function settlePaymentLinkObligation(
   return row.created ? 'queued' : 'already_queued';
 }
 
+/** A session's refund request, as the webhook's entry reads it (Codex round 15). */
+export interface SessionRefundRequest {
+  id: string;
+  kind: string;
+  status: string;
+  amount_cents: number;
+  reason: string | null;
+  stripe_payment_intent_id: string;
+}
+
+/** Requests that still owe a decision: their alert is ensured on a redelivery. */
+export const OPEN_REQUEST_STATUSES: ReadonlySet<string> = new Set([
+  'pending',
+  'awaiting_stripe',
+  'failed',
+]);
+
+/**
+ * A redelivery of a session that already has refund request(s) (Codex round 15
+ * on #2689): ensure the alert of every OPEN one; a refunded or resolved
+ * request gets nothing, and no recovery instructions. Runs at the webhook's
+ * entry before any first-time validation, so a cart deleted since can never
+ * turn into a "refund in the dashboard" alert for money already queued.
+ */
+export async function ensureSessionRefundAlerts(
+  deps: Pick<RefundQueueDeps, 'alertAdmin'>,
+  sessionId: string,
+  requests: SessionRefundRequest[]
+): Promise<void> {
+  for (const request of requests) {
+    if (!OPEN_REQUEST_STATUSES.has(request.status)) continue;
+    await ensureRefundRequestAlert(deps, {
+      id: request.id,
+      status: request.status,
+      kind: request.kind as RefundRequestKind,
+      sessionId,
+      paymentIntentId: request.stripe_payment_intent_id,
+      amountCents: request.amount_cents,
+      reason: request.reason,
+      summaryHtml:
+        'A refund request for this checkout already exists (seen again on a redelivery).',
+    });
+  }
+}
+
 /**
  * A redelivery of a payment-link session whose link is already latched (or
  * whose order is already recorded): read the session's request and ensure its

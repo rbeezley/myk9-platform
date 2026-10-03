@@ -1,17 +1,24 @@
 // @vitest-environment node
-// Codex rounds 11 and 13 on #2689: a paid session that already has an order
-// is a redelivery. It runs NO first-time validation and only ensures the
+// Codex rounds 11, 13 and 15 on #2689: a paid session that already has a
+// refund request or an order is a redelivery. It runs NO first-time validation and only ensures the
 // alert of a refund request the session already has. The request itself was
 // written with the fulfillment latch (queue_payment_link_refund), so there is
 // nothing to replay.
 import { describe, expect, it } from 'vitest';
 import { decidePaidSessionEntry, routePaidSession } from './paidSessionEntry';
 import * as entryModule from './paidSessionEntry';
-import { ensurePaymentLinkRefundAlert, type RefundQueueDeps } from '../_shared/refundRequests';
+import {
+  ensurePaymentLinkRefundAlert,
+  ensureSessionRefundAlerts,
+  type RefundQueueDeps,
+  type SessionRefundRequest,
+} from '../_shared/refundRequests';
+import { instructsManualRefund } from '../_shared/refundAlertCopy';
 
-function world(orderExists: boolean) {
+function world(orderExists: boolean, requests: SessionRefundRequest[] = []) {
   const ran: string[] = [];
   const alerts: string[] = [];
+  const alertTexts: string[] = [];
   // The session's request, written earlier with the link latch.
   const deps: RefundQueueDeps = {
     rpc: async () => ({
@@ -29,12 +36,18 @@ function world(orderExists: boolean) {
       ],
       error: null,
     }),
-    alertAdmin: async (_title, _html, opts) => {
+    alertAdmin: async (title, html, opts) => {
       alerts.push(opts.dedupeKey);
+      alertTexts.push(`${title} ${html}`);
     },
   };
   const handlers = {
+    findRequests: async () => requests,
     orderExists: async () => orderExists,
+    refundRequested: async (found: SessionRefundRequest[]) => {
+      ran.push('refund requested');
+      await ensureSessionRefundAlerts(deps, 'cs_1', found);
+    },
     alreadyFulfilled: async (type: string) => {
       ran.push(`already fulfilled (${type})`);
       if (type === 'entry_payment_request') await ensurePaymentLinkRefundAlert(deps, 'cs_1');
@@ -54,7 +67,18 @@ function world(orderExists: boolean) {
       ran.push('unexpected');
     },
   };
-  return { ran, alerts, handlers };
+  return { ran, alerts, alertTexts, handlers };
+}
+
+function request(status: string): SessionRefundRequest {
+  return {
+    id: 'rr-9',
+    kind: 'abandoned_cart',
+    status,
+    amount_cents: 4200,
+    reason: 'cart_abandoned',
+    stripe_payment_intent_id: 'pi_9',
+  };
 }
 
 describe('decidePaidSessionEntry', () => {
@@ -68,6 +92,75 @@ describe('decidePaidSessionEntry', () => {
     [undefined, 'setup', false, 'ignore'],
   ] as const)('%s / %s / order exists %s → %s', (checkoutType, mode, orderExists, expected) => {
     expect(decidePaidSessionEntry({ checkoutType, mode, orderExists })).toBe(expected);
+  });
+
+  // Codex round 15: (order?, request status) for a fulfillment checkout.
+  it.each([
+    [false, [], 'fulfill_cart'],
+    [true, [], 'already_fulfilled'],
+    [false, ['pending'], 'refund_requested'],
+    [false, ['awaiting_stripe'], 'refund_requested'],
+    [false, ['failed'], 'refund_requested'],
+    [false, ['refunded'], 'refund_requested'],
+    [false, ['resolved_without_refund'], 'refund_requested'],
+    [true, ['pending'], 'refund_requested'],
+    [true, ['refunded'], 'refund_requested'],
+  ] as const)('order %s, requests %j → %s', (orderExists, requestStatuses, expected) => {
+    expect(
+      decidePaidSessionEntry({
+        checkoutType: 'entry',
+        mode: 'payment',
+        orderExists,
+        requestStatuses: [...requestStatuses],
+      })
+    ).toBe(expected);
+  });
+});
+
+describe('a refund request is read before ANY first-time validation (Codex round 15)', () => {
+  it('cart deleted, redelivery, OPEN request: alert ensured, no dashboard wording, no validation', async () => {
+    const w = world(false, [request('pending')]);
+    await expect(
+      routePaidSession({ checkoutType: 'entry', mode: 'payment' }, w.handlers)
+    ).resolves.toBe('refund_requested');
+    expect(w.ran).toEqual(['refund requested']);
+    expect(w.alerts).toEqual(['refund-request-rr-9']);
+    expect(w.alertTexts.some(t => instructsManualRefund(t))).toBe(false);
+  });
+
+  it.each(['awaiting_stripe', 'failed'])('a %s request is open: alert ensured', async status => {
+    const w = world(false, [request(status)]);
+    await routePaidSession({ checkoutType: 'entry', mode: 'payment' }, w.handlers);
+    expect(w.alerts).toEqual(['refund-request-rr-9']);
+    expect(w.ran).toEqual(['refund requested']);
+  });
+
+  it.each(['refunded', 'resolved_without_refund'])(
+    'cart deleted, redelivery, %s request: silent 2xx, no validation',
+    async status => {
+      const w = world(false, [request(status)]);
+      await expect(
+        routePaidSession({ checkoutType: 'entry', mode: 'payment' }, w.handlers)
+      ).resolves.toBe('refund_requested');
+      expect(w.ran).toEqual(['refund requested']);
+      expect(w.alerts).toEqual([]);
+    }
+  );
+
+  it('a failed request lookup throws (5xx) and runs nothing', async () => {
+    const w = world(false);
+    await expect(
+      routePaidSession(
+        { checkoutType: 'entry', mode: 'payment' },
+        {
+          ...w.handlers,
+          findRequests: async () => {
+            throw new Error('db down');
+          },
+        }
+      )
+    ).rejects.toThrow('db down');
+    expect(w.ran).toEqual([]);
   });
 });
 

@@ -168,7 +168,12 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     // The entry (unit-tested in paidSessionEntry.test.ts) skips first-time
     // validation for a fulfilled session and only ensures its request alert.
     const entry = body('handleCheckoutCompleted');
-    expect(entry).toContain('await routePaidSession(');
+    expect(entry).toContain('await routePaidSession<SessionRefundRequest>(');
+    // Round 15: the refund requests are read at the entry, before any validation.
+    expect(entry).toContain('findRequests: () => refundRequestsForSession(session.id),');
+    expect(entry).toContain(
+      'await ensureSessionRefundAlerts(refundQueueDeps, session.id, requests);'
+    );
     expect(entry).toContain('orderExists: () => orderExistsForSession(session.id),');
     expect(entry).toContain('await ensurePaymentLinkRefundAlert(refundQueueDeps, session.id);');
     expect(entry).toContain('fulfillCart: () => handleEntryPaymentCompleted(session),');

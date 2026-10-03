@@ -57,10 +57,12 @@ import { listAllChargeRefunds } from '../_shared/refundLifecycle.ts';
 import {
   claimAbandonedCartRefund,
   ensurePaymentLinkRefundAlert,
+  ensureSessionRefundAlerts,
   REFUNDABLE_ABANDONED_CART_STATUSES,
   RESOLVE_INSTEAD_HTML,
   settlePaymentLinkObligation,
   type RefundQueueDeps,
+  type SessionRefundRequest,
   type SettlingRefund,
 } from '../_shared/refundRequests.ts';
 import {
@@ -105,6 +107,22 @@ const refundQueueDeps: RefundQueueDeps = {
   rpc: (fn, args) => supabase.rpc(fn, args),
   alertAdmin,
 };
+
+/**
+ * The session's refund requests (any kind), read at the entry before any
+ * first-time validation (Codex round 15 on #2689). Throws (5xx) when they
+ * cannot be read.
+ */
+async function refundRequestsForSession(sessionId: string): Promise<SessionRefundRequest[]> {
+  const { data, error } = await supabase
+    .from('refund_requests')
+    .select('id, kind, status, amount_cents, reason, stripe_payment_intent_id')
+    .eq('stripe_checkout_session_id', sessionId);
+  if (error) {
+    throw new Error(`Could not read the refund requests for ${sessionId}: ${error.message}`);
+  }
+  return (data ?? []) as SessionRefundRequest[];
+}
 
 /** Whether the session already has a stripe_orders row. Throws (5xx) when it cannot be read. */
 async function orderExistsForSession(sessionId: string): Promise<boolean> {
@@ -930,12 +948,19 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const checkoutType = session.metadata?.type;
   console.log(`Checkout completed: ${session.id}, type: ${checkoutType}`);
 
-  // An existing order means a redelivery (paidSessionEntry.ts): no first-time
-  // validation runs; only the alert of any refund request is ensured.
-  await routePaidSession(
+  // An existing refund request or order means a redelivery (paidSessionEntry.ts):
+  // no first-time validation runs; only the alert of an OPEN request is ensured.
+  await routePaidSession<SessionRefundRequest>(
     { checkoutType, mode: session.mode ?? null },
     {
+      findRequests: () => refundRequestsForSession(session.id),
       orderExists: () => orderExistsForSession(session.id),
+      refundRequested: async requests => {
+        console.log(
+          `Session ${session.id} already has a refund request — redelivery, nothing to fulfill`
+        );
+        await ensureSessionRefundAlerts(refundQueueDeps, session.id, requests);
+      },
       alreadyFulfilled: async type => {
         console.log(`Session ${session.id} already has an order — redelivery, nothing to fulfill`);
         if (type === 'entry_payment_request') {

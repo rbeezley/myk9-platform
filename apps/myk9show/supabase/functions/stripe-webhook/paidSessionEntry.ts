@@ -1,15 +1,19 @@
 // The ONE entry decision for checkout.session.completed /
-// async_payment_succeeded (Codex rounds 11 and 13 on #2689). Pure, so the
-// ordering is unit-tested; index.ts supplies the order lookup and handlers.
+// async_payment_succeeded (Codex rounds 11, 13 and 15 on #2689). Pure, so the
+// ordering is unit-tested; index.ts supplies the lookups and handlers.
 //
-// INVARIANT: if a stripe_orders row already exists for the session, the
-// session was fulfilled before and this delivery is a redelivery or a
-// duplicate. It runs NO first-time validation (cart lookup, expiry, pricing,
-// link state, claims): a retry after the cart expired or the pricing
-// changed would otherwise raise false "refund this charge" alerts, and a
-// payment link deleted since would look like a paid session with no link.
-// It only ensures the alert of any refund request the session already has
-// (the request itself was written atomically with the fulfillment latch).
+// INVARIANT: before ANY first-time validation (cart lookup, expiry, pricing,
+// link state, claims), the session's durable records are read: its refund
+// request(s) and its stripe_orders row. If either exists, this delivery is a
+// redelivery or a duplicate, and it runs NO first-time validation. Otherwise
+// a cart deleted since, a cart that expired, or changed pricing would raise
+// false "refund this charge" alerts for money already queued or fulfilled.
+//   * a refund request exists: ensure the alert of each OPEN one (pending,
+//     awaiting_stripe, failed); a closed one (refunded, resolved without
+//     refund) gets nothing. Return 2xx.
+//   * an order exists: already fulfilled; return 2xx.
+//   * neither: first-time fulfillment.
+// A failed lookup throws (5xx, no writes) and Stripe redelivers.
 
 /** Checkout types that fulfill entries and record a stripe_orders row. */
 export const FULFILLMENT_CHECKOUT_TYPES: ReadonlySet<string> = new Set([
@@ -18,6 +22,7 @@ export const FULFILLMENT_CHECKOUT_TYPES: ReadonlySet<string> = new Set([
 ]);
 
 export type PaidSessionEntry =
+  | 'refund_requested'
   | 'already_fulfilled'
   | 'fulfill_cart'
   | 'fulfill_payment_link'
@@ -25,7 +30,7 @@ export type PaidSessionEntry =
   | 'unexpected_payment'
   | 'ignore';
 
-/** Whether the entry decision needs to know if an order already exists. */
+/** Whether the entry decision needs the session's durable records. */
 export function needsOrderLookup(checkoutType: string | undefined): boolean {
   return checkoutType !== undefined && FULFILLMENT_CHECKOUT_TYPES.has(checkoutType);
 }
@@ -34,8 +39,11 @@ export function decidePaidSessionEntry(input: {
   checkoutType: string | undefined;
   mode: string | null;
   orderExists: boolean;
+  /** Statuses of the session's refund requests (empty: none). */
+  requestStatuses?: string[];
 }): PaidSessionEntry {
   if (needsOrderLookup(input.checkoutType)) {
+    if ((input.requestStatuses ?? []).length > 0) return 'refund_requested';
     if (input.orderExists) return 'already_fulfilled';
     return input.checkoutType === 'entry' ? 'fulfill_cart' : 'fulfill_payment_link';
   }
@@ -44,10 +52,14 @@ export function decidePaidSessionEntry(input: {
   return 'ignore';
 }
 
-export interface PaidSessionHandlers {
+export interface PaidSessionHandlers<Request extends { status: string }> {
+  /** The session's refund requests. Throws when they cannot be read. */
+  findRequests: () => Promise<Request[]>;
   /** Whether the session has a stripe_orders row. Throws when it cannot be read. */
   orderExists: () => Promise<boolean>;
-  /** A redelivery: ensure the alert of any refund request the session has. */
+  /** A redelivery with refund request(s): ensure the alert of each OPEN one. */
+  refundRequested: (requests: Request[]) => Promise<void>;
+  /** A redelivery of a fulfilled session with no refund request. */
   alreadyFulfilled: (checkoutType: string) => Promise<void>;
   /** First-time fulfillment, with all its validation (cart, expiry, pricing, claims). */
   fulfillCart: () => Promise<void>;
@@ -57,18 +69,23 @@ export interface PaidSessionHandlers {
   unexpectedPayment: () => void;
 }
 
-/** Look up the order, decide, and run exactly one handler. */
-export async function routePaidSession(
+/** Read the session's durable records, decide, and run exactly one handler. */
+export async function routePaidSession<Request extends { status: string }>(
   session: { checkoutType: string | undefined; mode: string | null },
-  handlers: PaidSessionHandlers
+  handlers: PaidSessionHandlers<Request>
 ): Promise<PaidSessionEntry> {
-  const orderExists = needsOrderLookup(session.checkoutType) ? await handlers.orderExists() : false;
+  const lookup = needsOrderLookup(session.checkoutType);
+  const requests = lookup ? await handlers.findRequests() : [];
+  const orderExists = lookup ? await handlers.orderExists() : false;
   const entry = decidePaidSessionEntry({
     checkoutType: session.checkoutType,
     mode: session.mode,
     orderExists,
+    requestStatuses: requests.map(r => r.status),
   });
-  if (entry === 'already_fulfilled') await handlers.alreadyFulfilled(session.checkoutType ?? '');
+  if (entry === 'refund_requested') await handlers.refundRequested(requests);
+  else if (entry === 'already_fulfilled')
+    await handlers.alreadyFulfilled(session.checkoutType ?? '');
   else if (entry === 'fulfill_cart') await handlers.fulfillCart();
   else if (entry === 'fulfill_payment_link') await handlers.fulfillPaymentLink();
   else if (entry === 'subscription') await handlers.subscription();

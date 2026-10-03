@@ -61,6 +61,26 @@ trap cleanup EXIT
 # empty diff that reads as no drift.
 normalize_layout() {
   sed -E 's/"([A-Za-z_][A-Za-z0-9_]*)"(\??):/\1\2:/g' "$1" | awk '
+    # Collapse whitespace runs OUTSIDE quoted tokens only: a string literal
+    # (an enum value such as "not  ready") is schema, so its spacing is kept.
+    function collapse(str,    out, i, c, q, prev) {
+      out = ""; q = ""; prev = ""
+      for (i = 1; i <= length(str); i++) {
+        c = substr(str, i, 1)
+        if (q != "") {
+          out = out c
+          if (c == q) q = ""
+        } else if (c == "\"" || c == "\047") {
+          q = c; out = out c
+        } else if (c == " " || c == "\t") {
+          if (prev != " ") out = out " "
+        } else {
+          out = out c
+        }
+        prev = (q == "" && (c == " " || c == "\t")) ? " " : "x"
+      }
+      return out
+    }
     function count(str, ch,    n, i) {
       n = 0
       for (i = 1; i <= length(str); i++) if (substr(str, i, 1) == ch) n++
@@ -69,7 +89,7 @@ normalize_layout() {
     {
       line = $0
       gsub(/^[ \t]+|[ \t\r]+$/, "", line)
-      gsub(/[ \t]+/, " ", line)
+      line = collapse(line)
       if (line == "") { print ""; next }
       bare = line
       gsub(/"[^"]*"/, "", bare)

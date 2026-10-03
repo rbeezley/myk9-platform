@@ -329,6 +329,14 @@ describe('supabase-types-drift.sh', () => {
     });
   });
 
+  it('reports drift when only the spacing inside an enum string literal changes', () => {
+    const committed = types({ tables: { entries: 'Row: { status: "not  ready" | "done" }' } });
+    const generated = types({ tables: { entries: 'Row: { status: "not ready" | "done" }' } });
+    const result = run(committed, generated);
+    expect(result.status).toBe(1);
+    expect(result.summary).toMatch(/^-.*not {2}ready/m);
+  });
+
   describe('unparseable output is "could not compare", never "no drift"', () => {
     const good = types({ tables: { entries } });
 

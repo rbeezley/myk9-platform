@@ -1,3 +1,5 @@
+import { isOnClassRunList } from '@/features/_shared/entryAccounting';
+import { isPendingEntryStatus } from '@/features/entry-operations/classEntryBreakdown';
 import type { ShowMapNode, ShowMapNodeType, ShowMapTree } from './showMapTypes';
 
 const SYNTHETIC_DISPLAY_ACTION_NODE_TYPES = new Set<ShowMapNodeType>([
@@ -41,7 +43,11 @@ export function canMessageEntryHandler(node: ShowMapNode): boolean {
  * itself be moved up again (MYK9-825).
  */
 export function canMoveUpEntry(node: ShowMapNode): boolean {
-  return node.type === 'entry' && node.status?.kind !== 'muted';
+  if (node.type !== 'entry' || node.status?.kind === 'muted') return false;
+  // Owner decision 2026-10-03 (MYK9-976): Move up is hidden until the entry is
+  // accepted, and never offered on a withdrawn, scratched or not-accepted one.
+  const entryStatus = node.entryDisplay?.entryStatus;
+  return !isPendingEntryStatus(entryStatus) && isOnClassRunList({ entryStatus });
 }
 
 export function sourceIdFromNodeId(

@@ -44,8 +44,12 @@ export type ListFilterField = ListOptionsFilterField | ListDateRangeFilterField;
 export interface ListView {
   id: string;
   label: string;
-  /** Rows in this view. The count is the stat — no separate stat cards. */
-  count?: number;
+  /**
+   * Rows in this view. The count is the stat — no separate stat cards.
+   * `undefined` shows no count (a link view); `null` means the count is UNKNOWN
+   * (still loading, or the query failed) and renders "—", never "0".
+   */
+  count?: number | null;
   /** A view that lives on another page (e.g. a request queue) is a link, not a filter. */
   href?: string;
 }

@@ -10,6 +10,7 @@
  * no view, the select reads "Custom".
  */
 
+import type { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
@@ -32,8 +33,21 @@ interface ListViewTabsProps {
 
 const CUSTOM_ID = '__custom__';
 
-function optionText(view: ListView): string {
-  return view.count === undefined ? view.label : `${view.label} (${view.count.toLocaleString()})`;
+function optionText(view: ListView): ReactNode {
+  if (view.count === undefined) return view.label;
+  if (view.count === null) {
+    // Unknown stays distinct from zero: a dash that screen readers name in words.
+    return (
+      <>
+        {view.label} (
+        <span role="img" aria-label="count unavailable">
+          —
+        </span>
+        )
+      </>
+    );
+  }
+  return `${view.label} (${view.count.toLocaleString()})`;
 }
 
 export function ListViewTabs({ views, activeId, onSelect, label, className }: ListViewTabsProps) {

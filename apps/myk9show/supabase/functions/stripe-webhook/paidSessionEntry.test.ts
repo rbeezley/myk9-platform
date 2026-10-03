@@ -8,11 +8,8 @@
 import { describe, expect, it } from 'vitest';
 import { decidePaidSessionEntry, routePaidSession } from './paidSessionEntry';
 import { instructsManualRefund } from '../_shared/refundAlertCopy';
-import {
-  queuedRefundFromOrder,
-  queueRefundForApproval,
-  type QueueDeps,
-} from '../_shared/refundRequests';
+import type { QueueDeps } from '../_shared/refundRequests';
+import { REFUND_QUEUE_MARKER, replayOwedRefund } from '../_shared/refundOrderReplay';
 
 interface Order {
   stripe_payment_intent_id: string;
@@ -24,6 +21,7 @@ const CART_ORDER: Order = {
   stripe_payment_intent_id: 'pi_1',
   show_id: 'show-1',
   metadata: {
+    ...REFUND_QUEUE_MARKER,
     cart_id: 'cart-1',
     overflow_refund: { action: 'refund', amount_cents: 2500, reason: 'partial_no_service_lines' },
   },
@@ -33,6 +31,7 @@ const LINK_ORDER: Order = {
   stripe_payment_intent_id: 'pi_2',
   show_id: null,
   metadata: {
+    ...REFUND_QUEUE_MARKER,
     entry_payment_link_id: 'link-1',
     invalid_entry_refund: {
       action: 'refund',
@@ -72,13 +71,15 @@ function world(order: Order | null, firstQueueResponse: 'created' | 'lost') {
     loadRecordedOrder: async () => order,
     replay: async (o: Order) => {
       ran.push('replay');
-      const owed = queuedRefundFromOrder({
-        sessionId: 'cs_1',
-        paymentIntentId: o.stripe_payment_intent_id,
-        showId: o.show_id,
-        metadata: o.metadata,
-      });
-      if (owed) await queueRefundForApproval(deps, owed);
+      await replayOwedRefund(
+        { ...deps, listIntentRefunds: async () => [] },
+        {
+          sessionId: 'cs_1',
+          paymentIntentId: o.stripe_payment_intent_id,
+          showId: o.show_id,
+          metadata: o.metadata,
+        }
+      );
     },
     // First-time validation that a retry would now FAIL (cart expired, or
     // pricing changed): returns early, queues nothing.

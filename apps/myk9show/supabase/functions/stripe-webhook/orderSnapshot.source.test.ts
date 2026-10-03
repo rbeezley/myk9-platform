@@ -183,6 +183,11 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
       cart.indexOf('await sendEntryConfirmationEmail(')
     );
     expect(body('handleEntryPaymentRequestCompleted')).toContain('invalid_entry_refund: {');
+    // Only orders written by the queue path replay (Codex round 12): both
+    // inserts carry the opt-in marker; the guard itself is unit-tested in
+    // _shared/refundOrderReplay.test.ts.
+    expect(cart).toContain('...REFUND_QUEUE_MARKER,');
+    expect(body('handleEntryPaymentRequestCompleted')).toContain('...REFUND_QUEUE_MARKER,');
   });
 
   it('FAILS CLOSED: does not stamp refunded when the amount did not persist', () => {

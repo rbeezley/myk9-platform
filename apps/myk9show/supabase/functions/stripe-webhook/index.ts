@@ -56,7 +56,6 @@ import { listAllChargeRefunds } from '../_shared/refundLifecycle.ts';
 import {
   claimAbandonedCartRefund,
   queueRefundForApproval,
-  queuedRefundFromOrder,
   REFUNDABLE_ABANDONED_CART_STATUSES,
   RESOLVE_INSTEAD_HTML,
   type QueueDeps,
@@ -67,10 +66,12 @@ import {
   paymentLinkNeedsManualAmountAlert,
 } from '../_shared/refundAlertCopy.ts';
 import {
+  listAllIntentRefunds,
   routeRefundByCurrentState,
   type RefundLedgerContext,
   type SettleDeps,
 } from '../_shared/refundSettlement.ts';
+import { REFUND_QUEUE_MARKER, replayOwedRefund } from '../_shared/refundOrderReplay.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
@@ -136,19 +137,29 @@ async function loadRecordedOrder(sessionId: string): Promise<RecordedOrder | nul
 
 /**
  * The session already has an order: replay the idempotent refund-queue write
- * from it (Codex rounds 10-11 on #2689). An already-queued request is a no-op
- * apart from ensuring its alert. Throws if the write cannot be confirmed, so
- * Stripe redelivers and this runs again.
+ * from it (Codex rounds 10-12 on #2689), behind replayOwedRefund's two guards
+ * (the queue-path marker, and no legacy auto-refund at Stripe). An
+ * already-queued request is a no-op apart from ensuring its alert. Throws if
+ * Stripe or the write cannot be confirmed, so Stripe redelivers.
  */
 async function replayQueuedRefundFromOrder(sessionId: string, order: RecordedOrder) {
-  const owed = queuedRefundFromOrder({
-    sessionId,
-    paymentIntentId: order.stripe_payment_intent_id ?? null,
-    showId: order.show_id ?? null,
-    metadata: order.metadata,
-  });
-  if (owed) await queueRefundForApproval(refundQueueDeps, owed);
-  console.log(`Session ${sessionId} already has an order — replayed its refund queue write`);
+  const outcome = await replayOwedRefund(
+    {
+      ...refundQueueDeps,
+      listIntentRefunds: paymentIntentId =>
+        listAllIntentRefunds(async params => {
+          const page = await stripe.refunds.list(params);
+          return { data: page.data as SettlingRefund[], has_more: page.has_more };
+        }, paymentIntentId),
+    },
+    {
+      sessionId,
+      paymentIntentId: order.stripe_payment_intent_id ?? null,
+      showId: order.show_id ?? null,
+      metadata: order.metadata,
+    }
+  );
+  console.log(`Session ${sessionId} already has an order — refund replay: ${outcome}`);
 }
 
 // Approved queued refunds settle on their own attempt row, ONLY from the
@@ -1708,6 +1719,9 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
       collected_amount_cents: freshTotalCents ?? 0,
       paid_amount_cents: paidOrderAmountCents,
       paid_entry_subtotal_cents: paidEntrySubtotalCents,
+      // Opt-in marker for the replay (Codex round 12): only orders written
+      // by the queue path replay their overflow_refund.
+      ...REFUND_QUEUE_MARKER,
       overflow_refund: serializeCartOverflowRefundDecision(overflowRefundDecision),
       waitlisted_cart_item_ids: waitlistedLines.map(line => line.cartItemId),
       waitlist_entry_ids: waitlistedLines
@@ -2217,6 +2231,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     metadata: {
       entry_payment_link_id: link.id,
       entry_count: paidIds.length,
+      ...REFUND_QUEUE_MARKER,
       // What the invalid entries are owed, so a redelivery can replay the
       // queue write (Codex round 10 on #2689); see queuedRefundFromOrder.
       ...(updateOutcome.invalidEntryIds.length > 0 &&

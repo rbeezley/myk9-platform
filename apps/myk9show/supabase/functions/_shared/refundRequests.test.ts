@@ -3,7 +3,6 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   claimAbandonedCartRefund,
   QUEUE_WRITE_ATTEMPTS,
-  queuedRefundFromOrder,
   queueRefundForApproval,
   REFUNDABLE_ABANDONED_CART_STATUSES,
   type QueueDeps,
@@ -158,72 +157,6 @@ describe('queueRefundForApproval', () => {
     expect(rpc).not.toHaveBeenCalled();
     expect(alerts).toHaveLength(2);
     expect(alerts.some(a => instructsManualRefund(a.title + ' ' + a.html))).toBe(false);
-  });
-});
-
-/** Codex round 10: a redelivery replays the queue write from the recorded order. */
-describe('queuedRefundFromOrder', () => {
-  it('rebuilds a cart-overflow refund from the order metadata', () => {
-    expect(
-      queuedRefundFromOrder({
-        sessionId: 'cs_1',
-        paymentIntentId: 'pi_1',
-        showId: 'show-1',
-        metadata: {
-          cart_id: 'cart-1',
-          overflow_refund: {
-            action: 'refund',
-            amount_cents: 2500,
-            reason: 'partial_no_service_lines',
-          },
-          denied_cart_item_ids: ['ci-2'],
-        },
-      })
-    ).toMatchObject({
-      kind: 'cart_overflow',
-      sessionId: 'cs_1',
-      paymentIntentId: 'pi_1',
-      amountCents: 2500,
-      reason: 'partial_no_service_lines',
-      cartId: 'cart-1',
-      showId: 'show-1',
-      detail: { denied_cart_item_ids: ['ci-2'] },
-    });
-  });
-
-  it('rebuilds a payment-link refund from the order metadata', () => {
-    expect(
-      queuedRefundFromOrder({
-        sessionId: 'cs_2',
-        paymentIntentId: 'pi_2',
-        showId: null,
-        metadata: {
-          entry_payment_link_id: 'link-1',
-          invalid_entry_refund: {
-            action: 'refund',
-            amount_cents: 900,
-            reason: 'partial_invalid_entries',
-          },
-          invalid_entry_ids: ['e-1'],
-        },
-      })
-    ).toMatchObject({
-      kind: 'entry_payment_link',
-      amountCents: 900,
-      reason: 'partial_invalid_entries',
-      entryPaymentLinkId: 'link-1',
-      detail: { invalid_entry_ids: ['e-1'] },
-    });
-  });
-
-  it.each([
-    ['no refund owed', { overflow_refund: { action: 'none', paid_amount_cents: 100 } }],
-    ['a manual amount', { overflow_refund: { action: 'needs_manual_amount' } }],
-    ['no metadata', null],
-  ])('%s: nothing to replay', (_label, metadata) => {
-    expect(
-      queuedRefundFromOrder({ sessionId: 'cs', paymentIntentId: 'pi', showId: null, metadata })
-    ).toBeNull();
   });
 });
 

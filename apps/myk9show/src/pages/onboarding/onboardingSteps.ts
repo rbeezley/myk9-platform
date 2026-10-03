@@ -81,6 +81,26 @@ export function buildOnboardingSteps(
   return [...(state.hasProfile ? [] : (['profile'] as const)), 'dogs', ...roleSteps, 'welcome'];
 }
 
+const STAFF_ROLES: readonly UserRole[] = [
+  UserRole.SITE_ADMIN,
+  UserRole.SECRETARY,
+  UserRole.JUDGE,
+  UserRole.CLUB_ADMIN,
+  UserRole.CHAIRMAN,
+  UserRole.STEWARD,
+];
+
+/**
+ * INTENT: staff are never force-redirected into onboarding — a secretary's or
+ * judge's working pages (the show desk, ringside) are where they run a show, and
+ * a redirect there is exactly the interruption docs/INTENT.md rules out. Their
+ * unfinished onboarding is offered by NewRoleStepBanner instead. Only
+ * exhibitor-only accounts keep the automatic first-run redirect.
+ */
+export function holdsStaffRole(roles: readonly UserRole[]): boolean {
+  return roles.some(role => STAFF_ROLES.includes(role));
+}
+
 export function isRoleStep(step: OnboardingStep): step is OnboardingRoleStep {
   return (ROLE_STEP_ROLES as readonly string[]).includes(step);
 }

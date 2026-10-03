@@ -24,11 +24,15 @@ function setup({
   roles,
   onboardedRoles = [],
   completed = true,
+  hasProfile = true,
+  profileSettled = true,
 }: {
   userId?: string | null;
   roles: UserRole[];
   onboardedRoles?: string[];
   completed?: boolean;
+  hasProfile?: boolean;
+  profileSettled?: boolean;
 }) {
   mockAuth.mockReturnValue(
     fromPartial({
@@ -39,13 +43,15 @@ function setup({
   );
   mockProfile.mockReturnValue(
     fromPartial({
-      profile: userId
-        ? {
-            id: `profile-${userId}`,
-            onboarding_completed_at: completed ? '2026-07-07T12:00:00.000Z' : null,
-            onboarded_roles: onboardedRoles,
-          }
-        : null,
+      profile:
+        userId && hasProfile
+          ? {
+              id: `profile-${userId}`,
+              onboarding_completed_at: completed ? '2026-07-07T12:00:00.000Z' : null,
+              onboarded_roles: onboardedRoles,
+            }
+          : null,
+      profileSettled,
       completeOnboarding,
       isCompletingOnboarding: false,
     })
@@ -110,8 +116,43 @@ describe('NewRoleStepBanner', () => {
     expect(banner()).not.toBeInTheDocument();
   });
 
-  it('waits for the first run: the onboarding redirect covers every role then', () => {
+  // MYK9-970 round 4: staff are never redirected, so their unfinished first
+  // run is offered here instead — including on the show desk.
+  it('offers a staff member their unfinished set-up on /shows/s1', () => {
+    setup({ roles: [UserRole.SECRETARY], completed: false });
+    render(<NewRoleStepBanner />, { initialRoute: '/shows/s1' });
+    expect(banner()).toHaveTextContent('Finish setting up your account.');
+    fireEvent.click(screen.getByRole('button', { name: 'Finish setup' }));
+    expect(navigateMock).toHaveBeenCalledWith('/onboarding');
+  });
+
+  it('dismissing the set-up notice stamps the first run and records no role', async () => {
     setup({ roles: [UserRole.JUDGE], completed: false });
+    const view = render(<NewRoleStepBanner />, { initialRoute: '/shows' });
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
+    await waitFor(() => expect(completeOnboarding).toHaveBeenCalledWith([]));
+
+    // Stamped: the judge step is still pending and gets its own notice.
+    setup({ roles: [UserRole.JUDGE], completed: true });
+    view.rerender(<NewRoleStepBanner />);
+    expect(banner()).toHaveTextContent("You're now a judge.");
+  });
+
+  it('cannot dismiss set-up without a profile row (the profile step creates it)', () => {
+    setup({ roles: [UserRole.SECRETARY], completed: false, hasProfile: false });
+    render(<NewRoleStepBanner />, { initialRoute: '/shows' });
+    expect(banner()).toHaveTextContent('Finish setting up your account.');
+    expect(screen.queryByRole('button', { name: 'Dismiss' })).not.toBeInTheDocument();
+  });
+
+  it('shows nothing to an exhibitor-only first run: the redirect handles that', () => {
+    setup({ roles: [UserRole.EXHIBITOR], completed: false });
+    render(<NewRoleStepBanner />, { initialRoute: '/shows' });
+    expect(banner()).not.toBeInTheDocument();
+  });
+
+  it('shows nothing while the profile query is unsettled', () => {
+    setup({ roles: [UserRole.SECRETARY], completed: false, profileSettled: false });
     render(<NewRoleStepBanner />, { initialRoute: '/shows' });
     expect(banner()).not.toBeInTheDocument();
   });

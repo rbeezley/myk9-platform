@@ -31,6 +31,7 @@ import {
   getOnboardingDestination,
   isRoleStep,
   STEP_LABELS,
+  type OnboardingRoleStep,
   type OnboardingStep,
 } from './onboardingSteps';
 
@@ -152,6 +153,10 @@ function OnboardingWizard({ user, roles }: { user: User; roles: readonly UserRol
   const destination = getOnboardingDestination(roles);
 
   const [step, setStep] = useState<OnboardingStep | null>(null);
+  // Role steps the person actually went through (moved on from, finished, or
+  // left via one of its links). Only these are recorded as onboarded; a role
+  // step never reached stays pending, so its banner appears later.
+  const [seenRoleSteps, setSeenRoleSteps] = useState<OnboardingRoleStep[]>([]);
   const [stepError, setStepError] = useState('');
   const [profileData, setProfileData] = useState<ProfileData>({
     firstName: (userMeta.first_name ?? userMeta.firstName ?? '') as string,
@@ -198,8 +203,16 @@ function OnboardingWizard({ user, roles }: { user: User; roles: readonly UserRol
     return null;
   }
 
+  const markCurrentRoleStepSeen = (): OnboardingRoleStep[] => {
+    if (!isRoleStep(visibleStep) || seenRoleSteps.includes(visibleStep)) return seenRoleSteps;
+    const seen = [...seenRoleSteps, visibleStep];
+    setSeenRoleSteps(seen);
+    return seen;
+  };
+
   const goNext = () => {
     setStepError('');
+    markCurrentRoleStepSeen();
     const next = steps[stepIndex + 1];
     if (next) setStep(next);
   };
@@ -212,13 +225,15 @@ function OnboardingWizard({ user, roles }: { user: User; roles: readonly UserRol
 
   // Completing onboarding must happen BEFORE navigating — Finish, the last role
   // step, or any in-flow link — so the onboarding guard on the destination does
-  // not bounce the user back to /onboarding (MYK9-858). The role steps in this
-  // flow are recorded, so neither they nor their banner come back.
+  // not bounce the user back to /onboarding (MYK9-858). The role steps they went
+  // through are recorded, so neither those steps nor their banners come back.
   const finishOnboarding = async (target: string) => {
     if (isCompletingOnboarding) return;
     setStepError('');
     try {
-      await completeOnboarding(steps.filter(isRoleStep));
+      // The first run is stamped complete whichever way they leave; only the
+      // role steps they went through are recorded.
+      await completeOnboarding(markCurrentRoleStepSeen());
       hasNavigatedAwayRef.current = true;
       navigate(target, { replace: true });
     } catch (err) {

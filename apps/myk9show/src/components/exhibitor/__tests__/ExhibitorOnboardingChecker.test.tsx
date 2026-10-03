@@ -109,11 +109,36 @@ describe('ExhibitorOnboardingChecker', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
   });
 
-  // MYK9-970: the STAFF_ROLES skip is gone — staff get the same flow.
-  it('redirects a secretary who never finished onboarding', () => {
-    setupMocks({ roles: [UserRole.SECRETARY, UserRole.EXHIBITOR], onboardingCompleted: false });
+  // MYK9-970 round 4: staff are never force-redirected — their show desk at
+  // /shows/:id is where they run a show (docs/INTENT.md). NewRoleStepBanner
+  // offers their unfinished set-up instead.
+  it.each([
+    UserRole.SECRETARY,
+    UserRole.JUDGE,
+    UserRole.CLUB_ADMIN,
+    UserRole.CHAIRMAN,
+    UserRole.STEWARD,
+    UserRole.SITE_ADMIN,
+  ])('never redirects a %s with unfinished onboarding from the show desk', role => {
+    mockPathname = '/shows/s1';
+    for (const hasProfile of [true, false]) {
+      setupMocks({ roles: [role, UserRole.EXHIBITOR], hasProfile, onboardingCompleted: false });
+      renderChecker().unmount();
+    }
+    expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('redirects an exhibitor-only user with unfinished onboarding from /shows/s1', () => {
+    mockPathname = '/shows/s1';
+    setupMocks({ roles: [UserRole.EXHIBITOR], onboardingCompleted: false });
     renderChecker();
     expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
+  });
+
+  it('does not redirect while RBAC is still loading (staff or not is unknown)', () => {
+    setupMocks({ rbacLoading: true, roles: [], onboardingCompleted: false });
+    renderChecker();
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   // A role gained after onboarding is offered by NewRoleStepBanner, never by a
@@ -130,8 +155,9 @@ describe('ExhibitorOnboardingChecker', () => {
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
-  // Every show-day route family, for a judge AND a secretary with unfinished
-  // onboarding. The list is shared with the PWA update prompt (isSensitivePath).
+  // Every show-day route family, for an exhibitor-only user with unfinished
+  // onboarding (the only kind the guard redirects). The list is shared with the
+  // PWA update prompt (isSensitivePath).
   it.each([
     ['ringside landing', '/at-show'],
     ['ringside class', '/at-show/show-1/class/c1'],
@@ -143,16 +169,14 @@ describe('ExhibitorOnboardingChecker', () => {
     ['checkout', '/checkout/success'],
   ])('never redirects from the %s (%s)', (_family, pathname) => {
     mockPathname = pathname;
-    for (const roles of [[UserRole.JUDGE], [UserRole.SECRETARY]]) {
-      setupMocks({ roles, onboardingCompleted: false });
-      renderChecker().unmount();
-    }
+    setupMocks({ roles: [UserRole.EXHIBITOR], onboardingCompleted: false });
+    renderChecker();
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
-  it('still redirects from an ordinary show page (positive control)', () => {
-    mockPathname = '/shows/s1';
-    setupMocks({ roles: [UserRole.JUDGE], onboardingCompleted: false });
+  it('still redirects from an ordinary page (positive control)', () => {
+    mockPathname = '/shows';
+    setupMocks({ roles: [UserRole.EXHIBITOR], onboardingCompleted: false });
     renderChecker();
     expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
   });

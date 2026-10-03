@@ -139,6 +139,27 @@ describe('role-aware onboarding', () => {
     });
   });
 
+  // Codex round 4 (P2): leaving from the secretary step must not record the
+  // judge step the person never reached — that would suppress its banner and
+  // block /onboarding?step=judge for good.
+  it('records only the role steps actually reached when leaving early via a step link', async () => {
+    const { completeOnboarding } = setup({
+      roles: [UserRole.SECRETARY, UserRole.JUDGE, UserRole.EXHIBITOR],
+      onboardingCompletedAt: null,
+      onboardedRoles: [],
+    });
+
+    render(<ExhibitorOnboardingPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: /skip for now/i }));
+    fireEvent.click(screen.getByRole('link', { name: 'Request additional access' }));
+
+    await waitFor(() => {
+      expect(completeOnboarding).toHaveBeenCalledWith(['secretary']);
+      expect(navigateMock).toHaveBeenCalledWith('/request-access', { replace: true });
+    });
+  });
+
   it('does not force a pending new role step without the banner link', async () => {
     setup({
       roles: [UserRole.SECRETARY, UserRole.EXHIBITOR],

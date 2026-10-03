@@ -1,18 +1,17 @@
 /**
- * Sends a signed-in user to /onboarding until they have finished the FIRST run.
+ * Sends an EXHIBITOR-ONLY user to /onboarding until they finish the first run
+ * (no profile row, or no onboarding_completed_at) — main's behaviour.
  *
- * MYK9-970: staff are no longer exempt — everyone gets profile, dogs
- * (skippable) and the role steps for the roles they hold at that moment.
- *
- * Only the first run is forced. A role gained later is offered by a
- * dismissible banner (NewRoleStepBanner), never by a redirect: a redirect keyed
- * on roles has to agree with RBAC re-polls, revocations and sign-out, and three
- * review rounds showed it cannot do that simply.
+ * MYK9-970: anyone holding a staff role (secretary, judge, club admin,
+ * chairman, steward, site admin) is never force-redirected. Their working
+ * pages are where they run a show, so their unfinished onboarding — the first
+ * run or a role gained later — is offered by NewRoleStepBanner instead.
  *
  * Redirects only when:
- *   - the user is authenticated and not an anonymous passcode session,
- *   - the profile query has SETTLED (an unresolved query is "unknown", never
- *     "no profile"),
+ *   - auth, RBAC and the profile query have all settled (an unresolved query
+ *     is "unknown", never "no profile"),
+ *   - the user is authenticated, holds no staff role, and is not an anonymous
+ *     passcode session,
  *   - the current route is not exempt (auth, legal, and the show-day/payment
  *     routes in `@/utils/sensitiveRoutes`), and
  *   - there is no profile row, or it has no onboarding_completed_at.
@@ -22,6 +21,7 @@ import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
+import { holdsStaffRole } from '@/pages/onboarding/onboardingSteps';
 import { isOnboardingExemptPath } from './onboardingExemptPaths';
 
 interface ExhibitorOnboardingCheckerProps {
@@ -29,7 +29,7 @@ interface ExhibitorOnboardingCheckerProps {
 }
 
 export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingCheckerProps) {
-  const { user, loading: authLoading } = useAuthContext();
+  const { user, userWithRoles, loading: authLoading, rbacLoading } = useAuthContext();
   const {
     profile,
     profileSettled,
@@ -40,8 +40,11 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
   const location = useLocation();
 
   useEffect(() => {
-    if (authLoading || profileLoading) return;
+    // Roles decide whether to redirect at all, so wait for RBAC too.
+    if (authLoading || rbacLoading || profileLoading) return;
     if (!user) return;
+    // Staff are offered onboarding by a banner, never redirected (MYK9-970).
+    if (holdsStaffRole(userWithRoles?.roles ?? [])) return;
     if (isOnboardingExemptPath(location.pathname)) return;
     if (profileError) return;
 
@@ -63,8 +66,10 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
     }
   }, [
     authLoading,
+    rbacLoading,
     profileLoading,
     user,
+    userWithRoles?.roles,
     profile,
     profileSettled,
     profileError,

@@ -56,6 +56,8 @@ export const TOOL_LABELS: Record<string, string> = {
 };
 
 export const TERA_WORKING_COPY = 'Sniffing that out for you...';
+export const TERA_IDLE_COPY = 'Ask a question, or try one of these.';
+export const TERA_OFFLINE_COPY = 'AskQ needs a connection. Your show data still works offline.';
 
 export const SOURCE_LABELS: Record<string, string> = {
   rules: 'Rules',

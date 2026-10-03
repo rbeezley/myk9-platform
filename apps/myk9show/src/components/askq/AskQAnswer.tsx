@@ -1,14 +1,27 @@
 import { TERA_WORKING_COPY, TOOL_LABELS } from './askq-config';
-import { TeraAvatar, TeraFace } from './TeraAvatar';
+import { TeraAnswerMark, useFoundIt } from './TeraAnswerMark';
+import { TeraAvatar } from './TeraAvatar';
 
 interface AskQAnswerProps {
   query: string;
   answer: string;
   toolsUsed: string[];
   isStreaming: boolean;
+  /** True once the answer completed successfully (not a failure mid-stream). */
+  isComplete?: boolean;
 }
 
-export function AskQAnswer({ query, answer, toolsUsed, isStreaming }: AskQAnswerProps) {
+export function AskQAnswer({
+  query,
+  answer,
+  toolsUsed,
+  isStreaming,
+  isComplete = false,
+}: AskQAnswerProps) {
+  // Tracked here, mounted since the working state, not in the mark: an answer
+  // whose text and completion land together mounts its mark already done.
+  const [foundIt, clearFoundIt] = useFoundIt(isStreaming, isComplete);
+
   return (
     <div className="space-y-3">
       <div className="flex justify-end">
@@ -19,7 +32,7 @@ export function AskQAnswer({ query, answer, toolsUsed, isStreaming }: AskQAnswer
 
       {answer ? (
         <div className="flex items-start gap-2">
-          <TeraFace />
+          <TeraAnswerMark foundIt={foundIt} onDone={clearFoundIt} />
           <div className="min-w-0 flex-1 bg-muted/50 px-3.5 py-3 rounded-xl rounded-tl-sm">
             <p className="text-sm whitespace-pre-wrap leading-relaxed">
               {answer}

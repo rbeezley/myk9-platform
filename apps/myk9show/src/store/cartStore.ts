@@ -34,7 +34,8 @@ import {
 import {
   findRecoverableEntries,
   loadCartItemsByCartId,
-  recoverCartItemsFromEntryIds,
+  loadPaymentLinkItems,
+  RECOVERY_FAILED_MESSAGE,
   summarizeDroppedRecoveryEntries,
 } from './cartStore.recovery';
 import type { RecoverableEntryRow } from './cartStore.recovery';
@@ -203,11 +204,21 @@ export const useCartStore = create<CartState>()(
             // scoped to explicit entry ids, so create a fresh shell and let
             // the normal exact-entry recovery path hydrate it below.
             if (options.showId && options.recoveryEntryIds?.length) {
-              const recoverableEntries = await findRecoverableEntries({
+              const lookup = await findRecoverableEntries({
                 showId: options.showId,
                 exhibitorId,
                 entryIds: options.recoveryEntryIds,
               });
+              if (!lookup.ok) {
+                write({
+                  cart: null,
+                  isLoading: false,
+                  error: RECOVERY_FAILED_MESSAGE,
+                  droppedRecoveryEntries: null,
+                });
+                return null;
+              }
+              const recoverableEntries = lookup.value;
               if (recoverableEntries.length > 0) {
                 recoverableEntriesForCart = recoverableEntries;
                 const recoveryKey = `${exhibitorId}:${options.showId}:${options.recoveryEntryIds
@@ -304,34 +315,43 @@ export const useCartStore = create<CartState>()(
           // Exact-entry recovery rebuilds only the explicit unpaid entries. It
           // never sweeps unrelated pending entries into checkout or backfills a
           // partially emptied cart.
-          let recoveryNotice: Pick<CartState, 'droppedRecoveryEntries'> | null = null;
-          if (items.length === 0 && options.recoveryEntryIds?.length) {
-            items = await recoverCartItemsFromEntryIds({
-              cartId: cartData.id,
-              showId: cartData.show_id,
-              exhibitorId,
-              entryIds: options.recoveryEntryIds,
-              ...(recoverableEntriesForCart
-                ? { recoverableEntries: recoverableEntriesForCart }
-                : {}),
-            });
-            recoveryNotice = {
-              droppedRecoveryEntries: summarizeDroppedRecoveryEntries(
-                cartData.id,
-                options.recoveryEntryIds,
-                items
-              ),
-            };
-          }
+          const linkEntryIds = options.recoveryEntryIds ?? [];
+          const linked = linkEntryIds.length
+            ? await loadPaymentLinkItems({
+                cartId: cartData.id,
+                showId: cartData.show_id,
+                exhibitorId,
+                entryIds: linkEntryIds,
+                items,
+                recoverableEntries: recoverableEntriesForCart,
+              })
+            : null;
+          if (linked?.ok) items = linked.value.items;
+
+          const reconciled = await reconcileCartItemsAgainstExistingEntries({
+            cartId: cartData.id,
+            showId: cartData.show_id,
+            items,
+          });
+          // MYK9-873: what the link named vs the reconciled cart. A failed lookup
+          // or rebuild is a retryable error, never an eligibility notice.
+          const recoveryNotice: Partial<CartState> = !linked
+            ? {}
+            : linked.ok
+              ? {
+                  droppedRecoveryEntries: summarizeDroppedRecoveryEntries(
+                    cartData.id,
+                    linkEntryIds,
+                    reconciled,
+                    linked.value.recoverable
+                  ),
+                }
+              : { droppedRecoveryEntries: null, error: RECOVERY_FAILED_MESSAGE };
 
           // A recovered draft may be months old: drop classes that closed or filled since.
           const closure = await dropItemsInClosedClasses({
             cartId: cartData.id,
-            items: await reconcileCartItemsAgainstExistingEntries({
-              cartId: cartData.id,
-              showId: cartData.show_id,
-              items,
-            }),
+            items: reconciled,
           });
           items = closure.items;
 

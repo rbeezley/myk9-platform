@@ -418,6 +418,15 @@ export default function CartPage() {
     </p>
   );
 
+  // Both the cart and the empty-cart branch render it: a payment-link lookup that
+  // failed with no cart left lands on the empty branch (MYK9-873).
+  const errorAlert = error ? (
+    <Alert variant="destructive" className="mb-6">
+      <AlertCircle className="h-4 w-4" />
+      <AlertDescription>{error}</AlertDescription>
+    </Alert>
+  ) : null;
+
   if (isHydrating) {
     return (
       <div className="bg-background pt-6">
@@ -446,6 +455,7 @@ export default function CartPage() {
       <div className="bg-background pt-6">
         {liveRegion}
         <div className="max-w-4xl mx-auto px-4 py-8">
+          {errorAlert}
           {/* The re-check may have removed every line (MYK9-656): say which and why. */}
           <ClosedClassRemovedNotice />
           <RecoveryEntriesDroppedNotice className="mt-4" />
@@ -547,13 +557,7 @@ export default function CartPage() {
         {/* Linked entries recovery could not put in the cart (MYK9-873) */}
         <RecoveryEntriesDroppedNotice className="mb-6" />
 
-        {/* Error Alert */}
-        {error && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+        {errorAlert}
 
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

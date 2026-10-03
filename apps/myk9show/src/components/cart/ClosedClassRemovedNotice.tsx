@@ -77,11 +77,11 @@ export function ClosedClassRemovedNotice({ className }: { className?: string }) 
 }
 
 /**
- * A Finish Payment link named entries the recovered cart could not hold
- * (MYK9-873). Recovery keeps only entries still unpaid and open for payment, so
- * a link opened after some were paid or withdrawn rebuilds a smaller cart; this
- * says how many are missing and why, so a payment that still matters can be
- * made again rather than silently skipped.
+ * A Finish Payment link named entries this cart does not hold (MYK9-873): some
+ * are no longer payable (paid, withdrawn, closed to payment), and some are still
+ * unpaid but the cart already held other lines and is never backfilled. This
+ * says how many and why, so a payment that still matters is not silently
+ * skipped. A FAILED lookup never reaches here; it is the cart's error alert.
  */
 export function RecoveryEntriesDroppedNotice({ className }: { className?: string }) {
   const notice = useCartStore(state => state.droppedRecoveryEntries);
@@ -90,17 +90,25 @@ export function RecoveryEntriesDroppedNotice({ className }: { className?: string
 
   if (!notice || notice.cartId !== cartId) return null;
 
-  const verb = notice.dropped === 1 ? 'is' : 'are';
+  const { requested, stillUnpaid, unavailable } = notice;
+  const missing = stillUnpaid + unavailable;
+  const isAre = (count: number) => (count === 1 ? 'is' : 'are');
 
   return (
     <CartRemovalNotice className={className} onDismiss={dismiss}>
       <p className="font-medium">
-        {`${notice.dropped} of the ${notice.requested} entries in your payment link ${verb} not in this cart.`}
+        {`${missing} of the ${requested} entries in your payment link ${isAre(missing)} not in this cart.`}
       </p>
-      <p className="mt-1">
-        An entry that is already paid, withdrawn, or no longer open for payment cannot be paid here.
-        Check My Entries, and enter again any that still need paying.
-      </p>
+      {unavailable > 0 && (
+        <p className="mt-1">
+          {`${unavailable} ${isAre(unavailable)} already paid, withdrawn, or no longer open for payment. Check My Entries, and enter again any that still need paying.`}
+        </p>
+      )}
+      {stillUnpaid > 0 && (
+        <p className="mt-1">
+          {`${stillUnpaid} still ${stillUnpaid === 1 ? 'needs' : 'need'} paying. Pay for this cart first, then open your payment link again.`}
+        </p>
+      )}
     </CartRemovalNotice>
   );
 }

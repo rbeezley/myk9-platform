@@ -111,9 +111,14 @@ vi.mock('@/services/LoggingService', () => ({
   logger: { error: vi.fn(), warn: vi.fn(), info: vi.fn() },
 }));
 vi.mock('./cartStore.recovery', () => ({
-  findRecoverableEntries: vi.fn(async () => []),
+  findRecoverableEntries: vi.fn(async () => ({ ok: true, value: [] })),
   loadCartItemsByCartId: vi.fn(async () => []),
-  recoverCartItemsFromEntryIds: vi.fn(async () => []),
+  loadPaymentLinkItems: vi.fn(async ({ items }: { items: unknown[] }) => ({
+    ok: true,
+    value: { items, recoverable: [] },
+  })),
+  RECOVERY_FAILED_MESSAGE: 'recovery failed',
+  summarizeDroppedRecoveryEntries: vi.fn(() => null),
 }));
 vi.mock('./cartStore.reconciliation', () => ({
   reconcileCartItemsAgainstExistingEntries: vi.fn(async ({ items }: { items: unknown[] }) => items),

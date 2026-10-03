@@ -21,11 +21,14 @@ export type EntryCartItemInsert = Database['public']['Tables']['entry_cart_items
 export type EnsureCartResult =
   { kind: 'ready'; cart: CartWithDetails } | { kind: 'failed'; error: string };
 
-/** How many of a Finish Payment link's entries recovery left out (MYK9-873). */
+/** How many of a Finish Payment link's entries are not in the cart, and why (MYK9-873). */
 export interface DroppedRecoveryEntries {
   cartId: string;
   requested: number;
-  dropped: number;
+  /** Still payable, but this cart does not hold them (an existing cart is never backfilled). */
+  stillUnpaid: number;
+  /** No longer payable: paid, withdrawn, or no longer open for payment. */
+  unavailable: number;
 }
 
 // Cart status enum

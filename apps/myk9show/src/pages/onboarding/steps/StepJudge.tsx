@@ -7,7 +7,7 @@
  */
 
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { fetchMyJudgeNumbers, saveMyJudgeNumbers, type JudgeRegistryNumber } from '../judgeNumbers';
@@ -22,12 +22,14 @@ interface StepJudgeProps {
 }
 
 export function StepJudge({ personId, onNext, onBack, canGoBack, nextLabel }: StepJudgeProps) {
+  const queryClient = useQueryClient();
+  const queryKey = ['onboarding-judge-numbers', personId];
   const {
     data: registries = [],
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ['onboarding-judge-numbers', personId],
+    queryKey,
     queryFn: () => fetchMyJudgeNumbers(personId),
     enabled: Boolean(personId),
   });
@@ -50,6 +52,9 @@ export function StepJudge({ personId, onNext, onBack, canGoBack, nextLabel }: St
           key={registries.map(r => `${r.organization}:${r.judge_number}`).join('|')}
           registries={registries}
           loadFailed={isError}
+          // The saved numbers become the cached ones, so Back shows them and
+          // change detection compares against what is now stored.
+          onSaved={saved => queryClient.setQueryData(queryKey, saved)}
           onNext={onNext}
           onBack={onBack}
           canGoBack={canGoBack}
@@ -63,11 +68,13 @@ export function StepJudge({ personId, onNext, onBack, canGoBack, nextLabel }: St
 interface JudgeNumberFormProps extends Omit<StepJudgeProps, 'personId'> {
   registries: JudgeRegistryNumber[];
   loadFailed: boolean;
+  onSaved: (saved: JudgeRegistryNumber[]) => void;
 }
 
 function JudgeNumberForm({
   registries,
   loadFailed,
+  onSaved,
   onNext,
   onBack,
   canGoBack,
@@ -94,6 +101,9 @@ function JudgeNumberForm({
           organization: r.organization,
           judge_number: numbers[r.organization] ?? '',
         }))
+      );
+      onSaved(
+        registries.map(r => ({ ...r, judge_number: (numbers[r.organization] ?? '').trim() }))
       );
       onNext();
     } catch (err) {

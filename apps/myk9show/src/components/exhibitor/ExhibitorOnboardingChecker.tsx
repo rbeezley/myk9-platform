@@ -9,7 +9,8 @@
  *   - the user is authenticated and not an anonymous passcode session,
  *   - the profile query has SETTLED (an unresolved query is "unknown", never
  *     "no profile"),
- *   - the current route is not exempt (auth, legal, ringside, TV display), and
+ *   - the current route is not exempt (auth, legal, and the show-day/payment
+ *     routes in `@/utils/sensitiveRoutes`), and
  *   - there is at least one step left.
  */
 
@@ -19,18 +20,14 @@ import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { buildOnboardingSteps } from '@/pages/onboarding/onboardingSteps';
 import type { UserRole } from '@/types/auth-types';
+import { isSensitivePath } from '@/utils/sensitiveRoutes';
 
 interface ExhibitorOnboardingCheckerProps {
   children: React.ReactNode;
 }
 
-// Routes that should never trigger an onboarding redirect: auth pages, the
-// onboarding route itself, legal pages, the ringside surface and TV display.
-//
-// INTENT: /at-show and /tv are show-day surfaces. A judge signing in at the ring
-// must land on the scoresheet, never on a setup form ("invisible technology");
-// their role step waits for the next visit to the main app.
-const EXEMPT_PATHS = [
+// Auth pages, the onboarding route itself and legal pages never redirect.
+const ONBOARDING_EXEMPT_PATHS = [
   '/onboarding',
   '/sign-in',
   '/sign-up',
@@ -39,12 +36,18 @@ const EXEMPT_PATHS = [
   '/auth/callback',
   '/terms',
   '/privacy',
-  '/at-show',
-  '/tv',
 ];
 
+// INTENT: neither do show-day and payment routes (ringside, scoring, the live
+// class dashboard, TV display, checkout). A judge signing in at the ring must
+// land on the scoresheet, never on a setup form; the step waits for the next
+// visit to the rest of the app. The list is the one the PWA update prompt uses
+// (`isSensitivePath`), so a new show-day route is added in one place.
 function isExemptPath(pathname: string): boolean {
-  return EXEMPT_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'));
+  return (
+    isSensitivePath(pathname) ||
+    ONBOARDING_EXEMPT_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))
+  );
 }
 
 export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingCheckerProps) {

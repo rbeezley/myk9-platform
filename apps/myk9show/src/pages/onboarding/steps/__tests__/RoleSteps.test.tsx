@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { useState } from 'react';
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { fromPartial } from '@total-typescript/shoehorn';
 import { render } from '@/test/utils/testUtils';
@@ -83,6 +84,46 @@ describe('StepJudge', () => {
     expect(mockSupabase.rpc).toHaveBeenCalledWith('set_my_judge_numbers', {
       p_numbers: [{ organization: 'AKC', judge_number: 'A-123' }],
     });
+  });
+
+  it('shows the saved number after Next then Back, and does not save it again', async () => {
+    // A refetch that never settles: what Back shows must come from the cache
+    // the save wrote, not from a later round trip.
+    const pending = new Proxy(
+      {},
+      { get: (_t, prop) => (prop === 'then' ? () => undefined : () => pending) }
+    );
+    mockSupabase.from
+      .mockReturnValueOnce(
+        createChainableQuery({
+          data: [{ organization: 'AKC', judge_number: 'OLD-1' }],
+          error: null,
+        })
+      )
+      .mockReturnValue(pending);
+    mockSupabase.rpc.mockReturnValue(createChainableQuery({ data: 1, error: null }));
+
+    function Harness() {
+      const [onStep, setOnStep] = useState(true);
+      return onStep ? (
+        <StepJudge personId="person-1" {...makeRoleStepProps()} onNext={() => setOnStep(false)} />
+      ) : (
+        <button type="button" onClick={() => setOnStep(true)}>
+          Back to judge step
+        </button>
+      );
+    }
+
+    render(<Harness />);
+
+    fireEvent.change(await screen.findByLabelText(/AKC/), { target: { value: 'NEW-2' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to judge step' }));
+
+    expect(screen.getByLabelText(/AKC/)).toHaveValue('NEW-2');
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await screen.findByRole('button', { name: 'Back to judge step' });
+    expect(mockSupabase.rpc).toHaveBeenCalledTimes(1);
   });
 
   it('continues without a save when nothing changed', async () => {

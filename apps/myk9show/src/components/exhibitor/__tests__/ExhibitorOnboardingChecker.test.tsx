@@ -142,14 +142,31 @@ describe('ExhibitorOnboardingChecker', () => {
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
-  it('never redirects from the ringside surface or the TV display', () => {
-    for (const pathname of ['/at-show', '/at-show/show-1/class/c1', '/tv/show-1']) {
-      mockPathname = pathname;
-      setupMocks({ roles: [UserRole.JUDGE], onboardingCompleted: false });
-      const view = renderChecker();
-      view.unmount();
+  // Every show-day route family, for a judge AND a secretary with unfinished
+  // onboarding. The list is shared with the PWA update prompt (isSensitivePath).
+  it.each([
+    ['ringside landing', '/at-show'],
+    ['ringside class', '/at-show/show-1/class/c1'],
+    ['ringside scoresheet', '/at-show/show-1/class/c1/score/e1'],
+    ['TV display', '/tv/show-1'],
+    ['scoring entries list', '/scoring/classes/c1/entries'],
+    ['scoring scoresheet', '/scoring/classes/c1/entries/e1'],
+    ['live class dashboard', '/shows/s1/trials/t1/classes/c1/secretary'],
+    ['checkout', '/checkout/success'],
+  ])('never redirects from the %s (%s)', (_family, pathname) => {
+    mockPathname = pathname;
+    for (const roles of [[UserRole.JUDGE], [UserRole.SECRETARY]]) {
+      setupMocks({ roles, onboardingCompleted: false });
+      renderChecker().unmount();
     }
     expect(mockNavigate).not.toHaveBeenCalled();
+  });
+
+  it('still redirects from an ordinary show page (positive control)', () => {
+    mockPathname = '/shows/s1';
+    setupMocks({ roles: [UserRole.JUDGE], onboardingCompleted: false });
+    renderChecker();
+    expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
   });
 
   // "On the next sign-in", not mid-session: RBAC re-polls, and a role granted

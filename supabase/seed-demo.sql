@@ -80,7 +80,7 @@
 --   (subquery on public.people) so the fixed UUIDs below never collide with
 --   real account ids. Dogs/entries are attached to:
 --     - exhibitor@myk9t.com  (primary demo exhibitor)
---     - secretary@myk9t.com  (Test Secretary)
+--     - secretary@myk9t.com  (Jordan Ellis)
 --     - testadmin@myk9t.com      (site admin / club administrator)
 --
 -- HOW TO RUN
@@ -1402,30 +1402,30 @@ VALUES
   ('dededede-0000-0000-0000-000000000051',
    'dededede-0000-0000-0000-000000000041', 'dec1a55e-0000-0000-0000-000000000031',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
-   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Test Exhibitor',
+   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Casey Morgan',
    'confirmed', 'paid', 30.00, 100, 1, false, 1),
   ('dededede-0000-0000-0000-000000000052',
    'dededede-0000-0000-0000-000000000041', 'dec1a55e-0000-0000-0000-000000000032',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
-   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Test Exhibitor',
+   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Casey Morgan',
    'confirmed', 'paid', 30.00, 100, 1, false, 1),
   -- Ranger (e2e-exhibitor): Interior Advanced
   ('dededede-0000-0000-0000-000000000053',
    'dededede-0000-0000-0000-000000000042', 'dec1a55e-0000-0000-0000-000000000032',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
-   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Test Exhibitor',
+   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Casey Morgan',
    'submitted', 'pending', 30.00, 101, 2, false, 1),
   -- Juniper (e2e-exhibitor): Exterior Excellent
   ('dededede-0000-0000-0000-000000000054',
    'dededede-0000-0000-0000-000000000043', 'dec1a55e-0000-0000-0000-000000000033',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
-   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Test Exhibitor',
+   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Casey Morgan',
    'submitted', 'pending', 30.00, 102, 1, false, 1),
   -- Scout (beezley): Container Novice A + Buried Master (Sunday)
   ('dededede-0000-0000-0000-000000000055',
    'dededede-0000-0000-0000-000000000044', 'dec1a55e-0000-0000-0000-000000000031',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
-   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Test Exhibitor',
+   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Casey Morgan',
    'confirmed', 'paid', 30.00, 103, 2, false, 1),
   -- GAP FIXTURE #3 (pending move-up request): a move-up is NOT a separate table.
   -- The app models a pending request entirely on the entry row: entry_status=
@@ -1438,19 +1438,19 @@ VALUES
   ('dededede-0000-0000-0000-000000000056',
    'dededede-0000-0000-0000-000000000044', 'dec1a55e-0000-0000-0000-000000000035',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000022',
-   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Test Exhibitor',
+   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Casey Morgan',
    'move-up-requested', 'paid', 30.00, 103, 1, true, 1),
   -- Maple (beezley): Interior Novice B (Sunday)
   ('dededede-0000-0000-0000-000000000057',
    'dededede-0000-0000-0000-000000000045', 'dec1a55e-0000-0000-0000-000000000035',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000022',
-   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Test Exhibitor',
+   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Casey Morgan',
    'submitted', 'pending', 30.00, 104, 1, false, 1),
   -- Cooper (secretary): Container Novice A
   ('dededede-0000-0000-0000-000000000058',
    'dededede-0000-0000-0000-000000000046', 'dec1a55e-0000-0000-0000-000000000031',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
-   (SELECT id FROM public.people WHERE lower(email)='secretary@myk9t.com'), 'Test Secretary',
+   (SELECT id FROM public.people WHERE lower(email)='secretary@myk9t.com'), 'Jordan Ellis',
    'confirmed', 'paid', 30.00, 105, 3, false, 1);
 
 -- Purpose-built preliminary-results class (...040): two paid entries means the
@@ -1463,12 +1463,12 @@ VALUES
   ('dededede-0000-0000-0000-000000000067',
    'dededede-0000-0000-0000-000000000041', 'dec1a55e-0000-0000-0000-000000000040',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
-   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Test Exhibitor',
+   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Casey Morgan',
    'confirmed', 'paid', 30.00, 106, 1, false, 1),
   ('dededede-0000-0000-0000-000000000068',
    'dededede-0000-0000-0000-000000000042', 'dec1a55e-0000-0000-0000-000000000040',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
-   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Test Exhibitor',
+   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Casey Morgan',
    'confirmed', 'paid', 30.00, 107, 2, false, 1);
 
 -- MYK9-515 full-class entry (...069): Cooper, owned by secretary@myk9t.com and
@@ -1483,7 +1483,7 @@ VALUES
   ('dededede-0000-0000-0000-000000000069',
    'dededede-0000-0000-0000-000000000046', 'dec1a55e-0000-0000-0000-000000000045',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000024',
-   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Test Exhibitor',
+   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Casey Morgan',
    'confirmed', 'paid', 30.00, 105, 1, false, 1);
 
 -- ---------------------------------------------------------------------------
@@ -1682,7 +1682,7 @@ VALUES
   ('dededede-0000-0000-0000-000000000059',
    'dededede-0000-0000-0000-000000000045', 'dec1a55e-0000-0000-0000-000000000033',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
-   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Test Exhibitor',
+   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Casey Morgan',
    'withdrawn', 'refunded', 30.00, NULL, NULL, false,
    'Exhibitor withdrew before the show; full refund issued.',
    30.00, 'Demo refund for the withdrawn-entry walk fixture.',
@@ -1690,7 +1690,7 @@ VALUES
   ('dededede-0000-0000-0000-000000000060',
    'dededede-0000-0000-0000-000000000042', 'dec1a55e-0000-0000-0000-000000000033',
    'dededede-0000-0000-0000-000000000010', 'dededede-0000-0000-0000-000000000021',
-   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Test Exhibitor',
+   (SELECT id FROM public.people WHERE lower(email)='exhibitor@myk9t.com'), 'Casey Morgan',
    'withdrawn', 'refunded', 30.00, NULL, NULL, false,
    'Exhibitor withdrew before the show; full refund issued.',
    30.00, 'Demo refund for the withdrawn-entry walk fixture (exhibitor-owned).',
@@ -2275,7 +2275,7 @@ SELECT
   'entry',
   (SELECT id FROM public.people WHERE email = 'exhibitor@myk9t.com'),
   'exhibitor@myk9t.com',
-  'E2E Exhibitor',
+  'Casey Morgan',
   'Your entry has been accepted',
   'Your entry has been accepted',
   '[]'::jsonb,
@@ -2558,8 +2558,8 @@ SELECT
   'confirmed', 'paid', 30.00, e.armband, e.run_order, false, 1
 FROM generate_series(0, 6) AS o(n)
 CROSS JOIN (VALUES
-  ('001', 'dededede-0000-0000-0000-000000000041'::uuid, 'exhibitor@myk9t.com', 'Test Exhibitor', 200, 1),
-  ('002', 'dededede-0000-0000-0000-000000000046'::uuid, 'secretary@myk9t.com', 'Test Secretary', 201, 2)
+  ('001', 'dededede-0000-0000-0000-000000000041'::uuid, 'exhibitor@myk9t.com', 'Casey Morgan', 200, 1),
+  ('002', 'dededede-0000-0000-0000-000000000046'::uuid, 'secretary@myk9t.com', 'Jordan Ellis', 201, 2)
 ) AS e(kind, dog_id, email, handler, armband, run_order);
 
 -- One armband per dog per show, matching the entries' numbers (see section 7).
@@ -2607,7 +2607,7 @@ INSERT INTO public.show_announcements (
 SELECT
   v.id, 'dededede-0000-0000-0000-000000000014',
   (SELECT auth_user_id FROM public.people WHERE lower(email) = 'secretary@myk9t.com'),
-  'secretary', 'Test Secretary', v.title, v.content, 'normal', NULL, true,
+  'secretary', 'Jordan Ellis', v.title, v.content, 'normal', NULL, true,
   ((d.today::timestamp + v.at) AT TIME ZONE 'America/Chicago'),
   ((d.today::timestamp + v.at) AT TIME ZONE 'America/Chicago')
 FROM (SELECT (now() AT TIME ZONE 'America/Chicago')::date AS today) AS d

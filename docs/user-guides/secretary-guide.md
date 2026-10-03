@@ -105,7 +105,7 @@ The **Show:** menu across the top lists the queues — _Needs review_, _Missing 
 
 **Entries → Add Entry → Add late entry.** Same flow as entering for someone else.
 
-## 6 · Manage the wait list
+## 6 · Manage the waitlist
 
 **Entries → Exceptions → Waitlist.**
 
@@ -134,7 +134,7 @@ Pending and pulled queues sit together. On each pulled entry, record what you de
 
 1. Open **Message Center**.
 2. Compose the message and choose who it goes to — the whole show, or a class.
-3. Send.
+3. Send the message.
 
 > **The Messages page is history only.** It shows what has been sent; you cannot start a message from it. Composing happens in the header panel.
 
@@ -200,7 +200,7 @@ Choose the target class and give a reason. Targets are restricted to the same el
 
 ## 16 · Check dogs in
 
-**Overview → click the class → Enter paper scores** shows the run sheet, with a check-in control on every dog's row.
+To check in an exhibitor's dog: **Overview → click the class → Enter paper scores** shows the run sheet, with a check-in control on every dog's row.
 
 ## 17 · Enter results from paper scoresheets
 

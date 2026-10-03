@@ -71,6 +71,30 @@ describe('CockpitAttentionStrip', () => {
     expect(screen.queryByRole('button', { name: 'Closeout unreadable' })).not.toBeInTheDocument();
   });
 
+  it('keeps every pill and the overflow control at the 44px touch floor and caption type', () => {
+    render(
+      <CockpitAttentionStrip
+        items={items}
+        all={[...items, { ...items[0]!, id: 'd' }]}
+        overflowCount={1}
+        classNameById={new Map()}
+        onCommand={vi.fn()}
+      />
+    );
+    const section = screen.getByRole('region', { name: /needs attention/i });
+    const controls = [
+      ...section.querySelectorAll('a, button'),
+      screen.getByText('Closeout unreadable'),
+    ];
+
+    expect(controls).toHaveLength(4);
+    for (const control of controls) {
+      expect(control).toHaveClass('min-h-11', 'text-xs');
+      // No hard-coded size under the 14px floor (docs/INTENT.md).
+      expect(control.className).not.toMatch(/text-\[\d+px\]/);
+    }
+  });
+
   it('reveals the remainder on request', async () => {
     const { user } = render(
       <CockpitAttentionStrip

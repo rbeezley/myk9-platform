@@ -15,7 +15,7 @@ const CHIP_TONE: Record<CockpitAttentionKind, string> = {
 };
 
 const CHIP_CLASS =
-  'inline-flex min-h-9 items-center rounded-full px-3 py-1.5 text-[13px] font-semibold';
+  'inline-flex min-h-11 items-center rounded-full px-3.5 py-2 text-xs font-semibold';
 
 /**
  * One line of pills (layout A, owner, 2026-10-02): each names the class and
@@ -88,7 +88,7 @@ export function CockpitAttentionStrip({
       {overflowCount > 0 && !showAll && (
         <button
           type="button"
-          className="min-h-9 text-[13px] font-semibold text-primary hover:underline"
+          className="min-h-11 text-xs font-semibold text-primary hover:underline"
           onClick={() => setShowAll(true)}
         >
           View {overflowCount} more issues

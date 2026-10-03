@@ -32,6 +32,20 @@ const ENTERED_KINDS: ReadonlySet<EntryStatusKind> = new Set<EntryStatusKind>([
   'move_up_requested',
 ]);
 
+/**
+ * True while an entry is not yet accepted: the schedule card's "pending", which
+ * the Entries review lane also uses. `kind === 'pending'`, plus the owner's
+ * override that `paid` and `promotion-expired` stay pending (MYK9-976 uses this
+ * to keep Move up hidden until acceptance).
+ */
+export function isPendingEntryStatus(raw: string | null | undefined): boolean {
+  const kind = getEntryStatusKind(raw);
+  // The override only: `mapEntryStatus` also says PENDING for in-ring and absent dogs.
+  const keptPendingByOverride =
+    (kind === 'accepted' || kind === 'not_accepted') && mapEntryStatus(raw) === EntryStatus.PENDING;
+  return kind === 'pending' || keptPendingByOverride;
+}
+
 export function buildClassEntryBreakdowns(
   entries: readonly EntryRowLike[]
 ): Map<string, ClassEntryBreakdown> {
@@ -40,11 +54,7 @@ export function buildClassEntryBreakdowns(
     if (entry.deleted_at || typeof entry.class_id !== 'string' || !entry.class_id) continue;
     const raw = typeof entry.entry_status === 'string' ? entry.entry_status : null;
     const kind = getEntryStatusKind(raw);
-    // The override only: `mapEntryStatus` also says PENDING for in-ring and absent dogs.
-    const keptPendingByOverride =
-      (kind === 'accepted' || kind === 'not_accepted') &&
-      mapEntryStatus(raw) === EntryStatus.PENDING;
-    const isPending = kind === 'pending' || keptPendingByOverride;
+    const isPending = isPendingEntryStatus(raw);
     if (!isPending && !ENTERED_KINDS.has(kind)) continue;
     const breakdown = result.get(entry.class_id) ?? { entered: 0, pending: 0 };
     breakdown[isPending ? 'pending' : 'entered'] += 1;

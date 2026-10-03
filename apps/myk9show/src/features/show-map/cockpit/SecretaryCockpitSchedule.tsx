@@ -18,12 +18,9 @@ export function SecretaryCockpitSchedule({
   model,
   sourceClasses,
   sourceTrials,
-  timeZone,
   filter,
-  canManageShow,
   onFilterChange,
   onFocusClass,
-  onCommand,
   inlineFocusedContent,
   entryBreakdownByClassId,
   renderTrialActions,
@@ -32,19 +29,15 @@ export function SecretaryCockpitSchedule({
   model: SecretaryCockpitModel;
   sourceClasses: readonly SecretaryCockpitClass[];
   sourceTrials: readonly SecretaryCockpitTrial[];
-  timeZone: string;
   filter: CockpitFilter;
-  canManageShow: boolean;
   onFilterChange: (filter: CockpitFilter) => void;
   onFocusClass: (classId: string) => void;
-  onCommand: (commandId: string) => void;
   inlineFocusedContent?: ReactNode;
   /** Entered/pending per class (MYK9-943); absent until entries are read. */
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
   renderTrialActions?: ((trialId: string, label: string) => ReactNode) | undefined;
 }) {
   const classById = new Map(sourceClasses.map(classItem => [classItem.id, classItem]));
-  const trialById = new Map(sourceTrials.map(trial => [trial.id, trial]));
   const trialIdsForSelectedDay = new Set(
     sourceTrials.filter(trial => trial.date === model.day.selected).map(trial => trial.id)
   );
@@ -107,11 +100,7 @@ export function SecretaryCockpitSchedule({
             showId={showId}
             model={model}
             classById={classById}
-            trialById={trialById}
-            timeZone={timeZone}
-            canManageShow={canManageShow}
             onFocusClass={onFocusClass}
-            onCommand={onCommand}
             inlineFocusedContent={inlineFocusedContent}
             entryBreakdownByClassId={entryBreakdownByClassId}
             trialActions={renderTrialActions?.(group.trialId, group.label)}

@@ -2,7 +2,6 @@ import { screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { render } from '@/test/utils/testUtils';
-import { setRevisedExpectedStart } from '@/services/show-day/classTimingMutations';
 import { buildSecretaryCockpitModel } from './secretaryCockpitModel';
 import { SecretaryCockpitSchedule } from './SecretaryCockpitSchedule';
 import type { SecretaryCockpitSnapshot } from './secretaryCockpitTypes';
@@ -56,12 +55,9 @@ function renderSchedule(snapshot: SecretaryCockpitSnapshot, filter: 'all' | 'nee
       model={model}
       sourceClasses={snapshot.classes}
       sourceTrials={snapshot.trials}
-      timeZone={snapshot.timeZone}
       filter={filter}
-      canManageShow
       onFilterChange={vi.fn()}
       onFocusClass={vi.fn()}
-      onCommand={vi.fn()}
     />
   );
 }
@@ -179,12 +175,9 @@ describe('SecretaryCockpitSchedule view tabs', () => {
         model={model}
         sourceClasses={snapshotWithMixedStates.classes}
         sourceTrials={snapshotWithMixedStates.trials}
-        timeZone={snapshotWithMixedStates.timeZone}
         filter="all"
-        canManageShow
         onFilterChange={onFilterChange}
         onFocusClass={vi.fn()}
-        onCommand={vi.fn()}
       />
     );
 
@@ -210,7 +203,7 @@ describe('SecretaryCockpitSchedule offline', () => {
     vi.clearAllMocks();
   });
 
-  it('renders the schedule and its view-tab counts from the already-loaded replicated data, and per-row mutations still queue', async () => {
+  it('renders the schedule and its view-tab counts from the already-loaded replicated data', async () => {
     expect(window.navigator.onLine).toBe(false);
 
     const model = buildSecretaryCockpitModel(snapshotWithMixedStates, {
@@ -224,12 +217,9 @@ describe('SecretaryCockpitSchedule offline', () => {
         model={model}
         sourceClasses={snapshotWithMixedStates.classes}
         sourceTrials={snapshotWithMixedStates.trials}
-        timeZone={snapshotWithMixedStates.timeZone}
         filter="all"
-        canManageShow
         onFilterChange={vi.fn()}
         onFocusClass={vi.fn()}
-        onCommand={vi.fn()}
       />
     );
 
@@ -241,12 +231,8 @@ describe('SecretaryCockpitSchedule offline', () => {
     expect(await screen.findByRole('option', { name: 'In progress (1)' })).toBeInTheDocument();
     await user.keyboard('{Escape}');
 
-    // The per-row expected-start control still queues its update through the
-    // replicated mutation path while offline (design.md §2.4: unchanged by
-    // this change, still the canonical `replicatedClassesTable` write).
-    await user.click(screen.getByRole('button', { name: /^\d{1,2}:\d{2}$/ }));
-    await user.click(screen.getByRole('button', { name: 'Use scheduled time' }));
-
-    expect(setRevisedExpectedStart).toHaveBeenCalledWith('class-1', null);
+    // Rows are read-only summaries; the expected-start editor (and its queued
+    // offline write, ClassOperationalControls.test.tsx) is in the class panel.
+    expect(screen.queryByRole('button', { name: 'Use scheduled time' })).not.toBeInTheDocument();
   });
 });

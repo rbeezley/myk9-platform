@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, CalendarDays, Plus } from 'lucide-react';
+import { useEffect, useRef } from 'react';
+import { CalendarDays, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTrialRowActions } from '@/components/shows/tabs/useTrialRowActions';
 import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
@@ -11,7 +11,7 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 import { ALL_DAYS, buildSecretaryCockpitModel } from './secretaryCockpitModel';
 import { useSecretaryCockpitUrlState } from './useSecretaryCockpitUrlState';
-import { CockpitActionLink } from './CockpitActionLink';
+import { CockpitAttentionStrip } from './CockpitAttentionStrip';
 import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
 import { useFocusedClassSetupActions } from './FocusedClassSetupActions';
 import { SecretaryCockpitSchedule } from './SecretaryCockpitSchedule';
@@ -58,8 +58,7 @@ export function SecretaryCockpit({
       {trialRowMenu(trialId, label, true)}
     </>
   );
-  const [showAllAttention, setShowAllAttention] = useState(false);
-  const restoredAnchor = useRef<string | null>(null);
+  const pendingAnchor = useRef(state.anchor);
   const isSplitViewport = useMediaQuery('(min-width: 1280px)');
   const model = buildSecretaryCockpitModel(snapshot, state);
   const focusedId = model.focusedClass?.id;
@@ -102,6 +101,8 @@ export function SecretaryCockpit({
     if (focusedId && state.focusedClassId !== focusedId) {
       updates.focusedClassId = focusedId;
     }
+    // Recorded so a returnTo link comes back to this class. Written after
+    // mount, it is never the pending anchor below, so the page does not move.
     if (focusedId && !state.anchor) updates.anchor = focusedId;
     if (Object.keys(updates).length > 0) updateState(updates, { replace: true });
   }, [
@@ -114,15 +115,27 @@ export function SecretaryCockpit({
     updateState,
   ]);
 
+  // Scrolling back to the anchor is only for returning to this page (a
+  // returnTo link or a refresh). Once the secretary clicks, scrolls or types,
+  // a row that renders late must not move the page under them.
   useEffect(() => {
-    if (!state.anchor || restoredAnchor.current === state.anchor) return;
-    const target = document.getElementById(getCockpitAnchorElementId(state.anchor));
-    if (!target) return;
-    restoredAnchor.current = state.anchor;
-    target.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
-  }, [state.anchor, model.trialGroups]);
+    const cancel = () => {
+      pendingAnchor.current = undefined;
+    };
+    const options = { capture: true, passive: true } as const;
+    const events = ['pointerdown', 'wheel', 'touchmove', 'keydown'] as const;
+    events.forEach(name => window.addEventListener(name, cancel, options));
+    return () => events.forEach(name => window.removeEventListener(name, cancel, options));
+  }, []);
 
-  const visibleAttention = showAllAttention ? model.attention.all : model.attention.items;
+  useEffect(() => {
+    const anchor = pendingAnchor.current;
+    if (!anchor) return;
+    const target = document.getElementById(getCockpitAnchorElementId(anchor));
+    if (!target) return;
+    pendingAnchor.current = undefined;
+    target.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
+  }, [model.trialGroups]);
 
   return (
     <div className="space-y-5" data-testid="secretary-cockpit">
@@ -160,45 +173,13 @@ export function SecretaryCockpit({
       )}
 
       {model.attention.items.length > 0 && (
-        <section aria-labelledby="cockpit-attention-title">
-          <div className="mb-2 flex items-center gap-2">
-            <AlertTriangle className="h-4 w-4 text-destructive" />
-            <h2 id="cockpit-attention-title" className="text-sm font-semibold">
-              Needs attention · {model.attention.all.length}
-            </h2>
-          </div>
-          <div className="grid gap-2 lg:grid-cols-3">
-            {visibleAttention.map(item => (
-              <div
-                key={item.id}
-                className="rounded-lg border border-destructive/25 bg-destructive/5 p-3"
-              >
-                <div className="font-medium">{item.label}</div>
-                <div className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.reason}</div>
-                {item.destination && (
-                  <CockpitActionLink
-                    destination={item.destination}
-                    onCommand={onCommand}
-                    variant="ghost"
-                    className="mt-2 h-8 w-full px-2 text-destructive hover:text-destructive"
-                  >
-                    {item.label}
-                  </CockpitActionLink>
-                )}
-              </div>
-            ))}
-          </div>
-          {model.attention.overflowCount > 0 && !showAllAttention && (
-            <Button
-              type="button"
-              variant="link"
-              className="mt-1 min-h-11 px-0"
-              onClick={() => setShowAllAttention(true)}
-            >
-              View {model.attention.overflowCount} more issues
-            </Button>
-          )}
-        </section>
+        <CockpitAttentionStrip
+          items={model.attention.items}
+          all={model.attention.all}
+          overflowCount={model.attention.overflowCount}
+          classNameById={new Map(model.daySchedule.map(cls => [cls.id, cls.name]))}
+          onCommand={onCommand}
+        />
       )}
 
       <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)] xl:grid-rows-[auto_auto] xl:gap-5">
@@ -209,12 +190,9 @@ export function SecretaryCockpit({
           model={model}
           sourceClasses={snapshot.classes}
           sourceTrials={snapshot.trials}
-          timeZone={snapshot.timeZone}
           filter={state.filter}
-          canManageShow={canManageShow}
           onFilterChange={filter => updateState({ filter })}
           onFocusClass={focusedClassId => updateState({ focusedClassId, anchor: focusedClassId })}
-          onCommand={onCommand}
           inlineFocusedContent={
             !isSplitViewport && focusedClassIsVisible ? focusedPanel : undefined
           }

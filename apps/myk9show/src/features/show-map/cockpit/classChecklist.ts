@@ -115,14 +115,21 @@ export function buildClassChecklist(input: ClassChecklistInput): ClassChecklistI
   ];
 }
 
-export function summarizeClassChecklist(items: readonly ClassChecklistItem[]): {
+export interface ClassChecklistSummary {
   done: number;
   total: number;
   unknown: number;
-} {
+  /** Each item's state in checklist order, for the schedule row's strip. */
+  states: ClassChecklistState[];
+}
+
+export function summarizeClassChecklist(
+  items: readonly ClassChecklistItem[]
+): ClassChecklistSummary {
   return {
     done: items.filter(item => item.state === 'done').length,
     total: items.length,
     unknown: items.filter(item => item.state === 'unknown').length,
+    states: items.map(item => item.state),
   };
 }

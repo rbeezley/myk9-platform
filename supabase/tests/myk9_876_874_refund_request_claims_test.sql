@@ -57,6 +57,11 @@
 --          'already_resolved'; a blank note is refused.
 --       O16 (Codex round 6) resolve is refused while an attempt is pending or
 --          succeeded ('has_live_attempt'), writing nothing.
+--       O18 (Codex round 7) a DEFINITIVE Stripe create rejection: the
+--          unissued pending attempt fails with Stripe's code (CAS), the
+--          request reads failed, Resolve works, and on another request
+--          Approve again opens attempt 2; a stale version is 'conflict' and
+--          an attempt holding a refund is 'already_issued'.
 --       O17 (Codex round 6) the trigger keeps the resolved state: a failed
 --          request resolves (last_failure cleared), and a later change to its
 --          old attempt does not derive the request back.
@@ -161,6 +166,7 @@ BEGIN
     'public.refund_attempt_state(uuid, integer)',
     'public.settle_refund_attempt(uuid, integer, text, text)',
     'public.resolve_refund_request_without_refund(uuid, uuid, text)',
+    'public.fail_unissued_refund_attempt(uuid, integer, text)',
     'public.refund_attempt_next_status(text, text)'
   ] LOOP
     IF has_function_privilege('anon', v_fn, 'EXECUTE')
@@ -683,8 +689,13 @@ BEGIN
   PERFORM pg_temp.expect_eq(pg_temp.request_state(v_req), 'awaiting_stripe',
     'O14 the request still waits on the open attempt');
   PERFORM pg_temp.expect_eq(
-    (SELECT count(*)::text FROM public.refund_attempt_state(v_req, 99)), '0',
-    'O14 refund_attempt_state finds no unknown attempt');
+    (SELECT (s.attempt_id IS NULL)::text || ' ' || s.request_kind || ' ' || s.request_reason
+       FROM public.refund_attempt_state(v_req, 99) AS s),
+    'true cart_overflow partial_no_service_lines',
+    'O14 refund_attempt_state returns the request (kind, reason) with no attempt for an unknown attempt');
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*)::text FROM public.refund_attempt_state(gen_random_uuid(), 1)), '0',
+    'O14 refund_attempt_state returns nothing for an unknown request');
 END;
 $$;
 -- O15 (Codex round 6) resolve without refund, then approval is refused -------
@@ -771,6 +782,47 @@ BEGIN
     'O17 the trigger keeps the resolved state');
   PERFORM pg_temp.expect_eq(pg_temp.request_state(v_req), 'resolved_without_refund',
     'O17 the request stays resolved');
+END;
+$$;
+-- O18 (Codex round 7) definitive create rejection ----------------------------
+DO $$
+DECLARE
+  v_req uuid := pg_temp.new_request('cs_876_o18');
+  v_again uuid := pg_temp.new_request('cs_876_o18b');
+  v_issued uuid := pg_temp.new_request('cs_876_o18c');
+  v_b record;
+  v_f record;
+  v_r record;
+  v_a record;
+BEGIN
+  SELECT * INTO v_b FROM public.begin_refund_attempt(v_req, '00000000-0000-0000-0000-000000876102');
+  SELECT * INTO v_f FROM public.fail_unissued_refund_attempt(
+    v_b.attempt_id, v_b.attempt_version + 1, 'charge_already_refunded');
+  PERFORM pg_temp.expect_eq(v_f.outcome || ' ' || v_f.attempt_status, 'conflict pending',
+    'O18 a stale version writes nothing');
+  SELECT * INTO v_f FROM public.fail_unissued_refund_attempt(
+    v_b.attempt_id, v_b.attempt_version, 'charge_already_refunded');
+  PERFORM pg_temp.expect_eq(v_f.outcome || ' ' || v_f.attempt_status, 'failed failed',
+    'O18 the unissued attempt fails with Stripe''s code');
+  PERFORM pg_temp.expect_eq(pg_temp.request_state(v_req), 'failed | failed: charge_already_refunded',
+    'O18 the request derives to failed with the code');
+  SELECT * INTO v_r FROM public.resolve_refund_request_without_refund(
+    v_req, '00000000-0000-0000-0000-000000876102', 'Stripe shows it already refunded');
+  PERFORM pg_temp.expect_eq(v_r.outcome, 'resolved', 'O18 Resolve without refund now works');
+
+  SELECT * INTO v_b FROM public.begin_refund_attempt(v_again, '00000000-0000-0000-0000-000000876102');
+  PERFORM public.fail_unissued_refund_attempt(v_b.attempt_id, v_b.attempt_version, 'amount_too_large');
+  SELECT * INTO v_a FROM pg_temp.begin_attempt(v_again);
+  PERFORM pg_temp.expect_eq(v_a.outcome || ' #' || v_a.attempt_no, 'claimed #2',
+    'O18 Approve again opens attempt 2');
+
+  SELECT * INTO v_b FROM public.begin_refund_attempt(v_issued, '00000000-0000-0000-0000-000000876102');
+  PERFORM pg_temp.rec(v_b.attempt_id, 're_o18', 'pending');
+  SELECT * INTO v_f FROM public.fail_unissued_refund_attempt(
+    v_b.attempt_id, (SELECT version FROM public.refund_request_attempts WHERE id = v_b.attempt_id),
+    'amount_too_large');
+  PERFORM pg_temp.expect_eq(v_f.outcome || ' ' || v_f.attempt_status, 'already_issued pending',
+    'O18 an attempt holding a refund is never failed this way');
 END;
 $$;
 RESET ROLE;

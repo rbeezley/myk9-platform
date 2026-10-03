@@ -27,8 +27,16 @@ export function harness(
     createStatus?: string;
     createThrows?: boolean;
     pageSize?: number;
+    /** The request row's kind and reason (Codex round 7). */
+    kind?: string;
+    reason?: string;
   } = {}
 ) {
+  const kind = opts.kind ?? 'abandoned_cart';
+  const reason = opts.reason ?? 'cart_abandoned';
+  let resolved = opts.resolved ?? false;
+  // A Stripe error object for refunds.create (definitive or ambiguous).
+  let createError: unknown = null;
   const attempts: FakeAttempt[] = [];
   const stripeRefunds: ApprovalRefund[] = [];
   const byKey = new Map<string, ApprovalRefund>();
@@ -66,17 +74,17 @@ export function harness(
     attempt_no: attempt?.attemptNo ?? null,
     stripe_refund_id: attempt?.refundId ?? null,
     attempt_version: attempt?.version ?? null,
-    kind: 'abandoned_cart',
+    kind,
     stripe_payment_intent_id: 'pi_1',
     stripe_checkout_session_id: 'cs_1',
     amount_cents: 4200,
-    reason: 'cart_abandoned',
+    reason,
   });
 
   const rpc: RefundApprovalDeps['rpc'] = async (fn, args) => {
     rpcCalls.push({ fn, args });
     if (fn === 'begin_refund_attempt') {
-      if (opts.resolved) return { data: [beginRow('resolved', null)], error: null };
+      if (resolved) return { data: [beginRow('resolved', null)], error: null };
       const succeeded = attempts.find(a => a.status === 'succeeded');
       if (succeeded) return { data: [beginRow('already_refunded', succeeded)], error: null };
       if (opts.fulfilled) return { data: [beginRow('fulfilled', null)], error: null };
@@ -118,20 +126,48 @@ export function harness(
       return row('recorded');
     }
     if (fn === 'refund_attempt_state') {
+      // The request row LEFT JOIN its attempt n.
+      if (args.p_request_id !== 'rr-1') return { data: [], error: null };
       const attempt = attempts.find(a => a.attemptNo === args.p_attempt_no);
-      if (args.p_request_id !== 'rr-1' || !attempt) return { data: [], error: null };
       return {
         data: [
           {
-            attempt_id: attempt.id,
-            attempt_version: attempt.version,
-            stripe_refund_id: attempt.refundId,
-            attempt_status: attempt.status,
+            attempt_id: attempt?.id ?? null,
+            attempt_version: attempt?.version ?? null,
+            stripe_refund_id: attempt?.refundId ?? null,
+            attempt_status: attempt?.status ?? null,
             stripe_payment_intent_id: 'pi_1',
+            request_kind: kind,
+            request_reason: reason,
           },
         ],
         error: null,
       };
+    }
+    if (fn === 'fail_unissued_refund_attempt') {
+      const attempt = attempts.find(a => a.id === args.p_attempt_id);
+      if (!attempt) return { data: [{ outcome: 'not_found' }], error: null };
+      let outcome = 'failed';
+      if (attempt.version !== args.p_expected_version) outcome = 'conflict';
+      else if (attempt.refundId !== null) outcome = 'already_issued';
+      else if (attempt.status !== 'pending') outcome = 'not_pending';
+      else {
+        attempt.status = 'failed';
+        attempt.failureReason = args.p_failure_reason as string;
+        attempt.version += 1;
+      }
+      return {
+        data: [{ outcome, attempt_status: attempt.status, attempt_version: attempt.version }],
+        error: null,
+      };
+    }
+    if (fn === 'resolve_refund_request_without_refund') {
+      if (resolved) return { data: [{ outcome: 'already_resolved' }], error: null };
+      if (attempts.some(a => a.status === 'pending' || a.status === 'succeeded')) {
+        return { data: [{ outcome: 'has_live_attempt' }], error: null };
+      }
+      resolved = true;
+      return { data: [{ outcome: 'resolved' }], error: null };
     }
     if (fn === 'settle_refund_attempt') {
       const attempt = attempts.find(a => a.id === args.p_attempt_id);
@@ -192,6 +228,7 @@ export function harness(
       };
     },
     createRefund: async (params, key) => {
+      if (createError) throw createError;
       if (createThrows) throw new Error('card_declined');
       // Stripe idempotency: the same key returns the same refund.
       const prior = byKey.get(key);
@@ -248,5 +285,9 @@ export function harness(
     setStripeDown: (v: boolean) => {
       stripeDown = v;
     },
+    setCreateError: (err: unknown) => {
+      createError = err;
+    },
+    isResolved: () => resolved,
   };
 }

@@ -17,11 +17,15 @@
 //   3. only when Stripe holds NO refund for the attempt is one created: after
 //      checking that no other attempt of the request still has a live refund,
 //      with idempotency key refund-request-<id>-<n> (concurrent clicks on one
-//      attempt get one Stripe refund), and then settled through step 2.
+//      attempt get one Stripe refund), and then settled through step 2. If
+//      Stripe DEFINITIVELY refuses the create (refundCreateRejection.ts), the
+//      attempt is failed with Stripe's code so the request can be approved
+//      again or resolved; an ambiguous error leaves it pending.
 // Nothing here writes a status, and the request's status is derived from its
 // attempts in the database.
 
 import { MAKE_WHOLE_METADATA_KEY } from './orderSnapshot.ts';
+import { definitiveStripeRejection, failRejectedAttempt } from './refundCreateRejection.ts';
 import {
   APPROVED_REFUND_METADATA_TYPE,
   REFUND_ATTEMPT_METADATA_KEY,
@@ -203,6 +207,24 @@ export async function approveRefundRequest(
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`Approved refund ${input.requestId} failed at Stripe:`, err);
+    const code = definitiveStripeRejection(err);
+    if (code) {
+      // Definitive: no refund exists and this key can only replay the error.
+      return failRejectedAttempt(
+        deps,
+        {
+          requestId: input.requestId,
+          attemptNo: ref.attemptNo,
+          attemptId: first.attemptId,
+          attemptVersion: first.attemptVersion,
+          paymentIntentId: intentId,
+          code,
+          message,
+        },
+        SOURCE
+      );
+    }
+    // Ambiguous: Stripe may have created it. The attempt stays pending.
     await deps.alertAdmin(
       'Approved refund FAILED at Stripe',
       `<p>Refund request <code>${input.requestId}</code> (attempt ${ref.attemptNo}) was

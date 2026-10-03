@@ -60,7 +60,11 @@ import {
   type RefundQueueDeps,
   type SettlingRefund,
 } from '../_shared/refundRequests.ts';
-import { routeRefundByCurrentState, type SettleDeps } from '../_shared/refundSettlement.ts';
+import {
+  routeRefundByCurrentState,
+  type RefundLedgerContext,
+  type SettleDeps,
+} from '../_shared/refundSettlement.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
@@ -254,33 +258,6 @@ async function handleEvent(event: Stripe.Event) {
 }
 
 /**
- * A refund that was created (pending) and LATER failed leaves the ORDER ledger
- * holding an amount the customer never received: `charge.refunded` already booked
- * it, and it may have stamped `status = 'refunded'`. Reconciliation then keeps
- * subtracting a refund that never happened and the club's payout stays docked.
- *
- * So this flips that refund's LEDGER ROW to `state = 'failed'` and re-derives the
- * order totals and status, via `reverse_order_refund_cents`. A failed refund is a
- * STATE CHANGE, never a subtraction: nothing can be double-subtracted, no column
- * can be driven negative, and a redelivered `charge.refunded` for the same refund
- * cannot resurrect it (failed is TERMINAL).
- *
- * IDEMPOTENT by construction — the refund id is the ledger primary key, so a
- * duplicate terminal delivery leaves the same retained audit row and recomputed
- * totals. A terminal event arriving BEFORE a booking writes the authoritative
- * tombstone immediately; it does not depend on Stripe redelivery.
- *
- * The ENTRY-level refund columns are still the operator's job — the alert stays,
- * because the entry stamp and any re-issue are manual.
- *
- * NEVER THROWS for a bookkeeping failure: it must not disturb a committed
- * payment or make Stripe redeliver indefinitely. A failed reversal is reported
- * in the alert and the drift stays visible rather than silently "handled". The
- * one exception is an APPROVED queued refund whose attempt could not be settled
- * from Stripe (Stripe unreachable): that throws first, before any bookkeeping,
- * so Stripe redelivers (Codex round 4 on #2689).
- */
-/**
  * refund.updated and refund.failed. The branch (book, reverse, or nothing for
  * pending) is chosen from the refund routeRefundByCurrentState hands back:
  * for an approved queued refund that is Stripe's CURRENT copy, after its
@@ -324,9 +301,43 @@ async function bookSucceededRefund(refund: Stripe.Refund) {
   }
 }
 
-// Only reached through routeRefundByCurrentState, which has already settled an
-// approved queued refund's attempt and hands over Stripe's current copy.
-async function handleTerminalRefund(refund: Stripe.Refund, terminalState: 'failed' | 'canceled') {
+/**
+ * A refund that was created (pending) and LATER failed leaves the ORDER ledger
+ * holding an amount the customer never received: `charge.refunded` already booked
+ * it, and it may have stamped `status = 'refunded'`. Reconciliation then keeps
+ * subtracting a refund that never happened and the club's payout stays docked.
+ *
+ * So this flips that refund's LEDGER ROW to `state = 'failed'` and re-derives the
+ * order totals and status, via `reverse_order_refund_cents`. A failed refund is a
+ * STATE CHANGE, never a subtraction: nothing can be double-subtracted, no column
+ * can be driven negative, and a redelivered `charge.refunded` for the same refund
+ * cannot resurrect it (failed is TERMINAL).
+ *
+ * IDEMPOTENT by construction — the refund id is the ledger primary key, so a
+ * duplicate terminal delivery leaves the same retained audit row and recomputed
+ * totals. A terminal event arriving BEFORE a booking writes the authoritative
+ * tombstone immediately; it does not depend on Stripe redelivery.
+ *
+ * The ENTRY-level refund columns are still the operator's job — the alert stays,
+ * because the entry stamp and any re-issue are manual. An APPROVED queued refund
+ * stamps no entries and its failure is already announced by the settle path
+ * ("back in the approval queue"), so for it this alerts only when the reversal
+ * itself did not land (Codex round 7 on #2689). Approved refunds with no order
+ * by design (abandoned cart, payment link without a record) never reach here:
+ * routeRefundByCurrentState stops them.
+ *
+ * NEVER THROWS for a bookkeeping failure: it must not disturb a committed
+ * payment or make Stripe redeliver indefinitely. A failed reversal is reported
+ * in the alert and the drift stays visible rather than silently "handled". The
+ * one exception is an APPROVED queued refund whose attempt could not be settled
+ * from Stripe (Stripe unreachable): routeRefundByCurrentState throws first,
+ * before any bookkeeping, so Stripe redelivers (Codex round 4 on #2689).
+ */
+async function handleTerminalRefund(
+  refund: Stripe.Refund,
+  terminalState: 'failed' | 'canceled',
+  ctx: RefundLedgerContext
+) {
   const entryId = refund.metadata?.entry_id ?? null;
   console.error(
     `CRITICAL: refund ${refund.id} (${refund.amount}¢) ${terminalState.toUpperCase()} after creation` +
@@ -338,6 +349,8 @@ async function handleTerminalRefund(refund: Stripe.Refund, terminalState: 'faile
     '<p>The order ledger could NOT be corrected automatically: this refund carries no ' +
     'payment intent, so the reversal had nothing to key on. Clear the order refund ' +
     'columns by hand.</p>';
+  // True once the order ledger is known to be right for this refund.
+  let ledgerSettled = false;
 
   if (paymentIntentId) {
     try {
@@ -356,9 +369,11 @@ async function handleTerminalRefund(refund: Stripe.Refund, terminalState: 'faile
            matched payment intent <code>${paymentIntentId}</code>. Nothing was booked
            against an order, so nothing needed reversing — but verify by hand.</p>`;
       } else if (changed === 0) {
+        ledgerSettled = true;
         ledgerNote = `<p>The order ledger was already corrected for this refund (idempotent
            redelivery) — no change made.</p>`;
       } else {
+        ledgerSettled = true;
         ledgerNote = `<p>The order ledger HAS been corrected automatically: this refund's
            ${(refund.amount / 100).toFixed(2)} USD was reversed out of ${changed}
            <code>stripe_orders</code> row(s) and the refunded status re-derived, so
@@ -370,6 +385,22 @@ async function handleTerminalRefund(refund: Stripe.Refund, terminalState: 'faile
          (<code>${err instanceof Error ? err.message : String(err)}</code>). The order still
          records a refund the customer never received — clear its refund columns by hand.</p>`;
     }
+  }
+
+  if (ctx.approvedRequest) {
+    if (ledgerSettled) {
+      console.log(`Approved refund ${refund.id} ${terminalState}: order ledger reversed`);
+      return;
+    }
+    await alertAdmin(
+      `Approved refund ${terminalState.toUpperCase()} — order ledger needs a look`,
+      `<p>Approved queued refund <code>${refund.id}</code> (request kind
+       <code>${ctx.approvedRequest.kind}</code>) is <code>${terminalState}</code>; the
+       customer was NOT paid and the request is back in the approval queue.</p>
+       ${ledgerNote}`,
+      { source: 'stripe-webhook', dedupeKey: `refund-terminal-${refund.id}` }
+    );
+    return;
   }
 
   await alertAdmin(

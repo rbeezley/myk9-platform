@@ -51,6 +51,28 @@ export interface AttemptRef {
   attemptNo: number;
 }
 
+/** The queued request a refund belongs to, read from its ROW (never the event). */
+export interface RequestInfo {
+  kind: string;
+  reason: string;
+}
+
+/**
+ * Requests whose charge never produced a stripe_orders row BY DESIGN (Codex
+ * round 7 on #2689): an abandoned cart (refunded instead of fulfilled), and a
+ * payment-link charge with no link record (the webhook returns before the
+ * order insert). Their refunds have no order to book or reverse, so neither
+ * the ledger nor a missing-order alert applies. Cart overflow and the other
+ * payment-link reasons insert the order before queuing: a missing order there
+ * is a real anomaly and still alerts.
+ */
+export function approvedRefundHasNoOrder(request: RequestInfo): boolean {
+  return (
+    request.kind === 'abandoned_cart' ||
+    (request.kind === 'entry_payment_link' && request.reason === 'no_link_record')
+  );
+}
+
 export type SettleAttemptResult =
   | {
       outcome: 'settled';
@@ -59,10 +81,18 @@ export type SettleAttemptResult =
       status: AttemptStatus;
       refund: SettlingRefund;
       requestStatus: string | null;
+      request: RequestInfo;
     }
   /** Stripe has no refund for this attempt: it stays pending (approval resumes it). */
-  | { outcome: 'no_refund'; intentRefunds: SettlingRefund[] }
-  | { outcome: 'not_found' }
+  | {
+      outcome: 'no_refund';
+      intentRefunds: SettlingRefund[];
+      request: RequestInfo;
+      attemptId: string;
+      attemptVersion: number;
+    }
+  /** No such attempt; `request` is set when the request itself exists. */
+  | { outcome: 'not_found'; request?: RequestInfo }
   /** Stripe could not be reached: nothing was written; try again. */
   | { outcome: 'stripe_unreachable' }
   /** The attempt kept changing under us: nothing was written; try again. */
@@ -75,11 +105,14 @@ const SOURCE = 'refund-settlement';
 const MAX_ROUNDS = 3;
 
 interface StateRow {
-  attempt_id: string;
+  /** NULL when the request exists but this attempt does not. */
+  attempt_id: string | null;
   attempt_version: number;
   stripe_refund_id: string | null;
   attempt_status: string;
   stripe_payment_intent_id: string;
+  request_kind: string;
+  request_reason: string;
 }
 
 interface SettleRow {
@@ -155,6 +188,9 @@ export async function settleAttemptFromStripe(
     if (state.error) return { outcome: 'error', message: state.error.message };
     const attempt = firstRow<StateRow>(state.data);
     if (!attempt) return { outcome: 'not_found' };
+    const request: RequestInfo = { kind: attempt.request_kind, reason: attempt.request_reason };
+    const attemptId = attempt.attempt_id;
+    if (!attemptId) return { outcome: 'not_found', request };
 
     if (!attempt.stripe_refund_id) {
       let refundId = opts.createdRefundId;
@@ -170,10 +206,18 @@ export async function settleAttemptFromStripe(
           return { outcome: 'stripe_unreachable' };
         }
         refundId = findAttemptRefund(intentRefunds, ref.requestId, ref.attemptNo, null)?.id;
-        if (!refundId) return { outcome: 'no_refund', intentRefunds };
+        if (!refundId) {
+          return {
+            outcome: 'no_refund',
+            intentRefunds,
+            request,
+            attemptId,
+            attemptVersion: attempt.attempt_version,
+          };
+        }
       }
       const attached = await deps.rpc('record_refund_attempt', {
-        p_attempt_id: attempt.attempt_id,
+        p_attempt_id: attemptId,
         p_expected_version: attempt.attempt_version,
         p_stripe_refund_id: refundId,
       });
@@ -182,7 +226,7 @@ export async function settleAttemptFromStripe(
       if (outcome === 'refund_on_other_attempt') {
         return { outcome: 'refund_on_other_attempt', refundId };
       }
-      if (outcome === 'not_found') return { outcome: 'not_found' };
+      if (outcome === 'not_found') return { outcome: 'not_found', request };
       // recorded / conflict / already_recorded: read the attempt again.
       continue;
     }
@@ -196,14 +240,14 @@ export async function settleAttemptFromStripe(
     }
     const status = toAttemptStatus(current.status);
     const settled = await deps.rpc('settle_refund_attempt', {
-      p_attempt_id: attempt.attempt_id,
+      p_attempt_id: attemptId,
       p_expected_version: attempt.attempt_version,
       p_status: status,
       p_failure_reason: current.failure_reason ?? null,
     });
     if (settled.error) return { outcome: 'error', message: settled.error.message };
     const row = firstRow<SettleRow>(settled.data);
-    if (!row || row.outcome === 'not_found') return { outcome: 'not_found' };
+    if (!row || row.outcome === 'not_found') return { outcome: 'not_found', request };
     if (row.outcome === 'conflict' || row.outcome === 'no_refund') continue;
 
     const changed = row.outcome === 'updated';
@@ -214,6 +258,7 @@ export async function settleAttemptFromStripe(
       status: finalStatus,
       changed,
       paymentIntentId: attempt.stripe_payment_intent_id,
+      request,
     });
     return {
       outcome: 'settled',
@@ -221,6 +266,7 @@ export async function settleAttemptFromStripe(
       status: finalStatus,
       refund: current,
       requestStatus: row.request_status,
+      request,
     };
   }
   console.error(`Attempt ${ref.attemptNo} of ${ref.requestId} kept changing; nothing written`);
@@ -236,6 +282,7 @@ async function afterSettle(
     status: AttemptStatus;
     changed: boolean;
     paymentIntentId: string;
+    request: RequestInfo;
   }
 ): Promise<void> {
   const { row, refund, status } = s;
@@ -288,6 +335,10 @@ async function afterSettle(
         { source: SOURCE, dedupeKey: `refund-on-resolved-request-${refund.id}` }
       );
     }
+    if (approvedRefundHasNoOrder(s.request)) {
+      // No order exists for this charge by design: nothing to book.
+      return;
+    }
     // Book it on the order. The ledger is keyed on the refund id, so this and
     // charge.refunded's sweep are the same upsert.
     const { error } = await deps.rpc('record_order_refund_cents', {
@@ -329,7 +380,7 @@ export type WebhookSettleOutcome = 'not_approved_refund' | 'not_found' | 'no_ref
 export async function settleApprovedRefund<T extends SettlingRefund>(
   deps: SettleDeps,
   event: T
-): Promise<{ outcome: WebhookSettleOutcome; refund: T }> {
+): Promise<{ outcome: WebhookSettleOutcome; refund: T; request: RequestInfo | null }> {
   const requestId = event.metadata?.[REFUND_REQUEST_METADATA_KEY];
   const attemptNo = Number(event.metadata?.[REFUND_ATTEMPT_METADATA_KEY]);
   if (
@@ -338,7 +389,7 @@ export async function settleApprovedRefund<T extends SettlingRefund>(
     !Number.isInteger(attemptNo) ||
     attemptNo < 1
   ) {
-    return { outcome: 'not_approved_refund', refund: event };
+    return { outcome: 'not_approved_refund', refund: event, request: null };
   }
   // deps.retrieveRefund returns the full Stripe object the caller's type
   // describes (stripe.refunds.retrieve), so the cast restores that type.
@@ -358,11 +409,16 @@ export async function settleApprovedRefund<T extends SettlingRefund>(
         outcome: 'settled',
         // The attempt's refund is this event's refund in every normal case.
         refund: result.refund.id === event.id ? (result.refund as T) : await retrieveCurrent(),
+        request: result.request,
       };
     case 'not_found':
     case 'no_refund':
       console.log(`Refund ${event.id}: no attempt to settle (${result.outcome}) — ignored`);
-      return { outcome: result.outcome, refund: await retrieveCurrent() };
+      return {
+        outcome: result.outcome,
+        refund: await retrieveCurrent(),
+        request: result.request ?? null,
+      };
     case 'refund_on_other_attempt':
       await deps.alertAdmin(
         'A Stripe refund is stamped for one attempt but attached to another',
@@ -371,7 +427,7 @@ export async function settleApprovedRefund<T extends SettlingRefund>(
          attempt. Nothing was written. Check the payment in Stripe.</p>`,
         { source: SOURCE, dedupeKey: `refund-attempt-mismatch-${result.refundId}` }
       );
-      return { outcome: 'not_found', refund: await retrieveCurrent() };
+      return { outcome: 'not_found', refund: await retrieveCurrent(), request: null };
     default:
       throw new Error(
         `Approved refund ${event.id} not settled (${result.outcome}${
@@ -381,12 +437,23 @@ export async function settleApprovedRefund<T extends SettlingRefund>(
   }
 }
 
+export interface RefundLedgerContext {
+  /**
+   * The queued request this refund belongs to, read from its row; null for a
+   * refund the queue did not issue.
+   */
+  approvedRequest: RequestInfo | null;
+}
+
 export interface RefundLedgerBranches<T extends SettlingRefund> {
   /** Stripe reports the refund succeeded: book it on the order ledger. */
-  book: (refund: T) => Promise<void>;
+  book: (refund: T, ctx: RefundLedgerContext) => Promise<void>;
   /** Stripe reports it failed or canceled: reverse / tombstone it. */
-  terminal: (refund: T, state: 'failed' | 'canceled') => Promise<void>;
+  terminal: (refund: T, state: 'failed' | 'canceled', ctx: RefundLedgerContext) => Promise<void>;
 }
+
+/** 'no_order': an approved refund whose request has no order by design (no branch runs). */
+export type RefundRouteAction = RefundLedgerAction | 'no_order';
 
 /**
  * The ONE router for a refund the webhook sees (refund.updated, refund.failed,
@@ -400,13 +467,21 @@ export async function routeRefundByCurrentState<T extends SettlingRefund>(
   deps: SettleDeps,
   given: T,
   branches: RefundLedgerBranches<T>
-): Promise<RefundLedgerAction> {
-  const { refund } = await settleApprovedRefund(deps, given);
+): Promise<RefundRouteAction> {
+  const { refund, request } = await settleApprovedRefund(deps, given);
+  const ctx: RefundLedgerContext = { approvedRequest: request };
   const action = resolveRefundLedgerAction(refund.status);
+  if (action !== 'defer' && request && approvedRefundHasNoOrder(request)) {
+    // Settled on its attempt (the request reads refunded / failed from it);
+    // there is no order to book or reverse, so no ledger row and no
+    // missing-order alert (Codex round 7 on #2689).
+    console.log(`Refund ${refund.id} (${request.kind}/${request.reason}) has no order by design`);
+    return 'no_order';
+  }
   if (action === 'book') {
-    await branches.book(refund);
+    await branches.book(refund, ctx);
   } else if (action === 'fail' || action === 'cancel') {
-    await branches.terminal(refund, action === 'cancel' ? 'canceled' : 'failed');
+    await branches.terminal(refund, action === 'cancel' ? 'canceled' : 'failed', ctx);
   } else {
     console.log(
       `Refund ${refund.id} remains ${refund.status ?? 'unknown'} — order ledger unchanged`

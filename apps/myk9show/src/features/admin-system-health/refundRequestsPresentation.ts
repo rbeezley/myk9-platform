@@ -75,6 +75,10 @@ const APPROVAL_ERRORS: Record<string, string> = {
   settle_busy: 'This refund was being updated while we checked. Nothing was changed; try again.',
   refund_attempt_conflict:
     'The refund could not be matched to this approval. Check the payment in Stripe before trying again.',
+  charge_already_refunded:
+    'Not refunded: Stripe says this charge was already refunded. Check the payment in Stripe, then use Resolve without refund.',
+  stripe_refund_rejected:
+    'Stripe refused this refund, so nothing was refunded. You can approve it again or resolve it without a refund.',
   resolved_without_refund:
     'Not refunded: this request was resolved without a refund, so it can no longer be approved.',
 };

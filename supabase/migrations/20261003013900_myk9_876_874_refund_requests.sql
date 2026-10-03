@@ -43,6 +43,11 @@
 --    round 3 on #2689): the caller passes the version it read, a mismatch
 --    returns 'conflict' and writes nothing.
 --
+--    The one exception to "settle from Stripe": when Stripe DEFINITIVELY
+--    rejects creating the refund, no refund exists to re-read, and
+--    fail_unissued_refund_attempt marks that attempt failed with Stripe's
+--    error code (CAS, attempt pending with no refund id only; Codex round 7).
+--
 --    ONE SETTLE PATH, STRIPE THE ONLY TRUTH (Codex round 4 on #2689).
 --    record_refund_attempt attaches a refund id and never a status;
 --    settle_refund_attempt is the only status writer, and its only caller is
@@ -645,25 +650,99 @@ END;
 $$;
 
 -- One attempt as the settle routine reads it BEFORE it asks Stripe: its id,
--- version, refund id (NULL until attached) and the request's payment intent.
--- No row: no such attempt.
+-- version, refund id (NULL until attached), and the REQUEST's payment intent,
+-- kind and reason (Codex round 7: the ledger branch is chosen from the
+-- request row, never the event). No row: no such request. A row with a NULL
+-- attempt_id: the request exists but that attempt does not.
 CREATE OR REPLACE FUNCTION public.refund_attempt_state(p_request_id uuid, p_attempt_no integer)
 RETURNS TABLE (
   attempt_id uuid,
   attempt_version integer,
   stripe_refund_id text,
   attempt_status text,
-  stripe_payment_intent_id text
+  stripe_payment_intent_id text,
+  request_kind text,
+  request_reason text
 )
 LANGUAGE sql
 STABLE
 SECURITY DEFINER
 SET search_path = ''
 AS $$
-  SELECT a.id, a.version, a.stripe_refund_id, a.status, r.stripe_payment_intent_id
+  SELECT a.id, a.version, a.stripe_refund_id, a.status, r.stripe_payment_intent_id,
+         r.kind, r.reason
+    FROM public.refund_requests r
+    LEFT JOIN public.refund_request_attempts a
+      ON a.request_id = r.id AND a.attempt_no = p_attempt_no
+   WHERE r.id = p_request_id
+$$;
+
+-- Stripe DEFINITIVELY rejected creating this attempt's refund (a 4xx invalid
+-- request with a known permanent code, e.g. charge_already_refunded), so no
+-- refund exists and the same idempotency key would only replay the error
+-- (Codex round 7 on #2689). Mark the attempt failed with that code, as a
+-- compare-and-set, so the request derives to 'failed' and can be approved
+-- again (attempt n+1, a new key) or resolved without refund. Only an attempt
+-- that is pending and holds NO refund id qualifies:
+--   failed          written
+--   conflict        version mismatch: nothing written
+--   already_issued  the attempt holds a refund: nothing written (settle it)
+--   not_pending     the attempt is settled: nothing written
+--   not_found
+CREATE OR REPLACE FUNCTION public.fail_unissued_refund_attempt(
+  p_attempt_id uuid,
+  p_expected_version integer,
+  p_failure_reason text
+)
+RETURNS TABLE (outcome text, attempt_status text, attempt_version integer)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+#variable_conflict use_column
+DECLARE
+  v_request_id uuid;
+  v_attempt public.refund_request_attempts%ROWTYPE;
+  v_outcome text;
+BEGIN
+  IF p_expected_version IS NULL OR p_failure_reason IS NULL OR btrim(p_failure_reason) = '' THEN
+    RAISE EXCEPTION 'fail_unissued_refund_attempt: a version and a Stripe error code are required'
+      USING errcode = '22023';
+  END IF;
+
+  SELECT a.request_id INTO v_request_id
+    FROM public.refund_request_attempts a WHERE a.id = p_attempt_id;
+  IF v_request_id IS NULL THEN
+    RETURN QUERY SELECT 'not_found'::text, NULL::text, NULL::integer;
+    RETURN;
+  END IF;
+  -- Lock order: request, then attempt.
+  PERFORM 1 FROM public.refund_requests r WHERE r.id = v_request_id FOR UPDATE;
+  SELECT * INTO v_attempt
     FROM public.refund_request_attempts a
-    JOIN public.refund_requests r ON r.id = a.request_id
-   WHERE a.request_id = p_request_id AND a.attempt_no = p_attempt_no
+   WHERE a.id = p_attempt_id
+   FOR UPDATE;
+
+  IF v_attempt.version <> p_expected_version THEN
+    v_outcome := 'conflict';
+  ELSIF v_attempt.stripe_refund_id IS NOT NULL THEN
+    v_outcome := 'already_issued';
+  ELSIF v_attempt.status <> 'pending' THEN
+    v_outcome := 'not_pending';
+  ELSE
+    UPDATE public.refund_request_attempts a
+       SET status = 'failed',
+           failure_reason = p_failure_reason,
+           version = a.version + 1,
+           updated_at = now()
+     WHERE a.id = p_attempt_id
+       AND a.version = p_expected_version
+    RETURNING a.* INTO v_attempt;
+    v_outcome := 'failed';
+  END IF;
+
+  RETURN QUERY SELECT v_outcome, v_attempt.status, v_attempt.version;
+END;
 $$;
 
 -- The ONLY status writer (Codex round 4 on #2689): settleAttemptFromStripe
@@ -836,6 +915,8 @@ REVOKE ALL ON FUNCTION public.settle_refund_attempt(uuid, integer, text, text)
   FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.resolve_refund_request_without_refund(uuid, uuid, text)
   FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.fail_unissued_refund_attempt(uuid, integer, text)
+  FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.claim_abandoned_cart_refund(uuid, text, text, integer, jsonb)
   TO service_role;
 GRANT EXECUTE ON FUNCTION public.request_refund_approval(text, text, text, integer, text, jsonb, uuid, uuid, uuid)
@@ -847,5 +928,6 @@ GRANT EXECUTE ON FUNCTION public.refund_attempt_state(uuid, integer) TO service_
 GRANT EXECUTE ON FUNCTION public.settle_refund_attempt(uuid, integer, text, text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.resolve_refund_request_without_refund(uuid, uuid, text)
   TO service_role;
+GRANT EXECUTE ON FUNCTION public.fail_unissued_refund_attempt(uuid, integer, text) TO service_role;
 
 COMMIT;

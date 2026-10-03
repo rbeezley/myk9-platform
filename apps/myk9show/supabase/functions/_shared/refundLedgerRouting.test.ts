@@ -412,7 +412,7 @@ describe('round 7: Stripe create rejections', () => {
     h.setCreateError(err);
     expect(await approveRefundRequest(h.deps, INPUT)).toEqual({
       status: 502,
-      body: { error: 'stripe_refund_failed' },
+      body: { error: 'stripe_create_unconfirmed' },
     });
     expect(h.attempts[0]).toMatchObject({ status: 'pending', refundId: null, version: 1 });
     expect(h.requestState().status).toBe('awaiting_stripe');

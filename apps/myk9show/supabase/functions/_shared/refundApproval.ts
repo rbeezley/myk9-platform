@@ -224,18 +224,22 @@ export async function approveRefundRequest(
         SOURCE
       );
     }
-    // Ambiguous: Stripe may have created it. The attempt stays pending.
+    // Ambiguous: Stripe may have created it. The attempt stays pending, and
+    // the admin is told the outcome is UNCONFIRMED, never "nothing refunded"
+    // (Codex round 8 on #2689).
     await deps.alertAdmin(
-      'Approved refund FAILED at Stripe',
+      'Approved refund not confirmed by Stripe',
       `<p>Refund request <code>${input.requestId}</code> (attempt ${ref.attemptNo}) was
        approved, but creating the Stripe refund on payment intent
-       <code>${intentId}</code> failed:</p>
+       <code>${intentId}</code> returned an error, so whether a refund was created is
+       not known:</p>
        <pre>${message}</pre>
-       <p>The attempt stays open; approving it again retries it with the same
-       idempotency key.</p>`,
+       <p>The attempt stays open. "Check status" looks for its refund at Stripe first,
+       and otherwise retries with the same idempotency key, so it cannot refund
+       twice.</p>`,
       { source: SOURCE, dedupeKey: `approved-refund-failed-${input.requestId}-${ref.attemptNo}` }
     );
-    return { status: 502, body: { error: 'stripe_refund_failed' } };
+    return { status: 502, body: { error: 'stripe_create_unconfirmed' } };
   }
 
   // The create response is never trusted for status: attach its id, re-read
@@ -256,5 +260,11 @@ export async function approveRefundRequest(
     // "Check status" (or the webhook) settles it.
     return { status: 202, body: { outcome: 'pending', refund_id: created.id } };
   }
-  return toApprovalResult(settled);
+  if (settled.outcome === 'settled') return toApprovalResult(settled);
+  // A refund WAS created but could not be recorded: never a code whose copy
+  // says nothing was refunded.
+  if (settled.outcome === 'refund_on_other_attempt') {
+    return { status: 409, body: { error: 'refund_attempt_conflict' } };
+  }
+  return { status: 500, body: { error: 'refund_unrecorded' } };
 }

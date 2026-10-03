@@ -62,31 +62,56 @@ export function formatRefundAmount(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
+/**
+ * When the server cannot know whether Stripe created the refund: a create
+ * that timed out or errored ambiguously, Stripe unreachable on a status
+ * check, a contended or unrecorded settle, or no answer at all. Never
+ * "nothing was refunded" here (Codex round 8 on #2689): the refund may
+ * exist, and Check status finds it before anything is created again.
+ */
+export const UNCONFIRMED_REFUND_MESSAGE =
+  "We couldn't confirm the refund with Stripe. It may have gone through, so use Check status before approving again.";
+
+/**
+ * Every code stripe-approve-refund returns for an approval or a Check status,
+ * with its copy. "Nothing was refunded" / "no refund was created" appears ONLY
+ * where the server KNOWS no refund exists for this approval: refused before
+ * Stripe was called, or Stripe definitively refused or failed it.
+ */
 const APPROVAL_ERRORS: Record<string, string> = {
+  // Refused before Stripe was called.
   fulfilled:
     'Not refunded: this payment was fulfilled with entries after all. Check the entries before doing anything else.',
-  not_found: 'This refund request no longer exists.',
-  stripe_refund_failed:
-    'Stripe could not issue the refund. Nothing was refunded; you can approve it again.',
-  claim_failed: 'The approval could not be recorded. Nothing was refunded; try again.',
-  refund_exists_for_other_attempt:
-    'Not refunded: Stripe still has a live refund for this request from an earlier approval. Check the payment in Stripe.',
-  stripe_unreachable: "Couldn't reach Stripe to check this refund. Nothing was changed; try again.",
-  settle_busy: 'This refund was being updated while we checked. Nothing was changed; try again.',
-  refund_attempt_conflict:
-    'The refund could not be matched to this approval. Check the payment in Stripe before trying again.',
-  charge_already_refunded:
-    'Not refunded: Stripe says this charge was already refunded. Check the payment in Stripe, then use Resolve without refund.',
-  stripe_refund_rejected:
-    'Stripe refused this refund, so nothing was refunded. You can approve it again or resolve it without a refund.',
   resolved_without_refund:
     'Not refunded: this request was resolved without a refund, so it can no longer be approved.',
+  not_found: 'This refund request no longer exists.',
+  claim_failed: 'The approval could not start, so no refund was created. Try again.',
+  refund_exists_for_other_attempt:
+    'No new refund was created: Stripe still has a live refund for this request from an earlier approval. Check the payment in Stripe.',
+  // Stripe answered definitively.
+  charge_already_refunded:
+    'Not refunded by this approval: Stripe says this charge was already refunded. Check the payment in Stripe, then use Resolve without refund.',
+  stripe_refund_rejected:
+    'Stripe refused this refund, so nothing was refunded. You can approve it again or resolve it without a refund.',
+  stripe_refund_failed:
+    'Stripe reports this refund failed, so the customer was not paid. You can approve it again or resolve it without a refund.',
+  stripe_refund_canceled:
+    'Stripe reports this refund was canceled, so the customer was not paid. You can approve it again or resolve it without a refund.',
+  // A refund exists but is not recorded on this approval.
+  refund_unrecorded:
+    'Stripe issued the refund, but it could not be recorded here. Check the payment in Stripe before approving again.',
+  refund_attempt_conflict:
+    'The refund could not be matched to this approval. Check the payment in Stripe before trying again.',
+  // Not known whether a refund exists.
+  stripe_create_unconfirmed: UNCONFIRMED_REFUND_MESSAGE,
+  stripe_unreachable: UNCONFIRMED_REFUND_MESSAGE,
+  settle_busy: UNCONFIRMED_REFUND_MESSAGE,
+  record_failed: UNCONFIRMED_REFUND_MESSAGE,
 };
 
+/** Unknown codes and transport failures are unconfirmed, never "nothing refunded". */
 export function approvalErrorMessage(code: string | undefined): string {
-  if (code && APPROVAL_ERRORS[code]) return APPROVAL_ERRORS[code];
-  if (code?.startsWith('stripe_refund_')) return APPROVAL_ERRORS.stripe_refund_failed;
-  return 'The approval did not finish. Approving again is safe: it reuses any refund already issued.';
+  return (code && APPROVAL_ERRORS[code]) || UNCONFIRMED_REFUND_MESSAGE;
 }
 
 const RESOLUTION_ERRORS: Record<string, string> = {
@@ -97,9 +122,12 @@ const RESOLUTION_ERRORS: Record<string, string> = {
   not_found: 'This refund request no longer exists.',
 };
 
+/** A resolution that may or may not have landed (a database error, or no answer). */
+export const UNCONFIRMED_RESOLUTION_MESSAGE =
+  "We couldn't confirm the resolution. Refresh the list before trying again.";
+
 export function resolutionErrorMessage(code: string | undefined): string {
-  if (code && RESOLUTION_ERRORS[code]) return RESOLUTION_ERRORS[code];
-  return 'The request was not resolved. Nothing changed; try again.';
+  return (code && RESOLUTION_ERRORS[code]) || UNCONFIRMED_RESOLUTION_MESSAGE;
 }
 
 /**

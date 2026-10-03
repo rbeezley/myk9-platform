@@ -236,7 +236,9 @@ describe('Resolve without refund (Codex round 6, #2689)', () => {
 describe('approvalErrorMessage', () => {
   it('maps every server code, and never says "nothing was refunded" when it cannot know', () => {
     expect(approvalErrorMessage('fulfilled')).toMatch(/fulfilled with entries/);
-    expect(approvalErrorMessage('stripe_refund_canceled')).toMatch(/Stripe could not/);
+    expect(approvalErrorMessage('stripe_refund_canceled')).toMatch(
+      /Stripe reports this refund was canceled/
+    );
     expect(approvalErrorMessage(undefined)).not.toMatch(/Nothing was refunded/);
     expect(approvalErrorMessage('resolved_without_refund')).toMatch(/resolved without a refund/);
   });

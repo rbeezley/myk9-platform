@@ -98,7 +98,7 @@ describe('approveRefundRequest', () => {
     const h = harness({ createThrows: true });
     expect(await approveRefundRequest(h.deps, INPUT)).toEqual({
       status: 502,
-      body: { error: 'stripe_refund_failed' },
+      body: { error: 'stripe_create_unconfirmed' },
     });
     expect(h.requestState().status).toBe('awaiting_stripe');
 

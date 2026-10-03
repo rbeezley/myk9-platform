@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { within } from '@testing-library/react';
 import { render, screen } from '@/test/utils/testUtils';
+import { UrlProbe, readUrlParams } from '@/test/utils/UrlProbe';
 import type { Role } from '@/types/rbac-types';
 import { RolesOverviewTable } from '../RolesOverviewTable';
 
@@ -91,16 +92,17 @@ describe('RolesOverviewTable', () => {
 
   it('filters rows as the admin types', async () => {
     const { user } = renderTable();
-    await user.type(screen.getByRole('searchbox', { name: /search roles/i }), 'ring');
+    await user.type(screen.getByRole('textbox', { name: /search roles/i }), 'ring');
     expect(screen.queryByText('Show Secretary')).not.toBeInTheDocument();
     expect(screen.getByText('Ring Helper')).toBeInTheDocument();
+    expect(screen.getByText(/^Showing 1 of \d+ roles\.$/)).toBeInTheDocument();
   });
 
   it('tells the admin when a search matches nothing, and offers a way back', async () => {
     const { user } = renderTable();
-    await user.type(screen.getByRole('searchbox', { name: /search roles/i }), 'zzzz');
+    await user.type(screen.getByRole('textbox', { name: /search roles/i }), 'zzzz');
     expect(screen.getByText(/no roles match/i)).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: /clear search/i }));
+    await user.click(screen.getByRole('button', { name: 'Show all roles' }));
     expect(screen.getByText('Show Secretary')).toBeInTheDocument();
   });
 
@@ -124,7 +126,7 @@ describe('RolesOverviewTable', () => {
 
   it('shows an empty-search-result state distinct from the empty-system state', async () => {
     const { user } = renderTable();
-    await user.type(screen.getByRole('searchbox', { name: /search roles/i }), 'zzzz');
+    await user.type(screen.getByRole('textbox', { name: /search roles/i }), 'zzzz');
     expect(screen.getByText(/no roles match/i)).toBeInTheDocument();
   });
 
@@ -133,5 +135,33 @@ describe('RolesOverviewTable', () => {
     const { user } = renderTable({ roles: [], error: "We couldn't load roles.", onRetry });
     await user.click(screen.getByRole('button', { name: /try again/i }));
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it('applies the search from the URL and writes edits back without dropping other params', async () => {
+    const { user } = render(
+      <>
+        <RolesOverviewTable
+          roles={roles}
+          lastChanged={new Map()}
+          isLoading={false}
+          error={null}
+          onRetry={vi.fn()}
+        />
+        <UrlProbe />
+      </>,
+      { initialRoute: '/admin/permissions?tab=roles&roles_q=ring' }
+    );
+
+    expect(screen.queryByText('Show Secretary')).not.toBeInTheDocument();
+    expect(screen.getByText('Ring Helper')).toBeInTheDocument();
+
+    const box = screen.getByRole('textbox', { name: /search roles/i });
+    await user.clear(box);
+    await user.type(box, 'sec');
+
+    const params = readUrlParams(screen.getByTestId('url-search').textContent);
+    expect(params.get('roles_q')).toBe('sec');
+    expect(params.get('tab')).toBe('roles');
+    expect(screen.getByText('Show Secretary')).toBeInTheDocument();
   });
 });

@@ -333,6 +333,15 @@ jobs:
 
       - uses: pnpm/action-setup@v6
 
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+          cache: 'pnpm'
+
+      # The drift script formats both sides with the repo's own Prettier.
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
       - uses: supabase/setup-cli@v3
         with:
           version: latest

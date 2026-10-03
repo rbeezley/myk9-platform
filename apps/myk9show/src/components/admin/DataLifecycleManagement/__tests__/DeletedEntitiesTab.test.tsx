@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { screen, waitFor, fireEvent } from '@testing-library/react';
+import { render } from '@/test/utils/testUtils';
 import { DeletedEntitiesTab } from '../DeletedEntitiesTab';
 
 /* ------------------------------------------------------------------ */
@@ -186,6 +187,40 @@ describe('DeletedEntitiesTab', () => {
     expect(screen.getByTestId('section-dog')).toBeInTheDocument();
     expect(screen.getByTestId('section-club')).toBeInTheDocument();
     expect(screen.getByTestId('section-person')).toBeInTheDocument();
+  });
+
+  it('offers one view per type with its count, and narrows to the picked type', async () => {
+    setCountsPerTable({ shows: 3, dogs: 2 });
+
+    const { user } = render(<DeletedEntitiesTab />);
+    await screen.findByTestId('section-show');
+    expect(screen.getByText('Showing all 5 deleted items.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('combobox', { name: /show: filter deleted items by type/i }));
+    // Types with nothing in the trash do not get a view.
+    expect(await screen.findByRole('option', { name: 'All (5)' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Shows (3)' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Dogs (2)' })).toBeInTheDocument();
+    expect(screen.queryByRole('option', { name: /^Clubs/ })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: 'Dogs (2)' }));
+
+    expect(screen.getByTestId('section-dog')).toBeInTheDocument();
+    expect(screen.queryByTestId('section-show')).not.toBeInTheDocument();
+    expect(screen.getByText('Showing 2 of 5 deleted items.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Show all deleted items' }));
+    expect(screen.getByTestId('section-show')).toBeInTheDocument();
+    expect(screen.getByTestId('section-dog')).toBeInTheDocument();
+  });
+
+  it('opens on the type named in the URL', async () => {
+    setCountsPerTable({ shows: 3, dogs: 2 });
+
+    render(<DeletedEntitiesTab />, { initialRoute: '/admin/deleted-items?type=show' });
+
+    await screen.findByTestId('section-show');
+    expect(screen.queryByTestId('section-dog')).not.toBeInTheDocument();
+    expect(screen.getByText('Showing 3 of 5 deleted items.')).toBeInTheDocument();
   });
 
   it('shows restore dialog when Restore clicked', async () => {

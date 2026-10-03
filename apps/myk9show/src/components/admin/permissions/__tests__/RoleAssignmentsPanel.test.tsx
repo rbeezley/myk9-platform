@@ -1,4 +1,5 @@
 import { render, screen, waitFor, within } from '@/test/utils/testUtils';
+import { UrlProbe, readUrlParams } from '@/test/utils/UrlProbe';
 import { vi } from 'vitest';
 
 vi.mock('@/services/rbac/RBACService', () => ({
@@ -226,12 +227,25 @@ describe('RoleAssignmentsPanel', () => {
     const { user } = render(<RoleAssignmentsPanel />);
     await screen.findByRole('table');
 
-    await user.type(screen.getByPlaceholderText('Search by user, role, or scope...'), 'Blue Ridge');
+    await user.type(screen.getByPlaceholderText('Search by user, role, or scope'), 'Blue Ridge');
 
     await waitFor(() => {
       expect(screen.getByText('bob@example.com')).toBeInTheDocument();
       expect(screen.queryByText('alice@example.com')).not.toBeInTheDocument();
     });
+    expect(screen.getByText(/^Showing 1 of \d+ assignments\.$/)).toBeInTheDocument();
+  });
+
+  it('says so when a search matches no assignment and shows all again', async () => {
+    const { user } = render(<RoleAssignmentsPanel />);
+    await screen.findByRole('table');
+
+    await user.type(screen.getByPlaceholderText('Search by user, role, or scope'), 'zzzz');
+
+    expect(await screen.findByText('No role assignments match your search')).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Show all assignments' }));
+    expect(await screen.findByText('bob@example.com')).toBeInTheDocument();
+    expect(screen.getByText(/^Showing all \d+ assignments\.$/)).toBeInTheDocument();
   });
 
   it('repeats user, role, and exact club scope in the revoke confirmation', async () => {
@@ -259,5 +273,27 @@ describe('RoleAssignmentsPanel', () => {
     expect(screen.getByRole('alertdialog')).toHaveTextContent(
       'Are you sure you want to revoke the "Judge" role from dave@example.com for Club: unresolved (club-missing)?'
     );
+  });
+
+  it('applies the search from the URL and writes edits back without dropping other params', async () => {
+    const { user } = render(
+      <>
+        <RoleAssignmentsPanel />
+        <UrlProbe />
+      </>,
+      { initialRoute: '/admin/permissions?tab=assignments&assign_q=Blue%20Ridge' }
+    );
+    await screen.findByRole('table');
+
+    expect(screen.getByText('bob@example.com')).toBeInTheDocument();
+    expect(screen.queryByText('alice@example.com')).not.toBeInTheDocument();
+
+    const box = screen.getByPlaceholderText('Search by user, role, or scope');
+    await user.clear(box);
+    await user.type(box, 'alice');
+
+    const params = readUrlParams(screen.getByTestId('url-search').textContent);
+    expect(params.get('assign_q')).toBe('alice');
+    expect(params.get('tab')).toBe('assignments');
   });
 });

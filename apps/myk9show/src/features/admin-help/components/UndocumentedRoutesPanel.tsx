@@ -21,7 +21,7 @@ export function UndocumentedRoutesPanel({ missing, extra }: UndocumentedRoutesPa
           <h4 className="text-sm font-medium">Missing directory entries ({missing.length})</h4>
           <ul className="mt-1 space-y-0.5 text-sm">
             {missing.map(p => (
-              <li key={p}>
+              <li key={p} className="break-all">
                 <code>{p}</code>
               </li>
             ))}
@@ -33,7 +33,7 @@ export function UndocumentedRoutesPanel({ missing, extra }: UndocumentedRoutesPa
           <h4 className="text-sm font-medium">Extra directory entries ({extra.length})</h4>
           <ul className="mt-1 space-y-0.5 text-sm">
             {extra.map(p => (
-              <li key={p}>
+              <li key={p} className="break-all">
                 <code>{p}</code>
               </li>
             ))}

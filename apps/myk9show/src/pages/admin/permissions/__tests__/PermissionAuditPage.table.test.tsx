@@ -1,4 +1,5 @@
 import { render, screen, within } from '@/test/utils/testUtils';
+import { UrlProbe, readUrlParams } from '@/test/utils/UrlProbe';
 import { vi } from 'vitest';
 
 vi.mock('@/services/rbac/RBACService', () => ({
@@ -80,7 +81,7 @@ describe('PermissionAuditPage DataTable migration', () => {
   it('renders action filter control', async () => {
     render(<PermissionAuditPage />);
     await screen.findByRole('table');
-    expect(screen.getByRole('combobox', { name: /action filter/i })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /^action$/i })).toBeInTheDocument();
   });
 
   it('renders a compact audit summary above the table', async () => {
@@ -119,9 +120,97 @@ describe('PermissionAuditPage DataTable migration', () => {
     expect(within(revokeRow).getByText('club-heartland')).toBeInTheDocument();
   });
 
+  it('narrows rows with the Action filter and reports the count', async () => {
+    const { user } = render(<PermissionAuditPage />);
+    await screen.findByRole('table');
+    expect(screen.getByText('Showing all 3 events.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('combobox', { name: /^action$/i }));
+    await user.click(await screen.findByRole('option', { name: 'Role Revoked' }));
+
+    expect(screen.getAllByRole('row')).toHaveLength(2);
+    expect(screen.getByText('Showing 1 of 3 events.')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Show all events' }));
+    expect(screen.getAllByRole('row')).toHaveLength(4);
+  });
+
+  it('searches the audit log and reports the count', async () => {
+    const { user } = render(<PermissionAuditPage />);
+    await screen.findByRole('table');
+
+    await user.type(screen.getByPlaceholderText(/search audit/i), 'heartland');
+
+    expect(screen.getAllByRole('row')).toHaveLength(2);
+    expect(screen.getByText('Showing 1 of 3 events.')).toBeInTheDocument();
+  });
+
   it('renders export button', async () => {
     render(<PermissionAuditPage />);
     await screen.findByRole('table');
     expect(screen.getByRole('button', { name: /export/i })).toBeInTheDocument();
+  });
+
+  it('applies search, action and range from the URL and keeps other params', async () => {
+    render(
+      <>
+        <PermissionAuditPage />
+        <UrlProbe />
+      </>,
+      {
+        initialRoute:
+          '/admin/permissions?tab=audit&audit_action=role_revoked&audit_q=heartland&audit_range=30d',
+      }
+    );
+    await screen.findByRole('table');
+
+    expect(screen.getByText('Showing 1 of 3 events.')).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /date range/i })).toHaveTextContent('Last 30 days');
+    expect(readUrlParams(screen.getByTestId('url-search').textContent).get('tab')).toBe('audit');
+  });
+
+  it('writes the action filter to the URL and preserves other params', async () => {
+    const { user } = render(
+      <>
+        <PermissionAuditPage />
+        <UrlProbe />
+      </>,
+      { initialRoute: '/admin/permissions?tab=audit' }
+    );
+    await screen.findByRole('table');
+
+    await user.click(screen.getByRole('combobox', { name: /^action$/i }));
+    await user.click(await screen.findByRole('option', { name: 'Role Revoked' }));
+
+    const params = readUrlParams(screen.getByTestId('url-search').textContent);
+    expect(params.get('audit_action')).toBe('role_revoked');
+    expect(params.get('tab')).toBe('audit');
+  });
+
+  it('treats a changed date range as filtered, and Show all events restores the default', async () => {
+    const { user } = render(
+      <>
+        <PermissionAuditPage />
+        <UrlProbe />
+      </>,
+      { initialRoute: '/admin/permissions?tab=audit' }
+    );
+    await screen.findByRole('table');
+    expect(screen.queryByRole('button', { name: 'Show all events' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('combobox', { name: /date range/i }));
+    await user.click(await screen.findByRole('option', { name: 'Last 30 days' }));
+    await screen.findByRole('table');
+
+    expect(readUrlParams(screen.getByTestId('url-search').textContent).get('audit_range')).toBe(
+      '30d'
+    );
+    await user.click(screen.getByRole('button', { name: 'Show all events' }));
+    await screen.findByRole('table');
+
+    const params = readUrlParams(screen.getByTestId('url-search').textContent);
+    expect(params.has('audit_range')).toBe(false);
+    expect(params.get('tab')).toBe('audit');
+    expect(screen.getByRole('combobox', { name: /date range/i })).toHaveTextContent('Last 7 days');
   });
 });

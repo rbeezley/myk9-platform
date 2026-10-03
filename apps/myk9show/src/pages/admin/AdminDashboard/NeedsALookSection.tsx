@@ -11,6 +11,7 @@ import { RemediationLink } from '@/features/admin-system-health/RemediationLink'
  * triageSelectors. Do not add one without a backend concept behind it.
  */
 import { cn } from '@/lib/utils';
+import { ListResultLine, ListViewTabs, type ListView } from '@/components/list-toolkit';
 import { formatCheckedAgo } from '@/features/admin-system-health/systemHealthSelectors';
 import {
   filterTriage,
@@ -19,7 +20,7 @@ import {
   type TriageItem,
   type TriageSeverity,
 } from '@/features/admin-overview/triageSelectors';
-import { BoardCard, Eyebrow, FilterTabs } from '../SystemHealth/HealthBoardPrimitives';
+import { BoardCard, Eyebrow } from '../SystemHealth/HealthBoardPrimitives';
 
 // Critical is the only solid fill so it outranks High at a glance; both modes
 // pass AA (light: white on rgb(185,28,28); dark: #450a0a on rgb(248,113,113)).
@@ -29,6 +30,8 @@ const SEVERITY_CHIP: Record<TriageSeverity, string> = {
   Medium: 'bg-warning/10 text-warning',
   Low: 'bg-muted text-muted-foreground',
 };
+
+const ITEM_NOUN = ['open item', 'open items'] as const;
 
 export function NeedsALookSection({
   items,
@@ -43,6 +46,12 @@ export function NeedsALookSection({
 }) {
   const summary = summarizeTriage(items);
   const visible = filterTriage(items, filter);
+  const views: ListView[] = [
+    { id: 'all', label: 'All', count: summary.total },
+    { id: 'money', label: 'Money', count: summary.money },
+    { id: 'service', label: 'Service', count: summary.service },
+    { id: 'deadline', label: 'Deadlines', count: summary.deadline },
+  ];
 
   if (summary.total === 0) {
     return (
@@ -66,16 +75,11 @@ export function NeedsALookSection({
             {summary.total}
           </span>
         </div>
-        <FilterTabs
-          ariaLabel="Filter what needs a look"
-          active={filter}
-          onChange={onFilterChange}
-          tabs={[
-            { value: 'all' as const, label: 'All', count: summary.total },
-            { value: 'money' as const, label: 'Money', count: summary.money },
-            { value: 'service' as const, label: 'Service', count: summary.service },
-            { value: 'deadline' as const, label: 'Deadlines', count: summary.deadline },
-          ]}
+        <ListViewTabs
+          label="Filter what needs a look"
+          views={views}
+          activeId={filter}
+          onSelect={id => onFilterChange(id as TriageCategory | 'all')}
         />
       </div>
 
@@ -117,10 +121,13 @@ export function NeedsALookSection({
         ))}
       </div>
 
-      <p className="text-xs text-muted-foreground">
-        Showing {visible.length} of {summary.total} open item{summary.total === 1 ? '' : 's'} from
-        health checks and alerts.
-      </p>
+      <ListResultLine
+        shown={visible.length}
+        total={summary.total}
+        noun={ITEM_NOUN}
+        filtered={filter !== 'all'}
+        onShowAll={() => onFilterChange('all')}
+      />
     </section>
   );
 }

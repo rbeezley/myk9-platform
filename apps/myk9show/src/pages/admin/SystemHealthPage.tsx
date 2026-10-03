@@ -48,6 +48,7 @@ import { cn } from '@/lib/utils';
 import { useListUrlParams } from '@/hooks/useListUrlParams';
 import { ListResultLine, ListViewTabs, type ListView } from '@/components/list-toolkit';
 import { OperatorAlertsSection } from './OperatorAlertsSection';
+import { RefundRequestsSection } from './RefundRequestsSection';
 import {
   BoardCard,
   BoardError,
@@ -308,6 +309,7 @@ export default function SystemHealthPage() {
               must not disappear behind a snapshots-query outage (money-path
               alerts are unrelated to the daily health-job pipeline). */}
           <OperatorAlertsSection />
+          <RefundRequestsSection />
         </div>
       </PageShell>
     );
@@ -326,6 +328,7 @@ export default function SystemHealthPage() {
             onRetry={() => void refetch()}
           />
           <OperatorAlertsSection />
+          <RefundRequestsSection />
         </div>
       </PageShell>
     );
@@ -475,6 +478,7 @@ export default function SystemHealthPage() {
 
           <aside className="flex flex-col gap-[18px]">
             <OperatorAlertsSection />
+            <RefundRequestsSection />
             <CoverageCard unprovableChecks={unprovableChecks} />
             <EnvironmentCard source={latest?.source ?? ''} migrationsDetail={migrationsDetail} />
           </aside>

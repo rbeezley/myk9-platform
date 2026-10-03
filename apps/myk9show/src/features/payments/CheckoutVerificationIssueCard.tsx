@@ -41,7 +41,7 @@ export function CheckoutVerificationIssueCard({
   // Only 'processing' proves an order for THIS session exists and is pending,
   // so only it may carry the refund promise. 'not_found' also covers bogus
   // session ids, rows hidden by RLS, and webhook write failures — none of
-  // which establish that an automatic refund exists — and 'unavailable' can
+  // which establish that a refund is owed — and 'unavailable' can
   // mean an auth failure or backend error (review rounds 1–2).
   const showRefundReassurance = issue.verificationStatus === 'processing';
 
@@ -64,7 +64,7 @@ export function CheckoutVerificationIssueCard({
             {(showRefundReassurance || autoRecheckActive) && (
               <p className="mt-3 text-sm text-muted-foreground max-w-md mx-auto">
                 {showRefundReassurance &&
-                  'If your entries could not be placed, your payment is refunded automatically in full. '}
+                  'If your entries could not be placed, your payment will be refunded in full. '}
                 {autoRecheckActive && 'This page keeps checking and will update on its own.'}
               </p>
             )}

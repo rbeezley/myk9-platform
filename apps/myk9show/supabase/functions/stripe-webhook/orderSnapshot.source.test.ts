@@ -36,11 +36,17 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
   it('spreads snapshot fields into EVERY stripe_orders insert', () => {
     // Was three sites; `handleOneTimePaymentCompleted` was deleted on main by the
     // Stripe money-path audit (#1381), leaving the cart and payment-link inserts.
-    // The count is pinned so a NEW insert site cannot be added without a snapshot.
+    // Since Codex round 14 on #2689 the payment-link row is built by
+    // paymentLinkOrder.ts and inserted inside queue_payment_link_refund, so the
+    // webhook keeps ONE direct insert (the cart). The count is pinned so a NEW
+    // insert site cannot be added without a snapshot.
     const inserts = webhookSource.match(/\.from\('stripe_orders'\)\s*\.insert\(/g) ?? [];
     const spreads = webhookSource.match(/\.\.\.buildOrderSnapshotFields\(/g) ?? [];
-    expect(spreads.length).toBe(2);
+    expect(spreads.length).toBe(1);
     expect(spreads.length).toBe(inserts.length);
+    expect(readFileSync(resolve(__dirname, 'paymentLinkOrder.ts'), 'utf8')).toContain(
+      '...buildOrderSnapshotFields('
+    );
   });
 
   it('never rewrites the immutable charge facts in the refund path', () => {
@@ -60,7 +66,7 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     const ledgerWrite = body.indexOf('recordOrderRefundCents(');
     const appRefundEarlyReturn = body.indexOf('if (allFromAppRefund) {');
     expect(ledgerWrite).toBeGreaterThan(-1);
-    // App-originated refunds (per-entry, auto-refund, show refund) return early;
+    // App-originated refunds (per-entry, approved queue refund, show refund) return early;
     // the refunds must already be recorded by then or reconciliation understates.
     expect(ledgerWrite).toBeLessThan(appRefundEarlyReturn);
   });
@@ -72,7 +78,7 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     // `charge.amount_refunded` is a CUMULATIVE total across both refund kinds;
     // deriving the split from it is what forced the monotonic counters. Stripe
     // carries the individual refunds on charge.refunds.data.
-    expect(body).toMatch(/for \(const refund of refunds\)/);
+    expect(body).toMatch(/for \(const listed of refunds\)/);
     expect(body).toMatch(/refundId:\s*refund\.id/);
     expect(body).toMatch(/amountCents:\s*refund\.amount \?\? 0/);
     // The kind is READ OFF THE STRIPE OBJECT, never hardcoded: this sweep can
@@ -105,18 +111,17 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     expect(handler).toContain('order ledger NOT updated');
   });
 
-  it('uses the shared lifecycle decision and books only succeeded refunds', () => {
+  it('uses the shared lifecycle router and books only succeeded refunds', () => {
     const start = webhookSource.indexOf('async function handleChargeRefunded');
     const end = webhookSource.indexOf('\nasync function', start + 1);
     const body = webhookSource.slice(start, end);
-    expect(body).toContain('resolveRefundLedgerAction(refund.status)');
-    expect(body).toContain("if (action === 'defer') continue");
-    expect(body).toContain("if (action === 'fail' || action === 'cancel')");
+    expect(body).toContain('routeRefundByCurrentState(refundSettleDeps, listed, {');
+    expect(body).toContain("if (action !== 'book') continue");
     expect(body).toContain('sawSucceededRefund = true');
   });
 
   it('alerts when refund.updated succeeds before its order exists', () => {
-    const start = webhookSource.indexOf('async function handleRefundUpdated');
+    const start = webhookSource.indexOf('async function bookSucceededRefund');
     const end = webhookSource.indexOf('\nasync function', start + 1);
     const body = webhookSource.slice(start, end);
     expect(body).toContain('const rows = await recordOrderRefundCents');
@@ -124,24 +129,93 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     expect(body).toContain('Succeeded refund arrived before its order');
   });
 
-  it('gates newly created auto-refunds on Stripe status before booking', () => {
-    const helperStart = webhookSource.indexOf('async function reconcileCreatedMakeWholeRefund');
-    const helperEnd = webhookSource.indexOf('\nasync function', helperStart + 1);
-    const helper = webhookSource.slice(helperStart, helperEnd);
-    expect(helper).toContain('resolveRefundLedgerAction(refund.status)');
-    expect(helper).toContain("if (action === 'defer')");
-    expect(helper).toContain("if (action === 'fail' || action === 'cancel')");
-    expect(helper).toContain('recordOrderRefundCents(paymentIntentId, {');
-    expect(helper).toMatch(/amountCents:\s*refund\.amount/);
-    expect(helper).toMatch(/kind:\s*'make_whole'/);
+  it('never creates a refund itself: unhonorable charges are queued for approval or alerted (MYK9-876)', () => {
+    // Booking an APPROVED refund as make-whole, and only once Stripe reports it
+    // succeeded, moved to _shared/refundApproval.ts (behavioral vitest there).
+    expect(webhookSource).not.toContain('refunds.create');
+    const start = webhookSource.indexOf('async function queueCartOverflowRefund');
+    expect(start).toBeGreaterThan(-1);
+    const body = webhookSource.slice(start, webhookSource.indexOf('\nasync function', start + 1));
+    expect(body).not.toContain('recordOrderRefundCents(');
+  });
 
-    for (const functionName of ['issueCartOverflowAutoRefund', 'issueEntryPaymentAutoRefund']) {
-      const start = webhookSource.indexOf(`async function ${functionName}`);
+  it('routes every refund lifecycle event through the current-state router (Codex rounds 1-5, #2689)', () => {
+    // The behaviour lives in _shared/refundSettlement.ts routeRefundByCurrentState
+    // (vitest in refundApproval.test.ts): it settles an approved queued refund
+    // and picks book / reverse from Stripe's CURRENT copy. This pins that both
+    // entry points use it and that no handler decides from a status itself.
+    for (const handler of [
+      'async function handleRefundEvent',
+      'async function handleChargeRefunded',
+    ]) {
+      const start = webhookSource.indexOf(handler);
+      expect(start).toBeGreaterThan(-1);
       const end = webhookSource.indexOf('\nasync function', start + 1);
-      const body = webhookSource.slice(start, end);
-      expect(body).toContain('reconcileCreatedMakeWholeRefund(');
-      expect(body).not.toContain('recordOrderRefundCents(');
+      expect(webhookSource.slice(start, end)).toContain(
+        'await routeRefundByCurrentState(refundSettleDeps,'
+      );
     }
+    expect(webhookSource).not.toContain('resolveRefundLedgerAction(');
+    expect(webhookSource).not.toContain('settleApprovedRefund(');
+  });
+
+  it('writes each queued refund WITH its fulfillment latch; nothing replays (Codex round 13, #2689)', () => {
+    const body = (name: string) => {
+      const start = webhookSource.indexOf(`async function ${name}`);
+      expect(start).toBeGreaterThan(-1);
+      return webhookSource.slice(start, webhookSource.indexOf('\nasync function', start + 1));
+    };
+    // The entry (unit-tested in paidSessionEntry.test.ts) skips first-time
+    // validation for a fulfilled session and only ensures its request alert.
+    const entry = body('handleCheckoutCompleted');
+    expect(entry).toContain('await routePaidSession<SessionRefundRequest>(');
+    // Round 15: the refund requests are read at the entry, before any validation.
+    expect(entry).toContain('findRequests: () => refundRequestsForSession(session.id),');
+    expect(entry).toContain(
+      'await ensureSessionRefundAlerts(refundQueueDeps, session.id, requests);'
+    );
+    expect(entry).toContain('orderExists: () => orderExistsForSession(session.id),');
+    expect(entry).toContain('await ensurePaymentLinkRefundAlert(refundQueueDeps, session.id);');
+    expect(entry).toContain('fulfillCart: () => handleEntryPaymentCompleted(session),');
+    expect(entry).toContain(
+      'fulfillPaymentLink: () => handleEntryPaymentRequestCompleted(session),'
+    );
+    for (const gone of [
+      'replayQueuedRefundFromOrder',
+      'replayOwedRefund',
+      'queuedRefundFromOrder',
+      'REFUND_QUEUE_MARKER',
+      'invalid_entry_refund',
+      'queueRefundForApproval',
+      'request_refund_approval',
+      "kind: 'cart_overflow'",
+    ]) {
+      expect(webhookSource, gone).not.toContain(gone);
+    }
+
+    // The payment link closes its latch and writes its refund in ONE call, and
+    // no other write closes the link.
+    const link = body('handleEntryPaymentRequestCompleted');
+    expect(link).toContain('await settlePaymentLinkObligation(refundQueueDeps, {');
+    // Round 14: the order is passed into that same call; there is no separate
+    // order insert on this path, and the processing fee is fetched before it.
+    expect(link).toContain('order: buildPaymentLinkOrder({');
+    expect(link).not.toContain(".from('stripe_orders').insert(");
+    expect(link.indexOf('await fetchProcessingFeeCents(paymentIntentId)')).toBeLessThan(
+      link.lastIndexOf('await settlePaymentLinkObligation(refundQueueDeps, {')
+    );
+    // A redelivery that finds the latch closed ensures its request's alert.
+    expect(link).toContain(
+      "if (link.status === 'paid') await ensurePaymentLinkRefundAlert(refundQueueDeps, session.id);"
+    );
+    expect(link).toContain(
+      "closeLinkFrom: shouldCloseLink ? (link.status === 'expired' ? 'expired' : 'open') : null,"
+    );
+    expect(link).not.toContain(".from('entry_payment_links')\n      .update(");
+    expect(link).not.toContain("update({ status: 'paid'");
+
+    // Cart overflow: an operator alert, refunded by hand until MYK9-964.
+    expect(body('queueCartOverflowRefund')).toContain('cartOverflowManualRefundAlert({');
   });
 
   it('FAILS CLOSED: does not stamp refunded when the amount did not persist', () => {
@@ -181,36 +255,6 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     // Word-boundary: metadata.paid_amount_cents legitimately carries the
     // paid-only figure; the amount_cents COLUMN must not.
     expect(webhookSource).not.toMatch(/\bamount_cents: paidOrderAmountCents/);
-  });
-
-  it('records the cart-overflow auto-refund it issues as MAKE-WHOLE, not post-hoc', () => {
-    const start = webhookSource.indexOf('async function issueCartOverflowAutoRefund');
-    const end = webhookSource.indexOf('\nasync function', start + 1);
-    const body = webhookSource.slice(start, end);
-    expect(body).toContain('reconcileCreatedMakeWholeRefund(input.paymentIntentId!, refund)');
-    // Cart overflow refunds lines NEVER accepted: no fee earned, no club
-    // transfer, so it must never land in refunded_cents as a platform loss.
-    expect(body).not.toContain('chargeTotalCents');
-    // The Stripe refund id is the ledger PRIMARY KEY, so a duplicate delivery is
-    // an upsert of the same row rather than a second add.
-    expect(body).toContain('ledgerResult.attemptedBooking');
-    // Fail closed: an unwritten refund leaves the order looking collected in
-    // full, so it must alert rather than continue silently (finding 5).
-    expect(body).toContain('ledgerResult.rows === null || ledgerResult.rows.length === 0');
-    // No status stamp here — record_order_refund_cents owns the transition and
-    // stamps 'refunded' IFF fully refunded.
-    expect(body).not.toMatch(/\.update\(\{[^}]*status: 'refunded'/s);
-  });
-
-  it('records the payment-link make-whole auto-refund as MAKE-WHOLE too', () => {
-    const start = webhookSource.indexOf('async function issueEntryPaymentAutoRefund');
-    const end = webhookSource.indexOf('\nasync function', start + 1);
-    const body = webhookSource.slice(start, end);
-    expect(body).toContain('reconcileCreatedMakeWholeRefund(input.paymentIntentId, refund)');
-    expect(body).not.toContain('chargeTotalCents');
-    expect(body).toContain('ledgerResult.attemptedBooking');
-    expect(body).toContain('ledgerResult.rows === null || ledgerResult.rows.length === 0');
-    expect(body).not.toMatch(/\.update\(\{[^}]*status: 'refunded'/s);
   });
 
   it('tolerates delayed balance-transaction data by alerting pending, not zeroing', () => {

@@ -12,13 +12,17 @@ describe('isAppOriginatedRefund', () => {
     expect(isAppOriginatedRefund({ metadata: { entry_id: 'e1' } })).toBe(true);
   });
 
-  it('recognizes an entry payment request auto-refund', () => {
+  it('recognizes a refund a site admin approved from the queue (MYK9-876)', () => {
+    expect(isAppOriginatedRefund({ metadata: { type: 'approved_refund_request' } })).toBe(true);
+  });
+
+  it('still recognizes a legacy entry payment request auto-refund', () => {
     expect(isAppOriginatedRefund({ metadata: { type: 'entry_payment_request_auto_refund' } })).toBe(
       true
     );
   });
 
-  it('recognizes a cart overflow auto-refund', () => {
+  it('still recognizes a legacy cart overflow auto-refund', () => {
     expect(isAppOriginatedRefund({ metadata: { type: 'entry_cart_overflow_auto_refund' } })).toBe(
       true
     );

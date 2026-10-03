@@ -5522,6 +5522,135 @@ export type Database = {
         }
         Relationships: []
       }
+      refund_request_attempts: {
+        Row: {
+          approved_by_auth_user_id: string
+          attempt_no: number
+          created_at: string
+          failure_reason: string | null
+          id: string
+          request_id: string
+          status: string
+          stripe_refund_id: string | null
+          updated_at: string
+          version: number
+        }
+        Insert: {
+          approved_by_auth_user_id: string
+          attempt_no: number
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          request_id: string
+          status?: string
+          stripe_refund_id?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Update: {
+          approved_by_auth_user_id?: string
+          attempt_no?: number
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          request_id?: string
+          status?: string
+          stripe_refund_id?: string | null
+          updated_at?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "refund_request_attempts_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "refund_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      refund_requests: {
+        Row: {
+          amount_cents: number
+          cart_id: string | null
+          created_at: string
+          detail: Json
+          entry_payment_link_id: string | null
+          id: string
+          kind: string
+          last_failure: string | null
+          reason: string
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by_auth_user_id: string | null
+          show_id: string | null
+          status: string
+          stripe_checkout_session_id: string
+          stripe_payment_intent_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount_cents: number
+          cart_id?: string | null
+          created_at?: string
+          detail?: Json
+          entry_payment_link_id?: string | null
+          id?: string
+          kind: string
+          last_failure?: string | null
+          reason: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by_auth_user_id?: string | null
+          show_id?: string | null
+          status?: string
+          stripe_checkout_session_id: string
+          stripe_payment_intent_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount_cents?: number
+          cart_id?: string | null
+          created_at?: string
+          detail?: Json
+          entry_payment_link_id?: string | null
+          id?: string
+          kind?: string
+          last_failure?: string | null
+          reason?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by_auth_user_id?: string | null
+          show_id?: string | null
+          status?: string
+          stripe_checkout_session_id?: string
+          stripe_payment_intent_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "refund_requests_cart_id_fkey"
+            columns: ["cart_id"]
+            isOneToOne: false
+            referencedRelation: "entry_carts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refund_requests_entry_payment_link_id_fkey"
+            columns: ["entry_payment_link_id"]
+            isOneToOne: false
+            referencedRelation: "entry_payment_links"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "refund_requests_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       result_submissions: {
         Row: {
           id: string

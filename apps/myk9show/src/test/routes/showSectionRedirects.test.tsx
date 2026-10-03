@@ -6,15 +6,14 @@ import { PublicRoutes } from '@/routes/publicRoutes';
 import { ScopeType, UserRole } from '@/types/auth-types';
 
 /**
- * Every URL the deleted five-link row emitted, through the PRODUCTION route
- * tree, landing on the tab that absorbed it (MYK9-630 phase 2).
+ * Every retired show-section URL, through the PRODUCTION route tree, landing
+ * on the tab that absorbed it (MYK9-630 phase 2), and the Setup and Show Day
+ * tabs landing on the show home (MYK9-957).
  *
- * This file used to pin the OPPOSITE of one of these cases: phase 1 decision 4
- * made `/shows/:id/setup` redirect to Overview, because Setup had no page of
- * its own. Phase 2 gives it one — Setup is the second of the six tabs and
- * absorbs Trials, Classes and Show Map — so that assertion is superseded by the
- * decision recorded in `docs/plan-secretary-show-actions.md` § Phase 2, not
- * rewritten to make an implementation pass.
+ * This file has pinned the opposite of a case here twice, each time on an owner
+ * decision rather than to make an implementation pass: phase 1 sent Setup to
+ * Overview, phase 2 gave it a page, and `docs/plan-secretary-show-home.md`
+ * folded Setup and Show Day into the Overview again.
  *
  * It renders the real redirect components, which `canonicalShowRoutes.test.tsx`
  * cannot: it mocks the section pages to placeholders to prove they mount. The
@@ -139,12 +138,6 @@ vi.mock('@/pages/ShowDetailsPage', async () => {
   };
 });
 
-vi.mock('@/pages/secretary/ShowWorkbenchSetupPage', () => ({
-  ShowWorkbenchSetupPage: () => <div data-testid="section-setup" />,
-}));
-vi.mock('@/pages/secretary/ShowWorkbenchShowDeskPage', () => ({
-  ShowWorkbenchShowDeskPage: () => <div data-testid="section-show-day" />,
-}));
 vi.mock('@/pages/secretary/EntryManagementPage', () => ({
   default: () => <div data-testid="section-entries" />,
 }));
@@ -183,7 +176,9 @@ describe('legacy show section URLs land on the tab that absorbed them', () => {
   }
 
   it.each([
-    ['/shows/show-1/show-desk', '/shows/show-1/show-day', ''],
+    ['/shows/show-1/show-desk', '/shows/show-1', ''],
+    ['/shows/show-1/show-day', '/shows/show-1', ''],
+    ['/shows/show-1/setup', '/shows/show-1', ''],
     ['/shows/show-1/entry-management', '/shows/show-1/entries', ''],
     ['/shows/show-1/results-control', '/shows/show-1/results', ''],
     ['/shows/show-1/submit-results', '/shows/show-1/results', '?step=submit'],
@@ -200,21 +195,37 @@ describe('legacy show section URLs land on the tab that absorbed them', () => {
     await expectLandsAt('/shows/show-1/entries?queue=needs-review&trial=trial-7');
   });
 
-  it('carries a hash through the hop', async () => {
-    renderAt('/shows/show-1/show-desk#ring-2');
-    await expectLandsAt('/shows/show-1/show-day#ring-2');
+  it('carries the cockpit state from Show Day to the home', async () => {
+    renderAt(
+      '/shows/show-1/show-day?day=2026-11-09&filter=in-progress&focus=c1&anchor=c1&tool=people-at-show&view=needs-check-in'
+    );
+    await expectLandsAt(
+      '/shows/show-1?day=2026-11-09&filter=in-progress&focus=c1&anchor=c1&tool=people-at-show&view=needs-check-in'
+    );
   });
 
-  it('renders Setup in place — phase 2 gave it a page, so it no longer redirects', async () => {
-    renderAt('/shows/show-1/setup');
-    await expectLandsAt('/shows/show-1/setup');
-    expect(await screen.findByTestId('section-setup')).toBeInTheDocument();
+  it("opens Select classes from Setup's Classes section, keeping its view, trial and focus", async () => {
+    renderAt(
+      '/shows/show-1/setup?section=classes&view=pending&trialId=t1&focus=c1&returnTo=%2Fshows%2Fshow-1%2Fshow-day'
+    );
+    await expectLandsAt('/shows/show-1?view=pending&trialId=t1&focus=c1&select=classes');
+  });
+
+  it.each([['trials'], ['map']])(
+    "lands Setup's %s section on the home, dropping the Classes-only params",
+    async section => {
+      renderAt(`/shows/show-1/setup?section=${section}&view=completed&trialId=t1&focus=c1`);
+      await expectLandsAt('/shows/show-1');
+    }
+  );
+
+  it('carries a hash through the hop', async () => {
+    renderAt('/shows/show-1/show-desk#ring-2');
+    await expectLandsAt('/shows/show-1#ring-2');
   });
 
   it.each([
-    ['/shows/show-1/setup', 'section-setup'],
     ['/shows/show-1/entries', 'section-entries'],
-    ['/shows/show-1/show-day', 'section-show-day'],
     ['/shows/show-1/results', 'section-results'],
     ['/shows/show-1/reports', 'section-reports'],
   ])('mounts %s as a real page', async (path, testId) => {

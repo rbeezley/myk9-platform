@@ -8,7 +8,7 @@ import {
   getCockpitReportHref,
   getCockpitResultsControlHref,
   getCockpitSubmitResultsHref,
-  getShowDeskHref,
+  getShowHomeHref,
   normalizeCockpitUrlState,
   resolveShowDeskReturn,
   resolveShowDeskReturnHref,
@@ -24,9 +24,9 @@ const context = {
 
 describe('Show Desk context routes', () => {
   it('builds and normalizes URL-backed day, filter, focus, and anchor state', () => {
-    const href = getShowDeskHref({ showId: 'show 1', state: context });
+    const href = getShowHomeHref({ showId: 'show 1', state: context });
     expect(href).toBe(
-      '/shows/show%201/show-day?day=2026-07-20&filter=needs-attention&focus=class%2F1&anchor=trial-1'
+      '/shows/show%201?day=2026-07-20&filter=needs-attention&focus=class%2F1&anchor=trial-1'
     );
 
     expect(
@@ -66,7 +66,7 @@ describe('Show Desk context routes', () => {
   });
 
   it('builds typed owner links with the exact scope and encoded return context', () => {
-    const returnTo = getShowDeskHref({ showId: 'show-1', state: context });
+    const returnTo = getShowHomeHref({ showId: 'show-1', state: context });
 
     expect(
       getCockpitEntryManagementHref({
@@ -85,11 +85,9 @@ describe('Show Desk context routes', () => {
         showId: 'show-1',
         trialId: 'trial-1',
         classId: 'class/1',
-        returnTo,
       })
-    ).toBe(
-      `/shows/show-1/setup?section=classes&trialId=trial-1&focus=class%2F1&returnTo=${encodeURIComponent(returnTo)}`
-    );
+      // Select classes on the home (MYK9-957); the home is where "back" goes, so no returnTo.
+    ).toBe('/shows/show-1?select=classes&trialId=trial-1&focus=class%2F1');
 
     expect(getCockpitPaperScoringHref({ classId: 'class/1', returnTo })).toBe(
       `/scoring/classes/class%2F1/entries?mode=split&returnTo=${encodeURIComponent(returnTo)}`
@@ -141,7 +139,7 @@ describe('Show Desk context routes', () => {
     const valid =
       '/shows/show-1/show-day?focus=class-1&filter=in-progress&day=2026-07-20&anchor=row-2';
     expect(resolveShowDeskReturnHref(valid, 'show-1')).toBe(
-      '/shows/show-1/show-day?day=2026-07-20&filter=in-progress&focus=class-1&anchor=row-2'
+      '/shows/show-1?day=2026-07-20&filter=in-progress&focus=class-1&anchor=row-2'
     );
     expect(resolveShowDeskReturnHref('https://evil.example', 'show-1')).toBeNull();
     expect(resolveShowDeskReturnHref('//evil.example/shows/show-1/show-day', 'show-1')).toBeNull();
@@ -156,9 +154,11 @@ describe('Show Desk context routes', () => {
       href: '/shows/show-1?focus=class-1&anchor=class-1',
       label: 'Back to show',
     });
-    expect(resolveShowDeskReturn('/shows/show-1/show-day', 'show-1')?.label).toBe(
-      'Back to Show Desk'
-    );
+    // A retired Show Day returnTo in an open tab returns to the home too (MYK9-957).
+    expect(resolveShowDeskReturn('/shows/show-1/show-day', 'show-1')).toEqual({
+      href: '/shows/show-1',
+      label: 'Back to show',
+    });
     expect(resolveShowDeskReturn('/shows/show-2', 'show-1')).toBeNull();
     expect(resolveShowDeskReturn('/shows/show-1/entries', 'show-1')).toBeNull();
   });
@@ -174,10 +174,10 @@ describe('Show Desk context routes', () => {
     // MYK9-630 phase 2 renamed the route. A `returnTo` captured before it
     // shipped is still sitting in an open tab, and rejecting it silently drops
     // the secretary's way back. The output is rebuilt from the allowlist, so it
-    // comes back as `/show-day`, not as the URL that went in.
+    // comes back as the show home (MYK9-957), not as the URL that went in.
     expect(
       resolveShowDeskReturnHref('/shows/show-1/show-desk?filter=needs-attention', 'show-1')
-    ).toBe('/shows/show-1/show-day?filter=needs-attention');
+    ).toBe('/shows/show-1?filter=needs-attention');
   });
 
   it('gives the legacy spelling no more trust than the current one', () => {

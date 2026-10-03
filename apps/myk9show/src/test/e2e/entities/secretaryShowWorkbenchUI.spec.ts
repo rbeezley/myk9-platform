@@ -54,6 +54,15 @@ test.describe('Secretary show management UI', () => {
       /^Results/,
       /^Reports/,
     ]);
+    // Link crawl: nothing on the home links to a retired section URL; those
+    // exist only as redirects (MYK9-957 AC).
+    const hrefs = await page
+      .locator('a[href]')
+      .evaluateAll(anchors => anchors.map(a => a.getAttribute('href') ?? ''));
+    expect(hrefs.length).toBeGreaterThan(0);
+    expect(hrefs.filter(href => /\/(?:setup|show-day|show-desk)(?:[/?#]|$)/.test(href))).toEqual(
+      []
+    );
     // The header `...` menu is deleted (MYK9-630); its verbs moved to the app
     // header Actions menu, the Overview landing card and the Show Edit panel.
     await expect(page.getByRole('button', { name: 'More show actions' })).toHaveCount(0);

@@ -1,5 +1,5 @@
 /**
- * Onboarding Step 2 — Add Your Dogs
+ * Onboarding step — Dogs ("Do you show dogs?"), skippable
  *
  * Uses the existing AddDogPanel (full org + breed + registration flow)
  * rather than a parallel inline form. Dogs are saved to the DB immediately
@@ -61,9 +61,10 @@ export function StepDogs({ personId, onNext, onBack, onSkip, canGoBack = true }:
   return (
     <div className="space-y-4" data-testid="step-dogs">
       <div>
-        <h2 className="text-xl font-semibold">Add a dog now or do it later</h2>
+        <h2 className="text-xl font-semibold">Do you show dogs?</h2>
         <p className="text-sm text-muted-foreground mt-1">
-          You can keep going now and add dogs from Account whenever you are ready.
+          Add them now so entering a show takes seconds. Not showing dogs? Skip this step. You can
+          add dogs from Account any time.
         </p>
       </div>
 

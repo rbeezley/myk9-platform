@@ -12,6 +12,7 @@ import { registerSW } from 'virtual:pwa-register';
 import { setupPwaUpdate } from '@myk9/pwa-update';
 import { logger } from '@/services/LoggingService';
 import { buildTimestamp } from '@/config/appVersion';
+import { isSensitivePath } from '@/utils/sensitiveRoutes';
 
 export {
   applyPwaUpdate,
@@ -26,25 +27,11 @@ export interface SetupPwaOptions {
 
 /**
  * Routes where an update prompt could lose user work or interrupt a
- * payment/check-in flow. The package re-checks every 2s and fires the
- * prompt once the user navigates away.
+ * payment, check-in or scoring flow. The package re-checks every 2s and fires
+ * the prompt once the user navigates away. The list is shared with the
+ * onboarding guard (`@/utils/sensitiveRoutes`).
  */
-const SENSITIVE_PATH_FRAGMENTS = [
-  '/checkout/',
-  '/shows/', // covers /shows/:id/register
-  '/secretary/register/',
-  '/scoring/',
-];
-
-export const isOnSensitiveRoute = (): boolean => {
-  const path = window.location.pathname;
-  // /shows/ matches both the registration flow AND the show detail page;
-  // only defer on the register sub-route to keep marketing pages snappy.
-  if (path.includes('/shows/') && !/\/shows\/[^/]+\/register/.test(path)) {
-    return SENSITIVE_PATH_FRAGMENTS.filter(f => f !== '/shows/').some(f => path.includes(f));
-  }
-  return SENSITIVE_PATH_FRAGMENTS.some(f => path.includes(f));
-};
+export const isOnSensitiveRoute = (): boolean => isSensitivePath(window.location.pathname);
 
 export const setupPwa = (opts: SetupPwaOptions): void => {
   setupPwaUpdate({

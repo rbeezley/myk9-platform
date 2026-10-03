@@ -139,6 +139,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_941_dog_registrations_co_owner_writes_test.sql"
   "$TEST_DIR/myk9_923_entries_refuse_deleted_parent_test.sql"
   "$TEST_DIR/myk9_822_blocking_entries_rpc_test.sql"
+  "$TEST_DIR/myk9_970_role_onboarding_test.sql"
   "$TEST_DIR/user_roles_show_manager_read_test.sql"
   "$TEST_DIR/withdraw_own_entry_test.sql"
   "$TEST_DIR/withdraw_or_pull_own_entry_test.sql"

@@ -1,12 +1,13 @@
 /**
  * An in-memory stand-in for the PostgREST calls the cart store makes, with the
  * real column shapes of `entry_carts`, `entry_cart_items` and `classes`, and the
- * two unique indexes and two guard triggers that decide cart behaviour:
+ * two unique indexes and the guard triggers that decide cart behaviour:
  *
  *   entry_carts_active_show_exhibitor_unique_idx  (show_id, exhibitor_id) WHERE status = 'active'
  *   entry_cart_items_unique_dog_class_idx         (cart_id, dog_id, class_id)
  *   entry_carts_protect_status        a non-service caller cannot set status 'active'
  *                                     on another status, nor change a submitted cart
+ *   entry_carts_protect_session_id    a non-service caller cannot write a non-null session id
  *   entry_cart_items_protect_cart_id  a non-service caller cannot re-parent an item
  *
  * Every caller here is `authenticated`, never `service_role`, as in the app.
@@ -322,6 +323,17 @@ class FakeQuery {
             error: { code: '42501', message: 'cart status cannot regress to active' },
           };
         }
+      }
+      // trg_entry_carts_protect_session_id: only service_role writes a non-null
+      // session id; the sever-to-null writes the store makes always pass.
+      if (this.table === 'entry_carts' && payload.stripe_checkout_session_id != null) {
+        return {
+          data: null,
+          error: {
+            code: '42501',
+            message: 'stripe_checkout_session_id can only be set by the checkout service',
+          },
+        };
       }
       if (this.table === 'entry_cart_items' && 'cart_id' in payload) {
         if (targets.some(row => row.cart_id !== payload.cart_id)) {

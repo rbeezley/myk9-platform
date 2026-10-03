@@ -1,5 +1,6 @@
 import { isCheckInStatus, type CheckInStatus } from '@myk9/core';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
+import { isOnClassRunList } from '@/features/_shared/entryAccounting';
 import type { Dog } from '@/types/dog-types';
 import type { RunSheetEntry, RunSheetResult } from './types';
 import { formatSearchTime } from './types';
@@ -84,7 +85,10 @@ export function buildRunSheetEntries(
   dogLookup: Map<string, Dog> = new Map(),
   organization?: string | null
 ): RunSheetEntry[] {
+  // Withdrawn, scratched, moved and not-accepted entries are not on the run
+  // sheet (MYK9-976); the one rule lives in `entryAccounting`.
   return rows
+    .filter(row => isOnClassRunList({ entryStatus: row.entry_status ?? undefined }))
     .map(row => rawToEntry(row, dogLookup, organization))
     .sort((a, b) => a.runOrder - b.runOrder);
 }

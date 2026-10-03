@@ -72,6 +72,8 @@ export interface ShowMapNode {
 }
 
 export interface ShowMapEntryDisplay {
+  /** Raw `entries.entry_status`, so an action can gate on acceptance. */
+  entryStatus?: string | undefined;
   armband?: string | undefined;
   dogName: string;
   dogId?: string | undefined;

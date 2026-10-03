@@ -250,9 +250,15 @@ export async function installSecretaryFixture(page: Page): Promise<void> {
       role_name?: string;
       scope_type?: string;
       scope_id?: string | null;
+      is_active?: boolean;
     }>;
+    // Only an ACTIVE grant: the app ignores a revoked row (`useRBAC` keys on
+    // `is_active`), and the shared account can carry one for another club. Building
+    // the show for it makes `canManage` false and the entries/reports routes bounce
+    // back to the public show page.
     const scope = roles.find(
-      r => r.role_name === 'secretary' && r.scope_type === 'club' && r.scope_id
+      r =>
+        r.role_name === 'secretary' && r.scope_type === 'club' && r.scope_id && r.is_active === true
     );
     if (scope?.scope_id) club.resolve(scope.scope_id);
   });
@@ -262,7 +268,8 @@ export async function installSecretaryFixture(page: Page): Promise<void> {
     if (built) await serve(route, pick(built));
   };
 
-  // Not for the onboarding redirect, which a secretary is exempt from, but for
+  // Its completion stamp keeps the onboarding redirect away (staff are no
+  // longer exempt, MYK9-970), and it is also needed for
   // `useCurrentPersonId`: without this row the dog roster never loads and the
   // mail-in wizard cannot resolve the owner of the dog it just found.
   await installExhibitorProfile(page);

@@ -22,6 +22,16 @@ import {
   type ClassReadinessEntry,
 } from './classReadiness';
 import { StatusBadge } from '@/components/status';
+import {
+  formatClassEntryBreakdown,
+  type ClassEntryBreakdown,
+} from '@/features/entry-operations/classEntryBreakdown';
+
+/** "0 entered · 1 pending", worded exactly like the Overview schedule card. */
+function formatEntries(breakdown: ClassEntryBreakdown): string {
+  const { entered, pending } = formatClassEntryBreakdown(breakdown);
+  return pending ? `${entered} · ${pending}` : entered;
+}
 
 export interface ClassReadinessStripProps {
   isStaff: boolean;
@@ -150,7 +160,7 @@ export function ClassReadinessStrip({
         <CardContent className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
           <ReadinessMetric
             label="Entries"
-            value={`${summary.totalEntries} total entries`}
+            value={formatEntries(summary.entryBreakdown)}
             icon={Users}
           />
           <ReadinessMetric
@@ -186,7 +196,7 @@ export function ClassReadinessStrip({
           />
           <ReadinessMetric
             label="Scoring"
-            value={`${summary.scoredCount} of ${summary.totalEntries} scored`}
+            value={`${summary.scoredCount} of ${summary.expectedEntries} scored`}
             href={scoringHref}
             icon={ListChecks}
           />

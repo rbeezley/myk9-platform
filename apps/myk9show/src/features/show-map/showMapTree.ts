@@ -116,6 +116,7 @@ function entryDisplay(entry: ShowMapEntryInput, organization?: string): ShowMapE
   const dogId = entryDogId(entry);
   const handlerId = entryHandlerId(entry);
   return {
+    entryStatus: readString(entry, 'entry_status'),
     armband: readString(entry, 'armband') ?? readString(entry, 'armband_number'),
     dogName: entryDogName(entry) ?? 'Unknown',
     dogId,

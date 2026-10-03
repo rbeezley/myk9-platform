@@ -359,7 +359,7 @@ describe('Replicated*Table mappers — db row -> domain -> db row', () => {
     });
   });
 
-  it('shows: maps a legacy/unrecognized status to the "draft" DB fallback', () => {
+  it('shows: omits an unrecognized status from the rebuilt payload (MYK9-983)', () => {
     const domain = rowToShow({
       id: 'show-2',
       name: 'Unknown Status Show',
@@ -371,7 +371,8 @@ describe('Replicated*Table mappers — db row -> domain -> db row', () => {
 
     const table = new TestableShowsTable();
     const rebuilt = table.publicRebuildUpdatePayload(domain);
-    expect(rebuilt.status).toBe('draft');
+    expect(rebuilt).not.toHaveProperty('status');
+    expect(rebuilt).toMatchObject({ name: 'Unknown Status Show' });
   });
 
   it('trials: maps optional fields and round-trips core identity fields', () => {

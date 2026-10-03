@@ -243,4 +243,27 @@ describe('buildRunSheetEntries', () => {
     ]);
     expect(e.ownerName).toBe('');
   });
+
+  // MYK9-976: Exterior Excellent on the Heartland demo show. Two withdrawn and
+  // refunded entries, one pending. Only the pending one is on the run sheet.
+  it('leaves withdrawn, scratched, moved and not-accepted entries off the run sheet', () => {
+    const rows = [
+      makeRow({ id: 'maple', armband: null, entry_status: 'withdrawn', run_order: 1 }),
+      makeRow({ id: 'ranger', armband: null, entry_status: 'withdrawn', run_order: 2 }),
+      makeRow({ id: 'juni', armband: '102', entry_status: 'submitted', run_order: 3 }),
+      makeRow({ id: 'a', entry_status: 'scratched', run_order: 4 }),
+      makeRow({ id: 'b', entry_status: 'moved', run_order: 5 }),
+      makeRow({ id: 'c', entry_status: 'not_accepted', run_order: 6 }),
+    ];
+
+    expect(buildRunSheetEntries(rows).map(e => e.id)).toEqual(['juni']);
+  });
+
+  it('keeps a pulled dog listed, shown as scratched: pulling is check-in, not lifecycle', () => {
+    const [e] = buildRunSheetEntries([
+      makeRow({ entry_status: 'confirmed', check_in_status: 'pulled' }),
+    ]);
+
+    expect(e.isScratched).toBe(true);
+  });
 });

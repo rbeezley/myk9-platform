@@ -127,6 +127,26 @@ export function isRunnableEntry(entry: EntryAccountingFields): boolean {
   return isExpectedEntry(entry) && !isAccountedFor(entry) && checkInStatus !== 'pulled';
 }
 
+/**
+ * Does this entry belong on a class's run list or paper scoring list?
+ *
+ * Lifecycle only: withdrawn, scratched, absent, moved, not-accepted and
+ * soft-deleted entries are off the list (MYK9-976). The check-in axis is
+ * deliberately ignored, so a dog pulled on the day still appears (shown as
+ * scratched) while the counts, which use `isExpectedEntry`, leave it out.
+ * A pending (not yet accepted) entry stays listed: this predicate never
+ * looked at acceptance, and MYK9-976 leaves that call to the owner.
+ */
+export function isOnClassRunList(entry: EntryAccountingFields): boolean {
+  return isExpectedEntry({
+    deletedAt: entry.deletedAt,
+    deleted_at: entry.deleted_at,
+    entryStatus: entry.entryStatus,
+    entry_status: entry.entry_status,
+    status: entry.status,
+  });
+}
+
 /** Entries the show expects to run, in input order. */
 export function expectedEntries<T extends EntryAccountingFields>(entries: T[]): T[] {
   return entries.filter(isExpectedEntry);

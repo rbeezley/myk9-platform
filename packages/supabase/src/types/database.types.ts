@@ -3043,6 +3043,7 @@ export type Database = {
           created_at: string | null
           default_handler_id: string | null
           id: string
+          onboarded_roles: string[]
           onboarding_completed_at: string | null
           person_id: string
           stripe_customer_id: string | null
@@ -3055,6 +3056,7 @@ export type Database = {
           created_at?: string | null
           default_handler_id?: string | null
           id?: string
+          onboarded_roles?: string[]
           onboarding_completed_at?: string | null
           person_id: string
           stripe_customer_id?: string | null
@@ -3067,6 +3069,7 @@ export type Database = {
           created_at?: string | null
           default_handler_id?: string | null
           id?: string
+          onboarded_roles?: string[]
           onboarding_completed_at?: string | null
           person_id?: string
           stripe_customer_id?: string | null
@@ -14279,6 +14282,7 @@ export type Database = {
         Args: { p_decision: string; p_entry_id: string }
         Returns: undefined
       }
+      set_my_judge_numbers: { Args: { p_numbers: Json }; Returns: number }
       set_my_notification_preferences: {
         Args: {
           p_lead_dogs?: number

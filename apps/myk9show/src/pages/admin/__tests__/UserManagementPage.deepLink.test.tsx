@@ -38,9 +38,6 @@ vi.mock('@/components/admin/users/UserTable', () => ({
   ),
 }));
 
-vi.mock('@/components/admin/users/UserFilters', () => ({
-  UserFilters: () => null,
-}));
 vi.mock('@/components/admin/users/CreateUserDialog', () => ({ CreateUserDialog: () => null }));
 vi.mock('@/components/admin/users/BulkActionsBar', () => ({ BulkActionsBar: () => null }));
 vi.mock('@/components/panels/edit/UserEditPanel', () => ({ UserEditPanel: () => null }));

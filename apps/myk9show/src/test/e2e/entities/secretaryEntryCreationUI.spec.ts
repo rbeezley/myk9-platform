@@ -6,7 +6,7 @@
  *
  * Prerequisites (seeded in staging DB):
  *  - Secretary fixture (E2E_SECRETARY_EMAIL, agreed_to_tos_at set)
- *  - Dog "Ace" (id: 074d56ff-a42f-4259-a2f6-030183a13f55) owned by Test Secretary,
+ *  - Dog "Ace" (id: 074d56ff-a42f-4259-a2f6-030183a13f55) owned by Jordan Ellis,
  *    AKC registration on file, DOB 2022-03-15 (eligible: 6+ months, has registration)
  *  - Show "Test Golden Path Show" (id: 4ad95cdc-2c04-4386-8e0b-07b9111fcac3) org=AKC,
  *    trials + classes including Container Novice A/B (Saturday Trial 1)

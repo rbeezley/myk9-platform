@@ -80,6 +80,10 @@ export const useSecretaryShowEntriesQuery = (showId: string, enabled = true) =>
     },
     enabled: Boolean(showId) && enabled,
     ...cacheStrategies.dynamic,
+    // The service reads the local replica first, so run it offline instead of
+    // pausing (MYK9-955): an offline cold reload of the show home then has its
+    // counts. A cold replica still needs the network and reports an error.
+    networkMode: 'offlineFirst',
   });
 
 // Get entries by dog ID

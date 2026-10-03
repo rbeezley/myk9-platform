@@ -48,13 +48,13 @@ This plan **deletes** two tabs (Show Day, Setup) and one duplicate schedule. The
 
 Each phase is its own PR and leaves the app shippable. Show Day stays reachable until Phase 4, so show-day behavior never depends on an unfinished merge.
 
-### Phase 0 — Decisions (no code; any time)
+### Phase 0 — Decisions (done, owner 2026-10-02, MYK9-953)
 
-1. Owner confirms the four Tools moves (Phase 1 table).
-2. Owner confirms the day picker's default: today on a show day; the first show day before the show; the last show day after it.
-3. Owner confirms what the home shows before the show where Show Day shows time-of-day prompts (the "now" marker and "starts in N minutes" preparation reminders): proposal — hide both unless the selected day is today.
-4. After the test show: note which Show Day tools and filters were actually used at the show. Anything unused is a deletion candidate, not a migration.
-5. Sequence against MYK9-898 (real-secretary observation, MYK9-897): it measures Setup row menus. Either run it before Phase 3 or retarget it at the new home. Owner decides.
+1. **Tools moves:** as in the Phase 1 table (Show closeout to Results step 3; the emergency trial packet stays in Tools → Show day).
+2. **Day picker default:** today on a show day; the first show day before the show; the last show day after it.
+3. **Quiet mode:** hide the "now" marker and the "starts in N minutes" preparation reminders unless the selected day is today.
+4. **Usage audit:** a used/unused checklist of the Show Day tools and filters, ticked at the Oct 6 dress rehearsal (first pass) and the Oct 10 show (second pass). Anything unused is a deletion candidate, not a migration; nothing is deleted without the owner's yes.
+5. **MYK9-898:** retarget the real-secretary observation at the new home instead of the Setup row menus Phase 3 removes, update its task list to match, and run it at the Oct 10 show (Phase 5, MYK9-958).
 
 ### Phase 1 — Slim the Tools (shippable on today's Show Day)
 
@@ -81,6 +81,14 @@ Acceptance: Tools shows exactly two groups (render test, red on `main`); Results
 
 Show Day still exists in this phase (same hook), so a regression can be compared side by side.
 
+**As built (MYK9-955):**
+
+- **No extracted hook.** The Overview mounts the same `ShowWorkbenchShowDeskPage` component (`surface="home"`), so the shared hook is unnecessary and Overview and Show Day cannot drift.
+- **All days is the URL default.** No `day` param means All days. The model's day rule picks which trials start open, and a trial holding the focused class also opens.
+- **Attention covers every day in All days.** Earlier-day closeout therefore stays visible, which the old "latest unfinished closeout" day rule did implicitly.
+- **Offline reads.** The canonical entries query runs `offlineFirst` and paperwork prints run `always`, so an offline cold reload reads the replica.
+- **Back links.** Links opened from the home return to `/shows/:id` with the label "Back to show".
+
 Acceptance: assertion-first tests for the day-default rule and quiet mode; a render test proving the manager Overview shows the cockpit and an exhibitor's Overview is unchanged (red on `main`); the full cockpit suite passes untouched after the extraction; offline reload of the manager Overview renders the schedule, counts and checklist (this also closes MYK9-948's open offline criterion); browser walk at 1440 and 375px before the show, on a show day and after.
 
 ### Phase 3 — Setup folds into the home
@@ -91,6 +99,15 @@ Acceptance: assertion-first tests for the day-default rule and quiet mode; a ren
 - Reuse every existing panel, dialog and bulk handler. No new forms.
 
 Acceptance: every Setup capability is reachable from the home (a checklist test enumerating Setup → Trials and Setup → Classes actions against their new homes); the bulk actions keep their existing tests; walk.
+
+**As built (MYK9-956):**
+
+- **"Select classes" is Class Management in place.** `?select=classes` mounts `SetupClassesSection`, the same `ClassesTab` Setup uses, so the bulk bar, the one-trial rule and per-row judge assignment are unchanged. "Done" drops the mode and its params.
+  - There is no bulk "assign judge". Judges were always assigned per row, and that picker comes along.
+- **Trial headings** get "Add Classes" plus a ⋯ menu (Edit Trial, Trial details, Delete Trial). The menu is `useTrialRowActions`, extracted from `TrialsTab`, which now uses it too.
+- **The class panel** gets "Edit class" and "Delete class" through Setup's own resolve-then-open flow (`useClassRowActions` + `SetupClassDialogs`).
+- **The home header** gets "Add Trial" and "Select classes".
+- **Not carried:** Setup → Trials' CSV export. Exporting classes is still in the bulk bar.
 
 ### Phase 4 — Delete Show Day and Setup tabs
 
@@ -105,6 +122,24 @@ Acceptance: every Setup capability is reachable from the home (a checklist test 
 - Delete `ShowWorkbenchSetupPage`, `showSetupSections`, `ShowMapTab` and Show-Map-only modules, `ShowWorkbenchShowDeskPage` page shell; the compact Overview schedule stays for exhibitors. Prove each deletion by grep (code **and** `*.md`) and typecheck.
 
 Acceptance: redirect table tested route by route; no remaining link to `/show-day` or `/setup` outside the redirect map (a test that greps built routes, plus a link-crawl e2e on the secretary home); typecheck, lint, full suite, e2e green.
+
+**As built (MYK9-957):**
+
+- **Redirects.**
+  - `show-day`, `show-desk` and `setup` are entries in `LEGACY_SHOW_SECTION_REDIRECTS` with path `''` (the home). `LegacyShowSectionRedirect` keeps the visitor's params, so the cockpit state (`day`, `filter`, `focus`, `anchor`, `tool`, `view`) rides along.
+  - Setup URLs go through `legacySetupToHomeSearch`. `section=classes` becomes `select=classes` and keeps view, trial and focus; the other sections drop them.
+  - The legacy `?tab=` values now point at the home, with `classes` opening Select classes.
+  - The secretary-route redirects (`/secretary`, `/secretary/day-of`, `/secretary/check-in`, `/secretary/run-order`, `?phase=show-desk`) land on the home.
+- **Links.**
+  - `getSetupClassesHref` became `getSelectClassesHref` in `pages/secretary/selectClassesRoutes.ts`, which replaces `showSetupSections`.
+  - `getShowDeskHref` is gone; `getShowHomeHref` replaces it.
+  - "Back to Show Desk" (`ShowDeskReturnLink`, ringside exit) became "Back to show".
+  - Also retargeted: the sidebar, `useMyShows`, `ShowPhaseCard`, the class menu, the Reports, Entries and Settings `?tool=` links, support diagnostics and the admin-help directory.
+  - The header "Open Show Day" action is deleted.
+  - `noRetiredClassManagementLinks.test.ts` now fails on any built link to `/setup`, `/show-day` or `/show-desk`.
+- **Deleted:** `ShowWorkbenchSetupPage`, `showSetupSections`, `ShowDeskCompactContext`, and `ShowMapTab` with the 10 modules only it used, plus their tests. `ShowWorkbenchShowDeskPage` stays as the home's component (its `surface` prop is gone), as does `useShowMapWorkbenchState`.
+- **Removed in MYK9-962:** the `canShowMap` and `map*` props on `ShowDetailTabs`, their `ShowDetailsPage` builders, and the `features.showMap` flag, all unused after this change.
+- **Guides:** the secretary and club-admin guides describe the four tabs. The AskQ assets (`supabase/functions/_shared/askq/documentAssets.ts`) were already stale on `main` before this change (generated from an older guide), and regenerating them breaks `supportMode.test.ts`. They were left untouched here and need their own regenerate-and-deploy.
 
 ### Phase 5 — Verify with a real secretary
 

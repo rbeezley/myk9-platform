@@ -1,14 +1,10 @@
-import { Fragment, type ReactNode } from 'react';
-import { ChevronDown } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ListViewTabs } from '@/components/list-toolkit';
-import { cn } from '@/lib/utils';
+import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 
-import { CockpitActionLink } from './CockpitActionLink';
-import { ClassStatusControl, ExpectedStartControl } from './ClassOperationalControls';
-import { getCockpitAnchorElementId } from './cockpitRoutes';
+import { CockpitTrialGroup } from './CockpitTrialGroup';
 import { buildCockpitScheduleViews } from './secretaryCockpitViews';
 import type {
   CockpitFilter,
@@ -18,6 +14,7 @@ import type {
 } from './secretaryCockpitTypes';
 
 export function SecretaryCockpitSchedule({
+  showId,
   model,
   sourceClasses,
   sourceTrials,
@@ -28,7 +25,10 @@ export function SecretaryCockpitSchedule({
   onFocusClass,
   onCommand,
   inlineFocusedContent,
+  entryBreakdownByClassId,
+  renderTrialActions,
 }: {
+  showId: string;
   model: SecretaryCockpitModel;
   sourceClasses: readonly SecretaryCockpitClass[];
   sourceTrials: readonly SecretaryCockpitTrial[];
@@ -39,6 +39,9 @@ export function SecretaryCockpitSchedule({
   onFocusClass: (classId: string) => void;
   onCommand: (commandId: string) => void;
   inlineFocusedContent?: ReactNode;
+  /** Entered/pending per class (MYK9-943); absent until entries are read. */
+  entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
+  renderTrialActions?: ((trialId: string, label: string) => ReactNode) | undefined;
 }) {
   const classById = new Map(sourceClasses.map(classItem => [classItem.id, classItem]));
   const trialById = new Map(sourceTrials.map(trial => [trial.id, trial]));
@@ -58,7 +61,7 @@ export function SecretaryCockpitSchedule({
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <h2 id="cockpit-schedule-title" className="text-2xl font-semibold tracking-tight">
-              Today&apos;s schedule
+              {model.day.isToday && !model.day.allDays ? "Today's schedule" : 'Show schedule'}
             </h2>
             <p className="text-sm text-muted-foreground">
               Select a Class to focus it. Filters apply to this schedule only.
@@ -92,169 +95,27 @@ export function SecretaryCockpitSchedule({
         {model.trialGroups.length === 0 && (
           <div className="rounded-xl border bg-card px-4 py-8 text-center text-sm text-muted-foreground">
             {hasAnyClassForSelectedDay && filter !== 'all'
-              ? 'No Classes match this filter today.'
+              ? 'No Classes match this filter.'
               : 'No Classes are scheduled for this day yet.'}
           </div>
         )}
         {model.trialGroups.map(group => (
-          <Collapsible key={group.trialId} defaultOpen>
-            <div className="overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm">
-              <CollapsibleTrigger
-                id={getCockpitAnchorElementId(group.trialId)}
-                className="gap-3 border-b px-4 py-3 text-left hover:no-underline"
-              >
-                <div className="min-w-0">
-                  <div className="font-semibold">{group.label}</div>
-                  <div className="text-xs font-normal text-muted-foreground">
-                    {group.summary.classCount} Classes · {group.summary.inProgressCount} in progress
-                    {group.summary.attentionCount > 0
-                      ? ` · ${group.summary.attentionCount} attention ${group.summary.attentionCount === 1 ? 'item' : 'items'}`
-                      : ''}
-                    {group.summary.containsFocusedClass ? ' · Focused' : ''}
-                  </div>
-                </div>
-                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-              </CollapsibleTrigger>
-              <CollapsibleContent className="[&>div]:p-0">
-                <div className="divide-y">
-                  {group.classes.map((classItem, classIndex) => {
-                    const source = classById.get(classItem.id);
-                    const trial = trialById.get(classItem.trialId);
-                    const focused = model.focusedClass?.id === classItem.id;
-                    return (
-                      <Fragment key={classItem.id}>
-                        {group.nowMarkerIndex === classIndex && (
-                          <div
-                            data-cockpit-now-marker
-                            className="flex items-center gap-2 bg-primary/5 px-4 py-1.5 text-xs font-semibold text-primary"
-                          >
-                            <span className="h-px flex-1 bg-primary/30" />
-                            Now
-                            <span className="h-px flex-1 bg-primary/30" />
-                          </div>
-                        )}
-                        <div
-                          id={getCockpitAnchorElementId(classItem.id)}
-                          onClick={() => onFocusClass(classItem.id)}
-                          className={cn(
-                            'grid cursor-pointer gap-3 px-4 py-4 transition-colors hover:bg-muted/40 sm:grid-cols-[92px_minmax(0,1fr)_auto] sm:items-center',
-                            focused &&
-                              // `--primary` is a HEX (#a8472d / #d97757), not HSL channels, so
-                              // wrapping the token in hsl() was invalid and the browser
-                              // discarded the WHOLE box-shadow: the focused row has
-                              // never had its 4px bar or its ring, in either theme.
-                              // Only `bg-primary/10` was ever visible.
-                              'bg-primary/10 shadow-[inset_4px_0_0_var(--primary)] ring-1 ring-inset ring-primary/55 hover:bg-primary/10'
-                          )}
-                        >
-                          <div onClick={event => event.stopPropagation()}>
-                            {source && trial ? (
-                              <ExpectedStartControl
-                                classId={classItem.id}
-                                scheduledStart={source.scheduledStart ?? null}
-                                revisedExpectedStart={source.revisedExpectedStart ?? null}
-                                trialDate={trial.date}
-                                timeZone={timeZone}
-                                canManageShow={canManageShow}
-                              />
-                            ) : (
-                              <span className="text-sm font-semibold">{classItem.timeLabel}</span>
-                            )}
-                          </div>
-                          <div className="min-w-0 space-y-1.5">
-                            <button
-                              type="button"
-                              aria-pressed={focused}
-                              onClick={() => onFocusClass(classItem.id)}
-                              className="min-h-11 text-left font-semibold hover:underline hover:underline-offset-4"
-                            >
-                              {classItem.name}
-                            </button>
-                            <div className="truncate text-sm text-muted-foreground">
-                              {[
-                                classItem.operationalArea.value?.label,
-                                classItem.judgeName ? `Judge ${classItem.judgeName}` : null,
-                              ]
-                                .filter(Boolean)
-                                .join(' · ') || 'Class operations'}
-                            </div>
-                            <div
-                              className="flex flex-wrap items-center gap-2"
-                              onClick={event => event.stopPropagation()}
-                            >
-                              <ClassStatusControl
-                                classId={classItem.id}
-                                lifecycle={classItem.lifecycle.value}
-                                // `null`, not 0, when progress is unknown --
-                                // ClassStatusControl confirms on unknown, and
-                                // passing 0 here would silently disable the
-                                // guard exactly when it is needed most.
-                                unenteredScoreCount={
-                                  classItem.progress.value === null
-                                    ? null
-                                    : Math.max(
-                                        0,
-                                        classItem.progress.value.total -
-                                          classItem.progress.value.completed
-                                      )
-                                }
-                                canManageShow={canManageShow}
-                              />
-                              {classItem.progress.value && (
-                                <span className="text-xs text-muted-foreground">
-                                  {classItem.progress.value.completed} of{' '}
-                                  {classItem.progress.value.total} scored
-                                </span>
-                              )}
-                              {classItem.attentionCount > 0 && (
-                                <span className="text-xs font-medium text-destructive">
-                                  {classItem.attentionCount} needs attention
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          {classItem.primaryAction && (
-                            <div onClick={event => event.stopPropagation()}>
-                              <CockpitActionLink
-                                destination={classItem.primaryAction.destination}
-                                onCommand={onCommand}
-                                className="w-full sm:w-auto"
-                              >
-                                {classItem.primaryAction.label}
-                              </CockpitActionLink>
-                            </div>
-                          )}
-                        </div>
-                        {focused && inlineFocusedContent && (
-                          <div
-                            className="border-t bg-muted/20 p-3"
-                            data-testid="cockpit-inline-focus"
-                          >
-                            {inlineFocusedContent}
-                          </div>
-                        )}
-                      </Fragment>
-                    );
-                  })}
-                  {group.nowMarkerIndex === group.classes.length && group.classes.length > 0 && (
-                    <div
-                      data-cockpit-now-marker
-                      className="flex items-center gap-2 bg-primary/5 px-4 py-1.5 text-xs font-semibold text-primary"
-                    >
-                      <span className="h-px flex-1 bg-primary/30" />
-                      Now
-                      <span className="h-px flex-1 bg-primary/30" />
-                    </div>
-                  )}
-                  {group.classes.length === 0 && (
-                    <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-                      No Classes match this filter.
-                    </div>
-                  )}
-                </div>
-              </CollapsibleContent>
-            </div>
-          </Collapsible>
+          <CockpitTrialGroup
+            // Re-key on the day choice so each choice starts from its own default.
+            key={`${group.trialId}:${model.day.allDays ? 'all' : model.day.selected}`}
+            group={group}
+            showId={showId}
+            model={model}
+            classById={classById}
+            trialById={trialById}
+            timeZone={timeZone}
+            canManageShow={canManageShow}
+            onFocusClass={onFocusClass}
+            onCommand={onCommand}
+            inlineFocusedContent={inlineFocusedContent}
+            entryBreakdownByClassId={entryBreakdownByClassId}
+            trialActions={renderTrialActions?.(group.trialId, group.label)}
+          />
         ))}
       </section>
     </>

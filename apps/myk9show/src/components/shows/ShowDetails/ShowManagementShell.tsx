@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { Suspense, lazy, useState, useEffect } from 'react';
 import { Outlet, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,8 @@ import { ShowStatusPill } from '@/components/shows/ShowStatusPill';
 import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
 import { ShowPresenceStack } from '@/features/show-presence/ShowPresenceStack';
 import { LiveUpdateIndicator } from '@/features/show-live-sync/LiveUpdateIndicator';
+import { OfflineReadyBadge } from '@/features/offline-readiness/OfflineReadyBadge';
+import { ShowSyncStatus } from '@/components/shows/ShowDetails/ShowSyncStatus';
 import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
 import { LandingPageCard } from '@/features/premium/LandingPageCard';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
@@ -21,8 +23,9 @@ import { canDeleteShowForClub } from '@/components/clubs/ClubDetails/clubPermiss
 import { type ShowDetailTabsProps } from '@/components/shows/ShowDetails/ShowDetailTabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { TabsContent } from '@/components/ui/tabs';
-import { ShowOverviewTab } from '@/components/shows/tabs/ShowOverviewTab';
-import { buildClassEntryBreakdowns } from '@/features/entry-operations/classEntryBreakdown';
+import { AboutThisShowCard } from '@/components/shows/overview/AboutThisShowCard';
+import { HomeClassSelection } from './HomeClassSelection';
+import { SELECT_CLASSES } from '@/pages/secretary/selectClassesRoutes';
 import { getShowStyle } from '@/features/registries';
 import {
   premiumPublishDraftKey,
@@ -48,11 +51,16 @@ import { SHOW_STATUS_CONTROL_ANCHOR } from '@/features/show-workbench/publishRea
 import type { Show } from '@/types/show-types';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
-import { ShowDeskCompactContext } from './ShowDeskCompactContext';
 import { applyShowFormDataToPremium } from './showFormPremiumSync';
 import { ShowPageHeaderActions } from './ShowPageHeaderActions';
 import { showHeroParent } from './showHeroParent';
 import type { HeroViewer } from '@/components/common/heroParentLink';
+
+const ShowHomeCockpit = lazy(() =>
+  import('@/pages/secretary/ShowWorkbenchShowDeskPage').then(module => ({
+    default: module.ShowWorkbenchShowDeskPage,
+  }))
+);
 
 export interface ShowManagementShellProps {
   show: Show;
@@ -202,19 +210,10 @@ function AuthorizedShowManagementShell({
     showId: show.id,
   });
   const entryDataUnavailable = entryDataState !== 'ready';
-  const entryBreakdownByClassId = useMemo(
-    () =>
-      canManageShow && !entryDataUnavailable
-        ? buildClassEntryBreakdowns(tabs.mapEntries)
-        : undefined,
-    [canManageShow, entryDataUnavailable, tabs.mapEntries]
-  );
-  const isShowDesk = activeManagementSection === 'show-day';
-  // The retired Class Management URL (`classes/:trialId`) redirects into Setup → Classes, so
-  // it keeps Setup lit for the frame it renders rather than lighting nothing.
+  // Any other child route (a legacy redirect rendering its one frame) lights Overview, the
+  // show home it lands on.
   const activeTabId: ShowTabId =
-    SHOW_TABS.find(tab => tab.path === activeManagementSection)?.id ??
-    (activeManagementSection === 'classes' ? 'setup' : 'overview');
+    SHOW_TABS.find(tab => tab.path === activeManagementSection)?.id ?? 'overview';
   const goToTab = (id: string) => {
     const tab = SHOW_TABS.find(item => item.id === id);
     if (!tab) return;
@@ -228,60 +227,54 @@ function AuthorizedShowManagementShell({
   return (
     <>
       <PageShell>
-        {isShowDesk ? (
-          <ShowDeskCompactContext
-            show={show}
-            canonicalShowHref={canonicalShowHref}
-            armbandCount={armbandCount}
-            canManageShow={canManageShow}
+        <>
+          <PageHeader
+            breadcrumbs={breadcrumbs}
+            title={show.name || 'Show Details'}
+            omitTitle
+            actions={<ShowPageHeaderActions showId={show.id} armbandCount={armbandCount} />}
           />
-        ) : (
-          <>
-            <PageHeader
-              breadcrumbs={breadcrumbs}
-              title={show.name || 'Show Details'}
-              omitTitle
-              actions={<ShowPageHeaderActions showId={show.id} armbandCount={armbandCount} />}
-            />
 
-            <DetailHero
-              cover={
-                show.startDate ? (
-                  <ShowDateBlock startDate={show.startDate} endDate={show.endDate} />
-                ) : undefined
-              }
-              name={show.name || 'Untitled Show'}
-              headingLevel={1}
-              parent={showHeroParent(show, { viewer: heroViewer })}
-              badges={
-                show.organization ? [{ label: show.organization, variant: 'default' as const }] : []
-              }
-              metadata={[]}
-              headerActions={
-                <>
-                  <LiveUpdateIndicator />
-                  <ShowPresenceStack />
-                  <span id={SHOW_STATUS_CONTROL_ANCHOR} className="scroll-mt-20">
-                    <ShowStatusPill
-                      showId={show.id}
-                      status={show.status}
-                      clubId={show.clubId}
-                      entryOpenDate={show.entryOpenDate}
-                      entryCloseDate={show.entryCloseDate}
-                    />
-                  </span>
-                </>
-              }
-              footer={
-                <QuickInfoCards
-                  show={show}
-                  canManageShow={canManageShow}
-                  entryCount={entryDataUnavailable ? null : catalogEntryCount}
-                />
-              }
-            />
-          </>
-        )}
+          <DetailHero
+            cover={
+              show.startDate ? (
+                <ShowDateBlock startDate={show.startDate} endDate={show.endDate} />
+              ) : undefined
+            }
+            name={show.name || 'Untitled Show'}
+            headingLevel={1}
+            parent={showHeroParent(show, { viewer: heroViewer })}
+            badges={
+              show.organization ? [{ label: show.organization, variant: 'default' as const }] : []
+            }
+            metadata={[]}
+            headerActions={
+              <>
+                {/* Offline readiness and "Save now" (MYK9-957: was on Show Day). */}
+                <ShowSyncStatus />
+                <OfflineReadyBadge showId={show.id} />
+                <LiveUpdateIndicator />
+                <ShowPresenceStack />
+                <span id={SHOW_STATUS_CONTROL_ANCHOR} className="scroll-mt-20">
+                  <ShowStatusPill
+                    showId={show.id}
+                    status={show.status}
+                    clubId={show.clubId}
+                    entryOpenDate={show.entryOpenDate}
+                    entryCloseDate={show.entryCloseDate}
+                  />
+                </span>
+              </>
+            }
+            footer={
+              <QuickInfoCards
+                show={show}
+                canManageShow={canManageShow}
+                entryCount={entryDataUnavailable ? null : catalogEntryCount}
+              />
+            }
+          />
+        </>
 
         {entryDataUnavailable && (
           <div className="mt-4 rounded-md border border-dashed bg-muted/20 px-4 py-3 text-sm">
@@ -347,16 +340,18 @@ function AuthorizedShowManagementShell({
             <TabsContent value={activeTabId}>
               {activeManagementSection ? (
                 <Outlet context={tabs} />
+              ) : // MYK9-955: the manager Overview IS the secretary's home -- the
+              // Show Day cockpit, one consistent view before, during and
+              // after the show. Exhibitors keep ShowOverviewTab (ShowDetailTabs).
+              searchParams.get('select') === SELECT_CLASSES ? (
+                <HomeClassSelection showId={show.id} tabs={tabs} />
               ) : (
-                <ShowOverviewTab
-                  show={show}
-                  isAuthenticated={true}
-                  canManageShow={canManageShow}
-                  judges={tabs.judges}
-                  classes={tabs.classes}
-                  entryBreakdownByClassId={entryBreakdownByClassId}
-                  onViewClasses={() => navigate(`${canonicalShowHref}/setup?section=classes`)}
-                />
+                <div className="space-y-4">
+                  <AboutThisShowCard show={show} judges={tabs.judges} />
+                  <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
+                    <ShowHomeCockpit />
+                  </Suspense>
+                </div>
               )}
             </TabsContent>
           </PrimaryTabs>

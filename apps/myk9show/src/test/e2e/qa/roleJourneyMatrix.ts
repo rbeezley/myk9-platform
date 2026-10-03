@@ -81,14 +81,14 @@ export const ROLE_JOURNEY_MATRIX = [
     goal: 'Open show setup/workbench and reach Entry Management clearing actions',
     routes: [
       {
-        id: 'setup',
-        label: 'Setup and readiness',
-        pathTemplate: '/shows/{secretaryShowId}/setup',
+        id: 'show-home',
+        label: 'Show home',
+        pathTemplate: '/shows/{secretaryShowId}',
       },
       {
-        id: 'show-desk',
-        label: 'Show-day workbench',
-        pathTemplate: '/shows/{secretaryShowId}/show-day',
+        id: 'select-classes',
+        label: 'Select classes',
+        pathTemplate: '/shows/{secretaryShowId}?select=classes',
       },
       {
         id: 'entry-management',

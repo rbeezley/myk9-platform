@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { Copy, Inbox, LifeBuoy, WifiOff } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -13,22 +13,23 @@ import {
   useUpdateSupportTicketStatus,
 } from '@/features/support/useSupportTickets';
 import type { SupportTicket, SupportTicketStatus } from '@/features/support/supportTickets';
+import { ListResultLine, ListViewTabs } from '@/components/list-toolkit';
+import { useListUrlParams } from '@/hooks/useListUrlParams';
 import { buildSupportInvestigationModel } from './supportDiagnosticActions';
-
-type SupportTicketFilter = SupportTicketStatus | 'all';
-
-const FILTERS: SupportTicketFilter[] = ['open', 'waiting', 'resolved', 'all'];
-const STATUS_LABELS: Record<SupportTicketFilter, string> = {
-  open: 'Open',
-  waiting: 'Waiting',
-  resolved: 'Resolved',
-  all: 'All',
-};
+import {
+  buildSupportViews,
+  DEFAULT_SUPPORT_FILTER,
+  filterTickets,
+  SUPPORT_FILTERS,
+  SUPPORT_STATUS_LABELS as STATUS_LABELS,
+  SUPPORT_TICKET_NOUN,
+  type SupportTicketFilter,
+} from './supportInboxViews';
 
 export default function SupportInboxPage() {
   const { user } = useAuthContext();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const filter = readFilter(searchParams.get('status'));
+  const { searchParams, patch, readOneOf } = useListUrlParams();
+  const filter = readOneOf('status', SUPPORT_FILTERS) ?? DEFAULT_SUPPORT_FILTER;
   const selectedTicketId = searchParams.get('ticketId');
   const tickets = useSupportTickets(undefined, { resolveOwners: true });
   const hasTicketQueryError = tickets.error !== null && tickets.error !== undefined;
@@ -44,25 +45,15 @@ export default function SupportInboxPage() {
   const selectedTicket =
     availableTickets.find(ticket => ticket.id === selectedTicketId) ?? filteredTickets[0] ?? null;
   const statusMutation = useUpdateSupportTicketStatus(selectedTicket?.id ?? '');
-  const counts = useMemo(() => countTickets(availableTickets), [availableTickets]);
+  const views = useMemo(
+    () => buildSupportViews(ticketDataAvailable ? availableTickets : null),
+    [ticketDataAvailable, availableTickets]
+  );
 
-  const selectFilter = (nextFilter: SupportTicketFilter) => {
-    setSearchParams(current => {
-      const next = new URLSearchParams(current);
-      if (nextFilter === 'all') next.delete('status');
-      else next.set('status', nextFilter);
-      next.delete('ticketId');
-      return next;
-    });
-  };
+  const selectFilter = (nextFilter: SupportTicketFilter) =>
+    patch({ status: nextFilter === DEFAULT_SUPPORT_FILTER ? null : nextFilter, ticketId: null });
 
-  const selectTicket = (ticketId: string) => {
-    setSearchParams(current => {
-      const next = new URLSearchParams(current);
-      next.set('ticketId', ticketId);
-      return next;
-    });
-  };
+  const selectTicket = (ticketId: string) => patch({ ticketId });
 
   const setStatus = (status: SupportTicketStatus) => {
     if (!selectedTicket || selectedTicket.status === status) return;
@@ -89,21 +80,22 @@ export default function SupportInboxPage() {
             Prioritize show-day tickets, review diagnostics, and reply from one queue.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {FILTERS.map(status => (
-            <Button
-              key={status}
-              type="button"
-              variant={filter === status ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => selectFilter(status)}
-            >
-              {STATUS_LABELS[status]} (
-              {ticketDataAvailable ? (status === 'all' ? counts.all : counts[status]) : '—'})
-            </Button>
-          ))}
-        </div>
+        <ListViewTabs
+          label="Support tickets"
+          views={views}
+          activeId={filter}
+          onSelect={id => selectFilter(id as SupportTicketFilter)}
+        />
       </div>
+
+      <ListResultLine
+        ready={ticketDataAvailable}
+        shown={filteredTickets.length}
+        total={availableTickets.length}
+        noun={SUPPORT_TICKET_NOUN}
+        filtered={filter !== 'all'}
+        onShowAll={() => patch({ status: 'all', ticketId: null })}
+      />
 
       {hasTicketQueryError ? (
         <Alert variant="destructive">
@@ -250,23 +242,6 @@ export default function SupportInboxPage() {
 function getTicketQueryErrorMessage(error: unknown): string {
   if (error instanceof Error && error.message.trim()) return error.message.trim();
   return "We couldn't load support tickets. Ticket availability is unknown.";
-}
-
-function readFilter(value: string | null): SupportTicketFilter {
-  return value === 'open' || value === 'waiting' || value === 'resolved' ? value : 'open';
-}
-
-function filterTickets(tickets: SupportTicket[], filter: SupportTicketFilter): SupportTicket[] {
-  return filter === 'all' ? tickets : tickets.filter(ticket => ticket.status === filter);
-}
-
-function countTickets(tickets: SupportTicket[]) {
-  return {
-    all: tickets.length,
-    open: tickets.filter(ticket => ticket.status === 'open').length,
-    waiting: tickets.filter(ticket => ticket.status === 'waiting').length,
-    resolved: tickets.filter(ticket => ticket.status === 'resolved').length,
-  };
 }
 
 function StatusBadge({ status }: { status: SupportTicketStatus }) {

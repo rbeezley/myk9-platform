@@ -7,7 +7,7 @@ import {
   PREMIUM_CARD_ANCHOR,
   SHOW_STATUS_CONTROL_ANCHOR,
 } from './publishReadiness';
-import { getSetupClassesHref } from '@/pages/secretary/showSetupSections';
+import { getSelectClassesHref } from '@/pages/secretary/selectClassesRoutes';
 
 export type SetupReadinessSignalId =
   | 'show-details-missing'
@@ -76,7 +76,7 @@ export function computeSetupReadinessSignals(input: SetupReadinessInput): SetupR
   const firstTrialId = input.trials[0]?.id;
   // Classes and judges are managed on Setup → Classes; until a trial exists, the
   // Trials tab is the right starting point for both.
-  const classWorkHref = firstTrialId ? getSetupClassesHref(showId) : `/shows/${showId}?tab=trials`;
+  const classWorkHref = firstTrialId ? getSelectClassesHref(showId) : `/shows/${showId}`;
   if (!showDetailsComplete(input.show)) {
     signals.push({
       id: 'show-details-missing',
@@ -88,7 +88,7 @@ export function computeSetupReadinessSignals(input: SetupReadinessInput): SetupR
     signals.push({
       id: 'no-trials',
       label: 'No trials yet',
-      href: `/shows/${showId}?tab=trials`,
+      href: `/shows/${showId}`,
     });
   }
   if (input.classes.length === 0) {

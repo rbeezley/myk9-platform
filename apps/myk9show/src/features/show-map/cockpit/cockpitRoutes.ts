@@ -1,10 +1,13 @@
-import { getSetupClassesHref } from '@/pages/secretary/showSetupSections';
+import { getSelectClassesHref } from '@/pages/secretary/selectClassesRoutes';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { getPaperScoringClassHref } from '@/pages/scoring/scoringRoutes';
 import { getReportScopeSearchParams } from '@/lib/reports/reportScope';
 import type { ReportScope } from '@/lib/reports/types';
 
 import type { CockpitFilter } from './secretaryCockpitTypes';
+
+/** The All days choice; the URL leaves `day` unset for it. */
+export const ALL_DAYS = 'all';
 
 const COCKPIT_FILTERS: ReadonlySet<string> = new Set([
   'all',
@@ -27,11 +30,12 @@ export function getCockpitAnchorElementId(anchor: string): string {
 export function normalizeCockpitUrlState(params: URLSearchParams): CockpitUrlState {
   const rawFilter = params.get('filter');
   const filter = COCKPIT_FILTERS.has(rawFilter ?? '') ? (rawFilter as CockpitFilter) : 'all';
-  const selectedDay = params.get('day')?.match(/^\d{4}-\d{2}-\d{2}$/)?.[0];
+  // No `day` means All days, the show home's default (MYK9-955).
+  const selectedDay = params.get('day')?.match(/^\d{4}-\d{2}-\d{2}$/)?.[0] ?? ALL_DAYS;
   const focusedClassId = params.get('focus')?.trim() || undefined;
   const anchor = params.get('anchor')?.trim() || undefined;
   return {
-    ...(selectedDay ? { selectedDay } : {}),
+    selectedDay,
     filter,
     ...(focusedClassId ? { focusedClassId } : {}),
     ...(anchor ? { anchor } : {}),
@@ -43,7 +47,7 @@ export function writeCockpitUrlState(
   state: CockpitUrlState
 ): URLSearchParams {
   const params = new URLSearchParams();
-  if (state.selectedDay) params.set('day', state.selectedDay);
+  if (state.selectedDay && state.selectedDay !== ALL_DAYS) params.set('day', state.selectedDay);
   if (state.filter !== 'all') params.set('filter', state.filter);
   if (state.focusedClassId) params.set('focus', state.focusedClassId);
   if (state.anchor) params.set('anchor', state.anchor);
@@ -65,18 +69,6 @@ export function writeCockpitUrlState(
   return params;
 }
 
-export function getShowDeskHref({
-  showId,
-  state,
-}: {
-  showId: string;
-  state: CockpitUrlState;
-}): string {
-  const params = writeCockpitUrlState(new URLSearchParams(), state);
-  const query = params.toString();
-  return `/shows/${encodeURIComponent(showId)}/show-day${query ? `?${query}` : ''}`;
-}
-
 function withReturnTo(href: string, returnTo: string): string {
   const separator = href.includes('?') ? '&' : '?';
   return `${href}${separator}returnTo=${encodeURIComponent(returnTo)}`;
@@ -95,17 +87,24 @@ export function getCockpitEntryManagementHref(input: {
   return withReturnTo(getEntryManagementHref(input), input.returnTo);
 }
 
+/**
+ * Select classes on the home, scoped to the class's trial and focused on it.
+ * Both share `focus`/`view`, so `returnTo` carries the cockpit state that
+ * Select classes' Done restores.
+ */
 export function getCockpitClassManagementHref(input: {
   showId: string;
   trialId: string;
   classId: string;
   returnTo: string;
 }): string {
-  return getSetupClassesHref(input.showId, undefined, {
-    trialId: input.trialId,
-    focusClassId: input.classId,
-    returnTo: input.returnTo,
-  });
+  return withReturnTo(
+    getSelectClassesHref(input.showId, undefined, {
+      trialId: input.trialId,
+      focusClassId: input.classId,
+    }),
+    input.returnTo
+  );
 }
 
 export function getCockpitPaperScoringHref(input: { classId: string; returnTo: string }): string {
@@ -171,10 +170,29 @@ export function getCockpitClassDetailsHref(input: {
   );
 }
 
-export function resolveShowDeskReturnHref(
+/** The secretary's home: the manager Overview at `/shows/:id` (MYK9-955). */
+export function getShowHomeHref({
+  showId,
+  state,
+}: {
+  showId: string;
+  state: CockpitUrlState;
+}): string {
+  const params = writeCockpitUrlState(new URLSearchParams(), state);
+  const query = params.toString();
+  return `/shows/${encodeURIComponent(showId)}${query ? `?${query}` : ''}`;
+}
+
+/**
+ * Where a "back" link from a cockpit deep link returns, and what it is called.
+ * Accepts the show home (`/shows/:id`) of the expected show, and the retired
+ * Show Day URLs (`/show-day`, `/show-desk`) a `returnTo` in an open tab may
+ * still carry, which now mean the home too (MYK9-957); anything else is refused.
+ */
+export function resolveShowDeskReturn(
   candidate: string | null | undefined,
   expectedShowId?: string
-): string | null {
+): { href: string; label: string } | null {
   if (!candidate?.startsWith('/') || candidate.startsWith('//')) return null;
   let url: URL;
   try {
@@ -183,12 +201,22 @@ export function resolveShowDeskReturnHref(
     return null;
   }
   if (url.origin !== 'https://myk9.internal') return null;
-  // Accept the legacy `/show-desk` as well as the current `/show-day`: a
-  // `returnTo` captured before MYK9-630 phase 2 shipped is still in someone's
-  // open tab, and rejecting it silently drops their way back.
-  const match = url.pathname.match(/^\/shows\/([^/]+)\/(?:show-day|show-desk)$/);
+  const match = url.pathname.match(/^\/shows\/([^/]+)(\/(?:show-day|show-desk))?$/);
   if (!match?.[1]) return null;
-  const showId = decodeURIComponent(match[1]);
+  let showId: string;
+  try {
+    showId = decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
   if (expectedShowId && showId !== expectedShowId) return null;
-  return getShowDeskHref({ showId, state: normalizeCockpitUrlState(url.searchParams) });
+  const state = normalizeCockpitUrlState(url.searchParams);
+  return { href: getShowHomeHref({ showId, state }), label: 'Back to show' };
+}
+
+export function resolveShowDeskReturnHref(
+  candidate: string | null | undefined,
+  expectedShowId?: string
+): string | null {
+  return resolveShowDeskReturn(candidate, expectedShowId)?.href ?? null;
 }

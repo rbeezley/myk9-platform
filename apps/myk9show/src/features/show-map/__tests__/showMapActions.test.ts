@@ -673,7 +673,7 @@ describe('showMapActions', () => {
     const actions = getRankedActions(tree.nodesById['trial:trial-1'], { tree });
 
     expect(findAction(actions, 'open-schedule')).toMatchObject({
-      href: '/shows/show-1/setup',
+      href: '/shows/show-1',
     });
     expect(findAction(actions, 'print-trial-reports')).toMatchObject({
       href: '/shows/show-1/reports?report=trial-secretary-report&trialId=trial-1',

@@ -92,7 +92,7 @@ describe('computeSetupReadinessSignals', () => {
     expect(signals).toContainEqual({
       id: 'no-trials',
       label: 'No trials yet',
-      href: '/shows/show-1?tab=trials',
+      href: '/shows/show-1',
     });
   });
 
@@ -106,19 +106,19 @@ describe('computeSetupReadinessSignals', () => {
     expect(signals).toContainEqual({
       id: 'no-classes',
       label: 'No classes built',
-      href: '/shows/show-1/setup?section=classes',
+      href: '/shows/show-1?select=classes',
     });
   });
 
-  it('points class work at the Trials tab when no trial exists yet', () => {
+  it('points class work at the show home when no trial exists yet', () => {
     const signals = computeSetupReadinessSignals({
       show: show(),
       trials: [],
       classes: [],
       judges: [],
     });
-    expect(signals.find(s => s.id === 'no-classes')?.href).toBe('/shows/show-1?tab=trials');
-    expect(signals.find(s => s.id === 'judges-missing')?.href).toBe('/shows/show-1?tab=trials');
+    expect(signals.find(s => s.id === 'no-classes')?.href).toBe('/shows/show-1');
+    expect(signals.find(s => s.id === 'judges-missing')?.href).toBe('/shows/show-1');
   });
 
   it('emits judges-missing when no roster and a class has no judgeName', () => {
@@ -131,7 +131,7 @@ describe('computeSetupReadinessSignals', () => {
     expect(signals).toContainEqual({
       id: 'judges-missing',
       label: 'Judges not assigned',
-      href: '/shows/show-1/setup?section=classes',
+      href: '/shows/show-1?select=classes',
     });
   });
 

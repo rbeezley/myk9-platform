@@ -127,6 +127,7 @@ function renderSecretaryRoutes(initialPath: string) {
         <MemoryRouter initialEntries={[initialPath]}>
           <Routes>
             {SecretaryRoutes()}
+            <Route path="/shows/:id" element={<CanonicalShowRoute />} />
             <Route path="/shows/:id/*" element={<CanonicalShowRoute />} />
           </Routes>
         </MemoryRouter>
@@ -160,19 +161,19 @@ describe('secretary show phase redirects', () => {
     useToastStore.setState({ toasts: [] });
   });
 
-  it('redirects the legacy secretary show base route to canonical setup', async () => {
+  it('redirects the legacy secretary show base route to the show home', async () => {
     renderSecretaryRoutes('/secretary/shows/show-1');
 
     expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
-      '/shows/show-1/setup'
+      /^\/shows\/show-1$/
     );
   });
 
-  it('redirects the legacy show-desk phase query to canonical Show Desk', async () => {
+  it('redirects the legacy show-desk phase query to the show home', async () => {
     renderSecretaryRoutes('/secretary/shows/show-1?phase=show-desk&from=email');
 
     expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
-      '/shows/show-1/show-day?from=email'
+      '/shows/show-1?from=email'
     );
   });
 
@@ -224,35 +225,35 @@ describe('secretary show phase redirects', () => {
     );
   });
 
-  it('redirects day-of to the active show show-desk sub-route', async () => {
+  it('redirects day-of to the active show home', async () => {
     renderSecretaryRoutes('/secretary/day-of');
 
     expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
-      '/shows/show-1/show-day'
+      /^\/shows\/show-1$/
     );
   });
 
-  it('redirects the secretary index to the active show setup route', async () => {
+  it('redirects the secretary index to the active show home', async () => {
     renderSecretaryRoutes('/secretary');
 
     expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
-      '/shows/show-1/setup'
+      /^\/shows\/show-1$/
     );
   });
 
-  it('redirects check-in to Show Desk sub-route', async () => {
+  it('redirects check-in to the show home', async () => {
     renderSecretaryRoutes('/secretary/check-in');
 
     expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
-      '/shows/show-1/show-day'
+      /^\/shows\/show-1$/
     );
   });
 
-  it('redirects run-order to the canonical setup route', async () => {
+  it('redirects run-order to the show home', async () => {
     renderSecretaryRoutes('/secretary/run-order');
 
     expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
-      '/shows/show-1/setup'
+      /^\/shows\/show-1$/
     );
   });
 
@@ -297,11 +298,11 @@ describe('secretary show phase redirects', () => {
     });
   });
 
-  it('redirects legacy trial class management to the show Setup → Classes tab', async () => {
+  it('redirects legacy trial class management to the show home Select classes', async () => {
     renderSecretaryRoutes('/trials/trial-1/classes');
 
     expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
-      '/shows/show-1/setup?section=classes'
+      '/shows/show-1?select=classes'
     );
   });
 
@@ -318,7 +319,7 @@ describe('secretary show phase redirects', () => {
       trialQueryMock.resolve?.();
     });
     expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
-      '/shows/show-1/setup?section=classes'
+      '/shows/show-1?select=classes'
     );
     expect(screen.queryByTestId('secretary-dashboard')).not.toBeInTheDocument();
   });
@@ -334,7 +335,7 @@ describe('secretary show phase redirects', () => {
     renderSecretaryRoutes('/secretary/day-of');
 
     expect(await screen.findByTestId('canonical-show-route')).toHaveTextContent(
-      '/shows/stored-show/show-day'
+      /^\/shows\/stored-show$/
     );
   });
 

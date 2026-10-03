@@ -33,8 +33,10 @@ describe('pageDirectory (invariant)', () => {
 
   it('catalogs canonical show management paths instead of legacy secretary show pages', () => {
     const paths = pageDirectory.map(e => e.path);
-    expect(paths).toContain('/shows/:showId/setup');
-    expect(paths).toContain('/shows/:showId/show-day');
+    // Setup and Show Day folded into the show home at /shows/:id (MYK9-957).
+    expect(paths).not.toContain('/shows/:showId/setup');
+    expect(paths).not.toContain('/shows/:showId/show-day');
+    expect(paths).toContain('/shows/:id');
     expect(paths).toContain('/shows/:showId/entries');
     expect(paths).toContain('/shows/:showId/reports');
     expect(paths).toContain('/shows/:showId/results');
@@ -53,8 +55,6 @@ describe('pageDirectory (invariant)', () => {
 
   it('matches canonical show management roles to the route guard', () => {
     const managementPaths = [
-      '/shows/:showId/setup',
-      '/shows/:showId/show-day',
       '/shows/:showId/entries',
       '/shows/:showId/reports',
       '/shows/:showId/results',

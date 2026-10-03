@@ -308,6 +308,10 @@ describe('AskQPanel', () => {
       expect(screen.queryByRole('status', { name: TERA_WORKING_COPY })).not.toBeInTheDocument();
     });
     expect(screen.getByText('Max time is 3 minutes.')).toBeInTheDocument();
+    // MYK9-851: the token and `done` land together here, through the real
+    // useAskQ hook, and Found it still plays once before Tera settles.
+    expect(screen.getByTestId('tera-found-it')).toBeInTheDocument();
+    fireEvent.ended(screen.getByTestId('tera-found-it').querySelector('video') as HTMLVideoElement);
     expect(screen.getByTestId('tera-face')).toBeInTheDocument();
   });
 

@@ -110,7 +110,7 @@ export function buildSupportInvestigationModel(ticket: SupportTicket): SupportIn
       id: 'show-workbench',
       label: 'Open show desk',
       description: showId,
-      href: `/shows/${encodeId(showId)}/show-day`,
+      href: `/shows/${encodeId(showId)}`,
     });
   }
 
@@ -161,7 +161,7 @@ export function buildSupportInvestigationModel(ticket: SupportTicket): SupportIn
       addUnique(nextChecks, {
         id: 'show-workbench',
         label: 'Review the show',
-        href: `/shows/${encodeId(showId)}/show-day`,
+        href: `/shows/${encodeId(showId)}`,
       });
     }
     addUnique(nextChecks, {

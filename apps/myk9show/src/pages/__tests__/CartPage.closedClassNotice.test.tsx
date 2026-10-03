@@ -52,4 +52,23 @@ describe('CartPage when the re-check emptied the cart', () => {
       screen.getByText('Rover in Exterior Master: this class was cancelled.')
     ).toBeInTheDocument();
   });
+
+  // MYK9-873: a payment link whose lookup FAILED with no cart shell left lands
+  // here too; the retryable error must show, not a bare "Your cart is empty".
+  it('shows the cart error on the empty-cart branch', () => {
+    const saved = { cart: cartState.cart, error: cartState.error };
+    cartState.cart = null;
+    cartState.error =
+      'We could not check the entries in your payment link. Please reload the page to try again.';
+    try {
+      render(<CartPage />);
+
+      expect(screen.getByText('Your cart is empty')).toBeInTheDocument();
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'We could not check the entries in your payment link. Please reload the page to try again.'
+      );
+    } finally {
+      Object.assign(cartState, saved);
+    }
+  });
 });

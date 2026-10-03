@@ -275,6 +275,118 @@ describe('supabase-types-drift.sh', () => {
     expect(argv[argv.indexOf('--schema') + 1]).toBe('public');
   });
 
+  describe('layout-equivalent output (MYK9-950)', { timeout: 60_000 }, () => {
+    const real = readFileSync(
+      resolve(REPO_ROOT, 'packages/supabase/src/types/database.types.ts'),
+      'utf8'
+    );
+    // Quote every identifier property key, as a newer generator does, and
+    // re-indent with four spaces per level.
+    const quoteKeys = (text: string) =>
+      text.replace(/^(\s*)([A-Za-z_][A-Za-z0-9_]*)(\??):/gm, '$1"$2"$3:');
+    const reindent = (text: string) => text.replace(/^( +)/gm, spaces => spaces + spaces);
+
+    it('reports no drift for the real committed file with every key quoted', () => {
+      const generated = quoteKeys(real);
+      expect(generated).toContain('"graphql_public": {');
+      const result = run(real, generated);
+      expect(result.status).toBe(0);
+      expect(result.summary).toContain('**No drift.**');
+      expect(result.stdout).not.toContain('::warning');
+    });
+
+    it('reports no drift for quoted keys plus different indentation', () => {
+      const result = run(real, reindent(quoteKeys(real)));
+      expect(result.status).toBe(0);
+      expect(result.summary).toContain('**No drift.**');
+    });
+
+    it('still reports a removed table in the real file, by name', () => {
+      const generated = quoteKeys(real).replace(/^ *"entries": \{$/m, '    "entries_gone": {');
+      expect(generated).not.toBe(quoteKeys(real));
+      const result = run(real, generated);
+      expect(result.status).toBe(1);
+      expect(result.summary).toContain('`public.Tables.entries`');
+      expect(result.summary).toContain('`public.Tables.entries_gone`');
+    });
+
+    it('still reports an added column in quoted output', () => {
+      const generated = quoteKeys(real).replace(
+        /^( *)"Row": \{$/m,
+        '$1"Row": {\n$1  "mystery_col": string'
+      );
+      const result = run(real, generated);
+      expect(result.status).toBe(1);
+      expect(result.summary).toMatch(/^\+.*mystery_col/m);
+    });
+
+    it('still reports changed nullability in quoted output', () => {
+      const generated = quoteKeys(real).replace(/^( *"id": string)$/m, '$1 | null');
+      expect(generated).not.toBe(quoteKeys(real));
+      const result = run(real, generated);
+      expect(result.status).toBe(1);
+      expect(result.summary).toMatch(/^\+.*id: string \| null/m);
+    });
+  });
+
+  it('reports no drift when one side wraps an object across lines and the other keeps it on one', () => {
+    // Prettier keeps an object multi-line when its source had a newline after
+    // `{`, so the same type read as changed lines until objects were collapsed.
+    const committed = types({
+      functions: { graphql: 'Args: {\n          query: string\n        }' },
+    });
+    const generated = types({ functions: { graphql: 'Args: { query: string }' } });
+    expect(committed).not.toBe(generated);
+    const result = run(committed, generated);
+    expect(result.status).toBe(0);
+    expect(result.summary).toContain('**No drift.**');
+  });
+
+  it('reports drift when only the spacing inside an enum string literal changes', () => {
+    const committed = types({ tables: { entries: 'Row: { status: "not  ready" | "done" }' } });
+    const generated = types({ tables: { entries: 'Row: { status: "not ready" | "done" }' } });
+    const result = run(committed, generated);
+    expect(result.status).toBe(1);
+    expect(result.summary).toMatch(/^-.*not {2}ready/m);
+  });
+
+  it('reports drift when only the spacing after an escaped quote in a literal changes', () => {
+    const committed = types({
+      tables: { entries: 'Row: { status: "say \\"not  ready\\"" | "done" }' },
+    });
+    const generated = types({
+      tables: { entries: 'Row: { status: "say \\"not ready\\"" | "done" }' },
+    });
+    expect(committed).toContain('\\"not  ready\\"');
+    const result = run(committed, generated);
+    expect(result.status).toBe(1);
+    expect(result.summary).toMatch(/^-.*not {2}ready/m);
+  });
+
+  describe('unparseable output is "could not compare", never "no drift"', () => {
+    const good = types({ tables: { entries } });
+
+    it('exits 2 for truncated generated output', () => {
+      const truncated = good.split('\n').slice(0, 6).join('\n');
+      const result = run(good, truncated);
+      expect(result.status).toBe(2);
+      expect(result.stdout).toContain('::warning title=Supabase types drift::did not run');
+    });
+
+    it('exits 2 for generated output with no Database type', () => {
+      const result = run(good, 'Error: connection refused\n');
+      expect(result.status).toBe(2);
+    });
+
+    it('exits 2 for empty generated output', () => {
+      expect(run(good, '').status).toBe(2);
+    });
+
+    it('exits 2 for an unparseable committed file', () => {
+      expect(run('not a types file\n', good).status).toBe(2);
+    });
+  });
+
   it('exits 2, not 1, when it has nothing to compare', () => {
     let status = 0;
     let stdout = '';

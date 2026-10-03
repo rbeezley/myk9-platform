@@ -15,6 +15,7 @@
 
 import { createClient, type User } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
+import { DEMO_ACCOUNT_NAMES } from './demoAccountNames';
 import {
   planAccountProvisioning,
   planRoleReconciliation,
@@ -106,29 +107,25 @@ const CANONICAL_TEST_USERS: TestUser[] = [
   {
     email: 'exhibitor@myk9t.com',
     passwordEnv: 'E2E_DEMO_EXHIBITOR_PASSWORD',
-    firstName: 'Test',
-    lastName: 'Exhibitor',
+    ...DEMO_ACCOUNT_NAMES['exhibitor@myk9t.com']!,
     roles: ['exhibitor'],
   },
   {
     email: 'secretary@myk9t.com',
     passwordEnv: 'E2E_SECRETARY_PASSWORD',
-    firstName: 'Test',
-    lastName: 'Secretary',
+    ...DEMO_ACCOUNT_NAMES['secretary@myk9t.com']!,
     roles: ['secretary', 'steward', 'exhibitor'],
   },
   {
     email: 'judge@myk9t.com',
     passwordEnv: 'E2E_JUDGE_PASSWORD',
-    firstName: 'Test',
-    lastName: 'Judge',
+    ...DEMO_ACCOUNT_NAMES['judge@myk9t.com']!,
     roles: ['judge'],
   },
   {
     email: 'testadmin@myk9t.com',
     passwordEnv: 'E2E_ADMIN_PASSWORD',
-    firstName: 'Test',
-    lastName: 'Admin',
+    ...DEMO_ACCOUNT_NAMES['testadmin@myk9t.com']!,
     roles: ['site_admin', 'secretary', 'club_admin', 'exhibitor'],
   },
   // Club-scoped authority with NO site-wide role (MYK9-137). e2e-admin above is
@@ -149,8 +146,7 @@ const CANONICAL_TEST_USERS: TestUser[] = [
   {
     email: 'clubadmin@myk9t.com',
     passwordEnv: 'E2E_CLUB_ADMIN_PASSWORD',
-    firstName: 'Test',
-    lastName: 'Club Admin',
+    ...DEMO_ACCOUNT_NAMES['clubadmin@myk9t.com']!,
     roles: ['club_admin'],
     optional: true,
   },
@@ -161,8 +157,7 @@ const CANONICAL_TEST_USERS: TestUser[] = [
   {
     email: 'chairman@myk9t.com',
     passwordEnv: 'E2E_CHAIRMAN_PASSWORD',
-    firstName: 'Test',
-    lastName: 'Chairman',
+    ...DEMO_ACCOUNT_NAMES['chairman@myk9t.com']!,
     roles: ['chairman'],
     optional: true,
   },
@@ -172,8 +167,7 @@ const CANONICAL_TEST_USERS: TestUser[] = [
   {
     email: 'exhibitor2@myk9t.com',
     passwordEnv: 'E2E_EXHIBITOR2_PASSWORD',
-    firstName: 'Second',
-    lastName: 'Exhibitor',
+    ...DEMO_ACCOUNT_NAMES['exhibitor2@myk9t.com']!,
     roles: ['exhibitor'],
     optional: true,
   },

@@ -10,6 +10,7 @@ import { trialSecretaryOnlyReason } from '@/features/actions/trialSecretaryAcces
 import { AuditAction } from '@/types/audit-types';
 import { AlertCircle, Download, MoreHorizontal, Plus, UserCheck } from 'lucide-react';
 import { SecretaryAddEntriesDecision } from '@/features/registration/SecretaryAddEntriesDecision';
+import { WorkbenchLateEntryAction } from '@/features/show-workbench/WorkbenchLateEntryAction';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 
 import { useEntryManagementData } from '@/hooks/useEntryManagementData';
@@ -318,7 +319,7 @@ const EntryManagementPage: React.FC = () => {
               <p className="text-sm font-semibold">Entry tools</p>
               <Button asChild variant="outline" size="sm" className="h-8 gap-2">
                 <Link
-                  to={`/shows/${encodeURIComponent(selectedShowId || urlShowId || '')}/show-day?tool=people-at-show`}
+                  to={`/shows/${encodeURIComponent(selectedShowId || urlShowId || '')}?tool=people-at-show`}
                 >
                   <UserCheck className="h-4 w-4" aria-hidden />
                   Open Check-in desk
@@ -343,11 +344,17 @@ const EntryManagementPage: React.FC = () => {
                 Add Entry
               </Button>
             </PopoverTrigger>
-            <PopoverContent align="end" className="w-auto">
-              <p className="mb-3 text-sm font-semibold">Who are you entering?</p>
+            <PopoverContent align="end" className="w-auto max-w-[calc(100vw-2rem)] space-y-3">
+              <p className="text-sm font-semibold">Who are you entering?</p>
               <SecretaryAddEntriesDecision
                 showId={selectedShowId}
                 mailInDisabledReason={secretaryOnlyReason}
+              />
+              {/* Moved from Show Day's Tools (MYK9-954): every way to add an
+                  entry lives behind this one button. */}
+              <WorkbenchLateEntryAction
+                showId={selectedShowId}
+                disabledReason={secretaryOnlyReason}
               />
             </PopoverContent>
           </Popover>

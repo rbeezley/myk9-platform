@@ -232,7 +232,6 @@ describe('AppHeader Actions menu — secretary on a show route', () => {
       'Add Trial',
       'Add classes',
       'Open Entries',
-      'Open Show Day',
       'Generate & publish premium',
     ]);
   });

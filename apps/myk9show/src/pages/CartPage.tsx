@@ -5,7 +5,7 @@
  * modify entries, and proceed to checkout.
  */
 
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useState, useEffect, useMemo, useRef } from 'react';
 import { continueShoppingTarget } from '@/features/registration/continueShoppingTarget';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { ShoppingCart, ArrowLeft, Trash2, AlertCircle, Eye, Info, X } from 'lucide-react';
@@ -30,7 +30,11 @@ import { CartSummary } from '@/components/cart/CartSummary';
 import { CheckoutSessionError, createEntryCheckoutSession } from '@/lib/stripe';
 import { CHECKOUT_RETURN_PARAM, readCheckoutReturnStatus } from './cartCheckoutNotice';
 import { useCartCapacity } from '@/hooks/queries/useCartCapacity';
-import { ClosedClassRemovedNotice } from '@/components/cart/ClosedClassRemovedNotice';
+import {
+  ClosedClassRemovedNotice,
+  PaymentLinkNotice,
+} from '@/components/cart/ClosedClassRemovedNotice';
+import { paymentLinkKey } from '@/store/cartStore.paymentLink';
 import { writeCartSplitCheckoutSummary } from '@/features/payments/cartSplitCheckoutStorage';
 import { splitCartItemsByJudgeDayCapacity } from '@/features/payments/cartCapacitySplit';
 import { describeBlockedCheckout } from '@/features/payments/cartFullReasonCopy';
@@ -149,6 +153,7 @@ export default function CartPage() {
         .filter(Boolean),
     [recoveryEntryIdsParam]
   );
+  const linkKey = useMemo(() => paymentLinkKey(recoveryEntryIds), [recoveryEntryIds]);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -160,20 +165,26 @@ export default function CartPage() {
   // Hydrate the active cart on direct visits (refresh, deep link, new tab) —
   // the store is in-memory only, so without this the page always shows empty
   // unless the same tab just populated it (2026-06-10 walkthrough finding).
-  useEffect(() => {
-    if (profile?.id) {
-      const cartLoadOptions: {
-        showId?: string;
-        recoveryEntryIds?: string[];
-      } = { recoveryEntryIds };
+  // The same load re-runs a payment link's refill of an empty cart (MYK9-873), so
+  // the link notice's "add back" calls it too.
+  const profileId = profile?.id;
+  const loadCartForPage = useCallback(() => {
+    if (!profileId) return;
+    const cartLoadOptions: {
+      showId?: string;
+      recoveryEntryIds?: string[];
+    } = { recoveryEntryIds };
 
-      if (recoveryShowId) {
-        cartLoadOptions.showId = recoveryShowId;
-      }
-
-      loadActiveCart(profile.id, cartLoadOptions);
+    if (recoveryShowId) {
+      cartLoadOptions.showId = recoveryShowId;
     }
-  }, [profile?.id, loadActiveCart, recoveryShowId, recoveryEntryIds]);
+
+    void loadActiveCart(profileId, cartLoadOptions);
+  }, [profileId, loadActiveCart, recoveryShowId, recoveryEntryIds]);
+
+  useEffect(() => {
+    loadCartForPage();
+  }, [loadCartForPage]);
 
   const handleRemoveItem = async (itemId: string) => {
     const removed = items.find(item => item.id === itemId);
@@ -415,6 +426,15 @@ export default function CartPage() {
     </p>
   );
 
+  // Both the cart and the empty-cart branch render it: a payment-link lookup that
+  // failed with no cart left lands on the empty branch (MYK9-873).
+  const errorAlert = error ? (
+    <Alert variant="destructive" className="mb-6">
+      <AlertCircle className="h-4 w-4" />
+      <AlertDescription>{error}</AlertDescription>
+    </Alert>
+  ) : null;
+
   if (isHydrating) {
     return (
       <div className="bg-background pt-6">
@@ -443,8 +463,10 @@ export default function CartPage() {
       <div className="bg-background pt-6">
         {liveRegion}
         <div className="max-w-4xl mx-auto px-4 py-8">
+          {errorAlert}
           {/* The re-check may have removed every line (MYK9-656): say which and why. */}
           <ClosedClassRemovedNotice />
+          <PaymentLinkNotice linkKey={linkKey} onAddBack={loadCartForPage} className="mt-4" />
           <div className="flex flex-col items-center justify-center py-16 text-center">
             {/* --chip-stone-bg, not bg-muted: --muted equals --card and sits at
                 1.08:1 on --background, so the circle was a void in both themes
@@ -540,14 +562,10 @@ export default function CartPage() {
 
         {/* Classes a saved cart lost because they closed or filled (MYK9-656) */}
         <ClosedClassRemovedNotice className="mb-6" />
+        {/* What the payment link in the URL came to (MYK9-873) */}
+        <PaymentLinkNotice linkKey={linkKey} onAddBack={loadCartForPage} className="mb-6" />
 
-        {/* Error Alert */}
-        {error && (
-          <Alert variant="destructive" className="mb-6">
-            <AlertCircle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
+        {errorAlert}
 
         {/* Main Content */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

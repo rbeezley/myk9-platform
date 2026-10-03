@@ -37,8 +37,6 @@ describe('resolveExamplePath', () => {
   });
 
   it('resolves canonical show management patterns', () => {
-    expect(resolveExamplePath('/shows/:showId/setup', fullIds)).toBe('/shows/SHOW_1/setup');
-    expect(resolveExamplePath('/shows/:showId/show-day', fullIds)).toBe('/shows/SHOW_1/show-day');
     expect(resolveExamplePath('/shows/:showId/entries', fullIds)).toBe('/shows/SHOW_1/entries');
     expect(resolveExamplePath('/shows/:showId/reports', fullIds)).toBe('/shows/SHOW_1/reports');
     expect(resolveExamplePath('/shows/:showId/results', fullIds)).toBe('/shows/SHOW_1/results');

@@ -442,3 +442,67 @@ describe('buildSecretaryCockpitModel truth projection', () => {
     );
   });
 });
+
+// MYK9-955 / MYK9-953 decisions 2 and 3, and collapsible trials (owner, 2026-10-02).
+describe('buildSecretaryCockpitModel show home', () => {
+  it('opens on the last show day after the show, even with closeout left on an earlier day', () => {
+    const after = makeSnapshot({
+      now: new Date('2026-07-23T14:00:00.000Z'),
+      classes: makeSnapshot().classes.map(cls =>
+        cls.id === 'tomorrow' ? { ...cls, closeout: 'none' as const } : cls
+      ),
+    });
+
+    expect(buildSecretaryCockpitModel(after, { filter: 'all' }).day.selected).toBe('2026-07-21');
+  });
+
+  it('shows every trial in All days, opening only the default day', () => {
+    const model = buildSecretaryCockpitModel(makeSnapshot(), { filter: 'all', selectedDay: 'all' });
+
+    expect(model.day).toMatchObject({ allDays: true, selected: '2026-07-20' });
+    expect(model.trialGroups.map(group => [group.trialId, group.defaultOpen])).toEqual([
+      ['trial-1', true],
+      ['trial-2', true],
+      ['trial-3', false],
+    ]);
+    // The now marker belongs to today's trials only.
+    expect(model.trialGroups.map(group => group.nowMarkerIndex)).toEqual([1, 0, null]);
+    // Work on another day still surfaces, so nothing hides behind a collapsed group.
+    expect(model.daySchedule.map(row => row.id)).toContain('tomorrow');
+  });
+
+  it('opens every trial when one day is chosen', () => {
+    const model = buildSecretaryCockpitModel(makeSnapshot(), {
+      filter: 'all',
+      selectedDay: '2026-07-21',
+    });
+
+    expect(model.day.allDays).toBe(false);
+    expect(model.trialGroups.map(group => [group.trialId, group.defaultOpen])).toEqual([
+      ['trial-3', true],
+    ]);
+  });
+
+  it('keeps the default focus on the default day in All days', () => {
+    const model = buildSecretaryCockpitModel(makeSnapshot(), { filter: 'all', selectedDay: 'all' });
+
+    expect(model.focusedClass?.id).toBe('active');
+  });
+
+  it('stays quiet before the show: no "starts in" reminder for a class tomorrow', () => {
+    // 09:35 in Chicago on July 19; `upcoming` starts 10:00 on July 20.
+    const before = makeSnapshot({ now: new Date('2026-07-19T14:35:00.000Z') });
+    const model = buildSecretaryCockpitModel(before, { filter: 'all', selectedDay: 'all' });
+
+    expect(model.attention.all.filter(item => item.kind === 'preparation')).toEqual([]);
+    expect(model.trialGroups.every(group => group.nowMarkerIndex === null)).toBe(true);
+  });
+
+  it('carries the checklist count on each row', () => {
+    const model = buildSecretaryCockpitModel(makeSnapshot(), { filter: 'all' });
+    const complete = model.trialGroups[0]?.classes.find(row => row.id === 'complete');
+
+    expect(complete?.checklist).toMatchObject({ total: 7 });
+    expect(complete?.checklist?.done).toBeGreaterThan(0);
+  });
+});

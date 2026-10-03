@@ -35,8 +35,8 @@ interface CloseOutShowActionProps {
   trials: CloseoutTrialSummary[];
   classes: CloseoutClassSummary[];
   entries: ShowDayReconciliationEntry[];
-  incidents: Pick<ShowIncidentSummary, 'reportableCount' | 'urgentCount'>;
-  submissions: ResultSubmissionSummary[];
+  incidents: Pick<ShowIncidentSummary, 'reportableCount' | 'urgentCount'> | null;
+  submissions: ResultSubmissionSummary[] | null;
 }
 
 export function CloseOutShowAction({

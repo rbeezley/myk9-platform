@@ -1,4 +1,4 @@
-import { getSetupClassesHref } from '@/pages/secretary/showSetupSections';
+import { getSelectClassesHref } from '@/pages/secretary/selectClassesRoutes';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import type { RelatedContextLinkItem } from '@/components/common/RelatedContextLinks';
 
@@ -31,8 +31,8 @@ export function buildClassDetailsRelatedLinks({
 
   items.push({
     key: 'class-management',
-    label: 'Setup → Classes',
-    href: getSetupClassesHref(showId, undefined, {
+    label: 'Select classes',
+    href: getSelectClassesHref(showId, undefined, {
       trialId: trialId ?? undefined,
       focusClassId: classId ?? undefined,
     }),

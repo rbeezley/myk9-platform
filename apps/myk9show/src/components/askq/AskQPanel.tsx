@@ -9,6 +9,7 @@ import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { AskQExampleQueries } from './AskQExampleQueries';
+import { TeraDock } from './TeraDock';
 import { AskQInput } from './AskQInput';
 import { AskQAnswer } from './AskQAnswer';
 import { AskQSources } from './AskQSources';
@@ -312,7 +313,9 @@ export function AskQPanel() {
       )}
 
       {activeMode !== 'operator-support' && activeAskQ.status === 'idle' && (
-        <AskQExampleQueries onSelectQuery={handleExampleQuery} category={activeMode} />
+        <TeraDock>
+          <AskQExampleQueries onSelectQuery={handleExampleQuery} category={activeMode} />
+        </TeraDock>
       )}
 
       {activeAskQ.query && (
@@ -322,6 +325,7 @@ export function AskQPanel() {
             answer={activeAskQ.answer}
             toolsUsed={activeAskQ.toolsUsed}
             isStreaming={activeAskQ.status === 'streaming'}
+            isComplete={activeAskQ.status === 'done'}
           />
 
           {activeAskQ.status === 'done' && activeMode !== 'operator-support' && (
@@ -373,7 +377,9 @@ export function AskQPanel() {
   ) : (
     <>
       {support.state.status === 'idle' && (
-        <AskQExampleQueries onSelectQuery={handleExampleQuery} category="app-help" />
+        <TeraDock>
+          <AskQExampleQueries onSelectQuery={handleExampleQuery} category="app-help" />
+        </TeraDock>
       )}
       <AskQAppHelpContent
         currentUserId={user?.id ?? null}

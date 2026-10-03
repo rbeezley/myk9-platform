@@ -13,8 +13,8 @@ describe('buildClassDetailsRelatedLinks', () => {
     expect(links).toEqual([
       {
         key: 'class-management',
-        label: 'Setup → Classes',
-        href: '/shows/show-1/setup?section=classes&trialId=trial-1&focus=class-1',
+        label: 'Select classes',
+        href: '/shows/show-1?select=classes&trialId=trial-1&focus=class-1',
       },
       {
         key: 'entry-management',
@@ -46,7 +46,7 @@ describe('buildClassDetailsRelatedLinks', () => {
     expect(links).toEqual([]);
   });
 
-  it('keeps the Setup → Classes link when trialId is not loaded, focused on the class alone', () => {
+  it('keeps the Select classes link when trialId is not loaded, focused on the class alone', () => {
     const links = buildClassDetailsRelatedLinks({
       isStaff: true,
       showId: 'show-1',
@@ -57,8 +57,8 @@ describe('buildClassDetailsRelatedLinks', () => {
     expect(links).toEqual([
       {
         key: 'class-management',
-        label: 'Setup → Classes',
-        href: '/shows/show-1/setup?section=classes&focus=class-1',
+        label: 'Select classes',
+        href: '/shows/show-1?select=classes&focus=class-1',
       },
       {
         key: 'entry-management',
@@ -79,8 +79,8 @@ describe('buildClassDetailsRelatedLinks', () => {
     expect(links).toEqual([
       {
         key: 'class-management',
-        label: 'Setup → Classes',
-        href: '/shows/show-1/setup?section=classes&trialId=trial-1',
+        label: 'Select classes',
+        href: '/shows/show-1?select=classes&trialId=trial-1',
       },
     ]);
   });
@@ -98,7 +98,8 @@ describe('buildClassDetailsRelatedLinks', () => {
     });
 
     for (const link of links) {
-      expect(link.href.startsWith(`/shows/${currentShowId}/`)).toBe(true);
+      // The show home is `/shows/:id?…` now (MYK9-957), so match the id as a whole segment.
+      expect(link.href).toMatch(new RegExp(`^/shows/${currentShowId}(?:[/?]|$)`));
     }
   });
 });

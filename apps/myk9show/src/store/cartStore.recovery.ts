@@ -63,6 +63,20 @@ export const getAuthoritativeEntryFeeCents = (entry: RecoverableEntryRow): numbe
   return getNormalEntryFeeCents(entry);
 };
 
+/**
+ * A recovery read or write that FAILED, as distinct from one that found nothing
+ * eligible (MYK9-873). Only a successful answer may become an "entries were left
+ * out" notice; a failure is a retryable error.
+ */
+export type RecoveryOutcome<T> = { ok: true; value: T } | { ok: false };
+
+const ok = <T>(value: T): RecoveryOutcome<T> => ({ ok: true, value });
+const FAILED = { ok: false } as const;
+
+/** Shown when the payment-link lookup or rebuild fails; the exhibitor can retry. */
+export const RECOVERY_FAILED_MESSAGE =
+  'We could not check the entries in your payment link. Please reload the page to try again.';
+
 export const findRecoverableEntries = async ({
   showId,
   exhibitorId,
@@ -71,9 +85,9 @@ export const findRecoverableEntries = async ({
   showId: string;
   exhibitorId: string;
   entryIds: string[];
-}): Promise<RecoverableEntryRow[]> => {
+}): Promise<RecoveryOutcome<RecoverableEntryRow[]>> => {
   const explicitEntryIds = Array.from(new Set(entryIds.filter(Boolean)));
-  if (explicitEntryIds.length === 0) return [];
+  if (explicitEntryIds.length === 0) return ok([]);
 
   const { data: profile, error: profileError } = await supabase
     .from('exhibitor_profiles')
@@ -81,17 +95,17 @@ export const findRecoverableEntries = async ({
     .eq('id', exhibitorId)
     .maybeSingle();
 
-  if (profileError || !profile?.person_id) {
-    if (profileError) {
-      logger.error(
-        'Error loading exact cart recovery profile',
-        'cartStore',
-        { exhibitorId },
-        profileError
-      );
-    }
-    return [];
+  if (profileError) {
+    logger.error(
+      'Error loading exact cart recovery profile',
+      'cartStore',
+      { exhibitorId },
+      profileError
+    );
+    return FAILED;
   }
+  // No person behind the profile: nothing of theirs can be recovered.
+  if (!profile?.person_id) return ok([]);
 
   const { data: dogs, error: dogsError } = await supabase
     .from('dogs')
@@ -100,11 +114,11 @@ export const findRecoverableEntries = async ({
 
   if (dogsError) {
     logger.error('Error loading exact cart recovery dogs', 'cartStore', { exhibitorId }, dogsError);
-    return [];
+    return FAILED;
   }
 
   const dogIds = (dogs || []).map(dog => dog.id);
-  if (dogIds.length === 0) return [];
+  if (dogIds.length === 0) return ok([]);
 
   const { data: entries, error: entriesError } = await supabase
     .from('entries')
@@ -130,20 +144,22 @@ export const findRecoverableEntries = async ({
       { exhibitorId, showId },
       entriesError
     );
-    return [];
+    return FAILED;
   }
 
-  return (entries || []).map(entry => {
-    const classRow = Array.isArray(entry.class) ? entry.class[0] : entry.class;
-    const showRow = Array.isArray(entry.show) ? entry.show[0] : entry.show;
-    return {
-      ...entry,
-      class_entry_fee: classRow?.entry_fee ?? null,
-      show_pre_entry_fee: showRow?.pre_entry_fee ?? null,
-      show_day_of_show_fee: showRow?.day_of_show_fee ?? null,
-      show_start_date: showRow?.start_date ?? null,
-    } as RecoverableEntryRow;
-  });
+  return ok(
+    (entries || []).map(entry => {
+      const classRow = Array.isArray(entry.class) ? entry.class[0] : entry.class;
+      const showRow = Array.isArray(entry.show) ? entry.show[0] : entry.show;
+      return {
+        ...entry,
+        class_entry_fee: classRow?.entry_fee ?? null,
+        show_pre_entry_fee: showRow?.pre_entry_fee ?? null,
+        show_day_of_show_fee: showRow?.day_of_show_fee ?? null,
+        show_start_date: showRow?.start_date ?? null,
+      } as RecoverableEntryRow;
+    })
+  );
 };
 
 export const loadCartItemsByCartId = async (cartId: string): Promise<CartItemWithDetails[]> => {
@@ -174,11 +190,15 @@ export const recoverCartItemsFromEntryIds = async ({
   exhibitorId: string;
   entryIds: string[];
   recoverableEntries?: RecoverableEntryRow[];
-}): Promise<CartItemWithDetails[]> => {
-  const entries =
-    recoverableEntries ?? (await findRecoverableEntries({ showId, exhibitorId, entryIds }));
+}): Promise<RecoveryOutcome<CartItemWithDetails[]>> => {
+  let entries = recoverableEntries;
+  if (!entries) {
+    const lookup = await findRecoverableEntries({ showId, exhibitorId, entryIds });
+    if (!lookup.ok) return FAILED;
+    entries = lookup.value;
+  }
 
-  const itemInserts: EntryCartItemInsert[] = ((entries || []) as RecoverableEntryRow[])
+  const itemInserts: EntryCartItemInsert[] = entries
     .filter(entry => entry.class_id && entry.dog_id)
     .map(entry => ({
       cart_id: cartId,
@@ -191,7 +211,7 @@ export const recoverCartItemsFromEntryIds = async ({
       special_requests: entry.special_requests,
     }));
 
-  if (itemInserts.length === 0) return [];
+  if (itemInserts.length === 0) return ok([]);
 
   const { error: upsertError } = await supabase.from('entry_cart_items').upsert(itemInserts, {
     onConflict: 'cart_id,dog_id,class_id',
@@ -200,7 +220,7 @@ export const recoverCartItemsFromEntryIds = async ({
 
   if (upsertError) {
     logger.error('Error rebuilding exact cart items', 'cartStore', { cartId }, upsertError);
-    return [];
+    return FAILED;
   }
 
   const recoveredItems = await loadCartItemsByCartId(cartId);
@@ -226,5 +246,5 @@ export const recoverCartItemsFromEntryIds = async ({
     );
   }
 
-  return recoveredItems;
+  return ok(recoveredItems);
 };

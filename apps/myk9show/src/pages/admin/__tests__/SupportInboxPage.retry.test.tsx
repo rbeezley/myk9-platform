@@ -85,6 +85,8 @@ describe('SupportInboxPage Retry recovery', () => {
     await waitFor(() => expect(listSupportTicketsMock).toHaveBeenCalledTimes(5));
     expect(await screen.findByRole('heading', { name: 'Recovered show-day ticket' })).toBeVisible();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Open (1)' })).toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: 'Show: Support tickets' })).toHaveTextContent(
+      'All (1)'
+    );
   });
 });

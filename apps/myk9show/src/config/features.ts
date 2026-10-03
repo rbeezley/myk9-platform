@@ -21,7 +21,6 @@ export const features = {
   showRegistration: true,
   myEntries: true,
   analytics: false,
-  showMap: true,
 
   // Show-day presence (Phase 1, docs/plan-show-presence.md). KILL SWITCH.
   // ENABLED after live validation 2026-06-07 (#585 + cross-role two-context

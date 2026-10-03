@@ -267,11 +267,6 @@ function buildShowActions(
       href: `/shows/${encoded}/entries`,
     },
     {
-      id: 'show-open-show-desk',
-      label: 'Open Show Day',
-      href: `/shows/${encoded}/show-day`,
-    },
-    {
       // Runs the Premium List card's OWN flow, from whatever section the
       // secretary is on. It was a link to the card's anchor, which the router
       // could not honour: a pushed hash is not fragment navigation, so at

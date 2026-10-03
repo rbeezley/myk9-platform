@@ -25,10 +25,10 @@ export function usesNarrowDogSurface({ hasRole, viewerOwnsDog }: DogViewer): boo
 
 /**
  * Who may see the Manage registrations action. Matches the live
- * `dog_registrations` INSERT/UPDATE/DELETE RLS policies: the dog's owner,
+ * `dog_registrations` INSERT/UPDATE/DELETE RLS policies: the dog's owner or
+ * co-owner (`viewerOwnsDog` covers both; the co-owner arm is MYK9-941),
  * `is_site_admin()`, or `has_role('secretary')`. A club admin without the
  * secretary role is refused by the server, so is not offered the action.
- * (Co-owners are treated as owners here, as on the rest of the dog page.)
  */
 export function canManageDogRegistrations({ hasRole, viewerOwnsDog }: DogViewer): boolean {
   return viewerOwnsDog || hasRole(UserRole.SITE_ADMIN) || hasRole(UserRole.SECRETARY);

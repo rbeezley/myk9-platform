@@ -189,12 +189,12 @@ describe('buildUnifiedSidebarConfig — Phase 1 nav pruning', () => {
     expect(item?.description).toBe('Setup & scheduling');
   });
 
-  it('today nextShow links to show-desk sub-route', () => {
+  it('today nextShow links to the show home, where the day is run (MYK9-957)', () => {
     const nextShow: NextShowContext = { id: 'show-1', name: 'Spring Classic', phase: 'today' };
     const config = buildUnifiedSidebarConfig([UserRole.SECRETARY], undefined, nextShow);
     const group = config.groups.find(g => g.title === 'Manage');
     const item = group?.items.find(i => i.title === 'Spring Classic');
-    expect(item?.href).toBe('/shows/show-1/show-day');
+    expect(item?.href).toBe('/shows/show-1');
     expect(item?.description).toBe('Live today');
   });
 

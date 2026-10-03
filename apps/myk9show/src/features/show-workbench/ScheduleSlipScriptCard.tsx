@@ -20,16 +20,19 @@ interface ScheduleSlipScriptCardProps {
   showId: string;
   showName?: string | null;
   defaultClassName?: string;
+  /** Opened from a class's expected start, this is how late it runs (MYK9-954). */
+  defaultDelayMinutes?: number;
 }
 
 export function ScheduleSlipScriptCard({
   showId,
   showName,
   defaultClassName = '',
+  defaultDelayMinutes = DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES,
 }: ScheduleSlipScriptCardProps) {
   const { postAnnouncement } = useWorkbenchAnnouncementPost();
   const [ring, setRing] = useState(DEFAULT_SCHEDULE_SLIP_RING);
-  const [delayMinutes, setDelayMinutes] = useState(String(DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES));
+  const [delayMinutes, setDelayMinutes] = useState(String(defaultDelayMinutes));
   const [affectedClass, setAffectedClass] = useState(defaultClassName);
   const [note, setNote] = useState('');
   const [sendPushAlert, setSendPushAlert] = useState(false);
@@ -84,7 +87,7 @@ export function ScheduleSlipScriptCard({
 
   function handleReset() {
     setRing(DEFAULT_SCHEDULE_SLIP_RING);
-    setDelayMinutes(String(DEFAULT_SCHEDULE_SLIP_DELAY_MINUTES));
+    setDelayMinutes(String(defaultDelayMinutes));
     setAffectedClass(defaultClassName);
     setNote('');
     setSendPushAlert(false);

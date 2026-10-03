@@ -176,7 +176,7 @@ describe('CompactScheduleTimeline', () => {
       return [{ ...day, trials: [{ ...trial, elements: [{ ...element, levels }] }] }];
     }
 
-    it('links Add Trial and all classes to the setup pages, never the legacy ?tab=classes', () => {
+    it('links Add Trial and all classes to the setup flows, never the legacy ?tab=classes', () => {
       render(<CompactScheduleTimeline showId="show-1" canEditSchedule />);
 
       expect(screen.getByRole('link', { name: 'Add Trial' })).toHaveAttribute(
@@ -185,7 +185,7 @@ describe('CompactScheduleTimeline', () => {
       );
       expect(screen.getByRole('link', { name: /view all classes/i })).toHaveAttribute(
         'href',
-        '/shows/show-1/setup?section=classes'
+        '/shows/show-1?select=classes'
       );
       for (const link of screen.getAllByRole('link')) {
         expect(link.getAttribute('href')).not.toContain('tab=classes');
@@ -201,7 +201,7 @@ describe('CompactScheduleTimeline', () => {
       );
       expect(screen.getByRole('link', { name: /manage classes in trial 1/i })).toHaveAttribute(
         'href',
-        '/shows/show-1/setup?section=classes&trialId=trial-1'
+        '/shows/show-1?select=classes&trialId=trial-1'
       );
     });
 

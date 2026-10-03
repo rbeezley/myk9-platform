@@ -139,7 +139,6 @@ describe('resolveActions — secretary on a show', () => {
       'show-add-new-trial',
       'show-add-classes',
       'show-open-entry-management',
-      'show-open-show-desk',
       'show-generate-publish-premium',
     ]);
   });
@@ -152,7 +151,6 @@ describe('resolveActions — secretary on a show', () => {
       `/secretary/create-show/wizard?showId=${SHOW_ID}&mode=add-trials`,
       `/secretary/create-show/wizard?showId=${SHOW_ID}&mode=add-classes`,
       `/shows/${SHOW_ID}/entries`,
-      `/shows/${SHOW_ID}/show-day`,
       undefined, // the premium flow is a command, not a place
     ]);
   });
@@ -185,8 +183,9 @@ describe('resolveActions — secretary on a show', () => {
 describe('resolveActions — club admin on a show', () => {
   const actions = resolveActions(SHOW_CONTEXT, clubAdmin);
 
-  it('keeps the same eight items', () => {
-    expect(actions).toHaveLength(8);
+  // "Open Show Day" went with the tab (MYK9-957): the show home is the page this menu opens over.
+  it('keeps the same seven items', () => {
+    expect(actions).toHaveLength(7);
   });
 
   it('greys mail-in entry with a reason, because /secretary/register is secretary-only', () => {

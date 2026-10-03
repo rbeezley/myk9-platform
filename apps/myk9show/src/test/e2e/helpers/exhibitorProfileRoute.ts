@@ -117,7 +117,15 @@ export async function installExhibitorProfile(page: Page): Promise<ResolvedProfi
       live = await lookup;
     } catch (error) {
       // The page or test is closing under us. Nothing is left to serve.
-      if (page.isClosed() || /Test ended|closed/i.test(String(error))) return;
+      // Playwright words this by the await the close lands on: "Test ended"
+      // inside `route.fetch`, and "Response has been disposed" when it lands on
+      // reading the body. `APIResponse.body()` rewrites a target-closed error to
+      // that message (playwright-core 1.63), and this fixture never disposes a
+      // response itself. Missing the second wording failed E2E PR Smoke on
+      // #2685 three times on one spec whose test ends mid-read.
+      if (page.isClosed() || /Test ended|closed|Response has been disposed/i.test(String(error))) {
+        return;
+      }
       throw error;
     }
     if (!live) {

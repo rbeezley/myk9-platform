@@ -214,8 +214,7 @@ export function buildUnifiedSidebarConfig(
           // Not `/setup`: that route only redirects to the show Overview now
           // (decision 4, docs/plan-secretary-show-actions.md), so linking there
           // made the sidebar's own destination a bounce.
-          href:
-            nextShow.phase === 'today' ? `/shows/${nextShow.id}/show-day` : `/shows/${nextShow.id}`,
+          href: `/shows/${nextShow.id}`,
           icon: nextShow.phase === 'today' ? ClipboardCheck : List,
           description: nextShowDescription(nextShow.phase),
         });

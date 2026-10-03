@@ -83,19 +83,13 @@ test.describe('Show management workflow', () => {
     }
 
     const tabs = page.getByRole('tab');
-    await expect(tabs).toHaveCount(6);
-    await expect(tabs).toHaveText([
-      /^Overview/,
-      /^Setup/,
-      /^Entries/,
-      /^Show Day/,
-      /^Results/,
-      /^Reports/,
-    ]);
+    // MYK9-957: four tabs; Setup and Show Day folded into Overview.
+    await expect(tabs).toHaveCount(4);
+    await expect(tabs).toHaveText([/^Overview/, /^Entries/, /^Results/, /^Reports/]);
 
     // Each tab is a real page: selecting one changes the URL.
-    await page.getByRole('tab', { name: /^Show Day/ }).click();
-    await expect(page).toHaveURL(new RegExp(`/shows/${showId}/show-day`));
+    await page.getByRole('tab', { name: /^Entries/ }).click();
+    await expect(page).toHaveURL(new RegExp(`/shows/${showId}/entries`));
   });
 
   test('secretary trial and class add actions route to the incremental wizard modes', async ({

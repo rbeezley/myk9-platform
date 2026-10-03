@@ -12,14 +12,49 @@
  * INTENT: "This respects my time" — one calm sentence per class in dog-show
  * words, no error styling (nothing went wrong on their side), and a dismiss.
  */
-import { useMemo } from 'react';
+import { useMemo, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { Info, X } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/store/cartStore';
-import type { DroppedCartItem } from '@/store/cartStore.types';
-import { describeDroppedItem } from './closedClassRemovedNotice.helpers';
+import { derivePaymentLinkOutcome } from '@/store/cartStore.paymentLink';
+import type {
+  CartItemWithDetails,
+  DroppedCartItem,
+  PaymentLinkOutcome,
+} from '@/store/cartStore.types';
+import { describeDroppedItem, paymentLinkNoticeCopy } from './closedClassRemovedNotice.helpers';
 
 const NONE: DroppedCartItem[] = [];
+
+/** The calm, dismissible shell both cart-removal notices share. */
+function CartRemovalNotice({
+  className,
+  onDismiss,
+  children,
+}: {
+  className?: string | undefined;
+  onDismiss: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Alert className={`border-primary/30 bg-primary/5 ${className ?? ''}`} role="status">
+      <Info className="h-4 w-4 text-primary" />
+      <AlertDescription className="flex items-start justify-between gap-4">
+        <div className="text-foreground">{children}</div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          aria-label="Dismiss"
+          className="-mr-3 -mt-3 inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </AlertDescription>
+    </Alert>
+  );
+}
 
 export function ClosedClassRemovedNotice({ className }: { className?: string }) {
   const allItems = useCartStore(state => state.droppedClosedClassItems) ?? NONE;
@@ -37,28 +72,83 @@ export function ClosedClassRemovedNotice({ className }: { className?: string }) 
       : `We took ${items.length} classes out of your saved cart, so you will not be charged for them.`;
 
   return (
-    <Alert className={`border-primary/30 bg-primary/5 ${className ?? ''}`} role="status">
-      <Info className="h-4 w-4 text-primary" />
-      <AlertDescription className="flex items-start justify-between gap-4">
-        <div className="text-foreground">
-          <p className="font-medium">{heading}</p>
-          <ul className="mt-1 list-disc pl-5">
-            {items.map(item => (
-              <li key={item.itemId}>{describeDroppedItem(item)}</li>
-            ))}
-          </ul>
-        </div>
-        {dismiss && (
-          <button
-            type="button"
-            onClick={dismiss}
-            aria-label="Dismiss"
-            className="-mr-3 -mt-3 inline-flex min-h-[44px] min-w-[44px] shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+    <CartRemovalNotice className={className} onDismiss={dismiss}>
+      <p className="font-medium">{heading}</p>
+      <ul className="mt-1 list-disc pl-5">
+        {items.map(item => (
+          <li key={item.itemId}>{describeDroppedItem(item)}</li>
+        ))}
+      </ul>
+    </CartRemovalNotice>
+  );
+}
+
+const NO_LINES: CartItemWithDetails[] = [];
+
+/**
+ * The link's outcome against the LIVE cart (MYK9-873). The store keeps only the
+ * link's facts; deriving here on every render is what keeps the count and the
+ * next action right after a line is removed or the cart is cleared.
+ */
+function usePaymentLinkOutcome(linkKey: string | null): PaymentLinkOutcome | null {
+  const facts = useCartStore(state => state.paymentLinkFacts);
+  const lines = useCartStore(state => state.cart?.items ?? NO_LINES);
+  return useMemo(
+    () =>
+      facts && linkKey && facts.linkKey === linkKey ? derivePaymentLinkOutcome(facts, lines) : null,
+    [facts, lines, linkKey]
+  );
+}
+
+/**
+ * What the payment link on this page came to (MYK9-873): rendered in both /cart
+ * states, because the link's facts are keyed by the link and exist with no cart
+ * at all. The words come from `paymentLinkNoticeCopy`, and each ends on an action
+ * this page has. A FAILED load shows nothing here; it is the cart's error alert.
+ */
+export function PaymentLinkNotice({
+  linkKey,
+  onAddBack,
+  className,
+}: {
+  /** `paymentLinkKey` of the link in this page's URL, or null with no link. */
+  linkKey: string | null;
+  /** Re-run the link's load, which refills an empty cart with its payable entries. */
+  onAddBack?: () => void;
+  className?: string;
+}) {
+  const outcome = usePaymentLinkOutcome(linkKey);
+  const dismiss = useCartStore(state => state.dismissPaymentLinkFacts);
+
+  const copy = outcome ? paymentLinkNoticeCopy(outcome) : null;
+  if (!copy) return null;
+
+  return (
+    <CartRemovalNotice className={className} onDismiss={dismiss}>
+      <p className="font-medium">{copy.heading}</p>
+      {copy.sentences.map(sentence => (
+        <p key={sentence} className="mt-1">
+          {sentence}
+        </p>
+      ))}
+      {copy.addBack && onAddBack && (
+        <Button variant="outline" size="touch" className="mt-2" onClick={onAddBack}>
+          {`Add ${copy.addBack} back to your cart`}
+        </Button>
+      )}
+      {copy.linkToMyEntries && (
+        <p className="mt-1">
+          See where each one stands in{' '}
+          {/* 44px touch floor (INTENT.md) without breaking the sentence. */}
+          <Link
+            to="/exhibitor/entries"
+            className="inline-flex min-h-11 items-center font-medium underline underline-offset-2"
           >
-            <X className="h-4 w-4" />
-          </button>
-        )}
-      </AlertDescription>
-    </Alert>
+            My Entries
+          </Link>
+          .
+        </p>
+      )}
+    </CartRemovalNotice>
   );
 }

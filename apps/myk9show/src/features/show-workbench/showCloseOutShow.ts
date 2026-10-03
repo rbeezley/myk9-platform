@@ -3,7 +3,6 @@ import {
   type ShowDayReconciliationEntry,
 } from './showDayReconciliationSummary';
 import type { ShowIncidentSummary } from './showIncidents';
-import type { ShowWorkbenchClassSummary } from './showWorkbenchTypes';
 
 export interface CloseoutShowSummary {
   id: string;
@@ -30,8 +29,10 @@ export interface ResultSubmissionSummary {
 export interface CloseoutReadinessInput {
   classes: CloseoutClassSummary[];
   entries: ShowDayReconciliationEntry[];
-  incidents: Pick<ShowIncidentSummary, 'reportableCount' | 'urgentCount'>;
-  submissions: ResultSubmissionSummary[];
+  /** `null` when the incident log could not be read. */
+  incidents: Pick<ShowIncidentSummary, 'reportableCount' | 'urgentCount'> | null;
+  /** `null` when result submissions could not be read. */
+  submissions: ResultSubmissionSummary[] | null;
 }
 
 export interface CloseoutReadiness {
@@ -87,7 +88,7 @@ export function buildCloseoutReadiness(input: CloseoutReadinessInput): CloseoutR
   // Only the pull/refund figures gate close-out, and they do not depend on when
   // an entry was taken, so no desk window is needed here.
   const reconciliation = summarizeShowDayReconciliation(input.entries, null);
-  const hasSubmittedResults = input.submissions.some(row =>
+  const hasSubmittedResults = input.submissions?.some(row =>
     SUBMITTED_STATUSES.has(normalizeStatus(row.status))
   );
 
@@ -102,7 +103,14 @@ export function buildCloseoutReadiness(input: CloseoutReadinessInput): CloseoutR
     );
   }
 
-  if (!hasSubmittedResults) {
+  // Unread is its own concern: offline, the close must stay possible (it is a
+  // replicated write), but it may not claim "nothing submitted" or "no
+  // reportable incidents" over data it never read.
+  if (input.submissions === null) {
+    concerns.push(
+      'Result submissions could not be checked, so whether results were sent is unknown.'
+    );
+  } else if (!hasSubmittedResults) {
     concerns.push('No result submission has been recorded for this show.');
   }
 
@@ -112,7 +120,11 @@ export function buildCloseoutReadiness(input: CloseoutReadinessInput): CloseoutR
     );
   }
 
-  if (input.incidents.reportableCount > 0) {
+  if (input.incidents === null) {
+    concerns.push(
+      'The incident log could not be checked, so open reportable incidents are unknown.'
+    );
+  } else if (input.incidents.reportableCount > 0) {
     concerns.push(
       `${input.incidents.reportableCount} reportable ${input.incidents.reportableCount === 1 ? 'incident is' : 'incidents are'} still in the incident log.`
     );
@@ -130,14 +142,5 @@ export function selectCloseoutCascadeTargets(input: {
     showId: input.show.id,
     trialIds: input.trials.filter(trial => needsCascade(trial.status)).map(trial => trial.id),
     classIds: input.classes.filter(cls => needsCascade(cls.status)).map(cls => cls.id),
-  };
-}
-
-export function toCloseoutClassSummary(cls: ShowWorkbenchClassSummary): CloseoutClassSummary {
-  return {
-    id: cls.id,
-    status: cls.status,
-    entryCount: cls.entryCount,
-    scoredCount: cls.scoredCount,
   };
 }

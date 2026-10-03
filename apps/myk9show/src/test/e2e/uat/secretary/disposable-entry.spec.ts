@@ -127,11 +127,9 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
 
     await page.getByRole('button', { name: 'More', exact: true }).click();
     await page.getByRole('link', { name: 'Open Check-in desk' }).click();
-    await expect(page).toHaveURL(
-      new RegExp(`/shows/${seed.showId}/show-day\\?tool=people-at-show`)
-    );
+    await expect(page).toHaveURL(new RegExp(`/shows/${seed.showId}\\?tool=people-at-show`));
 
-    const toolsDialog = page.getByRole('dialog', { name: 'Show Desk tools' });
+    const toolsDialog = page.getByRole('dialog', { name: 'Show tools' });
     await expect(toolsDialog).toBeVisible();
     await page.getByRole('textbox', { name: 'Search exhibitors' }).fill(seed.dogName);
 

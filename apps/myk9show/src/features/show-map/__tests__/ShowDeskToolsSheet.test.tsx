@@ -1,4 +1,4 @@
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ShowAccessCodesCard } from '@/components/secretary/ShowAccessCodesCard';
 import { notifications } from '@/lib/notifications';
@@ -46,13 +46,15 @@ describe('ShowDeskToolsSheet', () => {
     return [
       {
         id: 'add-entries',
+        group: 'show-day' as const,
         title: 'Add entries',
-        summary: 'Choose own, paper, or late entries without leaving Show Desk',
+        summary: 'Choose own, paper, or late entries',
         defaultOpen: true,
         content: <div data-testid="add-entries-tool">Add entries content</div>,
       },
       {
         id: 'access-codes',
+        group: 'show-day' as const,
         title: 'Access codes',
         summary: 'Share judge and ringside entry codes',
         attentionLabel: 'Needs review',
@@ -60,6 +62,7 @@ describe('ShowDeskToolsSheet', () => {
       },
       {
         id: 'broadcast',
+        group: 'show-logistics' as const,
         title: 'Schedule slip script',
         summary: 'Draft calm wording for schedule changes',
         content: <div data-testid="broadcast-tool">Broadcast content</div>,
@@ -105,14 +108,14 @@ describe('ShowDeskToolsSheet', () => {
   it('keeps the sheet closed by default (tool content not rendered)', () => {
     renderSheet();
 
-    expect(screen.queryByRole('dialog', { name: /show desk tools/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: /show tools/i })).not.toBeInTheDocument();
     expect(screen.queryByTestId('add-entries-tool')).not.toBeInTheDocument();
   });
 
   it('opens a requested tool directly for cross-page deep links', () => {
     renderSheet({ requestedToolId: 'broadcast' });
 
-    expect(screen.getByRole('dialog', { name: /show desk tools/i })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /show tools/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /schedule slip script/i })).toHaveAttribute(
       'aria-expanded',
       'true'
@@ -125,12 +128,12 @@ describe('ShowDeskToolsSheet', () => {
 
     await user.click(screen.getByRole('button', { name: /tools/i }));
 
-    expect(screen.getByRole('dialog', { name: /show desk tools/i })).toBeInTheDocument();
-    expect(screen.getByRole('dialog', { name: /show desk tools/i })).toHaveAttribute(
+    expect(screen.getByRole('dialog', { name: /show tools/i })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /show tools/i })).toHaveAttribute(
       'data-layout',
       'compact'
     );
-    expect(screen.getByText(/entries, people lookup, hospitality/i)).toBeInTheDocument();
+    expect(screen.getByText(/show-day lookups and codes/i)).toBeInTheDocument();
     expect(screen.queryByText(/show messages/i)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: /add entries/i })).toHaveAttribute(
       'aria-expanded',
@@ -144,6 +147,25 @@ describe('ShowDeskToolsSheet', () => {
     expect(screen.queryByTestId('broadcast-tool')).not.toBeInTheDocument();
   });
 
+  it('groups the tools under Show day and Show logistics, in that order', async () => {
+    const { user } = renderSheet();
+
+    await user.click(screen.getByRole('button', { name: /tools/i }));
+
+    const groups = screen.getAllByRole('region');
+    expect(groups.map(group => group.getAttribute('aria-labelledby'))).toEqual([
+      'show-desk-tools-group-show-day',
+      'show-desk-tools-group-show-logistics',
+    ]);
+    const [showDay, logistics] = groups;
+    expect(within(showDay!).getByRole('heading', { name: 'Show day' })).toBeInTheDocument();
+    expect(within(showDay!).getByRole('button', { name: /access codes/i })).toBeInTheDocument();
+    expect(within(logistics!).getByRole('heading', { name: 'Show logistics' })).toBeInTheDocument();
+    expect(
+      within(logistics!).getByRole('button', { name: /schedule slip script/i })
+    ).toBeInTheDocument();
+  });
+
   it('uses the wide drawer layout only while a wide tool is open', async () => {
     const { user } = render(
       <ShowDeskToolsSheet
@@ -151,6 +173,7 @@ describe('ShowDeskToolsSheet', () => {
         tools={[
           {
             id: 'access-codes',
+            group: 'show-day',
             title: 'Access codes',
             summary: 'Share judge and ringside entry codes',
             defaultOpen: true,
@@ -158,6 +181,7 @@ describe('ShowDeskToolsSheet', () => {
           },
           {
             id: 'people-at-show',
+            group: 'show-day',
             title: 'People at show',
             summary: 'Look up exhibitors',
             layout: 'wide',
@@ -169,14 +193,14 @@ describe('ShowDeskToolsSheet', () => {
 
     await user.click(screen.getByRole('button', { name: /tools/i }));
 
-    expect(screen.getByRole('dialog', { name: /show desk tools/i })).toHaveAttribute(
+    expect(screen.getByRole('dialog', { name: /show tools/i })).toHaveAttribute(
       'data-layout',
       'compact'
     );
 
     await user.click(screen.getByRole('button', { name: /people at show/i }));
 
-    expect(screen.getByRole('dialog', { name: /show desk tools/i })).toHaveAttribute(
+    expect(screen.getByRole('dialog', { name: /show tools/i })).toHaveAttribute(
       'data-layout',
       'wide'
     );
@@ -186,11 +210,11 @@ describe('ShowDeskToolsSheet', () => {
     const { user } = renderSheet();
 
     await user.click(screen.getByRole('button', { name: /tools/i }));
-    expect(screen.getByRole('dialog', { name: /show desk tools/i })).toBeInTheDocument();
+    expect(screen.getByRole('dialog', { name: /show tools/i })).toBeInTheDocument();
 
     await user.keyboard('{Escape}');
 
-    expect(screen.queryByRole('dialog', { name: /show desk tools/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('dialog', { name: /show tools/i })).not.toBeInTheDocument();
   });
 
   it('shows the actionable count in destructive style when > 0', () => {
@@ -358,6 +382,7 @@ describe('ShowDeskToolsSheet', () => {
         tools={[
           {
             id: 'access-codes',
+            group: 'show-day',
             title: 'Access codes',
             summary: 'Share judge and ringside entry codes',
             content: (

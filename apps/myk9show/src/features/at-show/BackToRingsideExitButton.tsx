@@ -31,8 +31,9 @@ export function BackToRingsideExitButton({
     hasRole(UserRole.SECRETARY) ||
     hasRole(UserRole.SITE_ADMIN) ||
     (hasRole(UserRole.CLUB_ADMIN) && hasScopedClubRole(userWithRoles, UserRole.CLUB_ADMIN, clubId));
-  const label = canUseShowDesk ? 'Back to Show Desk' : 'Back to Ringside';
-  const target = canUseShowDesk && showId ? `/shows/${showId}/show-day` : '/at-show';
+  // The show home (MYK9-957) is where the desk lives now.
+  const label = canUseShowDesk ? 'Back to show' : 'Back to Ringside';
+  const target = canUseShowDesk && showId ? `/shows/${showId}` : '/at-show';
 
   return (
     <Button variant="ghost" className="min-h-11 gap-2 px-3" onClick={() => navigate(target)}>

@@ -316,13 +316,11 @@ describe('RegistrationWizardPage — workflowMode derivation', () => {
     );
   });
 
-  it('returns to Show Desk sub-route after late-entry completion', () => {
-    expect(resolveRegistrationExitPath('show 1/late', true)).toBe(
-      '/shows/show%201%2Flate/show-day'
-    );
+  it('returns to Entries after late-entry completion (MYK9-954)', () => {
+    expect(resolveRegistrationExitPath('show 1/late', true)).toBe('/shows/show%201%2Flate/entries');
     expect(resolveRegistrationExitPath('show 1/late', false)).toBeNull();
     expect(resolveRegistrationCompletionPath('show 1/late', true)).toBe(
-      '/shows/show%201%2Flate/show-day'
+      '/shows/show%201%2Flate/entries'
     );
     expect(resolveRegistrationCompletionPath('show 1/late', false)).toBe('/shows/show%201%2Flate');
   });

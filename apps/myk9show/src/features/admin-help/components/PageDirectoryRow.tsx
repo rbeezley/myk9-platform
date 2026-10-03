@@ -40,7 +40,7 @@ export function PageDirectoryRow({ entry, resolvedPath, loading }: PageDirectory
           <Badge variant="outline">{entry.status}</Badge>
         </div>
         <p className="mt-1 text-sm text-muted-foreground">{entry.description}</p>
-        <code className="mt-1 block text-xs text-muted-foreground">{entry.path}</code>
+        <code className="mt-1 block break-all text-xs text-muted-foreground">{entry.path}</code>
       </div>
       <div className="shrink-0">
         {disabled ? (

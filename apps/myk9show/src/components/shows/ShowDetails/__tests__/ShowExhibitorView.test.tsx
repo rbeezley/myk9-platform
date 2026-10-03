@@ -87,16 +87,12 @@ function makeTabs(overrides: Partial<ShowDetailTabsProps> = {}): ShowDetailTabsP
     activeTab: 'overview',
     onTabChange: vi.fn(),
     canManageShow: false,
-    canShowMap: false,
     isAuthenticated: true,
     hasUserEntries: false,
     judges: [],
     classes: [],
     trials: [],
     trialStats: {},
-    mapTrials: [],
-    mapClasses: [],
-    mapEntries: [],
     ...overrides,
   };
 }

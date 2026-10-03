@@ -19,6 +19,8 @@ import { resolveShowMapActionExecution } from './showMapActionExecution';
 import { useShowMapWorkbenchState } from './useShowMapWorkbenchState';
 import type { ShowDeskActionableTone } from './showDeskActionable';
 import type { BuildShowMapTreeInput } from './showMapTypes';
+import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
+import { ShowHomeSetupLinks } from './ShowHomeSetupLinks';
 import { getTrialRegistry } from '@/features/registries';
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 
@@ -29,6 +31,8 @@ interface ShowDeskPanelProps extends BuildShowMapTreeInput {
   actionableCount?: number | undefined;
   actionableTone?: ShowDeskActionableTone | undefined;
   actionableIncomplete?: boolean | undefined;
+  /** Entered/pending per class for the schedule rows (MYK9-943); absent until read. */
+  entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
 }
 
 // INTENT: This is the secretary's live operations cockpit. It projects the
@@ -46,6 +50,7 @@ export default function ShowDeskPanel({
   actionableCount,
   actionableTone,
   actionableIncomplete,
+  entryBreakdownByClassId,
 }: ShowDeskPanelProps) {
   const location = useLocation();
   const state = useShowMapWorkbenchState({
@@ -178,17 +183,20 @@ export default function ShowDeskPanel({
   return (
     <div className="space-y-4">
       <PhaseShell
-        title="Show Desk"
-        kicker="During the show"
+        title="Your show"
+        kicker="Before, during and after the show"
         actions={
           tools && tools.length > 0 ? (
-            <ShowDeskToolsSheet
-              showId={show.id}
-              tools={tools}
-              {...(actionableCount !== undefined && { actionableCount })}
-              {...(actionableTone !== undefined && { actionableTone })}
-              {...(actionableIncomplete !== undefined && { actionableIncomplete })}
-            />
+            <div className="flex flex-wrap items-center gap-2">
+              {canManageShow && <ShowHomeSetupLinks showId={show.id} />}
+              <ShowDeskToolsSheet
+                showId={show.id}
+                tools={tools}
+                {...(actionableCount !== undefined && { actionableCount })}
+                {...(actionableTone !== undefined && { actionableTone })}
+                {...(actionableIncomplete !== undefined && { actionableIncomplete })}
+              />
+            </div>
           ) : undefined
         }
       />
@@ -202,6 +210,7 @@ export default function ShowDeskPanel({
         </div>
       )}
       <SecretaryCockpit
+        entryBreakdownByClassId={entryBreakdownByClassId}
         snapshot={snapshot}
         canManageShow={canManageShow}
         onCommand={runCommand}

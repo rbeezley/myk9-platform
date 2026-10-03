@@ -8,6 +8,9 @@ import type { SecretaryCockpitRunOrderControls } from './secretaryCockpitTypes';
 import { CockpitActionLink } from './CockpitActionLink';
 import { ClassChecklistSection } from './ClassChecklistSection';
 import { ClassStatusControl, ExpectedStartControl } from './ClassOperationalControls';
+import { AnnounceDelayButton } from './AnnounceDelayButton';
+import type { ReactNode } from 'react';
+import { getStartDelayMinutes, scheduledClockValue } from './cockpitTime';
 import { formatTrialIdentity } from './secretaryCockpitModel';
 import type {
   FocusedClassModel,
@@ -17,6 +20,7 @@ import type {
 } from './secretaryCockpitTypes';
 
 export function SecretaryCockpitFocusedClass({
+  showId,
   focused,
   sourceClass,
   trial,
@@ -25,7 +29,9 @@ export function SecretaryCockpitFocusedClass({
   canManageShow,
   onCommand,
   runOrder,
+  setupActions,
 }: {
+  showId: string;
   focused: FocusedClassModel | null;
   sourceClass: SecretaryCockpitClass | null;
   trial: SecretaryCockpitTrial | null;
@@ -35,6 +41,8 @@ export function SecretaryCockpitFocusedClass({
   onCommand: (commandId: string) => void;
   /** Run-order auto-sort for the focused class (F29b phase 2a). */
   runOrder?: SecretaryCockpitRunOrderControls | undefined;
+  /** Edit class / Delete class; the cockpit owns their dialogs (MYK9-956). */
+  setupActions?: ReactNode;
 }) {
   if (!focused || !sourceClass || !trial) {
     return (
@@ -43,6 +51,19 @@ export function SecretaryCockpitFocusedClass({
       </aside>
     );
   }
+
+  const delayMinutes = getStartDelayMinutes({
+    scheduledStart: sourceClass.scheduledStart ?? null,
+    revisedExpectedStart: sourceClass.revisedExpectedStart ?? null,
+    trialDate: trial.date,
+    timeZone,
+  });
+  // With no scheduled start to compare against, a revised start still means
+  // "running late"; the script opens with editable default minutes.
+  const offerDelay =
+    delayMinutes !== null ||
+    (Boolean(sourceClass.revisedExpectedStart) &&
+      !scheduledClockValue(sourceClass.scheduledStart ?? null));
 
   return (
     <aside className="overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm xl:sticky xl:top-[calc(var(--app-top-inset,3rem)+1rem)]">
@@ -53,6 +74,7 @@ export function SecretaryCockpitFocusedClass({
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight">{focused.name}</h2>
+            {canManageShow && setupActions && <div className="mt-2">{setupActions}</div>}
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <ClassStatusControl
                 classId={focused.id}
@@ -94,6 +116,13 @@ export function SecretaryCockpitFocusedClass({
               <div className="mt-1 text-xs text-muted-foreground">
                 Scheduled {sourceClass.scheduledStart}
               </div>
+            )}
+            {canManageShow && sourceClass.lifecycle === 'not-started' && offerDelay && (
+              <AnnounceDelayButton
+                showId={showId}
+                className={focused.name}
+                delayMinutes={delayMinutes ?? undefined}
+              />
             )}
           </div>
           <div>

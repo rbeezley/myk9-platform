@@ -36,6 +36,7 @@ import {
 import { useRegistrationWizard } from './RegistrationWizardPage/useRegistrationWizard';
 import { useEntryDogHandoff } from './RegistrationWizardPage/useEntryDogHandoff';
 import { getPaymentSubmitLabel } from './RegistrationWizardPage/commitLabels';
+import { STAFF_RECEIPT_DONE_LABEL } from './RegistrationWizardPage.routes';
 
 /** Stable id so the Next button can point at the blocked-reason text. */
 const PROCEED_BLOCKED_ID = 'registration-wizard-blocked-reason';
@@ -305,11 +306,7 @@ function RegistrationWizardContent() {
                   showId={showId}
                   onDone={handleNext}
                   doneLabel={
-                    currentWorkflowMode === 'exhibitor'
-                      ? undefined
-                      : isLateEntryMode
-                        ? 'Return to Show Desk'
-                        : 'Return to Entry Management'
+                    currentWorkflowMode === 'exhibitor' ? undefined : STAFF_RECEIPT_DONE_LABEL
                   }
                   isLoading={isSubmitting}
                 />

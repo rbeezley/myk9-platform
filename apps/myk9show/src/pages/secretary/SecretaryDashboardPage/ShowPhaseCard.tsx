@@ -16,7 +16,8 @@ interface ShowPhaseCardProps {
   closedCount?: number | undefined;
 }
 
-const workbenchHref = (showId: string, tab: 'setup' | 'show-day') => `/shows/${showId}/${tab}`;
+// Setup and Show Day are the show home now (MYK9-957).
+const workbenchHref = (showId: string) => `/shows/${showId}`;
 
 function TodayCard({
   show,
@@ -38,7 +39,7 @@ function TodayCard({
         </p>
       </div>
       <Button asChild size="touch" className="shrink-0">
-        <Link to={workbenchHref(show.id, 'show-day')}>
+        <Link to={workbenchHref(show.id)}>
           <Play className="mr-1.5 h-3.5 w-3.5" />
           Go to show
         </Link>
@@ -87,7 +88,7 @@ function UpcomingCard({ show }: Pick<ShowPhaseCardProps, 'show'>) {
         </p>
       </div>
       <Button asChild variant="outline" size="touch" className="shrink-0">
-        <Link to={workbenchHref(show.id, 'setup')}>
+        <Link to={workbenchHref(show.id)}>
           Manage
           <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
         </Link>
@@ -114,7 +115,7 @@ function DraftCard({ show }: Pick<ShowPhaseCardProps, 'show'>) {
         </p>
       </div>
       <Button asChild size="touch" className="shrink-0">
-        <Link to={workbenchHref(show.id, 'setup')}>
+        <Link to={workbenchHref(show.id)}>
           <Pencil className="mr-1.5 h-3.5 w-3.5" />
           Continue setup
         </Link>
@@ -133,7 +134,7 @@ function PastCard({ show }: Pick<ShowPhaseCardProps, 'show'>) {
         </p>
       </div>
       <Button asChild variant="ghost" size="touch" className="shrink-0 text-muted-foreground">
-        <Link to={workbenchHref(show.id, 'show-day')}>
+        <Link to={workbenchHref(show.id)}>
           View
           <ArrowRight className="ml-1 h-3.5 w-3.5" />
         </Link>

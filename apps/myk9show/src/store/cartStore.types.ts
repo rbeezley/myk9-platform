@@ -21,6 +21,38 @@ export type EntryCartItemInsert = Database['public']['Tables']['entry_cart_items
 export type EnsureCartResult =
   { kind: 'ready'; cart: CartWithDetails } | { kind: 'failed'; error: string };
 
+/** What a Finish Payment link's entries came to on /cart (MYK9-873). */
+export type PaymentLinkOutcomeKind = 'all-present' | 'some-missing' | 'none-left' | 'failed';
+
+export interface PaymentLinkOutcome {
+  /**
+   * - `all-present`: every linked entry is a line in the cart.
+   * - `some-missing`: the cart has lines, but not every linked entry is one.
+   * - `none-left`: the cart has no lines at all.
+   * - `failed`: the lookup or the rebuild failed; nothing is known about
+   *   eligibility, so the caller shows a retryable error, never a notice.
+   */
+  kind: PaymentLinkOutcomeKind;
+  requested: number;
+  /** Linked entries missing from the cart that can no longer be paid. */
+  unavailable: number;
+  /** Linked entries missing from the cart that are still payable. */
+  stillUnpaid: number;
+}
+
+/**
+ * The FACTS a payment-link load established (MYK9-873), never the outcome: the
+ * outcome is derived from these and the LIVE cart on every render, so removing a
+ * line or clearing the cart can never leave a stale count or next action.
+ */
+export interface PaymentLinkFacts {
+  /** `paymentLinkKey` of `linkIds`; the notice shows only for that link. */
+  linkKey: string;
+  linkIds: string[];
+  /** The linked entries still payable here, or null when the lookup or rebuild failed. */
+  payableIds: string[] | null;
+}
+
 // Cart status enum
 export type CartStatus = 'active' | 'submitted' | 'abandoned' | 'expired';
 
@@ -157,6 +189,14 @@ export interface CartState {
    */
   droppedClosedClassItems: DroppedCartItem[];
   dismissDroppedClosedClassItems: () => void;
+
+  /**
+   * What the last payment-link load on /cart established (MYK9-873). Keyed by
+   * the link, not the cart, so it exists with no cart at all. Not persisted:
+   * /cart keeps the link in its URL and re-reads it on every load.
+   */
+  paymentLinkFacts: PaymentLinkFacts | null;
+  dismissPaymentLinkFacts: () => void;
 
   // Actions
   loadCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;

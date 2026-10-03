@@ -18,16 +18,16 @@ function renderLink(returnTo: string) {
 }
 
 describe('ShowDeskReturnLink', () => {
-  it('renders a validated Back to Show Desk destination', () => {
+  it('renders a validated Back to show destination, even from a retired Show Day URL', () => {
     renderLink('/shows/show-1/show-day?focus=class-1&filter=in-progress');
-    expect(screen.getByRole('link', { name: 'Back to Show Desk' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Back to show' })).toHaveAttribute(
       'href',
-      '/shows/show-1/show-day?filter=in-progress&focus=class-1'
+      '/shows/show-1?filter=in-progress&focus=class-1'
     );
   });
 
   it('does not render for an untrusted return destination', () => {
     renderLink('https://evil.example/steal');
-    expect(screen.queryByRole('link', { name: 'Back to Show Desk' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Back to show' })).not.toBeInTheDocument();
   });
 });

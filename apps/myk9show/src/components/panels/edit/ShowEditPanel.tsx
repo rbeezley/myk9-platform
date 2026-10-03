@@ -63,13 +63,12 @@ const ShowEditPanelSession: React.FC<ShowEditPanelProps> = ({
   // its own.
   const handleSave = useCallback(
     async (formData: ShowEditFormData) => {
-      // The opening values are the dirty-field baseline (MYK9-979).
-      const showData = formDataToShowSaveData(formData, initialFormData);
+      const showData = formDataToShowSaveData(formData);
       if (onSave) {
         await onSave(showData);
       }
     },
-    [onSave, initialFormData]
+    [onSave]
   );
 
   return (

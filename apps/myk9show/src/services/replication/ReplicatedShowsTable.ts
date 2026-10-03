@@ -28,6 +28,7 @@ import type { ShowExperienceSnapshot } from '@/features/experience/experienceSna
 import { invalidateVenuePinIfLocationChanged } from '@/features/maps/invalidateVenuePin';
 import type { Database } from '@/types/supabase';
 import { withStoredDays, withTypedDays } from './showCalendarDays';
+import { rowToShow } from './showRowMapping';
 
 /**
  * Database row type from Supabase schema
@@ -82,56 +83,7 @@ export interface ReplicatedShow {
   _localOnly?: boolean | undefined;
 }
 
-/**
- * Convert database row to app Show type
- */
-export function rowToShow(row: ShowRow): ReplicatedShow {
-  const publishedFields = row as Record<string, unknown>;
-
-  return {
-    id: String(row.id),
-    name: row.name,
-    organization: row.organization,
-    startDate: row.start_date,
-    endDate: row.end_date,
-    location: row.location ?? undefined,
-    latitude: row.latitude ?? null,
-    longitude: row.longitude ?? null,
-    venueName: row.venue_name ?? undefined,
-    city: row.city ?? undefined,
-    state: row.state ?? undefined,
-    status: row.status ?? undefined,
-    deletedAt: row.deleted_at ?? null,
-    entryOpenDate: row.entry_open_date ?? undefined,
-    entryCloseDate: row.entry_close_date ?? undefined,
-    preEntryFee: row.pre_entry_fee ?? undefined,
-    dayOfShowFee: row.day_of_show_fee ?? undefined,
-    juniorHandlerFee: row.junior_handler_fee,
-    startingArmbandNumber: row.starting_armband_number ?? 100,
-    clubId: row.club_id ?? undefined,
-    maxEntriesPerDog: row.max_entries_per_dog ?? undefined,
-    maxTotalEntries: row.max_total_entries ?? undefined,
-    defaultJudgeDayCapacity: row.default_judge_day_capacity ?? 125,
-    allowsNonOwnerHandlers: row.allow_non_owner_handlers ?? undefined,
-    isNationals: row.is_nationals ?? undefined,
-    acceptCheckPayments: row.accept_check_payments ?? undefined,
-    acceptCashPayments: row.accept_cash_payments ?? undefined,
-    onlineEntriesEnabled: row.online_entries_enabled ?? undefined,
-    logoUrl: row.logo_url ?? undefined,
-    coverImageUrl: row.cover_image_url ?? undefined,
-    accentColor: row.accent_color ?? undefined,
-    style: ((row as Record<string, unknown>).style as string | undefined) ?? undefined,
-    experienceIsPublished:
-      (publishedFields.experience_is_published as boolean | null | undefined) ?? undefined,
-    experiencePublishedAt:
-      (publishedFields.experience_published_at as string | null | undefined) ?? null,
-    experiencePublishedStyle:
-      (publishedFields.experience_published_style as string | null | undefined) ?? null,
-    experiencePublishedContent:
-      (publishedFields.experience_published_content as ShowExperienceSnapshot | null | undefined) ??
-      null,
-  };
-}
+export { rowToShow };
 
 export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
   /** Most recent mutation ID from a create/update operation */
@@ -415,8 +367,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     delete safeUpdates.experiencePublishedAt;
     delete safeUpdates.experiencePublishedStyle;
     delete safeUpdates.experiencePublishedContent;
-    // MYK9-979: an unknown online-entries value is never written, and never
-    // overwrites a known local one.
+    // MYK9-979: an unknown online-entries value is never written or merged.
     if (safeUpdates.onlineEntriesEnabled === undefined) delete safeUpdates.onlineEntriesEnabled;
     const resolvedUpdates = invalidateVenuePinIfLocationChanged(currentShow.location, safeUpdates);
     // Style is an RPC-owned field. Never let a stale generic Show edit carry it
@@ -445,15 +396,33 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     // coordinate columns would otherwise null out a pin saved elsewhere.
     if (!('latitude' in resolvedUpdates)) delete updatePayload.latitude;
     if (!('longitude' in resolvedUpdates)) delete updatePayload.longitude;
-    // MYK9-979: online_entries_enabled only when this update set it. A full
-    // row would otherwise resend a cached value on every unrelated edit and
-    // could undo a change made elsewhere (or the migration's backfill).
+    // MYK9-979: never resend a cached online_entries_enabled on an unrelated edit.
     if (!('onlineEntriesEnabled' in resolvedUpdates)) delete updatePayload.online_entries_enabled;
 
     const mutationId = await this.queueMutation('UPDATE', showId, updatePayload);
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated show ${showId}`);
     return mutationId;
+  }
+
+  /**
+   * MYK9-979: the "Accept online entries" switch saves itself, apart from any
+   * form. The queued UPDATE carries ONLY this column, so it cannot resend a
+   * stale copy of anything else, nor can a form save resend a stale switch.
+   */
+  async setOnlineEntriesEnabled(showId: string, enabled: boolean): Promise<string | null> {
+    const currentShow = await this.get(showId);
+    if (!currentShow) throw new Error(`Show ${showId} not found`);
+    const updatedShow: ReplicatedShow = {
+      ...currentShow,
+      onlineEntriesEnabled: enabled,
+      _lastModified: new Date(),
+      _syncStatus: 'pending',
+    };
+    await this.set(showId, updatedShow, true);
+    const payload = { id: showId, online_entries_enabled: enabled };
+    this._lastMutationId = await this.queueMutation('UPDATE', showId, payload);
+    return this._lastMutationId;
   }
 
   /**

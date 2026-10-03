@@ -200,7 +200,6 @@ export const showSchemas = {
       isNationals: z.boolean().optional(),
       acceptCheckPayments: z.boolean().optional(),
       acceptCashPayments: z.boolean().optional(),
-      onlineEntriesEnabled: z.boolean().optional(),
       style: z.string().default('monogram'),
       publishExperience: z.boolean().optional(),
       generatedPremium: z.custom<import('@/types/premium-types').GeneratedPremium>().optional(),

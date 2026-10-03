@@ -84,6 +84,39 @@ describe('ReplicatedShowsTable — online_entries_enabled is written only when s
   });
 });
 
+describe('ReplicatedShowsTable.setOnlineEntriesEnabled — the switch saves itself (Codex round 3)', () => {
+  let table: ReplicatedShowsTable;
+  let queueMutation: ReturnType<typeof vi.spyOn>;
+
+  beforeEach(async () => {
+    const { databaseManager } = await import('@myk9/replication');
+    await databaseManager.reset();
+    table = new ReplicatedShowsTable();
+    queueMutation = vi.spyOn(table as unknown as { queueMutation: QueueMutation }, 'queueMutation');
+    queueMutation.mockResolvedValue('mutation-1');
+  });
+
+  afterEach(async () => {
+    const { databaseManager } = await import('@myk9/replication');
+    await databaseManager.reset();
+  });
+
+  it.each([true, false])(
+    'queues an UPDATE carrying ONLY online_entries_enabled (%s)',
+    async value => {
+      await table.set(BASE.id, { ...BASE, onlineEntriesEnabled: !value });
+      await table.setOnlineEntriesEnabled(BASE.id, value);
+
+      expect(queueMutation).toHaveBeenCalledTimes(1);
+      expect(queueMutation).toHaveBeenCalledWith('UPDATE', BASE.id, {
+        id: BASE.id,
+        online_entries_enabled: value,
+      });
+      expect((await table.get(BASE.id))?.onlineEntriesEnabled).toBe(value);
+    }
+  );
+});
+
 describe('ReplicatedShowsTable — a sync merge never replaces a known server value with unknown', () => {
   let table: ReplicatedShowsTable;
 

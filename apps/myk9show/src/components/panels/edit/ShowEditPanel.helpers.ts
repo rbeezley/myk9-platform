@@ -35,11 +35,6 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
     isNationals: show.isNationals ?? false,
     acceptCheckPayments: show.acceptCheckPayments ?? false,
     acceptCashPayments: show.acceptCashPayments ?? false,
-    // MYK9-979: tri-state. Absent = unknown (a cached row from before the
-    // column); never guessed as false, or a save would turn entries off.
-    ...(typeof show.onlineEntriesEnabled === 'boolean' && {
-      onlineEntriesEnabled: show.onlineEntriesEnabled,
-    }),
     clubName: show.clubName || '',
     logoUrl: show.logoUrl || '',
     trials: show.trials || [],
@@ -59,10 +54,9 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
 // Convert form data back to Show
 // Empty strings are omitted so the store skips them — prevents sending ''
 // to Postgres DATE/numeric columns which would fail the entire mutation.
-export const formDataToShow = (
-  formData: ShowEditFormData,
-  initial?: ShowEditFormData
-): Partial<Show> => ({
+// MYK9-979: online entries are deliberately absent. The switch saves itself
+// (useOnlineEntriesSwitch), so no form save can resend a stale copy of it.
+export const formDataToShow = (formData: ShowEditFormData): Partial<Show> => ({
   name: formData.name,
   status: formData.status,
   organization: formData.organization,
@@ -77,14 +71,6 @@ export const formDataToShow = (
   isNationals: formData.isNationals,
   acceptCheckPayments: formData.acceptCheckPayments,
   acceptCashPayments: formData.acceptCashPayments,
-  // MYK9-979: dirty-field only. Written when the user changed the switch from
-  // the value the panel opened with; omitted otherwise (and always when the
-  // opening value was unknown and untouched, or there is no baseline).
-  ...(initial !== undefined &&
-    formData.onlineEntriesEnabled !== undefined &&
-    formData.onlineEntriesEnabled !== initial.onlineEntriesEnabled && {
-      onlineEntriesEnabled: formData.onlineEntriesEnabled,
-    }),
   style: formData.style,
   // Conditionally include optional string fields only when non-empty
   // (exactOptionalPropertyTypes forbids assigning undefined to string properties)
@@ -103,11 +89,8 @@ export const formDataToShow = (
       : {}),
 });
 
-export const formDataToShowSaveData = (
-  formData: ShowEditFormData,
-  initial?: ShowEditFormData
-): ShowEditSaveData => ({
-  ...formDataToShow(formData, initial),
+export const formDataToShowSaveData = (formData: ShowEditFormData): ShowEditSaveData => ({
+  ...formDataToShow(formData),
   ...(formData.publishExperience !== undefined && {
     publishExperience: formData.publishExperience,
   }),

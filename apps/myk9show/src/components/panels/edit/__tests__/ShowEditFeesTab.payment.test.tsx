@@ -4,6 +4,15 @@ import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('@/components/ui/tabs', () => import('../../../common/__tests__/mockTabs'));
 
+const onlineSwitch = vi.hoisted(() => ({
+  value: undefined as boolean | undefined,
+  pending: false,
+  setEnabled: vi.fn(async () => {}),
+}));
+vi.mock('@/features/payments/useOnlineEntriesSwitch', () => ({
+  useOnlineEntriesSwitch: () => onlineSwitch,
+}));
+
 import { ShowEditFeesTab } from '../ShowEditFeesTab';
 import type { ShowEditFormData } from '../ShowEditPanel.types';
 import { ONLINE_ENTRIES_UNKNOWN_HINT } from '@/features/payments/onlineEntryGate';
@@ -50,39 +59,31 @@ describe('ShowEditFeesTab — Payment Methods section', () => {
     expect(screen.getByText('Payment Methods')).toBeInTheDocument();
   });
 
-  // MYK9-979: the same switch as the wizard, bound to onlineEntriesEnabled.
-  it('renders the "Accept online entries" switch from the saved value', () => {
-    render(
-      <ShowEditFeesTab
-        data={{ ...baseData, onlineEntriesEnabled: true }}
-        handleCheckboxChange={vi.fn(() => vi.fn())}
-      />
-    );
+  // MYK9-979 (Codex round 3 on #2707): the switch saves itself. It shows the
+  // live value from useOnlineEntriesSwitch, never form data, and flipping it
+  // calls the hook, never the form's change handler.
+  it('renders the "Accept online entries" switch from the live value', () => {
+    onlineSwitch.value = true;
+    render(<ShowEditFeesTab data={baseData} handleCheckboxChange={vi.fn(() => vi.fn())} />);
     expect(screen.getByRole('switch', { name: /accept online entries/i })).toBeChecked();
   });
 
-  // Codex P2 round 2 on #2707: a cached show whose value is unknown cannot be
-  // toggled from a guess.
   it('disables the switch with a hint while the value is unknown', () => {
+    onlineSwitch.value = undefined;
     render(<ShowEditFeesTab data={baseData} handleCheckboxChange={vi.fn(() => vi.fn())} />);
     const toggle = screen.getByRole('switch', { name: /accept online entries/i });
     expect(toggle).toHaveAttribute('aria-disabled', 'true');
     expect(toggle).toHaveAccessibleDescription(ONLINE_ENTRIES_UNKNOWN_HINT);
   });
 
-  it('turning the switch off writes onlineEntriesEnabled: false', async () => {
-    const setter = vi.fn();
-    const handleCheckboxChange = vi.fn(() => setter);
+  it('flipping the switch saves it on its own and never touches the form', async () => {
+    onlineSwitch.value = true;
+    const handleCheckboxChange = vi.fn(() => vi.fn());
     const user = userEvent.setup();
-    render(
-      <ShowEditFeesTab
-        data={{ ...baseData, onlineEntriesEnabled: true }}
-        handleCheckboxChange={handleCheckboxChange}
-      />
-    );
+    render(<ShowEditFeesTab data={baseData} handleCheckboxChange={handleCheckboxChange} />);
     await user.click(screen.getByRole('switch', { name: /accept online entries/i }));
-    expect(handleCheckboxChange).toHaveBeenCalledWith('onlineEntriesEnabled');
-    expect(setter).toHaveBeenCalledWith(false);
+    expect(onlineSwitch.setEnabled).toHaveBeenCalledWith(false);
+    expect(handleCheckboxChange).not.toHaveBeenCalledWith('onlineEntriesEnabled');
   });
 
   it('renders Check checkbox unchecked when acceptCheckPayments is false', () => {

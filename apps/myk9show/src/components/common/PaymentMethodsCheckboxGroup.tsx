@@ -16,6 +16,8 @@ interface PaymentMethodsCheckboxGroupProps {
   /** False where this surface may not change it (the wizard over an existing
    * show; the show edit panel owns it). */
   onlineEditable?: boolean;
+  /** True while a self-saving switch's write is in flight. */
+  onlineBusy?: boolean;
   acceptCheck: boolean;
   acceptCash: boolean;
   onOnlineChange: (checked: boolean) => void;
@@ -38,6 +40,7 @@ export const PaymentMethodsCheckboxGroup: React.FC<PaymentMethodsCheckboxGroupPr
   onCashChange,
   idPrefix = '',
   onlineEditable = true,
+  onlineBusy = false,
 }) => {
   const onlineKnown = acceptOnline !== undefined;
   const onlineHelp = !onlineKnown
@@ -56,7 +59,7 @@ export const PaymentMethodsCheckboxGroup: React.FC<PaymentMethodsCheckboxGroupPr
           id={onlineId}
           aria-describedby={`help-${onlineId}`}
           checked={acceptOnline === true}
-          disabled={!onlineKnown || !onlineEditable}
+          disabled={!onlineKnown || !onlineEditable || onlineBusy}
           onCheckedChange={onOnlineChange}
           className="mt-0.5"
         />

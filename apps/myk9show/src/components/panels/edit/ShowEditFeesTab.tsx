@@ -11,6 +11,7 @@ import { Separator } from '@/components/ui/separator';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { PaymentMethodsCheckboxGroup } from '@/components/common/PaymentMethodsCheckboxGroup';
+import { useOnlineEntriesSwitch } from '@/features/payments/useOnlineEntriesSwitch';
 import { DollarSign } from 'lucide-react';
 import { FormField } from '@/components/common/FormField';
 import type { FormValidation } from '@/hooks/useFormValidation';
@@ -32,6 +33,7 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
   const juniorHandlerFeeError = form?.getError('juniorHandlerFee');
   const maxEntriesPerDogError = form?.getError('maxEntriesPerDog');
   const maxTotalEntriesError = form?.getError('maxTotalEntries');
+  const onlineEntries = useOnlineEntriesSwitch(data.id);
 
   const handleFeeChange = (field: keyof ShowEditFormData) => (value: number) => {
     form?.setValue(field, String(value));
@@ -220,12 +222,12 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
               Payment Methods
             </h4>
             <PaymentMethodsCheckboxGroup
-              acceptOnline={data.onlineEntriesEnabled}
+              // MYK9-979: the live value, saved on its own, never form data.
+              acceptOnline={onlineEntries.value}
+              onlineBusy={onlineEntries.pending}
               acceptCheck={data.acceptCheckPayments ?? false}
               acceptCash={data.acceptCashPayments ?? false}
-              onOnlineChange={
-                handleCheckboxChange('onlineEntriesEnabled') as (checked: boolean) => void
-              }
+              onOnlineChange={checked => void onlineEntries.setEnabled(checked)}
               onCheckChange={
                 handleCheckboxChange('acceptCheckPayments') as (checked: boolean) => void
               }

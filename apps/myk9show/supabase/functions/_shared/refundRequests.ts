@@ -31,8 +31,16 @@ export interface RefundQueueDeps {
 }
 
 const SOURCE = 'stripe-webhook';
-const APPROVE_WHERE =
-  'Approve it under <strong>Refunds awaiting approval</strong> on /admin/health. Do not refund it from the Stripe dashboard: the approval records it.';
+
+/**
+ * The path when a queued charge is honored by hand instead (Codex round 6 on
+ * #2689): without it the request stays approvable and a full refund can still
+ * go out after the entries were marked paid.
+ */
+export const RESOLVE_INSTEAD_HTML =
+  'If you fulfill the entries by hand instead, press <strong>Resolve without refund</strong> on the same row (a note is required). Until you do, the refund can still be approved.';
+
+const APPROVE_WHERE = `Approve it under <strong>Refunds awaiting approval</strong> on /admin/health. Do not refund it from the Stripe dashboard: the approval records it. ${RESOLVE_INSTEAD_HTML}`;
 
 function dollars(cents: number): string {
   return (cents / 100).toFixed(2);

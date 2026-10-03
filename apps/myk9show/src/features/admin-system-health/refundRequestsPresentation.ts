@@ -75,12 +75,35 @@ const APPROVAL_ERRORS: Record<string, string> = {
   settle_busy: 'This refund was being updated while we checked. Nothing was changed; try again.',
   refund_attempt_conflict:
     'The refund could not be matched to this approval. Check the payment in Stripe before trying again.',
+  resolved_without_refund:
+    'Not refunded: this request was resolved without a refund, so it can no longer be approved.',
 };
 
 export function approvalErrorMessage(code: string | undefined): string {
   if (code && APPROVAL_ERRORS[code]) return APPROVAL_ERRORS[code];
   if (code?.startsWith('stripe_refund_')) return APPROVAL_ERRORS.stripe_refund_failed;
   return 'The approval did not finish. Approving again is safe: it reuses any refund already issued.';
+}
+
+const RESOLUTION_ERRORS: Record<string, string> = {
+  note_required: 'Add a note saying how the charge was honored.',
+  has_live_attempt:
+    'Not resolved: a refund for this request is still with Stripe or already went through. Check its status first.',
+  not_resolvable: 'Not resolved: this request can no longer be resolved without a refund.',
+  not_found: 'This refund request no longer exists.',
+};
+
+export function resolutionErrorMessage(code: string | undefined): string {
+  if (code && RESOLUTION_ERRORS[code]) return RESOLUTION_ERRORS[code];
+  return 'The request was not resolved. Nothing changed; try again.';
+}
+
+/**
+ * "Resolve without refund" (Codex round 6 on #2689) is offered only while no
+ * refund is with Stripe: the server refuses it otherwise.
+ */
+export function canResolveWithoutRefund(status: RefundRequest['status']): boolean {
+  return status === 'pending' || status === 'failed';
 }
 
 /** The button label for a row, by where its refund stands. */

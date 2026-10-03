@@ -51,6 +51,15 @@
 --          settles 'failed', then W1's stale 'succeeded' -> 'conflict'.
 --       O14 (Codex round 4) settling an attempt with no refund attached is
 --          'no_refund' and writes nothing.
+--       O15 (Codex round 6) resolve without refund: a pending request
+--          resolves with its note and resolver; approval is then refused
+--          ('resolved') and opens no attempt; resolving again is
+--          'already_resolved'; a blank note is refused.
+--       O16 (Codex round 6) resolve is refused while an attempt is pending or
+--          succeeded ('has_live_attempt'), writing nothing.
+--       O17 (Codex round 6) the trigger keeps the resolved state: a failed
+--          request resolves (last_failure cleared), and a later change to its
+--          old attempt does not derive the request back.
 --       O13 (Codex round 3) LOCK ORDER, structurally: the recompute trigger
 --          locks the request before it reads attempts, and record/settle
 --          lock the request before the attempt. (The interleaving itself
@@ -151,6 +160,7 @@ BEGIN
     'public.record_refund_attempt(uuid, integer, text)',
     'public.refund_attempt_state(uuid, integer)',
     'public.settle_refund_attempt(uuid, integer, text, text)',
+    'public.resolve_refund_request_without_refund(uuid, uuid, text)',
     'public.refund_attempt_next_status(text, text)'
   ] LOOP
     IF has_function_privilege('anon', v_fn, 'EXECUTE')
@@ -675,6 +685,92 @@ BEGIN
   PERFORM pg_temp.expect_eq(
     (SELECT count(*)::text FROM public.refund_attempt_state(v_req, 99)), '0',
     'O14 refund_attempt_state finds no unknown attempt');
+END;
+$$;
+-- O15 (Codex round 6) resolve without refund, then approval is refused -------
+DO $$
+DECLARE
+  v_req uuid := pg_temp.new_request('cs_876_o15');
+  v_r record;
+  v_b record;
+BEGIN
+  SELECT * INTO v_r FROM public.resolve_refund_request_without_refund(
+    v_req, '00000000-0000-0000-0000-000000876102', '   ');
+  PERFORM pg_temp.expect_eq(v_r.outcome || ' ' || v_r.request_status, 'note_required pending',
+    'O15 a blank note is refused');
+  SELECT * INTO v_r FROM public.resolve_refund_request_without_refund(
+    v_req, '00000000-0000-0000-0000-000000876102', ' Entries marked paid by hand ');
+  PERFORM pg_temp.expect_eq(v_r.outcome, 'resolved', 'O15 a pending request resolves');
+  PERFORM pg_temp.expect_eq(
+    (SELECT r.status || ' | ' || r.resolution_note || ' | '
+            || r.resolved_by_auth_user_id::text || ' | ' || (r.resolved_at IS NOT NULL)::text
+       FROM public.refund_requests r WHERE r.id = v_req),
+    'resolved_without_refund | Entries marked paid by hand | 00000000-0000-0000-0000-000000876102 | true',
+    'O15 the resolution records its note, resolver and time');
+  SELECT * INTO v_b FROM pg_temp.begin_attempt(v_req);
+  PERFORM pg_temp.expect_eq(v_b.outcome, 'resolved', 'O15 approval of a resolved request is refused');
+  PERFORM pg_temp.expect_eq((SELECT count(*)::text FROM public.refund_request_attempts
+                          WHERE request_id = v_req), '0', 'O15 no attempt opens');
+  SELECT * INTO v_r FROM public.resolve_refund_request_without_refund(
+    v_req, '00000000-0000-0000-0000-000000876102', 'again');
+  PERFORM pg_temp.expect_eq(v_r.outcome, 'already_resolved', 'O15 resolving twice writes nothing');
+END;
+$$;
+
+-- O16 (Codex round 6) resolve refused while an attempt is live ---------------
+DO $$
+DECLARE
+  v_pending uuid := pg_temp.new_request('cs_876_o16a');
+  v_done uuid := pg_temp.new_request('cs_876_o16b');
+  v_a record;
+  v_r record;
+BEGIN
+  PERFORM pg_temp.begin_attempt(v_pending);
+  SELECT * INTO v_r FROM public.resolve_refund_request_without_refund(
+    v_pending, '00000000-0000-0000-0000-000000876102', 'fulfilled by hand');
+  PERFORM pg_temp.expect_eq(v_r.outcome || ' ' || v_r.request_status, 'has_live_attempt awaiting_stripe',
+    'O16 resolve is refused while an attempt is pending');
+
+  SELECT * INTO v_a FROM pg_temp.begin_attempt(v_done);
+  PERFORM pg_temp.rec(v_a.attempt_id, 're_o16', 'succeeded');
+  SELECT * INTO v_r FROM public.resolve_refund_request_without_refund(
+    v_done, '00000000-0000-0000-0000-000000876102', 'fulfilled by hand');
+  PERFORM pg_temp.expect_eq(v_r.outcome || ' ' || v_r.request_status, 'has_live_attempt refunded',
+    'O16 resolve is refused once an attempt succeeded');
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*)::text FROM public.refund_requests
+      WHERE id IN (v_pending, v_done) AND resolved_at IS NOT NULL), '0',
+    'O16 a refused resolve writes nothing');
+END;
+$$;
+
+-- O17 (Codex round 6) the trigger never derives over a resolution -------------
+DO $$
+DECLARE
+  v_req uuid := pg_temp.new_request('cs_876_o17');
+  v_a record;
+  v_r record;
+  v_s record;
+BEGIN
+  SELECT * INTO v_a FROM pg_temp.begin_attempt(v_req);
+  PERFORM pg_temp.rec(v_a.attempt_id, 're_o17', 'failed', 'expired_or_canceled_card');
+  PERFORM pg_temp.expect_eq(pg_temp.request_state(v_req), 'failed | failed: expired_or_canceled_card',
+    'O17 fixture: the request failed');
+  SELECT * INTO v_r FROM public.resolve_refund_request_without_refund(
+    v_req, '00000000-0000-0000-0000-000000876102', 'paid by cheque at the show');
+  PERFORM pg_temp.expect_eq(v_r.outcome, 'resolved', 'O17 a failed request resolves');
+  PERFORM pg_temp.expect_eq(pg_temp.request_state(v_req), 'resolved_without_refund',
+    'O17 resolving clears last_failure');
+
+  -- A later Stripe change to the old attempt still lands on the ATTEMPT...
+  SELECT * INTO v_s FROM pg_temp.settle('re_o17', 'succeeded');
+  PERFORM pg_temp.expect_eq(v_s.outcome || ' ' || v_s.attempt_status, 'updated succeeded',
+    'O17 the old attempt records what Stripe reports');
+  -- ...but never derives the request back.
+  PERFORM pg_temp.expect_eq(v_s.request_status, 'resolved_without_refund',
+    'O17 the trigger keeps the resolved state');
+  PERFORM pg_temp.expect_eq(pg_temp.request_state(v_req), 'resolved_without_refund',
+    'O17 the request stays resolved');
 END;
 $$;
 RESET ROLE;

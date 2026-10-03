@@ -275,6 +275,19 @@ async function afterSettle(
   }
 
   if (status === 'succeeded') {
+    if (row.request_status === 'resolved_without_refund') {
+      // The request was resolved without a refund (its terminal state is
+      // kept), yet an old attempt's refund went through after all: the
+      // customer got the money back AND the charge was honored another way.
+      await deps.alertAdmin(
+        'A refund succeeded on a request resolved WITHOUT refund',
+        `<p>Stripe refund <code>${refund.id}</code> (${dollars(refund.amount)} USD) for request
+         <code>${row.request_id}</code> succeeded, but the request was resolved without a
+         refund. The customer may have been refunded AND kept what they were given. Check
+         the payment in Stripe and the entries it paid for.</p>`,
+        { source: SOURCE, dedupeKey: `refund-on-resolved-request-${refund.id}` }
+      );
+    }
     // Book it on the order. The ledger is keyed on the refund id, so this and
     // charge.refunded's sweep are the same upsert.
     const { error } = await deps.rpc('record_order_refund_cents', {

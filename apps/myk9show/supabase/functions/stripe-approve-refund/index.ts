@@ -5,6 +5,11 @@
 // lives in ../_shared/refundApproval.ts (colocated vitest); this file is the
 // Deno glue: CORS, authentication, and the site-admin check.
 //
+// The same site-admin path also takes `action: 'resolve_without_refund'` with
+// a required `note` (Codex round 6 on #2689): it retires a request whose
+// charge was honored another way, so it can never be approved afterwards
+// (../_shared/refundResolution.ts).
+//
 // Site admin only: every queued refund comes out of the PLATFORM balance
 // (separate charges and transfers), for lines that never became paid entries.
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
@@ -12,6 +17,7 @@ import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
 import { approveRefundRequest, type ApprovalRefund } from '../_shared/refundApproval.ts';
+import { resolveRefundRequestWithoutRefund } from '../_shared/refundResolution.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -79,10 +85,29 @@ Deno.serve(async req => {
       return json(headers, { error: 'Only a site admin can approve refunds' }, 403);
     }
 
-    const body = (await req.json().catch(() => ({}))) as { refund_request_id?: unknown };
+    const body = (await req.json().catch(() => ({}))) as {
+      refund_request_id?: unknown;
+      action?: unknown;
+      note?: unknown;
+    };
     const requestId = body.refund_request_id;
     if (typeof requestId !== 'string' || !UUID_RE.test(requestId)) {
       return json(headers, { error: 'refund_request_id must be a uuid' }, 400);
+    }
+
+    if (body.action === 'resolve_without_refund') {
+      const resolved = await resolveRefundRequestWithoutRefund(
+        { rpc: (fn, args) => supabase.rpc(fn, args) },
+        {
+          requestId,
+          actorAuthUserId: user.id,
+          note: typeof body.note === 'string' ? body.note : '',
+        }
+      );
+      return json(headers, resolved.body, resolved.status);
+    }
+    if (body.action !== undefined && body.action !== 'approve') {
+      return json(headers, { error: 'unknown action' }, 400);
     }
 
     const result = await approveRefundRequest(

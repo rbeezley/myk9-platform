@@ -22,6 +22,8 @@ export interface FakeAttempt {
 export function harness(
   opts: {
     fulfilled?: boolean;
+    /** Resolved without refund by a site admin (Codex round 6). */
+    resolved?: boolean;
     createStatus?: string;
     createThrows?: boolean;
     pageSize?: number;
@@ -74,6 +76,7 @@ export function harness(
   const rpc: RefundApprovalDeps['rpc'] = async (fn, args) => {
     rpcCalls.push({ fn, args });
     if (fn === 'begin_refund_attempt') {
+      if (opts.resolved) return { data: [beginRow('resolved', null)], error: null };
       const succeeded = attempts.find(a => a.status === 'succeeded');
       if (succeeded) return { data: [beginRow('already_refunded', succeeded)], error: null };
       if (opts.fulfilled) return { data: [beginRow('fulfilled', null)], error: null };

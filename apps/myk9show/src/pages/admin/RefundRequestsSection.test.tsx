@@ -1,24 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { toast } from 'sonner';
-import { render, screen, userEvent, waitFor } from '@/test/utils/testUtils';
+import { render, screen, userEvent, waitFor, within } from '@/test/utils/testUtils';
 import { RefundRequestsSection } from './RefundRequestsSection';
 import {
   useApproveRefundRequest,
   useRefundRequests,
+  useResolveRefundRequest,
 } from '@/features/admin-system-health/useRefundRequests';
 import {
   approvalErrorMessage,
+  resolutionErrorMessage,
   type RefundRequest,
 } from '@/features/admin-system-health/refundRequestsPresentation';
 
 vi.mock('@/features/admin-system-health/useRefundRequests', () => ({
   useRefundRequests: vi.fn(),
   useApproveRefundRequest: vi.fn(),
+  useResolveRefundRequest: vi.fn(),
 }));
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 const mockedQuery = vi.mocked(useRefundRequests);
 const mockedApprove = vi.mocked(useApproveRefundRequest);
+const mockedResolve = vi.mocked(useResolveRefundRequest);
 
 function request(overrides: Partial<RefundRequest> = {}): RefundRequest {
   return {
@@ -43,9 +47,15 @@ function withData(data: RefundRequest[]) {
 
 describe('RefundRequestsSection', () => {
   const mutateAsync = vi.fn();
+  const resolveAsync = vi.fn();
 
   beforeEach(() => {
     mutateAsync.mockReset();
+    resolveAsync.mockReset();
+    mockedResolve.mockReturnValue({
+      mutateAsync: resolveAsync,
+      isPending: false,
+    } as unknown as ReturnType<typeof useResolveRefundRequest>);
     vi.mocked(toast.success).mockClear();
     vi.mocked(toast.error).mockClear();
     mockedApprove.mockReturnValue({ mutateAsync, isPending: false } as unknown as ReturnType<
@@ -135,10 +145,99 @@ describe('RefundRequestsSection', () => {
   });
 });
 
+describe('Resolve without refund (Codex round 6, #2689)', () => {
+  const approveAsync = vi.fn();
+  const resolveAsync = vi.fn();
+
+  beforeEach(() => {
+    approveAsync.mockReset();
+    resolveAsync.mockReset();
+    vi.mocked(toast.success).mockClear();
+    vi.mocked(toast.error).mockClear();
+    mockedApprove.mockReturnValue({
+      mutateAsync: approveAsync,
+      isPending: false,
+    } as unknown as ReturnType<typeof useApproveRefundRequest>);
+    mockedResolve.mockReturnValue({
+      mutateAsync: resolveAsync,
+      isPending: false,
+    } as unknown as ReturnType<typeof useResolveRefundRequest>);
+  });
+
+  it('resolves only after the confirmation AND a note, and never approves', async () => {
+    resolveAsync.mockResolvedValue(undefined);
+    withData([request()]);
+    const user = userEvent.setup();
+    render(<RefundRequestsSection />);
+
+    await user.click(screen.getByRole('button', { name: 'Resolve without refund' }));
+    expect(resolveAsync).not.toHaveBeenCalled();
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog).toHaveTextContent('can never be approved for a refund');
+
+    const confirm = within(dialog).getByRole('button', { name: 'Resolve without refund' });
+    expect(confirm).toBeDisabled();
+    await user.type(within(dialog).getByLabelText(/How was the charge honored/), '  ');
+    expect(confirm).toBeDisabled();
+    await user.type(within(dialog).getByLabelText(/How was the charge honored/), 'Paid by hand');
+    expect(confirm).toBeEnabled();
+    await user.click(confirm);
+
+    await waitFor(() =>
+      expect(resolveAsync).toHaveBeenCalledWith({ requestId: 'rr-1', note: 'Paid by hand' })
+    );
+    expect(resolveAsync).toHaveBeenCalledTimes(1);
+    expect(approveAsync).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        'Resolved without refund. The $42.50 will not be refunded.'
+      )
+    );
+  });
+
+  it('cancelling resolves nothing', async () => {
+    withData([request()]);
+    const user = userEvent.setup();
+    render(<RefundRequestsSection />);
+    await user.click(screen.getByRole('button', { name: 'Resolve without refund' }));
+    await screen.findByRole('alertdialog');
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(resolveAsync).not.toHaveBeenCalled();
+  });
+
+  it('surfaces a refused resolution and keeps the dialog open', async () => {
+    resolveAsync.mockRejectedValue(new Error(resolutionErrorMessage('has_live_attempt')));
+    withData([request({ status: 'failed', lastFailure: 'failed: x' })]);
+    const user = userEvent.setup();
+    render(<RefundRequestsSection />);
+    await user.click(screen.getByRole('button', { name: 'Resolve without refund' }));
+    const dialog = await screen.findByRole('alertdialog');
+    await user.type(within(dialog).getByLabelText(/How was the charge honored/), 'n');
+    await user.click(within(dialog).getByRole('button', { name: 'Resolve without refund' }));
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(resolutionErrorMessage('has_live_attempt'))
+    );
+    expect(toast.success).not.toHaveBeenCalled();
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+  });
+
+  it('is offered beside Approve for pending and failed rows, never while Stripe holds a refund', () => {
+    withData([
+      request({ id: 'a' }),
+      request({ id: 'b', status: 'failed', lastFailure: 'failed: x' }),
+      request({ id: 'c', status: 'awaiting_stripe' }),
+    ]);
+    render(<RefundRequestsSection />);
+    expect(screen.getAllByRole('button', { name: 'Resolve without refund' })).toHaveLength(2);
+    expect(screen.getByRole('button', { name: 'Check status' })).toBeInTheDocument();
+  });
+});
+
 describe('approvalErrorMessage', () => {
   it('maps every server code, and never says "nothing was refunded" when it cannot know', () => {
     expect(approvalErrorMessage('fulfilled')).toMatch(/fulfilled with entries/);
     expect(approvalErrorMessage('stripe_refund_canceled')).toMatch(/Stripe could not/);
     expect(approvalErrorMessage(undefined)).not.toMatch(/Nothing was refunded/);
+    expect(approvalErrorMessage('resolved_without_refund')).toMatch(/resolved without a refund/);
   });
 });

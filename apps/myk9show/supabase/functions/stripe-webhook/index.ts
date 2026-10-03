@@ -56,6 +56,7 @@ import {
   claimAbandonedCartRefund,
   queueRefundForApproval,
   REFUNDABLE_ABANDONED_CART_STATUSES,
+  RESOLVE_INSTEAD_HTML,
   type RefundQueueDeps,
   type SettlingRefund,
 } from '../_shared/refundRequests.ts';
@@ -1567,7 +1568,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
        and ${deniedLines.length} denied lines. Failed no-service lines:
        ${failedLines.length}.</p>
        <p>The denied/waitlisted/no-service share is queued for refund approval
-       when the amount can be derived.</p>`,
+       when the amount can be derived. ${RESOLVE_INSTEAD_HTML}</p>`,
       { source: 'stripe-webhook', dedupeKey: `cart-overflow-${session.id}` }
     );
   }
@@ -1775,8 +1776,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       `<p>Checkout session <code>${session.id}</code> (entry_payment_request) was PAID,
        but no <code>entry_payment_links</code> row matches it. No entries were marked
        paid and Stripe will not retry.</p>
-       <p>The full charge is queued for refund approval; or stamp the entries
-       manually instead of approving it.</p>`,
+       <p>The full charge is queued for refund approval. ${RESOLVE_INSTEAD_HTML}</p>`,
       { source: 'stripe-webhook', dedupeKey: `payment-link-no-record-${session.id}` }
     );
     await queueEntryPaymentRefund({
@@ -1842,7 +1842,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       `<p>Session <code>${session.id}</code> was PAID, but these entries it was created for
        are gone (deleted/withdrawn since): <code>${result.missingEntryIds.join(', ')}</code>
        (payment intent <code>${paymentIntentId ?? 'unknown'}</code>).</p>
-       <p>The invalid portion is queued for refund approval after recording payment history.</p>`,
+       <p>The invalid portion is queued for refund approval after recording payment history.
+       ${RESOLVE_INSTEAD_HTML}</p>`,
       { source: 'stripe-webhook', dedupeKey: `payment-link-missing-entries-${session.id}` }
     );
   }
@@ -1856,7 +1857,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       `<p>Session <code>${session.id}</code> was PAID, but these entries are no longer
        active in the show: <code>${result.inactiveEntryIds.join(', ')}</code>
        (payment intent <code>${paymentIntentId ?? 'unknown'}</code>).</p>
-       <p>The invalid portion is queued for refund approval after recording payment history.</p>`,
+       <p>The invalid portion is queued for refund approval after recording payment history.
+       ${RESOLVE_INSTEAD_HTML}</p>`,
       { source: 'stripe-webhook', dedupeKey: `payment-link-inactive-entries-${session.id}` }
     );
   }
@@ -2145,7 +2147,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
        <code>${updateOutcome.alreadyPaidEntryIds.join(', ')}</code> (payment intent
        <code>${paymentIntentId ?? 'unknown'}</code>).</p>
        <p>The invalid portion is queued for refund approval; if the exhibitor received
-       no new paid entries, the queued refund is the full charge including platform fee.</p>`,
+       no new paid entries, the queued refund is the full charge including platform fee.
+       ${RESOLVE_INSTEAD_HTML}</p>`,
       { source: 'stripe-webhook', dedupeKey: `payment-link-already-paid-${session.id}` }
     );
   }

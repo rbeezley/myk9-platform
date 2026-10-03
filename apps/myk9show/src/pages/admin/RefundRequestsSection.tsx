@@ -5,6 +5,8 @@
 // INTENT: refunds are never automatic. A person reads what is owed and why,
 // then makes one explicit, confirmed approval per refund; there is no bulk
 // approve, because each row is a separate movement of the platform's money.
+// A charge honored another way is retired with "Resolve without refund"
+// (note required), never left pending for someone to approve later.
 
 import { useState } from 'react';
 import { AlertTriangle, CheckCircle2 } from 'lucide-react';
@@ -24,6 +26,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { BoardCard, Eyebrow } from './SystemHealth/HealthBoardPrimitives';
+import { ResolveWithoutRefundButton } from './ResolveWithoutRefundButton';
 import {
   useApproveRefundRequest,
   useRefundRequests,
@@ -31,6 +34,7 @@ import {
 import {
   approvalSuccessMessage,
   approveActionLabel,
+  canResolveWithoutRefund,
   formatRefundAmount,
   refundKindLabel,
   type RefundRequest,
@@ -66,7 +70,10 @@ function RefundRequestRow({ request }: { request: RefundRequest }) {
           customer was not paid.
         </p>
       )}
-      <div className="mt-2 flex justify-end">
+      <div className="mt-2 flex flex-wrap justify-end gap-2">
+        {canResolveWithoutRefund(request.status) && (
+          <ResolveWithoutRefundButton requestId={request.id} amount={amount} />
+        )}
         <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
           <AlertDialogTrigger asChild>
             <Button variant="outline" disabled={isPending}>

@@ -57,6 +57,14 @@
 --    delayed write can never recompute from a stale read and overwrite a
 --    newer status.
 --
+--    RESOLVED WITHOUT REFUND (Codex round 6 on #2689). When the charge is
+--    honored another way (an admin fulfills the entries by hand), a site
+--    admin resolves the request: resolve_refund_request_without_refund, with
+--    a required note, only while the request is 'pending' or 'failed' and no
+--    attempt is pending or succeeded, under the request's row lock. The
+--    state is TERMINAL and manual: begin_refund_attempt refuses it
+--    ('resolved'), and the recompute trigger never overwrites it.
+--
 -- 4. begin_refund_attempt re-checks, under the row lock, that an
 --    abandoned-cart refund's cart is still 'refund_pending' and that nothing
 --    fulfilled the session (no stripe_orders row, no entry carrying the
@@ -131,8 +139,11 @@ CREATE TABLE public.refund_requests (
     CHECK (kind IN ('abandoned_cart', 'cart_overflow', 'entry_payment_link')),
   -- DERIVED from refund_request_attempts by refund_requests_recompute_status
   -- (see the header); no RPC writes it directly.
+  -- 'resolved_without_refund' is the one MANUAL, terminal state
+  -- (resolve_refund_request_without_refund); the trigger never overwrites it.
   status text NOT NULL DEFAULT 'pending'
-    CHECK (status IN ('pending', 'awaiting_stripe', 'refunded', 'failed')),
+    CHECK (status IN ('pending', 'awaiting_stripe', 'refunded', 'failed',
+                      'resolved_without_refund')),
   -- DERIVED: the latest attempt's failure, while status = 'failed'.
   last_failure text,
   stripe_checkout_session_id text NOT NULL,
@@ -144,18 +155,29 @@ CREATE TABLE public.refund_requests (
   entry_payment_link_id uuid REFERENCES public.entry_payment_links (id) ON DELETE SET NULL,
   show_id uuid REFERENCES public.shows (id) ON DELETE SET NULL,
   detail jsonb NOT NULL DEFAULT '{}'::jsonb,
+  -- Set together, only by resolve_refund_request_without_refund.
+  -- auth.users id of the resolving site admin (never a people.id).
+  resolved_by_auth_user_id uuid,
+  resolved_at timestamptz,
+  resolution_note text,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT refund_requests_once_per_session UNIQUE (stripe_checkout_session_id, kind),
-  CONSTRAINT refund_requests_failure_shape CHECK ((status = 'failed') = (last_failure IS NOT NULL))
+  CONSTRAINT refund_requests_failure_shape CHECK ((status = 'failed') = (last_failure IS NOT NULL)),
+  CONSTRAINT refund_requests_resolution_shape CHECK (
+    (status = 'resolved_without_refund') = (resolved_at IS NOT NULL)
+    AND (resolved_at IS NULL) = (resolved_by_auth_user_id IS NULL)
+    AND (resolved_at IS NULL) = (resolution_note IS NULL)
+    AND (resolution_note IS NULL OR btrim(resolution_note) <> '')
+  )
 );
 
 COMMENT ON TABLE public.refund_requests IS
-  'MYK9-876/874: refunds the platform owes. Written by stripe-webhook (SECURITY DEFINER RPCs); refunded only through refund_request_attempts, which stripe-approve-refund creates after a site admin approves. status/last_failure are derived from the attempts. Site admins read; no client writes.';
+  'MYK9-876/874: refunds the platform owes. Written by stripe-webhook (SECURITY DEFINER RPCs); refunded only through refund_request_attempts, which stripe-approve-refund creates after a site admin approves. status/last_failure are derived from the attempts, except the terminal manual resolved_without_refund (resolve_refund_request_without_refund, note required). Site admins read; no client writes.';
 
 CREATE INDEX refund_requests_open_idx
   ON public.refund_requests (created_at)
-  WHERE status <> 'refunded';
+  WHERE status NOT IN ('refunded', 'resolved_without_refund');
 
 ALTER TABLE public.refund_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.refund_requests FORCE ROW LEVEL SECURITY;
@@ -232,13 +254,19 @@ SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
+  v_request_status text;
   v_any_succeeded boolean;
   v_any_pending boolean;
   v_latest record;
   v_status text;
   v_failure text;
 BEGIN
-  PERFORM 1 FROM public.refund_requests r WHERE r.id = NEW.request_id FOR UPDATE;
+  SELECT r.status INTO v_request_status
+    FROM public.refund_requests r WHERE r.id = NEW.request_id FOR UPDATE;
+  -- A manual resolution is terminal (Codex round 6): never derived over.
+  IF v_request_status = 'resolved_without_refund' THEN
+    RETURN NULL;
+  END IF;
 
   SELECT COALESCE(bool_or(a.status = 'succeeded'), false),
          COALESCE(bool_or(a.status = 'pending'), false)
@@ -412,11 +440,12 @@ $$;
 
 -- ============================================================================
 -- 5. Attempt RPCs (service_role only). stripe-approve-refund authorises the
---    site admin before calling begin; settleAttemptFromStripe (approval and
---    webhook alike) calls state, record and settle.
+--    site admin before calling begin or resolve; settleAttemptFromStripe
+--    (approval and webhook alike) calls state, record and settle.
 -- ============================================================================
 
 -- Start (or resume) the approval of one request. Under the request's row lock:
+--   resolved          resolved without refund by a site admin: refused
 --   already_refunded  an attempt succeeded: nothing more may be refunded
 --   fulfilled         abandoned cart whose session was fulfilled after all
 --   resume            an attempt is still pending: carry on with IT (its
@@ -462,6 +491,13 @@ BEGIN
   IF v_req.id IS NULL THEN
     RETURN QUERY SELECT 'not_found'::text, NULL::uuid, NULL::integer, NULL::text, NULL::text,
       NULL::text, NULL::integer, NULL::text, NULL::text, NULL::integer;
+    RETURN;
+  END IF;
+
+  IF v_req.status = 'resolved_without_refund' THEN
+    RETURN QUERY SELECT 'resolved'::text, NULL::uuid, NULL::integer, v_req.kind,
+      v_req.stripe_payment_intent_id, v_req.stripe_checkout_session_id, v_req.amount_cents,
+      v_req.reason, NULL::text, NULL::integer;
     RETURN;
   END IF;
 
@@ -715,6 +751,75 @@ BEGIN
 END;
 $$;
 
+-- A site admin closes a request WITHOUT a refund (the charge was honored
+-- another way, e.g. entries fulfilled by hand), with a required note. Under the
+-- request's row lock:
+--   resolved                the request is now resolved_without_refund
+--   already_resolved        it already was: nothing written
+--   has_live_attempt        an attempt is pending or succeeded at Stripe:
+--                           nothing written (settle it first)
+--   not_resolvable          any other status: nothing written
+--   note_required           blank note: nothing written
+--   not_found
+-- stripe-approve-refund authorises the site admin before calling it.
+CREATE OR REPLACE FUNCTION public.resolve_refund_request_without_refund(
+  p_request_id uuid,
+  p_actor_auth_user_id uuid,
+  p_note text
+)
+RETURNS TABLE (outcome text, request_status text)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+#variable_conflict use_column
+DECLARE
+  v_req public.refund_requests%ROWTYPE;
+BEGIN
+  IF p_actor_auth_user_id IS NULL THEN
+    RAISE EXCEPTION 'resolve_refund_request_without_refund: a resolving user is required'
+      USING errcode = '22023';
+  END IF;
+
+  SELECT * INTO v_req
+    FROM public.refund_requests r
+   WHERE r.id = p_request_id
+   FOR UPDATE;
+  IF v_req.id IS NULL THEN
+    RETURN QUERY SELECT 'not_found'::text, NULL::text;
+    RETURN;
+  END IF;
+  IF v_req.status = 'resolved_without_refund' THEN
+    RETURN QUERY SELECT 'already_resolved'::text, v_req.status;
+    RETURN;
+  END IF;
+  IF p_note IS NULL OR btrim(p_note) = '' THEN
+    RETURN QUERY SELECT 'note_required'::text, v_req.status;
+    RETURN;
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.refund_request_attempts a
+              WHERE a.request_id = v_req.id AND a.status IN ('pending', 'succeeded')) THEN
+    RETURN QUERY SELECT 'has_live_attempt'::text, v_req.status;
+    RETURN;
+  END IF;
+  IF v_req.status NOT IN ('pending', 'failed') THEN
+    RETURN QUERY SELECT 'not_resolvable'::text, v_req.status;
+    RETURN;
+  END IF;
+
+  UPDATE public.refund_requests r
+     SET status = 'resolved_without_refund',
+         last_failure = NULL,
+         resolved_by_auth_user_id = p_actor_auth_user_id,
+         resolved_at = now(),
+         resolution_note = btrim(p_note),
+         updated_at = now()
+   WHERE r.id = v_req.id;
+
+  RETURN QUERY SELECT 'resolved'::text, 'resolved_without_refund'::text;
+END;
+$$;
+
 REVOKE ALL ON FUNCTION public.claim_abandoned_cart_refund(uuid, text, text, integer, jsonb)
   FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.request_refund_approval(text, text, text, integer, text, jsonb, uuid, uuid, uuid)
@@ -729,6 +834,8 @@ REVOKE ALL ON FUNCTION public.refund_attempt_state(uuid, integer)
   FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.settle_refund_attempt(uuid, integer, text, text)
   FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.resolve_refund_request_without_refund(uuid, uuid, text)
+  FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.claim_abandoned_cart_refund(uuid, text, text, integer, jsonb)
   TO service_role;
 GRANT EXECUTE ON FUNCTION public.request_refund_approval(text, text, text, integer, text, jsonb, uuid, uuid, uuid)
@@ -738,5 +845,7 @@ GRANT EXECUTE ON FUNCTION public.refund_attempt_next_status(text, text) TO servi
 GRANT EXECUTE ON FUNCTION public.record_refund_attempt(uuid, integer, text) TO service_role;
 GRANT EXECUTE ON FUNCTION public.refund_attempt_state(uuid, integer) TO service_role;
 GRANT EXECUTE ON FUNCTION public.settle_refund_attempt(uuid, integer, text, text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.resolve_refund_request_without_refund(uuid, uuid, text)
+  TO service_role;
 
 COMMIT;

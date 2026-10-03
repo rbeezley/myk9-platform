@@ -142,6 +142,10 @@ export async function approveRefundRequest(
     // entries with the money returned (MYK9-874).
     return { status: 409, body: { error: 'fulfilled' } };
   }
+  if (claim.outcome === 'resolved') {
+    // A site admin resolved it without a refund (Codex round 6): terminal.
+    return { status: 409, body: { error: 'resolved_without_refund' } };
+  }
   if (
     (claim.outcome !== 'claimed' && claim.outcome !== 'resume') ||
     !claim.attempt_no ||

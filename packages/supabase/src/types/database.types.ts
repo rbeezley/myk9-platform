@@ -5580,6 +5580,9 @@ export type Database = {
           kind: string
           last_failure: string | null
           reason: string
+          resolution_note: string | null
+          resolved_at: string | null
+          resolved_by_auth_user_id: string | null
           show_id: string | null
           status: string
           stripe_checkout_session_id: string
@@ -5596,6 +5599,9 @@ export type Database = {
           kind: string
           last_failure?: string | null
           reason: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by_auth_user_id?: string | null
           show_id?: string | null
           status?: string
           stripe_checkout_session_id: string
@@ -5612,6 +5618,9 @@ export type Database = {
           kind?: string
           last_failure?: string | null
           reason?: string
+          resolution_note?: string | null
+          resolved_at?: string | null
+          resolved_by_auth_user_id?: string | null
           show_id?: string | null
           status?: string
           stripe_checkout_session_id?: string

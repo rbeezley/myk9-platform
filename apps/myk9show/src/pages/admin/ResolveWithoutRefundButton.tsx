@@ -25,9 +25,12 @@ import { useResolveRefundRequest } from '@/features/admin-system-health/useRefun
 export function ResolveWithoutRefundButton({
   requestId,
   amount,
+  primary = false,
 }: {
   requestId: string;
   amount: string;
+  /** The row's main action (e.g. Stripe says the charge was already refunded). */
+  primary?: boolean;
 }) {
   const { mutateAsync, isPending } = useResolveRefundRequest();
   const [isOpen, setIsOpen] = useState(false);
@@ -49,7 +52,7 @@ export function ResolveWithoutRefundButton({
   return (
     <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
       <AlertDialogTrigger asChild>
-        <Button variant="ghost" disabled={isPending}>
+        <Button variant={primary ? 'outline' : 'ghost'} disabled={isPending}>
           Resolve without refund
         </Button>
       </AlertDialogTrigger>

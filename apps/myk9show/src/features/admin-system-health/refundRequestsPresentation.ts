@@ -131,6 +131,56 @@ export function resolutionErrorMessage(code: string | undefined): string {
 }
 
 /**
+ * What a FAILED row says, chosen from the latest attempt's failure reason
+ * (Codex round 9 on #2689). `lastFailure` is derived in the database as
+ * "<attempt status>: <failure_reason>". The reason is either a code from a
+ * DEFINITIVE Stripe create rejection (fail_unissued_refund_attempt writes
+ * one of PERMANENT_CREATE_CODES in refundCreateRejection.ts; each has its own
+ * entry below) or Stripe's own reason for a refund it reports failed or
+ * canceled. Only that last case may say "the customer was not paid".
+ */
+export interface FailedRowCopy {
+  message: string;
+  /** 'resolve': Approve again would only be refused the same way; hide it. */
+  primaryAction: 'approve_again' | 'resolve';
+}
+
+export const DEFINITIVE_REJECTION_COPY: Record<string, FailedRowCopy> = {
+  charge_already_refunded: {
+    message:
+      'Stripe says this charge was already refunded. Check the payment in Stripe, then Resolve without refund.',
+    primaryAction: 'resolve',
+  },
+  amount_too_large: {
+    message:
+      'Stripe refused the refund: the amount is more than is left to refund on this charge (amount_too_large). No refund was made by us. Check the payment in Stripe, then approve again or resolve without refund.',
+    primaryAction: 'approve_again',
+  },
+  charge_disputed: {
+    message:
+      'Stripe refused the refund: this charge is disputed (charge_disputed). No refund was made by us. Settle the dispute in Stripe, then approve again or resolve without refund.',
+    primaryAction: 'approve_again',
+  },
+  refund_disputed_payment: {
+    message:
+      'Stripe refused the refund: the payment is under dispute (refund_disputed_payment). No refund was made by us. Settle the dispute in Stripe, then approve again or resolve without refund.',
+    primaryAction: 'approve_again',
+  },
+};
+
+export function failedRowCopy(lastFailure: string | null): FailedRowCopy {
+  const separator = lastFailure?.indexOf(': ') ?? -1;
+  const status = separator >= 0 ? lastFailure!.slice(0, separator) : null;
+  const reason = separator >= 0 ? lastFailure!.slice(separator + 2) : null;
+  if (reason && DEFINITIVE_REJECTION_COPY[reason]) return DEFINITIVE_REJECTION_COPY[reason];
+  const ended = status === 'canceled' ? 'canceled the refund' : 'could not complete the refund';
+  return {
+    message: `Stripe ${ended} (${reason ?? 'no reason given'}); the customer was not paid. Approve again or resolve without refund.`,
+    primaryAction: 'approve_again',
+  };
+}
+
+/**
  * "Resolve without refund" (Codex round 6 on #2689) is offered only while no
  * refund is with Stripe: the server refuses it otherwise.
  */

@@ -35,6 +35,7 @@ import {
   approvalSuccessMessage,
   approveActionLabel,
   canResolveWithoutRefund,
+  failedRowCopy,
   formatRefundAmount,
   refundKindLabel,
   type RefundRequest,
@@ -44,6 +45,8 @@ function RefundRequestRow({ request }: { request: RefundRequest }) {
   const { mutateAsync, isPending } = useApproveRefundRequest();
   const [isOpen, setIsOpen] = useState(false);
   const amount = formatRefundAmount(request.amountCents);
+  const failure = request.status === 'failed' ? failedRowCopy(request.lastFailure) : null;
+  const resolveIsPrimary = failure?.primaryAction === 'resolve';
 
   async function approve() {
     try {
@@ -64,38 +67,45 @@ function RefundRequestRow({ request }: { request: RefundRequest }) {
         Payment {request.paymentIntentId} · reason {request.reason}
         {request.status === 'awaiting_stripe' && ' · submitted to Stripe, not finished yet'}
       </p>
-      {request.status === 'failed' && (
+      {failure && (
         <p className="mt-0.5 break-words text-sm text-destructive [overflow-wrap:anywhere]">
-          The last refund did not go through ({request.lastFailure ?? 'no reason given'}). The
-          customer was not paid.
+          {failure.message}
         </p>
       )}
       <div className="mt-2 flex flex-wrap justify-end gap-2">
         {canResolveWithoutRefund(request.status) && (
-          <ResolveWithoutRefundButton requestId={request.id} amount={amount} />
+          <ResolveWithoutRefundButton
+            requestId={request.id}
+            amount={amount}
+            primary={resolveIsPrimary}
+          />
         )}
-        <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
-          <AlertDialogTrigger asChild>
-            <Button variant="outline" disabled={isPending}>
-              {approveActionLabel(request.status)}
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Refund {amount}?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Stripe returns {amount} to the card that paid {request.paymentIntentId}. The money
-                comes from the platform balance and cannot be taken back.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={() => void approve()} disabled={isPending}>
-                Refund {amount}
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        {/* Approving again would be refused the same way (e.g. the charge was
+            already refunded at Stripe): Resolve is the only action. */}
+        {!resolveIsPrimary && (
+          <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+            <AlertDialogTrigger asChild>
+              <Button variant="outline" disabled={isPending}>
+                {approveActionLabel(request.status)}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Refund {amount}?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Stripe returns {amount} to the card that paid {request.paymentIntentId}. The money
+                  comes from the platform balance and cannot be taken back.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={isPending}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => void approve()} disabled={isPending}>
+                  Refund {amount}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        )}
       </div>
     </div>
   );

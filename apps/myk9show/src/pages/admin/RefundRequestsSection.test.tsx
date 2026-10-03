@@ -132,9 +132,31 @@ describe('RefundRequestsSection', () => {
   it('shows a refund Stripe failed, with the reason, and offers Approve again', () => {
     withData([request({ status: 'failed', lastFailure: 'failed: expired_or_canceled_card' })]);
     render(<RefundRequestsSection />);
-    expect(screen.getByText(/failed: expired_or_canceled_card/)).toBeInTheDocument();
-    expect(screen.getByText(/The customer was not paid/)).toBeInTheDocument();
+    expect(screen.getByText(/\(expired_or_canceled_card\)/)).toBeInTheDocument();
+    expect(screen.getByText(/the customer was not paid/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Approve again' })).toBeInTheDocument();
+  });
+
+  it('charge already refunded at Stripe: never "not paid", Resolve is the only action (Codex round 9)', () => {
+    withData([request({ status: 'failed', lastFailure: 'failed: charge_already_refunded' })]);
+    render(<RefundRequestsSection />);
+    expect(
+      screen.getByText(
+        'Stripe says this charge was already refunded. Check the payment in Stripe, then Resolve without refund.'
+      )
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/not paid/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Approve again' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Resolve without refund' })).toBeInTheDocument();
+  });
+
+  it('another definitive rejection names the reason, says we made no refund, and keeps both actions', () => {
+    withData([request({ status: 'failed', lastFailure: 'failed: amount_too_large' })]);
+    render(<RefundRequestsSection />);
+    expect(screen.getByText(/amount_too_large.*No refund was made by us/)).toBeInTheDocument();
+    expect(screen.queryByText(/not paid/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Approve again' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Resolve without refund' })).toBeInTheDocument();
   });
 
   it('labels a request waiting on Stripe as submitted, with Check status', () => {

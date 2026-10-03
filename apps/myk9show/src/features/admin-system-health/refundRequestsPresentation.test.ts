@@ -7,6 +7,8 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   approvalErrorMessage,
+  DEFINITIVE_REJECTION_COPY,
+  failedRowCopy,
   resolutionErrorMessage,
   UNCONFIRMED_REFUND_MESSAGE,
   UNCONFIRMED_RESOLUTION_MESSAGE,
@@ -133,5 +135,75 @@ describe('resolutionErrorMessage: each server outcome and its copy', () => {
   it('an unconfirmed resolution never claims nothing changed', () => {
     expect(UNCONFIRMED_RESOLUTION_MESSAGE).not.toMatch(/nothing changed/i);
     expect(UNCONFIRMED_RESOLUTION_MESSAGE).toMatch(/couldn't confirm/);
+  });
+});
+
+/**
+ * Failed rows (Codex round 9 on #2689). `lastFailure` is "<attempt status>:
+ * <failure_reason>"; the reason is a definitive create-rejection code or
+ * Stripe's own reason for a refund it reports failed or canceled.
+ */
+describe('failedRowCopy: each failure_reason and its copy', () => {
+  const NOT_PAID = /customer was not paid/;
+
+  it.each([
+    [
+      'failed: charge_already_refunded',
+      'Stripe says this charge was already refunded. Check the payment in Stripe, then Resolve without refund.',
+      'resolve',
+    ],
+    [
+      'failed: amount_too_large',
+      'Stripe refused the refund: the amount is more than is left to refund on this charge (amount_too_large). No refund was made by us. Check the payment in Stripe, then approve again or resolve without refund.',
+      'approve_again',
+    ],
+    [
+      'failed: charge_disputed',
+      'Stripe refused the refund: this charge is disputed (charge_disputed). No refund was made by us. Settle the dispute in Stripe, then approve again or resolve without refund.',
+      'approve_again',
+    ],
+    [
+      'failed: refund_disputed_payment',
+      'Stripe refused the refund: the payment is under dispute (refund_disputed_payment). No refund was made by us. Settle the dispute in Stripe, then approve again or resolve without refund.',
+      'approve_again',
+    ],
+    [
+      'failed: expired_or_canceled_card',
+      'Stripe could not complete the refund (expired_or_canceled_card); the customer was not paid. Approve again or resolve without refund.',
+      'approve_again',
+    ],
+    [
+      'canceled: no reason given',
+      'Stripe canceled the refund (no reason given); the customer was not paid. Approve again or resolve without refund.',
+      'approve_again',
+    ],
+    [
+      null,
+      'Stripe could not complete the refund (no reason given); the customer was not paid. Approve again or resolve without refund.',
+      'approve_again',
+    ],
+  ])('%s', (lastFailure, message, primaryAction) => {
+    expect(failedRowCopy(lastFailure)).toEqual({ message, primaryAction });
+  });
+
+  it('a definitive rejection never says the customer was not paid; a Stripe-reported failure does', () => {
+    for (const code of Object.keys(DEFINITIVE_REJECTION_COPY)) {
+      expect(failedRowCopy(`failed: ${code}`).message).not.toMatch(NOT_PAID);
+    }
+    expect(failedRowCopy('failed: lost_or_stolen_card').message).toMatch(NOT_PAID);
+  });
+
+  it('every code fail_unissued_refund_attempt can write has its own failed-row copy', () => {
+    const source = readFileSync(
+      resolve(__dirname, '../../../supabase/functions/_shared/refundCreateRejection.ts'),
+      'utf8'
+    );
+    const block = source.slice(
+      source.indexOf('export const PERMANENT_CREATE_CODES'),
+      source.indexOf(']);', source.indexOf('export const PERMANENT_CREATE_CODES'))
+    );
+    const codes = [...block.matchAll(/'([a-z_]+)'/g)].map(m => m[1]);
+    expect(codes.length).toBeGreaterThanOrEqual(4);
+    expect(Object.keys(DEFINITIVE_REJECTION_COPY).sort()).toEqual([...codes].sort());
   });
 });

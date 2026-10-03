@@ -79,13 +79,15 @@ export function CockpitTrialGroup({
           aria-label={`${open ? 'Collapse' : 'Expand'} ${group.label}`}
           className="flex-wrap gap-x-3 gap-y-1.5 border-b px-4 py-3 text-left hover:no-underline sm:flex-nowrap"
         >
-          <ChevronDown
-            className={cn(
-              'h-4 w-4 shrink-0 text-muted-foreground transition-transform',
-              !open && '-rotate-90'
-            )}
-            aria-hidden="true"
-          />
+          {/* Wrapped: the shared trigger rotates a direct-child svg 180deg when open. */}
+          <span aria-hidden="true" className="shrink-0">
+            <ChevronDown
+              className={cn(
+                'h-4 w-4 text-muted-foreground transition-transform',
+                !open && '-rotate-90'
+              )}
+            />
+          </span>
           <div className="min-w-0 flex-1 basis-[calc(100%-1.75rem)] sm:basis-0">
             <div className="font-semibold">{group.label}</div>
             <div className="text-xs font-normal text-muted-foreground">

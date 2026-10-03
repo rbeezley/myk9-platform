@@ -81,6 +81,14 @@ Acceptance: Tools shows exactly two groups (render test, red on `main`); Results
 
 Show Day still exists in this phase (same hook), so a regression can be compared side by side.
 
+**As built (MYK9-955):**
+
+- **No extracted hook.** The Overview mounts the same `ShowWorkbenchShowDeskPage` component (`surface="home"`), so the shared hook is unnecessary and Overview and Show Day cannot drift.
+- **All days is the URL default.** No `day` param means All days. The model's day rule picks which trials start open, and a trial holding the focused class also opens.
+- **Attention covers every day in All days.** Earlier-day closeout therefore stays visible, which the old "latest unfinished closeout" day rule did implicitly.
+- **Offline reads.** The canonical entries query runs `offlineFirst` and paperwork prints run `always`, so an offline cold reload reads the replica.
+- **Back links.** Links opened from the home return to `/shows/:id` with the label "Back to show".
+
 Acceptance: assertion-first tests for the day-default rule and quiet mode; a render test proving the manager Overview shows the cockpit and an exhibitor's Overview is unchanged (red on `main`); the full cockpit suite passes untouched after the extraction; offline reload of the manager Overview renders the schedule, counts and checklist (this also closes MYK9-948's open offline criterion); browser walk at 1440 and 375px before the show, on a show day and after.
 
 ### Phase 3 — Setup folds into the home

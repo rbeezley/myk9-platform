@@ -52,6 +52,7 @@ function renderSchedule(snapshot: SecretaryCockpitSnapshot, filter: 'all' | 'nee
   });
   return render(
     <SecretaryCockpitSchedule
+      showId="show-1"
       model={model}
       sourceClasses={snapshot.classes}
       sourceTrials={snapshot.trials}
@@ -174,6 +175,7 @@ describe('SecretaryCockpitSchedule view tabs', () => {
     });
     const { user } = render(
       <SecretaryCockpitSchedule
+        showId="show-1"
         model={model}
         sourceClasses={snapshotWithMixedStates.classes}
         sourceTrials={snapshotWithMixedStates.trials}
@@ -218,6 +220,7 @@ describe('SecretaryCockpitSchedule offline', () => {
     });
     const { user } = render(
       <SecretaryCockpitSchedule
+        showId="show-1"
         model={model}
         sourceClasses={snapshotWithMixedStates.classes}
         sourceTrials={snapshotWithMixedStates.trials}

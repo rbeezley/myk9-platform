@@ -46,6 +46,8 @@ export function useShowPaperworkPrints(showId: string) {
   const query = useQuery({
     queryKey,
     queryFn: () => replicatedPaperworkPrintsTable.getByShow(showId),
+    // IndexedDB only: never pause it for the network (MYK9-955 offline reload).
+    networkMode: 'always',
   });
 
   // Existing callers keep reading `data`/`isError` unchanged; `syncFailed` is

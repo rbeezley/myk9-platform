@@ -175,10 +175,28 @@ export function getCockpitClassDetailsHref(input: {
   );
 }
 
-export function resolveShowDeskReturnHref(
+/** The secretary's home: the manager Overview at `/shows/:id` (MYK9-955). */
+export function getShowHomeHref({
+  showId,
+  state,
+}: {
+  showId: string;
+  state: CockpitUrlState;
+}): string {
+  const params = writeCockpitUrlState(new URLSearchParams(), state);
+  const query = params.toString();
+  return `/shows/${encodeURIComponent(showId)}${query ? `?${query}` : ''}`;
+}
+
+/**
+ * Where a "back" link from a cockpit deep link returns, and what it is called.
+ * Accepts the show home (`/shows/:id`) and Show Day (`/show-day`, or the
+ * legacy `/show-desk`) of the expected show; anything else is refused.
+ */
+export function resolveShowDeskReturn(
   candidate: string | null | undefined,
   expectedShowId?: string
-): string | null {
+): { href: string; label: string } | null {
   if (!candidate?.startsWith('/') || candidate.startsWith('//')) return null;
   let url: URL;
   try {
@@ -187,12 +205,24 @@ export function resolveShowDeskReturnHref(
     return null;
   }
   if (url.origin !== 'https://myk9.internal') return null;
-  // Accept the legacy `/show-desk` as well as the current `/show-day`: a
-  // `returnTo` captured before MYK9-630 phase 2 shipped is still in someone's
-  // open tab, and rejecting it silently drops their way back.
-  const match = url.pathname.match(/^\/shows\/([^/]+)\/(?:show-day|show-desk)$/);
+  const match = url.pathname.match(/^\/shows\/([^/]+)(\/(?:show-day|show-desk))?$/);
   if (!match?.[1]) return null;
-  const showId = decodeURIComponent(match[1]);
+  let showId: string;
+  try {
+    showId = decodeURIComponent(match[1]);
+  } catch {
+    return null;
+  }
   if (expectedShowId && showId !== expectedShowId) return null;
-  return getShowDeskHref({ showId, state: normalizeCockpitUrlState(url.searchParams) });
+  const state = normalizeCockpitUrlState(url.searchParams);
+  return match[2]
+    ? { href: getShowDeskHref({ showId, state }), label: 'Back to Show Desk' }
+    : { href: getShowHomeHref({ showId, state }), label: 'Back to show' };
+}
+
+export function resolveShowDeskReturnHref(
+  candidate: string | null | undefined,
+  expectedShowId?: string
+): string | null {
+  return resolveShowDeskReturn(candidate, expectedShowId)?.href ?? null;
 }

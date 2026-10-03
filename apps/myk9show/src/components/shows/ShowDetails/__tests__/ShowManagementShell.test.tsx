@@ -172,6 +172,14 @@ vi.mock('@/features/delete/DeleteObjectDialog', () => ({ DeleteObjectDialog: () 
 vi.mock('@/components/shows/tabs/ShowOverviewTab', () => ({
   ShowOverviewTab: () => <div data-testid="show-overview-tab" />,
 }));
+vi.mock('@/pages/secretary/ShowWorkbenchShowDeskPage', () => ({
+  ShowWorkbenchShowDeskPage: ({ surface }: { surface?: string }) => (
+    <div data-testid="show-home-cockpit" data-surface={surface} />
+  ),
+}));
+vi.mock('@/components/shows/overview/AboutThisShowCard', () => ({
+  AboutThisShowCard: () => <div data-testid="about-this-show" />,
+}));
 vi.mock('@/store/showStore', () => ({
   useShowStore: (selector: (s: { updateShow: typeof saveHarness.updateShow }) => unknown) =>
     selector({ updateShow: saveHarness.updateShow }),
@@ -486,15 +494,19 @@ describe('ShowManagementShell', () => {
     expect(screen.queryByTestId('landing-page-card')).not.toBeInTheDocument();
   });
 
-  it('renders Overview itself at /shows/:id — Overview is a tab, not a redirect', () => {
+  // MYK9-955: the manager Overview is the secretary's home -- the Show Day
+  // cockpit plus About this show, not the exhibitor's Overview tab.
+  it('renders the show home at /shows/:id — Overview is a tab, not a redirect', async () => {
     renderShell();
-    expect(screen.getByTestId('show-overview-tab')).toBeInTheDocument();
+    expect(await screen.findByTestId('show-home-cockpit')).toHaveAttribute('data-surface', 'home');
+    expect(screen.getByTestId('about-this-show')).toBeInTheDocument();
+    expect(screen.queryByTestId('show-overview-tab')).toBeNull();
   });
 
   it('renders the tab page in the Outlet on every other tab', () => {
     renderShell({ activeManagementSection: 'entries' }, '/shows/show-1/entries');
     expect(screen.getByTestId('outlet-child')).toBeInTheDocument();
-    expect(screen.queryByTestId('show-overview-tab')).toBeNull();
+    expect(screen.queryByTestId('show-home-cockpit')).toBeNull();
   });
 
   it('no longer carries its own overflow menu', () => {

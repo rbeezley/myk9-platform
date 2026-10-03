@@ -157,31 +157,32 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     expect(webhookSource).not.toContain('settleApprovedRefund(');
   });
 
-  it('a redelivery retries an unconfirmed queue write from the order row (Codex round 10, #2689)', () => {
-    // queueRefundForApproval THROWS when it cannot confirm the write; the
-    // fulfillment latches make the redelivery skip the code that queued it,
-    // so both skip branches replay it (queuedRefundFromOrder, vitest in
-    // _shared/refundRequests.test.ts) and both orders record what is owed.
+  it('replays the refund queue write at the ONE entry, before any first-time validation (Codex rounds 10-11, #2689)', () => {
+    // The ordering itself is unit-tested in paidSessionEntry.test.ts
+    // (routePaidSession). This pins that index.ts routes through it, and that
+    // nothing else replays: the skip branches deep in the handlers ran AFTER
+    // expiry/pricing/link validation, so a retry could return before them.
     const body = (name: string) => {
       const start = webhookSource.indexOf(`async function ${name}`);
       expect(start).toBeGreaterThan(-1);
       return webhookSource.slice(start, webhookSource.indexOf('\nasync function', start + 1));
     };
-    const cart = body('handleEntryPaymentCompleted');
-    const alreadyProcessed = cart.slice(cart.indexOf('if (existingOrder) {'));
-    expect(alreadyProcessed.slice(0, 400)).toContain(
-      'await replayQueuedRefundFromOrder(session.id);'
+    const entry = body('handleCheckoutCompleted');
+    expect(entry).toContain('await routePaidSession<RecordedOrder>(');
+    expect(entry).toContain('replay: order => replayQueuedRefundFromOrder(session.id, order),');
+    expect(entry).toContain('fulfillCart: () => handleEntryPaymentCompleted(session),');
+    expect(entry).toContain(
+      'fulfillPaymentLink: () => handleEntryPaymentRequestCompleted(session),'
     );
+    expect(webhookSource.split('replayQueuedRefundFromOrder(').length - 1).toBe(2); // definition + entry
+
+    const cart = body('handleEntryPaymentCompleted');
     expect(cart).toContain('overflow_refund: serializeCartOverflowRefundDecision(');
     // The queue write is the LAST side effect, after the confirmation email.
     expect(cart.indexOf('await queueCartOverflowRefund(')).toBeGreaterThan(
       cart.indexOf('await sendEntryConfirmationEmail(')
     );
-
-    const link = body('handleEntryPaymentRequestCompleted');
-    const skip = link.slice(link.indexOf("if (result.action === 'skip') {"));
-    expect(skip.slice(0, 400)).toContain('await replayQueuedRefundFromOrder(session.id);');
-    expect(link).toContain('invalid_entry_refund: {');
+    expect(body('handleEntryPaymentRequestCompleted')).toContain('invalid_entry_refund: {');
   });
 
   it('FAILS CLOSED: does not stamp refunded when the amount did not persist', () => {

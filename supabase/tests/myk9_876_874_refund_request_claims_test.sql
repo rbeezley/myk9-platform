@@ -228,7 +228,9 @@ BEGIN
     RAISE EXCEPTION 'FAIL the first delivery did not claim the abandoned cart (%)', v_first.outcome;
   END IF;
   IF v_second.outcome IS DISTINCT FROM 'already_pending'
-     OR v_second.refund_request_id IS DISTINCT FROM v_first.refund_request_id THEN
+     OR v_second.refund_request_id IS DISTINCT FROM v_first.refund_request_id
+     OR v_first.request_status IS DISTINCT FROM 'pending'
+     OR v_second.request_status IS DISTINCT FROM 'pending' THEN
     RAISE EXCEPTION 'FAIL the second delivery did not find the same pending request';
   END IF;
   IF (SELECT count(*) FROM public.refund_requests
@@ -725,6 +727,12 @@ BEGIN
   SELECT * INTO v_r FROM public.resolve_refund_request_without_refund(
     v_req, '00000000-0000-0000-0000-000000876102', 'again');
   PERFORM pg_temp.expect_eq(v_r.outcome, 'already_resolved', 'O15 resolving twice writes nothing');
+  PERFORM pg_temp.expect_eq(
+    (SELECT q.created::text || ' ' || q.request_status
+       FROM public.request_refund_approval(
+         'cart_overflow', 'cs_876_o15', 'pi_cs_876_o15', 1500, 'partial_no_service_lines') AS q),
+    'false resolved_without_refund',
+    'O15 a redelivered queue write reports the resolved status (no awaiting alert)');
 END;
 $$;
 

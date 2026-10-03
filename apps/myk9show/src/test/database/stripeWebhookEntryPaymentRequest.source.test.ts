@@ -23,8 +23,13 @@ const lineItemSource = readFileSync(
 
 describe('stripe-webhook entry_payment_request branch', () => {
   it('dispatches checkout.session.completed of type entry_payment_request to its own handler', () => {
-    expect(source).toContain("checkoutType === 'entry_payment_request'");
-    expect(source).toContain('handleEntryPaymentRequestCompleted');
+    // The type → handler decision lives in stripe-webhook/paidSessionEntry.ts
+    // (decidePaidSessionEntry, unit-tested in paidSessionEntry.test.ts, which
+    // also replays a recorded order first: Codex round 11 on #2689).
+    expect(source).toContain('await routePaidSession<RecordedOrder>(');
+    expect(source).toContain(
+      'fulfillPaymentLink: () => handleEntryPaymentRequestCompleted(session)'
+    );
   });
 
   it('routes async Checkout payment success through the same paid-session handler', () => {

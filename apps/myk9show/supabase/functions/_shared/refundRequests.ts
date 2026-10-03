@@ -75,13 +75,74 @@ export type QueueRefundOutcome = 'queued' | 'already_queued' | 'not_queued';
 
 export interface QueueDeps extends RefundQueueDeps {
   /**
-   * Re-read a request by its idempotency key (session, kind): its id, or null
-   * when none exists. Used only when the queue write's outcome is unknown.
+   * Re-read a request by its idempotency key (session, kind): its id and
+   * status, or null when none exists. Used only when the queue write's
+   * outcome is unknown.
    */
   findRefundRequest: (
     sessionId: string,
     kind: QueueRefundInput['kind']
-  ) => PromiseLike<{ data: string | null; error: RpcError | null }>;
+  ) => PromiseLike<{ data: { id: string; status: string } | null; error: RpcError | null }>;
+}
+
+/** A request the queue CONFIRMED exists: created, already there, or found on re-read. */
+interface ConfirmedRequest {
+  id: string;
+  /** Its current status, as the queue write or re-read reported it. */
+  status: string | null;
+  kind: RefundRequestKind;
+  sessionId: string;
+  paymentIntentId: string;
+  amountCents: number;
+  /** Shown when known; the abandoned-cart claim does not report it. */
+  reason: string | null;
+  summaryHtml: string;
+}
+
+/** Closed requests owe nothing: no awaiting-approval alert for them. */
+const CLOSED_REQUEST_STATUSES: ReadonlySet<string> = new Set([
+  'refunded',
+  'resolved_without_refund',
+]);
+
+/**
+ * The ONE place the "awaiting approval" alert is raised (Codex round 11 on
+ * #2689). Called whenever the queue confirms a request exists, for every
+ * kind, whether the write created it, found it already there, or found it on
+ * a re-read, so an alert lost with a lost response is always recovered. It is
+ * keyed on the request id, and alertAdmin deduplicates it while unresolved.
+ * A closed request (refunded, resolved without refund) is not re-announced.
+ * Deliberately not exported: only the two queue helpers below call it.
+ */
+async function ensureRefundRequestAlert(
+  deps: Pick<RefundQueueDeps, 'alertAdmin'>,
+  request: ConfirmedRequest
+): Promise<void> {
+  if (request.status && CLOSED_REQUEST_STATUSES.has(request.status)) return;
+  console.error(
+    `CRITICAL: refund of ${request.amountCents}¢ for session ${request.sessionId} (${request.kind}) awaits approval`
+  );
+  await deps.alertAdmin(
+    request.kind === 'abandoned_cart'
+      ? 'Paid abandoned cart — refund awaiting approval'
+      : 'Refund awaiting approval',
+    `<p>${request.summaryHtml}</p>
+     <p>${dollars(request.amountCents)} USD is owed on payment intent
+     <code>${request.paymentIntentId}</code> (session <code>${request.sessionId}</code>${
+       request.reason ? `, reason <code>${request.reason}</code>` : ''
+     }). Refunds are never automatic. ${APPROVE_WHERE}</p>`,
+    {
+      source: SOURCE,
+      dedupeKey: `refund-request-${request.id}`,
+      detail: {
+        refund_request_id: request.id,
+        kind: request.kind,
+        amount_cents: request.amountCents,
+        payment_intent_id: request.paymentIntentId,
+        checkout_session_id: request.sessionId,
+      },
+    }
+  );
 }
 
 /** How many times the idempotent queue write is tried before the re-read. */
@@ -118,7 +179,8 @@ export async function queueRefundForApproval(
   }
 
   let requestId: string | null = null;
-  let created: boolean | null = null;
+  let requestStatus: string | null = null;
+  let created = false;
   let lastError = 'no request row returned';
   for (let attempt = 1; attempt <= QUEUE_WRITE_ATTEMPTS && !requestId; attempt += 1) {
     let result: { data: unknown; error: RpcError | null };
@@ -137,13 +199,15 @@ export async function queueRefundForApproval(
     } catch (err) {
       result = { data: null, error: { message: err instanceof Error ? err.message : String(err) } };
     }
-    const row = firstRow<{ refund_request_id: string | null; created: boolean }>(result.data);
+    const row = firstRow<{
+      refund_request_id: string | null;
+      created: boolean;
+      request_status: string | null;
+    }>(result.data);
     if (!result.error && row?.refund_request_id) {
       requestId = row.refund_request_id;
-      // An earlier attempt may have committed with its response lost: then
-      // "created" is unknown, and the awaiting-approval alert (deduplicated
-      // per request) is raised anyway.
-      created = attempt === 1 ? row.created : null;
+      requestStatus = row.request_status ?? null;
+      created = row.created === true;
     } else {
       lastError = result.error?.message ?? 'no request row returned';
       console.error(
@@ -158,7 +222,10 @@ export async function queueRefundForApproval(
     try {
       const found = await deps.findRefundRequest(input.sessionId, input.kind);
       if (found.error) lastError = found.error.message;
-      else requestId = found.data;
+      else if (found.data) {
+        requestId = found.data.id;
+        requestStatus = found.data.status;
+      }
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err);
     }
@@ -187,33 +254,19 @@ export async function queueRefundForApproval(
     );
   }
 
-  if (created === false) {
-    console.log(`Refund for session ${input.sessionId} (${input.kind}) already queued`);
-    return 'already_queued';
-  }
-
-  console.error(
-    `CRITICAL: refund of ${input.amountCents}¢ for session ${input.sessionId} (${input.kind}) awaits approval`
-  );
-  await deps.alertAdmin(
-    'Refund awaiting approval',
-    `<p>${input.summaryHtml}</p>
-     <p>${dollars(input.amountCents)} USD is owed on payment intent
-     <code>${input.paymentIntentId}</code> (session <code>${input.sessionId}</code>,
-     reason <code>${input.reason}</code>). Refunds are never automatic. ${APPROVE_WHERE}</p>`,
-    {
-      source: SOURCE,
-      dedupeKey: `refund-request-${requestId}`,
-      detail: {
-        refund_request_id: requestId,
-        kind: input.kind,
-        amount_cents: input.amountCents,
-        payment_intent_id: input.paymentIntentId,
-        checkout_session_id: input.sessionId,
-      },
-    }
-  );
-  return 'queued';
+  // Whatever the write reported (created, already there, found on re-read),
+  // the request exists: make sure its alert does too.
+  await ensureRefundRequestAlert(deps, {
+    id: requestId,
+    status: requestStatus,
+    kind: input.kind,
+    sessionId: input.sessionId,
+    paymentIntentId: input.paymentIntentId,
+    amountCents: input.amountCents,
+    reason: input.reason,
+    summaryHtml: input.summaryHtml,
+  });
+  return created ? 'queued' : 'already_queued';
 }
 
 /**
@@ -297,9 +350,12 @@ export type AbandonedCartRefundOutcome = 'claimed' | 'already_pending' | 'not_re
  * MYK9-874: claim a paid session on an abandoned/expired cart for refund. The
  * RPC moves the cart to 'refund_pending' and queues the request in one
  * statement, so it and the webhook's `active -> submitted` fulfillment claim
- * can never both win. 'already_pending' is a re-delivery: return 2xx, no new
- * alert. 'not_refundable' means the cart is not held for this session; the
- * caller falls through to its existing handling.
+ * can never both win. 'already_pending' is a re-delivery (or the first
+ * response was lost): return 2xx, and ensure the request's alert (Codex
+ * round 11 on #2689). 'not_refundable' means the cart is not held for this
+ * session; the caller falls through to its existing handling. Its idempotency
+ * is the request keyed on the session, never the order row (an abandoned cart
+ * has none).
  *
  * THROWS on an RPC error so Stripe redelivers: the cart is unchanged, and the
  * next delivery takes this same path.
@@ -331,39 +387,29 @@ export async function claimAbandonedCartRefund(
     );
   }
 
-  const row = firstRow<{ outcome: string; refund_request_id: string | null }>(data);
+  const row = firstRow<{
+    outcome: string;
+    refund_request_id: string | null;
+    request_status: string | null;
+  }>(data);
   const outcome = row?.outcome;
-  if (outcome === 'already_pending') {
-    console.log(`Abandoned cart ${input.cartId} already queued for refund — skipping`);
-    return 'already_pending';
-  }
-  if (outcome !== 'claimed' || !row?.refund_request_id) {
+  if ((outcome !== 'claimed' && outcome !== 'already_pending') || !row?.refund_request_id) {
     return 'not_refundable';
   }
 
-  console.error(
-    `CRITICAL: paid session ${input.sessionId} on abandoned cart ${input.cartId} queued for refund`
-  );
-  await deps.alertAdmin(
-    'Paid abandoned cart — refund awaiting approval',
-    `<p>Checkout session <code>${input.sessionId}</code> was PAID after cart
+  await ensureRefundRequestAlert(deps, {
+    id: row.refund_request_id,
+    status: row.request_status ?? null,
+    kind: 'abandoned_cart',
+    sessionId: input.sessionId,
+    paymentIntentId: input.paymentIntentId,
+    amountCents: input.amountCents,
+    reason: null,
+    summaryHtml: `Checkout session <code>${input.sessionId}</code> was PAID after cart
      <code>${input.cartId}</code> was abandoned. No entries were created, and the cart is
-     now held so it can never be fulfilled.</p>
-     <p>${dollars(input.amountCents)} USD is owed back on payment intent
-     <code>${input.paymentIntentId}</code>. Refunds are never automatic. ${APPROVE_WHERE}</p>`,
-    {
-      source: SOURCE,
-      dedupeKey: `refund-request-${row.refund_request_id}`,
-      detail: {
-        refund_request_id: row.refund_request_id,
-        kind: 'abandoned_cart',
-        amount_cents: input.amountCents,
-        payment_intent_id: input.paymentIntentId,
-        checkout_session_id: input.sessionId,
-      },
-    }
-  );
-  return 'claimed';
+     now held so it can never be fulfilled.`,
+  });
+  return outcome;
 }
 
 /** Cart statuses the abandoned-cart refund claim can act on. */

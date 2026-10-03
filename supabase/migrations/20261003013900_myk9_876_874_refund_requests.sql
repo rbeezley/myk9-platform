@@ -327,7 +327,7 @@ CREATE OR REPLACE FUNCTION public.claim_abandoned_cart_refund(
   p_amount_cents integer,
   p_detail jsonb DEFAULT '{}'::jsonb
 )
-RETURNS TABLE (outcome text, refund_request_id uuid)
+RETURNS TABLE (outcome text, refund_request_id uuid, request_status text)
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
@@ -335,6 +335,7 @@ AS $$
 DECLARE
   v_cart record;
   v_existing uuid;
+  v_existing_status text;
   v_id uuid;
 BEGIN
   IF p_cart_id IS NULL OR p_session_id IS NULL OR p_payment_intent_id IS NULL
@@ -351,19 +352,19 @@ BEGIN
    WHERE c.id = p_cart_id
    FOR UPDATE;
 
-  SELECT r.id INTO v_existing
+  SELECT r.id, r.status INTO v_existing, v_existing_status
     FROM public.refund_requests r
    WHERE r.stripe_checkout_session_id = p_session_id
      AND r.kind = 'abandoned_cart';
   IF v_existing IS NOT NULL THEN
-    RETURN QUERY SELECT 'already_pending'::text, v_existing;
+    RETURN QUERY SELECT 'already_pending'::text, v_existing, v_existing_status;
     RETURN;
   END IF;
 
   IF v_cart.id IS NULL
      OR v_cart.status NOT IN ('abandoned', 'expired')
      OR v_cart.stripe_checkout_session_id IS DISTINCT FROM p_session_id THEN
-    RETURN QUERY SELECT 'not_refundable'::text, NULL::uuid;
+    RETURN QUERY SELECT 'not_refundable'::text, NULL::uuid, NULL::text;
     RETURN;
   END IF;
 
@@ -381,13 +382,15 @@ BEGIN
   )
   RETURNING id INTO v_id;
 
-  RETURN QUERY SELECT 'claimed'::text, v_id;
+  RETURN QUERY SELECT 'claimed'::text, v_id, 'pending'::text;
 END;
 $$;
 
 -- MYK9-876: queue a partial make-whole refund the webhook used to issue
 -- itself (cart overflow, payment-link lines it could not honor). Idempotent
--- on (session, kind): a re-delivery returns the existing row, created=false.
+-- on (session, kind): a re-delivery returns the existing row, created=false,
+-- with its current status (the caller re-raises the awaiting-approval alert
+-- only while the request is still open; Codex round 11 on #2689).
 CREATE OR REPLACE FUNCTION public.request_refund_approval(
   p_kind text,
   p_session_id text,
@@ -399,13 +402,14 @@ CREATE OR REPLACE FUNCTION public.request_refund_approval(
   p_entry_payment_link_id uuid DEFAULT NULL,
   p_show_id uuid DEFAULT NULL
 )
-RETURNS TABLE (refund_request_id uuid, created boolean)
+RETURNS TABLE (refund_request_id uuid, created boolean, request_status text)
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
   v_id uuid;
+  v_status text;
 BEGIN
   IF p_kind NOT IN ('cart_overflow', 'entry_payment_link') THEN
     -- abandoned_cart must go through claim_abandoned_cart_refund, which also
@@ -431,15 +435,15 @@ BEGIN
   RETURNING id INTO v_id;
 
   IF v_id IS NOT NULL THEN
-    RETURN QUERY SELECT v_id, true;
+    RETURN QUERY SELECT v_id, true, 'pending'::text;
     RETURN;
   END IF;
 
-  SELECT r.id INTO v_id
+  SELECT r.id, r.status INTO v_id, v_status
     FROM public.refund_requests r
    WHERE r.stripe_checkout_session_id = p_session_id
      AND r.kind = p_kind;
-  RETURN QUERY SELECT v_id, false;
+  RETURN QUERY SELECT v_id, false, v_status;
 END;
 $$;
 

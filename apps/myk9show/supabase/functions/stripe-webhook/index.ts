@@ -44,6 +44,7 @@ import { decideFreshSessionGate } from '../_shared/freshSessionGate.ts';
 import { buildConfirmationStampPayload } from '../_shared/entryConfirmationStamp.ts';
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { createWebhookRequestHandler } from './webhookHandler.ts';
+import { routePaidSession } from './paidSessionEntry.ts';
 import { renderStripeEntryConfirmationEmail } from './entryConfirmationEmail.ts';
 import { persistNoSubscription } from './noSubscription.ts';
 import {
@@ -105,37 +106,49 @@ const refundQueueDeps: QueueDeps = {
   findRefundRequest: async (sessionId, kind) => {
     const { data, error } = await supabase
       .from('refund_requests')
-      .select('id')
+      .select('id, status')
       .eq('stripe_checkout_session_id', sessionId)
       .eq('kind', kind)
       .maybeSingle();
-    return { data: (data?.id as string | undefined) ?? null, error };
+    return {
+      data: data ? { id: data.id as string, status: data.status as string } : null,
+      error,
+    };
   },
 };
 
-/**
- * A REDELIVERED event for a session whose order is already recorded: replay
- * the idempotent queue write from the order row (Codex round 10 on #2689).
- * The fulfillment latches make a redelivery skip the code that first queued
- * the refund, so this is how a queue write that could not be confirmed (and
- * answered 5xx) is retried. An already-queued request is a no-op. Throws if
- * it still cannot be confirmed, so Stripe redelivers again.
- */
-async function replayQueuedRefundFromOrder(sessionId: string) {
-  const { data: order, error } = await supabase
+interface RecordedOrder {
+  stripe_payment_intent_id: string | null;
+  show_id: string | null;
+  metadata: unknown;
+}
+
+/** The session's stripe_orders row, or null. Throws (5xx) when it cannot be read. */
+async function loadRecordedOrder(sessionId: string): Promise<RecordedOrder | null> {
+  const { data, error } = await supabase
     .from('stripe_orders')
     .select('stripe_payment_intent_id, show_id, metadata')
     .eq('stripe_checkout_session_id', sessionId)
     .maybeSingle();
   if (error) throw new Error(`Could not read the order for ${sessionId}: ${error.message}`);
-  if (!order) return;
+  return (data as RecordedOrder | null) ?? null;
+}
+
+/**
+ * The session already has an order: replay the idempotent refund-queue write
+ * from it (Codex rounds 10-11 on #2689). An already-queued request is a no-op
+ * apart from ensuring its alert. Throws if the write cannot be confirmed, so
+ * Stripe redelivers and this runs again.
+ */
+async function replayQueuedRefundFromOrder(sessionId: string, order: RecordedOrder) {
   const owed = queuedRefundFromOrder({
     sessionId,
-    paymentIntentId: (order.stripe_payment_intent_id as string | null) ?? null,
-    showId: (order.show_id as string | null) ?? null,
+    paymentIntentId: order.stripe_payment_intent_id ?? null,
+    showId: order.show_id ?? null,
     metadata: order.metadata,
   });
   if (owed) await queueRefundForApproval(refundQueueDeps, owed);
+  console.log(`Session ${sessionId} already has an order — replayed its refund queue write`);
 }
 
 // Approved queued refunds settle on their own attempt row, ONLY from the
@@ -951,21 +964,26 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const checkoutType = session.metadata?.type;
   console.log(`Checkout completed: ${session.id}, type: ${checkoutType}`);
 
-  if (checkoutType === 'entry') {
-    await handleEntryPaymentCompleted(session);
-  } else if (checkoutType === 'entry_payment_request') {
-    await handleEntryPaymentRequestCompleted(session);
-  } else if (session.mode === 'subscription') {
-    await handleSubscriptionCheckoutCompleted(session);
-  } else if (session.mode === 'payment') {
-    // MP-24: nothing client-facing can create a bare mode:'payment' session
-    // anymore (stripe-checkout removed that mode) and the old handler here
-    // recorded the UNVERIFIED payload amount_total into stripe_orders. If one
-    // ever arrives it is unexpected — log loudly instead of recording it.
-    console.error(
-      `Unexpected untyped one-time payment session ${session.id} — no handler records it; investigate its origin`
-    );
-  }
+  // Replay first (paidSessionEntry.ts): an existing order means this is a
+  // redelivery, so no first-time validation may run before the replay.
+  await routePaidSession<RecordedOrder>(
+    { checkoutType, mode: session.mode ?? null },
+    {
+      loadRecordedOrder: () => loadRecordedOrder(session.id),
+      replay: order => replayQueuedRefundFromOrder(session.id, order),
+      fulfillCart: () => handleEntryPaymentCompleted(session),
+      fulfillPaymentLink: () => handleEntryPaymentRequestCompleted(session),
+      subscription: () => handleSubscriptionCheckoutCompleted(session),
+      unexpectedPayment: () =>
+        // MP-24: nothing client-facing can create a bare mode:'payment' session
+        // anymore (stripe-checkout removed that mode) and the old handler here
+        // recorded the UNVERIFIED payload amount_total into stripe_orders. If one
+        // ever arrives it is unexpected — log loudly instead of recording it.
+        console.error(
+          `Unexpected untyped one-time payment session ${session.id} — no handler records it; investigate its origin`
+        ),
+    }
+  );
 }
 
 /**
@@ -1293,9 +1311,9 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
       .eq('stripe_checkout_session_id', session.id)
       .maybeSingle();
     if (existingOrder) {
+      // Only a concurrent first delivery can land here: a redelivery after the
+      // order exists is replayed at the entry (handleCheckoutCompleted).
       console.log(`Cart ${cartId} already processed with order ${existingOrder.id} — skipping`);
-      // A redelivery after an unconfirmed overflow queue write: retry it.
-      await replayQueuedRefundFromOrder(session.id);
       return;
     }
     // MYK9-874: the cart was abandoned after the read above. The RPC claims it
@@ -1781,7 +1799,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
 
   // LAST, after every other side effect (Codex round 10 on #2689): the queue
   // write throws when it cannot be confirmed, the webhook answers 5xx, and the
-  // redelivery skips at the cart latch and replays it from the order row.
+  // redelivery finds the order and replays it at the entry (round 11).
   if (noServiceLineIds.length > 0) {
     await queueCartOverflowRefund({
       session,
@@ -1906,8 +1924,6 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     console.log(
       `Payment link ${session.id} skipped (${result.skipReason}; link status: ${link.status}, payment_status: ${freshSession.payment_status})`
     );
-    // A redelivery after an unconfirmed queue write: retry it from the order.
-    await replayQueuedRefundFromOrder(session.id);
     return;
   }
 

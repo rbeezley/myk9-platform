@@ -71,14 +71,30 @@ describe('queueRefundForApproval', () => {
     expect(alerts[0].opts.detail).toMatchObject({ refund_request_id: 'rr-1', amount_cents: 2500 });
   });
 
-  it('is silent on a re-delivery that finds the request already queued', async () => {
+  it('a redelivery that finds the request still open ensures its alert on the SAME key (Codex round 11)', async () => {
     const { deps, alerts } = depsWith(async () => ({
-      data: [{ refund_request_id: 'rr-1', created: false }],
+      data: [{ refund_request_id: 'rr-1', created: false, request_status: 'pending' }],
       error: null,
     }));
     await expect(queueRefundForApproval(deps, QUEUE_INPUT)).resolves.toBe('already_queued');
-    expect(alerts).toHaveLength(0);
+    // alertAdmin deduplicates on (source, dedupe key) while unresolved, so a
+    // first alert that did go out is not repeated, and a lost one is recovered.
+    expect(alerts.map(a => [a.title, a.opts.dedupeKey])).toEqual([
+      ['Refund awaiting approval', 'refund-request-rr-1'],
+    ]);
   });
+
+  it.each(['refunded', 'resolved_without_refund'])(
+    'a redelivery that finds the request %s announces nothing',
+    async status => {
+      const { deps, alerts } = depsWith(async () => ({
+        data: [{ refund_request_id: 'rr-1', created: false, request_status: status }],
+        error: null,
+      }));
+      await expect(queueRefundForApproval(deps, QUEUE_INPUT)).resolves.toBe('already_queued');
+      expect(alerts).toEqual([]);
+    }
+  );
 
   it('committed but the response was lost: the retry finds the request; no failure alert (Codex round 10)', async () => {
     let calls = 0;
@@ -88,7 +104,7 @@ describe('queueRefundForApproval', () => {
         ? { data: null, error: { message: 'response lost' } }
         : { data: [{ refund_request_id: 'rr-1', created: false }], error: null };
     });
-    await expect(queueRefundForApproval(deps, QUEUE_INPUT)).resolves.toBe('queued');
+    await expect(queueRefundForApproval(deps, QUEUE_INPUT)).resolves.toBe('already_queued');
     expect(rpc).toHaveBeenCalledTimes(2);
     expect(findRefundRequest).not.toHaveBeenCalled();
     // Whether the first attempt's alert went out is unknown: the awaiting-approval
@@ -101,9 +117,9 @@ describe('queueRefundForApproval', () => {
   it('every attempt unconfirmed but the re-read by (session, kind) finds it: queued, no failure alert', async () => {
     const { deps, rpc, alerts, findRefundRequest } = depsWith(
       async () => ({ data: null, error: { message: 'timeout' } }),
-      async () => ({ data: 'rr-1', error: null })
+      async () => ({ data: { id: 'rr-1', status: 'pending' }, error: null })
     );
-    await expect(queueRefundForApproval(deps, QUEUE_INPUT)).resolves.toBe('queued');
+    await expect(queueRefundForApproval(deps, QUEUE_INPUT)).resolves.toBe('already_queued');
     expect(rpc).toHaveBeenCalledTimes(QUEUE_WRITE_ATTEMPTS);
     expect(findRefundRequest).toHaveBeenCalledWith('cs_1', 'cart_overflow');
     expect(alerts.map(a => a.title)).toEqual(['Refund awaiting approval']);
@@ -234,9 +250,29 @@ describe('claimAbandonedCartRefund', () => {
     });
   });
 
-  it.each(['already_pending', 'not_refundable'] as const)('is silent on %s', async outcome => {
+  it('already_pending on the FIRST observed response (the claim committed, its response was lost) still alerts (Codex round 11)', async () => {
     const { deps, alerts } = depsWith(async () => ({
-      data: [{ outcome, refund_request_id: outcome === 'already_pending' ? 'rr-9' : null }],
+      data: [{ outcome: 'already_pending', refund_request_id: 'rr-9', request_status: 'pending' }],
+      error: null,
+    }));
+    await expect(claimAbandonedCartRefund(deps, INPUT)).resolves.toBe('already_pending');
+    expect(alerts.map(a => [a.title, a.opts.dedupeKey])).toEqual([
+      ['Paid abandoned cart — refund awaiting approval', 'refund-request-rr-9'],
+    ]);
+  });
+
+  it('already_pending on a request that was since refunded announces nothing', async () => {
+    const { deps, alerts } = depsWith(async () => ({
+      data: [{ outcome: 'already_pending', refund_request_id: 'rr-9', request_status: 'refunded' }],
+      error: null,
+    }));
+    await expect(claimAbandonedCartRefund(deps, INPUT)).resolves.toBe('already_pending');
+    expect(alerts).toEqual([]);
+  });
+
+  it.each(['not_refundable'] as const)('is silent on %s', async outcome => {
+    const { deps, alerts } = depsWith(async () => ({
+      data: [{ outcome, refund_request_id: null }],
       error: null,
     }));
     await expect(claimAbandonedCartRefund(deps, INPUT)).resolves.toBe(outcome);
@@ -274,13 +310,21 @@ describe('fulfillment and refund claims on one cart', () => {
     const rpc: RefundQueueDeps['rpc'] = async (_fn, args) => {
       const existing = requests.get(args.p_session_id as string);
       if (existing)
-        return { data: [{ outcome: 'already_pending', refund_request_id: existing }], error: null };
+        return {
+          data: [
+            { outcome: 'already_pending', refund_request_id: existing, request_status: 'pending' },
+          ],
+          error: null,
+        };
       if (!['abandoned', 'expired'].includes(cart.status) || cart.session !== args.p_session_id) {
         return { data: [{ outcome: 'not_refundable', refund_request_id: null }], error: null };
       }
       cart.status = 'refund_pending';
       requests.set(args.p_session_id as string, 'rr-1');
-      return { data: [{ outcome: 'claimed', refund_request_id: 'rr-1' }], error: null };
+      return {
+        data: [{ outcome: 'claimed', refund_request_id: 'rr-1', request_status: 'pending' }],
+        error: null,
+      };
     };
     return { cart, requests, fulfill, rpc };
   }
@@ -288,11 +332,12 @@ describe('fulfillment and refund claims on one cart', () => {
 
   it('two deliveries of a paid session on an abandoned cart queue ONE refund and both return', async () => {
     const model = cartModel('abandoned');
-    const alerts: string[] = [];
+    // alertAdmin's (source, dedupe key) unique index while unresolved.
+    const alerts = new Map<string, string>();
     const deps: RefundQueueDeps = {
       rpc: model.rpc,
-      alertAdmin: async title => {
-        alerts.push(title);
+      alertAdmin: async (title, _html, opts) => {
+        if (!alerts.has(opts.dedupeKey)) alerts.set(opts.dedupeKey, title);
       },
     };
 
@@ -303,7 +348,8 @@ describe('fulfillment and refund claims on one cart', () => {
 
     expect([first, second].sort()).toEqual(['already_pending', 'claimed']);
     expect(model.requests.size).toBe(1);
-    expect(alerts).toHaveLength(1);
+    // Both deliveries ensure the alert; it is one alert, keyed on the request.
+    expect([...alerts.keys()]).toEqual(['refund-request-rr-1']);
     expect(model.fulfill()).toBe(false);
   });
 

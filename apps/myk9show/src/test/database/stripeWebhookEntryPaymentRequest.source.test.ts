@@ -73,10 +73,12 @@ describe('stripe-webhook entry_payment_request branch', () => {
   });
 
   it('records payment history in stripe_orders so the charge is visible + payout-eligible', () => {
-    expect(source).toContain('stripe_orders');
-    expect(source).toContain('stripe_payment_intent_id: paymentIntentId');
-    // benign duplicate (unique violation) is ignored, like the cart path
-    expect(source).toContain("orderError.code !== '23505'");
+    // Since Codex round 14 on #2689 the order is built by paymentLinkOrder.ts
+    // and inserted inside queue_payment_link_refund, with the link latch and
+    // the refund request; an existing order is left as it is (ON CONFLICT DO
+    // NOTHING, SQL test O22).
+    expect(source).toContain('order: buildPaymentLinkOrder({');
+    expect(source).toContain('paymentIntentId,');
   });
 
   it('queues invalid paid-for-nothing link charges for refund approval with an explicit amount', () => {

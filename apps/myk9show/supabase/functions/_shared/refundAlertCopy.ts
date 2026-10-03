@@ -111,9 +111,9 @@ export function cartOverflowManualRefundAlert(input: {
      <p>${(input.amountCents / 100).toFixed(2)} USD is owed back. Once you have confirmed
      the lines above, refund exactly that amount from the Stripe dashboard on this payment
      intent. ${CART_OVERFLOW_BY_HAND}</p>
-     <p>The webhook will see it as a dashboard refund and raise "Dashboard refund needs
-     reconciling before payout". These lines have no entries to stamp: record the amount
-     on the order as make-whole (<code>make_whole_refunded_cents</code>).</p>`,
+     <p>The reconciliation report will show it as a post-hoc refund until MYK9-964. The
+     club's payout is unaffected: payouts are computed from accepted entries, and these
+     lines never became entries.</p>`,
   };
 }
 

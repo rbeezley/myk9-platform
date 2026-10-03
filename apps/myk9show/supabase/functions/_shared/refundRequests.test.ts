@@ -37,6 +37,7 @@ function depsWith(rpcImpl: RefundQueueDeps['rpc']) {
  */
 function linkModel(opts: { fail?: 'lost' | 'always'; requestStatus?: string } = {}) {
   const link = { status: 'open' };
+  const orders = new Map<string, Record<string, unknown>>();
   const requests = new Map<
     string,
     { id: string; status: string; amount: number; reason: string; pi: string }
@@ -50,6 +51,11 @@ function linkModel(opts: { fail?: 'lost' | 'always'; requestStatus?: string } = 
     if (args.p_link_id && args.p_close_from && link.status === args.p_close_from) {
       link.status = 'paid';
       closed = true;
+    }
+    let orderCreated = false;
+    if (args.p_order && !orders.has(session)) {
+      orders.set(session, args.p_order as Record<string, unknown>);
+      orderCreated = true;
     }
     let created = false;
     if (args.p_amount_cents != null && !requests.has(session)) {
@@ -66,6 +72,7 @@ function linkModel(opts: { fail?: 'lost' | 'always'; requestStatus?: string } = 
     const row = {
       link_status: args.p_link_id ? link.status : null,
       link_closed: closed,
+      order_created: orderCreated,
       refund_request_id: r?.id ?? null,
       created,
       request_status: r?.status ?? null,
@@ -77,7 +84,7 @@ function linkModel(opts: { fail?: 'lost' | 'always'; requestStatus?: string } = 
       return { data: null, error: { message: 'response lost' } };
     return { data: [row], error: null };
   };
-  return { link, requests, rpc };
+  return { link, orders, requests, rpc };
 }
 
 const OBLIGATION: PaymentLinkObligation = {
@@ -109,6 +116,7 @@ describe('settlePaymentLinkObligation (Codex round 13)', () => {
       p_reason: 'partial_invalid_entries',
       p_detail: { invalid_entry_ids: ['e-1'] },
       p_show_id: 'show-1',
+      p_order: null,
     });
     expect(model.link.status).toBe('paid');
     expect(alerts.map(a => [a.title, a.opts.dedupeKey])).toEqual([
@@ -177,6 +185,57 @@ describe('settlePaymentLinkObligation (Codex round 13)', () => {
     expect(rpc.mock.calls[0][1]).toMatchObject({ p_link_id: null, p_close_from: null });
     expect(model.link.status).toBe('open');
     expect(model.requests.get('cs_1')?.reason).toBe('no_link_record');
+  });
+});
+
+describe('the order rides in the same call (Codex round 14)', () => {
+  const ORDER = { stripe_checkout_session_id: 'cs_1', amount_cents: 900, status: 'succeeded' };
+
+  it('passes the order with the latch and the request, and records it once', async () => {
+    const model = linkModel();
+    const { deps, rpc } = depsWith(model.rpc);
+    await settlePaymentLinkObligation(deps, { ...OBLIGATION, order: ORDER });
+    expect(rpc.mock.calls[0][1]).toMatchObject({
+      p_close_from: 'open',
+      p_amount_cents: 900,
+      p_order: ORDER,
+    });
+    expect([...model.orders.keys()]).toEqual(['cs_1']);
+    expect(model.link.status).toBe('paid');
+  });
+
+  it('a lost response: the retry finds the latch, the order and the request already there', async () => {
+    const model = linkModel({ fail: 'lost' });
+    const { deps, rpc } = depsWith(model.rpc);
+    await expect(settlePaymentLinkObligation(deps, { ...OBLIGATION, order: ORDER })).resolves.toBe(
+      'already_queued'
+    );
+    expect(rpc).toHaveBeenCalledTimes(2);
+    expect(model.orders.size).toBe(1);
+    expect(model.requests.size).toBe(1);
+  });
+
+  it('never confirmed: no order, no latch, no request', async () => {
+    const model = linkModel({ fail: 'always' });
+    const { deps } = depsWith(model.rpc);
+    await expect(
+      settlePaymentLinkObligation(deps, { ...OBLIGATION, order: ORDER })
+    ).rejects.toThrow();
+    expect(model.orders.size).toBe(0);
+    expect(model.link.status).toBe('open');
+    expect(model.requests.size).toBe(0);
+  });
+
+  it('nothing owed and no latch to close still records the order', async () => {
+    const model = linkModel();
+    const { deps } = depsWith(model.rpc);
+    await settlePaymentLinkObligation(deps, {
+      ...OBLIGATION,
+      closeLinkFrom: null,
+      owed: null,
+      order: ORDER,
+    });
+    expect(model.orders.size).toBe(1);
   });
 });
 

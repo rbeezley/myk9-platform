@@ -395,10 +395,13 @@ BEGIN
 END;
 $$;
 
--- MYK9-876 (Codex round 13 on #2689): the payment-link refund obligation,
--- ATOMIC with the link's fulfillment latch. In ONE transaction:
+-- MYK9-876 (Codex rounds 13-14 on #2689): the payment-link refund obligation
+-- and order, ATOMIC with the link's fulfillment latch. In ONE transaction:
 --   * with p_link_id and p_close_from, the link moves p_close_from -> 'paid'
 --     (the webhook's idempotency latch for this session);
+--   * with p_order, the session's stripe_orders row is inserted from the
+--     webhook's column values (ON CONFLICT DO NOTHING: an order that already
+--     exists stays as it is), so a closed latch always has its order;
 --   * with p_amount_cents, the entry_payment_link refund request is inserted,
 --     idempotent on (session, kind);
 -- and it returns the link's status and the session's request, if any. With
@@ -416,11 +419,13 @@ CREATE OR REPLACE FUNCTION public.queue_payment_link_refund(
   p_amount_cents integer DEFAULT NULL,
   p_reason text DEFAULT NULL,
   p_detail jsonb DEFAULT '{}'::jsonb,
-  p_show_id uuid DEFAULT NULL
+  p_show_id uuid DEFAULT NULL,
+  p_order jsonb DEFAULT NULL
 )
 RETURNS TABLE (
   link_status text,
   link_closed boolean,
+  order_created boolean,
   refund_request_id uuid,
   created boolean,
   request_status text,
@@ -436,6 +441,7 @@ AS $$
 DECLARE
   v_link_status text;
   v_closed boolean := false;
+  v_order_rows integer := 0;
   v_id uuid;
   v_req public.refund_requests%ROWTYPE;
 BEGIN
@@ -466,6 +472,24 @@ BEGIN
     END IF;
   END IF;
 
+  -- The order, column for column as the webhook built it, typed by the table
+  -- itself. The session id is this call's, never the payload's.
+  IF p_order IS NOT NULL THEN
+    INSERT INTO public.stripe_orders AS o (
+      customer_id, stripe_payment_intent_id, stripe_checkout_session_id, amount_cents,
+      currency, status, order_type, entry_subtotal_cents, platform_fee_cents,
+      platform_fee_rate, stripe_processing_fee_cents, refunded_cents,
+      make_whole_refunded_cents, metadata, show_id, entry_ids, paid_at
+    )
+    SELECT x.customer_id, x.stripe_payment_intent_id, p_session_id, x.amount_cents,
+           x.currency, x.status, x.order_type, x.entry_subtotal_cents, x.platform_fee_cents,
+           x.platform_fee_rate, x.stripe_processing_fee_cents, x.refunded_cents,
+           x.make_whole_refunded_cents, x.metadata, x.show_id, x.entry_ids, x.paid_at
+      FROM jsonb_populate_record(NULL::public.stripe_orders, p_order) AS x
+    ON CONFLICT DO NOTHING;
+    GET DIAGNOSTICS v_order_rows = ROW_COUNT;
+  END IF;
+
   IF p_amount_cents IS NOT NULL THEN
     INSERT INTO public.refund_requests AS r (
       kind, stripe_checkout_session_id, stripe_payment_intent_id, amount_cents,
@@ -489,8 +513,8 @@ BEGIN
    WHERE r.stripe_checkout_session_id = p_session_id
      AND r.kind = 'entry_payment_link';
 
-  RETURN QUERY SELECT v_link_status, v_closed, v_req.id, (v_id IS NOT NULL), v_req.status,
-    v_req.amount_cents, v_req.reason, v_req.stripe_payment_intent_id;
+  RETURN QUERY SELECT v_link_status, v_closed, (v_order_rows > 0), v_req.id, (v_id IS NOT NULL),
+    v_req.status, v_req.amount_cents, v_req.reason, v_req.stripe_payment_intent_id;
 END;
 $$;
 
@@ -952,7 +976,7 @@ $$;
 
 REVOKE ALL ON FUNCTION public.claim_abandoned_cart_refund(uuid, text, text, integer, jsonb)
   FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.queue_payment_link_refund(text, uuid, text, text, integer, text, jsonb, uuid)
+REVOKE ALL ON FUNCTION public.queue_payment_link_refund(text, uuid, text, text, integer, text, jsonb, uuid, jsonb)
   FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.begin_refund_attempt(uuid, uuid)
   FROM PUBLIC, anon, authenticated;
@@ -970,7 +994,7 @@ REVOKE ALL ON FUNCTION public.fail_unissued_refund_attempt(uuid, integer, text)
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.claim_abandoned_cart_refund(uuid, text, text, integer, jsonb)
   TO service_role;
-GRANT EXECUTE ON FUNCTION public.queue_payment_link_refund(text, uuid, text, text, integer, text, jsonb, uuid)
+GRANT EXECUTE ON FUNCTION public.queue_payment_link_refund(text, uuid, text, text, integer, text, jsonb, uuid, jsonb)
   TO service_role;
 GRANT EXECUTE ON FUNCTION public.begin_refund_attempt(uuid, uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.refund_attempt_next_status(text, text) TO service_role;

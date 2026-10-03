@@ -87,6 +87,24 @@ describe('ALLOWED_MANUAL_REFUND_ALERTS (cart overflow, never queued; Codex round
     expect(html).toContain('25.00 USD');
     expect(html).toMatch(/waitlisted <code>ci-1<\/code>, denied\s+<code>ci-2<\/code>/);
   });
+
+  it('says how it will be booked, and asks for NO ledger edit (owner decision, round 14)', () => {
+    for (const [, { build }] of Object.entries(ALLOWED_MANUAL_REFUND_ALERTS)) {
+      const { html } = build();
+      expect(html).not.toMatch(/make_whole|make-whole/i);
+    }
+    const text = ALLOWED_MANUAL_REFUND_ALERTS.cartOverflowManualRefundAlert
+      .build()
+      .html.replace(/\s+/g, ' ');
+    expect(text).toContain('refund exactly that amount from the Stripe dashboard');
+    expect(text).toContain('The app will NOT refund this');
+    expect(text).toContain(
+      'The reconciliation report will show it as a post-hoc refund until MYK9-964'
+    );
+    expect(text).toContain(
+      "The club's payout is unaffected: payouts are computed from accepted entries"
+    );
+  });
 });
 
 /** Every alert path in refundRequests, refundApproval, refundCreateRejection and refundSettlement. */

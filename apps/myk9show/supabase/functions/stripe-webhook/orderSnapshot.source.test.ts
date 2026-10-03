@@ -36,11 +36,17 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
   it('spreads snapshot fields into EVERY stripe_orders insert', () => {
     // Was three sites; `handleOneTimePaymentCompleted` was deleted on main by the
     // Stripe money-path audit (#1381), leaving the cart and payment-link inserts.
-    // The count is pinned so a NEW insert site cannot be added without a snapshot.
+    // Since Codex round 14 on #2689 the payment-link row is built by
+    // paymentLinkOrder.ts and inserted inside queue_payment_link_refund, so the
+    // webhook keeps ONE direct insert (the cart). The count is pinned so a NEW
+    // insert site cannot be added without a snapshot.
     const inserts = webhookSource.match(/\.from\('stripe_orders'\)\s*\.insert\(/g) ?? [];
     const spreads = webhookSource.match(/\.\.\.buildOrderSnapshotFields\(/g) ?? [];
-    expect(spreads.length).toBe(2);
+    expect(spreads.length).toBe(1);
     expect(spreads.length).toBe(inserts.length);
+    expect(readFileSync(resolve(__dirname, 'paymentLinkOrder.ts'), 'utf8')).toContain(
+      '...buildOrderSnapshotFields('
+    );
   });
 
   it('never rewrites the immutable charge facts in the refund path', () => {
@@ -186,6 +192,13 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     // no other write closes the link.
     const link = body('handleEntryPaymentRequestCompleted');
     expect(link).toContain('await settlePaymentLinkObligation(refundQueueDeps, {');
+    // Round 14: the order is passed into that same call; there is no separate
+    // order insert on this path, and the processing fee is fetched before it.
+    expect(link).toContain('order: buildPaymentLinkOrder({');
+    expect(link).not.toContain(".from('stripe_orders').insert(");
+    expect(link.indexOf('await fetchProcessingFeeCents(paymentIntentId)')).toBeLessThan(
+      link.lastIndexOf('await settlePaymentLinkObligation(refundQueueDeps, {')
+    );
     // A redelivery that finds the latch closed ensures its request's alert.
     expect(link).toContain(
       "if (link.status === 'paid') await ensurePaymentLinkRefundAlert(refundQueueDeps, session.id);"

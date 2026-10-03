@@ -19,8 +19,9 @@
 --     pointing at ANOTHER session. None queues a request.
 --   * The cart owner can neither set refund_pending nor move a cart out of it
 --     (42501 from entry_carts_protect_status).
---   * queue_payment_link_refund (O19-O21, Codex round 13): one call closes the
---     link AND writes its request (or neither: O20); a repeat or a read
+--   * queue_payment_link_refund (O19-O22, Codex rounds 13-14): one call closes
+--     the link, records its order AND writes its request, or none of them
+--     (O20, O22); a repeat changes nothing; a repeat or a read
 --     returns the existing request; a deleted link is stored as NULL with its
 --     id in detail.
 --   * ATTEMPTS (Codex rounds 1-2 on #2689), as a table of event orderings,
@@ -172,7 +173,7 @@ DECLARE
 BEGIN
   FOREACH v_fn IN ARRAY ARRAY[
     'public.claim_abandoned_cart_refund(uuid, text, text, integer, jsonb)',
-    'public.queue_payment_link_refund(text, uuid, text, text, integer, text, jsonb, uuid)',
+    'public.queue_payment_link_refund(text, uuid, text, text, integer, text, jsonb, uuid, jsonb)',
     'public.begin_refund_attempt(uuid, uuid)',
     'public.record_refund_attempt(uuid, integer, text)',
     'public.refund_attempt_state(uuid, integer)',
@@ -346,7 +347,23 @@ VALUES
   ('00000000-0000-0000-0000-000000876041', '00000000-0000-0000-0000-000000876021', '{}', 'cs_876_link_a', 'open', 900),
   ('00000000-0000-0000-0000-000000876042', '00000000-0000-0000-0000-000000876021', '{}', 'cs_876_link_b', 'open', 900),
   ('00000000-0000-0000-0000-000000876043', '00000000-0000-0000-0000-000000876021', '{}', 'cs_876_link_c', 'open', 900),
-  ('00000000-0000-0000-0000-000000876044', '00000000-0000-0000-0000-000000876021', '{}', 'cs_876_link_d', 'open', 900);
+  ('00000000-0000-0000-0000-000000876044', '00000000-0000-0000-0000-000000876021', '{}', 'cs_876_link_d', 'open', 900),
+  ('00000000-0000-0000-0000-000000876045', '00000000-0000-0000-0000-000000876021', '{}', 'cs_876_link_e', 'open', 900),
+  ('00000000-0000-0000-0000-000000876046', '00000000-0000-0000-0000-000000876021', '{}', 'cs_876_link_f', 'open', 900),
+  ('00000000-0000-0000-0000-000000876047', '00000000-0000-0000-0000-000000876021', '{}', 'cs_876_link_g', 'open', 900);
+
+-- The order the webhook passes, as jsonb (Codex round 14).
+CREATE FUNCTION pg_temp.link_order(p_intent text, p_status text DEFAULT 'succeeded')
+RETURNS jsonb LANGUAGE sql AS $f$
+  SELECT jsonb_build_object(
+    'customer_id', NULL, 'stripe_payment_intent_id', p_intent, 'amount_cents', 900,
+    'currency', 'usd', 'status', p_status, 'order_type', 'entry',
+    'entry_subtotal_cents', 0, 'platform_fee_cents', 0, 'platform_fee_rate', 7,
+    'stripe_processing_fee_cents', NULL, 'refunded_cents', 0, 'make_whole_refunded_cents', 0,
+    'metadata', jsonb_build_object('entry_count', 0),
+    'show_id', '00000000-0000-0000-0000-000000876021', 'entry_ids', '[]'::jsonb,
+    'paid_at', '2026-10-03T00:00:00Z')
+$f$;
 
 DO $$
 DECLARE
@@ -414,6 +431,70 @@ BEGIN
   PERFORM pg_temp.expect_eq(
     (SELECT count(*)::text FROM public.refund_requests WHERE stripe_checkout_session_id = 'cs_876_link_c'),
     '0', 'O20 and no request exists without the latch');
+END;
+$$;
+
+-- O22 (Codex round 14): latch, order and request in ONE transaction.
+DO $$
+DECLARE
+  v_first record;
+  v_again record;
+  v_order public.stripe_orders%ROWTYPE;
+BEGIN
+  SELECT * INTO v_first FROM public.queue_payment_link_refund(
+    'cs_876_link_e', '00000000-0000-0000-0000-000000876045', 'open', 'pi_876_link_e', 900,
+    'partial_invalid_entries', '{}', '00000000-0000-0000-0000-000000876021',
+    pg_temp.link_order('pi_876_link_e'));
+  PERFORM pg_temp.expect_eq(
+    v_first.link_closed || ' ' || v_first.order_created || ' ' || v_first.created,
+    'true true true', 'O22 one call closes the link, records the order and queues the refund');
+  SELECT * INTO v_order FROM public.stripe_orders o WHERE o.stripe_checkout_session_id = 'cs_876_link_e';
+  PERFORM pg_temp.expect_eq(
+    v_order.stripe_payment_intent_id || ' ' || v_order.amount_cents || ' ' || v_order.status || ' '
+      || v_order.order_type || ' ' || v_order.platform_fee_rate || ' ' || v_order.show_id,
+    'pi_876_link_e 900 succeeded entry 7.00 00000000-0000-0000-0000-000000876021',
+    'O22 the order carries the columns the webhook passed');
+
+  SELECT * INTO v_again FROM public.queue_payment_link_refund(
+    'cs_876_link_e', '00000000-0000-0000-0000-000000876045', 'open', 'pi_876_link_e', 900,
+    'partial_invalid_entries', '{}', '00000000-0000-0000-0000-000000876021',
+    pg_temp.link_order('pi_876_link_e'));
+  PERFORM pg_temp.expect_eq(
+    v_again.link_closed || ' ' || v_again.order_created || ' ' || v_again.created
+      || ' ' || (v_again.refund_request_id = v_first.refund_request_id),
+    'false false false true', 'O22 a repeat changes nothing (ON CONFLICT DO NOTHING on the order)');
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*)::text FROM public.stripe_orders WHERE stripe_checkout_session_id = 'cs_876_link_e'),
+    '1', 'O22 still one order');
+END;
+$$;
+
+-- A failing order insert leaves the link open and no request.
+SELECT pg_temp.expect_sqlstate(
+  $q$SELECT public.queue_payment_link_refund(
+       'cs_876_link_f', '00000000-0000-0000-0000-000000876046', 'open', 'pi_876_link_f', 900,
+       'partial_invalid_entries', '{}', NULL, pg_temp.link_order('pi_876_link_f', 'bogus'))$q$,
+  '23514', 'O22 an order that cannot be written fails the whole call');
+-- A failing request insert leaves the link open and no order.
+SELECT pg_temp.expect_sqlstate(
+  $q$SELECT public.queue_payment_link_refund(
+       'cs_876_link_g', '00000000-0000-0000-0000-000000876047', 'open', 'pi_876_link_g', 900,
+       NULL, '{}', NULL, pg_temp.link_order('pi_876_link_g'))$q$,
+  '23502', 'O22 a request that cannot be written fails the whole call');
+DO $$
+BEGIN
+  PERFORM pg_temp.expect_eq(
+    (SELECT string_agg(l.status, ',' ORDER BY l.id) FROM public.entry_payment_links l
+      WHERE l.id IN ('00000000-0000-0000-0000-000000876046', '00000000-0000-0000-0000-000000876047')),
+    'open,open', 'O22 neither link closed');
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*)::text FROM public.stripe_orders
+      WHERE stripe_checkout_session_id IN ('cs_876_link_f', 'cs_876_link_g')),
+    '0', 'O22 neither order exists');
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*)::text FROM public.refund_requests
+      WHERE stripe_checkout_session_id IN ('cs_876_link_f', 'cs_876_link_g')),
+    '0', 'O22 neither request exists');
 END;
 $$;
 

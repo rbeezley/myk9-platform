@@ -128,6 +128,8 @@ async function ensureRefundRequestAlert(
 interface PaymentLinkRow {
   link_status: string | null;
   link_closed: boolean;
+  /** True when this call inserted the session's stripe_orders row. */
+  order_created?: boolean;
   refund_request_id: string | null;
   created: boolean;
   request_status: string | null;
@@ -155,6 +157,12 @@ export interface PaymentLinkObligation {
     summaryHtml: string;
   } | null;
   showId: string | null;
+  /**
+   * The session's stripe_orders row (column -> value), inserted in the SAME
+   * transaction as the latch and the request (Codex round 14); an existing
+   * order is left as it is. Null on the paths that record no order.
+   */
+  order?: object | null;
 }
 
 export type PaymentLinkOutcome = 'queued' | 'already_queued' | 'latched_only' | 'not_queued';
@@ -173,10 +181,10 @@ async function callPaymentLinkRpc(
 }
 
 /**
- * The payment-link fulfillment latch and its refund obligation, in ONE
- * database transaction (queue_payment_link_refund; Codex round 13 on #2689):
- * the link closes and, when something is owed, the refund request is
- * written, or neither happens. There is no separate queue write to lose and
+ * The payment-link fulfillment latch, its order and its refund obligation, in
+ * ONE database transaction (queue_payment_link_refund; Codex rounds 13-14 on
+ * #2689): the link closes, the order is recorded and, when something is owed,
+ * the refund request is written, or none of them happens. There is no separate queue write to lose and
  * no order row to replay from. The call is idempotent, so it is retried; if
  * it still cannot be confirmed this THROWS (5xx). The latch is then still
  * open, and the redelivery runs the same reconcile and this same call again.
@@ -202,7 +210,9 @@ export async function settlePaymentLinkObligation(
     });
     owed = null;
   }
-  if (!owed && !input.closeLinkFrom) return input.owed ? 'not_queued' : 'latched_only';
+  if (!owed && !input.closeLinkFrom && !input.order) {
+    return input.owed ? 'not_queued' : 'latched_only';
+  }
 
   const args = {
     p_session_id: input.sessionId,
@@ -213,6 +223,7 @@ export async function settlePaymentLinkObligation(
     p_reason: owed ? owed.reason : null,
     p_detail: owed ? owed.detail : {},
     p_show_id: input.showId,
+    p_order: input.order ?? null,
   };
   let row: PaymentLinkRow | null = null;
   let lastError = 'no row returned';

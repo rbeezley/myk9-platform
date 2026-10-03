@@ -45,6 +45,7 @@ import { buildConfirmationStampPayload } from '../_shared/entryConfirmationStamp
 import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { createWebhookRequestHandler } from './webhookHandler.ts';
 import { routePaidSession } from './paidSessionEntry.ts';
+import { buildPaymentLinkOrder } from './paymentLinkOrder.ts';
 import { renderStripeEntryConfirmationEmail } from './entryConfirmationEmail.ts';
 import { persistNoSubscription } from './noSubscription.ts';
 import {
@@ -2119,41 +2120,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     platformFeeRates: linkFeeRates,
   });
 
-  // Payment history. Idempotent via the UNIQUE stripe_payment_intent_id /
-  // stripe_checkout_session_id; a benign retry hits 23505 and is ignored.
   const paidIds = updateOutcome.paidEntryIds;
-  // Close the link (idempotency latch) after reconciliation AND write what the
-  // invalid entries are owed, in ONE transaction (queue_payment_link_refund;
-  // Codex round 13 on #2689). Same-intent paid rows make concurrent Stripe
-  // deliveries idempotent without closing the retry path before entries are
-  // stamped. Expired promotion claims revive only when at least one entry was
-  // actually stamped paid. Throws (5xx) when it cannot be confirmed; the latch
-  // is then still open and the redelivery runs this again.
-  const shouldCloseLink =
-    link.status === 'open' || (link.status === 'expired' && paidIds.length > 0);
-  const invalidEntryIds = updateOutcome.invalidEntryIds;
-  const decision = updateOutcome.refundDecision;
-  const owesRefund = invalidEntryIds.length > 0 && decision.action === 'refund';
-  const invalidList = invalidEntryIds.length
-    ? ` Invalid entries: <code>${invalidEntryIds.join(', ')}</code>.`
-    : '';
-  await settlePaymentLinkObligation(refundQueueDeps, {
-    sessionId: session.id,
-    paymentIntentId,
-    linkId: link.id,
-    closeLinkFrom: shouldCloseLink ? (link.status === 'expired' ? 'expired' : 'open') : null,
-    owed: owesRefund
-      ? {
-          amountCents: decision.amountCents,
-          reason: decision.reason,
-          detail: { invalid_entry_ids: invalidEntryIds },
-          summaryHtml: `A payment-link charge could not be honored in full.${invalidList}`,
-        }
-      : null,
-    showId: (link.show_id as string | null) ?? null,
-  });
-
-  await resolvePaidWaitlistOffers(paidIds, session.id);
 
   // Immutable financial snapshot (MYK9-54 review finding 2). Built from the
   // ACCEPTED entries and their authoritative Checkout line-item fees — the same
@@ -2179,48 +2146,60 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       { source: 'stripe-webhook', dedupeKey: `payment-link-fee-unverifiable-${session.id}` }
     );
   }
+  // Fetched BEFORE the latch: the order is written in the same transaction.
   const linkProcessingFeeCents = await fetchProcessingFeeCents(paymentIntentId);
 
-  const { error: orderError } = await supabase.from('stripe_orders').insert({
-    // customer_id is a UUID FK to stripe_customers(id) — NOT Stripe's cus_… id.
-    // A link payer may have no stripe_customers row at all, so leave it null
-    // (writing session.customer here threw an invalid-uuid error every time).
-    customer_id: null,
-    stripe_payment_intent_id: paymentIntentId,
-    stripe_checkout_session_id: session.id,
-    amount_cents: freshAmountTotalCents ?? 0,
-    currency: session.currency || 'usd',
-    status: 'succeeded',
-    order_type: 'entry',
-    ...buildOrderSnapshotFields({
+  // Close the link (idempotency latch) after reconciliation, record the order
+  // (payment history) AND write what the invalid entries are owed, in ONE
+  // transaction (queue_payment_link_refund; Codex rounds 13-14 on #2689). A
+  // closed latch therefore always has its order and its request; an existing
+  // order is left as it is (ON CONFLICT DO NOTHING). Same-intent paid rows make
+  // concurrent Stripe deliveries idempotent without closing the retry path
+  // before entries are stamped. Expired promotion claims revive only when at
+  // least one entry was actually stamped paid. Throws (5xx) when it cannot be
+  // confirmed; the latch is then still open and the redelivery runs this again.
+  const shouldCloseLink =
+    link.status === 'open' || (link.status === 'expired' && paidIds.length > 0);
+  const invalidEntryIds = updateOutcome.invalidEntryIds;
+  const decision = updateOutcome.refundDecision;
+  const owesRefund = invalidEntryIds.length > 0 && decision.action === 'refund';
+  const invalidList = invalidEntryIds.length
+    ? ` Invalid entries: <code>${invalidEntryIds.join(', ')}</code>.`
+    : '';
+  await settlePaymentLinkObligation(refundQueueDeps, {
+    sessionId: session.id,
+    paymentIntentId,
+    linkId: link.id,
+    closeLinkFrom: shouldCloseLink ? (link.status === 'expired' ? 'expired' : 'open') : null,
+    owed: owesRefund
+      ? {
+          amountCents: decision.amountCents,
+          reason: decision.reason,
+          detail: { invalid_entry_ids: invalidEntryIds },
+          summaryHtml: `A payment-link charge could not be honored in full.${invalidList}`,
+        }
+      : null,
+    showId: (link.show_id as string | null) ?? null,
+    order: buildPaymentLinkOrder({
+      sessionId: session.id,
+      paymentIntentId,
+      amountTotalCents: freshAmountTotalCents,
+      currency: session.currency ?? null,
+      linkId: link.id,
+      showId: (link.show_id as string | null) ?? null,
+      paidEntryIds: paidIds,
       entrySubtotalCents: linkFeeSplit.entrySubtotalCents,
       platformFeeCents: linkFeeSplit.platformFeeCents,
       platformFeeRate: linkFeeRates.percent,
       stripeProcessingFeeCents: linkProcessingFeeCents,
+      paidAt: new Date().toISOString(),
     }),
-    metadata: {
-      entry_payment_link_id: link.id,
-      entry_count: paidIds.length,
-    },
-    show_id: link.show_id,
-    entry_ids: paidIds,
-    paid_at: new Date().toISOString(),
   });
   if (linkProcessingFeeCents === null) {
     await warnMissingProcessingFee(paymentIntentId, `payment link ${link.id}`);
   }
-  if (orderError && orderError.code !== '23505') {
-    console.error('Error creating stripe_orders for payment link:', orderError);
-    await alertAdmin(
-      'Entry payment-link recorded without a stripe_orders row',
-      `<p>Entries for session <code>${session.id}</code> were marked paid, but
-       inserting the <code>stripe_orders</code> record failed:</p>
-       <pre>${orderError.message}</pre>
-       <p>Recovery: insert the order row manually (payment intent
-       <code>${paymentIntentId ?? 'unknown'}</code>) so payment history stays complete.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `payment-link-order-insert-failed-${session.id}` }
-    );
-  }
+
+  await resolvePaidWaitlistOffers(paidIds, session.id);
 
   if (updateOutcome.alreadyPaidEntryIds.length > 0) {
     await alertAdmin(

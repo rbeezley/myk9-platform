@@ -3,6 +3,7 @@ import { posterColors } from '../../tokens';
 import { PosterMonoStrip } from '../../components/PosterMonoStrip';
 import { formatDateRange } from '../utils/dateFormat';
 import { formatEntryCount } from '@/features/_shared/landing/entryCount';
+import { pendingNavLabel, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
 
 interface StickyNavProps {
   showAbbreviation: string;
@@ -40,6 +41,7 @@ export function StickyNav({
   canEnterOnline = true,
   entryClosed = false,
 }: StickyNavProps) {
+  const mailInOnly = useLandingMailInOnly();
   const dateLabel = formatDateRange(trialStartDate, trialEndDate, timezone, true);
   const venueLabel = [venueName, venueCity].filter(Boolean).join(', ').toUpperCase();
   const capacityLabel =
@@ -74,7 +76,7 @@ export function StickyNav({
             flexShrink: 0,
           }}
         >
-          {entryClosed ? 'Entries closed' : 'Classes pending'}
+          {entryClosed ? 'Entries closed' : pendingNavLabel(mailInOnly)}
         </span>
       </PosterMonoStrip>
     );

@@ -190,6 +190,9 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     delete payload.experience_published_at;
     delete payload.experience_published_style;
     delete payload.experience_published_content;
+    // MYK9-979: RPC-owned (set_show_online_entries). A rebuilt full row must
+    // never carry a cached copy of it back over the server's value.
+    delete payload.online_entries_enabled;
     return payload;
   }
 
@@ -367,8 +370,9 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     delete safeUpdates.experiencePublishedAt;
     delete safeUpdates.experiencePublishedStyle;
     delete safeUpdates.experiencePublishedContent;
-    // MYK9-979: an unknown online-entries value is never written or merged.
-    if (safeUpdates.onlineEntriesEnabled === undefined) delete safeUpdates.onlineEntriesEnabled;
+    // MYK9-979: online entries change only through set_show_online_entries
+    // (an online RPC), never through a generic show write, local or queued.
+    delete safeUpdates.onlineEntriesEnabled;
     const resolvedUpdates = invalidateVenuePinIfLocationChanged(currentShow.location, safeUpdates);
     // Style is an RPC-owned field. Never let a stale generic Show edit carry it
     // back to Supabase or overwrite a newer Preview save.
@@ -396,33 +400,12 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     // coordinate columns would otherwise null out a pin saved elsewhere.
     if (!('latitude' in resolvedUpdates)) delete updatePayload.latitude;
     if (!('longitude' in resolvedUpdates)) delete updatePayload.longitude;
-    // MYK9-979: never resend a cached online_entries_enabled on an unrelated edit.
-    if (!('onlineEntriesEnabled' in resolvedUpdates)) delete updatePayload.online_entries_enabled;
+    delete updatePayload.online_entries_enabled; // MYK9-979: RPC-owned, see above.
 
     const mutationId = await this.queueMutation('UPDATE', showId, updatePayload);
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated show ${showId}`);
     return mutationId;
-  }
-
-  /**
-   * MYK9-979: the "Accept online entries" switch saves itself, apart from any
-   * form. The queued UPDATE carries ONLY this column, so it cannot resend a
-   * stale copy of anything else, nor can a form save resend a stale switch.
-   */
-  async setOnlineEntriesEnabled(showId: string, enabled: boolean): Promise<string | null> {
-    const currentShow = await this.get(showId);
-    if (!currentShow) throw new Error(`Show ${showId} not found`);
-    const updatedShow: ReplicatedShow = {
-      ...currentShow,
-      onlineEntriesEnabled: enabled,
-      _lastModified: new Date(),
-      _syncStatus: 'pending',
-    };
-    await this.set(showId, updatedShow, true);
-    const payload = { id: showId, online_entries_enabled: enabled };
-    this._lastMutationId = await this.queueMutation('UPDATE', showId, payload);
-    return this._lastMutationId;
   }
 
   /**

@@ -7,6 +7,7 @@ vi.mock('@/components/ui/tabs', () => import('../../../common/__tests__/mockTabs
 const onlineSwitch = vi.hoisted(() => ({
   value: undefined as boolean | undefined,
   pending: false,
+  offline: false,
   setEnabled: vi.fn(async () => {}),
 }));
 vi.mock('@/features/payments/useOnlineEntriesSwitch', () => ({
@@ -15,7 +16,10 @@ vi.mock('@/features/payments/useOnlineEntriesSwitch', () => ({
 
 import { ShowEditFeesTab } from '../ShowEditFeesTab';
 import type { ShowEditFormData } from '../ShowEditPanel.types';
-import { ONLINE_ENTRIES_UNKNOWN_HINT } from '@/features/payments/onlineEntryGate';
+import {
+  ONLINE_ENTRIES_OFFLINE_HINT,
+  ONLINE_ENTRIES_UNKNOWN_HINT,
+} from '@/features/payments/onlineEntryGate';
 
 const baseData: ShowEditFormData = {
   name: 'Test Show',
@@ -74,6 +78,16 @@ describe('ShowEditFeesTab — Payment Methods section', () => {
     const toggle = screen.getByRole('switch', { name: /accept online entries/i });
     expect(toggle).toHaveAttribute('aria-disabled', 'true');
     expect(toggle).toHaveAccessibleDescription(ONLINE_ENTRIES_UNKNOWN_HINT);
+  });
+
+  it('disables the switch with a hint while offline (it saves through an online RPC)', () => {
+    onlineSwitch.value = true;
+    onlineSwitch.offline = true;
+    render(<ShowEditFeesTab data={baseData} handleCheckboxChange={vi.fn(() => vi.fn())} />);
+    const toggle = screen.getByRole('switch', { name: /accept online entries/i });
+    expect(toggle).toHaveAttribute('aria-disabled', 'true');
+    expect(toggle).toHaveAccessibleDescription(ONLINE_ENTRIES_OFFLINE_HINT);
+    onlineSwitch.offline = false;
   });
 
   it('flipping the switch saves it on its own and never touches the form', async () => {

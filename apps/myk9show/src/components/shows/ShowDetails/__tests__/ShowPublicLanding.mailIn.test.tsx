@@ -10,6 +10,7 @@ import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { ShowPublicLanding } from '../ShowPublicLanding';
 import { MAIL_IN_ENTRY_NOTE } from '@/features/payments/onlineEntryGate';
+import { MAIL_IN_NAV_LABEL } from '@/features/_shared/landing/landingMailIn';
 import type { Show } from '@/types/show-types';
 import type { MonogramLandingData } from '@/features/monogram/landing/types';
 
@@ -110,6 +111,9 @@ describe('ShowPublicLanding — online entries off (MYK9-979)', () => {
     // The landing's own "why no Enter button" copy must not blame missing classes.
     expect(screen.queryByText(/no classes are assigned/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/assign classes/i)).not.toBeInTheDocument();
+    // Codex round 4: the navigation's status label is accurate too.
+    expect(screen.getAllByText(MAIL_IN_NAV_LABEL).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/classes pending/i)).not.toBeInTheDocument();
   });
 
   it('positive control: the same show with online entries on offers "Enter this show" and no note', () => {

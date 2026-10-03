@@ -16,7 +16,11 @@ import { SectionHead } from './HeadlineLandingPrimitives';
 import { formatDateRange, shortDate } from './headlineLandingDates';
 import '../headline.css';
 import '../headline-detail.css';
-import { pendingEntryCopy, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
+import {
+  pendingEntryCopy,
+  pendingNavLabel,
+  useLandingMailInOnly,
+} from '@/features/_shared/landing/landingMailIn';
 
 interface HeadlineLandingPageProps {
   show: Show | null | undefined;
@@ -66,6 +70,7 @@ function HeadlineNav({
   canEnterOnline?: boolean;
   entryClosed?: boolean;
 }) {
+  const mailInOnly = useLandingMailInOnly();
   return (
     <>
       <div className="hd-topbar" />
@@ -91,7 +96,9 @@ function HeadlineNav({
               Enter this show
             </a>
           ) : (
-            <span className="hd-nav-cta">{entryClosed ? 'Entries closed' : 'Classes pending'}</span>
+            <span className="hd-nav-cta">
+              {entryClosed ? 'Entries closed' : pendingNavLabel(mailInOnly)}
+            </span>
           )}
         </div>
       </nav>

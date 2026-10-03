@@ -225,6 +225,7 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
               // MYK9-979: the live value, saved on its own, never form data.
               acceptOnline={onlineEntries.value}
               onlineBusy={onlineEntries.pending}
+              onlineOffline={onlineEntries.offline}
               acceptCheck={data.acceptCheckPayments ?? false}
               acceptCash={data.acceptCashPayments ?? false}
               onOnlineChange={checked => void onlineEntries.setEnabled(checked)}

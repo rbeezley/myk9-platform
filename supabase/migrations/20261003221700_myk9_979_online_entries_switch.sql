@@ -91,6 +91,10 @@
 --    Edits versus that body: the v_online_entries local, its SELECT column,
 --    and the refusal block after the entry-close guard. Nothing else.
 --
+-- 4b. set_show_online_entries(p_show_id, p_enabled): the switch's only write
+--    path, an online-only SECURITY DEFINER RPC that updates that one column
+--    (section 3d). Generic client show writes never carry the column.
+--
 -- 5. create_show_with_children reads p_show.online_entries_enabled (absent or
 --    null -> false). Rebuilt from 20260929233100, the LATEST migration
 --    defining it; the only differences are that column/value and the COMMENT.
@@ -366,6 +370,55 @@ CREATE TRIGGER trg_enforce_show_publish_gate
 REVOKE ALL ON FUNCTION public.enforce_show_publish_gate() FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.enforce_show_publish_gate() FROM anon;
 REVOKE ALL ON FUNCTION public.enforce_show_publish_gate() FROM authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 3d. set_show_online_entries: the ONE write path for the switch
+--     (Codex round 4 on #2707). The switch is an online-only server action,
+--     never a field on a generic (replicated, full-row) show write: a queued
+--     full-row UPDATE can be rebuilt on a stale token and would carry every
+--     other column with it. This writes online_entries_enabled and nothing
+--     else; update_shows_updated_at / shows_version_increment bump the row so
+--     replicas re-pull it. Authorized exactly like shows_update RLS (club
+--     admin / club trial secretary via can_manage_show, plus site admin,
+--     which can_manage_show does not cover). The publish gate still fires
+--     (UPDATE OF online_entries_enabled, caller role stays authenticated
+--     inside SECURITY DEFINER), so turning it on for a public show without
+--     Stripe payouts raises MK003 to the caller.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.set_show_online_entries(p_show_id uuid, p_enabled boolean)
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  IF p_show_id IS NULL OR p_enabled IS NULL THEN
+    RAISE EXCEPTION 'p_show_id and p_enabled are required' USING ERRCODE = '22023';
+  END IF;
+
+  IF NOT (public.can_manage_show(p_show_id) OR public.is_site_admin()) THEN
+    RAISE EXCEPTION 'not authorized to change online entries for show %', p_show_id
+      USING ERRCODE = '42501';
+  END IF;
+
+  UPDATE public.shows
+     SET online_entries_enabled = p_enabled
+   WHERE id = p_show_id
+     AND deleted_at IS NULL;
+
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'show % not found', p_show_id USING ERRCODE = 'P0002';
+  END IF;
+END;
+$$;
+
+COMMENT ON FUNCTION public.set_show_online_entries(uuid, boolean) IS
+  'MYK9-979: sets shows.online_entries_enabled for one non-deleted show and nothing else. Callers: the show edit panel''s self-saving switch (useOnlineEntriesSwitch), online only. Authorized like shows_update (can_manage_show or site admin; 42501 otherwise). enforce_show_publish_gate still applies: turning it on for a public show without the club''s Stripe payouts raises MK003.';
+
+REVOKE ALL ON FUNCTION public.set_show_online_entries(uuid, boolean) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.set_show_online_entries(uuid, boolean) FROM anon;
+REVOKE ALL ON FUNCTION public.set_show_online_entries(uuid, boolean) FROM authenticated;
+GRANT EXECUTE ON FUNCTION public.set_show_online_entries(uuid, boolean) TO authenticated;
 
 -- ---------------------------------------------------------------------------
 -- 4. submit_show_entries: refuse exhibitor entries when online entries are off

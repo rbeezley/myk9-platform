@@ -1,9 +1,9 @@
 /**
- * MYK9-979 (Codex P2 round 2 on #2707): shows.online_entries_enabled is
- * tri-state on the client (true / false / unknown). An unknown value is never
- * written, and a save carries the column ONLY when the caller explicitly set
- * it, so an unrelated (possibly offline) edit can never turn online entries
- * off, or back on, from a stale or missing local value.
+ * MYK9-979 (Codex rounds 2-4 on #2707): shows.online_entries_enabled is
+ * RPC-owned. Only set_show_online_entries (an online server action) writes it
+ * after creation; no generic show write, local, queued or rebuilt on a stale
+ * token, ever carries it. A create carries it only when known (the server
+ * default, false, applies otherwise).
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { detectDirtyRowConflict } from '@myk9/replication';
@@ -30,7 +30,7 @@ const BASE: ReplicatedShow = {
   entryCloseDate: '2026-10-24T00:00:00+00:00',
 };
 
-describe('ReplicatedShowsTable — online_entries_enabled is written only when set', () => {
+describe('ReplicatedShowsTable — generic show writes never carry online_entries_enabled', () => {
   let table: ReplicatedShowsTable;
   let queueMutation: ReturnType<typeof vi.spyOn>;
 
@@ -57,23 +57,37 @@ describe('ReplicatedShowsTable — online_entries_enabled is written only when s
     expect(lastPayload()).not.toHaveProperty('online_entries_enabled');
   });
 
-  it('a name-only edit of a show whose value IS known still leaves the column alone', async () => {
+  it('a name-only edit of a show whose value IS known never resends it', async () => {
     await table.set(BASE.id, { ...BASE, onlineEntriesEnabled: true });
     await table.updateShow(BASE.id, { name: 'Renamed' });
     expect(lastPayload()).not.toHaveProperty('online_entries_enabled');
   });
 
-  it.each([true, false])('an explicit switch change (%s) is sent', async value => {
-    await table.set(BASE.id, BASE);
-    await table.updateShow(BASE.id, { onlineEntriesEnabled: value });
-    expect(lastPayload()).toHaveProperty('online_entries_enabled', value);
+  it.each([true, false, undefined])(
+    'a generic update that names the field (%s) neither sends it nor changes the local row',
+    async value => {
+      await table.set(BASE.id, { ...BASE, onlineEntriesEnabled: true });
+      await table.updateShow(BASE.id, { name: 'Renamed', onlineEntriesEnabled: value });
+      expect(lastPayload()).not.toHaveProperty('online_entries_enabled');
+      expect((await table.get(BASE.id))?.onlineEntriesEnabled).toBe(true);
+    }
+  );
+
+  it('a full-row payload rebuilt for a stale-token rebase never carries it', () => {
+    const rebuilt = (
+      table as unknown as {
+        rebuildUpdatePayload: (show: ReplicatedShow) => Record<string, unknown>;
+      }
+    ).rebuildUpdatePayload({ ...BASE, onlineEntriesEnabled: false });
+    expect(rebuilt).toHaveProperty('name', BASE.name);
+    expect(rebuilt).not.toHaveProperty('online_entries_enabled');
   });
 
-  it('never sends an explicit undefined', async () => {
-    await table.set(BASE.id, { ...BASE, onlineEntriesEnabled: true });
-    await table.updateShow(BASE.id, { onlineEntriesEnabled: undefined });
-    expect(lastPayload()).not.toHaveProperty('online_entries_enabled');
-    expect((await table.get(BASE.id))?.onlineEntriesEnabled).toBe(true);
+  it('a create carries a known value', async () => {
+    const { id: _ignored, ...rest } = BASE;
+    void _ignored;
+    await table.createShow({ ...rest, onlineEntriesEnabled: true });
+    expect(lastPayload()).toHaveProperty('online_entries_enabled', true);
   });
 
   it('a create without the field sends no key, so the server default (false) applies', async () => {
@@ -82,39 +96,6 @@ describe('ReplicatedShowsTable — online_entries_enabled is written only when s
     await table.createShow(rest);
     expect(lastPayload()).not.toHaveProperty('online_entries_enabled');
   });
-});
-
-describe('ReplicatedShowsTable.setOnlineEntriesEnabled — the switch saves itself (Codex round 3)', () => {
-  let table: ReplicatedShowsTable;
-  let queueMutation: ReturnType<typeof vi.spyOn>;
-
-  beforeEach(async () => {
-    const { databaseManager } = await import('@myk9/replication');
-    await databaseManager.reset();
-    table = new ReplicatedShowsTable();
-    queueMutation = vi.spyOn(table as unknown as { queueMutation: QueueMutation }, 'queueMutation');
-    queueMutation.mockResolvedValue('mutation-1');
-  });
-
-  afterEach(async () => {
-    const { databaseManager } = await import('@myk9/replication');
-    await databaseManager.reset();
-  });
-
-  it.each([true, false])(
-    'queues an UPDATE carrying ONLY online_entries_enabled (%s)',
-    async value => {
-      await table.set(BASE.id, { ...BASE, onlineEntriesEnabled: !value });
-      await table.setOnlineEntriesEnabled(BASE.id, value);
-
-      expect(queueMutation).toHaveBeenCalledTimes(1);
-      expect(queueMutation).toHaveBeenCalledWith('UPDATE', BASE.id, {
-        id: BASE.id,
-        online_entries_enabled: value,
-      });
-      expect((await table.get(BASE.id))?.onlineEntriesEnabled).toBe(value);
-    }
-  );
 });
 
 describe('ReplicatedShowsTable — a sync merge never replaces a known server value with unknown', () => {

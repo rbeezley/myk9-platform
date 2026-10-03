@@ -46,6 +46,9 @@ export const ONLINE_ENTRIES_HELP_TEXT =
 export const ONLINE_ENTRIES_UNKNOWN_HINT =
   'Loading this setting… refresh the page to change online entries.';
 
+/** Under the switch while offline: it saves through an online-only RPC. */
+export const ONLINE_ENTRIES_OFFLINE_HINT = 'Connect to the internet to change online entries.';
+
 /** Under a disabled switch where this surface does not own the setting. */
 export const ONLINE_ENTRIES_LOCKED_HINT = "Change online entries from the show's Edit panel.";
 

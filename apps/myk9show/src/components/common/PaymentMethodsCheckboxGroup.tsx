@@ -5,6 +5,7 @@ import { Switch } from '@/components/ui/switch';
 import {
   ONLINE_ENTRIES_HELP_TEXT,
   ONLINE_ENTRIES_LOCKED_HINT,
+  ONLINE_ENTRIES_OFFLINE_HINT,
   ONLINE_ENTRIES_UNKNOWN_HINT,
 } from '@/features/payments/onlineEntryGate';
 
@@ -18,6 +19,8 @@ interface PaymentMethodsCheckboxGroupProps {
   onlineEditable?: boolean;
   /** True while a self-saving switch's write is in flight. */
   onlineBusy?: boolean;
+  /** True when a self-saving switch cannot reach the server. */
+  onlineOffline?: boolean;
   acceptCheck: boolean;
   acceptCash: boolean;
   onOnlineChange: (checked: boolean) => void;
@@ -41,13 +44,16 @@ export const PaymentMethodsCheckboxGroup: React.FC<PaymentMethodsCheckboxGroupPr
   idPrefix = '',
   onlineEditable = true,
   onlineBusy = false,
+  onlineOffline = false,
 }) => {
   const onlineKnown = acceptOnline !== undefined;
   const onlineHelp = !onlineKnown
     ? ONLINE_ENTRIES_UNKNOWN_HINT
-    : !onlineEditable
-      ? ONLINE_ENTRIES_LOCKED_HINT
-      : ONLINE_ENTRIES_HELP_TEXT;
+    : onlineOffline
+      ? ONLINE_ENTRIES_OFFLINE_HINT
+      : !onlineEditable
+        ? ONLINE_ENTRIES_LOCKED_HINT
+        : ONLINE_ENTRIES_HELP_TEXT;
   const onlineId = `${idPrefix}onlineEntriesEnabled`;
   const checkId = `${idPrefix}acceptCheckPayments`;
   const cashId = `${idPrefix}acceptCashPayments`;
@@ -59,7 +65,7 @@ export const PaymentMethodsCheckboxGroup: React.FC<PaymentMethodsCheckboxGroupPr
           id={onlineId}
           aria-describedby={`help-${onlineId}`}
           checked={acceptOnline === true}
-          disabled={!onlineKnown || !onlineEditable || onlineBusy}
+          disabled={!onlineKnown || !onlineEditable || onlineBusy || onlineOffline}
           onCheckedChange={onOnlineChange}
           className="mt-0.5"
         />

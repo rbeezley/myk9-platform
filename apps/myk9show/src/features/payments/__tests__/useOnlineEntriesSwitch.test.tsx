@@ -16,16 +16,16 @@ import { ONLINE_ENTRIES_BLOCKED_MESSAGE } from '../onlineEntryGate';
 const h = vi.hoisted(() => ({
   show: undefined as Record<string, unknown> | undefined,
   payouts: null as { payouts_enabled: boolean } | null,
-  setOnlineEntriesEnabled: vi.fn(async () => 'mutation-1'),
+  online: true,
+  setShowOnlineEntries: vi.fn(async (_showId: string, _enabled: boolean) => {}),
 }));
 
 vi.mock('@/store/showStore', () => ({
   useShowStore: (selector: (state: { shows: unknown[] }) => unknown) =>
     selector({ shows: h.show ? [h.show] : [] }),
 }));
-vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
-  replicatedShowsTable: { setOnlineEntriesEnabled: h.setOnlineEntriesEnabled },
-}));
+vi.mock('../setShowOnlineEntries', () => ({ setShowOnlineEntries: h.setShowOnlineEntries }));
+vi.mock('@/hooks/useNetworkStatus', () => ({ useIsOnline: () => h.online }));
 vi.mock('../useClubStripeAccount', () => ({
   useClubStripeAccount: () => ({ data: h.payouts, isLoading: false, isError: false }),
 }));
@@ -41,6 +41,18 @@ describe('useOnlineEntriesSwitch', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     h.payouts = null;
+    h.online = true;
+  });
+
+  it('is disabled and writes nothing while offline (the RPC needs a connection)', async () => {
+    h.show = show({ onlineEntriesEnabled: true });
+    h.online = false;
+    const { result } = renderHook(() => useOnlineEntriesSwitch('show-1'), { wrapper });
+    expect(result.current.offline).toBe(true);
+
+    await act(() => result.current.setEnabled(false));
+
+    expect(h.setShowOnlineEntries).not.toHaveBeenCalled();
   });
 
   it('reads the live value and turns entries off with its own one-column write', async () => {
@@ -50,7 +62,7 @@ describe('useOnlineEntriesSwitch', () => {
 
     await act(() => result.current.setEnabled(false));
 
-    expect(h.setOnlineEntriesEnabled).toHaveBeenCalledWith('show-1', false);
+    expect(h.setShowOnlineEntries).toHaveBeenCalledWith('show-1', false);
     expect(toast.success).toHaveBeenCalledWith(ONLINE_ENTRIES_OFF_TOAST);
   });
 
@@ -60,7 +72,7 @@ describe('useOnlineEntriesSwitch', () => {
 
     await act(() => result.current.setEnabled(true));
 
-    expect(h.setOnlineEntriesEnabled).not.toHaveBeenCalled();
+    expect(h.setShowOnlineEntries).not.toHaveBeenCalled();
     expect(toast.error).toHaveBeenCalledWith(ONLINE_ENTRIES_BLOCKED_MESSAGE, expect.anything());
   });
 
@@ -71,7 +83,7 @@ describe('useOnlineEntriesSwitch', () => {
 
     await act(() => result.current.setEnabled(true));
 
-    expect(h.setOnlineEntriesEnabled).toHaveBeenCalledWith('show-1', true);
+    expect(h.setShowOnlineEntries).toHaveBeenCalledWith('show-1', true);
     expect(toast.success).toHaveBeenCalledWith(ONLINE_ENTRIES_ON_TOAST);
   });
 
@@ -81,7 +93,7 @@ describe('useOnlineEntriesSwitch', () => {
 
     await act(() => result.current.setEnabled(true));
 
-    expect(h.setOnlineEntriesEnabled).toHaveBeenCalledWith('show-1', true);
+    expect(h.setShowOnlineEntries).toHaveBeenCalledWith('show-1', true);
   });
 
   it('never writes while the value is unknown', async () => {
@@ -91,12 +103,12 @@ describe('useOnlineEntriesSwitch', () => {
 
     await act(() => result.current.setEnabled(true));
 
-    expect(h.setOnlineEntriesEnabled).not.toHaveBeenCalled();
+    expect(h.setShowOnlineEntries).not.toHaveBeenCalled();
   });
 
   it('surfaces a publish-gate refusal (MK003) in the toast', async () => {
     h.show = show({ onlineEntriesEnabled: false, status: 'draft' });
-    h.setOnlineEntriesEnabled.mockRejectedValueOnce({
+    h.setShowOnlineEntries.mockRejectedValueOnce({
       code: 'MK003',
       message: ONLINE_ENTRIES_BLOCKED_MESSAGE,
     });

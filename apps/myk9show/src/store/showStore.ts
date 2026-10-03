@@ -406,8 +406,6 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         replicatedUpdates.acceptCheckPayments = updates.acceptCheckPayments;
       if (updates.acceptCashPayments !== undefined)
         replicatedUpdates.acceptCashPayments = updates.acceptCashPayments;
-      if (updates.onlineEntriesEnabled !== undefined)
-        replicatedUpdates.onlineEntriesEnabled = updates.onlineEntriesEnabled;
       if ('logoUrl' in updates) replicatedUpdates.logoUrl = updates.logoUrl as string;
       if ('coverImageUrl' in updates)
         replicatedUpdates.coverImageUrl = updates.coverImageUrl as string;
@@ -461,8 +459,6 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         definedUpdates.acceptCheckPayments = updates.acceptCheckPayments;
       if (updates.acceptCashPayments !== undefined)
         definedUpdates.acceptCashPayments = updates.acceptCashPayments;
-      if (updates.onlineEntriesEnabled !== undefined)
-        definedUpdates.onlineEntriesEnabled = updates.onlineEntriesEnabled;
       if (updates.clubName !== undefined) definedUpdates.clubName = updates.clubName;
       if (updates.clubAddress !== undefined) definedUpdates.clubAddress = updates.clubAddress;
       if (updates.clubEmail !== undefined) definedUpdates.clubEmail = updates.clubEmail;

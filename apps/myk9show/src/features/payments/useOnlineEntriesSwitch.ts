@@ -3,10 +3,11 @@
  *
  * It is NOT part of the edit form's data: a form holds a snapshot, and a
  * snapshot of this switch, resent with an unrelated save, could reverse a
- * change made on another device. Flipping it queues its own replicated UPDATE
- * that carries only `online_entries_enabled`
- * (ReplicatedShowsTable.setOnlineEntriesEnabled), and the value shown is the
- * live replica row, never form state.
+ * change made on another device. Nor does it ride the replication queue: a
+ * queued show UPDATE can be rebuilt into a full row on a stale token. Flipping
+ * it calls the online-only RPC set_show_online_entries (setShowOnlineEntries),
+ * which writes that one column; the switch is disabled while offline. The
+ * value shown is the live replica row, refreshed after each change.
  *
  * Turning it on for a public show needs the club's Stripe payouts, the same
  * rule the publish gate enforces (MK003). The check here is the friendly
@@ -17,7 +18,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useShowStore } from '@/store/showStore';
-import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
+import { useIsOnline } from '@/hooks/useNetworkStatus';
+import { setShowOnlineEntries } from './setShowOnlineEntries';
 import { useClubStripeAccount } from './useClubStripeAccount';
 import {
   canEnableOnlineEntries,
@@ -40,6 +42,8 @@ export interface OnlineEntriesSwitch {
   /** The live value; `undefined` while unknown (the switch stays disabled). */
   value: boolean | undefined;
   pending: boolean;
+  /** The RPC needs a connection; the switch is disabled while offline. */
+  offline: boolean;
   setEnabled: (next: boolean) => Promise<void>;
 }
 
@@ -52,9 +56,10 @@ export function useOnlineEntriesSwitch(showId: string | undefined): OnlineEntrie
   const stripe = useClubStripeAccount(show?.clubId);
   const navigate = useNavigate();
   const [pending, setPending] = useState(false);
+  const offline = !useIsOnline();
 
   async function setEnabled(next: boolean): Promise<void> {
-    if (!showId || value === undefined || pending || next === value) return;
+    if (!showId || value === undefined || pending || offline || next === value) return;
     if (next && isPublicShowStatus(dbStatus(show?.status))) {
       if (stripe.isLoading) {
         toast.info('Checking the club’s payment account — try again in a moment.');
@@ -69,7 +74,7 @@ export function useOnlineEntriesSwitch(showId: string | undefined): OnlineEntrie
     }
     setPending(true);
     try {
-      await replicatedShowsTable.setOnlineEntriesEnabled(showId, next);
+      await setShowOnlineEntries(showId, next);
       toast.success(next ? ONLINE_ENTRIES_ON_TOAST : ONLINE_ENTRIES_OFF_TOAST);
     } catch (error) {
       toast.error(publishGateDbErrorMessage(error) ?? ONLINE_ENTRIES_SAVE_FAILED);
@@ -78,5 +83,5 @@ export function useOnlineEntriesSwitch(showId: string | undefined): OnlineEntrie
     }
   }
 
-  return { value, pending, setEnabled };
+  return { value, pending, offline, setEnabled };
 }

@@ -19,6 +19,14 @@ export function useLandingMailInOnly(): boolean {
   return useContext(LandingMailInContext);
 }
 
+/** The landing navigation's status label when it has no Enter CTA and entries
+ * are not closed (Codex round 4 on #2707): a mail-in show is not "pending". */
+export const MAIL_IN_NAV_LABEL = 'Mail-in entries';
+
+export function pendingNavLabel(mailInOnly: boolean): string {
+  return mailInOnly ? MAIL_IN_NAV_LABEL : 'Classes pending';
+}
+
 /** The pending-entry sentence a landing section shows when it has no Enter CTA
  * and entries are not closed: the mail-in note on a mail-in show, otherwise
  * the section's own "classes not assigned yet" copy. */

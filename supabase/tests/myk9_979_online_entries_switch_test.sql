@@ -24,6 +24,8 @@
 --      exhibitor's dog still succeeds; turning the switch on lets the same
 --      exhibitor call succeed (positive control proving the refusal came from
 --      the switch).
+--  10. set_show_online_entries: grants; a manager sets only that column; MK003
+--      on a public show without Stripe; a non-manager is refused 42501.
 --   9. The migration's backfill, replayed verbatim, writes every show with a
 --      fresh updated_at (the replica's sync key) and the right value.
 --
@@ -422,6 +424,87 @@ BEGIN
     RAISE EXCEPTION 'FAIL 8c exhibitor entry was not created with online entries on: %', result;
   END IF;
   RAISE NOTICE 'PASS 8c exhibitor entry succeeds once online entries are on';
+END;
+$$;
+
+RESET ROLE;
+SELECT set_config('request.jwt.claim.sub', '', true);
+SELECT set_config('request.jwt.claims', '', true);
+
+-- ---------------------------------------------------------------------------
+-- 10. set_show_online_entries, the switch's only write path (Codex round 4).
+--     Grants: EXECUTE for authenticated only. A manager can set it; a
+--     non-manager is refused 42501; turning it on for a public show without
+--     Stripe payouts is refused MK003 by the publish gate; only the one column
+--     changes, and the row is bumped for replicas.
+-- ---------------------------------------------------------------------------
+DO $$
+BEGIN
+  IF has_function_privilege('anon', 'public.set_show_online_entries(uuid, boolean)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'FAIL 10 anon can execute set_show_online_entries';
+  END IF;
+  IF NOT has_function_privilege('authenticated', 'public.set_show_online_entries(uuid, boolean)', 'EXECUTE') THEN
+    RAISE EXCEPTION 'FAIL 10 authenticated cannot execute set_show_online_entries';
+  END IF;
+END;
+$$;
+
+SET LOCAL ROLE authenticated;
+
+DO $$
+DECLARE
+  admin_auth     CONSTANT uuid := '00000000-0000-0000-0000-000000979021';
+  exhibitor_auth CONSTANT uuid := '00000000-0000-0000-0000-000000979022';
+  v_before public.shows%ROWTYPE;
+  v_after  public.shows%ROWTYPE;
+BEGIN
+  PERFORM set_config('request.jwt.claim.sub', admin_auth::text, true);
+  PERFORM set_config('request.jwt.claims',
+    jsonb_build_object('sub', admin_auth, 'role', 'authenticated')::text, true);
+
+  -- 10a. A manager turns it on for a DRAFT of a club with no Stripe (allowed:
+  --      the gate runs when the show is published) and only that column moves.
+  SELECT * INTO v_before FROM public.shows WHERE id = '00000000-0000-0000-0000-000000979103';
+  PERFORM public.set_show_online_entries('00000000-0000-0000-0000-000000979103', true);
+  SELECT * INTO v_after FROM public.shows WHERE id = '00000000-0000-0000-0000-000000979103';
+  IF v_after.online_entries_enabled IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'FAIL 10a the manager could not set online entries';
+  END IF;
+  IF v_after.version IS DISTINCT FROM v_before.version + 1 THEN
+    RAISE EXCEPTION 'FAIL 10a the row version was not bumped (% -> %)', v_before.version, v_after.version;
+  END IF;
+  IF (to_jsonb(v_after) - 'online_entries_enabled' - 'version' - 'updated_at')
+     IS DISTINCT FROM (to_jsonb(v_before) - 'online_entries_enabled' - 'version' - 'updated_at') THEN
+    RAISE EXCEPTION 'FAIL 10a set_show_online_entries changed another column';
+  END IF;
+
+  -- 10b. A public show of a club with no Stripe: off is free, on is MK003.
+  PERFORM public.set_show_online_entries('00000000-0000-0000-0000-000000979101', false);
+  BEGIN
+    PERFORM public.set_show_online_entries('00000000-0000-0000-0000-000000979101', true);
+    RAISE EXCEPTION 'FAIL 10b online entries turned on for a public show without Stripe payouts';
+  EXCEPTION WHEN SQLSTATE 'MK003' THEN
+    NULL;
+  END;
+  IF (SELECT online_entries_enabled FROM public.shows WHERE id = '00000000-0000-0000-0000-000000979101') IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'FAIL 10b a refused toggle changed the row';
+  END IF;
+
+  -- 10c. A non-manager (the exhibitor) is refused, and nothing changes.
+  PERFORM set_config('request.jwt.claim.sub', exhibitor_auth::text, true);
+  PERFORM set_config('request.jwt.claims',
+    jsonb_build_object('sub', exhibitor_auth, 'role', 'authenticated')::text, true);
+  BEGIN
+    PERFORM public.set_show_online_entries('00000000-0000-0000-0000-000000979104', true);
+    RAISE EXCEPTION 'FAIL 10c a non-manager changed online entries';
+  EXCEPTION WHEN insufficient_privilege THEN
+    NULL;
+  END;
+  IF (SELECT online_entries_enabled FROM public.shows WHERE id = '00000000-0000-0000-0000-000000979104') IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'FAIL 10c a refused non-manager call changed the row';
+  END IF;
+
+  RAISE NOTICE 'PASS 10 set_show_online_entries: manager sets one column, MK003 on a public show without Stripe, non-manager refused';
 END;
 $$;
 

@@ -51,13 +51,27 @@ describe('buildOnboardingSteps', () => {
     expect(firstRun([UserRole.EXHIBITOR], { baseCompleted: true })).toEqual([]);
   });
 
-  it('reruns ONLY the new role step for a role gained after onboarding', () => {
+  it('never queues a later role step on its own: the banner offers it instead', () => {
     expect(
       firstRun([UserRole.SECRETARY, UserRole.JUDGE, UserRole.EXHIBITOR], {
         baseCompleted: true,
         onboardedRoles: ['judge'],
       })
-    ).toEqual(['secretary']);
+    ).toEqual([]);
+  });
+
+  it('runs ONLY the requested new role step after onboarding', () => {
+    const state: OnboardingState = {
+      hasProfile: true,
+      baseCompleted: true,
+      roles: [UserRole.SECRETARY, UserRole.JUDGE, UserRole.CLUB_ADMIN],
+      onboardedRoles: ['judge'],
+    };
+    expect(buildOnboardingSteps(state, 'secretary')).toEqual(['secretary']);
+    // Already done, revoked, or not a role step: nothing to run.
+    expect(buildOnboardingSteps(state, 'judge')).toEqual([]);
+    expect(buildOnboardingSteps({ ...state, roles: [UserRole.JUDGE] }, 'secretary')).toEqual([]);
+    expect(buildOnboardingSteps(state, 'dogs')).toEqual([]);
   });
 
   it('runs a role step once: recorded roles never come back', () => {

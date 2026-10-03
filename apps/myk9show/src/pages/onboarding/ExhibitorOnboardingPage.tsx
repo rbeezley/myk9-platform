@@ -7,13 +7,14 @@
  *   Secretary / Judge / Club admin — one step per role held
  *   Welcome   (completes onboarding, leads to the main role's home page)
  *
- * A role gained after onboarding reruns ONLY that role's step, once. The step
- * list is `buildOnboardingSteps` — the same rule the onboarding guard uses.
+ * The guard forces only that first run. A role gained afterwards is offered by
+ * the new-role banner, whose link opens just that step here
+ * (`/onboarding?step=judge`); finishing it records the role, once.
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { User } from '@supabase/supabase-js';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -28,7 +29,7 @@ import { StepClubAdmin } from './steps/StepClubAdmin';
 import {
   buildOnboardingSteps,
   getOnboardingDestination,
-  pendingRoleSteps,
+  isRoleStep,
   STEP_LABELS,
   type OnboardingStep,
 } from './onboardingSteps';
@@ -131,17 +132,22 @@ function OnboardingWizard({ user, roles }: { user: User; roles: readonly UserRol
   } = useExhibitorProfile();
   const userMeta = user.user_metadata ?? {};
 
+  const [searchParams] = useSearchParams();
+  const requestedRoleStep = searchParams.get('step');
   const baseCompleted = Boolean(profile?.onboarding_completed_at);
   const onboardedRoles = profile?.onboarded_roles;
   const steps = useMemo(
     () =>
-      buildOnboardingSteps({
-        hasProfile: Boolean(profile),
-        baseCompleted,
-        roles,
-        onboardedRoles: profile ? (onboardedRoles ?? null) : [],
-      }),
-    [profile, baseCompleted, roles, onboardedRoles]
+      buildOnboardingSteps(
+        {
+          hasProfile: Boolean(profile),
+          baseCompleted,
+          roles,
+          onboardedRoles: profile ? (onboardedRoles ?? null) : [],
+        },
+        requestedRoleStep
+      ),
+    [profile, baseCompleted, roles, onboardedRoles, requestedRoleStep]
   );
   const destination = getOnboardingDestination(roles);
 
@@ -206,13 +212,13 @@ function OnboardingWizard({ user, roles }: { user: User; roles: readonly UserRol
 
   // Completing onboarding must happen BEFORE navigating — Finish, the last role
   // step, or any in-flow link — so the onboarding guard on the destination does
-  // not bounce the user back to /onboarding (MYK9-858). Every role step this
-  // person holds is recorded, so none of them runs again.
+  // not bounce the user back to /onboarding (MYK9-858). The role steps in this
+  // flow are recorded, so neither they nor their banner come back.
   const finishOnboarding = async (target: string) => {
     if (isCompletingOnboarding) return;
     setStepError('');
     try {
-      await completeOnboarding(pendingRoleSteps(roles, []));
+      await completeOnboarding(steps.filter(isRoleStep));
       hasNavigatedAwayRef.current = true;
       navigate(target, { replace: true });
     } catch (err) {

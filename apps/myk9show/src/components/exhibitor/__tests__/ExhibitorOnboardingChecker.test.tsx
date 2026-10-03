@@ -116,22 +116,10 @@ describe('ExhibitorOnboardingChecker', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
   });
 
-  it('redirects an onboarded exhibitor who has since become a judge (role step only)', () => {
-    setupMocks({ roles: [UserRole.JUDGE, UserRole.EXHIBITOR] });
-    renderChecker();
-    expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
-  });
-
-  it('does not redirect once the role step is recorded', () => {
-    setupMocks({ roles: [UserRole.JUDGE, UserRole.EXHIBITOR], onboardedRoles: ['judge'] });
-    renderChecker();
-    expect(mockNavigate).not.toHaveBeenCalled();
-  });
-
-  // A database without the column returns no onboarded_roles key; the mapper
-  // reports null. Unknown is not "no role step done" (MYK9-347's rule).
-  it('does not redirect an onboarded secretary when onboarded_roles is unknown', () => {
-    setupMocks({ roles: [UserRole.SECRETARY], onboardedRoles: null });
+  // A role gained after onboarding is offered by NewRoleStepBanner, never by a
+  // redirect, so the guard needs no role state at all (MYK9-970 round 3).
+  it('does not redirect an onboarded user who has since gained a role', () => {
+    setupMocks({ roles: [UserRole.JUDGE, UserRole.EXHIBITOR], onboardedRoles: [] });
     renderChecker();
     expect(mockNavigate).not.toHaveBeenCalled();
   });
@@ -167,56 +155,6 @@ describe('ExhibitorOnboardingChecker', () => {
     setupMocks({ roles: [UserRole.JUDGE], onboardingCompleted: false });
     renderChecker();
     expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
-  });
-
-  // "On the next sign-in", not mid-session: RBAC re-polls, and a role granted
-  // while someone is working must not pull them off their page.
-  it('does not redirect when a role arrives mid-session', () => {
-    setupMocks({ roles: [UserRole.EXHIBITOR] });
-    const view = renderChecker();
-    setupMocks({ roles: [UserRole.SECRETARY, UserRole.EXHIBITOR] });
-    view.rerender(
-      <ExhibitorOnboardingChecker>
-        <div>Dashboard content</div>
-      </ExhibitorOnboardingChecker>
-    );
-    expect(mockNavigate).not.toHaveBeenCalled();
-  });
-
-  // The latch must be taken even when the session STARTS on an exempt show-day
-  // route, or the first non-exempt navigation would latch the newer role set.
-  it('does not redirect for a role granted mid-session that started on /at-show', () => {
-    mockPathname = '/at-show/show-1/class/c1';
-    setupMocks({ roles: [UserRole.EXHIBITOR] });
-    const view = renderChecker();
-
-    setupMocks({ roles: [UserRole.EXHIBITOR, UserRole.JUDGE] }); // RBAC re-poll
-    view.rerender(
-      <ExhibitorOnboardingChecker>
-        <div>Dashboard content</div>
-      </ExhibitorOnboardingChecker>
-    );
-    mockPathname = '/shows'; // navigate into the main app
-    view.rerender(
-      <ExhibitorOnboardingChecker>
-        <div>Dashboard content</div>
-      </ExhibitorOnboardingChecker>
-    );
-
-    expect(mockNavigate).not.toHaveBeenCalled();
-  });
-
-  it('runs the new role step on the next app load (fresh mount)', () => {
-    mockPathname = '/shows';
-    setupMocks({ roles: [UserRole.EXHIBITOR, UserRole.JUDGE], onboardedRoles: [] });
-    renderChecker();
-    expect(mockNavigate).toHaveBeenCalledWith('/onboarding', { replace: true });
-  });
-
-  it('does not redirect while RBAC is still loading', () => {
-    setupMocks({ rbacLoading: true, roles: [], onboardingCompleted: false });
-    renderChecker();
-    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
   it('does not redirect on profile fetch errors', () => {

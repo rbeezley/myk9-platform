@@ -116,14 +116,14 @@ describe('role-aware onboarding', () => {
     });
   });
 
-  it('reruns only the new role step for a role gained after onboarding, and records it', async () => {
+  it('opens only the requested new role step from the banner link, and records it', async () => {
     const { completeOnboarding } = setup({
       roles: [UserRole.SECRETARY, UserRole.JUDGE, UserRole.EXHIBITOR],
       onboardingCompletedAt: '2026-07-07T12:00:00.000Z',
       onboardedRoles: ['judge'],
     });
 
-    render(<ExhibitorOnboardingPage />);
+    render(<ExhibitorOnboardingPage />, { initialRoute: '/onboarding?step=secretary' });
 
     expect(screen.getByRole('heading', { name: 'One quick step' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Your secretary access' })).toBeInTheDocument();
@@ -134,9 +134,24 @@ describe('role-aware onboarding', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Finish' }));
 
     await waitFor(() => {
-      expect(completeOnboarding).toHaveBeenCalledWith(['secretary', 'judge']);
+      expect(completeOnboarding).toHaveBeenCalledWith(['secretary']);
       expect(navigateMock).toHaveBeenCalledWith('/secretary/dashboard', { replace: true });
     });
+  });
+
+  it('does not force a pending new role step without the banner link', async () => {
+    setup({
+      roles: [UserRole.SECRETARY, UserRole.EXHIBITOR],
+      onboardingCompletedAt: '2026-07-07T12:00:00.000Z',
+      onboardedRoles: [],
+    });
+
+    render(<ExhibitorOnboardingPage />, { initialRoute: '/onboarding' });
+
+    await waitFor(() => {
+      expect(navigateMock).toHaveBeenCalledWith('/secretary/dashboard', { replace: true });
+    });
+    expect(screen.queryByText('Your secretary access')).not.toBeInTheDocument();
   });
 
   it('sends an already-onboarded site admin straight to their dashboard', async () => {

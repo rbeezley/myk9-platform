@@ -1,9 +1,13 @@
 /**
- * Sends a signed-in user to /onboarding while they have onboarding steps left.
+ * Sends a signed-in user to /onboarding until they have finished the FIRST run.
  *
- * One rule for everyone (MYK9-970): `buildOnboardingSteps` decides, the same
- * function the onboarding page renders from. Staff are no longer exempt — they
- * get profile, dogs (skippable) and their role steps like everyone else.
+ * MYK9-970: staff are no longer exempt — everyone gets profile, dogs
+ * (skippable) and the role steps for the roles they hold at that moment.
+ *
+ * Only the first run is forced. A role gained later is offered by a
+ * dismissible banner (NewRoleStepBanner), never by a redirect: a redirect keyed
+ * on roles has to agree with RBAC re-polls, revocations and sign-out, and three
+ * review rounds showed it cannot do that simply.
  *
  * Redirects only when:
  *   - the user is authenticated and not an anonymous passcode session,
@@ -11,47 +15,21 @@
  *     "no profile"),
  *   - the current route is not exempt (auth, legal, and the show-day/payment
  *     routes in `@/utils/sensitiveRoutes`), and
- *   - there is at least one step left.
+ *   - there is no profile row, or it has no onboarding_completed_at.
  */
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
-import { buildOnboardingSteps } from '@/pages/onboarding/onboardingSteps';
-import type { UserRole } from '@/types/auth-types';
-import { isSensitivePath } from '@/utils/sensitiveRoutes';
+import { isOnboardingExemptPath } from './onboardingExemptPaths';
 
 interface ExhibitorOnboardingCheckerProps {
   children: React.ReactNode;
 }
 
-// Auth pages, the onboarding route itself and legal pages never redirect.
-const ONBOARDING_EXEMPT_PATHS = [
-  '/onboarding',
-  '/sign-in',
-  '/sign-up',
-  '/forgot-password',
-  '/reset-password',
-  '/auth/callback',
-  '/terms',
-  '/privacy',
-];
-
-// INTENT: neither do show-day and payment routes (ringside, scoring, the live
-// class dashboard, TV display, checkout). A judge signing in at the ring must
-// land on the scoresheet, never on a setup form; the step waits for the next
-// visit to the rest of the app. The list is the one the PWA update prompt uses
-// (`isSensitivePath`), so a new show-day route is added in one place.
-function isExemptPath(pathname: string): boolean {
-  return (
-    isSensitivePath(pathname) ||
-    ONBOARDING_EXEMPT_PATHS.some(p => pathname === p || pathname.startsWith(p + '/'))
-  );
-}
-
 export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingCheckerProps) {
-  const { user, userWithRoles, loading: authLoading, rbacLoading } = useAuthContext();
+  const { user, loading: authLoading } = useAuthContext();
   const {
     profile,
     profileSettled,
@@ -61,24 +39,10 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
   const navigate = useNavigate();
   const location = useLocation();
 
-  // "A new role starts its step on the next sign-in", not mid-session: RBAC
-  // re-polls every few minutes, and a role granted while someone is working
-  // must not yank them off their page. The role set is latched the first time
-  // auth and RBAC settle for this user in this app session — BEFORE any path,
-  // anonymous or profile check returns, so a session that starts on an exempt
-  // show-day route (/at-show, /scoring, /tv) is latched too. Only the redirect
-  // decision depends on the path.
-  const latchedRolesRef = useRef<{ userId: string; roles: readonly UserRole[] } | null>(null);
-
   useEffect(() => {
-    if (!user || authLoading || rbacLoading) return;
-    if (latchedRolesRef.current?.userId !== user.id) {
-      latchedRolesRef.current = { userId: user.id, roles: userWithRoles?.roles ?? [] };
-    }
-    const sessionRoles = latchedRolesRef.current.roles;
-
-    if (profileLoading) return;
-    if (isExemptPath(location.pathname)) return;
+    if (authLoading || profileLoading) return;
+    if (!user) return;
+    if (isOnboardingExemptPath(location.pathname)) return;
     if (profileError) return;
 
     // Anonymous (passcode ringside) sessions are NOT accounts. As of migration
@@ -94,22 +58,13 @@ export function ExhibitorOnboardingChecker({ children }: ExhibitorOnboardingChec
     // complete without a backend. An unsettled query is "unknown".
     if (!profileSettled) return;
 
-    const steps = buildOnboardingSteps({
-      hasProfile: Boolean(profile),
-      baseCompleted: Boolean(profile?.onboarding_completed_at),
-      roles: sessionRoles,
-      onboardedRoles: profile ? profile.onboarded_roles : [],
-    });
-
-    if (steps.length > 0) {
+    if (!profile?.onboarding_completed_at) {
       navigate('/onboarding', { replace: true });
     }
   }, [
     authLoading,
-    rbacLoading,
     profileLoading,
     user,
-    userWithRoles?.roles,
     profile,
     profileSettled,
     profileError,

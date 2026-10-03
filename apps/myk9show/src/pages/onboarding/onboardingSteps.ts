@@ -3,10 +3,10 @@
  *
  *   profile → dogs → one step per role held → welcome
  *
- * `onboarding_completed_at` records the shared part (profile, dogs, welcome).
- * `onboarded_roles` records the role steps finished. A role gained after
- * onboarding is a held role missing from `onboarded_roles`, so only that
- * role's step runs, once — never profile or dogs again.
+ * `onboarding_completed_at` records the first run. `onboarded_roles` records
+ * the role steps finished or dismissed. A role gained after onboarding is a
+ * held role missing from `onboarded_roles`: a dismissible banner offers its
+ * step (NewRoleStepBanner); nothing redirects for it.
  *
  * Pure: the page and the route guard both call it, so "does this person need
  * onboarding?" has exactly one answer.
@@ -61,17 +61,36 @@ export function pendingRoleSteps(
 }
 
 /**
- * The steps this person still has to see. Empty means onboarding is done.
+ * The steps this person still has to see. Empty means there is nothing to do.
  *
- * First run: [profile?] dogs, role steps, welcome.
- * Role gained later: only the new role steps — no welcome, so the flow stays
- * one screen long for the common case.
+ * First run (no completion stamp): [profile?] dogs, the role steps for the
+ * roles held right now, welcome. This is the only flow the guard forces.
+ *
+ * After that, a role step runs only when asked for (`requestedRoleStep`, from
+ * the new-role banner's link) and only while it is still pending for a role
+ * the person holds — never as a redirect (MYK9-970 round 3).
  */
-export function buildOnboardingSteps(state: OnboardingState): OnboardingStep[] {
+export function buildOnboardingSteps(
+  state: OnboardingState,
+  requestedRoleStep?: string | null
+): OnboardingStep[] {
   const roleSteps = pendingRoleSteps(state.roles, state.onboardedRoles);
-  if (state.baseCompleted) return roleSteps;
+  if (state.baseCompleted) {
+    return roleSteps.filter(step => step === requestedRoleStep);
+  }
   return [...(state.hasProfile ? [] : (['profile'] as const)), 'dogs', ...roleSteps, 'welcome'];
 }
+
+export function isRoleStep(step: OnboardingStep): step is OnboardingRoleStep {
+  return (ROLE_STEP_ROLES as readonly string[]).includes(step);
+}
+
+/** Banner copy for a role gained after onboarding: what changed, and the one action. */
+export const NEW_ROLE_COPY: Record<OnboardingRoleStep, { message: string; action: string }> = {
+  [UserRole.SECRETARY]: { message: "You're now a show secretary.", action: 'See your clubs' },
+  [UserRole.JUDGE]: { message: "You're now a judge.", action: 'Add your judge numbers' },
+  [UserRole.CLUB_ADMIN]: { message: "You're now a club admin.", action: 'Check your club' },
+};
 
 /**
  * Where the finished flow lands: the home page for the person's main role.

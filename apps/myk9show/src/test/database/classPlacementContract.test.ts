@@ -180,9 +180,7 @@ describe('completion gate — refresh_class_scoring_state (latest definition)', 
   it('asserts against the newest migration that redefines the function', () => {
     // Same rule as the ranking pin above: repoint it at the new file and
     // re-check every assertion below, rather than deleting it.
-    expect(latestGateMigrationFile).toBe(
-      '20261003200000_class_actual_times_from_scoring.sql'
-    );
+    expect(latestGateMigrationFile).toBe('20261003200000_class_actual_times_from_scoring.sql');
   });
 
   it('excludes absent lifecycle rows from the expected denominator', () => {

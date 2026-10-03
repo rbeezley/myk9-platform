@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
 import { render, screen } from '@/test/utils/testUtils';
+import { waitFor } from '@testing-library/react';
 import ShowCloseStep from '../ShowCloseStep';
 
 const entriesState = vi.hoisted(() => ({
@@ -77,7 +78,8 @@ vi.mock('@/features/show-workbench/CloseOutShowAction', () => ({
     show: unknown;
     trials: unknown[];
     classes: unknown[];
-    submissions: unknown[];
+    submissions: unknown[] | null;
+    incidents: unknown;
   }) => (
     <pre data-testid="close-action">
       {JSON.stringify({
@@ -85,6 +87,7 @@ vi.mock('@/features/show-workbench/CloseOutShowAction', () => ({
         trials: props.trials,
         classes: props.classes,
         submissions: props.submissions,
+        incidents: props.incidents,
       })}
     </pre>
   ),
@@ -125,6 +128,7 @@ describe('ShowCloseStep (Results step 3, MYK9-954)', () => {
 
     expect(await screen.findByTestId('close-action')).toBeInTheDocument();
     expect(screen.getByTestId('closeout-summary')).toHaveTextContent('2');
+    await waitFor(() => expect(closeActionProps().incidents).not.toBeNull());
     expect(closeActionProps()).toEqual({
       show: { id: 'show-1', status: 'active' },
       trials: [{ id: 'trial-1', status: 'active' }],
@@ -133,6 +137,7 @@ describe('ShowCloseStep (Results step 3, MYK9-954)', () => {
         { id: 'class-2', status: 'Scheduled', entryCount: 0, scoredCount: 0 },
       ],
       submissions: [{ status: 'sent', trial_id: 'trial-1' }],
+      incidents: expect.objectContaining({ reportableCount: 0, urgentCount: 0 }),
     });
     // The Show Day tool's shortcut buttons were dropped: this page is Results.
     expect(screen.queryByRole('link', { name: /submit results/i })).toBeNull();
@@ -158,32 +163,16 @@ describe('ShowCloseStep (Results step 3, MYK9-954)', () => {
     expect(screen.queryByTestId('close-action')).toBeNull();
   });
 
-  // Review of #2681: an unread incident log or submissions list defaulted to
-  // empty, so the readiness check silently dropped the "reportable incidents"
-  // concern and claimed "No result submission has been recorded".
-  it('holds the close action until incidents and submissions have been read', async () => {
+  // Codex review of #2681: withholding the close until both reads succeeded
+  // stranded an offline secretary. The action stays; the readiness check gets
+  // `null` and lists "could not be checked" instead of claiming "none".
+  it('keeps Close Out available and passes unread incidents and submissions as unknown', async () => {
     incidentsMock.mockImplementation(() => new Promise(() => {}));
     submissionsState.value = { data: undefined, isError: false, refetch: vi.fn() };
 
     renderStep();
 
-    expect(screen.getByTestId('closeout-summary')).toBeInTheDocument();
-    expect(screen.queryByTestId('close-action')).toBeNull();
-    expect(screen.getByText(/checking incidents and result submissions/i)).toBeInTheDocument();
-  });
-
-  it('says so, with a retry, when incidents or submissions could not be read', async () => {
-    incidentsMock.mockRejectedValue(new Error('offline'));
-    const retrySubmissions = vi.fn();
-    submissionsState.value = { data: undefined, isError: true, refetch: retrySubmissions };
-
-    const { user } = renderStep();
-
-    expect(
-      await screen.findByText(/couldn.t check incidents and result submissions/i)
-    ).toBeInTheDocument();
-    expect(screen.queryByTestId('close-action')).toBeNull();
-    await user.click(screen.getByRole('button', { name: 'Retry' }));
-    expect(retrySubmissions).toHaveBeenCalled();
+    expect(await screen.findByTestId('close-action')).toBeInTheDocument();
+    expect(closeActionProps()).toMatchObject({ submissions: null });
   });
 });

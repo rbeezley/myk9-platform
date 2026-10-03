@@ -22,7 +22,8 @@ export function AnnounceDelayButton({
 }: {
   showId: string;
   className: string;
-  delayMinutes: number;
+  /** Unknown when the class has no scheduled start to compare against. */
+  delayMinutes?: number | undefined;
 }) {
   return (
     <Dialog>
@@ -36,14 +37,15 @@ export function AnnounceDelayButton({
         <DialogHeader>
           <DialogTitle>Announce the delay</DialogTitle>
           <DialogDescription>
-            {className} is running about {delayMinutes} minutes behind. Read the script over the PA
-            or post it to the show feed.
+            {delayMinutes === undefined
+              ? `${className} is running behind. Set the minutes, then read the script over the PA or post it to the show feed.`
+              : `${className} is running about ${delayMinutes} minutes behind. Read the script over the PA or post it to the show feed.`}
           </DialogDescription>
         </DialogHeader>
         <ScheduleSlipScriptCard
           showId={showId}
           defaultClassName={className}
-          defaultDelayMinutes={delayMinutes}
+          {...(delayMinutes !== undefined && { defaultDelayMinutes: delayMinutes })}
         />
       </DialogContent>
     </Dialog>

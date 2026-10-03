@@ -284,6 +284,24 @@ describe('SecretaryCockpitFocusedClass delay announcement', () => {
     expect(screen.queryByRole('button', { name: 'Announce the delay' })).toBeNull();
   });
 
+  it('is offered with editable minutes when the class has no scheduled start', async () => {
+    const { user } = renderPanel({
+      ...sourceClass,
+      scheduledStart: null,
+      revisedExpectedStart: '2026-07-20T14:45:00.000Z',
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Announce the delay' }));
+    const dialog = screen.getByRole('dialog', { name: 'Announce the delay' });
+    expect(within(dialog).getByText(/is running behind\. Set the minutes/)).toBeInTheDocument();
+    expect(within(dialog).getByLabelText('Delay minutes')).toHaveValue('30');
+  });
+
+  it('is not offered when a revised start runs early', () => {
+    renderPanel({ ...sourceClass, revisedExpectedStart: '2026-07-20T13:45:00.000Z' });
+    expect(screen.queryByRole('button', { name: 'Announce the delay' })).toBeNull();
+  });
+
   it('is not offered once the class has started, even with a revised start on record', () => {
     renderPanel({
       ...sourceClass,

@@ -47,6 +47,21 @@ describe('showCloseOutShow helpers', () => {
     ).toEqual({ hasConcerns: false, concerns: [] });
   });
 
+  // Codex review of #2681: holding the close until both reads succeed stranded
+  // an offline secretary; reading them as empty hid open incidents. Unread is
+  // listed as its own concern, and the close stays available.
+  it('lists unread incidents and submissions as concerns instead of claiming none', () => {
+    expect(
+      buildCloseoutReadiness({ classes: [], entries: [], incidents: null, submissions: null })
+    ).toEqual({
+      hasConcerns: true,
+      concerns: [
+        'Result submissions could not be checked, so whether results were sent is unknown.',
+        'The incident log could not be checked, so open reportable incidents are unknown.',
+      ],
+    });
+  });
+
   it('selects only open show hierarchy rows for cascade', () => {
     expect(
       selectCloseoutCascadeTargets({

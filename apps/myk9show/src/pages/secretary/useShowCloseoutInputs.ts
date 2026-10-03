@@ -22,9 +22,6 @@ import {
 import { useShowDeskCollectionWindow } from './useShowDeskCollectionWindow';
 import { useShowDeskScheduleRead } from './useShowDeskScheduleRead';
 
-const EMPTY_INCIDENTS: Awaited<ReturnType<typeof listShowIncidentCloseout>> = [];
-const EMPTY_SUBMISSIONS: NonNullable<ReturnType<typeof useResultSubmissions>['data']> = [];
-
 /**
  * Everything "Close the show" (Results step 3, MYK9-954) needs, read from the
  * same sources Show Day's closeout tool read: the show, the trial store's
@@ -43,21 +40,9 @@ export function useShowCloseoutInputs(showId: string | undefined) {
     queryFn: () => listShowIncidentCloseout(showId ?? ''),
     enabled: Boolean(showId),
   });
-  const incidentsData = incidentsQuery.data;
-  const submissions = submissionsQuery.data ?? EMPTY_SUBMISSIONS;
-  // The readiness check reads an empty incident list as "nothing reportable"
-  // and an empty submissions list as "nothing submitted", so the close action
-  // waits until both have actually been read.
-  const closeoutChecks: 'read' | 'pending' | 'failed' =
-    incidentsData !== undefined && submissionsQuery.data !== undefined
-      ? 'read'
-      : incidentsQuery.isError || submissionsQuery.isError
-        ? 'failed'
-        : 'pending';
-  const retryCloseoutChecks = () => {
-    void incidentsQuery.refetch();
-    void submissionsQuery.refetch();
-  };
+  // `null` = not read (loading, failed or paused offline). The readiness check
+  // lists that as its own concern rather than reading it as "none".
+  const submissions = submissionsQuery.data ?? null;
 
   const showEntries = entriesQuery.data ?? EMPTY_ENTRIES;
   // No cast: SecretaryEntry must carry every field the closeout card reads.
@@ -90,8 +75,9 @@ export function useShowCloseoutInputs(showId: string | undefined) {
       ),
     [entriesKnown, entryTallies, schedule.trialClasses, showTrials]
   );
+  const incidentsData = incidentsQuery.data;
   const incidents = useMemo(
-    () => summarizeShowIncidents(incidentsData ?? EMPTY_INCIDENTS),
+    () => (incidentsData ? summarizeShowIncidents(incidentsData) : null),
     [incidentsData]
   );
   const deskWindow = useShowDeskCollectionWindow(show?.startDate, show?.endDate, showTrials);
@@ -109,8 +95,6 @@ export function useShowCloseoutInputs(showId: string | undefined) {
     classes,
     incidents,
     submissions,
-    closeoutChecks,
-    retryCloseoutChecks,
     deskWindow,
   };
 }

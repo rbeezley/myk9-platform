@@ -9,7 +9,7 @@ import { CockpitActionLink } from './CockpitActionLink';
 import { ClassChecklistSection } from './ClassChecklistSection';
 import { ClassStatusControl, ExpectedStartControl } from './ClassOperationalControls';
 import { AnnounceDelayButton } from './AnnounceDelayButton';
-import { getStartDelayMinutes } from './cockpitTime';
+import { getStartDelayMinutes, scheduledClockValue } from './cockpitTime';
 import { formatTrialIdentity } from './secretaryCockpitModel';
 import type {
   FocusedClassModel,
@@ -54,6 +54,12 @@ export function SecretaryCockpitFocusedClass({
     trialDate: trial.date,
     timeZone,
   });
+  // With no scheduled start to compare against, a revised start still means
+  // "running late"; the script opens with editable default minutes.
+  const offerDelay =
+    delayMinutes !== null ||
+    (Boolean(sourceClass.revisedExpectedStart) &&
+      !scheduledClockValue(sourceClass.scheduledStart ?? null));
 
   return (
     <aside className="overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm xl:sticky xl:top-[calc(var(--app-top-inset,3rem)+1rem)]">
@@ -106,11 +112,11 @@ export function SecretaryCockpitFocusedClass({
                 Scheduled {sourceClass.scheduledStart}
               </div>
             )}
-            {canManageShow && sourceClass.lifecycle === 'not-started' && delayMinutes !== null && (
+            {canManageShow && sourceClass.lifecycle === 'not-started' && offerDelay && (
               <AnnounceDelayButton
                 showId={showId}
                 className={focused.name}
-                delayMinutes={delayMinutes}
+                delayMinutes={delayMinutes ?? undefined}
               />
             )}
           </div>

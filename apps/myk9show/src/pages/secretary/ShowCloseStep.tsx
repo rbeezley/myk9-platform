@@ -9,30 +9,6 @@ import {
   ShowDeskScheduleUnavailable,
 } from './ShowDeskScheduleReadState';
 import { useShowCloseoutInputs } from './useShowCloseoutInputs';
-import { Button } from '@/components/ui/button';
-
-/** Close Out Show is withheld until its readiness inputs were actually read. */
-function CloseoutChecksUnread({ failed, onRetry }: { failed: boolean; onRetry: () => void }) {
-  if (!failed) {
-    return (
-      <p role="status" className="rounded-md border p-4 text-sm text-muted-foreground">
-        Checking incidents and result submissions before the show can be closed…
-      </p>
-    );
-  }
-  return (
-    <div className="rounded-md border border-warning/40 bg-warning/10 p-4 text-sm">
-      <p className="font-medium">Couldn&rsquo;t check incidents and result submissions.</p>
-      <p className="mt-1 text-muted-foreground">
-        Closing the show is paused until both can be read, so an open incident or a missing
-        submission is never missed.
-      </p>
-      <Button type="button" variant="outline" size="sm" className="mt-3 min-h-11" onClick={onRetry}>
-        Retry
-      </Button>
-    </div>
-  );
-}
 
 /**
  * Results step 3, "Close the show" (MYK9-954). Show Day's closeout tool moved
@@ -83,21 +59,14 @@ export default function ShowCloseStep() {
         entries={inputs.entries}
         deskWindow={inputs.deskWindow}
       />
-      {inputs.closeoutChecks === 'read' ? (
-        <CloseOutShowAction
-          show={{ id: show.id, status: show.status }}
-          trials={inputs.trials}
-          classes={inputs.classes}
-          entries={inputs.entries}
-          incidents={inputs.incidents}
-          submissions={inputs.submissions}
-        />
-      ) : (
-        <CloseoutChecksUnread
-          failed={inputs.closeoutChecks === 'failed'}
-          onRetry={inputs.retryCloseoutChecks}
-        />
-      )}
+      <CloseOutShowAction
+        show={{ id: show.id, status: show.status }}
+        trials={inputs.trials}
+        classes={inputs.classes}
+        entries={inputs.entries}
+        incidents={inputs.incidents}
+        submissions={inputs.submissions}
+      />
     </div>
   );
 }

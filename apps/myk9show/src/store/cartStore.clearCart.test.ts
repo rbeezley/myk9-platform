@@ -149,7 +149,12 @@ describe('clearCart with no checkout session (MYK9-975)', () => {
     expect(await useCartStore.getState().clearCart()).toBe(true);
 
     expect(cartWrites().map(write => write.payload)).toEqual([
-      { subtotal_cents: 0, platform_fee_cents: 0, total_cents: 0, stripe_checkout_session_id: null },
+      {
+        subtotal_cents: 0,
+        platform_fee_cents: 0,
+        total_cents: 0,
+        stripe_checkout_session_id: null,
+      },
     ]);
     expect(holder.db.carts).toHaveLength(1);
     expect(holder.db.carts[0]).toMatchObject({ id: 'cart-1', status: 'active', total_cents: 0 });

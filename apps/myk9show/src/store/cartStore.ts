@@ -31,14 +31,15 @@ import {
   EXPIRATION_WARNING_MINUTES,
   calculateCartTotals,
 } from './cartStore.helpers';
+import { findRecoverableEntries, loadCartItemsByCartId } from './cartStore.recovery';
+import type { RecoverableEntryRow, RecoveryOutcome } from './cartStore.recovery';
 import {
-  findRecoverableEntries,
-  loadCartItemsByCartId,
-  loadPaymentLinkItems,
-  RECOVERY_FAILED_MESSAGE,
-  summarizeDroppedRecoveryEntries,
-} from './cartStore.recovery';
-import type { RecoverableEntryRow } from './cartStore.recovery';
+  describePaymentLinkOutcome,
+  paymentLinkKey,
+  paymentLinkOutcomeState,
+  settlePaymentLinkCart,
+  type SettleCartLines,
+} from './cartStore.paymentLink';
 import { reconcileCartItemsAgainstExistingEntries } from './cartStore.reconciliation';
 import {
   ensureCartOnce,
@@ -74,7 +75,7 @@ export const useCartStore = create<CartState>()(
         lastSyncedAt: null,
         expirationWarning: false,
         droppedClosedClassItems: [],
-        droppedRecoveryEntries: null,
+        paymentLinkOutcome: null,
 
         // Load existing cart for a show
         loadCart: async (showId: string, exhibitorId: string) => {
@@ -197,57 +198,58 @@ export const useCartStore = create<CartState>()(
             return null;
           }
           let data: RecoverableCartRow | null = lookup.kind === 'found' ? lookup.cart : null;
-          let recoverableEntriesForCart: RecoverableEntryRow[] | undefined;
+          const linkIds = options.recoveryEntryIds ?? [];
+          // The link's payable entries, read once per load (MYK9-873).
+          let linkLookup: RecoveryOutcome<RecoverableEntryRow[]> | null = null;
           if (!data) {
             // A submitted unpaid entry may no longer have the cart shell that
             // originally created it. Deep-linked Finish Payment recovery is
             // scoped to explicit entry ids, so create a fresh shell and let
             // the normal exact-entry recovery path hydrate it below.
-            if (options.showId && options.recoveryEntryIds?.length) {
-              const lookup = await findRecoverableEntries({
+            if (options.showId && linkIds.length) {
+              linkLookup = await findRecoverableEntries({
                 showId: options.showId,
                 exhibitorId,
-                entryIds: options.recoveryEntryIds,
+                entryIds: linkIds,
               });
-              if (!lookup.ok) {
+              // Nothing payable (or the lookup failed): there is no cart to make,
+              // and the link's outcome is all there is to show.
+              if (!linkLookup.ok || linkLookup.value.length === 0) {
+                const outcome = describePaymentLinkOutcome(
+                  linkIds,
+                  linkLookup.ok ? new Set<string>() : null,
+                  []
+                );
                 write({
                   cart: null,
                   isLoading: false,
-                  error: RECOVERY_FAILED_MESSAGE,
-                  droppedRecoveryEntries: null,
+                  ...paymentLinkOutcomeState(linkIds, outcome),
                 });
                 return null;
               }
-              const recoverableEntries = lookup.value;
-              if (recoverableEntries.length > 0) {
-                recoverableEntriesForCart = recoverableEntries;
-                const recoveryKey = `${exhibitorId}:${options.showId}:${options.recoveryEntryIds
-                  .slice()
-                  .sort()
-                  .join(',')}`;
-                let recoveryPromise = recoveryCartInFlight.get(recoveryKey);
-                if (!recoveryPromise) {
-                  recoveryPromise = get().createCart(options.showId, exhibitorId, {
-                    isCurrent: guard,
-                  });
-                  recoveryCartInFlight.set(recoveryKey, recoveryPromise);
+              const recoveryKey = `${exhibitorId}:${options.showId}:${paymentLinkKey(linkIds)}`;
+              let recoveryPromise = recoveryCartInFlight.get(recoveryKey);
+              if (!recoveryPromise) {
+                recoveryPromise = get().createCart(options.showId, exhibitorId, {
+                  isCurrent: guard,
+                });
+                recoveryCartInFlight.set(recoveryKey, recoveryPromise);
+              }
+              let recoveryCart: CartWithDetails | null;
+              try {
+                recoveryCart = await recoveryPromise;
+              } finally {
+                if (recoveryCartInFlight.get(recoveryKey) === recoveryPromise) {
+                  recoveryCartInFlight.delete(recoveryKey);
                 }
-                let recoveryCart: CartWithDetails | null;
-                try {
-                  recoveryCart = await recoveryPromise;
-                } finally {
-                  if (recoveryCartInFlight.get(recoveryKey) === recoveryPromise) {
-                    recoveryCartInFlight.delete(recoveryKey);
-                  }
-                }
-                if (recoveryCart) {
-                  data = {
-                    id: recoveryCart.id,
-                    show_id: recoveryCart.show_id,
-                    status: recoveryCart.status,
-                    expires_at: recoveryCart.expires_at,
-                  };
-                }
+              }
+              if (recoveryCart) {
+                data = {
+                  id: recoveryCart.id,
+                  show_id: recoveryCart.show_id,
+                  status: recoveryCart.status,
+                  expires_at: recoveryCart.expires_at,
+                };
               }
             }
 
@@ -312,47 +314,44 @@ export const useCartStore = create<CartState>()(
             return null;
           }
 
-          // Exact-entry recovery rebuilds only the explicit unpaid entries. It
-          // never sweeps unrelated pending entries into checkout or backfills a
-          // partially emptied cart.
-          const linkEntryIds = options.recoveryEntryIds ?? [];
-          const linked = linkEntryIds.length
-            ? await loadPaymentLinkItems({
+          // Reconcile against live entries, then drop classes that closed or
+          // filled since (a recovered draft may be months old).
+          const settle: SettleCartLines = async lines =>
+            dropItemsInClosedClasses({
+              cartId: cartData.id,
+              items: await reconcileCartItemsAgainstExistingEntries({
                 cartId: cartData.id,
                 showId: cartData.show_id,
-                exhibitorId,
-                entryIds: linkEntryIds,
-                items,
-                recoverableEntries: recoverableEntriesForCart,
-              })
-            : null;
-          if (linked?.ok) items = linked.value.items;
+                items: lines,
+              }),
+            });
 
-          const reconciled = await reconcileCartItemsAgainstExistingEntries({
-            cartId: cartData.id,
-            showId: cartData.show_id,
-            items,
-          });
-          // MYK9-873: what the link named vs the reconciled cart. A failed lookup
-          // or rebuild is a retryable error, never an eligibility notice.
-          const recoveryNotice: Partial<CartState> = !linked
-            ? {}
-            : linked.ok
-              ? {
-                  droppedRecoveryEntries: summarizeDroppedRecoveryEntries(
-                    cartData.id,
-                    linkEntryIds,
-                    reconciled,
-                    linked.value.recoverable
-                  ),
-                }
-              : { droppedRecoveryEntries: null, error: RECOVERY_FAILED_MESSAGE };
-
-          // A recovered draft may be months old: drop classes that closed or filled since.
-          const closure = await dropItemsInClosedClasses({
-            cartId: cartData.id,
-            items: reconciled,
-          });
+          // MYK9-873: a payment link refills an EMPTY cart with its still-payable
+          // entries (never one that holds lines), and its outcome is described
+          // once, from the final cart.
+          let linkState: ReturnType<typeof paymentLinkOutcomeState> | null = null;
+          let closure: Awaited<ReturnType<SettleCartLines>>;
+          if (linkIds.length) {
+            const linked = await settlePaymentLinkCart({
+              cartId: cartData.id,
+              showId: cartData.show_id,
+              exhibitorId,
+              linkIds,
+              items,
+              payable:
+                linkLookup ??
+                (await findRecoverableEntries({
+                  showId: cartData.show_id,
+                  exhibitorId,
+                  entryIds: linkIds,
+                })),
+              settle,
+            });
+            closure = linked;
+            linkState = paymentLinkOutcomeState(linkIds, linked.outcome);
+          } else {
+            closure = await settle(items);
+          }
           items = closure.items;
 
           const { subtotal, platformFee, total } = calculateCartTotals(items);
@@ -377,7 +376,7 @@ export const useCartStore = create<CartState>()(
               closure.dropped,
               cartData.id
             ),
-            ...recoveryNotice,
+            ...linkState,
           });
 
           return cartWithDetails;
@@ -1032,7 +1031,7 @@ export const useCartStore = create<CartState>()(
         setError: (error: string | null) => set({ error }),
 
         dismissDroppedClosedClassItems: () => set({ droppedClosedClassItems: [] }),
-        dismissDroppedRecoveryEntries: () => set({ droppedRecoveryEntries: null }),
+        dismissPaymentLinkOutcome: () => set({ paymentLinkOutcome: null }),
 
         reset: () => {
           // Drop every write still in flight (MYK9-651) and forget in-flight
@@ -1052,7 +1051,7 @@ export const useCartStore = create<CartState>()(
             lastSyncedAt: null,
             expirationWarning: false,
             droppedClosedClassItems: [],
-            droppedRecoveryEntries: null,
+            paymentLinkOutcome: null,
           });
         },
       }),
@@ -1061,7 +1060,6 @@ export const useCartStore = create<CartState>()(
         partialize: state => ({
           lastSyncedAt: state.lastSyncedAt,
           droppedClosedClassItems: state.droppedClosedClassItems,
-          droppedRecoveryEntries: state.droppedRecoveryEntries,
           cartRecoveryInfo: state.cart
             ? {
                 id: state.cart.id,

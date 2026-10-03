@@ -21,14 +21,30 @@ export type EntryCartItemInsert = Database['public']['Tables']['entry_cart_items
 export type EnsureCartResult =
   { kind: 'ready'; cart: CartWithDetails } | { kind: 'failed'; error: string };
 
-/** How many of a Finish Payment link's entries are not in the cart, and why (MYK9-873). */
-export interface DroppedRecoveryEntries {
-  cartId: string;
+/** What a Finish Payment link's entries came to on /cart (MYK9-873). */
+export type PaymentLinkOutcomeKind = 'all-present' | 'some-missing' | 'none-left' | 'failed';
+
+export interface PaymentLinkOutcome {
+  /**
+   * - `all-present`: every linked entry is a line in the cart.
+   * - `some-missing`: the cart has lines, but not every linked entry is one.
+   * - `none-left`: the cart has no lines at all.
+   * - `failed`: the lookup or the rebuild failed; nothing is known about
+   *   eligibility, so the caller shows a retryable error, never a notice.
+   */
+  kind: PaymentLinkOutcomeKind;
   requested: number;
-  /** Still payable, but this cart does not hold them (an existing cart is never backfilled). */
-  stillUnpaid: number;
-  /** No longer payable: paid, withdrawn, or no longer open for payment. */
+  /** Linked entries missing from the cart that can no longer be paid. */
   unavailable: number;
+  /** Linked entries missing from the cart that are still payable. */
+  stillUnpaid: number;
+}
+
+/** The outcome as the store keeps it: for one payment link, and never a failure. */
+export interface StoredPaymentLinkOutcome extends PaymentLinkOutcome {
+  kind: Exclude<PaymentLinkOutcomeKind, 'failed'>;
+  /** `paymentLinkKey` of the link's entry ids; the notice shows only for that link. */
+  linkKey: string;
 }
 
 // Cart status enum
@@ -169,12 +185,12 @@ export interface CartState {
   dismissDroppedClosedClassItems: () => void;
 
   /**
-   * A Finish Payment link named entries the recovered cart could not hold
-   * (paid since, withdrawn, no longer open for payment), MYK9-873. Persisted
-   * until dismissed or the next recovery, like `droppedClosedClassItems`.
+   * What the last payment link opened on /cart came to (MYK9-873). Keyed by the
+   * link, not the cart, so it renders with no cart at all. Not persisted: /cart
+   * keeps the link in its URL and recomputes it on every load.
    */
-  droppedRecoveryEntries: DroppedRecoveryEntries | null;
-  dismissDroppedRecoveryEntries: () => void;
+  paymentLinkOutcome: StoredPaymentLinkOutcome | null;
+  dismissPaymentLinkOutcome: () => void;
 
   // Actions
   loadCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;

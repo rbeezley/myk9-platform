@@ -2,11 +2,7 @@ import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
 
 import { calculateCartTotals } from './cartStore.helpers';
-import type {
-  CartItemWithDetails,
-  DroppedRecoveryEntries,
-  EntryCartItemInsert,
-} from './cartStore.types';
+import type { CartItemWithDetails, EntryCartItemInsert } from './cartStore.types';
 
 export interface RecoverableEntryRow {
   id: string;
@@ -251,76 +247,4 @@ export const recoverCartItemsFromEntryIds = async ({
   }
 
   return ok(recoveredItems);
-};
-
-/**
- * The cart lines for a Finish Payment link, and the linked entries that are still
- * payable (for the notice). An EMPTY cart is rebuilt from the link; a cart that
- * already holds lines is never backfilled, but the payable set is still read so
- * the notice can say which linked entries it lacks. `recoverableEntries` skips the
- * lookup when the caller already made it.
- */
-export const loadPaymentLinkItems = async ({
-  cartId,
-  showId,
-  exhibitorId,
-  entryIds,
-  items,
-  recoverableEntries,
-}: {
-  cartId: string;
-  showId: string;
-  exhibitorId: string;
-  entryIds: string[];
-  items: CartItemWithDetails[];
-  recoverableEntries?: RecoverableEntryRow[] | undefined;
-}): Promise<
-  RecoveryOutcome<{ items: CartItemWithDetails[]; recoverable: RecoverableEntryRow[] }>
-> => {
-  let recoverable = recoverableEntries;
-  if (!recoverable) {
-    const lookup = await findRecoverableEntries({ showId, exhibitorId, entryIds });
-    if (!lookup.ok) return FAILED;
-    recoverable = lookup.value;
-  }
-  if (items.length > 0) return ok({ items, recoverable });
-
-  const rebuilt = await recoverCartItemsFromEntryIds({
-    cartId,
-    showId,
-    exhibitorId,
-    entryIds,
-    recoverableEntries: recoverable,
-  });
-  return rebuilt.ok ? ok({ items: rebuilt.value, recoverable }) : FAILED;
-};
-
-/**
- * How many of the entries a Finish Payment link named are NOT in the cart the
- * exhibitor is about to pay, and why (MYK9-873). `items` must be the cart AFTER
- * reconciliation against live entries, so a line removed because it was paid
- * since is counted. Lines removed for a closed class are still in `items` here
- * and get their own notice. Split by `recoverable` (the linked entries that are
- * still payable): one that is payable but missing is `stillUnpaid` (an existing
- * cart is never backfilled), any other is `unavailable` (paid, withdrawn, or no
- * longer open). Null when every linked entry is in the cart.
- */
-export const summarizeDroppedRecoveryEntries = (
-  cartId: string,
-  entryIds: string[],
-  items: Pick<CartItemWithDetails, 'entry_id'>[],
-  recoverable: Pick<RecoverableEntryRow, 'id'>[]
-): DroppedRecoveryEntries | null => {
-  const requested = new Set(entryIds.filter(Boolean));
-  const inCart = new Set(items.map(item => item.entry_id).filter(Boolean));
-  const payable = new Set(recoverable.map(entry => entry.id));
-  const missing = [...requested].filter(id => !inCart.has(id));
-  if (missing.length === 0) return null;
-  const stillUnpaid = missing.filter(id => payable.has(id)).length;
-  return {
-    cartId,
-    requested: requested.size,
-    stillUnpaid,
-    unavailable: missing.length - stillUnpaid,
-  };
 };

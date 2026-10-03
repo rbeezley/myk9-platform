@@ -13,11 +13,12 @@
  * words, no error styling (nothing went wrong on their side), and a dismiss.
  */
 import { useMemo, type ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { Info, X } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useCartStore } from '@/store/cartStore';
 import type { DroppedCartItem } from '@/store/cartStore.types';
-import { describeDroppedItem } from './closedClassRemovedNotice.helpers';
+import { describeDroppedItem, paymentLinkNoticeCopy } from './closedClassRemovedNotice.helpers';
 
 const NONE: DroppedCartItem[] = [];
 
@@ -77,36 +78,41 @@ export function ClosedClassRemovedNotice({ className }: { className?: string }) 
 }
 
 /**
- * A Finish Payment link named entries this cart does not hold (MYK9-873): some
- * are no longer payable (paid, withdrawn, closed to payment), and some are still
- * unpaid but the cart already held other lines and is never backfilled. This
- * says how many and why, so a payment that still matters is not silently
- * skipped. A FAILED lookup never reaches here; it is the cart's error alert.
+ * What the payment link on this page came to (MYK9-873): rendered in both /cart
+ * states, because the outcome is keyed by the link and exists with no cart at
+ * all. The words come from `paymentLinkNoticeCopy`, and each ends on an action
+ * this page has. A FAILED lookup never reaches here; it is the cart's error alert.
  */
-export function RecoveryEntriesDroppedNotice({ className }: { className?: string }) {
-  const notice = useCartStore(state => state.droppedRecoveryEntries);
-  const cartId = useCartStore(state => state.cart?.id ?? null);
-  const dismiss = useCartStore(state => state.dismissDroppedRecoveryEntries);
+export function PaymentLinkNotice({
+  linkKey,
+  className,
+}: {
+  /** `paymentLinkKey` of the link in this page's URL, or null with no link. */
+  linkKey: string | null;
+  className?: string;
+}) {
+  const outcome = useCartStore(state => state.paymentLinkOutcome);
+  const dismiss = useCartStore(state => state.dismissPaymentLinkOutcome);
 
-  if (!notice || notice.cartId !== cartId) return null;
-
-  const { requested, stillUnpaid, unavailable } = notice;
-  const missing = stillUnpaid + unavailable;
-  const isAre = (count: number) => (count === 1 ? 'is' : 'are');
+  const copy =
+    outcome && linkKey && outcome.linkKey === linkKey ? paymentLinkNoticeCopy(outcome) : null;
+  if (!copy) return null;
 
   return (
     <CartRemovalNotice className={className} onDismiss={dismiss}>
-      <p className="font-medium">
-        {`${missing} of the ${requested} entries in your payment link ${isAre(missing)} not in this cart.`}
-      </p>
-      {unavailable > 0 && (
-        <p className="mt-1">
-          {`${unavailable} ${isAre(unavailable)} already paid, withdrawn, or no longer open for payment. Check My Entries, and enter again any that still need paying.`}
+      <p className="font-medium">{copy.heading}</p>
+      {copy.sentences.map(sentence => (
+        <p key={sentence} className="mt-1">
+          {sentence}
         </p>
-      )}
-      {stillUnpaid > 0 && (
+      ))}
+      {copy.linkToMyEntries && (
         <p className="mt-1">
-          {`${stillUnpaid} still ${stillUnpaid === 1 ? 'needs' : 'need'} paying. Pay for this cart first, then open your payment link again.`}
+          See where each one stands in{' '}
+          <Link to="/exhibitor/entries" className="font-medium underline underline-offset-2">
+            My Entries
+          </Link>
+          .
         </p>
       )}
     </CartRemovalNotice>

@@ -1,12 +1,11 @@
 /**
- * MYK9-873: a Finish Payment link names specific entries. Whatever the cart ends
- * up holding after recovery AND reconciliation, the exhibitor is told how many
- * linked entries are not in it, split by why:
- *  - `unavailable`: no longer payable (paid, withdrawn, not open for payment);
- *  - `stillUnpaid`: still payable, but this cart does not hold them (an existing
- *    cart is never backfilled).
- * A recovery that FAILED (lookup or upsert error) is not an eligibility answer: it
- * shows a retryable error and never an "entries were left out" notice.
+ * MYK9-873: a Finish Payment link names specific entries. `loadActiveCart`
+ * settles the cart once (reconciliation, closed classes, and a refill from the
+ * link when that leaves it EMPTY) and stores the link's outcome, keyed by the
+ * link so it exists even with no cart. A recovery that FAILED (lookup or upsert
+ * error) is not an eligibility answer: it shows a retryable error, never a notice.
+ * The pure description is table-tested in cartStore.paymentLink.test.ts; this
+ * pins what the store does for each state.
  *
  * The tables are a small in-memory world with the real column shapes; `entries`
  * answers the recovery lookup and the reconciliation read from the same rows.
@@ -201,77 +200,100 @@ beforeEach(() => {
   });
 });
 
-describe('payment-link recovery notice (MYK9-873)', () => {
-  it('an existing cart holding only some linked entries says which are missing and why', async () => {
+const outcome = () => useCartStore.getState().paymentLinkOutcome;
+
+describe('payment-link outcome in the store (MYK9-873)', () => {
+  it('no cart shell and every linked entry unavailable: none-left, with no cart', async () => {
+    world.hasCartShell = false;
+    world.entries = [entry('e1', 'paid'), entry('e2', 'paid')];
+
+    const cart = await load(['e2', 'e1']);
+
+    expect(cart).toBeNull();
+    expect(outcome()).toEqual({
+      linkKey: 'e1,e2',
+      kind: 'none-left',
+      requested: 2,
+      unavailable: 2,
+      stillUnpaid: 0,
+    });
+    expect(useCartStore.getState().error).toBeNull();
+  });
+
+  it('an existing cart holding only some linked entries: some-missing, never backfilled', async () => {
     world.entries = [entry('e1'), entry('e2'), entry('e3', 'paid')];
     world.items = [line('e1')];
 
     const cart = await load(['e1', 'e2', 'e3']);
 
     expect(cart?.items.map(item => item.entry_id)).toEqual(['e1']);
-    // An existing cart is never backfilled.
     expect(world.upserts).toBe(0);
-    expect(useCartStore.getState().droppedRecoveryEntries).toEqual({
-      cartId: 'cart-1',
-      requested: 3,
-      stillUnpaid: 1,
-      unavailable: 1,
-    });
+    expect(outcome()).toMatchObject({ kind: 'some-missing', unavailable: 1, stillUnpaid: 1 });
   });
 
-  it('counts a linked line that reconciliation removed because it was paid since', async () => {
+  it('a linked line reconciliation removed as paid counts as unavailable', async () => {
     world.entries = [entry('e1'), entry('e2', 'paid')];
     world.items = [line('e1'), line('e2')];
 
     const cart = await load(['e1', 'e2']);
 
     expect(cart?.items.map(item => item.entry_id)).toEqual(['e1']);
-    expect(useCartStore.getState().droppedRecoveryEntries).toEqual({
-      cartId: 'cart-1',
-      requested: 2,
-      stillUnpaid: 0,
-      unavailable: 1,
-    });
+    expect(outcome()).toMatchObject({ kind: 'some-missing', unavailable: 1, stillUnpaid: 0 });
   });
 
-  it('an empty cart rebuilt from the link counts the entries it could not rebuild', async () => {
+  it('a cart emptied by reconciliation is refilled with the unpaid linked entry', async () => {
+    // Codex round 2: the cart held only a now-paid entry and the link names another
+    // unpaid one. Left empty, the notice said "pay this cart first" with nothing to pay.
+    world.entries = [entry('e1', 'paid'), entry('e2')];
+    world.items = [line('e1')];
+
+    const cart = await load(['e2']);
+
+    expect(world.upserts).toBe(1);
+    expect(cart?.items.map(item => item.entry_id)).toEqual(['e2']);
+    expect(outcome()).toMatchObject({ kind: 'all-present', unavailable: 0, stillUnpaid: 0 });
+  });
+
+  it('an empty shell is rebuilt from the link and counts what it could not rebuild', async () => {
     world.entries = [entry('e1'), entry('e2', 'paid')];
 
     const cart = await load(['e1', 'e2', 'e3']);
 
     expect(cart?.items.map(item => item.entry_id)).toEqual(['e1']);
-    expect(useCartStore.getState().droppedRecoveryEntries).toEqual({
-      cartId: 'cart-1',
-      requested: 3,
-      stillUnpaid: 0,
-      unavailable: 2,
-    });
+    expect(outcome()).toMatchObject({ kind: 'some-missing', requested: 3, unavailable: 2 });
   });
 
-  it('records nothing when every linked entry is in the cart', async () => {
+  it('every linked entry in the cart: all-present, no error', async () => {
     world.entries = [entry('e1'), entry('e2')];
 
     await load(['e1', 'e2']);
 
-    expect(useCartStore.getState().droppedRecoveryEntries).toBeNull();
+    expect(outcome()).toMatchObject({ kind: 'all-present', unavailable: 0, stillUnpaid: 0 });
     expect(useCartStore.getState().error).toBeNull();
   });
 
-  it('a failed lookup shows a retryable error, not an eligibility notice', async () => {
+  it('a failed lookup is a retryable error and clears any outcome', async () => {
     world.entries = [entry('e1'), entry('e2')];
+    world.items = [line('e1')];
     world.lookupError = true;
     useCartStore.setState({
-      droppedRecoveryEntries: { cartId: 'cart-1', requested: 2, stillUnpaid: 0, unavailable: 1 },
+      paymentLinkOutcome: {
+        linkKey: 'e1,e2',
+        kind: 'some-missing',
+        requested: 2,
+        stillUnpaid: 0,
+        unavailable: 1,
+      },
     });
 
     await load(['e1', 'e2']);
 
     expect(useCartStore.getState().error).toBe(RETRY_MESSAGE);
-    expect(useCartStore.getState().droppedRecoveryEntries).toBeNull();
+    expect(outcome()).toBeNull();
     expect(world.upserts).toBe(0);
   });
 
-  it('a failed upsert shows a retryable error, not an eligibility notice', async () => {
+  it('a failed rebuild (upsert) is a retryable error, not an outcome', async () => {
     world.entries = [entry('e1'), entry('e2')];
     world.upsertError = true;
 
@@ -279,10 +301,10 @@ describe('payment-link recovery notice (MYK9-873)', () => {
 
     expect(world.upserts).toBe(1);
     expect(useCartStore.getState().error).toBe(RETRY_MESSAGE);
-    expect(useCartStore.getState().droppedRecoveryEntries).toBeNull();
+    expect(outcome()).toBeNull();
   });
 
-  it('a failed lookup with no cart shell left also shows the retryable error', async () => {
+  it('a failed lookup with no cart shell is the retryable error too', async () => {
     world.hasCartShell = false;
     world.entries = [entry('e1')];
     world.lookupError = true;
@@ -291,6 +313,6 @@ describe('payment-link recovery notice (MYK9-873)', () => {
 
     expect(cart).toBeNull();
     expect(useCartStore.getState().error).toBe(RETRY_MESSAGE);
-    expect(useCartStore.getState().droppedRecoveryEntries).toBeNull();
+    expect(outcome()).toBeNull();
   });
 });

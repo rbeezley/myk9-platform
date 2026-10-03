@@ -32,8 +32,9 @@ import { CHECKOUT_RETURN_PARAM, readCheckoutReturnStatus } from './cartCheckoutN
 import { useCartCapacity } from '@/hooks/queries/useCartCapacity';
 import {
   ClosedClassRemovedNotice,
-  RecoveryEntriesDroppedNotice,
+  PaymentLinkNotice,
 } from '@/components/cart/ClosedClassRemovedNotice';
+import { paymentLinkKey } from '@/store/cartStore.paymentLink';
 import { writeCartSplitCheckoutSummary } from '@/features/payments/cartSplitCheckoutStorage';
 import { splitCartItemsByJudgeDayCapacity } from '@/features/payments/cartCapacitySplit';
 import { describeBlockedCheckout } from '@/features/payments/cartFullReasonCopy';
@@ -152,6 +153,7 @@ export default function CartPage() {
         .filter(Boolean),
     [recoveryEntryIdsParam]
   );
+  const linkKey = useMemo(() => paymentLinkKey(recoveryEntryIds), [recoveryEntryIds]);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -458,7 +460,7 @@ export default function CartPage() {
           {errorAlert}
           {/* The re-check may have removed every line (MYK9-656): say which and why. */}
           <ClosedClassRemovedNotice />
-          <RecoveryEntriesDroppedNotice className="mt-4" />
+          <PaymentLinkNotice linkKey={linkKey} className="mt-4" />
           <div className="flex flex-col items-center justify-center py-16 text-center">
             {/* --chip-stone-bg, not bg-muted: --muted equals --card and sits at
                 1.08:1 on --background, so the circle was a void in both themes
@@ -554,8 +556,8 @@ export default function CartPage() {
 
         {/* Classes a saved cart lost because they closed or filled (MYK9-656) */}
         <ClosedClassRemovedNotice className="mb-6" />
-        {/* Linked entries recovery could not put in the cart (MYK9-873) */}
-        <RecoveryEntriesDroppedNotice className="mb-6" />
+        {/* What the payment link in the URL came to (MYK9-873) */}
+        <PaymentLinkNotice linkKey={linkKey} className="mb-6" />
 
         {errorAlert}
 

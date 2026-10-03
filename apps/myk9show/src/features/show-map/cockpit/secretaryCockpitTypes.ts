@@ -171,6 +171,8 @@ export interface ScheduledClassModel {
   attentionCount: number;
   closeout: CockpitCloseoutState;
   primaryAction: SecretaryCockpitAction | null;
+  /** The class checklist's count (MYK9-948), or null for a cancelled class. */
+  checklist: { done: number; total: number; unknown: number } | null;
 }
 
 export interface TrialScheduleGroupModel {
@@ -180,6 +182,8 @@ export interface TrialScheduleGroupModel {
   label: string;
   classes: readonly ScheduledClassModel[];
   nowMarkerIndex: number | null;
+  /** Whether the group starts expanded. */
+  defaultOpen: boolean;
   summary: {
     classCount: number;
     inProgressCount: number;
@@ -201,7 +205,9 @@ export interface FocusedClassModel extends ScheduledClassModel {
 
 export interface SecretaryCockpitModel {
   day: {
+    /** The chosen day, or in All days the default day whose trials start open. */
     selected: string | null;
+    allDays: boolean;
     available: readonly string[];
     isToday: boolean;
   };

@@ -6,6 +6,9 @@ import type { ReportScope } from '@/lib/reports/types';
 
 import type { CockpitFilter } from './secretaryCockpitTypes';
 
+/** The All days choice; the URL leaves `day` unset for it. */
+export const ALL_DAYS = 'all';
+
 const COCKPIT_FILTERS: ReadonlySet<string> = new Set([
   'all',
   'in-progress',
@@ -27,11 +30,12 @@ export function getCockpitAnchorElementId(anchor: string): string {
 export function normalizeCockpitUrlState(params: URLSearchParams): CockpitUrlState {
   const rawFilter = params.get('filter');
   const filter = COCKPIT_FILTERS.has(rawFilter ?? '') ? (rawFilter as CockpitFilter) : 'all';
-  const selectedDay = params.get('day')?.match(/^\d{4}-\d{2}-\d{2}$/)?.[0];
+  // No `day` means All days, the show home's default (MYK9-955).
+  const selectedDay = params.get('day')?.match(/^\d{4}-\d{2}-\d{2}$/)?.[0] ?? ALL_DAYS;
   const focusedClassId = params.get('focus')?.trim() || undefined;
   const anchor = params.get('anchor')?.trim() || undefined;
   return {
-    ...(selectedDay ? { selectedDay } : {}),
+    selectedDay,
     filter,
     ...(focusedClassId ? { focusedClassId } : {}),
     ...(anchor ? { anchor } : {}),
@@ -43,7 +47,7 @@ export function writeCockpitUrlState(
   state: CockpitUrlState
 ): URLSearchParams {
   const params = new URLSearchParams();
-  if (state.selectedDay) params.set('day', state.selectedDay);
+  if (state.selectedDay && state.selectedDay !== ALL_DAYS) params.set('day', state.selectedDay);
   if (state.filter !== 'all') params.set('filter', state.filter);
   if (state.focusedClassId) params.set('focus', state.focusedClassId);
   if (state.anchor) params.set('anchor', state.anchor);

@@ -19,6 +19,7 @@ import { resolveShowMapActionExecution } from './showMapActionExecution';
 import { useShowMapWorkbenchState } from './useShowMapWorkbenchState';
 import type { ShowDeskActionableTone } from './showDeskActionable';
 import type { BuildShowMapTreeInput } from './showMapTypes';
+import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 import { getTrialRegistry } from '@/features/registries';
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 
@@ -29,6 +30,8 @@ interface ShowDeskPanelProps extends BuildShowMapTreeInput {
   actionableCount?: number | undefined;
   actionableTone?: ShowDeskActionableTone | undefined;
   actionableIncomplete?: boolean | undefined;
+  /** Entered/pending per class for the schedule rows (MYK9-943); absent until read. */
+  entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
 }
 
 // INTENT: This is the secretary's live operations cockpit. It projects the
@@ -46,6 +49,7 @@ export default function ShowDeskPanel({
   actionableCount,
   actionableTone,
   actionableIncomplete,
+  entryBreakdownByClassId,
 }: ShowDeskPanelProps) {
   const location = useLocation();
   const state = useShowMapWorkbenchState({
@@ -202,6 +206,7 @@ export default function ShowDeskPanel({
         </div>
       )}
       <SecretaryCockpit
+        entryBreakdownByClassId={entryBreakdownByClassId}
         snapshot={snapshot}
         canManageShow={canManageShow}
         onCommand={runCommand}

@@ -1,6 +1,7 @@
 import { formatTrialLabel } from '@myk9/core';
 import type { RegistryId } from '@/features/registries';
 import { buildAttentionCountByClass, matchesCockpitFilter } from './secretaryCockpitAttention';
+import { ALL_DAYS } from './cockpitRoutes';
 import {
   buildCockpitClassLabelResolver,
   compareCockpitClasses,
@@ -24,8 +25,18 @@ import type {
   SecretaryCockpitTrial,
   TrialScheduleGroupModel,
 } from './secretaryCockpitTypes';
+import {
+  dateKeyInTimeZone,
+  formatClock,
+  formatTrialDate,
+  minuteOfDayInTimeZone,
+  operationalMinutes,
+  parseTime,
+} from './cockpitClock';
+import { buildClassChecklist, summarizeClassChecklist } from './classChecklist';
 
 const ATTENTION_LIMIT = 3;
+export { ALL_DAYS } from './cockpitRoutes';
 const PREPARATION_WINDOW_MINUTES = 30;
 const PRE_CLASS_PAPERWORK = new Set(['check-in-sheet', 'scoresheet', 'armband-labels']);
 
@@ -37,79 +48,6 @@ const ATTENTION_PRIORITY: Record<CockpitAttentionKind, number> = {
   administrative: 4,
 };
 
-function dateKeyInTimeZone(date: Date, timeZone: string): string {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(date);
-  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
-  return `${values.year}-${values.month}-${values.day}`;
-}
-
-function minuteOfDayInTimeZone(date: Date, timeZone: string): number {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone,
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(date);
-  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
-  return Number(values.hour) * 60 + Number(values.minute);
-}
-
-function parseTime(value: string | null | undefined): number | null {
-  if (!value) return null;
-  const match = value.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
-  if (!match) return null;
-  let hour = Number(match[1]);
-  const minute = Number(match[2]);
-  const meridiem = match[3]?.toUpperCase();
-  if (meridiem) {
-    if (hour < 1 || hour > 12) return null;
-    hour = (hour % 12) + (meridiem === 'PM' ? 12 : 0);
-  }
-  if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
-  return hour * 60 + minute;
-}
-
-function operationalMinutes(value: string | null | undefined, timeZone: string): number | null {
-  if (value?.includes('T')) {
-    const instant = new Date(value);
-    if (!Number.isNaN(instant.getTime())) return minuteOfDayInTimeZone(instant, timeZone);
-  }
-  return parseTime(value);
-}
-
-function formatClock(value: string | null | undefined, timeZone: string): string | null {
-  if (!value) return null;
-  if (value.includes('T')) {
-    const instant = new Date(value);
-    if (!Number.isNaN(instant.getTime())) {
-      return new Intl.DateTimeFormat('en-US', {
-        timeZone,
-        hour: 'numeric',
-        minute: '2-digit',
-      })
-        .format(instant)
-        .replace(/\u202f/g, ' ');
-    }
-  }
-  const minutes = parseTime(value);
-  if (minutes == null) return value;
-  const hour = Math.floor(minutes / 60);
-  const minute = minutes % 60;
-  const hour12 = hour % 12 || 12;
-  return `${hour12}:${String(minute).padStart(2, '0')} ${hour >= 12 ? 'PM' : 'AM'}`;
-}
-
-function formatTrialDate(date: string): string {
-  const parsed = new Date(`${date}T12:00:00.000Z`);
-  if (Number.isNaN(parsed.getTime())) return date;
-  return new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric' }).format(parsed);
-}
-
 /** Cockpit trial label: the trial's stored name (MYK9-704), never a prefixed number. */
 export function formatTrialIdentity(trial: Pick<SecretaryCockpitTrial, 'name' | 'number'>): string {
   return formatTrialLabel({ name: trial.name, trialNumber: trial.number });
@@ -119,29 +57,17 @@ function sortedTrials(snapshot: SecretaryCockpitSnapshot): SecretaryCockpitTrial
   return [...snapshot.trials].sort((a, b) => a.order - b.order || a.date.localeCompare(b.date));
 }
 
-function hasUnfinishedCloseout(
-  date: string,
-  snapshot: SecretaryCockpitSnapshot,
-  trialById: ReadonlyMap<string, SecretaryCockpitTrial>
-): boolean {
-  return snapshot.classes.some(
-    cls => trialById.get(cls.trialId)?.date === date && cls.closeout === 'needs-closeout'
-  );
-}
-
+/**
+ * The day the cockpit opens on (owner, MYK9-953 decision 2): today on a show
+ * day; the first show day before the show; the last show day after it. Between
+ * two show days, the next one.
+ */
 function selectDay(snapshot: SecretaryCockpitSnapshot): string | null {
-  const trials = sortedTrials(snapshot);
-  const dates = [...new Set(trials.map(trial => trial.date))].sort();
+  const dates = [...new Set(snapshot.trials.map(trial => trial.date))].sort();
   if (dates.length === 0) return null;
   const today = dateKeyInTimeZone(snapshot.now, snapshot.timeZone);
   if (dates.includes(today)) return today;
-  const future = dates.find(date => date > today);
-  if (future) return future;
-  const trialById = new Map(trials.map(trial => [trial.id, trial]));
-  return (
-    [...dates].reverse().find(date => hasUnfinishedCloseout(date, snapshot, trialById)) ??
-    dates[dates.length - 1]!
-  );
+  return dates.find(date => date > today) ?? dates[dates.length - 1]!;
 }
 
 function evidence<T>(value: T | null | undefined, kind: EvidenceKind): EvidenceValue<T> {
@@ -207,7 +133,19 @@ function toScheduledClass(
     attentionCount: derivedAttentionCount,
     closeout: cls.closeout ?? 'none',
     primaryAction: primaryActionFor(cls),
+    checklist: checklistFor(cls),
   };
+}
+
+function checklistFor(cls: SecretaryCockpitClass): ScheduledClassModel['checklist'] {
+  const items = buildClassChecklist({
+    lifecycle: cls.lifecycle ?? null,
+    entryCount: cls.entryCount ?? null,
+    scoredCount: cls.scoredCount ?? null,
+    wrapUpStatus: cls.wrapUpStatus ?? null,
+    paperwork: cls.paperwork,
+  });
+  return items.length > 0 ? summarizeClassChecklist(items) : null;
 }
 
 function sortClasses(
@@ -219,28 +157,25 @@ function sortClasses(
   );
 }
 
-function classesForDay(
+function classesForTrials(
   snapshot: SecretaryCockpitSnapshot,
-  trials: readonly SecretaryCockpitTrial[],
-  selectedDay: string | null
+  trials: readonly SecretaryCockpitTrial[]
 ): SecretaryCockpitClass[] {
-  return trials
-    .filter(trial => trial.date === selectedDay)
-    .flatMap(trial =>
-      sortClasses(
-        snapshot.classes.filter(cls => cls.trialId === trial.id),
-        snapshot.registryId
-      )
-    );
+  return trials.flatMap(trial =>
+    sortClasses(
+      snapshot.classes.filter(cls => cls.trialId === trial.id),
+      snapshot.registryId
+    )
+  );
 }
 
 function nowMarkerIndex(
   classes: readonly SecretaryCockpitClass[],
-  selectedDay: string | null,
+  trialDate: string,
   snapshot: SecretaryCockpitSnapshot
 ): number | null {
-  if (!selectedDay || selectedDay !== dateKeyInTimeZone(snapshot.now, snapshot.timeZone))
-    return null;
+  // Quiet mode (MYK9-953 decision 3): only on the day that is actually today.
+  if (trialDate !== dateKeyInTimeZone(snapshot.now, snapshot.timeZone)) return null;
   const nowMinutes = minuteOfDayInTimeZone(snapshot.now, snapshot.timeZone);
   const timed = classes.map(cls => parseTime(cls.scheduledStart));
   if (timed.every(value => value == null)) return null;
@@ -299,14 +234,18 @@ function preparationAttention(
 
 function buildAttention(
   snapshot: SecretaryCockpitSnapshot,
-  selectedDay: string | null,
-  trials: readonly SecretaryCockpitTrial[]
+  scopeTrials: readonly SecretaryCockpitTrial[]
 ): SecretaryCockpitAttention[] {
-  const trialById = new Map(trials.map(trial => [trial.id, trial]));
-  const dayClasses = classesForDay(snapshot, trials, selectedDay);
-  const nextNotStarted = dayClasses.find(cls => cls.lifecycle === 'not-started');
+  const trialById = new Map(scopeTrials.map(trial => [trial.id, trial]));
+  const dayClasses = classesForTrials(snapshot, scopeTrials);
+  // Quiet mode (MYK9-953 decision 3): "starts in N minutes" reminders only
+  // for classes running today. A class at 8:50 tomorrow is not 20 minutes away
+  // at 8:30 tonight.
+  const today = dateKeyInTimeZone(snapshot.now, snapshot.timeZone);
+  const todaysClasses = dayClasses.filter(cls => trialById.get(cls.trialId)?.date === today);
+  const nextNotStarted = todaysClasses.find(cls => cls.lifecycle === 'not-started');
   const nowMinutes = minuteOfDayInTimeZone(snapshot.now, snapshot.timeZone);
-  const generated = dayClasses.flatMap(cls => {
+  const generated = todaysClasses.flatMap(cls => {
     const trial = trialById.get(cls.trialId);
     return trial
       ? preparationAttention(
@@ -381,15 +320,14 @@ function toFocusedClass(
 
 function buildTrialGroups(
   snapshot: SecretaryCockpitSnapshot,
-  selectedDay: string | null,
+  openDay: string | null,
   focusedClassId: string | undefined,
   filter: CockpitFilter,
-  trials: readonly SecretaryCockpitTrial[],
+  scopeTrials: readonly SecretaryCockpitTrial[],
   attentionCountByClass: ReadonlyMap<string, number>,
   labelOf: (cls: SecretaryCockpitClass) => string
 ): TrialScheduleGroupModel[] {
-  return trials
-    .filter(trial => trial.date === selectedDay)
+  return scopeTrials
     .map(trial => {
       const allClasses = sortClasses(
         snapshot.classes.filter(cls => cls.trialId === trial.id),
@@ -411,7 +349,13 @@ function buildTrialGroups(
             attentionCountByClass.get(cls.id) ?? 0
           )
         ),
-        nowMarkerIndex: nowMarkerIndex(visibleClasses, selectedDay, snapshot),
+        nowMarkerIndex: nowMarkerIndex(visibleClasses, trial.date, snapshot),
+        // All days opens the default day's trials (owner, 2026-10-02); a
+        // single chosen day opens every trial on it.
+        defaultOpen:
+          openDay === null ||
+          trial.date === openDay ||
+          allClasses.some(cls => cls.id === focusedClassId),
         summary: {
           classCount: allClasses.length,
           inProgressCount: allClasses.filter(cls => cls.lifecycle === 'in-progress').length,
@@ -432,19 +376,38 @@ export function buildSecretaryCockpitModel(
 ): SecretaryCockpitModel {
   const trials = sortedTrials(snapshot);
   const available = [...new Set(trials.map(trial => trial.date))].sort();
+  const allDays = state.selectedDay === ALL_DAYS;
   const selectedDay =
     state.selectedDay && available.includes(state.selectedDay)
       ? state.selectedDay
       : selectDay(snapshot);
-  const dayClasses = classesForDay(snapshot, trials, selectedDay);
-  const focused = focusClass(dayClasses, state.focusedClassId);
-  const allAttention = buildAttention(snapshot, selectedDay, trials);
+  const scopeTrials = allDays ? trials : trials.filter(trial => trial.date === selectedDay);
+  const dayClasses = classesForTrials(snapshot, scopeTrials);
+  const explicitFocus = state.focusedClassId
+    ? dayClasses.find(cls => cls.id === state.focusedClassId)
+    : undefined;
+  // In All days, the default focus comes from the default day, not from a
+  // stale in-progress class on another day.
+  const focused =
+    explicitFocus ??
+    (allDays
+      ? focusClass(
+          classesForTrials(
+            snapshot,
+            trials.filter(trial => trial.date === selectedDay)
+          ),
+          undefined
+        )
+      : null) ??
+    focusClass(dayClasses, undefined);
+  const allAttention = buildAttention(snapshot, scopeTrials);
   const attentionCountByClass = buildAttentionCountByClass(allAttention);
   const labelOf = buildCockpitClassLabelResolver(snapshot.classes);
 
   return {
     day: {
       selected: selectedDay,
+      allDays,
       available,
       isToday: selectedDay === dateKeyInTimeZone(snapshot.now, snapshot.timeZone),
     },
@@ -463,10 +426,10 @@ export function buildSecretaryCockpitModel(
     ),
     trialGroups: buildTrialGroups(
       snapshot,
-      selectedDay,
+      allDays ? selectedDay : null,
       focused?.id,
       state.filter,
-      trials,
+      scopeTrials,
       attentionCountByClass,
       labelOf
     ),

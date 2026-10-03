@@ -104,7 +104,7 @@ describe('ShowDeskPanel cockpit', () => {
     expect(screen.getAllByRole('heading', { name: 'Container Novice' })).not.toHaveLength(0);
   });
 
-  it('writes the computed day, focus, and anchor into owner-page return links', async () => {
+  it('writes focus and anchor into owner-page return links (All days leaves day unset)', async () => {
     render(
       <ShowDeskPanel
         show={show}
@@ -122,7 +122,7 @@ describe('ShowDeskPanel cockpit', () => {
 
     const entriesLink = await screen.findAllByRole('link', { name: /view entries and results/i });
     expect(decodeURIComponent(entriesLink[0]?.getAttribute('href') ?? '')).toContain(
-      'returnTo=/shows/show-1/show-day?day=2026-06-12&focus=class-2&anchor=class-2'
+      'returnTo=/shows/show-1/show-day?focus=class-2&anchor=class-2'
     );
   });
 
@@ -155,7 +155,8 @@ describe('ShowDeskPanel cockpit', () => {
     );
 
     const trialTrigger = screen.getByRole('button', { name: /Friday AM · June 12/i });
-    expect(trialTrigger).toHaveTextContent('2 Classes · 1 in progress · Focused');
+    expect(trialTrigger).toHaveTextContent('1 in progress · Focused');
+    expect(trialTrigger).toHaveTextContent('2 classes');
     await user.click(trialTrigger);
     expect(screen.queryByRole('button', { name: 'Container Novice' })).not.toBeInTheDocument();
 

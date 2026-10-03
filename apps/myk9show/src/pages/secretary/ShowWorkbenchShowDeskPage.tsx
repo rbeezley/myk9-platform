@@ -42,6 +42,7 @@ import { ShowDeskEntriesFailed } from './ShowDeskEntriesFailed';
 import type { ShowMapEntryInput } from '@/features/show-map/showMapTypes';
 import { resolveOverviewJudgesWithRoster } from '@/components/shows/overview/overviewJudges';
 import { isValidUUID } from '@/utils/validation';
+import { buildClassEntryBreakdowns } from '@/features/entry-operations/classEntryBreakdown';
 import type { IncidentEntryOption } from '@/features/show-workbench/showIncidents';
 import {
   ShowDeskScheduleRefreshWarning,
@@ -96,6 +97,11 @@ export function ShowWorkbenchShowDeskPage() {
   const { data: resultSubmissions = [] } = useResultSubmissions(showId || '');
 
   const entryTallies = useMemo(() => tallyEntriesByClass(showEntries), [showEntries]);
+  // Rows and trial pills show entered + pending (MYK9-943), only once read.
+  const entryBreakdownByClassId = useMemo(
+    () => (entriesKnown ? buildClassEntryBreakdowns(showEntries) : undefined),
+    [entriesKnown, showEntries]
+  );
 
   const associatedTrials = useMemo(
     () =>
@@ -416,6 +422,7 @@ export function ShowWorkbenchShowDeskPage() {
           actionableCount={actionable.count}
           actionableTone={actionable.tone}
           actionableIncomplete={actionable.incomplete}
+          entryBreakdownByClassId={entryBreakdownByClassId}
         />
       </Suspense>
     </TrialSecretaryAccessProvider>

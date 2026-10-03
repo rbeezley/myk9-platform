@@ -45,6 +45,15 @@
 
 BEGIN;
 
+-- MYK9-979: this file predates the per-show online-entries switch
+-- (shows.online_entries_enabled, DEFAULT false) and exercises the online-
+-- entries-ON path: exhibitor submit_show_entries calls and/or the Stripe
+-- publish refusal. Every fixture show it creates takes online entries.
+-- Transaction-local like every other fixture here: the ROLLBACK at the end of
+-- this file restores the column default. The switch itself is covered by
+-- myk9_979_online_entries_switch_test.sql.
+ALTER TABLE public.shows ALTER COLUMN online_entries_enabled SET DEFAULT true;
+
 -- ---------------------------------------------------------------------------
 -- Wiring: the guard must actually be attached, BEFORE, and scoped to
 -- INSERT and UPDATE OF status (see the migration's own SCOPE comment for
@@ -84,8 +93,10 @@ BEGIN
   END IF;
   -- MYK9-716: also the entry-window columns, so a published show cannot lose
   -- its window after publishing (the function ignores unchanged dates).
-  IF v_columns IS DISTINCT FROM 'entry_close_date,entry_open_date,status' THEN
-    RAISE EXCEPTION 'FAIL wiring: expected UPDATE OF status, entry_open_date, entry_close_date, found %', v_columns;
+  -- MYK9-979: and online_entries_enabled, so turning online entries on for a
+  -- public show re-checks Stripe readiness.
+  IF v_columns IS DISTINCT FROM 'entry_close_date,entry_open_date,online_entries_enabled,status' THEN
+    RAISE EXCEPTION 'FAIL wiring: expected UPDATE OF status, entry_open_date, entry_close_date, online_entries_enabled, found %', v_columns;
   END IF;
   IF NOT v_has_insert THEN
     RAISE EXCEPTION 'FAIL wiring: expected the trigger to also fire on INSERT (create_show_with_children and createShow() both let the caller set status)';
@@ -93,7 +104,7 @@ BEGIN
   IF NOT v_has_update THEN
     RAISE EXCEPTION 'FAIL wiring: expected the trigger to fire on UPDATE';
   END IF;
-  RAISE NOTICE 'PASS wiring: BEFORE INSERT OR UPDATE OF status, entry_open_date, entry_close_date on public.shows';
+  RAISE NOTICE 'PASS wiring: BEFORE INSERT OR UPDATE OF status, entry_open_date, entry_close_date, online_entries_enabled on public.shows';
 END;
 $$;
 

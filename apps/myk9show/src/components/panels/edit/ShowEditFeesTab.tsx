@@ -220,8 +220,12 @@ export const ShowEditFeesTab: React.FC<ShowEditFeesTabProps> = ({
               Payment Methods
             </h4>
             <PaymentMethodsCheckboxGroup
+              acceptOnline={data.onlineEntriesEnabled ?? false}
               acceptCheck={data.acceptCheckPayments ?? false}
               acceptCash={data.acceptCashPayments ?? false}
+              onOnlineChange={
+                handleCheckboxChange('onlineEntriesEnabled') as (checked: boolean) => void
+              }
               onCheckChange={
                 handleCheckboxChange('acceptCheckPayments') as (checked: boolean) => void
               }

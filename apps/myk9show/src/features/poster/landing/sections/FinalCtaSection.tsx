@@ -9,6 +9,7 @@ import {
 import { posterColors, posterSpacing } from '../../tokens';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { formatDateInTimezone } from '../utils/dateFormat';
+import { pendingEntryCopy, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
 
 interface FinalCtaSectionProps {
   classesHref: string | null;
@@ -32,6 +33,7 @@ export function FinalCtaSection({
   canEnterOnline = true,
   entryClosed = false,
 }: FinalCtaSectionProps) {
+  const mailInOnly = useLandingMailInOnly();
   const countdown = useCountdown(entryCloseDate, timezone);
   // Gate on countdown.closed (not just entryCloseDate presence) so a past close
   // date doesn't keep reading as still-pending after registration has closed.
@@ -154,7 +156,10 @@ export function FinalCtaSection({
           >
             {entryClosed
               ? 'Contact the trial secretary for late-entry help.'
-              : 'The secretary still needs to assign classes before online entry is available.'}
+              : pendingEntryCopy(
+                  mailInOnly,
+                  'The secretary still needs to assign classes before online entry is available.'
+                )}
           </p>
         )}
         <div style={{ marginTop: 14, position: 'relative', zIndex: 3 }}>

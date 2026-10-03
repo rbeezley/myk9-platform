@@ -119,6 +119,32 @@ describe('ShowEditBasicInfoTab status dropdown (MYK9-579)', () => {
   });
 });
 
+// MYK9-979: Upcoming, In Progress and Completed are public statuses too, so
+// a draft-opened panel offering them was a way round the publish gate.
+describe('ShowEditBasicInfoTab status dropdown — public statuses (MYK9-979)', () => {
+  it('offers no public status on a show that opened as a draft', async () => {
+    const { user } = renderTab('draft');
+    await user.click(statusCombobox());
+
+    await screen.findByRole('option', { name: /^draft/i });
+    for (const label of [/^upcoming/i, /^in progress/i, /^completed/i, /^published/i]) {
+      expect(screen.queryByRole('option', { name: label })).toBeNull();
+    }
+    expect(screen.getByRole('option', { name: /^cancelled/i })).toBeInTheDocument();
+  });
+
+  it('positive control: a show that opened public can move between public statuses', async () => {
+    const { user } = renderTab('upcoming');
+    await user.click(statusCombobox());
+
+    expect(await screen.findByRole('option', { name: /^in progress/i })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /^completed/i })).toBeInTheDocument();
+    expect(
+      screen.queryByText(/publish from the status badge on the show page/i)
+    ).not.toBeInTheDocument();
+  });
+});
+
 describe('ShowEditBasicInfoTab — club label', () => {
   it('calls the club field "Host Club"', () => {
     renderTab('draft');

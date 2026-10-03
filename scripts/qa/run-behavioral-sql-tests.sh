@@ -55,6 +55,7 @@ TEST_FILES=(
   "$TEST_DIR/enrollments_select_club_scope_test.sql"
   "$TEST_DIR/show_publish_gate_trigger_test.sql"
   "$TEST_DIR/club_authorization_gate_test.sql"
+  "$TEST_DIR/myk9_979_online_entries_switch_test.sql"
   "$TEST_DIR/myk9_909_club_creator_select_test.sql"
   "$TEST_DIR/club_routed_role_requests_test.sql"
   "$TEST_DIR/club_membership_requests_test.sql"

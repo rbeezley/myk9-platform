@@ -58,6 +58,7 @@ export interface ShowEditFormData extends Record<string, unknown> {
   isNationals?: boolean;
   acceptCheckPayments?: boolean;
   acceptCashPayments?: boolean;
+  onlineEntriesEnabled?: boolean;
   clubName?: string;
   logoUrl?: string;
   trials?: Show['trials'];

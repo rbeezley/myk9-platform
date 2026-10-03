@@ -13,8 +13,10 @@ import {
   useClubAuthorization,
 } from '@/features/payments/useClubStripeAccount';
 import {
+  becomesPublic,
   canEnableOnlineEntries,
   isPublishGateDbError,
+  publishNeedsStripe,
   publishGateDbErrorMessage,
   PUBLISH_BLOCKED_MESSAGE,
   CLUB_UNAUTHORIZED_MESSAGE,
@@ -41,6 +43,11 @@ interface ShowStatusPillProps {
    * a null or empty value fails closed. */
   entryOpenDate: string | null | undefined;
   entryCloseDate: string | null | undefined;
+  /** MYK9-979: publishing needs the club's Stripe payouts only when the show
+   * takes online entries. Required, so a caller cannot drop it; anything but
+   * an explicit true reads as off, matching the server (the trigger refuses a
+   * show whose stored value is true either way). */
+  onlineEntriesEnabled: boolean | null | undefined;
 }
 
 /**
@@ -75,6 +82,7 @@ export function ShowStatusPill({
   clubId,
   entryOpenDate,
   entryCloseDate,
+  onlineEntriesEnabled,
 }: ShowStatusPillProps) {
   const { mutateAsync, isPending } = useUpdateShowMutation();
   const navigate = useNavigate();
@@ -98,7 +106,9 @@ export function ShowStatusPill({
     // (supabase/migrations/20260916003500) is the DB-side backstop that
     // actually refuses the write on both INSERT and UPDATE OF status — see
     // the catch block below.
-    if (next === 'published') {
+    // MYK9-979: the gate runs on any move that makes the show publicly
+    // visible (becomesPublic), the same transition the DB triggers check.
+    if (becomesPublic(status, next)) {
       if (!clubId) {
         // Fail CLOSED, not open: a missing clubId is either a wiring bug
         // (lost in the #615 merge once already) or a genuinely clubless show
@@ -107,12 +117,13 @@ export function ShowStatusPill({
         toast.error(CLUB_REQUIRED_MESSAGE);
         return;
       }
-      if (clubAccountQuery.isLoading || clubAuthQuery.isLoading) {
+      const needsStripe = publishNeedsStripe(onlineEntriesEnabled);
+      if (clubAuthQuery.isLoading || (needsStripe && clubAccountQuery.isLoading)) {
         // Don't misreport an onboarded club as unconnected on a cold cache.
         toast.info('Checking the club’s status — try again in a moment.');
         return;
       }
-      if (clubAccountQuery.isError || clubAuthQuery.isError) {
+      if (clubAuthQuery.isError || (needsStripe && clubAccountQuery.isError)) {
         // A failed lookup is not "not connected" — fail closed with the
         // truthful message instead of blaming the club's setup. Kick off a
         // refetch so "try again" can actually succeed (an errored query
@@ -135,7 +146,8 @@ export function ShowStatusPill({
         toast.error(CLUB_UNAUTHORIZED_MESSAGE);
         return;
       }
-      if (!canEnableOnlineEntries(clubAccountQuery.data)) {
+      // MYK9-979: a mail-in show (online entries off) needs no payout account.
+      if (needsStripe && !canEnableOnlineEntries(clubAccountQuery.data)) {
         toast.error(PUBLISH_BLOCKED_MESSAGE, {
           action: { label: 'Open Payments', onClick: () => navigate('/club-admin/payments') },
         });

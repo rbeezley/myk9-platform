@@ -35,6 +35,7 @@ export const showToFormData = (show: Partial<Show>): ShowEditFormData => {
     isNationals: show.isNationals ?? false,
     acceptCheckPayments: show.acceptCheckPayments ?? false,
     acceptCashPayments: show.acceptCashPayments ?? false,
+    onlineEntriesEnabled: show.onlineEntriesEnabled ?? false,
     clubName: show.clubName || '',
     logoUrl: show.logoUrl || '',
     trials: show.trials || [],
@@ -69,6 +70,7 @@ export const formDataToShow = (formData: ShowEditFormData): Partial<Show> => ({
   isNationals: formData.isNationals,
   acceptCheckPayments: formData.acceptCheckPayments,
   acceptCashPayments: formData.acceptCashPayments,
+  onlineEntriesEnabled: formData.onlineEntriesEnabled,
   style: formData.style,
   // Conditionally include optional string fields only when non-empty
   // (exactOptionalPropertyTypes forbids assigning undefined to string properties)

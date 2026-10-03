@@ -34,6 +34,7 @@ const BASE: ShowDraft = {
   judgeIds: [],
   acceptCheckPayments: false,
   acceptCashPayments: false,
+  onlineEntriesEnabled: false,
 };
 
 function timezoneField() {

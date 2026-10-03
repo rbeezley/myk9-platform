@@ -8228,6 +8228,7 @@ export type Database = {
           max_entries_per_dog: number | null
           max_total_entries: number | null
           name: string
+          online_entries_enabled: boolean
           organization: string
           pre_entry_fee: number | null
           premium_publish_version: number
@@ -8296,6 +8297,7 @@ export type Database = {
           max_entries_per_dog?: number | null
           max_total_entries?: number | null
           name: string
+          online_entries_enabled?: boolean
           organization: string
           pre_entry_fee?: number | null
           premium_publish_version?: number
@@ -8364,6 +8366,7 @@ export type Database = {
           max_entries_per_dog?: number | null
           max_total_entries?: number | null
           name?: string
+          online_entries_enabled?: boolean
           organization?: string
           pre_entry_fee?: number | null
           premium_publish_version?: number

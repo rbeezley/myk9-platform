@@ -59,6 +59,7 @@ const BASE: ShowDraft = {
   judgeIds: [],
   acceptCheckPayments: false,
   acceptCashPayments: false,
+  onlineEntriesEnabled: false,
 };
 
 const updates: Array<Partial<ShowDraft>> = [];

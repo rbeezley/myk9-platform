@@ -7,6 +7,7 @@ import { toLocalDate } from './date-format';
 import { formatShortCalendarDate } from '@/lib/format/dates';
 import { isActiveSubmittedEntryStatus } from '@/services/entryDisplay/entryDisplaySelectors';
 import { currentEntryWindowDate, getEntryWindowTimezone } from './entryWindowDate';
+import { isMailInOnlyShow, MAIL_IN_ENTRY_NOTE } from '@/features/payments/onlineEntryGate';
 
 export type EntryStatus =
   | 'window_unknown' // No entry window set (or today cannot be resolved): says nothing about when entries open
@@ -15,6 +16,7 @@ export type EntryStatus =
   | 'closing_soon' // Closing within 7 days
   | 'closed' // After entry close date
   | 'submitted' // User has submitted entries
+  | 'mail_in_only' // Entries are open, but by mail / at the show only (MYK9-979)
   | 'setup_incomplete'; // Show has no configured classes to enter
 
 export interface EntryStatusInfo {
@@ -104,6 +106,18 @@ export function getEntryStatus(
     };
   }
 
+  // MYK9-979: the window is open but the show takes no online entries.
+  // Before `submitted` on purpose: a staff-keyed mail-in entry must not turn
+  // into an "Add Entry" button the server would refuse.
+  if (isMailInOnlyShow(show)) {
+    return {
+      status: 'mail_in_only',
+      label: 'Mail-in entries',
+      description: MAIL_IN_ENTRY_NOTE,
+      canEnter: false,
+    };
+  }
+
   // User has already submitted entries and entries are still open
   if (userHasEntries) {
     return {
@@ -168,6 +182,7 @@ export function isEntryWindowNotOpen(status: EntryStatus): boolean {
     case 'closed':
     case 'submitted':
     case 'setup_incomplete':
+    case 'mail_in_only':
       return false;
     default:
       return unknownStatusNotOpen(status);
@@ -210,6 +225,7 @@ export function getEntryStatusBadgeStyle(status: EntryStatus): {
     case 'not_yet_open':
     case 'setup_incomplete':
     case 'window_unknown':
+    case 'mail_in_only':
       return {
         className: 'bg-muted/30 text-muted-foreground border-muted/10 border',
         variant: 'outline',

@@ -14,6 +14,7 @@ import {
 import { parsePremiumPriceIds } from '../_shared/premiumPrices.ts';
 import { isStripeLiveMode } from '../_shared/stripeMode.ts';
 import { resolveCheckoutSession } from '../_shared/priorCheckoutSession.ts';
+import { showOnlineEntryRefusal } from '../_shared/showOnlineEntryGate.ts';
 import { formatStatementDescriptorSuffix } from '../_shared/statementDescriptor.ts';
 import {
   cartHasBlockedClass,
@@ -494,7 +495,7 @@ async function handleEntryCheckout(
     .from('shows')
     .select(
       `name, pre_entry_fee, day_of_show_fee, junior_handler_fee, organization, start_date, status,
-        entry_open_date, entry_close_date, club_id`
+        entry_open_date, entry_close_date, club_id, online_entries_enabled`
     )
     .eq('id', cart.show_id)
     .single();
@@ -511,14 +512,12 @@ async function handleEntryCheckout(
   }
 
   // Server-side online-entry gate: the UI enforces this, but any direct API
-  // call to stripe-checkout bypasses the UI. Fail closed on each condition.
-  const entryStatuses = ['published', 'accepting_entries'];
-  if (!entryStatuses.includes(showFees.status)) {
-    return corsResponse(
-      corsHeaders,
-      { error: 'Online entries are not currently open for this show.' },
-      403
-    );
+  // call to stripe-checkout bypasses the UI. Fail closed on each condition:
+  // the show must be open for entries, and (MYK9-979) its secretary must have
+  // turned online entries on -- a mail-in-only show takes no card entries.
+  const showRefusal = showOnlineEntryRefusal(showFees);
+  if (showRefusal) {
+    return corsResponse(corsHeaders, { error: showRefusal }, 403);
   }
 
   // Entry window is anchored to the show's local calendar day, not a UTC

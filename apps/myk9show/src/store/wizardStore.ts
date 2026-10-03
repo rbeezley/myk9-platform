@@ -84,6 +84,7 @@ export interface WizardState {
     judgeIds: string[]; // Judges assigned to the show
     acceptCheckPayments: boolean;
     acceptCashPayments: boolean;
+    onlineEntriesEnabled: boolean;
     // IANA zone for the trials this show creates (MYK9-831). Optional so
     // existing persisted drafts without it still satisfy the type; resolved
     // to the browser's zone at draft-creation time and at save time.
@@ -192,6 +193,7 @@ const initialState: WizardState = {
     judgeIds: [],
     acceptCheckPayments: false,
     acceptCashPayments: false,
+    onlineEntriesEnabled: false,
     timezone: resolveBrowserTrialTimezone(),
     style: DEFAULT_PREMIUM_STYLE,
   },

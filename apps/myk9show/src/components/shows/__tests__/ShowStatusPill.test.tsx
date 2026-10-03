@@ -24,9 +24,12 @@ vi.mock('sonner', () => ({
 // MYK9-716: publishing requires an entry window. Every case here is about
 // another gate, so every render carries a valid one; the missing-window cases
 // live in ShowStatusPill.entryWindow.test.tsx.
+// MYK9-979: and online entries ON, the only case in which publishing needs
+// the club's Stripe payouts; ShowStatusPill.onlineEntries.test.tsx covers off.
 const WINDOW = {
   entryOpenDate: '2026-10-01T12:00:00.000Z',
   entryCloseDate: '2026-10-20T04:59:00.000Z',
+  onlineEntriesEnabled: true,
 };
 
 const mockedUseAccount = vi.mocked(useClubStripeAccount);

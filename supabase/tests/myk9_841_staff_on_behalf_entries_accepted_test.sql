@@ -37,6 +37,15 @@
 
 BEGIN;
 
+-- MYK9-979: this file predates the per-show online-entries switch
+-- (shows.online_entries_enabled, DEFAULT false) and exercises the online-
+-- entries-ON path: exhibitor submit_show_entries calls and/or the Stripe
+-- publish refusal. Every fixture show it creates takes online entries.
+-- Transaction-local like every other fixture here: the ROLLBACK at the end of
+-- this file restores the column default. The switch itself is covered by
+-- myk9_979_online_entries_switch_test.sql.
+ALTER TABLE public.shows ALTER COLUMN online_entries_enabled SET DEFAULT true;
+
 INSERT INTO public.clubs (id, name)
 VALUES ('00000000-0000-0000-0000-000000841010', 'MYK9-841 Test Club');
 

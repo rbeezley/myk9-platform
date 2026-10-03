@@ -315,6 +315,7 @@ export const mapDatabaseToShow = (
     // wizard set both flags on the row.
     acceptCheckPayments: dbShow.accept_check_payments ?? undefined,
     acceptCashPayments: dbShow.accept_cash_payments ?? undefined,
+    onlineEntriesEnabled: dbShow.online_entries_enabled ?? undefined,
     // TODO: Remove cast after regenerating Supabase types (run `supabase gen types`)
     confirmationMessage:
       ((dbShow as Record<string, unknown>).confirmation_message as string) || undefined,
@@ -643,6 +644,7 @@ export const mapReplicatedShowToDbRow = (
       is_nationals: 'isNationals',
       accept_check_payments: 'acceptCheckPayments',
       accept_cash_payments: 'acceptCashPayments',
+      online_entries_enabled: 'onlineEntriesEnabled',
       logo_url: 'logoUrl',
       cover_image_url: 'coverImageUrl',
       accent_color: 'accentColor',

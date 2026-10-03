@@ -12,6 +12,9 @@ import {
   ShowStyleSaveError,
 } from '@/features/premium/showStylePersistence';
 import { StaleShowNotice } from './StaleShowNotice';
+import { MailInEntryNotice } from './MailInEntryNotice';
+import { isMailInOnlyShow } from '@/features/payments/onlineEntryGate';
+import { LandingMailInContext } from '@/features/_shared/landing/landingMailIn';
 import { PreviewExitBar } from './PreviewExitBar';
 import type { Show } from '@/types/show-types';
 import type { Trial } from '@/components/trials/types/trial.types';
@@ -68,6 +71,7 @@ export function ShowPublicLanding({
       ? getShowStyle({ style: show.experiencePublishedStyle })
       : null;
   const isManagerDraftPreview = styleMode === 'manager-draft-preview';
+  const mailInOnly = isMailInOnlyShow(show);
 
   // Public visitors render the last published experience. Managers in Preview
   // intentionally render the current draft instead; changing the draft must
@@ -203,13 +207,19 @@ export function ShowPublicLanding({
         />
       )}
       {refreshFailed && onRetry && <StaleShowNotice onRetry={onRetry} />}
-      <StyledLanding
-        show={previewShow}
-        trial={landingTrials[0] ?? null}
-        allTrials={landingTrials}
-        hasEntryClassInventory={hasEntryClassInventory}
-        entryWindowNotOpen={entryWindowNotOpen}
-      />
+      {mailInOnly && <MailInEntryNotice />}
+      <LandingMailInContext.Provider value={mailInOnly}>
+        {/* MYK9-979: a mail-in show withholds the Enter CTA through the gate
+            every style already reads; the context swaps the sections'
+            "classes not assigned yet" copy for the mail-in note. */}
+        <StyledLanding
+          show={previewShow}
+          trial={landingTrials[0] ?? null}
+          allTrials={landingTrials}
+          hasEntryClassInventory={hasEntryClassInventory}
+          entryWindowNotOpen={entryWindowNotOpen || mailInOnly}
+        />
+      </LandingMailInContext.Provider>
     </>
   );
 }

@@ -1,18 +1,17 @@
 import { getErrorMessage } from '@myk9/core';
 import { toLocalDateOnly } from '@/utils/date-format';
 
-// Publishing a show opens online entries (status 'published' is the
-// entries-open state), and online entry fees can only be paid out to clubs
-// with a working Stripe Connect account. Fail closed: no account row, or a
-// row without payouts_enabled, blocks NEWLY publishing. Shows that are
-// already published are never un-published by this gate.
+// Online entry fees can only be paid out to clubs with a working Stripe
+// Connect account. A show takes online entries only when its secretary turns
+// them on (shows.online_entries_enabled, MYK9-979); publishing such a show,
+// or turning the switch on once it is public, needs the club's payouts. Fail
+// closed: no account row, or a row without payouts_enabled, blocks it. A
+// mail-in show (switch off) publishes without a payment account. Shows that
+// are already public are never un-published by this gate.
 
-// MYK9-579 round 5: 'accepting_entries' is not a permitted shows.status
-// (072_align_show_class_statuses.sql), so an earlier round's widening of
-// this gate (and the DB trigger's gated set) to cover it was a no-op that
-// could never fire -- the write dies on the CHECK constraint first.
-// stripe-checkout/index.ts's own 'accepting_entries' branch is dead code and
-// out of scope here. The gated status is 'published' only.
+// MYK9-979: the gate fires when a show BECOMES PUBLICLY VISIBLE — any move
+// from a non-public status into published, upcoming, in_progress or completed
+// (PUBLIC_SHOW_STATUSES below) — not only on 'published'.
 
 export const PUBLISH_BLOCKED_MESSAGE =
   "Connect your club's payment account before publishing — online entry fees need somewhere to go. Find it under My Club → Payments.";
@@ -28,6 +27,69 @@ export function canEnableOnlineEntries(
   account: { payouts_enabled: boolean } | null | undefined
 ): boolean {
   return account?.payouts_enabled === true;
+}
+
+// ---------------------------------------------------------------------------
+// MYK9-979: the per-show "Accept online entries" switch
+// (shows.online_entries_enabled). Publishing needs the club's Stripe payouts
+// ONLY when the show takes online entries; a mail-in show publishes without a
+// payment account. Turning the switch on for an already-public show needs the
+// payouts too. Mirrors enforce_show_publish_gate()
+// (supabase/migrations/20261003221700).
+// ---------------------------------------------------------------------------
+
+/** Help text under the switch, in the wizard and the show edit panel. */
+export const ONLINE_ENTRIES_HELP_TEXT =
+  "Needs your club's payment account. Off: exhibitors see the premium and mail in their entries.";
+
+/** The trigger's refusal to turn online entries on for a public show without
+ * Stripe payouts (MK003), verbatim. */
+export const ONLINE_ENTRIES_BLOCKED_MESSAGE =
+  "Connect your club's payment account before turning on online entries — online entry fees need somewhere to go. Find it under My Club → Payments.";
+
+/** What exhibitors read on a show that takes no online entries. */
+export const MAIL_IN_ENTRY_NOTE =
+  "This show doesn't take online entries. Mail your entry to the trial secretary or enter at the show — the premium has the details.";
+
+/**
+ * True when the show takes no online entries: exhibitors mail theirs in or
+ * enter at the show. Only an explicit `false` says so. Every row read since
+ * the column exists carries a boolean (NOT NULL); `undefined` means a row
+ * cached before it, which keeps its old presentation. That is a display
+ * decision only: the server refuses an online entry for a mail-in show
+ * whatever the page shows (submit_show_entries, stripe-checkout).
+ */
+export function isMailInOnlyShow(
+  show: { onlineEntriesEnabled?: boolean | null | undefined } | null | undefined
+): boolean {
+  return show?.onlineEntriesEnabled === false;
+}
+
+/**
+ * The statuses that make a show publicly visible — shows_anon_select's list,
+ * the same one private.show_status_is_public() holds. The publish gate runs
+ * when a show moves from a status outside this set into one inside it.
+ */
+export const PUBLIC_SHOW_STATUSES: readonly string[] = [
+  'published',
+  'upcoming',
+  'in_progress',
+  'completed',
+];
+
+export function isPublicShowStatus(status: string | null | undefined): boolean {
+  return status != null && PUBLIC_SHOW_STATUSES.includes(status);
+}
+
+/** True when moving `from` -> `to` makes the show publicly visible, i.e. the
+ * transition the DB publish gates check. */
+export function becomesPublic(from: string | null | undefined, to: string): boolean {
+  return isPublicShowStatus(to) && !isPublicShowStatus(from);
+}
+
+/** Publishing (becoming public) needs Stripe payouts only with online entries on. */
+export function publishNeedsStripe(onlineEntriesEnabled: boolean | null | undefined): boolean {
+  return onlineEntriesEnabled === true;
 }
 
 // MYK9-579: the client-side checks above are a UX convenience, not the
@@ -103,6 +165,18 @@ export function entryWindowPublishError(
   if (open === null || close === null) return ENTRY_WINDOW_REQUIRED_MESSAGE;
   return open <= close ? null : ENTRY_WINDOW_ORDER_MESSAGE;
 }
+
+/** Every refusal text the two publish-gate triggers raise. A replicated show
+ * save (the edit panel) reports the DB text in the sync-failure toast. */
+export const PUBLISH_GATE_MESSAGES: readonly string[] = [
+  PUBLISH_BLOCKED_MESSAGE,
+  CLUB_REQUIRED_MESSAGE,
+  CLUB_UNAUTHORIZED_MESSAGE,
+  ONLINE_ENTRIES_BLOCKED_MESSAGE,
+  ENTRY_WINDOW_REQUIRED_MESSAGE,
+  ENTRY_WINDOW_ORDER_MESSAGE,
+  ENTRY_WINDOW_PUBLISHED_MESSAGE,
+];
 
 const PUBLISH_GATE_ERRCODES: readonly string[] = [
   PUBLISH_GATE_ERRCODE,

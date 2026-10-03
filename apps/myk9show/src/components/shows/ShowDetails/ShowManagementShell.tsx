@@ -262,6 +262,7 @@ function AuthorizedShowManagementShell({
                     clubId={show.clubId}
                     entryOpenDate={show.entryOpenDate}
                     entryCloseDate={show.entryCloseDate}
+                    onlineEntriesEnabled={show.onlineEntriesEnabled}
                   />
                 </span>
               </>

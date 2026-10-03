@@ -49,9 +49,30 @@ describe('ShowEditFeesTab — Payment Methods section', () => {
     expect(screen.getByText('Payment Methods')).toBeInTheDocument();
   });
 
-  it('renders "Credit/Debit Card — always enabled" row', () => {
-    render(<ShowEditFeesTab data={baseData} handleCheckboxChange={vi.fn(() => vi.fn())} />);
-    expect(screen.getByText('Credit/Debit Card — always enabled')).toBeInTheDocument();
+  // MYK9-979: the same switch as the wizard, bound to onlineEntriesEnabled.
+  it('renders the "Accept online entries" switch from the saved value', () => {
+    render(
+      <ShowEditFeesTab
+        data={{ ...baseData, onlineEntriesEnabled: true }}
+        handleCheckboxChange={vi.fn(() => vi.fn())}
+      />
+    );
+    expect(screen.getByRole('switch', { name: /accept online entries/i })).toBeChecked();
+  });
+
+  it('turning the switch off writes onlineEntriesEnabled: false', async () => {
+    const setter = vi.fn();
+    const handleCheckboxChange = vi.fn(() => setter);
+    const user = userEvent.setup();
+    render(
+      <ShowEditFeesTab
+        data={{ ...baseData, onlineEntriesEnabled: true }}
+        handleCheckboxChange={handleCheckboxChange}
+      />
+    );
+    await user.click(screen.getByRole('switch', { name: /accept online entries/i }));
+    expect(handleCheckboxChange).toHaveBeenCalledWith('onlineEntriesEnabled');
+    expect(setter).toHaveBeenCalledWith(false);
   });
 
   it('renders Check checkbox unchecked when acceptCheckPayments is false', () => {

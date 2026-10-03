@@ -5,7 +5,7 @@
 
 import React from 'react';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle2, AlertCircle, XCircle, CalendarClock, HelpCircle } from 'lucide-react';
+import { CheckCircle2, AlertCircle, XCircle, CalendarClock, HelpCircle, Mail } from 'lucide-react';
 import type { Show } from '@/types/show-types';
 import {
   getEntryStatus,
@@ -31,6 +31,7 @@ const statusIcons: Record<EntryStatus, React.ReactNode> = {
   // Not the calendar-clock: that glyph reads as "opens on a date", and nobody
   // set one (MYK9-649).
   window_unknown: <HelpCircle className="h-3 w-3" />,
+  mail_in_only: <Mail className="h-3 w-3" />,
 };
 
 export function EntryStatusBadge({

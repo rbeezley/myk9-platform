@@ -121,6 +121,7 @@ export function buildEditModeDraft({
       startingArmbandNumber: existingShow.startingArmbandNumber ?? 100,
       acceptCheckPayments: existingShow.acceptCheckPayments ?? false,
       acceptCashPayments: existingShow.acceptCashPayments ?? false,
+      onlineEntriesEnabled: existingShow.onlineEntriesEnabled ?? false,
       // MYK9-831: `loadDraft` REPLACES the whole `show` object (shallow merge at
       // the top level), so a wizard opened over an existing show that omits
       // this field wipes out whatever the wizard already held and every trial

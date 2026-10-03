@@ -65,6 +65,7 @@ export interface ReplicatedShow {
   isNationals?: boolean | undefined;
   acceptCheckPayments?: boolean | undefined;
   acceptCashPayments?: boolean | undefined;
+  onlineEntriesEnabled?: boolean | undefined;
   logoUrl?: string | undefined;
   coverImageUrl?: string | undefined;
   accentColor?: string | undefined;
@@ -115,6 +116,7 @@ export function rowToShow(row: ShowRow): ReplicatedShow {
     isNationals: row.is_nationals ?? undefined,
     acceptCheckPayments: row.accept_check_payments ?? undefined,
     acceptCashPayments: row.accept_cash_payments ?? undefined,
+    onlineEntriesEnabled: row.online_entries_enabled ?? undefined,
     logoUrl: row.logo_url ?? undefined,
     coverImageUrl: row.cover_image_url ?? undefined,
     accentColor: row.accent_color ?? undefined,
@@ -207,6 +209,10 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       is_nationals: show.isNationals ?? null,
       accept_check_payments: show.acceptCheckPayments ?? null,
       accept_cash_payments: show.acceptCashPayments ?? null,
+      // NOT NULL column: never send null; omitted, the row keeps its value.
+      ...(show.onlineEntriesEnabled !== undefined
+        ? { online_entries_enabled: show.onlineEntriesEnabled }
+        : {}),
       logo_url: show.logoUrl ?? null,
       cover_image_url: show.coverImageUrl ?? null,
       accent_color: show.accentColor ?? null,

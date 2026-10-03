@@ -79,6 +79,8 @@ const SHOW_ROW: ShowRow & Record<string, unknown> = {
   waitlist_payment_deadline_hours: 48,
   accept_cash_payments: false,
   accept_check_payments: false,
+  // MYK9-979: the exhibitor flows this fixture serves enter online.
+  online_entries_enabled: true,
   cc_secretary_on_exhibitor_emails: false,
   experience_is_published: false,
   experience_published_content: {},

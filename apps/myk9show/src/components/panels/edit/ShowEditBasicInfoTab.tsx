@@ -19,6 +19,7 @@ import { ShowDatesFields } from '@/components/shows/ShowDatesFields';
 import { FormField } from '@/components/common/FormField';
 import type { FormValidation } from '@/hooks/useFormValidation';
 import { toLocalDate } from '@/utils/date-format';
+import { isPublicShowStatus } from '@/features/payments/onlineEntryGate';
 import type { ShowEditFormData } from './ShowEditPanel.types';
 
 interface ShowEditBasicInfoTabProps {
@@ -53,6 +54,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
   const endDateError = form?.getError('endDate');
   const entryOpenError = form?.getError('entryOpenDate');
   const entryCloseError = form?.getError('entryCloseDate');
+  const initialIsPublic = isPublicShowStatus(initialStatus);
 
   return (
     <TabsContent
@@ -109,9 +111,7 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
               label="Status"
               fieldId="status"
               hint={
-                initialStatus !== 'published'
-                  ? 'Publish from the status badge on the show page.'
-                  : undefined
+                !initialIsPublic ? 'Publish from the status badge on the show page.' : undefined
               }
             >
               <Select value={data.status} onValueChange={handleSelectChange('status')}>
@@ -147,28 +147,39 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                       </div>
                     </SelectItem>
                   )}
-                  <SelectItem value="upcoming">
-                    <div>
-                      <div className="font-medium">Upcoming</div>
-                      <div className="text-xs text-muted-foreground">
-                        Entries closed, show is coming up
-                      </div>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="in_progress">
-                    <div>
-                      <div className="font-medium">In Progress</div>
-                      <div className="text-xs text-muted-foreground">Show is actively running</div>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="completed">
-                    <div>
-                      <div className="font-medium">Completed</div>
-                      <div className="text-xs text-muted-foreground">
-                        Show is finished, results finalized
-                      </div>
-                    </div>
-                  </SelectItem>
+                  {/* MYK9-979: Upcoming, In Progress and Completed are public
+                      too (shows_anon_select), so a show that opened as a draft
+                      cannot reach them from here either -- that was a way
+                      round the publish gate. Offered only once the show is
+                      already public; the status pill publishes it first. */}
+                  {initialIsPublic && (
+                    <>
+                      <SelectItem value="upcoming">
+                        <div>
+                          <div className="font-medium">Upcoming</div>
+                          <div className="text-xs text-muted-foreground">
+                            Entries closed, show is coming up
+                          </div>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="in_progress">
+                        <div>
+                          <div className="font-medium">In Progress</div>
+                          <div className="text-xs text-muted-foreground">
+                            Show is actively running
+                          </div>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="completed">
+                        <div>
+                          <div className="font-medium">Completed</div>
+                          <div className="text-xs text-muted-foreground">
+                            Show is finished, results finalized
+                          </div>
+                        </div>
+                      </SelectItem>
+                    </>
+                  )}
                   <SelectItem value="cancelled">
                     <div>
                       <div className="font-medium text-destructive">Cancelled</div>

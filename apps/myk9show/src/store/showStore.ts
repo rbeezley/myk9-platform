@@ -65,6 +65,7 @@ export function replicatedToShow(replicated: ReplicatedShow): Show {
     stats: [], // Local-only: calculated
     acceptCheckPayments: replicated.acceptCheckPayments,
     acceptCashPayments: replicated.acceptCashPayments,
+    onlineEntriesEnabled: replicated.onlineEntriesEnabled,
     // Preserve the Nationals placement flag across sync/reload. Dropping it here
     // would surface as undefined → showToFormData defaults false → an unrelated
     // edit silently overwrites the show back to Regular placement.
@@ -186,6 +187,7 @@ export interface ShowInput {
   startingArmbandNumber?: number | undefined;
   acceptCheckPayments?: boolean | undefined;
   acceptCashPayments?: boolean | undefined;
+  onlineEntriesEnabled?: boolean | undefined;
   isNationals?: boolean | undefined;
   style?: string | null;
   assignedJudges?: ShowJudgeAssignment[] | undefined;
@@ -268,6 +270,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         clubId: showData.clubId || undefined,
         acceptCheckPayments: showData.acceptCheckPayments,
         acceptCashPayments: showData.acceptCashPayments,
+        onlineEntriesEnabled: showData.onlineEntriesEnabled,
       });
 
       // Create full Show with local-only fields
@@ -403,6 +406,8 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         replicatedUpdates.acceptCheckPayments = updates.acceptCheckPayments;
       if (updates.acceptCashPayments !== undefined)
         replicatedUpdates.acceptCashPayments = updates.acceptCashPayments;
+      if (updates.onlineEntriesEnabled !== undefined)
+        replicatedUpdates.onlineEntriesEnabled = updates.onlineEntriesEnabled;
       if ('logoUrl' in updates) replicatedUpdates.logoUrl = updates.logoUrl as string;
       if ('coverImageUrl' in updates)
         replicatedUpdates.coverImageUrl = updates.coverImageUrl as string;
@@ -456,6 +461,8 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         definedUpdates.acceptCheckPayments = updates.acceptCheckPayments;
       if (updates.acceptCashPayments !== undefined)
         definedUpdates.acceptCashPayments = updates.acceptCashPayments;
+      if (updates.onlineEntriesEnabled !== undefined)
+        definedUpdates.onlineEntriesEnabled = updates.onlineEntriesEnabled;
       if (updates.clubName !== undefined) definedUpdates.clubName = updates.clubName;
       if (updates.clubAddress !== undefined) definedUpdates.clubAddress = updates.clubAddress;
       if (updates.clubEmail !== undefined) definedUpdates.clubEmail = updates.clubEmail;

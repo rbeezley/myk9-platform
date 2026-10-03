@@ -1,5 +1,5 @@
 import type { PendingMutation } from '@myk9/replication';
-import { ENTRY_WINDOW_PUBLISHED_MESSAGE } from '@/features/payments/onlineEntryGate';
+import { PUBLISH_GATE_MESSAGES } from '@/features/payments/onlineEntryGate';
 
 export interface SyncFailedEventDetail {
   count: number;
@@ -103,11 +103,13 @@ export function formatSyncFailureToast(detail: SyncFailedEventDetail): string {
   }
 
   const first = detail.mutations[0];
-  // MYK9-716: the publish gate's refusal to let a published show clear or
-  // reverse its entry window is the whole answer; say it instead of the
-  // generic line. Retrying cannot succeed, so point at Discard.
-  if (detail.count === 1 && first?.error?.includes(ENTRY_WINDOW_PUBLISHED_MESSAGE)) {
-    return `We couldn't save this show change. ${ENTRY_WINDOW_PUBLISHED_MESSAGE}`;
+  // MYK9-716 / MYK9-979: a publish-gate refusal (a public show clearing its
+  // entry window, a show edit-panel status change that would make it public,
+  // turning online entries on without Stripe payouts) is the whole answer;
+  // say it instead of the generic line. Retrying cannot succeed.
+  const gateMessage = PUBLISH_GATE_MESSAGES.find(message => first?.error?.includes(message));
+  if (detail.count === 1 && gateMessage) {
+    return `We couldn't save this show change. ${gateMessage}`;
   }
   if (detail.count === 1 && first) {
     return `We couldn't ${actionLabel(first.operation)} this ${objectLabel(first.tableName)}. Retry or discard this change.`;

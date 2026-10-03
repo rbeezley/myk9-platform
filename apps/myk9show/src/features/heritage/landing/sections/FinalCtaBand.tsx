@@ -1,5 +1,6 @@
 import { HeritageOrnamentRule } from '../../components/HeritageOrnamentRule';
 import { heritageOrnaments } from '../../tokens';
+import { pendingEntryCopy, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
 
 interface FinalCtaBandProps {
   canEnterOnline?: boolean;
@@ -7,6 +8,7 @@ interface FinalCtaBandProps {
 }
 
 export function FinalCtaBand({ canEnterOnline = true, entryClosed = false }: FinalCtaBandProps) {
+  const mailInOnly = useLandingMailInOnly();
   return (
     <section
       className="hl-on-ink px-6 py-20 text-center"
@@ -43,8 +45,11 @@ export function FinalCtaBand({ canEnterOnline = true, entryClosed = false }: Fin
             </>
           ) : (
             <>
-              Entries open when{' '}
-              <em style={{ color: 'var(--hl-gold-on-dark)' }}>classes are assigned</em>.
+              {mailInOnly ? 'Enter by mail or at the' : 'Entries open when'}{' '}
+              <em style={{ color: 'var(--hl-gold-on-dark)' }}>
+                {mailInOnly ? 'show' : 'classes are assigned'}
+              </em>
+              .
             </>
           )}
         </p>
@@ -106,7 +111,10 @@ export function FinalCtaBand({ canEnterOnline = true, entryClosed = false }: Fin
           >
             {entryClosed
               ? 'Contact the trial secretary for late-entry help.'
-              : 'The secretary still needs to assign classes before online entry is available.'}
+              : pendingEntryCopy(
+                  mailInOnly,
+                  'The secretary still needs to assign classes before online entry is available.'
+                )}
           </p>
         )}
       </div>

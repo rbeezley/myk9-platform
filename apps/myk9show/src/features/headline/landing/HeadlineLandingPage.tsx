@@ -16,6 +16,7 @@ import { SectionHead } from './HeadlineLandingPrimitives';
 import { formatDateRange, shortDate } from './headlineLandingDates';
 import '../headline.css';
 import '../headline-detail.css';
+import { pendingEntryCopy, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
 
 interface HeadlineLandingPageProps {
   show: Show | null | undefined;
@@ -109,6 +110,7 @@ function Hero({
   canEnterOnline?: boolean;
   entryClosed?: boolean;
 }) {
+  const mailInOnly = useLandingMailInOnly();
   const countdown = useCountdown(data.entryCloseDate, data.timezone);
   const totalRuns = data.entryLimit ? `${data.entryLimit} runs` : 'Limit TBD';
   const title = getHeroTitleParts(data.showName);
@@ -161,7 +163,10 @@ function Hero({
             <span className="hd-cta hd-cta-disabled">
               {entryClosed
                 ? 'Entries are closed for this show. Contact the trial secretary for late-entry help.'
-                : 'Entries are not available yet because no classes are assigned yet.'}
+                : pendingEntryCopy(
+                    mailInOnly,
+                    'Entries are not available yet because no classes are assigned yet.'
+                  )}
             </span>
           )}
           <a className="hd-cta ghost" href="#particulars">

@@ -34,6 +34,7 @@ export interface WizardShowData {
   judgeIds: string[];
   acceptCheckPayments: boolean;
   acceptCashPayments: boolean;
+  onlineEntriesEnabled: boolean;
   /** IANA zone applied to every trial this show creates (MYK9-831). */
   timezone?: string | undefined;
   style?: PremiumStyle | undefined;
@@ -225,6 +226,7 @@ export function showToShowInput(show: Show): ShowInput {
     startingArmbandNumber: show.startingArmbandNumber,
     acceptCheckPayments: show.acceptCheckPayments,
     acceptCashPayments: show.acceptCashPayments,
+    onlineEntriesEnabled: show.onlineEntriesEnabled,
     style: resolvePremiumStyle(show.style),
   };
 }
@@ -317,6 +319,7 @@ export function transformWizardDataToShow(
     startingArmbandNumber: show.startingArmbandNumber ?? 100,
     acceptCheckPayments: show.acceptCheckPayments,
     acceptCashPayments: show.acceptCashPayments,
+    onlineEntriesEnabled: show.onlineEntriesEnabled,
     style: resolvePremiumStyle(show.style),
   };
 }

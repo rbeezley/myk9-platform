@@ -62,8 +62,10 @@ export const FeesPaymentsSection: React.FC<FeesPaymentsSectionProps> = ({
 
       <div className="md:col-span-2">
         <PaymentMethodsCheckboxGroup
+          acceptOnline={show.onlineEntriesEnabled ?? false}
           acceptCheck={show.acceptCheckPayments ?? false}
           acceptCash={show.acceptCashPayments ?? false}
+          onOnlineChange={checked => onUpdate({ onlineEntriesEnabled: checked })}
           onCheckChange={checked => onUpdate({ acceptCheckPayments: checked })}
           onCashChange={checked => onUpdate({ acceptCashPayments: checked })}
         />

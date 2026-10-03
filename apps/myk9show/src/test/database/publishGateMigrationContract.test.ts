@@ -15,6 +15,8 @@ import {
   ENTRY_WINDOW_REQUIRED_MESSAGE,
   ENTRY_WINDOW_ORDER_MESSAGE,
   ENTRY_WINDOW_PUBLISHED_MESSAGE,
+  ONLINE_ENTRIES_BLOCKED_MESSAGE,
+  PUBLIC_SHOW_STATUSES,
   PUBLISH_GATE_ERRCODE_ENTRY_WINDOW,
 } from '@/features/payments/onlineEntryGate';
 
@@ -43,6 +45,15 @@ function migrationSql(): string {
   );
 }
 
+/** enforce_show_publish_gate's own body, without the rest of its migration. */
+function gateFunctionBody(): string {
+  const sql = migrationSql();
+  const start = sql.indexOf('CREATE OR REPLACE FUNCTION public.enforce_show_publish_gate()');
+  const end = sql.indexOf('$$;', start);
+  expect(start).toBeGreaterThan(-1);
+  return sql.slice(start, end);
+}
+
 function triggerSql(): string {
   return latestMigrationContaining(/CREATE TRIGGER trg_enforce_show_publish_gate\b/);
 }
@@ -56,7 +67,7 @@ function sqlEscaped(text: string): string {
 describe('enforce_show_publish_gate migration text', () => {
   it('resolves the latest enforce_show_publish_gate definition', () => {
     expect(() => migrationSql()).not.toThrow();
-    expect(migrationSql()).toMatch(/MYK9-716/);
+    expect(migrationSql()).toMatch(/MYK9-979/);
   });
 
   it('raises PUBLISH_BLOCKED_MESSAGE verbatim for the no-Stripe-readiness refusal', () => {
@@ -69,10 +80,34 @@ describe('enforce_show_publish_gate migration text', () => {
     expect(sql).toContain(sqlEscaped(CLUB_REQUIRED_MESSAGE));
   });
 
-  it('raises both refusals with SQLSTATE MK003', () => {
+  // MYK9-979: four MK003 raises — the missing club and the Stripe refusal on
+  // becoming public, and the same two on turning online entries on for a
+  // show that is already public. Counted inside the function body only (the
+  // migration also rebuilds submit_show_entries).
+  it('raises every club / Stripe refusal with SQLSTATE MK003', () => {
+    const mk003Count = (gateFunctionBody().match(/USING ERRCODE = 'MK003'/g) ?? []).length;
+    expect(mk003Count).toBe(4);
+  });
+
+  it('raises ONLINE_ENTRIES_BLOCKED_MESSAGE verbatim for turning online entries on (MYK9-979)', () => {
+    expect(gateFunctionBody()).toContain(sqlEscaped(ONLINE_ENTRIES_BLOCKED_MESSAGE));
+  });
+
+  it('checks Stripe readiness on becoming public only when online entries are on (MYK9-979)', () => {
+    const body = gateFunctionBody();
+    const onlineGuard = body.indexOf('IF NEW.online_entries_enabled IS TRUE THEN');
+    expect(onlineGuard).toBeGreaterThan(-1);
+    expect(body.indexOf(sqlEscaped(PUBLISH_BLOCKED_MESSAGE))).toBeGreaterThan(onlineGuard);
+  });
+
+  it('keys the gate on the one public-status predicate, whose list matches the client mirror', () => {
     const sql = migrationSql();
-    const mk003Count = (sql.match(/USING ERRCODE = 'MK003'/g) ?? []).length;
-    expect(mk003Count).toBe(2);
+    const predicate = sql.match(
+      /CREATE OR REPLACE FUNCTION private\.show_status_is_public[\s\S]*?ARRAY\[([^\]]+)\]/
+    );
+    const statuses = [...(predicate?.[1] ?? '').matchAll(/'([a-z_]+)'::text/g)].map(m => m[1]);
+    expect(statuses).toEqual([...PUBLIC_SHOW_STATUSES]);
+    expect(gateFunctionBody()).toMatch(/private\.show_status_is_public\(NEW\.status\)/);
   });
 
   // MYK9-716: publishing requires an entry window.
@@ -91,9 +126,9 @@ describe('enforce_show_publish_gate migration text', () => {
     );
   });
 
-  it('fires on INSERT and on UPDATE OF status or either entry date (MYK9-716)', () => {
+  it('fires on INSERT and on UPDATE OF status, either entry date or the online switch (MYK9-716, MYK9-979)', () => {
     expect(triggerSql()).toMatch(
-      /BEFORE INSERT OR UPDATE OF status, entry_open_date, entry_close_date ON public\.shows/
+      /BEFORE INSERT OR UPDATE OF status, entry_open_date, entry_close_date, online_entries_enabled ON public\.shows/
     );
   });
 

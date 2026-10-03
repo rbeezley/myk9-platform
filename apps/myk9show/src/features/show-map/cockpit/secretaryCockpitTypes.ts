@@ -1,3 +1,5 @@
+import type { ClassChecklistSummary } from './classChecklist';
+
 export type EvidenceKind = 'recorded' | 'computed' | 'staff-confirmed' | 'unknown';
 
 export interface EvidenceValue<T> {
@@ -172,7 +174,7 @@ export interface ScheduledClassModel {
   closeout: CockpitCloseoutState;
   primaryAction: SecretaryCockpitAction | null;
   /** The class checklist's count (MYK9-948), or null for a cancelled class. */
-  checklist: { done: number; total: number; unknown: number } | null;
+  checklist: ClassChecklistSummary | null;
 }
 
 export interface TrialScheduleGroupModel {

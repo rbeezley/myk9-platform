@@ -196,6 +196,12 @@ describe('summarizeClassChecklist', () => {
         paper('result-labels', 'unknown'),
       ],
     });
-    expect(summarizeClassChecklist(items)).toEqual({ done: 2, total: 7, unknown: 1 });
+    expect(summarizeClassChecklist(items)).toEqual({
+      done: 2,
+      total: 7,
+      unknown: 1,
+      // In checklist order, for the schedule row's squares.
+      states: ['done', 'reprint', 'done', 'todo', 'todo', 'unknown', 'todo'],
+    });
   });
 });

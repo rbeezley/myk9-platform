@@ -1,6 +1,6 @@
 import { useSearchParams } from 'react-router-dom';
 import type { Trial } from '@/components/trials/types/trial.types';
-import { resolveSetupClassesView } from '@/pages/secretary/showSetupSections';
+import { resolveSelectClassesView } from '@/pages/secretary/selectClassesRoutes';
 import { ClassesTab, type ClassInfo } from './ClassesTab';
 
 /**
@@ -43,7 +43,7 @@ export function SetupClassesSection({
       classes={classes}
       showId={showId}
       userHasEntries={userHasEntries}
-      viewId={resolveSetupClassesView(searchParams.get('view'))}
+      viewId={resolveSelectClassesView(searchParams.get('view'))}
       onViewChange={view => setClassesParam('view', view)}
       trials={trials}
       trialId={searchParams.get('trialId')}

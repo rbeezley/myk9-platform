@@ -137,9 +137,6 @@ vi.mock('@/pages/ShowDetailsPage', async () => {
 vi.mock('@/pages/secretary/ShowWorkbenchShowDeskPage', () => ({
   ShowWorkbenchShowDeskPage: () => <div data-testid="production-show-desk">Show Desk</div>,
 }));
-vi.mock('@/pages/secretary/ShowWorkbenchSetupPage', () => ({
-  ShowWorkbenchSetupPage: () => <div data-testid="production-setup">Setup</div>,
-}));
 vi.mock('@/pages/secretary/EntryManagementPage', () => ({
   default: () => <div data-testid="production-entry-management">Entry Management</div>,
 }));
@@ -156,17 +153,13 @@ vi.mock('@/pages/AccountPage', () => ({
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 const PRODUCTION_SECTION_TEST_IDS: Record<ShowManagementSectionPath, string> = {
-  setup: 'production-setup',
   entries: 'production-entry-management',
-  'show-day': 'production-show-desk',
   results: 'production-results',
   reports: 'production-reports',
 };
 
 const HARNESS_SECTION_TEST_IDS: Record<ShowManagementSectionPath, string> = {
-  setup: 'setup-section',
   entries: 'entries-section',
-  'show-day': 'show-day-section',
   results: 'results-section',
   reports: 'reports-section',
 };
@@ -207,9 +200,7 @@ function CanonicalShowRouteHarness() {
           </div>
         }
       >
-        <Route path="setup" element={<div data-testid="setup-section">Setup</div>} />
         <Route path="entries" element={<div data-testid="entries-section">Entries</div>} />
-        <Route path="show-day" element={<div data-testid="show-day-section">Show Day</div>} />
         <Route path="results" element={<div data-testid="results-section">Results</div>} />
         <Route path="reports" element={<div data-testid="reports-section">Reports</div>} />
       </Route>
@@ -235,19 +226,17 @@ function CanonicalAccessProbe({ canManage }: { canManage: boolean }) {
 // ── Tests ──────────────────────────────────────────────────────────────────
 
 describe('canonical show route redirects', () => {
-  it('redirects the legacy secretary show base route to canonical setup', async () => {
+  it('redirects the legacy secretary show base route to the show home', async () => {
     renderRedirect('/secretary/shows/show-1');
-    expect(await screen.findByTestId('location')).toHaveTextContent('/shows/show-1/setup');
+    expect(await screen.findByTestId('location')).toHaveTextContent(/^\/shows\/show-1$/);
   });
 
-  it('redirects the legacy show-desk phase query to the Show Day tab', async () => {
+  it('redirects the legacy show-desk phase query to the show home', async () => {
     // `?phase=show-desk` is still honoured as a query; it lands directly on the
-    // tab that absorbed Show Desk rather than hopping through the legacy path
-    // (MYK9-630 phase 2).
+    // show home, which absorbed Show Desk and Show Day (MYK9-957), rather than
+    // hopping through a legacy path.
     renderRedirect('/secretary/shows/show-1?phase=show-desk&from=email');
-    expect(await screen.findByTestId('location')).toHaveTextContent(
-      '/shows/show-1/show-day?from=email'
-    );
+    expect(await screen.findByTestId('location')).toHaveTextContent('/shows/show-1?from=email');
   });
 
   it('redirects a legacy secretary show subroute to the matching canonical subroute', async () => {
@@ -332,7 +321,7 @@ describe('canonical show management routes', () => {
     mockAuth.hasRole = () => false;
 
     render(
-      <MemoryRouter initialEntries={['/shows/show-1/show-day']}>
+      <MemoryRouter initialEntries={['/shows/show-1/entries']}>
         <Routes>{PublicRoutes()}</Routes>
       </MemoryRouter>
     );
@@ -340,7 +329,7 @@ describe('canonical show management routes', () => {
     expect(await screen.findByTestId('production-show-details-location')).toHaveTextContent(
       '/shows/show-1'
     );
-    expect(screen.queryByTestId('production-show-desk')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('production-entry-management')).not.toBeInTheDocument();
     // No manual restore: `beforeEach(fixtures.reset)` owns it. Restoring on the
     // last line meant either assertion above throwing left `user === null` for
     // every test after this one.
@@ -366,7 +355,7 @@ describe('canonical show management routes', () => {
     mockShows.isLoading = false;
 
     render(
-      <MemoryRouter initialEntries={['/shows/show-1/show-day']}>
+      <MemoryRouter initialEntries={['/shows/show-1/entries']}>
         <Routes>{PublicRoutes()}</Routes>
       </MemoryRouter>
     );
@@ -374,7 +363,7 @@ describe('canonical show management routes', () => {
     expect(await screen.findByTestId('production-show-details-location')).toHaveTextContent(
       '/shows/show-1'
     );
-    expect(screen.queryByTestId('production-show-desk')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('production-entry-management')).not.toBeInTheDocument();
   });
 
   it("allows a club admin scoped to the show's club", async () => {
@@ -386,13 +375,13 @@ describe('canonical show management routes', () => {
     mockShows.isLoading = false;
 
     render(
-      <MemoryRouter initialEntries={['/shows/show-1/setup']}>
+      <MemoryRouter initialEntries={['/shows/show-1/entries']}>
         <Routes>{PublicRoutes()}</Routes>
       </MemoryRouter>
     );
 
     expect(await screen.findByTestId('production-show-details')).toBeInTheDocument();
-    expect(screen.getByTestId('production-setup')).toBeInTheDocument();
+    expect(screen.getByTestId('production-entry-management')).toBeInTheDocument();
   });
 
   it('redirects a secretary scoped to a different club', async () => {
@@ -404,7 +393,7 @@ describe('canonical show management routes', () => {
     mockShows.isLoading = false;
 
     render(
-      <MemoryRouter initialEntries={['/shows/show-1/setup']}>
+      <MemoryRouter initialEntries={['/shows/show-1/entries']}>
         <Routes>{PublicRoutes()}</Routes>
       </MemoryRouter>
     );
@@ -412,7 +401,7 @@ describe('canonical show management routes', () => {
     expect(await screen.findByTestId('production-show-details-location')).toHaveTextContent(
       '/shows/show-1'
     );
-    expect(screen.queryByTestId('production-setup')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('production-entry-management')).not.toBeInTheDocument();
   });
 
   it('redirects a club admin scoped to a different club', async () => {
@@ -425,7 +414,7 @@ describe('canonical show management routes', () => {
     mockShows.isLoading = false;
 
     render(
-      <MemoryRouter initialEntries={['/shows/show-1/setup']}>
+      <MemoryRouter initialEntries={['/shows/show-1/entries']}>
         <Routes>{PublicRoutes()}</Routes>
       </MemoryRouter>
     );
@@ -433,6 +422,6 @@ describe('canonical show management routes', () => {
     expect(await screen.findByTestId('production-show-details-location')).toHaveTextContent(
       '/shows/show-1'
     );
-    expect(screen.queryByTestId('production-setup')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('production-entry-management')).not.toBeInTheDocument();
   });
 });

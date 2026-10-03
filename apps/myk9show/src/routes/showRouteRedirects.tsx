@@ -15,17 +15,15 @@ export function LegacySecretaryShowRedirect({ subPath }: LegacySecretaryShowRedi
 
   const searchParams = new URLSearchParams(search);
   const legacyPhase = searchParams.get('phase');
-  // `?phase=show-desk` is a legacy query we still honour; it lands on the tab
-  // that absorbed Show Desk (MYK9-630 phase 2).
+  // `?phase=show-desk` is a legacy query we still honour; Show Desk, then Show
+  // Day, is the show home now (MYK9-957), as is the old default, Setup.
   const shouldHonorLegacyShowDeskPhase = !subPath && !params['*'] && legacyPhase === 'show-desk';
-  const redirectSubPath = shouldHonorLegacyShowDeskPhase
-    ? 'show-day'
-    : (subPath ?? params['*'] ?? 'setup');
+  const redirectSubPath = shouldHonorLegacyShowDeskPhase ? '' : (subPath ?? params['*'] ?? '');
   if (shouldHonorLegacyShowDeskPhase) {
     searchParams.delete('phase');
   }
   const nextSearch = searchParams.toString();
-  const normalizedSubPath = redirectSubPath ? `/${redirectSubPath.replace(/^\/+/, '')}` : '/setup';
+  const normalizedSubPath = redirectSubPath ? `/${redirectSubPath.replace(/^\/+/, '')}` : '';
   const normalizedSearch = nextSearch ? `?${nextSearch}` : '';
   return <Navigate to={`/shows/${showId}${normalizedSubPath}${normalizedSearch}`} replace />;
 }

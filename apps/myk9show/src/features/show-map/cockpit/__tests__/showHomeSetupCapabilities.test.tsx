@@ -131,4 +131,45 @@ describe('show home carries every Setup action (MYK9-956)', () => {
     await user.click(screen.getByRole('button', { name: 'Done' }));
     expect(screen.getByTestId('search')).toHaveTextContent(/^$/);
   });
+
+  function renderSelection(initialRoute: string) {
+    return render(
+      <Routes>
+        <Route
+          path="/shows/:id"
+          element={
+            <>
+              <HomeClassSelection
+                showId="show-1"
+                tabs={{ trials: [], classes: [], hasUserEntries: false }}
+              />
+              <LocationProbe />
+            </>
+          }
+        />
+      </Routes>,
+      { initialRoute }
+    );
+  }
+
+  it('Done restores the cockpit day, filter and focus it was opened from (Codex P2)', async () => {
+    const back = '/shows/show-1?day=2026-10-10&filter=needs-attention&focus=class-1';
+    const { user } = renderSelection(
+      `/shows/show-1?select=classes&trialId=trial-1&focus=class-1&returnTo=${encodeURIComponent(back)}`
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+    expect(screen.getByTestId('search')).toHaveTextContent(
+      '?day=2026-10-10&filter=needs-attention&focus=class-1'
+    );
+  });
+
+  it("Done ignores a returnTo that is not this show's home", async () => {
+    const { user } = renderSelection(
+      `/shows/show-1?select=classes&returnTo=${encodeURIComponent('/shows/other?day=2026-10-10')}`
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Done' }));
+    expect(screen.getByTestId('search')).toHaveTextContent(/^$/);
+  });
 });

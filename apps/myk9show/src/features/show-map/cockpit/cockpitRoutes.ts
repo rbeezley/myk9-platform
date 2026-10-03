@@ -1,4 +1,4 @@
-import { getSetupClassesHref } from '@/pages/secretary/showSetupSections';
+import { getSelectClassesHref } from '@/pages/secretary/selectClassesRoutes';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { getPaperScoringClassHref } from '@/pages/scoring/scoringRoutes';
 import { getReportScopeSearchParams } from '@/lib/reports/reportScope';
@@ -69,18 +69,6 @@ export function writeCockpitUrlState(
   return params;
 }
 
-export function getShowDeskHref({
-  showId,
-  state,
-}: {
-  showId: string;
-  state: CockpitUrlState;
-}): string {
-  const params = writeCockpitUrlState(new URLSearchParams(), state);
-  const query = params.toString();
-  return `/shows/${encodeURIComponent(showId)}/show-day${query ? `?${query}` : ''}`;
-}
-
 function withReturnTo(href: string, returnTo: string): string {
   const separator = href.includes('?') ? '&' : '?';
   return `${href}${separator}returnTo=${encodeURIComponent(returnTo)}`;
@@ -99,17 +87,24 @@ export function getCockpitEntryManagementHref(input: {
   return withReturnTo(getEntryManagementHref(input), input.returnTo);
 }
 
+/**
+ * Select classes on the home, scoped to the class's trial and focused on it.
+ * Both share `focus`/`view`, so `returnTo` carries the cockpit state that
+ * Select classes' Done restores.
+ */
 export function getCockpitClassManagementHref(input: {
   showId: string;
   trialId: string;
   classId: string;
   returnTo: string;
 }): string {
-  return getSetupClassesHref(input.showId, undefined, {
-    trialId: input.trialId,
-    focusClassId: input.classId,
-    returnTo: input.returnTo,
-  });
+  return withReturnTo(
+    getSelectClassesHref(input.showId, undefined, {
+      trialId: input.trialId,
+      focusClassId: input.classId,
+    }),
+    input.returnTo
+  );
 }
 
 export function getCockpitPaperScoringHref(input: { classId: string; returnTo: string }): string {
@@ -190,8 +185,9 @@ export function getShowHomeHref({
 
 /**
  * Where a "back" link from a cockpit deep link returns, and what it is called.
- * Accepts the show home (`/shows/:id`) and Show Day (`/show-day`, or the
- * legacy `/show-desk`) of the expected show; anything else is refused.
+ * Accepts the show home (`/shows/:id`) of the expected show, and the retired
+ * Show Day URLs (`/show-day`, `/show-desk`) a `returnTo` in an open tab may
+ * still carry, which now mean the home too (MYK9-957); anything else is refused.
  */
 export function resolveShowDeskReturn(
   candidate: string | null | undefined,
@@ -215,9 +211,7 @@ export function resolveShowDeskReturn(
   }
   if (expectedShowId && showId !== expectedShowId) return null;
   const state = normalizeCockpitUrlState(url.searchParams);
-  return match[2]
-    ? { href: getShowDeskHref({ showId, state }), label: 'Back to Show Desk' }
-    : { href: getShowHomeHref({ showId, state }), label: 'Back to show' };
+  return { href: getShowHomeHref({ showId, state }), label: 'Back to show' };
 }
 
 export function resolveShowDeskReturnHref(

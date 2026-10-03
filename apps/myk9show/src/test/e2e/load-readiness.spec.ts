@@ -26,7 +26,7 @@ const surfaces = [
     path: `${classPath}/score/${fixture.entryId}`,
     testId: 'submit-btn',
   },
-  { name: 'Show Desk', path: `/shows/${LOAD_SHOW_ID}/show-day`, heading: 'Show Desk' },
+  { name: 'Show home', path: `/shows/${LOAD_SHOW_ID}`, heading: 'Your show' },
   {
     name: 'My run schedule',
     path: `/shows/${LOAD_SHOW_ID}?tab=my-entries`,

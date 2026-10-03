@@ -462,7 +462,7 @@ describe('computeShowDeskPendingSignals', () => {
       const params = new URLSearchParams(checkIn!.href!.split('?')[1]);
       expect(params.get('tool')).toBe(SHOW_DESK_PEOPLE_AT_SHOW_TOOL_ID);
       expect(params.get('view')).toBe('needs-check-in');
-      expect(checkIn!.href).toMatch(/^\/shows\/show-1\/show-day\?/);
+      expect(checkIn!.href).toMatch(/^\/shows\/show-1\?/);
     });
 
     it('excludes terminal/pulled entries from waiting-review and payment-due counts', () => {

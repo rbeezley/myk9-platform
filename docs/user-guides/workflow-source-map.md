@@ -32,13 +32,16 @@ These routes exist in `pageDirectory.ts` but should not appear in customer-facin
 | `/judge/assignments`   | `classification: park`, parked for fall        |
 | `/tv/:showId`          | Staff/venue internal tool                      |
 
-The five secretary show URLs that MYK9-630 phase 2 renamed are redirects now, kept
-routable so old bookmarks, emailed links and the sidebar keep working. Document the
-tab they land on, never the redirect:
+The secretary show URLs that MYK9-630 phase 2 renamed, and the Setup and Show Day
+tabs that MYK9-957 folded into Overview, are redirects now, kept routable so old
+bookmarks and emailed links keep working. Document the tab they land on, never the
+redirect:
 
 | Retired route                     | Redirects to                                                                  |
 | --------------------------------- | ----------------------------------------------------------------------------- |
-| `/shows/:showId/show-desk`        | `/shows/:showId/show-day`                                                     |
+| `/shows/:showId/show-desk`        | `/shows/:showId` (MYK9-957)                                                   |
+| `/shows/:showId/show-day`         | `/shows/:showId` (MYK9-957; the cockpit query and `?tool=` carry over)        |
+| `/shows/:showId/setup`            | `/shows/:showId`; `?section=classes` opens `?select=classes` (MYK9-957)       |
 | `/shows/:showId/entry-management` | `/shows/:showId/entries`                                                      |
 | `/shows/:showId/results-control`  | `/shows/:showId/results`                                                      |
 | `/shows/:showId/submit-results`   | `/shows/:showId/results?step=submit`                                          |
@@ -154,12 +157,14 @@ tab they land on, never the redirect:
 **Note:** This remains the cross-show home, while single-show operations stay under `/shows/:showId/*`.
 **Source-map note:** Re-verified 2026-09-18 (MYK9-630 phase 2). The dashboard itself is unchanged; its per-show cards now link at `/shows/:id/show-day` instead of `/show-desk`. Secretary Guide § Dashboard ("Before you start") was rewritten against this head to name the six tabs and carries a dated rename note for readers with old bookmarks. The `/shows/:id` token appears here because the cards build that link.
 **Source-map note:** Re-verified 2026-10-01 (MYK9-899). The dashboard is unchanged; the only new references are the legacy class-create redirects' not-found fallback to `/secretary/dashboard`.
+**Source-map note:** Re-verified 2026-10-03 (MYK9-957). The dashboard is unchanged; its per-show cards link at the show home `/shows/:id` now that Show Day is part of Overview. Secretary Guide § Before you start names the four tabs and carries a dated "Changed, October 2026" note for old bookmarks.
 **Docs target:** Secretary Guide § Dashboard
 
 ### 14. Manage a specific show (setup and configuration)
 
 **Outcome:** Secretary or club admin configures trials, classes, officials, and rings after initial creation.
-**Canonical route:** `/shows/:showId/setup`
+**Canonical route:** `/shows/:showId` (Overview; Select classes is `?select=classes`)
+**Source-map note:** Re-verified 2026-10-03 (MYK9-957). Setup is deleted: trials and classes are added, edited and deleted from the Overview schedule, and the per-class judge dropdown and bulk class actions live in Overview → Select classes. `/shows/:id/setup` redirects there. Secretary Guide § 1–2 and Club Admin Guide § 2 were updated to match.
 **Source-map note:** Re-verified 2026-10-01 (MYK9-899). Add Classes (Setup → Classes, the trial page) now opens the show wizard's `add-classes` mode; the retired Class Creation page and Add Classes panel no longer exist, and their old URLs redirect. Secretary Guide § 2 gained the matching step.
 **Source-map note:** Re-verified 2026-10-01 (MYK9-924). Class Management is merged into `/shows/:id/setup` (Classes section): the per-class judge dropdown and bulk class status live there now, and the old `/shows/:id/classes/:trialId` URL redirects to it. Secretary Guide § Setup (Change a class's judge) and § 2 were updated to match.
 **Docs target:** Secretary Guide § Setup, Club Admin Guide § 2 — Your Club's Shows
@@ -180,8 +185,9 @@ tab they land on, never the redirect:
 ### 17. Run the show desk on show day
 
 **Outcome:** Secretary or club admin handles check-in, scratches, and move-ups from one page; late entry and paper scoring are secretary-only.
-**Canonical route:** `/shows/:showId/show-day`
-**Entry point:** Show workbench Today tab, or Secretary Dashboard when show is live today
+**Canonical route:** `/shows/:showId` (Overview, with **Tools**)
+**Entry point:** The show's Overview tab, or Secretary Dashboard when show is live today
+**Source-map note:** Re-verified 2026-10-03 (MYK9-957). The Show Day tab is folded into Overview; `/shows/:id/show-day` redirects to the home and keeps its day, filter, focus and `?tool=`. The guides now say **Overview → Tools** and **Overview → click the class**.
 **Docs target:** Secretary Guide § Show Day, Club Admin Guide § 2 — Your Club's Shows, KB: `handle-a-scratch.md`, `handle-move-up.md`
 
 ### 18. Generate reports
@@ -209,7 +215,7 @@ tab they land on, never the redirect:
 ### Tasks
 
 **Decision:** Personal task work belongs on the secretary dashboard; per-show task work belongs in each show's Tools sheet, not a standalone `/secretary/tasks` page.
-**Canonical routes:** `/secretary/dashboard`, `/shows/:showId/show-day`
+**Canonical routes:** `/secretary/dashboard`, `/shows/:showId` (Tools sheet; was `/show-day` before MYK9-957)
 **Why this does not duplicate another page:** The dashboard and Show Desk already own the two distinct task scopes, so the legacy route is only a compatibility redirect.
 **Source-map note:** Re-verified 2026-10-01 (MYK9-899). The task decision is unchanged; `/secretary/dashboard` is only the not-found fallback of the legacy class-create redirects.
 
@@ -283,13 +289,13 @@ These exist in `pageDirectory.ts` for the Help page and are documented here for 
 
 Workflows where the same user outcome appears at more than one route. Document only the **canonical** route; note the alternative.
 
-| Outcome                                  | Canonical route                                                                   | Alternative                                                              | Note                                                                          |
-| ---------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------- |
-| Browse shows                             | `/shows`                                                                          | `/browse-shows`                                                          | `/browse-shows` is a redirect; the calendar view is on `/shows`               |
-| Show detail                              | `/shows/:id`                                                                      | `/trials/:trialId`, `/classes/:classId`                                  | Legacy paths are redirects — document `/shows/:id` nested paths only          |
-| Trial details                            | `/shows/:showId/trials/:trialId`                                                  | `/trials/:trialId`                                                       | Document the nested path only                                                 |
-| Class details                            | `/shows/:showId/trials/:trialId/classes/:classId`                                 | `/classes/:classId`                                                      | Document the nested path only                                                 |
-| Entry list (exhibitor)                   | `/exhibitor/entries`                                                              | `/my-entries`                                                            | `/my-entries` is a redirect — document `/exhibitor/entries` only              |
-| Show day entry point                     | ShowTodayBanner on `/exhibitor/entries`                                           | _(none)_                                                                 | `/exhibitor/show-day` was deleted (MYK9-476) — document the banner CTA only   |
-| Profile/settings                         | `/account`                                                                        | `/profile`, `/settings`, `/preferences`                                  | `/account` is the consolidated surface — document the single destination only |
-| Show sections (secretary and club admin) | `/shows/:id` six tabs (`/setup`, `/entries`, `/show-day`, `/results`, `/reports`) | `/show-desk`, `/entry-management`, `/results-control`, `/submit-results` | Renamed by MYK9-630 phase 2; the old URLs redirect. Document the tabs only    |
+| Outcome                                  | Canonical route                                                       | Alternative                                                                                     | Note                                                                                                                      |
+| ---------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Browse shows                             | `/shows`                                                              | `/browse-shows`                                                                                 | `/browse-shows` is a redirect; the calendar view is on `/shows`                                                           |
+| Show detail                              | `/shows/:id`                                                          | `/trials/:trialId`, `/classes/:classId`                                                         | Legacy paths are redirects — document `/shows/:id` nested paths only                                                      |
+| Trial details                            | `/shows/:showId/trials/:trialId`                                      | `/trials/:trialId`                                                                              | Document the nested path only                                                                                             |
+| Class details                            | `/shows/:showId/trials/:trialId/classes/:classId`                     | `/classes/:classId`                                                                             | Document the nested path only                                                                                             |
+| Entry list (exhibitor)                   | `/exhibitor/entries`                                                  | `/my-entries`                                                                                   | `/my-entries` is a redirect — document `/exhibitor/entries` only                                                          |
+| Show day entry point                     | ShowTodayBanner on `/exhibitor/entries`                               | _(none)_                                                                                        | `/exhibitor/show-day` was deleted (MYK9-476) — document the banner CTA only                                               |
+| Profile/settings                         | `/account`                                                            | `/profile`, `/settings`, `/preferences`                                                         | `/account` is the consolidated surface — document the single destination only                                             |
+| Show sections (secretary and club admin) | `/shows/:id` four tabs (Overview, `/entries`, `/results`, `/reports`) | `/setup`, `/show-day`, `/show-desk`, `/entry-management`, `/results-control`, `/submit-results` | MYK9-630 phase 2 renamed, MYK9-957 folded Setup and Show Day into Overview; the old URLs redirect. Document the tabs only |

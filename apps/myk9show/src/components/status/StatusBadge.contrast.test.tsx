@@ -106,12 +106,10 @@ describe('rendered status badge contrast', () => {
     }
   );
 
-  it('pins both page-local implementations against contrast regressions', () => {
-    const showMapSource = read('src/features/show-map/ShowMapStatusBadge.tsx');
+  // The Show Map's page-local badge went with ShowMapTab (MYK9-957).
+  it('pins the page-local implementation against contrast regressions', () => {
     const adminHelpSource = read('src/features/admin-help/components/UndocumentedRoutesPanel.tsx');
 
-    expect(showMapSource).toContain('getStatusSurfaceClasses');
-    expect(showMapSource).not.toContain('variant="secondary"');
     expect(adminHelpSource).toContain('bg-warning/10 p-3 text-warning');
     expect(adminHelpSource).not.toContain('bg-amber-50');
   });

@@ -123,6 +123,24 @@ Acceptance: every Setup capability is reachable from the home (a checklist test 
 
 Acceptance: redirect table tested route by route; no remaining link to `/show-day` or `/setup` outside the redirect map (a test that greps built routes, plus a link-crawl e2e on the secretary home); typecheck, lint, full suite, e2e green.
 
+**As built (MYK9-957):**
+
+- **Redirects.**
+  - `show-day`, `show-desk` and `setup` are entries in `LEGACY_SHOW_SECTION_REDIRECTS` with path `''` (the home). `LegacyShowSectionRedirect` keeps the visitor's params, so the cockpit state (`day`, `filter`, `focus`, `anchor`, `tool`, `view`) rides along.
+  - Setup URLs go through `legacySetupToHomeSearch`. `section=classes` becomes `select=classes` and keeps view, trial and focus; the other sections drop them.
+  - The legacy `?tab=` values now point at the home, with `classes` opening Select classes.
+  - The secretary-route redirects (`/secretary`, `/secretary/day-of`, `/secretary/check-in`, `/secretary/run-order`, `?phase=show-desk`) land on the home.
+- **Links.**
+  - `getSetupClassesHref` became `getSelectClassesHref` in `pages/secretary/selectClassesRoutes.ts`, which replaces `showSetupSections`.
+  - `getShowDeskHref` is gone; `getShowHomeHref` replaces it.
+  - "Back to Show Desk" (`ShowDeskReturnLink`, ringside exit) became "Back to show".
+  - Also retargeted: the sidebar, `useMyShows`, `ShowPhaseCard`, the class menu, the Reports, Entries and Settings `?tool=` links, support diagnostics and the admin-help directory.
+  - The header "Open Show Day" action is deleted.
+  - `noRetiredClassManagementLinks.test.ts` now fails on any built link to `/setup`, `/show-day` or `/show-desk`.
+- **Deleted:** `ShowWorkbenchSetupPage`, `showSetupSections`, `ShowDeskCompactContext`, and `ShowMapTab` with the 10 modules only it used, plus their tests. `ShowWorkbenchShowDeskPage` stays as the home's component (its `surface` prop is gone), as does `useShowMapWorkbenchState`.
+- **Kept for now:** the `canShowMap` and `map*` props on `ShowDetailTabs`, which are now unused by managers. They are filed for cleanup as MYK9-962 rather than widening this PR.
+- **Guides:** the secretary and club-admin guides describe the four tabs. The AskQ assets (`supabase/functions/_shared/askq/documentAssets.ts`) were already stale on `main` before this change (generated from an older guide), and regenerating them breaks `supportMode.test.ts`. They were left untouched here and need their own regenerate-and-deploy.
+
 ### Phase 5 — Verify with a real secretary
 
 Re-run the MYK9-898 observation (or its successor) on the new home: before-the-show tasks (review entries, print sheets, fix a class), a show-day pass (start, score, wrap up), and an after-show pass (results, closeout). Anything she trips on becomes an issue under this plan.

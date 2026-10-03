@@ -1,8 +1,9 @@
 /**
  * Redirect for the retired Class Management page (MYK9-924).
  *
- * Judge assignment and bulk status moved to Setup → Classes, so the page's URLs land there:
- *   /shows/:id/classes/:trialId?status=…  ->  /shows/:id/setup?section=classes&view=…&trialId=…
+ * Judge assignment and bulk status live in the show home's Select classes (MYK9-957), so the
+ * page's URLs land there:
+ *   /shows/:id/classes/:trialId?status=…  ->  /shows/:id?select=classes&view=…&trialId=…
  *   /trials/:trialId/classes              ->  the same, with the show looked up from the trial
  *
  * The trial, the lifecycle `status` filter (to the Classes view of the same name), `focus` and
@@ -12,7 +13,7 @@ import { Navigate, useParams, useSearchParams } from 'react-router-dom';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { ErrorState } from '@/components/common/ErrorState';
 import { useTrialRedirectTarget } from './useTrialRedirectTarget';
-import { getSetupClassesHref } from '@/pages/secretary/showSetupSections';
+import { getSelectClassesHref } from '@/pages/secretary/selectClassesRoutes';
 
 // `not_started` has no view of its own: the Classes views are All, Pending, In progress,
 // Completed and Mine, and Pending is "anything not completed", so an old not-started link widens
@@ -41,7 +42,7 @@ export function LegacyShowClassManagementRedirect() {
   const { id, trialId } = useParams<{ id: string; trialId: string }>();
   const { view, options } = useLegacyOptions(trialId);
   if (!id) return <Navigate to="/secretary/dashboard" replace />;
-  return <Navigate to={getSetupClassesHref(id, view, options)} replace />;
+  return <Navigate to={getSelectClassesHref(id, view, options)} replace />;
 }
 
 export function LegacyTrialClassManagementRedirect() {
@@ -55,7 +56,7 @@ function TrialClassManagementRedirect({ trialId }: { trialId: string }) {
   const target = useTrialRedirectTarget(trialId);
 
   if (target.status === 'found') {
-    return <Navigate to={getSetupClassesHref(target.showId, view, options)} replace />;
+    return <Navigate to={getSelectClassesHref(target.showId, view, options)} replace />;
   }
   if (target.status === 'error') {
     return (

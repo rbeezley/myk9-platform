@@ -21,7 +21,7 @@ vi.mock('@/pages/secretary/SecretaryDashboardPage', () => ({
 
 function LocationProbe() {
   const location = useLocation();
-  return <div data-testid="location">{location.pathname}</div>;
+  return <div data-testid="location">{`${location.pathname}${location.search}`}</div>;
 }
 
 const mockTrialQuery = vi.hoisted(() => ({
@@ -72,16 +72,20 @@ describe('legacy /trials/:trialId/classes redirect', () => {
     useTrialStore.setState({ trials: [], isLoading: false });
   });
 
-  it('warm store: lands on the show Setup → Classes tab', async () => {
+  it('warm store: lands on the show home (Select classes)', async () => {
     useTrialStore.setState({ trials: [{ id: 'trial-9', showId: 'show-3' }] as never });
     renderAt('/trials/trial-9/classes');
-    expect(await screen.findByTestId('location')).toHaveTextContent('/shows/show-3/setup');
+    expect(await screen.findByTestId('location')).toHaveTextContent(
+      '/shows/show-3?select=classes&trialId=trial-9'
+    );
   });
 
-  it('cold store: lands on the show Setup → Classes tab once the by-id query resolves', async () => {
+  it('cold store: lands on the show home (Select classes) once the by-id query resolves', async () => {
     setQuery({ data: { id: 'trial-9', showId: 'show-3' }, isSuccess: true });
     renderAt('/trials/trial-9/classes');
-    expect(await screen.findByTestId('location')).toHaveTextContent('/shows/show-3/setup');
+    expect(await screen.findByTestId('location')).toHaveTextContent(
+      '/shows/show-3?select=classes&trialId=trial-9'
+    );
   });
 
   it('cold store, query pending: stays put and does not go to the dashboard', () => {

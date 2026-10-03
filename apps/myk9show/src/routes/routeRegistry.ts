@@ -52,14 +52,6 @@ const publicRouteComponents: Record<string, ImportFunction> = {
   // Show management
   '/shows': () => import('@/pages/BrowseShowsPage'),
   '/shows/:id': () => import('@/pages/ShowDetailsPage'),
-  '/shows/:showId/setup': () =>
-    import('@/pages/secretary/ShowWorkbenchSetupPage').then(m => ({
-      default: m.ShowWorkbenchSetupPage,
-    })),
-  '/shows/:showId/show-day': () =>
-    import('@/pages/secretary/ShowWorkbenchShowDeskPage').then(m => ({
-      default: m.ShowWorkbenchShowDeskPage,
-    })),
   '/shows/:showId/entries': () => import('@/pages/secretary/EntryManagementPage'),
   '/shows/:showId/reports': () => import('@/pages/secretary/ReportsPage'),
   // Results owns both steps now; Submit Results is `?step=submit` inside it and

@@ -13,5 +13,8 @@ export function ShowPageHeaderActions({
   showId: string | undefined;
   armbandCount: number | undefined;
 }) {
-  return (armbandCount ?? 0) > 0 && showId ? <ArmbandLookup showId={showId} /> : null;
+  // Shown whenever the count is positive OR UNKNOWN (loading, offline, failed):
+  // `?? 0` would read an unread count as zero and leave nothing to retry.
+  if (!showId) return null;
+  return armbandCount == null || armbandCount > 0 ? <ArmbandLookup showId={showId} /> : null;
 }

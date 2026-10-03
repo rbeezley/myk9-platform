@@ -1,4 +1,4 @@
-import { expect, test, type Page, type TestInfo } from '@playwright/test';
+import { expect, test, type TestInfo } from '@playwright/test';
 import { signInAsSecretary } from '../uat/shared/auth';
 import {
   type BrowserHealth,
@@ -20,7 +20,6 @@ test.describe.configure({ mode: 'serial' });
 
 const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';
 const TRIAL_ID = 'cc5065ce-797b-4d07-9611-894dcc2670b8';
-const SETUP_PATH = `/shows/${SHOW_ID}/setup`;
 const REPORT_PATH = `/shows/${SHOW_ID}/reports?report=trial-secretary-report&trialId=${TRIAL_ID}`;
 const healthByTest = new Map<string, BrowserHealth>();
 
@@ -42,40 +41,8 @@ test.describe('Phase 2 secretary show-day re-walk', () => {
     healthByTest.delete(testInfo.testId);
   });
 
-  test('walks the Overview, Show Desk row actions, and closeout without blockers', async ({
-    page,
-  }, testInfo) => {
-    await openShowSetup(page);
-
-    await expect(page.getByRole('link', { name: 'Setup' })).toHaveCount(0);
-    await expect(page.getByRole('link', { name: 'Show Desk' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Show schedule' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Premium List' })).toBeVisible();
-
-    await page.getByRole('link', { name: 'Show Desk' }).click();
-    await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}/show-day`));
-    await page.getByRole('button', { name: /open tools panel/i }).click();
-    const toolsPanel = page.getByRole('dialog', { name: /show desk tools/i });
-    await expect(toolsPanel).toBeVisible({ timeout: 10000 });
-    await expect(toolsPanel.getByRole('button', { name: /Message Show/i })).toHaveCount(0);
-    await toolsPanel.getByRole('button', { name: /close/i }).click();
-    await expect(page.getByRole('heading', { name: 'Closeout' })).toBeVisible();
-
-    await prepareShowMapRows(page);
-    await assertRovingTreeFocus(page);
-    await assertTrialRowActions(page);
-    await assertClassRowActionsStayScoped(page);
-    await assertEntryRowActionDialogs(page);
-
-    await expect(page.getByRole('heading', { name: 'Show-day reconciliation' })).toBeVisible();
-    await expect(page.getByRole('heading', { name: 'Incident closeout' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Results Verify results' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Reports Print and export' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'Submit Results Send final files' })).toBeVisible();
-
-    await expectBrowserHealthClean(testInfo);
-  });
-
+  // MYK9-957 deleted the Show Map tree this re-walk drove (row menus, roving
+  // focus); the show home's own walk is secretaryShowWorkbenchUI.spec.ts.
   test('opens the official closeout PDF route from verified report params', async ({
     page,
   }, testInfo) => {
@@ -92,87 +59,6 @@ test.describe('Phase 2 secretary show-day re-walk', () => {
     await expectBrowserHealthClean(testInfo);
   });
 });
-
-async function openShowSetup(page: Page) {
-  await signInAsSecretary(page, SETUP_PATH);
-  await expect(page).toHaveURL(new RegExp(`/shows/${SHOW_ID}$`));
-  await expect(page.getByRole('heading', { name: 'Show schedule' })).toBeVisible({
-    timeout: 15000,
-  });
-}
-
-async function prepareShowMapRows(page: Page) {
-  await expect(page.getByRole('button', { name: 'Today', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Tomorrow', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'All dates', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Active', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Completed', exact: true })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Attention', exact: true })).toBeVisible();
-
-  await page.getByRole('button', { name: 'All dates', exact: true }).click();
-  await page.getByRole('button', { name: 'Expand trials', exact: true }).click();
-  await expect(page.getByRole('treeitem').first()).toBeVisible();
-  await page.getByRole('button', { name: /Expand Interior Advanced/i }).click();
-  await expect(page.getByRole('button', { name: 'Actions for Ziva' })).toBeVisible();
-}
-
-async function assertRovingTreeFocus(page: Page) {
-  const treeItems = page.getByRole('treeitem');
-  await expect(treeItems).toHaveCount(7);
-  await expect
-    .poll(async () =>
-      treeItems.evaluateAll(
-        items => items.filter(item => item.getAttribute('tabindex') === '0').length
-      )
-    )
-    .toBe(1);
-
-  const firstNodeId = await treeItems.first().getAttribute('data-node-id');
-  await treeItems.first().focus();
-  await page.keyboard.press('ArrowDown');
-  await expect
-    .poll(async () =>
-      page.evaluate(() => document.activeElement?.getAttribute('data-node-id') ?? null)
-    )
-    .not.toBe(firstNodeId);
-  await page.keyboard.press('Enter');
-  await expect(page.getByRole('menu')).toBeVisible();
-  await page.keyboard.press('Escape');
-}
-
-async function assertTrialRowActions(page: Page) {
-  await page.getByRole('button', { name: 'Actions for Saturday Trial 1' }).click();
-  await expect(page.getByRole('menuitem', { name: /Open Schedule/i })).toBeVisible();
-  await expect(page.getByRole('menuitem', { name: /Print Trial Reports/i })).toBeVisible();
-  await page.keyboard.press('Escape');
-}
-
-async function assertClassRowActionsStayScoped(page: Page) {
-  await page.getByRole('button', { name: 'Actions for Interior Advanced' }).click();
-  await expect(page.getByText('Recommended')).toBeVisible();
-  await expect(page.getByRole('menuitem', { name: /Mark Class Started/i }).first()).toBeVisible();
-  await expect(page.getByRole('menuitem', { name: /Print Check-In Sheet/i }).first()).toBeVisible();
-  await expect(page.getByRole('menuitem', { name: /Open Class/i })).toBeVisible();
-  await expect(page.getByRole('menuitem', { name: /Mark checked in/i })).toHaveCount(0);
-  await expect(page.getByRole('menuitem', { name: /Move up/i })).toHaveCount(0);
-  await expect(page.getByRole('menuitem', { name: /Pull \/ no-show/i })).toHaveCount(0);
-  await page.keyboard.press('Escape');
-}
-
-async function assertEntryRowActionDialogs(page: Page) {
-  await page.getByRole('button', { name: 'Actions for Ziva' }).click();
-  await expect(page.getByRole('menuitem', { name: /Mark checked in/i })).toBeVisible();
-  await page.getByRole('menuitem', { name: /Move up/i }).click();
-  await expect(page.getByRole('dialog', { name: /Move up entry/i })).toBeVisible();
-  await expect(page.getByText(/Current class: Interior Advanced/i)).toBeVisible();
-  await page.getByRole('button', { name: 'Cancel' }).click();
-
-  await page.getByRole('button', { name: 'Actions for Ziva' }).click();
-  await page.getByRole('menuitem', { name: /Pull \/ no-show/i }).click();
-  await expect(page.getByRole('dialog', { name: /Mark pulled \/ no-show/i })).toBeVisible();
-  await expect(page.getByText(/Refunds are not automatic/i)).toBeVisible();
-  await page.getByRole('button', { name: 'Cancel' }).click();
-}
 
 async function expectBrowserHealthClean(testInfo: TestInfo) {
   const health = healthByTest.get(testInfo.testId) ?? createBrowserHealth();

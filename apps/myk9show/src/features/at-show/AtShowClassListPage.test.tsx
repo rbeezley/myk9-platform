@@ -142,7 +142,7 @@ const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledS
           element={<div>COMBINED PAGE</div>}
         />
         <Route path="/at-show" element={<div>RINGSIDE HOME</div>} />
-        <Route path="/shows/:showId/show-day" element={<div>SHOW DESK</div>} />
+        <Route path="/shows/:showId" element={<div>SHOW HOME</div>} />
       </Routes>
     </ReplicationSyncContext.Provider>,
     { initialRoute: '/at-show/show-1' }
@@ -262,8 +262,8 @@ describe('AtShowClassListPage (Phase 1h class picker)', () => {
 
     renderPage();
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Back to Show Desk' }));
-    expect(await screen.findByText('SHOW DESK')).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to show' }));
+    expect(await screen.findByText('SHOW HOME')).toBeInTheDocument();
   });
 
   it('keeps a club admin from ANOTHER club out of Show Desk (routes to ringside, no eject)', async () => {

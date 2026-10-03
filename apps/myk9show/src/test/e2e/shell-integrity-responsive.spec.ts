@@ -21,7 +21,7 @@ const TARGET_TEXT = [
   'Approve all',
   'New result',
   'Result card',
-  'Back to Show Desk',
+  'Back to show',
   'Back to Entry List',
   'Results visibility',
   'Self check-in',
@@ -38,11 +38,11 @@ const PUBLIC_ROUTES: RouteCheck[] = [{ label: 'prototype copy link', path: '/pro
 
 const SECRETARY_ROUTES: RouteCheck[] = [
   {
-    label: 'setup classes',
-    path: `/shows/${LIVE_SECRETARY_SHOW_ID}/setup?section=classes`,
+    label: 'select classes',
+    path: `/shows/${LIVE_SECRETARY_SHOW_ID}?select=classes`,
   },
   { label: 'results control', path: `/shows/${LIVE_SECRETARY_SHOW_ID}/results` },
-  { label: 'show desk', path: `/shows/${LIVE_SECRETARY_SHOW_ID}/show-day` },
+  { label: 'show home', path: `/shows/${LIVE_SECRETARY_SHOW_ID}` },
   { label: 'ringside class list', path: `/at-show/${LIVE_SECRETARY_SHOW_ID}` },
 ];
 
@@ -165,8 +165,8 @@ test.describe('shell integrity responsive runtime matrix', () => {
 
     await page.goto(`/at-show/${LIVE_SECRETARY_SHOW_ID}`, { waitUntil: 'commit' });
     await waitForAppShell(page);
-    await page.getByRole('button', { name: 'Back to Show Desk' }).click();
-    await expect(page).toHaveURL(new RegExp(`/shows/${LIVE_SECRETARY_SHOW_ID}/show-day`));
+    await page.getByRole('button', { name: 'Back to show' }).click();
+    await expect(page).toHaveURL(new RegExp(`/shows/${LIVE_SECRETARY_SHOW_ID}(?:\\?|$)`));
 
     const scorePath = `/at-show/${LIVE_SECRETARY_SHOW_ID}/class/${SEEDED_CLASS_ID}/score/${SEEDED_ENTRY_ID}`;
     const classPath = `/at-show/${LIVE_SECRETARY_SHOW_ID}/class/${SEEDED_CLASS_ID}`;

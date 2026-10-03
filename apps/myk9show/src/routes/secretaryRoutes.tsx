@@ -194,7 +194,8 @@ const SecretaryWaitlistRedirect = () => {
   );
 };
 
-const SecretaryShowRedirect = ({ subPath }: { subPath: 'show-day' | '' }) => {
+/** Old secretary show URLs: Setup and Show Day are the show home now (MYK9-957). */
+const SecretaryShowRedirect = () => {
   const { showId, isResolving } = useSecretaryRedirectShowId();
 
   if (isResolving) {
@@ -205,9 +206,7 @@ const SecretaryShowRedirect = ({ subPath }: { subPath: 'show-day' | '' }) => {
     return <Navigate to="/secretary/dashboard" replace />;
   }
 
-  const to = subPath ? `/shows/${showId}/${subPath}` : `/shows/${showId}/setup`;
-
-  return <Navigate to={to} replace />;
+  return <Navigate to={`/shows/${showId}`} replace />;
 };
 
 const SecretaryIndexRedirect = () => {
@@ -217,7 +216,7 @@ const SecretaryIndexRedirect = () => {
     return <LoadingSkeleton variant="cards" count={2} />;
   }
 
-  return <Navigate to={showId ? `/shows/${showId}/setup` : '/secretary/dashboard'} replace />;
+  return <Navigate to={showId ? `/shows/${showId}` : '/secretary/dashboard'} replace />;
 };
 
 /** All secretary routes — rendered inside UnifiedAppLayout */
@@ -282,7 +281,7 @@ export const SecretaryRoutes = () => (
       path="/secretary/run-order"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SecretaryShowRedirect subPath="" />
+          <SecretaryShowRedirect />
         </ProtectedRoute>
       }
     />
@@ -290,7 +289,7 @@ export const SecretaryRoutes = () => (
       path="/secretary/day-of"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SecretaryShowRedirect subPath="show-day" />
+          <SecretaryShowRedirect />
         </ProtectedRoute>
       }
     />
@@ -298,7 +297,7 @@ export const SecretaryRoutes = () => (
       path="/secretary/check-in"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SecretaryShowRedirect subPath="show-day" />
+          <SecretaryShowRedirect />
         </ProtectedRoute>
       }
     />

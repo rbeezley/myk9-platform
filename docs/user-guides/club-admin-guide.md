@@ -74,24 +74,22 @@ The **Shows** page lists every show your club is hosting or has hosted. Shows ar
 
 ![Shows list filtered to your club — cards for past and upcoming shows](../screenshots/C-02.png)
 
-**You manage your club's shows.** Opening one of your club's shows gives you the same six tabs a secretary gets, and each tab is a real page with its own address, not a panel:
+**You manage your club's shows.** Opening one of your club's shows gives you the same four tabs a secretary gets, and each tab is a real page with its own address, not a panel:
 
-| Tab          | What you do there                                                                                                         |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------- |
-| **Overview** | Show details, publish state, the premium list, and the public landing page link                                           |
-| **Setup**    | Trials, classes, and the show map                                                                                         |
-| **Entries**  | Review, accept, reject, and comp entries; record payments; work the exception queues                                      |
-| **Show Day** | Check-in, class operations, the show-day tools, and closeout                                                              |
-| **Results**  | Verify and release results, then submit them to the registry                                                              |
-| **Reports**  | Print any of the show's reports, grouped by **Before the show**, **During the show**, **After the show**, and **Anytime** |
+| Tab          | What you can do there                                                                                                               |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| **Overview** | The show home: the schedule, each class's work and checklist, trials and classes (add, edit, delete, Select classes), and **Tools** |
+| **Entries**  | Approve entries, record payments, handle pulls, refunds, move-ups and the waitlist                                                  |
+| **Results**  | Review and release results, submit them to the registry, then close the show                                                        |
+| **Reports**  | Print any of the show's reports, grouped by **Before the show**, **During the show**, **After the show**, and **Anytime**           |
 
 The **Actions** menu in the top bar has **Edit show**, which opens the show's edit panel. It appears only for shows you manage; it does not expand your permissions.
 
 **Three jobs stay with the trial secretary:**
 
-- **Typing in entries on someone's behalf.** **Add entry for someone else** (Actions menu, Show Day and Entries) and **Add late entry** (Show Day) are shown to you greyed out, with the reason **"Trial secretary access only"** — visible, so you can see they exist, but not yours to use.
-- **Entering scores from paper.** **Enter paper scores**, on the Show Day class panel, is greyed out for the same reason. Scoring belongs to the judge and the secretary; you can read every score on the Results tab.
-- **Volunteer scheduling.** **Open volunteer scheduling** on the Show Day tab is greyed out for the same reason; the scheduling page itself is the secretary's.
+- **Typing in entries on someone's behalf.** **Add entry for someone else** (Actions menu and Entries) and **Add late entry** (Entries) are shown to you greyed out, with the reason **"Trial secretary access only"** — visible, so you can see they exist, but not yours to use.
+- **Entering scores from paper.** **Enter paper scores**, on the Overview class panel, is greyed out for the same reason. Scoring belongs to the judge and the secretary; you can read every score on the Results tab.
+- **Volunteer scheduling.** **Open volunteer scheduling** in Overview → Tools is greyed out for the same reason; the scheduling page itself is the secretary's.
 
 If you follow a link into one of those pages anyway, you land on a page that says **"Trial secretary access only"** and explains why, with a way back — not a dead end.
 

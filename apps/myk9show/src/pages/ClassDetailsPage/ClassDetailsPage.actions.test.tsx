@@ -316,13 +316,13 @@ describe('ClassDetailsPage header actions', () => {
   it('routes secretaries to the workbench instead of duplicating class lifecycle actions', async () => {
     const { user } = renderClassDetailsPage();
 
-    expect(screen.getByRole('menuitem', { name: /^show day$/i })).toBeInTheDocument();
+    expect(screen.getByRole('menuitem', { name: /^show home$/i })).toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /mark in progress/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('menuitem', { name: /mark completed/i })).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole('menuitem', { name: /^show day$/i }));
+    await user.click(screen.getByRole('menuitem', { name: /^show home$/i }));
 
-    expect(screen.getByTestId('location')).toHaveTextContent('/shows/show-1/show-day');
+    expect(screen.getByTestId('location')).toHaveTextContent('/shows/show-1');
   });
 
   it('names the overflow trigger "Class options" for screen readers', () => {
@@ -399,7 +399,7 @@ describe('ClassDetailsPage header actions', () => {
 
       expect(screen.getByRole('menuitem', { name: /requirements/i })).toBeInTheDocument();
       expect(screen.queryByRole('button', { name: /manage entries/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('menuitem', { name: /^show day$/i })).not.toBeInTheDocument();
+      expect(screen.queryByRole('menuitem', { name: /^show home$/i })).not.toBeInTheDocument();
     });
   });
 

@@ -112,18 +112,31 @@ vi.mock('@/features/show-presence/ShowPresenceStack', () => ({
 vi.mock('@/features/show-live-sync/LiveUpdateIndicator', () => ({
   LiveUpdateIndicator: () => <div data-testid="live-indicator" />,
 }));
+vi.mock('@/features/offline-readiness/OfflineReadyBadge', () => ({
+  OfflineReadyBadge: ({ showId }: { showId: string }) => (
+    <div data-testid="offline-ready-badge" data-show-id={showId} />
+  ),
+}));
+vi.mock('@/components/shows/ShowDetails/ShowSyncStatus', () => ({
+  ShowSyncStatus: () => <div data-testid="sync-status" />,
+}));
 vi.mock('@/features/premium/PremiumDownloadCard', () => ({
-  PremiumDownloadCard: ({ canManageShow }: { canManageShow: boolean }) => (
-    <div data-testid="premium-download-card" data-can-manage={String(canManageShow)} />
+  PremiumDownloadCard: ({
+    canManageShow,
+    showStaleBadge,
+  }: {
+    canManageShow: boolean;
+    showStaleBadge?: boolean;
+  }) => (
+    <div
+      data-testid="premium-download-card"
+      data-can-manage={String(canManageShow)}
+      data-show-stale-badge={String(showStaleBadge)}
+    />
   ),
 }));
 vi.mock('@/features/premium/LandingPageCard', () => ({
   LandingPageCard: () => <div data-testid="landing-page-card" />,
-}));
-vi.mock('../ShowDeskCompactContext', () => ({
-  ShowDeskCompactContext: ({ canManageShow }: { canManageShow: boolean }) => (
-    <div data-testid="show-desk-compact-context" data-can-manage={String(canManageShow)} />
-  ),
 }));
 vi.mock('@/hooks/useShowManageScope', () => ({
   useShowManageScope: () => ({
@@ -173,9 +186,7 @@ vi.mock('@/components/shows/tabs/ShowOverviewTab', () => ({
   ShowOverviewTab: () => <div data-testid="show-overview-tab" />,
 }));
 vi.mock('@/pages/secretary/ShowWorkbenchShowDeskPage', () => ({
-  ShowWorkbenchShowDeskPage: ({ surface }: { surface?: string }) => (
-    <div data-testid="show-home-cockpit" data-surface={surface} />
-  ),
+  ShowWorkbenchShowDeskPage: () => <div data-testid="show-home-cockpit" />,
 }));
 vi.mock('@/components/shows/overview/AboutThisShowCard', () => ({
   AboutThisShowCard: () => <div data-testid="about-this-show" />,
@@ -249,8 +260,6 @@ function renderShell(
           <Route path="/shows/:id" element={<ShowManagementShell {...props} />}>
             <Route index element={<div data-testid="outlet-child">section</div>} />
             <Route path="entries" element={<div data-testid="outlet-child">entries</div>} />
-            <Route path="setup" element={<div data-testid="outlet-child">setup</div>} />
-            <Route path="show-day" element={<div data-testid="outlet-child">show day</div>} />
             <Route path="results" element={<div data-testid="outlet-child">results</div>} />
             <Route path="reports" element={<div data-testid="outlet-child">reports</div>} />
             <Route
@@ -307,6 +316,25 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('status-pill')).toBeInTheDocument();
   });
 
+  // Codex P2 on MYK9-957: these lived in the deleted Show Day compact context.
+  // The badge's "Save now" is the only on-page way to hydrate a device before
+  // it goes offline, so the home must carry it.
+  it('mounts offline readiness and the sync status on the show home', () => {
+    renderShell();
+    expect(screen.getByTestId('offline-ready-badge')).toHaveAttribute('data-show-id', 'show-1');
+    expect(screen.getByTestId('sync-status')).toBeInTheDocument();
+  });
+
+  // The deleted Show Day header warned when show data changed after the
+  // premium was published; on the home that warning is the premium card's.
+  it('turns on the premium card stale warning for managers', () => {
+    renderShell();
+    expect(screen.getByTestId('premium-download-card')).toHaveAttribute(
+      'data-show-stale-badge',
+      'true'
+    );
+  });
+
   it('carries no visible page-level action button: Edit show lives in the Actions menu (MYK9-928)', () => {
     renderShell();
     const header = screen.getByTestId('page-header-actions');
@@ -331,11 +359,12 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('status-pill')).toHaveAttribute('data-club-id', 'club-1');
   });
 
-  it('renders exactly six tabs, in the decided order', () => {
+  // MYK9-957: Setup and Show Day folded into the Overview, the secretary's show home.
+  it('renders exactly four tabs, in the decided order', () => {
     renderShell();
     expect(
       screen.getAllByRole('tab').map(tab => tab.textContent?.replace(/\d+$/, '').trim())
-    ).toEqual(['Overview', 'Setup', 'Entries', 'Show Day', 'Results', 'Reports']);
+    ).toEqual(['Overview', 'Entries', 'Results', 'Reports']);
   });
 
   it('carries NO standalone page links above the tabs — the tabs are the only row', () => {
@@ -353,8 +382,8 @@ describe('ShowManagementShell', () => {
 
   it("navigates to a tab's own page when that tab is selected", () => {
     renderShell({}, '/shows/show-1', <LocationProbe />);
-    fireEvent.click(screen.getByRole('tab', { name: /^Show Day/ }));
-    expect(screen.getByTestId('probe-url')).toHaveTextContent('/shows/show-1/show-day');
+    fireEvent.click(screen.getByRole('tab', { name: /^Results/ }));
+    expect(screen.getByTestId('probe-url')).toHaveTextContent('/shows/show-1/results');
   });
 
   it('replaces history on a tab change, so Back leaves the show instead of stepping through tabs', () => {
@@ -366,13 +395,13 @@ describe('ShowManagementShell', () => {
         <BackButton />
       </>
     );
-    fireEvent.click(screen.getByRole('tab', { name: /^Setup/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /^Results/ }));
     fireEvent.click(screen.getByRole('tab', { name: /^Entries/ }));
     expect(screen.getByTestId('probe-url')).toHaveTextContent('/shows/show-1/entries');
 
     fireEvent.click(screen.getByTestId('go-back'));
 
-    // Two tab changes, one Back: the page before the show, not Setup.
+    // Two tab changes, one Back: the page before the show, not Results.
     expect(screen.getByTestId('probe-url')).toHaveTextContent(/^\/shows$/);
   });
 
@@ -396,9 +425,9 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('page-header-actions')).toHaveAttribute('data-omit-title', 'true');
   });
 
-  it('keeps Setup lit on the retired Class Management URL, which redirects into it', () => {
+  it('lights Overview on the retired Class Management URL, which redirects into the home', () => {
     renderShell({ activeManagementSection: 'classes' }, '/shows/show-1/classes/trial-1');
-    expect(screen.getByRole('tab', { name: /^Setup/ })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: /^Overview/ })).toHaveAttribute('aria-selected', 'true');
   });
 
   it('badges Entries with the show entry count the page already read', () => {
@@ -408,6 +437,14 @@ describe('ShowManagementShell', () => {
 
   it('renders the staff armband lookup only when armbands exist', () => {
     renderShell({ armbandCount: 3 });
+    expect(screen.getByTestId('armband-lookup')).toHaveTextContent('Armband lookup for show-1');
+  });
+
+  // Codex P2 on MYK9-957: an unread count (loading, offline, failed) is not
+  // zero. Hiding the lookup then leaves the secretary nothing to retry; the
+  // deleted Show Day header kept it, and its URL now lands here.
+  it('keeps the staff armband lookup when the armband count is unknown', () => {
+    renderShell({ armbandCount: undefined });
     expect(screen.getByTestId('armband-lookup')).toHaveTextContent('Armband lookup for show-1');
   });
 
@@ -485,20 +522,11 @@ describe('ShowManagementShell', () => {
     }
   );
 
-  it('uses compact operational chrome on Show Day without the hero or routine publish cards', () => {
-    renderShell({ activeManagementSection: 'show-day' }, '/shows/show-1/show-day');
-
-    expect(screen.getByTestId('show-desk-compact-context')).toBeInTheDocument();
-    expect(screen.queryByTestId('detail-hero')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('premium-download-card')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('landing-page-card')).not.toBeInTheDocument();
-  });
-
   // MYK9-955: the manager Overview is the secretary's home -- the Show Day
   // cockpit plus About this show, not the exhibitor's Overview tab.
   it('renders the show home at /shows/:id — Overview is a tab, not a redirect', async () => {
     renderShell();
-    expect(await screen.findByTestId('show-home-cockpit')).toHaveAttribute('data-surface', 'home');
+    expect(await screen.findByTestId('show-home-cockpit')).toBeInTheDocument();
     expect(screen.getByTestId('about-this-show')).toBeInTheDocument();
     expect(screen.queryByTestId('show-overview-tab')).toBeNull();
   });

@@ -299,13 +299,13 @@ describe('ReportsPage', () => {
     expect(lastToast?.[1]).toBeUndefined();
   });
 
-  it('keeps emergency packet preparation in Show Desk tools', () => {
+  it('keeps emergency packet preparation in Show tools', () => {
     render(<ReportsPage />, { initialRoute: '/shows/show-1/reports' });
 
     expect(screen.queryByRole('heading', { name: 'Emergency Trial Packet' })).toBeNull();
-    expect(screen.getByRole('link', { name: /open it in show desk tools/i })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: /open it in show tools/i })).toHaveAttribute(
       'href',
-      '/shows/show-1/show-day?tool=emergency-trial-packet'
+      '/shows/show-1?tool=emergency-trial-packet'
     );
   });
 

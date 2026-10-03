@@ -51,7 +51,6 @@ const EXEMPT_IMPORTERS: Record<string, string> = {};
  * or a changed count, fails until someone decides which it is.
  */
 const ARIA_PRESSED_DECLARED: Record<string, { count: number; reason: string }> = {
-  'features/show-map/ShowMapToolbar.tsx': { count: 2, reason: 'filter row, not yet replaced' },
   'features/show-map/cockpit/CockpitTrialGroup.tsx': {
     count: 1,
     reason: 'focus toggle on a schedule row, not a filter',
@@ -82,10 +81,6 @@ const ARIA_PRESSED_DECLARED: Record<string, { count: number; reason: string }> =
     reason: 'payment method choice',
   },
   'pages/PricingPage.tsx': { count: 2, reason: 'billing period toggle' },
-  'pages/secretary/ShowWorkbenchSetupPage.tsx': {
-    count: 1,
-    reason: 'setup section chip, not a list filter',
-  },
   'pages/secretary/ShowResultsSection.tsx': {
     count: 1,
     reason: 'results section chip, not a list filter',

@@ -223,9 +223,9 @@ const ClassDetailsPage: React.FC = () => {
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             {canManageClass && parentShow?.id && (
-              <DropdownMenuItem onClick={() => navigate(`/shows/${parentShow.id}/show-day`)}>
+              <DropdownMenuItem onClick={() => navigate(`/shows/${parentShow.id}`)}>
                 <LayoutDashboard className="mr-2 h-4 w-4" />
-                Show Day
+                Show home
               </DropdownMenuItem>
             )}
             <DropdownMenuItem onClick={() => setRequirementsPanelOpen(true)}>

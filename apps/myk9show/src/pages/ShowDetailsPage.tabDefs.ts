@@ -17,16 +17,7 @@
  * `view_public_entry_results` so unreleased placements never arrive (MYK9-419).
  */
 
-import {
-  LayoutDashboard,
-  Trophy,
-  ListChecks,
-  ClipboardList,
-  Medal,
-  SlidersHorizontal,
-  CalendarClock,
-  FileText,
-} from 'lucide-react';
+import { LayoutDashboard, Trophy, ListChecks, ClipboardList, Medal, FileText } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { SHOW_TABS, type ShowTabId } from '@/routes/showManagementSections';
 import { type PrimaryTabDef } from '@/components/common/PrimaryTabs';
@@ -59,9 +50,7 @@ export function resolveResultsTabCount(query: {
 
 const SHOW_TAB_ICONS: Record<ShowTabId, LucideIcon> = {
   overview: LayoutDashboard,
-  setup: SlidersHorizontal,
   entries: ClipboardList,
-  'show-day': CalendarClock,
   results: Medal,
   reports: FileText,
 };

@@ -127,10 +127,11 @@ describe('RefundRequestsSection', () => {
     expect(screen.getByRole('button', { name: 'Approve again' })).toBeInTheDocument();
   });
 
-  it('labels an interrupted approval as one to finish', () => {
-    withData([request({ status: 'approved' })]);
+  it('labels a request waiting on Stripe as submitted, with Check status', () => {
+    withData([request({ status: 'awaiting_stripe' })]);
     render(<RefundRequestsSection />);
-    expect(screen.getByRole('button', { name: 'Finish refund' })).toBeInTheDocument();
+    expect(screen.getByText(/submitted to Stripe, not finished yet/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Check status' })).toBeInTheDocument();
   });
 });
 

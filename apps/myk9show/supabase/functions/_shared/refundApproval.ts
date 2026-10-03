@@ -3,26 +3,29 @@
 // then hands its Supabase rpc, Stripe refunds client and alertAdmin to
 // approveRefundRequest, so the colocated vitest drives every branch.
 //
-// This is the ONLY place a queued refund becomes a Stripe refund. Exactly once:
-//   1. claim_refund_request_approval locks the row and moves it pending ->
-//      approved (or reports 'resume' for an approval that crashed mid-flight),
-//      and, for an abandoned cart, refuses if anything fulfilled the session;
-//   2. a refund already stamped with this request id is REUSED, never doubled;
-//   3. a new one carries an idempotency key per (request, attempt), so two
-//      concurrent clicks on one attempt get the same Stripe refund; the
-//      attempt counts EVERY refund on the intent stamped with this request,
-//      across all pages, so a dead attempt always earns a new key;
-//   4. the request becomes 'refunded' only when Stripe reports 'succeeded'. A
-//      pending refund leaves it 'approved' with the refund id recorded, and
-//      settleApprovedRefund (stripe-webhook) completes it or, on failure or
-//      cancel, moves it to 'failed', back in the queue (Codex P1 on #2689).
+// This is the ONLY place a queued refund becomes a Stripe refund. Each
+// approval works on ONE attempt (public.refund_request_attempts; Codex rounds
+// 1-2 on #2689):
+//   1. begin_refund_attempt locks the request and opens attempt n+1 only
+//      while no attempt is pending or succeeded ('claimed'), or hands back
+//      the pending one ('resume'); an abandoned cart that was fulfilled after
+//      all is refused;
+//   2. every refund on the intent is listed (all pages). A refund stamped
+//      with this request AND this attempt is reused; a live refund for this
+//      request on ANOTHER attempt stops the approval (possible double refund);
+//   3. otherwise a refund is created with idempotency key
+//      refund-request-<id>-<n>, so concurrent clicks on one attempt get one
+//      Stripe refund;
+//   4. record_refund_attempt writes the refund to THAT attempt only. The
+//      request's status is derived from its attempts in the database, so the
+//      webhook (settleApprovedRefund) and this function never race on it.
 
 import { MAKE_WHOLE_METADATA_KEY } from './orderSnapshot.ts';
-import { resolveRefundLedgerAction } from './refundLifecycle.ts';
 import {
   APPROVED_REFUND_METADATA_TYPE,
-  failRefundRequest,
+  REFUND_ATTEMPT_METADATA_KEY,
   REFUND_REQUEST_METADATA_KEY,
+  toAttemptStatus,
   type RefundQueueDeps,
 } from './refundRequests.ts';
 
@@ -65,8 +68,10 @@ export type ApprovalResult =
   | { status: 202; body: { outcome: 'pending'; refund_id: string } }
   | { status: 404 | 409 | 500 | 502; body: { error: string } };
 
-interface ClaimRow {
+interface BeginRow {
   outcome: string;
+  attempt_id: string | null;
+  attempt_no: number | null;
   kind: string | null;
   stripe_payment_intent_id: string | null;
   stripe_checkout_session_id: string | null;
@@ -78,25 +83,42 @@ interface ClaimRow {
 const DEAD_STATUSES = new Set(['failed', 'canceled']);
 const SOURCE = 'stripe-approve-refund';
 
-/** A live refund already issued for this request, if any. */
-export function findRequestRefund<T extends ApprovalRefund>(
+function isForRequest(refund: ApprovalRefund, requestId: string): boolean {
+  return refund.metadata?.[REFUND_REQUEST_METADATA_KEY] === requestId;
+}
+
+/** The refund already issued for this request's attempt n, if any. */
+export function findAttemptRefund<T extends ApprovalRefund>(
   refunds: T[],
-  requestId: string
+  requestId: string,
+  attemptNo: number,
+  recordedRefundId: string | null
 ): T | undefined {
   return refunds.find(
     r =>
-      r.metadata?.[REFUND_REQUEST_METADATA_KEY] === requestId && !DEAD_STATUSES.has(r.status ?? '')
+      (recordedRefundId !== null && r.id === recordedRefundId) ||
+      (isForRequest(r, requestId) &&
+        r.metadata?.[REFUND_ATTEMPT_METADATA_KEY] === String(attemptNo))
   );
 }
 
-/** Attempts so far for this request only (a dead attempt earns a new key). */
-export function requestRefundAttempt(refunds: ApprovalRefund[], requestId: string): number {
-  return refunds.filter(r => r.metadata?.[REFUND_REQUEST_METADATA_KEY] === requestId).length;
+/** A refund for this request on ANOTHER attempt that Stripe still has live. */
+export function findLiveRefundOnOtherAttempt<T extends ApprovalRefund>(
+  refunds: T[],
+  requestId: string,
+  attemptNo: number
+): T | undefined {
+  return refunds.find(
+    r =>
+      isForRequest(r, requestId) &&
+      r.metadata?.[REFUND_ATTEMPT_METADATA_KEY] !== String(attemptNo) &&
+      !DEAD_STATUSES.has(r.status ?? '')
+  );
 }
 
 /**
- * Every refund on the intent (Codex P2 on #2689): the reuse and attempt
- * decisions must see a request's earlier refunds even past the first 100.
+ * Every refund on the intent (Codex P2 on #2689): reuse must see a request's
+ * earlier refunds even past the first 100.
  */
 export async function listAllIntentRefunds(
   listPage: RefundPageLoader,
@@ -121,15 +143,15 @@ export async function approveRefundRequest(
   deps: RefundApprovalDeps,
   input: { requestId: string; actorAuthUserId: string }
 ): Promise<ApprovalResult> {
-  const { data, error } = await deps.rpc('claim_refund_request_approval', {
+  const { data, error } = await deps.rpc('begin_refund_attempt', {
     p_request_id: input.requestId,
     p_actor_auth_user_id: input.actorAuthUserId,
   });
   if (error) {
-    console.error(`claim_refund_request_approval failed for ${input.requestId}:`, error);
+    console.error(`begin_refund_attempt failed for ${input.requestId}:`, error);
     return { status: 500, body: { error: 'claim_failed' } };
   }
-  const claim = (Array.isArray(data) ? data[0] : data) as ClaimRow | null;
+  const claim = (Array.isArray(data) ? data[0] : data) as BeginRow | null;
   if (!claim || claim.outcome === 'not_found') {
     return { status: 404, body: { error: 'not_found' } };
   }
@@ -146,6 +168,8 @@ export async function approveRefundRequest(
   }
   if (
     (claim.outcome !== 'claimed' && claim.outcome !== 'resume') ||
+    !claim.attempt_id ||
+    !claim.attempt_no ||
     !claim.stripe_payment_intent_id ||
     !claim.amount_cents
   ) {
@@ -153,11 +177,24 @@ export async function approveRefundRequest(
   }
 
   const intentId = claim.stripe_payment_intent_id;
+  const attemptNo = claim.attempt_no;
   let refund: ApprovalRefund;
   try {
     const prior = await listAllIntentRefunds(deps.listRefundsPage, intentId);
+    const otherLive = findLiveRefundOnOtherAttempt(prior, input.requestId, attemptNo);
+    if (otherLive) {
+      await deps.alertAdmin(
+        'Refund approval stopped: another refund for this request is still live',
+        `<p>Approving request <code>${input.requestId}</code> (attempt ${attemptNo}) found
+         Stripe refund <code>${otherLive.id}</code> (${otherLive.status}) from another
+         attempt still live on payment intent <code>${intentId}</code>. No new refund was
+         created. Check the payment in Stripe before approving again.</p>`,
+        { source: SOURCE, dedupeKey: `approved-refund-other-live-${otherLive.id}` }
+      );
+      return { status: 409, body: { error: 'refund_exists_for_other_attempt' } };
+    }
     refund =
-      findRequestRefund(prior, input.requestId) ??
+      findAttemptRefund(prior, input.requestId, attemptNo, claim.stripe_refund_id) ??
       (await deps.createRefund(
         {
           payment_intent: intentId,
@@ -165,6 +202,7 @@ export async function approveRefundRequest(
           metadata: {
             type: APPROVED_REFUND_METADATA_TYPE,
             [REFUND_REQUEST_METADATA_KEY]: input.requestId,
+            [REFUND_ATTEMPT_METADATA_KEY]: String(attemptNo),
             kind: claim.kind ?? '',
             reason: claim.reason ?? '',
             checkout_session_id: claim.stripe_checkout_session_id ?? '',
@@ -174,63 +212,53 @@ export async function approveRefundRequest(
             [MAKE_WHOLE_METADATA_KEY]: 'true',
           },
         },
-        `refund-request-${input.requestId}-${requestRefundAttempt(prior, input.requestId)}`
+        `refund-request-${input.requestId}-${attemptNo}`
       ));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`Approved refund ${input.requestId} failed at Stripe:`, err);
     await deps.alertAdmin(
       'Approved refund FAILED at Stripe',
-      `<p>Refund request <code>${input.requestId}</code> was approved, but creating the
-       Stripe refund on payment intent <code>${intentId}</code> failed:</p>
+      `<p>Refund request <code>${input.requestId}</code> (attempt ${attemptNo}) was
+       approved, but creating the Stripe refund on payment intent
+       <code>${intentId}</code> failed:</p>
        <pre>${message}</pre>
-       <p>The request stays approved; approving it again retries safely.</p>`,
-      { source: SOURCE, dedupeKey: `approved-refund-failed-${input.requestId}` }
+       <p>The attempt stays open; approving it again retries it with the same
+       idempotency key.</p>`,
+      { source: SOURCE, dedupeKey: `approved-refund-failed-${input.requestId}-${attemptNo}` }
     );
     return { status: 502, body: { error: 'stripe_refund_failed' } };
   }
 
-  const ledgerAction = resolveRefundLedgerAction(refund.status);
-  if (ledgerAction === 'fail' || ledgerAction === 'cancel') {
-    // Dead on arrival: back to the queue at once; the next approval ignores
-    // this refund and takes a new attempt.
-    await failRefundRequest(deps, input.requestId, refund);
-    return { status: 502, body: { error: `stripe_refund_${refund.status}` } };
-  }
-
-  if (ledgerAction === 'defer') {
-    // In flight (pending / requires_action). NOT refunded until Stripe says
-    // so: record the refund id and let refund.updated settle the request.
-    const { data: noted, error: noteError } = await deps.rpc('note_refund_request_in_flight', {
-      p_request_id: input.requestId,
-      p_stripe_refund_id: refund.id,
-    });
-    if (noteError || noted !== true) {
-      await deps.alertAdmin(
-        'Approved refund is in flight but the request did not record it',
-        `<p>Stripe refund <code>${refund.id}</code> (${refund.status}) was issued for
-         request <code>${input.requestId}</code>, but recording it failed:</p>
-         <pre>${noteError?.message ?? 'no row updated'}</pre>
-         <p>Approving it again reuses this refund.</p>`,
-        { source: SOURCE, dedupeKey: `approved-refund-in-flight-unrecorded-${refund.id}` }
-      );
-    }
-    return { status: 202, body: { outcome: 'pending', refund_id: refund.id } };
-  }
-
-  const { data: completed, error: completeError } = await deps.rpc('complete_refund_request', {
-    p_request_id: input.requestId,
+  const attemptStatus = toAttemptStatus(refund.status);
+  const { data: recorded, error: recordError } = await deps.rpc('record_refund_attempt', {
+    p_attempt_id: claim.attempt_id,
     p_stripe_refund_id: refund.id,
+    p_status: attemptStatus,
+    p_failure_reason: refund.failure_reason ?? null,
   });
-  if (completeError || completed !== true) {
+  if (recordError || recorded !== 'recorded') {
+    const why = recordError?.message ?? String(recorded);
     await deps.alertAdmin(
-      'Approved refund issued but the request was not marked refunded',
-      `<p>Stripe refund <code>${refund.id}</code> was issued for request
-       <code>${input.requestId}</code>, but marking the request refunded failed:</p>
-       <pre>${completeError?.message ?? 'no row updated'}</pre>
-       <p>Approving it again reuses this refund and retries the update.</p>`,
+      'Approved refund issued but not recorded on its attempt',
+      `<p>Stripe refund <code>${refund.id}</code> (${refund.status}) for request
+       <code>${input.requestId}</code>, attempt ${attemptNo}, could not be recorded:
+       <code>${why}</code>.</p>
+       <p>Check the refund in Stripe before approving again.</p>`,
       { source: SOURCE, dedupeKey: `approved-refund-unrecorded-${refund.id}` }
     );
+    return recordError
+      ? { status: 500, body: { error: 'record_failed' } }
+      : { status: 409, body: { error: 'refund_attempt_conflict' } };
+  }
+
+  if (attemptStatus === 'failed' || attemptStatus === 'canceled') {
+    // The request now reads 'failed' and is back in the queue.
+    return { status: 502, body: { error: `stripe_refund_${attemptStatus}` } };
+  }
+  if (attemptStatus === 'pending') {
+    // NOT refunded until Stripe says so; the webhook settles this attempt.
+    return { status: 202, body: { outcome: 'pending', refund_id: refund.id } };
   }
 
   // Book the succeeded refund now; the ledger is keyed on the refund id, so

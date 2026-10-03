@@ -85,6 +85,7 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   push_subscriptions: 'SELECT,INSERT,UPDATE,DELETE',
   // MYK9-876: site admins read the approval queue (RLS); every write is a
   // SECURITY DEFINER RPC run as service_role.
+  refund_request_attempts: 'SELECT',
   refund_requests: 'SELECT',
   result_submissions: 'SELECT,INSERT',
   ringside_containment: '',

@@ -58,7 +58,7 @@ function RefundRequestRow({ request }: { request: RefundRequest }) {
       </div>
       <p className="mt-0.5 break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
         Payment {request.paymentIntentId} · reason {request.reason}
-        {request.status === 'approved' && ' · approved, Stripe has not finished'}
+        {request.status === 'awaiting_stripe' && ' · submitted to Stripe, not finished yet'}
       </p>
       {request.status === 'failed' && (
         <p className="mt-0.5 break-words text-sm text-destructive [overflow-wrap:anywhere]">

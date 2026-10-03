@@ -138,7 +138,7 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     }
   });
 
-  it('settles an approved queued refund on every refund lifecycle event (Codex P1, #2689)', () => {
+  it('settles an approved queued refund on every refund lifecycle event (Codex rounds 1-2, #2689)', () => {
     // The behaviour lives in _shared/refundRequests.ts settleApprovedRefund
     // (vitest in refundApproval.test.ts); this pins that each handler calls it.
     for (const handler of [
@@ -150,7 +150,7 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
       expect(start).toBeGreaterThan(-1);
       const end = webhookSource.indexOf('\nasync function', start + 1);
       expect(webhookSource.slice(start, end)).toContain(
-        'await settleApprovedRefund(refundQueueDeps, refund);'
+        'await settleApprovedRefund(refundSettleDeps, refund);'
       );
     }
   });

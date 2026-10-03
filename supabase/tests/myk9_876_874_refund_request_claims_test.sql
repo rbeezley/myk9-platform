@@ -3,9 +3,10 @@
 -- exclusive through entry_carts.status.
 --
 -- Properties asserted here:
---   * ACL: anon and authenticated can execute none of the four RPCs;
---     service_role can. anon holds no privilege on refund_requests;
---     authenticated may SELECT (RLS: site admins) but never write.
+--   * ACL: anon and authenticated can execute none of the refund RPCs;
+--     service_role can. anon holds no privilege on refund_requests or
+--     refund_request_attempts; authenticated may SELECT both (RLS: site
+--     admins) but never write.
 --   * entry_carts.status accepts 'refund_pending' and still rejects junk.
 --   * claim_abandoned_cart_refund on an abandoned cart that points at the paid
 --     session: 'claimed', the cart moves to refund_pending, ONE request.
@@ -20,18 +21,30 @@
 --     (42501 from entry_carts_protect_status).
 --   * request_refund_approval is idempotent per (session, kind) and refuses
 --     the abandoned_cart kind (which must go through the cart claim).
---   * claim_refund_request_approval: pending -> approved ('claimed'), a
---     repeat is 'resume', complete_refund_request stamps it once (a repeat
---     with the same refund is true, another refund id is false), and a later
---     approval is 'already_refunded'. An abandoned-cart request whose cart is
---     no longer refund_pending is refused as 'fulfilled' and stays pending.
---   * ASYNC LIFECYCLE (Codex P1 on #2689): an in-flight refund is noted on an
---     'approved' request without completing it; completing with a different
---     refund is refused; a failure of an OLD refund is stale; a failure of the
---     held refund moves the request to 'failed' (refund id cleared, reason
---     kept) and a new approval claims it again; a refund that succeeded and
---     later failed reopens a 'refunded' request too; the shape CHECK refuses
---     'refunded' without a refund id.
+--   * ATTEMPTS (Codex rounds 1-2 on #2689), as a table of event orderings,
+--     each on its own request:
+--       O1 no attempts -> pending; begin -> attempt 1, awaiting_stripe; begin
+--          again -> 'resume' (no new attempt); success -> refunded; begin ->
+--          'already_refunded', still one attempt.
+--       O2 (Codex P1) attempt 1 fails -> failed with its reason; attempt 2
+--          opens; a DELAYED success for attempt 1's refund changes attempt 1
+--          only (attempt 2 keeps its own refund and status); the request is
+--          refunded (money moved) and live_attempts reports 2; attempt 2's
+--          later failure is recorded on attempt 2.
+--       O3 (Codex P2) a DELAYED in-flight note from attempt 1's approval
+--          after attempt 2 opened neither regresses attempt 1 nor touches
+--          attempt 2; a different id for attempt 1 is
+--          'attempt_has_other_refund'; recording attempt 1's refund on
+--          attempt 2 is 'refund_on_other_attempt'.
+--       O4 success then failure -> failed; a new attempt 2 can open.
+--       O5 late failure of an OLD attempt after a newer one succeeded ->
+--          request stays refunded.
+--       O6 a reported 'pending' never regresses a settled attempt.
+--       O7 settle for a refund no attempt owns -> 'not_found', no writes.
+--       O8 a second pending attempt is refused by the index (23505).
+--       O10 a canceled latest attempt reads failed with its status.
+--       O9 abandoned cart fulfilled after all -> 'fulfilled', no attempt;
+--          a still-held abandoned cart can be approved.
 --
 -- Two concurrent sessions cannot be driven from one psql script; the row
 -- locks (FOR UPDATE on the cart and the request) serialise them, and each
@@ -122,10 +135,10 @@ BEGIN
   FOREACH v_fn IN ARRAY ARRAY[
     'public.claim_abandoned_cart_refund(uuid, text, text, integer, jsonb)',
     'public.request_refund_approval(text, text, text, integer, text, jsonb, uuid, uuid, uuid)',
-    'public.claim_refund_request_approval(uuid, uuid)',
-    'public.complete_refund_request(uuid, text)',
-    'public.note_refund_request_in_flight(uuid, text)',
-    'public.fail_refund_request(uuid, text, text)'
+    'public.begin_refund_attempt(uuid, uuid)',
+    'public.record_refund_attempt(uuid, text, text, text)',
+    'public.settle_refund_attempt(text, text, text)',
+    'public.refund_attempt_next_status(text, text)'
   ] LOOP
     IF has_function_privilege('anon', v_fn, 'EXECUTE')
        OR has_function_privilege('authenticated', v_fn, 'EXECUTE') THEN
@@ -135,17 +148,23 @@ BEGIN
       RAISE EXCEPTION 'FAIL service_role cannot execute %', v_fn;
     END IF;
   END LOOP;
-  IF has_table_privilege('anon', 'public.refund_requests', 'SELECT')
-     OR has_table_privilege('anon', 'public.refund_requests', 'INSERT')
-     OR has_table_privilege('anon', 'public.refund_requests', 'UPDATE')
-     OR has_table_privilege('anon', 'public.refund_requests', 'DELETE') THEN
-    RAISE EXCEPTION 'FAIL anon holds a privilege on refund_requests';
-  END IF;
-  IF NOT has_table_privilege('authenticated', 'public.refund_requests', 'SELECT')
-     OR has_table_privilege('authenticated', 'public.refund_requests', 'INSERT')
-     OR has_table_privilege('authenticated', 'public.refund_requests', 'UPDATE')
-     OR has_table_privilege('authenticated', 'public.refund_requests', 'DELETE') THEN
-    RAISE EXCEPTION 'FAIL authenticated must read refund_requests and never write it';
+  FOREACH v_fn IN ARRAY ARRAY['public.refund_requests', 'public.refund_request_attempts'] LOOP
+    IF has_table_privilege('anon', v_fn, 'SELECT')
+       OR has_table_privilege('anon', v_fn, 'INSERT')
+       OR has_table_privilege('anon', v_fn, 'UPDATE')
+       OR has_table_privilege('anon', v_fn, 'DELETE') THEN
+      RAISE EXCEPTION 'FAIL anon holds a privilege on %', v_fn;
+    END IF;
+    IF NOT has_table_privilege('authenticated', v_fn, 'SELECT')
+       OR has_table_privilege('authenticated', v_fn, 'INSERT')
+       OR has_table_privilege('authenticated', v_fn, 'UPDATE')
+       OR has_table_privilege('authenticated', v_fn, 'DELETE') THEN
+      RAISE EXCEPTION 'FAIL authenticated must read % and never write it', v_fn;
+    END IF;
+  END LOOP;
+  IF has_function_privilege('anon', 'public.refund_requests_recompute_status()', 'EXECUTE')
+     OR has_function_privilege('authenticated', 'public.refund_requests_recompute_status()', 'EXECUTE') THEN
+    RAISE EXCEPTION 'FAIL a client role can execute the recompute trigger function';
   END IF;
   RAISE NOTICE 'PASS refund RPCs are service_role-only; anon has no table access';
 END;
@@ -300,140 +319,244 @@ SELECT pg_temp.expect_sqlstate(
   '22023', 'request_refund_approval refuses the abandoned_cart kind');
 
 -- ---------------------------------------------------------------------------
--- 7. Approval: once, resumable, never after fulfillment
+-- 7. Attempts: a table of event orderings (Codex rounds 1-2 on #2689)
 -- ---------------------------------------------------------------------------
+RESET ROLE;
+
+-- A fresh cart_overflow request per ordering.
+CREATE FUNCTION pg_temp.new_request(p_session text)
+RETURNS uuid LANGUAGE sql AS $f$
+  SELECT r.refund_request_id
+    FROM public.request_refund_approval(
+      'cart_overflow', p_session, 'pi_' || p_session, 1500, 'partial_no_service_lines') AS r
+$f$;
+
+CREATE FUNCTION pg_temp.begin_attempt(p_request uuid)
+RETURNS TABLE (outcome text, attempt_id uuid, attempt_no integer) LANGUAGE sql AS $f$
+  SELECT b.outcome, b.attempt_id, b.attempt_no
+    FROM public.begin_refund_attempt(p_request, '00000000-0000-0000-0000-000000876102') AS b
+$f$;
+
+CREATE FUNCTION pg_temp.request_state(p_request uuid)
+RETURNS text LANGUAGE sql AS $f$
+  SELECT r.status || COALESCE(' | ' || r.last_failure, '')
+    FROM public.refund_requests r WHERE r.id = p_request
+$f$;
+
+CREATE FUNCTION pg_temp.attempt_state(p_attempt uuid)
+RETURNS text LANGUAGE sql AS $f$
+  SELECT a.status || ' ' || COALESCE(a.stripe_refund_id, '-')
+    FROM public.refund_request_attempts a WHERE a.id = p_attempt
+$f$;
+
+CREATE FUNCTION pg_temp.expect_eq(p_actual text, p_expected text, p_label text)
+RETURNS void LANGUAGE plpgsql AS $f$
+BEGIN
+  IF p_actual IS DISTINCT FROM p_expected THEN
+    RAISE EXCEPTION 'FAIL %: got %, expected %', p_label, p_actual, p_expected;
+  END IF;
+  RAISE NOTICE 'PASS %', p_label;
+END;
+$f$;
+
+SET LOCAL ROLE service_role;
+
+-- O1 ------------------------------------------------------------------------
 DO $$
 DECLARE
-  v_id uuid;
-  v_outcome text;
+  v_req uuid := pg_temp.new_request('cs_876_o1');
+  v_a record;
+  v_b record;
 BEGIN
-  SELECT r.id INTO v_id FROM public.refund_requests r
-   WHERE r.stripe_checkout_session_id = 'cs_876_abandoned';
+  PERFORM pg_temp.expect_eq(pg_temp.request_state(v_req), 'pending', 'O1 no attempts reads pending');
+  SELECT * INTO v_a FROM pg_temp.begin_attempt(v_req);
+  PERFORM pg_temp.expect_eq(v_a.outcome || ' #' || v_a.attempt_no, 'claimed #1', 'O1 first approval opens attempt 1');
+  PERFORM pg_temp.expect_eq(pg_temp.request_state(v_req), 'awaiting_stripe', 'O1 an open attempt reads awaiting_stripe');
+  SELECT * INTO v_b FROM pg_temp.begin_attempt(v_req);
+  PERFORM pg_temp.expect_eq(v_b.outcome || ' ' || (v_b.attempt_id = v_a.attempt_id)::text, 'resume true',
+    'O1 a second approval resumes the open attempt');
+  PERFORM pg_temp.expect_eq(public.record_refund_attempt(v_a.attempt_id, 're_o1', 'succeeded'), 'recorded',
+    'O1 the approval records its refund');
+  PERFORM pg_temp.expect_eq(pg_temp.request_state(v_req), 'refunded', 'O1 success reads refunded');
+  SELECT * INTO v_b FROM pg_temp.begin_attempt(v_req);
+  PERFORM pg_temp.expect_eq(v_b.outcome, 'already_refunded', 'O1 approval after success is already_refunded');
+  PERFORM pg_temp.expect_eq((SELECT count(*)::text FROM public.refund_request_attempts
+                          WHERE request_id = v_req), '1', 'O1 no attempt opens after success');
+END;
+$$;
 
-  SELECT c.outcome INTO v_outcome FROM public.claim_refund_request_approval(
-    v_id, '00000000-0000-0000-0000-000000876102') AS c;
-  IF v_outcome <> 'claimed' THEN
-    RAISE EXCEPTION 'FAIL first approval was %, expected claimed', v_outcome;
-  END IF;
-  IF (SELECT status FROM public.refund_requests WHERE id = v_id) <> 'approved'
-     OR (SELECT approved_by_auth_user_id FROM public.refund_requests WHERE id = v_id)
-        IS DISTINCT FROM '00000000-0000-0000-0000-000000876102' THEN
-    RAISE EXCEPTION 'FAIL the approval did not record status and approver';
-  END IF;
+-- O2 (Codex P1) -------------------------------------------------------------
+DO $$
+DECLARE
+  v_req uuid := pg_temp.new_request('cs_876_o2');
+  v_a1 record;
+  v_a2 record;
+  v_s record;
+BEGIN
+  SELECT * INTO v_a1 FROM pg_temp.begin_attempt(v_req);
+  PERFORM public.record_refund_attempt(v_a1.attempt_id, 're_o2_a', 'pending');
+  SELECT * INTO v_s FROM public.settle_refund_attempt('re_o2_a', 'failed', 'expired_or_canceled_card');
+  PERFORM pg_temp.expect_eq(v_s.outcome || ' ' || v_s.request_status, 'updated failed', 'O2 attempt 1 fails');
+  PERFORM pg_temp.expect_eq(pg_temp.request_state(v_req), 'failed | failed: expired_or_canceled_card',
+    'O2 the request carries attempt 1''s reason');
 
-  SELECT c.outcome INTO v_outcome FROM public.claim_refund_request_approval(
-    v_id, '00000000-0000-0000-0000-000000876102') AS c;
-  IF v_outcome <> 'resume' THEN
-    RAISE EXCEPTION 'FAIL an unfinished approval was %, expected resume', v_outcome;
-  END IF;
+  SELECT * INTO v_a2 FROM pg_temp.begin_attempt(v_req);
+  PERFORM pg_temp.expect_eq(v_a2.outcome || ' #' || v_a2.attempt_no, 'claimed #2', 'O2 retry opens attempt 2');
+  PERFORM public.record_refund_attempt(v_a2.attempt_id, 're_o2_b', 'pending');
 
-  IF public.complete_refund_request(v_id, 're_876_1') IS NOT TRUE
-     OR public.complete_refund_request(v_id, 're_876_1') IS NOT TRUE
-     OR public.complete_refund_request(v_id, 're_876_other') IS NOT FALSE THEN
-    RAISE EXCEPTION 'FAIL complete_refund_request is not once-only';
-  END IF;
+  -- The delayed success for the OLD refund.
+  SELECT * INTO v_s FROM public.settle_refund_attempt('re_o2_a', 'succeeded');
+  PERFORM pg_temp.expect_eq(pg_temp.attempt_state(v_a1.attempt_id), 'succeeded re_o2_a',
+    'O2 a delayed success changes attempt 1 only');
+  PERFORM pg_temp.expect_eq(pg_temp.attempt_state(v_a2.attempt_id), 'pending re_o2_b',
+    'O2 attempt 2 keeps its own refund and status');
+  PERFORM pg_temp.expect_eq(v_s.request_status || ' live=' || v_s.live_attempts, 'refunded live=2',
+    'O2 the request is refunded and two live attempts are reported');
 
-  SELECT c.outcome INTO v_outcome FROM public.claim_refund_request_approval(
-    v_id, '00000000-0000-0000-0000-000000876102') AS c;
-  IF v_outcome <> 'already_refunded' THEN
-    RAISE EXCEPTION 'FAIL a refunded request was %, expected already_refunded', v_outcome;
-  END IF;
-  RAISE NOTICE 'PASS approval claims once, resumes, and completes once';
+  SELECT * INTO v_s FROM public.settle_refund_attempt('re_o2_b', 'failed', 'lost_or_stolen_card');
+  PERFORM pg_temp.expect_eq(pg_temp.attempt_state(v_a2.attempt_id), 'failed re_o2_b',
+    'O2 attempt 2''s failure lands on attempt 2');
+  PERFORM pg_temp.expect_eq(pg_temp.request_state(v_req), 'refunded', 'O2 a succeeded attempt keeps it refunded');
+END;
+$$;
 
-  -- An abandoned-cart request whose cart left refund_pending (here: the
-  -- webhook fulfilled it after all) must never be approved.
+-- O3 (Codex P2) -------------------------------------------------------------
+DO $$
+DECLARE
+  v_req uuid := pg_temp.new_request('cs_876_o3');
+  v_a1 record;
+  v_a2 record;
+BEGIN
+  SELECT * INTO v_a1 FROM pg_temp.begin_attempt(v_req);
+  PERFORM public.record_refund_attempt(v_a1.attempt_id, 're_o3_a', 'pending');
+  PERFORM public.settle_refund_attempt('re_o3_a', 'failed', 'expired_or_canceled_card');
+  SELECT * INTO v_a2 FROM pg_temp.begin_attempt(v_req);
+  PERFORM public.record_refund_attempt(v_a2.attempt_id, 're_o3_b', 'pending');
+
+  -- Approval 1's in-flight note arrives late.
+  PERFORM pg_temp.expect_eq(public.record_refund_attempt(v_a1.attempt_id, 're_o3_a', 'pending'), 'recorded',
+    'O3 a delayed note for attempt 1 is accepted for attempt 1 only');
+  PERFORM pg_temp.expect_eq(pg_temp.attempt_state(v_a1.attempt_id), 'failed re_o3_a',
+    'O3 the delayed note does not regress attempt 1');
+  PERFORM pg_temp.expect_eq(pg_temp.attempt_state(v_a2.attempt_id), 'pending re_o3_b',
+    'O3 the delayed note does not touch attempt 2');
+  PERFORM pg_temp.expect_eq(public.record_refund_attempt(v_a1.attempt_id, 're_o3_x', 'pending'),
+    'attempt_has_other_refund', 'O3 attempt 1 never takes a second refund id');
+  PERFORM pg_temp.expect_eq(public.record_refund_attempt(v_a2.attempt_id, 're_o3_a', 'pending'),
+    'refund_on_other_attempt', 'O3 attempt 1''s refund is refused on attempt 2');
+  PERFORM pg_temp.expect_eq(pg_temp.request_state(v_req), 'awaiting_stripe', 'O3 the request waits on attempt 2');
+END;
+$$;
+
+-- O4 success then failure ---------------------------------------------------
+DO $$
+DECLARE
+  v_req uuid := pg_temp.new_request('cs_876_o4');
+  v_a1 record;
+  v_a2 record;
+BEGIN
+  SELECT * INTO v_a1 FROM pg_temp.begin_attempt(v_req);
+  PERFORM public.record_refund_attempt(v_a1.attempt_id, 're_o4_a', 'succeeded');
+  PERFORM pg_temp.expect_eq(pg_temp.request_state(v_req), 'refunded', 'O4 succeeded');
+  PERFORM public.settle_refund_attempt('re_o4_a', 'failed', 'charge_for_pending_refund_disputed');
+  PERFORM pg_temp.expect_eq(pg_temp.request_state(v_req), 'failed | failed: charge_for_pending_refund_disputed',
+    'O4 a refund failing after success reopens the request');
+  SELECT * INTO v_a2 FROM pg_temp.begin_attempt(v_req);
+  PERFORM pg_temp.expect_eq(v_a2.outcome || ' #' || v_a2.attempt_no, 'claimed #2', 'O4 a new attempt can open');
+END;
+$$;
+
+-- O5 late failure of an OLD attempt -----------------------------------------
+DO $$
+DECLARE
+  v_req uuid := pg_temp.new_request('cs_876_o5');
+  v_a1 record;
+  v_a2 record;
+BEGIN
+  SELECT * INTO v_a1 FROM pg_temp.begin_attempt(v_req);
+  PERFORM public.record_refund_attempt(v_a1.attempt_id, 're_o5_a', 'failed', 'unknown');
+  SELECT * INTO v_a2 FROM pg_temp.begin_attempt(v_req);
+  PERFORM public.record_refund_attempt(v_a2.attempt_id, 're_o5_b', 'succeeded');
+  PERFORM public.settle_refund_attempt('re_o5_a', 'canceled');
+  PERFORM pg_temp.expect_eq(pg_temp.attempt_state(v_a1.attempt_id), 'canceled re_o5_a', 'O5 the old attempt records it');
+  PERFORM pg_temp.expect_eq(pg_temp.request_state(v_req), 'refunded', 'O5 the request stays refunded');
+END;
+$$;
+
+-- O6 / O7 / O8 --------------------------------------------------------------
+DO $$
+DECLARE
+  v_req uuid := pg_temp.new_request('cs_876_o6');
+  v_a1 record;
+  v_s record;
+BEGIN
+  SELECT * INTO v_a1 FROM pg_temp.begin_attempt(v_req);
+  PERFORM public.record_refund_attempt(v_a1.attempt_id, 're_o6_a', 'succeeded');
+  SELECT * INTO v_s FROM public.settle_refund_attempt('re_o6_a', 'pending');
+  PERFORM pg_temp.expect_eq(v_s.outcome || ' ' || v_s.attempt_status, 'unchanged succeeded',
+    'O6 a reported pending never regresses a settled attempt');
+
+  SELECT * INTO v_s FROM public.settle_refund_attempt('re_o7_nobody', 'succeeded');
+  PERFORM pg_temp.expect_eq(v_s.outcome, 'not_found', 'O7 a refund no attempt owns is not_found');
+END;
+$$;
+
+-- O10 a CANCELED latest attempt reopens the request too ---------------------
+DO $$
+DECLARE
+  v_req uuid := pg_temp.new_request('cs_876_o10');
+  v_a1 record;
+BEGIN
+  SELECT * INTO v_a1 FROM pg_temp.begin_attempt(v_req);
+  PERFORM public.record_refund_attempt(v_a1.attempt_id, 're_o10_a', 'pending');
+  PERFORM public.settle_refund_attempt('re_o10_a', 'canceled');
+  PERFORM pg_temp.expect_eq(pg_temp.request_state(v_req), 'failed | canceled: no reason given',
+    'O10 a canceled refund reads failed with its status');
+END;
+$$;
+
+DO $$
+DECLARE
+  v_req uuid := pg_temp.new_request('cs_876_o8');
+BEGIN
+  PERFORM pg_temp.begin_attempt(v_req);
+  BEGIN
+    INSERT INTO public.refund_request_attempts (request_id, attempt_no, approved_by_auth_user_id)
+    VALUES (v_req, 2, '00000000-0000-0000-0000-000000876102');
+    RAISE EXCEPTION 'FAIL O8 a second pending attempt was accepted';
+  EXCEPTION WHEN unique_violation THEN
+    RAISE NOTICE 'PASS O8 a second pending attempt is refused (23505)';
+  END;
+END;
+$$;
+
+-- O9 abandoned cart fulfilled after all -------------------------------------
+DO $$
+DECLARE
+  v_req uuid;
+  v_b record;
+BEGIN
   PERFORM public.claim_abandoned_cart_refund(
     '00000000-0000-0000-0000-000000876034', 'cs_876_expired', 'pi_876_expired', 4200);
-  SELECT r.id INTO v_id FROM public.refund_requests r
+  SELECT r.id INTO v_req FROM public.refund_requests r
    WHERE r.stripe_checkout_session_id = 'cs_876_expired';
-  IF v_id IS NULL THEN
+  IF v_req IS NULL THEN
     RAISE EXCEPTION 'FIXTURE the expired cart was not claimed';
   END IF;
   UPDATE public.entry_carts SET status = 'submitted'
    WHERE id = '00000000-0000-0000-0000-000000876034';
+  SELECT * INTO v_b FROM pg_temp.begin_attempt(v_req);
+  PERFORM pg_temp.expect_eq(v_b.outcome, 'fulfilled', 'O9 approval refuses a fulfilled session');
+  PERFORM pg_temp.expect_eq((SELECT count(*)::text FROM public.refund_request_attempts
+                          WHERE request_id = v_req), '0', 'O9 no attempt opens');
 
-  SELECT c.outcome INTO v_outcome FROM public.claim_refund_request_approval(
-    v_id, '00000000-0000-0000-0000-000000876102') AS c;
-  IF v_outcome <> 'fulfilled' THEN
-    RAISE EXCEPTION 'FAIL approval of a fulfilled session was %, expected fulfilled', v_outcome;
-  END IF;
-  IF (SELECT status FROM public.refund_requests WHERE id = v_id) <> 'pending' THEN
-    RAISE EXCEPTION 'FAIL a refused approval changed the request';
-  END IF;
-  RAISE NOTICE 'PASS approval refuses a session that was fulfilled';
+  -- The approval on the still-held abandoned cart from section 3 works.
+  SELECT r.id INTO v_req FROM public.refund_requests r
+   WHERE r.stripe_checkout_session_id = 'cs_876_abandoned';
+  SELECT * INTO v_b FROM pg_temp.begin_attempt(v_req);
+  PERFORM pg_temp.expect_eq(v_b.outcome, 'claimed', 'O9 a held abandoned cart can be approved');
 END;
 $$;
-
--- ---------------------------------------------------------------------------
--- 8. Asynchronous refunds stay retryable until Stripe reports success
--- ---------------------------------------------------------------------------
-DO $$
-DECLARE
-  v_id uuid;
-  v_outcome text;
-  v_row public.refund_requests%ROWTYPE;
-BEGIN
-  SELECT r.id INTO v_id FROM public.refund_requests r
-   WHERE r.stripe_checkout_session_id = 'cs_876_overflow' AND r.kind = 'cart_overflow';
-
-  SELECT c.outcome INTO v_outcome FROM public.claim_refund_request_approval(
-    v_id, '00000000-0000-0000-0000-000000876102') AS c;
-  IF v_outcome <> 'claimed' THEN
-    RAISE EXCEPTION 'FIXTURE overflow approval was %', v_outcome;
-  END IF;
-
-  IF public.note_refund_request_in_flight(v_id, 're_876_p1') IS NOT TRUE THEN
-    RAISE EXCEPTION 'FAIL an in-flight refund was not noted';
-  END IF;
-  SELECT * INTO v_row FROM public.refund_requests WHERE id = v_id;
-  IF v_row.status <> 'approved' OR v_row.stripe_refund_id <> 're_876_p1'
-     OR v_row.refunded_at IS NOT NULL THEN
-    RAISE EXCEPTION 'FAIL an in-flight refund marked the request refunded';
-  END IF;
-
-  IF public.complete_refund_request(v_id, 're_876_wrong') IS NOT FALSE THEN
-    RAISE EXCEPTION 'FAIL a different refund completed a request waiting on re_876_p1';
-  END IF;
-  IF public.fail_refund_request(v_id, 're_876_old', 'failed: stale') IS NOT FALSE THEN
-    RAISE EXCEPTION 'FAIL a failure of another refund reopened the request';
-  END IF;
-
-  IF public.fail_refund_request(v_id, 're_876_p1', 'failed: expired_or_canceled_card')
-     IS NOT TRUE THEN
-    RAISE EXCEPTION 'FAIL the held refund''s failure did not reopen the request';
-  END IF;
-  SELECT * INTO v_row FROM public.refund_requests WHERE id = v_id;
-  IF v_row.status <> 'failed' OR v_row.stripe_refund_id IS NOT NULL
-     OR v_row.last_failure <> 'failed: expired_or_canceled_card' THEN
-    RAISE EXCEPTION 'FAIL a failed refund did not leave the request failed with its reason';
-  END IF;
-
-  SELECT c.outcome INTO v_outcome FROM public.claim_refund_request_approval(
-    v_id, '00000000-0000-0000-0000-000000876102') AS c;
-  IF v_outcome <> 'claimed'
-     OR (SELECT status FROM public.refund_requests WHERE id = v_id) <> 'approved' THEN
-    RAISE EXCEPTION 'FAIL a failed request could not be approved again (%)', v_outcome;
-  END IF;
-
-  IF public.complete_refund_request(v_id, 're_876_p2') IS NOT TRUE THEN
-    RAISE EXCEPTION 'FAIL the retried refund did not complete';
-  END IF;
-  -- Two statements: a subquery in the same expression would read the snapshot
-  -- taken before the function's UPDATE.
-  IF public.fail_refund_request(v_id, 're_876_p2', 'failed: later') IS NOT TRUE THEN
-    RAISE EXCEPTION 'FAIL a refund that failed after succeeding was refused';
-  END IF;
-  IF (SELECT status FROM public.refund_requests WHERE id = v_id) <> 'failed' THEN
-    RAISE EXCEPTION 'FAIL a refund that failed after succeeding did not reopen the request';
-  END IF;
-  RAISE NOTICE 'PASS asynchronous refunds complete only on success and reopen on failure';
-END;
-$$;
-
-SELECT pg_temp.expect_sqlstate(
-  $q$UPDATE public.refund_requests SET status = 'refunded', refunded_at = now()
-     WHERE stripe_checkout_session_id = 'cs_876_overflow'$q$,
-  '23514', 'the shape CHECK refuses refunded without a refund id');
 RESET ROLE;
 
 ROLLBACK;

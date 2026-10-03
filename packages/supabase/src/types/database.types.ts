@@ -5522,63 +5522,98 @@ export type Database = {
         }
         Relationships: []
       }
+      refund_request_attempts: {
+        Row: {
+          approved_by_auth_user_id: string
+          attempt_no: number
+          created_at: string
+          failure_reason: string | null
+          id: string
+          request_id: string
+          status: string
+          stripe_refund_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          approved_by_auth_user_id: string
+          attempt_no: number
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          request_id: string
+          status?: string
+          stripe_refund_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          approved_by_auth_user_id?: string
+          attempt_no?: number
+          created_at?: string
+          failure_reason?: string | null
+          id?: string
+          request_id?: string
+          status?: string
+          stripe_refund_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "refund_request_attempts_request_id_fkey"
+            columns: ["request_id"]
+            isOneToOne: false
+            referencedRelation: "refund_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       refund_requests: {
         Row: {
           amount_cents: number
-          approved_at: string | null
-          approved_by_auth_user_id: string | null
           cart_id: string | null
           created_at: string
           detail: Json
           entry_payment_link_id: string | null
           id: string
-          last_failure: string | null
           kind: string
+          last_failure: string | null
           reason: string
-          refunded_at: string | null
           show_id: string | null
           status: string
           stripe_checkout_session_id: string
           stripe_payment_intent_id: string
-          stripe_refund_id: string | null
+          updated_at: string
         }
         Insert: {
           amount_cents: number
-          approved_at?: string | null
-          approved_by_auth_user_id?: string | null
           cart_id?: string | null
           created_at?: string
           detail?: Json
           entry_payment_link_id?: string | null
           id?: string
-          last_failure?: string | null
           kind: string
+          last_failure?: string | null
           reason: string
-          refunded_at?: string | null
           show_id?: string | null
           status?: string
           stripe_checkout_session_id: string
           stripe_payment_intent_id: string
-          stripe_refund_id?: string | null
+          updated_at?: string
         }
         Update: {
           amount_cents?: number
-          approved_at?: string | null
-          approved_by_auth_user_id?: string | null
           cart_id?: string | null
           created_at?: string
           detail?: Json
           entry_payment_link_id?: string | null
           id?: string
-          last_failure?: string | null
           kind?: string
+          last_failure?: string | null
           reason?: string
-          refunded_at?: string | null
           show_id?: string | null
           status?: string
           stripe_checkout_session_id?: string
           stripe_payment_intent_id?: string
-          stripe_refund_id?: string | null
+          updated_at?: string
         }
         Relationships: [
           {

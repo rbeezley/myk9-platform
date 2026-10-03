@@ -58,6 +58,7 @@ import {
   REFUNDABLE_ABANDONED_CART_STATUSES,
   settleApprovedRefund,
   type RefundQueueDeps,
+  type SettleDeps,
 } from '../_shared/refundRequests.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
@@ -89,6 +90,13 @@ const supabase = createClient(supabaseUrl, supabaseServiceKey);
 const refundQueueDeps: RefundQueueDeps = {
   rpc: (fn, args) => supabase.rpc(fn, args),
   alertAdmin,
+};
+
+// Approved queued refunds settle on their own attempt row, from the refund's
+// CURRENT state at Stripe (Codex rounds 1-2 on #2689).
+const refundSettleDeps: SettleDeps = {
+  ...refundQueueDeps,
+  retrieveRefund: id => stripe.refunds.retrieve(id),
 };
 
 type OnlinePaidEntryCapacityOutcome = {
@@ -282,8 +290,8 @@ async function handleRefundUpdated(refund: Stripe.Refund) {
     return;
   }
 
-  // An approved queued refund becomes 'refunded' only now (Codex P1, #2689).
-  await settleApprovedRefund(refundQueueDeps, refund);
+  // An approved queued refund: update its own attempt (Codex P1, #2689).
+  await settleApprovedRefund(refundSettleDeps, refund);
 
   const paymentIntentId = extractPaymentIntentId(refund.payment_intent);
   if (!paymentIntentId) {
@@ -313,9 +321,9 @@ async function handleRefundUpdated(refund: Stripe.Refund) {
 }
 
 async function handleTerminalRefund(refund: Stripe.Refund, terminalState: 'failed' | 'canceled') {
-  // An approved queued refund that failed goes back to the approval queue
-  // (Codex P1, #2689); every other refund keeps the alert below.
-  await settleApprovedRefund(refundQueueDeps, refund);
+  // An approved queued refund: update its own attempt, which reopens the
+  // request when no other attempt succeeded (Codex P1, #2689).
+  await settleApprovedRefund(refundSettleDeps, refund);
   const entryId = refund.metadata?.entry_id ?? null;
   console.error(
     `CRITICAL: refund ${refund.id} (${refund.amount}¢) ${terminalState.toUpperCase()} after creation` +
@@ -584,7 +592,7 @@ async function handleChargeRefunded(charge: Stripe.Charge, eventId: string) {
       }
       sawSucceededRefund = true;
       // Covers a missed refund.updated for an approved queued refund.
-      await settleApprovedRefund(refundQueueDeps, refund);
+      await settleApprovedRefund(refundSettleDeps, refund);
       const rows = await recordOrderRefundCents(intentIdForLedger, {
         refundId: refund.id,
         amountCents: refund.amount ?? 0,

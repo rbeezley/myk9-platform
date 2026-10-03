@@ -6,11 +6,13 @@ export interface RefundRequest {
   id: string;
   kind: RefundRequestKind;
   /**
-   * 'approved': an approval started and Stripe has not settled the refund yet;
-   * approving again resumes it. 'failed': Stripe failed or canceled the refund;
-   * approving again issues a new one (Codex P1 on #2689).
+   * Derived in the database from the request's refund attempts:
+   * 'awaiting_stripe': an approval is open and Stripe has not settled its
+   * refund; checking again resumes that same attempt. 'failed': the latest
+   * attempt's refund failed or was canceled; approving again opens a new
+   * attempt (Codex rounds 1-2 on #2689).
    */
-  status: 'pending' | 'approved' | 'failed';
+  status: 'pending' | 'awaiting_stripe' | 'failed';
   /** Why the last refund failed ("failed: expired_or_canceled_card"), or null. */
   lastFailure: string | null;
   amountCents: number;
@@ -36,7 +38,7 @@ export function parseRefundRequest(row: RefundRequestRow): RefundRequest {
   return {
     id: row.id,
     kind: row.kind as RefundRequestKind,
-    status: row.status === 'approved' || row.status === 'failed' ? row.status : 'pending',
+    status: row.status === 'awaiting_stripe' || row.status === 'failed' ? row.status : 'pending',
     lastFailure: row.last_failure ?? null,
     amountCents: row.amount_cents,
     reason: row.reason,
@@ -67,6 +69,10 @@ const APPROVAL_ERRORS: Record<string, string> = {
   stripe_refund_failed:
     'Stripe could not issue the refund. Nothing was refunded; you can approve it again.',
   claim_failed: 'The approval could not be recorded. Nothing was refunded; try again.',
+  refund_exists_for_other_attempt:
+    'Not refunded: Stripe still has a live refund for this request from an earlier approval. Check the payment in Stripe.',
+  refund_attempt_conflict:
+    'The refund could not be matched to this approval. Check the payment in Stripe before trying again.',
 };
 
 export function approvalErrorMessage(code: string | undefined): string {
@@ -77,7 +83,7 @@ export function approvalErrorMessage(code: string | undefined): string {
 
 /** The button label for a row, by where its refund stands. */
 export function approveActionLabel(status: RefundRequest['status']): string {
-  if (status === 'approved') return 'Finish refund';
+  if (status === 'awaiting_stripe') return 'Check status';
   if (status === 'failed') return 'Approve again';
   return 'Approve refund';
 }

@@ -9,18 +9,7 @@
 -- `active -> submitted` fulfillment claim, so it fell into the duplicate-charge
 -- branch with nothing durable to show for the charge (MYK9-874).
 --
--- 1. public.refund_requests — one row per refund the platform OWES but has not
---    yet issued: the durable pending-refund record. The webhook writes it (via
---    the two RPCs below) and raises the existing CRITICAL operator alert; only
---    the stripe-approve-refund edge function, called by a site admin, issues
---    the Stripe refund, and it claims the row first (claim_refund_request_
---    approval) so a double click or a retry cannot refund twice. A request is
---    'refunded' only once Stripe reports the refund SUCCEEDED; an in-flight
---    refund is noted on an 'approved' request, and a failed or canceled one
---    moves the request to 'failed', back in the queue (stripe-webhook calls
---    complete_refund_request / fail_refund_request).
---
--- 2. entry_carts.status gains 'refund_pending'. claim_abandoned_cart_refund
+-- 1. entry_carts.status gains 'refund_pending'. claim_abandoned_cart_refund
 --    moves an abandoned/expired cart whose CURRENT session is the paid one to
 --    'refund_pending' in the same statement that queues the request. The
 --    webhook's fulfillment claim is `UPDATE ... WHERE status = 'active'`, so
@@ -30,10 +19,30 @@
 --    reopens it (stripe-checkout reopens only active/expired carts), and the
 --    status trigger below refuses every non-service-role write to or from it.
 --
--- 3. claim_refund_request_approval re-checks, under the row lock, that an
+-- 2. public.refund_requests — one row per refund the platform OWES: the
+--    durable pending-refund record. stripe-webhook writes it (the two RPCs in
+--    section 4) and raises the existing CRITICAL operator alert.
+--
+-- 3. public.refund_request_attempts — one row per approval that tried to
+--    refund a request (Codex review rounds 1-2 on #2689). Each attempt owns
+--    AT MOST ONE Stripe refund, written once, and the webhook updates only the
+--    attempt whose stripe_refund_id matches the refund it received. The
+--    request's status and last_failure are DERIVED from its attempts by a
+--    trigger in the same transaction as every attempt write, never set by a
+--    caller, so a delayed event or a delayed approval can only change its own
+--    attempt:
+--      refunded        any attempt succeeded
+--      awaiting_stripe else an attempt is pending
+--      failed          else the latest attempt failed or was canceled
+--      pending         no attempts yet
+--    A new attempt is created only while no attempt is pending or succeeded
+--    (begin_refund_attempt, under the request's row lock; a partial unique
+--    index backs the pending half).
+--
+-- 4. begin_refund_attempt re-checks, under the row lock, that an
 --    abandoned-cart refund's cart is still 'refund_pending' and that nothing
 --    fulfilled the session (no stripe_orders row, no entry carrying the
---    payment intent) before it lets the approval through.
+--    payment intent) before it lets an approval through.
 --
 -- Refunds come from the PLATFORM balance (separate charges and transfers), and
 -- every queued refund is for lines that never became paid entries, so none of
@@ -102,17 +111,12 @@ CREATE TABLE public.refund_requests (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   kind text NOT NULL
     CHECK (kind IN ('abandoned_cart', 'cart_overflow', 'entry_payment_link')),
-  -- pending  -> waiting for a site admin
-  -- approved -> an admin approved it; the Stripe refund is being created, or
-  --             exists but Stripe has not reported it succeeded yet
-  --             (stripe_refund_id set). A repeat approval resumes it with the
-  --             same refund.
-  -- refunded -> Stripe reported the refund SUCCEEDED (stripe_refund_id)
-  -- failed   -> Stripe failed or canceled the refund (last_failure says why);
-  --             back in the approval queue, and the next approval takes a new
-  --             attempt (Codex P1 on #2689)
+  -- DERIVED from refund_request_attempts by refund_requests_recompute_status
+  -- (see the header); no RPC writes it directly.
   status text NOT NULL DEFAULT 'pending'
-    CHECK (status IN ('pending', 'approved', 'refunded', 'failed')),
+    CHECK (status IN ('pending', 'awaiting_stripe', 'refunded', 'failed')),
+  -- DERIVED: the latest attempt's failure, while status = 'failed'.
+  last_failure text,
   stripe_checkout_session_id text NOT NULL,
   stripe_payment_intent_id text NOT NULL,
   amount_cents integer NOT NULL CHECK (amount_cents > 0),
@@ -123,28 +127,15 @@ CREATE TABLE public.refund_requests (
   show_id uuid REFERENCES public.shows (id) ON DELETE SET NULL,
   detail jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now(),
-  -- auth.users id of the approving site admin (never a people.id).
-  approved_by_auth_user_id uuid,
-  approved_at timestamptz,
-  -- The refund currently answering this request: the succeeded one once
-  -- 'refunded', the in-flight one while 'approved'. Cleared on failure.
-  stripe_refund_id text UNIQUE,
-  refunded_at timestamptz,
-  last_failure text,
+  updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT refund_requests_once_per_session UNIQUE (stripe_checkout_session_id, kind),
-  CONSTRAINT refund_requests_approval_shape CHECK (
-    (status = 'pending') = (approved_at IS NULL)
-    AND (status = 'refunded') = (refunded_at IS NOT NULL)
-    AND (status <> 'refunded' OR stripe_refund_id IS NOT NULL)
-    AND (status NOT IN ('pending', 'failed') OR stripe_refund_id IS NULL)
-    AND (status <> 'failed' OR last_failure IS NOT NULL)
-  )
+  CONSTRAINT refund_requests_failure_shape CHECK ((status = 'failed') = (last_failure IS NOT NULL))
 );
 
 COMMENT ON TABLE public.refund_requests IS
-  'MYK9-876/874: refunds the platform owes but has not issued. Written by stripe-webhook (SECURITY DEFINER RPCs); issued only by stripe-approve-refund after a site admin approves. Site admins read; no client writes.';
+  'MYK9-876/874: refunds the platform owes. Written by stripe-webhook (SECURITY DEFINER RPCs); refunded only through refund_request_attempts, which stripe-approve-refund creates after a site admin approves. status/last_failure are derived from the attempts. Site admins read; no client writes.';
 
-CREATE INDEX refund_requests_pending_idx
+CREATE INDEX refund_requests_open_idx
   ON public.refund_requests (created_at)
   WHERE status <> 'refunded';
 
@@ -165,7 +156,107 @@ CREATE POLICY refund_requests_site_admin_select
   USING ((SELECT public.is_site_admin()));
 
 -- ============================================================================
--- 3. Webhook RPCs (service_role only)
+-- 3. Refund attempts: one Stripe refund each, status derived onto the request
+-- ============================================================================
+
+CREATE TABLE public.refund_request_attempts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  -- Money history: a request with attempts is never deleted.
+  request_id uuid NOT NULL REFERENCES public.refund_requests (id) ON DELETE RESTRICT,
+  -- 1, 2, 3 ... per request; the Stripe idempotency key is
+  -- refund-request-<request_id>-<attempt_no>.
+  attempt_no integer NOT NULL CHECK (attempt_no > 0),
+  -- Written ONCE (record_refund_attempt); the webhook finds the attempt by it.
+  stripe_refund_id text UNIQUE,
+  -- Stripe's refund status ('requires_action' is stored as 'pending').
+  status text NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending', 'succeeded', 'failed', 'canceled')),
+  failure_reason text,
+  -- auth.users id of the approving site admin (never a people.id).
+  approved_by_auth_user_id uuid NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT refund_request_attempts_once UNIQUE (request_id, attempt_no)
+);
+
+COMMENT ON TABLE public.refund_request_attempts IS
+  'MYK9-876 (Codex rounds 1-2 on #2689): one row per approval of a refund_requests row; each owns at most one Stripe refund. Written only by SECURITY DEFINER RPCs as service_role; site admins read.';
+
+-- At most one attempt in flight per request (begin_refund_attempt also
+-- refuses while one is pending or succeeded, under the request's row lock).
+CREATE UNIQUE INDEX refund_request_attempts_one_pending_idx
+  ON public.refund_request_attempts (request_id)
+  WHERE status = 'pending';
+
+ALTER TABLE public.refund_request_attempts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.refund_request_attempts FORCE ROW LEVEL SECURITY;
+
+REVOKE ALL ON TABLE public.refund_request_attempts FROM PUBLIC, anon, authenticated;
+GRANT SELECT ON TABLE public.refund_request_attempts TO authenticated;
+GRANT ALL ON TABLE public.refund_request_attempts TO service_role;
+
+CREATE POLICY refund_request_attempts_site_admin_select
+  ON public.refund_request_attempts
+  FOR SELECT
+  TO authenticated
+  USING ((SELECT public.is_site_admin()));
+
+-- The request's status, derived from its attempts in the SAME transaction as
+-- every attempt write.
+CREATE OR REPLACE FUNCTION public.refund_requests_recompute_status()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_any_succeeded boolean;
+  v_any_pending boolean;
+  v_latest record;
+  v_status text;
+  v_failure text;
+BEGIN
+  SELECT COALESCE(bool_or(a.status = 'succeeded'), false),
+         COALESCE(bool_or(a.status = 'pending'), false)
+    INTO v_any_succeeded, v_any_pending
+    FROM public.refund_request_attempts a
+   WHERE a.request_id = NEW.request_id;
+
+  SELECT a.status, a.failure_reason INTO v_latest
+    FROM public.refund_request_attempts a
+   WHERE a.request_id = NEW.request_id
+   ORDER BY a.attempt_no DESC
+   LIMIT 1;
+
+  v_status := CASE
+    WHEN v_any_succeeded THEN 'refunded'
+    WHEN v_any_pending THEN 'awaiting_stripe'
+    WHEN v_latest.status IN ('failed', 'canceled') THEN 'failed'
+    ELSE 'pending'
+  END;
+  v_failure := CASE
+    WHEN v_status = 'failed' THEN v_latest.status || ': ' || COALESCE(v_latest.failure_reason, 'no reason given')
+  END;
+
+  UPDATE public.refund_requests r
+     SET status = v_status,
+         last_failure = v_failure,
+         updated_at = now()
+   WHERE r.id = NEW.request_id
+     AND (r.status IS DISTINCT FROM v_status OR r.last_failure IS DISTINCT FROM v_failure);
+  RETURN NULL;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.refund_requests_recompute_status() FROM PUBLIC, anon, authenticated;
+
+CREATE TRIGGER trg_refund_request_attempts_recompute
+  AFTER INSERT OR UPDATE OF status, failure_reason ON public.refund_request_attempts
+  FOR EACH ROW
+  EXECUTE FUNCTION public.refund_requests_recompute_status();
+
+-- ============================================================================
+-- 4. Queueing RPCs (stripe-webhook; service_role only)
 -- ============================================================================
 
 -- MYK9-874: the refund side of the cart claim. Wins only when the cart is
@@ -296,16 +387,25 @@ END;
 $$;
 
 -- ============================================================================
--- 4. Approval RPCs (service_role only; stripe-approve-refund authorises the
---    site admin before calling them)
+-- 5. Attempt RPCs (service_role only). stripe-approve-refund authorises the
+--    site admin before calling begin/record; stripe-webhook calls settle.
 -- ============================================================================
 
-CREATE OR REPLACE FUNCTION public.claim_refund_request_approval(
+-- Start (or resume) the approval of one request. Under the request's row lock:
+--   already_refunded  an attempt succeeded: nothing more may be refunded
+--   fulfilled         abandoned cart whose session was fulfilled after all
+--   resume            an attempt is still pending: carry on with IT (its
+--                     idempotency key and any refund already stamped for it)
+--   claimed           no attempt pending or succeeded: attempt n+1 created
+--   not_found
+CREATE OR REPLACE FUNCTION public.begin_refund_attempt(
   p_request_id uuid,
   p_actor_auth_user_id uuid
 )
 RETURNS TABLE (
   outcome text,
+  attempt_id uuid,
+  attempt_no integer,
   kind text,
   stripe_payment_intent_id text,
   stripe_checkout_session_id text,
@@ -317,12 +417,15 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
+#variable_conflict use_column
 DECLARE
   v_req public.refund_requests%ROWTYPE;
+  v_attempt public.refund_request_attempts%ROWTYPE;
   v_cart_status text;
+  v_next integer;
 BEGIN
   IF p_actor_auth_user_id IS NULL THEN
-    RAISE EXCEPTION 'claim_refund_request_approval: an approving user is required'
+    RAISE EXCEPTION 'begin_refund_attempt: an approving user is required'
       USING errcode = '22023';
   END IF;
 
@@ -330,16 +433,21 @@ BEGIN
     FROM public.refund_requests r
    WHERE r.id = p_request_id
    FOR UPDATE;
-
   IF v_req.id IS NULL THEN
-    RETURN QUERY SELECT 'not_found'::text, NULL::text, NULL::text, NULL::text,
-      NULL::integer, NULL::text, NULL::text;
+    RETURN QUERY SELECT 'not_found'::text, NULL::uuid, NULL::integer, NULL::text, NULL::text,
+      NULL::text, NULL::integer, NULL::text, NULL::text;
     RETURN;
   END IF;
 
-  IF v_req.status = 'refunded' THEN
-    RETURN QUERY SELECT 'already_refunded'::text, v_req.kind, v_req.stripe_payment_intent_id,
-      v_req.stripe_checkout_session_id, v_req.amount_cents, v_req.reason, v_req.stripe_refund_id;
+  SELECT * INTO v_attempt
+    FROM public.refund_request_attempts a
+   WHERE a.request_id = v_req.id AND a.status = 'succeeded'
+   ORDER BY a.attempt_no DESC
+   LIMIT 1;
+  IF v_attempt.id IS NOT NULL THEN
+    RETURN QUERY SELECT 'already_refunded'::text, v_attempt.id, v_attempt.attempt_no, v_req.kind,
+      v_req.stripe_payment_intent_id, v_req.stripe_checkout_session_id, v_req.amount_cents,
+      v_req.reason, v_attempt.stripe_refund_id;
     RETURN;
   END IF;
 
@@ -352,139 +460,172 @@ BEGIN
         FROM public.entry_carts c
        WHERE c.id = v_req.cart_id
        FOR UPDATE;
-      IF v_cart_status IS DISTINCT FROM 'refund_pending' THEN
-        RETURN QUERY SELECT 'fulfilled'::text, v_req.kind, v_req.stripe_payment_intent_id,
-          v_req.stripe_checkout_session_id, v_req.amount_cents, v_req.reason, NULL::text;
-        RETURN;
-      END IF;
     END IF;
-    IF EXISTS (SELECT 1 FROM public.stripe_orders o
-                WHERE o.stripe_checkout_session_id = v_req.stripe_checkout_session_id)
+    IF (v_req.cart_id IS NOT NULL AND v_cart_status IS DISTINCT FROM 'refund_pending')
+       OR EXISTS (SELECT 1 FROM public.stripe_orders o
+                   WHERE o.stripe_checkout_session_id = v_req.stripe_checkout_session_id)
        OR EXISTS (SELECT 1 FROM public.entries e
                    WHERE e.stripe_payment_intent_id = v_req.stripe_payment_intent_id) THEN
-      RETURN QUERY SELECT 'fulfilled'::text, v_req.kind, v_req.stripe_payment_intent_id,
-        v_req.stripe_checkout_session_id, v_req.amount_cents, v_req.reason, NULL::text;
+      RETURN QUERY SELECT 'fulfilled'::text, NULL::uuid, NULL::integer, v_req.kind,
+        v_req.stripe_payment_intent_id, v_req.stripe_checkout_session_id, v_req.amount_cents,
+        v_req.reason, NULL::text;
       RETURN;
     END IF;
   END IF;
 
-  IF v_req.status IN ('pending', 'failed') THEN
-    UPDATE public.refund_requests
-       SET status = 'approved',
-           approved_by_auth_user_id = p_actor_auth_user_id,
-           approved_at = now()
-     WHERE id = v_req.id;
-    RETURN QUERY SELECT 'claimed'::text, v_req.kind, v_req.stripe_payment_intent_id,
-      v_req.stripe_checkout_session_id, v_req.amount_cents, v_req.reason, NULL::text;
+  SELECT * INTO v_attempt
+    FROM public.refund_request_attempts a
+   WHERE a.request_id = v_req.id AND a.status = 'pending';
+  IF v_attempt.id IS NOT NULL THEN
+    RETURN QUERY SELECT 'resume'::text, v_attempt.id, v_attempt.attempt_no, v_req.kind,
+      v_req.stripe_payment_intent_id, v_req.stripe_checkout_session_id, v_req.amount_cents,
+      v_req.reason, v_attempt.stripe_refund_id;
     RETURN;
   END IF;
 
-  -- 'approved': a previous approval crashed, or its refund is still in flight.
-  -- Resuming is safe — the edge function reuses the live refund stamped with
-  -- this request id, and Stripe's idempotency key covers a live race.
-  RETURN QUERY SELECT 'resume'::text, v_req.kind, v_req.stripe_payment_intent_id,
-    v_req.stripe_checkout_session_id, v_req.amount_cents, v_req.reason, NULL::text;
+  SELECT COALESCE(max(a.attempt_no), 0) + 1 INTO v_next
+    FROM public.refund_request_attempts a
+   WHERE a.request_id = v_req.id;
+
+  INSERT INTO public.refund_request_attempts AS a
+    (request_id, attempt_no, approved_by_auth_user_id)
+  VALUES (v_req.id, v_next, p_actor_auth_user_id)
+  RETURNING a.* INTO v_attempt;
+
+  RETURN QUERY SELECT 'claimed'::text, v_attempt.id, v_attempt.attempt_no, v_req.kind,
+    v_req.stripe_payment_intent_id, v_req.stripe_checkout_session_id, v_req.amount_cents,
+    v_req.reason, NULL::text;
 END;
 $$;
 
-CREATE OR REPLACE FUNCTION public.complete_refund_request(
-  p_request_id uuid,
-  p_stripe_refund_id text
-)
-RETURNS boolean
-LANGUAGE plpgsql
-SECURITY DEFINER
+-- Never move a settled attempt back to 'pending': a delayed write carrying an
+-- older 'pending' must not undo what Stripe already reported.
+CREATE OR REPLACE FUNCTION public.refund_attempt_next_status(p_current text, p_reported text)
+RETURNS text
+LANGUAGE sql
+IMMUTABLE
 SET search_path = ''
 AS $$
-DECLARE
-  v_updated integer;
-BEGIN
-  IF p_stripe_refund_id IS NULL THEN
-    RAISE EXCEPTION 'complete_refund_request: a Stripe refund id is required'
-      USING errcode = '22023';
-  END IF;
-
-  -- Only once Stripe reports the refund SUCCEEDED, and only for the refund
-  -- the request is waiting on (or any, if none was recorded yet).
-  UPDATE public.refund_requests
-     SET status = 'refunded',
-         stripe_refund_id = p_stripe_refund_id,
-         refunded_at = now()
-   WHERE id = p_request_id
-     AND status = 'approved'
-     AND (stripe_refund_id IS NULL OR stripe_refund_id = p_stripe_refund_id);
-  GET DIAGNOSTICS v_updated = ROW_COUNT;
-
-  IF v_updated = 1 THEN
-    RETURN true;
-  END IF;
-  -- A repeat completion with the same refund is a benign no-op.
-  RETURN EXISTS (SELECT 1 FROM public.refund_requests r
-                  WHERE r.id = p_request_id
-                    AND r.status = 'refunded'
-                    AND r.stripe_refund_id = p_stripe_refund_id);
-END;
+  SELECT CASE
+    WHEN p_reported = 'pending' AND p_current <> 'pending' THEN p_current
+    ELSE p_reported
+  END
 $$;
 
--- An approved refund Stripe has not settled yet (pending / requires_action):
--- record it, keep the request 'approved' and in the queue.
-CREATE OR REPLACE FUNCTION public.note_refund_request_in_flight(
-  p_request_id uuid,
-  p_stripe_refund_id text
-)
-RETURNS boolean
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-DECLARE
-  v_updated integer;
-BEGIN
-  IF p_stripe_refund_id IS NULL THEN
-    RAISE EXCEPTION 'note_refund_request_in_flight: a Stripe refund id is required'
-      USING errcode = '22023';
-  END IF;
-  UPDATE public.refund_requests
-     SET stripe_refund_id = p_stripe_refund_id
-   WHERE id = p_request_id
-     AND status = 'approved';
-  GET DIAGNOSTICS v_updated = ROW_COUNT;
-  RETURN v_updated = 1;
-END;
-$$;
-
--- Stripe failed or canceled the refund (refund.failed / refund.updated, or at
--- creation): back to the approval queue with the reason. Acts only while the
--- request still holds THIS refund or none yet, so a late failure of an OLD
--- dead attempt never reopens a newer refund. 'refunded' is included because
--- a succeeded refund can still fail later.
-CREATE OR REPLACE FUNCTION public.fail_refund_request(
-  p_request_id uuid,
+-- The approval records the Stripe refund on ITS attempt only:
+--   recorded                  written (the id the first time, then status)
+--   refund_on_other_attempt   that Stripe refund belongs to another attempt
+--   attempt_has_other_refund  this attempt already holds a different refund
+--   not_found
+CREATE OR REPLACE FUNCTION public.record_refund_attempt(
+  p_attempt_id uuid,
   p_stripe_refund_id text,
-  p_reason text
+  p_status text,
+  p_failure_reason text DEFAULT NULL
 )
-RETURNS boolean
+RETURNS text
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
 DECLARE
-  v_updated integer;
+  v_attempt public.refund_request_attempts%ROWTYPE;
+  v_status text;
 BEGIN
-  IF p_stripe_refund_id IS NULL OR p_reason IS NULL THEN
-    RAISE EXCEPTION 'fail_refund_request: a Stripe refund id and a reason are required'
+  IF p_stripe_refund_id IS NULL OR p_status NOT IN ('pending', 'succeeded', 'failed', 'canceled') THEN
+    RAISE EXCEPTION 'record_refund_attempt: a Stripe refund id and a Stripe status are required'
       USING errcode = '22023';
   END IF;
-  UPDATE public.refund_requests
-     SET status = 'failed',
-         stripe_refund_id = NULL,
-         refunded_at = NULL,
-         last_failure = p_reason
-   WHERE id = p_request_id
-     AND status IN ('approved', 'refunded')
-     AND (stripe_refund_id IS NULL OR stripe_refund_id = p_stripe_refund_id);
-  GET DIAGNOSTICS v_updated = ROW_COUNT;
-  RETURN v_updated = 1;
+
+  SELECT * INTO v_attempt
+    FROM public.refund_request_attempts a
+   WHERE a.id = p_attempt_id
+   FOR UPDATE;
+  IF v_attempt.id IS NULL THEN
+    RETURN 'not_found';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.refund_request_attempts a
+              WHERE a.stripe_refund_id = p_stripe_refund_id AND a.id <> p_attempt_id) THEN
+    RETURN 'refund_on_other_attempt';
+  END IF;
+  IF v_attempt.stripe_refund_id IS NOT NULL
+     AND v_attempt.stripe_refund_id <> p_stripe_refund_id THEN
+    RETURN 'attempt_has_other_refund';
+  END IF;
+
+  v_status := public.refund_attempt_next_status(v_attempt.status, p_status);
+  UPDATE public.refund_request_attempts a
+     SET stripe_refund_id = p_stripe_refund_id,
+         status = v_status,
+         failure_reason = CASE WHEN v_status IN ('failed', 'canceled')
+                               THEN COALESCE(p_failure_reason, a.failure_reason) END,
+         updated_at = now()
+   WHERE a.id = p_attempt_id
+     AND (a.stripe_refund_id IS NULL OR a.stripe_refund_id = p_stripe_refund_id);
+  RETURN 'recorded';
+END;
+$$;
+
+-- stripe-webhook: apply Stripe's CURRENT status for one refund to the attempt
+-- that owns it, and to nothing else. A refund no attempt owns is 'not_found'
+-- (logged and ignored by the caller). live_attempts counts the request's
+-- pending/succeeded attempts after the write; above 1 means two refunds are
+-- live for one request.
+CREATE OR REPLACE FUNCTION public.settle_refund_attempt(
+  p_stripe_refund_id text,
+  p_status text,
+  p_failure_reason text DEFAULT NULL
+)
+RETURNS TABLE (
+  outcome text,
+  request_id uuid,
+  attempt_status text,
+  request_status text,
+  live_attempts integer
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+#variable_conflict use_column
+DECLARE
+  v_attempt public.refund_request_attempts%ROWTYPE;
+  v_status text;
+  v_outcome text;
+BEGIN
+  IF p_stripe_refund_id IS NULL OR p_status NOT IN ('pending', 'succeeded', 'failed', 'canceled') THEN
+    RAISE EXCEPTION 'settle_refund_attempt: a Stripe refund id and a Stripe status are required'
+      USING errcode = '22023';
+  END IF;
+
+  SELECT * INTO v_attempt
+    FROM public.refund_request_attempts a
+   WHERE a.stripe_refund_id = p_stripe_refund_id
+   FOR UPDATE;
+  IF v_attempt.id IS NULL THEN
+    RETURN QUERY SELECT 'not_found'::text, NULL::uuid, NULL::text, NULL::text, NULL::integer;
+    RETURN;
+  END IF;
+
+  v_status := public.refund_attempt_next_status(v_attempt.status, p_status);
+  IF v_status = v_attempt.status THEN
+    v_outcome := 'unchanged';
+  ELSE
+    v_outcome := 'updated';
+    UPDATE public.refund_request_attempts a
+       SET status = v_status,
+           failure_reason = CASE WHEN v_status IN ('failed', 'canceled')
+                                 THEN COALESCE(p_failure_reason, a.failure_reason) END,
+           updated_at = now()
+     WHERE a.id = v_attempt.id;
+  END IF;
+
+  RETURN QUERY
+    SELECT v_outcome, r.id, v_status, r.status,
+           (SELECT count(*)::integer FROM public.refund_request_attempts a
+             WHERE a.request_id = r.id AND a.status IN ('pending', 'succeeded'))
+      FROM public.refund_requests r
+     WHERE r.id = v_attempt.request_id;
 END;
 $$;
 
@@ -492,21 +633,21 @@ REVOKE ALL ON FUNCTION public.claim_abandoned_cart_refund(uuid, text, text, inte
   FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.request_refund_approval(text, text, text, integer, text, jsonb, uuid, uuid, uuid)
   FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.claim_refund_request_approval(uuid, uuid)
+REVOKE ALL ON FUNCTION public.begin_refund_attempt(uuid, uuid)
   FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.complete_refund_request(uuid, text)
+REVOKE ALL ON FUNCTION public.refund_attempt_next_status(text, text)
   FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.note_refund_request_in_flight(uuid, text)
+REVOKE ALL ON FUNCTION public.record_refund_attempt(uuid, text, text, text)
   FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.fail_refund_request(uuid, text, text)
+REVOKE ALL ON FUNCTION public.settle_refund_attempt(text, text, text)
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.claim_abandoned_cart_refund(uuid, text, text, integer, jsonb)
   TO service_role;
 GRANT EXECUTE ON FUNCTION public.request_refund_approval(text, text, text, integer, text, jsonb, uuid, uuid, uuid)
   TO service_role;
-GRANT EXECUTE ON FUNCTION public.claim_refund_request_approval(uuid, uuid) TO service_role;
-GRANT EXECUTE ON FUNCTION public.complete_refund_request(uuid, text) TO service_role;
-GRANT EXECUTE ON FUNCTION public.note_refund_request_in_flight(uuid, text) TO service_role;
-GRANT EXECUTE ON FUNCTION public.fail_refund_request(uuid, text, text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.begin_refund_attempt(uuid, uuid) TO service_role;
+GRANT EXECUTE ON FUNCTION public.refund_attempt_next_status(text, text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.record_refund_attempt(uuid, text, text, text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.settle_refund_attempt(text, text, text) TO service_role;
 
 COMMIT;

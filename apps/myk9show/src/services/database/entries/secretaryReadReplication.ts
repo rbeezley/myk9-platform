@@ -20,6 +20,7 @@ import {
   type ReplicatedTrial,
 } from '@/services/replication/ReplicatedTrialsTable';
 import { buildMapFromArray } from '../_shared/maps';
+import { resolveEntryArmband } from '@/features/_shared/entryArmband';
 import { getTrialTimezone } from '@/features/registries';
 import { projectEntryHandlerIdentity } from './entryHandlerProjection';
 import { loadHandlerPeople, type HandlerPersonRow } from './handlerHydration';
@@ -212,11 +213,10 @@ export function toSecretaryEntry(
   const trial = trialId ? (trialsMap.get(trialId) ?? null) : null;
   const pullMetadata = pullMetadataMap.get(entry.id) ?? null;
   const handler_identity = projectEntryHandlerIdentity(entry, handlerIdentityPeopleMap);
-  const armband =
-    entry.armband ??
-    armbandsByEntryId.get(entry.id)?.armbandNumber ??
-    (dogId ? armbandsByDogId.get(dogId)?.armbandNumber : undefined) ??
-    null;
+  const armband = resolveEntryArmband(
+    { id: entry.id, dogId, armband: entry.armband },
+    { byEntryId: armbandsByEntryId, byDogId: armbandsByDogId }
+  );
   const createdAt =
     stringFrom(replicatedField(entry, 'createdAt', 'created_at')) ?? entry.submittedAt ?? null;
   const updatedAt =

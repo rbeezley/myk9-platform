@@ -2,19 +2,16 @@
 
 **Status:** `active`
 **Audience:** Trial secretaries
-**Last verified:** 2026-08-30 — walked in a browser, screenshots recaptured against `main`
-**Verified by:** the secretary task walk (`docs/audits/2026-08-28-secretary-task-walk.md`) and its 2026-08-29 verification pass
+**Last verified:** 2026-10-03 — every card's path and button label checked against the code on `main` after the four-tab show home (MYK9-957) and the layout A class cards (#2698). The previous browser walk was 2026-08-30.
+**Verified by:** the secretary task walk (`docs/audits/2026-08-28-secretary-task-walk.md`), its 2026-08-29 verification pass, and a 2026-10-03 label-by-label code check
 
-> **What "verified" covers here.** Each card's path was opened on staging and its controls
-> confirmed present. Two flows could not be exercised end to end on the demo data and are
-> described from their surfaces only: promoting someone off the wait list (nobody is
-> waitlisted there) and submitting results to a registry (that is a real submission).
+> **What "verified" covers here.** On 2026-10-03 each card's path, tab and button label was
+> checked against the current code. Two flows have still never been exercised end to end on
+> real data: promoting someone off the wait list (MYK9-971 walks it) and submitting results to
+> a registry (that is a real submission).
 
-> **About the screenshots.** Recaptured 2026-08-30 against the current UI. The previous
-> set predated the workbench collapsing into Show Desk and showed screens that no longer
-> exist; those sixteen files are deleted rather than left to be reused by mistake. Shots
-> are placed only where a picture settles "which screen am I even on" — the rest of the
-> guide is deliberately text, because words survive a UI change and pictures do not.
+> **About the screenshots.** The screenshots below predate the October 2026 show home and are
+> being regenerated. Where a screenshot and the words disagree, the words are current.
 
 > **How this guide is organised.** One card per job, in the order you'll do them. Each card tells you where to go, what to do, and what to watch for. If you only need one thing, jump to its card — they don't depend on each other.
 
@@ -28,19 +25,30 @@
 
 Open a show and you get **one row of four tabs**. Everything in this guide lives on one of them:
 
-| Tab          | What it is                                                                                                                    |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| **Overview** | Your show home: the schedule by trial and day, each class's work and checklist, setting up trials and classes, and **Tools**. |
-| **Entries**  | Everything to do with entries: who's in, who's paid, who's waiting, who pulled out.                                           |
-| **Results**  | Reviewing and releasing results, submitting them to the organization, then closing the show.                                  |
-| **Reports**  | Printing: labels, check-in sheets, score sheets, catalogs and organization reports.                                           |
+| Tab          | What it is                                                                                                                                                 |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Overview** | Your show home: a **Needs attention** strip, the schedule by trial and day, and the selected class's panel with its status, timing, checklist and actions. |
+| **Entries**  | Everything to do with entries, in view tabs: Needs review, Missing info, Payment due, All, Waitlist, Pulls, Move-ups.                                      |
+| **Results**  | Three steps: review and release results, submit them to the registry, then close the show.                                                                 |
+| **Reports**  | Printing: labels, check-in sheets, score sheets, catalogs and registry reports.                                                                            |
 
-Most day-of jobs live behind **Overview → Tools**.
+**Overview → Tools** holds the rest, in two groups:
+
+| Show day                                                                    | Show logistics                                        |
+| --------------------------------------------------------------------------- | ----------------------------------------------------- |
+| **People at show** — look up exhibitors, armbands and check-in status       | **Volunteers** — helper assignments and gaps          |
+| **Self check-in** — turn exhibitor self check-in on by show, trial or class | **Judge hospitality** — meals, breaks, show-day notes |
+| **Access codes** — judge and ringside codes                                 | **Tasks and notes** — show-specific reminders         |
+| **Emergency trial packet** — the printed paper fallback                     | **Incident log** — record incidents while fresh       |
+
+### Reading the schedule
+
+Each class on **Overview** is one card: the start time, the class name with its status, the judge and entry count, and a row of small squares — one per checklist item (green done, grey not done, amber needs reprint, outlined unknown) — over "N of 7 done". **Click anywhere on a card** to open that class in the panel on the right. The "N pending" link on the card opens those entries for review.
 
 > **Changed, October 2026.** Setup and Show Day are now part of **Overview** — one view before,
 > during and after the show. Show closeout is the last step of **Results**, and adding entries
 > (including late entries) lives on **Entries**. Old bookmarks still work — they redirect to the
-> matching place. Screenshots below still show the previous layout and are being regenerated.
+> matching place.
 
 ---
 
@@ -56,37 +64,43 @@ The wizard creates all three in one pass. **Dashboard → Add Show.**
 2. **⚠️ Also on Step 1: add every judge** in the _Show Judges_ field. It looks optional. It is not — see the warning below.
 3. **Step 2 — Trials.** One row per trial: date, time, and (for AKC) the event number.
 4. **Step 3 — Classes.** Pick a template, then tick the classes each trial offers. Assign a judge per class.
-5. **Step 4 — Review.** Check the summary, then **Add Show**. The show stays private until you publish it from the show page.
+5. **Step 4 — Review.** Check the summary, then **Add Show**. The show stays private until you publish it (card 2).
 
 > **Adding your judges on Step 1 is still the smoothest path**, but no longer a trap: if you reach Step 3 without any, it now offers a way back to add them.
 
 > **Entries closing on the show's first day is allowed** — normal for day-of entry.
 
-## 2 · Edit a show, or reassign a judge
+## 2 · Publish the show
 
-- **Show details:** open the show → **Actions → Edit show** (the Actions button sits in the top bar, left of the bell; on a phone it is the lightning icon). The edit panel opens over the section you are on.
-- **Add a judge to the show:** on the show page, choose **Edit**, then use the **Judges** tab.
+On the show page, open the **status pill** in the header and choose **Publish Show**. Exhibitors can find and enter the show once it is published.
+
+> Publishing needs the club's Stripe payouts set up. If it is refused, the message says what is missing.
+
+## 3 · Edit a show, or reassign a judge
+
+- **Show details:** **Actions → Edit show** (the Actions button sits in the top bar, left of the bell; on a phone it is the lightning icon), or **Edit show** on the _About this show_ bar. The edit panel opens over the section you are on, with tabs **Basic Info**, **Officials**, **Judges** and **Fees**.
+- **Add a judge to the show:** open **Edit show**, then the **Judges** tab.
 - **Add classes to a show that already exists:** on **Overview**, choose **Add Classes** on the trial's heading (or on the trial's own page). The wizard opens on the **Classes** step with Show Details and Trials locked, because you are only adding classes. To add a trial instead, use **Add Trial** at the top of **Overview**.
-- **Edit or delete a trial or class:** on **Overview**, open the **⋮** menu on a trial's heading and choose **Edit Trial** or **Delete Trial**; for a class, click it and use **Edit class** or **Delete class** in its panel. They open the same edit panel and confirmation you get on the trial's or class's own page. Deleting a trial or class also deletes its entries, so read the confirmation before you accept it.
+- **Edit or delete a trial or class:** on **Overview**, open the **⋮** menu on a trial's heading and choose **Edit Trial** or **Delete Trial**; for a class, click it and use **Edit class** or **Delete class** in its panel. Deleting a trial or class also deletes its entries, so read the confirmation before you accept it.
 - **Change a class's judge, or several classes at once:** **Overview → Select classes**, then the judge dropdown on that class's row. To set many classes in one trial to the same status, export them or delete them, tick their checkboxes and use the bar that appears. **Done** returns you to the schedule.
 
-> A class's judge dropdown only offers judges already attached to the show. If the one you want isn't listed, add them on the Judges tab first, then come back.
+> A class's judge dropdown only offers judges already attached to the show. If the one you want isn't listed, add them on the **Judges** tab first, then come back.
 
 ---
 
 # Taking entries
 
-## 3 · Approve or accept online entries
+## 4 · Approve or accept online entries
 
 **Entries → Needs review.** Each registration shows the dog, the entry count, and payment status. Choose **Review registration** to accept, decline, or ask for a correction.
 
 ![Entry Management with the Needs review queue selected and Review registration on each row](../screenshots/S-07.png)
 
-The **Show:** menu across the top lists the queues — _Needs review_, _Missing info_, _Payment due_, _All_ — with the count of each in brackets, so you can see what's waiting. A short sentence under the filters says how many you're looking at ("Showing 12 of 214 registrations."); choose **Show all registrations** to get back to everything.
+The view tabs across the top — _Needs review_, _Missing info_, _Payment due_, _All_ — show the count of each, so you can see what's waiting. A short sentence under them says how many you're looking at.
 
-## 4 · Enter a mail-in or paper entry
+## 5 · Add a mail-in entry
 
-**Entries → Add entry for someone else.** Pick the dog and handler (or create them), choose classes, and record payment.
+**Entries → Add Entry → Add entry for someone else.** Pick the dog and handler (or create them), choose classes, and record payment. (**Add entry for my dog** is for entering your own dog.)
 
 > This works **after entries close** — you're the trial secretary, so the deadline doesn't block you.
 
@@ -101,48 +115,49 @@ The **Show:** menu across the top lists the queues — _Needs review_, _Missing 
 > The payment reference you enter shows on the registration's card in **Entries**,
 > so you can look a cheque number up later.
 
-## 5 · Take a late or walk-in entry on show day
+## 6 · Take a late or walk-in entry on show day
 
 **Entries → Add Entry → Add late entry.** Same flow as entering for someone else.
 
-## 6 · Manage the waitlist
+## 7 · Manage the waitlist
 
-**Entries → Exceptions → Waitlist.**
+**Entries → Waitlist.**
 
-![Entry Management Exceptions tab with the waitlist selected](../screenshots/S-10.png)
+![Entry Management with the waitlist selected](../screenshots/S-10.png)
 
 1. Each judge-day shows as a card — the judge's name, the date, and how full it is.
 2. **View Wait List** on a card opens that judge-day's queue, filtered to the class.
 3. When a spot opens, offer it from that queue in the order people joined.
 
-> Capacity is displayed, not enforced. A judge-day can read over its limit (e.g. "130 / 125 entries"); the number is telling you the truth, not warning you of a bug.
+> The offer step has not yet been walked end to end on real data. MYK9-971 is that walk, and
+> this card will be re-verified then — including how full a judge-day may read.
 
-## 7 · Handle scratches, pulls, and no-shows
+## 8 · Handle pulls, scratches and refunds
 
-**Entries → Exceptions → Pulls / scratches.**
+**Entries → Pulls** (the page heading reads _Pull Management_).
 
-Pending and pulled queues sit together. On each pulled entry, record what you decided:
+Pending and pulled entries sit together. Each pulled entry shows one of:
 
-- **Refund issued** — you refunded them.
-- **Deny refund** — you did not, per your published policy.
+- **Issue refund** — opens _Refund entry payment_; its **Issue refund** button refunds the exhibitor's card through Stripe straight away ("Refunded $X to the exhibitor's card").
+- **Deny refund** — records that you did not refund, per your published policy. No money moves.
+- **Refund issued** — a label, not a button: this entry has already been refunded.
+- **No online payment** — nothing to refund through Stripe (paid by cash or check, for example). Refund those by hand.
 
-> Recording the decision is what keeps the closeout totals honest, so do it as you go rather than at the end.
+> Record a decision on every pulled entry as you go. Closeout counts pulls with no decision as a concern.
 
-## 8 · Email your exhibitors
+> Refunds the system queues on its own (an overfilled cart, a payment link, an abandoned cart) are different: since October 2026 they wait for a site administrator to approve them. A secretary's **Issue refund** is not queued — it refunds immediately.
 
-**Message Center** — the button in the header, not the Messages page.
+## 9 · Email your exhibitors
 
-1. Open **Message Center**.
-2. Compose the message and choose who it goes to — the whole show, or a class.
+**Message Center** — the bell icon in the header.
+
+1. Open **Message Center** and choose **Compose**.
+2. Write the message and choose who it goes to — the whole show, or a class. When you open it from a show's pages, that show is already picked.
 3. Send the message.
 
-> **The Messages page is history only.** It shows what has been sent; you cannot start a message from it. Composing happens in the header panel.
+## 10 · Payments
 
-> **Check the show before you send.** The composer does not pick up the show you were looking at, so confirm the recipients are the ones you meant.
-
-## 9 · Payments and refunds
-
-Payment status shows on every registration row in **Entries**, and refunds are reconciled in the **Pulls / scratches** queue.
+Payment status shows on every registration row in **Entries**; **Entries → Payment due** lists the ones still owing.
 
 > **The label tells you how it was paid, when the app knows.** An entry recorded as a cheque reads **Paid by check**, cash reads **Paid by cash**, and one you marked paid yourself reads **Paid — recorded by secretary**.
 >
@@ -152,43 +167,72 @@ Payment status shows on every registration row in **Entries**, and refunds are r
 
 # Getting ready for show day
 
-## 10 · Set the run order
+## 11 · Set the run order
 
 **Overview → click the class → Run order.**
 
-![Show Desk focused class showing the Run order control and Move up on each entry](../screenshots/S-15.png)
+![Focused class showing the Run order control and Move up on each entry](../screenshots/S-15.png)
 
-Choose **Armband ↑**, **Armband ↓**, or **Random**. The order applies immediately and appears on check-in sheets and at ringside.
+Choose **Armband ↑**, **Armband ↓**, or **Random**. The order applies immediately and appears on check-in sheets and at ringside. The menu appears once a class has two or more entries.
 
 > You can also reach this from a class's page — **Set run order** takes you straight to that class on **Overview**.
 
-> **Known limitation:** there's no drag-and-drop yet, so you can't hand-place one dog into a specific slot. The three presets above are all that's available.
+> **Known limitation:** you can't hand-place one dog into a specific slot yet (MYK9-972). The three presets above are all that's available.
 
-## 11 · Print check-in sheets
+## 12 · Print check-in sheets
 
 **Reports → Check-in Sheet.** Scope it to a trial or a single class, then print. Columns are Gate Order, Armband, Call Name, Breed, and Handler.
 
 ![Reports page with Check-in Sheet chosen and the trial, class and sort controls](../screenshots/S-12.png)
 
-## 12 · Print scoresheets
+## 13 · Print scoresheets
 
 **Reports → Score Sheet.** One page per dog, with the registry's own fault and scoring layout.
 
 > Your registry may have its own named version — **UKC Nosework Trial Score Sheet**, **ASCA Scent Detection Score Sheet**. Pick the one matching the trial's registry.
 
-## 13 · Ringside access codes
+## 14 · Track each class's paperwork
 
-**Overview → Tools → Access codes.** Separate codes for Admin, Judge, Steward, and Exhibitor. Copy a code, copy a share link, print a slip, or regenerate if a code gets out.
+**Overview → click the class → Class checklist.** Seven items: Check-in sheet, Score sheets, Class started, Scoring complete, Preliminary results, Ribbon labels, and Judge signature collected. The squares on the class's schedule card mirror it.
 
-## 14 · Volunteer scheduling
+- Print items have **Print** (or **Reprint**) and **Record as printed** — use the second when you printed outside the app, so the checklist knows.
+- An item that changed after printing reads **Needs reprint** (an amber square) — for example score sheets after a move-up.
+- Items can be done in any order; nothing blocks anything else.
 
-**Overview → Tools → Volunteers.** Add volunteers and assign them to per-class slots grouped by trial.
+## 15 · Ringside access codes
+
+**Overview → Tools → Access codes.** Separate codes for Admin, Judge, Steward, and Exhibitor. Copy a code, copy a share link, print a slip, or generate new codes if one gets out.
+
+## 16 · Volunteers, judge hospitality, and the paper fallback
+
+All under **Overview → Tools**:
+
+- **Volunteers** — add volunteers and assign them to per-class slots grouped by trial.
+- **Judge hospitality** — judge meals, breaks and show-day notes.
+- **Tasks and notes** — reminders for this show.
+- **Emergency trial packet** — prepare or confirm the printed paper fallback, in case devices or signal fail on the day.
 
 ---
 
 # Show day
 
-## 15 · Move a dog up
+## 17 · Run a class: status, start time, delays
+
+**Overview → click the class.** At the top of its panel:
+
+- **Status** — Not started, In progress, Complete, or Cancelled. Marking a class complete with scores still unentered asks you to confirm.
+- **Expected start → Set expected start** — a revised start time when a class runs late or early.
+- **Announce the delay** — appears before a class starts when it is running late; it opens the delay message already filled in with the class and the minutes.
+
+## 18 · Check dogs in
+
+To check in an exhibitor's dog:
+
+- **Overview → Tools → People at show** — look the exhibitor up, then **Check in** (or **Check in all eligible**).
+- Or for one class: **Overview → click the class → View entries and results** opens the class's run sheet, with a check-in status on every dog's row.
+- **Overview → Tools → Self check-in** lets exhibitors check themselves in, by show, trial or class.
+
+## 19 · Move a dog up
 
 **Overview → click the class → Entries → Move up** on that dog's row.
 
@@ -196,29 +240,29 @@ Choose the target class and give a reason. Targets are restricted to the same el
 
 > The original entry stays on the books as _moved_ and keeps its fee; the new entry is created at no extra charge.
 
-> An exhibitor can also _request_ a move-up before the show. Those arrive in **Entries → Exceptions → Move-ups** for you to approve, deny, or waitlist.
+> An exhibitor can also _request_ a move-up before the show. Those arrive in **Entries → Move-ups** for you to approve, deny, or waitlist.
 
-## 16 · Check dogs in
+## 20 · Enter results from paper scoresheets
 
-To check in an exhibitor's dog: **Overview → click the class → Enter paper scores** shows the run sheet, with a check-in control on every dog's row.
+**Overview → click the class → Enter paper scores.**
 
-## 17 · Enter results from paper scoresheets
-
-Same run sheet: **Overview → click the class → Enter paper scores.**
-
-Per dog, record Q / NQ / ABS / EX, the search time, and any faults. Search time is digit-masked — type `4520` for 45.20 seconds.
+Per dog, record the result (Q, NQ, ABS, EX), the search time, and any faults. Search time is digit-masked — type `4520` for 45.20 seconds.
 
 > Placements are calculated for you once every dog in the class is scored. You don't enter them.
 
-## 18 · Print the results sheet
+## 21 · Log an incident
 
-**Reports → Results Sheet.** Element, level, trial, date, and judge, with each dog's result and placement.
+**Overview → Tools → Incident log.** Record what happened while the details are fresh. Closeout reads the log and lists reportable incidents as a concern.
+
+## 22 · Print the results sheet
+
+**Reports → Results Sheet** (or **Print** on the class's _Preliminary results_ checklist item). Element, level, trial, date, and judge, with each dog's result and placement.
 
 ---
 
 # After the show
 
-## 19 · Release results to exhibitors
+## 23 · Release results to exhibitors
 
 **Results → Review & release.**
 
@@ -228,9 +272,9 @@ Each class can release its results **Immediately**, **After Class**, **After Rev
 
 > This is what decides whether an exhibitor can see a score yet. If results are not appearing for exhibitors, this is the first place to look — a class set to _After Review_ stays hidden until you review it.
 
-> Closeout expects results to be released, so set this before card 22.
+> Closeout expects results to be released, so set this before card 26.
 
-## 20 · Submit results to the registry
+## 24 · Submit results to the registry
 
 **Results → Submit to registry.** Submitting is the second step of the Results tab, not a page of its own. What you see here depends on the registry.
 
@@ -250,7 +294,7 @@ Each class can release its results **Immediately**, **After Class**, **After Rev
 
 > **Mark as submitted records _your_ action** — it does not confirm the registry received anything. Keep their acknowledgement as your proof.
 
-## 21 · Registry reports
+## 25 · Registry reports
 
 **Reports**, filtered to your registry. The main ones:
 
@@ -258,23 +302,23 @@ Each class can release its results **Immediately**, **After Class**, **After Rev
 | -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | All      | Steward's Report · Financial Report                                                                                                                                    |
 | AKC      | AKC Trial Secretary Report · AKC Trial Secretary Certification · AKC Trial Chairman Report · AKC Judge's Report · AKC Judge's Certification Report · AKC High in Trial |
-| ASCA     | Trial Report · Trial Roster · Gross Receipts Report · Post-Event Evaluation                                                                                            |
-| UKC      | Judges Book: Element Trial · Judges Book: Handler Discrimination                                                                                                       |
+| ASCA     | ASCA Scent Detection Trial Report · Trial Roster · Gross Receipts Report · Post-Event Evaluation                                                                       |
+| UKC      | UKC Nosework Trial Report · UKC Nosework Judges Book: Element Trial · UKC Nosework Judges Book: Handler Discrimination                                                 |
 
 Each renders the registry's own instructions and layout.
 
-## 22 · Close out the show
+## 26 · Close out the show
 
 **Results → Close the show.**
 
 1. Read the reconciliation — entries, day-of entries, collected at the show, waived, and pulled or no-show — and check the totals match what you took.
-2. Choose **Close Out Show** and confirm.
+2. Choose **Close out show** and confirm.
 
-> If the readiness check has concerns, the confirm button reads **Close anyway**. That's your decision to make, but read what it's flagging first — it's usually results not released, or pulls with no refund decision recorded.
+> If the readiness check has concerns, the confirm button reads **Close anyway**. That's your decision to make, but read what it's flagging first — it's usually results not released, pulls with no refund decision recorded, or reportable incidents.
 
 > **The show stays open until you do this.** Reading the summary is not closing the show.
 
-## 23 · High in Trial
+## 27 · High in Trial
 
 **Reports → AKC High in Trial**, then narrow it to a trial. AKC trials only.
 
@@ -288,9 +332,9 @@ The report works out who is eligible and ranks them for you. One section per dif
 
 > **Wait for PROVISIONAL to clear.** While any entry at that level has no result, the level is labelled provisional and the standing can still change. Don't hand out the trophy until it's gone.
 
-> Per-class placements (1–4) are calculated separately and automatically — see card 17.
+> Per-class placements (1–4) are calculated separately and automatically — see card 20.
 
-> **High Combined Division is not calculated.** If you offer Handler Discrimination alongside High in Trial, AKC requires you to confer HCD as well, and you'll need to work that one out by hand.
+> **High Combined Division is not calculated** (MYK9-973). If you offer Handler Discrimination alongside High in Trial, AKC requires you to confer HCD as well, and you'll need to work that one out by hand.
 
 ---
 
@@ -298,12 +342,11 @@ The report works out who is eligible and ranks them for you. One section per dif
 
 Honest list, so nothing surprises you mid-show.
 
-| What                                | Status                                                                                                                                         |
-| ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| High Combined Division (HCD)        | Not built — calculate by hand when you offer Handler Discrimination (card 23)                                                                  |
-| Hand-placing a dog in the run order | Not built — presets only (card 10)                                                                                                             |
-| Emailing exhibitors                 | Works, but the composer is in the **Message Center panel in the header**, not the Messages page, and it doesn't pick up the show you came from |
-| Wait-list capacity                  | Displayed, not enforced (card 6)                                                                                                               |
+| What                                | Status                                                                                  |
+| ----------------------------------- | --------------------------------------------------------------------------------------- |
+| High Combined Division (HCD)        | Not built — calculate by hand when you offer Handler Discrimination (card 27, MYK9-973) |
+| Hand-placing a dog in the run order | Not built — presets only (card 11, MYK9-972)                                            |
+| Waitlist offers                     | Not yet walked end to end on real data (card 7, MYK9-971)                               |
 
 ---
 

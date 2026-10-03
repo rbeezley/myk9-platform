@@ -337,6 +337,19 @@ describe('supabase-types-drift.sh', () => {
     expect(result.summary).toMatch(/^-.*not {2}ready/m);
   });
 
+  it('reports drift when only the spacing after an escaped quote in a literal changes', () => {
+    const committed = types({
+      tables: { entries: 'Row: { status: "say \\"not  ready\\"" | "done" }' },
+    });
+    const generated = types({
+      tables: { entries: 'Row: { status: "say \\"not ready\\"" | "done" }' },
+    });
+    expect(committed).toContain('\\"not  ready\\"');
+    const result = run(committed, generated);
+    expect(result.status).toBe(1);
+    expect(result.summary).toMatch(/^-.*not {2}ready/m);
+  });
+
   describe('unparseable output is "could not compare", never "no drift"', () => {
     const good = types({ tables: { entries } });
 

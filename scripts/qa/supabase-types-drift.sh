@@ -43,77 +43,35 @@ not_a_verdict() { warn "did not run — $*"; echo "supabase-types-drift: $*" >&2
 
 [[ -f "$COMMITTED" ]] || not_a_verdict "committed file not found: $COMMITTED"
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 tmp="$(mktemp -d)"
 cleanup() { rm -r -f -- "$tmp"; }
 trap cleanup EXIT
 
 # The generator's layout is not schema. A different CLI version emits quoted
 # property names (`"graphql_public": {`) and different indentation, and the
-# object tracking below used to key on unquoted names at fixed indents, so an
+# object tracking below keys on unquoted names at fixed indents, so an
 # equivalent file read as hundreds of "committed but not live" objects
-# (MYK9-950: 405 false objects on PR #2675). Canonicalise both sides first:
-# unquote identifier-safe property keys (a key that needs quotes, like "a-b",
-# keeps them), trim and collapse whitespace, and re-indent by brace depth so
-# nesting level, not source spacing, is what the later steps read.
+# (MYK9-950: 405 false objects on PR #2675). Both sides go through the repo's
+# own Prettier with fixed options and no config: it is a real TypeScript
+# parser, so it unquotes identifier-safe property keys (keeping quotes where
+# required, like "a-b"), fixes indentation, and never touches the contents of
+# a string literal (an enum value's spacing or escaped quotes are schema).
 #
-# Output that cannot be parsed this way (no `Database` type, no schema block,
-# unbalanced braces from a truncated file) is "could not compare", never an
-# empty diff that reads as no drift.
+# Output Prettier cannot parse (truncated, an error message instead of types)
+# or that has no `Database` type or schema block is "could not compare", never
+# an empty diff that reads as no drift.
+PRETTIER="$ROOT/node_modules/.bin/prettier"
 normalize_layout() {
-  sed -E 's/"([A-Za-z_][A-Za-z0-9_]*)"(\??):/\1\2:/g' "$1" | awk '
-    # Collapse whitespace runs OUTSIDE quoted tokens only: a string literal
-    # (an enum value such as "not  ready") is schema, so its spacing is kept.
-    function collapse(str,    out, i, c, q, prev) {
-      out = ""; q = ""; prev = ""
-      for (i = 1; i <= length(str); i++) {
-        c = substr(str, i, 1)
-        if (q != "") {
-          out = out c
-          if (c == q) q = ""
-        } else if (c == "\"" || c == "\047") {
-          q = c; out = out c
-        } else if (c == " " || c == "\t") {
-          if (prev != " ") out = out " "
-        } else {
-          out = out c
-        }
-        prev = (q == "" && (c == " " || c == "\t")) ? " " : "x"
-      }
-      return out
-    }
-    function count(str, ch,    n, i) {
-      n = 0
-      for (i = 1; i <= length(str); i++) if (substr(str, i, 1) == ch) n++
-      return n
-    }
-    {
-      line = $0
-      gsub(/^[ \t]+|[ \t\r]+$/, "", line)
-      line = collapse(line)
-      if (line == "") { print ""; next }
-      bare = line
-      gsub(/"[^"]*"/, "", bare)
-      gsub(/\047[^\047]*\047/, "", bare)
-      opens = count(bare, "{"); closes = count(bare, "}")
-      lead = 0
-      while (substr(bare, lead + 1, 1) == "}") lead++
-      at = depth - lead
-      if (at < 0) { bad = 1; at = 0 }
-      pad = ""
-      for (i = 0; i < at; i++) pad = pad "  "
-      print pad line
-      depth += opens - closes
-      if (depth < 0) { bad = 1; depth = 0 }
-    }
-    END { if (bad || depth != 0) exit 3 }
-  '
+  [[ -x "$PRETTIER" ]] || return 3
+  "$PRETTIER" --no-config --parser typescript --quote-props as-needed --print-width 100 < "$1"
 }
 # The `Database` type and at least one schema header must be present.
 looks_parseable() {
   grep -q '^export type Database = {$' "$1" && grep -Eq '^  [A-Za-z0-9_]+: \{$' "$1"
 }
 normalize_or_stop() {
-  normalize_layout "$1" > "$2" || not_a_verdict "$3 output is not parseable (unbalanced braces, truncated?): $1"
+  normalize_layout "$1" > "$2" 2> "$tmp/prettier.err" || not_a_verdict "$3 output could not be parsed as TypeScript (truncated? Prettier at $PRETTIER): $1"
   looks_parseable "$2" || not_a_verdict "$3 output has no Database type or schema block: $1"
 }
 normalize_or_stop "$COMMITTED" "$tmp/committed.layout.ts" "committed"
@@ -132,7 +90,7 @@ if [[ -z "$GENERATED" ]]; then
   # reads as "live but not committed" (first run of #2193).
   schemas="$(awk '
     /^export type Database = \{$/ { inside = 1; next }
-    inside && /^\}$/               { exit }
+    inside && /^\};?$/             { exit }
     inside && /^  [A-Za-z0-9_]+: \{$/ && $1 != "__InternalSupabase:" { s = $1; sub(/:$/, "", s); print s }
   ' "$tmp/committed.layout.ts" | paste -sd, -)"
   [[ -n "$schemas" ]] || not_a_verdict "no schema headers found in $COMMITTED"
@@ -162,7 +120,7 @@ fi
 strip_platform_metadata() {
   awk '
     /^  __InternalSupabase: \{$/ { skip = 1; next }
-    skip && /^  \}$/             { skip = 0; next }
+    skip && /^  \};?$/           { skip = 0; next }
     skip                         { next }
     /^[[:space:]]*\/\// { next }
     { print }

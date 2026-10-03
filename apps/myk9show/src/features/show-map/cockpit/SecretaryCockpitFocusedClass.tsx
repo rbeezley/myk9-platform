@@ -69,9 +69,16 @@ export function SecretaryCockpitFocusedClass({
   const entryCount = sourceClass.entryCount ?? null;
   // "2 of 2 scored" already says how many entries; the bare count is only the
   // fallback when progress is unknown (owner, 2026-10-03).
+  // Same rule as the class card: before scoring can begin it would only read "0 of N".
+  const progress = focused.progress.value;
+  const scoringBegun =
+    progress !== null &&
+    (progress.completed > 0 ||
+      focused.lifecycle.value === 'in-progress' ||
+      focused.lifecycle.value === 'complete');
   const facts = [
-    focused.progress.value
-      ? `${focused.progress.value.completed} of ${focused.progress.value.total} scored`
+    scoringBegun
+      ? `${progress.completed} of ${progress.total} scored`
       : entryCount === null
         ? null
         : countLabel(entryCount, 'entry', 'entries'),
@@ -103,7 +110,7 @@ export function SecretaryCockpitFocusedClass({
           </h3>
           <dl className="grid grid-cols-[minmax(0,8.5rem)_minmax(0,1fr)] items-center gap-x-4 gap-y-3 p-4 text-sm">
             <dt className="text-muted-foreground">Status</dt>
-            <dd>
+            <dd className="min-w-0">
               <ClassStatusControl
                 classId={focused.id}
                 lifecycle={focused.lifecycle.value}
@@ -139,7 +146,7 @@ export function SecretaryCockpitFocusedClass({
               )}
             </dd>
             <dt className="text-muted-foreground">Actual timing</dt>
-            <dd className="font-medium">
+            <dd className="min-w-0 font-medium">
               {focused.actualStart.value
                 ? `Started ${formatTime(focused.actualStart.value, timeZone)}`
                 : // A class that ran without a recorded start must not claim it never started.
@@ -158,7 +165,7 @@ export function SecretaryCockpitFocusedClass({
             {canManageShow && runOrder && (
               <>
                 <dt className="text-muted-foreground">Run order</dt>
-                <dd>
+                <dd className="min-w-0">
                   <ShowMapRunOrderMenu
                     classId={focused.id}
                     classLabel={focused.name}

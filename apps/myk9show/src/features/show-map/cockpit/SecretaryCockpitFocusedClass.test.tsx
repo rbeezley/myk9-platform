@@ -337,8 +337,23 @@ describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
     expect(within(settings).getByText('Status')).toBeInTheDocument();
     expect(within(settings).getByText('Expected start')).toBeInTheDocument();
     expect(within(settings).getByText('Actual timing')).toBeInTheDocument();
-    expect(screen.getByText('0 of 8 scored')).toBeInTheDocument();
-    expect(screen.queryByText(/8 entries/)).toBeNull();
+  });
+
+  it('heads a started class with its scored count, not a redundant entry count', () => {
+    renderPanel(
+      { ...sourceClass, lifecycle: 'in-progress' },
+      { ...focused, lifecycle: { evidence: 'recorded', value: 'in-progress' } }
+    );
+    const facts = screen.getByRole('heading', { level: 2 }).nextElementSibling;
+    expect(facts).toHaveTextContent('0 of 8 scored');
+    expect(facts).not.toHaveTextContent('8 entries');
+  });
+
+  it('heads a class that has not started with its entry count, not "0 of N scored"', () => {
+    renderPanel(sourceClass);
+    const facts = screen.getByRole('heading', { level: 2 }).nextElementSibling;
+    expect(facts).toHaveTextContent('8 entries');
+    expect(facts).not.toHaveTextContent('scored');
   });
 
   it('says a class that ran has no recorded start, rather than "Not started"', () => {

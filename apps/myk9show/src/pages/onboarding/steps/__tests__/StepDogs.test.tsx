@@ -29,7 +29,7 @@ describe('StepDogs', () => {
     // Default mockSupabase.from returns [] — no dogs
     render(<StepDogs {...makeProps()} />);
     expect(await screen.findByTestId('step-dogs')).toBeInTheDocument();
-    expect(screen.getByText(/add a dog now or do it later/i)).toBeInTheDocument();
+    expect(screen.getByText(/do you show dogs\?/i)).toBeInTheDocument();
     expect(await screen.findByText(/no dogs added yet/i)).toBeInTheDocument();
   });
 

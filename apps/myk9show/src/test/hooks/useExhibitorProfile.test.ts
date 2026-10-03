@@ -108,7 +108,7 @@ describe('useExhibitorProfile', () => {
         expect(result.current.isLoading).toBe(false);
       });
 
-      const completedAt = await result.current.completeOnboarding();
+      const completedAt = await result.current.completeOnboarding([]);
 
       expect(completedAt).toEqual(expect.any(String));
       expect(
@@ -119,9 +119,55 @@ describe('useExhibitorProfile', () => {
       ).toBe(completedAt);
       expect(mockSupabaseUpdate).toHaveBeenCalledWith(
         'exhibitor_profiles',
-        { onboarding_completed_at: completedAt },
+        { onboarding_completed_at: completedAt, onboarded_roles: [] },
         { column: 'id', value: 'profile-123' }
       );
+    });
+
+    // MYK9-970: a role gained after onboarding reruns only that role's step.
+    // Finishing it must merge the role into onboarded_roles and keep the
+    // original completion stamp, never restamp it.
+    it('merges finished role steps and keeps an existing completion stamp', async () => {
+      const mockProfile = {
+        id: 'profile-123',
+        person_id: 'person-456',
+        auth_user_id: 'user-123',
+        default_handler_id: null,
+        subscription_tier: 'free',
+        subscription_expires_at: null,
+        stripe_customer_id: null,
+        onboarding_completed_at: '2026-07-07T12:00:00.000Z',
+        onboarded_roles: ['judge'],
+        created_at: '2026-07-06T00:00:00.000Z',
+        updated_at: '2026-07-06T00:00:00.000Z',
+      };
+
+      mockSupabaseQuery.mockResolvedValue({ data: mockProfile, error: null });
+      mockSupabaseUpdate.mockResolvedValue({ error: null });
+      const queryClient = createQueryClient();
+
+      const { result } = renderHook(() => useExhibitorProfile(), {
+        wrapper: createWrapper(queryClient),
+      });
+
+      await waitFor(() => {
+        expect(result.current.profile?.onboarded_roles).toEqual(['judge']);
+      });
+
+      await result.current.completeOnboarding(['secretary', 'judge']);
+
+      expect(mockSupabaseUpdate).toHaveBeenCalledWith(
+        'exhibitor_profiles',
+        {
+          onboarding_completed_at: '2026-07-07T12:00:00.000Z',
+          onboarded_roles: ['judge', 'secretary'],
+        },
+        { column: 'id', value: 'profile-123' }
+      );
+      expect(
+        queryClient.getQueryData<{ onboarded_roles: string[] }>(['exhibitorProfile', 'user-123'])
+          ?.onboarded_roles
+      ).toEqual(['judge', 'secretary']);
     });
   });
 

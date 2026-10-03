@@ -119,7 +119,11 @@ export function buildCloneSnapshot(args: {
       startingArmbandNumber: show.startingArmbandNumber ?? 100,
       acceptCheckPayments: show.acceptCheckPayments ?? false,
       acceptCashPayments: show.acceptCashPayments ?? false,
-      onlineEntriesEnabled: show.onlineEntriesEnabled ?? false,
+      // MYK9-979: a clone is a new show; an unknown source value is not copied
+      // (the server default, false, applies).
+      ...(show.onlineEntriesEnabled !== undefined
+        ? { onlineEntriesEnabled: show.onlineEntriesEnabled }
+        : {}),
       judgeIds: judges.map(judge => judge.judgeId),
       // MYK9-831: `completeCloneHydration` merges this over `initialState.show`,
       // so an omitted field falls back to the *cloning* secretary's current

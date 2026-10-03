@@ -42,6 +42,13 @@ export function canEnableOnlineEntries(
 export const ONLINE_ENTRIES_HELP_TEXT =
   "Needs your club's payment account. Off: exhibitors see the premium and mail in their entries.";
 
+/** Under a disabled switch while the show's value is not known yet. */
+export const ONLINE_ENTRIES_UNKNOWN_HINT =
+  'Loading this setting… refresh the page to change online entries.';
+
+/** Under a disabled switch where this surface does not own the setting. */
+export const ONLINE_ENTRIES_LOCKED_HINT = "Change online entries from the show's Edit panel.";
+
 /** The trigger's refusal to turn online entries on for a public show without
  * Stripe payouts (MK003), verbatim. */
 export const ONLINE_ENTRIES_BLOCKED_MESSAGE =

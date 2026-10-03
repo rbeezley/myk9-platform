@@ -12,6 +12,9 @@ interface FeesPaymentsSectionProps {
    * panel, and a draft that carries none writes nothing, so it can neither set nor clear one.
    */
   juniorHandlerFeeEditable?: boolean;
+  /** False when the wizard is adding to an existing show (MYK9-979): online entries are
+   * changed on the show edit panel, and the edit-mode save never writes them. */
+  onlineEntriesEditable?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -24,6 +27,7 @@ export const FeesPaymentsSection: React.FC<FeesPaymentsSectionProps> = ({
   show,
   onUpdate,
   juniorHandlerFeeEditable = true,
+  onlineEntriesEditable = true,
 }) => (
   <div>
     <SectionHeading>Fees &amp; Payments</SectionHeading>
@@ -62,7 +66,12 @@ export const FeesPaymentsSection: React.FC<FeesPaymentsSectionProps> = ({
 
       <div className="md:col-span-2">
         <PaymentMethodsCheckboxGroup
-          acceptOnline={show.onlineEntriesEnabled ?? false}
+          // A new show starts with online entries off; over an existing show the
+          // switch only shows the value (the edit panel owns it, MYK9-979).
+          acceptOnline={
+            onlineEntriesEditable ? (show.onlineEntriesEnabled ?? false) : show.onlineEntriesEnabled
+          }
+          onlineEditable={onlineEntriesEditable}
           acceptCheck={show.acceptCheckPayments ?? false}
           acceptCash={show.acceptCashPayments ?? false}
           onOnlineChange={checked => onUpdate({ onlineEntriesEnabled: checked })}

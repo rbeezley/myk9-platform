@@ -58,6 +58,7 @@ export interface ShowEditFormData extends Record<string, unknown> {
   isNationals?: boolean;
   acceptCheckPayments?: boolean;
   acceptCashPayments?: boolean;
+  /** MYK9-979: tri-state; absent = unknown (the switch is disabled until known). */
   onlineEntriesEnabled?: boolean;
   clubName?: string;
   logoUrl?: string;

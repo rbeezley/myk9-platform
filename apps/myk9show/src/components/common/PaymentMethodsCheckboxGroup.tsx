@@ -2,11 +2,20 @@ import React from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { ONLINE_ENTRIES_HELP_TEXT } from '@/features/payments/onlineEntryGate';
+import {
+  ONLINE_ENTRIES_HELP_TEXT,
+  ONLINE_ENTRIES_LOCKED_HINT,
+  ONLINE_ENTRIES_UNKNOWN_HINT,
+} from '@/features/payments/onlineEntryGate';
 
 interface PaymentMethodsCheckboxGroupProps {
-  /** MYK9-979: shows.online_entries_enabled. Card payment exists only online. */
-  acceptOnline: boolean;
+  /** MYK9-979: shows.online_entries_enabled. Card payment exists only online.
+   * `undefined` = not known yet (a cached show from before the column): the
+   * switch is disabled so nobody toggles from a guess. */
+  acceptOnline: boolean | undefined;
+  /** False where this surface may not change it (the wizard over an existing
+   * show; the show edit panel owns it). */
+  onlineEditable?: boolean;
   acceptCheck: boolean;
   acceptCash: boolean;
   onOnlineChange: (checked: boolean) => void;
@@ -28,7 +37,14 @@ export const PaymentMethodsCheckboxGroup: React.FC<PaymentMethodsCheckboxGroupPr
   onCheckChange,
   onCashChange,
   idPrefix = '',
+  onlineEditable = true,
 }) => {
+  const onlineKnown = acceptOnline !== undefined;
+  const onlineHelp = !onlineKnown
+    ? ONLINE_ENTRIES_UNKNOWN_HINT
+    : !onlineEditable
+      ? ONLINE_ENTRIES_LOCKED_HINT
+      : ONLINE_ENTRIES_HELP_TEXT;
   const onlineId = `${idPrefix}onlineEntriesEnabled`;
   const checkId = `${idPrefix}acceptCheckPayments`;
   const cashId = `${idPrefix}acceptCashPayments`;
@@ -39,7 +55,8 @@ export const PaymentMethodsCheckboxGroup: React.FC<PaymentMethodsCheckboxGroupPr
         <Switch
           id={onlineId}
           aria-describedby={`help-${onlineId}`}
-          checked={acceptOnline}
+          checked={acceptOnline === true}
+          disabled={!onlineKnown || !onlineEditable}
           onCheckedChange={onOnlineChange}
           className="mt-0.5"
         />
@@ -48,7 +65,7 @@ export const PaymentMethodsCheckboxGroup: React.FC<PaymentMethodsCheckboxGroupPr
             Accept online entries (card)
           </Label>
           <p id={`help-${onlineId}`} className="text-xs text-muted-foreground">
-            {ONLINE_ENTRIES_HELP_TEXT}
+            {onlineHelp}
           </p>
         </div>
       </div>

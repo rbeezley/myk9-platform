@@ -6,6 +6,7 @@ vi.mock('@/components/ui/tabs', () => import('../../../common/__tests__/mockTabs
 
 import { ShowEditFeesTab } from '../ShowEditFeesTab';
 import type { ShowEditFormData } from '../ShowEditPanel.types';
+import { ONLINE_ENTRIES_UNKNOWN_HINT } from '@/features/payments/onlineEntryGate';
 
 const baseData: ShowEditFormData = {
   name: 'Test Show',
@@ -58,6 +59,15 @@ describe('ShowEditFeesTab — Payment Methods section', () => {
       />
     );
     expect(screen.getByRole('switch', { name: /accept online entries/i })).toBeChecked();
+  });
+
+  // Codex P2 round 2 on #2707: a cached show whose value is unknown cannot be
+  // toggled from a guess.
+  it('disables the switch with a hint while the value is unknown', () => {
+    render(<ShowEditFeesTab data={baseData} handleCheckboxChange={vi.fn(() => vi.fn())} />);
+    const toggle = screen.getByRole('switch', { name: /accept online entries/i });
+    expect(toggle).toHaveAttribute('aria-disabled', 'true');
+    expect(toggle).toHaveAccessibleDescription(ONLINE_ENTRIES_UNKNOWN_HINT);
   });
 
   it('turning the switch off writes onlineEntriesEnabled: false', async () => {

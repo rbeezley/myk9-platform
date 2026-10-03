@@ -415,6 +415,9 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     delete safeUpdates.experiencePublishedAt;
     delete safeUpdates.experiencePublishedStyle;
     delete safeUpdates.experiencePublishedContent;
+    // MYK9-979: an unknown online-entries value is never written, and never
+    // overwrites a known local one.
+    if (safeUpdates.onlineEntriesEnabled === undefined) delete safeUpdates.onlineEntriesEnabled;
     const resolvedUpdates = invalidateVenuePinIfLocationChanged(currentShow.location, safeUpdates);
     // Style is an RPC-owned field. Never let a stale generic Show edit carry it
     // back to Supabase or overwrite a newer Preview save.
@@ -442,6 +445,10 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     // coordinate columns would otherwise null out a pin saved elsewhere.
     if (!('latitude' in resolvedUpdates)) delete updatePayload.latitude;
     if (!('longitude' in resolvedUpdates)) delete updatePayload.longitude;
+    // MYK9-979: online_entries_enabled only when this update set it. A full
+    // row would otherwise resend a cached value on every unrelated edit and
+    // could undo a change made elsewhere (or the migration's backfill).
+    if (!('onlineEntriesEnabled' in resolvedUpdates)) delete updatePayload.online_entries_enabled;
 
     const mutationId = await this.queueMutation('UPDATE', showId, updatePayload);
     this._lastMutationId = mutationId;

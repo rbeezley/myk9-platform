@@ -332,9 +332,13 @@ export function useShowCreationWizardActions({
           // `style` goes the same way as `status`: the draft doesn't carry it,
           // so ensureShowDefaults backfills the DEFAULT and the write would
           // reset a club's chosen premium style on the first "Add Trials".
+          // `onlineEntriesEnabled` likewise (MYK9-979): the wizard over an
+          // existing show cannot change it (the edit panel owns it), so it is
+          // never written from a draft that may only hold a guess.
           const {
             status: _wizardStatus,
             style: _wizardStyle,
+            onlineEntriesEnabled: _wizardOnlineEntries,
             ...editUpdates
           } = showToShowInput(wizardShow);
           const updated = await updateShow(editMode.showId, editUpdates);

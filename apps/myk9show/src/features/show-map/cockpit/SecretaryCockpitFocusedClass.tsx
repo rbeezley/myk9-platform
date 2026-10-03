@@ -9,6 +9,7 @@ import { CockpitActionLink } from './CockpitActionLink';
 import { ClassChecklistSection } from './ClassChecklistSection';
 import { ClassStatusControl, ExpectedStartControl } from './ClassOperationalControls';
 import { AnnounceDelayButton } from './AnnounceDelayButton';
+import { FocusedClassSetupActions } from './FocusedClassSetupActions';
 import { getStartDelayMinutes, scheduledClockValue } from './cockpitTime';
 import { formatTrialIdentity } from './secretaryCockpitModel';
 import type {
@@ -70,6 +71,16 @@ export function SecretaryCockpitFocusedClass({
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight">{focused.name}</h2>
+            {canManageShow && (
+              <div className="mt-2">
+                <FocusedClassSetupActions
+                  showId={showId}
+                  classId={focused.id}
+                  trialId={trial.id}
+                  classLabel={focused.name}
+                />
+              </div>
+            )}
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <ClassStatusControl
                 classId={focused.id}

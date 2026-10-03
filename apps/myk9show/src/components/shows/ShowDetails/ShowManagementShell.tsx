@@ -22,6 +22,7 @@ import { type ShowDetailTabsProps } from '@/components/shows/ShowDetails/ShowDet
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { TabsContent } from '@/components/ui/tabs';
 import { AboutThisShowCard } from '@/components/shows/overview/AboutThisShowCard';
+import { HomeClassSelection, SELECT_CLASSES } from './HomeClassSelection';
 import { getShowStyle } from '@/features/registries';
 import {
   premiumPublishDraftKey,
@@ -345,10 +346,12 @@ function AuthorizedShowManagementShell({
             <TabsContent value={activeTabId}>
               {activeManagementSection ? (
                 <Outlet context={tabs} />
+              ) : // MYK9-955: the manager Overview IS the secretary's home -- the
+              // Show Day cockpit, one consistent view before, during and
+              // after the show. Exhibitors keep ShowOverviewTab (ShowDetailTabs).
+              searchParams.get('select') === SELECT_CLASSES ? (
+                <HomeClassSelection showId={show.id} tabs={tabs} />
               ) : (
-                // MYK9-955: the manager Overview IS the secretary's home -- the
-                // Show Day cockpit, one consistent view before, during and
-                // after the show. Exhibitors keep ShowOverviewTab (ShowDetailTabs).
                 <div className="space-y-4">
                   <AboutThisShowCard show={show} judges={tabs.judges} />
                   <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>

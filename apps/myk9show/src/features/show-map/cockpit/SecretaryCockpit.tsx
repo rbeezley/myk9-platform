@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { AlertTriangle, CalendarDays } from 'lucide-react';
+import { AlertTriangle, CalendarDays, Plus } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { useTrialRowActions } from '@/components/shows/tabs/useTrialRowActions';
+import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 
 import { Button } from '@/components/ui/button';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
@@ -36,6 +39,22 @@ export function SecretaryCockpit({
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
 }) {
   const { state, updateState } = useSecretaryCockpitUrlState();
+  // Setup → Trials' Edit / Delete, on each trial heading (MYK9-956).
+  const { trialRowMenu, trialDialogs } = useTrialRowActions(snapshot.showId, canManageShow);
+  const renderTrialActions = (trialId: string, label: string) => (
+    <>
+      <Button asChild variant="ghost" size="sm" className="min-h-11 gap-1">
+        <Link
+          to={getAddClassesHref(snapshot.showId, trialId)}
+          aria-label={`Add classes to ${label}`}
+        >
+          <Plus className="h-4 w-4" aria-hidden="true" />
+          Add Classes
+        </Link>
+      </Button>
+      {trialRowMenu(trialId, label, true)}
+    </>
+  );
   const [showAllAttention, setShowAllAttention] = useState(false);
   const restoredAnchor = useRef<string | null>(null);
   const isSplitViewport = useMediaQuery('(min-width: 1280px)');
@@ -174,6 +193,7 @@ export function SecretaryCockpit({
         <SecretaryCockpitSchedule
           showId={snapshot.showId}
           entryBreakdownByClassId={entryBreakdownByClassId}
+          renderTrialActions={canManageShow ? renderTrialActions : undefined}
           model={model}
           sourceClasses={snapshot.classes}
           sourceTrials={snapshot.trials}
@@ -205,6 +225,7 @@ export function SecretaryCockpit({
           </div>
         )}
       </div>
+      {trialDialogs}
     </div>
   );
 }

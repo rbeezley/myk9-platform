@@ -307,7 +307,12 @@ export const pageDirectory: readonly PageEntry[] = [
     classification: 'critical-path',
     category: 'Shows',
     status: 'working',
-    linksTo: ['/shows', '/shows/:showId/register', '/shows/:showId/entries', '/shows/:showId/results'],
+    linksTo: [
+      '/shows',
+      '/shows/:showId/register',
+      '/shows/:showId/entries',
+      '/shows/:showId/results',
+    ],
   },
   {
     path: '/shows/:showId/trials/:trialId',

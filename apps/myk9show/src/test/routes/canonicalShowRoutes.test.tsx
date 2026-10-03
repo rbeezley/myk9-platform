@@ -236,9 +236,7 @@ describe('canonical show route redirects', () => {
     // show home, which absorbed Show Desk and Show Day (MYK9-957), rather than
     // hopping through a legacy path.
     renderRedirect('/secretary/shows/show-1?phase=show-desk&from=email');
-    expect(await screen.findByTestId('location')).toHaveTextContent(
-      '/shows/show-1?from=email'
-    );
+    expect(await screen.findByTestId('location')).toHaveTextContent('/shows/show-1?from=email');
   });
 
   it('redirects a legacy secretary show subroute to the matching canonical subroute', async () => {

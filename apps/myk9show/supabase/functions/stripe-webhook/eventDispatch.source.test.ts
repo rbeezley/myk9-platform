@@ -14,7 +14,7 @@ const source = readFileSync(resolve(__dirname, 'index.ts'), 'utf8');
 function handleEventBody(): string {
   const start = source.indexOf('async function handleEvent(event: Stripe.Event) {');
   expect(start).toBeGreaterThan(-1);
-  const end = source.indexOf('\nasync function handleRefundFailed', start);
+  const end = source.indexOf('\nasync function handleRefundEvent', start);
   expect(end).toBeGreaterThan(start);
   return source.slice(start, end);
 }
@@ -31,8 +31,8 @@ describe('stripe-webhook event.type dispatch (source-pinned)', () => {
     ['invoice.paid', 'handleInvoicePaid'],
     ['invoice.payment_failed', 'handleInvoicePaymentFailed'],
     ['charge.refunded', 'handleChargeRefunded'],
-    ['refund.failed', 'handleRefundFailed'],
-    ['refund.updated', 'handleRefundUpdated'],
+    ['refund.failed', 'handleRefundEvent'],
+    ['refund.updated', 'handleRefundEvent'],
     ['charge.dispute.created', 'handleDisputeCreated'],
     ['account.updated', 'handleAccountUpdated'],
     ['account.application.deauthorized', 'handleAccountDeauthorized'],

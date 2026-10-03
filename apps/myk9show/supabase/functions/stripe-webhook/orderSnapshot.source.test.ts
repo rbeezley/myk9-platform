@@ -72,7 +72,7 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     // `charge.amount_refunded` is a CUMULATIVE total across both refund kinds;
     // deriving the split from it is what forced the monotonic counters. Stripe
     // carries the individual refunds on charge.refunds.data.
-    expect(body).toMatch(/for \(const refund of refunds\)/);
+    expect(body).toMatch(/for \(const listed of refunds\)/);
     expect(body).toMatch(/refundId:\s*refund\.id/);
     expect(body).toMatch(/amountCents:\s*refund\.amount \?\? 0/);
     // The kind is READ OFF THE STRIPE OBJECT, never hardcoded: this sweep can
@@ -105,18 +105,17 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     expect(handler).toContain('order ledger NOT updated');
   });
 
-  it('uses the shared lifecycle decision and books only succeeded refunds', () => {
+  it('uses the shared lifecycle router and books only succeeded refunds', () => {
     const start = webhookSource.indexOf('async function handleChargeRefunded');
     const end = webhookSource.indexOf('\nasync function', start + 1);
     const body = webhookSource.slice(start, end);
-    expect(body).toContain('resolveRefundLedgerAction(refund.status)');
-    expect(body).toContain("if (action === 'defer') continue");
-    expect(body).toContain("if (action === 'fail' || action === 'cancel')");
+    expect(body).toContain('routeRefundByCurrentState(refundSettleDeps, listed, {');
+    expect(body).toContain("if (action !== 'book') continue");
     expect(body).toContain('sawSucceededRefund = true');
   });
 
   it('alerts when refund.updated succeeds before its order exists', () => {
-    const start = webhookSource.indexOf('async function handleRefundUpdated');
+    const start = webhookSource.indexOf('async function bookSucceededRefund');
     const end = webhookSource.indexOf('\nasync function', start + 1);
     const body = webhookSource.slice(start, end);
     expect(body).toContain('const rows = await recordOrderRefundCents');
@@ -138,21 +137,24 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     }
   });
 
-  it('settles an approved queued refund on every refund lifecycle event (Codex rounds 1-4, #2689)', () => {
-    // The behaviour lives in _shared/refundSettlement.ts settleApprovedRefund
-    // (vitest in refundApproval.test.ts); this pins that each handler calls it.
+  it('routes every refund lifecycle event through the current-state router (Codex rounds 1-5, #2689)', () => {
+    // The behaviour lives in _shared/refundSettlement.ts routeRefundByCurrentState
+    // (vitest in refundApproval.test.ts): it settles an approved queued refund
+    // and picks book / reverse from Stripe's CURRENT copy. This pins that both
+    // entry points use it and that no handler decides from a status itself.
     for (const handler of [
-      'async function handleRefundUpdated',
-      'async function handleTerminalRefund',
+      'async function handleRefundEvent',
       'async function handleChargeRefunded',
     ]) {
       const start = webhookSource.indexOf(handler);
       expect(start).toBeGreaterThan(-1);
       const end = webhookSource.indexOf('\nasync function', start + 1);
       expect(webhookSource.slice(start, end)).toContain(
-        'await settleApprovedRefund(refundSettleDeps, refund);'
+        'await routeRefundByCurrentState(refundSettleDeps,'
       );
     }
+    expect(webhookSource).not.toContain('resolveRefundLedgerAction(');
+    expect(webhookSource).not.toContain('settleApprovedRefund(');
   });
 
   it('FAILS CLOSED: does not stamp refunded when the amount did not persist', () => {

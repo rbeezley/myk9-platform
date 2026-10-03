@@ -25,6 +25,7 @@ import {
   type RefundQueueDeps,
   type SettlingRefund,
 } from './refundRequests.ts';
+import { resolveRefundLedgerAction, type RefundLedgerAction } from './refundLifecycle.ts';
 
 export interface RefundListPage {
   data: SettlingRefund[];
@@ -301,14 +302,21 @@ export type WebhookSettleOutcome = 'not_approved_refund' | 'not_found' | 'no_ref
 /**
  * stripe-webhook's entry (refund.updated, refund.failed, charge.refunded).
  * The event names WHICH attempt to settle (the request and attempt number
- * stamped on the refund); its status is never used. THROWS when nothing could
- * be written (Stripe unreachable, a database error, or contention), so the
- * webhook answers 5xx and Stripe redelivers.
+ * stamped on the refund); its status is never used.
+ *
+ * Returns the refund every downstream branch must decide from (Codex round 5
+ * on #2689): for an approved queued refund, Stripe's CURRENT copy (the one the
+ * settle re-read, or a fresh retrieve when no attempt could be settled); for
+ * any other refund, the refund it was given, unchanged.
+ *
+ * THROWS when nothing could be written or Stripe could not be read (Stripe
+ * unreachable, a database error, or contention), so the webhook answers 5xx
+ * and Stripe redelivers.
  */
-export async function settleApprovedRefund(
+export async function settleApprovedRefund<T extends SettlingRefund>(
   deps: SettleDeps,
-  event: SettlingRefund
-): Promise<WebhookSettleOutcome> {
+  event: T
+): Promise<{ outcome: WebhookSettleOutcome; refund: T }> {
   const requestId = event.metadata?.[REFUND_REQUEST_METADATA_KEY];
   const attemptNo = Number(event.metadata?.[REFUND_ATTEMPT_METADATA_KEY]);
   if (
@@ -317,16 +325,31 @@ export async function settleApprovedRefund(
     !Number.isInteger(attemptNo) ||
     attemptNo < 1
   ) {
-    return 'not_approved_refund';
+    return { outcome: 'not_approved_refund', refund: event };
   }
+  // deps.retrieveRefund returns the full Stripe object the caller's type
+  // describes (stripe.refunds.retrieve), so the cast restores that type.
+  const retrieveCurrent = async (): Promise<T> => {
+    try {
+      return (await deps.retrieveRefund(event.id)) as T;
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      throw new Error(`Approved refund ${event.id}: Stripe unreachable (${message}); retry`);
+    }
+  };
+
   const result = await settleAttemptFromStripe(deps, { requestId, attemptNo });
   switch (result.outcome) {
     case 'settled':
-      return 'settled';
+      return {
+        outcome: 'settled',
+        // The attempt's refund is this event's refund in every normal case.
+        refund: result.refund.id === event.id ? (result.refund as T) : await retrieveCurrent(),
+      };
     case 'not_found':
     case 'no_refund':
       console.log(`Refund ${event.id}: no attempt to settle (${result.outcome}) — ignored`);
-      return result.outcome;
+      return { outcome: result.outcome, refund: await retrieveCurrent() };
     case 'refund_on_other_attempt':
       await deps.alertAdmin(
         'A Stripe refund is stamped for one attempt but attached to another',
@@ -335,7 +358,7 @@ export async function settleApprovedRefund(
          attempt. Nothing was written. Check the payment in Stripe.</p>`,
         { source: SOURCE, dedupeKey: `refund-attempt-mismatch-${result.refundId}` }
       );
-      return 'not_found';
+      return { outcome: 'not_found', refund: await retrieveCurrent() };
     default:
       throw new Error(
         `Approved refund ${event.id} not settled (${result.outcome}${
@@ -343,4 +366,38 @@ export async function settleApprovedRefund(
         }); nothing written, retry`
       );
   }
+}
+
+export interface RefundLedgerBranches<T extends SettlingRefund> {
+  /** Stripe reports the refund succeeded: book it on the order ledger. */
+  book: (refund: T) => Promise<void>;
+  /** Stripe reports it failed or canceled: reverse / tombstone it. */
+  terminal: (refund: T, state: 'failed' | 'canceled') => Promise<void>;
+}
+
+/**
+ * The ONE router for a refund the webhook sees (refund.updated, refund.failed,
+ * and each refund of a charge.refunded). It settles an approved queued
+ * refund's attempt, then picks the ledger branch from the refund
+ * settleApprovedRefund returned (Stripe's current copy for an approved
+ * refund), never from the refund it was handed. A pending refund touches
+ * nothing. The chosen branch receives that same refund.
+ */
+export async function routeRefundByCurrentState<T extends SettlingRefund>(
+  deps: SettleDeps,
+  given: T,
+  branches: RefundLedgerBranches<T>
+): Promise<RefundLedgerAction> {
+  const { refund } = await settleApprovedRefund(deps, given);
+  const action = resolveRefundLedgerAction(refund.status);
+  if (action === 'book') {
+    await branches.book(refund);
+  } else if (action === 'fail' || action === 'cancel') {
+    await branches.terminal(refund, action === 'cancel' ? 'canceled' : 'failed');
+  } else {
+    console.log(
+      `Refund ${refund.id} remains ${refund.status ?? 'unknown'} — order ledger unchanged`
+    );
+  }
+  return action;
 }

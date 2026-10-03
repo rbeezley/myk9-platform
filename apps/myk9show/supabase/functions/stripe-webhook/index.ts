@@ -51,7 +51,7 @@ import {
   PAYMENT_RECONCILIATION_ENTRY_COLUMNS,
   type PaymentReconciliationEntry,
 } from './paymentReconciliationLoader.ts';
-import { listAllChargeRefunds, resolveRefundLedgerAction } from '../_shared/refundLifecycle.ts';
+import { listAllChargeRefunds } from '../_shared/refundLifecycle.ts';
 import {
   claimAbandonedCartRefund,
   queueRefundForApproval,
@@ -59,7 +59,7 @@ import {
   type RefundQueueDeps,
   type SettlingRefund,
 } from '../_shared/refundRequests.ts';
-import { settleApprovedRefund, type SettleDeps } from '../_shared/refundSettlement.ts';
+import { routeRefundByCurrentState, type SettleDeps } from '../_shared/refundSettlement.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
@@ -95,7 +95,7 @@ const refundQueueDeps: RefundQueueDeps = {
 // Approved queued refunds settle on their own attempt row, ONLY from the
 // refund's CURRENT state at Stripe (Codex rounds 1-4 on #2689). The event
 // names the attempt; its payload status is never written. If Stripe cannot be
-// reached, settleApprovedRefund throws and this webhook answers 5xx.
+// reached, routeRefundByCurrentState throws and this webhook answers 5xx.
 const refundSettleDeps: SettleDeps = {
   ...refundQueueDeps,
   retrieveRefund: async id => (await stripe.refunds.retrieve(id)) as SettlingRefund,
@@ -230,11 +230,8 @@ async function handleEvent(event: Stripe.Event) {
       break;
 
     case 'refund.failed':
-      await handleRefundFailed(event.data.object as Stripe.Refund);
-      break;
-
     case 'refund.updated':
-      await handleRefundUpdated(event.data.object as Stripe.Refund);
+      await handleRefundEvent(event.data.object as Stripe.Refund);
       break;
 
     case 'charge.dispute.created':
@@ -282,27 +279,23 @@ async function handleEvent(event: Stripe.Event) {
  * from Stripe (Stripe unreachable): that throws first, before any bookkeeping,
  * so Stripe redelivers (Codex round 4 on #2689).
  */
-async function handleRefundFailed(refund: Stripe.Refund) {
-  await handleTerminalRefund(refund, 'failed');
+/**
+ * refund.updated and refund.failed. The branch (book, reverse, or nothing for
+ * pending) is chosen from the refund routeRefundByCurrentState hands back:
+ * for an approved queued refund that is Stripe's CURRENT copy, after its
+ * attempt was settled from it, never the event payload (Codex rounds 4-5 on
+ * #2689). Every other refund keeps its event copy: its ledger row's
+ * failed/canceled state is terminal, so a stale success cannot resurrect it,
+ * and Stripe redelivers a refund.failed until it is acknowledged.
+ */
+async function handleRefundEvent(eventRefund: Stripe.Refund) {
+  await routeRefundByCurrentState(refundSettleDeps, eventRefund, {
+    book: bookSucceededRefund,
+    terminal: handleTerminalRefund,
+  });
 }
 
-async function handleRefundUpdated(refund: Stripe.Refund) {
-  const action = resolveRefundLedgerAction(refund.status);
-  if (action === 'defer') {
-    console.log(
-      `Refund ${refund.id} remains ${refund.status ?? 'unknown'} — order ledger unchanged`
-    );
-    return;
-  }
-  if (action === 'fail' || action === 'cancel') {
-    await handleTerminalRefund(refund, action === 'cancel' ? 'canceled' : 'failed');
-    return;
-  }
-
-  // An approved queued refund: settle its own attempt from Stripe (Codex P1,
-  // #2689). Throws (5xx, Stripe redelivers) when nothing could be written.
-  await settleApprovedRefund(refundSettleDeps, refund);
-
+async function bookSucceededRefund(refund: Stripe.Refund) {
   const paymentIntentId = extractPaymentIntentId(refund.payment_intent);
   if (!paymentIntentId) {
     console.error(`Succeeded refund ${refund.id} has no payment intent — cannot book ledger`);
@@ -330,12 +323,9 @@ async function handleRefundUpdated(refund: Stripe.Refund) {
   }
 }
 
+// Only reached through routeRefundByCurrentState, which has already settled an
+// approved queued refund's attempt and hands over Stripe's current copy.
 async function handleTerminalRefund(refund: Stripe.Refund, terminalState: 'failed' | 'canceled') {
-  // An approved queued refund: settle its own attempt from Stripe, which
-  // reopens the request when no other attempt succeeded (Codex P1, #2689).
-  // Throws (5xx, Stripe redelivers) when nothing could be written; it runs
-  // first, so a redelivery repeats nothing below.
-  await settleApprovedRefund(refundSettleDeps, refund);
   const entryId = refund.metadata?.entry_id ?? null;
   console.error(
     `CRITICAL: refund ${refund.id} (${refund.amount}¢) ${terminalState.toUpperCase()} after creation` +
@@ -595,31 +585,33 @@ async function handleChargeRefunded(charge: Stripe.Charge, eventId: string) {
     // Empty until a refund books rows; an all-skipped charge is "ran, matched
     // nothing", not a write failure.
     recordedRows = [];
-    for (const refund of refunds) {
-      const action = resolveRefundLedgerAction(refund.status);
-      if (action === 'defer') continue;
-      if (action === 'fail' || action === 'cancel') {
-        await handleTerminalRefund(refund, action === 'cancel' ? 'canceled' : 'failed');
-        continue;
-      }
-      sawSucceededRefund = true;
-      // Covers a missed refund.updated for an approved queued refund.
-      await settleApprovedRefund(refundSettleDeps, refund);
-      const rows = await recordOrderRefundCents(intentIdForLedger, {
-        refundId: refund.id,
-        amountCents: refund.amount ?? 0,
-        // Read the kind off the Stripe object rather than assuming post_hoc.
-        // An approved make-whole refund stamps MAKE_WHOLE_METADATA_KEY at creation,
-        // so this sweep attributes it correctly even when it wins the race
-        // against that writer. Assuming 'post_hoc' here booked make-whole money
-        // as a permanent platform loss (Codex round-7 finding).
-        kind: refundKindFromMetadata(refund),
+    for (const listed of refunds) {
+      // Settles an approved queued refund's attempt (covering a missed
+      // refund.updated) and picks the branch from Stripe's current copy of it,
+      // never from the listed copy (Codex round 5 on #2689).
+      const booked: { rows: RecordedRefundRow[] | null } = { rows: null };
+      const action = await routeRefundByCurrentState(refundSettleDeps, listed, {
+        book: async refund => {
+          booked.rows = await recordOrderRefundCents(intentIdForLedger, {
+            refundId: refund.id,
+            amountCents: refund.amount ?? 0,
+            // Read the kind off the Stripe object rather than assuming post_hoc.
+            // An approved make-whole refund stamps MAKE_WHOLE_METADATA_KEY at
+            // creation, so this sweep attributes it correctly even when it wins
+            // the race against that writer. Assuming 'post_hoc' here booked
+            // make-whole money as a permanent platform loss (Codex round-7 finding).
+            kind: refundKindFromMetadata(refund),
+          });
+        },
+        terminal: handleTerminalRefund,
       });
-      if (rows === null) {
+      if (action !== 'book') continue;
+      sawSucceededRefund = true;
+      if (booked.rows === null) {
         recordedRows = null;
         break;
       }
-      recordedRows = rows;
+      recordedRows = booked.rows;
     }
   }
 

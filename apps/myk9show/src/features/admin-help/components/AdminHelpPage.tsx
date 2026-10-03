@@ -173,7 +173,7 @@ export function AdminHelpPage() {
   );
 
   return (
-    <div className="container mx-auto max-w-5xl space-y-4 py-6">
+    <div className="container mx-auto max-w-5xl space-y-4 px-6 py-6">
       <header>
         <h1 className="font-display text-2xl font-bold">Page Directory</h1>
         {/* Not "every page". This sits on the same screen as the amber drift

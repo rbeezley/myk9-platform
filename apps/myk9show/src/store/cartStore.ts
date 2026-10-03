@@ -61,6 +61,9 @@ export type {
   CheckoutResult,
 } from './cartStore.types';
 
+/** Statuses only the payment webhook (service role) may leave; Clear Cart never writes them. */
+const CLOSED_CART_STATUSES = new Set(['submitted', 'refund_pending', 'abandoned']);
+
 const recoveryCartInFlight = new Map<string, Promise<CartWithDetails | null>>();
 export const useCartStore = create<CartState>()(
   devtools(
@@ -802,26 +805,34 @@ export const useCartStore = create<CartState>()(
             // AND still holds that session id, so abandon the cart, leave its
             // session id (and lines, as evidence) untouched, and hand back a
             // fresh empty cart; abandoning also frees the one-active-cart slot.
+            // A cart the webhook already closed (paid, or queued for refund) is
+            // owned by the service role: never touch it, just open a new one.
             if (cart.stripe_checkout_session_id) {
-              const { error: abandonError } = await supabase
-                .from('entry_carts')
-                .update({ status: 'abandoned' })
-                .eq('id', cart.id);
-              if (abandonError) {
-                logger.error(
-                  'Error abandoning cart with an open checkout',
-                  'cartStore',
-                  { cartId: cart.id },
-                  abandonError
-                );
-                throw abandonError;
+              if (!CLOSED_CART_STATUSES.has(cart.status ?? '')) {
+                const { error: abandonError } = await supabase
+                  .from('entry_carts')
+                  .update({ status: 'abandoned' })
+                  .eq('id', cart.id);
+                if (abandonError) {
+                  logger.error(
+                    'Error abandoning cart with an open checkout',
+                    'cartStore',
+                    { cartId: cart.id },
+                    abandonError
+                  );
+                  throw abandonError;
+                }
               }
               const fresh = await get().createCart(cart.show_id, cart.exhibitor_id, {
                 isCurrent: guard,
               });
-              // The abandoned cart must not stay on screen if no new one opened.
+              // No new cart: the old one must not stay on screen.
               if (!fresh) write({ cart: null });
-              return fresh !== null;
+              // createCart recovers another tab's cart when it loses the
+              // one-active-cart race. That cart stays in the store (it is what
+              // the exhibitor really has) but Clear Cart did not clear it, so
+              // report failure: callers append to a cleared cart.
+              return fresh !== null && fresh.items.length === 0 && (fresh.total_cents ?? 0) === 0;
             }
 
             const { error: deleteError } = await supabase

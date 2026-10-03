@@ -213,16 +213,12 @@ function makeTabs(): ShowDetailTabsProps {
     activeTab: 'overview',
     onTabChange: vi.fn(),
     canManageShow: true,
-    canShowMap: false,
     isAuthenticated: true,
     hasUserEntries: false,
     judges: [],
     classes: [],
     trials: [],
     trialStats: {},
-    mapTrials: [],
-    mapClasses: [],
-    mapEntries: [],
   };
 }
 

@@ -37,7 +37,6 @@ import {
 import { useShowResults } from '@/hooks/queries/useShowResults';
 import { getEntryStatus, isEntryWindowNotOpen } from '@/utils/entryStatusUtils';
 import { useArmbandCount } from '@/hooks/queries/useArmbandLookup';
-import { features } from '@/config/features';
 
 // Shared primitives
 import { PageShell } from '@/components/common/PageShell';
@@ -45,7 +44,6 @@ import { NotFoundState } from '@/components/common/NotFoundState';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { ErrorState } from '@/components/common/ErrorState';
 import { countCatalogEntries } from '@/features/show-map/entryCounts';
-import type { ShowMapEntryInput } from '@/features/show-map/showMapTypes';
 import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
 import {
   SHOW_MANAGEMENT_SECTIONS,
@@ -139,7 +137,6 @@ const ShowDetailsPage: React.FC = () => {
     () => (canManageShow ? (secretaryEntries ?? []) : showEntries),
     [canManageShow, secretaryEntries, showEntries]
   );
-  const effectiveShowMapEntries = effectiveShowEntries as unknown as ShowMapEntryInput[];
   const catalogEntryCount = countCatalogEntries(effectiveShowEntries);
   const canonicalShowHref = actualCurrentShow?.id ? `/shows/${actualCurrentShow.id}` : '';
   const activeManagementSection = managementSectionMatch?.params.section;
@@ -244,13 +241,6 @@ const ShowDetailsPage: React.FC = () => {
 
   // Tab state — URL-synced with dynamic allowed tabs.
   //
-  // `canShowMap` no longer adds a tab to the `?tab=` strip below: since
-  // MYK9-630 phase 3 every viewer with `canManageShow` renders the management
-  // shell, so a "Show Map" tab on the exhibitor strip is unreachable. It only
-  // travels down the outlet context now, where the Setup tab offers the map as
-  // one of its three views. (Phase 2 kept it here purely because club admins
-  // had no tabs of their own; that state is gone.)
-  const canShowMap = features.showMap && canManageShow;
   // MYK9-630 phase 2 removed the hazard MYK9-634 was filed against: the
   // exhibitor "My Entries" tab and the manager "Entries" tab shared the id
   // `my-entries`, and `useShowManageGate` cannot tell "not a manager" from "not
@@ -540,16 +530,12 @@ const ShowDetailsPage: React.FC = () => {
     activeTab,
     onTabChange: setTab,
     canManageShow,
-    canShowMap,
     isAuthenticated,
     hasUserEntries,
     judges: effectiveJudges,
     classes: effectiveShowClasses,
     trials: effectiveTrials,
     trialStats: effectiveTrialStats,
-    mapTrials: associatedTrials,
-    mapClasses: showClasses,
-    mapEntries: effectiveShowMapEntries,
     entryDataState,
     onRetryEntryData: () => void refetchSecretaryEntries(),
     exhibitorEntryRows,

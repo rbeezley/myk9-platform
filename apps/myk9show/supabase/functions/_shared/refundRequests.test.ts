@@ -2,23 +2,36 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   claimAbandonedCartRefund,
+  QUEUE_WRITE_ATTEMPTS,
+  queuedRefundFromOrder,
   queueRefundForApproval,
   REFUNDABLE_ABANDONED_CART_STATUSES,
+  type QueueDeps,
   type RefundQueueDeps,
 } from './refundRequests';
+import { instructsManualRefund } from './refundAlertCopy';
 
-type Alert = { title: string; opts: { dedupeKey: string; detail?: Record<string, unknown> } };
+type Alert = {
+  title: string;
+  html: string;
+  opts: { dedupeKey: string; detail?: Record<string, unknown> };
+};
 
-function depsWith(rpcImpl: RefundQueueDeps['rpc']) {
+function depsWith(
+  rpcImpl: RefundQueueDeps['rpc'],
+  findImpl: QueueDeps['findRefundRequest'] = async () => ({ data: null, error: null })
+) {
   const alerts: Alert[] = [];
   const rpc = vi.fn(rpcImpl);
-  const deps: RefundQueueDeps = {
+  const findRefundRequest = vi.fn(findImpl);
+  const deps: QueueDeps = {
     rpc,
-    alertAdmin: async (title, _html, opts) => {
-      alerts.push({ title, opts });
+    findRefundRequest,
+    alertAdmin: async (title, html, opts) => {
+      alerts.push({ title, html, opts });
     },
   };
-  return { deps, rpc, alerts };
+  return { deps, rpc, alerts, findRefundRequest };
 }
 
 const QUEUE_INPUT = {
@@ -67,15 +80,59 @@ describe('queueRefundForApproval', () => {
     expect(alerts).toHaveLength(0);
   });
 
-  it('asks for a manual refund when the queue write fails, and never throws', async () => {
-    const { deps, alerts } = depsWith(async () => ({
+  it('committed but the response was lost: the retry finds the request; no failure alert (Codex round 10)', async () => {
+    let calls = 0;
+    const { deps, rpc, alerts, findRefundRequest } = depsWith(async () => {
+      calls += 1;
+      return calls === 1
+        ? { data: null, error: { message: 'response lost' } }
+        : { data: [{ refund_request_id: 'rr-1', created: false }], error: null };
+    });
+    await expect(queueRefundForApproval(deps, QUEUE_INPUT)).resolves.toBe('queued');
+    expect(rpc).toHaveBeenCalledTimes(2);
+    expect(findRefundRequest).not.toHaveBeenCalled();
+    // Whether the first attempt's alert went out is unknown: the awaiting-approval
+    // alert is raised again, deduplicated per request. Never a failure alert.
+    expect(alerts.map(a => [a.title, a.opts.dedupeKey])).toEqual([
+      ['Refund awaiting approval', 'refund-request-rr-1'],
+    ]);
+  });
+
+  it('every attempt unconfirmed but the re-read by (session, kind) finds it: queued, no failure alert', async () => {
+    const { deps, rpc, alerts, findRefundRequest } = depsWith(
+      async () => ({ data: null, error: { message: 'timeout' } }),
+      async () => ({ data: 'rr-1', error: null })
+    );
+    await expect(queueRefundForApproval(deps, QUEUE_INPUT)).resolves.toBe('queued');
+    expect(rpc).toHaveBeenCalledTimes(QUEUE_WRITE_ATTEMPTS);
+    expect(findRefundRequest).toHaveBeenCalledWith('cs_1', 'cart_overflow');
+    expect(alerts.map(a => a.title)).toEqual(['Refund awaiting approval']);
+  });
+
+  it('persistently unconfirmed: throws (5xx, Stripe redelivers), alerts WITHOUT any manual-refund instruction', async () => {
+    const { deps, rpc, alerts, findRefundRequest } = depsWith(async () => ({
       data: null,
       error: { message: 'connection reset' },
     }));
-    await expect(queueRefundForApproval(deps, QUEUE_INPUT)).resolves.toBe('not_queued');
-    expect(alerts.map(a => a.title)).toEqual([
-      'Refund owed but could not be queued — refund by hand',
-    ]);
+    await expect(queueRefundForApproval(deps, QUEUE_INPUT)).rejects.toThrow(
+      /could not be confirmed as queued; Stripe will retry/
+    );
+    expect(rpc).toHaveBeenCalledTimes(QUEUE_WRITE_ATTEMPTS);
+    // The re-read confirmed no request exists (and nothing else was written).
+    expect(findRefundRequest).toHaveBeenCalledTimes(1);
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].title).toBe('Queueing a refund could not be confirmed — Stripe will retry');
+    expect(alerts[0].html).toMatch(/Do NOT refund it from the Stripe dashboard/);
+    expect(alerts[0].html).toMatch(/Refunds awaiting approval/);
+    expect(instructsManualRefund(alerts[0].title + ' ' + alerts[0].html)).toBe(false);
+  });
+
+  it('a failing re-read is still unconfirmed: throws', async () => {
+    const { deps } = depsWith(
+      async () => ({ data: null, error: { message: 'timeout' } }),
+      async () => ({ data: null, error: { message: 'read failed' } })
+    );
+    await expect(queueRefundForApproval(deps, QUEUE_INPUT)).rejects.toThrow();
   });
 
   it('does not call the queue without an intent or a positive amount', async () => {
@@ -84,6 +141,73 @@ describe('queueRefundForApproval', () => {
     await queueRefundForApproval(deps, { ...QUEUE_INPUT, amountCents: 0 });
     expect(rpc).not.toHaveBeenCalled();
     expect(alerts).toHaveLength(2);
+    expect(alerts.some(a => instructsManualRefund(a.title + ' ' + a.html))).toBe(false);
+  });
+});
+
+/** Codex round 10: a redelivery replays the queue write from the recorded order. */
+describe('queuedRefundFromOrder', () => {
+  it('rebuilds a cart-overflow refund from the order metadata', () => {
+    expect(
+      queuedRefundFromOrder({
+        sessionId: 'cs_1',
+        paymentIntentId: 'pi_1',
+        showId: 'show-1',
+        metadata: {
+          cart_id: 'cart-1',
+          overflow_refund: {
+            action: 'refund',
+            amount_cents: 2500,
+            reason: 'partial_no_service_lines',
+          },
+          denied_cart_item_ids: ['ci-2'],
+        },
+      })
+    ).toMatchObject({
+      kind: 'cart_overflow',
+      sessionId: 'cs_1',
+      paymentIntentId: 'pi_1',
+      amountCents: 2500,
+      reason: 'partial_no_service_lines',
+      cartId: 'cart-1',
+      showId: 'show-1',
+      detail: { denied_cart_item_ids: ['ci-2'] },
+    });
+  });
+
+  it('rebuilds a payment-link refund from the order metadata', () => {
+    expect(
+      queuedRefundFromOrder({
+        sessionId: 'cs_2',
+        paymentIntentId: 'pi_2',
+        showId: null,
+        metadata: {
+          entry_payment_link_id: 'link-1',
+          invalid_entry_refund: {
+            action: 'refund',
+            amount_cents: 900,
+            reason: 'partial_invalid_entries',
+          },
+          invalid_entry_ids: ['e-1'],
+        },
+      })
+    ).toMatchObject({
+      kind: 'entry_payment_link',
+      amountCents: 900,
+      reason: 'partial_invalid_entries',
+      entryPaymentLinkId: 'link-1',
+      detail: { invalid_entry_ids: ['e-1'] },
+    });
+  });
+
+  it.each([
+    ['no refund owed', { overflow_refund: { action: 'none', paid_amount_cents: 100 } }],
+    ['a manual amount', { overflow_refund: { action: 'needs_manual_amount' } }],
+    ['no metadata', null],
+  ])('%s: nothing to replay', (_label, metadata) => {
+    expect(
+      queuedRefundFromOrder({ sessionId: 'cs', paymentIntentId: 'pi', showId: null, metadata })
+    ).toBeNull();
   });
 });
 

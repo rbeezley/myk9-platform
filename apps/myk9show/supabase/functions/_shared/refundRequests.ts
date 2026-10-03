@@ -7,6 +7,12 @@
 // operator alert; it never calls stripe.refunds.create. Only
 // stripe-approve-refund issues the refund, after a site admin approves it.
 
+import {
+  abandonedCartMissingInputsAlert,
+  queueMissingInputsAlert,
+  queueUnconfirmedAlert,
+} from './refundAlertCopy.ts';
+
 export const APPROVED_REFUND_METADATA_TYPE = 'approved_refund_request';
 export const REFUND_REQUEST_METADATA_KEY = 'refund_request_id';
 export const REFUND_ATTEMPT_METADATA_KEY = 'refund_attempt_no';
@@ -67,68 +73,121 @@ export interface QueueRefundInput {
 
 export type QueueRefundOutcome = 'queued' | 'already_queued' | 'not_queued';
 
+export interface QueueDeps extends RefundQueueDeps {
+  /**
+   * Re-read a request by its idempotency key (session, kind): its id, or null
+   * when none exists. Used only when the queue write's outcome is unknown.
+   */
+  findRefundRequest: (
+    sessionId: string,
+    kind: QueueRefundInput['kind']
+  ) => PromiseLike<{ data: string | null; error: RpcError | null }>;
+}
+
+/** How many times the idempotent queue write is tried before the re-read. */
+export const QUEUE_WRITE_ATTEMPTS = 3;
+
 /**
  * Queue a partial make-whole refund (cart overflow, unhonorable payment-link
- * lines) for approval. Never throws: these run after the order is recorded,
- * so a Stripe retry would short-circuit before reaching here again. A failure
- * becomes a CRITICAL alert asking for the refund by hand.
+ * lines) for approval. The approval queue is the ONLY path (Codex round 10
+ * on #2689): there is no "refund by hand" fallback, because a dashboard
+ * refund carries no request metadata and a request whose response was lost
+ * would later refund the same money again.
+ *
+ * request_refund_approval is idempotent per (session, kind), so it is retried
+ * up to QUEUE_WRITE_ATTEMPTS times; if the outcome is still unknown the
+ * request is re-read by (session, kind). If it exists, the refund is queued.
+ * If it still cannot be confirmed this THROWS, so the webhook answers 5xx and
+ * Stripe redelivers. The callers make sure a redelivery reaches this write
+ * again (stripe-webhook replays it from the order row it recorded).
  */
 export async function queueRefundForApproval(
-  deps: RefundQueueDeps,
+  deps: QueueDeps,
   input: QueueRefundInput
 ): Promise<QueueRefundOutcome> {
   if (!input.paymentIntentId || !input.amountCents || input.amountCents <= 0) {
     console.error(
       `CRITICAL: refund owed for session ${input.sessionId} has no payment intent or amount`
     );
-    await deps.alertAdmin(
-      'Refund owed but could not be queued — refund by hand',
-      `<p>${input.summaryHtml}</p>
-       <p>A refund is owed for Checkout Session <code>${input.sessionId}</code>, but the
-       payment intent or amount is missing (payment intent
-       <code>${input.paymentIntentId ?? 'unknown'}</code>, amount
-       <code>${input.amountCents ?? 'unknown'}</code>), so it was not queued.</p>`,
-      { source: SOURCE, dedupeKey: `refund-queue-missing-inputs-${input.sessionId}` }
-    );
-    return 'not_queued';
-  }
-
-  let result: { data: unknown; error: RpcError | null };
-  try {
-    result = await deps.rpc('request_refund_approval', {
-      p_kind: input.kind,
-      p_session_id: input.sessionId,
-      p_payment_intent_id: input.paymentIntentId,
-      p_amount_cents: input.amountCents,
-      p_reason: input.reason,
-      p_detail: input.detail ?? {},
-      p_cart_id: input.cartId ?? null,
-      p_entry_payment_link_id: input.entryPaymentLinkId ?? null,
-      p_show_id: input.showId ?? null,
+    const copy = queueMissingInputsAlert(input);
+    await deps.alertAdmin(copy.title, copy.html, {
+      source: SOURCE,
+      dedupeKey: `refund-queue-missing-inputs-${input.sessionId}`,
     });
-  } catch (err) {
-    result = { data: null, error: { message: err instanceof Error ? err.message : String(err) } };
-  }
-
-  const row = firstRow<{ refund_request_id: string | null; created: boolean }>(result.data);
-  if (result.error || !row?.refund_request_id) {
-    const message = result.error?.message ?? 'no request row returned';
-    console.error(`CRITICAL: refund for session ${input.sessionId} could not be queued:`, message);
-    await deps.alertAdmin(
-      'Refund owed but could not be queued — refund by hand',
-      `<p>${input.summaryHtml}</p>
-       <p>${dollars(input.amountCents)} USD is owed on payment intent
-       <code>${input.paymentIntentId}</code> (session <code>${input.sessionId}</code>,
-       reason <code>${input.reason}</code>), but queuing it for approval failed:</p>
-       <pre>${message}</pre>
-       <p>Recovery: refund that amount from the Stripe dashboard, then record it on
-       the order (<code>make_whole_refunded_cents</code>).</p>`,
-      { source: SOURCE, dedupeKey: `refund-queue-failed-${input.kind}-${input.sessionId}` }
-    );
     return 'not_queued';
   }
 
-  if (!row.created) {
+  let requestId: string | null = null;
+  let created: boolean | null = null;
+  let lastError = 'no request row returned';
+  for (let attempt = 1; attempt <= QUEUE_WRITE_ATTEMPTS && !requestId; attempt += 1) {
+    let result: { data: unknown; error: RpcError | null };
+    try {
+      result = await deps.rpc('request_refund_approval', {
+        p_kind: input.kind,
+        p_session_id: input.sessionId,
+        p_payment_intent_id: input.paymentIntentId,
+        p_amount_cents: input.amountCents,
+        p_reason: input.reason,
+        p_detail: input.detail ?? {},
+        p_cart_id: input.cartId ?? null,
+        p_entry_payment_link_id: input.entryPaymentLinkId ?? null,
+        p_show_id: input.showId ?? null,
+      });
+    } catch (err) {
+      result = { data: null, error: { message: err instanceof Error ? err.message : String(err) } };
+    }
+    const row = firstRow<{ refund_request_id: string | null; created: boolean }>(result.data);
+    if (!result.error && row?.refund_request_id) {
+      requestId = row.refund_request_id;
+      // An earlier attempt may have committed with its response lost: then
+      // "created" is unknown, and the awaiting-approval alert (deduplicated
+      // per request) is raised anyway.
+      created = attempt === 1 ? row.created : null;
+    } else {
+      lastError = result.error?.message ?? 'no request row returned';
+      console.error(
+        `Queue write ${attempt}/${QUEUE_WRITE_ATTEMPTS} for session ${input.sessionId} unconfirmed:`,
+        lastError
+      );
+    }
+  }
+
+  if (!requestId) {
+    // Still unknown: did any attempt commit? Re-read by (session, kind).
+    try {
+      const found = await deps.findRefundRequest(input.sessionId, input.kind);
+      if (found.error) lastError = found.error.message;
+      else requestId = found.data;
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  if (!requestId) {
+    console.error(
+      `CRITICAL: refund for session ${input.sessionId} (${input.kind}) could not be confirmed as queued:`,
+      lastError
+    );
+    const copy = queueUnconfirmedAlert({
+      summaryHtml: input.summaryHtml,
+      kind: input.kind,
+      sessionId: input.sessionId,
+      paymentIntentId: input.paymentIntentId,
+      amountCents: input.amountCents,
+      reason: input.reason,
+      message: lastError,
+    });
+    await deps.alertAdmin(copy.title, copy.html, {
+      source: SOURCE,
+      dedupeKey: `refund-queue-unconfirmed-${input.kind}-${input.sessionId}`,
+    });
+    throw new Error(
+      `Refund for session ${input.sessionId} (${input.kind}) could not be confirmed as queued; Stripe will retry`
+    );
+  }
+
+  if (created === false) {
     console.log(`Refund for session ${input.sessionId} (${input.kind}) already queued`);
     return 'already_queued';
   }
@@ -144,9 +203,9 @@ export async function queueRefundForApproval(
      reason <code>${input.reason}</code>). Refunds are never automatic. ${APPROVE_WHERE}</p>`,
     {
       source: SOURCE,
-      dedupeKey: `refund-request-${row.refund_request_id}`,
+      dedupeKey: `refund-request-${requestId}`,
       detail: {
-        refund_request_id: row.refund_request_id,
+        refund_request_id: requestId,
         kind: input.kind,
         amount_cents: input.amountCents,
         payment_intent_id: input.paymentIntentId,
@@ -155,6 +214,74 @@ export async function queueRefundForApproval(
     }
   );
   return 'queued';
+}
+
+/**
+ * The refund a recorded order still owes, rebuilt from the order row's
+ * metadata so a REDELIVERED webhook can replay the idempotent queue write
+ * (Codex round 10 on #2689). The fulfillment latches (cart claimed, link
+ * paid) make a redelivery skip the code that first queued it, so without this
+ * an unconfirmed queue write would never be retried. Returns null when the
+ * order owes no queued refund.
+ */
+export function queuedRefundFromOrder(order: {
+  sessionId: string;
+  paymentIntentId: string | null;
+  showId: string | null;
+  metadata: unknown;
+}): QueueRefundInput | null {
+  const meta = (
+    order.metadata && typeof order.metadata === 'object' ? order.metadata : {}
+  ) as Record<string, unknown>;
+  const decision = (key: string) => {
+    const value = meta[key] as
+      { action?: unknown; amount_cents?: unknown; reason?: unknown } | null | undefined;
+    return value &&
+      value.action === 'refund' &&
+      typeof value.amount_cents === 'number' &&
+      typeof value.reason === 'string'
+      ? { amountCents: value.amount_cents, reason: value.reason }
+      : null;
+  };
+  const ids = (key: string) =>
+    Array.isArray(meta[key]) ? (meta[key] as unknown[]).filter(v => typeof v === 'string') : [];
+
+  const overflow = decision('overflow_refund');
+  if (overflow) {
+    return {
+      kind: 'cart_overflow',
+      sessionId: order.sessionId,
+      paymentIntentId: order.paymentIntentId,
+      amountCents: overflow.amountCents,
+      reason: overflow.reason,
+      summaryHtml:
+        'Paid cart lines could not be served (queued again from the recorded order after a redelivery).',
+      detail: {
+        waitlisted_cart_item_ids: ids('waitlisted_cart_item_ids'),
+        denied_cart_item_ids: ids('denied_cart_item_ids'),
+        failed_cart_item_ids: ids('failed_cart_item_ids'),
+      },
+      cartId: typeof meta.cart_id === 'string' ? meta.cart_id : null,
+      showId: order.showId,
+    };
+  }
+  const invalid = decision('invalid_entry_refund');
+  if (invalid) {
+    return {
+      kind: 'entry_payment_link',
+      sessionId: order.sessionId,
+      paymentIntentId: order.paymentIntentId,
+      amountCents: invalid.amountCents,
+      reason: invalid.reason,
+      summaryHtml:
+        'A payment-link charge could not be honored in full (queued again from the recorded order after a redelivery).',
+      detail: { invalid_entry_ids: ids('invalid_entry_ids') },
+      entryPaymentLinkId:
+        typeof meta.entry_payment_link_id === 'string' ? meta.entry_payment_link_id : null,
+      showId: order.showId,
+    };
+  }
+  return null;
 }
 
 export interface AbandonedCartRefundInput {
@@ -183,14 +310,11 @@ export async function claimAbandonedCartRefund(
 ): Promise<AbandonedCartRefundOutcome> {
   if (!input.paymentIntentId || !input.amountCents || input.amountCents <= 0) {
     console.error(`CRITICAL: abandoned cart ${input.cartId} paid with no intent or amount`);
-    await deps.alertAdmin(
-      'Paid abandoned cart could not be queued for refund — refund by hand',
-      `<p>Checkout session <code>${input.sessionId}</code> was PAID after cart
-       <code>${input.cartId}</code> was abandoned, but the payment intent or amount is
-       missing, so no refund request was queued and no entries were created.</p>
-       <p>Recovery: find the payment in the Stripe dashboard and refund it.</p>`,
-      { source: SOURCE, dedupeKey: `abandoned-cart-refund-missing-inputs-${input.sessionId}` }
-    );
+    const copy = abandonedCartMissingInputsAlert(input);
+    await deps.alertAdmin(copy.title, copy.html, {
+      source: SOURCE,
+      dedupeKey: `abandoned-cart-refund-missing-inputs-${input.sessionId}`,
+    });
     return 'not_refundable';
   }
 

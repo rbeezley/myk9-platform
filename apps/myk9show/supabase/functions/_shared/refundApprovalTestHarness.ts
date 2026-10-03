@@ -208,8 +208,11 @@ export function harness(
     return { data: [], error: null };
   };
 
-  const alertAdmin: RefundApprovalDeps['alertAdmin'] = async title => {
+  // Full text of every alert, for the manual-refund copy sweep (Codex round 10).
+  const alertTexts: string[] = [];
+  const alertAdmin: RefundApprovalDeps['alertAdmin'] = async (title, html) => {
     alerts.push(title);
+    alertTexts.push(`${title} ${html}`);
   };
 
   const deps: RefundApprovalDeps = {
@@ -272,6 +275,7 @@ export function harness(
     created,
     rpcCalls,
     alerts,
+    alertTexts,
     stripeRefunds,
     pageRequests,
     requestState,

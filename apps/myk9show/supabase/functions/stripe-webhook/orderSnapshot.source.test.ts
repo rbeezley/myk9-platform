@@ -157,6 +157,33 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     expect(webhookSource).not.toContain('settleApprovedRefund(');
   });
 
+  it('a redelivery retries an unconfirmed queue write from the order row (Codex round 10, #2689)', () => {
+    // queueRefundForApproval THROWS when it cannot confirm the write; the
+    // fulfillment latches make the redelivery skip the code that queued it,
+    // so both skip branches replay it (queuedRefundFromOrder, vitest in
+    // _shared/refundRequests.test.ts) and both orders record what is owed.
+    const body = (name: string) => {
+      const start = webhookSource.indexOf(`async function ${name}`);
+      expect(start).toBeGreaterThan(-1);
+      return webhookSource.slice(start, webhookSource.indexOf('\nasync function', start + 1));
+    };
+    const cart = body('handleEntryPaymentCompleted');
+    const alreadyProcessed = cart.slice(cart.indexOf('if (existingOrder) {'));
+    expect(alreadyProcessed.slice(0, 400)).toContain(
+      'await replayQueuedRefundFromOrder(session.id);'
+    );
+    expect(cart).toContain('overflow_refund: serializeCartOverflowRefundDecision(');
+    // The queue write is the LAST side effect, after the confirmation email.
+    expect(cart.indexOf('await queueCartOverflowRefund(')).toBeGreaterThan(
+      cart.indexOf('await sendEntryConfirmationEmail(')
+    );
+
+    const link = body('handleEntryPaymentRequestCompleted');
+    const skip = link.slice(link.indexOf("if (result.action === 'skip') {"));
+    expect(skip.slice(0, 400)).toContain('await replayQueuedRefundFromOrder(session.id);');
+    expect(link).toContain('invalid_entry_refund: {');
+  });
+
   it('FAILS CLOSED: does not stamp refunded when the amount did not persist', () => {
     const start = webhookSource.indexOf('async function handleChargeRefunded');
     const end = webhookSource.indexOf('\nasync function', start + 1);

@@ -16,22 +16,23 @@ import { ExhibitorOnboardingChecker } from './ExhibitorOnboardingChecker';
 const navigateSpy = vi.fn();
 vi.mock('react-router-dom', () => ({
   useNavigate: () => navigateSpy,
-  useLocation: () => ({ pathname: '/at-show/show-1' }),
+  // Not /at-show: that route is exempt for everyone (MYK9-970), which would
+  // make the anonymous exemption below untestable.
+  useLocation: () => ({ pathname: '/shows' }),
 }));
 
 let authValue: {
   user: { id: string; is_anonymous?: boolean } | null;
+  userWithRoles: { roles: string[] } | null;
   loading: boolean;
-  isSecretary: boolean;
-  hasRole: (r: string) => boolean;
+  rbacLoading: boolean;
 };
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => authValue,
 }));
 
 let profileValue: {
-  needsOnboarding: boolean;
-  onboardingCompleted: boolean;
+  profile: null;
   profileSettled: boolean;
   isLoading: boolean;
   error: Error | null;
@@ -50,17 +51,21 @@ const renderChecker = () =>
 describe('ExhibitorOnboardingChecker — anonymous exemption', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    authValue = { user: { id: 'u1' }, loading: false, isSecretary: false, hasRole: () => false };
+    authValue = {
+      user: { id: 'u1' },
+      userWithRoles: { roles: ['exhibitor'] },
+      loading: false,
+      rbacLoading: false,
+    };
     profileValue = {
-      needsOnboarding: true,
-      onboardingCompleted: false,
+      profile: null,
       profileSettled: true,
       isLoading: false,
       error: null,
     };
   });
 
-  it('does NOT redirect an anonymous (passcode ringside) user, even with needsOnboarding', () => {
+  it('does NOT redirect an anonymous (passcode ringside) user, even with no profile row', () => {
     authValue.user = { id: 'anon-1', is_anonymous: true };
     renderChecker();
     expect(navigateSpy).not.toHaveBeenCalled();

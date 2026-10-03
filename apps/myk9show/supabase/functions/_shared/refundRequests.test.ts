@@ -2,10 +2,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   claimAbandonedCartRefund,
+  ensurePaymentLinkRefundAlert,
   QUEUE_WRITE_ATTEMPTS,
-  queueRefundForApproval,
   REFUNDABLE_ABANDONED_CART_STATUSES,
-  type QueueDeps,
+  settlePaymentLinkObligation,
+  type PaymentLinkObligation,
   type RefundQueueDeps,
 } from './refundRequests';
 import { instructsManualRefund } from './refundAlertCopy';
@@ -16,147 +17,195 @@ type Alert = {
   opts: { dedupeKey: string; detail?: Record<string, unknown> };
 };
 
-function depsWith(
-  rpcImpl: RefundQueueDeps['rpc'],
-  findImpl: QueueDeps['findRefundRequest'] = async () => ({ data: null, error: null })
-) {
+function depsWith(rpcImpl: RefundQueueDeps['rpc']) {
   const alerts: Alert[] = [];
   const rpc = vi.fn(rpcImpl);
-  const findRefundRequest = vi.fn(findImpl);
-  const deps: QueueDeps = {
+  const deps: RefundQueueDeps = {
     rpc,
-    findRefundRequest,
     alertAdmin: async (title, html, opts) => {
       alerts.push({ title, html, opts });
     },
   };
-  return { deps, rpc, alerts, findRefundRequest };
+  return { deps, rpc, alerts };
 }
 
-const QUEUE_INPUT = {
-  kind: 'cart_overflow' as const,
+/**
+ * An in-memory queue_payment_link_refund: the link latch and the request are
+ * applied together, idempotent on the session (Codex round 13 on #2689).
+ * `fail: 'lost'` commits the first call but loses its response; `fail:
+ * 'always'` never commits.
+ */
+function linkModel(opts: { fail?: 'lost' | 'always'; requestStatus?: string } = {}) {
+  const link = { status: 'open' };
+  const requests = new Map<
+    string,
+    { id: string; status: string; amount: number; reason: string; pi: string }
+  >();
+  let calls = 0;
+  const rpc: RefundQueueDeps['rpc'] = async (_fn, args) => {
+    calls += 1;
+    if (opts.fail === 'always') return { data: null, error: { message: 'db down' } };
+    const session = args.p_session_id as string;
+    let closed = false;
+    if (args.p_link_id && args.p_close_from && link.status === args.p_close_from) {
+      link.status = 'paid';
+      closed = true;
+    }
+    let created = false;
+    if (args.p_amount_cents != null && !requests.has(session)) {
+      requests.set(session, {
+        id: `rr-${requests.size + 1}`,
+        status: opts.requestStatus ?? 'pending',
+        amount: args.p_amount_cents as number,
+        reason: args.p_reason as string,
+        pi: args.p_payment_intent_id as string,
+      });
+      created = true;
+    }
+    const r = requests.get(session);
+    const row = {
+      link_status: args.p_link_id ? link.status : null,
+      link_closed: closed,
+      refund_request_id: r?.id ?? null,
+      created,
+      request_status: r?.status ?? null,
+      amount_cents: r?.amount ?? null,
+      reason: r?.reason ?? null,
+      stripe_payment_intent_id: r?.pi ?? null,
+    };
+    if (opts.fail === 'lost' && calls === 1)
+      return { data: null, error: { message: 'response lost' } };
+    return { data: [row], error: null };
+  };
+  return { link, requests, rpc };
+}
+
+const OBLIGATION: PaymentLinkObligation = {
   sessionId: 'cs_1',
   paymentIntentId: 'pi_1',
-  amountCents: 2500,
-  reason: 'partial_no_service_lines',
-  summaryHtml: 'Two lines were denied.',
-  cartId: 'cart-1',
+  linkId: 'link-1',
+  closeLinkFrom: 'open',
+  owed: {
+    amountCents: 900,
+    reason: 'partial_invalid_entries',
+    detail: { invalid_entry_ids: ['e-1'] },
+    summaryHtml: 'Two entries were withdrawn.',
+  },
   showId: 'show-1',
 };
 
-describe('queueRefundForApproval', () => {
-  it('queues the refund and raises ONE alert naming the request (never a Stripe call)', async () => {
-    const { deps, rpc, alerts } = depsWith(async () => ({
-      data: [{ refund_request_id: 'rr-1', created: true }],
-      error: null,
-    }));
-
-    await expect(queueRefundForApproval(deps, QUEUE_INPUT)).resolves.toBe('queued');
-
-    expect(rpc).toHaveBeenCalledWith('request_refund_approval', {
-      p_kind: 'cart_overflow',
+describe('settlePaymentLinkObligation (Codex round 13)', () => {
+  it('closes the link and writes its request in ONE call, then alerts once', async () => {
+    const model = linkModel();
+    const { deps, rpc, alerts } = depsWith(model.rpc);
+    await expect(settlePaymentLinkObligation(deps, OBLIGATION)).resolves.toBe('queued');
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith('queue_payment_link_refund', {
       p_session_id: 'cs_1',
+      p_link_id: 'link-1',
+      p_close_from: 'open',
       p_payment_intent_id: 'pi_1',
-      p_amount_cents: 2500,
-      p_reason: 'partial_no_service_lines',
-      p_detail: {},
-      p_cart_id: 'cart-1',
-      p_entry_payment_link_id: null,
+      p_amount_cents: 900,
+      p_reason: 'partial_invalid_entries',
+      p_detail: { invalid_entry_ids: ['e-1'] },
       p_show_id: 'show-1',
     });
-    expect(alerts).toHaveLength(1);
-    expect(alerts[0].title).toBe('Refund awaiting approval');
-    expect(alerts[0].opts.dedupeKey).toBe('refund-request-rr-1');
-    expect(alerts[0].opts.detail).toMatchObject({ refund_request_id: 'rr-1', amount_cents: 2500 });
-  });
-
-  it('a redelivery that finds the request still open ensures its alert on the SAME key (Codex round 11)', async () => {
-    const { deps, alerts } = depsWith(async () => ({
-      data: [{ refund_request_id: 'rr-1', created: false, request_status: 'pending' }],
-      error: null,
-    }));
-    await expect(queueRefundForApproval(deps, QUEUE_INPUT)).resolves.toBe('already_queued');
-    // alertAdmin deduplicates on (source, dedupe key) while unresolved, so a
-    // first alert that did go out is not repeated, and a lost one is recovered.
+    expect(model.link.status).toBe('paid');
     expect(alerts.map(a => [a.title, a.opts.dedupeKey])).toEqual([
       ['Refund awaiting approval', 'refund-request-rr-1'],
     ]);
   });
 
-  it.each(['refunded', 'resolved_without_refund'])(
-    'a redelivery that finds the request %s announces nothing',
-    async status => {
-      const { deps, alerts } = depsWith(async () => ({
-        data: [{ refund_request_id: 'rr-1', created: false, request_status: status }],
-        error: null,
-      }));
-      await expect(queueRefundForApproval(deps, QUEUE_INPUT)).resolves.toBe('already_queued');
-      expect(alerts).toEqual([]);
-    }
-  );
-
-  it('committed but the response was lost: the retry finds the request; no failure alert (Codex round 10)', async () => {
-    let calls = 0;
-    const { deps, rpc, alerts, findRefundRequest } = depsWith(async () => {
-      calls += 1;
-      return calls === 1
-        ? { data: null, error: { message: 'response lost' } }
-        : { data: [{ refund_request_id: 'rr-1', created: false }], error: null };
-    });
-    await expect(queueRefundForApproval(deps, QUEUE_INPUT)).resolves.toBe('already_queued');
+  it('a lost response: the retry finds the latch closed and the request there, and ensures its alert', async () => {
+    const model = linkModel({ fail: 'lost' });
+    const { deps, rpc, alerts } = depsWith(model.rpc);
+    await expect(settlePaymentLinkObligation(deps, OBLIGATION)).resolves.toBe('already_queued');
     expect(rpc).toHaveBeenCalledTimes(2);
-    expect(findRefundRequest).not.toHaveBeenCalled();
-    // Whether the first attempt's alert went out is unknown: the awaiting-approval
-    // alert is raised again, deduplicated per request. Never a failure alert.
-    expect(alerts.map(a => [a.title, a.opts.dedupeKey])).toEqual([
-      ['Refund awaiting approval', 'refund-request-rr-1'],
+    expect(model.requests.size).toBe(1);
+    expect(alerts.map(a => a.opts.dedupeKey)).toEqual(['refund-request-rr-1']);
+  });
+
+  it('never confirmed: throws (5xx), nothing committed, the alert has no manual-refund wording', async () => {
+    const model = linkModel({ fail: 'always' });
+    const { deps, rpc, alerts } = depsWith(model.rpc);
+    await expect(settlePaymentLinkObligation(deps, OBLIGATION)).rejects.toThrow(
+      /could not be confirmed; Stripe will retry/
+    );
+    expect(rpc).toHaveBeenCalledTimes(QUEUE_WRITE_ATTEMPTS);
+    expect(model.link.status).toBe('open');
+    expect(model.requests.size).toBe(0);
+    expect(alerts.map(a => a.title)).toEqual([
+      'Queueing a refund could not be confirmed — Stripe will retry',
     ]);
-  });
-
-  it('every attempt unconfirmed but the re-read by (session, kind) finds it: queued, no failure alert', async () => {
-    const { deps, rpc, alerts, findRefundRequest } = depsWith(
-      async () => ({ data: null, error: { message: 'timeout' } }),
-      async () => ({ data: { id: 'rr-1', status: 'pending' }, error: null })
-    );
-    await expect(queueRefundForApproval(deps, QUEUE_INPUT)).resolves.toBe('already_queued');
-    expect(rpc).toHaveBeenCalledTimes(QUEUE_WRITE_ATTEMPTS);
-    expect(findRefundRequest).toHaveBeenCalledWith('cs_1', 'cart_overflow');
-    expect(alerts.map(a => a.title)).toEqual(['Refund awaiting approval']);
-  });
-
-  it('persistently unconfirmed: throws (5xx, Stripe redelivers), alerts WITHOUT any manual-refund instruction', async () => {
-    const { deps, rpc, alerts, findRefundRequest } = depsWith(async () => ({
-      data: null,
-      error: { message: 'connection reset' },
-    }));
-    await expect(queueRefundForApproval(deps, QUEUE_INPUT)).rejects.toThrow(
-      /could not be confirmed as queued; Stripe will retry/
-    );
-    expect(rpc).toHaveBeenCalledTimes(QUEUE_WRITE_ATTEMPTS);
-    // The re-read confirmed no request exists (and nothing else was written).
-    expect(findRefundRequest).toHaveBeenCalledTimes(1);
-    expect(alerts).toHaveLength(1);
-    expect(alerts[0].title).toBe('Queueing a refund could not be confirmed — Stripe will retry');
-    expect(alerts[0].html).toMatch(/Do NOT refund it from the Stripe dashboard/);
-    expect(alerts[0].html).toMatch(/Refunds awaiting approval/);
     expect(instructsManualRefund(alerts[0].title + ' ' + alerts[0].html)).toBe(false);
   });
 
-  it('a failing re-read is still unconfirmed: throws', async () => {
-    const { deps } = depsWith(
-      async () => ({ data: null, error: { message: 'timeout' } }),
-      async () => ({ data: null, error: { message: 'read failed' } })
+  it('nothing owed: the latch alone, no alert', async () => {
+    const model = linkModel();
+    const { deps, alerts } = depsWith(model.rpc);
+    await expect(settlePaymentLinkObligation(deps, { ...OBLIGATION, owed: null })).resolves.toBe(
+      'latched_only'
     );
-    await expect(queueRefundForApproval(deps, QUEUE_INPUT)).rejects.toThrow();
+    expect(model.link.status).toBe('paid');
+    expect(model.requests.size).toBe(0);
+    expect(alerts).toEqual([]);
   });
 
-  it('does not call the queue without an intent or a positive amount', async () => {
-    const { deps, rpc, alerts } = depsWith(async () => ({ data: null, error: null }));
-    await queueRefundForApproval(deps, { ...QUEUE_INPUT, paymentIntentId: null });
-    await queueRefundForApproval(deps, { ...QUEUE_INPUT, amountCents: 0 });
-    expect(rpc).not.toHaveBeenCalled();
-    expect(alerts).toHaveLength(2);
+  it('owed but no intent or amount: alerts, still closes the latch, queues nothing', async () => {
+    const model = linkModel();
+    const { deps, alerts } = depsWith(model.rpc);
+    await expect(
+      settlePaymentLinkObligation(deps, { ...OBLIGATION, paymentIntentId: null })
+    ).resolves.toBe('not_queued');
+    expect(model.link.status).toBe('paid');
+    expect(model.requests.size).toBe(0);
+    expect(alerts.map(a => a.title)).toEqual([
+      'Refund owed but not queued: payment intent or amount missing',
+    ]);
     expect(alerts.some(a => instructsManualRefund(a.title + ' ' + a.html))).toBe(false);
+  });
+
+  it('a paid session with no link row queues the full charge with no latch', async () => {
+    const model = linkModel();
+    const { deps, rpc } = depsWith(model.rpc);
+    await settlePaymentLinkObligation(deps, {
+      ...OBLIGATION,
+      linkId: null,
+      closeLinkFrom: null,
+      owed: { ...OBLIGATION.owed!, reason: 'no_link_record' },
+    });
+    expect(rpc.mock.calls[0][1]).toMatchObject({ p_link_id: null, p_close_from: null });
+    expect(model.link.status).toBe('open');
+    expect(model.requests.get('cs_1')?.reason).toBe('no_link_record');
+  });
+});
+
+describe('ensurePaymentLinkRefundAlert (redelivery)', () => {
+  it('reads the request a closed latch already has and ensures its alert', async () => {
+    const model = linkModel();
+    const first = depsWith(model.rpc);
+    await settlePaymentLinkObligation(first.deps, OBLIGATION);
+    const { deps, rpc, alerts } = depsWith(model.rpc);
+    await ensurePaymentLinkRefundAlert(deps, 'cs_1');
+    expect(rpc).toHaveBeenCalledWith('queue_payment_link_refund', { p_session_id: 'cs_1' });
+    expect(alerts.map(a => a.opts.dedupeKey)).toEqual(['refund-request-rr-1']);
+  });
+
+  it('a closed request is not re-announced; no request means no alert', async () => {
+    const refunded = linkModel({ requestStatus: 'refunded' });
+    await settlePaymentLinkObligation(depsWith(refunded.rpc).deps, OBLIGATION);
+    const r = depsWith(refunded.rpc);
+    await ensurePaymentLinkRefundAlert(r.deps, 'cs_1');
+    expect(r.alerts).toEqual([]);
+
+    const none = depsWith(linkModel().rpc);
+    await ensurePaymentLinkRefundAlert(none.deps, 'cs_9');
+    expect(none.alerts).toEqual([]);
+  });
+
+  it('cannot read: throws (5xx)', async () => {
+    const { deps } = depsWith(linkModel({ fail: 'always' }).rpc);
+    await expect(ensurePaymentLinkRefundAlert(deps, 'cs_1')).rejects.toThrow();
   });
 });
 

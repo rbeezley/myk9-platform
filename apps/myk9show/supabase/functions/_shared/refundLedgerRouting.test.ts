@@ -167,7 +167,11 @@ describe('round 5: routeRefundByCurrentState', () => {
   }
 
   it('a stale SUCCESS event whose refund Stripe now reports failed books no success and reverses it', async () => {
-    const h = harness({ createStatus: 'pending', kind: 'cart_overflow' });
+    const h = harness({
+      createStatus: 'pending',
+      kind: 'entry_payment_link',
+      reason: 'partial_invalid_entries',
+    });
     await approveRefundRequest(h.deps, INPUT);
     const staleSuccess = { ...h.stripeRefunds[0], status: 'succeeded' };
     h.stripeSets('re_1', 'failed', 'expired_or_canceled_card'); // the failure event was missed
@@ -182,7 +186,11 @@ describe('round 5: routeRefundByCurrentState', () => {
   });
 
   it('a stale FAILED event whose refund Stripe now reports succeeded books it, with the current copy', async () => {
-    const h = harness({ createStatus: 'pending', kind: 'cart_overflow' });
+    const h = harness({
+      createStatus: 'pending',
+      kind: 'entry_payment_link',
+      reason: 'partial_invalid_entries',
+    });
     await approveRefundRequest(h.deps, INPUT);
     const staleFailure = { ...h.stripeRefunds[0], status: 'failed' };
     h.stripeSets('re_1', 'succeeded');
@@ -196,7 +204,7 @@ describe('round 5: routeRefundByCurrentState', () => {
   });
 
   it('an approved refund whose attempt is gone still decides from a fresh retrieve', async () => {
-    const h = harness({ kind: 'cart_overflow' });
+    const h = harness({ kind: 'entry_payment_link', reason: 'partial_invalid_entries' });
     h.stripeRefunds.push({
       id: 're_orphan',
       amount: 900,
@@ -217,7 +225,11 @@ describe('round 5: routeRefundByCurrentState', () => {
   });
 
   it('Stripe unreachable: throws before any ledger branch runs', async () => {
-    const h = harness({ createStatus: 'pending', kind: 'cart_overflow' });
+    const h = harness({
+      createStatus: 'pending',
+      kind: 'entry_payment_link',
+      reason: 'partial_invalid_entries',
+    });
     await approveRefundRequest(h.deps, INPUT);
     const staleSuccess = { ...h.stripeRefunds[0], status: 'succeeded' };
     h.setStripeDown(true);
@@ -242,7 +254,11 @@ describe('round 5: routeRefundByCurrentState', () => {
   });
 
   it('a pending refund touches no ledger branch', async () => {
-    const h = harness({ createStatus: 'pending', kind: 'cart_overflow' });
+    const h = harness({
+      createStatus: 'pending',
+      kind: 'entry_payment_link',
+      reason: 'partial_invalid_entries',
+    });
     await approveRefundRequest(h.deps, INPUT);
     const { calls, branches } = recordingBranches();
     await expect(
@@ -303,10 +319,14 @@ describe('round 7: no-order kinds route by the request row', () => {
   it('the kind comes from the request ROW, not the refund metadata', async () => {
     const h = harness({ createStatus: 'pending' });
     await approveRefundRequest(h.deps, INPUT);
-    // Metadata claiming cart_overflow cannot pull an abandoned cart onto the ledger.
+    // Metadata claiming a kind with an order cannot pull an abandoned cart onto the ledger.
     const lying = {
       ...h.stripeSets('re_1', 'succeeded'),
-      metadata: { ...h.stripeRefunds[0].metadata, kind: 'cart_overflow' },
+      metadata: {
+        ...h.stripeRefunds[0].metadata,
+        kind: 'entry_payment_link',
+        reason: 'partial_invalid_entries',
+      },
     };
     const { calls, branches } = branchSpy();
     await expect(routeRefundByCurrentState(h.settleDeps, lying, branches)).resolves.toBe(
@@ -319,7 +339,6 @@ describe('round 7: no-order kinds route by the request row', () => {
     ['entry_payment_link', 'no_link_record', 'no_order', []],
     ['entry_payment_link', 'partial_invalid_entries', 'book', ['book re_1']],
     ['entry_payment_link', 'full_make_whole', 'book', ['book re_1']],
-    ['cart_overflow', 'partial_no_service_lines', 'book', ['book re_1']],
   ])('%s / %s: %s', async (kind, reason, action, expected) => {
     const h = harness({ createStatus: 'pending', kind, reason });
     await approveRefundRequest(h.deps, INPUT);
@@ -340,7 +359,6 @@ describe('round 7: no-order kinds route by the request row', () => {
     expect(
       approvedRefundHasNoOrder({ kind: 'entry_payment_link', reason: 'partial_invalid_entries' })
     ).toBe(false);
-    expect(approvedRefundHasNoOrder({ kind: 'cart_overflow', reason: 'x' })).toBe(false);
   });
 });
 

@@ -19,8 +19,10 @@
 --     pointing at ANOTHER session. None queues a request.
 --   * The cart owner can neither set refund_pending nor move a cart out of it
 --     (42501 from entry_carts_protect_status).
---   * request_refund_approval is idempotent per (session, kind) and refuses
---     the abandoned_cart kind (which must go through the cart claim).
+--   * queue_payment_link_refund (O19-O21, Codex round 13): one call closes the
+--     link AND writes its request (or neither: O20); a repeat or a read
+--     returns the existing request; a deleted link is stored as NULL with its
+--     id in detail.
 --   * ATTEMPTS (Codex rounds 1-2 on #2689), as a table of event orderings,
 --     each on its own request:
 --       O1 no attempts -> pending; begin -> attempt 1, awaiting_stripe; begin
@@ -151,6 +153,16 @@ BEGIN
 END;
 $f$;
 
+CREATE FUNCTION pg_temp.expect_eq(p_actual text, p_expected text, p_label text)
+RETURNS void LANGUAGE plpgsql AS $f$
+BEGIN
+  IF p_actual IS DISTINCT FROM p_expected THEN
+    RAISE EXCEPTION 'FAIL %: got %, expected %', p_label, p_actual, p_expected;
+  END IF;
+  RAISE NOTICE 'PASS %', p_label;
+END;
+$f$;
+
 -- ---------------------------------------------------------------------------
 -- 1. ACL
 -- ---------------------------------------------------------------------------
@@ -160,7 +172,7 @@ DECLARE
 BEGIN
   FOREACH v_fn IN ARRAY ARRAY[
     'public.claim_abandoned_cart_refund(uuid, text, text, integer, jsonb)',
-    'public.request_refund_approval(text, text, text, integer, text, jsonb, uuid, uuid, uuid)',
+    'public.queue_payment_link_refund(text, uuid, text, text, integer, text, jsonb, uuid)',
     'public.begin_refund_attempt(uuid, uuid)',
     'public.record_refund_attempt(uuid, integer, text)',
     'public.refund_attempt_state(uuid, integer)',
@@ -325,41 +337,124 @@ SELECT pg_temp.expect_sqlstate(
 RESET ROLE;
 
 -- ---------------------------------------------------------------------------
--- 6. request_refund_approval
+-- 6. queue_payment_link_refund: the link latch and its refund request commit
+--    together (Codex round 13 on #2689)
 -- ---------------------------------------------------------------------------
 SET LOCAL ROLE service_role;
+INSERT INTO public.entry_payment_links (id, show_id, entry_ids, stripe_checkout_session_id, status, amount_cents)
+VALUES
+  ('00000000-0000-0000-0000-000000876041', '00000000-0000-0000-0000-000000876021', '{}', 'cs_876_link_a', 'open', 900),
+  ('00000000-0000-0000-0000-000000876042', '00000000-0000-0000-0000-000000876021', '{}', 'cs_876_link_b', 'open', 900),
+  ('00000000-0000-0000-0000-000000876043', '00000000-0000-0000-0000-000000876021', '{}', 'cs_876_link_c', 'open', 900),
+  ('00000000-0000-0000-0000-000000876044', '00000000-0000-0000-0000-000000876021', '{}', 'cs_876_link_d', 'open', 900);
+
 DO $$
 DECLARE
   v_first record;
-  v_second record;
+  v_again record;
+  v_read record;
+  v_req public.refund_requests%ROWTYPE;
 BEGIN
-  SELECT * INTO v_first FROM public.request_refund_approval(
-    'cart_overflow', 'cs_876_overflow', 'pi_876_overflow', 1500, 'partial_no_service_lines');
-  SELECT * INTO v_second FROM public.request_refund_approval(
-    'cart_overflow', 'cs_876_overflow', 'pi_876_overflow', 1500, 'partial_no_service_lines');
-  IF v_first.created IS NOT TRUE OR v_second.created IS NOT FALSE
-     OR v_first.refund_request_id IS DISTINCT FROM v_second.refund_request_id THEN
-    RAISE EXCEPTION 'FAIL request_refund_approval is not idempotent per session and kind';
-  END IF;
-  RAISE NOTICE 'PASS request_refund_approval queues once per session and kind';
+  SELECT * INTO v_first FROM public.queue_payment_link_refund(
+    'cs_876_link_a', '00000000-0000-0000-0000-000000876041', 'open', 'pi_876_link_a', 900,
+    'partial_invalid_entries', '{"invalid_entry_ids": ["e-1"]}', '00000000-0000-0000-0000-000000876021');
+  PERFORM pg_temp.expect_eq(
+    v_first.link_status || ' ' || v_first.link_closed || ' ' || v_first.created || ' ' || v_first.request_status,
+    'paid true true pending', 'O19 one call closes the link AND creates its refund request');
+  PERFORM pg_temp.expect_eq(
+    (SELECT l.status FROM public.entry_payment_links l WHERE l.id = '00000000-0000-0000-0000-000000876041'),
+    'paid', 'O19 the link row is latched paid');
+  SELECT * INTO v_req FROM public.refund_requests r WHERE r.id = v_first.refund_request_id;
+  PERFORM pg_temp.expect_eq(
+    v_req.kind || ' ' || v_req.entry_payment_link_id || ' ' || (v_req.detail ->> 'entry_payment_link_id'),
+    'entry_payment_link 00000000-0000-0000-0000-000000876041 00000000-0000-0000-0000-000000876041',
+    'O19 the request links the live link and keeps its id in detail');
+
+  -- A retry after a lost response, and a redelivery's read.
+  SELECT * INTO v_again FROM public.queue_payment_link_refund(
+    'cs_876_link_a', '00000000-0000-0000-0000-000000876041', 'open', 'pi_876_link_a', 900,
+    'partial_invalid_entries');
+  PERFORM pg_temp.expect_eq(
+    v_again.link_closed || ' ' || v_again.created || ' ' || (v_again.refund_request_id = v_first.refund_request_id),
+    'false false true', 'O19 a repeat returns the existing request and closes nothing');
+  SELECT * INTO v_read FROM public.queue_payment_link_refund('cs_876_link_a');
+  PERFORM pg_temp.expect_eq(
+    (v_read.refund_request_id = v_first.refund_request_id) || ' ' || v_read.amount_cents || ' ' || v_read.reason,
+    'true 900 partial_invalid_entries', 'O19 a read finds the request with its amount and reason');
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*)::text FROM public.refund_requests WHERE stripe_checkout_session_id = 'cs_876_link_a'),
+    '1', 'O19 one request per session');
+
+  -- Nothing owed: the latch alone.
+  SELECT * INTO v_first FROM public.queue_payment_link_refund(
+    'cs_876_link_d', '00000000-0000-0000-0000-000000876044', 'open');
+  PERFORM pg_temp.expect_eq(
+    v_first.link_closed || ' ' || COALESCE(v_first.refund_request_id::text, 'none'),
+    'true none', 'O19 a link with nothing owed closes without a request');
+
+  -- A paid session with no link row at all.
+  SELECT * INTO v_first FROM public.queue_payment_link_refund(
+    'cs_876_nolink', NULL, NULL, 'pi_876_nolink', 1500, 'no_link_record');
+  PERFORM pg_temp.expect_eq(
+    COALESCE(v_first.link_status, 'none') || ' ' || v_first.created,
+    'none true', 'O19 a session with no link row still queues its refund');
 END;
 $$;
+
+-- Atomic: if the request cannot be written, the latch does not close either.
 SELECT pg_temp.expect_sqlstate(
-  $q$SELECT public.request_refund_approval(
-       'abandoned_cart', 'cs_876_x', 'pi_876_x', 100, 'cart_abandoned')$q$,
-  '22023', 'request_refund_approval refuses the abandoned_cart kind');
+  $q$SELECT public.queue_payment_link_refund(
+       'cs_876_link_c', '00000000-0000-0000-0000-000000876043', 'open', 'pi_876_link_c', 900, NULL)$q$,
+  '23502', 'O20 a request that cannot be written fails the whole call');
+DO $$
+BEGIN
+  PERFORM pg_temp.expect_eq(
+    (SELECT l.status FROM public.entry_payment_links l WHERE l.id = '00000000-0000-0000-0000-000000876043'),
+    'open', 'O20 the latch did not close without its request');
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*)::text FROM public.refund_requests WHERE stripe_checkout_session_id = 'cs_876_link_c'),
+    '0', 'O20 and no request exists without the latch');
+END;
+$$;
+
+-- A link deleted before the (re)delivery never blocks the request.
+DELETE FROM public.entry_payment_links WHERE id = '00000000-0000-0000-0000-000000876042';
+DO $$
+DECLARE
+  v_first record;
+  v_req public.refund_requests%ROWTYPE;
+BEGIN
+  SELECT * INTO v_first FROM public.queue_payment_link_refund(
+    'cs_876_link_b', '00000000-0000-0000-0000-000000876042', 'open', 'pi_876_link_b', 900,
+    'partial_invalid_entries', '{}', '00000000-0000-0000-0000-000000876021');
+  SELECT * INTO v_req FROM public.refund_requests r WHERE r.id = v_first.refund_request_id;
+  PERFORM pg_temp.expect_eq(
+    v_first.created || ' ' || COALESCE(v_req.entry_payment_link_id::text, 'null') || ' '
+      || (v_req.detail ->> 'entry_payment_link_id'),
+    'true null 00000000-0000-0000-0000-000000876042',
+    'O21 a deleted link is stored as NULL, its id kept in detail');
+END;
+$$;
+
+SELECT pg_temp.expect_sqlstate(
+  $q$SELECT public.queue_payment_link_refund('cs_876_x', NULL, NULL, 'pi_876_x', 0, 'x')$q$,
+  '22023', 'queue_payment_link_refund refuses a non-positive amount');
+SELECT pg_temp.expect_sqlstate(
+  $q$SELECT public.queue_payment_link_refund(
+       'cs_876_x', '00000000-0000-0000-0000-000000876041', 'paid')$q$,
+  '22023', 'queue_payment_link_refund closes a link only from open or expired');
 
 -- ---------------------------------------------------------------------------
 -- 7. Attempts: a table of event orderings (Codex rounds 1-2 on #2689)
 -- ---------------------------------------------------------------------------
 RESET ROLE;
 
--- A fresh cart_overflow request per ordering.
+-- A fresh payment-link request (no link row) per ordering.
 CREATE FUNCTION pg_temp.new_request(p_session text)
 RETURNS uuid LANGUAGE sql AS $f$
   SELECT r.refund_request_id
-    FROM public.request_refund_approval(
-      'cart_overflow', p_session, 'pi_' || p_session, 1500, 'partial_no_service_lines') AS r
+    FROM public.queue_payment_link_refund(
+      p_session, NULL, NULL, 'pi_' || p_session, 1500, 'partial_invalid_entries') AS r
 $f$;
 
 CREATE FUNCTION pg_temp.begin_attempt(p_request uuid)
@@ -408,16 +503,6 @@ BEGIN
     PERFORM pg_temp.settle(p_refund, p_status, p_reason);
   END IF;
   RETURN v_outcome;
-END;
-$f$;
-
-CREATE FUNCTION pg_temp.expect_eq(p_actual text, p_expected text, p_label text)
-RETURNS void LANGUAGE plpgsql AS $f$
-BEGIN
-  IF p_actual IS DISTINCT FROM p_expected THEN
-    RAISE EXCEPTION 'FAIL %: got %, expected %', p_label, p_actual, p_expected;
-  END IF;
-  RAISE NOTICE 'PASS %', p_label;
 END;
 $f$;
 
@@ -693,7 +778,7 @@ BEGIN
   PERFORM pg_temp.expect_eq(
     (SELECT (s.attempt_id IS NULL)::text || ' ' || s.request_kind || ' ' || s.request_reason
        FROM public.refund_attempt_state(v_req, 99) AS s),
-    'true cart_overflow partial_no_service_lines',
+    'true entry_payment_link partial_invalid_entries',
     'O14 refund_attempt_state returns the request (kind, reason) with no attempt for an unknown attempt');
   PERFORM pg_temp.expect_eq(
     (SELECT count(*)::text FROM public.refund_attempt_state(gen_random_uuid(), 1)), '0',
@@ -729,8 +814,8 @@ BEGIN
   PERFORM pg_temp.expect_eq(v_r.outcome, 'already_resolved', 'O15 resolving twice writes nothing');
   PERFORM pg_temp.expect_eq(
     (SELECT q.created::text || ' ' || q.request_status
-       FROM public.request_refund_approval(
-         'cart_overflow', 'cs_876_o15', 'pi_cs_876_o15', 1500, 'partial_no_service_lines') AS q),
+       FROM public.queue_payment_link_refund(
+         'cs_876_o15', NULL, NULL, 'pi_cs_876_o15', 1500, 'partial_invalid_entries') AS q),
     'false resolved_without_refund',
     'O15 a redelivered queue write reports the resolved status (no awaiting alert)');
 END;

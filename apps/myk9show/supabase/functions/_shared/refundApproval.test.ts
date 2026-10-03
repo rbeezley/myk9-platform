@@ -56,8 +56,8 @@ describe('approveRefundRequest', () => {
     expect(h.alerts).toEqual([]);
   });
 
-  it('a cart-overflow refund that succeeds is booked on its order as make-whole', async () => {
-    const h = harness({ kind: 'cart_overflow', reason: 'partial_no_service_lines' });
+  it('a payment-link refund that succeeds is booked on its order as make-whole', async () => {
+    const h = harness({ kind: 'entry_payment_link', reason: 'partial_invalid_entries' });
     await approveRefundRequest(h.deps, INPUT);
     expect(h.rpcCalls.find(c => c.fn === 'record_order_refund_cents')?.args).toEqual({
       p_payment_intent_id: 'pi_1',

@@ -55,23 +55,23 @@ import {
 import { listAllChargeRefunds } from '../_shared/refundLifecycle.ts';
 import {
   claimAbandonedCartRefund,
-  queueRefundForApproval,
+  ensurePaymentLinkRefundAlert,
   REFUNDABLE_ABANDONED_CART_STATUSES,
   RESOLVE_INSTEAD_HTML,
-  type QueueDeps,
+  settlePaymentLinkObligation,
+  type RefundQueueDeps,
   type SettlingRefund,
 } from '../_shared/refundRequests.ts';
 import {
+  cartOverflowManualRefundAlert,
   overflowNeedsManualAmountAlert,
   paymentLinkNeedsManualAmountAlert,
 } from '../_shared/refundAlertCopy.ts';
 import {
-  listAllIntentRefunds,
   routeRefundByCurrentState,
   type RefundLedgerContext,
   type SettleDeps,
 } from '../_shared/refundSettlement.ts';
-import { REFUND_QUEUE_MARKER, replayOwedRefund } from '../_shared/refundOrderReplay.ts';
 
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
 const stripeWebhookSecret = Deno.env.get('STRIPE_WEBHOOK_SECRET')!;
@@ -98,68 +98,22 @@ const stripeLivemode = isStripeLiveMode(stripeSecret);
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Refunds are never automatic (MYK9-876): charges this webhook cannot honor are
-// queued in refund_requests for a site admin to approve.
-const refundQueueDeps: QueueDeps = {
+// queued in refund_requests for a site admin to approve, each in the same
+// transaction as its fulfillment latch (Codex round 13 on #2689).
+const refundQueueDeps: RefundQueueDeps = {
   rpc: (fn, args) => supabase.rpc(fn, args),
   alertAdmin,
-  // The queue write's idempotency key, re-read when its outcome is unknown
-  // (Codex round 10 on #2689).
-  findRefundRequest: async (sessionId, kind) => {
-    const { data, error } = await supabase
-      .from('refund_requests')
-      .select('id, status')
-      .eq('stripe_checkout_session_id', sessionId)
-      .eq('kind', kind)
-      .maybeSingle();
-    return {
-      data: data ? { id: data.id as string, status: data.status as string } : null,
-      error,
-    };
-  },
 };
 
-interface RecordedOrder {
-  stripe_payment_intent_id: string | null;
-  show_id: string | null;
-  metadata: unknown;
-}
-
-/** The session's stripe_orders row, or null. Throws (5xx) when it cannot be read. */
-async function loadRecordedOrder(sessionId: string): Promise<RecordedOrder | null> {
+/** Whether the session already has a stripe_orders row. Throws (5xx) when it cannot be read. */
+async function orderExistsForSession(sessionId: string): Promise<boolean> {
   const { data, error } = await supabase
     .from('stripe_orders')
-    .select('stripe_payment_intent_id, show_id, metadata')
+    .select('id')
     .eq('stripe_checkout_session_id', sessionId)
     .maybeSingle();
   if (error) throw new Error(`Could not read the order for ${sessionId}: ${error.message}`);
-  return (data as RecordedOrder | null) ?? null;
-}
-
-/**
- * The session already has an order: replay the idempotent refund-queue write
- * from it (Codex rounds 10-12 on #2689), behind replayOwedRefund's two guards
- * (the queue-path marker, and no legacy auto-refund at Stripe). An
- * already-queued request is a no-op apart from ensuring its alert. Throws if
- * Stripe or the write cannot be confirmed, so Stripe redelivers.
- */
-async function replayQueuedRefundFromOrder(sessionId: string, order: RecordedOrder) {
-  const outcome = await replayOwedRefund(
-    {
-      ...refundQueueDeps,
-      listIntentRefunds: paymentIntentId =>
-        listAllIntentRefunds(async params => {
-          const page = await stripe.refunds.list(params);
-          return { data: page.data as SettlingRefund[], has_more: page.has_more };
-        }, paymentIntentId),
-    },
-    {
-      sessionId,
-      paymentIntentId: order.stripe_payment_intent_id ?? null,
-      showId: order.show_id ?? null,
-      metadata: order.metadata,
-    }
-  );
-  console.log(`Session ${sessionId} already has an order — refund replay: ${outcome}`);
+  return data !== null;
 }
 
 // Approved queued refunds settle on their own attempt row, ONLY from the
@@ -975,13 +929,18 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const checkoutType = session.metadata?.type;
   console.log(`Checkout completed: ${session.id}, type: ${checkoutType}`);
 
-  // Replay first (paidSessionEntry.ts): an existing order means this is a
-  // redelivery, so no first-time validation may run before the replay.
-  await routePaidSession<RecordedOrder>(
+  // An existing order means a redelivery (paidSessionEntry.ts): no first-time
+  // validation runs; only the alert of any refund request is ensured.
+  await routePaidSession(
     { checkoutType, mode: session.mode ?? null },
     {
-      loadRecordedOrder: () => loadRecordedOrder(session.id),
-      replay: order => replayQueuedRefundFromOrder(session.id, order),
+      orderExists: () => orderExistsForSession(session.id),
+      alreadyFulfilled: async type => {
+        console.log(`Session ${session.id} already has an order — redelivery, nothing to fulfill`);
+        if (type === 'entry_payment_request') {
+          await ensurePaymentLinkRefundAlert(refundQueueDeps, session.id);
+        }
+      },
       fulfillCart: () => handleEntryPaymentCompleted(session),
       fulfillPaymentLink: () => handleEntryPaymentRequestCompleted(session),
       subscription: () => handleSubscriptionCheckoutCompleted(session),
@@ -1670,8 +1629,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
        created ${entryIds.length} paid entries, ${waitlistedLines.length} waitlist rows,
        and ${deniedLines.length} denied lines. Failed no-service lines:
        ${failedLines.length}.</p>
-       <p>The denied/waitlisted/no-service share is queued for refund approval
-       when the amount can be derived. ${RESOLVE_INSTEAD_HTML}</p>`,
+       <p>The denied/waitlisted/no-service share is NOT queued: a separate "Cart
+       overflow — refund by hand" alert names the amount (MYK9-964).</p>`,
       { source: 'stripe-webhook', dedupeKey: `cart-overflow-${session.id}` }
     );
   }
@@ -1695,8 +1654,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     // COLLECTION INVARIANT (see _shared/orderSnapshot.ts): amount_cents is the
     // GROSS amount the customer was actually charged — the full session total,
     // NOT pre-netted by the cart-overflow refund. The overflow share is
-    // recorded as a refund once a site admin approves it (by
-    // stripe-approve-refund and/or the charge.refunded handler), so collected = amount_cents −
+    // refunded by hand (MYK9-964) and recorded as a refund by the
+    // charge.refunded handler, so collected = amount_cents −
     // refunded_cents subtracts it EXACTLY ONCE. Pre-netting here as well made a
     // fully-invalid cart report NEGATIVE collections (review finding A).
     // Denied/waitlisted/no-service cart lines remain explicit metadata and never
@@ -1721,7 +1680,6 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
       paid_entry_subtotal_cents: paidEntrySubtotalCents,
       // Opt-in marker for the replay (Codex round 12): only orders written
       // by the queue path replay their overflow_refund.
-      ...REFUND_QUEUE_MARKER,
       overflow_refund: serializeCartOverflowRefundDecision(overflowRefundDecision),
       waitlisted_cart_item_ids: waitlistedLines.map(line => line.cartItemId),
       waitlist_entry_ids: waitlistedLines
@@ -1811,9 +1769,10 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     totalCents: paidOrderAmountCents,
   });
 
-  // LAST, after every other side effect (Codex round 10 on #2689): the queue
-  // write throws when it cannot be confirmed, the webhook answers 5xx, and the
-  // redelivery finds the order and replays it at the entry (round 11).
+  // Cart overflow is NOT queued (Codex round 13 on #2689, option C): its
+  // amount exists only after the cart latch closed, so it cannot be atomic
+  // with it. An operator alert names the amount; it is refunded by hand
+  // until MYK9-964.
   if (noServiceLineIds.length > 0) {
     await queueCartOverflowRefund({
       session,
@@ -1888,13 +1847,20 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
        <p>The full charge is queued for refund approval. ${RESOLVE_INSTEAD_HTML}</p>`,
       { source: 'stripe-webhook', dedupeKey: `payment-link-no-record-${session.id}` }
     );
-    await queueEntryPaymentRefund({
-      session,
+    // No link row, so no latch: the refund request is the only write, and a
+    // redelivery takes this same path to the same idempotent call.
+    await settlePaymentLinkObligation(refundQueueDeps, {
+      sessionId: session.id,
       paymentIntentId,
-      amountCents: freshAmountTotalCents,
-      reason: 'no_link_record',
-      invalidEntryIds: [],
       linkId: null,
+      closeLinkFrom: null,
+      owed: {
+        amountCents: freshAmountTotalCents,
+        reason: 'no_link_record',
+        detail: { invalid_entry_ids: [] },
+        summaryHtml: 'A payment-link charge could not be honored in full.',
+      },
+      showId: null,
     });
     return;
   }
@@ -1938,6 +1904,9 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     console.log(
       `Payment link ${session.id} skipped (${result.skipReason}; link status: ${link.status}, payment_status: ${freshSession.payment_status})`
     );
+    // A closed latch has its refund request beside it (written in the same
+    // transaction): a redelivery after a lost response ensures its alert.
+    if (link.status === 'paid') await ensurePaymentLinkRefundAlert(refundQueueDeps, session.id);
     return;
   }
 
@@ -2153,35 +2122,36 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
   // Payment history. Idempotent via the UNIQUE stripe_payment_intent_id /
   // stripe_checkout_session_id; a benign retry hits 23505 and is ignored.
   const paidIds = updateOutcome.paidEntryIds;
-  // Close the link (idempotency latch) after reconciliation. Same-intent paid
-  // rows make concurrent Stripe deliveries idempotent without closing the retry
-  // path before entries are stamped. Expired promotion claims are allowed to
-  // revive only when at least one entry was actually stamped paid.
+  // Close the link (idempotency latch) after reconciliation AND write what the
+  // invalid entries are owed, in ONE transaction (queue_payment_link_refund;
+  // Codex round 13 on #2689). Same-intent paid rows make concurrent Stripe
+  // deliveries idempotent without closing the retry path before entries are
+  // stamped. Expired promotion claims revive only when at least one entry was
+  // actually stamped paid. Throws (5xx) when it cannot be confirmed; the latch
+  // is then still open and the redelivery runs this again.
   const shouldCloseLink =
     link.status === 'open' || (link.status === 'expired' && paidIds.length > 0);
-  if (shouldCloseLink) {
-    const linkCloseStatus = link.status === 'expired' ? 'expired' : 'open';
-    const { data: closedLinks, error: linkCloseError } = await supabase
-      .from('entry_payment_links')
-      .update({ status: 'paid', updated_at: new Date().toISOString() })
-      .eq('id', link.id)
-      .eq('status', linkCloseStatus)
-      .select('id');
-
-    if (linkCloseError) {
-      console.error(`Payment link ${session.id} could not be closed:`, linkCloseError);
-      await alertAdmin(
-        'Payment link paid but the link could not be latched',
-        `<p>Session <code>${session.id}</code> reconciled entries, but updating
-         the <code>entry_payment_links</code> row to <code>paid</code> failed:</p>
-         <pre>${linkCloseError.message}</pre>
-         <p>Recovery: set the link row to paid after verifying the entry stamps.</p>`,
-        { source: 'stripe-webhook', dedupeKey: `payment-link-latch-failed-${session.id}` }
-      );
-    } else if ((closedLinks ?? []).length === 0) {
-      console.log(`Payment link ${session.id} was already closed by another webhook handler`);
-    }
-  }
+  const invalidEntryIds = updateOutcome.invalidEntryIds;
+  const decision = updateOutcome.refundDecision;
+  const owesRefund = invalidEntryIds.length > 0 && decision.action === 'refund';
+  const invalidList = invalidEntryIds.length
+    ? ` Invalid entries: <code>${invalidEntryIds.join(', ')}</code>.`
+    : '';
+  await settlePaymentLinkObligation(refundQueueDeps, {
+    sessionId: session.id,
+    paymentIntentId,
+    linkId: link.id,
+    closeLinkFrom: shouldCloseLink ? (link.status === 'expired' ? 'expired' : 'open') : null,
+    owed: owesRefund
+      ? {
+          amountCents: decision.amountCents,
+          reason: decision.reason,
+          detail: { invalid_entry_ids: invalidEntryIds },
+          summaryHtml: `A payment-link charge could not be honored in full.${invalidList}`,
+        }
+      : null,
+    showId: (link.show_id as string | null) ?? null,
+  });
 
   await resolvePaidWaitlistOffers(paidIds, session.id);
 
@@ -2231,20 +2201,6 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     metadata: {
       entry_payment_link_id: link.id,
       entry_count: paidIds.length,
-      ...REFUND_QUEUE_MARKER,
-      // What the invalid entries are owed, so a redelivery can replay the
-      // queue write (Codex round 10 on #2689); see queuedRefundFromOrder.
-      ...(updateOutcome.invalidEntryIds.length > 0 &&
-      updateOutcome.refundDecision.action === 'refund'
-        ? {
-            invalid_entry_refund: {
-              action: 'refund',
-              amount_cents: updateOutcome.refundDecision.amountCents,
-              reason: updateOutcome.refundDecision.reason,
-            },
-            invalid_entry_ids: updateOutcome.invalidEntryIds,
-          }
-        : {}),
     },
     show_id: link.show_id,
     entry_ids: paidIds,
@@ -2302,21 +2258,10 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
     );
   }
 
-  const invalidEntryIds = updateOutcome.invalidEntryIds;
+  // The refund itself (decision.action === 'refund') was written with the
+  // latch above; these are the cases where no amount could be queued.
   if (invalidEntryIds.length > 0) {
-    const decision = updateOutcome.refundDecision;
-
-    if (decision.action === 'refund') {
-      await queueEntryPaymentRefund({
-        session,
-        paymentIntentId,
-        amountCents: decision.amountCents,
-        reason: decision.reason,
-        invalidEntryIds,
-        linkId: link.id,
-        showId: (link.show_id as string | null) ?? null,
-      });
-    } else if (decision.action === 'needs_manual_amount') {
+    if (decision.action === 'needs_manual_amount') {
       const copy = paymentLinkNeedsManualAmountAlert({
         sessionId: session.id,
         invalidEntryIds,
@@ -2520,32 +2465,6 @@ async function loadEntryPaymentLineItemFees(sessionId: string): Promise<Map<stri
   return new Map<string, number>();
 }
 
-/** Queue a payment-link refund for approval (MYK9-876: never automatic). */
-async function queueEntryPaymentRefund(input: {
-  session: Stripe.Checkout.Session;
-  paymentIntentId: string | null;
-  amountCents: number | null;
-  reason: 'no_link_record' | 'full_make_whole' | 'partial_invalid_entries';
-  invalidEntryIds: string[];
-  linkId: string | null;
-  showId?: string | null;
-}) {
-  const invalid = input.invalidEntryIds.length
-    ? ` Invalid entries: <code>${input.invalidEntryIds.join(', ')}</code>.`
-    : '';
-  await queueRefundForApproval(refundQueueDeps, {
-    kind: 'entry_payment_link',
-    sessionId: input.session.id,
-    paymentIntentId: input.paymentIntentId,
-    amountCents: input.amountCents,
-    reason: input.reason,
-    summaryHtml: `A payment-link charge could not be honored in full.${invalid}`,
-    detail: { invalid_entry_ids: input.invalidEntryIds },
-    entryPaymentLinkId: input.linkId,
-    showId: input.showId ?? null,
-  });
-}
-
 function normalizeCapacityOutcome(data: unknown): OnlinePaidEntryCapacityOutcome | null {
   const row = Array.isArray(data) ? data[0] : data;
   if (!row || typeof row !== 'object') return null;
@@ -2600,7 +2519,10 @@ function serializeCartOverflowRefundDecision(decision: CartOverflowRefundDecisio
   };
 }
 
-/** Queue the cart-overflow refund for approval (MYK9-876: never automatic). */
+/**
+ * The cart-overflow share: an operator alert, refunded by hand until MYK9-964
+ * (never queued, never automatic; Codex round 13 on #2689, option C).
+ */
 async function queueCartOverflowRefund(input: {
   session: Stripe.Checkout.Session;
   paymentIntentId: string | null;
@@ -2641,22 +2563,28 @@ async function queueCartOverflowRefund(input: {
     return;
   }
 
-  await queueRefundForApproval(refundQueueDeps, {
-    kind: 'cart_overflow',
+  const copy = cartOverflowManualRefundAlert({
     sessionId: input.session.id,
     paymentIntentId: input.paymentIntentId,
     amountCents: input.decision.amountCents,
     reason: input.decision.reason,
-    summaryHtml: `Paid cart lines could not be served (no-service cart items:
-      <code>${input.invalidCartItemIds.join(', ')}</code>).`,
+    waitlistedCartItemIds: input.waitlistedCartItemIds,
+    deniedCartItemIds: input.deniedCartItemIds,
+    failedCartItemIds: input.failedCartItemIds,
+  });
+  console.error(
+    `CRITICAL: cart overflow on ${input.session.id} owes ${input.decision.amountCents}¢ — refund by hand (MYK9-964)`
+  );
+  await alertAdmin(copy.title, copy.html, {
+    source: 'stripe-webhook',
+    dedupeKey: `cart-overflow-manual-refund-${input.session.id}`,
     detail: {
-      invalid_cart_item_ids: input.invalidCartItemIds,
-      waitlisted_cart_item_ids: input.waitlistedCartItemIds,
-      denied_cart_item_ids: input.deniedCartItemIds,
-      failed_cart_item_ids: input.failedCartItemIds,
+      checkout_session_id: input.session.id,
+      payment_intent_id: input.paymentIntentId,
+      amount_cents: input.decision.amountCents,
+      cart_id: input.cartId,
+      show_id: input.showId,
     },
-    cartId: input.cartId,
-    showId: input.showId,
   });
 }
 

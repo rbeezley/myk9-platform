@@ -123,18 +123,14 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     expect(body).toContain('Succeeded refund arrived before its order');
   });
 
-  it('never creates a refund itself: unhonorable charges are queued for approval (MYK9-876)', () => {
+  it('never creates a refund itself: unhonorable charges are queued for approval or alerted (MYK9-876)', () => {
     // Booking an APPROVED refund as make-whole, and only once Stripe reports it
     // succeeded, moved to _shared/refundApproval.ts (behavioral vitest there).
     expect(webhookSource).not.toContain('refunds.create');
-    for (const functionName of ['queueCartOverflowRefund', 'queueEntryPaymentRefund']) {
-      const start = webhookSource.indexOf(`async function ${functionName}`);
-      expect(start).toBeGreaterThan(-1);
-      const end = webhookSource.indexOf('\nasync function', start + 1);
-      const body = webhookSource.slice(start, end);
-      expect(body).toContain('queueRefundForApproval(refundQueueDeps, {');
-      expect(body).not.toContain('recordOrderRefundCents(');
-    }
+    const start = webhookSource.indexOf('async function queueCartOverflowRefund');
+    expect(start).toBeGreaterThan(-1);
+    const body = webhookSource.slice(start, webhookSource.indexOf('\nasync function', start + 1));
+    expect(body).not.toContain('recordOrderRefundCents(');
   });
 
   it('routes every refund lifecycle event through the current-state router (Codex rounds 1-5, #2689)', () => {
@@ -157,37 +153,51 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     expect(webhookSource).not.toContain('settleApprovedRefund(');
   });
 
-  it('replays the refund queue write at the ONE entry, before any first-time validation (Codex rounds 10-11, #2689)', () => {
-    // The ordering itself is unit-tested in paidSessionEntry.test.ts
-    // (routePaidSession). This pins that index.ts routes through it, and that
-    // nothing else replays: the skip branches deep in the handlers ran AFTER
-    // expiry/pricing/link validation, so a retry could return before them.
+  it('writes each queued refund WITH its fulfillment latch; nothing replays (Codex round 13, #2689)', () => {
     const body = (name: string) => {
       const start = webhookSource.indexOf(`async function ${name}`);
       expect(start).toBeGreaterThan(-1);
       return webhookSource.slice(start, webhookSource.indexOf('\nasync function', start + 1));
     };
+    // The entry (unit-tested in paidSessionEntry.test.ts) skips first-time
+    // validation for a fulfilled session and only ensures its request alert.
     const entry = body('handleCheckoutCompleted');
-    expect(entry).toContain('await routePaidSession<RecordedOrder>(');
-    expect(entry).toContain('replay: order => replayQueuedRefundFromOrder(session.id, order),');
+    expect(entry).toContain('await routePaidSession(');
+    expect(entry).toContain('orderExists: () => orderExistsForSession(session.id),');
+    expect(entry).toContain('await ensurePaymentLinkRefundAlert(refundQueueDeps, session.id);');
     expect(entry).toContain('fulfillCart: () => handleEntryPaymentCompleted(session),');
     expect(entry).toContain(
       'fulfillPaymentLink: () => handleEntryPaymentRequestCompleted(session),'
     );
-    expect(webhookSource.split('replayQueuedRefundFromOrder(').length - 1).toBe(2); // definition + entry
+    for (const gone of [
+      'replayQueuedRefundFromOrder',
+      'replayOwedRefund',
+      'queuedRefundFromOrder',
+      'REFUND_QUEUE_MARKER',
+      'invalid_entry_refund',
+      'queueRefundForApproval',
+      'request_refund_approval',
+      "kind: 'cart_overflow'",
+    ]) {
+      expect(webhookSource, gone).not.toContain(gone);
+    }
 
-    const cart = body('handleEntryPaymentCompleted');
-    expect(cart).toContain('overflow_refund: serializeCartOverflowRefundDecision(');
-    // The queue write is the LAST side effect, after the confirmation email.
-    expect(cart.indexOf('await queueCartOverflowRefund(')).toBeGreaterThan(
-      cart.indexOf('await sendEntryConfirmationEmail(')
+    // The payment link closes its latch and writes its refund in ONE call, and
+    // no other write closes the link.
+    const link = body('handleEntryPaymentRequestCompleted');
+    expect(link).toContain('await settlePaymentLinkObligation(refundQueueDeps, {');
+    // A redelivery that finds the latch closed ensures its request's alert.
+    expect(link).toContain(
+      "if (link.status === 'paid') await ensurePaymentLinkRefundAlert(refundQueueDeps, session.id);"
     );
-    expect(body('handleEntryPaymentRequestCompleted')).toContain('invalid_entry_refund: {');
-    // Only orders written by the queue path replay (Codex round 12): both
-    // inserts carry the opt-in marker; the guard itself is unit-tested in
-    // _shared/refundOrderReplay.test.ts.
-    expect(cart).toContain('...REFUND_QUEUE_MARKER,');
-    expect(body('handleEntryPaymentRequestCompleted')).toContain('...REFUND_QUEUE_MARKER,');
+    expect(link).toContain(
+      "closeLinkFrom: shouldCloseLink ? (link.status === 'expired' ? 'expired' : 'open') : null,"
+    );
+    expect(link).not.toContain(".from('entry_payment_links')\n      .update(");
+    expect(link).not.toContain("update({ status: 'paid'");
+
+    // Cart overflow: an operator alert, refunded by hand until MYK9-964.
+    expect(body('queueCartOverflowRefund')).toContain('cartOverflowManualRefundAlert({');
   });
 
   it('FAILS CLOSED: does not stamp refunded when the amount did not persist', () => {

@@ -2,13 +2,24 @@
 // Codex round 10 on #2689: the approval queue is the only way a queued refund
 // leaves the platform, so no operator alert in the refund modules may tell
 // anyone to refund outside it. A DECLARED list of builders and scenarios is
-// run and every alert it produces is checked; nothing here greps source.
+// run and every alert it produces is checked; nothing here greps source. The
+// declared exceptions (ALLOWED_MANUAL_REFUND_ALERTS, round 13) are cart
+// overflow, which is never queued, and must say so.
 import { describe, expect, it } from 'vitest';
 import * as copyModule from './refundAlertCopy';
-import { instructsManualRefund, REFUND_ALERT_BUILDERS } from './refundAlertCopy';
+import {
+  ALLOWED_MANUAL_REFUND_ALERTS,
+  instructsManualRefund,
+  REFUND_ALERT_BUILDERS,
+} from './refundAlertCopy';
 import { approveRefundRequest } from './refundApproval';
 import { harness } from './refundApprovalTestHarness';
-import { claimAbandonedCartRefund, queueRefundForApproval, type QueueDeps } from './refundRequests';
+import {
+  claimAbandonedCartRefund,
+  settlePaymentLinkObligation,
+  type PaymentLinkObligation,
+  type RefundQueueDeps,
+} from './refundRequests';
 import { settleApprovedRefund } from './refundSettlement';
 
 const INPUT = { requestId: 'rr-1', actorAuthUserId: 'admin-uid' };
@@ -35,12 +46,16 @@ describe('instructsManualRefund (known answers)', () => {
 });
 
 describe('REFUND_ALERT_BUILDERS', () => {
-  it('lists every alert builder the module exports', () => {
+  it('lists every alert builder the module exports, in exactly one of the two lists', () => {
     const exported = Object.entries(copyModule)
       .filter(([name, value]) => typeof value === 'function' && name.endsWith('Alert'))
       .map(([name]) => name)
       .sort();
-    expect(Object.keys(REFUND_ALERT_BUILDERS).sort()).toEqual(exported);
+    const listed = [
+      ...Object.keys(REFUND_ALERT_BUILDERS),
+      ...Object.keys(ALLOWED_MANUAL_REFUND_ALERTS),
+    ].sort();
+    expect(listed).toEqual(exported);
   });
 
   it.each(Object.entries(REFUND_ALERT_BUILDERS))(
@@ -48,23 +63,40 @@ describe('REFUND_ALERT_BUILDERS', () => {
     (_name, build) => {
       const { title, html } = build();
       expect(instructsManualRefund(`${title}. ${html}`)).toBe(false);
-      expect(html).toMatch(/Refunds awaiting approval|request_refund_approval/);
+      expect(html).toMatch(/Refunds awaiting approval|queue_payment_link_refund/);
     }
   );
+});
+
+describe('ALLOWED_MANUAL_REFUND_ALERTS (cart overflow, never queued; Codex round 13)', () => {
+  it.each(Object.entries(ALLOWED_MANUAL_REFUND_ALERTS))(
+    '%s: refund by hand, the app will not, and why (MYK9-964)',
+    (_name, { reason, build }) => {
+      const { title, html } = build();
+      expect(reason.length).toBeGreaterThan(20);
+      expect(instructsManualRefund(`${title}. ${html}`)).toBe(true);
+      expect(html).toMatch(/The app will NOT refund this/);
+      expect(html).toMatch(/MYK9-964/);
+      expect(html).toMatch(/No refund request exists or can be created for it/);
+    }
+  );
+
+  it('the cart-overflow alert names the session, the amount and the lines', () => {
+    const { html } = ALLOWED_MANUAL_REFUND_ALERTS.cartOverflowManualRefundAlert.build();
+    expect(html).toContain('<code>cs_1</code>');
+    expect(html).toContain('25.00 USD');
+    expect(html).toMatch(/waitlisted <code>ci-1<\/code>, denied\s+<code>ci-2<\/code>/);
+  });
 });
 
 /** Every alert path in refundRequests, refundApproval, refundCreateRejection and refundSettlement. */
 const definitive = (code: string) =>
   Object.assign(new Error(code), { type: 'StripeInvalidRequestError', statusCode: 400, code });
 
-function queueDeps(
-  rpc: QueueDeps['rpc'],
-  find: QueueDeps['findRefundRequest'] = async () => ({ data: null, error: null })
-) {
+function queueDeps(rpc: RefundQueueDeps['rpc']) {
   const texts: string[] = [];
-  const deps: QueueDeps = {
+  const deps: RefundQueueDeps = {
     rpc,
-    findRefundRequest: find,
     alertAdmin: async (title, html) => {
       texts.push(`${title} ${html}`);
     },
@@ -72,40 +104,53 @@ function queueDeps(
   return { deps, texts };
 }
 
-const QUEUE_INPUT = {
-  kind: 'cart_overflow' as const,
+const LINK_OBLIGATION: PaymentLinkObligation = {
   sessionId: 'cs_1',
   paymentIntentId: 'pi_1',
-  amountCents: 2500,
-  reason: 'partial_no_service_lines',
-  summaryHtml: 'Lines were denied.',
+  linkId: 'link-1',
+  closeLinkFrom: 'open',
+  owed: {
+    amountCents: 900,
+    reason: 'partial_invalid_entries',
+    detail: {},
+    summaryHtml: 'Entries were withdrawn.',
+  },
+  showId: null,
+};
+
+const LINK_ROW = {
+  link_status: 'paid',
+  link_closed: true,
+  refund_request_id: 'rr-1',
+  created: true,
+  request_status: 'pending',
+  amount_cents: 900,
+  reason: 'partial_invalid_entries',
+  stripe_payment_intent_id: 'pi_1',
 };
 
 const SCENARIOS: [string, () => Promise<string[]>][] = [
   [
-    'queue: awaiting approval',
+    'payment link: awaiting approval',
     async () => {
-      const { deps, texts } = queueDeps(async () => ({
-        data: [{ refund_request_id: 'rr-1', created: true }],
-        error: null,
-      }));
-      await queueRefundForApproval(deps, QUEUE_INPUT);
+      const { deps, texts } = queueDeps(async () => ({ data: [LINK_ROW], error: null }));
+      await settlePaymentLinkObligation(deps, LINK_OBLIGATION);
       return texts;
     },
   ],
   [
-    'queue: missing inputs',
+    'payment link: missing inputs',
     async () => {
-      const { deps, texts } = queueDeps(async () => ({ data: null, error: null }));
-      await queueRefundForApproval(deps, { ...QUEUE_INPUT, paymentIntentId: null });
+      const { deps, texts } = queueDeps(async () => ({ data: [LINK_ROW], error: null }));
+      await settlePaymentLinkObligation(deps, { ...LINK_OBLIGATION, paymentIntentId: null });
       return texts;
     },
   ],
   [
-    'queue: unconfirmed',
+    'payment link: unconfirmed',
     async () => {
       const { deps, texts } = queueDeps(async () => ({ data: null, error: { message: 'x' } }));
-      await queueRefundForApproval(deps, QUEUE_INPUT).catch(() => undefined);
+      await settlePaymentLinkObligation(deps, LINK_OBLIGATION).catch(() => undefined);
       return texts;
     },
   ],
@@ -181,7 +226,11 @@ const SCENARIOS: [string, () => Promise<string[]>][] = [
   [
     'settlement: failure reopens the request',
     async () => {
-      const h = harness({ createStatus: 'pending', kind: 'cart_overflow' });
+      const h = harness({
+        createStatus: 'pending',
+        kind: 'entry_payment_link',
+        reason: 'partial_invalid_entries',
+      });
       await approveRefundRequest(h.deps, INPUT);
       await settleApprovedRefund(h.settleDeps, h.stripeSets('re_1', 'failed'));
       return h.alertTexts;
@@ -190,7 +239,11 @@ const SCENARIOS: [string, () => Promise<string[]>][] = [
   [
     'settlement: two live refunds',
     async () => {
-      const h = harness({ createStatus: 'pending', kind: 'cart_overflow' });
+      const h = harness({
+        createStatus: 'pending',
+        kind: 'entry_payment_link',
+        reason: 'partial_invalid_entries',
+      });
       await approveRefundRequest(h.deps, INPUT);
       await settleApprovedRefund(h.settleDeps, h.stripeSets('re_1', 'failed'));
       await approveRefundRequest(h.deps, INPUT);

@@ -62,9 +62,9 @@ export interface RequestInfo {
  * round 7 on #2689): an abandoned cart (refunded instead of fulfilled), and a
  * payment-link charge with no link record (the webhook returns before the
  * order insert). Their refunds have no order to book or reverse, so neither
- * the ledger nor a missing-order alert applies. Cart overflow and the other
- * payment-link reasons insert the order before queuing: a missing order there
- * is a real anomaly and still alerts.
+ * the ledger nor a missing-order alert applies. The other payment-link
+ * reasons record an order in the same delivery (right after the latch and its
+ * request): a missing order there is a real anomaly and still alerts.
  */
 export function approvedRefundHasNoOrder(request: RequestInfo): boolean {
   return (

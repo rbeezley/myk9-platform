@@ -101,10 +101,11 @@ describe('stripe webhook online cart capacity gate', () => {
     expect(capacityGateMigration).toContain('waitlist_entry_id := v_waitlist_entry.id');
   });
 
-  it('queues no-service overflow lines for refund approval instead of leaving paid missing entries', () => {
+  it('raises a by-hand refund alert for no-service overflow lines instead of leaving paid missing entries', () => {
     expect(webhookSource).toContain('decideCartOverflowRefund');
     expect(webhookSource).toContain('queueCartOverflowRefund');
-    expect(webhookSource).toContain("kind: 'cart_overflow'");
+    // Codex round 13 on #2689 (option C): not queued until MYK9-964.
+    expect(webhookSource).toContain('cartOverflowManualRefundAlert({');
     // MYK9-876: refunds are never automatic.
     expect(webhookSource).not.toContain('refunds.create');
     expect(webhookSource).toContain('waitlistedCartItemIds');

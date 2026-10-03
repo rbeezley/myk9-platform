@@ -1,15 +1,15 @@
 // The ONE entry decision for checkout.session.completed /
-// async_payment_succeeded (Codex round 11 on #2689). Pure, so the ordering is
-// unit-tested; index.ts reads the order row and acts on the answer.
+// async_payment_succeeded (Codex rounds 11 and 13 on #2689). Pure, so the
+// ordering is unit-tested; index.ts supplies the order lookup and handlers.
 //
 // INVARIANT: if a stripe_orders row already exists for the session, the
-// session was fulfilled before, and this delivery is a redelivery (or a
-// duplicate). It replays the idempotent refund-queue write from that order
-// and returns 2xx, BEFORE any first-time validation runs: cart lookup,
-// expiry, pricing, link state and the fulfillment claims are only ever
-// evaluated when no order exists. Otherwise a retry that arrives after the
-// cart expired or the show's pricing changed would fail validation, return
-// early, and never queue the refund it owes.
+// session was fulfilled before and this delivery is a redelivery or a
+// duplicate. It runs NO first-time validation (cart lookup, expiry, pricing,
+// link state, claims): a retry after the cart expired or the pricing
+// changed would otherwise raise false "refund this charge" alerts, and a
+// payment link deleted since would look like a paid session with no link.
+// It only ensures the alert of any refund request the session already has
+// (the request itself was written atomically with the fulfillment latch).
 
 /** Checkout types that fulfill entries and record a stripe_orders row. */
 export const FULFILLMENT_CHECKOUT_TYPES: ReadonlySet<string> = new Set([
@@ -18,7 +18,7 @@ export const FULFILLMENT_CHECKOUT_TYPES: ReadonlySet<string> = new Set([
 ]);
 
 export type PaidSessionEntry =
-  | 'replay_recorded_order'
+  | 'already_fulfilled'
   | 'fulfill_cart'
   | 'fulfill_payment_link'
   | 'subscription'
@@ -36,7 +36,7 @@ export function decidePaidSessionEntry(input: {
   orderExists: boolean;
 }): PaidSessionEntry {
   if (needsOrderLookup(input.checkoutType)) {
-    if (input.orderExists) return 'replay_recorded_order';
+    if (input.orderExists) return 'already_fulfilled';
     return input.checkoutType === 'entry' ? 'fulfill_cart' : 'fulfill_payment_link';
   }
   if (input.mode === 'subscription') return 'subscription';
@@ -44,11 +44,11 @@ export function decidePaidSessionEntry(input: {
   return 'ignore';
 }
 
-export interface PaidSessionHandlers<Order> {
-  /** The session's stripe_orders row, or null. Throws when it cannot be read. */
-  loadRecordedOrder: () => Promise<Order | null>;
-  /** Redelivery: replay the idempotent refund-queue write from the order. */
-  replay: (order: Order) => Promise<void>;
+export interface PaidSessionHandlers {
+  /** Whether the session has a stripe_orders row. Throws when it cannot be read. */
+  orderExists: () => Promise<boolean>;
+  /** A redelivery: ensure the alert of any refund request the session has. */
+  alreadyFulfilled: (checkoutType: string) => Promise<void>;
   /** First-time fulfillment, with all its validation (cart, expiry, pricing, claims). */
   fulfillCart: () => Promise<void>;
   /** First-time fulfillment of a payment link (link state, reconcile, latch). */
@@ -57,23 +57,18 @@ export interface PaidSessionHandlers<Order> {
   unexpectedPayment: () => void;
 }
 
-/**
- * Look up the order, decide, and run exactly one handler. Replay happens
- * before, and instead of, every first-time validation.
- */
-export async function routePaidSession<Order>(
+/** Look up the order, decide, and run exactly one handler. */
+export async function routePaidSession(
   session: { checkoutType: string | undefined; mode: string | null },
-  handlers: PaidSessionHandlers<Order>
+  handlers: PaidSessionHandlers
 ): Promise<PaidSessionEntry> {
-  const recorded = needsOrderLookup(session.checkoutType)
-    ? await handlers.loadRecordedOrder()
-    : null;
+  const orderExists = needsOrderLookup(session.checkoutType) ? await handlers.orderExists() : false;
   const entry = decidePaidSessionEntry({
     checkoutType: session.checkoutType,
     mode: session.mode,
-    orderExists: recorded !== null,
+    orderExists,
   });
-  if (entry === 'replay_recorded_order' && recorded !== null) await handlers.replay(recorded);
+  if (entry === 'already_fulfilled') await handlers.alreadyFulfilled(session.checkoutType ?? '');
   else if (entry === 'fulfill_cart') await handlers.fulfillCart();
   else if (entry === 'fulfill_payment_link') await handlers.fulfillPaymentLink();
   else if (entry === 'subscription') await handlers.subscription();

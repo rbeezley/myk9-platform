@@ -21,7 +21,13 @@
 --
 -- 2. public.refund_requests — one row per refund the platform OWES: the
 --    durable pending-refund record. stripe-webhook writes it (the two RPCs in
---    section 4) and raises the existing CRITICAL operator alert.
+--    section 4) and raises the existing CRITICAL operator alert. Each request
+--    is written in the SAME transaction as its fulfillment latch: the
+--    abandoned-cart claim (cart -> refund_pending) and the payment-link close
+--    (link -> paid, queue_payment_link_refund). The cart-overflow share is not
+--    queued: its amount exists only after the cart latch closed, so it cannot
+--    be atomic with it, and it is refunded by hand until MYK9-964 (Codex
+--    round 13 on #2689).
 --
 -- 3. public.refund_request_attempts — one row per approval that tried to
 --    refund a request (Codex review rounds 1-2 on #2689). Each attempt owns
@@ -141,7 +147,10 @@ REVOKE ALL ON FUNCTION public.entry_carts_protect_status() FROM PUBLIC, anon, au
 CREATE TABLE public.refund_requests (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   kind text NOT NULL
-    CHECK (kind IN ('abandoned_cart', 'cart_overflow', 'entry_payment_link')),
+    -- Cart overflow is NOT queued (Codex round 13 on #2689, option C): its
+    -- amount is only known after the cart latch closes, so it cannot be atomic
+    -- with it; an operator alert handles it by hand until MYK9-964.
+    CHECK (kind IN ('abandoned_cart', 'entry_payment_link')),
   -- DERIVED from refund_request_attempts by refund_requests_recompute_status
   -- (see the header); no RPC writes it directly.
   -- 'resolved_without_refund' is the one MANUAL, terminal state
@@ -386,64 +395,102 @@ BEGIN
 END;
 $$;
 
--- MYK9-876: queue a partial make-whole refund the webhook used to issue
--- itself (cart overflow, payment-link lines it could not honor). Idempotent
--- on (session, kind): a re-delivery returns the existing row, created=false,
--- with its current status (the caller re-raises the awaiting-approval alert
--- only while the request is still open; Codex round 11 on #2689).
-CREATE OR REPLACE FUNCTION public.request_refund_approval(
-  p_kind text,
+-- MYK9-876 (Codex round 13 on #2689): the payment-link refund obligation,
+-- ATOMIC with the link's fulfillment latch. In ONE transaction:
+--   * with p_link_id and p_close_from, the link moves p_close_from -> 'paid'
+--     (the webhook's idempotency latch for this session);
+--   * with p_amount_cents, the entry_payment_link refund request is inserted,
+--     idempotent on (session, kind);
+-- and it returns the link's status and the session's request, if any. With
+-- neither it only READS, which a redelivery uses to find the request. So a
+-- closed latch always has its request beside it, and a lost response or a
+-- redelivery finds both. p_link_id NULL is the paid session with no link row
+-- (queue only). A link or show deleted before a redelivery is stored as NULL
+-- and its original id kept in detail, so a missing parent never blocks the
+-- insert.
+CREATE OR REPLACE FUNCTION public.queue_payment_link_refund(
   p_session_id text,
-  p_payment_intent_id text,
-  p_amount_cents integer,
-  p_reason text,
+  p_link_id uuid DEFAULT NULL,
+  p_close_from text DEFAULT NULL,
+  p_payment_intent_id text DEFAULT NULL,
+  p_amount_cents integer DEFAULT NULL,
+  p_reason text DEFAULT NULL,
   p_detail jsonb DEFAULT '{}'::jsonb,
-  p_cart_id uuid DEFAULT NULL,
-  p_entry_payment_link_id uuid DEFAULT NULL,
   p_show_id uuid DEFAULT NULL
 )
-RETURNS TABLE (refund_request_id uuid, created boolean, request_status text)
+RETURNS TABLE (
+  link_status text,
+  link_closed boolean,
+  refund_request_id uuid,
+  created boolean,
+  request_status text,
+  amount_cents integer,
+  reason text,
+  stripe_payment_intent_id text
+)
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
+#variable_conflict use_column
 DECLARE
+  v_link_status text;
+  v_closed boolean := false;
   v_id uuid;
-  v_status text;
+  v_req public.refund_requests%ROWTYPE;
 BEGIN
-  IF p_kind NOT IN ('cart_overflow', 'entry_payment_link') THEN
-    -- abandoned_cart must go through claim_abandoned_cart_refund, which also
-    -- takes the cart out of fulfillment's reach.
-    RAISE EXCEPTION 'request_refund_approval: unsupported kind %', p_kind
+  IF p_session_id IS NULL THEN
+    RAISE EXCEPTION 'queue_payment_link_refund: a session is required' USING errcode = '22023';
+  END IF;
+  IF p_close_from IS NOT NULL AND (p_link_id IS NULL OR p_close_from NOT IN ('open', 'expired')) THEN
+    RAISE EXCEPTION 'queue_payment_link_refund: a link closes only from open or expired'
       USING errcode = '22023';
   END IF;
-  IF p_session_id IS NULL OR p_payment_intent_id IS NULL
-     OR p_amount_cents IS NULL OR p_amount_cents <= 0 OR p_reason IS NULL THEN
-    RAISE EXCEPTION 'request_refund_approval: session, intent, reason and a positive amount are required'
+  IF p_amount_cents IS NOT NULL AND (p_amount_cents <= 0 OR p_payment_intent_id IS NULL) THEN
+    RAISE EXCEPTION 'queue_payment_link_refund: a refund needs an intent and a positive amount'
       USING errcode = '22023';
   END IF;
 
-  INSERT INTO public.refund_requests (
-    kind, stripe_checkout_session_id, stripe_payment_intent_id, amount_cents,
-    reason, cart_id, entry_payment_link_id, show_id, detail
-  )
-  VALUES (
-    p_kind, p_session_id, p_payment_intent_id, p_amount_cents,
-    p_reason, p_cart_id, p_entry_payment_link_id, p_show_id, COALESCE(p_detail, '{}'::jsonb)
-  )
-  ON CONFLICT (stripe_checkout_session_id, kind) DO NOTHING
-  RETURNING id INTO v_id;
-
-  IF v_id IS NOT NULL THEN
-    RETURN QUERY SELECT v_id, true, 'pending'::text;
-    RETURN;
+  IF p_link_id IS NOT NULL THEN
+    SELECT l.status INTO v_link_status
+      FROM public.entry_payment_links l
+     WHERE l.id = p_link_id
+     FOR UPDATE;
+    IF p_close_from IS NOT NULL AND v_link_status = p_close_from THEN
+      UPDATE public.entry_payment_links l
+         SET status = 'paid',
+             updated_at = now()
+       WHERE l.id = p_link_id;
+      v_link_status := 'paid';
+      v_closed := true;
+    END IF;
   END IF;
 
-  SELECT r.id, r.status INTO v_id, v_status
+  IF p_amount_cents IS NOT NULL THEN
+    INSERT INTO public.refund_requests AS r (
+      kind, stripe_checkout_session_id, stripe_payment_intent_id, amount_cents,
+      reason, entry_payment_link_id, show_id, detail
+    )
+    VALUES (
+      'entry_payment_link', p_session_id, p_payment_intent_id, p_amount_cents, p_reason,
+      (SELECT l.id FROM public.entry_payment_links l WHERE l.id = p_link_id),
+      (SELECT sh.id FROM public.shows sh WHERE sh.id = p_show_id),
+      COALESCE(p_detail, '{}'::jsonb)
+        || jsonb_strip_nulls(jsonb_build_object(
+             'entry_payment_link_id', p_link_id,
+             'show_id', p_show_id))
+    )
+    ON CONFLICT (stripe_checkout_session_id, kind) DO NOTHING
+    RETURNING r.id INTO v_id;
+  END IF;
+
+  SELECT * INTO v_req
     FROM public.refund_requests r
    WHERE r.stripe_checkout_session_id = p_session_id
-     AND r.kind = p_kind;
-  RETURN QUERY SELECT v_id, false, v_status;
+     AND r.kind = 'entry_payment_link';
+
+  RETURN QUERY SELECT v_link_status, v_closed, v_req.id, (v_id IS NOT NULL), v_req.status,
+    v_req.amount_cents, v_req.reason, v_req.stripe_payment_intent_id;
 END;
 $$;
 
@@ -905,7 +952,7 @@ $$;
 
 REVOKE ALL ON FUNCTION public.claim_abandoned_cart_refund(uuid, text, text, integer, jsonb)
   FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.request_refund_approval(text, text, text, integer, text, jsonb, uuid, uuid, uuid)
+REVOKE ALL ON FUNCTION public.queue_payment_link_refund(text, uuid, text, text, integer, text, jsonb, uuid)
   FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.begin_refund_attempt(uuid, uuid)
   FROM PUBLIC, anon, authenticated;
@@ -923,7 +970,7 @@ REVOKE ALL ON FUNCTION public.fail_unissued_refund_attempt(uuid, integer, text)
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.claim_abandoned_cart_refund(uuid, text, text, integer, jsonb)
   TO service_role;
-GRANT EXECUTE ON FUNCTION public.request_refund_approval(text, text, text, integer, text, jsonb, uuid, uuid, uuid)
+GRANT EXECUTE ON FUNCTION public.queue_payment_link_refund(text, uuid, text, text, integer, text, jsonb, uuid)
   TO service_role;
 GRANT EXECUTE ON FUNCTION public.begin_refund_attempt(uuid, uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.refund_attempt_next_status(text, text) TO service_role;

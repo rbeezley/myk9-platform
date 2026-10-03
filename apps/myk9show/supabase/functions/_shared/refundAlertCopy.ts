@@ -19,7 +19,7 @@ const DO_NOT_REFUND_IN_DASHBOARD =
   'Do NOT refund it from the Stripe dashboard: a dashboard refund carries no request, so an approval could refund the same money again.';
 
 const QUEUE_IT_BY_HAND =
-  'Once the amount is known, queue it with <code>request_refund_approval</code> (service role: session, kind, payment intent, amount, reason) so it appears under <strong>Refunds awaiting approval</strong> on /admin/health, then approve it there.';
+  'Once the amount is known, queue it with <code>queue_payment_link_refund</code> (service role: session, payment intent, amount, reason) so it appears under <strong>Refunds awaiting approval</strong> on /admin/health, then approve it there.';
 
 function dollars(cents: number): string {
   return (cents / 100).toFixed(2);
@@ -82,20 +82,57 @@ export function abandonedCartMissingInputsAlert(input: {
   };
 }
 
-/** Cart overflow lines whose collected amount could not be derived. */
+const CART_OVERFLOW_BY_HAND =
+  'The app will NOT refund this: cart-overflow refunds are handled by hand until MYK9-964 makes them atomic with the cart latch. No refund request exists or can be created for it, so a dashboard refund cannot be doubled by an approval.';
+
+/**
+ * ALLOWED MANUAL REFUND (Codex round 13 on #2689, option C): paid cart lines
+ * the class could not take. The amount is known only after the cart latch
+ * closed, so it cannot be queued atomically; the operator confirms and
+ * refunds that exact amount in the Stripe dashboard.
+ */
+export function cartOverflowManualRefundAlert(input: {
+  sessionId: string;
+  paymentIntentId: string | null;
+  amountCents: number;
+  reason: string;
+  waitlistedCartItemIds: string[];
+  deniedCartItemIds: string[];
+  failedCartItemIds: string[];
+}): AlertCopy {
+  const list = (ids: string[]) => (ids.length ? `<code>${ids.join(', ')}</code>` : 'none');
+  return {
+    title: 'Cart overflow — refund by hand',
+    html: `<p>Checkout session <code>${input.sessionId}</code> (payment intent
+     <code>${input.paymentIntentId ?? 'unknown'}</code>) was PAID for cart lines the classes
+     could not take: waitlisted ${list(input.waitlistedCartItemIds)}, denied
+     ${list(input.deniedCartItemIds)}, failed ${list(input.failedCartItemIds)}
+     (reason <code>${input.reason}</code>).</p>
+     <p>${(input.amountCents / 100).toFixed(2)} USD is owed back. Once you have confirmed
+     the lines above, refund exactly that amount from the Stripe dashboard on this payment
+     intent. ${CART_OVERFLOW_BY_HAND}</p>
+     <p>The webhook will see it as a dashboard refund and raise "Dashboard refund needs
+     reconciling before payout". These lines have no entries to stamp: record the amount
+     on the order as make-whole (<code>make_whole_refunded_cents</code>).</p>`,
+  };
+}
+
+/**
+ * ALLOWED MANUAL REFUND: cart-overflow lines whose collected amount could not
+ * be derived (same reason as cartOverflowManualRefundAlert).
+ */
 export function overflowNeedsManualAmountAlert(input: {
   sessionId: string;
   invalidCartItemIds: string[];
   missingLineIds: string[];
 }): AlertCopy {
   return {
-    title: 'Cart overflow refund needs a manual amount',
+    title: 'Cart overflow refund needs a manual amount — refund by hand',
     html: `<p>Session <code>${input.sessionId}</code> has no-service cart items
      <code>${input.invalidCartItemIds.join(', ')}</code>, but the webhook could not
-     derive collected line amounts for <code>${input.missingLineIds.join(', ')}</code>,
-     so nothing was queued.</p>
-     <p>Work out the no-service portion, including its share of the platform fee.
-     ${DO_NOT_REFUND_IN_DASHBOARD} ${QUEUE_IT_BY_HAND}</p>`,
+     derive collected line amounts for <code>${input.missingLineIds.join(', ')}</code>.</p>
+     <p>Work out the no-service portion, including its share of the platform fee, then
+     refund that amount from the Stripe dashboard. ${CART_OVERFLOW_BY_HAND}</p>`,
   };
 }
 
@@ -150,25 +187,55 @@ export const REFUND_ALERT_BUILDERS: Record<string, () => AlertCopy> = {
   queueUnconfirmedAlert: () =>
     queueUnconfirmedAlert({
       summaryHtml: 'Summary.',
-      kind: 'cart_overflow',
+      kind: 'entry_payment_link',
       sessionId: 'cs_1',
       paymentIntentId: 'pi_1',
       amountCents: 1500,
-      reason: 'partial_no_service_lines',
+      reason: 'partial_invalid_entries',
       message: 'timeout',
     }),
   abandonedCartMissingInputsAlert: () =>
     abandonedCartMissingInputsAlert({ sessionId: 'cs_1', cartId: 'cart-1' }),
-  overflowNeedsManualAmountAlert: () =>
-    overflowNeedsManualAmountAlert({
-      sessionId: 'cs_1',
-      invalidCartItemIds: ['ci-1'],
-      missingLineIds: ['ci-1'],
-    }),
   paymentLinkNeedsManualAmountAlert: () =>
     paymentLinkNeedsManualAmountAlert({
       sessionId: 'cs_1',
       invalidEntryIds: ['e-1'],
       missingFeeEntryIds: ['e-1'],
     }),
+};
+
+/**
+ * The declared EXCEPTIONS: builders that DO tell the operator to refund in the
+ * Stripe dashboard, each with the reason that is safe. Same treatment as the
+ * MYK9-963 full-charge alerts in stripe-webhook. The sweep test requires each
+ * to instruct a manual refund, say the app will not refund it, and name
+ * MYK9-964.
+ */
+export const ALLOWED_MANUAL_REFUND_ALERTS: Record<
+  string,
+  { reason: string; build: () => AlertCopy }
+> = {
+  cartOverflowManualRefundAlert: {
+    reason:
+      'Cart overflow is never queued (option C): no refund request can exist for it, so a dashboard refund cannot be doubled by an approval. MYK9-964 makes it atomic.',
+    build: () =>
+      cartOverflowManualRefundAlert({
+        sessionId: 'cs_1',
+        paymentIntentId: 'pi_1',
+        amountCents: 2500,
+        reason: 'partial_no_service_lines',
+        waitlistedCartItemIds: ['ci-1'],
+        deniedCartItemIds: ['ci-2'],
+        failedCartItemIds: [],
+      }),
+  },
+  overflowNeedsManualAmountAlert: {
+    reason: 'The same cart-overflow money, when its amount could not be derived.',
+    build: () =>
+      overflowNeedsManualAmountAlert({
+        sessionId: 'cs_1',
+        invalidCartItemIds: ['ci-1'],
+        missingLineIds: ['ci-1'],
+      }),
+  },
 };

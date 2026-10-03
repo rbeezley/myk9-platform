@@ -26,7 +26,7 @@ describe('stripe-webhook entry_payment_request branch', () => {
     // The type → handler decision lives in stripe-webhook/paidSessionEntry.ts
     // (decidePaidSessionEntry, unit-tested in paidSessionEntry.test.ts, which
     // also replays a recorded order first: Codex round 11 on #2689).
-    expect(source).toContain('await routePaidSession<RecordedOrder>(');
+    expect(source).toContain('await routePaidSession(');
     expect(source).toContain(
       'fulfillPaymentLink: () => handleEntryPaymentRequestCompleted(session)'
     );
@@ -59,17 +59,17 @@ describe('stripe-webhook entry_payment_request branch', () => {
 
   it('anchors on the persisted entry_payment_links row (anti-tamper + idempotency latch)', () => {
     expect(source).toContain('entry_payment_links');
-    // closes the link so a re-delivered event is a no-op
-    expect(source).toContain("status: 'paid'");
-    expect(source).toContain('closedLinks');
-    expect(source).toContain('linkCloseError');
-    expect(source).toContain('already closed by another webhook handler');
+    // Closes the link so a re-delivered event is a no-op. Since Codex round 13
+    // on #2689 the close and the refund request are ONE transaction
+    // (queue_payment_link_refund; behaviour in _shared/refundRequests.test.ts
+    // and the SQL test O19-O21).
+    expect(source).toContain('await settlePaymentLinkObligation(refundQueueDeps, {');
+    expect(source).toContain('linkId: link.id,');
   });
 
   it('latches successful expired promotion claims to paid so Stripe retries do not refund them', () => {
     expect(source).toContain("link.status === 'expired' && paidIds.length > 0");
     expect(source).toContain("link.status === 'expired' ? 'expired' : 'open'");
-    expect(source).toContain(".eq('status', linkCloseStatus)");
   });
 
   it('records payment history in stripe_orders so the charge is visible + payout-eligible', () => {
@@ -87,9 +87,9 @@ describe('stripe-webhook entry_payment_request branch', () => {
     expect(lineItemSource).toContain('product.metadata?.entry_id');
     // MYK9-876: refunds are never automatic — the webhook queues, an admin approves.
     expect(source).not.toContain('refunds.create');
-    expect(source).toContain("kind: 'entry_payment_link'");
-    expect(source).toContain('paymentIntentId: input.paymentIntentId');
-    expect(source).toContain('amountCents: input.amountCents');
+    // The owed amount goes into the same call that closes the link.
+    expect(source).toContain('amountCents: decision.amountCents,');
+    expect(source).toContain('reason: decision.reason,');
     expect(source).not.toMatch(/\.update\(\{[^}]*status: 'refunded'/s);
     expect(source).toContain('allFromAppRefund');
   });

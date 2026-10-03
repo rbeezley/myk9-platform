@@ -1,6 +1,7 @@
 /** Pure shapes and copy for the refunds-awaiting-approval queue (MYK9-876). */
 
-export type RefundRequestKind = 'abandoned_cart' | 'cart_overflow' | 'entry_payment_link';
+// Cart overflow is not queued (MYK9-964): it never appears here.
+export type RefundRequestKind = 'abandoned_cart' | 'entry_payment_link';
 
 export interface RefundRequest {
   id: string;
@@ -50,7 +51,6 @@ export function parseRefundRequest(row: RefundRequestRow): RefundRequest {
 
 const KIND_LABEL: Record<RefundRequestKind, string> = {
   abandoned_cart: 'Paid after the cart was abandoned',
-  cart_overflow: 'Cart lines the class could not take',
   entry_payment_link: 'Payment-link entries that could not be honored',
 };
 

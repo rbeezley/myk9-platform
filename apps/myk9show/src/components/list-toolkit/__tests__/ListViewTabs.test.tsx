@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { useLocation } from 'react-router-dom';
-import { render, screen } from '@/test/utils/testUtils';
+import { render, screen, within } from '@/test/utils/testUtils';
 import { ListViewTabs } from '../ListViewTabs';
 
 function LocationProbe() {
@@ -59,6 +59,39 @@ describe('ListViewTabs', () => {
 
     expect(screen.getByTestId('location')).toHaveTextContent('/admin/role-requests');
     expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  describe('unknown count (null)', () => {
+    const UNKNOWN = [
+      { id: 'open', label: 'Open', count: null },
+      { id: 'all', label: 'All', count: null },
+      { id: 'zero', label: 'Empty', count: 0 },
+    ];
+
+    it('renders a dash with an accessible label, never 0', async () => {
+      const { user } = render(
+        <ListViewTabs label="Tickets" activeId="open" onSelect={vi.fn()} views={UNKNOWN} />
+      );
+      const select = screen.getByRole('combobox', { name: 'Show: Tickets' });
+      expect(select).toHaveTextContent('Open (—)');
+      expect(select).not.toHaveTextContent('(0)');
+      // The dash carries its meaning in words for screen readers.
+      expect(within(select).getByRole('img', { name: 'count unavailable' })).toHaveTextContent('—');
+
+      await user.click(select);
+      expect(
+        await screen.findByRole('option', { name: 'All (count unavailable)' })
+      ).toBeInTheDocument();
+      // A known zero is still a zero.
+      expect(screen.getByRole('option', { name: 'Empty (0)' })).toBeInTheDocument();
+    });
+
+    it('leaves known counts and count-less views unchanged', () => {
+      render(<ListViewTabs label="User views" activeId="all" onSelect={vi.fn()} views={VIEWS} />);
+      const select = screen.getByRole('combobox', { name: 'Show: User views' });
+      expect(select).toHaveTextContent(`All (${(4812).toLocaleString()})`);
+      expect(within(select).queryByRole('img')).not.toBeInTheDocument();
+    });
   });
 
   it('keeps every option a 44px target', async () => {

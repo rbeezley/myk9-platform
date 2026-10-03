@@ -43,9 +43,38 @@ not_a_verdict() { warn "did not run — $*"; echo "supabase-types-drift: $*" >&2
 
 [[ -f "$COMMITTED" ]] || not_a_verdict "committed file not found: $COMMITTED"
 
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 tmp="$(mktemp -d)"
 cleanup() { rm -r -f -- "$tmp"; }
 trap cleanup EXIT
+
+# The generator's layout is not schema. A different CLI version emits quoted
+# property names (`"graphql_public": {`) and different indentation, and the
+# object tracking below keys on unquoted names at fixed indents, so an
+# equivalent file read as hundreds of "committed but not live" objects
+# (MYK9-950: 405 false objects on PR #2675). Both sides go through the repo's
+# own Prettier with fixed options and no config: it is a real TypeScript
+# parser, so it unquotes identifier-safe property keys (keeping quotes where
+# required, like "a-b"), fixes indentation, and never touches the contents of
+# a string literal (an enum value's spacing or escaped quotes are schema).
+#
+# Output Prettier cannot parse (truncated, an error message instead of types)
+# or that has no `Database` type or schema block is "could not compare", never
+# an empty diff that reads as no drift.
+PRETTIER="$ROOT/node_modules/.bin/prettier"
+normalize_layout() {
+  [[ -x "$PRETTIER" ]] || return 3
+  "$PRETTIER" --no-config --parser typescript --quote-props as-needed --print-width 100 < "$1"
+}
+# The `Database` type and at least one schema header must be present.
+looks_parseable() {
+  grep -q '^export type Database = {$' "$1" && grep -Eq '^  [A-Za-z0-9_]+: \{$' "$1"
+}
+normalize_or_stop() {
+  normalize_layout "$1" > "$2" 2> "$tmp/prettier.err" || not_a_verdict "$3 output could not be parsed as TypeScript (truncated? Prettier at $PRETTIER): $1"
+  looks_parseable "$2" || not_a_verdict "$3 output has no Database type or schema block: $1"
+}
+normalize_or_stop "$COMMITTED" "$tmp/committed.layout.ts" "committed"
 
 if [[ -z "$GENERATED" ]]; then
   url="${MYK9_MIGRATION_DATABASE_URL:-}"
@@ -61,9 +90,9 @@ if [[ -z "$GENERATED" ]]; then
   # reads as "live but not committed" (first run of #2193).
   schemas="$(awk '
     /^export type Database = \{$/ { inside = 1; next }
-    inside && /^\}$/               { exit }
+    inside && /^\};?$/             { exit }
     inside && /^  [A-Za-z0-9_]+: \{$/ && $1 != "__InternalSupabase:" { s = $1; sub(/:$/, "", s); print s }
-  ' "$COMMITTED" | paste -sd, -)"
+  ' "$tmp/committed.layout.ts" | paste -sd, -)"
   [[ -n "$schemas" ]] || not_a_verdict "no schema headers found in $COMMITTED"
   GENERATED="$tmp/generated.ts"
   if ! supabase gen types typescript --db-url "$url" --schema "$schemas" > "$GENERATED" 2> "$tmp/gen.err"; then
@@ -91,7 +120,7 @@ fi
 strip_platform_metadata() {
   awk '
     /^  __InternalSupabase: \{$/ { skip = 1; next }
-    skip && /^  \}$/             { skip = 0; next }
+    skip && /^  \};?$/           { skip = 0; next }
     skip                         { next }
     /^[[:space:]]*\/\// { next }
     { print }
@@ -100,8 +129,9 @@ strip_platform_metadata() {
     { while (blanks-- > 0) print ""; blanks = 0; print }
   '
 }
-strip_platform_metadata "$COMMITTED" > "$tmp/committed.ts"
-strip_platform_metadata "$GENERATED" > "$tmp/generated.norm.ts"
+normalize_or_stop "$GENERATED" "$tmp/generated.layout.ts" "generated"
+strip_platform_metadata "$tmp/committed.layout.ts" > "$tmp/committed.ts"
+strip_platform_metadata "$tmp/generated.layout.ts" > "$tmp/generated.norm.ts"
 
 # One line per object: <schema>.<section>.<name>, e.g. public.Tables.entries or
 # public.Functions.get_show_judges. Tracks the 2-space schema and 4-space

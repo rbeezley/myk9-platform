@@ -6,14 +6,15 @@
  * delete affordances here — that is the duplication this table exists to end.
  * See docs/plan-permissions-overview-roles-console.md.
  */
-import React, { useMemo, useState } from 'react';
+import { useListUrlParams } from '@/hooks/useListUrlParams';
+import React, { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
-import { AlertCircle, ChevronRight, RefreshCw, Search } from 'lucide-react';
+import { AlertCircle, ChevronRight, RefreshCw } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { ListFilterBar, ListResultLine } from '@/components/list-toolkit';
 import { TableSkeleton } from '@/components/common/SkeletonLoaders';
 import type { Role } from '@/types/rbac-types';
 import { filterRoles, getRoleDisplayName, getRoleTypeLabel } from './rolesOverview';
@@ -33,6 +34,9 @@ export interface RolesOverviewTableProps {
   auditFailed?: boolean;
 }
 
+const SEARCH_PARAM = 'roles_q';
+const ROLE_NOUN = ['role', 'roles'] as const;
+
 export const RolesOverviewTable: React.FC<RolesOverviewTableProps> = ({
   roles,
   lastChanged,
@@ -41,7 +45,9 @@ export const RolesOverviewTable: React.FC<RolesOverviewTableProps> = ({
   onRetry,
   auditFailed = false,
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const { searchParams, patch } = useListUrlParams();
+  const searchTerm = searchParams.get(SEARCH_PARAM) ?? '';
+  const setSearchTerm = (value: string) => patch({ [SEARCH_PARAM]: value || null });
   const visibleRoles = useMemo(() => filterRoles(roles, searchTerm), [roles, searchTerm]);
 
   if (error) {
@@ -74,23 +80,20 @@ export const RolesOverviewTable: React.FC<RolesOverviewTableProps> = ({
 
   return (
     <div className="overflow-hidden rounded-xl border bg-card">
-      <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="relative w-full sm:max-w-xs">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="search"
-            aria-label="Search roles"
-            placeholder="Search roles"
-            value={searchTerm}
-            onChange={event => setSearchTerm(event.target.value)}
-            className="h-11 pl-10"
-          />
-        </div>
-        <p className="text-muted-foreground">
-          {visibleRoles.length === roles.length
-            ? `${roles.length} roles`
-            : `${visibleRoles.length} of ${roles.length} roles`}
-        </p>
+      <div className="flex flex-col gap-2 border-b border-border p-4">
+        <ListFilterBar
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Search roles"
+          fields={[]}
+        />
+        <ListResultLine
+          shown={visibleRoles.length}
+          total={roles.length}
+          noun={ROLE_NOUN}
+          filtered={searchTerm.trim() !== ''}
+          onShowAll={() => setSearchTerm('')}
+        />
       </div>
 
       {/* An empty system and an empty search result are different states:
@@ -108,9 +111,6 @@ export const RolesOverviewTable: React.FC<RolesOverviewTableProps> = ({
       ) : visibleRoles.length === 0 ? (
         <div className="p-10 text-center">
           <p className="font-medium">No roles match "{searchTerm}"</p>
-          <Button variant="outline" className="mt-4 h-11" onClick={() => setSearchTerm('')}>
-            Clear search
-          </Button>
         </div>
       ) : (
         <div className="overflow-x-auto">

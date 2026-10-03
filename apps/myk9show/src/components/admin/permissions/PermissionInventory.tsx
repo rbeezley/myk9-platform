@@ -7,14 +7,14 @@
  * the role matrix of PermissionGrid (which is per-role) or the change-log of
  * PermissionAuditPage.
  */
+import { useListUrlParams } from '@/hooks/useListUrlParams';
 import React, { useEffect, useMemo, useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
+import { ListFilterBar, ListResultLine } from '@/components/list-toolkit';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { Search, RotateCcw, AlertCircle, ChevronDown, RefreshCw } from 'lucide-react';
+import { Search, AlertCircle, ChevronDown, RefreshCw } from 'lucide-react';
 import type { Permission } from '@/types/rbac-types';
 import { getPermissionResource, getPermissionDisplayName } from './permissionDisplay';
 
@@ -28,13 +28,18 @@ interface PermissionInventoryProps {
   onRetry?: () => void;
 }
 
+const SEARCH_PARAM = 'perms_q';
+const PERMISSION_NOUN = ['permission', 'permissions'] as const;
+
 export const PermissionInventory: React.FC<PermissionInventoryProps> = ({
   permissions,
   isLoading = false,
   error = null,
   onRetry,
 }) => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const { searchParams, patch } = useListUrlParams();
+  const searchTerm = searchParams.get(SEARCH_PARAM) ?? '';
+  const setSearchTerm = (value: string) => patch({ [SEARCH_PARAM]: value || null });
   const [openResources, setOpenResources] = useState<Set<string>>(new Set());
 
   const permissionsByResource = useMemo(() => {
@@ -117,33 +122,21 @@ export const PermissionInventory: React.FC<PermissionInventoryProps> = ({
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardContent className="p-5">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground h-4 w-4" />
-              <Input
-                placeholder="Search permissions by name, code, or resource..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
-                className="h-11 pl-10"
-                aria-label="Search permissions"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="outline">
-                {matchCount} of {permissions.length} permissions
-              </Badge>
-              {searchTerm && (
-                <Button variant="outline" className="h-11" onClick={() => setSearchTerm('')}>
-                  <RotateCcw className="h-4 w-4 mr-2" />
-                  Clear
-                </Button>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="space-y-2">
+        <ListFilterBar
+          searchValue={searchTerm}
+          onSearchChange={setSearchTerm}
+          searchPlaceholder="Search permissions by name, code, or resource"
+          fields={[]}
+        />
+        <ListResultLine
+          shown={matchCount}
+          total={permissions.length}
+          noun={PERMISSION_NOUN}
+          filtered={searchTerm.trim() !== ''}
+          onShowAll={() => setSearchTerm('')}
+        />
+      </div>
 
       {resources.length > 0 && (
         <Card>
@@ -217,11 +210,6 @@ export const PermissionInventory: React.FC<PermissionInventoryProps> = ({
                 ? `No permissions match "${searchTerm}"`
                 : 'No permissions are defined in the system'}
             </p>
-            {searchTerm && (
-              <Button variant="outline" onClick={() => setSearchTerm('')} className="mt-4">
-                Clear search
-              </Button>
-            )}
           </CardContent>
         </Card>
       )}

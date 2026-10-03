@@ -96,7 +96,9 @@ describe('ShowDeskPanel cockpit', () => {
     );
 
     expect(screen.getByRole('combobox', { name: 'Show: Schedule filters' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^(Collapse|Expand) Friday AM · June 12/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /^(Collapse|Expand) Friday AM · June 12/i })
+    ).toBeInTheDocument();
     expect(screen.getAllByText('Focused Class · Friday AM')).not.toHaveLength(0);
     expect(screen.getAllByRole('heading', { name: 'Interior Advanced' })).not.toHaveLength(0);
 
@@ -154,7 +156,9 @@ describe('ShowDeskPanel cockpit', () => {
       { initialRoute: '/shows/show-1/show-day?focus=class-1' }
     );
 
-    const trialTrigger = screen.getByRole('button', { name: /^(Collapse|Expand) Friday AM · June 12/i });
+    const trialTrigger = screen.getByRole('button', {
+      name: /^(Collapse|Expand) Friday AM · June 12/i,
+    });
     expect(trialTrigger).toHaveTextContent('1 in progress · Focused');
     expect(trialTrigger).toHaveTextContent('2 classes');
     await user.click(trialTrigger);

@@ -1,6 +1,7 @@
 /**
- * Onboarding Step 5 - Welcome / You're all set!
- * Final step. Sets onboarding_completed_at and navigates to /shows.
+ * Onboarding step — Welcome / You're all set!
+ * Final step of a first run. Completes onboarding, then leads to the home page
+ * for the person's main role (Find Shows for exhibitors).
  */
 
 import { Button } from '@/components/ui/button';
@@ -13,6 +14,8 @@ interface StepWelcomeProps {
   onBack: () => void;
   isSubmitting: boolean;
   error: string;
+  /** Primary button label; names where Finish lands. */
+  finishLabel?: string;
 }
 
 export function StepWelcome({
@@ -21,6 +24,7 @@ export function StepWelcome({
   onBack,
   isSubmitting,
   error,
+  finishLabel = 'Browse Shows',
 }: StepWelcomeProps) {
   return (
     <div className="space-y-6 text-center" data-testid="step-welcome">
@@ -33,8 +37,7 @@ export function StepWelcome({
       <div>
         <h2 className="text-2xl font-semibold">You're all set!</h2>
         <p className="text-muted-foreground mt-2 text-sm">
-          Your exhibitor profile is ready. Browse upcoming shows, enter your dogs, and track your
-          results all in one place.
+          Your profile is ready. Shows, entries and results are all in one place.
         </p>
         <p className="mt-3 text-sm text-muted-foreground">
           Address lives in{' '}
@@ -71,7 +74,7 @@ export function StepWelcome({
 
       <div className="flex flex-col gap-2 items-center pt-2">
         <Button onClick={onFinish} disabled={isSubmitting} className="min-w-40">
-          {isSubmitting ? 'Finishing...' : 'Browse Shows'}
+          {isSubmitting ? 'Finishing...' : finishLabel}
         </Button>
         <Button type="button" variant="ghost" onClick={onBack} disabled={isSubmitting}>
           Back

@@ -262,7 +262,8 @@ export async function installSecretaryFixture(page: Page): Promise<void> {
     if (built) await serve(route, pick(built));
   };
 
-  // Not for the onboarding redirect, which a secretary is exempt from, but for
+  // Its completion stamp keeps the onboarding redirect away (staff are no
+  // longer exempt, MYK9-970), and it is also needed for
   // `useCurrentPersonId`: without this row the dog roster never loads and the
   // mail-in wizard cannot resolve the owner of the dog it just found.
   await installExhibitorProfile(page);

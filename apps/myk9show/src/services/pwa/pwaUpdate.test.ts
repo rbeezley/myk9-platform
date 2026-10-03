@@ -66,6 +66,11 @@ describe('isOnSensitiveRoute', () => {
     ['/shows/abc123/register', true],
     ['/secretary/register/show-1', true],
     ['/scoring/classes/c1/entries/e1', true],
+    ['/scoring/classes/c1/entries', true],
+    ['/at-show', true],
+    ['/at-show/show-1/class/c1/score/e1', true],
+    ['/shows/s1/trials/t1/classes/c1/secretary', true],
+    ['/tv/show-1', true],
   ])('defers prompts on %s', (path, expected) => {
     setPath(path);
     expect(isOnSensitiveRoute()).toBe(expected);

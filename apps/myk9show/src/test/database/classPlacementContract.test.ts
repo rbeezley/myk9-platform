@@ -181,14 +181,26 @@ describe('completion gate — refresh_class_scoring_state (latest definition)', 
     // Same rule as the ranking pin above: repoint it at the new file and
     // re-check every assertion below, rather than deleting it.
     expect(latestGateMigrationFile).toBe(
-      '20260904160000_exclude_absent_entries_from_class_rollup.sql'
+      '20261003200000_class_actual_times_from_scoring.sql'
     );
   });
 
   it('excludes absent lifecycle rows from the expected denominator', () => {
     expect(gateBody).toContain("'not_accepted', 'absent'");
-    expect(gateMigration).toContain("COALESCE(NEW.entry_status, '') NOT IN");
-    expect(gateMigration).toContain("'not_accepted', 'absent'");
+    // The entry trigger is defined on its own schedule (20261003200000 redefined
+    // only the class rollup), so read it from the newest file that defines it.
+    const triggerFile = readdirSync(migrationsDir)
+      .filter(file => file.endsWith('.sql'))
+      .filter(file =>
+        readFileSync(resolve(migrationsDir, file), 'utf8').includes(
+          'CREATE OR REPLACE FUNCTION public.handle_entry_scoring_state_change'
+        )
+      )
+      .sort()
+      .at(-1)!;
+    const triggerMigration = readFileSync(resolve(migrationsDir, triggerFile), 'utf8');
+    expect(triggerMigration).toContain("COALESCE(NEW.entry_status, '') NOT IN");
+    expect(triggerMigration).toContain("'not_accepted', 'absent'");
   });
 
   it('computes placements ONLY in the fully-accounted-for branch', () => {

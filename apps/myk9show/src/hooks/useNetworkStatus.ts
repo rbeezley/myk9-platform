@@ -12,6 +12,13 @@ const NetworkStatusContext = createContext<NetworkStatusContextType | null>(null
 
 export { NetworkStatusContext };
 
+/**
+ * Just the online flag, from the same app-wide NetworkStatusProvider. Leaf UI
+ * (AskQ's Tera dock) reads it without demanding the provider in every test
+ * harness; outside a provider, which only a test renders, it reads as online.
+ */
+export const useIsOnline = (): boolean => useContext(NetworkStatusContext)?.isOnline ?? true;
+
 export const useNetworkStatus = () => {
   const context = useContext(NetworkStatusContext);
   if (!context) {

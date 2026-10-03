@@ -1,3 +1,5 @@
+import { useState } from 'react';
+import { useReducedMotion } from '@/features/_shared/hooks/useReducedMotion';
 import { TERA_WORKING_COPY, TOOL_LABELS } from './askq-config';
 import { TeraAvatar, TeraFace } from './TeraAvatar';
 
@@ -19,7 +21,7 @@ export function AskQAnswer({ query, answer, toolsUsed, isStreaming }: AskQAnswer
 
       {answer ? (
         <div className="flex items-start gap-2">
-          <TeraFace />
+          <TeraAnswerMark isStreaming={isStreaming} />
           <div className="min-w-0 flex-1 bg-muted/50 px-3.5 py-3 rounded-xl rounded-tl-sm">
             <p className="text-sm whitespace-pre-wrap leading-relaxed">
               {answer}
@@ -50,6 +52,30 @@ export function AskQAnswer({ query, answer, toolsUsed, isStreaming }: AskQAnswer
       ) : null}
     </div>
   );
+}
+
+/**
+ * The answer's sender mark. When an answer finishes streaming, Tera plays
+ * "Found it" once (MYK9-851), then settles on her static face. It never delays
+ * the text, which has already landed; reduced motion keeps the face.
+ */
+function TeraAnswerMark({ isStreaming }: { isStreaming: boolean }) {
+  const reducedMotion = useReducedMotion();
+  const [wasStreaming, setWasStreaming] = useState(isStreaming);
+  const [foundIt, setFoundIt] = useState(false);
+  if (wasStreaming !== isStreaming) {
+    setWasStreaming(isStreaming);
+    setFoundIt(wasStreaming && !isStreaming);
+  }
+
+  if (foundIt && !reducedMotion) {
+    return (
+      <span data-testid="tera-found-it" className="flex-none">
+        <TeraAvatar state="found-it" size={40} onEnded={() => setFoundIt(false)} />
+      </span>
+    );
+  }
+  return <TeraFace />;
 }
 
 /** Tera's working state, shared by every AskQ surface that shows a loading state. */

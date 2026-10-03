@@ -106,21 +106,25 @@ WHERE NOT EXISTS (SELECT 1 FROM public.exhibitor_profiles
 
 INSERT INTO public.shows (id, name, organization, start_date, end_date, status)
 VALUES ('00000000-0000-0000-0000-000000876021', 'MYK9-876 Show', 'AKC',
+        current_date + 30, current_date + 30, 'draft'),
+       -- A second show: entry_carts_active_show_exhibitor_unique_idx allows one
+       -- active cart per (show, exhibitor), and two carts below start active.
+       ('00000000-0000-0000-0000-000000876022', 'MYK9-876 Show B', 'AKC',
         current_date + 30, current_date + 30, 'draft');
 
 -- Carts carry a checkout session id, which only service_role may write
 -- (trg_entry_carts_protect_session_id).
 SET LOCAL ROLE service_role;
 INSERT INTO public.entry_carts (id, exhibitor_id, show_id, status, stripe_checkout_session_id)
-SELECT v.id::uuid, ep.id, '00000000-0000-0000-0000-000000876021', v.status, v.session
+SELECT v.id::uuid, ep.id, v.show_id::uuid, v.status, v.session
 FROM public.exhibitor_profiles ep
 CROSS JOIN (VALUES
-  ('00000000-0000-0000-0000-000000876031', 'abandoned', 'cs_876_abandoned'),
-  ('00000000-0000-0000-0000-000000876032', 'active',    'cs_876_active'),
-  ('00000000-0000-0000-0000-000000876033', 'abandoned', 'cs_876_current'),
-  ('00000000-0000-0000-0000-000000876034', 'expired',   'cs_876_expired'),
-  ('00000000-0000-0000-0000-000000876035', 'active',    'cs_876_live')
-) AS v(id, status, session)
+  ('00000000-0000-0000-0000-000000876031', 'abandoned', 'cs_876_abandoned', '00000000-0000-0000-0000-000000876021'),
+  ('00000000-0000-0000-0000-000000876032', 'active',    'cs_876_active',    '00000000-0000-0000-0000-000000876021'),
+  ('00000000-0000-0000-0000-000000876033', 'abandoned', 'cs_876_current',   '00000000-0000-0000-0000-000000876021'),
+  ('00000000-0000-0000-0000-000000876034', 'expired',   'cs_876_expired',   '00000000-0000-0000-0000-000000876021'),
+  ('00000000-0000-0000-0000-000000876035', 'active',    'cs_876_live',      '00000000-0000-0000-0000-000000876022')
+) AS v(id, status, session, show_id)
 WHERE ep.auth_user_id = '00000000-0000-0000-0000-000000876101';
 RESET ROLE;
 

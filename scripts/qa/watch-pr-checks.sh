@@ -18,7 +18,7 @@
 # ---------------------------------------------------------------------------
 # WHY THIS EXISTS
 #
-# "Is CI green?" is asked before every merge, and there are four ways to get a
+# "Is CI green?" is asked before every merge, and there are five ways to get a
 # confident wrong answer. All four have happened here.
 #
 #  1. A poll that treats "zero pending" as settled fires in the gap between a
@@ -52,6 +52,18 @@
 #     for exactly those. No magic number, and it tracks the ruleset if it
 #     changes.
 #
+#  5. A rollup holds EVERY attempt, not just the latest. A draft->ready PR keeps
+#     the draft run's SKIPPED rows beside the ready run's fresh IN_PROGRESS ones
+#     (#2672: exit 0 "GREEN" while Quality Checks was still running), and a
+#     CANCELLED attempt sits beside its SUCCESS replacement (#2675: a false
+#     exit 5). Each check name is therefore judged by its CURRENT attempt only:
+#     the highest job id (from detailsUrl), startedAt as tie-break, never array
+#     position. A current answer is also STALE, and counted as still pending, when
+#     a newer run of the same workflow on this head has an unanswered current
+#     attempt, so a required name the new run has not registered yet cannot borrow
+#     an older skip or success. A required check whose only attempt is an
+#     intentional skip has no newer sibling and still passes.
+#
 # NON-REQUIRED FAILURES ARE A SEPARATE VERDICT (exit 5), not a stop. Vercel
 # preview contexts are deliberately not required (AGENTS.md § Vercel Hobby quota
 # / preview deploy discipline) because this Hobby account hits the daily
@@ -84,10 +96,48 @@ JQ_DEFS='
     then (.conclusion | IN("SUCCESS","NEUTRAL","SKIPPED"))
     else ((.state // "") == "SUCCESS")
     end;
+  def key: .name // .context;
+  # Ids come from detailsUrl (.../actions/runs/<run>/job/<job>). GitHub allocates
+  # run and job ids monotonically; status contexts have neither, so they read 0.
+  def runid: ((.detailsUrl // "") | capture("/runs/(?<n>[0-9]+)")? | .n | tonumber) // 0;
+  def jobid: ((.detailsUrl // "") | capture("/job/(?<n>[0-9]+)")? | .n | tonumber) // 0;
+  # A queued job can carry the zero date; that is "unknown", never "oldest".
+  def started: (.startedAt // "") | if startswith("0001") then "" else . end;
+  # THE ORDERING RULE (MYK9-947). Among the attempts sharing a check name the
+  # CURRENT one is the highest job id: a re-run, a draft->ready run and the
+  # replacement of a cancelled run each get a NEW job id. startedAt breaks ties
+  # and is the only signal for id-less status contexts. Array position is never
+  # consulted. Superseded attempts are ignored entirely.
+  def current: [ .statusCheckRollup | group_by(key)[] | sort_by([jobid, started]) | last ];
+  # STALE: an attempt is stale when a newer run of the SAME workflow on this head
+  # still has an unanswered current attempt. Its answer (a draft-run SKIPPED, an
+  # old SUCCESS) predates work still in flight, and a required name the newer run
+  # has not registered yet must not borrow it. A required check whose ONLY attempt
+  # is an intentional skip has no newer sibling, so it is not stale and still passes.
+  def stale($cur):
+    . as $row
+    | (runid > 0) and ((.workflowName // "") != "")
+      and any($cur[]; (.workflowName // "") == ($row.workflowName // "")
+                      and runid > ($row | runid) and (answered | not));
 '
 
-JQ_ANSWERED_NAMES='[.statusCheckRollup[] | select(answered) | .name // .context]'
-JQ_FAILED_NAMES='[.statusCheckRollup[] | select(answered and (passing | not)) | .name // .context]'
+JQ_VERDICT='
+  ($r | current) as $cur
+  | [$cur[] | select(answered and (stale($cur) | not)) | key] as $settled
+  | [$cur[] | select(answered and (passing | not) and (stale($cur) | not)) | key] as $failed
+  | ($req - $settled) as $pending
+  | ($failed | map(select(. as $f | $req | index($f)))) as $reqFailed
+  | ($failed | map(select(. as $f | $req | index($f) | not))) as $otherFailed
+  | if   ($reqFailed   | length) > 0 then "required-failed:" + ($reqFailed   | join(", "))
+    elif ($pending     | length) > 0 then "waiting:"         + ($pending     | join(", "))
+    elif ($otherFailed | length) > 0 then "preview-failed:"  + ($otherFailed | join(", "))
+    else "green" end
+'
+
+JQ_OUTSTANDING='
+  [($r | current)[] | select((answered | not) and (key as $k | $req | index($k) | not)) | key]
+  | join(", ")
+'
 
 # verdict <rollup-json> <required-json-array>
 #
@@ -97,22 +147,32 @@ JQ_FAILED_NAMES='[.statusCheckRollup[] | select(answered and (passing | not)) | 
 #   preview-failed:<names>
 #   waiting:<what is still missing or unanswered>
 #
+# Each check name is judged by its CURRENT attempt only (`current`, `stale`).
 # Pure: no network, no globals. Everything the self-test exercises goes through
 # here, so the fixtures test the real decision and not a paraphrase of it.
 verdict() {
-  local rollup="$1" required="$2"
-  jq -rn --argjson r "$rollup" --argjson req "$required" "
-    $JQ_DEFS
-    (\$r | $JQ_ANSWERED_NAMES) as \$answered
-    | (\$r | $JQ_FAILED_NAMES) as \$failed
-    | (\$req - \$answered) as \$pending
-    | (\$failed | map(select(. as \$f | \$req | index(\$f)))) as \$reqFailed
-    | (\$failed | map(select(. as \$f | \$req | index(\$f) | not))) as \$otherFailed
-    | if   (\$reqFailed  | length) > 0 then \"required-failed:\" + (\$reqFailed  | join(\", \"))
-      elif (\$pending    | length) > 0 then \"waiting:\"         + (\$pending    | join(\", \"))
-      elif (\$otherFailed| length) > 0 then \"preview-failed:\"  + (\$otherFailed| join(\", \"))
-      else \"green\" end
-  "
+  jq -rn --argjson r "$1" --argjson req "$2" "$JQ_DEFS $JQ_VERDICT"
+}
+
+# outstanding <rollup-json> <required-json-array>
+# CURRENT attempts that have not answered and are NOT required. A pending
+# required name is `waiting:`, never "non-required".
+outstanding() {
+  jq -rn --argjson r "$1" --argjson req "$2" "$JQ_DEFS $JQ_OUTSTANDING"
+}
+
+# preview_note_applies <comma-joined names>: true only when EVERY name is a
+# Vercel context, the one class the quota exception covers.
+preview_note_applies() {
+  local names="$1" rest n
+  [ -n "$names" ] || return 1
+  rest="$names, "
+  while [ -n "$rest" ]; do
+    n="${rest%%, *}"
+    rest="${rest#*, }"
+    case "$n" in Vercel*) ;; *) return 1 ;; esac
+  done
+  return 0
 }
 
 # --- Known-answer self-test -------------------------------------------------
@@ -179,11 +239,64 @@ self_test() {
   check neutral-and-skipped 'green' \
     '{"statusCheckRollup":[{"name":"Quality Checks","conclusion":"NEUTRAL"},{"name":"Test","conclusion":"SKIPPED"}]}'
 
+  # --- Current-attempt fixtures (MYK9-947) ---------------------------------
+  # Each runs in BOTH array orders, because the old code's answer depended on
+  # position. row <name> <workflow> <conclusion|""> <startedAt> <run> <job>
+  row() {
+    printf '{"name":"%s","workflowName":"%s","status":"%s","conclusion":"%s","startedAt":"%s","detailsUrl":"https://github.com/o/r/actions/runs/%s/job/%s"}' \
+      "$1" "$2" "$([ -n "$3" ] && echo COMPLETED || echo IN_PROGRESS)" "$3" "$4" "$5" "$6"
+  }
+  check_both() { # check_both <label> <expected> <old-first rows, comma-joined>
+    check "$1/old-first" "$2" "{\"statusCheckRollup\":[$3]}"
+    check "$1/new-first" "$2" "$(printf '{"statusCheckRollup":[%s]}' "$3" | jq -c '.statusCheckRollup |= reverse')"
+  }
+
+  # 12. #2672 draft->ready: the draft run skipped Quality Checks and Test; the
+  #     ready run's Quality Checks is IN_PROGRESS and Test has not registered.
+  #     The old skips are not answers.
+  check_both draft-ready-stale-skip 'waiting:Quality Checks, Test' \
+    "$(row 'Quality Checks' CI SKIPPED 2026-10-02T19:00:00Z 37036652479 110950000001),$(row Test CI SKIPPED 2026-10-02T19:00:00Z 37036652479 110950000002),$(row 'Quality Checks' CI '' 2026-10-02T19:20:25Z 37037770166 110950000100)"
+
+  # 13. Same, but the ready run has also registered Test (queued).
+  check_both draft-ready-both-registered 'waiting:Quality Checks, Test' \
+    "$(row 'Quality Checks' CI SKIPPED 2026-10-02T19:00:00Z 37036652479 110950000001),$(row Test CI SKIPPED 2026-10-02T19:00:00Z 37036652479 110950000002),$(row 'Quality Checks' CI '' 2026-10-02T19:20:25Z 37037770166 110950000100),$(row Test CI '' 0001-01-01T00:00:00Z 37037770166 110950000101)"
+
+  # 14. #2675: an old CANCELLED evaluator run beside its SUCCESS replacement
+  #     (3 seconds newer). Not a failure. The evaluator is non-required here.
+  check_both cancelled-then-success 'green' \
+    "$(row 'Quality Checks' CI SUCCESS 2026-10-02T20:31:40Z 37061146000 110990000001),$(row Test CI SUCCESS 2026-10-02T20:31:40Z 37061146000 110990000002),$(row 'Evaluate review evidence' 'Review gate' CANCELLED 2026-10-02T20:31:40Z 37061146506 110990000010),$(row 'Evaluate review evidence' 'Review gate' SUCCESS 2026-10-02T20:31:43Z 37061146762 110990000020)"
+
+  # 15. The reverse: a SUCCESS superseded by a newer FAILURE is a failure.
+  check_both fresh-failure-beats-old-success 'required-failed:Test' \
+    "$(row 'Quality Checks' CI SUCCESS 2026-10-02T20:00:00Z 100 1),$(row Test CI SUCCESS 2026-10-02T20:00:00Z 100 2),$(row Test CI FAILURE 2026-10-02T20:10:00Z 200 3)"
+
+  # 16. A required CANCELLED superseded by a newer SUCCESS is green.
+  check_both required-cancelled-then-success 'green' \
+    "$(row 'Quality Checks' CI SUCCESS 2026-10-02T20:00:00Z 100 1),$(row Test CI CANCELLED 2026-10-02T20:00:00Z 100 2),$(row Test CI SUCCESS 2026-10-02T20:10:00Z 200 3)"
+
+  # 17. A required check whose ONLY attempt is an intentional SKIPPED stays green.
+  check_both single-intentional-skip 'green' \
+    "$(row 'Quality Checks' CI SUCCESS 2026-10-02T20:00:00Z 100 1),$(row Test CI SKIPPED 2026-10-02T20:00:00Z 100 2)"
+
+  # 18. A fresh failure beats an old skip too.
+  check_both fresh-failure-beats-old-skip 'required-failed:Test' \
+    "$(row 'Quality Checks' CI SUCCESS 2026-10-02T20:10:00Z 200 4),$(row Test CI SKIPPED 2026-10-02T20:00:00Z 100 2),$(row Test CI FAILURE 2026-10-02T20:10:00Z 200 5)"
+
+  # 19. A pending REQUIRED name is never listed as non-required outstanding, and
+  #     a superseded unanswered attempt is not listed at all.
+  got=$(outstanding "{\"statusCheckRollup\":[$(row 'Quality Checks' CI '' 2026-10-02T19:20:25Z 200 3),$(row Lint CI '' 2026-10-02T19:00:00Z 100 1),$(row Lint CI SUCCESS 2026-10-02T19:20:25Z 200 4),$(row Docs CI '' 2026-10-02T19:20:25Z 200 5)]}" "$req")
+  [ "$got" = "Docs" ] || { echo "SELF-TEST FAIL [outstanding]: expected 'Docs', got '$got'"; ok=1; }
+
+  # 20. The Vercel quota note applies only when every failure is a Vercel one.
+  preview_note_applies "Vercel - app, Vercel - docs" || { echo "SELF-TEST FAIL [note-vercel]"; ok=1; }
+  if preview_note_applies "Evaluate review evidence"; then echo "SELF-TEST FAIL [note-non-vercel]"; ok=1; fi
+  if preview_note_applies "Vercel - app, Evaluate review evidence"; then echo "SELF-TEST FAIL [note-mixed]"; ok=1; fi
+
   if [ "$ok" -ne 0 ]; then
     echo "Harness self-test FAILED — refusing to report on real CI."
     exit 4
   fi
-  echo "self-test 11/11: vercel-state, run-conclusion, all-green, in-flight, partial-rollup, empty-rollup, required-beats-preview, answered-red, stale-conclusion, unknown-conclusion, neutral-and-skipped"
+  echo "self-test 11/11 + 7 current-attempt fixtures x2 orders: vercel-state, run-conclusion, all-green, in-flight, partial-rollup, empty-rollup, required-beats-preview, answered-red, stale-conclusion, unknown-conclusion, neutral-and-skipped, draft-ready-stale-skip, draft-ready-both-registered, cancelled-then-success, fresh-failure-beats-old-success, required-cancelled-then-success, single-intentional-skip, fresh-failure-beats-old-skip"
 }
 
 if [ "${1:-}" = "--self-test" ]; then
@@ -266,8 +379,7 @@ while :; do
       # tell "nothing else outstanding" from "the slow ones have not landed yet",
       # which makes an identical failure blocking or ignored purely on timing.
       # Raised in review of #2053.
-      OUTSTANDING=$(printf '%s' "$RESPONSE" |
-        jq -r "$JQ_DEFS [.statusCheckRollup[] | select(answered | not) | .name // .context] | join(\", \")")
+      OUTSTANDING=$(outstanding "$RESPONSE" "$REQUIRED")
       if [ -n "$OUTSTANDING" ]; then
         echo "STILL OUTSTANDING (non-required, may yet fail): $OUTSTANDING"
         echo "Apply the same judgement as exit 5 before merging: is any of these needed"
@@ -285,9 +397,14 @@ while :; do
       ;;
     preview-failed:*)
       echo "REQUIRED CHECKS GREEN, non-required failed on $PINNED: ${RESULT#preview-failed:}"
-      echo "Vercel previews are deliberately not required (AGENTS.md § Vercel Hobby quota"
-      echo "/ preview deploy discipline). Non-blocking IF this is the daily deployment"
-      echo "limit AND the preview is not needed for visual QA — confirm which before shipping."
+      if preview_note_applies "${RESULT#preview-failed:}"; then
+        echo "Vercel previews are deliberately not required (AGENTS.md § Vercel Hobby quota"
+        echo "/ preview deploy discipline). Non-blocking IF this is the daily deployment"
+        echo "limit AND the preview is not needed for visual QA — confirm which before shipping."
+      else
+        echo "At least one failure is NOT a Vercel preview, so the Vercel quota exception does"
+        echo "not apply. Open the failed check and judge it on its own merits before shipping."
+      fi
       exit 5
       ;;
   esac

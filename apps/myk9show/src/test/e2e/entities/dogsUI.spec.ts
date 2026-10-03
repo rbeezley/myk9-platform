@@ -37,9 +37,9 @@ const RUN_ID = Date.now();
 const DOG_A_NAME = `E2E Dog A ${RUN_ID}`;
 const DOG_B_NAME = `E2E Dog B ${RUN_ID}`;
 
-// Test Secretary's person ID in the DB — used to select owner in the Create form.
+// Jordan Ellis's person ID in the DB — used to select owner in the Create form.
 // This is the person linked to the secretary fixture (E2E_SECRETARY_EMAIL).
-const TEST_SECRETARY_PERSON_NAME = 'Test Secretary';
+const TEST_SECRETARY_PERSON_NAME = 'Jordan Ellis';
 // Alice Martin (exhibitor fixture) — used as a non-self owner.
 const ALICE_MARTIN_NAME = 'Alice Martin';
 
@@ -683,7 +683,7 @@ test.describe('Dogs UI — Owner change (secretary)', () => {
     await page.getByRole('button', { name: 'Cancel' }).click();
   });
 
-  test('Change owner from Test Secretary to Alice Martin and back', async ({ page }) => {
+  test('Change owner from Jordan Ellis to Alice Martin and back', async ({ page }) => {
     await navigateToDogA(page);
 
     // First change: → Alice Martin
@@ -723,7 +723,7 @@ test.describe('Dogs UI — Owner change (secretary)', () => {
     await ownerSelect2.scrollIntoViewIfNeeded();
     await expect(ownerSelect2).toHaveValue(aliceValue!);
 
-    // Restore: change back to Test Secretary so other test runs aren't affected
+    // Restore: change back to Jordan Ellis so other test runs aren't affected
     const secretaryOption = ownerSelect2
       .locator('option', { hasText: TEST_SECRETARY_PERSON_NAME })
       .first();

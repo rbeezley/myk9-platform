@@ -51,6 +51,7 @@ describe('seed-demo officials + RBAC completeness contract', () => {
       expect(columns).not.toMatch(/\bjudge_name\b/);
     }
     expect(seed).not.toContain("'Test Judge'");
+    expect(seed).not.toContain("'Pat Donovan'");
   });
 
   // Every role whose golden path the demo must support has an idempotent grant.

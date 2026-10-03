@@ -7,20 +7,20 @@ BEGIN;
 
 WITH accounts(email, first_name, last_name) AS (
   VALUES
-    ('exhibitor@myk9t.com', 'Test', 'Exhibitor'),
-    ('secretary@myk9t.com', 'Test', 'Secretary'),
-    ('judge@myk9t.com', 'Test', 'Judge'),
-    ('testadmin@myk9t.com', 'Test', 'Admin'),
+    ('exhibitor@myk9t.com', 'Casey', 'Morgan'),
+    ('secretary@myk9t.com', 'Jordan', 'Ellis'),
+    ('judge@myk9t.com', 'Pat', 'Donovan'),
+    ('testadmin@myk9t.com', 'Taylor', 'Brooks'),
     -- Optional club-admin-only account (MYK9-137). Every statement in this file
     -- joins auth.users or people, so where E2E_CLUB_ADMIN_PASSWORD is unset the
     -- Auth user does not exist and each one simply matches no rows. It is
     -- deliberately absent from the count assertion below, which guards the
     -- accounts a run cannot proceed without.
-    ('clubadmin@myk9t.com', 'Test', 'Club Admin'),
+    ('clubadmin@myk9t.com', 'Morgan', 'Reyes'),
     -- Chairman-only and second-exhibitor fixtures. Optional in the same sense as
     -- the club admin above: no Auth user, no matching rows, seed still completes.
-    ('chairman@myk9t.com', 'Test', 'Chairman'),
-    ('exhibitor2@myk9t.com', 'Second', 'Exhibitor')
+    ('chairman@myk9t.com', 'Alex', 'Whitfield'),
+    ('exhibitor2@myk9t.com', 'Riley', 'Parker')
 )
 UPDATE public.people AS person
 SET
@@ -35,20 +35,20 @@ WHERE lower(person.email) = account.email;
 
 WITH accounts(email, first_name, last_name) AS (
   VALUES
-    ('exhibitor@myk9t.com', 'Test', 'Exhibitor'),
-    ('secretary@myk9t.com', 'Test', 'Secretary'),
-    ('judge@myk9t.com', 'Test', 'Judge'),
-    ('testadmin@myk9t.com', 'Test', 'Admin'),
+    ('exhibitor@myk9t.com', 'Casey', 'Morgan'),
+    ('secretary@myk9t.com', 'Jordan', 'Ellis'),
+    ('judge@myk9t.com', 'Pat', 'Donovan'),
+    ('testadmin@myk9t.com', 'Taylor', 'Brooks'),
     -- Optional club-admin-only account (MYK9-137). Every statement in this file
     -- joins auth.users or people, so where E2E_CLUB_ADMIN_PASSWORD is unset the
     -- Auth user does not exist and each one simply matches no rows. It is
     -- deliberately absent from the count assertion below, which guards the
     -- accounts a run cannot proceed without.
-    ('clubadmin@myk9t.com', 'Test', 'Club Admin'),
+    ('clubadmin@myk9t.com', 'Morgan', 'Reyes'),
     -- Chairman-only and second-exhibitor fixtures. Optional in the same sense as
     -- the club admin above: no Auth user, no matching rows, seed still completes.
-    ('chairman@myk9t.com', 'Test', 'Chairman'),
-    ('exhibitor2@myk9t.com', 'Second', 'Exhibitor')
+    ('chairman@myk9t.com', 'Alex', 'Whitfield'),
+    ('exhibitor2@myk9t.com', 'Riley', 'Parker')
 )
 INSERT INTO public.people (auth_user_id, first_name, last_name, email)
 SELECT auth_user.id, account.first_name, account.last_name, account.email

@@ -90,7 +90,7 @@ describe('seed-demo show-day fixture (MYK9-731)', () => {
   it('posts only normal-priority announcements, so a reseed never sends a web push', () => {
     const insert = section.slice(section.indexOf('INSERT INTO public.show_announcements'));
     const body = insert.slice(0, insert.indexOf(';'));
-    expect(body).toContain("'secretary', 'Test Secretary', v.title, v.content, 'normal'");
+    expect(body).toContain("'secretary', 'Jordan Ellis', v.title, v.content, 'normal'");
     expect(body).not.toMatch(/'(high|urgent)'/);
   });
 

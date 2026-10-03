@@ -115,7 +115,7 @@ function entryRow(overrides: Record<string, unknown> = {}) {
     show_id: FIXTURE_SHOW_ID,
     class_id: FIXTURE_CLASS_ID,
     trial_id: FIXTURE_TRIAL_ID,
-    handler: 'Test Exhibitor',
+    handler: 'Casey Morgan',
     payment_status: 'paid',
     payment_method: 'card',
     entry_status: 'confirmed',

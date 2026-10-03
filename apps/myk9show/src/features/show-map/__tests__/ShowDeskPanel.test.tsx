@@ -159,8 +159,7 @@ describe('ShowDeskPanel cockpit', () => {
     const trialTrigger = screen.getByRole('button', {
       name: /^(Collapse|Expand) Friday AM · June 12/i,
     });
-    expect(trialTrigger).toHaveTextContent('1 in progress · Focused');
-    expect(trialTrigger).toHaveTextContent('2 classes');
+    expect(trialTrigger).toHaveTextContent('2 classes (1 in progress)');
     await user.click(trialTrigger);
     expect(screen.queryByRole('button', { name: 'Container Novice' })).not.toBeInTheDocument();
 

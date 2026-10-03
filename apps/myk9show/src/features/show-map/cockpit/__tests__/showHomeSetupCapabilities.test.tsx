@@ -48,10 +48,10 @@ function LocationProbe() {
  * | Setup action                         | On the home                                   |
  * | ------------------------------------ | --------------------------------------------- |
  * | Trials: Add Trial                    | Header "Add Trial"                            |
- * | Trials: row Edit / Delete            | Trial heading menu (useTrialRowActions)       |
+ * | Trials: row Edit / Delete            | Trial heading menu (Edit); edit panel footer (Delete) |
  * | Trials: row opens the trial page     | Trial heading menu "Trial details"            |
  * | Classes: Add Classes                 | Trial heading "Add Classes"                   |
- * | Classes: row Edit / Delete           | Class panel "Edit class" / "Delete class"     |
+ * | Classes: row Edit / Delete           | Class panel "Edit class"; edit panel footer (Delete) |
  * | Classes: status change               | Class panel / row status control (unchanged)  |
  * | Classes: judge, waitlist, bulk bar   | "Select classes" (Class Management in place)  |
  * | Classes: row opens class details     | Class panel "View entries and results"        |
@@ -64,7 +64,8 @@ describe('show home carries every Setup action (MYK9-956)', () => {
     );
   }
 
-  it('gives each trial heading Add Classes and an Edit / Trial details / Delete menu', async () => {
+  // Delete lives only in the edit panels' footers on the show home (owner, 2026-10-03).
+  it('gives each trial heading Add Classes and an Edit / Trial details menu, no Delete', async () => {
     const { user } = renderCockpit(true);
 
     expect(screen.getByRole('link', { name: /add classes to trial 1/i })).toHaveAttribute(
@@ -76,15 +77,14 @@ describe('show home carries every Setup action (MYK9-956)', () => {
     expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual([
       'Edit Trial',
       'Trial details',
-      'Delete Trial',
     ]);
   });
 
-  it('gives the class panel Edit class and Delete class', () => {
+  it('gives the class panel Edit class, with Delete left to the edit panel', () => {
     renderCockpit(true);
 
     expect(screen.getByRole('button', { name: 'Edit class Container Novice' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Delete class Container Novice' })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: /delete class/i })).toBeNull();
   });
 
   it('offers none of them to a viewer who cannot manage the show', () => {

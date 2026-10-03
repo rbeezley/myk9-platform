@@ -166,6 +166,8 @@ export interface ScheduledClassModel {
   timeLabel: string;
   scheduledStart: string | null;
   expectedStart: string | null;
+  /** The recorded start, once the class has started; null before, or when none was recorded. */
+  startedLabel: string | null;
   lifecycle: EvidenceValue<CockpitLifecycle>;
   progress: EvidenceValue<{ completed: number; total: number }>;
   operationalArea: EvidenceValue<{ kind: OperationalAreaKind; label: string }>;
@@ -190,7 +192,6 @@ export interface TrialScheduleGroupModel {
     classCount: number;
     inProgressCount: number;
     attentionCount: number;
-    containsFocusedClass: boolean;
   };
 }
 

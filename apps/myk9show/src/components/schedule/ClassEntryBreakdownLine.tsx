@@ -15,20 +15,24 @@ export function ClassEntryBreakdownLine({
   trialId,
   classId,
   className,
+  hideEntered = false,
 }: {
   breakdown: ClassEntryBreakdown;
   showId: string;
   trialId: string;
   classId: string;
   className: string;
+  /** Show only the "N pending" link, where the caller already shows a count ("2 of 2 scored"). */
+  hideEntered?: boolean;
 }) {
   const text = formatClassEntryBreakdown(breakdown);
+  if (hideEntered && !text.pending) return null;
   return (
     <div className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-muted-foreground">
-      <span>{text.entered}</span>
+      {!hideEntered && <span>{text.entered}</span>}
       {text.pending && (
         <>
-          <span aria-hidden="true">·</span>
+          {!hideEntered && <span aria-hidden="true">·</span>}
           <Link
             to={getClassReviewHref({ showId, trialId, classId })}
             aria-label={`${text.pending} in ${className}`}

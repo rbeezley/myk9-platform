@@ -31,7 +31,8 @@ export function ClassChecklistStrip({ summary }: { summary: ClassChecklistSummar
         ))}
       </div>
       <span className="text-xs text-muted-foreground">
-        {summary.done} of {summary.total} done
+        {/* "steps", so it never reads as an entry count (owner, 2026-10-03). */}
+        {summary.done} of {summary.total} steps done
         {summary.unknown > 0 ? ` · ${summary.unknown} unknown` : ''}
       </span>
     </div>

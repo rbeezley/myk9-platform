@@ -506,3 +506,53 @@ describe('buildSecretaryCockpitModel show home', () => {
     expect(complete?.checklist?.done).toBeGreaterThan(0);
   });
 });
+
+describe('the schedule shows the real start once a class has started (owner, 2026-10-03)', () => {
+  function rowFor(cls: SecretaryCockpitClass) {
+    const model = buildSecretaryCockpitModel(
+      makeSnapshot({ classes: [cls], trials: [makeSnapshot().trials[0]!] }),
+      { filter: 'all' }
+    );
+    return model.daySchedule.find(row => row.id === cls.id);
+  }
+
+  it('labels a started class with its recorded start, in show time', () => {
+    const row = rowFor(
+      makeClass({
+        id: 'running',
+        trialId: 'trial-1',
+        name: 'Interior Novice',
+        lifecycle: 'in-progress',
+        scheduledStart: '9:00 AM',
+        actualStart: '2026-07-20T14:12:00.000Z',
+      })
+    );
+    expect(row?.startedLabel).toBe('9:12 AM');
+  });
+
+  it('keeps the planned time before the class starts, or when no start was recorded', () => {
+    expect(
+      rowFor(
+        makeClass({
+          id: 'planned',
+          trialId: 'trial-1',
+          name: 'Interior Novice',
+          scheduledStart: '9:00 AM',
+          // A stale stamp on a reset class must not read as a start.
+          actualStart: '2026-07-20T14:12:00.000Z',
+        })
+      )?.startedLabel
+    ).toBeNull();
+    expect(
+      rowFor(
+        makeClass({
+          id: 'unstamped',
+          trialId: 'trial-1',
+          name: 'Interior Novice',
+          lifecycle: 'complete',
+          scheduledStart: '9:00 AM',
+        })
+      )?.startedLabel
+    ).toBeNull();
+  });
+});

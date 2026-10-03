@@ -36,6 +36,7 @@ const focused: FocusedClassModel = {
   timeLabel: '9:00 AM',
   scheduledStart: '9:00 AM',
   expectedStart: '9:00 AM',
+  startedLabel: null,
   lifecycle: { evidence: 'recorded', value: 'not-started' },
   progress: { evidence: 'computed', value: { completed: 0, total: 8 } },
   operationalArea: { evidence: 'unknown', value: null },
@@ -310,5 +311,62 @@ describe('SecretaryCockpitFocusedClass delay announcement', () => {
       revisedExpectedStart: '2026-07-20T14:45:00.000Z',
     });
     expect(screen.queryByRole('button', { name: 'Announce the delay' })).toBeNull();
+  });
+});
+
+describe('SecretaryCockpitFocusedClass layout (owner, 2026-10-03)', () => {
+  function renderPanel(source: SecretaryCockpitClass, model: FocusedClassModel = focused) {
+    return render(
+      <SecretaryCockpitFocusedClass
+        showId="show-1"
+        focused={model}
+        sourceClass={source}
+        trial={{ id: 'trial-1', date: '2026-07-20', number: '1', order: 0 }}
+        attention={[]}
+        timeZone="America/Chicago"
+        canManageShow
+        onCommand={vi.fn()}
+      />
+    );
+  }
+
+  it('groups what the secretary sets under Class settings, apart from the work', () => {
+    renderPanel(sourceClass);
+
+    const settings = screen.getByRole('region', { name: 'Class settings' });
+    expect(within(settings).getByText('Status')).toBeInTheDocument();
+    expect(within(settings).getByText('Expected start')).toBeInTheDocument();
+    expect(within(settings).getByText('Actual timing')).toBeInTheDocument();
+    expect(screen.getByText('0 of 8 scored')).toBeInTheDocument();
+    expect(screen.queryByText(/8 entries/)).toBeNull();
+  });
+
+  it('says a class that ran has no recorded start, rather than "Not started"', () => {
+    renderPanel(
+      { ...sourceClass, lifecycle: 'complete' },
+      { ...focused, lifecycle: { evidence: 'recorded', value: 'complete' } }
+    );
+
+    const settings = screen.getByRole('region', { name: 'Class settings' });
+    expect(within(settings).getByText('Start not recorded')).toBeInTheDocument();
+    expect(within(settings).queryByText('Not started')).toBeNull();
+  });
+
+  it('labels the entry list as the entries that can still move up', () => {
+    renderPanel(sourceClass, {
+      ...focused,
+      entryRows: [
+        {
+          nodeId: 'entry:e1',
+          label: '#101 Scout',
+          actions: [
+            { id: 'move-up-entry', commandId: 'move-up-entry:entry:e1', label: 'Move up', why: '' },
+          ],
+        },
+      ],
+    });
+
+    expect(screen.getByRole('heading', { name: 'Can move up' })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Entries' })).toBeNull();
   });
 });

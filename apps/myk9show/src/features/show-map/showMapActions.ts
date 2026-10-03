@@ -336,7 +336,7 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
         ...(classId ? { classId } : {}),
       });
     }
-    if (canMoveUpEntry(node)) {
+    if (canMoveUpEntry(node, tree)) {
       actions.push(
         withHref(
           {

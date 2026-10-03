@@ -40,7 +40,7 @@ export function SecretaryCockpit({
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
 }) {
   const { state, updateState } = useSecretaryCockpitUrlState();
-  // Setup → Trials' Edit / Delete, on each trial heading (MYK9-956).
+  // Edit Trial and Trial details on each trial heading (MYK9-956); Delete is in the edit panel.
   const { trialRowMenu, trialDialogs } = useTrialRowActions(snapshot.showId, canManageShow);
   // Held here, not in the panel, so a layout switch at 1280px cannot close an open editor.
   const { renderClassActions, classDialogs } = useFocusedClassSetupActions(snapshot.showId);

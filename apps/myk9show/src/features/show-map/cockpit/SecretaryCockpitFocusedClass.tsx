@@ -3,6 +3,7 @@ import { AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ShowMapRunOrderMenu } from '../ShowMapRunOrderMenu';
 import { formatTime } from '@/lib/format/dates';
+import { countLabel } from '@/utils/pluralize';
 import type { SecretaryCockpitRunOrderControls } from './secretaryCockpitTypes';
 
 import { CockpitActionLink } from './CockpitActionLink';
@@ -41,7 +42,7 @@ export function SecretaryCockpitFocusedClass({
   onCommand: (commandId: string) => void;
   /** Run-order auto-sort for the focused class (F29b phase 2a). */
   runOrder?: SecretaryCockpitRunOrderControls | undefined;
-  /** Edit class / Delete class; the cockpit owns their dialogs (MYK9-956). */
+  /** Edit class; the cockpit owns its dialogs (MYK9-956). */
   setupActions?: ReactNode;
 }) {
   if (!focused || !sourceClass || !trial) {
@@ -65,17 +66,44 @@ export function SecretaryCockpitFocusedClass({
     (Boolean(sourceClass.revisedExpectedStart) &&
       !scheduledClockValue(sourceClass.scheduledStart ?? null));
 
+  const entryCount = sourceClass.entryCount ?? null;
+  // "2 of 2 scored" already says how many entries; the bare count is only the
+  // fallback when progress is unknown (owner, 2026-10-03).
+  const facts = [
+    focused.progress.value
+      ? `${focused.progress.value.completed} of ${focused.progress.value.total} scored`
+      : entryCount === null
+        ? null
+        : countLabel(entryCount, 'entry', 'entries'),
+    focused.judgeName ? `Judge ${focused.judgeName}` : null,
+  ].filter(Boolean);
+
   return (
     <aside className="overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm xl:sticky xl:top-[calc(var(--app-top-inset,3rem)+1rem)]">
       <div className="border-b p-5">
         <div className="text-xs font-semibold uppercase tracking-[0.16em] text-primary">
           Focused Class · {formatTrialIdentity(trial)}
         </div>
-        <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h2 className="text-2xl font-semibold tracking-tight">{focused.name}</h2>
-            {canManageShow && setupActions && <div className="mt-2">{setupActions}</div>}
-            <div className="mt-2 flex flex-wrap items-center gap-2">
+        <h2 className="mt-2 text-2xl font-semibold tracking-tight">{focused.name}</h2>
+        {facts.length > 0 && (
+          <p className="mt-1 text-sm text-muted-foreground">{facts.join(' · ')}</p>
+        )}
+        {canManageShow && setupActions && <div className="mt-3">{setupActions}</div>}
+      </div>
+
+      <div className="space-y-5 p-5">
+        {/* What the secretary SETS for this class, laid out as a form, apart from
+            the work below it (owner, 2026-10-03). */}
+        <section aria-labelledby="focused-class-settings" className="rounded-lg border bg-muted/30">
+          <h3
+            id="focused-class-settings"
+            className="border-b px-4 py-2.5 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground"
+          >
+            Class settings
+          </h3>
+          <dl className="grid grid-cols-[minmax(0,8.5rem)_minmax(0,1fr)] items-center gap-x-4 gap-y-3 p-4 text-sm">
+            <dt className="text-muted-foreground">Status</dt>
+            <dd>
               <ClassStatusControl
                 classId={focused.id}
                 lifecycle={focused.lifecycle.value}
@@ -86,23 +114,9 @@ export function SecretaryCockpitFocusedClass({
                 }
                 canManageShow={canManageShow}
               />
-              {focused.progress.value && (
-                <span className="text-xs text-muted-foreground">
-                  {focused.progress.value.completed} of {focused.progress.value.total} scored
-                </span>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="space-y-5 p-5">
-        <div className="grid gap-3 rounded-lg bg-muted/40 p-3 text-sm sm:grid-cols-2">
-          <div>
-            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Expected start
-            </div>
-            <div className="mt-1">
+            </dd>
+            <dt className="self-start pt-2 text-muted-foreground">Expected start</dt>
+            <dd className="min-w-0 space-y-1">
               <ExpectedStartControl
                 classId={focused.id}
                 scheduledStart={sourceClass.scheduledStart ?? null}
@@ -111,34 +125,52 @@ export function SecretaryCockpitFocusedClass({
                 timeZone={timeZone}
                 canManageShow={canManageShow}
               />
-            </div>
-            {sourceClass.revisedExpectedStart && sourceClass.scheduledStart && (
-              <div className="mt-1 text-xs text-muted-foreground">
-                Scheduled {sourceClass.scheduledStart}
-              </div>
-            )}
-            {canManageShow && sourceClass.lifecycle === 'not-started' && offerDelay && (
-              <AnnounceDelayButton
-                showId={showId}
-                className={focused.name}
-                delayMinutes={delayMinutes ?? undefined}
-              />
-            )}
-          </div>
-          <div>
-            <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              Actual timing
-            </div>
-            <div className="mt-1 font-medium">
+              {sourceClass.revisedExpectedStart && sourceClass.scheduledStart && (
+                <div className="text-xs text-muted-foreground">
+                  Scheduled {sourceClass.scheduledStart}
+                </div>
+              )}
+              {canManageShow && sourceClass.lifecycle === 'not-started' && offerDelay && (
+                <AnnounceDelayButton
+                  showId={showId}
+                  className={focused.name}
+                  delayMinutes={delayMinutes ?? undefined}
+                />
+              )}
+            </dd>
+            <dt className="text-muted-foreground">Actual timing</dt>
+            <dd className="font-medium">
               {focused.actualStart.value
                 ? `Started ${formatTime(focused.actualStart.value, timeZone)}`
-                : 'Not started'}
+                : // A class that ran without a recorded start must not claim it never started.
+                  sourceClass.lifecycle === 'not-started'
+                  ? 'Not started'
+                  : 'Start not recorded'}
               {focused.actualFinish.value
                 ? ` · Finished ${formatTime(focused.actualFinish.value, timeZone)}`
                 : ''}
-            </div>
-          </div>
-        </div>
+            </dd>
+            {/* F29b phase 2a: the run-order control's only home (the run sheet,
+                Show Desk link and class setup were a three-hop dead end). Not
+                gated on the move-up list below: auto-sort availability has nothing
+                to do with which entries can move up. The menu hides itself
+                below 2 entries. See docs/plan-f29b-operational-actions-home.md. */}
+            {canManageShow && runOrder && (
+              <>
+                <dt className="text-muted-foreground">Run order</dt>
+                <dd>
+                  <ShowMapRunOrderMenu
+                    classId={focused.id}
+                    classLabel={focused.name}
+                    entryCount={sourceClass.entryCount ?? focused.entryRows.length}
+                    onAutoSort={runOrder.onAutoSort}
+                    isAutoSorting={runOrder.isAutoSorting}
+                  />
+                </dd>
+              </>
+            )}
+          </dl>
+        </section>
 
         {attention.length > 0 && (
           <div className="space-y-2">
@@ -172,7 +204,8 @@ export function SecretaryCockpitFocusedClass({
           <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             Class work
           </h3>
-          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+          {/* One column: two across clipped labels like "View entries and results". */}
+          <div className="mt-2 grid gap-2">
             {focused.classWorkActions.map(action => (
               <CockpitActionLink
                 key={action.id}
@@ -188,35 +221,16 @@ export function SecretaryCockpitFocusedClass({
           </div>
         </section>
 
-        {/* F29b phase 2a: run order had a three-hop dead end -- the run sheet sends you
-            to Show Desk, Show Desk's "Run order and class setup" link lands on class
-            setup, and class setup has no run-order control. This is that control.
-            It sits OUTSIDE the Entries section on purpose: that section is gated on
-            `entryRows`, which is filtered by STRANDED_ENTRY_ACTION_IDS, and auto-sort
-            availability has nothing to do with which actions are stranded. Nesting it
-            there meant a class could have entries to sort and no menu to sort them.
-            The menu hides itself below 2 entries. Manual drag reorder (2b) is still
-            outstanding; see docs/plan-f29b-operational-actions-home.md. */}
-        {canManageShow && runOrder && (
-          <section className="flex items-center justify-between gap-2">
-            <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Run order
-            </h3>
-            <ShowMapRunOrderMenu
-              classId={focused.id}
-              classLabel={focused.name}
-              entryCount={sourceClass.entryCount ?? focused.entryRows.length}
-              onAutoSort={runOrder.onAutoSort}
-              isAutoSorting={runOrder.isAutoSorting}
-            />
-          </section>
-        )}
-
         {canManageShow && focused.entryRows.length > 0 && (
           <section>
+            {/* Only entries that can still move up -- not the class's full list,
+                which is on "View entries and results". */}
             <h3 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
-              Entries
+              Can move up
             </h3>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Entries that have not run, before the class starts.
+            </p>
             {/* F29b: the only reachable home for these actions. `ShowMapRowActionsMenu`
                 renders the same set, but mounts only inside the public Show Map, which
                 is read-only by intent (#291) -- so a secretary-initiated move-up had no

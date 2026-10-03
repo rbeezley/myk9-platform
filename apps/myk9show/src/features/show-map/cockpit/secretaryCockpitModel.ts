@@ -126,6 +126,11 @@ function toScheduledClass(
       'Time not set',
     scheduledStart,
     expectedStart: cls.revisedExpectedStart ?? scheduledStart,
+    // Once a class is under way its real start beats the plan (owner, 2026-10-03).
+    startedLabel:
+      cls.lifecycle && cls.lifecycle !== 'not-started'
+        ? (formatClock(cls.actualStart ?? null, timeZone) ?? null)
+        : null,
     lifecycle: lifecycleFor(cls),
     progress: progressFor(cls),
     operationalArea: operationalAreaFor(cls),
@@ -363,7 +368,6 @@ function buildTrialGroups(
             (sum, cls) => sum + (attentionCountByClass.get(cls.id) ?? 0),
             0
           ),
-          containsFocusedClass: allClasses.some(cls => cls.id === focusedClassId),
         },
       };
     })

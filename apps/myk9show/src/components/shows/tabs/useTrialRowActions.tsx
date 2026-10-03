@@ -71,8 +71,9 @@ export function useTrialRowActions(showId: string, enabled: boolean) {
     setPendingTrialAction(current => (current?.requestId === requestId ? null : current));
 
   /**
-   * `withDetails` adds "Trial details" for surfaces whose trial row does not
-   * already open the trial page (the show home's collapsible headings).
+   * `withDetails` is the show home's collapsible trial heading: it adds "Trial
+   * details" (the heading does not open the trial page) and leaves Delete to
+   * the edit panel's footer.
    */
   // Memoized on what it renders: TrialsTab's table builds its actions column from this, and a
   // new function each render replaced the column and closed an open menu on any parent render
@@ -99,7 +100,9 @@ export function useTrialRowActions(showId: string, enabled: boolean) {
         busy={hydratingTrialId === trialId}
         locked={actionLocked}
         onEdit={() => void openTrialAction(trialId, 'edit')}
-        onDelete={() => void openTrialAction(trialId, 'delete')}
+        // On the show home, Delete is only in the trial edit panel's footer
+        // (owner, 2026-10-03; plan-crud-standard.md placement).
+        onDelete={withDetails ? undefined : () => void openTrialAction(trialId, 'delete')}
       />
     ),
     [actionLocked, hydratingTrialId, navigate, openTrialAction, showId]

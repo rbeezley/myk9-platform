@@ -14,10 +14,13 @@
  */
 import { supabase } from '@/services/database/supabaseClient';
 
-export async function setShowOnlineEntries(showId: string, enabled: boolean): Promise<void> {
-  const { error } = await supabase.rpc('set_show_online_entries', {
+/** @returns the show row's new version, which the caller's replica must reach
+ * before its own value replaces the confirmed one. */
+export async function setShowOnlineEntries(showId: string, enabled: boolean): Promise<number> {
+  const { data, error } = await supabase.rpc('set_show_online_entries', {
     p_show_id: showId,
     p_enabled: enabled,
   });
   if (error) throw error;
+  return data;
 }

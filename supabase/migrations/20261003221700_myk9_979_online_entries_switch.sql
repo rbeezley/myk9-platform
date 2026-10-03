@@ -386,11 +386,13 @@ REVOKE ALL ON FUNCTION public.enforce_show_publish_gate() FROM authenticated;
 --     Stripe payouts raises MK003 to the caller.
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION public.set_show_online_entries(p_show_id uuid, p_enabled boolean)
-RETURNS void
+RETURNS integer
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = ''
 AS $$
+DECLARE
+  v_version integer;
 BEGIN
   IF p_show_id IS NULL OR p_enabled IS NULL THEN
     RAISE EXCEPTION 'p_show_id and p_enabled are required' USING ERRCODE = '22023';
@@ -401,19 +403,25 @@ BEGIN
       USING ERRCODE = '42501';
   END IF;
 
+  -- RETURNING reads the row after the BEFORE triggers ran, so this is the
+  -- bumped version replicas will see; the client holds its confirmed value
+  -- until its replica row reaches it (useOnlineEntriesSwitch).
   UPDATE public.shows
      SET online_entries_enabled = p_enabled
    WHERE id = p_show_id
-     AND deleted_at IS NULL;
+     AND deleted_at IS NULL
+  RETURNING version INTO v_version;
 
   IF NOT FOUND THEN
     RAISE EXCEPTION 'show % not found', p_show_id USING ERRCODE = 'P0002';
   END IF;
+
+  RETURN v_version;
 END;
 $$;
 
 COMMENT ON FUNCTION public.set_show_online_entries(uuid, boolean) IS
-  'MYK9-979: sets shows.online_entries_enabled for one non-deleted show and nothing else. Callers: the show edit panel''s self-saving switch (useOnlineEntriesSwitch), online only. Authorized like shows_update (can_manage_show or site admin; 42501 otherwise). enforce_show_publish_gate still applies: turning it on for a public show without the club''s Stripe payouts raises MK003.';
+  'MYK9-979: sets shows.online_entries_enabled for one non-deleted show and nothing else, and returns the row''s new version. Callers: the show edit panel''s self-saving switch (useOnlineEntriesSwitch), online only. Authorized like shows_update (can_manage_show or site admin; 42501 otherwise). enforce_show_publish_gate still applies: turning it on for a public show without the club''s Stripe payouts raises MK003.';
 
 REVOKE ALL ON FUNCTION public.set_show_online_entries(uuid, boolean) FROM PUBLIC;
 REVOKE ALL ON FUNCTION public.set_show_online_entries(uuid, boolean) FROM anon;

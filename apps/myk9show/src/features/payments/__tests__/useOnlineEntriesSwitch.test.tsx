@@ -17,7 +17,7 @@ const h = vi.hoisted(() => ({
   show: undefined as Record<string, unknown> | undefined,
   payouts: null as { payouts_enabled: boolean } | null,
   online: true,
-  setShowOnlineEntries: vi.fn(async (_showId: string, _enabled: boolean) => {}),
+  setShowOnlineEntries: vi.fn(async (_showId: string, _enabled: boolean) => 8),
 }));
 
 vi.mock('@/store/showStore', () => ({
@@ -74,7 +74,7 @@ describe('useOnlineEntriesSwitch', () => {
   // Codex round 5: the confirmed value shows at once, without touching the
   // replica, and the show sync is asked to bring the row.
   it('shows the server-confirmed value right away and asks the show sync for the row', async () => {
-    h.show = show({ onlineEntriesEnabled: true });
+    h.show = show({ onlineEntriesEnabled: true, serverVersion: 7 });
     const { result } = renderHook(() => useOnlineEntriesSwitch('show-1'), { wrapper });
 
     await act(() => result.current.setEnabled(false));
@@ -83,17 +83,35 @@ describe('useOnlineEntriesSwitch', () => {
     expect(syncTable).toHaveBeenCalledWith('shows');
   });
 
-  it('a later replica value wins over the confirmed one', async () => {
-    h.show = show({ onlineEntriesEnabled: true });
+  // Codex round 6: the RPC returns the row's new version (8 here). A replica
+  // refresh older than that cannot undo the confirmation; one at or past it
+  // wins, whatever value it holds.
+  it('an older replica refresh does not override the confirmed value', async () => {
+    h.show = show({ onlineEntriesEnabled: true, serverVersion: 7 });
     const { result, rerender } = renderHook(() => useOnlineEntriesSwitch('show-1'), { wrapper });
 
     await act(() => result.current.setEnabled(false));
     expect(result.current.value).toBe(false);
 
-    // Another device turned it back on before this device's sync landed: the
-    // newer replica row wins even though its value equals the one the
-    // confirmation was made over.
-    h.show = show({ onlineEntriesEnabled: true });
+    // An unrelated refresh re-delivers the pre-change row (a new object, same
+    // version): the switch keeps the confirmed value.
+    h.show = show({ onlineEntriesEnabled: true, serverVersion: 7 });
+    rerender();
+    expect(result.current.value).toBe(false);
+  });
+
+  it('a replica row at or past the returned version wins, even when another device flipped it back', async () => {
+    h.show = show({ onlineEntriesEnabled: true, serverVersion: 7 });
+    const { result, rerender } = renderHook(() => useOnlineEntriesSwitch('show-1'), { wrapper });
+
+    await act(() => result.current.setEnabled(false));
+
+    h.show = show({ onlineEntriesEnabled: false, serverVersion: 8 });
+    rerender();
+    expect(result.current.value).toBe(false);
+
+    // Another device turned it back on: a higher version holding the other value.
+    h.show = show({ onlineEntriesEnabled: true, serverVersion: 9 });
     rerender();
     expect(result.current.value).toBe(true);
   });

@@ -14297,7 +14297,7 @@ export type Database = {
       }
       set_show_online_entries: {
         Args: { p_enabled: boolean; p_show_id: string }
-        Returns: undefined
+        Returns: number
       }
       sign_in_email_drift: { Args: never; Returns: Json }
       soft_delete_class: {

@@ -43,6 +43,7 @@ export function rowToShow(row: ShowRow): ReplicatedShow {
     acceptCheckPayments: row.accept_check_payments ?? undefined,
     acceptCashPayments: row.accept_cash_payments ?? undefined,
     onlineEntriesEnabled: row.online_entries_enabled ?? undefined,
+    serverVersion: row.version,
     logoUrl: row.logo_url ?? undefined,
     coverImageUrl: row.cover_image_url ?? undefined,
     accentColor: row.accent_color ?? undefined,

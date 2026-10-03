@@ -27,7 +27,7 @@ vi.mock('@/services/replication/ReplicatedShowsTable', () => ({
 describe('setShowOnlineEntries', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    h.rpc.mockResolvedValue({ data: null, error: null });
+    h.rpc.mockResolvedValue({ data: 8, error: null });
   });
 
   it('calls the RPC with exactly the show id and the value', async () => {
@@ -37,6 +37,10 @@ describe('setShowOnlineEntries', () => {
       p_show_id: 'show-1',
       p_enabled: true,
     });
+  });
+
+  it("returns the row's new version from the RPC", async () => {
+    await expect(setShowOnlineEntries('show-1', true)).resolves.toBe(8);
   });
 
   it('never writes the local replica or queues a mutation on success', async () => {

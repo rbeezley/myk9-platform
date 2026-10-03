@@ -142,6 +142,8 @@ export interface Show {
   acceptCheckPayments?: boolean | undefined;
   acceptCashPayments?: boolean | undefined;
   onlineEntriesEnabled?: boolean | undefined;
+  /** shows.version as last read from the server (MYK9-979). */
+  serverVersion?: number | undefined;
 
   // Heritage / registry columns (migration 192)
   landing_style?: string | null;

@@ -457,6 +457,7 @@ DECLARE
   exhibitor_auth CONSTANT uuid := '00000000-0000-0000-0000-000000979022';
   v_before public.shows%ROWTYPE;
   v_after  public.shows%ROWTYPE;
+  v_returned integer;
 BEGIN
   PERFORM set_config('request.jwt.claim.sub', admin_auth::text, true);
   PERFORM set_config('request.jwt.claims',
@@ -465,8 +466,11 @@ BEGIN
   -- 10a. A manager turns it on for a DRAFT of a club with no Stripe (allowed:
   --      the gate runs when the show is published) and only that column moves.
   SELECT * INTO v_before FROM public.shows WHERE id = '00000000-0000-0000-0000-000000979103';
-  PERFORM public.set_show_online_entries('00000000-0000-0000-0000-000000979103', true);
+  v_returned := public.set_show_online_entries('00000000-0000-0000-0000-000000979103', true);
   SELECT * INTO v_after FROM public.shows WHERE id = '00000000-0000-0000-0000-000000979103';
+  IF v_returned IS DISTINCT FROM v_after.version THEN
+    RAISE EXCEPTION 'FAIL 10a returned version % is not the row''s new version %', v_returned, v_after.version;
+  END IF;
   IF v_after.online_entries_enabled IS DISTINCT FROM true THEN
     RAISE EXCEPTION 'FAIL 10a the manager could not set online entries';
   END IF;

@@ -7,7 +7,7 @@
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { detectDirtyRowConflict } from '@myk9/replication';
-import { ReplicatedShowsTable, type ReplicatedShow } from '../ReplicatedShowsTable';
+import { ReplicatedShowsTable, rowToShow, type ReplicatedShow } from '../ReplicatedShowsTable';
 
 vi.mock('@/services/database/supabaseClient', () => ({ supabase: { from: vi.fn() } }));
 vi.mock('@myk9/core', () => ({
@@ -95,6 +95,31 @@ describe('ReplicatedShowsTable — generic show writes never carry online_entrie
     void _ignored;
     await table.createShow(rest);
     expect(lastPayload()).not.toHaveProperty('online_entries_enabled');
+  });
+});
+
+describe('rowToShow — the server version the online-entries switch waits for (Codex round 6)', () => {
+  it('carries shows.version as serverVersion, and no generic write sends it back', async () => {
+    const mapped = rowToShow({
+      id: 'show-1',
+      name: 'Fall Trial',
+      version: 12,
+      online_entries_enabled: true,
+    } as unknown as Parameters<typeof rowToShow>[0]);
+    expect(mapped.serverVersion).toBe(12);
+
+    const { databaseManager } = await import('@myk9/replication');
+    await databaseManager.reset();
+    const table = new ReplicatedShowsTable();
+    const queue = vi
+      .spyOn(table as unknown as { queueMutation: QueueMutation }, 'queueMutation')
+      .mockResolvedValue('mutation-1');
+    await table.set(BASE.id, { ...BASE, serverVersion: 12 });
+    await table.updateShow(BASE.id, { name: 'Renamed' });
+    const payload = queue.mock.calls.at(-1)?.[2] as Record<string, unknown>;
+    expect(payload).not.toHaveProperty('version');
+    expect(payload).not.toHaveProperty('serverVersion');
+    await databaseManager.reset();
   });
 });
 

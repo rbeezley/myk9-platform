@@ -50,16 +50,16 @@ export interface OnlineEntriesSwitch {
 }
 
 /**
- * What the server confirmed, and the replica row it was confirmed over. The
- * confirmed value is shown only while the store still holds that same row
- * object; any newer row (the show sync landing, another device's change, any
- * replica refresh) wins, so a stale confirmation can never outlive the next
- * refresh. Never written into the replica; the incremental show sync owns
- * that.
+ * What the server confirmed, and the row version it confirmed it at (returned
+ * by set_show_online_entries). The confirmed value is shown until the replica
+ * row reaches that version (Codex round 6): an older refresh cannot undo it,
+ * and any row at or past it wins, including another device's later change.
+ * Never written into the replica; the incremental show sync owns that.
  */
 interface Confirmed {
+  showId: string;
   value: boolean;
-  rowAtConfirm: object;
+  version: number;
 }
 
 export function useOnlineEntriesSwitch(showId: string | undefined): OnlineEntriesSwitch {
@@ -69,8 +69,11 @@ export function useOnlineEntriesSwitch(showId: string | undefined): OnlineEntrie
   const replicaValue =
     typeof show?.onlineEntriesEnabled === 'boolean' ? show.onlineEntriesEnabled : undefined;
   const [confirmed, setConfirmed] = useState<Confirmed | null>(null);
-  const value =
-    confirmed && show && confirmed.rowAtConfirm === show ? confirmed.value : replicaValue;
+  const replicaBehind =
+    confirmed !== null &&
+    confirmed.showId === showId &&
+    (show?.serverVersion ?? Number.NEGATIVE_INFINITY) < confirmed.version;
+  const value = confirmed && replicaBehind ? confirmed.value : replicaValue;
   // Optional: the provider wraps the app; a test without it simply skips the pull.
   const syncTable = useContext(ReplicationSyncContext)?.syncTable;
   const stripe = useClubStripeAccount(show?.clubId);
@@ -94,8 +97,8 @@ export function useOnlineEntriesSwitch(showId: string | undefined): OnlineEntrie
     }
     setPending(true);
     try {
-      await setShowOnlineEntries(showId, next);
-      if (show) setConfirmed({ value: next, rowAtConfirm: show });
+      const version = await setShowOnlineEntries(showId, next);
+      setConfirmed({ showId, value: next, version });
       // The RPC bumped updated_at/version: the normal incremental show sync
       // pulls the row through its own conflict-safe merge.
       void syncTable?.('shows');

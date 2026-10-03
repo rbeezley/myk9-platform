@@ -3,6 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { formatFee } from '@/utils/format';
 import { toLocalDate } from '@/utils/date-format';
 import { FactCell } from '@/components/common/FactCell';
+import { acceptsOnlineEntries } from '@/features/payments/onlineEntryGate';
 
 function parseDate(dateStr: string): Date | null {
   if (!dateStr) return null;
@@ -54,9 +55,13 @@ export function QuickInfoCards({ show, canManageShow, entryCount }: QuickInfoCar
           Payment Methods
         </div>
         <div className="flex flex-wrap gap-1.5">
-          <Badge variant="outline" className={PAYMENT_BADGE_CLASS}>
-            Card
-          </Badge>
+          {/* MYK9-979: card payment exists only with online entries on; a
+              mail-in show, or one whose value is not known yet, shows none. */}
+          {acceptsOnlineEntries(show) && (
+            <Badge variant="outline" className={PAYMENT_BADGE_CLASS}>
+              Card
+            </Badge>
+          )}
           {show.acceptCheckPayments && (
             <Badge variant="outline" className={PAYMENT_BADGE_CLASS}>
               Check

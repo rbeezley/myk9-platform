@@ -51,7 +51,6 @@ vi.mock('@/components/admin/users/UserTable', () => ({
   ),
 }));
 
-
 // This page suite is about the page (filters, table, selection), so the dialog
 // is stubbed. Be aware of what that costs: this mock is why MYK9-131 shipped —
 // "Create User" produced an account with no auth identity while this file

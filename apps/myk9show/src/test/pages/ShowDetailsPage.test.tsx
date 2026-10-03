@@ -442,6 +442,7 @@ describe('ShowDetailsPage', () => {
       status: 'Upcoming',
       entryOpenDate: '2026-01-01',
       entryCloseDate: '2027-12-31',
+      onlineEntriesEnabled: true,
     };
     mockLoading = false;
     mockReplicaShows = null;

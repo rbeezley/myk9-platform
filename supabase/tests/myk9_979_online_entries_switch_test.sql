@@ -24,6 +24,8 @@
 --      exhibitor's dog still succeeds; turning the switch on lets the same
 --      exhibitor call succeed (positive control proving the refusal came from
 --      the switch).
+--   9. The migration's backfill, replayed verbatim, writes every show with a
+--      fresh updated_at (the replica's sync key) and the right value.
 --
 -- Run with psql -X -v ON_ERROR_STOP=1 after migrations. All fixtures roll back.
 -- Fixture identities follow myk9_841_staff_on_behalf_entries_accepted_test.sql
@@ -426,5 +428,42 @@ $$;
 RESET ROLE;
 SELECT set_config('request.jwt.claim.sub', '', true);
 SELECT set_config('request.jwt.claims', '', true);
+
+-- ---------------------------------------------------------------------------
+-- 9. The migration's backfill, replayed verbatim (publishGateMigrationContract
+--    pins this text to the migration). It must write EVERY show and bump
+--    updated_at, the column replicas pull on (Codex P2 on #2707): a row left
+--    at the DEFAULT would never re-sync to a cached replica.
+-- ---------------------------------------------------------------------------
+UPDATE public.shows s
+   SET online_entries_enabled = (
+         s.club_id IS NOT NULL
+         AND public.can_accept_online_entry_payment(
+               s.club_id,
+               (SELECT ps.stripe_livemode FROM public.platform_settings ps WHERE ps.id = true)
+             )
+       ),
+       updated_at = now();
+
+DO $$
+DECLARE
+  v_total int;
+  v_stale int;
+BEGIN
+  SELECT count(*), count(*) FILTER (WHERE updated_at IS DISTINCT FROM now())
+    INTO v_total, v_stale
+    FROM public.shows;
+  IF v_total = 0 OR v_stale <> 0 THEN
+    RAISE EXCEPTION 'FAIL 9 backfill left % of % shows without a fresh updated_at', v_stale, v_total;
+  END IF;
+  IF (SELECT online_entries_enabled FROM public.shows WHERE id = '00000000-0000-0000-0000-000000979104') IS DISTINCT FROM true
+     OR (SELECT online_entries_enabled FROM public.shows WHERE id = '00000000-0000-0000-0000-000000979105') IS DISTINCT FROM true
+     OR (SELECT online_entries_enabled FROM public.shows WHERE id = '00000000-0000-0000-0000-000000979101') IS DISTINCT FROM false
+     OR (SELECT online_entries_enabled FROM public.shows WHERE id = '00000000-0000-0000-0000-000000979107') IS DISTINCT FROM false THEN
+    RAISE EXCEPTION 'FAIL 9 backfill value: true exactly for Stripe-ready clubs';
+  END IF;
+  RAISE NOTICE 'PASS 9 backfill writes every show (% rows) with a fresh updated_at; true only for Stripe-ready clubs', v_total;
+END;
+$$;
 
 ROLLBACK;

@@ -51,6 +51,17 @@ describe('getEntryStatus — online entries off (MYK9-979)', () => {
     });
   });
 
+  // Codex P2 on #2707: a replica row cached before the column existed carries
+  // no value. It must not read as enterable until the value arrives.
+  it.each([undefined, null])('withholds entry while the switch is unknown (%s)', value => {
+    const status = getEntryStatus(
+      show({ onlineEntriesEnabled: value as unknown as boolean }),
+      true
+    );
+    expect(status).toMatchObject({ status: 'window_unknown', canEnter: false });
+    expect(isEntryWindowNotOpen(status.status)).toBe(true);
+  });
+
   it('keeps the window states: not yet open and closed still read as such', () => {
     expect(
       getEntryStatus(show({ onlineEntriesEnabled: false, entryOpenDate: '2024-01-20' })).status

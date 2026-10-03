@@ -13,7 +13,7 @@ import {
 } from '@/features/premium/showStylePersistence';
 import { StaleShowNotice } from './StaleShowNotice';
 import { MailInEntryNotice } from './MailInEntryNotice';
-import { isMailInOnlyShow } from '@/features/payments/onlineEntryGate';
+import { acceptsOnlineEntries, isMailInOnlyShow } from '@/features/payments/onlineEntryGate';
 import { LandingMailInContext } from '@/features/_shared/landing/landingMailIn';
 import { PreviewExitBar } from './PreviewExitBar';
 import type { Show } from '@/types/show-types';
@@ -72,6 +72,8 @@ export function ShowPublicLanding({
       : null;
   const isManagerDraftPreview = styleMode === 'manager-draft-preview';
   const mailInOnly = isMailInOnlyShow(show);
+  // Unknown (a stale cached row) is never online-capable: no Enter CTA until known.
+  const onlineEntriesOpen = acceptsOnlineEntries(show);
 
   // Public visitors render the last published experience. Managers in Preview
   // intentionally render the current draft instead; changing the draft must
@@ -217,7 +219,7 @@ export function ShowPublicLanding({
           trial={landingTrials[0] ?? null}
           allTrials={landingTrials}
           hasEntryClassInventory={hasEntryClassInventory}
-          entryWindowNotOpen={entryWindowNotOpen || mailInOnly}
+          entryWindowNotOpen={entryWindowNotOpen || !onlineEntriesOpen}
         />
       </LandingMailInContext.Provider>
     </>

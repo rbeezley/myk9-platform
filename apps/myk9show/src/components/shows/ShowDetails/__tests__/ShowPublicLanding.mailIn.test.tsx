@@ -74,7 +74,7 @@ function mockViewport(mobile: boolean) {
   });
 }
 
-function renderLanding(onlineEntriesEnabled: boolean) {
+function renderLanding(onlineEntriesEnabled: boolean | undefined) {
   const show = {
     id: 'show-1',
     name: data.showName,
@@ -117,6 +117,15 @@ describe('ShowPublicLanding — online entries off (MYK9-979)', () => {
     renderLanding(true);
 
     expect(screen.getAllByRole('link', { name: /enter this show/i }).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('note', { name: /how to enter/i })).not.toBeInTheDocument();
+  });
+
+  it('withholds "Enter this show" while the switch is unknown, without a mail-in claim', () => {
+    // Codex P2 on #2707: a cached row from before the column existed.
+    mockViewport(false);
+    renderLanding(undefined);
+
+    expect(screen.queryByRole('link', { name: /enter this show/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('note', { name: /how to enter/i })).not.toBeInTheDocument();
   });
 });

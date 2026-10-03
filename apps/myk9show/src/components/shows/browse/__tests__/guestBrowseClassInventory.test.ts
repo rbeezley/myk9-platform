@@ -35,6 +35,7 @@ function guestRow(trialExtras: Record<string, unknown> = {}) {
     status: 'published',
     entry_open_date: '2026-01-01',
     entry_close_date: '2099-10-01',
+    online_entries_enabled: true,
     club: { name: 'Heartland K9', address: null, email: null },
     trials: [
       {

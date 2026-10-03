@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import {
+  acceptsOnlineEntries,
   becomesPublic,
+  onlineEntryMode,
   isMailInOnlyShow,
   isPublicShowStatus,
   publishNeedsStripe,
@@ -44,6 +46,19 @@ describe('online entries switch — client mirror of the publish gate', () => {
     // NOT NULL, so the client never blocks on a value it cannot see.
     expect(publishNeedsStripe(undefined)).toBe(false);
     expect(publishNeedsStripe(null)).toBe(false);
+  });
+
+  // Codex P2 on #2707: an unknown value (a replica row cached before the
+  // column existed) is never online-capable, and never claimed as mail-in.
+  it('reads an unknown switch as unknown: neither online nor mail-in', () => {
+    for (const show of [{}, { onlineEntriesEnabled: null }, null, undefined]) {
+      expect(onlineEntryMode(show)).toBe('unknown');
+      expect(acceptsOnlineEntries(show)).toBe(false);
+      expect(isMailInOnlyShow(show)).toBe(false);
+    }
+    expect(onlineEntryMode({ onlineEntriesEnabled: true })).toBe('online');
+    expect(acceptsOnlineEntries({ onlineEntriesEnabled: true })).toBe(true);
+    expect(onlineEntryMode({ onlineEntriesEnabled: false })).toBe('mail_in');
   });
 
   it('reads a show as mail-in only when the switch is explicitly off', () => {

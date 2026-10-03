@@ -37,11 +37,12 @@
 --            (published; entry window closed 2026-07-20), Darboshea Tervuren
 --            Nosework Club (draft), WALK TEST UKC nosework (draft), ZZ TEST
 --            MYK9-819 Oct 10 UKC Nosework (draft, soft-deleted).
---    The UPDATE runs as the migration role, which the publish gate's
---    API-roles-only carve-out skips; update_shows_updated_at and
---    shows_version_increment bump the touched rows, so every replica pulls
---    the new value. Untouched rows read the column DEFAULT (false), which is
---    also what a replica that has not yet seen the column assumes.
+--    The UPDATE writes EVERY row (true or false) and bumps updated_at (and,
+--    through shows_version_increment, version), because replicas pull shows
+--    on updated_at > watermark: a row left at the DEFAULT would never re-sync
+--    and a cached copy would carry no value. It runs as the migration role,
+--    which the publish gate's API-roles-only carve-out skips. Realtime emits
+--    one shows UPDATE per row (10 rows on live), the same as any show edit.
 --
 -- 3. ONE TRANSITION RULE: "this row becomes publicly visible". The anon read
 --    policy shows_anon_select (live, 2026-10-03) exposes a non-deleted show
@@ -116,14 +117,27 @@ COMMENT ON COLUMN public.shows.online_entries_enabled IS
 -- ---------------------------------------------------------------------------
 -- 2. Backfill (see header §2)
 -- ---------------------------------------------------------------------------
+-- EVERY row is written, false as well as true (Codex P2 on #2707): a replica
+-- pulls shows incrementally on updated_at > watermark, so a row left at the
+-- column DEFAULT would never re-sync and its cached copy would keep no value
+-- at all. update_shows_updated_at sets updated_at = now() on this UPDATE
+-- (premium_publish_version is unchanged, so its WHEN holds) and
+-- shows_version_increment bumps version; updated_at is also set explicitly so
+-- the bump does not depend on that WHEN clause. now() is the transaction
+-- start, later than any watermark a client already holds. The publish gate
+-- cannot fire here: this runs as the migration role (outside its API-role
+-- carve-out) and before the trigger is recreated to watch this column.
+-- Soft-deleted rows are included: the replica never reads them, and setting
+-- their value keeps every row explicit.
 UPDATE public.shows s
-   SET online_entries_enabled = true
- WHERE s.online_entries_enabled = false
-   AND s.club_id IS NOT NULL
-   AND public.can_accept_online_entry_payment(
-         s.club_id,
-         (SELECT ps.stripe_livemode FROM public.platform_settings ps WHERE ps.id = true)
-       );
+   SET online_entries_enabled = (
+         s.club_id IS NOT NULL
+         AND public.can_accept_online_entry_payment(
+               s.club_id,
+               (SELECT ps.stripe_livemode FROM public.platform_settings ps WHERE ps.id = true)
+             )
+       ),
+       updated_at = now();
 
 -- ---------------------------------------------------------------------------
 -- 3a. The one "publicly visible status" predicate

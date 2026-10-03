@@ -20,6 +20,7 @@ function showClosingOn(closeDate: string, overrides: Partial<Show> = {}): Show {
     name: 'West Coast Scent Work',
     entryOpenDate: '2026-09-01',
     entryCloseDate: closeDate,
+    onlineEntriesEnabled: true,
     startDate: '2026-10-24',
     endDate: '2026-10-25',
     ...overrides,
@@ -115,6 +116,7 @@ describe('Browse resolves the zone for both audiences (MYK9-714)', () => {
       organization: 'AKC',
       entry_open_date: '2026-09-01',
       entry_close_date: '2026-10-09',
+      online_entries_enabled: true,
       start_date: '2026-10-24',
       end_date: '2026-10-25',
       trials: [

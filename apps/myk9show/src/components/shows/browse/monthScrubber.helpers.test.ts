@@ -34,6 +34,7 @@ function makeShow(overrides: Partial<Show> = {}): Show {
     source: 'myK9Show',
     entryOpenDate: '2026-08-01',
     entryCloseDate: '2099-01-01',
+    onlineEntriesEnabled: true,
     preEntryFee: '25',
     clubId: 'club-1',
     clubName: 'Test Club',

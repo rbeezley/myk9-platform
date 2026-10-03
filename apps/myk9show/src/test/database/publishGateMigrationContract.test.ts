@@ -178,6 +178,31 @@ describe('enforce_show_publish_gate migration text', () => {
     });
   });
 
+  // MYK9-979 (Codex P2 on #2707): replicas pull shows on updated_at, so the
+  // backfill must write EVERY row (no WHERE) and bump updated_at; the
+  // behavioral SQL test replays this exact statement.
+  describe('online_entries_enabled backfill', () => {
+    const BACKFILL = /UPDATE public\.shows s\n {3}SET online_entries_enabled = \([\s\S]*?\);/;
+
+    it('writes every show and bumps updated_at', () => {
+      const statement = migrationSql().match(BACKFILL)?.[0] ?? '';
+      // Everything after the SET value expression: only the updated_at bump,
+      // no WHERE that could leave a row at the column default.
+      const tail = statement.split('\n       ),\n')[1];
+      expect(tail).toBe('       updated_at = now();');
+    });
+
+    it('is exercised verbatim by the behavioral SQL test', () => {
+      const statement = migrationSql().match(BACKFILL)?.[0];
+      const sqlTest = readFileSync(
+        resolve(MIGRATIONS_DIR, '../tests/myk9_979_online_entries_switch_test.sql'),
+        'utf8'
+      );
+      expect(statement).toBeTruthy();
+      expect(sqlTest).toContain(statement);
+    });
+  });
+
   it('raises the published-window refusal verbatim', () => {
     expect(migrationSql()).toContain(sqlEscaped(ENTRY_WINDOW_PUBLISHED_MESSAGE));
   });

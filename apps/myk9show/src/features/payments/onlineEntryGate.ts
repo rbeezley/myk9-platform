@@ -52,17 +52,35 @@ export const MAIL_IN_ENTRY_NOTE =
   "This show doesn't take online entries. Mail your entry to the trial secretary or enter at the show — the premium has the details.";
 
 /**
- * True when the show takes no online entries: exhibitors mail theirs in or
- * enter at the show. Only an explicit `false` says so. Every row read since
- * the column exists carries a boolean (NOT NULL); `undefined` means a row
- * cached before it, which keeps its old presentation. That is a display
- * decision only: the server refuses an online entry for a mail-in show
- * whatever the page shows (submit_show_entries, stripe-checkout).
+ * How a show takes entries, as far as this client knows:
+ * - 'online': the switch is on; exhibitors may enter online.
+ * - 'mail_in': the switch is off; exhibitors mail theirs in or enter at the show.
+ * - 'unknown': no value yet (a replica row cached before the column existed,
+ *   until its next sync brings it; the migration re-stamps every show so that
+ *   sync happens). Never treated as online: no Enter / Add Entry is offered
+ *   for it, and no mail-in claim is made either.
+ * The server is the boundary regardless: submit_show_entries and
+ * stripe-checkout refuse an online entry for a mail-in show.
  */
-export function isMailInOnlyShow(
-  show: { onlineEntriesEnabled?: boolean | null | undefined } | null | undefined
-): boolean {
-  return show?.onlineEntriesEnabled === false;
+export type OnlineEntryMode = 'online' | 'mail_in' | 'unknown';
+
+type OnlineEntryShow = { onlineEntriesEnabled?: boolean | null | undefined } | null | undefined;
+
+export function onlineEntryMode(show: OnlineEntryShow): OnlineEntryMode {
+  const value = show?.onlineEntriesEnabled;
+  if (value === true) return 'online';
+  if (value === false) return 'mail_in';
+  return 'unknown';
+}
+
+/** True only when the show is known to take online entries. */
+export function acceptsOnlineEntries(show: OnlineEntryShow): boolean {
+  return onlineEntryMode(show) === 'online';
+}
+
+/** True only when the show is known to be mail-in / at-the-show only. */
+export function isMailInOnlyShow(show: OnlineEntryShow): boolean {
+  return onlineEntryMode(show) === 'mail_in';
 }
 
 /**

@@ -7,7 +7,7 @@ import { toLocalDate } from './date-format';
 import { formatShortCalendarDate } from '@/lib/format/dates';
 import { isActiveSubmittedEntryStatus } from '@/services/entryDisplay/entryDisplaySelectors';
 import { currentEntryWindowDate, getEntryWindowTimezone } from './entryWindowDate';
-import { isMailInOnlyShow, MAIL_IN_ENTRY_NOTE } from '@/features/payments/onlineEntryGate';
+import { MAIL_IN_ENTRY_NOTE, onlineEntryMode } from '@/features/payments/onlineEntryGate';
 
 export type EntryStatus =
   | 'window_unknown' // No entry window set (or today cannot be resolved): says nothing about when entries open
@@ -109,11 +109,25 @@ export function getEntryStatus(
   // MYK9-979: the window is open but the show takes no online entries.
   // Before `submitted` on purpose: a staff-keyed mail-in entry must not turn
   // into an "Add Entry" button the server would refuse.
-  if (isMailInOnlyShow(show)) {
+  const entryMode = onlineEntryMode(show);
+  if (entryMode === 'mail_in') {
     return {
       status: 'mail_in_only',
       label: 'Mail-in entries',
       description: MAIL_IN_ENTRY_NOTE,
+      canEnter: false,
+    };
+  }
+  // MYK9-979 (Codex P2 on #2707): no value yet -- a replica row cached before
+  // the column existed, until its next sync. Never treated as online: say the
+  // entry status is unknown, the same status a show with no window gets, so
+  // every surface withholds Enter / Add Entry (isEntryWindowNotOpen covers the
+  // public landing) without claiming the show is mail-in only.
+  if (entryMode === 'unknown') {
+    return {
+      status: 'window_unknown',
+      label: 'Entry status unavailable',
+      description: 'How this show takes entries is still loading.',
       canEnter: false,
     };
   }

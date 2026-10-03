@@ -60,8 +60,8 @@ describe('watch-pr-checks harness', () => {
   // denylist, which could not see a Vercel `state` failure at all.
   it('rejects the conclusion-only filter that missed Vercel failures on #2045', () => {
     const result = runMutated(
-      `JQ_FAILED_NAMES='[.statusCheckRollup[] | select(answered and (passing | not)) | .name // .context]'`,
-      `JQ_FAILED_NAMES='[.statusCheckRollup[] | select((.conclusion // "") | IN("FAILURE","TIMED_OUT","CANCELLED","ACTION_REQUIRED")) | .name // .context]'`
+      'select(answered and (passing | not) and (stale($cur) | not)) | key] as $failed',
+      'select((.conclusion // "") | IN("FAILURE","TIMED_OUT","CANCELLED","ACTION_REQUIRED")) | key] as $failed'
     );
 
     expect(result.status, 'the harness must refuse to run when it cannot see a failure').toBe(4);
@@ -95,15 +95,48 @@ describe('watch-pr-checks harness', () => {
   // Codex found this on #2053: "nothing unanswered" is not settled when nothing
   // has registered. Dropping the required-set wait must make the harness refuse.
   it('rejects a green verdict that ignores checks which have not registered', () => {
-    // The anchor carries the script's own shell-escaping verbatim (`\$pending`,
-    // `\"waiting:\"`), because that is what is on disk.
     const result = runMutated(
-      'elif (\\$pending    | length) > 0 then \\"waiting:\\"',
-      'elif false then \\"waiting:\\"'
+      'elif ($pending     | length) > 0 then "waiting:"',
+      'elif false then "waiting:"'
     );
 
     expect(result.status).toBe(4);
     expect(result.stdout).toContain('SELF-TEST FAIL [partial-rollup]');
+  });
+
+  // MYK9-947: judging by "any answered row" instead of the CURRENT attempt let a
+  // draft run's SKIPPED answer for a fresh in-flight run (#2672) and an old
+  // CANCELLED row fail a green PR (#2675). Picking the lowest job id instead of
+  // the highest is the same bug in the other direction.
+  it('rejects a selector that does not pick the highest job id per check name', () => {
+    const result = runMutated(
+      'sort_by([jobid, started]) | last ]',
+      'sort_by([jobid, started]) | first ]'
+    );
+
+    expect(result.status).toBe(4);
+    expect(result.stdout).toContain('SELF-TEST FAIL [cancelled-then-success');
+  });
+
+  it('rejects a verdict that lets a required name borrow an older run answer', () => {
+    const result = runMutated('and any($cur[]; (.workflowName', 'and any([]; (.workflowName');
+
+    expect(result.status).toBe(4);
+    expect(result.stdout).toContain('SELF-TEST FAIL [draft-ready-stale-skip');
+  });
+
+  it('rejects a selector that ignores the status-context createdAt timestamp', () => {
+    const result = runMutated('(.startedAt // .createdAt // "")', '(.startedAt // "")');
+
+    expect(result.status).toBe(4);
+    expect(result.stdout).toContain('SELF-TEST FAIL [ctx-newer-failure-createdAt');
+  });
+
+  it('keeps the Vercel quota note off non-Vercel failures', () => {
+    const result = runMutated('case "$n" in Vercel*) ;; *) return 1 ;; esac', ':');
+
+    expect(result.status).toBe(4);
+    expect(result.stdout).toContain('SELF-TEST FAIL [note-non-vercel]');
   });
 
   // A watcher that hangs is worse than one that errors: it stalls the shipping

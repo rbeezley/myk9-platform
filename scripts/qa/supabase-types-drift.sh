@@ -47,6 +47,57 @@ tmp="$(mktemp -d)"
 cleanup() { rm -r -f -- "$tmp"; }
 trap cleanup EXIT
 
+# The generator's layout is not schema. A different CLI version emits quoted
+# property names (`"graphql_public": {`) and different indentation, and the
+# object tracking below used to key on unquoted names at fixed indents, so an
+# equivalent file read as hundreds of "committed but not live" objects
+# (MYK9-950: 405 false objects on PR #2675). Canonicalise both sides first:
+# unquote identifier-safe property keys (a key that needs quotes, like "a-b",
+# keeps them), trim and collapse whitespace, and re-indent by brace depth so
+# nesting level, not source spacing, is what the later steps read.
+#
+# Output that cannot be parsed this way (no `Database` type, no schema block,
+# unbalanced braces from a truncated file) is "could not compare", never an
+# empty diff that reads as no drift.
+normalize_layout() {
+  sed -E 's/"([A-Za-z_][A-Za-z0-9_]*)"(\??):/\1\2:/g' "$1" | awk '
+    function count(str, ch,    n, i) {
+      n = 0
+      for (i = 1; i <= length(str); i++) if (substr(str, i, 1) == ch) n++
+      return n
+    }
+    {
+      line = $0
+      gsub(/^[ \t]+|[ \t\r]+$/, "", line)
+      gsub(/[ \t]+/, " ", line)
+      if (line == "") { print ""; next }
+      bare = line
+      gsub(/"[^"]*"/, "", bare)
+      gsub(/\047[^\047]*\047/, "", bare)
+      opens = count(bare, "{"); closes = count(bare, "}")
+      lead = 0
+      while (substr(bare, lead + 1, 1) == "}") lead++
+      at = depth - lead
+      if (at < 0) { bad = 1; at = 0 }
+      pad = ""
+      for (i = 0; i < at; i++) pad = pad "  "
+      print pad line
+      depth += opens - closes
+      if (depth < 0) { bad = 1; depth = 0 }
+    }
+    END { if (bad || depth != 0) exit 3 }
+  '
+}
+# The `Database` type and at least one schema header must be present.
+looks_parseable() {
+  grep -q '^export type Database = {$' "$1" && grep -Eq '^  [A-Za-z0-9_]+: \{$' "$1"
+}
+normalize_or_stop() {
+  normalize_layout "$1" > "$2" || not_a_verdict "$3 output is not parseable (unbalanced braces, truncated?): $1"
+  looks_parseable "$2" || not_a_verdict "$3 output has no Database type or schema block: $1"
+}
+normalize_or_stop "$COMMITTED" "$tmp/committed.layout.ts" "committed"
+
 if [[ -z "$GENERATED" ]]; then
   url="${MYK9_MIGRATION_DATABASE_URL:-}"
   [[ -n "$url" ]] || not_a_verdict "MYK9_MIGRATION_DATABASE_URL is unset and no --generated file was given"
@@ -63,7 +114,7 @@ if [[ -z "$GENERATED" ]]; then
     /^export type Database = \{$/ { inside = 1; next }
     inside && /^\}$/               { exit }
     inside && /^  [A-Za-z0-9_]+: \{$/ && $1 != "__InternalSupabase:" { s = $1; sub(/:$/, "", s); print s }
-  ' "$COMMITTED" | paste -sd, -)"
+  ' "$tmp/committed.layout.ts" | paste -sd, -)"
   [[ -n "$schemas" ]] || not_a_verdict "no schema headers found in $COMMITTED"
   GENERATED="$tmp/generated.ts"
   if ! supabase gen types typescript --db-url "$url" --schema "$schemas" > "$GENERATED" 2> "$tmp/gen.err"; then
@@ -100,8 +151,9 @@ strip_platform_metadata() {
     { while (blanks-- > 0) print ""; blanks = 0; print }
   '
 }
-strip_platform_metadata "$COMMITTED" > "$tmp/committed.ts"
-strip_platform_metadata "$GENERATED" > "$tmp/generated.norm.ts"
+normalize_or_stop "$GENERATED" "$tmp/generated.layout.ts" "generated"
+strip_platform_metadata "$tmp/committed.layout.ts" > "$tmp/committed.ts"
+strip_platform_metadata "$tmp/generated.layout.ts" > "$tmp/generated.norm.ts"
 
 # One line per object: <schema>.<section>.<name>, e.g. public.Tables.entries or
 # public.Functions.get_show_judges. Tracks the 2-space schema and 4-space

@@ -3,6 +3,7 @@ import {
   resolveRegistrationExit,
   resolveRegistrationExitPath,
   resolveRegistrationCompletionPath,
+  STAFF_RECEIPT_DONE_LABEL,
 } from './RegistrationWizardPage.routes';
 
 describe('resolveRegistrationExit (UX walk 4.D — labels tell the truth)', () => {
@@ -64,5 +65,16 @@ describe('resolveRegistrationExitPath / CompletionPath', () => {
 
   it('completion returns secretary mail-in entries to Entry Management', () => {
     expect(resolveRegistrationCompletionPath('s1', false, true)).toBe('/shows/s1/entries');
+  });
+});
+
+// Review of #2681: the late-entry receipt still said "Return to Show Desk"
+// after its completion path moved to Entries. Staff receipts now all finish on
+// Entries, so one label names that destination.
+describe('staff receipt label', () => {
+  it('names Entry Management, where both staff completions land', () => {
+    expect(resolveRegistrationCompletionPath('s1', true)).toBe('/shows/s1/entries');
+    expect(resolveRegistrationCompletionPath('s1', false, true)).toBe('/shows/s1/entries');
+    expect(STAFF_RECEIPT_DONE_LABEL).toBe('Return to Entry Management');
   });
 });

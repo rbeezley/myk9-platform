@@ -23,6 +23,7 @@ import { useShowDeskCollectionWindow } from './useShowDeskCollectionWindow';
 import { useShowDeskScheduleRead } from './useShowDeskScheduleRead';
 
 const EMPTY_INCIDENTS: Awaited<ReturnType<typeof listShowIncidentCloseout>> = [];
+const EMPTY_SUBMISSIONS: NonNullable<ReturnType<typeof useResultSubmissions>['data']> = [];
 
 /**
  * Everything "Close the show" (Results step 3, MYK9-954) needs, read from the
@@ -36,12 +37,27 @@ export function useShowCloseoutInputs(showId: string | undefined) {
   const { show, isLoading: showLoading } = useFastShowDetails(showId);
   const schedule = useShowDeskScheduleRead();
   const entriesQuery = useSecretaryShowEntriesQuery(showId ?? '', Boolean(showId));
-  const { data: submissions = [] } = useResultSubmissions(showId ?? '');
-  const { data: incidentsData } = useQuery({
+  const submissionsQuery = useResultSubmissions(showId ?? '');
+  const incidentsQuery = useQuery({
     queryKey: showIncidentCloseoutQueryKey(showId ?? ''),
     queryFn: () => listShowIncidentCloseout(showId ?? ''),
     enabled: Boolean(showId),
   });
+  const incidentsData = incidentsQuery.data;
+  const submissions = submissionsQuery.data ?? EMPTY_SUBMISSIONS;
+  // The readiness check reads an empty incident list as "nothing reportable"
+  // and an empty submissions list as "nothing submitted", so the close action
+  // waits until both have actually been read.
+  const closeoutChecks: 'read' | 'pending' | 'failed' =
+    incidentsData !== undefined && submissionsQuery.data !== undefined
+      ? 'read'
+      : incidentsQuery.isError || submissionsQuery.isError
+        ? 'failed'
+        : 'pending';
+  const retryCloseoutChecks = () => {
+    void incidentsQuery.refetch();
+    void submissionsQuery.refetch();
+  };
 
   const showEntries = entriesQuery.data ?? EMPTY_ENTRIES;
   // No cast: SecretaryEntry must carry every field the closeout card reads.
@@ -93,6 +109,8 @@ export function useShowCloseoutInputs(showId: string | undefined) {
     classes,
     incidents,
     submissions,
+    closeoutChecks,
+    retryCloseoutChecks,
     deskWindow,
   };
 }

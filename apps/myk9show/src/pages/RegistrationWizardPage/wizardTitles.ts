@@ -9,7 +9,7 @@
  *
  * `Add late entry` deliberately keeps its modifier while `Add entry for someone
  * else` dropped "mail-in": late entry is a different OPERATION, not a different
- * reason for the ordinary one. It exits to the Show Desk, switches entry
+ * reason for the ordinary one. It exits to Entries, switches entry
  * creation to the offline-first path, and turns off the client-side fullness
  * check. See the doc's "Modes are not reasons".
  *

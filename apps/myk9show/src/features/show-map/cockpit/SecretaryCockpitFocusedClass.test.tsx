@@ -283,4 +283,13 @@ describe('SecretaryCockpitFocusedClass delay announcement', () => {
     renderPanel({ ...sourceClass, revisedExpectedStart: '2026-07-20T14:45:00.000Z' }, false);
     expect(screen.queryByRole('button', { name: 'Announce the delay' })).toBeNull();
   });
+
+  it('is not offered once the class has started, even with a revised start on record', () => {
+    renderPanel({
+      ...sourceClass,
+      lifecycle: 'in-progress',
+      revisedExpectedStart: '2026-07-20T14:45:00.000Z',
+    });
+    expect(screen.queryByRole('button', { name: 'Announce the delay' })).toBeNull();
+  });
 });

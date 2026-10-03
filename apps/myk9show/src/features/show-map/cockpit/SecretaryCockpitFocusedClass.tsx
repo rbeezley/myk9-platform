@@ -106,7 +106,7 @@ export function SecretaryCockpitFocusedClass({
                 Scheduled {sourceClass.scheduledStart}
               </div>
             )}
-            {canManageShow && delayMinutes !== null && (
+            {canManageShow && sourceClass.lifecycle === 'not-started' && delayMinutes !== null && (
               <AnnounceDelayButton
                 showId={showId}
                 className={focused.name}

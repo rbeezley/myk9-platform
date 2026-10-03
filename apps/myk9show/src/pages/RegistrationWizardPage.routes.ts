@@ -61,6 +61,9 @@ export function resolveRegistrationExit(
   return { path: null, label: 'Back' };
 }
 
+/** The staff receipt's done button: late entry and mail-in both finish on Entries. */
+export const STAFF_RECEIPT_DONE_LABEL = 'Return to Entry Management';
+
 export function resolveRegistrationCompletionPath(
   showId: string,
   isLateEntryMode: boolean,

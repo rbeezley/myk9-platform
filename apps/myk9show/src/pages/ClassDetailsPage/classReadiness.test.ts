@@ -27,7 +27,8 @@ describe('buildClassReadinessSummary', () => {
     );
 
     expect(summary).toEqual({
-      totalEntries: 5,
+      entryBreakdown: { entered: 2, pending: 1 },
+      expectedEntries: 4,
       pendingReviewCount: 1,
       missingInformationCount: 1,
       paymentDueCount: 1,

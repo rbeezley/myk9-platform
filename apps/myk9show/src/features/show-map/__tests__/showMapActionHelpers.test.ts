@@ -163,4 +163,22 @@ describe('showMapActionHelpers', () => {
     expect(canMoveUpEntry(entry('active'), classNode('neutral'))).toBe(false);
     expect(canMoveUpEntry(entry(), classNode('neutral'))).toBe(true);
   });
+
+  it('MYK9-976: Move up needs an accepted entry, not a pending, withdrawn or not-accepted one', () => {
+    const withStatus = (entryStatus: string) =>
+      makeNode({
+        id: `entry:${entryStatus}`,
+        type: 'entry',
+        parentId: 'class:c',
+        entryDisplay: { dogName: 'Juni', entryStatus },
+      });
+    const notStarted = {
+      nodesById: { 'class:c': makeNode({ id: 'class:c', type: 'class' }) },
+    } as unknown as ShowMapTree;
+
+    expect(canMoveUpEntry(withStatus('confirmed'), notStarted)).toBe(true);
+    for (const status of ['submitted', 'pending', 'withdrawn', 'scratched', 'not_accepted']) {
+      expect(canMoveUpEntry(withStatus(status), notStarted), status).toBe(false);
+    }
+  });
 });

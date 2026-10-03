@@ -82,7 +82,7 @@ describe('ReplicatedShowsTable', () => {
           startDate: '2024-06-15',
           endDate: '2024-06-16',
           location: 'Central Park',
-          status: 'active',
+          status: 'published',
           clubId: 'club-123',
         };
 
@@ -94,7 +94,7 @@ describe('ReplicatedShowsTable', () => {
         expect(result?.id).toBe('show-1');
         expect(result?.name).toBe('Annual Dog Show 2024');
         expect(result?.organization).toBe('Obedience');
-        expect(result?.status).toBe('active');
+        expect(result?.status).toBe('published');
       });
 
       it('should return null for non-existent show', async () => {
@@ -113,10 +113,10 @@ describe('ReplicatedShowsTable', () => {
         };
 
         await table.set('show-1', show);
-        await table.set('show-1', { ...show, status: 'active' });
+        await table.set('show-1', { ...show, status: 'published' });
 
         const result = await table.get('show-1');
-        expect(result?.status).toBe('active');
+        expect(result?.status).toBe('published');
       });
 
       it('should handle shows with full metadata', async () => {
@@ -127,7 +127,7 @@ describe('ReplicatedShowsTable', () => {
           startDate: '2024-08-01',
           endDate: '2024-08-02',
           location: 'Fairgrounds Arena',
-          status: 'active',
+          status: 'published',
           entryOpenDate: '2024-05-01',
           entryCloseDate: '2024-07-25',
           preEntryFee: 35.0,
@@ -283,10 +283,10 @@ describe('ReplicatedShowsTable', () => {
       };
 
       await table.set('show-1', show);
-      await table.updateShow('show-1', { status: 'active' });
+      await table.updateShow('show-1', { status: 'published' });
 
       const result = await table.get('show-1');
-      expect(result?.status).toBe('active');
+      expect(result?.status).toBe('published');
     });
 
     it('should handle active to completed transition', async () => {
@@ -296,7 +296,7 @@ describe('ReplicatedShowsTable', () => {
         organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
-        status: 'active',
+        status: 'published',
       };
 
       await table.set('show-1', show);
@@ -317,10 +317,10 @@ describe('ReplicatedShowsTable', () => {
       };
 
       await table.set('show-1', show);
-      await table.updateShow('show-1', { status: 'archived' });
+      await table.updateShow('show-1', { status: 'cancelled' });
 
       const result = await table.get('show-1');
-      expect(result?.status).toBe('archived');
+      expect(result?.status).toBe('cancelled');
     });
 
     it('should mark show as pending sync after status update', async () => {
@@ -334,7 +334,7 @@ describe('ReplicatedShowsTable', () => {
       };
 
       await table.set('show-1', show);
-      await table.updateShow('show-1', { status: 'active' });
+      await table.updateShow('show-1', { status: 'published' });
 
       const result = await table.get('show-1');
       expect(result?._syncStatus).toBe('pending');
@@ -364,7 +364,7 @@ describe('ReplicatedShowsTable', () => {
           organization: 'Agility',
           startDate: dateFromNow(-1), // Yesterday
           endDate: dateFromNow(1), // Tomorrow
-          status: 'active',
+          status: 'published',
           clubId: 'club-123',
         },
         {
@@ -384,7 +384,7 @@ describe('ReplicatedShowsTable', () => {
           organization: 'Obedience',
           startDate: dateFromNow(60),
           endDate: dateFromNow(61),
-          status: 'active',
+          status: 'published',
           clubId: 'club-456',
         },
       ];
@@ -1032,7 +1032,7 @@ describe('ReplicatedShowsTable', () => {
           start_date: '2024-06-15',
           end_date: '2024-06-16',
           location: 'Remote Location',
-          status: 'active',
+          status: 'published',
           entry_open_date: '2024-05-01',
           entry_close_date: '2024-06-10',
           pre_entry_fee: 35,
@@ -1430,7 +1430,7 @@ describe('ReplicatedShowsTable', () => {
         start_date: '2024-06-15',
         end_date: '2024-06-16',
         location: 'Test Location',
-        status: 'active',
+        status: 'published',
         entry_open_date: '2024-05-01',
         entry_close_date: '2024-06-10',
         pre_entry_fee: 35,
@@ -1800,9 +1800,9 @@ describe('ReplicatedShowsTable', () => {
       expect(result?.location).toBe('Central Park');
 
       // 3. Activate show
-      await table.updateShow(show.id, { status: 'active' });
+      await table.updateShow(show.id, { status: 'published' });
       result = await table.get(show.id);
-      expect(result?.status).toBe('active');
+      expect(result?.status).toBe('published');
 
       // 4. Complete show
       await table.updateShow(show.id, { status: 'completed' });
@@ -1810,9 +1810,9 @@ describe('ReplicatedShowsTable', () => {
       expect(result?.status).toBe('completed');
 
       // 5. Archive show
-      await table.updateShow(show.id, { status: 'archived' });
+      await table.updateShow(show.id, { status: 'cancelled' });
       result = await table.get(show.id);
-      expect(result?.status).toBe('archived');
+      expect(result?.status).toBe('cancelled');
     });
 
     it('should handle batch show creation', async () => {
@@ -1850,7 +1850,7 @@ describe('ReplicatedShowsTable', () => {
           organization: 'Obedience',
           startDate: dateFromNow(-90),
           endDate: dateFromNow(-89),
-          status: 'active',
+          status: 'published',
           clubId: 'club-123',
         },
         {
@@ -1868,7 +1868,7 @@ describe('ReplicatedShowsTable', () => {
           organization: 'Rally',
           startDate: dateFromNow(60),
           endDate: dateFromNow(61),
-          status: 'active',
+          status: 'published',
           clubId: 'club-456',
         },
       ];
@@ -1890,7 +1890,7 @@ describe('ReplicatedShowsTable', () => {
       expect(upcomingShows.length).toBeGreaterThan(0);
 
       // Manual filtering: active shows only
-      const activeShows = allShows.filter(show => show.status === 'active');
+      const activeShows = allShows.filter(show => show.status === 'published');
       expect(activeShows.length).toBeGreaterThanOrEqual(2);
     });
 

@@ -252,14 +252,13 @@ export async function installSecretaryFixture(page: Page): Promise<void> {
       scope_id?: string | null;
       is_active?: boolean;
     }>;
-    // An ended appointment still comes back (is_active false); the app denies it,
-    // so building the show under it lands the secretary on the public page.
+    // Only an ACTIVE grant: the app ignores a revoked row (`useRBAC` keys on
+    // `is_active`), and the shared account can carry one for another club. Building
+    // the show for it makes `canManage` false and the entries/reports routes bounce
+    // back to the public show page.
     const scope = roles.find(
       r =>
-        r.role_name === 'secretary' &&
-        r.scope_type === 'club' &&
-        r.scope_id &&
-        r.is_active !== false
+        r.role_name === 'secretary' && r.scope_type === 'club' && r.scope_id && r.is_active === true
     );
     if (scope?.scope_id) club.resolve(scope.scope_id);
   });

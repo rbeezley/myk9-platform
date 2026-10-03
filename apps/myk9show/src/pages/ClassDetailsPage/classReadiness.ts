@@ -1,3 +1,8 @@
+import { countEntryAccounting } from '@/features/_shared/entryAccounting';
+import {
+  buildClassEntryBreakdowns,
+  type ClassEntryBreakdown,
+} from '@/features/entry-operations/classEntryBreakdown';
 import {
   classifyRawEntryAttention,
   getOperationalEntryState,
@@ -8,6 +13,7 @@ export interface ClassReadinessEntry extends RawOperationalEntryInput {
   registration_id?: string | null;
   check_in_status?: string | null;
   is_scored?: boolean | null;
+  result_status?: string | null;
 }
 
 export interface ClassReadinessClassInput {
@@ -19,7 +25,10 @@ export interface ClassReadinessClassInput {
 }
 
 export interface ClassReadinessSummary {
-  totalEntries: number;
+  /** Entered / pending, the same pair the Overview schedule card shows. */
+  entryBreakdown: ClassEntryBreakdown;
+  /** Entries the class still expects to run: the denominator of `scoredCount`. */
+  expectedEntries: number;
   pendingReviewCount: number;
   missingInformationCount: number;
   paymentDueCount: number;
@@ -47,8 +56,22 @@ export function buildClassReadinessSummary(
     entry => entry.registration_id != null && entry.registration == null
   );
 
+  // One bucket key: the breakdown helper groups by class, and `entries` is one class.
+  const entryBreakdown = buildClassEntryBreakdowns(
+    entries.map(entry => ({ class_id: 'class', entry_status: entry.entry_status }))
+  ).get('class') ?? { entered: 0, pending: 0 };
+  const accounting = countEntryAccounting(
+    entries.map(entry => ({
+      entryStatus: entry.entry_status ?? undefined,
+      checkInStatus: entry.check_in_status ?? undefined,
+      isScored: entry.is_scored ?? undefined,
+      resultStatus: entry.result_status ?? undefined,
+    }))
+  );
+
   return {
-    totalEntries: entries.length,
+    entryBreakdown,
+    expectedEntries: accounting.expected,
     pendingReviewCount: attentionReasons.filter(reasons => reasons.includes('pending_review'))
       .length,
     missingInformationCount: attentionReasons.filter(reasons =>
@@ -61,7 +84,7 @@ export function buildClassReadinessSummary(
     checkedInCount: checkInEligibleEntries.filter(entry => entry.check_in_status === 'checked-in')
       .length,
     checkInEligibleCount: checkInEligibleEntries.length,
-    scoredCount: entries.filter(entry => entry.is_scored === true).length,
+    scoredCount: accounting.accounted,
     classStatus: classData.status,
     isScoringFinalized: classData.is_scoring_finalized ?? classData.isScoringFinalized ?? false,
     reopenedAfterCloseoutAt:

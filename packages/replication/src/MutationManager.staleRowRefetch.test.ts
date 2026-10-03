@@ -245,7 +245,10 @@ describe('a stale full-row write re-fetches its row (MYK9-771)', () => {
     // The OCC rejection inside the upload queues the re-fetch; awaiting the
     // lock there instead would deadlock this call.
     await manager.uploadPendingMutations();
-    await vi.waitFor(async () => expect((await pending())[0]?.serverVersion).toBe(8));
+    // Wait on the LAST event, not on the row token: the re-fetch writes the
+    // token inside the lock callback, before the stub logs `release #2`.
+    await vi.waitFor(() => expect(events).toContain('release #2'));
+    expect((await pending())[0]?.serverVersion).toBe(8);
 
     expect(events).toEqual([
       'acquire replication-upload #1',

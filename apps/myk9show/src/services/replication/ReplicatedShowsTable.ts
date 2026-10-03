@@ -28,6 +28,7 @@ import type { ShowExperienceSnapshot } from '@/features/experience/experienceSna
 import { invalidateVenuePinIfLocationChanged } from '@/features/maps/invalidateVenuePin';
 import type { Database } from '@/types/supabase';
 import { withStoredDays, withTypedDays } from './showCalendarDays';
+import { mapShowStatusToDb } from './showStatusMapping';
 
 /**
  * Database row type from Supabase schema
@@ -151,31 +152,6 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
     return this._lastMutationId;
   }
 
-  /** Map UI show status to DB CHECK constraint values */
-  private mapShowStatusToDb(uiStatus: string | undefined): string {
-    switch (uiStatus) {
-      case 'published':
-        return 'published';
-      case 'accepting_entries':
-        return 'accepting_entries';
-      case 'closed':
-        return 'closed';
-      case 'in_progress':
-      case 'In Progress':
-        return 'in_progress';
-      case 'completed':
-      case 'Completed':
-        return 'completed';
-      case 'cancelled':
-      case 'Cancelled':
-        return 'cancelled';
-      case 'unpublished':
-      case 'draft':
-      default:
-        return 'draft';
-    }
-  }
-
   /**
    * Convert app-level Show to Supabase row format (snake_case).
    * Strips sync metadata fields (_version, _lastModified, etc.)
@@ -193,7 +169,7 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
       location: show.location ?? null,
       latitude: show.latitude ?? null,
       longitude: show.longitude ?? null,
-      status: this.mapShowStatusToDb(show.status),
+      status: mapShowStatusToDb(show.status),
       entry_open_date: show.entryOpenDate || null,
       entry_close_date: show.entryCloseDate || null,
       pre_entry_fee: show.preEntryFee ?? null,
@@ -227,7 +203,17 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
    * (MYK9-694), which would leave the edit unable to sync.
    */
   protected override rebuildUpdatePayload(show: ReplicatedShow): Record<string, unknown> {
-    const payload = this.toSupabaseRow(show);
+    // A status the CHECK would reject must not abort the sync loop or become
+    // 'draft': omit it so the UPDATE leaves the server's value alone (MYK9-983).
+    let statusKnown = true;
+    try {
+      mapShowStatusToDb(show.status);
+    } catch (error) {
+      statusKnown = false;
+      logger.error(`[${this.getTableName()}] Omitting status from rebuilt payload`, error);
+    }
+    const payload = this.toSupabaseRow(statusKnown ? show : { ...show, status: undefined });
+    if (!statusKnown) delete payload.status;
     delete payload.experience_is_published;
     delete payload.experience_published_at;
     delete payload.experience_published_style;

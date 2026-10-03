@@ -19,6 +19,12 @@
 -- A manual class keeps whatever the secretary stamped: this function returns
 -- before touching it, as before.
 --
+-- Accepted edge (migration-auditor, 2026-10-03): a manually COMPLETED class
+-- with no scored dogs that then receives a new entry flips to derived
+-- (handle_entry_scoring_state_change) and lands in the upcoming branch. Its
+-- status already reset to upcoming before this change; its timing now resets
+-- with it, as the manual reset to not-started does.
+--
 -- Everything else is the 20260904160000 body, unchanged.
 
 CREATE OR REPLACE FUNCTION public.refresh_class_scoring_state(p_class_id uuid)
@@ -124,7 +130,12 @@ BEGIN
       is_scoring_finalized = true,
       reopened_after_closeout_at = NULL,
       actual_start_time = COALESCE(actual_start_time, v_first_activity, now()),
-      actual_end_time = COALESCE(actual_end_time, v_last_scored, now())
+      -- Never before the start: a start from now() can postdate a backdated
+      -- score that arrives later by offline sync.
+      actual_end_time = GREATEST(
+        COALESCE(actual_end_time, v_last_scored, now()),
+        COALESCE(actual_start_time, v_first_activity, now())
+      )
     WHERE id = p_class_id
       AND (status IS DISTINCT FROM 'completed'
            OR scored_count IS DISTINCT FROM v_scored_count
@@ -187,10 +198,9 @@ COMMENT ON FUNCTION public.refresh_class_scoring_state(uuid) IS
   'entries'' ring-entry and scoring times; a manual class keeps its own.';
 
 -- Backfill derived classes that ran before this change, from the same
--- evidence. Status does not move, so the status push would not fire; it is
--- disabled around the statement anyway, as 20260904160000's backfill did.
-ALTER TABLE public.classes DISABLE TRIGGER trg_notify_class_status_push;
-
+-- evidence. Status does not move, so no status push fires and no trigger needs
+-- disabling (a disabled trigger left behind by a failed statement would be
+-- worse than none).
 UPDATE public.classes c
 SET
   actual_start_time = COALESCE(c.actual_start_time, timing.first_activity),
@@ -214,5 +224,3 @@ WHERE timing.class_id = c.id
     (c.actual_start_time IS NULL AND timing.first_activity IS NOT NULL)
     OR (c.status = 'completed' AND c.actual_end_time IS NULL AND timing.last_scored IS NOT NULL)
   );
-
-ALTER TABLE public.classes ENABLE TRIGGER trg_notify_class_status_push;

@@ -17,6 +17,11 @@ DECLARE
   v_derived uuid := gen_random_uuid();
   v_manual uuid := gen_random_uuid();
   v_bare uuid := gen_random_uuid();
+  v_done uuid := gen_random_uuid();
+  v_absent_class uuid := gen_random_uuid();
+  v_d uuid;
+  v_version_before integer;
+  v_version_after integer;
   v_a uuid;
   v_b uuid;
   v_m uuid;
@@ -117,6 +122,54 @@ BEGIN
     RAISE EXCEPTION 'AT.6 FAIL: status %, start % (now %)', v_status, v_start, now();
   END IF;
   RAISE NOTICE 'AT.6 PASS: with no timestamps the start is the moment of the first score';
+
+  -- AT.7 No-op suppression: a repeat refresh of an in_progress class (start
+  -- set) and of a completed class (both set) writes nothing -- no version bump,
+  -- so no broadcast or replication churn on every entry change.
+  INSERT INTO public.classes (id, trial_id, name, status)
+    VALUES (v_done, v_trial, 'Done', 'upcoming');
+  INSERT INTO public.entries (class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status)
+    VALUES (v_done, v_show, v_trial, 'checked-in', 'checked-in', false, 'pending')
+    RETURNING id INTO v_d;
+  UPDATE public.entries
+    SET is_scored = true, result_status = 'qualified', scoring_completed_at = t_score_a
+    WHERE id = v_d;
+  SELECT version INTO v_version_before FROM public.classes WHERE id = v_bare;
+  PERFORM public.refresh_class_scoring_state(v_bare);
+  SELECT version INTO v_version_after FROM public.classes WHERE id = v_bare;
+  IF v_version_after IS DISTINCT FROM v_version_before THEN
+    RAISE EXCEPTION 'AT.7 FAIL: in_progress no-op rewrote the class (version % -> %)',
+      v_version_before, v_version_after;
+  END IF;
+  SELECT version INTO v_version_before FROM public.classes WHERE id = v_done;
+  PERFORM public.refresh_class_scoring_state(v_done);
+  SELECT version INTO v_version_after FROM public.classes WHERE id = v_done;
+  IF v_version_after IS DISTINCT FROM v_version_before THEN
+    RAISE EXCEPTION 'AT.7 FAIL: completed no-op rewrote the class (version % -> %)',
+      v_version_before, v_version_after;
+  END IF;
+  RAISE NOTICE 'AT.7 PASS: a repeat refresh writes nothing';
+
+  -- AT.8 Every dog absent: completed with a start and a finish, finish >= start.
+  INSERT INTO public.classes (id, trial_id, name, status)
+    VALUES (v_absent_class, v_trial, 'All absent', 'upcoming');
+  INSERT INTO public.entries (class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status)
+    VALUES (v_absent_class, v_show, v_trial, 'checked-in', 'checked-in', false, 'absent');
+  SELECT status, actual_start_time, actual_end_time INTO v_status, v_start, v_end
+    FROM public.classes WHERE id = v_absent_class;
+  IF v_status IS DISTINCT FROM 'completed' OR v_start IS NULL OR v_end IS NULL OR v_end < v_start THEN
+    RAISE EXCEPTION 'AT.8 FAIL: status %, start %, end %', v_status, v_start, v_end;
+  END IF;
+  RAISE NOTICE 'AT.8 PASS: an all-absent class completes with timing';
+
+  -- AT.9 Its only entry withdrawn: no expected entries, upcoming, timing cleared.
+  UPDATE public.entries SET entry_status = 'withdrawn' WHERE id = v_d;
+  SELECT status, actual_start_time, actual_end_time INTO v_status, v_start, v_end
+    FROM public.classes WHERE id = v_done;
+  IF v_status IS DISTINCT FROM 'upcoming' OR v_start IS NOT NULL OR v_end IS NOT NULL THEN
+    RAISE EXCEPTION 'AT.9 FAIL: status %, start %, end %', v_status, v_start, v_end;
+  END IF;
+  RAISE NOTICE 'AT.9 PASS: an emptied class has no timing';
 END;
 $$;
 

@@ -40,11 +40,17 @@ export interface PaymentLinkOutcome {
   stillUnpaid: number;
 }
 
-/** The outcome as the store keeps it: for one payment link, and never a failure. */
-export interface StoredPaymentLinkOutcome extends PaymentLinkOutcome {
-  kind: Exclude<PaymentLinkOutcomeKind, 'failed'>;
-  /** `paymentLinkKey` of the link's entry ids; the notice shows only for that link. */
+/**
+ * The FACTS a payment-link load established (MYK9-873), never the outcome: the
+ * outcome is derived from these and the LIVE cart on every render, so removing a
+ * line or clearing the cart can never leave a stale count or next action.
+ */
+export interface PaymentLinkFacts {
+  /** `paymentLinkKey` of `linkIds`; the notice shows only for that link. */
   linkKey: string;
+  linkIds: string[];
+  /** The linked entries still payable here, or null when the lookup or rebuild failed. */
+  payableIds: string[] | null;
 }
 
 // Cart status enum
@@ -185,12 +191,12 @@ export interface CartState {
   dismissDroppedClosedClassItems: () => void;
 
   /**
-   * What the last payment link opened on /cart came to (MYK9-873). Keyed by the
-   * link, not the cart, so it renders with no cart at all. Not persisted: /cart
-   * keeps the link in its URL and recomputes it on every load.
+   * What the last payment-link load on /cart established (MYK9-873). Keyed by
+   * the link, not the cart, so it exists with no cart at all. Not persisted:
+   * /cart keeps the link in its URL and re-reads it on every load.
    */
-  paymentLinkOutcome: StoredPaymentLinkOutcome | null;
-  dismissPaymentLinkOutcome: () => void;
+  paymentLinkFacts: PaymentLinkFacts | null;
+  dismissPaymentLinkFacts: () => void;
 
   // Actions
   loadCart: (showId: string, exhibitorId: string) => Promise<CartWithDetails | null>;

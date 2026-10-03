@@ -34,9 +34,8 @@ import {
 import { findRecoverableEntries, loadCartItemsByCartId } from './cartStore.recovery';
 import type { RecoverableEntryRow, RecoveryOutcome } from './cartStore.recovery';
 import {
-  describePaymentLinkOutcome,
+  paymentLinkFactsState,
   paymentLinkKey,
-  paymentLinkOutcomeState,
   settlePaymentLinkCart,
   type SettleCartLines,
 } from './cartStore.paymentLink';
@@ -75,7 +74,7 @@ export const useCartStore = create<CartState>()(
         lastSyncedAt: null,
         expirationWarning: false,
         droppedClosedClassItems: [],
-        paymentLinkOutcome: null,
+        paymentLinkFacts: null,
 
         // Load existing cart for a show
         loadCart: async (showId: string, exhibitorId: string) => {
@@ -213,17 +212,12 @@ export const useCartStore = create<CartState>()(
                 entryIds: linkIds,
               });
               // Nothing payable (or the lookup failed): there is no cart to make,
-              // and the link's outcome is all there is to show.
+              // and the link's facts are all there is to show.
               if (!linkLookup.ok || linkLookup.value.length === 0) {
-                const outcome = describePaymentLinkOutcome(
-                  linkIds,
-                  linkLookup.ok ? new Set<string>() : null,
-                  []
-                );
                 write({
                   cart: null,
                   isLoading: false,
-                  ...paymentLinkOutcomeState(linkIds, outcome),
+                  ...paymentLinkFactsState(linkIds, linkLookup.ok ? [] : null),
                 });
                 return null;
               }
@@ -327,9 +321,9 @@ export const useCartStore = create<CartState>()(
             });
 
           // MYK9-873: a payment link refills an EMPTY cart with its still-payable
-          // entries (never one that holds lines), and its outcome is described
-          // once, from the final cart.
-          let linkState: ReturnType<typeof paymentLinkOutcomeState> | null = null;
+          // entries (never one that holds lines), and stores the link's facts;
+          // the notice derives its outcome from them and the LIVE cart.
+          let linkState: ReturnType<typeof paymentLinkFactsState> | null = null;
           let closure: Awaited<ReturnType<SettleCartLines>>;
           if (linkIds.length) {
             const linked = await settlePaymentLinkCart({
@@ -348,7 +342,7 @@ export const useCartStore = create<CartState>()(
               settle,
             });
             closure = linked;
-            linkState = paymentLinkOutcomeState(linkIds, linked.outcome);
+            linkState = paymentLinkFactsState(linkIds, linked.payableIds);
           } else {
             closure = await settle(items);
           }
@@ -1031,7 +1025,7 @@ export const useCartStore = create<CartState>()(
         setError: (error: string | null) => set({ error }),
 
         dismissDroppedClosedClassItems: () => set({ droppedClosedClassItems: [] }),
-        dismissPaymentLinkOutcome: () => set({ paymentLinkOutcome: null }),
+        dismissPaymentLinkFacts: () => set({ paymentLinkFacts: null }),
 
         reset: () => {
           // Drop every write still in flight (MYK9-651) and forget in-flight
@@ -1051,7 +1045,7 @@ export const useCartStore = create<CartState>()(
             lastSyncedAt: null,
             expirationWarning: false,
             droppedClosedClassItems: [],
-            paymentLinkOutcome: null,
+            paymentLinkFacts: null,
           });
         },
       }),

@@ -16,8 +16,14 @@ import { useMemo, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Info, X } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/store/cartStore';
-import type { DroppedCartItem } from '@/store/cartStore.types';
+import { derivePaymentLinkOutcome } from '@/store/cartStore.paymentLink';
+import type {
+  CartItemWithDetails,
+  DroppedCartItem,
+  PaymentLinkOutcome,
+} from '@/store/cartStore.types';
 import { describeDroppedItem, paymentLinkNoticeCopy } from './closedClassRemovedNotice.helpers';
 
 const NONE: DroppedCartItem[] = [];
@@ -77,25 +83,44 @@ export function ClosedClassRemovedNotice({ className }: { className?: string }) 
   );
 }
 
+const NO_LINES: CartItemWithDetails[] = [];
+
+/**
+ * The link's outcome against the LIVE cart (MYK9-873). The store keeps only the
+ * link's facts; deriving here on every render is what keeps the count and the
+ * next action right after a line is removed or the cart is cleared.
+ */
+function usePaymentLinkOutcome(linkKey: string | null): PaymentLinkOutcome | null {
+  const facts = useCartStore(state => state.paymentLinkFacts);
+  const lines = useCartStore(state => state.cart?.items ?? NO_LINES);
+  return useMemo(
+    () =>
+      facts && linkKey && facts.linkKey === linkKey ? derivePaymentLinkOutcome(facts, lines) : null,
+    [facts, lines, linkKey]
+  );
+}
+
 /**
  * What the payment link on this page came to (MYK9-873): rendered in both /cart
- * states, because the outcome is keyed by the link and exists with no cart at
- * all. The words come from `paymentLinkNoticeCopy`, and each ends on an action
- * this page has. A FAILED lookup never reaches here; it is the cart's error alert.
+ * states, because the link's facts are keyed by the link and exist with no cart
+ * at all. The words come from `paymentLinkNoticeCopy`, and each ends on an action
+ * this page has. A FAILED load shows nothing here; it is the cart's error alert.
  */
 export function PaymentLinkNotice({
   linkKey,
+  onAddBack,
   className,
 }: {
   /** `paymentLinkKey` of the link in this page's URL, or null with no link. */
   linkKey: string | null;
+  /** Re-run the link's load, which refills an empty cart with its payable entries. */
+  onAddBack?: () => void;
   className?: string;
 }) {
-  const outcome = useCartStore(state => state.paymentLinkOutcome);
-  const dismiss = useCartStore(state => state.dismissPaymentLinkOutcome);
+  const outcome = usePaymentLinkOutcome(linkKey);
+  const dismiss = useCartStore(state => state.dismissPaymentLinkFacts);
 
-  const copy =
-    outcome && linkKey && outcome.linkKey === linkKey ? paymentLinkNoticeCopy(outcome) : null;
+  const copy = outcome ? paymentLinkNoticeCopy(outcome) : null;
   if (!copy) return null;
 
   return (
@@ -106,6 +131,11 @@ export function PaymentLinkNotice({
           {sentence}
         </p>
       ))}
+      {copy.addBack && onAddBack && (
+        <Button variant="outline" size="sm" className="mt-2" onClick={onAddBack}>
+          {`Add ${copy.addBack} back to your cart`}
+        </Button>
+      )}
       {copy.linkToMyEntries && (
         <p className="mt-1">
           See where each one stands in{' '}

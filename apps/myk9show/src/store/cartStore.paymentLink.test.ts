@@ -1,5 +1,5 @@
 /**
- * MYK9-873: the ONE description of a payment link against the final cart.
+ * MYK9-873: the ONE description of a payment link against the LIVE cart.
  *
  * Every combination Codex raised across both review rounds on #2685, as the pure
  * function sees it. `payable` is null when the orchestrator's lookup OR its
@@ -41,11 +41,18 @@ describe('describePaymentLinkOutcome', () => {
       expected: { kind: 'all-present', requested: 1, unavailable: 0, stillUnpaid: 0 },
     },
     {
-      name: 'a payable entry the refill could not add leaves an empty cart',
+      name: 'empty cart with a still-unpaid entry (last line removed, or refill could not add it)',
       link: ['unpaid'],
       payable: set('unpaid'),
       final: [],
       expected: { kind: 'none-left', requested: 1, unavailable: 0, stillUnpaid: 1 },
+    },
+    {
+      name: 'empty cart (cleared) with still-unpaid and unavailable entries',
+      link: ['a', 'b', 'paid'],
+      payable: set('a', 'b'),
+      final: [],
+      expected: { kind: 'none-left', requested: 3, unavailable: 1, stillUnpaid: 2 },
     },
     {
       name: 'full match',

@@ -41,14 +41,19 @@ vi.mock('@/lib/supabase', () => {
     const state: {
       select?: string;
       ids?: unknown[];
+      eqs: Record<string, unknown>;
       isDelete?: boolean;
       isInsert?: boolean;
       upsert?: Array<Record<string, unknown>>;
-    } = {};
+    } = { eqs: {} };
     const builder: Record<string, unknown> = {};
-    for (const method of ['eq', 'or', 'is', 'order', 'limit', 'gt']) {
+    for (const method of ['or', 'is', 'order', 'limit', 'gt']) {
       builder[method] = () => builder;
     }
+    builder.eq = (column: string, value: unknown) => {
+      state.eqs[column] = value;
+      return builder;
+    };
     builder.in = (column: string, values: unknown[]) => {
       if (column === 'id') state.ids = values;
       return builder;
@@ -120,7 +125,14 @@ vi.mock('@/lib/supabase', () => {
           return { data: null, error: null };
         }
         if (state.isDelete) {
-          world.items = world.items.filter(item => !state.ids?.includes(item.id));
+          // reconcile deletes `.in('id', …)`, removeItem `.eq('id', …)`,
+          // clearCart `.eq('cart_id', …)`.
+          world.items = world.items.filter(
+            item =>
+              !state.ids?.includes(item.id) &&
+              item.id !== state.eqs.id &&
+              item.cart_id !== state.eqs.cart_id
+          );
           return { data: null, error: null };
         }
         return { data: world.items.map(item => ({ ...item })), error: null };
@@ -167,6 +179,7 @@ vi.mock('@/services/LoggingService', () => ({
 }));
 
 import { useCartStore } from './cartStore';
+import { derivePaymentLinkOutcome } from './cartStore.paymentLink';
 
 const RETRY_MESSAGE =
   'We could not check the entries in your payment link. Please reload the page to try again.';
@@ -200,7 +213,11 @@ beforeEach(() => {
   });
 });
 
-const outcome = () => useCartStore.getState().paymentLinkOutcome;
+/** The outcome exactly as the notice derives it: stored facts against the live cart. */
+const outcome = () => {
+  const { paymentLinkFacts, cart } = useCartStore.getState();
+  return paymentLinkFacts ? derivePaymentLinkOutcome(paymentLinkFacts, cart?.items ?? []) : null;
+};
 
 describe('payment-link outcome in the store (MYK9-873)', () => {
   it('no cart shell and every linked entry unavailable: none-left, with no cart', async () => {
@@ -210,14 +227,49 @@ describe('payment-link outcome in the store (MYK9-873)', () => {
     const cart = await load(['e2', 'e1']);
 
     expect(cart).toBeNull();
-    expect(outcome()).toEqual({
+    expect(useCartStore.getState().paymentLinkFacts).toEqual({
       linkKey: 'e1,e2',
-      kind: 'none-left',
-      requested: 2,
-      unavailable: 2,
-      stillUnpaid: 0,
+      linkIds: ['e2', 'e1'],
+      payableIds: [],
     });
+    expect(outcome()).toEqual({ kind: 'none-left', requested: 2, unavailable: 2, stillUnpaid: 0 });
     expect(useCartStore.getState().error).toBeNull();
+  });
+
+  // Codex P2 on 3b4a410f2: the outcome must follow the LIVE cart.
+  it('removing the last line turns some-missing into none-left with entries still to pay', async () => {
+    world.entries = [entry('e1'), entry('e2')];
+    world.items = [line('e1')];
+    await load(['e1', 'e2']);
+    expect(outcome()).toMatchObject({ kind: 'some-missing', stillUnpaid: 1 });
+
+    await useCartStore.getState().removeItem('item-e1');
+
+    expect(useCartStore.getState().cart?.items).toEqual([]);
+    expect(outcome()).toEqual({ kind: 'none-left', requested: 2, unavailable: 0, stillUnpaid: 2 });
+  });
+
+  it('clearing the cart turns some-missing into none-left with entries still to pay', async () => {
+    world.entries = [entry('e1'), entry('e2'), entry('e3', 'paid')];
+    world.items = [line('e1')];
+    await load(['e1', 'e2', 'e3']);
+    expect(outcome()).toMatchObject({ kind: 'some-missing', stillUnpaid: 1, unavailable: 1 });
+
+    await useCartStore.getState().clearCart();
+
+    expect(outcome()).toEqual({ kind: 'none-left', requested: 3, unavailable: 1, stillUnpaid: 2 });
+  });
+
+  it('reloading the link after the cart was cleared refills it', async () => {
+    world.entries = [entry('e1'), entry('e2')];
+    world.items = [line('e1')];
+    await load(['e1', 'e2']);
+    await useCartStore.getState().clearCart();
+
+    const cart = await load(['e1', 'e2']);
+
+    expect(cart?.items.map(item => item.entry_id).sort()).toEqual(['e1', 'e2']);
+    expect(outcome()).toMatchObject({ kind: 'all-present' });
   });
 
   it('an existing cart holding only some linked entries: some-missing, never backfilled', async () => {
@@ -272,28 +324,19 @@ describe('payment-link outcome in the store (MYK9-873)', () => {
     expect(useCartStore.getState().error).toBeNull();
   });
 
-  it('a failed lookup is a retryable error and clears any outcome', async () => {
+  it('a failed lookup is a retryable error, and derives to failed (no notice)', async () => {
     world.entries = [entry('e1'), entry('e2')];
     world.items = [line('e1')];
     world.lookupError = true;
-    useCartStore.setState({
-      paymentLinkOutcome: {
-        linkKey: 'e1,e2',
-        kind: 'some-missing',
-        requested: 2,
-        stillUnpaid: 0,
-        unavailable: 1,
-      },
-    });
 
     await load(['e1', 'e2']);
 
     expect(useCartStore.getState().error).toBe(RETRY_MESSAGE);
-    expect(outcome()).toBeNull();
+    expect(outcome()?.kind).toBe('failed');
     expect(world.upserts).toBe(0);
   });
 
-  it('a failed rebuild (upsert) is a retryable error, not an outcome', async () => {
+  it('a failed rebuild (upsert) is a retryable error, and derives to failed', async () => {
     world.entries = [entry('e1'), entry('e2')];
     world.upsertError = true;
 
@@ -301,7 +344,7 @@ describe('payment-link outcome in the store (MYK9-873)', () => {
 
     expect(world.upserts).toBe(1);
     expect(useCartStore.getState().error).toBe(RETRY_MESSAGE);
-    expect(outcome()).toBeNull();
+    expect(outcome()?.kind).toBe('failed');
   });
 
   it('a failed lookup with no cart shell is the retryable error too', async () => {
@@ -313,6 +356,6 @@ describe('payment-link outcome in the store (MYK9-873)', () => {
 
     expect(cart).toBeNull();
     expect(useCartStore.getState().error).toBe(RETRY_MESSAGE);
-    expect(outcome()).toBeNull();
+    expect(outcome()?.kind).toBe('failed');
   });
 });

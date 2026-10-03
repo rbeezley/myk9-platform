@@ -1,55 +1,55 @@
 /**
  * MYK9-873: what a payment link's entries came to, rendered against the REAL cart
- * store, in both /cart states. Every branch must name an action available on the
- * page it renders on (INTENT: no dead ends): Checkout when the cart has lines, the
- * My Entries link otherwise.
+ * store. The store keeps only the link's facts; the notice derives its outcome
+ * from them and the LIVE cart on every render, so removing the last line or
+ * clearing the cart switches it to the empty-cart copy at once (Codex P2 on
+ * 3b4a410f2). Every branch names an action this page has (INTENT: no dead ends):
+ * Checkout when the cart has lines; "add back" and My Entries when it has none.
  */
-import { afterEach, describe, expect, it } from 'vitest';
+import { act } from 'react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen } from '@/test/utils/testUtils';
 import { useCartStore } from '@/store/cartStore';
-import type { StoredPaymentLinkOutcome } from '@/store/cartStore.types';
+import type { PaymentLinkFacts } from '@/store/cartStore.types';
 import { PaymentLinkNotice } from './ClosedClassRemovedNotice';
 
 afterEach(() => {
   useCartStore.getState().reset();
 });
 
-function show(outcome: Omit<StoredPaymentLinkOutcome, 'linkKey'>, cart: object | null = null) {
+const LINK = 'e1,e2,e3';
+const line = (entryId: string | null) => ({ id: `item-${entryId}`, entry_id: entryId });
+
+function setup(
+  facts: Omit<PaymentLinkFacts, 'linkKey' | 'linkIds'>,
+  lines: Array<string | null> | null,
+  onAddBack?: () => void
+) {
   useCartStore.setState({
-    cart: cart as never,
-    paymentLinkOutcome: { linkKey: 'e1,e2,e3', ...outcome },
+    cart: lines === null ? null : ({ id: 'cart-1', items: lines.map(line) } as never),
+    paymentLinkFacts: { linkKey: LINK, linkIds: ['e1', 'e2', 'e3'], ...facts },
   });
-  return render(<PaymentLinkNotice linkKey="e1,e2,e3" />);
+  return render(<PaymentLinkNotice linkKey={LINK} {...(onAddBack ? { onAddBack } : {})} />);
 }
 
 const myEntriesLink = () => screen.getByRole('link', { name: 'My Entries' });
 
 describe('PaymentLinkNotice', () => {
-  it('none-left with no cart at all: says so and links to My Entries', () => {
-    show({ kind: 'none-left', requested: 3, unavailable: 3, stillUnpaid: 0 });
+  it('no cart at all, every entry unavailable: says so and links to My Entries', () => {
+    setup({ payableIds: [] }, null);
 
     expect(
-      screen.getByText('None of the 3 entries in your payment link can be paid here.')
+      screen.getByText('None of the 3 entries in your payment link are in your cart.')
     ).toBeInTheDocument();
     expect(
       screen.getByText('3 are already paid, withdrawn, or no longer open for payment.')
     ).toBeInTheDocument();
     expect(myEntriesLink()).toHaveAttribute('href', '/exhibitor/entries');
-    expect(screen.queryByText(/Check out this cart/)).toBeNull();
-  });
-
-  it('none-left for a single entry reads in the singular', () => {
-    show({ kind: 'none-left', requested: 1, unavailable: 0, stillUnpaid: 1 });
-
-    expect(
-      screen.getByText('The entry in your payment link cannot be paid here.')
-    ).toBeInTheDocument();
-    expect(screen.getByText('1 could not be added to a cart.')).toBeInTheDocument();
-    expect(myEntriesLink()).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /back to your cart/ })).toBeNull();
   });
 
   it('some-missing with a still-unpaid entry points at checking out this cart', () => {
-    show({ kind: 'some-missing', requested: 3, unavailable: 0, stillUnpaid: 1 }, { id: 'c1' });
+    setup({ payableIds: ['e1', 'e2', 'e3'] }, ['e1', 'e2']);
 
     expect(
       screen.getByText('1 of the 3 entries in your payment link is not in this cart.')
@@ -63,7 +63,7 @@ describe('PaymentLinkNotice', () => {
   });
 
   it('some-missing with unavailable entries links to My Entries; both reasons when both apply', () => {
-    show({ kind: 'some-missing', requested: 3, unavailable: 1, stillUnpaid: 1 }, { id: 'c1' });
+    setup({ payableIds: ['e1', 'e2'] }, ['e1']);
 
     expect(
       screen.getByText('2 of the 3 entries in your payment link are not in this cart.')
@@ -72,38 +72,83 @@ describe('PaymentLinkNotice', () => {
       screen.getByText('1 is already paid, withdrawn, or no longer open for payment.')
     ).toBeInTheDocument();
     expect(screen.getByText(/^1 still needs paying/)).toBeInTheDocument();
-    expect(myEntriesLink()).toHaveAttribute('href', '/exhibitor/entries');
+    expect(myEntriesLink()).toBeInTheDocument();
   });
 
-  it('renders nothing when every linked entry is in the cart', () => {
-    const { container } = show(
-      { kind: 'all-present', requested: 3, unavailable: 0, stillUnpaid: 0 },
-      { id: 'c1' }
-    );
+  it('removing the last line switches to the empty-cart copy with an add-back action', () => {
+    const onAddBack = vi.fn();
+    setup({ payableIds: ['e1', 'e2', 'e3'] }, ['e1', 'e2'], onAddBack);
+    expect(screen.getByText(/Check out this cart first/)).toBeInTheDocument();
+
+    // What `removeItem` leaves behind once the last line is gone.
+    act(() => {
+      useCartStore.setState({ cart: { id: 'cart-1', items: [] } as never });
+    });
+
+    expect(screen.queryByText(/Check out this cart first/)).toBeNull();
+    expect(
+      screen.getByText('None of the 3 entries in your payment link are in your cart.')
+    ).toBeInTheDocument();
+    expect(screen.getByText('3 still need paying.')).toBeInTheDocument();
+    expect(myEntriesLink()).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Add them back to your cart' }));
+    expect(onAddBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('clearing the cart (no cart at all) also switches to the empty-cart copy', () => {
+    setup({ payableIds: ['e1', 'e2', 'e3'] }, ['e1', 'e2'], vi.fn());
+
+    act(() => {
+      useCartStore.setState({ cart: null });
+    });
+
+    expect(screen.queryByText(/Check out this cart first/)).toBeNull();
+    expect(screen.getByText('3 still need paying.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add them back to your cart' })).toBeInTheDocument();
+  });
+
+  it('a single still-unpaid entry on an empty cart reads in the singular', () => {
+    useCartStore.setState({
+      cart: null,
+      paymentLinkFacts: { linkKey: 'e1', linkIds: ['e1'], payableIds: ['e1'] },
+    });
+    render(<PaymentLinkNotice linkKey="e1" onAddBack={vi.fn()} />);
+
+    expect(
+      screen.getByText('The entry in your payment link is not in your cart.')
+    ).toBeInTheDocument();
+    expect(screen.getByText('1 still needs paying.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Add it back to your cart' })).toBeInTheDocument();
+  });
+
+  it('renders nothing when every linked entry is in the cart, or after a failed load', () => {
+    const { container } = setup({ payableIds: ['e1', 'e2', 'e3'] }, ['e1', 'e2', 'e3']);
+    expect(container).toBeEmptyDOMElement();
+
+    act(() => {
+      useCartStore.setState({
+        cart: null,
+        paymentLinkFacts: { linkKey: LINK, linkIds: ['e1', 'e2', 'e3'], payableIds: null },
+      });
+    });
     expect(container).toBeEmptyDOMElement();
   });
 
-  it("never shows another link's outcome, or one with no link on the page", () => {
+  it("never shows another link's facts, or any with no link on the page", () => {
     useCartStore.setState({
-      paymentLinkOutcome: {
-        linkKey: 'e9',
-        kind: 'none-left',
-        requested: 1,
-        unavailable: 1,
-        stillUnpaid: 0,
-      },
+      paymentLinkFacts: { linkKey: 'e9', linkIds: ['e9'], payableIds: [] },
     });
-    const { container, rerender } = render(<PaymentLinkNotice linkKey="e1,e2,e3" />);
+    const { container, rerender } = render(<PaymentLinkNotice linkKey={LINK} />);
     expect(container).toBeEmptyDOMElement();
     rerender(<PaymentLinkNotice linkKey={null} />);
     expect(container).toBeEmptyDOMElement();
   });
 
   it('dismisses', () => {
-    show({ kind: 'none-left', requested: 3, unavailable: 3, stillUnpaid: 0 });
+    setup({ payableIds: [] }, null);
 
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }));
 
-    expect(useCartStore.getState().paymentLinkOutcome).toBeNull();
+    expect(useCartStore.getState().paymentLinkFacts).toBeNull();
   });
 });

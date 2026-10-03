@@ -7,6 +7,8 @@
 // operator alert; it never calls stripe.refunds.create. Only
 // stripe-approve-refund issues the refund, after a site admin approves it.
 
+import { resolveRefundLedgerAction } from './refundLifecycle.ts';
+
 export const APPROVED_REFUND_METADATA_TYPE = 'approved_refund_request';
 export const REFUND_REQUEST_METADATA_KEY = 'refund_request_id';
 
@@ -239,3 +241,100 @@ export const REFUNDABLE_ABANDONED_CART_STATUSES: ReadonlySet<string> = new Set([
   'expired',
   'refund_pending',
 ]);
+
+/** The Stripe Refund fields the request lifecycle reads. */
+export interface SettlingRefund {
+  id: string;
+  amount: number;
+  status: string | null;
+  metadata?: Record<string, string> | null;
+  failure_reason?: string | null;
+}
+
+export type FailRefundOutcome = 'failed' | 'stale';
+
+/**
+ * A refund for this request failed or was canceled: move the request to
+ * 'failed', back in the approval queue, with the reason. The RPC only acts
+ * while the request still holds THIS refund (or none yet), so a late failure
+ * of an old dead attempt never reopens a newer refund ('stale').
+ */
+export async function failRefundRequest(
+  deps: RefundQueueDeps,
+  requestId: string,
+  refund: SettlingRefund
+): Promise<FailRefundOutcome> {
+  const reason = `${refund.status ?? 'unknown'}: ${refund.failure_reason ?? 'no reason given'}`;
+  const { data, error } = await deps.rpc('fail_refund_request', {
+    p_request_id: requestId,
+    p_stripe_refund_id: refund.id,
+    p_reason: reason,
+  });
+  if (error) {
+    await deps.alertAdmin(
+      'Approved refund failed and the request could not be reopened',
+      `<p>Stripe refund <code>${refund.id}</code> for request <code>${requestId}</code>
+       ended <code>${reason}</code>, but moving the request back to the approval queue
+       failed:</p><pre>${error.message}</pre>
+       <p>The customer was NOT paid. Set the request's status to 'failed' by hand so it
+       can be approved again.</p>`,
+      { source: SOURCE, dedupeKey: `refund-request-reopen-failed-${refund.id}` }
+    );
+    return 'stale';
+  }
+  if (data !== true) return 'stale';
+  await deps.alertAdmin(
+    'Approved refund failed at Stripe — back in the approval queue',
+    `<p>Stripe refund <code>${refund.id}</code> (${dollars(refund.amount)} USD) for request
+     <code>${requestId}</code> ended <code>${reason}</code>. The customer was NOT paid.</p>
+     <p>The request is back under <strong>Refunds awaiting approval</strong> on
+     /admin/health; approving it again issues a new refund.</p>`,
+    {
+      source: SOURCE,
+      dedupeKey: `refund-request-failed-${refund.id}`,
+      detail: { refund_request_id: requestId, stripe_refund_id: refund.id, reason },
+    }
+  );
+  return 'failed';
+}
+
+export type SettleOutcome = 'not_approved_refund' | 'in_flight' | 'completed' | FailRefundOutcome;
+
+/**
+ * stripe-webhook's half of the request lifecycle (refund.updated, refund.failed,
+ * charge.refunded): only a refund stamped `type=approved_refund_request`
+ * settles a request. Succeeded completes it; failed/canceled reopens it.
+ * Never throws: a bookkeeping failure becomes an alert.
+ */
+export async function settleApprovedRefund(
+  deps: RefundQueueDeps,
+  refund: SettlingRefund
+): Promise<SettleOutcome> {
+  const requestId = refund.metadata?.[REFUND_REQUEST_METADATA_KEY];
+  if (refund.metadata?.type !== APPROVED_REFUND_METADATA_TYPE || !requestId) {
+    return 'not_approved_refund';
+  }
+  const action = resolveRefundLedgerAction(refund.status);
+  if (action === 'defer') return 'in_flight';
+  if (action === 'fail' || action === 'cancel') {
+    return failRefundRequest(deps, requestId, refund);
+  }
+
+  const { data, error } = await deps.rpc('complete_refund_request', {
+    p_request_id: requestId,
+    p_stripe_refund_id: refund.id,
+  });
+  if (error || data !== true) {
+    if (error) {
+      await deps.alertAdmin(
+        'Approved refund succeeded but the request was not marked refunded',
+        `<p>Stripe refund <code>${refund.id}</code> for request <code>${requestId}</code>
+         succeeded, but marking the request refunded failed:</p><pre>${error.message}</pre>
+         <p>Approving it again reuses this refund and retries the update.</p>`,
+        { source: SOURCE, dedupeKey: `refund-request-complete-failed-${refund.id}` }
+      );
+    }
+    return 'stale';
+  }
+  return 'completed';
+}

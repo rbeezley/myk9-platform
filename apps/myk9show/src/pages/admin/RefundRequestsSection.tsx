@@ -29,6 +29,8 @@ import {
   useRefundRequests,
 } from '@/features/admin-system-health/useRefundRequests';
 import {
+  approvalSuccessMessage,
+  approveActionLabel,
   formatRefundAmount,
   refundKindLabel,
   type RefundRequest,
@@ -41,8 +43,8 @@ function RefundRequestRow({ request }: { request: RefundRequest }) {
 
   async function approve() {
     try {
-      await mutateAsync(request.id);
-      toast.success(`Refunded ${amount} to the payer's card.`);
+      const outcome = await mutateAsync(request.id);
+      toast.success(approvalSuccessMessage(outcome, amount));
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Refund approval failed.');
     }
@@ -56,13 +58,19 @@ function RefundRequestRow({ request }: { request: RefundRequest }) {
       </div>
       <p className="mt-0.5 break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
         Payment {request.paymentIntentId} · reason {request.reason}
-        {request.status === 'approved' && ' · approval started, not finished'}
+        {request.status === 'approved' && ' · approved, Stripe has not finished'}
       </p>
+      {request.status === 'failed' && (
+        <p className="mt-0.5 break-words text-sm text-destructive [overflow-wrap:anywhere]">
+          The last refund did not go through ({request.lastFailure ?? 'no reason given'}). The
+          customer was not paid.
+        </p>
+      )}
       <div className="mt-2 flex justify-end">
         <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
           <AlertDialogTrigger asChild>
             <Button variant="outline" disabled={isPending}>
-              {request.status === 'approved' ? 'Finish refund' : 'Approve refund'}
+              {approveActionLabel(request.status)}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>

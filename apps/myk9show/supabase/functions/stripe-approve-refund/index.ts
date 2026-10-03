@@ -89,9 +89,11 @@ Deno.serve(async req => {
       {
         rpc: (fn, args) => supabase.rpc(fn, args),
         alertAdmin,
-        listRefunds: async paymentIntentId =>
-          (await stripe.refunds.list({ payment_intent: paymentIntentId, limit: 100 }))
-            .data as ApprovalRefund[],
+        // One page; listAllIntentRefunds walks starting_after across them all.
+        listRefundsPage: async params => {
+          const page = await stripe.refunds.list(params);
+          return { data: page.data as ApprovalRefund[], has_more: page.has_more };
+        },
         createRefund: async (params, idempotencyKey) =>
           (await stripe.refunds.create(params, { idempotencyKey })) as ApprovalRefund,
       },

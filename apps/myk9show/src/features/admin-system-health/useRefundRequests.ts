@@ -11,6 +11,7 @@ import { OPERATOR_ALERTS_QUERY_KEY } from './useOperatorAlerts';
 import {
   approvalErrorMessage,
   parseRefundRequest,
+  type ApprovalOutcome,
   type RefundRequest,
   type RefundRequestRow,
 } from './refundRequestsPresentation';
@@ -21,7 +22,7 @@ async function fetchOpenRefundRequests(): Promise<RefundRequest[]> {
   const { data, error } = await supabase
     .from('refund_requests')
     .select(
-      'id, kind, status, amount_cents, reason, stripe_payment_intent_id, stripe_checkout_session_id, created_at'
+      'id, kind, status, amount_cents, reason, stripe_payment_intent_id, stripe_checkout_session_id, created_at, last_failure'
     )
     .neq('status', 'refunded')
     .order('created_at', { ascending: true });
@@ -41,11 +42,11 @@ export function useRefundRequests() {
 export function useApproveRefundRequest() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (requestId: string): Promise<void> => {
-      const { error } = await supabase.functions.invoke('stripe-approve-refund', {
+    mutationFn: async (requestId: string): Promise<ApprovalOutcome> => {
+      const { data, error } = await supabase.functions.invoke('stripe-approve-refund', {
         body: { refund_request_id: requestId },
       });
-      if (!error) return;
+      if (!error) return (data as { outcome?: ApprovalOutcome } | null)?.outcome ?? 'refunded';
       // Non-2xx surfaces as FunctionsHttpError; the code is in the body.
       let code: string | undefined;
       const context = (error as { context?: Response }).context;

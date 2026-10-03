@@ -14,7 +14,11 @@
 --    the two RPCs below) and raises the existing CRITICAL operator alert; only
 --    the stripe-approve-refund edge function, called by a site admin, issues
 --    the Stripe refund, and it claims the row first (claim_refund_request_
---    approval) so a double click or a retry cannot refund twice.
+--    approval) so a double click or a retry cannot refund twice. A request is
+--    'refunded' only once Stripe reports the refund SUCCEEDED; an in-flight
+--    refund is noted on an 'approved' request, and a failed or canceled one
+--    moves the request to 'failed', back in the queue (stripe-webhook calls
+--    complete_refund_request / fail_refund_request).
 --
 -- 2. entry_carts.status gains 'refund_pending'. claim_abandoned_cart_refund
 --    moves an abandoned/expired cart whose CURRENT session is the paid one to
@@ -99,11 +103,16 @@ CREATE TABLE public.refund_requests (
   kind text NOT NULL
     CHECK (kind IN ('abandoned_cart', 'cart_overflow', 'entry_payment_link')),
   -- pending  -> waiting for a site admin
-  -- approved -> an admin approved it and the Stripe call is in flight (or
-  --             crashed; a repeat approval resumes it with the same refund)
-  -- refunded -> the Stripe refund exists (stripe_refund_id)
+  -- approved -> an admin approved it; the Stripe refund is being created, or
+  --             exists but Stripe has not reported it succeeded yet
+  --             (stripe_refund_id set). A repeat approval resumes it with the
+  --             same refund.
+  -- refunded -> Stripe reported the refund SUCCEEDED (stripe_refund_id)
+  -- failed   -> Stripe failed or canceled the refund (last_failure says why);
+  --             back in the approval queue, and the next approval takes a new
+  --             attempt (Codex P1 on #2689)
   status text NOT NULL DEFAULT 'pending'
-    CHECK (status IN ('pending', 'approved', 'refunded')),
+    CHECK (status IN ('pending', 'approved', 'refunded', 'failed')),
   stripe_checkout_session_id text NOT NULL,
   stripe_payment_intent_id text NOT NULL,
   amount_cents integer NOT NULL CHECK (amount_cents > 0),
@@ -117,12 +126,18 @@ CREATE TABLE public.refund_requests (
   -- auth.users id of the approving site admin (never a people.id).
   approved_by_auth_user_id uuid,
   approved_at timestamptz,
+  -- The refund currently answering this request: the succeeded one once
+  -- 'refunded', the in-flight one while 'approved'. Cleared on failure.
   stripe_refund_id text UNIQUE,
   refunded_at timestamptz,
+  last_failure text,
   CONSTRAINT refund_requests_once_per_session UNIQUE (stripe_checkout_session_id, kind),
   CONSTRAINT refund_requests_approval_shape CHECK (
     (status = 'pending') = (approved_at IS NULL)
-    AND (status = 'refunded') = (stripe_refund_id IS NOT NULL AND refunded_at IS NOT NULL)
+    AND (status = 'refunded') = (refunded_at IS NOT NULL)
+    AND (status <> 'refunded' OR stripe_refund_id IS NOT NULL)
+    AND (status NOT IN ('pending', 'failed') OR stripe_refund_id IS NULL)
+    AND (status <> 'failed' OR last_failure IS NOT NULL)
   )
 );
 
@@ -353,7 +368,7 @@ BEGIN
     END IF;
   END IF;
 
-  IF v_req.status = 'pending' THEN
+  IF v_req.status IN ('pending', 'failed') THEN
     UPDATE public.refund_requests
        SET status = 'approved',
            approved_by_auth_user_id = p_actor_auth_user_id,
@@ -364,9 +379,9 @@ BEGIN
     RETURN;
   END IF;
 
-  -- 'approved' with no refund recorded: a previous approval crashed or is in
-  -- flight. Resuming is safe — the edge function reuses the refund stamped
-  -- with this request id, and Stripe's idempotency key covers a live race.
+  -- 'approved': a previous approval crashed, or its refund is still in flight.
+  -- Resuming is safe — the edge function reuses the live refund stamped with
+  -- this request id, and Stripe's idempotency key covers a live race.
   RETURN QUERY SELECT 'resume'::text, v_req.kind, v_req.stripe_payment_intent_id,
     v_req.stripe_checkout_session_id, v_req.amount_cents, v_req.reason, NULL::text;
 END;
@@ -389,12 +404,15 @@ BEGIN
       USING errcode = '22023';
   END IF;
 
+  -- Only once Stripe reports the refund SUCCEEDED, and only for the refund
+  -- the request is waiting on (or any, if none was recorded yet).
   UPDATE public.refund_requests
      SET status = 'refunded',
          stripe_refund_id = p_stripe_refund_id,
          refunded_at = now()
    WHERE id = p_request_id
-     AND status = 'approved';
+     AND status = 'approved'
+     AND (stripe_refund_id IS NULL OR stripe_refund_id = p_stripe_refund_id);
   GET DIAGNOSTICS v_updated = ROW_COUNT;
 
   IF v_updated = 1 THEN
@@ -408,6 +426,68 @@ BEGIN
 END;
 $$;
 
+-- An approved refund Stripe has not settled yet (pending / requires_action):
+-- record it, keep the request 'approved' and in the queue.
+CREATE OR REPLACE FUNCTION public.note_refund_request_in_flight(
+  p_request_id uuid,
+  p_stripe_refund_id text
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_updated integer;
+BEGIN
+  IF p_stripe_refund_id IS NULL THEN
+    RAISE EXCEPTION 'note_refund_request_in_flight: a Stripe refund id is required'
+      USING errcode = '22023';
+  END IF;
+  UPDATE public.refund_requests
+     SET stripe_refund_id = p_stripe_refund_id
+   WHERE id = p_request_id
+     AND status = 'approved';
+  GET DIAGNOSTICS v_updated = ROW_COUNT;
+  RETURN v_updated = 1;
+END;
+$$;
+
+-- Stripe failed or canceled the refund (refund.failed / refund.updated, or at
+-- creation): back to the approval queue with the reason. Acts only while the
+-- request still holds THIS refund or none yet, so a late failure of an OLD
+-- dead attempt never reopens a newer refund. 'refunded' is included because
+-- a succeeded refund can still fail later.
+CREATE OR REPLACE FUNCTION public.fail_refund_request(
+  p_request_id uuid,
+  p_stripe_refund_id text,
+  p_reason text
+)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_updated integer;
+BEGIN
+  IF p_stripe_refund_id IS NULL OR p_reason IS NULL THEN
+    RAISE EXCEPTION 'fail_refund_request: a Stripe refund id and a reason are required'
+      USING errcode = '22023';
+  END IF;
+  UPDATE public.refund_requests
+     SET status = 'failed',
+         stripe_refund_id = NULL,
+         refunded_at = NULL,
+         last_failure = p_reason
+   WHERE id = p_request_id
+     AND status IN ('approved', 'refunded')
+     AND (stripe_refund_id IS NULL OR stripe_refund_id = p_stripe_refund_id);
+  GET DIAGNOSTICS v_updated = ROW_COUNT;
+  RETURN v_updated = 1;
+END;
+$$;
+
 REVOKE ALL ON FUNCTION public.claim_abandoned_cart_refund(uuid, text, text, integer, jsonb)
   FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.request_refund_approval(text, text, text, integer, text, jsonb, uuid, uuid, uuid)
@@ -416,11 +496,17 @@ REVOKE ALL ON FUNCTION public.claim_refund_request_approval(uuid, uuid)
   FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.complete_refund_request(uuid, text)
   FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.note_refund_request_in_flight(uuid, text)
+  FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.fail_refund_request(uuid, text, text)
+  FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.claim_abandoned_cart_refund(uuid, text, text, integer, jsonb)
   TO service_role;
 GRANT EXECUTE ON FUNCTION public.request_refund_approval(text, text, text, integer, text, jsonb, uuid, uuid, uuid)
   TO service_role;
 GRANT EXECUTE ON FUNCTION public.claim_refund_request_approval(uuid, uuid) TO service_role;
 GRANT EXECUTE ON FUNCTION public.complete_refund_request(uuid, text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.note_refund_request_in_flight(uuid, text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.fail_refund_request(uuid, text, text) TO service_role;
 
 COMMIT;

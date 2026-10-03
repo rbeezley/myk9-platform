@@ -56,6 +56,7 @@ import {
   claimAbandonedCartRefund,
   queueRefundForApproval,
   REFUNDABLE_ABANDONED_CART_STATUSES,
+  settleApprovedRefund,
   type RefundQueueDeps,
 } from '../_shared/refundRequests.ts';
 
@@ -281,6 +282,9 @@ async function handleRefundUpdated(refund: Stripe.Refund) {
     return;
   }
 
+  // An approved queued refund becomes 'refunded' only now (Codex P1, #2689).
+  await settleApprovedRefund(refundQueueDeps, refund);
+
   const paymentIntentId = extractPaymentIntentId(refund.payment_intent);
   if (!paymentIntentId) {
     console.error(`Succeeded refund ${refund.id} has no payment intent — cannot book ledger`);
@@ -309,6 +313,9 @@ async function handleRefundUpdated(refund: Stripe.Refund) {
 }
 
 async function handleTerminalRefund(refund: Stripe.Refund, terminalState: 'failed' | 'canceled') {
+  // An approved queued refund that failed goes back to the approval queue
+  // (Codex P1, #2689); every other refund keeps the alert below.
+  await settleApprovedRefund(refundQueueDeps, refund);
   const entryId = refund.metadata?.entry_id ?? null;
   console.error(
     `CRITICAL: refund ${refund.id} (${refund.amount}¢) ${terminalState.toUpperCase()} after creation` +
@@ -576,6 +583,8 @@ async function handleChargeRefunded(charge: Stripe.Charge, eventId: string) {
         continue;
       }
       sawSucceededRefund = true;
+      // Covers a missed refund.updated for an approved queued refund.
+      await settleApprovedRefund(refundQueueDeps, refund);
       const rows = await recordOrderRefundCents(intentIdForLedger, {
         refundId: refund.id,
         amountCents: refund.amount ?? 0,

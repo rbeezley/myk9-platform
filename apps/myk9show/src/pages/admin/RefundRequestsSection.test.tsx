@@ -30,6 +30,7 @@ function request(overrides: Partial<RefundRequest> = {}): RefundRequest {
     paymentIntentId: 'pi_123',
     checkoutSessionId: 'cs_123',
     createdAt: new Date().toISOString(),
+    lastFailure: null,
     ...overrides,
   };
 }
@@ -59,7 +60,7 @@ describe('RefundRequestsSection', () => {
   });
 
   it('approves ONE refund only after the confirmation, never on the first click', async () => {
-    mutateAsync.mockResolvedValue(undefined);
+    mutateAsync.mockResolvedValue('refunded');
     withData([request()]);
     const user = userEvent.setup();
     render(<RefundRequestsSection />);
@@ -101,6 +102,29 @@ describe('RefundRequestsSection', () => {
       expect(toast.error).toHaveBeenCalledWith(approvalErrorMessage('fulfilled'))
     );
     expect(toast.success).not.toHaveBeenCalled();
+  });
+
+  it('says a still-processing refund is submitted, not refunded (Codex P1, #2689)', async () => {
+    mutateAsync.mockResolvedValue('pending');
+    withData([request()]);
+    const user = userEvent.setup();
+    render(<RefundRequestsSection />);
+    await user.click(screen.getByRole('button', { name: 'Approve refund' }));
+    await screen.findByRole('alertdialog');
+    await user.click(screen.getByRole('button', { name: 'Refund $42.50' }));
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        'Refund of $42.50 submitted. Stripe is still processing it; it leaves this list once it succeeds.'
+      )
+    );
+  });
+
+  it('shows a refund Stripe failed, with the reason, and offers Approve again', () => {
+    withData([request({ status: 'failed', lastFailure: 'failed: expired_or_canceled_card' })]);
+    render(<RefundRequestsSection />);
+    expect(screen.getByText(/failed: expired_or_canceled_card/)).toBeInTheDocument();
+    expect(screen.getByText(/The customer was not paid/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Approve again' })).toBeInTheDocument();
   });
 
   it('labels an interrupted approval as one to finish', () => {

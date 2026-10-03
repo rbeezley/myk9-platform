@@ -5,8 +5,14 @@ export type RefundRequestKind = 'abandoned_cart' | 'cart_overflow' | 'entry_paym
 export interface RefundRequest {
   id: string;
   kind: RefundRequestKind;
-  /** 'approved' means an approval started and did not finish; approving again resumes it. */
-  status: 'pending' | 'approved';
+  /**
+   * 'approved': an approval started and Stripe has not settled the refund yet;
+   * approving again resumes it. 'failed': Stripe failed or canceled the refund;
+   * approving again issues a new one (Codex P1 on #2689).
+   */
+  status: 'pending' | 'approved' | 'failed';
+  /** Why the last refund failed ("failed: expired_or_canceled_card"), or null. */
+  lastFailure: string | null;
   amountCents: number;
   reason: string;
   paymentIntentId: string;
@@ -23,13 +29,15 @@ export interface RefundRequestRow {
   stripe_payment_intent_id: string;
   stripe_checkout_session_id: string;
   created_at: string;
+  last_failure: string | null;
 }
 
 export function parseRefundRequest(row: RefundRequestRow): RefundRequest {
   return {
     id: row.id,
     kind: row.kind as RefundRequestKind,
-    status: row.status === 'approved' ? 'approved' : 'pending',
+    status: row.status === 'approved' || row.status === 'failed' ? row.status : 'pending',
+    lastFailure: row.last_failure ?? null,
     amountCents: row.amount_cents,
     reason: row.reason,
     paymentIntentId: row.stripe_payment_intent_id,
@@ -65,4 +73,21 @@ export function approvalErrorMessage(code: string | undefined): string {
   if (code && APPROVAL_ERRORS[code]) return APPROVAL_ERRORS[code];
   if (code?.startsWith('stripe_refund_')) return APPROVAL_ERRORS.stripe_refund_failed;
   return 'The approval did not finish. Approving again is safe: it reuses any refund already issued.';
+}
+
+/** The button label for a row, by where its refund stands. */
+export function approveActionLabel(status: RefundRequest['status']): string {
+  if (status === 'approved') return 'Finish refund';
+  if (status === 'failed') return 'Approve again';
+  return 'Approve refund';
+}
+
+/** What the approval returned: refunded now, or submitted and still settling. */
+export type ApprovalOutcome = 'refunded' | 'already_refunded' | 'pending';
+
+export function approvalSuccessMessage(outcome: ApprovalOutcome, amount: string): string {
+  if (outcome === 'pending') {
+    return `Refund of ${amount} submitted. Stripe is still processing it; it leaves this list once it succeeds.`;
+  }
+  return `Refunded ${amount} to the payer's card.`;
 }

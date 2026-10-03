@@ -9,12 +9,19 @@
 //      and, for an abandoned cart, refuses if anything fulfilled the session;
 //   2. a refund already stamped with this request id is REUSED, never doubled;
 //   3. a new one carries an idempotency key per (request, attempt), so two
-//      concurrent clicks on one attempt get the same Stripe refund.
+//      concurrent clicks on one attempt get the same Stripe refund; the
+//      attempt counts EVERY refund on the intent stamped with this request,
+//      across all pages, so a dead attempt always earns a new key;
+//   4. the request becomes 'refunded' only when Stripe reports 'succeeded'. A
+//      pending refund leaves it 'approved' with the refund id recorded, and
+//      settleApprovedRefund (stripe-webhook) completes it or, on failure or
+//      cancel, moves it to 'failed', back in the queue (Codex P1 on #2689).
 
 import { MAKE_WHOLE_METADATA_KEY } from './orderSnapshot.ts';
 import { resolveRefundLedgerAction } from './refundLifecycle.ts';
 import {
   APPROVED_REFUND_METADATA_TYPE,
+  failRefundRequest,
   REFUND_REQUEST_METADATA_KEY,
   type RefundQueueDeps,
 } from './refundRequests.ts';
@@ -24,12 +31,25 @@ export interface ApprovalRefund {
   amount: number;
   status: string | null;
   metadata?: Record<string, string> | null;
+  failure_reason?: string | null;
 }
+
+export interface RefundListPage {
+  data: ApprovalRefund[];
+  has_more: boolean;
+}
+
+export type RefundPageLoader = (params: {
+  payment_intent: string;
+  limit: number;
+  starting_after?: string;
+}) => Promise<RefundListPage>;
 
 export interface RefundApprovalDeps {
   rpc: RefundQueueDeps['rpc'];
   alertAdmin: RefundQueueDeps['alertAdmin'];
-  listRefunds: (paymentIntentId: string) => Promise<ApprovalRefund[]>;
+  /** One page of `stripe.refunds.list({ payment_intent })`. */
+  listRefundsPage: RefundPageLoader;
   createRefund: (
     params: {
       payment_intent: string;
@@ -42,6 +62,7 @@ export interface RefundApprovalDeps {
 
 export type ApprovalResult =
   | { status: 200; body: { outcome: 'refunded' | 'already_refunded'; refund_id: string | null } }
+  | { status: 202; body: { outcome: 'pending'; refund_id: string } }
   | { status: 404 | 409 | 500 | 502; body: { error: string } };
 
 interface ClaimRow {
@@ -71,6 +92,29 @@ export function findRequestRefund<T extends ApprovalRefund>(
 /** Attempts so far for this request only (a dead attempt earns a new key). */
 export function requestRefundAttempt(refunds: ApprovalRefund[], requestId: string): number {
   return refunds.filter(r => r.metadata?.[REFUND_REQUEST_METADATA_KEY] === requestId).length;
+}
+
+/**
+ * Every refund on the intent (Codex P2 on #2689): the reuse and attempt
+ * decisions must see a request's earlier refunds even past the first 100.
+ */
+export async function listAllIntentRefunds(
+  listPage: RefundPageLoader,
+  paymentIntentId: string,
+  pageSize = 100
+): Promise<ApprovalRefund[]> {
+  const all: ApprovalRefund[] = [];
+  let startingAfter: string | undefined;
+  for (;;) {
+    const page = await listPage({
+      payment_intent: paymentIntentId,
+      limit: pageSize,
+      ...(startingAfter ? { starting_after: startingAfter } : {}),
+    });
+    all.push(...page.data);
+    if (!page.has_more || page.data.length === 0) return all;
+    startingAfter = page.data[page.data.length - 1].id;
+  }
 }
 
 export async function approveRefundRequest(
@@ -111,7 +155,7 @@ export async function approveRefundRequest(
   const intentId = claim.stripe_payment_intent_id;
   let refund: ApprovalRefund;
   try {
-    const prior = await deps.listRefunds(intentId);
+    const prior = await listAllIntentRefunds(deps.listRefundsPage, intentId);
     refund =
       findRequestRefund(prior, input.requestId) ??
       (await deps.createRefund(
@@ -148,9 +192,30 @@ export async function approveRefundRequest(
 
   const ledgerAction = resolveRefundLedgerAction(refund.status);
   if (ledgerAction === 'fail' || ledgerAction === 'cancel') {
-    // Leave the request approved: the next approval ignores this dead refund
-    // and creates a fresh attempt.
+    // Dead on arrival: back to the queue at once; the next approval ignores
+    // this refund and takes a new attempt.
+    await failRefundRequest(deps, input.requestId, refund);
     return { status: 502, body: { error: `stripe_refund_${refund.status}` } };
+  }
+
+  if (ledgerAction === 'defer') {
+    // In flight (pending / requires_action). NOT refunded until Stripe says
+    // so: record the refund id and let refund.updated settle the request.
+    const { data: noted, error: noteError } = await deps.rpc('note_refund_request_in_flight', {
+      p_request_id: input.requestId,
+      p_stripe_refund_id: refund.id,
+    });
+    if (noteError || noted !== true) {
+      await deps.alertAdmin(
+        'Approved refund is in flight but the request did not record it',
+        `<p>Stripe refund <code>${refund.id}</code> (${refund.status}) was issued for
+         request <code>${input.requestId}</code>, but recording it failed:</p>
+         <pre>${noteError?.message ?? 'no row updated'}</pre>
+         <p>Approving it again reuses this refund.</p>`,
+        { source: SOURCE, dedupeKey: `approved-refund-in-flight-unrecorded-${refund.id}` }
+      );
+    }
+    return { status: 202, body: { outcome: 'pending', refund_id: refund.id } };
   }
 
   const { data: completed, error: completeError } = await deps.rpc('complete_refund_request', {
@@ -168,27 +233,24 @@ export async function approveRefundRequest(
     );
   }
 
-  // Book a succeeded refund now; a pending one is booked by refund.updated
-  // (kind read from MAKE_WHOLE_METADATA_KEY). The ledger is keyed on the
-  // refund id, so this and the webhook's sweep are the same upsert.
-  if (ledgerAction === 'book') {
-    const { error: ledgerError } = await deps.rpc('record_order_refund_cents', {
-      p_payment_intent_id: intentId,
-      p_refund_id: refund.id,
-      p_amount_cents: refund.amount,
-      p_kind: 'make_whole',
-    });
-    if (ledgerError) {
-      await deps.alertAdmin(
-        'Approved refund not recorded on the order',
-        `<p>Refund <code>${refund.id}</code> (payment intent <code>${intentId}</code>)
-         could not be written to <code>stripe_order_refunds</code>:</p>
-         <pre>${ledgerError.message}</pre>
-         <p>The charge.refunded webhook books it again; if the order still reads as
-         collected in full, set <code>make_whole_refunded_cents</code> by hand.</p>`,
-        { source: SOURCE, dedupeKey: `approved-refund-ledger-${refund.id}` }
-      );
-    }
+  // Book the succeeded refund now; the ledger is keyed on the refund id, so
+  // this and the webhook's sweep are the same upsert.
+  const { error: ledgerError } = await deps.rpc('record_order_refund_cents', {
+    p_payment_intent_id: intentId,
+    p_refund_id: refund.id,
+    p_amount_cents: refund.amount,
+    p_kind: 'make_whole',
+  });
+  if (ledgerError) {
+    await deps.alertAdmin(
+      'Approved refund not recorded on the order',
+      `<p>Refund <code>${refund.id}</code> (payment intent <code>${intentId}</code>)
+       could not be written to <code>stripe_order_refunds</code>:</p>
+       <pre>${ledgerError.message}</pre>
+       <p>The charge.refunded webhook books it again; if the order still reads as
+       collected in full, set <code>make_whole_refunded_cents</code> by hand.</p>`,
+      { source: SOURCE, dedupeKey: `approved-refund-ledger-${refund.id}` }
+    );
   }
 
   return { status: 200, body: { outcome: 'refunded', refund_id: refund.id } };

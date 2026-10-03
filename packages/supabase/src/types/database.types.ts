@@ -5532,6 +5532,7 @@ export type Database = {
           detail: Json
           entry_payment_link_id: string | null
           id: string
+          last_failure: string | null
           kind: string
           reason: string
           refunded_at: string | null
@@ -5550,6 +5551,7 @@ export type Database = {
           detail?: Json
           entry_payment_link_id?: string | null
           id?: string
+          last_failure?: string | null
           kind: string
           reason: string
           refunded_at?: string | null
@@ -5568,6 +5570,7 @@ export type Database = {
           detail?: Json
           entry_payment_link_id?: string | null
           id?: string
+          last_failure?: string | null
           kind?: string
           reason?: string
           refunded_at?: string | null

@@ -138,6 +138,23 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     }
   });
 
+  it('settles an approved queued refund on every refund lifecycle event (Codex P1, #2689)', () => {
+    // The behaviour lives in _shared/refundRequests.ts settleApprovedRefund
+    // (vitest in refundApproval.test.ts); this pins that each handler calls it.
+    for (const handler of [
+      'async function handleRefundUpdated',
+      'async function handleTerminalRefund',
+      'async function handleChargeRefunded',
+    ]) {
+      const start = webhookSource.indexOf(handler);
+      expect(start).toBeGreaterThan(-1);
+      const end = webhookSource.indexOf('\nasync function', start + 1);
+      expect(webhookSource.slice(start, end)).toContain(
+        'await settleApprovedRefund(refundQueueDeps, refund);'
+      );
+    }
+  });
+
   it('FAILS CLOSED: does not stamp refunded when the amount did not persist', () => {
     const start = webhookSource.indexOf('async function handleChargeRefunded');
     const end = webhookSource.indexOf('\nasync function', start + 1);

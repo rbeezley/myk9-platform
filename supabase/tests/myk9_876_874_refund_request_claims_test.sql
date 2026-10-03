@@ -25,6 +25,13 @@
 --     with the same refund is true, another refund id is false), and a later
 --     approval is 'already_refunded'. An abandoned-cart request whose cart is
 --     no longer refund_pending is refused as 'fulfilled' and stays pending.
+--   * ASYNC LIFECYCLE (Codex P1 on #2689): an in-flight refund is noted on an
+--     'approved' request without completing it; completing with a different
+--     refund is refused; a failure of an OLD refund is stale; a failure of the
+--     held refund moves the request to 'failed' (refund id cleared, reason
+--     kept) and a new approval claims it again; a refund that succeeded and
+--     later failed reopens a 'refunded' request too; the shape CHECK refuses
+--     'refunded' without a refund id.
 --
 -- Two concurrent sessions cannot be driven from one psql script; the row
 -- locks (FOR UPDATE on the cart and the request) serialise them, and each
@@ -116,7 +123,9 @@ BEGIN
     'public.claim_abandoned_cart_refund(uuid, text, text, integer, jsonb)',
     'public.request_refund_approval(text, text, text, integer, text, jsonb, uuid, uuid, uuid)',
     'public.claim_refund_request_approval(uuid, uuid)',
-    'public.complete_refund_request(uuid, text)'
+    'public.complete_refund_request(uuid, text)',
+    'public.note_refund_request_in_flight(uuid, text)',
+    'public.fail_refund_request(uuid, text, text)'
   ] LOOP
     IF has_function_privilege('anon', v_fn, 'EXECUTE')
        OR has_function_privilege('authenticated', v_fn, 'EXECUTE') THEN
@@ -354,6 +363,77 @@ BEGIN
   RAISE NOTICE 'PASS approval refuses a session that was fulfilled';
 END;
 $$;
+
+-- ---------------------------------------------------------------------------
+-- 8. Asynchronous refunds stay retryable until Stripe reports success
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_id uuid;
+  v_outcome text;
+  v_row public.refund_requests%ROWTYPE;
+BEGIN
+  SELECT r.id INTO v_id FROM public.refund_requests r
+   WHERE r.stripe_checkout_session_id = 'cs_876_overflow' AND r.kind = 'cart_overflow';
+
+  SELECT c.outcome INTO v_outcome FROM public.claim_refund_request_approval(
+    v_id, '00000000-0000-0000-0000-000000876102') AS c;
+  IF v_outcome <> 'claimed' THEN
+    RAISE EXCEPTION 'FIXTURE overflow approval was %', v_outcome;
+  END IF;
+
+  IF public.note_refund_request_in_flight(v_id, 're_876_p1') IS NOT TRUE THEN
+    RAISE EXCEPTION 'FAIL an in-flight refund was not noted';
+  END IF;
+  SELECT * INTO v_row FROM public.refund_requests WHERE id = v_id;
+  IF v_row.status <> 'approved' OR v_row.stripe_refund_id <> 're_876_p1'
+     OR v_row.refunded_at IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL an in-flight refund marked the request refunded';
+  END IF;
+
+  IF public.complete_refund_request(v_id, 're_876_wrong') IS NOT FALSE THEN
+    RAISE EXCEPTION 'FAIL a different refund completed a request waiting on re_876_p1';
+  END IF;
+  IF public.fail_refund_request(v_id, 're_876_old', 'failed: stale') IS NOT FALSE THEN
+    RAISE EXCEPTION 'FAIL a failure of another refund reopened the request';
+  END IF;
+
+  IF public.fail_refund_request(v_id, 're_876_p1', 'failed: expired_or_canceled_card')
+     IS NOT TRUE THEN
+    RAISE EXCEPTION 'FAIL the held refund''s failure did not reopen the request';
+  END IF;
+  SELECT * INTO v_row FROM public.refund_requests WHERE id = v_id;
+  IF v_row.status <> 'failed' OR v_row.stripe_refund_id IS NOT NULL
+     OR v_row.last_failure <> 'failed: expired_or_canceled_card' THEN
+    RAISE EXCEPTION 'FAIL a failed refund did not leave the request failed with its reason';
+  END IF;
+
+  SELECT c.outcome INTO v_outcome FROM public.claim_refund_request_approval(
+    v_id, '00000000-0000-0000-0000-000000876102') AS c;
+  IF v_outcome <> 'claimed'
+     OR (SELECT status FROM public.refund_requests WHERE id = v_id) <> 'approved' THEN
+    RAISE EXCEPTION 'FAIL a failed request could not be approved again (%)', v_outcome;
+  END IF;
+
+  IF public.complete_refund_request(v_id, 're_876_p2') IS NOT TRUE THEN
+    RAISE EXCEPTION 'FAIL the retried refund did not complete';
+  END IF;
+  -- Two statements: a subquery in the same expression would read the snapshot
+  -- taken before the function's UPDATE.
+  IF public.fail_refund_request(v_id, 're_876_p2', 'failed: later') IS NOT TRUE THEN
+    RAISE EXCEPTION 'FAIL a refund that failed after succeeding was refused';
+  END IF;
+  IF (SELECT status FROM public.refund_requests WHERE id = v_id) <> 'failed' THEN
+    RAISE EXCEPTION 'FAIL a refund that failed after succeeding did not reopen the request';
+  END IF;
+  RAISE NOTICE 'PASS asynchronous refunds complete only on success and reopen on failure';
+END;
+$$;
+
+SELECT pg_temp.expect_sqlstate(
+  $q$UPDATE public.refund_requests SET status = 'refunded', refunded_at = now()
+     WHERE stripe_checkout_session_id = 'cs_876_overflow'$q$,
+  '23514', 'the shape CHECK refuses refunded without a refund id');
 RESET ROLE;
 
 ROLLBACK;

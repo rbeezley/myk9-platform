@@ -250,9 +250,16 @@ export async function installSecretaryFixture(page: Page): Promise<void> {
       role_name?: string;
       scope_type?: string;
       scope_id?: string | null;
+      is_active?: boolean;
     }>;
+    // An ended appointment still comes back (is_active false); the app denies it,
+    // so building the show under it lands the secretary on the public page.
     const scope = roles.find(
-      r => r.role_name === 'secretary' && r.scope_type === 'club' && r.scope_id
+      r =>
+        r.role_name === 'secretary' &&
+        r.scope_type === 'club' &&
+        r.scope_id &&
+        r.is_active !== false
     );
     if (scope?.scope_id) club.resolve(scope.scope_id);
   });

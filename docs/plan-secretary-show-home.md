@@ -100,6 +100,15 @@ Acceptance: assertion-first tests for the day-default rule and quiet mode; a ren
 
 Acceptance: every Setup capability is reachable from the home (a checklist test enumerating Setup → Trials and Setup → Classes actions against their new homes); the bulk actions keep their existing tests; walk.
 
+**As built (MYK9-956):**
+
+- **"Select classes" is Class Management in place.** `?select=classes` mounts `SetupClassesSection`, the same `ClassesTab` Setup uses, so the bulk bar, the one-trial rule and per-row judge assignment are unchanged. "Done" drops the mode and its params.
+  - There is no bulk "assign judge". Judges were always assigned per row, and that picker comes along.
+- **Trial headings** get "Add Classes" plus a ⋯ menu (Edit Trial, Trial details, Delete Trial). The menu is `useTrialRowActions`, extracted from `TrialsTab`, which now uses it too.
+- **The class panel** gets "Edit class" and "Delete class" through Setup's own resolve-then-open flow (`useClassRowActions` + `SetupClassDialogs`).
+- **The home header** gets "Add Trial" and "Select classes".
+- **Not carried:** Setup → Trials' CSV export. Exporting classes is still in the bulk bar.
+
 ### Phase 4 — Delete Show Day and Setup tabs
 
 - `SHOW_TABS` → Overview · Entries · Results · Reports (render test asserting exactly four, red on `main`).

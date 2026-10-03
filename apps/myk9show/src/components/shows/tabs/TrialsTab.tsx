@@ -1,9 +1,10 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '@/components/ui/card';
 import { Calendar, Plus } from 'lucide-react';
 import { useViewPreference } from '@/hooks/useViewPreference';
 import { defaultListView } from '@/utils/defaultListView';
+import { useTrialRowActions } from './useTrialRowActions';
 import {
   ListEmptyState,
   ListFilterBar,
@@ -20,15 +21,7 @@ import { StatusBadge, getStatusDescriptor } from '@/components/status';
 import { usePageExportAction } from '@/features/actions/pageEditTarget';
 import { getAddTrialsHref } from '@/pages/secretary/ShowCreationWizard/addTrialsHref';
 import { exportRowsCsv } from '@/utils/downloadCsv';
-import { toast } from 'sonner';
-import { hydrateThenResolve } from '@/utils/hydrateThenResolve';
-import { replicatedTrialsTable } from '@/services/replication';
-import { useShowStore } from '@/store/showStore';
-import { useTrialStore } from '@/store/trialStore';
-import type { SyncableTrial } from '@/store/trial-store-types';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
-import { TrialManagementDialogs } from '@/components/trials/TrialDetail/TrialManagementDialogs';
-import { SetupRowActionsMenu } from './SetupRowActionsMenu';
 import {
   activeTrialsTabViewId,
   buildTrialsTabViews,
@@ -169,64 +162,8 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
     defaultListView(canManageThisShow)
   );
   const viewReady = manageScope.status !== 'resolving' || hasStoredView;
-  // Row Edit / Delete (MYK9-900) open the same panel and dialog the trial's own page uses.
-  // The trial is a SNAPSHOT taken when the action starts: a successful delete removes it from
-  // the store while the dialog is still finishing, and the dialog must not vanish or re-resolve
-  // underneath itself.
-  const [pendingTrialAction, setPendingTrialAction] = useState<{
-    trial: SyncableTrial;
-    action: 'edit' | 'delete';
-    /** The request that started this action; a stale completion must not clear a newer one. */
-    requestId: number;
-  } | null>(null);
-  const parentShow = useShowStore(state => state.shows.find(show => show.id === showId));
-  // The edit/delete actions write through the trial STORE, which is not always the source of
-  // these rows (a cold store is fed by the server read instead). Hydrate the store first, and
-  // never open a dialog for a trial the store cannot resolve.
-  const [hydratingTrialId, setHydratingTrialId] = useState<string | null>(null);
-  // ONE action in flight: every row menu is locked while one resolves, and a result that is not
-  // from the latest request is ignored.
-  const latestActionRequest = useRef(0);
-  const openTrialAction = async (trialId: string, action: 'edit' | 'delete') => {
-    const request = ++latestActionRequest.current;
-    setHydratingTrialId(trialId);
-    try {
-      // The store first; if the trial is not there, sync this show's trials into the replica and
-      // reload the store (offline or a failed sync falls through to the error below).
-      const trial = await hydrateThenResolve({
-        readStore: () => useTrialStore.getState().trials.find(t => t.id === trialId),
-        sync: () => replicatedTrialsTable.sync(showId, { forceFullSync: true }),
-        reload: () => useTrialStore.getState().loadTrials(),
-      });
-      if (request !== latestActionRequest.current) return;
-      if (!trial) {
-        toast.error("We couldn't load this trial. Please refresh and try again.");
-        return;
-      }
-      setPendingTrialAction({ trial, action, requestId: request });
-    } catch {
-      // Any unexpected failure reads the same as "not found": say so, never fail silently.
-      if (request === latestActionRequest.current) {
-        toast.error("We couldn't load this trial. Please refresh and try again.");
-      }
-    } finally {
-      if (request === latestActionRequest.current) setHydratingTrialId(null);
-    }
-  };
-  // Tied to the request that started the action: a late completion from an earlier one must not
-  // clear a newer selection (and discard its edits).
-  const finishTrialAction = (requestId: number) =>
-    setPendingTrialAction(current => (current?.requestId === requestId ? null : current));
-  const trialRowMenu = (trialId: string, label: string) => (
-    <SetupRowActionsMenu
-      subject="Trial"
-      rowLabel={label}
-      busy={hydratingTrialId === trialId}
-      locked={hydratingTrialId !== null || pendingTrialAction !== null}
-      onEdit={() => void openTrialAction(trialId, 'edit')}
-      onDelete={() => void openTrialAction(trialId, 'delete')}
-    />
-  );
+  // Row Edit / Delete (MYK9-900): shared with the show home's trial headings (MYK9-956).
+  const { trialRowMenu, trialDialogs } = useTrialRowActions(showId, canManageThisShow);
   const trialColumns = useMemo<ColumnDef<TrialRow, unknown>[]>(
     () =>
       canManageThisShow
@@ -242,8 +179,8 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
             },
           ]
         : baseTrialColumns,
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- trialRowMenu only closes over stable refs/setters
-    [canManageThisShow, hydratingTrialId, pendingTrialAction]
+    // `trialRowMenu` is rebuilt whenever its busy / locked state changes, so the column follows it.
+    [canManageThisShow, trialRowMenu]
   );
 
   const trialViews = useMemo(() => buildTrialsTabViews(trials, trialStats), [trials, trialStats]);
@@ -482,18 +419,7 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           onRowClick={row => navigate(`/shows/${showId}/trials/${row.id}`)}
         />
       )}
-      {canManageThisShow && pendingTrialAction && (
-        // Mounted per selection with the trial and action together (and keyed by trial), so the
-        // edit form initializes from THIS trial rather than opening against a late-arriving one.
-        <TrialManagementDialogs
-          key={pendingTrialAction.requestId}
-          currentTrial={pendingTrialAction.trial}
-          parentShow={parentShow}
-          initialAction={pendingTrialAction.action}
-          onActionFinished={() => finishTrialAction(pendingTrialAction.requestId)}
-          onTrialDeleted={() => finishTrialAction(pendingTrialAction.requestId)}
-        />
-      )}
+      {trialDialogs}
     </div>
   );
 }

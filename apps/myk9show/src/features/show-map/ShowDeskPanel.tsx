@@ -20,6 +20,7 @@ import { useShowMapWorkbenchState } from './useShowMapWorkbenchState';
 import type { ShowDeskActionableTone } from './showDeskActionable';
 import type { BuildShowMapTreeInput } from './showMapTypes';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
+import { ShowHomeSetupLinks } from './ShowHomeSetupLinks';
 import { getTrialRegistry } from '@/features/registries';
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 
@@ -189,13 +190,16 @@ export default function ShowDeskPanel({
         kicker={surface === 'home' ? 'Before, during and after the show' : 'During the show'}
         actions={
           tools && tools.length > 0 ? (
-            <ShowDeskToolsSheet
-              showId={show.id}
-              tools={tools}
-              {...(actionableCount !== undefined && { actionableCount })}
-              {...(actionableTone !== undefined && { actionableTone })}
-              {...(actionableIncomplete !== undefined && { actionableIncomplete })}
-            />
+            <div className="flex flex-wrap items-center gap-2">
+              {surface === 'home' && canManageShow && <ShowHomeSetupLinks showId={show.id} />}
+              <ShowDeskToolsSheet
+                showId={show.id}
+                tools={tools}
+                {...(actionableCount !== undefined && { actionableCount })}
+                {...(actionableTone !== undefined && { actionableTone })}
+                {...(actionableIncomplete !== undefined && { actionableIncomplete })}
+              />
+            </div>
           ) : undefined
         }
       />

@@ -9,6 +9,7 @@ import { CockpitActionLink } from './CockpitActionLink';
 import { ClassChecklistSection } from './ClassChecklistSection';
 import { ClassStatusControl, ExpectedStartControl } from './ClassOperationalControls';
 import { AnnounceDelayButton } from './AnnounceDelayButton';
+import type { ReactNode } from 'react';
 import { getStartDelayMinutes, scheduledClockValue } from './cockpitTime';
 import { formatTrialIdentity } from './secretaryCockpitModel';
 import type {
@@ -28,6 +29,7 @@ export function SecretaryCockpitFocusedClass({
   canManageShow,
   onCommand,
   runOrder,
+  setupActions,
 }: {
   showId: string;
   focused: FocusedClassModel | null;
@@ -39,6 +41,8 @@ export function SecretaryCockpitFocusedClass({
   onCommand: (commandId: string) => void;
   /** Run-order auto-sort for the focused class (F29b phase 2a). */
   runOrder?: SecretaryCockpitRunOrderControls | undefined;
+  /** Edit class / Delete class; the cockpit owns their dialogs (MYK9-956). */
+  setupActions?: ReactNode;
 }) {
   if (!focused || !sourceClass || !trial) {
     return (
@@ -70,6 +74,7 @@ export function SecretaryCockpitFocusedClass({
         <div className="mt-2 flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-2xl font-semibold tracking-tight">{focused.name}</h2>
+            {canManageShow && setupActions && <div className="mt-2">{setupActions}</div>}
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <ClassStatusControl
                 classId={focused.id}

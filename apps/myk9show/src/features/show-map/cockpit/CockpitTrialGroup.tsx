@@ -40,6 +40,7 @@ export function CockpitTrialGroup({
   onCommand,
   inlineFocusedContent,
   entryBreakdownByClassId,
+  trialActions,
 }: {
   group: TrialScheduleGroupModel;
   showId: string;
@@ -52,6 +53,8 @@ export function CockpitTrialGroup({
   onCommand: (commandId: string) => void;
   inlineFocusedContent?: ReactNode;
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
+  /** Add Classes and the trial's Edit / Delete menu (MYK9-956), for managers. */
+  trialActions?: ReactNode;
 }) {
   const [open, setOpen] = useState(group.defaultOpen);
   const breakdownFor = (classId: string) =>
@@ -74,34 +77,39 @@ export function CockpitTrialGroup({
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <div className="overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm">
-        <CollapsibleTrigger
-          id={getCockpitAnchorElementId(group.trialId)}
-          aria-label={`${open ? 'Collapse' : 'Expand'} ${group.label}`}
-          className="flex-wrap gap-x-3 gap-y-1.5 border-b px-4 py-3 text-left hover:no-underline sm:flex-nowrap"
-        >
-          {/* Wrapped: the shared trigger rotates a direct-child svg 180deg when open. */}
-          <span aria-hidden="true" className="shrink-0">
-            <ChevronDown
-              className={cn(
-                'h-4 w-4 text-muted-foreground transition-transform',
-                !open && '-rotate-90'
-              )}
-            />
-          </span>
-          <div className="min-w-0 flex-1 basis-[calc(100%-1.75rem)] sm:basis-0">
-            <div className="font-semibold">{group.label}</div>
-            <div className="text-xs font-normal text-muted-foreground">
-              {group.summary.inProgressCount} in progress
-              {group.summary.attentionCount > 0
-                ? ` · ${plural(group.summary.attentionCount, 'attention item', 'attention items')}`
-                : ''}
-              {group.summary.containsFocusedClass ? ' · Focused' : ''}
+        <div className="flex flex-wrap items-center border-b sm:flex-nowrap">
+          <CollapsibleTrigger
+            id={getCockpitAnchorElementId(group.trialId)}
+            aria-label={`${open ? 'Collapse' : 'Expand'} ${group.label}`}
+            className="min-w-0 flex-1 flex-wrap gap-x-3 gap-y-1.5 px-4 py-3 text-left hover:no-underline sm:flex-nowrap"
+          >
+            {/* Wrapped: the shared trigger rotates a direct-child svg 180deg when open. */}
+            <span aria-hidden="true" className="shrink-0">
+              <ChevronDown
+                className={cn(
+                  'h-4 w-4 text-muted-foreground transition-transform',
+                  !open && '-rotate-90'
+                )}
+              />
+            </span>
+            <div className="min-w-0 flex-1 basis-[calc(100%-1.75rem)] sm:basis-0">
+              <div className="font-semibold">{group.label}</div>
+              <div className="text-xs font-normal text-muted-foreground">
+                {group.summary.inProgressCount} in progress
+                {group.summary.attentionCount > 0
+                  ? ` · ${plural(group.summary.attentionCount, 'attention item', 'attention items')}`
+                  : ''}
+                {group.summary.containsFocusedClass ? ' · Focused' : ''}
+              </div>
             </div>
-          </div>
-          <span className="ml-7 shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground sm:ml-0">
-            {pill}
-          </span>
-        </CollapsibleTrigger>
+            <span className="ml-7 shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground sm:ml-0">
+              {pill}
+            </span>
+          </CollapsibleTrigger>
+          {trialActions && (
+            <div className="flex items-center gap-1 px-2 pb-2 sm:pb-0">{trialActions}</div>
+          )}
+        </div>
         <CollapsibleContent className="[&>div]:p-0">
           <div className="divide-y">
             {group.classes.map((classItem, classIndex) => {

@@ -169,6 +169,20 @@ describe.each(['cards', 'table'])('TrialsTab row actions (%s view)', view => {
     expect(screen.queryByRole('button', { name: /^Trial actions for/ })).not.toBeInTheDocument();
   });
 
+  // Codex review of #2691: extracting useTrialRowActions rebuilt the menu each
+  // render, so the table's actions column was replaced and an unrelated parent
+  // render (a live update) closed an open menu.
+  it('keeps an open row menu open across an unrelated re-render', async () => {
+    const { user, rerender } = renderTab();
+
+    await user.click(screen.getByRole('button', { name: 'Trial actions for Sunday Trial 2' }));
+    await screen.findByRole('menuitem', { name: 'Edit Trial' });
+
+    rerender(<TrialsTab trials={trials} showId="s1" trialStats={stats} />);
+
+    expect(screen.getByRole('menuitem', { name: 'Edit Trial' })).toBeInTheDocument();
+  });
+
   it('lists Edit first on the trial row menu, Delete last (MYK9-928)', async () => {
     const { user } = renderTab();
 

@@ -26,6 +26,7 @@ export function SecretaryCockpitSchedule({
   onCommand,
   inlineFocusedContent,
   entryBreakdownByClassId,
+  renderTrialActions,
 }: {
   showId: string;
   model: SecretaryCockpitModel;
@@ -40,6 +41,7 @@ export function SecretaryCockpitSchedule({
   inlineFocusedContent?: ReactNode;
   /** Entered/pending per class (MYK9-943); absent until entries are read. */
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
+  renderTrialActions?: ((trialId: string, label: string) => ReactNode) | undefined;
 }) {
   const classById = new Map(sourceClasses.map(classItem => [classItem.id, classItem]));
   const trialById = new Map(sourceTrials.map(trial => [trial.id, trial]));
@@ -112,6 +114,7 @@ export function SecretaryCockpitSchedule({
             onCommand={onCommand}
             inlineFocusedContent={inlineFocusedContent}
             entryBreakdownByClassId={entryBreakdownByClassId}
+            trialActions={renderTrialActions?.(group.trialId, group.label)}
           />
         ))}
       </section>

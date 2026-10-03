@@ -4,14 +4,13 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { TrialsTab } from '@/components/shows/tabs/TrialsTab';
-import { ClassesTab } from '@/components/shows/tabs/ClassesTab';
+import { SetupClassesSection } from '@/components/shows/tabs/SetupClassesSection';
 import { EntryDataUnavailablePanel } from '@/components/shows/ShowDetails/EntryDataUnavailablePanel';
 import { useShowManagementOutlet } from '@/components/shows/ShowDetails/showManagementOutlet';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import {
   SETUP_CLASSES_PARAMS,
   SETUP_SECTIONS,
-  resolveSetupClassesView,
   resolveSetupSection,
   type SetupSectionId,
 } from '@/pages/secretary/showSetupSections';
@@ -72,22 +71,6 @@ export function ShowWorkbenchSetupPage() {
     );
   };
 
-  // The Classes section keeps its view and trial in the URL, so the address bar, back / forward
-  // and a shared link always agree with what is on screen.
-  const setClassesParam = (key: 'view' | 'trialId', value: string | null) => {
-    setSearchParams(
-      previous => {
-        const params = new URLSearchParams(previous);
-        if (value === null || (key === 'view' && value === 'all')) params.delete(key);
-        else params.set(key, value);
-        // Landing on a deep-linked class is one-shot: moving on drops the focus.
-        params.delete('focus');
-        return params;
-      },
-      { replace: true, preventScrollReset: true }
-    );
-  };
-
   return (
     <div className="mt-4 space-y-4">
       <ShowDeskReturnLink showId={show.id} />
@@ -117,22 +100,11 @@ export function ShowWorkbenchSetupPage() {
       ) : section === 'trials' ? (
         <TrialsTab trials={trials} showId={show.id} trialStats={trialStats} />
       ) : section === 'classes' ? (
-        <ClassesTab
-          classes={classes}
+        <SetupClassesSection
           showId={show.id}
-          userHasEntries={hasUserEntries}
-          viewId={resolveSetupClassesView(searchParams.get('view'))}
-          onViewChange={view => setClassesParam('view', view)}
           trials={trials}
-          trialId={searchParams.get('trialId')}
-          onTrialChange={trial => setClassesParam('trialId', trial)}
-          focusClassId={searchParams.get('focus')}
-          hideRing={trials.some(
-            trial =>
-              trial.trialType === 'Scent Work' ||
-              trial.trialType === 'Nosework' ||
-              trial.trialType === 'Scent Detection'
-          )}
+          classes={classes}
+          userHasEntries={hasUserEntries}
         />
       ) : (
         <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>

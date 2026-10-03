@@ -31,7 +31,10 @@ export function useClassRowActions(
   // from the latest request is ignored, so a slow earlier request can never replace the dialog
   // the user is editing in.
   const latestActionRequest = useRef(0);
-  const openClassAction = async (cls: ClassInfo, action: SetupClassAction['action']) => {
+  const openClassAction = async (
+    cls: Pick<ClassInfo, 'id' | 'trialId'>,
+    action: SetupClassAction['action']
+  ) => {
     const request = ++latestActionRequest.current;
     setHydratingClassId(cls.id);
     try {
@@ -79,5 +82,5 @@ export function useClassRowActions(
     );
   };
 
-  return { pendingAction, setPendingAction, hydratingClassId, classRowMenu };
+  return { pendingAction, setPendingAction, hydratingClassId, classRowMenu, openClassAction };
 }

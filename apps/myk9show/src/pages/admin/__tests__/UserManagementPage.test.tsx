@@ -51,9 +51,6 @@ vi.mock('@/components/admin/users/UserTable', () => ({
   ),
 }));
 
-vi.mock('@/components/admin/users/UserFilters', () => ({
-  UserFilters: () => <div data-testid="user-filters">Filters</div>,
-}));
 
 // This page suite is about the page (filters, table, selection), so the dialog
 // is stubbed. Be aware of what that costs: this mock is why MYK9-131 shipped —

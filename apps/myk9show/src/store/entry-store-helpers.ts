@@ -55,7 +55,7 @@ export function replicatedToEntry(replicated: ReplicatedEntry): SyncableShowEntr
     status,
     // The show-day axis (in-ring / pulled / completed) lives on its own column;
     // dropping it here made every exhibitor row read "waiting" (MYK9-992).
-    ...(isCheckInStatus(checkIn) ? { checkInStatus: checkIn } : {}),
+    ...(checkIn && isCheckInStatus(checkIn) ? { checkInStatus: checkIn } : {}),
     ...(competitionData ? { competitionData } : {}),
     registrationData: {
       submittedAt: replicated.submittedAt || new Date().toISOString(),

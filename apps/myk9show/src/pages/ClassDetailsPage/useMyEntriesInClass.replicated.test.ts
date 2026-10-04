@@ -34,7 +34,9 @@ function queueFor(row: ReplicatedEntry) {
 }
 
 describe('useMyEntriesInClass through the replication adapter', () => {
-  beforeEach(() => useEntryStore.setState({ entries: [] }));
+  beforeEach(() => {
+    useEntryStore.setState({ entries: [] });
+  });
 
   it('reads check-in in-ring, pulled and completed from the replicated row', () => {
     expect(queueFor(replicated({ checkInStatus: 'in-ring' }))).toEqual({ kind: 'in-ring' });

@@ -5,6 +5,8 @@ export interface ClassData {
   trialDate: string;
   trialNumber: string;
   classOrder: string;
+  /** `classes.revised_expected_start` (timestamptz) when the class was re-timed. */
+  revisedExpectedStart?: string | null | undefined;
   status: 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled' | 'Upcoming';
   is_scoring_finalized?: boolean | null | undefined;
   scored_count?: number | null | undefined;

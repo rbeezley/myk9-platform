@@ -239,6 +239,7 @@ export const mapDatabaseToClass = (dbClass: DbClassWithRelations): SyncableClass
     trialNumber: trial?.trial_number || 'TBD',
     classOrder: dbClass.start_time ? extractClassOrder(dbClass.start_time) : '1',
     startTime: formatClassStartTime(dbClass.start_time),
+    revisedExpectedStart: dbClass.revised_expected_start ?? null,
     status: mapClassStatus(dbClass.status),
     is_scoring_finalized: dbClass.is_scoring_finalized ?? null,
     scored_count: dbClass.scored_count ?? null,

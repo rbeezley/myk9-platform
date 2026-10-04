@@ -46,6 +46,9 @@ import { useClassEffectiveSettings } from '@/hooks/queries/useShowSettingsDataba
 // Utilities
 import { msToDisplay } from '@/lib/timeUtils';
 import { formatRingLabel } from '@/utils/ringLabel';
+import { buildFullClassLabel } from '@/features/_shared/classLabel';
+import { getTrialTimezone } from '@/features/registries';
+import { secretaryClassScheduledLabel } from './SecretaryClassDashboard.header';
 import { StatusBadge } from '@/components/status';
 import { normalizeSecretaryDashboardClassStatus } from './SecretaryClassDashboard.status';
 
@@ -66,7 +69,7 @@ export interface SecretaryClassDashboardProps {
   classInfo?: {
     name: string;
     judgeAssignment: string;
-    scheduledTime: Date;
+    scheduledTime: string;
     ring: string;
     status: 'pending' | 'in-progress' | 'completed' | 'cancelled';
   };
@@ -171,12 +174,17 @@ export function SecretaryClassDashboard({
     });
   }, [dbCount, localCount]);
 
+  // Element/level shown in the header come from the class row; classConfig
+  // only feeds the scoring UI and is a placeholder when no config is passed.
+  const elementDisplay = currentClass?.element || classConfig.element;
+  const levelDisplay = currentClass?.level || classConfig.level;
+
   const classInfo = propClassInfo || {
     name: currentClass
-      ? `${currentClass.element} ${currentClass.level} ${currentClass.section}`
+      ? buildFullClassLabel(currentClass, '', currentClass.className)
       : 'Interior Novice A',
     judgeAssignment: currentClass?.judge || 'Jane Doe',
-    scheduledTime: currentClass?.startTime ? new Date(currentClass.startTime) : new Date(),
+    scheduledTime: secretaryClassScheduledLabel(currentClass, getTrialTimezone(currentTrial)),
     ring: 'Ring 1',
     status: normalizeSecretaryDashboardClassStatus(currentClass?.status),
   };
@@ -326,7 +334,7 @@ export function SecretaryClassDashboard({
                 <StatusBadge family="class" status={classInfo.status} variant="outline" />
               </div>
               <p className="text-sm font-medium text-muted-foreground mt-2">
-                {classConfig.element} {classConfig.level}
+                {elementDisplay} {levelDisplay}
                 {ringLabel ? ` • ${ringLabel}` : ''} • Judge: {classInfo.judgeAssignment}
               </p>
             </div>
@@ -447,11 +455,11 @@ export function SecretaryClassDashboard({
                 <div className="myk9-show-info-grid">
                   <div className="myk9-show-info-item">
                     <div className="myk9-show-info-label">Element</div>
-                    <div className="myk9-show-info-value">{classConfig.element}</div>
+                    <div className="myk9-show-info-value">{elementDisplay}</div>
                   </div>
                   <div className="myk9-show-info-item">
                     <div className="myk9-show-info-label">Level</div>
-                    <div className="myk9-show-info-value">{classConfig.level}</div>
+                    <div className="myk9-show-info-value">{levelDisplay}</div>
                   </div>
                   <div className="myk9-show-info-item">
                     <div className="myk9-show-info-label">Time Limit</div>
@@ -467,9 +475,7 @@ export function SecretaryClassDashboard({
                   </div>
                   <div className="myk9-show-info-item">
                     <div className="myk9-show-info-label">Scheduled</div>
-                    <div className="myk9-show-info-value">
-                      {classInfo.scheduledTime.toLocaleTimeString()}
-                    </div>
+                    <div className="myk9-show-info-value">{classInfo.scheduledTime}</div>
                   </div>
                 </div>
               </div>

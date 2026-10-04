@@ -45,7 +45,14 @@ import { useClassEffectiveSettings } from '@/hooks/queries/useShowSettingsDataba
 
 // Utilities
 import { msToDisplay } from '@/lib/timeUtils';
-import { formatRingLabel } from '@/utils/ringLabel';
+import { buildFullClassLabel } from '@/features/_shared/classLabel';
+import { getTrialTimezone } from '@/features/registries';
+import { secretaryClassScheduledLabel } from './SecretaryClassDashboard.header';
+import {
+  buildSecretaryClassConfig,
+  formatClassJudge,
+  formatClassTimeLimit,
+} from './SecretaryClassDashboard.config';
 import { StatusBadge } from '@/components/status';
 import { normalizeSecretaryDashboardClassStatus } from './SecretaryClassDashboard.status';
 
@@ -66,8 +73,7 @@ export interface SecretaryClassDashboardProps {
   classInfo?: {
     name: string;
     judgeAssignment: string;
-    scheduledTime: Date;
-    ring: string;
+    scheduledTime: string;
     status: 'pending' | 'in-progress' | 'completed' | 'cancelled';
   };
   entries?: ScentWorkEntry[];
@@ -140,17 +146,10 @@ export function SecretaryClassDashboard({
   const [isCalculatingPlacements, setIsCalculatingPlacements] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
-  // Mock data when not provided via props - wrapped in useMemo
+  // The scoring config comes from the class row (MYK9-984); nothing is a placeholder.
   const classConfig = useMemo(
-    () =>
-      propClassConfig || {
-        element: 'Interior' as const,
-        level: 'Novice' as const,
-        timeLimit: 180000,
-        multiArea: false,
-        warningsEnabled: true,
-      },
-    [propClassConfig]
+    () => propClassConfig ?? buildSecretaryClassConfig(currentClass),
+    [propClassConfig, currentClass]
   );
 
   // Entry sources + merge + transform — owned by useClassScentWorkEntries.
@@ -172,15 +171,11 @@ export function SecretaryClassDashboard({
   }, [dbCount, localCount]);
 
   const classInfo = propClassInfo || {
-    name: currentClass
-      ? `${currentClass.element} ${currentClass.level} ${currentClass.section}`
-      : 'Interior Novice A',
-    judgeAssignment: currentClass?.judge || 'Jane Doe',
-    scheduledTime: currentClass?.startTime ? new Date(currentClass.startTime) : new Date(),
-    ring: 'Ring 1',
+    name: buildFullClassLabel(currentClass ?? {}, '', currentClass?.className),
+    judgeAssignment: currentClass?.judge ?? '',
+    scheduledTime: secretaryClassScheduledLabel(currentClass, getTrialTimezone(currentTrial)),
     status: normalizeSecretaryDashboardClassStatus(currentClass?.status),
   };
-  const ringLabel = formatRingLabel(classInfo.ring);
 
   // Use actual entries from the store, fallback to props if provided
   const entries = useMemo(() => propEntries || actualEntries, [propEntries, actualEntries]);
@@ -326,8 +321,9 @@ export function SecretaryClassDashboard({
                 <StatusBadge family="class" status={classInfo.status} variant="outline" />
               </div>
               <p className="text-sm font-medium text-muted-foreground mt-2">
-                {classConfig.element} {classConfig.level}
-                {ringLabel ? ` • ${ringLabel}` : ''} • Judge: {classInfo.judgeAssignment}
+                {[classConfig.element, classConfig.level].filter(Boolean).join(' ')}
+                {' • '}
+                {formatClassJudge(classInfo.judgeAssignment)}
               </p>
             </div>
           </div>
@@ -456,20 +452,20 @@ export function SecretaryClassDashboard({
                   <div className="myk9-show-info-item">
                     <div className="myk9-show-info-label">Time Limit</div>
                     <div className="myk9-show-info-value">
-                      {Math.floor(classConfig.timeLimit / 60000)}:00
+                      {formatClassTimeLimit(classConfig.timeLimit) ?? 'Not set'}
                     </div>
                   </div>
-                  <div className="myk9-show-info-item">
-                    <div className="myk9-show-info-label">Multi-Area</div>
-                    <div className="myk9-show-info-value">
-                      {classConfig.multiArea ? 'Yes' : 'No'}
+                  {(propClassConfig || currentClass?.numAreas != null) && (
+                    <div className="myk9-show-info-item">
+                      <div className="myk9-show-info-label">Multi-Area</div>
+                      <div className="myk9-show-info-value">
+                        {classConfig.multiArea ? 'Yes' : 'No'}
+                      </div>
                     </div>
-                  </div>
+                  )}
                   <div className="myk9-show-info-item">
                     <div className="myk9-show-info-label">Scheduled</div>
-                    <div className="myk9-show-info-value">
-                      {classInfo.scheduledTime.toLocaleTimeString()}
-                    </div>
+                    <div className="myk9-show-info-value">{classInfo.scheduledTime}</div>
                   </div>
                 </div>
               </div>

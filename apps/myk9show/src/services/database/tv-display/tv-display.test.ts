@@ -1,5 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createChainableQuery, mockSupabase, resetMockSupabase } from '@/test/mocks/supabase';
+import {
+  createChainableQuery,
+  mockPublicSupabase,
+  mockSupabase,
+  resetMockSupabase,
+} from '@/test/mocks/supabase';
 
 import { getTVDisplayData, getTVDisplayResults } from '.';
 
@@ -211,6 +216,11 @@ describe('tv-display database reads', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     resetMockSupabase();
+    // The session-less client serves the same fixture tables; its OWN call log
+    // is what proves a read went out as anon (MYK9-969).
+    mockPublicSupabase.from.mockImplementation((table: string) =>
+      mockSupabase.from.getMockImplementation()!(table)
+    );
   });
 
   it('reads active TV data through PostgREST for the public TV route', async () => {
@@ -301,8 +311,10 @@ describe('tv-display database reads', () => {
 
     const result = await getTVDisplayResults('show-1');
 
-    expect(mockSupabase.from.mock.calls.map(([table]) => table)).toEqual([
-      'classes',
+    expect(mockSupabase.from.mock.calls.map(([table]) => table)).toEqual(['classes']);
+    // MYK9-969: results go out on the session-less client, so a TV left signed
+    // in as the secretary still gets the public (privacy-masked) answer.
+    expect(mockPublicSupabase.from.mock.calls.map(([table]) => table)).toEqual([
       'view_public_entry_results',
       'view_public_entry_results',
     ]);

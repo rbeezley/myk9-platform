@@ -62,7 +62,16 @@ export function useClassResults({
         edit?.searchTime ??
         submitted?.searchTime ??
         dbSecondsToInputFormat(raw?.search_time_seconds);
-      const faults = edit?.faults ?? submitted?.faults ?? String(raw?.total_faults ?? 0);
+      // MYK9-969: a private result's faults arrive NULL because they are
+      // withheld, not because they are zero — never show a fabricated 0.
+      const faults =
+        edit?.faults ??
+        submitted?.faults ??
+        (raw?.total_faults != null
+          ? String(raw.total_faults)
+          : raw?.results_private === true
+            ? ''
+            : '0');
       const notes = edit?.notes ?? submitted?.notes ?? raw?.judge_notes ?? '';
       const qualificationReason =
         edit?.qualificationReason ??

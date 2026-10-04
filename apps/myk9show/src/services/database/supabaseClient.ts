@@ -42,6 +42,20 @@ export const createSessionBoundSupabaseClient = (accessToken: string) =>
     global: { headers: { 'X-Client-Info': 'myK9Show@1.0.0' } },
   });
 
+/**
+ * A client that never carries the signed-in session: every request goes out as
+ * `anon`. For reads that are public by intent and must return the PUBLIC
+ * answer even when staff are signed in on the device — the venue TV display
+ * (MYK9-969: a secretary signed in on the TV must not unmask private results).
+ * `accessToken` returning null makes supabase-js send the anon key as the
+ * bearer and keeps this client off the shared auth session entirely.
+ */
+export const publicSupabase = createClient<Database>(supabaseUrl, supabaseAnonKey, {
+  accessToken: async () => null,
+  db: { schema: 'public' },
+  global: { headers: { 'X-Client-Info': 'myK9Show@1.0.0' } },
+});
+
 // Database query logging utility (development only)
 export const logQuery = (table: string, operation: string, duration: number, error?: string) => {
   if (import.meta.env.DEV) {

@@ -41,7 +41,10 @@
 -- visibility for non-staff readers -- nothing new is added beside them:
 --   * view_public_entry_results (anon, and the released-results pages every
 --     signed-in reader also uses): a masked row is ANONYMISED -- placement and
---     qualification kept, identity and time/score/faults removed.
+--     qualification kept, identity and time/score/faults removed. Only the
+--     entry's own people are exempt: this is the PUBLIC read, so show staff
+--     get the public answer here too (a secretary signed in on the venue TV
+--     must not unmask the show), and read everything on staff paths.
 --   * view_authenticated_entry_results (+ its _replication wrapper, which feeds
 --     every device's offline replica): a masked row keeps its identity (the
 --     run order is not a result) and every result column is NULL. Because the
@@ -266,27 +269,14 @@ WITH (security_invoker = false) AS
      CROSS JOIN LATERAL (
        SELECT (
          (COALESCE(show_vis.results_private, false) OR consent.all_opted_in IS NOT TRUE)
-         -- COALESCE: the claim arms are NULL for a caller with no claim.
+         -- Only the people tied to the entry see it unmasked HERE. This view is
+         -- the PUBLIC read: TV displays, the public podium and class results
+         -- pages are public by intent, and a secretary signed in on a venue
+         -- screen must not unmask the show for the room. Staff read every
+         -- result through view_authenticated_entry_results and the reports.
          AND NOT COALESCE(
-           -- Show staff: the same arms as the authenticated view's
-           -- can_view_scores / is_show_steward / is_ringside_claim.
-           ctx.is_site_admin
-           OR sh.club_id = ANY(ctx.managed_club_ids)
-           OR e.show_id = ANY(ctx.managed_show_ids)
-           OR e.class_id = ANY(ctx.assigned_class_ids)
-           OR e.show_id = ANY(ctx.steward_show_ids)
-           OR sh.club_id = ANY(ctx.steward_club_ids)
-           OR (
-             ctx.claim_kind = 'ringside_passcode'
-             AND ctx.claim_show_id = e.show_id::text
-             AND ctx.claim_generation_current
-             AND ctx.claim_role IN ('judge', 'steward', 'admin')
-           )
-           -- The people tied to the entry.
-           OR (
-             ctx.person_id IS NOT NULL
-             AND ctx.person_id IN (e.handler_id, d.owner_id, d.co_owner_id)
-           ),
+           ctx.person_id IS NOT NULL
+           AND ctx.person_id IN (e.handler_id, d.owner_id, d.co_owner_id),
            false
          )
        ) AS masked
@@ -310,7 +300,8 @@ COMMENT ON VIEW public.view_public_entry_results IS
   'published. MYK9-969 results privacy: an entry is public only when the show is '
   'not private and every tied person (dog owner, co-owner, handler) opted in '
   '(exhibitor_profiles.results_public, read through the person''s own account). '
-  'For any other caller than show staff or a tied person, a private entry keeps '
+  'For any caller but a tied person -- show staff included, since this is the '
+  'public read (staff read every result via view_authenticated_entry_results) -- a private entry keeps '
   'its placement and qualification but is anonymised: a random per-read id, '
   'dog_name/dog_call_name ''Private entry'', and NULL dog_id, armband, handler, '
   'run_order, timestamps, breed, image, time, score and faults; results_private '

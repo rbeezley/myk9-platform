@@ -12,7 +12,9 @@
 --   4. anon sees the same anonymised row, and the standings keep every place;
 --   5. show staff (secretary, club admin, the class judge, a steward, a
 --      ringside staff passcode session, a site admin) see every result,
---      unmasked, on both views;
+--      unmasked, on the staff path (view_authenticated_entry_results), and
+--      the PUBLIC answer on the public view -- 5b: a secretary signed in on
+--      the venue TV must not unmask the show;
 --   6. most private wins: an entry is public only when EVERY tied person
 --      opted in; a tied person with no account keeps it private;
 --   7. the club's show-wide switch makes even fully opted-in entries private,
@@ -375,7 +377,7 @@ RESET ROLE;
 -- ---------------------------------------------------------------------------
 -- 5 + 8. Staff see everything, and what they see is the entries table.
 -- ---------------------------------------------------------------------------
-CREATE FUNCTION pg_temp.assert_staff_sees_all(p_label text) RETURNS void
+CREATE FUNCTION pg_temp.assert_staff_sees_all(p_label text, p_public_masked integer) RETURNS void
 LANGUAGE plpgsql AS $$
 DECLARE
   viewer record;
@@ -410,9 +412,11 @@ BEGIN
     EXECUTE 'RESET ROLE';
     -- The steward is admitted with cascade-visible (not judge) columns, which
     -- here are all released, so the comparison holds for every staff role.
-    IF mismatches <> 0 OR masked <> 0 OR pub_masked <> 0 THEN
-      RAISE EXCEPTION 'FAIL [%] % sees a changed result: % mismatched, % masked, % public masked',
-        p_label, viewer.label, mismatches, masked, pub_masked;
+    -- Staff paths: every result, unmasked. The PUBLIC view: the public answer,
+    -- even signed in as staff (a venue TV must not unmask the show).
+    IF mismatches <> 0 OR masked <> 0 OR pub_masked <> p_public_masked THEN
+      RAISE EXCEPTION 'FAIL [%] % : % mismatched, % masked on the staff path, % public masked (want %)',
+        p_label, viewer.label, mismatches, masked, pub_masked, p_public_masked;
     END IF;
   END LOOP;
 
@@ -434,9 +438,9 @@ BEGIN
   FROM public.view_public_entry_results
   WHERE class_id = '00000000-0000-0000-0000-000000969004';
   EXECUTE 'RESET ROLE';
-  IF mismatches <> 4 OR masked <> 0 OR pub_masked <> 0 THEN
-    RAISE EXCEPTION 'FAIL [%] ringside steward session: % rows, % masked, % public masked',
-      p_label, mismatches, masked, pub_masked;
+  IF mismatches <> 4 OR masked <> 0 OR pub_masked <> p_public_masked THEN
+    RAISE EXCEPTION 'FAIL [%] ringside steward session: % rows, % masked, % public masked (want %)',
+      p_label, mismatches, masked, pub_masked, p_public_masked;
   END IF;
 
   -- Placements are server-authoritative and privacy never writes them.
@@ -448,8 +452,29 @@ BEGIN
 END;
 $$;
 
-SELECT pg_temp.assert_staff_sees_all('person settings');
-DO $$ BEGIN RAISE NOTICE 'PASS 5/8 staff see every result unmasked and equal to the entries table'; END $$;
+SELECT pg_temp.assert_staff_sees_all('person settings', 3);
+DO $$ BEGIN RAISE NOTICE 'PASS 5/8 staff see every result unmasked and equal to the entries table on staff paths, and the public answer on the public view'; END $$;
+
+-- 5b. The venue TV: a secretary signed in on the TV display reads the PUBLIC
+--     view, and must get the anonymised row, not the dog.
+SET LOCAL ROLE authenticated;
+DO $$
+DECLARE
+  p record;
+BEGIN
+  PERFORM pg_temp.act_as('00000000-0000-0000-0000-000000969117');
+  SELECT * INTO p FROM public.view_public_entry_results
+  WHERE class_id = '00000000-0000-0000-0000-000000969004' AND final_placement = 1;
+  IF p.dog_call_name IS DISTINCT FROM 'Private entry' OR p.handler IS NOT NULL
+     OR p.search_time_seconds IS NOT NULL OR p.armband IS NOT NULL
+     OR p.results_private IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'FAIL 5b a signed-in secretary unmasks the public view (venue TV): %',
+      row_to_json(p);
+  END IF;
+  RAISE NOTICE 'PASS 5b a secretary signed in on the public TV gets the anonymised row';
+END;
+$$;
+RESET ROLE;
 
 -- ---------------------------------------------------------------------------
 -- 6. Most private wins.
@@ -580,7 +605,7 @@ BEGIN
 END;
 $$;
 
-SELECT pg_temp.assert_staff_sees_all('private show');
+SELECT pg_temp.assert_staff_sees_all('private show', 4);
 DO $$ BEGIN RAISE NOTICE 'PASS 7/8 staff results are unchanged under the club''s private switch'; END $$;
 
 -- Switching it back restores exactly the per-person outcome: the club layer

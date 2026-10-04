@@ -1,6 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
+import { FaultsCell } from '../FaultsCell';
+import { useClassResults } from '../useClassResults';
+import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
+import type { ScentWorkEntry, ScentWorkClassConfig } from '@/types/scent-work-types';
+import type { UserPermissions } from '@/types/user-permissions';
 import { QualificationCell } from '../QualificationCell';
 import { PodiumPosition } from '@/components/results/PodiumPosition';
 import { RESULTS_PRIVATE_LABEL, PRIVATE_ENTRY_LABEL } from '@/lib/resultsPrivacy';
@@ -71,5 +77,71 @@ describe('"Results private" rendering (MYK9-969)', () => {
     expect(screen.getByText('1st')).toBeInTheDocument();
     expect(screen.getByText(PRIVATE_ENTRY_LABEL)).toBeInTheDocument();
     expect(screen.queryByText(/“Private entry”/)).not.toBeInTheDocument();
+  });
+
+  // Review finding (MYK9-969): a private result's faults arrive NULL because
+  // they are withheld; the table used to show a fabricated "0".
+  it("a private row's withheld faults render as withheld, never as 0", () => {
+    const raw = {
+      id: 'e1',
+      class_id: 'c1',
+      show_id: 's1',
+      dog_id: 'd1',
+      handler_id: null,
+      armband: '101',
+      handler: 'Alice Smith',
+      result_status: null,
+      is_scored: true,
+      search_time_seconds: null,
+      total_faults: null,
+      final_placement: null,
+      judge_notes: null,
+      disqualification_reason: null,
+      scoring_completed_at: null,
+      check_in_status: 'checked-in',
+      run_order: 1,
+      dog: null,
+      created_at: null,
+      updated_at: null,
+      results_private: true,
+    } satisfies RawEntryRow;
+    const { result } = renderHook(() =>
+      useClassResults({
+        entries: [{ id: 'e1' } as ScentWorkEntry],
+        rawEntries: [raw],
+        classConfig: {} as ScentWorkClassConfig,
+        userPermissions: { canEditEntries: false } as UserPermissions,
+        classId: 'c1',
+      })
+    );
+    const row = result.current.rows[0]!;
+    expect(row.faults).toBe('');
+    expect(row.resultsPrivate).toBe(true);
+
+    render(
+      <FaultsCell
+        item={row}
+        canEdit={false}
+        visible
+        rowIndex={0}
+        onFieldChange={vi.fn()}
+        onKeyDown={vi.fn()}
+      />
+    );
+    expect(screen.getByLabelText(RESULTS_PRIVATE_LABEL)).toHaveTextContent('—');
+    expect(screen.queryByText('0')).not.toBeInTheDocument();
+  });
+
+  it('a public row with no faults recorded still reads 0', () => {
+    const { result } = renderHook(() =>
+      useClassResults({
+        entries: [{ id: 'e2' } as ScentWorkEntry],
+        rawEntries: [],
+        classConfig: {} as ScentWorkClassConfig,
+        userPermissions: { canEditEntries: false } as UserPermissions,
+        classId: 'c1',
+      })
+    );
+    expect(result.current.rows[0]!.faults).toBe('0');
   });
 });

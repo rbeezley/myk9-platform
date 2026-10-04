@@ -1,4 +1,4 @@
-import { supabase } from '../supabaseClient';
+import { publicSupabase, supabase } from '../supabaseClient';
 import { fetchPublicEntryCountsByShow, type PublicClassCounts } from '../_shared/entryCounts';
 import { fetchJudgeNamesByClass } from '../_shared/judgeNamesByClass';
 import { isExpectedEntry } from '@/features/_shared/entryAccounting';
@@ -196,7 +196,11 @@ export async function getPostgrestTVDisplayResults(
   // released yields no rows at all (MYK9-466, MYK9-552), and within a released
   // class withheld placements/times/quals arrive NULL and are naturally
   // filtered out below.
-  const { data: placementRows, error: placementError } = await supabase
+  // INTENT (MYK9-969): read as ANON, never with the signed-in session. The venue
+  // screen is often left signed in as the secretary or as an exhibitor, and the
+  // public view exempts an entry's own people from results privacy — the room
+  // must get the public answer whoever is signed in on the TV.
+  const { data: placementRows, error: placementError } = await publicSupabase
     .from('view_public_entry_results')
     .select(
       'id, class_id, armband, handler, final_placement, search_time_seconds, total_score, result_status, entry_status, check_in_status, dog_name, dog_call_name, dog_image_url'
@@ -209,7 +213,7 @@ export async function getPostgrestTVDisplayResults(
     throw new Error(`Unable to refresh TV placements: ${placementError.message}`);
   }
 
-  const { data: qualifiedRows, error: qualifiedError } = await supabase
+  const { data: qualifiedRows, error: qualifiedError } = await publicSupabase
     .from('view_public_entry_results')
     .select('class_id, search_time_seconds, entry_status, check_in_status')
     .in('class_id', classIds)

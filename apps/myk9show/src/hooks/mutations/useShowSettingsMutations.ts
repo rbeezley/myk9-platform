@@ -70,12 +70,13 @@ interface ShowResultsPrivacyUpdate {
 
 /**
  * Write show-level columns that are NOT the visibility timings (self check-in,
- * results privacy) without clobbering the show's timings.
+ * results privacy) without touching the show's timings.
  *
- * An upsert sends every column it names, so the timings are read first and
- * written back verbatim; only a brand-new row gets the standard defaults. A
- * failed read must abort: treating it as "no row" would overwrite the show's
- * custom timings with the defaults below.
+ * An existing row gets an UPDATE of only these columns: re-sending the timings
+ * read a moment ago would overwrite a preset save still in flight with that
+ * stale snapshot (MYK9-969 review). Only a missing row is created, with the
+ * standard defaults. A failed read must abort: treating it as "no row" would
+ * overwrite the show's custom timings with those defaults.
  */
 async function upsertShowSettingsColumns(
   showId: string,
@@ -84,24 +85,32 @@ async function upsertShowSettingsColumns(
 ): Promise<void> {
   const existingResult = await untypedSupabase
     .from('show_visibility_settings')
-    .select('preset, placement_timing, qualification_timing, time_timing, faults_timing')
+    .select('show_id')
     .eq('show_id', showId)
     .abortSignal(settingsRequestSignal())
     .maybeSingle();
   throwIfRequestFailed(existingResult);
-  const existing = existingResult.data;
+
+  // The server trigger (20261004152300) re-stamps updated_at on its own clock;
+  // the client value only matters until that migration is applied.
+  if (existingResult.data) {
+    await runSettingsWrite(
+      untypedSupabase
+        .from('show_visibility_settings')
+        .update({ ...columns, updated_by: userId, updated_at: new Date().toISOString() })
+        .eq('show_id', showId)
+    );
+    return;
+  }
 
   await runSettingsWrite(
     untypedSupabase.from('show_visibility_settings').upsert({
       show_id: showId,
-      // Preserve an existing row's preset verbatim — including NULL (custom
-      // timings). Only a brand-new row, written alongside the default timings
-      // below, gets the 'standard' label.
-      preset: existing ? existing.preset : 'standard',
-      placement_timing: existing?.placement_timing ?? 'class_complete',
-      qualification_timing: existing?.qualification_timing ?? 'immediate',
-      time_timing: existing?.time_timing ?? 'class_complete',
-      faults_timing: existing?.faults_timing ?? 'class_complete',
+      preset: 'standard',
+      placement_timing: 'class_complete',
+      qualification_timing: 'immediate',
+      time_timing: 'class_complete',
+      faults_timing: 'class_complete',
       ...columns,
       updated_by: userId,
       updated_at: new Date().toISOString(),

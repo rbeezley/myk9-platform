@@ -5,6 +5,9 @@ import { describe, expect, it, vi } from 'vitest';
 import type { Show } from '@/types/show-types';
 import { useLandingShowData } from '../useLandingShowData';
 
+vi.mock('@/services/database/_shared/judgeNamesByClass', () => ({
+  fetchShowConfirmedJudgeAssignments: vi.fn().mockResolvedValue([]),
+}));
 vi.mock('@/services/database/_shared/entryCounts', () => ({
   fetchPublicEntryCountsByShow: vi.fn(),
 }));

@@ -199,6 +199,8 @@ function Hero({
 }
 
 function Judges({ data }: { data: HeritageLandingData }) {
+  // A loading or failed judge read is not "no judges": show nothing rather than the placeholder.
+  if ((data.judgesState ?? 'ready') !== 'ready') return null;
   const judges =
     data.judges.length > 0
       ? data.judges

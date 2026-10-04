@@ -22,9 +22,7 @@ export function useBannerLandingData(
 
   return useMemo(() => {
     const judges: BannerJudge[] = shared.judges.map(judge => {
-      const trials = shared.trials
-        .filter(trial => trial.judgeName === judge.name)
-        .map(trial => pad2(trial.trialNumber));
+      const trials = (judge.trialNumbers ?? []).map(n => pad2(n));
       return {
         id: judge.id,
         name: judge.name,

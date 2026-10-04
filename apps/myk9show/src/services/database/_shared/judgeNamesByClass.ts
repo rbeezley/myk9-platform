@@ -7,6 +7,53 @@ export interface JudgeNameParts {
   lastName: string | null;
 }
 
+type ShowJudgeRows = NonNullable<
+  Awaited<ReturnType<typeof supabase.rpc<'get_show_judges'>>>['data']
+>;
+
+async function callGetShowJudges(showId: string): Promise<ShowJudgeRows | null> {
+  try {
+    const result = await supabase.rpc('get_show_judges', { p_show_id: showId });
+    // A failed call is NOT "this show has no judges": the caller must be able to tell them
+    // apart, or a transient RPC failure overwrites a correct cached name with `Judge TBD`.
+    if (result.error) return null;
+    return result.data ?? null;
+  } catch {
+    return null;
+  }
+}
+
+/** One confirmed judge assignment, as the public landing lists a judge against a trial. */
+export interface ConfirmedJudgeAssignment {
+  personId: string;
+  firstName: string | null;
+  lastName: string | null;
+  trialId: string | null;
+  /** Class-level edits (`replaceClassAssignment`) write `class_id` with a null `trial_id`. */
+  classId: string | null;
+}
+
+/**
+ * Every confirmed judge assignment for one show (anon-callable: get_show_judges is the
+ * public judge-name path, see above). `null` means the read failed, which a caller must not
+ * confuse with a show that has no judges.
+ */
+export async function fetchShowConfirmedJudgeAssignments(
+  showId: string
+): Promise<ConfirmedJudgeAssignment[] | null> {
+  const data = await callGetShowJudges(showId);
+  if (!data) return null;
+  return data
+    .filter(row => row.status === 'confirmed' && (row.first_name || row.last_name))
+    .map(row => ({
+      personId: row.person_id,
+      firstName: row.first_name ?? null,
+      lastName: row.last_name ?? null,
+      trialId: row.trial_id ?? null,
+      classId: row.class_id ?? null,
+    }));
+}
+
 /**
  * Judge name per class for one show, via the get_show_judges RPC.
  *
@@ -28,16 +75,7 @@ export interface JudgeNameParts {
 export async function fetchShowJudgeNameParts(
   showId: string
 ): Promise<Map<string, JudgeNameParts> | null> {
-  let data: Awaited<ReturnType<typeof supabase.rpc<'get_show_judges'>>>['data'] = null;
-  try {
-    const result = await supabase.rpc('get_show_judges', { p_show_id: showId });
-    // A failed call is NOT "this show has no judges": the caller must be able to tell them
-    // apart, or a transient RPC failure overwrites a correct cached name with `Judge TBD`.
-    if (result.error) return null;
-    data = result.data;
-  } catch {
-    return null;
-  }
+  const data = await callGetShowJudges(showId);
   if (!data) return null;
 
   const byClass = new Map<string, JudgeNameParts>();

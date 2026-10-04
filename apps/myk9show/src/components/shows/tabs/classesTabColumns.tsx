@@ -16,6 +16,19 @@ function levelLabel(cls: ClassTableRow): string {
   );
 }
 
+/**
+ * Clock-time order for the Time column: two unscheduled classes compare equal, and an
+ * unscheduled class sorts after a scheduled one (`Infinity - Infinity` would be NaN).
+ */
+export function compareClockTimes(a: string | null | undefined, b: string | null | undefined) {
+  const ma = parseTime(a);
+  const mb = parseTime(b);
+  if (ma === null && mb === null) return 0;
+  if (ma === null) return 1;
+  if (mb === null) return -1;
+  return ma - mb;
+}
+
 export interface ClassTableRow extends ClassInfo {
   trialLabel: string;
 }
@@ -116,8 +129,7 @@ export function buildClassesTabColumns({
       accessorKey: 'time',
       header: 'Time',
       // "9:00 AM" sorts after "10:00 AM" as text; sort by clock time, unscheduled last.
-      sortingFn: (rowA, rowB) =>
-        (parseTime(rowA.original.time) ?? Infinity) - (parseTime(rowB.original.time) ?? Infinity),
+      sortingFn: (rowA, rowB) => compareClockTimes(rowA.original.time, rowB.original.time),
       meta: { responsiveHide: 'sm' as const },
     }
   );

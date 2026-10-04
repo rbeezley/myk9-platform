@@ -6,7 +6,7 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import { createTestQueryClient } from '@/test/utils/testUtils';
 import { useShowMapRunOrderAutoSort } from '../useShowMapRunOrderAutoSort';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
@@ -71,15 +71,40 @@ describe('placeEntry', () => {
     expect(toastMock.success).toHaveBeenCalledWith('Moved #104 to position 1');
   });
 
-  it('still saves while offline: the write is the queued replicated update, not a network call', async () => {
-    vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
-    const { result } = render();
-    act(() => result.current.placeEntry({ classId: 'c1', entryId: 'e4', toPosition: 3 }));
-    await waitFor(() => expect(result.current.lastAutoSort).not.toBeNull());
+  describe('offline (React Query onlineManager)', () => {
+    beforeEach(() => {
+      onlineManager.setOnline(false);
+    });
+    afterEach(() => {
+      onlineManager.setOnline(true);
+    });
 
-    expect(updateEntryMock).toHaveBeenCalledWith('e4', { runOrder: 3 });
-    expect(toastMock.error).not.toHaveBeenCalled();
-    expect(toastMock.warning).not.toHaveBeenCalled();
+    it('a hand move still writes to the replicated table and offers Undo', async () => {
+      const { result } = render();
+      act(() => result.current.placeEntry({ classId: 'c1', entryId: 'e4', toPosition: 3 }));
+      await waitFor(() => expect(result.current.lastAutoSort).not.toBeNull());
+      expect(updateEntryMock).toHaveBeenCalledWith('e4', { runOrder: 3 });
+      expect(toastMock.error).not.toHaveBeenCalled();
+      expect(toastMock.warning).not.toHaveBeenCalled();
+      expect(result.current.isAutoSorting).toBe(false);
+    });
+
+    it('a preset still writes', async () => {
+      const { result } = render();
+      act(() => result.current.autoSort({ classId: 'c1', kind: 'armband-desc' }));
+      await waitFor(() => expect(result.current.lastAutoSort).not.toBeNull());
+      expect(updateEntryMock).toHaveBeenCalled();
+    });
+
+    it('Undo still writes', async () => {
+      const { result } = render();
+      act(() => result.current.placeEntry({ classId: 'c1', entryId: 'e4', toPosition: 3 }));
+      await waitFor(() => expect(result.current.lastAutoSort).not.toBeNull());
+      updateEntryMock.mockClear();
+      act(() => result.current.undoLastAutoSort());
+      await waitFor(() => expect(updateEntryMock).toHaveBeenCalled());
+      expect(result.current.lastAutoSort).toBeNull();
+    });
   });
 
   it('refuses a pinned dog without writing anything', async () => {

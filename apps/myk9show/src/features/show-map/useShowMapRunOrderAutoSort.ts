@@ -114,6 +114,9 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
   };
 
   const autoSortMutation = useMutation({
+    // Local replicated write (queued offline); the default 'online' mode would
+    // pause it before it reached the table.
+    networkMode: 'always',
     mutationFn: async (input: ShowMapAutoSortInput): Promise<ShowMapAutoSortResult> => {
       const entries = await replicatedEntriesTable.getEntriesByClass(input.classId);
       if (entries.length < 2) {
@@ -145,6 +148,9 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
   // Hand placement: one dog to a chosen slot. Same write path and Undo
   // snapshot as the presets, so the two can never disagree about run_order.
   const placeMutation = useMutation({
+    // Local replicated write (queued offline); the default 'online' mode would
+    // pause it before it reached the table.
+    networkMode: 'always',
     mutationFn: async (input: ShowMapHandPlaceInput): Promise<ShowMapAutoSortResult> => {
       const entries = await replicatedEntriesTable.getEntriesByClass(input.classId);
       const changes = computeHandPlacementChanges(entries, input.entryId, input.toPosition);
@@ -173,6 +179,9 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
   });
 
   const undoMutation = useMutation({
+    // Local replicated write (queued offline); the default 'online' mode would
+    // pause it before it reached the table.
+    networkMode: 'always',
     mutationFn: async (snapshot: ShowMapAutoSortSnapshot): Promise<void> => {
       // INTENT: Entries whose prior run_order was null must be cleared
       // (not skipped) — otherwise the number auto-sort assigned would

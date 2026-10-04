@@ -119,3 +119,31 @@ describe('buildHandPlacementRows', () => {
     expect(rows[4]).toMatchObject({ upTo: 3, downTo: null });
   });
 });
+
+describe('entries with no run_order follow the canonical run-queue order', () => {
+  // Ids sort opposite to armbands, so a UUID tie-break would disagree with ringside.
+  const unassigned = [
+    entry('e9', undefined, { armband: '103' }),
+    entry('e8', undefined, { armband: '101' }),
+    entry('e7', undefined, { armband: '102' }),
+  ];
+
+  it('numbers positions by armband, as runQueue does', () => {
+    const rows = buildHandPlacementRows(
+      unassigned.map(e => row(e.id, 0, { armband: e.armband, run_order: null })),
+      'c1'
+    );
+    expect(rows.map(r => r.id)).toEqual(['e8', 'e7', 'e9']);
+  });
+
+  it('a move assigns numbers along that order', () => {
+    const changes = computeHandPlacementChanges(unassigned, 'e9', 1);
+    expect(applied(changes)).toEqual({ e9: 1, e8: 2, e7: 3 });
+  });
+
+  it('an assigned dog still sorts by its run_order among unassigned ones', () => {
+    const mixed = [entry('e1', 1, { armband: '150' }), entry('e2', undefined, { armband: '101' })];
+    // runOrder 1 vs armband fallback 101: the assigned dog runs first.
+    expect(applied(computeHandPlacementChanges(mixed, 'e2', 1))).toEqual({ e2: 1, e1: 2 });
+  });
+});

@@ -13,10 +13,12 @@
 -- a cart overflow can still have a paid charge awaiting refund when it is
 -- offered a spot, so a claim about past charges can be false.
 --
--- The deadline is the row's offer_expires_at, rendered in the show's zone the
--- way waitlist_class_trial_has_passed (20261004224300) reads it: the show's
--- first trial's timezone, matched against pg_timezone_names, falling back to
--- America/New_York. The format follows the email's en-US medium date + short
+-- The deadline is the row's offer_expires_at, rendered in the timezone of the
+-- offered class's own trial (class -> trial -> trials.timezone), as the
+-- email/push does. A show whose trials span zones shows each class's deadline
+-- in that class's zone. The zone is matched against pg_timezone_names and
+-- falls back to America/New_York, the app's canonical fallback
+-- (getTrialTimezone). The format follows the email's en-US medium date + short
 -- time ("Jul 15, 2026, 12:00 PM"). With no offer_expires_at the copy reads
 -- "before the offer ends".
 --
@@ -41,7 +43,7 @@ DECLARE
   v_class_name text;
   v_dog_name text;
   v_offer_expires_at timestamptz;
-  v_show_tz text;
+  v_trial_tz text;
   v_deadline text;
   v_thread_id uuid;
   v_body text;
@@ -50,8 +52,9 @@ BEGIN
          ep.auth_user_id,
          nullif(btrim(c.name), ''),
          coalesce(nullif(btrim(d.call_name), ''), nullif(btrim(d.name), '')),
-         w.offer_expires_at
-  INTO v_show_id, v_participant, v_class_name, v_dog_name, v_offer_expires_at
+         w.offer_expires_at,
+         t.timezone
+  INTO v_show_id, v_participant, v_class_name, v_dog_name, v_offer_expires_at, v_trial_tz
   FROM public.waitlist_entries w
   JOIN public.classes c ON c.id = w.class_id
   JOIN public.trials t ON t.id = c.trial_id
@@ -82,20 +85,12 @@ BEGIN
   WHERE smt.show_id = v_show_id
     AND smt.participant_id = v_participant;
 
-  -- The show's zone, as waitlist_class_trial_has_passed reads it.
-  v_show_tz := COALESCE(
-    (SELECT t.timezone
-       FROM public.trials t
-      WHERE t.show_id = v_show_id
-      ORDER BY t.date NULLS LAST, t.id
-      LIMIT 1),
+  -- The offered class's own trial's zone, validated; New York otherwise.
+  v_trial_tz := COALESCE(
+    (SELECT n.name FROM pg_catalog.pg_timezone_names n WHERE n.name = v_trial_tz),
     'America/New_York'
   );
-  v_show_tz := COALESCE(
-    (SELECT n.name FROM pg_catalog.pg_timezone_names n WHERE n.name = v_show_tz),
-    'America/New_York'
-  );
-  v_deadline := to_char(v_offer_expires_at AT TIME ZONE v_show_tz,
+  v_deadline := to_char(v_offer_expires_at AT TIME ZONE v_trial_tz,
                         'Mon FMDD, YYYY, FMHH12:MI AM');
 
   v_body := 'A spot opened'

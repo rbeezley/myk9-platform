@@ -99,6 +99,7 @@ const OBLIGATION: PaymentLinkObligation = {
     summaryHtml: 'Two entries were withdrawn.',
   },
   showId: 'show-1',
+  paidEntryIds: [],
 };
 
 describe('settlePaymentLinkObligation (Codex round 13)', () => {
@@ -117,6 +118,7 @@ describe('settlePaymentLinkObligation (Codex round 13)', () => {
       p_detail: { invalid_entry_ids: ['e-1'] },
       p_show_id: 'show-1',
       p_order: null,
+      p_paid_entry_ids: null,
     });
     expect(model.link.status).toBe('paid');
     expect(alerts.map(a => [a.title, a.opts.dedupeKey])).toEqual([

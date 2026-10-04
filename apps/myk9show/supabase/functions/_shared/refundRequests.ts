@@ -163,6 +163,14 @@ export interface PaymentLinkObligation {
    * order is left as it is. Null on the paths that record no order.
    */
   order?: object | null;
+  /**
+   * The entries this delivery stamped paid (MYK9-968). Their waitlist offers
+   * move offered/expired -> accepted in the SAME transaction as the latch, so
+   * a committed call whose response is lost leaves nothing to replay: the
+   * redelivery takes the replay-first branch (paidSessionEntry.ts) and never
+   * reaches a separate offer write. Empty when nothing was paid.
+   */
+  paidEntryIds: string[];
 }
 
 export type PaymentLinkOutcome = 'queued' | 'already_queued' | 'latched_only' | 'not_queued';
@@ -183,8 +191,9 @@ async function callPaymentLinkRpc(
 /**
  * The payment-link fulfillment latch, its order and its refund obligation, in
  * ONE database transaction (queue_payment_link_refund; Codex rounds 13-14 on
- * #2689): the link closes, the order is recorded and, when something is owed,
- * the refund request is written, or none of them happens. There is no separate queue write to lose and
+ * #2689): the link closes, the order is recorded, the paid entries' waitlist
+ * offers resolve (MYK9-968) and, when something is owed, the refund request
+ * is written, or none of them happens. There is no separate queue write to lose and
  * no order row to replay from. The call is idempotent, so it is retried; if
  * it still cannot be confirmed this THROWS (5xx). The latch is then still
  * open, and the redelivery runs the same reconcile and this same call again.
@@ -210,7 +219,7 @@ export async function settlePaymentLinkObligation(
     });
     owed = null;
   }
-  if (!owed && !input.closeLinkFrom && !input.order) {
+  if (!owed && !input.closeLinkFrom && !input.order && input.paidEntryIds.length === 0) {
     return input.owed ? 'not_queued' : 'latched_only';
   }
 
@@ -224,6 +233,7 @@ export async function settlePaymentLinkObligation(
     p_detail: owed ? owed.detail : {},
     p_show_id: input.showId,
     p_order: input.order ?? null,
+    p_paid_entry_ids: input.paidEntryIds.length > 0 ? input.paidEntryIds : null,
   };
   let row: PaymentLinkRow | null = null;
   let lastError = 'no row returned';

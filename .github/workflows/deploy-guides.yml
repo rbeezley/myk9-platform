@@ -1,0 +1,70 @@
+name: Deploy guides
+
+# The guides site (apps/docs) publishes only on request. Vercel's Git
+# integration no longer builds it (apps/docs/vercel.json sets
+# git.deploymentEnabled to false), because its previews and "Skipped - Not
+# affected" records used up the Hobby account's 100 deployments a day and
+# blocked myK9Show's production deploy (2026-10-04). Like deploy-myk9show.yml,
+# it builds here and uploads the finished output with `vercel deploy
+# --prebuilt`, so a publish costs Vercel one deployment and no build minutes.
+#
+#   gh workflow run deploy-guides.yml                  # main as it is now
+#   gh workflow run deploy-guides.yml -f ref=<sha>     # a specific commit
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Commit SHA or branch to publish (blank = main)
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-guides
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Build and deploy the guides to Vercel production
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: guides-production
+      url: https://help.myk9show.com
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      # The guides project id is not a secret (docs/operations/vercel-preview-quota.md).
+      VERCEL_PROJECT_ID: prj_jHJvF6oJEiRw344vhKHQDkKPGr3f
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_CLI: vercel@59
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.ref || 'main' }}
+
+      - uses: pnpm/action-setup@v6
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.12.0'
+
+      - name: Pull production project settings and env
+        run: pnpm dlx "$VERCEL_CLI" pull --yes --environment=production --token="$VERCEL_TOKEN"
+
+      - name: Build
+        run: pnpm dlx "$VERCEL_CLI" build --prod --token="$VERCEL_TOKEN"
+
+      - name: Deploy the prebuilt output
+        run: |
+          set -euo pipefail
+          url="$(pnpm dlx "$VERCEL_CLI" deploy --prebuilt --prod --yes --token="$VERCEL_TOKEN")"
+          echo "Deployed: $url"
+          {
+            echo "- Guides deployment: $url"
+            echo "- Built from \`$(git rev-parse HEAD)\`"
+          } >>"$GITHUB_STEP_SUMMARY"

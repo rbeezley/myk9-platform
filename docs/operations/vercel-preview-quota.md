@@ -44,9 +44,22 @@ Verification after changing Vercel settings:
 
 Skip-unaffected alone was not enough. On 2026-09-25 the guides project made 78 deployments: 46 skipped as "Not affected", but 32 built, 21 of them for agent PRs that touched only myK9Show, migrations or edge functions, most likely because a branch's first push has no earlier deployment to compare against. The account hit its 100-a-day limit and the real myK9Show production deploy was refused (`api-deployments-free-per-day`).
 
-So [`apps/docs/vercel.json`](../../apps/docs/vercel.json) turns Git deploys off for `claude/*`, `codex/*` and `worktree-*`, as well as `main` (the guides site is released deliberately, not on merge). Hand-made branches still preview. `apps/myk9show/src/test/ci/guidesPreviewScope.test.ts` pins the list. If an agent edits the guides and a preview is needed, push the same commit to a hand-named branch.
+The first fix turned Git deploys off only for `claude/*`, `codex/*`, `worktree-*` and `main`. That was not enough either. On 2026-10-04, branches named `feat/*`, `chore/*`, `fix/*` and `qa/*` slipped past the list. In 24 hours the guides project created 79 deployments: 27 preview builds, plus 52 "Skipped – Not affected" records, which Vercel still creates. The owner's myK9Show production deploy was refused twice (`api-deployments-free-per-day`).
 
-**A red "Deployment rate limited" status on an agent branch does not mean this setting leaked.** While the day's quota is spent, Vercel posts that failure (`targetUrl` ending `?upgradeToPro=build-rate-limit`) for every push it receives, before it checks whether the branch builds at all. Nothing is built. On 2026-09-26, #2493, #2497, #2499 and #2503 got one each between 02:01 and 03:23 UTC. All four commits already carried the `claude/*` exclusion, and the pushes around them read "Skipped – Not affected". To check, read the commit's own `apps/docs/vercel.json` (`git show <sha>:apps/docs/vercel.json`), then look at statuses outside the quota window. Only a guides deployment that actually built on an agent branch is a leak.
+### The guides publish only on request (2026-10-04)
+
+[`apps/docs/vercel.json`](../../apps/docs/vercel.json) now sets `git.deploymentEnabled: false`, exactly like myK9Show. No branch push creates a guides deployment of any kind: no preview, no production build, no skipped record. `apps/myk9show/src/test/ci/guidesPreviewScope.test.ts` pins this.
+
+To publish the guides, run the manual workflow. Each run costs one Vercel deployment:
+
+```bash
+gh workflow run deploy-guides.yml                  # main as it is now
+gh workflow run deploy-guides.yml -f ref=<sha>     # a specific commit or branch
+```
+
+It builds in Actions and uploads with `vercel deploy --prebuilt --prod`, the same pattern as [`deploy-myk9show.yml`](../../.github/workflows/deploy-myk9show.yml). There are no guides PR previews any more. To check a guides change before publishing, build locally with `pnpm --filter @myk9/docs build`. The dormant `guides-release` branch tracking (MYK9-44) no longer deploys anything either, because Git deploys are off. When MYK9-44 is picked up, the guides release should go through this workflow.
+
+**A red "Deployment rate limited" status on a PR is the quota, not a leak.** While the day's quota is spent, Vercel can post that failure (`targetUrl` ending `?upgradeToPro=build-rate-limit`) before it checks whether the project builds at all, and nothing is built.
 
 ## 2. Keep Vercel previews non-required
 

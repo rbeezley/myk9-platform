@@ -1,5 +1,6 @@
 import { useSearchParams } from 'react-router-dom';
 import type { Trial } from '@/components/trials/types/trial.types';
+import { isScentTrialType } from '@/types/template.types';
 import { resolveSelectClassesView } from '@/pages/secretary/selectClassesRoutes';
 import { ClassesTab, type ClassInfo } from './ClassesTab';
 
@@ -49,12 +50,7 @@ export function SetupClassesSection({
       trialId={searchParams.get('trialId')}
       onTrialChange={trial => setClassesParam('trialId', trial)}
       focusClassId={searchParams.get('focus')}
-      hideRing={trials.some(
-        trial =>
-          trial.trialType === 'Scent Work' ||
-          trial.trialType === 'Nosework' ||
-          trial.trialType === 'Scent Detection'
-      )}
+      hideRing={trials.some(trial => isScentTrialType(trial.trialType))}
     />
   );
 }

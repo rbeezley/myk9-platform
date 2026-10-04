@@ -52,6 +52,8 @@ import {
 } from '@/routes/showManagementSections';
 import { useSubmittedEntryProjection } from '@/features/exhibitor-entry/useSubmittedEntryProjection';
 import { markCurrentUserEntryClasses } from './ShowDetailsPage.publicClasses';
+import { classTimeLabel, countExpectedEntriesByClass } from './ShowDetailsPage.classRows';
+import { getTrialTimezone } from '@/features/registries';
 import { isValidUUID } from '@/utils/validation';
 import { saveShowDraftStyle } from '@/features/premium/showStylePersistence';
 
@@ -267,22 +269,18 @@ const ShowDetailsPage: React.FC = () => {
       : 'overview';
   const [activeTab, setTab] = useUrlTab(allowedTabs, defaultTab);
 
-  // Count entries per class once (O(entries)) instead of re-filtering the full
-  // effectiveShowEntries array per class below (was O(classes × entries) per recompute).
-  const entryCountByClassId = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const entry of effectiveShowEntries) {
-      const classId = typeof entry.class_id === 'string' ? entry.class_id : undefined;
-      if (!classId) continue;
-      counts.set(classId, (counts.get(classId) ?? 0) + 1);
-    }
-    return counts;
-  }, [effectiveShowEntries]);
+  // Entries each class is still expected to run, counted once (O(entries)) with the
+  // shared accounting rule so this table agrees with the schedule card (MYK9-986).
+  const entryCountByClassId = useMemo(
+    () => countExpectedEntriesByClass(effectiveShowEntries),
+    [effectiveShowEntries]
+  );
 
   // Flatten trial classes for judge roster resolution and entry overlap detection
   const showClasses = useMemo(() => {
     return associatedTrials.flatMap(trial => {
       const classes: SyncableTrialClass[] = trialClasses[trial.id] || [];
+      const timeZone = getTrialTimezone(trial);
       return classes.map(cls => ({
         id: cls.id,
         name: `${cls.element} ${cls.level}`,
@@ -293,7 +291,7 @@ const ShowDetailsPage: React.FC = () => {
         ...(cls.judgeId ? { judgeId: cls.judgeId } : {}),
         ...(cls.runOrder != null ? { classOrder: cls.runOrder } : {}),
         trialId: trial.id,
-        time: cls.startTime || '',
+        time: classTimeLabel(cls, timeZone),
         ring: 0,
         status: cls.status || CLASS_STATUS.SCHEDULED,
         entryCount: classEntryCountsUnavailable ? null : (entryCountByClassId.get(cls.id) ?? 0),

@@ -1,9 +1,20 @@
 import type { ReactNode } from 'react';
 import { StatusBadge, getStatusDescriptor } from '@/components/status';
 import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
+import { parseTime } from '@/features/show-map/cockpit/cockpitClock';
+import { buildFullClassLabel } from '@/features/_shared/classLabel';
 import { compareLevels } from '@/utils/schedule-summary';
 import type { ColumnDef } from '@/components/ui/data-table';
 import type { ClassInfo } from './classInfo';
+
+/** "Novice A": the level and, when the class has one, its section. */
+function levelLabel(cls: ClassTableRow): string {
+  return buildFullClassLabel(
+    { level: cls.level, section: shouldShowSection(cls) ? cls.section : '' },
+    '',
+    cls.level
+  );
+}
 
 export interface ClassTableRow extends ClassInfo {
   trialLabel: string;
@@ -78,19 +89,12 @@ export function buildClassesTabColumns({
       // Shown as "Novice A": the level and its section.
       meta: {
         searchValue: (row: unknown) => {
-          const cls = row as ClassTableRow;
-          return shouldShowSection(cls) ? `${cls.level} ${cls.section}` : cls.level;
+          return levelLabel(row as ClassTableRow);
         },
       },
       sortingFn: (rowA, rowB) => compareLevels(rowA.original.level, rowB.original.level),
-      cell: ({ row }) => (
-        <>
-          {row.original.level}
-          {shouldShowSection(row.original) && (
-            <span className="ml-1 text-muted-foreground">{row.original.section}</span>
-          )}
-        </>
-      ),
+      // One text node, so the label reads "Novice A" to search, copy and screen readers.
+      cell: ({ row }) => levelLabel(row.original),
     },
     {
       accessorKey: 'judgeName',
@@ -111,6 +115,9 @@ export function buildClassesTabColumns({
     {
       accessorKey: 'time',
       header: 'Time',
+      // "9:00 AM" sorts after "10:00 AM" as text; sort by clock time, unscheduled last.
+      sortingFn: (rowA, rowB) =>
+        (parseTime(rowA.original.time) ?? Infinity) - (parseTime(rowB.original.time) ?? Infinity),
       meta: { responsiveHide: 'sm' as const },
     }
   );

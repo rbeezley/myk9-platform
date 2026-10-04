@@ -2,6 +2,8 @@ import { CLASS_STATUS, normalizeClassStatus } from '@myk9/core';
 import type { Trial } from '@/components/trials/types/trial.types';
 import type { ClassInfo } from '@/components/shows/tabs/ClassesTab';
 import type { TrialStats } from '@/components/shows/tabs/TrialsTab';
+import { getTrialTimezone } from '@/features/registries';
+import { classTimeLabel, countExpectedEntriesByClass } from './ShowDetailsPage.classRows';
 
 /**
  * Lane 3.7 — public/anon fallback for a *default*-style show's Trials/Classes
@@ -37,11 +39,6 @@ function judgeNameFromRow(row: Record<string, unknown>): string {
   return `${people.first_name ?? ''} ${people.last_name ?? ''}`.trim();
 }
 
-function entryCountForClass(showEntries: EntryRow[] | null, classId: string): number | null {
-  if (showEntries == null) return null;
-  return showEntries.filter(entry => entry.class_id === classId).length;
-}
-
 /**
  * Reshape per-trial PostgREST class rows into the `ClassInfo[]` the Classes tab
  * (and overview) render. Trial-level display fields come from `landingTrials`.
@@ -52,10 +49,12 @@ export function buildPublicShowClasses(
   showEntries: EntryRow[] | null
 ): ClassInfo[] {
   const rowsByTrialId = new Map(classesByTrial.map(entry => [entry.trialId, entry.rows]));
+  const expectedByClass = showEntries == null ? null : countExpectedEntriesByClass(showEntries);
   const result: ClassInfo[] = [];
 
   for (const trial of landingTrials) {
     const rows = rowsByTrialId.get(trial.id) ?? [];
+    const timeZone = getTrialTimezone(trial);
     for (const row of rows) {
       const element = str(row.element);
       const level = str(row.level);
@@ -68,10 +67,13 @@ export function buildPublicShowClasses(
         section: str(row.section),
         judgeName: judgeNameFromRow(row),
         trialId: trial.id,
-        time: str(row.start_time),
+        time: classTimeLabel(
+          { startTime: str(row.start_time), revisedExpectedStart: str(row.revised_expected_start) },
+          timeZone
+        ),
         ring: 0,
         status: normalizeClassStatus(str(row.status)),
-        entryCount: entryCountForClass(showEntries, id),
+        entryCount: expectedByClass == null ? null : (expectedByClass.get(id) ?? 0),
         scoredCount: 0,
         userHasEntry: false,
         trialDate: trial.trialDate || '',
@@ -104,13 +106,14 @@ export function buildPublicTrialStats(
   showEntries: EntryRow[] | null
 ): Record<string, TrialStats> {
   const stats: Record<string, TrialStats> = {};
+  const expectedByClass = showEntries == null ? null : countExpectedEntriesByClass(showEntries);
 
   for (const { trialId, rows } of classesByTrial) {
     const classIds = new Set(rows.map(row => str(row.id)));
     const entryCount =
-      showEntries == null
+      expectedByClass == null
         ? null
-        : showEntries.filter(entry => classIds.has(str(entry.class_id))).length;
+        : [...classIds].reduce((sum, id) => sum + (expectedByClass.get(id) ?? 0), 0);
     const completedClasses = rows.filter(
       row => normalizeClassStatus(str(row.status)) === CLASS_STATUS.COMPLETED
     ).length;

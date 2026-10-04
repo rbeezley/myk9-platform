@@ -7,6 +7,7 @@ import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
 import { EntryDataUnavailablePanel } from '@/components/shows/ShowDetails/EntryDataUnavailablePanel';
 import { ShowResultsTab } from '@/components/results/ShowResultsTab';
 import type { Show } from '@/types/show-types';
+import { isScentTrialType } from '@/types/template.types';
 
 import type { Trial } from '@/components/trials/types/trial.types';
 import type { ShowJudgeAssignment } from '@/types/judge-types';
@@ -94,12 +95,7 @@ export function ShowDetailTabs({
             classes={classes}
             showId={show.id}
             userHasEntries={hasUserEntries}
-            hideRing={trials.some(
-              t =>
-                t.trialType === 'Scent Work' ||
-                t.trialType === 'Nosework' ||
-                t.trialType === 'Scent Detection'
-            )}
+            hideRing={trials.some(t => isScentTrialType(t.trialType))}
           />
         )}
       </TabsContent>

@@ -1,4 +1,4 @@
-import { supabase } from '../supabaseClient';
+import { publicSupabase, supabase } from '../supabaseClient';
 import { fetchPublicEntryCountsByShow, type PublicClassCounts } from '../_shared/entryCounts';
 import { fetchJudgeNamesByClass } from '../_shared/judgeNamesByClass';
 import { isExpectedEntry } from '@/features/_shared/entryAccounting';
@@ -196,7 +196,11 @@ export async function getPostgrestTVDisplayResults(
   // released yields no rows at all (MYK9-466, MYK9-552), and within a released
   // class withheld placements/times/quals arrive NULL and are naturally
   // filtered out below.
-  const { data: placementRows, error: placementError } = await supabase
+  // INTENT (MYK9-969): read as ANON, never with the signed-in session. The venue
+  // screen is often left signed in as the secretary or as an exhibitor, and the
+  // public view exempts an entry's own people from results privacy — the room
+  // must get the public answer whoever is signed in on the TV.
+  const { data: placementRows, error: placementError } = await publicSupabase
     .from('view_public_entry_results')
     .select(
       'id, class_id, armband, handler, final_placement, search_time_seconds, total_score, result_status, entry_status, check_in_status, dog_name, dog_call_name, dog_image_url'
@@ -209,7 +213,7 @@ export async function getPostgrestTVDisplayResults(
     throw new Error(`Unable to refresh TV placements: ${placementError.message}`);
   }
 
-  const { data: qualifiedRows, error: qualifiedError } = await supabase
+  const { data: qualifiedRows, error: qualifiedError } = await publicSupabase
     .from('view_public_entry_results')
     .select('class_id, search_time_seconds, entry_status, check_in_status')
     .in('class_id', classIds)
@@ -262,12 +266,26 @@ export async function getPostgrestTVDisplayResults(
     placementsByClass.set(classId, group);
   }
 
-  const qualifiedByClass = new Map<string, { count: number; fastest: number | null }>();
+  // The qualified COUNT comes from result_status, which the public view keeps
+  // even for a private entry, so it stays exact. The FASTEST time does not: a
+  // private entry's time arrives NULL (MYK9-969), and the minimum of the rest
+  // would announce a wrong "fastest" whenever the true fastest dog is private.
+  // A class with ANY qualified time withheld gets no fastest time at all.
+  const qualifiedByClass = new Map<
+    string,
+    { count: number; fastest: number | null; timeWithheld: boolean }
+  >();
   for (const q of qualifiedData) {
     const classId = q.class_id as string;
-    const current = qualifiedByClass.get(classId) ?? { count: 0, fastest: null };
+    const current = qualifiedByClass.get(classId) ?? {
+      count: 0,
+      fastest: null,
+      timeWithheld: false,
+    };
     current.count++;
-    if (q.search_time_seconds != null) {
+    if (q.search_time_seconds == null) {
+      current.timeWithheld = true;
+    } else {
       current.fastest =
         current.fastest == null
           ? q.search_time_seconds
@@ -287,7 +305,7 @@ export async function getPostgrestTVDisplayResults(
       judgeName: judgeNamesByClass.get(c.id) ?? null,
       totalEntries: entryCounts?.get(c.id)?.total ?? null,
       qualifiedCount: stats?.count ?? 0,
-      fastestTime: stats?.fastest ?? null,
+      fastestTime: stats && !stats.timeWithheld ? stats.fastest : null,
       placements: placementsByClass.get(c.id) ?? [],
     };
   });

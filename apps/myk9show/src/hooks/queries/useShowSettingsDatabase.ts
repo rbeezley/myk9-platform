@@ -44,6 +44,8 @@ interface ShowSettingsRow {
   time_timing: string;
   faults_timing: string;
   self_checkin_enabled: boolean;
+  /** MYK9-969; absent until migration 20261004152300 is applied. */
+  results_private?: boolean | null;
   updated_by: string | null;
   updated_at: string;
 }
@@ -95,6 +97,12 @@ function rowToOverride(row: OverrideRow): VisibilityOverride {
 export interface ShowSettings {
   visibility: VisibilitySettings;
   selfCheckinEnabled: boolean;
+  /**
+   * MYK9-969: the club keeps this show's results private — only each entry's
+   * own people and show staff see them. Never makes a private result public.
+   * Optional so a settings value built elsewhere reads as "not private".
+   */
+  resultsPrivate?: boolean | undefined;
   hasExplicitSettings: boolean;
 }
 
@@ -108,6 +116,7 @@ export function getDefaultShowSettings(): ShowSettings {
   return {
     visibility: resolvePreset('standard', 'show'),
     selfCheckinEnabled: true,
+    resultsPrivate: false,
     hasExplicitSettings: false,
   };
 }
@@ -153,6 +162,7 @@ async function fetchShowSettings(showId: string): Promise<ShowSettings> {
   return {
     visibility: rowToVisibilitySettings(row),
     selfCheckinEnabled: row.self_checkin_enabled,
+    resultsPrivate: row.results_private === true,
     hasExplicitSettings: true,
   };
 }

@@ -6,6 +6,7 @@ import {
 } from '@/services/database/entries';
 import { cacheStrategies } from '@/lib/queryClient';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { isPrivateResultRow } from '@/lib/resultsPrivacy';
 
 /** Raw DB entry row with all columns intact (no mapper that drops scoring fields). */
 export interface RawEntryRow {
@@ -58,6 +59,12 @@ export interface RawEntryRow {
   } | null;
   created_at: string | null;
   updated_at: string | null;
+  /**
+   * MYK9-969: the server hid this row's results from the current viewer (the
+   * entry's people keep them private). Absent on rows from reads that do not
+   * carry it, and before migration 20261004152300 is applied.
+   */
+  results_private?: boolean | null | undefined;
 }
 
 /**
@@ -66,6 +73,7 @@ export interface RawEntryRow {
  * judge notes) is unavailable to anon and maps to null.
  */
 export function publicRowToRawEntryRow(row: PublicEntryRow): RawEntryRow {
+  const isPrivate = isPrivateResultRow(row);
   return {
     id: row.id,
     class_id: row.class_id ?? '',
@@ -88,17 +96,23 @@ export function publicRowToRawEntryRow(row: PublicEntryRow): RawEntryRow {
     scoring_completed_at: row.scoring_completed_at,
     check_in_status: row.check_in_status,
     run_order: row.run_order,
-    dog: row.dog_id
-      ? {
-          id: row.dog_id,
-          name: row.dog_name ?? '',
-          call_name: row.dog_call_name,
-          breed: row.dog_breed,
-          owner: null,
-        }
-      : null,
+    // An anonymised private entry has no dog id but still carries its
+    // "Private entry" name, which is what the table must show at its place.
+    // A genuinely dog-less row (the view's LEFT JOIN found no dog) carries no
+    // name at all and still maps to null.
+    dog:
+      row.dog_id || (isPrivate && row.dog_name != null)
+        ? {
+            id: row.dog_id ?? '',
+            name: row.dog_name ?? '',
+            call_name: row.dog_call_name,
+            breed: row.dog_breed,
+            owner: null,
+          }
+        : null,
     created_at: row.created_at,
     updated_at: null,
+    results_private: isPrivate,
   };
 }
 

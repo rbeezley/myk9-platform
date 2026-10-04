@@ -2,7 +2,7 @@ import '@myk9/test-utils/src/setup/jest-dom';
 import { afterEach, beforeAll, beforeEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import { testCleanup } from './config/testOptimization';
-import { mockSupabase, resetMockSupabase } from './mocks/supabase';
+import { mockPublicSupabase, mockSupabase, resetMockSupabase } from './mocks/supabase';
 import { createDatabaseError } from '@/services/database/databaseError';
 import { resetAllStores } from './mocks/zustandReset';
 import { createSupabaseNetworkGuard } from './supabaseNetworkGuard';
@@ -37,6 +37,7 @@ import {
 // Keep it that way — do not re-inline an implementation here.
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: mockSupabase,
+  publicSupabase: mockPublicSupabase,
   default: mockSupabase,
   signOut: vi.fn().mockResolvedValue({ error: null }),
   logQuery: vi.fn(),

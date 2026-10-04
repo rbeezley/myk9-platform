@@ -9,8 +9,9 @@ const repositoryRoot = resolve(import.meta.dirname, '../../../..');
 const migrationsDir = resolve(repositoryRoot, 'supabase/migrations');
 
 /**
- * Output columns of `view_entry_with_results`, read from the LATEST migration
- * that defines it.
+ * Output columns of the entry tools' results view, read from the LATEST
+ * migration that defines it. Since MYK9-969 that is
+ * `view_authenticated_entry_results`, read with the caller's own client.
  *
  * Deriving this instead of hard-coding it is the point of the test. These tools
  * were ported from myK9Q and kept querying `armband_number` and `handler_name`
@@ -18,24 +19,29 @@ const migrationsDir = resolve(repositoryRoot, 'supabase/migrations');
  * answered every call with an unknown-column error and both entry tools were
  * dead. A hard-coded list would have been copied from the same wrong source.
  */
-function viewEntryWithResultsColumns(): Set<string> {
+const ENTRY_RESULTS_VIEW = 'view_authenticated_entry_results';
+const ENTRY_RESULTS_VIEW_DEFINITION = new RegExp(
+  `CREATE\\s+(OR\\s+REPLACE\\s+)?VIEW\\s+(public\\.)?${ENTRY_RESULTS_VIEW}\\b`,
+  'i'
+);
+
+function entryResultsViewColumns(): Set<string> {
   const defining = readdirSync(migrationsDir)
     .filter(name => name.endsWith('.sql'))
     .sort()
     .filter(name =>
-      /CREATE\s+(OR\s+REPLACE\s+)?VIEW\s+(public\.)?view_entry_with_results\b/i.test(
-        readFileSync(resolve(migrationsDir, name), 'utf8')
-      )
+      ENTRY_RESULTS_VIEW_DEFINITION.test(readFileSync(resolve(migrationsDir, name), 'utf8'))
     );
 
   expect(defining.length).toBeGreaterThan(0);
 
   const latest = readFileSync(resolve(migrationsDir, defining[defining.length - 1]), 'utf8');
-  const start = latest.search(
-    /CREATE\s+(OR\s+REPLACE\s+)?VIEW\s+(public\.)?view_entry_with_results\b/i
-  );
+  const start = latest.search(ENTRY_RESULTS_VIEW_DEFINITION);
   const body = latest.slice(start);
-  const selectList = body.slice(body.search(/\bSELECT\b/i), body.search(/\bFROM\s+entries\b/i));
+  const selectList = body.slice(
+    body.search(/\bSELECT\b/i),
+    body.search(/\bFROM\s+(public\.)?entries\b/i)
+  );
 
   const columns = new Set<string>();
   for (const line of selectList.split('\n')) {
@@ -141,11 +147,11 @@ function selectedColumns(select: string): string[] {
 const SHOW_ID = '00000000-0000-0000-0000-0000000000a1';
 const userContext = { showId: SHOW_ID } as never;
 
-describe('AskQ entry tools query columns that view_entry_with_results actually has', () => {
+describe('AskQ entry tools query columns that their results view actually has', () => {
   it.each(['get_entry_results', 'search_entries'])(
     '%s selects and filters only real view columns',
     async toolName => {
-      const columns = viewEntryWithResultsColumns();
+      const columns = entryResultsViewColumns();
       // Sanity-check the parser before trusting it as an oracle.
       expect(columns.has('armband')).toBe(true);
       expect(columns.has('handler')).toBe(true);
@@ -153,7 +159,7 @@ describe('AskQ entry tools query columns that view_entry_with_results actually h
       expect(columns.has('armband_number')).toBe(false);
       expect(columns.has('handler_name')).toBe(false);
 
-      const { client, queries } = fakeSupabase({ view_entry_with_results: [] });
+      const { client, queries } = fakeSupabase({ [ENTRY_RESULTS_VIEW]: [] });
 
       await executeTool(
         toolName,
@@ -165,7 +171,7 @@ describe('AskQ entry tools query columns that view_entry_with_results actually h
         userContext
       );
 
-      const entryQuery = queries.find(q => q.table === 'view_entry_with_results');
+      const entryQuery = queries.find(q => q.table === ENTRY_RESULTS_VIEW);
       expect(entryQuery).toBeDefined();
 
       const referenced = [...selectedColumns(entryQuery!.selected), ...entryQuery!.columns];
@@ -180,7 +186,7 @@ describe('AskQ entry tools query columns that view_entry_with_results actually h
     '%s maps its output from the real column names',
     async toolName => {
       const { client } = fakeSupabase({
-        view_entry_with_results: [
+        [ENTRY_RESULTS_VIEW]: [
           {
             armband: '42',
             dog_call_name: 'Rex',
@@ -230,7 +236,7 @@ describe('AskQ entry tools query columns that view_entry_with_results actually h
   it('resolves classes through trials.date, the column trials actually has', async () => {
     const { client, queries } = fakeSupabase({
       classes: [{ id: 'class-1', element: 'Container', level: 'Novice' }],
-      view_entry_with_results: [],
+      [ENTRY_RESULTS_VIEW]: [],
     });
 
     await executeTool(
@@ -253,7 +259,7 @@ describe('AskQ entry tools query columns that view_entry_with_results actually h
   });
 
   it('keeps the service-role tenant guard on the entry query', async () => {
-    const { client, queries } = fakeSupabase({ view_entry_with_results: [] });
+    const { client, queries } = fakeSupabase({ [ENTRY_RESULTS_VIEW]: [] });
 
     await executeTool(
       'search_entries',
@@ -265,9 +271,38 @@ describe('AskQ entry tools query columns that view_entry_with_results actually h
       userContext
     );
 
-    const entryQuery = queries.find(q => q.table === 'view_entry_with_results');
+    const entryQuery = queries.find(q => q.table === ENTRY_RESULTS_VIEW);
     expect(entryQuery!.columns).toContain('show_id');
   });
+
+  // MYK9-969: results are read AS THE CALLER, so the server's release and
+  // privacy rules apply to whoever is asking. The service-role client must
+  // never be the one that reads them when the caller's client is supplied.
+  it.each(['get_entry_results', 'search_entries'])(
+    '%s reads results through the caller client, never the service client',
+    async toolName => {
+      const service = fakeSupabase({
+        [ENTRY_RESULTS_VIEW]: [{ dog_call_name: 'Leaked', class_id: 'class-1' }],
+        classes: [{ id: 'class-1', element: 'Container', level: 'Novice' }],
+      });
+      const caller = fakeSupabase({ [ENTRY_RESULTS_VIEW]: [] });
+
+      const { result } = await executeTool(
+        toolName,
+        { dog_name: 'Rex' },
+        service.client,
+        '',
+        undefined,
+        undefined,
+        userContext,
+        caller.client
+      );
+
+      expect(caller.queries.map(q => q.table)).toContain(ENTRY_RESULTS_VIEW);
+      expect(service.queries.map(q => q.table)).not.toContain(ENTRY_RESULTS_VIEW);
+      expect(result).toEqual([]);
+    }
+  );
 });
 
 describe('AskQ class and trial tools query current base-table columns', () => {

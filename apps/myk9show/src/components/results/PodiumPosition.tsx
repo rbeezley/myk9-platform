@@ -6,6 +6,8 @@ export interface PodiumPositionProps {
   dogName: string;
   breed: string;
   armband?: string | null;
+  /** MYK9-969: the place is held by an entry whose people keep results private. */
+  isPrivate?: boolean | undefined;
 }
 
 const PLACEMENT_CONFIG: Record<
@@ -45,6 +47,7 @@ export function PodiumPosition({
   dogName,
   breed,
   armband,
+  isPrivate = false,
 }: PodiumPositionProps) {
   const config = PLACEMENT_CONFIG[placement];
 
@@ -58,9 +61,17 @@ export function PodiumPosition({
       >
         {config.label}
       </div>
-      <p className="text-sm font-semibold leading-tight">{handlerName}</p>
-      <p className={cn('celebration-serif text-sm italic', config.text)}>&ldquo;{dogName}&rdquo;</p>
-      <p className="text-xs text-muted-foreground">{breed}</p>
+      {isPrivate ? (
+        <p className="text-sm text-muted-foreground">{dogName}</p>
+      ) : (
+        <>
+          <p className="text-sm font-semibold leading-tight">{handlerName}</p>
+          <p className={cn('celebration-serif text-sm italic', config.text)}>
+            &ldquo;{dogName}&rdquo;
+          </p>
+          <p className="text-xs text-muted-foreground">{breed}</p>
+        </>
+      )}
       {armband && <p className="text-[10px] text-muted-foreground">#{armband}</p>}
       <div className={cn('mt-1 w-full rounded-t-sm', config.platform)} />
     </div>

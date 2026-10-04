@@ -2,6 +2,12 @@ import type { CheckInStatus } from '@myk9/core';
 import type { Database } from '@/types/supabase';
 import { optionalColumn } from './optionalColumn';
 
+/** `results_private` from a view row, or undefined when the view lacks it. */
+function resultsPrivateColumn(row: unknown): boolean | undefined {
+  const value = (row as Record<string, unknown>).results_private;
+  return typeof value === 'boolean' ? value : undefined;
+}
+
 /**
  * Database row type from Supabase schema.
  */
@@ -111,6 +117,15 @@ export interface ReplicatedEntry {
    */
   registrationConfirmationNumber?: string | undefined;
   registration_confirmation_number?: string | undefined;
+  /**
+   * MYK9-969: the server hid this row's results from this device's user (the
+   * entry's people keep them private), so the result fields arrived NULL.
+   * View-only like `registrationConfirmationNumber`: read from the view, never
+   * projected back in `entryToSupabaseRow`. Absent (undefined) on rows cached
+   * before migration 20261004152300.
+   */
+  resultsPrivate?: boolean | undefined;
+  results_private?: boolean | undefined;
   trialId?: string | undefined;
   trial_id?: string | undefined;
 
@@ -417,6 +432,10 @@ export function rowToEntry(row: EntryRow): ReplicatedEntry {
     // receipt then prints no reference at all rather than a raw UUID.
     registrationConfirmationNumber: optionalColumn(row, 'registration_confirmation_number'),
     registration_confirmation_number: optionalColumn(row, 'registration_confirmation_number'),
+    // MYK9-969. A boolean, so not `optionalColumn` (strings only); absent
+    // until the migration is pushed, which reads as "not private".
+    resultsPrivate: resultsPrivateColumn(row),
+    results_private: resultsPrivateColumn(row),
     trialId: row.trial_id ?? undefined,
     trial_id: row.trial_id ?? undefined,
     refundAmount: row.refund_amount ?? undefined,

@@ -143,6 +143,7 @@ const mockTrialMutate = vi.fn();
 const mockClassMutate = vi.fn();
 const mockResetMutate = vi.fn();
 const mockCheckinMutate = vi.fn();
+const mockPrivacyMutate = vi.fn();
 vi.mock('@/hooks/mutations/useShowSettingsMutations', () => ({
   useUpdateShowVisibility: () => ({ mutate: mockVisibilityMutate, isPending: false }),
   useUpdateTrialOverride: () => ({ mutate: mockTrialMutate, isPending: false }),
@@ -150,6 +151,7 @@ vi.mock('@/hooks/mutations/useShowSettingsMutations', () => ({
   useBulkUpdateClassOverrides: () => ({ mutate: mockClassMutate, isPending: false }),
   useResetOverride: () => ({ mutate: mockResetMutate, isPending: false }),
   useUpdateShowCheckin: () => ({ mutate: mockCheckinMutate, isPending: false }),
+  useUpdateShowResultsPrivacy: () => ({ mutate: mockPrivacyMutate, isPending: false }),
 }));
 
 vi.mock('@/hooks/mutations/useReleaseResults', () => ({
@@ -267,6 +269,13 @@ describe('ResultsControlPage', () => {
     expect(screen.getByText('Immediately')).toBeInTheDocument();
     expect(screen.getByText('After Class')).toBeInTheDocument();
     expect(screen.getByText('After Review')).toBeInTheDocument();
+  });
+
+  it('offers the club-wide results privacy switch with the show defaults (MYK9-969)', () => {
+    renderPage();
+    expect(
+      screen.getByRole('switch', { name: "Keep this show's results private" })
+    ).not.toBeChecked();
   });
 
   it('does not duplicate self check-in controls owned by Show Desk', () => {

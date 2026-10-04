@@ -8228,6 +8228,7 @@ export type Database = {
           max_entries_per_dog: number | null
           max_total_entries: number | null
           name: string
+          online_entries_enabled: boolean
           organization: string
           pre_entry_fee: number | null
           premium_publish_version: number
@@ -8296,6 +8297,7 @@ export type Database = {
           max_entries_per_dog?: number | null
           max_total_entries?: number | null
           name: string
+          online_entries_enabled?: boolean
           organization: string
           pre_entry_fee?: number | null
           premium_publish_version?: number
@@ -8364,6 +8366,7 @@ export type Database = {
           max_entries_per_dog?: number | null
           max_total_entries?: number | null
           name?: string
+          online_entries_enabled?: boolean
           organization?: string
           pre_entry_fee?: number | null
           premium_publish_version?: number
@@ -14291,6 +14294,10 @@ export type Database = {
           p_upcoming_runs?: boolean
         }
         Returns: boolean
+      }
+      set_show_online_entries: {
+        Args: { p_enabled: boolean; p_show_id: string }
+        Returns: number
       }
       sign_in_email_drift: { Args: never; Returns: Json }
       soft_delete_class: {

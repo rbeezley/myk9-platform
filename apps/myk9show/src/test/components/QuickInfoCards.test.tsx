@@ -10,6 +10,7 @@ const baseShow = {
   location: 'Olathe, KS',
   clubName: 'Jayhawk Agility Club',
   entryCloseDate: '2099-03-15',
+  onlineEntriesEnabled: true,
 } as Show;
 
 describe('QuickInfoCards', () => {

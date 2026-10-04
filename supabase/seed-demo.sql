@@ -2701,6 +2701,23 @@ BEGIN
   END IF;
 END $$;
 
+
+-- MYK9-979: shows.online_entries_enabled defaults to false (mail-in only).
+-- The Heartland club is Stripe-ready in the platform's test mode (its
+-- club_stripe_accounts row above), so its demo shows take online entries, as
+-- they did before the switch existed. Prairie Trail's club has no payout
+-- account, so its past show stays mail-in only. Same rule as the migration
+-- backfill (20261003221700). The seed runs outside the API roles, so the
+-- publish gate does not apply here.
+UPDATE public.shows
+   SET online_entries_enabled = true
+ WHERE id IN (
+   'dededede-0000-0000-0000-000000000010',
+   'dededede-0000-0000-0000-000000000011',
+   'dededede-0000-0000-0000-000000000012',
+   'dededede-0000-0000-0000-000000000014'
+ );
+
 COMMIT;
 
 -- ============================================================================

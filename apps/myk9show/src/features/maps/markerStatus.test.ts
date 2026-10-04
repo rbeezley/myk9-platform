@@ -18,6 +18,7 @@ function makeShow(overrides: Partial<Show>): Show {
     source: 'myK9Show',
     entryOpenDate: '2026-06-01',
     entryCloseDate: '2026-09-01',
+    onlineEntriesEnabled: true,
     preEntryFee: '25',
     ...overrides,
   } as unknown as Show;

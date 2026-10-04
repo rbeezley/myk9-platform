@@ -32,6 +32,7 @@ const SHOW: ShowDraft = {
   judgeIds: [],
   acceptCheckPayments: false,
   acceptCashPayments: false,
+  onlineEntriesEnabled: false,
 };
 
 describe('wizard required markers', () => {

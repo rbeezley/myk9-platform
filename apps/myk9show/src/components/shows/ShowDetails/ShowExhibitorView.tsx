@@ -27,6 +27,7 @@ const ENTRY_STATUS_HERO_VARIANT: Record<
   not_yet_open: 'default',
   setup_incomplete: 'default',
   window_unknown: 'default',
+  mail_in_only: 'default',
 };
 
 export interface ShowExhibitorViewProps {

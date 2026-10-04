@@ -24,6 +24,7 @@ const baseShow: WizardShowData = {
   judgeIds: [],
   acceptCheckPayments: true,
   acceptCashPayments: false,
+  onlineEntriesEnabled: false,
   style: 'monogram',
 };
 

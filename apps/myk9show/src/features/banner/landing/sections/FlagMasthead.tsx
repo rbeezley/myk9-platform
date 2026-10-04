@@ -4,6 +4,7 @@ import { BANNER_BODY_FAMILY, BANNER_DISPLAY_FAMILY } from '../../fonts';
 import { bannerSpacing } from '../../tokens';
 import { formatDateInTimezone, formatDateRange } from '../utils/dateFormat';
 import type { BannerBrandColors } from '../../hooks/useBannerBrandColor';
+import { pendingEntryCopy, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
 
 interface FlagMastheadProps {
   brandColors: BannerBrandColors;
@@ -43,6 +44,7 @@ export function FlagMasthead({
   canEnterOnline = true,
   entryClosed = false,
 }: FlagMastheadProps) {
+  const mailInOnly = useLandingMailInOnly();
   const dateRangeLabel = formatDateRange(trialStartDate, trialEndDate, timezone);
   const closesLabel = entryCloseDate
     ? formatDateInTimezone(entryCloseDate, timezone, 'monthDay')
@@ -91,7 +93,10 @@ export function FlagMasthead({
           >
             {entryClosed
               ? 'Entries are closed for this show. Contact the trial secretary for late-entry help.'
-              : 'Entries are not available yet because no classes are assigned yet.'}
+              : pendingEntryCopy(
+                  mailInOnly,
+                  'Entries are not available yet because no classes are assigned yet.'
+                )}
           </p>
         )}
         <SeeClassesLink

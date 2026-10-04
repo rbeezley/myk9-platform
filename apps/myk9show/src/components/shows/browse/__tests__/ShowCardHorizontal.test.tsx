@@ -19,6 +19,7 @@ function createMockShow(overrides: Partial<Show> = {}): Show {
     source: 'myK9Show',
     entryOpenDate: '2026-03-01',
     entryCloseDate: '2026-04-10',
+    onlineEntriesEnabled: true,
     preEntryFee: '30',
     clubId: 'club-1',
     clubName: 'Rocky Mountain Agility Club',

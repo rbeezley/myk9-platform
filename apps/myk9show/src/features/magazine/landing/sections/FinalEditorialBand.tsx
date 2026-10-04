@@ -1,6 +1,7 @@
 import { SeeClassesLink } from '@/features/_shared/SeeClassesLink';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { formatDateInTimezone } from '../utils/dateFormat';
+import { pendingEntryCopy, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
 
 interface FinalEditorialBandProps {
   classesHref: string | null;
@@ -31,6 +32,7 @@ export function FinalEditorialBand({
   canEnterOnline = true,
   entryClosed = false,
 }: FinalEditorialBandProps) {
+  const mailInOnly = useLandingMailInOnly();
   const countdown = useCountdown(entryCloseDate, timezone);
   // Gate on countdown.closed (not just entryCloseDate presence) so a past close
   // date doesn't keep reading as still-pending after registration has closed.
@@ -86,9 +88,9 @@ export function FinalEditorialBand({
             </>
           ) : (
             <>
-              Entries open when{' '}
+              {mailInOnly ? 'Enter by mail or at the' : 'Entries open when'}{' '}
               <em style={{ fontStyle: 'italic', color: 'var(--mz-gold-1)' }}>
-                classes are assigned
+                {mailInOnly ? 'show' : 'classes are assigned'}
               </em>
               .
             </>
@@ -127,7 +129,10 @@ export function FinalEditorialBand({
           >
             {entryClosed
               ? 'Contact the trial secretary for late-entry help.'
-              : 'The secretary still needs to assign classes before online entry is available.'}
+              : pendingEntryCopy(
+                  mailInOnly,
+                  'The secretary still needs to assign classes before online entry is available.'
+                )}
           </p>
         )}
 

@@ -141,6 +141,9 @@ export interface Show {
   // Payment method configuration
   acceptCheckPayments?: boolean | undefined;
   acceptCashPayments?: boolean | undefined;
+  onlineEntriesEnabled?: boolean | undefined;
+  /** shows.version as last read from the server (MYK9-979). */
+  serverVersion?: number | undefined;
 
   // Heritage / registry columns (migration 192)
   landing_style?: string | null;
@@ -198,6 +201,7 @@ export interface ShowInput {
   startingArmbandNumber?: number | undefined;
   acceptCheckPayments?: boolean | undefined;
   acceptCashPayments?: boolean | undefined;
+  onlineEntriesEnabled?: boolean | undefined;
   isNationals?: boolean | undefined;
   // Experience style — drives all 4 touchpoints (migration 195)
   style?: string | null;

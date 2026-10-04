@@ -181,6 +181,9 @@ export async function saveShowAtomicOnline(
     startingArmbandNumber: show.startingArmbandNumber,
     acceptCheckPayments: show.acceptCheckPayments,
     acceptCashPayments: show.acceptCashPayments,
+    ...(show.onlineEntriesEnabled !== undefined
+      ? { onlineEntriesEnabled: show.onlineEntriesEnabled }
+      : {}),
     style: resolvePremiumStyle(localEntities.show.style),
   };
 

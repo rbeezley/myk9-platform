@@ -3,6 +3,7 @@ import { fireEvent, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { useWizardStore } from '@/store/wizardStore';
+import { ONLINE_ENTRIES_HELP_TEXT } from '@/features/payments/onlineEntryGate';
 
 const mockUpdateShowData = vi.fn();
 
@@ -125,9 +126,20 @@ describe('ShowDetailsStep — Payment Methods section', () => {
     );
   });
 
-  it('renders "Credit/Debit Card — always enabled" as a locked row', () => {
+  // MYK9-979: card payment exists only online, and online entries are a
+  // per-show choice that defaults to off.
+  it('renders the "Accept online entries" switch, off by default, with its help text', () => {
     render(<ShowDetailsStep />);
-    expect(screen.getByText('Credit/Debit Card — always enabled')).toBeInTheDocument();
+    const toggle = screen.getByRole('switch', { name: /accept online entries/i });
+    expect(toggle).not.toBeChecked();
+    expect(toggle).toHaveAccessibleDescription(ONLINE_ENTRIES_HELP_TEXT);
+  });
+
+  it('calls updateShowData with onlineEntriesEnabled: true when the switch is turned on', async () => {
+    const user = userEvent.setup();
+    render(<ShowDetailsStep />);
+    await user.click(screen.getByRole('switch', { name: /accept online entries/i }));
+    expect(mockUpdateShowData).toHaveBeenCalledWith({ onlineEntriesEnabled: true });
   });
 
   it('renders an unchecked Check checkbox', () => {

@@ -4,7 +4,11 @@ import {
   formatDownloadFailureToast,
   hasPermanentScoreAuthorizationFailure,
 } from '../replicationSyncFormatters';
-import { ENTRY_WINDOW_PUBLISHED_MESSAGE } from '@/features/payments/onlineEntryGate';
+import {
+  CLUB_UNAUTHORIZED_MESSAGE,
+  ENTRY_WINDOW_PUBLISHED_MESSAGE,
+  ONLINE_ENTRIES_BLOCKED_MESSAGE,
+} from '@/features/payments/onlineEntryGate';
 
 describe('formatSyncFailureToast', () => {
   it('renders a plain-English object and action without raw DB details', () => {
@@ -171,4 +175,29 @@ describe('formatSyncFailureToast: entry-window refusal (MYK9-716)', () => {
 
     expect(msg).toBe(`We couldn't save this show change. ${ENTRY_WINDOW_PUBLISHED_MESSAGE}`);
   });
+});
+
+// MYK9-979: the show edit panel saves through replication, so the gates' new
+// refusals (turning online entries on without payouts; an unauthorized club's
+// status change into a public status) reach the secretary as this toast.
+describe('formatSyncFailureToast: publish-gate refusals (MYK9-979)', () => {
+  it.each([ONLINE_ENTRIES_BLOCKED_MESSAGE, CLUB_UNAUTHORIZED_MESSAGE])(
+    'repeats the trigger text: %s',
+    gateMessage => {
+      const msg = formatSyncFailureToast({
+        count: 1,
+        mutations: [
+          {
+            id: 'mutation-1',
+            tableName: 'shows',
+            operation: 'UPDATE',
+            error: `Max retries exceeded: ${gateMessage}`,
+          },
+        ],
+        message: '',
+      });
+
+      expect(msg).toBe(`We couldn't save this show change. ${gateMessage}`);
+    }
+  );
 });

@@ -22,6 +22,7 @@ function makeDbShow(overrides: Record<string, unknown>): DbShow {
     end_date: '2026-09-02T00:00:00+00:00',
     entry_open_date: '2026-07-01T00:00:00+00:00',
     entry_close_date: '2026-08-25T00:00:00+00:00',
+    online_entries_enabled: true,
     ...overrides,
   } as unknown as DbShow;
 }
@@ -49,6 +50,7 @@ describe('entries that have not opened yet', () => {
     name: 'Spring Classic',
     entryOpenDate: '2027-07-01',
     entryCloseDate: '2027-08-25',
+    onlineEntriesEnabled: true,
   } as unknown as Show;
 
   it('reports not_yet_open, which the public landing must respect', () => {

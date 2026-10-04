@@ -108,6 +108,7 @@ export const showFactory = {
       stats: [],
       acceptCheckPayments: false,
       acceptCashPayments: false,
+      onlineEntriesEnabled: true,
       ...overrides,
     };
   },

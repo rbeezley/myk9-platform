@@ -26,6 +26,7 @@ const show: ShowDraft = {
   judgeIds: [],
   acceptCheckPayments: false,
   acceptCashPayments: false,
+  onlineEntriesEnabled: false,
 };
 
 describe('ShowDetailsStep organization field', () => {

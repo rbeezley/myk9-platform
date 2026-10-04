@@ -64,6 +64,7 @@ function makeEnhancedShow(overrides: Partial<EnhancedShow> = {}): EnhancedShow {
     source: 'myK9Show',
     entryOpenDate: '2000-01-01',
     entryCloseDate: '2099-10-06',
+    onlineEntriesEnabled: true,
     preEntryFee: '28',
     clubId: 'club-1',
     clubName: 'Heartland Scent Work Club',

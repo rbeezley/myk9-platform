@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { notifications } from '@/lib/notifications';
+import { pendingNavLabel, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
 
 interface StickyNavProps {
   clubName: string;
@@ -30,6 +31,7 @@ export function StickyNav({
   canEnterOnline = true,
   entryClosed = false,
 }: StickyNavProps) {
+  const mailInOnly = useLandingMailInOnly();
   const [activeId, setActiveId] = useState<string>('welcome');
 
   useEffect(() => {
@@ -132,7 +134,7 @@ export function StickyNav({
               fontFamily: "'IBM Plex Mono', ui-monospace, monospace",
             }}
           >
-            {entryClosed ? 'Entries closed' : 'Classes pending'}
+            {entryClosed ? 'Entries closed' : pendingNavLabel(mailInOnly)}
           </span>
         )}
       </div>

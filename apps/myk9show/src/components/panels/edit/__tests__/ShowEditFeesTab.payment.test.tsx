@@ -4,8 +4,22 @@ import { describe, it, expect, vi } from 'vitest';
 
 vi.mock('@/components/ui/tabs', () => import('../../../common/__tests__/mockTabs'));
 
+const onlineSwitch = vi.hoisted(() => ({
+  value: undefined as boolean | undefined,
+  pending: false,
+  offline: false,
+  setEnabled: vi.fn(async () => {}),
+}));
+vi.mock('@/features/payments/useOnlineEntriesSwitch', () => ({
+  useOnlineEntriesSwitch: () => onlineSwitch,
+}));
+
 import { ShowEditFeesTab } from '../ShowEditFeesTab';
 import type { ShowEditFormData } from '../ShowEditPanel.types';
+import {
+  ONLINE_ENTRIES_OFFLINE_HINT,
+  ONLINE_ENTRIES_UNKNOWN_HINT,
+} from '@/features/payments/onlineEntryGate';
 
 const baseData: ShowEditFormData = {
   name: 'Test Show',
@@ -49,9 +63,41 @@ describe('ShowEditFeesTab — Payment Methods section', () => {
     expect(screen.getByText('Payment Methods')).toBeInTheDocument();
   });
 
-  it('renders "Credit/Debit Card — always enabled" row', () => {
+  // MYK9-979 (Codex round 3 on #2707): the switch saves itself. It shows the
+  // live value from useOnlineEntriesSwitch, never form data, and flipping it
+  // calls the hook, never the form's change handler.
+  it('renders the "Accept online entries" switch from the live value', () => {
+    onlineSwitch.value = true;
     render(<ShowEditFeesTab data={baseData} handleCheckboxChange={vi.fn(() => vi.fn())} />);
-    expect(screen.getByText('Credit/Debit Card — always enabled')).toBeInTheDocument();
+    expect(screen.getByRole('switch', { name: /accept online entries/i })).toBeChecked();
+  });
+
+  it('disables the switch with a hint while the value is unknown', () => {
+    onlineSwitch.value = undefined;
+    render(<ShowEditFeesTab data={baseData} handleCheckboxChange={vi.fn(() => vi.fn())} />);
+    const toggle = screen.getByRole('switch', { name: /accept online entries/i });
+    expect(toggle).toHaveAttribute('aria-disabled', 'true');
+    expect(toggle).toHaveAccessibleDescription(ONLINE_ENTRIES_UNKNOWN_HINT);
+  });
+
+  it('disables the switch with a hint while offline (it saves through an online RPC)', () => {
+    onlineSwitch.value = true;
+    onlineSwitch.offline = true;
+    render(<ShowEditFeesTab data={baseData} handleCheckboxChange={vi.fn(() => vi.fn())} />);
+    const toggle = screen.getByRole('switch', { name: /accept online entries/i });
+    expect(toggle).toHaveAttribute('aria-disabled', 'true');
+    expect(toggle).toHaveAccessibleDescription(ONLINE_ENTRIES_OFFLINE_HINT);
+    onlineSwitch.offline = false;
+  });
+
+  it('flipping the switch saves it on its own and never touches the form', async () => {
+    onlineSwitch.value = true;
+    const handleCheckboxChange = vi.fn(() => vi.fn());
+    const user = userEvent.setup();
+    render(<ShowEditFeesTab data={baseData} handleCheckboxChange={handleCheckboxChange} />);
+    await user.click(screen.getByRole('switch', { name: /accept online entries/i }));
+    expect(onlineSwitch.setEnabled).toHaveBeenCalledWith(false);
+    expect(handleCheckboxChange).not.toHaveBeenCalledWith('onlineEntriesEnabled');
   });
 
   it('renders Check checkbox unchecked when acceptCheckPayments is false', () => {

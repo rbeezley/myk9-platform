@@ -20,6 +20,7 @@ function createMockShow(overrides: Partial<Show> = {}): Show {
     name: 'Test Show',
     entryOpenDate: '2024-01-01',
     entryCloseDate: '2024-02-01',
+    onlineEntriesEnabled: true,
     startDate: '2024-02-15',
     endDate: '2024-02-16',
     ...overrides,

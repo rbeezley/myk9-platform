@@ -40,6 +40,7 @@ const baseShow: WizardShowData = {
   judgeIds: ['judge-uuid-a', 'judge-uuid-b'],
   acceptCheckPayments: true,
   acceptCashPayments: false,
+  onlineEntriesEnabled: false,
   style: 'monogram',
 };
 
@@ -82,6 +83,23 @@ describe('buildCreateShowPayload', () => {
     const { rpcInput } = buildCreateShowPayload(baseShow, [], {}, new Map(), 'published');
     expect(rpcInput.p_show.status).toBe('published');
   });
+
+  // MYK9-979: the wizard switch reaches create_show_with_children, which
+  // writes it on the row (absent -> false).
+  it.each([true, false])(
+    'passes the online-entries switch (%s) to the show RPC payload and local show',
+    onlineEntriesEnabled => {
+      const { rpcInput, localEntities } = buildCreateShowPayload(
+        { ...baseShow, onlineEntriesEnabled },
+        [],
+        {},
+        new Map(),
+        'unpublished'
+      );
+      expect(rpcInput.p_show.online_entries_enabled).toBe(onlineEntriesEnabled);
+      expect(localEntities.show.onlineEntriesEnabled).toBe(onlineEntriesEnabled);
+    }
+  );
 
   it('passes judgeIds straight through to p_judge_ids', () => {
     const { rpcInput } = buildCreateShowPayload(baseShow, [], {}, new Map(), 'unpublished');

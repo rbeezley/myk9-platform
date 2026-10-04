@@ -22,6 +22,7 @@ export function getShowCardStatus(show: Show, entryStatus: EntryStatus): ShowCar
     case 'submitted':
     case 'setup_incomplete':
     case 'window_unknown':
+    case 'mail_in_only':
       return 'upcoming';
     default:
       return unknownEntryStatus(entryStatus);

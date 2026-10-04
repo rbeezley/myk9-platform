@@ -2,6 +2,7 @@ import type { HeritageLandingData } from '@/features/heritage/landing/types';
 import { useCountdown } from '@/features/_shared/hooks/useCountdown';
 import { SectionHead } from './HeadlineLandingPrimitives';
 import { formatDateRange, shortDate } from './headlineLandingDates';
+import { pendingEntryCopy, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
 
 export function ScheduleAndPlan({ data }: { data: HeritageLandingData }) {
   const cards = [
@@ -93,6 +94,7 @@ export function FinalCta({
   canEnterOnline?: boolean;
   entryClosed?: boolean;
 }) {
+  const mailInOnly = useLandingMailInOnly();
   const countdown = useCountdown(data.entryCloseDate, data.timezone);
 
   return (
@@ -121,9 +123,9 @@ export function FinalCta({
               </>
             ) : (
               <>
-                Entries open when
+                {mailInOnly ? 'Enter by mail or at the' : 'Entries open when'}
                 <br />
-                <span className="accent">classes are assigned.</span>
+                <span className="accent">{mailInOnly ? 'show.' : 'classes are assigned.'}</span>
               </>
             )}
           </h2>
@@ -137,7 +139,10 @@ export function FinalCta({
             ) : entryClosed ? (
               'Contact the trial secretary for late-entry help.'
             ) : (
-              'The secretary still needs to assign classes before online entry is available.'
+              pendingEntryCopy(
+                mailInOnly,
+                'The secretary still needs to assign classes before online entry is available.'
+              )
             )}
           </p>
         </div>
@@ -156,7 +161,10 @@ export function FinalCta({
             <div className="helper">
               {entryClosed
                 ? 'Contact the trial secretary for late-entry help.'
-                : 'The secretary still needs to assign classes before online entry is available.'}
+                : pendingEntryCopy(
+                    mailInOnly,
+                    'The secretary still needs to assign classes before online entry is available.'
+                  )}
             </div>
           )}
         </div>

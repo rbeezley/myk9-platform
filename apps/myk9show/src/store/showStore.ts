@@ -65,6 +65,8 @@ export function replicatedToShow(replicated: ReplicatedShow): Show {
     stats: [], // Local-only: calculated
     acceptCheckPayments: replicated.acceptCheckPayments,
     acceptCashPayments: replicated.acceptCashPayments,
+    onlineEntriesEnabled: replicated.onlineEntriesEnabled,
+    serverVersion: replicated.serverVersion,
     // Preserve the Nationals placement flag across sync/reload. Dropping it here
     // would surface as undefined → showToFormData defaults false → an unrelated
     // edit silently overwrites the show back to Regular placement.
@@ -186,6 +188,7 @@ export interface ShowInput {
   startingArmbandNumber?: number | undefined;
   acceptCheckPayments?: boolean | undefined;
   acceptCashPayments?: boolean | undefined;
+  onlineEntriesEnabled?: boolean | undefined;
   isNationals?: boolean | undefined;
   style?: string | null;
   assignedJudges?: ShowJudgeAssignment[] | undefined;
@@ -268,6 +271,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         clubId: showData.clubId || undefined,
         acceptCheckPayments: showData.acceptCheckPayments,
         acceptCashPayments: showData.acceptCashPayments,
+        onlineEntriesEnabled: showData.onlineEntriesEnabled,
       });
 
       // Create full Show with local-only fields

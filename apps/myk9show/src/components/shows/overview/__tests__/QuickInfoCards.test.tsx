@@ -11,6 +11,7 @@ const baseShow: Partial<Show> = {
   dayOfShowFee: '$20.00',
   location: 'Dogtown Park',
   clubName: 'Happy Paws Club',
+  onlineEntriesEnabled: true,
 };
 
 describe('QuickInfoCards — payment methods', () => {
@@ -22,10 +23,19 @@ describe('QuickInfoCards — payment methods', () => {
     expect(screen.queryByText('Host Club')).not.toBeInTheDocument();
   });
 
-  it('always renders Card badge', () => {
+  // MYK9-979: card payment exists only with online entries on.
+  it('renders the Card badge for a show with online entries on', () => {
     render(<QuickInfoCards show={baseShow as Show} />);
     expect(screen.getByText('Card')).toBeInTheDocument();
   });
+
+  it.each([false, undefined])(
+    'renders no Card badge when online entries are %s (mail-in or not known yet)',
+    onlineEntriesEnabled => {
+      render(<QuickInfoCards show={{ ...baseShow, onlineEntriesEnabled } as Show} />);
+      expect(screen.queryByText('Card')).not.toBeInTheDocument();
+    }
+  );
 
   it('does not render Check badge when acceptCheckPayments is false', () => {
     render(<QuickInfoCards show={{ ...baseShow, acceptCheckPayments: false } as Show} />);

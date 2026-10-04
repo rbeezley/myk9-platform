@@ -121,6 +121,11 @@ export function buildEditModeDraft({
       startingArmbandNumber: existingShow.startingArmbandNumber ?? 100,
       acceptCheckPayments: existingShow.acceptCheckPayments ?? false,
       acceptCashPayments: existingShow.acceptCashPayments ?? false,
+      // MYK9-979: display only. The edit-mode save never writes this field
+      // (it is changed on the show edit panel), and unknown stays unknown.
+      ...(existingShow.onlineEntriesEnabled !== undefined
+        ? { onlineEntriesEnabled: existingShow.onlineEntriesEnabled }
+        : {}),
       // MYK9-831: `loadDraft` REPLACES the whole `show` object (shallow merge at
       // the top level), so a wizard opened over an existing show that omits
       // this field wipes out whatever the wizard already held and every trial

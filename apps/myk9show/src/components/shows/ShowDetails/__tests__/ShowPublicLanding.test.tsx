@@ -50,7 +50,7 @@ vi.mock('@/features/monogram/landing/MonogramLandingPage', () => ({
 }));
 
 function makeShow(overrides: Partial<Show> = {}): Show {
-  return { id: 'show-1', name: 'Test Show', ...overrides } as Show;
+  return { id: 'show-1', name: 'Test Show', onlineEntriesEnabled: true, ...overrides } as Show;
 }
 
 function makeTrial(id: string): Trial {

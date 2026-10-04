@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
+import { pendingNavLabel, useLandingMailInOnly } from '@/features/_shared/landing/landingMailIn';
 
 interface StickyNavProps {
   clubName: string;
@@ -35,6 +36,7 @@ export function StickyNav({
   canEnterOnline = true,
   entryClosed = false,
 }: StickyNavProps) {
+  const mailInOnly = useLandingMailInOnly();
   // `null` until the observer locks on to a section. Treated as "no active
   // anchor" so the nav doesn't paint a misleading highlight on shows where
   // every observable section has been omitted (a minimal show with only a
@@ -157,7 +159,7 @@ export function StickyNav({
             fontFamily: 'var(--mz-display)',
           }}
         >
-          {entryClosed ? 'Entries closed' : 'Classes pending'}
+          {entryClosed ? 'Entries closed' : pendingNavLabel(mailInOnly)}
         </span>
       )}
     </nav>

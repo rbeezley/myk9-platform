@@ -76,6 +76,8 @@ export const mapReplicatedEntryToDbRow = (
       // MYK9-639: the supersession link, so the offline rebuild of the reports
       // and summaries can follow a move-up to the row that holds the money.
       moved_from_entry_id: 'movedFromEntryId',
+      // MYK9-969: the server hid this row's results from this viewer.
+      results_private: 'resultsPrivate',
     }),
     check_in_status: entry.checkInStatus ?? entry.check_in_status ?? null,
     discount_amount: entry.discountAmount ?? entry.discount_amount ?? null,

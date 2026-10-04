@@ -22,6 +22,7 @@ export function PodiumCard({ classTitle, placements }: PodiumCardProps) {
             dogName={p.dogName}
             breed={p.breed}
             armband={p.armband}
+            isPrivate={p.isPrivate}
           />
         ))}
       </div>

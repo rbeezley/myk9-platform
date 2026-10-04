@@ -22,6 +22,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { cacheStrategies } from '@/lib/queryClient';
 import { mapResultStatusToQualification, dbSecondsToInputFormat } from '@/utils/scoringMappings';
+import { isPrivateResultRow } from '@/lib/resultsPrivacy';
 import type { RawEntryRow } from './useClassEntriesRaw';
 import type { ClassEntryDisplay } from '@/pages/ClassDetailsPage/types';
 
@@ -66,12 +67,13 @@ export function mapReleasedResultRow(row: Record<string, unknown>): {
   const status = mapResultStatusToQualification(row.result_status as string | null | undefined);
   const time = dbSecondsToInputFormat(row.search_time_seconds as number | null | undefined);
   const placement = row.final_placement != null ? String(row.final_placement) : '';
+  const isPrivate = isPrivateResultRow(row);
 
   const raw: RawEntryRow = {
     id: row.id as string,
     class_id: row.class_id as string,
     show_id: row.show_id as string,
-    dog_id: row.dog_id as string,
+    dog_id: (row.dog_id as string | null) ?? '',
     handler_id: null,
     armband: (row.armband as string | null) ?? null,
     handler: (row.handler as string | null) ?? null,
@@ -86,7 +88,8 @@ export function mapReleasedResultRow(row: Record<string, unknown>): {
     check_in_status: (row.check_in_status as string | null) ?? null,
     run_order: (row.run_order as number | null) ?? null,
     dog: {
-      id: row.dog_id as string,
+      // NULL for an anonymised private entry (MYK9-969); its name still shows.
+      id: (row.dog_id as string | null) ?? '',
       name: (row.dog_name as string) || dogName,
       call_name: (row.dog_call_name as string | null) ?? null,
       breed: (row.dog_breed as string | null) ?? null,
@@ -97,6 +100,7 @@ export function mapReleasedResultRow(row: Record<string, unknown>): {
     },
     created_at: (row.created_at as string | null) ?? null,
     updated_at: null,
+    results_private: isPrivate,
   };
 
   const entry: ClassEntryDisplay = {

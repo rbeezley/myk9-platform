@@ -13,6 +13,7 @@ import {
 import type { ScoringRow } from './types';
 import { DISPLAY_LABELS, QUALIFICATION_REASONS, STATUSES_REQUIRING_REASON } from './constants';
 import { PendingCell } from './PendingCell';
+import { RESULTS_PRIVATE_LABEL } from '@/lib/resultsPrivacy';
 
 interface QualificationCellProps {
   item: ScoringRow;
@@ -29,6 +30,12 @@ export const QualificationCell: React.FC<QualificationCellProps> = ({
 }) => {
   if (!visible) {
     return <PendingCell />;
+  }
+
+  if (!canEdit && item.resultsPrivate && !item.qualification) {
+    // MYK9-969: the entry's people keep their results private. Say so, rather
+    // than "Not Set", which reads as a scoring gap.
+    return <span className="text-sm text-muted-foreground italic">{RESULTS_PRIVATE_LABEL}</span>;
   }
 
   if (!canEdit) {

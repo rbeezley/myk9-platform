@@ -3046,6 +3046,7 @@ export type Database = {
           onboarded_roles: string[]
           onboarding_completed_at: string | null
           person_id: string
+          results_public: boolean
           stripe_customer_id: string | null
           subscription_expires_at: string | null
           subscription_tier: string | null
@@ -3059,6 +3060,7 @@ export type Database = {
           onboarded_roles?: string[]
           onboarding_completed_at?: string | null
           person_id: string
+          results_public?: boolean
           stripe_customer_id?: string | null
           subscription_expires_at?: string | null
           subscription_tier?: string | null
@@ -3072,6 +3074,7 @@ export type Database = {
           onboarded_roles?: string[]
           onboarding_completed_at?: string | null
           person_id?: string
+          results_public?: boolean
           stripe_customer_id?: string | null
           subscription_expires_at?: string | null
           subscription_tier?: string | null
@@ -8106,6 +8109,7 @@ export type Database = {
           placement_timing: string
           preset: string | null
           qualification_timing: string
+          results_private: boolean
           self_checkin_enabled: boolean
           show_id: string
           time_timing: string
@@ -8117,6 +8121,7 @@ export type Database = {
           placement_timing?: string
           preset?: string | null
           qualification_timing?: string
+          results_private?: boolean
           self_checkin_enabled?: boolean
           show_id: string
           time_timing?: string
@@ -8128,6 +8133,7 @@ export type Database = {
           placement_timing?: string
           preset?: string | null
           qualification_timing?: string
+          results_private?: boolean
           self_checkin_enabled?: boolean
           show_id?: string
           time_timing?: string
@@ -11182,6 +11188,7 @@ export type Database = {
           registration_id: string | null
           result_status: string | null
           result_text: string | null
+          results_private: boolean | null
           ring_entry_time: string | null
           ring_exit_time: string | null
           run_order: number | null
@@ -11506,6 +11513,7 @@ export type Database = {
           registration_id: string | null
           result_status: string | null
           result_text: string | null
+          results_private: boolean | null
           ring_entry_time: string | null
           ring_exit_time: string | null
           run_order: number | null
@@ -12326,6 +12334,7 @@ export type Database = {
           is_scored: boolean | null
           result_status: string | null
           result_text: string | null
+          results_private: boolean | null
           run_order: number | null
           scoring_completed_at: string | null
           search_time_seconds: number | null

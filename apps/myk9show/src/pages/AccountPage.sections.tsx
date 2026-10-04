@@ -23,6 +23,7 @@ import { Award } from 'lucide-react';
 import { SubscriptionManager } from '@/components/subscription/SubscriptionManager';
 import { useSubscriptionGate } from '@/hooks/useSubscriptionGate';
 import { JuniorHandlerFields } from '@/components/common/JuniorHandlerFields';
+import { ResultsPrivacySetting } from '@/components/preferences/ResultsPrivacySetting';
 
 const DELETE_CONFIRMATION_TEXT = 'DELETE';
 const PENDING_SELF_DELETE_REVOCATION_KEY_PREFIX = 'myk9:pending-self-delete-auth-revocation';
@@ -253,6 +254,8 @@ export function ProfileSection() {
           )}
         </CardContent>
       </Card>
+
+      <ResultsPrivacySetting />
 
       <Card>
         <CardHeader>

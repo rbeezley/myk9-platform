@@ -7,6 +7,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { cacheStrategies } from '@/lib/queryClient';
+import { isPrivateResultRow } from '@/lib/resultsPrivacy';
 
 export interface Placement {
   placement: 1 | 2 | 3 | 4;
@@ -14,6 +15,8 @@ export interface Placement {
   dogName: string;
   breed: string;
   armband: string | null;
+  /** MYK9-969: an anonymised "Private entry" holding its place in the standings. */
+  isPrivate?: boolean | undefined;
 }
 
 export interface ClassResult {
@@ -70,12 +73,15 @@ async function fetchShowResults(showId: string): Promise<ClassResult[]> {
     }
 
     const cls = classMap.get(classId)!;
+    const isPrivate = isPrivateResultRow(row);
     cls.placements.push({
       placement: row.final_placement as 1 | 2 | 3 | 4,
-      handlerName: (row.handler as string) || 'Unknown',
+      // A private entry has no handler to name; "Unknown" would read as a gap.
+      handlerName: (row.handler as string) || (isPrivate ? '' : 'Unknown'),
       dogName: (row.dog_call_name as string) || 'Unknown',
       breed: (row.dog_breed as string) || '',
       armband: row.armband as string | null,
+      isPrivate,
     });
   }
 

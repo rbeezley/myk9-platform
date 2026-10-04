@@ -94,6 +94,7 @@ export function useClassResults({
         checkInStatus: (raw?.check_in_status as CheckInStatus) ?? 'no-status',
         isScored,
         hasEdits: edits.has(entry.id),
+        resultsPrivate: raw?.results_private === true,
       };
     });
   }, [entries, rawMap, edits, submittedEdits, justScoredIds, justClearedIds]);

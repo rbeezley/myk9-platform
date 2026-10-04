@@ -369,7 +369,10 @@ Deno.serve(async (req: Request) => {
             '', // myK9Show uses show_id scoping via userContext, not license_key
             undefined,
             undefined,
-            userContext
+            userContext,
+            // Entry results are read as the caller, so the server's release
+            // and privacy rules apply to them (MYK9-969).
+            supabaseClient
           );
           // Fixed argument order: (sources, toolName, result)
           collectSource(sources, block.name!, toolResult.result);

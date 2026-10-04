@@ -62,6 +62,53 @@ interface ShowCheckinUpdate {
   enabled: boolean;
 }
 
+interface ShowResultsPrivacyUpdate {
+  showId: string;
+  /** MYK9-969: the club's show-wide private switch. */
+  resultsPrivate: boolean;
+}
+
+/**
+ * Write show-level columns that are NOT the visibility timings (self check-in,
+ * results privacy) without clobbering the show's timings.
+ *
+ * An upsert sends every column it names, so the timings are read first and
+ * written back verbatim; only a brand-new row gets the standard defaults. A
+ * failed read must abort: treating it as "no row" would overwrite the show's
+ * custom timings with the defaults below.
+ */
+async function upsertShowSettingsColumns(
+  showId: string,
+  columns: Record<string, unknown>,
+  userId: string | null
+): Promise<void> {
+  const existingResult = await untypedSupabase
+    .from('show_visibility_settings')
+    .select('preset, placement_timing, qualification_timing, time_timing, faults_timing')
+    .eq('show_id', showId)
+    .abortSignal(settingsRequestSignal())
+    .maybeSingle();
+  throwIfRequestFailed(existingResult);
+  const existing = existingResult.data;
+
+  await runSettingsWrite(
+    untypedSupabase.from('show_visibility_settings').upsert({
+      show_id: showId,
+      // Preserve an existing row's preset verbatim — including NULL (custom
+      // timings). Only a brand-new row, written alongside the default timings
+      // below, gets the 'standard' label.
+      preset: existing ? existing.preset : 'standard',
+      placement_timing: existing?.placement_timing ?? 'class_complete',
+      qualification_timing: existing?.qualification_timing ?? 'immediate',
+      time_timing: existing?.time_timing ?? 'class_complete',
+      faults_timing: existing?.faults_timing ?? 'class_complete',
+      ...columns,
+      updated_by: userId,
+      updated_at: new Date().toISOString(),
+    })
+  );
+}
+
 interface TrialOverrideUpdate {
   trialId: string;
   showId: string; // for cache invalidation
@@ -205,36 +252,10 @@ export function useUpdateShowCheckin() {
 
   return useMutation({
     mutationFn: async (update: ShowCheckinUpdate) => {
-      // Upsert with standard preset defaults for the required visibility columns.
-      // If the row already exists, onConflict on show_id means only the columns
-      // listed here are updated — but since upsert sends ALL columns, we must
-      // read existing visibility values first to avoid clobbering them.
-      // A failed read must abort: treating it as "no row" would overwrite the
-      // show's custom timings with the defaults below.
-      const existingResult = await untypedSupabase
-        .from('show_visibility_settings')
-        .select('preset, placement_timing, qualification_timing, time_timing, faults_timing')
-        .eq('show_id', update.showId)
-        .abortSignal(settingsRequestSignal())
-        .maybeSingle();
-      throwIfRequestFailed(existingResult);
-      const existing = existingResult.data;
-
-      await runSettingsWrite(
-        untypedSupabase.from('show_visibility_settings').upsert({
-          show_id: update.showId,
-          // Preserve an existing row's preset verbatim — including NULL (custom
-          // timings). Only a brand-new row, written alongside the default timings
-          // below, gets the 'standard' label.
-          preset: existing ? existing.preset : 'standard',
-          placement_timing: existing?.placement_timing ?? 'class_complete',
-          qualification_timing: existing?.qualification_timing ?? 'immediate',
-          time_timing: existing?.time_timing ?? 'class_complete',
-          faults_timing: existing?.faults_timing ?? 'class_complete',
-          self_checkin_enabled: update.enabled,
-          updated_by: user?.id ?? null,
-          updated_at: new Date().toISOString(),
-        })
+      await upsertShowSettingsColumns(
+        update.showId,
+        { self_checkin_enabled: update.enabled },
+        user?.id ?? null
       );
     },
     onMutate: async variables => {
@@ -246,6 +267,40 @@ export function useUpdateShowCheckin() {
           if (!old) return old;
           return { ...old, selfCheckinEnabled: variables.enabled };
         }
+      );
+      return { previous };
+    },
+    onError: (_err, variables, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(settingsQueryKeys.show(variables.showId), context.previous);
+      }
+    },
+    onSettled: (_, __, variables) => {
+      queryClient.invalidateQueries({ queryKey: settingsQueryKeys.show(variables.showId) });
+    },
+  });
+}
+
+/** MYK9-969: the club's show-wide "keep results private" switch. */
+export function useUpdateShowResultsPrivacy() {
+  const queryClient = useQueryClient();
+  const { user } = useAuth();
+
+  return useMutation({
+    mutationFn: async (update: ShowResultsPrivacyUpdate) => {
+      await upsertShowSettingsColumns(
+        update.showId,
+        { results_private: update.resultsPrivate },
+        user?.id ?? null
+      );
+    },
+    onMutate: async variables => {
+      await queryClient.cancelQueries({ queryKey: settingsQueryKeys.show(variables.showId) });
+      const previous = queryClient.getQueryData(settingsQueryKeys.show(variables.showId));
+      queryClient.setQueryData(
+        settingsQueryKeys.show(variables.showId),
+        (old: ShowSettings | undefined) =>
+          old ? { ...old, resultsPrivate: variables.resultsPrivate } : old
       );
       return { previous };
     },

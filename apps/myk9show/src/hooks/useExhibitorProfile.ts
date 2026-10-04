@@ -19,6 +19,11 @@ export interface ExhibitorProfile {
   onboarding_completed_at: string | null;
   /** Role onboarding steps finished (MYK9-970); a held role missing here gets its step once. */
   onboarded_roles: string[] | null;
+  /**
+   * "Show my results publicly" (MYK9-969). False — private — by default, and
+   * also when the column is not there yet (migration not applied).
+   */
+  results_public: boolean;
   created_at: string;
   updated_at: string;
   person?: {
@@ -74,6 +79,7 @@ function mapToExhibitorProfile(data: Record<string, unknown>): ExhibitorProfile 
     onboarded_roles: Array.isArray(data.onboarded_roles)
       ? (data.onboarded_roles as string[])
       : null,
+    results_public: data.results_public === true,
     created_at: (data.created_at as string) || new Date().toISOString(),
     updated_at: (data.updated_at as string) || new Date().toISOString(),
     ...(personData !== undefined && { person: personData }),
@@ -244,6 +250,27 @@ export function useExhibitorProfile() {
     },
   });
 
+  // "Show my results publicly" (MYK9-969). The server reads this through the
+  // account's own profile row; the self-only RLS is the only write guard needed.
+  const setResultsPublicMutation = useMutation({
+    mutationFn: async (resultsPublic: boolean): Promise<boolean> => {
+      if (!user?.id) throw new Error('User not authenticated');
+      if (!profile?.id) throw new Error('No exhibitor profile found');
+
+      const { error } = await supabase
+        .from('exhibitor_profiles')
+        .update({ results_public: resultsPublic })
+        .eq('id', profile.id);
+
+      if (error) throw error;
+      queryClient.setQueryData(['exhibitorProfile', user.id], {
+        ...profile,
+        results_public: resultsPublic,
+      } satisfies ExhibitorProfile);
+      return resultsPublic;
+    },
+  });
+
   return {
     profile,
     isLoading,
@@ -270,5 +297,7 @@ export function useExhibitorProfile() {
     createProfileError: createProfileMutation.error,
     completeOnboarding: completeOnboardingMutation.mutateAsync,
     isCompletingOnboarding: completeOnboardingMutation.isPending,
+    setResultsPublic: setResultsPublicMutation.mutateAsync,
+    isSettingResultsPublic: setResultsPublicMutation.isPending,
   };
 }

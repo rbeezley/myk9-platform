@@ -14789,6 +14789,10 @@ export type Database = {
         }[]
       }
       volunteer_show_id: { Args: { vol_id: string }; Returns: string }
+      waitlist_class_trial_has_passed: {
+        Args: { p_class_id: string }
+        Returns: boolean
+      }
       withdraw_own_entry: {
         Args: {
           p_entry_id: string

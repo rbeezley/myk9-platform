@@ -1510,6 +1510,7 @@ export type Database = {
           description: string | null
           email: string | null
           id: string
+          is_demo: boolean
           license_key: string | null
           logo_url: string | null
           name: string
@@ -1538,6 +1539,7 @@ export type Database = {
           description?: string | null
           email?: string | null
           id?: string
+          is_demo?: boolean
           license_key?: string | null
           logo_url?: string | null
           name: string
@@ -1566,6 +1568,7 @@ export type Database = {
           description?: string | null
           email?: string | null
           id?: string
+          is_demo?: boolean
           license_key?: string | null
           logo_url?: string | null
           name?: string

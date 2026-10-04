@@ -1,10 +1,12 @@
 import { createDatabaseError } from '@/services/database/databaseError';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-const { mockSelect, mockFrom } = vi.hoisted(() => {
+const { mockSelect, mockFrom, mockEq, mockOr } = vi.hoisted(() => {
   const mockSelect = vi.fn();
   const mockFrom = vi.fn();
-  return { mockSelect, mockFrom };
+  const mockEq = vi.fn();
+  const mockOr = vi.fn();
+  return { mockSelect, mockFrom, mockEq, mockOr };
 });
 
 // The real helper, not a local copy: a file-local factory beats the global
@@ -33,10 +35,28 @@ describe('postgrestGetPublicShows', () => {
       select: mockSelect,
       in: vi.fn().mockReturnThis(),
       is: vi.fn().mockReturnThis(),
+      eq: mockEq.mockReturnThis(),
+      or: mockOr.mockReturnThis(),
       order: vi.fn().mockResolvedValue({ data: [], error: null }),
     };
     mockSelect.mockReturnValue(chain);
     mockFrom.mockReturnValue(chain);
+  });
+
+  // MYK9-952: seed-demo fixture shows stay published for the E2E specs, so the
+  // signed-out list must leave out every show a demo club hosts, and ONLY those.
+  // The club embed stays a LEFT embed: an inner one would also drop every
+  // public show with no club (club_id is still nullable). The embed filter nulls
+  // `club` for a demo club; the top-level OR then keeps a row whose club_id is
+  // null or whose (non-demo) club survived the filter.
+  it('leaves out shows hosted by a demo club, and only those (MYK9-952)', async () => {
+    await postgrestGetPublicShows();
+
+    const select = mockSelect.mock.calls[0]?.[0] as string;
+    expect(select).toMatch(/club:clubs\s*\(/);
+    expect(select).not.toContain('!inner');
+    expect(mockEq).toHaveBeenCalledWith('club.is_demo', false);
+    expect(mockOr).toHaveBeenCalledWith('club_id.is.null,club.not.is.null');
   });
 
   it('embeds trials so the discipline filter has a source', async () => {
@@ -60,6 +80,8 @@ describe('postgrestGetPublicShows', () => {
       select: mockSelect,
       in: vi.fn().mockReturnThis(),
       is: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      or: vi.fn().mockReturnThis(),
       order: vi.fn().mockResolvedValue({
         data: [
           {

@@ -337,6 +337,7 @@ export const classSchemas = {
       .nullable()
       .optional(),
     allowsWaitlist: z.boolean().optional(),
+    editedCapacity: z.array(z.enum(['maxEntries', 'allowsWaitlist'])).optional(),
     preEntryFee: z
       .number()
       .min(0, 'Please enter a valid pre-entry fee')
@@ -365,6 +366,7 @@ export const classSchemas = {
       .nullable()
       .optional(),
     allowsWaitlist: z.boolean().optional(),
+    editedCapacity: z.array(z.enum(['maxEntries', 'allowsWaitlist'])).optional(),
   }),
 };
 

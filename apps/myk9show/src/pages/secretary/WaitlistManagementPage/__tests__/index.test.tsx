@@ -5,7 +5,8 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render } from '@/test/utils/testUtils';
+import { render, createTestQueryClient } from '@/test/utils/testUtils';
+import { judgeDayCapacityKey } from '@/hooks/queries/useJudgeDayCapacity';
 import WaitlistManagementPage from '../index';
 
 const state = vi.hoisted(() => ({ searchTerm: '', selectedShowId: 'show-1' }));
@@ -77,7 +78,8 @@ vi.mock('../useWaitlistManagementData', () => ({
   }),
 }));
 
-vi.mock('@/hooks/queries/useJudgeDayCapacity', () => ({
+vi.mock('@/hooks/queries/useJudgeDayCapacity', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/hooks/queries/useJudgeDayCapacity')>()),
   useJudgeDayCapacity: () => ({ judgeDays: [] }),
 }));
 
@@ -133,5 +135,13 @@ describe('WaitlistManagementPage', () => {
     state.selectedShowId = 'show-2';
     rerender(<WaitlistManagementPage showId="show-1" />);
     expect(screen.getByTestId('waitlist-settings-card')).toHaveTextContent('settings for show-2');
+  });
+
+  it('Refresh also re-reads the judge-day capacity cards', () => {
+    const queryClient = createTestQueryClient();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    render(<WaitlistManagementPage showId="show-1" />, { queryClient });
+    fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: judgeDayCapacityKey('show-1') });
   });
 });

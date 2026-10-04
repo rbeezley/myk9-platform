@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
-import { render } from '@/test/utils/testUtils';
+import { render, createTestQueryClient } from '@/test/utils/testUtils';
+import { judgeDayCapacityKey } from '@/hooks/queries/useJudgeDayCapacity';
 import { WaitListSettingsCard } from '../WaitListSettingsCard';
 
 // ---------------------------------------------------------------------------
@@ -138,5 +139,21 @@ describe('WaitListSettingsCard', () => {
       );
       expect(mockUpdateEq).toHaveBeenCalledWith('id', 'show-1');
     });
+  });
+
+  // The Waitlist tab's Full / spots-available cards derive from these settings (Codex review of #2735).
+  it('a successful save refreshes the judge-day capacity cards', async () => {
+    mockUpdateEq.mockResolvedValue({ error: null });
+    const queryClient = createTestQueryClient();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    render(<WaitListSettingsCard showId="show-1" />, { queryClient });
+    await waitFor(() =>
+      expect((screen.getByLabelText('Judge Daily Capacity') as HTMLInputElement).value).toBe('125')
+    );
+    fireEvent.change(screen.getByLabelText('Judge Daily Capacity'), { target: { value: '150' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: judgeDayCapacityKey('show-1') })
+    );
   });
 });

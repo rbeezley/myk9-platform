@@ -1,6 +1,10 @@
 import type { ClassData } from '@/components/classes/types/classTypes';
 import type { TrialClass } from '@/components/trials/types/trial.types';
-import type { ClassEditFormData, TrialClassEditFormData } from './ClassEditPanel.types';
+import type {
+  CapacityControl,
+  ClassEditFormData,
+  TrialClassEditFormData,
+} from './ClassEditPanel.types';
 
 // Convert ClassData to form data
 export const classToFormData = (classItem: Partial<ClassData>): ClassEditFormData => {
@@ -32,6 +36,7 @@ export const classToFormData = (classItem: Partial<ClassData>): ClassEditFormDat
     itemsUsed: classItem.itemsUsed || '',
     maxEntries: classItem.maxEntries ?? null,
     allowsWaitlist: classItem.allowsWaitlist ?? false,
+    editedCapacity: [],
     preEntryFee: classItem.preEntryFee || 0,
     dayOfShowFee: classItem.dayOfShowFee || 0,
   };
@@ -62,8 +67,7 @@ export const formDataToClass = (formData: ClassEditFormData): Partial<ClassData>
   ...(formData.hidesUsed !== undefined && { hidesUsed: formData.hidesUsed }),
   ...(formData.distractionsUsed !== undefined && { distractionsUsed: formData.distractionsUsed }),
   ...(formData.itemsUsed !== undefined && { itemsUsed: formData.itemsUsed }),
-  ...(formData.maxEntries !== undefined && { maxEntries: formData.maxEntries }),
-  ...(formData.allowsWaitlist !== undefined && { allowsWaitlist: formData.allowsWaitlist }),
+  ...editedCapacityPatch(formData),
   ...(formData.preEntryFee !== undefined && { preEntryFee: formData.preEntryFee }),
   ...(formData.dayOfShowFee !== undefined && { dayOfShowFee: formData.dayOfShowFee }),
 });
@@ -82,23 +86,25 @@ export const hasLoadedCapacity = (initial: CapacitySource | undefined): boolean 
   initial?.allowsWaitlist !== undefined;
 
 /**
- * The entry limit and wait list switch go to the save only when they were loaded AND the user
- * changed them, so an unrelated edit can never overwrite them, and a future producer that drops
- * a field cannot silently null it out (MYK9-998, Codex review of #2735).
+ * The capacity controls the user edited in this editor session, and nothing else. A value is
+ * never compared with the class props: those can refresh under an open editor (another
+ * secretary's change), and a comparison against the refreshed props would send the stale form
+ * value over it. An untouched control is simply absent from the patch (MYK9-998).
  */
-export function onlyChangedCapacity<T extends CapacitySource>(
-  saved: T,
-  initial: CapacitySource | undefined
-): T {
-  const { maxEntries, allowsWaitlist, ...rest } = saved;
-  if (!hasLoadedCapacity(initial)) return rest as T;
-  const loadedLimit = initial?.maxEntries ?? null;
+export function editedCapacityPatch(formData: {
+  maxEntries?: number | null | undefined;
+  allowsWaitlist?: boolean | undefined;
+  editedCapacity?: CapacityControl[] | undefined;
+}): CapacitySource {
+  const edited = formData.editedCapacity ?? [];
   const out: CapacitySource = {};
-  if (maxEntries !== undefined && maxEntries !== loadedLimit) out.maxEntries = maxEntries;
-  if (allowsWaitlist !== undefined && allowsWaitlist !== initial?.allowsWaitlist) {
-    out.allowsWaitlist = allowsWaitlist;
+  if (edited.includes('maxEntries') && formData.maxEntries !== undefined) {
+    out.maxEntries = formData.maxEntries;
   }
-  return { ...rest, ...out } as T;
+  if (edited.includes('allowsWaitlist') && formData.allowsWaitlist !== undefined) {
+    out.allowsWaitlist = formData.allowsWaitlist;
+  }
+  return out;
 }
 
 /**
@@ -122,6 +128,7 @@ export const trialClassToFormData = (trialClass: Partial<TrialClass>): TrialClas
     entries: trialClass.entries || 0,
     maxEntries: (trialClass as Partial<ClassData>).maxEntries ?? null,
     allowsWaitlist: (trialClass as Partial<ClassData>).allowsWaitlist ?? false,
+    editedCapacity: [],
   };
 };
 
@@ -135,6 +142,5 @@ export const formDataToTrialClass = (formData: TrialClassEditFormData): Partial<
   ...(formData.judgeName !== undefined && { judgeName: formData.judgeName }),
   status: formData.status,
   entries: formData.entries,
-  ...(formData.maxEntries !== undefined && { maxEntries: formData.maxEntries }),
-  ...(formData.allowsWaitlist !== undefined && { allowsWaitlist: formData.allowsWaitlist }),
+  ...editedCapacityPatch(formData),
 });

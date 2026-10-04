@@ -4,10 +4,12 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { FormField } from '@/components/common/FormField';
 import { useEditPanel } from './useEditPanel';
+import type { CapacityControl } from './ClassEditPanel.types';
 
 interface ClassWaitlistFormData extends Record<string, unknown> {
   maxEntries?: number | null;
   allowsWaitlist?: boolean;
+  editedCapacity?: CapacityControl[];
 }
 
 /**
@@ -19,6 +21,13 @@ interface ClassWaitlistFormData extends Record<string, unknown> {
 export function ClassWaitlistFields() {
   const { data, form } = useEditPanel<ClassWaitlistFormData>();
   const maxEntriesError = form?.getError('maxEntries');
+  // Only a control the user touched in this session is saved (see editedCapacityPatch).
+  const markEdited = (control: CapacityControl) => {
+    form?.setValue('editedCapacity', (previous: unknown) => {
+      const edited = (previous as CapacityControl[] | undefined) ?? [];
+      return edited.includes(control) ? edited : [...edited, control];
+    });
+  };
 
   return (
     <Card>
@@ -43,8 +52,8 @@ export function ClassWaitlistFields() {
             onChange={e => {
               const raw = e.target.value.trim();
               form?.setValue('maxEntries', raw === '' ? null : Number(raw));
+              markEdited('maxEntries');
             }}
-            onBlur={() => form?.touchField('maxEntries')}
             placeholder="No limit"
             aria-invalid={!!maxEntriesError}
           />
@@ -55,7 +64,7 @@ export function ClassWaitlistFields() {
             checked={data.allowsWaitlist ?? false}
             onCheckedChange={checked => {
               form?.setValue('allowsWaitlist', checked);
-              form?.touchField('allowsWaitlist');
+              markEdited('allowsWaitlist');
             }}
           />
           <div className="space-y-1">

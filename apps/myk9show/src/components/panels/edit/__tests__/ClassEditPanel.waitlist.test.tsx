@@ -135,3 +135,43 @@ describe('ClassEditPanel: classes handed over by Trial Details', () => {
     });
   });
 });
+
+// Codex round 3 on #2735: Class Details passes LIVE props. If another secretary changes the
+// wait list while this editor is open and dirty, an unrelated save must not send the old value
+// back. Only a control edited in this session is saved; nothing is compared with the props.
+describe('ClassEditPanel: capacity is saved only when edited in this session', () => {
+  const panel = (initial: Partial<ClassData>, onSave: ReturnType<typeof vi.fn>) => (
+    <ClassEditPanel
+      open
+      onClose={vi.fn()}
+      classId="cls-1"
+      className="Interior Novice"
+      initialClassData={initial}
+      onSave={onSave}
+    />
+  );
+
+  it('props refreshed under an open editor: an unrelated edit carries no capacity keys', async () => {
+    const onSave = vi.fn().mockResolvedValue(undefined);
+    const view = render(panel(setupClass({ maxEntries: 12, allowsWaitlist: false }), onSave));
+    await screen.findByLabelText(/Entry limit/);
+    // Another secretary turns the wait list on and raises the limit while this editor is open.
+    view.rerender(panel(setupClass({ maxEntries: 20, allowsWaitlist: true }), onSave));
+    await changeStatus(view.user);
+    await view.user.click(screen.getByRole('button', { name: 'Save Changes' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const saved = onSave.mock.calls[0]![0] as Record<string, unknown>;
+    expect(saved).not.toHaveProperty('maxEntries');
+    expect(saved).not.toHaveProperty('allowsWaitlist');
+  });
+
+  it('toggling the switch sends only allowsWaitlist', async () => {
+    const { user, onSave } = open(setupClass({ maxEntries: 12, allowsWaitlist: false }));
+    await user.click(await screen.findByRole('switch', { name: 'Allow wait list' }));
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+    await waitFor(() => expect(onSave).toHaveBeenCalled());
+    const saved = onSave.mock.calls[0]![0] as Record<string, unknown>;
+    expect(saved).toMatchObject({ allowsWaitlist: true });
+    expect(saved).not.toHaveProperty('maxEntries');
+  });
+});

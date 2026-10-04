@@ -30,7 +30,6 @@ import {
   formDataToTrialClass,
   isScentWorkNovice,
   hasLoadedCapacity,
-  onlyChangedCapacity,
 } from './ClassEditPanel.helpers';
 import { ClassEditForm } from './ClassEditForm';
 import { ClassWaitlistFields } from './ClassWaitlistFields';
@@ -258,7 +257,7 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
     const initialFormData = trialClassToFormData(initialClassData as Partial<TrialClass>);
 
     const handleSave = async (formData: TrialClassEditFormData) => {
-      const classData = onlyChangedCapacity(formDataToTrialClass(formData), initialClassData);
+      const classData = formDataToTrialClass(formData);
       if (onSave) await onSave(classData);
     };
 
@@ -280,7 +279,7 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
   const initialFormData = classToFormData(initialClassData as Partial<ClassData>);
 
   const handleSave = async (formData: ClassEditFormData) => {
-    const classData = onlyChangedCapacity(formDataToClass(formData), initialClassData);
+    const classData = formDataToClass(formData);
     if (onSave) await onSave(classData);
   };
 

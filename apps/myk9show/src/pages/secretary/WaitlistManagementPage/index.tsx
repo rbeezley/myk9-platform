@@ -20,7 +20,8 @@ import { WaitlistActionDialog } from './WaitlistActionDialog';
 import { WaitListSettingsCard } from '@/components/shows/WaitListSettingsCard';
 import { AccessRestrictedState, NoShowSelectedState } from './EmptyStates';
 import { JudgeCapacityOverview } from '@/components/waitlist/JudgeCapacityOverview';
-import { useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
+import { useQueryClient } from '@tanstack/react-query';
+import { judgeDayCapacityKey, useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
 
 interface WaitlistManagementPageProps {
   showId?: string | undefined;
@@ -28,6 +29,7 @@ interface WaitlistManagementPageProps {
 
 const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId }) => {
   const { hasRole } = useAuthContext();
+  const queryClient = useQueryClient();
 
   const {
     shows,
@@ -70,7 +72,14 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <WaitlistPageHeader onRefresh={handleRefresh} isRefreshDisabled={!selectedShowId} />
+      <WaitlistPageHeader
+        onRefresh={() => {
+          handleRefresh();
+          // Refresh also re-reads the judge-day cards, which are their own query.
+          void queryClient.invalidateQueries({ queryKey: judgeDayCapacityKey(selectedShowId) });
+        }}
+        isRefreshDisabled={!selectedShowId}
+      />
 
       {/* MYK9-999: judge-day capacity, offer window and mail-in hold live here, scoped to the show
           the queues below are showing (the Show menu can switch it), never to a stale prop: viewing

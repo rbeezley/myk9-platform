@@ -26,6 +26,7 @@ import { ShowResultsPrivacyToggle } from './ShowResultsPrivacyToggle';
 import { OverrideTree } from './OverrideTree';
 import { ResultsBulkBar } from './ResultsBulkBar';
 import { buildResultsReadinessSummary } from './readinessSummary';
+import { judgeSignOffWording } from '@/features/show-map/judgeSignOff';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 
 const getClassId = (c: { id: string }) => c.id;
@@ -256,7 +257,7 @@ export default function ResultsControlPage() {
           {/* C18: a constant instruction sat in a grid cell beside three live
               counts and read as a fourth metric that never changed. */}
           <p className="text-muted-foreground">
-            Verify the judge's initials on the printed result catalog before sending.
+            {judgeSignOffWording(showTrials[0]?.registryId).resultsControlInstruction}
           </p>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline" size="sm" className="min-h-11">

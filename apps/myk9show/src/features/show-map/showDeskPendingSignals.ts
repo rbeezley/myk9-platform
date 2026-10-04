@@ -1,3 +1,4 @@
+import { judgeSignOffWording } from './judgeSignOff';
 import { SHOW_MAP_WRAP_UP_STATUS } from './showMapTypes';
 import type { ShowMapTree } from './showMapTypes';
 import type { EntryLike } from './attention';
@@ -212,9 +213,7 @@ export function computeShowDeskPendingSignals({
       id: 'classes-needing-signature',
       count: needingSignature,
       priority: 'high',
-      label: `${needingSignature} ${
-        needingSignature === 1 ? 'class needs' : 'classes need'
-      } judge's initials`,
+      label: judgeSignOffWording(showRegistryId(tree)).pendingSignalLabel(needingSignature),
       // No verified single-class-management destination provably matches this
       // count unit (class rows, not entry rows) yet — omit as non-actionable
       // per spec rather than link to a dead end.
@@ -239,4 +238,9 @@ export function computeShowDeskPendingSignals({
   }
 
   return signals.sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]);
+}
+
+/** A show never mixes registries (MYK9-490), so the first trial speaks for all of them. */
+function showRegistryId(tree: ShowMapTree): string | undefined {
+  return Object.values(tree.nodesById).find(node => node.type === 'trial')?.registryId;
 }

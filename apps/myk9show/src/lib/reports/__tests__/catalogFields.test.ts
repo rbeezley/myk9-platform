@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  catalogRows,
   catalogPlacement,
   countCatalogClass,
   formatCatalogDate,
@@ -30,8 +31,8 @@ function entry(overrides: Partial<ReportEntry>): ReportEntry {
 }
 
 describe('resolveCatalogResult', () => {
-  it('prints WD for a withdrawal with no recorded reason code, never a guessed reason', () => {
-    expect(resolveCatalogResult(entry({ entryStatus: 'withdrawn' }))).toBe('WD');
+  it('prints WD for a result-recorded withdrawal with no reason code, never a guessed reason', () => {
+    expect(resolveCatalogResult(entry({ resultText: 'withdrawn' }))).toBe('WD');
   });
 
   it('lets a withdrawal win over a stale result', () => {
@@ -135,5 +136,51 @@ describe('field formatting', () => {
         owner: { first_name: 'Sam', last_name: 'Lee' },
       })
     ).toBe(false);
+  });
+});
+
+describe('declined entries are not entries', () => {
+  // rejectEntry stores entry_status 'withdrawn' with no withdrawal_reason_code.
+  const declined = entry({ id: 'declined', entryStatus: 'withdrawn' });
+  const inSeason = entry({
+    id: 'ais',
+    entryStatus: 'withdrawn',
+    withdrawalReasonCode: 'in_season',
+  });
+  const judgeChange = entry({
+    id: 'ajc',
+    entryStatus: 'withdrawn',
+    withdrawalReasonCode: 'judge_change',
+  });
+  const resultWithdrawn = entry({ id: 'wd', entryStatus: 'confirmed', resultText: 'withdrawn' });
+  const ran = entry({ id: 'ran', resultText: 'q' });
+
+  it('leaves a declined entry out of the listing', () => {
+    expect(catalogRows([declined, inSeason, ran]).map(row => row.id)).toEqual(['ais', 'ran']);
+  });
+
+  it('leaves a declined entry out of every header count', () => {
+    expect(countCatalogClass([declined, ran])).toEqual({
+      entries: 1,
+      competing: 1,
+      qualifying: 1,
+      withdrawn: 0,
+    });
+  });
+
+  it('keeps real withdrawals listed and counted, printed as AIS and AJC', () => {
+    expect(countCatalogClass([inSeason, judgeChange, ran])).toEqual({
+      entries: 1,
+      competing: 1,
+      qualifying: 1,
+      withdrawn: 2,
+    });
+    expect(catalogRows([inSeason, judgeChange]).map(resolveCatalogResult)).toEqual(['AIS', 'AJC']);
+  });
+
+  it('keeps a result-recorded withdrawal listed as WD and counted withdrawn', () => {
+    expect(catalogRows([resultWithdrawn])).toHaveLength(1);
+    expect(resolveCatalogResult(resultWithdrawn)).toBe('WD');
+    expect(countCatalogClass([resultWithdrawn]).withdrawn).toBe(1);
   });
 });

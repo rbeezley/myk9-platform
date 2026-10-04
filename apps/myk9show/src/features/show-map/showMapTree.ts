@@ -1,3 +1,4 @@
+import { resolveConfiguredRegistryId } from '@/features/registries';
 import {
   buildClassProgress,
   buildProgress,
@@ -235,10 +236,14 @@ export function buildShowMapTree({
       hasStarted: trialClasses.some(cls => classifyClassStatus(cls.status)?.kind === 'active'),
     });
     const resultSubmittedAt = trial.resultSubmittedAt ?? undefined;
+    const trialRegistryId = resolveConfiguredRegistryId(trial.registryId) ?? 'AKC';
     const classWrapUpStatusesById = new Map(
       trialClasses.map(cls => [
         cls.id,
-        classifyClassWrapUpStatus(cls, entriesByClassId.get(cls.id) ?? [], { resultSubmittedAt }),
+        classifyClassWrapUpStatus(cls, entriesByClassId.get(cls.id) ?? [], {
+          resultSubmittedAt,
+          registryId: trialRegistryId,
+        }),
       ])
     );
     const classWrapUpStatuses = Array.from(classWrapUpStatusesById.values()).filter(
@@ -289,6 +294,7 @@ export function buildShowMapTree({
       href: getShowMapTrialHref(show.id, trial.id),
       trialDate: trial.trialDate || undefined,
       timezone: getTrialTimezone(trial),
+      registryId: trialRegistryId,
       parentId: root.id,
       childrenCount: trialClasses.length,
     };
@@ -316,6 +322,7 @@ export function buildShowMapTree({
         ringLabel: classRingLabel(cls),
         judgeName: cls.judgeName || undefined,
         startTime: cls.time || undefined,
+        registryId: trialRegistryId,
         parentId: trialNode.id,
         childrenCount: classEntries.length,
         reopenedAfterCloseoutAt: cls.reopenedAfterCloseoutAt ?? null,

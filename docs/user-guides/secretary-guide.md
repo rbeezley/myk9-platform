@@ -200,7 +200,7 @@ To put one dog in a specific spot, open **Run order → Reorder manually...**. E
 
 ## 14 · Track each class's paperwork
 
-**Overview → click the class → Class checklist.** Seven items: Check-in sheet, Score sheets, Class started, Scoring complete, Preliminary results, Ribbon labels, and Judge's initials collected. The squares on the class's schedule card mirror it.
+**Overview → click the class → Class checklist.** Seven items: Check-in sheet, Score sheets, Class started, Scoring complete, Preliminary results, Ribbon labels, and Judge sign-off collected (the judge's initials on an AKC catalog). The squares on the class's schedule card mirror it.
 
 - Print items have **Print** (or **Reprint**) and **Record as printed** — use the second when you printed outside the app, so the checklist knows.
 - An item that changed after printing reads **Needs reprint** (an amber square) — for example score sheets after a move-up.

@@ -14,6 +14,7 @@ import {
 import { formatArmbandDisplay } from '@/utils/armbandUtils';
 import { formatTrialLabel } from '@myk9/core';
 import { resolveConfiguredRegistryId } from '@/features/registries';
+import { sortClassesForAkcCatalog } from '@/lib/reports/catalogClassOrder';
 import { formatCatalogDate } from '@/lib/reports/catalogFields';
 import { AkcMarkedCatalogTable } from './AkcMarkedCatalogClass';
 
@@ -99,7 +100,7 @@ export const ResultCatalog: React.FC<ReportProps> = ({
 
       {showIsAkc ? (
         <AkcMarkedCatalogTable
-          classes={allClasses.map(cls => ({
+          classes={sortClassesForAkcCatalog(allClasses, allTrials).map(cls => ({
             id: cls.id,
             // Same convention as the Show Catalog and Judge's Schedule: trial label,
             // then the date, shown on every class so a multi-trial show is unambiguous.

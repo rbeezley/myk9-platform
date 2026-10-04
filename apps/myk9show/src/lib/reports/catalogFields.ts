@@ -72,7 +72,11 @@ export const CATALOG_RESULT = {
   WITHDRAWN_IN_SEASON: 'AIS',
   /** Withdrawn, judge change. */
   WITHDRAWN_JUDGE_CHANGE: 'AJC',
-  /** Withdrawn with no recorded reason code (a pre-MYK9-632 row). */
+  /**
+   * Withdrawn with no reason code, recorded as a scoring result
+   * (`result_status = 'withdrawn'`). A bare `entry_status = 'withdrawn'` with no code is a
+   * declined entry and is not listed at all (see `isDeclined`).
+   */
   WITHDRAWN: 'WD',
   /** Pulled / scratched: entered, did not run, and is not a withdrawal. */
   PULLED: 'Pulled',
@@ -97,10 +101,32 @@ function placementNumber(entry: Pick<ReportEntry, 'finalPlacement'>): number | n
   return entry.finalPlacement == null || Number.isNaN(value) ? null : value;
 }
 
-/** Moved-up source rows and not-accepted rows were never a dog in this class. */
-function isNeverInClass(entry: Pick<ReportEntry, 'entryStatus'>): boolean {
+/**
+ * A DECLINED entry: `rejectEntry` stores `entry_status = 'withdrawn'` with no
+ * `withdrawal_reason_code`, whereas every real withdrawal (MYK9-632) carries
+ * `in_season` or `judge_change`. As far as the organization goes a declined dog
+ * never entered (owner ruling), so it is not listed and not counted. A withdrawal
+ * recorded as a scoring result (`result_status = 'withdrawn'`) is a real one.
+ */
+function isDeclined(
+  entry: Pick<ReportEntry, 'entryStatus' | 'withdrawalReasonCode' | 'resultText'>
+): boolean {
+  return (
+    normalized(entry.entryStatus) === 'withdrawn' &&
+    !entry.withdrawalReasonCode &&
+    normalized(entry.resultText) !== 'withdrawn'
+  );
+}
+
+/**
+ * Rows that were never a dog in this class: moved-up source rows, not-accepted
+ * rows, and declined entries.
+ */
+function isNeverInClass(
+  entry: Pick<ReportEntry, 'entryStatus' | 'withdrawalReasonCode' | 'resultText'>
+): boolean {
   const status = normalized(entry.entryStatus);
-  return status === 'moved' || status === 'not_accepted';
+  return status === 'moved' || status === 'not_accepted' || isDeclined(entry);
 }
 
 /** The code the marked catalog prints in the Result column ('' while unscored). */
@@ -140,12 +166,15 @@ export interface CatalogClassCounts {
 /**
  * The four numbers AKC Ch.3 §36 requires at the head of each class.
  *
- *  - withdrawn:  `entry_status = 'withdrawn'` (the two recognised reasons).
- *    A pull / scratch is NOT a withdrawal (owner ruling 2026-09-17).
+ *  - withdrawn:  a real withdrawal: `entry_status = 'withdrawn'` carrying one of the
+ *    two recognised reason codes, or a withdrawal recorded as a scoring result.
+ *    A pull / scratch is NOT a withdrawal (owner ruling 2026-09-17), and a
+ *    DECLINED entry (`withdrawn` with no reason code, from `rejectEntry`) is not
+ *    an entry at all: it is excluded from every count and from the listing.
  *  - entries:    every row that was a dog in this class, less the withdrawn
  *    ones. A dog that was pulled or marked absent was still entered, so it
- *    stays; only moved-up source rows and not-accepted rows (never a dog in
- *    this class) are left out. `isOnClassRunList` is deliberately not used here:
+ *    stays; only moved-up source rows, not-accepted rows and declined
+ *    entries (never a dog in this class) are left out. `isOnClassRunList` is deliberately not used here:
  *    it also drops scratched and absent dogs, which would understate entries.
  *  - competing:  entries the show expected to run (`isExpectedEntry`: not
  *    withdrawn / scratched / absent / moved / not accepted, not pulled, not

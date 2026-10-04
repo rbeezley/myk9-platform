@@ -118,6 +118,8 @@ export interface SecretaryCockpitEntryRow {
 
 export interface SecretaryCockpitClass {
   id: string;
+  /** The class's trial registry (class nodes carry it), for registry-specific wording. */
+  registryId?: string | null;
   /** Entries of this class carrying stranded operational actions (F29b). */
   entryRows: readonly SecretaryCockpitEntryRow[];
   trialId: string;

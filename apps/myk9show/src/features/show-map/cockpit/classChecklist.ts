@@ -1,3 +1,4 @@
+import { judgeSignOffWording } from '../judgeSignOff';
 import { SHOW_MAP_WRAP_UP_STATUS } from '../showMapTypes';
 import type { CockpitLifecycle, SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
 
@@ -38,6 +39,8 @@ export interface ClassChecklistInput {
   /** Set only once every entry is scored or the class is complete (`classifyClassWrapUpStatus`). */
   wrapUpStatus?: string | null | undefined;
   paperwork: readonly SecretaryCockpitPaperwork[];
+  /** The show's registry; selects initials (AKC) or signature wording. */
+  registryId?: string | null | undefined;
 }
 
 const PRINT_STATE: Record<SecretaryCockpitPaperwork['state'], ClassChecklistState> = {
@@ -69,13 +72,14 @@ function printItem(
 }
 
 function signatureItem(input: ClassChecklistInput, entriesKnown: boolean): ClassChecklistItem {
-  const base = { id: 'judge-signature' as const, label: "Judge's initials collected" };
+  const wording = judgeSignOffWording(input.registryId);
+  const base = { id: 'judge-signature' as const, label: wording.checklistLabel };
   const status = input.wrapUpStatus;
   if (status && SIGNED.has(status)) return { ...base, state: 'done' };
   if (status === SHOW_MAP_WRAP_UP_STATUS.CLASS_READY_FOR_WRAP_UP) {
     // Every entry was pulled or scratched, so nothing needed signing.
     return entriesKnown
-      ? { ...base, state: 'done', detail: 'No entries to initial' }
+      ? { ...base, state: 'done', detail: wording.checklistNoneDetail }
       : { ...base, state: 'unknown' };
   }
   if (status || input.lifecycle === 'not-started' || entriesKnown)

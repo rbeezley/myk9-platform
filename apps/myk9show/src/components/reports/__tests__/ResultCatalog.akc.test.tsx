@@ -368,4 +368,38 @@ describe('ResultCatalog on an AKC show (marked catalog)', () => {
     rerender(<ResultCatalog {...akcProps} />);
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
   });
+
+  it('lists classes in §37 order whatever order they were run in', () => {
+    render(
+      <ResultCatalog
+        {...akcProps}
+        entries={[dog({ id: 'a', armband: '101', classId: 'c1' })]}
+        allClasses={[
+          { id: 'c3', trialId: 't1', element: 'Buried', level: 'Novice', section: 'A' },
+          { id: 'c2', trialId: 't1', element: 'Container', level: 'Master' },
+          { id: 'c1', trialId: 't1', element: 'Container', level: 'Novice', section: 'A' },
+        ]}
+      />
+    );
+    const headings = screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent);
+    expect(headings).toEqual([
+      '1 — 4/12/2026 — Container Novice A',
+      '1 — 4/12/2026 — Container Master',
+      '1 — 4/12/2026 — Buried Novice A',
+    ]);
+  });
+
+  it('does not list a declined entry (withdrawn with no reason code)', () => {
+    render(
+      <ResultCatalog
+        {...akcProps}
+        entries={[
+          dog({ id: 'ok', armband: '101', callName: 'Kept', resultText: 'qualified' }),
+          dog({ id: 'declined', armband: '102', callName: 'Declined', entryStatus: 'withdrawn' }),
+        ]}
+      />
+    );
+    expect(screen.getByText('Call: Kept')).toBeInTheDocument();
+    expect(screen.queryByText('Call: Declined')).not.toBeInTheDocument();
+  });
 });

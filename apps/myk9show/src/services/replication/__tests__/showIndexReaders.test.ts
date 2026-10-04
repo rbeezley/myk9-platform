@@ -6,7 +6,7 @@
  * failed device read still throws (MYK9-774).
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { databaseManager } from '@myk9/replication';
+import { ReplicatedTableCacheManager, databaseManager } from '@myk9/replication';
 import { gatherShowStructureScopes } from '@/features/offline-readiness/showStructureScopes';
 import { replicatedArmbandsTable } from '../ReplicatedArmbandsTable';
 import { replicatedEntriesTable } from '../ReplicatedEntriesTable';
@@ -67,6 +67,13 @@ function openedIndexes(spy: { mock: { calls: unknown[][] } }): unknown[] {
 describe('show-scoped readers read through the show index (MYK9-792)', () => {
   beforeEach(async () => {
     await databaseManager.reset();
+    // Every write arms a trailing 100ms listener notification that reads the
+    // WHOLE table, listeners or not. Under load it fires inside a later
+    // `IDBObjectStore.index` spy window and records a whole-table open the code
+    // under test never made (MYK9-989, same mechanism as MYK9-978). These tests
+    // assert which index a read opens, never notifications, so switch them off
+    // before any write; vi.restoreAllMocks() in afterEach undoes it.
+    vi.spyOn(ReplicatedTableCacheManager.prototype, 'notifyListeners').mockResolvedValue();
   });
 
   afterEach(async () => {

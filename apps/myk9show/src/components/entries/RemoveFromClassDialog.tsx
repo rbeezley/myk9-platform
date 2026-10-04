@@ -47,6 +47,11 @@ const UNAVAILABLE_NOTE = "Can't confirm the show's rules right now — Pull is s
  */
 const PULL_REFUND_FALLBACK = "Refunds for a pull are at the club's discretion.";
 
+/** Withdraw / Pull read as two clear choices: bold label, full-width, 44px+ target. */
+const CHOICE_BUTTON_CLASS = 'w-full justify-start font-semibold';
+/** "Keep my entry" on the chooser: secondary, unfilled, so it never reads as the main action. */
+const KEEP_QUIET_CLASS = 'border-transparent bg-transparent text-muted-foreground hover:bg-muted';
+
 export interface RemoveFromClassDialogProps {
   open: boolean;
   /** The class row's `entries.id`. Identity for the chooser's state, not display. */
@@ -198,10 +203,7 @@ function RemoveFromClassBody({
         <AlertDialogTitle>{title}</AlertDialogTitle>
         <AlertDialogDescription>
           {effectiveStep === 'choose' ? (
-            <>
-              {classLabel} — withdrawing and pulling are different, and the club handles the fee
-              differently for each.
-            </>
+            <>{classLabel}. Pick one — the club handles the fee differently for each.</>
           ) : effectiveStep === 'reason' ? (
             <>
               {policy?.registryId} recognises{' '}
@@ -229,7 +231,7 @@ function RemoveFromClassBody({
             <Button
               type="button"
               variant="outline"
-              className="w-full justify-start"
+              className={CHOICE_BUTTON_CLASS}
               disabled={Boolean(withdrawBlockedBecause)}
               onClick={chooseWithdraw}
             >
@@ -237,10 +239,8 @@ function RemoveFromClassBody({
             </Button>
             <p className="mt-2 text-sm text-muted-foreground">
               {policy
-                ? `For a recognised reason — ${policy.reasons
-                    .map(entry => entry.label)
-                    .join(' or ')}. ${policy.withdrawRefundNote}`
-                : 'For a reason this show\u2019s registry recognises.'}
+                ? `${policy.reasons.map(entry => entry.label).join(' or ')} only. ${policy.withdrawRefundNote}`
+                : 'Only for a reason this show\u2019s registry recognises.'}
             </p>
             {withdrawBlockedBecause && (
               <p className="mt-2 text-sm text-muted-foreground">{withdrawBlockedBecause}</p>
@@ -251,14 +251,14 @@ function RemoveFromClassBody({
             <Button
               type="button"
               variant="outline"
-              className="w-full justify-start"
+              className={CHOICE_BUTTON_CLASS}
               disabled={Boolean(pullDisabledReason)}
               onClick={choosePull}
             >
               Pull
             </Button>
             <p className="mt-2 text-sm text-muted-foreground">
-              Any other reason — you have decided not to run. {PULL_REFUND_FALLBACK}
+              Any other reason. {PULL_REFUND_FALLBACK}
             </p>
             {pullDisabledReason && (
               <p className="mt-2 text-sm text-muted-foreground">{pullDisabledReason}</p>
@@ -289,7 +289,11 @@ function RemoveFromClassBody({
 
       <AlertDialogFooter>
         {effectiveStep === 'choose' ? (
-          <AlertDialogCancel disabled={isSaving}>Keep my entry</AlertDialogCancel>
+          // The way out is the quiet option: with only one footer button, the
+          // filled outline style read as the main action (MYK9-988).
+          <AlertDialogCancel disabled={isSaving} className={KEEP_QUIET_CLASS}>
+            Keep my entry
+          </AlertDialogCancel>
         ) : (
           <>
             <Button

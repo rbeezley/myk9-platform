@@ -185,6 +185,27 @@ describe('useMyEntriesInClass', () => {
     expect(ring.result.current.myEntries[0].queue).toEqual({ kind: 'in-ring' });
   });
 
+  it('orders my dogs by stored run order and puts an unset run order last', () => {
+    const reg = (runOrder: number) => ({
+      armband: '1',
+      runOrder,
+      handler: 'x',
+      submittedAt: '',
+      entryFee: 0,
+      paymentStatus: 'paid',
+    });
+    setMocks({
+      entries: [
+        makeEntry({ id: 'unset', dogId: 'dog-a', registrationData: reg(0) }),
+        makeEntry({ id: 'late', dogId: 'dog-b', registrationData: reg(31) }),
+        makeEntry({ id: 'early', dogId: 'dog-c', registrationData: reg(12) }),
+      ],
+      dogs: [makeDog({ id: 'dog-a' }), makeDog({ id: 'dog-b' }), makeDog({ id: 'dog-c' })],
+    });
+    const { result } = renderHook(() => useMyEntriesInClass(CLASS_ID));
+    expect(result.current.myEntries.map(e => e.entryId)).toEqual(['early', 'late', 'unset']);
+  });
+
   it('reads a staff-completed dog as Done even with no score and a confirmed lifecycle', () => {
     setMocks({ entries: [makeEntry({ status: 'confirmed', checkInStatus: 'completed' })] });
     const { result } = renderHook(() => useMyEntriesInClass(CLASS_ID));

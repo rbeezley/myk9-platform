@@ -8,6 +8,7 @@ import {
 } from '@dnd-kit/core';
 import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import { compareStoredRunOrderNullLast } from '@/utils/showEntryRunQueue';
 import { notifications } from '@/lib/notifications';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 
@@ -24,12 +25,7 @@ export function useRunOrderDrag({ rawEntries }: UseRunOrderDragParams) {
   const serverSortedIds = useMemo(
     () =>
       [...rawEntries]
-        .sort((a, b) => {
-          if (a.run_order == null && b.run_order == null) return 0;
-          if (a.run_order == null) return 1;
-          if (b.run_order == null) return -1;
-          return a.run_order - b.run_order;
-        })
+        .sort((a, b) => compareStoredRunOrderNullLast(a.run_order, b.run_order))
         .map(e => e.id),
     [rawEntries]
   );

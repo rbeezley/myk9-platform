@@ -3,7 +3,7 @@ import { useEntryStore } from '@/store/entryStore';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { getDogDisplayName } from '@/types/dog-types';
-import { ownEntryQueueState } from '@/utils/showEntryRunQueue';
+import { compareStoredRunOrderNullLast, ownEntryQueueState } from '@/utils/showEntryRunQueue';
 import type { RunQueueState } from '@myk9/ringside/run-queue';
 import { dbSecondsToInputFormat } from '@/utils/scoringMappings';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
@@ -156,12 +156,8 @@ export function useMyEntriesInClass(
       });
     }
 
-    myEntries.sort((a, b) => {
-      if (a.runOrder === 0 && b.runOrder === 0) return 0;
-      if (a.runOrder === 0) return 1;
-      if (b.runOrder === 0) return -1;
-      return a.runOrder - b.runOrder;
-    });
+    // 0 means "no run order yet": those dogs go last.
+    myEntries.sort((a, b) => compareStoredRunOrderNullLast(a.runOrder || null, b.runOrder || null));
 
     const isAfterClass = myEntries.some(e => e.hasResult);
 

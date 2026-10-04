@@ -4,13 +4,11 @@
  *
  * Tier 1 (showDayCheck): Lightweight query every 60s to detect if today is a show day.
  * Tier 2 (showDayDetails + ringProgress): Full data every 30s, only when isShowDay=true.
- *
- * Adaptive timing: uses actual scored dog completion times (after 3+ scored)
- * instead of a fixed estimate.
  */
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { isCheckInStatus } from '@myk9/core';
+import { compareByRunOrder, type RunQueueEntry } from '@myk9/ringside/run-queue';
 import { queryKeys } from '@/lib/queryClient';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import type {
@@ -21,46 +19,12 @@ import type {
   ShowDayDetailRow,
   RingProgressRow,
 } from '@/types/show-day-types';
-import { DEFAULT_MINUTES_PER_DOG, MIN_SCORED_FOR_ADAPTIVE } from '@/types/show-day-types';
 import { getTodayLocal } from '@/utils/dateLocal';
 import {
   fetchReplicatedRingProgress,
   fetchReplicatedShowDayCheck,
   fetchReplicatedShowDayDetails,
 } from './showDayDataReplication';
-
-/**
- * Compute estimated minutes until this exhibitor's run using adaptive timing.
- *
- * After MIN_SCORED_FOR_ADAPTIVE dogs have been scored, computes average pace
- * from consecutive scoring_completed_at timestamps. Before that, uses
- * DEFAULT_MINUTES_PER_DOG (3 min).
- */
-export function computeEstimatedTime(
-  myRunningOrder: number | null,
-  scoredEntries: number,
-  scoredTimestamps: Date[]
-): number | null {
-  if (myRunningOrder == null) return null;
-
-  const dogsAhead = Math.max(0, myRunningOrder - scoredEntries - 1);
-  if (dogsAhead === 0) return 0;
-
-  let avgMinutes = DEFAULT_MINUTES_PER_DOG;
-
-  if (scoredTimestamps.length >= MIN_SCORED_FOR_ADAPTIVE && scoredTimestamps.length >= 2) {
-    const sorted = [...scoredTimestamps].sort((a, b) => a.getTime() - b.getTime());
-    const firstMs = sorted[0].getTime();
-    const lastMs = sorted[sorted.length - 1].getTime();
-    const spanMinutes = (lastMs - firstMs) / 60_000;
-    const intervals = sorted.length - 1;
-    if (intervals > 0 && spanMinutes > 0) {
-      avgMinutes = spanMinutes / intervals;
-    }
-  }
-
-  return Math.round(dogsAhead * avgMinutes);
-}
 
 // ---------------------------------------------------------------------------
 // Query functions
@@ -86,11 +50,15 @@ export function extractActiveShows(rows: ShowDayCheckRow[]): ActiveShowInfo[] {
   return shows;
 }
 
+/** Project a show-day class onto the shared run-queue shape so ordering is `compareByRunOrder`'s. */
+function toRunQueueEntry(c: ShowDayClass): RunQueueEntry {
+  return { id: c.entryId, armband: null, exhibitorOrder: c.myRunningOrder };
+}
+
 /** Per-class ring progress aggregation */
 export interface ClassProgress {
   scoredCount: number;
   currentDogInRing: string | null;
-  scoredTimestamps: Date[];
 }
 
 export function buildClassProgressMap(progressRows: RingProgressRow[]): Map<string, ClassProgress> {
@@ -99,7 +67,7 @@ export function buildClassProgressMap(progressRows: RingProgressRow[]): Map<stri
   for (const row of progressRows) {
     let progress = map.get(row.class_id);
     if (!progress) {
-      progress = { scoredCount: 0, currentDogInRing: null, scoredTimestamps: [] };
+      progress = { scoredCount: 0, currentDogInRing: null };
       map.set(row.class_id, progress);
     }
 
@@ -109,7 +77,6 @@ export function buildClassProgressMap(progressRows: RingProgressRow[]): Map<stri
 
     if (row.is_scored && row.scoring_completed_at) {
       progress.scoredCount++;
-      progress.scoredTimestamps.push(new Date(row.scoring_completed_at));
     }
   }
 
@@ -124,7 +91,6 @@ export function buildShowDayClasses(
   return detailRows.map((row): ShowDayClass => {
     const progress = progressMap.get(row.class.id);
     const scoredEntries = progress?.scoredCount ?? row.class.scored_count;
-    const scoredTimestamps = progress?.scoredTimestamps ?? [];
 
     return {
       classId: row.class.id,
@@ -139,7 +105,6 @@ export function buildShowDayClasses(
       scoredEntries,
       currentDogInRing: progress?.currentDogInRing ?? null,
       myRunningOrder: row.run_order,
-      estimatedTimeMinutes: computeEstimatedTime(row.run_order, scoredEntries, scoredTimestamps),
       ringNumber: null,
       entryStatus:
         row.check_in_status != null && isCheckInStatus(row.check_in_status)
@@ -250,15 +215,14 @@ export function useShowDayData(): ShowDayData {
     const completedToday = myClasses.filter(c => c.isScored);
     const upcoming = myClasses.filter(c => !c.isScored);
 
-    // nextUp: first unscored class, prefer by running order
-    const nextUp =
-      upcoming.length > 0
-        ? upcoming.reduce((best, c) => {
-            if (best.myRunningOrder == null) return c;
-            if (c.myRunningOrder == null) return best;
-            return c.myRunningOrder < best.myRunningOrder ? c : best;
-          })
-        : null;
+    // nextUp: first unscored class by the shared run-queue order. A class with no
+    // run order yet only wins when no other class has one.
+    const nextUp = upcoming.reduce<ShowDayClass | null>((best, c) => {
+      if (best == null) return c;
+      if (c.myRunningOrder == null) return best;
+      if (best.myRunningOrder == null) return c;
+      return compareByRunOrder(toRunQueueEntry(c), toRunQueueEntry(best)) < 0 ? c : best;
+    }, null);
 
     const qualified = completedToday.filter(c => c.resultStatus === 'qualified').length;
 

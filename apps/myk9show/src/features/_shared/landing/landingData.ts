@@ -256,7 +256,8 @@ export function buildLandingData(
   // assignment has no trial_id of its own, so its owning trial is the one holding the class.
   const trialIdByClassId = new Map<string, string>();
   for (const showTrial of show?.trials ?? []) {
-    for (const classInfo of showTrial.classes ?? []) trialIdByClassId.set(classInfo.id, showTrial.id);
+    for (const classInfo of showTrial.classes ?? [])
+      trialIdByClassId.set(classInfo.id, showTrial.id);
   }
   const resolvedAssignments = judgeAssignments.map(assignment => ({
     ...assignment,

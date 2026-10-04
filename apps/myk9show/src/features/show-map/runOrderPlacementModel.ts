@@ -35,6 +35,11 @@ export interface PlacementInput {
   /** Queue status: 'pulled', 'in-ring', or any other check-in state. */
   status?: string | undefined;
   inRing: boolean;
+  /**
+   * The dog was pulled on the day (check-in 'pulled'). Display only: `status`
+   * is the queue's exclusion axis and also reads 'pulled' for scored dogs.
+   */
+  pulled: boolean;
 }
 
 export interface PlacementRow {
@@ -82,7 +87,7 @@ const toRow = ({ input }: QueueRow): PlacementRow => ({
   id: input.id,
   armband: input.armband,
   runOrder: input.runOrder,
-  pulled: input.status === 'pulled',
+  pulled: input.pulled,
 });
 
 export function buildRunOrderPlacementModel(

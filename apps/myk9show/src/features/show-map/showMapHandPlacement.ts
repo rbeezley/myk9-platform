@@ -48,6 +48,7 @@ function toPlacementInput(
     }),
     isScored: Boolean(queue.isScored) || ran,
     status: queue.status,
+    pulled: checkIn === 'pulled',
     inRing: Boolean(queue.inRing) || (Boolean(entry.ring_entry_time) && queue.status !== 'pulled'),
   };
 }

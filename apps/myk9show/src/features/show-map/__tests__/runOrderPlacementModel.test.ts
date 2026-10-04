@@ -219,3 +219,23 @@ describe('a write never touches a dog that is not waiting', () => {
     expect(planPresetPlacement(modelOf(none), 'armband-asc')).toEqual([]);
   });
 });
+
+describe('Completed labels', () => {
+  const notes = (entries: ReplicatedEntry[]) =>
+    Object.fromEntries(
+      buildHandPlacementSections(buildClassPlacement(entries, [])).completed.map(r => [
+        r.id,
+        r.note,
+      ])
+    );
+
+  it('only a check-in pulled dog is labelled Pulled; a scored dog has no label', () => {
+    const entries = [
+      e('ran', '10', 1, { isScored: true }),
+      e('done', '20', 2, { checkInStatus: 'completed' }),
+      e('pull', '30', 3, { checkInStatus: 'pulled' }),
+      e('abs', '40', 4, { resultStatus: 'absent' } as Partial<ReplicatedEntry>),
+    ];
+    expect(notes(entries)).toEqual({ ran: null, done: null, pull: 'Pulled', abs: null });
+  });
+});

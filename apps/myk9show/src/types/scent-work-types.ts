@@ -106,7 +106,7 @@ export interface MultiAreaScentWorkResult {
 export interface ScentWorkClassConfig {
   element: 'Container' | 'Interior' | 'Exterior' | 'Buried';
   level: 'Novice' | 'Advanced' | 'Excellent' | 'Masters';
-  timeLimit: number; // Time limit in milliseconds
+  timeLimit: number; // Time limit in milliseconds; 0 when the class has none set
   multiArea?: boolean | undefined; // True for Interior Excellent/Masters
   areaLimits?: number[] | undefined; // Individual area time limits for multi-area
   warningsEnabled: boolean; // False for Masters level

@@ -7,6 +7,12 @@ export interface ClassData {
   classOrder: string;
   /** `classes.revised_expected_start` (timestamptz) when the class was re-timed. */
   revisedExpectedStart?: string | null | undefined;
+  /** `classes.time_limit_seconds` and the area 2/3 limits; unset until the judge sets them. */
+  timeLimitSeconds?: number | null | undefined;
+  timeLimitArea2Seconds?: number | null | undefined;
+  timeLimitArea3Seconds?: number | null | undefined;
+  /** `classes.num_areas`; null when the class has not said. */
+  numAreas?: number | null | undefined;
   status: 'Scheduled' | 'In Progress' | 'Completed' | 'Cancelled' | 'Upcoming';
   is_scoring_finalized?: boolean | null | undefined;
   scored_count?: number | null | undefined;

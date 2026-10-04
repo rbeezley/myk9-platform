@@ -5,7 +5,8 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen } from '@/test/utils/testUtils';
-import { mapDatabaseToClass } from '@/services/mappers/classMappers';
+import { mapDatabaseToClass, mapReplicatedClassToDbRow } from '@/services/mappers/classMappers';
+import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { DbClassWithRelations } from '@/services/mappers/classMappers';
 import { SecretaryClassDashboard } from './SecretaryClassDashboard';
 import { secretaryClassScheduledLabel } from './SecretaryClassDashboard.header';
@@ -100,6 +101,78 @@ describe('SecretaryClassDashboard header (MYK9-984)', () => {
     render(<SecretaryClassDashboard />);
 
     expect(screen.getByText('Scheduled').nextElementSibling).toHaveTextContent('—');
+  });
+});
+
+/** The value cell beside a Class Details label. */
+const valueOf = (label: string) => screen.getByText(label).nextElementSibling;
+
+describe('SecretaryClassDashboard placeholders (MYK9-984)', () => {
+  beforeEach(() => {
+    mocks.classes = [exteriorExcellent()];
+  });
+
+  it('shows the real judge, and no ring, in the subtitle', () => {
+    render(<SecretaryClassDashboard />);
+
+    const subtitle = screen.getByText(/Exterior Excellent • /);
+    expect(subtitle).toHaveTextContent('Exterior Excellent • Judge: Pat Donovan');
+    expect(subtitle).not.toHaveTextContent(/ring/i);
+  });
+
+  it('says "Judge TBD", never a made-up name, when no judge is assigned', () => {
+    mocks.classes = [exteriorExcellent({ judge_assignments: [] })];
+    render(<SecretaryClassDashboard />);
+
+    expect(screen.getByText(/Exterior Excellent • Judge TBD/)).toBeInTheDocument();
+    expect(screen.queryByText(/Jane Doe/)).not.toBeInTheDocument();
+  });
+
+  it('reads the time limit and areas from the class row', () => {
+    mocks.classes = [
+      exteriorExcellent({
+        time_limit_seconds: 270,
+        time_limit_area2_seconds: 300,
+        num_areas: 2,
+      }),
+    ];
+    render(<SecretaryClassDashboard />);
+
+    expect(valueOf('Time Limit')).toHaveTextContent('4:30');
+    expect(valueOf('Multi-Area')).toHaveTextContent('Yes');
+  });
+
+  it('shows "Not set" for an unset limit and drops Multi-Area when the class has not said', () => {
+    render(<SecretaryClassDashboard />);
+
+    expect(valueOf('Time Limit')).toHaveTextContent('Not set');
+    expect(screen.queryByText('Multi-Area')).not.toBeInTheDocument();
+  });
+
+  it('reads a single-area class as not multi-area', () => {
+    mocks.classes = [exteriorExcellent({ time_limit_seconds: 180, num_areas: 1 })];
+    render(<SecretaryClassDashboard />);
+
+    expect(valueOf('Time Limit')).toHaveTextContent('3:00');
+    expect(valueOf('Multi-Area')).toHaveTextContent('No');
+  });
+
+  it('keeps the revised start on the replicated (authenticated) read path', () => {
+    const replicated = {
+      id: CLASS_ID,
+      trialId: 'trial-1',
+      name: 'Exterior Excellent',
+      element: 'Exterior',
+      level: 'Excellent',
+      revisedExpectedStart: '2026-10-10T12:30:00.000Z',
+      classStatus: 'scheduled',
+    } as unknown as ReplicatedClass;
+    mocks.classes = [
+      mapDatabaseToClass(mapReplicatedClassToDbRow(replicated) as unknown as DbClassWithRelations),
+    ];
+    render(<SecretaryClassDashboard />);
+
+    expect(valueOf('Scheduled')).toHaveTextContent('7:30 AM');
   });
 });
 

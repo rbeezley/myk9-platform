@@ -91,6 +91,26 @@ describe('tallyEntriesByClass', () => {
     expect(tallies.get('class-2')).toEqual({ total: 1, scored: 1 });
   });
 
+  it('counts only accepted dogs still expected to run (MYK9-976 rule)', () => {
+    // Exterior Excellent on the demo show: Juni pending, Ranger and Maple
+    // withdrawn. "0 of 3 scored" would claim three dogs still to score.
+    const row = (entry_status: string, is_scored = false, extra: object = {}) =>
+      ({ class_id: 'class-1', entry_status, is_scored, ...extra }) as unknown as SecretaryEntry;
+    const tallies = tallyEntriesByClass([
+      row('submitted'),
+      row('withdrawn'),
+      row('scratched'),
+      row('absent'),
+      row('moved'),
+      row('not_accepted'),
+      row('confirmed', false, { check_in_status: 'pulled' }),
+      row('confirmed', true),
+      row('confirmed'),
+    ]);
+
+    expect(tallies.get('class-1')).toEqual({ total: 2, scored: 1 });
+  });
+
   it('omits a class with no entries rather than inventing a zero row', () => {
     const tallies = tallyEntriesByClass([entry('class-1', false)]);
 

@@ -1,3 +1,5 @@
+import { isExpectedEntry } from '@/features/_shared/entryAccounting';
+import { isPendingEntryStatus } from '@/features/entry-operations/classEntryBreakdown';
 import type { SecretaryEntry } from '@/services/database/entries';
 
 /** Stable identity so a missing read does not remint the array each render. */
@@ -59,13 +61,28 @@ export function getShowDeskEntriesAvailability(input: {
  * identity, which realtime invalidation does routinely. At the load-rehearsal
  * shape that is hundreds of thousands of array visits per recompute.
  */
+/**
+ * A dog the class still has to score: accepted, and still expected to run.
+ * Withdrawn, scratched, absent, moved, not-accepted and pulled rows
+ * are out (`isExpectedEntry`, MYK9-976), and so is a pending entry, which the
+ * card counts on its own "N pending" link. Without this a class with two
+ * withdrawn dogs read "0 of 3 scored" and never looked finished at close-out.
+ */
+function countsTowardScoring(entry: SecretaryEntry): boolean {
+  if (entry.entry_status && isPendingEntryStatus(entry.entry_status)) return false;
+  return isExpectedEntry({
+    entry_status: entry.entry_status ?? undefined,
+    check_in_status: entry.check_in_status ?? undefined,
+  });
+}
+
 export function tallyEntriesByClass(
   entries: readonly SecretaryEntry[]
 ): ReadonlyMap<string, { total: number; scored: number }> {
   const tallies = new Map<string, { total: number; scored: number }>();
   for (const entry of entries) {
     const classId = entry.class_id;
-    if (!classId) continue;
+    if (!classId || !countsTowardScoring(entry)) continue;
     const tally = tallies.get(classId) ?? { total: 0, scored: 0 };
     tally.total += 1;
     if (entry.is_scored === true) tally.scored += 1;

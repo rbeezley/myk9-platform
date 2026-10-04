@@ -76,6 +76,7 @@ import {
   type CartFulfillmentLine,
   type FinishPaymentResult,
 } from './cartFulfillment.ts';
+import { replayCartConfirmation } from './cartConfirmationReplay.ts';
 import {
   routeRefundByCurrentState,
   type RefundLedgerContext,
@@ -959,12 +960,14 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
           `Session ${session.id} already has a refund request — redelivery, nothing to fulfill`
         );
         await ensureSessionRefundAlerts(refundQueueDeps, session.id, requests);
+        if (checkoutType === 'entry') await replayCartConfirmationFor(session);
       },
       alreadyFulfilled: async type => {
         console.log(`Session ${session.id} already has an order — redelivery, nothing to fulfill`);
         if (type === 'entry_payment_request') {
           await ensurePaymentLinkRefundAlert(refundQueueDeps, session.id);
         }
+        if (type === 'entry') await replayCartConfirmationFor(session);
       },
       fulfillCart: () => handleEntryPaymentCompleted(session),
       fulfillPaymentLink: () => handleEntryPaymentRequestCompleted(session),
@@ -1326,6 +1329,88 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     freshTotalCents,
     stampedFeeRates,
   });
+}
+
+/**
+ * MYK9-964: on a redelivery of a fulfilled cart session, send the confirmation
+ * the latching delivery never got to (its response was lost after the commit).
+ * Nothing is sent once any of the order's entries is stamped confirmed.
+ * Throws (5xx) when a read fails, so Stripe redelivers.
+ */
+async function replayCartConfirmationFor(session: Stripe.Checkout.Session) {
+  await replayCartConfirmation(
+    {
+      readOrder: async sessionId => {
+        const { data: order, error } = await supabase
+          .from('stripe_orders')
+          .select('entry_ids, show_id, metadata')
+          .eq('stripe_checkout_session_id', sessionId)
+          .eq('order_type', 'entry')
+          .maybeSingle();
+        if (error) throw new Error(`Could not read the order of ${sessionId}: ${error.message}`);
+        if (!order?.show_id) return null;
+        const metadata = (order.metadata ?? {}) as Record<string, unknown>;
+        const subtotalCents = Number(metadata.paid_entry_subtotal_cents ?? 0);
+        return {
+          entryIds: (order.entry_ids as string[] | null) ?? [],
+          showId: order.show_id as string,
+          exhibitorPersonId: await readSessionExhibitorPersonId(
+            sessionId,
+            typeof metadata.cart_id === 'string' ? metadata.cart_id : null
+          ),
+          subtotalCents,
+          totalCents: Number(metadata.paid_amount_cents ?? subtotalCents),
+        };
+      },
+      countConfirmed: async entryIds => {
+        const { count, error } = await supabase
+          .from('entries')
+          .select('id', { count: 'exact', head: true })
+          .in('id', entryIds)
+          .not('confirmation_email_sent_at', 'is', null);
+        if (error) throw new Error(`Could not read confirmation stamps: ${error.message}`);
+        return count ?? 0;
+      },
+      send: order =>
+        sendEntryConfirmationEmail(
+          { show_id: order.showId, exhibitor: { person_id: order.exhibitorPersonId ?? '' } },
+          order.entryIds,
+          session,
+          {
+            subtotalCents: order.subtotalCents,
+            platformFeeCents: Math.max(0, order.totalCents - order.subtotalCents),
+            totalCents: order.totalCents,
+          }
+        ),
+    },
+    session.id
+  );
+}
+
+/** The paying exhibitor's person id: from the run, else the order's cart. Throws when unreadable. */
+async function readSessionExhibitorPersonId(
+  sessionId: string,
+  cartId: string | null
+): Promise<string | null> {
+  const run = await readCartFulfillmentRun(sessionId);
+  let exhibitorId = run?.exhibitor_id ?? null;
+  if (!exhibitorId && cartId) {
+    const { data: cart, error } = await supabase
+      .from('entry_carts')
+      .select('exhibitor_id')
+      .eq('id', cartId)
+      .maybeSingle();
+    if (error) throw new Error(`Could not read cart ${cartId}: ${error.message}`);
+    exhibitorId = (cart?.exhibitor_id as string | undefined) ?? null;
+  }
+  if (!exhibitorId) return null;
+  const { data: exhibitor, error } = await supabase
+    .from('exhibitor_profiles')
+    .select('person_id')
+    .eq('id', exhibitorId)
+    .maybeSingle();
+  if (error) throw new Error(`Could not read exhibitor ${exhibitorId}: ${error.message}`);
+  return (exhibitor?.person_id as string | undefined) ?? null;
 }
 
 /** The session's fulfillment run, or null. Throws (5xx) when it cannot be read. */

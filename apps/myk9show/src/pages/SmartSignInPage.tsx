@@ -328,7 +328,7 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
   return (
     <div className="flex min-h-[calc(100vh-var(--pwa-banner-height,0px))] flex-col items-center justify-center bg-background px-3 pb-2 pt-[var(--app-header-height,3rem)]">
       <div className="bg-card p-6 rounded-2xl shadow-xl w-full max-w-md">
-        <div className="mb-2 flex justify-center">
+        <div className="mb-1 flex justify-center">
           <Link
             to="/"
             className="flex min-h-11 items-center gap-2.5 rounded transition hover:underline focus:outline-none focus:ring-2 focus:ring-ring"

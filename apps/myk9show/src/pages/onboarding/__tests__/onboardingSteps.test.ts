@@ -21,7 +21,28 @@ describe('buildOnboardingSteps', () => {
     expect(firstRun([UserRole.EXHIBITOR])).toEqual(['dogs', 'welcome']);
   });
 
-  it('starts at profile only when no profile row exists', () => {
+  // MYK9-1010: signup's profile has no address, and AKC entries need one.
+  it('starts at profile when the existing profile has no mailing address', () => {
+    expect(firstRun([UserRole.EXHIBITOR], { needsAddress: true })).toEqual([
+      'profile',
+      'dogs',
+      'welcome',
+    ]);
+  });
+
+  it('never re-asks for an address after the first run', () => {
+    expect(
+      buildOnboardingSteps({
+        hasProfile: true,
+        needsAddress: true,
+        baseCompleted: true,
+        roles: [UserRole.EXHIBITOR],
+        onboardedRoles: [],
+      })
+    ).toEqual([]);
+  });
+
+  it('starts at profile when no profile row exists', () => {
     expect(firstRun([UserRole.EXHIBITOR], { hasProfile: false })).toEqual([
       'profile',
       'dogs',

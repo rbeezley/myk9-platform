@@ -39,6 +39,13 @@ export const STEP_LABELS: Record<OnboardingStep, string> = {
 export interface OnboardingState {
   /** An exhibitor_profiles row exists (signup creates one). */
   hasProfile: boolean;
+  /**
+   * The person row was read and its mailing address is incomplete. Registries
+   * such as AKC print the owner's address on every entry, so the first run asks
+   * for it even when signup already created the profile (MYK9-1010). Absent or
+   * false when the address is complete or the person was not read.
+   */
+  needsAddress?: boolean;
   /** exhibitor_profiles.onboarding_completed_at is set. */
   baseCompleted: boolean;
   roles: readonly UserRole[];
@@ -78,7 +85,8 @@ export function buildOnboardingSteps(
   if (state.baseCompleted) {
     return roleSteps.filter(step => step === requestedRoleStep);
   }
-  return [...(state.hasProfile ? [] : (['profile'] as const)), 'dogs', ...roleSteps, 'welcome'];
+  const needsProfileStep = !state.hasProfile || state.needsAddress === true;
+  return [...(needsProfileStep ? (['profile'] as const) : []), 'dogs', ...roleSteps, 'welcome'];
 }
 
 const STAFF_ROLES: readonly UserRole[] = [

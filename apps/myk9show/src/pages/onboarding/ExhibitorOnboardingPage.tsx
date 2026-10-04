@@ -20,7 +20,13 @@ import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useExhibitorProfile, CreateExhibitorProfileData } from '@/hooks/useExhibitorProfile';
 import { UserRole } from '@/types/auth-types';
-import { StepProfile, ProfileData } from './steps/StepProfile';
+import {
+  StepProfile,
+  ProfileData,
+  missingAddressMessage,
+  personNeedsAddress,
+  profileDataFromPerson,
+} from './steps/StepProfile';
 import { StepDogs } from './steps/StepDogs';
 import { StepWelcome } from './steps/StepWelcome';
 import { StepJudge } from './steps/StepJudge';
@@ -128,6 +134,8 @@ function OnboardingWizard({ user, roles }: { user: User; roles: readonly UserRol
     isLoading: profileLoading,
     createProfileAsync,
     isCreatingProfile,
+    savePersonDetailsAsync,
+    isSavingPersonDetails,
     completeOnboarding,
     isCompletingOnboarding,
   } = useExhibitorProfile();
@@ -142,6 +150,7 @@ function OnboardingWizard({ user, roles }: { user: User; roles: readonly UserRol
       buildOnboardingSteps(
         {
           hasProfile: Boolean(profile),
+          needsAddress: personNeedsAddress(profile?.person),
           baseCompleted,
           roles,
           onboardedRoles: profile ? (onboardedRoles ?? null) : [],
@@ -158,11 +167,10 @@ function OnboardingWizard({ user, roles }: { user: User; roles: readonly UserRol
   // step never reached stays pending, so its banner appears later.
   const [seenRoleSteps, setSeenRoleSteps] = useState<OnboardingRoleStep[]>([]);
   const [stepError, setStepError] = useState('');
-  const [profileData, setProfileData] = useState<ProfileData>({
-    firstName: (userMeta.first_name ?? userMeta.firstName ?? '') as string,
-    lastName: (userMeta.last_name ?? userMeta.lastName ?? '') as string,
-    phone: (userMeta.phone ?? '') as string,
-  });
+  // What the person typed, laid over what is already stored, so a profile that
+  // loads after the first render still prefills the step.
+  const [profileEdits, setProfileData] = useState<ProfileData | null>(null);
+  const profileData = profileEdits ?? profileDataFromPerson(profile?.person, userMeta);
 
   const firstStep = steps[0];
   const visibleStep = step && steps.includes(step) ? step : firstStep;
@@ -249,6 +257,11 @@ function OnboardingWizard({ user, roles }: { user: User; roles: readonly UserRol
       setStepError('First name and last name are required.');
       return;
     }
+    const addressError = missingAddressMessage(profileData);
+    if (addressError) {
+      setStepError(addressError);
+      return;
+    }
     try {
       const trimmedPhone = profileData.phone.trim();
       const payload: CreateExhibitorProfileData = {
@@ -256,8 +269,16 @@ function OnboardingWizard({ user, roles }: { user: User; roles: readonly UserRol
         lastName: profileData.lastName.trim(),
         email: user.email ?? '',
         ...(trimmedPhone ? { phone: trimmedPhone } : {}),
+        address: {
+          streetAddress: profileData.streetAddress.trim(),
+          city: profileData.city.trim(),
+          state: profileData.state.trim(),
+          zipCode: profileData.zipCode.trim(),
+        },
       };
-      await createProfileAsync(payload);
+      // Signup's trigger normally creates the profile already; this step then
+      // only fills in what is missing on the existing person.
+      await (profile ? savePersonDetailsAsync(payload) : createProfileAsync(payload));
       setStep('dogs');
     } catch (err) {
       setStepError(err instanceof Error ? err.message : 'Failed to create profile. Please retry.');
@@ -296,7 +317,7 @@ function OnboardingWizard({ user, roles }: { user: User; roles: readonly UserRol
               email={user.email ?? ''}
               onChange={setProfileData}
               onNext={handleProfileNext}
-              isSubmitting={isCreatingProfile}
+              isSubmitting={isCreatingProfile || isSavingPersonDetails}
               error={stepError}
             />
           )}

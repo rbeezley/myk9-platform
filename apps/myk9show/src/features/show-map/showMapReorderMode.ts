@@ -20,7 +20,7 @@ export interface ShowMapReorderAssignment {
   runOrder: number;
 }
 
-function sortByExistingRunOrder(entries: readonly ReplicatedEntry[]): ReplicatedEntry[] {
+export function sortByExistingRunOrder(entries: readonly ReplicatedEntry[]): ReplicatedEntry[] {
   return [...entries].sort((a, b) => {
     const aOrder = a.runOrder ?? Number.POSITIVE_INFINITY;
     const bOrder = b.runOrder ?? Number.POSITIVE_INFINITY;

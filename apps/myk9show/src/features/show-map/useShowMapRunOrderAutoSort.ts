@@ -13,6 +13,7 @@ import {
   type ShowMapAutoSortKind,
   type ShowMapAutoSortSnapshotItem,
 } from './showMapRunOrderAutoSort';
+import { computeHandPlacementChanges, toPriorSnapshot } from './showMapHandPlacement';
 
 export const AUTO_SORT_UNDO_BANNER_TIMEOUT_MS = 8000;
 
@@ -28,10 +29,20 @@ export interface ShowMapAutoSortInput {
   classLabel?: string | undefined;
 }
 
+export interface ShowMapHandPlaceInput {
+  classId: string;
+  entryId: string;
+  /** 1-based slot in the class run list. */
+  toPosition: number;
+  entryLabel?: string | undefined;
+}
+
 export interface ShowMapAutoSortSnapshot {
   classId: string;
   classLabel?: string | undefined;
-  kind: ShowMapAutoSortKind;
+  kind: ShowMapAutoSortKind | 'hand';
+  /** What the success toast says; set for a hand placement. */
+  summary?: string | undefined;
   priorOrders: readonly ShowMapAutoSortSnapshotItem[];
 }
 
@@ -49,7 +60,7 @@ interface ApplyAssignmentsResult {
 }
 
 async function applyAssignments(
-  assignments: ShowMapAutoSortAssignment[]
+  assignments: readonly ShowMapAutoSortAssignment[]
 ): Promise<ApplyAssignmentsResult> {
   const results = await Promise.allSettled(
     assignments.map(a => replicatedEntriesTable.updateEntry(a.id, { runOrder: a.runOrder }))
@@ -82,6 +93,26 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
     [queryClient, showId]
   );
 
+  const announceChange = (
+    snapshot: ShowMapAutoSortSnapshot,
+    failedCount: number,
+    successLabel: string
+  ) => {
+    if (failedCount > 0) {
+      toast.warning(
+        `Run order partially updated — ${failedCount} ${failedCount === 1 ? 'entry' : 'entries'} could not be saved. Use Undo to roll back.`
+      );
+    } else {
+      toast.success(successLabel);
+    }
+    clearPendingTimer();
+    setLastAutoSort(snapshot);
+    clearTimerRef.current = setTimeout(() => {
+      clearTimerRef.current = null;
+      setLastAutoSort(null);
+    }, AUTO_SORT_UNDO_BANNER_TIMEOUT_MS);
+  };
+
   const autoSortMutation = useMutation({
     mutationFn: async (input: ShowMapAutoSortInput): Promise<ShowMapAutoSortResult> => {
       const entries = await replicatedEntriesTable.getEntriesByClass(input.classId);
@@ -93,6 +124,7 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
         classId: input.classId,
         ...(input.classLabel !== undefined ? { classLabel: input.classLabel } : {}),
         kind: input.kind,
+        summary: SUCCESS_LABELS[input.kind],
         priorOrders: snapshotPriorRunOrders(entries),
       };
       const { failedCount } = await applyAssignments(assignments);
@@ -100,21 +132,38 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
       // an Undo affordance to roll back the writes that did succeed.
       return { snapshot, failedCount };
     },
-    onSuccess: ({ snapshot, failedCount }, input) => {
-      if (failedCount > 0) {
-        toast.warning(
-          `Run order partially updated — ${failedCount} ${failedCount === 1 ? 'entry' : 'entries'} could not be saved. Use Undo to roll back.`
-        );
-      } else {
-        toast.success(SUCCESS_LABELS[input.kind]);
-      }
-      clearPendingTimer();
-      setLastAutoSort(snapshot);
-      clearTimerRef.current = setTimeout(() => {
-        clearTimerRef.current = null;
-        setLastAutoSort(null);
-      }, AUTO_SORT_UNDO_BANNER_TIMEOUT_MS);
+    onSuccess: ({ snapshot, failedCount }, input) =>
+      announceChange(snapshot, failedCount, SUCCESS_LABELS[input.kind]),
+    onError: error => {
+      toast.error(getUserFriendlyError(error));
     },
+    onSettled: (_data, _error, variables) => {
+      if (variables?.classId) invalidateForClass(variables.classId);
+    },
+  });
+
+  // Hand placement: one dog to a chosen slot. Same write path and Undo
+  // snapshot as the presets, so the two can never disagree about run_order.
+  const placeMutation = useMutation({
+    mutationFn: async (input: ShowMapHandPlaceInput): Promise<ShowMapAutoSortResult> => {
+      const entries = await replicatedEntriesTable.getEntriesByClass(input.classId);
+      const changes = computeHandPlacementChanges(entries, input.entryId, input.toPosition);
+      if (changes.length === 0) {
+        throw new Error(
+          'That dog cannot go in that spot. A dog that has run or is in the ring holds its place.'
+        );
+      }
+      const snapshot: ShowMapAutoSortSnapshot = {
+        classId: input.classId,
+        kind: 'hand',
+        summary: `Moved ${input.entryLabel ?? 'dog'} to position ${input.toPosition}`,
+        priorOrders: toPriorSnapshot(changes),
+      };
+      const { failedCount } = await applyAssignments(changes);
+      return { snapshot, failedCount };
+    },
+    onSuccess: ({ snapshot, failedCount }) =>
+      announceChange(snapshot, failedCount, snapshot.summary ?? 'Run order updated'),
     onError: error => {
       toast.error(getUserFriendlyError(error));
     },
@@ -168,12 +217,16 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
   // versa) would interleave run_order writes and leave `lastAutoSort`
   // pointing at a half-applied state. `isAutoSorting` reflects either path so
   // the dropdown and the Undo button both disable while any write is active.
-  const isBusy = autoSortMutation.isPending || undoMutation.isPending;
+  const isBusy = autoSortMutation.isPending || placeMutation.isPending || undoMutation.isPending;
 
   return {
     autoSort: (input: ShowMapAutoSortInput) => {
       if (isBusy) return;
       autoSortMutation.mutate(input);
+    },
+    placeEntry: (input: ShowMapHandPlaceInput) => {
+      if (isBusy) return;
+      placeMutation.mutate(input);
     },
     isAutoSorting: isBusy,
     lastAutoSort,

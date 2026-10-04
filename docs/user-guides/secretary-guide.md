@@ -177,7 +177,9 @@ Choose **Armband ↑**, **Armband ↓**, or **Random**. The order applies immedi
 
 > You can also reach this from a class's page — **Set run order** takes you straight to that class on **Overview**.
 
-> **Known limitation:** you can't hand-place one dog into a specific slot yet (MYK9-972). The three presets above are all that's available.
+To put one dog in a specific spot, open **Run order → Reorder manually...**. Each dog has **Move up**, **Move down** and **Move to...** controls. A dog that has run, or is in the ring, keeps its place and shows why; other dogs move around it. **Undo** appears for a few seconds after any run-order change.
+
+> Armband ↑, Armband ↓ and Random sort every dog that has not run again, so they replace anything you placed by hand. Place dogs last.
 
 ## 12 · Print check-in sheets
 
@@ -342,11 +344,10 @@ The report works out who is eligible and ranks them for you. One section per dif
 
 Honest list, so nothing surprises you mid-show.
 
-| What                                | Status                                                                                  |
-| ----------------------------------- | --------------------------------------------------------------------------------------- |
-| High Combined Division (HCD)        | Not built — calculate by hand when you offer Handler Discrimination (card 27, MYK9-973) |
-| Hand-placing a dog in the run order | Not built — presets only (card 11, MYK9-972)                                            |
-| Waitlist offers                     | Not yet walked end to end on real data (card 7, MYK9-971)                               |
+| What                         | Status                                                                                  |
+| ---------------------------- | --------------------------------------------------------------------------------------- |
+| High Combined Division (HCD) | Not built — calculate by hand when you offer Handler Discrimination (card 27, MYK9-973) |
+| Waitlist offers              | Not yet walked end to end on real data (card 7, MYK9-971)                               |
 
 ---
 

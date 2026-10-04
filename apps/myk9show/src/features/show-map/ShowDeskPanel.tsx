@@ -220,6 +220,14 @@ export default function ShowDeskPanel({
           runOrder: {
             onAutoSort: runOrderAutoSort.autoSort,
             isAutoSorting: runOrderAutoSort.isAutoSorting,
+            onPlaceEntry: runOrderAutoSort.placeEntry,
+            lastChange: runOrderAutoSort.lastAutoSort
+              ? {
+                  classId: runOrderAutoSort.lastAutoSort.classId,
+                  summary: runOrderAutoSort.lastAutoSort.summary ?? 'Run order changed',
+                }
+              : null,
+            onUndo: runOrderAutoSort.undoLastAutoSort,
           },
         })}
       />

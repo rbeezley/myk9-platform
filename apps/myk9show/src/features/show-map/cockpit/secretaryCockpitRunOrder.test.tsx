@@ -88,6 +88,14 @@ const SOURCE_CLASS = {
   entryRows: ENTRY_ROWS,
 } as unknown as SecretaryCockpitClass;
 
+const controls = (onAutoSort: () => void) => ({
+  onAutoSort,
+  isAutoSorting: false,
+  onPlaceEntry: vi.fn(),
+  lastChange: null,
+  onUndo: vi.fn(),
+});
+
 function renderPanel(overrides: Record<string, unknown> = {}) {
   const onAutoSort = vi.fn();
   render(
@@ -100,7 +108,7 @@ function renderPanel(overrides: Record<string, unknown> = {}) {
       timeZone="America/Chicago"
       canManageShow
       onCommand={vi.fn()}
-      runOrder={{ onAutoSort, isAutoSorting: false }}
+      runOrder={controls(onAutoSort)}
       {...overrides}
     />
   );
@@ -152,7 +160,7 @@ describe('run order is reachable from the focused-class panel', () => {
         timeZone="America/Chicago"
         canManageShow
         onCommand={vi.fn()}
-        runOrder={{ onAutoSort, isAutoSorting: false }}
+        runOrder={controls(onAutoSort)}
       />
     );
 

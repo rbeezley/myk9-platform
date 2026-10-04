@@ -298,9 +298,15 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
               }}
             >
               {/* Signed-out visitors have no header Actions menu (MYK9-993). Only released
-                  results, and only the columns the table shows them. */}
+                  results, only in table view (as the header export), and only the columns the
+                  table shows them. */}
               <GuestExportButton
-                enabled={!!resultsReleasedAt && !visibility.isLoading && filteredRows.length > 0}
+                enabled={
+                  effectiveViewMode === 'table' &&
+                  !!resultsReleasedAt &&
+                  !visibility.isLoading &&
+                  filteredRows.length > 0
+                }
                 onExport={() =>
                   exportClassResults(
                     filteredRows,

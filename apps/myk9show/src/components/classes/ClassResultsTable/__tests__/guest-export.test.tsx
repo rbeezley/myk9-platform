@@ -138,8 +138,9 @@ vi.mock('@/hooks/useVisibleResultFields', () => ({
   deriveClassState: () => 'results-released',
 }));
 
+let mockViewMode: 'table' | 'cards' = 'table';
 vi.mock('@/hooks/useViewPreference', () => ({
-  useViewPreference: () => ['table', vi.fn()],
+  useViewPreference: () => [mockViewMode, vi.fn()],
   CARD_TABLE_MODES: [
     { value: 'cards', label: 'Cards' },
     { value: 'table', label: 'Table' },
@@ -181,6 +182,7 @@ describe('ClassResultsTable guest Export CSV', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockUser = null;
+    mockViewMode = 'table';
     mockVisibility = {
       showPlacement: true,
       showQualification: true,
@@ -259,6 +261,12 @@ describe('ClassResultsTable guest Export CSV', () => {
 
   it('is absent before results are released', () => {
     render(<ClassResultsTable {...readOnlyProps} resultsReleasedAt={null} />);
+    expect(screen.queryByRole('button', { name: 'Export CSV' })).not.toBeInTheDocument();
+  });
+
+  it('is absent in card view, which shows fewer fields than the CSV would carry', () => {
+    mockViewMode = 'cards';
+    render(<ClassResultsTable {...readOnlyProps} resultsReleasedAt={RELEASED} />);
     expect(screen.queryByRole('button', { name: 'Export CSV' })).not.toBeInTheDocument();
   });
 

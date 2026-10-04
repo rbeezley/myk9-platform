@@ -161,6 +161,11 @@ describe('place in line (MYK9-992)', () => {
     expect(runQueueStateOf(klass, 'nope')).toBeNull();
   });
 
+  it('reads a completed status as done even when no score was recorded', () => {
+    const rows = [entry({ id: 'x', armband: 1, status: 'completed', isScored: false })];
+    expect(runQueueStateOf(rows, 'x')).toEqual({ kind: 'done' });
+  });
+
   it('keeps a pulled dog pulled even when it was already scored', () => {
     const rows = [entry({ id: 'x', armband: 1, isScored: true, status: 'pulled' })];
     expect(runQueueStateOf(rows, 'x')).toEqual({ kind: 'pulled' });

@@ -120,7 +120,10 @@ export function runQueueStateOf(
   const target = entries.find(entry => entry.id === entryId);
   if (!target) return null;
   if (target.status === 'pulled') return { kind: 'pulled' };
-  if (target.isScored) return { kind: 'done' };
+  // Staff can mark a dog completed at the gate without a score being recorded
+  // (check-in 'completed'); it has run, whatever `isScored` says. This is the
+  // STATE only -- `isInQueue` / `pendingByRunOrder` are deliberately untouched.
+  if (target.isScored || target.status === 'completed') return { kind: 'done' };
   if (isInRingEntry(target)) return { kind: 'in-ring' };
   const index = pendingByRunOrder(entries).findIndex(entry => entry.id === entryId);
   return index === -1 ? null : { kind: 'waiting', place: index + 1 };

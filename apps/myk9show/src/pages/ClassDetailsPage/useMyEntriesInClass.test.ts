@@ -185,6 +185,12 @@ describe('useMyEntriesInClass', () => {
     expect(ring.result.current.myEntries[0].queue).toEqual({ kind: 'in-ring' });
   });
 
+  it('reads a staff-completed dog as Done even with no score and a confirmed lifecycle', () => {
+    setMocks({ entries: [makeEntry({ status: 'confirmed', checkInStatus: 'completed' })] });
+    const { result } = renderHook(() => useMyEntriesInClass(CLASS_ID));
+    expect(result.current.myEntries[0].queue).toEqual({ kind: 'done' });
+  });
+
   it('reports the state, not a place, for my dog when it is in the ring, done or pulled', () => {
     const rows = classWithGaps();
     const states = (id: string) => {

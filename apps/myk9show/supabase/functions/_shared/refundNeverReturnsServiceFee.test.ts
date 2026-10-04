@@ -25,6 +25,9 @@ import {
 } from './unservedChargeRefund';
 import { loadChargedLinesFromStripe, readChargedLines } from './entryPaymentLineItems';
 import { buildShowRefundPlan, showRefundCreateParams } from './showRefundPlan';
+import { refundIsClubFunded } from './orderSnapshot';
+
+const SHOW_REFUND_METADATA = { show_refund: 'show-1', myk9_club_funded: 'true' };
 
 const RATES: PlatformFeeRates = { percent: 7, flatCents: 0, minCents: 0 };
 const LINES = new Map([
@@ -322,9 +325,12 @@ describe('cancelled show with N payments: each refund is that payment’s entry 
     const plan = buildShowRefundPlan(entries);
     const params = plan.intents.map(group => showRefundCreateParams(group, 'show-1'));
     expect(params).toEqual([
-      { payment_intent: 'pi_1', amount: 6000, metadata: { show_refund: 'show-1' } },
-      { payment_intent: 'pi_2', amount: 9000, metadata: { show_refund: 'show-1' } },
-      { payment_intent: 'pi_3', amount: 2750, metadata: { show_refund: 'show-1' } },
+      { payment_intent: 'pi_1', amount: 6000, metadata: SHOW_REFUND_METADATA },
+      { payment_intent: 'pi_2', amount: 9000, metadata: SHOW_REFUND_METADATA },
+      { payment_intent: 'pi_3', amount: 2750, metadata: SHOW_REFUND_METADATA },
     ]);
+    // MYK9-997: the club funds a show-cancellation refund (its payout is
+    // docked), so the refund is marked club-funded for platform income.
+    expect(params.every(p => refundIsClubFunded(p))).toBe(true);
   });
 });

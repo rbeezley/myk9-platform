@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import {
+  chargedCentsToRecord,
   claimAbandonedCartRefund,
   ensurePaymentLinkRefundAlert,
   QUEUE_WRITE_ATTEMPTS,
@@ -182,9 +183,16 @@ describe('settlePaymentLinkObligation (Codex round 13)', () => {
       ...OBLIGATION,
       linkId: null,
       closeLinkFrom: null,
-      owed: { ...OBLIGATION.owed!, reason: 'no_link_record' },
+      owed: { ...OBLIGATION.owed!, reason: 'no_link_record', chargedCents: 963 },
     });
-    expect(rpc.mock.calls[0][1]).toMatchObject({ p_link_id: null, p_close_from: null });
+    // MYK9-997: no order is recorded for this session, so the charge rides
+    // with the request and the 63 kept fee is booked from it.
+    expect(rpc.mock.calls[0][1]).toMatchObject({
+      p_link_id: null,
+      p_close_from: null,
+      p_amount_cents: 900,
+      p_detail: { invalid_entry_ids: ['e-1'], charged_cents: 963 },
+    });
     expect(model.link.status).toBe('open');
     expect(model.requests.get('cs_1')?.reason).toBe('no_link_record');
   });
@@ -270,8 +278,41 @@ describe('ensurePaymentLinkRefundAlert (redelivery)', () => {
   });
 });
 
+describe('chargedCentsToRecord (MYK9-997)', () => {
+  it('records a charge that covers its refund, and nothing else', () => {
+    expect(chargedCentsToRecord(4494, 4200)).toBe(4494);
+    expect(chargedCentsToRecord(4200, 4200)).toBe(4200);
+    // A charge below its refund is not a fact to book (the RPC refuses it).
+    expect(chargedCentsToRecord(4000, 4200)).toBeNull();
+    expect(chargedCentsToRecord(null, 4200)).toBeNull();
+    expect(chargedCentsToRecord(undefined, 4200)).toBeNull();
+    expect(chargedCentsToRecord(4494.5, 4200)).toBeNull();
+  });
+
+  it('sends no charge for an abandoned cart whose total is unknown', async () => {
+    const { deps, rpc } = depsWith(async () => ({
+      data: [{ outcome: 'claimed', refund_request_id: 'rr-9' }],
+      error: null,
+    }));
+    await claimAbandonedCartRefund(deps, {
+      cartId: 'cart-1',
+      sessionId: 'cs_1',
+      paymentIntentId: 'pi_1',
+      amountCents: 4200,
+      chargedCents: null,
+    });
+    expect(rpc.mock.calls[0][1].p_detail).toEqual({ cart_id: 'cart-1' });
+  });
+});
+
 describe('claimAbandonedCartRefund', () => {
-  const INPUT = { cartId: 'cart-1', sessionId: 'cs_1', paymentIntentId: 'pi_1', amountCents: 4200 };
+  const INPUT = {
+    cartId: 'cart-1',
+    sessionId: 'cs_1',
+    paymentIntentId: 'pi_1',
+    amountCents: 4200,
+    chargedCents: 4494,
+  };
 
   it('alerts once when it claims the cart', async () => {
     const { deps, rpc, alerts } = depsWith(async () => ({
@@ -284,7 +325,8 @@ describe('claimAbandonedCartRefund', () => {
       p_session_id: 'cs_1',
       p_payment_intent_id: 'pi_1',
       p_amount_cents: 4200,
-      p_detail: { cart_id: 'cart-1' },
+      // MYK9-997: what Stripe charged, so the 294 kept fee is booked.
+      p_detail: { cart_id: 'cart-1', charged_cents: 4494 },
     });
     expect(alerts).toHaveLength(1);
     expect(alerts[0].opts.detail).toMatchObject({
@@ -371,7 +413,13 @@ describe('fulfillment and refund claims on one cart', () => {
     };
     return { cart, requests, fulfill, rpc };
   }
-  const INPUT = { cartId: 'cart-1', sessionId: 'cs_1', paymentIntentId: 'pi_1', amountCents: 4200 };
+  const INPUT = {
+    cartId: 'cart-1',
+    sessionId: 'cs_1',
+    paymentIntentId: 'pi_1',
+    amountCents: 4200,
+    chargedCents: 4494,
+  };
 
   it('two deliveries of a paid session on an abandoned cart queue ONE refund and both return', async () => {
     const model = cartModel('abandoned');

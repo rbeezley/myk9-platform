@@ -47,6 +47,10 @@ describe('mapSummaryRow', () => {
       payout_pending_cents: '0',
       payout_failed_cents: '1200',
       payout_failed_count: '1',
+      club_funded_refunded_cents: '20',
+      pending_fee_club_funded_refunded_cents: '5',
+      unfulfilled_charge_kept_fee_cents: '210',
+      unfulfilled_charge_count: '1',
     });
     expect(summary.orderCount).toBe(3);
     expect(summary.grossChargedCents).toBe(10700);
@@ -67,6 +71,12 @@ describe('mapSummaryRow', () => {
     // the cart-overflow make-whole total is its own field. Neither is derived.
     expect(summary.refundedCents).toBe(25);
     expect(summary.makeWholeRefundedCents).toBe(4000);
+    // MYK9-997: the club-funded share of the post-hoc refunds, and the fee kept
+    // on charges that recorded no order, each mapped from its own column.
+    expect(summary.clubFundedRefundedCents).toBe(20);
+    expect(summary.pendingFeeClubFundedRefundedCents).toBe(5);
+    expect(summary.unfulfilledChargeKeptFeeCents).toBe(210);
+    expect(summary.unfulfilledChargeCount).toBe(1);
   });
 });
 
@@ -134,6 +144,10 @@ const ZERO_SUMMARY_ROW = {
   payout_pending_cents: '0',
   payout_failed_cents: '0',
   payout_failed_count: '0',
+  club_funded_refunded_cents: '0',
+  pending_fee_club_funded_refunded_cents: '0',
+  unfulfilled_charge_kept_fee_cents: '0',
+  unfulfilled_charge_count: '0',
 };
 
 describe('mapOrderRow', () => {

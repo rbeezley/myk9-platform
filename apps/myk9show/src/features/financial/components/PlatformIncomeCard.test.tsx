@@ -27,13 +27,17 @@ function overview(overrides: Partial<PlatformFinancialOverview> = {}): PlatformF
       platformIncome: {
         onlineCollectedCents: 100000,
         grossPlatformFeeCents: 10000,
+        unfulfilledChargeKeptFeeCents: 0,
         netPlatformIncome: {
           availableCents: 8500,
           pendingResidualCents: 0,
           pendingOrderCount: 0,
+          pendingUnfulfilledChargeCount: 0,
         },
         processingFeePendingCount: 0,
         refundedCents: 2000,
+        clubFundedRefundedCents: 0,
+        platformFundedRefundedCents: 2000,
         makeWholeRefundedCents: 0,
         snapshotMissingCount: 0,
         nonEntry: {
@@ -117,7 +121,15 @@ describe('PlatformIncomeCard', () => {
     expect(screen.getByText('Net platform income')).toBeInTheDocument();
     expect(screen.getByText('$85.00')).toBeInTheDocument();
     expect(
-      screen.getByText(/captured Stripe processing fees − post-hoc refunds the platform absorbed/)
+      screen.getByText(/captured Stripe processing fees − refunds the platform funded/)
+    ).toBeInTheDocument();
+    // MYK9-997: club-funded refunds are named as excluded, and the kept fee on
+    // order-less charges is named as included.
+    expect(
+      screen.getByText(/secretary refunds come out of the club's payout and are not subtracted/)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/service fee kept on paid charges that recorded no order/)
     ).toBeInTheDocument();
   });
 
@@ -131,6 +143,7 @@ describe('PlatformIncomeCard', () => {
             availableCents: -5180,
             pendingResidualCents: 0,
             pendingOrderCount: 0,
+            pendingUnfulfilledChargeCount: 0,
           },
         },
       },
@@ -157,6 +170,7 @@ describe('PlatformIncomeCard', () => {
             availableCents: 8500,
             pendingResidualCents: 1200,
             pendingOrderCount: 4,
+            pendingUnfulfilledChargeCount: 0,
           },
           processingFeePendingCount: 4,
         },
@@ -172,6 +186,32 @@ describe('PlatformIncomeCard', () => {
       screen.getByText(/Excludes 4 orders whose Stripe processing fee is not captured yet/)
     ).toBeInTheDocument();
     expect(screen.getByText(/up to \$12\.00 of fee income still to net out/)).toBeInTheDocument();
+  });
+
+  it('names the kept fee on order-less charges in the residual note (MYK9-997)', () => {
+    overviewState.data = overview({
+      summary: {
+        ...overview().summary,
+        platformIncome: {
+          ...overview().summary.platformIncome,
+          unfulfilledChargeKeptFeeCents: 210,
+          netPlatformIncome: {
+            availableCents: 8500,
+            pendingResidualCents: 210,
+            pendingOrderCount: 0,
+            pendingUnfulfilledChargeCount: 1,
+          },
+        },
+      },
+    });
+    render(<PlatformIncomeCard />);
+
+    expect(screen.getByText('Net platform income so far')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        /Excludes the service fee kept on 1 paid charge that recorded no order, whose processing fee is never captured \(up to \$2\.10/
+      )
+    ).toBeInTheDocument();
   });
 
   it('drops the "so far" qualifier and the residual note when nothing is pending', () => {

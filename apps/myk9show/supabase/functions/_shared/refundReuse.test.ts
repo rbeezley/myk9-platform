@@ -1,5 +1,24 @@
 import { describe, it, expect } from 'vitest';
-import { findReusableRefund, refundAttemptCount, buildEntryRefundStamp } from './refundReuse';
+import {
+  findReusableRefund,
+  refundAttemptCount,
+  buildEntryRefundStamp,
+  entryRefundMetadata,
+} from './refundReuse';
+import { refundIsClubFunded } from './orderSnapshot';
+
+describe('entryRefundMetadata (MYK9-997)', () => {
+  it('tags the entry for reuse AND marks the refund club-funded', () => {
+    const metadata = entryRefundMetadata('entry-1');
+    expect(metadata).toEqual({ entry_id: 'entry-1', myk9_club_funded: 'true' });
+    // A secretary refund is docked from the club's payout: never a platform loss.
+    expect(refundIsClubFunded({ metadata })).toBe(true);
+    // ...and it is still found by the reuse lookup.
+    expect(findReusableRefund([{ id: 're_1', status: 'pending', metadata }], 'entry-1')?.id).toBe(
+      're_1'
+    );
+  });
+});
 
 const refund = (id: string, status: string | null, entryId?: string) => ({
   id,

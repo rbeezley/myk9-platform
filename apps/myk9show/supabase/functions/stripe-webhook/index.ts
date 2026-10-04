@@ -21,6 +21,7 @@ import {
   buildOrderSnapshotFields,
   extractProcessingFeeCents,
   resolveAcceptedEntrySnapshot,
+  refundIsClubFunded,
   refundKindFromMetadata,
 } from '../_shared/orderSnapshot.ts';
 import {
@@ -328,6 +329,7 @@ async function bookSucceededRefund(refund: Stripe.Refund) {
     refundId: refund.id,
     amountCents: refund.amount,
     kind: refundKindFromMetadata(refund),
+    clubFunded: refundIsClubFunded(refund),
   });
   if (rows?.length === 0) {
     await alertAdmin(
@@ -550,6 +552,8 @@ async function recordOrderRefundCents(
     refundId: string;
     amountCents: number;
     kind: 'make_whole' | 'post_hoc';
+    /** Club-funded (MYK9-997): docked from the club's payout, not a platform loss. */
+    clubFunded: boolean;
   }
 ): Promise<RecordedRefundRow[] | null> {
   const amountCents = Math.max(0, Math.round(refund.amountCents ?? 0));
@@ -559,6 +563,7 @@ async function recordOrderRefundCents(
     p_refund_id: refund.refundId,
     p_amount_cents: amountCents,
     p_kind: refund.kind,
+    p_club_funded: refund.clubFunded,
   });
 
   if (error) {
@@ -678,6 +683,9 @@ async function handleChargeRefunded(charge: Stripe.Charge, eventId: string) {
             // the race against that writer. Assuming 'post_hoc' here booked
             // make-whole money as a permanent platform loss (Codex round-7 finding).
             kind: refundKindFromMetadata(refund),
+            // MYK9-997: a show-cancellation or secretary refund is docked
+            // from the club's payout, never a platform loss.
+            clubFunded: refundIsClubFunded(refund),
           });
         },
         terminal: handleTerminalRefund,
@@ -1065,6 +1073,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
       cartId,
       sessionId: session.id,
       paymentIntentId: extractPaymentIntentId(session.payment_intent),
+      // What Stripe charged: the kept fee is booked from it (MYK9-997).
+      chargedCents: abandonedGate.amountTotalCents,
       // The entry fees STRIPE charged; the service fee is kept (MYK9-966).
       amountCents: chargedEntryFeesRefundCents({
         lines: await loadChargedLines(session.id),
@@ -1335,6 +1345,7 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
         cartId,
         sessionId: session.id,
         paymentIntentId: dupIntentId,
+        chargedCents: freshTotalCents,
         amountCents: chargedEntryFeesRefundCents({
           lines: await loadChargedLines(session.id),
           expected: { entryLineCount: cart.items?.length ?? 0 },
@@ -1917,6 +1928,9 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
             Deno.env.get('PLATFORM_FEE_PERCENT')
           ),
         }),
+        // No order is recorded for this session, so the kept fee is booked
+        // from the request (MYK9-997).
+        chargedCents: freshAmountTotalCents,
         reason: 'no_link_record',
         detail: { invalid_entry_ids: [] },
         summaryHtml: 'A payment-link charge could not be honored in full.',

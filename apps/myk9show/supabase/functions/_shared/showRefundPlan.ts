@@ -17,6 +17,8 @@
 //
 // See docs/plan-refund-policy-withdrawal.md (Phase 4 — Show cancellation).
 
+import { CLUB_FUNDED_METADATA_KEY } from './orderSnapshot.ts';
+
 export interface ShowRefundEntry {
   id: string;
   /** entries.entry_fee — DECIMAL dollars. */
@@ -128,15 +130,21 @@ export function buildShowRefundPlan(entries: ShowRefundEntry[]): ShowRefundPlan 
 /**
  * The Stripe refund for one intent of a cancelled show: an EXPLICIT amount of
  * that payment's entry fees, never the full remaining charge (MYK9-966). Tagged
- * so a re-run reuses it (findReusableShowRefund).
+ * so a re-run reuses it (findReusableShowRefund), and marked club-funded
+ * (MYK9-997): the stamped refund_amount is docked from the club's payout, so
+ * platform income must not count it as the platform's loss.
  */
 export function showRefundCreateParams(
   group: ShowRefundIntentGroup,
   showId: string
-): { payment_intent: string; amount: number; metadata: { show_refund: string } } {
+): {
+  payment_intent: string;
+  amount: number;
+  metadata: { show_refund: string; [CLUB_FUNDED_METADATA_KEY]: 'true' };
+} {
   return {
     payment_intent: group.paymentIntentId,
     amount: group.entryFeeSubtotalCents,
-    metadata: { show_refund: showId },
+    metadata: { show_refund: showId, [CLUB_FUNDED_METADATA_KEY]: 'true' },
   };
 }

@@ -151,6 +151,12 @@ export interface PaymentLinkObligation {
   /** What the invalid entries are owed, or null when nothing is owed. */
   owed: {
     amountCents: number | null;
+    /**
+     * What Stripe charged, when the session records NO order (a paid session
+     * with no link row): the kept fee is booked from it (MYK9-997). Omit when
+     * an order is written; its snapshot already books the fee.
+     */
+    chargedCents?: number | null;
     reason: string;
     detail: Record<string, unknown>;
     /** One sentence for the alert: what was paid for that could not be served. */
@@ -230,7 +236,10 @@ export async function settlePaymentLinkObligation(
     p_payment_intent_id: owed ? input.paymentIntentId : null,
     p_amount_cents: owed ? owed.amountCents : null,
     p_reason: owed ? owed.reason : null,
-    p_detail: owed ? owed.detail : {},
+    p_detail:
+      owed && owed.amountCents
+        ? withChargedCents(owed.detail, owed.chargedCents, owed.amountCents)
+        : {},
     p_show_id: input.showId,
     p_order: input.order ?? null,
     p_paid_entry_ids: input.paidEntryIds.length > 0 ? input.paidEntryIds : null,
@@ -364,6 +373,39 @@ export interface AbandonedCartRefundInput {
   sessionId: string;
   paymentIntentId: string | null;
   amountCents: number | null;
+  /** What Stripe charged; the rest after the refund is the kept fee (MYK9-997). */
+  chargedCents: number | null;
+}
+
+/**
+ * The charge to record beside a refund request, so the service fee the
+ * platform keeps (charged − refund, MYK9-966) is booked as income (MYK9-997).
+ * Null when it cannot cover the refund: a charge smaller than its refund is
+ * not a fact to book, and the RPC would refuse it.
+ */
+export function chargedCentsToRecord(
+  chargedCents: number | null | undefined,
+  refundCents: number
+): number | null {
+  return typeof chargedCents === 'number' &&
+    Number.isInteger(chargedCents) &&
+    chargedCents >= refundCents
+    ? chargedCents
+    : null;
+}
+
+/**
+ * A request's p_detail with the charge added when there is one to record. Both
+ * queueing RPCs lift `charged_cents` out of p_detail into the typed, CHECKed
+ * `refund_requests.charged_cents` column (migration 20261004193700).
+ */
+export function withChargedCents(
+  detail: Record<string, unknown>,
+  chargedCents: number | null | undefined,
+  refundCents: number
+): Record<string, unknown> {
+  const charged = chargedCentsToRecord(chargedCents, refundCents);
+  return charged === null ? detail : { ...detail, charged_cents: charged };
 }
 
 export type AbandonedCartRefundOutcome = 'claimed' | 'already_pending' | 'not_refundable';
@@ -401,7 +443,7 @@ export async function claimAbandonedCartRefund(
     p_session_id: input.sessionId,
     p_payment_intent_id: input.paymentIntentId,
     p_amount_cents: input.amountCents,
-    p_detail: { cart_id: input.cartId },
+    p_detail: withChargedCents({ cart_id: input.cartId }, input.chargedCents, input.amountCents),
   });
   if (error) {
     throw new Error(

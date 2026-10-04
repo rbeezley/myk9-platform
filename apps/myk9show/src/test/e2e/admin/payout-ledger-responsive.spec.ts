@@ -95,6 +95,10 @@ async function mockLedgerReads(page: Parameters<typeof signInAsAdmin>[0]) {
           payout_pending_cents: 0,
           payout_failed_cents: 0,
           payout_failed_count: 0,
+          club_funded_refunded_cents: 0,
+          pending_fee_club_funded_refunded_cents: 0,
+          unfulfilled_charge_kept_fee_cents: 0,
+          unfulfilled_charge_count: 0,
         },
       ])
     )

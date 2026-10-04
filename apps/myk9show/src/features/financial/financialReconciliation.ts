@@ -76,11 +76,23 @@ export interface FinancialReconciliationSummary {
   pendingFeePlatformFeeCents: number;
   /** Post-hoc refunds recorded on those same not-yet-captured orders. */
   pendingFeeRefundedCents: number;
-  /** POST-HOC refunds only: the entry WAS accepted, the club kept its transfer,
-   *  and the platform repaid the customer from its own balance. This IS a real
-   *  platform loss and is what net platform income subtracts. Read directly from
-   *  the explicit `stripe_orders.refunded_cents` column — never derived. */
+  /** POST-HOC refunds: the entry WAS accepted and its money went back. Read
+   *  directly from the explicit `stripe_orders.refunded_cents` column — never
+   *  derived. Includes the club-funded share below; only the rest is a platform
+   *  loss (MYK9-997). */
   refundedCents: number;
+  /** The part of refundedCents the CLUB funded (MYK9-997): show-cancellation and
+   *  secretary refunds, docked from the club's payout. Not a platform loss. */
+  clubFundedRefundedCents: number;
+  /** clubFundedRefundedCents restricted to the orders whose processing fee is
+   *  NOT yet captured, mirroring pendingFeeRefundedCents. */
+  pendingFeeClubFundedRefundedCents: number;
+  /** The service fee kept on charges that recorded NO order (a paid abandoned
+   *  cart, a paid payment link with no link row): charged − refund, MYK9-966 /
+   *  MYK9-997. Their Stripe processing fee is never captured. */
+  unfulfilledChargeKeptFeeCents: number;
+  /** How many such charges. */
+  unfulfilledChargeCount: number;
   /** Cart-overflow make-whole refunds: money returned for lines that were NEVER
    *  accepted. The platform earned no fee and made no club transfer on them, so
    *  this is NOT a platform loss — it is money collected and handed straight
@@ -214,6 +226,10 @@ interface SummaryRow {
   payout_pending_cents: number | string;
   payout_failed_cents: number | string;
   payout_failed_count: number | string;
+  club_funded_refunded_cents: number | string;
+  pending_fee_club_funded_refunded_cents: number | string;
+  unfulfilled_charge_kept_fee_cents: number | string;
+  unfulfilled_charge_count: number | string;
 }
 
 interface OrderRow {
@@ -259,6 +275,10 @@ export function mapSummaryRow(row: SummaryRow): FinancialReconciliationSummary {
     pendingFeePlatformFeeCents: toNum(row.pending_fee_platform_fee_cents),
     pendingFeeRefundedCents: toNum(row.pending_fee_refunded_cents),
     refundedCents: toNum(row.refunded_cents),
+    clubFundedRefundedCents: toNum(row.club_funded_refunded_cents),
+    pendingFeeClubFundedRefundedCents: toNum(row.pending_fee_club_funded_refunded_cents),
+    unfulfilledChargeKeptFeeCents: toNum(row.unfulfilled_charge_kept_fee_cents),
+    unfulfilledChargeCount: toNum(row.unfulfilled_charge_count),
     makeWholeRefundedCents: toNum(row.make_whole_refunded_cents),
     snapshotMissingCount: toNum(row.snapshot_missing_count),
     nonEntryOrderCount: toNum(row.non_entry_order_count),
@@ -345,6 +365,10 @@ const EMPTY_SUMMARY_ROW: SummaryRow = {
   payout_pending_cents: 0,
   payout_failed_cents: 0,
   payout_failed_count: 0,
+  club_funded_refunded_cents: 0,
+  pending_fee_club_funded_refunded_cents: 0,
+  unfulfilled_charge_kept_fee_cents: 0,
+  unfulfilled_charge_count: 0,
 };
 
 /** One page of PII-free charge-fact rows. Pass the last row as the next cursor. */

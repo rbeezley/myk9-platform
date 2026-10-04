@@ -23,32 +23,17 @@ const pagedData: TestRow[] = Array.from({ length: 30 }, (_, index) => ({
   value: index + 1,
 }));
 
-describe('DataTable default toolbar', () => {
+describe('DataTable toolbar', () => {
   beforeEach(() => {
     localStorage.clear();
   });
 
-  // MYK9-929 / owner decision 4: a table shows only search (the view toggle and the result
-  // sentence belong to the list's own result line). Export lives in the bulk bar, density is one
-  // comfortable size, and Columns and Reset view are gone.
-  it('renders only the search box in the default toolbar', () => {
+  // Search belongs to the page's list toolkit (ListFilterBar), never the table.
+  it('renders no toolbar of its own, with or without a tableId', () => {
     render(<DataTable tableId="test" columns={columns} data={data} />);
-    expect(screen.getByPlaceholderText('Search...')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /toggle columns/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /export csv/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /density/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /reset table view/i })).not.toBeInTheDocument();
-  });
-
-  it('renders no toolbar buttons at all when showSearch is false', () => {
-    render(<DataTable tableId="test" columns={columns} data={data} showSearch={false} />);
     expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /columns|export|density|reset/i })).toBeNull();
-  });
-
-  it('does not render default toolbar when tableId is absent', () => {
-    render(<DataTable columns={columns} data={data} />);
-    expect(screen.queryByPlaceholderText('Search...')).not.toBeInTheDocument();
   });
 
   it('does not render default toolbar when custom toolbar is provided', () => {

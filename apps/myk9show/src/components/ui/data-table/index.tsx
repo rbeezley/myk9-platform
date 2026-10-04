@@ -30,8 +30,6 @@ import { cn } from '@/lib/utils';
 import { DataTableColumnHeader } from './data-table-column-header';
 import { DataTablePagination } from './data-table-pagination';
 import { type DataTableColumnMeta, getColumnLayoutClasses } from './types';
-import { DataTableToolbar } from './data-table-toolbar';
-import { DataTableSearch } from './data-table-search';
 import { matchesListSearch } from './listSearch';
 
 export type { ColumnDef } from '@tanstack/react-table';
@@ -44,8 +42,6 @@ export type {
   CellChange,
   ScoringModeConfig,
 } from './types';
-export { DataTableToolbar, useDataTableContext } from './data-table-toolbar';
-export { DataTableSearch } from './data-table-search';
 export { filterByListSearch, matchesListSearch } from './listSearch';
 export { EditableCell } from './data-table-editable-cell';
 export type { EditableCellProps } from './data-table-editable-cell';
@@ -74,14 +70,6 @@ interface DataTableProps<TData> {
    */
   defaultColumnVisibility?: VisibilityState;
   toolbar?: (props: { table: TanstackTable<TData> }) => ReactNode;
-  /**
-   * Whether the default toolbar renders its built-in global-filter search box.
-   * Defaults to `true`. Set to `false` when an outer toolbar (e.g. the page's
-   * `ListControls`) already owns search, so the table contributes only its
-   * "Columns" visibility control instead of a second, redundant search.
-   * Ignored when a custom `toolbar` is supplied.
-   */
-  showSearch?: boolean;
   emptyState?: ReactNode;
   noResultsMessage?: ReactNode;
   loading?: boolean;
@@ -165,7 +153,6 @@ export function DataTable<TData>({
     return String(id ?? '');
   },
   toolbar,
-  showSearch = true,
   emptyState,
   noResultsMessage,
   loading = false,
@@ -301,14 +288,7 @@ export function DataTable<TData>({
       data-datatable
       className={cn('overflow-hidden rounded-xl border border-border/50 bg-card', className)}
     >
-      {toolbar
-        ? toolbar({ table })
-        : tableId &&
-          showSearch && (
-            <DataTableToolbar table={table}>
-              <DataTableSearch />
-            </DataTableToolbar>
-          )}
+      {toolbar?.({ table })}
 
       {/* Table component has its own overflow-auto wrapper */}
       <Table {...(scrollAreaLabel ? { scrollAreaLabel } : {})}>

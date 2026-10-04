@@ -76,8 +76,7 @@ describe('WaitlistTable', () => {
   });
 
   // MYK9-795: search moved to the page's shared `ListFilterBar` — this table
-  // no longer renders its own search box (`showSearch={false}` on the
-  // underlying DataTable), it only stays controlled by `searchTerm`/`onSearchChange`.
+  // no longer renders its own search box, it only stays controlled by `searchTerm`/`onSearchChange`.
   it('does not render its own search input', () => {
     render(<WaitlistTable {...defaultProps} />);
     expect(screen.queryByPlaceholderText(/search/i)).not.toBeInTheDocument();

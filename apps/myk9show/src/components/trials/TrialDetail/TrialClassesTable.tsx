@@ -262,7 +262,6 @@ export const TrialClassesTable = ({
           columns={columns}
           data={visibleClasses}
           getRowId={cls => cls.id}
-          showSearch={false}
           onRowClick={cls => openClass(cls.id)}
           noResultsMessage="No classes found"
         />

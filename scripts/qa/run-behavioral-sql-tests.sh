@@ -140,6 +140,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_981_closed_refund_request_releases_cart_test.sql"
   "$TEST_DIR/myk9_941_dog_registrations_co_owner_writes_test.sql"
   "$TEST_DIR/myk9_923_entries_refuse_deleted_parent_test.sql"
+  "$TEST_DIR/myk9_980_move_up_pending_and_reentry_test.sql"
   "$TEST_DIR/myk9_822_blocking_entries_rpc_test.sql"
   "$TEST_DIR/myk9_970_role_onboarding_test.sql"
   "$TEST_DIR/user_roles_show_manager_read_test.sql"

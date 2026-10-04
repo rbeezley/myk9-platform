@@ -3,21 +3,13 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import type { EntrySubmissionOutcome } from '@/services/database/entries';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
-import { summarizeEntrySubmissionOutcomes } from './entrySubmissionOutcomes';
+import {
+  getEntrySubmissionDenialMessage,
+  summarizeEntrySubmissionOutcomes,
+} from './entrySubmissionOutcomes';
 
 interface EntrySubmissionOutcomeAlertProps {
   outcomes?: EntrySubmissionOutcome[] | undefined;
-}
-
-const CROSS_EXHIBITOR_WAITLIST_REASON =
-  'dog already on this class wait list for a different exhibitor';
-
-function getEntrySubmissionDenialMessage(outcome: EntrySubmissionOutcome): string {
-  if (outcome.denialReason === CROSS_EXHIBITOR_WAITLIST_REASON) {
-    return 'already has an active wait-list spot for another exhibitor.';
-  }
-
-  return 'could not be entered because the class is full.';
 }
 
 export function EntrySubmissionOutcomeAlert({ outcomes }: EntrySubmissionOutcomeAlertProps) {

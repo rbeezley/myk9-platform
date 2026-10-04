@@ -281,4 +281,69 @@ describe('ResultCatalog on an AKC show (marked catalog)', () => {
     expect(screen.queryByText('Date of Birth')).not.toBeInTheDocument();
     expect(screen.getAllByText("Judge's initials")).toHaveLength(1);
   });
+
+  it('names the trial and date in each class header on a multi-trial show', () => {
+    render(
+      <ResultCatalog
+        {...akcProps}
+        entries={[
+          dog({ id: 'a', armband: '101', classId: 'c1', trialId: 't1' }),
+          dog({ id: 'b', armband: '201', classId: 'c2', trialId: 't2' }),
+        ]}
+        allTrials={[
+          { id: 't1', date: '2026-11-07', trialNumber: '1', registryId: 'AKC' },
+          {
+            id: 't2',
+            name: 'Sunday Trial',
+            date: '2026-11-08',
+            trialNumber: '2',
+            registryId: 'AKC',
+          },
+        ]}
+        allClasses={[
+          { id: 'c1', trialId: 't1', element: 'Container', level: 'Novice', section: 'A' },
+          { id: 'c2', trialId: 't2', element: 'Container', level: 'Novice', section: '-' },
+        ]}
+      />
+    );
+    const headings = screen.getAllByRole('heading', { level: 2 }).map(h => h.textContent);
+    expect(headings).toEqual([
+      '1 — 11/7/2026 — Container Novice A',
+      'Sunday Trial — 11/8/2026 — Container Novice',
+    ]);
+  });
+
+  it('flags an owner who was read but has no address, and stays quiet for an unread one', () => {
+    render(
+      <ResultCatalog
+        {...akcProps}
+        entries={[
+          dog({ id: 'read', armband: '301', ownerName: 'Read Blank', ownerAddressMissing: true }),
+          dog({ id: 'unread', armband: '302', ownerName: 'Not Read' }),
+          dog({
+            id: 'has',
+            armband: '303',
+            ownerName: 'Has Addr',
+            ownerAddress: '1 A St, Austin, TX 78701',
+          }),
+        ]}
+      />
+    );
+    expect(within(rowFor('301')).getByText('No address on file')).toBeInTheDocument();
+    expect(within(rowFor('302')).queryByText('No address on file')).not.toBeInTheDocument();
+    expect(within(rowFor('303')).queryByText('No address on file')).not.toBeInTheDocument();
+  });
+
+  it('prints the top notice only when the owner and date-of-birth read did not complete', () => {
+    const notice = /could not be loaded — reprint when online before sending to AKC/;
+    const { rerender } = render(
+      <ResultCatalog {...akcProps} catalogProfilesReadComplete={false} />
+    );
+    expect(screen.getByRole('alert')).toHaveTextContent(notice);
+    expect(screen.queryByText('No address on file')).not.toBeInTheDocument();
+    rerender(<ResultCatalog {...akcProps} catalogProfilesReadComplete />);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    rerender(<ResultCatalog {...akcProps} />);
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
 });

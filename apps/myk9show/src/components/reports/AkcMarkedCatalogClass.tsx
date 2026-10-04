@@ -18,6 +18,8 @@ import { formatArmbandDisplay } from '@/utils/armbandUtils';
 export interface AkcMarkedCatalogClassData {
   id: string;
   className: string;
+  /** Trial label and date, e.g. "Trial 1 — 11/9/2026"; printed before the class name. */
+  trialHeading?: string | undefined;
   judgeName?: string | undefined;
   timeLimitSeconds?: number | null | undefined;
   /** Already sorted by the host report's sort order. */
@@ -73,7 +75,10 @@ const AkcMarkedCatalogClass: React.FC<{ data: AkcMarkedCatalogClassData }> = ({ 
     <tbody className="catalog-class-section">
       <tr>
         <td colSpan={COLUMNS.length} className="catalog-class-heading">
-          <h2>{data.className}</h2>
+          <h2>
+            {data.trialHeading ? `${data.trialHeading} — ` : ''}
+            {data.className}
+          </h2>
         </td>
       </tr>
       <tr className="catalog-class-facts-row">
@@ -112,6 +117,8 @@ const AkcMarkedCatalogClass: React.FC<{ data: AkcMarkedCatalogClassData }> = ({ 
                 {entry.ownerName ?? ''}
                 {entry.ownerAddress ? (
                   <span className="catalog-subline">{entry.ownerAddress}</span>
+                ) : entry.ownerAddressMissing ? (
+                  <span className="catalog-subline catalog-flag">No address on file</span>
                 ) : null}
                 {entry.handlerDiffersFromOwner ? (
                   <span className="catalog-subline">Handler: {formatReportHandlerName(entry)}</span>

@@ -103,6 +103,21 @@ export const CATALOG_STYLES = `
   color: #333;
 }
 
+.catalog-akc-table .catalog-flag {
+  font-weight: bold;
+  border: 1px solid #000;
+  padding: 0 2px;
+  display: inline-block;
+}
+
+.catalog-notice {
+  border: 2px solid #000;
+  padding: 6px 8px;
+  margin: 0 0 10px 0;
+  font-size: 11px;
+  font-weight: bold;
+}
+
 .catalog-akc-table .catalog-reason {
   display: block;
   font-style: italic;

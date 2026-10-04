@@ -187,6 +187,11 @@ export function mapCatalogEntryFields(
     ...(e.dog?.date_of_birth ? { dateOfBirth: e.dog.date_of_birth } : {}),
     ...(ownerName ? { ownerName } : {}),
     ...(ownerAddress ? { ownerAddress } : {}),
+    // `street_address` is only ever present on a row the hydration read (the replica
+    // owner carries an id and null names), so its presence means "read".
+    ...(owner && owner.street_address !== undefined && !ownerAddress
+      ? { ownerAddressMissing: true }
+      : {}),
     ...(handlerDiffersFromOwner({ handlerName: handler.name, source: handler.source, owner })
       ? { handlerDiffersFromOwner: true }
       : {}),

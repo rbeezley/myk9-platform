@@ -11,7 +11,11 @@ import type { ReportDbEntry } from '@/lib/reports/types';
 const mocks = vi.hoisted(() => ({ from: vi.fn() }));
 vi.mock('@/lib/supabase', () => ({ supabase: { from: mocks.from } }));
 
-import { hydrateCatalogDogProfiles } from '../reportCatalogHydration';
+import { hydrateCatalogDogProfiles as hydrateWithStatus } from '../reportCatalogHydration';
+
+async function hydrateCatalogDogProfiles(entries: ReportDbEntry[]) {
+  return (await hydrateWithStatus(entries)).entries;
+}
 
 const DOG_ROW = {
   id: 'dog-1',
@@ -105,6 +109,7 @@ describe('hydrateCatalogDogProfiles', () => {
     const hydrated = await hydrateCatalogDogProfiles(input);
 
     expect(hydrated).toEqual(input);
+    expect((await hydrateWithStatus(input)).readComplete).toBe(false);
     expect(hydrated[0]?.dog?.date_of_birth).toBeUndefined();
     expect(hydrated[0]?.dog?.owner?.street_address).toBeUndefined();
   });
@@ -135,6 +140,9 @@ describe('hydrateCatalogDogProfiles', () => {
     expect(hydrated[0]?.dog?.date_of_birth).toBe('2020-03-05');
     expect(hydrated[149]?.dog?.date_of_birth).toBeUndefined();
     expect(hydrated[149]?.dog?.owner).toBeUndefined();
+    expect(
+      (await hydrateWithStatus(ids.map(id => entry({ dog_id: id, dog: { id } })))).readComplete
+    ).toBe(false);
   });
 
   it('does not query for entries without a dog', async () => {
@@ -142,5 +150,10 @@ describe('hydrateCatalogDogProfiles', () => {
     const hydrated = await hydrateCatalogDogProfiles([entry({ dog_id: null })]);
     expect(select).not.toHaveBeenCalled();
     expect(hydrated).toHaveLength(1);
+  });
+
+  it('reports a complete read when every batch answered', async () => {
+    dogsRead([DOG_ROW]);
+    expect((await hydrateWithStatus([entry()])).readComplete).toBe(true);
   });
 });

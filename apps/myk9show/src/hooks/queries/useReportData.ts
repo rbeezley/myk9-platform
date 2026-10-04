@@ -57,6 +57,8 @@ function subscribeToHandlerPeopleRevision(onStoreChange: () => void): () => void
 interface HydratedReportEntries {
   entries: ReportDbEntry[];
   registrationsReadComplete: boolean;
+  /** MYK9-1009: false when the owner address / date of birth read did not complete. */
+  catalogProfilesReadComplete: boolean;
 }
 
 /**
@@ -114,12 +116,13 @@ export const hydrateHandlerJuniorProfilesForTest = hydrateHandlerJuniorProfiles;
 async function hydrateEntryRegistrations(entries: ReportDbEntry[]): Promise<HydratedReportEntries> {
   const withHandlerProfiles = await hydrateHandlerJuniorProfiles(entries);
   // MYK9-1009: the AKC marked catalog's dog date of birth and owner address.
-  const withHandlers = await hydrateCatalogDogProfiles(withHandlerProfiles);
+  const { entries: withHandlers, readComplete: catalogProfilesReadComplete } =
+    await hydrateCatalogDogProfiles(withHandlerProfiles);
   const dogIds = [
     ...new Set(withHandlers.map(entry => entry.dog_id).filter((id): id is string => Boolean(id))),
   ];
   if (dogIds.length === 0) {
-    return { entries: withHandlers, registrationsReadComplete: true };
+    return { entries: withHandlers, registrationsReadComplete: true, catalogProfilesReadComplete };
   }
 
   const { byDog, registrationsReadComplete } = await loadDogRegistrations(dogIds);
@@ -137,6 +140,7 @@ async function hydrateEntryRegistrations(entries: ReportDbEntry[]): Promise<Hydr
       };
     }),
     registrationsReadComplete,
+    catalogProfilesReadComplete,
   };
 }
 
@@ -327,6 +331,7 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
   // reports printable when registration reads are incomplete; the emergency
   // packet gates on this flag at its own safety boundary.
   const registrationsReadComplete = entriesQuery.data?.registrationsReadComplete ?? true;
+  const catalogProfilesReadComplete = entriesQuery.data?.catalogProfilesReadComplete ?? true;
   // Why this is an enum and not two booleans: every report on this page can end
   // up as PAPER, and several React Query states all present as "not loading,
   // not erroring, no data" -- which `(entries ?? [])` then reads as "this class
@@ -377,6 +382,7 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
     classes: classesQuery.data,
     entries,
     registrationsReadComplete,
+    catalogProfilesReadComplete,
     dataState,
     /** True only when every row backing this report is present and current. */
     isReady: dataState === 'ready',

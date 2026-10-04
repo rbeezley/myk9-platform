@@ -5,7 +5,9 @@
  * a hand-picked `.map(...)`, so this drives the real chain: Supabase row ->
  * rowToEntry -> mapReplicatedEntryToDbRow -> hydrated dog -> mapScopedReportEntries.
  */
+import { render, screen } from '@testing-library/react';
 import { describe, expect, it } from 'vitest';
+import { ResultCatalog } from '@/components/reports/ResultCatalog';
 import { fromAny } from '@total-typescript/shoehorn';
 import { buildShowReportProps, mapScopedReportEntries } from '../reportDataMapping';
 import { reportRegistry } from '@/lib/reports/reportRegistry';
@@ -147,5 +149,41 @@ describe('AKC marked catalog fields reach ReportEntry', () => {
       sortOrder: 'placement',
     });
     expect(props.allClasses?.[0]?.timeLimitSeconds).toBe(180);
+  });
+
+  it('marks a read owner with no address, but not an unread one', () => {
+    const blank = { first_name: 'Jane', last_name: 'Mitchell', street_address: null, city: null };
+    expect(mapOne(hydratedEntry({}, blank, 'Jane Mitchell')).ownerAddressMissing).toBe(true);
+    // The replica's owner carries no address keys at all: not read, so not flagged.
+    const unread = { id: 'person-1', first_name: null, last_name: null };
+    expect(mapOne(hydratedEntry({}, unread, null)).ownerAddressMissing).toBeUndefined();
+    expect(mapOne(hydratedEntry({}, owner, 'Jane Mitchell')).ownerAddressMissing).toBeUndefined();
+  });
+
+  it('carries the read-incomplete flag from the host onto the rendered catalog', () => {
+    const report = reportRegistry.find(item => item.id === 'result-catalog')!;
+    const input = {
+      report,
+      show,
+      trials: [trial],
+      classes: [cls],
+      entries: [] as never[],
+      trialId: 'all',
+      classId: 'all',
+      dogId: 'all',
+      sortOrder: 'placement',
+    };
+    const incomplete = buildShowReportProps({ ...input, catalogProfilesReadComplete: false });
+    expect(incomplete.catalogProfilesReadComplete).toBe(false);
+    expect(buildShowReportProps(input).catalogProfilesReadComplete).toBeUndefined();
+
+    const entries = mapScopedReportEntries(
+      [hydratedEntry({}, owner, 'Jane Mitchell')],
+      [trial],
+      [cls],
+      { kind: 'show', showId: 'show-1' }
+    );
+    render(<ResultCatalog {...incomplete} entries={entries} />);
+    expect(screen.getByRole('alert')).toHaveTextContent('could not be loaded');
   });
 });

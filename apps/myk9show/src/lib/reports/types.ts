@@ -91,6 +91,11 @@ export interface ReportEntry {
   /** The owner's mailing address as one printable line. */
   ownerAddress?: string | null;
   /**
+   * True when the owner row WAS read and has no address parts. Distinct from an
+   * unread owner (no flag), which the report-level notice covers instead.
+   */
+  ownerAddressMissing?: boolean;
+  /**
    * True only when the entry names a handler who is not the owner. The catalog
    * prints a handler only then, as the AKC marked catalog requires.
    */
@@ -308,6 +313,12 @@ export interface ReportProps {
     timeLimitSeconds?: number | null;
   }>;
   includeEstimatedTime?: boolean;
+  /**
+   * MYK9-1009: false when the owner address / date of birth read for the AKC marked
+   * catalog did not complete. Absent means complete. The catalog then prints a notice
+   * at the top rather than leaving blank cells that read as "no data".
+   */
+  catalogProfilesReadComplete?: boolean;
 }
 
 /**

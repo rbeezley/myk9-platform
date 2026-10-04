@@ -6,13 +6,25 @@ import {
   sortByPlacement,
   sortByArmband,
   sortByHandler,
+  isValidSection,
   getResultStatusText,
   isQualified,
   countQualified,
 } from '@/lib/reports/reportUtils';
 import { formatArmbandDisplay } from '@/utils/armbandUtils';
+import { formatTrialLabel } from '@myk9/core';
 import { resolveConfiguredRegistryId } from '@/features/registries';
+import { formatCatalogDate } from '@/lib/reports/catalogFields';
 import { AkcMarkedCatalogTable, JudgeInitialsBox } from './AkcMarkedCatalogClass';
+
+function trialHeading(
+  trial: { name?: string | undefined; trialNumber: string; date: string } | undefined
+): string {
+  if (!trial) return '';
+  const label = formatTrialLabel({ name: trial.name, trialNumber: trial.trialNumber });
+  const date = formatCatalogDate(trial.date);
+  return date ? `${label} — ${date}` : label;
+}
 
 /**
  * INTENT: the Result Catalog is the AKC marked catalog (Scent Work Regulations
@@ -30,6 +42,7 @@ export const ResultCatalog: React.FC<ReportProps> = ({
   showDates,
   allClasses = [],
   allTrials = [],
+  catalogProfilesReadComplete = true,
   entries,
   sortOrder,
 }) => {
@@ -77,11 +90,23 @@ export const ResultCatalog: React.FC<ReportProps> = ({
         {showDates && <p className="report-subtitle">{showDates}</p>}
       </div>
 
+      {showIsAkc && !catalogProfilesReadComplete ? (
+        <p className="catalog-notice" role="alert">
+          Owner addresses and dates of birth could not be loaded — reprint when online before
+          sending to AKC.
+        </p>
+      ) : null}
+
       {showIsAkc ? (
         <AkcMarkedCatalogTable
           classes={allClasses.map(cls => ({
             id: cls.id,
-            className: `${cls.element} ${cls.level}`.trim(),
+            // Same convention as the Show Catalog and Judge's Schedule: trial label,
+            // then the date, shown on every class so a multi-trial show is unambiguous.
+            trialHeading: trialHeading(allTrials.find(item => item.id === cls.trialId)),
+            className: [cls.element, cls.level, isValidSection(cls.section) ? cls.section : '']
+              .filter(Boolean)
+              .join(' '),
             judgeName: cls.judgeName,
             timeLimitSeconds: cls.timeLimitSeconds,
             entries: sortClassEntries(entriesByClass.get(cls.id) ?? []),

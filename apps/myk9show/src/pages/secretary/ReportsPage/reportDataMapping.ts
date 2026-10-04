@@ -403,7 +403,10 @@ export function buildShowReportProps({
   classId: string;
   dogId: string;
   sortOrder: string;
-} & Pick<ReportProps, 'entryFormData' | 'judgeSupplies' | 'waitlist'>): ReportProps {
+} & Pick<
+  ReportProps,
+  'entryFormData' | 'judgeSupplies' | 'waitlist' | 'catalogProfilesReadComplete'
+>): ReportProps {
   const targetTrialIds = trialId === 'all' ? trials.map(t => t.id) : [trialId];
   const shouldFilterClass = report.scopes.includes('class') && classId !== 'all';
 

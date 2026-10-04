@@ -52,6 +52,11 @@
 -- human-approved: the request is approved in stripe-approve-refund, and its
 -- settlement books it make_whole on the order (refundSettlement.ts).
 --
+-- The checkout's receipt is tracked per session, in
+-- cart_fulfillments.receipt_sent_at: the webhook sends it on whichever path
+-- first finds the order (its own latch call, a retry, or a redelivery) while
+-- the marker is NULL, and sets it once after a successful send.
+--
 -- create_online_paid_entry is NOT changed; fulfill_cart_line wraps it.
 --
 -- DEPLOY ORDER: push this migration BEFORE deploying stripe-webhook. The
@@ -140,7 +145,17 @@ CREATE TABLE public.cart_fulfillments (
   -- replay writes the same value.
   created_at timestamptz NOT NULL DEFAULT now(),
   -- Set once, by complete_cart_fulfillment, with the latch.
-  completed_at timestamptz
+  completed_at timestamptz,
+  -- When THIS checkout's receipt (the confirmation email) was sent. The
+  -- webhook sends it only while this is NULL and sets it after a successful
+  -- send, once, on whichever path first finds the order. Per session, not per
+  -- entry: entries.confirmation_email_sent_at is also written by the
+  -- scheduled send-confirmation-email sender for unpaid entries, so a Finish
+  -- Payment entry can carry it before its checkout and cannot stand in for
+  -- "this payment's receipt was sent".
+  receipt_sent_at timestamptz,
+  CONSTRAINT cart_fulfillments_receipt_after_latch
+    CHECK (receipt_sent_at IS NULL OR completed_at IS NOT NULL)
 );
 
 COMMENT ON TABLE public.cart_fulfillments IS
@@ -251,6 +266,8 @@ BEGIN
      (OLD.stripe_checkout_session_id, OLD.show_id, OLD.exhibitor_id,
       OLD.stripe_payment_intent_id, OLD.created_at)
      OR (OLD.completed_at IS NOT NULL AND NEW.completed_at IS DISTINCT FROM OLD.completed_at)
+     -- A sent receipt stays sent: set once, never cleared or moved.
+     OR (OLD.receipt_sent_at IS NOT NULL AND NEW.receipt_sent_at IS DISTINCT FROM OLD.receipt_sent_at)
      -- Only the FK's ON DELETE SET NULL may change the cart.
      OR (NEW.cart_id IS DISTINCT FROM OLD.cart_id AND NEW.cart_id IS NOT NULL) THEN
     RAISE EXCEPTION 'cart fulfillment % is append-only', OLD.stripe_checkout_session_id

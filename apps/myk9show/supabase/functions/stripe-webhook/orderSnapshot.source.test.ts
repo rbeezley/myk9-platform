@@ -243,15 +243,24 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     // overflow refund in ONE call too, after every line is recorded, with the
     // processing fee fetched before it. The by-hand overflow alert is gone.
     const cart = body('fulfillCartRun');
-    expect(cart).toContain('await closeCartThenConfirm(');
+    expect(cart).toContain('await closeCartThenSendReceipt(');
     // Codex P2 on #2744: the confirmation is never gated on which call closed the latch.
     expect(cart).not.toContain('latchClosed');
+    // Codex round 2 on #2744: the receipt is gated per SESSION, on
+    // cart_fulfillments.receipt_sent_at, never on the entries' confirmation stamp.
+    const receiptDeps = webhookSource.slice(
+      webhookSource.indexOf('function cartReceiptDeps('),
+      webhookSource.indexOf('\n}\n', webhookSource.indexOf('function cartReceiptDeps('))
+    );
+    expect(receiptDeps).toContain(".select('completed_at, receipt_sent_at')");
+    expect(receiptDeps).toContain(".is('receipt_sent_at', null)");
+    expect(receiptDeps).not.toContain('confirmation_email_sent_at');
     expect(cart).not.toContain(".from('stripe_orders').insert(");
     expect(cart.indexOf('await workCartLines(')).toBeLessThan(
-      cart.indexOf('await closeCartThenConfirm(')
+      cart.indexOf('await closeCartThenSendReceipt(')
     );
     expect(cart.indexOf('await fetchProcessingFeeCents(paymentIntentId)')).toBeLessThan(
-      cart.indexOf('await closeCartThenConfirm(')
+      cart.indexOf('await closeCartThenSendReceipt(')
     );
     expect(webhookSource).not.toContain('queueCartOverflowRefund');
     expect(webhookSource).not.toContain('cartOverflowManualRefundAlert');

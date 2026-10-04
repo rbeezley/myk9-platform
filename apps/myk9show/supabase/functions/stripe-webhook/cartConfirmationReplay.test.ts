@@ -1,13 +1,14 @@
 // @vitest-environment node
-// MYK9-964: an exhibitor who paid gets exactly one confirmation, even when the
-// latch commits and its response is lost.
+// MYK9-964: an exhibitor who paid gets exactly one receipt per checkout
+// session, gated on cart_fulfillments.receipt_sent_at (never on the entries'
+// confirmation stamps, which the scheduled sender writes for unpaid entries).
 //
-// The latch call (complete_cart_fulfillment) commits the order, then the
-// network drops; the webhook answers 5xx before sending the confirmation.
-// Stripe redelivers; routePaidSession takes the replay-first branch, which
-// sends the confirmation once (replayCartConfirmation) because no entry is
-// stamped yet. The send stamps the entries (sendEntryConfirmationEmail's MP-13
-// stamp), so a further redelivery sends nothing.
+// The model: complete_cart_fulfillment commits the order and completes the
+// run; the network can lose that response, either for good
+// ('commit-then-lose': the webhook answers 5xx and Stripe redelivers) or only
+// once ('commit-then-error': the call's own retry succeeds with
+// latch_closed false and the webhook answers 2xx). Every path ends in the one
+// sender, sendCartReceiptOnce.
 import { describe, expect, it } from 'vitest';
 import type { CartOverflowRefundDecision } from '../_shared/cartOverflowRefund';
 import {
@@ -16,9 +17,9 @@ import {
   type SessionRefundRequest,
 } from '../_shared/refundRequests';
 import {
-  closeCartThenConfirm,
-  replayCartConfirmation,
-  type CartConfirmationReplayDeps,
+  closeCartThenSendReceipt,
+  sendCartReceiptOnce,
+  type CartReceiptDeps,
   type ReplayedCartOrder,
 } from './cartConfirmationReplay';
 import type { CartLineResults } from './cartFulfillment';
@@ -27,12 +28,13 @@ import { routePaidSession } from './paidSessionEntry';
 const SESSION = 'cs_964_email';
 
 const LINES: CartLineResults = {
-  entryIds: ['e-1', 'e-2'],
-  paidLineIds: ['e-1', 'e-2'],
+  // e-recovered: a Finish Payment entry; e-new: bought in this checkout.
+  entryIds: ['e-recovered', 'e-new'],
+  paidLineIds: ['e-recovered', 'e-new'],
   noServiceLineIds: ['ci-3'],
   lineAmountsById: new Map([
-    ['e-1', 3000],
-    ['e-2', 3000],
+    ['e-recovered', 3000],
+    ['e-new', 3000],
     ['ci-3', 3000],
   ]),
   waitlisted: [],
@@ -40,16 +42,20 @@ const LINES: CartLineResults = {
   failed: [],
 };
 
+type Network = 'commit-then-lose' | 'commit-then-error' | 'down' | 'up';
+
 function world(opts: { owed: boolean; sendFails?: boolean }) {
   const state = {
-    /**
-     * 'commit-then-lose': the first call commits, then the network is down.
-     * 'commit-then-error': the first call commits and errors, the retry works.
-     */
-    network: 'commit-then-lose' as 'commit-then-lose' | 'commit-then-error' | 'down' | 'up',
+    network: 'up' as Network,
     order: null as { entry_ids: string[] } | null,
+    completed: false,
+    receiptSentAt: null as string | null,
     requests: new Map<string, SessionRefundRequest>(),
-    stamped: new Set<string>(),
+    /**
+     * entries.confirmation_email_sent_at. The scheduled sender stamped the
+     * Finish Payment entry BEFORE this checkout; it must not stop the receipt.
+     */
+    entryStamps: new Set<string>(['e-recovered']),
     emails: [] as string[][],
     sendFails: opts.sendFails ?? false,
   };
@@ -57,8 +63,11 @@ function world(opts: { owed: boolean; sendFails?: boolean }) {
   const rpc: RefundQueueDeps['rpc'] = async (fn, args) => {
     expect(fn).toBe('complete_cart_fulfillment');
     if (state.network === 'down') return { data: null, error: { message: 'connection reset' } };
-    const closed = state.order === null;
-    if (closed) state.order = args.p_order as { entry_ids: string[] };
+    const closed = !state.completed;
+    if (closed) {
+      state.completed = true;
+      state.order = args.p_order as { entry_ids: string[] };
+    }
     if (args.p_amount_cents != null && !state.requests.has(SESSION)) {
       state.requests.set(SESSION, {
         id: 'rr-email',
@@ -93,14 +102,11 @@ function world(opts: { owed: boolean; sendFails?: boolean }) {
   };
   const deps: RefundQueueDeps = { rpc, alertAdmin: async () => undefined };
 
-  /** sendEntryConfirmationEmail: stamps the entries only after a successful send. */
-  const send = async (order: ReplayedCartOrder) => {
-    if (state.sendFails) return;
-    state.emails.push(order.entryIds);
-    for (const id of order.entryIds) state.stamped.add(id);
-  };
-
-  const confirmation: CartConfirmationReplayDeps = {
+  const receipt: CartReceiptDeps = {
+    readReceiptState: async () => ({
+      latched: state.completed,
+      receiptSentAt: state.receiptSentAt,
+    }),
     readOrder: async () =>
       state.order
         ? {
@@ -111,13 +117,20 @@ function world(opts: { owed: boolean; sendFails?: boolean }) {
             totalCents: 6600,
           }
         : null,
-    countConfirmed: async ids => ids.filter(id => state.stamped.has(id)).length,
-    send,
+    // sendEntryConfirmationEmail: also stamps the entries, a separate concern.
+    send: async (order: ReplayedCartOrder) => {
+      if (state.sendFails) return false;
+      state.emails.push(order.entryIds);
+      for (const id of order.entryIds) state.entryStamps.add(id);
+      return true;
+    },
+    markReceiptSent: async () => {
+      state.receiptSentAt ??= '2026-10-04T20:00:00Z';
+    },
   };
-  const replay = () => replayCartConfirmation(confirmation, SESSION);
 
   /** The first delivery's end, exactly as index.ts fulfillCartRun runs it. */
-  async function deliverLatch() {
+  function deliverLatch() {
     const decision: CartOverflowRefundDecision = opts.owed
       ? {
           action: 'refund',
@@ -126,7 +139,7 @@ function world(opts: { owed: boolean; sendFails?: boolean }) {
           reason: 'partial_no_service_lines',
         }
       : { action: 'none', paidAmountCents: 9900 };
-    return closeCartThenConfirm(
+    return closeCartThenSendReceipt(
       deps,
       {
         sessionId: SESSION,
@@ -136,7 +149,7 @@ function world(opts: { owed: boolean; sendFails?: boolean }) {
         decision,
         lines: LINES,
       },
-      confirmation
+      receipt
     );
   }
 
@@ -150,10 +163,10 @@ function world(opts: { owed: boolean; sendFails?: boolean }) {
         orderExists: async () => state.order !== null,
         refundRequested: async requests => {
           await ensureSessionRefundAlerts(deps, SESSION, requests);
-          await replay();
+          await sendCartReceiptOnce(receipt, SESSION);
         },
         alreadyFulfilled: async () => {
-          await replay();
+          await sendCartReceiptOnce(receipt, SESSION);
         },
         fulfillCart: async () => {
           throw new Error('the order exists: a redelivery must not fulfill again');
@@ -165,68 +178,82 @@ function world(opts: { owed: boolean; sendFails?: boolean }) {
     );
   }
 
-  return { state, deliverLatch, redeliver, replay };
+  return { state, deliverLatch, redeliver };
 }
 
-describe('MYK9-964: confirmation after a lost latch response', () => {
-  it.each([
-    ['with a queued overflow refund', true, 'refund_requested'],
-    ['with nothing owed', false, 'already_fulfilled'],
-  ] as const)(
-    '%s: exactly one email, and none on a second redelivery',
+const BOTH = [
+  ['with a queued overflow refund', true, 'refund_requested'],
+  ['with nothing owed', false, 'already_fulfilled'],
+] as const;
+
+describe('MYK9-964: one receipt per checkout session', () => {
+  it.each(BOTH)(
+    'a pre-stamped Finish Payment entry plus a new entry (%s): one receipt for the order',
+    async (_n, owed) => {
+      const w = world({ owed });
+      await expect(w.deliverLatch()).resolves.toBe('sent');
+      expect(w.state.emails).toEqual([['e-recovered', 'e-new']]);
+      expect(w.state.receiptSentAt).not.toBeNull();
+    }
+  );
+
+  it.each(BOTH)(
+    'latch commits, response lost (%s): one receipt on redelivery, none on the next',
     async (_n, owed, branch) => {
       const w = world({ owed });
+      w.state.network = 'commit-then-lose';
 
       await expect(w.deliverLatch()).rejects.toThrow(/could not be confirmed/);
       expect(w.state.order).not.toBeNull();
       expect(w.state.emails).toHaveLength(0);
 
       await expect(w.redeliver()).resolves.toBe(branch);
-      expect(w.state.emails).toEqual([['e-1', 'e-2']]);
+      expect(w.state.emails).toEqual([['e-recovered', 'e-new']]);
 
       await expect(w.redeliver()).resolves.toBe(branch);
       expect(w.state.emails).toHaveLength(1);
     }
   );
 
-  it.each([true, false])(
-    'commit-then-error, then a successful retry inside the call (owed: %s): exactly one email',
-    async owed => {
-      // Codex P2 on #2744: the retry reports latch_closed false, and the
-      // webhook then answers 2xx, so Stripe never redelivers. The email must
-      // go out on THIS delivery.
-      const w = world({ owed });
+  it.each(BOTH)(
+    'commit-then-error, then a successful retry inside the call (%s): one receipt, none on redelivery',
+    async owedLabel => {
+      // Codex P2 on #2744: the retry reports latch_closed false and the
+      // webhook answers 2xx, so Stripe never redelivers; the receipt must go
+      // out on THIS delivery.
+      const w = world({ owed: owedLabel === 'with a queued overflow refund' });
       w.state.network = 'commit-then-error';
 
       await expect(w.deliverLatch()).resolves.toBe('sent');
-      expect(w.state.emails).toEqual([['e-1', 'e-2']]);
+      expect(w.state.emails).toEqual([['e-recovered', 'e-new']]);
 
       await w.redeliver();
       expect(w.state.emails).toHaveLength(1);
     }
   );
 
-  it('a delivery that closed the latch and sent is never followed by a second email', async () => {
+  it('a delivery that latched and sent is never followed by a second receipt', async () => {
     const w = world({ owed: false });
-    w.state.network = 'up';
     await w.deliverLatch();
-    expect(w.state.emails).toHaveLength(1);
+    await w.redeliver();
     await w.redeliver();
     expect(w.state.emails).toHaveLength(1);
   });
 
-  it('a failed send stamps nothing, so the next redelivery tries again', async () => {
+  it('a failed send leaves the marker NULL, so the next redelivery sends it', async () => {
     const w = world({ owed: false, sendFails: true });
-    await expect(w.deliverLatch()).rejects.toThrow();
+    await expect(w.deliverLatch()).resolves.toBe('send_failed');
+    expect(w.state.receiptSentAt).toBeNull();
     await w.redeliver();
     expect(w.state.emails).toHaveLength(0);
     w.state.sendFails = false;
+    await w.redeliver();
     await w.redeliver();
     expect(w.state.emails).toHaveLength(1);
   });
 });
 
-describe('replayCartConfirmation', () => {
+describe('sendCartReceiptOnce', () => {
   const order: ReplayedCartOrder = {
     entryIds: ['e-1'],
     showId: 's',
@@ -234,35 +261,58 @@ describe('replayCartConfirmation', () => {
     subtotalCents: 3000,
     totalCents: 3300,
   };
-  const run = (o: ReplayedCartOrder | null, confirmed: number) => {
+  const run = async (
+    state: { latched: boolean; receiptSentAt: string | null } | null,
+    o: ReplayedCartOrder | null,
+    accepted = true
+  ) => {
     const sent: ReplayedCartOrder[] = [];
-    return replayCartConfirmation(
+    let marked = 0;
+    const result = await sendCartReceiptOnce(
       {
+        readReceiptState: async () => state,
         readOrder: async () => o,
-        countConfirmed: async () => confirmed,
         send: async x => {
           sent.push(x);
+          return accepted;
+        },
+        markReceiptSent: async () => {
+          marked += 1;
         },
       },
       'cs'
-    ).then(result => ({ result, sent }));
+    );
+    return { result, sent: sent.length, marked };
   };
+  const open = { latched: true, receiptSentAt: null };
 
   it.each([
-    ['no order', null, 0, 'no_order', 0],
+    ['no run (an order from before MYK9-964)', null, order, true, 'no_run', 0, 0],
     [
-      'an order with no entries (every line unserved)',
-      { ...order, entryIds: [] },
+      'a run not latched yet',
+      { latched: false, receiptSentAt: null },
+      order,
+      true,
+      'not_latched',
       0,
-      'no_entries',
       0,
     ],
-    ['an entry already stamped', order, 1, 'already_confirmed', 0],
-    ['no recipient', { ...order, exhibitorPersonId: null }, 0, 'no_recipient', 0],
-    ['unstamped entries', order, 0, 'sent', 1],
-  ] as const)('%s', async (_n, o, confirmed, expected, sends) => {
-    const { result, sent } = await run(o as ReplayedCartOrder | null, confirmed);
-    expect(result).toBe(expected);
-    expect(sent).toHaveLength(sends);
+    [
+      'a receipt already sent',
+      { latched: true, receiptSentAt: 't' },
+      order,
+      true,
+      'already_sent',
+      0,
+      0,
+    ],
+    ['no order', open, null, true, 'no_order', 0, 0],
+    ['an order with no entries', open, { ...order, entryIds: [] }, true, 'no_entries', 0, 0],
+    ['no recipient', open, { ...order, exhibitorPersonId: null }, true, 'no_recipient', 0, 0],
+    ['a send the provider refused', open, order, false, 'send_failed', 1, 0],
+    ['an open receipt', open, order, true, 'sent', 1, 1],
+  ] as const)('%s', async (_n, state, o, accepted, expected, sends, marks) => {
+    const r = await run(state, o as ReplayedCartOrder | null, accepted);
+    expect(r).toEqual({ result: expected, sent: sends, marked: marks });
   });
 });

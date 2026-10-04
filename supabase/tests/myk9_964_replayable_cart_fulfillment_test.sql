@@ -33,6 +33,9 @@
 --       refund needs an unserved line and cannot exceed the charge; a
 --       paid_existing claim must be paid by this intent; a recorded outcome
 --       never changes; a Finish Payment line is never created here.
+--   R10 The per-session receipt marker (cart_fulfillments.receipt_sent_at):
+--       service_role only, settable only after the latch, set once, never
+--       moved or cleared.
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
 
@@ -583,6 +586,12 @@ BEGIN
 END;
 $$;
 
+-- R10. The per-session receipt marker: only after the latch, set once.
+SELECT pg_temp.expect_sqlstate(
+  $q$UPDATE public.cart_fulfillments SET receipt_sent_at = now()
+      WHERE stripe_checkout_session_id = 'cs_test_964_b'$q$,
+  '23514', 'R10 a receipt cannot be marked sent before the latch');
+
 SELECT pg_temp.expect_sqlstate(
   format($q$SELECT public.complete_cart_fulfillment('cs_test_964_b', %L, 100, 'partial_no_service_lines')$q$,
     pg_temp.cart_order('pi_test_964_b',
@@ -604,6 +613,47 @@ BEGIN
     'true submitted true true', 'R9 a fully served cart latches with its order and no request');
 END;
 $$;
+
+-- R10 (cont.): the webhook's marker write, then a second one and a clear.
+DO $$
+DECLARE
+  v_rows integer;
+BEGIN
+  UPDATE public.cart_fulfillments SET receipt_sent_at = now()
+   WHERE stripe_checkout_session_id = 'cs_test_964_b' AND receipt_sent_at IS NULL;
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  PERFORM pg_temp.expect_eq(v_rows::text, '1', 'R10 the latched run takes its receipt marker');
+  UPDATE public.cart_fulfillments SET receipt_sent_at = now()
+   WHERE stripe_checkout_session_id = 'cs_test_964_b' AND receipt_sent_at IS NULL;
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+  PERFORM pg_temp.expect_eq(v_rows::text, '0', 'R10 a second marker write (the webhook''s IS NULL guard) changes nothing');
+END;
+$$;
+SELECT pg_temp.expect_sqlstate(
+  $q$UPDATE public.cart_fulfillments SET receipt_sent_at = now() + interval '1 hour'
+      WHERE stripe_checkout_session_id = 'cs_test_964_b'$q$,
+  '42501', 'R10 a sent receipt is never moved');
+SELECT pg_temp.expect_sqlstate(
+  $q$UPDATE public.cart_fulfillments SET receipt_sent_at = NULL
+      WHERE stripe_checkout_session_id = 'cs_test_964_b'$q$,
+  '42501', 'R10 a sent receipt is never cleared');
 RESET ROLE;
+
+DO $$
+BEGIN
+  PERFORM pg_temp.expect_eq(
+    (SELECT data_type || '|' || is_nullable FROM information_schema.columns
+      WHERE table_schema = 'public' AND table_name = 'cart_fulfillments'
+        AND column_name = 'receipt_sent_at'),
+    'timestamp with time zone|YES', 'R10 receipt_sent_at is a nullable timestamptz');
+  PERFORM pg_temp.expect_eq(
+    (has_column_privilege('anon', 'public.cart_fulfillments', 'receipt_sent_at', 'SELECT')
+     OR has_column_privilege('anon', 'public.cart_fulfillments', 'receipt_sent_at', 'UPDATE')
+     OR has_column_privilege('authenticated', 'public.cart_fulfillments', 'receipt_sent_at', 'SELECT')
+     OR has_column_privilege('authenticated', 'public.cart_fulfillments', 'receipt_sent_at', 'UPDATE'))::text
+      || ' ' || has_column_privilege('service_role', 'public.cart_fulfillments', 'receipt_sent_at', 'UPDATE'),
+    'false true', 'R10 only service_role reads or writes the receipt marker');
+END;
+$$;
 
 ROLLBACK;

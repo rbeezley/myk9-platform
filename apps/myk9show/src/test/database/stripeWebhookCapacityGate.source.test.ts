@@ -114,7 +114,7 @@ describe('stripe webhook online cart capacity gate', () => {
 
   it('queues the no-service overflow share for approval with the latch (MYK9-964)', () => {
     expect(webhookSource).toContain('decideCartOverflowRefund');
-    expect(webhookSource).toContain('closeCartThenConfirm(');
+    expect(webhookSource).toContain('closeCartThenSendReceipt(');
     expect(cartFulfillmentSource).toContain("'complete_cart_fulfillment'");
     // The by-hand operator alert (option C on #2689) is gone.
     expect(webhookSource).not.toContain('cartOverflowManualRefundAlert');

@@ -76,9 +76,9 @@ import {
   type FinishPaymentResult,
 } from './cartFulfillment.ts';
 import {
-  closeCartThenConfirm,
-  replayCartConfirmation,
-  type CartConfirmationReplayDeps,
+  closeCartThenSendReceipt,
+  sendCartReceiptOnce,
+  type CartReceiptDeps,
 } from './cartConfirmationReplay.ts';
 import {
   routeRefundByCurrentState,
@@ -1335,19 +1335,44 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
 }
 
 /**
- * MYK9-964: THE paid-cart confirmation sender. Called on every path where the
- * session's order is known to exist (after the latch call, however it went,
- * and on both replay-first branches). It sends only while none of the order's
- * entries is stamped confirmed; the stamp is the only gate, never which call
- * closed the latch. Throws (5xx) when a read fails, so Stripe redelivers.
+ * MYK9-964: on a redelivery of a fulfilled cart session, the receipt through
+ * THE per-session sender (cartConfirmationReplay.ts): sent only while
+ * cart_fulfillments.receipt_sent_at is NULL. Throws (5xx) when a read fails,
+ * so Stripe redelivers.
  */
 async function sendCartConfirmationOnce(session: Stripe.Checkout.Session) {
-  await replayCartConfirmation(cartConfirmationDeps(session), session.id);
+  await sendCartReceiptOnce(cartReceiptDeps(session), session.id);
 }
 
-/** The Supabase reads and the sender behind the stamp-aware confirmation. */
-function cartConfirmationDeps(session: Stripe.Checkout.Session): CartConfirmationReplayDeps {
+/** The Supabase reads, the sender and the marker write behind the receipt gate. */
+function cartReceiptDeps(session: Stripe.Checkout.Session): CartReceiptDeps {
   return {
+    readReceiptState: async sessionId => {
+      const { data, error } = await supabase
+        .from('cart_fulfillments')
+        .select('completed_at, receipt_sent_at')
+        .eq('stripe_checkout_session_id', sessionId)
+        .maybeSingle();
+      if (error)
+        throw new Error(`Could not read the receipt state of ${sessionId}: ${error.message}`);
+      if (!data) return null;
+      return {
+        latched: data.completed_at !== null,
+        receiptSentAt: (data.receipt_sent_at as string | null) ?? null,
+      };
+    },
+    markReceiptSent: async sessionId => {
+      const { error } = await supabase
+        .from('cart_fulfillments')
+        .update({ receipt_sent_at: new Date().toISOString() })
+        .eq('stripe_checkout_session_id', sessionId)
+        .is('receipt_sent_at', null);
+      if (error) {
+        // The receipt went out; Stripe redelivers, and Resend's per-session
+        // idempotency key makes the resend the same message.
+        throw new Error(`Could not mark the receipt of ${sessionId} sent: ${error.message}`);
+      }
+    },
     readOrder: async sessionId => {
       const { data: order, error } = await supabase
         .from('stripe_orders')
@@ -1369,15 +1394,6 @@ function cartConfirmationDeps(session: Stripe.Checkout.Session): CartConfirmatio
         subtotalCents,
         totalCents: Number(metadata.paid_amount_cents ?? subtotalCents),
       };
-    },
-    countConfirmed: async entryIds => {
-      const { count, error } = await supabase
-        .from('entries')
-        .select('id', { count: 'exact', head: true })
-        .in('id', entryIds)
-        .not('confirmation_email_sent_at', 'is', null);
-      if (error) throw new Error(`Could not read confirmation stamps: ${error.message}`);
-      return count ?? 0;
     },
     send: order =>
       sendEntryConfirmationEmail(
@@ -1665,7 +1681,7 @@ async function fulfillCartRun(ctx: {
   // stamp-aware sender, as on both replay-first branches; the stamp alone
   // decides whether an email is sent (MYK9-964). Its totals come from the
   // order row, never the owner-writable cart.
-  await closeCartThenConfirm(
+  await closeCartThenSendReceipt(
     refundQueueDeps,
     {
       sessionId: session.id,
@@ -1675,7 +1691,7 @@ async function fulfillCartRun(ctx: {
       decision: overflowRefundDecision,
       lines,
     },
-    cartConfirmationDeps(session)
+    cartReceiptDeps(session)
   );
 
   if (snapshotProcessingFeeCents === null) {
@@ -2531,8 +2547,10 @@ async function sendEntryConfirmationEmail(
   entryIds: string[],
   session: Stripe.Checkout.Session,
   authoritative: { subtotalCents: number; platformFeeCents: number; totalCents: number }
-) {
+): Promise<boolean> {
   let deliveryAttemptRecorded = false;
+  // True once the provider accepted the message (MYK9-964 receipt marker).
+  let providerAccepted = false;
   let recipientEmail: string | null = null;
   const recordDeliveryAttempt = async (args: {
     status: 'sent' | 'failed';
@@ -2567,7 +2585,7 @@ async function sendEntryConfirmationEmail(
     if (!person?.email) {
       console.error('No email found for exhibitor');
       await recordDeliveryAttempt({ status: 'failed', errorMessage: 'recipient_unresolved' });
-      return;
+      return false;
     }
     recipientEmail = person.email;
 
@@ -2581,7 +2599,7 @@ async function sendEntryConfirmationEmail(
     if (!show) {
       console.error('Show not found');
       await recordDeliveryAttempt({ status: 'failed', errorMessage: 'show_unresolved' });
-      return;
+      return false;
     }
 
     // Get entry details with dog and class info. entries has entry_fee in
@@ -2602,13 +2620,13 @@ async function sendEntryConfirmationEmail(
     if (entriesError) {
       console.error('Entries fetch for confirmation email failed:', entriesError);
       await recordDeliveryAttempt({ status: 'failed', errorMessage: 'entries_unresolved' });
-      return;
+      return false;
     }
 
     if (!entries || entries.length === 0) {
       console.error('No entries found for confirmation email');
       await recordDeliveryAttempt({ status: 'failed', errorMessage: 'entries_unresolved' });
-      return;
+      return false;
     }
 
     // Format show date
@@ -2656,7 +2674,7 @@ async function sendEntryConfirmationEmail(
 
     if (!resendApiKey) {
       await recordDeliveryAttempt({ status: 'failed', errorMessage: 'email_not_configured' });
-      return;
+      return false;
     }
 
     // This webhook has already resolved the cart, exhibitor, show, entries,
@@ -2687,10 +2705,11 @@ async function sendEntryConfirmationEmail(
       // MP-13: no stamp on a failed send — the entry stays eligible for the
       // scheduled send-confirmation-email sender's audience query
       // (confirmation_email_sent_at IS NULL / status IN pending,failed).
-      return;
+      return false;
     }
 
     console.log('Confirmation email sent');
+    providerAccepted = true;
 
     // MP-13: stamp every entry this email covered with the SAME send-state
     // semantics the scheduled sender uses, so its audience query excludes
@@ -2736,6 +2755,7 @@ async function sendEntryConfirmationEmail(
     }
     // Don't throw - email failure shouldn't fail the payment processing
   }
+  return providerAccepted;
 }
 
 /**

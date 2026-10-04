@@ -5,7 +5,7 @@
  * `SyncableShowEntry` (store layer), plus ID generation utilities.
  */
 
-import type { CheckInStatus } from '@myk9/core';
+import { isCheckInStatus, type CheckInStatus } from '@myk9/core';
 import type { ReplicatedEntry } from '@/services/replication';
 import type { EntryStatus, SyncableShowEntry } from './entry-store-types';
 import { dbSecondsToInputFormat } from '@/utils/scoringMappings';
@@ -23,6 +23,7 @@ export function replicatedToEntry(replicated: ReplicatedEntry): SyncableShowEntr
     replicated.updated_at ||
     replicated._lastModified?.toISOString() ||
     new Date().toISOString();
+  const checkIn = replicated.checkInStatus ?? replicated.check_in_status;
   const resultStatus = replicated.resultStatus ?? replicated.result_status;
   const hasReleasedResult =
     (replicated.isScored ?? replicated.is_scored) === true &&
@@ -52,6 +53,9 @@ export function replicatedToEntry(replicated: ReplicatedEntry): SyncableShowEntr
     deletedAt: replicated.deletedAt ?? replicated.deleted_at,
     deleted_at: replicated.deletedAt ?? replicated.deleted_at,
     status,
+    // The show-day axis (in-ring / pulled / completed) lives on its own column;
+    // dropping it here made every exhibitor row read "waiting" (MYK9-992).
+    ...(isCheckInStatus(checkIn) ? { checkInStatus: checkIn } : {}),
     ...(competitionData ? { competitionData } : {}),
     registrationData: {
       submittedAt: replicated.submittedAt || new Date().toISOString(),

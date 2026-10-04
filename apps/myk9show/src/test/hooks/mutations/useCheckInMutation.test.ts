@@ -56,7 +56,6 @@ function createMockClass(overrides: Partial<ShowDayClass> = {}): ShowDayClass {
     scoredEntries: 3,
     currentDogInRing: null,
     myRunningOrder: 4,
-    estimatedTimeMinutes: 6,
     entryStatus: 'no-status',
     isScored: false,
     resultStatus: null,

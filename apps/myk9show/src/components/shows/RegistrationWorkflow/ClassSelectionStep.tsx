@@ -606,12 +606,13 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                     element: group.element,
                                     level: l.level,
                                   });
-                                  // Exhibitors cannot re-enter a class the dog withdrew
-                                  // from (MYK9-982); staff add it by hand, so the
-                                  // block never applies in the staff flow.
-                                  const reEntryBlock = useCartFlow
-                                    ? getReEntryBlockReason(dogId, l.classId)
-                                    : null;
+                                  // Anyone but this show's own staff cannot re-enter a class the
+                                  // dog withdrew from (MYK9-982). Staff add it by hand;
+                                  // `isStaff` is club-scoped, so another club's secretary
+                                  // entering here is an exhibitor and stays blocked.
+                                  const reEntryBlock = isStaff
+                                    ? null
+                                    : getReEntryBlockReason(dogId, l.classId);
                                   return {
                                     ...l,
                                     ...(reEntryBlock !== null && {

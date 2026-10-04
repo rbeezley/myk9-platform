@@ -68,6 +68,10 @@ function setupStepMocks(opts: {
   /** `hasStarted` on the availability payload: a dog in the ring, or a score. */
   hasStarted?: boolean;
   isStaff?: boolean;
+  /** Staff of ANOTHER club: holds the secretary role, but not on this show's club. */
+  isOtherClubStaff?: boolean;
+  /** Also holds an exhibitor profile. */
+  hasExhibitorProfile?: boolean;
   reEntryReason?: string | null;
 }) {
   const {
@@ -75,6 +79,8 @@ function setupStepMocks(opts: {
     availabilityStatus = 'upcoming',
     hasStarted = false,
     isStaff = false,
+    isOtherClubStaff = false,
+    hasExhibitorProfile = false,
     reEntryReason = null,
   } = opts;
 
@@ -158,15 +164,19 @@ function setupStepMocks(opts: {
   // CLUB_ID. That is the whole point of the scoping: a secretary of another
   // club must see the chip blocked, exactly as the RPC would refuse them.
   mockUseAuthContext.mockReturnValue({
-    isSecretary: isStaff,
+    isSecretary: isStaff || isOtherClubStaff,
     isAdmin: false,
     user: null,
     hasRole: vi.fn().mockReturnValue(false),
     userWithRoles: isStaff
       ? { scopes: [{ scopeType: 'club', scopeId: CLUB_ID, roleId: 'secretary' }] }
-      : { scopes: [] },
+      : isOtherClubStaff
+        ? { scopes: [{ scopeType: 'club', scopeId: 'club-elsewhere', roleId: 'secretary' }] }
+        : { scopes: [] },
   });
-  mockUseExhibitorProfile.mockReturnValue({ profile: isStaff ? null : { id: 'exhibitor-1' } });
+  mockUseExhibitorProfile.mockReturnValue({
+    profile: !(isStaff || isOtherClubStaff) || hasExhibitorProfile ? { id: 'exhibitor-1' } : null,
+  });
   mockUseExistingEntries.mockReturnValue({
     getExistingEntry: vi.fn().mockReturnValue(undefined),
     getEntriesForDog: vi.fn().mockReturnValue([]),
@@ -240,6 +250,27 @@ describe('ClassSelectionStep — withdrawn re-entry (MYK9-982)', () => {
 
   it('does not block the secretary flow', async () => {
     setupStepMocks({ isStaff: true, reEntryReason: 'Withdrawn from this class' });
+    renderStep();
+
+    expect(await screen.findByText('Advanced')).toBeInTheDocument();
+    expect(screen.queryByText('Withdrawn from this class')).not.toBeInTheDocument();
+    expect(screen.getByRole('checkbox')).not.toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it("blocks a secretary of ANOTHER club entering this show's class", async () => {
+    setupStepMocks({ isOtherClubStaff: true, reEntryReason: 'Withdrawn from this class' });
+    renderStep();
+
+    expect(await screen.findByText('Withdrawn from this class')).toBeInTheDocument();
+    expect(screen.getByRole('checkbox')).toHaveAttribute('aria-disabled', 'true');
+  });
+
+  it("does not block the owning club's staff who also hold an exhibitor profile", async () => {
+    setupStepMocks({
+      isStaff: true,
+      hasExhibitorProfile: true,
+      reEntryReason: 'Withdrawn from this class',
+    });
     renderStep();
 
     expect(await screen.findByText('Advanced')).toBeInTheDocument();

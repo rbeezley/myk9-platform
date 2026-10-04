@@ -142,6 +142,7 @@ export function ShowWorkbenchShowDeskPage() {
           status: cls.status || CLASS_STATUS.SCHEDULED,
           entryCount: entriesKnown ? (entryTallies.get(cls.id)?.total ?? 0) : null,
           scoredCount: entriesKnown ? (entryTallies.get(cls.id)?.scored ?? 0) : null,
+          runListCount: entriesKnown ? (entryTallies.get(cls.id)?.runList ?? 0) : null,
           trialDate: trial.trialDate || '',
           timezone: getTrialTimezone(trial),
           trialNumber: trial.trialNumber || '',

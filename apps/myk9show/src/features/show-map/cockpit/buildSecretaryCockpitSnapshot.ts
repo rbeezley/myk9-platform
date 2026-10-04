@@ -289,6 +289,7 @@ export function buildSecretaryCockpitSnapshot({
         // code and a paused entries read rendered as "0 of 0 scored".
         entryCount: classItem.entryCount ?? null,
         scoredCount: classItem.scoredCount ?? null,
+        runListCount: classItem.runListCount ?? null,
         closeout: closeoutFor(node?.wrapUpStatus?.value),
         wrapUpStatus: node?.wrapUpStatus?.value ?? null,
         judgeName: classItem.judgeName ?? null,

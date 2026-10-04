@@ -20,6 +20,8 @@ export interface ShowWorkbenchClassSummary {
    */
   entryCount: number | null;
   scoredCount: number | null;
+  /** Rows on the run list, pending included; Run order hides below 2. */
+  runListCount?: number | null;
   trialDate: string;
   timezone?: string | null;
   trialNumber: string;

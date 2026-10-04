@@ -87,8 +87,8 @@ describe('tallyEntriesByClass', () => {
       entry('class-2', true),
     ]);
 
-    expect(tallies.get('class-1')).toEqual({ total: 3, scored: 1 });
-    expect(tallies.get('class-2')).toEqual({ total: 1, scored: 1 });
+    expect(tallies.get('class-1')).toEqual({ total: 3, scored: 1, runList: 3 });
+    expect(tallies.get('class-2')).toEqual({ total: 1, scored: 1, runList: 1 });
   });
 
   it('counts only accepted dogs still expected to run (MYK9-976 rule)', () => {
@@ -108,7 +108,33 @@ describe('tallyEntriesByClass', () => {
       row('confirmed'),
     ]);
 
-    expect(tallies.get('class-1')).toEqual({ total: 2, scored: 1 });
+    expect(tallies.get('class-1')).toEqual({ total: 2, scored: 1, runList: 4 });
+  });
+
+  it('counts an absent or excused result as done, as the server does', () => {
+    const row = (result_status: string | null, is_scored = false) =>
+      ({
+        class_id: 'class-1',
+        entry_status: 'confirmed',
+        is_scored,
+        result_status,
+      }) as unknown as SecretaryEntry;
+    const tallies = tallyEntriesByClass([
+      row('absent'),
+      row('excused'),
+      row(null, true),
+      row(null),
+    ]);
+
+    expect(tallies.get('class-1')).toEqual({ total: 4, scored: 3, runList: 4 });
+  });
+
+  it('keeps pending dogs in the run-list count, which Run order sorts', () => {
+    const row = (entry_status: string) =>
+      ({ class_id: 'class-1', entry_status, is_scored: false }) as unknown as SecretaryEntry;
+    const tallies = tallyEntriesByClass([row('confirmed'), row('submitted'), row('submitted')]);
+
+    expect(tallies.get('class-1')).toEqual({ total: 1, scored: 0, runList: 3 });
   });
 
   it('omits a class with no entries rather than inventing a zero row', () => {
@@ -124,7 +150,7 @@ describe('tallyEntriesByClass', () => {
     const tallies = tallyEntriesByClass([entry(null, true), entry('class-1', true)]);
 
     expect(tallies.size).toBe(1);
-    expect(tallies.get('class-1')).toEqual({ total: 1, scored: 1 });
+    expect(tallies.get('class-1')).toEqual({ total: 1, scored: 1, runList: 1 });
   });
 
   it('counts only a strict true as scored', () => {
@@ -133,6 +159,6 @@ describe('tallyEntriesByClass', () => {
       entry('class-1', true),
     ]);
 
-    expect(tallies.get('class-1')).toEqual({ total: 2, scored: 1 });
+    expect(tallies.get('class-1')).toEqual({ total: 2, scored: 1, runList: 2 });
   });
 });

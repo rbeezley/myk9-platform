@@ -1,4 +1,9 @@
-import { isExpectedEntry } from '@/features/_shared/entryAccounting';
+import {
+  isAccountedFor,
+  isExpectedEntry,
+  isOnClassRunList,
+  type EntryAccountingFields,
+} from '@/features/_shared/entryAccounting';
 import { isPendingEntryStatus } from '@/features/entry-operations/classEntryBreakdown';
 import type { SecretaryEntry } from '@/services/database/entries';
 
@@ -53,6 +58,24 @@ export function getShowDeskEntriesAvailability(input: {
   };
 }
 
+function accountingFields(entry: SecretaryEntry): EntryAccountingFields {
+  return {
+    entry_status: entry.entry_status ?? undefined,
+    check_in_status: entry.check_in_status ?? undefined,
+    is_scored: entry.is_scored ?? undefined,
+    result_status: entry.result_status ?? undefined,
+  };
+}
+
+export interface ClassEntryTally {
+  /** Dogs the class still has to score: accepted and expected to run. */
+  total: number;
+  /** Of `total`, those the server counts as done (scored, absent or excused). */
+  scored: number;
+  /** Rows on the class run list, pending included: what Run order sorts. */
+  runList: number;
+}
+
 /**
  * Per-class entry tallies in a single pass.
  *
@@ -60,32 +83,31 @@ export function getShowDeskEntriesAvailability(input: {
  * class -- O(2 x classes x entries), recomputed whenever `showEntries` changed
  * identity, which realtime invalidation does routinely. At the load-rehearsal
  * shape that is hundreds of thousands of array visits per recompute.
+ *
+ * `total` excludes withdrawn, scratched, absent, moved, not-accepted and pulled
+ * rows (`isExpectedEntry`, MYK9-976) and pending ones, which the card counts on
+ * its own "N pending" link. Counting every row made a class with two withdrawn
+ * dogs read "0 of 3 scored" and never look finished at close-out. `scored`
+ * follows the server's `isAccountedFor`, so an absent or excused result is done.
  */
-/**
- * A dog the class still has to score: accepted, and still expected to run.
- * Withdrawn, scratched, absent, moved, not-accepted and pulled rows
- * are out (`isExpectedEntry`, MYK9-976), and so is a pending entry, which the
- * card counts on its own "N pending" link. Without this a class with two
- * withdrawn dogs read "0 of 3 scored" and never looked finished at close-out.
- */
-function countsTowardScoring(entry: SecretaryEntry): boolean {
-  if (entry.entry_status && isPendingEntryStatus(entry.entry_status)) return false;
-  return isExpectedEntry({
-    entry_status: entry.entry_status ?? undefined,
-    check_in_status: entry.check_in_status ?? undefined,
-  });
-}
-
 export function tallyEntriesByClass(
   entries: readonly SecretaryEntry[]
-): ReadonlyMap<string, { total: number; scored: number }> {
-  const tallies = new Map<string, { total: number; scored: number }>();
+): ReadonlyMap<string, ClassEntryTally> {
+  const tallies = new Map<string, ClassEntryTally>();
   for (const entry of entries) {
     const classId = entry.class_id;
-    if (!classId || !countsTowardScoring(entry)) continue;
-    const tally = tallies.get(classId) ?? { total: 0, scored: 0 };
-    tally.total += 1;
-    if (entry.is_scored === true) tally.scored += 1;
+    if (!classId) continue;
+    const fields = accountingFields(entry);
+    const onRunList = isOnClassRunList(fields);
+    const toScore =
+      isExpectedEntry(fields) && !(entry.entry_status && isPendingEntryStatus(entry.entry_status));
+    if (!onRunList && !toScore) continue;
+    const tally = tallies.get(classId) ?? { total: 0, scored: 0, runList: 0 };
+    if (onRunList) tally.runList += 1;
+    if (toScore) {
+      tally.total += 1;
+      if (isAccountedFor(fields)) tally.scored += 1;
+    }
     tallies.set(classId, tally);
   }
   return tallies;

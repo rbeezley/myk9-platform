@@ -199,6 +199,11 @@ export interface AcceptedEntrySnapshot {
  * balances exactly: amount − accepted − fee(full) − unserved = amount − full −
  * fee(full), which is 0 whenever Stripe collected what the lines were priced at.
  *
+ * This is the PAYMENT-LINK booking. A cart order is the exception (owner rule
+ * 2026-10-04): its unserved lines are refunded with their share of the fee,
+ * so it books the fee it keeps, fee(Σ accepted) (`cartOverflowKeptFeeCents`),
+ * and ties out exactly the same way.
+ *
  * Still never back-derived from the session total (MYK9-54 review finding 2):
  * that made `subtotal + fee == amount` true by construction and the tie-out a
  * tautology. Both sides here come from line-item fee data.

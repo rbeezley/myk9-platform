@@ -22,6 +22,7 @@ import {
   pollCheckoutSession,
 } from '@/features/payments/checkoutVerification';
 import { CheckoutVerificationIssueCard } from '@/features/payments/CheckoutVerificationIssueCard';
+import { overflowRefundMessage } from '@/features/payments/overflowRefundCopy';
 import { CONFIRMATION_NUMBER_LABEL } from '@/features/registration/confirmationNumberDisplay';
 import { retireDraftsForCheckout } from '@/features/registration/retireDraftsForCheckout';
 
@@ -461,7 +462,7 @@ export default function CheckoutSuccessPage() {
                 <AlertDescription>
                   <div className="space-y-1">
                     <div className="flex justify-between items-center gap-3">
-                      <span>Entry Fee Refund</span>
+                      <span>Refund</span>
                       <span className="font-semibold">
                         {orderDetails?.refundAmount
                           ? formatCurrency(orderDetails.refundAmount)
@@ -469,9 +470,11 @@ export default function CheckoutSuccessPage() {
                       </span>
                     </div>
                     <p className="text-muted-foreground">
-                      {orderDetails?.refundStatus === 'issued'
-                        ? 'Your entry fees have been refunded. The service fee is not refundable.'
-                        : 'Your entry fees are being refunded. The service fee is not refundable.'}
+                      {overflowRefundMessage({
+                        refundCents: orderDetails?.refundAmount,
+                        chargedCents: orderDetails?.totalAmountCents,
+                        issued: orderDetails?.refundStatus === 'issued',
+                      })}
                     </p>
                   </div>
                 </AlertDescription>

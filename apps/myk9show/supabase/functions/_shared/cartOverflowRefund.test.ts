@@ -1,11 +1,12 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
-import { decideCartOverflowRefund } from './cartOverflowRefund';
+import { cartOverflowKeptFeeCents, decideCartOverflowRefund } from './cartOverflowRefund';
 import { decideEntryPaymentAutoRefund } from './entryPaymentAutoRefund';
 import { calculatePlatformFeeCents, type PlatformFeeRates } from './platformFee';
 /** The 7/0/0 rates every legacy fixture in this file was priced with. */
 const RATES_7: PlatformFeeRates = { percent: 7, flatCents: 0, minCents: 0 };
 
+// Two lines, $50.00 and $60.00, 7%: fee(11000) = 770, charged 11770.
 const base = {
   paymentIntentId: 'pi_cart_123',
   sessionAmountTotalCents: 11_770,
@@ -27,22 +28,23 @@ describe('decideCartOverflowRefund', () => {
     ).toEqual({ action: 'none', paidAmountCents: 11_770 });
   });
 
-  it('refunds only the entry fees, keeping the service fee, when no line got service', () => {
+  it('refunds the WHOLE charge, service fee included, when no line got service', () => {
     expect(
       decideCartOverflowRefund({
         ...base,
         paidLineIds: [],
-        noServiceLineIds: ['cart-overflow'],
+        noServiceLineIds: ['entry-ok', 'cart-overflow'],
       })
     ).toEqual({
       action: 'refund',
-      amountCents: 6_000,
-      paidAmountCents: 5_770,
+      amountCents: 11_770,
+      paidAmountCents: 0,
       reason: 'full_make_whole',
     });
   });
 
-  it('refunds denied or waitlisted lines at their entry fee, never a fee share', () => {
+  it('refunds an unserved line its entry fee plus its share of the service fee', () => {
+    // 6000 + (fee(11000) − fee(5000)) = 6000 + (770 − 350) = 6420.
     expect(
       decideCartOverflowRefund({
         ...base,
@@ -51,8 +53,8 @@ describe('decideCartOverflowRefund', () => {
       })
     ).toEqual({
       action: 'refund',
-      amountCents: 6_000,
-      paidAmountCents: 5_770,
+      amountCents: 6_420,
+      paidAmountCents: 5_350,
       reason: 'partial_no_service_lines',
     });
   });
@@ -68,7 +70,7 @@ describe('decideCartOverflowRefund', () => {
     ).toEqual({
       action: 'cannot_refund',
       reason: 'missing_payment_intent',
-      paidAmountCents: 5_770,
+      paidAmountCents: 5_350,
     });
   });
 
@@ -88,14 +90,13 @@ describe('decideCartOverflowRefund', () => {
 });
 
 /**
- * MYK9-197 B1, then MYK9-966: with the flat component and the floor ON, no part
- * of the fee comes back. The platform keeps the WHOLE fee it charged, asserted
- * against `calculatePlatformFeeCents` rather than a hard-coded number.
- *
- * The cart path and the payment-link path must also produce the IDENTICAL
- * refund from identical inputs; they are two writers of one policy.
+ * MYK9-197 B1 still holds under the owner's full-refund rule (2026-10-04):
+ * what comes back is the share of the fee the unserved lines CAUSED. The flat
+ * per-checkout component and the floor stay with the served lines, so the
+ * platform keeps exactly fee(servedSubtotal), asserted against
+ * `calculatePlatformFeeCents` rather than a hard-coded number.
  */
-describe('cart overflow refunds never return any part of the service fee', () => {
+describe('cart overflow refunds the unserved share of the fee, never the flat or the floor', () => {
   const lineAmountsById = new Map([
     ['served', 2500],
     ['overflow', 2500],
@@ -117,20 +118,22 @@ describe('cart overflow refunds never return any part of the service fee', () =>
       refund,
       amountCents,
       // What the platform is left holding once the served line's entry fee is
-      // set aside — this must equal the WHOLE fee it charged (MYK9-966).
+      // set aside: exactly the fee on the served line.
       retainedFeeCents: amountCents - refund - 2500,
-      bookedFeeCents: calculatePlatformFeeCents(subtotal, rates),
+      keptFeeCents: cartOverflowKeptFeeCents({ paidSubtotalCents: 2500, rates }),
     };
   }
 
-  it('does not refund any part of a 30¢ flat component', () => {
+  it('keeps the whole 30¢ flat component with the served line', () => {
     const r = refundAt({ percent: 7, flatCents: 30, minCents: 0 });
     expect(r.amountCents).toBe(5380);
-    expect(r.refund).toBe(2500);
-    expect(r.retainedFeeCents).toBe(r.bookedFeeCents);
+    // 2500 + (380 − 205) = 2675: the overflow line's 175¢ percentage share only.
+    expect(r.refund).toBe(2675);
+    expect(r.retainedFeeCents).toBe(r.keptFeeCents);
+    expect(r.keptFeeCents).toBe(205);
   });
 
-  it('does not refund any part of a binding floor', () => {
+  it('keeps a binding floor with the served line', () => {
     const cheap = new Map([
       ['served', 100],
       ['overflow', 100],
@@ -144,10 +147,11 @@ describe('cart overflow refunds never return any part of the service fee', () =>
       lineAmountsById: cheap,
       platformFeeRates: rates,
     });
+    // fee(200) = fee(100) = 2000: the unserved line caused none of it.
     expect(decision).toMatchObject({ action: 'refund', amountCents: 100 });
   });
 
-  it('matches the payment-link writer exactly, across the rate matrix', () => {
+  it('across the rate matrix: the platform keeps fee(served), and never less than a payment link would refund', () => {
     let checked = 0;
     for (const percent of [0, 7, 14.5, 20]) {
       for (const flatCents of [0, 30, 500]) {
@@ -171,13 +175,11 @@ describe('cart overflow refunds never return any part of the service fee', () =>
             entryFeesById: lineAmountsById,
             platformFeeRates: rates,
           });
-          const cartAmount = cart.action === 'refund' ? cart.amountCents : null;
-          const linkAmount = link.action === 'refund' ? link.amountCents : null;
-          expect(cartAmount).toBe(linkAmount);
-          // And the platform keeps precisely the whole fee it charged.
-          expect(amountCents - (cartAmount ?? 0) - 2500).toBe(
-            calculatePlatformFeeCents(subtotal, rates)
-          );
+          const cartAmount = cart.action === 'refund' ? cart.amountCents : 0;
+          const linkAmount = link.action === 'refund' ? link.amountCents : 0;
+          // The payment link keeps the entry-fees-only rule (MYK9-966).
+          expect(cartAmount).toBeGreaterThanOrEqual(linkAmount);
+          expect(amountCents - cartAmount - 2500).toBe(calculatePlatformFeeCents(2500, rates));
           checked += 1;
         }
       }
@@ -185,7 +187,7 @@ describe('cart overflow refunds never return any part of the service fee', () =>
     expect(checked).toBe(4 * 3 * 3);
   });
 
-  it('reports paidAmountCents net of the corrected refund', () => {
+  it('reports paidAmountCents net of the refund', () => {
     const decision = decideCartOverflowRefund({
       paymentIntentId: 'pi_cart_paid',
       sessionAmountTotalCents: 5380,
@@ -194,7 +196,7 @@ describe('cart overflow refunds never return any part of the service fee', () =>
       lineAmountsById,
       platformFeeRates: { percent: 7, flatCents: 30, minCents: 0 },
     });
-    // 5380 − 2500: the served line plus the whole fee the platform retained.
-    expect(decision).toMatchObject({ paidAmountCents: 2880 });
+    // 5380 − 2675: the served line plus the fee on the served line.
+    expect(decision).toMatchObject({ paidAmountCents: 2705 });
   });
 });

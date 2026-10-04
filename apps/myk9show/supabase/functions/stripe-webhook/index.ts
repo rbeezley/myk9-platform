@@ -31,6 +31,7 @@ import {
   type ClubWithdrawalColumns,
 } from '../_shared/withdrawalPolicy.ts';
 import {
+  cartOverflowKeptFeeCents,
   decideCartOverflowRefund,
   type CartOverflowRefundDecision,
 } from '../_shared/cartOverflowRefund.ts';
@@ -1618,18 +1619,16 @@ async function fulfillCartRun(ctx: {
         .maybeSingle()
     : { data: null };
 
-  // Immutable financial snapshot (MYK9-54): the FULL service fee charged on
-  // every line, served or not, at the stamped rate — the platform keeps it
-  // (MYK9-966) — plus Stripe's actual processing fee. A missing processing fee
-  // stays NULL (pending), never an estimated zero.
+  // Immutable financial snapshot (MYK9-54): the service fee the platform
+  // KEEPS, on the served lines only, at the stamped rate (the unserved lines'
+  // share is refunded with them; owner rule 2026-10-04, cartOverflowRefund.ts),
+  // plus Stripe's actual processing fee. A missing processing fee stays NULL
+  // (pending), never an estimated zero.
   const snapshotProcessingFeeCents = await fetchProcessingFeeCents(paymentIntentId);
-  const snapshotPlatformFeeCents = calculatePlatformFeeCents(
-    [...paidLineIds, ...noServiceLineIds].reduce(
-      (sum, id) => sum + (lineAmountsById.get(id) ?? 0),
-      0
-    ),
-    stampedFeeRates
-  );
+  const snapshotPlatformFeeCents = cartOverflowKeptFeeCents({
+    paidSubtotalCents: paidEntrySubtotalCents,
+    rates: stampedFeeRates,
+  });
 
   // The stripe_orders row, inserted by complete_cart_fulfillment in the SAME
   // transaction as the latch and the refund request.

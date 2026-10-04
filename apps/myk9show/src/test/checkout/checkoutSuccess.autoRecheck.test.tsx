@@ -163,9 +163,7 @@ describe('CheckoutSuccessPage background re-check (MYK9-207)', () => {
 
     await parkInitialPoll();
 
-    expect(
-      screen.getByText(/your entry fees will be refunded \(the service fee is not refundable\)/i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/that entry will be refunded/i)).toBeInTheDocument();
     expect(screen.getByText(/keeps checking and will update on its own/i)).toBeInTheDocument();
   });
 
@@ -185,7 +183,7 @@ describe('CheckoutSuccessPage background re-check (MYK9-207)', () => {
     expect(screen.getByText(/do not submit another payment/i)).toBeInTheDocument();
     // not_found covers bogus session ids and RLS-hidden rows too — no order is
     // proven to exist, so the automatic-refund promise must not render.
-    expect(screen.queryByText(/entry fees will be refunded/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/that entry will be refunded/i)).not.toBeInTheDocument();
   });
 
   it('does not promise a refund for unavailable states, but still says it keeps checking', async () => {
@@ -204,7 +202,7 @@ describe('CheckoutSuccessPage background re-check (MYK9-207)', () => {
     expect(screen.getByRole('heading', { name: 'Payment Status Unavailable' })).toBeInTheDocument();
     // 'unavailable' can mean auth failure or a backend error — the refund
     // promise would be invented, so it must not render here.
-    expect(screen.queryByText(/entry fees will be refunded/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/that entry will be refunded/i)).not.toBeInTheDocument();
     expect(screen.getByText(/keeps checking and will update on its own/i)).toBeInTheDocument();
   });
 
@@ -235,7 +233,7 @@ describe('CheckoutSuccessPage background re-check (MYK9-207)', () => {
       screen.queryByText(/keeps checking and will update on its own/i)
     ).not.toBeInTheDocument();
     // …but the refund reassurance for a proven-pending order stays.
-    expect(screen.getByText(/entry fees will be refunded/i)).toBeInTheDocument();
+    expect(screen.getByText(/that entry will be refunded/i)).toBeInTheDocument();
   });
 
   it('still re-verifies on focus after the background budget is spent', async () => {

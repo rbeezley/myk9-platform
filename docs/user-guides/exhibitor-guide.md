@@ -222,7 +222,10 @@ The class then reads **withdrawn** or **pulled** on your card. A dog pulled from
 
 Neither act moves money on its own. Refund terms are in the show's entry agreement.
 
-Any refund returns the entry fee only. The service fee you paid at checkout is not refunded, including when a class is full or the show is cancelled. The one exception is a payment that bought nothing at all, such as a checkout completed after the cart was abandoned: that payment is refunded in full, service fee included.
+Any refund returns the entry fee only. The service fee you paid at checkout is not refunded, including when the show is cancelled. Two exceptions are refunded in full:
+
+- If a class you paid for was already full when your payment went through, that entry is refunded together with its share of the service fee.
+- A payment that bought nothing at all, such as a checkout completed after the cart was abandoned, is refunded in full, service fee included.
 
 ---
 

@@ -283,8 +283,9 @@ function overflowSummaryHtml(input: CloseCartInput): string {
     lines.length ? `<code>${lines.map(l => l.cartItemId).join(', ')}</code>` : 'none';
   return `Cart <code>${input.cartId}</code> was PAID, but the classes could not take some
    lines: waitlisted ${list(input.lines.waitlisted)}, denied ${list(input.lines.denied)},
-   failed ${list(input.lines.failed)}. Their entry fees are owed back; the service fee is
-   kept (MYK9-966), and the club's payout is unaffected (these lines never became entries).`;
+   failed ${list(input.lines.failed)}. Their entry fees and their share of the service fee
+   are owed back (owner rule, 2026-10-04); the club's payout is unaffected (these lines
+   never became entries).`;
 }
 
 /**

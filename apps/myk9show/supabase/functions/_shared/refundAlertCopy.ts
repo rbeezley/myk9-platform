@@ -101,7 +101,8 @@ export function overflowNeedsManualAmountAlert(input: {
      derive their refundable amount (lines
      <code>${input.missingLineIds.join(', ') || 'none'}</code>), so nothing was queued. The
      lines it could serve are recorded and the checkout is closed.</p>
-     <p>Work out the no-service lines' entry fees (never any of the service fee, MYK9-966).
+     <p>Work out the no-service lines' entry fees plus the share of the service fee they
+     caused: fee(all lines) − fee(served lines) (<code>cartOverflowRefundAmountCents</code>).
      ${DO_NOT_REFUND_IN_DASHBOARD} ${QUEUE_CART_OVERFLOW_BY_HAND}</p>`,
   };
 }

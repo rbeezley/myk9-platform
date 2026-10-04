@@ -67,23 +67,22 @@ export async function reconcileCartItemsAgainstExistingEntries({
   if (matchesByPair.size === 0) return { items, dropped: [] };
 
   // The same rule the wizard's class step reads (`getClassReEntryBlock`), so a
-  // class the step offers is never one removed here. A line whose only live
-  // entry is still unpaid is the Finish Payment line and stays.
+  // class the step offers is never one removed here. Re-entry blocking applies
+  // to NEW lines only; a line whose entry awaits payment stays.
   const blockByItemId = new Map<string, ClassReEntryBlock>();
   for (const item of items) {
     if (!item.dog_id || !item.class_id) continue;
     const matches = matchesByPair.get(`${item.dog_id}:${item.class_id}`);
     if (!matches) continue;
-    const blocks = matches.map(entry => ({
-      block: getClassReEntryBlock(entry.entry_status, entry.check_in_status),
-      entry,
-    }));
-    const strongest = strongestClassReEntryBlock(blocks.map(b => b.block));
-    if (!strongest) continue;
-    const isFinishPayment = blocks.some(
-      b => b.block === 'entered' && b.entry.payment_status === 'pending'
+    // A pending-payment entry is the money-bearing row of a Finish Payment
+    // line (a moved-up source included, see RECOVERABLE_ENTRY_STATUSES). That
+    // keep rule is independent of re-entry classification.
+    if (matches.some(entry => entry.payment_status === 'pending')) continue;
+
+    const strongest = strongestClassReEntryBlock(
+      matches.map(entry => getClassReEntryBlock(entry.entry_status, entry.check_in_status))
     );
-    if (isFinishPayment) continue;
+    if (!strongest) continue;
     blockByItemId.set(item.id, strongest);
   }
   const staleItemIds = [...blockByItemId.keys()];

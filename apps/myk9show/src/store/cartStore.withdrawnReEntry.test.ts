@@ -108,4 +108,18 @@ describe('withdrawn re-entry in the cart (MYK9-982)', () => {
     const cart = await useCartStore.getState().loadActiveCart('exhibitor-1');
     expect(cart?.items.map(item => item.id)).toEqual(['item-withdrawn', 'item-open']);
   });
+
+  // Every status findRecoverableEntries treats as a payment source (all with
+  // payment_status 'pending'), plus the withdrawn row origin/main also kept.
+  it.each(['moved', 'confirmed', 'pending', 'submitted', 'pending-payment', 'withdrawn'])(
+    'keeps the Finish Payment line for an unpaid %s entry',
+    async status => {
+      seed([entryRow({ entry_status: status, payment_status: 'pending' })]);
+
+      const cart = await useCartStore.getState().loadActiveCart('exhibitor-1');
+
+      expect(cart?.items.map(item => item.id)).toEqual(['item-withdrawn', 'item-open']);
+      expect(useCartStore.getState().droppedClosedClassItems).toEqual([]);
+    }
+  );
 });

@@ -22,6 +22,7 @@ import {
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
+import { verifyWaitlistEntriesGone } from './waitlistScopeProof';
 
 /**
  * Database row type for waitlist_entries table
@@ -154,6 +155,15 @@ export class ReplicatedWaitlistEntriesTable extends ReplicatedTable<ReplicatedWa
       // holds more rows than the server counts, and skips the cleanup unless
       // the fetch returned the whole count.
       cleanupStaleRowsOnFullSync: true,
+      // When the LAST visible row is removed elsewhere the count and fetch read
+      // 0 of 0, the same answer an RLS gap gives (MYK9-880), so the engine
+      // keeps a warm replica unless this proves the held ids gone. The proof
+      // counts them ignoring RLS: a row the caller merely can't see still
+      // counts, and only rows really deleted read zero.
+      verifyScopeEmpty: async () => {
+        const held = (await this.getAllOrThrow()).filter(row => row._localOnly !== true);
+        return verifyWaitlistEntriesGone(held.map(row => row.id));
+      },
     };
 
     const result = await syncReplicatedTable(

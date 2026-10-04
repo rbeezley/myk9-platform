@@ -165,7 +165,7 @@ function eventCopy(eventType: WaitlistNotificationEventType): EventCopy {
         title: 'A spot is ready for you',
         actionLabel: 'Complete your entry',
         body: (dog: string, entryClass: string, show: string, deadline: string | null) =>
-          `A spot opened for ${dog} in ${entryClass} at ${show}. Claim it by paying before ${deadline ?? 'the offer ends'}. You haven't been charged anything yet.`,
+          `A spot opened for ${dog} in ${entryClass} at ${show}. Claim it by paying before ${deadline ?? 'the offer ends'}. You pay for this spot only if you claim it.`,
       };
     case 'reminder':
       return {

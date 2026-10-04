@@ -75,12 +75,12 @@ describe('offered copy (MYK9-1013)', () => {
       appOrigin: 'https://myk9show.com',
     });
 
-  it('tells the exhibitor the deadline and that nothing has been charged yet', () => {
+  it('tells the exhibitor the deadline and that they pay only if they claim it', () => {
     const content = build('2026-07-15T18:00:00.000Z');
     expect(content.body).toBe(
-      "A spot opened for Scout in Novice Interior at Summer Scent Trial. Claim it by paying before Jul 15, 2026, 12:00 PM. You haven't been charged anything yet."
+      'A spot opened for Scout in Novice Interior at Summer Scent Trial. Claim it by paying before Jul 15, 2026, 12:00 PM. You pay for this spot only if you claim it.'
     );
-    expect(content.emailHtml).toContain('You haven&#39;t been charged anything yet.');
+    expect(content.emailHtml).toContain('You pay for this spot only if you claim it.');
   });
 
   it('still reads correctly when the offer has no deadline', () => {

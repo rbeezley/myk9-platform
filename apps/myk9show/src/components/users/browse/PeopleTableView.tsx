@@ -101,7 +101,6 @@ export const PeopleTableView: React.FC<PeopleTableViewProps> = ({ people, onSele
           data={people}
           // The page's list-toolkit filter bar owns search; table keeps only
           // its Columns control.
-          showSearch={false}
           onRowClick={person => navigate(`/people/${person.id}`)}
           getRowId={person => person.id}
           {...(onSelectionChange ? { selectable: 'multi' as const, onSelectionChange } : {})}

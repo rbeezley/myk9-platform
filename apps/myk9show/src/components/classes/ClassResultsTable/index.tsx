@@ -351,7 +351,6 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
                   data={filteredRows}
                   getRowId={row => row.entryId}
                   pageSize={9999}
-                  showSearch={false}
                 />
               )}
 

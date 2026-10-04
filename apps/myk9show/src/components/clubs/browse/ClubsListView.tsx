@@ -143,7 +143,6 @@ export const ClubsListView: React.FC<ClubsListViewProps> = ({ clubs, clubShowCou
         tableId="clubsBrowse"
         columns={columns}
         data={rows}
-        showSearch={false}
         onRowClick={club => navigate(`/clubs/${club.id}`)}
         getRowId={club => club.id}
       />

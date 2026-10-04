@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTrialEntries } from '@/hooks/queries/useTrialEntries';
 import { type ColumnDef } from '@tanstack/react-table';
-import { DataTable, DataTableToolbar, DataTableSearch } from '@/components/ui/data-table';
+import { DataTable, filterByListSearch } from '@/components/ui/data-table';
+import { ListFilterBar, ListResultLine } from '@/components/list-toolkit';
 import { ClipboardList } from 'lucide-react';
 import { StatusBadge } from '@/components/status';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
@@ -93,6 +94,7 @@ const EMPTY_STATE = (
 
 export const TrialEntriesTable = ({ trialId }: TrialEntriesTableProps) => {
   const { data: rawEntries = [], isLoading, isError } = useTrialEntries(trialId);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Map raw entries to display format
   const entries: DisplayEntry[] = useMemo(() => {
@@ -118,6 +120,13 @@ export const TrialEntriesTable = ({ trialId }: TrialEntriesTableProps) => {
     });
   }, [rawEntries]);
 
+  // The same matcher DataTable filters with (columns + meta.searchValue), so the count agrees
+  // with the rows on screen.
+  const shownCount = useMemo(
+    () => filterByListSearch(entries, COLUMNS, searchQuery).length,
+    [entries, searchQuery]
+  );
+
   if (isError) {
     return (
       <div className="text-center py-12">
@@ -139,6 +148,23 @@ export const TrialEntriesTable = ({ trialId }: TrialEntriesTableProps) => {
         </div>
       </div>
 
+      <div className="space-y-2">
+        <ListFilterBar
+          searchValue={searchQuery}
+          onSearchChange={setSearchQuery}
+          searchPlaceholder="Search entries..."
+          fields={[]}
+        />
+        <ListResultLine
+          shown={shownCount}
+          total={entries.length}
+          noun={['entry', 'entries']}
+          filtered={searchQuery.trim() !== ''}
+          onShowAll={() => setSearchQuery('')}
+          ready={!isLoading && entries.length > 0}
+        />
+      </div>
+
       <DataTable<DisplayEntry>
         tableId="trialEntries"
         columns={COLUMNS}
@@ -146,11 +172,8 @@ export const TrialEntriesTable = ({ trialId }: TrialEntriesTableProps) => {
         getRowId={entry => entry.id}
         loading={isLoading}
         emptyState={EMPTY_STATE}
-        toolbar={({ table }) => (
-          <DataTableToolbar table={table}>
-            <DataTableSearch placeholder="Search entries..." />
-          </DataTableToolbar>
-        )}
+        globalFilter={searchQuery}
+        onGlobalFilterChange={setSearchQuery}
       />
     </div>
   );

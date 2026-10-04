@@ -326,7 +326,6 @@ export function ClassesTab({
           // The toolbar's search is the one search, for managers and readers alike: a second
           // filter inside the table would let select-all, a bulk action or the export reach
           // rows it hides.
-          showSearch={false}
           revealRow={focusClassId ? { id: focusClassId, key: focusVisitKey } : null}
           onRowRevealed={focusClassRow}
           getRowClassName={cls =>

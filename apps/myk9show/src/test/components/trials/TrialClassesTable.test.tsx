@@ -177,7 +177,7 @@ describe('TrialClassesTable', () => {
       const searchInput = screen.getByPlaceholderText('Search classes...');
       await user.type(searchInput, 'Container');
 
-      // DataTableSearch debounces 300ms — wait for filter to apply
+      // wait for the search filter to apply
       await waitFor(
         () => {
           expect(screen.queryByText('Interior')).not.toBeInTheDocument();
@@ -202,7 +202,7 @@ describe('TrialClassesTable', () => {
       const searchInput = screen.getByPlaceholderText('Search classes...');
       await user.type(searchInput, 'NonexistentClass');
 
-      // DataTableSearch debounces 300ms — wait for filter to apply
+      // wait for the search filter to apply
       await waitFor(
         () =>
           expect(

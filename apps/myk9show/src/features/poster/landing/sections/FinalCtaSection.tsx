@@ -113,6 +113,10 @@ export function FinalCtaSection({
             <>
               Entries are <span style={{ color: posterColors.red }}>closed.</span>
             </>
+          ) : mailInOnly ? (
+            <>
+              Enter by mail or at the <span style={{ color: posterColors.red }}>show.</span>
+            </>
           ) : (
             <>
               Entries open when <span style={{ color: posterColors.red }}>classes</span> are

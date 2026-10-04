@@ -47,8 +47,11 @@ BEGIN
   -- derives to 'completed' and refresh_class_scoring_state calls
   -- recalculate_class_placements.
   -- =====================================================================
-  INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals)
-    VALUES (v_show, 'Placement Soft-Delete Show', 'Test Org', current_date, current_date, false);
+  -- MYK9-1008: every show belongs to a club (shows.club_id NOT NULL); each
+  -- fixture show gets its own fixture club, reusing the show's id.
+  INSERT INTO public.clubs (id, name) VALUES (v_show, 'MYK9-1008 fixture club ' || v_show);
+  INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals, club_id)
+    VALUES (v_show, 'Placement Soft-Delete Show', 'Test Org', current_date, current_date, false, v_show);
   INSERT INTO public.trials (id, show_id, name, date)
     VALUES (v_trial, v_show, 'Trial 1', current_date);
   INSERT INTO public.classes (id, trial_id, name, status)
@@ -152,8 +155,11 @@ WHERE NOT EXISTS (
   --     Both ranking branches are separate UPDATEs; fixing one is not
   --     evidence for the other.
   -- =====================================================================
-  INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals)
-    VALUES (v_nat_show, 'Placement Nationals Show', 'Test Org', current_date, current_date, true);
+  -- MYK9-1008: every show belongs to a club (shows.club_id NOT NULL); each
+  -- fixture show gets its own fixture club, reusing the show's id.
+  INSERT INTO public.clubs (id, name) VALUES (v_nat_show, 'MYK9-1008 fixture club ' || v_nat_show);
+  INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals, club_id)
+    VALUES (v_nat_show, 'Placement Nationals Show', 'Test Org', current_date, current_date, true, v_nat_show);
   INSERT INTO public.trials (id, show_id, name, date)
     VALUES (v_nat_trial, v_nat_show, 'Nationals Trial', current_date);
   INSERT INTO public.classes (id, trial_id, name, status)
@@ -223,8 +229,11 @@ DECLARE
   v_p integer;
   v_p2 integer;
 BEGIN
-  INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals)
-    VALUES (v_show, 'Placement Empty-Class Show', 'Test Org', current_date, current_date, false);
+  -- MYK9-1008: every show belongs to a club (shows.club_id NOT NULL); each
+  -- fixture show gets its own fixture club, reusing the show's id.
+  INSERT INTO public.clubs (id, name) VALUES (v_show, 'MYK9-1008 fixture club ' || v_show);
+  INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals, club_id)
+    VALUES (v_show, 'Placement Empty-Class Show', 'Test Org', current_date, current_date, false, v_show);
   INSERT INTO public.trials (id, show_id, name, date)
     VALUES (v_trial, v_show, 'Empty Trial', current_date);
   INSERT INTO public.classes (id, trial_id, name, status)
@@ -491,8 +500,11 @@ DECLARE
   v_keep_placement integer;
   v_gone_placement integer;
 BEGIN
-  INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals)
-    VALUES (v_show, 'Placement Manual Show', 'Test Org', current_date, current_date, false);
+  -- MYK9-1008: every show belongs to a club (shows.club_id NOT NULL); each
+  -- fixture show gets its own fixture club, reusing the show's id.
+  INSERT INTO public.clubs (id, name) VALUES (v_show, 'MYK9-1008 fixture club ' || v_show);
+  INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals, club_id)
+    VALUES (v_show, 'Placement Manual Show', 'Test Org', current_date, current_date, false, v_show);
   INSERT INTO public.trials (id, show_id, name, date)
     VALUES (v_trial, v_show, 'Manual Trial', current_date);
   INSERT INTO public.classes (id, trial_id, name, status)

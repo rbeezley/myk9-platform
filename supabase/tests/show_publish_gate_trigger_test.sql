@@ -12,9 +12,11 @@
 -- Matrix covered below: no club_stripe_accounts row; a row with
 -- payouts_enabled=false; a row with payouts_enabled=true in the mode matching
 -- platform_settings.stripe_livemode; a row with payouts_enabled=true in the
--- OTHER mode; an already-published show receiving an unrelated edit;
--- club_id IS NULL. Both livemode values are exercised by flipping
--- platform_settings inside this transaction.
+-- OTHER mode; an already-published show receiving an unrelated edit. Both
+-- livemode values are exercised by flipping platform_settings inside this
+-- transaction. (The clubless-show case was removed by MYK9-1008: shows.club_id
+-- is NOT NULL, so a clubless show can no longer exist to publish;
+-- myk9_1008_show_requires_club_test.sql asserts the insert is refused.)
 --
 -- The gate carves out everything except the `authenticated` and `anon`
 -- roles (see the migration header) — it is a backstop for PostgREST/API
@@ -22,11 +24,8 @@
 -- longer enough to exercise it: every case below that expects the gate to
 -- actually fire runs as `SET LOCAL ROLE authenticated` with a JWT
 -- (`set_config('request.jwt.claim.sub', ...)`) for a real person holding a
--- club-scoped secretary appointment at the fixture club, OR (for the two
--- clubless-show cases, 5 and 10) a SITE ADMIN -- a club-scoped secretary
--- cannot even SEE a clubless show under shows_select, so exercising those
--- cases as the secretary would silently match 0 rows and never reach the
--- gate at all (P0-1; see case 5's own comment). Fixture setup (clubs, shows,
+-- club-scoped secretary appointment at the fixture club, OR (for case 10) a
+-- SITE ADMIN. Fixture setup (clubs, shows,
 -- club_stripe_accounts, people, auth.users, user_roles) stays under the
 -- plain postgres session; `platform_settings` writes stay under
 -- `SET LOCAL ROLE service_role` (trg_guard_platform_settings_write). Every
@@ -157,8 +156,10 @@ INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id,
    current_date, current_date + 1, '00000000-0000-0000-0000-000000579003', 'draft'),
   ('00000000-0000-0000-0000-000000579013', 'MYK9-579 Live-Mode-Only Show', 'AKC',
    current_date, current_date + 1, '00000000-0000-0000-0000-000000579004', 'draft'),
-  ('00000000-0000-0000-0000-000000579015', 'MYK9-579 Clubless Show', 'AKC',
-   current_date, current_date + 1, NULL, 'draft');
+  -- Case 10's draft. Club 1 has no club_stripe_accounts row, so this draft
+  -- would fail the gate if it ever tried to publish.
+  ('00000000-0000-0000-0000-000000579015', 'MYK9-579 Gate-Failing Draft', 'AKC',
+   current_date, current_date + 1, '00000000-0000-0000-0000-000000579001', 'draft');
 
 -- MYK9-716: publishing requires an entry window; case 3 publishes this show.
 UPDATE public.shows
@@ -237,16 +238,10 @@ CROSS JOIN (VALUES
 WHERE roles.name = 'secretary';
 
 -- ---------------------------------------------------------------------------
--- P0-1: a SITE ADMIN identity, for the clubless-show cases (5 and 10) below.
--- is_show_secretary()/is_show_secretary-backed shows_select admits a
--- secretary only for a club_id match or a show_id-scoped appointment --
--- neither exists for a clubless show -- but is_show_secretary() ALSO
--- wildcards for r.name = 'site_admin' with no club/show qualifier at all
--- (20260830240000), and shows_update's is_site_admin() arm does the same.
--- A club-scoped secretary genuinely cannot see or update a clubless show, so
--- exercising the clubless-show refusal needs an identity RLS actually admits
--- to the row -- a site admin, same as admin_soft_deleted_show_visibility_test.sql.
--- Same handle_new_user()-adopts-by-email pattern as the secretary identity
+-- A SITE ADMIN identity, for case 10 below: a caller outside the club, so
+-- the case proves the name-only update is ungated for a platform caller too
+-- (is_show_secretary() and shows_update's is_site_admin() arm both admit
+-- site_admin with no club/show qualifier, 20260830240000). Same handle_new_user()-adopts-by-email pattern as the secretary identity
 -- above: people row first with auth_user_id NULL, auth.users second.
 -- ---------------------------------------------------------------------------
 INSERT INTO public.people (id, first_name, last_name, email, auth_user_id)
@@ -392,63 +387,6 @@ BEGIN
     PERFORM set_config('request.jwt.claim.sub', '', true);
     RAISE NOTICE 'PASS wrong-mode: refused when the ready account is in the OTHER Stripe mode';
   END;
-END;
-$$;
-RESET ROLE;
-SELECT set_config('request.jwt.claim.sub', '', true);
-
--- ---------------------------------------------------------------------------
--- 5. club_id IS NULL -> refused, with the assign-a-club message (same SQLSTATE
---    as the Stripe-readiness refusal — only the message text tells them apart).
---
---    P0-1 fix: a club-scoped SECRETARY cannot even SEE this clubless row --
---    is_show_secretary() (which backs shows_select) admits a secretary only
---    for a club_id match or a show_id-scoped appointment, neither of which
---    exists here, and has no NULL-club wildcard the way is_trial_secretary()
---    does. Postgres applies the SELECT policy to the rows an UPDATE's WHERE
---    clause can even see, so running this as the secretary makes the UPDATE
---    match ZERO rows and never reach the trigger at all -- a silent
---    false-pass, not a real refusal. Run as the SITE ADMIN instead:
---    is_show_secretary()/is_site_admin() both wildcard for site_admin with no
---    club/show qualifier (20260830240000, 20260515110000), so this identity
---    actually reaches the trigger, which is what proves the TRIGGER -- not
---    RLS -- is what refuses the publish. The positive control below proves
---    the row really is visible/matched before trusting the refusal.
--- ---------------------------------------------------------------------------
-DO $$
-DECLARE
-  v_message text;
-  v_visible_count int;
-BEGIN
-  SET LOCAL ROLE authenticated;
-  PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579211', true);
-
-  -- Positive control: the site admin can see exactly this one row. Without
-  -- this, a 0-row UPDATE below would look identical to a real refusal.
-  SELECT count(*) INTO v_visible_count FROM public.shows
-  WHERE id = '00000000-0000-0000-0000-000000579015';
-  IF v_visible_count <> 1 THEN
-    RESET ROLE;
-    PERFORM set_config('request.jwt.claim.sub', '', true);
-    RAISE EXCEPTION 'FAIL clubless: expected the site admin to see exactly 1 row, saw %', v_visible_count;
-  END IF;
-
-  BEGIN
-    UPDATE public.shows SET status = 'published'
-     WHERE id = '00000000-0000-0000-0000-000000579015';
-    RAISE EXCEPTION 'FAIL clubless: publish succeeded with club_id IS NULL';
-  EXCEPTION WHEN SQLSTATE 'MK003' THEN
-    GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT;
-    RESET ROLE;
-    PERFORM set_config('request.jwt.claim.sub', '', true);
-  END;
-  IF v_message IS DISTINCT FROM NULL AND v_message !~* 'assign a club' THEN
-    RAISE EXCEPTION 'FAIL clubless: unexpected message %', v_message;
-  END IF;
-  IF v_message IS NULL THEN
-    RAISE EXCEPTION 'FAIL clubless: MK003 was raised but no message text was captured';
-  END IF;
-  RAISE NOTICE 'PASS clubless: refused with the assign-a-club message';
 END;
 $$;
 RESET ROLE;
@@ -821,15 +759,10 @@ SELECT set_config('request.jwt.claim.sub', '', true);
 
 -- ---------------------------------------------------------------------------
 -- 10. P3-8: an UPDATE that never touches status is never gated, even on a
---     clubless draft that would fail the gate if it tried to publish.
---
---     P0-1 fix: same problem as section 5 -- a club-scoped secretary cannot
---     see this clubless row via shows_select at all, so the UPDATE below
---     would silently match 0 rows and the old `v_name <> 'expected'`
---     comparison (NULL <> text = NULL = "false" in an IF) would vacuously
---     pass without proving anything. Run as the SITE ADMIN (see section 5's
---     comment for why it actually reaches the row), and assert the row
---     count landed via GET DIAGNOSTICS rather than trusting a SELECT alone.
+--     draft that would fail the gate if it tried to publish (club 1 has no
+--     club_stripe_accounts row). Run as the SITE ADMIN, and assert the row
+--     count landed via GET DIAGNOSTICS rather than trusting a SELECT alone:
+--     a 0-row UPDATE would otherwise pass vacuously.
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE
@@ -839,7 +772,7 @@ BEGIN
   SET LOCAL ROLE authenticated;
   PERFORM set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000579211', true);
 
-  UPDATE public.shows SET name = 'MYK9-579 Clubless Show (renamed)'
+  UPDATE public.shows SET name = 'MYK9-579 Gate-Failing Draft (renamed)'
    WHERE id = '00000000-0000-0000-0000-000000579015';
   GET DIAGNOSTICS v_n = ROW_COUNT;
   IF v_n <> 1 THEN
@@ -853,10 +786,10 @@ BEGIN
   RESET ROLE;
   PERFORM set_config('request.jwt.claim.sub', '', true);
 
-  IF v_name IS DISTINCT FROM 'MYK9-579 Clubless Show (renamed)' THEN
+  IF v_name IS DISTINCT FROM 'MYK9-579 Gate-Failing Draft (renamed)' THEN
     RAISE EXCEPTION 'FAIL name-only-update: rename did not land (name=%)', v_name;
   END IF;
-  RAISE NOTICE 'PASS name-only-update: renaming a clubless draft never reaches the gate (UPDATE OF status only)';
+  RAISE NOTICE 'PASS name-only-update: renaming a gate-failing draft never reaches the gate (UPDATE OF status only)';
 END;
 $$;
 RESET ROLE;

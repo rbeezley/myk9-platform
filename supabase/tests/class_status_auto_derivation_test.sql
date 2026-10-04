@@ -46,8 +46,11 @@ DECLARE
   v_p2 integer;
 BEGIN
   -- Shared parent rows (minimal NOT NULL columns only).
-  INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals)
-    VALUES (v_show, 'Test Show', 'Test Org', current_date, current_date, false);
+  -- MYK9-1008: every show belongs to a club (shows.club_id NOT NULL); each
+  -- fixture show gets its own fixture club, reusing the show's id.
+  INSERT INTO public.clubs (id, name) VALUES (v_show, 'MYK9-1008 fixture club ' || v_show);
+  INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals, club_id)
+    VALUES (v_show, 'Test Show', 'Test Org', current_date, current_date, false, v_show);
   INSERT INTO public.trials (id, show_id, name, date)
     VALUES (v_trial, v_show, 'Trial 1', current_date);
 

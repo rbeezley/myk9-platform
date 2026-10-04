@@ -99,14 +99,18 @@ BEGIN
 END;
 $$;
 
-INSERT INTO public.shows (id, name, organization, start_date, end_date, status)
+-- MYK9-1008: every show belongs to a club (shows.club_id NOT NULL); each
+-- fixture show gets its own fixture club, reusing the show's id.
+INSERT INTO public.clubs (id, name) VALUES ('00000000-0000-0000-0000-0000000fd021', 'MYK9-1008 fixture club ' || '00000000-0000-0000-0000-0000000fd021');
+INSERT INTO public.shows (id, name, organization, start_date, end_date, status, club_id)
 VALUES (
   '00000000-0000-0000-0000-0000000fd021',
   'Force Delete Show',
   'AKC',
   current_date,
   current_date,
-  'published'
+  'published',
+  '00000000-0000-0000-0000-0000000fd021'
 );
 
 INSERT INTO public.trials (id, show_id, name, date)

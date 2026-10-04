@@ -3,6 +3,7 @@ import { buildCreateShowPayload as buildPayloadWithView } from '../buildCreateSh
 import type { WizardShowData, WizardTrial } from '../showCreationWizardTransformers';
 import type { SportClassRuleRow } from '@/types/sport-template-types';
 import { createWizardTrialView } from '@/utils/wizardTrialNames';
+import { SHOW_REQUIRES_CLUB_MESSAGE } from '@/services/database/shows/requireShowClub';
 
 function buildCreateShowPayload(
   show: WizardShowData,
@@ -62,6 +63,26 @@ function makeRuleMap(
 }
 
 describe('buildCreateShowPayload', () => {
+  // MYK9-1008: shows.club_id is NOT NULL. The wizard's online create refuses a
+  // clubless show with a sentence before it calls create_show_with_children.
+  it.each(['', '  '])('refuses a show with no hosting club (%j)', clubId => {
+    expect(() =>
+      buildCreateShowPayload({ ...baseShow, clubId }, [baseTrial], {}, new Map(), 'draft')
+    ).toThrow(SHOW_REQUIRES_CLUB_MESSAGE);
+  });
+
+  it('sends the hosting club to the RPC and the local show', () => {
+    const { rpcInput, localEntities } = buildCreateShowPayload(
+      baseShow,
+      [baseTrial],
+      {},
+      new Map(),
+      'draft'
+    );
+    expect(rpcInput.p_show.club_id).toBe(baseShow.clubId);
+    expect(localEntities.show.clubId).toBe(baseShow.clubId);
+  });
+
   it('generates a unique show UUID on each call', () => {
     const r1 = buildCreateShowPayload(baseShow, [], {}, new Map(), 'unpublished');
     const r2 = buildCreateShowPayload(baseShow, [], {}, new Map(), 'unpublished');

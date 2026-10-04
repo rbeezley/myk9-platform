@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
+import { readFileSync, readdirSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import {
   CLUB_HELPER_CALL,
+  clubIdColumnTable,
   isCallGuarded,
+  migrationsDir,
   latestDefinitions,
   latestPolicyDefinitions,
   latestViewDefinition,
@@ -14,18 +19,20 @@ import {
  *
  * `is_trial_secretary(check_club_id)` and `is_club_admin(check_club_id)` treat a
  * NULL argument as "no club filter", because the NO-ARGUMENT form answers "is
- * this user a secretary anywhere?" and ~115 call sites rely on that. But
- * `shows.club_id` is nullable, so passing it positionally means a club-less show
- * matches EVERY active secretary and club admin on the platform.
+ * this user a secretary anywhere?" and ~115 call sites rely on that. So passing
+ * a NULLABLE club_id column positionally lets a row with no club match EVERY
+ * active secretary and club admin on the platform.
  *
- * Five functions had that shape and were fixed in 20260828230000; two
- * (`get_show_officials`, `can_manage_show_lifecycle_email`) already carried the
- * guard, which is where the idiom comes from.
+ * `shows.club_id` was nullable, and MYK9-258 (20260828230000) guarded every
+ * shows-derived call with `s.club_id IS NOT NULL AND …`. MYK9-1008
+ * (20261004174300) made the column NOT NULL and removed those guards, so a call
+ * that reads a shows row's club_id is now safe by the column, and the cases
+ * below require it to be either that or explicitly guarded.
  *
  * This is a source contract rather than a behavioural one on purpose. The
- * behavioural test (`supabase/tests/null_club_show_authorization_test.sql`)
- * proves the five fixed callers behave; it cannot prove anything about a SIXTH
- * caller nobody has written yet. Only reading the migration text catches that,
+ * behavioural test (`supabase/tests/myk9_1008_show_requires_club_test.sql`)
+ * proves the callers behave; it cannot prove anything about a NEW caller
+ * nobody has written yet. Only reading the migration text catches that,
  * and the defect's whole character is that it is invisible until someone
  * queries for it.
  */
@@ -52,7 +59,8 @@ import {
  * character is that nobody notices the call site at all.
  */
 const REVIEWED_CLUB_HELPER_CALL_SITES: readonly string[] = [
-  // Guarded by 20260828230000 (MYK9-258).
+  // SAFE: read shows.club_id, NOT NULL since 20261004174300 (MYK9-1008), which
+  // removed the MYK9-258 / MYK9-470 / MYK9-474 `s.club_id IS NOT NULL` guards.
   'can_manage_show -> is_trial_secretary',
   'can_manage_trial -> is_club_admin',
   'can_manage_trial -> is_trial_secretary',
@@ -60,7 +68,6 @@ const REVIEWED_CLUB_HELPER_CALL_SITES: readonly string[] = [
   'manageable_show_ids -> is_trial_secretary',
   'is_show_office_manager -> is_trial_secretary',
   'get_entries_for_export -> is_trial_secretary',
-  // Already guarded before MYK9-258; the source of the idiom.
   'get_show_officials -> is_club_admin',
   'can_manage_show_lifecycle_email -> is_club_admin',
   'can_manage_show_lifecycle_email -> is_trial_secretary',
@@ -69,17 +76,9 @@ const REVIEWED_CLUB_HELPER_CALL_SITES: readonly string[] = [
   'get_visible_person_roles -> is_trial_secretary',
   'get_visible_person_ids_by_role -> is_club_admin',
   'get_visible_person_ids_by_role -> is_trial_secretary',
-  // Guarded by s.club_id IS NOT NULL in 20260912171500 (MYK9-470). The helper is the
-  // secretary-only counterpart of manageable_show_ids(), and carries the same idiom:
-  //   WHERE (s.club_id IS NOT NULL AND (SELECT public.is_trial_secretary(s.club_id)))
-  //      OR (SELECT public.is_site_admin())
-  // so a club-less show reaches nobody but a site admin.
+  // SAFE: shows.club_id, as above.
   'trial_secretary_show_ids -> is_trial_secretary',
   'entry_enrollment_select_show_ids -> is_trial_secretary',
-  // Guarded by s.club_id IS NOT NULL in 20260912211500 (MYK9-474). Copied verbatim from
-  // get_show_officials, which is this function's template:
-  //   AND (s.status IN (...) OR (s.club_id IS NOT NULL AND is_club_admin(s.club_id)) OR ...)
-  // so a club-less show reaches nobody through the club-admin arm.
   'get_show_judges -> is_club_admin',
 ];
 
@@ -112,19 +111,36 @@ describe('club-scoped authorization helpers are never handed a bare club_id colu
       }
     }
 
-    // Read the SQL before adding an entry: the guard belongs in the call's own
-    // boolean branch, as `<alias>.club_id IS NOT NULL AND …`.
+    // Read the SQL before adding an entry: either the column is NOT NULL (a
+    // shows row's club_id) or the guard belongs in the call's own boolean
+    // branch, as `<alias>.club_id IS NOT NULL AND …`.
     expect([...found].sort()).toEqual([...REVIEWED_CLUB_HELPER_CALL_SITES].sort());
   });
 
-  it('still finds the guard on the two callers that always had it', () => {
-    // If the detector stopped recognising the established idiom, the assertion
-    // above would pass for the wrong reason.
-    for (const name of ['get_show_officials', 'can_manage_show_lifecycle_email']) {
-      const definition = definitions.get(name);
-      expect(definition, `${name} should exist in the migration set`).toBeDefined();
-      expect(definition?.body.toLowerCase()).toContain('club_id is not null');
+  it('every reviewed call reads a NOT NULL club_id or carries the guard (MYK9-1008)', () => {
+    // Per CALL. A shows row's club_id is NOT NULL; any other table's column
+    // (user_roles.club_id is nullable: a NULL there is a platform-wide role)
+    // must still be guarded in the call's own boolean branch.
+    const unsafe: string[] = [];
+    let showsCalls = 0;
+    for (const [name, { body, file }] of definitions) {
+      if (name === 'is_club_admin' || name === 'is_trial_secretary') continue;
+      for (const call of body.matchAll(CLUB_HELPER_CALL)) {
+        const argument = call[2]!;
+        if (!/^[a-z_][a-z0-9_]*\.club_id$/i.test(argument)) continue;
+        const table = clubIdColumnTable(body, argument, '');
+        if (table !== undefined && NOT_NULL_CLUB_ID_TABLES.includes(table)) {
+          showsCalls += table === 'shows' ? 1 : 0;
+          continue;
+        }
+        if (isCallGuarded(body, call.index, argument, '')) continue;
+        unsafe.push(`${name} -> ${call[1]}(${argument}) (${file})`);
+      }
     }
+    expect(unsafe).toEqual([]);
+    // Guards the guard: the shows sites must actually resolve to `shows`, or
+    // the NOT NULL exemption above was never exercised.
+    expect(showsCalls).toBeGreaterThanOrEqual(10);
   });
 });
 
@@ -152,6 +168,8 @@ describe('club-scoped authorization helpers are never handed a bare club_id colu
  *   regardless of guard text. Verified against
  *   `information_schema.columns.is_nullable` on the linked database as well
  *   as the declaring migration:
+ *     - shows.club_id: NOT NULL since 20261004174300 (MYK9-1008), which also
+ *       removed the guards from every policy that reads a shows row's club_id.
  *     - club_premium_templates.club_id / premium_generations.club_id:
  *       `uuid not null` (188_premium_bridge_tables.sql).
  *     - club_members.club_id / club_officers.club_id: `uuid not null`
@@ -167,9 +185,9 @@ describe('club-scoped authorization helpers are never handed a bare club_id colu
  *   MYK9-571 cut of this list; migration 20260916015300 added it to the
  *   remaining sixteen.
  *
- * `shows.club_id` is nullable (`information_schema.columns.is_nullable` =
- * YES), which is why every shows-derived site needed the guard and why the
- * NOT-NULL tables did not.
+ * `shows.club_id` WAS nullable, which is why every shows-derived site needed
+ * the guard until MYK9-1008; show_templates.club_id still is, so
+ * show_templates_select keeps its guard.
  *
  * A NEW entry — one a later PR adds that is not already in this list — still
  * fails the test and must be guarded (or proven NOT NULL) before it is
@@ -197,28 +215,24 @@ const REVIEWED_CLUB_HELPER_POLICY_SITES: readonly string[] = [
   'club_officers_update -> is_club_admin',
   // SAFE: club_id is `uuid not null unique` (20260609120000_stripe_connect_payouts.sql).
   'club_stripe_accounts_select -> is_club_admin',
-  // GUARDED before MYK9-585: the idiom's original sites.
+  // GUARDED: show_templates.club_id is nullable (a NULL is a platform template).
+  'show_templates_select -> is_club_admin',
+  'show_templates_select -> is_trial_secretary',
+  // SAFE: shows.club_id is NOT NULL (20261004174300, MYK9-1008). Every entry
+  // from here down reads a shows row's club_id; their `club_id IS NOT NULL`
+  // guards (MYK9-585, MYK9-636 and earlier) were removed by that migration.
+  // Behavioural coverage: supabase/tests/cross_club_policy_authorization_test.sql
+  // and show_announcements_scope_test.sql.
   'entry_payment_links_select -> is_club_admin',
   'show_payouts_select -> is_club_admin',
   'shows_select -> is_club_admin',
-  // GUARDED before MYK9-585, but mis-annotated as unguarded by MYK9-571.
   'entry_status_history_select -> is_club_admin',
-  'show_templates_select -> is_club_admin',
-  'show_templates_select -> is_trial_secretary',
-  // GUARDED by 20260917163900 (MYK9-636). show_announcements' three mutation
-  // policies had NO show or club predicate at all until then -- any
-  // authenticated account could post a show-wide announcement onto any club's
-  // show, and the show's own secretary could not delete it. The predicate is
-  // copied from messages_insert above. Behavioural coverage:
-  // supabase/tests/show_announcements_scope_test.sql.
   'Authenticated users can create announcements -> is_club_admin',
   'Authenticated users can create announcements -> is_trial_secretary',
   'Author or admin can delete announcements -> is_club_admin',
   'Author or admin can delete announcements -> is_trial_secretary',
   'Author or admin can update announcements -> is_club_admin',
   'Author or admin can update announcements -> is_trial_secretary',
-  // GUARDED by 20260916015300 (MYK9-585). Behavioural coverage:
-  // supabase/tests/null_club_policy_authorization_test.sql.
   'class_visibility_insert -> is_club_admin',
   'class_visibility_insert -> is_trial_secretary',
   'class_visibility_update -> is_club_admin',
@@ -253,8 +267,8 @@ const REVIEWED_CLUB_HELPER_POLICY_SITES: readonly string[] = [
 ];
 
 /**
- * Tables whose `club_id` is declared `NOT NULL`, so a policy on them can hand
- * the column to a club-scoped helper with no guard. Verified against
+ * Tables whose `club_id` is declared `NOT NULL`, so a policy or function that
+ * reads one of them can hand the column to a club-scoped helper with no guard. Verified against
  * `information_schema.columns.is_nullable` on the linked database
  * (sojmvhhwsjxmfistvzbe) as well as the declaring migrations, 2026-09-16.
  *
@@ -264,6 +278,9 @@ const REVIEWED_CLUB_HELPER_POLICY_SITES: readonly string[] = [
  * else it decides from the policy text itself.
  */
 const NOT_NULL_CLUB_ID_TABLES: readonly string[] = [
+  // 20261004174300 (MYK9-1008); pinned by the "shows.club_id stays NOT NULL"
+  // case below, which reads the migration set rather than trusting this line.
+  'shows',
   'club_members',
   'club_officers',
   'club_premium_templates',
@@ -289,10 +306,13 @@ describe('club-scoped authorization helpers are never handed a bare club_id colu
 
     // Unquoted CREATE POLICY — the majority form, and the one the quoted-only
     // parser dropped on the floor.
-    expect(policies.get('shows::shows_select')?.body).toMatch(/create\s+policy\s+shows_select/i);
+    // (shows_select was the probe until MYK9-1008 re-declared it with ALTER POLICY.)
+    expect(policies.get('club_stripe_accounts::club_stripe_accounts_select')?.body).toMatch(
+      /create\s+policy\s+club_stripe_accounts_select/i
+    );
     // Quoted CREATE POLICY.
-    expect(policies.get('entry_status_history::entry_status_history_select')?.body).toMatch(
-      /create\s+policy\s+"entry_status_history_select"/i
+    expect(policies.get('show_templates::show_templates_select')?.body).toMatch(
+      /create\s+policy\s+"show_templates_select"/i
     );
     // ALTER POLICY tracked as a full redefinition, not ignored in favour of the
     // original CREATE.
@@ -328,7 +348,7 @@ describe('club-scoped authorization helpers are never handed a bare club_id colu
     expect([...found].sort()).toEqual([...REVIEWED_CLUB_HELPER_POLICY_SITES].sort());
   });
 
-  it('every registered policy CALL carries a club_id IS NOT NULL guard (MYK9-585)', () => {
+  it('every registered policy CALL reads a NOT NULL club_id or carries the guard (MYK9-585, MYK9-1008)', () => {
     // Per CALL, not per policy. The first cut of this case asked whether the
     // policy BODY mentioned `club_id IS NOT NULL` anywhere, and review round 1
     // broke it in two lines: keep the guard on trials_select's
@@ -340,18 +360,19 @@ describe('club-scoped authorization helpers are never handed a bare club_id colu
     // not.
     //
     // Division of labour, unchanged: the registry above catches a NEW call site,
-    // this catches a listed site that is not actually guarded, and
-    // supabase/tests/null_club_policy_authorization_test.sql is the only one of
+    // this catches a listed site that is neither NOT NULL nor guarded, and
+    // supabase/tests/cross_club_policy_authorization_test.sql is the only one of
     // the three that executes SQL against the real schema.
     const unguarded: string[] = [];
 
     for (const [key, { body, name, file }] of policies) {
       const table = key.slice(0, key.indexOf('::'));
-      if (NOT_NULL_CLUB_ID_TABLES.includes(table)) continue;
 
       for (const call of body.matchAll(CLUB_HELPER_CALL)) {
         const argument = call[2];
         if (!/^(?:[a-z_][a-z0-9_]*\.)?club_id$/i.test(argument)) continue;
+        const columnTable = clubIdColumnTable(body, argument, table);
+        if (columnTable !== undefined && NOT_NULL_CLUB_ID_TABLES.includes(columnTable)) continue;
         if (isCallGuarded(body, call.index, argument, table)) continue;
         unguarded.push(`${table}.${name} -> ${call[1]}(${argument}) (${file})`);
       }
@@ -422,23 +443,49 @@ describe('club-scoped authorization helpers are never handed a bare club_id colu
     expect(isCallGuarded(own, ownCall!.index, 'club_id', 'classes')).toBe(true);
   });
 
-  it('would notice a guard that disappeared from a live policy', () => {
-    // Pins one policy whose guard is load-bearing. Asserted on the guard TEXT
-    // and on the call-level verdict, never on which FILE last defined it — a
-    // later legitimate re-ALTER of shows_update would fail a filename pin for a
-    // reason that has nothing to do with this contract.
-    const showsUpdate = policies.get('shows::shows_update');
-    expect(showsUpdate, 'shows_update should exist in the migration set').toBeDefined();
-    expect(showsUpdate?.body.toLowerCase()).toContain('club_id is not null');
+  it('resolves a club_id argument to the table it reads (MYK9-1008)', () => {
+    // Known answers for the exemption above. A resolver that answered `shows`
+    // for everything would wave every unguarded call through.
+    const body = `create policy p on public.classes using (
+      exists (
+        select 1 from public.trials t
+        join public.shows s on s.id = t.show_id
+        join show_templates as st on st.id = s.template_id
+        where (select public.is_club_admin(s.club_id))
+          or (select public.is_club_admin(t.club_id))
+          or (select public.is_club_admin(st.club_id))
+          or (select public.is_club_admin(x.club_id))
+      )
+    );`;
+    expect(clubIdColumnTable(body, 's.club_id', 'classes')).toBe('shows');
+    expect(clubIdColumnTable(body, 't.club_id', 'classes')).toBe('trials');
+    expect(clubIdColumnTable(body, 'st.club_id', 'classes')).toBe('show_templates');
+    expect(clubIdColumnTable(body, 'x.club_id', 'classes')).toBeUndefined();
+    expect(clubIdColumnTable(body, 'club_id', 'classes')).toBe('classes');
+    expect(clubIdColumnTable(body, 'classes.club_id', 'classes')).toBe('classes');
+    // One alias bound to two different tables is ambiguous, so it is unknown.
+    const ambiguous = 'select 1 from public.shows s; select 1 from public.trials s;';
+    expect(clubIdColumnTable(ambiguous, 's.club_id', 'classes')).toBeUndefined();
+  });
 
-    const calls = [...showsUpdate!.body.matchAll(CLUB_HELPER_CALL)];
-    expect(calls.length).toBeGreaterThan(0);
-    for (const call of calls) {
-      expect(
-        isCallGuarded(showsUpdate!.body, call.index, call[2], 'shows'),
-        `shows_update -> ${call[1]}(${call[2]}) must be guarded`
-      ).toBe(true);
+  it('shows.club_id stays NOT NULL in the migration set (MYK9-1008)', () => {
+    // The exemption for shows is only as good as the column. The last
+    // migration to change its nullability must be the SET NOT NULL.
+    const change =
+      /alter\s+table\s+(?:only\s+)?(?:public\.)?shows\s+alter\s+column\s+club_id\s+(set|drop)\s+not\s+null/gi;
+    const changes: { file: string; action: string }[] = [];
+    for (const file of readdirSync(migrationsDir)
+      .filter(name => name.endsWith('.sql'))
+      .sort()) {
+      const sql = readFileSync(resolve(migrationsDir, file), 'utf8');
+      for (const match of sql.matchAll(change)) {
+        changes.push({ file, action: match[1]!.toLowerCase() });
+      }
     }
+    expect(changes.at(-1)).toEqual({
+      file: '20261004174300_myk9_1008_show_requires_club.sql',
+      action: 'set',
+    });
   });
 });
 

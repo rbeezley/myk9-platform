@@ -616,9 +616,12 @@ $$;
 -- A reset (pending) enrollment on the demo show still holds its ledger history,
 -- which no other arm of the guard sees.
 RESET ROLE;
-INSERT INTO public.shows (id, name, organization, start_date, end_date)
+-- MYK9-1008: every show belongs to a club (shows.club_id NOT NULL); each
+-- fixture show gets its own fixture club, reusing the show's id.
+INSERT INTO public.clubs (id, name) VALUES ('dededede-0000-0000-0000-000000000010', 'MYK9-1008 fixture club ' || 'dededede-0000-0000-0000-000000000010');
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id)
 VALUES ('dededede-0000-0000-0000-000000000010', 'MYK9-677 demo show', 'AKC',
-        current_date, current_date);
+        current_date, current_date, 'dededede-0000-0000-0000-000000000010');
 INSERT INTO public.enrollments (id, show_id, handler_id, payment_status)
 VALUES ('00000000-0000-0000-0000-000000677062', 'dededede-0000-0000-0000-000000000010',
         '00000000-0000-0000-0000-000000677053', 'pending');

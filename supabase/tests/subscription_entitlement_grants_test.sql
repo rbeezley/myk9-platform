@@ -269,8 +269,11 @@ $$;
 -- Insert show/entry fixtures as the privileged role (bypass entries RLS), then
 -- restore the admin session.
 RESET ROLE;
-INSERT INTO public.shows (id, name, organization, start_date, end_date)
-VALUES ('00000000-0000-0000-0000-000000000961','Seg Show','AKC',CURRENT_DATE,CURRENT_DATE);
+-- MYK9-1008: every show belongs to a club (shows.club_id NOT NULL); each
+-- fixture show gets its own fixture club, reusing the show's id.
+INSERT INTO public.clubs (id, name) VALUES ('00000000-0000-0000-0000-000000000961', 'MYK9-1008 fixture club ' || '00000000-0000-0000-0000-000000000961');
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id)
+VALUES ('00000000-0000-0000-0000-000000000961','Seg Show','AKC',CURRENT_DATE,CURRENT_DATE, '00000000-0000-0000-0000-000000000961');
 -- Trial + class are required: scored_show_count now replicates the entry-results
 -- view visibility, which counts an owner's scored entry only when the class's
 -- qualification results are visible. With no show_visibility_settings row the

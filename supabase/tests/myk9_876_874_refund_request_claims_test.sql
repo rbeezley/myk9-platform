@@ -104,13 +104,16 @@ SELECT '00000000-0000-0000-0000-000000876011', '00000000-0000-0000-0000-00000087
 WHERE NOT EXISTS (SELECT 1 FROM public.exhibitor_profiles
                   WHERE auth_user_id = '00000000-0000-0000-0000-000000876101');
 
-INSERT INTO public.shows (id, name, organization, start_date, end_date, status)
+-- MYK9-1008: every show belongs to a club (shows.club_id NOT NULL); each
+-- fixture show gets its own fixture club, reusing the show's id.
+INSERT INTO public.clubs (id, name) VALUES ('00000000-0000-0000-0000-000000876021', 'MYK9-1008 fixture club ' || '00000000-0000-0000-0000-000000876021'), ('00000000-0000-0000-0000-000000876022', 'MYK9-1008 fixture club ' || '00000000-0000-0000-0000-000000876022');
+INSERT INTO public.shows (id, name, organization, start_date, end_date, status, club_id)
 VALUES ('00000000-0000-0000-0000-000000876021', 'MYK9-876 Show', 'AKC',
-        current_date + 30, current_date + 30, 'draft'),
+        current_date + 30, current_date + 30, 'draft', '00000000-0000-0000-0000-000000876021'),
        -- A second show: entry_carts_active_show_exhibitor_unique_idx allows one
        -- active cart per (show, exhibitor), and two carts below start active.
        ('00000000-0000-0000-0000-000000876022', 'MYK9-876 Show B', 'AKC',
-        current_date + 30, current_date + 30, 'draft');
+        current_date + 30, current_date + 30, 'draft', '00000000-0000-0000-0000-000000876022');
 
 -- Carts carry a checkout session id, which only service_role may write
 -- (trg_entry_carts_protect_session_id).

@@ -5658,6 +5658,48 @@ export type Database = {
             referencedRelation: "shows"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "refund_requests_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "refund_requests_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "refund_requests_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "refund_requests_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "refund_requests_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "refund_requests_show_id_fkey"
+            columns: ["show_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
+          },
         ]
       }
       result_submissions: {
@@ -12646,6 +12688,21 @@ export type Database = {
         }
         Returns: Json
       }
+      begin_refund_attempt: {
+        Args: { p_actor_auth_user_id: string; p_request_id: string }
+        Returns: {
+          amount_cents: number
+          attempt_id: string
+          attempt_no: number
+          attempt_version: number
+          kind: string
+          outcome: string
+          reason: string
+          stripe_checkout_session_id: string
+          stripe_payment_intent_id: string
+          stripe_refund_id: string
+        }[]
+      }
       can_accept_online_entry_payment: {
         Args: { p_club_id: string; p_livemode?: boolean }
         Returns: boolean
@@ -12693,6 +12750,20 @@ export type Database = {
           blocked_until: string
           message: string
           remaining_attempts: number
+        }[]
+      }
+      claim_abandoned_cart_refund: {
+        Args: {
+          p_amount_cents: number
+          p_cart_id: string
+          p_detail?: Json
+          p_payment_intent_id: string
+          p_session_id: string
+        }
+        Returns: {
+          outcome: string
+          refund_request_id: string
+          request_status: string
         }[]
       }
       claim_access_request_email_jobs: {
@@ -12999,6 +13070,18 @@ export type Database = {
           resolved_trial_id: string
           waitlist_entry_id: string
           waitlist_position: number
+        }[]
+      }
+      fail_unissued_refund_attempt: {
+        Args: {
+          p_attempt_id: string
+          p_expected_version: number
+          p_failure_reason: string
+        }
+        Returns: {
+          attempt_status: string
+          attempt_version: number
+          outcome: string
         }[]
       }
       financial_reconciliation_orders: {
@@ -13350,6 +13433,7 @@ export type Database = {
           max_entries_per_dog: number | null
           max_total_entries: number | null
           name: string
+          online_entries_enabled: boolean
           organization: string
           pre_entry_fee: number | null
           premium_publish_version: number
@@ -13862,6 +13946,30 @@ export type Database = {
         }
         Returns: Json
       }
+      queue_payment_link_refund: {
+        Args: {
+          p_amount_cents?: number
+          p_close_from?: string
+          p_detail?: Json
+          p_link_id?: string
+          p_order?: Json
+          p_payment_intent_id?: string
+          p_reason?: string
+          p_session_id: string
+          p_show_id?: string
+        }
+        Returns: {
+          amount_cents: number
+          created: boolean
+          link_closed: boolean
+          link_status: string
+          order_created: boolean
+          reason: string
+          refund_request_id: string
+          request_status: string
+          stripe_payment_intent_id: string
+        }[]
+      }
       recalculate_class_placements: {
         Args: { p_class_ids: string[]; p_is_nationals?: boolean }
         Returns: undefined
@@ -13931,6 +14039,19 @@ export type Database = {
           post_hoc_cents: number
         }[]
       }
+      record_refund_attempt: {
+        Args: {
+          p_attempt_id: string
+          p_expected_version: number
+          p_stripe_refund_id: string
+        }
+        Returns: {
+          attempt_status: string
+          attempt_version: number
+          outcome: string
+          stripe_refund_id: string
+        }[]
+      }
       record_waitlist_push_delivery: {
         Args: {
           p_claim_token: string
@@ -13953,6 +14074,22 @@ export type Database = {
       refresh_class_scoring_state_authorized: {
         Args: { p_class_id: string }
         Returns: undefined
+      }
+      refund_attempt_next_status: {
+        Args: { p_current: string; p_reported: string }
+        Returns: string
+      }
+      refund_attempt_state: {
+        Args: { p_attempt_no: number; p_request_id: string }
+        Returns: {
+          attempt_id: string
+          attempt_status: string
+          attempt_version: number
+          request_kind: string
+          request_reason: string
+          stripe_payment_intent_id: string
+          stripe_refund_id: string
+        }[]
       }
       regenerate_show_passcodes: {
         Args: { p_show_id: string }
@@ -14039,6 +14176,17 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      resolve_refund_request_without_refund: {
+        Args: {
+          p_actor_auth_user_id: string
+          p_note: string
+          p_request_id: string
+        }
+        Returns: {
+          outcome: string
+          request_status: string
+        }[]
       }
       restore_class: {
         Args: { p_class_id: string }
@@ -14188,6 +14336,7 @@ export type Database = {
           max_entries_per_dog: number | null
           max_total_entries: number | null
           name: string
+          online_entries_enabled: boolean
           organization: string
           pre_entry_fee: number | null
           premium_publish_version: number
@@ -14310,6 +14459,22 @@ export type Database = {
       set_show_online_entries: {
         Args: { p_enabled: boolean; p_show_id: string }
         Returns: number
+      }
+      settle_refund_attempt: {
+        Args: {
+          p_attempt_id: string
+          p_expected_version: number
+          p_failure_reason?: string
+          p_status: string
+        }
+        Returns: {
+          attempt_status: string
+          attempt_version: number
+          live_attempts: number
+          outcome: string
+          request_id: string
+          request_status: string
+        }[]
       }
       sign_in_email_drift: { Args: never; Returns: Json }
       soft_delete_class: {

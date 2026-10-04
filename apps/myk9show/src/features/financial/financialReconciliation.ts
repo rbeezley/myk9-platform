@@ -87,14 +87,6 @@ export interface FinancialReconciliationSummary {
   /** clubFundedRefundedCents restricted to the orders whose processing fee is
    *  NOT yet captured, mirroring pendingFeeRefundedCents. */
   pendingFeeClubFundedRefundedCents: number;
-  /** The service fee kept on charges that recorded NO order (a paid abandoned
-   *  cart, a paid payment link with no link row): the charge less the refunds
-   *  that actually went out on it, the request's own refund counted once whether
-   *  issued or still owed (MYK9-966 / MYK9-997). Their Stripe processing fee is
-   *  never captured. */
-  unfulfilledChargeKeptFeeCents: number;
-  /** How many such charges. */
-  unfulfilledChargeCount: number;
   /** Cart-overflow make-whole refunds: money returned for lines that were NEVER
    *  accepted. The platform earned no fee and made no club transfer on them, so
    *  this is NOT a platform loss — it is money collected and handed straight
@@ -230,8 +222,6 @@ interface SummaryRow {
   payout_failed_count: number | string;
   club_funded_refunded_cents: number | string;
   pending_fee_club_funded_refunded_cents: number | string;
-  unfulfilled_charge_kept_fee_cents: number | string;
-  unfulfilled_charge_count: number | string;
 }
 
 interface OrderRow {
@@ -279,8 +269,6 @@ export function mapSummaryRow(row: SummaryRow): FinancialReconciliationSummary {
     refundedCents: toNum(row.refunded_cents),
     clubFundedRefundedCents: toNum(row.club_funded_refunded_cents),
     pendingFeeClubFundedRefundedCents: toNum(row.pending_fee_club_funded_refunded_cents),
-    unfulfilledChargeKeptFeeCents: toNum(row.unfulfilled_charge_kept_fee_cents),
-    unfulfilledChargeCount: toNum(row.unfulfilled_charge_count),
     makeWholeRefundedCents: toNum(row.make_whole_refunded_cents),
     snapshotMissingCount: toNum(row.snapshot_missing_count),
     nonEntryOrderCount: toNum(row.non_entry_order_count),
@@ -369,8 +357,6 @@ const EMPTY_SUMMARY_ROW: SummaryRow = {
   payout_failed_count: 0,
   club_funded_refunded_cents: 0,
   pending_fee_club_funded_refunded_cents: 0,
-  unfulfilled_charge_kept_fee_cents: 0,
-  unfulfilled_charge_count: 0,
 };
 
 /** One page of PII-free charge-fact rows. Pass the last row as the next cursor. */

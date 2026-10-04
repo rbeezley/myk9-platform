@@ -45,8 +45,7 @@ function Figure({ label, value, formula }: FigureProps) {
 }
 
 function PlatformFigures({ income }: { income: PlatformIncomeSummary }) {
-  const { availableCents, pendingResidualCents, pendingOrderCount, pendingUnfulfilledChargeCount } =
-    income.netPlatformIncome;
+  const { availableCents, pendingResidualCents, pendingOrderCount } = income.netPlatformIncome;
   const { orderCount, grossCents, refundedCents, makeWholeRefundedCents, netCents } =
     income.nonEntry;
   const refundedTotal = refundedCents + makeWholeRefundedCents;
@@ -56,20 +55,10 @@ function PlatformFigures({ income }: { income: PlatformIncomeSummary }) {
   // nothing retries the fee capture — would have disabled the headline number for
   // good. The orders whose processing cost is still unknown are named in the
   // note below instead of silently disappearing into a zero.
-  const pendingParts = [
-    pendingOrderCount > 0
-      ? `${pendingOrderCount} order${pendingOrderCount === 1 ? '' : 's'} ` +
-        'whose Stripe processing fee is not captured yet'
-      : null,
-    pendingUnfulfilledChargeCount > 0
-      ? `the service fee kept on ${pendingUnfulfilledChargeCount} paid charge` +
-        `${pendingUnfulfilledChargeCount === 1 ? '' : 's'} that recorded no order, ` +
-        'whose processing fee is never captured'
-      : null,
-  ].filter((part): part is string => part !== null);
   const pendingNote =
-    pendingParts.length > 0
-      ? ` Excludes ${pendingParts.join(', and ')} ` +
+    pendingOrderCount > 0
+      ? ` Excludes ${pendingOrderCount} order${pendingOrderCount === 1 ? '' : 's'} ` +
+        `whose Stripe processing fee is not captured yet ` +
         `(up to ${formatCents(pendingResidualCents)} of fee income still to net out).`
       : '';
 
@@ -86,10 +75,7 @@ function PlatformFigures({ income }: { income: PlatformIncomeSummary }) {
         <Figure
           label="Gross platform-fee income"
           value={formatCents(income.grossPlatformFeeCents)}
-          formula={
-            'Sum of the platform-fee snapshot on each online order, plus the service fee ' +
-            'kept on paid charges that recorded no order (an abandoned cart)'
-          }
+          formula="Sum of the platform-fee snapshot on each online order"
         />
         {/* Cart-overflow make-whole refunds are excluded from the net formula on
             purpose: the platform earned no fee and made no transfer on those
@@ -98,7 +84,7 @@ function PlatformFigures({ income }: { income: PlatformIncomeSummary }) {
             from the club's payout. Only the refunds the platform funded are a
             loss, and each kind arrives as its own explicit column. */}
         <Figure
-          label={pendingParts.length > 0 ? 'Net platform income so far' : 'Net platform income'}
+          label={pendingOrderCount > 0 ? 'Net platform income so far' : 'Net platform income'}
           value={formatCents(availableCents)}
           formula={
             'Fee income − captured Stripe processing fees − refunds the platform funded, ' +

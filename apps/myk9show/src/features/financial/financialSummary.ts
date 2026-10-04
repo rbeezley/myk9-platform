@@ -43,18 +43,14 @@ export interface NetPlatformIncome {
    */
   availableCents: number;
   /**
-   * Fee income whose processing cost is NOT known: the orders whose fee is not
-   * captured yet, less the platform-funded refunds recorded against them, plus
-   * the fee kept on charges that recorded no order (MYK9-997), whose cost is
-   * never captured. EXCLUDED from availableCents — their eventual contribution
-   * is at most this, since their processing fees subtract from it.
+   * Fee income booked on the orders whose processing cost is NOT yet known,
+   * less the platform-funded refunds already recorded against them. EXCLUDED
+   * from availableCents — the eventual contribution of these orders is at most
+   * this, since their processing fees will subtract from it.
    */
   pendingResidualCents: number;
-  /** How many orders that residual covers. */
+  /** How many orders that residual covers. Zero = the net is complete. */
   pendingOrderCount: number;
-  /** How many order-less charges (paid abandoned carts) it covers (MYK9-997).
-   *  Both counts zero = the net is complete. */
-  pendingUnfulfilledChargeCount: number;
 }
 
 /** Platform income: gross fee income kept explicitly distinct from net. */
@@ -62,13 +58,8 @@ export interface PlatformIncomeSummary {
   /** Online money actually retained: gross charged less BOTH kinds of refund
    *  (post-hoc and cart-overflow make-whole) — both really did leave. */
   onlineCollectedCents: number;
-  /** Gross platform-fee income, before Stripe processing costs: the fee on
-   *  every order plus the fee kept on order-less charges (MYK9-997). */
+  /** Gross platform-fee income, before Stripe processing costs. */
   grossPlatformFeeCents: number;
-  /** The fee kept on charges that recorded no order (a paid abandoned cart, a
-   *  paid payment link with no link row): the charge less the refunds that
-   *  actually went out on it (MYK9-966 / MYK9-997). */
-  unfulfilledChargeKeptFeeCents: number;
   /**
    * Net platform income, split into a REPORTABLE part and a visibly-excluded
    * pending residual.
@@ -178,17 +169,17 @@ export interface FinancialSummaryDeps {
 // funds it. Booked club_funded at write time (migration 20261004193700), it is
 // a subset of refundedCents that net income never subtracts.
 //
-// KEPT FEES ON ORDER-LESS CHARGES (MYK9-997). A paid abandoned cart keeps its
-// service fee (MYK9-966) but records no order, so the fee is booked from its
-// refund request: in gross fee income, and in the pending residual, because
-// Stripe's processing fee on that charge is never captured.
+// ORDER-LESS CHARGES (owner rule 2026-10-04, MYK9-997). A paid abandoned cart,
+// or a paid payment link with no link row, records no order and is refunded in
+// full, service fee included: no fee is kept, so nothing is booked here. The
+// Stripe processing fee the platform absorbs on such a charge is never
+// captured (no order holds a balance transaction), so it is not reported.
 
 /** Derive the platform-income group from server-aggregated reconciliation totals. */
 export function derivePlatformIncome(
   summary: FinancialReconciliationSummary
 ): PlatformIncomeSummary {
-  const orderFeeCents = summary.platformFeeCents;
-  const keptFeeCents = summary.unfulfilledChargeKeptFeeCents;
+  const grossPlatformFeeCents = summary.platformFeeCents;
   const platformFundedRefundedCents = summary.refundedCents - summary.clubFundedRefundedCents;
   const pendingPlatformFundedRefundedCents =
     summary.pendingFeeRefundedCents - summary.pendingFeeClubFundedRefundedCents;
@@ -211,22 +202,19 @@ export function derivePlatformIncome(
   // with the remainder carried as a labeled residual. The residual is EXCLUDED,
   // never folded in and never assumed zero, so the available figure can only
   // understate — it can never overstate what the platform has actually netted.
-  const capturedGrossFeeCents = orderFeeCents - summary.pendingFeePlatformFeeCents;
+  const capturedGrossFeeCents = grossPlatformFeeCents - summary.pendingFeePlatformFeeCents;
   const capturedRefundedCents = platformFundedRefundedCents - pendingPlatformFundedRefundedCents;
   const netPlatformIncome: NetPlatformIncome = {
     availableCents: capturedGrossFeeCents - summary.processingFeeCents - capturedRefundedCents,
-    pendingResidualCents:
-      summary.pendingFeePlatformFeeCents - pendingPlatformFundedRefundedCents + keptFeeCents,
+    pendingResidualCents: summary.pendingFeePlatformFeeCents - pendingPlatformFundedRefundedCents,
     pendingOrderCount: summary.processingFeePendingCount,
-    pendingUnfulfilledChargeCount: summary.unfulfilledChargeCount,
   };
   return {
     // BOTH refunds subtracted here on purpose: a make-whole refund DOES reduce the
     // money the platform ends up holding, even though it is not a platform loss.
     onlineCollectedCents:
       summary.grossChargedCents - summary.refundedCents - summary.makeWholeRefundedCents,
-    grossPlatformFeeCents: orderFeeCents + keptFeeCents,
-    unfulfilledChargeKeptFeeCents: keptFeeCents,
+    grossPlatformFeeCents,
     netPlatformIncome,
     processingFeePendingCount: summary.processingFeePendingCount,
     refundedCents: summary.refundedCents,

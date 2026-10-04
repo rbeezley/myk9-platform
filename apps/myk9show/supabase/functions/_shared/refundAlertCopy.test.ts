@@ -184,7 +184,6 @@ const SCENARIOS: [string, () => Promise<string[]>][] = [
         cartId: 'c',
         sessionId: 'cs',
         paymentIntentId: 'pi',
-        amountCents: 100,
         chargedCents: 107,
       });
       return texts;
@@ -198,7 +197,6 @@ const SCENARIOS: [string, () => Promise<string[]>][] = [
         cartId: 'c',
         sessionId: 'cs',
         paymentIntentId: null,
-        amountCents: null,
         chargedCents: null,
       });
       return texts;

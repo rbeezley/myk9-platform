@@ -2,9 +2,13 @@
 //
 // MYK9-966 worked examples. OWNER RULE (2026-10-03): the platform never covers
 // a refund and never refunds its service fee, even when nothing was delivered
-// (an abandoned paid cart, every class full, a cancelled show). A refund is the
-// entry fees of the lines not served, capped at what was paid minus the
-// service fee.
+// (every class full, a cancelled show). A refund is the entry fees of the
+// lines not served, capped at what was paid minus the service fee.
+//
+// The one exception (owner, 2026-10-04, MYK9-997): a charge the exhibitor got
+// NOTHING for and no order records (a paid abandoned cart, a paid payment-link
+// session with no link row) is refunded in full, service fee included
+// (refundRequests.ts `fullChargeRefundCents`).
 //
 // The worked example from the issue: 3 lines at $30, 7% fee, exhibitor pays
 // $96.30. One line unserved refunds $30.00 (club $60.00, platform keeps
@@ -18,14 +22,9 @@ import {
   type PlatformFeeRates,
 } from './platformFee';
 import { orderTieOutDeltaCents, resolveAcceptedEntrySnapshot } from './orderSnapshot';
-import {
-  chargedEntryFeesRefundCents,
-  parseStampedEntryIds,
-  type ChargedLine,
-} from './unservedChargeRefund';
-import { loadChargedLinesFromStripe, readChargedLines } from './entryPaymentLineItems';
 import { buildShowRefundPlan, showRefundCreateParams } from './showRefundPlan';
 import { refundIsClubFunded } from './orderSnapshot';
+import { fullChargeRefundCents } from './refundRequests';
 
 const SHOW_REFUND_METADATA = { show_refund: 'show-1', myk9_club_funded: 'true' };
 
@@ -147,119 +146,6 @@ describe('the worked example: 3 lines at $30, 7% fee, $96.30 paid', () => {
   });
 });
 
-// Codex round 1 on #2729: an all-unserved refund (abandoned cart, orphaned
-// payment-link session) is computed from what STRIPE charged, never from
-// owner-writable rows; anything that cannot be fully attributed is null, which
-// takes the existing manual-amount path.
-describe('a charge that served nothing refunds the entry fees Stripe charged', () => {
-  // Stripe line items as a CART checkout creates them: no metadata, the fee
-  // line named "Service fee".
-  const cartLineItems = [
-    { amount_total: 3000, description: 'Rex - Novice A' },
-    { amount_total: 3000, description: 'Rex - Novice B' },
-    { amount_total: 3000, description: 'Rex - Open' },
-    { amount_total: 630, description: 'Service fee' },
-  ];
-  // As a PAYMENT LINK creates them: entry_id / platform_fee product metadata.
-  const linkLine = (entryId: string | null, amount = 3000) => ({
-    amount_total: amount,
-    description: 'Entry',
-    price: {
-      product: {
-        metadata: (entryId ? { type: 'entry', entry_id: entryId } : {}) as Record<string, string>,
-      },
-    },
-  });
-  const linkFeeLine = {
-    amount_total: 630,
-    description: 'Service fee',
-    price: { product: { metadata: { type: 'platform_fee' } } },
-  };
-
-  it('abandoned cart: refunds $90.00 from Stripe lines even if the cart rows were edited to $20', () => {
-    // The DB cart now says 3 × $20 (owner-editable); the input never reads it.
-    expect(
-      chargedEntryFeesRefundCents({
-        lines: readChargedLines(cartLineItems),
-        amountTotalCents: PAID,
-        rates: RATES,
-        expected: { entryLineCount: 3 },
-      })
-    ).toBe(9000);
-  });
-
-  it('payment link with no link row: refunds $90.00 when every stamped entry has its line', () => {
-    expect(
-      chargedEntryFeesRefundCents({
-        lines: readChargedLines([linkLine('a'), linkLine('b'), linkLine('c'), linkFeeLine]),
-        amountTotalCents: PAID,
-        rates: RATES,
-        expected: { entryIds: ['a', 'b', 'c'] },
-      })
-    ).toBe(9000);
-  });
-
-  it('payment link: a line with no readable entry_id takes the manual path', () => {
-    expect(
-      chargedEntryFeesRefundCents({
-        lines: readChargedLines([linkLine('a'), linkLine('b'), linkLine(null), linkFeeLine]),
-        amountTotalCents: PAID,
-        rates: RATES,
-        expected: { entryIds: ['a', 'b', 'c'] },
-      })
-    ).toBeNull();
-  });
-
-  it('a charge that does not tie out to amount_total takes the manual path', () => {
-    const lines = readChargedLines(cartLineItems);
-    const run = (over: Partial<Parameters<typeof chargedEntryFeesRefundCents>[0]>) =>
-      chargedEntryFeesRefundCents({
-        lines,
-        amountTotalCents: PAID,
-        rates: RATES,
-        expected: { entryLineCount: 3 },
-        ...over,
-      });
-    // Stripe collected something other than lines + fee.
-    expect(run({ amountTotalCents: 9500 })).toBeNull();
-    // Line count disagrees with the cart.
-    expect(run({ expected: { entryLineCount: 4 } })).toBeNull();
-    // The fee line is not the fee those lines price at.
-    const badFee: ChargedLine[] = lines.map(l => (l.isServiceFee ? { ...l, amountCents: 700 } : l));
-    expect(run({ lines: badFee, amountTotalCents: 9700 })).toBeNull();
-    // A line Stripe did not price, or a truncated page.
-    expect(run({ lines: [...lines.slice(0, 2), { ...lines[2], amountCents: null }] })).toBeNull();
-    expect(run({ lines: null })).toBeNull();
-  });
-
-  it('treats a line-item page Stripe truncated as unreadable', async () => {
-    const page = (has_more: boolean) => ({
-      listLineItems: async () => ({ data: cartLineItems, has_more }),
-    });
-    await expect(loadChargedLinesFromStripe(page(true), 'cs_1')).resolves.toBeNull();
-    await expect(loadChargedLinesFromStripe(page(false), 'cs_1')).resolves.toHaveLength(4);
-  });
-
-  it('reads the stamped entry ids, and nothing from an unreadable stamp', () => {
-    expect(parseStampedEntryIds('["a","b","c"]')).toEqual(['a', 'b', 'c']);
-    expect(parseStampedEntryIds(undefined)).toEqual([]);
-    expect(parseStampedEntryIds('{"a":1}')).toEqual([]);
-    expect(parseStampedEntryIds('[1,2]')).toEqual([]);
-  });
-
-  it('payment link: a duplicated or foreign entry line takes the manual path', () => {
-    const run = (items: ReturnType<typeof linkLine>[]) =>
-      chargedEntryFeesRefundCents({
-        lines: readChargedLines([...items, linkFeeLine]),
-        amountTotalCents: PAID,
-        rates: RATES,
-        expected: { entryIds: ['a', 'b', 'c'] },
-      });
-    expect(run([linkLine('a'), linkLine('b'), linkLine('b')])).toBeNull();
-    expect(run([linkLine('a'), linkLine('b'), linkLine('z')])).toBeNull();
-  });
-});
-
 describe('partial-served cart: the order snapshot books the full service fee', () => {
   it('ties out to zero with the entry-fee-only make-whole', () => {
     const snapshot = resolveAcceptedEntrySnapshot(['a', 'b'], LINES, RATES, ['c']);
@@ -332,5 +218,23 @@ describe('cancelled show with N payments: each refund is that payment’s entry 
     // MYK9-997: the club funds a show-cancellation refund (its payout is
     // docked), so the refund is marked club-funded for platform income.
     expect(params.every(p => refundIsClubFunded(p))).toBe(true);
+  });
+});
+
+describe('MYK9-997: only a charge that bought nothing is refunded in full', () => {
+  it('an abandoned 3210 charge refunds 3210; the same lines refunded normally keep the 210 fee', () => {
+    const rates: PlatformFeeRates = { percent: 7, flatCents: 0, minCents: 0 };
+    // Order-less: the exhibitor got nothing, so the request is the whole charge.
+    expect(fullChargeRefundCents(3210)).toBe(3210);
+    // A normal refund of the same 3000 of entries (change of mind, a full
+    // class, a cancelled show) still returns the entry fees only.
+    expect(
+      entryFeeRefundCents({
+        unservedEntryFeeCents: 3000,
+        fullSubtotalCents: 3000,
+        amountTotalCents: 3210,
+        rates,
+      })
+    ).toBe(3000);
   });
 });

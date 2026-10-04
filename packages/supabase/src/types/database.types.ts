@@ -5526,7 +5526,6 @@ export type Database = {
         Row: {
           amount_cents: number
           cart_id: string | null
-          charged_cents: number | null
           created_at: string
           detail: Json
           entry_payment_link_id: string | null
@@ -5546,7 +5545,6 @@ export type Database = {
         Insert: {
           amount_cents: number
           cart_id?: string | null
-          charged_cents?: number | null
           created_at?: string
           detail?: Json
           entry_payment_link_id?: string | null
@@ -5566,7 +5564,6 @@ export type Database = {
         Update: {
           amount_cents?: number
           cart_id?: string | null
-          charged_cents?: number | null
           created_at?: string
           detail?: Json
           entry_payment_link_id?: string | null
@@ -13057,8 +13054,6 @@ export type Database = {
           processing_fee_pending_count: number
           refunded_cents: number
           snapshot_missing_count: number
-          unfulfilled_charge_count: number
-          unfulfilled_charge_kept_fee_cents: number
         }[]
       }
       find_live_club_by_normalized_name: {
@@ -13996,7 +13991,6 @@ export type Database = {
           stripe_refund_id: string
         }[]
       }
-      refund_request_charged_cents: { Args: { p_detail: Json }; Returns: number }
       regenerate_show_passcodes: {
         Args: { p_show_id: string }
         Returns: {

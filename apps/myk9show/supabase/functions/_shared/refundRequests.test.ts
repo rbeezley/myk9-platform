@@ -1,8 +1,9 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
 import {
-  chargedCentsToRecord,
   claimAbandonedCartRefund,
+  fullChargeRefundCents,
+  noLinkRecordObligation,
   ensurePaymentLinkRefundAlert,
   QUEUE_WRITE_ATTEMPTS,
   REFUNDABLE_ABANDONED_CART_STATUSES,
@@ -183,15 +184,16 @@ describe('settlePaymentLinkObligation (Codex round 13)', () => {
       ...OBLIGATION,
       linkId: null,
       closeLinkFrom: null,
-      owed: { ...OBLIGATION.owed!, reason: 'no_link_record', chargedCents: 963 },
+      // The exhibitor got nothing: the full 963 charge, service fee included
+      // (owner rule 2026-10-04, MYK9-997), never the 900 of entry fees.
+      owed: noLinkRecordObligation(963),
     });
-    // MYK9-997: no order is recorded for this session, so the charge rides
-    // with the request and the 63 kept fee is booked from it.
     expect(rpc.mock.calls[0][1]).toMatchObject({
       p_link_id: null,
       p_close_from: null,
-      p_amount_cents: 900,
-      p_detail: { invalid_entry_ids: ['e-1'], charged_cents: 963 },
+      p_amount_cents: 963,
+      p_reason: 'no_link_record',
+      p_detail: { invalid_entry_ids: [] },
     });
     expect(model.link.status).toBe('open');
     expect(model.requests.get('cs_1')?.reason).toBe('no_link_record');
@@ -278,30 +280,27 @@ describe('ensurePaymentLinkRefundAlert (redelivery)', () => {
   });
 });
 
-describe('chargedCentsToRecord (MYK9-997)', () => {
-  it('records a charge that covers its refund, and nothing else', () => {
-    expect(chargedCentsToRecord(4494, 4200)).toBe(4494);
-    expect(chargedCentsToRecord(4200, 4200)).toBe(4200);
-    // A charge below its refund is not a fact to book (the RPC refuses it).
-    expect(chargedCentsToRecord(4000, 4200)).toBeNull();
-    expect(chargedCentsToRecord(null, 4200)).toBeNull();
-    expect(chargedCentsToRecord(undefined, 4200)).toBeNull();
-    expect(chargedCentsToRecord(4494.5, 4200)).toBeNull();
+describe('fullChargeRefundCents (MYK9-997)', () => {
+  it('is the whole charge, service fee included', () => {
+    // Worked example: 3000 of entries + 210 service fee; nothing was served.
+    expect(fullChargeRefundCents(3210)).toBe(3210);
   });
 
-  it('sends no charge for an abandoned cart whose total is unknown', async () => {
-    const { deps, rpc } = depsWith(async () => ({
-      data: [{ outcome: 'claimed', refund_request_id: 'rr-9' }],
-      error: null,
-    }));
-    await claimAbandonedCartRefund(deps, {
-      cartId: 'cart-1',
-      sessionId: 'cs_1',
-      paymentIntentId: 'pi_1',
-      amountCents: 4200,
-      chargedCents: null,
+  it('is null for a charge it cannot trust, which takes the missing-inputs alert', () => {
+    expect(fullChargeRefundCents(null)).toBeNull();
+    expect(fullChargeRefundCents(undefined)).toBeNull();
+    expect(fullChargeRefundCents(0)).toBeNull();
+    expect(fullChargeRefundCents(-5)).toBeNull();
+    expect(fullChargeRefundCents(3210.5)).toBeNull();
+  });
+
+  it('builds the no-link payment-link obligation from the full charge', () => {
+    expect(noLinkRecordObligation(3210)).toEqual({
+      amountCents: 3210,
+      reason: 'no_link_record',
+      detail: { invalid_entry_ids: [] },
+      summaryHtml: 'A payment-link charge could not be honored in full.',
     });
-    expect(rpc.mock.calls[0][1].p_detail).toEqual({ cart_id: 'cart-1' });
   });
 });
 
@@ -310,8 +309,7 @@ describe('claimAbandonedCartRefund', () => {
     cartId: 'cart-1',
     sessionId: 'cs_1',
     paymentIntentId: 'pi_1',
-    amountCents: 4200,
-    chargedCents: 4494,
+    chargedCents: 3210,
   };
 
   it('alerts once when it claims the cart', async () => {
@@ -324,9 +322,10 @@ describe('claimAbandonedCartRefund', () => {
       p_cart_id: 'cart-1',
       p_session_id: 'cs_1',
       p_payment_intent_id: 'pi_1',
-      p_amount_cents: 4200,
-      // MYK9-997: what Stripe charged, so the 294 kept fee is booked.
-      p_detail: { cart_id: 'cart-1', charged_cents: 4494 },
+      // MYK9-997: the exhibitor got nothing, so the request is the FULL 3210
+      // charge (3000 entries + 210 service fee), not the entry fees alone.
+      p_amount_cents: 3210,
+      p_detail: { cart_id: 'cart-1' },
     });
     expect(alerts).toHaveLength(1);
     expect(alerts[0].opts.detail).toMatchObject({
@@ -417,8 +416,7 @@ describe('fulfillment and refund claims on one cart', () => {
     cartId: 'cart-1',
     sessionId: 'cs_1',
     paymentIntentId: 'pi_1',
-    amountCents: 4200,
-    chargedCents: 4494,
+    chargedCents: 3210,
   };
 
   it('two deliveries of a paid session on an abandoned cart queue ONE refund and both return', async () => {

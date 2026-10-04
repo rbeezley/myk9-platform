@@ -1560,4 +1560,53 @@ describe('ShowDetailsPage', () => {
       expect(getEntriesByShowMock).not.toHaveBeenCalled();
     });
   });
+
+  // MYK9-986: the Select classes table, built from the page's own class rows on
+  // the demo show's shape (scent_work trial, no start_time, one submitted and two
+  // withdrawn entries on Exterior Excellent).
+  describe('Select classes table rows (MYK9-986)', () => {
+    it('shows the revised start, expected entries only, "Novice A" and no Ring column', async () => {
+      mockAuthContext.isSecretary = true;
+      mockTrials = [
+        {
+          id: 'trial-1',
+          showId: 'show-1',
+          trialDate: '2026-10-10',
+          trialNumber: '1',
+          name: 'Saturday',
+          trialType: 'scent_work',
+          timezone: 'America/Chicago',
+        },
+      ];
+      mockTrialClasses = {
+        'trial-1': [
+          {
+            id: 'class-ext',
+            element: 'Exterior',
+            level: 'Novice',
+            section: 'A',
+            startTime: '',
+            revisedExpectedStart: '2026-10-10T12:30:00.000Z',
+            status: 'Scheduled',
+          },
+        ],
+      };
+      mockShowEntries = [
+        { id: 'e1', show_id: 'show-1', class_id: 'class-ext', entry_status: 'submitted' },
+        { id: 'e2', show_id: 'show-1', class_id: 'class-ext', entry_status: 'withdrawn' },
+        { id: 'e3', show_id: 'show-1', class_id: 'class-ext', entry_status: 'withdrawn' },
+      ];
+
+      renderPage('show-1', '', '?select=classes');
+
+      const row = (await screen.findByRole('cell', { name: 'Exterior' })).closest('tr');
+      expect(row).not.toBeNull();
+      expect(
+        within(row as HTMLElement).getByRole('cell', { name: 'Novice A' })
+      ).toBeInTheDocument();
+      expect(within(row as HTMLElement).getByRole('cell', { name: '7:30 AM' })).toBeInTheDocument();
+      expect(within(row as HTMLElement).getByRole('cell', { name: '1' })).toBeInTheDocument();
+      expect(screen.queryByRole('columnheader', { name: /^Ring/ })).not.toBeInTheDocument();
+    });
+  });
 });

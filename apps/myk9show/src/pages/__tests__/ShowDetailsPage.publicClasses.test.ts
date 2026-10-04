@@ -53,7 +53,7 @@ describe('buildPublicShowClasses', () => {
       section: 'A',
       judgeName: 'Ada Lovelace',
       trialId: 'trial-1',
-      time: '09:00:00',
+      time: '9:00 AM',
       ring: 0,
       status: CLASS_STATUS.SCHEDULED,
       entryCount: 0,

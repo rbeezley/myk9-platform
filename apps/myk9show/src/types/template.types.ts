@@ -70,6 +70,19 @@ export function canonicalizeTrialType(trialType: string | null | undefined): Tri
   return TRIAL_TYPE_BY_TOKEN[normalizeTrialTypeToken(trialType)];
 }
 
+/**
+ * Scent sports (Scent Work, Nosework, Scent Detection) have no rings. Takes the
+ * stored value (`scent_work`) or the display label (`Scent Work`) alike.
+ */
+export function isScentTrialType(trialType: string | null | undefined): boolean {
+  const canonical = canonicalizeTrialType(trialType);
+  return (
+    canonical === TrialType.SCENT_WORK ||
+    canonical === TrialType.NOSEWORK ||
+    canonical === TrialType.SCENT_DETECTION
+  );
+}
+
 /** Trial types offered by each organization. "Other" org shows all types. */
 export const TRIAL_TYPES_BY_ORGANIZATION: Record<string, TrialType[]> = {
   [Organization.AKC]: [

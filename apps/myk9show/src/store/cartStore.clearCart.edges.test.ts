@@ -129,7 +129,7 @@ describe('clearCart when another tab fills the replacement slot', () => {
 });
 
 describe('clearCart on a cart the webhook already closed', () => {
-  it.each(['submitted', 'refund_pending'])(
+  it.each(['fulfilling', 'submitted', 'refund_pending'])(
     'never writes to a %s cart and opens a fresh empty one',
     async status => {
       await seedAndLoad('cs_paid');

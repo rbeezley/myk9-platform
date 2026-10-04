@@ -35,7 +35,18 @@ describe('junior declaration wiring (MYK9-879)', () => {
     expect(src).toContain('junior_handler_fee');
     expect(src).toContain('priceCartItems(');
     expect(src).toContain('authoritativeByItem.get(item.id)');
-    expect(src).toContain('p_junior_fee_declared: item.junior_fee_declared === true');
+    // MYK9-964: the declaration reaches create_online_paid_entry through the
+    // line snapshot (begin_cart_fulfillment copies it from the cart line,
+    // fulfill_cart_line passes it on), not from the webhook.
+    const migration = readFileSync(
+      resolve(
+        __dirname,
+        '../../../../../supabase/migrations/20261004214700_myk9_964_replayable_cart_fulfillment.sql'
+      ),
+      'utf8'
+    );
+    expect(migration).toContain('i.junior_fee_declared, i.entry_id');
+    expect(migration).toContain('        v_line.junior_fee_declared\n      ) AS x;');
     expect(src).not.toContain('authoritativeByClass');
     expect(src).not.toContain('authoritativeEntryFeeCents(');
   });

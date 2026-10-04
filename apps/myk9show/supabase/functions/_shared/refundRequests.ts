@@ -9,8 +9,10 @@
 //
 // Every queued request is written in the SAME transaction as its fulfillment
 // latch (Codex round 13 on #2689): claim_abandoned_cart_refund (cart ->
-// refund_pending) and queue_payment_link_refund (link -> paid). A redelivery
-// finds the latch closed and the request beside it.
+// refund_pending), queue_payment_link_refund (link -> paid) and, for cart
+// overflow, complete_cart_fulfillment (cart -> submitted; MYK9-964,
+// stripe-webhook/cartFulfillment.ts). A redelivery finds the latch closed and
+// the request beside it.
 
 import {
   abandonedCartMissingInputsAlert,
@@ -22,9 +24,7 @@ export const APPROVED_REFUND_METADATA_TYPE = 'approved_refund_request';
 export const REFUND_REQUEST_METADATA_KEY = 'refund_request_id';
 export const REFUND_ATTEMPT_METADATA_KEY = 'refund_attempt_no';
 
-// Cart overflow is not queued (Codex round 13 on #2689, option C): it is
-// refunded by hand from an operator alert until MYK9-964.
-export type RefundRequestKind = 'abandoned_cart' | 'entry_payment_link';
+export type RefundRequestKind = 'abandoned_cart' | 'entry_payment_link' | 'cart_overflow';
 
 interface RpcError {
   message: string;
@@ -65,7 +65,7 @@ function firstRow<T>(data: unknown): T | null {
 }
 
 /** A request the queue CONFIRMED exists: created, already there, or read back. */
-interface ConfirmedRequest {
+export interface ConfirmedRequest {
   id: string;
   /** Its current status, as the queue write or read reported it. */
   status: string | null;
@@ -91,9 +91,9 @@ const CLOSED_REQUEST_STATUSES: ReadonlySet<string> = new Set([
  * back, so an alert lost with a lost response is always recovered. It is
  * keyed on the request id, and alertAdmin deduplicates it while unresolved.
  * A closed request (refunded, resolved without refund) is not re-announced.
- * Deliberately not exported: only the queue helpers below call it.
+ * Called only by the queue helpers: those below and cartFulfillment.ts.
  */
-async function ensureRefundRequestAlert(
+export async function ensureRefundRequestAlert(
   deps: Pick<RefundQueueDeps, 'alertAdmin'>,
   request: ConfirmedRequest
 ): Promise<void> {

@@ -61,8 +61,7 @@ export function decideCartOverflowRefund(
     };
   }
 
-  // Entry fees of the unserved lines only, never the service fee (MYK9-966).
-  const refundAmountCents = entryFeeRefundCents({
+  const refundAmountCents = cartOverflowRefundAmountCents({
     unservedEntryFeeCents: noServiceSubtotalCents,
     fullSubtotalCents: subtotalCents,
     amountTotalCents: input.sessionAmountTotalCents,
@@ -89,6 +88,22 @@ export function decideCartOverflowRefund(
     paidAmountCents,
     reason: input.paidLineIds.length === 0 ? 'full_make_whole' : 'partial_no_service_lines',
   };
+}
+
+/**
+ * THE cart-overflow amount rule, in one place: what the unserved lines of a
+ * paid cart are owed back. Today it is their entry fees only, never the
+ * service fee (MYK9-966). The owner is deciding whether the unserved lines'
+ * share of the service fee is refunded too; that decision changes this
+ * function and nothing else.
+ */
+export function cartOverflowRefundAmountCents(input: {
+  unservedEntryFeeCents: number;
+  fullSubtotalCents: number;
+  amountTotalCents: number;
+  rates: PlatformFeeRates;
+}): number {
+  return entryFeeRefundCents(input);
 }
 
 function sumLineAmounts(lineAmountsById: Map<string, number>, lineIds: string[]): number {

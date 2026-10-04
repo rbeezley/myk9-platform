@@ -37,6 +37,7 @@ import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
 import {
   ListEmptyState,
+  GuestExportButton,
   ListFilterBar,
   ListResultLine,
   ListViewTabs,
@@ -44,8 +45,12 @@ import {
 } from '@/components/list-toolkit';
 import { useViewPreference } from '@/hooks/useViewPreference';
 import { usePageExportAction } from '@/features/actions/pageEditTarget';
-import { exportRowsCsv } from '@/utils/downloadCsv';
-import { SHOWS_EXPORT_HEADERS, showsExportRows } from '@/components/shows/browse/showsExport';
+import { dropExportColumns, exportRowsCsv } from '@/utils/downloadCsv';
+import {
+  SHOWS_EXPORT_HEADERS,
+  SHOWS_GUEST_EXPORT_OMIT,
+  showsExportRows,
+} from '@/components/shows/browse/showsExport';
 import { ErrorState } from '@/components/common/ErrorState';
 
 // Extracted hooks and components
@@ -261,6 +266,16 @@ const BrowseShowsPage: React.FC = () => {
     enabled: viewMode === 'table' && enhancedShows.length > 0,
     run: () => exportRowsCsv('shows', SHOWS_EXPORT_HEADERS, showsExportRows(enhancedShows)),
   });
+  // A signed-out visitor has no header Actions menu: the same list, minus the columns the public
+  // table does not show (MYK9-933).
+  const exportShowsAsGuest = () => {
+    const { headers, rows } = dropExportColumns(
+      SHOWS_EXPORT_HEADERS,
+      showsExportRows(enhancedShows),
+      SHOWS_GUEST_EXPORT_OMIT
+    );
+    exportRowsCsv('shows', headers, rows);
+  };
 
   // Handle a view change: remember it, and drop a `?view=` link's override so the choice sticks.
   const handleViewModeChange = useCallback(
@@ -511,6 +526,7 @@ const BrowseShowsPage: React.FC = () => {
                   }
                 : {})}
             >
+              <GuestExportButton enabled={enhancedShows.length > 0} onExport={exportShowsAsGuest} />
               <ListViewToggle
                 modes={VIEW_MODES}
                 active={viewMode}

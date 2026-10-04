@@ -24,3 +24,6 @@ export function showsExportRows(shows: readonly EnhancedShow[]): string[][] {
     show.clubName || '',
   ]);
 }
+
+/** Columns the public Shows table leaves off (Status is a secretary concern), so a guest's CSV does too. */
+export const SHOWS_GUEST_EXPORT_OMIT = ['Status'] as const;

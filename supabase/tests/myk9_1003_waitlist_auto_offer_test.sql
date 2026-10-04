@@ -24,6 +24,10 @@
 --       without an error.
 --   E1  An offer expired earlier in the same run frees the class: the next run
 --       offers the next dog at once (no skipped tick).
+--   P1  No offer for a class whose trial date has passed on the show's
+--       calendar day: the cron skips it, a direct automatic call returns NULL,
+--       and a manual offer is refused (22023). A trial dated today and a
+--       future trial are offered.
 --   M1  send_waitlist_offer_message: a secretary sends the payment-link copy as
 --       themselves; anyone else gets 42501; a non-https link gets 22023.
 --   A1  The new functions are SECURITY DEFINER with search_path '' and the
@@ -95,7 +99,9 @@ BEGIN
     'public.promote_waitlist_entry_from_cron(uuid)',
     'public.notify_waitlist_auto_offer(uuid)',
     'public.send_waitlist_offer_message_internal(uuid, uuid, text)',
-    'public.send_waitlist_offer_message(uuid, text)'
+    'public.send_waitlist_offer_message(uuid, text)',
+    'public.waitlist_class_trial_has_passed(uuid)',
+    'public.promote_waitlist_entry(uuid, integer)'
   ] LOOP
     PERFORM pg_temp.expect_eq(
       (SELECT p.prosecdef || ' ' || array_to_string(p.proconfig, ',')
@@ -107,7 +113,8 @@ BEGIN
     'public.offer_waitlist_spots_from_cron()',
     'public.promote_waitlist_entry_from_cron(uuid)',
     'public.notify_waitlist_auto_offer(uuid)',
-    'public.send_waitlist_offer_message_internal(uuid, uuid, text)'
+    'public.send_waitlist_offer_message_internal(uuid, uuid, text)',
+    'public.waitlist_class_trial_has_passed(uuid)'
   ] LOOP
     PERFORM pg_temp.expect_eq(
       has_function_privilege('anon', v_fn, 'EXECUTE') || ' '
@@ -137,6 +144,11 @@ $$;
 --     306 FULL    max 1 -> no seat;      queue 551
 --     307 EXPIRY  max 2 -> its seat held by open offer 561 (pending entry 661);
 --                 queue 562
+--   show 103 (switch on, America/Chicago) with three trials, each one class
+--   (max 2, one filler, one waiting dog):
+--     203 / 308 PAST    yesterday on the show's calendar   queue 571
+--     204 / 309 TODAY   today on the show's calendar       queue 581
+--     205 / 310 FUTURE  tomorrow on the show's calendar    queue 591
 -- ---------------------------------------------------------------------------
 INSERT INTO public.clubs (id, name) VALUES (pg_temp.fid('001'), 'MYK9-1003 Club');
 
@@ -184,7 +196,9 @@ VALUES
   (pg_temp.fid('101'), 'MYK9-1003 Auto Show', 'AKC',
    current_date + 30, current_date + 30, 'draft', pg_temp.fid('001')),
   (pg_temp.fid('102'), 'MYK9-1003 Manual Show', 'AKC',
-   current_date + 30, current_date + 30, 'draft', pg_temp.fid('001'));
+   current_date + 30, current_date + 30, 'draft', pg_temp.fid('001')),
+  (pg_temp.fid('103'), 'MYK9-1003 Dated Show', 'AKC',
+   current_date - 2, current_date + 2, 'draft', pg_temp.fid('001'));
 
 UPDATE public.shows SET waitlist_auto_offer = false WHERE id = pg_temp.fid('102');
 
@@ -192,6 +206,13 @@ INSERT INTO public.trials (id, show_id, name, date)
 VALUES
   (pg_temp.fid('201'), pg_temp.fid('101'), 'MYK9-1003 Auto Trial', current_date + 30),
   (pg_temp.fid('202'), pg_temp.fid('102'), 'MYK9-1003 Manual Trial', current_date + 30);
+
+-- The show's own calendar day, not the session's or UTC's.
+INSERT INTO public.trials (id, show_id, name, date, timezone)
+SELECT pg_temp.fid(v.id), pg_temp.fid('103'), 'MYK9-1003 ' || v.label,
+       (now() AT TIME ZONE 'America/Chicago')::date + v.offset_days, 'America/Chicago'
+FROM (VALUES ('203', 'Past Trial', -1), ('204', 'Today Trial', 0), ('205', 'Future Trial', 1))
+  AS v(id, label, offset_days);
 
 INSERT INTO public.classes (id, trial_id, name, status, status_source, max_entries, allow_waitlist)
 VALUES
@@ -201,7 +222,10 @@ VALUES
   (pg_temp.fid('304'), pg_temp.fid('201'), 'Class Race1', 'upcoming', 'derived', 2, true),
   (pg_temp.fid('305'), pg_temp.fid('201'), 'Class MailIn', 'upcoming', 'derived', 2, true),
   (pg_temp.fid('306'), pg_temp.fid('201'), 'Class Full', 'upcoming', 'derived', 1, true),
-  (pg_temp.fid('307'), pg_temp.fid('201'), 'Class Expiry', 'upcoming', 'derived', 2, true);
+  (pg_temp.fid('307'), pg_temp.fid('201'), 'Class Expiry', 'upcoming', 'derived', 2, true),
+  (pg_temp.fid('308'), pg_temp.fid('203'), 'Class Past', 'upcoming', 'manual', 2, true),
+  (pg_temp.fid('309'), pg_temp.fid('204'), 'Class Today', 'upcoming', 'manual', 2, true),
+  (pg_temp.fid('310'), pg_temp.fid('205'), 'Class Future', 'upcoming', 'manual', 2, true);
 
 -- Dogs 401-430, all the exhibitor's.
 INSERT INTO public.dogs (id, call_name, breed, owner_id)
@@ -212,15 +236,19 @@ INSERT INTO public.dog_registrations (dog_id, organization, registration_number,
 SELECT pg_temp.fid((400 + n)::text), 'AKC', 'SW1003' || n, 'Dog ' || n || ' Formally'
 FROM generate_series(1, 30) AS n;
 
--- One filler entry per class (dogs 401-407), plus the expiring offer's
+-- One filler entry per class (dogs 401-410), plus the expiring offer's
 -- pending-payment entry 661 (dog 420).
 SET LOCAL ROLE service_role;
 INSERT INTO public.entries (id, class_id, trial_id, show_id, dog_id, payment_status, entry_status)
 SELECT pg_temp.fid((600 + n)::text), pg_temp.fid((300 + n)::text),
-       CASE WHEN n = 2 THEN pg_temp.fid('202') ELSE pg_temp.fid('201') END,
-       CASE WHEN n = 2 THEN pg_temp.fid('102') ELSE pg_temp.fid('101') END,
+       CASE WHEN n = 2 THEN pg_temp.fid('202')
+            WHEN n >= 8 THEN pg_temp.fid((195 + n)::text)
+            ELSE pg_temp.fid('201') END,
+       CASE WHEN n = 2 THEN pg_temp.fid('102')
+            WHEN n >= 8 THEN pg_temp.fid('103')
+            ELSE pg_temp.fid('101') END,
        pg_temp.fid((400 + n)::text), 'pending', 'submitted'
-FROM generate_series(1, 7) AS n;
+FROM generate_series(1, 10) AS n;
 
 INSERT INTO public.entries (id, class_id, trial_id, show_id, dog_id, payment_status, entry_status)
 VALUES (pg_temp.fid('661'), pg_temp.fid('307'), pg_temp.fid('201'), pg_temp.fid('101'),
@@ -250,7 +278,10 @@ CROSS JOIN (VALUES
   ('542', '305', '421', 2, 'waiting', 'online'),
   ('551', '306', '422', 1, 'waiting', 'online'),
   ('561', '307', '420', 1, 'offered', 'online'),
-  ('562', '307', '423', 2, 'waiting', 'online')
+  ('562', '307', '423', 2, 'waiting', 'online'),
+  ('571', '308', '424', 1, 'waiting', 'online'),
+  ('581', '309', '425', 1, 'waiting', 'online'),
+  ('591', '310', '426', 1, 'waiting', 'online')
 ) AS v(id, class, dog, pos, status, via)
 WHERE ep.auth_user_id = pg_temp.fid('023');
 
@@ -259,7 +290,11 @@ BEGIN
   PERFORM pg_temp.expect_eq(
     (SELECT count(*)::text FROM public.waitlist_entries w
       WHERE w.id::text LIKE '00000000-0000-0000-0000-0000010035%'),
-    '13', 'FIXTURE thirteen wait list rows seeded');
+    '16', 'FIXTURE sixteen wait list rows seeded');
+  PERFORM pg_temp.expect_eq(
+    (SELECT string_agg((t.date - (now() AT TIME ZONE 'America/Chicago')::date)::text, ',' ORDER BY t.id)
+       FROM public.trials t WHERE t.show_id = pg_temp.fid('103')),
+    '-1,0,1', 'FIXTURE show 103''s trials are yesterday, today and tomorrow on its calendar');
   PERFORM pg_temp.expect_eq(
     (SELECT waitlist_auto_offer::text FROM public.shows WHERE id = pg_temp.fid('101')),
     'true', 'FIXTURE a show left at the default offers automatically');
@@ -274,6 +309,9 @@ SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001003021
 SELECT set_config('request.jwt.claims',
   '{"sub":"00000000-0000-0000-0000-000001003021","role":"authenticated","app_metadata":{}}', true);
 SELECT public.promote_waitlist_entry(pg_temp.fid('521')) IS NOT NULL AS manual_offer_made;
+SELECT pg_temp.expect_sqlstate(
+  $q$SELECT public.promote_waitlist_entry('00000000-0000-0000-0000-000001003571')$q$,
+  '22023', 'P1 a manual offer for a trial that has passed is refused');
 RESET ROLE;
 SELECT set_config('request.jwt.claim.sub', '', true);
 SELECT set_config('request.jwt.claims', '', true);
@@ -301,6 +339,10 @@ BEGIN
   PERFORM pg_temp.expect_eq(
     public.promote_waitlist_entry_from_cron(pg_temp.fid('522'))::text, NULL,
     'R1 no automatic offer into a class with a manual open offer (direct call)');
+  PERFORM pg_temp.expect_eq(
+    public.promote_waitlist_entry_from_cron(pg_temp.fid('571'))::text, NULL,
+    'P1 no automatic offer for a trial that has passed (direct call)');
+  PERFORM pg_temp.expect_eq(pg_temp.wl_status('571'), 'waiting', 'P1 the past-trial dog is still waiting');
 END;
 $$;
 
@@ -317,8 +359,14 @@ BEGIN
     (SELECT string_agg(substr(r.class_id::text, 34) || ':' || r.outcome || ':'
                        || substr(r.waitlist_entry_id::text, 34), ',' ORDER BY r.class_id)
        FROM run1 r),
-    '301:offered:501,304:offered:531,305:mail_in:541',
-    'RUN1 offers 301 and 304, reports 305''s mail-in first dog, nothing else');
+    '301:offered:501,304:offered:531,305:mail_in:541,309:offered:581,310:offered:591',
+    'RUN1 offers 301, 304, today''s 309 and the future 310; reports 305''s mail-in first dog; skips the past 308');
+  PERFORM pg_temp.expect_eq(
+    pg_temp.wl_status('571') || ' ' || pg_temp.wl_status('581') || ' ' || pg_temp.wl_status('591'),
+    'waiting offered offered', 'P1 past trial: no offer; today and future: offered');
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*)::text FROM public.entries WHERE class_id = pg_temp.fid('308')),
+    '1', 'P1 past trial: no pending-payment entry created');
 
   -- S2: the switched-off show
   PERFORM pg_temp.expect_eq(pg_temp.wl_status('511'), 'waiting', 'S2 switch off: dog still waiting');
@@ -373,7 +421,8 @@ BEGIN
   PERFORM pg_temp.expect_eq(
     (SELECT string_agg(n.deep_link_url, ',' ORDER BY n.message)
        FROM public.notifications n
-      WHERE n.user_id = pg_temp.fid('021') AND n.type = 'waitlist_auto_offer'),
+      WHERE n.user_id = pg_temp.fid('021') AND n.type = 'waitlist_auto_offer'
+        AND n.deep_link_url LIKE '%1003101%'),
     '/shows/00000000-0000-0000-0000-000001003101/entries?tab=waitlist,'
       || '/shows/00000000-0000-0000-0000-000001003101/entries?tab=waitlist',
     'N1 two automatic offers, two notices for the secretary, linked to the Waitlist tab');

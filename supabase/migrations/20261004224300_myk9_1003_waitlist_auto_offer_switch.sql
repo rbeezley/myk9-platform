@@ -32,6 +32,12 @@
 --   5. offer_waitlist_spots_from_cron() is the cron's whole offer step in one
 --      call: the first waiting row of every class in a live show with the
 --      switch on and no open offer. The edge function no longer picks rows.
+--   6. No offer, automatic or manual, for a class whose trial date has passed
+--      on the show's calendar day (waitlist_class_trial_has_passed): it would
+--      ask someone to pay for a trial that is over. A trial dated today is
+--      still offered. The manual path had the same gap, so
+--      promote_waitlist_entry now refuses it too (22023), and moves to
+--      SET search_path = '' (SA-027: convert when next edited).
 --
 -- Manual offer + automatic offer in the same window
 --   Every offer, manual or automatic, runs promote_waitlist_entry_internal
@@ -306,6 +312,103 @@ REVOKE ALL ON FUNCTION public.notify_waitlist_auto_offer(uuid) FROM PUBLIC, anon
 GRANT EXECUTE ON FUNCTION public.notify_waitlist_auto_offer(uuid) TO service_role;
 
 -- ---------------------------------------------------------------------------
+-- Past trials (item 6 above): has the class's trial date passed?
+-- ---------------------------------------------------------------------------
+-- The entry-close guard's calendar-day rule (submit_show_entries, MYK9-642 /
+-- 20261003221700): the show's zone is its first trial's timezone, matched
+-- against pg_timezone_names and falling back to America/New_York, and "today"
+-- is now() in that zone. trials.date is a plain date. A trial dated today has
+-- not passed; a trial with no date is never treated as past.
+CREATE OR REPLACE FUNCTION public.waitlist_class_trial_has_passed(p_class_id uuid)
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_trial_date date;
+  v_show_id uuid;
+  v_show_tz text;
+BEGIN
+  SELECT t.date, t.show_id
+  INTO v_trial_date, v_show_id
+  FROM public.classes c
+  JOIN public.trials t ON t.id = c.trial_id
+  WHERE c.id = p_class_id;
+
+  IF v_trial_date IS NULL THEN
+    RETURN false;
+  END IF;
+
+  v_show_tz := COALESCE(
+    (SELECT t.timezone
+       FROM public.trials t
+      WHERE t.show_id = v_show_id
+      ORDER BY t.date NULLS LAST, t.id
+      LIMIT 1),
+    'America/New_York'
+  );
+  v_show_tz := COALESCE(
+    (SELECT n.name FROM pg_catalog.pg_timezone_names n WHERE n.name = v_show_tz),
+    'America/New_York'
+  );
+
+  RETURN v_trial_date < (now() AT TIME ZONE v_show_tz)::date;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.waitlist_class_trial_has_passed(uuid)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.waitlist_class_trial_has_passed(uuid) TO service_role;
+
+-- The manual offer refuses a past trial too. Copied from
+-- 20260622000222_link_waitlist_promotions.sql (its only definition, identical
+-- live); the trial-date refusal is new, and every reference is now qualified
+-- for the empty search_path.
+CREATE OR REPLACE FUNCTION public.promote_waitlist_entry(
+  p_waitlist_entry_id uuid,
+  p_deadline_hours integer DEFAULT NULL
+)
+RETURNS uuid
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_show_id uuid;
+  v_club_id uuid;
+  v_class_id uuid;
+BEGIN
+  SELECT t.show_id, s.club_id, wl.class_id
+  INTO v_show_id, v_club_id, v_class_id
+  FROM public.waitlist_entries wl
+  JOIN public.classes c ON c.id = wl.class_id
+  JOIN public.trials t ON t.id = c.trial_id
+  JOIN public.shows s ON s.id = t.show_id
+  WHERE wl.id = p_waitlist_entry_id;
+
+  IF NOT (
+    public.is_show_secretary(v_show_id)
+    OR public.is_club_admin(v_club_id)
+    OR public.is_site_admin()
+  ) THEN
+    RAISE EXCEPTION 'Permission denied';
+  END IF;
+
+  IF public.waitlist_class_trial_has_passed(v_class_id) THEN
+    RAISE EXCEPTION 'This trial has already taken place, so its wait list spots cannot be offered.'
+      USING ERRCODE = '22023';
+  END IF;
+
+  RETURN public.promote_waitlist_entry_internal(p_waitlist_entry_id, p_deadline_hours);
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.promote_waitlist_entry(uuid, integer) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.promote_waitlist_entry(uuid, integer) TO authenticated;
+
+-- ---------------------------------------------------------------------------
 -- 4. The guarded automatic offer
 -- ---------------------------------------------------------------------------
 -- Rewritten from 20260622000222_link_waitlist_promotions.sql (its only
@@ -349,6 +452,11 @@ BEGIN
 
   -- The secretary turned automatic offers off for this show.
   IF NOT coalesce(v_auto_offer, false) THEN
+    RETURN NULL;
+  END IF;
+
+  -- Never ask anyone to pay for a trial that is over.
+  IF public.waitlist_class_trial_has_passed(v_wl.class_id) THEN
     RETURN NULL;
   END IF;
 
@@ -408,7 +516,8 @@ GRANT EXECUTE ON FUNCTION public.promote_waitlist_entry_from_cron(uuid) TO servi
 --   'offered'  an offer went out (waitlist_entry_id is the offered row)
 --   'mail_in'  the first dog in line joined by mail; the secretary offers it
 --   'error'    the offer failed unexpectedly (detail carries the message)
--- A class with no free seat, an open offer, or the switch off returns nothing.
+-- A class with no free seat, an open offer, a past trial, or the switch off
+-- returns nothing.
 CREATE OR REPLACE FUNCTION public.offer_waitlist_spots_from_cron()
 RETURNS TABLE (
   class_id uuid,
@@ -436,6 +545,7 @@ BEGIN
       AND c.deleted_at IS NULL
       AND t.deleted_at IS NULL
       AND s.deleted_at IS NULL
+      AND NOT public.waitlist_class_trial_has_passed(w.class_id)
       AND NOT EXISTS (
         SELECT 1
         FROM public.waitlist_entries o

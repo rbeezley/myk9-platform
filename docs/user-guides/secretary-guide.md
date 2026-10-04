@@ -134,7 +134,7 @@ The view tabs across the top — _Needs review_, _Missing info_, _Payment due_, 
    - **On:** within 15 minutes the system offers the spot to the dog at the top of the queue (the order people joined), and you get a notification in the bell naming the dog and the class, with a **View** link back to this tab. It makes one offer per class at a time and never offers a mail-in entry; when the dog at the top joined by mail, offer it yourself. You can still offer a spot yourself, and the system never adds a second offer to a class that already has one.
    - **Off:** nothing is offered for you. Click **Offer Spot** on the dog at the top of the queue (the button only appears while the class has a free spot).
 
-   Either way the dog moves off the queue and the exhibitor gets an email, a push notification and an in-app message; your own offer's message carries a payment link, and an automatic one sends them to My Entries to pay. The spot is held for the offer window (48 hours unless you change it under **Wait list settings**) and counts as taken until it is paid or lapses.
+   Either way the dog moves off the queue and the exhibitor gets an email, a push notification and an in-app message; your own offer's message carries a payment link, and an automatic one sends them to My Entries to pay. The spot is held for the offer window (48 hours unless you change it under **Wait list settings**) and counts as taken until it is paid or lapses. Once a trial's date has passed, nobody can offer its spots, you or the system.
 
 4. **Remove** takes a dog off the queue for good. The exhibitor is not told.
 

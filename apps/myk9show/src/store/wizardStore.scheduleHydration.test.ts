@@ -45,7 +45,8 @@ describe('persisted wizard schedule recovery', () => {
     const state = useWizardStore.getState();
     const view = createWizardTrialView([trial], []);
     const { rpcInput } = buildCreateShowPayload(
-      { ...state.show, timezone: 'America/Denver' },
+      // A hosting club: the builder refuses a show without one (MYK9-1008).
+      { ...state.show, clubId: 'club-1', timezone: 'America/Denver' },
       [trial],
       {},
       new Map(),

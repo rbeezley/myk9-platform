@@ -194,16 +194,16 @@ begin
 end;
 $$;
 
--- A club admin must not become an official for a show whose club_id is NULL.
-update public.shows set club_id = null
- where id = '00000000-0000-0000-0000-000000665002';
-select pg_temp.call_handler_update(
-  '00000000-0000-0000-0000-000000665105', 'MYK9-665 Null Club Attempt', false,
-  'Not authorized: caller does not own entry %');
+-- (The "show whose club_id is NULL" case was removed by MYK9-1008: shows.club_id
+-- is NOT NULL, so that state cannot exist.)
 
--- A non-owner/non-handler cannot use the correction RPC.
+-- A non-owner/non-handler cannot use the correction RPC. The original handler
+-- (665102) stopped being the handler when the club admin reassigned the entry
+-- above, owns nothing, and holds no role. (This case used the club secretary,
+-- which was only refused because the previous case had cleared the show's
+-- club; MYK9-1008 made that state impossible.)
 select pg_temp.call_handler_update(
-  '00000000-0000-0000-0000-000000665103', 'MYK9-665 Intruder', false,
+  '00000000-0000-0000-0000-000000665102', 'MYK9-665 Intruder', false,
   'Not authorized: caller does not own entry %');
 
 rollback;

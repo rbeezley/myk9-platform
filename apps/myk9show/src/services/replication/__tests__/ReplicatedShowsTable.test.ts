@@ -12,7 +12,12 @@
  * - Error handling and validation
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { ReplicatedShowsTable, type ReplicatedShow } from '../ReplicatedShowsTable';
+import {
+  ReplicatedShowsTable,
+  type ReplicatedShow,
+  type ReplicatedShowCreateInput,
+} from '../ReplicatedShowsTable';
+import { SHOW_REQUIRES_CLUB_MESSAGE } from '@/services/database/shows/requireShowClub';
 import { fromAny } from '@total-typescript/shoehorn';
 
 // Mock dependencies
@@ -210,7 +215,7 @@ describe('ReplicatedShowsTable', () => {
 
     describe('getAll', () => {
       it('should return empty array when no shows exist', async () => {
-        const results = await table.getAll();
+        const results = await table.getAllShows();
         expect(results).toEqual([]);
       });
 
@@ -243,7 +248,7 @@ describe('ReplicatedShowsTable', () => {
           await table.set(show.id, show);
         }
 
-        const results = await table.getAll();
+        const results = await table.getAllShows();
         expect(results).toHaveLength(3);
       });
     });
@@ -878,7 +883,7 @@ describe('ReplicatedShowsTable', () => {
 
   describe('Show Creation', () => {
     it('should create new show with generated ID', async () => {
-      const newShowData: Omit<ReplicatedShow, 'id'> = {
+      const newShowData: ReplicatedShowCreateInput = {
         name: 'New Show',
         organization: 'Agility',
         startDate: '2024-09-15',
@@ -908,12 +913,69 @@ describe('ReplicatedShowsTable', () => {
         organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
+        clubId: 'club-123',
       });
 
       expect(result._lastModified).toBeInstanceOf(Date);
       expect(result._syncStatus).toBe('pending');
       expect(result._version).toBe(1);
       expect(result._localOnly).toBe(true);
+    });
+
+    // MYK9-1008: shows.club_id is NOT NULL. A clubless create queued offline
+    // would only fail when it synced, so it is refused before any write.
+    it.each(['', '   '])('refuses a show with no club (%j) and writes nothing', async clubId => {
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+      const before = await table.getAllShows();
+
+      await expect(
+        table.createShow({
+          name: 'Clubless Show',
+          organization: 'Obedience',
+          startDate: '2024-06-15',
+          endDate: '2024-06-16',
+          clubId,
+        })
+      ).rejects.toThrow(SHOW_REQUIRES_CLUB_MESSAGE);
+
+      expect(queueMutation).not.toHaveBeenCalled();
+      expect(await table.getAllShows()).toHaveLength(before.length);
+    });
+
+    it('queues the INSERT with the club it was given', async () => {
+      const queueMutation = vi.spyOn(
+        table as unknown as {
+          queueMutation: (
+            operation: string,
+            rowId: string,
+            payload: Record<string, unknown>
+          ) => Promise<string | null>;
+        },
+        'queueMutation'
+      );
+
+      const result = await table.createShow({
+        name: 'Club Show',
+        organization: 'Obedience',
+        startDate: '2024-06-15',
+        endDate: '2024-06-16',
+        clubId: 'club-123',
+      });
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        'INSERT',
+        result.id,
+        expect.objectContaining({ club_id: 'club-123' })
+      );
     });
 
     it('should queue an empty published experience object for new show inserts', async () => {
@@ -933,6 +995,7 @@ describe('ReplicatedShowsTable', () => {
         organization: 'Obedience',
         startDate: '2024-06-15',
         endDate: '2024-06-16',
+        clubId: 'club-123',
       });
 
       expect(queueMutation).toHaveBeenCalledWith(
@@ -1588,7 +1651,7 @@ describe('ReplicatedShowsTable', () => {
 
       await table.clearCache();
 
-      const results = await table.getAll();
+      const results = await table.getAllShows();
       expect(results).toEqual([]);
     });
 

@@ -44,6 +44,15 @@ test.describe('Trial CRUD Operations', () => {
 
     const result = await page.evaluate(async () => {
       const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
+      // MYK9-1008: every show belongs to a club (shows.club_id is NOT NULL).
+      const { supabase: clubLookup } = await import('/src/services/database/supabaseClient.ts');
+      const { data: hostClub } = await clubLookup
+        .from('clubs')
+        .select('id')
+        .is('deleted_at', null)
+        .limit(1)
+        .single();
+      if (!hostClub) return { success: false, error: 'No club to host the test show' };
       const { createTrial, deleteTrial } = await import('/src/services/database/trials/index.ts');
 
       // First create a show (trials require a show)
@@ -53,6 +62,7 @@ test.describe('Trial CRUD Operations', () => {
       showEndDate.setDate(showEndDate.getDate() + 3);
 
       const showData = {
+        club_id: hostClub.id,
         name: `Test Show for Trial ${Date.now()}`,
         organization: 'AKC',
         start_date: showStartDate.toISOString().split('T')[0],
@@ -109,6 +119,15 @@ test.describe('Trial CRUD Operations', () => {
 
     const result = await page.evaluate(async () => {
       const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
+      // MYK9-1008: every show belongs to a club (shows.club_id is NOT NULL).
+      const { supabase: clubLookup } = await import('/src/services/database/supabaseClient.ts');
+      const { data: hostClub } = await clubLookup
+        .from('clubs')
+        .select('id')
+        .is('deleted_at', null)
+        .limit(1)
+        .single();
+      if (!hostClub) return { success: false, error: 'No club to host the test show' };
       const { createTrial, updateTrial, deleteTrial } =
         await import('/src/services/database/trials/index.ts');
 
@@ -119,6 +138,7 @@ test.describe('Trial CRUD Operations', () => {
       showEndDate.setDate(showEndDate.getDate() + 3);
 
       const showData = {
+        club_id: hostClub.id,
         name: `Update Test Show ${Date.now()}`,
         organization: 'AKC',
         start_date: showStartDate.toISOString().split('T')[0],
@@ -190,6 +210,15 @@ test.describe('Trial CRUD Operations', () => {
 
     const result = await page.evaluate(async () => {
       const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
+      // MYK9-1008: every show belongs to a club (shows.club_id is NOT NULL).
+      const { supabase: clubLookup } = await import('/src/services/database/supabaseClient.ts');
+      const { data: hostClub } = await clubLookup
+        .from('clubs')
+        .select('id')
+        .is('deleted_at', null)
+        .limit(1)
+        .single();
+      if (!hostClub) return { success: false, error: 'No club to host the test show' };
       const { createTrial, deleteTrial, getTrialById } =
         await import('/src/services/database/trials/index.ts');
 
@@ -200,6 +229,7 @@ test.describe('Trial CRUD Operations', () => {
       showEndDate.setDate(showEndDate.getDate() + 3);
 
       const showData = {
+        club_id: hostClub.id,
         name: `Delete Test Show ${Date.now()}`,
         organization: 'AKC',
         start_date: showStartDate.toISOString().split('T')[0],
@@ -263,6 +293,15 @@ test.describe('Trial CRUD Operations', () => {
 
     const result = await page.evaluate(async () => {
       const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
+      // MYK9-1008: every show belongs to a club (shows.club_id is NOT NULL).
+      const { supabase: clubLookup } = await import('/src/services/database/supabaseClient.ts');
+      const { data: hostClub } = await clubLookup
+        .from('clubs')
+        .select('id')
+        .is('deleted_at', null)
+        .limit(1)
+        .single();
+      if (!hostClub) return { success: false, error: 'No club to host the test show' };
       const { createTrial, deleteTrial, getTrialsByShow } =
         await import('/src/services/database/trials/index.ts');
 
@@ -273,6 +312,7 @@ test.describe('Trial CRUD Operations', () => {
       showEndDate.setDate(showEndDate.getDate() + 3);
 
       const showData = {
+        club_id: hostClub.id,
         name: `Query Test Show ${Date.now()}`,
         organization: 'AKC',
         start_date: showStartDate.toISOString().split('T')[0],

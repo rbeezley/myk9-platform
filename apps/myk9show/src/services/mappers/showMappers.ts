@@ -10,6 +10,7 @@ import type { ReplicatedJudgeAssignment } from '@/services/replication/Replicate
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import { getTrialTimezone } from '@/features/registries';
 import { formatTrialTypeLabel } from '@/types/template.types';
+import { requireShowClubId } from '@/services/database/shows/requireShowClub';
 
 /**
  * Maps ShowInput (from Zustand store) to DbShowInsert (for Supabase insertion)
@@ -31,7 +32,8 @@ export const mapShowInputToInsert = (input: ShowInput): DbShowInsert => {
     // Omitted when unset (the column defaults to NULL), so creating a show never names a
     // column an unmigrated database does not have yet.
     ...(input.juniorHandlerFee ? { junior_handler_fee: parseFloat(input.juniorHandlerFee) } : {}),
-    club_id: input.clubId,
+    // MYK9-1008: shows.club_id is NOT NULL; refuse with a sentence, not a 23502.
+    club_id: requireShowClubId(input.clubId),
     max_entries_per_dog: null, // Will be set from trials
     max_total_entries: null, // Will be set from trials
     allow_non_owner_handlers: true, // Default to true

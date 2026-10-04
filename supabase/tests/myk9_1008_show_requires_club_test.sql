@@ -1,21 +1,36 @@
--- MYK9-258: a show with no club must not be manageable by every secretary.
+-- MYK9-1008: a show must belong to a club.
 --
--- is_trial_secretary/is_club_admin treat a NULL argument as "no club filter",
--- so passing a nullable `shows.club_id` positionally made every club-less show
--- manageable by every active secretary and club admin on the platform. Found on
--- staging by the G9 rehearsal's per-show scope assertion: four secretaries in
--- four different clubs each reported managing the same club-less show.
+-- 20261004181900 made shows.club_id NOT NULL and removed the MYK9-258
+-- `s.club_id IS NOT NULL AND …` guards from ten SQL functions and 23 RLS
+-- policies. Those guards existed because is_trial_secretary(check_club_id) and
+-- is_club_admin(check_club_id) read a NULL argument as "any club": a club-less
+-- show matched every active secretary and club admin on the platform (MYK9-258,
+-- found on staging by the G9 rehearsal).
 --
--- Each case asserts BOTH directions. A test that only proves the club-less show
--- is hidden would also pass if the guard hid everything, which would be a worse
--- bug in the other direction.
+-- This file asserts two things:
+--
+--   0. The database refuses a show without a club: an INSERT that omits
+--      club_id, an INSERT that passes NULL (also as a club admin through RLS),
+--      an UPDATE that clears it, and create_show_with_children without one.
+--      Each refusal is paired with the same statement WITH a club succeeding,
+--      so "refused" cannot mean "this statement is broken for everyone".
+--
+--   1-5. The functions the migration rewrote still scope by club. Every case
+--      asserts BOTH directions against a show in club C, where no fixture
+--      identity holds a role: the caller reaches their own club's show, and
+--      does not reach club C's. A guard removal that also dropped the club
+--      filter (or a NOT NULL that silently never applied) fails here.
+--      cross_club_policy_authorization_test.sql is the RLS-policy half.
 --
 -- All fixtures and role changes roll back.
 
 BEGIN;
 
 INSERT INTO public.clubs (id, name)
-VALUES ('00000000-0000-0000-0000-000000000c01', 'MYK9-258 Club A');
+VALUES
+  ('00000000-0000-0000-0000-000000000c01', 'MYK9-258 Club A'),
+  -- Club C hosts the cross-club show. No fixture identity holds a role here.
+  ('00000000-0000-0000-0000-000000000c03', 'MYK9-1008 Club C');
 
 INSERT INTO public.people (id, first_name, last_name, auth_user_id)
 VALUES
@@ -66,10 +81,9 @@ SELECT
 FROM public.roles
 WHERE name = 'club_admin';
 
--- One show in club A, and one with NO club at all — the shape that leaked.
--- `organization` is NOT NULL with no default (migration 040 renamed the original
--- required `type` column), so omitting it aborts the whole test file before any
--- assertion runs.
+-- One show in club A, and one in club C (nobody's club). `organization` is
+-- NOT NULL with no default (migration 040 renamed the original required `type`
+-- column), so omitting it aborts the whole test file before any assertion runs.
 INSERT INTO public.shows (id, name, organization, club_id, status, start_date, end_date)
 VALUES
   (
@@ -83,16 +97,16 @@ VALUES
   ),
   (
     '00000000-0000-0000-0000-000000000c32',
-    'MYK9-258 Club-less Show',
+    'MYK9-1008 Club C Show',
     'AKC',
-    NULL,
+    '00000000-0000-0000-0000-000000000c03',
     'published',
     DATE '2026-09-01',
     DATE '2026-09-02'
   );
 
--- An entry on EACH show. Without one on the club-less show, case 1.6 passes
--- against the vulnerable function too — an empty export and a denied export are
+-- An entry on EACH show. Without one on the club C show, case 1.6 passes
+-- against a broken function too — an empty export and a denied export are
 -- indistinguishable — so the assertion would certify nothing.
 -- payment_status / entry_fee are the `can_view_admin`-masked columns case 5
 -- reads back through view_authenticated_entry_results; without a value the
@@ -101,6 +115,148 @@ INSERT INTO public.entries (id, show_id, armband, payment_status, entry_fee)
 VALUES
   ('00000000-0000-0000-0000-000000000c51', '00000000-0000-0000-0000-000000000c31', '101', 'paid', 25),
   ('00000000-0000-0000-0000-000000000c52', '00000000-0000-0000-0000-000000000c32', '201', 'paid', 35);
+
+-- ---------------------------------------------------------------------------
+-- 0. A show without a club is refused
+-- ---------------------------------------------------------------------------
+DO $$
+BEGIN
+  IF NOT (SELECT attnotnull FROM pg_attribute
+           WHERE attrelid = 'public.shows'::regclass AND attname = 'club_id') THEN
+    RAISE EXCEPTION 'FAIL 0.0 shows.club_id is nullable';
+  END IF;
+  IF (SELECT confdeltype FROM pg_constraint
+       WHERE conrelid = 'public.shows'::regclass AND conname = 'shows_club_id_fkey')
+     IS DISTINCT FROM 'r' THEN
+    RAISE EXCEPTION 'FAIL 0.0 shows_club_id_fkey is not ON DELETE RESTRICT';
+  END IF;
+  RAISE NOTICE 'PASS 0.0 shows.club_id is NOT NULL and its FK is ON DELETE RESTRICT';
+END;
+$$;
+
+-- 0.1 / 0.2 The migration/seed session (no SET ROLE, so no RLS and no
+-- API-role trigger carve-outs): an omitted club and an explicit NULL.
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO public.shows (id, name, organization, status, start_date, end_date)
+    VALUES ('00000000-0000-0000-0000-000000000c61', 'MYK9-1008 No Club', 'AKC',
+            'draft', DATE '2026-09-01', DATE '2026-09-02');
+    RAISE EXCEPTION 'FAIL 0.1 a show with no club_id was inserted';
+  EXCEPTION WHEN not_null_violation THEN
+    RAISE NOTICE 'PASS 0.1 a show that omits club_id is refused (23502)';
+  END;
+
+  BEGIN
+    INSERT INTO public.shows (id, name, organization, club_id, status, start_date, end_date)
+    VALUES ('00000000-0000-0000-0000-000000000c62', 'MYK9-1008 Null Club', 'AKC',
+            NULL, 'draft', DATE '2026-09-01', DATE '2026-09-02');
+    RAISE EXCEPTION 'FAIL 0.2 a show with club_id NULL was inserted';
+  EXCEPTION WHEN not_null_violation THEN
+    RAISE NOTICE 'PASS 0.2 a show with club_id NULL is refused (23502)';
+  END;
+
+  -- 0.3 An existing show cannot have its club cleared.
+  BEGIN
+    UPDATE public.shows SET club_id = NULL
+     WHERE id = '00000000-0000-0000-0000-000000000c31';
+    RAISE EXCEPTION 'FAIL 0.3 an UPDATE cleared a show''s club';
+  EXCEPTION WHEN not_null_violation THEN
+    RAISE NOTICE 'PASS 0.3 clearing a show''s club is refused (23502)';
+  END;
+  IF (SELECT club_id FROM public.shows WHERE id = '00000000-0000-0000-0000-000000000c31')
+     IS DISTINCT FROM '00000000-0000-0000-0000-000000000c01'::uuid THEN
+    RAISE EXCEPTION 'FAIL 0.3 club A''s show lost its club';
+  END IF;
+END;
+$$;
+
+-- 0.4 / 0.5 Club A's admin through the API role. shows_insert no longer
+-- carries the `club_id IS NOT NULL` guard, and is_club_admin(NULL) answers
+-- "club admin anywhere?", so the policy admits a NULL club: the column is what
+-- refuses it now. The positive control is the same INSERT with the admin's own
+-- club, which must succeed.
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000000c22', true);
+SELECT set_config(
+  'request.jwt.claims',
+  '{"sub":"00000000-0000-0000-0000-000000000c22","role":"authenticated","app_metadata":{}}',
+  true
+);
+SET LOCAL ROLE authenticated;
+
+DO $$
+BEGIN
+  BEGIN
+    INSERT INTO public.shows (id, name, organization, club_id, status, start_date, end_date)
+    VALUES ('00000000-0000-0000-0000-000000000c63', 'MYK9-1008 API Null Club', 'AKC',
+            NULL, 'draft', DATE '2026-09-01', DATE '2026-09-02');
+    RAISE EXCEPTION 'FAIL 0.4 a club admin inserted a show with no club';
+  EXCEPTION WHEN not_null_violation THEN
+    RAISE NOTICE 'PASS 0.4 a club admin''s show with no club is refused (23502)';
+  END;
+
+  INSERT INTO public.shows (id, name, organization, club_id, status, start_date, end_date)
+  VALUES ('00000000-0000-0000-0000-000000000c64', 'MYK9-1008 API Own Club', 'AKC',
+          '00000000-0000-0000-0000-000000000c01', 'draft', DATE '2026-09-01', DATE '2026-09-02');
+  RAISE NOTICE 'PASS 0.5 the same club admin still inserts a show in their own club';
+END;
+$$;
+
+-- 0.6 / 0.7 create_show_with_children, the Add Show wizard's online path:
+-- refused without a club (its own 22023 check, ahead of every authorization
+-- question), and accepted with the admin's club.
+DO $$
+DECLARE
+  v_message text;
+  v_created uuid;
+BEGIN
+  BEGIN
+    PERFORM public.create_show_with_children(
+      jsonb_build_object(
+        'id', '00000000-0000-0000-0000-000000000c65',
+        'name', 'MYK9-1008 RPC No Club',
+        'organization', 'AKC',
+        'start_date', '2026-09-01',
+        'end_date', '2026-09-02',
+        'status', 'draft',
+        'accept_check_payments', true,
+        'accept_cash_payments', true
+      ),
+      '[]'::jsonb, '[]'::jsonb, ARRAY[]::uuid[]
+    );
+    RAISE EXCEPTION 'FAIL 0.6 create_show_with_children created a show with no club';
+  EXCEPTION WHEN invalid_parameter_value THEN
+    GET STACKED DIAGNOSTICS v_message = MESSAGE_TEXT;
+    IF v_message !~ 'non-null club_id' THEN
+      RAISE EXCEPTION 'FAIL 0.6 unexpected message: %', v_message;
+    END IF;
+    RAISE NOTICE 'PASS 0.6 create_show_with_children refuses a show with no club (22023)';
+  END;
+
+  v_created := public.create_show_with_children(
+    jsonb_build_object(
+      'id', '00000000-0000-0000-0000-000000000c66',
+      'name', 'MYK9-1008 RPC Own Club',
+      'organization', 'AKC',
+      'club_id', '00000000-0000-0000-0000-000000000c01',
+      'start_date', '2026-09-01',
+      'end_date', '2026-09-02',
+      'status', 'draft',
+      'accept_check_payments', true,
+      'accept_cash_payments', true
+    ),
+    '[]'::jsonb, '[]'::jsonb, ARRAY[]::uuid[]
+  );
+  IF v_created IS DISTINCT FROM '00000000-0000-0000-0000-000000000c66'::uuid THEN
+    RAISE EXCEPTION 'FAIL 0.7 create_show_with_children did not create the club''s show (got %)', v_created;
+  END IF;
+  RAISE NOTICE 'PASS 0.7 create_show_with_children still creates a show for the admin''s club';
+END;
+$$;
+
+RESET ROLE;
+SELECT set_config('request.jwt.claims', '', true);
+SELECT set_config('request.jwt.claim.sub', '', true);
 
 -- ---------------------------------------------------------------------------
 -- 1. The club secretary
@@ -114,7 +270,7 @@ SELECT set_config(
 DO $$
 DECLARE
   v_sees_own boolean;
-  v_sees_clubless boolean;
+  v_sees_club_c boolean;
 BEGIN
   SELECT EXISTS (
     SELECT 1 FROM public.manageable_show_ids() m
@@ -123,7 +279,7 @@ BEGIN
   SELECT EXISTS (
     SELECT 1 FROM public.manageable_show_ids() m
     WHERE m = '00000000-0000-0000-0000-000000000c32'
-  ) INTO v_sees_clubless;
+  ) INTO v_sees_club_c;
 
   IF NOT v_sees_own THEN
     RAISE EXCEPTION
@@ -131,11 +287,11 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS 1.1 club secretary still manages their own club''s show';
 
-  IF v_sees_clubless THEN
+  IF v_sees_club_c THEN
     RAISE EXCEPTION
-      'FAIL 1.2 club secretary manages a show with no club (MYK9-258)';
+      'FAIL 1.2 club secretary manages club C''s show';
   END IF;
-  RAISE NOTICE 'PASS 1.2 club secretary does not manage a club-less show';
+  RAISE NOTICE 'PASS 1.2 club secretary does not manage club C''s show';
 END;
 $$;
 
@@ -147,18 +303,18 @@ BEGIN
   RAISE NOTICE 'PASS 1.3 can_manage_show admits the secretary to their own show';
 
   IF public.can_manage_show('00000000-0000-0000-0000-000000000c32') THEN
-    RAISE EXCEPTION 'FAIL 1.4 can_manage_show admitted a club-less show (MYK9-258)';
+    RAISE EXCEPTION 'FAIL 1.4 can_manage_show admitted club C''s show';
   END IF;
-  RAISE NOTICE 'PASS 1.4 can_manage_show rejects a club-less show';
+  RAISE NOTICE 'PASS 1.4 can_manage_show rejects club C''s show';
 
   IF public.is_show_office_manager('00000000-0000-0000-0000-000000000c32') THEN
     RAISE EXCEPTION
-      'FAIL 1.5 is_show_office_manager admitted a club-less show (MYK9-258)';
+      'FAIL 1.5 is_show_office_manager admitted club C''s show';
   END IF;
-  RAISE NOTICE 'PASS 1.5 is_show_office_manager rejects a club-less show';
+  RAISE NOTICE 'PASS 1.5 is_show_office_manager rejects club C''s show';
 
-  -- get_entries_for_export returns owner email and phone, so the club-less show
-  -- handed every secretary a full entrant export including PII.
+  -- get_entries_for_export returns owner email and phone: a show outside the
+  -- caller's club must export nothing.
   --
   -- Both directions, and in this order: the authorized export must return its
   -- seeded row FIRST, otherwise "returns nothing" below proves only that the
@@ -175,14 +331,14 @@ BEGIN
     SELECT 1 FROM public.get_entries_for_export('00000000-0000-0000-0000-000000000c32')
   ) THEN
     RAISE EXCEPTION
-      'FAIL 1.6b get_entries_for_export returned rows for a club-less show (MYK9-258)';
+      'FAIL 1.6b get_entries_for_export returned rows for club C''s show';
   END IF;
-  RAISE NOTICE 'PASS 1.6b get_entries_for_export returns nothing for a club-less show';
+  RAISE NOTICE 'PASS 1.6b get_entries_for_export returns nothing for club C''s show';
 END;
 $$;
 
 -- ---------------------------------------------------------------------------
--- 2. The club admin — same collapse, separate arm
+-- 2. The club admin — separate arm (is_club_admin)
 -- ---------------------------------------------------------------------------
 SELECT set_config(
   'request.jwt.claim.sub',
@@ -193,7 +349,7 @@ SELECT set_config(
 DO $$
 DECLARE
   v_sees_own boolean;
-  v_sees_clubless boolean;
+  v_sees_club_c boolean;
 BEGIN
   SELECT EXISTS (
     SELECT 1 FROM public.manageable_show_ids() m
@@ -202,33 +358,32 @@ BEGIN
   SELECT EXISTS (
     SELECT 1 FROM public.manageable_show_ids() m
     WHERE m = '00000000-0000-0000-0000-000000000c32'
-  ) INTO v_sees_clubless;
+  ) INTO v_sees_club_c;
 
   IF NOT v_sees_own THEN
     RAISE EXCEPTION 'FAIL 2.1 club admin lost their own club''s show';
   END IF;
   RAISE NOTICE 'PASS 2.1 club admin still manages their own club''s show';
 
-  IF v_sees_clubless THEN
+  IF v_sees_club_c THEN
     RAISE EXCEPTION
-      'FAIL 2.2 club admin manages a show with no club (MYK9-258)';
+      'FAIL 2.2 club admin manages club C''s show';
   END IF;
-  RAISE NOTICE 'PASS 2.2 club admin does not manage a club-less show';
+  RAISE NOTICE 'PASS 2.2 club admin does not manage club C''s show';
 END;
 $$;
 
 -- ---------------------------------------------------------------------------
--- 3. A trial under the club-less show
+-- 3. A trial under club C's show
 --
--- can_manage_trial reaches the club through the trial's show, so it inherits
--- the same defect one join away.
+-- can_manage_trial reaches the club through the trial's show, one join away.
 -- ---------------------------------------------------------------------------
 -- `trials` uses `date` (not `trial_date`) and requires `name`.
 INSERT INTO public.trials (id, show_id, name, date)
 VALUES (
   '00000000-0000-0000-0000-000000000c41',
   '00000000-0000-0000-0000-000000000c32',
-  'MYK9-258 Club-less Trial',
+  'MYK9-1008 Club C Trial',
   DATE '2026-09-01'
 );
 
@@ -242,34 +397,20 @@ DO $$
 BEGIN
   IF public.can_manage_trial('00000000-0000-0000-0000-000000000c41') THEN
     RAISE EXCEPTION
-      'FAIL 3.1 can_manage_trial admitted a trial of a club-less show (MYK9-258)';
+      'FAIL 3.1 can_manage_trial admitted a trial of club C''s show';
   END IF;
-  RAISE NOTICE 'PASS 3.1 can_manage_trial rejects a trial of a club-less show';
+  RAISE NOTICE 'PASS 3.1 can_manage_trial rejects a trial of club C''s show';
 END;
 $$;
 
 -- ---------------------------------------------------------------------------
--- 4. The show-scoped arm still works
+-- 4. The show-scoped arm grants nothing across clubs
 --
--- This case originally granted a show-scoped secretary role on the CLUB-LESS
--- show, to prove the guard had not broken that arm. CI rejected it:
---
---   club_id is required for role "secretary" — secretary and club_admin roles
---   must be scoped to a club
---
--- So that state is unreachable: a show-scoped secretary grant always carries a
--- club, and the show-scoped arm therefore cannot reach a club-less show at all.
--- The original case was asserting something the schema forbids.
---
--- What is worth pinning has since inverted. When MYK9-258 was written the
--- opposite risk was that the new `club_id IS NOT NULL` guards had narrowed the
--- show-scoped arm for shows that DO have a club, so this case asserted that a
--- secretary of club B still reached club A's show through an explicit
--- show-scoped grant. The label/permission split retired that arm on purpose: a
--- show-scoped row is now paperwork and carries no permission, and appointment
--- to the owning club is the only thing that grants access. So the case below
--- now asserts the reverse — club B's secretary must NOT reach club A's show —
--- while 4.2 keeps its original force unchanged.
+-- The label/permission split made a show-scoped user_roles row paperwork: it
+-- carries no permission, and appointment to the owning club is the only thing
+-- that grants access. So club B's secretary, holding a show-scoped grant on
+-- club A's show, must NOT reach it (4.1), and must not reach club C's show
+-- either (4.2). 4.0 is the positive control: their own club's show.
 -- ---------------------------------------------------------------------------
 INSERT INTO public.clubs (id, name)
 VALUES ('00000000-0000-0000-0000-000000000c02', 'MYK9-258 Club B');
@@ -354,16 +495,15 @@ BEGIN
   END IF;
   RAISE NOTICE 'PASS 4.1 a show-scoped grant does not reach another club''s show';
 
-  -- And the club-less guard still holds independently: club B's secretary role
-  -- must not hand them the club-less show either.
+  -- Nor does club B's secretary role reach club C's show.
   IF EXISTS (
     SELECT 1 FROM public.manageable_show_ids() m
     WHERE m = '00000000-0000-0000-0000-000000000c32'
   ) THEN
     RAISE EXCEPTION
-      'FAIL 4.2 a show-scoped grantee also received the club-less show (MYK9-258)';
+      'FAIL 4.2 club B''s secretary received club C''s show';
   END IF;
-  RAISE NOTICE 'PASS 4.2 a show-scoped grantee does not receive the club-less show';
+  RAISE NOTICE 'PASS 4.2 club B''s secretary does not receive club C''s show';
 END;
 $$;
 
@@ -371,16 +511,14 @@ $$;
 -- 5. The owner-run view (MYK9-329)
 --
 -- view_authenticated_entry_results is security_invoker = false, so RLS on
--- entries is not a backstop: its own can_manage flag is the only gate. Until
--- 20260902130000 that flag carried `(sh.club_id IS NULL AND has_manager_role)`,
--- which cases 1-4 above cannot see because they exercise the SQL helpers, not
--- the view. A secretary of club A got can_manage (and can_view_admin: payment
--- columns) on every club-less show on the platform.
+-- entries is not a backstop: its own can_manage flag is the only gate, and
+-- cases 1-4 above cannot see it because they exercise the SQL helpers, not the
+-- view.
 --
 -- Three directions, in this order. 5.1 proves the view works for the caller at
 -- all (own-club row present WITH its masked payment column visible), otherwise
--- 5.2 "returns nothing" would also pass for a broken view. 5.3 proves the
--- club-less show is still reachable by the one role that should reach it.
+-- 5.2 "returns nothing" would also pass for a broken view. 5.3 proves club C's
+-- show is still reachable by the one fixture role that should reach it.
 -- ---------------------------------------------------------------------------
 SELECT set_config(
   'request.jwt.claim.sub',
@@ -397,7 +535,7 @@ DO $$
 DECLARE
   v_own_rows integer;
   v_own_payment_visible integer;
-  v_clubless_rows integer;
+  v_club_c_rows integer;
 BEGIN
   SELECT count(*), count(payment_status)
     INTO v_own_rows, v_own_payment_visible
@@ -412,20 +550,20 @@ BEGIN
   RAISE NOTICE 'PASS 5.1 club secretary reads their own show''s payment column through the view';
 
   SELECT count(*)
-    INTO v_clubless_rows
+    INTO v_club_c_rows
     FROM public.view_authenticated_entry_results
    WHERE show_id = '00000000-0000-0000-0000-000000000c32';
 
-  IF v_clubless_rows <> 0 THEN
+  IF v_club_c_rows <> 0 THEN
     RAISE EXCEPTION
-      'FAIL 5.2 club secretary reads % row(s) of a club-less show through the view (MYK9-329)',
-      v_clubless_rows;
+      'FAIL 5.2 club secretary reads % row(s) of club C''s show through the view (MYK9-329)',
+      v_club_c_rows;
   END IF;
-  RAISE NOTICE 'PASS 5.2 club secretary reads nothing of a club-less show through the view';
+  RAISE NOTICE 'PASS 5.2 club secretary reads nothing of club C''s show through the view';
 END;
 $$;
 
--- 5.3 A site admin still reaches the club-less show, payment column and all.
+-- 5.3 A site admin still reaches club C's show, payment column and all.
 INSERT INTO public.people (id, first_name, last_name, auth_user_id)
 VALUES (
   '00000000-0000-0000-0000-000000000c14',
@@ -466,10 +604,10 @@ BEGIN
 
   IF v_rows <> 1 OR v_payment_visible <> 1 THEN
     RAISE EXCEPTION
-      'FAIL 5.3 site admin lost the club-less show in the view (rows %, payment visible %)',
+      'FAIL 5.3 site admin lost club C''s show in the view (rows %, payment visible %)',
       v_rows, v_payment_visible;
   END IF;
-  RAISE NOTICE 'PASS 5.3 site admin still reads the club-less show''s payment column';
+  RAISE NOTICE 'PASS 5.3 site admin still reads club C''s show''s payment column';
 END;
 $$;
 

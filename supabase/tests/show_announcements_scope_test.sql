@@ -28,9 +28,11 @@
 --   6. That secretary can UPDATE and DELETE an announcement authored by SOMEBODY
 --      ELSE on their own show (the arm MYK9-636 reported as missing), cannot
 --      relocate their own row, and reaches nothing on club B's show.
---   7. A club-less show (shows.club_id IS NULL) admits NOBODY through the club
---      arm -- the MYK9-258 / MYK9-329 / MYK9-585 guard. Asserted for the
---      secretary (refused) and the site admin (accepted).
+--   7. A show in a club where nobody holds a role (club C) admits NOBODY
+--      through the club arm. Asserted for the secretary (refused) and the site
+--      admin (accepted). Until MYK9-1008 this case used a club C show
+--      (shows.club_id IS NULL, the MYK9-258 / MYK9-329 / MYK9-585 guard); the
+--      column is NOT NULL now, so that show cannot exist.
 --
 -- Note on DELETE: an unreachable row fails the USING clause, so the row is
 -- filtered out and the DELETE removes 0 rows rather than raising. Only a WITH
@@ -65,7 +67,9 @@ ON CONFLICT (name) DO NOTHING;
 INSERT INTO public.clubs (id, name)
 VALUES
   ('00000000-0000-0000-0000-000000636001', 'MYK9-636 Club A'),
-  ('00000000-0000-0000-0000-000000636002', 'MYK9-636 Club B');
+  ('00000000-0000-0000-0000-000000636002', 'MYK9-636 Club B'),
+  -- Club C: nobody holds any role here (case 7).
+  ('00000000-0000-0000-0000-000000636003', 'MYK9-636 Club C');
 
 -- People FIRST with an email and a NULL auth link: handle_new_user() adopts an
 -- existing person by LOWER(email) when auth.users is inserted. Setting
@@ -118,7 +122,7 @@ SELECT '00000000-0000-0000-0000-000000636011', id, '00000000-0000-0000-0000-0000
 FROM public.roles WHERE name = 'secretary';
 
 -- Site admin: no club scope, and the only identity that should reach the
--- club-less show.
+-- club C show.
 INSERT INTO public.user_roles (user_id, role_id, is_active, auth_user_id)
 SELECT '00000000-0000-0000-0000-000000636013', id, true, '00000000-0000-0000-0000-000000636103'
 FROM public.roles WHERE name = 'site_admin';
@@ -135,11 +139,11 @@ VALUES
    current_date, current_date + 1, 'published', '00000000-0000-0000-0000-000000636001'),
   ('00000000-0000-0000-0000-000000636022', 'MYK9-636 Club B Show', 'AKC',
    current_date, current_date + 1, 'published', '00000000-0000-0000-0000-000000636002'),
-  -- Club-less, and 'published' for the reason null_club_policy_authorization_test
-  -- documents: a draft club-less show is invisible to shows_select anyway, which
-  -- would make a refusal assertion pass for the wrong reason.
-  ('00000000-0000-0000-0000-000000636023', 'MYK9-636 Club-less Show', 'AKC',
-   current_date, current_date + 1, 'published', NULL);
+  -- Club C, and 'published' for the reason cross_club_policy_authorization_test
+  -- documents: a draft show of another club is invisible to shows_select
+  -- anyway, which would make a refusal assertion pass for the wrong reason.
+  ('00000000-0000-0000-0000-000000636023', 'MYK9-636 Club C Show', 'AKC',
+   current_date, current_date + 1, 'published', '00000000-0000-0000-0000-000000636003');
 
 -- The judge arm is ASSIGNMENT-based, not role-based: the policy joins
 -- judge_assignments by the caller's people row, exactly as
@@ -341,16 +345,16 @@ BEGIN
     RAISE NOTICE 'PASS 5.1 cross-club secretary INSERT raises 42501';
   END;
 
-  -- 7a. The club-less show reaches nobody through the club arm.
+  -- 7a. The club C show reaches nobody through the club arm.
   BEGIN
     INSERT INTO public.show_announcements (show_id, author_id, author_role, author_name,
                                            title, content, priority)
     VALUES ('00000000-0000-0000-0000-000000636023',
             '00000000-0000-0000-0000-000000636101', 'secretary', 'MYK9-636 Secretary A',
-            'MYK9-636 club-less', 'No club owns this show.', 'normal');
-    RAISE EXCEPTION 'FAIL 7.0 a club-less show admitted a secretary (MYK9-258 guard lost)';
+            'MYK9-636 club C', 'Nobody holds a role in this club.', 'normal');
+    RAISE EXCEPTION 'FAIL 7.0 a club C show admitted a club A secretary';
   EXCEPTION WHEN insufficient_privilege THEN
-    RAISE NOTICE 'PASS 7.0 a club-less show admits no secretary';
+    RAISE NOTICE 'PASS 7.0 a club C show admits no secretary';
   END;
 
   -- 6.0 UPDATE an announcement authored by somebody else on THEIR show.
@@ -393,7 +397,7 @@ BEGIN
 END $case5$;
 
 -- ---------------------------------------------------------------------------
--- 7b. The platform admin is the ONLY identity that reaches the club-less show.
+-- 7b. The platform admin is the ONLY identity that reaches the club C show.
 -- ---------------------------------------------------------------------------
 DO $case7$
 BEGIN
@@ -410,8 +414,8 @@ BEGIN
                                          title, content, priority)
   VALUES ('00000000-0000-0000-0000-000000636038', '00000000-0000-0000-0000-000000636023',
           '00000000-0000-0000-0000-000000636103', 'club_admin', 'MYK9-636 Site Admin',
-          'MYK9-636 admin on club-less show', 'Platform admin still reaches it.', 'normal');
-  RAISE NOTICE 'PASS 7.1 the platform admin still reaches a club-less show';
+          'MYK9-636 admin on club C show', 'Platform admin still reaches it.', 'normal');
+  RAISE NOTICE 'PASS 7.1 the platform admin still reaches a club C show';
 
   RESET ROLE;
 END $case7$;
@@ -419,18 +423,18 @@ END $case7$;
 -- Final shape check. Club A's show: the exhibitor's legacy row and the judge's
 -- own row survive, the exhibitor's other row and the site admin's stray were
 -- deleted, and the judge's and secretary's new rows landed -- four. Club B's one
--- row was never touched, and the club-less show holds only the admin's.
+-- row was never touched, and the club C show holds only the admin's.
 DO $tally$
 DECLARE
   club_a integer;
   club_b integer;
-  club_less integer;
+  club_c integer;
 BEGIN
   SELECT count(*) INTO club_a FROM public.show_announcements
    WHERE show_id = '00000000-0000-0000-0000-000000636021';
   SELECT count(*) INTO club_b FROM public.show_announcements
    WHERE show_id = '00000000-0000-0000-0000-000000636022';
-  SELECT count(*) INTO club_less FROM public.show_announcements
+  SELECT count(*) INTO club_c FROM public.show_announcements
    WHERE show_id = '00000000-0000-0000-0000-000000636023';
 
   IF club_a <> 4 THEN
@@ -439,8 +443,8 @@ BEGIN
   IF club_b <> 1 THEN
     RAISE EXCEPTION 'FAIL 8.1 club B show should still hold its one untouched row, holds %', club_b;
   END IF;
-  IF club_less <> 1 THEN
-    RAISE EXCEPTION 'FAIL 8.2 club-less show should hold the platform admin''s row only, holds %', club_less;
+  IF club_c <> 1 THEN
+    RAISE EXCEPTION 'FAIL 8.2 club C show should hold the platform admin''s row only, holds %', club_c;
   END IF;
   RAISE NOTICE 'PASS 8.0 final row tally matches the policy set';
 END $tally$;

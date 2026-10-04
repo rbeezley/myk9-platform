@@ -111,7 +111,7 @@ export function RefundAllEntriesCard({ showId }: RefundAllEntriesCardProps) {
             `Refunded ${entriesRefunded} ${noun(entriesRefunded)}, ${failed} failed — see details.`
           );
         } else {
-          toast.success(`Refunded ${entriesRefunded} ${noun(entriesRefunded)} in full.`);
+          toast.success(`Refunded the entry fees of ${entriesRefunded} ${noun(entriesRefunded)}.`);
         }
       },
       onError: err =>
@@ -129,9 +129,9 @@ export function RefundAllEntriesCard({ showId }: RefundAllEntriesCardProps) {
           Refund all entries
         </CardTitle>
         <CardDescription>
-          Cancelling the show? Refund every online-paid exhibitor in full — entry fee{' '}
-          <strong>and</strong> service fees. Cash/check payments are listed for you to handle
-          manually. This cannot be undone.
+          Cancelling the show? Refund every online-paid exhibitor&rsquo;s entry fees. The service
+          fee is not refunded. Cash/check payments are listed for you to handle manually. This
+          cannot be undone.
         </CardDescription>
       </CardHeader>
 
@@ -201,9 +201,10 @@ export function RefundAllEntriesCard({ showId }: RefundAllEntriesCardProps) {
           <AlertDialogHeader>
             <AlertDialogTitle>Refund all online-paid entries?</AlertDialogTitle>
             <AlertDialogDescription>
-              This refunds {count ?? 0} online-paid entr{count === 1 ? 'y' : 'ies'} for this
-              cancelled show in full, including service fees, back to each exhibitor’s card. It
-              cannot be undone. Cash and check payments are not touched — refund those manually.
+              This refunds the entry fees of {count ?? 0} online-paid entr
+              {count === 1 ? 'y' : 'ies'} for this cancelled show back to each exhibitor’s card. The
+              service fee is not refunded. It cannot be undone. Cash and check payments are not
+              touched — refund those manually.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

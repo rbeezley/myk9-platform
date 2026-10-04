@@ -14,6 +14,7 @@ import { StatusPickerDialog } from '@/components/common/StatusPickerDialog';
 import { RunOrderDialog } from '../RunOrderDialog';
 import { useRunOrderPreset } from './useRunOrderPreset';
 import {
+  GuestExportButton,
   ListFilterBar,
   ListResultLine,
   ListViewTabs,
@@ -27,7 +28,7 @@ import { matchesAny } from '@myk9/core';
 import { useClassResults } from './useClassResults';
 import { useResultColumns } from './columns';
 import { usePageExportAction } from '@/features/actions/pageEditTarget';
-import { exportRowsCsv } from '@/utils/downloadCsv';
+import { exportClassResults, guestResultsOmit } from './classResultsExport';
 import { useViewPreference } from '@/hooks/useViewPreference';
 import { EntryCardGrid } from './EntryCardGrid';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -210,30 +211,7 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
   usePageExportAction({
     id: 'class-results',
     enabled: effectiveViewMode === 'table' && filteredRows.length > 0,
-    run: () =>
-      exportRowsCsv(
-        'class-results',
-        [
-          'Armband',
-          'Dog',
-          'Handler',
-          'Placement',
-          'Qualification',
-          'Search Time',
-          'Faults',
-          'Check-in',
-        ],
-        filteredRows.map(row => [
-          row.armband,
-          row.dogName,
-          row.handlerName,
-          row.placement,
-          row.qualification,
-          row.searchTime,
-          row.faults,
-          row.checkInStatus,
-        ])
-      ),
+    run: () => exportClassResults(filteredRows),
   });
 
   const dragColumns = useMemo<ColumnDef<ScoringRow, unknown>[]>(
@@ -318,7 +296,28 @@ export const ClassResultsTable: React.FC<ClassResultsTableProps> = ({
                 setScoringTab('all');
                 setSearchQuery('');
               }}
-            />
+            >
+              {/* Signed-out visitors have no header Actions menu (MYK9-993). Only released
+                  results, only in table view (as the header export), and only the columns the
+                  table shows them. */}
+              <GuestExportButton
+                enabled={
+                  effectiveViewMode === 'table' &&
+                  !!resultsReleasedAt &&
+                  !visibility.isLoading &&
+                  filteredRows.length > 0
+                }
+                onExport={() =>
+                  exportClassResults(
+                    filteredRows,
+                    guestResultsOmit({
+                      ...visibility,
+                      checkInColumnShown: scoringTab !== 'completed',
+                    })
+                  )
+                }
+              />
+            </ListResultLine>
           </div>
 
           {effectiveViewMode === 'cards' ? (

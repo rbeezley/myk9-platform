@@ -3,6 +3,7 @@ import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import {
   buildShowRefundPlan,
+  showRefundCreateParams,
   type ShowRefundEntry,
   type ShowRefundIntentGroup,
 } from '../_shared/showRefundPlan.ts';
@@ -22,7 +23,7 @@ if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey || !stripeSecret) {
 const supabase = createClient(supabaseUrl, supabaseServiceKey);
 const stripe = new Stripe(stripeSecret, { appInfo: { name: 'myK9Show', version: '1.0.0' } });
 
-// At most this many Stripe refunds in flight at once — make-whole refunds a
+// At most this many Stripe refunds in flight at once — this refunds a
 // whole show, so a 200-entry cancellation must not fire 200 parallel calls
 // (Stripe rate limits, and a burst risks partial failure mid-flight).
 const CONCURRENCY = 5;
@@ -122,9 +123,9 @@ async function fetchShowEntries(showId: string): Promise<ShowRefundEntry[] | nul
 
 /**
  * Identify which of the planned intents also have entries OUTSIDE this show.
- * A make-whole full-intent refund on such an intent would refund the other
- * show's entries too, so those are skipped for manual handling rather than
- * over-refunded. Returns the set of cross-show intent ids.
+ * Refunding such an intent is left to a person: its other-show entries and
+ * any sibling refunds cannot be reconciled in bulk, so those are skipped for
+ * manual handling rather than risk an over-refund. Returns the set of cross-show intent ids.
  */
 const INTENT_IN_BATCH = 200;
 
@@ -206,14 +207,12 @@ async function refundIntent(
     let amountCents = existing?.amount ?? 0;
     if (!existing) {
       try {
-        // No amount → Stripe refunds the full REMAINING charge (entry fees +
-        // platform fee = make-whole). Tagged so a re-run reuses it.
-        const refund = await stripe.refunds.create(
-          { payment_intent: intentId, metadata: { show_refund: showId } },
-          {
-            idempotencyKey: `refund-show-${showId}-${intentId}-${showRefundAttemptCount(prior.data, showId)}`,
-          }
-        );
+        // The intent's entry fees in this show ONLY, never the service fee
+        // (MYK9-966). The key prefix changed with the amount, so no attempt can
+        // replay a cached amount-less request. Tagged so a re-run reuses it.
+        const refund = await stripe.refunds.create(showRefundCreateParams(group, showId), {
+          idempotencyKey: `refund-show-entry-fees-${showId}-${intentId}-${showRefundAttemptCount(prior.data, showId)}`,
+        });
         amountCents = refund.amount;
       } catch (err) {
         // Already fully refunded elsewhere (e.g. a per-entry refund covered it):
@@ -251,7 +250,7 @@ async function refundIntent(
       );
       await alertAdmin(
         'Show refund issued but entries were not recorded — payout may overpay',
-        `<p>A make-whole refund for show <code>${showId}</code> (intent <code>${intentId}</code>)
+        `<p>An entry-fee refund for show <code>${showId}</code> (intent <code>${intentId}</code>)
          succeeded, but stamping its ${group.entryIds.length} entr${group.entryIds.length === 1 ? 'y' : 'ies'} failed:</p>
          <pre>${stampError.message}</pre>
          <p>Re-run the show refund (it reuses the existing Stripe refund — no double
@@ -406,7 +405,7 @@ Deno.serve(async req => {
 
       const refundedEntryCount = refunded.reduce((n, r) => n + r.entryIds.length, 0);
       console.log(
-        `Show ${show_id} make-whole refund by ${user.id}: ` +
+        `Show ${show_id} entry-fee refund by ${user.id}: ` +
           `${refunded.length} intents / ${refundedEntryCount} entries refunded, ` +
           `${skipped.length} skipped, ${failed.length} failed`
       );

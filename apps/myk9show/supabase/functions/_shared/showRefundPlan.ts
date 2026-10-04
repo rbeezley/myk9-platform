@@ -3,14 +3,17 @@
 // DB writes; this decides WHICH entries are refundable, groups them by the
 // PaymentIntent that paid them, and computes the per-entry refund_amount stamp.
 //
-// Make-whole model (verified against the charge architecture): charges are
-// plain platform PaymentIntents and the club is paid later via a separate
-// cron-process-payouts transfer — so refunding an intent IN FULL returns the
-// exhibitor's gross from the platform balance (no Connect clawback). Each entry
-// is then stamped refund_amount = its OWN entry_fee; calculateShowPayoutCents
-// deducts that per entry, zeroing the club's share for the cancelled show. The
-// platform-fee slice of the refund is absorbed by platform revenue (the correct
-// party on a club cancellation).
+// Refund model (verified against the charge architecture): charges are plain
+// platform PaymentIntents and the club is paid later via a separate
+// cron-process-payouts transfer, and stripe-refund-show refuses to run once a
+// payout is processing or completed, so no transfer exists to reverse. Each
+// intent is refunded ONLY the entry fees of its entries in this show
+// (`showRefundCreateParams`), never the service fee (MYK9-966 owner rule: the
+// platform never refunds its fee, even for a cancelled show). Each entry is
+// then stamped refund_amount = its OWN entry_fee; calculateShowPayoutCents
+// deducts that per entry, so the club is never paid the money that went back.
+// The platform keeps the service fee, which is what pays Stripe's processing
+// cost that a refund does not return.
 //
 // See docs/plan-refund-policy-withdrawal.md (Phase 4 — Show cancellation).
 
@@ -44,7 +47,7 @@ export interface ShowRefundIntentGroup {
   entryIds: string[];
   /** entryId → refund_amount to stamp (its own entry_fee, DECIMAL dollars). */
   stampByEntry: Record<string, number>;
-  /** Sum of entry fees in this group, in cents — for display only. */
+  /** Sum of entry fees in this group, in cents: the amount refunded on the intent. */
   entryFeeSubtotalCents: number;
 }
 
@@ -120,4 +123,20 @@ export function buildShowRefundPlan(entries: ShowRefundEntry[]): ShowRefundPlan 
   }
 
   return { intents: [...groups.values()], skipped };
+}
+
+/**
+ * The Stripe refund for one intent of a cancelled show: an EXPLICIT amount of
+ * that payment's entry fees, never the full remaining charge (MYK9-966). Tagged
+ * so a re-run reuses it (findReusableShowRefund).
+ */
+export function showRefundCreateParams(
+  group: ShowRefundIntentGroup,
+  showId: string
+): { payment_intent: string; amount: number; metadata: { show_refund: string } } {
+  return {
+    payment_intent: group.paymentIntentId,
+    amount: group.entryFeeSubtotalCents,
+    metadata: { show_refund: showId },
+  };
 }

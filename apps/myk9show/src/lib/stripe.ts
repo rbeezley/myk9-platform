@@ -1,5 +1,6 @@
 import { supabase } from './supabase';
 import { products, annualPriceId } from '../stripe-config';
+import { isOverflowRefundSettled } from '@/features/payments/orderRefundReconciliation';
 
 /**
  * Create a Stripe checkout session for subscription or one-time payment
@@ -291,7 +292,7 @@ export async function verifyCheckoutSession(
       ...(order.show_name && { showName: order.show_name }),
       ...(cartId !== undefined && { cartId }),
       ...(overflowRefund.amountCents != null && { refundAmount: overflowRefund.amountCents }),
-      refundStatus: order.status === 'refunded' ? 'issued' : 'processing',
+      refundStatus: await overflowRefundStatus(order, overflowRefund.amountCents),
       ...paymentReferenceField(order.stripe_payment_intent_id),
     };
   }
@@ -348,6 +349,39 @@ export async function verifyCheckoutSession(
     ...(order.confirmation_number && { confirmationNumber: order.confirmation_number }),
     ...paymentReferenceField(order.stripe_payment_intent_id),
   };
+}
+
+/**
+ * "Issued" follows the refund, not the order status: an entry-fee refund keeps
+ * the service fee, so the order stays 'succeeded' after it settles (MYK9-966).
+ * The refund totals come from the order row (owner-scoped RLS); unreadable
+ * reads as still processing, never as issued.
+ */
+async function overflowRefundStatus(
+  order: { id: string; status: string; amount_cents: number | null },
+  owedCents: number | null
+): Promise<'issued' | 'processing'> {
+  if (order.status === 'refunded') return 'issued';
+  try {
+    const { data, error } = await supabase
+      .from('stripe_orders')
+      .select('refunded_cents, make_whole_refunded_cents')
+      .eq('id', order.id)
+      .maybeSingle();
+    if (error || !data) return 'processing';
+    const settled = isOverflowRefundSettled(
+      {
+        amountCents: order.amount_cents ?? 0,
+        status: order.status,
+        refundedCents: data.refunded_cents ?? 0,
+        makeWholeRefundedCents: data.make_whole_refunded_cents ?? 0,
+      },
+      owedCents
+    );
+    return settled ? 'issued' : 'processing';
+  } catch {
+    return 'processing';
+  }
 }
 
 function getFullOverflowRefund(metadata: unknown): { amountCents: number | null } | null {

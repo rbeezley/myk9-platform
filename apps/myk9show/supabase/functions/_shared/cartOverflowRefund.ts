@@ -1,4 +1,4 @@
-import { makeWholeRefundCents, type PlatformFeeRates } from './platformFee.ts';
+import { entryFeeRefundCents, type PlatformFeeRates } from './platformFee.ts';
 
 export interface CartOverflowRefundInput {
   paymentIntentId: string | null;
@@ -7,10 +7,9 @@ export interface CartOverflowRefundInput {
   noServiceLineIds: string[];
   lineAmountsById: Map<string, number>;
   /**
-   * The rates this cart was PRICED with (the stamped rates). The flat
-   * per-checkout component and the floor are earned once per CHARGE, so they
-   * stay with the served lines instead of being split across the overflow —
-   * see `makeWholeRefundCents` (MYK9-197 B1).
+   * The rates this cart was PRICED with (the stamped rates). They give the
+   * service fee the refund is capped below; no part of it is ever refunded,
+   * even when no line was served (MYK9-966, see `entryFeeRefundCents`).
    */
   platformFeeRates: PlatformFeeRates;
 }
@@ -62,15 +61,18 @@ export function decideCartOverflowRefund(
     };
   }
 
-  const refundAmountCents =
-    input.paidLineIds.length === 0
-      ? input.sessionAmountTotalCents
-      : makeWholeRefundCents({
-          fullSubtotalCents: subtotalCents,
-          acceptedSubtotalCents: paidSubtotalCents,
-          amountTotalCents: input.sessionAmountTotalCents,
-          rates: input.platformFeeRates,
-        });
+  // Entry fees of the unserved lines only, never the service fee (MYK9-966).
+  const refundAmountCents = entryFeeRefundCents({
+    unservedEntryFeeCents: noServiceSubtotalCents,
+    fullSubtotalCents: subtotalCents,
+    amountTotalCents: input.sessionAmountTotalCents,
+    rates: input.platformFeeRates,
+  });
+  if (refundAmountCents <= 0) {
+    // Collected no more than the service fee: nothing computable is owed, so an
+    // operator decides rather than a 0¢ refund being issued.
+    return { action: 'needs_manual_amount', missingLineIds: [], paidAmountCents: null };
+  }
   const paidAmountCents = Math.max(0, input.sessionAmountTotalCents - refundAmountCents);
 
   if (!input.paymentIntentId) {

@@ -107,3 +107,21 @@ export function orderRefundStatusLabel(sources: OrderRefundSources): string {
   if (refundedCents <= 0) return paymentStatusLabel(sources.status);
   return sources.amountCents - refundedCents <= 0 ? 'Refunded' : 'Partially refunded';
 }
+
+/**
+ * Whether the entry-fee refund owed on an all-overflow checkout has settled.
+ *
+ * Since MYK9-966 that refund keeps the service fee, so the order never reaches
+ * `status = 'refunded'` and the status column cannot answer this. The refund
+ * totals the webhook records can: settled once everything recorded back
+ * (post-hoc or make-whole, whichever kind the refund was booked as) covers the
+ * entry fees owed. A legacy order that WAS refunded in full still counts.
+ */
+export function isOverflowRefundSettled(
+  sources: Omit<OrderRefundSources, 'entryRefundedCents'>,
+  owedCents: number | null
+): boolean {
+  if (isRefundedPaymentStatus(sources.status)) return true;
+  if (owedCents === null || owedCents <= 0) return false;
+  return resolveOrderRefundedCents({ ...sources, entryRefundedCents: 0 }) >= owedCents;
+}

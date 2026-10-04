@@ -123,7 +123,7 @@ describe('AppHeader branding', () => {
 
     expect(homeLink).toHaveAttribute('href', '/');
     expect(homeLink).toHaveClass('max-[359px]:hidden');
-    expect(mark).toHaveAttribute('src', '/brand-mark-64.png');
+    expect(mark).toHaveAttribute('src', '/brand-mark.svg');
     expect(mark).toHaveAttribute('width', '28');
     expect(mark).toHaveAttribute('height', '28');
     expect(mark).toHaveAttribute('alt', '');

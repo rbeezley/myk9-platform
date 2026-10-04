@@ -23,6 +23,7 @@ describe('myK9Show brand assets', () => {
     ['public/pwa-maskable-512x512.png', 512],
     ['public/notification-badge-96.png', 96],
     ['public/brand-mark-64.png', 64],
+    ['public/brand-mark-128.png', 128],
     ['public/logo.png', 1024],
   ])('provides %s at the required square size', (path, size) => {
     expect(readPngDimensions(path)).toEqual({ width: size, height: size });
@@ -75,12 +76,21 @@ describe('myK9Show brand assets', () => {
     expect(webp.includes(Buffer.from('VP8L'))).toBe(true);
   });
 
-  it('uses the approved mark in the public landing header', () => {
+  it('uses the approved vector logo in the public landing header and sign-in card', () => {
     const header = readFileSync(
       join(appRoot, 'src/components/landing/v2/LandingHeader.tsx'),
       'utf8'
     );
-    expect(header).toContain('src="/brand-mark-64.png"');
+    const signIn = readFileSync(join(appRoot, 'src/pages/SmartSignInPage.tsx'), 'utf8');
+    expect(header).toContain('src="/logo.svg"');
+    expect(signIn).toContain('src="/logo.svg"');
+  });
+
+  it.each(['logo.svg', 'brand-mark.svg'])('ships %s as self-contained vector paths', name => {
+    const svg = readFileSync(join(appRoot, 'public', name), 'utf8');
+    expect(svg).toContain('<path');
+    expect(svg).toContain('<title>myK9Show</title>');
+    expect(svg).not.toMatch(/<image\b|<text\b|data:image|font-family/);
   });
 
   it('uses the transparent approved mark in the About dialog', () => {
@@ -89,7 +99,7 @@ describe('myK9Show brand assets', () => {
       'utf8'
     );
 
-    expect(aboutDialog).toContain('src="/brand-mark-64.png"');
+    expect(aboutDialog).toContain('src="/brand-mark.svg"');
     expect(aboutDialog).not.toContain('src="/pwa-192x192.png"');
   });
 

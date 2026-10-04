@@ -21,6 +21,7 @@
 // The run-queue subpath keeps the ringside UI out of the entry chunk: this
 // module is reached eagerly from App's notification monitor.
 import {
+  compareByRunOrder,
   isInQueue,
   isInRingEntry,
   pendingByRunOrder,
@@ -124,4 +125,23 @@ export function ownEntryQueueState(entry: ShowEntry): RunQueueState | null {
   const state = runQueueStateOf([toShowEntryQueueRow(entry)], entry.id);
   if (state?.kind !== 'waiting') return state;
   return (entry.registrationData?.runOrder ?? 0) > 0 ? { kind: 'waiting-unknown' } : null;
+}
+
+/**
+ * Order two stored run numbers through the shared comparator, with an unset
+ * (null) number LAST. `compareByRunOrder` alone sorts a null first (its
+ * armband fallback is 0), which is wrong for dogs the secretary has not
+ * numbered yet. A stored 0 is still a number and sorts before 1.
+ */
+export function compareStoredRunOrderNullLast(
+  a: number | null | undefined,
+  b: number | null | undefined
+): number {
+  if (a == null && b == null) return 0;
+  if (a == null) return 1;
+  if (b == null) return -1;
+  return compareByRunOrder(
+    { id: '', armband: null, exhibitorOrder: a },
+    { id: '', armband: null, exhibitorOrder: b }
+  );
 }

@@ -59,6 +59,18 @@ describe('useRunOrderDrag', () => {
     expect(result.current.orderedIds[2]).toBe('eA');
   });
 
+  it('orders gapped stored numbers, keeps a stored 0 ahead of 1, and null last', () => {
+    const entries = [
+      makeEntry('eNull', null),
+      makeEntry('e40', 40),
+      makeEntry('e1', 1),
+      makeEntry('e0', 0),
+      makeEntry('e12', 12),
+    ];
+    const { result } = renderHook(() => useRunOrderDrag({ rawEntries: entries }));
+    expect(result.current.orderedIds).toEqual(['e0', 'e1', 'e12', 'e40', 'eNull']);
+  });
+
   it('writes all positions after drag', async () => {
     const { replicatedEntriesTable } =
       await import('@/services/replication/ReplicatedEntriesTable');

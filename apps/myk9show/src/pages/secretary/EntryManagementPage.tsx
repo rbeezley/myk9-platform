@@ -29,6 +29,7 @@ import { EntryManagementViewToolbar } from '@/components/entries/management/Entr
 import { EntryEditDialog } from '@/components/entries/EntryEditDialog';
 import { MoveUpRequestsTab } from '@/components/entries/MoveUpRequestsTab';
 import { PullManagementTab } from '@/components/entries/PullManagementTab';
+import { classifyEntryRemoval, isExhibitorRemoval } from '@/features/payments/pullReconciliation';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import {
   getCockpitNormalizationContext,
@@ -91,12 +92,13 @@ const EntryManagementPage: React.FC = () => {
   // an exhibitor act, and stays out.
   const pulledEntries = useMemo(
     () =>
-      entries.filter(
-        entry =>
-          entry.rawEntryStatus === 'scratched' ||
-          (entry.rawEntryStatus === 'withdrawn' &&
-            (entry.withdrawalReasonCode === 'in_season' ||
-              entry.withdrawalReasonCode === 'judge_change'))
+      entries.filter(entry =>
+        isExhibitorRemoval(
+          classifyEntryRemoval({
+            entryStatus: entry.rawEntryStatus,
+            withdrawalReasonCode: entry.withdrawalReasonCode,
+          })
+        )
       ),
     [entries]
   );

@@ -30,18 +30,18 @@ describe('summarizeShowDayReconciliation', () => {
       WINDOW
     );
 
-    expect(summary.pulledCount).toBe(2);
+    expect(summary.removals.pulled).toBe(2);
     expect(summary.refundReviewCount).toBe(1);
     expect(summary.refundReviewAmount).toBe(35);
   });
 
-  it('totals already-refunded pulled entries separately', () => {
+  it('totals already-refunded removals separately', () => {
     const summary = summarizeShowDayReconciliation(
       [{ id: 'refunded', entry_fee: '40', entry_status: 'withdrawn', payment_status: 'Refunded' }],
       WINDOW
     );
 
-    expect(summary.pulledCount).toBe(1);
+    expect(summary.removals.removed).toBe(1);
     expect(summary.refundedCount).toBe(1);
     expect(summary.refundedAmount).toBe(40);
     expect(summary.refundReviewCount).toBe(0);
@@ -62,7 +62,7 @@ describe('summarizeShowDayReconciliation', () => {
       null
     );
 
-    expect(summary.pulledCount).toBe(1);
+    expect(summary.removals.pulled).toBe(1);
     expect(summary.refundReviewAmount).toBe(35);
     expect(summary.entriesDuringShowCount).toBe(0);
   });

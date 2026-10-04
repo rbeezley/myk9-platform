@@ -23,7 +23,7 @@ describe('summarizeCloseoutStatus', () => {
     expect(
       summarizeCloseoutStatus({
         reconNeedsReview: true,
-        pulledCount: 1,
+        removals: { pulled: 1, withdrawn: 0, removed: 0, absent: 0 },
         refundReviewCount: 1,
         hasEntries: true,
         incidents: { state: 'ready', reportableCount: 2 },
@@ -35,7 +35,7 @@ describe('summarizeCloseoutStatus', () => {
     expect(
       summarizeCloseoutStatus({
         reconNeedsReview: false,
-        pulledCount: 0,
+        removals: { pulled: 0, withdrawn: 0, removed: 0, absent: 0 },
         refundReviewCount: 0,
         hasEntries: true,
         incidents: { state: 'error' },
@@ -47,7 +47,7 @@ describe('summarizeCloseoutStatus', () => {
     expect(
       summarizeCloseoutStatus({
         reconNeedsReview: false,
-        pulledCount: 0,
+        removals: { pulled: 0, withdrawn: 0, removed: 0, absent: 0 },
         refundReviewCount: 0,
         hasEntries: true,
         incidents: { state: 'loading' },
@@ -59,7 +59,7 @@ describe('summarizeCloseoutStatus', () => {
     expect(
       summarizeCloseoutStatus({
         reconNeedsReview: false,
-        pulledCount: 0,
+        removals: { pulled: 0, withdrawn: 0, removed: 0, absent: 0 },
         refundReviewCount: 0,
         hasEntries: true,
         incidents: { state: 'ready', reportableCount: 0 },
@@ -71,7 +71,7 @@ describe('summarizeCloseoutStatus', () => {
     expect(
       summarizeCloseoutStatus({
         reconNeedsReview: false,
-        pulledCount: 0,
+        removals: { pulled: 0, withdrawn: 0, removed: 0, absent: 0 },
         refundReviewCount: 0,
         hasEntries: false,
         incidents: { state: 'ready', reportableCount: 0 },
@@ -138,7 +138,7 @@ describe('ShowCloseoutSummary', () => {
     expect(mockListShowPayments).toHaveBeenCalledWith('show-1');
     expect(within(payments).getByText('$35.00')).toBeInTheDocument();
     expect(
-      within(screen.getByRole('group', { name: 'Pulled or no-show entries' })).getByText('1')
+      within(screen.getByRole('group', { name: 'Pulled or withdrawn entries' })).getByText('1')
     ).toBeInTheDocument();
     expect(
       within(screen.getByRole('group', { name: 'Manual refund review' })).getByText(

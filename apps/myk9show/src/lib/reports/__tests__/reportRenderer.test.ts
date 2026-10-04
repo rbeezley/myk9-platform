@@ -1,6 +1,7 @@
 import postcss from 'postcss';
 import { describe, it, expect } from 'vitest';
 import { renderReportToHtml } from '../reportRenderer';
+import { CATALOG_STYLES } from '../catalogStyles';
 import { REPORT_STYLES } from '../reportStyles';
 
 describe('renderReportToHtml', () => {
@@ -35,6 +36,12 @@ describe('renderReportToHtml', () => {
   it('inlines the full REPORT_STYLES constant', () => {
     const result = renderReportToHtml('<p>test</p>');
     expect(result).toContain(REPORT_STYLES);
+  });
+
+  it('inlines the marked-catalog styles that make the initials footer repeat', () => {
+    const result = renderReportToHtml('<p>test</p>');
+    expect(result).toContain(CATALOG_STYLES);
+    expect(CATALOG_STYLES).toMatch(/\.catalog-akc-table tfoot\s*\{\s*display: table-footer-group/);
   });
 
   it('includes the provided content in the body', () => {

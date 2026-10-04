@@ -38,7 +38,7 @@ describe('buildClassChecklist', () => {
       ['scoring-complete', 'Scoring complete'],
       ['results-sheet', 'Preliminary results'],
       ['result-labels', 'Ribbon labels'],
-      ['judge-signature', 'Judge signature collected'],
+      ['judge-signature', "Judge's initials collected"],
     ]);
   });
 
@@ -167,7 +167,7 @@ describe('buildClassChecklist', () => {
       wrapUpStatus: SHOW_MAP_WRAP_UP_STATUS.CLASS_READY_FOR_WRAP_UP,
     }).find(item => item.id === 'judge-signature');
     expect(signature?.state).toBe('done');
-    expect(signature?.detail).toBe('No entries to sign');
+    expect(signature?.detail).toBe('No entries to initial');
   });
 
   it('is empty for a cancelled class', () => {

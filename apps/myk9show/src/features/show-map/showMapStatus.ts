@@ -1,3 +1,4 @@
+import { judgeSignOffWording } from './judgeSignOff';
 import {
   CLASS_STATUS,
   isCheckInStatus,
@@ -39,6 +40,8 @@ function readBoolean(record: ShowMapEntryInput, key: string): boolean {
 
 interface ClassWrapUpStatusOptions {
   resultSubmittedAt?: string | null | undefined;
+  /** The class's trial registry; selects initials (AKC) or signature wording. */
+  registryId?: string | null | undefined;
 }
 
 function entryHasJudgeSignature(entry: ShowMapEntryInput): boolean {
@@ -111,14 +114,14 @@ export function classifyClassWrapUpStatus(
     if (entriesRequiringSignature.every(entryHasJudgeSignature)) {
       return {
         value: SHOW_MAP_WRAP_UP_STATUS.SIGNED_BY_JUDGE,
-        label: 'Signed by judge',
+        label: judgeSignOffWording(options.registryId).doneStatusLabel,
         kind: 'neutral',
       };
     }
 
     return {
       value: SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE,
-      label: 'Needs judge signature',
+      label: judgeSignOffWording(options.registryId).needsStatusLabel,
       kind: 'attention',
     };
   }

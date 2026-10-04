@@ -1,3 +1,4 @@
+import { judgeSignOffWording } from './judgeSignOff';
 import { getPaperScoringEntryHref } from '@/pages/scoring/scoringRoutes';
 import { getClassAttention } from './attention';
 import {
@@ -172,8 +173,8 @@ function wrapUpActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapActi
           {
             id: 'collect-judge-signature',
             nodeId: node.id,
-            label: 'Collect judge signature',
-            why: 'Completed class still needs judge sign-off',
+            label: judgeSignOffWording(node.registryId).actionLabel,
+            why: judgeSignOffWording(node.registryId).actionWhy,
             priority: 55,
             icon: PenLine,
             ...(classId ? { classId } : {}),

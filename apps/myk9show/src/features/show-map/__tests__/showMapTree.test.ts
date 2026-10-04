@@ -497,7 +497,7 @@ describe('buildShowMapTree', () => {
 
     expect(tree.nodesById['class:class-1']?.wrapUpStatus).toMatchObject({
       value: 'needs-judge-signature',
-      label: 'Needs judge signature',
+      label: "Needs judge's initials",
       kind: 'attention',
     });
     expect(tree.nodesById['trial:trial-1']?.wrapUpStatus).toMatchObject({

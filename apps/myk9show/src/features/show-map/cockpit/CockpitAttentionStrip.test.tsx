@@ -17,8 +17,8 @@ const items: SecretaryCockpitAttention[] = [
   {
     id: 'b',
     kind: 'closeout',
-    label: 'Collect judge signature',
-    reason: 'Completed class still needs judge sign-off',
+    label: "Collect judge's initials",
+    reason: "Completed class still needs the judge's initials",
     destination: { kind: 'command', commandId: 'sign:class-2' },
   },
   {
@@ -59,7 +59,7 @@ describe('CockpitAttentionStrip', () => {
   it('runs a command pill through onCommand', async () => {
     const { user, onCommand } = renderStrip();
 
-    await user.click(screen.getByRole('button', { name: 'Collect judge signature' }));
+    await user.click(screen.getByRole('button', { name: "Collect judge's initials" }));
 
     expect(onCommand).toHaveBeenCalledWith('sign:class-2');
   });

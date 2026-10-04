@@ -159,7 +159,8 @@ describe('ReportPreview', () => {
       const text = iframe.contentDocument?.body.textContent ?? '';
       expect(text).toContain('Buried Novice');
       expect(text).toContain('Scout');
-      expect(text).toContain("Judge's Signature");
+      expect(text).toContain("Judge's initials");
+      expect(text).not.toContain("Judge's Signature");
       expect(text).not.toContain('Interior Advanced');
       expect(text).not.toContain('Riley');
     });

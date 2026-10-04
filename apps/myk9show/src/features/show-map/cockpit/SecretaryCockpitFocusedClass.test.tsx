@@ -198,7 +198,7 @@ describe('SecretaryCockpitFocusedClass checklist (MYK9-948)', () => {
       expect.stringContaining('Scoring complete'),
       expect.stringContaining('Preliminary results'),
       expect.stringContaining('Ribbon labels'),
-      expect.stringContaining('Judge signature collected'),
+      expect.stringContaining("Judge's initials collected"),
     ]);
     expect(within(checklist).getByText('0 of 7 done')).toBeInTheDocument();
     expect(

@@ -93,12 +93,22 @@ export default function ReportsPage() {
   const [sortOrder, setSortOrder] = useState(report?.defaultSort ?? 'run-order');
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
-  const { show, trials, classes, entries, dataState, isReady, isLoading, isError, refetch } =
-    useReportData({
-      show: currentShow,
-      trialId,
-      classId,
-    });
+  const {
+    show,
+    trials,
+    classes,
+    entries,
+    catalogProfilesReadComplete,
+    dataState,
+    isReady,
+    isLoading,
+    isError,
+    refetch,
+  } = useReportData({
+    show: currentShow,
+    trialId,
+    classId,
+  });
   // MYK9-280: the page owns the hosted fetch; MYK9-721: Print and the preview
   // gate on the same readiness for it as for the report rows.
   const reportClassIds = useMemo(
@@ -455,6 +465,7 @@ export default function ReportsPage() {
               isError={isError}
               dataState={dataState}
               hosted={hosted}
+              catalogProfilesReadComplete={catalogProfilesReadComplete}
               hasDownloadAction={Boolean(officialPdfAction)}
               downloadBlockedReason={
                 officialPdfAction?.disabled ? officialPdfAction.disabledReason : undefined

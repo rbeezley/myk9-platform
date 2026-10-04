@@ -220,6 +220,8 @@ The class then reads **withdrawn** or **pulled** on your card. A dog pulled from
 
 Neither act moves money on its own. Refund terms are in the show's entry agreement.
 
+Any refund returns the entry fee only. The service fee you paid at checkout is not refunded, including when a class is full or the show is cancelled.
+
 ---
 
 ## Section 10 — Payments and Receipts

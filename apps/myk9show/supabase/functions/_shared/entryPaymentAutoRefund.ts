@@ -1,7 +1,7 @@
 // Pure refund amount policy for secretary-initiated entry payment links.
 // Deno-free so webhook amount decisions are covered by colocated vitest tests.
 
-import { makeWholeRefundCents, type PlatformFeeRates } from './platformFee.ts';
+import { entryFeeRefundCents, type PlatformFeeRates } from './platformFee.ts';
 
 export interface EntryPaymentAutoRefundInput {
   paymentIntentId: string | null;
@@ -14,9 +14,9 @@ export interface EntryPaymentAutoRefundInput {
   entryFeesById: Map<string, number>;
   /**
    * The rates this session was PRICED with (the stamped rates, never a live
-   * re-read). Required because the flat per-checkout component and the floor
-   * are earned once per CHARGE, so they must not be split across the invalid
-   * lines — see `makeWholeRefundCents` (MYK9-197 B1).
+   * re-read). They give the service fee the refund is capped below; no part of
+   * it is ever refunded, even when no entry was valid (MYK9-966, see
+   * `entryFeeRefundCents`).
    */
   platformFeeRates: PlatformFeeRates;
 }
@@ -36,14 +36,6 @@ export function decideEntryPaymentAutoRefund(
     return { action: 'cannot_refund', reason: 'missing_amount' };
   }
 
-  if (input.validPaidEntryIds.length === 0) {
-    return {
-      action: 'refund',
-      amountCents: input.sessionAmountTotalCents,
-      reason: 'full_make_whole',
-    };
-  }
-
   const paidForEntryIds = [...input.validPaidEntryIds, ...input.invalidEntryIds];
   const missingFeeEntryIds = paidForEntryIds.filter(id => !input.entryFeesById.has(id));
   if (missingFeeEntryIds.length > 0) {
@@ -56,19 +48,22 @@ export function decideEntryPaymentAutoRefund(
     return { action: 'needs_manual_amount', missingFeeEntryIds: input.invalidEntryIds };
   }
 
-  // NOT a proportional split of the session total: that spread the flat
-  // per-checkout component and the floor across the invalid lines and refunded
-  // fee income the platform had genuinely earned (MYK9-197 B1).
-  const invalidCollectedShareCents = makeWholeRefundCents({
+  // The invalid entries' fees only, never the service fee, even when no entry
+  // was valid (MYK9-966). The whole-charge refund this replaced handed the
+  // platform's fee back on every fully-invalid link.
+  const amountCents = entryFeeRefundCents({
+    unservedEntryFeeCents: invalidSubtotalCents,
     fullSubtotalCents: subtotalCents,
-    acceptedSubtotalCents: subtotalCents - invalidSubtotalCents,
     amountTotalCents: input.sessionAmountTotalCents,
     rates: input.platformFeeRates,
   });
+  if (amountCents <= 0) {
+    return { action: 'needs_manual_amount', missingFeeEntryIds: [] };
+  }
   return {
     action: 'refund',
-    amountCents: invalidCollectedShareCents,
-    reason: 'partial_invalid_entries',
+    amountCents,
+    reason: input.validPaidEntryIds.length === 0 ? 'full_make_whole' : 'partial_invalid_entries',
   };
 }
 

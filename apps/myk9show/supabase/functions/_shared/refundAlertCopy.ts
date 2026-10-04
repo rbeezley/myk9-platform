@@ -131,8 +131,8 @@ export function overflowNeedsManualAmountAlert(input: {
     html: `<p>Session <code>${input.sessionId}</code> has no-service cart items
      <code>${input.invalidCartItemIds.join(', ')}</code>, but the webhook could not
      derive collected line amounts for <code>${input.missingLineIds.join(', ')}</code>.</p>
-     <p>Work out the no-service portion, including its share of the platform fee, then
-     refund that amount from the Stripe dashboard. ${CART_OVERFLOW_BY_HAND}</p>`,
+     <p>Work out the no-service lines' entry fees (never any of the service fee, MYK9-966),
+     then refund that amount from the Stripe dashboard. ${CART_OVERFLOW_BY_HAND}</p>`,
   };
 }
 
@@ -148,7 +148,7 @@ export function paymentLinkNeedsManualAmountAlert(input: {
      <code>${input.invalidEntryIds.join(', ')}</code>, but the webhook could not derive
      fees for <code>${input.missingFeeEntryIds.join(', ')}</code>, so nothing was
      queued.</p>
-     <p>Work out the invalid portion, including its share of the platform fee.
+     <p>Work out the invalid entries' fees (never any of the service fee, MYK9-966).
      ${DO_NOT_REFUND_IN_DASHBOARD} ${QUEUE_IT_BY_HAND}</p>`,
   };
 }

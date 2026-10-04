@@ -32,10 +32,11 @@ import {
 //
 //   * `resolveAcceptedEntrySnapshot` is the only producer, reached from
 //     exactly two call sites (the stripe-webhook cart path and the
-//     payment-link path). When any accepted entry is missing a fee it returns
+//     payment-link path). When any charged entry is missing a fee it returns
 //     status 'unverifiable' with BOTH columns null — ignorance stays NULL.
-//   * Its zero case is the deliberate one below: nothing accepted, so no
-//     service was rendered and no fee earned. A known zero, not a gap.
+//   * Its zero subtotal is the deliberate one below: nothing accepted, so no
+//     service was rendered. A known zero, not a gap. The fee is still the
+//     full fee charged, which the platform keeps (MYK9-966).
 //   * The subtotal is a sum of `Math.max(0, round(fee))` terms, so it cannot
 //     be negative; `calculatePlatformFeeCents` returns 0 for a non-positive
 //     subtotal or rate and a positive round otherwise. Neither can go below 0.
@@ -65,9 +66,10 @@ import {
 // independently fail a tie-out. The split is now recorded EXPLICITLY at write
 // time by whichever writer issues the refund.
 //
-//   make_whole_refunded_cents = returned for lines NEVER accepted (cart
-//                               overflow / payment-link make-whole). The
-//                               platform earned no fee and no club transfer
+//   make_whole_refunded_cents = the ENTRY FEES returned for lines NEVER
+//                               accepted (cart overflow / payment-link
+//                               make-whole). Never any part of the service
+//                               fee (MYK9-966), and no club transfer
 //                               occurred → NOT a platform loss.
 //   refunded_cents            = POST-HOC refunds only (the entry WAS accepted,
 //                               the club kept its transfer, the platform repays
@@ -79,7 +81,8 @@ import {
 //                             + make_whole_refunded_cents
 //
 // WHAT THE TIE-OUT DOES AND DOES NOT CHECK (MYK9-197 review round 2). It checks
-// the CHARGE against the PRICING: substituting the make-whole expression gives
+// the CHARGE against the PRICING: substituting the make-whole expression
+// (unserved entry fees) and the full fee gives
 // `delta = amount_cents − fullSubtotal − fee(fullSubtotal)`, so a mismatch means
 // the amount Stripe collected disagrees with what the lines are worth. It does
 // NOT independently verify the accepted/invalid ATTRIBUTION — the split between
@@ -92,12 +95,12 @@ import {
 // amount_cents *and* recording it in a refund column double-subtracts it and
 // can drive a fully-refunded order negative (MYK9-54 review finding A).
 //
-// The snapshot fields (entry_subtotal_cents / platform_fee_cents) describe the
-// services actually rendered (paid entries only) and the fee earned on them,
-// whereas amount_cents and the refund columns describe cash movement. A cart
+// entry_subtotal_cents describes the services actually rendered (paid entries
+// only); platform_fee_cents is the FULL service fee charged on the checkout,
+// which the platform keeps whatever was served (MYK9-966). Whereas amount_cents and the refund columns describe cash movement. A cart
 // with overflow lines charges for lines it then refunds, so
 // amount_cents > entry_subtotal_cents + platform_fee_cents by exactly
-// make_whole_refunded_cents — which is now the tie-out above, not a guess.
+// make_whole_refunded_cents (the unserved entry fees) — the tie-out above.
 
 // ── THE REFUND STATUS INVARIANT (MYK9-54 review finding 1) ────────────────
 //   stripe_orders.status = 'refunded'  IFF  the order is FULLY refunded, i.e.
@@ -175,43 +178,42 @@ export interface AcceptedEntrySnapshot {
 }
 
 /**
- * Build the snapshot money fields for a payment-LINK order from the ACCEPTED
- * entries and their authoritative Checkout line-item fees — the same shape the
- * cart path uses (paid lines summed, fee computed on that subtotal at the
- * stamped rate).
+ * Build the snapshot money fields for an order from its ACCEPTED entries, the
+ * entries it charged for but did not serve, and their authoritative Checkout
+ * line-item fees.
  *
- * REPLACES `deriveEntryFeeFromTotalCents` (MYK9-54 review finding 2), which
- * back-derived the split from the FULL session total. That total includes lines
- * that were never accepted (deleted / inactive / already-paid entries the
- * webhook then make-whole refunds), so it (a) overstated `platform_fee_cents` on
- * every partial-invalid link order, and (b) made `subtotal + fee == amount` true
- * BY CONSTRUCTION — so the tie-out
+ *   entry_subtotal_cents = Σ accepted entry fees (what the club is paid)
+ *   platform_fee_cents   = fee(Σ accepted + Σ unserved), the FULL service fee
+ *                          charged on the checkout
+ *
+ * MYK9-966 redefined `platform_fee_cents` from "fee earned on the accepted
+ * lines" to "the full fee charged". The owner rule: the platform never refunds
+ * its service fee, even when nothing was delivered, so a make-whole refund is
+ * the unserved entry fees only (`entryFeeRefundCents`) and the platform keeps
+ * the whole fee. Booking only the accepted share here would make the tie-out
  *   amount == subtotal + fee + make_whole
- * failed by exactly the refund whenever make_whole > 0, and was a pure tautology
- * whenever it was 0. Deriving from accepted entries makes both sides independent
- * and the tie-out genuinely falsifiable.
+ * fail by exactly the kept share on every partial order. With the full fee it
+ * balances exactly: amount − accepted − fee(full) − unserved = amount − full −
+ * fee(full), which is 0 whenever Stripe collected what the lines were priced at.
  *
- * When any accepted entry has no line-item fee (Stripe's 100-item page cap, or
- * missing price/product metadata) the amounts are reported `unverifiable` and
- * the columns stay NULL. NULL already means "rate-unverifiable / net-pending"
- * for legacy rows; a guessed number would silently enter income reporting.
+ * Still never back-derived from the session total (MYK9-54 review finding 2):
+ * that made `subtotal + fee == amount` true by construction and the tie-out a
+ * tautology. Both sides here come from line-item fee data.
+ *
+ * When any accepted OR unserved entry has no line-item fee (Stripe's 100-item
+ * page cap, or missing price/product metadata) the amounts are reported
+ * `unverifiable` and the columns stay NULL: the full fee cannot be known
+ * without every line, and a guessed number would silently enter income
+ * reporting.
  */
 export function resolveAcceptedEntrySnapshot(
   acceptedEntryIds: string[],
   entryFeesById: Map<string, number>,
-  feeRates: PlatformFeeRates | null | undefined
+  feeRates: PlatformFeeRates | null | undefined,
+  unservedEntryIds: string[]
 ): AcceptedEntrySnapshot {
-  const missingFeeEntryIds = acceptedEntryIds.filter(id => !entryFeesById.has(id));
-  if (acceptedEntryIds.length === 0) {
-    // Nothing was accepted: no service rendered, no fee earned. That is a known
-    // zero, not an unverifiable gap (the whole charge is make-whole refunded).
-    return {
-      status: 'derived',
-      entrySubtotalCents: 0,
-      platformFeeCents: 0,
-      missingFeeEntryIds: [],
-    };
-  }
+  const chargedEntryIds = [...acceptedEntryIds, ...unservedEntryIds];
+  const missingFeeEntryIds = chargedEntryIds.filter(id => !entryFeesById.has(id));
   if (missingFeeEntryIds.length > 0) {
     return {
       status: 'unverifiable',
@@ -220,37 +222,16 @@ export function resolveAcceptedEntrySnapshot(
       missingFeeEntryIds,
     };
   }
-  const entrySubtotalCents = acceptedEntryIds.reduce(
-    (sum, id) => sum + Math.max(0, Math.round(entryFeesById.get(id) ?? 0)),
-    0
-  );
-  // The WHOLE fee on the accepted subtotal — flat per-checkout component and
-  // floor included — is booked here, because the platform earned both the moment
-  // the charge happened and neither belongs to any particular line.
-  //
-  // THIS IS ONLY CONSISTENT BECAUSE THE MAKE-WHOLE WRITERS AGREE. The tie-out
-  //   amount_cents == entry_subtotal_cents + platform_fee_cents + make_whole_refunded_cents
-  // balances only if the refund leaves the flat and the floor on this side.
-  // An earlier revision of this comment claimed the flat "cancels out of the
-  // make-whole difference exactly as the percentage share does" — it does not,
-  // and it did not: both writers then split the charge PROPORTIONALLY over the
-  // full session total, spreading the flat and the floor across the invalid
-  // lines. Executed at flat = 30¢ on a 2-entry $25 link with one entry invalid,
-  // that refunded 15¢ of the platform's own flat fee and booked 205¢ here
-  // against 190¢ actually retained; at minCents = 2000 on two $1 entries the
-  // gap was $10. Both writers now go through `makeWholeRefundCents`
-  // (MYK9-197 adversarial review, B1), which derives the refund from the entry
-  // fee data as invalidSubtotal + (fee(full) − fee(accepted)).
-  //
-  // So: do not change `makeWholeRefundCents` back to a proportional split, and
-  // do not book a partial fee here, without breaking the other. The tie-out
-  // cases in orderSnapshot.test.ts run at non-zero flat AND non-zero floor
-  // precisely so the pair cannot drift apart again.
+  const sumFees = (ids: string[]) =>
+    ids.reduce((sum, id) => sum + Math.max(0, Math.round(entryFeesById.get(id) ?? 0)), 0);
+  const entrySubtotalCents = sumFees(acceptedEntryIds);
+  // Nothing accepted is a known zero subtotal, not a gap; the fee charged on
+  // the unserved lines is still kept and booked (MYK9-966).
   const rates = normalizePlatformFeeRates(feeRates ?? { percent: 0, flatCents: 0, minCents: 0 });
   return {
     status: 'derived',
     entrySubtotalCents,
-    platformFeeCents: calculatePlatformFeeCents(entrySubtotalCents, rates),
+    platformFeeCents: calculatePlatformFeeCents(sumFees(chargedEntryIds), rates),
     missingFeeEntryIds: [],
   };
 }
@@ -267,20 +248,18 @@ export function resolveAcceptedEntrySnapshot(
  * The note that stood here described the PROPORTIONAL split
  * (`round(total × invalidSubtotal / subtotal)`) as the source of up to 2¢ of
  * legitimate rounding slack. That writer no longer exists — it was the B1
- * defect — and with `makeWholeRefundCents` the residual collapses
- * algebraically. Substituting makeWhole = (full − accepted) + (fee(full) −
- * fee(accepted)):
+ * defect — and with `entryFeeRefundCents` (MYK9-966) the residual collapses
+ * algebraically. Substituting makeWhole = (full − accepted) and
+ * platform_fee = fee(full):
  *
- *   delta = amount − accepted − fee(accepted) − makeWhole
+ *   delta = amount − accepted − fee(full) − makeWhole
  *         = amount − full − fee(full)
  *
  * and both writers are reached only where `amount == full + fee(full)`, so
  * delta ≡ 0. Every rounding term cancels; there is no residual to tolerate.
- * Verified over a 1728-case matrix and against all 5 checkable rows on the
- * linked project, every one of which is exactly 0.
  *
  * A non-zero residual is therefore REAL: either an under-collection (coupon,
- * stale price — the one branch of `makeWholeRefundCents` that can produce one)
+ * stale price — the cap in `entryFeeRefundCents` is the branch that produces one)
  * or genuine drift between the charge and the pricing. Both are things a
  * reconciliation surface should show, not absorb. A 2¢ tolerance with no
  * remaining rounding source is not caution, it is 2¢ of silence per order.
@@ -299,7 +278,7 @@ export function orderTieOutDeltaCents(order: {
 }
 
 /**
- * Slack allowed on the tie-out. ZERO: with `makeWholeRefundCents` every rounding
+ * Slack allowed on the tie-out. ZERO: with `entryFeeRefundCents` every rounding
  * term cancels, so a healthy order lands exactly on 0 (see the derivation on
  * `orderTieOutDeltaCents`). Kept as a named constant rather than inlined so that
  * a future writer with a genuine rounding source has one place to widen it —
@@ -364,9 +343,9 @@ export type PlatformNetIncome =
  * (see the attribution invariant at the top of this module), so the two kinds no
  * longer have to be teased apart after the fact.
  *
- * Make-whole refunds must NOT be passed here: the platform earned no fee on those
- * lines (`platform_fee_cents` covers `entry_subtotal_cents`, i.e. paid lines only)
- * and made no club transfer for them, so that money is collected-and-returned, not
+ * Make-whole refunds must NOT be passed here: they return only the unserved
+ * lines' entry fees (`platform_fee_cents` is the full fee, kept — MYK9-966) and no
+ * club transfer was made for them, so that money is collected-and-returned, not
  * a loss. Including it makes net income read falsely negative. A genuine post-hoc
  * refund can legitimately drive net negative.
  *

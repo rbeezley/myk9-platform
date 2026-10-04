@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { decideCartOverflowRefund } from './cartOverflowRefund';
 import { decideEntryPaymentAutoRefund } from './entryPaymentAutoRefund';
@@ -26,7 +27,7 @@ describe('decideCartOverflowRefund', () => {
     ).toEqual({ action: 'none', paidAmountCents: 11_770 });
   });
 
-  it('make-whole refunds the full charge including platform fee when no line got service', () => {
+  it('refunds only the entry fees, keeping the service fee, when no line got service', () => {
     expect(
       decideCartOverflowRefund({
         ...base,
@@ -35,13 +36,13 @@ describe('decideCartOverflowRefund', () => {
       })
     ).toEqual({
       action: 'refund',
-      amountCents: 11_770,
-      paidAmountCents: 0,
+      amountCents: 6_000,
+      paidAmountCents: 5_770,
       reason: 'full_make_whole',
     });
   });
 
-  it('refunds denied or waitlisted lines plus their platform-fee share', () => {
+  it('refunds denied or waitlisted lines at their entry fee, never a fee share', () => {
     expect(
       decideCartOverflowRefund({
         ...base,
@@ -50,8 +51,8 @@ describe('decideCartOverflowRefund', () => {
       })
     ).toEqual({
       action: 'refund',
-      amountCents: 6_420,
-      paidAmountCents: 5_350,
+      amountCents: 6_000,
+      paidAmountCents: 5_770,
       reason: 'partial_no_service_lines',
     });
   });
@@ -67,7 +68,7 @@ describe('decideCartOverflowRefund', () => {
     ).toEqual({
       action: 'cannot_refund',
       reason: 'missing_payment_intent',
-      paidAmountCents: 5_350,
+      paidAmountCents: 5_770,
     });
   });
 
@@ -87,18 +88,14 @@ describe('decideCartOverflowRefund', () => {
 });
 
 /**
- * MYK9-197 adversarial review, B1.
- *
- * Every case above runs at 7/0/0, where a proportional split of the session
- * total and the correct expression happen to agree — which is exactly why the
- * defect was invisible. These cases run with the flat component and the floor
- * ON, where the two disagree, and assert against the platform's actual retained
- * fee rather than a hard-coded number.
+ * MYK9-197 B1, then MYK9-966: with the flat component and the floor ON, no part
+ * of the fee comes back. The platform keeps the WHOLE fee it charged, asserted
+ * against `calculatePlatformFeeCents` rather than a hard-coded number.
  *
  * The cart path and the payment-link path must also produce the IDENTICAL
  * refund from identical inputs; they are two writers of one policy.
  */
-describe('cart overflow refunds keep the flat component and the floor with the served lines', () => {
+describe('cart overflow refunds never return any part of the service fee', () => {
   const lineAmountsById = new Map([
     ['served', 2500],
     ['overflow', 2500],
@@ -119,21 +116,18 @@ describe('cart overflow refunds keep the flat component and the floor with the s
     return {
       refund,
       amountCents,
-      // What the platform is left holding once the served line's own fee is set
-      // aside — this must equal the fee it actually charged on that line.
+      // What the platform is left holding once the served line's entry fee is
+      // set aside — this must equal the WHOLE fee it charged (MYK9-966).
       retainedFeeCents: amountCents - refund - 2500,
-      bookedFeeCents: calculatePlatformFeeCents(2500, rates),
+      bookedFeeCents: calculatePlatformFeeCents(subtotal, rates),
     };
   }
 
   it('does not refund any part of a 30¢ flat component', () => {
     const r = refundAt({ percent: 7, flatCents: 30, minCents: 0 });
     expect(r.amountCents).toBe(5380);
-    expect(r.refund).toBe(2675);
+    expect(r.refund).toBe(2500);
     expect(r.retainedFeeCents).toBe(r.bookedFeeCents);
-    // The proportional split this replaced returned 2690 — 15¢ of the
-    // platform's own flat fee handed back.
-    expect(Math.round((5380 * 2500) / 5000)).toBe(2690);
   });
 
   it('does not refund any part of a binding floor', () => {
@@ -151,8 +145,6 @@ describe('cart overflow refunds keep the flat component and the floor with the s
       platformFeeRates: rates,
     });
     expect(decision).toMatchObject({ action: 'refund', amountCents: 100 });
-    // The proportional split returned 1100 — $10 of pure fee income.
-    expect(Math.round((2200 * 100) / 200)).toBe(1100);
   });
 
   it('matches the payment-link writer exactly, across the rate matrix', () => {
@@ -182,9 +174,9 @@ describe('cart overflow refunds keep the flat component and the floor with the s
           const cartAmount = cart.action === 'refund' ? cart.amountCents : null;
           const linkAmount = link.action === 'refund' ? link.amountCents : null;
           expect(cartAmount).toBe(linkAmount);
-          // And the platform keeps precisely the fee it charged on the served line.
+          // And the platform keeps precisely the whole fee it charged.
           expect(amountCents - (cartAmount ?? 0) - 2500).toBe(
-            calculatePlatformFeeCents(2500, rates)
+            calculatePlatformFeeCents(subtotal, rates)
           );
           checked += 1;
         }
@@ -202,7 +194,7 @@ describe('cart overflow refunds keep the flat component and the floor with the s
       lineAmountsById,
       platformFeeRates: { percent: 7, flatCents: 30, minCents: 0 },
     });
-    // 5380 − 2675: the served line plus the whole fee the platform retained.
-    expect(decision).toMatchObject({ paidAmountCents: 2705 });
+    // 5380 − 2500: the served line plus the whole fee the platform retained.
+    expect(decision).toMatchObject({ paidAmountCents: 2880 });
   });
 });

@@ -110,7 +110,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const addItem = useCartStore(state => state.addItem);
   const removeItem = useCartStore(state => state.removeItem);
 
-  const { getExistingEntry, getEntriesForDog } = useExistingEntries(showId);
+  const { getExistingEntry, getEntriesForDog, getReEntryBlockReason } = useExistingEntries(showId);
   const { classes: availabilityClasses, isLoading: availabilityLoading } =
     useClassAvailability(showId);
 
@@ -606,8 +606,18 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                     element: group.element,
                                     level: l.level,
                                   });
+                                  // Exhibitors cannot re-enter a class the dog withdrew
+                                  // from (MYK9-982); staff add it by hand, so the
+                                  // block never applies in the staff flow.
+                                  const reEntryBlock = useCartFlow
+                                    ? getReEntryBlockReason(dogId, l.classId)
+                                    : null;
                                   return {
                                     ...l,
+                                    ...(reEntryBlock !== null && {
+                                      isClassClosed: true,
+                                      classClosedReason: reEntryBlock,
+                                    }),
                                     isSelected: isClassSelected(
                                       dogId,
                                       l.classId,

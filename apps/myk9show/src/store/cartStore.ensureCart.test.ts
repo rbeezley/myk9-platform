@@ -117,12 +117,12 @@ vi.mock('./cartStore.recovery', () => ({
   RECOVERY_FAILED_MESSAGE: 'recovery failed',
 }));
 vi.mock('./cartStore.reconciliation', () => ({
-  reconcileCartItemsAgainstExistingEntries: vi.fn(async ({ items }: { items: unknown[] }) => items),
+  settleCartLines: vi.fn(async ({ items }: { items: unknown[] }) => ({ items, dropped: [] })),
 }));
 
 import { logger } from '@/services/LoggingService';
 import { loadCartItemsByCartId } from './cartStore.recovery';
-import { reconcileCartItemsAgainstExistingEntries } from './cartStore.reconciliation';
+import { settleCartLines } from './cartStore.reconciliation';
 import { useCartStore } from './cartStore';
 import { RECOVERABLE_CART_LOOKUP_COLUMNS } from './cartStore.pickCart';
 import {
@@ -160,9 +160,7 @@ beforeEach(() => {
   script.insert = { data: null, error: PG_ERROR };
   mockFrom.mockImplementation((table: string) => new MockBuilder(table));
   vi.mocked(loadCartItemsByCartId).mockResolvedValue([]);
-  vi.mocked(reconcileCartItemsAgainstExistingEntries).mockImplementation(
-    async ({ items }) => items
-  );
+  vi.mocked(settleCartLines).mockImplementation(async ({ items }) => ({ items, dropped: [] }));
   resetStore();
 });
 
@@ -238,9 +236,7 @@ describe('ensureCart never resolves without a cart or an error', () => {
   it('maps a rejection to failed rather than rethrowing', async () => {
     script.lookup = { data: LIVE_ROW, error: null };
     script.reread = { data: FULL_ROW, error: null };
-    vi.mocked(reconcileCartItemsAgainstExistingEntries).mockRejectedValue(
-      new Error('entries reconcile read failed')
-    );
+    vi.mocked(settleCartLines).mockRejectedValue(new Error('entries reconcile read failed'));
 
     const result = await useCartStore.getState().ensureCart(SHOW_ID, EXHIBITOR_ID);
 

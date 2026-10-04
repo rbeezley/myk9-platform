@@ -346,6 +346,7 @@ function setupDefaultMocks(overrides: { judgeDayFull?: boolean; waitlistCount?: 
   mockUseExistingEntries.mockReturnValue({
     getExistingEntry: vi.fn().mockReturnValue(undefined),
     getEntriesForDog: vi.fn().mockReturnValue([]),
+    getReEntryBlockReason: vi.fn().mockReturnValue(null),
   });
   mockUseClassAvailability.mockReturnValue({
     classes: [
@@ -841,6 +842,7 @@ describe('ClassSelectionStep — add-only entry actions (6.4)', () => {
         classId === CLASS_ID ? { id: 'entry-1', dogId: DOG_ID, classId: CLASS_ID } : undefined
       ),
       getEntriesForDog: vi.fn(() => [{ id: 'entry-1', dogId: DOG_ID, classId: CLASS_ID }]),
+      getReEntryBlockReason: vi.fn(() => null),
     });
     mockUseClassAvailability.mockReturnValue({
       classes: [],

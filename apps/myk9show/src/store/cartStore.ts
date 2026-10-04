@@ -39,7 +39,7 @@ import {
   settlePaymentLinkCart,
   type SettleCartLines,
 } from './cartStore.paymentLink';
-import { reconcileCartItemsAgainstExistingEntries } from './cartStore.reconciliation';
+import { settleCartLines } from './cartStore.reconciliation';
 import {
   ensureCartOnce,
   isActiveCartUniqueViolation,
@@ -48,7 +48,7 @@ import {
 import { captureCartWriteGuard, guardedSet, invalidateCartWrites } from './cartStore.session';
 import { recoverCartHold, type RecoverableCartRow } from './cartStore.recoverHold';
 import { findRecoverableCart } from './cartStore.pickCart';
-import { dropItemsInClosedClasses, mergeDroppedItems } from './cartStore.classClosure';
+import { mergeDroppedItems } from './cartStore.classClosure';
 
 // Re-export types so existing imports continue to work
 export type {
@@ -126,13 +126,10 @@ export const useCartStore = create<CartState>()(
               throw itemsError;
             }
 
-            const closure = await dropItemsInClosedClasses({
+            const closure = await settleCartLines({
               cartId: cartData.id,
-              items: await reconcileCartItemsAgainstExistingEntries({
-                cartId: cartData.id,
-                showId,
-                items: (itemsData || []) as CartItemWithDetails[],
-              }),
+              showId,
+              items: (itemsData || []) as CartItemWithDetails[],
             });
             const items = closure.items;
             const { subtotal, platformFee, total } = calculateCartTotals(items);
@@ -313,15 +310,8 @@ export const useCartStore = create<CartState>()(
 
           // Reconcile against live entries, then drop classes that closed or
           // filled since (a recovered draft may be months old).
-          const settle: SettleCartLines = async lines =>
-            dropItemsInClosedClasses({
-              cartId: cartData.id,
-              items: await reconcileCartItemsAgainstExistingEntries({
-                cartId: cartData.id,
-                showId: cartData.show_id,
-                items: lines,
-              }),
-            });
+          const settle: SettleCartLines = lines =>
+            settleCartLines({ cartId: cartData.id, showId: cartData.show_id, items: lines });
 
           // MYK9-873: a payment link refills an EMPTY cart with its still-payable
           // entries (never one that holds lines), and stores the link's facts;

@@ -269,7 +269,10 @@ export const mapDatabaseToClass = (dbClass: DbClassWithRelations): SyncableClass
     // Honest about "no limit": a null column is absent here, never a made-up 40 that the next
     // save of the class editor would write back as a real limit.
     maxEntries: dbClass.max_entries ?? undefined,
-    allowsWaitlist: dbClass.allow_waitlist ?? false,
+    // Absent (a read that does not select the column, e.g. the public one) stays undefined so
+    // the editor treats the switch as not loaded; a null column is the server's `false`.
+    allowsWaitlist:
+      dbClass.allow_waitlist === undefined ? undefined : (dbClass.allow_waitlist ?? false),
     requiresJumpHeight: Array.isArray(dbClass.jump_heights) && dbClass.jump_heights.length > 0,
 
     // Scent work specific fields (legacy compatibility)

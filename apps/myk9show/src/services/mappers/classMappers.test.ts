@@ -56,3 +56,16 @@ describe('class entry limit and wait list (MYK9-998)', () => {
     expect(cls.allowsWaitlist).toBe(true);
   });
 });
+
+describe('allowsWaitlist is undefined when the read did not carry the column (MYK9-998)', () => {
+  it('leaves it undefined for a row without allow_waitlist, false for a null one', () => {
+    const base = { id: 'c1', trial_id: 't1', name: 'n' };
+    expect(
+      mapDatabaseToClass(base as unknown as DbClassWithRelations).allowsWaitlist
+    ).toBeUndefined();
+    expect(
+      mapDatabaseToClass({ ...base, allow_waitlist: null } as unknown as DbClassWithRelations)
+        .allowsWaitlist
+    ).toBe(false);
+  });
+});

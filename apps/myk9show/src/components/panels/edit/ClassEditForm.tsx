@@ -67,7 +67,9 @@ export const ClassEditForm: React.FC<{
   showId?: string;
   activeTab: ClassTabValue;
   onTabChange: (tab: ClassTabValue) => void;
-}> = ({ showId, activeTab, onTabChange }) => {
+  /** False when the class came from a source that did not load its limit and wait list. */
+  capacityLoaded: boolean;
+}> = ({ showId, activeTab, onTabChange, capacityLoaded }) => {
   const { data, form } = useEditPanel<ClassEditFormData>();
   const { people } = useUserStore();
   const { shows } = useShowStore();
@@ -209,7 +211,7 @@ export const ClassEditForm: React.FC<{
             </CardContent>
           </Card>
 
-          <ClassWaitlistFields />
+          {capacityLoaded && <ClassWaitlistFields />}
         </TabsContent>
 
         <TabsContent

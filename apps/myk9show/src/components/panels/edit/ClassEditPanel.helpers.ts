@@ -68,6 +68,39 @@ export const formDataToClass = (formData: ClassEditFormData): Partial<ClassData>
   ...(formData.dayOfShowFee !== undefined && { dayOfShowFee: formData.dayOfShowFee }),
 });
 
+type CapacitySource = {
+  maxEntries?: number | null | undefined;
+  allowsWaitlist?: boolean | undefined;
+};
+
+/**
+ * Whether the class handed to the editor carried its entry limit and wait list switch.
+ * A source that dropped them (any producer that maps a class by hand) must not make the editor
+ * show "no limit, wait list off" as fact, because saving would then write exactly that.
+ */
+export const hasLoadedCapacity = (initial: CapacitySource | undefined): boolean =>
+  initial?.allowsWaitlist !== undefined;
+
+/**
+ * The entry limit and wait list switch go to the save only when they were loaded AND the user
+ * changed them, so an unrelated edit can never overwrite them, and a future producer that drops
+ * a field cannot silently null it out (MYK9-998, Codex review of #2735).
+ */
+export function onlyChangedCapacity<T extends CapacitySource>(
+  saved: T,
+  initial: CapacitySource | undefined
+): T {
+  const { maxEntries, allowsWaitlist, ...rest } = saved;
+  if (!hasLoadedCapacity(initial)) return rest as T;
+  const loadedLimit = initial?.maxEntries ?? null;
+  const out: CapacitySource = {};
+  if (maxEntries !== undefined && maxEntries !== loadedLimit) out.maxEntries = maxEntries;
+  if (allowsWaitlist !== undefined && allowsWaitlist !== initial?.allowsWaitlist) {
+    out.allowsWaitlist = allowsWaitlist;
+  }
+  return { ...rest, ...out } as T;
+}
+
 /**
  * Section (A/B) only applies to AKC Scent Work Novice — Advanced, Excellent,
  * and Master do not have sections. Detective has no sections regardless of level.

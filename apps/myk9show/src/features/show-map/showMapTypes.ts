@@ -64,6 +64,8 @@ export interface ShowMapNode {
   entryDisplay?: ShowMapEntryDisplay | undefined;
   dogEntryDisplay?: ShowMapDogEntryDisplay | undefined;
   parentId?: string | undefined;
+  /** Trial and class nodes: the show's resolved registry id, for registry-specific wording. */
+  registryId?: string | undefined;
   childrenCount: number;
   isSynthetic?: boolean | undefined;
   /** Class-only: non-null when a late expected entry reopened this class

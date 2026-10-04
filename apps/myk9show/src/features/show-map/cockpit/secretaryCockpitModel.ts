@@ -148,6 +148,7 @@ function checklistFor(cls: SecretaryCockpitClass): ScheduledClassModel['checklis
     entryCount: cls.entryCount ?? null,
     scoredCount: cls.scoredCount ?? null,
     wrapUpStatus: cls.wrapUpStatus ?? null,
+    registryId: cls.registryId ?? null,
     paperwork: cls.paperwork,
   });
   return items.length > 0 ? summarizeClassChecklist(items) : null;

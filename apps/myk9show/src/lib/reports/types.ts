@@ -78,6 +78,32 @@ export interface ReportEntry {
    * upper age bound) — the catalog prints a mark only when this is true.
    */
   handlerIsJunior?: boolean;
+  /**
+   * MYK9-1009 (AKC marked catalog). Every field below is absent when it was not
+   * read or not recorded, and the catalog prints it blank: nothing is guessed.
+   */
+  /** The AKC registration's registered name; never the call name or `dogs.name`. */
+  registeredName?: string | null;
+  /** `dogs.date_of_birth`, an ISO `YYYY-MM-DD` date. */
+  dateOfBirth?: string | null;
+  /** The dog owner's full name. Not the handler: see `handlerDiffersFromOwner`. */
+  ownerName?: string | null;
+  /** The owner's mailing address as one printable line. */
+  ownerAddress?: string | null;
+  /**
+   * True when the owner row WAS read and has no address parts. Distinct from an
+   * unread owner (no flag), which the report-level notice covers instead.
+   */
+  ownerAddressMissing?: boolean;
+  /**
+   * True only when the entry names a handler who is not the owner. The catalog
+   * prints a handler only then, as the AKC marked catalog requires.
+   */
+  handlerDiffersFromOwner?: boolean;
+  /** `entries.withdrawal_reason_code`: `in_season` (AIS) or `judge_change` (AJC). */
+  withdrawalReasonCode?: string | null;
+  /** `entries.disqualification_reason`: the judge's note on an excused / DQ'd dog. */
+  resultReason?: string | null;
 }
 
 /**
@@ -89,10 +115,16 @@ export type ReportDbEntry = DbEntry & {
     id?: string;
     call_name?: string | null;
     breed?: string | null;
+    /** MYK9-1009: hydrated by `hydrateCatalogDogProfiles`; absent when that read failed. */
+    date_of_birth?: string | null;
     registrations?: readonly (DogRegistrationLike | MappedDogRegistrationLike)[];
     owner?: {
       first_name?: string | null;
       last_name?: string | null;
+      street_address?: string | null;
+      city?: string | null;
+      state?: string | null;
+      zip_code?: string | null;
     } | null;
   } | null;
   /** Canonical assigned-handler-first identity attached by the entry read boundary. */
@@ -277,8 +309,16 @@ export interface ReportProps {
     status?: string | null;
     judgeName?: string;
     stewards?: Record<string, string>;
+    /** `classes.time_limit_seconds`: the maximum class time the AKC marked catalog prints. */
+    timeLimitSeconds?: number | null;
   }>;
   includeEstimatedTime?: boolean;
+  /**
+   * MYK9-1009: false when the owner address / date of birth read for the AKC marked
+   * catalog did not complete. Absent means complete. The catalog then prints a notice
+   * at the top rather than leaving blank cells that read as "no data".
+   */
+  catalogProfilesReadComplete?: boolean;
 }
 
 /**

@@ -292,6 +292,7 @@ export function buildSecretaryCockpitSnapshot({
         runListCount: classItem.runListCount ?? null,
         closeout: closeoutFor(node?.wrapUpStatus?.value),
         wrapUpStatus: node?.wrapUpStatus?.value ?? null,
+        registryId: node?.registryId ?? null,
         judgeName: classItem.judgeName ?? null,
         operationalArea:
           node?.ringLabel && node.ringLabel !== '—'

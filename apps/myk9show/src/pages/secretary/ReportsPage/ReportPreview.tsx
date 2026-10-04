@@ -44,6 +44,8 @@ export interface ReportPreviewProps {
    * the same readiness rule as the report rows (MYK9-721).
    */
   hosted?: HostedReportData;
+  /** MYK9-1009: false when the catalog's owner address / date of birth read did not complete. */
+  catalogProfilesReadComplete?: boolean;
   /**
    * Whether a download button EXISTS for this report and trial, regardless of
    * whether it is currently pressable.
@@ -77,6 +79,7 @@ export function ReportPreview({
   isError,
   dataState,
   hosted = NO_HOSTED_REPORT_DATA,
+  catalogProfilesReadComplete = true,
   hasDownloadAction = false,
   downloadBlockedReason,
   onRetry,
@@ -182,6 +185,7 @@ export function ReportPreview({
         ...(entryFormData ? { entryFormData } : {}),
         ...(judgeSupplies ? { judgeSupplies } : {}),
         ...(waitlist ? { waitlist } : {}),
+        ...(catalogProfilesReadComplete ? {} : { catalogProfilesReadComplete: false }),
       });
       const ReportComponent = report.component;
       combinedMarkup = ReactDOMServer.renderToStaticMarkup(<ReportComponent {...props} />);
@@ -266,6 +270,7 @@ export function ReportPreview({
     judgeSupplies,
     waitlist,
     hostedState,
+    catalogProfilesReadComplete,
   ]);
 
   // Checked FIRST. With no show there is no showId, so the trials query is

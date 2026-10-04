@@ -903,7 +903,7 @@ describe('showMapActions', () => {
       expect.arrayContaining([
         expect.objectContaining({
           id: 'collect-judge-signature',
-          why: 'Completed class still needs judge sign-off',
+          why: "Completed class still needs the judge's initials",
         }),
       ])
     );
@@ -1246,7 +1246,7 @@ describe('showMapActions', () => {
     /*
       Regression for the 2026-05-26 secretary launch-readiness audit
       (PR #418). Audit screenshot 02 caught Show Desk recommending
-      `Collect judge signature` while the headline read "0 of 40 classes
+      `Collect judge's initials` while the headline read "0 of 40 classes
       complete" — exactly the mis-ranking these tests now lock in.
 
       The fix in `wrapUpActionsForNode` demotes the entire wrap-up

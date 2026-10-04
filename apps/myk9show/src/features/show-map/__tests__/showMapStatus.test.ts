@@ -29,7 +29,7 @@ describe('showMapStatus', () => {
         classifyClassWrapUpStatus(makeClass('Complete'), [{ judge_signature_timestamp: null }])
       ).toMatchObject({
         value: 'needs-judge-signature',
-        label: 'Needs judge signature',
+        label: "Needs judge's initials",
         kind: 'attention',
       });
     });
@@ -41,7 +41,7 @@ describe('showMapStatus', () => {
         ])
       ).toMatchObject({
         value: 'signed-by-judge',
-        label: 'Signed by judge',
+        label: 'Initialed by judge',
         kind: 'neutral',
       });
     });
@@ -65,7 +65,7 @@ describe('showMapStatus', () => {
         ])
       ).toMatchObject({
         value: 'signed-by-judge',
-        label: 'Signed by judge',
+        label: 'Initialed by judge',
         kind: 'neutral',
       });
     });
@@ -83,7 +83,7 @@ describe('showMapStatus', () => {
       });
       expect(classifyClassWrapUpStatus(makeClass('In Progress'), entries)).toMatchObject({
         value: 'signed-by-judge',
-        label: 'Signed by judge',
+        label: 'Initialed by judge',
         kind: 'neutral',
       });
     });

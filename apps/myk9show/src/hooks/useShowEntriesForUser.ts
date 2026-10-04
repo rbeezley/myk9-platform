@@ -14,7 +14,7 @@ import {
   isRunnableScheduleStatus,
   resolveClassSection,
 } from '@/services/entryDisplay/entryDisplaySelectors';
-import { dogsAheadInClass, runQueueStateInClass } from '@/utils/showEntryRunQueue';
+import { dogsAheadInClass, ownEntryQueueState } from '@/utils/showEntryRunQueue';
 import type { RunQueueState } from '@myk9/ringside/run-queue';
 import { formatWeekdayLongMonthDay } from '@/lib/format/dates';
 import { hasScopedClubRole, hasScopedShowRole } from '@/utils/roleScopes';
@@ -39,8 +39,9 @@ export interface EnrichedShowEntry {
   dogName: string;
   armband: string;
   /**
-   * Place in line while waiting, else the dog's state (MYK9-992). Null when the
-   * secretary has not set the order yet. The stored run number is never exposed.
+   * The dog's state (MYK9-992): in ring / done / pulled, or "waiting" once the
+   * secretary has set an order. Never a counted place (exhibitors do not hold
+   * the class queue) and never the stored number. Null while no order is set.
    */
   queue: RunQueueState | null;
   checkInStatus?: CheckInStatus;
@@ -386,7 +387,6 @@ export function useShowEntriesForUser(
         relatedString(canonicalRow, 'dog', 'name') ??
         'Unknown Dog';
 
-      const runOrder = entry.registrationData.runOrder ?? 0;
       const checkInStatus = canonicalCheckInStatus(
         entry.checkInStatus ?? canonicalRow?.check_in_status
       );
@@ -394,10 +394,8 @@ export function useShowEntriesForUser(
       // excluded, so this is the same number the entry-list pill, the ring
       // conflict label and the "your turn" push all report.
       const dogsAhead = dogsAheadInClass(entriesByClassId.get(entry.classId) ?? [], entry.id) ?? 0;
-      // A waiting dog with no order set sorts by armband, which is not a place
-      // anyone has been promised, so it stays "pending" rather than a number.
-      const queueState = runQueueStateInClass(entriesByClassId.get(entry.classId) ?? [], entry.id);
-      const queue = queueState?.kind === 'waiting' && runOrder <= 0 ? null : queueState;
+      // Own rows only (see ownEntryQueueState): state, never a counted place.
+      const queue = ownEntryQueueState(entry);
 
       const movedUpFromClassId = movedUpFromClassIdByEntryId.get(entry.id);
       const movedUpFromClass = movedUpFromClassId ? classMap.get(movedUpFromClassId) : undefined;

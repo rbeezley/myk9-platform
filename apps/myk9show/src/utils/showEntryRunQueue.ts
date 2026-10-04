@@ -107,13 +107,18 @@ export function dogsAheadInClass(entries: readonly ShowEntry[], entryId: string)
 }
 
 /**
- * Where `entryId` stands in its class for display (MYK9-992): a 1-based place
- * in line while waiting, otherwise its state (in ring, done, pulled). Null when
- * the entry is not in `entries`. The stored run number is never shown.
+ * What an exhibitor's own entry may honestly say about its place (MYK9-992).
+ *
+ * The exhibitor surfaces hold their own dogs' rows, not the class's queue
+ * (`entries_select` is own/handler/manager only; the show-wide view needs a
+ * warm per-show replica that account routes never seed), so a place counted
+ * from them would call a lone dog "Next up" with strangers ahead of it. The
+ * dog's own row does decide in ring / done / pulled. A waiting dog says
+ * "Waiting" once the secretary has set an order, and nothing before that.
+ * A true place needs the full queue from the server.
  */
-export function runQueueStateInClass(
-  entries: readonly ShowEntry[],
-  entryId: string
-): RunQueueState | null {
-  return runQueueStateOf(entries.map(toShowEntryQueueRow), entryId);
+export function ownEntryQueueState(entry: ShowEntry): RunQueueState | null {
+  const state = runQueueStateOf([toShowEntryQueueRow(entry)], entry.id);
+  if (state?.kind !== 'waiting') return state;
+  return (entry.registrationData?.runOrder ?? 0) > 0 ? { kind: 'waiting-unknown' } : null;
 }

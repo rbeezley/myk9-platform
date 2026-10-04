@@ -276,11 +276,11 @@ describe('useShowEntriesForUser', () => {
     expect(entry.dayLabel).toBe('Sunday, May 10');
   });
 
-  it('carries the canonical check-in state and place in line to the schedule', () => {
+  it('carries the canonical check-in state and state to the schedule', () => {
     setMocks({ entries: [makeEntry({ checkInStatus: 'checked-in' })] });
     const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
     expect(result.current.allEntries[0]).toMatchObject({
-      queue: { kind: 'waiting', place: 1 },
+      queue: { kind: 'waiting-unknown' },
       checkInStatus: 'checked-in',
     });
   });
@@ -410,7 +410,7 @@ describe('useShowEntriesForUser', () => {
     expect(result.current.allEntries[0].dogsAhead).toBe(2);
   });
 
-  it('exposes place in line, not the stored number, when stored numbers have gaps (MYK9-992)', () => {
+  describe('queue state (MYK9-992)', () => {
     const reg = (armband: string, runOrder: number) => ({
       armband,
       runOrder,
@@ -421,19 +421,48 @@ describe('useShowEntriesForUser', () => {
     });
     const other = (id: string, armband: string, runOrder: number, extra = {}) =>
       makeEntry({ id, dogId: 'dog-x', registrationData: reg(armband, runOrder), ...extra });
-    setMocks({
-      entries: [
-        makeEntry({ registrationData: reg('101', 31) }),
-        other('ring', '90', 7, { checkInStatus: 'in-ring' }),
-        other('first', '91', 9),
-        other('later', '92', 40),
-      ],
+    const mineOf = () =>
+      renderHook(() => useShowEntriesForUser(SHOW_ID)).result.current.allEntries.find(
+        e => e.entryId === 'entry-1'
+      );
+
+    it('never promises a place when other dogs are ahead (stored 31, others at 7, 9)', () => {
+      setMocks({
+        entries: [
+          makeEntry({ registrationData: reg('101', 31) }),
+          other('ring', '90', 7, { checkInStatus: 'in-ring' }),
+          other('first', '91', 9),
+        ],
+      });
+      const mine = mineOf();
+      expect(mine?.queue).toEqual({ kind: 'waiting-unknown' });
+      expect(mine).not.toHaveProperty('runOrder');
     });
-    const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
-    const mine = result.current.allEntries.find(e => e.entryId === 'entry-1');
-    // 7 is in the ring (outside the queue), 9 waits ahead, 31 is mine, 40 is behind.
-    expect(mine?.queue).toEqual({ kind: 'waiting', place: 2 });
-    expect(mine).not.toHaveProperty('runOrder');
+
+    it('does not call a lone owned dog next when its order is unset', () => {
+      setMocks({ entries: [makeEntry({ registrationData: reg('101', 0) })] });
+      expect(mineOf()?.queue).toBeNull();
+    });
+
+    it('keeps in-ring, pulled and done states even with an unset order', () => {
+      setMocks({
+        entries: [makeEntry({ registrationData: reg('101', 0), checkInStatus: 'in-ring' })],
+      });
+      expect(mineOf()?.queue).toEqual({ kind: 'in-ring' });
+      setMocks({
+        entries: [makeEntry({ registrationData: reg('101', 0), checkInStatus: 'pulled' })],
+      });
+      expect(mineOf()?.queue).toEqual({ kind: 'pulled' });
+      setMocks({
+        entries: [
+          makeEntry({
+            registrationData: reg('101', 0),
+            competitionData: { qualified: true, recordedBy: 'j', recordedAt: '' },
+          }),
+        ],
+      });
+      expect(mineOf()?.queue).toEqual({ kind: 'done' });
+    });
   });
 
   it('excludes withdrawn, moved source, and scratched rows from runnable schedule counts and dogsAhead', () => {

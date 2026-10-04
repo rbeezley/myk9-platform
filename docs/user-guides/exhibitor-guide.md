@@ -151,7 +151,7 @@ Once the secretary publishes the run order, a **View run order** button appears 
 
 The run order shows dog names, handler names, and armband numbers. **Armband numbers** are assigned by the secretary and may not appear until close to show day.
 
-Your dog's spot in the line shows as **Next up**, **2nd up**, **3rd up** and so on, and moves up as dogs ahead of you finish. Once your dog is running or has finished, it shows **In ring** or **Done** instead.
+Once the secretary has set the order, your dog shows **Waiting**. When it is running or has finished, it shows **In ring** or **Done**. The app does not count dogs ahead of you; watch the ring and the Message Center for your turn.
 
 **Ring assignments** are communicated by the secretary directly — they're not tracked in the app.
 

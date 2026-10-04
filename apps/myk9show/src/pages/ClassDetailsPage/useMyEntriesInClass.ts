@@ -3,7 +3,7 @@ import { useEntryStore } from '@/store/entryStore';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { getDogDisplayName } from '@/types/dog-types';
-import { runQueueStateInClass } from '@/utils/showEntryRunQueue';
+import { ownEntryQueueState } from '@/utils/showEntryRunQueue';
 import type { RunQueueState } from '@myk9/ringside/run-queue';
 import { dbSecondsToInputFormat } from '@/utils/scoringMappings';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
@@ -16,7 +16,7 @@ export interface MyClassEntry {
   armband: string;
   /** Sort key only (MYK9-992): never render it, show `queue` instead. */
   runOrder: number;
-  /** Place in line while waiting, else the dog's state; null when unknown. */
+  /** The dog's own state; never a counted place (see ownEntryQueueState). */
   queue: RunQueueState | null;
   hasResult: boolean;
   result?: {
@@ -82,7 +82,7 @@ export function useMyEntriesInClass(
       seenEntryIds.add(entry.id);
 
       const runOrder = entry.registrationData.runOrder ?? 0;
-      const queue = runQueueStateInClass(classEntries, entry.id);
+      const queue = ownEntryQueueState(entry);
       // Shared run queue (see utils/showEntryRunQueue): the in-ring dog is
       // excluded from the waiting queue, so the place matches the entry-list
       // pill and the push notification.

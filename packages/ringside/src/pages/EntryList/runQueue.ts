@@ -97,7 +97,17 @@ export function nextPendingCandidates<T extends RunQueueEntry>(
  * queue (INTENT above), so it reports its state, not a place.
  */
 export type RunQueueState =
-  { kind: 'waiting'; place: number } | { kind: 'in-ring' } | { kind: 'done' } | { kind: 'pulled' };
+  | { kind: 'waiting'; place: number }
+  /**
+   * Waiting, but the rows available cannot say where in line. An exhibitor's
+   * own rows are the whole picture only for their own dogs, so counting the
+   * dogs ahead from them would promise "Next up" with strangers in front.
+   * `runQueueStateOf` never returns this; callers holding a partial queue do.
+   */
+  | { kind: 'waiting-unknown' }
+  | { kind: 'in-ring' }
+  | { kind: 'done' }
+  | { kind: 'pulled' };
 
 /**
  * The entry's state in `entries` (one class's rows), or null when the entry is
@@ -145,6 +155,8 @@ export function formatRunQueueState(state: RunQueueState): string {
   switch (state.kind) {
     case 'waiting':
       return formatPlaceInLine(state.place);
+    case 'waiting-unknown':
+      return 'Waiting';
     case 'in-ring':
       return 'In ring';
     case 'done':

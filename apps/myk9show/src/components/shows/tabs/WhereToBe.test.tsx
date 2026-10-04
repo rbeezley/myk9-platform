@@ -12,7 +12,7 @@ function makeEntry(overrides: Partial<EnrichedShowEntry> = {}): EnrichedShowEntr
     dogId: 'd1',
     dogName: 'Maggie',
     armband: '101',
-    queue: { kind: 'waiting', place: 1 },
+    queue: { kind: 'waiting-unknown' },
     element: 'Container',
     level: 'Novice',
     section: 'A',
@@ -175,16 +175,16 @@ describe('WhereToBe', () => {
     expect(screen.getByText('10:30 AM')).toBeInTheDocument();
   });
 
-  it('shows place in line and check-in state, never a stored run number', () => {
+  it('shows "Waiting" and check-in state, never a place or a stored run number', () => {
     render(
       <WhereToBe
-        entries={[makeEntry({ queue: { kind: 'waiting', place: 3 }, checkInStatus: 'checked-in' })]}
+        entries={[makeEntry({ queue: { kind: 'waiting-unknown' }, checkInStatus: 'checked-in' })]}
         showId={SHOW_ID}
       />
     );
-    expect(screen.getByText('3rd up')).toBeInTheDocument();
+    expect(screen.getByText('Waiting')).toBeInTheDocument();
     expect(screen.getByText('Checked-in')).toBeInTheDocument();
-    expect(screen.queryByText(/run position/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/run position|\bup\b/i)).not.toBeInTheDocument();
   });
 
   it("shows each dog's state when it has no place in line", () => {

@@ -221,7 +221,9 @@ export const TrialManagementDialogs = forwardRef<
             }
 
             // Now update class — its onSuccess invalidation will refetch fresh judge data
-            await updateClass(selectedClassForEdit.id, { ...selectedClassForEdit, ...classData });
+            // The panel's patch only: merging the (possibly stale) class back in would rewrite its
+            // untouched fields, including another secretary's limit or wait list change.
+            await updateClass(selectedClassForEdit.id, classData);
 
             useTrialStore.getState().loadTrialClasses();
             // Invalidate specific query keys for classes (safety net after fresh refetch)

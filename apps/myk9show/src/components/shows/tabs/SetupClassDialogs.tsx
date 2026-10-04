@@ -28,12 +28,10 @@ export function SetupClassDialogs({ showId, pending, onClose }: SetupClassDialog
 
   // Rejects on failure: the panel stays open with the edits. On success it closes itself.
   const handleSave = async (data: Partial<ClassData>) => {
-    await saveClass(
-      currentClass.id,
-      { ...currentClass, ...data } as Partial<ClassData>,
-      pending.trialId,
-      currentClass.judgeId
-    );
+    // The panel's patch only, never the snapshot with the patch on top: the snapshot is stale
+    // by the time Save is pressed, and writing its untouched fields back would revert another
+    // secretary's change (MYK9-998, Codex review of #2735).
+    await saveClass(currentClass.id, data, pending.trialId, currentClass.judgeId);
   };
 
   const target = {

@@ -24,7 +24,8 @@ export function useClassEditActions({ showId, updateClass }: UseClassEditActions
   const connectionHint = useConnectionHint();
 
   /**
-   * `data` is the full merged class (existing fields plus the panel's edits). Resolves on
+   * `data` is the PATCH the edit panel returned, never the class snapshot merged with it (a
+   * stale snapshot would write another user's concurrent change back). Resolves on
    * success; REJECTS on failure (offline or a failed write) so the edit panel stays open with
    * the user's edits and shows the reason.
    */

@@ -24,6 +24,9 @@ vi.mock('@/hooks/useShowManageScope', () => ({
   useShowManageScope: () => ({ status: 'resolved', canManage: false }),
 }));
 
+// The guest Export CSV (MYK9-933) reads the signed-in user.
+vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => ({ user: { id: 'u1' } }) }));
+
 vi.mock('@/hooks/useRBAC', () => ({
   useRBAC: () => ({
     hasPermission: () => false,

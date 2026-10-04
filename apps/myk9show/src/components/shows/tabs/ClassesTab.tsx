@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { ListEmptyState, ListViewToggle } from '@/components/list-toolkit';
+import { GuestExportButton, ListEmptyState, ListViewToggle } from '@/components/list-toolkit';
 import { useViewPreference } from '@/hooks/useViewPreference';
 import { defaultListView } from '@/utils/defaultListView';
 import { getClassDetailHref } from '@/utils/classDetailHref';
 import { usePageExportAction } from '@/features/actions/pageEditTarget';
-import { exportRowsCsv } from '@/utils/downloadCsv';
+import { dropExportColumns, exportRowsCsv } from '@/utils/downloadCsv';
 import { CLASS_EXPORT_HEADERS, classExportRows } from '@/components/classes/classesExport';
 import { ClassCard } from './ClassCard';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -231,15 +231,18 @@ export function ClassesTab({
 
   // The whole-list export the table's own button used to be (owner decision 4: header Actions
   // menu), so exporting needs no ticked rows.
+  const exportClasses = (omit: readonly string[] = []) => {
+    const { headers, rows } = dropExportColumns(
+      CLASS_EXPORT_HEADERS,
+      classExportRows(filteredClasses.map(cls => ({ ...cls, trialLabel: classTrialLabel(cls) }))),
+      omit
+    );
+    exportRowsCsv('classes', headers, rows);
+  };
   usePageExportAction({
     id: 'classes',
     enabled: viewReady && viewMode === 'table' && filteredClasses.length > 0,
-    run: () =>
-      exportRowsCsv(
-        'classes',
-        CLASS_EXPORT_HEADERS,
-        classExportRows(filteredClasses.map(cls => ({ ...cls, trialLabel: classTrialLabel(cls) })))
-      ),
+    run: () => exportClasses(),
   });
 
   if (classes.length === 0) {
@@ -283,7 +286,17 @@ export function ClassesTab({
           onClearFilters: scope.clearFilters,
           showAllInEmptyState: filteredClasses.length === 0,
         }}
-        viewToggle={<ListViewToggle active={viewMode} onChange={setViewMode} />}
+        viewToggle={
+          <>
+            {/* Signed-out visitors have no header Actions menu (MYK9-933); their CSV leaves out
+                Ring where the table does (scent trials). */}
+            <GuestExportButton
+              enabled={filteredClasses.length > 0}
+              onExport={() => exportClasses(hideRing ? ['Ring'] : [])}
+            />
+            <ListViewToggle active={viewMode} onChange={setViewMode} />
+          </>
+        }
         search={{ value: scope.search, onChange: scope.setSearch }}
         {...(canManageThisShow
           ? {

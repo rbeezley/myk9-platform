@@ -43,7 +43,7 @@ function plural(count: number, [one, many]: readonly [string, string]): string {
   return `${count.toLocaleString()} ${count === 1 ? one : many}`;
 }
 
-const LINK_BUTTON =
+export const LIST_LINK_BUTTON =
   'h-11 rounded-md px-2 font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring';
 
 function statusSentence({
@@ -87,12 +87,12 @@ export function ListResultLine({
         {statusSentence({ shown, total, noun, filtered })}
       </p>
       {filtered && !showAllInEmptyState && (
-        <button type="button" onClick={onShowAll} className={LINK_BUTTON}>
+        <button type="button" onClick={onShowAll} className={LIST_LINK_BUTTON}>
           Show all {noun[1]}
         </button>
       )}
       {canSelectAll && (
-        <button type="button" onClick={selectAll.onSelectAll} className={LINK_BUTTON}>
+        <button type="button" onClick={selectAll.onSelectAll} className={LIST_LINK_BUTTON}>
           Select all {plural(shown, noun)}
         </button>
       )}

@@ -467,6 +467,41 @@ describe('BrowseShowsPage - Tab Rendering Logic', () => {
       expect(registeredPageExports()).toEqual([]);
     });
 
+    // MYK9-933: a signed-out visitor has no header Actions menu, so the control is in the result line.
+    it('gives a guest an Export CSV in the result line, in cards view, with only the public columns', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<BrowseShowsPage />);
+      await waitFor(() => {
+        expect(screen.getByTestId('shows-cards')).toBeInTheDocument();
+      });
+
+      const resultLine = screen.getByText(/^Showing/).parentElement as HTMLElement;
+      const download = captureCsvDownload();
+      try {
+        await user.click(within(resultLine).getByRole('button', { name: 'Export CSV' }));
+        const lines = download.csv().split('\n');
+        // The public table leaves Status off, so the guest's file does too.
+        expect(lines[0]).toBe('Show,Dates,Location,Entries,Organization,Host Club');
+        expect(lines).toHaveLength(mockShows.length + 1);
+        expect(lines[1]).toContain('"Spring Agility Trial"');
+      } finally {
+        download.restore();
+      }
+    });
+
+    it('gives a signed-in viewer no result-line Export CSV (theirs is in the header Actions menu)', async () => {
+      setupMocks({ user: createMockUser(UserRole.SECRETARY, 'secretary-1') });
+      renderWithProviders(<BrowseShowsPage />, { route: '/shows?tab=managing' });
+      await waitFor(() => {
+        expect(screen.getByTestId('shows-table')).toBeInTheDocument();
+      });
+      const resultLine = screen.getByText(/^Showing/).parentElement as HTMLElement;
+      expect(
+        within(resultLine).queryByRole('button', { name: 'Export CSV' })
+      ).not.toBeInTheDocument();
+      resetPageExports();
+    });
+
     it('renders the month scrubber with All upcoming selected', async () => {
       renderWithProviders(<BrowseShowsPage />);
 

@@ -18,6 +18,12 @@ vi.mock('@/hooks/useShowManageScope', () => ({
   useShowManageScope: () => ({ status: mockScopeStatus, canManage: mockCanManage }),
 }));
 
+// Signed in by default (a manager is); a guest test sets this to null.
+let mockUser: { id: string } | null = { id: 'u1' };
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({ user: mockUser }),
+}));
+
 const navigate = vi.hoisted(() => vi.fn());
 vi.mock('react-router-dom', async importOriginal => ({
   ...(await importOriginal<typeof import('react-router-dom')>()),
@@ -51,6 +57,7 @@ describe('TrialsTab list toolkit', () => {
     localStorage.clear();
     mockCanManage = true;
     mockScopeStatus = 'resolved';
+    mockUser = { id: 'u1' };
     navigate.mockReset();
   });
 
@@ -141,6 +148,53 @@ describe('TrialsTab list toolkit', () => {
       localStorage.setItem('view-pref-trials', 'cards');
       renderTab();
       expect(registeredPageExports()).toEqual([]);
+    });
+  });
+
+  // MYK9-933: a signed-out visitor has no header Actions menu, so the export is in the result line.
+  describe('guest Export CSV', () => {
+    beforeEach(() => {
+      mockUser = null;
+      mockCanManage = false;
+    });
+
+    it('shows in the result line in cards view and downloads the table columns for the rows on screen', async () => {
+      const { user } = renderTab();
+      const resultLine = screen.getByRole('status').parentElement as HTMLElement;
+      const download = captureCsvDownload();
+      try {
+        await user.click(within(resultLine).getByRole('button', { name: 'Export CSV' }));
+        const lines = download.csv().split('\n');
+        expect(lines[0]).toBe('Date,Trial Name,Type,Time,Classes,Entries,Scored,Status');
+        expect(lines).toHaveLength(trials.length + 1);
+      } finally {
+        download.restore();
+      }
+    });
+
+    it('exports only what the search leaves on screen', async () => {
+      const { user } = renderTab();
+      await user.type(screen.getByPlaceholderText('Search trials...'), 'Completed');
+      const download = captureCsvDownload();
+      try {
+        await user.click(screen.getByRole('button', { name: 'Export CSV' }));
+        const lines = download.csv().split('\n');
+        expect(lines).toHaveLength(2);
+        expect(lines[1]).toContain('"Trial 2"');
+      } finally {
+        download.restore();
+      }
+    });
+
+    it('is absent for a signed-in viewer and for an empty list', () => {
+      mockUser = { id: 'u1' };
+      const signedIn = renderTab();
+      expect(screen.queryByRole('button', { name: 'Export CSV' })).not.toBeInTheDocument();
+      signedIn.unmount();
+
+      mockUser = null;
+      renderTab([]);
+      expect(screen.queryByRole('button', { name: 'Export CSV' })).not.toBeInTheDocument();
     });
   });
 

@@ -1,34 +1,30 @@
 /**
- * Waitlist Table component for WaitlistManagementPage
+ * Waitlist Table component for WaitlistManagementPage: one class's queue, in join order.
  */
 
 import { useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Clock, Dog, ArrowUpCircle, Trash2 } from 'lucide-react';
-import { DataTable, filterByListSearch, type ColumnDef } from '@/components/ui/data-table';
+import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import type { WaitlistEntry, ClassWithWaitlistCount, ActionDialogState } from './types';
 import { formatEntryDateTime } from '@/lib/format/dates';
-import { usePageExportAction } from '@/features/actions/pageEditTarget';
-import { exportRowsCsv } from '@/utils/downloadCsv';
 
 interface WaitlistTableProps {
   entries: WaitlistEntry[];
-  selectedClass: ClassWithWaitlistCount | undefined;
+  selectedClass: ClassWithWaitlistCount;
   isLoading: boolean;
-  searchTerm: string;
-  onSearchChange: (term: string) => void;
+  searchActive: boolean;
   onSetActionDialog: (state: ActionDialogState) => void;
 }
 
 function buildColumns(
-  selectedClass: ClassWithWaitlistCount | undefined,
+  selectedClass: ClassWithWaitlistCount,
   onOfferSpot: (entry: WaitlistEntry) => void,
   onRemove: (entry: WaitlistEntry) => void
 ): ColumnDef<WaitlistEntry, unknown>[] {
   const hasAvailableSpots =
-    selectedClass &&
-    (!selectedClass.max_entries || selectedClass.accepted_count < selectedClass.max_entries);
+    !selectedClass.max_entries || selectedClass.accepted_count < selectedClass.max_entries;
 
   return [
     {
@@ -97,8 +93,7 @@ export function WaitlistTable({
   entries,
   selectedClass,
   isLoading,
-  searchTerm,
-  onSearchChange,
+  searchActive,
   onSetActionDialog,
 }: WaitlistTableProps) {
   const handleOfferSpot = useCallback(
@@ -120,23 +115,6 @@ export function WaitlistTable({
     [selectedClass, handleOfferSpot, handleRemove]
   );
 
-  // The whole-list export the table's own button used to be: exactly the rows on screen, found by
-  // the same shared search the table applies.
-  const exportRows = useMemo(
-    () =>
-      filterByListSearch(entries, columns, searchTerm).map(entry => [
-        entry.position,
-        entry.dog?.call_name ?? entry.dog?.name ?? '',
-        entry.created_at ?? '',
-      ]),
-    [entries, columns, searchTerm]
-  );
-  usePageExportAction({
-    id: 'waitlist',
-    enabled: exportRows.length > 0,
-    run: () => exportRowsCsv('waitlist', ['Position', 'Dog', 'Added'], exportRows),
-  });
-
   return (
     <Card>
       <CardHeader>
@@ -144,31 +122,28 @@ export function WaitlistTable({
           <div>
             <CardTitle className="flex items-center gap-2">
               <Clock className="h-5 w-5" />
-              Waitlist ({entries.length})
+              {selectedClass.class_number ? `#${selectedClass.class_number} - ` : ''}
+              {selectedClass.name} ({entries.length})
             </CardTitle>
             <CardDescription>
-              Entries are ordered by submission time (first come, first served)
+              In join order (first come, first served) &middot; {selectedClass.accepted_count}
+              {selectedClass.max_entries ? ` of ${selectedClass.max_entries}` : ''} entered
             </CardDescription>
           </div>
         </div>
       </CardHeader>
       <CardContent>
         <DataTable
-          tableId="waitlist"
+          tableId={`waitlist-${selectedClass.id}`}
           columns={columns}
           data={entries}
           loading={isLoading}
-          // Search lives on the page's shared `ListFilterBar` (MYK9-795), not
-          // this table's own built-in search box — `globalFilter`/
-          // `onGlobalFilterChange` stay controlled from there.
-          globalFilter={searchTerm}
-          onGlobalFilterChange={onSearchChange}
           emptyState={
             <div className="text-center py-4 text-muted-foreground">
               <Clock className="h-12 w-12 mx-auto mb-4 opacity-50" />
               <p className="text-lg font-medium">No entries on waitlist</p>
               <p className="text-sm">
-                {searchTerm
+                {searchActive
                   ? 'No entries match your search'
                   : 'This class has no waitlisted entries'}
               </p>

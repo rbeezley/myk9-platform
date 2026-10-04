@@ -3,9 +3,10 @@
  * Handles state, data loading, and actions
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { useAuthContext } from '@/hooks/useAuthContext';
+import { judgeDayCapacityKey, useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
 import {
@@ -15,20 +16,33 @@ import {
   removeFromWaitlist,
   sendWaitlistOfferMessage,
 } from '@/services/database/waitlists';
-import { getSecretaryShows } from '@/services/database/shows';
-import type { Show, ActionDialogState, WaitlistEntry, ClassWithWaitlistCount } from './types';
+import type {
+  ActionDialogState,
+  WaitlistClassGroup,
+  WaitlistEntry,
+  ClassWithWaitlistCount,
+} from './types';
 
-export function useWaitlistManagementData(showId?: string) {
-  const { user } = useAuthContext();
+/** The judge-day a secretary asked to see the wait list of (the card's own identity). */
+interface JudgeDayKey {
+  judgeId: string;
+  showDate: string;
+}
 
-  const [shows, setShows] = useState<Show[]>([]);
-  const [selectedShowId, setSelectedShowId] = useState<string>(showId ?? '');
+/**
+ * State for the Waitlist tab of Entry Management. The tab is already scoped to one show, so
+ * there is no show or class to choose: it lists every waiting dog in the show, grouped by class,
+ * and "View Wait List" on a judge-day card narrows that to the judge-day's classes (MYK9-1004).
+ */
+export function useWaitlistManagementData(showId: string) {
+  const queryClient = useQueryClient();
+  const { judgeDays } = useJudgeDayCapacity(showId || undefined);
+
   const [classes, setClasses] = useState<ClassWithWaitlistCount[]>([]);
-  const [selectedClassId, setSelectedClassId] = useState<string>('');
   const [waitlistEntries, setWaitlistEntries] = useState<WaitlistEntry[]>([]);
+  const [judgeDayKey, setJudgeDayKey] = useState<JudgeDayKey | null>(null);
 
   // UI state
-  const [isLoadingShows, setIsLoadingShows] = useState(true);
   const [isLoadingClasses, setIsLoadingClasses] = useState(false);
   const [isLoadingWaitlist, setIsLoadingWaitlist] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -42,41 +56,39 @@ export function useWaitlistManagementData(showId?: string) {
     entry: null,
   });
 
+  // A different show means a different judge-day list: drop the narrowing.
   useEffect(() => {
-    if (showId !== undefined) {
-      setSelectedShowId(showId);
-    }
+    setJudgeDayKey(null);
   }, [showId]);
 
+  const selectedJudgeDay = useMemo(
+    () =>
+      judgeDayKey
+        ? (judgeDays.find(
+            d => d.judgeId === judgeDayKey.judgeId && d.showDate === judgeDayKey.showDate
+          ) ?? null)
+        : null,
+    [judgeDays, judgeDayKey]
+  );
+
+  // Which classes' queues to read: the judge-day's classes, else every class in the show that has
+  // anyone waiting. Keyed by value so an unchanged set does not refetch.
+  const targetClassIds = useMemo(
+    () =>
+      selectedJudgeDay
+        ? selectedJudgeDay.classIds
+        : classes.filter(c => c.waitlist_count > 0).map(c => c.id),
+    [selectedJudgeDay, classes]
+  );
+  const targetKey = targetClassIds.join(',');
+
   // Data loading callbacks
-  const loadShows = useCallback(async () => {
-    setIsLoadingShows(true);
-    setError(null);
-
-    try {
-      const { data, error } = await getSecretaryShows(user?.id || '');
-      if (error) {
-        setError('Failed to load shows');
-        logger.error('Error loading shows for waitlist:', 'secretary', {}, error as Error);
-      } else {
-        setShows(data || []);
-      }
-    } catch (err) {
-      setError('Failed to load shows');
-      logger.error('Error loading shows:', 'secretary', {}, err as Error);
-    } finally {
-      setIsLoadingShows(false);
-    }
-  }, [user?.id]);
-
-  const loadClasses = useCallback(async (showId: string) => {
+  const loadClasses = useCallback(async (forShowId: string) => {
     setIsLoadingClasses(true);
     setError(null);
-    setSelectedClassId('');
-    setWaitlistEntries([]);
 
     try {
-      const { data, error } = await getClassesWithWaitlistCounts(showId);
+      const { data, error } = await getClassesWithWaitlistCounts(forShowId);
       if (error) {
         setError('Failed to load classes');
         logger.error('Error loading classes for waitlist:', 'secretary', {}, error as Error);
@@ -91,50 +103,60 @@ export function useWaitlistManagementData(showId?: string) {
     }
   }, []);
 
-  const loadWaitlist = useCallback(async (classId: string) => {
+  // Only the newest read may write state: a slow read for a judge-day the secretary has already
+  // left must not overwrite the queue they are looking at now.
+  const latestWaitlistRead = useRef(0);
+  const loadWaitlist = useCallback(async (classIds: string[]) => {
+    const readId = ++latestWaitlistRead.current;
     setIsLoadingWaitlist(true);
     setError(null);
 
     try {
-      const { data, error } = await getWaitlistByClass(classId);
-      if (error) {
+      const results = await Promise.all(classIds.map(id => getWaitlistByClass(id)));
+      if (readId !== latestWaitlistRead.current) return;
+      const failed = results.find(r => r.error);
+      if (failed) {
         setError('Failed to load waitlist');
-        logger.error('Error loading waitlist:', 'secretary', {}, error as Error);
+        logger.error('Error loading waitlist:', 'secretary', {}, failed.error as Error);
       } else {
-        setWaitlistEntries(data || []);
+        setWaitlistEntries(results.flatMap(r => r.data ?? []));
       }
     } catch (err) {
+      if (readId !== latestWaitlistRead.current) return;
       setError('Failed to load waitlist');
       logger.error('Error loading waitlist:', 'secretary', {}, err as Error);
     } finally {
-      setIsLoadingWaitlist(false);
+      if (readId === latestWaitlistRead.current) setIsLoadingWaitlist(false);
     }
   }, []);
 
-  // Load shows on mount
+  // Load classes when the show changes
   useEffect(() => {
-    loadShows();
-  }, [loadShows]);
-
-  // Load classes when show changes
-  useEffect(() => {
-    if (selectedShowId) {
-      loadClasses(selectedShowId);
+    if (showId) {
+      loadClasses(showId);
     } else {
       setClasses([]);
-      setSelectedClassId('');
       setWaitlistEntries([]);
     }
-  }, [selectedShowId, loadClasses]);
+  }, [showId, loadClasses]);
 
-  // Load waitlist when class changes
+  // Load the queues whenever the set of classes to show changes
   useEffect(() => {
-    if (selectedClassId) {
-      loadWaitlist(selectedClassId);
+    if (targetKey) {
+      loadWaitlist(targetKey.split(','));
     } else {
+      latestWaitlistRead.current++;
       setWaitlistEntries([]);
+      setIsLoadingWaitlist(false);
     }
-  }, [selectedClassId, loadWaitlist]);
+  }, [targetKey, loadWaitlist]);
+
+  // After an offer or removal: re-read the queues and counts, and the judge-day cards, which are
+  // their own query and would otherwise keep showing the old Full / spots figures.
+  const reloadAfterChange = useCallback(async () => {
+    await Promise.all([loadWaitlist(targetClassIds), loadClasses(showId)]);
+    await queryClient.invalidateQueries({ queryKey: judgeDayCapacityKey(showId) });
+  }, [loadWaitlist, loadClasses, targetClassIds, showId, queryClient]);
 
   // Actions
   // Send the offered exhibitor the in-app offer message. The database writes
@@ -206,7 +228,7 @@ export function useWaitlistManagementData(showId?: string) {
       let paymentLinkUrl: string | null = null;
       if (actionDialog.entry.joined_via !== 'mail_in') {
         try {
-          paymentLinkUrl = await createWaitlistPaymentLink(promotedEntryId, selectedShowId);
+          paymentLinkUrl = await createWaitlistPaymentLink(promotedEntryId, showId);
         } catch (err) {
           logger.error(
             'Waitlist offer: failed to create payment link',
@@ -223,13 +245,7 @@ export function useWaitlistManagementData(showId?: string) {
       // The exhibitor's inbox message (its insert sends the chat push).
       await notifyOfferedExhibitor(actionDialog.entry, paymentLinkUrl);
 
-      // Refresh the waitlist and class counts
-      if (selectedClassId) {
-        await loadWaitlist(selectedClassId);
-      }
-      if (selectedShowId) {
-        await loadClasses(selectedShowId);
-      }
+      await reloadAfterChange();
     } catch (err) {
       // 22023 is the database refusing on purpose (a trial that has already
       // taken place); its message says why, so show it instead of "try again".
@@ -246,10 +262,8 @@ export function useWaitlistManagementData(showId?: string) {
     }
   }, [
     actionDialog.entry,
-    selectedClassId,
-    selectedShowId,
-    loadWaitlist,
-    loadClasses,
+    showId,
+    reloadAfterChange,
     notifyOfferedExhibitor,
     createWaitlistPaymentLink,
   ]);
@@ -267,13 +281,7 @@ export function useWaitlistManagementData(showId?: string) {
         setError('Failed to remove from waitlist. Please try again.');
         logger.error('Error removing from waitlist:', 'secretary', {}, error as Error);
       } else {
-        // Refresh the waitlist and class counts
-        if (selectedClassId) {
-          await loadWaitlist(selectedClassId);
-        }
-        if (selectedShowId) {
-          await loadClasses(selectedShowId);
-        }
+        await reloadAfterChange();
       }
     } catch (err) {
       setError('An unexpected error occurred');
@@ -282,43 +290,40 @@ export function useWaitlistManagementData(showId?: string) {
       setIsProcessing(false);
       setActionDialog({ open: false, action: null, entry: null });
     }
-  }, [actionDialog.entry, selectedClassId, selectedShowId, loadWaitlist, loadClasses]);
+  }, [actionDialog.entry, reloadAfterChange]);
 
-  const handleRefresh = useCallback(() => {
-    if (selectedClassId) {
-      loadWaitlist(selectedClassId);
-    }
-    if (selectedShowId) {
-      loadClasses(selectedShowId);
-    }
-  }, [selectedClassId, selectedShowId, loadWaitlist, loadClasses]);
-
-  // Derived state
-  const filteredEntries = useMemo(() => {
-    if (!searchTerm) return waitlistEntries;
+  // Derived state: one group per class, each in join order, narrowed by the dog search. Classes
+  // with nobody (left) waiting are omitted rather than rendered as empty cards.
+  const groups = useMemo<WaitlistClassGroup[]>(() => {
     const search = searchTerm.toLowerCase();
-    return waitlistEntries.filter(
-      entry =>
-        (entry.dog?.call_name ?? entry.dog?.name)?.toLowerCase().includes(search) ||
-        entry.dog?.call_name?.toLowerCase().includes(search)
-    );
-  }, [waitlistEntries, searchTerm]);
+    const matches = (entry: WaitlistEntry) =>
+      !search ||
+      (entry.dog?.call_name ?? entry.dog?.name)?.toLowerCase().includes(search) ||
+      entry.dog?.call_name?.toLowerCase().includes(search);
+    const byClass = new Map<string, WaitlistEntry[]>();
+    for (const entry of waitlistEntries) {
+      if (!matches(entry)) continue;
+      byClass.set(entry.class_id, [...(byClass.get(entry.class_id) ?? []), entry]);
+    }
+    return classes
+      .filter(cls => byClass.has(cls.id))
+      .map(cls => ({
+        cls,
+        entries: [...byClass.get(cls.id)!].sort((a, b) => a.position - b.position),
+      }));
+  }, [classes, waitlistEntries, searchTerm]);
 
-  const selectedClass = useMemo(
-    () => classes.find(c => c.id === selectedClassId),
-    [classes, selectedClassId]
-  );
+  const viewJudgeDay = useCallback((judgeId: string, showDate: string) => {
+    setJudgeDayKey({ judgeId, showDate });
+  }, []);
+  const showAllClasses = useCallback(() => setJudgeDayKey(null), []);
 
   return {
     // State
-    shows,
-    selectedShowId,
-    classes,
-    selectedClassId,
+    judgeDays,
+    selectedJudgeDay,
     waitlistEntries,
-    filteredEntries,
-    selectedClass,
-    isLoadingShows,
+    groups,
     isLoadingClasses,
     isLoadingWaitlist,
     isProcessing,
@@ -326,12 +331,11 @@ export function useWaitlistManagementData(showId?: string) {
     searchTerm,
     actionDialog,
     // Actions
-    setSelectedShowId,
-    setSelectedClassId,
+    viewJudgeDay,
+    showAllClasses,
     setSearchTerm,
     setActionDialog,
     handleOfferSpot,
     handleRemoveFromWaitlist,
-    handleRefresh,
   };
 }

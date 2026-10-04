@@ -52,7 +52,7 @@ test.describe('Phase 1 UAT - Secretary evidence pass', () => {
     await attachScreenshot(page, testInfo, 'secretary-entry-management');
 
     await page.getByRole('button', { name: 'Waitlist', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Waitlist Management' })).toBeVisible();
+    await expect(page.getByText(/Wait list settings:/)).toBeVisible();
     await attachScreenshot(page, testInfo, 'secretary-waitlist');
 
     await captureSecretaryPage(

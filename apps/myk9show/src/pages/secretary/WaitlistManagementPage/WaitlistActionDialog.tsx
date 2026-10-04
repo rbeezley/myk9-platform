@@ -14,11 +14,10 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Loader2 } from 'lucide-react';
-import type { ActionDialogState, ClassWithWaitlistCount } from './types';
+import type { ActionDialogState } from './types';
 
 interface WaitlistActionDialogProps {
   actionDialog: ActionDialogState;
-  selectedClass: ClassWithWaitlistCount | undefined;
   isProcessing: boolean;
   onClose: () => void;
   onOfferSpot: () => void;
@@ -27,7 +26,6 @@ interface WaitlistActionDialogProps {
 
 export const WaitlistActionDialog: React.FC<WaitlistActionDialogProps> = ({
   actionDialog,
-  selectedClass,
   isProcessing,
   onClose,
   onOfferSpot,
@@ -61,8 +59,8 @@ export const WaitlistActionDialog: React.FC<WaitlistActionDialogProps> = ({
                 <strong>
                   {actionDialog.entry?.dog?.call_name ?? actionDialog.entry?.dog?.name}
                 </strong>{' '}
-                in <strong>{selectedClass?.name}</strong>? This will move them from the waitlist to
-                accepted entries. The exhibitor will be notified.
+                in <strong>{actionDialog.entry?.class?.name}</strong>? This will move them from the
+                waitlist to accepted entries. The exhibitor will be notified.
               </>
             ) : (
               <>
@@ -70,8 +68,8 @@ export const WaitlistActionDialog: React.FC<WaitlistActionDialogProps> = ({
                 <strong>
                   {actionDialog.entry?.dog?.call_name ?? actionDialog.entry?.dog?.name}
                 </strong>{' '}
-                from the waitlist for <strong>{selectedClass?.name}</strong>? This action cannot be
-                undone.
+                from the waitlist for <strong>{actionDialog.entry?.class?.name}</strong>? This
+                action cannot be undone.
               </>
             )}
           </AlertDialogDescription>

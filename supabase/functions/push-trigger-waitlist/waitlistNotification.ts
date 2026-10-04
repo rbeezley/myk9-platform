@@ -198,11 +198,11 @@ function escapeHtml(value: string): string {
 }
 
 function normalizeTimeZone(timezone: string | null): string {
-  if (!timezone) return 'America/Chicago';
+  if (!timezone) return 'America/New_York';
   try {
     new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format();
     return timezone;
   } catch {
-    return 'America/Chicago';
+    return 'America/New_York';
   }
 }

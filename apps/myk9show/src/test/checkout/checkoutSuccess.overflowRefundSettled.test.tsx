@@ -41,7 +41,10 @@ import { verifyCheckoutSession } from '@/lib/stripe';
 import CheckoutSuccessPage from '@/pages/CheckoutSuccessPage';
 
 /** 3 × $30 at 7%: $96.30 charged, $90.00 of entry fees owed back. */
-function mockAllOverflowOrder(status: 'succeeded' | 'refunded' = 'succeeded') {
+function mockAllOverflowOrder(
+  status: 'succeeded' | 'refunded' = 'succeeded',
+  refundAmountCents = 9000
+) {
   mockRpc.mockResolvedValue({
     data: [
       {
@@ -54,7 +57,11 @@ function mockAllOverflowOrder(status: 'succeeded' | 'refunded' = 'succeeded') {
         refunded_at: null,
         stripe_payment_intent_id: 'pi_1',
         metadata: {
-          overflow_refund: { action: 'refund', reason: 'full_make_whole', amount_cents: 9000 },
+          overflow_refund: {
+            action: 'refund',
+            reason: 'full_make_whole',
+            amount_cents: refundAmountCents,
+          },
         },
         show_name: 'Fall Trial',
         confirmation_number: null,
@@ -112,9 +119,7 @@ describe('all-overflow checkout: refund status follows the refund, not the order
     expect(await verifyCheckoutSession('cs_1')).toMatchObject({ refundStatus: 'issued' });
   });
 
-  it('tells the exhibitor the payment was refunded in full once the refund settles', async () => {
-    mockAllOverflowOrder();
-    refundColumns(0, 9000);
+  function renderPage() {
     render(
       <QueryClientProvider client={createTestQueryClient()}>
         <MemoryRouter initialEntries={['/checkout/success?session_id=cs_1']}>
@@ -122,11 +127,33 @@ describe('all-overflow checkout: refund status follows the refund, not the order
         </MemoryRouter>
       </QueryClientProvider>
     );
+  }
+
+  // Codex on #2745: the wording follows the actual refund and charge.
+  it('a refund of the whole $96.30 reads as a full refund, service fee included', async () => {
+    mockAllOverflowOrder('succeeded', 9630);
+    refundColumns(0, 9630);
+    renderPage();
     await waitFor(() => {
       expect(
-        screen.getByText(/your payment has been refunded in full, service fee included/i)
+        screen.getByText('Your payment of $96.30 has been refunded in full, service fee included.')
       ).toBeInTheDocument();
     });
+    expect(screen.queryByText(/service fee is not refundable/i)).not.toBeInTheDocument();
+  });
+
+  it('an entry-fee refund of $90.00 of $96.30 never claims a full refund', async () => {
+    mockAllOverflowOrder('succeeded', 9000);
+    refundColumns(0, 9000);
+    renderPage();
+    await waitFor(() => {
+      expect(
+        screen.getByText(
+          '$90.00 of your $96.30 has been refunded: your entry fees. The service fee is not refundable.'
+        )
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByText(/refunded in full/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/being refunded/i)).not.toBeInTheDocument();
   });
 });

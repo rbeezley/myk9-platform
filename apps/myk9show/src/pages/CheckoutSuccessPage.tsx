@@ -22,6 +22,7 @@ import {
   pollCheckoutSession,
 } from '@/features/payments/checkoutVerification';
 import { CheckoutVerificationIssueCard } from '@/features/payments/CheckoutVerificationIssueCard';
+import { overflowRefundMessage } from '@/features/payments/overflowRefundCopy';
 import { CONFIRMATION_NUMBER_LABEL } from '@/features/registration/confirmationNumberDisplay';
 import { retireDraftsForCheckout } from '@/features/registration/retireDraftsForCheckout';
 
@@ -469,9 +470,11 @@ export default function CheckoutSuccessPage() {
                       </span>
                     </div>
                     <p className="text-muted-foreground">
-                      {orderDetails?.refundStatus === 'issued'
-                        ? 'Your payment has been refunded in full, service fee included.'
-                        : 'Your payment is being refunded in full, service fee included.'}
+                      {overflowRefundMessage({
+                        refundCents: orderDetails?.refundAmount,
+                        chargedCents: orderDetails?.totalAmountCents,
+                        issued: orderDetails?.refundStatus === 'issued',
+                      })}
                     </p>
                   </div>
                 </AlertDescription>

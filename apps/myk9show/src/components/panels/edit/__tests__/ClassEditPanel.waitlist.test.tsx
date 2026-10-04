@@ -140,7 +140,10 @@ describe('ClassEditPanel: classes handed over by Trial Details', () => {
 // wait list while this editor is open and dirty, an unrelated save must not send the old value
 // back. Only a control edited in this session is saved; nothing is compared with the props.
 describe('ClassEditPanel: capacity is saved only when edited in this session', () => {
-  const panel = (initial: Partial<ClassData>, onSave: ReturnType<typeof vi.fn>) => (
+  const panel = (
+    initial: Partial<ClassData>,
+    onSave: (data: Partial<ClassData>) => Promise<void>
+  ) => (
     <ClassEditPanel
       open
       onClose={vi.fn()}
@@ -152,7 +155,9 @@ describe('ClassEditPanel: capacity is saved only when edited in this session', (
   );
 
   it('props refreshed under an open editor: an unrelated edit carries no capacity keys', async () => {
-    const onSave = vi.fn().mockResolvedValue(undefined);
+    const onSave = vi
+      .fn<(data: Partial<ClassData>) => Promise<void>>()
+      .mockResolvedValue(undefined);
     const view = render(panel(setupClass({ maxEntries: 12, allowsWaitlist: false }), onSave));
     await screen.findByLabelText(/Entry limit/);
     // Another secretary turns the wait list on and raises the limit while this editor is open.

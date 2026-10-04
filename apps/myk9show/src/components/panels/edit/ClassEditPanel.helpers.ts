@@ -87,6 +87,8 @@ export const trialClassToFormData = (trialClass: Partial<TrialClass>): TrialClas
     judgeName: trialClass.judgeName || '',
     status: trialClass.status || 'Upcoming',
     entries: trialClass.entries || 0,
+    maxEntries: (trialClass as Partial<ClassData>).maxEntries ?? null,
+    allowsWaitlist: (trialClass as Partial<ClassData>).allowsWaitlist ?? false,
   };
 };
 
@@ -100,4 +102,6 @@ export const formDataToTrialClass = (formData: TrialClassEditFormData): Partial<
   ...(formData.judgeName !== undefined && { judgeName: formData.judgeName }),
   status: formData.status,
   entries: formData.entries,
+  ...(formData.maxEntries !== undefined && { maxEntries: formData.maxEntries }),
+  ...(formData.allowsWaitlist !== undefined && { allowsWaitlist: formData.allowsWaitlist }),
 });

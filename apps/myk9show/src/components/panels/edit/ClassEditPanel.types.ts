@@ -67,4 +67,7 @@ export interface TrialClassEditFormData extends Record<string, unknown> {
   judgeName?: string;
   status: ClassStatusValue;
   entries: number;
+  /** null = no class limit. */
+  maxEntries?: number | null;
+  allowsWaitlist?: boolean;
 }

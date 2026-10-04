@@ -85,6 +85,12 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ hasRole: () => true }),
 }));
 
+vi.mock('@/components/shows/WaitListSettingsCard', () => ({
+  WaitListSettingsCard: ({ showId }: { showId: string }) => (
+    <div data-testid="waitlist-settings-card">settings for {showId}</div>
+  ),
+}));
+
 describe('WaitlistManagementPage', () => {
   beforeEach(() => {
     state.searchTerm = '';
@@ -109,5 +115,15 @@ describe('WaitlistManagementPage', () => {
 
     await waitFor(() => expect(screen.queryByText('Rexy')).not.toBeInTheDocument());
     expect(screen.getByRole('status')).toHaveTextContent('Showing 0 of 1 dog.');
+  });
+
+  // MYK9-999: the settings used to live only on a route nothing linked to, keyed on a store
+  // selection. They are reachable from the Waitlist tab, scoped by the show it was opened for.
+  it('offers Wait List Settings from the tab, keyed on the show the tab was opened for', () => {
+    render(<WaitlistManagementPage showId="route-show-9" />);
+    expect(screen.getByText(/Wait list settings: judge-day capacity, offer window/)).toBeVisible();
+    expect(screen.getByTestId('waitlist-settings-card')).toHaveTextContent(
+      'settings for route-show-9'
+    );
   });
 });

@@ -31,6 +31,7 @@ import {
   isScentWorkNovice,
 } from './ClassEditPanel.helpers';
 import { ClassEditForm } from './ClassEditForm';
+import { ClassWaitlistFields } from './ClassWaitlistFields';
 import { usePanelValidationNavigation } from './usePanelValidationNavigation';
 import { locateClassField, type ClassTabValue } from './ClassEditPanel.validationTab';
 import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
@@ -204,6 +205,8 @@ const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
           </div>
         </CardContent>
       </Card>
+
+      <ClassWaitlistFields />
     </div>
   );
 };

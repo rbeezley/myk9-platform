@@ -125,6 +125,8 @@ The view tabs across the top — _Needs review_, _Missing info_, _Payment due_, 
 
 ![Entry Management with the waitlist selected](../screenshots/S-10.png)
 
+**Turn it on first.** A class only queues people when its wait list is on. On the show home, click the class, then **Edit class**, and in **Entry limit and wait list** switch on **Allow wait list** (and set an **Entry limit**, or leave it blank for no class limit). The judge's daily capacity, how long an offer lasts, and the mail-in hold are under **Wait list settings** at the top of this tab.
+
 1. Each judge-day shows as a card — the judge's name, the date, and how full it is.
 2. **View Wait List** on a card opens that judge-day's queue, filtered to the class.
 3. When a spot opens, offer it from that queue in the order people joined.

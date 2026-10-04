@@ -358,6 +358,13 @@ export const classSchemas = {
     judgeName: commonValidations.optionalString,
     status: z.string().min(1, 'Please select a status'),
     entries: z.number(),
+    maxEntries: z
+      .number()
+      .int('Enter a whole number, or leave blank for no limit')
+      .min(1, 'The entry limit must be at least 1, or leave blank for no limit')
+      .nullable()
+      .optional(),
+    allowsWaitlist: z.boolean().optional(),
   }),
 };
 

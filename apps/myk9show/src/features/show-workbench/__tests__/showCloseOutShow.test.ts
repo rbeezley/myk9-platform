@@ -36,6 +36,22 @@ describe('showCloseOutShow helpers', () => {
     });
   });
 
+  it('names classes whose only open work is entries never reviewed (#2712)', () => {
+    // Every accepted dog scored, two entries still pending: not "unscored",
+    // but not resolved either, so close-out must still say so.
+    const readiness = buildCloseoutReadiness({
+      classes: [
+        { id: 'class-1', status: 'in_progress', entryCount: 3, scoredCount: 3, pendingCount: 2 },
+        { id: 'class-2', status: 'completed', entryCount: 2, scoredCount: 2, pendingCount: 1 },
+      ],
+      entries: [],
+      incidents: { reportableCount: 0, urgentCount: 0 },
+      submissions: [{ status: 'submitted' }],
+    });
+
+    expect(readiness.concerns).toEqual(['1 class still has entries waiting for review.']);
+  });
+
   it('treats sent or submitted result history as closeout submission evidence', () => {
     expect(
       buildCloseoutReadiness({

@@ -74,6 +74,8 @@ export interface ClassEntryTally {
   scored: number;
   /** Rows on the class run list, pending included: what Run order sorts. */
   runList: number;
+  /** Not yet accepted (the card's "N pending"); out of `total`, still open work. */
+  pending: number;
 }
 
 /**
@@ -99,11 +101,12 @@ export function tallyEntriesByClass(
     if (!classId) continue;
     const fields = accountingFields(entry);
     const onRunList = isOnClassRunList(fields);
-    const toScore =
-      isExpectedEntry(fields) && !(entry.entry_status && isPendingEntryStatus(entry.entry_status));
+    const pending = Boolean(entry.entry_status && isPendingEntryStatus(entry.entry_status));
+    const toScore = isExpectedEntry(fields) && !pending;
     if (!onRunList && !toScore) continue;
-    const tally = tallies.get(classId) ?? { total: 0, scored: 0, runList: 0 };
+    const tally = tallies.get(classId) ?? { total: 0, scored: 0, runList: 0, pending: 0 };
     if (onRunList) tally.runList += 1;
+    if (onRunList && pending) tally.pending += 1;
     if (toScore) {
       tally.total += 1;
       if (isAccountedFor(fields)) tally.scored += 1;

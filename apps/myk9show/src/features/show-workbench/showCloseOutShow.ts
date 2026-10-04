@@ -19,6 +19,8 @@ export interface CloseoutClassSummary {
   status?: string | null;
   entryCount?: number | null;
   scoredCount?: number | null;
+  /** Entries never accepted. Not scoring work, but still unresolved at close. */
+  pendingCount?: number | null;
 }
 
 export interface ResultSubmissionSummary {
@@ -85,6 +87,11 @@ export function buildCloseoutReadiness(input: CloseoutReadinessInput): CloseoutR
     const scoredCount = Number(cls.scoredCount);
     return entryCount > 0 && scoredCount < entryCount && needsCascade(cls.status);
   }).length;
+  // A pending entry is out of the scoring count (#2712) but is not resolved:
+  // it was never accepted or turned away, so say so rather than drop it.
+  const pendingReviewClassCount = input.classes.filter(
+    cls => Number(cls.pendingCount ?? 0) > 0 && needsCascade(cls.status)
+  ).length;
   // Only the pull/refund figures gate close-out, and they do not depend on when
   // an entry was taken, so no desk window is needed here.
   const reconciliation = summarizeShowDayReconciliation(input.entries, null);
@@ -100,6 +107,11 @@ export function buildCloseoutReadiness(input: CloseoutReadinessInput): CloseoutR
   if (incompleteClassCount > 0) {
     concerns.push(
       `${incompleteClassCount} ${incompleteClassCount === 1 ? 'class still has' : 'classes still have'} unscored entries.`
+    );
+  }
+  if (pendingReviewClassCount > 0) {
+    concerns.push(
+      `${pendingReviewClassCount} ${pendingReviewClassCount === 1 ? 'class still has' : 'classes still have'} entries waiting for review.`
     );
   }
 

@@ -222,6 +222,39 @@ describe('ResultsSubmissionPage', () => {
     expect(screen.getByTestId('download-btn')).toHaveTextContent('Download draft XML');
   });
 
+  // MYK9-977 — a missing armband used to be sent as catalog number 0. It now
+  // blocks sending, like any other entry AKC cannot be told the truth about.
+  it('blocks sending to AKC while any entry has no armband number', async () => {
+    mockAKCData.data = makeAKCSubmissionData({ entries: [{ armbandNumber: null }] });
+
+    renderPage();
+
+    expect(await screen.findByTestId('preflight-missing-armband')).toHaveTextContent(
+      '1 entry has no armband number.'
+    );
+    expect(screen.getByTestId('preflight-armband-row')).toHaveTextContent(
+      '1 entry has no armband number'
+    );
+    expect(screen.getByTestId('send-disabled-reason')).toHaveTextContent(
+      '1 entry has no armband number.'
+    );
+    expect(screen.getByTestId('send-btn')).toBeDisabled();
+    fireEvent.click(screen.getByTestId('send-btn'));
+    expect(screen.queryByTestId('send-confirm-dialog')).not.toBeInTheDocument();
+    expect(mockInvoke).not.toHaveBeenCalled();
+  });
+
+  it('shows the armband row as passing when every entry has an armband', async () => {
+    mockAKCData.data = makeAKCSubmissionData();
+
+    renderPage();
+
+    expect(await screen.findByTestId('preflight-armband-row')).toHaveTextContent(
+      'Every entry has an armband number'
+    );
+    expect(screen.queryByTestId('preflight-missing-armband')).not.toBeInTheDocument();
+  });
+
   // MYK9-547 — a class AKC has no code for (here: a Detective class whose
   // element/level were written as the literal 'Unknown' by the show wizard)
   // used to be submitted as Novice A. It now blocks, and unlike every other

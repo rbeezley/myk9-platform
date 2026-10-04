@@ -45,7 +45,7 @@ export function CheckInExhibitorCard({
       >
         <div className="flex items-center gap-3">
           <span className="rounded-md bg-muted px-2.5 py-0.5 text-sm font-bold tabular-nums">
-            #{group.armbandNumber}
+            {group.armbandNumber != null ? `#${group.armbandNumber}` : '—'}
           </span>
           <div>
             <div className="text-sm font-semibold">{group.handlerName}</div>

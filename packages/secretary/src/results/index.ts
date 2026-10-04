@@ -23,6 +23,7 @@ export {
   akcResultCodesForOutcome,
   tallyAKCClass,
   countUnscoredAKCEntries,
+  countMissingArmbandAKCEntries,
   selectSubmittableAKCEntries,
   parseAKCResultStatus,
 } from './formatters/akcEntryOutcome';

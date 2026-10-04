@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import type { Entry } from '../../../stores/entryStore';
 import { gateRank } from '../quickAdvanceCandidates';
+import { armbandSortKey } from '../runQueue';
 
 /**
  * Filter/sort/search hook for both entry-list modes (single class, combined A/B).
@@ -61,13 +62,13 @@ const sortComparators: Record<SortType, SortComparator> = {
     if (a.section && b.section && a.section !== b.section) {
       return a.section.localeCompare(b.section);
     }
-    return a.armband - b.armband;
+    return armbandSortKey(a.armband) - armbandSortKey(b.armband);
   },
 
   run: (a, b) => {
     // Run order uses exhibitorOrder, fallback to armband
-    const aOrder = a.exhibitorOrder || a.armband;
-    const bOrder = b.exhibitorOrder || b.armband;
+    const aOrder = a.exhibitorOrder || armbandSortKey(a.armband);
+    const bOrder = b.exhibitorOrder || armbandSortKey(b.armband);
     return aOrder - bOrder;
   },
 
@@ -88,10 +89,10 @@ const sortComparators: Record<SortType, SortComparator> = {
       return aPlacement - bPlacement;
     }
     // Tie-breaker: armband
-    return (a.armband || 0) - (b.armband || 0);
+    return armbandSortKey(a.armband) - armbandSortKey(b.armband);
   },
 
-  armband: (a, b) => (a.armband || 0) - (b.armband || 0),
+  armband: (a, b) => armbandSortKey(a.armband) - armbandSortKey(b.armband),
 
   name: (a, b) => (a.callName || '').localeCompare(b.callName || ''),
 

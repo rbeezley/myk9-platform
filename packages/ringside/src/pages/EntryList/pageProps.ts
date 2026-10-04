@@ -243,7 +243,8 @@ export interface FilterPanelProps {
  * directly — only through `SortableEntryCard`.
  */
 export interface DogCardProps {
-  armband: number;
+  /** `null` renders "—", never "0". */
+  armband: number | null;
   callName: string;
   breed: string;
   handler: string;

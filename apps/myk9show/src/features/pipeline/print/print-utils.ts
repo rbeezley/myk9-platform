@@ -4,6 +4,7 @@
  */
 
 import { formatTimeLimitSeconds } from '@myk9/core';
+import { armbandSortKey } from '@myk9/ringside';
 import type { PrintReportEntry } from './print-types';
 
 /** Format ISO date string as "M/D/YYYY" for reports */
@@ -23,11 +24,13 @@ export const formatReportTime = (seconds: number | null): string => {
 
 /** Sort entries by run order (runOrder, then armband) */
 export const sortByRunOrder = (entries: PrintReportEntry[]): PrintReportEntry[] =>
-  [...entries].sort((a, b) => (a.runOrder ?? a.armband) - (b.runOrder ?? b.armband));
+  [...entries].sort(
+    (a, b) => (a.runOrder ?? armbandSortKey(a.armband)) - (b.runOrder ?? armbandSortKey(b.armband))
+  );
 
 /** Sort entries by armband number */
 export const sortByArmband = (entries: PrintReportEntry[]): PrintReportEntry[] =>
-  [...entries].sort((a, b) => a.armband - b.armband);
+  [...entries].sort((a, b) => armbandSortKey(a.armband) - armbandSortKey(b.armband));
 
 /** Sort entries by placement: Q first by placement, then ABS/EXC/NQ, then by armband */
 export const sortByPlacement = (entries: PrintReportEntry[]): PrintReportEntry[] =>
@@ -47,7 +50,7 @@ export const sortByPlacement = (entries: PrintReportEntry[]): PrintReportEntry[]
       return 3;
     };
     const diff = priority(a.resultText) - priority(b.resultText);
-    return diff !== 0 ? diff : a.armband - b.armband;
+    return diff !== 0 ? diff : armbandSortKey(a.armband) - armbandSortKey(b.armband);
   });
 
 /**

@@ -18,6 +18,16 @@
  */
 
 /**
+ * Numeric key for ORDERING only: an entry with no armband sorts ahead of
+ * numbered ones. Never a display value or an identity -- render with
+ * `formatArmband`, and compare entries by `id`. (Lives here, not in
+ * utils/armband, because this module must stay free of runtime imports.)
+ */
+export function armbandSortKey(armband: number | null | undefined): number {
+  return armband ?? 0;
+}
+
+/**
  * The minimum an entry must expose to be placed in a class run queue.
  *
  * Optionals are explicitly `| undefined` so hosts compiled with
@@ -26,7 +36,7 @@
  */
 export interface RunQueueEntry {
   id: string;
-  armband: number;
+  armband: number | null;
   exhibitorOrder?: number | null | undefined;
   isScored?: boolean | undefined;
   status?: string | undefined;
@@ -45,7 +55,10 @@ export function isInQueue(entry: RunQueueEntry): boolean {
 
 /** Run-order comparator (mirrors the `run` sort: exhibitorOrder, armband fallback). */
 export function compareByRunOrder(a: RunQueueEntry, b: RunQueueEntry): number {
-  return (a.exhibitorOrder || a.armband) - (b.exhibitorOrder || b.armband);
+  return (
+    (a.exhibitorOrder || armbandSortKey(a.armband)) -
+    (b.exhibitorOrder || armbandSortKey(b.armband))
+  );
 }
 
 /** The dog currently in the ring, or null. First match wins. */

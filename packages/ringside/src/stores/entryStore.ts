@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { devtools } from 'zustand/middleware';
 import type { EntryStatus } from '@myk9/core';
+import { armbandSortKey } from '../pages/EntryList/runQueue';
 
 // Entry status type — canonical definition in @myk9/core
 export type { EntryStatus } from '@myk9/core';
@@ -8,7 +9,8 @@ export type { EntryStatus } from '@myk9/core';
 export interface Entry {
   /** UUID in the unified platform DB (Phase 1 id-model migration). */
   id: string;
-  armband: number;
+  /** `null` when the entry has no armband assigned. Never coerced to 0. */
+  armband: number | null;
   callName: string;
   breed: string;
   handler: string;
@@ -255,7 +257,7 @@ export function createEntryStore(enableDevtools = false) {
                 e.callName.toLowerCase().includes(term) ||
                 e.handler.toLowerCase().includes(term) ||
                 e.breed.toLowerCase().includes(term) ||
-                e.armband.toString().includes(term)
+                (e.armband?.toString() ?? '').includes(term)
             );
           }
 
@@ -265,7 +267,7 @@ export function createEntryStore(enableDevtools = false) {
 
             switch (filters.sortBy) {
               case 'armband':
-                comparison = a.armband - b.armband;
+                comparison = armbandSortKey(a.armband) - armbandSortKey(b.armband);
                 break;
               case 'callName':
                 comparison = a.callName.localeCompare(b.callName);

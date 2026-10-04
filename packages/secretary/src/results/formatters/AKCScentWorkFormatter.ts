@@ -114,7 +114,7 @@ function generateAKCXml(data: AKCSubmissionData): string {
             ` gender="${gender}"` +
             ` dogName="${dogName}"` +
             ` breedCode="ALLB"` +
-            ` catalogNumber="${entry.armbandNumber}"` +
+            (entry.armbandNumber != null ? ` catalogNumber="${entry.armbandNumber}"` : '') +
             ` courseTime="${searchTime}"` +
             ` actionCode="${actionCode}">`
         );

@@ -57,7 +57,7 @@ function mapEntry(row: EntryRow): PrintReportEntry {
 
   return {
     id: String(row.id),
-    armband: Number(row.armband) || 0,
+    armband: row.armband != null && row.armband !== '' ? Number(row.armband) : null,
     runOrder: row.run_order ?? null,
     callName: dog?.call_name ?? 'Unknown',
     breed: dog?.breed ?? '',

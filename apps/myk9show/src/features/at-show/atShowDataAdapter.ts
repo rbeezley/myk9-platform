@@ -235,7 +235,8 @@ export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null)
     actualClassId: re.classId ?? re.class_id ?? '',
 
     // Competitor number — genuinely numeric; coerce from the string source.
-    armband: re.armband != null ? Number(re.armband) : 0,
+    // A missing armband stays null (never 0): ringside renders it as "—".
+    armband: re.armband != null ? Number(re.armband) : null,
 
     callName: re.dogCallName ?? re.dog_call_name ?? '',
     breed: re.dogBreed ?? re.dog_breed ?? '',

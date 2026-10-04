@@ -22,6 +22,7 @@ import { cn, getStatusSurfaceClasses } from '@myk9/ui';
 import { haptic } from '@myk9/scoring-ui';
 import type { ComponentType } from 'react';
 import type { Entry } from '../../stores/entryStore';
+import { formatArmband } from '../../utils/armband';
 import type { DogCardProps } from './pageProps';
 import type { EntryListPermission } from './permissions';
 import { getStatusBorderClass } from './sortableEntryCardUtils';
@@ -225,7 +226,8 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
     e.stopPropagation();
     e.nativeEvent.stopImmediatePropagation();
     haptic.light();
-    onToggleFavorite?.(entry.armband);
+    // Favorites are keyed by armband; an entry with none cannot be favorited.
+    if (entry.armband != null) onToggleFavorite?.(entry.armband);
   };
 
   const stopCardGesture = (e: React.MouseEvent | React.TouchEvent) => {
@@ -310,7 +312,7 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
             <div
               {...attributes}
               {...listeners}
-              aria-label={`Reorder ${entry.callName}, armband ${entry.armband}`}
+              aria-label={`Reorder ${entry.callName}, armband ${formatArmband(entry.armband)}`}
               className="inline-flex min-h-11 min-w-11 cursor-grab items-center justify-center rounded-md text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:cursor-grabbing"
             >
               <GripVertical size={20} aria-hidden="true" />

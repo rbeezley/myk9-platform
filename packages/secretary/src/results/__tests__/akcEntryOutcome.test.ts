@@ -22,6 +22,7 @@ import {
   akcResultCodesForOutcome,
   tallyAKCClass,
   countUnscoredAKCEntries,
+  countMissingArmbandAKCEntries,
   selectSubmittableAKCEntries,
   parseAKCResultStatus,
   type AKCEntryOutcome,
@@ -305,6 +306,32 @@ describe('countUnscoredAKCEntries', () => {
 
   it('is zero for a fully scored class', () => {
     expect(countUnscoredAKCEntries([makeEntry({ resultStatus: 'qualified' })])).toBe(0);
+  });
+});
+
+// MYK9-977 — AKC's catalogNumber is the armband; 0 is never an acceptable stand-in.
+describe('countMissingArmbandAKCEntries', () => {
+  it('counts entries that ran without an armband', () => {
+    expect(
+      countMissingArmbandAKCEntries([
+        makeEntry({ armbandNumber: null, resultStatus: 'qualified' }),
+        makeEntry({ armbandNumber: null, resultStatus: 'pending' }),
+        makeEntry({ armbandNumber: 3, resultStatus: 'qualified' }),
+      ])
+    ).toBe(2);
+  });
+
+  it('exempts a withdrawn entry, whose armband is cleared by the withdrawal', () => {
+    expect(
+      countMissingArmbandAKCEntries([
+        makeEntry({ armbandNumber: null, entryStatus: 'withdrawn', resultStatus: 'pending' }),
+        makeEntry({ armbandNumber: null, resultStatus: 'withdrawn' }),
+      ])
+    ).toBe(0);
+  });
+
+  it('does not treat an armband of 0 as missing (it is a real value, not a stand-in)', () => {
+    expect(countMissingArmbandAKCEntries([makeEntry({ armbandNumber: 0 })])).toBe(0);
   });
 });
 

@@ -6,6 +6,7 @@
 
 import React from 'react';
 import { formatTrialLabel } from '@myk9/core';
+import { formatArmband } from '@myk9/ringside';
 import type { PrintClassInfo, PrintReportEntry } from './print-types';
 
 const printTrialLabel = (classInfo: PrintClassInfo): string =>
@@ -106,7 +107,7 @@ export const RunOrderSheet: React.FC<TemplateProps> = ({ classInfo, entries }) =
               <td className="checkbox-cell">
                 <div className="checkbox-square" />
               </td>
-              <td>{entry.armband}</td>
+              <td>{formatArmband(entry.armband)}</td>
               <td>{entry.callName}</td>
               <td>{entry.breed}</td>
               <td>{entry.handlerName}</td>
@@ -153,7 +154,7 @@ export const ResultsReport: React.FC<TemplateProps> = ({ classInfo, entries }) =
             return (
               <tr key={entry.id}>
                 <td className="place-cell">{getPlacementText(entry.placement)}</td>
-                <td>{entry.armband}</td>
+                <td>{formatArmband(entry.armband)}</td>
                 <td>{entry.callName}</td>
                 <td>{entry.breed}</td>
                 <td>{entry.handlerName}</td>
@@ -338,7 +339,7 @@ export const BlankScoreSheet: React.FC<TemplateProps> = ({ classInfo, entries })
                   <div key={entry.id} className="scoresheet-entry-row">
                     {/* Dog info */}
                     <div className="entry-info">
-                      <div className="entry-armband">{entry.armband}</div>
+                      <div className="entry-armband">{formatArmband(entry.armband)}</div>
                       <div className="entry-details">
                         <div className="entry-callname">{entry.callName}</div>
                         <div className="entry-breed">{entry.breed}</div>

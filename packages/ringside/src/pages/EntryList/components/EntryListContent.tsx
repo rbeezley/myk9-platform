@@ -180,7 +180,8 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
               onOpenDragMode={onOpenDragMode}
               {...(favorites
                 ? {
-                    isFavorite: favorites.favoriteArmbands.has(entry.armband),
+                    isFavorite:
+                      entry.armband != null && favorites.favoriteArmbands.has(entry.armband),
                     onToggleFavorite: favorites.onToggleFavoriteArmband,
                   }
                 : {})}

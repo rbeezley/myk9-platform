@@ -474,6 +474,22 @@ describe('AKCScentWorkFormatter', () => {
       expect(xml).toContain('catalogNumber="145"');
     });
 
+    // MYK9-977 — a missing armband used to be written as catalogNumber="0".
+    it('never writes catalogNumber 0 for an entry with no armband', () => {
+      const xml = AKCScentWorkFormatter.formatXml(
+        makeData({
+          entries: [
+            makeEntry({ armbandNumber: null, entryStatus: 'withdrawn' }),
+            makeEntry({ armbandNumber: 101 }),
+          ],
+        })
+      );
+      expect(xml).not.toContain('catalogNumber="0"');
+      expect(xml).not.toContain('catalogNumber=""');
+      expect(xml.match(/catalogNumber="/g)).toHaveLength(1);
+      expect(xml).toContain('catalogNumber="101"');
+    });
+
     it('includes search time as courseTime', () => {
       const xml = AKCScentWorkFormatter.formatXml(
         makeData({ entries: [makeEntry({ searchTimeSeconds: 17.5 })] })

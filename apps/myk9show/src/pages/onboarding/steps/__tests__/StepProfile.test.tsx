@@ -89,10 +89,17 @@ describe('StepProfile', () => {
     expect(screen.getByLabelText(/street address/i)).toBeRequired();
     expect(screen.getByLabelText(/^city/i)).toBeRequired();
     expect(screen.getByLabelText(/^state/i)).toBeRequired();
-    expect(screen.getByLabelText(/zip code/i)).toBeRequired();
+    expect(screen.getByLabelText(/zip \/ postal code/i)).toBeRequired();
     expect(
       screen.getByText(/registry organizations like AKC require the owner's address/i)
     ).toBeInTheDocument();
+  });
+
+  // Native validation would block submit and show one browser tooltip, so the
+  // page's message naming every missing field would never be seen.
+  it('leaves validation to the page so its message is the one shown', () => {
+    render(<StepProfile {...makeProps()} />);
+    expect(screen.getByTestId('step-profile')).toHaveAttribute('novalidate');
   });
 
   it('calls onChange when the street address is typed', () => {
@@ -120,7 +127,7 @@ describe('missingAddressMessage', () => {
 
   it('names each missing part, treating whitespace as missing', () => {
     expect(missingAddressMessage({ ...complete, city: '  ', zipCode: '' })).toBe(
-      'Please enter your city, ZIP code.'
+      'Please enter your city, ZIP or postal code.'
     );
   });
 });

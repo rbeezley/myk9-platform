@@ -39,11 +39,13 @@ vi.mock('@/lib/supabase', () => ({
         }),
       }),
       update: (data: Record<string, unknown>) => ({
-        eq: (column: string, value: string) =>
-          mockSupabaseUpdate(table, data, {
-            column,
-            value,
-          }),
+        // Awaitable directly, or through .select().single() like a returning update.
+        eq: (column: string, value: string) => {
+          const result = mockSupabaseUpdate(table, data, { column, value });
+          return Object.assign(Promise.resolve(result), {
+            select: () => ({ single: () => Promise.resolve(result) }),
+          });
+        },
       }),
     }),
   },
@@ -168,6 +170,98 @@ describe('useExhibitorProfile', () => {
         queryClient.getQueryData<{ onboarded_roles: string[] }>(['exhibitorProfile', 'user-123'])
           ?.onboarded_roles
       ).toEqual(['judge', 'secretary']);
+    });
+  });
+
+  // MYK9-1010: the onboarding address must reach `people`, whichever path saves it.
+  describe('mailing address writes', () => {
+    const address = {
+      streetAddress: '1 Main St',
+      city: 'Tulsa',
+      state: 'OK',
+      zipCode: '74101',
+    };
+    const addressColumns = {
+      street_address: '1 Main St',
+      city: 'Tulsa',
+      state: 'OK',
+      zip_code: '74101',
+    };
+    const existingProfile = {
+      id: 'profile-123',
+      person_id: 'person-456',
+      auth_user_id: 'user-123',
+      onboarding_completed_at: null,
+      person: { id: 'person-456', first_name: 'Casey', last_name: 'Morgan' },
+    };
+
+    it('saves name, phone and address onto the existing person', async () => {
+      mockSupabaseQuery.mockResolvedValue({ data: existingProfile, error: null });
+      mockSupabaseUpdate.mockResolvedValue({ data: { id: 'person-456' }, error: null });
+
+      const { result } = renderHook(() => useExhibitorProfile(), { wrapper: createWrapper() });
+      await waitFor(() => expect(result.current.profile?.person_id).toBe('person-456'));
+
+      await result.current.savePersonDetailsAsync({
+        firstName: 'Casey',
+        lastName: 'Morgan',
+        email: 'test@example.com',
+        address,
+      });
+
+      expect(mockSupabaseUpdate).toHaveBeenCalledWith(
+        'people',
+        { first_name: 'Casey', last_name: 'Morgan', phone: null, ...addressColumns },
+        { column: 'id', value: 'person-456' }
+      );
+    });
+
+    it('fails when the update matched no row instead of reporting a save', async () => {
+      mockSupabaseQuery.mockResolvedValue({ data: existingProfile, error: null });
+      const noRow = { code: 'PGRST116', message: 'no rows' };
+      mockSupabaseUpdate.mockResolvedValue({ data: null, error: noRow });
+
+      const { result } = renderHook(() => useExhibitorProfile(), { wrapper: createWrapper() });
+      await waitFor(() => expect(result.current.profile?.person_id).toBe('person-456'));
+
+      await expect(
+        result.current.savePersonDetailsAsync({
+          firstName: 'Casey',
+          lastName: 'Morgan',
+          email: 'test@example.com',
+          address,
+        })
+      ).rejects.toEqual(noRow);
+    });
+
+    it('writes the address when signup already created the person (create path)', async () => {
+      mockSupabaseQuery.mockImplementation((table: string) => {
+        if (table === 'people') return Promise.resolve({ data: { id: 'person-456' }, error: null });
+        return Promise.resolve({ data: null, error: null });
+      });
+      mockSupabaseInsert.mockImplementation((table: string) =>
+        Promise.resolve(
+          table === 'people'
+            ? { data: null, error: { code: '23505', message: 'duplicate' } }
+            : { data: { id: 'profile-new', person_id: 'person-456' }, error: null }
+        )
+      );
+      mockSupabaseUpdate.mockResolvedValue({ data: { id: 'person-456' }, error: null });
+
+      const { result } = renderHook(() => useExhibitorProfile(), { wrapper: createWrapper() });
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      await result.current.createProfileAsync({
+        firstName: 'Casey',
+        lastName: 'Morgan',
+        email: 'test@example.com',
+        address,
+      });
+
+      expect(mockSupabaseUpdate).toHaveBeenCalledWith('people', addressColumns, {
+        column: 'id',
+        value: 'person-456',
+      });
     });
   });
 

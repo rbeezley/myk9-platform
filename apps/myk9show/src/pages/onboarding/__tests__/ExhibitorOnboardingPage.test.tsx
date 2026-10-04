@@ -206,7 +206,7 @@ describe('ExhibitorOnboardingPage', () => {
       fireEvent.submit(screen.getByTestId('step-profile'));
 
       expect(screen.getByRole('alert')).toHaveTextContent(
-        'Please enter your street address, city, state, ZIP code.'
+        'Please enter your street address, city, state or province, ZIP or postal code.'
       );
       expect(savePersonDetailsAsync).not.toHaveBeenCalled();
     });
@@ -221,7 +221,9 @@ describe('ExhibitorOnboardingPage', () => {
       });
       fireEvent.change(screen.getByLabelText(/^city/i), { target: { value: 'Tulsa' } });
       fireEvent.change(screen.getByLabelText(/^state/i), { target: { value: 'OK' } });
-      fireEvent.change(screen.getByLabelText(/zip code/i), { target: { value: '74101' } });
+      fireEvent.change(screen.getByLabelText(/zip \/ postal code/i), {
+        target: { value: '74101' },
+      });
       fireEvent.submit(screen.getByTestId('step-profile'));
 
       await waitFor(() => {

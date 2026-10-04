@@ -186,10 +186,13 @@ export function useExhibitorProfile() {
 
         // The sign-up trigger usually creates the person first, so the address
         // typed on this step must be written here or it is silently dropped.
+        // .single() turns an RLS-filtered zero-row update into an error, not a silent success.
         const { error: addressError } = await supabase
           .from('people')
           .update(toPeopleAddressColumns(data.address))
-          .eq('id', existingPerson.id);
+          .eq('id', existingPerson.id)
+          .select('id')
+          .single();
         if (addressError) throw addressError;
 
         // Person exists, check if profile exists
@@ -293,7 +296,14 @@ export function useExhibitorProfile() {
         phone: data.phone || null,
         ...toPeopleAddressColumns(data.address),
       };
-      const { error } = await supabase.from('people').update(details).eq('id', profile.person_id);
+      // .single() turns an RLS-filtered zero-row update into an error, so the step
+      // never reports a save that did not happen.
+      const { error } = await supabase
+        .from('people')
+        .update(details)
+        .eq('id', profile.person_id)
+        .select('id')
+        .single();
       if (error) throw error;
 
       if (profile.person) {

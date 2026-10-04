@@ -136,12 +136,35 @@ function trialLabel(trial: EmergencyPacketTrial): string {
   return trial.trialNumber ? `Trial ${trial.trialNumber}` : trial.name;
 }
 
-function packetEntry(entry: PacketReportEntry): EmergencyPacketEntry {
+/**
+ * The printed "Order" is the row's position on its class's check-in sheet
+ * (1..N in sheet order), never the stored `run_order` (MYK9-992): the stored
+ * number is a sort key that starts above 1 and has gaps, so printing it showed
+ * a steward "31" at the top of a sheet. An entry with no order assigned prints
+ * blank, as before. `sortedEntries` must already be in sheet order.
+ */
+function sheetPositions(sortedEntries: readonly PacketReportEntry[]): Map<string, number> {
+  const nextByClass = new Map<string, number>();
+  const positions = new Map<string, number>();
+  for (const entry of sortedEntries) {
+    if (entry.runOrder == null || !entry.classId) continue;
+    const position = (nextByClass.get(entry.classId) ?? 0) + 1;
+    nextByClass.set(entry.classId, position);
+    positions.set(entry.id, position);
+  }
+  return positions;
+}
+
+function packetEntry(
+  entry: PacketReportEntry,
+  positions: ReadonlyMap<string, number>
+): EmergencyPacketEntry {
+  const position = positions.get(entry.id);
   return {
     ...entry,
     checkInMark: '',
     resultMark: '',
-    runOrderDisplay: entry.runOrder == null ? '' : String(entry.runOrder),
+    runOrderDisplay: position === undefined ? '' : String(position),
   };
 }
 
@@ -170,7 +193,8 @@ function page(
   title: string,
   context: EmergencyPacketPageContext,
   entries: PacketReportEntry[] = [],
-  snapshotMarker = true
+  snapshotMarker = true,
+  positions: ReadonlyMap<string, number> = new Map()
 ): Omit<EmergencyPacketPage, 'pageNumber'> {
   return {
     kind,
@@ -178,7 +202,7 @@ function page(
     marker: snapshotMarker ? EMERGENCY_PACKET_MARKER : '',
     generatedAt: input.generatedAt,
     context,
-    entries: entries.map(packetEntry),
+    entries: entries.map(entry => packetEntry(entry, positions)),
   };
 }
 
@@ -350,6 +374,7 @@ export function buildEmergencyPacketModel(
   const sortedTrials = [...input.trials].sort(compareTrials);
   const sortedClasses = [...input.classes].sort(compareClasses);
   const sortedEntries = [...input.entries].sort(compareEntries);
+  const positions = sheetPositions(sortedEntries);
   const trialSections = sortedTrials.map(trial => ({
     ...trial,
     classes: sortedClasses.filter(classItem => classItem.trialId === trial.id),
@@ -373,7 +398,15 @@ export function buildEmergencyPacketModel(
     chunks(trialEntries, CATALOG_ROWS_PER_PAGE).forEach((entries, index, pages) => {
       const suffix = pages.length > 1 ? ` (${index + 1}/${pages.length})` : '';
       pendingPages.push(
-        page(input, 'catalog', `Entry Catalog${suffix}`, context, entries, snapshotMarker)
+        page(
+          input,
+          'catalog',
+          `Entry Catalog${suffix}`,
+          context,
+          entries,
+          snapshotMarker,
+          positions
+        )
       );
     });
 
@@ -400,7 +433,8 @@ export function buildEmergencyPacketModel(
             `Check-in & Running Order${suffix}`,
             classContext,
             entries,
-            snapshotMarker
+            snapshotMarker,
+            positions
           )
         );
       });

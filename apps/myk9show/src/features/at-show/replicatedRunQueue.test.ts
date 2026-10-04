@@ -139,3 +139,15 @@ describe('inRingReplicated', () => {
     expect(inRingReplicated([row({ id: 'e1', armband: '1' })])).toBeNull();
   });
 });
+
+describe('check-in completed without a score (MYK9-996)', () => {
+  it('leaves the queue and the next-up candidates; later dogs move up', () => {
+    const rows = [
+      row({ id: 'ran', armband: '1', runOrder: 2, checkInStatus: 'completed', isScored: false }),
+      row({ id: 'a', armband: '2', runOrder: 9 }),
+      row({ id: 'b', armband: '3', runOrder: 31 }),
+    ];
+    expect(pendingReplicatedByRunOrder(rows).map(e => e.id)).toEqual(['a', 'b']);
+    expect(nextPendingReplicated(rows, 1).map(e => e.id)).toEqual(['a']);
+  });
+});

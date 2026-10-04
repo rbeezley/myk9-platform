@@ -96,6 +96,17 @@ describe('countCatalogClass', () => {
     ).toEqual({ entries: 1, competing: 1, qualifying: 1, withdrawn: 1 });
   });
 
+  // A catalog printed mid-class must not count dogs that have not run yet.
+  it('counts only dogs with a run result as competing, keeping excused dogs', () => {
+    expect(
+      countCatalogClass([
+        entry({ id: 'a', entryStatus: 'confirmed', resultText: 'pending' }),
+        entry({ id: 'b', entryStatus: 'confirmed', resultText: 'qualified' }),
+        entry({ id: 'c', entryStatus: 'confirmed', resultText: 'excused' }),
+      ])
+    ).toEqual({ entries: 3, competing: 2, qualifying: 1, withdrawn: 0 });
+  });
+
   it('counts an absence recorded as a result as not competing', () => {
     expect(countCatalogClass([entry({ resultText: 'absent' })])).toMatchObject({
       entries: 1,

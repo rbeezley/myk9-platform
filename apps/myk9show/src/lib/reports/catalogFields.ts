@@ -82,6 +82,14 @@ export const CATALOG_RESULT = {
   PULLED: 'Pulled',
 } as const;
 
+/** Results that mean the dog ran: time and faults print, and it counts as competing. */
+export const CATALOG_RAN_RESULTS: ReadonlySet<string> = new Set([
+  CATALOG_RESULT.QUALIFIED,
+  CATALOG_RESULT.NOT_QUALIFIED,
+  CATALOG_RESULT.EXCUSED,
+  CATALOG_RESULT.DISQUALIFIED,
+]);
+
 /**
  * Withdrawn by entry status, or by a scoring result: the scoring editor records
  * `result_status: 'withdrawn'` without touching `entry_status`.
@@ -176,10 +184,9 @@ export interface CatalogClassCounts {
  *    stays; only moved-up source rows, not-accepted rows and declined
  *    entries (never a dog in this class) are left out. `isOnClassRunList` is deliberately not used here:
  *    it also drops scratched and absent dogs, which would understate entries.
- *  - competing:  entries the show expected to run (`isExpectedEntry`: not
- *    withdrawn / scratched / absent / moved / not accepted, not pulled, not
- *    deleted) whose result is not Absent -- an absence is recorded as a result
- *    as often as as an entry status.
+ *  - competing:  dogs that actually ran: still expected to run (`isExpectedEntry`)
+ *    and carrying a run result (Q / NQ / EXC / DQ). An eligible dog that has not
+ *    run yet is not counted, so a catalog printed mid-class never overstates it.
  *  - qualifying: competing dogs whose result prints as Q.
  */
 export function countCatalogClass(entries: readonly ReportEntry[]): CatalogClassCounts {
@@ -192,7 +199,7 @@ export function countCatalogClass(entries: readonly ReportEntry[]): CatalogClass
         checkInStatus: entry.checkInStatus ?? undefined,
       }) &&
       !isWithdrawn(entry) &&
-      resolveCatalogResult(entry) !== CATALOG_RESULT.ABSENT
+      CATALOG_RAN_RESULTS.has(resolveCatalogResult(entry))
   );
   return {
     entries: inClass.length - withdrawn,

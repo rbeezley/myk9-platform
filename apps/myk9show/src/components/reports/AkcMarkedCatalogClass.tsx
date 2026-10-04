@@ -1,6 +1,7 @@
 import React from 'react';
 import type { ReportEntry } from '@/lib/reports/types';
 import {
+  CATALOG_RAN_RESULTS,
   CATALOG_RESULT,
   catalogPlacement,
   catalogRows,
@@ -25,14 +26,6 @@ export interface AkcMarkedCatalogClassData {
   /** Already sorted by the host report's sort order. */
   entries: ReportEntry[];
 }
-
-/** Results that were run, so a time and a fault count mean something. */
-const RAN_RESULTS: ReadonlySet<string> = new Set([
-  CATALOG_RESULT.QUALIFIED,
-  CATALOG_RESULT.NOT_QUALIFIED,
-  CATALOG_RESULT.EXCUSED,
-  CATALOG_RESULT.DISQUALIFIED,
-]);
 
 /** A reason is printed only for the two results the AKC catalog explains (§36). */
 const EXPLAINED_RESULTS: ReadonlySet<string> = new Set([
@@ -102,7 +95,7 @@ const AkcMarkedCatalogClass: React.FC<{ data: AkcMarkedCatalogClassData }> = ({ 
       ) : (
         rows.map(entry => {
           const result = resolveCatalogResult(entry);
-          const ran = RAN_RESULTS.has(result);
+          const ran = CATALOG_RAN_RESULTS.has(result);
           return (
             <tr key={entry.id}>
               <td>{formatArmbandDisplay(entry.armband)}</td>

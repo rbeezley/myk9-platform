@@ -13,7 +13,7 @@ const group: DogEntriesGroup = {
       dogId: 'dog-1',
       dogName: 'Maggie',
       armband: '42',
-      runOrder: 3,
+      queue: { kind: 'waiting', place: 3 },
       element: 'Detective',
       level: 'Novice',
       section: '',

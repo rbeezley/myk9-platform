@@ -14,7 +14,8 @@ import {
   isRunnableScheduleStatus,
   resolveClassSection,
 } from '@/services/entryDisplay/entryDisplaySelectors';
-import { dogsAheadInClass } from '@/utils/showEntryRunQueue';
+import { dogsAheadInClass, runQueueStateInClass } from '@/utils/showEntryRunQueue';
+import type { RunQueueState } from '@myk9/ringside/run-queue';
 import { formatWeekdayLongMonthDay } from '@/lib/format/dates';
 import { hasScopedClubRole, hasScopedShowRole } from '@/utils/roleScopes';
 import { resolveMoveUpDisplay } from '@/hooks/moveUpDisplay';
@@ -37,7 +38,11 @@ export interface EnrichedShowEntry {
   dogId: string;
   dogName: string;
   armband: string;
-  runOrder: number;
+  /**
+   * Place in line while waiting, else the dog's state (MYK9-992). Null when the
+   * secretary has not set the order yet. The stored run number is never exposed.
+   */
+  queue: RunQueueState | null;
   checkInStatus?: CheckInStatus;
   element: string;
   level: string;
@@ -389,6 +394,10 @@ export function useShowEntriesForUser(
       // excluded, so this is the same number the entry-list pill, the ring
       // conflict label and the "your turn" push all report.
       const dogsAhead = dogsAheadInClass(entriesByClassId.get(entry.classId) ?? [], entry.id) ?? 0;
+      // A waiting dog with no order set sorts by armband, which is not a place
+      // anyone has been promised, so it stays "pending" rather than a number.
+      const queueState = runQueueStateInClass(entriesByClassId.get(entry.classId) ?? [], entry.id);
+      const queue = queueState?.kind === 'waiting' && runOrder <= 0 ? null : queueState;
 
       const movedUpFromClassId = movedUpFromClassIdByEntryId.get(entry.id);
       const movedUpFromClass = movedUpFromClassId ? classMap.get(movedUpFromClassId) : undefined;
@@ -420,7 +429,7 @@ export function useShowEntriesForUser(
         dogId: entry.dogId,
         dogName: dogNameMap.get(entry.dogId) ?? fallbackDogName,
         armband: entry.registrationData.armband ?? '',
-        runOrder,
+        queue,
         ...(checkInStatus ? { checkInStatus } : {}),
         element,
         level,

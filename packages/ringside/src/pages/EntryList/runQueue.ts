@@ -85,3 +85,71 @@ export function nextPendingCandidates<T extends RunQueueEntry>(
   if (limit <= 0) return [];
   return pendingByRunOrder(entries).slice(0, limit);
 }
+
+/**
+ * Where one entry stands in its class, for display (MYK9-992).
+ *
+ * The stored `run_order` is internal -- a sort key that starts above 1 and has
+ * gaps once dogs finish or a class is re-placed -- so no surface may render it.
+ * What a person wants is the place in line, which is derived here from the one
+ * queue rule above and never stored. `pulled` wins over `done` (a dog scratched
+ * after a score stays scratched), and the in-ring dog is outside the waiting
+ * queue (INTENT above), so it reports its state, not a place.
+ */
+export type RunQueueState =
+  { kind: 'waiting'; place: number } | { kind: 'in-ring' } | { kind: 'done' } | { kind: 'pulled' };
+
+/**
+ * The entry's state in `entries` (one class's rows), or null when the entry is
+ * not among them. `place` is 1-based over `pendingByRunOrder`.
+ */
+export function runQueueStateOf(
+  entries: readonly RunQueueEntry[],
+  entryId: string
+): RunQueueState | null {
+  const target = entries.find(entry => entry.id === entryId);
+  if (!target) return null;
+  if (target.status === 'pulled') return { kind: 'pulled' };
+  if (target.isScored) return { kind: 'done' };
+  if (isInRingEntry(target)) return { kind: 'in-ring' };
+  const index = pendingByRunOrder(entries).findIndex(entry => entry.id === entryId);
+  return index === -1 ? null : { kind: 'waiting', place: index + 1 };
+}
+
+/** 1-based place in line, or null for a dog that is finished, in the ring, pulled or unknown. */
+export function placeInLine(entries: readonly RunQueueEntry[], entryId: string): number | null {
+  const state = runQueueStateOf(entries, entryId);
+  return state?.kind === 'waiting' ? state.place : null;
+}
+
+/** "Next up", "2nd up", "3rd up", "11th up", "21st up". */
+export function formatPlaceInLine(place: number): string {
+  if (place <= 1) return 'Next up';
+  const lastTwo = place % 100;
+  const last = place % 10;
+  const suffix =
+    lastTwo >= 11 && lastTwo <= 13
+      ? 'th'
+      : last === 1
+        ? 'st'
+        : last === 2
+          ? 'nd'
+          : last === 3
+            ? 'rd'
+            : 'th';
+  return `${place}${suffix} up`;
+}
+
+/** The label for any state: a place for a waiting dog, otherwise the state itself. */
+export function formatRunQueueState(state: RunQueueState): string {
+  switch (state.kind) {
+    case 'waiting':
+      return formatPlaceInLine(state.place);
+    case 'in-ring':
+      return 'In ring';
+    case 'done':
+      return 'Done';
+    case 'pulled':
+      return 'Pulled';
+  }
+}

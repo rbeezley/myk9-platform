@@ -24,7 +24,9 @@ import {
   isInQueue,
   isInRingEntry,
   pendingByRunOrder,
+  runQueueStateOf,
   type RunQueueEntry,
+  type RunQueueState,
 } from '@myk9/ringside/run-queue';
 import type { ShowEntry } from '@/store/entry-store-types';
 
@@ -102,4 +104,16 @@ export function dogsAheadInClass(entries: readonly ShowEntry[], entryId: string)
 
   const position = pendingByRunOrder(rows).findIndex(row => row.id === entryId);
   return position === -1 ? null : position;
+}
+
+/**
+ * Where `entryId` stands in its class for display (MYK9-992): a 1-based place
+ * in line while waiting, otherwise its state (in ring, done, pulled). Null when
+ * the entry is not in `entries`. The stored run number is never shown.
+ */
+export function runQueueStateInClass(
+  entries: readonly ShowEntry[],
+  entryId: string
+): RunQueueState | null {
+  return runQueueStateOf(entries.map(toShowEntryQueueRow), entryId);
 }

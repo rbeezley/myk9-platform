@@ -18,9 +18,9 @@ function makeEntry(overrides = {}) {
     dogId: 'd1',
     dogName: 'Maggie',
     armband: '101',
-    runOrder: 2,
-    position: 2,
-    dogsAhead: 1,
+    // Stored number deliberately high and gappy: it must never be rendered.
+    runOrder: 31,
+    queue: { kind: 'waiting' as const, place: 2 },
     hasResult: false,
     ...overrides,
   };
@@ -53,26 +53,50 @@ describe('ExhibitorClassCallout', () => {
     expect(screen.getByText(/2 dogs in this class/i)).toBeInTheDocument();
   });
 
-  it('shows position badge with run order number', () => {
-    mockHook({ myEntries: [makeEntry({ position: 3 })], isAfterClass: false });
+  it('shows place in line, never the stored run number', () => {
+    mockHook({
+      myEntries: [makeEntry({ runOrder: 31, queue: { kind: 'waiting', place: 3 } })],
+      isAfterClass: false,
+    });
     render(<ExhibitorClassCallout classId="c1" />);
-    expect(screen.getByText('#3')).toBeInTheDocument();
+    expect(screen.getByText('3rd up')).toBeInTheDocument();
+    expect(screen.queryByText(/31/)).not.toBeInTheDocument();
+    expect(screen.queryByText('#3')).not.toBeInTheDocument();
   });
 
-  it('shows dogs-ahead info when dogsAhead > 0', () => {
-    mockHook({ myEntries: [makeEntry({ dogsAhead: 2 })], isAfterClass: false });
+  it('shows dogs-ahead info derived from the place in line', () => {
+    mockHook({
+      myEntries: [makeEntry({ runOrder: 9, queue: { kind: 'waiting', place: 3 } })],
+      isAfterClass: false,
+    });
     render(<ExhibitorClassCallout classId="c1" />);
     expect(screen.getByText('2 dogs ahead')).toBeInTheDocument();
     expect(screen.getByText(/~6 min/)).toBeInTheDocument();
   });
 
-  it('shows "You\'re up next!" chip when dogsAhead is 0 and runOrder is set', () => {
+  it('shows "You\'re up next!" for the first waiting dog, even with a high stored number', () => {
     mockHook({
-      myEntries: [makeEntry({ dogsAhead: 0, runOrder: 1, position: 1 })],
+      myEntries: [makeEntry({ runOrder: 7, queue: { kind: 'waiting', place: 1 } })],
       isAfterClass: false,
     });
     render(<ExhibitorClassCallout classId="c1" />);
     expect(screen.getByText(/you.re up next/i)).toBeInTheDocument();
+    expect(screen.queryByText('7')).not.toBeInTheDocument();
+  });
+
+  it("shows the dog's state instead of a place when it is in the ring or pulled", () => {
+    mockHook({
+      myEntries: [
+        makeEntry({ entryId: 'e1', queue: { kind: 'in-ring' } }),
+        makeEntry({ entryId: 'e2', dogName: 'Daisy', queue: { kind: 'pulled' } }),
+      ],
+      isAfterClass: false,
+    });
+    render(<ExhibitorClassCallout classId="c1" />);
+    expect(screen.getByText('In ring')).toBeInTheDocument();
+    expect(screen.getByText('Pulled')).toBeInTheDocument();
+    expect(screen.queryByText(/you.re up next/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/dogs? ahead/)).not.toBeInTheDocument();
   });
 
   it('renders "Your results" region after class', () => {

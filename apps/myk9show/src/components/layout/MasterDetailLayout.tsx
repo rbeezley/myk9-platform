@@ -5,8 +5,8 @@ import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { ResizableHandle, ResizablePanel, ResizablePanelGroup } from '@/components/ui/resizable';
 import { EmbeddedDetailProvider } from './embeddedDetail';
 
-/** Matches `SecretaryCockpit`'s split breakpoint and Tailwind's `xl`. */
-export const MASTER_DETAIL_QUERY = '(min-width: 1280px)';
+/** Tailwind's `lg`. Below it the pane would be under ~300px once the sidebar takes its share. */
+export const MASTER_DETAIL_QUERY = '(min-width: 1024px)';
 
 const PANEL_IDS = ['list', 'detail'];
 
@@ -42,7 +42,7 @@ interface MasterDetailLayoutProps {
 /**
  * List on the left, open record on the right, with a draggable divider (wide screens only).
  *
- * Below `xl` this is a page hop, exactly as before: the detail replaces the list.
+ * Below `lg` this is a page hop, exactly as before: the detail replaces the list.
  * The route (not state held here) decides what is open, so deep links, refresh and the back
  * button keep working.
  */

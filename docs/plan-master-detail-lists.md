@@ -27,7 +27,7 @@ Existing precedent: `features/show-map/cockpit/SecretaryCockpit.tsx` is a hand-r
 ## Design
 
 - One reusable `MasterDetailLayout` (shadcn `Resizable`, backed by `react-resizable-panels`).
-- Wide (>= `xl`): list pane plus detail pane, draggable divider, layout persisted per entity.
+- Wide (>= `lg`, 1024px; the cockpit's 1280px proved too high for a 1212px pane): list pane plus detail pane, draggable divider, layout persisted per entity.
 - Narrow: unchanged page hop.
 - The route param drives the right pane (`/people/:id`), so deep links, refresh and back button work. No selection state that the URL does not carry.
 - Detail components must not assume they own the page: audit `PageShell`, breadcrumbs, `?fromDog=` and `?section=` params before embedding.
@@ -57,7 +57,7 @@ Browsing across clubs and shows stays two-pane (Phases 1-3) or plain pages. Do n
 
 Each phase is not complete until these pass:
 
-- Unit: layout collapses below `xl`, restores persisted sizes, renders detail from the route param.
+- Unit: layout collapses below `lg`, restores persisted sizes, renders detail from the route param.
 - Component: detail view renders inside the pane on the real prop shape; slide-overs open from within the pane.
 - E2E (Playwright, own session per CLAUDE.md): at 1440px, click a row, URL changes, list keeps scroll and selection; at 800px, click a row, full page hop; browser back returns to the list.
 - Shuffled full-suite run before pushing (`pnpm vitest run --sequence.shuffle`).
@@ -67,4 +67,4 @@ Each phase is not complete until these pass:
 
 - No new routes or pages.
 - No change to detail-view content or permissions.
-- No resizable panes below `xl`.
+- No resizable panes below `lg`.

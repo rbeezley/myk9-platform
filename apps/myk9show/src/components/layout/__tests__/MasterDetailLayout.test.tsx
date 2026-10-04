@@ -27,8 +27,8 @@ describe('MasterDetailLayout', () => {
     expect(screen.queryByTestId('master-detail-layout')).not.toBeInTheDocument();
   });
 
-  it('shows list and detail side by side at xl, with the detail told it is embedded', () => {
-    mockViewportWidth(1280);
+  it('shows list and detail side by side at lg, with the detail told it is embedded', () => {
+    mockViewportWidth(1024);
     renderLayout(<Detail />);
     expect(screen.getByTestId('master-detail-layout')).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Test list' })).toHaveTextContent('the list');
@@ -37,8 +37,8 @@ describe('MasterDetailLayout', () => {
     );
   });
 
-  it('keeps the page hop below xl: the detail replaces the list and is not embedded', () => {
-    mockViewportWidth(1279);
+  it('keeps the page hop below lg: the detail replaces the list and is not embedded', () => {
+    mockViewportWidth(1023);
     renderLayout(<Detail />);
     expect(screen.getByText('detail:page')).toBeInTheDocument();
     expect(screen.queryByText('the list')).not.toBeInTheDocument();

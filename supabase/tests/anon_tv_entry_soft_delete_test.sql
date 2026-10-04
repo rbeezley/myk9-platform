@@ -43,8 +43,24 @@ UPDATE public.classes
 SET results_released_at = now()
 WHERE id = '00000000-0000-0000-0000-000000149004';
 
-INSERT INTO public.people (id, first_name, last_name)
-VALUES ('00000000-0000-0000-0000-000000149005', 'TV', 'Handler');
+INSERT INTO public.people (id, first_name, last_name, email)
+VALUES ('00000000-0000-0000-0000-000000149005', 'TV', 'Handler', 'myk9149-tv@example.test');
+
+-- MYK9-969: results are private by default, and a private entry reaches anon
+-- anonymised under a fresh id. This file is about tombstones, not privacy, so
+-- the one person tied to these entries gets an account (handle_new_user adopts
+-- the people row by email and creates the profile) and opts in.
+RESET ROLE;
+INSERT INTO auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+  is_super_admin, is_sso_user, is_anonymous
+) VALUES ('00000000-0000-0000-0000-000000149105', '00000000-0000-0000-0000-000000000000',
+          'authenticated', 'authenticated', 'myk9149-tv@example.test', '', now(), now(), now(),
+          '{}', '{}', false, false, false);
+UPDATE public.exhibitor_profiles SET results_public = true
+WHERE auth_user_id = '00000000-0000-0000-0000-000000149105';
+SET LOCAL ROLE service_role;
 
 -- Two dogs, because entries_dog_class_unique_idx is UNIQUE (dog_id, class_id)
 -- over live, non-withdrawn/scratched rows, so two 'confirmed' entries for one

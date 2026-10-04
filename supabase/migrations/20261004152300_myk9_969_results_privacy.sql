@@ -50,9 +50,40 @@
 --     so every result column expression is byte-identical to 20260918193700.
 --   * Both views gain `results_private` (appended last) so the app can say
 --     "Results private" / "Private entry" instead of "Pending".
---   * view_authenticated_entry_results.updated_at now also moves with a tied
---     person's exhibitor_profiles.updated_at, so a public->private flip reaches
---     replicas that pull incrementally.
+--   * Replicas pull entries incrementally by the view's `updated_at`
+--     (ReplicatedEntriesTable: `updated_at > watermark`). A mask that changes
+--     without that timestamp moving never reaches a warm replica, and another
+--     exhibitor's device keeps showing the score. So EVERY input to the privacy
+--     decision must advance the row's `updated_at`:
+--
+--       input                                   timestamp the row's GREATEST reads
+--       ------------------------------------    -----------------------------------
+--       a tied person's opt-in flip             exhibitor_profiles.updated_at (trigger)
+--       a tied person's profile created         exhibitor_profiles.updated_at (default now())
+--       a tied person's profile deleted         people.updated_at (new AFTER DELETE trigger
+--                                               on exhibitor_profiles touches the person)
+--       a tied person's account (re)linked,     people.updated_at (trigger)
+--         or the person soft-deleted
+--       dog owner / co-owner changed            dogs.updated_at (trigger) -- NEW in GREATEST
+--       entry handler changed                   entries.updated_at (trigger)
+--       show-wide switch flipped                show_visibility_settings.updated_at -- now
+--                                               stamped by a server trigger, not the
+--                                               client's clock
+--       class results released / unreleased     classes.updated_at (trigger)
+--       THIS MIGRATION (every entry turns       private.results_privacy_epoch.updated_at,
+--         private at once)                      stamped now() when this file runs
+--
+--     The epoch row is how the initial default reaches warm replicas: it lifts
+--     every entry row's `updated_at` to the push instant, so the next
+--     incremental pull of every show re-downloads its rows, already masked.
+--     That is deliberately a SERVER mechanism, not the client's column-gated
+--     forced full sync (the MYK9-659 receipt refresh in ReplicatedEntriesTable):
+--     a client-side refresh only runs on devices that took the new frontend,
+--     and PWA updates are prompt-mode, so an un-updated device would keep other
+--     dogs' scores indefinitely. The epoch reaches every client version. It was
+--     chosen over bumping entries.updated_at because an UPDATE on entries fires
+--     its OCC version bump, status-history and push triggers for 98 live rows
+--     that did not change.
 --
 -- Not changed (and why that keeps reports unaffected): entries itself (no
 -- result column is granted to authenticated or anon -- the column allowlist
@@ -81,6 +112,53 @@ ALTER TABLE public.show_visibility_settings
 
 COMMENT ON COLUMN public.show_visibility_settings.results_private IS
   'MYK9-969: the club''s show-wide private switch. TRUE hides every entry''s results from other exhibitors and the public; it never makes a person''s private results public.';
+
+-- Replication epoch for this change (see the header). One row; the view reads
+-- it with an uncorrelated scalar subquery, so an empty table reads as NULL and
+-- GREATEST ignores it rather than dropping rows. Private schema, owner-read
+-- only: the owner-run view is its only reader.
+CREATE TABLE IF NOT EXISTS private.results_privacy_epoch (
+  singleton boolean PRIMARY KEY DEFAULT true CHECK (singleton),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+REVOKE ALL ON private.results_privacy_epoch FROM PUBLIC, anon, authenticated;
+INSERT INTO private.results_privacy_epoch (singleton, updated_at)
+VALUES (true, now())
+ON CONFLICT (singleton) DO UPDATE SET updated_at = EXCLUDED.updated_at;
+
+COMMENT ON TABLE private.results_privacy_epoch IS
+  'MYK9-969: the instant results privacy took effect. view_authenticated_entry_results folds it into updated_at so every warm replica re-pulls its rows, masked, on the next incremental sync.';
+
+-- The show-wide switch must move the row's updated_at on the SERVER clock. The
+-- app upserts this table with its own `new Date()`, and a device clock running
+-- behind would stamp a time below other replicas' watermarks.
+DROP TRIGGER IF EXISTS show_visibility_settings_updated_at ON public.show_visibility_settings;
+CREATE TRIGGER show_visibility_settings_updated_at
+  BEFORE INSERT OR UPDATE ON public.show_visibility_settings
+  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+
+-- Deleting a person's profile (site admin only) turns their entries private,
+-- but a deleted row has no updated_at left to read. Touch the person instead;
+-- the view reads every tied person's people.updated_at.
+CREATE OR REPLACE FUNCTION private.touch_person_on_profile_delete()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+BEGIN
+  UPDATE public.people
+  SET updated_at = now()
+  WHERE auth_user_id = OLD.auth_user_id;
+  RETURN OLD;
+END;
+$$;
+REVOKE ALL ON FUNCTION private.touch_person_on_profile_delete() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS exhibitor_profiles_touch_person_on_delete ON public.exhibitor_profiles;
+CREATE TRIGGER exhibitor_profiles_touch_person_on_delete
+  AFTER DELETE ON public.exhibitor_profiles
+  FOR EACH ROW EXECUTE FUNCTION private.touch_person_on_profile_delete();
 
 -- No new GRANTs: both are new columns on tables with no column-level ACLs, so
 -- the existing table grants cover them. exhibitor_profiles has no anon grant at
@@ -314,9 +392,12 @@ SELECT
     show_vis.updated_at,
     trial_vis.updated_at,
     class_vis.updated_at,
-    -- MYK9-969: a tied person flipping their results setting changes what
-    -- this row shows, so their profile stamp must move the row for replication.
-    consent.profiles_updated_at
+    -- MYK9-969: every input to the privacy mask moves the row (see the
+    -- header's input table): tied people's profiles and people rows, the
+    -- dog's ownership, and the one-time epoch of this migration.
+    consent.profiles_updated_at,
+    d.updated_at,
+    (SELECT max(epoch.updated_at) FROM private.results_privacy_epoch epoch)
   ) AS updated_at,
   e.deleted_at,
   CASE WHEN access.can_view_admin THEN e.deleted_by END AS deleted_by,
@@ -502,7 +583,9 @@ CROSS JOIN LATERAL (
 CROSS JOIN LATERAL (
   SELECT
     bool_and(COALESCE(tep.results_public, false)) AS all_opted_in,
-    max(tep.updated_at) AS profiles_updated_at
+    -- people.updated_at too: relinking an account changes WHICH profile
+    -- counts, and a deleted profile touches its person (trigger above).
+    max(GREATEST(tep.updated_at, tp.updated_at)) AS profiles_updated_at
   FROM unnest(ARRAY[d.owner_id, d.co_owner_id, e.handler_id]) AS tied(person_id)
   LEFT JOIN public.people tp ON tp.id = tied.person_id
   LEFT JOIN public.exhibitor_profiles tep ON tep.auth_user_id = tp.auth_user_id

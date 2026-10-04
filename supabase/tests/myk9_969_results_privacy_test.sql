@@ -21,7 +21,10 @@
 --      every privacy setting, and placements are never rewritten;
 --   9. the opt-in cannot be forged through exhibitor_profiles.person_id;
 --  10. anon cannot read exhibitor_profiles at all;
---  11. a tied person's privacy flip moves the row's updated_at (replication).
+--  11. every input to the privacy decision (opt-in flip, profile deleted,
+--      account linked, dog ownership, handler, the club switch even with a
+--      stale client clock, release, and the migration's own epoch) moves the
+--      updated_at that replication's incremental pull reads.
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
 
@@ -542,40 +545,6 @@ SET person_id = '00000000-0000-0000-0000-000000969014', results_public = false
 WHERE auth_user_id = '00000000-0000-0000-0000-000000969114';
 
 -- ---------------------------------------------------------------------------
--- 11. A tied person's flip moves the row's updated_at (replication pulls by it).
--- ---------------------------------------------------------------------------
-DO $$
-DECLARE
-  before_ts timestamptz;
-  after_ts timestamptz;
-BEGIN
-  PERFORM pg_temp.act_as('00000000-0000-0000-0000-000000969117');
-  SET LOCAL ROLE authenticated;
-  SELECT updated_at INTO before_ts FROM public.view_authenticated_entry_results
-  WHERE id = '00000000-0000-0000-0000-000000969043';
-  RESET ROLE;
-  -- now() is frozen for the whole transaction, so the updated_at trigger would
-  -- stamp the same instant the row already reads. Bypass it for this one write
-  -- to stand in for "a later transaction".
-  SET LOCAL session_replication_role = replica;
-  UPDATE public.exhibitor_profiles
-  SET results_public = false, updated_at = before_ts + interval '1 hour'
-  WHERE auth_user_id = '00000000-0000-0000-0000-000000969115';
-  SET LOCAL session_replication_role = origin;
-  SET LOCAL ROLE authenticated;
-  SELECT updated_at INTO after_ts FROM public.view_authenticated_entry_results
-  WHERE id = '00000000-0000-0000-0000-000000969043';
-  RESET ROLE;
-  IF after_ts IS NULL OR after_ts <= before_ts THEN
-    RAISE EXCEPTION 'FAIL a privacy flip did not move updated_at: % -> %', before_ts, after_ts;
-  END IF;
-  UPDATE public.exhibitor_profiles SET results_public = true
-  WHERE auth_user_id = '00000000-0000-0000-0000-000000969115';
-  RAISE NOTICE 'PASS 11 a tied person''s privacy flip moves the entry row''s updated_at';
-END;
-$$;
-
--- ---------------------------------------------------------------------------
 -- 7. The club's show-wide switch. P (and now A) are fully opted in; the switch
 --    makes them private to others, and staff and the tied people still see.
 -- ---------------------------------------------------------------------------
@@ -633,6 +602,151 @@ BEGIN
     RAISE EXCEPTION 'FAIL with the club switch off anon should see 2 private rows, got %', n_private;
   END IF;
   RAISE NOTICE 'PASS 7b the club switch never makes a private entry public';
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 11. Every input to the privacy decision moves the row's updated_at, which is
+--     what a warm replica's incremental pull reads (updated_at > watermark).
+--
+--     now() is frozen for the whole transaction, so "moves" is measured by
+--     first backdating every timestamp the row could read to 2000-01-01
+--     (triggers bypassed), making ONE input change the normal way (triggers
+--     on), and requiring the row's updated_at to reach now().
+-- ---------------------------------------------------------------------------
+CREATE FUNCTION pg_temp.backdate() RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  SET LOCAL session_replication_role = replica;
+  UPDATE public.entries SET updated_at = '2000-01-01'
+  WHERE class_id = '00000000-0000-0000-0000-000000969004';
+  UPDATE public.classes SET updated_at = '2000-01-01'
+  WHERE id = '00000000-0000-0000-0000-000000969004';
+  UPDATE public.shows SET updated_at = '2000-01-01'
+  WHERE id = '00000000-0000-0000-0000-000000969002';
+  UPDATE public.show_visibility_settings SET updated_at = '2000-01-01'
+  WHERE show_id = '00000000-0000-0000-0000-000000969002';
+  UPDATE public.dogs SET updated_at = '2000-01-01'
+  WHERE id::text LIKE '00000000-0000-0000-0000-00000096903_';
+  UPDATE public.people SET updated_at = '2000-01-01'
+  WHERE id::text LIKE '00000000-0000-0000-0000-0000009690__';
+  UPDATE public.exhibitor_profiles SET updated_at = '2000-01-01'
+  WHERE auth_user_id::text LIKE '00000000-0000-0000-0000-0000009691__';
+  IF to_regclass('private.results_privacy_epoch') IS NOT NULL THEN
+    EXECUTE 'UPDATE private.results_privacy_epoch SET updated_at = ''2000-01-01''';
+  END IF;
+  SET LOCAL session_replication_role = origin;
+END;
+$$;
+
+-- The row's updated_at as a replica reads it (the replication wrapper, as staff).
+CREATE FUNCTION pg_temp.replica_ts(p_entry uuid) RETURNS timestamptz LANGUAGE plpgsql AS $$
+DECLARE
+  ts timestamptz;
+BEGIN
+  PERFORM pg_temp.act_as('00000000-0000-0000-0000-000000969117');
+  EXECUTE 'SET LOCAL ROLE authenticated';
+  SELECT updated_at INTO ts FROM public.view_authenticated_entry_results_replication
+  WHERE id = p_entry;
+  EXECUTE 'RESET ROLE';
+  RETURN ts;
+END;
+$$;
+
+CREATE FUNCTION pg_temp.assert_moved(p_entry uuid, p_input text) RETURNS void
+LANGUAGE plpgsql AS $$
+DECLARE
+  ts timestamptz := pg_temp.replica_ts(p_entry);
+BEGIN
+  IF ts IS DISTINCT FROM now() THEN
+    RAISE EXCEPTION 'FAIL 11 [%] did not move the replica watermark column: updated_at = %',
+      p_input, ts;
+  END IF;
+  RAISE NOTICE 'PASS 11 [%] moves the entry row''s updated_at', p_input;
+END;
+$$;
+
+-- Control: with everything backdated, the row reads 2000-01-01.
+DO $$
+BEGIN
+  PERFORM pg_temp.backdate();
+  IF pg_temp.replica_ts('00000000-0000-0000-0000-000000969043') <> '2000-01-01'::timestamptz THEN
+    RAISE EXCEPTION 'FAIL 11 control: backdating did not reach every GREATEST input (%)',
+      pg_temp.replica_ts('00000000-0000-0000-0000-000000969043');
+  END IF;
+  RAISE NOTICE 'PASS 11 control: a fully backdated row reads 2000-01-01';
+END;
+$$;
+
+-- a. A tied person's opt-in flip (P turns private).
+SELECT pg_temp.backdate();
+UPDATE public.exhibitor_profiles SET results_public = false
+WHERE auth_user_id = '00000000-0000-0000-0000-000000969115';
+SELECT pg_temp.assert_moved('00000000-0000-0000-0000-000000969043', 'opt-in flip');
+
+-- b. A tied person's profile deleted (site admin only): O's entry A.
+SELECT pg_temp.backdate();
+DELETE FROM public.exhibitor_profiles WHERE auth_user_id = '00000000-0000-0000-0000-000000969111';
+SELECT pg_temp.assert_moved('00000000-0000-0000-0000-000000969041', 'profile deleted');
+
+-- c. A tied person's account linked: M (mail-in, no account) signs up, and
+--    handle_new_user adopts the people row and creates the profile.
+SELECT pg_temp.backdate();
+INSERT INTO auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+  is_super_admin, is_sso_user, is_anonymous
+) VALUES ('00000000-0000-0000-0000-000000969116', '00000000-0000-0000-0000-000000000000',
+          'authenticated', 'authenticated', 'myk9969-m@example.test', '', now(), now(), now(),
+          '{}', '{}', false, false, false);
+SELECT pg_temp.assert_moved('00000000-0000-0000-0000-000000969044', 'account linked');
+
+-- d. The dog gains a co-owner (an opted-in dog's ownership changes).
+SELECT pg_temp.backdate();
+UPDATE public.dogs SET co_owner_id = '00000000-0000-0000-0000-000000969014'
+WHERE id = '00000000-0000-0000-0000-000000969033';
+SELECT pg_temp.assert_moved('00000000-0000-0000-0000-000000969043', 'dog co-owner changed');
+
+-- e. The entry's handler changes.
+SELECT pg_temp.backdate();
+UPDATE public.entries SET handler_id = '00000000-0000-0000-0000-000000969014'
+WHERE id = '00000000-0000-0000-0000-000000969043';
+SELECT pg_temp.assert_moved('00000000-0000-0000-0000-000000969043', 'handler changed');
+
+-- f. The club's switch, written with a STALE client timestamp (the app sends
+--    its own clock): the server must stamp it.
+SELECT pg_temp.backdate();
+UPDATE public.show_visibility_settings
+SET results_private = true, updated_at = '2000-01-01'
+WHERE show_id = '00000000-0000-0000-0000-000000969002';
+SELECT pg_temp.assert_moved('00000000-0000-0000-0000-000000969042', 'show switch (stale client clock)');
+
+-- g. Results released / unreleased.
+SELECT pg_temp.backdate();
+UPDATE public.classes SET results_released_at = NULL
+WHERE id = '00000000-0000-0000-0000-000000969004';
+SELECT pg_temp.assert_moved('00000000-0000-0000-0000-000000969042', 'results unreleased');
+
+-- h. This migration itself: every entry turned private at once. Its epoch row
+--    must lift a row that nothing else touched.
+SELECT pg_temp.backdate();
+DO $$
+BEGIN
+  IF to_regclass('private.results_privacy_epoch') IS NULL THEN
+    RAISE EXCEPTION 'FAIL 11 [migration epoch] private.results_privacy_epoch does not exist';
+  END IF;
+  EXECUTE 'UPDATE private.results_privacy_epoch SET updated_at = now()';
+END;
+$$;
+SELECT pg_temp.assert_moved('00000000-0000-0000-0000-000000969042', 'migration epoch');
+
+-- The epoch table is unreachable by app roles.
+DO $$
+BEGIN
+  IF has_table_privilege('anon', 'private.results_privacy_epoch', 'SELECT')
+     OR has_table_privilege('authenticated', 'private.results_privacy_epoch', 'SELECT') THEN
+    RAISE EXCEPTION 'FAIL 11 an app role can read private.results_privacy_epoch';
+  END IF;
+  RAISE NOTICE 'PASS 11 the epoch table is owner-only';
 END;
 $$;
 

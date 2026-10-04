@@ -25,7 +25,7 @@ import {
  *
  * `shows.club_id` was nullable, and MYK9-258 (20260828230000) guarded every
  * shows-derived call with `s.club_id IS NOT NULL AND …`. MYK9-1008
- * (20261004174300) made the column NOT NULL and removed those guards, so a call
+ * (20261004181900) made the column NOT NULL and removed those guards, so a call
  * that reads a shows row's club_id is now safe by the column, and the cases
  * below require it to be either that or explicitly guarded.
  *
@@ -59,7 +59,7 @@ import {
  * character is that nobody notices the call site at all.
  */
 const REVIEWED_CLUB_HELPER_CALL_SITES: readonly string[] = [
-  // SAFE: read shows.club_id, NOT NULL since 20261004174300 (MYK9-1008), which
+  // SAFE: read shows.club_id, NOT NULL since 20261004181900 (MYK9-1008), which
   // removed the MYK9-258 / MYK9-470 / MYK9-474 `s.club_id IS NOT NULL` guards.
   'can_manage_show -> is_trial_secretary',
   'can_manage_trial -> is_club_admin',
@@ -168,7 +168,7 @@ describe('club-scoped authorization helpers are never handed a bare club_id colu
  *   regardless of guard text. Verified against
  *   `information_schema.columns.is_nullable` on the linked database as well
  *   as the declaring migration:
- *     - shows.club_id: NOT NULL since 20261004174300 (MYK9-1008), which also
+ *     - shows.club_id: NOT NULL since 20261004181900 (MYK9-1008), which also
  *       removed the guards from every policy that reads a shows row's club_id.
  *     - club_premium_templates.club_id / premium_generations.club_id:
  *       `uuid not null` (188_premium_bridge_tables.sql).
@@ -218,7 +218,7 @@ const REVIEWED_CLUB_HELPER_POLICY_SITES: readonly string[] = [
   // GUARDED: show_templates.club_id is nullable (a NULL is a platform template).
   'show_templates_select -> is_club_admin',
   'show_templates_select -> is_trial_secretary',
-  // SAFE: shows.club_id is NOT NULL (20261004174300, MYK9-1008). Every entry
+  // SAFE: shows.club_id is NOT NULL (20261004181900, MYK9-1008). Every entry
   // from here down reads a shows row's club_id; their `club_id IS NOT NULL`
   // guards (MYK9-585, MYK9-636 and earlier) were removed by that migration.
   // Behavioural coverage: supabase/tests/cross_club_policy_authorization_test.sql
@@ -278,7 +278,7 @@ const REVIEWED_CLUB_HELPER_POLICY_SITES: readonly string[] = [
  * else it decides from the policy text itself.
  */
 const NOT_NULL_CLUB_ID_TABLES: readonly string[] = [
-  // 20261004174300 (MYK9-1008); pinned by the "shows.club_id stays NOT NULL"
+  // 20261004181900 (MYK9-1008); pinned by the "shows.club_id stays NOT NULL"
   // case below, which reads the migration set rather than trusting this line.
   'shows',
   'club_members',
@@ -483,7 +483,7 @@ describe('club-scoped authorization helpers are never handed a bare club_id colu
       }
     }
     expect(changes.at(-1)).toEqual({
-      file: '20261004174300_myk9_1008_show_requires_club.sql',
+      file: '20261004181900_myk9_1008_show_requires_club.sql',
       action: 'set',
     });
   });

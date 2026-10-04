@@ -1,6 +1,6 @@
 -- MYK9-1008: a show must belong to a club.
 --
--- 20261004174300 made shows.club_id NOT NULL and removed the MYK9-258
+-- 20261004181900 made shows.club_id NOT NULL and removed the MYK9-258
 -- `s.club_id IS NOT NULL AND …` guards from ten SQL functions and 23 RLS
 -- policies. Those guards existed because is_trial_secretary(check_club_id) and
 -- is_club_admin(check_club_id) read a NULL argument as "any club": a club-less

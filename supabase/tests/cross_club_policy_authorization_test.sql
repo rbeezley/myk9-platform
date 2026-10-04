@@ -6,7 +6,7 @@
 -- that passed a nullable shows.club_id positionally admitted every club admin
 -- on the platform, and 20260916015300 guarded sixteen of them with
 -- `club_id IS NOT NULL`. MYK9-1008 made shows.club_id NOT NULL and removed those
--- guards (20261004174300), so a club B show can no longer exist. The same
+-- guards (20261004181900), so a club B show can no longer exist. The same
 -- policies are now exercised against a show in club B, where no fixture identity
 -- holds a role: the tenant boundary these policies enforce, and the one a
 -- broken guard removal would breach.

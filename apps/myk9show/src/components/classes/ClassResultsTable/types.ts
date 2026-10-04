@@ -52,4 +52,6 @@ export interface ScoringRow {
   checkInStatus: CheckInStatus;
   isScored: boolean;
   hasEdits: boolean;
+  /** MYK9-969: the server hid this entry's results from the current viewer. */
+  resultsPrivate?: boolean | undefined;
 }

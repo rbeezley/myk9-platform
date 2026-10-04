@@ -6,7 +6,20 @@ import { applyShowScope, type ShowScope } from './showScope.ts';
 
 type SupabaseClient = ReturnType<typeof createClient>;
 
-/** The view_entry_with_results columns both entry tools select. */
+/**
+ * Where both entry tools read results (MYK9-969).
+ *
+ * `view_authenticated_entry_results`, read with the CALLER's JWT, is the one
+ * place the release cascade and results privacy are decided for a signed-in
+ * exhibitor. These tools used to read `view_entry_with_results` with the
+ * service-role client, which bypassed both: any exhibitor at a show could ask
+ * the assistant for another dog's unreleased or private time and placement.
+ * Read through the caller, an exhibitor gets exactly what the app shows them,
+ * and show staff still get every result.
+ */
+const ENTRY_RESULTS_VIEW = 'view_authenticated_entry_results';
+
+/** The ENTRY_RESULTS_VIEW columns both entry tools select. */
 interface EntryViewRow {
   armband: string | null;
   dog_call_name: string | null;
@@ -32,7 +45,8 @@ async function executeGetEntryResults(
     top_n?: number;
   },
   supabase: SupabaseClient,
-  scope: ShowScope
+  scope: ShowScope,
+  resultsClient: SupabaseClient
 ): Promise<{ data: EntryResult[]; error?: string }> {
   try {
     let resolvedDate: string | undefined = undefined;
@@ -96,13 +110,13 @@ async function executeGetEntryResults(
 
     // Step 2: Query entries.
     //
-    // Column names here are view_entry_with_results', NOT the myK9Q ones this
-    // tool was ported from: the view exposes `armband` and `handler`, while
+    // Column names here are the view's, NOT the myK9Q ones this tool was
+    // ported from: the view exposes `armband` and `handler`, while
     // `armband_number` and `handler_name` are view_stats_summary aliases.
     // Selecting the wrong ones makes PostgREST fail the whole request with an
     // unknown-column error. The EntryResult output contract keeps the
     // armband_number/handler names, so only the source columns differ.
-    let query = supabase.from('view_entry_with_results').select(
+    let query = resultsClient.from(ENTRY_RESULTS_VIEW).select(
       `
         armband,
         dog_call_name,
@@ -195,14 +209,15 @@ async function executeGetEntryResults(
 async function executeSearchEntries(
   params: { dog_name?: string; handler_name?: string },
   supabase: SupabaseClient,
-  scope: ShowScope
+  scope: ShowScope,
+  resultsClient: SupabaseClient
 ): Promise<{ data: EntryResult[]; error?: string }> {
   try {
     if (!params.dog_name && !params.handler_name) {
       return { data: [], error: 'Must provide dog_name or handler_name' };
     }
 
-    let query = supabase.from('view_entry_with_results').select(
+    let query = resultsClient.from(ENTRY_RESULTS_VIEW).select(
       `
         armband,
         dog_call_name,
@@ -286,7 +301,15 @@ export async function executeTool(
   licenseKey: string,
   organizationCode?: string,
   sportCode?: string,
-  userContext?: UserContext | null
+  userContext?: UserContext | null,
+  /**
+   * The caller's own client (anon key + their Authorization header). The entry
+   * tools read results through it so the server's release and privacy rules
+   * apply to the person asking (MYK9-969). Absent, they fall back to
+   * `supabase`; a service-role client matches no access arm of the view, so
+   * that fallback returns no rows rather than every result.
+   */
+  resultsClient?: SupabaseClient
 ): Promise<{ result: unknown; error?: string }> {
   void organizationCode;
   void sportCode;
@@ -326,7 +349,8 @@ export async function executeTool(
           top_n?: number;
         },
         supabase,
-        scope
+        scope,
+        resultsClient ?? supabase
       ).then(r => ({ result: r.data, error: r.error }));
 
     case 'get_trial_overview':
@@ -338,7 +362,8 @@ export async function executeTool(
       return executeSearchEntries(
         toolInput as { dog_name?: string; handler_name?: string },
         supabase,
-        scope
+        scope,
+        resultsClient ?? supabase
       ).then(r => ({ result: r.data, error: r.error }));
 
     default:

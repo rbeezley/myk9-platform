@@ -83,6 +83,32 @@ describe('JudgeStatsSubTab', () => {
     expect(select).toBeInTheDocument();
   });
 
+  // MYK9-969 review: a judge's stats over partly hidden results would be wrong.
+  it('omits the statistics when any scored result is withheld from the viewer', () => {
+    mockUseShowJudges.mockReturnValue({
+      data: [{ id: 'j1', name: 'Alice Smith' }],
+      isLoading: false,
+    } as ReturnType<typeof useShowJudges>);
+    mockUseJudgeShowStats.mockReturnValue({
+      data: [
+        makeEntry({ dogCallName: 'Slowpoke' }),
+        makeEntry({
+          id: 'entry-2',
+          dogCallName: 'Hidden',
+          resultText: 'pending',
+          searchTimeSeconds: null,
+          resultWithheld: true,
+        }),
+      ],
+      isLoading: false,
+    } as ReturnType<typeof useJudgeShowStats>);
+
+    render(<JudgeStatsSubTab showId="show-1" />);
+
+    expect(screen.getByText('Statistics not shown')).toBeInTheDocument();
+    expect(screen.queryByText('Slowpoke')).not.toBeInTheDocument();
+  });
+
   it('renders stats and class breakdown when judge has scored entries', () => {
     mockUseShowJudges.mockReturnValue({
       data: [{ id: 'j1', name: 'Alice Smith' }],

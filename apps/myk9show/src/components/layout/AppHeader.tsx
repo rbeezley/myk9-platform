@@ -149,12 +149,12 @@ const AppHeader: React.FC = () => {
               }`}
             >
               <img
-                src="/brand-mark-64.png"
+                src="/brand-mark.svg"
                 alt=""
                 aria-hidden="true"
                 width="28"
                 height="28"
-                className="block min-[360px]:hidden sm:block h-7 w-7 shrink-0 object-contain"
+                className="block min-[360px]:hidden sm:block h-7 w-7 shrink-0 object-contain dark:brightness-150 dark:saturate-50"
               />
               <span className="max-[359px]:hidden truncate text-base sm:text-lg font-bold text-foreground tracking-tight">
                 myK9Show

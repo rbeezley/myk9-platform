@@ -1,3 +1,4 @@
+// @vitest-environment node
 import { describe, expect, it } from 'vitest';
 import { decideEntryPaymentAutoRefund } from './entryPaymentAutoRefund';
 import type { PlatformFeeRates } from './platformFee';
@@ -26,7 +27,7 @@ describe('decideEntryPaymentAutoRefund', () => {
     ).toEqual({ action: 'none' });
   });
 
-  it('make-whole refunds the full charge including platform fee when the exhibitor got nothing', () => {
+  it('refunds only the invalid entry fees, keeping the service fee, when the exhibitor got nothing', () => {
     expect(
       decideEntryPaymentAutoRefund({
         ...base,
@@ -35,12 +36,12 @@ describe('decideEntryPaymentAutoRefund', () => {
       })
     ).toEqual({
       action: 'refund',
-      amountCents: 11_770,
+      amountCents: 6_000,
       reason: 'full_make_whole',
     });
   });
 
-  it('partial-batch refunds the invalid entries plus their share of the platform fee', () => {
+  it('partial-batch refunds the invalid entry fees and no share of the service fee', () => {
     expect(
       decideEntryPaymentAutoRefund({
         ...base,
@@ -49,22 +50,23 @@ describe('decideEntryPaymentAutoRefund', () => {
       })
     ).toEqual({
       action: 'refund',
-      amountCents: 6_420,
+      amountCents: 6_000,
       reason: 'partial_invalid_entries',
     });
   });
 
-  it('caps partial refunds to the invalid entries share of the actual collected total', () => {
+  it('caps the refund at the amount collected minus the service fee', () => {
     expect(
       decideEntryPaymentAutoRefund({
         ...base,
-        sessionAmountTotalCents: 10_000,
+        // Under-collected: 6_500 − fee(11_000) = 5_730 < 6_000.
+        sessionAmountTotalCents: 6_500,
         validPaidEntryIds: ['fresh'],
         invalidEntryIds: ['duplicate'],
       })
     ).toEqual({
       action: 'refund',
-      amountCents: 5_455,
+      amountCents: 5_730,
       reason: 'partial_invalid_entries',
     });
   });

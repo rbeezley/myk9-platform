@@ -25,16 +25,25 @@ async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   ).toBeLessThanOrEqual(metrics.viewport);
 }
 
-async function expectClubSeedAvailable(page: Page): Promise<void> {
+/**
+ * MYK9-952: the seeded clubs are demo fixtures (clubs.is_demo), so the GUEST
+ * directory leaves them out while a direct link still opens them. The result
+ * count is the positive control: it renders only once the server read has
+ * landed, so the absence check below cannot pass on a page still loading.
+ */
+async function expectGuestDirectoryWithoutSeedClub(page: Page): Promise<void> {
   await page.goto('/clubs', { waitUntil: 'domcontentloaded' });
   await expect(page.getByRole('heading', { name: 'Clubs', level: 1 })).toBeVisible();
-  await expect(page.getByText(SEEDED_CLUB_NAME, { exact: true })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/^Showing (all )?\d+( of \d+)? clubs?\.$/)).toBeVisible({
+    timeout: 30_000,
+  });
+  await expect(page.getByText(SEEDED_CLUB_NAME, { exact: true })).toHaveCount(0);
 }
 
 test.describe('club surface integrity — read-only', () => {
   test('guest browse and valid/invalid detail routes reach terminal states', async ({ page }) => {
     const errors = installRuntimeGuards(page);
-    await expectClubSeedAvailable(page);
+    await expectGuestDirectoryWithoutSeedClub(page);
     await expectNoHorizontalOverflow(page);
 
     await page.goto(`/clubs/${SEEDED_CLUB_ID}`, { waitUntil: 'domcontentloaded' });
@@ -148,7 +157,7 @@ test.describe('club surface integrity — 375px re-walk', () => {
 
   test('guest browse and detail remain usable without horizontal overflow', async ({ page }) => {
     const errors = installRuntimeGuards(page);
-    await expectClubSeedAvailable(page);
+    await expectGuestDirectoryWithoutSeedClub(page);
     await expectNoHorizontalOverflow(page);
 
     await page.goto(`/clubs/${SEEDED_CLUB_ID}`, { waitUntil: 'domcontentloaded' });

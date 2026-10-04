@@ -755,14 +755,19 @@ DELETE FROM public.club_stripe_accounts WHERE club_id IN (
 --    demo dataset. Its one PAST show/trial/class (section 4c) exists only as the
 --    cross-club class a real Heartland viewer must be refused on.
 -- ---------------------------------------------------------------------------
-INSERT INTO public.clubs (id, name, city, state, email, description, club_number, version)
+--
+-- is_demo = true keeps both clubs, and every show they host, off the public
+-- listings (signed-out Find Shows, the guest club directory) while direct links
+-- and signed-in accounts still reach them (MYK9-952). The seed sets it on every
+-- run, insert AND conflict, so a reseed can never bring them back into public view.
+INSERT INTO public.clubs (id, name, city, state, email, description, club_number, version, is_demo)
 VALUES (
   'dededede-0000-0000-0000-000000000001',
   'Heartland Scent Work Club',
   'Tulsa', 'Oklahoma',
   'testadmin@myk9t.com',
   'Demo scent work club for the myK9Show showcase dataset.',
-  'HSWC-001', 1
+  'HSWC-001', 1, true
 ),
 (
   'dededede-0000-0000-0000-000000000002',
@@ -770,10 +775,11 @@ VALUES (
   'Wichita', 'Kansas',
   'testadmin@myk9t.com',
   'Second demo club. Exists so club-scoped authority has a club to be REFUSED on — see MYK9-137.',
-  'PTDSC-002', 1
+  'PTDSC-002', 1, true
 )
 ON CONFLICT (id) DO UPDATE
   SET name        = EXCLUDED.name,
+      is_demo     = EXCLUDED.is_demo,
       city        = EXCLUDED.city,
       state       = EXCLUDED.state,
       email       = EXCLUDED.email,

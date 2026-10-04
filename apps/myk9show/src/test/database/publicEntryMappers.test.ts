@@ -88,7 +88,12 @@ describe('public entry mappers', () => {
   });
 
   it('maps a missing dog to null rather than a hollow object', () => {
-    const raw = publicRowToRawEntryRow(makeRow({ dog_id: null }));
+    // A dog-less row's dog columns all come from the view's LEFT JOIN on dogs,
+    // so they are NULL together. (A NULL dog id WITH a name is the anonymised
+    // "Private entry" shape, MYK9-969, and does keep its display object.)
+    const raw = publicRowToRawEntryRow(
+      makeRow({ dog_id: null, dog_name: null, dog_call_name: null, dog_breed: null })
+    );
     expect(raw.dog).toBeNull();
   });
 });

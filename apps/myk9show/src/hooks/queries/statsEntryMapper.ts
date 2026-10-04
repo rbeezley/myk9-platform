@@ -23,6 +23,9 @@ export function mapRowToStatsEntry(
     searchTimeSeconds: row.search_time_seconds as number | null,
     totalFaults: row.total_faults as number | null,
     finalPlacement: row.final_placement as number | null,
+    // Scored with no visible result: withheld from this viewer by privacy or
+    // the release cascade (staff always see the result, so never withheld).
+    resultWithheld: row.is_scored === true && row.result_text == null,
     trialDate: trialMeta?.trialDate || '',
     trialName: trialMeta?.trialName || '',
     trialNumber: trialMeta?.trialNumber || '',
@@ -46,6 +49,7 @@ export const STATS_ENTRY_SELECT = `
   class_element,
   class_level,
   result_text,
+  is_scored,
   search_time_seconds,
   total_faults,
   final_placement

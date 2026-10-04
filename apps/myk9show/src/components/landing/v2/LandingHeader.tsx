@@ -9,11 +9,14 @@ export function LandingHeader({ onJoinWaitlistClick }: LandingHeaderProps) {
   return (
     <header className="l-hdr">
       <div className="l-hdr-inner">
-        <a href="#top" className="l-brand">
-          <span className="l-brand-mark" aria-hidden="true">
-            <img src="/brand-mark-64.png" alt="" width="32" height="32" />
-          </span>
-          myK9Show
+        <a href="#top" className="l-brand min-h-11">
+          <img
+            src="/logo.svg"
+            alt="myK9Show"
+            width="2076"
+            height="596"
+            className="h-9 w-32 shrink-0 object-contain sm:h-11 sm:w-40 dark:brightness-150 dark:saturate-50"
+          />
         </a>
         <span className="l-status-chip">Waitlist · launching {LAUNCH_YEAR}</span>
         <span className="l-hdr-spacer" />

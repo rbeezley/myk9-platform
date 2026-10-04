@@ -109,6 +109,12 @@ export function createMockSupabase() {
 export const mockSupabase = createMockSupabase();
 
 /**
+ * The session-less `publicSupabase` client (MYK9-969). A separate instance, so a
+ * test can prove a public-by-intent read never went out on the signed-in client.
+ */
+export const mockPublicSupabase = createMockSupabase();
+
+/**
  * Reset all mocks to defaults. Call in beforeEach to prevent test leakage.
  */
 export function resetMockSupabase() {
@@ -117,4 +123,6 @@ export function resetMockSupabase() {
   mockSupabase.auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
   mockSupabase.realtime.setAuth.mockResolvedValue(undefined);
   mockSupabase.rpc.mockImplementation(() => createChainableQuery());
+  mockPublicSupabase.from.mockImplementation(() => createChainableQuery());
+  mockPublicSupabase.rpc.mockImplementation(() => createChainableQuery());
 }

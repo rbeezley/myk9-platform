@@ -2,13 +2,14 @@
 
 **Status:** `active`
 **Audience:** Trial secretaries
-**Last verified:** 2026-10-03 — every card's path and button label checked against the code on `main` after the four-tab show home (MYK9-957) and the layout A class cards (#2698). The previous browser walk was 2026-08-30.
+**Last verified:** 2026-10-04 — card 7 (the waitlist) walked in a browser on localhost against the Heartland demo show and read against the code; every other card was last checked label by label against the code on 2026-10-03 (four-tab show home, MYK9-957, and the layout A class cards, #2698). The previous full browser walk was 2026-08-30.
 **Verified by:** the secretary task walk (`docs/audits/2026-08-28-secretary-task-walk.md`), its 2026-08-29 verification pass, and a 2026-10-03 label-by-label code check
 
-> **What "verified" covers here.** On 2026-10-03 each card's path, tab and button label was
-> checked against the current code. Two flows have still never been exercised end to end on
-> real data: promoting someone off the wait list (MYK9-971 walks it) and submitting results to
-> a registry (that is a real submission).
+> **What "verified" covers here.** Each card's path, tab and button label was checked against the
+> current code on 2026-10-03. Card 7 was also walked in a browser on 2026-10-04, but only as far
+> as the app allows today: a class cannot yet be set to take a wait list (MYK9-998), so no dog could be
+> put on one and the offer step has still never run on real data. Submitting results to a registry
+> is the other flow not exercised end to end (that is a real submission).
 
 > **About the screenshots.** The screenshots below predate the October 2026 show home and are
 > being regenerated. Where a screenshot and the words disagree, the words are current.
@@ -127,12 +128,16 @@ The view tabs across the top — _Needs review_, _Missing info_, _Payment due_, 
 
 **Turn it on first.** A class only queues people when its wait list is on. On the show home, click the class, then **Edit class**, and in **Entry limit and wait list** switch on **Allow wait list** (and set an **Entry limit**, or leave it blank for no class limit). The judge's daily capacity, how long an offer lasts, and the mail-in hold are under **Wait list settings** at the top of this tab.
 
-1. Each judge-day shows as a card — the judge's name, the date, and how full it is.
-2. **View Wait List** on a card opens that judge-day's queue, filtered to the class.
-3. When a spot opens, offer it from that queue in the order people joined.
+1. Each judge-day shows as a card — the judge's name, the date, and how full it is (for example _3 / 200 entries_). A day at or over its limit reads **Full** with 0 spots available. It can read over the limit (for example _3 / 2_) when the limit was lowered after entries came in, or when a late entry was added with the capacity override.
+2. **View Wait List** on a card opens the queue for the **first class** of that judge-day, not the whole day. Use the **Class** menu below the cards to look at another class.
+3. When a spot opens, click **Offer Spot** on the dog at the top of the queue (the order people joined; the button only appears while the class has a free spot). The dog moves off the queue and the exhibitor gets a payment link; the spot is held for the offer window (48 hours unless you change it under **Wait list settings** at the top of this tab) and counts as taken until it is paid or lapses.
+4. **Remove** takes a dog off the queue for good. The exhibitor is not told.
 
-> The offer step has not yet been walked end to end on real data. MYK9-971 is that walk, and
-> this card will be re-verified then — including how full a judge-day may read.
+> **Capacity is enforced by the server, not just displayed.** Since 2026-07-12 an online entry that would put a class or a judge's day over its limit is refused or, where the class takes a wait list, queued. The numbers on the cards are a view of that limit. Only a late entry added with the capacity override, or lowering the limit after entries exist, can take a day past it.
+
+> **The offer is not only yours.** Every 15 minutes the system also offers a free spot to the next waiting dog in any class that has one and no open offer, without telling you. If an offer is not paid in time it lapses, no money is taken, and the next dog is offered at a following check.
+
+> **Not working yet (MYK9-971 findings).** A dog you have offered a spot disappears from this tab, and you cannot withdraw an offer from it (MYK9-1001). Offers and removals need a connection.
 
 ## 8 · Handle pulls, scratches and refunds
 
@@ -346,10 +351,11 @@ The report works out who is eligible and ranks them for you. One section per dif
 
 Honest list, so nothing surprises you mid-show.
 
-| What                         | Status                                                                                  |
-| ---------------------------- | --------------------------------------------------------------------------------------- |
-| High Combined Division (HCD) | Not built — calculate by hand when you offer Handler Discrimination (card 27, MYK9-973) |
-| Waitlist offers              | Not yet walked end to end on real data (card 7, MYK9-971)                               |
+| What                          | Status                                                                                                                                 |
+| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| High Combined Division (HCD)  | Not built — calculate by hand when you offer Handler Discrimination (card 27, MYK9-973)                                                |
+| Wait lists can't be turned on | No screen sets a class's entry limit or "allow wait list", so a full class refuses entries instead of queueing them (card 7, MYK9-998) |
+| Waitlist offers               | Never run on real data; offers can't be tracked or withdrawn from the tab, and the deadline isn't shown (card 7, MYK9-1001, MYK9-1002) |
 
 ---
 

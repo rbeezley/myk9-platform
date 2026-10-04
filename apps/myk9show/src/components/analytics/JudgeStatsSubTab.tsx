@@ -8,6 +8,7 @@ import {
   computeResultDistribution,
   computeFastestTimes,
   computeClassBreakdown,
+  hasWithheldResults,
 } from './analytics-utils';
 import { StatsSummaryCards, StatsSummaryCardsSkeleton } from './StatsSummaryCards';
 import { ResultDistributionChart } from './ResultDistributionChart';
@@ -15,6 +16,7 @@ import { DogBreakdownCards } from './DogBreakdownCards';
 import { FastestTimesTable } from './FastestTimesTable';
 import { ClassBreakdownTable } from './ClassBreakdownTable';
 import { EmptyState } from '@/components/common/EmptyState';
+import { WithheldStatsNotice } from './WithheldStatsNotice';
 
 interface JudgeStatsSubTabProps {
   showId: string;
@@ -84,7 +86,9 @@ export function JudgeStatsSubTab({ showId }: JudgeStatsSubTabProps) {
 
       {isLoading && <StatsSummaryCardsSkeleton />}
 
-      {!isLoading && stats.summary.scoredEntries === 0 && (
+      {!isLoading && hasWithheldResults(entries ?? []) && <WithheldStatsNotice />}
+
+      {!isLoading && !hasWithheldResults(entries ?? []) && stats.summary.scoredEntries === 0 && (
         <EmptyState
           icon={Scale}
           title="No Scored Entries"
@@ -94,7 +98,7 @@ export function JudgeStatsSubTab({ showId }: JudgeStatsSubTabProps) {
         />
       )}
 
-      {!isLoading && stats.summary.scoredEntries > 0 && (
+      {!isLoading && stats.summary.scoredEntries > 0 && !hasWithheldResults(entries ?? []) && (
         <>
           <StatsSummaryCards stats={stats.summary} />
           <ClassBreakdownTable classes={stats.classBreakdown} />

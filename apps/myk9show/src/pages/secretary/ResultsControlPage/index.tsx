@@ -22,6 +22,7 @@ import {
 } from '@/hooks/queries/useShowSettingsDatabase';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import { PresetSelector } from './PresetSelector';
+import { ShowResultsPrivacyToggle } from './ShowResultsPrivacyToggle';
 import { OverrideTree } from './OverrideTree';
 import { ResultsBulkBar } from './ResultsBulkBar';
 import { buildResultsReadinessSummary } from './readinessSummary';
@@ -329,6 +330,10 @@ export default function ResultsControlPage() {
               <div className="space-y-4">
                 <h3 className="text-sm font-semibold">Show defaults</h3>
                 <PresetSelector showId={showId} settings={effectiveSettings} />
+                <ShowResultsPrivacyToggle
+                  showId={showId}
+                  resultsPrivate={effectiveSettings.resultsPrivate ?? false}
+                />
               </div>
               {/* Per-trial / per-class visibility overrides */}
               <OverrideTree

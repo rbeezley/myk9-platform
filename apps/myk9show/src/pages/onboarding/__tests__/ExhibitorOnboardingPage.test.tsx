@@ -150,6 +150,92 @@ describe('ExhibitorOnboardingPage', () => {
     expect(screen.queryByText('Tell us about yourself')).not.toBeInTheDocument();
   });
 
+  // MYK9-1010: signup's trigger makes the profile without an address; AKC entries need one.
+  describe('when the signup profile has no mailing address', () => {
+    function setupProfileWithoutAddress() {
+      const savePersonDetailsAsync = vi.fn().mockResolvedValue(undefined);
+      const createProfileAsync = vi.fn();
+      mockUseExhibitorProfile.mockReturnValue({
+        profile: {
+          id: 'profile-id',
+          person_id: 'person-id',
+          auth_user_id: 'auth-user-id',
+          onboarding_completed_at: null,
+          onboarded_roles: [],
+          person: {
+            id: 'person-id',
+            first_name: 'Casey',
+            last_name: 'Morgan',
+            email: 'casey@example.com',
+            phone: null,
+            profile_image: null,
+            street_address: null,
+            city: null,
+            state: null,
+            zip_code: null,
+          },
+        },
+        isLoading: false,
+        error: null,
+        createProfileAsync,
+        isCreatingProfile: false,
+        savePersonDetailsAsync,
+        isSavingPersonDetails: false,
+        completeOnboarding: vi.fn(),
+        isCompletingOnboarding: false,
+      } as unknown as ReturnType<typeof useExhibitorProfile>);
+      return { savePersonDetailsAsync, createProfileAsync };
+    }
+
+    it('asks for the address first, prefilled with the stored name', () => {
+      setupAuth([UserRole.EXHIBITOR]);
+      setupProfileWithoutAddress();
+
+      render(<ExhibitorOnboardingPage />);
+
+      expect(screen.getByText('Tell us about yourself')).toBeInTheDocument();
+      expect(screen.getByText('1 of 3')).toBeInTheDocument();
+      expect(screen.getByLabelText(/first name/i)).toHaveValue('Casey');
+    });
+
+    it('refuses to continue without the address', () => {
+      setupAuth([UserRole.EXHIBITOR]);
+      const { savePersonDetailsAsync } = setupProfileWithoutAddress();
+
+      render(<ExhibitorOnboardingPage />);
+      fireEvent.submit(screen.getByTestId('step-profile'));
+
+      expect(screen.getByRole('alert')).toHaveTextContent(
+        'Please enter your street address, city, state, ZIP code.'
+      );
+      expect(savePersonDetailsAsync).not.toHaveBeenCalled();
+    });
+
+    it('saves the address onto the existing person instead of creating a profile', async () => {
+      setupAuth([UserRole.EXHIBITOR]);
+      const { savePersonDetailsAsync, createProfileAsync } = setupProfileWithoutAddress();
+
+      render(<ExhibitorOnboardingPage />);
+      fireEvent.change(screen.getByLabelText(/street address/i), {
+        target: { value: ' 1 Main St ' },
+      });
+      fireEvent.change(screen.getByLabelText(/^city/i), { target: { value: 'Tulsa' } });
+      fireEvent.change(screen.getByLabelText(/^state/i), { target: { value: 'OK' } });
+      fireEvent.change(screen.getByLabelText(/zip code/i), { target: { value: '74101' } });
+      fireEvent.submit(screen.getByTestId('step-profile'));
+
+      await waitFor(() => {
+        expect(savePersonDetailsAsync).toHaveBeenCalledWith({
+          firstName: 'Casey',
+          lastName: 'Morgan',
+          email: expect.any(String),
+          address: { streetAddress: '1 Main St', city: 'Tulsa', state: 'OK', zipCode: '74101' },
+        });
+      });
+      expect(createProfileAsync).not.toHaveBeenCalled();
+    });
+  });
+
   it('redirects completed exhibitors away from onboarding instead of restarting the wizard', async () => {
     setupAuth([UserRole.EXHIBITOR]);
     mockUseExhibitorProfile.mockReturnValue({

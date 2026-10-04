@@ -33,6 +33,10 @@ export interface ExhibitorProfile {
     email: string;
     phone: string | null;
     profile_image: string | null;
+    street_address: string | null;
+    city: string | null;
+    state: string | null;
+    zip_code: string | null;
   };
 }
 
@@ -41,6 +45,22 @@ export interface CreateExhibitorProfileData {
   lastName: string;
   email: string;
   phone?: string;
+  /** Registries such as AKC print the owner's address on every entry (MYK9-1010). */
+  address: {
+    streetAddress: string;
+    city: string;
+    state: string;
+    zipCode: string;
+  };
+}
+
+function toPeopleAddressColumns(address: CreateExhibitorProfileData['address']) {
+  return {
+    street_address: address.streetAddress,
+    city: address.city,
+    state: address.state,
+    zip_code: address.zipCode,
+  };
 }
 
 // Founding-member status is no longer read from `people.early_adopter_until`
@@ -51,7 +71,8 @@ export interface CreateExhibitorProfileData {
 const PROFILE_SELECT = `
           *,
           person:people!person_id(
-            id, first_name, last_name, email, phone, profile_image
+            id, first_name, last_name, email, phone, profile_image,
+            street_address, city, state, zip_code
           )
         `;
 
@@ -144,6 +165,7 @@ export function useExhibitorProfile() {
           last_name: data.lastName,
           email: data.email,
           phone: data.phone || null,
+          ...toPeopleAddressColumns(data.address),
           auth_user_id: user.id,
         })
         .select()
@@ -161,6 +183,14 @@ export function useExhibitorProfile() {
         if (findError || !existingPerson) {
           throw personError;
         }
+
+        // The sign-up trigger usually creates the person first, so the address
+        // typed on this step must be written here or it is silently dropped.
+        const { error: addressError } = await supabase
+          .from('people')
+          .update(toPeopleAddressColumns(data.address))
+          .eq('id', existingPerson.id);
+        if (addressError) throw addressError;
 
         // Person exists, check if profile exists
         const { data: existingProfile } = await supabase
@@ -250,6 +280,31 @@ export function useExhibitorProfile() {
     },
   });
 
+  // Onboarding's profile step when signup already created the profile: write the
+  // name, phone and mailing address onto the existing person (MYK9-1010).
+  const savePersonDetailsMutation = useMutation({
+    mutationFn: async (data: CreateExhibitorProfileData): Promise<void> => {
+      if (!user?.id) throw new Error('User not authenticated');
+      if (!profile?.person_id) throw new Error('No exhibitor profile found');
+
+      const details = {
+        first_name: data.firstName,
+        last_name: data.lastName,
+        phone: data.phone || null,
+        ...toPeopleAddressColumns(data.address),
+      };
+      const { error } = await supabase.from('people').update(details).eq('id', profile.person_id);
+      if (error) throw error;
+
+      if (profile.person) {
+        queryClient.setQueryData(['exhibitorProfile', user.id], {
+          ...profile,
+          person: { ...profile.person, ...details },
+        } satisfies ExhibitorProfile);
+      }
+    },
+  });
+
   // "Show my results publicly" (MYK9-969). The server reads this through the
   // account's own profile row; the self-only RLS is the only write guard needed.
   const setResultsPublicMutation = useMutation({
@@ -295,6 +350,8 @@ export function useExhibitorProfile() {
     createProfileAsync: createProfileMutation.mutateAsync,
     isCreatingProfile: createProfileMutation.isPending,
     createProfileError: createProfileMutation.error,
+    savePersonDetailsAsync: savePersonDetailsMutation.mutateAsync,
+    isSavingPersonDetails: savePersonDetailsMutation.isPending,
     completeOnboarding: completeOnboardingMutation.mutateAsync,
     isCompletingOnboarding: completeOnboardingMutation.isPending,
     setResultsPublic: setResultsPublicMutation.mutateAsync,

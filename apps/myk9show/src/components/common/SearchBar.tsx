@@ -55,6 +55,9 @@ export function SearchBar({
         placeholder={placeholder}
         value={value}
         onChange={e => onChange(e.target.value)}
+        onKeyDown={e => {
+          if (e.key === 'Escape' && value) onChange('');
+        }}
         aria-label={ariaLabel ?? placeholder}
         className={cn(
           // placeholder: the browser default gray reads at 2.5:1 on the white

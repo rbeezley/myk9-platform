@@ -28,6 +28,8 @@ interface ListViewTabsProps {
   activeId: string | null;
   onSelect: (id: string) => void;
   label: string;
+  /** Narrow-pane layout: the select shrinks so it can share a row with the search. */
+  compact?: boolean;
   className?: string;
 }
 
@@ -50,7 +52,14 @@ function optionText(view: ListView): ReactNode {
   return `${view.label} (${view.count.toLocaleString()})`;
 }
 
-export function ListViewTabs({ views, activeId, onSelect, label, className }: ListViewTabsProps) {
+export function ListViewTabs({
+  views,
+  activeId,
+  onSelect,
+  label,
+  compact = false,
+  className,
+}: ListViewTabsProps) {
   const navigate = useNavigate();
 
   const handleChange = (id: string) => {
@@ -62,13 +71,19 @@ export function ListViewTabs({ views, activeId, onSelect, label, className }: Li
 
   return (
     <div className={cn('flex min-w-0 max-w-full items-center gap-2', className)}>
-      <span className="shrink-0 text-sm font-medium text-foreground" aria-hidden="true">
+      <span
+        className={cn('shrink-0 text-sm font-medium text-foreground', compact && 'hidden')}
+        aria-hidden="true"
+      >
         Show:
       </span>
       <Select value={activeId ?? CUSTOM_ID} onValueChange={handleChange}>
         <SelectTrigger
           aria-label={`Show: ${label}`}
-          className="w-auto min-w-0 max-w-[calc(100vw-5rem)] flex-1 sm:min-w-[12rem] sm:flex-none"
+          className={cn(
+            'w-auto min-w-0 max-w-[calc(100vw-5rem)] flex-1',
+            compact ? 'sm:w-36 sm:flex-none' : 'sm:min-w-[12rem] sm:flex-none'
+          )}
         >
           <SelectValue />
         </SelectTrigger>

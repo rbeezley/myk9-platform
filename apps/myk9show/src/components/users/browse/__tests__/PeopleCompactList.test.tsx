@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import userEvent from '@testing-library/user-event';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import { PeopleCompactList } from '../PeopleCompactList';
 import type { User } from '@/types/user-types';
 
@@ -46,5 +47,41 @@ describe('PeopleCompactList', () => {
       'page'
     );
     expect(screen.getByRole('link', { name: /Ada Lovelace/ })).not.toHaveAttribute('aria-current');
+  });
+
+  describe('keyboard', () => {
+    function Probe() {
+      return <p data-testid="at">{useLocation().pathname}</p>;
+    }
+    const renderKeyboard = () =>
+      render(
+        <MemoryRouter initialEntries={['/people/p1']}>
+          <PeopleCompactList people={people} selectedId="p1" />
+          <Probe />
+        </MemoryRouter>
+      );
+
+    it('Down opens and focuses the next person, Up the previous', async () => {
+      renderKeyboard();
+      screen.getByRole('link', { name: /Ada Lovelace/ }).focus();
+      await userEvent.keyboard('{ArrowDown}');
+      expect(screen.getByTestId('at')).toHaveTextContent('/people/p2');
+      expect(screen.getByRole('link', { name: /Grace Hopper/ })).toHaveFocus();
+
+      await userEvent.keyboard('{ArrowUp}');
+      expect(screen.getByTestId('at')).toHaveTextContent('/people/p1');
+      expect(screen.getByRole('link', { name: /Ada Lovelace/ })).toHaveFocus();
+    });
+
+    it('stops at the ends instead of wrapping or leaving the list', async () => {
+      renderKeyboard();
+      screen.getByRole('link', { name: /Ada Lovelace/ }).focus();
+      await userEvent.keyboard('{ArrowUp}');
+      expect(screen.getByTestId('at')).toHaveTextContent('/people/p1');
+
+      screen.getByRole('link', { name: /Grace Hopper/ }).focus();
+      await userEvent.keyboard('{ArrowDown}');
+      expect(screen.getByTestId('at')).toHaveTextContent('/people/p1');
+    });
   });
 });

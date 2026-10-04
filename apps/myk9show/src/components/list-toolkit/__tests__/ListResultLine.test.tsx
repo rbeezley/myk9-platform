@@ -13,6 +13,31 @@ describe('ListResultLine', () => {
     expect(screen.queryByRole('button', { name: /show all/i })).not.toBeInTheDocument();
   });
 
+  it('can stay quiet until the list is narrowed, then speaks', () => {
+    const { rerender } = render(
+      <ListResultLine
+        quietWhenUnfiltered
+        shown={23}
+        total={23}
+        noun={NOUN}
+        filtered={false}
+        onShowAll={vi.fn()}
+      />
+    );
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    rerender(
+      <ListResultLine
+        quietWhenUnfiltered
+        shown={5}
+        total={23}
+        noun={NOUN}
+        filtered
+        onShowAll={vi.fn()}
+      />
+    );
+    expect(screen.getByRole('status').textContent).toBe('Showing 5 of 23 users.');
+  });
+
   it('is a polite live region', () => {
     render(<ListResultLine shown={1} total={1} noun={NOUN} filtered={false} onShowAll={vi.fn()} />);
     expect(screen.getByRole('status')).toHaveAttribute('aria-live', 'polite');

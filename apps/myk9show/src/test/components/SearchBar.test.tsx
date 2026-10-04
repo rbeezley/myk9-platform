@@ -15,6 +15,18 @@ describe('SearchBar', () => {
     expect(onChange).toHaveBeenCalledWith('agility');
   });
 
+  it('clears the search on Escape, and leaves an empty one alone', () => {
+    const onChange = vi.fn();
+    const { rerender } = render(<SearchBar value="agility" onChange={onChange} placeholder="S" />);
+    fireEvent.keyDown(screen.getByPlaceholderText('S'), { key: 'Escape' });
+    expect(onChange).toHaveBeenCalledWith('');
+
+    onChange.mockClear();
+    rerender(<SearchBar value="" onChange={onChange} placeholder="S" />);
+    fireEvent.keyDown(screen.getByPlaceholderText('S'), { key: 'Escape' });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
   it('has minimum 48px touch target height', () => {
     const { container } = render(<SearchBar value="" onChange={vi.fn()} placeholder="Search..." />);
     const input = container.querySelector('input') as HTMLElement;

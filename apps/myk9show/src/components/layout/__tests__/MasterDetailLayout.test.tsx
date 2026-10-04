@@ -14,6 +14,7 @@ const renderLayout = (detail: React.ReactNode) =>
       id="test"
       listLabel="Test list"
       detailLabel="Test detail"
+      listHeader={<p>the filters</p>}
       list={<p>the list</p>}
       detail={detail}
     />
@@ -23,6 +24,7 @@ describe('MasterDetailLayout', () => {
   it('shows only the list, with no panes, when nothing is open', () => {
     mockViewportWidth(1600);
     renderLayout(null);
+    expect(screen.getByText('the filters')).toBeInTheDocument();
     expect(screen.getByText('the list')).toBeInTheDocument();
     expect(screen.queryByTestId('master-detail-layout')).not.toBeInTheDocument();
   });
@@ -31,7 +33,13 @@ describe('MasterDetailLayout', () => {
     mockViewportWidth(1024);
     renderLayout(<Detail />);
     expect(screen.getByTestId('master-detail-layout')).toBeInTheDocument();
-    expect(screen.getByRole('region', { name: 'Test list' })).toHaveTextContent('the list');
+    const list = screen.getByRole('region', { name: 'Test list' });
+    expect(list).toHaveTextContent('the list');
+    // The filters sit outside the scrolling rows, so they stay put while the rows scroll.
+    expect(screen.getByText('the list').closest('.overflow-y-auto')).not.toContainElement(
+      screen.getByText('the filters')
+    );
+    expect(list).toContainElement(screen.getByText('the filters'));
     expect(screen.getByRole('region', { name: 'Test detail' })).toHaveTextContent(
       'detail:embedded'
     );

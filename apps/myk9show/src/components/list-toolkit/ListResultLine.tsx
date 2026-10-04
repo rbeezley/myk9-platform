@@ -34,6 +34,11 @@ interface ListResultLineProps {
    * there is never a "Showing all 0" during loading or beside an error.
    */
   ready?: boolean;
+  /**
+   * Say nothing until a search or filter narrows the list. The view select already carries the
+   * total, so "Showing all 23 people." only costs a row in a narrow pane.
+   */
+  quietWhenUnfiltered?: boolean;
   /** Right-aligned extras (sort note, column controls). */
   children?: ReactNode;
   className?: string;
@@ -70,10 +75,11 @@ export function ListResultLine({
   selectAll,
   announce = true,
   ready = true,
+  quietWhenUnfiltered = false,
   children,
   className,
 }: ListResultLineProps) {
-  if (!ready) return null;
+  if (!ready || (quietWhenUnfiltered && !filtered && !children)) return null;
 
   const canSelectAll =
     selectAll !== undefined && selectAll.selectedCount > 0 && selectAll.selectedCount < shown;

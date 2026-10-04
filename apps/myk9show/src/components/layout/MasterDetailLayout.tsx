@@ -31,7 +31,9 @@ const layoutStorage = {
 interface MasterDetailLayoutProps {
   /** Unique per entity; the dragged pane sizes are remembered under it. */
   id: string;
-  /** The list. Rendered alone, full width, whenever no detail is open. */
+  /** Search and filters. Pinned above the list in the split, so only the rows scroll. */
+  listHeader?: ReactNode;
+  /** The rows. With `listHeader`, rendered alone, full width, whenever no detail is open. */
   list: ReactNode;
   /** The open record, or null for none. The caller derives it from the route. */
   detail: ReactNode | null;
@@ -48,6 +50,7 @@ interface MasterDetailLayoutProps {
  */
 export function MasterDetailLayout({
   id,
+  listHeader,
   list,
   detail,
   listLabel,
@@ -60,7 +63,14 @@ export function MasterDetailLayout({
     storage: layoutStorage,
   });
 
-  if (!detail) return <>{list}</>;
+  if (!detail) {
+    return (
+      <div className="space-y-6">
+        {listHeader}
+        {list}
+      </div>
+    );
+  }
   if (!isWide) return <>{detail}</>;
 
   return (
@@ -69,8 +79,9 @@ export function MasterDetailLayout({
     <div className="h-[calc(100dvh-14rem)] min-h-[32rem]" data-testid="master-detail-layout">
       <ResizablePanelGroup orientation="horizontal" {...defaultLayout}>
         <ResizablePanel id="list" defaultSize="38%" minSize="26%" maxSize="55%">
-          <div role="region" aria-label={listLabel} className="h-full overflow-y-auto pr-1">
-            {list}
+          <div role="region" aria-label={listLabel} className="flex h-full flex-col pr-1">
+            {listHeader && <div className="shrink-0 pb-3">{listHeader}</div>}
+            <div className="min-h-0 flex-1 overflow-y-auto">{list}</div>
           </div>
         </ResizablePanel>
         <ResizableHandle aria-label={`Resize ${listLabel} and ${detailLabel}`} />

@@ -230,6 +230,13 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
     </Button>
   ) : null;
 
+  // Select mode is only offered where the split exists; the narrow page is always the table.
+  const selectModeButton = splitCapable ? (
+    <Button variant="outline" onClick={selectMode ? exitSelectMode : () => setSelectMode(true)}>
+      {selectMode ? 'Done' : 'Select people'}
+    </Button>
+  ) : null;
+
   return (
     <PageShell {...(splitOpen ? { maxWidth: 'max-w-[110rem]' } : {})}>
       {/* Error state: only when there is nothing to show. A failed background refresh keeps the
@@ -249,7 +256,12 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
           <PageHeader
             breadcrumbs={breadcrumbs}
             title="People"
-            actions={addPersonButton}
+            actions={
+              <>
+                {selectModeButton}
+                {addPersonButton}
+              </>
+            }
             showTitle
           />
 
@@ -270,34 +282,23 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
             listLabel="People list"
             detailLabel="Person details"
             detail={splitOpen ? detail : null}
-            list={
-              <div className="space-y-6">
-                <PeopleListToolbar
-                  people={people}
-                  matchCount={filteredPeople.length}
-                  filters={filters}
-                  onFiltersChange={setFilters}
-                  onClearAll={clearAllFilters}
-                  hasActiveFilters={hasActiveFilters}
-                  resultLineExtra={
-                    splitOpen ? (
-                      <Button variant="outline" size="sm" onClick={() => setSelectMode(true)}>
-                        Select people
-                      </Button>
-                    ) : selectMode ? (
-                      <Button variant="outline" size="sm" onClick={exitSelectMode}>
-                        Done
-                      </Button>
-                    ) : (
-                      <ListViewToggle active={viewMode} onChange={setViewMode} />
-                    )
-                  }
-                />
-
-                {/* People Cards */}
-                {renderContent()}
-              </div>
+            listHeader={
+              <PeopleListToolbar
+                people={people}
+                matchCount={filteredPeople.length}
+                filters={filters}
+                onFiltersChange={setFilters}
+                onClearAll={clearAllFilters}
+                hasActiveFilters={hasActiveFilters}
+                compact={splitOpen}
+                resultLineExtra={
+                  splitCapable ? undefined : (
+                    <ListViewToggle active={viewMode} onChange={setViewMode} />
+                  )
+                }
+              />
             }
+            list={renderContent()}
           />
         </>
       )}

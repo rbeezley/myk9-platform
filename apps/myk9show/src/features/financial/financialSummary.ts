@@ -37,15 +37,16 @@ export interface NetPlatformIncome {
   /**
    * Net over the orders whose Stripe processing fee IS captured:
    * (gross fee − pending-fee gross) − captured processing fees −
-   * (post-hoc refunds − pending-fee refunds). May be negative when absorbed
-   * refunds exceed fee income — that is economically real and never clamped.
+   * (platform-funded refunds − pending-fee platform-funded refunds). May be
+   * negative when platform-funded refunds exceed fee income — that is
+   * economically real and never clamped.
    */
   availableCents: number;
   /**
    * Fee income booked on the orders whose processing cost is NOT yet known,
-   * less the post-hoc refunds already recorded against them. EXCLUDED from
-   * availableCents — the eventual contribution of these orders is at most this,
-   * since their processing fees will subtract from it.
+   * less the platform-funded refunds already recorded against them. EXCLUDED
+   * from availableCents — the eventual contribution of these orders is at most
+   * this, since their processing fees will subtract from it.
    */
   pendingResidualCents: number;
   /** How many orders that residual covers. Zero = the net is complete. */
@@ -75,8 +76,14 @@ export interface PlatformIncomeSummary {
    */
   netPlatformIncome: NetPlatformIncome;
   processingFeePendingCount: number;
-  /** POST-HOC refunds — the platform's real absorbed loss. Subtracted from net. */
+  /** Every POST-HOC refund: money that left, so "collected" subtracts it. */
   refundedCents: number;
+  /** The club-funded share (show-cancellation and secretary refunds, docked
+   *  from the club's payout, MYK9-997). Never subtracted from net income. */
+  clubFundedRefundedCents: number;
+  /** The platform-funded rest (e.g. a Stripe dashboard refund): the only
+   *  refunds net income subtracts. */
+  platformFundedRefundedCents: number;
   /** Cart-overflow make-whole refunds — returned to the customer but NOT a
    *  platform loss, so never subtracted from net income. */
   makeWholeRefundedCents: number;
@@ -152,23 +159,37 @@ export interface FinancialSummaryDeps {
 // The two are recorded in SEPARATE explicit columns at write time (migration
 // 20260717122000) and surface as separate summary totals, so nothing is derived
 // here:
-//   netPlatformIncome    subtracts refundedCents (post-hoc) ONLY.
+//   netPlatformIncome    subtracts the PLATFORM-FUNDED post-hoc refunds ONLY.
 //   onlineCollectedCents subtracts BOTH — a make-whole refund genuinely does
 //                        reduce the money the platform ends up holding.
+//
+// CLUB-FUNDED REFUNDS (MYK9-997, owner decision option (a)). A show-cancellation
+// or secretary refund is paid from the platform balance, but it runs only before
+// the show's payout and stamps refund_amount, which the payout deducts: the club
+// funds it. Booked club_funded at write time (migration 20261004193700), it is
+// a subset of refundedCents that net income never subtracts.
+//
+// ORDER-LESS CHARGES (owner rule 2026-10-04, MYK9-997). A paid abandoned cart,
+// or a paid payment link with no link row, records no order and is refunded in
+// full, service fee included: no fee is kept, so nothing is booked here. The
+// Stripe processing fee the platform absorbs on such a charge is never
+// captured (no order holds a balance transaction), so it is not reported.
 
 /** Derive the platform-income group from server-aggregated reconciliation totals. */
 export function derivePlatformIncome(
   summary: FinancialReconciliationSummary
 ): PlatformIncomeSummary {
   const grossPlatformFeeCents = summary.platformFeeCents;
-  // Platform-absorbed refunds: a POST-HOC refund comes out of the platform
-  // balance in full (no reverse_transfer / refund_application_fee) while the club
-  // keeps its transfer, so summary.refundedCents — which is now the POST-HOC
-  // total, read straight from its own column — is a real platform cost against
-  // net income. Cart-overflow make-whole refunds are deliberately NOT subtracted
-  // (see the refund-architecture note above). This can still drive net NEGATIVE
-  // (post-hoc refunds exceeded fee income) — that is economically real and is
-  // reported as-is, never clamped to 0.
+  const platformFundedRefundedCents = summary.refundedCents - summary.clubFundedRefundedCents;
+  const pendingPlatformFundedRefundedCents =
+    summary.pendingFeeRefundedCents - summary.pendingFeeClubFundedRefundedCents;
+  // Platform-funded refunds: the POST-HOC refunds nothing docked from a club
+  // payout (summary.refundedCents less its club-funded share, both read straight
+  // from their own columns) are the platform's real cost against net income.
+  // Club-funded and cart-overflow make-whole refunds are deliberately NOT
+  // subtracted (see the notes above). This can still drive net NEGATIVE
+  // (platform-funded refunds exceeded fee income) — that is economically real
+  // and is reported as-is, never clamped to 0.
   //
   // PENDING-FEE SCOPE (review finding 2). This used to be
   // `processingFeePendingCount > 0 ? pending : available` — a SCOPE-WIDE latch.
@@ -182,10 +203,10 @@ export function derivePlatformIncome(
   // never folded in and never assumed zero, so the available figure can only
   // understate — it can never overstate what the platform has actually netted.
   const capturedGrossFeeCents = grossPlatformFeeCents - summary.pendingFeePlatformFeeCents;
-  const capturedRefundedCents = summary.refundedCents - summary.pendingFeeRefundedCents;
+  const capturedRefundedCents = platformFundedRefundedCents - pendingPlatformFundedRefundedCents;
   const netPlatformIncome: NetPlatformIncome = {
     availableCents: capturedGrossFeeCents - summary.processingFeeCents - capturedRefundedCents,
-    pendingResidualCents: summary.pendingFeePlatformFeeCents - summary.pendingFeeRefundedCents,
+    pendingResidualCents: summary.pendingFeePlatformFeeCents - pendingPlatformFundedRefundedCents,
     pendingOrderCount: summary.processingFeePendingCount,
   };
   return {
@@ -197,6 +218,8 @@ export function derivePlatformIncome(
     netPlatformIncome,
     processingFeePendingCount: summary.processingFeePendingCount,
     refundedCents: summary.refundedCents,
+    clubFundedRefundedCents: summary.clubFundedRefundedCents,
+    platformFundedRefundedCents,
     makeWholeRefundedCents: summary.makeWholeRefundedCents,
     snapshotMissingCount: summary.snapshotMissingCount,
     // Non-entry money is reported net of BOTH refund kinds (review finding 3):

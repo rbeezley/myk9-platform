@@ -61,6 +61,13 @@ export interface TrialClass {
   isResultsReviewed?: boolean | undefined;
   /** Secretary-controlled sort order within the trial (for Kanban reorder) */
   displayOrder?: number | undefined;
+  /**
+   * `classes.max_entries` / `classes.allow_waitlist`, carried so Edit class can show and keep
+   * them. `allowsWaitlist === undefined` means the source did not load them (the editor then
+   * hides the controls and never sends them); a loaded null `maxEntries` means no class limit.
+   */
+  maxEntries?: number | null | undefined;
+  allowsWaitlist?: boolean | undefined;
   /** The class's run-order position (`classes.class_order`), shown on Setup → Classes. */
   runOrder?: number | undefined;
   // Optional fields for enhanced class cards

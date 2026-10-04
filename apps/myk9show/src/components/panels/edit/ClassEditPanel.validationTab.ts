@@ -29,6 +29,8 @@ const FIELD_LOCATION: Record<string, FieldLocation<ClassTabValue>> = {
   hidesUsed: at('requirements', 'hidesUsed'),
   distractionsUsed: at('requirements', 'distractionsUsed'),
   itemsUsed: at('requirements', 'itemsUsed'),
+  maxEntries: at('basic', 'maxEntries'),
+  allowsWaitlist: at('basic', 'allowsWaitlist'),
   preEntryFee: at('requirements', 'preEntryFee'),
   dayOfShowFee: at('requirements', 'dayOfShowFee'),
 };

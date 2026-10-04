@@ -34,6 +34,8 @@ const useTrialStoreMock = vi.fn(() => trialStoreState) as unknown as {
   getState: () => typeof trialStoreState;
 };
 useTrialStoreMock.getState = () => trialStoreState;
+// The trial dialogs save classes through useClassEditActions, which reads the connection.
+vi.mock('@/hooks/useConnectionHint', () => ({ useConnectionHint: () => undefined }));
 vi.mock('@/store/trialStore', () => ({
   useTrialStore: () => useTrialStoreMock(),
 }));

@@ -79,15 +79,17 @@ function PlatformFigures({ income }: { income: PlatformIncomeSummary }) {
         />
         {/* Cart-overflow make-whole refunds are excluded from the net formula on
             purpose: the platform earned no fee and made no transfer on those
-            lines, so returning that money is not a loss. Only post-hoc refunds on
-            accepted entries are — and the two now arrive as separate explicit
-            columns, so neither figure re-derives the split. */}
+            lines, so returning that money is not a loss. So are club-funded
+            refunds (MYK9-997): a show-cancellation or secretary refund is docked
+            from the club's payout. Only the refunds the platform funded are a
+            loss, and each kind arrives as its own explicit column. */}
         <Figure
           label={pendingOrderCount > 0 ? 'Net platform income so far' : 'Net platform income'}
           value={formatCents(availableCents)}
           formula={
-            'Fee income − captured Stripe processing fees − post-hoc refunds the platform absorbed, ' +
-            'over the orders whose processing fee is captured.' +
+            'Fee income − captured Stripe processing fees − refunds the platform funded, ' +
+            'over the orders whose processing fee is captured. Show-cancellation and ' +
+            "secretary refunds come out of the club's payout and are not subtracted." +
             pendingNote
           }
         />

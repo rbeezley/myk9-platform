@@ -17,6 +17,8 @@ vi.mock('react-router-dom', async () => {
 // The global permission is NOT club-scoped, so it is held constantly here; only the show-scoped
 // answer varies.
 const toastError = vi.hoisted(() => vi.fn());
+// The trial dialogs now save classes through useClassEditActions, which reads the connection.
+vi.mock('@/hooks/useConnectionHint', () => ({ useConnectionHint: () => undefined }));
 vi.mock('sonner', () => ({ toast: { error: toastError, success: vi.fn() } }));
 
 const replicatedTrialsSync = vi.hoisted(() => vi.fn());

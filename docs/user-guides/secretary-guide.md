@@ -126,16 +126,18 @@ The view tabs across the top — _Needs review_, _Missing info_, _Payment due_, 
 
 ![Entry Management with the waitlist selected](../screenshots/S-10.png)
 
+**Turn it on first.** A class only queues people when its wait list is on. On the show home, click the class, then **Edit class**, and in **Entry limit and wait list** switch on **Allow wait list** (and set an **Entry limit**, or leave it blank for no class limit). The judge's daily capacity, how long an offer lasts, and the mail-in hold are under **Wait list settings** at the top of this tab.
+
 1. Each judge-day shows as a card — the judge's name, the date, and how full it is (for example _3 / 200 entries_). A day at or over its limit reads **Full** with 0 spots available. It can read over the limit (for example _3 / 2_) when the limit was lowered after entries came in, or when a late entry was added with the capacity override.
 2. **View Wait List** on a card opens the queue for the **first class** of that judge-day, not the whole day. Use the **Class** menu below the cards to look at another class.
-3. When a spot opens, click **Offer Spot** on the dog at the top of the queue (the order people joined; the button only appears while the class has a free spot). The dog moves off the queue and the exhibitor gets a payment link; the spot is held for the offer window (48 hours unless the show's wait-list settings say otherwise) and counts as taken until it is paid or lapses.
+3. When a spot opens, click **Offer Spot** on the dog at the top of the queue (the order people joined; the button only appears while the class has a free spot). The dog moves off the queue and the exhibitor gets a payment link; the spot is held for the offer window (48 hours unless you change it under **Wait list settings** at the top of this tab) and counts as taken until it is paid or lapses.
 4. **Remove** takes a dog off the queue for good. The exhibitor is not told.
 
 > **Capacity is enforced by the server, not just displayed.** Since 2026-07-12 an online entry that would put a class or a judge's day over its limit is refused or, where the class takes a wait list, queued. The numbers on the cards are a view of that limit. Only a late entry added with the capacity override, or lowering the limit after entries exist, can take a day past it.
 
 > **The offer is not only yours.** Every 15 minutes the system also offers a free spot to the next waiting dog in any class that has one and no open offer, without telling you. If an offer is not paid in time it lapses, no money is taken, and the next dog is offered at a following check.
 
-> **Not working yet (MYK9-971 findings).** Classes cannot yet be set to accept a wait list, so a full class turns exhibitors away with "contact the secretary" (MYK9-998). A dog you have offered a spot disappears from this tab, and you cannot withdraw an offer from it (MYK9-1001). The offer window and judge-day limit are set on a page that has no link from the app (MYK9-999). Offers and removals need a connection.
+> **Not working yet (MYK9-971 findings).** A dog you have offered a spot disappears from this tab, and you cannot withdraw an offer from it (MYK9-1001). Offers and removals need a connection.
 
 ## 8 · Handle pulls, scratches and refunds
 

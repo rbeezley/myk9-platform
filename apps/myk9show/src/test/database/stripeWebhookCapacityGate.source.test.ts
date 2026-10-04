@@ -21,33 +21,44 @@ const recoveredCartMigration = readFileSync(
   resolve(root, 'supabase/migrations/20260906140000_link_recovered_cart_items_to_entries.sql'),
   'utf8'
 );
+const replayableFulfillmentMigration = readFileSync(
+  resolve(root, 'supabase/migrations/20261004214700_myk9_964_replayable_cart_fulfillment.sql'),
+  'utf8'
+);
+const cartFulfillmentSource = readFileSync(
+  resolve(root, 'apps/myk9show/supabase/functions/stripe-webhook/cartFulfillment.ts'),
+  'utf8'
+);
 const compactCapacityGateMigration = capacityGateMigration.replace(/\s+/g, ' ');
-const recoveredBranchStart = webhookSource.indexOf('if (item.entry_id)');
+// MYK9-964: a Finish Payment line is paid in place by payFinishPaymentLine.
+const recoveredBranchStart = webhookSource.indexOf('async function payFinishPaymentLine(');
 const recoveredBranch = webhookSource.slice(
   recoveredBranchStart,
-  webhookSource.indexOf('const entryInsert', recoveredBranchStart)
+  webhookSource.indexOf('\n}\n', recoveredBranchStart)
 );
 
 describe('stripe webhook online cart capacity gate', () => {
-  it('routes paid cart entry creation through the atomic capacity RPC', () => {
-    expect(webhookSource).toContain("rpc('create_online_paid_entry'");
-    expect(webhookSource).not.toContain(
-      ".from('entries')\n      .insert(\n        buildEntryInsert"
-    );
+  it('routes paid cart entry creation through the atomic capacity RPC, once per line (MYK9-964)', () => {
+    // Each new line goes through fulfill_cart_line, which calls
+    // create_online_paid_entry at most once and records the outcome.
+    expect(cartFulfillmentSource).toContain("'fulfill_cart_line'");
+    expect(webhookSource).not.toContain("rpc('create_online_paid_entry'");
+    expect(webhookSource).not.toContain(".from('entries')\n      .insert(");
+    expect(replayableFulfillmentMigration).toContain('FROM public.create_online_paid_entry(');
   });
 
   it('marks recovered existing entries paid instead of inserting duplicate rows', () => {
-    expect(recoveredBranch).toContain('if (item.entry_id)');
+    expect(recoveredBranchStart).toBeGreaterThan(0);
     expect(recoveredBranch).toContain("payment_status: 'paid'");
     expect(recoveredBranch).toContain("payment_method: 'online'");
     expect(recoveredBranch).toContain("entry_status: 'confirmed'");
     // MYK9-879: the fee was FROZEN at entry creation and this line was charged exactly
     // that, so marking the entry paid must not write entry_fee back.
-    expect(recoveredBranch).not.toContain('entry_fee: lineAmountCents');
+    expect(recoveredBranch).not.toMatch(/entry_fee: /);
     expect(recoveredBranch).toContain(".eq('payment_status', 'pending')");
-    expect(recoveredBranch).toContain(".eq('dog_id', item.dog_id)");
-    expect(recoveredBranch).toContain(".eq('class_id', item.class_id)");
-    expect(recoveredBranch).toContain(".eq('show_id', cart.show_id)");
+    expect(recoveredBranch).toContain(".eq('dog_id', line.dog_id)");
+    expect(recoveredBranch).toContain(".eq('class_id', line.class_id)");
+    expect(recoveredBranch).toContain(".eq('show_id', ctx.showId)");
     expect(recoveredBranch).toContain(".is('deleted_at', null)");
     expect(recoveredBranch).toContain('INACTIVE_ENTRY_STATUSES.has');
     expect(recoveredBranch).toContain('expireRecoveredEntryPaymentLinks');
@@ -101,15 +112,18 @@ describe('stripe webhook online cart capacity gate', () => {
     expect(capacityGateMigration).toContain('waitlist_entry_id := v_waitlist_entry.id');
   });
 
-  it('raises a by-hand refund alert for no-service overflow lines instead of leaving paid missing entries', () => {
+  it('queues the no-service overflow share for approval with the latch (MYK9-964)', () => {
     expect(webhookSource).toContain('decideCartOverflowRefund');
-    expect(webhookSource).toContain('queueCartOverflowRefund');
-    // Codex round 13 on #2689 (option C): not queued until MYK9-964.
-    expect(webhookSource).toContain('cartOverflowManualRefundAlert({');
+    expect(webhookSource).toContain('closeCartThenSendReceipt(');
+    expect(cartFulfillmentSource).toContain("'complete_cart_fulfillment'");
+    // The by-hand operator alert (option C on #2689) is gone.
+    expect(webhookSource).not.toContain('cartOverflowManualRefundAlert');
+    expect(cartFulfillmentSource).not.toContain('cartOverflowManualRefundAlert');
     // MYK9-876: refunds are never automatic.
     expect(webhookSource).not.toContain('refunds.create');
-    expect(webhookSource).toContain('waitlistedCartItemIds');
-    expect(webhookSource).toContain('deniedCartItemIds');
+    expect(cartFulfillmentSource).not.toContain('refunds.create');
+    expect(cartFulfillmentSource).toContain('waitlisted_cart_item_ids');
+    expect(cartFulfillmentSource).toContain('denied_cart_item_ids');
     expect(webhookSource).not.toContain('Paid entries missing — manual reconciliation needed');
   });
 

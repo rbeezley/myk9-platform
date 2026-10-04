@@ -44,9 +44,13 @@ interface ShowCapacityRow {
  * MYK9-705 / MYK9-753), because a count of the rows an exhibitor's RLS returns
  * is only their own entries.
  */
+/** The one query key for a show's judge-day capacity, so a writer can invalidate it. */
+export const judgeDayCapacityKey = (showId: string | undefined) =>
+  [queryKeys.show(showId!), 'judge-day-capacity'] as const;
+
 export function useJudgeDayCapacity(showId: string | undefined) {
   const query = useQuery({
-    queryKey: [queryKeys.show(showId!), 'judge-day-capacity'],
+    queryKey: judgeDayCapacityKey(showId),
     queryFn: async (): Promise<JudgeDayCapacity[]> => {
       const [summaryResult, showResult, assignmentResult] = await Promise.all([
         // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -37,16 +37,33 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     // Was three sites; `handleOneTimePaymentCompleted` was deleted on main by the
     // Stripe money-path audit (#1381), leaving the cart and payment-link inserts.
     // Since Codex round 14 on #2689 the payment-link row is built by
-    // paymentLinkOrder.ts and inserted inside queue_payment_link_refund, so the
-    // webhook keeps ONE direct insert (the cart). The count is pinned so a NEW
-    // insert site cannot be added without a snapshot.
+    // paymentLinkOrder.ts and inserted inside queue_payment_link_refund; since
+    // MYK9-964 the cart row is built in fulfillCartRun and inserted inside
+    // complete_cart_fulfillment. So the webhook has NO direct insert and ONE
+    // spread (the cart order). The counts are pinned so a NEW insert site
+    // cannot be added without a snapshot.
     const inserts = webhookSource.match(/\.from\('stripe_orders'\)\s*\.insert\(/g) ?? [];
     const spreads = webhookSource.match(/\.\.\.buildOrderSnapshotFields\(/g) ?? [];
+    expect(inserts.length).toBe(0);
     expect(spreads.length).toBe(1);
-    expect(spreads.length).toBe(inserts.length);
     expect(readFileSync(resolve(__dirname, 'paymentLinkOrder.ts'), 'utf8')).toContain(
       '...buildOrderSnapshotFields('
     );
+  });
+
+  it('books who funded each refund, and refunds an order-less charge in full (MYK9-997)', () => {
+    // Both booking paths (refund.updated and the charge.refunded sweep) read
+    // the club-funded mark off the Stripe refund, and the ledger write sends it.
+    expect(webhookSource.match(/clubFunded: refundIsClubFunded\(refund\)/g)?.length).toBe(2);
+    expect(webhookSource).toContain('p_club_funded: refund.clubFunded');
+    // The three order-less refund requests (two abandoned-cart claims, the
+    // payment link with no link row) are the full charge Stripe collected:
+    // claimAbandonedCartRefund and noLinkRecordObligation refund it whole.
+    expect(webhookSource).toContain('chargedCents: abandonedGate.amountTotalCents');
+    // MYK9-964: the racing-abandonment claim lives in handleUnclaimableCart.
+    expect(webhookSource).toContain('chargedCents: input.freshTotalCents');
+    expect(webhookSource).toContain('owed: noLinkRecordObligation(freshAmountTotalCents)');
+    expect(webhookSource).not.toContain('chargedEntryFeesRefundCents');
   });
 
   it('never rewrites the immutable charge facts in the refund path', () => {
@@ -133,10 +150,12 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     // Booking an APPROVED refund as make-whole, and only once Stripe reports it
     // succeeded, moved to _shared/refundApproval.ts (behavioral vitest there).
     expect(webhookSource).not.toContain('refunds.create');
-    const start = webhookSource.indexOf('async function queueCartOverflowRefund');
-    expect(start).toBeGreaterThan(-1);
-    const body = webhookSource.slice(start, webhookSource.indexOf('\nasync function', start + 1));
-    expect(body).not.toContain('recordOrderRefundCents(');
+    // MYK9-964: the cart-overflow share is queued by cartFulfillment.ts, which
+    // neither refunds nor books a refund.
+    const cartFulfillment = readFileSync(resolve(__dirname, 'cartFulfillment.ts'), 'utf8');
+    expect(cartFulfillment).toContain("'complete_cart_fulfillment'");
+    expect(cartFulfillment).not.toContain('refunds.create');
+    expect(cartFulfillment).not.toContain('record_order_refund_cents');
   });
 
   it('routes every refund lifecycle event through the current-state router (Codex rounds 1-5, #2689)', () => {
@@ -177,6 +196,12 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     expect(entry).toContain('orderExists: () => orderExistsForSession(session.id),');
     expect(entry).toContain('await ensurePaymentLinkRefundAlert(refundQueueDeps, session.id);');
     expect(entry).toContain('fulfillCart: () => handleEntryPaymentCompleted(session),');
+    // MYK9-964: both replay-first branches send a cart's never-stamped
+    // confirmation (behaviour: cartConfirmationReplay.test.ts).
+    expect(entry).toContain(
+      "if (checkoutType === 'entry') await sendCartConfirmationOnce(session);"
+    );
+    expect(entry).toContain("if (type === 'entry') await sendCartConfirmationOnce(session);");
     expect(entry).toContain(
       'fulfillPaymentLink: () => handleEntryPaymentRequestCompleted(session),'
     );
@@ -214,8 +239,31 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     expect(link).not.toContain(".from('entry_payment_links')\n      .update(");
     expect(link).not.toContain("update({ status: 'paid'");
 
-    // Cart overflow: an operator alert, refunded by hand until MYK9-964.
-    expect(body('queueCartOverflowRefund')).toContain('cartOverflowManualRefundAlert({');
+    // MYK9-964: the cart closes its latch, records its order and queues its
+    // overflow refund in ONE call too, after every line is recorded, with the
+    // processing fee fetched before it. The by-hand overflow alert is gone.
+    const cart = body('fulfillCartRun');
+    expect(cart).toContain('await closeCartThenSendReceipt(');
+    // Codex P2 on #2744: the confirmation is never gated on which call closed the latch.
+    expect(cart).not.toContain('latchClosed');
+    // Codex round 2 on #2744: the receipt is gated per SESSION, on
+    // cart_fulfillments.receipt_sent_at, never on the entries' confirmation stamp.
+    const receiptDeps = webhookSource.slice(
+      webhookSource.indexOf('function cartReceiptDeps('),
+      webhookSource.indexOf('\n}\n', webhookSource.indexOf('function cartReceiptDeps('))
+    );
+    expect(receiptDeps).toContain(".select('completed_at, receipt_sent_at')");
+    expect(receiptDeps).toContain(".is('receipt_sent_at', null)");
+    expect(receiptDeps).not.toContain('confirmation_email_sent_at');
+    expect(cart).not.toContain(".from('stripe_orders').insert(");
+    expect(cart.indexOf('await workCartLines(')).toBeLessThan(
+      cart.indexOf('await closeCartThenSendReceipt(')
+    );
+    expect(cart.indexOf('await fetchProcessingFeeCents(paymentIntentId)')).toBeLessThan(
+      cart.indexOf('await closeCartThenSendReceipt(')
+    );
+    expect(webhookSource).not.toContain('queueCartOverflowRefund');
+    expect(webhookSource).not.toContain('cartOverflowManualRefundAlert');
   });
 
   it('FAILS CLOSED: does not stamp refunded when the amount did not persist', () => {

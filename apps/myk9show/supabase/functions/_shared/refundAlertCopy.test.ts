@@ -2,16 +2,11 @@
 // Codex round 10 on #2689: the approval queue is the only way a queued refund
 // leaves the platform, so no operator alert in the refund modules may tell
 // anyone to refund outside it. A DECLARED list of builders and scenarios is
-// run and every alert it produces is checked; nothing here greps source. The
-// declared exceptions (ALLOWED_MANUAL_REFUND_ALERTS, round 13) are cart
-// overflow, which is never queued, and must say so.
+// run and every alert it produces is checked; nothing here greps source.
+// MYK9-964 removed the one declared exception: cart overflow is queued too.
 import { describe, expect, it } from 'vitest';
 import * as copyModule from './refundAlertCopy';
-import {
-  ALLOWED_MANUAL_REFUND_ALERTS,
-  instructsManualRefund,
-  REFUND_ALERT_BUILDERS,
-} from './refundAlertCopy';
+import { instructsManualRefund, REFUND_ALERT_BUILDERS } from './refundAlertCopy';
 import { approveRefundRequest } from './refundApproval';
 import { harness } from './refundApprovalTestHarness';
 import {
@@ -46,16 +41,17 @@ describe('instructsManualRefund (known answers)', () => {
 });
 
 describe('REFUND_ALERT_BUILDERS', () => {
-  it('lists every alert builder the module exports, in exactly one of the two lists', () => {
+  it('lists every alert builder the module exports', () => {
     const exported = Object.entries(copyModule)
       .filter(([name, value]) => typeof value === 'function' && name.endsWith('Alert'))
       .map(([name]) => name)
       .sort();
-    const listed = [
-      ...Object.keys(REFUND_ALERT_BUILDERS),
-      ...Object.keys(ALLOWED_MANUAL_REFUND_ALERTS),
-    ].sort();
-    expect(listed).toEqual(exported);
+    expect(Object.keys(REFUND_ALERT_BUILDERS).sort()).toEqual(exported);
+  });
+
+  it('declares no manual-refund exception: cart overflow is queued (MYK9-964)', () => {
+    expect(Object.keys(copyModule)).not.toContain('ALLOWED_MANUAL_REFUND_ALERTS');
+    expect(Object.keys(copyModule)).not.toContain('cartOverflowManualRefundAlert');
   });
 
   it.each(Object.entries(REFUND_ALERT_BUILDERS))(
@@ -66,45 +62,6 @@ describe('REFUND_ALERT_BUILDERS', () => {
       expect(html).toMatch(/Refunds awaiting approval|queue_payment_link_refund/);
     }
   );
-});
-
-describe('ALLOWED_MANUAL_REFUND_ALERTS (cart overflow, never queued; Codex round 13)', () => {
-  it.each(Object.entries(ALLOWED_MANUAL_REFUND_ALERTS))(
-    '%s: refund by hand, the app will not, and why (MYK9-964)',
-    (_name, { reason, build }) => {
-      const { title, html } = build();
-      expect(reason.length).toBeGreaterThan(20);
-      expect(instructsManualRefund(`${title}. ${html}`)).toBe(true);
-      expect(html).toMatch(/The app will NOT refund this/);
-      expect(html).toMatch(/MYK9-964/);
-      expect(html).toMatch(/No refund request exists or can be created for it/);
-    }
-  );
-
-  it('the cart-overflow alert names the session, the amount and the lines', () => {
-    const { html } = ALLOWED_MANUAL_REFUND_ALERTS.cartOverflowManualRefundAlert.build();
-    expect(html).toContain('<code>cs_1</code>');
-    expect(html).toContain('25.00 USD');
-    expect(html).toMatch(/waitlisted <code>ci-1<\/code>, denied\s+<code>ci-2<\/code>/);
-  });
-
-  it('says how it will be booked, and asks for NO ledger edit (owner decision, round 14)', () => {
-    for (const [, { build }] of Object.entries(ALLOWED_MANUAL_REFUND_ALERTS)) {
-      const { html } = build();
-      expect(html).not.toMatch(/make_whole|make-whole/i);
-    }
-    const text = ALLOWED_MANUAL_REFUND_ALERTS.cartOverflowManualRefundAlert
-      .build()
-      .html.replace(/\s+/g, ' ');
-    expect(text).toContain('refund exactly that amount from the Stripe dashboard');
-    expect(text).toContain('The app will NOT refund this');
-    expect(text).toContain(
-      'The reconciliation report will show it as a post-hoc refund until MYK9-964'
-    );
-    expect(text).toContain(
-      "The club's payout is unaffected: payouts are computed from accepted entries"
-    );
-  });
 });
 
 /** Every alert path in refundRequests, refundApproval, refundCreateRejection and refundSettlement. */
@@ -184,7 +141,7 @@ const SCENARIOS: [string, () => Promise<string[]>][] = [
         cartId: 'c',
         sessionId: 'cs',
         paymentIntentId: 'pi',
-        amountCents: 100,
+        chargedCents: 107,
       });
       return texts;
     },
@@ -197,7 +154,7 @@ const SCENARIOS: [string, () => Promise<string[]>][] = [
         cartId: 'c',
         sessionId: 'cs',
         paymentIntentId: null,
-        amountCents: null,
+        chargedCents: null,
       });
       return texts;
     },

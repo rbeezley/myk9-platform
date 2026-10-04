@@ -23,6 +23,7 @@ import { FormField } from '@/components/common/FormField';
 import { RuleBadge } from '@/components/classes/OfficialsSection';
 import { getJudgeNameById } from '@/utils/buildAssignedJudges';
 import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
+import { ClassWaitlistFields } from './ClassWaitlistFields';
 import type { ClassEditFormData } from './ClassEditPanel.types';
 import { isScentWorkNovice } from './ClassEditPanel.helpers';
 import type { ClassTabValue } from './ClassEditPanel.validationTab';
@@ -66,7 +67,9 @@ export const ClassEditForm: React.FC<{
   showId?: string;
   activeTab: ClassTabValue;
   onTabChange: (tab: ClassTabValue) => void;
-}> = ({ showId, activeTab, onTabChange }) => {
+  /** False when the class came from a source that did not load its limit and wait list. */
+  capacityLoaded: boolean;
+}> = ({ showId, activeTab, onTabChange, capacityLoaded }) => {
   const { data, form } = useEditPanel<ClassEditFormData>();
   const { people } = useUserStore();
   const { shows } = useShowStore();
@@ -207,6 +210,8 @@ export const ClassEditForm: React.FC<{
               </div>
             </CardContent>
           </Card>
+
+          {capacityLoaded && <ClassWaitlistFields />}
         </TabsContent>
 
         <TabsContent

@@ -71,9 +71,12 @@ import {
 //                               make-whole). Never any part of the service
 //                               fee (MYK9-966), and no club transfer
 //                               occurred → NOT a platform loss.
-//   refunded_cents            = POST-HOC refunds only (the entry WAS accepted,
-//                               the club kept its transfer, the platform repays
-//                               from its own balance) → a real platform loss.
+//   refunded_cents            = POST-HOC refunds only (the entry WAS accepted).
+//   club_funded_refunded_cents= the part of refunded_cents the CLUB funded
+//                               (MYK9-997): a show-cancellation or secretary
+//                               refund, docked from the club's payout. Only
+//                               refunded_cents − club_funded_refunded_cents is
+//                               a platform loss (`platformFundedRefundCents`).
 //
 //   collected = amount_cents − make_whole_refunded_cents − refunded_cents
 //   ties out  = amount_cents == entry_subtotal_cents
@@ -322,17 +325,31 @@ export type PlatformNetIncome =
   { status: 'available'; netCents: number } | { status: 'pending'; grossCents: number };
 
 /**
+ * The post-hoc refunds on one order that the PLATFORM funded (MYK9-997):
+ * `refunded_cents − club_funded_refunded_cents`. A club-funded refund (show
+ * cancellation, secretary refund) is docked from the club's payout, so it is
+ * the club's money going back, not a platform loss. Never negative.
+ */
+export function platformFundedRefundCents(order: {
+  refunded_cents: number | null;
+  club_funded_refunded_cents?: number | null;
+}): number {
+  return Math.max(0, (order.refunded_cents ?? 0) - (order.club_funded_refunded_cents ?? 0));
+}
+
+/**
  * Platform NET income for one order:
- *   gross platform fee − captured Stripe processing fee − platform-absorbed refund.
+ *   gross platform fee − captured Stripe processing fee − platform-funded refund.
  *
- * Refund architecture (verified against stripe-refund-entry / stripe-refund-show):
- * neither refund path passes `reverse_transfer` or `refund_application_fee`, so
- * the full customer refund is paid from the PLATFORM balance while the club keeps
- * its transfer. The platform therefore absorbs the ENTIRE amount of such a refund,
- * not merely the fee portion.
+ * Refund architecture: charges are separate charges and transfers. A refund is
+ * paid from the PLATFORM balance, but a show-cancellation or secretary refund
+ * (stripe-refund-show / stripe-refund-entry) runs only before the show's payout
+ * and stamps `refund_amount`, which the payout deducts — the CLUB funds it
+ * (MYK9-997). Only a refund nothing docks from a payout (a Stripe dashboard
+ * refund) is absorbed by the platform.
  *
- * CALLER CONTRACT: `absorbedRefundCents` is the POST-HOC absorbed amount, which is
- * now simply the order's `refunded_cents` column — pass it directly.
+ * CALLER CONTRACT: `absorbedRefundCents` is `platformFundedRefundCents(order)`,
+ * never the raw `refunded_cents`.
  *
  * Do NOT re-derive the split as
  *   overflowPortion = max(0, amount_cents − entry_subtotal_cents − platform_fee_cents)
@@ -390,11 +407,34 @@ export type OrderRefundKind = 'make_whole' | 'post_hoc';
 
 /**
  * Decide a refund's kind from the Stripe object. Defaults to `post_hoc`: an
- * ordinary refund (secretary-issued, dashboard, show cancellation) IS a real
- * platform loss, and only the platform's own make-whole writers stamp the key.
+ * ordinary refund (secretary-issued, dashboard, show cancellation) returns an
+ * accepted entry's money, and only the platform's own make-whole writers stamp
+ * the key. Who FUNDED a post-hoc refund is `refundIsClubFunded`.
  */
 export function refundKindFromMetadata(refund: {
   metadata?: Record<string, string> | null;
 }): OrderRefundKind {
   return refund?.metadata?.[MAKE_WHOLE_METADATA_KEY] === 'true' ? 'make_whole' : 'post_hoc';
+}
+
+/**
+ * Metadata key stamped on a refund the CLUB funds (MYK9-997): a
+ * show-cancellation refund (stripe-refund-show) or a secretary's per-entry
+ * refund (stripe-refund-entry). Both run only before the show's payout and
+ * stamp `refund_amount`, which the payout deducts. On the Stripe object for the
+ * same reason as MAKE_WHOLE_METADATA_KEY: every delivery of the refund carries
+ * it, so whichever event books the ledger row books it right.
+ */
+export const CLUB_FUNDED_METADATA_KEY = 'myk9_club_funded';
+
+/**
+ * Whether a refund was club-funded. Only a post-hoc refund can be (the ledger
+ * CHECK agrees); anything not stamped is platform-funded, the safe default
+ * for a dashboard refund nothing deducts from a payout.
+ */
+export function refundIsClubFunded(refund: { metadata?: Record<string, string> | null }): boolean {
+  return (
+    refundKindFromMetadata(refund) === 'post_hoc' &&
+    refund?.metadata?.[CLUB_FUNDED_METADATA_KEY] === 'true'
+  );
 }

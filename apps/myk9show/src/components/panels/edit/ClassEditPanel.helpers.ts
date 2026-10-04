@@ -1,6 +1,10 @@
 import type { ClassData } from '@/components/classes/types/classTypes';
 import type { TrialClass } from '@/components/trials/types/trial.types';
-import type { ClassEditFormData, TrialClassEditFormData } from './ClassEditPanel.types';
+import type {
+  CapacityControl,
+  ClassEditFormData,
+  TrialClassEditFormData,
+} from './ClassEditPanel.types';
 
 // Convert ClassData to form data
 export const classToFormData = (classItem: Partial<ClassData>): ClassEditFormData => {
@@ -30,6 +34,9 @@ export const classToFormData = (classItem: Partial<ClassData>): ClassEditFormDat
     hidesUsed: classItem.hidesUsed || '',
     distractionsUsed: classItem.distractionsUsed || '',
     itemsUsed: classItem.itemsUsed || '',
+    maxEntries: classItem.maxEntries ?? null,
+    allowsWaitlist: classItem.allowsWaitlist ?? false,
+    editedCapacity: [],
     preEntryFee: classItem.preEntryFee || 0,
     dayOfShowFee: classItem.dayOfShowFee || 0,
   };
@@ -60,9 +67,45 @@ export const formDataToClass = (formData: ClassEditFormData): Partial<ClassData>
   ...(formData.hidesUsed !== undefined && { hidesUsed: formData.hidesUsed }),
   ...(formData.distractionsUsed !== undefined && { distractionsUsed: formData.distractionsUsed }),
   ...(formData.itemsUsed !== undefined && { itemsUsed: formData.itemsUsed }),
+  ...editedCapacityPatch(formData),
   ...(formData.preEntryFee !== undefined && { preEntryFee: formData.preEntryFee }),
   ...(formData.dayOfShowFee !== undefined && { dayOfShowFee: formData.dayOfShowFee }),
 });
+
+type CapacitySource = {
+  maxEntries?: number | null | undefined;
+  allowsWaitlist?: boolean | undefined;
+};
+
+/**
+ * Whether the class handed to the editor carried its entry limit and wait list switch.
+ * A source that dropped them (any producer that maps a class by hand) must not make the editor
+ * show "no limit, wait list off" as fact, because saving would then write exactly that.
+ */
+export const hasLoadedCapacity = (initial: CapacitySource | undefined): boolean =>
+  initial?.allowsWaitlist !== undefined;
+
+/**
+ * The capacity controls the user edited in this editor session, and nothing else. A value is
+ * never compared with the class props: those can refresh under an open editor (another
+ * secretary's change), and a comparison against the refreshed props would send the stale form
+ * value over it. An untouched control is simply absent from the patch (MYK9-998).
+ */
+export function editedCapacityPatch(formData: {
+  maxEntries?: number | null | undefined;
+  allowsWaitlist?: boolean | undefined;
+  editedCapacity?: CapacityControl[] | undefined;
+}): CapacitySource {
+  const edited = formData.editedCapacity ?? [];
+  const out: CapacitySource = {};
+  if (edited.includes('maxEntries') && formData.maxEntries !== undefined) {
+    out.maxEntries = formData.maxEntries;
+  }
+  if (edited.includes('allowsWaitlist') && formData.allowsWaitlist !== undefined) {
+    out.allowsWaitlist = formData.allowsWaitlist;
+  }
+  return out;
+}
 
 /**
  * Section (A/B) only applies to AKC Scent Work Novice — Advanced, Excellent,
@@ -83,6 +126,9 @@ export const trialClassToFormData = (trialClass: Partial<TrialClass>): TrialClas
     judgeName: trialClass.judgeName || '',
     status: trialClass.status || 'Upcoming',
     entries: trialClass.entries || 0,
+    maxEntries: (trialClass as Partial<ClassData>).maxEntries ?? null,
+    allowsWaitlist: (trialClass as Partial<ClassData>).allowsWaitlist ?? false,
+    editedCapacity: [],
   };
 };
 
@@ -96,4 +142,5 @@ export const formDataToTrialClass = (formData: TrialClassEditFormData): Partial<
   ...(formData.judgeName !== undefined && { judgeName: formData.judgeName }),
   status: formData.status,
   entries: formData.entries,
+  ...editedCapacityPatch(formData),
 });

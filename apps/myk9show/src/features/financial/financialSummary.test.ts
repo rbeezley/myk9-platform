@@ -49,6 +49,8 @@ function summaryRow(
     pendingFeePlatformFeeCents: 0,
     pendingFeeRefundedCents: 0,
     refundedCents: 0,
+    clubFundedRefundedCents: 0,
+    pendingFeeClubFundedRefundedCents: 0,
     makeWholeRefundedCents: 0,
     snapshotMissingCount: 0,
     nonEntryOrderCount: 0,
@@ -104,6 +106,71 @@ describe('derivePlatformIncome', () => {
       availableCents: 70,
       pendingResidualCents: 0,
       pendingOrderCount: 0,
+    });
+  });
+
+  // ── MYK9-997 (owner decision, option (a)): platform income is the service
+  // fees kept, minus ONLY the refunds the platform itself funded.
+  describe('MYK9-997 worked example: club-funded refunds', () => {
+    // One show:
+    //   Order A  10700 = 10000 entries + 700 fee, Stripe processing 341.
+    //            A secretary refunds one 5000 entry (stripe-refund-entry):
+    //            CLUB-funded, docked from the club's payout.
+    //   Order B   5350 =  5000 entries + 350 fee, Stripe processing 185.
+    //            A 200 Stripe-dashboard refund: PLATFORM-funded.
+    //   Cart C    3210 =  3000 entries + 210 fee, paid after it was abandoned.
+    //            No order; refunded in FULL, 3210, service fee included (owner
+    //            rule 2026-10-04). Nothing kept, so it adds nothing here.
+    const workedExample = summaryRow({
+      orderCount: 2,
+      grossChargedCents: 10700 + 5350,
+      entrySubtotalCents: 15000,
+      platformFeeCents: 700 + 350,
+      processingFeeCents: 341 + 185,
+      refundedCents: 5000 + 200,
+      clubFundedRefundedCents: 5000,
+    });
+
+    it('does not subtract a club-funded refund; subtracts the platform-funded one', () => {
+      const income = derivePlatformIncome(workedExample);
+      // (700 + 350) − (341 + 185) − 200 = 324. The secretary's 5000 refund came
+      // out of the club's payout, so it is not here (it was: 1050 − 526 − 5200).
+      expect(income.netPlatformIncome.availableCents).toBe(324);
+      expect(income.clubFundedRefundedCents).toBe(5000);
+      expect(income.platformFundedRefundedCents).toBe(200);
+      // Every post-hoc refund still left the platform's balance, so collected
+      // and the refund total are unchanged: 16050 − 5200.
+      expect(income.refundedCents).toBe(5200);
+      expect(income.onlineCollectedCents).toBe(10850);
+    });
+
+    it('ties out: available = fees kept − processing − platform-funded refunds', () => {
+      const { netPlatformIncome, grossPlatformFeeCents } = derivePlatformIncome(workedExample);
+      // Cart C kept nothing: gross is the two orders' fees alone.
+      expect(grossPlatformFeeCents).toBe(1050);
+      expect(netPlatformIncome.pendingResidualCents).toBe(0);
+      expect(netPlatformIncome.availableCents).toBe(grossPlatformFeeCents - 526 - 200);
+    });
+
+    it('keeps a club-funded refund on a pending-fee order out of the residual too', () => {
+      // Order B's processing fee is not captured yet, and it carries a 300
+      // club-funded refund plus a 100 platform-funded one.
+      const income = derivePlatformIncome(
+        summaryRow({
+          platformFeeCents: 700 + 350,
+          processingFeeCents: 341,
+          processingFeePendingCount: 1,
+          pendingFeePlatformFeeCents: 350,
+          refundedCents: 400,
+          pendingFeeRefundedCents: 400,
+          clubFundedRefundedCents: 300,
+          pendingFeeClubFundedRefundedCents: 300,
+        })
+      );
+      // Available: Order A alone, 700 − 341 = 359.
+      expect(income.netPlatformIncome.availableCents).toBe(359);
+      // Residual: 350 − the 100 the platform funded (not the 300 the club did).
+      expect(income.netPlatformIncome.pendingResidualCents).toBe(250);
     });
   });
 

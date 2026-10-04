@@ -4,6 +4,8 @@ import type { ClassStatusValue } from '@myk9/core';
 
 import type { EditPanelDeleteOption } from './EditPanelDelete';
 
+export type CapacityControl = 'maxEntries' | 'allowsWaitlist';
+
 export interface ClassEditPanelProps {
   open: boolean;
   onClose: () => void;
@@ -48,6 +50,13 @@ export interface ClassEditFormData extends Record<string, unknown> {
   distractionsUsed?: string;
   itemsUsed?: string;
 
+  // Entry limit and wait list (`classes.max_entries` / `classes.allow_waitlist`)
+  /** null = no class limit. */
+  maxEntries?: number | null;
+  allowsWaitlist?: boolean;
+  /** Capacity controls the user edited in THIS session; only these reach the save. */
+  editedCapacity?: CapacityControl[];
+
   // Fee structure
   preEntryFee?: number;
   dayOfShowFee?: number;
@@ -62,4 +71,9 @@ export interface TrialClassEditFormData extends Record<string, unknown> {
   judgeName?: string;
   status: ClassStatusValue;
   entries: number;
+  /** null = no class limit. */
+  maxEntries?: number | null;
+  allowsWaitlist?: boolean;
+  /** Capacity controls the user edited in THIS session; only these reach the save. */
+  editedCapacity?: CapacityControl[];
 }

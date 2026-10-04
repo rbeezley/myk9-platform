@@ -29,8 +29,10 @@ import {
   formDataToClass,
   formDataToTrialClass,
   isScentWorkNovice,
+  hasLoadedCapacity,
 } from './ClassEditPanel.helpers';
 import { ClassEditForm } from './ClassEditForm';
+import { ClassWaitlistFields } from './ClassWaitlistFields';
 import { usePanelValidationNavigation } from './usePanelValidationNavigation';
 import { locateClassField, type ClassTabValue } from './ClassEditPanel.validationTab';
 import { NoJudgesNotice } from '@/components/shows/NoJudgesNotice';
@@ -55,8 +57,13 @@ export function resolveJudgeDisplay(
   return getJudgeNameById(assignedJudges, judgeId) ?? judgeName;
 }
 
+type CapacitySourceLike = Parameters<typeof hasLoadedCapacity>[0];
+
 // Simple mode form for TrialClass
-const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
+const TrialClassEditForm: React.FC<{ showId?: string; capacityLoaded: boolean }> = ({
+  showId,
+  capacityLoaded,
+}) => {
   const { data, form } = useEditPanel<TrialClassEditFormData>();
   const { shows } = useShowStore();
 
@@ -204,6 +211,8 @@ const TrialClassEditForm: React.FC<{ showId?: string }> = ({ showId }) => {
           </div>
         </CardContent>
       </Card>
+
+      {capacityLoaded && <ClassWaitlistFields />}
     </div>
   );
 };
@@ -242,6 +251,8 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
     successMessage: savedMessage(className, 'Class'),
   };
 
+  const capacityLoaded = hasLoadedCapacity(initialClassData as CapacitySourceLike);
+
   if (isSimpleMode) {
     const initialFormData = trialClassToFormData(initialClassData as Partial<TrialClass>);
 
@@ -257,7 +268,10 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
         onSave={handleSave}
         schema={classSimpleSchema}
       >
-        <TrialClassEditForm {...(showId !== undefined && { showId })} />
+        <TrialClassEditForm
+          capacityLoaded={capacityLoaded}
+          {...(showId !== undefined && { showId })}
+        />
       </EditPanelWrapper>
     );
   }
@@ -280,6 +294,7 @@ export const ClassEditPanel: React.FC<ClassEditPanelProps> = ({
       <ClassEditForm
         activeTab={activeTab}
         onTabChange={setActiveTab}
+        capacityLoaded={capacityLoaded}
         {...(showId !== undefined && { showId })}
       />
     </EditPanelWrapper>

@@ -8,6 +8,21 @@
 // customer unpaid. Only in-flight or settled refunds are honored; a dead one
 // is ignored so a fresh refund is created.
 
+import { CLUB_FUNDED_METADATA_KEY } from './orderSnapshot.ts';
+
+/**
+ * The metadata a secretary's per-entry refund carries: the entry it reuses on
+ * (`findReusableRefund`), and the club-funded mark (MYK9-997). The refund runs
+ * only before the show's payout and stamps `refund_amount`, which the payout
+ * deducts, so platform income must not count it as the platform's loss.
+ */
+export function entryRefundMetadata(entryId: string): {
+  entry_id: string;
+  [CLUB_FUNDED_METADATA_KEY]: 'true';
+} {
+  return { entry_id: entryId, [CLUB_FUNDED_METADATA_KEY]: 'true' };
+}
+
 export interface PriorRefund {
   id: string;
   status: string | null;

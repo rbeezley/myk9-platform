@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { supabase } from '@/lib/supabase';
+import { judgeDayCapacityKey } from '@/hooks/queries/useJudgeDayCapacity';
 import type { WaitListShowConfig, MailInStrategy } from '@/types/waitlist-types';
 import type { TablesUpdate } from '@/types/supabase';
 
@@ -117,6 +118,8 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
     onSuccess: () => {
       isDirty.current = false;
       queryClient.invalidateQueries({ queryKey: ['waitlist-settings', showId] });
+      // The Waitlist tab's Full / spots-available cards are computed from these settings.
+      queryClient.invalidateQueries({ queryKey: judgeDayCapacityKey(showId) });
     },
   });
 

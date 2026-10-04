@@ -25,9 +25,15 @@ function summary(overrides: Partial<FinancialSummary> = {}): FinancialSummary {
     platformIncome: {
       onlineCollectedCents: 0,
       grossPlatformFeeCents: 0,
-      netPlatformIncome: { availableCents: 0, pendingResidualCents: 0, pendingOrderCount: 0 },
+      netPlatformIncome: {
+        availableCents: 0,
+        pendingResidualCents: 0,
+        pendingOrderCount: 0,
+      },
       processingFeePendingCount: 0,
       refundedCents: 0,
+      clubFundedRefundedCents: 0,
+      platformFundedRefundedCents: 0,
       makeWholeRefundedCents: 0,
       snapshotMissingCount: 0,
       nonEntry: {

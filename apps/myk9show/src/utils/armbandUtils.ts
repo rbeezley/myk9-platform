@@ -25,3 +25,5 @@ export function resolveStartNumber(
   if (isNaN(parsed)) return startNumber;
   return Math.max(startNumber, parsed + 1);
 }
+
+// MYK9-947 watcher walk: throwaway draft PR, never merged.

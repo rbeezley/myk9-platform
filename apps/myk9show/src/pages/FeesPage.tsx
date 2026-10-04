@@ -135,6 +135,14 @@ export function FeesPage() {
           </p>
         </section>
 
+        <section className="space-y-2">
+          <h2 className="text-xl font-semibold">Refunds</h2>
+          <p className="text-muted-foreground">
+            A refund returns the entry fee. The service fee is not refunded, including when a class
+            is full or a show is cancelled: the card payment has already been processed.
+          </p>
+        </section>
+
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">Card processing</h2>
           <p className="text-muted-foreground">

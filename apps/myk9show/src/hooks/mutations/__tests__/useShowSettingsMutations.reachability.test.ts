@@ -152,15 +152,20 @@ describe('settings writes and server reachability (MYK9-864)', () => {
     expect(result.current.reachable).toBe(true);
   });
 
-  it('useUpdateShowCheckin does not overwrite the timings when its read fails', async () => {
+  // MYK9-969: this guarded a read-then-write that re-sent the show's timings.
+  // That read is gone: self check-in now upserts ONLY its own column, so there
+  // are no timings to overwrite and no read to fail. Pin that instead.
+  it('useUpdateShowCheckin writes only its own column, with no read first', async () => {
     readResult.mockReturnValue({ data: null, ...transportFailure });
     upsertResult.mockReturnValue({ error: null, status: 201 });
     const { result } = renderMutation(useUpdateShowCheckin);
 
-    expect(await run(result, { showId: 's1', enabled: true })).toMatchObject({
-      message: 'AbortError: signal timed out',
+    expect(await run(result, { showId: 's1', enabled: true })).toBeNull();
+    expect(readResult).not.toHaveBeenCalled();
+    expect(upsertCalls).toHaveBeenCalledWith({
+      show_id: 's1',
+      self_checkin_enabled: true,
+      updated_by: 'user-1',
     });
-    expect(upsertCalls).not.toHaveBeenCalled();
-    expect(result.current.reachable).toBe(false);
   });
 });

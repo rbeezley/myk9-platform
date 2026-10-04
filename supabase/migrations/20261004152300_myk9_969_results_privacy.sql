@@ -113,6 +113,22 @@ COMMENT ON COLUMN public.exhibitor_profiles.results_public IS
 ALTER TABLE public.show_visibility_settings
   ADD COLUMN IF NOT EXISTS results_private boolean NOT NULL DEFAULT false;
 
+-- The app's show-level switches (results privacy, self check-in) now upsert
+-- ONLY their own column on show_id and let the table supply everything else
+-- for a new row; sending timing values from the client let a stale or default
+-- snapshot overwrite a preset saved concurrently (review rounds 2 and 3). The
+-- row's defaults are therefore part of the contract, and must equal the app's
+-- "standard" preset (packages/secretary visibility-presets.ts). They already do
+-- on the live table (checked read-only 2026-10-04); restating them here pins
+-- them for every rebuilt database too.
+ALTER TABLE public.show_visibility_settings
+  ALTER COLUMN preset SET DEFAULT 'standard',
+  ALTER COLUMN placement_timing SET DEFAULT 'class_complete',
+  ALTER COLUMN qualification_timing SET DEFAULT 'immediate',
+  ALTER COLUMN time_timing SET DEFAULT 'class_complete',
+  ALTER COLUMN faults_timing SET DEFAULT 'class_complete',
+  ALTER COLUMN self_checkin_enabled SET DEFAULT true;
+
 COMMENT ON COLUMN public.show_visibility_settings.results_private IS
   'MYK9-969: the club''s show-wide private switch. TRUE hides every entry''s results from other exhibitors and the public; it never makes a person''s private results public.';
 

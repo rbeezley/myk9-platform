@@ -69,52 +69,27 @@ interface ShowResultsPrivacyUpdate {
 }
 
 /**
- * Write show-level columns that are NOT the visibility timings (self check-in,
- * results privacy) without touching the show's timings.
+ * Write ONE show-level column this writer owns (self check-in, results
+ * privacy) and nothing else.
  *
- * An existing row gets an UPDATE of only these columns: re-sending the timings
- * read a moment ago would overwrite a preset save still in flight with that
- * stale snapshot (MYK9-969 review). Only a missing row is created, with the
- * standard defaults. A failed read must abort: treating it as "no row" would
- * overwrite the show's custom timings with those defaults.
+ * A single upsert on `show_id`: an existing row has only these columns
+ * updated, and a missing row is created with the table's column DEFAULTs for
+ * everything else (the "standard" preset's timings, pinned by migration
+ * 20261004152300). There is deliberately no read-then-write and no timing
+ * value on the client: either one let a concurrent preset save be overwritten
+ * by a stale or default snapshot (MYK9-969 review, rounds 2 and 3), which could
+ * release qualifications the club had withheld. `updated_at` is stamped by the
+ * server trigger.
  */
 async function upsertShowSettingsColumns(
   showId: string,
   columns: Record<string, unknown>,
   userId: string | null
 ): Promise<void> {
-  const existingResult = await untypedSupabase
-    .from('show_visibility_settings')
-    .select('show_id')
-    .eq('show_id', showId)
-    .abortSignal(settingsRequestSignal())
-    .maybeSingle();
-  throwIfRequestFailed(existingResult);
-
-  // The server trigger (20261004152300) re-stamps updated_at on its own clock;
-  // the client value only matters until that migration is applied.
-  if (existingResult.data) {
-    await runSettingsWrite(
-      untypedSupabase
-        .from('show_visibility_settings')
-        .update({ ...columns, updated_by: userId, updated_at: new Date().toISOString() })
-        .eq('show_id', showId)
-    );
-    return;
-  }
-
   await runSettingsWrite(
-    untypedSupabase.from('show_visibility_settings').upsert({
-      show_id: showId,
-      preset: 'standard',
-      placement_timing: 'class_complete',
-      qualification_timing: 'immediate',
-      time_timing: 'class_complete',
-      faults_timing: 'class_complete',
-      ...columns,
-      updated_by: userId,
-      updated_at: new Date().toISOString(),
-    })
+    untypedSupabase
+      .from('show_visibility_settings')
+      .upsert({ show_id: showId, ...columns, updated_by: userId }, { onConflict: 'show_id' })
   );
 }
 

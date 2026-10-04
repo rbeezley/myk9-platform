@@ -26,7 +26,9 @@
 --  11. every input to the privacy decision (opt-in flip, profile deleted,
 --      account linked, dog ownership, handler, the club switch even with a
 --      stale client clock, release, and the migration's own epoch) moves the
---      updated_at that replication's incremental pull reads.
+--      updated_at that replication's incremental pull reads;
+--  12. the table DEFAULTs an owned-column write relies on equal the standard
+--      preset, and such a write never touches a saved preset, in either order.
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
 
@@ -772,6 +774,70 @@ BEGIN
     RAISE EXCEPTION 'FAIL 11 an app role can read private.results_privacy_epoch';
   END IF;
   RAISE NOTICE 'PASS 11 the epoch table is owner-only';
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 12. The app's owned-column writes (results privacy, self check-in) send only
+--     show_id + their column and rely on the table DEFAULTs for a new row.
+--     Those defaults must be the "standard" preset, and an owned-column upsert
+--     must never touch a preset saved before or after it.
+-- ---------------------------------------------------------------------------
+INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status)
+VALUES
+  ('00000000-0000-0000-0000-000000969005', 'MYK9-969 Defaults Show A', 'AKC',
+   current_date, current_date + 1, '00000000-0000-0000-0000-000000969001', 'published'),
+  ('00000000-0000-0000-0000-000000969006', 'MYK9-969 Defaults Show B', 'AKC',
+   current_date, current_date + 1, '00000000-0000-0000-0000-000000969001', 'published');
+
+DO $$
+DECLARE
+  r record;
+BEGIN
+  -- Order 1: the privacy toggle creates the row (as the app's upsert does:
+  -- only show_id + its column), then the preset is saved.
+  INSERT INTO public.show_visibility_settings (show_id, results_private)
+  VALUES ('00000000-0000-0000-0000-000000969005', true)
+  ON CONFLICT (show_id) DO UPDATE SET results_private = EXCLUDED.results_private;
+  SELECT * INTO r FROM public.show_visibility_settings
+  WHERE show_id = '00000000-0000-0000-0000-000000969005';
+  IF r.preset IS DISTINCT FROM 'standard' OR r.placement_timing <> 'class_complete'
+     OR r.qualification_timing <> 'immediate' OR r.time_timing <> 'class_complete'
+     OR r.faults_timing <> 'class_complete' OR r.self_checkin_enabled IS NOT TRUE THEN
+    RAISE EXCEPTION 'FAIL 12 a row created by an owned-column write is not the standard preset: %',
+      row_to_json(r);
+  END IF;
+  INSERT INTO public.show_visibility_settings (
+    show_id, preset, placement_timing, qualification_timing, time_timing, faults_timing
+  ) VALUES ('00000000-0000-0000-0000-000000969005', 'review',
+            'manual_release', 'manual_release', 'manual_release', 'manual_release')
+  ON CONFLICT (show_id) DO UPDATE SET
+    preset = EXCLUDED.preset, placement_timing = EXCLUDED.placement_timing,
+    qualification_timing = EXCLUDED.qualification_timing,
+    time_timing = EXCLUDED.time_timing, faults_timing = EXCLUDED.faults_timing;
+  SELECT * INTO r FROM public.show_visibility_settings
+  WHERE show_id = '00000000-0000-0000-0000-000000969005';
+  IF r.preset IS DISTINCT FROM 'review' OR r.qualification_timing <> 'manual_release'
+     OR r.results_private IS NOT TRUE THEN
+    RAISE EXCEPTION 'FAIL 12 privacy-then-preset lost one of them: %', row_to_json(r);
+  END IF;
+
+  -- Order 2: the preset is saved first, then the privacy toggle lands.
+  INSERT INTO public.show_visibility_settings (
+    show_id, preset, placement_timing, qualification_timing, time_timing, faults_timing
+  ) VALUES ('00000000-0000-0000-0000-000000969006', 'review',
+            'manual_release', 'manual_release', 'manual_release', 'manual_release')
+  ON CONFLICT (show_id) DO UPDATE SET preset = EXCLUDED.preset;
+  INSERT INTO public.show_visibility_settings (show_id, results_private)
+  VALUES ('00000000-0000-0000-0000-000000969006', true)
+  ON CONFLICT (show_id) DO UPDATE SET results_private = EXCLUDED.results_private;
+  SELECT * INTO r FROM public.show_visibility_settings
+  WHERE show_id = '00000000-0000-0000-0000-000000969006';
+  IF r.preset IS DISTINCT FROM 'review' OR r.qualification_timing <> 'manual_release'
+     OR r.placement_timing <> 'manual_release' OR r.results_private IS NOT TRUE THEN
+    RAISE EXCEPTION 'FAIL 12 preset-then-privacy overwrote the preset: %', row_to_json(r);
+  END IF;
+  RAISE NOTICE 'PASS 12 owned-column writes get standard-preset defaults and never touch a saved preset';
 END;
 $$;
 

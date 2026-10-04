@@ -227,3 +227,69 @@ describe('withdrawn state', () => {
     expect(formatRunQueueState({ kind: 'pulled' })).toBe('Pulled');
   });
 });
+
+describe('queue membership is an allowlist (MYK9-992 / MYK9-996)', () => {
+  // Every status either adapter can hand the queue. A new status must be added
+  // here AND to the allowlist or denied on purpose; an unlisted one is out.
+  const STATUS_TABLE: Array<[string | undefined, boolean]> = [
+    // [status, still to run (isInQueue)]
+    [undefined, true],
+    ['no-status', true],
+    ['checked-in', true],
+    ['at-gate', true],
+    ['come-to-gate', true],
+    ['conflict', true],
+    ['in-ring', true], // in the queue's rows; pendingByRunOrder drops it separately
+    ['competing', true], // legacy in-ring synonym, unchanged
+    ['draft', true],
+    ['submitted', true],
+    ['paid', true],
+    ['confirmed', true],
+    ['scheduled', true],
+    ['pending-payment', true],
+    ['promotion-expired', true],
+    ['move-up-requested', true],
+    ['move_up_requested', true],
+    ['pulled', false],
+    ['completed', false],
+    ['withdrawn', false],
+    ['scratched', false],
+    ['absent', false],
+    ['moved', false],
+    ['not_accepted', false],
+    ['some-future-status', false],
+  ];
+
+  it.each(STATUS_TABLE)('status %s -> in queue: %s', (status, expected) => {
+    expect(isInQueue(entry({ id: 'x', armband: 1, status }))).toBe(expected);
+  });
+
+  it('numbers only the waiting dogs 1..N in a mixed class', () => {
+    const rows = [
+      entry({ id: 'wd', armband: 1, exhibitorOrder: 2, status: 'withdrawn' }),
+      entry({ id: 'pu', armband: 2, exhibitorOrder: 3, status: 'pulled' }),
+      entry({ id: 'co', armband: 3, exhibitorOrder: 4, status: 'completed' }),
+      entry({ id: 'ri', armband: 4, exhibitorOrder: 5, status: 'in-ring' }),
+      entry({ id: 'sc', armband: 5, exhibitorOrder: 6, isScored: true }),
+      entry({ id: 'w1', armband: 6, exhibitorOrder: 9 }),
+      entry({ id: 'w2', armband: 7, exhibitorOrder: 31 }),
+    ];
+    expect(pendingByRunOrder(rows).map(e => e.id)).toEqual(['w1', 'w2']);
+    expect(['w1', 'w2'].map(id => placeInLine(rows, id))).toEqual([1, 2]);
+    expect(['wd', 'pu', 'co', 'ri', 'sc'].map(id => runQueueStateOf(rows, id)?.kind)).toEqual([
+      'withdrawn',
+      'pulled',
+      'done',
+      'in-ring',
+      'done',
+    ]);
+  });
+
+  it('puts a lone waiting dog first behind a withdrawn one', () => {
+    const rows = [
+      entry({ id: 'wd', armband: 1, exhibitorOrder: 2, status: 'withdrawn' }),
+      entry({ id: 'w', armband: 2, exhibitorOrder: 3 }),
+    ];
+    expect(placeInLine(rows, 'w')).toBe(1);
+  });
+});

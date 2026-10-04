@@ -51,11 +51,24 @@ export function isInRing(entry: ProximityEntryRow): boolean {
   return entry.check_in_status === 'in-ring';
 }
 
-/** Still due to run: unscored, not pulled, not marked completed (MYK9-996). */
+/**
+ * Check-in statuses that mean "still to run" (an allowlist, MYK9-992/996, like
+ * the canonical `isInQueue`): a null status counts, anything unlisted does not.
+ * This row carries the check-in axis only, so lifecycle values never appear.
+ */
+const WAITING_CHECK_IN: ReadonlySet<string> = new Set([
+  'no-status',
+  'checked-in',
+  'at-gate',
+  'come-to-gate',
+  'conflict',
+  'in-ring',
+]);
+
+/** Still due to run: unscored with a "still to run" check-in status. */
 export function isInQueue(entry: ProximityEntryRow): boolean {
-  return (
-    !entry.is_scored && entry.check_in_status !== 'pulled' && entry.check_in_status !== 'completed'
-  );
+  if (entry.is_scored) return false;
+  return entry.check_in_status == null || WAITING_CHECK_IN.has(entry.check_in_status);
 }
 
 function sortKey(entry: ProximityEntryRow): number {

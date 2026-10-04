@@ -328,20 +328,18 @@ const SmartSignInPage: React.FC<SmartSignInPageProps> = ({ passcodeOnly = false 
   return (
     <div className="flex min-h-[calc(100vh-var(--pwa-banner-height,0px))] flex-col items-center justify-center bg-background px-3 pb-2 pt-[var(--app-header-height,3rem)]">
       <div className="bg-card p-6 rounded-2xl shadow-xl w-full max-w-md">
-        <div className="mb-2 flex justify-center">
+        <div className="mb-1 flex justify-center">
           <Link
             to="/"
-            className="flex items-center gap-2.5 rounded transition hover:underline focus:outline-none focus:ring-2 focus:ring-ring"
+            className="flex min-h-11 items-center gap-2.5 rounded transition hover:underline focus:outline-none focus:ring-2 focus:ring-ring"
           >
             <img
-              src="/brand-mark-128.png"
-              alt=""
-              aria-hidden="true"
-              width="40"
-              height="40"
-              className="h-8 w-8 shrink-0 object-contain"
+              src="/logo.svg"
+              alt="myK9Show"
+              width="2076"
+              height="596"
+              className="h-10 w-36 object-contain dark:brightness-150 dark:saturate-50"
             />
-            <span className="text-base font-bold text-primary">myK9Show</span>
           </Link>
         </div>
         <h2 className="mb-1 text-center text-base font-bold">{heading}</h2>

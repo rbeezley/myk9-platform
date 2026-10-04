@@ -95,7 +95,8 @@ describe('waitlist notification dispatch contracts', () => {
     expect(combined).toContain('retryWaitlistNotificationEvents');
     expect(combined).toContain('AbortSignal.timeout(DISPATCH_TIMEOUT_MS)');
     expect(combined).toContain('DISPATCH_CONCURRENCY = 3');
-    expect(cron.indexOf('await processClassesWithOpenSpots')).toBeLessThan(
+    expect(cron.indexOf('await runWaitlistOfferStep(supabase, results)')).toBeGreaterThan(0);
+    expect(cron.indexOf('await runWaitlistOfferStep(supabase, results)')).toBeLessThan(
       cron.indexOf('const expiryDelivery')
     );
     expect(migration).toContain("existing.event_type = 'reminder'");

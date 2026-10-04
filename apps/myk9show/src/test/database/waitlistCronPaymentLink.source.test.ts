@@ -7,6 +7,11 @@ const cronSource = readFileSync(
   'utf8'
 );
 
+const offerStepSource = readFileSync(
+  resolve(__dirname, '../../../supabase/functions/cron-waitlist-expiration/offerStep.ts'),
+  'utf8'
+);
+
 const promotionMigration = readFileSync(
   resolve(
     __dirname,
@@ -16,17 +21,19 @@ const promotionMigration = readFileSync(
 );
 
 describe('waitlist expiration cron offer wiring', () => {
-  it('promotes the pending-payment entry through the authoritative database RPC', () => {
-    expect(cronSource).toContain("'promote_waitlist_entry_from_cron'");
-    expect(cronSource).toContain('p_waitlist_entry_id: entry.id');
+  // MYK9-1003: who may be offered (switch, one open offer per class, first in
+  // line, mail-in, free seat) is decided in offer_waitlist_spots_from_cron;
+  // supabase/tests/myk9_1003_waitlist_auto_offer_test.sql runs those rules.
+  it('makes automatic offers only through the guarded database call', () => {
+    expect(cronSource).toContain('await runWaitlistOfferStep(supabase, results)');
+    expect(offerStepSource).toContain("supabase.rpc('offer_waitlist_spots_from_cron')");
+    expect(cronSource).not.toContain('promote_waitlist_entry_from_cron');
   });
 
   it('does not use the online expiry/payment-link path for mail-in waitlist rows', () => {
     expect(cronSource).toContain("offer.joined_via === 'mail_in'");
-    expect(cronSource).toContain("nextInLine.joined_via === 'mail_in'");
-    expect(cronSource).toContain('leaving it for secretary handling');
     expect(cronSource).toContain('skippedMailInOffers');
-    expect(cronSource).toContain("offer.joined_via === 'mail_in'");
+    expect(offerStepSource).toContain("row.outcome === 'mail_in'");
   });
 
   it('does not create a payment link or send an offer email from the cron', () => {
@@ -72,13 +79,15 @@ describe('waitlist expiration cron offer wiring', () => {
     expect(promotionMigration).toContain('v_mail_in_release_date <= CURRENT_DATE');
   });
 
-  it('does not re-offer a just-expired class in the same cron run', () => {
-    expect(cronSource).toContain('const classesExpiredThisRun = new Set<string>()');
-    expect(cronSource).toContain('classesExpiredThisRun.add(offer.class_id)');
-    expect(cronSource).toContain(
-      'await processClassesWithOpenSpots(results, classesExpiredThisRun)'
+  // MYK9-1003 reverses 844ac556c's skip: an expired offer has already closed
+  // its checkout session and freed its seat, so waiting a tick protected
+  // nothing (see the 20261004224300 migration header). The offer step runs
+  // after the expiry loop, over every class.
+  it('offers a just-freed class in the same cron run, after the expiries', () => {
+    expect(cronSource).not.toContain('classesExpiredThisRun');
+    expect(cronSource.indexOf('await runWaitlistOfferStep(supabase, results)')).toBeGreaterThan(
+      cronSource.indexOf('for (const offer of expiredOffers || [])')
     );
-    expect(cronSource).toContain('if (skipClassIds.has(classId))');
   });
 
   it('answers CORS preflight before requiring the cron secret', () => {

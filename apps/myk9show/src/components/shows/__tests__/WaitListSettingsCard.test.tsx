@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { render, createTestQueryClient } from '@/test/utils/testUtils';
 import { judgeDayCapacityKey } from '@/hooks/queries/useJudgeDayCapacity';
 import { WaitListSettingsCard } from '../WaitListSettingsCard';
@@ -46,6 +47,7 @@ function makeRow(overrides: Record<string, unknown> = {}) {
     mail_in_auto_release: false,
     mail_in_release_date: null,
     waitlist_payment_deadline_hours: 48,
+    waitlist_auto_offer: true,
     ...overrides,
   };
 }
@@ -155,5 +157,78 @@ describe('WaitListSettingsCard', () => {
     await waitFor(() =>
       expect(invalidate).toHaveBeenCalledWith({ queryKey: judgeDayCapacityKey('show-1') })
     );
+  });
+
+  // MYK9-1003: the automatic-offer switch is a mode that saves on its own.
+  describe('automatic offers switch', () => {
+    const switchName = 'Offer open spots automatically';
+
+    it('shows the stored setting: on, with what that means', async () => {
+      render(<WaitListSettingsCard showId="show-1" />);
+      await waitFor(() => expect(screen.getByRole('switch', { name: switchName })).toBeChecked());
+      expect(
+        screen.getByText(/the next dog in line is offered it within 15 minutes/)
+      ).toBeVisible();
+    });
+
+    it('shows a show that offers by hand as off', async () => {
+      mockSingle.mockResolvedValue({ data: makeRow({ waitlist_auto_offer: false }), error: null });
+      render(<WaitListSettingsCard showId="show-1" />);
+      await waitFor(() =>
+        expect(screen.getByRole('switch', { name: switchName })).not.toBeChecked()
+      );
+      expect(
+        screen.getByText('You offer every open spot yourself, from the queue below.')
+      ).toBeVisible();
+    });
+
+    it('turning it off saves only shows.waitlist_auto_offer, for this show, without Save', async () => {
+      const user = userEvent.setup();
+      render(<WaitListSettingsCard showId="show-1" />);
+      const toggle = await screen.findByRole('switch', { name: switchName });
+      await waitFor(() => expect(toggle).toBeChecked());
+      // An unsaved capacity edit must not ride along with the switch.
+      fireEvent.change(screen.getByLabelText('Judge Daily Capacity'), { target: { value: '150' } });
+
+      await user.click(toggle);
+
+      await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1));
+      expect(mockFrom).toHaveBeenCalledWith('shows');
+      expect(mockUpdate).toHaveBeenCalledWith({ waitlist_auto_offer: false });
+      expect(mockUpdateEq).toHaveBeenCalledWith('id', 'show-1');
+      await waitFor(() => expect(toggle).not.toBeChecked());
+      expect(
+        (screen.getByLabelText('Judge Daily Capacity') as HTMLInputElement).value,
+        'the unsaved capacity edit stays in the form'
+      ).toBe('150');
+    });
+
+    it('the Save button never writes the switch', async () => {
+      render(<WaitListSettingsCard showId="show-1" />);
+      await waitFor(() =>
+        expect((screen.getByLabelText('Judge Daily Capacity') as HTMLInputElement).value).toBe(
+          '125'
+        )
+      );
+      fireEvent.change(screen.getByLabelText('Judge Daily Capacity'), { target: { value: '150' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1));
+      expect(mockUpdate.mock.calls[0]).toEqual([
+        expect.not.objectContaining({ waitlist_auto_offer: expect.anything() }),
+      ]);
+    });
+
+    it('a failed save says so and puts the switch back', async () => {
+      mockUpdateEq.mockResolvedValue({ data: null, error: { message: 'permission denied' } });
+      const user = userEvent.setup();
+      render(<WaitListSettingsCard showId="show-1" />);
+      const toggle = await screen.findByRole('switch', { name: switchName });
+      await waitFor(() => expect(toggle).toBeChecked());
+
+      await user.click(toggle);
+
+      expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't save that change");
+      expect(toggle).toBeChecked();
+    });
   });
 });

@@ -20,13 +20,15 @@ const ROLE_CHANGING_TYPES = new Set(['club_access_approved']);
  * The table also allows entry_confirmed, q_earned, schedule_change and
  * judge_assignment; those belong to other delivery paths, so this hook must
  * neither render them as "Account update" nor consume them by marking read. */
-export const ACCOUNT_NOTIFICATION_TYPES = ['club_access_approved'] as const;
+export const ACCOUNT_NOTIFICATION_TYPES = ['club_access_approved', 'waitlist_auto_offer'] as const;
 const HANDLED_TYPES = new Set<string>(ACCOUNT_NOTIFICATION_TYPES);
 
 /**
- * Delivers durable `public.notifications` rows (currently just club-access
- * approval, MYK9-859) into the existing bell/Message Center, and forces an
- * RBAC refresh so the sidebar reflects a new role grant without a sign-out.
+ * Delivers durable `public.notifications` rows into the existing bell/Message
+ * Center: club-access approval (MYK9-859), and the secretary's notice that a
+ * wait list spot was offered automatically (MYK9-1003). A club approval also
+ * forces an RBAC refresh so the sidebar reflects the new role without a
+ * sign-out.
  * The database row stays unread until the requester views or dismisses it,
  * so the bell can restore the notice after a reload.
  *

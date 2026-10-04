@@ -42,4 +42,24 @@ describe('buildAccountNotificationPayload', () => {
     expect(payload.actionUrl).toBeUndefined();
     expect('actionUrl' in payload).toBe(false);
   });
+
+  it('titles an automatic wait list offer notice for the secretary (MYK9-1003)', () => {
+    const payload = buildAccountNotificationPayload(
+      {
+        id: 'notif-3',
+        type: 'waitlist_auto_offer',
+        message: 'Rex was offered the open spot in Novice A automatically.',
+        deep_link_url: '/shows/show-1/entries?tab=waitlist',
+        created_at: '2026-10-04T12:00:00.000Z',
+      },
+      'auth-user-1'
+    );
+
+    expect(payload).toMatchObject({
+      title: 'Wait list offer sent',
+      body: 'Rex was offered the open spot in Novice A automatically.',
+      actionUrl: '/shows/show-1/entries?tab=waitlist',
+      data: { accountNotificationUserId: 'auth-user-1' },
+    });
+  });
 });

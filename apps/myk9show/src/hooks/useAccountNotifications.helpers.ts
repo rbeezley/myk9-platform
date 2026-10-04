@@ -9,6 +9,11 @@ export interface AccountNotificationRow {
   created_at: string;
 }
 
+/** The bell title for each durable row type; anything else reads as an account update. */
+const ACCOUNT_NOTIFICATION_TITLES: Readonly<Record<string, string>> = {
+  waitlist_auto_offer: 'Wait list offer sent',
+};
+
 /**
  * Maps a durable `public.notifications` row to the in-memory alert payload
  * the bell/Message Center already knows how to render. Every DB notification
@@ -22,7 +27,7 @@ export function buildAccountNotificationPayload(
   return {
     id: row.id,
     type: 'announcement',
-    title: 'Account update',
+    title: ACCOUNT_NOTIFICATION_TITLES[row.type] ?? 'Account update',
     body: row.message,
     priority: 'normal',
     data: { accountNotificationUserId: userId },

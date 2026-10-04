@@ -83,12 +83,12 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
 
       {/* MYK9-999: judge-day capacity, offer window and mail-in hold live here, scoped to the show
           the queues below are showing (the Show menu can switch it), never to a stale prop: viewing
-          show B must not edit show A's rules. A per-show switch for automatic offers (MYK9-1003)
-          belongs in this card. */}
+          show B must not edit show A's rules. The card also holds the show's automatic-offer
+          switch (MYK9-1003). */}
       {selectedShowId && (
         <details className="rounded-lg border bg-card" data-testid="waitlist-settings-disclosure">
           <summary className="cursor-pointer select-none px-4 py-3 text-sm font-medium">
-            Wait list settings: judge-day capacity, offer window, mail-in hold
+            Wait list settings: automatic offers, judge-day capacity, offer window, mail-in hold
           </summary>
           <div className="px-4 pb-4">
             <WaitListSettingsCard key={selectedShowId} showId={selectedShowId} />

@@ -109,13 +109,14 @@ export function orderRefundStatusLabel(sources: OrderRefundSources): string {
 }
 
 /**
- * Whether the entry-fee refund owed on an all-overflow checkout has settled.
+ * Whether the refund owed on an all-overflow checkout has settled.
  *
- * Since MYK9-966 that refund keeps the service fee, so the order never reaches
- * `status = 'refunded'` and the status column cannot answer this. The refund
- * totals the webhook records can: settled once everything recorded back
- * (post-hoc or make-whole, whichever kind the refund was booked as) covers the
- * entry fees owed. A legacy order that WAS refunded in full still counts.
+ * Under MYK9-966 that refund kept the service fee, so such an order never
+ * reached `status = 'refunded'`; since the 2026-10-04 owner rule it is the
+ * whole charge. Either way the answer comes from the refund totals the webhook
+ * records, not the status column: settled once everything recorded back
+ * (post-hoc or make-whole, whichever kind the refund was booked as) covers
+ * the amount owed. An order that WAS refunded in full still counts.
  */
 export function isOverflowRefundSettled(
   sources: Omit<OrderRefundSources, 'entryRefundedCents'>,

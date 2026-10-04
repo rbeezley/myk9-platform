@@ -296,6 +296,19 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     expect(body).not.toContain('resolveCumulativeRefundedCents');
   });
 
+  it('books the cart order fee the platform KEEPS: fee(served lines) (owner rule 2026-10-04)', () => {
+    // The unserved lines' fee share is refunded with them
+    // (cartOverflowRefundAmountCents), so the order books fee(paidSubtotal);
+    // the tie-out is proven in _shared/cartOverflowFullRefund.test.ts.
+    const start = webhookSource.indexOf('async function fulfillCartRun');
+    const cart = webhookSource.slice(start, webhookSource.indexOf('\nasync function', start + 1));
+    expect(cart).toMatch(
+      /const snapshotPlatformFeeCents = cartOverflowKeptFeeCents\(\{\s*paidSubtotalCents: paidEntrySubtotalCents,/
+    );
+    expect(cart).toContain('platformFeeCents: snapshotPlatformFeeCents,');
+    expect(cart).not.toContain('[...paidLineIds, ...noServiceLineIds].reduce(');
+  });
+
   it('keeps amount_cents GROSS at the cart insert (no pre-netted overflow refund)', () => {
     // Collection invariant: pre-netting the overflow refund out of amount_cents
     // AND recording it in refunded_cents double-subtracts it (review finding A).

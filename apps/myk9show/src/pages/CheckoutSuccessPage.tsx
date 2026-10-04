@@ -461,7 +461,7 @@ export default function CheckoutSuccessPage() {
                 <AlertDescription>
                   <div className="space-y-1">
                     <div className="flex justify-between items-center gap-3">
-                      <span>Entry Fee Refund</span>
+                      <span>Refund</span>
                       <span className="font-semibold">
                         {orderDetails?.refundAmount
                           ? formatCurrency(orderDetails.refundAmount)
@@ -470,8 +470,8 @@ export default function CheckoutSuccessPage() {
                     </div>
                     <p className="text-muted-foreground">
                       {orderDetails?.refundStatus === 'issued'
-                        ? 'Your entry fees have been refunded. The service fee is not refundable.'
-                        : 'Your entry fees are being refunded. The service fee is not refundable.'}
+                        ? 'Your payment has been refunded in full, service fee included.'
+                        : 'Your payment is being refunded in full, service fee included.'}
                     </p>
                   </div>
                 </AlertDescription>

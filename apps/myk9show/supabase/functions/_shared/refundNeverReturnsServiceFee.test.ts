@@ -8,7 +8,9 @@
 // The one exception (owner, 2026-10-04, MYK9-997): a charge the exhibitor got
 // NOTHING for and no order records (a paid abandoned cart, a paid payment-link
 // session with no link row) is refunded in full, service fee included
-// (refundRequests.ts `fullChargeRefundCents`).
+// (refundRequests.ts `fullChargeRefundCents`). And cart overflow (owner,
+// 2026-10-04): an unserved cart line refunds its entry fee plus its share of
+// the service fee (cartOverflowRefund.ts).
 //
 // The worked example from the issue: 3 lines at $30, 7% fee, exhibitor pays
 // $96.30. One line unserved refunds $30.00 (club $60.00, platform keeps
@@ -70,7 +72,11 @@ describe('the worked example: 3 lines at $30, 7% fee, $96.30 paid', () => {
     ).toBe(9200 - SERVICE_FEE);
   });
 
-  it('cart overflow, 1 of 3 unserved: refund $30.00, platform keeps $6.30', () => {
+  // Cart overflow is the exception to this file's rule since the owner's
+  // 2026-10-04 decision: an unserved cart line refunds its entry fee PLUS its
+  // share of the service fee (cartOverflowRefund.ts; worked examples in
+  // cartOverflowFullRefund.test.ts).
+  it('cart overflow, 1 of 3 unserved: refund $32.10, platform keeps $4.20', () => {
     const decision = decideCartOverflowRefund({
       paymentIntentId: 'pi_1',
       sessionAmountTotalCents: PAID,
@@ -81,15 +87,15 @@ describe('the worked example: 3 lines at $30, 7% fee, $96.30 paid', () => {
     });
     expect(decision).toEqual({
       action: 'refund',
-      amountCents: 3000,
-      paidAmountCents: 6630,
+      amountCents: 3210,
+      paidAmountCents: 6420,
       reason: 'partial_no_service_lines',
     });
-    // Club gets 6000, platform keeps the whole 630.
-    expect(PAID - 3000 - 6000).toBe(SERVICE_FEE);
+    // Club gets 6000, platform keeps the fee on the served lines only.
+    expect(PAID - 3210 - 6000).toBe(calculatePlatformFeeCents(6000, RATES));
   });
 
-  it('cart overflow, all 3 unserved: refund $90.00, platform keeps $6.30', () => {
+  it('cart overflow, all 3 unserved: refund the whole $96.30', () => {
     const decision = decideCartOverflowRefund({
       paymentIntentId: 'pi_1',
       sessionAmountTotalCents: PAID,
@@ -100,8 +106,8 @@ describe('the worked example: 3 lines at $30, 7% fee, $96.30 paid', () => {
     });
     expect(decision).toEqual({
       action: 'refund',
-      amountCents: 9000,
-      paidAmountCents: SERVICE_FEE,
+      amountCents: PAID,
+      paidAmountCents: 0,
       reason: 'full_make_whole',
     });
   });

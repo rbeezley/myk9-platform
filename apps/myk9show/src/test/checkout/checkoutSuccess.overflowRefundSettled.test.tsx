@@ -1,6 +1,6 @@
 /**
- * MYK9-966 (Codex round 2 on #2729): an all-overflow checkout refunds the entry
- * fees and KEEPS the service fee, so the order never reaches
+ * MYK9-966 (Codex round 2 on #2729): an all-overflow checkout used to refund the entry
+ * fees and keep the service fee (since 2026-10-04 it refunds the whole charge), so the order need not reach
  * `status = 'refunded'`. "Refund issued" must follow the refund itself — the
  * order's recorded refund totals against the entry fees owed — not the
  * order's full-refund status.
@@ -112,7 +112,7 @@ describe('all-overflow checkout: refund status follows the refund, not the order
     expect(await verifyCheckoutSession('cs_1')).toMatchObject({ refundStatus: 'issued' });
   });
 
-  it('tells the exhibitor the entry fees were refunded once they settle', async () => {
+  it('tells the exhibitor the payment was refunded in full once the refund settles', async () => {
     mockAllOverflowOrder();
     refundColumns(0, 9000);
     render(
@@ -123,7 +123,9 @@ describe('all-overflow checkout: refund status follows the refund, not the order
       </QueryClientProvider>
     );
     await waitFor(() => {
-      expect(screen.getByText(/your entry fees have been refunded/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/your payment has been refunded in full, service fee included/i)
+      ).toBeInTheDocument();
     });
     expect(screen.queryByText(/being refunded/i)).not.toBeInTheDocument();
   });

@@ -24,9 +24,11 @@
 // percentage-only math that shipped before — the amount CHARGED is unchanged,
 // and the setting is the kill switch.
 //
-// The refund side no longer depends on the fee shape at all: since MYK9-966 a
-// refund is the unserved lines' entry fees only (`entryFeeRefundCents`), so no
-// part of the percentage, the flat component or the floor is ever returned.
+// On the refund side, since MYK9-966 a refund is the unserved lines' entry
+// fees only (`entryFeeRefundCents`). Cart overflow is the exception (owner
+// rule 2026-10-04): an unserved cart line also gets back the share of the fee
+// it caused (`cartOverflowRefundAmountCents`); the flat component and the
+// floor stay with the served lines either way.
 //
 // ── THE CLIENT/SERVER AGREEMENT (do not break) ────────────────────────────
 // This expression is duplicated in the client cart preview
@@ -143,7 +145,9 @@ export function calculatePlatformFeeCents(subtotalCents: number, rates: Platform
 
 /**
  * How much of a charge is handed back for the lines it paid for that were
- * never served (cart overflow, payment-link make-whole, a cancelled show).
+ * never served (payment-link make-whole, a cancelled show). Cart overflow
+ * refunds more: the unserved lines' share of the fee too (owner, 2026-10-04,
+ * `cartOverflowRefundAmountCents` in cartOverflowRefund.ts).
  *
  * ── OWNER RULE (MYK9-966, 2026-10-03) ─────────────────────────────────────
  * The platform never covers a refund and never refunds its service fee, even

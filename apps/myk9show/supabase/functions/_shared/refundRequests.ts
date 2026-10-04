@@ -372,8 +372,10 @@ export interface AbandonedCartRefundInput {
  * charge, the refund request is the FULL amount charged, service fee
  * included, and the platform absorbs Stripe's processing fee. Two paths are
  * that case, both order-less: a paid abandoned cart, and a paid payment-link
- * session with no link row. Every other refund still returns entry fees only
- * (MYK9-966, `entryFeeRefundCents`). The refund itself still waits for a site
+ * session with no link row. Cart overflow refunds the unserved lines' entry
+ * fees plus their share of the fee (owner, 2026-10-04,
+ * `cartOverflowRefundAmountCents`); every other refund still returns entry
+ * fees only (MYK9-966, `entryFeeRefundCents`). The refund itself still waits for a site
  * admin's approval (stripe-approve-refund).
  *
  * Null when the charge is not a positive whole number of cents, which takes

@@ -463,4 +463,48 @@ describe('tv-display database reads', () => {
       expect(result[0].qualifiedCount).toBe(2);
     });
   });
+
+  // MYK9-969 review: a private qualified entry keeps its Q (so the count stays
+  // exact) but its time arrives NULL. The minimum of the remaining times is not
+  // the class's fastest when the fastest dog is private, so the TV must say
+  // nothing rather than announce a wrong time.
+  describe('results privacy (MYK9-969)', () => {
+    function mockQualified(rows: Array<{ class_id: string; search_time_seconds: number | null }>) {
+      mockBoardRpcs({ entryCount: 20 });
+      let resultsCall = 0;
+      mockSupabase.from.mockImplementation((table: string) => {
+        if (table === 'classes')
+          return createChainableQuery({ data: completedClassRows, error: null });
+        if (table === 'view_public_entry_results') {
+          resultsCall += 1;
+          return createChainableQuery({
+            data: resultsCall === 1 ? placementRows : rows,
+            error: null,
+          });
+        }
+        return createChainableQuery();
+      });
+    }
+
+    it('omits the fastest time when any qualified time is withheld, and keeps the Q count', async () => {
+      mockQualified([
+        { class_id: 'class-done', search_time_seconds: null },
+        { class_id: 'class-done', search_time_seconds: 38.2 },
+        { class_id: 'class-done', search_time_seconds: 40 },
+      ]);
+
+      const result = await getTVDisplayResults('show-1');
+
+      expect(result[0].qualifiedCount).toBe(3);
+      expect(result[0].fastestTime).toBeNull();
+    });
+
+    it('still shows the fastest time when every qualified time is public', async () => {
+      mockQualified(qualifiedRows);
+
+      const result = await getTVDisplayResults('show-1');
+
+      expect(result[0].fastestTime).toBe(35.1);
+    });
+  });
 });

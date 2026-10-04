@@ -266,12 +266,26 @@ export async function getPostgrestTVDisplayResults(
     placementsByClass.set(classId, group);
   }
 
-  const qualifiedByClass = new Map<string, { count: number; fastest: number | null }>();
+  // The qualified COUNT comes from result_status, which the public view keeps
+  // even for a private entry, so it stays exact. The FASTEST time does not: a
+  // private entry's time arrives NULL (MYK9-969), and the minimum of the rest
+  // would announce a wrong "fastest" whenever the true fastest dog is private.
+  // A class with ANY qualified time withheld gets no fastest time at all.
+  const qualifiedByClass = new Map<
+    string,
+    { count: number; fastest: number | null; timeWithheld: boolean }
+  >();
   for (const q of qualifiedData) {
     const classId = q.class_id as string;
-    const current = qualifiedByClass.get(classId) ?? { count: 0, fastest: null };
+    const current = qualifiedByClass.get(classId) ?? {
+      count: 0,
+      fastest: null,
+      timeWithheld: false,
+    };
     current.count++;
-    if (q.search_time_seconds != null) {
+    if (q.search_time_seconds == null) {
+      current.timeWithheld = true;
+    } else {
       current.fastest =
         current.fastest == null
           ? q.search_time_seconds
@@ -291,7 +305,7 @@ export async function getPostgrestTVDisplayResults(
       judgeName: judgeNamesByClass.get(c.id) ?? null,
       totalEntries: entryCounts?.get(c.id)?.total ?? null,
       qualifiedCount: stats?.count ?? 0,
-      fastestTime: stats?.fastest ?? null,
+      fastestTime: stats && !stats.timeWithheld ? stats.fastest : null,
       placements: placementsByClass.get(c.id) ?? [],
     };
   });

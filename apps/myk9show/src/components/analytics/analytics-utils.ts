@@ -17,6 +17,21 @@ export interface StatsEntry {
   trialDate?: string | undefined;
   trialName?: string | undefined;
   trialNumber?: string | undefined;
+  /**
+   * Scored, but this viewer cannot see the result: the entry's people keep it
+   * private (MYK9-969) or the club has not released it yet. Any total, rate,
+   * average or "fastest" computed without it would be wrong.
+   */
+  resultWithheld?: boolean | undefined;
+}
+
+/**
+ * True when any scored entry's result is hidden from this viewer. Statistics
+ * over such a set are not partial truths but wrong ones (a "fastest time" that
+ * is not the fastest, a Q rate over a subset), so callers omit them.
+ */
+export function hasWithheldResults(entries: readonly StatsEntry[]): boolean {
+  return entries.some(entry => entry.resultWithheld === true);
 }
 
 export interface SummaryStats {

@@ -6,7 +6,9 @@ import {
   computePerDogStats,
   computeResultDistribution,
   computeFastestTimes,
+  hasWithheldResults,
 } from './analytics-utils';
+import { WithheldStatsNotice } from './WithheldStatsNotice';
 import { StatsSummaryCards, StatsSummaryCardsSkeleton } from './StatsSummaryCards';
 import { ResultDistributionChart } from './ResultDistributionChart';
 import { DogBreakdownCards } from './DogBreakdownCards';
@@ -32,6 +34,10 @@ export function ShowStatsSubTab({ showId }: ShowStatsSubTabProps) {
 
   if (isLoading) {
     return <StatsSummaryCardsSkeleton />;
+  }
+
+  if (hasWithheldResults(entries ?? [])) {
+    return <WithheldStatsNotice />;
   }
 
   if (stats.summary.scoredEntries === 0) {

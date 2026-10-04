@@ -13935,6 +13935,14 @@ export type Database = {
           waitlist_entry_id: string
         }[]
       }
+      list_waitlist_offer_candidates: {
+        Args: never
+        Returns: {
+          class_id: string
+          joined_via: string
+          waitlist_entry_id: string
+        }[]
+      }
       lock_club_membership_request_pair: {
         Args: { p_club_id: string; p_person_id: string }
         Returns: undefined
@@ -13973,15 +13981,6 @@ export type Database = {
       notify_waitlist_auto_offer: {
         Args: { p_waitlist_entry_id: string }
         Returns: string
-      }
-      offer_waitlist_spots_from_cron: {
-        Args: never
-        Returns: {
-          class_id: string
-          detail: string
-          outcome: string
-          waitlist_entry_id: string
-        }[]
       }
       official_show_ids: { Args: never; Returns: string[] }
       person_email_lock_facts: { Args: { p_person_id: string }; Returns: Json }

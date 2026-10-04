@@ -22,18 +22,21 @@ const promotionMigration = readFileSync(
 
 describe('waitlist expiration cron offer wiring', () => {
   // MYK9-1003: who may be offered (switch, one open offer per class, first in
-  // line, mail-in, free seat) is decided in offer_waitlist_spots_from_cron;
-  // supabase/tests/myk9_1003_waitlist_auto_offer_test.sql runs those rules.
+  // line, mail-in, past trial, free seat) is decided by
+  // promote_waitlist_entry_from_cron under the class lock, one transaction per
+  // class; supabase/tests/myk9_1003_waitlist_auto_offer_test.sql runs those
+  // rules and offerStep.test.ts the one-call-per-class behaviour.
   it('makes automatic offers only through the guarded database call', () => {
     expect(cronSource).toContain('await runWaitlistOfferStep(supabase, results)');
-    expect(offerStepSource).toContain("supabase.rpc('offer_waitlist_spots_from_cron')");
+    expect(offerStepSource).toContain("supabase.rpc('list_waitlist_offer_candidates')");
+    expect(offerStepSource).toContain("'promote_waitlist_entry_from_cron'");
     expect(cronSource).not.toContain('promote_waitlist_entry_from_cron');
   });
 
   it('does not use the online expiry/payment-link path for mail-in waitlist rows', () => {
     expect(cronSource).toContain("offer.joined_via === 'mail_in'");
     expect(cronSource).toContain('skippedMailInOffers');
-    expect(offerStepSource).toContain("row.outcome === 'mail_in'");
+    expect(offerStepSource).toContain("candidate.joined_via === 'mail_in'");
   });
 
   it('does not create a payment link or send an offer email from the cron', () => {

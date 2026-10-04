@@ -4,7 +4,8 @@
 --
 -- Properties asserted here:
 --   S1  shows.waitlist_auto_offer is NOT NULL DEFAULT true (today's behaviour).
---   S2  Switch off: offer_waitlist_spots_from_cron offers nothing for that
+--   S2  Switch off: the cron (candidate list + one promote per class)
+--       offers nothing for that
 --       show (no row, no entry, the dog still waiting), and a direct
 --       promote_waitlist_entry_from_cron call on its row returns NULL.
 --   S3  Switch on: the first dog in line is offered, with a pending-payment
@@ -28,6 +29,10 @@
 --       calendar day: the cron skips it, a direct automatic call returns NULL,
 --       and a manual offer is refused (22023). A trial dated today and a
 --       future trial are offered.
+--   C1  list_waitlist_offer_candidates is STABLE and only reads: calling it
+--       creates no offer, entry or notice. It lists the first row of each
+--       class the cron may try (switch on, trial not past, no open offer),
+--       mail-in first rows included for reporting.
 --   M1  send_waitlist_offer_message: a secretary sends the payment-link copy as
 --       themselves; anyone else gets 42501; a non-https link gets 22023.
 --   A1  The new functions are SECURITY DEFINER with search_path '' and the
@@ -76,6 +81,40 @@ RETURNS text LANGUAGE sql AS $f$
    WHERE w.class_id = pg_temp.fid(p_class) AND w.status = 'offered'
 $f$;
 
+-- What the cron edge function does (offerStep.ts): read the candidate list,
+-- report mail-in first rows, and call promote_waitlist_entry_from_cron once
+-- per other candidate (each its own transaction in production).
+CREATE FUNCTION pg_temp.cron_run()
+RETURNS TABLE (class_id uuid, waitlist_entry_id uuid, outcome text)
+LANGUAGE plpgsql AS $f$
+#variable_conflict use_column
+DECLARE
+  v_candidate record;
+  v_entry uuid;
+BEGIN
+  FOR v_candidate IN SELECT * FROM public.list_waitlist_offer_candidates() LOOP
+    class_id := v_candidate.class_id;
+    waitlist_entry_id := v_candidate.waitlist_entry_id;
+    IF v_candidate.joined_via = 'mail_in' THEN
+      outcome := 'mail_in';
+      RETURN NEXT;
+      CONTINUE;
+    END IF;
+    BEGIN
+      v_entry := public.promote_waitlist_entry_from_cron(v_candidate.waitlist_entry_id);
+    EXCEPTION WHEN OTHERS THEN
+      outcome := 'error';
+      RETURN NEXT;
+      CONTINUE;
+    END;
+    IF v_entry IS NOT NULL THEN
+      outcome := 'offered';
+      RETURN NEXT;
+    END IF;
+  END LOOP;
+END;
+$f$;
+
 CREATE FUNCTION pg_temp.wl_status(p_id text)
 RETURNS text LANGUAGE sql AS $f$
   SELECT w.status FROM public.waitlist_entries w WHERE w.id = pg_temp.fid(p_id)
@@ -95,7 +134,7 @@ BEGIN
     'NO true', 'S1 shows.waitlist_auto_offer NOT NULL DEFAULT true');
 
   FOREACH v_fn IN ARRAY ARRAY[
-    'public.offer_waitlist_spots_from_cron()',
+    'public.list_waitlist_offer_candidates()',
     'public.promote_waitlist_entry_from_cron(uuid)',
     'public.notify_waitlist_auto_offer(uuid)',
     'public.send_waitlist_offer_message_internal(uuid, uuid, text)',
@@ -110,7 +149,7 @@ BEGIN
   END LOOP;
 
   FOREACH v_fn IN ARRAY ARRAY[
-    'public.offer_waitlist_spots_from_cron()',
+    'public.list_waitlist_offer_candidates()',
     'public.promote_waitlist_entry_from_cron(uuid)',
     'public.notify_waitlist_auto_offer(uuid)',
     'public.send_waitlist_offer_message_internal(uuid, uuid, text)',
@@ -342,7 +381,46 @@ BEGIN
   PERFORM pg_temp.expect_eq(
     public.promote_waitlist_entry_from_cron(pg_temp.fid('571'))::text, NULL,
     'P1 no automatic offer for a trial that has passed (direct call)');
+  PERFORM pg_temp.expect_eq(
+    public.promote_waitlist_entry_from_cron(pg_temp.fid('541'))::text, NULL,
+    'G1 a mail-in first dog is never offered automatically (direct call)');
   PERFORM pg_temp.expect_eq(pg_temp.wl_status('571'), 'waiting', 'P1 the past-trial dog is still waiting');
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- C1. The candidate list reads and nothing else
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_before text;
+  v_listed text;
+BEGIN
+  PERFORM pg_temp.expect_eq(
+    (SELECT p.provolatile::text FROM pg_proc p
+      WHERE p.oid = 'public.list_waitlist_offer_candidates()'::regprocedure),
+    's', 'C1 list_waitlist_offer_candidates is STABLE (cannot write)');
+
+  v_before := (SELECT count(*) FROM public.waitlist_entries WHERE status = 'offered')
+    || '/' || (SELECT count(*) FROM public.entries WHERE show_id IN (
+                 pg_temp.fid('101'), pg_temp.fid('102'), pg_temp.fid('103')))
+    || '/' || (SELECT count(*) FROM public.notifications WHERE type = 'waitlist_auto_offer');
+
+  SELECT string_agg(substr(c.class_id::text, 34) || ':' || substr(c.waitlist_entry_id::text, 34)
+                    || ':' || c.joined_via, ',' ORDER BY c.class_id)
+  INTO v_listed
+  FROM public.list_waitlist_offer_candidates() c
+  WHERE c.class_id::text LIKE '00000000-0000-0000-0000-0000010033%';
+
+  PERFORM pg_temp.expect_eq(v_listed,
+    '301:501:online,304:531:online,305:541:mail_in,306:551:online,309:581:online,310:591:online',
+    'C1 candidates: switch on, trial not past, no open offer; mail-in listed for reporting');
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*) FROM public.waitlist_entries WHERE status = 'offered')
+      || '/' || (SELECT count(*) FROM public.entries WHERE show_id IN (
+                   pg_temp.fid('101'), pg_temp.fid('102'), pg_temp.fid('103')))
+      || '/' || (SELECT count(*) FROM public.notifications WHERE type = 'waitlist_auto_offer'),
+    v_before, 'C1 listing candidates creates no offer, entry or notice');
 END;
 $$;
 
@@ -350,7 +428,7 @@ $$;
 -- The cron's offer step, first run
 -- ---------------------------------------------------------------------------
 CREATE TEMP TABLE run1 AS
-SELECT * FROM public.offer_waitlist_spots_from_cron();
+SELECT * FROM pg_temp.cron_run();
 RESET ROLE;
 
 DO $$
@@ -464,7 +542,7 @@ UPDATE public.waitlist_entries SET status = 'expired' WHERE id = pg_temp.fid('56
 UPDATE public.shows SET waitlist_auto_offer = true WHERE id = pg_temp.fid('102');
 
 CREATE TEMP TABLE run2 AS
-SELECT * FROM public.offer_waitlist_spots_from_cron();
+SELECT * FROM pg_temp.cron_run();
 RESET ROLE;
 
 DO $$

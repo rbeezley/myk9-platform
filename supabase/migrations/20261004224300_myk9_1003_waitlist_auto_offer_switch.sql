@@ -29,9 +29,12 @@
 --      promote_waitlist_entry_internal (and so every manual offer) takes. When
 --      it does offer, it tells the secretary and sends the in-app message.
 --      It moves to SET search_path = '' (SA-027: convert when next edited).
---   5. offer_waitlist_spots_from_cron() is the cron's whole offer step in one
---      call: the first waiting row of every class in a live show with the
---      switch on and no open offer. The edge function no longer picks rows.
+--   5. list_waitlist_offer_candidates() tells the cron which rows to try:
+--      the first waiting row of every class in a live show with the switch
+--      on, a trial not yet past, and no open offer. It is STABLE: it reads
+--      without locking and writes nothing. The edge function then calls
+--      promote_waitlist_entry_from_cron once per candidate, each call its own
+--      transaction, which re-checks every guard under the class lock.
 --   6. No offer, automatic or manual, for a class whose trial date has passed
 --      on the show's calendar day (waitlist_class_trial_has_passed): it would
 --      ask someone to pay for a trial that is over. A trial dated today is
@@ -50,6 +53,13 @@
 --   seat. The lock order (waitlist row, then class) is the internal function's
 --   own, so a racing manual and automatic offer queue on each other instead of
 --   deadlocking.
+--
+--   One transaction per class, never a batch: promote_waitlist_entry_internal
+--   holds its class and judge-day locks to the end of its transaction. A
+--   batch that offered class A and then waited for class B would hold A's
+--   judge-day lock while a secretary offering B (holding B's locks) waited
+--   for that same judge-day: a deadlock that aborts a valid offer. Per-class
+--   calls hold one class's locks at a time, as the cron always did.
 --
 -- The 15-minute pause after an expiry is gone (edge function)
 --   The cron used to skip a class whose offer it had just expired until the
@@ -510,78 +520,47 @@ REVOKE ALL ON FUNCTION public.promote_waitlist_entry_from_cron(uuid)
 GRANT EXECUTE ON FUNCTION public.promote_waitlist_entry_from_cron(uuid) TO service_role;
 
 -- ---------------------------------------------------------------------------
--- 5. The cron's offer step
+-- 5. The cron's candidate list
 -- ---------------------------------------------------------------------------
--- One row per class it acted on:
---   'offered'  an offer went out (waitlist_entry_id is the offered row)
---   'mail_in'  the first dog in line joined by mail; the secretary offers it
---   'error'    the offer failed unexpectedly (detail carries the message)
--- A class with no free seat, an open offer, a past trial, or the switch off
--- returns nothing.
-CREATE OR REPLACE FUNCTION public.offer_waitlist_spots_from_cron()
+-- The first waiting row of each class the cron may offer: live show with the
+-- switch on, trial not past, no open offer in the class. A mail-in first row
+-- is listed (joined_via says so) so the cron can report it; it is never
+-- offered. STABLE: a plain read, so it takes no row locks and cannot write.
+-- The cron offers each candidate in its own call to
+-- promote_waitlist_entry_from_cron, which re-checks all of this under the
+-- class lock; this list is only a starting point.
+CREATE OR REPLACE FUNCTION public.list_waitlist_offer_candidates()
 RETURNS TABLE (
   class_id uuid,
   waitlist_entry_id uuid,
-  outcome text,
-  detail text
+  joined_via text
 )
-LANGUAGE plpgsql
+LANGUAGE sql
+STABLE
 SECURITY DEFINER
 SET search_path = ''
 AS $$
-#variable_conflict use_column
-DECLARE
-  v_head record;
-  v_new_entry_id uuid;
-BEGIN
-  FOR v_head IN
-    SELECT DISTINCT ON (w.class_id) w.class_id, w.id, w.joined_via
-    FROM public.waitlist_entries w
-    JOIN public.classes c ON c.id = w.class_id
-    JOIN public.trials t ON t.id = c.trial_id
-    JOIN public.shows s ON s.id = t.show_id
-    WHERE w.status = 'waiting'
-      AND s.waitlist_auto_offer
-      AND c.deleted_at IS NULL
-      AND t.deleted_at IS NULL
-      AND s.deleted_at IS NULL
-      AND NOT public.waitlist_class_trial_has_passed(w.class_id)
-      AND NOT EXISTS (
-        SELECT 1
-        FROM public.waitlist_entries o
-        WHERE o.class_id = w.class_id
-          AND o.status = 'offered'
-      )
-    ORDER BY w.class_id, w.position, w.id
-  LOOP
-    class_id := v_head.class_id;
-    waitlist_entry_id := v_head.id;
-    detail := NULL;
-
-    IF v_head.joined_via = 'mail_in' THEN
-      outcome := 'mail_in';
-      RETURN NEXT;
-      CONTINUE;
-    END IF;
-
-    BEGIN
-      v_new_entry_id := public.promote_waitlist_entry_from_cron(v_head.id);
-    EXCEPTION WHEN OTHERS THEN
-      outcome := 'error';
-      detail := SQLERRM;
-      RETURN NEXT;
-      CONTINUE;
-    END;
-
-    IF v_new_entry_id IS NOT NULL THEN
-      outcome := 'offered';
-      RETURN NEXT;
-    END IF;
-  END LOOP;
-END;
+  SELECT DISTINCT ON (w.class_id) w.class_id, w.id, w.joined_via
+  FROM public.waitlist_entries w
+  JOIN public.classes c ON c.id = w.class_id
+  JOIN public.trials t ON t.id = c.trial_id
+  JOIN public.shows s ON s.id = t.show_id
+  WHERE w.status = 'waiting'
+    AND s.waitlist_auto_offer
+    AND c.deleted_at IS NULL
+    AND t.deleted_at IS NULL
+    AND s.deleted_at IS NULL
+    AND NOT public.waitlist_class_trial_has_passed(w.class_id)
+    AND NOT EXISTS (
+      SELECT 1
+      FROM public.waitlist_entries o
+      WHERE o.class_id = w.class_id
+        AND o.status = 'offered'
+    )
+  ORDER BY w.class_id, w.position, w.id;
 $$;
 
-REVOKE ALL ON FUNCTION public.offer_waitlist_spots_from_cron() FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.offer_waitlist_spots_from_cron() TO service_role;
+REVOKE ALL ON FUNCTION public.list_waitlist_offer_candidates() FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.list_waitlist_offer_candidates() TO service_role;
 
 COMMIT;

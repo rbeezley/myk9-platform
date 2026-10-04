@@ -4,7 +4,8 @@
  * Runs every 15 minutes to:
  * 1. Expire waitlist offers that have passed their deadline
  * 2. Offer free spots to the next dog in line, in shows whose secretary left
- *    automatic offers on (offer_waitlist_spots_from_cron, MYK9-1003), in the
+ *    automatic offers on (offerStep.ts: one guarded database transaction per
+ *    class, MYK9-1003), in the
  *    same run as the expiry that freed them
  * 3. Send notification emails
  *

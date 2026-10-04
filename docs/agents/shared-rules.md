@@ -79,7 +79,7 @@ Redirect check output to a file and echo the real exit status — a pipe through
 
 ### Vercel Hobby quota / preview deploy discipline
 
-This repo has multiple Vercel projects on a Hobby account. myK9Show no longer builds from Git (above), but the guides project (`apps/docs`) still builds PR previews, which can hit the daily deployment-created limit. Follow [`docs/operations/vercel-preview-quota.md`](docs/operations/vercel-preview-quota.md) for the full runbook.
+This repo has multiple Vercel projects on a Hobby account, sharing its 100-a-day deployment limit. Neither myK9Show nor the guides project (`apps/docs`) builds from Git any more: the guides publish only when someone runs `gh workflow run deploy-guides.yml` (owner decision 2026-10-04, after guide previews blocked a production deploy). A production deploy that fails with `api-deployments-free-per-day` is the quota, not the code. Follow [`docs/operations/vercel-preview-quota.md`](docs/operations/vercel-preview-quota.md) for the full runbook.
 
 - Before pushing a PR branch, batch local fixes and run the relevant local checks/review first; avoid micro-pushes that only exercise Vercel again.
 - Vercel preview contexts are intentionally not required by the GitHub `main-required-checks` ruleset. A red `Vercel – …` context whose `targetUrl` ends `?upgradeToPro=build-rate-limit` is an account quota, not a verdict on the diff; if the required checks are green, treat it as non-blocking unless the preview itself is needed for visual QA, and say which check you ignored.

@@ -121,6 +121,8 @@ export interface ShowMapClassInput {
    *  count yields no progress line rather than a fabricated "0 of 0". */
   entryCount?: number | null | undefined;
   scoredCount?: number | null | undefined;
+  /** Rows on the run list, pending included; Run order hides below 2. */
+  runListCount?: number | null | undefined;
   ring?: string | number | null | undefined;
   ringName?: string | undefined;
   trialDate?: string | undefined;

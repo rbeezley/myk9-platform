@@ -169,7 +169,9 @@ export function SecretaryCockpitFocusedClass({
                   <ShowMapRunOrderMenu
                     classId={focused.id}
                     classLabel={focused.name}
-                    entryCount={sourceClass.entryCount ?? focused.entryRows.length}
+                    entryCount={
+                      sourceClass.runListCount ?? sourceClass.entryCount ?? focused.entryRows.length
+                    }
                     onAutoSort={runOrder.onAutoSort}
                     isAutoSorting={runOrder.isAutoSorting}
                   />

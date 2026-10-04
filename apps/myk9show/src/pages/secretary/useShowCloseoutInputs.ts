@@ -71,6 +71,7 @@ export function useShowCloseoutInputs(showId: string | undefined) {
           status: cls.status || CLASS_STATUS.SCHEDULED,
           entryCount: entriesKnown ? (entryTallies.get(cls.id)?.total ?? 0) : null,
           scoredCount: entriesKnown ? (entryTallies.get(cls.id)?.scored ?? 0) : null,
+          pendingCount: entriesKnown ? (entryTallies.get(cls.id)?.pending ?? 0) : null,
         }))
       ),
     [entriesKnown, entryTallies, schedule.trialClasses, showTrials]

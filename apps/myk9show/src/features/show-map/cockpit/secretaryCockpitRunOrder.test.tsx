@@ -160,4 +160,16 @@ describe('run order is reachable from the focused-class panel', () => {
     // ...and the entry-action list is correctly absent, since there are none.
     expect(screen.queryAllByRole('button', { name: /Move up/i })).toHaveLength(0);
   });
+
+  it('counts pending dogs on the run list, not only the dogs left to score', () => {
+    // One accepted dog and two pending: the scoring count is 1, but Run order
+    // still sorts three rows, so the menu must stay.
+    renderPanel({ sourceClass: { ...SOURCE_CLASS, entryCount: 1, runListCount: 3 } });
+    expect(screen.getByRole('button', { name: /run order/i })).toBeInTheDocument();
+  });
+
+  it('hides Run order when the run list itself has fewer than two rows', () => {
+    renderPanel({ sourceClass: { ...SOURCE_CLASS, entryCount: 1, runListCount: 1 } });
+    expect(screen.queryByRole('button', { name: /run order/i })).toBeNull();
+  });
 });

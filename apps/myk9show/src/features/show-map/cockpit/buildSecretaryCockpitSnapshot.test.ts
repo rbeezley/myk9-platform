@@ -108,6 +108,7 @@ describe('buildSecretaryCockpitSnapshot', () => {
           status: 'In Progress',
           entryCount: 0,
           scoredCount: 0,
+          runListCount: 3,
         },
       ],
       tree,
@@ -119,6 +120,9 @@ describe('buildSecretaryCockpitSnapshot', () => {
     const cls = snapshot.classes[0];
     expect(cls?.entryCount).toBe(0);
     expect(cls?.scoredCount).toBe(0);
+    // Run order sorts pending dogs too, so its count travels separately
+    // (#2712); dropping it here would hide the menu on a pending-heavy class.
+    expect(cls?.runListCount).toBe(3);
   });
 
   it('groups by Trial, preserves scheduled time, and adds canonical class work links', () => {

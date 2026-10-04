@@ -66,7 +66,8 @@ export interface PlatformIncomeSummary {
    *  every order plus the fee kept on order-less charges (MYK9-997). */
   grossPlatformFeeCents: number;
   /** The fee kept on charges that recorded no order (a paid abandoned cart, a
-   *  paid payment link with no link row): charged − refunded (MYK9-966). */
+   *  paid payment link with no link row): the charge less the refunds that
+   *  actually went out on it (MYK9-966 / MYK9-997). */
   unfulfilledChargeKeptFeeCents: number;
   /**
    * Net platform income, split into a REPORTABLE part and a visibly-excluded

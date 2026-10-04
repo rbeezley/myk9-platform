@@ -43,8 +43,9 @@
 --    unfulfilled_charge_kept_fee_cents (with a count), for every request that
 --    has a charged amount and NO stripe_orders row for its session or intent
 --    (an order, if one ever appears, already books the full fee on its own
---    snapshot). Every request status counts: the fee is kept whether the
---    refund is pending, paid, failed, or resolved without refund.
+--    snapshot). The kept fee is the charge less the refunds that actually went
+--    out on the intent, with the obligation standing in only until its
+--    approved refund is issued (see scoped_unfulfilled below).
 --
 --    Stripe's processing fee on those charges is never captured (there is no
 --    order to hold it), so the client reports the kept fee in the labeled
@@ -673,9 +674,48 @@ BEGIN
   -- order's own platform_fee_cents already books the fee. Scoped through the
   -- request's show like every other figure here; a request with no show is
   -- platform-scope only.
+  --
+  -- WHAT WAS KEPT is measured from the refunds that actually went out on the
+  -- request's payment intent, never from the obligation alone (Codex round 1
+  -- on #2741: an approved refund topped up by a dashboard refund of the rest
+  -- kept nothing, yet charged − obligation still booked the fee). An
+  -- order-less charge's refunds land in two places:
+  --   * the APPROVED refund: refund_request_attempts (status 'succeeded'). It
+  --     is never booked in stripe_order_refunds (routeRefundByCurrentState
+  --     stops order-less approved refunds as 'no_order'), and Stripe issued it
+  --     for exactly the request's amount_cents (refundApproval.ts);
+  --   * ANY OTHER refund on the intent (a dashboard refund): the charge.refunded
+  --     / refund.updated sweep books it in stripe_order_refunds with a NULL
+  --     order_id, keyed on the intent.
+  --   kept = charged − amount_cents − (the ledger's other succeeded refunds
+  --          on the intent, excluding the attempts' own refund ids)
+  --
+  -- amount_cents counts exactly ONCE, in either of two states:
+  --   * issued: an attempt succeeded, and its refund was for amount_cents;
+  --   * not yet issued: the obligation still stands. It is owed back to the
+  --     customer (pending, awaiting Stripe, failed) or, resolved without
+  --     refund, honored by hand to the club. Either way it is not the
+  --     platform's to keep, and counting it keeps a pending request from
+  --     reporting the whole charge as kept.
+  -- Floored at 0: the obligation can never take more than is still on the
+  -- charge (Stripe refuses a refund past it), so a dashboard refund of the
+  -- whole charge leaves nothing kept, not a negative.
   scoped_unfulfilled AS (
-    SELECT r.amount_cents, r.charged_cents
+    SELECT GREATEST(
+             r.charged_cents - r.amount_cents - COALESCE(other.refunded_cents, 0),
+             0
+           ) AS kept_fee_cents
     FROM public.refund_requests r
+    LEFT JOIN LATERAL (
+      SELECT SUM(f.amount_cents) AS refunded_cents
+      FROM public.stripe_order_refunds f
+      WHERE f.stripe_payment_intent_id = r.stripe_payment_intent_id
+        AND f.state = 'succeeded'
+        AND NOT EXISTS (
+          SELECT 1 FROM public.refund_request_attempts a
+          WHERE a.request_id = r.id AND a.stripe_refund_id = f.stripe_refund_id
+        )
+    ) AS other ON true
     WHERE r.charged_cents IS NOT NULL
       AND NOT EXISTS (
         SELECT 1 FROM public.stripe_orders o
@@ -723,7 +763,9 @@ BEGIN
     (SELECT COALESCE(SUM(so.club_funded_refunded_cents), 0)     FROM scoped_orders so),
     (SELECT COALESCE(SUM(so.club_funded_refunded_cents), 0)     FROM scoped_orders so
       WHERE so.stripe_processing_fee_cents IS NULL),
-    (SELECT COALESCE(SUM(uf.charged_cents - uf.amount_cents), 0) FROM scoped_unfulfilled uf),
+    -- ::bigint: kept_fee_cents is bigint (it subtracts a SUM), and SUM(bigint)
+    -- is numeric, which RETURNS TABLE refuses at call time.
+    (SELECT COALESCE(SUM(uf.kept_fee_cents), 0)::bigint         FROM scoped_unfulfilled uf),
     (SELECT count(*)                                            FROM scoped_unfulfilled uf);
 END;
 $$;

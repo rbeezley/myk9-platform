@@ -26,6 +26,15 @@
 --       nothing.
 --   S2  Scope: another club's show and the platform-only no-link session do
 --       not leak into this club's figures; platform scope adds them.
+--   R1  The kept fee is what the refunds that actually went out left behind
+--       (Codex round 1 on #2741), one 3210 = 3000 + 210 abandoned cart per
+--       show of club 997003:
+--         P1 approved refund only (also booked in the ledger under its own
+--            refund id, which must not count twice)          -> kept 210
+--         P2 approved refund + a 210 dashboard top-up         -> kept 0
+--         P3 pending request, nothing refunded yet            -> kept 210
+--         P4 pending request, the whole charge refunded from
+--            the dashboard                                    -> kept 0
 --
 -- Every show has a club (MYK9-1008 makes shows.club_id NOT NULL).
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
@@ -129,6 +138,27 @@ CROSS JOIN (VALUES
   ('00000000-0000-0000-0000-000000997034', 'cs_997_low')
 ) AS v(id, session)
 WHERE ep.auth_user_id = '00000000-0000-0000-0000-000000997101';
+RESET ROLE;
+
+-- R1 fixtures: club 997003, one show and one paid abandoned cart per case.
+INSERT INTO public.clubs (id, name)
+VALUES ('00000000-0000-0000-0000-000000997003', 'MYK9-997 Refund Club');
+INSERT INTO public.shows (id, name, organization, start_date, end_date, status, club_id)
+SELECT ('00000000-0000-0000-0000-00000099704' || n)::uuid, 'MYK9-997 P' || n, 'AKC',
+       current_date + 30, current_date + 30, 'draft', '00000000-0000-0000-0000-000000997003'
+  FROM generate_series(1, 4) AS n;
+INSERT INTO public.user_roles (user_id, role_id, is_active, auth_user_id, club_id)
+SELECT '00000000-0000-0000-0000-000000997010', r.id, true,
+       '00000000-0000-0000-0000-000000997100', '00000000-0000-0000-0000-000000997003'
+  FROM public.roles r
+ WHERE r.name = 'club_admin';
+SET LOCAL ROLE service_role;
+INSERT INTO public.entry_carts (id, exhibitor_id, show_id, status, stripe_checkout_session_id)
+SELECT ('00000000-0000-0000-0000-00000099705' || n)::uuid, ep.id,
+       ('00000000-0000-0000-0000-00000099704' || n)::uuid, 'abandoned', 'cs_997_p' || n
+  FROM public.exhibitor_profiles ep
+ CROSS JOIN generate_series(1, 4) AS n
+ WHERE ep.auth_user_id = '00000000-0000-0000-0000-000000997101';
 RESET ROLE;
 
 CREATE FUNCTION pg_temp.expect_eq(p_actual text, p_expected text, p_label text)
@@ -325,6 +355,74 @@ SELECT pg_temp.expect_eq(
   'K3 one signature each, service_role only');
 
 -- ---------------------------------------------------------------------------
+-- R1: the kept fee follows the refunds that actually went out
+-- ---------------------------------------------------------------------------
+-- The approval path (stripe-approve-refund, then settleAttemptFromStripe):
+-- begin an attempt, attach its Stripe refund, settle it succeeded.
+CREATE FUNCTION pg_temp.approve_and_settle(p_session text, p_refund text)
+RETURNS text LANGUAGE plpgsql AS $f$
+DECLARE
+  v_request uuid;
+  v_begin record;
+  v_record record;
+  v_settle record;
+BEGIN
+  SELECT r.id INTO v_request FROM public.refund_requests r
+   WHERE r.stripe_checkout_session_id = p_session AND r.kind = 'abandoned_cart';
+  SELECT * INTO v_begin
+    FROM public.begin_refund_attempt(v_request, '00000000-0000-0000-0000-000000997100');
+  SELECT * INTO v_record
+    FROM public.record_refund_attempt(v_begin.attempt_id, v_begin.attempt_version, p_refund);
+  SELECT * INTO v_settle
+    FROM public.settle_refund_attempt(v_begin.attempt_id, v_record.attempt_version, 'succeeded');
+  RETURN v_settle.request_status;
+END;
+$f$;
+
+SET LOCAL ROLE service_role;
+SELECT public.claim_abandoned_cart_refund(
+         ('00000000-0000-0000-0000-00000099705' || n)::uuid, 'cs_997_p' || n, 'pi_997_p' || n,
+         3000, '{"charged_cents": 3210}'::jsonb)
+  FROM generate_series(1, 4) AS n;
+
+-- P1: approved refund only. A webhook that ALSO books it in the ledger (under
+-- the same refund id) must not count it twice.
+SELECT pg_temp.expect_eq(pg_temp.approve_and_settle('cs_997_p1', 're_997_p1_approved'),
+  'refunded', 'R1 P1 the approved refund settles');
+SELECT * FROM public.record_order_refund_cents(
+  p_payment_intent_id => 'pi_997_p1', p_refund_id => 're_997_p1_approved',
+  p_amount_cents => 3000, p_kind => 'make_whole');
+
+-- P2: approved refund, then a dashboard refund of the 210 that was left.
+SELECT pg_temp.expect_eq(pg_temp.approve_and_settle('cs_997_p2', 're_997_p2_approved'),
+  'refunded', 'R1 P2 the approved refund settles');
+SELECT * FROM public.record_order_refund_cents(
+  p_payment_intent_id => 'pi_997_p2', p_refund_id => 're_997_p2_dashboard',
+  p_amount_cents => 210);
+
+-- P3: nothing yet. P4: nothing approved, the whole charge refunded from the
+-- dashboard.
+SELECT * FROM public.record_order_refund_cents(
+  p_payment_intent_id => 'pi_997_p4', p_refund_id => 're_997_p4_dashboard',
+  p_amount_cents => 3210);
+RESET ROLE;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000997100', true);
+SELECT pg_temp.expect_eq(
+  (SELECT string_agg(s.kept_fee || '/' || s.kept_count, ' ' ORDER BY n)
+     FROM generate_series(1, 4) AS n
+    CROSS JOIN LATERAL pg_temp.summary(
+      'show', NULL, ('00000000-0000-0000-0000-00000099704' || n)::uuid) AS s),
+  '210/1 0/1 210/1 0/1',
+  'R1 kept fee: approved only 210, approved + top-up 0, pending 210, dashboard-refunded 0');
+SELECT pg_temp.expect_eq(
+  (SELECT s.kept_fee || '/' || s.kept_count
+     FROM pg_temp.summary('club', '00000000-0000-0000-0000-000000997003', NULL) AS s),
+  '420/4', 'R1 the club total is the sum of what each charge actually kept');
+RESET ROLE;
+
+-- ---------------------------------------------------------------------------
 -- S1-S2: the summary, as the site admin
 -- ---------------------------------------------------------------------------
 SET LOCAL ROLE authenticated;
@@ -365,7 +463,8 @@ SELECT pg_temp.expect_eq(
   (SELECT (a.club_funded - b.club_funded) || '|' || (a.kept_fee - b.kept_fee) || '|'
           || (a.kept_count - b.kept_count)
      FROM pg_temp.summary('platform', NULL, NULL) AS a, platform_before AS b),
-  '8000|273|2', 'S2 platform scope: both clubs plus the no-link session (210 + 63)');
+  '8000|693|6',
+  'S2 platform scope: every club plus the no-link session (210 + 63 + 420 from R1)');
 
 RESET ROLE;
 

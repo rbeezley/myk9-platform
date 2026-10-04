@@ -88,8 +88,10 @@ export interface FinancialReconciliationSummary {
    *  NOT yet captured, mirroring pendingFeeRefundedCents. */
   pendingFeeClubFundedRefundedCents: number;
   /** The service fee kept on charges that recorded NO order (a paid abandoned
-   *  cart, a paid payment link with no link row): charged − refund, MYK9-966 /
-   *  MYK9-997. Their Stripe processing fee is never captured. */
+   *  cart, a paid payment link with no link row): the charge less the refunds
+   *  that actually went out on it, the request's own refund counted once whether
+   *  issued or still owed (MYK9-966 / MYK9-997). Their Stripe processing fee is
+   *  never captured. */
   unfulfilledChargeKeptFeeCents: number;
   /** How many such charges. */
   unfulfilledChargeCount: number;

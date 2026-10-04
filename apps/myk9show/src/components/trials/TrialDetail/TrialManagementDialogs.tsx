@@ -1,6 +1,5 @@
 import { forwardRef, useImperativeHandle, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
 import { formatTrialLabel } from '@myk9/core';
 import { useTrialStore, type TrialInput } from '@/store/trialStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -8,9 +7,8 @@ import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
 import { TrialEditPanel } from '@/components/panels/edit/TrialEditPanel';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
 import { DeleteObjectDialog, classDeleteDetail, trialDeleteDetail } from '@/features/delete';
-import { upsertClassJudgeAssignment } from '@/services/database/judges';
-import { replicatedClassesTable } from '@/services/replication';
-import { classKeys } from '@/hooks/queries/useClassesDatabase';
+import { useClassEditActions } from '@/hooks/useClassEditActions';
+import type { ClassData } from '@/components/classes/types/classTypes';
 import type { TrialClass } from '@/components/trials/types/trial.types';
 import type { TrialWithClasses } from '@/hooks/useTrialDetailData';
 import type { Show } from '@/types/show-types';
@@ -78,10 +76,10 @@ export const TrialManagementDialogs = forwardRef<
 ) {
   const { showId } = useParams<{ showId?: string }>();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const { user } = useAuthContext();
   const { trials, updateTrial } = useTrialStore();
   const { updateClass } = useClassStoreCompat();
+  const { saveClass } = useClassEditActions({ showId: parentShow?.id, updateClass });
 
   const showOrganization = parentShow?.organization;
 
@@ -206,36 +204,18 @@ export const TrialManagementDialogs = forwardRef<
             : undefined
         }
         onSave={async classData => {
-          if (selectedClassForEdit?.id) {
-            // Save judge assignment FIRST (with replication sync) before updateClass,
-            // so React Query's onSuccess refetch reads fresh judge data from replication cache
-            const judgeId = (classData as Record<string, unknown>).judgeId as string | undefined;
-            if (judgeId !== undefined && parentShow?.id) {
-              try {
-                await upsertClassJudgeAssignment(parentShow.id, selectedClassForEdit.id, judgeId);
-                // Refresh replication cache so updateClass's onSuccess invalidation refetches fresh judge data
-                await replicatedClassesTable.sync('');
-              } catch {
-                // Non-blocking — continue to class update
-              }
-            }
-
-            // Now update class — its onSuccess invalidation will refetch fresh judge data
-            // The panel's patch only: merging the (possibly stale) class back in would rewrite its
-            // untouched fields, including another secretary's limit or wait list change.
-            await updateClass(selectedClassForEdit.id, classData);
-
-            useTrialStore.getState().loadTrialClasses();
-            // Invalidate specific query keys for classes (safety net after fresh refetch)
-            queryClient.invalidateQueries({ queryKey: classKeys.lists() });
-            if (currentTrial?.id) {
-              queryClient.invalidateQueries({ queryKey: classKeys.byTrial(currentTrial.id) });
-            }
-            queryClient.invalidateQueries({ queryKey: classKeys.detail(selectedClassForEdit.id) });
-
-            setEditClassPanelOpen(false);
-            setSelectedClassForEdit(null);
-          }
+          if (!selectedClassForEdit?.id) return;
+          // The one class save (judge, write, replication refresh, cache invalidation) shared with
+          // Setup and Class Details, with the same patch-only contract. It rejects on failure,
+          // which keeps the panel open with the user's edits.
+          await saveClass(
+            selectedClassForEdit.id,
+            classData as Partial<ClassData>,
+            currentTrial?.id,
+            selectedClassForEdit.judgeId
+          );
+          setEditClassPanelOpen(false);
+          setSelectedClassForEdit(null);
         }}
       />
 

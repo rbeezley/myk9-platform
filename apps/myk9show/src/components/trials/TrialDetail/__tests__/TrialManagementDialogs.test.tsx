@@ -9,6 +9,22 @@ import {
 import type { TrialClass } from '@/components/trials/types/trial.types';
 import type { TrialWithClasses } from '@/hooks/useTrialDetailData';
 import type { Show } from '@/types/show-types';
+import type { QueryClient } from '@tanstack/react-query';
+
+// Edit class saves through the shared `useClassEditActions`, which invalidates on the app's
+// query client (the one the provider serves in production) and refreshes the class replica.
+const appClient = vi.hoisted(() => ({ current: undefined as QueryClient | undefined }));
+vi.mock('@/lib/queryClient', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/queryClient')>()),
+  get queryClient() {
+    return appClient.current!;
+  },
+}));
+vi.mock('@/hooks/useConnectionHint', () => ({ useConnectionHint: () => undefined }));
+vi.mock('@/services/replication', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/replication')>()),
+  replicatedClassesTable: { sync: vi.fn().mockResolvedValue(undefined) },
+}));
 
 // The panels and the shared delete dialog are mocked to testid stubs; this suite
 // verifies that the imperative open* methods drive the right one open, and that
@@ -98,6 +114,7 @@ function makeClass(): TrialClass {
 function renderDialogs(overrides: Partial<TrialManagementDialogsProps> = {}) {
   const ref = React.createRef<TrialManagementDialogsHandle>();
   const queryClient = createTestQueryClient();
+  appClient.current = queryClient;
   const props: TrialManagementDialogsProps = {
     currentTrial: makeTrial(),
     parentShow: { id: 's1', organization: 'AKC' } as Show,
@@ -194,7 +211,7 @@ describe('TrialManagementDialogs', () => {
     });
   });
 
-  it('invalidates class queries on the active routed client after an edit', async () => {
+  it('invalidates class queries on the application query client after an edit', async () => {
     const { ref, queryClient, user } = renderDialogs();
     const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries');
 

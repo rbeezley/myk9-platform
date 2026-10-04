@@ -13,9 +13,23 @@ import {
 import { toTrialDetailClass } from '@/pages/trialDetailClassProjection';
 import type { TrialWithClasses } from '@/hooks/useTrialDetailData';
 import type { Show } from '@/types/show-types';
+import type { QueryClient } from '@tanstack/react-query';
 import type { SyncableClassData } from '@/store/class-store-types';
 
 const updateClass = vi.hoisted(() => vi.fn());
+const syncReplica = vi.hoisted(() => vi.fn());
+const appClient = vi.hoisted(() => ({ current: undefined as QueryClient | undefined }));
+vi.mock('@/lib/queryClient', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/queryClient')>()),
+  get queryClient() {
+    return appClient.current!;
+  },
+}));
+vi.mock('@/hooks/useConnectionHint', () => ({ useConnectionHint: () => undefined }));
+vi.mock('@/services/replication', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/services/replication')>()),
+  replicatedClassesTable: { sync: syncReplica },
+}));
 vi.mock('@/hooks/useClassStoreCompat', () => ({ useClassStoreCompat: () => ({ updateClass }) }));
 vi.mock('@/store/trialStore', () => {
   const state = { trials: [], updateTrial: vi.fn(), loadTrialClasses: vi.fn() };
@@ -47,6 +61,8 @@ describe('Trial Details Edit class: limit and wait list', () => {
   it('shows the loaded controls and toggling sends allowsWaitlist', async () => {
     updateClass.mockReset();
     updateClass.mockResolvedValue(undefined);
+    syncReplica.mockReset();
+    syncReplica.mockResolvedValue(undefined);
     const ref = React.createRef<TrialManagementDialogsHandle>();
     const { user } = render(
       <TrialManagementDialogs
@@ -63,7 +79,10 @@ describe('Trial Details Edit class: limit and wait list', () => {
         }
         parentShow={{ id: 's1', organization: 'AKC' } as Show}
       />,
-      { initialRoute: '/shows/s1/trials/t1', queryClient: createTestQueryClient() }
+      {
+        initialRoute: '/shows/s1/trials/t1',
+        queryClient: (appClient.current = createTestQueryClient()),
+      }
     );
     act(() => ref.current?.openEditClass(toTrialDetailClass(loadedClass, 3)));
 
@@ -75,5 +94,42 @@ describe('Trial Details Edit class: limit and wait list', () => {
     const payload = updateClass.mock.calls[0]![1] as Record<string, unknown>;
     expect(payload).toMatchObject({ allowsWaitlist: true });
     expect(payload).not.toHaveProperty('maxEntries');
+  });
+
+  // Codex round 5 on #2735: the replica was refreshed only BEFORE the write, so reopening Edit
+  // class straight after Save read the old limit and wait list. The shared save refreshes after.
+  it('refreshes the class replica after the update, not only before it', async () => {
+    updateClass.mockReset();
+    updateClass.mockResolvedValue(undefined);
+    syncReplica.mockReset();
+    syncReplica.mockResolvedValue(undefined);
+    const ref = React.createRef<TrialManagementDialogsHandle>();
+    const { user } = render(
+      <TrialManagementDialogs
+        ref={ref}
+        currentTrial={
+          {
+            id: 't1',
+            name: 'T',
+            trialNumber: '1',
+            trialDate: '2026-05-09',
+            showId: 's1',
+            classes: [],
+          } as unknown as TrialWithClasses
+        }
+        parentShow={{ id: 's1', organization: 'AKC' } as Show}
+      />,
+      {
+        initialRoute: '/shows/s1/trials/t1',
+        queryClient: (appClient.current = createTestQueryClient()),
+      }
+    );
+    act(() => ref.current?.openEditClass(toTrialDetailClass(loadedClass, 3)));
+    await user.click(await screen.findByRole('switch', { name: 'Allow wait list' }));
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await waitFor(() => expect(syncReplica).toHaveBeenCalled());
+    const updateOrder = updateClass.mock.invocationCallOrder[0]!;
+    expect(syncReplica.mock.invocationCallOrder.some(order => order > updateOrder)).toBe(true);
   });
 });

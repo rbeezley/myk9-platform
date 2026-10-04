@@ -28,6 +28,10 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   },
 }));
 
+vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
+  replicatedArmbandsTable: { getByShow: vi.fn().mockResolvedValue([]) },
+}));
+
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
 }));
@@ -59,7 +63,7 @@ describe('useShowMapRunOrderAutoSort — Undo handles null priors', () => {
   it('writes runOrder=undefined for entries whose prior run_order was null', async () => {
     // Setup: one entry with a real run_order, one with null.
     getEntriesByClassMock.mockResolvedValue([
-      entry({ id: 'a', armband: '10', runOrder: 1 }),
+      entry({ id: 'a', armband: '30', runOrder: 1 }),
       entry({ id: 'b', armband: '20', runOrder: null as unknown as undefined }),
     ]);
 

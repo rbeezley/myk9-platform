@@ -7,13 +7,11 @@ import { entryInvalidationKeys } from '@/services/database/entries/invalidation'
 import { getUserFriendlyError } from '@/utils/errorMessages';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import {
-  computeShowMapAutoSortAssignments,
-  snapshotPriorRunOrders,
-  type ShowMapAutoSortAssignment,
+  planPresetPlacement,
   type ShowMapAutoSortKind,
   type ShowMapAutoSortSnapshotItem,
 } from './showMapRunOrderAutoSort';
-import { movePlacement } from './runOrderPlacementModel';
+import { movePlacement, type PlacementMove } from './runOrderPlacementModel';
 import { classPlacementKey, loadClassPlacement } from './classPlacementSource';
 import { toPriorSnapshot } from './showMapHandPlacement';
 
@@ -62,7 +60,7 @@ interface ApplyAssignmentsResult {
 }
 
 async function applyAssignments(
-  assignments: readonly ShowMapAutoSortAssignment[]
+  assignments: readonly Pick<PlacementMove, 'id' | 'runOrder'>[]
 ): Promise<ApplyAssignmentsResult> {
   const results = await Promise.allSettled(
     assignments.map(a => replicatedEntriesTable.updateEntry(a.id, { runOrder: a.runOrder }))
@@ -127,17 +125,17 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
     // pause it before it reached the table.
     networkMode: 'always',
     mutationFn: async (input: ShowMapAutoSortInput): Promise<ShowMapAutoSortResult> => {
-      const entries = await replicatedEntriesTable.getEntriesByClass(input.classId);
-      if (entries.length < 2) {
-        throw new Error('Auto-sort needs at least two entries in this class.');
+      const { model } = await loadClassPlacement(showId, input.classId);
+      if (model.waiting.length < 2) {
+        throw new Error('Auto-sort needs at least two dogs still waiting to run.');
       }
-      const assignments = computeShowMapAutoSortAssignments(entries, input.kind);
+      const assignments = planPresetPlacement(model, input.kind);
       const snapshot: ShowMapAutoSortSnapshot = {
         classId: input.classId,
         ...(input.classLabel !== undefined ? { classLabel: input.classLabel } : {}),
         kind: input.kind,
         summary: SUCCESS_LABELS[input.kind],
-        priorOrders: snapshotPriorRunOrders(entries),
+        priorOrders: toPriorSnapshot(assignments),
       };
       const { failedCount } = await applyAssignments(assignments);
       // INTENT: Even on partial failure, return the snapshot so the user keeps
@@ -161,11 +159,11 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
     // pause it before it reached the table.
     networkMode: 'always',
     mutationFn: async (input: ShowMapHandPlaceInput): Promise<ShowMapAutoSortResult> => {
-      const { slots } = await loadClassPlacement(showId, input.classId);
-      const changes = movePlacement(slots, input.entryId, input.toPosition);
+      const { model } = await loadClassPlacement(showId, input.classId);
+      const changes = movePlacement(model, input.entryId, input.toPosition);
       if (changes.length === 0) {
         throw new Error(
-          'That dog cannot go in that spot. A dog that has run or is in the ring holds its place.'
+          'That dog cannot go in that spot. Only dogs still waiting to run can be moved.'
         );
       }
       const snapshot: ShowMapAutoSortSnapshot = {

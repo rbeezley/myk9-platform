@@ -1,88 +1,35 @@
 import { calculateRunOrder } from '@/lib/runOrderUtils';
-import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
+import {
+  planRenumber,
+  type PlacementMove,
+  type RunOrderPlacementModel,
+} from './runOrderPlacementModel';
 
 export type ShowMapAutoSortKind = 'armband-asc' | 'armband-desc' | 'random';
-
-export interface ShowMapAutoSortAssignment {
-  id: string;
-  runOrder: number;
-}
 
 export interface ShowMapAutoSortSnapshotItem {
   id: string;
   runOrder: number | null;
 }
 
-// INTENT: Pin entries the secretary cannot — or should not — silently
-// reposition. Already-scored entries keep the slot they ran in. The dog
-// currently in the ring is pinned by check-in / ring-entry signals so a
-// re-sort never shuffles a class mid-run.
-export function isPinnedRunOrderEntry(entry: ReplicatedEntry): boolean {
-  const scored = Boolean(entry.isScored ?? entry.is_scored);
-  const scoringCompleted = Boolean(entry.scoringCompletedAt ?? entry.scoring_completed_at);
-  const checkInStatus = entry.checkInStatus ?? entry.check_in_status;
-  const inRing = checkInStatus === 'in-ring' || Boolean(entry.ring_entry_time);
-  const completed = checkInStatus === 'completed';
-  return scored || scoringCompleted || inRing || completed;
-}
-
-function sortByExistingRunOrder(entries: ReplicatedEntry[]): ReplicatedEntry[] {
-  return [...entries].sort((a, b) => {
-    const aOrder = a.runOrder ?? Number.POSITIVE_INFINITY;
-    const bOrder = b.runOrder ?? Number.POSITIVE_INFINITY;
-    if (aOrder !== bOrder) return aOrder - bOrder;
-    return (a.id ?? '').localeCompare(b.id ?? '');
-  });
-}
-
-// Compute new run_order assignments for a class. Pinned entries keep their
-// slot (their `runOrder` is renumbered to 1..N alongside everyone else, but
-// their POSITION in the merged sequence is unchanged). Unpinned entries are
-// sorted per `kind` and dropped into the remaining slots in order.
-export function computeShowMapAutoSortAssignments(
-  entries: readonly ReplicatedEntry[],
+// INTENT: Presets reorder only the dogs still waiting to run. Which dogs wait,
+// their order and the number to start from all come from the placement model
+// (`runOrderPlacementModel.ts`), the same one hand placement uses, so a preset
+// can never renumber a dog that has run, is in the ring, was pulled or is off
+// the run list. Returns only the dogs whose run_order changes.
+export function planPresetPlacement(
+  model: RunOrderPlacementModel,
   kind: ShowMapAutoSortKind
-): ShowMapAutoSortAssignment[] {
-  if (entries.length === 0) return [];
-
-  const ordered = sortByExistingRunOrder(entries.slice());
-  const unpinned = ordered.filter(entry => !isPinnedRunOrderEntry(entry));
-  if (unpinned.length === 0) {
-    return ordered.map((entry, index) => ({ id: entry.id, runOrder: index + 1 }));
-  }
-
-  const presetResults = calculateRunOrder(
-    unpinned.map(entry => ({
-      id: entry.id,
-      armband: entry.armband ?? null,
-      section: null,
-    })),
-    kind
+): PlacementMove[] {
+  const rank = new Map(
+    calculateRunOrder(
+      model.waiting.map(row => ({ id: row.id, armband: row.armband, section: null })),
+      kind
+    ).map(result => [result.id, result.runOrder])
   );
-  const presetRank = new Map(presetResults.map(result => [result.id, result.runOrder]));
-  const sortedUnpinned = [...unpinned].sort(
-    (a, b) => (presetRank.get(a.id) ?? 0) - (presetRank.get(b.id) ?? 0)
+  const sorted = [...model.waiting].sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0));
+  return planRenumber(
+    model,
+    sorted.map(row => row.id)
   );
-
-  let unpinnedCursor = 0;
-  const assignments: ShowMapAutoSortAssignment[] = [];
-  ordered.forEach((entry, index) => {
-    const runOrder = index + 1;
-    if (isPinnedRunOrderEntry(entry)) {
-      assignments.push({ id: entry.id, runOrder });
-      return;
-    }
-    const next = sortedUnpinned[unpinnedCursor++];
-    if (next) assignments.push({ id: next.id, runOrder });
-  });
-  return assignments;
-}
-
-export function snapshotPriorRunOrders(
-  entries: readonly ReplicatedEntry[]
-): ShowMapAutoSortSnapshotItem[] {
-  return entries.map(entry => ({
-    id: entry.id,
-    runOrder: entry.runOrder ?? null,
-  }));
 }

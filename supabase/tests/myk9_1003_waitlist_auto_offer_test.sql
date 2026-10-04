@@ -37,6 +37,14 @@
 --       themselves; anyone else gets 42501; a non-https link gets 22023.
 --   A1  The new functions are SECURITY DEFINER with search_path '' and the
 --       expected EXECUTE grants.
+--   W1  MYK9-1013 (migration 20261004233700): the offer message names the dog
+--       and class, the deadline (offer_expires_at in the zone of the class's
+--       own trial; known answers for the New York fallback, Chicago, and a
+--       Denver trial in a show whose first trial is Chicago), says "You pay
+--       for this spot only if you claim it.", then the payment link or the My
+--       Entries line.
+--   W2  With no offer_expires_at it reads "before the offer ends".
+--   W3  No offer message says "haven't been charged".
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
 
@@ -524,7 +532,11 @@ BEGIN
       WHERE t.show_id = pg_temp.fid('101')
         AND t.participant_id = pg_temp.fid('023')
         AND m.body LIKE '%Class On%'),
-    '00000000-0000-0000-0000-000001003021 | A waitlist spot in Class On just opened up for Dog411! Open My Entries to accept the offer before it expires.',
+    '00000000-0000-0000-0000-000001003021 | A spot opened for Dog411 in Class On. Claim it by paying before '
+      || (SELECT to_char(w.offer_expires_at AT TIME ZONE 'America/New_York',
+                         'Mon FMDD, YYYY, FMHH12:MI AM')
+            FROM public.waitlist_entries w WHERE w.id = pg_temp.fid('501'))
+      || '. You pay for this spot only if you claim it. Open My Entries to accept the offer before it expires.',
     'N2 the automatic offer sent the exhibitor the in-app message from the secretary');
   PERFORM pg_temp.expect_eq(
     (SELECT count(*)::text FROM public.show_message_threads t
@@ -565,6 +577,11 @@ $$;
 -- ---------------------------------------------------------------------------
 -- M1. The manual path's message door
 -- ---------------------------------------------------------------------------
+-- W1 known answer: class 303's trial (201) has no timezone, so its zone is
+-- the America/New_York fallback; 18:00 UTC on Jul 15 2026 is 2:00 PM EDT.
+UPDATE public.waitlist_entries SET offer_expires_at = '2026-07-15 18:00:00+00'
+WHERE id = pg_temp.fid('521');
+
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000001003021', true);
 SELECT set_config('request.jwt.claims',
@@ -601,8 +618,91 @@ BEGIN
       WHERE t.show_id = pg_temp.fid('101')
         AND t.participant_id = pg_temp.fid('023')
         AND m.body LIKE '%Class Race2%'),
-    '00000000-0000-0000-0000-000001003021 | A waitlist spot in Class Race2 just opened up for Dog414! Complete payment to claim it: https://checkout.example.test/pay/1003',
-    'M1 the manual message carries the payment link, from the secretary');
+    '00000000-0000-0000-0000-000001003021 | A spot opened for Dog414 in Class Race2. Claim it by paying before Jul 15, 2026, 2:00 PM. You pay for this spot only if you claim it. Complete payment to claim it: https://checkout.example.test/pay/1003',
+    'M1/W1 the manual message carries the deadline (New York) and the payment link, from the secretary');
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- W1-W3. MYK9-1013: the message copy
+-- ---------------------------------------------------------------------------
+-- 581 (class 309, trial 204) and 591 (class 310, trial 205) were offered
+-- automatically in RUN1. Show 103's first trial (203) is America/Chicago.
+-- Trial 205 moves to America/Denver, so the show spans two zones: each
+-- class's deadline must use its OWN trial's zone. 18:00 UTC on Jul 15 2026 is
+-- 1:00 PM CDT (Chicago) and 12:00 PM MDT (Denver).
+UPDATE public.trials SET timezone = 'America/Denver' WHERE id = pg_temp.fid('205');
+UPDATE public.waitlist_entries SET offer_expires_at = '2026-07-15 18:00:00+00'
+WHERE id IN (pg_temp.fid('581'), pg_temp.fid('591'));
+
+SET LOCAL ROLE service_role;
+DO $$
+BEGIN
+  PERFORM pg_temp.expect_eq(
+    public.send_waitlist_offer_message_internal(
+      pg_temp.fid('581'), pg_temp.fid('021'), 'https://checkout.example.test/pay/1013c'),
+    'sent', 'W1 setup: Chicago-trial message sent');
+  PERFORM pg_temp.expect_eq(
+    public.send_waitlist_offer_message_internal(
+      pg_temp.fid('591'), pg_temp.fid('021'), 'https://checkout.example.test/pay/1013d'),
+    'sent', 'W1 setup: Denver-trial message sent');
+END;
+$$;
+RESET ROLE;
+
+UPDATE public.waitlist_entries SET offer_expires_at = NULL
+WHERE id = pg_temp.fid('581');
+
+SET LOCAL ROLE service_role;
+DO $$
+BEGIN
+  PERFORM pg_temp.expect_eq(
+    public.send_waitlist_offer_message_internal(pg_temp.fid('581'), pg_temp.fid('021'), NULL),
+    'sent', 'W2 setup: no-deadline message sent');
+END;
+$$;
+RESET ROLE;
+
+DO $$
+BEGIN
+  PERFORM pg_temp.expect_eq(
+    (SELECT string_agg(t.timezone, ',' ORDER BY t.date, t.id)
+       FROM public.trials t WHERE t.show_id = pg_temp.fid('103')),
+    'America/Chicago,America/Chicago,America/Denver',
+    'W1 setup: show 103 spans two zones; its first trial is Chicago');
+  PERFORM pg_temp.expect_eq(
+    (SELECT m.body FROM public.show_messages m
+       JOIN public.show_message_threads t ON t.id = m.thread_id
+      WHERE t.show_id = pg_temp.fid('103')
+        AND t.participant_id = pg_temp.fid('023')
+        AND m.body LIKE '%/pay/1013c'),
+    'A spot opened for Dog425 in Class Today. Claim it by paying before Jul 15, 2026, 1:00 PM. You pay for this spot only if you claim it. Complete payment to claim it: https://checkout.example.test/pay/1013c',
+    'W1 the deadline is rendered in the class''s trial zone (Chicago), with the payment link');
+  PERFORM pg_temp.expect_eq(
+    (SELECT m.body FROM public.show_messages m
+       JOIN public.show_message_threads t ON t.id = m.thread_id
+      WHERE t.show_id = pg_temp.fid('103')
+        AND t.participant_id = pg_temp.fid('023')
+        AND m.body LIKE '%/pay/1013d'),
+    'A spot opened for Dog426 in Class Future. Claim it by paying before Jul 15, 2026, 12:00 PM. You pay for this spot only if you claim it. Complete payment to claim it: https://checkout.example.test/pay/1013d',
+    'W1 a two-zone show: the class''s own trial zone (Denver) wins over the show''s first trial (Chicago)');
+  PERFORM pg_temp.expect_eq(
+    (SELECT m.body FROM public.show_messages m
+       JOIN public.show_message_threads t ON t.id = m.thread_id
+      WHERE t.show_id = pg_temp.fid('103')
+        AND t.participant_id = pg_temp.fid('023')
+        AND m.body LIKE '%Class Today. Claim it by paying before the offer ends.%'),
+    'A spot opened for Dog425 in Class Today. Claim it by paying before the offer ends. You pay for this spot only if you claim it. Open My Entries to accept the offer before it expires.',
+    'W2 with no offer_expires_at the copy says "before the offer ends"');
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*)::text || '/'
+            || count(*) FILTER (WHERE m.body LIKE '%You pay for this spot only if you claim it.%')::text
+            || '/'
+            || count(*) FILTER (WHERE m.body ILIKE '%haven''t been charged%')::text
+       FROM public.show_messages m
+      WHERE m.show_id IN (pg_temp.fid('101'), pg_temp.fid('103'))),
+    '9/9/0',
+    'W3 every offer message says "You pay for this spot only if you claim it." and none says "haven''t been charged"');
 END;
 $$;
 

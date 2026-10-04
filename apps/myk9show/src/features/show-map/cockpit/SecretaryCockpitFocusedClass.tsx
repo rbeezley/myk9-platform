@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ import { ClassChecklistSection } from './ClassChecklistSection';
 import { ClassStatusControl, ExpectedStartControl } from './ClassOperationalControls';
 import { AnnounceDelayButton } from './AnnounceDelayButton';
 import type { ReactNode } from 'react';
+import { RunOrderHandPlacement, RunOrderUndoNotice } from './RunOrderHandPlacement';
 import { getStartDelayMinutes, scheduledClockValue } from './cockpitTime';
 import { formatTrialIdentity } from './secretaryCockpitModel';
 import type {
@@ -45,6 +47,9 @@ export function SecretaryCockpitFocusedClass({
   /** Edit class; the cockpit owns its dialogs (MYK9-956). */
   setupActions?: ReactNode;
 }) {
+  // Which class's hand-placement list is open; scoped by id so focusing another
+  // class closes it rather than carrying it over.
+  const [placingClassId, setPlacingClassId] = useState<string | null>(null);
   if (!focused || !sourceClass || !trial) {
     return (
       <aside className="rounded-xl border bg-card p-6 text-sm text-muted-foreground">
@@ -174,12 +179,25 @@ export function SecretaryCockpitFocusedClass({
                     }
                     onAutoSort={runOrder.onAutoSort}
                     isAutoSorting={runOrder.isAutoSorting}
+                    onEnterReorderMode={({ classId }) => setPlacingClassId(classId)}
                   />
                 </dd>
               </>
             )}
           </dl>
         </section>
+
+        {canManageShow && runOrder && (
+          <RunOrderUndoNotice classId={focused.id} runOrder={runOrder} />
+        )}
+        {canManageShow && runOrder && placingClassId === focused.id && (
+          <RunOrderHandPlacement
+            showId={showId}
+            classId={focused.id}
+            runOrder={runOrder}
+            onDone={() => setPlacingClassId(null)}
+          />
+        )}
 
         {attention.length > 0 && (
           <div className="space-y-2">

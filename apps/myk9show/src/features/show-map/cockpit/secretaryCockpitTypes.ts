@@ -94,6 +94,11 @@ export interface SecretaryCockpitTrial {
 export interface SecretaryCockpitRunOrderControls {
   onAutoSort: (input: { classId: string; kind: ShowMapAutoSortKind; classLabel: string }) => void;
   isAutoSorting: boolean;
+  /** Hand placement (MYK9-972): put one dog in a chosen slot of the run list. */
+  onPlaceEntry: (input: ShowMapHandPlaceInput) => void;
+  /** The last run-order change (preset or hand), while its Undo is on offer. */
+  lastChange: { classId: string; summary: string } | null;
+  onUndo: () => void;
 }
 
 export interface SecretaryCockpitEntryAction {
@@ -228,3 +233,4 @@ export interface SecretaryCockpitModel {
 import type { ReportScope } from '@/lib/reports/types';
 import type { RegistryId } from '@/features/registries';
 import type { ShowMapAutoSortKind } from '../showMapRunOrderAutoSort';
+import type { ShowMapHandPlaceInput } from '../useShowMapRunOrderAutoSort';

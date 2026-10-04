@@ -120,6 +120,25 @@ describe.each(STYLES)('%s landing judges (MYK9-985)', (_style, Page) => {
     await waitFor(() => expect(mockRpc).toHaveBeenCalled());
     expect(screen.queryByText(/pat donovan/i)).toBeNull();
   });
+
+  it('shows neither names nor a placeholder while the judge read is loading', async () => {
+    mockRpc.mockReturnValue(new Promise(() => undefined));
+    renderPage();
+
+    await waitFor(() => expect(mockRpc).toHaveBeenCalled());
+    expect(screen.queryByText(/pat donovan/i)).toBeNull();
+    expect(screen.queryByText(/Judges to be announced/i)).toBeNull();
+  });
+
+  it('shows no placeholder when the judge read fails', async () => {
+    mockRpc.mockResolvedValue({ data: null, error: { message: 'boom' } });
+    renderPage();
+
+    await waitFor(() => expect(mockRpc).toHaveBeenCalled());
+    // Let the failed read settle into the error state before asserting its absence.
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(screen.queryByText(/Judges to be announced/i)).toBeNull();
+  });
 });
 
 describe('Headline placeholder', () => {
@@ -131,7 +150,6 @@ describe('Headline placeholder', () => {
   it('is shown only when the show has no confirmed assignments', async () => {
     mockRpc.mockResolvedValue({ data: [], error: null });
     render(<HeadlineLandingPage show={show} trial={trial1} allTrials={[trial1, trial2]} />);
-    await waitFor(() => expect(mockRpc).toHaveBeenCalled());
-    expect(screen.getByText('Judges to be announced')).toBeTruthy();
+    await waitFor(() => expect(screen.getByText('Judges to be announced')).toBeTruthy());
   });
 });

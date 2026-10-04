@@ -33,6 +33,8 @@ export interface LandingTrial {
   judgeName?: string;
 }
 
+export type LandingJudgesState = 'loading' | 'error' | 'ready';
+
 export interface LandingJudge {
   id: string;
   name: string;
@@ -85,6 +87,8 @@ export interface LandingData<
   venueCity: string | null;
   trials: TTrial[];
   judges: TJudge[];
+  /** `ready` only once the judge read settled: loading and failed reads are not "no judges". */
+  judgesState?: LandingJudgesState;
   entryCount: number | null;
   entryLimit: number | null;
   fees: TFee[];
@@ -189,7 +193,8 @@ export function buildLandingData(
   currentTrial: Trial | null | undefined,
   allTrials: Trial[],
   entryCount: number | null,
-  judgeAssignments: readonly ConfirmedJudgeAssignment[] = []
+  judgeAssignments: readonly ConfirmedJudgeAssignment[] = [],
+  judgesState: LandingJudgesState = 'ready'
 ): LandingData {
   const liveExperience = show ? getLiveExperienceSnapshot(show) : null;
   const supplemental = liveExperience?.supplemental;
@@ -317,6 +322,7 @@ export function buildLandingData(
     venueCity: null,
     trials,
     judges,
+    judgesState,
     entryCount,
     entryLimit,
     fees,

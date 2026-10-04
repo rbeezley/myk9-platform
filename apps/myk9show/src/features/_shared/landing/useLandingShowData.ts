@@ -7,7 +7,7 @@ import { isAccountSession } from '@/hooks/guestServerRead';
 import { fetchShowConfirmedJudgeAssignments } from '@/services/database/_shared/judgeNamesByClass';
 import { fetchPublicEntryCountsByShow } from '@/services/database/_shared/entryCounts';
 import type { Show } from '@/types/show-types';
-import { buildLandingData, type LandingData } from './landingData';
+import { buildLandingData, type LandingData, type LandingJudgesState } from './landingData';
 
 export function useLandingShowData(
   show: Show | null | undefined,
@@ -47,6 +47,12 @@ export function useLandingShowData(
     staleTime: 60_000,
   });
   const judgeAssignments = judgesQuery.data;
+  // Retained data from an earlier success stays `ready` even if a refetch fails.
+  const judgesState: LandingJudgesState = judgeAssignments
+    ? 'ready'
+    : judgesQuery.isError
+      ? 'error'
+      : 'loading';
   const entryCount = useMemo(() => {
     if (authLoading) return null;
     if (isAuthenticatedUser) return entriesQuery.isError ? null : (entriesQuery.data?.length ?? 0);
@@ -62,7 +68,8 @@ export function useLandingShowData(
   ]);
 
   return useMemo(
-    () => buildLandingData(show, currentTrial, allTrials, entryCount, judgeAssignments),
-    [show, currentTrial, allTrials, entryCount, judgeAssignments]
+    () =>
+      buildLandingData(show, currentTrial, allTrials, entryCount, judgeAssignments, judgesState),
+    [show, currentTrial, allTrials, entryCount, judgeAssignments, judgesState]
   );
 }

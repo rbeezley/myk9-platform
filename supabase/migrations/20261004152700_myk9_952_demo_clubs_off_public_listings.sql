@@ -40,8 +40,10 @@
 -- is a LISTING property, not an access-control one: demo shows are not
 -- secret. The two signed-out listing reads apply it:
 --   * postgrestGetPublicShows (Find Shows: list, calendar, map, month strip
---     counts all derive from that one guest query) via an inner club embed
---     filtered on club.is_demo = false;
+--     counts all derive from that one guest query) via its LEFT club embed
+--     filtered on club.is_demo = false plus or=(club_id.is.null,
+--     club.not.is.null), so clubless public shows (club_id is still
+--     nullable) keep listing;
 --   * getPublicDirectoryClubs (guest club directory) via is_demo = false.
 -- Signed-in sessions read the replica (shows_select / clubs_select as today)
 -- and keep seeing the demo shows, so every signed-in E2E flow is unchanged.
@@ -49,7 +51,7 @@
 -- Grants. anon holds table-level SELECT on clubs and authenticated table-level
 -- arwd (live pg_class.relacl, 2026-10-04), with no column-level ACLs on clubs
 -- (pg_attribute.attacl empty), so the new column is readable by both with no
--- GRANT: the inner embed `club:clubs!inner(...)` needs anon to read it. Writes
+-- GRANT: the embed filter `club.is_demo` needs anon to read it. Writes
 -- are fenced by the guard trigger, not by a column REVOKE (a column REVOKE
 -- cannot narrow a table-level UPDATE grant).
 --

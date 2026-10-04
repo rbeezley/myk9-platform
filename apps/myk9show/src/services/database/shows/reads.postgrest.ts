@@ -34,18 +34,19 @@ export async function postgrestGetPublicShows() {
       // entry status in the show's first-trial zone, as `submit_show_entries`
       // does, and without it every guest label fell back to Eastern (MYK9-714).
       //
-      // MYK9-952: the club embed is INNER and filtered on is_demo, so a show a
-      // seed-demo fixture club hosts drops out of the signed-out list (and so
-      // out of its calendar, map and month-strip counts, which all derive from
-      // this one read). A plain embed filter would only null `club` and keep
-      // the show. This is a listing rule, not access control: anon can still
-      // open a demo show by direct link, which the E2E fixtures rely on. Every
-      // public show's club is readable by anon (clubs_select's
-      // club_has_public_show), so the inner join drops nothing else.
-      .select(
-        '*, club:clubs!inner(name, address, email), trials(id, name, date, trial_type, timezone)'
-      )
+      // MYK9-952: a show a seed-demo fixture club hosts drops out of the
+      // signed-out list (and so out of its calendar, map and month-strip
+      // counts, which all derive from this one read). The club embed stays a
+      // LEFT embed, because club_id is still nullable and a clubless public
+      // show must keep listing: the embed filter nulls `club` for a demo club,
+      // and the top-level OR keeps a row whose club_id is null or whose club
+      // survived that filter. Every public show's club is readable by anon
+      // (clubs_select's club_has_public_show), so a real club never nulls out.
+      // A listing rule, not access control: anon still opens a demo show by
+      // direct link, which the E2E fixtures rely on.
+      .select('*, club:clubs(name, address, email), trials(id, name, date, trial_type, timezone)')
       .eq('club.is_demo', false)
+      .or('club_id.is.null,club.not.is.null')
   ).order('start_date', { ascending: true });
 
   if (error) throw createDatabaseError(error, 'show', 'select_public');

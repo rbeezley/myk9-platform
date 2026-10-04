@@ -55,7 +55,8 @@ function serve(rows: unknown[]) {
   const is = vi.fn().mockReturnValue({ order });
   const inFn = vi.fn().mockReturnValue({ is });
   // MYK9-952: the guest read filters demo clubs out before the status filter.
-  const eq = vi.fn().mockReturnValue({ in: inFn });
+  const or = vi.fn().mockReturnValue({ in: inFn });
+  const eq = vi.fn().mockReturnValue({ or });
   mockSelect.mockReturnValue({ eq });
 }
 

@@ -3,9 +3,13 @@
 -- 20261004152700 adds clubs.is_demo and a write guard. The signed-out listings
 -- apply it in their PostgREST reads:
 --   * Find Shows (postgrestGetPublicShows):
---       shows?select=*,club:clubs!inner(...)&club.is_demo=eq.false
+--       shows?select=*,club:clubs(...)&club.is_demo=eq.false
+--       &or=(club_id.is.null,club.not.is.null)
 --       &status=in.(published,upcoming,in_progress,completed)&deleted_at=is.null
---     which PostgREST runs as an inner join on clubs under anon's RLS;
+--     PostgREST runs the club embed as a LEFT join under anon's RLS with the
+--     is_demo filter inside it, so `club` is null for a demo club, and the OR
+--     keeps a row whose club_id is null (clubless shows are still allowed) or
+--     whose club survived the filter;
 --   * the guest club directory (getPublicDirectoryClubs):
 --       clubs?deleted_at=is.null&is_demo=eq.false
 -- This file runs those exact predicates AS anon, so it proves what the
@@ -62,7 +66,11 @@ INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id,
   ('00000000-0000-0000-0000-000000952010', 'MYK9-952 Demo Show', 'AKC',
    current_date + 30, current_date + 31, '00000000-0000-0000-0000-000000952001', 'published'),
   ('00000000-0000-0000-0000-000000952011', 'MYK9-952 Real Show', 'AKC',
-   current_date + 30, current_date + 31, '00000000-0000-0000-0000-000000952002', 'published');
+   current_date + 30, current_date + 31, '00000000-0000-0000-0000-000000952002', 'published'),
+  -- club_id is still nullable and a clubless public show must keep listing
+  -- (null_club_show_authorization_test.sql publishes one too).
+  ('00000000-0000-0000-0000-000000952012', 'MYK9-952 Clubless Show', 'AKC',
+   current_date + 30, current_date + 31, NULL, 'published');
 
 DO $$
 BEGIN
@@ -111,7 +119,8 @@ END;
 $$;
 
 -- ---------------------------------------------------------------------------
--- 1. anon: the Find Shows listing leaves the demo show out, keeps the real one
+-- 1. anon: the Find Shows listing leaves the demo show out, keeps the real
+--    club's show AND the clubless show
 -- ---------------------------------------------------------------------------
 SET LOCAL ROLE anon;
 SELECT set_config('request.jwt.claim.sub', '', true);
@@ -121,22 +130,30 @@ DO $$
 DECLARE
   v_ids uuid[];
 BEGIN
-  SELECT array_agg(s.id ORDER BY s.name) INTO v_ids
+  -- The PostgREST shape: LEFT embed with the flag filter inside it, then the
+  -- top-level OR on club_id / embed presence.
+  SELECT array_agg(s.id ORDER BY s.id) INTO v_ids
     FROM public.shows s
-    JOIN public.clubs c ON c.id = s.club_id
-   WHERE s.id IN ('00000000-0000-0000-0000-000000952010', '00000000-0000-0000-0000-000000952011')
+    LEFT JOIN LATERAL (
+      SELECT c.id FROM public.clubs c
+       WHERE c.id = s.club_id AND c.is_demo = false
+    ) club ON true
+   WHERE s.id IN ('00000000-0000-0000-0000-000000952010',
+                  '00000000-0000-0000-0000-000000952011',
+                  '00000000-0000-0000-0000-000000952012')
      AND s.status IN ('published', 'upcoming', 'in_progress', 'completed')
      AND s.deleted_at IS NULL
-     AND c.is_demo = false;
+     AND (s.club_id IS NULL OR club.id IS NOT NULL);
 
-  IF v_ids IS DISTINCT FROM ARRAY['00000000-0000-0000-0000-000000952011'::uuid] THEN
-    RAISE EXCEPTION 'FAIL anon-find-shows: listing returned %, expected only the real show', v_ids;
+  IF v_ids IS DISTINCT FROM ARRAY['00000000-0000-0000-0000-000000952011'::uuid,
+                                  '00000000-0000-0000-0000-000000952012'::uuid] THEN
+    RAISE EXCEPTION 'FAIL anon-find-shows: listing returned %, expected the real and the clubless show', v_ids;
   END IF;
-  RAISE NOTICE 'PASS anon-find-shows: demo show unlisted, real show listed';
+  RAISE NOTICE 'PASS anon-find-shows: demo show unlisted; real-club and clubless shows listed';
 END;
 $$;
 
--- 1b. The same listing WITHOUT the demo predicate returns both: the exclusion
+-- 1b. Both club-hosted shows join their club for anon without the flag: the exclusion
 -- above is the flag's doing, not RLS hiding the demo club from the join.
 DO $$
 DECLARE

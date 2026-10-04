@@ -39,8 +39,7 @@ const SecretaryClassDashboard = lazy(() =>
 );
 
 // People pages
-const BrowsePeoplePage = lazy(() => import('@/pages/BrowsePeoplePage'));
-const PersonDetailPage = lazy(() => import('@/pages/PersonDetailPage'));
+const PeopleMasterDetailPage = lazy(() => import('@/pages/PeopleMasterDetailPage'));
 
 const RegistrationWizardPage = lazy(() => import('@/pages/RegistrationWizardPage'));
 
@@ -473,31 +472,19 @@ export const SecretaryRoutes = () => (
     />
 
     {/* People — browse and detail, accessible to secretaries and site admins */}
+    {/* One route for both paths so the list stays mounted when the person changes; the page
+        applies PageTransition to the person only. */}
     <Route
-      path="/people"
+      path="/people/:id?"
       element={
         <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
           <SuspenseWrapper>
-            <PageTransition>
-              <BrowsePeoplePage />
-            </PageTransition>
+            <PeopleMasterDetailPage />
           </SuspenseWrapper>
         </ProtectedRoute>
       }
     />
     <Route path="/users" element={<Navigate to="/people" replace />} />
-    <Route
-      path="/people/:id"
-      element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <PersonDetailPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
     <Route path="/users/:id" element={<UserDetailRedirect />} />
 
     {/* Scoring — entry list and individual scoresheet */}

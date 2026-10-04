@@ -48,6 +48,11 @@ export interface ClassEditFormData extends Record<string, unknown> {
   distractionsUsed?: string;
   itemsUsed?: string;
 
+  // Entry limit and wait list (`classes.max_entries` / `classes.allow_waitlist`)
+  /** null = no class limit. */
+  maxEntries?: number | null;
+  allowsWaitlist?: boolean;
+
   // Fee structure
   preEntryFee?: number;
   dayOfShowFee?: number;

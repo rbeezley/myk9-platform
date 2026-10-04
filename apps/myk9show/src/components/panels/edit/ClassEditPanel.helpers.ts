@@ -30,6 +30,8 @@ export const classToFormData = (classItem: Partial<ClassData>): ClassEditFormDat
     hidesUsed: classItem.hidesUsed || '',
     distractionsUsed: classItem.distractionsUsed || '',
     itemsUsed: classItem.itemsUsed || '',
+    maxEntries: classItem.maxEntries ?? null,
+    allowsWaitlist: classItem.allowsWaitlist ?? false,
     preEntryFee: classItem.preEntryFee || 0,
     dayOfShowFee: classItem.dayOfShowFee || 0,
   };
@@ -60,6 +62,8 @@ export const formDataToClass = (formData: ClassEditFormData): Partial<ClassData>
   ...(formData.hidesUsed !== undefined && { hidesUsed: formData.hidesUsed }),
   ...(formData.distractionsUsed !== undefined && { distractionsUsed: formData.distractionsUsed }),
   ...(formData.itemsUsed !== undefined && { itemsUsed: formData.itemsUsed }),
+  ...(formData.maxEntries !== undefined && { maxEntries: formData.maxEntries }),
+  ...(formData.allowsWaitlist !== undefined && { allowsWaitlist: formData.allowsWaitlist }),
   ...(formData.preEntryFee !== undefined && { preEntryFee: formData.preEntryFee }),
   ...(formData.dayOfShowFee !== undefined && { dayOfShowFee: formData.dayOfShowFee }),
 });

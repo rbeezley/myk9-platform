@@ -15,7 +15,7 @@ export function classDataToReplicatedClass(
     element: classData.element,
     section: classData.section,
     entryFee: classData.preEntryFee || classData.entryFee,
-    maxEntries: classData.maxEntries,
+    maxEntries: classData.maxEntries ?? undefined,
     judgeName: classData.judge,
     // The person id behind `judge`. createWizardClasses writes the class-level
     // judge_assignments row from it; the local read shim (mapReplicatedClassToDbRow)

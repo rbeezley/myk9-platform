@@ -184,8 +184,12 @@ export const mapClassInputToUpdate = (updates: Partial<ClassInput>): DbClassUpda
   if (updates.entryFee !== undefined) {
     updateData.entry_fee = updates.entryFee;
   }
+  // null clears the class limit (no class cap); undefined leaves it untouched.
   if (updates.maxEntries !== undefined) {
     updateData.max_entries = updates.maxEntries;
+  }
+  if (updates.allowsWaitlist !== undefined) {
+    updateData.allow_waitlist = updates.allowsWaitlist;
   }
   if (updates.classOrder !== undefined) {
     updateData.start_time = updates.classOrder ? `${updates.classOrder}:00:00` : null;
@@ -262,7 +266,10 @@ export const mapDatabaseToClass = (dbClass: DbClassWithRelations): SyncableClass
 
     // Entry configuration
     entryFee: dbClass.entry_fee ?? 0,
-    maxEntries: dbClass.max_entries ?? 40,
+    // Honest about "no limit": a null column is absent here, never a made-up 40 that the next
+    // save of the class editor would write back as a real limit.
+    maxEntries: dbClass.max_entries ?? undefined,
+    allowsWaitlist: dbClass.allow_waitlist ?? false,
     requiresJumpHeight: Array.isArray(dbClass.jump_heights) && dbClass.jump_heights.length > 0,
 
     // Scent work specific fields (legacy compatibility)

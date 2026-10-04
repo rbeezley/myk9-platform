@@ -31,7 +31,8 @@ export interface ClassInput {
   level?: string | undefined;
   section?: string | undefined;
   entryFee?: number | undefined;
-  maxEntries?: number | undefined;
+  maxEntries?: number | null | undefined;
+  allowsWaitlist?: boolean | undefined;
   requiresJumpHeight?: boolean | undefined;
   customFields?: Record<string, string> | undefined;
   hidesUsed?: string | undefined;

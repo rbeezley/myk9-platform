@@ -2,6 +2,7 @@ import React, { useCallback, useMemo } from 'react';
 import { useEditPanel } from './useEditPanel';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { CurrencyInput } from '@/components/ui/currency-input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -72,6 +73,7 @@ export const ClassEditForm: React.FC<{
   const { shows } = useShowStore();
 
   const preEntryFeeError = form?.getError('preEntryFee');
+  const maxEntriesError = form?.getError('maxEntries');
   const dayOfShowFeeError = form?.getError('dayOfShowFee');
 
   const assignedJudges = useMemo(() => {
@@ -204,6 +206,54 @@ export const ClassEditForm: React.FC<{
                     </SelectContent>
                   </Select>
                 </FormField>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Entry limit and wait list</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <FormField
+                label="Entry limit"
+                fieldId="maxEntries"
+                optional
+                error={maxEntriesError}
+                hint="Blank means no limit for this class. The judge's daily capacity still applies."
+              >
+                <Input
+                  id="maxEntries"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  step={1}
+                  value={data.maxEntries ?? ''}
+                  onChange={e => {
+                    const raw = e.target.value.trim();
+                    form?.setValue('maxEntries', raw === '' ? null : Number(raw));
+                  }}
+                  onBlur={handleBlur('maxEntries')}
+                  placeholder="No limit"
+                  aria-invalid={!!maxEntriesError}
+                />
+              </FormField>
+              <div className="flex items-start gap-3">
+                <Switch
+                  id="allowsWaitlist"
+                  checked={data.allowsWaitlist ?? false}
+                  onCheckedChange={checked => {
+                    form?.setValue('allowsWaitlist', checked);
+                    form?.touchField('allowsWaitlist');
+                  }}
+                />
+                <div className="space-y-1">
+                  <Label htmlFor="allowsWaitlist">Allow wait list</Label>
+                  <p className="text-sm text-muted-foreground">
+                    When this class or the judge's day is full, new entries join the wait list
+                    instead of being turned away. Manage the queue under Entries, then Waitlist.
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>

@@ -2,6 +2,7 @@ import { formatTrialLabel } from '@myk9/core';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { getLiveExperienceSnapshot } from '@/features/experience/experienceSnapshot';
 import { getTrialRegistry, getTrialTimezone } from '@/features/registries';
+import type { ConfirmedJudgeAssignment } from '@/services/database/_shared/judgeNamesByClass';
 import type { Show } from '@/types/show-types';
 import { formatFee } from '@/utils/format';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
@@ -37,6 +38,8 @@ export interface LandingJudge {
   name: string;
   city?: string | null;
   trials: string[];
+  /** Raw trial numbers this judge sits, in trial order (for "TRIALS 01 · 02" chip labels). */
+  trialNumbers?: Array<number | string>;
   elements: string[];
 }
 
@@ -185,7 +188,8 @@ export function buildLandingData(
   show: Show | null | undefined,
   currentTrial: Trial | null | undefined,
   allTrials: Trial[],
-  entryCount: number | null
+  entryCount: number | null,
+  judgeAssignments: readonly ConfirmedJudgeAssignment[] = []
 ): LandingData {
   const liveExperience = show ? getLiveExperienceSnapshot(show) : null;
   const supplemental = liveExperience?.supplemental;
@@ -235,18 +239,39 @@ export function buildLandingData(
 
   // A judge's assignments are keyed by trial ID: trial names are not unique, so
   // de-duplicating by label hid one of two same-named trials (MYK9-704).
-  const judgeMap = new Map<string, Map<string, LandingTrial>>();
+  // MYK9-985: a judge is one person however many trials they sit, so confirmed assignments
+  // collapse by person id; the legacy `trial.judge` string (never populated today) collapses
+  // by name.
+  const judgeMap = new Map<string, { name: string; assigned: Map<string, LandingTrial> }>();
+  const addJudge = (key: string, name: string, trial: LandingTrial | undefined) => {
+    const entry = judgeMap.get(key) ?? { name, assigned: new Map<string, LandingTrial>() };
+    if (trial) entry.assigned.set(trial.id, trial);
+    judgeMap.set(key, entry);
+  };
   for (const trial of trials) {
-    if (!trial.judgeName) continue;
-    const assigned = judgeMap.get(trial.judgeName) ?? new Map<string, LandingTrial>();
-    assigned.set(trial.id, trial);
-    judgeMap.set(trial.judgeName, assigned);
+    if (trial.judgeName) addJudge(`name:${trial.judgeName}`, trial.judgeName, trial);
   }
-  const judges = Array.from(judgeMap.entries()).map<LandingJudge>(([name, assigned], index) => ({
+  const trialsById = new Map(trials.map(trial => [trial.id, trial]));
+  const assignmentsInTrialOrder = [...judgeAssignments].sort(
+    (left, right) =>
+      trials.findIndex(trial => trial.id === left.trialId) -
+      trials.findIndex(trial => trial.id === right.trialId)
+  );
+  for (const assignment of assignmentsInTrialOrder) {
+    const name = `${assignment.firstName ?? ''} ${assignment.lastName ?? ''}`.trim();
+    if (!name) continue;
+    addJudge(
+      `person:${assignment.personId}`,
+      name,
+      assignment.trialId ? trialsById.get(assignment.trialId) : undefined
+    );
+  }
+  const judges = Array.from(judgeMap.values()).map<LandingJudge>(({ name, assigned }, index) => ({
     id: `judge-${index}`,
     name,
     city: null,
     trials: judgeTrialLabels([...assigned.values()]),
+    trialNumbers: [...assigned.values()].map(trial => trial.trialNumber),
     elements: [],
   }));
 

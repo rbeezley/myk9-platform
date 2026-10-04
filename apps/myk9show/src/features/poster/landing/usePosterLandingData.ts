@@ -16,9 +16,7 @@ export function usePosterLandingData(
 
   return useMemo(() => {
     const judges: PosterJudge[] = shared.judges.map(judge => {
-      const trials = shared.trials
-        .filter(trial => trial.judgeName === judge.name)
-        .map(trial => padTrialNumber(trial.trialNumber));
+      const trials = (judge.trialNumbers ?? []).map(n => padTrialNumber(n));
       return {
         id: judge.id,
         name: judge.name,

@@ -381,7 +381,6 @@ export const RoleAssignmentsPanel: React.FC = () => {
           scrollAreaLabel="User role assignments table"
           columns={columns}
           data={visibleAssignments}
-          showSearch={false}
           emptyState={
             <div className="text-center py-8">
               <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />

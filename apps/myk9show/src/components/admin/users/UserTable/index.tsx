@@ -200,7 +200,6 @@ export const UserTable: React.FC<UserTableProps> = ({
             manualSorting
             sorting={sorting}
             onSortingChange={handleSortingChange}
-            showSearch={false}
             scrollAreaLabel="Users table"
           />
         </div>

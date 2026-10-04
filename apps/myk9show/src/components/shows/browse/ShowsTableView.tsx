@@ -166,7 +166,6 @@ export const ShowsTableView: React.FC<ShowsTableViewProps> = ({
       // The page-level ListFilterBar owns search, and ListResultLine owns
       // "select all matching" (list-toolkit, MYK9-798) — the table keeps only
       // its per-row checkboxes.
-      showSearch={false}
       getRowId={show => show.id}
       onRowClick={show => navigate(entryDogLink(`/shows/${show.id}`))}
     />

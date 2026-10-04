@@ -4,7 +4,7 @@ import { DataTable, type ColumnDef } from '../index';
 import { filterByListSearch, matchesListSearch } from '../listSearch';
 
 // MYK9-929 round 2: ONE search predicate, read from the column definitions, shared by every list
-// that moved its search out of DataTable and by DataTable's own built-in search.
+// that moved its search out of DataTable and by DataTable's own global filter.
 
 interface Row {
   id: string;
@@ -107,11 +107,9 @@ describe('matchesListSearch', () => {
   });
 });
 
-describe('DataTable built-in search uses the same predicate', () => {
-  it('finds a row by a displayed label, not only the raw accessor', async () => {
-    const { user } = render(<DataTable tableId="ls" columns={columns} data={rows} />);
-    await user.type(screen.getByPlaceholderText('Search...'), 'Novice A');
-    await new Promise(resolve => setTimeout(resolve, 400));
+describe('DataTable global filter uses the same predicate', () => {
+  it('finds a row by a displayed label, not only the raw accessor', () => {
+    render(<DataTable tableId="ls" columns={columns} data={rows} globalFilter="Novice A" />);
     expect(screen.getByText('Rex')).toBeInTheDocument();
     expect(screen.queryByText('Bella')).not.toBeInTheDocument();
   });

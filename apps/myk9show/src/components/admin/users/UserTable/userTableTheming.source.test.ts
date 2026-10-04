@@ -96,14 +96,8 @@ describe('the table inherits the app font (Montserrat), never SF Pro', () => {
 
 // The page slices rows before handing them to the table, so any control the
 // table owns sees only the current page. Sorting was lifted to the page for
-// exactly this reason; search is switched off for it. The default
-// is `true`, so dropping this prop reintroduces a search box that finds
-// nothing on other pages.
+// exactly this reason. (The table has no search box of its own; the page's ListFilterBar owns it.)
 describe('table-owned controls that would inherit the wrong scope are off', () => {
-  it('the built-in search is disabled', () => {
-    expect(tableSrc).toContain('showSearch={false}');
-  });
-
   it('sorting is delegated to the page rather than done in the table', () => {
     expect(tableSrc).toContain('manualSorting');
     expect(tableSrc).toContain('onSortingChange={handleSortingChange}');

@@ -420,7 +420,6 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
           tableId="trialsTab"
           columns={trialColumns}
           data={tableData}
-          showSearch={false}
           onRowClick={row => navigate(`/shows/${showId}/trials/${row.id}`)}
         />
       )}

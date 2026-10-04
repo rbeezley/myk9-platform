@@ -395,7 +395,6 @@ const PermissionAuditPage: React.FC = () => {
               scrollAreaLabel="Permission audit log table"
               columns={columns}
               data={visibleLogs}
-              showSearch={false}
               initialSorting={[{ id: 'created_at', desc: true }]}
               emptyState={
                 <div className="text-center py-8">

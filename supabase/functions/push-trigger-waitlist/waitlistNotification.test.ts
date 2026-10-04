@@ -88,6 +88,30 @@ describe('offered copy (MYK9-1013)', () => {
   });
 });
 
+// Same fallback as the app (getTrialTimezone) and the in-app offer message, so
+// a trial with no usable timezone shows one deadline everywhere.
+describe('deadline timezone fallback', () => {
+  const deadlineFor = (timezone: string | null) =>
+    buildWaitlistNotificationContent({
+      eventType: 'offered',
+      waitlistEntryId: payload.waitlist_entry_id,
+      recipientName: 'Taylor',
+      dogName: 'Scout',
+      className: 'Novice Interior',
+      showName: 'Summer Scent Trial',
+      expiresAt: '2026-07-15T18:00:00.000Z',
+      timezone,
+      appOrigin: 'https://myk9show.com',
+    }).body;
+
+  it.each([[null], [''], ['America/Nowhere-1']])(
+    'falls back to America/New_York for %j',
+    timezone => {
+      expect(deadlineFor(timezone)).toContain('Jul 15, 2026, 2:00 PM');
+    }
+  );
+});
+
 describe('shouldDeliverWaitlistEvent', () => {
   const activeOffer = {
     eventType: 'reminder' as const,

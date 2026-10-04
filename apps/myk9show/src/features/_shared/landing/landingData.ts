@@ -252,7 +252,19 @@ export function buildLandingData(
     if (trial.judgeName) addJudge(`name:${trial.judgeName}`, trial.judgeName, trial);
   }
   const trialsById = new Map(trials.map(trial => [trial.id, trial]));
-  const assignmentsInTrialOrder = [...judgeAssignments].sort(
+  // Same fallback as the replication mapper (`row.trial_id ?? cls.trial_id`): a class-level
+  // assignment has no trial_id of its own, so its owning trial is the one holding the class.
+  const trialIdByClassId = new Map<string, string>();
+  for (const showTrial of show?.trials ?? []) {
+    for (const classInfo of showTrial.classes ?? []) trialIdByClassId.set(classInfo.id, showTrial.id);
+  }
+  const resolvedAssignments = judgeAssignments.map(assignment => ({
+    ...assignment,
+    trialId:
+      assignment.trialId ??
+      (assignment.classId ? (trialIdByClassId.get(assignment.classId) ?? null) : null),
+  }));
+  const assignmentsInTrialOrder = [...resolvedAssignments].sort(
     (left, right) =>
       trials.findIndex(trial => trial.id === left.trialId) -
       trials.findIndex(trial => trial.id === right.trialId)

@@ -29,6 +29,8 @@ export interface ConfirmedJudgeAssignment {
   firstName: string | null;
   lastName: string | null;
   trialId: string | null;
+  /** Class-level edits (`replaceClassAssignment`) write `class_id` with a null `trial_id`. */
+  classId: string | null;
 }
 
 /**
@@ -48,6 +50,7 @@ export async function fetchShowConfirmedJudgeAssignments(
       firstName: row.first_name ?? null,
       lastName: row.last_name ?? null,
       trialId: row.trial_id ?? null,
+      classId: row.class_id ?? null,
     }));
 }
 

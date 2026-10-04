@@ -213,19 +213,35 @@ describe('buildLandingData', () => {
       ({ id, showId: show.id, trialNumber, trialDate, registryId: 'AKC' }) as unknown as Trial;
     const t1 = plainTrial('t-1', 'Trial 1', '2026-10-31');
     const t2 = plainTrial('t-2', 'Trial 2', '2026-11-01');
-    const pat = { personId: 'p-pat', firstName: 'Pat', lastName: 'Donovan' };
+    const pat = { personId: 'p-pat', firstName: 'Pat', lastName: 'Donovan', classId: null };
 
     it('lists a judge once across trials, with every trial they sit', () => {
       const data = buildLandingData(show, t1, [t1, t2], 0, [
         { ...pat, trialId: 't-2' },
         { ...pat, trialId: 't-1' },
         { ...pat, trialId: 't-1' },
-        { personId: 'p-sam', firstName: 'Sam', lastName: 'Lee', trialId: 't-2' },
+        { personId: 'p-sam', firstName: 'Sam', lastName: 'Lee', trialId: 't-2', classId: null },
       ]);
 
       expect(data.judges.map(judge => judge.name)).toEqual(['Pat Donovan', 'Sam Lee']);
       expect(data.judges[0]?.trials).toEqual(['Trial 1', 'Trial 2']);
       expect(data.judges[0]?.trialNumbers).toEqual(['Trial 1', 'Trial 2']);
+    });
+
+    it('resolves a class-level assignment (null trial_id) to the trial holding the class', () => {
+      const withClasses = {
+        ...show,
+        trials: [
+          { id: 't-1', classes: [{ id: 'c-1' }] },
+          { id: 't-2', classes: [{ id: 'c-2' }] },
+        ],
+      } as unknown as Show;
+      const data = buildLandingData(withClasses, t1, [t1, t2], 0, [
+        { ...pat, trialId: null, classId: 'c-2' },
+      ]);
+
+      expect(data.judges[0]?.trials).toEqual(['Trial 2']);
+      expect(data.judges[0]?.trialNumbers).toEqual(['Trial 2']);
     });
 
     it('has no judges when there are no assignments', () => {

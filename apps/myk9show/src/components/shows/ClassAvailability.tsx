@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { WaitlistFreeNote } from './waitlistFreeCopy';
 import { Users, AlertTriangle, CheckCircle2, Clock, Ticket, Calendar } from 'lucide-react';
 import {
   useClassAvailability,
@@ -134,6 +135,7 @@ function ClassAvailabilityCard({
             </Button>
           )}
         </div>
+        {canJoinWaitlist && onEnterClass && <WaitlistFreeNote className="mt-3" />}
       </CardContent>
     </Card>
   );

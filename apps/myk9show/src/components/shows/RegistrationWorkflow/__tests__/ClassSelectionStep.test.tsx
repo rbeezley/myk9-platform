@@ -392,6 +392,12 @@ describe('ClassSelectionStep — wait list badge (integration)', () => {
       />
     );
     expect(await screen.findByText('Full: join wait list')).toBeInTheDocument();
+    // MYK9-1013: the free-to-join promise sits with the wait-list option.
+    expect(
+      screen.getByText(
+        'Joining the waitlist is free. You only pay if a spot opens and you claim it.'
+      )
+    ).toBeInTheDocument();
   });
 
   it('shows waiting count when waitlistCount > 0', async () => {
@@ -420,6 +426,7 @@ describe('ClassSelectionStep — wait list badge (integration)', () => {
     // Wait for the class chip to appear
     expect(await screen.findByText('Novice A')).toBeInTheDocument();
     expect(screen.queryByText('Full: join wait list')).not.toBeInTheDocument();
+    expect(screen.queryByText(/Joining the waitlist is free/)).not.toBeInTheDocument();
   });
 
   it('marks an omitted class unknown without hiding availability for its neighbor', async () => {

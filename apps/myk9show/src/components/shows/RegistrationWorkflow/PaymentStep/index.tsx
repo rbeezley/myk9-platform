@@ -186,8 +186,9 @@ export const PaymentStep: React.FC<PaymentStepProps> = ({
         <Alert>
           <Info className="h-4 w-4" />
           <AlertDescription>
-            Full classes marked as wait-list requests are not charged now. Payment is due only if a
-            spot is offered later.
+            Good news: joining a wait list is free. You&rsquo;re never charged just for joining, so
+            the wait-list classes in your selection cost nothing today. If a spot opens, we&rsquo;ll
+            let you know, and you pay only if you decide to claim it.
           </AlertDescription>
         </Alert>
       )}

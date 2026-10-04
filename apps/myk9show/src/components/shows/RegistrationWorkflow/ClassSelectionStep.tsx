@@ -56,6 +56,7 @@ import {
 } from './ClassSelectionStep.availability';
 import { buildFullChipReason } from './ClassSelectionStep.fullReason';
 import { useCartToggleGate } from './ClassSelectionStep.cartReady';
+import { WaitlistFreeNote } from '../waitlistFreeCopy';
 import { canManageShowSurface } from '@/utils/roleScopes';
 import { ClosedClassRemovedNotice } from '@/components/cart/ClosedClassRemovedNotice';
 
@@ -516,6 +517,10 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           higher levels only after earning the required qualifications.
         </AlertDescription>
       </Alert>
+
+      {availabilityClasses.some(cls => cls.isFull && cls.allowsWaitlist !== false) && (
+        <WaitlistFreeNote />
+      )}
 
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="flex gap-0 border-0 border-b border-border bg-transparent h-auto p-0 overflow-x-auto">

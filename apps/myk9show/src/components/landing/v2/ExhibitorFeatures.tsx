@@ -1,4 +1,4 @@
-import { Search, Activity, BarChart3 } from 'lucide-react';
+import { Search, Activity, BarChart3, Hourglass } from 'lucide-react';
 import type { ReactNode } from 'react';
 
 interface FeatureCard {
@@ -7,6 +7,7 @@ interface FeatureCard {
   body: string;
   footLeft: string;
   badge: string;
+  wide?: boolean;
 }
 
 const CARDS: FeatureCard[] = [
@@ -43,6 +44,18 @@ const CARDS: FeatureCard[] = [
     footLeft: 'Statistics',
     badge: 'Career history',
   },
+  {
+    icon: <Hourglass width={20} height={20} />,
+    title: (
+      <>
+        Free waitlists. <em>Pay only for a spot.</em>
+      </>
+    ),
+    body: 'Other sites charge you just to wait; we only charge when you get a spot.',
+    footLeft: 'Waitlists',
+    badge: 'Free to join',
+    wide: true,
+  },
 ];
 
 export function ExhibitorFeatures() {
@@ -64,7 +77,10 @@ export function ExhibitorFeatures() {
         </div>
         <div className="l-features-grid">
           {CARDS.map((card, idx) => (
-            <article key={idx} className="l-feature l-exhibitor-tone">
+            <article
+              key={idx}
+              className={`l-feature l-exhibitor-tone${card.wide ? ' l-feature-wide' : ''}`}
+            >
               <span className="l-icon-wrap" aria-hidden="true">
                 {card.icon}
               </span>

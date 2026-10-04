@@ -161,6 +161,7 @@ describe('useWaitlistManagementData — offer notification', () => {
     await act(async () => {
       await result.current.handleOfferSpot();
     });
+    return { result };
   }
 
   // MYK9-1003: the database writes the message (send_waitlist_offer_message),
@@ -181,6 +182,21 @@ describe('useWaitlistManagementData — offer notification', () => {
     );
     // A successful in-app delivery must NOT raise the "couldn't reach" warning.
     expect(vi.mocked(toast.warning)).not.toHaveBeenCalled();
+  });
+
+  it('shows the database refusal when the trial has already taken place', async () => {
+    const message = 'This trial has already taken place, so its wait list spots cannot be offered.';
+    vi.mocked(promoteWaitlistEntry).mockRejectedValue(
+      Object.assign(new Error(message), { code: '22023' })
+    );
+    const { result } = await offer();
+    expect(result.current.error).toBe(message);
+  });
+
+  it('keeps the generic message for any other offer failure', async () => {
+    vi.mocked(promoteWaitlistEntry).mockRejectedValue(new Error('db down'));
+    const { result } = await offer();
+    expect(result.current.error).toBe('Failed to offer spot. Please try again.');
   });
 
   it('does not message when the offer mutation fails', async () => {

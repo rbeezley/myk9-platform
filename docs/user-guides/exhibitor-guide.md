@@ -113,6 +113,10 @@ Your dog now appears in your list and is ready to enter shows.
 
 **Entered the wrong class?** If the entry window is still open, you can edit your entry from the **My Shows** page (see Section 5). After the entry deadline, use **Message the show team** on your entry card to contact the secretary.
 
+### Waitlists are free
+
+If a class is full and the show allows a waitlist, you can join it at no cost. You're never charged just for joining a waitlist. If a spot opens, you'll get an email and a push notification, and you pay only if you decide to claim the spot, before the deadline shown in the message. If you don't claim it, nothing is charged and the offer moves to the next dog.
+
 ---
 
 ## Section 5 — Track Your Entry

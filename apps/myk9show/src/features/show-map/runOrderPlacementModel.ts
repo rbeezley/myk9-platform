@@ -101,11 +101,23 @@ export function movePlacement(
   const reordered = [...open];
   reordered.splice(open.indexOf(moving), 1);
   reordered.splice(open.indexOf(target), 0, moving);
+  return assignOpenSlots(slots, reordered);
+}
 
+/**
+ * Pour `openOrder` (every unpinned dog, in the new order) into the unpinned
+ * slots; pinned dogs hold their slot. Returns only the dogs whose run_order
+ * changes. Shared by hand placement and the Armband/Random presets so both
+ * write the same way.
+ */
+export function assignOpenSlots(
+  slots: readonly PlacementSlot[],
+  openOrder: readonly PlacementSlot[]
+): PlacementMove[] {
   let cursor = 0;
   const changes: PlacementMove[] = [];
   slots.forEach((slot, index) => {
-    const id = slot.pinned ? slot.id : reordered[cursor++]!.id;
+    const id = slot.pinned ? slot.id : openOrder[cursor++]!.id;
     const runOrder = index + 1;
     const prior = slots.find(candidate => candidate.id === id)!.runOrder;
     if (prior !== runOrder) changes.push({ id, runOrder, priorRunOrder: prior });

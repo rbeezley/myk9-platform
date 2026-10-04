@@ -1,168 +1,141 @@
 import { describe, expect, it } from 'vitest';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
-import {
-  computeShowMapAutoSortAssignments,
-  isPinnedRunOrderEntry,
-  snapshotPriorRunOrders,
-} from '../showMapRunOrderAutoSort';
+import { buildClassPlacement } from '../showMapHandPlacement';
+import { planPresetPlacement } from '../showMapRunOrderAutoSort';
 
 function entry(overrides: Partial<ReplicatedEntry>): ReplicatedEntry {
-  return {
-    id: overrides.id ?? 'entry-x',
-    armband: overrides.armband,
-    runOrder: overrides.runOrder,
-    isScored: overrides.isScored,
-    is_scored: overrides.is_scored,
-    checkInStatus: overrides.checkInStatus,
-    ring_entry_time: overrides.ring_entry_time,
-    scoringCompletedAt: overrides.scoringCompletedAt,
-    scoring_completed_at: overrides.scoring_completed_at,
-    ...overrides,
-  } as ReplicatedEntry;
+  return { id: 'entry-x', ...overrides } as ReplicatedEntry;
 }
 
-describe('isPinnedRunOrderEntry', () => {
-  it('pins entries with isScored = true', () => {
-    expect(isPinnedRunOrderEntry(entry({ id: 'a', isScored: true }))).toBe(true);
-  });
+const slotsFor = (entries: ReplicatedEntry[]) => buildClassPlacement(entries, []).slots;
+const plan = (entries: ReplicatedEntry[], kind: Parameters<typeof planPresetPlacement>[1]) =>
+  planPresetPlacement(slotsFor(entries), kind).map(({ id, runOrder }) => ({ id, runOrder }));
 
-  it('pins entries with snake_case is_scored = true', () => {
-    expect(isPinnedRunOrderEntry(entry({ id: 'a', is_scored: true }))).toBe(true);
-  });
-
-  it('pins entries currently in the ring (check_in_status = in-ring)', () => {
-    expect(isPinnedRunOrderEntry(entry({ id: 'a', checkInStatus: 'in-ring' }))).toBe(true);
-  });
-
-  it('pins entries with a ring_entry_time even when status is unset', () => {
-    expect(isPinnedRunOrderEntry(entry({ id: 'a', ring_entry_time: '2026-05-22T10:00:00Z' }))).toBe(
-      true
-    );
-  });
-
-  it('pins entries with completed check-in status', () => {
-    expect(isPinnedRunOrderEntry(entry({ id: 'a', checkInStatus: 'completed' }))).toBe(true);
-  });
-
-  it('pins entries with a scoring_completed_at timestamp', () => {
-    expect(
-      isPinnedRunOrderEntry(entry({ id: 'a', scoring_completed_at: '2026-05-22T10:00:00Z' }))
-    ).toBe(true);
-  });
-
-  it('does not pin a plain pending entry', () => {
-    expect(
-      isPinnedRunOrderEntry(entry({ id: 'a', armband: '100', checkInStatus: 'checked-in' }))
-    ).toBe(false);
-  });
-});
-
-describe('computeShowMapAutoSortAssignments', () => {
-  const baseEntries = [
+describe('planPresetPlacement', () => {
+  const base = [
     entry({ id: 'a', armband: '30', runOrder: 1 }),
     entry({ id: 'b', armband: '10', runOrder: 2 }),
     entry({ id: 'c', armband: '20', runOrder: 3 }),
   ];
 
-  it('returns empty array when there are no entries', () => {
-    expect(computeShowMapAutoSortAssignments([], 'armband-asc')).toEqual([]);
+  it('plans nothing for an empty class', () => {
+    expect(plan([], 'armband-asc')).toEqual([]);
   });
 
-  it('sorts unpinned entries ascending by armband and renumbers 1..N', () => {
-    const result = computeShowMapAutoSortAssignments(baseEntries, 'armband-asc');
-    // Expected sequence by armband ascending: b(10), c(20), a(30) -> runOrder 1,2,3
-    expect(result).toEqual([
+  it('sorts ascending by armband', () => {
+    expect(plan(base, 'armband-asc')).toEqual([
       { id: 'b', runOrder: 1 },
       { id: 'c', runOrder: 2 },
       { id: 'a', runOrder: 3 },
     ]);
   });
 
-  it('sorts unpinned entries descending by armband', () => {
-    const result = computeShowMapAutoSortAssignments(baseEntries, 'armband-desc');
-    expect(result).toEqual([
-      { id: 'a', runOrder: 1 },
+  it('sorts descending by armband, writing only dogs that move', () => {
+    expect(plan(base, 'armband-desc')).toEqual([
       { id: 'c', runOrder: 2 },
       { id: 'b', runOrder: 3 },
     ]);
   });
 
-  it('keeps pinned (scored) entries in their original slot and sorts the rest around them', () => {
+  it('writes nothing when the order is already right', () => {
+    const sorted = [
+      entry({ id: 'b', armband: '10', runOrder: 1 }),
+      entry({ id: 'c', armband: '20', runOrder: 2 }),
+    ];
+    expect(plan(sorted, 'armband-asc')).toEqual([]);
+  });
+
+  it('keeps a pinned dog in its slot and sorts the rest around it', () => {
     const entries = [
       entry({ id: 'a', armband: '30', runOrder: 1 }),
-      entry({ id: 'b', armband: '10', runOrder: 2, isScored: true }), // pinned at slot 2
+      entry({ id: 'b', armband: '10', runOrder: 2, isScored: true }),
       entry({ id: 'c', armband: '20', runOrder: 3 }),
       entry({ id: 'd', armband: '5', runOrder: 4 }),
     ];
-    const result = computeShowMapAutoSortAssignments(entries, 'armband-asc');
-    // Unpinned by armband asc: d(5), c(20), a(30)
-    // Slot 1 unpinned → d; slot 2 PINNED b; slot 3 unpinned → c; slot 4 unpinned → a
-    expect(result).toEqual([
+    expect(plan(entries, 'armband-asc')).toEqual([
       { id: 'd', runOrder: 1 },
-      { id: 'b', runOrder: 2 },
-      { id: 'c', runOrder: 3 },
       { id: 'a', runOrder: 4 },
     ]);
   });
 
-  it('pins the in-ring dog so a re-sort does not move it', () => {
+  it('treats a missing run_order as last', () => {
     const entries = [
-      entry({ id: 'a', armband: '30', runOrder: 1 }),
-      entry({ id: 'b', armband: '10', runOrder: 2, checkInStatus: 'in-ring' }), // pinned
-      entry({ id: 'c', armband: '20', runOrder: 3 }),
+      entry({ id: 'a', armband: '30' }),
+      entry({ id: 'b', armband: '10', runOrder: 1 }),
+      entry({ id: 'c', armband: '20', runOrder: 2 }),
     ];
-    const result = computeShowMapAutoSortAssignments(entries, 'armband-asc');
-    // Unpinned by armband asc: c(20), a(30). Slot 2 stays b.
-    expect(result).toEqual([
-      { id: 'c', runOrder: 1 },
-      { id: 'b', runOrder: 2 },
-      { id: 'a', runOrder: 3 },
-    ]);
+    expect(plan(entries, 'armband-asc')).toEqual([{ id: 'a', runOrder: 3 }]);
   });
 
-  it('produces a permutation for random preset (not a deterministic sort)', () => {
+  it('random produces a permutation of the open dogs into the open slots', () => {
     const entries = Array.from({ length: 10 }, (_, i) =>
       entry({ id: `e${i}`, armband: String(i), runOrder: i + 1 })
     );
-    const result = computeShowMapAutoSortAssignments(entries, 'random');
-    expect(result).toHaveLength(10);
-    // Every entry id appears exactly once
-    const ids = result.map(r => r.id).sort();
-    expect(ids).toEqual(entries.map(e => e.id).sort());
-    // Run order values are 1..10
-    const orders = result.map(r => r.runOrder).sort((a, b) => a - b);
-    expect(orders).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+    const moved = plan(entries, 'random');
+    const ids = moved.map(m => m.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    for (const m of moved) expect(m.runOrder).toBeGreaterThanOrEqual(1);
+    for (const m of moved) expect(m.runOrder).toBeLessThanOrEqual(10);
   });
 
-  it('returns 1..N renumbering when every entry is pinned', () => {
+  it('plans nothing when every dog is pinned', () => {
     const entries = [
       entry({ id: 'a', armband: '30', runOrder: 1, isScored: true }),
       entry({ id: 'b', armband: '10', runOrder: 2, isScored: true }),
     ];
-    const result = computeShowMapAutoSortAssignments(entries, 'armband-asc');
-    expect(result).toEqual([
-      { id: 'a', runOrder: 1 },
-      { id: 'b', runOrder: 2 },
-    ]);
-  });
-
-  it('treats missing run_order as last in the ordering pass', () => {
-    const entries = [
-      entry({ id: 'a', armband: '30', runOrder: undefined }),
-      entry({ id: 'b', armband: '10', runOrder: 1 }),
-      entry({ id: 'c', armband: '20', runOrder: 2 }),
-    ];
-    const result = computeShowMapAutoSortAssignments(entries, 'armband-asc');
-    expect(result.map(r => r.id)).toEqual(['b', 'c', 'a']);
+    expect(plan(entries, 'armband-asc')).toEqual([]);
   });
 });
 
-describe('snapshotPriorRunOrders', () => {
-  it('captures id + runOrder for every entry, null when missing', () => {
-    const entries = [entry({ id: 'a', runOrder: 5 }), entry({ id: 'b', runOrder: undefined })];
-    expect(snapshotPriorRunOrders(entries)).toEqual([
-      { id: 'a', runOrder: 5 },
-      { id: 'b', runOrder: null },
+// Parity with hand placement (MYK9-990): the preset trusts the placement
+// model's pins, so every pin signal the model knows must also hold the dog still
+// under a preset. One signal per row, none of them anything else.
+const PIN_SIGNALS: Array<[string, Partial<ReplicatedEntry>]> = [
+  ['isScored', { isScored: true }],
+  ['is_scored', { is_scored: true }],
+  ['scoringCompletedAt', { scoringCompletedAt: '2026-10-04T10:00:00Z' }],
+  ['scoring_completed_at', { scoring_completed_at: '2026-10-04T10:00:00Z' }],
+  ['checkInStatus completed', { checkInStatus: 'completed' }],
+  ['check_in_status completed', { check_in_status: 'completed' }],
+  ['checkInStatus in-ring', { checkInStatus: 'in-ring' }],
+  ['check_in_status in-ring', { check_in_status: 'in-ring' }],
+  ['isInRing', { isInRing: true }],
+  ['is_in_ring', { is_in_ring: true }],
+  ['ring_entry_time', { ring_entry_time: '2026-10-04T10:00:00Z' }],
+] as Array<[string, Partial<ReplicatedEntry>]>;
+
+describe.each(PIN_SIGNALS)('pin signal: %s', (_name, signal) => {
+  const entries = [
+    entry({ id: 'a', armband: '30', runOrder: 1 }),
+    entry({ id: 'p', armband: '10', runOrder: 2, ...signal }),
+    entry({ id: 'c', armband: '20', runOrder: 3 }),
+    entry({ id: 'd', armband: '5', runOrder: 4 }),
+  ];
+
+  it('the placement model pins the dog', () => {
+    expect(slotsFor(entries).find(s => s.id === 'p')?.pinned).toBeTruthy();
+  });
+
+  it.each(['armband-asc', 'armband-desc'] as const)('%s leaves it in its slot', kind => {
+    const slots = slotsFor(entries);
+    const changes = planPresetPlacement(slots, kind);
+    expect(changes.map(c => c.id)).not.toContain('p');
+    // Every move targets an open slot: none lands on the pinned dog's slot.
+    const pinnedPosition = slots.find(s => s.id === 'p')!.position;
+    expect(changes.map(c => c.runOrder)).not.toContain(pinnedPosition);
+  });
+});
+
+describe('rows off the run list', () => {
+  it('are neither moved nor written by a preset', () => {
+    const entries = [
+      entry({ id: 'a', armband: '30', runOrder: 1 }),
+      entry({ id: 'w', armband: '10', runOrder: 2, entryStatus: 'withdrawn' }),
+      entry({ id: 'c', armband: '20', runOrder: 3 }),
+    ];
+    expect(plan(entries, 'armband-asc')).toEqual([
+      { id: 'c', runOrder: 1 },
+      { id: 'a', runOrder: 2 },
     ]);
   });
 });

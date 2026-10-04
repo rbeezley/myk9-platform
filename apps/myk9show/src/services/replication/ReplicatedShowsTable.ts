@@ -21,6 +21,7 @@ import {
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { supabase } from '@/services/database/supabaseClient';
+import { requireShowClubId } from '@/services/database/shows/requireShowClub';
 import { getLiveShowCount } from './liveShowCount';
 import { verifyShowsGone } from './showScopeProof';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
@@ -85,6 +86,9 @@ export interface ReplicatedShow {
   _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict' | undefined;
   _localOnly?: boolean | undefined;
 }
+
+/** A new show: no id yet, and a club is required (MYK9-1008). */
+export type ReplicatedShowCreateInput = Omit<ReplicatedShow, 'id' | 'clubId'> & { clubId: string };
 
 export { rowToShow };
 
@@ -415,11 +419,17 @@ export class ReplicatedShowsTable extends ReplicatedTable<ReplicatedShow> {
   /**
    * Create a new show locally (queued for sync)
    * The mutation ID is available via `lastMutationId` for dependency tracking.
+   *
+   * MYK9-1008: a club is required. shows.club_id is NOT NULL, and a clubless
+   * INSERT queued offline would only fail when it synced, so it is refused here,
+   * before anything is written.
    */
-  async createShow(show: Omit<ReplicatedShow, 'id'>): Promise<ReplicatedShow> {
+  async createShow(show: ReplicatedShowCreateInput): Promise<ReplicatedShow> {
+    const clubId = requireShowClubId(show.clubId);
     const id = crypto.randomUUID();
     const newShow: ReplicatedShow = {
       ...withTypedDays(show),
+      clubId,
       id,
       _version: 1,
       _lastModified: new Date(),

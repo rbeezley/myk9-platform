@@ -160,7 +160,15 @@ describe('entry accounting — one rule across the whole status grid (MYK9-645)'
     const mismatches = GRID.filter(({ row }) => {
       const queued = pendingReplicatedByRunOrder([row]).length === 1;
       const inRing = inRingReplicated([row]) !== null;
-      return queued || inRing ? !isRunnableEntry(row) : isRunnableEntry(row);
+      // MYK9-996: the QUEUE is stricter than `isRunnableEntry` in exactly one
+      // place. A dog marked 'completed' (check-in, or lifecycle with no check-in) has run, so it holds no
+      // place in line even though the accounting (which mirrors the server's
+      // is_scored-based `complete` predicate) still lists it as pending.
+      const hasRunAtGate =
+        (row.checkInStatus ?? row.check_in_status ?? row.entryStatus ?? row.entry_status) ===
+        'completed';
+      const shouldQueue = isRunnableEntry(row) && !hasRunAtGate;
+      return queued || inRing ? !shouldQueue : shouldQueue;
     }).map(c => c.label);
     expect(mismatches).toEqual([]);
   });

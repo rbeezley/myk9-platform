@@ -1,6 +1,7 @@
 import { Star, CheckCircle2, XCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Chip } from '@/components/base/Chip';
+import { formatRunQueueState } from '@myk9/ringside/run-queue';
 import { PlacementPill } from '@/components/base/PlacementPill';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import { useMyEntriesInClass, type MyClassEntry } from './useMyEntriesInClass';
@@ -47,14 +48,16 @@ function YourDogsInClass({ entries }: { entries: MyClassEntry[] }) {
 }
 
 function BeforeEntryRow({ entry }: { entry: MyClassEntry }) {
-  const isNextUp = entry.dogsAhead === 0 && entry.runOrder > 0;
-  const estimatedMinutes = entry.dogsAhead * 3;
+  // MYK9-992: the stored run number is internal, and this page holds only the
+  // exhibitor's own dogs, so it cannot count a place in line. It shows the
+  // dog's state; nothing at all until the secretary has set an order.
+  const queue = entry.queue;
 
   return (
     <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
-      {entry.runOrder > 0 && (
-        <span className="shrink-0 h-10 w-10 rounded-lg bg-primary text-primary-foreground flex items-center justify-center font-mono text-sm font-bold">
-          #{entry.position}
+      {queue && (
+        <span className="shrink-0 min-w-[3.25rem] rounded-lg bg-primary px-2 py-1.5 text-center text-xs font-bold text-primary-foreground">
+          {formatRunQueueState(queue)}
         </span>
       )}
 
@@ -73,19 +76,6 @@ function BeforeEntryRow({ entry }: { entry: MyClassEntry }) {
           </p>
         )}
       </div>
-
-      {isNextUp ? (
-        <Chip color="red" size="md">
-          You&rsquo;re up next!
-        </Chip>
-      ) : entry.dogsAhead > 0 ? (
-        <div className="text-right shrink-0">
-          <p className="text-sm font-bold text-primary">~{estimatedMinutes} min</p>
-          <p className="text-xs text-muted-foreground">
-            {entry.dogsAhead} {entry.dogsAhead === 1 ? 'dog' : 'dogs'} ahead
-          </p>
-        </div>
-      ) : null}
     </div>
   );
 }

@@ -51,6 +51,18 @@ describe('pendingByRunOrder', () => {
     expect(pending.map(p => p.entryId)).toEqual(['low', 'high']);
   });
 
+  it('skips a dog staff marked completed without a score (MYK9-996)', () => {
+    const pending = pendingByRunOrder([
+      row({ id: 'ran', run_order: 2, check_in_status: 'completed', is_scored: false }),
+      row({ id: 'a', run_order: 9 }),
+      row({ id: 'b', run_order: 31 }),
+    ]);
+    expect(pending.map(p => [p.entryId, p.dogsAhead])).toEqual([
+      ['a', 0],
+      ['b', 1],
+    ]);
+  });
+
   it('EXCLUDES the in-ring dog so the next dog reads "You\'re next" (INTENT)', () => {
     const pending = pendingByRunOrder([
       row({ id: 'running', run_order: 1, check_in_status: 'in-ring' }),

@@ -121,90 +121,118 @@ describe('useMyEntriesInClass', () => {
     expect(result.current.myEntries[0].result?.placement).toBe(1);
   });
 
-  it('computes dogsAhead from unscored entries with lower runOrder', () => {
-    const otherEntry1 = makeEntry({
-      id: 'oe1',
-      dogId: 'dog-x',
-      registrationData: {
-        armband: '99',
-        runOrder: 1,
-        handler: 'x',
-        submittedAt: '',
-        entryFee: 0,
-        paymentStatus: 'paid',
-      },
+  // MYK9-992: stored run numbers start above 1 and have gaps once dogs finish
+  // or a class is re-placed. The exhibitor sees place in line, never the number.
+  function classWithGaps() {
+    const reg = (armband: string, runOrder: number) => ({
+      armband,
+      runOrder,
+      handler: 'x',
+      submittedAt: '',
+      entryFee: 0,
+      paymentStatus: 'paid',
     });
-    const otherEntry2 = makeEntry({
-      id: 'oe2',
-      dogId: 'dog-x',
-      registrationData: {
-        armband: '100',
-        runOrder: 3,
-        handler: 'x',
-        submittedAt: '',
-        entryFee: 0,
-        paymentStatus: 'paid',
-      },
-    });
-    // My dog has runOrder 2; entry oe1 (runOrder 1) is ahead; oe2 is behind
-    const myEntry = makeEntry({
-      registrationData: {
-        armband: '101',
-        runOrder: 2,
-        handler: 'Sarah',
-        submittedAt: '',
-        entryFee: 0,
-        paymentStatus: 'paid',
-      },
-    });
-    setMocks({ entries: [myEntry, otherEntry1, otherEntry2] });
+    return [
+      makeEntry({
+        id: 'finished',
+        dogId: 'dog-x',
+        registrationData: reg('90', 2),
+        competitionData: { qualified: true, recordedBy: 'j', recordedAt: '' },
+        status: 'completed',
+      }),
+      makeEntry({
+        id: 'ring',
+        dogId: 'dog-x',
+        registrationData: reg('91', 7),
+        checkInStatus: 'in-ring',
+      }),
+      makeEntry({
+        id: 'pulled',
+        dogId: 'dog-x',
+        registrationData: reg('92', 8),
+        checkInStatus: 'pulled',
+      }),
+      makeEntry({ id: 'first', dogId: 'dog-x', registrationData: reg('93', 9) }),
+      makeEntry({ id: 'mine', registrationData: reg('101', 31) }),
+    ];
+  }
+
+  it('never counts a place from the rows it holds, whatever the stored numbers say', () => {
+    setMocks({ entries: classWithGaps() });
     const { result } = renderHook(() => useMyEntriesInClass(CLASS_ID));
-    expect(result.current.myEntries[0].dogsAhead).toBe(1);
+    expect(result.current.myEntries[0].queue).toEqual({ kind: 'waiting-unknown' });
+    setMocks({ entries: classWithGaps().filter(e => e.id !== 'first') });
+    const lone = renderHook(() => useMyEntriesInClass(CLASS_ID));
+    expect(lone.result.current.myEntries[0].queue).toEqual({ kind: 'waiting-unknown' });
   });
 
-  it('dogsAhead is 0 when no unscored entries ahead', () => {
-    const myEntry = makeEntry({
+  it('reports no order state when the run order is unset, but keeps in-ring', () => {
+    const unset = makeEntry({
       registrationData: {
         armband: '101',
-        runOrder: 1,
-        handler: 'Sarah',
-        submittedAt: '',
-        entryFee: 0,
-        paymentStatus: 'paid',
-      },
-    });
-    setMocks({ entries: [myEntry] });
-    const { result } = renderHook(() => useMyEntriesInClass(CLASS_ID));
-    expect(result.current.myEntries[0].dogsAhead).toBe(0);
-  });
-
-  it('position is 1-based index in sorted run order', () => {
-    const otherEntry = makeEntry({
-      id: 'oe1',
-      dogId: 'dog-x',
-      registrationData: {
-        armband: '99',
-        runOrder: 1,
+        runOrder: 0,
         handler: 'x',
         submittedAt: '',
         entryFee: 0,
         paymentStatus: 'paid',
       },
     });
-    const myEntry = makeEntry({
-      registrationData: {
-        armband: '101',
-        runOrder: 2,
-        handler: 'Sarah',
-        submittedAt: '',
-        entryFee: 0,
-        paymentStatus: 'paid',
-      },
+    setMocks({ entries: [unset] });
+    const first = renderHook(() => useMyEntriesInClass(CLASS_ID));
+    expect(first.result.current.myEntries[0].queue).toBeNull();
+    setMocks({ entries: [{ ...unset, checkInStatus: 'in-ring' }] });
+    const ring = renderHook(() => useMyEntriesInClass(CLASS_ID));
+    expect(ring.result.current.myEntries[0].queue).toEqual({ kind: 'in-ring' });
+  });
+
+  it('orders my dogs by stored run order and puts an unset run order last', () => {
+    const reg = (runOrder: number) => ({
+      armband: '1',
+      runOrder,
+      handler: 'x',
+      submittedAt: '',
+      entryFee: 0,
+      paymentStatus: 'paid',
     });
-    setMocks({ entries: [myEntry, otherEntry] });
+    setMocks({
+      entries: [
+        makeEntry({ id: 'unset', dogId: 'dog-a', registrationData: reg(0) }),
+        makeEntry({ id: 'late', dogId: 'dog-b', registrationData: reg(31) }),
+        makeEntry({ id: 'early', dogId: 'dog-c', registrationData: reg(12) }),
+      ],
+      dogs: [makeDog({ id: 'dog-a' }), makeDog({ id: 'dog-b' }), makeDog({ id: 'dog-c' })],
+    });
     const { result } = renderHook(() => useMyEntriesInClass(CLASS_ID));
-    // My dog is at run order 2 → 2nd position (1-based)
-    expect(result.current.myEntries[0].position).toBe(2);
+    expect(result.current.myEntries.map(e => e.entryId)).toEqual(['early', 'late', 'unset']);
+  });
+
+  it('reads a staff-completed dog as Done even with no score and a confirmed lifecycle', () => {
+    setMocks({ entries: [makeEntry({ status: 'confirmed', checkInStatus: 'completed' })] });
+    const { result } = renderHook(() => useMyEntriesInClass(CLASS_ID));
+    expect(result.current.myEntries[0].queue).toEqual({ kind: 'done' });
+  });
+
+  it('keeps withdrawn and pulled apart: a withdrawn entry is Withdrawn, not Pulled', () => {
+    setMocks({ entries: [makeEntry({ status: 'withdrawn' })] });
+    const withdrawn = renderHook(() => useMyEntriesInClass(CLASS_ID));
+    expect(withdrawn.result.current.myEntries[0].queue).toEqual({ kind: 'withdrawn' });
+    setMocks({ entries: [makeEntry({ status: 'scratched' })] });
+    const pull = renderHook(() => useMyEntriesInClass(CLASS_ID));
+    expect(pull.result.current.myEntries[0].queue).toEqual({ kind: 'pulled' });
+  });
+
+  it('reports the state, not a place, for my dog when it is in the ring, done or pulled', () => {
+    const rows = classWithGaps();
+    const states = (id: string) => {
+      setMocks({
+        entries: rows.map(e => (e.id === id ? { ...e, dogId: DOG_ID } : e)),
+      });
+      const { result } = renderHook(() => useMyEntriesInClass(CLASS_ID));
+      return result.current.myEntries.find(e => e.entryId === id)?.queue;
+    };
+    expect(states('ring')).toEqual({ kind: 'in-ring' });
+    expect(states('finished')).toEqual({ kind: 'done' });
+    expect(states('pulled')).toEqual({ kind: 'pulled' });
   });
 
   it('sources released results over a stale replication store', () => {

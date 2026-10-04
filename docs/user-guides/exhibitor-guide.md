@@ -151,6 +151,8 @@ Once the secretary publishes the run order, a **View run order** button appears 
 
 The run order shows dog names, handler names, and armband numbers. **Armband numbers** are assigned by the secretary and may not appear until close to show day.
 
+Once the secretary has set the order, your dog shows **Waiting**. When it is running or has finished, it shows **In ring** or **Done**. The app does not count dogs ahead of you; watch the ring and the Message Center for your turn.
+
 **Ring assignments** are communicated by the secretary directly — they're not tracked in the app.
 
 **Don't see the button?** The run order hasn't been published yet. Watch for an announcement in the Message Center.
@@ -220,7 +222,7 @@ The class then reads **withdrawn** or **pulled** on your card. A dog pulled from
 
 Neither act moves money on its own. Refund terms are in the show's entry agreement.
 
-Any refund returns the entry fee only. The service fee you paid at checkout is not refunded, including when a class is full or the show is cancelled.
+Any refund returns the entry fee only. The service fee you paid at checkout is not refunded, including when a class is full or the show is cancelled. The one exception is a payment that bought nothing at all, such as a checkout completed after the cart was abandoned: that payment is refunded in full, service fee included.
 
 ---
 

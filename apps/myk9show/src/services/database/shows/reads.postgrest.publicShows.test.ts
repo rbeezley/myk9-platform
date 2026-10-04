@@ -44,19 +44,17 @@ describe('postgrestGetPublicShows', () => {
   });
 
   // MYK9-952: seed-demo fixture shows stay published for the E2E specs, so the
-  // signed-out list must leave out every show a demo club hosts, and ONLY those.
-  // The club embed stays a LEFT embed: an inner one would also drop every
-  // public show with no club (club_id is still nullable). The embed filter nulls
-  // `club` for a demo club; the top-level OR then keeps a row whose club_id is
-  // null or whose (non-demo) club survived the filter.
-  it('leaves out shows hosted by a demo club, and only those (MYK9-952)', async () => {
+  // signed-out list must leave out every show a demo club hosts. The club embed
+  // is !inner, so the embed filter drops the row rather than nulling `club`.
+  // MYK9-1008 made shows.club_id NOT NULL, so no clubless show needs the OR
+  // branch the LEFT embed once required.
+  it('leaves out shows hosted by a demo club (MYK9-952)', async () => {
     await postgrestGetPublicShows();
 
     const select = mockSelect.mock.calls[0]?.[0] as string;
-    expect(select).toMatch(/club:clubs\s*\(/);
-    expect(select).not.toContain('!inner');
+    expect(select).toMatch(/club:clubs!inner\s*\(/);
     expect(mockEq).toHaveBeenCalledWith('club.is_demo', false);
-    expect(mockOr).toHaveBeenCalledWith('club_id.is.null,club.not.is.null');
+    expect(mockOr).not.toHaveBeenCalled();
   });
 
   it('embeds trials so the discipline filter has a source', async () => {

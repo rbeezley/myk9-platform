@@ -180,12 +180,16 @@ export {
   armbandSortKey,
   compareByRunOrder,
   findInRingEntry,
+  formatPlaceInLine,
+  formatRunQueueState,
   isInQueue,
   isInRingEntry,
   nextPendingCandidates,
   pendingByRunOrder,
+  placeInLine,
+  runQueueStateOf,
 } from './pages/EntryList';
-export type { RunQueueEntry } from './pages/EntryList';
+export type { RunQueueEntry, RunQueueState } from './pages/EntryList';
 
 // Quick-advance ranking (MYK9-83) — the post-save "up next" chips and the
 // pending-tab gate bubble share this one gate-aware layer over the run queue.

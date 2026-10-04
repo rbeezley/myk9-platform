@@ -5,6 +5,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import { validateRefund } from '../_shared/refundValidation.ts';
 import {
   buildEntryRefundStamp,
+  entryRefundMetadata,
   findReusableRefund,
   refundAttemptCount,
 } from '../_shared/refundReuse.ts';
@@ -299,7 +300,7 @@ Deno.serve(async req => {
           {
             payment_intent: entry.stripe_payment_intent_id!,
             amount: validation.amountCents,
-            metadata: { entry_id },
+            metadata: entryRefundMetadata(entry_id),
           },
           // Attempt count for THIS entry only: an intent-wide count would let a
           // sibling entry's refund shift the key between two concurrent

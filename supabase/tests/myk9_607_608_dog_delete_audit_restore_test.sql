@@ -61,9 +61,13 @@ SELECT '00000000-0000-0000-0000-000000607012', '00000000-0000-0000-0000-00000060
 FROM public.roles r
 WHERE r.name = 'site_admin';
 
-INSERT INTO public.shows (id, name, organization, start_date, end_date, status)
+-- MYK9-1008: every show belongs to a club (shows.club_id NOT NULL); each
+-- fixture show gets its own fixture club, reusing the show's id.
+INSERT INTO public.clubs (id, name) VALUES ('00000000-0000-0000-0000-000000607021', 'MYK9-1008 fixture club ' || '00000000-0000-0000-0000-000000607021');
+INSERT INTO public.shows (id, name, organization, start_date, end_date, status, club_id)
 VALUES (
-  '00000000-0000-0000-0000-000000607021', 'MYK9-607 Show', 'AKC', current_date, current_date, 'published'
+  '00000000-0000-0000-0000-000000607021', 'MYK9-607 Show', 'AKC', current_date, current_date, 'published',
+  '00000000-0000-0000-0000-000000607021'
 );
 
 INSERT INTO public.trials (id, show_id, name, date)

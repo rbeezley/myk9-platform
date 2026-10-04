@@ -86,14 +86,14 @@ describe('ReplicatedShowsTable — generic show writes never carry online_entrie
   it('a create carries a known value', async () => {
     const { id: _ignored, ...rest } = BASE;
     void _ignored;
-    await table.createShow({ ...rest, onlineEntriesEnabled: true });
+    await table.createShow({ ...rest, clubId: 'club-1', onlineEntriesEnabled: true });
     expect(lastPayload()).toHaveProperty('online_entries_enabled', true);
   });
 
   it('a create without the field sends no key, so the server default (false) applies', async () => {
     const { id: _ignored, ...rest } = BASE;
     void _ignored;
-    await table.createShow(rest);
+    await table.createShow({ ...rest, clubId: 'club-1' });
     expect(lastPayload()).not.toHaveProperty('online_entries_enabled');
   });
 });

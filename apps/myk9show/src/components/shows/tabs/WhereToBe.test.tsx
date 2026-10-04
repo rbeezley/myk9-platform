@@ -12,7 +12,7 @@ function makeEntry(overrides: Partial<EnrichedShowEntry> = {}): EnrichedShowEntr
     dogId: 'd1',
     dogName: 'Maggie',
     armband: '101',
-    runOrder: 1,
+    queue: { kind: 'waiting-unknown' },
     element: 'Container',
     level: 'Novice',
     section: 'A',
@@ -175,27 +175,44 @@ describe('WhereToBe', () => {
     expect(screen.getByText('10:30 AM')).toBeInTheDocument();
   });
 
-  it('shows a stored run position and check-in state', () => {
+  it('shows "Waiting" and check-in state, never a place or a stored run number', () => {
     render(
       <WhereToBe
-        entries={[makeEntry({ runOrder: 3, checkInStatus: 'checked-in' })]}
+        entries={[makeEntry({ queue: { kind: 'waiting-unknown' }, checkInStatus: 'checked-in' })]}
         showId={SHOW_ID}
       />
     );
-    expect(screen.getByText('Run position 3')).toBeInTheDocument();
+    expect(screen.getByText('Waiting')).toBeInTheDocument();
     expect(screen.getByText('Checked-in')).toBeInTheDocument();
+    expect(screen.queryByText(/run position|\bup\b/i)).not.toBeInTheDocument();
   });
 
-  it('labels an unassigned run position as pending without inferring it from armband', () => {
+  it("shows each dog's state when it has no place in line", () => {
     render(
       <WhereToBe
-        entries={[makeEntry({ runOrder: 0, armband: '202', checkInStatus: 'completed' })]}
+        entries={[
+          makeEntry({ entryId: 'a', queue: { kind: 'in-ring' } }),
+          makeEntry({ entryId: 'b', queue: { kind: 'done' } }),
+          makeEntry({ entryId: 'c', queue: { kind: 'pulled' } }),
+        ]}
         showId={SHOW_ID}
       />
     );
-    expect(screen.getByText('Run position pending')).toBeInTheDocument();
+    expect(screen.getByText('In ring')).toBeInTheDocument();
+    expect(screen.getByText('Done')).toBeInTheDocument();
+    expect(screen.getByText('Pulled')).toBeInTheDocument();
+  });
+
+  it('labels an unset order as not set yet without inferring it from armband', () => {
+    render(
+      <WhereToBe
+        entries={[makeEntry({ queue: null, armband: '202', checkInStatus: 'completed' })]}
+        showId={SHOW_ID}
+      />
+    );
+    expect(screen.getByText('Order not set yet')).toBeInTheDocument();
     expect(screen.getByText('Completed')).toBeInTheDocument();
-    expect(screen.queryByText('Run position 202')).not.toBeInTheDocument();
+    expect(screen.queryByText(/\bup\b/)).not.toBeInTheDocument();
   });
 
   it('shows armband in the leading column', () => {

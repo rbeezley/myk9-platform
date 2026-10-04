@@ -268,7 +268,7 @@ export const useShowStore = create<ShowStore>()((set, get) => ({
         juniorHandlerFee: showData.juniorHandlerFee
           ? parseFloat(showData.juniorHandlerFee)
           : undefined,
-        clubId: showData.clubId || undefined,
+        clubId: showData.clubId,
         acceptCheckPayments: showData.acceptCheckPayments,
         acceptCashPayments: showData.acceptCashPayments,
         onlineEntriesEnabled: showData.onlineEntriesEnabled,

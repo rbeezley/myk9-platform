@@ -1,7 +1,7 @@
 /**
  * Tests for useShowDayData hook and its pure helper functions.
  *
- * Pure functions (computeEstimatedTime, extractActiveShows, buildClassProgressMap,
+ * Pure functions (extractActiveShows, buildClassProgressMap,
  * buildShowDayClasses) are tested directly.
  * The hook itself is tested via renderHook with mocked supabase + auth.
  */
@@ -11,13 +11,11 @@ import React from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createTestQueryClient } from '@/test/utils/testUtils';
 import {
-  computeEstimatedTime,
   extractActiveShows,
   buildClassProgressMap,
   buildShowDayClasses,
 } from '@/hooks/queries/useShowDayData';
 import { getTodayLocal } from '@/utils/dateLocal';
-import { DEFAULT_MINUTES_PER_DOG } from '@/types/show-day-types';
 import type { ShowDayCheckRow, ShowDayDetailRow, RingProgressRow } from '@/types/show-day-types';
 
 // ---------------------------------------------------------------------------
@@ -182,61 +180,6 @@ describe('getTodayLocal', () => {
   });
 });
 
-describe('computeEstimatedTime', () => {
-  it('returns null when running order is null', () => {
-    expect(computeEstimatedTime(null, 0, [])).toBeNull();
-  });
-
-  it('returns 0 when exhibitor is next up (no dogs ahead)', () => {
-    // running order 4, 3 scored → 4-3-1 = 0 dogs ahead
-    expect(computeEstimatedTime(4, 3, [])).toBe(0);
-  });
-
-  it('uses default 3 min per dog with fewer than 3 scored entries', () => {
-    // running order 6, 2 scored → 6-2-1 = 3 dogs ahead × 3 min = 9 min
-    const result = computeEstimatedTime(6, 2, []);
-    expect(result).toBe(3 * DEFAULT_MINUTES_PER_DOG);
-  });
-
-  it('uses adaptive timing after 3+ scored entries', () => {
-    // 4 dogs scored over 12 minutes → 4 min avg
-    // running order 8, 4 scored → 8-4-1 = 3 dogs ahead × 4 min = 12 min
-    const base = new Date('2026-03-09T10:00:00Z').getTime();
-    const timestamps = [
-      new Date(base),
-      new Date(base + 4 * 60_000),
-      new Date(base + 8 * 60_000),
-      new Date(base + 12 * 60_000),
-    ];
-    const result = computeEstimatedTime(8, 4, timestamps);
-    expect(result).toBe(12); // 3 dogs × 4 min
-  });
-
-  it('handles unsorted timestamps correctly', () => {
-    const base = new Date('2026-03-09T10:00:00Z').getTime();
-    // Intentionally out of order
-    const timestamps = [new Date(base + 6 * 60_000), new Date(base), new Date(base + 3 * 60_000)];
-    // Span = 6 min, 2 intervals → 3 min avg
-    // running order 5, 3 scored → 5-3-1 = 1 dog ahead × 3 min = 3
-    const result = computeEstimatedTime(5, 3, timestamps);
-    expect(result).toBe(3);
-  });
-
-  it('falls back to default when timestamps have zero span', () => {
-    const same = new Date('2026-03-09T10:00:00Z');
-    const timestamps = [same, same, same];
-    // span is 0, so avgMinutes stays at DEFAULT
-    // running order 6, 3 scored → 2 dogs ahead × 3 min = 6
-    const result = computeEstimatedTime(6, 3, timestamps);
-    expect(result).toBe(2 * DEFAULT_MINUTES_PER_DOG);
-  });
-
-  it('clamps dogs ahead to 0 when scored exceeds running order', () => {
-    // running order 2, 5 scored → max(0, 2-5-1) = 0
-    expect(computeEstimatedTime(2, 5, [])).toBe(0);
-  });
-});
-
 describe('extractActiveShows', () => {
   it('returns empty array for no rows', () => {
     expect(extractActiveShows([])).toEqual([]);
@@ -288,7 +231,7 @@ describe('buildClassProgressMap', () => {
     expect(buildClassProgressMap([]).size).toBe(0);
   });
 
-  it('tracks scored count and timestamps per class', () => {
+  it('tracks scored count per class', () => {
     const rows = [
       makeProgressRow({ run_order: 1, scoring_completed_at: '2026-03-09T10:00:00Z' }),
       makeProgressRow({ run_order: 2, scoring_completed_at: '2026-03-09T10:04:00Z' }),
@@ -298,7 +241,6 @@ describe('buildClassProgressMap', () => {
     const progress = map.get('class-1');
     expect(progress).toBeDefined();
     expect(progress!.scoredCount).toBe(3);
-    expect(progress!.scoredTimestamps).toHaveLength(3);
     expect(progress!.currentDogInRing).toBeNull();
   });
 
@@ -356,8 +298,6 @@ describe('buildShowDayClasses', () => {
     expect(cls.currentDogInRing).toBe('Rex');
     expect(cls.myRunningOrder).toBe(5);
     expect(cls.ringNumber).toBeNull();
-    // 5 - 3 - 1 = 1 dog ahead; 3 scored over 8 min = 4 min avg → 1 × 4 = 4
-    expect(cls.estimatedTimeMinutes).toBe(4);
   });
 
   it('uses check_in_status for exhibitor show-day status', () => {
@@ -400,7 +340,6 @@ describe('buildShowDayClasses', () => {
     const noOrder = makeDetailRow({ run_order: null });
     const classes = buildShowDayClasses([noOrder], new Map());
     expect(classes[0].myRunningOrder).toBeNull();
-    expect(classes[0].estimatedTimeMinutes).toBeNull();
   });
 });
 
@@ -477,6 +416,31 @@ describe('useShowDayData hook', () => {
     expect(result.current.activeShows).toHaveLength(1);
     expect(result.current.activeShow?.showName).toBe('AKC Scent Work Trial');
     expect(result.current.stats.total).toBe(2);
+  });
+
+  it('picks nextUp by run order even when stored numbers have gaps and start above 1', async () => {
+    const mkClass = (id: string) => ({
+      id,
+      name: id,
+      element: 'Interior',
+      level: 'Novice',
+      status: 'check-in',
+      total_entries_count: 8,
+      scored_count: 0,
+    });
+    showDayDataMocks.fetchReplicatedShowDayCheck.mockResolvedValue([makeCheckRow()]);
+    showDayDataMocks.fetchReplicatedShowDayDetails.mockResolvedValue([
+      makeDetailRow({ id: 'e-none', run_order: null, class: mkClass('c-none') }),
+      makeDetailRow({ id: 'e-late', run_order: 40, class: mkClass('c-late') }),
+      makeDetailRow({ id: 'e-early', run_order: 12, class: mkClass('c-early') }),
+    ]);
+
+    const { useShowDayData } = await import('@/hooks/queries/useShowDayData');
+    const { result } = renderHook(() => useShowDayData(), { wrapper: createWrapper() });
+
+    await waitFor(() => {
+      expect(result.current.nextUp?.entryId).toBe('e-early');
+    });
   });
 
   it('returns isLoading: true during initial fetch', async () => {

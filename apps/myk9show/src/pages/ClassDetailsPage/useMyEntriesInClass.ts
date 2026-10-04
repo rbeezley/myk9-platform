@@ -3,7 +3,8 @@ import { useEntryStore } from '@/store/entryStore';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { getDogDisplayName } from '@/types/dog-types';
-import { dogsAheadInClass } from '@/utils/showEntryRunQueue';
+import { compareStoredRunOrderNullLast, ownEntryQueueState } from '@/utils/showEntryRunQueue';
+import type { RunQueueState } from '@myk9/ringside/run-queue';
 import { dbSecondsToInputFormat } from '@/utils/scoringMappings';
 import { selectOwnedDogIds } from '@/utils/dogOwnership';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
@@ -13,9 +14,10 @@ export interface MyClassEntry {
   dogId: string;
   dogName: string;
   armband: string;
+  /** Sort key only (MYK9-992): never render it, show `queue` instead. */
   runOrder: number;
-  position: number;
-  dogsAhead: number;
+  /** The dog's own state; never a counted place (see ownEntryQueueState). */
+  queue: RunQueueState | null;
   hasResult: boolean;
   result?: {
     qualified: boolean;
@@ -61,18 +63,6 @@ export function useMyEntriesInClass(
 
     const classEntries = allEntries.filter(e => e.classId === classId);
 
-    const sorted = [...classEntries].sort((a, b) => {
-      const ra = a.registrationData.runOrder ?? 0;
-      const rb = b.registrationData.runOrder ?? 0;
-      if (ra === 0 && rb === 0) return 0;
-      if (ra === 0) return 1;
-      if (rb === 0) return -1;
-      return ra - rb;
-    });
-
-    // Build position map once (O(N)) rather than calling findIndex per entry (O(N²)).
-    const positionByEntryId = new Map(sorted.map((e, i) => [e.id, i + 1]));
-
     // Build the result shape from a directly-read released row.
     const releasedResult = (r: RawEntryRow): NonNullable<MyClassEntry['result']> => {
       const time = dbSecondsToInputFormat(r.search_time_seconds);
@@ -92,10 +82,10 @@ export function useMyEntriesInClass(
       seenEntryIds.add(entry.id);
 
       const runOrder = entry.registrationData.runOrder ?? 0;
-      const position = runOrder > 0 ? (positionByEntryId.get(entry.id) ?? 0) : 0;
+      const queue = ownEntryQueueState(entry);
       // Shared run queue (see utils/showEntryRunQueue): the in-ring dog is
-      // excluded, so this matches the entry-list pill and the push notification.
-      const dogsAhead = dogsAheadInClass(classEntries, entry.id) ?? 0;
+      // excluded from the waiting queue, so the place matches the entry-list
+      // pill and the push notification.
 
       // Prefer released results (direct read) over the replication store: the
       // store is stale for a post-show exhibitor whose entries were scored
@@ -110,8 +100,7 @@ export function useMyEntriesInClass(
           dogName: dogNameMap.get(entry.dogId) ?? 'Unknown Dog',
           armband: entry.registrationData.armband ?? released.armband ?? '',
           runOrder,
-          position,
-          dogsAhead,
+          queue: { kind: 'done' },
           hasResult: true,
           result: releasedResult(released),
         });
@@ -126,8 +115,7 @@ export function useMyEntriesInClass(
         dogName: dogNameMap.get(entry.dogId) ?? 'Unknown Dog',
         armband: entry.registrationData.armband ?? '',
         runOrder,
-        position,
-        dogsAhead,
+        queue,
         hasResult,
         ...(hasResult && compData
           ? {
@@ -162,19 +150,14 @@ export function useMyEntriesInClass(
           'Unknown Dog',
         armband: released.armband ?? '',
         runOrder: 0,
-        position: 0,
-        dogsAhead: 0,
+        queue: { kind: 'done' },
         hasResult: true,
         result: releasedResult(released),
       });
     }
 
-    myEntries.sort((a, b) => {
-      if (a.runOrder === 0 && b.runOrder === 0) return 0;
-      if (a.runOrder === 0) return 1;
-      if (b.runOrder === 0) return -1;
-      return a.runOrder - b.runOrder;
-    });
+    // 0 means "no run order yet": those dogs go last.
+    myEntries.sort((a, b) => compareStoredRunOrderNullLast(a.runOrder || null, b.runOrder || null));
 
     const isAfterClass = myEntries.some(e => e.hasResult);
 

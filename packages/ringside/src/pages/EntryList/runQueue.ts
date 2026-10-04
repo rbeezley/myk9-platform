@@ -48,9 +48,47 @@ export function isInRingEntry(entry: RunQueueEntry): boolean {
   return entry.inRing === true || entry.status === 'in-ring';
 }
 
-/** Entries still due to run: unscored and not pulled from the class. */
+/**
+ * Statuses that mean "still to run": an ALLOWLIST (MYK9-992, MYK9-996). Three
+ * rounds of review each found one more status that had to be denied (completed,
+ * then withdrawn); a denylist grows one finding at a time, so membership is
+ * decided here instead and anything unlisted -- including a status added
+ * tomorrow -- is OUT of the queue until someone chooses to add it.
+ *
+ * Both host adapters feed `status` from two axes: the check-in axis
+ * (`CHECKIN_STATUSES` in @myk9/core) and the registration lifecycle
+ * (`ENTRY_LIFECYCLE_STATUS_VALUES`). Every value of both is decided in
+ * `runQueue.test.ts`'s status table. `in-ring` and `competing` stay listed
+ * because the in-ring dog is a queue row that `pendingByRunOrder` drops
+ * separately (INTENT above). Mirrored in
+ * supabase/functions/push-trigger-run-proximity.
+ */
+const WAITING_STATUSES: ReadonlySet<string> = new Set([
+  // check-in axis
+  'no-status',
+  'checked-in',
+  'at-gate',
+  'come-to-gate',
+  'conflict',
+  'in-ring',
+  // lifecycle axis (pre-show rows stay; the host's run-list predicate decides
+  // whether they are on the class at all)
+  'draft',
+  'submitted',
+  'paid',
+  'confirmed',
+  'scheduled',
+  'pending-payment',
+  'promotion-expired',
+  'move-up-requested',
+  'move_up_requested', // both spellings are live in entries_entry_status_check
+  'competing',
+]);
+
+/** Entries still due to run: unscored with a status that means "still to run" (or none yet). */
 export function isInQueue(entry: RunQueueEntry): boolean {
-  return !entry.isScored && entry.status !== 'pulled';
+  if (entry.isScored) return false;
+  return entry.status == null || WAITING_STATUSES.has(entry.status);
 }
 
 /** Run-order comparator (mirrors the `run` sort: exhibitorOrder, armband fallback). */
@@ -84,4 +122,95 @@ export function nextPendingCandidates<T extends RunQueueEntry>(
 ): T[] {
   if (limit <= 0) return [];
   return pendingByRunOrder(entries).slice(0, limit);
+}
+
+/** Statuses that read "Pulled": not running, and not a withdrawal. */
+const PULLED_STATUSES: ReadonlySet<string> = new Set(['pulled', 'scratched', 'absent', 'moved']);
+
+/**
+ * Where one entry stands in its class, for display (MYK9-992).
+ *
+ * The stored `run_order` is internal -- a sort key that starts above 1 and has
+ * gaps once dogs finish or a class is re-placed -- so no surface may render it.
+ * What a person wants is the place in line, which is derived here from the one
+ * queue rule above and never stored. `pulled` wins over `done` (a dog scratched
+ * after a score stays scratched), and the in-ring dog is outside the waiting
+ * queue (INTENT above), so it reports its state, not a place.
+ */
+export type RunQueueState =
+  | { kind: 'waiting'; place: number }
+  /**
+   * Waiting, but the rows available cannot say where in line. An exhibitor's
+   * own rows are the whole picture only for their own dogs, so counting the
+   * dogs ahead from them would promise "Next up" with strangers in front.
+   * `runQueueStateOf` never returns this; callers holding a partial queue do.
+   */
+  | { kind: 'waiting-unknown' }
+  | { kind: 'in-ring' }
+  | { kind: 'done' }
+  /** Pulled and withdrawn are different acts (INTENT: Withdraw vs Pull). */
+  | { kind: 'pulled' }
+  | { kind: 'withdrawn' };
+
+/**
+ * The entry's state in `entries` (one class's rows), or null when the entry is
+ * not among them. `place` is 1-based over `pendingByRunOrder`.
+ */
+export function runQueueStateOf(
+  entries: readonly RunQueueEntry[],
+  entryId: string
+): RunQueueState | null {
+  const target = entries.find(entry => entry.id === entryId);
+  if (!target) return null;
+  // Terminal states first, by the status the dog is actually in; whatever is
+  // left over and still `isInQueue` is a dog that is waiting or in the ring.
+  if (target.status === 'withdrawn') return { kind: 'withdrawn' };
+  if (target.status != null && PULLED_STATUSES.has(target.status)) return { kind: 'pulled' };
+  if (target.isScored || target.status === 'completed') return { kind: 'done' };
+  if (!isInQueue(target)) return null; // declined, or a status nobody has decided on
+  if (isInRingEntry(target)) return { kind: 'in-ring' };
+  const index = pendingByRunOrder(entries).findIndex(entry => entry.id === entryId);
+  return index === -1 ? null : { kind: 'waiting', place: index + 1 };
+}
+
+/** 1-based place in line, or null for a dog that is finished, in the ring, pulled or unknown. */
+export function placeInLine(entries: readonly RunQueueEntry[], entryId: string): number | null {
+  const state = runQueueStateOf(entries, entryId);
+  return state?.kind === 'waiting' ? state.place : null;
+}
+
+/** "Next up", "2nd up", "3rd up", "11th up", "21st up". */
+export function formatPlaceInLine(place: number): string {
+  if (place <= 1) return 'Next up';
+  const lastTwo = place % 100;
+  const last = place % 10;
+  const suffix =
+    lastTwo >= 11 && lastTwo <= 13
+      ? 'th'
+      : last === 1
+        ? 'st'
+        : last === 2
+          ? 'nd'
+          : last === 3
+            ? 'rd'
+            : 'th';
+  return `${place}${suffix} up`;
+}
+
+/** The label for any state: a place for a waiting dog, otherwise the state itself. */
+export function formatRunQueueState(state: RunQueueState): string {
+  switch (state.kind) {
+    case 'waiting':
+      return formatPlaceInLine(state.place);
+    case 'waiting-unknown':
+      return 'Waiting';
+    case 'in-ring':
+      return 'In ring';
+    case 'done':
+      return 'Done';
+    case 'pulled':
+      return 'Pulled';
+    case 'withdrawn':
+      return 'Withdrawn';
+  }
 }

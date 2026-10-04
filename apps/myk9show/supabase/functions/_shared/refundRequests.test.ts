@@ -2,6 +2,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   claimAbandonedCartRefund,
+  fullChargeRefundCents,
+  noLinkRecordObligation,
   ensurePaymentLinkRefundAlert,
   QUEUE_WRITE_ATTEMPTS,
   REFUNDABLE_ABANDONED_CART_STATUSES,
@@ -99,6 +101,7 @@ const OBLIGATION: PaymentLinkObligation = {
     summaryHtml: 'Two entries were withdrawn.',
   },
   showId: 'show-1',
+  paidEntryIds: [],
 };
 
 describe('settlePaymentLinkObligation (Codex round 13)', () => {
@@ -117,6 +120,7 @@ describe('settlePaymentLinkObligation (Codex round 13)', () => {
       p_detail: { invalid_entry_ids: ['e-1'] },
       p_show_id: 'show-1',
       p_order: null,
+      p_paid_entry_ids: null,
     });
     expect(model.link.status).toBe('paid');
     expect(alerts.map(a => [a.title, a.opts.dedupeKey])).toEqual([
@@ -180,9 +184,17 @@ describe('settlePaymentLinkObligation (Codex round 13)', () => {
       ...OBLIGATION,
       linkId: null,
       closeLinkFrom: null,
-      owed: { ...OBLIGATION.owed!, reason: 'no_link_record' },
+      // The exhibitor got nothing: the full 963 charge, service fee included
+      // (owner rule 2026-10-04, MYK9-997), never the 900 of entry fees.
+      owed: noLinkRecordObligation(963),
     });
-    expect(rpc.mock.calls[0][1]).toMatchObject({ p_link_id: null, p_close_from: null });
+    expect(rpc.mock.calls[0][1]).toMatchObject({
+      p_link_id: null,
+      p_close_from: null,
+      p_amount_cents: 963,
+      p_reason: 'no_link_record',
+      p_detail: { invalid_entry_ids: [] },
+    });
     expect(model.link.status).toBe('open');
     expect(model.requests.get('cs_1')?.reason).toBe('no_link_record');
   });
@@ -268,8 +280,37 @@ describe('ensurePaymentLinkRefundAlert (redelivery)', () => {
   });
 });
 
+describe('fullChargeRefundCents (MYK9-997)', () => {
+  it('is the whole charge, service fee included', () => {
+    // Worked example: 3000 of entries + 210 service fee; nothing was served.
+    expect(fullChargeRefundCents(3210)).toBe(3210);
+  });
+
+  it('is null for a charge it cannot trust, which takes the missing-inputs alert', () => {
+    expect(fullChargeRefundCents(null)).toBeNull();
+    expect(fullChargeRefundCents(undefined)).toBeNull();
+    expect(fullChargeRefundCents(0)).toBeNull();
+    expect(fullChargeRefundCents(-5)).toBeNull();
+    expect(fullChargeRefundCents(3210.5)).toBeNull();
+  });
+
+  it('builds the no-link payment-link obligation from the full charge', () => {
+    expect(noLinkRecordObligation(3210)).toEqual({
+      amountCents: 3210,
+      reason: 'no_link_record',
+      detail: { invalid_entry_ids: [] },
+      summaryHtml: 'A payment-link charge could not be honored in full.',
+    });
+  });
+});
+
 describe('claimAbandonedCartRefund', () => {
-  const INPUT = { cartId: 'cart-1', sessionId: 'cs_1', paymentIntentId: 'pi_1', amountCents: 4200 };
+  const INPUT = {
+    cartId: 'cart-1',
+    sessionId: 'cs_1',
+    paymentIntentId: 'pi_1',
+    chargedCents: 3210,
+  };
 
   it('alerts once when it claims the cart', async () => {
     const { deps, rpc, alerts } = depsWith(async () => ({
@@ -281,7 +322,9 @@ describe('claimAbandonedCartRefund', () => {
       p_cart_id: 'cart-1',
       p_session_id: 'cs_1',
       p_payment_intent_id: 'pi_1',
-      p_amount_cents: 4200,
+      // MYK9-997: the exhibitor got nothing, so the request is the FULL 3210
+      // charge (3000 entries + 210 service fee), not the entry fees alone.
+      p_amount_cents: 3210,
       p_detail: { cart_id: 'cart-1' },
     });
     expect(alerts).toHaveLength(1);
@@ -369,7 +412,12 @@ describe('fulfillment and refund claims on one cart', () => {
     };
     return { cart, requests, fulfill, rpc };
   }
-  const INPUT = { cartId: 'cart-1', sessionId: 'cs_1', paymentIntentId: 'pi_1', amountCents: 4200 };
+  const INPUT = {
+    cartId: 'cart-1',
+    sessionId: 'cs_1',
+    paymentIntentId: 'pi_1',
+    chargedCents: 3210,
+  };
 
   it('two deliveries of a paid session on an abandoned cart queue ONE refund and both return', async () => {
     const model = cartModel('abandoned');

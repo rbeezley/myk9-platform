@@ -163,6 +163,14 @@ export interface PaymentLinkObligation {
    * order is left as it is. Null on the paths that record no order.
    */
   order?: object | null;
+  /**
+   * The entries this delivery stamped paid (MYK9-968). Their waitlist offers
+   * move offered/expired -> accepted in the SAME transaction as the latch, so
+   * a committed call whose response is lost leaves nothing to replay: the
+   * redelivery takes the replay-first branch (paidSessionEntry.ts) and never
+   * reaches a separate offer write. Empty when nothing was paid.
+   */
+  paidEntryIds: string[];
 }
 
 export type PaymentLinkOutcome = 'queued' | 'already_queued' | 'latched_only' | 'not_queued';
@@ -183,8 +191,9 @@ async function callPaymentLinkRpc(
 /**
  * The payment-link fulfillment latch, its order and its refund obligation, in
  * ONE database transaction (queue_payment_link_refund; Codex rounds 13-14 on
- * #2689): the link closes, the order is recorded and, when something is owed,
- * the refund request is written, or none of them happens. There is no separate queue write to lose and
+ * #2689): the link closes, the order is recorded, the paid entries' waitlist
+ * offers resolve (MYK9-968) and, when something is owed, the refund request
+ * is written, or none of them happens. There is no separate queue write to lose and
  * no order row to replay from. The call is idempotent, so it is retried; if
  * it still cannot be confirmed this THROWS (5xx). The latch is then still
  * open, and the redelivery runs the same reconcile and this same call again.
@@ -210,7 +219,7 @@ export async function settlePaymentLinkObligation(
     });
     owed = null;
   }
-  if (!owed && !input.closeLinkFrom && !input.order) {
+  if (!owed && !input.closeLinkFrom && !input.order && input.paidEntryIds.length === 0) {
     return input.owed ? 'not_queued' : 'latched_only';
   }
 
@@ -224,6 +233,7 @@ export async function settlePaymentLinkObligation(
     p_detail: owed ? owed.detail : {},
     p_show_id: input.showId,
     p_order: input.order ?? null,
+    p_paid_entry_ids: input.paidEntryIds.length > 0 ? input.paidEntryIds : null,
   };
   let row: PaymentLinkRow | null = null;
   let lastError = 'no row returned';
@@ -353,7 +363,38 @@ export interface AbandonedCartRefundInput {
   cartId: string;
   sessionId: string;
   paymentIntentId: string | null;
-  amountCents: number | null;
+  /** What Stripe charged for the session (its fresh `amount_total`). */
+  chargedCents: number | null;
+}
+
+/**
+ * OWNER RULE (2026-10-04, MYK9-997): when the exhibitor got NOTHING for a
+ * charge, the refund request is the FULL amount charged, service fee
+ * included, and the platform absorbs Stripe's processing fee. Two paths are
+ * that case, both order-less: a paid abandoned cart, and a paid payment-link
+ * session with no link row. Every other refund still returns entry fees only
+ * (MYK9-966, `entryFeeRefundCents`). The refund itself still waits for a site
+ * admin's approval (stripe-approve-refund).
+ *
+ * Null when the charge is not a positive whole number of cents, which takes
+ * the missing-inputs alert rather than a guessed amount.
+ */
+export function fullChargeRefundCents(chargedCents: number | null | undefined): number | null {
+  return typeof chargedCents === 'number' && Number.isInteger(chargedCents) && chargedCents > 0
+    ? chargedCents
+    : null;
+}
+
+/** What a paid payment-link session with no link row is owed: the full charge. */
+export function noLinkRecordObligation(
+  chargedCents: number | null | undefined
+): NonNullable<PaymentLinkObligation['owed']> {
+  return {
+    amountCents: fullChargeRefundCents(chargedCents),
+    reason: 'no_link_record',
+    detail: { invalid_entry_ids: [] },
+    summaryHtml: 'A payment-link charge could not be honored in full.',
+  };
 }
 
 export type AbandonedCartRefundOutcome = 'claimed' | 'already_pending' | 'not_refundable';
@@ -376,7 +417,8 @@ export async function claimAbandonedCartRefund(
   deps: RefundQueueDeps,
   input: AbandonedCartRefundInput
 ): Promise<AbandonedCartRefundOutcome> {
-  if (!input.paymentIntentId || !input.amountCents || input.amountCents <= 0) {
+  const amountCents = fullChargeRefundCents(input.chargedCents);
+  if (!input.paymentIntentId || !amountCents) {
     console.error(`CRITICAL: abandoned cart ${input.cartId} paid with no intent or amount`);
     const copy = abandonedCartMissingInputsAlert(input);
     await deps.alertAdmin(copy.title, copy.html, {
@@ -390,7 +432,7 @@ export async function claimAbandonedCartRefund(
     p_cart_id: input.cartId,
     p_session_id: input.sessionId,
     p_payment_intent_id: input.paymentIntentId,
-    p_amount_cents: input.amountCents,
+    p_amount_cents: amountCents,
     p_detail: { cart_id: input.cartId },
   });
   if (error) {
@@ -415,7 +457,7 @@ export async function claimAbandonedCartRefund(
     kind: 'abandoned_cart',
     sessionId: input.sessionId,
     paymentIntentId: input.paymentIntentId,
-    amountCents: input.amountCents,
+    amountCents,
     reason: null,
     summaryHtml: `Checkout session <code>${input.sessionId}</code> was PAID after cart
      <code>${input.cartId}</code> was abandoned. No entries were created, and the cart is

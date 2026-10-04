@@ -190,7 +190,7 @@ To put one dog in a specific spot, open **Run order → Reorder manually...**. E
 
 ## 12 · Print check-in sheets
 
-**Reports → Check-in Sheet.** Scope it to a trial or a single class, then print. Columns are Gate Order, Armband, Call Name, Breed, and Handler.
+**Reports → Check-in Sheet.** Scope it to a trial or a single class, then print. Columns are Gate Order, Armband, Call Name, Breed, and Handler. **Order** is the dog's position on the sheet (1, 2, 3 and so on), counted for each class.
 
 ![Reports page with Check-in Sheet chosen and the trial, class and sort controls](../screenshots/S-12.png)
 

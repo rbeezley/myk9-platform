@@ -754,6 +754,118 @@ export type Database = {
           },
         ]
       }
+      cart_fulfillment_lines: {
+        Row: {
+          cart_item_id: string
+          class_id: string
+          dog_id: string
+          entry_id: string | null
+          error_message: string | null
+          existing_entry_id: string | null
+          handler_id: string | null
+          jump_height: string | null
+          junior_fee_declared: boolean
+          line_amount_cents: number
+          line_no: number
+          outcome: string | null
+          paid_entry_id: string | null
+          resolved_at: string | null
+          special_requests: string | null
+          stripe_checkout_session_id: string
+          trial_id: string | null
+          waitlist_entry_id: string | null
+        }
+        Insert: {
+          cart_item_id: string
+          class_id: string
+          dog_id: string
+          entry_id?: string | null
+          error_message?: string | null
+          existing_entry_id?: string | null
+          handler_id?: string | null
+          jump_height?: string | null
+          junior_fee_declared?: boolean
+          line_amount_cents: number
+          line_no: number
+          outcome?: string | null
+          paid_entry_id?: string | null
+          resolved_at?: string | null
+          special_requests?: string | null
+          stripe_checkout_session_id: string
+          trial_id?: string | null
+          waitlist_entry_id?: string | null
+        }
+        Update: {
+          cart_item_id?: string
+          class_id?: string
+          dog_id?: string
+          entry_id?: string | null
+          error_message?: string | null
+          existing_entry_id?: string | null
+          handler_id?: string | null
+          jump_height?: string | null
+          junior_fee_declared?: boolean
+          line_amount_cents?: number
+          line_no?: number
+          outcome?: string | null
+          paid_entry_id?: string | null
+          resolved_at?: string | null
+          special_requests?: string | null
+          stripe_checkout_session_id?: string
+          trial_id?: string | null
+          waitlist_entry_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cart_fulfillment_lines_stripe_checkout_session_id_fkey"
+            columns: ["stripe_checkout_session_id"]
+            isOneToOne: false
+            referencedRelation: "cart_fulfillments"
+            referencedColumns: ["stripe_checkout_session_id"]
+          },
+        ]
+      }
+      cart_fulfillments: {
+        Row: {
+          cart_id: string | null
+          completed_at: string | null
+          created_at: string
+          exhibitor_id: string
+          receipt_sent_at: string | null
+          show_id: string
+          stripe_checkout_session_id: string
+          stripe_payment_intent_id: string
+        }
+        Insert: {
+          cart_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          exhibitor_id: string
+          receipt_sent_at?: string | null
+          show_id: string
+          stripe_checkout_session_id: string
+          stripe_payment_intent_id: string
+        }
+        Update: {
+          cart_id?: string | null
+          completed_at?: string | null
+          created_at?: string
+          exhibitor_id?: string
+          receipt_sent_at?: string | null
+          show_id?: string
+          stripe_checkout_session_id?: string
+          stripe_payment_intent_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cart_fulfillments_cart_id_fkey"
+            columns: ["cart_id"]
+            isOneToOne: false
+            referencedRelation: "entry_carts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       chatbot_feedback: {
         Row: {
           ai_response: string | null
@@ -12566,6 +12678,18 @@ export type Database = {
           missing_secret: string
         }[]
       }
+      begin_cart_fulfillment: {
+        Args: {
+          p_cart_id: string
+          p_line_amounts: Json
+          p_payment_intent_id: string
+          p_session_id: string
+        }
+        Returns: {
+          cart_status: string
+          outcome: string
+        }[]
+      }
       begin_class_results_push: {
         Args: { p_class_id: string }
         Returns: {
@@ -12766,6 +12890,26 @@ export type Database = {
       club_has_public_show: {
         Args: { check_club_id: string }
         Returns: boolean
+      }
+      complete_cart_fulfillment: {
+        Args: {
+          p_amount_cents?: number
+          p_detail?: Json
+          p_order: Json
+          p_reason?: string
+          p_session_id: string
+        }
+        Returns: {
+          amount_cents: number
+          cart_status: string
+          created: boolean
+          latch_closed: boolean
+          order_created: boolean
+          reason: string
+          refund_request_id: string
+          request_status: string
+          stripe_payment_intent_id: string
+        }[]
       }
       count_blocking_entries_by_dog: {
         Args: { p_dog_id: string }
@@ -13115,6 +13259,16 @@ export type Database = {
         Returns: boolean
       }
       force_delete_dog: { Args: { p_dog_id: string }; Returns: undefined }
+      fulfill_cart_line: {
+        Args: { p_cart_item_id: string; p_session_id: string }
+        Returns: {
+          entry_id: string
+          error_message: string
+          outcome: string
+          replayed: boolean
+          waitlist_entry_id: string
+        }[]
+      }
       get_account_today_entries: {
         Args: never
         Returns: {
@@ -13896,6 +14050,23 @@ export type Database = {
           dog_id: string
           item_id: string
           reason: string
+        }[]
+      }
+      record_cart_line_outcome: {
+        Args: {
+          p_cart_item_id: string
+          p_entry_id?: string
+          p_error_message?: string
+          p_outcome: string
+          p_paid_entry_id?: string
+          p_session_id: string
+        }
+        Returns: {
+          entry_id: string
+          error_message: string
+          outcome: string
+          paid_entry_id: string
+          replayed: boolean
         }[]
       }
       record_enrollment_payment: {

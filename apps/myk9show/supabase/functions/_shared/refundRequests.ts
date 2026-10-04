@@ -363,7 +363,38 @@ export interface AbandonedCartRefundInput {
   cartId: string;
   sessionId: string;
   paymentIntentId: string | null;
-  amountCents: number | null;
+  /** What Stripe charged for the session (its fresh `amount_total`). */
+  chargedCents: number | null;
+}
+
+/**
+ * OWNER RULE (2026-10-04, MYK9-997): when the exhibitor got NOTHING for a
+ * charge, the refund request is the FULL amount charged, service fee
+ * included, and the platform absorbs Stripe's processing fee. Two paths are
+ * that case, both order-less: a paid abandoned cart, and a paid payment-link
+ * session with no link row. Every other refund still returns entry fees only
+ * (MYK9-966, `entryFeeRefundCents`). The refund itself still waits for a site
+ * admin's approval (stripe-approve-refund).
+ *
+ * Null when the charge is not a positive whole number of cents, which takes
+ * the missing-inputs alert rather than a guessed amount.
+ */
+export function fullChargeRefundCents(chargedCents: number | null | undefined): number | null {
+  return typeof chargedCents === 'number' && Number.isInteger(chargedCents) && chargedCents > 0
+    ? chargedCents
+    : null;
+}
+
+/** What a paid payment-link session with no link row is owed: the full charge. */
+export function noLinkRecordObligation(
+  chargedCents: number | null | undefined
+): NonNullable<PaymentLinkObligation['owed']> {
+  return {
+    amountCents: fullChargeRefundCents(chargedCents),
+    reason: 'no_link_record',
+    detail: { invalid_entry_ids: [] },
+    summaryHtml: 'A payment-link charge could not be honored in full.',
+  };
 }
 
 export type AbandonedCartRefundOutcome = 'claimed' | 'already_pending' | 'not_refundable';
@@ -386,7 +417,8 @@ export async function claimAbandonedCartRefund(
   deps: RefundQueueDeps,
   input: AbandonedCartRefundInput
 ): Promise<AbandonedCartRefundOutcome> {
-  if (!input.paymentIntentId || !input.amountCents || input.amountCents <= 0) {
+  const amountCents = fullChargeRefundCents(input.chargedCents);
+  if (!input.paymentIntentId || !amountCents) {
     console.error(`CRITICAL: abandoned cart ${input.cartId} paid with no intent or amount`);
     const copy = abandonedCartMissingInputsAlert(input);
     await deps.alertAdmin(copy.title, copy.html, {
@@ -400,7 +432,7 @@ export async function claimAbandonedCartRefund(
     p_cart_id: input.cartId,
     p_session_id: input.sessionId,
     p_payment_intent_id: input.paymentIntentId,
-    p_amount_cents: input.amountCents,
+    p_amount_cents: amountCents,
     p_detail: { cart_id: input.cartId },
   });
   if (error) {
@@ -425,7 +457,7 @@ export async function claimAbandonedCartRefund(
     kind: 'abandoned_cart',
     sessionId: input.sessionId,
     paymentIntentId: input.paymentIntentId,
-    amountCents: input.amountCents,
+    amountCents,
     reason: null,
     summaryHtml: `Checkout session <code>${input.sessionId}</code> was PAID after cart
      <code>${input.cartId}</code> was abandoned. No entries were created, and the cart is

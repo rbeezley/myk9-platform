@@ -47,6 +47,8 @@ describe('mapSummaryRow', () => {
       payout_pending_cents: '0',
       payout_failed_cents: '1200',
       payout_failed_count: '1',
+      club_funded_refunded_cents: '20',
+      pending_fee_club_funded_refunded_cents: '5',
     });
     expect(summary.orderCount).toBe(3);
     expect(summary.grossChargedCents).toBe(10700);
@@ -67,6 +69,10 @@ describe('mapSummaryRow', () => {
     // the cart-overflow make-whole total is its own field. Neither is derived.
     expect(summary.refundedCents).toBe(25);
     expect(summary.makeWholeRefundedCents).toBe(4000);
+    // MYK9-997: the club-funded share of the post-hoc refunds, mapped from
+    // its own columns.
+    expect(summary.clubFundedRefundedCents).toBe(20);
+    expect(summary.pendingFeeClubFundedRefundedCents).toBe(5);
   });
 });
 
@@ -134,6 +140,8 @@ const ZERO_SUMMARY_ROW = {
   payout_pending_cents: '0',
   payout_failed_cents: '0',
   payout_failed_count: '0',
+  club_funded_refunded_cents: '0',
+  pending_fee_club_funded_refunded_cents: '0',
 };
 
 describe('mapOrderRow', () => {

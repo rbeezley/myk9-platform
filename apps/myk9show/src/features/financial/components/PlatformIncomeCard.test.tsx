@@ -34,6 +34,8 @@ function overview(overrides: Partial<PlatformFinancialOverview> = {}): PlatformF
         },
         processingFeePendingCount: 0,
         refundedCents: 2000,
+        clubFundedRefundedCents: 0,
+        platformFundedRefundedCents: 2000,
         makeWholeRefundedCents: 0,
         snapshotMissingCount: 0,
         nonEntry: {
@@ -117,7 +119,11 @@ describe('PlatformIncomeCard', () => {
     expect(screen.getByText('Net platform income')).toBeInTheDocument();
     expect(screen.getByText('$85.00')).toBeInTheDocument();
     expect(
-      screen.getByText(/captured Stripe processing fees − post-hoc refunds the platform absorbed/)
+      screen.getByText(/captured Stripe processing fees − refunds the platform funded/)
+    ).toBeInTheDocument();
+    // MYK9-997: club-funded refunds are named as excluded.
+    expect(
+      screen.getByText(/secretary refunds come out of the club's payout and are not subtracted/)
     ).toBeInTheDocument();
   });
 

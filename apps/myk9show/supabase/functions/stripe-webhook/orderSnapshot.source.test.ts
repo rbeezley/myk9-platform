@@ -49,6 +49,20 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     );
   });
 
+  it('books who funded each refund, and refunds an order-less charge in full (MYK9-997)', () => {
+    // Both booking paths (refund.updated and the charge.refunded sweep) read
+    // the club-funded mark off the Stripe refund, and the ledger write sends it.
+    expect(webhookSource.match(/clubFunded: refundIsClubFunded\(refund\)/g)?.length).toBe(2);
+    expect(webhookSource).toContain('p_club_funded: refund.clubFunded');
+    // The three order-less refund requests (two abandoned-cart claims, the
+    // payment link with no link row) are the full charge Stripe collected:
+    // claimAbandonedCartRefund and noLinkRecordObligation refund it whole.
+    expect(webhookSource).toContain('chargedCents: abandonedGate.amountTotalCents');
+    expect(webhookSource).toContain('chargedCents: freshTotalCents');
+    expect(webhookSource).toContain('owed: noLinkRecordObligation(freshAmountTotalCents)');
+    expect(webhookSource).not.toContain('chargedEntryFeesRefundCents');
+  });
+
   it('never rewrites the immutable charge facts in the refund path', () => {
     const start = webhookSource.indexOf('async function handleChargeRefunded');
     const end = webhookSource.indexOf('\nasync function', start + 1);

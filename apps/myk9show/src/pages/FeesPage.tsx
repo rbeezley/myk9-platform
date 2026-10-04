@@ -139,7 +139,9 @@ export function FeesPage() {
           <h2 className="text-xl font-semibold">Refunds</h2>
           <p className="text-muted-foreground">
             A refund returns the entry fee. The service fee is not refunded, including when a class
-            is full or a show is cancelled: the card payment has already been processed.
+            is full or a show is cancelled: the card payment has already been processed. The one
+            exception is a payment that bought nothing at all, such as a checkout completed after
+            the cart was abandoned: that payment is refunded in full, service fee included.
           </p>
         </section>
 

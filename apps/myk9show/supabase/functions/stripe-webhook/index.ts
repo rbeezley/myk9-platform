@@ -21,16 +21,10 @@ import {
   buildOrderSnapshotFields,
   extractProcessingFeeCents,
   resolveAcceptedEntrySnapshot,
+  refundIsClubFunded,
   refundKindFromMetadata,
 } from '../_shared/orderSnapshot.ts';
-import {
-  loadChargedLinesFromStripe,
-  loadEntryPaymentLineItemFeesFromStripe,
-} from '../_shared/entryPaymentLineItems.ts';
-import {
-  chargedEntryFeesRefundCents,
-  parseStampedEntryIds,
-} from '../_shared/unservedChargeRefund.ts';
+import { loadEntryPaymentLineItemFeesFromStripe } from '../_shared/entryPaymentLineItems.ts';
 import {
   resolveWithdrawalPolicy,
   type ShowWithdrawalColumns,
@@ -65,6 +59,7 @@ import {
   claimAbandonedCartRefund,
   ensurePaymentLinkRefundAlert,
   ensureSessionRefundAlerts,
+  noLinkRecordObligation,
   REFUNDABLE_ABANDONED_CART_STATUSES,
   RESOLVE_INSTEAD_HTML,
   settlePaymentLinkObligation,
@@ -328,6 +323,7 @@ async function bookSucceededRefund(refund: Stripe.Refund) {
     refundId: refund.id,
     amountCents: refund.amount,
     kind: refundKindFromMetadata(refund),
+    clubFunded: refundIsClubFunded(refund),
   });
   if (rows?.length === 0) {
     await alertAdmin(
@@ -550,6 +546,8 @@ async function recordOrderRefundCents(
     refundId: string;
     amountCents: number;
     kind: 'make_whole' | 'post_hoc';
+    /** Club-funded (MYK9-997): docked from the club's payout, not a platform loss. */
+    clubFunded: boolean;
   }
 ): Promise<RecordedRefundRow[] | null> {
   const amountCents = Math.max(0, Math.round(refund.amountCents ?? 0));
@@ -559,6 +557,7 @@ async function recordOrderRefundCents(
     p_refund_id: refund.refundId,
     p_amount_cents: amountCents,
     p_kind: refund.kind,
+    p_club_funded: refund.clubFunded,
   });
 
   if (error) {
@@ -678,6 +677,9 @@ async function handleChargeRefunded(charge: Stripe.Charge, eventId: string) {
             // the race against that writer. Assuming 'post_hoc' here booked
             // make-whole money as a permanent platform loss (Codex round-7 finding).
             kind: refundKindFromMetadata(refund),
+            // MYK9-997: a show-cancellation or secretary refund is docked
+            // from the club's payout, never a platform loss.
+            clubFunded: refundIsClubFunded(refund),
           });
         },
         terminal: handleTerminalRefund,
@@ -1065,16 +1067,9 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
       cartId,
       sessionId: session.id,
       paymentIntentId: extractPaymentIntentId(session.payment_intent),
-      // The entry fees STRIPE charged; the service fee is kept (MYK9-966).
-      amountCents: chargedEntryFeesRefundCents({
-        lines: await loadChargedLines(session.id),
-        expected: { entryLineCount: cart.items?.length ?? 0 },
-        amountTotalCents: abandonedGate.amountTotalCents,
-        rates: decodeStampedPlatformFeeRates(
-          abandonedSession.metadata,
-          Deno.env.get('PLATFORM_FEE_PERCENT')
-        ),
-      }),
+      // The exhibitor got nothing: the request is the FULL charge, service fee
+      // included (owner rule 2026-10-04, MYK9-997).
+      chargedCents: abandonedGate.amountTotalCents,
     });
     if (outcome !== 'not_refundable') return;
   }
@@ -1335,12 +1330,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
         cartId,
         sessionId: session.id,
         paymentIntentId: dupIntentId,
-        amountCents: chargedEntryFeesRefundCents({
-          lines: await loadChargedLines(session.id),
-          expected: { entryLineCount: cart.items?.length ?? 0 },
-          amountTotalCents: freshTotalCents,
-          rates: stampedFeeRates,
-        }),
+        // The full charge, service fee included (MYK9-997).
+        chargedCents: freshTotalCents,
       });
       if (abandonedOutcome !== 'not_refundable') return;
     }
@@ -1895,8 +1886,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       `<p>Checkout session <code>${session.id}</code> (entry_payment_request) was PAID,
        but no <code>entry_payment_links</code> row matches it. No entries were marked
        paid and Stripe will not retry.</p>
-       <p>The charge's entry fees are queued for refund approval (never the service
-       fee, MYK9-966). ${RESOLVE_INSTEAD_HTML}</p>`,
+       <p>The full charge, service fee included, is queued for refund approval
+       (MYK9-997: the exhibitor got nothing). ${RESOLVE_INSTEAD_HTML}</p>`,
       { source: 'stripe-webhook', dedupeKey: `payment-link-no-record-${session.id}` }
     );
     // No link row, so no latch: the refund request is the only write, and a
@@ -1906,21 +1897,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       paymentIntentId,
       linkId: null,
       closeLinkFrom: null,
-      owed: {
-        // Every line is unserved; null (not fully attributable) takes the missing-inputs alert.
-        amountCents: chargedEntryFeesRefundCents({
-          lines: await loadChargedLines(session.id),
-          expected: { entryIds: parseStampedEntryIds(freshSession.metadata?.entry_ids) },
-          amountTotalCents: freshAmountTotalCents,
-          rates: decodeStampedPlatformFeeRates(
-            freshSession.metadata,
-            Deno.env.get('PLATFORM_FEE_PERCENT')
-          ),
-        }),
-        reason: 'no_link_record',
-        detail: { invalid_entry_ids: [] },
-        summaryHtml: 'A payment-link charge could not be honored in full.',
-      },
+      // Nothing was served: the full charge, service fee included (MYK9-997).
+      owed: noLinkRecordObligation(freshAmountTotalCents),
       showId: null,
       paidEntryIds: [],
     });
@@ -2502,16 +2480,6 @@ async function expireRecoveredEntryPaymentLinks(entryId: string, sessionId: stri
         { source: 'stripe-webhook', dedupeKey: `recovered-entry-link-expire-${link.id}` }
       );
     }
-  }
-}
-
-/** Every charged line of a session, or null (unreadable or over one page). */
-async function loadChargedLines(sessionId: string) {
-  try {
-    return await loadChargedLinesFromStripe(stripe.checkout.sessions, sessionId);
-  } catch (err) {
-    console.error(`Could not load line items for session ${sessionId}:`, err);
-    return null;
   }
 }
 

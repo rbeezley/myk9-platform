@@ -8730,6 +8730,7 @@ export type Database = {
       stripe_order_refunds: {
         Row: {
           amount_cents: number
+          club_funded: boolean
           created_at: string
           kind: string
           order_id: string | null
@@ -8740,6 +8741,7 @@ export type Database = {
         }
         Insert: {
           amount_cents: number
+          club_funded?: boolean
           created_at?: string
           kind: string
           order_id?: string | null
@@ -8750,6 +8752,7 @@ export type Database = {
         }
         Update: {
           amount_cents?: number
+          club_funded?: boolean
           created_at?: string
           kind?: string
           order_id?: string | null
@@ -8771,6 +8774,7 @@ export type Database = {
       stripe_orders: {
         Row: {
           amount_cents: number
+          club_funded_refunded_cents: number
           created_at: string | null
           currency: string | null
           customer_id: string | null
@@ -8795,6 +8799,7 @@ export type Database = {
         }
         Insert: {
           amount_cents: number
+          club_funded_refunded_cents?: number
           created_at?: string | null
           currency?: string | null
           customer_id?: string | null
@@ -8819,6 +8824,7 @@ export type Database = {
         }
         Update: {
           amount_cents?: number
+          club_funded_refunded_cents?: number
           created_at?: string | null
           currency?: string | null
           customer_id?: string | null
@@ -13026,6 +13032,7 @@ export type Database = {
       financial_reconciliation_summary: {
         Args: { p_club_id?: string; p_scope: string; p_show_id?: string }
         Returns: {
+          club_funded_refunded_cents: number
           entry_subtotal_cents: number
           gross_charged_cents: number
           make_whole_refunded_cents: number
@@ -13039,6 +13046,7 @@ export type Database = {
           payout_failed_cents: number
           payout_failed_count: number
           payout_pending_cents: number
+          pending_fee_club_funded_refunded_cents: number
           pending_fee_platform_fee_cents: number
           pending_fee_refunded_cents: number
           platform_fee_cents: number
@@ -13916,6 +13924,7 @@ export type Database = {
       record_order_refund_cents: {
         Args: {
           p_amount_cents: number
+          p_club_funded?: boolean
           p_kind?: string
           p_payment_intent_id: string
           p_refund_id: string

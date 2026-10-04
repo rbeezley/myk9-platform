@@ -5,8 +5,10 @@ import {
   extractProcessingFeeCents,
   ORDER_TIE_OUT_TOLERANCE_CENTS,
   orderTieOutDeltaCents,
+  platformFundedRefundCents,
   platformGrossFeeCents,
   platformNetIncomeCents,
+  refundIsClubFunded,
   resolveAcceptedEntrySnapshot,
 } from './orderSnapshot';
 import type { PlatformFeeRates } from './platformFee';
@@ -419,6 +421,44 @@ describe('platformGrossFeeCents', () => {
 
   it('treats a missing platform fee as 0 gross', () => {
     expect(platformGrossFeeCents({ platform_fee_cents: null })).toBe(0);
+  });
+});
+
+describe('refundIsClubFunded (MYK9-997)', () => {
+  it('is true only for a post-hoc refund stamped club-funded', () => {
+    expect(refundIsClubFunded({ metadata: { myk9_club_funded: 'true' } })).toBe(true);
+    // Unstamped (a Stripe dashboard refund): the platform funded it.
+    expect(refundIsClubFunded({ metadata: { entry_id: 'e1' } })).toBe(false);
+    expect(refundIsClubFunded({ metadata: null })).toBe(false);
+    expect(refundIsClubFunded({ metadata: { myk9_club_funded: 'false' } })).toBe(false);
+    // A make-whole refund is never club-funded (the ledger CHECK agrees).
+    expect(
+      refundIsClubFunded({ metadata: { myk9_club_funded: 'true', myk9_make_whole: 'true' } })
+    ).toBe(false);
+  });
+});
+
+describe('platformFundedRefundCents (MYK9-997)', () => {
+  it('subtracts the club-funded share from the post-hoc refunds', () => {
+    expect(
+      platformFundedRefundCents({ refunded_cents: 5200, club_funded_refunded_cents: 5000 })
+    ).toBe(200);
+    expect(
+      platformFundedRefundCents({ refunded_cents: 5000, club_funded_refunded_cents: 5000 })
+    ).toBe(0);
+    expect(platformFundedRefundCents({ refunded_cents: 400 })).toBe(400);
+  });
+
+  it('feeds platformNetIncomeCents so a club-funded refund costs the platform nothing', () => {
+    const order = {
+      platform_fee_cents: 700,
+      stripe_processing_fee_cents: 341,
+      refunded_cents: 5000,
+      club_funded_refunded_cents: 5000,
+    };
+    expect(
+      platformNetIncomeCents(order, { absorbedRefundCents: platformFundedRefundCents(order) })
+    ).toEqual({ status: 'available', netCents: 359 });
   });
 });
 

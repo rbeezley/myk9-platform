@@ -143,13 +143,18 @@ export function calculatePlatformFeeCents(subtotalCents: number, rates: Platform
 
 /**
  * How much of a charge is handed back for the lines it paid for that were
- * never served (cart overflow, payment-link make-whole, an abandoned paid
- * cart, a cancelled show).
+ * never served (cart overflow, payment-link make-whole, a cancelled show).
  *
  * ── OWNER RULE (MYK9-966, 2026-10-03) ─────────────────────────────────────
  * The platform never covers a refund and never refunds its service fee, even
  * when nothing was delivered. A refund is the club's money: the ENTRY FEES of
  * the unserved lines, and nothing else.
+ *
+ * The one exception (owner, 2026-10-04, MYK9-997): a charge the exhibitor got
+ * NOTHING for and no order records (a paid abandoned cart, a paid payment-link
+ * session with no link row) is refunded in full, service fee included, and
+ * the platform absorbs Stripe's processing fee. That amount is
+ * `fullChargeRefundCents` (refundRequests.ts), not this function.
  *
  *   refund = min(unservedEntryFees, amountTotal − fee(fullSubtotal))
  *

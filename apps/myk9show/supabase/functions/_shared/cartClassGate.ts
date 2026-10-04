@@ -41,6 +41,19 @@ export function newLineClassIds(items: readonly CartLineForClassGate[]): string[
   return [...new Set(items.filter(item => !item.entry_id).map(item => item.class_id))];
 }
 
+/**
+ * The class gate's `class_entry_availability` arguments. The paying account's
+ * own held spots (MYK9-1012) are left out: a returning payer's earlier Pay
+ * click holds the very spots their lines want, and counting those would read
+ * their own lines as full and refuse them.
+ */
+export function classGateRpcArgs(
+  classIds: readonly string[],
+  authUserId: string
+): { p_class_ids: string[]; p_exclude_auth_user_id: string } {
+  return { p_class_ids: [...classIds], p_exclude_auth_user_id: authUserId };
+}
+
 /** True when any new cart line is in a class self-service can no longer buy. */
 export function cartHasBlockedClass(
   items: readonly CartLineForClassGate[],

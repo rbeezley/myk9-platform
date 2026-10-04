@@ -46,6 +46,7 @@ BEGIN
     ('calendar_feed_tokens','SELECT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('cart_fulfillment_lines','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('cart_fulfillments','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
+    ('cart_spot_holds','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('chatbot_feedback','INSERT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('chatbot_query_log','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('class_visibility_overrides','SELECT,INSERT,UPDATE','SELECT','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
@@ -234,7 +235,7 @@ BEGIN
     AND c.relkind = 'r'
     AND c.relname NOT IN (
       'access_request_email_jobs','achievements','activity_log','allergies','analytics_events','announcement_reads',
-      'announcements','armbands','calendar_feed_tokens','cart_fulfillment_lines','cart_fulfillments',
+      'announcements','armbands','calendar_feed_tokens','cart_fulfillment_lines','cart_fulfillments','cart_spot_holds',
       'chatbot_feedback','chatbot_query_log',
       'class_visibility_overrides','classes','club_access_requests','club_members','club_membership_requests',
       'club_officers','club_premium_templates','club_stripe_accounts','clubs','dog_favorites',

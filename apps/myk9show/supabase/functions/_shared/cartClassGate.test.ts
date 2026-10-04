@@ -3,6 +3,7 @@ import {
   CART_CLASS_CLOSED_MESSAGE,
   cartHasBlockedClass,
   classGateRefusal,
+  classGateRpcArgs,
   newLineClassIds,
   releasePriorSessionForClassGate,
 } from './cartClassGate';
@@ -124,5 +125,14 @@ describe('stripe-checkout class gate (MYK9-656)', () => {
         { class_id: 'class-full', entry_id: null },
       ])
     ).toEqual(['class-open', 'class-full']);
+  });
+});
+
+describe("the class gate leaves out the payer's own held spots (MYK9-1012)", () => {
+  it('passes the paying account to class_entry_availability', () => {
+    expect(classGateRpcArgs(['c1', 'c2'], 'auth-ann')).toEqual({
+      p_class_ids: ['c1', 'c2'],
+      p_exclude_auth_user_id: 'auth-ann',
+    });
   });
 });

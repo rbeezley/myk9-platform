@@ -53,6 +53,8 @@ const TABLE_GRANT_DECISION_KEEP_LIST: Readonly<Record<string, string>> = {
     'RLS with no policies intentionally denies API roles; the cart fulfillment RPCs own access (MYK9-964).',
   cart_fulfillments:
     'RLS with no policies intentionally denies API roles; the cart fulfillment RPCs own access (MYK9-964).',
+  cart_spot_holds:
+    'RLS with no policies intentionally denies API roles; hold_cart_spots and its sibling RPCs own access (MYK9-1012).',
   login_attempts: 'RLS with no policies intentionally denies API roles; service paths use RPCs.',
   premium_generation_attempts:
     'RLS with no policies intentionally denies API roles; service paths use RPCs.',

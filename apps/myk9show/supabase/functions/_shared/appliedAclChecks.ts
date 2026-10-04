@@ -25,6 +25,8 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   // MYK9-964: service_role only; the cart fulfillment RPCs own every read and write.
   cart_fulfillment_lines: '',
   cart_fulfillments: '',
+  // MYK9-1012: service_role only; hold_cart_spots and its siblings own every write.
+  cart_spot_holds: '',
   chatbot_feedback: 'INSERT',
   chatbot_query_log: '',
   class_visibility_overrides: 'SELECT,INSERT,UPDATE',

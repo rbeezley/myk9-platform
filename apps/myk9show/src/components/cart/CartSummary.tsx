@@ -28,6 +28,7 @@ import { useCartExpirationTimer } from '@/hooks/useCartExpirationTimer';
 import { WithdrawalPolicyDisclosure } from '@/features/payments/WithdrawalPolicyDisclosure';
 import { PlatformFeeSplitLines } from '@/features/payments/PlatformFeeSplitLines';
 import type { CartFulfillmentView } from '@/features/payments/cartFulfillmentView';
+import { CHECKOUT_HOLD_PAY_LINE } from '@/features/payments/checkoutHold';
 
 interface CartSummaryProps {
   onCheckout: () => void;
@@ -144,6 +145,9 @@ export function CartSummary({
   const capacityPending = capacityUnknown && !capacityUnavailable;
   const capacityFailed = capacityUnknown && capacityUnavailable;
   const waitlistOnly = payableCount === 0 && waitlistCount > 0;
+  // The Pay button is live and charges for at least one spot.
+  const canPayForSpots =
+    payableCount > 0 && !entriesClosed && blockedCount === 0 && !capacityUnknown && !isExpired;
 
   const handleCheckout = () => {
     onCheckout();
@@ -375,6 +379,11 @@ export function CartSummary({
             </>
           )}
         </Button>
+        {/* MYK9-1012: Pay holds the payable lines' spots until the Stripe page
+            expires. Said only where Pay charges for spots. */}
+        {canPayForSpots && (
+          <p className="text-center text-xs text-muted-foreground">{CHECKOUT_HOLD_PAY_LINE}</p>
+        )}
         {capacityFailed && onRetryCapacity && (
           <Button variant="outline" onClick={onRetryCapacity} className="min-h-11 w-full">
             <RefreshCw className="h-4 w-4 mr-2" />

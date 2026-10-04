@@ -1,6 +1,7 @@
 import { supabase } from './supabase';
 import { products, annualPriceId } from '../stripe-config';
 import { isOverflowRefundSettled } from '@/features/payments/orderRefundReconciliation';
+import { rememberCheckoutHold } from '@/features/payments/checkoutHold';
 
 /**
  * Create a Stripe checkout session for subscription or one-time payment
@@ -176,6 +177,10 @@ export async function createEntryCheckoutSession(
   if (!data?.url) {
     throw new Error('No checkout URL returned from server');
   }
+
+  // MYK9-1012: the spots are held until the page expires. Remembered across
+  // the round trip so a return from an expired page can say the hold ended.
+  rememberCheckoutHold(data.sessionId, data.holdExpiresAt);
 
   // Redirect to Stripe Checkout
   window.location.href = data.url;

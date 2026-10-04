@@ -9,7 +9,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import 'fake-indexeddb/auto';
 import { ReplicatedTable } from './ReplicatedTable';
 import { SHOW_ID_INDEX } from './DatabaseManager';
+import { ReplicatedTableCacheManager } from './ReplicatedTableCache';
 import type { SyncResult } from '../types';
+
+/**
+ * Every write schedules a trailing listener notification (NOTIFY_DEBOUNCE_MS)
+ * that reads the WHOLE table, listeners or not. Under load that timer fires
+ * inside a later `IDBObjectStore.index` spy window and records a whole-table
+ * read the code under test never made (MYK9-978). These tests assert which
+ * index a read opens, never notifications, so switch notifications off before
+ * any write can arm the timer. vi.restoreAllMocks() in afterEach undoes it.
+ */
+function silenceListenerNotifications(): void {
+  vi.spyOn(ReplicatedTableCacheManager.prototype, 'notifyListeners').mockResolvedValue();
+}
 
 interface ShowRow {
   id: string;
@@ -53,6 +66,7 @@ describe('ReplicatedTable.getByShowWithStatus (MYK9-788)', () => {
   beforeEach(async () => {
     const { databaseManager } = await import('./DatabaseManager');
     await databaseManager.reset();
+    silenceListenerNotifications();
     const suffix = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
     table = new ShowScopedTable(`entries_${suffix}`);
     otherTable = new ShowScopedTable(`trials_${suffix}`);
@@ -133,6 +147,7 @@ describe('ReplicatedTable.getByShowOrThrow (MYK9-792)', () => {
   beforeEach(async () => {
     const { databaseManager } = await import('./DatabaseManager');
     await databaseManager.reset();
+    silenceListenerNotifications();
     tableName = `entries_${Date.now()}_${Math.random().toString(36).slice(2)}`;
     table = new ShowScopedTable(tableName);
   });

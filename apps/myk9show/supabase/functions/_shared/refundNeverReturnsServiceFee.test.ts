@@ -18,7 +18,12 @@ import {
   type PlatformFeeRates,
 } from './platformFee';
 import { orderTieOutDeltaCents, resolveAcceptedEntrySnapshot } from './orderSnapshot';
-import { unservedChargeRefundCents } from './unservedChargeRefund';
+import {
+  chargedEntryFeesRefundCents,
+  parseStampedEntryIds,
+  type ChargedLine,
+} from './unservedChargeRefund';
+import { loadChargedLinesFromStripe, readChargedLines } from './entryPaymentLineItems';
 import { buildShowRefundPlan, showRefundCreateParams } from './showRefundPlan';
 
 const RATES: PlatformFeeRates = { percent: 7, flatCents: 0, minCents: 0 };
@@ -137,28 +142,118 @@ describe('the worked example: 3 lines at $30, 7% fee, $96.30 paid', () => {
       })
     ).toEqual({ action: 'needs_manual_amount', missingFeeEntryIds: ['zzz'] });
   });
+});
 
-  it('abandoned paid cart: refund $90.00, the service fee is kept', () => {
+// Codex round 1 on #2729: an all-unserved refund (abandoned cart, orphaned
+// payment-link session) is computed from what STRIPE charged, never from
+// owner-writable rows; anything that cannot be fully attributed is null, which
+// takes the existing manual-amount path.
+describe('a charge that served nothing refunds the entry fees Stripe charged', () => {
+  // Stripe line items as a CART checkout creates them: no metadata, the fee
+  // line named "Service fee".
+  const cartLineItems = [
+    { amount_total: 3000, description: 'Rex - Novice A' },
+    { amount_total: 3000, description: 'Rex - Novice B' },
+    { amount_total: 3000, description: 'Rex - Open' },
+    { amount_total: 630, description: 'Service fee' },
+  ];
+  // As a PAYMENT LINK creates them: entry_id / platform_fee product metadata.
+  const linkLine = (entryId: string | null, amount = 3000) => ({
+    amount_total: amount,
+    description: 'Entry',
+    price: {
+      product: {
+        metadata: (entryId ? { type: 'entry', entry_id: entryId } : {}) as Record<string, string>,
+      },
+    },
+  });
+  const linkFeeLine = {
+    amount_total: 630,
+    description: 'Service fee',
+    price: { product: { metadata: { type: 'platform_fee' } } },
+  };
+
+  it('abandoned cart: refunds $90.00 from Stripe lines even if the cart rows were edited to $20', () => {
+    // The DB cart now says 3 × $20 (owner-editable); the input never reads it.
     expect(
-      unservedChargeRefundCents({
-        items: [{ entry_fee_cents: 3000 }, { entry_fee_cents: 3000 }, { entry_fee_cents: 3000 }],
+      chargedEntryFeesRefundCents({
+        lines: readChargedLines(cartLineItems),
         amountTotalCents: PAID,
         rates: RATES,
+        expected: { entryLineCount: 3 },
       })
     ).toBe(9000);
   });
 
-  it('abandoned paid cart with an unpriced line: no guessed amount', () => {
+  it('payment link with no link row: refunds $90.00 when every stamped entry has its line', () => {
     expect(
-      unservedChargeRefundCents({
-        items: [{ entry_fee_cents: 3000 }, { entry_fee_cents: null }],
+      chargedEntryFeesRefundCents({
+        lines: readChargedLines([linkLine('a'), linkLine('b'), linkLine('c'), linkFeeLine]),
         amountTotalCents: PAID,
         rates: RATES,
+        expected: { entryIds: ['a', 'b', 'c'] },
+      })
+    ).toBe(9000);
+  });
+
+  it('payment link: a line with no readable entry_id takes the manual path', () => {
+    expect(
+      chargedEntryFeesRefundCents({
+        lines: readChargedLines([linkLine('a'), linkLine('b'), linkLine(null), linkFeeLine]),
+        amountTotalCents: PAID,
+        rates: RATES,
+        expected: { entryIds: ['a', 'b', 'c'] },
       })
     ).toBeNull();
-    expect(
-      unservedChargeRefundCents({ items: [], amountTotalCents: PAID, rates: RATES })
-    ).toBeNull();
+  });
+
+  it('a charge that does not tie out to amount_total takes the manual path', () => {
+    const lines = readChargedLines(cartLineItems);
+    const run = (over: Partial<Parameters<typeof chargedEntryFeesRefundCents>[0]>) =>
+      chargedEntryFeesRefundCents({
+        lines,
+        amountTotalCents: PAID,
+        rates: RATES,
+        expected: { entryLineCount: 3 },
+        ...over,
+      });
+    // Stripe collected something other than lines + fee.
+    expect(run({ amountTotalCents: 9500 })).toBeNull();
+    // Line count disagrees with the cart.
+    expect(run({ expected: { entryLineCount: 4 } })).toBeNull();
+    // The fee line is not the fee those lines price at.
+    const badFee: ChargedLine[] = lines.map(l => (l.isServiceFee ? { ...l, amountCents: 700 } : l));
+    expect(run({ lines: badFee, amountTotalCents: 9700 })).toBeNull();
+    // A line Stripe did not price, or a truncated page.
+    expect(run({ lines: [...lines.slice(0, 2), { ...lines[2], amountCents: null }] })).toBeNull();
+    expect(run({ lines: null })).toBeNull();
+  });
+
+  it('treats a line-item page Stripe truncated as unreadable', async () => {
+    const page = (has_more: boolean) => ({
+      listLineItems: async () => ({ data: cartLineItems, has_more }),
+    });
+    await expect(loadChargedLinesFromStripe(page(true), 'cs_1')).resolves.toBeNull();
+    await expect(loadChargedLinesFromStripe(page(false), 'cs_1')).resolves.toHaveLength(4);
+  });
+
+  it('reads the stamped entry ids, and nothing from an unreadable stamp', () => {
+    expect(parseStampedEntryIds('["a","b","c"]')).toEqual(['a', 'b', 'c']);
+    expect(parseStampedEntryIds(undefined)).toEqual([]);
+    expect(parseStampedEntryIds('{"a":1}')).toEqual([]);
+    expect(parseStampedEntryIds('[1,2]')).toEqual([]);
+  });
+
+  it('payment link: a duplicated or foreign entry line takes the manual path', () => {
+    const run = (items: ReturnType<typeof linkLine>[]) =>
+      chargedEntryFeesRefundCents({
+        lines: readChargedLines([...items, linkFeeLine]),
+        amountTotalCents: PAID,
+        rates: RATES,
+        expected: { entryIds: ['a', 'b', 'c'] },
+      });
+    expect(run([linkLine('a'), linkLine('b'), linkLine('b')])).toBeNull();
+    expect(run([linkLine('a'), linkLine('b'), linkLine('z')])).toBeNull();
   });
 });
 

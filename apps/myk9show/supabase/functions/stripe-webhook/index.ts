@@ -23,8 +23,14 @@ import {
   resolveAcceptedEntrySnapshot,
   refundKindFromMetadata,
 } from '../_shared/orderSnapshot.ts';
-import { loadEntryPaymentLineItemFeesFromStripe } from '../_shared/entryPaymentLineItems.ts';
-import { unservedChargeRefundCents } from '../_shared/unservedChargeRefund.ts';
+import {
+  loadChargedLinesFromStripe,
+  loadEntryPaymentLineItemFeesFromStripe,
+} from '../_shared/entryPaymentLineItems.ts';
+import {
+  chargedEntryFeesRefundCents,
+  parseStampedEntryIds,
+} from '../_shared/unservedChargeRefund.ts';
 import {
   resolveWithdrawalPolicy,
   type ShowWithdrawalColumns,
@@ -1059,9 +1065,10 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
       cartId,
       sessionId: session.id,
       paymentIntentId: extractPaymentIntentId(session.payment_intent),
-      // Entry fees only; the service fee is kept (MYK9-966).
-      amountCents: unservedChargeRefundCents({
-        items: cart.items ?? [],
+      // The entry fees STRIPE charged; the service fee is kept (MYK9-966).
+      amountCents: chargedEntryFeesRefundCents({
+        lines: await loadChargedLines(session.id),
+        expected: { entryLineCount: cart.items?.length ?? 0 },
         amountTotalCents: abandonedGate.amountTotalCents,
         rates: decodeStampedPlatformFeeRates(
           abandonedSession.metadata,
@@ -1328,8 +1335,9 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
         cartId,
         sessionId: session.id,
         paymentIntentId: dupIntentId,
-        amountCents: unservedChargeRefundCents({
-          items: cart.items ?? [],
+        amountCents: chargedEntryFeesRefundCents({
+          lines: await loadChargedLines(session.id),
+          expected: { entryLineCount: cart.items?.length ?? 0 },
           amountTotalCents: freshTotalCents,
           rates: stampedFeeRates,
         }),
@@ -1891,7 +1899,6 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
        fee, MYK9-966). ${RESOLVE_INSTEAD_HTML}</p>`,
       { source: 'stripe-webhook', dedupeKey: `payment-link-no-record-${session.id}` }
     );
-    const orphanFees = await loadEntryPaymentLineItemFees(session.id);
     // No link row, so no latch: the refund request is the only write, and a
     // redelivery takes this same path to the same idempotent call.
     await settlePaymentLinkObligation(refundQueueDeps, {
@@ -1900,9 +1907,10 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       linkId: null,
       closeLinkFrom: null,
       owed: {
-        // Every line is unserved; null (no line items) takes the missing-inputs alert.
-        amountCents: unservedChargeRefundCents({
-          items: [...orphanFees.values()].map(entry_fee_cents => ({ entry_fee_cents })),
+        // Every line is unserved; null (not fully attributable) takes the missing-inputs alert.
+        amountCents: chargedEntryFeesRefundCents({
+          lines: await loadChargedLines(session.id),
+          expected: { entryIds: parseStampedEntryIds(freshSession.metadata?.entry_ids) },
           amountTotalCents: freshAmountTotalCents,
           rates: decodeStampedPlatformFeeRates(
             freshSession.metadata,
@@ -2488,6 +2496,16 @@ async function expireRecoveredEntryPaymentLinks(entryId: string, sessionId: stri
         { source: 'stripe-webhook', dedupeKey: `recovered-entry-link-expire-${link.id}` }
       );
     }
+  }
+}
+
+/** Every charged line of a session, or null (unreadable or over one page). */
+async function loadChargedLines(sessionId: string) {
+  try {
+    return await loadChargedLinesFromStripe(stripe.checkout.sessions, sessionId);
+  } catch (err) {
+    console.error(`Could not load line items for session ${sessionId}:`, err);
+    return null;
   }
 }
 

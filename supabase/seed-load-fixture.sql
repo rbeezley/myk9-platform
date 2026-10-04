@@ -225,7 +225,9 @@ FROM generate_series(1, 63) AS load_armbands(dog_number);
 -- the club_number below no longer spells it out: club 1 = Green Country
 -- Scent Work Club (GCSW), club 2 = Redbud Ridge Canine Sports Club (RRCS),
 -- club 3 = Blue Sky K9 Trial Club (BSKT).
-INSERT INTO public.clubs (id, name, city, state, email, description, club_number, version)
+-- is_demo = true: load clubs are fixtures too, so their published load shows
+-- stay off the public listings for the length of a rehearsal (MYK9-952).
+INSERT INTO public.clubs (id, name, city, state, email, description, club_number, version, is_demo)
 SELECT
   format('a1090000-0000-0000-0013-%s%s', s, lpad('1', 11, '0'))::uuid,
   club_name,
@@ -233,7 +235,8 @@ SELECT
   'testadmin@myk9t.com',
   club_description,
   format('%s-%s', club_code, lpad(s::text, 3, '0')),
-  1
+  1,
+  true
 FROM (VALUES
   (1, 'Green Country Scent Work Club', 'GCSW',
    'A Tulsa-based club hosting AKC Scent Work trials for local and regional competitors.'),

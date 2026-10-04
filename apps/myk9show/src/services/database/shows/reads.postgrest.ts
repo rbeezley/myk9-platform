@@ -33,7 +33,19 @@ export async function postgrestGetPublicShows() {
       // need them and they dominate the payload. `timezone` IS: Browse judges
       // entry status in the show's first-trial zone, as `submit_show_entries`
       // does, and without it every guest label fell back to Eastern (MYK9-714).
-      .select('*, club:clubs(name, address, email), trials(id, name, date, trial_type, timezone)')
+      //
+      // MYK9-952: the club embed is INNER and filtered on is_demo, so a show a
+      // seed-demo fixture club hosts drops out of the signed-out list (and so
+      // out of its calendar, map and month-strip counts, which all derive from
+      // this one read). A plain embed filter would only null `club` and keep
+      // the show. This is a listing rule, not access control: anon can still
+      // open a demo show by direct link, which the E2E fixtures rely on. Every
+      // public show's club is readable by anon (clubs_select's
+      // club_has_public_show), so the inner join drops nothing else.
+      .select(
+        '*, club:clubs!inner(name, address, email), trials(id, name, date, trial_type, timezone)'
+      )
+      .eq('club.is_demo', false)
   ).order('start_date', { ascending: true });
 
   if (error) throw createDatabaseError(error, 'show', 'select_public');

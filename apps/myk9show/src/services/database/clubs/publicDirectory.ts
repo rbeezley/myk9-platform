@@ -51,6 +51,9 @@ export async function getPublicDirectoryClubs(): Promise<Club[]> {
     .from('clubs')
     .select(PUBLIC_DIRECTORY_CLUB_COLUMNS)
     .is('deleted_at', null)
+    // MYK9-952: seed-demo fixture clubs are not listed to guests. A listing
+    // rule only: getPublicClubById still opens one by direct link.
+    .eq('is_demo', false)
     .order('name', { ascending: true });
 
   if (error) {

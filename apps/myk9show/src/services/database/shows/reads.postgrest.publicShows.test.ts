@@ -1,10 +1,11 @@
 import { createDatabaseError } from '@/services/database/databaseError';
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-const { mockSelect, mockFrom } = vi.hoisted(() => {
+const { mockSelect, mockFrom, mockEq } = vi.hoisted(() => {
   const mockSelect = vi.fn();
   const mockFrom = vi.fn();
-  return { mockSelect, mockFrom };
+  const mockEq = vi.fn();
+  return { mockSelect, mockFrom, mockEq };
 });
 
 // The real helper, not a local copy: a file-local factory beats the global
@@ -33,10 +34,23 @@ describe('postgrestGetPublicShows', () => {
       select: mockSelect,
       in: vi.fn().mockReturnThis(),
       is: vi.fn().mockReturnThis(),
+      eq: mockEq.mockReturnThis(),
       order: vi.fn().mockResolvedValue({ data: [], error: null }),
     };
     mockSelect.mockReturnValue(chain);
     mockFrom.mockReturnValue(chain);
+  });
+
+  // MYK9-952: seed-demo fixture shows stay published for the E2E specs, so the
+  // signed-out list must leave out every show a demo club hosts. The club embed
+  // has to be INNER for the club filter to drop the show row; a plain embed
+  // filter would only null the embedded club and keep the show listed.
+  it('leaves out shows hosted by a demo club (MYK9-952)', async () => {
+    await postgrestGetPublicShows();
+
+    const select = mockSelect.mock.calls[0]?.[0] as string;
+    expect(select).toMatch(/club:clubs!inner\s*\(/);
+    expect(mockEq).toHaveBeenCalledWith('club.is_demo', false);
   });
 
   it('embeds trials so the discipline filter has a source', async () => {
@@ -60,6 +74,7 @@ describe('postgrestGetPublicShows', () => {
       select: mockSelect,
       in: vi.fn().mockReturnThis(),
       is: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
       order: vi.fn().mockResolvedValue({
         data: [
           {

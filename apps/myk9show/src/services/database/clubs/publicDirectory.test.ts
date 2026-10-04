@@ -5,6 +5,7 @@ import { getPublicClubById, getPublicDirectoryClubs } from './publicDirectory';
 const query = vi.hoisted(() => ({
   select: vi.fn(),
   is: vi.fn(),
+  eq: vi.fn(),
   order: vi.fn(),
 }));
 
@@ -12,6 +13,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   query.select.mockReturnValue(query);
   query.is.mockReturnValue(query);
+  query.eq.mockReturnValue(query);
   vi.mocked(supabase.from).mockReturnValue(query as never);
 });
 
@@ -24,6 +26,14 @@ describe('getPublicDirectoryClubs (MYK9-747)', () => {
     expect(supabase.from).toHaveBeenCalledWith('clubs');
     expect(query.select).toHaveBeenCalledWith('id, name, description, logo_url, city, state');
     expect(query.is).toHaveBeenCalledWith('deleted_at', null);
+  });
+
+  it('leaves the seed-demo fixture clubs out of the guest directory (MYK9-952)', async () => {
+    query.order.mockResolvedValue({ data: [], error: null });
+
+    await getPublicDirectoryClubs();
+
+    expect(query.eq).toHaveBeenCalledWith('is_demo', false);
   });
 
   it('maps the server rows onto the directory Club shape', async () => {

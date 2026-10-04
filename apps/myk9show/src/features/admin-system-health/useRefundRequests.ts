@@ -71,6 +71,8 @@ export function useResolveRefundRequest() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: REFUND_REQUESTS_QUERY_KEY });
+      // Closing the request closes its alert server-side (MYK9-981).
+      queryClient.invalidateQueries({ queryKey: OPERATOR_ALERTS_QUERY_KEY });
     },
   });
 }

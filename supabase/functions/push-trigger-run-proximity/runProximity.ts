@@ -51,9 +51,11 @@ export function isInRing(entry: ProximityEntryRow): boolean {
   return entry.check_in_status === 'in-ring';
 }
 
-/** Still due to run: unscored and not pulled. */
+/** Still due to run: unscored, not pulled, not marked completed (MYK9-996). */
 export function isInQueue(entry: ProximityEntryRow): boolean {
-  return !entry.is_scored && entry.check_in_status !== 'pulled';
+  return (
+    !entry.is_scored && entry.check_in_status !== 'pulled' && entry.check_in_status !== 'completed'
+  );
 }
 
 function sortKey(entry: ProximityEntryRow): number {

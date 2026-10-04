@@ -118,6 +118,9 @@ export function dogsAheadInClass(entries: readonly ShowEntry[], entryId: string)
  * A true place needs the full queue from the server.
  */
 export function ownEntryQueueState(entry: ShowEntry): RunQueueState | null {
+  // `toShowEntryQueueRow` folds every not-running lifecycle onto 'pulled' for
+  // queue membership; a withdrawal is a different act and keeps its own label.
+  if (entry.status === 'withdrawn') return { kind: 'withdrawn' };
   const state = runQueueStateOf([toShowEntryQueueRow(entry)], entry.id);
   if (state?.kind !== 'waiting') return state;
   return (entry.registrationData?.runOrder ?? 0) > 0 ? { kind: 'waiting-unknown' } : null;

@@ -48,9 +48,14 @@ export function isInRingEntry(entry: RunQueueEntry): boolean {
   return entry.inRing === true || entry.status === 'in-ring';
 }
 
-/** Entries still due to run: unscored and not pulled from the class. */
+/**
+ * Entries still due to run: unscored, not pulled, and not marked completed.
+ * Staff can mark a dog completed at the gate without a score being recorded
+ * (check-in 'completed'); it has run, so it must not hold a place in line
+ * (MYK9-996). Mirrored in supabase/functions/push-trigger-run-proximity.
+ */
 export function isInQueue(entry: RunQueueEntry): boolean {
-  return !entry.isScored && entry.status !== 'pulled';
+  return !entry.isScored && entry.status !== 'pulled' && entry.status !== 'completed';
 }
 
 /** Run-order comparator (mirrors the `run` sort: exhibitorOrder, armband fallback). */
@@ -107,7 +112,9 @@ export type RunQueueState =
   | { kind: 'waiting-unknown' }
   | { kind: 'in-ring' }
   | { kind: 'done' }
-  | { kind: 'pulled' };
+  /** Pulled and withdrawn are different acts (INTENT: Withdraw vs Pull). */
+  | { kind: 'pulled' }
+  | { kind: 'withdrawn' };
 
 /**
  * The entry's state in `entries` (one class's rows), or null when the entry is
@@ -119,10 +126,10 @@ export function runQueueStateOf(
 ): RunQueueState | null {
   const target = entries.find(entry => entry.id === entryId);
   if (!target) return null;
+  if (target.status === 'withdrawn') return { kind: 'withdrawn' };
   if (target.status === 'pulled') return { kind: 'pulled' };
-  // Staff can mark a dog completed at the gate without a score being recorded
-  // (check-in 'completed'); it has run, whatever `isScored` says. This is the
-  // STATE only -- `isInQueue` / `pendingByRunOrder` are deliberately untouched.
+  // Check-in 'completed' has run whatever `isScored` says -- the same rule
+  // `isInQueue` applies, so the state and the queue cannot disagree.
   if (target.isScored || target.status === 'completed') return { kind: 'done' };
   if (isInRingEntry(target)) return { kind: 'in-ring' };
   const index = pendingByRunOrder(entries).findIndex(entry => entry.id === entryId);
@@ -166,5 +173,7 @@ export function formatRunQueueState(state: RunQueueState): string {
       return 'Done';
     case 'pulled':
       return 'Pulled';
+    case 'withdrawn':
+      return 'Withdrawn';
   }
 }

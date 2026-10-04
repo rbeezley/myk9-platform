@@ -199,3 +199,31 @@ describe('place in line (MYK9-992)', () => {
     expect(formatRunQueueState({ kind: 'pulled' })).toBe('Pulled');
   });
 });
+
+describe('check-in completed without a score (MYK9-996)', () => {
+  const rows = [
+    entry({ id: 'ran', armband: 1, exhibitorOrder: 2, status: 'completed', isScored: false }),
+    entry({ id: 'a', armband: 2, exhibitorOrder: 9 }),
+    entry({ id: 'b', armband: 3, exhibitorOrder: 31 }),
+  ];
+
+  it('is out of the queue, so later dogs are not pushed back a place', () => {
+    expect(isInQueue(rows[0])).toBe(false);
+    expect(pendingByRunOrder(rows).map(e => e.id)).toEqual(['a', 'b']);
+    expect(nextPendingCandidates(rows, 1).map(e => e.id)).toEqual(['a']);
+    expect(['a', 'b'].map(id => placeInLine(rows, id))).toEqual([1, 2]);
+  });
+
+  it('agrees with the state helper: the same dog is done', () => {
+    expect(runQueueStateOf(rows, 'ran')).toEqual({ kind: 'done' });
+  });
+});
+
+describe('withdrawn state', () => {
+  it('is its own state and label, never Pulled', () => {
+    const rows = [entry({ id: 'w', armband: 1, status: 'withdrawn' })];
+    expect(runQueueStateOf(rows, 'w')).toEqual({ kind: 'withdrawn' });
+    expect(formatRunQueueState({ kind: 'withdrawn' })).toBe('Withdrawn');
+    expect(formatRunQueueState({ kind: 'pulled' })).toBe('Pulled');
+  });
+});

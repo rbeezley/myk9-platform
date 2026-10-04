@@ -191,6 +191,15 @@ describe('useMyEntriesInClass', () => {
     expect(result.current.myEntries[0].queue).toEqual({ kind: 'done' });
   });
 
+  it('keeps withdrawn and pulled apart: a withdrawn entry is Withdrawn, not Pulled', () => {
+    setMocks({ entries: [makeEntry({ status: 'withdrawn' })] });
+    const withdrawn = renderHook(() => useMyEntriesInClass(CLASS_ID));
+    expect(withdrawn.result.current.myEntries[0].queue).toEqual({ kind: 'withdrawn' });
+    setMocks({ entries: [makeEntry({ status: 'scratched' })] });
+    const pull = renderHook(() => useMyEntriesInClass(CLASS_ID));
+    expect(pull.result.current.myEntries[0].queue).toEqual({ kind: 'pulled' });
+  });
+
   it('reports the state, not a place, for my dog when it is in the ring, done or pulled', () => {
     const rows = classWithGaps();
     const states = (id: string) => {

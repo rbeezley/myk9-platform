@@ -85,6 +85,13 @@ describe('ExhibitorClassCallout', () => {
     expect(screen.getByText('Pulled')).toBeInTheDocument();
   });
 
+  it('labels a withdrawn dog Withdrawn, never Pulled', () => {
+    mockHook({ myEntries: [makeEntry({ queue: { kind: 'withdrawn' } })], isAfterClass: false });
+    render(<ExhibitorClassCallout classId="c1" />);
+    expect(screen.getByText('Withdrawn')).toBeInTheDocument();
+    expect(screen.queryByText('Pulled')).not.toBeInTheDocument();
+  });
+
   it('renders "Your results" region after class', () => {
     mockHook({
       myEntries: [makeEntry({ hasResult: true, result: { qualified: true, time: '00:38.2' } })],

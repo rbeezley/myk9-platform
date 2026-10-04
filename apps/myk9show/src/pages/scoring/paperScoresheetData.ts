@@ -1,6 +1,9 @@
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
+import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
+import { isOnClassRunList } from '@/features/_shared/entryAccounting';
+import { buildShowArmbandMaps, resolveEntryArmband } from '@/features/_shared/entryArmband';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import {
   resolveDogIdentityForOrganization,
@@ -13,7 +16,13 @@ import type { ScoringEntry } from './types';
 
 /** Fetch all entries for a class with their dog data, parallelising dog lookups. */
 export async function loadEntriesWithDogs(classId: string): Promise<ScoringEntry[]> {
-  const rawEntries = await replicatedEntriesTable.getEntriesByClass(classId);
+  // Withdrawn, scratched, moved and not-accepted rows are not on the scoring
+  // list, so they are not in "n of m scored" either (MYK9-976). A pending
+  // (not yet accepted) entry stays listed, as it always has.
+  const classEntries = (await replicatedEntriesTable.getEntriesByClass(classId)).filter(
+    isOnClassRunList
+  );
+  const rawEntries = await withShowArmbands(classEntries);
   const uniqueDogIds = [...new Set(rawEntries.map(e => e.dogId).filter(Boolean))] as string[];
   const dogs = await Promise.all(uniqueDogIds.map(id => replicatedDogsTable.get(id)));
   const dogsMap = new Map(uniqueDogIds.map((id, i) => [id, dogs[i] ?? null]));
@@ -27,6 +36,35 @@ export async function loadEntriesWithDogs(classId: string): Promise<ScoringEntry
       e.dogId ? registeredBreedByDogId.get(e.dogId) : undefined
     )
   );
+}
+
+/**
+ * Give every entry the armband the class page shows: its own column, else the
+ * show's armband for the dog (MYK9-976). `entries.armband` is NULL on a
+ * withdrawn row while the show armband survives, so reading the column alone
+ * printed no number where the class page printed one. An armbands table that
+ * cannot be read leaves the entry column as the answer; it never blocks scoring.
+ */
+async function withShowArmbands<
+  T extends {
+    id: string;
+    dogId?: string | undefined;
+    armband?: string | undefined;
+    showId?: string | undefined;
+  },
+>(entries: T[]): Promise<T[]> {
+  const showId = entries.find(entry => entry.showId)?.showId;
+  if (!showId || entries.every(entry => entry.armband)) return entries;
+  let maps;
+  try {
+    maps = buildShowArmbandMaps(await replicatedArmbandsTable.getByShow(showId));
+  } catch {
+    return entries;
+  }
+  return entries.map(entry => {
+    const armband = resolveEntryArmband(entry, maps);
+    return armband && armband !== entry.armband ? { ...entry, armband } : entry;
+  });
 }
 
 /**

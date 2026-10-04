@@ -34,6 +34,7 @@ const launchCriticalSqlTests = [
   'askq_quota_reservation_test.sql',
   'class_hide_count_gating_test.sql',
   'class_status_auto_derivation_test.sql',
+  'class_actual_times_from_scoring_test.sql',
   'class_lifecycle_absent_parity_test.sql',
   'checkout_confirmation_on_insert_test.sql',
   'club_access_request_approval_test.sql',

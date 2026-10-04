@@ -54,7 +54,7 @@ describe('ClassReadinessStrip', () => {
     );
 
     expect(screen.getByRole('region', { name: 'Class readiness' })).toBeInTheDocument();
-    expect(screen.getByText('4 total entries')).toBeInTheDocument();
+    expect(screen.getByText('2 entered · 1 pending')).toBeInTheDocument();
     expect(screen.getByText('1 needs review')).toBeInTheDocument();
     expect(screen.getByText('1 payment due')).toBeInTheDocument();
     expect(screen.getByText('1 of 2 checked in')).toBeInTheDocument();
@@ -151,7 +151,7 @@ describe('ClassReadinessStrip', () => {
       />
     );
 
-    expect(screen.getByText('4 total entries')).toBeInTheDocument();
+    expect(screen.getByText('2 entered · 1 pending')).toBeInTheDocument();
     expect(
       screen.queryByRole('status', { name: 'Class readiness unavailable' })
     ).not.toBeInTheDocument();
@@ -173,5 +173,44 @@ describe('ClassReadinessStrip', () => {
 
     expect(screen.getByText('Payment status unavailable')).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /payment/i })).not.toBeInTheDocument();
+  });
+
+  // MYK9-976: the stored state of Exterior Excellent. The strip reads like the
+  // schedule card ("0 entered · 1 pending"), and the withdrawn pair is not in
+  // the "scored" denominator.
+  it('reads one pending and two withdrawn entries as 0 entered, 1 pending, 0 of 1 scored', () => {
+    const withdrawn = (id: string): ClassReadinessEntry => ({
+      id,
+      entry_status: 'withdrawn',
+      payment_status: 'refunded',
+      check_in_status: 'no-status',
+      is_scored: false,
+    });
+    render(
+      <ClassReadinessStrip
+        isStaff
+        classData={classData}
+        entries={[
+          withdrawn('maple'),
+          withdrawn('ranger'),
+          {
+            id: 'juni',
+            entry_status: 'submitted',
+            payment_status: 'pending',
+            check_in_status: 'no-status',
+            is_scored: false,
+          },
+        ]}
+        showId="show-1"
+        trialId="trial-1"
+        classId="class-1"
+        isLoading={false}
+        error={null}
+      />,
+      { initialRoute: '/classes/class-1' }
+    );
+
+    expect(screen.getByText('0 entered · 1 pending')).toBeInTheDocument();
+    expect(screen.getByText('0 of 1 scored')).toBeInTheDocument();
   });
 });

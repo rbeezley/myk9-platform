@@ -1151,8 +1151,10 @@ VALUES
   -- Purpose-built two-entry class for the unreleased-results fixture. It is
   -- intentionally outside the MYK9-109 load set so every eligible entry can
   -- be scored and its persisted placements can be read back deterministically.
+  -- Named for its class, not for the report it tests: "Interior Advanced
+  -- Preliminary" read as an invented level on every screen (owner, 2026-10-03).
   ('dec1a55e-0000-0000-0000-000000000040', 'dededede-0000-0000-0000-000000000021',
-   'Interior Advanced Preliminary', 'Advanced', 'Interior', NULL,
+   'Interior Advanced', 'Advanced', 'Interior', NULL,
    30.00, 'upcoming', 180, 2, 2, false, 'single', true, 4, 1);
 
 -- MYK9-515 FULL-CLASS FIXTURE (lean set). One class is full on the lean seed

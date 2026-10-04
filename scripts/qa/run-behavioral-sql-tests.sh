@@ -40,6 +40,7 @@ TEST_FILES=(
   "$TEST_DIR/askq_quota_reservation_test.sql"
   "$TEST_DIR/class_hide_count_gating_test.sql"
   "$TEST_DIR/class_status_auto_derivation_test.sql"
+  "$TEST_DIR/class_actual_times_from_scoring_test.sql"
   "$TEST_DIR/class_lifecycle_absent_parity_test.sql"
   "$TEST_DIR/checkout_confirmation_on_insert_test.sql"
   "$TEST_DIR/club_access_request_approval_test.sql"

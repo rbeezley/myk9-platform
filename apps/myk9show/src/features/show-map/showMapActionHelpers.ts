@@ -1,3 +1,5 @@
+import { isOnClassRunList } from '@/features/_shared/entryAccounting';
+import { isPendingEntryStatus } from '@/features/entry-operations/classEntryBreakdown';
 import type { ShowMapNode, ShowMapNodeType, ShowMapTree } from './showMapTypes';
 
 const SYNTHETIC_DISPLAY_ACTION_NODE_TYPES = new Set<ShowMapNodeType>([
@@ -36,12 +38,26 @@ export function canMessageEntryHandler(node: ShowMapNode): boolean {
 }
 
 /**
- * False for a retired ('moved'/pulled/scratched, all classified `kind:
- * 'muted'`) entry — it is a superseded source record, not something that can
- * itself be moved up again (MYK9-825).
+ * A move-up happens BEFORE the dog runs (owner, 2026-10-03): a dog that
+ * finished its last Novice leg in Trial 1 has its Trial 2 Novice entry moved
+ * to Advanced in Trial 2, before that class starts. So it is offered only on
+ * an entry that has not run, in a class that has not started.
+ *
+ * Also false for a retired ('moved'/pulled/scratched, all `kind: 'muted'`)
+ * entry — a superseded source record, not something to move again (MYK9-825).
  */
-export function canMoveUpEntry(node: ShowMapNode): boolean {
-  return node.type === 'entry' && node.status?.kind !== 'muted';
+export function canMoveUpEntry(node: ShowMapNode, tree: ShowMapTree): boolean {
+  if (node.type !== 'entry') return false;
+  // muted: retired; complete: scored; active: in the ring.
+  if (node.status && node.status.kind !== 'neutral' && node.status.kind !== 'attention') {
+    return false;
+  }
+  // Owner decision 2026-10-03 (MYK9-976): Move up is hidden until the entry is
+  // accepted, and never offered on a withdrawn, scratched or not-accepted one.
+  const entryStatus = node.entryDisplay?.entryStatus;
+  if (isPendingEntryStatus(entryStatus) || !isOnClassRunList({ entryStatus })) return false;
+  const parentClass = node.parentId ? tree.nodesById[node.parentId] : undefined;
+  return parentClass?.type === 'class' && (parentClass.status?.kind ?? 'neutral') === 'neutral';
 }
 
 export function sourceIdFromNodeId(

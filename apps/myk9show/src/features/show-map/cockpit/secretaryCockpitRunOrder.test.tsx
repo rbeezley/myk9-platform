@@ -55,6 +55,7 @@ const FOCUSED: FocusedClassModel = {
   timeLabel: '9:00 AM',
   scheduledStart: '9:00 AM',
   expectedStart: '9:00 AM',
+  startedLabel: null,
   lifecycle: { evidence: 'recorded', value: 'not-started' },
   progress: { evidence: 'computed', value: { completed: 0, total: 2 } },
   operationalArea: { evidence: 'unknown', value: null },

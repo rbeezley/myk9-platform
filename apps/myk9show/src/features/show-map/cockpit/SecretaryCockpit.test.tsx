@@ -163,7 +163,7 @@ describe('SecretaryCockpit class selection (show home overview)', () => {
     expect(nameButton).toHaveAttribute('aria-pressed', 'false');
 
     // The card's plain text, well below the name row.
-    await user.click(within(card).getByText(/of 7 done/));
+    await user.click(within(card).getByText(/of 7 steps done/));
     expect(nameButton).toHaveAttribute('aria-pressed', 'true');
   });
 
@@ -177,7 +177,44 @@ describe('SecretaryCockpit class selection (show home overview)', () => {
     const squares = strip.querySelectorAll('[data-state]');
 
     expect(squares).toHaveLength(7);
-    expect(within(strip).getByText(/^\d of 7 done/)).toBeInTheDocument();
+    expect(within(strip).getByText(/^\d of 7 steps done/)).toBeInTheDocument();
+  });
+
+  it('shows "N of M scored" in place of the entered count once scoring has begun', () => {
+    const base = twoClassSnapshot();
+    const snapshotScoring: SecretaryCockpitSnapshot = {
+      ...base,
+      classes: base.classes.map(cls =>
+        cls.id === 'class-2'
+          ? { ...cls, lifecycle: 'in-progress', entryCount: 3, scoredCount: 1 }
+          : cls
+      ),
+    };
+    render(
+      <SecretaryCockpit
+        snapshot={snapshotScoring}
+        canManageShow
+        onCommand={vi.fn()}
+        entryBreakdownByClassId={
+          new Map([
+            ['class-1', { entered: 4, pending: 0 }],
+            ['class-2', { entered: 3, pending: 1 }],
+          ])
+        }
+      />,
+      { initialRoute: '/shows/show-1' }
+    );
+    const scoring = document.getElementById('cockpit-anchor-class-2')!;
+    const notStarted = document.getElementById('cockpit-anchor-class-1')!;
+
+    expect(within(scoring).getByText('1 of 3 scored')).toBeInTheDocument();
+    expect(within(scoring).queryByText(/entered/)).toBeNull();
+    expect(
+      within(scoring).getByRole('link', { name: '1 pending in Interior Novice' })
+    ).toBeVisible();
+    // Before scoring can begin, the entered count stays.
+    expect(within(notStarted).getByText('4 entered')).toBeInTheDocument();
+    expect(within(notStarted).queryByText(/scored/)).toBeNull();
   });
 
   it('writes the URL once per click on the class name', async () => {

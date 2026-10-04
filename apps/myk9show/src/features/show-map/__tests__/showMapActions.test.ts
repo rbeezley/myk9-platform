@@ -1597,6 +1597,29 @@ describe('showMapActions', () => {
       );
       expect(ids).toContain('move-up-entry');
     });
+
+    // Owner, 2026-10-03: a move-up happens before the dog runs, on the next
+    // trial's class before it starts -- never on a class already under way.
+    it.each([
+      ['a class in progress', 'In Progress', { entry_status: 'accepted' }],
+      ['a completed class', 'Completed', { entry_status: 'accepted' }],
+      ['a scored entry in a not-started class', 'Upcoming', { is_scored: true }],
+      ['an entry in the ring', 'Upcoming', { check_in_status: 'in-ring' }],
+    ])('does NOT offer Move up for %s', (_label, classStatus, entryFields) => {
+      const tree = buildShowMapTree({
+        show,
+        trials: [trial],
+        classes: [
+          { id: 'class-source', trialId: 'trial-1', name: 'Vehicle Novice', status: classStatus },
+        ],
+        entries: [{ id: 'entry-x', class_id: 'class-source', ...entryFields }],
+      });
+
+      const ids = getDirectActionsForNode(tree.nodesById['entry:entry-x']!, { tree }).map(
+        a => a.id
+      );
+      expect(ids).not.toContain('move-up-entry');
+    });
   });
 
   describe('class-row primary action lifecycle (B2b Pattern 3)', () => {

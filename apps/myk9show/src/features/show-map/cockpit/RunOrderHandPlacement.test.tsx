@@ -6,11 +6,20 @@ import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTa
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
-const source = vi.hoisted(() => ({ rows: [] as unknown[] }));
+const source = vi.hoisted(() => ({
+  rows: [] as unknown[],
+  mode: 'ok' as 'ok' | 'fail' | 'pending',
+  calls: 0,
+}));
 vi.mock('../classPlacementSource', async () => {
   const { buildClassPlacement } = await import('../showMapHandPlacement');
   return {
-    loadClassPlacement: async () => buildClassPlacement(source.rows as never, []),
+    loadClassPlacement: async () => {
+      source.calls += 1;
+      if (source.mode === 'fail') throw new Error('read failed');
+      if (source.mode === 'pending') return new Promise(() => undefined);
+      return buildClassPlacement(source.rows as never, []);
+    },
   };
 });
 
@@ -29,6 +38,7 @@ const row = (id: string, runOrder: number, extra: Record<string, unknown> = {}) 
   }) as unknown as ReplicatedEntry;
 
 async function setup(overrides: Partial<SecretaryCockpitRunOrderControls> = {}) {
+  source.mode = 'ok';
   source.rows = [
     row('e1', 1),
     row('e2', 2, { isScored: true }),
@@ -134,5 +144,42 @@ describe('RunOrderUndoNotice', () => {
       />
     );
     expect(screen.queryByRole('button', { name: /Undo/ })).toBeNull();
+  });
+});
+
+describe('RunOrderHandPlacement read states', () => {
+  const controls = {
+    onAutoSort: vi.fn(),
+    isAutoSorting: false,
+    onPlaceEntry: vi.fn(),
+    lastChange: null,
+    onUndo: vi.fn(),
+  };
+  const mount = () =>
+    render(<RunOrderHandPlacement showId="s1" classId="c1" runOrder={controls} onDone={vi.fn()} />);
+
+  it('a failed read shows an error with Retry, not the empty message', async () => {
+    source.mode = 'fail';
+    source.calls = 0;
+    mount();
+    expect(await screen.findByText(/Couldn.t load the run order/)).toBeInTheDocument();
+    expect(screen.queryByText('No dogs on the run order yet.')).toBeNull();
+    const before = source.calls;
+    await userEvent.setup().click(screen.getByRole('button', { name: 'Retry' }));
+    await vi.waitFor(() => expect(source.calls).toBeGreaterThan(before));
+  });
+
+  it('a read that has not returned is loading, not empty', () => {
+    source.mode = 'pending';
+    mount();
+    expect(screen.getByText('Loading the run order…')).toBeInTheDocument();
+    expect(screen.queryByText('No dogs on the run order yet.')).toBeNull();
+  });
+
+  it('a class with no dogs says so', async () => {
+    source.mode = 'ok';
+    source.rows = [];
+    mount();
+    expect(await screen.findByText('No dogs on the run order yet.')).toBeInTheDocument();
   });
 });

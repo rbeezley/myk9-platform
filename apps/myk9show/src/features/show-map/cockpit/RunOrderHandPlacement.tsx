@@ -132,7 +132,11 @@ export function RunOrderHandPlacement({
 }) {
   // Same loader the mutation uses, so the rows are the slots a write targets.
   // Keyed under the class's entries, so every entry write refreshes it.
-  const { data: placement, isLoading } = useQuery({
+  const {
+    data: placement,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: [...queryKeys.classEntries(classId), 'placement', showId],
     queryFn: () => loadClassPlacement(showId, classId),
     networkMode: 'always',
@@ -155,9 +159,24 @@ export function RunOrderHandPlacement({
       <p className="mt-1 text-xs text-muted-foreground">
         Armband and Random sort the whole class again and replace anything placed here.
       </p>
-      {rows.length === 0 ? (
+      {isError ? (
+        <div
+          role="alert"
+          className="mt-2 flex items-center justify-between gap-3 rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm"
+        >
+          <span className="text-destructive">Couldn&rsquo;t load the run order.</span>
+          <Button type="button" variant="outline" size="touch" onClick={() => void refetch()}>
+            Retry
+          </Button>
+        </div>
+      ) : !placement ? (
+        // No data yet (loading, paused or disabled) is not an empty class.
         <p className="mt-2 text-sm text-muted-foreground" role="status">
-          {isLoading ? 'Loading the run order…' : 'No dogs on the run order yet.'}
+          Loading the run order…
+        </p>
+      ) : rows.length === 0 ? (
+        <p className="mt-2 text-sm text-muted-foreground" role="status">
+          No dogs on the run order yet.
         </p>
       ) : (
         <ol className="mt-2 divide-y rounded-md border" aria-label="Run order">

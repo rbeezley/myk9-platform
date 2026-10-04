@@ -115,6 +115,10 @@ const AkcMarkedCatalogClass: React.FC<{ data: AkcMarkedCatalogClassData }> = ({ 
               <td>{entry.breed}</td>
               <td>
                 {entry.ownerName ?? ''}
+                {/* A junior handling their own dog keeps the catalog's Jr. mark (MYK9-570). */}
+                {!entry.handlerDiffersFromOwner && entry.handlerIsJunior && entry.ownerName
+                  ? ' Jr.'
+                  : null}
                 {entry.ownerAddress ? (
                   <span className="catalog-subline">{entry.ownerAddress}</span>
                 ) : entry.ownerAddressMissing ? (

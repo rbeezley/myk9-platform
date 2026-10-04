@@ -201,6 +201,26 @@ describe('ResultCatalog on an AKC show (marked catalog)', () => {
     expect(within(rowFor('101')).queryByText(/Handler:/)).not.toBeInTheDocument();
   });
 
+  it('keeps the Jr. mark for a junior who handles their own dog', () => {
+    render(
+      <ResultCatalog
+        {...akcProps}
+        entries={[
+          dog({
+            id: 'jr',
+            armband: '120',
+            handler: 'Sam Lee',
+            ownerName: 'Sam Lee',
+            handlerIsJunior: true,
+          }),
+        ]}
+      />
+    );
+    const ownerCell = within(rowFor('120')).getByText(/Sam Lee/);
+    expect(ownerCell).toHaveTextContent('Sam Lee Jr.');
+    expect(within(rowFor('120')).queryByText(/Handler:/)).not.toBeInTheDocument();
+  });
+
   it('prints the handler under the owner when they differ', () => {
     render(<ResultCatalog {...akcProps} />);
     const row = within(rowFor('102'));

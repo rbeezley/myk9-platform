@@ -42,7 +42,7 @@ const ENTRY_HOLDING_ROOTS = [
     ...allKeys(queryKeys)
       .filter(key => key.includes('entries'))
       .map(key => String(key[0])),
-    // Not a factory: useClassEntries et al. key `['classes', classId, 'entries']` inline.
+    // Not a factory: class-entry hooks key `['classes', classId, 'entries']` inline.
     'classes',
   ]),
 ];

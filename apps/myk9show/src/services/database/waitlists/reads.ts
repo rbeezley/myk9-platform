@@ -213,6 +213,12 @@ export const removeFromWaitlist = async (waitlistEntryId: string) => {
       throw createDatabaseError(error, 'waitlist_entries', 'remove_from_waitlist');
     }
 
+    // The server row is gone for good; evict the replica row now so the queue,
+    // counts and report agree without waiting for a sync (MYK9-1000).
+    // A failed local eviction must not turn a successful Remove into an error;
+    // the next full sync prunes the row.
+    await replicatedWaitlistEntriesTable.delete(waitlistEntryId).catch(() => undefined);
+
     return { data, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;

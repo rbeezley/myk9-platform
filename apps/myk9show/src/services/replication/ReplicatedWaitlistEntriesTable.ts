@@ -146,6 +146,14 @@ export class ReplicatedWaitlistEntriesTable extends ReplicatedTable<ReplicatedWa
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       toLocalRow: rowToWaitlistEntry,
       resolveConflict: (_local, remote) => remote,
+      // Waitlist rows are HARD-deleted (secretary Remove, exhibitor Withdraw)
+      // and an incremental fetch can never see a deletion, so a removed dog
+      // stayed in the queue, counts and report forever (MYK9-1000). The fetch
+      // has no scope filter, so a complete full fetch returns every row this
+      // session may read; the engine forces that full sync when the device
+      // holds more rows than the server counts, and skips the cleanup unless
+      // the fetch returned the whole count.
+      cleanupStaleRowsOnFullSync: true,
     };
 
     const result = await syncReplicatedTable(

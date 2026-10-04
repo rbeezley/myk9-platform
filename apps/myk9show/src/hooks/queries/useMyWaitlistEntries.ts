@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
+import { replicatedWaitlistEntriesTable } from '@/services/replication/ReplicatedWaitlistEntriesTable';
 import type { WaitListEntry } from '@/types/waitlist-types';
 
 /** Stable empty result. `query.data ?? []` would allocate a fresh array on
@@ -129,6 +130,8 @@ export function useMyWaitlistEntries(
     mutationFn: async (waitlistEntryId: string) => {
       const { error } = await supabase.from('waitlist_entries').delete().eq('id', waitlistEntryId);
       if (error) throw error;
+      // Hard-deleted on the server: evict the replica row too (MYK9-1000).
+      await replicatedWaitlistEntriesTable.delete(waitlistEntryId).catch(() => undefined);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...MY_WAITLIST_KEY, exhibitorId] });

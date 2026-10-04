@@ -184,4 +184,31 @@ describe('ReplicatedWaitlistEntriesTable — MYK9-660 read path', () => {
     expect(clubAdminRows).toEqual(secretaryRows);
     expect(clubAdminRows.data.map(entry => entry.id)).toEqual(['first', 'second']);
   });
+
+  // MYK9-1000: waitlist rows are HARD-deleted (Remove, Withdraw), and an
+  // incremental fetch can never see a deletion.
+  it('prunes a row deleted on the server by another device', async () => {
+    server.visibleRows = [row('first', { position: 1 }), row('second', { position: 2 })];
+    await replicatedWaitlistEntriesTable.sync();
+    expect(await waitlistIdsForClass()).toEqual(['first', 'second']);
+
+    server.visibleRows = [row('second', { position: 2 })];
+    const result = await replicatedWaitlistEntriesTable.sync();
+
+    expect(result.success).toBe(true);
+    expect(await waitlistIdsForClass()).toEqual(['second']);
+  });
+
+  it('prunes a deletion hidden behind an equal count (one removed, one added)', async () => {
+    server.visibleRows = [row('first', { position: 1 }), row('second', { position: 2 })];
+    await replicatedWaitlistEntriesTable.sync();
+
+    server.visibleRows = [
+      row('second', { position: 1 }),
+      row('third', { position: 2, updated_at: new Date().toISOString() }),
+    ];
+    await replicatedWaitlistEntriesTable.sync();
+
+    expect(await waitlistIdsForClass()).toEqual(['second', 'third']);
+  });
 });

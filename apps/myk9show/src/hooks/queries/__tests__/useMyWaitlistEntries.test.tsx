@@ -45,6 +45,11 @@ vi.mock('@/services/database/supabaseClient', () => {
   return { supabase: { from: vi.fn(() => builder), functions: { invoke: vi.fn() } } };
 });
 
+const replica = vi.hoisted(() => ({ deleteLocal: vi.fn(async (_id: string) => {}) }));
+vi.mock('@/services/replication/ReplicatedWaitlistEntriesTable', () => ({
+  replicatedWaitlistEntriesTable: { delete: replica.deleteLocal },
+}));
+
 import { useMyWaitlistEntries } from '../useMyWaitlistEntries';
 
 function wrapper() {
@@ -81,5 +86,19 @@ describe('useMyWaitlistEntries active position count', () => {
     await waitFor(() => expect(result.current.entries).toHaveLength(1));
     // ...and never the count My Shows puts on the Waitlist chip.
     expect(result.current.activePositionCount).toBe(0);
+  });
+
+  // MYK9-1000: Withdraw hard-deletes the server row; the secretary's replica
+  // on this device must lose it too.
+  it('evicts the withdrawn row from the local waitlist replica', async () => {
+    rows.active = [makeRow('w1', 'waiting', 1)];
+    const { result } = renderHook(() => useMyWaitlistEntries('exhibitor-1'), {
+      wrapper: wrapper(),
+    });
+    await waitFor(() => expect(result.current.entries).toHaveLength(1));
+
+    await result.current.withdraw.mutateAsync('w1');
+
+    expect(replica.deleteLocal).toHaveBeenCalledWith('w1');
   });
 });

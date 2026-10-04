@@ -24,7 +24,9 @@
 --   * the operator alert (source 'stripe-webhook', dedupe_key
 --     'refund-request-<id>') gets resolved_at = now() (resolved_by NULL: the
 --     system closed it). Other alerts about the request (a failed attempt, a
---     double refund) are left for a person.
+--     double refund) are left for a person. An awaiting-approval alert
+--     INSERTED after the request closed (a racing checkout redelivery) lands
+--     already resolved (trg_operator_alerts_refund_request_closed, below).
 --   * an abandoned_cart request's cart moves refund_pending -> abandoned, only
 --     while it still holds THIS request's session.
 -- On a transition OUT of 'refunded' (Stripe can fail a refund it reported
@@ -103,6 +105,57 @@ CREATE TRIGGER trg_refund_requests_sync_closure
   FOR EACH ROW
   WHEN (OLD.status IS DISTINCT FROM NEW.status)
   EXECUTE FUNCTION public.refund_requests_sync_closure();
+
+-- The other half of the alert closure (Codex P2 on #2717). A checkout
+-- redelivery reads the request (still open) and only afterwards inserts its
+-- awaiting-approval alert; if the request closed in between, the closure
+-- above found no alert to resolve, and a resolved alert no longer takes part
+-- in the dedupe index, so the late insert would stay open forever.
+--
+-- So the insert itself reads the request's CURRENT status under the request
+-- row's lock. FOR SHARE conflicts with the FOR UPDATE every closing path
+-- takes first (settle_refund_attempt, the recompute trigger,
+-- resolve_refund_request_without_refund), so under READ COMMITTED:
+--   * closure first: the insert waits for it to commit, then reads the
+--     closed status and lands already resolved;
+--   * insert first: the closure waits for the insert to commit; its alert
+--     UPDATE is a later statement with a later snapshot, so it sees the new
+--     open alert and resolves it.
+-- Both sides take the request lock before touching operator_alerts, so they
+-- cannot deadlock. The row is still inserted (resolved), as a record.
+-- Only the stripe-webhook awaiting-approval key (refund-request-<uuid>)
+-- matches; every other alert is untouched.
+CREATE OR REPLACE FUNCTION public.operator_alerts_refund_request_closed()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_status text;
+BEGIN
+  IF NEW.source = 'stripe-webhook'
+     AND NEW.resolved_at IS NULL
+     AND NEW.dedupe_key ~ '^refund-request-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$' THEN
+    SELECT r.status INTO v_status
+      FROM public.refund_requests r
+     WHERE r.id = substr(NEW.dedupe_key, length('refund-request-') + 1)::uuid
+       FOR SHARE;
+    IF v_status IN ('refunded', 'resolved_without_refund') THEN
+      NEW.resolved_at := now();
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.operator_alerts_refund_request_closed() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS trg_operator_alerts_refund_request_closed ON public.operator_alerts;
+CREATE TRIGGER trg_operator_alerts_refund_request_closed
+  BEFORE INSERT ON public.operator_alerts
+  FOR EACH ROW
+  EXECUTE FUNCTION public.operator_alerts_refund_request_closed();
 
 -- Requests closed before this trigger existed (be225d32 on 2026-10-03): the
 -- same two effects, once. service_role, because entry_carts_protect_status

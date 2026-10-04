@@ -26,6 +26,12 @@
 --   R6  A payment-link request has no cart: closing it resolves its alert.
 --   R7  Closed by a non-service-role session (a person running SQL by hand):
 --       the request write still lands; the cart is left as it was.
+--   R8  (Codex P2 on #2717) An awaiting-approval alert INSERTED after its
+--       request closed (a racing checkout redelivery) lands resolved; an open
+--       request's alert and other sources/keys insert open. The two-session
+--       interleavings are serialised by the request row lock (FOR SHARE in
+--       the insert trigger against the closers' FOR UPDATE), which one psql
+--       script cannot drive; this asserts the post-close insert ordering.
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
 
@@ -353,15 +359,61 @@ END;
 $$;
 
 -- ---------------------------------------------------------------------------
--- ACL: the trigger function is not callable by a client role
+-- R8 (Codex P2 on #2717): the redelivery race. A checkout redelivery read the
+-- request while it was open, the request then closed, and only now does the
+-- redelivery insert its awaiting-approval alert (alertAdmin's plain INSERT).
+-- It must land resolved. An open request's alert, and alerts of other
+-- sources or keys, still insert open.
+-- ---------------------------------------------------------------------------
+SET LOCAL ROLE service_role;
+DO $$
+DECLARE
+  v_closed uuid;
+  v_open uuid;
+BEGIN
+  SELECT r.id INTO v_closed FROM public.refund_requests r
+   WHERE r.stripe_checkout_session_id = 'cs_981_refunded';
+  -- The closure already resolved this key's alert (R1), so it is out of the
+  -- dedupe index and a late insert is accepted as a new row.
+  PERFORM pg_temp.raise_alert('stripe-webhook', 'refund-request-' || v_closed);
+  PERFORM pg_temp.expect_eq(
+    pg_temp.alert_open('stripe-webhook', 'refund-request-' || v_closed),
+    'resolved,resolved', 'R8 an alert inserted after the request closed lands resolved');
+
+  SELECT r.refund_request_id INTO v_open FROM public.queue_payment_link_refund(
+    'cs_981_link_open', NULL, NULL, 'pi_cs_981_link_open', 1500, 'no_link_record') AS r;
+  PERFORM pg_temp.raise_alert('stripe-webhook', 'refund-request-' || v_open);
+  PERFORM pg_temp.expect_eq(
+    pg_temp.alert_open('stripe-webhook', 'refund-request-' || v_open),
+    'open', 'R8 an open request''s alert inserts open');
+
+  PERFORM pg_temp.raise_alert('refund-settlement', 'refund-request-double-live-' || v_closed);
+  PERFORM pg_temp.raise_alert('refund-settlement', 'refund-request-' || v_closed);
+  PERFORM pg_temp.expect_eq(
+    pg_temp.alert_open('refund-settlement', 'refund-request-double-live-' || v_closed) || ' '
+      || pg_temp.alert_open('refund-settlement', 'refund-request-' || v_closed),
+    'open open', 'R8 alerts of other sources and keys insert open');
+END;
+$$;
+RESET ROLE;
+
+-- ---------------------------------------------------------------------------
+-- ACL: the trigger functions are not callable by a client role
 -- ---------------------------------------------------------------------------
 DO $$
+DECLARE
+  v_fn text;
 BEGIN
-  IF has_function_privilege('anon', 'public.refund_requests_sync_closure()', 'EXECUTE')
-     OR has_function_privilege('authenticated', 'public.refund_requests_sync_closure()', 'EXECUTE') THEN
-    RAISE EXCEPTION 'FAIL a client role can execute refund_requests_sync_closure';
-  END IF;
-  RAISE NOTICE 'PASS refund_requests_sync_closure is not client-callable';
+  FOREACH v_fn IN ARRAY ARRAY[
+    'public.refund_requests_sync_closure()',
+    'public.operator_alerts_refund_request_closed()'
+  ] LOOP
+    IF has_function_privilege('anon', v_fn, 'EXECUTE')
+       OR has_function_privilege('authenticated', v_fn, 'EXECUTE') THEN
+      RAISE EXCEPTION 'FAIL a client role can execute %', v_fn;
+    END IF;
+  END LOOP;
+  RAISE NOTICE 'PASS the MYK9-981 trigger functions are not client-callable';
 END;
 $$;
 

@@ -122,18 +122,20 @@ describe('ShowCloseStep (Results step 3, MYK9-954)', () => {
     entriesState.value.data = [
       { id: 'e1', class_id: 'class-1', is_scored: true },
       { id: 'e2', class_id: 'class-1', is_scored: false },
+      // Never reviewed: out of the scoring count, but close-out still names it.
+      { id: 'e3', class_id: 'class-1', is_scored: false, entry_status: 'submitted' },
     ];
 
     renderStep();
 
     expect(await screen.findByTestId('close-action')).toBeInTheDocument();
-    expect(screen.getByTestId('closeout-summary')).toHaveTextContent('2');
+    expect(screen.getByTestId('closeout-summary')).toHaveTextContent('3');
     await waitFor(() => expect(closeActionProps().incidents).not.toBeNull());
     expect(closeActionProps()).toEqual({
       show: { id: 'show-1', status: 'active' },
       trials: [{ id: 'trial-1', status: 'active' }],
       classes: [
-        { id: 'class-1', status: 'completed', entryCount: 2, scoredCount: 1, pendingCount: 0 },
+        { id: 'class-1', status: 'completed', entryCount: 2, scoredCount: 1, pendingCount: 1 },
         { id: 'class-2', status: 'Scheduled', entryCount: 0, scoredCount: 0, pendingCount: 0 },
       ],
       submissions: [{ status: 'sent', trial_id: 'trial-1' }],

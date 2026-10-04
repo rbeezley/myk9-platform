@@ -105,22 +105,36 @@ export function movePlacement(
 }
 
 /**
- * Pour `openOrder` (every unpinned dog, in the new order) into the unpinned
- * slots; pinned dogs hold their slot. Returns only the dogs whose run_order
- * changes. Shared by hand placement and the Armband/Random presets so both
- * write the same way.
+ * Pour `openOrder` (every unpinned dog, in the new order) into the open slots.
+ * A pinned dog's run_order is never written and never renumbered, so rows
+ * excluded from the run list (withdrawn, deleted) ahead of it cannot shift it.
+ * Open dogs take run_order numbers in slot order: each slot gets the next
+ * number after the previous slot's, skipping any number a pinned dog holds,
+ * and jumping past a pinned dog's number when the walk reaches its slot. With
+ * no gaps this is plain 1..N; a pinned dog with no run_order holds no number.
+ * Returns only the open dogs whose run_order changes. Shared by hand placement
+ * and the Armband/Random presets so both write the same way.
  */
 export function assignOpenSlots(
   slots: readonly PlacementSlot[],
   openOrder: readonly PlacementSlot[]
 ): PlacementMove[] {
+  const held = new Set<number>();
+  for (const slot of slots) if (slot.pinned && slot.runOrder !== null) held.add(slot.runOrder);
+
   let cursor = 0;
+  let next = 1;
   const changes: PlacementMove[] = [];
-  slots.forEach((slot, index) => {
-    const id = slot.pinned ? slot.id : openOrder[cursor++]!.id;
-    const runOrder = index + 1;
+  for (const slot of slots) {
+    if (slot.pinned) {
+      if (slot.runOrder !== null) next = Math.max(next, slot.runOrder + 1);
+      continue;
+    }
+    while (held.has(next)) next++;
+    const id = openOrder[cursor++]!.id;
     const prior = slots.find(candidate => candidate.id === id)!.runOrder;
-    if (prior !== runOrder) changes.push({ id, runOrder, priorRunOrder: prior });
-  });
+    if (prior !== next) changes.push({ id, runOrder: next, priorRunOrder: prior });
+    next++;
+  }
   return changes;
 }

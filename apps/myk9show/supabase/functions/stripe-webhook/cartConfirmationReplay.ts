@@ -11,6 +11,9 @@
 // confirmation is sent now. The stamp is what stops a second send; Resend's
 // idempotency key (stripe-entry-confirmation-<session>) backs it up.
 
+import type { RefundQueueDeps } from '../_shared/refundRequests.ts';
+import { closeCartFulfillment, type CloseCartInput } from './cartFulfillment.ts';
+
 export interface ReplayedCartOrder {
   entryIds: string[];
   showId: string;
@@ -31,6 +34,22 @@ export interface CartConfirmationReplayDeps {
 
 export type CartConfirmationReplay =
   'sent' | 'already_confirmed' | 'no_entries' | 'no_order' | 'no_recipient';
+
+/**
+ * The first-time path's end: close the latch, then confirm through the SAME
+ * stamp-aware sender as the replay-first branches. Never gated on which call
+ * closed the latch: a lost first response followed by a successful retry
+ * reports latch_closed false, yet nobody has sent the confirmation
+ * (Codex P2 on #2744). The stamp alone decides.
+ */
+export async function closeCartThenConfirm(
+  queue: RefundQueueDeps,
+  input: CloseCartInput,
+  confirmation: CartConfirmationReplayDeps
+): Promise<CartConfirmationReplay> {
+  await closeCartFulfillment(queue, input);
+  return replayCartConfirmation(confirmation, input.sessionId);
+}
 
 export async function replayCartConfirmation(
   deps: CartConfirmationReplayDeps,

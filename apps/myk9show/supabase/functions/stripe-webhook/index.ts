@@ -71,12 +71,15 @@ import { paymentLinkNeedsManualAmountAlert } from '../_shared/refundAlertCopy.ts
 import {
   beginCartFulfillment,
   CART_FULFILLMENT_LINE_COLUMNS,
-  closeCartFulfillment,
   workCartLines,
   type CartFulfillmentLine,
   type FinishPaymentResult,
 } from './cartFulfillment.ts';
-import { replayCartConfirmation } from './cartConfirmationReplay.ts';
+import {
+  closeCartThenConfirm,
+  replayCartConfirmation,
+  type CartConfirmationReplayDeps,
+} from './cartConfirmationReplay.ts';
 import {
   routeRefundByCurrentState,
   type RefundLedgerContext,
@@ -960,14 +963,14 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
           `Session ${session.id} already has a refund request — redelivery, nothing to fulfill`
         );
         await ensureSessionRefundAlerts(refundQueueDeps, session.id, requests);
-        if (checkoutType === 'entry') await replayCartConfirmationFor(session);
+        if (checkoutType === 'entry') await sendCartConfirmationOnce(session);
       },
       alreadyFulfilled: async type => {
         console.log(`Session ${session.id} already has an order — redelivery, nothing to fulfill`);
         if (type === 'entry_payment_request') {
           await ensurePaymentLinkRefundAlert(refundQueueDeps, session.id);
         }
-        if (type === 'entry') await replayCartConfirmationFor(session);
+        if (type === 'entry') await sendCartConfirmationOnce(session);
       },
       fulfillCart: () => handleEntryPaymentCompleted(session),
       fulfillPaymentLink: () => handleEntryPaymentRequestCompleted(session),
@@ -1332,59 +1335,62 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
 }
 
 /**
- * MYK9-964: on a redelivery of a fulfilled cart session, send the confirmation
- * the latching delivery never got to (its response was lost after the commit).
- * Nothing is sent once any of the order's entries is stamped confirmed.
- * Throws (5xx) when a read fails, so Stripe redelivers.
+ * MYK9-964: THE paid-cart confirmation sender. Called on every path where the
+ * session's order is known to exist (after the latch call, however it went,
+ * and on both replay-first branches). It sends only while none of the order's
+ * entries is stamped confirmed; the stamp is the only gate, never which call
+ * closed the latch. Throws (5xx) when a read fails, so Stripe redelivers.
  */
-async function replayCartConfirmationFor(session: Stripe.Checkout.Session) {
-  await replayCartConfirmation(
-    {
-      readOrder: async sessionId => {
-        const { data: order, error } = await supabase
-          .from('stripe_orders')
-          .select('entry_ids, show_id, metadata')
-          .eq('stripe_checkout_session_id', sessionId)
-          .eq('order_type', 'entry')
-          .maybeSingle();
-        if (error) throw new Error(`Could not read the order of ${sessionId}: ${error.message}`);
-        if (!order?.show_id) return null;
-        const metadata = (order.metadata ?? {}) as Record<string, unknown>;
-        const subtotalCents = Number(metadata.paid_entry_subtotal_cents ?? 0);
-        return {
-          entryIds: (order.entry_ids as string[] | null) ?? [],
-          showId: order.show_id as string,
-          exhibitorPersonId: await readSessionExhibitorPersonId(
-            sessionId,
-            typeof metadata.cart_id === 'string' ? metadata.cart_id : null
-          ),
-          subtotalCents,
-          totalCents: Number(metadata.paid_amount_cents ?? subtotalCents),
-        };
-      },
-      countConfirmed: async entryIds => {
-        const { count, error } = await supabase
-          .from('entries')
-          .select('id', { count: 'exact', head: true })
-          .in('id', entryIds)
-          .not('confirmation_email_sent_at', 'is', null);
-        if (error) throw new Error(`Could not read confirmation stamps: ${error.message}`);
-        return count ?? 0;
-      },
-      send: order =>
-        sendEntryConfirmationEmail(
-          { show_id: order.showId, exhibitor: { person_id: order.exhibitorPersonId ?? '' } },
-          order.entryIds,
-          session,
-          {
-            subtotalCents: order.subtotalCents,
-            platformFeeCents: Math.max(0, order.totalCents - order.subtotalCents),
-            totalCents: order.totalCents,
-          }
+async function sendCartConfirmationOnce(session: Stripe.Checkout.Session) {
+  await replayCartConfirmation(cartConfirmationDeps(session), session.id);
+}
+
+/** The Supabase reads and the sender behind the stamp-aware confirmation. */
+function cartConfirmationDeps(session: Stripe.Checkout.Session): CartConfirmationReplayDeps {
+  return {
+    readOrder: async sessionId => {
+      const { data: order, error } = await supabase
+        .from('stripe_orders')
+        .select('entry_ids, show_id, metadata')
+        .eq('stripe_checkout_session_id', sessionId)
+        .eq('order_type', 'entry')
+        .maybeSingle();
+      if (error) throw new Error(`Could not read the order of ${sessionId}: ${error.message}`);
+      if (!order?.show_id) return null;
+      const metadata = (order.metadata ?? {}) as Record<string, unknown>;
+      const subtotalCents = Number(metadata.paid_entry_subtotal_cents ?? 0);
+      return {
+        entryIds: (order.entry_ids as string[] | null) ?? [],
+        showId: order.show_id as string,
+        exhibitorPersonId: await readSessionExhibitorPersonId(
+          sessionId,
+          typeof metadata.cart_id === 'string' ? metadata.cart_id : null
         ),
+        subtotalCents,
+        totalCents: Number(metadata.paid_amount_cents ?? subtotalCents),
+      };
     },
-    session.id
-  );
+    countConfirmed: async entryIds => {
+      const { count, error } = await supabase
+        .from('entries')
+        .select('id', { count: 'exact', head: true })
+        .in('id', entryIds)
+        .not('confirmation_email_sent_at', 'is', null);
+      if (error) throw new Error(`Could not read confirmation stamps: ${error.message}`);
+      return count ?? 0;
+    },
+    send: order =>
+      sendEntryConfirmationEmail(
+        { show_id: order.showId, exhibitor: { person_id: order.exhibitorPersonId ?? '' } },
+        order.entryIds,
+        session,
+        {
+          subtotalCents: order.subtotalCents,
+          platformFeeCents: Math.max(0, order.totalCents - order.subtotalCents),
+          totalCents: order.totalCents,
+        }
+      ),
+  };
 }
 
 /** The paying exhibitor's person id: from the run, else the order's cart. Throws when unreadable. */
@@ -1653,40 +1659,30 @@ async function fulfillCartRun(ctx: {
     paid_at: new Date().toISOString(),
   };
 
-  const closed = await closeCartFulfillment(refundQueueDeps, {
-    sessionId: session.id,
-    cartId: cartLabel,
-    paymentIntentId,
-    order,
-    decision: overflowRefundDecision,
-    lines,
-  });
-  if (!closed.latchClosed) {
-    // A concurrent delivery closed it, and sends the confirmation.
-    console.log(`Cart ${cartLabel}: latch already closed by another delivery`);
-    return;
-  }
+  // Close the latch, then confirm. The order exists afterwards whichever call
+  // closed the latch (this one, its own retry after a lost response, or a
+  // concurrent delivery), so the confirmation goes through the ONE
+  // stamp-aware sender, as on both replay-first branches; the stamp alone
+  // decides whether an email is sent (MYK9-964). Its totals come from the
+  // order row, never the owner-writable cart.
+  await closeCartThenConfirm(
+    refundQueueDeps,
+    {
+      sessionId: session.id,
+      cartId: cartLabel,
+      paymentIntentId,
+      order,
+      decision: overflowRefundDecision,
+      lines,
+    },
+    cartConfirmationDeps(session)
+  );
 
   if (snapshotProcessingFeeCents === null) {
     await warnMissingProcessingFee(paymentIntentId, `cart ${cartLabel}`);
   }
 
   console.log(`Entry payment completed for cart ${cartLabel}: ${entryIds.length} entries`);
-
-  // Send confirmation email. Pass authoritative totals — cart snapshot totals
-  // are owner-writable and must not appear on a payment receipt.
-  if (ctx.exhibitorPersonId) {
-    await sendEntryConfirmationEmail(
-      { show_id: showId, exhibitor: { person_id: ctx.exhibitorPersonId } },
-      entryIds,
-      session,
-      {
-        subtotalCents: paidEntrySubtotalCents,
-        platformFeeCents: Math.max(0, paidOrderAmountCents - paidEntrySubtotalCents),
-        totalCents: paidOrderAmountCents,
-      }
-    );
-  }
 }
 
 /** The session's snapshotted cart lines, in line order. Throws (5xx) when unreadable. */

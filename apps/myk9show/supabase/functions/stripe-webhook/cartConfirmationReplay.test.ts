@@ -15,8 +15,13 @@ import {
   type RefundQueueDeps,
   type SessionRefundRequest,
 } from '../_shared/refundRequests';
-import { replayCartConfirmation, type ReplayedCartOrder } from './cartConfirmationReplay';
-import { closeCartFulfillment, type CartLineResults } from './cartFulfillment';
+import {
+  closeCartThenConfirm,
+  replayCartConfirmation,
+  type CartConfirmationReplayDeps,
+  type ReplayedCartOrder,
+} from './cartConfirmationReplay';
+import type { CartLineResults } from './cartFulfillment';
 import { routePaidSession } from './paidSessionEntry';
 
 const SESSION = 'cs_964_email';
@@ -37,7 +42,11 @@ const LINES: CartLineResults = {
 
 function world(opts: { owed: boolean; sendFails?: boolean }) {
   const state = {
-    network: 'commit-then-lose' as 'commit-then-lose' | 'down' | 'up',
+    /**
+     * 'commit-then-lose': the first call commits, then the network is down.
+     * 'commit-then-error': the first call commits and errors, the retry works.
+     */
+    network: 'commit-then-lose' as 'commit-then-lose' | 'commit-then-error' | 'down' | 'up',
     order: null as { entry_ids: string[] } | null,
     requests: new Map<string, SessionRefundRequest>(),
     stamped: new Set<string>(),
@@ -60,8 +69,8 @@ function world(opts: { owed: boolean; sendFails?: boolean }) {
         stripe_payment_intent_id: 'pi_email',
       });
     }
-    if (state.network === 'commit-then-lose') {
-      state.network = 'down';
+    if (state.network === 'commit-then-lose' || state.network === 'commit-then-error') {
+      state.network = state.network === 'commit-then-lose' ? 'down' : 'up';
       return { data: null, error: { message: 'response lost' } };
     }
     const request = state.requests.get(SESSION);
@@ -91,26 +100,23 @@ function world(opts: { owed: boolean; sendFails?: boolean }) {
     for (const id of order.entryIds) state.stamped.add(id);
   };
 
-  const replay = () =>
-    replayCartConfirmation(
-      {
-        readOrder: async () =>
-          state.order
-            ? {
-                entryIds: state.order.entry_ids,
-                showId: 'show-1',
-                exhibitorPersonId: 'person-1',
-                subtotalCents: 6000,
-                totalCents: 6600,
-              }
-            : null,
-        countConfirmed: async ids => ids.filter(id => state.stamped.has(id)).length,
-        send,
-      },
-      SESSION
-    );
+  const confirmation: CartConfirmationReplayDeps = {
+    readOrder: async () =>
+      state.order
+        ? {
+            entryIds: state.order.entry_ids,
+            showId: 'show-1',
+            exhibitorPersonId: 'person-1',
+            subtotalCents: 6000,
+            totalCents: 6600,
+          }
+        : null,
+    countConfirmed: async ids => ids.filter(id => state.stamped.has(id)).length,
+    send,
+  };
+  const replay = () => replayCartConfirmation(confirmation, SESSION);
 
-  /** The first delivery's latch, then (only if it closed it) the confirmation. */
+  /** The first delivery's end, exactly as index.ts fulfillCartRun runs it. */
   async function deliverLatch() {
     const decision: CartOverflowRefundDecision = opts.owed
       ? {
@@ -120,23 +126,18 @@ function world(opts: { owed: boolean; sendFails?: boolean }) {
           reason: 'partial_no_service_lines',
         }
       : { action: 'none', paidAmountCents: 9900 };
-    const closed = await closeCartFulfillment(deps, {
-      sessionId: SESSION,
-      cartId: 'cart-email',
-      paymentIntentId: 'pi_email',
-      order: { stripe_payment_intent_id: 'pi_email', entry_ids: LINES.entryIds },
-      decision,
-      lines: LINES,
-    });
-    if (closed.latchClosed) {
-      await send({
-        entryIds: LINES.entryIds,
-        showId: 'show-1',
-        exhibitorPersonId: 'person-1',
-        subtotalCents: 6000,
-        totalCents: 6600,
-      });
-    }
+    return closeCartThenConfirm(
+      deps,
+      {
+        sessionId: SESSION,
+        cartId: 'cart-email',
+        paymentIntentId: 'pi_email',
+        order: { stripe_payment_intent_id: 'pi_email', entry_ids: LINES.entryIds },
+        decision,
+        lines: LINES,
+      },
+      confirmation
+    );
   }
 
   /** index.ts handleCheckoutCompleted on a redelivery of a cart session. */
@@ -184,6 +185,23 @@ describe('MYK9-964: confirmation after a lost latch response', () => {
       expect(w.state.emails).toEqual([['e-1', 'e-2']]);
 
       await expect(w.redeliver()).resolves.toBe(branch);
+      expect(w.state.emails).toHaveLength(1);
+    }
+  );
+
+  it.each([true, false])(
+    'commit-then-error, then a successful retry inside the call (owed: %s): exactly one email',
+    async owed => {
+      // Codex P2 on #2744: the retry reports latch_closed false, and the
+      // webhook then answers 2xx, so Stripe never redelivers. The email must
+      // go out on THIS delivery.
+      const w = world({ owed });
+      w.state.network = 'commit-then-error';
+
+      await expect(w.deliverLatch()).resolves.toBe('sent');
+      expect(w.state.emails).toEqual([['e-1', 'e-2']]);
+
+      await w.redeliver();
       expect(w.state.emails).toHaveLength(1);
     }
   );

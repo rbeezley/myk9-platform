@@ -199,9 +199,9 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     // MYK9-964: both replay-first branches send a cart's never-stamped
     // confirmation (behaviour: cartConfirmationReplay.test.ts).
     expect(entry).toContain(
-      "if (checkoutType === 'entry') await replayCartConfirmationFor(session);"
+      "if (checkoutType === 'entry') await sendCartConfirmationOnce(session);"
     );
-    expect(entry).toContain("if (type === 'entry') await replayCartConfirmationFor(session);");
+    expect(entry).toContain("if (type === 'entry') await sendCartConfirmationOnce(session);");
     expect(entry).toContain(
       'fulfillPaymentLink: () => handleEntryPaymentRequestCompleted(session),'
     );
@@ -243,13 +243,15 @@ describe('stripe-webhook snapshot wiring (source-pinned)', () => {
     // overflow refund in ONE call too, after every line is recorded, with the
     // processing fee fetched before it. The by-hand overflow alert is gone.
     const cart = body('fulfillCartRun');
-    expect(cart).toContain('await closeCartFulfillment(refundQueueDeps, {');
+    expect(cart).toContain('await closeCartThenConfirm(');
+    // Codex P2 on #2744: the confirmation is never gated on which call closed the latch.
+    expect(cart).not.toContain('latchClosed');
     expect(cart).not.toContain(".from('stripe_orders').insert(");
     expect(cart.indexOf('await workCartLines(')).toBeLessThan(
-      cart.indexOf('await closeCartFulfillment(refundQueueDeps, {')
+      cart.indexOf('await closeCartThenConfirm(')
     );
     expect(cart.indexOf('await fetchProcessingFeeCents(paymentIntentId)')).toBeLessThan(
-      cart.indexOf('await closeCartFulfillment(refundQueueDeps, {')
+      cart.indexOf('await closeCartThenConfirm(')
     );
     expect(webhookSource).not.toContain('queueCartOverflowRefund');
     expect(webhookSource).not.toContain('cartOverflowManualRefundAlert');

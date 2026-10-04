@@ -231,7 +231,14 @@ export function useWaitlistManagementData(showId?: string) {
         await loadClasses(selectedShowId);
       }
     } catch (err) {
-      setError('Failed to offer spot. Please try again.');
+      // 22023 is the database refusing on purpose (a trial that has already
+      // taken place); its message says why, so show it instead of "try again".
+      const refusal = err as { code?: string; message?: string };
+      setError(
+        refusal.code === '22023' && refusal.message
+          ? refusal.message
+          : 'Failed to offer spot. Please try again.'
+      );
       logger.error('Error offering spot:', 'secretary', {}, err as Error);
     } finally {
       setIsProcessing(false);

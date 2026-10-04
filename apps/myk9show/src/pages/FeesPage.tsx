@@ -147,6 +147,14 @@ export function FeesPage() {
           </p>
         </section>
 
+        <section className="space-y-2">
+          <h2 className="text-xl font-semibold">Waitlists are free</h2>
+          <p className="text-muted-foreground">
+            Joining a waitlist costs nothing. You pay, fees included, only if a spot opens and you
+            claim it.
+          </p>
+        </section>
+
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">Card processing</h2>
           <p className="text-muted-foreground">

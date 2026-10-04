@@ -52,6 +52,17 @@ describe('FeesPage', () => {
     expect(screen.getByText(/never deducted from a club/i)).toBeInTheDocument();
   });
 
+  // MYK9-1013: free waitlists are a selling point, stated once on the fee page.
+  it('says waitlists are free and that payment is due only when a spot is claimed', () => {
+    readyAt({ percent: 7, flatCents: 0, minCents: 0 });
+    render(<FeesPage />);
+
+    const heading = screen.getByRole('heading', { name: 'Waitlists are free' });
+    expect(heading.parentElement).toHaveTextContent(
+      'Joining a waitlist costs nothing. You pay, fees included, only if a spot opens and you claim it.'
+    );
+  });
+
   it('labels the split approximate and says the exact Stripe fee is not known yet', () => {
     readyAt({ percent: 7, flatCents: 0, minCents: 0 });
     render(<FeesPage />);

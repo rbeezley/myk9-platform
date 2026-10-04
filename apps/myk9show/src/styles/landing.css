@@ -543,6 +543,9 @@
   grid-template-columns: repeat(3, 1fr);
   gap: 20px;
 }
+.landing-v2 .l-feature-wide {
+  grid-column: 1 / -1;
+}
 .landing-v2 .l-feature {
   background: #ffffff;
   border: 1px solid var(--border);

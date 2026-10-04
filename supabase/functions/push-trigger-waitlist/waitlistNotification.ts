@@ -84,7 +84,7 @@ export function buildWaitlistNotificationContent(input: {
   return {
     title: copy.title,
     subject: `${copy.title} — ${input.showName}`,
-    body: copy.body(input.dogName, input.className, input.showName),
+    body: copy.body(input.dogName, input.className, input.showName, deadline),
     actionLabel: copy.actionLabel,
     actionUrl,
     emailHtml: `<!doctype html>
@@ -92,7 +92,7 @@ export function buildWaitlistNotificationContent(input: {
 <main style="max-width:600px;margin:auto;background:#fff;border-radius:8px;padding:28px">
 <h1 style="font-size:24px;margin:0 0 20px">${escapeHtml(copy.title)}</h1>
 <p>Hi ${escapeHtml(input.recipientName || 'there')},</p>
-<p>${escapeHtml(copy.body(input.dogName, input.className, input.showName))}</p>
+<p>${escapeHtml(copy.body(input.dogName, input.className, input.showName, deadline))}</p>
 ${deadlineHtml}
 <p style="margin:28px 0"><a href="${escapeHtml(actionUrl)}" style="display:inline-block;background:#2563eb;color:#fff;padding:14px 22px;border-radius:6px;text-decoration:none;font-weight:600">${escapeHtml(copy.actionLabel)}</a></p>
 <p style="color:#6b7280;font-size:14px">You can always return to My Entries to check the current status.</p>
@@ -152,14 +152,20 @@ export function redactWaitlistDeliveryError(error: unknown): string {
   return 'delivery_error';
 }
 
-function eventCopy(eventType: WaitlistNotificationEventType) {
+interface EventCopy {
+  title: string;
+  actionLabel: string;
+  body: (dog: string, entryClass: string, show: string, deadline: string | null) => string;
+}
+
+function eventCopy(eventType: WaitlistNotificationEventType): EventCopy {
   switch (eventType) {
     case 'offered':
       return {
         title: 'A spot is ready for you',
         actionLabel: 'Complete your entry',
-        body: (dog: string, entryClass: string, show: string) =>
-          `${dog} has been offered a spot in ${entryClass} at ${show}.`,
+        body: (dog: string, entryClass: string, show: string, deadline: string | null) =>
+          `A spot opened for ${dog} in ${entryClass} at ${show}. Claim it by paying before ${deadline ?? 'the offer ends'}. You haven't been charged anything yet.`,
       };
     case 'reminder':
       return {

@@ -61,6 +61,33 @@ describe('buildWaitlistNotificationContent', () => {
   );
 });
 
+describe('offered copy (MYK9-1013)', () => {
+  const build = (expiresAt: string | null) =>
+    buildWaitlistNotificationContent({
+      eventType: 'offered',
+      waitlistEntryId: payload.waitlist_entry_id,
+      recipientName: 'Taylor',
+      dogName: 'Scout',
+      className: 'Novice Interior',
+      showName: 'Summer Scent Trial',
+      expiresAt,
+      timezone: 'America/Denver',
+      appOrigin: 'https://myk9show.com',
+    });
+
+  it('tells the exhibitor the deadline and that nothing has been charged yet', () => {
+    const content = build('2026-07-15T18:00:00.000Z');
+    expect(content.body).toBe(
+      "A spot opened for Scout in Novice Interior at Summer Scent Trial. Claim it by paying before Jul 15, 2026, 12:00 PM. You haven't been charged anything yet."
+    );
+    expect(content.emailHtml).toContain('You haven&#39;t been charged anything yet.');
+  });
+
+  it('still reads correctly when the offer has no deadline', () => {
+    expect(build(null).body).toContain('Claim it by paying before the offer ends.');
+  });
+});
+
 describe('shouldDeliverWaitlistEvent', () => {
   const activeOffer = {
     eventType: 'reminder' as const,

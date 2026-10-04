@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { ChevronRight, CheckCircle2, Clock, Hash, MapPin, XCircle } from 'lucide-react';
 import { Chip } from '@/components/base/Chip';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
+import { formatRunQueueState } from '@myk9/ringside/run-queue';
 import type { EnrichedShowEntry } from '@/hooks/useShowEntriesForUser';
 import {
   getPendingResultLabel,
@@ -65,8 +66,12 @@ interface TimelineRowProps {
 function TimelineRow({ entry, showId }: TimelineRowProps) {
   const href = `/shows/${showId}/trials/${entry.trialId}/classes/${entry.classId}`;
   const accessibleTimeLabel = entry.startTime || 'schedule details pending';
-  const positionLabel =
-    entry.runOrder > 0 ? `Run position ${entry.runOrder}` : 'Run position pending';
+  // MYK9-992: place in line or the dog's state, never the stored run number.
+  const positionLabel = entry.queue
+    ? formatRunQueueState(entry.queue)
+    : isRunnableScheduleStatus(entry.entryStatus)
+      ? 'Order not set yet'
+      : null;
   const checkInLabel = entry.checkInStatus
     ? entry.checkInStatus === 'no-status'
       ? 'Not checked in'
@@ -77,7 +82,7 @@ function TimelineRow({ entry, showId }: TimelineRowProps) {
     <Link
       to={href}
       className="flex items-center gap-3 rounded-lg bg-muted/40 px-3 py-3 transition-colors hover:bg-muted/70"
-      aria-label={`${entry.classTitle} — ${entry.dayLabel} ${accessibleTimeLabel} — ${positionLabel} — ${checkInLabel}`}
+      aria-label={`${entry.classTitle} — ${entry.dayLabel} ${accessibleTimeLabel} — ${positionLabel ? `${positionLabel} — ` : ''}${checkInLabel}`}
     >
       {(entry.startTime || entry.armband) && (
         <span className="flex w-28 shrink-0 flex-col gap-1">
@@ -116,7 +121,7 @@ function TimelineRow({ entry, showId }: TimelineRowProps) {
           </p>
         )}
         <p className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
-          <span>{positionLabel}</span>
+          {positionLabel && <span>{positionLabel}</span>}
           <span>{checkInLabel}</span>
         </p>
       </div>

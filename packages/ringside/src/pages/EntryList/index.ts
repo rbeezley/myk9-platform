@@ -83,12 +83,16 @@ export {
   armbandSortKey,
   compareByRunOrder,
   findInRingEntry,
+  formatPlaceInLine,
+  formatRunQueueState,
   isInQueue,
   isInRingEntry,
   nextPendingCandidates,
   pendingByRunOrder,
+  placeInLine,
+  runQueueStateOf,
 } from './runQueue';
-export type { RunQueueEntry } from './runQueue';
+export type { RunQueueEntry, RunQueueState } from './runQueue';
 
 // ── Quick-advance ranking (MYK9-83) ──────────────────────────────────────
 // Gate-aware layer over the run queue: opportunistic at-gate promotion that

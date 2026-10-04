@@ -14,7 +14,8 @@ import {
   isRunnableScheduleStatus,
   resolveClassSection,
 } from '@/services/entryDisplay/entryDisplaySelectors';
-import { dogsAheadInClass } from '@/utils/showEntryRunQueue';
+import { dogsAheadInClass, ownEntryQueueState } from '@/utils/showEntryRunQueue';
+import type { RunQueueState } from '@myk9/ringside/run-queue';
 import { formatWeekdayLongMonthDay } from '@/lib/format/dates';
 import { hasScopedClubRole, hasScopedShowRole } from '@/utils/roleScopes';
 import { resolveMoveUpDisplay } from '@/hooks/moveUpDisplay';
@@ -37,7 +38,12 @@ export interface EnrichedShowEntry {
   dogId: string;
   dogName: string;
   armband: string;
-  runOrder: number;
+  /**
+   * The dog's state (MYK9-992): in ring / done / pulled, or "waiting" once the
+   * secretary has set an order. Never a counted place (exhibitors do not hold
+   * the class queue) and never the stored number. Null while no order is set.
+   */
+  queue: RunQueueState | null;
   checkInStatus?: CheckInStatus;
   element: string;
   level: string;
@@ -381,7 +387,6 @@ export function useShowEntriesForUser(
         relatedString(canonicalRow, 'dog', 'name') ??
         'Unknown Dog';
 
-      const runOrder = entry.registrationData.runOrder ?? 0;
       const checkInStatus = canonicalCheckInStatus(
         entry.checkInStatus ?? canonicalRow?.check_in_status
       );
@@ -389,6 +394,8 @@ export function useShowEntriesForUser(
       // excluded, so this is the same number the entry-list pill, the ring
       // conflict label and the "your turn" push all report.
       const dogsAhead = dogsAheadInClass(entriesByClassId.get(entry.classId) ?? [], entry.id) ?? 0;
+      // Own rows only (see ownEntryQueueState): state, never a counted place.
+      const queue = ownEntryQueueState(entry);
 
       const movedUpFromClassId = movedUpFromClassIdByEntryId.get(entry.id);
       const movedUpFromClass = movedUpFromClassId ? classMap.get(movedUpFromClassId) : undefined;
@@ -420,7 +427,7 @@ export function useShowEntriesForUser(
         dogId: entry.dogId,
         dogName: dogNameMap.get(entry.dogId) ?? fallbackDogName,
         armband: entry.registrationData.armband ?? '',
-        runOrder,
+        queue,
         ...(checkInStatus ? { checkInStatus } : {}),
         element,
         level,

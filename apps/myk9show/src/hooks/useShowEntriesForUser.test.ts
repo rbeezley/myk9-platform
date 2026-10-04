@@ -276,11 +276,11 @@ describe('useShowEntriesForUser', () => {
     expect(entry.dayLabel).toBe('Sunday, May 10');
   });
 
-  it('carries the canonical check-in state and stored position to the schedule', () => {
+  it('carries the canonical check-in state and state to the schedule', () => {
     setMocks({ entries: [makeEntry({ checkInStatus: 'checked-in' })] });
     const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
     expect(result.current.allEntries[0]).toMatchObject({
-      runOrder: 3,
+      queue: { kind: 'waiting-unknown' },
       checkInStatus: 'checked-in',
     });
   });
@@ -408,6 +408,61 @@ describe('useShowEntriesForUser', () => {
     setMocks({ entries: [makeEntry(), otherEntry1, otherEntry2] });
     const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
     expect(result.current.allEntries[0].dogsAhead).toBe(2);
+  });
+
+  describe('queue state (MYK9-992)', () => {
+    const reg = (armband: string, runOrder: number) => ({
+      armband,
+      runOrder,
+      handler: 'x',
+      submittedAt: '',
+      entryFee: 0,
+      paymentStatus: 'paid',
+    });
+    const other = (id: string, armband: string, runOrder: number, extra = {}) =>
+      makeEntry({ id, dogId: 'dog-x', registrationData: reg(armband, runOrder), ...extra });
+    const mineOf = () =>
+      renderHook(() => useShowEntriesForUser(SHOW_ID)).result.current.allEntries.find(
+        e => e.entryId === 'entry-1'
+      );
+
+    it('never promises a place when other dogs are ahead (stored 31, others at 7, 9)', () => {
+      setMocks({
+        entries: [
+          makeEntry({ registrationData: reg('101', 31) }),
+          other('ring', '90', 7, { checkInStatus: 'in-ring' }),
+          other('first', '91', 9),
+        ],
+      });
+      const mine = mineOf();
+      expect(mine?.queue).toEqual({ kind: 'waiting-unknown' });
+      expect(mine).not.toHaveProperty('runOrder');
+    });
+
+    it('does not call a lone owned dog next when its order is unset', () => {
+      setMocks({ entries: [makeEntry({ registrationData: reg('101', 0) })] });
+      expect(mineOf()?.queue).toBeNull();
+    });
+
+    it('keeps in-ring, pulled and done states even with an unset order', () => {
+      setMocks({
+        entries: [makeEntry({ registrationData: reg('101', 0), checkInStatus: 'in-ring' })],
+      });
+      expect(mineOf()?.queue).toEqual({ kind: 'in-ring' });
+      setMocks({
+        entries: [makeEntry({ registrationData: reg('101', 0), checkInStatus: 'pulled' })],
+      });
+      expect(mineOf()?.queue).toEqual({ kind: 'pulled' });
+      setMocks({
+        entries: [
+          makeEntry({
+            registrationData: reg('101', 0),
+            competitionData: { qualified: true, recordedBy: 'j', recordedAt: '' },
+          }),
+        ],
+      });
+      expect(mineOf()?.queue).toEqual({ kind: 'done' });
+    });
   });
 
   it('excludes withdrawn, moved source, and scratched rows from runnable schedule counts and dogsAhead', () => {

@@ -365,3 +365,23 @@ describe('selectPacketPages', () => {
     );
   });
 });
+
+describe('check-in sheet Order after the armband sort (MYK9-992)', () => {
+  it('prints 1..N down the sheet in the order the rows are printed, across pages', () => {
+    const trial = trialFixture('trial-1');
+    const classData = classFixture('class-1', trial.id);
+    // Stored run order is high and gappy and disagrees with armband order.
+    const entries = [
+      entryFixture('a', classData.id, 301, 7),
+      entryFixture('b', classData.id, 105, 31),
+      entryFixture('c', classData.id, 202, 9),
+    ];
+    const model = selectPacketPages(
+      toScoresheetModel({ show, pages: [{ trial, classData, entries }] }, 'armband'),
+      'check-in'
+    );
+    const rows = model.pages.flatMap(page => page.entries);
+    expect(rows.map(r => r.armband)).toEqual(['105', '202', '301']);
+    expect(rows.map(r => r.runOrderDisplay)).toEqual(['1', '2', '3']);
+  });
+});

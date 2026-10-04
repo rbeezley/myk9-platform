@@ -19,7 +19,7 @@ function makeEntry(id: string, dogId: string, dogName: string): EnrichedShowEntr
     dogId,
     dogName,
     armband: '',
-    runOrder: 0,
+    queue: null,
     element: 'Container',
     level: 'Novice',
     section: 'A',

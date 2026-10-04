@@ -210,6 +210,66 @@ describe('emergency trial packet model', () => {
     expect(noOrder).toMatchObject({ checkInMark: '', runOrderDisplay: '', resultMark: '' });
   });
 
+  it('prints the row position on the sheet, never the stored run number (MYK9-992)', () => {
+    // Stored numbers start above 1 and have gaps, per class.
+    const gappy: EmergencyPacketInput = {
+      ...input,
+      entries: [
+        entry({
+          id: 'n-31',
+          armband: '103',
+          classId: 'class-novice',
+          trialId: 'trial-saturday',
+          runOrder: 31,
+        }),
+        entry({
+          id: 'n-7',
+          armband: '101',
+          classId: 'class-novice',
+          trialId: 'trial-saturday',
+          runOrder: 7,
+        }),
+        entry({
+          id: 'n-9',
+          armband: '102',
+          classId: 'class-novice',
+          trialId: 'trial-saturday',
+          runOrder: 9,
+        }),
+        entry({
+          id: 'n-none',
+          armband: '104',
+          classId: 'class-novice',
+          trialId: 'trial-saturday',
+          runOrder: null,
+        }),
+        entry({
+          id: 'm-12',
+          armband: '202',
+          classId: 'class-master',
+          trialId: 'trial-sunday',
+          runOrder: 12,
+        }),
+      ],
+    };
+    const model = buildEmergencyPacketModel(gappy);
+    const orderByEntry = (kind: 'check-in' | 'catalog') =>
+      Object.fromEntries(
+        model.pages
+          .filter(page => page.kind === kind)
+          .flatMap(page => page.entries.map(item => [item.id, item.runOrderDisplay]))
+      );
+    for (const kind of ['check-in', 'catalog'] as const) {
+      expect(orderByEntry(kind)).toEqual({
+        'n-7': '1',
+        'n-9': '2',
+        'n-31': '3',
+        'n-none': '',
+        'm-12': '1',
+      });
+    }
+  });
+
   it('gives every page a visible snapshot and reconstruction label', () => {
     const model = buildEmergencyPacketModel(input);
 

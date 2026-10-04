@@ -112,10 +112,18 @@ function reorderPagesByArmband(model: EmergencyPacketModel): EmergencyPacketMode
     const combined = run
       .flatMap(page => page.entries)
       .sort((a, b) => compareArmbands(a.armband, b.armband));
+    // "Order" is the row's position on the sheet (MYK9-992), so it follows the
+    // final sort, counted across the page boundaries of this class's run. A dog
+    // with no order assigned stays blank, as the builder printed it.
+    const sheetOrder = combined.map((entry, index) =>
+      entry.runOrder == null
+        ? { ...entry, runOrderDisplay: '' }
+        : { ...entry, runOrderDisplay: String(index + 1) }
+    );
     let cursor = 0;
     for (let k = 0; k < run.length; k += 1) {
       const count = run[k].entries.length;
-      pages[i + k] = { ...run[k], entries: combined.slice(cursor, cursor + count) };
+      pages[i + k] = { ...run[k], entries: sheetOrder.slice(cursor, cursor + count) };
       cursor += count;
     }
     i = j;

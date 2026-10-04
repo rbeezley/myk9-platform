@@ -11,10 +11,14 @@ import { describe, expect, it } from 'vitest';
 import {
   compareByRunOrder,
   findInRingEntry,
+  formatPlaceInLine,
+  formatRunQueueState,
   isInQueue,
   isInRingEntry,
   nextPendingCandidates,
   pendingByRunOrder,
+  placeInLine,
+  runQueueStateOf,
   type RunQueueEntry,
 } from './runQueue';
 
@@ -123,5 +127,169 @@ describe('isInQueue / compareByRunOrder', () => {
     const a = entry({ id: 'a', armband: 50, exhibitorOrder: 1 });
     const b = entry({ id: 'b', armband: 2 });
     expect(compareByRunOrder(a, b)).toBeLessThan(0);
+  });
+});
+
+describe('place in line (MYK9-992)', () => {
+  // Realistic post-reorder class: stored numbers start above 1 and have gaps.
+  const klass = [
+    entry({ id: 'done', armband: 1, exhibitorOrder: 2, isScored: true }),
+    entry({ id: 'ring', armband: 2, exhibitorOrder: 7, status: 'in-ring' }),
+    entry({ id: 'a', armband: 3, exhibitorOrder: 31 }),
+    entry({ id: 'b', armband: 4, exhibitorOrder: 9 }),
+    entry({ id: 'pulled', armband: 5, exhibitorOrder: 8, status: 'pulled' }),
+    entry({ id: 'c', armband: 6, exhibitorOrder: 12 }),
+  ];
+
+  it('numbers waiting dogs 1..N regardless of the stored numbers', () => {
+    expect(['b', 'c', 'a'].map(id => placeInLine(klass, id))).toEqual([1, 2, 3]);
+  });
+
+  it('reports no place for in-ring, finished, pulled and unknown dogs', () => {
+    expect(['ring', 'done', 'pulled', 'nope'].map(id => placeInLine(klass, id))).toEqual([
+      null,
+      null,
+      null,
+      null,
+    ]);
+  });
+
+  it('reports the state of dogs that have no place', () => {
+    expect(runQueueStateOf(klass, 'ring')).toEqual({ kind: 'in-ring' });
+    expect(runQueueStateOf(klass, 'done')).toEqual({ kind: 'done' });
+    expect(runQueueStateOf(klass, 'pulled')).toEqual({ kind: 'pulled' });
+    expect(runQueueStateOf(klass, 'nope')).toBeNull();
+  });
+
+  it('reads a completed status as done even when no score was recorded', () => {
+    const rows = [entry({ id: 'x', armband: 1, status: 'completed', isScored: false })];
+    expect(runQueueStateOf(rows, 'x')).toEqual({ kind: 'done' });
+  });
+
+  it('keeps a pulled dog pulled even when it was already scored', () => {
+    const rows = [entry({ id: 'x', armband: 1, isScored: true, status: 'pulled' })];
+    expect(runQueueStateOf(rows, 'x')).toEqual({ kind: 'pulled' });
+  });
+
+  it('honours the deprecated inRing flag like the queue does', () => {
+    const rows = [entry({ id: 'x', armband: 1, inRing: true }), entry({ id: 'y', armband: 2 })];
+    expect(runQueueStateOf(rows, 'x')).toEqual({ kind: 'in-ring' });
+    expect(placeInLine(rows, 'y')).toBe(1);
+  });
+
+  it('formats places and states', () => {
+    expect([1, 2, 3, 4, 11, 12, 13, 21, 22, 23, 101, 111].map(formatPlaceInLine)).toEqual([
+      'Next up',
+      '2nd up',
+      '3rd up',
+      '4th up',
+      '11th up',
+      '12th up',
+      '13th up',
+      '21st up',
+      '22nd up',
+      '23rd up',
+      '101st up',
+      '111th up',
+    ]);
+    expect(formatRunQueueState({ kind: 'waiting', place: 2 })).toBe('2nd up');
+    expect(formatRunQueueState({ kind: 'waiting-unknown' })).toBe('Waiting');
+    expect(formatRunQueueState({ kind: 'in-ring' })).toBe('In ring');
+    expect(formatRunQueueState({ kind: 'done' })).toBe('Done');
+    expect(formatRunQueueState({ kind: 'pulled' })).toBe('Pulled');
+  });
+});
+
+describe('check-in completed without a score (MYK9-996)', () => {
+  const rows = [
+    entry({ id: 'ran', armband: 1, exhibitorOrder: 2, status: 'completed', isScored: false }),
+    entry({ id: 'a', armband: 2, exhibitorOrder: 9 }),
+    entry({ id: 'b', armband: 3, exhibitorOrder: 31 }),
+  ];
+
+  it('is out of the queue, so later dogs are not pushed back a place', () => {
+    expect(isInQueue(rows[0])).toBe(false);
+    expect(pendingByRunOrder(rows).map(e => e.id)).toEqual(['a', 'b']);
+    expect(nextPendingCandidates(rows, 1).map(e => e.id)).toEqual(['a']);
+    expect(['a', 'b'].map(id => placeInLine(rows, id))).toEqual([1, 2]);
+  });
+
+  it('agrees with the state helper: the same dog is done', () => {
+    expect(runQueueStateOf(rows, 'ran')).toEqual({ kind: 'done' });
+  });
+});
+
+describe('withdrawn state', () => {
+  it('is its own state and label, never Pulled', () => {
+    const rows = [entry({ id: 'w', armband: 1, status: 'withdrawn' })];
+    expect(runQueueStateOf(rows, 'w')).toEqual({ kind: 'withdrawn' });
+    expect(formatRunQueueState({ kind: 'withdrawn' })).toBe('Withdrawn');
+    expect(formatRunQueueState({ kind: 'pulled' })).toBe('Pulled');
+  });
+});
+
+describe('queue membership is an allowlist (MYK9-992 / MYK9-996)', () => {
+  // Every status either adapter can hand the queue. A new status must be added
+  // here AND to the allowlist or denied on purpose; an unlisted one is out.
+  const STATUS_TABLE: Array<[string | undefined, boolean]> = [
+    // [status, still to run (isInQueue)]
+    [undefined, true],
+    ['no-status', true],
+    ['checked-in', true],
+    ['at-gate', true],
+    ['come-to-gate', true],
+    ['conflict', true],
+    ['in-ring', true], // in the queue's rows; pendingByRunOrder drops it separately
+    ['competing', true], // legacy in-ring synonym, unchanged
+    ['draft', true],
+    ['submitted', true],
+    ['paid', true],
+    ['confirmed', true],
+    ['scheduled', true],
+    ['pending-payment', true],
+    ['promotion-expired', true],
+    ['move-up-requested', true],
+    ['move_up_requested', true],
+    ['pulled', false],
+    ['completed', false],
+    ['withdrawn', false],
+    ['scratched', false],
+    ['absent', false],
+    ['moved', false],
+    ['not_accepted', false],
+    ['some-future-status', false],
+  ];
+
+  it.each(STATUS_TABLE)('status %s -> in queue: %s', (status, expected) => {
+    expect(isInQueue(entry({ id: 'x', armband: 1, status }))).toBe(expected);
+  });
+
+  it('numbers only the waiting dogs 1..N in a mixed class', () => {
+    const rows = [
+      entry({ id: 'wd', armband: 1, exhibitorOrder: 2, status: 'withdrawn' }),
+      entry({ id: 'pu', armband: 2, exhibitorOrder: 3, status: 'pulled' }),
+      entry({ id: 'co', armband: 3, exhibitorOrder: 4, status: 'completed' }),
+      entry({ id: 'ri', armband: 4, exhibitorOrder: 5, status: 'in-ring' }),
+      entry({ id: 'sc', armband: 5, exhibitorOrder: 6, isScored: true }),
+      entry({ id: 'w1', armband: 6, exhibitorOrder: 9 }),
+      entry({ id: 'w2', armband: 7, exhibitorOrder: 31 }),
+    ];
+    expect(pendingByRunOrder(rows).map(e => e.id)).toEqual(['w1', 'w2']);
+    expect(['w1', 'w2'].map(id => placeInLine(rows, id))).toEqual([1, 2]);
+    expect(['wd', 'pu', 'co', 'ri', 'sc'].map(id => runQueueStateOf(rows, id)?.kind)).toEqual([
+      'withdrawn',
+      'pulled',
+      'done',
+      'in-ring',
+      'done',
+    ]);
+  });
+
+  it('puts a lone waiting dog first behind a withdrawn one', () => {
+    const rows = [
+      entry({ id: 'wd', armband: 1, exhibitorOrder: 2, status: 'withdrawn' }),
+      entry({ id: 'w', armband: 2, exhibitorOrder: 3 }),
+    ];
+    expect(placeInLine(rows, 'w')).toBe(1);
   });
 });

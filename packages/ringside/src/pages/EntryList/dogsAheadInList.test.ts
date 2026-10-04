@@ -117,3 +117,14 @@ describe('buildEntryListOwnership', () => {
     expect(bag?.conflictLabelByEntryId?.get('e2')).toBe('Also 2 away in Container Master');
   });
 });
+
+describe('computeDogsAheadInList with a check-in-completed dog (MYK9-996)', () => {
+  it('does not count an unscored completed dog ahead', () => {
+    const entries = [
+      entry({ id: 'ran', armband: 1, exhibitorOrder: 2, status: 'completed' }),
+      entry({ id: 'me', armband: 2, exhibitorOrder: 9 }),
+    ];
+    expect(computeDogsAheadInList(entries, 'me')).toEqual({ kind: 'waiting', dogsAhead: 0 });
+    expect(computeDogsAheadInList(entries, 'ran')).toBeNull();
+  });
+});

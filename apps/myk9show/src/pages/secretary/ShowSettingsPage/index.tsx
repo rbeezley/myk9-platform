@@ -12,7 +12,6 @@ import { useNavigate } from 'react-router-dom';
 import { useShowStore } from '@/store/showStore';
 import { useShowSettings } from '@/hooks/queries/useShowSettingsDatabase';
 import { PRESET_INFO, type VisibilityPreset } from '@myk9/secretary';
-import { WaitListSettingsCard } from '@/components/shows/WaitListSettingsCard';
 import { WithdrawalPolicyCard } from '@/components/shows/WithdrawalPolicyCard';
 import { RefundAllEntriesCard } from '@/components/shows/RefundAllEntriesCard';
 import { ShowAccessCodesCard } from '@/components/secretary/ShowAccessCodesCard';
@@ -105,9 +104,6 @@ export default function ShowSettingsPage() {
         </CardHeader>
         <CardContent />
       </Card>
-
-      {/* Wait List Settings */}
-      {selectedShowId && <WaitListSettingsCard showId={selectedShowId} />}
 
       {/* Withdrawal Refund Policy (per-show override of the club default) */}
       {selectedShowId && <WithdrawalPolicyCard scope="show" entityId={selectedShowId} />}

@@ -329,6 +329,15 @@ export const classSchemas = {
     hidesUsed: commonValidations.optionalString,
     distractionsUsed: commonValidations.optionalString,
     itemsUsed: commonValidations.optionalString,
+    /** Blank (null) means no class limit. */
+    maxEntries: z
+      .number()
+      .int('Enter a whole number, or leave blank for no limit')
+      .min(1, 'The entry limit must be at least 1, or leave blank for no limit')
+      .nullable()
+      .optional(),
+    allowsWaitlist: z.boolean().optional(),
+    editedCapacity: z.array(z.enum(['maxEntries', 'allowsWaitlist'])).optional(),
     preEntryFee: z
       .number()
       .min(0, 'Please enter a valid pre-entry fee')
@@ -350,6 +359,14 @@ export const classSchemas = {
     judgeName: commonValidations.optionalString,
     status: z.string().min(1, 'Please select a status'),
     entries: z.number(),
+    maxEntries: z
+      .number()
+      .int('Enter a whole number, or leave blank for no limit')
+      .min(1, 'The entry limit must be at least 1, or leave blank for no limit')
+      .nullable()
+      .optional(),
+    allowsWaitlist: z.boolean().optional(),
+    editedCapacity: z.array(z.enum(['maxEntries', 'allowsWaitlist'])).optional(),
   }),
 };
 

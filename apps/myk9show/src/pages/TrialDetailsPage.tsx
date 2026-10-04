@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTrialStore } from '@/store/trialStore';
+import { toTrialDetailClass } from './trialDetailClassProjection';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { canManageShowSurface } from '@/utils/roleScopes';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
@@ -167,25 +168,9 @@ const TrialDetailsPage: React.FC = () => {
   const trialWithClasses = useMemo(() => {
     if (!currentTrial) return undefined;
     const trialClasses = classes.filter(c => c.trialId === currentTrial.id);
-    const convertedClasses = trialClasses.map(classData => {
-      const startTime =
-        classData.startTime ||
-        (classData.trialDate ? `${classData.trialDate}T09:00:00` : new Date().toISOString());
-      return {
-        id: classData.id,
-        element: classData.element || 'Unknown',
-        level: classData.level || 'Unknown',
-        section: classData.section || 'A',
-        status:
-          classData.status === 'Scheduled'
-            ? 'Upcoming'
-            : (classData.status as 'Upcoming' | 'In Progress' | 'Completed' | 'Cancelled'),
-        judgeId: ((classData as unknown as Record<string, unknown>).judgeId as string) || 'TBD',
-        judgeName: classData.judge || 'TBD',
-        startTime,
-        entries: entryCountByClass.get(classData.id) ?? 0,
-      };
-    });
+    const convertedClasses = trialClasses.map(classData =>
+      toTrialDetailClass(classData, entryCountByClass.get(classData.id) ?? 0)
+    );
     return {
       ...currentTrial,
       classes: convertedClasses.length > 0 ? convertedClasses : currentTrial.classes || [],

@@ -5,15 +5,16 @@
  */
 import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render } from '@/test/utils/testUtils';
+import { render, createTestQueryClient } from '@/test/utils/testUtils';
+import { judgeDayCapacityKey } from '@/hooks/queries/useJudgeDayCapacity';
 import WaitlistManagementPage from '../index';
 
-const state = vi.hoisted(() => ({ searchTerm: '' }));
+const state = vi.hoisted(() => ({ searchTerm: '', selectedShowId: 'show-1' }));
 
 vi.mock('../useWaitlistManagementData', () => ({
   useWaitlistManagementData: () => ({
     shows: [{ id: 'show-1', name: 'Test Show', start_date: null, end_date: null }],
-    selectedShowId: 'show-1',
+    selectedShowId: state.selectedShowId,
     classes: [
       {
         id: 'c1',
@@ -77,7 +78,8 @@ vi.mock('../useWaitlistManagementData', () => ({
   }),
 }));
 
-vi.mock('@/hooks/queries/useJudgeDayCapacity', () => ({
+vi.mock('@/hooks/queries/useJudgeDayCapacity', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/hooks/queries/useJudgeDayCapacity')>()),
   useJudgeDayCapacity: () => ({ judgeDays: [] }),
 }));
 
@@ -85,9 +87,16 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ hasRole: () => true }),
 }));
 
+vi.mock('@/components/shows/WaitListSettingsCard', () => ({
+  WaitListSettingsCard: ({ showId }: { showId: string }) => (
+    <div data-testid="waitlist-settings-card">settings for {showId}</div>
+  ),
+}));
+
 describe('WaitlistManagementPage', () => {
   beforeEach(() => {
     state.searchTerm = '';
+    state.selectedShowId = 'show-1';
   });
 
   it('renders the shared ListFilterBar search field once a class is selected', () => {
@@ -109,5 +118,30 @@ describe('WaitlistManagementPage', () => {
 
     await waitFor(() => expect(screen.queryByText('Rexy')).not.toBeInTheDocument());
     expect(screen.getByRole('status')).toHaveTextContent('Showing 0 of 1 dog.');
+  });
+
+  // MYK9-999: the settings used to live only on a route nothing linked to, keyed on a store
+  // selection. They are reachable from the Waitlist tab, scoped to the show the queues show.
+  it('offers Wait List Settings from the tab, for the show the tab was opened for', () => {
+    render(<WaitlistManagementPage showId="show-1" />);
+    expect(screen.getByText(/Wait list settings: judge-day capacity, offer window/)).toBeVisible();
+    expect(screen.getByTestId('waitlist-settings-card')).toHaveTextContent('settings for show-1');
+  });
+
+  // Codex review of #2735: the Show menu can switch the queues to another show; the settings
+  // card must follow it, or viewing show B edits show A's rules.
+  it('switches the settings card when the Show menu switches the queues', () => {
+    const { rerender } = render(<WaitlistManagementPage showId="show-1" />);
+    state.selectedShowId = 'show-2';
+    rerender(<WaitlistManagementPage showId="show-1" />);
+    expect(screen.getByTestId('waitlist-settings-card')).toHaveTextContent('settings for show-2');
+  });
+
+  it('Refresh also re-reads the judge-day capacity cards', () => {
+    const queryClient = createTestQueryClient();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    render(<WaitlistManagementPage showId="show-1" />, { queryClient });
+    fireEvent.click(screen.getByRole('button', { name: /refresh/i }));
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: judgeDayCapacityKey('show-1') });
   });
 });

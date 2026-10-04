@@ -29,7 +29,10 @@ export interface ClassData {
   preEntryFee?: number | undefined;
   dayOfShowFee?: number | undefined;
   entryFee?: number | undefined; // Keep for backward compatibility
-  maxEntries?: number | undefined;
+  /** The class's own entry limit (`classes.max_entries`); null/absent means no class limit. */
+  maxEntries?: number | null | undefined;
+  /** `classes.allow_waitlist`: a full class queues exhibitors instead of turning them away. */
+  allowsWaitlist?: boolean | undefined;
   // Time management
   estimatedJudgingTime?: string | undefined;
   timeLimit1?: string | undefined;

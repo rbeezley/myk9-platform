@@ -404,8 +404,8 @@ const ClassDetailsPage: React.FC = () => {
               }
               onSave={async classData => {
                 if (currentClass?.id) {
-                  const updatedClass = { ...currentClass, ...classData };
-                  await handleSaveClassEdit(updatedClass);
+                  // The panel's patch only; the snapshot is stale by now (MYK9-998).
+                  await handleSaveClassEdit(classData as Partial<typeof currentClass>);
                 }
               }}
             />

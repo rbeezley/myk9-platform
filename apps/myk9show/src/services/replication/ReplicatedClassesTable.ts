@@ -183,7 +183,7 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
     entryFee: row.entry_fee ?? undefined,
     jumpHeights: row.jump_heights ?? undefined,
     maxEntries: row.max_entries ?? undefined,
-    allowsWaitlist: row.allow_waitlist ?? undefined,
+    allowsWaitlist: row.allow_waitlist ?? false,
     maxDogsPerHandler: row.max_dogs_per_handler ?? undefined,
     level: row.level ?? undefined,
     breedRestrictions: row.breed_restrictions ?? undefined,

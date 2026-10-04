@@ -98,8 +98,10 @@ export function publicRowToRawEntryRow(row: PublicEntryRow): RawEntryRow {
     run_order: row.run_order,
     // An anonymised private entry has no dog id but still carries its
     // "Private entry" name, which is what the table must show at its place.
+    // A genuinely dog-less row (the view's LEFT JOIN found no dog) carries no
+    // name at all and still maps to null.
     dog:
-      row.dog_id || isPrivate
+      row.dog_id || (isPrivate && row.dog_name != null)
         ? {
             id: row.dog_id ?? '',
             name: row.dog_name ?? '',

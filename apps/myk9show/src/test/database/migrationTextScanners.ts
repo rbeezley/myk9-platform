@@ -43,7 +43,7 @@ export function latestDefinitions(): Map<string, { file: string; body: string }>
       // `entry_status_history_select` POLICY to record_entry_status_history,
       // which calls no helper at all.
       const rest = sql.slice(pattern.lastIndex);
-      const tagMatch = /AS\s+(\$[a-zA-Z_]*\$)/.exec(rest);
+      const tagMatch = /\bAS\s+(\$[a-zA-Z_]*\$)/i.exec(rest);
       let end: number;
       if (tagMatch) {
         const tag = tagMatch[1];
@@ -303,4 +303,42 @@ export function isCallGuarded(
   }
 
   return false;
+}
+
+/**
+ * The table a `club_id` argument reads, resolved from the SQL around it.
+ *
+ * A bare `club_id` is the policy's own table (`ownTable`). A qualified one is
+ * resolved through its alias: `FROM public.shows s`, `JOIN shows AS s`, or the
+ * table name itself (`shows.club_id`). Returns undefined when the alias cannot
+ * be resolved, so a caller treats an unknown table as nullable, never as safe.
+ *
+ * MYK9-1008 made shows.club_id NOT NULL, which is what lets a call that reads
+ * a shows row's club_id drop the `IS NOT NULL` guard. Knowing WHICH table the
+ * column belongs to is the whole question: `t.club_id` from a nullable table
+ * beside it must still be guarded.
+ */
+export function clubIdColumnTable(
+  body: string,
+  argument: string,
+  ownTable: string
+): string | undefined {
+  if (!argument.includes('.')) return ownTable.toLowerCase();
+  const qualifier = argument.slice(0, argument.indexOf('.')).toLowerCase();
+  if (qualifier === ownTable.toLowerCase()) return qualifier;
+  const escaped = qualifier.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const aliased = new RegExp(
+    `\\b(?:from|join)\\s+(?:public\\.)?([a-z_][a-z0-9_]*)\\s+(?:as\\s+)?${escaped}\\b`,
+    'gi'
+  );
+  const tables = new Set([...body.matchAll(aliased)].map(match => match[1]!.toLowerCase()));
+  // The same alias bound to two tables in one body is ambiguous: answer unknown.
+  if (tables.size === 1) return [...tables][0];
+  if (
+    tables.size === 0 &&
+    new RegExp(`\\b(?:from|join)\\s+(?:public\\.)?${escaped}\\b`, 'i').test(body)
+  ) {
+    return qualifier;
+  }
+  return undefined;
 }

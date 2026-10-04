@@ -1,43 +1,49 @@
--- MYK9-585: a club-less show must not be readable or writable by every club
--- admin / club secretary on the platform THROUGH AN RLS POLICY.
+-- MYK9-585, rescoped by MYK9-1008: a show must not be readable or writable by
+-- the club admins / club secretaries of ANOTHER club THROUGH AN RLS POLICY.
 --
--- null_club_show_authorization_test.sql (MYK9-258) proves the same property for
--- the SQL FUNCTIONS (manageable_show_ids, can_manage_show, ...). Nobody had
--- exercised the RLS policies that call is_club_admin(club_id) /
--- is_trial_secretary(club_id) DIRECTLY. 20260916015300 guards sixteen of them;
--- this file is the behavioural half.
+-- MYK9-585 wrote this file for club B shows: is_club_admin(club_id) /
+-- is_trial_secretary(club_id) read a NULL argument as "any club", so policies
+-- that passed a nullable shows.club_id positionally admitted every club admin
+-- on the platform, and 20260916015300 guarded sixteen of them with
+-- `club_id IS NOT NULL`. MYK9-1008 made shows.club_id NOT NULL and removed those
+-- guards (20261004181900), so a club B show can no longer exist. The same
+-- policies are now exercised against a show in club B, where no fixture identity
+-- holds a role: the tenant boundary these policies enforce, and the one a
+-- broken guard removal would breach.
 --
--- WHY THE CLUB-LESS SHOWS HERE ARE 'published'. `shows_select` has carried the
--- `club_id IS NOT NULL` guard since 20260823190000, so a club admin cannot see a
--- DRAFT club-less show at all — and an UPDATE's row scan is filtered by the
--- SELECT policies, which would make an UPDATE-row-count assertion pass against
--- the VULNERABLE policy too. `shows_select`'s public arm
--- (`status IN ('published', ...)`) is what makes the row visible to everyone,
--- and it is exactly the live shape: two of the three club-less shows on the
--- linked database are 'published'. So the write policies are the only gate on
--- these rows, which is what this file must exercise. A DRAFT club-less show is
--- used only where the public status arm is the thing being isolated
--- (trials_select / classes_select).
+-- myk9_1008_show_requires_club_test.sql covers the SQL FUNCTIONS
+-- (manageable_show_ids, can_manage_show, ...) and the NOT NULL refusal itself.
 --
--- Every case asserts BOTH directions. A test that only proved the club-less row
--- is hidden would also pass if the guard hid everything — a worse bug the other
--- way — so each block reads its own club's row first.
+-- WHY THE CLUB B SHOWS HERE ARE 'published'. An UPDATE's row scan is filtered
+-- by the SELECT policies, so a row the caller cannot see makes an
+-- UPDATE-row-count assertion pass against a broken write policy too.
+-- `shows_select`'s public arm (`status IN ('published', ...)`) makes the row
+-- visible to everyone, so the write policies are the only gate on these rows,
+-- which is what this file must exercise. A DRAFT club B show is used only where
+-- the public status arm is the thing being isolated (trials_select /
+-- classes_select).
 --
--- The DELETE case uses its OWN club-less show. Pointing it at the shared one
--- made every later case pass vacuously against the vulnerable policy set: the
--- delete succeeded, and "the row is not visible" is trivially true of a row that
--- no longer exists. Found by replaying this file's assertions against the
--- pre-migration predicates on a throwaway local Postgres.
+-- Every case asserts BOTH directions. A test that only proved the club B row
+-- is hidden would also pass if the policy hid everything — a worse bug the
+-- other way — so each block reads its own club's row first.
+--
+-- The DELETE case uses its OWN club B show. Pointing it at the shared one would
+-- make every later case pass vacuously against a broken policy set: the delete
+-- succeeds, and "the row is not visible" is trivially true of a row that no
+-- longer exists.
 --
 -- Run against a database where all migrations are applied:
 --   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
---     -f supabase/tests/null_club_policy_authorization_test.sql
+--     -f supabase/tests/cross_club_policy_authorization_test.sql
 -- All fixtures roll back.
 
 BEGIN;
 
 INSERT INTO public.clubs (id, name)
-VALUES ('00000000-0000-0000-0000-000000585001', 'MYK9-585 Club A');
+VALUES
+  ('00000000-0000-0000-0000-000000585001', 'MYK9-585 Club A'),
+  -- Club B: hosts the shows under test. No fixture identity holds a role here.
+  ('00000000-0000-0000-0000-000000585002', 'MYK9-585 Club B');
 
 -- People FIRST, carrying an email and a NULL auth link: handle_new_user() adopts
 -- an existing person by LOWER(email) when auth.users is inserted. Setting
@@ -102,8 +108,8 @@ SELECT '00000000-0000-0000-0000-000000585012', id, '00000000-0000-0000-0000-0000
        '00000000-0000-0000-0000-000000585102'
 FROM public.roles WHERE name = 'secretary';
 
--- Site admin: no club scope at all, and the only identity that should reach a
--- club-less row after this change.
+-- Site admin: no club scope at all, and the only fixture identity that should
+-- reach a club B row.
 INSERT INTO public.user_roles (user_id, role_id, is_active, auth_user_id)
 SELECT '00000000-0000-0000-0000-000000585013', id, true, '00000000-0000-0000-0000-000000585103'
 FROM public.roles WHERE name = 'site_admin';
@@ -115,12 +121,12 @@ INSERT INTO public.shows (id, name, organization, start_date, end_date, status, 
 VALUES
   ('00000000-0000-0000-0000-000000585021', 'MYK9-585 Club A Show', 'AKC',
    current_date, current_date + 1, 'published', '00000000-0000-0000-0000-000000585001'),
-  ('00000000-0000-0000-0000-000000585022', 'MYK9-585 Club-less Published Show', 'AKC',
-   current_date, current_date + 1, 'published', NULL),
-  ('00000000-0000-0000-0000-000000585023', 'MYK9-585 Club-less Draft Show', 'AKC',
-   current_date, current_date + 1, 'draft', NULL),
-  ('00000000-0000-0000-0000-000000585024', 'MYK9-585 Club-less Delete Target', 'AKC',
-   current_date, current_date + 1, 'published', NULL),
+  ('00000000-0000-0000-0000-000000585022', 'MYK9-585 Club B Published Show', 'AKC',
+   current_date, current_date + 1, 'published', '00000000-0000-0000-0000-000000585002'),
+  ('00000000-0000-0000-0000-000000585023', 'MYK9-585 Club B Draft Show', 'AKC',
+   current_date, current_date + 1, 'draft', '00000000-0000-0000-0000-000000585002'),
+  ('00000000-0000-0000-0000-000000585024', 'MYK9-585 Club B Delete Target', 'AKC',
+   current_date, current_date + 1, 'published', '00000000-0000-0000-0000-000000585002'),
   -- Case 1.2's positive control. A DELETE target of its own, because the shows
   -- the other cases read must survive to the end of the file.
   ('00000000-0000-0000-0000-000000585027', 'MYK9-585 Club A Delete Target', 'AKC',
@@ -130,14 +136,14 @@ INSERT INTO public.trials (id, show_id, name, date)
 VALUES
   ('00000000-0000-0000-0000-000000585031', '00000000-0000-0000-0000-000000585021',
    'MYK9-585 Club A Trial', current_date),
-  -- Under the DRAFT club-less show: trials_select's public arm cannot reach it,
+  -- Under the DRAFT club B show: trials_select's public arm cannot reach it,
   -- so only the club arm is under test here.
   ('00000000-0000-0000-0000-000000585032', '00000000-0000-0000-0000-000000585023',
-   'MYK9-585 Club-less Draft Trial', current_date),
-  -- Under the PUBLISHED club-less show: visible to everyone, so the visibility
+   'MYK9-585 Club B Draft Trial', current_date),
+  -- Under the PUBLISHED club B show: visible to everyone, so the visibility
   -- override policies are the only gate on writing to it.
   ('00000000-0000-0000-0000-000000585033', '00000000-0000-0000-0000-000000585022',
-   'MYK9-585 Club-less Published Trial', current_date);
+   'MYK9-585 Club B Published Trial', current_date);
 
 INSERT INTO public.classes (id, trial_id, name)
 VALUES
@@ -159,9 +165,9 @@ VALUES
    'MYK9-585 CLUB A BODY'),
   ('00000000-0000-0000-0000-000000585062', '00000000-0000-0000-0000-000000585022',
    '00000000-0000-0000-0000-000000585052', '00000000-0000-0000-0000-000000585104',
-   'MYK9-585 CLUB-LESS BODY');
+   'MYK9-585 CLUB B BODY');
 
--- The club-less show's visibility rows, seeded here rather than in a case: the
+-- The club B show's visibility rows, seeded here rather than in a case: the
 -- *_visibility_update policies need a row to aim at, and after 20260916015300 no
 -- club admin can create one (that is cases 5.0-5.2). All three tables' SELECT
 -- policies are `using (true)`, so the UPDATE row counts in case 8 are governed
@@ -174,9 +180,7 @@ INSERT INTO public.class_visibility_overrides (class_id)
 VALUES ('00000000-0000-0000-0000-000000585043');
 
 -- ---------------------------------------------------------------------------
--- 1. The club admin of club A. Every assertion below reached the club-less row
---    before 20260916015300, because is_club_admin(NULL) answers "club admin
---    anywhere?".
+-- 1. The club admin of club A, against club B's rows.
 -- ---------------------------------------------------------------------------
 DO $case1$
 DECLARE
@@ -201,16 +205,16 @@ BEGIN
   UPDATE public.shows SET name = name WHERE id = '00000000-0000-0000-0000-000000585022';
   GET DIAGNOSTICS n = ROW_COUNT;
   IF n <> 0 THEN
-    RAISE EXCEPTION 'FAIL 1.1 shows_update reached a club-less show (MYK9-585)';
+    RAISE EXCEPTION 'FAIL 1.1 shows_update reached a club B show (MYK9-585)';
   END IF;
-  RAISE NOTICE 'PASS 1.1 shows_update refuses a club-less show';
+  RAISE NOTICE 'PASS 1.1 shows_update refuses a club B show';
 
   DELETE FROM public.shows WHERE id = '00000000-0000-0000-0000-000000585024';
   GET DIAGNOSTICS n = ROW_COUNT;
   IF n <> 0 THEN
-    RAISE EXCEPTION 'FAIL 1.2 shows_delete reached a club-less show (MYK9-585)';
+    RAISE EXCEPTION 'FAIL 1.2 shows_delete reached a club B show (MYK9-585)';
   END IF;
-  RAISE NOTICE 'PASS 1.2 shows_delete refuses a club-less show';
+  RAISE NOTICE 'PASS 1.2 shows_delete refuses a club B show';
 
   -- Positive control for 1.2, in the same role and the same statement shape: a
   -- zero row count means "the policy refused" only if the SAME caller's DELETE
@@ -226,14 +230,14 @@ BEGIN
   refused := false;
   BEGIN
     INSERT INTO public.shows (id, name, organization, start_date, end_date, status, club_id)
-    VALUES ('00000000-0000-0000-0000-000000585025', 'MYK9-585 Forged Club-less', 'AKC',
-            current_date, current_date + 1, 'draft', NULL);
+    VALUES ('00000000-0000-0000-0000-000000585025', 'MYK9-585 Forged Club B Show', 'AKC',
+            current_date, current_date + 1, 'draft', '00000000-0000-0000-0000-000000585002');
   EXCEPTION WHEN insufficient_privilege THEN refused := true;
   END;
   IF NOT refused THEN
-    RAISE EXCEPTION 'FAIL 1.3 shows_insert accepted a club-less show (MYK9-585)';
+    RAISE EXCEPTION 'FAIL 1.3 shows_insert accepted a club B show (MYK9-585)';
   END IF;
-  RAISE NOTICE 'PASS 1.3 shows_insert refuses a club-less show';
+  RAISE NOTICE 'PASS 1.3 shows_insert refuses a club B show';
 
   -- Non-vacuity for 1.3: the same INSERT scoped to their own club must succeed,
   -- or "refused" above would prove only that shows_insert is broken for everyone.
@@ -246,7 +250,7 @@ BEGIN
 END $case1$;
 
 -- ---------------------------------------------------------------------------
--- 2. Read scope: trials_select / classes_select. The DRAFT club-less show is
+-- 2. Read scope: trials_select / classes_select. The DRAFT club B show is
 --    used here so the public status arm cannot mask the club arm.
 -- ---------------------------------------------------------------------------
 DO $case2$
@@ -266,7 +270,7 @@ BEGIN
   END IF;
   SELECT count(*) INTO n FROM public.trials WHERE id = '00000000-0000-0000-0000-000000585032';
   IF n <> 0 THEN
-    RAISE EXCEPTION 'FAIL 2.1 trials_select exposed a club-less draft trial (MYK9-585)';
+    RAISE EXCEPTION 'FAIL 2.1 trials_select exposed a club B draft trial (MYK9-585)';
   END IF;
   RAISE NOTICE 'PASS 2.x trials_select is club-scoped';
 
@@ -276,7 +280,7 @@ BEGIN
   END IF;
   SELECT count(*) INTO n FROM public.classes WHERE id = '00000000-0000-0000-0000-000000585042';
   IF n <> 0 THEN
-    RAISE EXCEPTION 'FAIL 3.1 classes_select exposed a club-less draft class (MYK9-585)';
+    RAISE EXCEPTION 'FAIL 3.1 classes_select exposed a club B draft class (MYK9-585)';
   END IF;
   RAISE NOTICE 'PASS 3.x classes_select is club-scoped';
 
@@ -306,7 +310,7 @@ BEGIN
   SELECT count(*) INTO n FROM public.show_message_threads
    WHERE id = '00000000-0000-0000-0000-000000585052';
   IF n <> 0 THEN
-    RAISE EXCEPTION 'FAIL 4.1 threads_select exposed a club-less show''s thread (MYK9-585)';
+    RAISE EXCEPTION 'FAIL 4.1 threads_select exposed a club B show''s thread (MYK9-585)';
   END IF;
 
   SELECT count(*) INTO n FROM public.show_messages
@@ -317,7 +321,7 @@ BEGIN
   SELECT count(*) INTO n FROM public.show_messages
    WHERE id = '00000000-0000-0000-0000-000000585062';
   IF n <> 0 THEN
-    RAISE EXCEPTION 'FAIL 4.3 messages_select exposed a club-less show''s message (MYK9-585)';
+    RAISE EXCEPTION 'FAIL 4.3 messages_select exposed a club B show''s message (MYK9-585)';
   END IF;
   RAISE NOTICE 'PASS 4.x threads/messages are club-scoped';
 
@@ -326,7 +330,7 @@ END $case3$;
 
 -- ---------------------------------------------------------------------------
 -- 4. The visibility-override write surfaces. Their targets all hang off the
---    PUBLISHED club-less show, so every EXISTS subquery in the policy can see
+--    PUBLISHED club B show, so every EXISTS subquery in the policy can see
 --    its row and the club arm is the only thing being tested.
 -- ---------------------------------------------------------------------------
 DO $case4$
@@ -349,7 +353,7 @@ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN refused := true;
   END;
   IF NOT refused THEN
-    RAISE EXCEPTION 'FAIL 5.0 show_visibility_insert accepted a club-less show (MYK9-585)';
+    RAISE EXCEPTION 'FAIL 5.0 show_visibility_insert accepted a club B show (MYK9-585)';
   END IF;
 
   INSERT INTO public.trial_visibility_overrides (trial_id)
@@ -361,7 +365,7 @@ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN refused := true;
   END;
   IF NOT refused THEN
-    RAISE EXCEPTION 'FAIL 5.1 trial_visibility_insert accepted a club-less show (MYK9-585)';
+    RAISE EXCEPTION 'FAIL 5.1 trial_visibility_insert accepted a club B show (MYK9-585)';
   END IF;
 
   INSERT INTO public.class_visibility_overrides (class_id)
@@ -373,7 +377,7 @@ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN refused := true;
   END;
   IF NOT refused THEN
-    RAISE EXCEPTION 'FAIL 5.2 class_visibility_insert accepted a club-less show (MYK9-585)';
+    RAISE EXCEPTION 'FAIL 5.2 class_visibility_insert accepted a club B show (MYK9-585)';
   END IF;
   RAISE NOTICE 'PASS 5.x visibility overrides are club-scoped (own-club writes all succeeded)';
 
@@ -417,7 +421,7 @@ BEGIN
    WHERE show_id = '00000000-0000-0000-0000-000000585022';
   GET DIAGNOSTICS n = ROW_COUNT;
   IF n <> 0 THEN
-    RAISE EXCEPTION 'FAIL 8.1 show_visibility_update reached a club-less show (MYK9-585)';
+    RAISE EXCEPTION 'FAIL 8.1 show_visibility_update reached a club B show (MYK9-585)';
   END IF;
 
   UPDATE public.trial_visibility_overrides SET preset = preset
@@ -430,7 +434,7 @@ BEGIN
    WHERE trial_id = '00000000-0000-0000-0000-000000585033';
   GET DIAGNOSTICS n = ROW_COUNT;
   IF n <> 0 THEN
-    RAISE EXCEPTION 'FAIL 8.3 trial_visibility_update reached a club-less show (MYK9-585)';
+    RAISE EXCEPTION 'FAIL 8.3 trial_visibility_update reached a club B show (MYK9-585)';
   END IF;
 
   UPDATE public.class_visibility_overrides SET preset = preset
@@ -443,7 +447,7 @@ BEGIN
    WHERE class_id = '00000000-0000-0000-0000-000000585043';
   GET DIAGNOSTICS n = ROW_COUNT;
   IF n <> 0 THEN
-    RAISE EXCEPTION 'FAIL 8.5 class_visibility_update reached a club-less show (MYK9-585)';
+    RAISE EXCEPTION 'FAIL 8.5 class_visibility_update reached a club B show (MYK9-585)';
   END IF;
   RAISE NOTICE 'PASS 8.x the three *_visibility_update policies are club-scoped';
 
@@ -463,7 +467,7 @@ BEGIN
   EXCEPTION WHEN insufficient_privilege THEN refused := true;
   END;
   IF NOT refused THEN
-    RAISE EXCEPTION 'FAIL 9.0 threads_insert accepted a thread on a club-less show (MYK9-585)';
+    RAISE EXCEPTION 'FAIL 9.0 threads_insert accepted a thread on a club B show (MYK9-585)';
   END IF;
   RAISE NOTICE 'PASS 9.0 threads_insert is club-scoped';
 
@@ -478,11 +482,11 @@ BEGIN
     INSERT INTO public.show_messages (id, show_id, thread_id, sender_id, body)
     VALUES ('00000000-0000-0000-0000-000000585064', '00000000-0000-0000-0000-000000585022',
             '00000000-0000-0000-0000-000000585052', '00000000-0000-0000-0000-000000585101',
-            'MYK9-585 staff reply, club-less');
+            'MYK9-585 staff reply, club B');
   EXCEPTION WHEN insufficient_privilege THEN refused := true;
   END;
   IF NOT refused THEN
-    RAISE EXCEPTION 'FAIL 9.1 messages_insert accepted a message on a club-less show (MYK9-585)';
+    RAISE EXCEPTION 'FAIL 9.1 messages_insert accepted a message on a club B show (MYK9-585)';
   END IF;
   RAISE NOTICE 'PASS 9.1 messages_insert is club-scoped';
 
@@ -504,7 +508,7 @@ BEGIN
    WHERE id = '00000000-0000-0000-0000-000000585062';
   GET DIAGNOSTICS n = ROW_COUNT;
   IF n <> 0 THEN
-    RAISE EXCEPTION 'FAIL 9.3 messages_update_read reached a club-less show''s message (MYK9-585)';
+    RAISE EXCEPTION 'FAIL 9.3 messages_update_read reached a club B show''s message (MYK9-585)';
   END IF;
   RAISE NOTICE 'PASS 9.x threads_insert / messages_insert / messages_update_read are club-scoped';
 
@@ -512,8 +516,8 @@ BEGIN
 END $case8$;
 
 -- ---------------------------------------------------------------------------
--- 5. The club SECRETARY — the second arm, a separate helper with the same
---    NULL-wildcard collapse.
+-- 5. The club SECRETARY — the second arm, a separate helper
+--    (is_trial_secretary) scoped the same way.
 -- ---------------------------------------------------------------------------
 DO $case5$
 DECLARE n integer;
@@ -534,18 +538,18 @@ BEGIN
   UPDATE public.shows SET name = name WHERE id = '00000000-0000-0000-0000-000000585022';
   GET DIAGNOSTICS n = ROW_COUNT;
   IF n <> 0 THEN
-    RAISE EXCEPTION 'FAIL 6.1 shows_update reached a club-less show for a secretary (MYK9-585)';
+    RAISE EXCEPTION 'FAIL 6.1 shows_update reached a club B show for a secretary (MYK9-585)';
   END IF;
 
   SELECT count(*) INTO n FROM public.trials WHERE id = '00000000-0000-0000-0000-000000585032';
   IF n <> 0 THEN
-    RAISE EXCEPTION 'FAIL 6.2 trials_select exposed a club-less draft trial to a secretary (MYK9-585)';
+    RAISE EXCEPTION 'FAIL 6.2 trials_select exposed a club B draft trial to a secretary (MYK9-585)';
   END IF;
 
   SELECT count(*) INTO n FROM public.show_message_threads
    WHERE id = '00000000-0000-0000-0000-000000585052';
   IF n <> 0 THEN
-    RAISE EXCEPTION 'FAIL 6.3 threads_select exposed a club-less thread to a secretary (MYK9-585)';
+    RAISE EXCEPTION 'FAIL 6.3 threads_select exposed a club B thread to a secretary (MYK9-585)';
   END IF;
   RAISE NOTICE 'PASS 6.x the secretary arm is club-scoped too';
 
@@ -553,8 +557,8 @@ BEGIN
 END $case5$;
 
 -- ---------------------------------------------------------------------------
--- 6. The site admin must STILL reach the club-less show. Without this the whole
---    file would pass against a change that simply hid club-less rows from
+-- 6. The site admin must STILL reach the club B show. Without this the whole
+--    file would pass against a change that simply hid club B rows from
 --    everyone, which is the opposite failure.
 -- ---------------------------------------------------------------------------
 DO $case6$
@@ -571,15 +575,15 @@ BEGIN
   UPDATE public.shows SET name = name WHERE id = '00000000-0000-0000-0000-000000585022';
   GET DIAGNOSTICS n = ROW_COUNT;
   IF n <> 1 THEN
-    RAISE EXCEPTION 'FAIL 7.0 site admin lost UPDATE on the club-less show';
+    RAISE EXCEPTION 'FAIL 7.0 site admin lost UPDATE on the club B show';
   END IF;
-  RAISE NOTICE 'PASS 7.0 site admin still updates the club-less show';
+  RAISE NOTICE 'PASS 7.0 site admin still updates the club B show';
 
   SELECT count(*) INTO n FROM public.trials WHERE id = '00000000-0000-0000-0000-000000585032';
   IF n <> 1 THEN
-    RAISE EXCEPTION 'FAIL 7.1 site admin lost the club-less draft trial';
+    RAISE EXCEPTION 'FAIL 7.1 site admin lost the club B draft trial';
   END IF;
-  RAISE NOTICE 'PASS 7.1 site admin still reads the club-less draft trial';
+  RAISE NOTICE 'PASS 7.1 site admin still reads the club B draft trial';
 
   RESET ROLE;
 END $case6$;
@@ -592,7 +596,7 @@ END $case6$;
 -- granted to PUBLIC, and their `status IN ('published', ...)` arm is what a
 -- prospective exhibitor, a TV display and a search engine read a premium list
 -- through. 20260916015300 guarded the CLUB arm beside it and must not have
--- touched that one — including for the club-LESS published show, whose schedule
+-- touched that one — including for the club B published show, whose schedule
 -- stays public precisely because the public arm never looked at club_id.
 --
 -- anon holds column-level SELECT on classes (no table-level grant), so the count
@@ -632,7 +636,7 @@ BEGIN
     RAISE EXCEPTION
       'FAIL 10.1 anon lost the published shows'' classes (got %) — the public arm was narrowed', n;
   END IF;
-  RAISE NOTICE 'PASS 10.x anon still reads published shows'' trials and classes, club-less included';
+  RAISE NOTICE 'PASS 10.x anon still reads published shows'' trials and classes, club B included';
 
   -- ...and the draft show is still not public, so 10.0/10.1 are not simply
   -- "anon sees everything".

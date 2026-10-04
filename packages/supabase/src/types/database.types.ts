@@ -8250,7 +8250,7 @@ export type Database = {
           brand_color: string
           cc_secretary_on_exhibitor_emails: boolean
           city: string | null
-          club_id: string | null
+          club_id: string
           confirmation_message: string | null
           cover_image_url: string | null
           created_at: string | null
@@ -8319,7 +8319,7 @@ export type Database = {
           brand_color?: string
           cc_secretary_on_exhibitor_emails?: boolean
           city?: string | null
-          club_id?: string | null
+          club_id: string
           confirmation_message?: string | null
           cover_image_url?: string | null
           created_at?: string | null
@@ -8388,7 +8388,7 @@ export type Database = {
           brand_color?: string
           cc_secretary_on_exhibitor_emails?: boolean
           city?: string | null
-          club_id?: string | null
+          club_id?: string
           confirmation_message?: string | null
           cover_image_url?: string | null
           created_at?: string | null

@@ -3,13 +3,11 @@
 -- 20261004152700 adds clubs.is_demo and a write guard. The signed-out listings
 -- apply it in their PostgREST reads:
 --   * Find Shows (postgrestGetPublicShows):
---       shows?select=*,club:clubs(...)&club.is_demo=eq.false
---       &or=(club_id.is.null,club.not.is.null)
+--       shows?select=*,club:clubs!inner(...)&club.is_demo=eq.false
 --       &status=in.(published,upcoming,in_progress,completed)&deleted_at=is.null
---     PostgREST runs the club embed as a LEFT join under anon's RLS with the
---     is_demo filter inside it, so `club` is null for a demo club, and the OR
---     keeps a row whose club_id is null (clubless shows are still allowed) or
---     whose club survived the filter;
+--     PostgREST runs the !inner club embed as an inner join under anon's RLS
+--     with the is_demo filter inside it, so a demo club's show drops out.
+--     shows.club_id is NOT NULL (MYK9-1008), so every show has a club to join;
 --   * the guest club directory (getPublicDirectoryClubs):
 --       clubs?deleted_at=is.null&is_demo=eq.false
 -- This file runs those exact predicates AS anon, so it proves what the
@@ -66,11 +64,7 @@ INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id,
   ('00000000-0000-0000-0000-000000952010', 'MYK9-952 Demo Show', 'AKC',
    current_date + 30, current_date + 31, '00000000-0000-0000-0000-000000952001', 'published'),
   ('00000000-0000-0000-0000-000000952011', 'MYK9-952 Real Show', 'AKC',
-   current_date + 30, current_date + 31, '00000000-0000-0000-0000-000000952002', 'published'),
-  -- club_id is still nullable and a clubless public show must keep listing
-  -- (null_club_show_authorization_test.sql publishes one too).
-  ('00000000-0000-0000-0000-000000952012', 'MYK9-952 Clubless Show', 'AKC',
-   current_date + 30, current_date + 31, NULL, 'published');
+   current_date + 30, current_date + 31, '00000000-0000-0000-0000-000000952002', 'published');
 
 DO $$
 BEGIN
@@ -119,8 +113,8 @@ END;
 $$;
 
 -- ---------------------------------------------------------------------------
--- 1. anon: the Find Shows listing leaves the demo show out, keeps the real
---    club's show AND the clubless show
+-- 1. anon: the Find Shows listing leaves the demo show out and keeps the real
+--    club's show
 -- ---------------------------------------------------------------------------
 SET LOCAL ROLE anon;
 SELECT set_config('request.jwt.claim.sub', '', true);
@@ -130,26 +124,19 @@ DO $$
 DECLARE
   v_ids uuid[];
 BEGIN
-  -- The PostgREST shape: LEFT embed with the flag filter inside it, then the
-  -- top-level OR on club_id / embed presence.
+  -- The PostgREST shape: !inner embed with the flag filter inside it.
   SELECT array_agg(s.id ORDER BY s.id) INTO v_ids
     FROM public.shows s
-    LEFT JOIN LATERAL (
-      SELECT c.id FROM public.clubs c
-       WHERE c.id = s.club_id AND c.is_demo = false
-    ) club ON true
+    JOIN public.clubs c ON c.id = s.club_id AND c.is_demo = false
    WHERE s.id IN ('00000000-0000-0000-0000-000000952010',
-                  '00000000-0000-0000-0000-000000952011',
-                  '00000000-0000-0000-0000-000000952012')
+                  '00000000-0000-0000-0000-000000952011')
      AND s.status IN ('published', 'upcoming', 'in_progress', 'completed')
-     AND s.deleted_at IS NULL
-     AND (s.club_id IS NULL OR club.id IS NOT NULL);
+     AND s.deleted_at IS NULL;
 
-  IF v_ids IS DISTINCT FROM ARRAY['00000000-0000-0000-0000-000000952011'::uuid,
-                                  '00000000-0000-0000-0000-000000952012'::uuid] THEN
-    RAISE EXCEPTION 'FAIL anon-find-shows: listing returned %, expected the real and the clubless show', v_ids;
+  IF v_ids IS DISTINCT FROM ARRAY['00000000-0000-0000-0000-000000952011'::uuid] THEN
+    RAISE EXCEPTION 'FAIL anon-find-shows: listing returned %, expected only the real club''s show', v_ids;
   END IF;
-  RAISE NOTICE 'PASS anon-find-shows: demo show unlisted; real-club and clubless shows listed';
+  RAISE NOTICE 'PASS anon-find-shows: demo show unlisted; real-club show listed';
 END;
 $$;
 

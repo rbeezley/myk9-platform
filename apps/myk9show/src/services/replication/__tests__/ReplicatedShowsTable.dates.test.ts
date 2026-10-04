@@ -140,7 +140,11 @@ describe('ReplicatedShowsTable date writes', () => {
   it('normalizes a create the same way', async () => {
     process.env.TZ = 'America/Los_Angeles';
     const eveningPick = new Date(2026, 9, 1, 19, 30).toISOString();
-    const created = await table.createShow({ ...SERVER_SHAPED_FIELDS, entryOpenDate: eveningPick });
+    const created = await table.createShow({
+      ...SERVER_SHAPED_FIELDS,
+      clubId: 'club-1',
+      entryOpenDate: eveningPick,
+    });
     expect(queueMutation).toHaveBeenCalledWith(
       'INSERT',
       created.id,

@@ -44,6 +44,15 @@ test.describe('Class CRUD Operations', () => {
 
     const result = await page.evaluate(async () => {
       const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
+      // MYK9-1008: every show belongs to a club (shows.club_id is NOT NULL).
+      const { supabase: clubLookup } = await import('/src/services/database/supabaseClient.ts');
+      const { data: hostClub } = await clubLookup
+        .from('clubs')
+        .select('id')
+        .is('deleted_at', null)
+        .limit(1)
+        .single();
+      if (!hostClub) return { success: false, error: 'No club to host the test show' };
       const { createTrial, deleteTrial } = await import('/src/services/database/trials/index.ts');
       const { createClass, deleteClass } = await import('/src/services/database/classes/index.ts');
 
@@ -54,6 +63,7 @@ test.describe('Class CRUD Operations', () => {
       showEndDate.setDate(showEndDate.getDate() + 3);
 
       const showData = {
+        club_id: hostClub.id,
         name: `Test Show for Class ${Date.now()}`,
         organization: 'AKC',
         start_date: showStartDate.toISOString().split('T')[0],
@@ -124,6 +134,15 @@ test.describe('Class CRUD Operations', () => {
 
     const result = await page.evaluate(async () => {
       const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
+      // MYK9-1008: every show belongs to a club (shows.club_id is NOT NULL).
+      const { supabase: clubLookup } = await import('/src/services/database/supabaseClient.ts');
+      const { data: hostClub } = await clubLookup
+        .from('clubs')
+        .select('id')
+        .is('deleted_at', null)
+        .limit(1)
+        .single();
+      if (!hostClub) return { success: false, error: 'No club to host the test show' };
       const { createTrial, deleteTrial } = await import('/src/services/database/trials/index.ts');
       const { createClass, updateClass, deleteClass } =
         await import('/src/services/database/classes/index.ts');
@@ -135,6 +154,7 @@ test.describe('Class CRUD Operations', () => {
       showEndDate.setDate(showEndDate.getDate() + 3);
 
       const { data: createdShow, error: showError } = await createShow({
+        club_id: hostClub.id,
         name: `Update Test Show ${Date.now()}`,
         organization: 'AKC',
         start_date: showStartDate.toISOString().split('T')[0],
@@ -210,6 +230,15 @@ test.describe('Class CRUD Operations', () => {
 
     const result = await page.evaluate(async () => {
       const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
+      // MYK9-1008: every show belongs to a club (shows.club_id is NOT NULL).
+      const { supabase: clubLookup } = await import('/src/services/database/supabaseClient.ts');
+      const { data: hostClub } = await clubLookup
+        .from('clubs')
+        .select('id')
+        .is('deleted_at', null)
+        .limit(1)
+        .single();
+      if (!hostClub) return { success: false, error: 'No club to host the test show' };
       const { createTrial, deleteTrial } = await import('/src/services/database/trials/index.ts');
       const { createClass, deleteClass, getClassById } =
         await import('/src/services/database/classes/index.ts');
@@ -221,6 +250,7 @@ test.describe('Class CRUD Operations', () => {
       showEndDate.setDate(showEndDate.getDate() + 3);
 
       const { data: createdShow, error: showError } = await createShow({
+        club_id: hostClub.id,
         name: `Delete Test Show ${Date.now()}`,
         organization: 'AKC',
         start_date: showStartDate.toISOString().split('T')[0],
@@ -291,6 +321,15 @@ test.describe('Class CRUD Operations', () => {
 
     const result = await page.evaluate(async () => {
       const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
+      // MYK9-1008: every show belongs to a club (shows.club_id is NOT NULL).
+      const { supabase: clubLookup } = await import('/src/services/database/supabaseClient.ts');
+      const { data: hostClub } = await clubLookup
+        .from('clubs')
+        .select('id')
+        .is('deleted_at', null)
+        .limit(1)
+        .single();
+      if (!hostClub) return { success: false, error: 'No club to host the test show' };
       const { createTrial, deleteTrial } = await import('/src/services/database/trials/index.ts');
       const { createClass, deleteClass, getClassesByTrialId } =
         await import('/src/services/database/classes/index.ts');
@@ -302,6 +341,7 @@ test.describe('Class CRUD Operations', () => {
       showEndDate.setDate(showEndDate.getDate() + 3);
 
       const { data: createdShow, error: showError } = await createShow({
+        club_id: hostClub.id,
         name: `Classes By Trial Test Show ${Date.now()}`,
         organization: 'AKC',
         start_date: showStartDate.toISOString().split('T')[0],

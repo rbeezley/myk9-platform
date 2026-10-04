@@ -287,7 +287,8 @@ export interface CheckinStatusDialogProps {
   onClose: () => void;
   onStatusChange: (status: CheckInStatus) => void;
   dogInfo: {
-    armband: number;
+    /** `null` when the entry has no armband. */
+    armband: number | null;
     callName: string;
     handler: string;
   };

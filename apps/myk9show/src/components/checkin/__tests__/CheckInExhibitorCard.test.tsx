@@ -46,6 +46,18 @@ describe('CheckInExhibitorCard', () => {
     expect(screen.getByText(/Buddy/)).toBeInTheDocument();
   });
 
+  it('shows an em dash, never #0, when the dog has no armband (MYK9-977)', () => {
+    render(
+      <CheckInExhibitorCard
+        group={makeGroup({ armbandNumber: null })}
+        onCheckIn={vi.fn()}
+        onCheckInAll={vi.fn()}
+      />
+    );
+    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.queryByText('#0')).not.toBeInTheDocument();
+  });
+
   it('shows "Check In All" button when no entries are checked in', () => {
     render(<CheckInExhibitorCard group={makeGroup()} onCheckIn={vi.fn()} onCheckInAll={vi.fn()} />);
     expect(screen.getByRole('button', { name: /check in all/i })).toBeInTheDocument();

@@ -88,6 +88,8 @@ export function buildAKCSubmissionReadiness(input: {
   entryCount: number;
   missingRegistrationNumberCount: number;
   unscoredEntryCount?: number;
+  /** Submitted entries with no armband (AKC `catalogNumber`). */
+  missingArmbandCount?: number;
   /** Classes with no AKC class code — see `collectUnmappableAKCClasses`. */
   unmappableClasses?: UnmappableAKCClass[];
 }): AKCSubmissionReadiness {
@@ -141,6 +143,16 @@ export function buildAKCSubmissionReadiness(input: {
       verdict: `${unscored} ${unscored === 1 ? 'entry has' : 'entries have'} no result recorded yet.`,
       details:
         'AKC has no code for an unscored run, so these would be submitted as NQ. Record a result (or mark the dog absent, excused, or withdrawn) for each one before sending.',
+      canSend: false,
+    };
+  }
+
+  const missingArmbands = input.missingArmbandCount ?? 0;
+  if (missingArmbands > 0) {
+    return {
+      verdict: `${missingArmbands} ${missingArmbands === 1 ? 'entry has' : 'entries have'} no armband number.`,
+      details:
+        'AKC records the armband as the catalog number, so these cannot be sent without one. Assign an armband to each entry before sending.',
       canSend: false,
     };
   }

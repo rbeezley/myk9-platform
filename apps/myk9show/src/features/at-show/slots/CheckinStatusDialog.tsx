@@ -51,7 +51,8 @@ export const CheckinStatusDialog: React.FC<CheckinStatusDialogProps> = ({
         </DialogHeader>
         <div>
           <p>
-            #{dogInfo.armband} {dogInfo.callName}
+            {dogInfo.armband != null && `#${dogInfo.armband} `}
+            {dogInfo.callName}
           </p>
           <p>{dogInfo.handler}</p>
         </div>

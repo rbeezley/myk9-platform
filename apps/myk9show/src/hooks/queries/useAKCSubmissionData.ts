@@ -263,7 +263,9 @@ export function useAKCSubmissionData(showId: string) {
           searchTimeSeconds: e.search_time_seconds,
           totalFaults: null,
           finalPlacement: e.final_placement,
-          armbandNumber: e.armband != null ? Number(e.armband) : 0,
+          // Null stays null (never 0): the submission page blocks sending an entry
+          // with no armband rather than reporting a catalog number of 0 to AKC.
+          armbandNumber: e.armband != null ? Number(e.armband) : null,
           trialId: e.trial_id ?? '',
           classId: e.class_id ?? '',
           // AKCSubmissionEntry fields

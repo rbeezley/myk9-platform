@@ -40,6 +40,7 @@ export { getClassDisplayStatus, getEffectiveClassStatus } from './utils/classSta
 
 // Level sort + stale-data helpers (moved from apps/myk9q in PR E1a)
 export { getLevelSortOrder } from './utils/levelSort';
+export { formatArmband, NO_ARMBAND_LABEL } from './utils/armband';
 export type { StaleDataStatus } from './utils/staleDataUtils';
 export { getStaleDataStatus, formatStaleTime } from './utils/staleDataUtils';
 
@@ -176,6 +177,7 @@ export type { DogsAheadResult, EntryListOwnership } from './pages/EntryList';
 // favorite-dog push proximity. Typed structurally, so hosts can pass their own
 // row type (e.g. replicated entries) and get it back with display fields intact.
 export {
+  armbandSortKey,
   compareByRunOrder,
   findInRingEntry,
   isInQueue,

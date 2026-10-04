@@ -1,7 +1,8 @@
 /** A single entry shaped for print reports */
 export interface PrintReportEntry {
   id: string;
-  armband: number;
+  /** `null` when the entry has no armband; printed as "—", never 0. */
+  armband: number | null;
   runOrder: number | null;
   callName: string;
   breed: string;

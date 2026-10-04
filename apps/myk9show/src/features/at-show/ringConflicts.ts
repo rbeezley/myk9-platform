@@ -60,7 +60,8 @@ export interface DetectMyRingConflictsInput {
 function toQueueEntry(entry: RingConflictEntry): Entry {
   return {
     id: entry.id,
-    armband: Number(entry.armband) || 0,
+    // A missing armband stays null; the queue orders by runOrder/id, not by 0.
+    armband: entry.armband != null && entry.armband !== '' ? Number(entry.armband) : null,
     isScored: entry.isScored ?? false,
     status: (entry.checkInStatus ?? 'no-status') as Entry['status'],
     inRing: entry.checkInStatus === 'in-ring',

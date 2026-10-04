@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { formatTrialLabel } from '@myk9/core';
+import { armbandSortKey } from '@myk9/ringside';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { shouldShowSection } from '@/components/classes/ClassDetailsMain.helpers';
 import { fetchReplicatedCheckInEntries } from './useCheckInReportReplication';
@@ -36,7 +37,8 @@ export interface CheckInClassEntry {
 
 export interface ExhibitorCheckInGroup {
   key: string;
-  armbandNumber: number;
+  /** `null` when the dog has no armband assigned. */
+  armbandNumber: number | null;
   handlerName: string;
   dogName: string;
   dogBreed: string;
@@ -94,7 +96,7 @@ export function groupEntriesByExhibitor(rows: CheckInEntryRow[]): ExhibitorCheck
       map.set(key, {
         group: {
           key,
-          armbandNumber: row.armband_number ?? 0,
+          armbandNumber: row.armband_number ?? null,
           handlerName:
             [row.handler_first_name, row.handler_last_name].filter(Boolean).join(' ') || 'Unknown',
           dogName: row.dog_call_name || 'Unknown',
@@ -129,7 +131,7 @@ export function groupEntriesByExhibitor(rows: CheckInEntryRow[]): ExhibitorCheck
       checkedInCount: statuses.filter(s => s !== 'no-status' && !!s).length,
       summaryStatus: deriveSummaryStatus(statuses),
     }))
-    .sort((a, b) => a.armbandNumber - b.armbandNumber);
+    .sort((a, b) => armbandSortKey(a.armbandNumber) - armbandSortKey(b.armbandNumber));
 }
 
 // Hook

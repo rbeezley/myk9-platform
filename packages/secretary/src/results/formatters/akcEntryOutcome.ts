@@ -242,6 +242,21 @@ export function tallyAKCClass(entries: AKCSubmissionEntry[]): AKCClassTallies {
 }
 
 /**
+ * How many entries that RAN have no armband. AKC's `catalogNumber` is the
+ * armband, and writing 0 would record a wrong catalog number against the dog,
+ * so callers block sending until each one carries a real number.
+ *
+ * Withdrawn dogs are exempt: a withdrawal clears `entries.armband` (the number
+ * lives on the show armband assignment), so a withdrawn row legitimately has
+ * none. The formatter omits `catalogNumber` for it rather than invent one.
+ */
+export function countMissingArmbandAKCEntries(entries: AKCSubmissionEntry[]): number {
+  return entries.filter(
+    entry => entry.armbandNumber == null && classifyAKCEntryOutcome(entry) !== 'withdrawn'
+  ).length;
+}
+
+/**
  * How many entries carry no result yet. A non-zero count means the file would
  * report real dogs to AKC as NQ purely because nobody has scored them.
  */

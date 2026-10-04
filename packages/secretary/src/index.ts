@@ -59,6 +59,7 @@ export {
   akcResultCodesForOutcome,
   tallyAKCClass,
   countUnscoredAKCEntries,
+  countMissingArmbandAKCEntries,
   selectSubmittableAKCEntries,
   parseAKCResultStatus,
   mapAKCClassCodes,

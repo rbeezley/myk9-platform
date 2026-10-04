@@ -103,6 +103,54 @@ describe('print-service', () => {
     expect(html).not.toContain('Olivia Owner');
   });
 
+  // MYK9-977 — a dog with no armband printed as "0" on the run order, which
+  // reads as a real competitor number.
+  it('prints an em dash, never 0, for an entry with no armband', async () => {
+    mocks.getEntriesByClass.mockResolvedValue({
+      data: [
+        {
+          id: 'entry-null',
+          armband: null,
+          run_order: 1,
+          dog: { call_name: 'Maple', breed: 'Beagle', owner: null },
+          handler_identity: { name: 'Olivia Owner', person: null, source: 'owner' },
+        },
+        {
+          id: 'entry-42',
+          armband: '42',
+          run_order: 2,
+          dog: { call_name: 'Scout', breed: 'Beagle', owner: null },
+          handler_identity: { name: 'Olivia Owner', person: null, source: 'owner' },
+        },
+      ],
+      error: null,
+    });
+
+    const { result } = renderHook(() => usePipelinePrint('show-1', 'trial-1'));
+    await act(async () => {
+      await result.current.printRunOrder({
+        id: 'class-1',
+        name: 'Container Novice A',
+        judge_name: null,
+        status: null,
+        stage: 'not-started',
+        scored_count: 0,
+        total_entries: 2,
+        is_scoring_finalized: false,
+        is_results_reviewed: false,
+        start_time: null,
+        planned_start_time: null,
+        display_order: null,
+      });
+    });
+
+    const openedWindow = vi.mocked(window.open).mock.results[0]?.value as Window;
+    const html = vi.mocked(openedWindow.document.write).mock.calls[0]?.[0] ?? '';
+    expect(html).toContain('<td>—</td>');
+    expect(html).toContain('<td>42</td>');
+    expect(html).not.toContain('<td>0</td>');
+  });
+
   it('uses the projected owner identity when the handler is legacy-unassigned', async () => {
     mocks.getEntriesByClass.mockResolvedValue({
       data: [

@@ -14,6 +14,7 @@
 import React from 'react';
 import { cn } from '@myk9/ui';
 import type { DogCardProps } from '../pages/EntryList/pageProps';
+import { formatArmband } from '../utils/armband';
 
 /**
  * Left accent bar for result/placement reinforcement (the `statusBorder` prop
@@ -49,7 +50,8 @@ export const DogCard = React.memo<DogCardProps>(
     onPrefetch,
     dragHandle,
   }) => {
-    const isLong = String(armband).length >= 4;
+    const armbandText = formatArmband(armband);
+    const isLong = armbandText.length >= 4;
 
     return (
       <div
@@ -81,7 +83,7 @@ export const DogCard = React.memo<DogCardProps>(
               )}
               data-testid="dog-card-armband"
             >
-              {armband}
+              {armbandText}
             </div>
           </div>
 

@@ -24,8 +24,14 @@ export interface SubmissionEntry {
   totalFaults: number | null;
   /** Final placement within class (1 = first, null = not placed) */
   finalPlacement: number | null;
-  /** Armband number assigned to this entry */
-  armbandNumber: number;
+  /**
+   * Armband number assigned to this entry, or `null` when none is assigned.
+   * Never 0: AKC would record 0 as a real catalog number, so the submission
+   * page blocks sending until every entry that ran has one
+   * (`countMissingArmbandAKCEntries`); the formatter omits `catalogNumber` for
+   * a withdrawn entry that has none.
+   */
+  armbandNumber: number | null;
   /** Trial this entry belongs to — used by formatters to group entries per event */
   trialId: string;
   /** Class this entry belongs to — used by formatters to group entries per class */

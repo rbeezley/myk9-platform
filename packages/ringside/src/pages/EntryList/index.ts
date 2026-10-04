@@ -80,6 +80,7 @@ export type { DogsAheadResult, EntryListOwnership } from './dogsAheadInList';
 // quick-advance chips, and favorite-dog push proximity. Typed structurally so
 // at-show can pass replicated rows through it.
 export {
+  armbandSortKey,
   compareByRunOrder,
   findInRingEntry,
   isInQueue,

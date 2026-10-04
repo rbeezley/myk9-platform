@@ -29,6 +29,7 @@ import {
   listFormatters,
   AKCScentWorkFormatter,
   countUnscoredAKCEntries,
+  countMissingArmbandAKCEntries,
   selectSubmittableAKCEntries,
   collectUnmappableAKCClasses,
 } from '@myk9/secretary';
@@ -159,6 +160,8 @@ export default function ResultsSubmissionPage() {
    * dog. Block sending, the same way a missing registration number does.
    */
   const unscoredAKCCount = countUnscoredAKCEntries(submittableAKCEntries);
+  /** AKC's catalog number is the armband; an entry without one cannot be sent. */
+  const missingArmbandAKCCount = countMissingArmbandAKCEntries(submittableAKCEntries);
   /**
    * Classes AKC has no code for (MYK9-547). The formatter now refuses to build
    * a file for one rather than reporting it as Novice A, so this blocks the
@@ -171,6 +174,7 @@ export default function ResultsSubmissionPage() {
     isAKCScentWork &&
     (missingAKCCount > 0 ||
       unscoredAKCCount > 0 ||
+      missingArmbandAKCCount > 0 ||
       hasNoAKCEntries ||
       unmappableAKCClasses.length > 0);
   // Guarded, not try/caught: `formatXml` throws on an unmappable class, and
@@ -192,6 +196,7 @@ export default function ResultsSubmissionPage() {
         entryCount: submittableAKCEntries.length,
         missingRegistrationNumberCount: missingAKCCount,
         unscoredEntryCount: unscoredAKCCount,
+        missingArmbandCount: missingArmbandAKCCount,
         unmappableClasses: unmappableAKCClasses,
       })
     : null;
@@ -256,7 +261,9 @@ export default function ResultsSubmissionPage() {
           ? 'One or more classes are not set up as AKC classes, so no file can be prepared. See the checklist below.'
           : unscoredAKCCount > 0
             ? 'Record a result for every entry before sending results.'
-            : 'Add AKC registration numbers before sending results.'
+            : missingArmbandAKCCount > 0
+              ? 'Assign an armband to every entry before sending results.'
+              : 'Add AKC registration numbers before sending results.'
       );
       setShowConfirm(false);
       return;
@@ -588,7 +595,7 @@ export default function ResultsSubmissionPage() {
       )}
 
       {/* Pre-flight warning — one banner, one line per blocker that fired. */}
-      {(missingAKCCount > 0 || unscoredAKCCount > 0) && (
+      {(missingAKCCount > 0 || unscoredAKCCount > 0 || missingArmbandAKCCount > 0) && (
         <div
           className="rounded-md border border-warning/30 bg-warning/10 px-4 py-3 text-sm text-warning "
           role="alert"
@@ -602,8 +609,18 @@ export default function ResultsSubmissionPage() {
               &mdash; or mark the dog absent, excused, or withdrawn &mdash; before sending to AKC.
             </p>
           )}
+          {missingArmbandAKCCount > 0 && (
+            <p
+              data-testid="preflight-missing-armband"
+              className={unscoredAKCCount > 0 ? 'mt-2' : undefined}
+            >
+              {missingArmbandAKCCount} {missingArmbandAKCCount === 1 ? 'entry has' : 'entries have'}{' '}
+              no armband number. AKC records the armband as the catalog number, so assign one before
+              sending to AKC.
+            </p>
+          )}
           {missingAKCCount > 0 && (
-            <p className={unscoredAKCCount > 0 ? 'mt-2' : undefined}>
+            <p className={unscoredAKCCount > 0 || missingArmbandAKCCount > 0 ? 'mt-2' : undefined}>
               {missingAKCCount} {missingAKCCount === 1 ? 'entry is' : 'entries are'} missing AKC
               registration {missingAKCCount === 1 ? 'number' : 'numbers'}. Add the missing dog
               registration {missingAKCCount === 1 ? 'number' : 'numbers'} before sending to AKC.
@@ -739,6 +756,26 @@ export default function ResultsSubmissionPage() {
                 </>
               )}
             </li>
+            {submittableAKCEntries.length > 0 && (
+              <li className="flex items-center gap-2" data-testid="preflight-armband-row">
+                {missingArmbandAKCCount === 0 ? (
+                  <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
+                ) : (
+                  <AlertTriangle className="h-4 w-4 text-warning" aria-hidden="true" />
+                )}
+                <span>
+                  {missingArmbandAKCCount === 0 ? (
+                    'Every entry has an armband number'
+                  ) : (
+                    <>
+                      <strong>{missingArmbandAKCCount}</strong>{' '}
+                      {missingArmbandAKCCount === 1 ? 'entry has' : 'entries have'} no armband
+                      number
+                    </>
+                  )}
+                </span>
+              </li>
+            )}
             {/* Suppressed when a class has no AKC class code: the class-setup
                 row above already carries these exact words, and repeating them
                 fills three of five rows with one fact (docs/INTENT.md § Trial

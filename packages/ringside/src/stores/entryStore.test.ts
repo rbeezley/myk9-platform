@@ -838,7 +838,7 @@ describe('entryStore', () => {
         expect(filtered.every(e => !e.isScored)).toBe(true);
         // Check descending order
         if (filtered.length > 1) {
-          expect(filtered[0].armband).toBeGreaterThan(filtered[filtered.length - 1].armband);
+          expect(filtered[0].armband).toBeGreaterThan(filtered[filtered.length - 1].armband ?? 0);
         }
       });
     });

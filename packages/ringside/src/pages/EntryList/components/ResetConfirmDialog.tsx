@@ -60,7 +60,8 @@ export const ResetConfirmDialog: React.FC<ResetConfirmDialogProps> = ({
       <p>
         Reset the score for{' '}
         <strong className="text-foreground">
-          {entry.callName} ({entry.armband})
+          {entry.callName}
+          {entry.armband != null && ` (${entry.armband})`}
         </strong>
         ?
       </p>

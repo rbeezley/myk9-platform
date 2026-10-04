@@ -222,7 +222,7 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
           }
         }}
         dogInfo={{
-          armband: localEntries.find(e => e.id === activeStatusPopup)?.armband || 0,
+          armband: localEntries.find(e => e.id === activeStatusPopup)?.armband ?? null,
           callName: localEntries.find(e => e.id === activeStatusPopup)?.callName || '',
           handler: localEntries.find(e => e.id === activeStatusPopup)?.handler || '',
         }}

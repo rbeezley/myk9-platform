@@ -179,7 +179,7 @@ export const AkcMarkedCatalogTable: React.FC<{ classes: AkcMarkedCatalogClassDat
 );
 
 /** The box the judge initials each page with (AKC Ch.3 §37). */
-export const JudgeInitialsBox: React.FC = () => (
+const JudgeInitialsBox: React.FC = () => (
   <div className="catalog-initials">
     <span>Judge&apos;s initials</span>
     <span className="catalog-initials-box" />

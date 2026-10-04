@@ -15,7 +15,7 @@ import { formatArmbandDisplay } from '@/utils/armbandUtils';
 import { formatTrialLabel } from '@myk9/core';
 import { resolveConfiguredRegistryId } from '@/features/registries';
 import { formatCatalogDate } from '@/lib/reports/catalogFields';
-import { AkcMarkedCatalogTable, JudgeInitialsBox } from './AkcMarkedCatalogClass';
+import { AkcMarkedCatalogTable } from './AkcMarkedCatalogClass';
 
 function trialHeading(
   trial: { name?: string | undefined; trialNumber: string; date: string } | undefined
@@ -27,8 +27,8 @@ function trialHeading(
 }
 
 /**
- * INTENT: the Result Catalog is the AKC marked catalog (Scent Work Regulations
- * Ch.3 §36-37). The judge no longer signs and dates each class; instead EVERY
+ * INTENT: on an AKC show the Result Catalog is the AKC marked catalog (Scent Work
+ * Regulations Ch.3 §36-37). There the judge no longer signs and dates each class; instead EVERY
  * printed page carries a "Judge's initials" box, because the regulation has the
  * judge initial each page of the marked catalog. On an AKC show the box is the
  * <tfoot> of the catalog's single table (see catalogStyles.ts), which is what
@@ -167,13 +167,25 @@ export const ResultCatalog: React.FC<ReportProps> = ({
                     <p className="catalog-class-summary">
                       Entries: {classEntries.length} · Qualified: {qualifiedCount}
                     </p>
+                    {/*
+                      INTENT: outside AKC each class section still ends with a judge
+                      signature + date line; UKC/ASCA sign-off is unchanged by MYK9-1009.
+                    */}
+                    <div className="form-signature-section catalog-class-signature">
+                      <div className="signature-line">
+                        <span className="signature-label">Judge&apos;s Signature:</span>
+                        <span className="signature-blank" />
+                      </div>
+                      <div className="signature-line">
+                        <span className="signature-label">Date:</span>
+                        <span className="signature-blank" />
+                      </div>
+                    </div>
                   </>
                 )}
               </div>
             );
           })}
-          {/* Not the AKC marked catalog: one box at the end, not a per-page promise. */}
-          <JudgeInitialsBox />
         </>
       )}
 

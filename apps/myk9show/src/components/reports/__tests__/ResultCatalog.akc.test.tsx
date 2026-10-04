@@ -299,7 +299,9 @@ describe('ResultCatalog on an AKC show (marked catalog)', () => {
       'UKC Scent Work Show Results'
     );
     expect(screen.queryByText('Date of Birth')).not.toBeInTheDocument();
-    expect(screen.getAllByText("Judge's initials")).toHaveLength(1);
+    // UKC/ASCA sign-off is out of MYK9-1009's scope: the per-class signature stays.
+    expect(screen.queryByText("Judge's initials")).not.toBeInTheDocument();
+    expect(screen.getAllByText("Judge's Signature:")).toHaveLength(1);
   });
 
   it('names the trial and date in each class header on a multi-trial show', () => {

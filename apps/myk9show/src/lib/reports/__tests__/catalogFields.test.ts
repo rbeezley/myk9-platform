@@ -49,6 +49,22 @@ describe('resolveCatalogResult', () => {
     );
   });
 
+  // Replication hands placements over as strings (Codex P2 on #MYK9-1009).
+  it('reads the DQ placement marker when it arrives as a string', () => {
+    const dq = entry({
+      resultText: 'excused',
+      finalPlacement: '10000' as unknown as number,
+    });
+    expect(resolveCatalogResult(dq)).toBe('DQ');
+  });
+
+  // The scoring editor records a withdrawal as a result, leaving entry_status alone.
+  it('prints a withdrawal recorded as a result', () => {
+    expect(resolveCatalogResult(entry({ entryStatus: 'confirmed', resultText: 'withdrawn' }))).toBe(
+      'WD'
+    );
+  });
+
   it('prints nothing for a dog that has not been scored', () => {
     expect(resolveCatalogResult(entry({ resultText: 'pending' }))).toBe('');
   });
@@ -68,6 +84,15 @@ describe('countCatalogClass', () => {
       entries: 1,
       competing: 0,
     });
+  });
+
+  it('counts a withdrawal recorded as a result as withdrawn, not competing', () => {
+    expect(
+      countCatalogClass([
+        entry({ id: 'a', entryStatus: 'confirmed', resultText: 'withdrawn' }),
+        entry({ id: 'b', entryStatus: 'confirmed', resultText: 'qualified' }),
+      ])
+    ).toEqual({ entries: 1, competing: 1, qualifying: 1, withdrawn: 1 });
   });
 
   it('counts an absence recorded as a result as not competing', () => {

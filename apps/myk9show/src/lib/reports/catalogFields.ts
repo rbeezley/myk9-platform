@@ -78,8 +78,23 @@ export const CATALOG_RESULT = {
   PULLED: 'Pulled',
 } as const;
 
-function isWithdrawn(entry: Pick<ReportEntry, 'entryStatus'>): boolean {
-  return normalized(entry.entryStatus) === 'withdrawn';
+/**
+ * Withdrawn by entry status, or by a scoring result: the scoring editor records
+ * `result_status: 'withdrawn'` without touching `entry_status`.
+ */
+function isWithdrawn(entry: Pick<ReportEntry, 'entryStatus' | 'resultText'>): boolean {
+  return (
+    normalized(entry.entryStatus) === 'withdrawn' || normalized(entry.resultText) === 'withdrawn'
+  );
+}
+
+/**
+ * The stored placement as a number. Replication hands placements over as
+ * strings ('10000'), so comparing the raw value to a number silently misses.
+ */
+function placementNumber(entry: Pick<ReportEntry, 'finalPlacement'>): number | null {
+  const value = Number(entry.finalPlacement);
+  return entry.finalPlacement == null || Number.isNaN(value) ? null : value;
 }
 
 /** Moved-up source rows and not-accepted rows were never a dog in this class. */
@@ -102,7 +117,7 @@ export function resolveCatalogResult(entry: ReportEntry): string {
   if (result === 'nq') return CATALOG_RESULT.NOT_QUALIFIED;
   // No stored DQ result exists today (`entries.result_status` has no such value),
   // so a DQ prints only when a row carries the legacy DQ placement or word.
-  if (result === 'dq' || result === 'disqualified' || entry.finalPlacement === 10000) {
+  if (result === 'dq' || result === 'disqualified' || placementNumber(entry) === 10000) {
     return CATALOG_RESULT.DISQUALIFIED;
   }
   if (result === 'excused') return CATALOG_RESULT.EXCUSED;
@@ -146,7 +161,9 @@ export function countCatalogClass(entries: readonly ReportEntry[]): CatalogClass
       isExpectedEntry({
         entryStatus: entry.entryStatus,
         checkInStatus: entry.checkInStatus ?? undefined,
-      }) && resolveCatalogResult(entry) !== CATALOG_RESULT.ABSENT
+      }) &&
+      !isWithdrawn(entry) &&
+      resolveCatalogResult(entry) !== CATALOG_RESULT.ABSENT
   );
   return {
     entries: inClass.length - withdrawn,
@@ -165,7 +182,7 @@ export function catalogRows(entries: readonly ReportEntry[]): ReportEntry[] {
 
 /** Placement 1-4 as printed; anything else (including sentinel codes) prints blank. */
 export function catalogPlacement(entry: ReportEntry): string {
-  const placement = entry.finalPlacement;
+  const placement = placementNumber(entry);
   return placement != null && placement >= 1 && placement <= 4 ? String(placement) : '';
 }
 

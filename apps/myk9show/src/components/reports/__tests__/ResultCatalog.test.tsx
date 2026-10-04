@@ -106,14 +106,15 @@ describe('ResultCatalog', () => {
     expect(rows[1]).toHaveTextContent('Carlos Rivera');
   });
 
-  it("prints one judge's-initials box instead of a signature line per class", () => {
+  // Non-AKC sign-off is unchanged by MYK9-1009: a signature + date per class.
+  it('renders judge signature and date lines after each class section', () => {
     render(<ResultCatalog {...baseProps} />);
-    expect(screen.getAllByText("Judge's initials")).toHaveLength(1);
-    expect(screen.queryByText(/Judge.?s Signature/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/^Date:/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/Judge.?s Signature/i)).toBeInTheDocument();
+    expect(screen.getByText(/^Date:/i)).toBeInTheDocument();
+    expect(screen.queryByText("Judge's initials")).not.toBeInTheDocument();
   });
 
-  it('keeps the initials box when a class has no entries', () => {
+  it('does not render a signature block for a class with no entries', () => {
     render(
       <ResultCatalog
         {...baseProps}
@@ -123,8 +124,8 @@ describe('ResultCatalog', () => {
         ]}
       />
     );
+    expect(screen.getAllByText(/Judge.?s Signature/i)).toHaveLength(1);
     expect(screen.getByText(/No results for this class/i)).toBeInTheDocument();
-    expect(screen.getAllByText("Judge's initials")).toHaveLength(1);
   });
 
   it('renders unassigned armbands as an em dash', () => {

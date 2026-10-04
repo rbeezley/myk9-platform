@@ -42,7 +42,10 @@ VALUES
 INSERT INTO public.clubs (id, name)
 VALUES
   ('00000000-0000-0000-0000-000000000821', 'Pull Test Club'),
-  ('00000000-0000-0000-0000-000000000822', 'Unrelated Club');
+  ('00000000-0000-0000-0000-000000000822', 'Unrelated Club'),
+  -- Nobody holds a role here. Until MYK9-1008 show 832 was club-less; a show
+  -- must belong to a club now, so it belongs to one nobody manages.
+  ('00000000-0000-0000-0000-000000000823', 'Roleless Pull Club');
 
 INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id)
 VALUES
@@ -53,7 +56,8 @@ VALUES
   ),
   (
     '00000000-0000-0000-0000-000000000832',
-    'Clubless Pull Show', 'AKC', CURRENT_DATE, CURRENT_DATE, NULL
+    'Roleless Club Pull Show', 'AKC', CURRENT_DATE, CURRENT_DATE,
+    '00000000-0000-0000-0000-000000000823'
   );
 
 -- Paid-online fixture rows must use the same privileged role as the payment
@@ -197,9 +201,9 @@ BEGIN
       '00000000-0000-0000-0000-000000000843',
       'denied'
     );
-    RAISE EXCEPTION 'FAIL club admin denied a refund for a clubless show';
+    RAISE EXCEPTION 'FAIL club admin denied a refund for a show in a club nobody manages';
   EXCEPTION WHEN insufficient_privilege THEN
-    RAISE NOTICE 'PASS clubless show does not broaden club-admin authorization';
+    RAISE NOTICE 'PASS a show in a club nobody manages does not broaden club-admin authorization';
   END;
 END;
 $$;

@@ -14,9 +14,12 @@ update public.people
 set deleted_at = now()
 where id = '00000000-0000-0000-0000-000000603013';
 
-insert into public.shows (id, name, organization, start_date, end_date, status)
+-- MYK9-1008: every show belongs to a club (shows.club_id NOT NULL); each
+-- fixture show gets its own fixture club, reusing the show's id.
+insert into public.clubs (id, name) values ('00000000-0000-0000-0000-000000603001', 'MYK9-1008 fixture club ' || '00000000-0000-0000-0000-000000603001');
+insert into public.shows (id, name, organization, start_date, end_date, status, club_id)
 values ('00000000-0000-0000-0000-000000603001', 'MYK9-603 Show', 'AKC',
-  current_date, current_date, 'published');
+  current_date, current_date, 'published', '00000000-0000-0000-0000-000000603001');
 
 insert into public.trials (id, show_id, name, date, registry_id)
 values ('00000000-0000-0000-0000-000000603002', '00000000-0000-0000-0000-000000603001',

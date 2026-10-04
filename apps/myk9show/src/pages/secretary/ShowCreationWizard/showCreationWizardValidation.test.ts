@@ -374,3 +374,28 @@ describe('trial start time draft (MYK9-931)', () => {
     ]);
   });
 });
+
+// MYK9-1008: a show cannot be created without a club (shows.club_id is NOT
+// NULL). The Show Details step and Review both name the gap, each with the
+// club as the ONLY problem, so the message is not riding on another failure.
+describe('a hosting club is required (MYK9-1008)', () => {
+  const CLUB = 'Please select a hosting club';
+  const trial = { id: 't1', trialDate: '2026-08-29', startTimeDraft: '08:00 AM', classes: [{}] };
+
+  it('the Show Details step blocks a show with no club, and only for that', () => {
+    expect(getShowDetailsValidationMessages(baseShow({ clubId: '' }))).toEqual([CLUB]);
+    expect(getShowDetailsValidationMessages(baseShow())).not.toContain(CLUB);
+  });
+
+  it('Review blocks Create for a show with no club, and only for that', () => {
+    const review = (clubId: string) =>
+      getReviewBlockingErrors({
+        show: baseShow({ clubId }),
+        trials: [trial],
+        officialsUnknown: false,
+        scope: 'full',
+      });
+    expect(review('')).toEqual([CLUB]);
+    expect(review('club-1')).toEqual([]);
+  });
+});

@@ -3,6 +3,7 @@ import type { ReplicatedShow } from '@/services/replication/ReplicatedShowsTable
 import type { ReplicatedTrial } from '@/services/replication/ReplicatedTrialsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import { toLocalDateOnly } from '@/utils/date-format';
+import { requireShowClubId } from '@/services/database/shows/requireShowClub';
 import { deriveRegistryId, resolveBrowserTrialTimezone } from '@/features/registries';
 import { resolvePremiumStyle, type PremiumStyle } from '@/types/premium-types';
 import type { WizardTrialView } from '@/utils/wizardTrialNames';
@@ -134,6 +135,8 @@ export function buildCreateShowPayload(
   status: ShowStatus,
   trialView: WizardTrialView
 ): CreateShowPayloadResult {
+  // MYK9-1008: refuse before minting ids or building anything.
+  const clubId = requireShowClubId(show.clubId);
   const normalizedClasses = normalizeWizardClassSelections(show.organization, trials);
   const showId = crypto.randomUUID();
   const dbStatus = mapShowStatus(status);
@@ -216,7 +219,7 @@ export function buildCreateShowPayload(
     latitude: show.latitude ?? null,
     longitude: show.longitude ?? null,
     status: dbStatus,
-    clubId: show.clubId,
+    clubId,
     entryOpenDate: show.entryOpenDate || undefined,
     entryCloseDate: show.entryCloseDate || undefined,
     preEntryFee: show.preEntryFee ?? undefined,
@@ -290,7 +293,7 @@ export function buildCreateShowPayload(
         latitude: show.latitude ?? null,
         longitude: show.longitude ?? null,
         status: dbStatus,
-        club_id: show.clubId,
+        club_id: clubId,
         entry_open_date: show.entryOpenDate ? toLocalDateOnly(show.entryOpenDate) : null,
         entry_close_date: show.entryCloseDate ? toLocalDateOnly(show.entryCloseDate) : null,
         pre_entry_fee: show.preEntryFee ?? null,

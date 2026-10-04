@@ -44,6 +44,15 @@ test.describe('Show CRUD Operations', () => {
 
     const result = await page.evaluate(async () => {
       const { createShow, deleteShow } = await import('/src/services/database/shows/index.ts');
+      // MYK9-1008: every show belongs to a club (shows.club_id is NOT NULL).
+      const { supabase: clubLookup } = await import('/src/services/database/supabaseClient.ts');
+      const { data: hostClub } = await clubLookup
+        .from('clubs')
+        .select('id')
+        .is('deleted_at', null)
+        .limit(1)
+        .single();
+      if (!hostClub) return { success: false, error: 'No club to host the test show' };
 
       // Calculate dates
       const startDate = new Date();
@@ -52,6 +61,7 @@ test.describe('Show CRUD Operations', () => {
       endDate.setDate(endDate.getDate() + 2);
 
       const testShowData = {
+        club_id: hostClub.id,
         name: `E2E Test Show ${Date.now()}`,
         organization: 'AKC',
         start_date: startDate.toISOString().split('T')[0],
@@ -98,6 +108,15 @@ test.describe('Show CRUD Operations', () => {
     const result = await page.evaluate(async () => {
       const { createShow, updateShow, deleteShow } =
         await import('/src/services/database/shows/index.ts');
+      // MYK9-1008: every show belongs to a club (shows.club_id is NOT NULL).
+      const { supabase: clubLookup } = await import('/src/services/database/supabaseClient.ts');
+      const { data: hostClub } = await clubLookup
+        .from('clubs')
+        .select('id')
+        .is('deleted_at', null)
+        .limit(1)
+        .single();
+      if (!hostClub) return { success: false, error: 'No club to host the test show' };
 
       // Calculate dates
       const startDate = new Date();
@@ -106,6 +125,7 @@ test.describe('Show CRUD Operations', () => {
       endDate.setDate(endDate.getDate() + 2);
 
       const testShowData = {
+        club_id: hostClub.id,
         name: `Update Test Show ${Date.now()}`,
         organization: 'AKC',
         start_date: startDate.toISOString().split('T')[0],
@@ -170,6 +190,15 @@ test.describe('Show CRUD Operations', () => {
       const { supabase } = await import('/src/services/database/supabaseClient.ts');
       const { createShow, deleteShow, getShowById } =
         await import('/src/services/database/shows/index.ts');
+      // MYK9-1008: every show belongs to a club (shows.club_id is NOT NULL).
+      const { supabase: clubLookup } = await import('/src/services/database/supabaseClient.ts');
+      const { data: hostClub } = await clubLookup
+        .from('clubs')
+        .select('id')
+        .is('deleted_at', null)
+        .limit(1)
+        .single();
+      if (!hostClub) return { success: false, error: 'No club to host the test show' };
 
       // Calculate dates
       const startDate = new Date();
@@ -178,6 +207,7 @@ test.describe('Show CRUD Operations', () => {
       endDate.setDate(endDate.getDate() + 2);
 
       const testShowData = {
+        club_id: hostClub.id,
         name: `E2E Test Show ${Date.now()}`,
         organization: 'AKC',
         start_date: startDate.toISOString().split('T')[0],

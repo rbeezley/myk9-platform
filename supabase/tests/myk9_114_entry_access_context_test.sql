@@ -17,7 +17,10 @@ values
 on conflict (name) do nothing;
 
 insert into public.clubs (id, name)
-values ('00000000-0000-0000-0000-000000114001', 'MYK9-114 Test Club');
+values
+  ('00000000-0000-0000-0000-000000114001', 'MYK9-114 Test Club'),
+  -- Hosts the "unscoped" show: no fixture identity holds a role here.
+  ('00000000-0000-0000-0000-000000114008', 'MYK9-114 Other Club');
 
 insert into public.people (id, first_name, last_name, auth_user_id)
 values
@@ -46,7 +49,7 @@ insert into public.shows (
   ('00000000-0000-0000-0000-000000114002', 'MYK9-114 Access Context Test', 'AKC',
    current_date, current_date + 1, '00000000-0000-0000-0000-000000114001', 'published'),
   ('00000000-0000-0000-0000-000000114005', 'MYK9-114 Unscoped Access Test', 'AKC',
-   current_date, current_date + 1, null, 'published');
+   current_date, current_date + 1, '00000000-0000-0000-0000-000000114008', 'published');
 
 insert into public.trials (id, show_id, name, date)
 values
@@ -280,15 +283,14 @@ begin
 end
 $$;
 
--- A manager role preserves can_manage_show(NULL) parity for an unscoped show.
+-- A manager role keeps can_manage_show parity for a show outside its club.
 --
--- Parity flipped direction with MYK9-258 (20260828230000): can_manage_show()
--- now REJECTS a club-less show for everyone but a site admin, and MYK9-329
--- (20260902130000) brought this view's can_manage flag into line. Before that
--- this block asserted 1/1/1 -- the scoped manager could read the club-less
--- show's payment column and scores -- which is the cross-tenant leak MYK9-258
--- named. The view has no other arm that admits this caller to this show, so
--- the row must be absent entirely, not merely masked.
+-- This block used a club-less show (MYK9-258 / MYK9-329: the scoped manager
+-- once read a club-less show's payment column and scores, a cross-tenant
+-- leak). MYK9-1008 made shows.club_id NOT NULL, so the same cross-tenant
+-- question is now asked of another club's show. The view has no other arm
+-- that admits this caller to this show, so the row must be absent entirely,
+-- not merely masked.
 select set_config('request.jwt.claim.sub', '00000000-0000-0000-0000-000000114102', true);
 select set_config(
   'request.jwt.claims',
@@ -304,10 +306,10 @@ begin
     from public.view_authenticated_entry_results
    where show_id = '00000000-0000-0000-0000-000000114005';
   if row_count <> 0 then
-    raise exception 'FAIL null-club manager still reads % row(s) of a club-less show (MYK9-329)',
+    raise exception 'FAIL club manager reads % row(s) of another club''s show (MYK9-329)',
       row_count;
   end if;
-  raise notice 'PASS manager no longer reads a club-less show (can_manage_show parity, MYK9-258)';
+  raise notice 'PASS manager does not read another club''s show (can_manage_show parity, MYK9-258)';
 end
 $$;
 

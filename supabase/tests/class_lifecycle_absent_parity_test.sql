@@ -17,8 +17,11 @@ DECLARE
   v_count bigint;
   v_scored_count bigint;
 BEGIN
-  INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals, status)
-  VALUES (v_show, 'Absent parity', 'Test Org', current_date, current_date, false, 'published');
+  -- MYK9-1008: every show belongs to a club (shows.club_id NOT NULL); each
+  -- fixture show gets its own fixture club, reusing the show's id.
+  INSERT INTO public.clubs (id, name) VALUES (v_show, 'MYK9-1008 fixture club ' || v_show);
+  INSERT INTO public.shows (id, name, organization, start_date, end_date, is_nationals, status, club_id)
+  VALUES (v_show, 'Absent parity', 'Test Org', current_date, current_date, false, 'published', v_show);
   INSERT INTO public.trials (id, show_id, name, date)
   VALUES (v_trial, v_show, 'Trial', current_date);
   INSERT INTO public.classes (id, trial_id, name, status)

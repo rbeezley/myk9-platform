@@ -61,9 +61,12 @@ SELECT '00000000-0000-0000-0000-000000981011', '00000000-0000-0000-0000-00000098
 WHERE NOT EXISTS (SELECT 1 FROM public.exhibitor_profiles
                   WHERE auth_user_id = '00000000-0000-0000-0000-000000981101');
 
-INSERT INTO public.shows (id, name, organization, start_date, end_date, status)
+-- MYK9-1008: every show belongs to a club (shows.club_id NOT NULL); each
+-- fixture show gets its own fixture club, reusing the show's id.
+INSERT INTO public.clubs (id, name) VALUES ('00000000-0000-0000-0000-000000981021', 'MYK9-1008 fixture club ' || '00000000-0000-0000-0000-000000981021');
+INSERT INTO public.shows (id, name, organization, start_date, end_date, status, club_id)
 VALUES ('00000000-0000-0000-0000-000000981021', 'MYK9-981 Show', 'AKC',
-        current_date + 30, current_date + 30, 'draft');
+        current_date + 30, current_date + 30, 'draft', '00000000-0000-0000-0000-000000981021');
 
 -- Carts carry a checkout session id, which only service_role may write.
 SET LOCAL ROLE service_role;

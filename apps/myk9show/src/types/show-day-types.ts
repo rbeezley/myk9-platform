@@ -62,7 +62,6 @@ export interface ShowDayClass {
   scoredEntries: number;
   currentDogInRing: string | null;
   myRunningOrder: number | null;
-  estimatedTimeMinutes: number | null;
   ringNumber: number | null;
   // Status
   entryStatus: CheckInStatus;
@@ -134,9 +133,3 @@ export interface RingProgressRow {
   run_order: number | null;
   dog: { call_name: string };
 }
-
-/** Default minutes per dog before enough data for adaptive timing */
-export const DEFAULT_MINUTES_PER_DOG = 3;
-
-/** Minimum scored entries before switching to adaptive timing */
-export const MIN_SCORED_FOR_ADAPTIVE = 3;

@@ -1922,6 +1922,7 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
         summaryHtml: 'A payment-link charge could not be honored in full.',
       },
       showId: null,
+      paidEntryIds: [],
     });
     return;
   }
@@ -2215,9 +2216,11 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
   const linkProcessingFeeCents = await fetchProcessingFeeCents(paymentIntentId);
 
   // Close the link (idempotency latch) after reconciliation, record the order
-  // (payment history) AND write what the invalid entries are owed, in ONE
-  // transaction (queue_payment_link_refund; Codex rounds 13-14 on #2689). A
-  // closed latch therefore always has its order and its request; an existing
+  // (payment history), resolve the paid entries' waitlist offers (MYK9-968)
+  // AND write what the invalid entries are owed, in ONE transaction
+  // (queue_payment_link_refund; Codex rounds 13-14 on #2689). A lost response
+  // therefore leaves nothing for the replay-first redelivery to repair. A
+  // closed latch always has its order and its request; an existing
   // order is left as it is (ON CONFLICT DO NOTHING). Same-intent paid rows make
   // concurrent Stripe deliveries idempotent without closing the retry path
   // before entries are stamped. Expired promotion claims revive only when at
@@ -2259,12 +2262,11 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       stripeProcessingFeeCents: linkProcessingFeeCents,
       paidAt: new Date().toISOString(),
     }),
+    paidEntryIds: paidIds,
   });
   if (linkProcessingFeeCents === null) {
     await warnMissingProcessingFee(paymentIntentId, `payment link ${link.id}`);
   }
-
-  await resolvePaidWaitlistOffers(paidIds, session.id);
 
   if (updateOutcome.alreadyPaidEntryIds.length > 0) {
     await alertAdmin(
@@ -2401,6 +2403,10 @@ async function paidExpiredClaimHasReplacementOffer(
   return false;
 }
 
+/**
+ * The CART path's offer resolution. A payment link resolves its offers inside
+ * queue_payment_link_refund instead, atomic with its latch (MYK9-968).
+ */
 async function resolvePaidWaitlistOffers(entryIds: string[], sessionId: string) {
   if (entryIds.length === 0) return;
 
@@ -2411,9 +2417,9 @@ async function resolvePaidWaitlistOffers(entryIds: string[], sessionId: string) 
     .in('status', ['offered', 'expired']);
 
   if (error) {
-    console.error('Payment link paid but waitlist row could not be resolved:', error);
+    console.error('Cart paid but waitlist row could not be resolved:', error);
     await alertAdmin(
-      'Payment link paid but waitlist offer stayed open',
+      'Cart paid but waitlist offer stayed open',
       `<p>Session <code>${sessionId}</code> paid entries
        <code>${entryIds.join(', ')}</code>, but resolving the linked
        <code>waitlist_entries.promoted_entry_id</code> rows failed:</p>

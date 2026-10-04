@@ -36,17 +36,17 @@ export async function postgrestGetPublicShows() {
       //
       // MYK9-952: a show a seed-demo fixture club hosts drops out of the
       // signed-out list (and so out of its calendar, map and month-strip
-      // counts, which all derive from this one read). The club embed stays a
-      // LEFT embed, because club_id is still nullable and a clubless public
-      // show must keep listing: the embed filter nulls `club` for a demo club,
-      // and the top-level OR keeps a row whose club_id is null or whose club
-      // survived that filter. Every public show's club is readable by anon
-      // (clubs_select's club_has_public_show), so a real club never nulls out.
-      // A listing rule, not access control: anon still opens a demo show by
+      // counts, which all derive from this one read). The club embed is
+      // !inner, so the embed filter drops the whole row for a demo club; every
+      // show has a club to join (shows.club_id is NOT NULL, MYK9-1008), and
+      // every public show's club is readable by anon (clubs_select's
+      // club_has_public_show), so a real club's show never drops out. A
+      // listing rule, not access control: anon still opens a demo show by
       // direct link, which the E2E fixtures rely on.
-      .select('*, club:clubs(name, address, email), trials(id, name, date, trial_type, timezone)')
+      .select(
+        '*, club:clubs!inner(name, address, email), trials(id, name, date, trial_type, timezone)'
+      )
       .eq('club.is_demo', false)
-      .or('club_id.is.null,club.not.is.null')
   ).order('start_date', { ascending: true });
 
   if (error) throw createDatabaseError(error, 'show', 'select_public');

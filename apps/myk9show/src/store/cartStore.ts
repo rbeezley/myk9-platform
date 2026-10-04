@@ -61,8 +61,11 @@ export type {
   CheckoutResult,
 } from './cartStore.types';
 
-/** Statuses only the payment webhook (service role) may leave; Clear Cart never writes them. */
-const CLOSED_CART_STATUSES = new Set(['submitted', 'refund_pending', 'abandoned']);
+/**
+ * Statuses only the payment webhook (service role) may leave; Clear Cart never
+ * writes them. 'fulfilling' is a paid cart the webhook is fulfilling (MYK9-964).
+ */
+const CLOSED_CART_STATUSES = new Set(['fulfilling', 'submitted', 'refund_pending', 'abandoned']);
 
 const recoveryCartInFlight = new Map<string, Promise<CartWithDetails | null>>();
 export const useCartStore = create<CartState>()(

@@ -22,6 +22,9 @@ export const AUTHENTICATED_TABLE_GRANTS: Readonly<Record<string, string>> = {
   // INSERT/UPDATE would reopen the token-choosing and existence-oracle holes
   // that migration's header enumerates.
   calendar_feed_tokens: 'SELECT',
+  // MYK9-964: service_role only; the cart fulfillment RPCs own every read and write.
+  cart_fulfillment_lines: '',
+  cart_fulfillments: '',
   chatbot_feedback: 'INSERT',
   chatbot_query_log: '',
   class_visibility_overrides: 'SELECT,INSERT,UPDATE',

@@ -27,10 +27,23 @@ const source = readFileSync(
   'utf8'
 );
 
+const migration = readFileSync(
+  resolve(
+    __dirname,
+    '../../../../../supabase/migrations/20261004214700_myk9_964_replayable_cart_fulfillment.sql'
+  ),
+  'utf8'
+);
+
 describe('stripe-webhook entry-payment cart claim', () => {
-  it('flips the paid cart active → submitted as an idempotency latch', () => {
-    expect(source).toContain(".update({ status: 'submitted' })");
-    expect(source).toContain(".eq('status', 'active')");
+  it('holds the paid cart active → fulfilling, and latches fulfilling → submitted LAST (MYK9-964)', () => {
+    // The webhook no longer writes the cart status itself: the two RPCs do,
+    // under the cart's row lock.
+    expect(source).not.toContain(".update({ status: 'submitted' })");
+    expect(source).toContain('beginCartFulfillment(refundQueueDeps');
+    expect(migration).toContain("v_cart.status IS DISTINCT FROM 'active'");
+    expect(migration).toContain("SET status = 'fulfilling'");
+    expect(migration).toContain("SET status = 'submitted'");
   });
 
   it('never filters the claim on expires_at via a PostgREST .or() (the silent charge-without-entries bug)', () => {

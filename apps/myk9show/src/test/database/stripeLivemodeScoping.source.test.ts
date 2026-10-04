@@ -79,12 +79,12 @@ describe('Stripe persisted-id mode scoping', () => {
   it('scopes cart payment history customer lookup by livemode', () => {
     const cartCustomerLookup = requireSlice(
       webhookSource,
-      '// Get stripe_customers record for this person',
-      "// Resolve each class's trial"
+      'const { data: stripeCustomer } = ctx.exhibitorPersonId',
+      '// Immutable financial snapshot'
     );
 
     expect(cartCustomerLookup).toContain(".from('stripe_customers')");
-    expect(cartCustomerLookup).toContain(".eq('person_id', cart.exhibitor.person_id)");
+    expect(cartCustomerLookup).toContain(".eq('person_id', ctx.exhibitorPersonId)");
     expect(cartCustomerLookup).toContain(".eq('livemode', stripeLivemode)");
   });
 

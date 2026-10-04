@@ -24,7 +24,7 @@ describe('stripe-webhook withdrawal snapshot wiring', () => {
 
   it('stamps freshly-created cart entries with the show they were paid under', () => {
     expect(source).toContain(
-      'await stampWithdrawalSnapshot([...new Set([...entryIds, ...paidLineIds])], cart.show_id)'
+      'await stampWithdrawalSnapshot([...new Set([...entryIds, ...paidLineIds])], showId)'
     );
   });
 

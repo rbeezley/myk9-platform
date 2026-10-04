@@ -13,7 +13,9 @@ import {
   type ShowMapAutoSortKind,
   type ShowMapAutoSortSnapshotItem,
 } from './showMapRunOrderAutoSort';
-import { computeHandPlacementChanges, toPriorSnapshot } from './showMapHandPlacement';
+import { movePlacement } from './runOrderPlacementModel';
+import { loadClassPlacement } from './classPlacementSource';
+import { toPriorSnapshot } from './showMapHandPlacement';
 
 export const AUTO_SORT_UNDO_BANNER_TIMEOUT_MS = 8000;
 
@@ -152,8 +154,8 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
     // pause it before it reached the table.
     networkMode: 'always',
     mutationFn: async (input: ShowMapHandPlaceInput): Promise<ShowMapAutoSortResult> => {
-      const entries = await replicatedEntriesTable.getEntriesByClass(input.classId);
-      const changes = computeHandPlacementChanges(entries, input.entryId, input.toPosition);
+      const { slots } = await loadClassPlacement(showId, input.classId);
+      const changes = movePlacement(slots, input.entryId, input.toPosition);
       if (changes.length === 0) {
         throw new Error(
           'That dog cannot go in that spot. A dog that has run or is in the ring holds its place.'

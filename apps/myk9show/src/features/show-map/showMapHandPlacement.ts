@@ -1,52 +1,59 @@
-import { isOnClassRunList } from '@/features/_shared/entryAccounting';
-import type { SecretaryEntry } from '@/services/database/entries';
+import { buildShowArmbandMaps, resolveEntryArmband } from '@/features/_shared/entryArmband';
+import type { ReplicatedArmband } from '@/services/replication/ReplicatedArmbandsTable';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
-import { computeShowMapReorderAssignments, sortByExistingRunOrder } from './showMapReorderMode';
-import { isPinnedRunOrderEntry } from './showMapRunOrderAutoSort';
+import {
+  buildRunOrderPlacementModel,
+  type PlacementInput,
+  type PlacementMove,
+  type PlacementPinReason,
+  type PlacementSlot,
+} from './runOrderPlacementModel';
 import type { ShowMapAutoSortSnapshotItem } from './showMapRunOrderAutoSort';
 
-// Hand placement (MYK9-972). The secretary puts one dog into a chosen slot.
-//
-// There is no second ordering rule here. Positions are slots in the SAME
-// sequence the presets sort and `runQueue.ts` reads (`run_order`, run list
-// only). The move itself is `computeShowMapReorderAssignments`: pinned dogs
-// (scored, in the ring, completed) hold their slot and nothing shifts past
-// them. A preset pressed afterwards re-sorts every unpinned dog, so it
-// replaces hand placements; there is no stored "hand placed" flag.
+// Hand placement (MYK9-972). Positions are slots in the SAME run list the
+// presets sort and `runQueue.ts` reads; ordering, membership and pinning live
+// in `runOrderPlacementModel.ts` only. The panel and the mutation both get
+// their slots from `buildClassPlacement`, built from the same replicated rows
+// and armbands, so what is shown is what a write targets. A preset pressed
+// afterwards re-sorts every unpinned dog, so it replaces hand placements;
+// there is no stored flag.
 
-export interface HandPlacementChange {
-  id: string;
-  runOrder: number;
-  /** The run_order before the move, null when the entry had none. */
-  priorRunOrder: number | null;
+export type HandPlacementChange = PlacementMove;
+export type HandPlacementPinReason = PlacementPinReason;
+
+export interface ClassPlacement {
+  slots: PlacementSlot[];
+  entriesById: ReadonlyMap<string, ReplicatedEntry>;
 }
 
-/** The class run list in run order: the rows a position number refers to. */
-export function runListInOrder(entries: readonly ReplicatedEntry[]): ReplicatedEntry[] {
-  return sortByExistingRunOrder(entries.filter(entry => isOnClassRunList(entry)));
+function toPlacementInput(
+  entry: ReplicatedEntry,
+  maps: ReturnType<typeof buildShowArmbandMaps<ReplicatedArmband>>
+): PlacementInput {
+  return {
+    id: entry.id,
+    armband: resolveEntryArmband(entry, maps),
+    runOrder: entry.runOrder ?? null,
+    entryStatus: entry.entryStatus ?? entry.status,
+    deletedAt: entry.deletedAt ?? entry.deleted_at,
+    isScored: Boolean(entry.isScored ?? entry.is_scored),
+    scoringCompletedAt: entry.scoringCompletedAt ?? entry.scoring_completed_at,
+    checkInStatus: entry.checkInStatus ?? entry.check_in_status,
+    isInRing: Boolean(entry.isInRing ?? entry.is_in_ring),
+    ringEntryTime: entry.ring_entry_time,
+  };
 }
 
-/**
- * Only the entries whose run_order actually changes, for the move of `entryId`
- * to 1-based `toPosition` in the run list. Empty when the move is a no-op or
- * not allowed (unknown dog, pinned dog, pinned destination slot).
- */
-export function computeHandPlacementChanges(
+/** The one place a class's replicated rows become placement slots. */
+export function buildClassPlacement(
   entries: readonly ReplicatedEntry[],
-  entryId: string,
-  toPosition: number
-): HandPlacementChange[] {
-  const runList = runListInOrder(entries);
-  const target = Number.isInteger(toPosition) ? runList[toPosition - 1] : undefined;
-  if (!target) return [];
-  const priorById = new Map(runList.map(entry => [entry.id, entry.runOrder ?? null]));
-  return computeShowMapReorderAssignments(runList, entryId, target.id)
-    .filter(assignment => priorById.get(assignment.id) !== assignment.runOrder)
-    .map(assignment => ({
-      id: assignment.id,
-      runOrder: assignment.runOrder,
-      priorRunOrder: priorById.get(assignment.id) ?? null,
-    }));
+  armbands: readonly ReplicatedArmband[]
+): ClassPlacement {
+  const maps = buildShowArmbandMaps(armbands);
+  return {
+    slots: buildRunOrderPlacementModel(entries.map(entry => toPlacementInput(entry, maps))),
+    entriesById: new Map(entries.map(entry => [entry.id, entry])),
+  };
 }
 
 export function toPriorSnapshot(
@@ -54,8 +61,6 @@ export function toPriorSnapshot(
 ): ShowMapAutoSortSnapshotItem[] {
   return changes.map(change => ({ id: change.id, runOrder: change.priorRunOrder }));
 }
-
-export type HandPlacementPinReason = 'already-ran' | 'in-ring';
 
 export interface HandPlacementRow {
   id: string;
@@ -72,56 +77,21 @@ export interface HandPlacementRow {
   downTo: number | null;
 }
 
-// Adapts the secretary read row to the fields `isPinnedRunOrderEntry` and the
-// run-list predicate read. The mutation re-reads the replicated row itself.
-function toPlacementEntry(entry: SecretaryEntry): ReplicatedEntry {
-  return {
-    id: entry.id,
-    ...(entry.armband != null && { armband: entry.armband }),
-    ...(entry.run_order != null && { runOrder: entry.run_order }),
-    ...(entry.entry_status != null && { entryStatus: entry.entry_status }),
-    ...(entry.is_scored != null && { isScored: entry.is_scored }),
-    ...(entry.scoring_completed_at != null && { scoringCompletedAt: entry.scoring_completed_at }),
-    checkInStatus: (entry.is_in_ring
-      ? 'in-ring'
-      : (entry.check_in_status ?? undefined)) as ReplicatedEntry['checkInStatus'],
-  } as ReplicatedEntry;
-}
-
-function pinReason(entry: ReplicatedEntry): HandPlacementPinReason | null {
-  if (!isPinnedRunOrderEntry(entry)) return null;
-  return entry.checkInStatus === 'in-ring' ? 'in-ring' : 'already-ran';
-}
-
-function describeEntry(entry: SecretaryEntry): { label: string; subtitle: string | null } {
-  const dog = entry.dog?.call_name || entry.dog?.name || 'Dog';
-  const person = entry.handler_person;
-  const handler =
-    entry.handler || [person?.first_name, person?.last_name].filter(Boolean).join(' ') || null;
-  return { label: entry.armband ? `#${entry.armband} ${dog}` : dog, subtitle: handler };
-}
-
-export function buildHandPlacementRows(
-  entries: readonly SecretaryEntry[],
-  classId: string
-): HandPlacementRow[] {
-  const classEntries = entries.filter(entry => entry.class_id === classId);
-  const sourceById = new Map(classEntries.map(entry => [entry.id, entry]));
-  const runList = runListInOrder(classEntries.map(toPlacementEntry));
-  const pins = runList.map(pinReason);
-  const openSlots = runList.flatMap((_, index) => (pins[index] === null ? [index + 1] : []));
-
-  return runList.map((placement, index) => {
-    const pinned = pins[index] ?? null;
-    const slot = openSlots.indexOf(index + 1);
+export function buildHandPlacementRows({ slots, entriesById }: ClassPlacement): HandPlacementRow[] {
+  const openSlots = slots.filter(slot => !slot.pinned).map(slot => slot.position);
+  return slots.map(slot => {
+    const entry = entriesById.get(slot.id);
+    const dog = entry?.dogCallName || 'Dog';
+    const open = openSlots.indexOf(slot.position);
     return {
-      id: placement.id,
-      position: index + 1,
-      ...describeEntry(sourceById.get(placement.id)!),
-      pinned,
-      destinations: pinned ? [] : openSlots.filter(position => position !== index + 1),
-      upTo: pinned || slot < 1 ? null : (openSlots[slot - 1] ?? null),
-      downTo: pinned ? null : (openSlots[slot + 1] ?? null),
+      id: slot.id,
+      position: slot.position,
+      label: slot.armband ? `#${slot.armband} ${dog}` : dog,
+      subtitle: entry?.handler || null,
+      pinned: slot.pinned,
+      destinations: slot.pinned ? [] : openSlots.filter(position => position !== slot.position),
+      upTo: slot.pinned || open < 1 ? null : (openSlots[open - 1] ?? null),
+      downTo: slot.pinned ? null : (openSlots[open + 1] ?? null),
     };
   });
 }

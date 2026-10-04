@@ -24,6 +24,12 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
     updateEntry: updateEntryMock,
   },
 }));
+const { getArmbandsMock } = vi.hoisted(() => ({
+  getArmbandsMock: vi.fn<(showId: string) => Promise<unknown[]>>(),
+}));
+vi.mock('@/services/replication/ReplicatedArmbandsTable', () => ({
+  replicatedArmbandsTable: { getByShow: getArmbandsMock },
+}));
 vi.mock('sonner', () => ({ toast: toastMock }));
 
 const e = (id: string, runOrder: number, extra: Partial<ReplicatedEntry> = {}) =>
@@ -42,6 +48,7 @@ const render = () =>
 beforeEach(() => {
   getEntriesByClassMock.mockReset();
   updateEntryMock.mockReset().mockResolvedValue('mutation-id');
+  getArmbandsMock.mockReset().mockResolvedValue([]);
   Object.values(toastMock).forEach(fn => fn.mockReset());
   getEntriesByClassMock.mockResolvedValue([
     e('e1', 1),
@@ -147,6 +154,49 @@ describe('placeEntry', () => {
     getEntriesByClassMock.mockResolvedValue([e('e1', 2), e('e2', 3), e('e3', 1)]); // e3 hand-placed first
     const { result } = render();
     act(() => result.current.autoSort({ classId: 'c1', kind: 'armband-asc' }));
+    await waitFor(() => expect(result.current.lastAutoSort).not.toBeNull());
+    expect(
+      Object.fromEntries(updateEntryMock.mock.calls.map(([id, u]) => [id, u.runOrder]))
+    ).toEqual({
+      e1: 1,
+      e2: 2,
+      e3: 3,
+    });
+  });
+});
+
+describe('placeEntry reads the same inputs the panel shows (round 3)', () => {
+  it('an in-ring dog flagged only by is_in_ring keeps its slot', async () => {
+    getEntriesByClassMock.mockResolvedValue([
+      e('e1', 1),
+      e('e2', 2, { isInRing: true }),
+      e('e3', 3),
+    ]);
+    const { result } = render();
+    act(() => result.current.placeEntry({ classId: 'c1', entryId: 'e3', toPosition: 1 }));
+    await waitFor(() => expect(result.current.lastAutoSort).not.toBeNull());
+    expect(
+      Object.fromEntries(updateEntryMock.mock.calls.map(([id, u]) => [id, u.runOrder]))
+    ).toEqual({
+      e3: 1,
+      e1: 3,
+    });
+  });
+
+  it('positions follow armbands that exist only in the armbands table', async () => {
+    getEntriesByClassMock.mockResolvedValue([
+      { id: 'e1', dogId: 'd1', entryStatus: 'confirmed' } as ReplicatedEntry,
+      { id: 'e2', dogId: 'd2', entryStatus: 'confirmed' } as ReplicatedEntry,
+      { id: 'e3', dogId: 'd3', entryStatus: 'confirmed' } as ReplicatedEntry,
+    ]);
+    getArmbandsMock.mockResolvedValue([
+      { armbandNumber: '103', dogId: 'd1' },
+      { armbandNumber: '101', dogId: 'd2' },
+      { armbandNumber: '102', dogId: 'd3' },
+    ]);
+    // Order by armband: e2, e3, e1. Move e1 to slot 1.
+    const { result } = render();
+    act(() => result.current.placeEntry({ classId: 'c1', entryId: 'e1', toPosition: 1 }));
     await waitFor(() => expect(result.current.lastAutoSort).not.toBeNull());
     expect(
       Object.fromEntries(updateEntryMock.mock.calls.map(([id, u]) => [id, u.runOrder]))

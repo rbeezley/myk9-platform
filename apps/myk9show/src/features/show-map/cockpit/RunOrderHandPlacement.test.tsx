@@ -2,14 +2,17 @@ import { describe, expect, it, vi } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
-import type { SecretaryEntry } from '@/services/database/entries';
+import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
-const entries = vi.hoisted(() => ({ rows: [] as unknown[] }));
-vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
-  useSecretaryShowEntriesQuery: () => ({ data: entries.rows, isLoading: false }),
-}));
+const source = vi.hoisted(() => ({ rows: [] as unknown[] }));
+vi.mock('../classPlacementSource', async () => {
+  const { buildClassPlacement } = await import('../showMapHandPlacement');
+  return {
+    loadClassPlacement: async () => buildClassPlacement(source.rows as never, []),
+  };
+});
 
 import { RunOrderHandPlacement, RunOrderUndoNotice } from './RunOrderHandPlacement';
 import type { SecretaryCockpitRunOrderControls } from './secretaryCockpitTypes';
@@ -17,21 +20,20 @@ import type { SecretaryCockpitRunOrderControls } from './secretaryCockpitTypes';
 const row = (id: string, runOrder: number, extra: Record<string, unknown> = {}) =>
   ({
     id,
-    class_id: 'c1',
-    run_order: runOrder,
+    runOrder,
     armband: String(100 + Number(id.slice(1))),
-    entry_status: 'confirmed',
+    entryStatus: 'confirmed',
     handler: `Handler ${id}`,
-    dog: { id: `d${id}`, name: `Dog ${id}`, call_name: `Pup${id.slice(1)}` },
+    dogCallName: `Pup${id.slice(1)}`,
     ...extra,
-  }) as unknown as SecretaryEntry;
+  }) as unknown as ReplicatedEntry;
 
-function setup(overrides: Partial<SecretaryCockpitRunOrderControls> = {}) {
-  entries.rows = [
+async function setup(overrides: Partial<SecretaryCockpitRunOrderControls> = {}) {
+  source.rows = [
     row('e1', 1),
-    row('e2', 2, { is_scored: true }),
+    row('e2', 2, { isScored: true }),
     row('e3', 3),
-    row('e4', 4, { is_in_ring: true }),
+    row('e4', 4, { isInRing: true }),
     row('e5', 5),
   ];
   const runOrder: SecretaryCockpitRunOrderControls = {
@@ -44,12 +46,13 @@ function setup(overrides: Partial<SecretaryCockpitRunOrderControls> = {}) {
   };
   const onDone = vi.fn();
   render(<RunOrderHandPlacement showId="s1" classId="c1" runOrder={runOrder} onDone={onDone} />);
+  await screen.findByRole('list', { name: 'Run order' });
   return { runOrder, onDone };
 }
 
 describe('RunOrderHandPlacement', () => {
   it('Move down steps to the next open slot, skipping a pinned dog', async () => {
-    const { runOrder } = setup();
+    const { runOrder } = await setup();
     await userEvent.setup().click(screen.getByRole('button', { name: 'Move #103 Pup3 down' }));
     expect(runOrder.onPlaceEntry).toHaveBeenCalledWith({
       classId: 'c1',
@@ -60,7 +63,7 @@ describe('RunOrderHandPlacement', () => {
   });
 
   it('Move to position picks an open slot from a labelled select', async () => {
-    const { runOrder } = setup();
+    const { runOrder } = await setup();
     await userEvent
       .setup()
       .selectOptions(screen.getByLabelText('Move #105 Pup5 to position'), 'Position 1');
@@ -69,22 +72,22 @@ describe('RunOrderHandPlacement', () => {
     );
   });
 
-  it('pinned dogs have no move controls and say why', () => {
-    setup();
+  it('pinned dogs have no move controls and say why', async () => {
+    await setup();
     expect(screen.queryByRole('button', { name: /Move #102/ })).toBeNull();
     expect(screen.queryByLabelText(/Move #104/)).toBeNull();
     expect(screen.getByText('Has run. Keeps its place.')).toBeInTheDocument();
     expect(screen.getByText('In the ring. Keeps its place.')).toBeInTheDocument();
   });
 
-  it('disables Up at the first open slot and Down at the last', () => {
-    setup();
+  it('disables Up at the first open slot and Down at the last', async () => {
+    await setup();
     expect(screen.getByRole('button', { name: 'Move #101 Pup1 up' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Move #105 Pup5 down' })).toBeDisabled();
   });
 
-  it('keeps tablet targets at the 44px floor', () => {
-    setup();
+  it('keeps tablet targets at the 44px floor', async () => {
+    await setup();
     const item = screen.getByRole('button', { name: 'Move #101 Pup1 down' });
     expect(item.className).toMatch(/min-h-11|h-11/);
     expect(screen.getByLabelText('Move #101 Pup1 to position').className).toMatch(/h-11/);
@@ -93,8 +96,8 @@ describe('RunOrderHandPlacement', () => {
     ).toHaveLength(5);
   });
 
-  it('says a preset replaces hand placements', () => {
-    setup();
+  it('says a preset replaces hand placements', async () => {
+    await setup();
     expect(screen.getByText(/replace anything placed here/)).toBeInTheDocument();
   });
 });

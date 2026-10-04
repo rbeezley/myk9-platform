@@ -1,4 +1,3 @@
-import { compareByRunOrder, type RunQueueEntry } from '@myk9/ringside';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import { isPinnedRunOrderEntry } from './showMapRunOrderAutoSort';
 import type { ShowMapNode } from './showMapTypes';
@@ -21,23 +20,13 @@ export interface ShowMapReorderAssignment {
   runOrder: number;
 }
 
-// Display and placement order is the canonical run-queue comparator
-// (`compareByRunOrder`: run_order, armband when unassigned), so the list shows
-// the positions ringside shows before any preset has run. Ties fall to id.
-function toQueueKey(entry: ReplicatedEntry): RunQueueEntry {
-  const armband = Number.parseInt(entry.armband ?? '', 10);
-  return {
-    id: entry.id,
-    armband: Number.isNaN(armband) ? null : armband,
-    exhibitorOrder: entry.runOrder ?? null,
-  };
-}
-
-export function sortByExistingRunOrder(entries: readonly ReplicatedEntry[]): ReplicatedEntry[] {
-  return [...entries].sort(
-    (a, b) =>
-      compareByRunOrder(toQueueKey(a), toQueueKey(b)) || (a.id ?? '').localeCompare(b.id ?? '')
-  );
+function sortByExistingRunOrder(entries: readonly ReplicatedEntry[]): ReplicatedEntry[] {
+  return [...entries].sort((a, b) => {
+    const aOrder = a.runOrder ?? Number.POSITIVE_INFINITY;
+    const bOrder = b.runOrder ?? Number.POSITIVE_INFINITY;
+    if (aOrder !== bOrder) return aOrder - bOrder;
+    return (a.id ?? '').localeCompare(b.id ?? '');
+  });
 }
 
 // Compute new run_order assignments after a manual drag. The drag-end event

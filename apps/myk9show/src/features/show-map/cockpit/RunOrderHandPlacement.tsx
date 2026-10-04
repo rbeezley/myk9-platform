@@ -2,7 +2,9 @@ import { useMemo } from 'react';
 import { ArrowDown, ArrowUp, Undo2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
+import { useQuery } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryClient';
+import { loadClassPlacement } from '../classPlacementSource';
 import { buildHandPlacementRows, type HandPlacementRow } from '../showMapHandPlacement';
 import type { SecretaryCockpitRunOrderControls } from './secretaryCockpitTypes';
 
@@ -128,11 +130,14 @@ export function RunOrderHandPlacement({
   runOrder: SecretaryCockpitRunOrderControls;
   onDone: () => void;
 }) {
-  const { data: entries, isLoading } = useSecretaryShowEntriesQuery(showId);
-  const rows = useMemo(
-    () => (entries ? buildHandPlacementRows(entries, classId) : []),
-    [entries, classId]
-  );
+  // Same loader the mutation uses, so the rows are the slots a write targets.
+  // Keyed under the class's entries, so every entry write refreshes it.
+  const { data: placement, isLoading } = useQuery({
+    queryKey: [...queryKeys.classEntries(classId), 'placement', showId],
+    queryFn: () => loadClassPlacement(showId, classId),
+    networkMode: 'always',
+  });
+  const rows = useMemo(() => (placement ? buildHandPlacementRows(placement) : []), [placement]);
 
   return (
     <section aria-labelledby="run-order-by-hand">

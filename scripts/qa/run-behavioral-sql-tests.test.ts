@@ -132,6 +132,7 @@ const launchCriticalSqlTests = [
   'myk9_946_create_dog_ownership_test.sql',
   'myk9_876_874_refund_request_claims_test.sql',
   'myk9_981_closed_refund_request_releases_cart_test.sql',
+  'myk9_968_payment_link_offer_resolves_atomically_test.sql',
   'myk9_941_dog_registrations_co_owner_writes_test.sql',
   'myk9_923_entries_refuse_deleted_parent_test.sql',
   'myk9_980_move_up_pending_and_reentry_test.sql',

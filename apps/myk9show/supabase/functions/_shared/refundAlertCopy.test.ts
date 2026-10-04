@@ -134,6 +134,7 @@ const LINK_OBLIGATION: PaymentLinkObligation = {
     summaryHtml: 'Entries were withdrawn.',
   },
   showId: null,
+  paidEntryIds: [],
 };
 
 const LINK_ROW = {

@@ -177,7 +177,7 @@ DECLARE
 BEGIN
   FOREACH v_fn IN ARRAY ARRAY[
     'public.claim_abandoned_cart_refund(uuid, text, text, integer, jsonb)',
-    'public.queue_payment_link_refund(text, uuid, text, text, integer, text, jsonb, uuid, jsonb)',
+    'public.queue_payment_link_refund(text, uuid, text, text, integer, text, jsonb, uuid, jsonb, uuid[])',
     'public.begin_refund_attempt(uuid, uuid)',
     'public.record_refund_attempt(uuid, integer, text)',
     'public.refund_attempt_state(uuid, integer)',

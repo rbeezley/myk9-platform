@@ -105,11 +105,13 @@ describe('stripe-webhook entry_payment_request branch', () => {
   });
 
   it('resolves linked waitlist offers only after entries are actually marked paid', () => {
-    expect(source).toContain('await resolvePaidWaitlistOffers(paidIds, session.id)');
-    expect(source).toContain(".from('waitlist_entries')");
-    expect(source).toContain(".update({ status: 'accepted'");
-    expect(source).toContain(".in('promoted_entry_id', entryIds)");
-    expect(source).toContain(".in('status', ['offered', 'expired'])");
+    // MYK9-968: the offers resolve inside queue_payment_link_refund, atomic
+    // with the latch, so a lost response leaves nothing for the replay-first
+    // redelivery to repair (behaviour: paidOfferLostResponse.test.ts and SQL
+    // test myk9_968_payment_link_offer_resolves_atomically_test.sql). Only the
+    // ACTUALLY stamped ids are passed, never the planned patches.
+    expect(source).toContain('paidEntryIds: paidIds,');
+    expect(source).not.toContain('await resolvePaidWaitlistOffers(paidIds, session.id)');
   });
 
   it('fails paid expired waitlist claims closed when a replacement offer exists', () => {

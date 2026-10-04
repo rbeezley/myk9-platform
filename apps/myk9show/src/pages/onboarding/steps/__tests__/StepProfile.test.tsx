@@ -78,7 +78,12 @@ describe('StepProfile', () => {
   });
 
   it('pre-fills data from props', () => {
-    const data: ProfileData = { firstName: 'Bob', lastName: 'Jones', phone: '5551234567' };
+    const data: ProfileData = {
+      ...defaultData,
+      firstName: 'Bob',
+      lastName: 'Jones',
+      phone: '5551234567',
+    };
     render(<StepProfile {...makeProps({ data })} />);
     expect(screen.getByLabelText(/first name/i)).toHaveValue('Bob');
     expect(screen.getByLabelText(/last name/i)).toHaveValue('Jones');

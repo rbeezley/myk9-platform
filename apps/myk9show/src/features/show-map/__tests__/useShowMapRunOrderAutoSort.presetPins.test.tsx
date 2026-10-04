@@ -72,12 +72,15 @@ describe('presets never renumber a dog whose only in-ring signal is is_in_ring',
     const { result } = render();
     act(() => result.current.autoSort({ classId: 'c1', kind: 'armband-asc' }));
     await waitFor(() => expect(result.current.lastAutoSort).not.toBeNull());
+    // The in-ring dog holds 2; the three waiting dogs are renumbered after it.
     expect(updateEntryMock.mock.calls).toEqual([
-      ['e4', { runOrder: 1 }],
-      ['e1', { runOrder: 4 }],
+      ['e4', { runOrder: 3 }],
+      ['e3', { runOrder: 4 }],
+      ['e1', { runOrder: 5 }],
     ]);
     expect(result.current.lastAutoSort?.priorOrders).toEqual([
       { id: 'e4', runOrder: 4 },
+      { id: 'e3', runOrder: 3 },
       { id: 'e1', runOrder: 1 },
     ]);
   });
@@ -102,6 +105,7 @@ describe('presets only touch the class run list', () => {
     const { result } = render();
     act(() => result.current.autoSort({ classId: 'c1', kind: 'armband-asc' }));
     await waitFor(() => expect(result.current.lastAutoSort).not.toBeNull());
-    expect(writtenIds().sort()).toEqual(['e1', 'e4']);
+    // e4 already holds 4, the number after the highest off-list row (3).
+    expect(writtenIds()).toEqual(['e1']);
   });
 });

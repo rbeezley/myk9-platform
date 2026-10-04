@@ -62,13 +62,13 @@ async function setup(overrides: Partial<SecretaryCockpitRunOrderControls> = {}) 
 }
 
 describe('RunOrderHandPlacement', () => {
-  it('Move down steps to the next open slot, skipping a pinned dog', async () => {
+  it('Move down steps one place in the waiting list', async () => {
     const { runOrder } = await setup();
     await userEvent.setup().click(screen.getByRole('button', { name: 'Move #103 Pup3 down' }));
     expect(runOrder.onPlaceEntry).toHaveBeenCalledWith({
       classId: 'c1',
       entryId: 'e3',
-      toPosition: 5,
+      toPosition: 3,
       entryLabel: '#103 Pup3',
     });
   });
@@ -83,18 +83,29 @@ describe('RunOrderHandPlacement', () => {
     );
   });
 
-  it('pinned dogs have no move controls and say why', async () => {
+  it('dogs that ran or are in the ring are read-only, below the list', async () => {
     await setup();
     expect(screen.queryByRole('button', { name: /Move #102/ })).toBeNull();
     expect(screen.queryByLabelText(/Move #104/)).toBeNull();
-    expect(screen.getByText('Has run. Keeps its place.')).toBeInTheDocument();
-    expect(screen.getByText('In the ring. Keeps its place.')).toBeInTheDocument();
+    const ring = screen.getByRole('list', { name: 'In the ring' });
+    expect(within(ring).getByText(/#104 Pup4/)).toBeInTheDocument();
+    const done = screen.getByRole('list', { name: 'Completed' });
+    expect(within(done).getByText(/#102 Pup2/)).toBeInTheDocument();
+    // Neither appears in the reorder list.
+    const waiting = screen.getByRole('list', { name: 'Run order' });
+    expect(within(waiting).queryByText(/#102|#104/)).toBeNull();
   });
 
   it('disables Up at the first open slot and Down at the last', async () => {
     await setup();
     expect(screen.getByRole('button', { name: 'Move #101 Pup1 up' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Move #105 Pup5 down' })).toBeDisabled();
+    // Positions are 1..N over the waiting dogs only.
+    expect(
+      within(screen.getByRole('list', { name: 'Run order' }))
+        .getAllByRole('listitem')
+        .map(li => li.firstElementChild?.textContent)
+    ).toEqual(['1', '2', '3']);
   });
 
   it('keeps tablet targets at the 44px floor', async () => {
@@ -104,7 +115,7 @@ describe('RunOrderHandPlacement', () => {
     expect(screen.getByLabelText('Move #101 Pup1 to position').className).toMatch(/h-11/);
     expect(
       within(screen.getByRole('list', { name: 'Run order' })).getAllByRole('listitem')
-    ).toHaveLength(5);
+    ).toHaveLength(3);
   });
 
   it('says a preset replaces hand placements', async () => {

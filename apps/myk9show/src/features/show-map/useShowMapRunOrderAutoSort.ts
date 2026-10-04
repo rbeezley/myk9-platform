@@ -125,11 +125,11 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
     // pause it before it reached the table.
     networkMode: 'always',
     mutationFn: async (input: ShowMapAutoSortInput): Promise<ShowMapAutoSortResult> => {
-      const { slots } = await loadClassPlacement(showId, input.classId);
-      if (slots.length < 2) {
-        throw new Error('Auto-sort needs at least two entries in this class.');
+      const { model } = await loadClassPlacement(showId, input.classId);
+      if (model.waiting.length < 2) {
+        throw new Error('Auto-sort needs at least two dogs still waiting to run.');
       }
-      const assignments = planPresetPlacement(slots, input.kind);
+      const assignments = planPresetPlacement(model, input.kind);
       const snapshot: ShowMapAutoSortSnapshot = {
         classId: input.classId,
         ...(input.classLabel !== undefined ? { classLabel: input.classLabel } : {}),
@@ -159,11 +159,11 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
     // pause it before it reached the table.
     networkMode: 'always',
     mutationFn: async (input: ShowMapHandPlaceInput): Promise<ShowMapAutoSortResult> => {
-      const { slots } = await loadClassPlacement(showId, input.classId);
-      const changes = movePlacement(slots, input.entryId, input.toPosition);
+      const { model } = await loadClassPlacement(showId, input.classId);
+      const changes = movePlacement(model, input.entryId, input.toPosition);
       if (changes.length === 0) {
         throw new Error(
-          'That dog cannot go in that spot. A dog that has run or is in the ring holds its place.'
+          'That dog cannot go in that spot. Only dogs still waiting to run can be moved.'
         );
       }
       const snapshot: ShowMapAutoSortSnapshot = {

@@ -1,5 +1,9 @@
 import { calculateRunOrder } from '@/lib/runOrderUtils';
-import { assignOpenSlots, type PlacementMove, type PlacementSlot } from './runOrderPlacementModel';
+import {
+  planRenumber,
+  type PlacementMove,
+  type RunOrderPlacementModel,
+} from './runOrderPlacementModel';
 
 export type ShowMapAutoSortKind = 'armband-asc' | 'armband-desc' | 'random';
 
@@ -8,26 +12,24 @@ export interface ShowMapAutoSortSnapshotItem {
   runOrder: number | null;
 }
 
-// INTENT: Presets re-sort only the dogs the secretary may silently move. The
-// run list, its order and which dogs are pinned (already ran, in the ring) all
-// come from the placement model (`runOrderPlacementModel.ts`), the same one
-// hand placement uses, so a preset can never renumber a dog placement would
-// refuse to move. Rows off the run list (withdrawn, deleted) are never written.
-//
-// Returns only the dogs whose run_order changes; pinned dogs keep their slot.
+// INTENT: Presets reorder only the dogs still waiting to run. Which dogs wait,
+// their order and the number to start from all come from the placement model
+// (`runOrderPlacementModel.ts`), the same one hand placement uses, so a preset
+// can never renumber a dog that has run, is in the ring, was pulled or is off
+// the run list. Returns only the dogs whose run_order changes.
 export function planPresetPlacement(
-  slots: readonly PlacementSlot[],
+  model: RunOrderPlacementModel,
   kind: ShowMapAutoSortKind
 ): PlacementMove[] {
-  const open = slots.filter(slot => !slot.pinned);
-  if (open.length === 0) return [];
-
   const rank = new Map(
     calculateRunOrder(
-      open.map(slot => ({ id: slot.id, armband: slot.armband, section: null })),
+      model.waiting.map(row => ({ id: row.id, armband: row.armband, section: null })),
       kind
     ).map(result => [result.id, result.runOrder])
   );
-  const sorted = [...open].sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0));
-  return assignOpenSlots(slots, sorted);
+  const sorted = [...model.waiting].sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0));
+  return planRenumber(
+    model,
+    sorted.map(row => row.id)
+  );
 }

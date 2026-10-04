@@ -4,13 +4,12 @@ import { ArrowDown, ArrowUp, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
 import { classPlacementKey, loadClassPlacement } from '../classPlacementSource';
-import { buildHandPlacementRows, type HandPlacementRow } from '../showMapHandPlacement';
+import {
+  buildHandPlacementSections,
+  type HandPlacementReadOnlyRow,
+  type HandPlacementRow,
+} from '../showMapHandPlacement';
 import type { SecretaryCockpitRunOrderControls } from './secretaryCockpitTypes';
-
-const PIN_COPY = {
-  'already-ran': 'Has run. Keeps its place.',
-  'in-ring': 'In the ring. Keeps its place.',
-} as const;
 
 function HandPlacementRowItem({
   row,
@@ -30,57 +29,76 @@ function HandPlacementRowItem({
       </span>
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">{row.label}</div>
-        {row.pinned ? (
-          <div className="text-xs text-muted-foreground">{PIN_COPY[row.pinned]}</div>
-        ) : (
-          row.subtitle && (
-            <div className="truncate text-xs text-muted-foreground">{row.subtitle}</div>
-          )
+        {row.subtitle && (
+          <div className="truncate text-xs text-muted-foreground">{row.subtitle}</div>
         )}
       </div>
-      {!row.pinned && (
-        <div className="flex shrink-0 items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="touch"
-            disabled={row.upTo === null || runOrder.isAutoSorting}
-            aria-label={`Move ${row.label} up`}
-            onClick={() => row.upTo !== null && place(row.upTo)}
-          >
-            <ArrowUp className="h-4 w-4" aria-hidden="true" />
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="touch"
-            disabled={row.downTo === null || runOrder.isAutoSorting}
-            aria-label={`Move ${row.label} down`}
-            onClick={() => row.downTo !== null && place(row.downTo)}
-          >
-            <ArrowDown className="h-4 w-4" aria-hidden="true" />
-          </Button>
-          {/* A native select: keyboard, screen reader and phone pickers for free. */}
-          <select
-            className="h-11 rounded-md border bg-background px-2 text-sm"
-            aria-label={`Move ${row.label} to position`}
-            value=""
-            disabled={runOrder.isAutoSorting}
-            onChange={event => {
-              const toPosition = Number(event.target.value);
-              if (toPosition > 0) place(toPosition);
-            }}
-          >
-            <option value="">Move to…</option>
-            {row.destinations.map(position => (
-              <option key={position} value={position}>
-                Position {position}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
+      <div className="flex shrink-0 items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="touch"
+          disabled={row.upTo === null || runOrder.isAutoSorting}
+          aria-label={`Move ${row.label} up`}
+          onClick={() => row.upTo !== null && place(row.upTo)}
+        >
+          <ArrowUp className="h-4 w-4" aria-hidden="true" />
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="touch"
+          disabled={row.downTo === null || runOrder.isAutoSorting}
+          aria-label={`Move ${row.label} down`}
+          onClick={() => row.downTo !== null && place(row.downTo)}
+        >
+          <ArrowDown className="h-4 w-4" aria-hidden="true" />
+        </Button>
+        {/* A native select: keyboard, screen reader and phone pickers for free. */}
+        <select
+          className="h-11 rounded-md border bg-background px-2 text-sm"
+          aria-label={`Move ${row.label} to position`}
+          value=""
+          disabled={runOrder.isAutoSorting}
+          onChange={event => {
+            const toPosition = Number(event.target.value);
+            if (toPosition > 0) place(toPosition);
+          }}
+        >
+          <option value="">Move to…</option>
+          {row.destinations.map(position => (
+            <option key={position} value={position}>
+              Position {position}
+            </option>
+          ))}
+        </select>
+      </div>
     </li>
+  );
+}
+
+/** Dogs that ran or are in the ring: listed for reference, never moved. */
+function ReadOnlySection({ title, rows }: { title: string; rows: HandPlacementReadOnlyRow[] }) {
+  if (rows.length === 0) return null;
+  return (
+    <div className="mt-3">
+      <h4 className="text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+        {title}
+      </h4>
+      <ul className="mt-1 divide-y rounded-md border" aria-label={title}>
+        {rows.map(row => (
+          <li key={row.id} className="px-3 py-2">
+            <div className="truncate text-sm font-medium">
+              {row.label}
+              {row.note && <span className="font-normal text-muted-foreground"> ({row.note})</span>}
+            </div>
+            {row.subtitle && (
+              <div className="truncate text-xs text-muted-foreground">{row.subtitle}</div>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
 
@@ -115,8 +133,8 @@ export function RunOrderUndoNotice({
 
 /**
  * Hand placement for one class (MYK9-972): move a dog up or down one slot, or
- * to a chosen position. Dogs that have run or are in the ring keep their slot.
- * The run list shown is the one the Armband and Random presets sort.
+ * to a chosen position. Only dogs still waiting to run are in the list; dogs
+ * that have run or are in the ring are shown below it and never change.
  */
 export function RunOrderHandPlacement({
   showId,
@@ -140,7 +158,11 @@ export function RunOrderHandPlacement({
     queryFn: () => loadClassPlacement(showId, classId),
     networkMode: 'always',
   });
-  const rows = useMemo(() => (placement ? buildHandPlacementRows(placement) : []), [placement]);
+  const sections = useMemo(
+    () => (placement ? buildHandPlacementSections(placement) : null),
+    [placement]
+  );
+  const rows = sections?.waiting ?? [];
 
   return (
     <section aria-labelledby="run-order-by-hand">
@@ -156,7 +178,7 @@ export function RunOrderHandPlacement({
         </Button>
       </div>
       <p className="mt-1 text-xs text-muted-foreground">
-        Armband and Random sort the whole class again and replace anything placed here.
+        Armband and Random sort the dogs still waiting again and replace anything placed here.
       </p>
       {isError ? (
         <div
@@ -173,16 +195,29 @@ export function RunOrderHandPlacement({
         <p className="mt-2 text-sm text-muted-foreground" role="status">
           Loading the run order…
         </p>
-      ) : rows.length === 0 ? (
-        <p className="mt-2 text-sm text-muted-foreground" role="status">
-          No dogs on the run order yet.
-        </p>
       ) : (
-        <ol className="mt-2 divide-y rounded-md border" aria-label="Run order">
-          {rows.map(row => (
-            <HandPlacementRowItem key={row.id} row={row} classId={classId} runOrder={runOrder} />
-          ))}
-        </ol>
+        <>
+          {rows.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground" role="status">
+              {sections && sections.inRing.length + sections.completed.length > 0
+                ? 'No dogs are waiting to run.'
+                : 'No dogs on the run order yet.'}
+            </p>
+          ) : (
+            <ol className="mt-2 divide-y rounded-md border" aria-label="Run order">
+              {rows.map(row => (
+                <HandPlacementRowItem
+                  key={row.id}
+                  row={row}
+                  classId={classId}
+                  runOrder={runOrder}
+                />
+              ))}
+            </ol>
+          )}
+          <ReadOnlySection title="In the ring" rows={sections?.inRing ?? []} />
+          <ReadOnlySection title="Completed" rows={sections?.completed ?? []} />
+        </>
       )}
     </section>
   );

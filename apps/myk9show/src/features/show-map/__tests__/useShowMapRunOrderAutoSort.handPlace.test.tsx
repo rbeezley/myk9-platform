@@ -70,11 +70,12 @@ describe('placeEntry', () => {
     );
     await waitFor(() => expect(result.current.lastAutoSort).not.toBeNull());
 
-    // e2 is scored: it holds slot 2 and is never written.
+    // e2 is scored: it is not waiting, never written, and its number (2) is the
+    // base the three waiting dogs are renumbered after.
     expect(updateEntryMock.mock.calls.map(([id, u]) => [id, u])).toEqual([
-      ['e4', { runOrder: 1 }],
-      ['e1', { runOrder: 3 }],
-      ['e3', { runOrder: 4 }],
+      ['e4', { runOrder: 3 }],
+      ['e1', { runOrder: 4 }],
+      ['e3', { runOrder: 5 }],
     ]);
     expect(toastMock.success).toHaveBeenCalledWith('Moved #104 to position 1');
   });
@@ -89,7 +90,7 @@ describe('placeEntry', () => {
 
     it('a hand move still writes to the replicated table and offers Undo', async () => {
       const { result } = render();
-      act(() => result.current.placeEntry({ classId: 'c1', entryId: 'e4', toPosition: 3 }));
+      act(() => result.current.placeEntry({ classId: 'c1', entryId: 'e4', toPosition: 1 }));
       await waitFor(() => expect(result.current.lastAutoSort).not.toBeNull());
       expect(updateEntryMock).toHaveBeenCalledWith('e4', { runOrder: 3 });
       expect(toastMock.error).not.toHaveBeenCalled();
@@ -106,7 +107,7 @@ describe('placeEntry', () => {
 
     it('Undo still writes', async () => {
       const { result } = render();
-      act(() => result.current.placeEntry({ classId: 'c1', entryId: 'e4', toPosition: 3 }));
+      act(() => result.current.placeEntry({ classId: 'c1', entryId: 'e4', toPosition: 1 }));
       await waitFor(() => expect(result.current.lastAutoSort).not.toBeNull());
       updateEntryMock.mockClear();
       act(() => result.current.undoLastAutoSort());
@@ -115,7 +116,7 @@ describe('placeEntry', () => {
     });
   });
 
-  it('refuses a pinned dog without writing anything', async () => {
+  it('refuses a dog that is not waiting without writing anything', async () => {
     const { result } = render();
     act(() => result.current.placeEntry({ classId: 'c1', entryId: 'e2', toPosition: 3 }));
     await waitFor(() => expect(toastMock.error).toHaveBeenCalled());
@@ -178,10 +179,7 @@ describe('placeEntry reads the same inputs the panel shows (round 3)', () => {
     await waitFor(() => expect(result.current.lastAutoSort).not.toBeNull());
     expect(
       Object.fromEntries(updateEntryMock.mock.calls.map(([id, u]) => [id, u.runOrder]))
-    ).toEqual({
-      e3: 1,
-      e1: 3,
-    });
+    ).toEqual({ e1: 4 });
   });
 
   it('positions follow armbands that exist only in the armbands table', async () => {

@@ -291,6 +291,7 @@ export async function verifyCheckoutSession(
       ...(order.show_id != null && { showId: order.show_id }),
       ...(order.show_name && { showName: order.show_name }),
       ...(cartId !== undefined && { cartId }),
+      ...(order.amount_cents != null && { totalAmountCents: order.amount_cents }),
       ...(overflowRefund.amountCents != null && { refundAmount: overflowRefund.amountCents }),
       refundStatus: await overflowRefundStatus(order, overflowRefund.amountCents),
       ...paymentReferenceField(order.stripe_payment_intent_id),

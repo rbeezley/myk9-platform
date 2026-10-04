@@ -206,7 +206,9 @@ describe('ClassResultsTable guest Export CSV', () => {
 
   it('exports exactly the visible columns and rows of the released table', async () => {
     const lines = await exportCsv();
-    expect(lines[0]).toBe('Armband,Dog,Handler,Placement,Qualification,Search Time,Faults,Check-in');
+    expect(lines[0]).toBe(
+      'Armband,Dog,Handler,Placement,Qualification,Search Time,Faults,Check-in'
+    );
     // Both rows show on the All tab, so both are exported.
     expect(lines).toHaveLength(3);
     expect(lines.join('\n')).toContain('Rex');

@@ -301,6 +301,7 @@ function setupStepMocks(opts: {
   mockUseExistingEntries.mockReturnValue({
     getExistingEntry: vi.fn().mockReturnValue(undefined),
     getEntriesForDog: vi.fn().mockReturnValue([]),
+    getReEntryBlockReason: vi.fn().mockReturnValue(null),
   });
   mockUseClassAvailability.mockReturnValue({
     classes: [

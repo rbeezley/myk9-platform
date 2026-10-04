@@ -211,7 +211,7 @@ describe('cartStore.ensureCart', () => {
   });
 
   it('resolves failed with the reason when the opener rejects, instead of hanging', async () => {
-    // `loadActiveCart` runs `reconcileCartItemsAgainstExistingEntries` outside
+    // `loadActiveCart` runs `settleCartLines` outside
     // any try/catch, so a 403 / RLS denial / offline blip on that entries read
     // rejects it. The step holds this promise; a rejection there left
     // `isLoading: true` forever and every class chip inert with nothing said.

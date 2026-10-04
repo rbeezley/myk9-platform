@@ -2,7 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { useShowRegistrationStore } from '@/store/showRegistrationStore';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
-import { isActiveSubmittedEntryStatus } from '@/services/entryDisplay/entryDisplaySelectors';
+import {
+  classReEntryReason,
+  getClassReEntryBlock,
+  strongestClassReEntryBlock,
+  type ClassReEntryBlock,
+} from '@/services/entryDisplay/classReEntry';
 
 interface ExistingEntry {
   dogId: string;
@@ -23,14 +28,15 @@ interface ExistingEntryRow {
   payment_status: string | null;
 }
 
-const blocksClassReEntry = (
-  entryStatus: string | null | undefined,
-  checkInStatus?: string | null | undefined
-) => isActiveSubmittedEntryStatus(entryStatus ?? 'submitted', checkInStatus);
-
 export function useExistingEntries(showId: string) {
   const allRegistrations = useShowRegistrationStore(state => state.registrations);
   const [serverEntries, setServerEntries] = useState<ExistingEntry[]>([]);
+  // Ended rows (withdrawn, pulled, ...) by `dogId:classId`. They do not count as
+  // "already entered", but the same rule that removes them from the cart keeps
+  // the class step from offering them again (MYK9-982).
+  const [serverEndedBlocks, setServerEndedBlocks] = useState<Map<string, ClassReEntryBlock>>(
+    () => new Map()
+  );
 
   useEffect(() => {
     let isActive = true;
@@ -38,6 +44,7 @@ export function useExistingEntries(showId: string) {
     const loadServerEntries = async () => {
       if (!showId) {
         setServerEntries([]);
+        setServerEndedBlocks(new Map());
         return;
       }
 
@@ -59,13 +66,34 @@ export function useExistingEntries(showId: string) {
           error
         );
         setServerEntries([]);
+        setServerEndedBlocks(new Map());
         return;
       }
 
+      const rows = ((data || []) as ExistingEntryRow[]).filter(
+        entry => entry.dog_id && entry.class_id
+      );
+      const endedByPair = new Map<string, ClassReEntryBlock[]>();
+      for (const entry of rows) {
+        const block = getClassReEntryBlock(entry.entry_status, entry.check_in_status);
+        if (block === 'entered') continue;
+        const key = `${entry.dog_id}:${entry.class_id}`;
+        endedByPair.set(key, [...(endedByPair.get(key) ?? []), block]);
+      }
+      setServerEndedBlocks(
+        new Map(
+          [...endedByPair].flatMap(([key, blocks]) => {
+            const strongest = strongestClassReEntryBlock(blocks);
+            return strongest ? [[key, strongest] as const] : [];
+          })
+        )
+      );
+
       setServerEntries(
-        ((data || []) as ExistingEntryRow[])
-          .filter(entry => entry.dog_id && entry.class_id)
-          .filter(entry => blocksClassReEntry(entry.entry_status, entry.check_in_status))
+        rows
+          .filter(
+            entry => getClassReEntryBlock(entry.entry_status, entry.check_in_status) === 'entered'
+          )
           .map(entry => ({
             dogId: entry.dog_id!,
             classId: entry.class_id!,
@@ -90,7 +118,9 @@ export function useExistingEntries(showId: string) {
 
     registrations.forEach(registration => {
       if (registration.status === 'cancelled') return;
-      if (!blocksClassReEntry(registration.entryStatus ?? registration.status)) return;
+      if (getClassReEntryBlock(registration.entryStatus ?? registration.status) !== 'entered') {
+        return;
+      }
 
       registration.entries?.forEach(entry => {
         entry.classes?.forEach(classEntry => {
@@ -127,6 +157,16 @@ export function useExistingEntries(showId: string) {
     return existingEntries.find(entry => entry.dogId === dogId && entry.classId === classId);
   };
 
+  /**
+   * Why this dog cannot be entered in this class online, when it has an ended
+   * row there and no live one. `null` means selectable as far as this rule goes.
+   */
+  const getReEntryBlockReason = (dogId: string, classId: string): string | null => {
+    if (checkIfDogEnteredInClass(dogId, classId)) return null;
+    const block = serverEndedBlocks.get(`${dogId}:${classId}`);
+    return block ? classReEntryReason(block) : null;
+  };
+
   const getEntriesForDog = (dogId: string): ExistingEntry[] => {
     return existingEntries.filter(entry => entry.dogId === dogId);
   };
@@ -136,5 +176,6 @@ export function useExistingEntries(showId: string) {
     checkIfDogEnteredInClass,
     getExistingEntry,
     getEntriesForDog,
+    getReEntryBlockReason,
   };
 }

@@ -110,7 +110,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const addItem = useCartStore(state => state.addItem);
   const removeItem = useCartStore(state => state.removeItem);
 
-  const { getExistingEntry, getEntriesForDog } = useExistingEntries(showId);
+  const { getExistingEntry, getEntriesForDog, getReEntryBlockReason } = useExistingEntries(showId);
   const { classes: availabilityClasses, isLoading: availabilityLoading } =
     useClassAvailability(showId);
 
@@ -606,8 +606,19 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                     element: group.element,
                                     level: l.level,
                                   });
+                                  // Anyone but this show's own staff cannot re-enter a class the
+                                  // dog withdrew from (MYK9-982). Staff add it by hand;
+                                  // `isStaff` is club-scoped, so another club's secretary
+                                  // entering here is an exhibitor and stays blocked.
+                                  const reEntryBlock = isStaff
+                                    ? null
+                                    : getReEntryBlockReason(dogId, l.classId);
                                   return {
                                     ...l,
+                                    ...(reEntryBlock !== null && {
+                                      isClassClosed: true,
+                                      classClosedReason: reEntryBlock,
+                                    }),
                                     isSelected: isClassSelected(
                                       dogId,
                                       l.classId,

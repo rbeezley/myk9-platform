@@ -169,6 +169,7 @@ function setupMocks(classes: SeedClass[], opts: { isStaff?: boolean; registryId?
   mockUseExistingEntries.mockReturnValue({
     getExistingEntry: vi.fn().mockReturnValue(undefined),
     getEntriesForDog: vi.fn().mockReturnValue([]),
+    getReEntryBlockReason: vi.fn().mockReturnValue(null),
   });
   mockUseClassAvailability.mockReturnValue({
     classes: classes.map(cls => ({

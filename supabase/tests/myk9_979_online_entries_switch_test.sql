@@ -362,9 +362,9 @@ DO $$
 DECLARE
   admin_auth     CONSTANT uuid := '00000000-0000-0000-0000-000000979021';
   exhibitor_auth CONSTANT uuid := '00000000-0000-0000-0000-000000979022';
-  show_id        CONSTANT uuid := '00000000-0000-0000-0000-000000979101';
-  reg_id         CONSTANT uuid := '00000000-0000-0000-0000-000000979501';
-  dog_id         CONSTANT uuid := '00000000-0000-0000-0000-000000979401';
+  v_show_id      CONSTANT uuid := '00000000-0000-0000-0000-000000979101';
+  v_reg_id       CONSTANT uuid := '00000000-0000-0000-0000-000000979501';
+  v_dog_id       CONSTANT uuid := '00000000-0000-0000-0000-000000979401';
   result         jsonb;
   v_count        int;
 BEGIN
@@ -373,9 +373,9 @@ BEGIN
   PERFORM set_config('request.jwt.claims',
     jsonb_build_object('sub', admin_auth, 'role', 'authenticated')::text, true);
   result := public.submit_show_entries(
-    show_id, reg_id,
+    v_show_id, v_reg_id,
     jsonb_build_array(jsonb_build_object(
-      'dog_id', dog_id, 'class_id', '00000000-0000-0000-0000-000000979301'::uuid,
+      'dog_id', v_dog_id, 'class_id', '00000000-0000-0000-0000-000000979301'::uuid,
       'handler_name', 'MYK9-979 Exhibitor', 'client_fee_cents', 3000)),
     '00000000-0000-0000-0000-000000979901'::uuid, 'check');
   IF jsonb_array_length(result->'entries') <> 1 THEN
@@ -389,9 +389,9 @@ BEGIN
     jsonb_build_object('sub', exhibitor_auth, 'role', 'authenticated')::text, true);
   BEGIN
     result := public.submit_show_entries(
-      show_id, reg_id,
+      v_show_id, v_reg_id,
       jsonb_build_array(jsonb_build_object(
-        'dog_id', dog_id, 'class_id', '00000000-0000-0000-0000-000000979302'::uuid,
+        'dog_id', v_dog_id, 'class_id', '00000000-0000-0000-0000-000000979302'::uuid,
         'handler_name', 'MYK9-979 Exhibitor', 'client_fee_cents', 3000)),
       '00000000-0000-0000-0000-000000979902'::uuid, 'check');
     RAISE EXCEPTION 'FAIL 8b exhibitor entered a show with online entries off: %', result;
@@ -415,9 +415,9 @@ BEGIN
    WHERE id = '00000000-0000-0000-0000-000000979101';
   SET LOCAL ROLE authenticated;
   result := public.submit_show_entries(
-    show_id, reg_id,
+    v_show_id, v_reg_id,
     jsonb_build_array(jsonb_build_object(
-      'dog_id', dog_id, 'class_id', '00000000-0000-0000-0000-000000979303'::uuid,
+      'dog_id', v_dog_id, 'class_id', '00000000-0000-0000-0000-000000979303'::uuid,
       'handler_name', 'MYK9-979 Exhibitor', 'client_fee_cents', 3000)),
     '00000000-0000-0000-0000-000000979903'::uuid, 'check');
   IF jsonb_array_length(result->'entries') <> 1 THEN

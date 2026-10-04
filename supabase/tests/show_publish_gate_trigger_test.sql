@@ -599,7 +599,11 @@ BEGIN
         'club_id', '00000000-0000-0000-0000-000000579001',
         'status', 'published',
         'accept_check_payments', true,
-        'accept_cash_payments', true
+        'accept_cash_payments', true,
+        -- MYK9-979: the RPC writes this key itself (absent -> false), so the
+        -- file's ALTER ... SET DEFAULT true does not reach it. Online entries
+        -- on is what makes the Stripe refusal (MK003) apply.
+        'online_entries_enabled', true
       ),
       '[]'::jsonb,
       '[]'::jsonb,

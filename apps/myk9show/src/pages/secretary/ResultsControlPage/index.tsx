@@ -256,7 +256,7 @@ export default function ResultsControlPage() {
           {/* C18: a constant instruction sat in a grid cell beside three live
               counts and read as a fourth metric that never changed. */}
           <p className="text-muted-foreground">
-            Verify judge signatures on the paper reports before sending.
+            Verify the judge's initials on the printed result catalog before sending.
           </p>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline" size="sm" className="min-h-11">

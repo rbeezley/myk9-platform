@@ -18,11 +18,10 @@ import { formatRingLabel } from '@/utils/ringLabel';
 import { formatShowDateRange } from '@/lib/format/dates';
 import { resolveDogIdentityForOrganization } from '@/features/dogs/identity';
 import { resolveConfiguredRegistryId } from '@/features/registries';
-import {
-  projectHandlerIdentity,
-  resolveHandlerPerson,
-} from '@/features/registries/handlerIdentity';
+import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
+import { mapCatalogEntryFields } from '@/lib/reports/catalogFields';
 import { computeDayTrialNumber } from './dayTrialNumber';
+import { resolveHandlerJunior } from './reportHandlerJunior';
 
 export function mapReportEntries(
   dbEntries: ReportDbEntry[],
@@ -97,10 +96,10 @@ function mapReportEntry(
   // `mapDbEntryToReportEntry` normalises it to the one label representation.
   const armbandLabel = (e.armband ?? null) as string | number | null;
   const entrySource = readEntrySource(e.entry_source);
-  const registrationNumber = trial
+  const dogIdentity = trial
     ? resolveDogIdentityForOrganization(dog?.registrations, readTrialRegistryId(trial))
-        .registrationNumber
     : null;
+  const registrationNumber = dogIdentity?.registrationNumber ?? null;
   const base = mapDbEntryToReportEntry(
     {
       id: e.id,
@@ -123,6 +122,7 @@ function mapReportEntry(
   return {
     ...base,
     ...junior,
+    ...mapCatalogEntryFields(e, handlerIdentity, dogIdentity?.registeredName ?? null),
     ...(e.dog_id ? { dogId: e.dog_id } : {}),
     ...(e.entry_status ? { entryStatus: e.entry_status } : {}),
     ...(e.withdrawal_reason ? { withdrawalReason: e.withdrawal_reason } : {}),
@@ -192,44 +192,6 @@ function readEntrySource(entrySource: string | null | undefined): ReportEntry['e
   return undefined;
 }
 
-/**
- * MYK9-570: is this entry's handler a junior at THIS trial?
- *
- * Per entry, not per person: the same person is a junior at a March trial and
- * an adult at a November one, and the three registries do not even measure on
- * the same day. Since MYK9-664 each entry RECORDS the answer when it is created
- * (`entries.handler_is_junior`, computed by the database from the SQL twin of
- * `deriveJuniorStatus`), because the secretary printing this may not read the
- * date of birth, and must not be able to re-derive it by moving the trial date.
- * Returns an empty
- * object — not `handlerIsJunior: false` — whenever the answer is unknown, so a
- * missing hydration read cannot print as "definitely an adult".
- */
-function resolveHandlerJunior(
-  e: ReportDbEntry,
-  identity: ReturnType<typeof resolveReportEntryHandlerIdentity>,
-  trial?: DbTrial
-): Pick<ReportEntry, 'handlerIsJunior'> {
-  if (!trial) return {};
-  const person = e.handler_person;
-  if (!person) return {};
-
-  // Who the paperwork is about is decided in ONE place for every print path —
-  // see handlerIdentity.ts. The catalog has no owner row in hand, so the
-  // handler_id person is its only candidate; the rule still requires that
-  // person to bear the printed name, because a rename leaves the id behind.
-  const handlerPerson = resolveHandlerPerson({
-    printedHandlerName: identity.name,
-    handlerIdPerson: person,
-    ownerPerson: null,
-  });
-  if (!handlerPerson) return {};
-
-  // Only an affirmative true marks. false (adult) and null (no date of birth,
-  // an ASCA trial, a date after the trial) print the plain name.
-  return handlerPerson.is_junior === true ? { handlerIsJunior: true } : {};
-}
-
 export function readTrialRegistryId(trial: DbTrial): string {
   return resolveConfiguredRegistryId(trial.registry_id) ?? 'AKC';
 }
@@ -272,6 +234,7 @@ export function buildTrialReportProps(input: {
     // Carried for High in Trial, which must not count a cancelled class as offered.
     status: c.status ?? null,
     judgeName: resolveClassJudgeName(c, show.assignedJudges ?? []),
+    timeLimitSeconds: c.time_limit_seconds,
   }));
 
   return targetTrials.map(trial => {
@@ -475,6 +438,8 @@ export function buildShowReportProps({
     level: c.level ?? '',
     section: c.section ?? '',
     judgeName: resolveClassJudgeName(c, show.assignedJudges ?? []),
+    // The AKC marked catalog prints each class's maximum time (MYK9-1009).
+    timeLimitSeconds: c.time_limit_seconds,
   }));
 
   const showDates = formatShowDateRange(show.startDate, show.endDate) || undefined;

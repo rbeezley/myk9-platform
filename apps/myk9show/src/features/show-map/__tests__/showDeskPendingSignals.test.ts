@@ -290,7 +290,7 @@ describe('computeShowDeskPendingSignals', () => {
     expect(signals.some(s => s.id === 'entries-waiting-checkin')).toBe(false);
   });
 
-  it('emits a signal when a class needs judge signature', () => {
+  it("emits a signal when a class needs the judge's initials", () => {
     const t = tree(
       [
         {

@@ -1,3 +1,4 @@
+import { CATALOG_STYLES } from './catalogStyles';
 import { REPORT_STYLES } from './reportStyles';
 
 /**
@@ -17,6 +18,7 @@ export function renderReportToHtml(content: string): string {
   <meta charset="UTF-8">
   <title>Report Preview</title>
   <style>${REPORT_STYLES}</style>
+  <style>${CATALOG_STYLES}</style>
 </head>
 <body>
   ${content}

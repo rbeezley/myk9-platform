@@ -172,8 +172,8 @@ function wrapUpActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapActi
           {
             id: 'collect-judge-signature',
             nodeId: node.id,
-            label: 'Collect judge signature',
-            why: 'Completed class still needs judge sign-off',
+            label: "Collect judge's initials",
+            why: "Completed class still needs the judge's initials",
             priority: 55,
             icon: PenLine,
             ...(classId ? { classId } : {}),

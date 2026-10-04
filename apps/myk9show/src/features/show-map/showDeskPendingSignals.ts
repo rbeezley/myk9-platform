@@ -214,7 +214,7 @@ export function computeShowDeskPendingSignals({
       priority: 'high',
       label: `${needingSignature} ${
         needingSignature === 1 ? 'class needs' : 'classes need'
-      } judge signature`,
+      } judge's initials`,
       // No verified single-class-management destination provably matches this
       // count unit (class rows, not entry rows) yet — omit as non-actionable
       // per spec rather than link to a dead end.

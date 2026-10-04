@@ -69,13 +69,13 @@ function printItem(
 }
 
 function signatureItem(input: ClassChecklistInput, entriesKnown: boolean): ClassChecklistItem {
-  const base = { id: 'judge-signature' as const, label: 'Judge signature collected' };
+  const base = { id: 'judge-signature' as const, label: "Judge's initials collected" };
   const status = input.wrapUpStatus;
   if (status && SIGNED.has(status)) return { ...base, state: 'done' };
   if (status === SHOW_MAP_WRAP_UP_STATUS.CLASS_READY_FOR_WRAP_UP) {
     // Every entry was pulled or scratched, so nothing needed signing.
     return entriesKnown
-      ? { ...base, state: 'done', detail: 'No entries to sign' }
+      ? { ...base, state: 'done', detail: 'No entries to initial' }
       : { ...base, state: 'unknown' };
   }
   if (status || input.lifecycle === 'not-started' || entriesKnown)

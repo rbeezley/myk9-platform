@@ -111,14 +111,14 @@ export function classifyClassWrapUpStatus(
     if (entriesRequiringSignature.every(entryHasJudgeSignature)) {
       return {
         value: SHOW_MAP_WRAP_UP_STATUS.SIGNED_BY_JUDGE,
-        label: 'Signed by judge',
+        label: 'Initialed by judge',
         kind: 'neutral',
       };
     }
 
     return {
       value: SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE,
-      label: 'Needs judge signature',
+      label: "Needs judge's initials",
       kind: 'attention',
     };
   }

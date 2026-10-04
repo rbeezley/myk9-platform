@@ -23,6 +23,7 @@ import {
   replicatedEntriesTable,
   replicatedTrialsTable,
 } from '@/services/replication';
+import { hydrateCatalogDogProfiles } from './reportCatalogHydration';
 import { readinessOf, resolveReportReadiness, type ReportDataState } from './reportReadiness';
 
 export type { ReportDataState } from './reportReadiness';
@@ -111,7 +112,9 @@ async function hydrateHandlerJuniorProfiles(entries: ReportDbEntry[]): Promise<R
 export const hydrateHandlerJuniorProfilesForTest = hydrateHandlerJuniorProfiles;
 
 async function hydrateEntryRegistrations(entries: ReportDbEntry[]): Promise<HydratedReportEntries> {
-  const withHandlers = await hydrateHandlerJuniorProfiles(entries);
+  const withHandlerProfiles = await hydrateHandlerJuniorProfiles(entries);
+  // MYK9-1009: the AKC marked catalog's dog date of birth and owner address.
+  const withHandlers = await hydrateCatalogDogProfiles(withHandlerProfiles);
   const dogIds = [
     ...new Set(withHandlers.map(entry => entry.dog_id).filter((id): id is string => Boolean(id))),
   ];

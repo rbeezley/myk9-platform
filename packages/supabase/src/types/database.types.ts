@@ -8335,6 +8335,7 @@ export type Database = {
           venue_wifi_network: string | null
           venue_wifi_password: string | null
           version: number
+          waitlist_auto_offer: boolean
           waitlist_payment_deadline_hours: number
           withdrawal_cutoff_date: string | null
           withdrawal_policy_notes: string | null
@@ -8404,6 +8405,7 @@ export type Database = {
           venue_wifi_network?: string | null
           venue_wifi_password?: string | null
           version?: number
+          waitlist_auto_offer?: boolean
           waitlist_payment_deadline_hours?: number
           withdrawal_cutoff_date?: string | null
           withdrawal_policy_notes?: string | null
@@ -8473,6 +8475,7 @@ export type Database = {
           venue_wifi_network?: string | null
           venue_wifi_password?: string | null
           version?: number
+          waitlist_auto_offer?: boolean
           waitlist_payment_deadline_hours?: number
           withdrawal_cutoff_date?: string | null
           withdrawal_policy_notes?: string | null
@@ -13506,6 +13509,7 @@ export type Database = {
           venue_wifi_network: string | null
           venue_wifi_password: string | null
           version: number
+          waitlist_auto_offer: boolean
           waitlist_payment_deadline_hours: number
           withdrawal_cutoff_date: string | null
           withdrawal_policy_notes: string | null
@@ -13931,6 +13935,14 @@ export type Database = {
           waitlist_entry_id: string
         }[]
       }
+      list_waitlist_offer_candidates: {
+        Args: never
+        Returns: {
+          class_id: string
+          joined_via: string
+          waitlist_entry_id: string
+        }[]
+      }
       lock_club_membership_request_pair: {
         Args: { p_club_id: string; p_person_id: string }
         Returns: undefined
@@ -13964,6 +13976,10 @@ export type Database = {
       }
       normalize_registry_organization: {
         Args: { raw: string }
+        Returns: string
+      }
+      notify_waitlist_auto_offer: {
+        Args: { p_waitlist_entry_id: string }
         Returns: string
       }
       official_show_ids: { Args: never; Returns: string[] }
@@ -14428,6 +14444,7 @@ export type Database = {
           venue_wifi_network: string | null
           venue_wifi_password: string | null
           version: number
+          waitlist_auto_offer: boolean
           waitlist_payment_deadline_hours: number
           withdrawal_cutoff_date: string | null
           withdrawal_policy_notes: string | null
@@ -14508,6 +14525,18 @@ export type Database = {
       self_checkin_entry: {
         Args: { p_entry_id: string; p_new_status: string }
         Returns: undefined
+      }
+      send_waitlist_offer_message: {
+        Args: { p_payment_link_url?: string; p_waitlist_entry_id: string }
+        Returns: string
+      }
+      send_waitlist_offer_message_internal: {
+        Args: {
+          p_payment_link_url?: string
+          p_sender_auth_user_id: string
+          p_waitlist_entry_id: string
+        }
+        Returns: string
       }
       set_club_authorization: {
         Args: { p_authorized: boolean; p_club_id: string }

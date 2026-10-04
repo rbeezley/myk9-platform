@@ -6,6 +6,7 @@ import { useNotificationStore } from '@/store/notificationStore';
 import { DEFAULT_PREFERENCES } from '@myk9/notifications';
 import type { NotificationPayload } from '@myk9/notifications';
 import { acknowledgeAccountNotifications } from '@/services/notifications/accountNotificationAcks';
+import { buildAccountNotificationPayload } from '@/hooks/useAccountNotifications.helpers';
 
 const navigateMock = vi.fn();
 const judgeReads = vi.hoisted(() => ({
@@ -225,6 +226,34 @@ describe('MessageCenterPanel', () => {
       'user-1'
     );
     expect(navigateMock).toHaveBeenCalledWith('/test');
+  });
+
+  // MYK9-1003: the secretary's notice that a wait list spot went out
+  // automatically, built by the real row mapper, reads in the bell and opens
+  // the show's Waitlist tab.
+  it('shows the automatic wait list offer notice and opens the Waitlist tab', () => {
+    useNotificationStore.getState().addAlert(
+      buildAccountNotificationPayload(
+        {
+          id: 'notif-wl-1',
+          type: 'waitlist_auto_offer',
+          message:
+            'Rex was offered the open spot in Novice A automatically. The spot is held for 48 hours for payment. You can turn automatic offers off in Wait list settings.',
+          deep_link_url: '/shows/show-1/entries?tab=waitlist',
+          created_at: '2026-10-04T12:00:00.000Z',
+        },
+        'user-1'
+      )
+    );
+    renderPanel();
+
+    expect(screen.getByText('Wait list offer sent')).toBeInTheDocument();
+    expect(
+      screen.getByText(/Rex was offered the open spot in Novice A automatically/)
+    ).toBeVisible();
+    fireEvent.click(screen.getByRole('link', { name: /view/i }));
+    expect(navigateMock).toHaveBeenCalledWith('/shows/show-1/entries?tab=waitlist');
+    expect(acknowledgeAccountNotifications).toHaveBeenCalledOnce();
   });
 
   it('preserves a modified View click for opening the club in another tab', () => {

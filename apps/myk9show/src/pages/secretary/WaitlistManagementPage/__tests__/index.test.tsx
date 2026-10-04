@@ -124,7 +124,9 @@ describe('WaitlistManagementPage', () => {
   // selection. They are reachable from the Waitlist tab, scoped to the show the queues show.
   it('offers Wait List Settings from the tab, for the show the tab was opened for', () => {
     render(<WaitlistManagementPage showId="show-1" />);
-    expect(screen.getByText(/Wait list settings: judge-day capacity, offer window/)).toBeVisible();
+    expect(
+      screen.getByText(/Wait list settings: automatic offers, judge-day capacity, offer window/)
+    ).toBeVisible();
     expect(screen.getByTestId('waitlist-settings-card')).toHaveTextContent('settings for show-1');
   });
 

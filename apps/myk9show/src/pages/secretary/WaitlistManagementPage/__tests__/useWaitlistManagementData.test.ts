@@ -5,8 +5,9 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useWaitlistManagementData } from '../useWaitlistManagementData';
 import { createTestQueryClient } from '@/test/utils/testUtils';
+import type { WaitlistEntry } from '../types';
 import { supabase } from '@/lib/supabase';
-import { getWaitlistOfferMessageTarget, promoteWaitlistEntry } from '@/services/database/waitlists';
+import { promoteWaitlistEntry, sendWaitlistOfferMessage } from '@/services/database/waitlists';
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ user: { id: 'user-1' } }),
@@ -35,23 +36,9 @@ vi.mock('@/services/database/shows', () => ({
 vi.mock('@/services/database/waitlists', () => ({
   getClassesWithWaitlistCounts: vi.fn().mockResolvedValue({ data: [], error: null }),
   getWaitlistByClass: vi.fn().mockResolvedValue({ data: [], error: null }),
-  getWaitlistOfferMessageTarget: vi.fn(),
   promoteWaitlistEntry: vi.fn(),
   removeFromWaitlist: vi.fn(),
-}));
-
-// Mock the show-messaging store the notification path reuses. The hook reads
-// getOrCreateThread + sendMessage via selectors, so the mock applies the
-// selector against a fake state holding those mocks.
-const mockGetOrCreateThread = vi.fn();
-const mockSendMessage = vi.fn();
-
-vi.mock('@/store/messageStore', () => ({
-  useMessageStore: (selector: (state: unknown) => unknown) =>
-    selector({
-      getOrCreateThread: mockGetOrCreateThread,
-      sendMessage: mockSendMessage,
-    }),
+  sendWaitlistOfferMessage: vi.fn(),
 }));
 
 const createWrapper = () => {
@@ -160,36 +147,27 @@ describe('useWaitlistManagementData — offer notification', () => {
       data: { url: 'https://checkout.stripe.com/c/pay/cs_waitlist_1' },
       error: null,
     });
-    vi.mocked(getWaitlistOfferMessageTarget).mockResolvedValue({
-      data: { participantAuthUserId: 'auth-user-9', exhibitorName: 'Jane Doe' },
-      error: null,
-    } as unknown as Awaited<ReturnType<typeof getWaitlistOfferMessageTarget>>);
-    mockGetOrCreateThread.mockResolvedValue({ id: 'thread-1' });
-    mockSendMessage.mockResolvedValue(undefined);
+    vi.mocked(sendWaitlistOfferMessage).mockResolvedValue('sent');
   });
 
-  it('messages the offered exhibitor by their auth account with the offer body', async () => {
+  async function offer(entry: WaitlistEntry = sampleEntry) {
     const { result } = renderHook(() => useWaitlistManagementData('show-77'), {
       wrapper: createWrapper(),
     });
-
     await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
-
     act(() => {
-      result.current.setActionDialog({ open: true, action: 'offer', entry: sampleEntry });
+      result.current.setActionDialog({ open: true, action: 'offer', entry });
     });
-
     await act(async () => {
       await result.current.handleOfferSpot();
     });
+  }
 
-    // Resolves the exhibitor's messaging account from their person id.
-    expect(getWaitlistOfferMessageTarget).toHaveBeenCalledWith('person-1');
+  // MYK9-1003: the database writes the message (send_waitlist_offer_message),
+  // through the same function an automatic offer uses.
+  it('sends the in-app message through the database with the payment link', async () => {
+    await offer();
 
-    // Opens the inbox thread keyed on (showId, participant auth_user_id).
-    expect(mockGetOrCreateThread).toHaveBeenCalledWith('show-77', 'auth-user-9');
-
-    // Posts the offer message to that thread for the same show.
     expect(supabase.functions.invoke).toHaveBeenCalledWith('stripe-payment-link', {
       body: {
         entry_ids: ['pending-payment-entry-1'],
@@ -197,144 +175,54 @@ describe('useWaitlistManagementData — offer notification', () => {
         cancel_url: 'http://localhost:3000/shows/show-77?payment=cancelled',
       },
     });
-    expect(mockSendMessage).toHaveBeenCalledWith(
-      'thread-1',
-      'show-77',
-      'A waitlist spot in Novice A just opened up for Rex! ' +
-        'Complete payment to claim it: https://checkout.stripe.com/c/pay/cs_waitlist_1'
+    expect(sendWaitlistOfferMessage).toHaveBeenCalledWith(
+      'wl-1',
+      'https://checkout.stripe.com/c/pay/cs_waitlist_1'
     );
-
     // A successful in-app delivery must NOT raise the "couldn't reach" warning.
     expect(vi.mocked(toast.warning)).not.toHaveBeenCalled();
   });
 
   it('does not message when the offer mutation fails', async () => {
     vi.mocked(promoteWaitlistEntry).mockRejectedValue(new Error('db down'));
-
-    const { result } = renderHook(() => useWaitlistManagementData('show-77'), {
-      wrapper: createWrapper(),
-    });
-
-    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
-
-    act(() => {
-      result.current.setActionDialog({ open: true, action: 'offer', entry: sampleEntry });
-    });
-
-    await act(async () => {
-      await result.current.handleOfferSpot();
-    });
-
-    expect(getWaitlistOfferMessageTarget).not.toHaveBeenCalled();
+    await offer();
     expect(supabase.functions.invoke).not.toHaveBeenCalled();
-    expect(mockSendMessage).not.toHaveBeenCalled();
+    expect(sendWaitlistOfferMessage).not.toHaveBeenCalled();
   });
 
-  it('falls back to the existing message when payment link creation fails', async () => {
+  it('still messages, without a link, when payment link creation fails', async () => {
     vi.mocked(supabase.functions.invoke).mockResolvedValue({
       data: null,
       error: new Error('link failed'),
     });
-
-    const { result } = renderHook(() => useWaitlistManagementData('show-77'), {
-      wrapper: createWrapper(),
-    });
-
-    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
-
-    act(() => {
-      result.current.setActionDialog({ open: true, action: 'offer', entry: sampleEntry });
-    });
-
-    await act(async () => {
-      await result.current.handleOfferSpot();
-    });
-
+    await offer();
     expect(toast.warning).toHaveBeenCalledWith(
       'Spot offered, but the payment link could not be created. Request payment from the entry list.'
     );
-    expect(mockSendMessage).toHaveBeenCalledWith(
-      'thread-1',
-      'show-77',
-      'A waitlist spot in Novice A just opened up for Rex! ' +
-        'Open My Entries to accept the offer before it expires.'
-    );
+    expect(sendWaitlistOfferMessage).toHaveBeenCalledWith('wl-1', null);
   });
 
   it('does not create an online payment link for mail-in waitlist rows', async () => {
-    const { result } = renderHook(() => useWaitlistManagementData('show-77'), {
-      wrapper: createWrapper(),
-    });
-
-    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
-
-    act(() => {
-      result.current.setActionDialog({
-        open: true,
-        action: 'offer',
-        entry: { ...sampleEntry, joined_via: 'mail_in' },
-      });
-    });
-
-    await act(async () => {
-      await result.current.handleOfferSpot();
-    });
-
+    await offer({ ...sampleEntry, joined_via: 'mail_in' });
     expect(supabase.functions.invoke).not.toHaveBeenCalled();
-    expect(mockSendMessage).toHaveBeenCalledWith(
-      'thread-1',
-      'show-77',
-      'A waitlist spot in Novice A just opened up for Rex! ' +
-        'Open My Entries to accept the offer before it expires.'
+    expect(sendWaitlistOfferMessage).toHaveBeenCalledWith('wl-1', null);
+  });
+
+  // The offer is time-boxed, so the secretary must be told the exhibitor could
+  // not be reached in-app, to contact them another way.
+  it('tells the secretary when the exhibitor has no app account', async () => {
+    vi.mocked(sendWaitlistOfferMessage).mockResolvedValue('no_account');
+    await offer();
+    expect(vi.mocked(toast.warning)).toHaveBeenCalledWith(
+      'Spot offered. This exhibitor has no app account yet — notify them directly.'
     );
   });
 
-  it('skips messaging when the exhibitor has no auth account', async () => {
-    vi.mocked(getWaitlistOfferMessageTarget).mockResolvedValue({
-      data: { participantAuthUserId: null, exhibitorName: 'Jane Doe' },
-      error: null,
-    } as unknown as Awaited<ReturnType<typeof getWaitlistOfferMessageTarget>>);
-
-    const { result } = renderHook(() => useWaitlistManagementData('show-77'), {
-      wrapper: createWrapper(),
-    });
-
-    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
-
-    act(() => {
-      result.current.setActionDialog({ open: true, action: 'offer', entry: sampleEntry });
-    });
-
-    await act(async () => {
-      await result.current.handleOfferSpot();
-    });
-
-    expect(mockGetOrCreateThread).not.toHaveBeenCalled();
-    expect(mockSendMessage).not.toHaveBeenCalled();
-
-    // The offer is time-boxed, so the secretary must be told the exhibitor
-    // could not be reached in-app — named, so they know who to contact directly.
-    expect(vi.mocked(toast.warning)).toHaveBeenCalledWith(expect.stringContaining('Jane Doe'));
-  });
-
-  it('warns (but does not message) when the inbox thread cannot be opened', async () => {
-    mockGetOrCreateThread.mockResolvedValue(null);
-
-    const { result } = renderHook(() => useWaitlistManagementData('show-77'), {
-      wrapper: createWrapper(),
-    });
-
-    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
-
-    act(() => {
-      result.current.setActionDialog({ open: true, action: 'offer', entry: sampleEntry });
-    });
-
-    await act(async () => {
-      await result.current.handleOfferSpot();
-    });
-
-    expect(mockSendMessage).not.toHaveBeenCalled();
-    expect(vi.mocked(toast.warning)).toHaveBeenCalledWith(expect.stringContaining('Jane Doe'));
+  it('tells the secretary when the message could not be sent', async () => {
+    vi.mocked(sendWaitlistOfferMessage).mockRejectedValue(new Error('network'));
+    await offer();
+    expect(vi.mocked(toast.warning)).toHaveBeenCalledWith(
+      "Spot offered, but the in-app notification didn't send."
+    );
   });
 });

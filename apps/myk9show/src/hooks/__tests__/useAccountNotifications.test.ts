@@ -98,6 +98,36 @@ describe('useAccountNotifications', () => {
     });
   });
 
+  // MYK9-1003: the secretary's automatic-offer notice reaches the bell, and
+  // is not a role change.
+  it('delivers a waitlist_auto_offer row to the bell without an RBAC refresh', () => {
+    mockUseQueryResult.mockReturnValue({
+      data: {
+        userId: 'auth-user-1',
+        rows: [
+          {
+            id: 'notif-wl-1',
+            type: 'waitlist_auto_offer',
+            message: 'Rex was offered the open spot in Novice A automatically.',
+            deep_link_url: '/shows/show-1/entries?tab=waitlist',
+            created_at: '2026-10-04T12:00:00.000Z',
+          },
+        ],
+      },
+    });
+
+    renderHook(() => useAccountNotifications());
+
+    expect(mockAddAlert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'notif-wl-1',
+        title: 'Wait list offer sent',
+        actionUrl: '/shows/show-1/entries?tab=waitlist',
+      })
+    );
+    expect(mockRefreshPermissions).not.toHaveBeenCalled();
+  });
+
   it('refreshes RBAC permissions after delivering a club_access_approved row', () => {
     mockUseQueryResult.mockReturnValue({
       data: { userId: 'auth-user-1', rows: [clubApprovedRow] },

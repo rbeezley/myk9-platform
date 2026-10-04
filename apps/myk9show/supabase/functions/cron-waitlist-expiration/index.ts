@@ -3,7 +3,10 @@
  *
  * Runs every 15 minutes to:
  * 1. Expire waitlist offers that have passed their deadline
- * 2. Auto-offer spots to the next person in line
+ * 2. Offer free spots to the next dog in line, in shows whose secretary left
+ *    automatic offers on (offerStep.ts: one guarded database transaction per
+ *    class, MYK9-1003), in the
+ *    same run as the expiry that freed them
  * 3. Send notification emails
  *
  * Trigger: Supabase cron or external scheduler (e.g., cron-job.org)
@@ -17,6 +20,7 @@ import * as Sentry from 'npm:@sentry/deno@10.62.0';
 import { createSentryCronClient } from '../_shared/sentryCronClient.ts';
 import { alertAdmin } from '../_shared/alertAdmin.ts';
 import { findExpiredOffers, runMonitoredWaitlistCron } from './cronOutcome.ts';
+import { runWaitlistOfferStep } from './offerStep.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import {
   expireWaitlistOffer,
@@ -85,20 +89,6 @@ async function secretMatches(provided: string | null): Promise<boolean> {
   return diff === 0;
 }
 
-interface WaitlistEntry {
-  id: string;
-  class_id: string;
-  exhibitor_id: string;
-  dog_id: string;
-  handler_id: string | null;
-  promoted_entry_id: string | null;
-  joined_via: string | null;
-  position: number;
-  status: string;
-  offered_at: string | null;
-  offer_expires_at: string | null;
-}
-
 Deno.serve(async req => {
   const corsHeaders = getCorsHeaders(req.headers.get('origin'));
 
@@ -144,7 +134,6 @@ Deno.serve(async req => {
         errors: [] as string[],
         notificationErrors: [] as string[],
       };
-      const classesExpiredThisRun = new Set<string>();
       const queuedExpiryNotices: QueuedWaitlistEvent[] = [];
 
       // Step 1: Find and expire offers past their deadline
@@ -179,7 +168,6 @@ Deno.serve(async req => {
           }
 
           results.expiredOffers++;
-          classesExpiredThisRun.add(offer.class_id);
           const notice = await enqueueWaitlistEvent({
             supabase,
             waitlistEntryId: offer.id,
@@ -194,9 +182,9 @@ Deno.serve(async req => {
         }
       }
 
-      // Also check for any classes with available spots but no current offers
-      // This handles cases where spots opened up (cancellations) but no one was auto-offered
-      await processClassesWithOpenSpots(results, classesExpiredThisRun);
+      // Offer every free spot, including the ones the expiries above just freed
+      // (no skipped tick), and spots opened by withdrawals or pulls.
+      await runWaitlistOfferStep(supabase, results);
 
       // Delivery is intentionally after expiry/cascade state work. Provider latency must never
       // prevent an overdue offer from expiring or the next exhibitor from being promoted.
@@ -234,107 +222,3 @@ Deno.serve(async req => {
     },
   });
 });
-
-/**
- * Offer a waitlist spot to an exhibitor
- */
-async function offerSpot(entry: WaitlistEntry): Promise<boolean> {
-  const { data: promotedEntryId, error: promoteError } = await supabase.rpc(
-    'promote_waitlist_entry_from_cron',
-    {
-      p_waitlist_entry_id: entry.id,
-    }
-  );
-
-  if (promoteError || !promotedEntryId) {
-    console.error(`Failed to promote waitlist spot ${entry.id}:`, promoteError);
-    return false;
-  }
-
-  console.log(`Offered spot to ${entry.exhibitor_id} for class ${entry.class_id}`);
-  return true;
-}
-
-/**
- * Process classes that have open spots and waiting entries but no current offers
- */
-async function processClassesWithOpenSpots(
-  results: {
-    expiredOffers: number;
-    newOffers: number;
-    skippedPaidOffers: number;
-    skippedMailInOffers: number;
-    errors: string[];
-  },
-  skipClassIds: ReadonlySet<string> = new Set()
-): Promise<void> {
-  // Find classes with waiting entries but no pending offers
-  const { data: classesWithWaiting, error } = await supabase
-    .from('waitlist_entries')
-    .select('class_id')
-    .eq('status', 'waiting')
-    .order('class_id');
-
-  if (error || !classesWithWaiting) {
-    return;
-  }
-
-  // Get unique class IDs
-  const uniqueClassIds = [...new Set(classesWithWaiting.map(w => w.class_id))];
-
-  for (const classId of uniqueClassIds) {
-    if (skipClassIds.has(classId)) {
-      continue;
-    }
-
-    // Check if there's already an active offer for this class
-    const { data: activeOffer } = await supabase
-      .from('waitlist_entries')
-      .select('id')
-      .eq('class_id', classId)
-      .eq('status', 'offered')
-      .limit(1)
-      .single();
-
-    if (activeOffer) {
-      continue; // Already has an active offer
-    }
-
-    // Check class availability
-    const { data: availability } = await supabase.rpc('check_class_availability', {
-      p_class_id: classId,
-    });
-
-    if (!availability || !availability[0]?.is_available) {
-      continue; // No spots available
-    }
-
-    // Get next in line
-    const { data: nextInLine, error: nextError } = await supabase
-      .from('waitlist_entries')
-      .select('*')
-      .eq('class_id', classId)
-      .eq('status', 'waiting')
-      .order('position', { ascending: true })
-      .limit(1)
-      .single();
-
-    if (nextError || !nextInLine) {
-      continue;
-    }
-
-    if (nextInLine.joined_via === 'mail_in') {
-      console.log(
-        `Next waitlist row ${nextInLine.id} for class ${classId} is mail-in; leaving it for secretary handling`
-      );
-      results.skippedMailInOffers++;
-      continue;
-    }
-
-    // Offer spot
-    const offered = await offerSpot(nextInLine as WaitlistEntry);
-    if (offered) {
-      results.newOffers++;
-    }
-  }
-}

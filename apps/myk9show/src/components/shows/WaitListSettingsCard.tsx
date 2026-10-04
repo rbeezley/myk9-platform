@@ -1,7 +1,8 @@
 /**
  * WaitListSettingsCard
  *
- * Configures wait list capacity and mail-in reservation strategy for a show.
+ * Configures wait list capacity and mail-in reservation strategy for a show,
+ * and whether open spots are offered automatically (MYK9-1003).
  * NOTE: The columns read/written here are added by migration 114 but the
  * Supabase generated types do not know about them yet. Cast via ShowCapacityRow.
  */
@@ -37,6 +38,13 @@ interface ShowCapacityRow {
   mail_in_auto_release: boolean | null;
   mail_in_release_date: string | null;
   waitlist_payment_deadline_hours: number | null;
+  waitlist_auto_offer: boolean | null;
+}
+
+interface WaitListSettings {
+  config: WaitListShowConfig;
+  /** shows.waitlist_auto_offer; the database default (true) is today's behaviour. */
+  autoOffer: boolean;
 }
 
 interface WaitListSettingsCardProps {
@@ -72,13 +80,17 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
       const { data: row, error } = await supabase
         .from('shows')
         .select(
-          'default_judge_day_capacity, mail_in_strategy, mail_in_value, mail_in_deadline, mail_in_auto_release, mail_in_release_date, waitlist_payment_deadline_hours'
+          'default_judge_day_capacity, mail_in_strategy, mail_in_value, mail_in_deadline, mail_in_auto_release, mail_in_release_date, waitlist_payment_deadline_hours, waitlist_auto_offer'
         )
         .eq('id', showId)
         .single();
 
       if (error) throw error;
-      return rowToConfig(row as unknown as ShowCapacityRow);
+      const capacityRow = row as unknown as ShowCapacityRow;
+      return {
+        config: rowToConfig(capacityRow),
+        autoOffer: capacityRow.waitlist_auto_offer ?? true,
+      } satisfies WaitListSettings;
     },
   });
 
@@ -97,9 +109,33 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
   useEffect(() => {
     if (data && !isDirty.current) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
-      setForm(data);
+      setForm(data.config);
     }
   }, [data]);
+
+  // The automatic-offer switch saves on its own, and only its own column: it
+  // is a mode, not a form field, and must never carry (or wait on) the
+  // capacity edits below. `pendingAutoOffer` shows the new position while the
+  // save is in flight; a failed save falls back to the stored value.
+  const [pendingAutoOffer, setPendingAutoOffer] = useState<boolean | null>(null);
+  const autoOfferMutation = useMutation({
+    mutationFn: async (enabled: boolean) => {
+      const { error } = await supabase
+        .from('shows')
+        .update({ waitlist_auto_offer: enabled })
+        .eq('id', showId);
+      if (error) throw error;
+    },
+    onMutate: enabled => setPendingAutoOffer(enabled),
+    // Write the saved value into the cache before dropping the pending one, so
+    // the switch never flickers back to the old position while a refetch runs.
+    onSuccess: (_result, enabled) =>
+      queryClient.setQueryData<WaitListSettings>(['waitlist-settings', showId], current =>
+        current ? { ...current, autoOffer: enabled } : current
+      ),
+    onSettled: () => setPendingAutoOffer(null),
+  });
+  const autoOffer = pendingAutoOffer ?? data?.autoOffer ?? true;
 
   const mutation = useMutation({
     mutationFn: async (config: WaitListShowConfig) => {
@@ -139,10 +175,34 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
       <CardHeader>
         <CardTitle>Wait List Settings</CardTitle>
         <CardDescription>
-          Configure judge daily capacity and mail-in reservation rules.
+          Choose how open spots are offered, and set judge daily capacity and mail-in rules.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* Automatic offers (MYK9-1003) */}
+        <div className="space-y-1">
+          <div className="flex items-center gap-3">
+            <Switch
+              id="auto-offer"
+              aria-describedby="auto-offer-help"
+              checked={autoOffer}
+              disabled={isLoading || autoOfferMutation.isPending}
+              onCheckedChange={checked => autoOfferMutation.mutate(checked)}
+            />
+            <Label htmlFor="auto-offer">Offer open spots automatically</Label>
+          </div>
+          <p className="text-sm text-muted-foreground" id="auto-offer-help">
+            {autoOffer
+              ? 'When a spot opens, the next dog in line is offered it within 15 minutes, and you get a notification each time.'
+              : 'You offer every open spot yourself, from the queue below.'}
+          </p>
+          {autoOfferMutation.isError && (
+            <p className="text-sm text-destructive" role="alert">
+              Couldn't save that change. Check your connection and try again.
+            </p>
+          )}
+        </div>
+
         {/* Judge Daily Capacity */}
         <div className="space-y-1">
           <Label htmlFor="judge-daily-capacity">Judge Daily Capacity</Label>

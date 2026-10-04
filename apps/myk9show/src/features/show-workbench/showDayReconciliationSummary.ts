@@ -1,5 +1,10 @@
 import { currentCalendarDate, utcCalendarDate } from '@/features/_shared/isDayOfShowEntry';
 import {
+  classifyEntryRemoval,
+  emptyEntryRemovalCounts,
+  type EntryRemovalCounts,
+} from '@/features/payments/pullReconciliation';
+import {
   ledgerAmount,
   type LedgerMethod,
   type ShowPaymentLedgerRow,
@@ -20,6 +25,8 @@ export interface ShowDayReconciliationEntry {
   entry_fee?: number | string | null;
   entry_status?: string | null;
   check_in_status?: string | null;
+  /** 'in_season' | 'judge_change' on a withdrawal; null on a pull or a secretary removal. */
+  withdrawal_reason_code?: string | null;
   payment_status?: string | null;
   payment_method?: string | null;
   submitted_at?: string | null;
@@ -63,9 +70,16 @@ export interface ShowDayReconciliationSummary {
   paymentCount: number;
   paymentAmount: number;
   byMethod: Record<LedgerMethod, { count: number; amount: number }>;
-  pulledCount: number;
+  /** Every entry no longer running, by true category (MYK9-987). */
+  removals: EntryRemovalCounts;
+  /** Sum of `removals`: the closeout review gate. */
+  removalCount: number;
+  /** Of those, the ones whose fee is marked refunded, by category. */
+  refundedRemovals: EntryRemovalCounts;
   refundReviewCount: number;
   refundReviewAmount: number;
+  /** Of those, the paid ones awaiting a refund decision, by category. */
+  refundReviewRemovals: EntryRemovalCounts;
   refundedCount: number;
   refundedAmount: number;
 }
@@ -73,17 +87,6 @@ export interface ShowDayReconciliationSummary {
 function amount(value: ShowDayReconciliationEntry['entry_fee']): number {
   const parsed = typeof value === 'string' ? Number(value) : value;
   return Number.isFinite(parsed) ? Number(parsed) : 0;
-}
-
-function isPulledEntry(entry: ShowDayReconciliationEntry): boolean {
-  const entryStatus = entry.entry_status?.toLowerCase();
-  const checkInStatus = entry.check_in_status?.toLowerCase();
-  return (
-    checkInStatus === 'pulled' ||
-    entryStatus === 'scratched' ||
-    entryStatus === 'withdrawn' ||
-    entryStatus === 'absent'
-  );
 }
 
 function isWaived(entry: ShowDayReconciliationEntry): boolean {
@@ -175,9 +178,12 @@ export function summarizeShowDayReconciliation(
     paymentCount: 0,
     paymentAmount: 0,
     byMethod: { cash: { count: 0, amount: 0 }, check: { count: 0, amount: 0 } },
-    pulledCount: 0,
+    removals: emptyEntryRemovalCounts(),
+    removalCount: 0,
+    refundedRemovals: emptyEntryRemovalCounts(),
     refundReviewCount: 0,
     refundReviewAmount: 0,
+    refundReviewRemovals: emptyEntryRemovalCounts(),
     refundedCount: 0,
     refundedAmount: 0,
   };
@@ -190,12 +196,20 @@ export function summarizeShowDayReconciliation(
     const paymentStatus = entry.payment_status?.toLowerCase();
     summary.totalEntryCount += 1;
 
-    if (isPulledEntry(entry)) {
-      summary.pulledCount += 1;
+    const removal = classifyEntryRemoval({
+      entryStatus: entry.entry_status,
+      checkInStatus: entry.check_in_status,
+      withdrawalReasonCode: entry.withdrawal_reason_code,
+    });
+    if (removal) {
+      summary.removals[removal] += 1;
+      summary.removalCount += 1;
       if (paymentStatus === 'refunded') {
+        summary.refundedRemovals[removal] += 1;
         summary.refundedCount += 1;
         summary.refundedAmount += fee;
       } else if (paymentStatus === 'paid') {
+        summary.refundReviewRemovals[removal] += 1;
         summary.refundReviewCount += 1;
         summary.refundReviewAmount += fee;
       }

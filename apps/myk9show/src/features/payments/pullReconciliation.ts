@@ -76,17 +76,76 @@ export interface PullRefundDecisionEntry {
  * code is what makes a withdrawal the exhibitor's own act.
  */
 export function isUnresolvedRemovalRefundDecision(entry: PullRefundDecisionEntry): boolean {
-  const isPull = entry.entry_status === 'scratched';
-  const isExhibitorWithdrawal =
-    entry.entry_status === 'withdrawn' &&
-    (entry.withdrawal_reason_code === 'in_season' ||
-      entry.withdrawal_reason_code === 'judge_change');
+  const kind = classifyEntryRemoval({
+    entryStatus: entry.entry_status,
+    withdrawalReasonCode: entry.withdrawal_reason_code,
+  });
 
   return (
-    (isPull || isExhibitorWithdrawal) &&
+    isExhibitorRemoval(kind) &&
     entry.payment_method === 'online' &&
     entry.payment_status === 'paid' &&
     (entry.refund_amount ?? 0) <= 0 &&
     entry.refund_decision === null
   );
+}
+
+/**
+ * MYK9-987: the four ways an entry stops running, one predicate for every
+ * surface that counts them (the Entries "Pulls" view, the closeout card, the
+ * refund gates). They are never synonyms (LESSONS pull-vs-withdraw):
+ *
+ * - `pulled`: the exhibitor's choice ('scratched', or a check-in 'pulled');
+ *   the club decides the refund.
+ * - `withdrawn`: 'withdrawn' WITH a recognised reason code (In Season / Judge
+ *   Change); the premium decides.
+ * - `removed`: 'withdrawn' with NO reason code, a secretary removal.
+ * - `absent`: a no-show.
+ */
+export type EntryRemovalKind = 'pulled' | 'withdrawn' | 'removed' | 'absent';
+
+export interface EntryRemovalInput {
+  entryStatus?: string | null | undefined;
+  /** Only the closeout read carries it; the Entries view passes none. */
+  checkInStatus?: string | null | undefined;
+  withdrawalReasonCode?: string | null | undefined;
+}
+
+export function classifyEntryRemoval(input: EntryRemovalInput): EntryRemovalKind | null {
+  const entryStatus = input.entryStatus?.toLowerCase();
+  if (entryStatus === 'scratched') return 'pulled';
+  if (entryStatus === 'withdrawn') {
+    return input.withdrawalReasonCode === 'in_season' ||
+      input.withdrawalReasonCode === 'judge_change'
+      ? 'withdrawn'
+      : 'removed';
+  }
+  if (entryStatus === 'absent') return 'absent';
+  return input.checkInStatus?.toLowerCase() === 'pulled' ? 'pulled' : null;
+}
+
+/** What the Entries "Pulls" view lists: the two acts an exhibitor leaves behind. */
+export function isExhibitorRemoval(kind: EntryRemovalKind | null): boolean {
+  return kind === 'pulled' || kind === 'withdrawn';
+}
+
+export type EntryRemovalCounts = Record<EntryRemovalKind, number>;
+
+export function emptyEntryRemovalCounts(): EntryRemovalCounts {
+  return { pulled: 0, withdrawn: 0, removed: 0, absent: 0 };
+}
+
+const REMOVAL_LABELS: Record<EntryRemovalKind, string> = {
+  pulled: 'pulled',
+  withdrawn: 'withdrawn',
+  removed: 'removed by the secretary',
+  absent: 'absent',
+};
+
+/** "1 pulled, 2 removed by the secretary": every non-zero kind under its true label. */
+export function describeEntryRemovals(counts: EntryRemovalCounts): string {
+  return (Object.keys(REMOVAL_LABELS) as EntryRemovalKind[])
+    .filter(kind => counts[kind] > 0)
+    .map(kind => `${counts[kind]} ${REMOVAL_LABELS[kind]}`)
+    .join(', ');
 }

@@ -30,7 +30,7 @@ describe('showCloseOutShow helpers', () => {
       concerns: [
         '1 class still has unscored entries.',
         'No result submission has been recorded for this show.',
-        '1 pulled entry needs refund review.',
+        '1 paid entry (1 pulled) needs refund review.',
         '2 reportable incidents are still in the incident log.',
       ],
     });

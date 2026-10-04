@@ -1,4 +1,8 @@
 import type { ChipColor } from '@/components/base/Chip';
+import {
+  describeEntryRemovals,
+  type EntryRemovalCounts,
+} from '@/features/payments/pullReconciliation';
 
 export interface CloseoutStatus {
   label: string;
@@ -10,7 +14,7 @@ export type IncidentState =
 
 export interface CloseoutStatusInput {
   reconNeedsReview: boolean;
-  pulledCount: number;
+  removals: EntryRemovalCounts;
   refundReviewCount: number;
   hasEntries: boolean;
   incidents: IncidentState;
@@ -23,7 +27,9 @@ export interface CloseoutStatusInput {
 export function summarizeCloseoutStatus(input: CloseoutStatusInput): CloseoutStatus {
   const segments: string[] = [];
   if (input.reconNeedsReview) {
-    segments.push(`${input.pulledCount} pulled · ${input.refundReviewCount} review`);
+    segments.push(
+      `${describeEntryRemovals(input.removals) || '0 removed'} · ${input.refundReviewCount} review`
+    );
   }
   if (input.incidents.state === 'ready' && input.incidents.reportableCount > 0) {
     segments.push(`${input.incidents.reportableCount} reportable`);

@@ -1,3 +1,4 @@
+import { describeEntryRemovals } from '@/features/payments/pullReconciliation';
 import {
   summarizeShowDayReconciliation,
   type ShowDayReconciliationEntry,
@@ -128,7 +129,7 @@ export function buildCloseoutReadiness(input: CloseoutReadinessInput): CloseoutR
 
   if (reconciliation.refundReviewCount > 0) {
     concerns.push(
-      `${reconciliation.refundReviewCount} pulled ${reconciliation.refundReviewCount === 1 ? 'entry needs' : 'entries need'} refund review.`
+      `${reconciliation.refundReviewCount} paid ${reconciliation.refundReviewCount === 1 ? 'entry' : 'entries'} (${describeEntryRemovals(reconciliation.refundReviewRemovals)}) ${reconciliation.refundReviewCount === 1 ? 'needs' : 'need'} refund review.`
     );
   }
 

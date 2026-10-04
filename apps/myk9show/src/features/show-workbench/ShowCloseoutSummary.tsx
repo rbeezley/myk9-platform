@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { AlertTriangle, FileText } from 'lucide-react';
 import { Chip } from '@/components/base/Chip';
 import { formatCurrency } from '@/lib/utils';
+import { describeEntryRemovals } from '@/features/payments/pullReconciliation';
 import {
   listShowIncidentCloseout,
   showIncidentCloseoutQueryKey,
@@ -34,7 +35,8 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
     queryFn: () => listShowPayments(showId),
   });
   const recon = summarizeShowDayReconciliation(entries, deskWindow, paymentsQuery.data ?? []);
-  const reconNeedsReview = recon.pulledCount > 0 || recon.refundReviewCount > 0;
+  const reconNeedsReview = recon.removalCount > 0 || recon.refundReviewCount > 0;
+  const removalBreakdown = describeEntryRemovals(recon.removals);
   const hasDeskMoney = DESK_PAYMENT_METHODS.some(
     method => recon.byMethod[method.id].count > 0 || recon.byMethod[method.id].amount !== 0
   );
@@ -55,7 +57,7 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
       ? `${formatCurrency(recon.refundReviewAmount)} paid entries`
       : recon.refundedCount > 0
         ? `${recon.refundedCount} already refunded`
-        : 'No paid pulls flagged';
+        : 'No paid removals flagged';
 
   const incidentsQuery = useQuery({
     queryKey: showIncidentCloseoutQueryKey(showId),
@@ -70,7 +72,7 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
 
   const status = summarizeCloseoutStatus({
     reconNeedsReview,
-    pulledCount: recon.pulledCount,
+    removals: recon.removals,
     refundReviewCount: recon.refundReviewCount,
     hasEntries: recon.totalEntryCount > 0,
     incidents: incidentState,
@@ -87,8 +89,8 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
             Show closeout
           </h3>
           <p className="mt-1 text-sm text-muted-foreground">
-            Check the cash box against the payments below, settle pulls, then clear reportable
-            incidents before final filing.
+            Check the cash box against the payments below, settle pulls and removals, then clear
+            reportable incidents before final filing.
           </p>
         </div>
         <Chip color={status.color} size="sm" className="w-fit">
@@ -129,9 +131,12 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
               <p className="text-xs text-muted-foreground">{paymentCountText}</p>
             )}
           </div>
-          <div role="group" aria-label="Pulled or no-show entries">
-            <p className={STAT_LABEL_CLASS}>Pulled / no-show</p>
-            <p className={STAT_VALUE_CLASS}>{recon.pulledCount}</p>
+          <div role="group" aria-label="Pulled or withdrawn entries">
+            <p className={STAT_LABEL_CLASS}>Pulled / withdrawn</p>
+            <p className={STAT_VALUE_CLASS}>{recon.removals.pulled + recon.removals.withdrawn}</p>
+            {removalBreakdown && (
+              <p className="text-xs text-muted-foreground">{removalBreakdown}</p>
+            )}
           </div>
           <div role="group" aria-label="Manual refund review">
             <p className={STAT_LABEL_CLASS}>Refund review</p>
@@ -162,8 +167,8 @@ export function ShowCloseoutSummary({ showId, entries, deskWindow }: ShowCloseou
 
         {recon.refundedCount > 0 && (
           <p className="mt-3 text-sm text-muted-foreground">
-            {recon.refundedCount} pulled {recon.refundedCount === 1 ? 'entry has' : 'entries have'}{' '}
-            {formatCurrency(recon.refundedAmount)} marked refunded.
+            {describeEntryRemovals(recon.refundedRemovals)}: {formatCurrency(recon.refundedAmount)}{' '}
+            marked refunded.
           </p>
         )}
       </div>

@@ -1,3 +1,4 @@
+import { queryKeys } from '@/lib/queryClient';
 import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { buildClassPlacement, type ClassPlacement } from './showMapHandPlacement';
@@ -10,3 +11,7 @@ export async function loadClassPlacement(showId: string, classId: string): Promi
   ]);
   return buildClassPlacement(entries, armbands);
 }
+
+/** Query key of the panel's placement read; the write awaits its refresh. */
+export const classPlacementKey = (showId: string, classId: string) =>
+  [...queryKeys.classEntries(classId), 'placement', showId] as const;

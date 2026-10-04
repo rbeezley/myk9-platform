@@ -3,8 +3,7 @@ import { ArrowDown, ArrowUp, Undo2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { useQuery } from '@tanstack/react-query';
-import { queryKeys } from '@/lib/queryClient';
-import { loadClassPlacement } from '../classPlacementSource';
+import { classPlacementKey, loadClassPlacement } from '../classPlacementSource';
 import { buildHandPlacementRows, type HandPlacementRow } from '../showMapHandPlacement';
 import type { SecretaryCockpitRunOrderControls } from './secretaryCockpitTypes';
 
@@ -137,7 +136,7 @@ export function RunOrderHandPlacement({
     isError,
     refetch,
   } = useQuery({
-    queryKey: [...queryKeys.classEntries(classId), 'placement', showId],
+    queryKey: classPlacementKey(showId, classId),
     queryFn: () => loadClassPlacement(showId, classId),
     networkMode: 'always',
   });

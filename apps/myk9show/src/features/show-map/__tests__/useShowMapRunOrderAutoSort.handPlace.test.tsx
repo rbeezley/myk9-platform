@@ -6,9 +6,10 @@
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { act, renderHook, waitFor } from '@testing-library/react';
-import { QueryClientProvider, onlineManager } from '@tanstack/react-query';
+import { QueryClientProvider, onlineManager, useQuery } from '@tanstack/react-query';
 import { createTestQueryClient } from '@/test/utils/testUtils';
 import { useShowMapRunOrderAutoSort } from '../useShowMapRunOrderAutoSort';
+import { classPlacementKey, loadClassPlacement } from '../classPlacementSource';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 
 const { getEntriesByClassMock, updateEntryMock, toastMock } = vi.hoisted(() => ({
@@ -205,5 +206,61 @@ describe('placeEntry reads the same inputs the panel shows (round 3)', () => {
       e2: 2,
       e3: 3,
     });
+  });
+});
+
+describe('controls stay busy until the panel shows the new order', () => {
+  // The hook plus the panel's placement query, as the cockpit mounts them.
+  const renderWithPanel = () =>
+    renderHook(
+      () => {
+        const sort = useShowMapRunOrderAutoSort({ showId: 's1' });
+        const placement = useQuery({
+          queryKey: classPlacementKey('s1', 'c1'),
+          queryFn: () => loadClassPlacement('s1', 'c1'),
+          networkMode: 'always',
+        });
+        return { sort, placement };
+      },
+      { wrapper: wrapper() }
+    );
+
+  it('a slow refresh keeps the controls disabled until the new data arrives', async () => {
+    const { result } = renderWithPanel();
+    await waitFor(() => expect(result.current.placement.data).toBeDefined());
+
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>(resolve => {
+      release = resolve;
+    });
+    const rows = [e('e1', 1), e('e2', 2, { isScored: true }), e('e3', 3), e('e4', 4)];
+    getEntriesByClassMock.mockImplementation(async () => {
+      await gate;
+      return rows;
+    });
+    // The write itself reads before the gate matters; let it through first.
+    getEntriesByClassMock.mockImplementationOnce(async () => rows);
+
+    act(() => result.current.sort.placeEntry({ classId: 'c1', entryId: 'e4', toPosition: 1 }));
+    await waitFor(() => expect(updateEntryMock).toHaveBeenCalled());
+    await waitFor(() => expect(result.current.placement.isFetching).toBe(true));
+    expect(result.current.sort.isAutoSorting).toBe(true);
+
+    release();
+    await waitFor(() => expect(result.current.sort.isAutoSorting).toBe(false));
+    expect(result.current.placement.isFetching).toBe(false);
+  });
+
+  it('offline, the controls are usable again after the local write', async () => {
+    const { result } = renderWithPanel();
+    await waitFor(() => expect(result.current.placement.data).toBeDefined());
+    onlineManager.setOnline(false);
+    try {
+      act(() => result.current.sort.placeEntry({ classId: 'c1', entryId: 'e4', toPosition: 1 }));
+      await waitFor(() => expect(updateEntryMock).toHaveBeenCalled());
+      await waitFor(() => expect(result.current.sort.isAutoSorting).toBe(false));
+    } finally {
+      onlineManager.setOnline(true);
+    }
   });
 });

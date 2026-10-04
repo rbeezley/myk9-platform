@@ -14,7 +14,7 @@ import {
   type ShowMapAutoSortSnapshotItem,
 } from './showMapRunOrderAutoSort';
 import { movePlacement } from './runOrderPlacementModel';
-import { loadClassPlacement } from './classPlacementSource';
+import { classPlacementKey, loadClassPlacement } from './classPlacementSource';
 import { toPriorSnapshot } from './showMapHandPlacement';
 
 export const AUTO_SORT_UNDO_BANNER_TIMEOUT_MS = 8000;
@@ -84,6 +84,12 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
 
   useEffect(() => () => clearPendingTimer(), [clearPendingTimer]);
 
+  // Returns the placement refresh only. The mutations await it so their
+  // controls stay disabled until the panel shows the new order (a second press
+  // on stale positions would be rejected as a no-op). The other keys are not
+  // awaited: offline their refetches pause, and awaiting one would leave the
+  // controls disabled until reconnect. The placement read is a local replica
+  // read (networkMode 'always'), so it settles offline too.
   const invalidateForClass = useCallback(
     (classId: string) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.show(showId) });
@@ -91,6 +97,7 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
       entryInvalidationKeys({ showId, classId }).forEach(k =>
         queryClient.invalidateQueries({ queryKey: k })
       );
+      return queryClient.invalidateQueries({ queryKey: classPlacementKey(showId, classId) });
     },
     [queryClient, showId]
   );
@@ -143,7 +150,7 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
       toast.error(getUserFriendlyError(error));
     },
     onSettled: (_data, _error, variables) => {
-      if (variables?.classId) invalidateForClass(variables.classId);
+      return variables?.classId ? invalidateForClass(variables.classId) : undefined;
     },
   });
 
@@ -176,7 +183,7 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
       toast.error(getUserFriendlyError(error));
     },
     onSettled: (_data, _error, variables) => {
-      if (variables?.classId) invalidateForClass(variables.classId);
+      return variables?.classId ? invalidateForClass(variables.classId) : undefined;
     },
   });
 
@@ -219,7 +226,7 @@ export function useShowMapRunOrderAutoSort({ showId }: UseShowMapRunOrderAutoSor
       toast.error(getUserFriendlyError(error));
     },
     onSettled: (_data, _error, snapshot) => {
-      if (snapshot?.classId) invalidateForClass(snapshot.classId);
+      return snapshot?.classId ? invalidateForClass(snapshot.classId) : undefined;
     },
   });
 

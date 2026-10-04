@@ -11,9 +11,10 @@ const source = vi.hoisted(() => ({
   mode: 'ok' as 'ok' | 'fail' | 'pending',
   calls: 0,
 }));
-vi.mock('../classPlacementSource', async () => {
+vi.mock('../classPlacementSource', async importOriginal => {
   const { buildClassPlacement } = await import('../showMapHandPlacement');
   return {
+    ...(await importOriginal<typeof import('../classPlacementSource')>()),
     loadClassPlacement: async () => {
       source.calls += 1;
       if (source.mode === 'fail') throw new Error('read failed');

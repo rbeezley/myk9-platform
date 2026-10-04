@@ -35,3 +35,19 @@ export function exportRowsCsv(
 ): void {
   downloadCsv(exportFilename(noun), buildCsvContent(headers, rows));
 }
+
+/**
+ * Removes named columns from an export (a public viewer's CSV leaves out the columns the public
+ * table does not render). A name that is not a header is ignored.
+ */
+export function dropExportColumns<Cell>(
+  headers: readonly string[],
+  rows: ReadonlyArray<ReadonlyArray<Cell>>,
+  drop: readonly string[]
+): { headers: string[]; rows: Cell[][] } {
+  const keep = headers.map(header => !drop.includes(header));
+  return {
+    headers: headers.filter((_, index) => keep[index]),
+    rows: rows.map(row => row.filter((_, index) => keep[index])),
+  };
+}

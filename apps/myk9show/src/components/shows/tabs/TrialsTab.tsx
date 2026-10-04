@@ -6,6 +6,7 @@ import { useViewPreference } from '@/hooks/useViewPreference';
 import { defaultListView } from '@/utils/defaultListView';
 import { useTrialRowActions } from './useTrialRowActions';
 import {
+  GuestExportButton,
   ListEmptyState,
   ListFilterBar,
   ListResultLine,
@@ -222,24 +223,25 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
   }, [viewTrials, tableData]);
 
   // The whole-list export the table's own button used to be (owner decision 4: header Actions menu).
+  const exportTrials = () =>
+    exportRowsCsv(
+      'trials',
+      ['Date', 'Trial Name', 'Type', 'Time', 'Classes', 'Entries', 'Scored', 'Status'],
+      tableData.map(row => [
+        row.trialDate,
+        row.name,
+        row.trialTypeLabel ?? '',
+        row.plannedStartTime ?? '',
+        row.classCount,
+        row.entryCount ?? '',
+        row.completedClasses > 0 ? `${row.completedClasses}/${row.classCount}` : '',
+        trialStatusLabel(row),
+      ])
+    );
   usePageExportAction({
     id: 'trials',
     enabled: viewReady && viewMode === 'table' && tableData.length > 0,
-    run: () =>
-      exportRowsCsv(
-        'trials',
-        ['Date', 'Trial Name', 'Type', 'Time', 'Classes', 'Entries', 'Scored', 'Status'],
-        tableData.map(row => [
-          row.trialDate,
-          row.name,
-          row.trialTypeLabel ?? '',
-          row.plannedStartTime ?? '',
-          row.classCount,
-          row.entryCount ?? '',
-          row.completedClasses > 0 ? `${row.completedClasses}/${row.classCount}` : '',
-          trialStatusLabel(row),
-        ])
-      ),
+    run: exportTrials,
   });
 
   const openWizard = () => navigate(getAddTrialsHref(showId));
@@ -271,6 +273,9 @@ export function TrialsTab({ trials, showId, trialStats }: TrialsTabProps) {
               onShowAll={showAll}
               showAllInEmptyState={filteredTrials.length === 0}
             >
+              {/* Signed-out visitors have no header Actions menu (MYK9-933); the public table
+                  shows every column of this export. */}
+              <GuestExportButton enabled={tableData.length > 0} onExport={exportTrials} />
               <ListViewToggle active={viewMode} onChange={setViewMode} />
             </ListResultLine>
           </>

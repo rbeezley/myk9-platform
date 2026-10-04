@@ -3,6 +3,7 @@ import type { EntrySubmissionOutcome } from '@/services/database/entries';
 import {
   filterClassSelectionsToCreatedOutcomes,
   getCreatedOutcomeTotalFees,
+  getEntrySubmissionDenialMessage,
   hasCreatedEntryOutcome,
   summarizeEntrySubmissionOutcomes,
 } from './entrySubmissionOutcomes';
@@ -75,5 +76,26 @@ describe('entry submission outcome helpers', () => {
       deniedCount: 1,
       overrideCount: 0,
     });
+  });
+
+  it('names a withdrawn or pulled class instead of calling it full (MYK9-980)', () => {
+    const denied = outcomes[2]!;
+    expect(
+      getEntrySubmissionDenialMessage({
+        ...denied,
+        denialReason: 'dog was withdrawn or pulled from this class',
+      })
+    ).toBe(
+      'was withdrawn or pulled from this class, so it cannot be entered online again. The show secretary can add it.'
+    );
+    expect(
+      getEntrySubmissionDenialMessage({
+        ...denied,
+        denialReason: 'dog already on this class wait list for a different exhibitor',
+      })
+    ).toBe('already has an active wait-list spot for another exhibitor.');
+    expect(getEntrySubmissionDenialMessage({ ...denied, denialReason: null })).toBe(
+      'could not be entered because the class is full.'
+    );
   });
 });

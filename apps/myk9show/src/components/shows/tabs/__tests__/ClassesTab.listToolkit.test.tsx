@@ -28,6 +28,12 @@ vi.mock('@/hooks/queries/useJudgesWithQualifications', () => ({
 vi.mock('@/services/database/judges', () => ({ upsertClassJudgeAssignment: vi.fn() }));
 vi.mock('@/services/show-day/classStatusMutations', () => ({ applyManualClassStatus: vi.fn() }));
 
+// Signed in by default (a manager is); a guest test sets this to null.
+let mockUser: { id: string } | null = { id: 'u1' };
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({ user: mockUser }),
+}));
+
 const navigate = vi.hoisted(() => vi.fn());
 vi.mock('react-router-dom', async importOriginal => ({
   ...(await importOriginal<typeof import('react-router-dom')>()),
@@ -64,6 +70,7 @@ describe('ClassesTab list toolkit', () => {
     localStorage.clear();
     mockCanManage = true;
     mockScopeStatus = 'resolved';
+    mockUser = { id: 'u1' };
     navigate.mockReset();
     Element.prototype.scrollIntoView = vi.fn();
   });
@@ -181,6 +188,49 @@ describe('ClassesTab list toolkit', () => {
       localStorage.setItem('view-pref-classes', 'cards');
       renderTab();
       expect(registeredPageExports()).toEqual([]);
+    });
+  });
+
+  // MYK9-933: a signed-out visitor has no header Actions menu, so the export is in the result line.
+  describe('guest Export CSV', () => {
+    beforeEach(() => {
+      mockUser = null;
+      mockCanManage = false;
+    });
+
+    it('shows in the result line in cards view and downloads the table columns', async () => {
+      const { user } = renderTab();
+      const resultLine = screen.getByRole('status').parentElement as HTMLElement;
+      const download = captureCsvDownload();
+      try {
+        await user.click(within(resultLine).getByRole('button', { name: 'Export CSV' }));
+        const lines = download.csv().split('\n');
+        expect(lines[0]).toBe('Trial,Element,Level,Section,Judge,Time,Ring,Status,Entries');
+        expect(lines).toHaveLength(classes.length + 1);
+      } finally {
+        download.restore();
+      }
+    });
+
+    it('leaves Ring out where the public table hides it (scent trials)', async () => {
+      const { user } = render(
+        <ClassesTab classes={classes} showId="s1" userHasEntries={false} hideRing />
+      );
+      const download = captureCsvDownload();
+      try {
+        await user.click(screen.getByRole('button', { name: 'Export CSV' }));
+        expect(download.csv().split('\n')[0]).toBe(
+          'Trial,Element,Level,Section,Judge,Time,Status,Entries'
+        );
+      } finally {
+        download.restore();
+      }
+    });
+
+    it('is absent for a signed-in reader', () => {
+      mockUser = { id: 'u1' };
+      renderTab();
+      expect(screen.queryByRole('button', { name: 'Export CSV' })).not.toBeInTheDocument();
     });
   });
 

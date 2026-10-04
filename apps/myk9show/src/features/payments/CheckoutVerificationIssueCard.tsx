@@ -64,7 +64,7 @@ export function CheckoutVerificationIssueCard({
             {(showRefundReassurance || autoRecheckActive) && (
               <p className="mt-3 text-sm text-muted-foreground max-w-md mx-auto">
                 {showRefundReassurance &&
-                  'If your entries could not be placed, your payment will be refunded in full. '}
+                  'If your entries could not be placed, your entry fees will be refunded (the service fee is not refundable). '}
                 {autoRecheckActive && 'This page keeps checking and will update on its own.'}
               </p>
             )}

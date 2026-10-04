@@ -3,9 +3,9 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /**
- * Regression contract for the bulk make-whole show-refund WIRING — the parts a
+ * Regression contract for the cancelled-show bulk refund WIRING — the parts a
  * pure helper (showRefundPlan / showRefundReuse) can't cover: authz, the
- * payout guard, full-intent refunds, per-entry fee stamping, the single-show
+ * payout guard, entry-fee-only refunds, per-entry fee stamping, the single-show
  * guard, and bounded concurrency.
  */
 const source = readFileSync(
@@ -29,15 +29,15 @@ describe('stripe-refund-show wiring', () => {
     expect(source).toContain('payout_in_progress');
   });
 
-  it('refunds each PaymentIntent in FULL (no amount → make-whole) and tags it for reuse', () => {
-    // No `amount` in the refund payload → Stripe refunds the full remaining
-    // charge (entry fees + platform fee). The show tag drives idempotent reuse.
-    expect(source).toContain('stripe.refunds.create');
-    expect(source).toContain('metadata: { show_refund: showId }');
-    expect(source).toContain('idempotencyKey: `refund-show-');
+  it('refunds each PaymentIntent its ENTRY FEES only (MYK9-966) and tags it for reuse', () => {
+    // The amount and the show tag come from showRefundCreateParams, whose
+    // behavior (explicit entry-fee amount, never the service fee) is pinned in
+    // _shared/refundNeverReturnsServiceFee.test.ts. Here: the edge fn uses it.
+    expect(source).toContain('stripe.refunds.create(showRefundCreateParams(group, showId)');
+    expect(source).toContain('idempotencyKey: `refund-show-entry-fees-');
     expect(source).toContain('findReusableShowRefund');
-    // It must NOT pass an amount on the make-whole create (that would cap it).
-    expect(source).not.toMatch(/refunds\.create\(\s*\{[^}]*amount/);
+    // No hand-built, amount-less create may come back beside it.
+    expect(source.match(/stripe\.refunds\.create\(/g)).toHaveLength(1);
   });
 
   it('requires the show to be cancelled before any money moves (review #974 #1a)', () => {

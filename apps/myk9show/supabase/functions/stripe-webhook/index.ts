@@ -23,7 +23,14 @@ import {
   resolveAcceptedEntrySnapshot,
   refundKindFromMetadata,
 } from '../_shared/orderSnapshot.ts';
-import { loadEntryPaymentLineItemFeesFromStripe } from '../_shared/entryPaymentLineItems.ts';
+import {
+  loadChargedLinesFromStripe,
+  loadEntryPaymentLineItemFeesFromStripe,
+} from '../_shared/entryPaymentLineItems.ts';
+import {
+  chargedEntryFeesRefundCents,
+  parseStampedEntryIds,
+} from '../_shared/unservedChargeRefund.ts';
 import {
   resolveWithdrawalPolicy,
   type ShowWithdrawalColumns,
@@ -1058,7 +1065,16 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
       cartId,
       sessionId: session.id,
       paymentIntentId: extractPaymentIntentId(session.payment_intent),
-      amountCents: abandonedGate.amountTotalCents,
+      // The entry fees STRIPE charged; the service fee is kept (MYK9-966).
+      amountCents: chargedEntryFeesRefundCents({
+        lines: await loadChargedLines(session.id),
+        expected: { entryLineCount: cart.items?.length ?? 0 },
+        amountTotalCents: abandonedGate.amountTotalCents,
+        rates: decodeStampedPlatformFeeRates(
+          abandonedSession.metadata,
+          Deno.env.get('PLATFORM_FEE_PERCENT')
+        ),
+      }),
     });
     if (outcome !== 'not_refundable') return;
   }
@@ -1319,7 +1335,12 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
         cartId,
         sessionId: session.id,
         paymentIntentId: dupIntentId,
-        amountCents: freshTotalCents,
+        amountCents: chargedEntryFeesRefundCents({
+          lines: await loadChargedLines(session.id),
+          expected: { entryLineCount: cart.items?.length ?? 0 },
+          amountTotalCents: freshTotalCents,
+          rates: stampedFeeRates,
+        }),
       });
       if (abandonedOutcome !== 'not_refundable') return;
     }
@@ -1663,12 +1684,16 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
 
   console.log(`Created ${entryIds.length} entries from cart ${cartId}`);
 
-  // Immutable financial snapshot (MYK9-54): the platform fee on the paid-entry
-  // subtotal at the rate applied at charge time, plus Stripe's actual processing
-  // fee. A missing processing fee stays NULL (pending), never an estimated zero.
+  // Immutable financial snapshot (MYK9-54): the FULL service fee charged on
+  // every line, served or not, at the stamped rate — the platform keeps it
+  // (MYK9-966) — plus Stripe's actual processing fee. A missing processing fee
+  // stays NULL (pending), never an estimated zero.
   const snapshotProcessingFeeCents = await fetchProcessingFeeCents(paymentIntentId);
   const snapshotPlatformFeeCents = calculatePlatformFeeCents(
-    paidEntrySubtotalCents,
+    [...paidLineIds, ...noServiceLineIds].reduce(
+      (sum, id) => sum + (lineAmountsById.get(id) ?? 0),
+      0
+    ),
     stampedFeeRates
   );
 
@@ -1870,7 +1895,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       `<p>Checkout session <code>${session.id}</code> (entry_payment_request) was PAID,
        but no <code>entry_payment_links</code> row matches it. No entries were marked
        paid and Stripe will not retry.</p>
-       <p>The full charge is queued for refund approval. ${RESOLVE_INSTEAD_HTML}</p>`,
+       <p>The charge's entry fees are queued for refund approval (never the service
+       fee, MYK9-966). ${RESOLVE_INSTEAD_HTML}</p>`,
       { source: 'stripe-webhook', dedupeKey: `payment-link-no-record-${session.id}` }
     );
     // No link row, so no latch: the refund request is the only write, and a
@@ -1881,7 +1907,16 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       linkId: null,
       closeLinkFrom: null,
       owed: {
-        amountCents: freshAmountTotalCents,
+        // Every line is unserved; null (not fully attributable) takes the missing-inputs alert.
+        amountCents: chargedEntryFeesRefundCents({
+          lines: await loadChargedLines(session.id),
+          expected: { entryIds: parseStampedEntryIds(freshSession.metadata?.entry_ids) },
+          amountTotalCents: freshAmountTotalCents,
+          rates: decodeStampedPlatformFeeRates(
+            freshSession.metadata,
+            Deno.env.get('PLATFORM_FEE_PERCENT')
+          ),
+        }),
         reason: 'no_link_record',
         detail: { invalid_entry_ids: [] },
         summaryHtml: 'A payment-link charge could not be honored in full.',
@@ -2156,7 +2191,12 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
   // order AND forced `amount == subtotal + fee` to hold by construction, which
   // made the tie-out `amount == subtotal + fee + make_whole` fail by exactly the
   // refund. Capture Stripe's actual processing fee (NULL = pending, never zero).
-  const linkFeeSplit = resolveAcceptedEntrySnapshot(paidIds, entryFeesById, linkFeeRates);
+  const linkFeeSplit = resolveAcceptedEntrySnapshot(
+    paidIds,
+    entryFeesById,
+    linkFeeRates,
+    updateOutcome.invalidEntryIds
+  );
   if (linkFeeSplit.status === 'unverifiable') {
     // Columns stay NULL (rate-unverifiable), never a guessed number that would
     // silently enter platform income reporting.
@@ -2232,9 +2272,8 @@ async function handleEntryPaymentRequestCompleted(session: Stripe.Checkout.Sessi
       `<p>Session <code>${session.id}</code> paid for entries that were already paid:
        <code>${updateOutcome.alreadyPaidEntryIds.join(', ')}</code> (payment intent
        <code>${paymentIntentId ?? 'unknown'}</code>).</p>
-       <p>The invalid portion is queued for refund approval; if the exhibitor received
-       no new paid entries, the queued refund is the full charge including platform fee.
-       ${RESOLVE_INSTEAD_HTML}</p>`,
+       <p>The invalid entries' fees are queued for refund approval; the service fee is
+       never refunded (MYK9-966). ${RESOLVE_INSTEAD_HTML}</p>`,
       { source: 'stripe-webhook', dedupeKey: `payment-link-already-paid-${session.id}` }
     );
   }
@@ -2457,6 +2496,16 @@ async function expireRecoveredEntryPaymentLinks(entryId: string, sessionId: stri
         { source: 'stripe-webhook', dedupeKey: `recovered-entry-link-expire-${link.id}` }
       );
     }
+  }
+}
+
+/** Every charged line of a session, or null (unreadable or over one page). */
+async function loadChargedLines(sessionId: string) {
+  try {
+    return await loadChargedLinesFromStripe(stripe.checkout.sessions, sessionId);
+  } catch (err) {
+    console.error(`Could not load line items for session ${sessionId}:`, err);
+    return null;
   }
 }
 

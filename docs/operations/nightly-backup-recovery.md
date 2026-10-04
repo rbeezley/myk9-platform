@@ -68,7 +68,7 @@ was not changed by these tests. These are observed clone durations, not accepted
 | Simulated damage                         | Five scored entries had `total_score`, `search_time_seconds`, `total_faults`, `points_earned` cleared and `is_scored` set false; 5/5 confirmed damaged    |
 | Recovery                                 | 5/5 exactly matched backup scoring values; 5/5 advanced version and timestamp                                                                             |
 | Preservation                             | Newer secretary note survived; zero non-scoring-field changes against pre-damage baseline; zero changes to other-show entries/classes or any shows/trials |
-| Placements                               | Zero mismatches against independent ranking; Container Novice A [1,2,3], Interior Advanced Preliminary [1,2]; both completed and finalized                |
+| Placements                               | Zero mismatches against independent ranking; Container Novice A [1,2,3], Interior Advanced (`...040`) [1,2]; both completed and finalized                 |
 | Second clone cleanup                     | Awaiting owner confirmation for permanent deletion                                                                                                        |
 
 The second test saved backup rows in private `dr_myk9110` staging, added a newer secretary note,

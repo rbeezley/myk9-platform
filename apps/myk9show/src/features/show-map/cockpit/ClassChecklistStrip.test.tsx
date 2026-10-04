@@ -23,7 +23,7 @@ describe('ClassChecklistStrip', () => {
     // Unknown is an outline, never a fill that could read as done or not done.
     expect(squares[2]).toHaveClass('border-dashed');
     expect(squares[2]?.className).not.toMatch(/\bbg-/);
-    expect(screen.getByText('1 of 4 done · 1 unknown')).toBeInTheDocument();
+    expect(screen.getByText('1 of 4 steps done · 1 unknown')).toBeInTheDocument();
   });
 
   it('leaves out the unknown count when nothing is unknown', () => {
@@ -31,6 +31,6 @@ describe('ClassChecklistStrip', () => {
       <ClassChecklistStrip summary={{ done: 2, total: 2, unknown: 0, states: ['done', 'done'] }} />
     );
 
-    expect(screen.getByText('2 of 2 done')).toBeInTheDocument();
+    expect(screen.getByText('2 of 2 steps done')).toBeInTheDocument();
   });
 });

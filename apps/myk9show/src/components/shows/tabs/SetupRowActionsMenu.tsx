@@ -7,7 +7,8 @@ interface SetupRowActionsMenuProps {
   /** The row's own name, so every trigger on the page has a distinct label. */
   rowLabel: string;
   onEdit: () => void;
-  onDelete: () => void;
+  /** Omit where Delete lives only in the edit panel's footer (the show home). */
+  onDelete?: (() => void) | undefined;
   /** The row's data is still being prepared: the menu is disabled and announces it. */
   busy?: boolean;
   /** Another row's action is being prepared: disabled, but this row's own label is kept. */
@@ -44,14 +45,18 @@ export function SetupRowActionsMenu({
     ...extraActions.map((action, index) =>
       index === 0 ? { ...action, separatorBefore: true } : action
     ),
-    {
-      id: 'delete',
-      label: `Delete ${subject}`,
-      icon: <Trash2 />,
-      onSelect: onDelete,
-      variant: 'destructive',
-      separatorBefore: hasExtras,
-    },
+    ...(onDelete
+      ? [
+          {
+            id: 'delete',
+            label: `Delete ${subject}`,
+            icon: <Trash2 />,
+            onSelect: onDelete,
+            variant: 'destructive' as const,
+            separatorBefore: hasExtras,
+          },
+        ]
+      : []),
   ];
 
   return (

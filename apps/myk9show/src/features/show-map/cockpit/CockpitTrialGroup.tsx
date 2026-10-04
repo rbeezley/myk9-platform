@@ -40,9 +40,9 @@ function plural(count: number, one: string, many: string): string {
 
 /**
  * One trial on the show home's schedule (MYK9-955). Collapsible like the old
- * Overview schedule (owner, 2026-10-02): the chevron turns, and the pill reads
- * `N classes · N entries` once entries are read, the total being the rows'
- * entered + pending so the header and rows agree.
+ * Overview schedule (owner, 2026-10-02): the chevron turns, and the summary
+ * reads `N entries · N classes (N in progress)` once entries are read, the
+ * total being the rows' entered + pending so the header and rows agree.
  */
 export function CockpitTrialGroup({
   group,
@@ -61,7 +61,7 @@ export function CockpitTrialGroup({
   onFocusClass: (classId: string) => void;
   inlineFocusedContent?: ReactNode;
   entryBreakdownByClassId?: ReadonlyMap<string, ClassEntryBreakdown> | undefined;
-  /** Add Classes and the trial's Edit / Delete menu (MYK9-956), for managers. */
+  /** Add Classes and the trial's Edit / Trial details menu (MYK9-956), for managers. */
   trialActions?: ReactNode;
 }) {
   const [open, setOpen] = useState(group.defaultOpen);
@@ -75,9 +75,12 @@ export function CockpitTrialGroup({
           return sum + breakdown.entered + breakdown.pending;
         }, 0)
     : null;
-  const pill = [
-    plural(group.summary.classCount, 'class', 'classes'),
+  // One line, so the heading never wraps (owner, 2026-10-03). "In progress"
+  // counts classes, so it rides inside the class count's parentheses.
+  const summary = [
     entryTotal === null ? null : plural(entryTotal, 'entry', 'entries'),
+    `${plural(group.summary.classCount, 'class', 'classes')} (${group.summary.inProgressCount} in progress)`,
+    group.summary.attentionCount > 0 ? `${group.summary.attentionCount} need attention` : null,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -102,17 +105,8 @@ export function CockpitTrialGroup({
             </span>
             <div className="min-w-0 flex-1 basis-[calc(100%-1.75rem)] sm:basis-0">
               <div className="font-semibold">{group.label}</div>
-              <div className="text-xs font-normal text-muted-foreground">
-                {group.summary.inProgressCount} in progress
-                {group.summary.attentionCount > 0
-                  ? ` · ${plural(group.summary.attentionCount, 'attention item', 'attention items')}`
-                  : ''}
-                {group.summary.containsFocusedClass ? ' · Focused' : ''}
-              </div>
+              <div className="text-xs font-normal text-muted-foreground">{summary}</div>
             </div>
-            <span className="ml-7 shrink-0 rounded-full bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground sm:ml-0">
-              {pill}
-            </span>
           </CollapsibleTrigger>
           {trialActions && (
             <div className="flex items-center gap-1 px-2 pb-2 sm:pb-0">{trialActions}</div>
@@ -123,6 +117,15 @@ export function CockpitTrialGroup({
             {group.classes.map((classItem, classIndex) => {
               const focused = model.focusedClass?.id === classItem.id;
               const breakdown = breakdownFor(classItem.id);
+              const progress = classItem.progress.value;
+              // Before scoring can begin the count would only ever read "0 of N".
+              const scored =
+                progress &&
+                (progress.completed > 0 ||
+                  classItem.lifecycle.value === 'in-progress' ||
+                  classItem.lifecycle.value === 'complete')
+                  ? progress
+                  : null;
               return (
                 <Fragment key={classItem.id}>
                   {group.nowMarkerIndex === classIndex && (
@@ -146,7 +149,14 @@ export function CockpitTrialGroup({
                     )}
                   >
                     <div className="w-[4.5rem] shrink-0 whitespace-nowrap text-sm font-semibold">
-                      {classItem.expectedStart ? (
+                      {classItem.startedLabel ? (
+                        <>
+                          {classItem.startedLabel}
+                          <span className="block text-xs font-normal text-muted-foreground">
+                            started
+                          </span>
+                        </>
+                      ) : classItem.expectedStart ? (
                         classItem.timeLabel
                       ) : (
                         <span className="font-normal text-muted-foreground">No time</span>
@@ -179,7 +189,17 @@ export function CockpitTrialGroup({
                             .filter(Boolean)
                             .join(' · ')}
                         </span>
-                        {breakdown && (
+                        {/* Once scoring can have begun, "2 of 2 scored" replaces the
+                            entered count, which it already states (owner, 2026-10-03). */}
+                        {scored && (
+                          <>
+                            <span aria-hidden="true">·</span>
+                            <span>
+                              {scored.completed} of {scored.total} scored
+                            </span>
+                          </>
+                        )}
+                        {breakdown && (!scored || breakdown.pending > 0) && (
                           <>
                             <span aria-hidden="true">·</span>
                             <ClassEntryBreakdownLine
@@ -188,6 +208,7 @@ export function CockpitTrialGroup({
                               trialId={classItem.trialId}
                               classId={classItem.id}
                               className={classItem.name}
+                              hideEntered={Boolean(scored)}
                             />
                           </>
                         )}

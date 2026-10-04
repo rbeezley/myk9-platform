@@ -7,7 +7,7 @@ import {
   isSyntheticDisplayActionNode,
   sourceIdFromNodeId,
 } from '../showMapActionHelpers';
-import type { ShowMapNode } from '../showMapTypes';
+import type { ShowMapNode, ShowMapTree } from '../showMapTypes';
 
 function makeNode(overrides: Partial<ShowMapNode> & Pick<ShowMapNode, 'id' | 'type'>): ShowMapNode {
   return {
@@ -115,17 +115,53 @@ describe('showMapActionHelpers', () => {
   });
 
   it('MYK9-825: rejects Move up for a moved (or otherwise muted) entry, allows it for an ordinary one', () => {
-    expect(canMoveUpEntry(makeNode({ id: 'entry:ready', type: 'entry' }))).toBe(true);
+    const notStarted = makeNode({
+      id: 'class:c',
+      type: 'class',
+      status: { value: 'scheduled', label: 'Not started', kind: 'neutral' },
+    });
+    const tree = { nodesById: { 'class:c': notStarted } } as unknown as ShowMapTree;
+    expect(
+      canMoveUpEntry(makeNode({ id: 'entry:ready', type: 'entry', parentId: 'class:c' }), tree)
+    ).toBe(true);
     expect(
       canMoveUpEntry(
         makeNode({
           id: 'entry:moved',
           type: 'entry',
+          parentId: 'class:c',
           status: { value: 'moved', label: 'Moved', kind: 'muted' },
-        })
+        }),
+        tree
       )
     ).toBe(false);
-    expect(canMoveUpEntry(makeNode({ id: 'class:not-an-entry', type: 'class' }))).toBe(false);
+    expect(canMoveUpEntry(makeNode({ id: 'class:not-an-entry', type: 'class' }), tree)).toBe(false);
+  });
+
+  it('offers Move up only before the dog runs, in a class that has not started (owner, 2026-10-03)', () => {
+    const classNode = (kind: 'neutral' | 'active' | 'complete') =>
+      ({
+        nodesById: {
+          'class:c': makeNode({
+            id: 'class:c',
+            type: 'class',
+            status: { value: kind, label: kind, kind },
+          }),
+        },
+      }) as unknown as ShowMapTree;
+    const entry = (kind?: 'complete' | 'active') =>
+      makeNode({
+        id: 'entry:e',
+        type: 'entry',
+        parentId: 'class:c',
+        ...(kind && { status: { value: kind, label: kind, kind } }),
+      });
+
+    expect(canMoveUpEntry(entry(), classNode('active'))).toBe(false);
+    expect(canMoveUpEntry(entry(), classNode('complete'))).toBe(false);
+    expect(canMoveUpEntry(entry('complete'), classNode('neutral'))).toBe(false);
+    expect(canMoveUpEntry(entry('active'), classNode('neutral'))).toBe(false);
+    expect(canMoveUpEntry(entry(), classNode('neutral'))).toBe(true);
   });
 
   it('MYK9-976: Move up needs an accepted entry, not a pending, withdrawn or not-accepted one', () => {
@@ -133,12 +169,16 @@ describe('showMapActionHelpers', () => {
       makeNode({
         id: `entry:${entryStatus}`,
         type: 'entry',
+        parentId: 'class:c',
         entryDisplay: { dogName: 'Juni', entryStatus },
       });
+    const notStarted = {
+      nodesById: { 'class:c': makeNode({ id: 'class:c', type: 'class' }) },
+    } as unknown as ShowMapTree;
 
-    expect(canMoveUpEntry(withStatus('confirmed'))).toBe(true);
+    expect(canMoveUpEntry(withStatus('confirmed'), notStarted)).toBe(true);
     for (const status of ['submitted', 'pending', 'withdrawn', 'scratched', 'not_accepted']) {
-      expect(canMoveUpEntry(withStatus(status)), status).toBe(false);
+      expect(canMoveUpEntry(withStatus(status), notStarted), status).toBe(false);
     }
   });
 });

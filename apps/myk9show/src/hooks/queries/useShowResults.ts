@@ -41,7 +41,7 @@ async function fetchShowResults(showId: string): Promise<ClassResult[]> {
   const { data, error } = (await (supabase as any)
     .from('view_public_entry_results')
     .select(
-      'class_id, class_name, class_element, class_level, class_results_released_at, trial_id, handler, dog_call_name, dog_breed, armband, final_placement'
+      'class_id, class_name, class_element, class_level, class_results_released_at, trial_id, dog_id, handler, dog_call_name, dog_breed, armband, final_placement'
     )
     .eq('show_id', showId)
     .eq('is_scored', true)

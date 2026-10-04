@@ -1,5 +1,3 @@
-import { readFileSync, readdirSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { isPrivateResultRow, PRIVATE_ENTRY_LABEL } from './resultsPrivacy';
 import { publicRowToRawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
@@ -54,37 +52,29 @@ const NAMED_ROW: PublicEntryRow = {
 describe('isPrivateResultRow (MYK9-969)', () => {
   it('trusts results_private when the read carried it', () => {
     expect(isPrivateResultRow({ results_private: true, dog_id: 'dog-1' })).toBe(true);
+    expect(isPrivateResultRow({ results_private: false, dog_id: null })).toBe(false);
+  });
+
+  it("recognises the public view's anonymised row by its null dog id", () => {
+    expect(isPrivateResultRow(ANONYMISED_ROW)).toBe(true);
+    expect(isPrivateResultRow({ dog_id: null })).toBe(true);
+  });
+
+  // Codex round 5: a real dog may be NAMED "Private entry". Only the server's
+  // explicit signals classify a row, never the display name.
+  it('never classifies by the display name', () => {
+    expect(isPrivateResultRow(NAMED_ROW)).toBe(false);
     expect(
-      isPrivateResultRow({ results_private: false, dog_id: null, dog_call_name: 'Private entry' })
+      isPrivateResultRow({
+        dog_id: 'dog-9',
+        dog_call_name: PRIVATE_ENTRY_LABEL,
+        dog_name: PRIVATE_ENTRY_LABEL,
+      } as never)
     ).toBe(false);
   });
 
-  it("recognises the public view's anonymised row when results_private was not selected", () => {
-    expect(isPrivateResultRow(ANONYMISED_ROW)).toBe(true);
-    expect(isPrivateResultRow({ dog_call_name: PRIVATE_ENTRY_LABEL })).toBe(true);
-  });
-
-  it('does not treat a named row, or a dog literally named so with an id, as private', () => {
-    expect(isPrivateResultRow(NAMED_ROW)).toBe(false);
-    expect(isPrivateResultRow({ dog_id: 'dog-9', dog_call_name: PRIVATE_ENTRY_LABEL })).toBe(false);
-  });
-
-  it('uses the same words as the SQL view it recognises', () => {
-    // The explicit public selects do not carry results_private, so this label
-    // is how they recognise the row. Read the LATEST view definition.
-    const migrationsDir = resolve(import.meta.dirname, '../../../../supabase/migrations');
-    const defining = readdirSync(migrationsDir)
-      .filter(name => name.endsWith('.sql'))
-      .sort()
-      .filter(name =>
-        /CREATE\s+(OR\s+REPLACE\s+)?VIEW\s+public\.view_public_entry_results\b/i.test(
-          readFileSync(resolve(migrationsDir, name), 'utf8')
-        )
-      );
-    const latest = readFileSync(resolve(migrationsDir, defining[defining.length - 1]!), 'utf8');
-    expect(latest).toContain(
-      `CASE WHEN privacy.masked THEN '${PRIVATE_ENTRY_LABEL}'::text ELSE d.call_name END AS dog_call_name`
-    );
+  it('a select that did not ask for dog_id is never classified private', () => {
+    expect(isPrivateResultRow({})).toBe(false);
   });
 });
 

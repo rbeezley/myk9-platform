@@ -17,10 +17,10 @@
  */
 
 /**
- * The dog name the public results view returns for an anonymised entry.
- * Must equal the SQL literal in `view_public_entry_results`
- * (migration 20261004152300) — the explicit public selects do not carry
- * `results_private`, so the label is how they recognise the row.
+ * The dog name the public results view returns for an anonymised entry
+ * (the SQL literal in `view_public_entry_results`, migration 20261004152300).
+ * Display text only: a real dog can be named this, so nothing may classify a
+ * row by it — use `isPrivateResultRow`.
  */
 export const PRIVATE_ENTRY_LABEL = 'Private entry';
 
@@ -30,20 +30,22 @@ export const RESULTS_PRIVATE_LABEL = 'Results private';
 interface PrivacyMarkedRow {
   results_private?: unknown;
   dog_id?: unknown;
-  dog_call_name?: unknown;
-  dog_name?: unknown;
 }
 
 /**
- * True when the server masked this row's results for the current viewer.
- * Reads `results_private` when the select carried it; otherwise recognises the
- * public view's anonymised shape (no dog id, the "Private entry" name).
+ * True when the server anonymised this row for the current viewer. Only the
+ * server's explicit signals count, never the display name (a real dog may be
+ * called "Private entry"):
+ *
+ *   - `results_private`, when the read carried it;
+ *   - otherwise `dog_id === null`: the public view nulls the dog id of every
+ *     anonymised row. The explicit selects name `dog_id` (an existing column)
+ *     rather than `results_private`, so they keep working before the migration
+ *     is pushed. A select that did not ask for `dog_id` (undefined) is never
+ *     classified private.
  */
 export function isPrivateResultRow(row: PrivacyMarkedRow): boolean {
   if (row.results_private === true) return true;
   if (row.results_private === false) return false;
-  return (
-    row.dog_id == null &&
-    (row.dog_call_name === PRIVATE_ENTRY_LABEL || row.dog_name === PRIVATE_ENTRY_LABEL)
-  );
+  return row.dog_id === null;
 }

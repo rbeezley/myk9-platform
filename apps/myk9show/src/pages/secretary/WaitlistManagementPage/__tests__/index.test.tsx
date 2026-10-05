@@ -6,7 +6,7 @@
  */
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render } from '@/test/utils/testUtils';
+import { render, createTestQueryClient } from '@/test/utils/testUtils';
 import type { JudgeDayCapacity } from '@/types/waitlist-types';
 import WaitlistManagementPage from '../index';
 
@@ -173,6 +173,7 @@ describe('WaitlistManagementPage', () => {
     viewWaitList('Judge One');
 
     await waitFor(() => expect(screen.queryByText('Otherjudge')).not.toBeInTheDocument());
+    await screen.findByText('Tera');
     const headings = screen
       .getAllByRole('heading', { level: 3 })
       .map(h => h.textContent ?? '')
@@ -257,7 +258,7 @@ describe('WaitlistManagementPage', () => {
     await screen.findByText('Otherjudge');
     viewWaitList('Judge One');
     await waitFor(() => expect(screen.queryByText('Otherjudge')).not.toBeInTheDocument());
-    expect(screen.getByText('Bella')).toBeInTheDocument();
+    expect(await screen.findByText('Bella')).toBeInTheDocument();
 
     state.holdC3 = { resolve: () => undefined };
     viewWaitList('Judge Two');
@@ -292,6 +293,40 @@ describe('WaitlistManagementPage', () => {
 
     await waitFor(() =>
       expect(vi.mocked(getWaitlistByClass).mock.calls.length).toBeGreaterThan(before)
+    );
+  });
+
+  // Codex round 2: a mounted tab handed another show kept the old show's rows, actionable.
+  it("hides the old show's rows at once when the show changes, and while the new read fails", async () => {
+    const { getClassesWithWaitlistCounts } = await import('@/services/database/waitlists');
+    const { rerender } = render(<WaitlistManagementPage showId="show-1" />);
+    expect(await screen.findByText('Bella')).toBeInTheDocument();
+
+    vi.mocked(getClassesWithWaitlistCounts).mockReturnValueOnce(new Promise(() => undefined));
+    rerender(<WaitlistManagementPage showId="show-2" />);
+    expect(screen.queryByText('Bella')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /offer spot|remove/i })).not.toBeInTheDocument();
+
+    vi.mocked(getClassesWithWaitlistCounts).mockResolvedValueOnce({
+      data: [],
+      error: new Error('down'),
+    } as never);
+    rerender(<WaitlistManagementPage showId="show-3" />);
+    expect(await screen.findByText(/Failed to load classes/)).toBeInTheDocument();
+    expect(screen.queryByText('Bella')).not.toBeInTheDocument();
+  });
+
+  it('re-reads the judge-day capacity cards when the replica reports a change', async () => {
+    const { judgeDayCapacityKey } = await import('@/hooks/queries/useJudgeDayCapacity');
+    const queryClient = createTestQueryClient();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    render(<WaitlistManagementPage showId="show-1" />, { queryClient });
+    await screen.findByText('Bella');
+
+    state.replicaListeners.forEach(cb => cb());
+
+    await waitFor(() =>
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: judgeDayCapacityKey('show-1') })
     );
   });
 });

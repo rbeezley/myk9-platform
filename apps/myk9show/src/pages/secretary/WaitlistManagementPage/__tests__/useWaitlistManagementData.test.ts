@@ -82,7 +82,7 @@ describe('useWaitlistManagementData — offer notification', () => {
     const { result } = renderHook(() => useWaitlistManagementData('show-77'), {
       wrapper: createWrapper(),
     });
-    await waitFor(() => expect(result.current.isLoadingClasses).toBe(false));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
     act(() => {
       result.current.setActionDialog({ open: true, action: 'offer', entry });
     });
@@ -178,7 +178,7 @@ describe('useWaitlistManagementData — offer notification', () => {
       wrapper: ({ children }: { children: React.ReactNode }) =>
         React.createElement(QueryClientProvider, { client: queryClient }, children),
     });
-    await waitFor(() => expect(result.current.isLoadingClasses).toBe(false));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
     act(() => {
       result.current.setActionDialog({ open: true, action: 'offer', entry: sampleEntry });
     });

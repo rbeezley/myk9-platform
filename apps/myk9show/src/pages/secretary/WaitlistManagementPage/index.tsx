@@ -37,8 +37,7 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
     selectedJudgeDay,
     waitlistEntries,
     groups,
-    isLoadingClasses,
-    isLoadingWaitlist,
+    isLoading,
     isProcessing,
     error,
     searchTerm,
@@ -53,7 +52,6 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
   } = useWaitlistManagementData(showId);
 
   const shownCount = groups.reduce((sum, g) => sum + g.entries.length, 0);
-  const isLoading = isLoadingClasses || isLoadingWaitlist;
 
   // One export for the whole page: exactly the rows on screen, class by class.
   usePageExportAction({
@@ -105,7 +103,7 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="flex items-center justify-between gap-2">
             {error}
-            <Button variant="outline" size="sm" onClick={reload}>
+            <Button variant="outline" size="sm" onClick={() => void reload()}>
               Try again
             </Button>
           </AlertDescription>

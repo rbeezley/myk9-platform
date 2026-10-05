@@ -1,19 +1,17 @@
 import React, { Suspense, lazy, useState, useEffect } from 'react';
-import { Outlet, useNavigate, useSearchParams } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
-import { DetailHero } from '@/components/common/DetailHero';
 import { ErrorState } from '@/components/common/ErrorState';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
-import { ShowDateBlock } from '@/components/shows/ShowDateBlock';
-import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
 import { ShowCompactHeader } from './ShowCompactHeader';
 import { ShowHeaderControls } from './ShowHeaderControls';
-import { SHOW_STICKY_OFFSET_CLASS, SHOW_TAB_STRIP_CLASS } from './showStickyLayout';
-import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
-import { LandingPageCard } from '@/features/premium/LandingPageCard';
+import { PublishAttentionChip } from './PublishAttentionChip';
+import { PUBLISH_PANEL_ANCHORS, ShowDetailsPanel } from './ShowDetailsPanel';
+import { useShowDetailsDisclosure } from './useShowDetailsDisclosure';
+import { SHOW_TAB_STRIP_CLASS } from './showStickyLayout';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
 import { showDeleteDetail } from '@/features/delete';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -24,7 +22,6 @@ import { TabsContent } from '@/components/ui/tabs';
 import { AboutThisShowCard } from '@/components/shows/overview/AboutThisShowCard';
 import { HomeClassSelection } from './HomeClassSelection';
 import { SELECT_CLASSES } from '@/pages/secretary/selectClassesRoutes';
-import { getShowStyle } from '@/features/registries';
 import {
   premiumPublishDraftKey,
   runPremiumPublishOperation,
@@ -44,7 +41,6 @@ import {
 import { useShowStore, type ShowInput } from '@/store/showStore';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { SHOW_TABS, type ShowTabId } from '@/routes/showManagementSections';
-import { SETUP_PUBLISH_ANCHOR } from '@/features/show-workbench/setupReadinessSignals';
 import type { Show } from '@/types/show-types';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
@@ -222,8 +218,15 @@ function AuthorizedShowManagementShell({
   const handleShowDeleted = () => navigate('/shows');
 
   const headerControls = <ShowHeaderControls show={show} />;
-  // Overview keeps the full hero; the work tabs get a one-line header that stays pinned.
-  const compactHeader = Boolean(activeManagementSection);
+  const isOverview = !activeManagementSection;
+  // One header on every tab; the show's details (and on Overview the publishing cards) open under
+  // it. A link to something inside the panel (`#setup-publish`) opens it, so its target exists.
+  const { hash } = useLocation();
+  const detailsAnchor = hash.slice(1);
+  const details = useShowDetailsDisclosure(
+    isOverview && PUBLISH_PANEL_ANCHORS.has(detailsAnchor) ? detailsAnchor : null
+  );
+  const detailsEntryCount = entryDataUnavailable ? null : catalogEntryCount;
 
   return (
     <>
@@ -236,40 +239,33 @@ function AuthorizedShowManagementShell({
             actions={<ShowPageHeaderActions showId={show.id} armbandCount={armbandCount} />}
           />
 
-          {compactHeader ? (
-            <ShowCompactHeader
-              name={show.name || 'Untitled Show'}
-              organization={show.organization}
-              startDate={show.startDate}
-              endDate={show.endDate}
-              parent={showHeroParent(show, { viewer: heroViewer })}
-              entryCount={entryDataUnavailable ? null : catalogEntryCount}
-              controls={headerControls}
-            />
-          ) : (
-            <DetailHero
-              cover={
-                show.startDate ? (
-                  <ShowDateBlock startDate={show.startDate} endDate={show.endDate} />
-                ) : undefined
-              }
-              name={show.name || 'Untitled Show'}
-              headingLevel={1}
-              parent={showHeroParent(show, { viewer: heroViewer })}
-              badges={
-                show.organization ? [{ label: show.organization, variant: 'default' as const }] : []
-              }
-              metadata={[]}
-              headerActions={headerControls}
-              footer={
-                <QuickInfoCards
-                  show={show}
+          <ShowCompactHeader
+            name={show.name || 'Untitled Show'}
+            organization={show.organization}
+            startDate={show.startDate}
+            endDate={show.endDate}
+            parent={showHeroParent(show, { viewer: heroViewer })}
+            entryCount={detailsEntryCount}
+            controls={headerControls}
+            attention={
+              isOverview ? (
+                <PublishAttentionChip
+                  showId={show.id}
                   canManageShow={canManageShow}
-                  entryCount={entryDataUnavailable ? null : catalogEntryCount}
+                  onOpen={details.openPanel}
                 />
-              }
-            />
-          )}
+              ) : undefined
+            }
+            detailsOpen={details.open}
+            onToggleDetails={details.toggle}
+          />
+          <ShowDetailsPanel
+            show={show}
+            canManageShow={canManageShow}
+            entryCount={detailsEntryCount}
+            open={details.open}
+            showPublishing={isOverview}
+          />
         </>
 
         {entryDataUnavailable && (
@@ -297,30 +293,6 @@ function AuthorizedShowManagementShell({
           </div>
         )}
 
-        {/* INTENT: the publish row lives on Overview ONLY (Richard, decision 2).
-            It was an always-on row on every section except Show Desk, which put
-            the same two cards in front of a secretary who had navigated to
-            Reports or Results to do something else; the header Actions menu's
-            "Generate & publish premium" is the way back to it from anywhere.
-            Show Desk keeps its compact publishing exception instead. */}
-        {!activeManagementSection && (
-          <div
-            id={SETUP_PUBLISH_ANCHOR}
-            // `scroll-mt-20` only: the `target:ring-*` classes could never
-            // fire, because the one link carrying `#setup-publish` is a router
-            // `<Link>` and a `pushState` is not fragment navigation
-            // (MYK9-630 round 5). Scrolling still works; the ring never did.
-            className="mt-4 grid scroll-mt-20 grid-cols-1 gap-3 rounded-md sm:grid-cols-2"
-          >
-            <PremiumDownloadCard
-              showId={show.id}
-              showStaleBadge={true}
-              canManageShow={canManageShow}
-            />
-            <LandingPageCard showId={show.id} showStyle={getShowStyle(show)} />
-          </div>
-        )}
-
         {/* INTENT: ONE horizontal row on this page, and it is the tabs
             (MYK9-630 phase 2). The five standalone page links that used to sit
             above a six-tab strip are gone: every tab below IS one of those
@@ -332,12 +304,9 @@ function AuthorizedShowManagementShell({
             value={activeTabId}
             onValueChange={goToTab}
             className="mt-4"
-            stripClassName={compactHeader ? SHOW_TAB_STRIP_CLASS : undefined}
+            stripClassName={SHOW_TAB_STRIP_CLASS}
           >
-            <TabsContent
-              value={activeTabId}
-              className={compactHeader ? SHOW_STICKY_OFFSET_CLASS : undefined}
-            >
+            <TabsContent value={activeTabId}>
               {activeManagementSection ? (
                 <Outlet context={tabs} />
               ) : // MYK9-955: the manager Overview IS the secretary's home -- the

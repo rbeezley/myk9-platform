@@ -69,6 +69,8 @@ test.describe('Secretary show management UI', () => {
     await expect(page.getByTestId('header-actions-trigger')).toBeVisible();
 
     await expect(page.getByRole('heading', { name: 'Show schedule' })).toBeVisible();
+    // The publishing cards sit in the show header's details panel, collapsed until opened.
+    await page.getByRole('button', { name: 'Show details' }).click();
     await expect(page.getByRole('heading', { name: 'Premium List' }).first()).toBeVisible();
 
     const toolsPanel = await openToolsPanel(page);

@@ -66,7 +66,8 @@ An earlier version of this note proposed building a new split and an `EntryDetai
 
 **Done in this change (variant B on the design canvas):**
 
-- Every management tab except Overview gets a one-line `ShowCompactHeader` (name, dates, host club, entry count, and the same offline, sync, presence and status controls), pinned under the app header from `lg`; the tab strip is pinned under it. Overview keeps the full hero.
+- Every management tab, Overview included, gets one `ShowCompactHeader` (name, dates, host club, entry count, and the same offline, sync, presence and status controls), pinned under the app header from `lg`; the tab strip is pinned under it. Its height is measured (`--show-header-h`), since the controls wrap on a narrow window. The full hero is gone.
+- A chevron in the header slides open a details panel (`ShowDetailsPanel`): the quick-info cells on every tab, and on Overview the Premium List and Public Landing Page cards. Collapsed by default and remembered. A `#setup-publish*` link opens it, and while the premium list or landing page is unpublished a "Premium not published" chip in the header opens it, so collapsing hides no task.
 - The Entry Management toolbar uses the list toolkit's compact layout (views, search and filters on one row, count only when narrowed); the page title is smaller and the show-name line is read aloud, not drawn (the pinned header names the show).
 - The focused-registration pane sticks under the pinned header (`--show-sticky-offset`).
 

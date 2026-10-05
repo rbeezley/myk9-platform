@@ -858,17 +858,16 @@ describe('ShowDetailsPage', () => {
     expect(screen.queryByRole('button', { name: /premium list/i })).toBeNull();
   });
 
-  it('keeps show manager status in the hero header slot, with no overflow menu beside it', () => {
+  it('keeps show manager status in the show header, with no overflow menu beside it', () => {
     mockAuthContext.isSecretary = true;
 
     renderPage();
 
-    const heroActions = screen.getByTestId('hero-header-actions');
-    expect(heroActions).toHaveTextContent('Upcoming');
+    const header = screen.getByRole('heading', { level: 1 }).closest('div[class*="sticky"]');
+    expect(header).toHaveTextContent('Upcoming');
     // MYK9-630 deleted the `...` menu that used to share this slot; the one
     // actions surface is the app header's Actions button.
     expect(screen.queryByRole('button', { name: /more show actions/i })).toBeNull();
-    expect(screen.getByTestId('hero-secondary-actions')).toBeEmptyDOMElement();
   });
 
   it('gives a manager ONE row of four tabs and no standalone page links (MYK9-957)', () => {

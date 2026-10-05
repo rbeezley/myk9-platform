@@ -227,7 +227,6 @@ export interface CartState {
   updateItem: (itemId: string, updates: Partial<NewCartItem>) => Promise<boolean>;
   clearCart: () => Promise<boolean>;
   refreshCart: () => Promise<void>;
-  extendExpiration: () => Promise<boolean>;
   abandonCart: () => Promise<boolean>;
   /**
    * Checkout that routes overflow cart items to the waitlist RPC instead of

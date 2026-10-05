@@ -3,7 +3,6 @@
  *
  * The checkout button's loading state used a raw ⏳ emoji (project emoji ban,
  * renders as an OS glyph). It must use the lucide Loader2 spinner instead.
- * The time-pressured "Extend" button must meet the 44px touch floor.
  *
  * Pinned at the source level (the surrounding component needs the cart store,
  * expiration timer, and fee hooks to render) — same pattern as other
@@ -25,20 +24,13 @@ describe('CartSummary source', () => {
     expect(source).toContain('Loader2');
     expect(source).toMatch(/<Loader2[^>]*animate-spin/);
   });
-
-  it('keeps the Extend button itself above the 44px touch floor', () => {
-    // min-h-[44px] must live on the Extend button's OWN className, not merely
-    // somewhere in the file. The class sits in the <Button> opening tag right
-    // before the "Extend" label, so anchor the match forward to ">Extend".
-    expect(source).toMatch(/min-h-\[44px\][\s\S]{0,60}>\s*Extend/);
-  });
 });
 
 /**
  * UX walk remediation 4.B — entry carts must not time-pressure the user.
  * No constant ticking countdown, and expiry must not strand the user by
- * redirecting to /shows mid-payment. Only the actionable near-expiry warning
- * (with one-tap Extend) remains.
+ * redirecting to /shows mid-payment. MYK9-1012 removed the near-expiry
+ * warning and its Extend too: the cart timer never held a spot.
  */
 describe('CartSummary — de-panicked entry cart (4.B)', () => {
   it('shows no constant "Cart expires in" countdown', () => {
@@ -49,8 +41,8 @@ describe('CartSummary — de-panicked entry cart (4.B)', () => {
     expect(source).not.toContain('onExpired');
   });
 
-  it('still surfaces the actionable near-expiry warning and Extend', () => {
-    expect(source).toContain('showWarning');
-    expect(source).toMatch(/>\s*Extend/);
+  it('has no cart timer: spots are held only at Pay (MYK9-1012)', () => {
+    expect(source).not.toContain('useCartExpirationTimer');
+    expect(source).not.toMatch(/>\s*Extend/);
   });
 });

@@ -141,6 +141,7 @@ const launchCriticalSqlTests = [
   'myk9_980_move_up_pending_and_reentry_test.sql',
   'myk9_964_replayable_cart_fulfillment_test.sql',
   'myk9_1012_hold_spots_at_pay_test.sql',
+  'myk9_1018_capacity_override_server_marker_test.sql',
   'myk9_963_unfulfilled_charge_refund_test.sql',
   'myk9_969_results_privacy_test.sql',
   'myk9_822_blocking_entries_rpc_test.sql',

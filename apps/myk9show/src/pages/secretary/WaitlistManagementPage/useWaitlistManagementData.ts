@@ -22,6 +22,7 @@ import {
 import { WaitlistEntryNotDeletedError } from '@/services/database/waitlists/deleteWaitlistEntryErrors';
 import { WAITLIST_READ_TABLES } from './replicaDependencies';
 import { useWaitlistOffers } from './useWaitlistOffers';
+import { withdrawOutcomeNotice } from './withdrawOutcomeNotice';
 import type { ActionDialogState, WaitlistClassGroup, WaitlistEntry } from './types';
 
 /** The judge-day a secretary asked to see the wait list of (the card's own identity, in a show). */
@@ -334,14 +335,11 @@ export function useWaitlistManagementData(showId: string) {
     setActionError(null);
 
     try {
-      const { notified } = await withdrawWaitlistOffer(actionDialog.entry.id);
+      const outcome = await withdrawWaitlistOffer(actionDialog.entry.id);
       await reload();
-      // The withdrawal stands either way; the secretary is told, as when an offer's notice fails.
-      if (!notified) {
-        toast.warning(
-          "Offer withdrawn, but the exhibitor's notification didn't send. Let them know directly."
-        );
-      }
+      // The server's result, never a boolean: a closed offer is not a failed notice.
+      const { tone, message } = withdrawOutcomeNotice(outcome);
+      toast[tone](message);
     } catch (err) {
       await reload();
       setActionError(

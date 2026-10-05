@@ -60,10 +60,16 @@ describe('withdrawWaitlistOffer (client)', () => {
   });
 
   it('calls withdraw-waitlist-offer with the row id and writes the server row into the replica', async () => {
-    m.invoke.mockResolvedValue({ data: { status: 'withdrawn', notified: true }, error: null });
+    m.invoke.mockResolvedValue({
+      data: { result: 'withdrawn', status: 'withdrawn', already_closed: false, notified: true },
+      error: null,
+    });
     m.maybeSingle.mockResolvedValue({ data: serverRow, error: null });
 
-    await expect(withdrawWaitlistOffer('wl-1')).resolves.toEqual({ notified: true });
+    await expect(withdrawWaitlistOffer('wl-1')).resolves.toEqual({
+      result: 'withdrawn',
+      notified: true,
+    });
 
     expect(m.invoke).toHaveBeenCalledWith('withdraw-waitlist-offer', {
       body: { waitlist_entry_id: 'wl-1' },
@@ -80,7 +86,7 @@ describe('withdrawWaitlistOffer (client)', () => {
   });
 
   it("throws the server's reason when the withdrawal is refused, and leaves the replica alone", async () => {
-    const reason = 'This dog has already paid for the spot, so the offer cannot be withdrawn.';
+    const reason = 'A payment for this offer is being confirmed. Try again in a few minutes.';
     m.invoke.mockResolvedValue({
       data: null,
       error: { context: new Response(JSON.stringify({ error: reason }), { status: 409 }) },
@@ -98,16 +104,69 @@ describe('withdrawWaitlistOffer (client)', () => {
   });
 
   it('still succeeds when the replica refresh fails (the next sync settles the row)', async () => {
-    m.invoke.mockResolvedValue({ data: { status: 'withdrawn' }, error: null });
+    m.invoke.mockResolvedValue({ data: { result: 'withdrawn', notified: true }, error: null });
     m.maybeSingle.mockResolvedValue({ data: null, error: new Error('offline') });
-    await expect(withdrawWaitlistOffer('wl-1')).resolves.toEqual({ notified: true });
+    await expect(withdrawWaitlistOffer('wl-1')).resolves.toEqual({
+      result: 'withdrawn',
+      notified: true,
+    });
     expect(m.set).not.toHaveBeenCalled();
   });
 
   it('reports a withdrawal whose exhibitor notice did not send as withdrawn, not notified', async () => {
-    m.invoke.mockResolvedValue({ data: { status: 'withdrawn', notified: false }, error: null });
+    m.invoke.mockResolvedValue({ data: { result: 'withdrawn', notified: false }, error: null });
     m.maybeSingle.mockResolvedValue({ data: serverRow, error: null });
-    await expect(withdrawWaitlistOffer('wl-1')).resolves.toEqual({ notified: false });
+    await expect(withdrawWaitlistOffer('wl-1')).resolves.toEqual({
+      result: 'withdrawn',
+      notified: false,
+    });
     expect(m.set).toHaveBeenCalled();
+  });
+
+  // Codex P2 on #2772: the server's result is carried through, never collapsed to a boolean.
+  it('carries an expired (lapsed) result through with its notified flag', async () => {
+    m.invoke.mockResolvedValue({
+      data: { result: 'expired', status: 'expired', already_closed: true, notified: true },
+      error: null,
+    });
+    m.maybeSingle.mockResolvedValue({ data: serverRow, error: null });
+    await expect(withdrawWaitlistOffer('wl-1')).resolves.toEqual({
+      result: 'expired',
+      notified: true,
+    });
+  });
+
+  it('carries an already-closed result through, never as a failed notice', async () => {
+    m.invoke.mockResolvedValue({
+      data: { result: 'already_closed', status: 'declined', already_closed: true, notified: false },
+      error: null,
+    });
+    m.maybeSingle.mockResolvedValue({ data: serverRow, error: null });
+    await expect(withdrawWaitlistOffer('wl-1')).resolves.toEqual({
+      result: 'already_closed',
+      status: 'declined',
+    });
+  });
+
+  it.each([
+    ['paid', 409],
+    ['not_found', 404],
+  ] as const)(
+    'returns the %s result the server refuses with, without touching the replica',
+    async (result, status) => {
+      m.invoke.mockResolvedValue({
+        data: null,
+        error: {
+          context: new Response(JSON.stringify({ result, error: 'refused' }), { status }),
+        },
+      });
+      await expect(withdrawWaitlistOffer('wl-1')).resolves.toEqual({ result });
+      expect(m.set).not.toHaveBeenCalled();
+    }
+  );
+
+  it('treats a 200 with no recognised result as a failure, not a success', async () => {
+    m.invoke.mockResolvedValue({ data: { status: 'withdrawn' }, error: null });
+    await expect(withdrawWaitlistOffer('wl-1')).rejects.toThrow(WITHDRAW_OFFER_FAILED_MESSAGE);
   });
 });

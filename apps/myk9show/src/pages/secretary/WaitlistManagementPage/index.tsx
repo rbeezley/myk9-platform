@@ -201,7 +201,11 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
       />
 
       {offers.length > 0 && (
-        <OfferedWaitlistTable offers={offers} onSetActionDialog={setActionDialog} />
+        <OfferedWaitlistTable
+          offers={offers}
+          onSetActionDialog={setActionDialog}
+          offline={isOffline}
+        />
       )}
 
       {groups.map(({ cls, entries }) => (

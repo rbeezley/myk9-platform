@@ -85,7 +85,10 @@ vi.mock('@/services/database/supabaseClient', () => {
             version: 2,
           });
           server.waitlist.set(wl.id as string, { ...wl, status: 'withdrawn' });
-          return { data: { status: 'withdrawn', notified: true }, error: null };
+          return {
+            data: { result: 'withdrawn', status: 'withdrawn', notified: true },
+            error: null,
+          };
         },
       },
     },

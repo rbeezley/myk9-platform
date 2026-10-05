@@ -6,6 +6,7 @@
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
+import { NetworkStatusContext } from '@/hooks/useNetworkStatus';
 import WaitlistManagementPage from '../index';
 
 const h = vi.hoisted(() => {
@@ -15,6 +16,9 @@ const h = vi.hoisted(() => {
     offers: [] as unknown[],
     withdraw: vi.fn(),
     toastWarning: vi.fn(),
+    toastSuccess: vi.fn(),
+    toastInfo: vi.fn(),
+    toastError: vi.fn(),
     offer: (over: Record<string, unknown> = {}) => ({
       id: 'o1',
       class_id: 'c1',
@@ -87,7 +91,12 @@ vi.mock('@/services/database/waitlists', () => ({
 }));
 
 vi.mock('sonner', () => ({
-  toast: { warning: h.toastWarning, success: vi.fn(), error: vi.fn(), info: vi.fn() },
+  toast: {
+    warning: h.toastWarning,
+    success: h.toastSuccess,
+    error: h.toastError,
+    info: h.toastInfo,
+  },
 }));
 
 vi.mock('@/components/shows/waitListSettingsQuery', () => ({
@@ -127,6 +136,9 @@ describe('WaitlistManagementPage offers', () => {
     h.offers = [h.offer()];
     h.withdraw.mockReset();
     h.toastWarning.mockReset();
+    h.toastSuccess.mockReset();
+    h.toastInfo.mockReset();
+    h.toastError.mockReset();
   });
   afterEach(() => {
     vi.restoreAllMocks();
@@ -156,7 +168,7 @@ describe('WaitlistManagementPage offers', () => {
   });
 
   it('withdraws an offer from the tab after saying the exhibitor will be told', async () => {
-    h.withdraw.mockResolvedValue({ notified: true });
+    h.withdraw.mockResolvedValue({ result: 'withdrawn', notified: true });
     render(<WaitlistManagementPage showId="show-1" />);
     const group = within(await offeredGroup());
 
@@ -174,7 +186,7 @@ describe('WaitlistManagementPage offers', () => {
   });
 
   it('keeps the withdrawal and tells the secretary when the exhibitor notice did not send', async () => {
-    h.withdraw.mockResolvedValue({ notified: false });
+    h.withdraw.mockResolvedValue({ result: 'withdrawn', notified: false });
     render(<WaitlistManagementPage showId="show-1" />);
     const group = within(await offeredGroup());
 
@@ -240,7 +252,7 @@ describe('WaitlistManagementPage offers', () => {
   // Codex P2 on #2772: a show repeats a class across trials, so the class name alone cannot tell
   // two offers apart, and the Withdraw dialog must name the trial it acts on.
   it('names the trial on each offer and in the Withdraw dialog when two trials share a class name', async () => {
-    h.withdraw.mockResolvedValue({ notified: true });
+    h.withdraw.mockResolvedValue({ result: 'withdrawn', notified: true });
     h.offers = [
       h.offer(),
       h.offer({
@@ -267,5 +279,96 @@ describe('WaitlistManagementPage offers', () => {
 
     fireEvent.click(within(dialog).getByRole('button', { name: 'Withdraw offer' }));
     await waitFor(() => expect(h.withdraw).toHaveBeenCalledWith('o2'));
+  });
+
+  // Codex P2 on #2772: the server's answer is a result, not a boolean. Each one gets its own
+  // plain message; a concurrent or already-closed offer is never reported as a failed notice.
+  const withdrawWith = async (outcome: unknown) => {
+    h.withdraw.mockResolvedValue(outcome);
+    render(<WaitlistManagementPage showId="show-1" />);
+    const group = within(await offeredGroup());
+    fireEvent.click(group.getByRole('button', { name: /Withdraw offer/ }));
+    const dialog = within(await screen.findByRole('alertdialog'));
+    fireEvent.click(dialog.getByRole('button', { name: 'Withdraw offer' }));
+    await waitFor(() => expect(h.withdraw).toHaveBeenCalledWith('o1'));
+  };
+  const toasts = () => ({
+    success: h.toastSuccess.mock.calls.map(c => c[0]),
+    warning: h.toastWarning.mock.calls.map(c => c[0]),
+    info: h.toastInfo.mock.calls.map(c => c[0]),
+    error: h.toastError.mock.calls.map(c => c[0]),
+  });
+
+  it.each([
+    [
+      'withdrawn and told',
+      { result: 'withdrawn', notified: true },
+      { success: ['Offer withdrawn. The exhibitor has been told no payment is due.'] },
+    ],
+    [
+      'withdrawn but not told',
+      { result: 'withdrawn', notified: false },
+      {
+        warning: [
+          "Offer withdrawn, but the exhibitor's notification didn't send. Let them know directly.",
+        ],
+      },
+    ],
+    [
+      'already lapsed',
+      { result: 'expired', notified: true },
+      {
+        info: [
+          'This offer had already run out of time, so it is closed. The exhibitor has been told it ended.',
+        ],
+      },
+    ],
+    [
+      'already lapsed, not told',
+      { result: 'expired', notified: false },
+      {
+        warning: [
+          "This offer had already run out of time, so it is closed, but the exhibitor's notification didn't send. Let them know directly.",
+        ],
+      },
+    ],
+    [
+      'already closed',
+      { result: 'already_closed', status: 'declined' },
+      { info: ['This offer was already closed. Nothing else was sent to the exhibitor.'] },
+    ],
+    [
+      'already paid',
+      { result: 'paid' },
+      { error: ['This dog has already paid for the spot, so the offer cannot be withdrawn.'] },
+    ],
+    [
+      'not found',
+      { result: 'not_found' },
+      { error: ['This offer was not found. It may have been removed.'] },
+    ],
+  ])('says the right thing when the offer was %s', async (_label, outcome, expected) => {
+    await withdrawWith(outcome);
+    await waitFor(() =>
+      expect(toasts()).toEqual({ success: [], warning: [], info: [], error: [], ...expected })
+    );
+  });
+
+  it('disables Withdraw offer offline, saying it is online only', async () => {
+    render(
+      <NetworkStatusContext.Provider
+        value={{
+          isOnline: false,
+          quality: null,
+          showOfflineMessage: true,
+          retryConnection: vi.fn(),
+        }}
+      >
+        <WaitlistManagementPage showId="show-1" />
+      </NetworkStatusContext.Provider>
+    );
+    const group = within(await offeredGroup());
+    expect(group.getByRole('button', { name: /Withdraw offer/ })).toBeDisabled();
+    expect(group.getByTestId('waitlist-online-only')).toHaveTextContent('Online only');
   });
 });

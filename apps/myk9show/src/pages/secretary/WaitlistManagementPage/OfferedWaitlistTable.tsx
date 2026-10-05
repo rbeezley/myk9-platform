@@ -17,6 +17,8 @@ import type { ActionDialogState, WaitlistOffer } from './types';
 interface OfferedWaitlistTableProps {
   offers: WaitlistOffer[];
   onSetActionDialog: (state: ActionDialogState) => void;
+  /** Withdraw is online only, like Offer Spot and Remove (MYK9-1005). */
+  offline?: boolean;
   now?: Date;
 }
 
@@ -30,6 +32,7 @@ function describeOfferPayment(offer: WaitlistOffer, now: Date): string {
 
 function buildColumns(
   now: Date,
+  offline: boolean,
   onWithdraw: (offer: WaitlistOffer) => void
 ): ColumnDef<WaitlistOffer, unknown>[] {
   return [
@@ -95,10 +98,17 @@ function buildColumns(
       header: 'Actions',
       cell: ({ row }) =>
         row.original.promoted_entry_paid ? null : (
-          <Button variant="outline" onClick={() => onWithdraw(row.original)}>
-            <Undo2 className="mr-1 h-4 w-4" />
-            Withdraw offer
-          </Button>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" disabled={offline} onClick={() => onWithdraw(row.original)}>
+              <Undo2 className="mr-1 h-4 w-4" />
+              Withdraw offer
+            </Button>
+            {offline && (
+              <span className="text-xs text-muted-foreground" data-testid="waitlist-online-only">
+                Online only
+              </span>
+            )}
+          </div>
         ),
       meta: { interactive: true },
       enableSorting: false,
@@ -110,6 +120,7 @@ function buildColumns(
 export function OfferedWaitlistTable({
   offers,
   onSetActionDialog,
+  offline = false,
   now,
 }: OfferedWaitlistTableProps) {
   // "Not paid in time" is judged against when this list was first drawn; the expiry job closes a
@@ -118,10 +129,10 @@ export function OfferedWaitlistTable({
   const at = now ?? drawnAt;
   const columns = useMemo(
     () =>
-      buildColumns(at, offer =>
+      buildColumns(at, offline, offer =>
         onSetActionDialog({ open: true, action: 'withdraw', entry: offer })
       ),
-    [at, onSetActionDialog]
+    [at, offline, onSetActionDialog]
   );
 
   return (

@@ -68,10 +68,20 @@ export const WITHDRAW_MESSAGES = {
   failed: 'We could not withdraw this offer. Please try again.',
 } as const;
 
+// Every answer names its result, so the client never infers one (Codex P2 on #2772):
+// 'withdrawn' | 'expired' | 'already_closed' on 200, 'paid' on 409, 'not_found' on 404.
 const closed = (status: string | null): WithdrawWaitlistOfferResult => ({
   httpStatus: 200,
-  body: { status, already_closed: true, notified: false },
+  body: { result: 'already_closed', status, already_closed: true, notified: false },
 });
+const notFound: WithdrawWaitlistOfferResult = {
+  httpStatus: 404,
+  body: { result: 'not_found', error: WITHDRAW_MESSAGES.notFound },
+};
+const alreadyPaid: WithdrawWaitlistOfferResult = {
+  httpStatus: 409,
+  body: { result: 'paid', error: WITHDRAW_MESSAGES.paid },
+};
 
 export async function withdrawWaitlistOffer(
   deps: WithdrawWaitlistOfferDeps,
@@ -81,14 +91,12 @@ export async function withdrawWaitlistOffer(
   if (offer === 'error') return { httpStatus: 500, body: { error: WITHDRAW_MESSAGES.failed } };
   // An outsider gets the same answer as a missing row: no hint that it exists.
   if (!offer || !offer.show_id || !(await deps.canManageShow(offer.show_id, offer.club_id))) {
-    return { httpStatus: 404, body: { error: WITHDRAW_MESSAGES.notFound } };
+    return notFound;
   }
 
   // Nothing open: answer without touching Stripe.
   if (offer.status && CLOSED_STATUSES.has(offer.status)) return closed(offer.status);
-  if (offer.status === 'accepted') {
-    return { httpStatus: 409, body: { error: WITHDRAW_MESSAGES.paid } };
-  }
+  if (offer.status === 'accepted') return alreadyPaid;
   if (offer.status !== 'offered') {
     return { httpStatus: 409, body: { error: WITHDRAW_MESSAGES.notOffered } };
   }
@@ -108,9 +116,9 @@ export async function withdrawWaitlistOffer(
 
   switch (outcome.result) {
     case 'not_found':
-      return { httpStatus: 404, body: { error: WITHDRAW_MESSAGES.notFound } };
+      return notFound;
     case 'paid':
-      return { httpStatus: 409, body: { error: WITHDRAW_MESSAGES.paid } };
+      return alreadyPaid;
     case 'already_closed':
       return closed(outcome.status);
     case 'withdrawn':
@@ -137,6 +145,7 @@ export async function withdrawWaitlistOffer(
   return {
     httpStatus: 200,
     body: {
+      result: outcome.result,
       status: outcome.result,
       already_closed: outcome.result === 'expired',
       notified: outcome.notified === true,

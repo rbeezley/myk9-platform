@@ -66,7 +66,7 @@ describe('withdrawWaitlistOffer', () => {
     });
     expect(result).toEqual({
       httpStatus: 200,
-      body: { status: 'withdrawn', already_closed: false, notified: true },
+      body: { result: 'withdrawn', status: 'withdrawn', already_closed: false, notified: true },
     });
   });
 
@@ -103,7 +103,12 @@ describe('withdrawWaitlistOffer', () => {
     });
     expect(await withdrawWaitlistOffer(d, 'wl-1')).toEqual({
       httpStatus: 200,
-      body: { status: 'withdrawn', already_closed: true, notified: false },
+      body: {
+        result: 'already_closed',
+        status: 'withdrawn',
+        already_closed: true,
+        notified: false,
+      },
     });
     expect(d.dispatchEvent).not.toHaveBeenCalled();
   });
@@ -120,7 +125,7 @@ describe('withdrawWaitlistOffer', () => {
     });
     expect(await withdrawWaitlistOffer(d, 'wl-1')).toEqual({
       httpStatus: 200,
-      body: { status: 'expired', already_closed: true, notified: true },
+      body: { result: 'expired', status: 'expired', already_closed: true, notified: true },
     });
     expect(d.dispatchEvent).toHaveBeenCalledWith({
       eventId: 'event-2',
@@ -133,7 +138,7 @@ describe('withdrawWaitlistOffer', () => {
     const d = deps({ dispatchEvent: vi.fn().mockRejectedValue(new Error('timeout')) });
     expect(await withdrawWaitlistOffer(d, 'wl-1')).toEqual({
       httpStatus: 200,
-      body: { status: 'withdrawn', already_closed: false, notified: true },
+      body: { result: 'withdrawn', status: 'withdrawn', already_closed: false, notified: true },
     });
   });
 
@@ -150,7 +155,10 @@ describe('withdrawWaitlistOffer', () => {
       deps({ withdrawInDatabase: vi.fn().mockResolvedValue('error') }),
       'wl-1'
     );
-    expect(paid).toEqual({ httpStatus: 409, body: { error: WITHDRAW_MESSAGES.paid } });
+    expect(paid).toEqual({
+      httpStatus: 409,
+      body: { result: 'paid', error: WITHDRAW_MESSAGES.paid },
+    });
     expect(failed).toEqual({ httpStatus: 500, body: { error: WITHDRAW_MESSAGES.failed } });
   });
 
@@ -161,7 +169,10 @@ describe('withdrawWaitlistOffer', () => {
     const a = await withdrawWaitlistOffer(outsider, 'wl-1');
     const b = await withdrawWaitlistOffer(missing, 'wl-1');
 
-    expect(a).toEqual({ httpStatus: 404, body: { error: WITHDRAW_MESSAGES.notFound } });
+    expect(a).toEqual({
+      httpStatus: 404,
+      body: { result: 'not_found', error: WITHDRAW_MESSAGES.notFound },
+    });
     expect(b).toEqual(a);
     for (const d of [outsider, missing]) {
       expect(d.closePaymentPages).not.toHaveBeenCalled();
@@ -175,7 +186,7 @@ describe('withdrawWaitlistOffer', () => {
       const d = deps({ loadOffer: vi.fn().mockResolvedValue(openOffer({ status })) });
       expect(await withdrawWaitlistOffer(d, 'wl-1')).toEqual({
         httpStatus: 200,
-        body: { status, already_closed: true, notified: false },
+        body: { result: 'already_closed', status, already_closed: true, notified: false },
       });
       expect(d.closePaymentPages).not.toHaveBeenCalled();
       expect(d.withdrawInDatabase).not.toHaveBeenCalled();
@@ -191,7 +202,10 @@ describe('withdrawWaitlistOffer', () => {
       deps({ loadOffer: vi.fn().mockResolvedValue(openOffer({ status: 'waiting' })) }),
       'wl-1'
     );
-    expect(paid).toEqual({ httpStatus: 409, body: { error: WITHDRAW_MESSAGES.paid } });
+    expect(paid).toEqual({
+      httpStatus: 409,
+      body: { result: 'paid', error: WITHDRAW_MESSAGES.paid },
+    });
     expect(waiting).toEqual({ httpStatus: 409, body: { error: WITHDRAW_MESSAGES.notOffered } });
   });
 

@@ -64,37 +64,81 @@ export async function refreshOfferRowsInReplica(waitlistEntryId: string): Promis
 }
 
 /**
- * Withdraw an open offer (withdraw-waitlist-offer): the Stripe page is closed,
- * the pending-payment entry ends, and the row becomes 'withdrawn' (or
- * 'expired' if its deadline had already passed). An offer already closed is a
- * calm success. Anything refused throws {@link WaitlistOfferNotWithdrawnError}
+ * What a withdrawal did, as the server decided it (withdraw_waitlist_offer_internal):
+ *   withdrawn       closed now; `notified` says whether the exhibitor was told
+ *   expired         its deadline had already passed: closed as an expiry, with the
+ *                   expiry notice (`notified`)
+ *   already_closed  someone or something closed it first; nothing was sent
+ *   paid            the dog paid; the offer stands
+ *   not_found       no such offer (or not one this secretary manages)
+ * Never collapsed to a boolean: `already_closed` sends nothing on purpose, which is
+ * not a failed notice (Codex P2 on #2772).
+ */
+export type WithdrawOfferOutcome =
+  | { result: 'withdrawn'; notified: boolean }
+  | { result: 'expired'; notified: boolean }
+  | { result: 'already_closed'; status: string | null }
+  | { result: 'paid' }
+  | { result: 'not_found' };
+
+type ServerAnswer = { result?: unknown; status?: unknown; notified?: unknown; error?: unknown };
+
+/** The server's answer as an outcome, or null when it names no result this client knows. */
+function toOutcome(answer: ServerAnswer | null | undefined): WithdrawOfferOutcome | null {
+  switch (answer?.result) {
+    case 'withdrawn':
+    case 'expired':
+      return { result: answer.result, notified: answer.notified === true };
+    case 'already_closed':
+      return {
+        result: 'already_closed',
+        status: typeof answer.status === 'string' ? answer.status : null,
+      };
+    case 'paid':
+      return { result: 'paid' };
+    case 'not_found':
+      return { result: 'not_found' };
+    default:
+      return null;
+  }
+}
+
+/**
+ * Withdraw an open offer (withdraw-waitlist-offer): the Stripe page is closed, then
+ * the database closes the offer and tells the exhibitor in one transaction. Resolves
+ * the server's {@link WithdrawOfferOutcome}; a refusal with no result of its own (a
+ * payment being confirmed, a failure) throws {@link WaitlistOfferNotWithdrawnError}
  * with the server's reason.
- *
- * Resolves `notified: false` when the withdrawal succeeded but the exhibitor's
- * notice did not go out (the server never undoes the withdrawal for that).
  */
 export async function withdrawWaitlistOffer(
   waitlistEntryId: string
-): Promise<{ notified: boolean }> {
+): Promise<WithdrawOfferOutcome> {
   const { data, error } = await supabase.functions.invoke('withdraw-waitlist-offer', {
     body: { waitlist_entry_id: waitlistEntryId },
   });
 
   if (error) {
-    let reason: string | undefined;
+    let answer: ServerAnswer | undefined;
     const context = (error as { context?: Response }).context;
     try {
-      reason = context ? (await context.json())?.error : undefined;
+      answer = context ? await context.json() : undefined;
     } catch {
-      reason = undefined;
+      answer = undefined;
     }
+    // 'paid' and 'not_found' are answers, not failures: nothing changed to refresh.
+    const refused = toOutcome(answer);
+    if (refused) return refused;
     throw new WaitlistOfferNotWithdrawnError(
-      typeof reason === 'string' && reason ? reason : WITHDRAW_OFFER_FAILED_MESSAGE
+      typeof answer?.error === 'string' && answer.error
+        ? answer.error
+        : WITHDRAW_OFFER_FAILED_MESSAGE
     );
   }
 
+  const outcome = toOutcome(data as ServerAnswer | null);
+  if (!outcome) throw new WaitlistOfferNotWithdrawnError(WITHDRAW_OFFER_FAILED_MESSAGE);
+
   // Every 200 (withdrawn, closed as expired, or already closed) changed or confirmed the rows.
   await refreshOfferRowsInReplica(waitlistEntryId);
-  // Only an answer that says so counts as not notified; an already-closed offer sends nothing new.
-  return { notified: (data as { notified?: unknown } | null)?.notified !== false };
+  return outcome;
 }

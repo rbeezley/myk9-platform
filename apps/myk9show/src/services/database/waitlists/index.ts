@@ -21,5 +21,6 @@ export {
   withdrawWaitlistOffer,
   WaitlistOfferNotWithdrawnError,
   WITHDRAW_OFFER_FAILED_MESSAGE,
+  type WithdrawOfferOutcome,
 } from './offerActions';
 export { getWaitlistReportRows, WaitlistNotDownloadedError } from './reportRows';

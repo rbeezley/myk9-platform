@@ -132,7 +132,8 @@ async function expectIndicatorCentered(control: Locator, label: string): Promise
 
 async function openFirstDog(page: Page): Promise<void> {
   await page.goto('/dogs', { waitUntil: 'domcontentloaded' });
-  const firstRow = page.locator('table tbody tr').first();
+  // From 1024px the list is compact rows beside the dog (the table needs "Select dogs").
+  const firstRow = page.locator('ul[aria-label="Dogs"] a').first();
   await expect(firstRow).toBeVisible({ timeout: 30_000 });
   await firstRow.click();
   await expect(page).toHaveURL(/\/dogs\/[0-9a-f-]{36}/, { timeout: 30_000 });
@@ -142,6 +143,8 @@ test.describe('radio and checkbox indicator centering', () => {
   test('dogs table checkboxes center their check mark inside the control', async ({ page }) => {
     await signInAsAdmin(page);
     await page.goto('/dogs', { waitUntil: 'domcontentloaded' });
+    // The table, with its checkboxes, is the full-width "select" mode of the split list.
+    await page.getByRole('button', { name: 'Select dogs', exact: true }).click();
 
     // The select-all checkbox lives in a table header cell, where an inline-laid-out
     // root stretched to fill the cell instead of holding its declared box.

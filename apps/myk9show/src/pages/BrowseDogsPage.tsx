@@ -1,5 +1,8 @@
 import React, { useState, useCallback, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
+import { MasterDetailLayout } from '@/components/layout/MasterDetailLayout';
+import { SelectModeButton } from '@/components/layout/SelectModeButton';
+import { useSelectMode } from '@/components/layout/useSelectMode';
 import { Button } from '@/components/ui/button';
 import { Plus, PawPrint } from 'lucide-react';
 import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
@@ -7,7 +10,7 @@ import { useCurrentUserPersonId, useRosterIsOwnDogsOnly } from '@/hooks/useRoleB
 import { useRBAC } from '@/hooks/useRBAC';
 import { useBrowseDogsData } from '@/hooks/useBrowseDogsData';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
-import { DogsGridView, DogsTableView } from '@/components/dogs/browse';
+import { DogsCompactList, DogsGridView, DogsTableView } from '@/components/dogs/browse';
 import { DogsBulkActionsBar } from '@/components/dogs/browse/DogsBulkActionsBar';
 import {
   activeDogViewId,
@@ -35,6 +38,7 @@ import {
   ListEmptyState,
   ListFilterBar,
   ListResultLine,
+  ListToolbarLayout,
   ListViewTabs,
   ListViewToggle,
 } from '@/components/list-toolkit';
@@ -50,9 +54,19 @@ const DOG_NOUN = ['dog', 'dogs'] as const;
  */
 const CARD_PAGE_SIZE = 25;
 
-const BrowseDogsPage: React.FC = () => {
+interface BrowseDogsPageProps {
+  /**
+   * What fills the right pane (the open dog, or a "select a dog" prompt). Only passed on a wide
+   * screen (see `DogsMasterDetailPage`); the list then narrows to a compact one.
+   */
+  detail?: React.ReactNode;
+}
+
+const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { id: selectedId } = useParams<{ id: string }>();
+  const splitCapable = detail !== null;
 
   const { getUserRoles, userWithRoles } = useAuthContext();
   // Exhibitor-only users see their own roster; secretaries/admins see all dogs.
@@ -106,10 +120,12 @@ const BrowseDogsPage: React.FC = () => {
   // (management-capable roles, not exhibitor-only roster view). No per-action
   // RBAC — see design.md decision D1.
   const canBulkManageDogs = !rbacLoading && !isExhibitorOnly && hasPermission('dog:update');
-  // The whole-list export the table's own button used to be: staff, table view, something to export.
+  // The whole-list export the table's own button used to be: staff, something to export. Offered
+  // in the table view and in the split, where the view toggle is hidden and a saved "cards" view
+  // would otherwise strand it.
   usePageExportAction({
     id: 'dogs',
-    enabled: !isExhibitorOnly && viewMode === 'table' && filteredDogs.length > 0,
+    enabled: !isExhibitorOnly && (viewMode === 'table' || splitCapable) && filteredDogs.length > 0,
     run: () =>
       exportRowsCsv(
         'dogs',
@@ -128,6 +144,11 @@ const BrowseDogsPage: React.FC = () => {
     getItemId: (dog: DogType) => dog.id,
     pruneToItems: true,
   });
+  const { selectMode, splitOpen, enterSelectMode, exitSelectMode, openRecord, buttonRef } =
+    useSelectMode({
+      splitCapable,
+      clearSelection: dogSelection.clearSelection,
+    });
 
   // Every filter change goes through here so the card view cannot be left
   // stranded on a page number the narrowed result set no longer has. Resetting
@@ -172,6 +193,11 @@ const BrowseDogsPage: React.FC = () => {
   // roles may retain table/management chrome while still receiving an own-dogs
   // roster, so deriving this from `isExhibitorOnly` would reintroduce the
   // My Dogs/Dogs mismatch (MYK9-237).
+  const searchPlaceholder = splitOpen
+    ? 'Search dogs'
+    : isExhibitorOnly
+      ? 'Search your dogs by name or breed...'
+      : 'Search dogs by name, breed, or owner...';
   const pageTitle = ownDogsOnly ? 'My Dogs' : 'Dogs';
   const breadcrumbs = useMemo(() => [{ label: pageTitle, href: '/dogs' }], [pageTitle]);
 
@@ -193,22 +219,36 @@ const BrowseDogsPage: React.FC = () => {
   const handleDogCreated = useCallback(
     (newDog: DogType) => {
       setShowCreateDogPanel(false);
+      exitSelectMode();
       navigate(`/dogs/${newDog.id}`, { replace: true, state: { createdDog: newDog } });
     },
-    [navigate]
+    [exitSelectMode, navigate]
   );
 
-  // Action buttons for PageHeader
-  const actionButtons = useMemo(
-    () =>
-      canCreateDogs ? (
-        <Button onClick={openCreateDogPanel}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Dog
-        </Button>
-      ) : undefined,
-    [canCreateDogs, openCreateDogPanel]
-  );
+  // Select mode is only offered where the split exists, to staff (the exhibitor roster has no bulk
+  // actions); the narrow page keeps its table/cards toggle.
+  const showSelectMode = splitCapable && !isExhibitorOnly;
+  const actionButtons =
+    showSelectMode || canCreateDogs ? (
+      <>
+        {showSelectMode && (
+          <SelectModeButton
+            selectMode={selectMode}
+            onEnter={enterSelectMode}
+            onExit={exitSelectMode}
+            buttonRef={buttonRef}
+            noun="dogs"
+            purpose="act on several dogs or export"
+          />
+        )}
+        {canCreateDogs && (
+          <Button onClick={openCreateDogPanel}>
+            <Plus className="h-4 w-4 mr-2" />
+            Add Dog
+          </Button>
+        )}
+      </>
+    ) : undefined;
 
   const renderCards = () => (
     <>
@@ -273,13 +313,21 @@ const BrowseDogsPage: React.FC = () => {
       );
     }
 
+    // Beside a dog the list is one compact line per dog; the table needs the full width, so it only
+    // gets it in select mode.
+    if (splitOpen) {
+      return (
+        <DogsCompactList dogs={filteredDogs} selectedId={selectedId} showOwner={!ownDogsOnly} />
+      );
+    }
+
     // My Dogs is card-only for exhibitors (design.md D3) — the table view and
     // its toggle are a secretary/admin affordance only.
     if (isExhibitorOnly) {
       return renderCards();
     }
 
-    switch (viewMode) {
+    switch (selectMode ? 'table' : viewMode) {
       case 'table':
         return (
           <DogsTableView
@@ -290,6 +338,11 @@ const BrowseDogsPage: React.FC = () => {
             // false for them, so `useViewPreference` defaults them to the
             // table — and without this the MYK9-219 fix never reaches them.
             showOwner={!ownDogsOnly}
+            {...(splitCapable
+              ? {
+                  onOpenDog: (dog: DogType) => openRecord(`/dogs/${dog.id}`),
+                }
+              : {})}
           />
         );
       case 'cards':
@@ -299,7 +352,7 @@ const BrowseDogsPage: React.FC = () => {
   };
 
   return (
-    <PageShell>
+    <PageShell {...(splitOpen ? { maxWidth: 'max-w-[110rem]' } : {})}>
       {(isLoading || isResolvingIdentity) && dogs.length === 0 && (
         <BrowseDogsSkeleton viewMode={isExhibitorOnly || viewMode === 'cards' ? 'grid' : 'table'} />
       )}
@@ -317,46 +370,64 @@ const BrowseDogsPage: React.FC = () => {
             showTitle
           />
 
-          <div className="space-y-3">
-            <ListViewTabs
-              label="Dog views"
-              views={dogViews}
-              activeId={activeViewId}
-              onSelect={handleSelectView}
-            />
-            <ListFilterBar
-              searchValue={filters.search}
-              onSearchChange={handleSearchChange}
-              searchPlaceholder={
-                isExhibitorOnly
-                  ? 'Search your dogs by name or breed...'
-                  : 'Search dogs by name, breed, or owner...'
-              }
-              fields={[]}
-            />
-            <ListResultLine
-              shown={filteredDogs.length}
-              total={dogs.length}
-              noun={DOG_NOUN}
-              filtered={hasActiveFilters}
-              onShowAll={handleClearAllFilters}
-              showAllInEmptyState={identityResolved && filteredDogs.length === 0}
-            >
-              {!isExhibitorOnly && <ListViewToggle active={viewMode} onChange={setViewMode} />}
-            </ListResultLine>
-          </div>
+          <MasterDetailLayout
+            id="dogs"
+            listLabel="Dog list"
+            detailLabel="Dog details"
+            detail={splitOpen ? detail : null}
+            listHeader={
+              <ListToolbarLayout
+                compact={splitOpen}
+                viewTabs={
+                  <ListViewTabs
+                    label="Dog views"
+                    views={dogViews}
+                    activeId={activeViewId}
+                    compact={splitOpen}
+                    onSelect={handleSelectView}
+                  />
+                }
+                filterBar={
+                  <ListFilterBar
+                    searchValue={filters.search}
+                    onSearchChange={handleSearchChange}
+                    searchPlaceholder={searchPlaceholder}
+                    fields={[]}
+                    compact={splitOpen}
+                    {...(splitOpen ? { className: 'min-w-0 flex-1' } : {})}
+                  />
+                }
+                resultLine={
+                  <ListResultLine
+                    shown={filteredDogs.length}
+                    total={dogs.length}
+                    noun={DOG_NOUN}
+                    filtered={hasActiveFilters}
+                    onShowAll={handleClearAllFilters}
+                    showAllInEmptyState={identityResolved && filteredDogs.length === 0}
+                    quietWhenUnfiltered={splitOpen}
+                  >
+                    {!isExhibitorOnly && !splitCapable && (
+                      <ListViewToggle active={viewMode} onChange={setViewMode} />
+                    )}
+                  </ListResultLine>
+                }
+              />
+            }
+            list={renderContent()}
+          />
 
-          {/* Dog Cards / Table */}
-          {renderContent()}
-
-          {canBulkManageDogs && viewMode === 'table' && dogSelection.selectedCount > 0 && (
-            <DogsBulkActionsBar
-              selectedDogs={dogSelection.selectedItems}
-              onClear={dogSelection.clearSelection}
-              canDelete={canDeleteDogs}
-              includeOwner={!ownDogsOnly}
-            />
-          )}
+          {canBulkManageDogs &&
+            !splitOpen &&
+            (selectMode || viewMode === 'table') &&
+            dogSelection.selectedCount > 0 && (
+              <DogsBulkActionsBar
+                selectedDogs={dogSelection.selectedItems}
+                onClear={dogSelection.clearSelection}
+                canDelete={canDeleteDogs}
+                includeOwner={!ownDogsOnly}
+              />
+            )}
         </>
       )}
 

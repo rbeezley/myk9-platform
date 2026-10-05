@@ -1,6 +1,8 @@
-import React, { useState, useCallback, useMemo, useRef } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { MasterDetailLayout } from '@/components/layout/MasterDetailLayout';
+import { SelectModeButton } from '@/components/layout/SelectModeButton';
+import { useSelectMode } from '@/components/layout/useSelectMode';
 import { Button } from '@/components/ui/button';
 import { Plus, Users } from 'lucide-react';
 import { PageShell } from '@/components/common/PageShell';
@@ -47,11 +49,7 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { id: selectedId } = useParams<{ id: string }>();
-  // Select mode swaps the split for the full-width table so its checkboxes and the bulk bar work.
-  const [selectMode, setSelectMode] = useState(false);
-  const selectModeButtonRef = useRef<HTMLButtonElement>(null);
   const splitCapable = detail !== null;
-  const splitOpen = splitCapable && !selectMode;
 
   const [viewMode, setViewMode] = useViewPreference('people', defaultListView(true));
   const isMobileViewport = useMediaQuery('(max-width: 767px)');
@@ -89,15 +87,11 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
     setSelectedPeople([]);
     setSelectionEpoch(epoch => epoch + 1);
   }, []);
-  // The ONE way out of select mode (Done, opening a person, creating one, losing the split):
-  // it always drops the ticks too, so a hidden selection can never feed the bulk bar.
-  const exitSelectMode = useCallback(() => {
-    setSelectMode(false);
-    clearSelection();
-  }, [clearSelection]);
-  // Select mode belongs to the split. Losing the split (a narrow window, where its Done button
-  // does not exist) ends it, with its ticks, so it cannot come back when the window widens.
-  if (selectMode && !splitCapable) exitSelectMode();
+  const { selectMode, splitOpen, enterSelectMode, exitSelectMode, openRecord, buttonRef } =
+    useSelectMode({
+      splitCapable,
+      clearSelection,
+    });
 
   // The whole-list export the table's own button used to be (owner decision 4): the filtered
   // roster, so no row needs ticking first. Offered in the table view and in the split, where the
@@ -217,13 +211,7 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
             onSelectionChange={setSelectedPeople}
             {...(splitCapable
               ? {
-                  // Opening someone ends select mode, so the person shows beside the list.
-                  onOpenPerson: (person: User) => {
-                    exitSelectMode();
-                    // The focused row is about to unmount; without this focus falls to the body.
-                    selectModeButtonRef.current?.focus();
-                    navigate(`/people/${person.id}`);
-                  },
+                  onOpenPerson: (person: User) => openRecord(`/people/${person.id}`),
                 }
               : {})}
           />
@@ -243,19 +231,14 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
 
   // Select mode is only offered where the split exists; the narrow page is always the table.
   const selectModeButton = splitCapable ? (
-    <>
-      <Button
-        ref={selectModeButtonRef}
-        variant="outline"
-        onClick={selectMode ? exitSelectMode : () => setSelectMode(true)}
-      >
-        {selectMode ? 'Done' : 'Select people'}
-      </Button>
-      {/* The button's label changes, but the list swapping for a table is otherwise silent. */}
-      <p role="status" className="sr-only">
-        {selectMode ? 'Selecting people. Tick rows to copy emails or export.' : ''}
-      </p>
-    </>
+    <SelectModeButton
+      selectMode={selectMode}
+      onEnter={enterSelectMode}
+      onExit={exitSelectMode}
+      buttonRef={buttonRef}
+      noun="people"
+      purpose="copy emails or export"
+    />
   ) : null;
 
   return (

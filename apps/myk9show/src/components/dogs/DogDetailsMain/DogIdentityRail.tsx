@@ -14,6 +14,7 @@ import { Link } from 'react-router-dom';
 import { Mail, Phone, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useEmbeddedDetail } from '@/components/layout/embeddedDetail';
 import { formatDogAge, getDogDisplayName } from '@/types/dog-types';
 import { DogRegistryTable } from '@/components/dogs/common/DogRegistryTable';
 import { buildDogCardRegistryModel } from '@/components/dogs/common/dogRegistryModel';
@@ -54,6 +55,7 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
   role = 'exhibitor',
   canOpenOwnerRecord = false,
 }) => {
+  const embedded = useEmbeddedDetail();
   const isSecretary = role === 'secretary';
   const [now] = useState(() => Date.now());
   const registry = useMemo(
@@ -112,7 +114,10 @@ const DogIdentityRail: React.FC<DogIdentityRailProps> = ({
   return (
     <aside
       data-dog-identity
-      className="rounded-xl bg-card border border-border overflow-hidden lg:w-[320px] lg:flex-shrink-0"
+      className={cn(
+        'rounded-xl bg-card border border-border overflow-hidden',
+        !embedded && 'lg:w-[320px] lg:flex-shrink-0'
+      )}
     >
       <div className="p-4 lg:p-5">
         {!isSecretary && (

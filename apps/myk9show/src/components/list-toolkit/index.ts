@@ -3,6 +3,7 @@ export { ListFilterBar } from './ListFilterBar';
 export { ListResultLine, LIST_LINK_BUTTON } from './ListResultLine';
 export { GuestExportButton } from './GuestExportButton';
 export { ListViewToggle } from './ListViewToggle';
+export { ListToolbarLayout } from './ListToolbarLayout';
 export { ListEmptyState } from './ListEmptyState';
 export { FloatingBulkBar, BulkBarButton } from './FloatingBulkBar';
 export { BulkBarActions } from './BulkBarActions';

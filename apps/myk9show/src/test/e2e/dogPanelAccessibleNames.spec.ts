@@ -22,7 +22,8 @@ const VIEWPORTS = [
 ];
 
 async function openFirstDogDetail(page: Page) {
-  const firstDog = page.locator('h3 a[href^="/dogs/"]').first();
+  // A card's name link below 1024px; a compact-list row from 1024px up.
+  const firstDog = page.locator('ul[aria-label="Dogs"] a, h3 a[href^="/dogs/"]').first();
   await expect(firstDog).toBeVisible();
   await firstDog.click();
   await page.waitForURL(/\/dogs\/[0-9a-f-]{36}/, { waitUntil: 'commit' });

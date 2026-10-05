@@ -35,9 +35,9 @@ Existing precedent: `features/show-map/cockpit/SecretaryCockpit.tsx` is a hand-r
 
 ## Phases
 
-1. **Layout primitive.** `MasterDetailLayout`, responsive collapse, persisted sizes, unit tests.
-2. **People pilot.** `/people` shows the list with `/people/:id` in the right pane. Resolve `?fromDog` return flow.
-3. **Dogs.** Heaviest detail view; handle `?section=` and sub-panels.
+1. **Layout primitive.** `MasterDetailLayout`, responsive collapse, persisted sizes, unit tests. _Done (#2756)._
+2. **People pilot.** `/people` shows the list with `/people/:id` in the right pane. Resolve `?fromDog` return flow. _Done (#2756)._
+3. **Dogs.** Heaviest detail view; handle `?section=` and sub-panels. _Built on the People pieces:_ `CompactRecordList`, `useSelectMode`/`SelectModeButton` and `ListToolbarLayout` are shared; the dog detail stacks its identity rail, drops its route-entry focus/scroll and shows a close link when embedded. Select mode is staff-only (an exhibitor's roster has no bulk actions).
 4. **Entries.** Replace `EntryEditDialog` modal with a persistent detail pane (needs a detail view built from the dialog's content).
 5. **Revisit hierarchy** (clubs, shows, trials, classes, entries) as a possible three-pane layout. See open question below.
 

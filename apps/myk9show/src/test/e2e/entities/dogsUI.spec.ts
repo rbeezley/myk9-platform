@@ -174,18 +174,19 @@ test.describe('Dogs UI — Browse (secretary)', () => {
     // Breed, Sex and Owner filters were cut (search still covers them).
     await expect(page.getByRole('combobox', { name: 'Show: Dog views' })).toBeVisible();
 
-    // View toggle — exact aria-label avoids matching "Reset table view".
-    await expect(page.getByRole('button', { name: 'Cards view', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Table view', exact: true })).toBeVisible();
+    // Beside the list there is no Cards/Table toggle; staff get "Select dogs" for the table.
+    await expect(page.getByRole('button', { name: 'Select dogs', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Table view', exact: true })).toHaveCount(0);
   });
 
   test('search filters the dog list', async ({ page }) => {
     await gotoDogsBrowse(page);
-    const searchBox = page.getByPlaceholder('Search dogs by name, breed, or owner...');
+    const searchBox = page.getByPlaceholder('Search dogs');
     await searchBox.fill('Bella');
     await expect(page.getByText(/^Showing \d+ of \d+ dogs?\.$/)).toBeVisible();
     await searchBox.clear();
-    await expect(page.getByText(/^Showing all \d+ dogs?\.$/)).toBeVisible();
+    // The count is quiet beside the list until the list is narrowed.
+    await expect(page.getByText(/^Showing \d+ of \d+ dogs?\.$/)).toHaveCount(0);
   });
 
   test('Show select applies a status view and "Show all dogs" clears it', async ({ page }) => {
@@ -194,12 +195,12 @@ test.describe('Dogs UI — Browse (secretary)', () => {
     await page.getByRole('option', { name: /^Active/ }).click();
     await expect(page.getByText(/^Showing \d+ of \d+ dogs?\.$/)).toBeVisible();
     await page.getByRole('button', { name: 'Show all dogs' }).click();
-    await expect(page.getByText(/^Showing all \d+ dogs?\.$/)).toBeVisible();
+    await expect(page.getByText(/^Showing \d+ of \d+ dogs?\.$/)).toHaveCount(0);
   });
 
-  test('table view renders dog columns', async ({ page }) => {
+  test('select mode renders the dog table', async ({ page }) => {
     await gotoDogsBrowse(page);
-    await page.getByRole('button', { name: 'Table view', exact: true }).click();
+    await page.getByRole('button', { name: 'Select dogs', exact: true }).click();
     await expect(page.getByRole('columnheader', { name: /Name/i })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: /Breed/i })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: /Owner/i })).toBeVisible();
@@ -289,7 +290,7 @@ test.describe('Dogs UI — Exhibitor own-dog CRUD', () => {
 
   async function navigateToExhibitorDog(page: Page) {
     await gotoMyDogsBrowse(page);
-    await page.getByPlaceholder('Search your dogs by name or breed...').fill(EXHIBITOR_DOG_NAME);
+    await page.getByPlaceholder('Search dogs').fill(EXHIBITOR_DOG_NAME);
     const link = page.getByRole('link', { name: new RegExp(EXHIBITOR_DOG_NAME) }).first();
     await link.waitFor({ state: 'visible', timeout: 15000 });
     await link.click();
@@ -351,7 +352,7 @@ test.describe('Dogs UI — Exhibitor own-dog CRUD', () => {
     await deleteResponsePromise;
 
     await page.waitForURL(/\/dogs(\?|$|#)/, { timeout: 10000 });
-    await page.getByPlaceholder('Search your dogs by name or breed...').fill(EXHIBITOR_DOG_NAME);
+    await page.getByPlaceholder('Search dogs').fill(EXHIBITOR_DOG_NAME);
     await expect(page.getByRole('link', { name: new RegExp(EXHIBITOR_DOG_NAME) })).toHaveCount(0);
   });
 });
@@ -367,7 +368,7 @@ test.describe('Dogs UI — Detail page (secretary)', () => {
 
   async function navigateToDogA(page: Page) {
     await gotoDogsBrowse(page);
-    await page.getByPlaceholder('Search dogs by name, breed, or owner...').fill(DOG_A_NAME);
+    await page.getByPlaceholder('Search dogs').fill(DOG_A_NAME);
     await page.getByRole('link', { name: new RegExp(DOG_A_NAME) }).click();
     await page.waitForURL(/\/dogs\/[0-9a-f-]{36}$/);
   }
@@ -428,7 +429,7 @@ test.describe('Dogs UI — Edit panel (secretary)', () => {
 
   async function openEditPanelForDogA(page: Page) {
     await page.goto('/dogs', { waitUntil: 'networkidle' });
-    await page.getByPlaceholder('Search dogs by name, breed, or owner...').fill(DOG_A_NAME);
+    await page.getByPlaceholder('Search dogs').fill(DOG_A_NAME);
     await page.getByRole('link', { name: new RegExp(DOG_A_NAME) }).click();
     await page.waitForURL(/\/dogs\/[0-9a-f-]{36}$/);
     await chooseAction(page, 'Edit dog');
@@ -488,7 +489,7 @@ test.describe('Dogs UI — Delete (secretary)', () => {
 
   async function navigateToDogB(page: Page) {
     await page.goto('/dogs', { waitUntil: 'networkidle' });
-    await page.getByPlaceholder('Search dogs by name, breed, or owner...').fill(DOG_B_NAME);
+    await page.getByPlaceholder('Search dogs').fill(DOG_B_NAME);
     await page
       .getByRole('link', { name: new RegExp(DOG_B_NAME) })
       .first()
@@ -537,7 +538,7 @@ test.describe('Dogs UI — Delete (secretary)', () => {
     // Dog B should no longer appear in the list
     await expect(async () => {
       await page.reload({ waitUntil: 'networkidle' });
-      await page.getByPlaceholder('Search dogs by name, breed, or owner...').fill(DOG_B_NAME);
+      await page.getByPlaceholder('Search dogs').fill(DOG_B_NAME);
       await expect(page.getByRole('link', { name: new RegExp(DOG_B_NAME) })).toHaveCount(0);
     }).toPass({ timeout: 15000 });
   });
@@ -554,7 +555,7 @@ test.describe('Dogs UI — Registrations (secretary)', () => {
 
   async function navigateToDogA(page: Page) {
     await page.goto('/dogs', { waitUntil: 'networkidle' });
-    await page.getByPlaceholder('Search dogs by name, breed, or owner...').fill(DOG_A_NAME);
+    await page.getByPlaceholder('Search dogs').fill(DOG_A_NAME);
     const link = page.getByRole('link', { name: new RegExp(DOG_A_NAME) }).first();
     await link.waitFor({ state: 'visible', timeout: 15000 });
     await link.click();
@@ -647,7 +648,7 @@ test.describe('Dogs UI — Owner change (secretary)', () => {
 
   async function navigateToDogA(page: Page) {
     await page.goto('/dogs', { waitUntil: 'networkidle' });
-    await page.getByPlaceholder('Search dogs by name, breed, or owner...').fill(DOG_A_NAME);
+    await page.getByPlaceholder('Search dogs').fill(DOG_A_NAME);
     const link = page.getByRole('link', { name: new RegExp(DOG_A_NAME) }).first();
     await link.waitFor({ state: 'visible', timeout: 15000 });
     await link.click();

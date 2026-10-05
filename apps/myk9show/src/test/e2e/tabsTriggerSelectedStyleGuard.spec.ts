@@ -58,7 +58,8 @@ test('Edit Dog panel: the active tab gets the primitive opaque background; neith
 }) => {
   await signInAsExhibitor(page, '/dogs');
 
-  const firstDog = page.locator('h3 a[href^="/dogs/"]').first();
+  // A compact-list row at this width (the card name link below 1024px).
+  const firstDog = page.locator('ul[aria-label="Dogs"] a, h3 a[href^="/dogs/"]').first();
   await expect(firstDog).toBeVisible();
   await firstDog.click();
   await page.waitForURL(/\/dogs\/[0-9a-f-]{36}/, { waitUntil: 'commit' });

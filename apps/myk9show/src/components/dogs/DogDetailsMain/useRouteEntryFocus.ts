@@ -30,7 +30,10 @@ export function isRouteEntryNavigation(navigationType: NavigationType): boolean 
  */
 export function useRouteEntryFocus(
   headingRef: RefObject<HTMLElement | null>,
-  entryKey: string
+  entryKey: string,
+  // Off inside a master-detail pane: focus stays on the list row the user is working through, and
+  // the window is not scrolled out from under the list.
+  enabled = true
 ): void {
   const navigationType = useNavigationType();
   const prevEntryKeyRef = useRef<string | null>(null);
@@ -38,7 +41,7 @@ export function useRouteEntryFocus(
   useEffect(() => {
     const isNewEntry = prevEntryKeyRef.current !== entryKey;
     prevEntryKeyRef.current = entryKey;
-    if (!isNewEntry) return;
+    if (!isNewEntry || !enabled) return;
     if (!isRouteEntryNavigation(navigationType)) return;
 
     // Explicit scroll-to-top first so the heading (and the secondary view
@@ -47,5 +50,5 @@ export function useRouteEntryFocus(
     // possibly conflicting scroll from the focus call itself.
     window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
     headingRef.current?.focus({ preventScroll: true });
-  }, [entryKey, navigationType, headingRef]);
+  }, [entryKey, navigationType, headingRef, enabled]);
 }

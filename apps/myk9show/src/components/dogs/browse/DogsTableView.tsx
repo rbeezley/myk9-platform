@@ -31,6 +31,8 @@ interface DogsTableViewProps {
    * steward, chairman) land on the TABLE by default, not on cards.
    */
   showOwner?: boolean;
+  /** Replaces the default open-the-dog navigation (the split ends select mode first). */
+  onOpenDog?: (dog: Dog) => void;
 }
 
 /**
@@ -241,6 +243,7 @@ export const DogsTableView: React.FC<DogsTableViewProps> = ({
   dogs,
   selection,
   showOwner = true,
+  onOpenDog,
 }) => {
   const navigate = useNavigate();
 
@@ -266,7 +269,7 @@ export const DogsTableView: React.FC<DogsTableViewProps> = ({
         columns={allColumns}
         data={dogs}
         // Page-level ListControls owns search; table keeps only its Columns control.
-        onRowClick={dog => navigate(`/dogs/${dog.id}`)}
+        onRowClick={onOpenDog ?? (dog => navigate(`/dogs/${dog.id}`))}
         getRowId={dog => dog.id}
       />
     </DogsTableSelectionContext.Provider>

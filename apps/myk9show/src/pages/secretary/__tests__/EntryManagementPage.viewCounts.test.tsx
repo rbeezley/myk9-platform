@@ -159,6 +159,15 @@ describe('EntryManagementPage status sentence (MYK9-906)', () => {
     });
 
     await screen.findByRole('combobox', { name: 'Show: Entry views' });
-    expect(sentence()).toBe('Showing all 3 registrations.');
+    // Unfiltered, the toolbar's result line says nothing (the view select carries the totals): no
+    // "Showing all 3 registrations." and no narrowed "Showing 1 of 3 registrations." The pager's own
+    // "Showing 1–3 of 3 registrations" is a different status.
+    const toolbarSentences = screen
+      .getAllByRole('status')
+      .map(el => el.textContent ?? '')
+      .filter(text => /^Showing (all )?\d+( of \d+)? registrations?\.$/.test(text));
+    expect(toolbarSentences).toEqual([]);
+    const queue = await screen.findByRole('list', { name: 'Registration work queue' });
+    expect(within(queue).getAllByRole('listitem')).toHaveLength(3);
   });
 });

@@ -10,7 +10,12 @@
 import { SlidersHorizontal } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-toolkit';
+import {
+  ListFilterBar,
+  ListResultLine,
+  ListToolbarLayout,
+  ListViewTabs,
+} from '@/components/list-toolkit';
 import type {
   EntryManagementTrial,
   EntryManagementTrialClass,
@@ -63,52 +68,69 @@ export function EntryManagementViewToolbar({
     trialClasses,
     onScopeChange,
   });
+  // Views, search and filters on one row, and the count only once the list is narrowed: the queue
+  // is the work, and three stacked rows of controls pushed it below the fold.
   return (
-    <div className="flex flex-col gap-3">
-      <ListViewTabs
-        label="Entry views"
-        views={views}
-        activeId={activeId}
-        onSelect={id => onSelectView(id as EntryManagementViewId)}
-      />
-      {isRegistrationsView && (
-        <div className="flex flex-wrap items-start gap-2">
-          <div className="min-w-0 flex-1">
-            <ListFilterBar
-              searchValue={state.search}
-              onSearchChange={onSearchChange}
-              searchPlaceholder="Search exhibitor, dog, handler, armband, confirmation, class…"
-              fields={filterFields}
-            />
-          </div>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button type="button" variant="outline" size="sm" className="min-h-11 shrink-0 gap-2">
-                <SlidersHorizontal className="h-4 w-4" aria-hidden />
-                Density
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-auto">
-              <p className="mb-2 text-sm font-semibold">Registration row density</p>
-              <DensityControl density={density} onChange={onDensityChange} />
-            </PopoverContent>
-          </Popover>
-        </div>
-      )}
-      {isRegistrationsView && result && (
-        <ListResultLine
-          shown={result.shown}
-          total={result.total}
-          noun={['registration', 'registrations']}
-          filtered={
-            state.search.trim() !== '' ||
-            activeId !== 'all' ||
-            state.trialId !== null ||
-            state.classId !== null
-          }
-          onShowAll={onClearAll}
+    <ListToolbarLayout
+      compact
+      viewTabs={
+        <ListViewTabs
+          label="Entry views"
+          views={views}
+          activeId={activeId}
+          compact
+          onSelect={id => onSelectView(id as EntryManagementViewId)}
         />
-      )}
-    </div>
+      }
+      filterBar={
+        isRegistrationsView ? (
+          <div className="flex min-w-0 flex-1 flex-wrap items-start gap-2">
+            <div className="min-w-0 flex-1">
+              <ListFilterBar
+                searchValue={state.search}
+                onSearchChange={onSearchChange}
+                searchPlaceholder="Search exhibitor, dog, handler, armband, confirmation, class…"
+                fields={filterFields}
+                compact
+              />
+            </div>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="min-h-11 shrink-0 gap-2"
+                >
+                  <SlidersHorizontal className="h-4 w-4" aria-hidden />
+                  Density
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent align="end" className="w-auto">
+                <p className="mb-2 text-sm font-semibold">Registration row density</p>
+                <DensityControl density={density} onChange={onDensityChange} />
+              </PopoverContent>
+            </Popover>
+          </div>
+        ) : null
+      }
+      resultLine={
+        isRegistrationsView && result ? (
+          <ListResultLine
+            shown={result.shown}
+            total={result.total}
+            noun={['registration', 'registrations']}
+            filtered={
+              state.search.trim() !== '' ||
+              activeId !== 'all' ||
+              state.trialId !== null ||
+              state.classId !== null
+            }
+            onShowAll={onClearAll}
+            quietWhenUnfiltered
+          />
+        ) : null
+      }
+    />
   );
 }

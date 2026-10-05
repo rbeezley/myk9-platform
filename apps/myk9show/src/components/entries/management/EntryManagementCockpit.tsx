@@ -300,7 +300,10 @@ export function EntryManagementCockpit({
         {showDetail && !trialScopePending && cockpit.focusedGroup && (
           <div
             className={cn(
-              !responsive.compact && 'sticky top-[calc(var(--app-top-inset,3rem)+1rem)]'
+              // Under the pinned show header (its measured `--show-header-h`) and the 3rem tab strip;
+              // keep in step with `showStickyLayout`. Written out because Tailwind only sees literal class names.
+              !responsive.compact &&
+                'sticky top-[calc(var(--app-top-inset,3rem)+1rem)] lg:top-[calc(var(--app-top-inset,3rem)+var(--show-header-h,0px)+3rem+1rem)]'
             )}
           >
             <EntryFocusedRegistration

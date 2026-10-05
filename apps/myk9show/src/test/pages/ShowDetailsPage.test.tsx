@@ -858,17 +858,16 @@ describe('ShowDetailsPage', () => {
     expect(screen.queryByRole('button', { name: /premium list/i })).toBeNull();
   });
 
-  it('keeps show manager status in the hero header slot, with no overflow menu beside it', () => {
+  it('keeps show manager status in the show header, with no overflow menu beside it', () => {
     mockAuthContext.isSecretary = true;
 
     renderPage();
 
-    const heroActions = screen.getByTestId('hero-header-actions');
-    expect(heroActions).toHaveTextContent('Upcoming');
+    const header = screen.getByRole('heading', { level: 1 }).closest('div[class*="sticky"]');
+    expect(header).toHaveTextContent('Upcoming');
     // MYK9-630 deleted the `...` menu that used to share this slot; the one
     // actions surface is the app header's Actions button.
     expect(screen.queryByRole('button', { name: /more show actions/i })).toBeNull();
-    expect(screen.getByTestId('hero-secondary-actions')).toBeEmptyDOMElement();
   });
 
   it('gives a manager ONE row of four tabs and no standalone page links (MYK9-957)', () => {
@@ -989,7 +988,10 @@ describe('ShowDetailsPage', () => {
     renderPage('show-1', '/entries');
 
     expect(await screen.findAllByText("Couldn't load entry counts.")).toHaveLength(1);
-    expect(screen.getByTestId('hero-footer')).toHaveTextContent('Total EntriesUnavailable');
+    // The Entries tab carries the one-line header, not the hero with its quick-info cards; with the
+    // counts unavailable it names no count at all, so there is no false zero either.
+    expect(screen.queryByTestId('hero-footer')).not.toBeInTheDocument();
+    expect(screen.queryByText(/^\d+ entr(y|ies)$/)).not.toBeInTheDocument();
     expect(screen.queryByText('Total Entries0')).not.toBeInTheDocument();
     expect(screen.queryByTestId('show-map-tab')).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /^Entries$/ })).toBeInTheDocument();

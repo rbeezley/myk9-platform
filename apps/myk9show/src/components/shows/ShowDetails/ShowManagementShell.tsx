@@ -1,21 +1,17 @@
 import React, { Suspense, lazy, useState, useEffect } from 'react';
-import { Outlet, useNavigate, useSearchParams } from 'react-router-dom';
+import { Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Button } from '@/components/ui/button';
 import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
-import { DetailHero } from '@/components/common/DetailHero';
 import { ErrorState } from '@/components/common/ErrorState';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
-import { ShowDateBlock } from '@/components/shows/ShowDateBlock';
-import { ShowStatusPill } from '@/components/shows/ShowStatusPill';
-import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
-import { ShowPresenceStack } from '@/features/show-presence/ShowPresenceStack';
-import { LiveUpdateIndicator } from '@/features/show-live-sync/LiveUpdateIndicator';
-import { OfflineReadyBadge } from '@/features/offline-readiness/OfflineReadyBadge';
-import { ShowSyncStatus } from '@/components/shows/ShowDetails/ShowSyncStatus';
-import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
-import { LandingPageCard } from '@/features/premium/LandingPageCard';
+import { ShowCompactHeader } from './ShowCompactHeader';
+import { ShowHeaderControls } from './ShowHeaderControls';
+import { PublishAttentionChip } from './PublishAttentionChip';
+import { PUBLISH_PANEL_ANCHORS, ShowDetailsPanel } from './ShowDetailsPanel';
+import { useShowDetailsDisclosure } from './useShowDetailsDisclosure';
+import { SHOW_TAB_STRIP_CLASS } from './showStickyLayout';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
 import { showDeleteDetail } from '@/features/delete';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -26,7 +22,6 @@ import { TabsContent } from '@/components/ui/tabs';
 import { AboutThisShowCard } from '@/components/shows/overview/AboutThisShowCard';
 import { HomeClassSelection } from './HomeClassSelection';
 import { SELECT_CLASSES } from '@/pages/secretary/selectClassesRoutes';
-import { getShowStyle } from '@/features/registries';
 import {
   premiumPublishDraftKey,
   runPremiumPublishOperation,
@@ -46,8 +41,6 @@ import {
 import { useShowStore, type ShowInput } from '@/store/showStore';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { SHOW_TABS, type ShowTabId } from '@/routes/showManagementSections';
-import { SETUP_PUBLISH_ANCHOR } from '@/features/show-workbench/setupReadinessSignals';
-import { SHOW_STATUS_CONTROL_ANCHOR } from '@/features/show-workbench/publishReadiness';
 import type { Show } from '@/types/show-types';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
@@ -224,6 +217,16 @@ function AuthorizedShowManagementShell({
   // The shared dialog has already purged the show and refreshed its lists.
   const handleShowDeleted = () => navigate('/shows');
 
+  const headerControls = <ShowHeaderControls show={show} />;
+  const isOverview = !activeManagementSection;
+  // One header on every tab; the show's details (and on Overview the publishing cards) open under
+  // it. A link to something inside the panel (`#setup-publish`) opens it, so its target exists.
+  const { hash, key: locationKey } = useLocation();
+  const details = useShowDetailsDisclosure(
+    isOverview && PUBLISH_PANEL_ANCHORS.has(hash.slice(1)) ? `${locationKey}${hash}` : null
+  );
+  const detailsEntryCount = entryDataUnavailable ? null : catalogEntryCount;
+
   return (
     <>
       <PageShell>
@@ -235,45 +238,32 @@ function AuthorizedShowManagementShell({
             actions={<ShowPageHeaderActions showId={show.id} armbandCount={armbandCount} />}
           />
 
-          <DetailHero
-            cover={
-              show.startDate ? (
-                <ShowDateBlock startDate={show.startDate} endDate={show.endDate} />
+          <ShowCompactHeader
+            name={show.name || 'Untitled Show'}
+            organization={show.organization}
+            startDate={show.startDate}
+            endDate={show.endDate}
+            parent={showHeroParent(show, { viewer: heroViewer })}
+            entryCount={detailsEntryCount}
+            controls={headerControls}
+            attention={
+              isOverview ? (
+                <PublishAttentionChip
+                  showId={show.id}
+                  canManageShow={canManageShow}
+                  onOpen={details.openPanel}
+                />
               ) : undefined
             }
-            name={show.name || 'Untitled Show'}
-            headingLevel={1}
-            parent={showHeroParent(show, { viewer: heroViewer })}
-            badges={
-              show.organization ? [{ label: show.organization, variant: 'default' as const }] : []
-            }
-            metadata={[]}
-            headerActions={
-              <>
-                {/* Offline readiness and "Save now" (MYK9-957: was on Show Day). */}
-                <ShowSyncStatus />
-                <OfflineReadyBadge showId={show.id} />
-                <LiveUpdateIndicator />
-                <ShowPresenceStack />
-                <span id={SHOW_STATUS_CONTROL_ANCHOR} className="scroll-mt-20">
-                  <ShowStatusPill
-                    showId={show.id}
-                    status={show.status}
-                    clubId={show.clubId}
-                    entryOpenDate={show.entryOpenDate}
-                    entryCloseDate={show.entryCloseDate}
-                    onlineEntriesEnabled={show.onlineEntriesEnabled}
-                  />
-                </span>
-              </>
-            }
-            footer={
-              <QuickInfoCards
-                show={show}
-                canManageShow={canManageShow}
-                entryCount={entryDataUnavailable ? null : catalogEntryCount}
-              />
-            }
+            detailsOpen={details.open}
+            onToggleDetails={details.toggle}
+          />
+          <ShowDetailsPanel
+            show={show}
+            canManageShow={canManageShow}
+            entryCount={detailsEntryCount}
+            open={details.open}
+            showPublishing={isOverview}
           />
         </>
 
@@ -302,30 +292,6 @@ function AuthorizedShowManagementShell({
           </div>
         )}
 
-        {/* INTENT: the publish row lives on Overview ONLY (Richard, decision 2).
-            It was an always-on row on every section except Show Desk, which put
-            the same two cards in front of a secretary who had navigated to
-            Reports or Results to do something else; the header Actions menu's
-            "Generate & publish premium" is the way back to it from anywhere.
-            Show Desk keeps its compact publishing exception instead. */}
-        {!activeManagementSection && (
-          <div
-            id={SETUP_PUBLISH_ANCHOR}
-            // `scroll-mt-20` only: the `target:ring-*` classes could never
-            // fire, because the one link carrying `#setup-publish` is a router
-            // `<Link>` and a `pushState` is not fragment navigation
-            // (MYK9-630 round 5). Scrolling still works; the ring never did.
-            className="mt-4 grid scroll-mt-20 grid-cols-1 gap-3 rounded-md sm:grid-cols-2"
-          >
-            <PremiumDownloadCard
-              showId={show.id}
-              showStaleBadge={true}
-              canManageShow={canManageShow}
-            />
-            <LandingPageCard showId={show.id} showStyle={getShowStyle(show)} />
-          </div>
-        )}
-
         {/* INTENT: ONE horizontal row on this page, and it is the tabs
             (MYK9-630 phase 2). The five standalone page links that used to sit
             above a six-tab strip are gone: every tab below IS one of those
@@ -337,6 +303,7 @@ function AuthorizedShowManagementShell({
             value={activeTabId}
             onValueChange={goToTab}
             className="mt-4"
+            stripClassName={SHOW_TAB_STRIP_CLASS}
           >
             <TabsContent value={activeTabId}>
               {activeManagementSection ? (

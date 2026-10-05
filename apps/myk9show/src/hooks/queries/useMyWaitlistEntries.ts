@@ -1,7 +1,12 @@
 import { useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
-import { replicatedWaitlistEntriesTable } from '@/services/replication/ReplicatedWaitlistEntriesTable';
+import { toast } from 'sonner';
+import {
+  deleteWaitlistEntryAndEvict,
+  WaitlistEntryNotDeletedError,
+  WAITLIST_ENTRY_CHANGED_MESSAGE,
+} from '@/services/database/waitlists/deleteWaitlistEntry';
 import type { WaitListEntry } from '@/types/waitlist-types';
 
 /** Stable empty result. `query.data ?? []` would allocate a fresh array on
@@ -127,14 +132,22 @@ export function useMyWaitlistEntries(
   });
 
   const withdraw = useMutation({
-    mutationFn: async (waitlistEntryId: string) => {
-      const { error } = await supabase.from('waitlist_entries').delete().eq('id', waitlistEntryId);
-      if (error) throw error;
-      // Hard-deleted on the server: evict the replica row too (MYK9-1000).
-      await replicatedWaitlistEntriesTable.delete(waitlistEntryId).catch(() => undefined);
-    },
+    // Evicts the replica row only when the server confirms the delete: a spot
+    // offered a moment earlier matches nothing under the DELETE policy, and
+    // evicting it would hide a live offer (MYK9-1000).
+    mutationFn: (waitlistEntryId: string) =>
+      deleteWaitlistEntryAndEvict(waitlistEntryId, WAITLIST_ENTRY_CHANGED_MESSAGE),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...MY_WAITLIST_KEY, exhibitorId] });
+    },
+    // Refetch so the spot shows where it really stands, and say why.
+    onError: error => {
+      queryClient.invalidateQueries({ queryKey: [...MY_WAITLIST_KEY, exhibitorId] });
+      toast.error(
+        error instanceof WaitlistEntryNotDeletedError
+          ? error.message
+          : 'We could not withdraw this dog from the wait list. Please try again.'
+      );
     },
   });
 

@@ -6,7 +6,8 @@ import type { ReplicatedWaitlistEntry } from '@/services/replication/ReplicatedW
 
 const h = vi.hoisted(() => ({
   rows: [] as ReplicatedWaitlistEntry[],
-  deleteResult: { data: { id: 'wl-1' } as unknown, error: null as unknown },
+  deleteResult: { data: [{ id: 'wl-1' }] as unknown, error: null as unknown },
+  selectColumns: [] as unknown[],
 }));
 
 vi.mock('@/services/replication/ReplicatedWaitlistEntriesTable', () => ({
@@ -41,8 +42,10 @@ vi.mock('@/services/database/supabaseClient', () => {
   const chain: Record<string, unknown> = {};
   chain.delete = () => chain;
   chain.eq = () => chain;
-  chain.select = () => chain;
-  chain.single = () => Promise.resolve(h.deleteResult);
+  chain.select = (columns: unknown) => {
+    h.selectColumns.push(columns);
+    return Promise.resolve(h.deleteResult);
+  };
   return { supabase: { from: () => chain }, logQuery: vi.fn(), createDatabaseError };
 });
 
@@ -51,6 +54,10 @@ import {
   getClassesWithWaitlistCounts,
   removeFromWaitlist,
 } from '@/services/database/waitlists';
+import {
+  WaitlistEntryNotDeletedError,
+  WAITLIST_ENTRY_GONE_MESSAGE,
+} from '@/services/database/waitlists/deleteWaitlistEntry';
 
 const row = (id: string, position: number): ReplicatedWaitlistEntry => ({
   id,
@@ -63,12 +70,15 @@ const row = (id: string, position: number): ReplicatedWaitlistEntry => ({
 describe('removeFromWaitlist keeps the replica in step', () => {
   beforeEach(() => {
     h.rows = [row('wl-1', 1), row('wl-2', 2)];
-    h.deleteResult = { data: { id: 'wl-1' }, error: null };
+    h.deleteResult = { data: [{ id: 'wl-1' }], error: null };
+    h.selectColumns = [];
   });
 
   it('drops the removed row from the queue and the class count', async () => {
     const { error } = await removeFromWaitlist('wl-1');
     expect(error).toBeNull();
+    // Asks for the deleted id only (LESSONS: name a column, never '*').
+    expect(h.selectColumns).toEqual(['id']);
 
     const queue = await getWaitlistByClass('class-1');
     expect(queue.data.map(e => e.id)).toEqual(['wl-2']);
@@ -81,5 +91,18 @@ describe('removeFromWaitlist keeps the replica in step', () => {
     const { error } = await removeFromWaitlist('wl-1');
     expect(error).not.toBeNull();
     expect((await getWaitlistByClass('class-1')).data).toHaveLength(2);
+  });
+
+  // MYK9-1000 Codex round 2: PostgREST answers a DELETE that matched nothing
+  // (already removed elsewhere, or no longer permitted) with zero rows and no
+  // error. Only a confirmed deletion may evict the replica row.
+  it('keeps the row and says so when the server deleted nothing', async () => {
+    h.deleteResult = { data: [], error: null };
+
+    const { error } = await removeFromWaitlist('wl-1');
+
+    expect(error).toBeInstanceOf(WaitlistEntryNotDeletedError);
+    expect(error?.message).toBe(WAITLIST_ENTRY_GONE_MESSAGE);
+    expect((await getWaitlistByClass('class-1')).data.map(e => e.id)).toEqual(['wl-1', 'wl-2']);
   });
 });

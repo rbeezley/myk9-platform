@@ -8,9 +8,22 @@ import { pathToFileURL } from 'node:url';
 import { commentTrusted, type GateComment } from './review-gate.ts';
 
 const COMMENTS_PER_PAGE = 100;
-// A missing checkpoint never silently means "no hold": after this many
-// comments, fail closed and ask an operator to post a fresh PUSH RELEASE.
-const MAX_COMMENT_PAGES = 20;
+// Freshness window: the search index lags new comments by minutes, so the
+// newest comments are always read directly. Running out of window is NOT an
+// error any more: older directives come from the search path below, so total
+// comment volume (every review posts "Review gate:" comments) can no longer
+// push the last directive out of reach and block every push (MYK9-1015).
+const RECENT_COMMENT_PAGES = 5;
+// A search or per-PR listing that cannot be read to its end fails closed.
+const MAX_SEARCH_PAGES = 10;
+const MAX_PR_COMMENT_PAGES = 30;
+// Phrases parsePushDirective recognizes; each is searched separately because
+// GitHub search has no OR across quoted phrases inside comments.
+const DIRECTIVE_SEARCH_PHRASES = [
+  'PUSH HOLD',
+  'PUSH RELEASE',
+  'Hold all pushes until further notice',
+];
 
 interface GitHubComment {
   id: number;
@@ -80,58 +93,119 @@ function gh(args: string[]): string {
   });
 }
 
+function ghJson<T>(endpoint: string): T {
+  return JSON.parse(gh(['api', endpoint])) as T;
+}
+
+/** Keeps the newest directive; GitHub timestamps are per-second, so ties go to the higher ID. */
+function newer(a: PushDirective | undefined, b: PushDirective): PushDirective {
+  if (!a) return b;
+  const ta = Date.parse(a.createdAt);
+  const tb = Date.parse(b.createdAt);
+  return tb > ta || (tb === ta && b.commentId > a.commentId) ? b : a;
+}
+
+function commentTime(comment: GitHubComment): number {
+  const createdAt = Date.parse(comment.created_at);
+  if (!Number.isFinite(createdAt))
+    throw new Error(`invalid creation time on comment ${comment.id}`);
+  return createdAt;
+}
+
+function issueNumberOf(comment: GitHubComment): number {
+  const n = /\/issues\/(\d+)$/.exec(comment.issue_url ?? '')?.[1];
+  if (!n) throw new Error(`issue URL missing from comment ${comment.id}`);
+  return Number(n);
+}
+
+/** PR numbers whose comments mention a directive phrase, at any age. */
+function searchDirectivePrs(repo: string): Set<number> {
+  const prs = new Set<number>();
+  for (const phrase of DIRECTIVE_SEARCH_PHRASES) {
+    const q = encodeURIComponent(`repo:${repo} is:pr in:comments "${phrase}"`);
+    for (let page = 1; ; page++) {
+      if (page > MAX_SEARCH_PAGES)
+        throw new Error(`directive search for "${phrase}" is too large to read`);
+      const result = ghJson<{
+        incomplete_results?: boolean;
+        items?: { number: number }[];
+      }>(`search/issues?q=${q}&per_page=${COMMENTS_PER_PAGE}&page=${page}`);
+      if (result.incomplete_results)
+        throw new Error(`directive search for "${phrase}" was incomplete`);
+      if (!Array.isArray(result.items)) throw new Error('GitHub search response had no items');
+      for (const item of result.items) prs.add(item.number);
+      if (result.items.length < COMMENTS_PER_PAGE) break;
+    }
+  }
+  return prs;
+}
+
+function latestDirectiveOnPr(repo: string, pr: number): PushDirective | undefined {
+  let latest: PushDirective | undefined;
+  for (let page = 1; ; page++) {
+    if (page > MAX_PR_COMMENT_PAGES) throw new Error(`PR #${pr} has too many comments to read`);
+    const comments = ghJson<GitHubComment[]>(
+      `repos/${repo}/issues/${pr}/comments?per_page=${COMMENTS_PER_PAGE}&page=${page}`
+    );
+    if (!Array.isArray(comments)) throw new Error('GitHub PR comments response was not an array');
+    for (const comment of comments) {
+      commentTime(comment);
+      const directive = parsePushDirective({ ...comment, issue_url: comment.issue_url ?? '' }, pr);
+      if (directive) latest = newer(latest, directive);
+    }
+    if (comments.length < COMMENTS_PER_PAGE) return latest;
+  }
+}
+
+/** Newest comments straight from the repo feed, so a directive posted seconds ago is never missed. */
+function latestRecentDirective(repo: string): PushDirective | undefined {
+  let latest: PushDirective | undefined;
+  let latestTime = -Infinity;
+  const prCache = new Map<number, boolean>();
+  for (let page = 1; page <= RECENT_COMMENT_PAGES; page++) {
+    const comments = ghJson<GitHubComment[]>(
+      `repos/${repo}/issues/comments?sort=created&direction=desc&per_page=${COMMENTS_PER_PAGE}&page=${page}`
+    );
+    if (!Array.isArray(comments))
+      throw new Error('GitHub issue comments response was not an array');
+    for (const comment of comments) {
+      const createdAt = commentTime(comment);
+      // GitHub timestamps have second precision and the order within a second
+      // is unspecified, so finish the whole timestamp bucket before returning.
+      if (latest && createdAt < latestTime) return latest;
+      const pr = issueNumberOf(comment);
+      const directive = parsePushDirective(comment, pr);
+      if (!directive) continue;
+      let isPr = prCache.get(pr);
+      if (isPr === undefined) {
+        isPr = Boolean(
+          ghJson<{ pull_request?: unknown }>(`repos/${repo}/issues/${pr}`).pull_request
+        );
+        prCache.set(pr, isPr);
+      }
+      if (!isPr) continue;
+      latest = newer(latest, directive);
+      latestTime = Date.parse(latest.createdAt);
+    }
+    if (comments.length < COMMENTS_PER_PAGE) break;
+  }
+  return latest;
+}
+
 export function fetchPushDirective(): PushDirective | undefined {
   // REST, not `gh repo view`: that goes through GraphQL, which cloud sessions
   // cannot reach, so every cloud push failed closed here. gh fills
   // {owner}/{repo} from the git remote.
   const repo = gh(['api', 'repos/{owner}/{repo}', '--jq', '.full_name']).trim();
   if (!/^[\w.-]+\/[\w.-]+$/.test(repo)) throw new Error('cannot resolve GitHub repository');
-  // Repository issue comments include PRs after they close. Read newest first.
-  // GitHub timestamps have second precision and the order within a second is
-  // unspecified, so continue through the ENTIRE timestamp bucket (including
-  // the next page) and break ties by comment ID before returning a directive.
-  let latest: PushDirective | undefined;
-  let latestTime = -Infinity;
-  const prCache = new Map<number, boolean>();
-  for (let page = 1; page <= MAX_COMMENT_PAGES; page++) {
-    const endpoint = `repos/${repo}/issues/comments?sort=created&direction=desc&per_page=${COMMENTS_PER_PAGE}&page=${page}`;
-    const comments = JSON.parse(gh(['api', endpoint])) as GitHubComment[];
-    if (!Array.isArray(comments))
-      throw new Error('GitHub issue comments response was not an array');
-    for (const comment of comments) {
-      const createdAt = Date.parse(comment.created_at);
-      if (!Number.isFinite(createdAt)) {
-        throw new Error(`invalid creation time on comment ${comment.id}`);
-      }
-      if (latest && createdAt < latestTime) return latest;
-      const issueNumber = /\/issues\/(\d+)$/.exec(comment.issue_url ?? '')?.[1];
-      if (!issueNumber) throw new Error(`issue URL missing from comment ${comment.id}`);
-      const directive = parsePushDirective(comment, Number(issueNumber));
-      if (!directive) continue;
-      const pr = Number(issueNumber);
-      let isPr = prCache.get(pr);
-      if (isPr === undefined) {
-        const issue = JSON.parse(gh(['api', `repos/${repo}/issues/${pr}`])) as {
-          pull_request?: unknown;
-        };
-        isPr = Boolean(issue.pull_request);
-        prCache.set(pr, isPr);
-      }
-      if (!isPr) continue;
-      if (
-        !latest ||
-        createdAt > latestTime ||
-        (createdAt === latestTime && directive.commentId > latest.commentId)
-      ) {
-        latest = directive;
-        latestTime = createdAt;
-      }
-    }
-    if (comments.length < COMMENTS_PER_PAGE) return latest;
+  // Two sources, newest wins: the recent feed (fresh) and every PR that search
+  // says mentions a directive (old). No directive anywhere still means no hold.
+  let latest = latestRecentDirective(repo);
+  for (const pr of searchDirectivePrs(repo)) {
+    const found = latestDirectiveOnPr(repo, pr);
+    if (found) latest = newer(latest, found);
   }
-  throw new Error(
-    `scanned ${MAX_COMMENT_PAGES * COMMENTS_PER_PAGE} newest comments without resolving the latest trusted PR directive; ask an owner or member to post PUSH RELEASE on a PR`
-  );
+  return latest;
 }
 
 export function main(): number {

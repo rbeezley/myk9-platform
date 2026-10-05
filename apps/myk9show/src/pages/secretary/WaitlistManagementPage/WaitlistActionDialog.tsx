@@ -111,10 +111,19 @@ export const WaitlistActionDialog: React.FC<WaitlistActionDialogProps> = ({
               <>
                 Offer a spot to {dogName} in {className}? This creates an entry waiting for payment
                 and tells the exhibitor.{' '}
-                <OfferWindowSentence key={entry?.id} offerWindow={offerWindow} /> If they don&apos;t
-                pay in time, the offer ends and the spot opens again.
-                {entry?.joined_via === 'mail_in' &&
-                  ' This dog was entered by mail, so no payment link is sent: collect payment directly.'}
+                {entry?.joined_via === 'mail_in' ? (
+                  // The expiry job never closes a mail-in offer, so there is no deadline to state.
+                  <>
+                    This dog was entered by mail, so no payment link is sent: collect payment
+                    directly. The spot stays held for this dog until you record the payment or
+                    withdraw the offer.
+                  </>
+                ) : (
+                  <>
+                    <OfferWindowSentence key={entry?.id} offerWindow={offerWindow} /> If they
+                    don&apos;t pay in time, the offer ends and the spot opens again.
+                  </>
+                )}
               </>
             )}
             {action === 'remove' && (

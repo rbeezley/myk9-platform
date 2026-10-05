@@ -25,9 +25,13 @@ interface OfferedWaitlistTableProps {
 /** Where the offer stands, in the secretary's words. */
 function describeOfferPayment(offer: WaitlistOffer, now: Date): string {
   if (offer.promoted_entry_paid) return 'Paid, being confirmed';
+  // The expiry job never closes a mail-in offer: it stays held until the secretary resolves it.
+  if (offer.joined_via === 'mail_in') {
+    return 'Waiting for mailed payment. Held until you record it or withdraw the offer.';
+  }
   const deadline = offer.offer_expires_at ? Date.parse(offer.offer_expires_at) : Number.NaN;
   if (Number.isFinite(deadline) && deadline <= now.getTime()) return 'Not paid in time, closing';
-  return offer.joined_via === 'mail_in' ? 'Waiting for mailed payment' : 'Waiting for payment';
+  return 'Waiting for payment';
 }
 
 function buildColumns(

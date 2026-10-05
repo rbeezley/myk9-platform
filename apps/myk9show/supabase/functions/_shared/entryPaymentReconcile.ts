@@ -181,3 +181,46 @@ export function reconcileEntryPaymentRequest(input: ReconcileInput): ReconcileRe
     unresolvedEntryIds: [...blockedEntryIds],
   };
 }
+
+/**
+ * The ONE decision on whether a paid claim on an expired promotion link may
+ * revive its entry (MYK9-1001; owner decision 2026-10-05). stripe-webhook asks
+ * it twice: with the linked offer's status ('not_checked' replacement), then,
+ * when told 'check_replacement', with whether another open offer now holds the
+ * class's spot.
+ *
+ *   revive             the offer ran out of time and nobody else holds the
+ *                      spot: stamp the entry paid and confirmed (today's rule)
+ *   offer_withdrawn    the club WITHDREW the offer: never revive. The entry
+ *                      stays promotion-expired, so the charge is an unserved
+ *                      one and goes to the refund queue for human approval.
+ *   replacement_offer  another dog was offered the spot: refund, as today
+ *   unverified         a lookup failed or found nothing: refund, as today
+ *   check_replacement  read the replacement offer, then ask again
+ *
+ * An exhibitor's 'declined' offer is NOT treated like a withdrawal: it keeps
+ * today's behaviour (revive unless a replacement offer exists).
+ */
+export type ExpiredPromotionClaimDecision =
+  'revive' | 'offer_withdrawn' | 'replacement_offer' | 'unverified' | 'check_replacement';
+
+export function decideExpiredPromotionClaim(input: {
+  /** The linked waitlist row's status; null when there is none, 'unreadable' when the read failed. */
+  linkedOfferStatus: string | null;
+  replacementOffer: 'none' | 'exists' | 'unreadable' | 'not_checked';
+}): ExpiredPromotionClaimDecision {
+  if (input.linkedOfferStatus === null || input.linkedOfferStatus === 'unreadable') {
+    return 'unverified';
+  }
+  if (input.linkedOfferStatus === 'withdrawn') return 'offer_withdrawn';
+  switch (input.replacementOffer) {
+    case 'not_checked':
+      return 'check_replacement';
+    case 'exists':
+      return 'replacement_offer';
+    case 'unreadable':
+      return 'unverified';
+    case 'none':
+      return 'revive';
+  }
+}

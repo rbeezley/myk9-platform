@@ -14,6 +14,24 @@ const h = vi.hoisted(() => {
   return {
     WaitlistOfferNotWithdrawnError,
     offers: [] as unknown[],
+    queue: [] as unknown[],
+    waiting: (over: Record<string, unknown> = {}) => ({
+      id: 'w1',
+      class_id: 'c1',
+      dog_id: 'dog-w1',
+      exhibitor_id: 'ex2',
+      handler_id: null,
+      position: 2,
+      status: 'waiting',
+      joined_via: 'online',
+      offered_at: null,
+      offer_expires_at: null,
+      created_at: '2026-10-01T11:00:00Z',
+      updated_at: '2026-10-01T11:00:00Z',
+      dog: { id: 'dog-w1', name: 'Bella', call_name: 'Bella' },
+      class: { id: 'c1', name: 'Novice A', class_number: null, max_entries: null },
+      ...over,
+    }),
     withdraw: vi.fn(),
     toastWarning: vi.fn(),
     toastSuccess: vi.fn(),
@@ -61,27 +79,7 @@ vi.mock('@/services/database/waitlists', () => ({
     ],
     error: null,
   }),
-  getWaitlistByClass: vi.fn().mockResolvedValue({
-    data: [
-      {
-        id: 'w1',
-        class_id: 'c1',
-        dog_id: 'dog-w1',
-        exhibitor_id: 'ex2',
-        handler_id: null,
-        position: 2,
-        status: 'waiting',
-        joined_via: 'online',
-        offered_at: null,
-        offer_expires_at: null,
-        created_at: '2026-10-01T11:00:00Z',
-        updated_at: '2026-10-01T11:00:00Z',
-        dog: { id: 'dog-w1', name: 'Bella', call_name: 'Bella' },
-        class: { id: 'c1', name: 'Novice A', class_number: null, max_entries: null },
-      },
-    ],
-    error: null,
-  }),
+  getWaitlistByClass: vi.fn(async () => ({ data: h.queue, error: null })),
   getWaitlistOffersByClass: vi.fn(async () => ({ data: h.offers, error: null })),
   withdrawWaitlistOffer: h.withdraw,
   WaitlistOfferNotWithdrawnError: h.WaitlistOfferNotWithdrawnError,
@@ -134,6 +132,7 @@ const offeredGroup = () => screen.findByTestId('waitlist-offered-group');
 describe('WaitlistManagementPage offers', () => {
   beforeEach(() => {
     h.offers = [h.offer()];
+    h.queue = [h.waiting()];
     h.withdraw.mockReset();
     h.toastWarning.mockReset();
     h.toastSuccess.mockReset();
@@ -379,5 +378,42 @@ describe('WaitlistManagementPage offers', () => {
     const group = within(await offeredGroup());
     expect(group.getByRole('button', { name: /Withdraw offer/ })).toBeDisabled();
     expect(group.getByTestId('waitlist-online-only')).toHaveTextContent('Online only');
+  });
+
+  // Codex round 7 on #2772: the expiry job never closes a mail-in offer, so neither the dialog
+  // nor the list may say the spot reopens or the offer is closing when the deadline passes.
+  it('tells the secretary a mail-in offer stays held until they resolve it', async () => {
+    h.queue = [h.waiting({ joined_via: 'mail_in' })];
+    render(<WaitlistManagementPage showId="show-1" />);
+    await screen.findByText('Bella');
+
+    fireEvent.click(screen.getByRole('button', { name: /Offer Spot/ }));
+    const dialog = await screen.findByRole('alertdialog');
+    const text = () => (dialog.textContent ?? '').replace(/\s+/g, ' ');
+
+    await waitFor(() =>
+      expect(text()).toContain(
+        'This dog was entered by mail, so no payment link is sent: collect payment directly. The spot stays held for this dog until you record the payment or withdraw the offer.'
+      )
+    );
+    expect(text()).not.toContain('the spot opens again');
+    expect(text()).not.toContain('to pay (until');
+  });
+
+  it('shows an overdue mail-in offer as still held, never as closing', async () => {
+    h.offers = [
+      h.offer({
+        joined_via: 'mail_in',
+        offered_at: '2026-01-01T15:00:00Z',
+        offer_expires_at: '2026-01-03T15:00:00Z',
+      }),
+    ];
+    render(<WaitlistManagementPage showId="show-1" />);
+    const group = within(await offeredGroup());
+
+    expect(
+      group.getByText('Waiting for mailed payment. Held until you record it or withdraw the offer.')
+    ).toBeInTheDocument();
+    expect(group.queryByText(/closing/)).not.toBeInTheDocument();
   });
 });

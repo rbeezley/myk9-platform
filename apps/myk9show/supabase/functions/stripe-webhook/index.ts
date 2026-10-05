@@ -6,6 +6,7 @@ import { accountToRowPatch } from '../_shared/connectAccountMapper.ts';
 import { parsePremiumPriceIds, priceIdToTier } from '../_shared/premiumPrices.ts';
 import { sessionMatchesCart } from '../_shared/sessionCartGuard.ts';
 import {
+  decideExpiredPromotionClaim,
   INACTIVE_ENTRY_STATUSES,
   reconcileEntryPaymentRequest,
 } from '../_shared/entryPaymentReconcile.ts';
@@ -2386,13 +2387,20 @@ async function paidExpiredClaimHasReplacementOffer(
   entryId: string,
   sessionId: string
 ): Promise<boolean> {
+  // Whether this claim may revive is decided in ONE place
+  // (decideExpiredPromotionClaim); this function only reads what it needs.
   const { data: linkedOffer, error: linkedOfferError } = await supabase
     .from('waitlist_entries')
     .select('id, class_id, status, promoted_entry_id')
     .eq('promoted_entry_id', entryId)
     .maybeSingle();
 
-  if (linkedOfferError || !linkedOffer) {
+  const linkedOfferStatus = linkedOfferError
+    ? 'unreadable'
+    : ((linkedOffer?.status as string | null | undefined) ?? null);
+  const first = decideExpiredPromotionClaim({ linkedOfferStatus, replacementOffer: 'not_checked' });
+
+  if (first === 'unverified') {
     console.error(
       `Paid expired waitlist claim ${entryId} has no resolvable waitlist row:`,
       linkedOfferError
@@ -2408,16 +2416,36 @@ async function paidExpiredClaimHasReplacementOffer(
     return true;
   }
 
+  if (first === 'offer_withdrawn') {
+    // MYK9-1001 (owner decision 2026-10-05): the club withdrew this offer, so a
+    // payment that settled late never confirms the entry. It stays
+    // promotion-expired and the charge goes to the refund queue for approval.
+    console.error(`Paid expired waitlist claim ${entryId} is for an offer the club withdrew`);
+    await alertAdmin(
+      'Late payment on a withdrawn waitlist offer',
+      `<p>Session <code>${sessionId}</code> paid promotion entry <code>${entryId}</code>
+       after the club withdrew its waitlist offer. The webhook left the entry
+       unpaid and the charge goes to the refund queue for approval.</p>`,
+      { source: 'stripe-webhook', dedupeKey: `expired-claim-withdrawn-${entryId}` }
+    );
+    return true;
+  }
+
   const { data: replacementOffer, error: replacementError } = await supabase
     .from('waitlist_entries')
     .select('id, promoted_entry_id')
-    .eq('class_id', linkedOffer.class_id)
+    .eq('class_id', linkedOffer!.class_id)
     .eq('status', 'offered')
     .neq('promoted_entry_id', entryId)
     .limit(1)
     .maybeSingle();
 
-  if (replacementError) {
+  const second = decideExpiredPromotionClaim({
+    linkedOfferStatus,
+    replacementOffer: replacementError ? 'unreadable' : replacementOffer ? 'exists' : 'none',
+  });
+
+  if (second === 'unverified') {
     console.error(
       `Could not check replacement waitlist offers before reviving ${entryId}:`,
       replacementError
@@ -2427,20 +2455,20 @@ async function paidExpiredClaimHasReplacementOffer(
       `<p>Session <code>${sessionId}</code> paid expired promotion entry
        <code>${entryId}</code>, but checking for a replacement offer failed.
        The webhook left the entry unpaid so the charge can be refunded.</p>
-       <pre>${replacementError.message}</pre>`,
+       <pre>${replacementError?.message ?? ''}</pre>`,
       { source: 'stripe-webhook', dedupeKey: `expired-claim-collision-check-failed-${entryId}` }
     );
     return true;
   }
 
-  if (replacementOffer) {
+  if (second === 'replacement_offer') {
     console.error(
-      `Paid expired waitlist claim ${entryId} collided with replacement waitlist offer ${replacementOffer.id}`
+      `Paid expired waitlist claim ${entryId} collided with replacement waitlist offer ${replacementOffer!.id}`
     );
     await alertAdmin(
       'Paid expired waitlist claim collided with a replacement offer',
       `<p>Session <code>${sessionId}</code> paid expired promotion entry
-       <code>${entryId}</code>, but waitlist offer <code>${replacementOffer.id}</code>
+       <code>${entryId}</code>, but waitlist offer <code>${replacementOffer!.id}</code>
        is already active for the same class. The webhook left the expired entry
        unpaid so the charge can be refunded instead of double-selling the spot.</p>`,
       { source: 'stripe-webhook', dedupeKey: `expired-claim-collision-${entryId}` }
@@ -2448,7 +2476,8 @@ async function paidExpiredClaimHasReplacementOffer(
     return true;
   }
 
-  return false;
+  // Only an explicit 'revive' stamps the entry; anything else leaves it for the refund queue.
+  return second !== 'revive';
 }
 
 /**

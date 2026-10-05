@@ -49,7 +49,7 @@
 --       and zone abbreviation, and an offer with an offered_at states its
 --       window in hours ("You have 48 hours to claim it by paying (until Wed,
 --       Jul 15, 2:00 PM EDT)."); with no offered_at it reads "Claim it by
---       paying before <deadline>." (asserted in the M1 and W1 known answers).
+--       paying before <deadline>." (asserted in the N2, M1 and W1 answers).
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
 
@@ -85,6 +85,31 @@ $f$;
 CREATE FUNCTION pg_temp.fid(p_suffix text)
 RETURNS uuid LANGUAGE sql IMMUTABLE AS $f$
   SELECT ('00000000-0000-0000-0000-000001003' || p_suffix)::uuid
+$f$;
+
+-- The offer message's deadline line for a row whose times are set at offer
+-- time (now()), so the expected text cannot be a literal (MYK9-1002,
+-- migration 20261005152300): "You have <N> hours to claim it by paying (until
+-- Wed, Oct 7, 12:30 PM EDT)." The zone abbreviation comes from to_char's TZ
+-- under that zone, set for this call only, as the message function does.
+CREATE FUNCTION pg_temp.offer_window_line(p_waitlist_entry_id uuid, p_zone text)
+RETURNS text LANGUAGE plpgsql AS $f$
+DECLARE
+  v_offered timestamptz;
+  v_expires timestamptz;
+  v_session text := current_setting('TimeZone');
+  v_until text;
+  v_hours integer;
+BEGIN
+  SELECT w.offered_at, w.offer_expires_at INTO v_offered, v_expires
+  FROM public.waitlist_entries w WHERE w.id = p_waitlist_entry_id;
+  PERFORM set_config('TimeZone', p_zone, true);
+  v_until := to_char(v_expires, 'Dy, Mon FMDD, FMHH12:MI AM TZ');
+  PERFORM set_config('TimeZone', v_session, true);
+  v_hours := round(extract(epoch FROM (v_expires - v_offered)) / 3600)::integer;
+  RETURN 'You have ' || v_hours || CASE WHEN v_hours = 1 THEN ' hour' ELSE ' hours' END
+    || ' to claim it by paying (until ' || v_until || ').';
+END;
 $f$;
 
 -- Open offers in a class.
@@ -537,11 +562,9 @@ BEGIN
       WHERE t.show_id = pg_temp.fid('101')
         AND t.participant_id = pg_temp.fid('023')
         AND m.body LIKE '%Class On%'),
-    '00000000-0000-0000-0000-000001003021 | A spot opened for Dog411 in Class On. Claim it by paying before '
-      || (SELECT to_char(w.offer_expires_at AT TIME ZONE 'America/New_York',
-                         'Mon FMDD, YYYY, FMHH12:MI AM')
-            FROM public.waitlist_entries w WHERE w.id = pg_temp.fid('501'))
-      || '. You pay for this spot only if you claim it. Open My Entries to accept the offer before it expires.',
+    '00000000-0000-0000-0000-000001003021 | A spot opened for Dog411 in Class On. '
+      || pg_temp.offer_window_line(pg_temp.fid('501'), 'America/New_York')
+      || ' You pay for this spot only if you claim it. Open My Entries to accept the offer before it expires.',
     'N2 the automatic offer sent the exhibitor the in-app message from the secretary');
   PERFORM pg_temp.expect_eq(
     (SELECT count(*)::text FROM public.show_message_threads t

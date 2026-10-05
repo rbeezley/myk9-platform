@@ -20,37 +20,37 @@ function writeStored(open: boolean): void {
 
 /**
  * Whether the show header's details panel (quick info, publishing cards) is open. Collapsed by
- * default; the choice is remembered across shows and visits.
+ * default; the chevron's choice is remembered across shows and visits.
  *
- * `forceOpenKey` opens it once for a link that targets something inside it (a `#setup-publish`
- * attention item): a collapsed panel would otherwise hide the target. It is a one-shot, so the
- * user can still collapse the panel while that link's hash is in the URL.
+ * Two things open it without changing that choice:
+ * - `forceOpenKey`: a link to something inside the panel (a `#setup-publish` attention item),
+ *   because a collapsed panel would hide its target. Pass a key that is new for every navigation
+ *   (the router's location key plus the hash) and `null` when no such link is active: the panel
+ *   follows the key, so it closes again when the link is gone, and a repeat click on the same link
+ *   opens it again after a collapse. Collapsing while the link is active dismisses that key.
+ * - `openPanel`: the header's own "needs attention" chip. Open for this visit only.
  */
 export function useShowDetailsDisclosure(forceOpenKey: string | null) {
   const [stored, setStored] = useState(readStored);
-  const [forced, setForced] = useState(false);
-  const [seenKey, setSeenKey] = useState<string | null>(null);
-  if (forceOpenKey !== seenKey) {
-    setSeenKey(forceOpenKey);
-    if (forceOpenKey) setForced(true);
-  }
+  const [sessionOpen, setSessionOpen] = useState(false);
+  const [dismissedKey, setDismissedKey] = useState<string | null>(null);
 
-  const open = stored || forced;
+  const forced = forceOpenKey !== null && forceOpenKey !== dismissedKey;
+  const open = stored || sessionOpen || forced;
+
   const toggle = useCallback(() => {
     if (open) {
       setStored(false);
-      setForced(false);
+      setSessionOpen(false);
+      setDismissedKey(forceOpenKey);
       writeStored(false);
     } else {
       setStored(true);
       writeStored(true);
     }
-  }, [open]);
+  }, [open, forceOpenKey]);
 
-  const openPanel = useCallback(() => {
-    setStored(true);
-    writeStored(true);
-  }, []);
+  const openPanel = useCallback(() => setSessionOpen(true), []);
 
   return { open, toggle, openPanel };
 }

@@ -29,8 +29,9 @@ async function gotoEntries(page: Page) {
     { timeout: 10_000 }
   );
   await page.goto(ENTRIES_URL);
-  // The "Total Entries" title is the data-loaded signal.
-  await page.getByText('Total Entries', { exact: true }).waitFor({ timeout: 10_000 });
+  // The page heading is the loaded signal (the quick-info cells now sit in the collapsed details
+  // panel of the show header).
+  await page.getByRole('heading', { name: 'Entry Management' }).waitFor({ timeout: 10_000 });
   await entriesResponse;
 }
 
@@ -57,7 +58,7 @@ test.describe('Browse entries', () => {
     await gotoEntries(page);
 
     // Stats card subtitles are unique strings (avoids collision with tab labels)
-    await expect(page.getByText('Total Entries', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible();
     await expect(page.getByText('Need review', { exact: true })).toBeVisible();
     await expect(page.getByText('Confirmed entries', { exact: true })).toBeVisible();
 
@@ -86,7 +87,7 @@ test.describe('Browse entries', () => {
     await expect(page.getByRole('heading', { name: 'Waitlist Management' })).toBeVisible();
 
     await page.getByRole('tab', { name: 'Entries', exact: true }).click();
-    await expect(page.getByText('Total Entries', { exact: true })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible();
   });
 
   test('entry row Actions menu teardown does not block the Add entries decision point', async ({

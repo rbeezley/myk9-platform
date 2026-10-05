@@ -68,7 +68,7 @@ export const ShowCompactHeader: React.FC<ShowCompactHeaderProps> = ({
           <h1 className="truncate text-lg font-semibold leading-tight">{name}</h1>
           {organization && <Badge variant="default">{organization}</Badge>}
         </div>
-        <p className="mt-0.5 flex min-w-0 flex-wrap gap-x-2 truncate text-xs text-muted-foreground">
+        <p className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
           {parent && <span>{parent.label}</span>}
           {facts.map(fact => (
             <span key={fact}>{fact}</span>

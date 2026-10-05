@@ -221,10 +221,9 @@ function AuthorizedShowManagementShell({
   const isOverview = !activeManagementSection;
   // One header on every tab; the show's details (and on Overview the publishing cards) open under
   // it. A link to something inside the panel (`#setup-publish`) opens it, so its target exists.
-  const { hash } = useLocation();
-  const detailsAnchor = hash.slice(1);
+  const { hash, key: locationKey } = useLocation();
   const details = useShowDetailsDisclosure(
-    isOverview && PUBLISH_PANEL_ANCHORS.has(detailsAnchor) ? detailsAnchor : null
+    isOverview && PUBLISH_PANEL_ANCHORS.has(hash.slice(1)) ? `${locationKey}${hash}` : null
   );
   const detailsEntryCount = entryDataUnavailable ? null : catalogEntryCount;
 

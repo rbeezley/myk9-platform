@@ -14050,6 +14050,25 @@ export type Database = {
           stripe_payment_intent_id: string
         }[]
       }
+      queue_unfulfilled_charge_refund: {
+        Args: {
+          p_amount_cents: number
+          p_cart_id?: string
+          p_detail?: Json
+          p_payment_intent_id: string
+          p_reason: string
+          p_session_id: string
+          p_show_id?: string
+        }
+        Returns: {
+          amount_cents: number
+          outcome: string
+          reason: string
+          refund_request_id: string
+          request_status: string
+          stripe_payment_intent_id: string
+        }[]
+      }
       recalculate_class_placements: {
         Args: { p_class_ids: string[]; p_is_nationals?: boolean }
         Returns: undefined

@@ -44,18 +44,11 @@ async function assertNoHorizontalOverflow(page: Page, label: string) {
 }
 
 async function openFirstOwnedDog(page: Page): Promise<void> {
-  // A dog card's name is a real <Link> INSIDE an h3 (BrowseCard renders
-  // `<h3><Link to={href}>`), stretched over the card by its ::after. This used
-  // to be the other way round — a card-level role=link wrapping the heading —
-  // and this locator still described that shape, so it matched nothing and the
-  // spec reported "the dog list is empty" while the page was rendering 257
-  // dogs. Accept either nesting so a future markup flip fails loudly on the
-  // assertion rather than silently here (MYK9-271).
-  const dogLink = page
-    .getByRole('heading', { level: 3 })
-    .getByRole('link')
-    .or(page.getByRole('link').filter({ has: page.getByRole('heading', { level: 3 }) }))
-    .first();
+  // From 1024px the list is compact: one <a> per dog in `ul[aria-label="Dogs"]`. Below that a
+  // dog card's name is a real <Link> INSIDE an h3 (BrowseCard renders `<h3><Link to={href}>`).
+  // Accept either so a markup flip fails loudly on the assertion rather than silently here
+  // (MYK9-271).
+  const dogLink = page.locator('ul[aria-label="Dogs"] a, h3 a[href^="/dogs/"]').first();
   for (let attempt = 0; attempt < 3; attempt += 1) {
     await page.goto('/dogs', { waitUntil: 'load' });
     try {
@@ -66,7 +59,7 @@ async function openFirstOwnedDog(page: Page): Promise<void> {
     }
   }
   await dogLink.click();
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 20000 });
+  await expect(page.getByRole('heading', { level: 1 }).last()).toBeVisible({ timeout: 20000 });
 }
 
 test.describe('Slice 2 dog workspace evidence (demo exhibitor)', () => {
@@ -85,7 +78,7 @@ test.describe('Slice 2 dog workspace evidence (demo exhibitor)', () => {
         // + reload to make the state deterministic per iteration.
         await page.evaluate(t => localStorage.setItem('theme', t), theme);
         await page.goto(dogPath);
-        await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+        await expect(page.getByRole('heading', { level: 1 }).last()).toBeVisible();
 
         // Top-level nav present and unclipped.
         const sectionNav = page.getByRole('tablist', { name: 'Dog details section' });

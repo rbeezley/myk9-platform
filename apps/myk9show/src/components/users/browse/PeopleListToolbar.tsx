@@ -8,7 +8,12 @@
  */
 
 import { useMemo, type ReactNode } from 'react';
-import { ListFilterBar, ListResultLine, ListViewTabs } from '@/components/list-toolkit';
+import {
+  ListFilterBar,
+  ListResultLine,
+  ListToolbarLayout,
+  ListViewTabs,
+} from '@/components/list-toolkit';
 import type { PeopleFilters } from '@/hooks/useBrowsePeopleData';
 import type { User } from '@/types/user-types';
 import { activePeopleViewId, buildPeopleViews, peopleViewFilterPatch } from './peopleListViews';
@@ -63,29 +68,23 @@ export function PeopleListToolbar({
     />
   );
   return (
-    <div className="flex flex-col gap-3">
-      {compact ? (
-        <div className="flex items-center gap-2">
-          {filterBar}
-          {viewTabs}
-        </div>
-      ) : (
-        <>
-          {viewTabs}
-          {filterBar}
-        </>
-      )}
-      <ListResultLine
-        shown={matchCount}
-        total={people.length}
-        noun={PEOPLE_NOUN}
-        filtered={hasActiveFilters}
-        onShowAll={onClearAll}
-        showAllInEmptyState={matchCount === 0}
-        quietWhenUnfiltered={compact}
-      >
-        {resultLineExtra}
-      </ListResultLine>
-    </div>
+    <ListToolbarLayout
+      compact={compact}
+      viewTabs={viewTabs}
+      filterBar={filterBar}
+      resultLine={
+        <ListResultLine
+          shown={matchCount}
+          total={people.length}
+          noun={PEOPLE_NOUN}
+          filtered={hasActiveFilters}
+          onShowAll={onClearAll}
+          showAllInEmptyState={matchCount === 0}
+          quietWhenUnfiltered={compact}
+        >
+          {resultLineExtra}
+        </ListResultLine>
+      }
+    />
   );
 }

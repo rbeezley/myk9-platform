@@ -31,7 +31,7 @@ const BLOCKED_DOGS_SEARCH = 'Shepherd';
 async function gotoDogsTable(page: Page) {
   await page.goto('/dogs', { waitUntil: 'networkidle' });
   await expect(page.getByRole('heading', { name: 'Dogs', level: 1 })).toBeVisible();
-  await page.getByRole('button', { name: 'Table view', exact: true }).click();
+  await page.getByRole('button', { name: 'Select dogs', exact: true }).click();
   await expect(page.getByRole('columnheader', { name: /Name/i })).toBeVisible();
 }
 

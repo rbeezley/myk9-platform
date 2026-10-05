@@ -78,7 +78,9 @@ describe('waitlist notification dispatch contracts', () => {
     expect(dispatcher).not.toContain("throw new Error('notification_recipient_missing')");
     expect(dispatcher).toContain('if (!input.recipient) {');
     expect(content).toContain('/exhibitor/entries?waitlistOffer=');
-    expect(dispatcher).toContain("event_type: 'offered' | 'reminder' | 'expired'");
+    // The payload takes the shared union, which MYK9-1001 widened with 'withdrawn'
+    // (waitlistNotification.test.ts asserts the accepted types).
+    expect(dispatcher).toContain('event_type: WaitlistNotificationEventType;');
     expect(dispatcher).toContain('shouldDeliverWaitlistEvent');
     expect(dispatcher).toContain('runWaitlistDeliveryChannels');
     expect(dispatcher).toContain(".eq('claim_token', claimToken)");

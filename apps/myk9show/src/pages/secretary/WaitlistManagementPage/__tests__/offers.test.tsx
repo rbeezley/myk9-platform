@@ -14,6 +14,7 @@ const h = vi.hoisted(() => {
     WaitlistOfferNotWithdrawnError,
     offers: [] as unknown[],
     withdraw: vi.fn(),
+    toastWarning: vi.fn(),
     offer: (over: Record<string, unknown> = {}) => ({
       id: 'o1',
       class_id: 'c1',
@@ -85,6 +86,10 @@ vi.mock('@/services/database/waitlists', () => ({
   sendWaitlistOfferMessage: vi.fn(),
 }));
 
+vi.mock('sonner', () => ({
+  toast: { warning: h.toastWarning, success: vi.fn(), error: vi.fn(), info: vi.fn() },
+}));
+
 vi.mock('@/components/shows/waitListSettingsQuery', () => ({
   waitListSettingsQueryOptions: (showId: string) => ({
     queryKey: ['waitlist-settings', showId],
@@ -121,6 +126,7 @@ describe('WaitlistManagementPage offers', () => {
   beforeEach(() => {
     h.offers = [h.offer()];
     h.withdraw.mockReset();
+    h.toastWarning.mockReset();
   });
   afterEach(() => {
     vi.restoreAllMocks();
@@ -149,18 +155,39 @@ describe('WaitlistManagementPage offers', () => {
     expect(group.queryByRole('button', { name: /Withdraw offer/ })).not.toBeInTheDocument();
   });
 
-  it('withdraws an offer from the tab after saying the exhibitor is not told', async () => {
-    h.withdraw.mockResolvedValue(undefined);
+  it('withdraws an offer from the tab after saying the exhibitor will be told', async () => {
+    h.withdraw.mockResolvedValue({ notified: true });
     render(<WaitlistManagementPage showId="show-1" />);
     const group = within(await offeredGroup());
 
     fireEvent.click(group.getByRole('button', { name: /Withdraw offer/ }));
     const dialog = within(await screen.findByRole('alertdialog'));
     expect(dialog.getByText(/Their payment link stops working/)).toBeInTheDocument();
-    expect(dialog.getByText(/The exhibitor is not notified, so let them know/)).toBeInTheDocument();
+    expect(
+      dialog.getByText(/The exhibitor is notified that no payment is due/)
+    ).toBeInTheDocument();
+    expect(dialog.queryByText(/let them know/)).not.toBeInTheDocument();
 
     fireEvent.click(dialog.getByRole('button', { name: 'Withdraw offer' }));
     await waitFor(() => expect(h.withdraw).toHaveBeenCalledWith('o1'));
+    expect(h.toastWarning).not.toHaveBeenCalled();
+  });
+
+  it('keeps the withdrawal and tells the secretary when the exhibitor notice did not send', async () => {
+    h.withdraw.mockResolvedValue({ notified: false });
+    render(<WaitlistManagementPage showId="show-1" />);
+    const group = within(await offeredGroup());
+
+    fireEvent.click(group.getByRole('button', { name: /Withdraw offer/ }));
+    const dialog = within(await screen.findByRole('alertdialog'));
+    fireEvent.click(dialog.getByRole('button', { name: 'Withdraw offer' }));
+
+    await waitFor(() =>
+      expect(h.toastWarning).toHaveBeenCalledWith(
+        "Offer withdrawn, but the exhibitor's notification didn't send. Let them know directly."
+      )
+    );
+    expect(screen.queryByText(/Failed to withdraw/)).not.toBeInTheDocument();
   });
 
   it("shows the server's reason when a withdrawal is refused", async () => {
@@ -213,7 +240,7 @@ describe('WaitlistManagementPage offers', () => {
   // Codex P2 on #2772: a show repeats a class across trials, so the class name alone cannot tell
   // two offers apart, and the Withdraw dialog must name the trial it acts on.
   it('names the trial on each offer and in the Withdraw dialog when two trials share a class name', async () => {
-    h.withdraw.mockResolvedValue(undefined);
+    h.withdraw.mockResolvedValue({ notified: true });
     h.offers = [
       h.offer(),
       h.offer({

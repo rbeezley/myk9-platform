@@ -12,6 +12,12 @@
  *
  * Authorization is promote_waitlist_entry's: the show's secretary, the
  * show's club admin, or a site admin.
+ *
+ * The exhibitor is told only AFTER the row is closed (owner decision
+ * 2026-10-05): a withdrawal through the offer's own channels (in-app message
+ * plus the email/push event), a lapsed offer through the expiry path's own
+ * notice. A notice that fails never undoes the withdrawal or reports it as
+ * failed: the response says `notified: false` and the secretary is told.
  */
 
 import type { ExpiredWaitlistOffer } from './waitlistExpiration.ts';
@@ -34,6 +40,28 @@ export interface WithdrawWaitlistOfferDeps {
     offer: ExpiredWaitlistOffer,
     terminalStatus: 'expired' | 'withdrawn'
   ): Promise<'expired' | 'paid' | 'error'>;
+  /**
+   * Tell the exhibitor the offer closed. Resolves true when every channel
+   * accepted it; false (or a throw) is reported, never fatal.
+   */
+  notify(waitlistEntryId: string, event: 'withdrawn' | 'expired'): Promise<boolean>;
+}
+
+/** Notify, folding a throw into "not notified": the row is already closed. */
+async function notifySafely(
+  deps: WithdrawWaitlistOfferDeps,
+  waitlistEntryId: string,
+  event: 'withdrawn' | 'expired'
+): Promise<boolean> {
+  try {
+    return await deps.notify(waitlistEntryId, event);
+  } catch (error) {
+    console.error(
+      `withdraw-waitlist-offer: ${event} notice for ${waitlistEntryId} failed:`,
+      error instanceof Error ? error.message : String(error)
+    );
+    return false;
+  }
 }
 
 export interface WithdrawWaitlistOfferResult {
@@ -87,7 +115,9 @@ export async function withdrawWaitlistOffer(
     if (lapsed === 'paid')
       return { httpStatus: 409, body: { error: WITHDRAW_MESSAGES.reconciling } };
     if (lapsed === 'error') return { httpStatus: 500, body: { error: WITHDRAW_MESSAGES.failed } };
-    return closed('expired');
+    // The expiry job would have sent its notice; it will not see this row now.
+    const notified = await notifySafely(deps, offer.id, 'expired');
+    return { httpStatus: 200, body: { status: 'expired', already_closed: true, notified } };
   }
 
   // Re-read the open offer immediately before touching Stripe, so a webhook or
@@ -105,5 +135,6 @@ export async function withdrawWaitlistOffer(
   const result = await deps.expire(open, 'withdrawn');
   if (result === 'paid') return { httpStatus: 409, body: { error: WITHDRAW_MESSAGES.reconciling } };
   if (result === 'error') return { httpStatus: 500, body: { error: WITHDRAW_MESSAGES.failed } };
-  return { httpStatus: 200, body: { status: 'withdrawn', already_closed: false } };
+  const notified = await notifySafely(deps, open.id, 'withdrawn');
+  return { httpStatus: 200, body: { status: 'withdrawn', already_closed: false, notified } };
 }

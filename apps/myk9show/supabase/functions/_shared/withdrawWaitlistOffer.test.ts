@@ -25,6 +25,7 @@ function deps(over: Partial<WithdrawWaitlistOfferDeps> = {}): WithdrawWaitlistOf
     canManageShow: vi.fn().mockResolvedValue(true),
     recheckOpenOffer: vi.fn().mockResolvedValue({ id: 'wl-1', promoted_entry_id: 'entry-1' }),
     expire: vi.fn().mockResolvedValue('expired'),
+    notify: vi.fn().mockResolvedValue(true),
     ...over,
   };
 }
@@ -42,8 +43,66 @@ describe('withdrawWaitlistOffer', () => {
     );
     expect(result).toEqual({
       httpStatus: 200,
-      body: { status: 'withdrawn', already_closed: false },
+      body: { status: 'withdrawn', already_closed: false, notified: true },
     });
+  });
+
+  // Owner decision 2026-10-05: the exhibitor is told, through the offer's channels, only after
+  // the withdrawal succeeded.
+  it('tells the exhibitor about the withdrawn row, after the row is closed', async () => {
+    const order: string[] = [];
+    const d = deps({
+      expire: vi.fn(async () => {
+        order.push('expire');
+        return 'expired' as const;
+      }),
+      notify: vi.fn(async () => {
+        order.push('notify');
+        return true;
+      }),
+    });
+    await withdrawWaitlistOffer(d, 'wl-1', NOW);
+    expect(d.notify).toHaveBeenCalledTimes(1);
+    expect(d.notify).toHaveBeenCalledWith('wl-1', 'withdrawn');
+    expect(order).toEqual(['expire', 'notify']);
+  });
+
+  it('keeps a successful withdrawal when the notice fails, and says it was not sent', async () => {
+    const declined = await withdrawWaitlistOffer(
+      deps({ notify: vi.fn().mockResolvedValue(false) }),
+      'wl-1',
+      NOW
+    );
+    const threw = await withdrawWaitlistOffer(
+      deps({ notify: vi.fn().mockRejectedValue(new Error('enqueue failed')) }),
+      'wl-1',
+      NOW
+    );
+    const expected = {
+      httpStatus: 200,
+      body: { status: 'withdrawn', already_closed: false, notified: false },
+    };
+    expect(declined).toEqual(expected);
+    expect(threw).toEqual(expected);
+  });
+
+  it.each([
+    ['Stripe shows it paid', { expire: vi.fn().mockResolvedValue('paid') }],
+    ['the expiry errors', { expire: vi.fn().mockResolvedValue('error') }],
+    ['the caller cannot manage the show', { canManageShow: vi.fn().mockResolvedValue(false) }],
+    [
+      'the offer is already accepted',
+      { loadOffer: vi.fn().mockResolvedValue(openOffer({ status: 'accepted' })) },
+    ],
+    [
+      'the offer is already withdrawn',
+      { loadOffer: vi.fn().mockResolvedValue(openOffer({ status: 'withdrawn' })) },
+    ],
+    ['the recheck fails', { recheckOpenOffer: vi.fn().mockResolvedValue('error') }],
+  ] as const)('sends no notice when %s', async (_label, over) => {
+    const d = deps(over as Partial<WithdrawWaitlistOfferDeps>);
+    await withdrawWaitlistOffer(d, 'wl-1', NOW);
+    expect(d.notify).not.toHaveBeenCalled();
   });
 
   it('answers an outsider exactly as a missing offer, and touches nothing', async () => {
@@ -92,7 +151,12 @@ describe('withdrawWaitlistOffer', () => {
     });
     const result = await withdrawWaitlistOffer(d, 'wl-1', NOW);
     expect(d.expire).toHaveBeenCalledWith(expect.objectContaining({ id: 'wl-1' }), 'expired');
-    expect(result).toEqual({ httpStatus: 200, body: { status: 'expired', already_closed: true } });
+    // The expiry job's notice, not a withdrawal: this row will never reach the job now.
+    expect(d.notify).toHaveBeenCalledWith('wl-1', 'expired');
+    expect(result).toEqual({
+      httpStatus: 200,
+      body: { status: 'expired', already_closed: true, notified: true },
+    });
   });
 
   it('fails closed when Stripe shows the offer paid or the expiry errors', async () => {

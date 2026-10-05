@@ -330,8 +330,14 @@ export function useWaitlistManagementData(showId: string) {
     setActionError(null);
 
     try {
-      await withdrawWaitlistOffer(actionDialog.entry.id);
+      const { notified } = await withdrawWaitlistOffer(actionDialog.entry.id);
       await reload();
+      // The withdrawal stands either way; the secretary is told, as when an offer's notice fails.
+      if (!notified) {
+        toast.warning(
+          "Offer withdrawn, but the exhibitor's notification didn't send. Let them know directly."
+        );
+      }
     } catch (err) {
       await reload();
       setActionError(

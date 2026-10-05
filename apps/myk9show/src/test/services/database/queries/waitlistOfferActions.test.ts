@@ -55,10 +55,10 @@ describe('withdrawWaitlistOffer (client)', () => {
   });
 
   it('calls withdraw-waitlist-offer with the row id and writes the server row into the replica', async () => {
-    m.invoke.mockResolvedValue({ data: { status: 'withdrawn' }, error: null });
+    m.invoke.mockResolvedValue({ data: { status: 'withdrawn', notified: true }, error: null });
     m.maybeSingle.mockResolvedValue({ data: serverRow, error: null });
 
-    await withdrawWaitlistOffer('wl-1');
+    await expect(withdrawWaitlistOffer('wl-1')).resolves.toEqual({ notified: true });
 
     expect(m.invoke).toHaveBeenCalledWith('withdraw-waitlist-offer', {
       body: { waitlist_entry_id: 'wl-1' },
@@ -90,7 +90,14 @@ describe('withdrawWaitlistOffer (client)', () => {
   it('still succeeds when the replica refresh fails (the next sync settles the row)', async () => {
     m.invoke.mockResolvedValue({ data: { status: 'withdrawn' }, error: null });
     m.maybeSingle.mockResolvedValue({ data: null, error: new Error('offline') });
-    await expect(withdrawWaitlistOffer('wl-1')).resolves.toBeUndefined();
+    await expect(withdrawWaitlistOffer('wl-1')).resolves.toEqual({ notified: true });
     expect(m.set).not.toHaveBeenCalled();
+  });
+
+  it('reports a withdrawal whose exhibitor notice did not send as withdrawn, not notified', async () => {
+    m.invoke.mockResolvedValue({ data: { status: 'withdrawn', notified: false }, error: null });
+    m.maybeSingle.mockResolvedValue({ data: serverRow, error: null });
+    await expect(withdrawWaitlistOffer('wl-1')).resolves.toEqual({ notified: false });
+    expect(m.set).toHaveBeenCalled();
   });
 });

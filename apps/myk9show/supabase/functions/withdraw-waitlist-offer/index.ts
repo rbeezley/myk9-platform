@@ -13,6 +13,10 @@ import {
   type WaitlistExpirationSupabase,
 } from '../_shared/waitlistExpiration.ts';
 import {
+  dispatchQueuedWaitlistEvents,
+  enqueueWaitlistEvent,
+} from '../_shared/waitlistNotificationDispatch.ts';
+import {
   WITHDRAW_MESSAGES,
   withdrawWaitlistOffer,
   type WithdrawableOffer,
@@ -22,6 +26,8 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
 const stripeSecret = Deno.env.get('STRIPE_SECRET_KEY')!;
+// The waitlist email/push dispatcher's secret (as cron-waitlist-expiration uses it).
+const pushWebhookSecret = Deno.env.get('PUSH_WEBHOOK_SECRET');
 
 if (!supabaseUrl || !supabaseServiceKey || !supabaseAnonKey || !stripeSecret) {
   throw new Error('Missing required environment variables');
@@ -153,6 +159,47 @@ Deno.serve(async request => {
             nowIso: new Date().toISOString(),
             terminalStatus,
           }),
+        // The offer's own channels, only after the row is closed (owner decision 2026-10-05).
+        notify: async (id, event) => {
+          let notified = true;
+          if (event === 'withdrawn') {
+            // In-app, from the secretary who withdrew (as a manual offer's message is).
+            const { data: outcome, error: messageError } = await supabase.rpc(
+              'send_waitlist_withdrawal_message_internal',
+              { p_waitlist_entry_id: id, p_sender_auth_user_id: user.id }
+            );
+            if (messageError || outcome !== 'sent') {
+              console.error(
+                `withdraw-waitlist-offer: in-app notice for ${id} not sent:`,
+                messageError?.message ?? outcome
+              );
+              notified = false;
+            }
+          }
+          // Email + push: a durable event; a failed dispatch is retried by
+          // cron-waitlist-expiration, so only a failed enqueue counts as not told.
+          const queued = await enqueueWaitlistEvent({
+            supabase,
+            waitlistEntryId: id,
+            eventType: event,
+          });
+          if (!queued) {
+            console.error(`withdraw-waitlist-offer: ${event} email/push for ${id} not queued`);
+            return false;
+          }
+          const delivery = await dispatchQueuedWaitlistEvents({
+            events: [queued],
+            supabaseUrl,
+            pushWebhookSecret,
+          });
+          if (delivery.errors.length > 0) {
+            console.error(
+              `withdraw-waitlist-offer: ${event} email/push for ${id} left for retry:`,
+              delivery.errors.join('; ')
+            );
+          }
+          return notified;
+        },
       },
       waitlist_entry_id,
       new Date().toISOString()

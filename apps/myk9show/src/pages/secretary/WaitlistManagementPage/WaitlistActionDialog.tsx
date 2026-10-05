@@ -127,7 +127,7 @@ export const WaitlistActionDialog: React.FC<WaitlistActionDialogProps> = ({
               <>
                 Withdraw the offer to {dogName} in {className}? Their payment link stops working,
                 the entry waiting for payment is cancelled, and the dog leaves the wait list. The
-                exhibitor is not notified, so let them know.
+                exhibitor is notified that no payment is due.
               </>
             )}
           </AlertDialogDescription>

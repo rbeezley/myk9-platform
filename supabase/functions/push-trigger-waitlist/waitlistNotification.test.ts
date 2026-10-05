@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   buildWaitlistNotificationContent,
+  formatTrialLabel,
   parseWaitlistNotificationPayload,
   redactWaitlistDeliveryError,
   runWaitlistDeliveryChannels,
@@ -146,6 +147,72 @@ describe('shouldDeliverWaitlistEvent', () => {
         nowMs: Date.parse('2026-07-16T01:00:00.000Z'),
       })
     ).toBe(true);
+  });
+});
+
+// MYK9-1001 (owner decision 2026-10-05): a withdrawal reaches the exhibitor through the offer's
+// email/push channels, naming the dog, the class and the trial, in the club's voice.
+describe('withdrawn notice (MYK9-1001)', () => {
+  const withdrawn = buildWaitlistNotificationContent({
+    eventType: 'withdrawn',
+    waitlistEntryId: payload.waitlist_entry_id,
+    recipientName: 'Taylor',
+    dogName: 'Scout',
+    className: 'Novice Interior',
+    showName: 'Summer Scent Trial',
+    expiresAt: '2026-07-15T18:00:00.000Z',
+    timezone: 'America/Denver',
+    trialLabel: formatTrialLabel({ name: 'Saturday Trial', date: '2026-10-10' }),
+    appOrigin: 'https://myk9show.com',
+  });
+
+  it('says the club withdrew the spot for the dog, class and trial, and that nothing is due', () => {
+    expect(withdrawn.title).toBe('Your waitlist offer was withdrawn');
+    expect(withdrawn.body).toBe(
+      'The club withdrew the spot offered for Scout in Novice Interior (Saturday Trial · Sat, Oct 10, 2026) at Summer Scent Trial. No payment is due, and the payment link no longer works.'
+    );
+    expect(withdrawn.emailHtml).toContain('Hi Taylor,');
+    expect(withdrawn.emailHtml).toContain(
+      'No payment is due, and the payment link no longer works.'
+    );
+    // No pay-by deadline on a withdrawn offer.
+    expect(withdrawn.emailHtml).not.toContain('Held until');
+    expect(withdrawn.actionUrl).toBe(
+      `https://myk9show.com/exhibitor/entries?waitlistOffer=${payload.waitlist_entry_id}`
+    );
+  });
+
+  it('accepts the withdrawn event type', () => {
+    expect(
+      parseWaitlistNotificationPayload({ ...payload, event_type: 'withdrawn' }).event_type
+    ).toBe('withdrawn');
+  });
+
+  it('delivers only for a row that is still withdrawn, and never for a mail-in or paid row', () => {
+    const state = {
+      eventType: 'withdrawn' as const,
+      eventOfferCycleAt: '2026-07-13T01:00:00.000Z',
+      currentOfferCycleAt: '2026-07-13T01:00:00+00:00',
+      waitlistStatus: 'withdrawn',
+      joinedVia: 'online',
+      entryStatus: 'promotion-expired',
+      paymentStatus: 'pending',
+      expiresAt: '2026-07-15T01:00:00.000Z',
+      nowMs: Date.parse('2026-07-14T01:00:00.000Z'),
+    };
+    expect(shouldDeliverWaitlistEvent(state)).toBe(true);
+    expect(shouldDeliverWaitlistEvent({ ...state, waitlistStatus: 'offered' })).toBe(false);
+    expect(shouldDeliverWaitlistEvent({ ...state, joinedVia: 'mail_in' })).toBe(false);
+    expect(shouldDeliverWaitlistEvent({ ...state, paymentStatus: 'paid' })).toBe(false);
+  });
+
+  it('labels a trial by name and calendar date, with either part missing', () => {
+    expect(formatTrialLabel({ name: 'Saturday Trial', date: '2026-10-10' })).toBe(
+      'Saturday Trial · Sat, Oct 10, 2026'
+    );
+    expect(formatTrialLabel({ name: null, date: '2026-10-10' })).toBe('Sat, Oct 10, 2026');
+    expect(formatTrialLabel({ name: 'Saturday Trial', date: null })).toBe('Saturday Trial');
+    expect(formatTrialLabel(null)).toBeNull();
   });
 });
 

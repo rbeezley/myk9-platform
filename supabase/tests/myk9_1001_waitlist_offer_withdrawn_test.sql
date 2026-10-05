@@ -8,6 +8,15 @@
 --       again (the one-live-row index covers only waiting and offered).
 --   M1  A one-hour window reads "You have 1 hour" (singular), and the deadline
 --       carries the trial zone's abbreviation (America/Phoenix: MST, no DST).
+--   N1  The withdrawal's in-app message goes to the exhibitor (the row's
+--       exhibitor's auth user) from the secretary, naming the dog, the class
+--       and the trial, in the club's voice: no payment is due and the payment
+--       link no longer works. Only a withdrawn row gets one.
+--   N2  The email/push queue admits a 'withdrawn' event for the row's offer
+--       cycle and still refuses an unknown type.
+--   A1  send_waitlist_withdrawal_message_internal and
+--       enqueue_waitlist_notification_event are SECURITY DEFINER with
+--       search_path '' and EXECUTE for service_role only.
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
 
@@ -167,6 +176,74 @@ BEGIN
     'M1 one hour reads singular, and the deadline names the trial zone (Phoenix, MST)');
   PERFORM pg_temp.expect_eq((current_setting('TimeZone') <> 'America/Phoenix')::text,
     'true', 'M1 the session zone is put back after rendering');
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- N1 / N2. The exhibitor is told about the withdrawal (501 was withdrawn in C1)
+-- ---------------------------------------------------------------------------
+UPDATE public.trials SET name = 'Saturday Trial', date = '2026-10-10'
+WHERE id = pg_temp.fid('201');
+
+SET LOCAL ROLE service_role;
+DO $$
+BEGIN
+  PERFORM pg_temp.expect_eq(
+    public.send_waitlist_withdrawal_message_internal(pg_temp.fid('501'), pg_temp.fid('022')),
+    'sent', 'N1 the withdrawal message is sent');
+  PERFORM pg_temp.expect_eq(
+    public.send_waitlist_withdrawal_message_internal(pg_temp.fid('502'), pg_temp.fid('022')),
+    'not_withdrawn', 'N1 a row that is not withdrawn gets no withdrawal message');
+  PERFORM pg_temp.expect_eq(
+    (public.enqueue_waitlist_notification_event(pg_temp.fid('501'), 'withdrawn') IS NOT NULL)::text,
+    'true', 'N2 a withdrawn email/push event is queued');
+END;
+$$;
+SELECT pg_temp.expect_sqlstate(
+  $q$SELECT public.enqueue_waitlist_notification_event('00000000-0000-0000-0000-000001001501', 'rescinded')$q$,
+  '22023', 'N2 an unknown event type is still refused');
+RESET ROLE;
+
+DO $$
+BEGIN
+  PERFORM pg_temp.expect_eq(
+    (SELECT t.participant_id::text || ' | ' || m.sender_id::text || ' | ' || m.body
+       FROM public.show_messages m
+       JOIN public.show_message_threads t ON t.id = m.thread_id
+      WHERE m.show_id = pg_temp.fid('101') AND m.body LIKE 'The club withdrew%'),
+    pg_temp.fid('021')::text || ' | ' || pg_temp.fid('022')::text
+      || ' | The club withdrew the spot offered for Dog401 in Class Waitlist (Saturday Trial · Sat, Oct 10, 2026). No payment is due, and the payment link no longer works.',
+    'N1 to the exhibitor, from the secretary, naming dog, class and trial');
+  PERFORM pg_temp.expect_eq(
+    (SELECT e.event_type || ' ' || (e.offer_cycle_at = w.offered_at)::text || ' ' || e.status
+       FROM public.waitlist_notification_events e
+       JOIN public.waitlist_entries w ON w.id = e.waitlist_entry_id
+      WHERE e.waitlist_entry_id = pg_temp.fid('501')),
+    'withdrawn true pending', 'N2 the event is for the row''s offer cycle, pending delivery');
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- A1. Shape and ACL of the notification functions
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_fn text;
+BEGIN
+  FOREACH v_fn IN ARRAY ARRAY[
+    'public.send_waitlist_withdrawal_message_internal(uuid,uuid)',
+    'public.enqueue_waitlist_notification_event(uuid,text)'
+  ] LOOP
+    PERFORM pg_temp.expect_eq(
+      (SELECT p.prosecdef || ' ' || array_to_string(p.proconfig, ',')
+         FROM pg_proc p WHERE p.oid = v_fn::regprocedure),
+      'true search_path=""', 'A1 ' || v_fn || ' SECURITY DEFINER, empty search_path');
+    PERFORM pg_temp.expect_eq(
+      has_function_privilege('anon', v_fn, 'EXECUTE') || ' '
+        || has_function_privilege('authenticated', v_fn, 'EXECUTE') || ' '
+        || has_function_privilege('service_role', v_fn, 'EXECUTE'),
+      'false false true', 'A1 ' || v_fn || ' EXECUTE: service_role only');
+  END LOOP;
 END;
 $$;
 

@@ -56,9 +56,14 @@ export async function refreshWaitlistEntryInReplica(waitlistEntryId: string): Pr
  * 'expired' if its deadline had already passed). An offer already closed is a
  * calm success. Anything refused throws {@link WaitlistOfferNotWithdrawnError}
  * with the server's reason.
+ *
+ * Resolves `notified: false` when the withdrawal succeeded but the exhibitor's
+ * notice did not go out (the server never undoes the withdrawal for that).
  */
-export async function withdrawWaitlistOffer(waitlistEntryId: string): Promise<void> {
-  const { error } = await supabase.functions.invoke('withdraw-waitlist-offer', {
+export async function withdrawWaitlistOffer(
+  waitlistEntryId: string
+): Promise<{ notified: boolean }> {
+  const { data, error } = await supabase.functions.invoke('withdraw-waitlist-offer', {
     body: { waitlist_entry_id: waitlistEntryId },
   });
 
@@ -76,4 +81,6 @@ export async function withdrawWaitlistOffer(waitlistEntryId: string): Promise<vo
   }
 
   await refreshWaitlistEntryInReplica(waitlistEntryId);
+  // Only an answer that says so counts as not notified; an already-closed offer sends nothing new.
+  return { notified: (data as { notified?: unknown } | null)?.notified !== false };
 }

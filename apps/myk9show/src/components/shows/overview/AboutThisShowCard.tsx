@@ -44,7 +44,7 @@ export function AboutThisShowCard({
       className="rounded-xl border bg-card text-card-foreground shadow-sm"
     >
       <div className="flex flex-wrap items-center gap-2 px-4 py-2">
-        <h3 className="flex-1 py-2 font-semibold">About this show</h3>
+        <h2 className="flex-1 py-2 font-semibold">About this show</h2>
         <Button asChild variant="ghost" size="sm" className="min-h-11 gap-2">
           <Link to={mergeSearchOnlyHref('?edit=true', location.search)}>
             <Pencil className="h-4 w-4" aria-hidden="true" />

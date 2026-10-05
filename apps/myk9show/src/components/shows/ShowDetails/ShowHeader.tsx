@@ -65,7 +65,7 @@ export const ShowHeader: React.FC<ShowHeaderProps> = ({
       )}
     >
       {/* The name keeps a floor; the controls wrap onto a second line before it truncates. */}
-      <div className="order-1 min-w-0 flex-1 basis-48 lg:order-none lg:min-w-[14rem]">
+      <div className="min-w-0 flex-1 basis-48 lg:min-w-[14rem]">
         <div className="flex min-w-0 items-center gap-2">
           <h1 className="text-lg font-semibold leading-tight lg:truncate">{name}</h1>
           {organization && <Badge variant="default">{organization}</Badge>}
@@ -78,14 +78,12 @@ export const ShowHeader: React.FC<ShowHeaderProps> = ({
           {attention}
         </p>
       </div>
-      <div className="order-3 flex w-full min-w-0 flex-wrap items-center gap-2 lg:order-none lg:w-auto lg:flex-initial lg:justify-end">
-        {controls}
-      </div>
+      {/* DOM order (name, chevron, controls) is the phone reading and tab order; lg moves the chevron last. */}
       <Button
         type="button"
         variant="ghost"
         size="icon"
-        className="order-2 min-h-11 min-w-11 flex-none lg:order-none"
+        className="min-h-11 min-w-11 flex-none lg:order-last"
         aria-expanded={detailsOpen}
         aria-controls={SHOW_DETAILS_PANEL_ID}
         aria-label={detailsOpen ? 'Hide show details' : 'Show details'}
@@ -96,6 +94,9 @@ export const ShowHeader: React.FC<ShowHeaderProps> = ({
           aria-hidden="true"
         />
       </Button>
+      <div className="flex w-full min-w-0 flex-wrap items-center gap-2 lg:w-auto lg:flex-initial lg:justify-end">
+        {controls}
+      </div>
     </div>
   );
 };

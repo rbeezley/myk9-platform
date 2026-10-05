@@ -84,7 +84,6 @@ export interface CartItemWithDetails extends Omit<EntryCartItem, 'entry_id'> {
         name: string;
         level: string | null;
         trial_id: string;
-        allow_waitlist: boolean | null;
       }
     | undefined;
   handler?:
@@ -105,11 +104,6 @@ export interface CartWithDetails extends EntryCart {
         name: string;
         start_date: string;
         entry_close_date: string;
-        /**
-         * MYK9-1019: the show's "Allow wait lists"; a line whose class has no
-         * setting of its own follows it. Absent on a cart cached before this.
-         */
-        allow_waitlist?: boolean | undefined;
       }
     | undefined;
 }

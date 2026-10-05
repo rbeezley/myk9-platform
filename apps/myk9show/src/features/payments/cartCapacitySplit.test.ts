@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { splitCartItemsByJudgeDayCapacity } from './cartCapacitySplit';
-import type { CartItemWithDetails } from '@/store/cartStore';
+import {
+  splitCartItemsByJudgeDayCapacity,
+  type CartClassCapacity,
+  type CartJudgeDayCapacity,
+} from './cartCapacitySplit';
+import { serverWaitlistClassIds, type CartTestLine } from '@/test/utils/cartWaitlistFixtures';
 import type { JudgeDayCapacity } from '@/types/waitlist-types';
 
-function item(id: string, classId: string, allowWaitlist = true): CartItemWithDetails {
+function item(id: string, classId: string, allowWaitlist = true): CartTestLine {
   return {
     id,
     cart_id: 'cart-1',
@@ -20,9 +24,18 @@ function item(id: string, classId: string, allowWaitlist = true): CartItemWithDe
       name: classId,
       level: null,
       trial_id: 'trial-1',
-      allow_waitlist: allowWaitlist,
     },
+    serverTakesWaitlist: allowWaitlist,
   };
+}
+
+/** The split, told which classes take a wait list the way the server's read reports them. */
+function split(
+  lines: CartTestLine[],
+  days: readonly CartJudgeDayCapacity[],
+  spots: readonly CartClassCapacity[] = []
+) {
+  return splitCartItemsByJudgeDayCapacity(lines, days, spots, serverWaitlistClassIds(lines));
 }
 
 function judgeDay(availableSpots: number, classIds: string[]): JudgeDayCapacity {
@@ -42,7 +55,7 @@ function judgeDay(availableSpots: number, classIds: string[]): JudgeDayCapacity 
 
 describe('splitCartItemsByJudgeDayCapacity', () => {
   it('consumes judge-day spots with the cart before deciding waitlist lines', () => {
-    const result = splitCartItemsByJudgeDayCapacity(
+    const result = split(
       [item('first', 'class-a'), item('second', 'class-b')],
       [judgeDay(1, ['class-a', 'class-b'])]
     );
@@ -55,10 +68,7 @@ describe('splitCartItemsByJudgeDayCapacity', () => {
   it('blocks the cart item that exceeds capacity when its class does not allow waitlist', () => {
     const denied = item('denied', 'class-b', false);
 
-    const result = splitCartItemsByJudgeDayCapacity(
-      [item('first', 'class-a'), denied],
-      [judgeDay(1, ['class-a', 'class-b'])]
-    );
+    const result = split([item('first', 'class-a'), denied], [judgeDay(1, ['class-a', 'class-b'])]);
 
     expect(result.confirmedItemIds).toEqual(new Set(['first']));
     expect(result.waitlistItemIds).toEqual(new Set());
@@ -66,7 +76,7 @@ describe('splitCartItemsByJudgeDayCapacity', () => {
   });
 
   it('blocks a class at its per-class limit even when judge-day capacity remains', () => {
-    const result = splitCartItemsByJudgeDayCapacity(
+    const result = split(
       [item('limited', 'class-limited', false)],
       [judgeDay(5, ['class-limited'])],
       [{ classId: 'class-limited', availableSpots: 0 }]
@@ -80,7 +90,7 @@ describe('splitCartItemsByJudgeDayCapacity', () => {
   it('keeps a recovered unpaid entry payable after its class fills', () => {
     const recovered = { ...item('recovered', 'class-limited', false), entry_id: 'entry-1' };
 
-    const result = splitCartItemsByJudgeDayCapacity(
+    const result = split(
       [recovered],
       [judgeDay(0, ['class-limited'])],
       [{ classId: 'class-limited', availableSpots: 0 }]
@@ -95,10 +105,7 @@ describe('splitCartItemsByJudgeDayCapacity', () => {
     const recovered = { ...item('recovered', 'class-open', false), entry_id: 'entry-1' };
     const newItem = item('new', 'class-open', true);
 
-    const result = splitCartItemsByJudgeDayCapacity(
-      [recovered, newItem],
-      [judgeDay(1, ['class-open'])]
-    );
+    const result = split([recovered, newItem], [judgeDay(1, ['class-open'])]);
 
     expect(result.confirmedItemIds).toEqual(new Set(['recovered', 'new']));
     expect(result.waitlistItemIds).toEqual(new Set());
@@ -117,7 +124,7 @@ describe('splitCartItemsByJudgeDayCapacity per judge day (MYK9-753)', () => {
   });
 
   it('holds back the second of two lines on the same day when one spot is left', () => {
-    const result = splitCartItemsByJudgeDayCapacity(
+    const result = split(
       [item('first', 'interior'), item('second', 'container', false)],
       [day('alma', 1, ['interior', 'container'])]
     );
@@ -132,7 +139,7 @@ describe('splitCartItemsByJudgeDayCapacity per judge day (MYK9-753)', () => {
   });
 
   it('lets lines on different judge days each use their own day', () => {
-    const result = splitCartItemsByJudgeDayCapacity(
+    const result = split(
       [item('on-alma', 'interior', false), item('on-bert', 'exterior', false)],
       [day('alma', 1, ['interior']), day('bert', 1, ['exterior'])]
     );
@@ -143,7 +150,7 @@ describe('splitCartItemsByJudgeDayCapacity per judge day (MYK9-753)', () => {
   });
 
   it('blocks a two-judge line when one of its days is full, naming that day', () => {
-    const result = splitCartItemsByJudgeDayCapacity(
+    const result = split(
       [item('two-judge', 'interior', false)],
       [day('alma', 0, ['interior']), day('bert', 3, ['interior'])]
     );
@@ -157,7 +164,7 @@ describe('splitCartItemsByJudgeDayCapacity per judge day (MYK9-753)', () => {
   });
 
   it('charges a two-judge line against both days, so it can fill the other day', () => {
-    const result = splitCartItemsByJudgeDayCapacity(
+    const result = split(
       [item('two-judge', 'interior'), item('bert-only', 'exterior')],
       [day('alma', 2, ['interior']), day('bert', 1, ['interior', 'exterior'])]
     );
@@ -168,7 +175,7 @@ describe('splitCartItemsByJudgeDayCapacity per judge day (MYK9-753)', () => {
   });
 
   it('counts cart lines against a class limit, and says the class is what is full', () => {
-    const result = splitCartItemsByJudgeDayCapacity(
+    const result = split(
       [item('first', 'buried'), item('second', 'buried')],
       [],
       [{ classId: 'buried', availableSpots: 1 }]

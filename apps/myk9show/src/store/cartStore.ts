@@ -93,7 +93,7 @@ export const useCartStore = create<CartState>()(
             // StrictMode double-invoke) don't cause maybeSingle() to throw.
             const { data: cartData, error: cartError } = await supabase
               .from('entry_carts')
-              .select(`*, show:shows(id, name, start_date, entry_close_date, allow_waitlist)`)
+              .select(`*, show:shows(id, name, start_date, entry_close_date)`)
               .eq('show_id', showId)
               .eq('exhibitor_id', exhibitorId)
               .eq('status', 'active')
@@ -115,7 +115,7 @@ export const useCartStore = create<CartState>()(
             const { data: itemsData, error: itemsError } = await supabase
               .from('entry_cart_items')
               .select(
-                `*, dog:dogs(id, name, call_name, registrations:dog_registrations(id, created_at, breed)), class:classes(id, name, level, trial_id, allow_waitlist), handler:people(id, first_name, last_name)`
+                `*, dog:dogs(id, name, call_name, registrations:dog_registrations(id, created_at, breed)), class:classes(id, name, level, trial_id), handler:people(id, first_name, last_name)`
               )
               .eq('cart_id', cartData.id);
 
@@ -279,7 +279,7 @@ export const useCartStore = create<CartState>()(
 
           const { data: cartData, error: cartError } = await supabase
             .from('entry_carts')
-            .select(`*, show:shows(id, name, start_date, entry_close_date, allow_waitlist)`)
+            .select(`*, show:shows(id, name, start_date, entry_close_date)`)
             .eq('id', data.id)
             .eq('exhibitor_id', exhibitorId)
             .in('status', ['active', 'expired'])
@@ -429,7 +429,7 @@ export const useCartStore = create<CartState>()(
             const { data: cartData, error: cartError } = await supabase
               .from('entry_carts')
               .insert(cartInsert)
-              .select(`*, show:shows(id, name, start_date, entry_close_date, allow_waitlist)`)
+              .select(`*, show:shows(id, name, start_date, entry_close_date)`)
               .single();
 
             if (cartError) {
@@ -514,7 +514,7 @@ export const useCartStore = create<CartState>()(
               .from('entry_cart_items')
               .insert(itemInsert)
               .select(
-                `*, dog:dogs(id, name, call_name, registrations:dog_registrations(id, created_at, breed)), class:classes(id, name, level, trial_id, allow_waitlist), handler:people(id, first_name, last_name)`
+                `*, dog:dogs(id, name, call_name, registrations:dog_registrations(id, created_at, breed)), class:classes(id, name, level, trial_id), handler:people(id, first_name, last_name)`
               )
               .single();
 

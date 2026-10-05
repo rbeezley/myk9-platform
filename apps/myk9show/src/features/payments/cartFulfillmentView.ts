@@ -78,8 +78,8 @@ export function buildCartFulfillmentView(
   items: CartItemWithDetails[],
   judgeDays: readonly CartJudgeDayCapacity[] | null,
   classSpots: readonly CartClassCapacity[] = [],
-  /** `shows.allow_waitlist`: what a class with no setting of its own follows (MYK9-1019). */
-  showAllowsWaitlist: boolean | null | undefined = false
+  /** Classes the server reports as taking a wait list (effective value, MYK9-1019). */
+  waitlistClassIds: readonly string[] = []
 ): CartFulfillmentView {
   if (items.length === 0) {
     return { capacityKnown: judgeDays !== null, ...EMPTY_VIEW };
@@ -115,12 +115,7 @@ export function buildCartFulfillmentView(
     };
   }
 
-  const decision = splitCartItemsByJudgeDayCapacity(
-    items,
-    judgeDays,
-    classSpots,
-    showAllowsWaitlist
-  );
+  const decision = splitCartItemsByJudgeDayCapacity(items, judgeDays, classSpots, waitlistClassIds);
   const blockedItemIds = new Set(decision.blockedItems.map(item => item.id));
 
   const fulfillmentByItemId: Record<string, CartItemFulfillment> = {};

@@ -140,9 +140,7 @@ describe('cartStore.createCart', () => {
     const expiresAt = new Date(insert?.insertPayload?.expires_at as string).getTime();
     expect(expiresAt).toBeGreaterThan(before);
     expect(expiresAt).toBeLessThanOrEqual(before + 30 * 60 * 1000 + 5_000);
-    expect(insert?.selected).toBe(
-      '*, show:shows(id, name, start_date, entry_close_date, allow_waitlist)'
-    );
+    expect(insert?.selected).toBe('*, show:shows(id, name, start_date, entry_close_date)');
 
     // `.or('expires_at…')` on entry_carts is banned: a raw ISO timestamp inside
     // PostgREST's or() mini-language misparses (2026-06-20 incident).

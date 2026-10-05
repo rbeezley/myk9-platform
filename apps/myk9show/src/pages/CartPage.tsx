@@ -74,6 +74,7 @@ export default function CartPage() {
   const {
     judgeDays,
     classSpots,
+    waitlistClassIds,
     judgeNameById,
     isLoading: isCapacityLoading,
     isFetching: isCapacityFetching,
@@ -139,17 +140,15 @@ export default function CartPage() {
     !isCapacityLoading &&
     (!isCapacityFetching || isCheckingOut) &&
     !capacityError;
-  // MYK9-1019: a class with no wait-list setting of its own follows the show's.
-  const showAllowsWaitlist = cart?.show?.allow_waitlist;
   const fulfillment = useMemo(
     () =>
       buildCartFulfillmentView(
         items,
         capacityResolved ? judgeDays : null,
         classSpots,
-        showAllowsWaitlist
+        waitlistClassIds
       ),
-    [items, judgeDays, classSpots, capacityResolved, showAllowsWaitlist]
+    [items, judgeDays, classSpots, capacityResolved, waitlistClassIds]
   );
 
   // Param names come from the shared module `buildFinishPaymentHref` writes,
@@ -305,12 +304,15 @@ export default function CartPage() {
 
       const freshJudgeDays = fresh?.data?.judgeDays ?? [];
       const freshClassSpots = fresh?.data?.classSpots ?? [];
+      // MYK9-1019: the server's effective "takes a wait list", read fresh, so a
+      // setting the secretary changed while this cart was open is honoured.
+      const freshWaitlistClassIds = fresh?.data?.waitlistClassIds ?? [];
 
       const splitDecision = splitCartItemsByJudgeDayCapacity(
         items,
         freshJudgeDays,
         freshClassSpots,
-        showAllowsWaitlist
+        freshWaitlistClassIds
       );
       const blockedItems = splitDecision.blockedItems;
 

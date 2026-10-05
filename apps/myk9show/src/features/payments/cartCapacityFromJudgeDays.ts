@@ -10,7 +10,10 @@
  *   - `judgeDays`: one bucket per (judge, date) listing every class that takes
  *     a spot on it, so a line in a two-judge class is charged against both
  *     days and several lines on one day share what is left of it;
- *   - `classSpots`: spots left in each class that has an entry limit.
+ *   - `classSpots`: spots left in each class that has an entry limit;
+ *   - `waitlistClassIds`: every class whose `allow_waitlist` is true. The
+ *     server reports the EFFECTIVE value (the class's own setting, else the
+ *     show's "Allow wait lists", MYK9-1019), so the cart never resolves it.
  *
  * No count is made here: every number is the server's.
  */
@@ -24,6 +27,7 @@ export type ClassJudgeDayAvailabilityRow =
 export interface CartCapacityFacts {
   judgeDays: CartJudgeDayCapacity[];
   classSpots: CartClassCapacity[];
+  waitlistClassIds: string[];
 }
 
 export function cartCapacityFromJudgeDays(
@@ -31,8 +35,10 @@ export function cartCapacityFromJudgeDays(
 ): CartCapacityFacts {
   const days = new Map<string, CartJudgeDayCapacity>();
   const classSpots = new Map<string, number>();
+  const waitlistClassIds = new Set<string>();
 
   for (const row of rows) {
+    if (row.allow_waitlist === true) waitlistClassIds.add(row.class_id);
     if (row.class_remaining !== null) {
       classSpots.set(row.class_id, row.class_full ? 0 : row.class_remaining);
     }
@@ -62,5 +68,6 @@ export function cartCapacityFromJudgeDays(
       classId,
       availableSpots,
     })),
+    waitlistClassIds: Array.from(waitlistClassIds),
   };
 }

@@ -1,6 +1,5 @@
 import type { CartItemWithDetails } from '@/store/cartStore';
 import type { JudgeDayCapacity } from '@/types/waitlist-types';
-import { classAllowsWaitlist } from '@/utils/classAllowsWaitlist';
 
 /**
  * One judge's day, as the split reads it: the self-service spots left and every
@@ -40,16 +39,21 @@ export interface CartCapacitySplitDecision {
  * cart use up spots before later ones are judged. Advisory only: payment
  * re-decides under the server's locks.
  *
- * A full line goes to the wait list when its class allows one: the class's own
- * setting, else the show's (`showAllowsWaitlist`, `shows.allow_waitlist`),
- * else no (MYK9-1019, `classAllowsWaitlist`).
+ * A full line goes to the wait list only when its class is in
+ * `waitlistClassIds`: the classes the server's availability read reports as
+ * taking a wait list (`allow_waitlist`, the EFFECTIVE value: the class's own
+ * setting, else the show's, MYK9-1019). The cart never works that out itself,
+ * so checkout's refetch carries a setting changed while the cart was open.
+ * A class missing from the set is "no", so a denied class never becomes a
+ * wait-list request.
  */
 export function splitCartItemsByJudgeDayCapacity(
   items: CartItemWithDetails[],
   judgeDays: readonly CartJudgeDayCapacity[],
   classSpots: readonly CartClassCapacity[] = [],
-  showAllowsWaitlist: boolean | null | undefined = false
+  waitlistClassIds: readonly string[] = []
 ): CartCapacitySplitDecision {
+  const takesWaitlist = new Set(waitlistClassIds);
   const remainingByJudgeDay = new Map<string, number>();
   const remainingByClass = new Map<string, number>();
 
@@ -94,9 +98,7 @@ export function splitCartItemsByJudgeDayCapacity(
 
     if (reason) {
       fullReasonByItemId.set(item.id, reason);
-      // The server's rule (class_allows_waitlist): a value missing on both
-      // sides is "no", so it never turns a denied class into a wait-list request.
-      if (!classAllowsWaitlist(item.class?.allow_waitlist, showAllowsWaitlist)) {
+      if (!takesWaitlist.has(classId)) {
         blockedItems.push(item);
       } else {
         waitlistItemIds.add(item.id);

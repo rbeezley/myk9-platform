@@ -5,15 +5,23 @@
  * The expected answers are read from the behavioural SQL test that CI runs
  * against the real functions (supabase/tests/myk9_1019_show_wide_allow_waitlist_test.sql:
  * P1 show off, P2 show on, each reader's answer per class), so a change to
- * either side that the other does not follow fails here. The cart's split, the
- * one client decision that reads the setting itself, is checked against the
- * same table.
+ * either side that the other does not follow fails here. The client rule is
+ * only for Edit class's inherited label, which reads the replica offline.
+ *
+ * The cart never resolves the setting: it takes the server's effective
+ * allow_waitlist from its availability rows (cartCapacityFromJudgeDays), and
+ * the split is checked here to route a full class exactly as the server's
+ * decision does when fed the server's own answer.
  */
 import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { classAllowsWaitlist } from './classAllowsWaitlist';
 import { splitCartItemsByJudgeDayCapacity } from '@/features/payments/cartCapacitySplit';
+import {
+  cartCapacityFromJudgeDays,
+  type ClassJudgeDayAvailabilityRow,
+} from '@/features/payments/cartCapacityFromJudgeDays';
 import type { CartItemWithDetails } from '@/store/cartStore';
 
 const REPO = resolve(__dirname, '../../../..');
@@ -38,7 +46,7 @@ function serverAnswers(phase: 'P1' | 'P2'): string[][] {
   return match[1]!.split(' | ').map(cell => cell.split('/'));
 }
 
-function fullClassLine(classId: string, classSetting: boolean | null): CartItemWithDetails {
+function fullClassLine(classId: string): CartItemWithDetails {
   return {
     id: `item-${classId}`,
     cart_id: 'cart-1',
@@ -55,7 +63,6 @@ function fullClassLine(classId: string, classSetting: boolean | null): CartItemW
       name: classId,
       level: null,
       trial_id: 'trial-1',
-      allow_waitlist: classSetting,
     },
   };
 }
@@ -86,15 +93,35 @@ describe('classAllowsWaitlist parity with class_allows_waitlist (MYK9-1019)', ()
   );
 
   it.each(phases)(
-    '%s (show %s): the cart sends a full class where the server would',
-    (phase, show) => {
+    "%s (show %s): fed the server's rows, the cart sends a full class where the server would",
+    phase => {
       const answers = serverAnswers(phase);
-      const items = CLASS_SETTINGS.map(([name, setting]) => fullClassLine(name, setting));
+      // The cart's read for each full class, carrying the server's effective
+      // allow_waitlist (class_entry_availability's answer in the SQL test).
+      const rows = CLASS_SETTINGS.map(
+        ([name], index) =>
+          ({
+            class_id: name,
+            class_max_entries: 1,
+            class_entry_count: 1,
+            class_remaining: 0,
+            class_full: true,
+            allow_waitlist: answers[index]![1] === 'true',
+            self_service_block: answers[index]![2] === 'open' ? null : 'full',
+            judge_id: null,
+            show_date: null,
+            day_capacity: null,
+            day_taken: null,
+            day_mail_in_reserved: null,
+            day_remaining: null,
+          }) as ClassJudgeDayAvailabilityRow
+      );
+      const facts = cartCapacityFromJudgeDays(rows);
       const decision = splitCartItemsByJudgeDayCapacity(
-        items,
-        [],
-        CLASS_SETTINGS.map(([name]) => ({ classId: name, availableSpots: 0 })),
-        show
+        CLASS_SETTINGS.map(([name]) => fullClassLine(name)),
+        facts.judgeDays,
+        facts.classSpots,
+        facts.waitlistClassIds
       );
       CLASS_SETTINGS.forEach(([name], index) => {
         const serverWaitlists = answers[index]![4] === 'waitlisted';

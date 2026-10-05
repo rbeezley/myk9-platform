@@ -33,7 +33,7 @@ export interface ClassData {
   maxEntries?: number | null | undefined;
   /**
    * `classes.allow_waitlist`, this class's own wait-list exception: null follows the show's
-   * "Allow wait lists" (MYK9-1019), true/false overrides it. Decide with `classAllowsWaitlist`.
+   * "Allow wait lists" (MYK9-1019), true/false overrides it. Online reads take the server's effective `allow_waitlist`.
    */
   allowsWaitlist?: boolean | null | undefined;
   // Time management

@@ -46,7 +46,6 @@ const cartItems = vi.hoisted(() => ({
         name: 'Open Class',
         level: 'Novice',
         trial_id: 'trial-1',
-        allow_waitlist: true,
       },
     },
     {
@@ -63,7 +62,6 @@ const cartItems = vi.hoisted(() => ({
         name: 'Full Class',
         level: 'Advanced',
         trial_id: 'trial-1',
-        allow_waitlist: true,
       },
     },
   ],
@@ -85,6 +83,9 @@ const judgeDayCapacityState = vi.hoisted(() => ({
     },
   ],
   classSpots: [] as { classId: string; availableSpots: number }[],
+  // The classes the server's availability read reports as taking a wait list
+  // (the effective allow_waitlist, MYK9-1019).
+  waitlistClassIds: ['class-open', 'class-full'] as string[],
   judgeNameById: new Map<string, string>(),
   isLoading: false,
   isFetching: false,
@@ -178,9 +179,11 @@ describe('CartPage split checkout wiring', () => {
       data: {
         judgeDays: judgeDayCapacityState.judgeDays,
         classSpots: judgeDayCapacityState.classSpots,
+        waitlistClassIds: judgeDayCapacityState.waitlistClassIds,
       },
       isError: false,
     }));
+    judgeDayCapacityState.waitlistClassIds = ['class-open', 'class-full'];
     cartItems.value = [
       {
         id: 'item-open',
@@ -196,7 +199,6 @@ describe('CartPage split checkout wiring', () => {
           name: 'Open Class',
           level: 'Novice',
           trial_id: 'trial-1',
-          allow_waitlist: true,
         },
       },
       {
@@ -213,7 +215,6 @@ describe('CartPage split checkout wiring', () => {
           name: 'Full Class',
           level: 'Advanced',
           trial_id: 'trial-1',
-          allow_waitlist: true,
         },
       },
     ];
@@ -356,6 +357,7 @@ describe('CartPage split checkout wiring', () => {
   });
 
   it('blocks checkout for full classes that do not accept the wait list', async () => {
+    judgeDayCapacityState.waitlistClassIds = [];
     cartItems.value = [
       {
         ...cartItems.value[1],
@@ -364,7 +366,6 @@ describe('CartPage split checkout wiring', () => {
           name: 'Denied Class',
           level: 'Advanced',
           trial_id: 'trial-1',
-          allow_waitlist: false,
         },
       },
     ];
@@ -380,6 +381,30 @@ describe('CartPage split checkout wiring', () => {
     );
     expect(checkoutWithWaitlistMock).not.toHaveBeenCalled();
     expect(createEntryCheckoutSessionMock).not.toHaveBeenCalled();
+  });
+
+  // MYK9-1019 (Codex P2 on #2778): the cart never resolves "takes a wait list" itself. The
+  // secretary turns the show's wait lists on while this cart is open; checkout's fresh read
+  // reports it, and the full line joins the wait list instead of being blocked.
+  it("a show switched to wait lists while the cart is open: checkout's fresh read wins", async () => {
+    judgeDayCapacityState.waitlistClassIds = [];
+    cartItems.value = [cartItems.value[1]!];
+    judgeDayCapacityState.refetch = vi.fn().mockImplementation(async () => ({
+      data: {
+        judgeDays: judgeDayCapacityState.judgeDays,
+        classSpots: judgeDayCapacityState.classSpots,
+        waitlistClassIds: ['class-full'],
+      },
+      isError: false,
+    }));
+
+    const { user } = render(<CartPage />, { initialRoute: '/cart' });
+    await user.click(screen.getByRole('button', { name: 'Checkout' }));
+
+    await waitFor(() =>
+      expect(checkoutWithWaitlistMock).toHaveBeenCalledWith('exhibitor-1', new Set(['item-full']))
+    );
+    expect(setErrorMock).not.toHaveBeenCalledWith(expect.stringContaining('Remove it'));
   });
 
   it('spends remaining judge-day capacity on earlier cart items before waitlisting later items', async () => {
@@ -478,6 +503,7 @@ describe('CartPage split checkout wiring', () => {
             },
           ],
           classSpots: [],
+          waitlistClassIds: ['class-open', 'class-full'],
         },
         isError: false,
       });

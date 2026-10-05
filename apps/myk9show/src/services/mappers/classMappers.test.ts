@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  mapClassInputToInsert,
   mapClassInputToUpdate,
   mapDatabaseToClass,
   mapDatabaseToEntry,
@@ -44,6 +45,18 @@ describe('class entry limit and wait list (MYK9-998)', () => {
     expect(untouched).not.toHaveProperty('allow_waitlist');
   });
 
+  // MYK9-1019: null hands the class back to the show's "Allow wait lists".
+  it('writes null to clear the class exception, and a new class leaves the column to follow the show', () => {
+    expect(mapClassInputToUpdate({ allowsWaitlist: null })).toEqual(
+      expect.objectContaining({ allow_waitlist: null })
+    );
+    expect(
+      mapClassInputToInsert({ trialId: 't1', className: 'Interior Novice' } as Parameters<
+        typeof mapClassInputToInsert
+      >[0])
+    ).not.toHaveProperty('allow_waitlist');
+  });
+
   it('does not invent a limit of 40 for a class with none, and reads the switch', () => {
     const cls = mapDatabaseToClass({
       id: 'c1',
@@ -58,7 +71,8 @@ describe('class entry limit and wait list (MYK9-998)', () => {
 });
 
 describe('allowsWaitlist is undefined when the read did not carry the column (MYK9-998)', () => {
-  it('leaves it undefined for a row without allow_waitlist, false for a null one', () => {
+  // MYK9-1019: a null column is "follows the show", not "off", so it stays null.
+  it('leaves it undefined for a row without allow_waitlist, null for a null one', () => {
     const base = { id: 'c1', trial_id: 't1', name: 'n' };
     expect(
       mapDatabaseToClass(base as unknown as DbClassWithRelations).allowsWaitlist
@@ -66,6 +80,6 @@ describe('allowsWaitlist is undefined when the read did not carry the column (MY
     expect(
       mapDatabaseToClass({ ...base, allow_waitlist: null } as unknown as DbClassWithRelations)
         .allowsWaitlist
-    ).toBe(false);
+    ).toBeNull();
   });
 });

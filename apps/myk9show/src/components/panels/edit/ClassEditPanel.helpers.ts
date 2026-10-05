@@ -35,7 +35,7 @@ export const classToFormData = (classItem: Partial<ClassData>): ClassEditFormDat
     distractionsUsed: classItem.distractionsUsed || '',
     itemsUsed: classItem.itemsUsed || '',
     maxEntries: classItem.maxEntries ?? null,
-    allowsWaitlist: classItem.allowsWaitlist ?? false,
+    allowsWaitlist: classItem.allowsWaitlist ?? null,
     editedCapacity: [],
     preEntryFee: classItem.preEntryFee || 0,
     dayOfShowFee: classItem.dayOfShowFee || 0,
@@ -74,7 +74,8 @@ export const formDataToClass = (formData: ClassEditFormData): Partial<ClassData>
 
 type CapacitySource = {
   maxEntries?: number | null | undefined;
-  allowsWaitlist?: boolean | undefined;
+  /** null: the class follows the show's "Allow wait lists" (MYK9-1019). */
+  allowsWaitlist?: boolean | null | undefined;
 };
 
 /**
@@ -93,7 +94,7 @@ export const hasLoadedCapacity = (initial: CapacitySource | undefined): boolean 
  */
 export function editedCapacityPatch(formData: {
   maxEntries?: number | null | undefined;
-  allowsWaitlist?: boolean | undefined;
+  allowsWaitlist?: boolean | null | undefined;
   editedCapacity?: CapacityControl[] | undefined;
 }): CapacitySource {
   const edited = formData.editedCapacity ?? [];
@@ -127,7 +128,7 @@ export const trialClassToFormData = (trialClass: Partial<TrialClass>): TrialClas
     status: trialClass.status || 'Upcoming',
     entries: trialClass.entries || 0,
     maxEntries: (trialClass as Partial<ClassData>).maxEntries ?? null,
-    allowsWaitlist: (trialClass as Partial<ClassData>).allowsWaitlist ?? false,
+    allowsWaitlist: (trialClass as Partial<ClassData>).allowsWaitlist ?? null,
     editedCapacity: [],
   };
 };

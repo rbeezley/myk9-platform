@@ -211,7 +211,7 @@ export const ClassEditForm: React.FC<{
             </CardContent>
           </Card>
 
-          {capacityLoaded && <ClassWaitlistFields />}
+          {capacityLoaded && <ClassWaitlistFields showId={showId} />}
         </TabsContent>
 
         <TabsContent

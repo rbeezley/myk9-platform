@@ -17,7 +17,7 @@ import { describeBlockedCheckout, describeCartFullReason } from './cartFullReaso
 
 const HOLD_WORDING = /\bhold|\bheld/i;
 
-function line(allowWaitlist: boolean): CartItemWithDetails {
+function line(): CartItemWithDetails {
   return {
     id: 'item-bea',
     cart_id: 'cart-bea',
@@ -34,20 +34,19 @@ function line(allowWaitlist: boolean): CartItemWithDetails {
       name: 'Novice Container',
       level: 'Novice',
       trial_id: 'trial-1',
-      allow_waitlist: allowWaitlist,
     },
   };
 }
 
 // The server's cart read for a one-spot class with no judge, as Bea sees it.
-function c1Row(remaining: number): ClassJudgeDayAvailabilityRow {
+function c1Row(remaining: number, allowWaitlist: boolean): ClassJudgeDayAvailabilityRow {
   return {
     class_id: 'class-c1',
     class_max_entries: 1,
     class_entry_count: 1 - remaining,
     class_remaining: remaining,
     class_full: remaining === 0,
-    allow_waitlist: false,
+    allow_waitlist: allowWaitlist,
     self_service_block: null,
     judge_id: null,
     show_date: null,
@@ -59,8 +58,13 @@ function c1Row(remaining: number): ClassJudgeDayAvailabilityRow {
 }
 
 function viewFor(allowWaitlist: boolean, remaining: number) {
-  const facts = cartCapacityFromJudgeDays([c1Row(remaining)]);
-  return buildCartFulfillmentView([line(allowWaitlist)], facts.judgeDays, facts.classSpots);
+  const facts = cartCapacityFromJudgeDays([c1Row(remaining, allowWaitlist)]);
+  return buildCartFulfillmentView(
+    [line()],
+    facts.judgeDays,
+    facts.classSpots,
+    facts.waitlistClassIds
+  );
 }
 
 describe("another exhibitor's held spot (owner 2026-10-05)", () => {

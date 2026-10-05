@@ -56,7 +56,8 @@ export interface ClassInput {
   section?: string | undefined;
   entryFee?: number | undefined;
   maxEntries?: number | null | undefined;
-  allowsWaitlist?: boolean | undefined;
+  /** null follows the show's "Allow wait lists" (MYK9-1019). */
+  allowsWaitlist?: boolean | null | undefined;
   requiresJumpHeight?: boolean | undefined;
   customFields?: Record<string, string> | undefined;
   // Scent work specific fields

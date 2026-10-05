@@ -336,7 +336,7 @@ export const classSchemas = {
       .min(1, 'The entry limit must be at least 1, or leave blank for no limit')
       .nullable()
       .optional(),
-    allowsWaitlist: z.boolean().optional(),
+    allowsWaitlist: z.boolean().nullable().optional(),
     editedCapacity: z.array(z.enum(['maxEntries', 'allowsWaitlist'])).optional(),
     preEntryFee: z
       .number()
@@ -365,7 +365,7 @@ export const classSchemas = {
       .min(1, 'The entry limit must be at least 1, or leave blank for no limit')
       .nullable()
       .optional(),
-    allowsWaitlist: z.boolean().optional(),
+    allowsWaitlist: z.boolean().nullable().optional(),
     editedCapacity: z.array(z.enum(['maxEntries', 'allowsWaitlist'])).optional(),
   }),
 };

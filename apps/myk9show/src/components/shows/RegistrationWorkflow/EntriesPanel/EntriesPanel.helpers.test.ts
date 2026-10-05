@@ -155,7 +155,6 @@ describe('groupCartByDogAndDay', () => {
             name: 'Exterior Excellent',
             level: 'Excellent',
             trial_id: 'trial-sun',
-            allow_waitlist: null,
           },
         }),
       ],

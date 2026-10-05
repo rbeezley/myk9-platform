@@ -11,7 +11,11 @@ import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { CartSummary } from './CartSummary';
 import { buildCartFulfillmentView } from '@/features/payments/cartFulfillmentView';
-import type { CartItemWithDetails } from '@/store/cartStore';
+import type {
+  CartClassCapacity,
+  CartJudgeDayCapacity,
+} from '@/features/payments/cartCapacitySplit';
+import { serverWaitlistClassIds, type CartTestLine } from '@/test/utils/cartWaitlistFixtures';
 import type { JudgeDayCapacity } from '@/types/waitlist-types';
 
 const PAY_LINE = "We're holding your spots for 30 minutes while you pay.";
@@ -41,7 +45,7 @@ vi.mock('@/store/cartStore', () => ({
     }),
 }));
 
-function item(id: string, classId: string, allowWaitlist = true): CartItemWithDetails {
+function item(id: string, classId: string, allowWaitlist = true): CartTestLine {
   return {
     id,
     cart_id: 'cart-1',
@@ -58,9 +62,18 @@ function item(id: string, classId: string, allowWaitlist = true): CartItemWithDe
       name: classId,
       level: null,
       trial_id: 'trial-1',
-      allow_waitlist: allowWaitlist,
     },
+    serverTakesWaitlist: allowWaitlist,
   };
+}
+
+/** The cart view, told which classes take a wait list the way the server's read reports them. */
+function view(
+  lines: CartTestLine[],
+  days: readonly CartJudgeDayCapacity[] | null,
+  spots: readonly CartClassCapacity[] = []
+) {
+  return buildCartFulfillmentView(lines, days, spots, serverWaitlistClassIds(lines));
 }
 
 function judgeDay(
@@ -89,10 +102,7 @@ beforeEach(() => {
 
 describe('CartSummary — the hold line at Pay (MYK9-1012)', () => {
   it('says the spots are held for 30 minutes under a live Pay button', () => {
-    const fulfillment = buildCartFulfillmentView(
-      [item('item-open', 'class-open')],
-      [judgeDay(5, ['class-open'])]
-    );
+    const fulfillment = view([item('item-open', 'class-open')], [judgeDay(5, ['class-open'])]);
     render(<CartSummary onCheckout={() => {}} fulfillment={fulfillment} />);
 
     expect(screen.getByRole('button', { name: /pay \$/i })).toBeEnabled();
@@ -100,10 +110,7 @@ describe('CartSummary — the hold line at Pay (MYK9-1012)', () => {
   });
 
   it('says nothing about holding on a wait-list-only cart: no spot is bought', () => {
-    const fulfillment = buildCartFulfillmentView(
-      [item('item-full', 'class-full')],
-      [judgeDay(0, ['class-full'])]
-    );
+    const fulfillment = view([item('item-full', 'class-full')], [judgeDay(0, ['class-full'])]);
     render(<CartSummary onCheckout={() => {}} fulfillment={fulfillment} />);
 
     expect(screen.getByRole('button', { name: /join the wait list/i })).toBeEnabled();
@@ -111,7 +118,7 @@ describe('CartSummary — the hold line at Pay (MYK9-1012)', () => {
   });
 
   it('says nothing about holding when a full class blocks checkout', () => {
-    const fulfillment = buildCartFulfillmentView(
+    const fulfillment = view(
       [item('item-blocked', 'class-full', false)],
       [judgeDay(0, ['class-full'])]
     );
@@ -121,7 +128,7 @@ describe('CartSummary — the hold line at Pay (MYK9-1012)', () => {
   });
 
   it('says nothing about holding while availability is unknown', () => {
-    const fulfillment = buildCartFulfillmentView([item('item-open', 'class-open')], null);
+    const fulfillment = view([item('item-open', 'class-open')], null);
     render(<CartSummary onCheckout={() => {}} fulfillment={fulfillment} />);
 
     expect(screen.queryByText(PAY_LINE)).not.toBeInTheDocument();

@@ -64,6 +64,7 @@ export function useCartCapacity(showId: string | undefined) {
   return {
     judgeDays: query.data?.judgeDays ?? [],
     classSpots: query.data?.classSpots ?? [],
+    waitlistClassIds: query.data?.waitlistClassIds ?? [],
     judgeNameById,
     isLoading: query.isLoading,
     isFetching: query.isFetching,

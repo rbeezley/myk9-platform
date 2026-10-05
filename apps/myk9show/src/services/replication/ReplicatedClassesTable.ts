@@ -48,7 +48,8 @@ export interface ReplicatedClass {
   entryFee?: number | undefined;
   jumpHeights?: string[] | undefined;
   maxEntries?: number | undefined;
-  allowsWaitlist?: boolean | undefined;
+  /** `classes.allow_waitlist`: null follows the show's "Allow wait lists" (MYK9-1019). */
+  allowsWaitlist?: boolean | null | undefined;
   maxDogsPerHandler?: number | undefined;
   level?: string | undefined;
   breedRestrictions?: string[] | undefined;
@@ -183,7 +184,7 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
     entryFee: row.entry_fee ?? undefined,
     jumpHeights: row.jump_heights ?? undefined,
     maxEntries: row.max_entries ?? undefined,
-    allowsWaitlist: row.allow_waitlist ?? false,
+    allowsWaitlist: row.allow_waitlist,
     maxDogsPerHandler: row.max_dogs_per_handler ?? undefined,
     level: row.level ?? undefined,
     breedRestrictions: row.breed_restrictions ?? undefined,

@@ -56,7 +56,6 @@ const cartItems = vi.hoisted(() => ({
         name: 'Novice Container',
         level: 'Novice',
         trial_id: 'trial-1',
-        allow_waitlist: false,
       },
     },
   ],
@@ -74,6 +73,7 @@ vi.mock('@/hooks/queries/useCartCapacity', () => ({
   useCartCapacity: () => ({
     judgeDays: [],
     classSpots: [],
+    waitlistClassIds: [],
     judgeNameById: new Map(),
     isLoading: false,
     isFetching: false,
@@ -127,9 +127,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   createEntryCheckoutSessionMock.mockReset();
   loadActiveCartMock.mockReset().mockResolvedValue(null);
-  refetchCapacityMock
-    .mockReset()
-    .mockResolvedValue({ data: { judgeDays: [], classSpots: [] }, isError: false });
+  refetchCapacityMock.mockReset().mockResolvedValue({
+    data: { judgeDays: [], classSpots: [], waitlistClassIds: [] },
+    isError: false,
+  });
   checkoutWithWaitlistMock.mockResolvedValue({ confirmed: ['class-1'], waitlisted: [] });
   sessionStorage.clear();
 });

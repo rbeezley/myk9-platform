@@ -39,6 +39,8 @@ export interface WaitListEntry {
   status: 'waiting' | 'offered' | 'accepted' | 'declined' | 'expired';
   offeredAt: string | null;
   offerExpiresAt: string | null;
+  /** The class's trial timezone, resolved through getTrialTimezone. Exhibitor reads only. */
+  trialTimezone?: string;
   promotedEntryId: string | null;
   createdAt: string;
 }

@@ -7,6 +7,7 @@ import {
   WaitlistEntryNotDeletedError,
   WAITLIST_ENTRY_CHANGED_MESSAGE,
 } from '@/services/database/waitlists/deleteWaitlistEntry';
+import { getTrialTimezone } from '@/features/registries';
 import type { WaitListEntry } from '@/types/waitlist-types';
 
 /** Stable empty result. `query.data ?? []` would allocate a fresh array on
@@ -25,6 +26,8 @@ interface WaitlistEntryRow {
   classes: {
     name: string;
     trials: {
+      id: string;
+      timezone: string | null;
       shows: { name: string } | null;
     } | null;
   } | null;
@@ -61,6 +64,7 @@ function mapWaitlistEntry(row: WaitlistEntryRow, exhibitorId: string): WaitListE
     status: row.status,
     offeredAt: row.offered_at,
     offerExpiresAt: row.offer_expires_at,
+    trialTimezone: getTrialTimezone(row.classes?.trials),
     promotedEntryId: row.promoted_entry_id,
     createdAt: row.created_at,
   };
@@ -78,6 +82,8 @@ const WAITLIST_ENTRY_SELECT = `
   classes (
     name,
     trials (
+      id,
+      timezone,
       shows ( name )
     )
   ),

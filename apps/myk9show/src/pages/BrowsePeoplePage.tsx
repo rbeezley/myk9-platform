@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
 import { MasterDetailLayout } from '@/components/layout/MasterDetailLayout';
 import { Button } from '@/components/ui/button';
@@ -49,6 +49,7 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
   const { id: selectedId } = useParams<{ id: string }>();
   // Select mode swaps the split for the full-width table so its checkboxes and the bulk bar work.
   const [selectMode, setSelectMode] = useState(false);
+  const selectModeButtonRef = useRef<HTMLButtonElement>(null);
   const splitCapable = detail !== null;
   const splitOpen = splitCapable && !selectMode;
 
@@ -219,6 +220,9 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
                   // Opening someone ends select mode, so the person shows beside the list.
                   onOpenPerson: (person: User) => {
                     exitSelectMode();
+                    // The focused row is about to unmount; without this focus falls to the body.
+                    // The focused row is about to unmount; without this focus falls to the body.
+                    selectModeButtonRef.current?.focus();
                     navigate(`/people/${person.id}`);
                   },
                 }
@@ -240,9 +244,19 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
 
   // Select mode is only offered where the split exists; the narrow page is always the table.
   const selectModeButton = splitCapable ? (
-    <Button variant="outline" onClick={selectMode ? exitSelectMode : () => setSelectMode(true)}>
-      {selectMode ? 'Done' : 'Select people'}
-    </Button>
+    <>
+      <Button
+        ref={selectModeButtonRef}
+        variant="outline"
+        onClick={selectMode ? exitSelectMode : () => setSelectMode(true)}
+      >
+        {selectMode ? 'Done' : 'Select people'}
+      </Button>
+      {/* The button's label changes, but the list swapping for a table is otherwise silent. */}
+      <p role="status" className="sr-only">
+        {selectMode ? 'Selecting people. Tick rows to copy emails or export.' : ''}
+      </p>
+    </>
   ) : null;
 
   return (

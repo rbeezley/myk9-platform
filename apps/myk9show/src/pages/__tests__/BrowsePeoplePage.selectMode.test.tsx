@@ -167,13 +167,31 @@ describe('BrowsePeoplePage select mode (wide, split)', () => {
   it('select mode ends when the split is lost and does not return when it comes back', async () => {
     const { rerender } = render(<BrowsePeoplePage detail={<p>detail pane</p>} />);
     await userEvent.click(screen.getByRole('button', { name: 'Select people' }));
-    expect(screen.getByTestId('people-table')).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: 'tick Ada' }));
+    expect(screen.getByTestId('people-bulk-bar')).toHaveTextContent('1 selected');
 
     rerender(<BrowsePeoplePage />); // narrow window: no split
     rerender(<BrowsePeoplePage detail={<p>detail pane</p>} />); // wide again
 
     expect(screen.getByTestId('people-compact')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Select people' })).toBeInTheDocument();
+    // The tick went with select mode: re-entering starts clean.
+    await userEvent.click(screen.getByRole('button', { name: 'Select people' }));
+    expect(screen.getByTestId('people-bulk-bar')).toHaveTextContent('0 selected');
+  });
+
+  it('announces select mode, and puts focus back on the toggle when a row opens a person', async () => {
+    renderWide();
+    const toggle = screen.getByRole('button', { name: 'Select people' });
+    expect(screen.queryByText(/Selecting people/)).not.toBeInTheDocument();
+
+    await userEvent.click(toggle);
+    expect(screen.getByRole('status')).toHaveTextContent('Selecting people');
+
+    // The focused row unmounts when the table goes; focus must not be dropped on the body.
+    screen.getByTestId('people-table').focus();
+    await userEvent.click(screen.getByTestId('people-table'));
+    expect(screen.getByRole('button', { name: 'Select people' })).toHaveFocus();
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
   });
 
   it('offers no select mode on a narrow screen, where the table is always the list', () => {

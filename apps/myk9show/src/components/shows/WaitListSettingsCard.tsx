@@ -95,7 +95,10 @@ function SettingSwitch({
           disabled={disabled || control.isPending}
           onCheckedChange={checked => control.save(checked)}
         />
-        <Label htmlFor={id}>{label}</Label>
+        {/* The label is the switch's 44px target (docs/INTENT.md § Accessibility First). */}
+        <Label htmlFor={id} className="flex min-h-11 items-center">
+          {label}
+        </Label>
       </div>
       <p className="text-sm text-muted-foreground" id={`${id}-help`}>
         {help}

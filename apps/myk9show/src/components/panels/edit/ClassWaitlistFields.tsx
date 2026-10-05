@@ -86,7 +86,10 @@ export function ClassWaitlistFields({ showId }: { showId?: string | undefined })
             }}
           />
           <div className="space-y-1">
-            <Label htmlFor="allowsWaitlist">Allow wait list</Label>
+            {/* The label is the switch's 44px target (docs/INTENT.md § Accessibility First). */}
+            <Label htmlFor="allowsWaitlist" className="flex min-h-11 items-center">
+              Allow wait list
+            </Label>
             <p className="text-sm text-muted-foreground">
               When this class or the judge's day is full, new entries join the wait list instead of
               being turned away. Manage the queue under Entries, then Waitlist.
@@ -102,7 +105,7 @@ export function ClassWaitlistFields({ showId }: { showId?: string | undefined })
               <Button
                 type="button"
                 variant="link"
-                className="h-auto p-0"
+                className="px-0"
                 onClick={() => {
                   form?.setValue('allowsWaitlist', null);
                   markEdited('allowsWaitlist');

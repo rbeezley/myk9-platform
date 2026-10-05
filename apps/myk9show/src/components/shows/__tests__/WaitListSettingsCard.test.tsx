@@ -300,4 +300,27 @@ describe('WaitListSettingsCard', () => {
       expect(toggle).not.toBeChecked();
     });
   });
+
+  // docs/INTENT.md § Accessibility First: the switch track is 20px, so its label is the 44px
+  // target. jsdom has no layout, so this proves the label really operates the switch (a click on
+  // it saves) and carries the floor token; the geometry itself is the measurement sweep's job.
+  it.each([
+    ['allow-waitlists', 'Allow wait lists', { allow_waitlist: true }],
+    ['auto-offer', 'Offer open spots automatically', { waitlist_auto_offer: false }],
+  ])(
+    '"%s": clicking its label flips the switch, and the label keeps the 44px floor',
+    async (id, name, payload) => {
+      const user = userEvent.setup();
+      render(<WaitListSettingsCard showId="show-1" />);
+      const toggle = await screen.findByRole('switch', { name });
+      await waitFor(() => expect(toggle).not.toBeDisabled());
+      const label = document.querySelector(`label[for="${id}"]`) as HTMLLabelElement | null;
+      expect(label).not.toBeNull();
+      expect(label!.className.split(/\s+/)).toContain('min-h-11');
+
+      await user.click(label!);
+
+      await waitFor(() => expect(mockUpdate).toHaveBeenCalledWith(payload));
+    }
+  );
 });

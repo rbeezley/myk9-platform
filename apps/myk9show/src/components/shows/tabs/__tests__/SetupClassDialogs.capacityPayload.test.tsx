@@ -95,7 +95,14 @@ describe('Edit class payload at the update layer', () => {
       expect(toggle).not.toBeChecked();
       expect(toggle).toHaveAccessibleDescription(/Set for this class only/);
 
-      await user.click(screen.getByRole('button', { name: 'Use the show setting' }));
+      // INTENT § Accessibility First: the link keeps Button's 44px height (h-11), not a
+      // text-height override (Codex round 2 on #2778). jsdom has no layout: token check only.
+      const useShow = screen.getByRole('button', { name: 'Use the show setting' });
+      expect(useShow.className.split(/\s+/)).toContain('h-11');
+      expect(useShow.className.split(/\s+/)).not.toContain('h-auto');
+      const switchLabel = document.querySelector('label[for="allowsWaitlist"]');
+      expect(switchLabel?.className.split(/\s+/)).toContain('min-h-11');
+      await user.click(useShow);
       expect(toggle).toBeChecked();
       expect(toggle).toHaveAccessibleDescription(/Follows show: On/);
       await user.click(screen.getByRole('button', { name: 'Save Changes' }));

@@ -147,6 +147,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_923_entries_refuse_deleted_parent_test.sql"
   "$TEST_DIR/myk9_980_move_up_pending_and_reentry_test.sql"
   "$TEST_DIR/myk9_964_replayable_cart_fulfillment_test.sql"
+  "$TEST_DIR/myk9_963_unfulfilled_charge_refund_test.sql"
   "$TEST_DIR/myk9_969_results_privacy_test.sql"
   "$TEST_DIR/myk9_822_blocking_entries_rpc_test.sql"
   "$TEST_DIR/myk9_970_role_onboarding_test.sql"

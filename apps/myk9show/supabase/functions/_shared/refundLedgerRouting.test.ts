@@ -353,6 +353,8 @@ describe('round 7: no-order kinds route by the request row', () => {
 
   it('approvedRefundHasNoOrder names exactly the kinds that never insert an order', () => {
     expect(approvedRefundHasNoOrder({ kind: 'abandoned_cart', reason: 'cart_expired' })).toBe(true);
+    // MYK9-963: a paid cart checkout that created nothing has no order.
+    expect(approvedRefundHasNoOrder({ kind: 'unfulfilled_charge', reason: 'no_cart' })).toBe(true);
     expect(approvedRefundHasNoOrder({ kind: 'entry_payment_link', reason: 'no_link_record' })).toBe(
       true
     );

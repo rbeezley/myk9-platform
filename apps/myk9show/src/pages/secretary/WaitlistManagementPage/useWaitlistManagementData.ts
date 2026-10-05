@@ -7,6 +7,7 @@ import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { judgeDayCapacityKey, useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
+import { useIsOnline } from '@/hooks/useNetworkStatus';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
 import {
@@ -53,6 +54,9 @@ const waitlistKey = (showId: string) => ['waitlist', showId] as const;
  */
 export function useWaitlistManagementData(showId: string) {
   const queryClient = useQueryClient();
+  // Offer and Remove are server calls (an RPC, a DELETE): offline they are disabled up front
+  // (MYK9-1005) instead of failing with "Please try again" after the click.
+  const isOffline = !useIsOnline();
   const {
     judgeDays,
     isPaused: isCapacityUnavailable,
@@ -338,6 +342,7 @@ export function useWaitlistManagementData(showId: string) {
     judgeDays,
     isCapacityUnavailable,
     capacityError,
+    isOffline,
     selectedJudgeDay,
     waitlistEntries,
     groups,

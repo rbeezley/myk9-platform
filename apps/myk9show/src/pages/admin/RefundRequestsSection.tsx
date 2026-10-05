@@ -8,8 +8,8 @@
 // A charge honored another way is retired with "Resolve without refund"
 // (note required), never left pending for someone to approve later.
 
-import { useState } from 'react';
-import { AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { AlertTriangle, CheckCircle2, WifiOff } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   AlertDialog,
@@ -112,25 +112,57 @@ function RefundRequestRow({ request }: { request: RefundRequest }) {
 }
 
 export function RefundRequestsSection() {
-  const { data, isLoading, error } = useRefundRequests();
+  const { data, error, fetchStatus, refetch } = useRefundRequests();
+  // `data === undefined` means the queue was NEVER read, which is not the same
+  // as reading it and finding it empty. A first read that is paused for want of
+  // a network has isLoading false (isLoading = isPending && isFetching), no
+  // error and no data, so it must not fall through to "No refunds waiting"
+  // (MYK9-991). Only a successful empty response may claim the queue is empty.
+  const isPaused = fetchStatus === 'paused';
 
-  return (
-    <BoardCard>
-      <Eyebrow>Refunds awaiting approval</Eyebrow>
-      <div className="mt-2">
-        {isLoading ? (
-          <div role="status" aria-label="Loading refunds awaiting approval">
-            <Skeleton className="h-12 rounded-md" />
-          </div>
-        ) : error ? (
-          <Alert variant="destructive" className="bg-destructive/10">
-            <AlertTriangle className="h-5 w-5" aria-hidden="true" />
-            <AlertTitle>Couldn&rsquo;t load refunds</AlertTitle>
-            <AlertDescription>
-              The refund queue read failed. Confirm you have site-admin access and try again.
-            </AlertDescription>
-          </Alert>
-        ) : data && data.length > 0 ? (
+  let body: ReactNode;
+  if (data === undefined) {
+    if (isPaused) {
+      body = (
+        <p role="status" className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+          <WifiOff className="h-4 w-4" aria-hidden="true" />
+          Can&rsquo;t check refunds while offline. The queue will load when you&rsquo;re back
+          online.
+        </p>
+      );
+    } else if (error) {
+      body = (
+        <Alert variant="destructive" className="bg-destructive/10">
+          <AlertTriangle className="h-5 w-5" aria-hidden="true" />
+          <AlertTitle>Couldn&rsquo;t load refunds</AlertTitle>
+          <AlertDescription>
+            <p>The refund queue read failed. Confirm you have site-admin access and try again.</p>
+            <Button variant="outline" className="mt-2" onClick={() => void refetch()}>
+              Try again
+            </Button>
+          </AlertDescription>
+        </Alert>
+      );
+    } else {
+      // Fetching, or pending before the first fetch has started.
+      body = (
+        <div role="status" aria-label="Loading refunds awaiting approval">
+          <Skeleton className="h-12 rounded-md" />
+        </div>
+      );
+    }
+  } else {
+    body = (
+      <>
+        {(isPaused || error) && (
+          <p role="status" className="flex items-center gap-2 pb-2 text-sm text-muted-foreground">
+            <WifiOff className="h-4 w-4" aria-hidden="true" />
+            {isPaused
+              ? 'Offline. Showing the last queue we loaded; it may be out of date.'
+              : 'Couldn\u2019t refresh. Showing the last queue we loaded; it may be out of date.'}
+          </p>
+        )}
+        {data.length > 0 ? (
           data.map(request => <RefundRequestRow key={request.id} request={request} />)
         ) : (
           <p className="flex items-center gap-2 py-6 text-center text-sm text-muted-foreground">
@@ -138,7 +170,14 @@ export function RefundRequestsSection() {
             No refunds waiting.
           </p>
         )}
-      </div>
+      </>
+    );
+  }
+
+  return (
+    <BoardCard>
+      <Eyebrow>Refunds awaiting approval</Eyebrow>
+      <div className="mt-2">{body}</div>
     </BoardCard>
   );
 }

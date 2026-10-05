@@ -12,7 +12,14 @@ export interface WithdrawOutcomeNotice {
 
 const NOT_TOLD = "the exhibitor's notification didn't send. Let them know directly.";
 
+const CHECKOUT_OPEN =
+  'Offer withdrawn, but its checkout page could not be closed. If the exhibitor pays on it, the payment goes to the refund queue for approval.';
+
 export function withdrawOutcomeNotice(outcome: WithdrawOfferOutcome): WithdrawOutcomeNotice {
+  // The offer is closed either way; a checkout page still open is what needs attention first.
+  if ((outcome.result === 'withdrawn' || outcome.result === 'expired') && !outcome.checkoutClosed) {
+    return { tone: 'warning', message: CHECKOUT_OPEN };
+  }
   switch (outcome.result) {
     case 'withdrawn':
       return outcome.notified

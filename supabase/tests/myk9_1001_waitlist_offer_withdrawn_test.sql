@@ -20,6 +20,14 @@
 --   M1  The offer message: a one-hour window reads "You have 1 hour"
 --       (singular), and the deadline carries the trial zone's abbreviation
 --       (America/Phoenix: MST, no DST).
+--   MI1 A MAIL-IN offer past its deadline is withdrawn, not expired (the
+--       expiry job keeps mail-in offers open), gets the in-app message and no
+--       email/push event (never delivered for mail-in), and notified = true
+--       because the message will reach the exhibitor.
+--   PL1 After a withdrawal, a payment link for that entry is refused.
+--   PL2 Creating a payment link takes a FOR SHARE lock on the offer's
+--       waitlist row before checking it, so it serialises with a withdrawal
+--       (which takes FOR UPDATE): the row's xmax is this transaction's.
 --   A1  withdraw_waitlist_offer_internal, send_waitlist_withdrawal_message_internal
 --       and enqueue_waitlist_notification_event are SECURITY DEFINER with
 --       search_path '' and EXECUTE for service_role only; anon and
@@ -70,6 +78,8 @@ $f$;
 --   503 dog 403  offered, entry 603 already paid                       (P1)
 --   504 dog 404  offered with a one-hour window in July, no entry      (M1)
 --   505 dog 405  waiting                                               (C1)
+--   507 dog 406  MAIL-IN offered, deadline passed, entry 607 pending   (MI1)
+--   508 dog 407  offered, deadline ahead, entry 608 pending            (PL2)
 -- ---------------------------------------------------------------------------
 INSERT INTO public.clubs (id, name) VALUES (pg_temp.fid('001'), 'MYK9-1001 Club');
 
@@ -116,11 +126,11 @@ VALUES (pg_temp.fid('301'), pg_temp.fid('201'), 'Class Waitlist', 'upcoming', 'd
 
 INSERT INTO public.dogs (id, call_name, breed, owner_id)
 SELECT pg_temp.fid((400 + n)::text), 'Dog' || (400 + n), 'Beagle', pg_temp.fid('011')
-FROM generate_series(1, 5) AS n;
+FROM generate_series(1, 7) AS n;
 
 INSERT INTO public.dog_registrations (dog_id, organization, registration_number, registered_name)
 SELECT pg_temp.fid((400 + n)::text), 'AKC', 'SW1001' || n, 'Dog ' || n || ' Formally'
-FROM generate_series(1, 5) AS n;
+FROM generate_series(1, 7) AS n;
 
 -- The entries the offers created (promote_waitlist_entry_internal's insert).
 INSERT INTO public.entries (id, dog_id, class_id, show_id, trial_id, entry_status, payment_status)
@@ -128,6 +138,10 @@ VALUES
   (pg_temp.fid('601'), pg_temp.fid('401'), pg_temp.fid('301'), pg_temp.fid('101'),
    pg_temp.fid('201'), 'pending-payment', 'pending'),
   (pg_temp.fid('602'), pg_temp.fid('402'), pg_temp.fid('301'), pg_temp.fid('101'),
+   pg_temp.fid('201'), 'pending-payment', 'pending'),
+  (pg_temp.fid('607'), pg_temp.fid('406'), pg_temp.fid('301'), pg_temp.fid('101'),
+   pg_temp.fid('201'), 'pending-payment', 'pending'),
+  (pg_temp.fid('608'), pg_temp.fid('407'), pg_temp.fid('301'), pg_temp.fid('101'),
    pg_temp.fid('201'), 'pending-payment', 'pending');
 -- 603 was paid: written in one statement as service_role, as the webhook does.
 SET LOCAL ROLE service_role;
@@ -141,19 +155,23 @@ INSERT INTO public.waitlist_entries (
   offered_at, offer_expires_at, promoted_entry_id
 )
 SELECT pg_temp.fid(v.id), pg_temp.fid('301'), ep.id, pg_temp.fid(v.dog), v.pos, v.status,
-       'online', v.offered_at, v.expires_at, v.entry
+       v.joined_via, v.offered_at, v.expires_at, v.entry
 FROM public.exhibitor_profiles ep
 CROSS JOIN (VALUES
-  ('501', '401', 1, 'offered', now() - interval '1 hour', now() + interval '47 hours',
+  ('501', '401', 1, 'offered', 'online', now() - interval '1 hour', now() + interval '47 hours',
    pg_temp.fid('601')),
-  ('502', '402', 2, 'offered', now() - interval '3 days', now() - interval '1 day',
+  ('502', '402', 2, 'offered', 'online', now() - interval '3 days', now() - interval '1 day',
    pg_temp.fid('602')),
-  ('503', '403', 3, 'offered', now() - interval '1 hour', now() + interval '47 hours',
+  ('503', '403', 3, 'offered', 'online', now() - interval '1 hour', now() + interval '47 hours',
    pg_temp.fid('603')),
-  ('504', '404', 4, 'offered', timestamptz '2026-07-15 17:00:00+00',
+  ('504', '404', 4, 'offered', 'online', timestamptz '2026-07-15 17:00:00+00',
    timestamptz '2026-07-15 18:00:00+00', NULL::uuid),
-  ('505', '405', 5, 'waiting', NULL::timestamptz, NULL::timestamptz, NULL::uuid)
-) AS v(id, dog, pos, status, offered_at, expires_at, entry)
+  ('505', '405', 5, 'waiting', 'online', NULL::timestamptz, NULL::timestamptz, NULL::uuid),
+  ('507', '406', 7, 'offered', 'mail_in', now() - interval '3 days', now() - interval '1 day',
+   pg_temp.fid('607')),
+  ('508', '407', 8, 'offered', 'online', now() - interval '1 hour', now() + interval '47 hours',
+   pg_temp.fid('608'))
+) AS v(id, dog, pos, status, joined_via, offered_at, expires_at, entry)
 WHERE ep.auth_user_id = pg_temp.fid('021');
 
 CREATE FUNCTION pg_temp.withdrawal_messages(p_dog text)
@@ -264,6 +282,55 @@ BEGIN
   PERFORM pg_temp.expect_eq(
     (SELECT r.result->>'result' FROM other_results r WHERE r.k = 'missing'),
     'not_found', 'N1 a missing row is not_found');
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- MI1. A mail-in offer past its deadline is withdrawn, told in-app only
+-- ---------------------------------------------------------------------------
+CREATE TEMP TABLE mi_results (result jsonb);
+GRANT ALL ON mi_results TO service_role;
+SET LOCAL ROLE service_role;
+INSERT INTO mi_results
+SELECT public.withdraw_waitlist_offer_internal(pg_temp.fid('507'), pg_temp.fid('022'));
+RESET ROLE;
+
+DO $$
+BEGIN
+  PERFORM pg_temp.expect_eq(
+    (SELECT r.result->>'result' || ' ' || (r.result->>'notified') || ' ' || (r.result->>'message')
+            || ' ' || coalesce(r.result->>'event_id', 'no-event') FROM mi_results r),
+    'withdrawn true sent no-event', 'MI1 a lapsed mail-in offer is withdrawn and told in-app only');
+  PERFORM pg_temp.expect_eq(
+    (SELECT w.status || ' ' || e.entry_status
+       FROM public.waitlist_entries w JOIN public.entries e ON e.id = w.promoted_entry_id
+      WHERE w.id = pg_temp.fid('507')),
+    'withdrawn promotion-expired', 'MI1 the row is withdrawn and its entry promotion-expired');
+  PERFORM pg_temp.expect_eq(pg_temp.withdrawal_messages('Dog406')::text || ' ' || pg_temp.events('507'),
+    '1 ', 'MI1 one in-app message, no email/push event');
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- PL1 / PL2. Payment links and the withdrawal
+-- ---------------------------------------------------------------------------
+-- PL1: 501 was withdrawn in W1.
+SELECT pg_temp.expect_sqlstate(
+  $q$INSERT INTO public.entry_payment_links (show_id, entry_ids, stripe_checkout_session_id, status, amount_cents)
+     VALUES ('00000000-0000-0000-0000-000001001101',
+             ARRAY['00000000-0000-0000-0000-000001001601']::uuid[], 'cs_1001_after', 'open', 2500)$q$,
+  '23514', 'PL1 a payment link for a withdrawn offer''s entry is refused');
+
+-- PL2: a link for an open offer goes in, and locks the offer's row as it does.
+INSERT INTO public.entry_payment_links (show_id, entry_ids, stripe_checkout_session_id, status, amount_cents)
+VALUES (pg_temp.fid('101'), ARRAY[pg_temp.fid('608')], 'cs_1001_open', 'open', 2500);
+
+DO $$
+BEGIN
+  PERFORM pg_temp.expect_eq(
+    (SELECT (w.xmax = xid(pg_current_xact_id()))::text
+       FROM public.waitlist_entries w WHERE w.id = pg_temp.fid('508')),
+    'true', 'PL2 the link insert locked the offer''s waitlist row (FOR SHARE) before checking it');
 END;
 $$;
 

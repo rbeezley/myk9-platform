@@ -72,23 +72,35 @@ export async function refreshOfferRowsInReplica(waitlistEntryId: string): Promis
  *   paid            the dog paid; the offer stands
  *   not_found       no such offer (or not one this secretary manages)
  * Never collapsed to a boolean: `already_closed` sends nothing on purpose, which is
- * not a failed notice (Codex P2 on #2772).
+ * not a failed notice (Codex P2 on #2772). `checkoutClosed: false` means the offer is
+ * closed but its checkout page could not be expired: a payment on it goes to the
+ * refund queue for approval (stripe-webhook, inactive entry).
  */
 export type WithdrawOfferOutcome =
-  | { result: 'withdrawn'; notified: boolean }
-  | { result: 'expired'; notified: boolean }
+  | { result: 'withdrawn'; notified: boolean; checkoutClosed: boolean }
+  | { result: 'expired'; notified: boolean; checkoutClosed: boolean }
   | { result: 'already_closed'; status: string | null }
   | { result: 'paid' }
   | { result: 'not_found' };
 
-type ServerAnswer = { result?: unknown; status?: unknown; notified?: unknown; error?: unknown };
+type ServerAnswer = {
+  result?: unknown;
+  status?: unknown;
+  notified?: unknown;
+  checkout_closed?: unknown;
+  error?: unknown;
+};
 
 /** The server's answer as an outcome, or null when it names no result this client knows. */
 function toOutcome(answer: ServerAnswer | null | undefined): WithdrawOfferOutcome | null {
   switch (answer?.result) {
     case 'withdrawn':
     case 'expired':
-      return { result: answer.result, notified: answer.notified === true };
+      return {
+        result: answer.result,
+        notified: answer.notified === true,
+        checkoutClosed: answer.checkout_closed !== false,
+      };
     case 'already_closed':
       return {
         result: 'already_closed',

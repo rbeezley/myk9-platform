@@ -59,9 +59,17 @@
 --    nothing. A lapsed offer closes as 'expired' and gets the expiry path's
 --    email/push event instead of a withdrawal notice. The notices run in a
 --    sub-block, so a failed notice never undoes the withdrawal: the result
---    says notified = false. withdraw-waitlist-offer authorizes the caller and
---    expires the Stripe checkout page FIRST (Stripe cannot join the
---    transaction), then calls this. service_role only.
+--    says notified = false. A mail-in offer is always 'withdrawn' (the expiry
+--    job keeps mail-in offers open past the deadline) and gets no email/push
+--    event, which push-trigger-waitlist would never deliver; `notified` is true
+--    only when a notice that will reach the exhibitor was written.
+--    withdraw-waitlist-offer authorizes the caller, calls this FIRST, then
+--    expires every open payment link for the entry (Stripe cannot join the
+--    transaction). service_role only.
+--
+-- 5. assert_active_waitlist_offer_payment_link locks the waitlist row before
+--    checking it, so a payment link cannot be created across a withdrawal
+--    (details at the function).
 --
 --    Live constraint (pg_constraint, 2026-10-05):
 --      waitlist_notification_events_event_type_check
@@ -357,7 +365,9 @@ GRANT EXECUTE ON FUNCTION public.send_waitlist_withdrawal_message_internal(uuid,
 -- Returns jsonb:
 --   result          'withdrawn' | 'expired' | 'already_closed' | 'paid' | 'not_found'
 --   status          the row's status after the call (null when not found)
---   notified        true only when THIS call wrote every notice it owed
+--   notified        true only when THIS call wrote a notice that will reach the
+--                   exhibitor (the in-app message, or an email/push event for a
+--                   row push-trigger-waitlist delivers to)
 --   message         the in-app outcome ('sent', 'no_account', ...), withdrawn only
 --   event_id        the queued email/push event this call wrote, if any
 --   event_type      'withdrawn' or 'expired', with event_id
@@ -405,8 +415,11 @@ BEGIN
     END IF;
   END IF;
 
-  -- A deadline already past closes as the expiry it is.
+  -- A deadline already past closes as the expiry it is, except a mail-in
+  -- offer: the expiry job keeps those open past the deadline on purpose (it
+  -- never expires them), so a secretary closing one is always withdrawing it.
   v_new_status := CASE
+    WHEN v_wl.joined_via = 'mail_in' THEN 'withdrawn'
     WHEN v_wl.offer_expires_at IS NOT NULL AND v_wl.offer_expires_at <= now() THEN 'expired'
     ELSE 'withdrawn'
   END;
@@ -443,9 +456,15 @@ BEGIN
         p_waitlist_entry_id, p_actor_auth_user_id
       );
     END IF;
-    v_event_id := public.enqueue_waitlist_notification_event(p_waitlist_entry_id, v_new_status);
-    v_notified := v_event_id IS NOT NULL
-      AND (v_new_status = 'expired' OR v_message = 'sent');
+    -- Email/push only where push-trigger-waitlist will deliver it: its
+    -- shouldDeliverWaitlistEvent never sends for a mail-in row, so none is
+    -- queued for one (the row is closed, unpaid and on this cycle, which are
+    -- its other rules).
+    IF v_wl.joined_via IS DISTINCT FROM 'mail_in' THEN
+      v_event_id := public.enqueue_waitlist_notification_event(p_waitlist_entry_id, v_new_status);
+    END IF;
+    -- Told = a notice that will actually reach them was written.
+    v_notified := coalesce(v_message = 'sent', false) OR v_event_id IS NOT NULL;
   EXCEPTION WHEN OTHERS THEN
     RAISE WARNING 'withdraw_waitlist_offer_internal: notice for % failed: %',
       p_waitlist_entry_id, SQLERRM;
@@ -475,5 +494,61 @@ REVOKE ALL ON FUNCTION public.withdraw_waitlist_offer_internal(uuid, uuid)
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.withdraw_waitlist_offer_internal(uuid, uuid)
   TO service_role;
+
+-- ---------------------------------------------------------------------------
+-- 5. A payment link cannot be created across a withdrawal
+-- ---------------------------------------------------------------------------
+-- withdraw-waitlist-offer closes the offer in the database FIRST, then expires
+-- every open payment link it finds for the entry (Codex round 6 on #2772: a
+-- link created between a Stripe-first read and the close stayed payable). For
+-- that to see every link, a link must not be created concurrently with the
+-- close: this trigger now takes FOR SHARE on the waitlist rows of the entries
+-- the link pays for BEFORE it checks them. withdraw_waitlist_offer_internal
+-- takes FOR UPDATE on the same row, so the two serialise:
+--   * a link inserted first commits before the withdrawal can lock the row,
+--     and the edge function's read after the withdrawal commits finds it;
+--   * a link attempted after the withdrawal waits for it, then reads the row
+--     as closed and is refused (stripe-payment-link then expires the Stripe
+--     page it had made and hands out nothing).
+-- Copied from 20260713110000_waitlist_offer_payment_guard.sql (its only
+-- definition; identical to live, pg_get_functiondef 2026-10-05). Only the
+-- lock is added; the checks, error and search_path are unchanged.
+CREATE OR REPLACE FUNCTION public.assert_active_waitlist_offer_payment_link()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  -- MYK9-1001: serialise with a withdrawal (see above). Fixed order, so two
+  -- links over the same entries cannot deadlock each other.
+  PERFORM 1
+  FROM public.waitlist_entries AS waitlist
+  WHERE waitlist.promoted_entry_id = ANY (NEW.entry_ids)
+  ORDER BY waitlist.id
+  FOR SHARE;
+
+  IF EXISTS (
+    SELECT 1
+    FROM unnest(NEW.entry_ids) AS requested(entry_id)
+    JOIN public.waitlist_entries AS waitlist
+      ON waitlist.promoted_entry_id = requested.entry_id
+    JOIN public.entries AS entry
+      ON entry.id = waitlist.promoted_entry_id
+    WHERE waitlist.status IS DISTINCT FROM 'offered'
+       OR waitlist.offer_expires_at IS NULL
+       OR waitlist.offer_expires_at <= now()
+       OR entry.entry_status NOT IN ('pending-payment', 'pending')
+       OR entry.payment_status IS DISTINCT FROM 'pending'
+  ) THEN
+    RAISE EXCEPTION 'Waitlist offer is no longer active'
+      USING ERRCODE = 'check_violation';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.assert_active_waitlist_offer_payment_link() FROM PUBLIC, anon, authenticated;
 
 COMMIT;

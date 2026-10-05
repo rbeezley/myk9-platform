@@ -1,9 +1,10 @@
 /**
  * withdraw-waitlist-offer (MYK9-1001): the show's secretary takes back an open
  * wait list offer from the Waitlist tab. The decision lives in
- * ../_shared/withdrawWaitlistOffer.ts: authorize, expire the Stripe page, then
+ * ../_shared/withdrawWaitlistOffer.ts: authorize, then
  * withdraw_waitlist_offer_internal (the transition and its notices in one
- * transaction). This file only wires it to Supabase and Stripe. Deploy with --no-verify-jwt: the caller is authenticated here.
+ * transaction), then expire every open payment link for the entry, read after
+ * that commit. This file only wires it to Supabase and Stripe. Deploy with --no-verify-jwt: the caller is authenticated here.
  */
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';

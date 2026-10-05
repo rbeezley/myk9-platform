@@ -3,16 +3,24 @@
  * withdraw-waitlist-offer edge function, with its I/O injected so it can be
  * tested without Deno, Stripe or a database.
  *
- * Two steps, in this order:
- *   1. Expire the offer's open Stripe checkout page (Stripe cannot join a
- *      database transaction). A payment Stripe reports refuses the withdrawal.
- *   2. withdraw_waitlist_offer_internal, ONE transaction under a row lock: it
+ * One protocol, database first (owner decision, Codex round 6 on #2772):
+ *   1. withdraw_waitlist_offer_internal, ONE transaction under a row lock: it
  *      closes the offer only if it is still 'offered' (withdrawn, or expired if
- *      its deadline passed), ends the pending-payment entry, and writes the
- *      exhibitor's notices only when that call made the transition. Two
- *      concurrent withdrawals therefore notify once; the second answers
- *      'already_closed'. `notified` comes from that result, never from a
- *      check made here.
+ *      its deadline passed; a mail-in offer is always withdrawn), ends the
+ *      pending-payment entry, and writes the exhibitor's notices only when that
+ *      call made the transition. Two concurrent withdrawals therefore notify
+ *      once; the second answers 'already_closed'. `notified` comes from that
+ *      result, never from a check made here.
+ *   2. Then expire EVERY open payment link for the entry, read after step 1
+ *      committed. A link cannot be created across step 1: the payment-link
+ *      insert trigger locks the same waitlist row (FOR SHARE) and refuses a
+ *      closed offer. So a link made before the withdrawal is found here, and
+ *      one attempted after it is refused.
+ *   A checkout that completes between the two steps pays for an entry that is
+ *   already promotion-expired on a link still 'open': stripe-webhook treats it
+ *   as an inactive entry, queues a refund request for human approval and
+ *   alerts (never an automatic refund). `checkout_closed: false` tells the
+ *   secretary so.
  *
  * Authorization is promote_waitlist_entry's, asked as the caller: the show's
  * secretary, the show's club admin, or a site admin.
@@ -40,10 +48,10 @@ export interface WithdrawWaitlistOfferDeps {
   loadOffer(id: string): Promise<WithdrawableOffer | null | 'error'>;
   /** promote_waitlist_entry's authorization, asked as the caller. */
   canManageShow(showId: string, clubId: string | null): Promise<boolean>;
-  /** expireOpenPaymentLinksForEntry: step 1. */
-  closePaymentPages(entryId: string): Promise<'expired' | 'paid' | 'error'>;
-  /** withdraw_waitlist_offer_internal: step 2. `'error'` when the call failed. */
+  /** withdraw_waitlist_offer_internal: step 1. `'error'` when the call failed. */
   withdrawInDatabase(id: string): Promise<DatabaseWithdrawal | 'error'>;
+  /** expireOpenPaymentLinksForEntry, read after step 1 committed: step 2. */
+  closePaymentPages(entryId: string): Promise<'expired' | 'paid' | 'error'>;
   /** Hand a queued email/push event to push-trigger-waitlist (the cron retries a failure). */
   dispatchEvent(event: {
     eventId: string;
@@ -63,7 +71,6 @@ const CLOSED_STATUSES = new Set(['expired', 'declined', 'withdrawn']);
 export const WITHDRAW_MESSAGES = {
   notFound: 'This offer was not found.',
   paid: 'This dog has already paid for the spot, so the offer cannot be withdrawn.',
-  reconciling: 'A payment for this offer is being confirmed. Try again in a few minutes.',
   notOffered: 'This dog has not been offered a spot.',
   failed: 'We could not withdraw this offer. Please try again.',
 } as const;
@@ -101,16 +108,7 @@ export async function withdrawWaitlistOffer(
     return { httpStatus: 409, body: { error: WITHDRAW_MESSAGES.notOffered } };
   }
 
-  // Step 1: Stripe first, so nobody can pay once the offer is closed.
-  if (offer.promoted_entry_id) {
-    const pages = await deps.closePaymentPages(offer.promoted_entry_id);
-    if (pages === 'paid') {
-      return { httpStatus: 409, body: { error: WITHDRAW_MESSAGES.reconciling } };
-    }
-    if (pages === 'error') return { httpStatus: 500, body: { error: WITHDRAW_MESSAGES.failed } };
-  }
-
-  // Step 2: the transition and its notices, atomically.
+  // Step 1: the transition and its notices, atomically.
   const outcome = await deps.withdrawInDatabase(waitlistEntryId);
   if (outcome === 'error') return { httpStatus: 500, body: { error: WITHDRAW_MESSAGES.failed } };
 
@@ -124,6 +122,19 @@ export async function withdrawWaitlistOffer(
     case 'withdrawn':
     case 'expired':
       break;
+  }
+
+  // Step 2: close every checkout page for the entry, now that no new one can be made.
+  let checkoutClosed = true;
+  if (offer.promoted_entry_id) {
+    const pages = await deps.closePaymentPages(offer.promoted_entry_id);
+    if (pages !== 'expired') {
+      checkoutClosed = false;
+      console.error(
+        `withdraw-waitlist-offer: checkout for entry ${offer.promoted_entry_id} not closed (${pages}); ` +
+          'a payment on it is an inactive entry and goes to the refund queue'
+      );
+    }
   }
 
   if (outcome.event_id && outcome.event_type) {
@@ -149,6 +160,7 @@ export async function withdrawWaitlistOffer(
       status: outcome.result,
       already_closed: outcome.result === 'expired',
       notified: outcome.notified === true,
+      checkout_closed: checkoutClosed,
     },
   };
 }

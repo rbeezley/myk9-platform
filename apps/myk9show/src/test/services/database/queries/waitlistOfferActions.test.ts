@@ -69,6 +69,7 @@ describe('withdrawWaitlistOffer (client)', () => {
     await expect(withdrawWaitlistOffer('wl-1')).resolves.toEqual({
       result: 'withdrawn',
       notified: true,
+      checkoutClosed: true,
     });
 
     expect(m.invoke).toHaveBeenCalledWith('withdraw-waitlist-offer', {
@@ -109,6 +110,7 @@ describe('withdrawWaitlistOffer (client)', () => {
     await expect(withdrawWaitlistOffer('wl-1')).resolves.toEqual({
       result: 'withdrawn',
       notified: true,
+      checkoutClosed: true,
     });
     expect(m.set).not.toHaveBeenCalled();
   });
@@ -119,6 +121,7 @@ describe('withdrawWaitlistOffer (client)', () => {
     await expect(withdrawWaitlistOffer('wl-1')).resolves.toEqual({
       result: 'withdrawn',
       notified: false,
+      checkoutClosed: true,
     });
     expect(m.set).toHaveBeenCalled();
   });
@@ -133,6 +136,7 @@ describe('withdrawWaitlistOffer (client)', () => {
     await expect(withdrawWaitlistOffer('wl-1')).resolves.toEqual({
       result: 'expired',
       notified: true,
+      checkoutClosed: true,
     });
   });
 
@@ -168,5 +172,18 @@ describe('withdrawWaitlistOffer (client)', () => {
   it('treats a 200 with no recognised result as a failure, not a success', async () => {
     m.invoke.mockResolvedValue({ data: { status: 'withdrawn' }, error: null });
     await expect(withdrawWaitlistOffer('wl-1')).rejects.toThrow(WITHDRAW_OFFER_FAILED_MESSAGE);
+  });
+
+  it('carries a checkout page the server could not close through as checkoutClosed: false', async () => {
+    m.invoke.mockResolvedValue({
+      data: { result: 'withdrawn', notified: true, checkout_closed: false },
+      error: null,
+    });
+    m.maybeSingle.mockResolvedValue({ data: serverRow, error: null });
+    await expect(withdrawWaitlistOffer('wl-1')).resolves.toEqual({
+      result: 'withdrawn',
+      notified: true,
+      checkoutClosed: false,
+    });
   });
 });

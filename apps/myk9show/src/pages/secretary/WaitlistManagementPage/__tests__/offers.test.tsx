@@ -168,7 +168,7 @@ describe('WaitlistManagementPage offers', () => {
   });
 
   it('withdraws an offer from the tab after saying the exhibitor will be told', async () => {
-    h.withdraw.mockResolvedValue({ result: 'withdrawn', notified: true });
+    h.withdraw.mockResolvedValue({ result: 'withdrawn', notified: true, checkoutClosed: true });
     render(<WaitlistManagementPage showId="show-1" />);
     const group = within(await offeredGroup());
 
@@ -186,7 +186,7 @@ describe('WaitlistManagementPage offers', () => {
   });
 
   it('keeps the withdrawal and tells the secretary when the exhibitor notice did not send', async () => {
-    h.withdraw.mockResolvedValue({ result: 'withdrawn', notified: false });
+    h.withdraw.mockResolvedValue({ result: 'withdrawn', notified: false, checkoutClosed: true });
     render(<WaitlistManagementPage showId="show-1" />);
     const group = within(await offeredGroup());
 
@@ -252,7 +252,7 @@ describe('WaitlistManagementPage offers', () => {
   // Codex P2 on #2772: a show repeats a class across trials, so the class name alone cannot tell
   // two offers apart, and the Withdraw dialog must name the trial it acts on.
   it('names the trial on each offer and in the Withdraw dialog when two trials share a class name', async () => {
-    h.withdraw.mockResolvedValue({ result: 'withdrawn', notified: true });
+    h.withdraw.mockResolvedValue({ result: 'withdrawn', notified: true, checkoutClosed: true });
     h.offers = [
       h.offer(),
       h.offer({
@@ -302,12 +302,12 @@ describe('WaitlistManagementPage offers', () => {
   it.each([
     [
       'withdrawn and told',
-      { result: 'withdrawn', notified: true },
+      { result: 'withdrawn', notified: true, checkoutClosed: true },
       { success: ['Offer withdrawn. The exhibitor has been told no payment is due.'] },
     ],
     [
       'withdrawn but not told',
-      { result: 'withdrawn', notified: false },
+      { result: 'withdrawn', notified: false, checkoutClosed: true },
       {
         warning: [
           "Offer withdrawn, but the exhibitor's notification didn't send. Let them know directly.",
@@ -316,7 +316,7 @@ describe('WaitlistManagementPage offers', () => {
     ],
     [
       'already lapsed',
-      { result: 'expired', notified: true },
+      { result: 'expired', notified: true, checkoutClosed: true },
       {
         info: [
           'This offer had already run out of time, so it is closed. The exhibitor has been told it ended.',
@@ -325,10 +325,19 @@ describe('WaitlistManagementPage offers', () => {
     ],
     [
       'already lapsed, not told',
-      { result: 'expired', notified: false },
+      { result: 'expired', notified: false, checkoutClosed: true },
       {
         warning: [
           "This offer had already run out of time, so it is closed, but the exhibitor's notification didn't send. Let them know directly.",
+        ],
+      },
+    ],
+    [
+      'withdrawn but its checkout page is still open',
+      { result: 'withdrawn', notified: true, checkoutClosed: false },
+      {
+        warning: [
+          'Offer withdrawn, but its checkout page could not be closed. If the exhibitor pays on it, the payment goes to the refund queue for approval.',
         ],
       },
     ],

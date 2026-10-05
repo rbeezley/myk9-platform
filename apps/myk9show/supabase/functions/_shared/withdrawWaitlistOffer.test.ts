@@ -37,7 +37,7 @@ function deps(over: Partial<WithdrawWaitlistOfferDeps> = {}): WithdrawWaitlistOf
 }
 
 describe('withdrawWaitlistOffer', () => {
-  it('expires the Stripe page FIRST, then withdraws in the database, then hands off the event', async () => {
+  it('withdraws in the database FIRST, then closes the checkout pages, then hands off the event', async () => {
     const order: string[] = [];
     const d = deps({
       closePaymentPages: vi.fn(async () => {
@@ -55,7 +55,7 @@ describe('withdrawWaitlistOffer', () => {
 
     const result = await withdrawWaitlistOffer(d, 'wl-1');
 
-    expect(order).toEqual(['stripe', 'database', 'dispatch']);
+    expect(order).toEqual(['database', 'stripe', 'dispatch']);
     expect(d.canManageShow).toHaveBeenCalledWith('show-1', 'club-1');
     expect(d.closePaymentPages).toHaveBeenCalledWith('entry-1');
     expect(d.withdrawInDatabase).toHaveBeenCalledWith('wl-1');
@@ -66,22 +66,48 @@ describe('withdrawWaitlistOffer', () => {
     });
     expect(result).toEqual({
       httpStatus: 200,
-      body: { result: 'withdrawn', status: 'withdrawn', already_closed: false, notified: true },
+      body: {
+        result: 'withdrawn',
+        status: 'withdrawn',
+        already_closed: false,
+        notified: true,
+        checkout_closed: true,
+      },
     });
   });
 
-  it.each([
-    ['paid', 409, WITHDRAW_MESSAGES.reconciling],
-    ['error', 500, WITHDRAW_MESSAGES.failed],
-  ] as const)(
-    'never reaches the database when Stripe answers %s',
-    async (pages, httpStatus, error) => {
+  // Database first: a checkout that could not be closed never undoes the withdrawal. A payment
+  // on it finds an inactive entry, which stripe-webhook sends to the refund queue.
+  it.each(['paid', 'error'] as const)(
+    'keeps the withdrawal and says the checkout is still open when Stripe answers %s',
+    async pages => {
       const d = deps({ closePaymentPages: vi.fn().mockResolvedValue(pages) });
-      expect(await withdrawWaitlistOffer(d, 'wl-1')).toEqual({ httpStatus, body: { error } });
-      expect(d.withdrawInDatabase).not.toHaveBeenCalled();
-      expect(d.dispatchEvent).not.toHaveBeenCalled();
+      const result = await withdrawWaitlistOffer(d, 'wl-1');
+      expect(result).toEqual({
+        httpStatus: 200,
+        body: {
+          result: 'withdrawn',
+          status: 'withdrawn',
+          already_closed: false,
+          notified: true,
+          checkout_closed: false,
+        },
+      });
+      expect(d.withdrawInDatabase).toHaveBeenCalled();
     }
   );
+
+  it.each([
+    ['already closed', { result: 'already_closed', status: 'withdrawn', notified: false }],
+    ['paid', { result: 'paid', status: 'offered', notified: false }],
+    ['not found', { result: 'not_found', status: null, notified: false }],
+    ['a failed call', 'error'],
+  ] as const)('does not touch Stripe when the database answers %s', async (_label, answer) => {
+    const d = deps({ withdrawInDatabase: vi.fn().mockResolvedValue(answer) });
+    await withdrawWaitlistOffer(d, 'wl-1');
+    expect(d.closePaymentPages).not.toHaveBeenCalled();
+    expect(d.dispatchEvent).not.toHaveBeenCalled();
+  });
 
   // `notified` is the database's answer about the transition it made, never a guess here.
   it.each([true, false])(
@@ -125,7 +151,13 @@ describe('withdrawWaitlistOffer', () => {
     });
     expect(await withdrawWaitlistOffer(d, 'wl-1')).toEqual({
       httpStatus: 200,
-      body: { result: 'expired', status: 'expired', already_closed: true, notified: true },
+      body: {
+        result: 'expired',
+        status: 'expired',
+        already_closed: true,
+        notified: true,
+        checkout_closed: true,
+      },
     });
     expect(d.dispatchEvent).toHaveBeenCalledWith({
       eventId: 'event-2',
@@ -138,7 +170,13 @@ describe('withdrawWaitlistOffer', () => {
     const d = deps({ dispatchEvent: vi.fn().mockRejectedValue(new Error('timeout')) });
     expect(await withdrawWaitlistOffer(d, 'wl-1')).toEqual({
       httpStatus: 200,
-      body: { result: 'withdrawn', status: 'withdrawn', already_closed: false, notified: true },
+      body: {
+        result: 'withdrawn',
+        status: 'withdrawn',
+        already_closed: false,
+        notified: true,
+        checkout_closed: true,
+      },
     });
   });
 

@@ -53,9 +53,23 @@ function fixture() {
 printf '%s\\n' "$*" >> "$GH_CALLS"
 case "$*" in
   'api repos/{owner}/{repo} --jq .full_name') echo 'owner/repo' ;;
-  'api repos/owner/repo/issues/comments?sort=created&direction=desc&per_page=100&page='*)
+  'api repos/owner/repo/issues/comments?sort=updated&direction=desc&since='*'&per_page=100&page='*)
     page="$(printf '%s' "$*" | sed 's/.*page=//')"
-    if [ -f "$GH_FIXTURE_DIR/page-$page.json" ]; then cat "$GH_FIXTURE_DIR/page-$page.json"; else echo '[]'; fi ;;
+    since="$(printf '%s' "$*" | sed -E 's/.*since=([^&]*)&.*/\\1/' | sed 's/%3A/:/g')"
+    if [ -f "$GH_FIXTURE_DIR/page-$page.json" ]; then
+      if [ -f "$GH_FIXTURE_DIR/filter-since" ]; then
+        node -e 'const s=Date.parse(process.argv[2]);const c=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));console.log(JSON.stringify(c.filter(x=>Date.parse(x.updated_at)>=s)))' "$GH_FIXTURE_DIR/page-$page.json" "$since"
+      else cat "$GH_FIXTURE_DIR/page-$page.json"; fi
+    else echo '[]'; fi ;;
+  'api search/issues?q='*)
+    if [ -f "$GH_FIXTURE_DIR/search-fail" ]; then echo 'search down' >&2; exit 1; fi
+    page="$(printf '%s' "$*" | sed 's/.*page=//')"
+    if [ "$page" = 1 ] && [ -f "$GH_FIXTURE_DIR/search.json" ]; then cat "$GH_FIXTURE_DIR/search.json"
+    else echo '{"total_count":0,"incomplete_results":false,"items":[]}'; fi ;;
+  'api repos/owner/repo/issues/'*/comments*)
+    number="$(printf '%s' "$*" | sed -E 's#.*issues/([0-9]+)/comments.*#\\1#')"
+    page="$(printf '%s' "$*" | sed 's/.*page=//')"
+    if [ -f "$GH_FIXTURE_DIR/issuec-$number-$page.json" ]; then cat "$GH_FIXTURE_DIR/issuec-$number-$page.json"; else echo '[]'; fi ;;
   'api repos/owner/repo/issues/'*)
     number="$(printf '%s' "$*" | sed 's#.*/##')"
     cat "$GH_FIXTURE_DIR/issue-$number.json" ;;
@@ -77,6 +91,18 @@ esac
   setComments([]);
   const setPage = (page: number, comments: ReturnType<typeof comment>[]) =>
     writeFileSync(join(root, `page-${page}.json`), JSON.stringify(comments));
+  // Directives older than the recent feed are found through search + the PR's own comments.
+  const setSearch = (prs: number[], incomplete = false) =>
+    writeFileSync(
+      join(root, 'search.json'),
+      JSON.stringify({
+        total_count: prs.length,
+        incomplete_results: incomplete,
+        items: prs.map(number => ({ number, pull_request: { url: 'pr' } })),
+      })
+    );
+  const setPrComments = (number: number, comments: ReturnType<typeof comment>[]) =>
+    writeFileSync(join(root, `issuec-${number}-1.json`), JSON.stringify(comments));
   const runPush = (dryRun = true) => {
     const result = spawnSync(
       'git',
@@ -88,7 +114,7 @@ esac
     );
     return { code: result.status, output: `${result.stdout}${result.stderr}` };
   };
-  return { root, remote, calls, setComments, setPage, setIssue, runPush };
+  return { root, remote, calls, setComments, setPage, setIssue, setSearch, setPrComments, runPush };
 }
 
 describe('operator push hold', () => {
@@ -207,19 +233,188 @@ describe('operator push hold', () => {
     expect(f.runPush().code).toBe(0);
   });
 
-  it('continues onto older pages and fails closed if the bounded scan cannot find a directive', () => {
+  it('continues onto older recent-feed pages for a directive still inside the window', () => {
     const f = fixture();
-    const noise = Array.from({ length: 100 }, (_, id) => comment(100 + id, 'ordinary comment'));
-    f.setPage(1, noise);
-    f.setPage(2, [comment(1, 'PUSH HOLD: older closed PR')]);
+    const now = new Date().toISOString();
+    f.setPage(
+      1,
+      Array.from({ length: 100 }, (_, id) => comment(100 + id, 'ordinary comment', 'OWNER', now))
+    );
+    f.setPage(2, [comment(1, 'PUSH HOLD: older closed PR', 'OWNER', now)]);
     const found = f.runPush();
-    expect(found.code).not.toBe(0);
+    expect(found.code).toBe(1);
     expect(found.output).toContain('older closed PR');
     expect(readFileSync(f.calls, 'utf8')).toContain('page=2');
+  });
+
+  it('a hold on page 6 inside the lag window is blocked even when search has not indexed it', () => {
+    const f = fixture();
+    const now = new Date().toISOString();
+    const noise = Array.from({ length: 100 }, (_, id) =>
+      comment(100 + id, 'Review gate: ok', 'OWNER', now)
+    );
+    for (let page = 1; page <= 5; page++) f.setPage(page, noise);
+    f.setPage(6, [comment(1, 'PUSH HOLD: unindexed fresh hold', 'OWNER', now)]);
+    const result = f.runPush();
+    expect(result.code).toBe(1);
+    expect(result.output).toContain('unindexed fresh hold');
+  });
+
+  describe('edited comments (updated_at window)', () => {
+    const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
+    const editedHold = () => ({
+      ...comment(1, 'PUSH HOLD: edited into a hold', 'OWNER', hoursAgo(3)),
+      updated_at: new Date().toISOString(),
+    });
+
+    it('blocks on an old comment recently edited into a hold even though search is stale', () => {
+      const f = fixture();
+      writeFileSync(join(f.root, 'filter-since'), '');
+      f.setSearch([8]);
+      f.setPrComments(8, [comment(2, 'PUSH RELEASE', 'MEMBER', hoursAgo(5), 8)]);
+      f.setPage(1, [
+        ...Array.from({ length: 99 }, (_, id) => ({
+          ...comment(100 + id, 'Review gate: ok', 'OWNER', hoursAgo(2)),
+          updated_at: hoursAgo(0.1),
+        })),
+        editedHold(),
+      ]);
+      f.setPage(2, []);
+      const result = f.runPush();
+      expect(result.code).toBe(1);
+      expect(result.output).toContain('edited into a hold');
+    });
+
+    it('queries the feed by updated time with a since bound', () => {
+      const f = fixture();
+      f.runPush();
+      expect(readFileSync(f.calls, 'utf8')).toMatch(/sort=updated&direction=desc&since=\d{4}-/);
+    });
+
+    it('a comment last updated before the window is left to search, and noise there cannot block', () => {
+      const f = fixture();
+      writeFileSync(join(f.root, 'filter-since'), '');
+      const stale = Array.from({ length: 100 }, (_, id) =>
+        comment(100 + id, 'Review gate: ok', 'OWNER', hoursAgo(3))
+      );
+      for (let page = 1; page <= 20; page++) f.setPage(page, stale);
+      expect(f.runPush().code).toBe(0);
+    });
+  });
+
+  it('fails closed when the lag window is not covered within the page cap', () => {
+    const f = fixture();
+    const now = new Date().toISOString();
+    const noise = Array.from({ length: 100 }, (_, id) =>
+      comment(100 + id, 'Review gate: ok', 'OWNER', now)
+    );
     for (let page = 1; page <= 20; page++) f.setPage(page, noise);
-    const exhausted = f.runPush();
-    expect(exhausted.code).not.toBe(0);
-    expect(exhausted.output).toContain('scanned 2000 newest comments');
+    const result = f.runPush();
+    expect(result.code).not.toBe(0);
+    expect(result.output).toContain('could not verify operator hold state');
+    expect(result.output).toContain('cannot be ruled out');
+  });
+
+  it('a recent noisy feed that reaches past the window with no directive allows the push', () => {
+    const f = fixture();
+    const now = new Date().toISOString();
+    const fresh = Array.from({ length: 100 }, (_, id) =>
+      comment(100 + id, 'Review gate: ok', 'OWNER', now)
+    );
+    for (let page = 1; page <= 3; page++) f.setPage(page, fresh);
+    f.setPage(
+      4,
+      Array.from({ length: 100 }, (_, id) => comment(500 + id, 'Review gate: ok'))
+    );
+    expect(f.runPush().code).toBe(0);
+  });
+
+  describe('directive older than the recent comment window (MYK9-1015)', () => {
+    const noisyFeed = (f: ReturnType<typeof fixture>) => {
+      // Real GitHub drops comments last updated before `since`; so does the mock.
+      writeFileSync(join(f.root, 'filter-since'), '');
+      const noise = Array.from({ length: 100 }, (_, id) => comment(100 + id, 'Review gate: ok'));
+      for (let page = 1; page <= 20; page++) f.setPage(page, noise);
+    };
+
+    it('still blocks on an old trusted hold', () => {
+      const f = fixture();
+      noisyFeed(f);
+      f.setSearch([7]);
+      f.setPrComments(7, [comment(1, 'PUSH HOLD: ancient hold')]);
+      const result = f.runPush();
+      expect(result.code).toBe(1);
+      expect(result.output).toContain('ancient hold');
+    });
+
+    it('hold then release (both old) allows the push', () => {
+      const f = fixture();
+      noisyFeed(f);
+      f.setSearch([7, 8]);
+      f.setPrComments(7, [comment(1, 'PUSH HOLD: ancient hold', 'OWNER', '2026-09-01T00:00:00Z')]);
+      f.setPrComments(8, [comment(2, 'PUSH RELEASE', 'MEMBER', '2026-09-02T00:00:00Z', 8)]);
+      expect(f.runPush().code).toBe(0);
+    });
+
+    it('release then hold (both old) blocks, whichever PR search lists first', () => {
+      const f = fixture();
+      noisyFeed(f);
+      f.setSearch([8, 7]);
+      f.setPrComments(8, [comment(2, 'PUSH RELEASE', 'MEMBER', '2026-09-01T00:00:00Z', 8)]);
+      f.setPrComments(7, [comment(1, 'PUSH HOLD: second hold', 'OWNER', '2026-09-02T00:00:00Z')]);
+      const result = f.runPush();
+      expect(result.code).toBe(1);
+      expect(result.output).toContain('second hold');
+    });
+
+    it('ignores an old untrusted or quoted directive', () => {
+      const f = fixture();
+      noisyFeed(f);
+      f.setSearch([7]);
+      f.setPrComments(7, [
+        comment(1, 'PUSH HOLD: outsider', 'NONE'),
+        comment(2, '> PUSH HOLD: quoted'),
+      ]);
+      expect(f.runPush().code).toBe(0);
+    });
+
+    it('a hold in the recent feed beats an older indexed release (search lag)', () => {
+      const f = fixture();
+      f.setSearch([8]);
+      f.setPrComments(8, [comment(2, 'PUSH RELEASE', 'MEMBER', '2026-09-01T00:00:00Z', 8)]);
+      f.setComments([
+        comment(3, 'PUSH HOLD: fresh, not yet indexed', 'OWNER', '2026-09-03T00:00:00Z'),
+      ]);
+      const result = f.runPush();
+      expect(result.code).toBe(1);
+      expect(result.output).toContain('fresh, not yet indexed');
+    });
+
+    it('fails closed when search errors or reports incomplete results', () => {
+      const f = fixture();
+      writeFileSync(join(f.root, 'search-fail'), '');
+      const down = f.runPush();
+      expect(down.code).not.toBe(0);
+      expect(down.output).toContain('could not verify operator hold state');
+      rmSync(join(f.root, 'search-fail'));
+      f.setSearch([7], true);
+      const partial = f.runPush();
+      expect(partial.code).not.toBe(0);
+      expect(partial.output).toContain('incomplete');
+    });
+
+    it('fails closed when a candidate PR comment listing cannot be read', () => {
+      const f = fixture();
+      f.setSearch([7]);
+      writeFileSync(join(f.root, 'issuec-7-1.json'), 'not JSON');
+      expect(f.runPush().code).not.toBe(0);
+    });
+
+    it('no directive anywhere means no hold, even with a full noisy feed', () => {
+      const f = fixture();
+      noisyFeed(f);
+      expect(f.runPush().code).toBe(0);
+    });
   });
 
   it('blocks all refs in one hook invocation', () => {

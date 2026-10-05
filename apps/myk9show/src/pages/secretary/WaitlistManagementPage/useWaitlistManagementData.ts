@@ -43,7 +43,7 @@ const waitlistKey = (showId: string) => ['waitlist', showId] as const;
  */
 export function useWaitlistManagementData(showId: string) {
   const queryClient = useQueryClient();
-  const { judgeDays } = useJudgeDayCapacity(showId || undefined);
+  const { judgeDays, isPaused: isCapacityUnavailable } = useJudgeDayCapacity(showId || undefined);
 
   const [judgeDayKey, setJudgeDayKey] = useState<JudgeDayKey | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -84,6 +84,8 @@ export function useWaitlistManagementData(showId: string) {
       return data;
     },
     enabled: !!showId,
+    // A replica read: it must run offline too (the app's default 'online' would park it).
+    networkMode: 'always',
   });
   const classes = useMemo(() => classesQuery.data ?? [], [classesQuery.data]);
 
@@ -112,6 +114,7 @@ export function useWaitlistManagementData(showId: string) {
       return results.flatMap(r => r.data ?? []);
     },
     enabled: !!showId && targetClassIds.length > 0,
+    networkMode: 'always',
   });
   const waitlistEntries = useMemo(() => queueQuery.data ?? [], [queueQuery.data]);
 
@@ -317,6 +320,7 @@ export function useWaitlistManagementData(showId: string) {
   return {
     // State
     judgeDays,
+    isCapacityUnavailable,
     selectedJudgeDay,
     waitlistEntries,
     groups,

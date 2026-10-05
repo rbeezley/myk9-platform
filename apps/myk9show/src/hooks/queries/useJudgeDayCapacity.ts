@@ -123,6 +123,8 @@ export function useJudgeDayCapacity(showId: string | undefined) {
     judgeDays: query.data ?? [],
     isLoading: query.isLoading,
     isFetching: query.isFetching,
+    // Parked offline (a server read): no figures yet, which is not the same as no judge-days.
+    isPaused: query.fetchStatus === 'paused',
     error: query.error?.message ?? null,
     refetch: query.refetch,
   };

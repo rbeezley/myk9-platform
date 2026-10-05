@@ -2,19 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
 import { queryKeys } from '@/lib/queryClient';
 import type { JudgeDayCapacity } from '@/types/waitlist-types';
-import { judgeDayCapacityFromServer, type ManagerJudgeDayRow } from './judgeDayCapacityFromServer';
-
-/**
- * The manager read is newer than the checked-in generated `Database` types, so the client is
- * narrowed structurally in one place. Drop the cast once the types regenerate after
- * migration 20261005163700 is applied.
- */
-interface ManagerJudgeDayRpc {
-  rpc: (
-    fn: 'get_show_judge_day_capacity_for_manager',
-    args: { p_show_id: string }
-  ) => PromiseLike<{ data: ManagerJudgeDayRow[] | null; error: { message: string } | null }>;
-}
+import { judgeDayCapacityFromServer } from './judgeDayCapacityFromServer';
 
 /** The one query key for a show's judge-day capacity, so a writer can invalidate it. */
 export const judgeDayCapacityKey = (showId: string | undefined) =>
@@ -34,8 +22,7 @@ export function useJudgeDayCapacity(showId: string | undefined) {
   const query = useQuery({
     queryKey: judgeDayCapacityKey(showId),
     queryFn: async (): Promise<JudgeDayCapacity[]> => {
-      const client = supabase as unknown as ManagerJudgeDayRpc;
-      const { data, error } = await client.rpc('get_show_judge_day_capacity_for_manager', {
+      const { data, error } = await supabase.rpc('get_show_judge_day_capacity_for_manager', {
         p_show_id: showId!,
       });
       if (error) throw new Error(error.message);

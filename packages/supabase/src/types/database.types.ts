@@ -13900,6 +13900,21 @@ export type Database = {
           status_updated_at: string
         }[]
       }
+      get_show_judge_day_capacity_for_manager: {
+        Args: { p_show_id: string }
+        Returns: {
+          class_ids: string[]
+          class_names: string[]
+          day_capacity: number
+          day_mail_in_reserved: number
+          day_remaining: number
+          day_taken: number
+          judge_full_name: string
+          judge_id: string
+          show_date: string
+          waitlist_count: number
+        }[]
+      }
       get_show_judges: {
         Args: { p_show_id: string }
         Returns: {

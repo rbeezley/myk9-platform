@@ -39,8 +39,7 @@ const SecretaryClassDashboard = lazy(() =>
 );
 
 // People pages
-const BrowsePeoplePage = lazy(() => import('@/pages/BrowsePeoplePage'));
-const PersonDetailPage = lazy(() => import('@/pages/PersonDetailPage'));
+const PeopleMasterDetailPage = lazy(() => import('@/pages/PeopleMasterDetailPage'));
 
 const RegistrationWizardPage = lazy(() => import('@/pages/RegistrationWizardPage'));
 
@@ -68,6 +67,14 @@ const ShowEditRedirect = () => {
 
   return <Navigate to={`/shows/${showId}?${searchParams.toString()}`} replace />;
 };
+
+const peopleRouteElement = (
+  <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
+    <SuspenseWrapper>
+      <PeopleMasterDetailPage />
+    </SuspenseWrapper>
+  </ProtectedRoute>
+);
 
 const UserDetailRedirect = () => {
   const { id } = useParams<{ id: string }>();
@@ -473,31 +480,13 @@ export const SecretaryRoutes = () => (
     />
 
     {/* People — browse and detail, accessible to secretaries and site admins */}
-    <Route
-      path="/people"
-      element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <BrowsePeoplePage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
+    {/* Both paths render the same element at the same place in the tree, so React keeps the list
+        mounted when the person changes (scroll, filters); the page applies PageTransition to the
+        person only. Two static declarations, not `/people/:id?`, because the route registry and
+        its tests read exact paths. */}
+    <Route path="/people" element={peopleRouteElement} />
+    <Route path="/people/:id" element={peopleRouteElement} />
     <Route path="/users" element={<Navigate to="/people" replace />} />
-    <Route
-      path="/people/:id"
-      element={
-        <ProtectedRoute requiredRole={[UserRole.SECRETARY, UserRole.SITE_ADMIN]}>
-          <SuspenseWrapper>
-            <PageTransition>
-              <PersonDetailPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
     <Route path="/users/:id" element={<UserDetailRedirect />} />
 
     {/* Scoring — entry list and individual scoresheet */}

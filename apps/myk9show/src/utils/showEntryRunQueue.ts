@@ -128,6 +128,20 @@ export function ownEntryQueueState(entry: ShowEntry): RunQueueState | null {
 }
 
 /**
+ * An own-row state upgraded by the server's count (MYK9-995). Only a dog the
+ * row already calls waiting, with an order set, may take a place; every other
+ * state is the row's own fact and wins. No place (offline, loading, or the
+ * server says it is not waiting) leaves the state label as it was.
+ */
+export function withServerPlace(
+  state: RunQueueState | null,
+  place: number | undefined
+): RunQueueState | null {
+  if (state?.kind !== 'waiting-unknown' || place === undefined || place < 1) return state;
+  return { kind: 'waiting', place };
+}
+
+/**
  * Order two stored run numbers through the shared comparator, with an unset
  * (null) number LAST. `compareByRunOrder` alone sorts a null first (its
  * armband fallback is 0), which is wrong for dogs the secretary has not

@@ -12,6 +12,11 @@ import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTa
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import {
+  deleteWaitlistEntryAndEvict,
+  WaitlistEntryNotDeletedError,
+  WAITLIST_ENTRY_GONE_MESSAGE,
+} from './deleteWaitlistEntry';
 import { mapWaitlistEntry, mapClassWithWaitlistCount } from '@/services/mappers/waitlistMappers';
 import { buildMapFromArray } from '../_shared/maps';
 import {
@@ -199,24 +204,18 @@ export const removeFromWaitlist = async (waitlistEntryId: string) => {
   const startTime = Date.now();
 
   try {
-    const { data, error } = await supabase
-      .from('waitlist_entries')
-      .delete()
-      .eq('id', waitlistEntryId)
-      .select()
-      .single();
-
-    const duration = Date.now() - startTime;
-    logQuery('waitlist_entries', 'remove_from_waitlist', duration, error?.message);
-
-    if (error) {
-      throw createDatabaseError(error, 'waitlist_entries', 'remove_from_waitlist');
-    }
-
-    return { data, error: null };
+    // Evicts the replica row only when the server confirms the delete, so the
+    // queue, counts and report agree without waiting for a sync (MYK9-1000).
+    await deleteWaitlistEntryAndEvict(waitlistEntryId, WAITLIST_ENTRY_GONE_MESSAGE);
+    logQuery('waitlist_entries', 'remove_from_waitlist', Date.now() - startTime);
+    return { data: { id: waitlistEntryId }, error: null };
   } catch (error) {
     const duration = Date.now() - startTime;
-    const dbError = createDatabaseError(error, 'waitlist_entries', 'remove_from_waitlist');
+    // Nothing was deleted: say so plainly rather than as a database failure.
+    const dbError =
+      error instanceof WaitlistEntryNotDeletedError
+        ? error
+        : createDatabaseError(error, 'waitlist_entries', 'remove_from_waitlist');
     logQuery('waitlist_entries', 'remove_from_waitlist', duration, dbError.message);
     return { data: null, error: dbError };
   }

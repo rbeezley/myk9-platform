@@ -1,4 +1,4 @@
--- MYK9-1012 (migration 20261004235300): a cart holds its class spots from the
+-- MYK9-1012 (migration 20261005031700): a cart holds its class spots from the
 -- Pay click until its Stripe page expires, and a held spot counts as taken.
 --
 -- Two exhibitors, one show:

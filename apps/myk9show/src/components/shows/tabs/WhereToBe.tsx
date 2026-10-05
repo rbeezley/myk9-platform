@@ -4,6 +4,8 @@ import { Chip } from '@/components/base/Chip';
 import { PersonAvatar } from '@/components/common/PersonAvatar';
 import { formatRunQueueState } from '@myk9/ringside/run-queue';
 import type { EnrichedShowEntry } from '@/hooks/useShowEntriesForUser';
+import { useMyEntryQueuePlaces, type QueuePlaces } from '@/hooks/queries/useMyEntryQueuePlaces';
+import { withServerPlace } from '@/utils/showEntryRunQueue';
 import {
   getPendingResultLabel,
   hasUnpublishedScheduleDetails,
@@ -20,6 +22,10 @@ interface WhereToBeProps {
 
 export function WhereToBe({ entries, showId }: WhereToBeProps) {
   const scheduleEntries = entries.filter(entry => isRunnableScheduleStatus(entry.entryStatus));
+  // Only dogs the row already calls waiting can take a server-counted place.
+  const places = useMyEntryQueuePlaces(
+    scheduleEntries.filter(entry => entry.queue?.kind === 'waiting-unknown').map(e => e.entryId)
+  );
   if (scheduleEntries.length === 0) return null;
   const hasPendingScheduleDetails = hasUnpublishedScheduleDetails(scheduleEntries);
 
@@ -49,7 +55,7 @@ export function WhereToBe({ entries, showId }: WhereToBeProps) {
           </p>
           <div className="space-y-1.5">
             {dayEntries.map(entry => (
-              <TimelineRow key={entry.entryId} entry={entry} showId={showId} />
+              <TimelineRow key={entry.entryId} entry={entry} showId={showId} places={places} />
             ))}
           </div>
         </div>
@@ -61,14 +67,17 @@ export function WhereToBe({ entries, showId }: WhereToBeProps) {
 interface TimelineRowProps {
   entry: EnrichedShowEntry;
   showId: string;
+  places: QueuePlaces;
 }
 
-function TimelineRow({ entry, showId }: TimelineRowProps) {
+function TimelineRow({ entry, showId, places }: TimelineRowProps) {
   const href = `/shows/${showId}/trials/${entry.trialId}/classes/${entry.classId}`;
   const accessibleTimeLabel = entry.startTime || 'schedule details pending';
   // MYK9-992: place in line or the dog's state, never the stored run number.
-  const positionLabel = entry.queue
-    ? formatRunQueueState(entry.queue)
+  // MYK9-995: the place is the server's count; offline it stays the state.
+  const queue = withServerPlace(entry.queue, places.get(entry.entryId));
+  const positionLabel = queue
+    ? formatRunQueueState(queue)
     : isRunnableScheduleStatus(entry.entryStatus)
       ? 'Order not set yet'
       : null;

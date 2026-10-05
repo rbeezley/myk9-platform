@@ -6,7 +6,16 @@
 // MYK9-964 removed the one declared exception: cart overflow is queued too.
 import { describe, expect, it } from 'vitest';
 import * as copyModule from './refundAlertCopy';
-import { instructsManualRefund, REFUND_ALERT_BUILDERS } from './refundAlertCopy';
+import type { AlertCopy } from './refundAlertCopy';
+import {
+  cartClassesNotInShowChargeAlert,
+  instructsManualRefund,
+  noCartChargeAlert,
+  paidAmountMismatchChargeAlert,
+  REFUND_ALERT_BUILDERS,
+  staleCheckoutChargeAlert,
+  unclaimableCartChargeAlert,
+} from './refundAlertCopy';
 import { approveRefundRequest } from './refundApproval';
 import { harness } from './refundApprovalTestHarness';
 import {
@@ -16,6 +25,10 @@ import {
   type RefundQueueDeps,
 } from './refundRequests';
 import { settleApprovedRefund } from './refundSettlement';
+import {
+  queueUnfulfilledChargeRefund,
+  type UnfulfilledChargeReason,
+} from './unfulfilledChargeRefund';
 
 const INPUT = { requestId: 'rr-1', actorAuthUserId: 'admin-uid' };
 
@@ -32,6 +45,7 @@ describe('instructsManualRefund (known answers)', () => {
 
   it.each([
     'Do NOT refund it from the Stripe dashboard: a dashboard refund carries no request.',
+    'The runbook\'s "Never refund from the Stripe dashboard" section covers this.',
     'Approve it under Refunds awaiting approval on /admin/health.',
     'Check the payment in Stripe, then use Resolve without refund.',
     'Check the refund in Stripe before approving again.',
@@ -105,7 +119,71 @@ const LINK_ROW = {
   stripe_payment_intent_id: 'pi_1',
 };
 
+// MYK9-963: the webhook alerts that used to say "refund it in the Stripe
+// dashboard": each is now the summary of a queued request, by reason.
+const UNFULFILLED: [UnfulfilledChargeReason, AlertCopy][] = [
+  ['no_cart', noCartChargeAlert({ sessionId: 'cs', cartId: 'c' })],
+  [
+    'cart_classes_not_in_show',
+    cartClassesNotInShowChargeAlert({ sessionId: 'cs', cartId: 'c', missingClassIds: ['k'] }),
+  ],
+  [
+    'paid_amount_mismatch',
+    paidAmountMismatchChargeAlert({ sessionId: 'cs', chargedCents: 107, authoritativeCents: 100 }),
+  ],
+  [
+    'cart_not_claimable',
+    unclaimableCartChargeAlert({ sessionId: 'cs', cartId: 'c', cartStatus: 'submitted' }),
+  ],
+  ['stale_checkout', staleCheckoutChargeAlert({ sessionId: 'cs', cartId: 'c', staleReason: 'x' })],
+];
+
+function unfulfilledScenario(
+  reason: UnfulfilledChargeReason,
+  copy: AlertCopy,
+  rpc: RefundQueueDeps['rpc'],
+  paymentIntentId: string | null = 'pi'
+): () => Promise<string[]> {
+  return async () => {
+    const { deps, texts } = queueDeps(rpc);
+    await queueUnfulfilledChargeRefund(deps, {
+      sessionId: 'cs',
+      paymentIntentId,
+      chargedCents: 107,
+      reason,
+      cartId: 'c',
+      showId: null,
+      detail: {},
+      copy,
+    }).catch(() => undefined);
+    return texts;
+  };
+}
+
+const QUEUED_ROW = {
+  outcome: 'queued',
+  refund_request_id: 'rr-963',
+  request_status: 'pending',
+  amount_cents: 107,
+  reason: 'no_cart',
+  stripe_payment_intent_id: 'pi',
+};
+
 const SCENARIOS: [string, () => Promise<string[]>][] = [
+  ...UNFULFILLED.flatMap(([reason, copy]): [string, () => Promise<string[]>][] => [
+    [
+      `unfulfilled ${reason}: awaiting approval`,
+      unfulfilledScenario(reason, copy, async () => ({ data: [QUEUED_ROW], error: null })),
+    ],
+    [
+      `unfulfilled ${reason}: missing inputs`,
+      unfulfilledScenario(reason, copy, async () => ({ data: null, error: null }), null),
+    ],
+    [
+      `unfulfilled ${reason}: unconfirmed`,
+      unfulfilledScenario(reason, copy, async () => ({ data: null, error: { message: 'x' } })),
+    ],
+  ]),
   [
     'payment link: awaiting approval',
     async () => {

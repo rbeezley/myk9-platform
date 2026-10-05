@@ -33,6 +33,9 @@ interface ServerRow {
 const server = vi.hoisted(() => ({
   visibleRows: [] as ServerRow[],
   queries: [] as string[],
+  // The independent proof (count_live_waitlist_entries). Unset: the test never
+  // expects the engine to ask.
+  rpc: vi.fn(),
 }));
 
 vi.mock('@/services/database/supabaseClient', () => {
@@ -57,7 +60,7 @@ vi.mock('@/services/database/supabaseClient', () => {
     },
   });
   return {
-    supabase: { from },
+    supabase: { from, rpc: server.rpc },
     logQuery: vi.fn(),
     createDatabaseError,
   };
@@ -128,9 +131,11 @@ describe('ReplicatedWaitlistEntriesTable — MYK9-660 read path', () => {
     await resetReplica();
     server.visibleRows = [];
     server.queries = [];
+    server.rpc.mockReset();
   });
 
   afterEach(async () => {
+    vi.unstubAllGlobals();
     await resetReplica();
   });
 
@@ -183,5 +188,100 @@ describe('ReplicatedWaitlistEntriesTable — MYK9-660 read path', () => {
     expect(server.queries).toEqual(secretaryQueries);
     expect(clubAdminRows).toEqual(secretaryRows);
     expect(clubAdminRows.data.map(entry => entry.id)).toEqual(['first', 'second']);
+  });
+
+  // MYK9-1000: waitlist rows are HARD-deleted (Remove, Withdraw), and an
+  // incremental fetch can never see a deletion.
+  it('prunes a row deleted on the server by another device', async () => {
+    server.visibleRows = [row('first', { position: 1 }), row('second', { position: 2 })];
+    await replicatedWaitlistEntriesTable.sync();
+    expect(await waitlistIdsForClass()).toEqual(['first', 'second']);
+
+    server.visibleRows = [row('second', { position: 2 })];
+    const result = await replicatedWaitlistEntriesTable.sync();
+
+    expect(result.success).toBe(true);
+    expect(await waitlistIdsForClass()).toEqual(['second']);
+  });
+
+  it('prunes a deletion hidden behind an equal count (one removed, one added)', async () => {
+    server.visibleRows = [row('first', { position: 1 }), row('second', { position: 2 })];
+    await replicatedWaitlistEntriesTable.sync();
+
+    server.visibleRows = [
+      row('second', { position: 1 }),
+      row('third', { position: 2, updated_at: new Date().toISOString() }),
+    ];
+    await replicatedWaitlistEntriesTable.sync();
+
+    expect(await waitlistIdsForClass()).toEqual(['second', 'third']);
+  });
+
+  // MYK9-1000 Codex P2: when another device removes the LAST row this device
+  // can see, the count and the fetch both read zero -- the same answer an RLS
+  // gap gives (MYK9-880). Only the independent per-id proof may clear it.
+  describe('the last visible row removed elsewhere', () => {
+    async function syncOneRowThenEmptyTheServer() {
+      server.visibleRows = [row('only', { position: 1 })];
+      await replicatedWaitlistEntriesTable.sync();
+      expect(await waitlistIdsForClass()).toEqual(['only']);
+      server.visibleRows = [];
+    }
+
+    it('prunes it when the independent count proves the held ids are gone', async () => {
+      await syncOneRowThenEmptyTheServer();
+      server.rpc.mockResolvedValue({ data: 0, error: null });
+
+      const result = await replicatedWaitlistEntriesTable.sync();
+
+      expect(result.success).toBe(true);
+      expect(server.rpc).toHaveBeenCalledWith('count_live_waitlist_entries', {
+        p_ids: ['only'],
+      });
+      expect(await waitlistIdsForClass()).toEqual([]);
+    });
+
+    it('keeps it when the row still exists but RLS hides it (revoked role)', async () => {
+      await syncOneRowThenEmptyTheServer();
+      server.rpc.mockResolvedValue({ data: 1, error: null });
+
+      await replicatedWaitlistEntriesTable.sync();
+
+      expect(server.rpc).toHaveBeenCalled();
+      expect(await waitlistIdsForClass()).toEqual(['only']);
+    });
+
+    it('keeps it when the proof is refused (no signed-in session)', async () => {
+      await syncOneRowThenEmptyTheServer();
+      server.rpc.mockResolvedValue({
+        data: null,
+        error: { code: '42501', message: 'Not signed in' },
+      });
+
+      await replicatedWaitlistEntriesTable.sync();
+
+      expect(server.rpc).toHaveBeenCalled();
+      expect(await waitlistIdsForClass()).toEqual(['only']);
+    });
+
+    it('keeps it when the proof call throws', async () => {
+      await syncOneRowThenEmptyTheServer();
+      server.rpc.mockRejectedValue(new TypeError('Failed to fetch'));
+
+      await replicatedWaitlistEntriesTable.sync();
+
+      expect(server.rpc).toHaveBeenCalled();
+      expect(await waitlistIdsForClass()).toEqual(['only']);
+    });
+
+    it('keeps it offline without asking the server', async () => {
+      await syncOneRowThenEmptyTheServer();
+      vi.stubGlobal('navigator', { ...navigator, onLine: false });
+
+      await replicatedWaitlistEntriesTable.sync();
+
+      expect(server.rpc).not.toHaveBeenCalled();
+      expect(await waitlistIdsForClass()).toEqual(['only']);
+    });
   });
 });

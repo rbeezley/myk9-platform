@@ -15,6 +15,40 @@ describe('SearchBar', () => {
     expect(onChange).toHaveBeenCalledWith('agility');
   });
 
+  it('clears the search on Escape, and leaves an empty one alone', () => {
+    const onChange = vi.fn();
+    const { rerender } = render(<SearchBar value="agility" onChange={onChange} placeholder="S" />);
+    fireEvent.keyDown(screen.getByPlaceholderText('S'), { key: 'Escape' });
+    expect(onChange).toHaveBeenCalledWith('');
+
+    onChange.mockClear();
+    rerender(<SearchBar value="" onChange={onChange} placeholder="S" />);
+    fireEvent.keyDown(screen.getByPlaceholderText('S'), { key: 'Escape' });
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('Escape that clears text does not reach a dialog around the search', () => {
+    const outer = vi.fn();
+    render(
+      <div onKeyDown={outer}>
+        <SearchBar value="agility" onChange={vi.fn()} placeholder="S" />
+      </div>
+    );
+    fireEvent.keyDown(screen.getByPlaceholderText('S'), { key: 'Escape' });
+    expect(outer).not.toHaveBeenCalled();
+  });
+
+  it('Escape on an empty search still reaches the dialog, so it can close', () => {
+    const outer = vi.fn();
+    render(
+      <div onKeyDown={outer}>
+        <SearchBar value="" onChange={vi.fn()} placeholder="S" />
+      </div>
+    );
+    fireEvent.keyDown(screen.getByPlaceholderText('S'), { key: 'Escape' });
+    expect(outer).toHaveBeenCalledOnce();
+  });
+
   it('has minimum 48px touch target height', () => {
     const { container } = render(<SearchBar value="" onChange={vi.fn()} placeholder="Search..." />);
     const input = container.querySelector('input') as HTMLElement;

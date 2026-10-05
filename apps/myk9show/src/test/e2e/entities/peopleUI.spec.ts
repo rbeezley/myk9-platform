@@ -49,49 +49,58 @@ test.describe('People UI — Browse (secretary)', () => {
     await signInAsSecretary(page);
   });
 
-  test('browse loads with toolbar, view toggle, and people count', async ({ page }) => {
+  // At the suite's 1280px viewport /people is the split (>= 1024px): a compact list on the left
+  // and a "Select a person" prompt on the right. The count sentence is quiet until the list is
+  // narrowed, and the table (with its columns) is behind "Select people".
+  const SHOWING_SOME = /^Showing \d+ of \d+ (people|person)\.$/;
+
+  test('browse loads with the compact list, view select, and select-people mode', async ({
+    page,
+  }) => {
     await gotoPeopleBrowse(page);
-    await expect(page.getByRole('button', { name: 'Add Person' })).toBeVisible();
-    await expect(page.getByPlaceholder('Search people by name or email...')).toBeVisible();
-    // The toolbar renders the labelled "Show:" view select and the standard
-    // Cards/Table view toggle (BrowsePeoplePage uses the default CARD_TABLE_MODES).
-    // Target the toggles by exact aria-label ("Table view" not "Table", which
-    // also matches "Reset table view").
+    await expect(page.getByPlaceholder('Search people')).toBeVisible();
     await expect(page.getByRole('combobox', { name: 'Show: People views' })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Cards view', exact: true })).toBeVisible();
-    await expect(page.getByRole('button', { name: 'Table view', exact: true })).toBeVisible();
-    await expect(page.getByText(/^Showing (all )?\d+( of \d+)? (people|person)\.$/)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Select people' })).toBeVisible();
+    await expect(page.getByText('Select a person to see their details')).toBeVisible();
+    await expect(page.getByRole('list', { name: 'People' })).toBeVisible();
   });
 
   test('search filters list by name or email', async ({ page }) => {
     await gotoPeopleBrowse(page);
-    const searchBox = page.getByPlaceholder('Search people by name or email...');
+    const searchBox = page.getByPlaceholder('Search people');
     await searchBox.fill('Alice');
-    await expect(page.getByText(/^Showing \d+ of \d+ (people|person)\.$/)).toBeVisible();
-    await searchBox.clear();
-    await expect(page.getByText(/^Showing all \d+ (people|person)\.$/)).toBeVisible();
+    await expect(page.getByText(SHOWING_SOME)).toBeVisible();
+    // Escape clears the search, and the count goes quiet again.
+    await searchBox.press('Escape');
+    await expect(searchBox).toHaveValue('');
+    await expect(page.getByText(SHOWING_SOME)).toHaveCount(0);
   });
 
   test('Show select applies a role view and "Show all people" clears it', async ({ page }) => {
     await gotoPeopleBrowse(page);
-    await expect(page.getByText(/^Showing all \d+ (people|person)\.$/)).toBeVisible();
+    await expect(page.getByText(SHOWING_SOME)).toHaveCount(0);
 
-    // Pick the Judges view from the labelled select.
+    // Pick the Judges view from the select.
     await page.getByRole('combobox', { name: 'Show: People views' }).click();
     await page.getByRole('option', { name: /^Judges/ }).click();
-    await expect(page.getByText(/^Showing \d+ of \d+ (people|person)\.$/)).toBeVisible();
+    await expect(page.getByText(SHOWING_SOME)).toBeVisible();
 
     // Show all returns to the unfiltered list.
     await page.getByRole('button', { name: 'Show all people' }).click();
-    await expect(page.getByText(/^Showing all \d+ (people|person)\.$/)).toBeVisible();
+    await expect(page.getByText(SHOWING_SOME)).toHaveCount(0);
   });
 
-  test('table view renders columns', async ({ page }) => {
+  test('select-people mode renders the table columns, and Done returns to the split', async ({
+    page,
+  }) => {
     await gotoPeopleBrowse(page);
-    await page.getByRole('button', { name: 'Table view', exact: true }).click();
+    await page.getByRole('button', { name: 'Select people' }).click();
     await expect(page.getByRole('columnheader', { name: /Name/i })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: /Email/i })).toBeVisible();
     await expect(page.getByRole('columnheader', { name: /Roles/i })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Done' }).click();
+    await expect(page.getByText('Select a person to see their details')).toBeVisible();
   });
 });
 
@@ -219,7 +228,8 @@ test.describe('People UI — Detail + Edit (secretary)', () => {
     ).toBeVisible();
     // Email is rendered both as a paragraph (hero) and a mailto link in the
     // contact section — target the link to avoid strict-mode collisions.
-    await expect(page.getByRole('link', { name: PERSON_A_EMAIL })).toBeVisible();
+    // exact: the person's row in the split list is also a link whose name contains the email.
+    await expect(page.getByRole('link', { name: PERSON_A_EMAIL, exact: true })).toBeVisible();
     // Dogs section + Add Dog button is the entry point for the
     // associate-dog-as-owner flow tested below.
     await expect(page.getByRole('button', { name: 'Add Dog' })).toBeVisible();
@@ -470,7 +480,7 @@ test.describe('People UI — Admin CRUD lifecycle', () => {
         level: 1,
       })
     ).toBeVisible();
-    await expect(page.getByRole('link', { name: ADMIN_PERSON_EMAIL })).toBeVisible();
+    await expect(page.getByRole('link', { name: ADMIN_PERSON_EMAIL, exact: true })).toBeVisible();
 
     await chooseAction(page, 'Edit person');
     await expect(page.getByRole('dialog', { name: 'Edit Person' })).toBeVisible();
@@ -514,7 +524,7 @@ test.describe('People UI — Admin CRUD lifecycle', () => {
     expect(deleteResponse.ok()).toBe(true);
 
     await page.waitForURL(/\/people/, { timeout: 10000 });
-    await page.getByPlaceholder('Search people by name or email...').fill(ADMIN_PERSON_EMAIL);
+    await page.getByPlaceholder('Search people').fill(ADMIN_PERSON_EMAIL);
     await expect(page.getByText('No people match your search or filters.')).toBeVisible();
     await expect(page.getByText(ADMIN_PERSON_EMAIL)).not.toBeVisible();
   });

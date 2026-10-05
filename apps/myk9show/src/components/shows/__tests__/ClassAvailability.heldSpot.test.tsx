@@ -3,7 +3,7 @@
  * taken spot.
  *
  * The server folds unexpired holds into the class's taken count
- * (`get_show_class_availability`, migration 20261004235300), so a class whose
+ * (`get_show_class_availability`, migration 20261005031700), so a class whose
  * last spot is held arrives here as full. Other exhibitors see Full, or the
  * wait list when the class has one, and never a held count or hold wording.
  */

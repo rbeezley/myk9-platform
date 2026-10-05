@@ -16,6 +16,7 @@
 
 import {
   abandonedCartMissingInputsAlert,
+  dollars,
   queueMissingInputsAlert,
   queueUnconfirmedAlert,
 } from './refundAlertCopy.ts';
@@ -24,7 +25,8 @@ export const APPROVED_REFUND_METADATA_TYPE = 'approved_refund_request';
 export const REFUND_REQUEST_METADATA_KEY = 'refund_request_id';
 export const REFUND_ATTEMPT_METADATA_KEY = 'refund_attempt_no';
 
-export type RefundRequestKind = 'abandoned_cart' | 'entry_payment_link' | 'cart_overflow';
+export type RefundRequestKind =
+  'abandoned_cart' | 'entry_payment_link' | 'cart_overflow' | 'unfulfilled_charge';
 
 interface RpcError {
   message: string;
@@ -55,10 +57,6 @@ export const RESOLVE_INSTEAD_HTML =
 
 const APPROVE_WHERE = `Approve it under <strong>Refunds awaiting approval</strong> on /admin/health. Do not refund it from the Stripe dashboard: the approval records it. ${RESOLVE_INSTEAD_HTML}`;
 
-function dollars(cents: number): string {
-  return (cents / 100).toFixed(2);
-}
-
 function firstRow<T>(data: unknown): T | null {
   const row = Array.isArray(data) ? data[0] : data;
   return row && typeof row === 'object' ? (row as T) : null;
@@ -76,6 +74,8 @@ export interface ConfirmedRequest {
   /** Shown when known; the abandoned-cart claim does not report it. */
   reason: string | null;
   summaryHtml: string;
+  /** The alert's title; by default it is chosen from the kind. */
+  title?: string;
 }
 
 /** Closed requests owe nothing: no awaiting-approval alert for them. */
@@ -102,9 +102,10 @@ export async function ensureRefundRequestAlert(
     `CRITICAL: refund of ${request.amountCents}¢ for session ${request.sessionId} (${request.kind}) awaits approval`
   );
   await deps.alertAdmin(
-    request.kind === 'abandoned_cart'
-      ? 'Paid abandoned cart — refund awaiting approval'
-      : 'Refund awaiting approval',
+    request.title ??
+      (request.kind === 'abandoned_cart'
+        ? 'Paid abandoned cart — refund awaiting approval'
+        : 'Refund awaiting approval'),
     `<p>${request.summaryHtml}</p>
      <p>${dollars(request.amountCents)} USD is owed on payment intent
      <code>${request.paymentIntentId}</code> (session <code>${request.sessionId}</code>${

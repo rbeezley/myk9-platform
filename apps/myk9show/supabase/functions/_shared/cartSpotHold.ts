@@ -12,7 +12,7 @@
 // Pay requests on one cart; the lease removes the second request instead of
 // guarding each interleaving.
 //
-// The capacity rule is in the database (migration 20261004235300):
+// The capacity rule is in the database (migration 20261005031700):
 // `hold_cart_spots` decides each line under evaluate_entry_capacity's locks,
 // so two carts racing for the last spot cannot both win, and it holds every
 // line or none. When a line has no room nothing is charged: the caller answers

@@ -1,4 +1,5 @@
 import { cn } from '@/lib/utils';
+import { useEmbeddedDetail } from '@/components/layout/embeddedDetail';
 import { PropertySection } from './PropertySection';
 import type { RecordPageLayoutProps } from './RecordPageLayout.types';
 
@@ -29,6 +30,8 @@ export function RecordPageLayout({
   className,
 }: RecordPageLayoutProps) {
   const hasLeftSidebar = properties && properties.length > 0;
+  // A master-detail pane is far narrower than the viewport `xl:` measures: stay stacked.
+  const embedded = useEmbeddedDetail();
 
   return (
     <div className={cn('mx-auto', className)}>
@@ -50,10 +53,15 @@ export function RecordPageLayout({
       {hero && <div className="pb-6">{hero}</div>}
 
       {/* Two-panel body */}
-      <div className="flex flex-col xl:flex-row gap-6 pb-8">
+      <div className={cn('flex flex-col gap-6 pb-8', !embedded && 'xl:flex-row')}>
         {/* Left sidebar — properties */}
         {hasLeftSidebar && (
-          <aside className="w-full xl:w-[280px] xl:min-w-[280px] xl:flex-shrink-0 space-y-3">
+          <aside
+            className={cn(
+              'w-full space-y-3',
+              !embedded && 'xl:w-[280px] xl:min-w-[280px] xl:flex-shrink-0'
+            )}
+          >
             {properties.map(section => (
               <PropertySection key={section.key} section={section} storagePrefix={storageKey} />
             ))}

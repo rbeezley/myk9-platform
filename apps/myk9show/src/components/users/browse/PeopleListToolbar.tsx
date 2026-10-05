@@ -26,6 +26,8 @@ interface PeopleListToolbarProps {
   hasActiveFilters: boolean;
   /** Right-aligned extra on the result line — the page's table/cards toggle. */
   resultLineExtra?: ReactNode;
+  /** Beside an open person: search and view on one row, the count only while narrowed. */
+  compact?: boolean;
 }
 
 export function PeopleListToolbar({
@@ -36,24 +38,43 @@ export function PeopleListToolbar({
   onClearAll,
   hasActiveFilters,
   resultLineExtra,
+  compact = false,
 }: PeopleListToolbarProps) {
   const views = useMemo(() => buildPeopleViews(people), [people]);
 
   const activeViewId = activePeopleViewId(filters);
+  const viewTabs = (
+    <ListViewTabs
+      label="People views"
+      views={views}
+      activeId={activeViewId}
+      compact={compact}
+      onSelect={id => onFiltersChange({ ...filters, ...peopleViewFilterPatch(id) })}
+    />
+  );
+  const filterBar = (
+    <ListFilterBar
+      searchValue={filters.search}
+      onSearchChange={value => onFiltersChange({ ...filters, search: value })}
+      searchPlaceholder={compact ? 'Search people' : 'Search people by name or email...'}
+      fields={[]}
+      compact={compact}
+      {...(compact ? { className: 'min-w-0 flex-1' } : {})}
+    />
+  );
   return (
     <div className="flex flex-col gap-3">
-      <ListViewTabs
-        label="People views"
-        views={views}
-        activeId={activeViewId}
-        onSelect={id => onFiltersChange({ ...filters, ...peopleViewFilterPatch(id) })}
-      />
-      <ListFilterBar
-        searchValue={filters.search}
-        onSearchChange={value => onFiltersChange({ ...filters, search: value })}
-        searchPlaceholder="Search people by name or email..."
-        fields={[]}
-      />
+      {compact ? (
+        <div className="flex items-center gap-2">
+          {filterBar}
+          {viewTabs}
+        </div>
+      ) : (
+        <>
+          {viewTabs}
+          {filterBar}
+        </>
+      )}
       <ListResultLine
         shown={matchCount}
         total={people.length}
@@ -61,6 +82,7 @@ export function PeopleListToolbar({
         filtered={hasActiveFilters}
         onShowAll={onClearAll}
         showAllInEmptyState={matchCount === 0}
+        quietWhenUnfiltered={compact}
       >
         {resultLineExtra}
       </ListResultLine>

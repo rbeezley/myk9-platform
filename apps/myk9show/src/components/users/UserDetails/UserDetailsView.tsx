@@ -9,6 +9,8 @@ import { useUserStore } from '@/store/userStore';
 import { useUpdateUserMutation } from '@/hooks/queries/useUsersQuery';
 import UserDetailsTabs from '@/components/users/UserDetails/UserDetailsTabs';
 import { PageShell } from '@/components/common/PageShell';
+import { CloseDetailLink } from '@/components/layout/CloseDetailLink';
+import { useEmbeddedDetail } from '@/components/layout/embeddedDetail';
 import { PageHeader } from '@/components/common/PageHeader';
 import { toPageHeaderCrumbs } from '@/components/common/pageHeaderCrumbs';
 import { buildRecordBreadcrumb, readRecordBackTo } from '@/components/common/recordBackTo';
@@ -43,6 +45,7 @@ interface UserDetailsViewProps {
 const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const navigate = useNavigate();
   const location = useLocation();
+  const embedded = useEmbeddedDetail();
   const { user: currentUser, hasPermission, getUserRoles } = useAuthContext();
   const { loadUsers } = useUserStore();
   const updateUserMutation = useUpdateUserMutation();
@@ -327,6 +330,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
       <PageShell>
         <RecordPageLayout
           storageKey="myk9:person"
+          actions={embedded ? <CloseDetailLink to="/people" label="Close person" /> : undefined}
           breadcrumb={
             <PageHeader
               breadcrumbs={toPageHeaderCrumbs(breadcrumbItems, location.pathname)}

@@ -9,9 +9,6 @@ import { toast } from 'sonner';
 import { judgeDayCapacityKey, useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
-import { replicatedWaitlistEntriesTable } from '@/services/replication/ReplicatedWaitlistEntriesTable';
-import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
-import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import {
   getClassesWithWaitlistCounts,
   getWaitlistByClass,
@@ -20,6 +17,7 @@ import {
   sendWaitlistOfferMessage,
 } from '@/services/database/waitlists';
 import { WaitlistEntryNotDeletedError } from '@/services/database/waitlists/deleteWaitlistEntryErrors';
+import { WAITLIST_READ_TABLES } from './replicaDependencies';
 import type { ActionDialogState, WaitlistClassGroup, WaitlistEntry } from './types';
 
 /** The judge-day a secretary asked to see the wait list of (the card's own identity, in a show). */
@@ -162,11 +160,9 @@ export function useWaitlistManagementData(showId: string) {
   useEffect(() => {
     if (!showId) return;
     const onChange = () => void reload();
-    const unsubscribes = [
-      replicatedWaitlistEntriesTable.subscribe(onChange, { emitCurrent: false }),
-      replicatedEntriesTable.subscribe(onChange, { emitCurrent: false }),
-      replicatedClassesTable.subscribe(onChange, { emitCurrent: false }),
-    ];
+    const unsubscribes = WAITLIST_READ_TABLES.map(({ table }) =>
+      table.subscribe(onChange, { emitCurrent: false })
+    );
     return () => unsubscribes.forEach(unsubscribe => unsubscribe());
   }, [showId, reload]);
 

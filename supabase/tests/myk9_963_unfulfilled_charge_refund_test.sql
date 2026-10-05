@@ -30,6 +30,15 @@
 --       writes the run; the queue then reports 'delivered' and inserts nothing.
 --   Both calls take the cart's row lock first, so they serialize per cart and
 --   one of these two orders is what any concurrent pair reduces to.
+--   U12 (Codex round 2 on #2758) unfulfilled_charge THEN the abandoned-cart
+--       claim: the claim is 'not_refundable', inserts nothing, and the cart
+--       stays 'abandoned' (it moves only when the claim's own insert lands).
+--   U13 abandoned-cart claim THEN unfulfilled_charge: the queue reports
+--       'other_request'; one request, cart 'refund_pending'.
+--   U14 THE INVARIANT, structurally: at most one LIVE request (status not
+--       refunded / resolved_without_refund) per checkout session and per
+--       payment intent, across every kind. A direct cross-kind insert is
+--       refused (23505); a closed request does not count.
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
 
@@ -396,6 +405,82 @@ BEGIN
     (SELECT count(*)::text FROM public.refund_requests
       WHERE stripe_checkout_session_id = 'cs_963_u11'),
     '0', 'U11 and inserts no request');
+END;
+$$;
+
+
+-- ---------------------------------------------------------------------------
+-- U12-U14. One live refund obligation per session, across kinds
+-- ---------------------------------------------------------------------------
+INSERT INTO public.entry_carts (id, exhibitor_id, show_id, status, stripe_checkout_session_id)
+SELECT pg_temp.id(v.suffix), ep.id, pg_temp.id('101'), 'abandoned', v.session
+FROM public.exhibitor_profiles ep
+CROSS JOIN (VALUES ('036', 'cs_963_u12'), ('037', 'cs_963_u13')) AS v(suffix, session)
+WHERE ep.auth_user_id = pg_temp.id('012');
+
+-- U12. unfulfilled_charge first, then the abandoned-cart claim -------------
+DO $$
+DECLARE
+  v_c record;
+BEGIN
+  PERFORM pg_temp.expect_eq(
+    (SELECT outcome FROM pg_temp.queue('cs_963_u12', 'paid_amount_mismatch',
+                                        pg_temp.id('036'), pg_temp.id('101'))),
+    'queued', 'U12 the charge is queued as unfulfilled_charge');
+  SELECT * INTO v_c FROM public.claim_abandoned_cart_refund(
+    pg_temp.id('036'), 'cs_963_u12', 'pi_cs_963_u12', 3210);
+  PERFORM pg_temp.expect_eq(v_c.outcome, 'not_refundable',
+    'U12 the abandoned-cart claim loses to the queued request');
+  PERFORM pg_temp.expect_eq(
+    (SELECT string_agg(kind, ',') FROM public.refund_requests
+      WHERE stripe_checkout_session_id = 'cs_963_u12')
+      || ' ' || (SELECT status FROM public.entry_carts WHERE id = pg_temp.id('036')),
+    'unfulfilled_charge abandoned', 'U12 one request, and the cart did not move');
+END;
+$$;
+
+-- U13. abandoned-cart claim first, then unfulfilled_charge -----------------
+DO $$
+DECLARE
+  v_c record;
+BEGIN
+  SELECT * INTO v_c FROM public.claim_abandoned_cart_refund(
+    pg_temp.id('037'), 'cs_963_u13', 'pi_cs_963_u13', 3210);
+  PERFORM pg_temp.expect_eq(v_c.outcome, 'claimed', 'U13 the abandoned-cart claim lands first');
+  PERFORM pg_temp.expect_eq(
+    (SELECT outcome FROM pg_temp.queue('cs_963_u13', 'cart_not_claimable',
+                                        pg_temp.id('037'), pg_temp.id('101'))),
+    'other_request', 'U13 the queue then reports other_request');
+  PERFORM pg_temp.expect_eq(
+    (SELECT string_agg(kind, ',') FROM public.refund_requests
+      WHERE stripe_checkout_session_id = 'cs_963_u13')
+      || ' ' || (SELECT status FROM public.entry_carts WHERE id = pg_temp.id('037')),
+    'abandoned_cart refund_pending', 'U13 one request, and the cart is held for it');
+END;
+$$;
+
+-- U14. The index: a direct cross-kind insert is refused --------------------
+SELECT pg_temp.expect_sqlstate(
+  $$INSERT INTO public.refund_requests (kind, stripe_checkout_session_id,
+      stripe_payment_intent_id, amount_cents, reason)
+    VALUES ('cart_overflow', 'cs_963_u13', 'pi_cs_963_u13', 100, 'partial_no_service_lines')$$,
+  '23505', 'U14 a second live request for one session is refused, whatever its kind');
+SELECT pg_temp.expect_sqlstate(
+  $$INSERT INTO public.refund_requests (kind, stripe_checkout_session_id,
+      stripe_payment_intent_id, amount_cents, reason)
+    VALUES ('entry_payment_link', 'cs_963_u14_other', 'pi_cs_963_u13', 100, 'no_link_record')$$,
+  '23505', 'U14 a second live request for one payment intent is refused');
+DO $$
+BEGIN
+  -- cs_963_queue's unfulfilled_charge request was refunded in U7: closed
+  -- requests do not count, so another kind may be queued beside it.
+  INSERT INTO public.refund_requests (kind, stripe_checkout_session_id,
+      stripe_payment_intent_id, amount_cents, reason)
+  VALUES ('cart_overflow', 'cs_963_queue', 'pi_cs_963_queue', 100, 'partial_no_service_lines');
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*)::text FROM public.refund_requests
+      WHERE stripe_checkout_session_id = 'cs_963_queue'),
+    '2', 'U14 a closed request does not block a live one');
 END;
 $$;
 

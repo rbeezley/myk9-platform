@@ -60,6 +60,14 @@
 --                           changed: the fulfilled guard only
 --   begin_cart_fulfillment  20261004214700_myk9_964_replayable_cart_fulfillment.sql
 --                           changed: the not_claimable condition only
+--   claim_abandoned_cart_refund  20261003013900_myk9_876_874_refund_requests.sql
+--                           changed: see section 5
+--
+-- 5. THE INVARIANT (Codex round 2 on #2758): at most one LIVE refund request
+--    per checkout session and per payment intent, across every kind, as two
+--    partial unique indexes. The pairwise guards stay; the indexes make any
+--    ordering safe. claim_abandoned_cart_refund now inserts first and moves
+--    the cart only when its own insert landed.
 --
 -- DEPLOY ORDER: push this migration BEFORE deploying stripe-webhook. The
 -- deployed webhook never writes 'unfulfilled_charge'; the new one calls
@@ -134,7 +142,8 @@ BEGIN
   SELECT * INTO v_req
     FROM public.refund_requests r
    WHERE r.stripe_checkout_session_id = p_session_id
-     AND r.kind = 'unfulfilled_charge';
+     AND r.kind = 'unfulfilled_charge'
+     AND r.stripe_payment_intent_id = p_payment_intent_id;
   IF v_req.id IS NOT NULL THEN
     RETURN QUERY SELECT 'already_queued'::text, v_req.id, v_req.status, v_req.amount_cents,
       v_req.reason, v_req.stripe_payment_intent_id;
@@ -142,7 +151,8 @@ BEGIN
   END IF;
 
   IF EXISTS (SELECT 1 FROM public.refund_requests r
-              WHERE r.stripe_checkout_session_id = p_session_id) THEN
+              WHERE r.stripe_checkout_session_id = p_session_id
+                 OR r.stripe_payment_intent_id = p_payment_intent_id) THEN
     RETURN QUERY SELECT 'other_request'::text, NULL::uuid, NULL::text, NULL::integer,
       NULL::text, NULL::text;
     RETURN;
@@ -173,13 +183,24 @@ BEGIN
     COALESCE(p_detail, '{}'::jsonb)
       || jsonb_strip_nulls(jsonb_build_object('cart_id', p_cart_id, 'show_id', p_show_id))
   )
-  ON CONFLICT (stripe_checkout_session_id, kind) DO NOTHING
+  -- No conflict target: either unique index (once per (session, kind), or
+  -- one LIVE request per session / per payment intent, section 5) makes
+  -- this a no-op, reported from what is there.
+  ON CONFLICT DO NOTHING
   RETURNING id INTO v_id;
 
+  -- ON CONFLICT DO NOTHING may have yielded to ANOTHER row: report a request
+  -- as ours only when it is this session's unfulfilled_charge on this intent.
   SELECT * INTO v_req
     FROM public.refund_requests r
    WHERE r.stripe_checkout_session_id = p_session_id
-     AND r.kind = 'unfulfilled_charge';
+     AND r.kind = 'unfulfilled_charge'
+     AND r.stripe_payment_intent_id = p_payment_intent_id;
+  IF v_req.id IS NULL THEN
+    RETURN QUERY SELECT 'other_request'::text, NULL::uuid, NULL::text, NULL::integer,
+      NULL::text, NULL::text;
+    RETURN;
+  END IF;
   RETURN QUERY SELECT
     CASE WHEN v_id IS NULL THEN 'already_queued' ELSE 'queued' END,
     v_req.id, v_req.status, v_req.amount_cents, v_req.reason, v_req.stripe_payment_intent_id;
@@ -429,5 +450,130 @@ $$;
 REVOKE ALL ON FUNCTION public.begin_cart_fulfillment(uuid, text, text, jsonb)
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.begin_cart_fulfillment(uuid, text, text, jsonb) TO service_role;
+
+-- ============================================================================
+-- 5. ONE live refund obligation per checkout session and per payment intent
+-- ============================================================================
+
+-- Codex round 2 on #2758: the guards above are pairwise (queue vs
+-- fulfillment, queue vs approval), and an abandoned-cart claim could still
+-- queue a second FULL-charge request beside an unfulfilled_charge one. The
+-- invariant is enforced here instead, for every kind and every ordering: a
+-- session (and its payment intent) carries at most one LIVE request. Closed
+-- ones (refunded, resolved_without_refund) do not count, so a request a
+-- person closed never blocks a later one. Every kind is included: none of
+-- them may coexist live for one charge (a cart_overflow session has an order,
+-- which the abandoned and unfulfilled paths both refuse; a payment-link
+-- session never reaches the cart path). Verified on live 2026-10-05 (read
+-- only): no session or intent has two live requests.
+--
+-- How each inserting function meets it:
+--   queue_unfulfilled_charge_refund  ON CONFLICT DO NOTHING (any index) and
+--                                    reports 'other_request' unless the row it
+--                                    finds is its own (section 2).
+--   claim_abandoned_cart_refund      below: inserts FIRST, moves the cart to
+--                                    refund_pending only when its own insert
+--                                    landed, otherwise 'not_refundable' with
+--                                    the cart untouched.
+--   queue_payment_link_refund,       unchanged. A cross-kind conflict there is
+--   complete_cart_fulfillment        unreachable by the locks above; if it ever
+--                                    happened, the 23505 rolls back the whole
+--                                    latch (nothing half-written), the webhook
+--                                    answers 5xx with its unconfirmed alert,
+--                                    and nothing is silently dropped.
+CREATE UNIQUE INDEX refund_requests_one_live_per_session
+  ON public.refund_requests (stripe_checkout_session_id)
+  WHERE status NOT IN ('refunded', 'resolved_without_refund');
+CREATE UNIQUE INDEX refund_requests_one_live_per_intent
+  ON public.refund_requests (stripe_payment_intent_id)
+  WHERE status NOT IN ('refunded', 'resolved_without_refund');
+
+-- Copied from 20261003013900_myk9_876_874_refund_requests.sql (its only
+-- definition; matches the live body, 2026-10-05). Changed: the insert comes
+-- first and tolerates any unique conflict; the cart moves only after it; an
+-- existing abandoned_cart request is reported only when it is this cart's;
+-- any other request for the session or intent makes it 'not_refundable'.
+CREATE OR REPLACE FUNCTION public.claim_abandoned_cart_refund(
+  p_cart_id uuid,
+  p_session_id text,
+  p_payment_intent_id text,
+  p_amount_cents integer,
+  p_detail jsonb DEFAULT '{}'::jsonb
+)
+RETURNS TABLE (outcome text, refund_request_id uuid, request_status text)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_cart record;
+  v_existing uuid;
+  v_existing_status text;
+  v_id uuid;
+BEGIN
+  IF p_cart_id IS NULL OR p_session_id IS NULL OR p_payment_intent_id IS NULL
+     OR p_amount_cents IS NULL OR p_amount_cents <= 0 THEN
+    RAISE EXCEPTION 'claim_abandoned_cart_refund: cart, session, intent and a positive amount are required'
+      USING errcode = '22023';
+  END IF;
+
+  -- The row lock serialises this against the fulfillment claim, the
+  -- unfulfilled-charge queue and a concurrent re-delivery of the same session.
+  SELECT c.id, c.status, c.stripe_checkout_session_id, c.show_id
+    INTO v_cart
+    FROM public.entry_carts c
+   WHERE c.id = p_cart_id
+   FOR UPDATE;
+
+  -- Ours only when it is this cart's (a deleted cart reads back NULL).
+  SELECT r.id, r.status INTO v_existing, v_existing_status
+    FROM public.refund_requests r
+   WHERE r.stripe_checkout_session_id = p_session_id
+     AND r.kind = 'abandoned_cart'
+     AND (r.cart_id IS NULL OR r.cart_id = p_cart_id);
+  IF v_existing IS NOT NULL THEN
+    RETURN QUERY SELECT 'already_pending'::text, v_existing, v_existing_status;
+    RETURN;
+  END IF;
+
+  IF v_cart.id IS NULL
+     OR v_cart.status NOT IN ('abandoned', 'expired')
+     OR v_cart.stripe_checkout_session_id IS DISTINCT FROM p_session_id
+     OR EXISTS (SELECT 1 FROM public.refund_requests r
+                 WHERE r.stripe_checkout_session_id = p_session_id
+                    OR r.stripe_payment_intent_id = p_payment_intent_id) THEN
+    RETURN QUERY SELECT 'not_refundable'::text, NULL::uuid, NULL::text;
+    RETURN;
+  END IF;
+
+  INSERT INTO public.refund_requests (
+    kind, stripe_checkout_session_id, stripe_payment_intent_id, amount_cents,
+    reason, cart_id, show_id, detail
+  )
+  VALUES (
+    'abandoned_cart', p_session_id, p_payment_intent_id, p_amount_cents,
+    'cart_' || v_cart.status, p_cart_id, v_cart.show_id, COALESCE(p_detail, '{}'::jsonb)
+  )
+  ON CONFLICT DO NOTHING
+  RETURNING id INTO v_id;
+
+  -- Another live request won the index: the cart stays exactly as it was.
+  IF v_id IS NULL THEN
+    RETURN QUERY SELECT 'not_refundable'::text, NULL::uuid, NULL::text;
+    RETURN;
+  END IF;
+
+  UPDATE public.entry_carts
+     SET status = 'refund_pending'
+   WHERE id = p_cart_id;
+
+  RETURN QUERY SELECT 'claimed'::text, v_id, 'pending'::text;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.claim_abandoned_cart_refund(uuid, text, text, integer, jsonb)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.claim_abandoned_cart_refund(uuid, text, text, integer, jsonb)
+  TO service_role;
 
 COMMIT;

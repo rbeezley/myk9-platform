@@ -8,12 +8,17 @@ import { pathToFileURL } from 'node:url';
 import { commentTrusted, type GateComment } from './review-gate.ts';
 
 const COMMENTS_PER_PAGE = 100;
-// Freshness window: the search index lags new comments by minutes, so the
-// newest comments are always read directly. Running out of window is NOT an
-// error any more: older directives come from the search path below, so total
-// comment volume (every review posts "Review gate:" comments) can no longer
-// push the last directive out of reach and block every push (MYK9-1015).
-const RECENT_COMMENT_PAGES = 5;
+// Freshness window: GitHub search indexes new comments with a lag (typically
+// seconds to a few minutes, occasionally longer), so every comment newer than
+// this bound is read straight from the feed; older ones are found by search.
+// 60 minutes is a deliberately conservative multiple of the observed lag.
+const SEARCH_LAG_WINDOW_MS = 60 * 60 * 1000;
+// Page cap for covering that window. If the cap is hit before the window is
+// covered (about 2000 comments inside an hour, far above normal review
+// volume) the scan fails closed, because a hold in the uncovered gap could be
+// neither seen here nor indexed yet (MYK9-1015). Volume outside the window
+// can no longer block pushes.
+const RECENT_COMMENT_PAGES = 20;
 // A search or per-PR listing that cannot be read to its end fails closed.
 const MAX_SEARCH_PAGES = 10;
 const MAX_PR_COMMENT_PAGES = 30;
@@ -162,6 +167,7 @@ function latestRecentDirective(repo: string): PushDirective | undefined {
   let latest: PushDirective | undefined;
   let latestTime = -Infinity;
   const prCache = new Map<number, boolean>();
+  const windowStart = Date.now() - SEARCH_LAG_WINDOW_MS;
   for (let page = 1; page <= RECENT_COMMENT_PAGES; page++) {
     const comments = ghJson<GitHubComment[]>(
       `repos/${repo}/issues/comments?sort=created&direction=desc&per_page=${COMMENTS_PER_PAGE}&page=${page}`
@@ -187,9 +193,14 @@ function latestRecentDirective(repo: string): PushDirective | undefined {
       latest = newer(latest, directive);
       latestTime = Date.parse(latest.createdAt);
     }
-    if (comments.length < COMMENTS_PER_PAGE) break;
+    if (comments.length < COMMENTS_PER_PAGE) return latest;
+    const oldest = Math.min(...comments.map(commentTime));
+    // A directive's own timestamp bucket may straddle the page boundary.
+    if (oldest < windowStart && (!latest || oldest < latestTime)) return latest;
   }
-  return latest;
+  throw new Error(
+    `the newest ${RECENT_COMMENT_PAGES * COMMENTS_PER_PAGE} comments all fall inside the last ${SEARCH_LAG_WINDOW_MS / 60_000} minutes, so a fresh directive cannot be ruled out; ask an owner or member to post PUSH RELEASE on a PR`
+  );
 }
 
 export function fetchPushDirective(): PushDirective | undefined {

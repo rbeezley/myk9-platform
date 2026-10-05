@@ -230,15 +230,56 @@ describe('operator push hold', () => {
 
   it('continues onto older recent-feed pages for a directive still inside the window', () => {
     const f = fixture();
+    const now = new Date().toISOString();
     f.setPage(
       1,
-      Array.from({ length: 100 }, (_, id) => comment(100 + id, 'ordinary comment'))
+      Array.from({ length: 100 }, (_, id) => comment(100 + id, 'ordinary comment', 'OWNER', now))
     );
-    f.setPage(2, [comment(1, 'PUSH HOLD: older closed PR')]);
+    f.setPage(2, [comment(1, 'PUSH HOLD: older closed PR', 'OWNER', now)]);
     const found = f.runPush();
     expect(found.code).toBe(1);
     expect(found.output).toContain('older closed PR');
     expect(readFileSync(f.calls, 'utf8')).toContain('page=2');
+  });
+
+  it('a hold on page 6 inside the lag window is blocked even when search has not indexed it', () => {
+    const f = fixture();
+    const now = new Date().toISOString();
+    const noise = Array.from({ length: 100 }, (_, id) =>
+      comment(100 + id, 'Review gate: ok', 'OWNER', now)
+    );
+    for (let page = 1; page <= 5; page++) f.setPage(page, noise);
+    f.setPage(6, [comment(1, 'PUSH HOLD: unindexed fresh hold', 'OWNER', now)]);
+    const result = f.runPush();
+    expect(result.code).toBe(1);
+    expect(result.output).toContain('unindexed fresh hold');
+  });
+
+  it('fails closed when the lag window is not covered within the page cap', () => {
+    const f = fixture();
+    const now = new Date().toISOString();
+    const noise = Array.from({ length: 100 }, (_, id) =>
+      comment(100 + id, 'Review gate: ok', 'OWNER', now)
+    );
+    for (let page = 1; page <= 20; page++) f.setPage(page, noise);
+    const result = f.runPush();
+    expect(result.code).not.toBe(0);
+    expect(result.output).toContain('could not verify operator hold state');
+    expect(result.output).toContain('cannot be ruled out');
+  });
+
+  it('a recent noisy feed that reaches past the window with no directive allows the push', () => {
+    const f = fixture();
+    const now = new Date().toISOString();
+    const fresh = Array.from({ length: 100 }, (_, id) =>
+      comment(100 + id, 'Review gate: ok', 'OWNER', now)
+    );
+    for (let page = 1; page <= 3; page++) f.setPage(page, fresh);
+    f.setPage(
+      4,
+      Array.from({ length: 100 }, (_, id) => comment(500 + id, 'Review gate: ok'))
+    );
+    expect(f.runPush().code).toBe(0);
   });
 
   describe('directive older than the recent comment window (MYK9-1015)', () => {

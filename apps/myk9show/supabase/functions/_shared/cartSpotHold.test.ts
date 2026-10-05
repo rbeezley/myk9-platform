@@ -10,8 +10,10 @@ import {
   describeRefusedLines,
   epochToIso,
   holdCartSpots,
+  pageIsFullyHeld,
   releaseCartSpotHolds,
   type HoldRpcClient,
+  type PayAttempt,
   type RefusedCartLine,
 } from './cartSpotHold';
 
@@ -25,6 +27,7 @@ function rpcClient(answers: Record<string, RpcAnswer>) {
 }
 
 const HOLD_UNTIL = 1_800_000_000;
+const attempt: PayAttempt = { cartId: 'cart-1', attemptId: 'attempt-1' };
 
 const zivaFull: RefusedCartLine = {
   cart_item_id: 'item-ziva',
@@ -47,26 +50,39 @@ describe('the hold window', () => {
 });
 
 describe('holdCartSpots', () => {
-  it('asks hold_cart_spots for the cart, the expiry and the session', async () => {
+  it('asks hold_cart_spots for the attempt, the expiry, the page and the retired page', async () => {
     const { client, rpc } = rpcClient({
       hold_cart_spots: { data: [{ outcome: 'held' }, { outcome: 'held' }], error: null },
     });
-    expect(await holdCartSpots(client, 'cart-1', HOLD_UNTIL, 'cs_1')).toEqual({
-      kind: 'held',
-      heldCount: 2,
-    });
+    expect(
+      await holdCartSpots(client, attempt, HOLD_UNTIL, {
+        sessionId: 'cs_1',
+        retiredSessionId: 'cs_1',
+      })
+    ).toEqual({ kind: 'held', heldCount: 2 });
     expect(rpc).toHaveBeenCalledWith('hold_cart_spots', {
       p_cart_id: 'cart-1',
+      p_attempt_id: 'attempt-1',
       p_expires_at: epochToIso(HOLD_UNTIL),
       p_checkout_session_id: 'cs_1',
+      p_release_session_id: 'cs_1',
     });
+  });
+
+  it('releases nothing by name unless the caller retired a page', async () => {
+    const { client, rpc } = rpcClient({ hold_cart_spots: { data: [], error: null } });
+    await holdCartSpots(client, attempt, HOLD_UNTIL);
+    expect(rpc).toHaveBeenCalledWith(
+      'hold_cart_spots',
+      expect.objectContaining({ p_checkout_session_id: null, p_release_session_id: null })
+    );
   });
 
   it('returns only the refused lines when any line has no room', async () => {
     const { client } = rpcClient({
       hold_cart_spots: { data: [{ outcome: 'refused', ...zivaFull }], error: null },
     });
-    expect(await holdCartSpots(client, 'cart-1', HOLD_UNTIL)).toEqual({
+    expect(await holdCartSpots(client, attempt, HOLD_UNTIL)).toEqual({
       kind: 'refused',
       lines: [zivaFull],
     });
@@ -76,7 +92,7 @@ describe('holdCartSpots', () => {
     const { client } = rpcClient({
       hold_cart_spots: { data: null, error: { message: 'boom' } },
     });
-    expect(await holdCartSpots(client, 'cart-1', HOLD_UNTIL)).toEqual({
+    expect(await holdCartSpots(client, attempt, HOLD_UNTIL)).toEqual({
       kind: 'error',
       message: 'boom',
     });
@@ -90,12 +106,19 @@ describe('createSessionUnderHold: hold first, then a page that ends with the hol
     });
     const create = vi.fn(async (expiresAtEpoch: number) => ({ id: 'cs_new', expiresAtEpoch }));
 
-    const session = await createSessionUnderHold(client, 'cart-1', HOLD_UNTIL, create);
+    const created = await createSessionUnderHold(client, attempt, HOLD_UNTIL, 'cs_old', create);
 
-    expect(session).toEqual({ id: 'cs_new', expiresAtEpoch: HOLD_UNTIL });
+    expect(created).toEqual({
+      session: { id: 'cs_new', expiresAtEpoch: HOLD_UNTIL },
+      heldCount: 1,
+    });
     expect(rpc).toHaveBeenCalledWith(
       'hold_cart_spots',
-      expect.objectContaining({ p_expires_at: epochToIso(HOLD_UNTIL) })
+      expect.objectContaining({
+        p_attempt_id: 'attempt-1',
+        p_expires_at: epochToIso(HOLD_UNTIL),
+        p_release_session_id: 'cs_old',
+      })
     );
     expect(rpc.mock.invocationCallOrder[0]).toBeLessThan(create.mock.invocationCallOrder[0]!);
   });
@@ -106,10 +129,10 @@ describe('createSessionUnderHold: hold first, then a page that ends with the hol
     });
     const create = vi.fn();
 
-    const attempt = createSessionUnderHold(client, 'cart-1', HOLD_UNTIL, create);
+    const refused = createSessionUnderHold(client, attempt, HOLD_UNTIL, null, create);
 
-    await expect(attempt).rejects.toBeInstanceOf(CartHoldRefusedError);
-    await expect(attempt).rejects.toMatchObject({ lines: [zivaFull] });
+    await expect(refused).rejects.toBeInstanceOf(CartHoldRefusedError);
+    await expect(refused).rejects.toMatchObject({ lines: [zivaFull] });
     expect(create).not.toHaveBeenCalled();
   });
 
@@ -117,12 +140,12 @@ describe('createSessionUnderHold: hold first, then a page that ends with the hol
     const { client } = rpcClient({ hold_cart_spots: { data: null, error: { message: 'down' } } });
     const create = vi.fn();
     await expect(
-      createSessionUnderHold(client, 'cart-1', HOLD_UNTIL, create)
+      createSessionUnderHold(client, attempt, HOLD_UNTIL, null, create)
     ).rejects.toBeInstanceOf(CartHoldUnavailableError);
     expect(create).not.toHaveBeenCalled();
   });
 
-  it('gives the spots back when the page fails to open', async () => {
+  it("gives this attempt's spots back when the page fails to open", async () => {
     const { client, rpc } = rpcClient({
       hold_cart_spots: { data: [{ outcome: 'held' }], error: null },
     });
@@ -130,27 +153,39 @@ describe('createSessionUnderHold: hold first, then a page that ends with the hol
       throw new Error('stripe down');
     });
 
-    await expect(createSessionUnderHold(client, 'cart-1', HOLD_UNTIL, create)).rejects.toThrow(
+    await expect(createSessionUnderHold(client, attempt, HOLD_UNTIL, null, create)).rejects.toThrow(
       'stripe down'
     );
     expect(rpc).toHaveBeenCalledWith('release_cart_spot_holds', {
       p_cart_id: 'cart-1',
+      p_attempt_id: 'attempt-1',
       p_reason: 'checkout_failed',
     });
   });
 });
 
 describe('attach and release', () => {
-  it('ties the holds to the page with the expiry Stripe returned', async () => {
-    const { client, rpc } = rpcClient({});
-    expect(await attachCartSpotHolds(client, 'cart-1', 'cs_1', HOLD_UNTIL + 7)).toEqual({
+  it("ties this attempt's holds to the page with the expiry Stripe returned", async () => {
+    const { client, rpc } = rpcClient({ attach_cart_spot_holds: { data: 2, error: null } });
+    expect(await attachCartSpotHolds(client, attempt, 'cs_1', HOLD_UNTIL + 7)).toEqual({
+      tied: 2,
       error: null,
     });
     expect(rpc).toHaveBeenCalledWith('attach_cart_spot_holds', {
       p_cart_id: 'cart-1',
+      p_attempt_id: 'attempt-1',
       p_checkout_session_id: 'cs_1',
       p_expires_at: epochToIso(HOLD_UNTIL + 7),
     });
+  });
+
+  it('hands a page out only when every held line is tied to it', () => {
+    expect(pageIsFullyHeld({ tied: 2, error: null }, 2)).toBe(true);
+    expect(pageIsFullyHeld({ tied: 0, error: null }, 0)).toBe(true);
+    // Another request released some of them, or they ran out before attach.
+    expect(pageIsFullyHeld({ tied: 1, error: null }, 2)).toBe(false);
+    expect(pageIsFullyHeld({ tied: null, error: 'down' }, 2)).toBe(false);
+    expect(pageIsFullyHeld({ tied: null, error: null }, 0)).toBe(false);
   });
 
   it('surfaces a failed attach or release', async () => {
@@ -158,10 +193,11 @@ describe('attach and release', () => {
       attach_cart_spot_holds: { data: null, error: { message: 'nope' } },
       release_cart_spot_holds: { data: null, error: { message: 'nope' } },
     });
-    expect(await attachCartSpotHolds(client, 'cart-1', 'cs_1', HOLD_UNTIL)).toEqual({
+    expect(await attachCartSpotHolds(client, attempt, 'cs_1', HOLD_UNTIL)).toEqual({
+      tied: null,
       error: 'nope',
     });
-    expect(await releaseCartSpotHolds(client, 'cart-1')).toEqual({ error: 'nope' });
+    expect(await releaseCartSpotHolds(client, attempt)).toEqual({ error: 'nope' });
   });
 });
 

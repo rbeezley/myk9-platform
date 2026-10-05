@@ -2,14 +2,13 @@
  * Cart Summary
  *
  * Displays cart totals breakdown and checkout button.
- * Shows entry fees, platform fee, and total with expiration countdown.
+ * Shows entry fees, platform fee, and total.
  */
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   CreditCard,
-  AlertTriangle,
   RefreshCw,
   AlertCircle,
   ShoppingCart,
@@ -24,7 +23,6 @@ import { cn } from '@/lib/utils';
 import { useCartStore } from '@/store/cartStore';
 import { calculatePlatformFeeCents, formatCartCurrency } from '@/store/cartStore.helpers';
 import { usePlatformFeeRates } from '@/hooks/queries/usePlatformFeeRates';
-import { useCartExpirationTimer } from '@/hooks/useCartExpirationTimer';
 import { WithdrawalPolicyDisclosure } from '@/features/payments/WithdrawalPolicyDisclosure';
 import { PlatformFeeSplitLines } from '@/features/payments/PlatformFeeSplitLines';
 import type { CartFulfillmentView } from '@/features/payments/cartFulfillmentView';
@@ -72,20 +70,15 @@ export function CartSummary({
   const getItemCount = useCartStore(state => state.getItemCount);
   const feeRates = usePlatformFeeRates();
 
-  // INTENT: Entry carts are a calm flow, not a time-pressured checkout. We do
-  // NOT surface a constant ticking countdown, and expiry must NOT strand the
-  // user by redirecting to /shows mid-payment (UX walk remediation 4.B). The
-  // timer still runs so we can show an ACTIONABLE heads-up (with one-tap Extend)
-  // only as the hold nears its end — never a clock counting the whole time.
-  // `isExpired` is consumed deliberately. Both showWarning and
-  // showUrgentWarning require timeRemainingMs > 0, so at the instant the hold
-  // lapsed the banner unmounted and took the one-tap Extend with it - the card
-  // went back to looking healthy while Pay stayed enabled over a dead hold.
-  // That is a failure of the INTENT above, not a conflict with it: the heads-up
-  // has to stay ACTIONABLE at the moment it matters most. Still no countdown,
-  // still no redirect.
-  const { timeRemainingFormatted, isExpired, showWarning, showUrgentWarning, extendExpiration } =
-    useCartExpirationTimer();
+  // INTENT: Entry carts are a calm flow, not a time-pressured checkout: no
+  // ticking countdown, and nothing strands the user by redirecting to /shows
+  // mid-payment (UX walk remediation 4.B). MYK9-1012 removed the cart timer's
+  // last job. A cart's spots are held only from the Pay click until its Stripe
+  // page expires (the line under the Pay button says so), and a lapsed cart is
+  // simply saved: stripe-checkout reactivates it at Pay and re-checks every
+  // spot then. The old near-expiry heads-up and its one-tap extend promised
+  // a hold the cart timer never had, so they are gone, and Pay is never
+  // disabled for a lapsed cart.
 
   // exhibitor-ux-remediation (cart-integrity): a cart drafted before entries
   // closed must never let checkout proceed — the audit found a week-old draft
@@ -147,7 +140,7 @@ export function CartSummary({
   const waitlistOnly = payableCount === 0 && waitlistCount > 0;
   // The Pay button is live and charges for at least one spot.
   const canPayForSpots =
-    payableCount > 0 && !entriesClosed && blockedCount === 0 && !capacityUnknown && !isExpired;
+    payableCount > 0 && !entriesClosed && blockedCount === 0 && !capacityUnknown;
 
   const handleCheckout = () => {
     onCheckout();
@@ -175,9 +168,7 @@ export function CartSummary({
       </CardHeader>
 
       <CardContent className="space-y-4">
-        {/* Entries-closed notice — takes priority over the hold-expiration
-            warning; a closed show can never be paid for regardless of how
-            much hold time remains. */}
+        {/* Entries-closed notice: a closed show can never be paid for. */}
         {entriesClosed && (
           <div className="flex items-center gap-2 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-destructive">
             <Lock className="h-5 w-5 flex-shrink-0" />
@@ -188,42 +179,6 @@ export function CartSummary({
                 late-entry help, or remove it and keep shopping.
               </p>
             </div>
-          </div>
-        )}
-
-        {/* Expiration Warning */}
-        {!entriesClosed && (showWarning || showUrgentWarning || isExpired) && (
-          <div
-            className={cn(
-              'flex items-center gap-2 p-3 rounded-lg',
-              showUrgentWarning || isExpired
-                ? 'bg-destructive/10 text-destructive border border-destructive/30 '
-                : 'bg-warning/10 text-warning border border-warning/30 '
-            )}
-          >
-            <AlertTriangle className="h-5 w-5 flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-sm font-medium">
-                {isExpired
-                  ? 'Your hold has lapsed'
-                  : showUrgentWarning
-                    ? 'Cart expiring very soon'
-                    : 'Cart will expire soon'}
-              </p>
-              <p className="text-xs mt-0.5">
-                {isExpired
-                  ? 'Extend to keep these spots. Nothing has been removed from your cart.'
-                  : `${timeRemainingFormatted} remaining. Complete checkout or extend the hold.`}
-              </p>
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => extendExpiration()}
-              className="flex-shrink-0 min-h-[44px]"
-            >
-              Extend
-            </Button>
           </div>
         )}
 
@@ -312,12 +267,7 @@ export function CartSummary({
         <Button
           onClick={handleCheckout}
           disabled={
-            isCheckingOut ||
-            itemCount === 0 ||
-            entriesClosed ||
-            blockedCount > 0 ||
-            capacityUnknown ||
-            isExpired
+            isCheckingOut || itemCount === 0 || entriesClosed || blockedCount > 0 || capacityUnknown
           }
           // The label is the longest in the app ("Pay $1,234.50 and confirm
           // entries", plus a wait-list suffix at its fullest) and it renders in
@@ -334,21 +284,9 @@ export function CartSummary({
               Processing...
             </>
           ) : entriesClosed ? (
-            // Ordered ahead of isExpired deliberately. The expiry banner (and
-            // the only Extend button) is gated on !entriesClosed, so a closed
-            // show whose hold also lapsed would otherwise read "Extend your
-            // hold to continue" with no Extend button anywhere on the page -
-            // an instruction pointing at an affordance that was removed, while
-            // suppressing the real reason. Entries closed is the permanent
-            // condition, so it wins.
             <>
               <Lock className="h-4 w-4 mr-2" />
               Entries closed. Cannot pay online
-            </>
-          ) : isExpired ? (
-            <>
-              <AlertTriangle className="h-4 w-4 mr-2" />
-              Extend your hold to continue
             </>
           ) : capacityPending ? (
             <>

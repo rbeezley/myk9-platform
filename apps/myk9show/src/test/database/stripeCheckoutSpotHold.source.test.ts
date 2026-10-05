@@ -19,7 +19,7 @@ const compact = source.replace(/\s+/g, ' ');
 describe('stripe-checkout holds spots for the life of the Stripe page', () => {
   it('opens a new page only through createSessionUnderHold, with the hold expiry', () => {
     expect(compact).toContain(
-      'createReplacement: () => createSessionUnderHold(supabase, cart_id, holdUntilEpoch, expiresAtEpoch => stripe.checkout.sessions.create({'
+      'const created = await createSessionUnderHold( supabase, attempt, holdUntilEpoch, priorSessionId, expiresAtEpoch => stripe.checkout.sessions.create({'
     );
     // The page's expiry is the hold's, not a second clock.
     expect(compact).toContain('expires_at: expiresAtEpoch,');
@@ -32,12 +32,26 @@ describe('stripe-checkout holds spots for the life of the Stripe page', () => {
       'const sessionExpiresAtEpoch = session.expires_at ?? holdUntilEpoch;'
     );
     expect(compact).toContain(
-      'attachCartSpotHolds(supabase, cart_id, session.id, sessionExpiresAtEpoch)'
+      'attachCartSpotHolds(supabase, attempt, session.id, sessionExpiresAtEpoch)'
     );
   });
 
+  // Codex P1 on #2755: every hold write is scoped to this request's attempt,
+  // and a page whose holds are not all tied is expired, never handed out.
+  it('scopes every hold write to a fresh attempt and hands out only a fully held page', () => {
+    expect(compact).toContain(
+      'const attempt = { cartId: cart_id, attemptId: crypto.randomUUID() };'
+    );
+    expect(compact).toContain('releaseCartSpotHolds(supabase, attempt)');
+    expect(compact).not.toContain('releaseCartSpotHolds(supabase, cart_id)');
+    expect(compact).toContain('if (!pageIsFullyHeld(attached, heldCount)) {');
+    expect(compact).toContain("await abandonSession('holds not tied');");
+  });
+
   it("re-takes the hold for a reused page, for that page's own expiry", () => {
-    expect(compact).toContain('holdCartSpots(supabase, cart_id, reusedExpiresAtEpoch, reused.id)');
+    expect(compact).toContain(
+      'holdCartSpots(supabase, attempt, reusedExpiresAtEpoch, { sessionId: reused.id, retiredSessionId: reused.id, })'
+    );
   });
 
   it('answers a refused line with 409 before any page exists', () => {

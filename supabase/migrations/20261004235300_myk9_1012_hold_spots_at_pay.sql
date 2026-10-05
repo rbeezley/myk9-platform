@@ -9,8 +9,10 @@
 -- Now:
 --
 -- 1. HOLD AT PAY. stripe-checkout calls hold_cart_spots before it creates the
---    Stripe Checkout page. Under the cart's row lock it releases the cart's own
---    earlier holds, then asks evaluate_entry_capacity, the rule payment itself
+--    Stripe Checkout page, with a fresh ATTEMPT id per Pay (see 3a). Under the
+--    cart's row lock it releases the holds of the page this Pay just retired
+--    (named by the caller, never guessed), then asks
+--    evaluate_entry_capacity, the rule payment itself
 --    decides on, about each new line in cart order. evaluate_entry_capacity
 --    takes the show, class and judge-day advisory locks and keeps them until
 --    this transaction commits, so two Pay clicks for the last spot serialise:
@@ -34,17 +36,35 @@
 -- 3. A HOLD ENDS WITH ITS STRIPE PAGE. stripe-checkout creates the page with
 --    expires_at = the hold's expiry and then attach_cart_spot_holds sets the
 --    hold to the expiry Stripe returned, so the two end at the same instant.
---    Stripe refuses payment on an expired page.
+--    Stripe refuses payment on an expired page. Until it is attached a hold
+--    lives at most 5 minutes, so an attempt that dies between the hold and
+--    the page (a crashed function, a lost response) cannot keep spots for 31.
+--
+-- 3a. EVERY WRITE IS SCOPED TO ITS ATTEMPT (Codex P1 on #2755). Two Pay
+--    requests for the same cart can both hold before either records its page;
+--    the one that loses the cart's optimistic update must give back ITS holds
+--    only, and an earlier attempt whose Stripe call fails late must not take
+--    the newer attempt's holds with it. So each Pay carries an attempt id,
+--    stored on its holds, and attach and release touch only that attempt's
+--    live holds. attach counts what it tied, and stripe-checkout hands out a
+--    page only when that count equals the lines it held; otherwise it expires
+--    the page. hold_cart_spots releases only the session the caller names as
+--    retired (the cart's previous page, which resolveCheckoutSession has
+--    already expired, or the reused page being re-held). Holds of a concurrent
+--    attempt are counted, never released: the second of two simultaneous Pays
+--    on one cart may be refused, and that is the safe answer.
 --
 -- 4. RELEASE. A hold stops counting when it expires, and is released early:
 --      converted       fulfill_cart_line, just before the line's entry is
 --                      created (in the same transaction, under the same locks)
---      replaced        the next hold_cart_spots on the same cart
+--      replaced        a later hold_cart_spots naming this hold's session as
+--                      retired (or re-holding the same reused page)
 --      cart_closed     the cart leaves active/fulfilling (submitted, expired,
 --                      abandoned, refund_pending)
 --      session_ended   the cart's link moves off the session the hold was for
 --                      (every cart line edit severs it)
---      checkout_failed stripe-checkout could not open or record the page
+--      checkout_failed stripe-checkout could not open, record or attach the
+--                      page (this attempt's holds only)
 --    and deleted with the cart line or the cart (ON DELETE CASCADE).
 --
 -- 5. The cart_overflow refund (MYK9-964) stays the safety net: a payment that
@@ -92,6 +112,8 @@ CREATE TABLE public.cart_spot_holds (
   cart_id uuid NOT NULL REFERENCES public.entry_carts (id) ON DELETE CASCADE,
   cart_item_id uuid NOT NULL REFERENCES public.entry_cart_items (id) ON DELETE CASCADE,
   class_id uuid NOT NULL REFERENCES public.classes (id) ON DELETE CASCADE,
+  -- The Pay attempt that took the hold; attach and release are scoped to it.
+  attempt_id uuid NOT NULL,
   -- NULL between hold_cart_spots and attach_cart_spot_holds.
   stripe_checkout_session_id text,
   -- The Stripe page's own expiry once attached.
@@ -113,10 +135,10 @@ COMMENT ON TABLE public.cart_spot_holds IS
 CREATE INDEX cart_spot_holds_cart_id_idx ON public.cart_spot_holds (cart_id);
 CREATE INDEX cart_spot_holds_cart_item_id_idx ON public.cart_spot_holds (cart_item_id);
 CREATE INDEX cart_spot_holds_class_id_idx ON public.cart_spot_holds (class_id);
--- One live hold per cart line.
-CREATE UNIQUE INDEX cart_spot_holds_one_live_per_line
-  ON public.cart_spot_holds (cart_item_id)
-  WHERE released_at IS NULL;
+-- One hold per (attempt, cart line). Two attempts on one cart may each hold
+-- the same line while both are in flight; both count.
+CREATE UNIQUE INDEX cart_spot_holds_attempt_line_key
+  ON public.cart_spot_holds (attempt_id, cart_item_id);
 
 ALTER TABLE public.cart_spot_holds ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.cart_spot_holds FORCE ROW LEVEL SECURITY;
@@ -168,16 +190,24 @@ GRANT EXECUTE ON FUNCTION public.held_spot_count(uuid[], uuid) TO service_role;
 -- 2. Hold, attach, release (stripe-checkout; service_role only)
 -- ============================================================================
 
--- Hold a spot for every new line of an active cart, or for none.
+-- Hold a spot for every new line of an active cart, or for none, for one Pay
+-- attempt.
 --   held      one row per new line, each now holding its spot
 --   refused   one row per line with no room (denial_reason NULL) or refused by
 --             the entry rule (denial_reason says why); nothing is held
 -- No rows: the cart has no new lines (Finish Payment lines already hold their
 -- entry's spot).
+-- p_checkout_session_id: the page these holds are for, when it already exists
+--   (a reused page). NULL: the page is created next; the hold then lives at
+--   most 5 minutes until attach_cart_spot_holds ties it to the page.
+-- p_release_session_id: a page the caller has retired (expired, or is
+--   re-holding); its live holds are released first. Nothing else is.
 CREATE OR REPLACE FUNCTION public.hold_cart_spots(
   p_cart_id uuid,
+  p_attempt_id uuid,
   p_expires_at timestamptz,
-  p_checkout_session_id text DEFAULT NULL
+  p_checkout_session_id text DEFAULT NULL,
+  p_release_session_id text DEFAULT NULL
 )
 RETURNS TABLE (
   outcome text,
@@ -198,11 +228,12 @@ DECLARE
   v_line record;
   v_capacity record;
   v_hold_id uuid;
+  v_expires_at timestamptz;
   v_held uuid[] := ARRAY[]::uuid[];
   v_refused jsonb := '[]'::jsonb;
 BEGIN
-  IF p_cart_id IS NULL OR p_expires_at IS NULL THEN
-    RAISE EXCEPTION 'hold_cart_spots: cart and expiry are required'
+  IF p_cart_id IS NULL OR p_attempt_id IS NULL OR p_expires_at IS NULL THEN
+    RAISE EXCEPTION 'hold_cart_spots: cart, attempt and expiry are required'
       USING ERRCODE = '22023';
   END IF;
   -- A Stripe Checkout page lives between 30 minutes and 24 hours.
@@ -210,6 +241,11 @@ BEGIN
     RAISE EXCEPTION 'hold_cart_spots: expiry % is not within the next 24 hours', p_expires_at
       USING ERRCODE = '22023';
   END IF;
+  -- Not yet tied to a page: short-lived until attach_cart_spot_holds.
+  v_expires_at := CASE
+    WHEN p_checkout_session_id IS NULL THEN LEAST(p_expires_at, now() + interval '5 minutes')
+    ELSE p_expires_at
+  END;
 
   SELECT c.status INTO v_status
   FROM public.entry_carts c
@@ -224,12 +260,19 @@ BEGIN
       USING ERRCODE = '55000';
   END IF;
 
-  -- This Pay click replaces any earlier one on the same cart.
+  -- Only a page the caller has retired gives its spots back here. A
+  -- concurrent attempt's holds are counted below, never released.
   UPDATE public.cart_spot_holds h
      SET released_at = now(),
          release_reason = 'replaced'
    WHERE h.cart_id = p_cart_id
-     AND h.released_at IS NULL;
+     AND h.released_at IS NULL
+     AND p_release_session_id IS NOT NULL
+     AND h.stripe_checkout_session_id = p_release_session_id;
+  -- A repeated call by the same attempt starts over.
+  DELETE FROM public.cart_spot_holds h
+   WHERE h.attempt_id = p_attempt_id
+     AND h.cart_id = p_cart_id;
 
   FOR v_line IN
     SELECT i.id, i.class_id, i.dog_id, COALESCE(cl.allow_waitlist, false) AS allow_waitlist
@@ -248,9 +291,11 @@ BEGIN
 
     IF v_capacity.outcome = 'available' THEN
       INSERT INTO public.cart_spot_holds (
-        cart_id, cart_item_id, class_id, stripe_checkout_session_id, expires_at
+        cart_id, cart_item_id, class_id, attempt_id, stripe_checkout_session_id, expires_at
       )
-      VALUES (p_cart_id, v_line.id, v_line.class_id, p_checkout_session_id, p_expires_at)
+      VALUES (
+        p_cart_id, v_line.id, v_line.class_id, p_attempt_id, p_checkout_session_id, v_expires_at
+      )
       RETURNING id INTO v_hold_id;
       v_held := v_held || v_hold_id;
     ELSE
@@ -289,19 +334,22 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION public.hold_cart_spots(uuid, timestamptz, text) IS
-  'MYK9-1012: at Pay, hold a spot for every new line of an active cart under '
-  'evaluate_entry_capacity''s locks, or hold nothing and return the refused lines. Releases the '
-  'cart''s earlier holds first. service_role only (stripe-checkout).';
+COMMENT ON FUNCTION public.hold_cart_spots(uuid, uuid, timestamptz, text, text) IS
+  'MYK9-1012: at Pay, hold a spot for every new line of an active cart for one attempt, under '
+  'evaluate_entry_capacity''s locks, or hold nothing and return the refused lines. Releases only '
+  'the holds of the session the caller names as retired. service_role only (stripe-checkout).';
 
-REVOKE ALL ON FUNCTION public.hold_cart_spots(uuid, timestamptz, text)
+REVOKE ALL ON FUNCTION public.hold_cart_spots(uuid, uuid, timestamptz, text, text)
   FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.hold_cart_spots(uuid, timestamptz, text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.hold_cart_spots(uuid, uuid, timestamptz, text, text)
+  TO service_role;
 
--- Tie the cart's live holds to the Stripe page the cart now links, ending
--- exactly when the page does. Returns the number of holds tied.
+-- Tie ONE attempt's live, unexpired holds to the Stripe page the cart now
+-- links, ending exactly when the page does. Returns the number tied; the
+-- caller hands the page out only when that is every line it held.
 CREATE OR REPLACE FUNCTION public.attach_cart_spot_holds(
   p_cart_id uuid,
+  p_attempt_id uuid,
   p_checkout_session_id text,
   p_expires_at timestamptz
 )
@@ -316,8 +364,9 @@ DECLARE
   v_session text;
   v_count integer;
 BEGIN
-  IF p_cart_id IS NULL OR p_checkout_session_id IS NULL OR p_expires_at IS NULL THEN
-    RAISE EXCEPTION 'attach_cart_spot_holds: cart, session and expiry are required'
+  IF p_cart_id IS NULL OR p_attempt_id IS NULL OR p_checkout_session_id IS NULL
+     OR p_expires_at IS NULL THEN
+    RAISE EXCEPTION 'attach_cart_spot_holds: cart, attempt, session and expiry are required'
       USING ERRCODE = '22023';
   END IF;
 
@@ -332,11 +381,14 @@ BEGIN
       USING ERRCODE = '55000';
   END IF;
 
+  -- An expired hold is not revived: its spot may already be someone else's.
   UPDATE public.cart_spot_holds h
      SET stripe_checkout_session_id = p_checkout_session_id,
          expires_at = p_expires_at
    WHERE h.cart_id = p_cart_id
+     AND h.attempt_id = p_attempt_id
      AND h.released_at IS NULL
+     AND h.expires_at > now()
      AND (h.stripe_checkout_session_id IS NULL
           OR h.stripe_checkout_session_id = p_checkout_session_id);
   GET DIAGNOSTICS v_count = ROW_COUNT;
@@ -344,17 +396,21 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION public.attach_cart_spot_holds(uuid, text, timestamptz) IS
-  'MYK9-1012: ties a cart''s live holds to the Checkout Session the cart links and sets their '
-  'expiry to the session''s, so hold and page end together. service_role only.';
+COMMENT ON FUNCTION public.attach_cart_spot_holds(uuid, uuid, text, timestamptz) IS
+  'MYK9-1012: ties one Pay attempt''s live holds to the Checkout Session the cart links and sets '
+  'their expiry to the session''s, so hold and page end together. Returns the count tied. '
+  'service_role only.';
 
-REVOKE ALL ON FUNCTION public.attach_cart_spot_holds(uuid, text, timestamptz)
+REVOKE ALL ON FUNCTION public.attach_cart_spot_holds(uuid, uuid, text, timestamptz)
   FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.attach_cart_spot_holds(uuid, text, timestamptz) TO service_role;
+GRANT EXECUTE ON FUNCTION public.attach_cart_spot_holds(uuid, uuid, text, timestamptz)
+  TO service_role;
 
--- stripe-checkout could not open or record the page: give the spots back.
+-- stripe-checkout could not open, record or attach the page: give back THIS
+-- attempt's spots, never another attempt's.
 CREATE OR REPLACE FUNCTION public.release_cart_spot_holds(
   p_cart_id uuid,
+  p_attempt_id uuid,
   p_reason text DEFAULT 'checkout_failed'
 )
 RETURNS integer
@@ -366,27 +422,28 @@ AS $$
 DECLARE
   v_count integer;
 BEGIN
-  IF p_cart_id IS NULL OR p_reason IS DISTINCT FROM 'checkout_failed' THEN
-    RAISE EXCEPTION 'release_cart_spot_holds: a cart and the reason checkout_failed are required'
+  IF p_cart_id IS NULL OR p_attempt_id IS NULL OR p_reason IS DISTINCT FROM 'checkout_failed' THEN
+    RAISE EXCEPTION 'release_cart_spot_holds: a cart, an attempt and the reason checkout_failed are required'
       USING ERRCODE = '22023';
   END IF;
   UPDATE public.cart_spot_holds h
      SET released_at = now(),
          release_reason = p_reason
    WHERE h.cart_id = p_cart_id
+     AND h.attempt_id = p_attempt_id
      AND h.released_at IS NULL;
   GET DIAGNOSTICS v_count = ROW_COUNT;
   RETURN v_count;
 END;
 $$;
 
-COMMENT ON FUNCTION public.release_cart_spot_holds(uuid, text) IS
-  'MYK9-1012: releases a cart''s live holds when stripe-checkout could not open or record its '
-  'Stripe page. service_role only.';
+COMMENT ON FUNCTION public.release_cart_spot_holds(uuid, uuid, text) IS
+  'MYK9-1012: releases one Pay attempt''s live holds when stripe-checkout could not open, record '
+  'or attach its Stripe page. service_role only.';
 
-REVOKE ALL ON FUNCTION public.release_cart_spot_holds(uuid, text)
+REVOKE ALL ON FUNCTION public.release_cart_spot_holds(uuid, uuid, text)
   FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.release_cart_spot_holds(uuid, text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.release_cart_spot_holds(uuid, uuid, text) TO service_role;
 
 -- A cart that leaves checkout gives its spots back: closed (submitted,
 -- expired, abandoned, refund_pending) releases every hold; a link that moves

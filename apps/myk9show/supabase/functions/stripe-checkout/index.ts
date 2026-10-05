@@ -36,6 +36,7 @@ import {
   describeRefusedLines,
   epochToIso,
   holdCartSpots,
+  pageIsFullyHeld,
   releaseCartSpotHolds,
 } from '../_shared/cartSpotHold.ts';
 
@@ -784,43 +785,59 @@ async function handleEntryCheckout(
   // and then creates the page with expires_at = the hold's expiry; after the
   // cart links the page, the hold is set to the expiry Stripe RETURNS, so page
   // and hold die at the same instant (see cartSpotHold.ts for the 31 minutes).
+  // Every hold this request takes carries its own attempt id, and only this
+  // attempt's holds are tied or released below (Codex P1 on #2755).
   const holdUntilEpoch = cartSpotHoldUntilEpoch(Date.now());
+  const attempt = { cartId: cart_id, attemptId: crypto.randomUUID() };
+  const priorSessionId: string | null = cart.stripe_checkout_session_id ?? null;
+  let heldCount = 0;
   let resolution: CheckoutSessionResolution<Stripe.Checkout.Session>;
   try {
     resolution = await resolveCheckoutSession({
-      priorSessionId: cart.stripe_checkout_session_id,
+      priorSessionId,
       expectedAmountCents: subtotal + platformFeeCents,
       sessions: stripe.checkout.sessions,
-      createReplacement: () =>
-        createSessionUnderHold(supabase, cart_id, holdUntilEpoch, expiresAtEpoch =>
-          stripe.checkout.sessions.create({
-            customer: customerId,
-            line_items: lineItems,
-            mode: 'payment',
-            // INTENT: card-only is deliberate (money-path contract in
-            // moneyPathCloseout.source.test.ts). Asynchronous methods (ACH,
-            // Klarna, ...) complete Checkout with payment_status 'unpaid' and
-            // settle later, which decideFreshSessionGate refuses. Apple Pay and
-            // Google Pay ride on 'card' in hosted Checkout, so this pin does
-            // NOT exclude wallets — do not remove it to "enable" them.
-            payment_method_types: ['card'],
-            expires_at: expiresAtEpoch,
-            success_url: successUrl,
-            cancel_url: cancelUrl,
-            metadata: {
-              cart_id: cart_id,
-              type: 'entry',
-              ...stampPlatformFeeRates(platformFeeRates),
-            },
-            payment_intent_data: {
-              statement_descriptor_suffix: formatStatementDescriptorSuffix(showFees.name),
+      // A replacement is only asked for once the prior page is retired
+      // (expired by resolveCheckoutSession, already expired, or missing), so
+      // its holds are released by name; no other attempt's are touched.
+      createReplacement: async () => {
+        const created = await createSessionUnderHold(
+          supabase,
+          attempt,
+          holdUntilEpoch,
+          priorSessionId,
+          expiresAtEpoch =>
+            stripe.checkout.sessions.create({
+              customer: customerId,
+              line_items: lineItems,
+              mode: 'payment',
+              // INTENT: card-only is deliberate (money-path contract in
+              // moneyPathCloseout.source.test.ts). Asynchronous methods (ACH,
+              // Klarna, ...) complete Checkout with payment_status 'unpaid' and
+              // settle later, which decideFreshSessionGate refuses. Apple Pay and
+              // Google Pay ride on 'card' in hosted Checkout, so this pin does
+              // NOT exclude wallets — do not remove it to "enable" them.
+              payment_method_types: ['card'],
+              expires_at: expiresAtEpoch,
+              success_url: successUrl,
+              cancel_url: cancelUrl,
               metadata: {
                 cart_id: cart_id,
                 type: 'entry',
+                ...stampPlatformFeeRates(platformFeeRates),
               },
-            },
-          })
-        ),
+              payment_intent_data: {
+                statement_descriptor_suffix: formatStatementDescriptorSuffix(showFees.name),
+                metadata: {
+                  cart_id: cart_id,
+                  type: 'entry',
+                },
+              },
+            })
+        );
+        heldCount = created.heldCount;
+        return created.session;
+      },
     });
   } catch (error) {
     if (error instanceof CartHoldRefusedError) {
@@ -853,7 +870,10 @@ async function handleEntryCheckout(
     // existed has none, and a line added since would have none.
     const reused = resolution.session;
     const reusedExpiresAtEpoch = reused.expires_at ?? holdUntilEpoch;
-    const hold = await holdCartSpots(supabase, cart_id, reusedExpiresAtEpoch, reused.id);
+    const hold = await holdCartSpots(supabase, attempt, reusedExpiresAtEpoch, {
+      sessionId: reused.id,
+      retiredSessionId: reused.id,
+    });
     if (hold.kind !== 'held') {
       try {
         await stripe.checkout.sessions.expire(reused.id);
@@ -893,7 +913,7 @@ async function handleEntryCheckout(
     } catch (expireErr) {
       console.error(`CRITICAL: could not expire orphaned session ${session.id}:`, expireErr);
     }
-    const released = await releaseCartSpotHolds(supabase, cart_id);
+    const released = await releaseCartSpotHolds(supabase, attempt);
     if (released.error) {
       console.error(`Could not release holds for cart ${cart_id} (${reason}): ${released.error}`);
     }
@@ -940,11 +960,17 @@ async function handleEntryCheckout(
     return corsResponse(corsHeaders, { error: 'Could not start checkout. Please try again.' }, 500);
   }
 
-  // The hold now ends exactly when the page does. If this write fails the
-  // hold keeps the expiry the page was created with, which Stripe echoes back.
-  const attached = await attachCartSpotHolds(supabase, cart_id, session.id, sessionExpiresAtEpoch);
-  if (attached.error) {
-    console.error(`Could not tie holds to session ${session.id}: ${attached.error}`);
+  // The holds now end exactly when the page does. A page is handed out only
+  // when every line this attempt held is tied to it: an unheld page could be
+  // paid for a spot someone else takes.
+  const attached = await attachCartSpotHolds(supabase, attempt, session.id, sessionExpiresAtEpoch);
+  if (!pageIsFullyHeld(attached, heldCount)) {
+    console.error(
+      `Holds for session ${session.id} not tied (${attached.tied ?? 'none'}/${heldCount}` +
+        `${attached.error ? `: ${attached.error}` : ''}) — expiring session`
+    );
+    await abandonSession('holds not tied');
+    return corsResponse(corsHeaders, { error: CART_HOLD_UNAVAILABLE_MESSAGE }, 503);
   }
 
   console.log(`Created entry checkout session ${session.id} for cart ${cart_id}`);

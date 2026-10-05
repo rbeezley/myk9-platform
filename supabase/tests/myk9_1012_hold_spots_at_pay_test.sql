@@ -28,12 +28,17 @@
 --       converts, nothing is unserved and the latch closes with no
 --       cart_overflow refund request.
 --   H7  An expired hold no longer counts: the spot is free again.
---   H8  Release: a new Pay replaces the old holds, a link moving off the
+--   H8  Release: a new Pay replaces the retired page's holds, a link moving off the
 --       session releases that session's holds, a closed cart releases all, a
 --       deleted line takes its hold with it, and checkout_failed releases.
 --   H9  Guards: no hold on a cart that is not active, or with an expiry
 --       outside the next 24 hours; attach refuses a session the cart does
 --       not link.
+--   H10 ATTEMPT OWNERSHIP (Codex P1 on #2755): two Pay attempts on one cart
+--       both hold before either records its page. The loser's cleanup and an
+--       earlier attempt's late failure give back only their own holds; the
+--       winner's page keeps its spots. attach never adopts another attempt's
+--       holds, and an unattached hold lives at most 5 minutes.
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
 
@@ -94,7 +99,7 @@ RETURNS text LANGUAGE sql AS $f$
                                || COALESCE(h.stripe_checkout_session_id, '-'),
                              ' ' ORDER BY right(h.cart_item_id::text, 3)), '')
     FROM public.cart_spot_holds h
-   WHERE h.cart_id = p_cart AND h.released_at IS NULL
+   WHERE h.cart_id = p_cart AND h.released_at IS NULL AND h.expires_at > now()
 $f$;
 
 -- ---------------------------------------------------------------------------
@@ -105,9 +110,9 @@ DECLARE
   v_fn text;
 BEGIN
   FOREACH v_fn IN ARRAY ARRAY[
-    'public.hold_cart_spots(uuid, timestamptz, text)',
-    'public.attach_cart_spot_holds(uuid, text, timestamptz)',
-    'public.release_cart_spot_holds(uuid, text)',
+    'public.hold_cart_spots(uuid, uuid, timestamptz, text, text)',
+    'public.attach_cart_spot_holds(uuid, uuid, text, timestamptz)',
+    'public.release_cart_spot_holds(uuid, uuid, text)',
     'public.held_spot_count(uuid[], uuid)',
     'public.class_entry_availability(uuid[], uuid)',
     'public.class_judge_day_capacity(uuid[], uuid)',
@@ -235,7 +240,7 @@ DO $$
 BEGIN
   PERFORM pg_temp.expect_eq(
     (SELECT string_agg(right(r.cart_item_id::text, 3) || ':' || r.outcome, ' ' ORDER BY r.cart_item_id)
-       FROM public.hold_cart_spots(pg_temp.id('601'), now() + interval '40 minutes') r),
+       FROM public.hold_cart_spots(pg_temp.id('601'), pg_temp.id('901'), now() + interval '40 minutes') r),
     '701:held 702:held 703:held', 'H2 Ann''s Pay holds every line');
 END;
 $$;
@@ -258,8 +263,8 @@ DECLARE
   r record;
   v_rows integer;
 BEGIN
-  SELECT count(*) INTO v_rows FROM public.hold_cart_spots(pg_temp.id('611'), now() + interval '40 minutes');
-  SELECT * INTO r FROM public.hold_cart_spots(pg_temp.id('611'), now() + interval '40 minutes');
+  SELECT count(*) INTO v_rows FROM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('911'), now() + interval '40 minutes');
+  SELECT * INTO r FROM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('911'), now() + interval '40 minutes');
   PERFORM pg_temp.expect_eq(
     v_rows || ' ' || r.outcome || ' ' || right(r.cart_item_id::text, 3) || ' '
       || right(r.class_id::text, 3) || ' ' || right(r.dog_id::text, 3) || ' '
@@ -386,8 +391,8 @@ RESET ROLE;
 -- ---------------------------------------------------------------------------
 SET LOCAL ROLE service_role;
 SELECT pg_temp.expect_sqlstate(
-  format($q$SELECT public.attach_cart_spot_holds(%L, 'cs_test_1012_a', now() + interval '31 minutes')$q$,
-         pg_temp.id('601')),
+  format($q$SELECT public.attach_cart_spot_holds(%L, %L, 'cs_test_1012_a', now() + interval '31 minutes')$q$,
+         pg_temp.id('601'), pg_temp.id('901')),
   '55000', 'H9 attach refuses a session the cart does not link');
 
 UPDATE public.entry_carts SET stripe_checkout_session_id = 'cs_test_1012_a'
@@ -396,13 +401,19 @@ UPDATE public.entry_carts SET stripe_checkout_session_id = 'cs_test_1012_a'
 DO $$
 BEGIN
   PERFORM pg_temp.expect_eq(
-    public.attach_cart_spot_holds(pg_temp.id('601'), 'cs_test_1012_a', now() + interval '31 minutes')::text,
+    (SELECT string_agg(DISTINCT (h.expires_at = now() + interval '5 minutes')::text, ',')
+       FROM public.cart_spot_holds h
+      WHERE h.cart_id = pg_temp.id('601') AND h.released_at IS NULL),
+    'true', 'H5 before its page exists a hold lives 5 minutes, not the 40 asked for');
+  PERFORM pg_temp.expect_eq(
+    public.attach_cart_spot_holds(pg_temp.id('601'), pg_temp.id('901'), 'cs_test_1012_a',
+                                  now() + interval '31 minutes')::text,
     '3', 'H5 attach ties all three holds to the session');
   PERFORM pg_temp.expect_eq(
     (SELECT string_agg(DISTINCT (h.expires_at = now() + interval '31 minutes')::text, ',')
        FROM public.cart_spot_holds h
       WHERE h.cart_id = pg_temp.id('601') AND h.released_at IS NULL),
-    'true', 'H5 every hold now expires exactly when the page does, not at the earlier 40 minutes');
+    'true', 'H5 every hold now expires exactly when the page does');
   PERFORM pg_temp.expect_eq(pg_temp.live_holds(pg_temp.id('601')),
     '701:cs_test_1012_a 702:cs_test_1012_a 703:cs_test_1012_a', 'H5 the holds name the session');
 END;
@@ -474,7 +485,7 @@ DECLARE
 BEGIN
   PERFORM pg_temp.expect_eq(
     (SELECT string_agg(right(h.cart_item_id::text, 3) || ':' || h.outcome, ' ' ORDER BY h.cart_item_id)
-       FROM public.hold_cart_spots(pg_temp.id('611'), now() + interval '31 minutes') h),
+       FROM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('912'), now() + interval '31 minutes') h),
     '712:held 713:held', 'H7 Bea holds C3 and C5''s one spot');
   PERFORM pg_temp.expect_eq(
     (SELECT a.class_full::text FROM public.class_entry_availability(ARRAY[pg_temp.id('305')]) a),
@@ -498,19 +509,35 @@ $$;
 -- ---------------------------------------------------------------------------
 DO $$
 BEGIN
-  PERFORM public.hold_cart_spots(pg_temp.id('611'), now() + interval '31 minutes');
-  PERFORM pg_temp.expect_eq(
-    (SELECT string_agg(h.release_reason, ',') FROM public.cart_spot_holds h
-      WHERE h.cart_id = pg_temp.id('611') AND h.released_at IS NOT NULL),
-    'replaced,replaced', 'H8 a new Pay replaces the old (expired) holds');
+  PERFORM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('913'), now() + interval '31 minutes');
   PERFORM pg_temp.expect_eq(pg_temp.live_holds(pg_temp.id('611')), '712:- 713:-',
-    'H8 the new Pay holds both lines again');
+    'H8 a new Pay holds both lines again: the expired holds no longer count');
 END;
 $$;
 
 UPDATE public.entry_carts SET stripe_checkout_session_id = 'cs_test_1012_b'
  WHERE id = pg_temp.id('611');
-SELECT public.attach_cart_spot_holds(pg_temp.id('611'), 'cs_test_1012_b', now() + interval '31 minutes');
+SELECT public.attach_cart_spot_holds(pg_temp.id('611'), pg_temp.id('913'), 'cs_test_1012_b',
+                                     now() + interval '31 minutes');
+DO $$
+BEGIN
+  -- The next Pay retires page b (resolveCheckoutSession expired it) and names it.
+  PERFORM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('914'), now() + interval '31 minutes',
+                                 NULL, 'cs_test_1012_b');
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*)::text FROM public.cart_spot_holds h
+      WHERE h.cart_id = pg_temp.id('611') AND h.stripe_checkout_session_id = 'cs_test_1012_b'
+        AND h.release_reason = 'replaced'),
+    '2', 'H8 a new Pay releases the retired page''s holds');
+  PERFORM pg_temp.expect_eq(pg_temp.live_holds(pg_temp.id('611')), '712:- 713:-',
+    'H8 and holds the lines afresh for its own page');
+END;
+$$;
+
+UPDATE public.entry_carts SET stripe_checkout_session_id = 'cs_test_1012_c'
+ WHERE id = pg_temp.id('611');
+SELECT public.attach_cart_spot_holds(pg_temp.id('611'), pg_temp.id('914'), 'cs_test_1012_c',
+                                     now() + interval '31 minutes');
 UPDATE public.entry_carts SET stripe_checkout_session_id = NULL WHERE id = pg_temp.id('611');
 DO $$
 BEGIN
@@ -521,26 +548,26 @@ BEGIN
 END;
 $$;
 
-SELECT public.hold_cart_spots(pg_temp.id('611'), now() + interval '31 minutes');
+SELECT public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('915'), now() + interval '31 minutes');
 DELETE FROM public.entry_cart_items WHERE id = pg_temp.id('713');
 DO $$
 BEGIN
   PERFORM pg_temp.expect_eq(pg_temp.live_holds(pg_temp.id('611')) || '|'
       || (SELECT count(*) FROM public.cart_spot_holds h WHERE h.cart_item_id = pg_temp.id('713')),
     '712:-|0', 'H8 a deleted cart line takes its hold with it');
-  PERFORM pg_temp.expect_eq(public.release_cart_spot_holds(pg_temp.id('611'))::text || ' '
-      || pg_temp.live_holds(pg_temp.id('611')),
-    '1 ', 'H8 checkout_failed releases the cart''s live holds');
+  PERFORM pg_temp.expect_eq(public.release_cart_spot_holds(pg_temp.id('611'), pg_temp.id('915'))::text
+      || ' ' || pg_temp.live_holds(pg_temp.id('611')),
+    '1 ', 'H8 checkout_failed releases the attempt''s live holds');
 END;
 $$;
 
-SELECT public.hold_cart_spots(pg_temp.id('611'), now() + interval '31 minutes');
+SELECT public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('916'), now() + interval '31 minutes');
 UPDATE public.entry_carts SET status = 'expired' WHERE id = pg_temp.id('611');
 DO $$
 BEGIN
   PERFORM pg_temp.expect_eq(pg_temp.live_holds(pg_temp.id('611')) || '|'
       || (SELECT count(*) FROM public.cart_spot_holds h
-           WHERE h.cart_id = pg_temp.id('611') AND h.release_reason = 'cart_closed'),
+           WHERE h.attempt_id = pg_temp.id('916') AND h.release_reason = 'cart_closed'),
     '|1', 'H8 a cart that leaves checkout releases every hold');
 END;
 $$;
@@ -549,18 +576,92 @@ $$;
 -- H9. Guards
 -- ---------------------------------------------------------------------------
 SELECT pg_temp.expect_sqlstate(
-  format($q$SELECT public.hold_cart_spots(%L, now() + interval '31 minutes')$q$, pg_temp.id('601')),
+  format($q$SELECT public.hold_cart_spots(%L, %L, now() + interval '31 minutes')$q$,
+         pg_temp.id('601'), pg_temp.id('917')),
   '55000', 'H9 no hold on a cart that is not active (Ann''s is submitted)');
 UPDATE public.entry_carts SET status = 'active' WHERE id = pg_temp.id('611');
 SELECT pg_temp.expect_sqlstate(
-  format($q$SELECT public.hold_cart_spots(%L, now())$q$, pg_temp.id('611')),
+  format($q$SELECT public.hold_cart_spots(%L, %L, now())$q$, pg_temp.id('611'), pg_temp.id('917')),
   '22023', 'H9 no hold that has already ended');
 SELECT pg_temp.expect_sqlstate(
-  format($q$SELECT public.hold_cart_spots(%L, now() + interval '25 hours')$q$, pg_temp.id('611')),
+  format($q$SELECT public.hold_cart_spots(%L, %L, now() + interval '25 hours')$q$,
+         pg_temp.id('611'), pg_temp.id('917')),
   '22023', 'H9 no hold past a Stripe page''s 24-hour limit');
 SELECT pg_temp.expect_sqlstate(
-  format($q$SELECT public.release_cart_spot_holds(%L, 'converted')$q$, pg_temp.id('611')),
+  format($q$SELECT public.hold_cart_spots(%L, NULL, now() + interval '31 minutes')$q$, pg_temp.id('611')),
+  '22023', 'H9 no hold without an attempt');
+SELECT pg_temp.expect_sqlstate(
+  format($q$SELECT public.release_cart_spot_holds(%L, %L, 'converted')$q$,
+         pg_temp.id('611'), pg_temp.id('917')),
   '22023', 'H9 release_cart_spot_holds only gives spots back as checkout_failed');
+
+-- ---------------------------------------------------------------------------
+-- H10. Attempt ownership: concurrent Pays on one cart
+-- ---------------------------------------------------------------------------
+-- The loser's cleanup: winner W and loser L both hold B2 before either links
+-- a page; W wins the cart's optimistic update, L gives back what it took.
+DO $$
+BEGIN
+  PERFORM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('921'), now() + interval '31 minutes');
+  PERFORM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('922'), now() + interval '31 minutes');
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*)::text FROM public.cart_spot_holds h
+      WHERE h.cart_id = pg_temp.id('611') AND h.released_at IS NULL AND h.expires_at > now()),
+    '2', 'H10 a second attempt does not release the first one''s in-flight holds');
+END;
+$$;
+UPDATE public.entry_carts SET stripe_checkout_session_id = 'cs_test_1012_win'
+ WHERE id = pg_temp.id('611');
+DO $$
+BEGIN
+  PERFORM pg_temp.expect_eq(
+    public.attach_cart_spot_holds(pg_temp.id('611'), pg_temp.id('921'), 'cs_test_1012_win',
+                                  now() + interval '31 minutes')::text,
+    '1', 'H10 the winner ties only its own hold to its page');
+  PERFORM pg_temp.expect_eq(
+    public.release_cart_spot_holds(pg_temp.id('611'), pg_temp.id('922'))::text,
+    '1', 'H10 the loser''s cleanup releases only the loser''s hold');
+  PERFORM pg_temp.expect_eq(pg_temp.live_holds(pg_temp.id('611')), '712:cs_test_1012_win',
+    'H10 the winner''s page keeps its spot after the loser cleans up');
+END;
+$$;
+
+-- The stale earlier failure: E holds, N holds and wins; E's Stripe call fails
+-- late and E cleans up.
+DO $$
+BEGIN
+  PERFORM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('923'), now() + interval '31 minutes',
+                                 NULL, 'cs_test_1012_win');
+  PERFORM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('924'), now() + interval '31 minutes');
+END;
+$$;
+UPDATE public.entry_carts SET stripe_checkout_session_id = 'cs_test_1012_new'
+ WHERE id = pg_temp.id('611');
+DO $$
+BEGIN
+  PERFORM pg_temp.expect_eq(
+    public.attach_cart_spot_holds(pg_temp.id('611'), pg_temp.id('924'), 'cs_test_1012_new',
+                                  now() + interval '31 minutes')::text,
+    '1', 'H10 the newer attempt ties its hold to its page');
+  PERFORM pg_temp.expect_eq(
+    public.release_cart_spot_holds(pg_temp.id('611'), pg_temp.id('923'))::text,
+    '1', 'H10 the earlier attempt''s late failure releases only its own hold');
+  PERFORM pg_temp.expect_eq(pg_temp.live_holds(pg_temp.id('611')), '712:cs_test_1012_new',
+    'H10 the newer attempt''s page keeps its spot');
+  PERFORM pg_temp.expect_eq(
+    public.attach_cart_spot_holds(pg_temp.id('611'), pg_temp.id('923'), 'cs_test_1012_new',
+                                  now() + interval '31 minutes')::text,
+    '0', 'H10 attach never adopts another attempt''s holds');
+  -- An attempt whose 5 minutes ran out before attach gets nothing back.
+  PERFORM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('925'), now() + interval '31 minutes');
+  UPDATE public.cart_spot_holds h SET expires_at = now() - interval '1 second'
+   WHERE h.attempt_id = pg_temp.id('925');
+  PERFORM pg_temp.expect_eq(
+    public.attach_cart_spot_holds(pg_temp.id('611'), pg_temp.id('925'), 'cs_test_1012_new',
+                                  now() + interval '31 minutes')::text,
+    '0', 'H10 attach never revives an expired hold');
+END;
+$$;
 RESET ROLE;
 
 ROLLBACK;

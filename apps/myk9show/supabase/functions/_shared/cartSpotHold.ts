@@ -57,17 +57,37 @@ export function epochToIso(epochSeconds: number): string {
   return new Date(epochSeconds * 1000).toISOString();
 }
 
-/** Hold every new line of the cart until `expiresAtEpoch`, or hold nothing. */
+/**
+ * One Pay click. Every hold it takes carries `attemptId`, and attach and
+ * release touch only that attempt's holds (Codex P1 on #2755): two Pay
+ * requests for one cart can both hold before either records its page, and the
+ * loser's cleanup must not take the winner's spots with it.
+ */
+export interface PayAttempt {
+  cartId: string;
+  attemptId: string;
+}
+
+export interface HoldTarget {
+  /** The page these holds are for when it already exists (a reused page). */
+  sessionId?: string | null;
+  /** A page this Pay has retired (expired, or is re-holding): its holds go back. */
+  retiredSessionId?: string | null;
+}
+
+/** Hold every new line of the cart for this attempt, or hold nothing. */
 export async function holdCartSpots(
   db: HoldRpcClient,
-  cartId: string,
+  attempt: PayAttempt,
   expiresAtEpoch: number,
-  sessionId: string | null = null
+  target: HoldTarget = {}
 ): Promise<CartHoldResult> {
   const { data, error } = await db.rpc('hold_cart_spots', {
-    p_cart_id: cartId,
+    p_cart_id: attempt.cartId,
+    p_attempt_id: attempt.attemptId,
     p_expires_at: epochToIso(expiresAtEpoch),
-    p_checkout_session_id: sessionId,
+    p_checkout_session_id: target.sessionId ?? null,
+    p_release_session_id: target.retiredSessionId ?? null,
   });
   if (error) return { kind: 'error', message: error.message ?? 'hold_cart_spots failed' };
   const rows = (Array.isArray(data) ? data : []) as HoldRow[];
@@ -87,28 +107,43 @@ export async function holdCartSpots(
   return { kind: 'held', heldCount: rows.length };
 }
 
-/** Tie the cart's holds to the page it now links, ending when the page does. */
+/**
+ * Tie this attempt's holds to the page the cart now links, ending when the
+ * page does. `tied` is how many it tied; the page may be handed out only when
+ * that is every line the attempt held (`pageIsFullyHeld`).
+ */
 export async function attachCartSpotHolds(
   db: HoldRpcClient,
-  cartId: string,
+  attempt: PayAttempt,
   sessionId: string,
   sessionExpiresAtEpoch: number
-): Promise<{ error: string | null }> {
-  const { error } = await db.rpc('attach_cart_spot_holds', {
-    p_cart_id: cartId,
+): Promise<{ tied: number | null; error: string | null }> {
+  const { data, error } = await db.rpc('attach_cart_spot_holds', {
+    p_cart_id: attempt.cartId,
+    p_attempt_id: attempt.attemptId,
     p_checkout_session_id: sessionId,
     p_expires_at: epochToIso(sessionExpiresAtEpoch),
   });
-  return { error: error ? (error.message ?? 'attach_cart_spot_holds failed') : null };
+  if (error) return { tied: null, error: error.message ?? 'attach_cart_spot_holds failed' };
+  return { tied: typeof data === 'number' ? data : null, error: null };
 }
 
-/** Give the spots back when the page could not be opened or recorded. */
+/** A page is safe to hand out only when every line this attempt held is tied to it. */
+export function pageIsFullyHeld(
+  attach: { tied: number | null; error: string | null },
+  heldCount: number
+): boolean {
+  return attach.error === null && attach.tied === heldCount;
+}
+
+/** Give back THIS attempt's spots when its page could not be opened, recorded or tied. */
 export async function releaseCartSpotHolds(
   db: HoldRpcClient,
-  cartId: string
+  attempt: PayAttempt
 ): Promise<{ error: string | null }> {
   const { error } = await db.rpc('release_cart_spot_holds', {
-    p_cart_id: cartId,
+    p_cart_id: attempt.cartId,
+    p_attempt_id: attempt.attemptId,
     p_reason: 'checkout_failed',
   });
   return { error: error ? (error.message ?? 'release_cart_spot_holds failed') : null };
@@ -136,22 +171,25 @@ export const CART_HOLD_UNAVAILABLE_MESSAGE =
   'We could not hold your spots just now. Nothing was charged. Please try again in a moment.';
 
 /**
- * Hold first, then open the page with the hold's expiry. A page that fails to
- * open gives its spots straight back.
+ * Hold first, then open the page with the hold's expiry. `retiredSessionId`
+ * is the cart's previous page, which resolveCheckoutSession has already
+ * retired by the time it asks for a replacement. A page that fails to open
+ * gives this attempt's spots straight back.
  */
 export async function createSessionUnderHold<T>(
   db: HoldRpcClient,
-  cartId: string,
+  attempt: PayAttempt,
   holdUntilEpoch: number,
+  retiredSessionId: string | null,
   createSession: (expiresAtEpoch: number) => Promise<T>
-): Promise<T> {
-  const hold = await holdCartSpots(db, cartId, holdUntilEpoch);
+): Promise<{ session: T; heldCount: number }> {
+  const hold = await holdCartSpots(db, attempt, holdUntilEpoch, { retiredSessionId });
   if (hold.kind === 'refused') throw new CartHoldRefusedError(hold.lines);
   if (hold.kind === 'error') throw new CartHoldUnavailableError(hold.message);
   try {
-    return await createSession(holdUntilEpoch);
+    return { session: await createSession(holdUntilEpoch), heldCount: hold.heldCount };
   } catch (error) {
-    await releaseCartSpotHolds(db, cartId);
+    await releaseCartSpotHolds(db, attempt);
     throw error;
   }
 }

@@ -15,7 +15,9 @@
 -- Row fields mirror `entries` columns. `deleted` stands for deleted_at. The
 -- fixture lists rows in the order the TypeScript side receives them; this file
 -- inserts them in REVERSE so SQL's tie-break (run order, then armband) cannot
--- lean on insertion order. `expected` is the place the caller sees: null when
+-- lean on insertion order. The tied a24/a25 pair is listed with the HIGHER
+-- armband first, so the TypeScript side passes only through its own tie-break
+-- (compareByRunOrder), never through input order. `expected` is the place the caller sees: null when
 -- the row is not waiting, or its own run_order is unset (NULL or 0).
 
 begin;
@@ -71,8 +73,8 @@ from jsonb_array_elements($fixture$
   {"key": "a20", "class": "A", "armband": " 4x",  "run_order": 0,    "expected": null},
   {"key": "a21", "class": "A", "armband": "121",  "run_order": 11,   "entry_status": "completed", "expected": 8},
   {"key": "a22", "class": "A", "armband": "122",  "run_order": 12,   "entry_status": "draft", "expected": 9},
-  {"key": "a25", "class": "A", "armband": "201",  "run_order": 13,   "expected": 10},
   {"key": "a24", "class": "A", "armband": "205",  "run_order": 13,   "expected": 11},
+  {"key": "a25", "class": "A", "armband": "201",  "run_order": 13,   "expected": 10},
   {"key": "a26", "class": "A", "armband": "126",  "run_order": 14,   "check_in_status": null, "expected": 12},
   {"key": "a23", "class": "A", "armband": "123",  "run_order": 15,   "result_status": "qualified", "expected": 13},
   {"key": "b2",  "class": "B", "armband": "302",  "run_order": 2,    "expected": 1}

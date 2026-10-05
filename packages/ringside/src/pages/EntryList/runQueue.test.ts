@@ -130,6 +130,39 @@ describe('isInQueue / compareByRunOrder', () => {
   });
 });
 
+// MYK9-995: run order is not unique per class, so equal keys must break the
+// same way on every device and on the server (get_my_entry_queue_places).
+describe('compareByRunOrder ties', () => {
+  it('breaks a run-order tie by armband, whatever order the rows arrive in', () => {
+    const nine = entry({ id: 'x-nine', armband: 9, exhibitorOrder: 4 });
+    const three = entry({ id: 'x-three', armband: 3, exhibitorOrder: 4 });
+    expect(pendingByRunOrder([nine, three]).map(e => e.id)).toEqual(['x-three', 'x-nine']);
+    expect(pendingByRunOrder([three, nine]).map(e => e.id)).toEqual(['x-three', 'x-nine']);
+  });
+
+  it('breaks a tie on run order AND armband by id', () => {
+    const b = entry({ id: 'b', armband: 7, exhibitorOrder: 2 });
+    const a = entry({ id: 'a', armband: 7, exhibitorOrder: 2 });
+    expect(pendingByRunOrder([b, a]).map(e => e.id)).toEqual(['a', 'b']);
+  });
+
+  it('breaks an armband-fallback tie (one ordered, one not) by armband', () => {
+    // Run order 5 and an unordered dog wearing armband 5 share key 5.
+    const ordered = entry({ id: 'o', armband: 40, exhibitorOrder: 5 });
+    const unordered = entry({ id: 'u', armband: 5 });
+    expect(pendingByRunOrder([ordered, unordered]).map(e => e.id)).toEqual(['u', 'o']);
+  });
+
+  it('leaves untied ordering exactly as before', () => {
+    const rows = [
+      entry({ id: 'z', armband: 1, exhibitorOrder: 30 }),
+      entry({ id: 'y', armband: 99, exhibitorOrder: 10 }),
+      entry({ id: 'x', armband: 20 }),
+    ];
+    expect(pendingByRunOrder(rows).map(e => e.id)).toEqual(['y', 'x', 'z']);
+  });
+});
+
 describe('place in line (MYK9-992)', () => {
   // Realistic post-reorder class: stored numbers start above 1 and have gaps.
   const klass = [

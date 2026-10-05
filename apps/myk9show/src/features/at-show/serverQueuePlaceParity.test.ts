@@ -81,7 +81,7 @@ describe('server place in line matches the ringside queue (shared fixture)', () 
     expect(fixture.length).toBeGreaterThanOrEqual(20);
     // Absolute anchors, so a shared mistake on both sides cannot pass.
     expect(fixture.filter(row => row.expected !== null).map(row => row.expected)).toEqual([
-      4, 2, 5, 6, 7, 8, 9, 10, 11, 12, 13, 1,
+      4, 2, 5, 6, 7, 8, 9, 11, 10, 12, 13, 1,
     ]);
   });
 

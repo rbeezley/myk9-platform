@@ -42,8 +42,11 @@
 --                 AND NOT in the ring (is_in_ring OR check_in_status = 'in-ring')
 --     order key = run_order || armband || 0 (compareByRunOrder: a NULL or 0
 --                 run_order falls back to the armband, parsed like parseInt)
--- Ties on the key break by armband, then id; the client's stable sort keeps
--- replica order there, which is not a rule at all.
+-- Ties on the key break by armband, then id, exactly as compareByRunOrder
+-- does. Ties are real: entries_class_run_order_idx is not unique, and on
+-- 2026-10-05 one live class had two runnable dogs sharing a key. Before this
+-- change the client's stable sort kept replica order there, which differs per
+-- device; the comparator now carries the same tie-break.
 --
 -- Parity is pinned by a SHARED FIXTURE, not by comparing source text: the
 -- fixture block in supabase/tests/myk9_995_my_entry_queue_places_test.sql is

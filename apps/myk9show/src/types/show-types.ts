@@ -142,6 +142,11 @@ export interface Show {
   acceptCheckPayments?: boolean | undefined;
   acceptCashPayments?: boolean | undefined;
   onlineEntriesEnabled?: boolean | undefined;
+  /**
+   * `shows.allow_waitlist`: "Allow wait lists" for the whole show. A class with no setting of
+   * its own follows it (MYK9-1019). Written only by the Waitlist tab's settings card.
+   */
+  allowsWaitlist?: boolean | undefined;
   /** shows.version as last read from the server (MYK9-979). */
   serverVersion?: number | undefined;
 

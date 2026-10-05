@@ -49,10 +49,11 @@ function renderToolbar(
 }
 
 describe('EntryManagementViewToolbar filters', () => {
-  it('reads "Showing all" with no Show all button when nothing narrows the list', () => {
+  it('stays quiet, with no Show all button, when nothing narrows the list', () => {
     renderToolbar();
 
-    expect(screen.getByRole('status')).toHaveTextContent('Showing all 214 registrations.');
+    // The live region stays mounted but empty, so the first search is still announced.
+    expect(screen.getByRole('status').textContent).toBe('');
     expect(screen.queryByRole('button', { name: /show all/i })).not.toBeInTheDocument();
   });
 

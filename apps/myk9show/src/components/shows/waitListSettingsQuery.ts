@@ -8,6 +8,7 @@
 import { queryOptions } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import type { WaitListShowConfig, MailInStrategy } from '@/types/waitlist-types';
+import { waitListSettingsKey, type WaitListSettings } from './useWaitListSwitch';
 
 interface ShowCapacityRow {
   default_judge_day_capacity: number | null;
@@ -18,12 +19,7 @@ interface ShowCapacityRow {
   mail_in_release_date: string | null;
   waitlist_payment_deadline_hours: number | null;
   waitlist_auto_offer: boolean | null;
-}
-
-export interface WaitListSettings {
-  config: WaitListShowConfig;
-  /** shows.waitlist_auto_offer; the database default (true) is today's behaviour. */
-  autoOffer: boolean;
+  allow_waitlist: boolean | null;
 }
 
 function rowToConfig(row: ShowCapacityRow): WaitListShowConfig {
@@ -38,8 +34,6 @@ function rowToConfig(row: ShowCapacityRow): WaitListShowConfig {
   };
 }
 
-export const waitListSettingsKey = (showId: string) => ['waitlist-settings', showId] as const;
-
 export const waitListSettingsQueryOptions = (showId: string) =>
   queryOptions({
     queryKey: waitListSettingsKey(showId),
@@ -47,7 +41,7 @@ export const waitListSettingsQueryOptions = (showId: string) =>
       const { data: row, error } = await supabase
         .from('shows')
         .select(
-          'default_judge_day_capacity, mail_in_strategy, mail_in_value, mail_in_deadline, mail_in_auto_release, mail_in_release_date, waitlist_payment_deadline_hours, waitlist_auto_offer'
+          'default_judge_day_capacity, mail_in_strategy, mail_in_value, mail_in_deadline, mail_in_auto_release, mail_in_release_date, waitlist_payment_deadline_hours, waitlist_auto_offer, allow_waitlist'
         )
         .eq('id', showId)
         .single();
@@ -57,6 +51,7 @@ export const waitListSettingsQueryOptions = (showId: string) =>
       return {
         config: rowToConfig(capacityRow),
         autoOffer: capacityRow.waitlist_auto_offer ?? true,
+        allowWaitlists: capacityRow.allow_waitlist ?? false,
       };
     },
     enabled: !!showId,

@@ -241,7 +241,6 @@ export function cartItemsFromFeeBreakdown(
         name: klass.className,
         level: null,
         trial_id: '',
-        allow_waitlist: null,
       },
     }))
   );

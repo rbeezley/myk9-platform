@@ -1,12 +1,13 @@
 /**
  * WaitListSettingsCard
  *
- * Configures wait list capacity and mail-in reservation strategy for a show,
- * and whether open spots are offered automatically (MYK9-1003).
+ * Configures whether the show takes wait lists at all (MYK9-1019), whether open
+ * spots are offered automatically (MYK9-1003), and wait list capacity and the
+ * mail-in reservation strategy.
  * The read lives in `waitListSettingsQuery.ts`, shared with the offer dialog.
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useContext } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -22,13 +23,12 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/lib/supabase';
 import { judgeDayCapacityKey } from '@/hooks/queries/useJudgeDayCapacity';
+import { classAvailabilityQueryKey } from '@/hooks/useClassAvailability';
+import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 import type { WaitListShowConfig, MailInStrategy } from '@/types/waitlist-types';
-import {
-  waitListSettingsKey,
-  waitListSettingsQueryOptions,
-  type WaitListSettings,
-} from './waitListSettingsQuery';
 import type { TablesUpdate } from '@/types/supabase';
+import { waitListSettingsQueryOptions } from './waitListSettingsQuery';
+import { useWaitListSwitch, waitListSettingsKey, type WaitListSwitch } from './useWaitListSwitch';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -36,6 +36,51 @@ import type { TablesUpdate } from '@/types/supabase';
 
 interface WaitListSettingsCardProps {
   showId: string;
+}
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+/** One self-saving switch, with what its position means and a calm failure line. */
+function SettingSwitch({
+  id,
+  label,
+  help,
+  control,
+  disabled,
+}: {
+  id: string;
+  label: string;
+  help: string;
+  control: WaitListSwitch;
+  disabled: boolean;
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-3">
+        <Switch
+          id={id}
+          aria-describedby={`${id}-help`}
+          checked={control.checked}
+          disabled={disabled || control.isPending}
+          onCheckedChange={checked => control.save(checked)}
+        />
+        {/* The label is the switch's 44px target (docs/INTENT.md § Accessibility First). */}
+        <Label htmlFor={id} className="flex min-h-11 items-center">
+          {label}
+        </Label>
+      </div>
+      <p className="text-sm text-muted-foreground" id={`${id}-help`}>
+        {help}
+      </p>
+      {control.isError && (
+        <p className="text-sm text-destructive" role="alert">
+          Couldn't save that change. Check your connection and try again.
+        </p>
+      )}
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -66,29 +111,22 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
     }
   }, [data]);
 
-  // The automatic-offer switch saves on its own, and only its own column: it
-  // is a mode, not a form field, and must never carry (or wait on) the
-  // capacity edits below. `pendingAutoOffer` shows the new position while the
-  // save is in flight; a failed save falls back to the stored value.
-  const [pendingAutoOffer, setPendingAutoOffer] = useState<boolean | null>(null);
-  const autoOfferMutation = useMutation({
-    mutationFn: async (enabled: boolean) => {
-      const { error } = await supabase
-        .from('shows')
-        .update({ waitlist_auto_offer: enabled })
-        .eq('id', showId);
-      if (error) throw error;
-    },
-    onMutate: enabled => setPendingAutoOffer(enabled),
-    // Write the saved value into the cache before dropping the pending one, so
-    // the switch never flickers back to the old position while a refetch runs.
-    onSuccess: (_result, enabled) =>
-      queryClient.setQueryData<WaitListSettings>(waitListSettingsKey(showId), current =>
-        current ? { ...current, autoOffer: enabled } : current
-      ),
-    onSettled: () => setPendingAutoOffer(null),
-  });
-  const autoOffer = pendingAutoOffer ?? data?.autoOffer ?? true;
+  // Optional: the provider wraps the app; a test without it simply skips the pull.
+  const syncTable = useContext(ReplicationSyncContext)?.syncTable;
+  const allowWaitlists = useWaitListSwitch(
+    showId,
+    'allowWaitlists',
+    data?.allowWaitlists,
+    false,
+    () => {
+      // Every class without its own setting changed with it: the wizard's and
+      // the cart's Full / wait-list reads, and the show row Edit class reads
+      // the inherited value from.
+      void queryClient.invalidateQueries({ queryKey: classAvailabilityQueryKey(showId) });
+      void syncTable?.('shows');
+    }
+  );
+  const autoOffer = useWaitListSwitch(showId, 'autoOffer', data?.autoOffer, true);
 
   const mutation = useMutation({
     mutationFn: async (config: WaitListShowConfig) => {
@@ -128,33 +166,36 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
       <CardHeader>
         <CardTitle>Wait List Settings</CardTitle>
         <CardDescription>
-          Choose how open spots are offered, and set judge daily capacity and mail-in rules.
+          Choose whether full classes take a wait list and how open spots are offered, and set judge
+          daily capacity and mail-in rules.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* The show-wide wait list switch (MYK9-1019) */}
+        <SettingSwitch
+          id="allow-waitlists"
+          label="Allow wait lists"
+          help={
+            allowWaitlists.checked
+              ? "When a class or a judge's day is full, new entries join the wait list. A class set on its own in Edit class keeps its own setting."
+              : "When a class or a judge's day is full, new entries are turned away. A class set on its own in Edit class keeps its own setting."
+          }
+          control={allowWaitlists}
+          disabled={isLoading}
+        />
+
         {/* Automatic offers (MYK9-1003) */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            <Switch
-              id="auto-offer"
-              aria-describedby="auto-offer-help"
-              checked={autoOffer}
-              disabled={isLoading || autoOfferMutation.isPending}
-              onCheckedChange={checked => autoOfferMutation.mutate(checked)}
-            />
-            <Label htmlFor="auto-offer">Offer open spots automatically</Label>
-          </div>
-          <p className="text-sm text-muted-foreground" id="auto-offer-help">
-            {autoOffer
+        <SettingSwitch
+          id="auto-offer"
+          label="Offer open spots automatically"
+          help={
+            autoOffer.checked
               ? 'When a spot opens, the next dog in line is offered it within 15 minutes, and you get a notification each time.'
-              : 'You offer every open spot yourself, from the queue below.'}
-          </p>
-          {autoOfferMutation.isError && (
-            <p className="text-sm text-destructive" role="alert">
-              Couldn't save that change. Check your connection and try again.
-            </p>
-          )}
-        </div>
+              : 'You offer every open spot yourself, from the queue below.'
+          }
+          control={autoOffer}
+          disabled={isLoading}
+        />
 
         {/* Judge Daily Capacity */}
         <div className="space-y-1">

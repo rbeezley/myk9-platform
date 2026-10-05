@@ -3,6 +3,12 @@ import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ShowManagementShell, type ShowManagementShellProps } from '../ShowManagementShell';
+import {
+  SHOW_HEADER_CLASS,
+  SHOW_HEADER_HEIGHT_VAR,
+  SHOW_TAB_STRIP_CLASS,
+} from '../showStickyLayout';
+import { SHOW_DETAILS_PANEL_ID } from '../ShowDetailsPanel';
 import type { ShowDetailTabsProps } from '../ShowDetailTabs';
 import { buildShowManagementTabDefs } from '@/pages/ShowDetailsPage.tabDefs';
 import type { Show } from '@/types/show-types';
@@ -345,8 +351,8 @@ describe('ShowManagementShell', () => {
     // tests below prove opens the same panel.
     renderShell();
 
-    expect(screen.getByTestId('detail-hero-header-actions')).not.toHaveTextContent('Edit');
-    expect(screen.queryByTestId('detail-hero-side-actions')).toBeNull();
+    const header = screen.getByRole('heading', { level: 1 }).closest('div[class*="sticky"]');
+    expect(header).not.toHaveTextContent('Edit');
     expect(screen.queryByRole('button', { name: /^edit$/i })).toBeNull();
   });
 
@@ -401,23 +407,23 @@ describe('ShowManagementShell', () => {
     expect(screen.getByTestId('probe-url')).toHaveTextContent(/^\/shows$/);
   });
 
-  it('links the hero to the host club and renders the breadcrumb trail up to Shows', () => {
+  it('names the host club in the header and renders the breadcrumb trail up to Shows', () => {
     renderShell({
       breadcrumbs: [
         { label: 'Shows', href: '/shows' },
         { label: 'Test Show', href: '/shows/show-1' },
       ],
-      heroViewer: 'account',
     });
-    const hero = within(screen.getByTestId('detail-hero'));
-    expect(hero.getByRole('link', { name: 'Bergen KC' })).toHaveAttribute('href', '/clubs/club-1');
+    // Read, not linked: a link needs a 44px target (docs/INTENT.md), which one line cannot hold.
+    expect(screen.getByText('Bergen KC')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Bergen KC' })).toBeNull();
     const trail = within(screen.getByRole('navigation', { name: 'Breadcrumb' }));
     expect(trail.getByRole('link', { name: 'Shows' })).toHaveAttribute('href', '/shows');
   });
 
-  it('lets the hero own the page h1 so the header renders no second title', () => {
+  it('lets the show header own the page h1 so the page header renders no second title', () => {
     renderShell();
-    expect(screen.getByTestId('detail-hero')).toHaveAttribute('data-heading-level', '1');
+    expect(screen.getAllByRole('heading', { level: 1 })).toHaveLength(1);
     expect(screen.getByTestId('page-header-actions')).toHaveAttribute('data-omit-title', 'true');
   });
 
@@ -531,6 +537,74 @@ describe('ShowManagementShell', () => {
     renderShell({ activeManagementSection: 'entries' }, '/shows/show-1/entries');
     expect(screen.getByTestId('outlet-child')).toBeInTheDocument();
     expect(screen.queryByTestId('show-home-cockpit')).toBeNull();
+  });
+
+  it('swaps the full hero for a one-line header on every tab but Overview, with the same controls and the one h1', () => {
+    renderShell({ activeManagementSection: 'entries' }, '/shows/show-1/entries');
+    expect(screen.queryByTestId('detail-hero')).toBeNull();
+    expect(screen.getByRole('heading', { level: 1, name: 'Test Show' })).toBeInTheDocument();
+    // Offline readiness and the status pill must not be lost with the hero.
+    expect(screen.getByTestId('offline-ready-badge')).toBeInTheDocument();
+    expect(screen.getByTestId('sync-status')).toBeInTheDocument();
+    expect(screen.getByTestId('status-pill')).toBeInTheDocument();
+    // The host club is read, not linked: a link would need a 44px target (docs/INTENT.md).
+    expect(screen.getByText('Bergen KC')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Bergen KC' })).toBeNull();
+  });
+
+  it('carries the one-line header on Overview too, with the details collapsed', () => {
+    renderShell();
+    expect(screen.queryByTestId('detail-hero')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Show details' })).toHaveAttribute(
+      'aria-expanded',
+      'false'
+    );
+    expect(document.getElementById(SHOW_DETAILS_PANEL_ID)?.className).toContain('invisible');
+  });
+
+  it('opens the details panel from the chevron, and remembers the choice', () => {
+    renderShell();
+    fireEvent.click(screen.getByRole('button', { name: 'Show details' }));
+    expect(screen.getByRole('button', { name: 'Hide show details' })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+    expect(document.getElementById(SHOW_DETAILS_PANEL_ID)?.className).not.toContain('invisible');
+    expect(localStorage.getItem('myk9.showDetailsOpen')).toBe('1');
+    fireEvent.click(screen.getByRole('button', { name: 'Hide show details' }));
+    expect(localStorage.getItem('myk9.showDetailsOpen')).toBe('0');
+  });
+
+  it('carries the publishing cards on Overview only', () => {
+    renderShell();
+    expect(screen.getByTestId('premium-download-card')).toBeInTheDocument();
+    expect(screen.getByTestId('landing-page-card')).toBeInTheDocument();
+  });
+
+  it('opens the details panel for a link to something inside it (#setup-publish-premium)', () => {
+    renderShell({}, '/shows/show-1#setup-publish-premium');
+    expect(screen.getByRole('button', { name: 'Hide show details' })).toHaveAttribute(
+      'aria-expanded',
+      'true'
+    );
+  });
+
+  it('pins the compact header and the tab strip, and publishes their height for the page below', () => {
+    renderShell({ activeManagementSection: 'entries' }, '/shows/show-1/entries');
+    const header = screen.getByRole('heading', { level: 1 }).closest('div[class*="sticky"]');
+    expect(header?.className).toContain(SHOW_HEADER_CLASS);
+    const strip = screen.getByRole('tab', { name: /^Entries/ }).closest('div[class*="sticky"]');
+    expect(strip?.className).toContain(SHOW_TAB_STRIP_CLASS);
+    // The page below reads the measured height, so it sits under the header however it wraps.
+    expect(document.documentElement.style.getPropertyValue(SHOW_HEADER_HEIGHT_VAR)).not.toBe('');
+  });
+
+  it('pins the header and the tab strip on Overview too', () => {
+    renderShell();
+    expect(
+      screen.getByRole('tab', { name: /^Overview/ }).closest('div[class*="sticky"]')
+    ).not.toBeNull();
+    expect(document.documentElement.style.getPropertyValue(SHOW_HEADER_HEIGHT_VAR)).not.toBe('');
   });
 
   it('no longer carries its own overflow menu', () => {

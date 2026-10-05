@@ -84,7 +84,6 @@ export interface CartItemWithDetails extends Omit<EntryCartItem, 'entry_id'> {
         name: string;
         level: string | null;
         trial_id: string;
-        allow_waitlist: boolean | null;
       }
     | undefined;
   handler?:

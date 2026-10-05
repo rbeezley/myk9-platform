@@ -88,6 +88,9 @@
 --   evaluate_entry_capacity            20261004064300_myk9_980_move_up_pending_and_reentry_guards.sql
 --   fulfill_cart_line                  20261004214700_myk9_964_replayable_cart_fulfillment.sql
 --   promote_waitlist_entry_internal    20260622000222_link_waitlist_promotions.sql
+--   VIEW judge_day_summary             114_wait_list_capacity.sql, as live
+--                                      (pg_get_viewdef 2026-10-05; security_invoker
+--                                      set by 20260613100000)
 --
 -- DEPLOY ORDER: push this migration, then deploy stripe-checkout. The
 -- deployed stripe-checkout keeps working against it (it makes no holds, and
@@ -1744,6 +1747,73 @@ $$;
 
 REVOKE ALL ON FUNCTION public.promote_waitlist_entry_internal(uuid, integer) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.promote_waitlist_entry_internal(uuid, integer) TO service_role;
+
+
+-- ============================================================================
+-- 4. The secretary's judge-day capacity (Codex P2 on #2755)
+-- ============================================================================
+
+-- The Waitlist tab reads judge_day_summary (security_invoker, so it runs as
+-- the secretary, who cannot read cart_spot_holds). This definer helper hands
+-- the view the held count for a show's classes, but only to someone who
+-- manages that show; anyone else gets 0. Clients never call it for a figure
+-- of its own: the view folds it into confirmed_count, as every other display
+-- folds holds into the taken count (judgement call 3).
+CREATE OR REPLACE FUNCTION public.manager_held_spot_count(p_show_id uuid, p_class_ids uuid[])
+RETURNS integer
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+  SELECT CASE
+    WHEN public.is_site_admin() OR public.can_manage_show(p_show_id) THEN
+      public.held_spot_count(
+        ARRAY(
+          SELECT c.id
+          FROM public.classes c
+          JOIN public.trials t ON t.id = c.trial_id
+          WHERE c.id = ANY (p_class_ids)
+            AND t.show_id = p_show_id
+        )
+      )
+    ELSE 0
+  END;
+$$;
+
+COMMENT ON FUNCTION public.manager_held_spot_count(uuid, uuid[]) IS
+  'MYK9-1012: held spots in a show''s classes, for judge_day_summary''s taken count. Returns 0 to '
+  'anyone who does not manage the show. Not a display figure: the view folds it into '
+  'confirmed_count.';
+
+REVOKE ALL ON FUNCTION public.manager_held_spot_count(uuid, uuid[]) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.manager_held_spot_count(uuid, uuid[]) TO authenticated, service_role;
+
+-- From the live definition (114_wait_list_capacity.sql; security_invoker set
+-- by 20260613100000). MYK9-1012: confirmed_count adds the show's held spots
+-- (manager only); every other column, the status list and the joins are
+-- unchanged. security_invoker restated: CREATE OR REPLACE VIEW resets it.
+CREATE OR REPLACE VIEW public.judge_day_summary
+WITH (security_invoker = true)
+AS
+SELECT ja.show_id,
+    ja.person_id AS judge_id,
+    (p.first_name || ' '::text) || p.last_name AS judge_name,
+    t.date AS show_date,
+    array_agg(DISTINCT c.id) AS class_ids,
+    array_agg(DISTINCT c.name) AS class_names,
+    count(DISTINCT e.id) FILTER (WHERE (e.entry_status = ANY (ARRAY['submitted'::text, 'paid'::text, 'confirmed'::text, 'checked-in'::text, 'competing'::text, 'pending-payment'::text])) AND e.deleted_at IS NULL)
+      -- MYK9-1012: a spot a cart holds at Pay is taken until the hold ends.
+      + public.manager_held_spot_count(ja.show_id, array_agg(DISTINCT c.id)) AS confirmed_count,
+    count(DISTINCT we.id) FILTER (WHERE we.status = 'waiting'::text) AS waitlist_count
+   FROM public.judge_assignments ja
+     JOIN public.people p ON p.id = ja.person_id
+     JOIN public.classes c ON c.id = ja.class_id
+     JOIN public.trials t ON t.id = c.trial_id
+     LEFT JOIN public.entries e ON e.class_id = c.id
+     LEFT JOIN public.waitlist_entries we ON we.class_id = c.id
+  WHERE ja.status = 'confirmed'::text
+  GROUP BY ja.show_id, ja.person_id, p.first_name, p.last_name, t.date;
 
 COMMIT;
 

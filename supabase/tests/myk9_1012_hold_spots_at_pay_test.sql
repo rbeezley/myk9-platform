@@ -45,6 +45,10 @@
 --       foreign or stale lease is refused; both reported interleavings (two
 --       requests holding before either links; a reuse between link and
 --       attach) are now refused at the claim.
+--   S   THE SECRETARY'S JUDGE-DAY VIEW (Codex P2 on #2755): judge_day_summary
+--       counts a held spot as taken for a show manager (the day reads full),
+--       restores it when the hold ends, gives a non-manager no held figure,
+--       and keeps security_invoker and its ACL.
 --   C   THE CART ACTED ON IS THE CART READ (Codex P2 on #2755): a reuse
 --       re-hold after another tab edited the cart is refused 'cart_changed'
 --       and creates nothing (no orphan hold tied to a page the cart no longer
@@ -174,7 +178,8 @@ INSERT INTO public.people (id, first_name, last_name, email)
 VALUES
   (pg_temp.id('011'), 'Ann', 'MYK9-1012', 'myk91012-ann@example.test'),
   (pg_temp.id('021'), 'Bea', 'MYK9-1012', 'myk91012-bea@example.test'),
-  (pg_temp.id('031'), 'Jo', 'Judge', 'myk91012-judge@example.test');
+  (pg_temp.id('031'), 'Jo', 'Judge', 'myk91012-judge@example.test'),
+  (pg_temp.id('051'), 'Sam', 'Secretary', 'myk91012-sam@example.test');
 
 INSERT INTO auth.users (
   id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
@@ -185,7 +190,9 @@ VALUES
   (pg_temp.id('012'), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
    'myk91012-ann@example.test', '', now(), now(), now(), '{}', '{}', false, false, false),
   (pg_temp.id('022'), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
-   'myk91012-bea@example.test', '', now(), now(), now(), '{}', '{}', false, false, false);
+   'myk91012-bea@example.test', '', now(), now(), now(), '{}', '{}', false, false, false),
+  (pg_temp.id('052'), '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated',
+   'myk91012-sam@example.test', '', now(), now(), now(), '{}', '{}', false, false, false);
 
 INSERT INTO public.exhibitor_profiles (person_id, auth_user_id)
 SELECT p.person_id, p.auth_user_id
@@ -194,6 +201,11 @@ FROM (VALUES (pg_temp.id('011'), pg_temp.id('012')), (pg_temp.id('021'), pg_temp
 WHERE NOT EXISTS (SELECT 1 FROM public.exhibitor_profiles ep WHERE ep.auth_user_id = p.auth_user_id);
 
 INSERT INTO public.clubs (id, name) VALUES (pg_temp.id('041'), 'MYK9-1012 fixture club');
+
+-- Sam manages the show: club_admin of its club.
+INSERT INTO public.user_roles (user_id, role_id, club_id, is_active, auth_user_id)
+SELECT pg_temp.id('051'), r.id, pg_temp.id('041'), true, pg_temp.id('052')
+FROM public.roles r WHERE r.name = 'club_admin';
 
 INSERT INTO public.shows (id, name, organization, start_date, end_date, club_id, status,
                           entry_open_date, entry_close_date, pre_entry_fee,
@@ -445,6 +457,77 @@ BEGIN
    WHERE h.cart_item_id = pg_temp.id('701') AND h.released_at IS NULL;
 END;
 $$;
+
+-- ---------------------------------------------------------------------------
+-- S. The secretary's judge-day view (Ann holds Jo's one-dog day via A3)
+-- ---------------------------------------------------------------------------
+DO $$
+BEGIN
+  PERFORM pg_temp.expect_eq(
+    (SELECT array_to_string(c.reloptions, ',') FROM pg_class c
+      WHERE c.oid = 'public.judge_day_summary'::regclass),
+    'security_invoker=true', 'S judge_day_summary still runs as the caller (security_invoker)');
+  PERFORM pg_temp.expect_eq(
+    has_table_privilege('anon', 'public.judge_day_summary', 'SELECT')::text || ' '
+      || has_table_privilege('authenticated', 'public.judge_day_summary', 'SELECT')::text,
+    'false true', 'S judge_day_summary keeps its grants: authenticated reads, anon does not');
+  PERFORM pg_temp.expect_eq(
+    has_function_privilege('anon', 'public.manager_held_spot_count(uuid, uuid[])', 'EXECUTE')::text,
+    'false', 'S anon cannot ask for a held figure');
+END;
+$$;
+
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', pg_temp.id('052')::text, true);
+SELECT set_config('request.jwt.claims',
+  format('{"sub":"%s","role":"authenticated"}', pg_temp.id('052')), true);
+DO $$
+BEGIN
+  PERFORM pg_temp.expect_eq(
+    (SELECT v.confirmed_count::text FROM public.judge_day_summary v
+      WHERE v.show_id = pg_temp.id('101') AND v.judge_id = pg_temp.id('031')),
+    '1', 'S the secretary''s judge day counts the held spot as taken: a one-dog day reads full');
+END;
+$$;
+SELECT set_config('request.jwt.claim.sub', pg_temp.id('022')::text, true);
+SELECT set_config('request.jwt.claims',
+  format('{"sub":"%s","role":"authenticated"}', pg_temp.id('022')), true);
+DO $$
+BEGIN
+  PERFORM pg_temp.expect_eq(
+    public.manager_held_spot_count(pg_temp.id('101'), ARRAY[pg_temp.id('304')])::text,
+    '0', 'S someone who does not manage the show gets no held figure');
+END;
+$$;
+RESET ROLE;
+
+DO $$
+DECLARE
+  v_saved timestamptz;
+BEGIN
+  SELECT h.expires_at INTO v_saved FROM public.cart_spot_holds h
+   WHERE h.cart_item_id = pg_temp.id('703') AND h.released_at IS NULL;
+  UPDATE public.cart_spot_holds h SET expires_at = now() - interval '1 second'
+   WHERE h.cart_item_id = pg_temp.id('703') AND h.released_at IS NULL;
+  PERFORM set_config('myk9_1012.saved_703', v_saved::text, true);
+END;
+$$;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', pg_temp.id('052')::text, true);
+SELECT set_config('request.jwt.claims',
+  format('{"sub":"%s","role":"authenticated"}', pg_temp.id('052')), true);
+DO $$
+BEGIN
+  PERFORM pg_temp.expect_eq(
+    (SELECT v.confirmed_count::text FROM public.judge_day_summary v
+      WHERE v.show_id = pg_temp.id('101') AND v.judge_id = pg_temp.id('031')),
+    '0', 'S when the hold ends the secretary''s judge day has its spot back');
+END;
+$$;
+RESET ROLE;
+UPDATE public.cart_spot_holds h
+   SET expires_at = current_setting('myk9_1012.saved_703')::timestamptz
+ WHERE h.cart_item_id = pg_temp.id('703') AND h.released_at IS NULL;
 
 -- ---------------------------------------------------------------------------
 -- L. Single-flight checkout per cart (Ann's lease 901 is live)

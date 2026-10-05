@@ -71,12 +71,12 @@ function buildColumns(
       cell: ({ row }) => (
         <div className="flex items-center gap-2">
           {hasAvailableSpots && (
-            <Button size="sm" onClick={() => onOfferSpot(row.original)}>
+            <Button onClick={() => onOfferSpot(row.original)}>
               <ArrowUpCircle className="h-4 w-4 mr-1" />
               Offer Spot
             </Button>
           )}
-          <Button size="sm" variant="destructive" onClick={() => onRemove(row.original)}>
+          <Button variant="destructive" onClick={() => onRemove(row.original)}>
             <Trash2 className="h-4 w-4 mr-1" />
             Remove
           </Button>

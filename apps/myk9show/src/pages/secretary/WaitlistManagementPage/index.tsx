@@ -103,7 +103,7 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="flex items-center justify-between gap-2">
             {error}
-            <Button variant="outline" size="sm" onClick={retry}>
+            <Button variant="outline" onClick={retry}>
               Try again
             </Button>
           </AlertDescription>
@@ -121,7 +121,7 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
               Wait list for {selectedJudgeDay.judgeName},{' '}
               {formatWeekdayMonthDay(selectedJudgeDay.showDate)}
             </h3>
-            <Button variant="outline" size="sm" onClick={showAllClasses}>
+            <Button variant="outline" onClick={showAllClasses}>
               Show every class
             </Button>
           </div>

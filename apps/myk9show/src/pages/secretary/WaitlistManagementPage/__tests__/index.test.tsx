@@ -378,4 +378,23 @@ describe('WaitlistManagementPage', () => {
     expect(await screen.findByText('Trial 1 · Sat, Oct 10, 2026')).toBeInTheDocument();
     expect(screen.getByText('Trial 2 · Sun, Oct 11, 2026')).toBeInTheDocument();
   });
+
+  // docs/INTENT.md: 44px floor; Button `sm` (32px) is for dense grids and never for a primary or
+  // destructive action or the only route to one.
+  it('keeps every action on the 44px touch floor', async () => {
+    state.failNextRead = true;
+    render(<WaitlistManagementPage showId="show-1" />);
+    const tryAgain = await screen.findByRole('button', { name: 'Try again' });
+    fireEvent.click(tryAgain);
+    await screen.findByText('Bella');
+    viewWaitList('Judge One');
+    const showEvery = await screen.findByRole('button', { name: 'Show every class' });
+
+    const rowActions = await screen.findAllByRole('button', { name: /^(offer spot|remove)$/i });
+    expect(rowActions.length).toBeGreaterThan(0);
+    for (const button of [tryAgain, showEvery, ...rowActions]) {
+      expect(button.className).toContain('h-11');
+      expect(button.className).not.toContain('h-8');
+    }
+  });
 });

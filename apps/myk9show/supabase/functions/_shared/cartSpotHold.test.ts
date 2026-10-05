@@ -2,6 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   CART_SPOT_HOLD_SECONDS,
+  CartChangedError,
   CartHoldRefusedError,
   CartHoldUnavailableError,
   cartSpotHoldUntilEpoch,
@@ -28,6 +29,7 @@ function rpcClient(answers: Record<string, RpcAnswer>) {
 
 const HOLD_UNTIL = 1_800_000_000;
 const lease: CartLease = { cartId: 'cart-1', leaseId: 'lease-1' };
+const STAMP = '2026-10-05T00:00:00.123456+00:00';
 
 const zivaFull: RefusedCartLine = {
   cart_item_id: 'item-ziva',
@@ -90,7 +92,7 @@ describe('holdCartSpots', () => {
     const { client, rpc } = rpcClient({
       hold_cart_spots: { data: [{ outcome: 'held' }, { outcome: 'held' }], error: null },
     });
-    expect(await holdCartSpots(client, lease, HOLD_UNTIL, 'cs_1')).toEqual({
+    expect(await holdCartSpots(client, lease, HOLD_UNTIL, STAMP, 'cs_1')).toEqual({
       kind: 'held',
       heldCount: 2,
     });
@@ -98,6 +100,7 @@ describe('holdCartSpots', () => {
       p_cart_id: 'cart-1',
       p_lease_id: 'lease-1',
       p_expires_at: epochToIso(HOLD_UNTIL),
+      p_expected_updated_at: STAMP,
       p_checkout_session_id: 'cs_1',
     });
   });
@@ -106,7 +109,7 @@ describe('holdCartSpots', () => {
     const { client } = rpcClient({
       hold_cart_spots: { data: [{ outcome: 'refused', ...zivaFull }], error: null },
     });
-    expect(await holdCartSpots(client, lease, HOLD_UNTIL)).toEqual({
+    expect(await holdCartSpots(client, lease, HOLD_UNTIL, STAMP)).toEqual({
       kind: 'refused',
       lines: [zivaFull],
     });
@@ -116,10 +119,35 @@ describe('holdCartSpots', () => {
     const { client } = rpcClient({
       hold_cart_spots: { data: null, error: { message: 'no live checkout lease' } },
     });
-    expect(await holdCartSpots(client, lease, HOLD_UNTIL)).toEqual({
+    expect(await holdCartSpots(client, lease, HOLD_UNTIL, STAMP)).toEqual({
       kind: 'error',
       message: 'no live checkout lease',
     });
+  });
+});
+
+describe('a cart edited since this request read it (Codex P2 on #2755)', () => {
+  it('is reported as changed, never as held', async () => {
+    const { client } = rpcClient({
+      hold_cart_spots: {
+        data: [{ outcome: 'cart_changed', cart_item_id: null, class_id: null, dog_id: null }],
+        error: null,
+      },
+    });
+    expect(await holdCartSpots(client, lease, HOLD_UNTIL, STAMP, 'cs_1')).toEqual({
+      kind: 'cart_changed',
+    });
+  });
+
+  it('never opens a page for it', async () => {
+    const { client } = rpcClient({
+      hold_cart_spots: { data: [{ outcome: 'cart_changed' }], error: null },
+    });
+    const create = vi.fn();
+    await expect(
+      createSessionUnderHold(client, lease, HOLD_UNTIL, STAMP, create)
+    ).rejects.toBeInstanceOf(CartChangedError);
+    expect(create).not.toHaveBeenCalled();
   });
 });
 
@@ -130,7 +158,7 @@ describe('createSessionUnderHold: hold first, then a page that ends with the hol
     });
     const create = vi.fn(async (expiresAtEpoch: number) => ({ id: 'cs_new', expiresAtEpoch }));
 
-    const created = await createSessionUnderHold(client, lease, HOLD_UNTIL, create);
+    const created = await createSessionUnderHold(client, lease, HOLD_UNTIL, STAMP, create);
 
     expect(created).toEqual({
       session: { id: 'cs_new', expiresAtEpoch: HOLD_UNTIL },
@@ -149,7 +177,7 @@ describe('createSessionUnderHold: hold first, then a page that ends with the hol
     });
     const create = vi.fn();
 
-    const refused = createSessionUnderHold(client, lease, HOLD_UNTIL, create);
+    const refused = createSessionUnderHold(client, lease, HOLD_UNTIL, STAMP, create);
 
     await expect(refused).rejects.toBeInstanceOf(CartHoldRefusedError);
     await expect(refused).rejects.toMatchObject({ lines: [zivaFull] });
@@ -159,9 +187,9 @@ describe('createSessionUnderHold: hold first, then a page that ends with the hol
   it('never opens a page when the hold could not be taken', async () => {
     const { client } = rpcClient({ hold_cart_spots: { data: null, error: { message: 'down' } } });
     const create = vi.fn();
-    await expect(createSessionUnderHold(client, lease, HOLD_UNTIL, create)).rejects.toBeInstanceOf(
-      CartHoldUnavailableError
-    );
+    await expect(
+      createSessionUnderHold(client, lease, HOLD_UNTIL, STAMP, create)
+    ).rejects.toBeInstanceOf(CartHoldUnavailableError);
     expect(create).not.toHaveBeenCalled();
   });
 });

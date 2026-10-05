@@ -302,13 +302,19 @@ GRANT EXECUTE ON FUNCTION public.claim_cart_checkout(uuid, uuid) TO service_role
 --             the entry rule (denial_reason says why); nothing is held
 -- No rows: the cart has no new lines (Finish Payment lines already hold their
 -- entry's spot).
--- p_checkout_session_id: the page these holds are for, when it already exists
--- (a reused page); NULL: the page is created next and link_cart_checkout ties
--- the holds to it. An untied hold ends with the lease.
+--   cart_changed  one row, nothing else: the cart is not the cart the caller
+--                 read (its updated_at moved, or a reused page is no longer
+--                 the one it links). Nothing is held or released.
+-- p_expected_updated_at: the cart's updated_at as the caller read it under
+-- the lease. p_checkout_session_id: the page these holds are for, when it
+-- already exists (a reused page; the cart must still link it); NULL: the page
+-- is created next and link_cart_checkout ties the holds to it. An untied hold
+-- ends with the lease.
 CREATE OR REPLACE FUNCTION public.hold_cart_spots(
   p_cart_id uuid,
   p_lease_id uuid,
   p_expires_at timestamptz,
+  p_expected_updated_at timestamptz,
   p_checkout_session_id text DEFAULT NULL
 )
 RETURNS TABLE (
@@ -327,6 +333,8 @@ AS $$
 #variable_conflict use_column
 DECLARE
   v_status text;
+  v_updated_at timestamptz;
+  v_linked_session text;
   v_lease_until timestamptz;
   v_line record;
   v_capacity record;
@@ -335,8 +343,9 @@ DECLARE
   v_held uuid[] := ARRAY[]::uuid[];
   v_refused jsonb := '[]'::jsonb;
 BEGIN
-  IF p_cart_id IS NULL OR p_lease_id IS NULL OR p_expires_at IS NULL THEN
-    RAISE EXCEPTION 'hold_cart_spots: cart, lease and expiry are required'
+  IF p_cart_id IS NULL OR p_lease_id IS NULL OR p_expires_at IS NULL
+     OR p_expected_updated_at IS NULL THEN
+    RAISE EXCEPTION 'hold_cart_spots: cart, lease, expiry and the cart''s read stamp are required'
       USING ERRCODE = '22023';
   END IF;
   -- A Stripe Checkout page lives between 30 minutes and 24 hours.
@@ -352,7 +361,8 @@ BEGIN
     ELSE p_expires_at
   END;
 
-  SELECT c.status INTO v_status
+  SELECT c.status, c.updated_at, c.stripe_checkout_session_id
+    INTO v_status, v_updated_at, v_linked_session
   FROM public.entry_carts c
   WHERE c.id = p_cart_id
   FOR UPDATE;
@@ -363,6 +373,17 @@ BEGIN
   IF v_status IS DISTINCT FROM 'active' THEN
     RAISE EXCEPTION 'hold_cart_spots: cart % is %, not active', p_cart_id, v_status
       USING ERRCODE = '55000';
+  END IF;
+  -- The cart this call holds for must be the cart the caller read (Codex P2 on
+  -- #2755): an edit from another tab bumps updated_at and severs the page
+  -- link, and holds tied to a page the cart no longer links would outlive
+  -- end_cart_checkout and block other exhibitors until they expire.
+  IF v_updated_at IS DISTINCT FROM p_expected_updated_at
+     OR (p_checkout_session_id IS NOT NULL
+         AND v_linked_session IS DISTINCT FROM p_checkout_session_id) THEN
+    RETURN QUERY SELECT 'cart_changed'::text, NULL::uuid, NULL::uuid, NULL::uuid,
+      NULL::boolean, NULL::text;
+    RETURN;
   END IF;
 
   -- This Pay replaces any earlier one on the cart. Under the lease no other
@@ -432,14 +453,14 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION public.hold_cart_spots(uuid, uuid, timestamptz, text) IS
+COMMENT ON FUNCTION public.hold_cart_spots(uuid, uuid, timestamptz, timestamptz, text) IS
   'MYK9-1012: under the cart''s checkout lease, hold a spot for every new line under '
   'evaluate_entry_capacity''s locks, or hold nothing and return the refused lines. Replaces '
   'the cart''s earlier holds. service_role only (stripe-checkout).';
 
-REVOKE ALL ON FUNCTION public.hold_cart_spots(uuid, uuid, timestamptz, text)
+REVOKE ALL ON FUNCTION public.hold_cart_spots(uuid, uuid, timestamptz, timestamptz, text)
   FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.hold_cart_spots(uuid, uuid, timestamptz, text) TO service_role;
+GRANT EXECUTE ON FUNCTION public.hold_cart_spots(uuid, uuid, timestamptz, timestamptz, text) TO service_role;
 
 -- In ONE transaction under the lease: link the new Stripe page to the cart
 -- (only if the cart is unchanged since stripe-checkout read it) and tie every
@@ -559,6 +580,18 @@ BEGIN
      AND h.released_at IS NULL
      AND h.stripe_checkout_session_id IS NULL;
 
+  -- Belt and braces: a live hold tied to a page the cart no longer links can
+  -- never be paid through this cart, so it goes back too.
+  UPDATE public.cart_spot_holds h
+     SET released_at = now(),
+         release_reason = 'session_ended'
+   WHERE h.cart_id = p_cart_id
+     AND h.released_at IS NULL
+     AND h.stripe_checkout_session_id IS NOT NULL
+     AND h.stripe_checkout_session_id IS DISTINCT FROM (
+       SELECT c.stripe_checkout_session_id FROM public.entry_carts c WHERE c.id = p_cart_id
+     );
+
   DELETE FROM public.cart_checkout_leases l
    WHERE l.cart_id = p_cart_id
      AND l.lease_id = p_lease_id;
@@ -567,7 +600,8 @@ END;
 $$;
 
 COMMENT ON FUNCTION public.end_cart_checkout(uuid, uuid) IS
-  'MYK9-1012: ends a request''s cart checkout lease and releases holds never tied to a page. '
+  'MYK9-1012: ends a request''s cart checkout lease and releases holds never tied to a page, '
+  'and any tied to a page the cart no longer links. '
   'service_role only (stripe-checkout).';
 
 REVOKE ALL ON FUNCTION public.end_cart_checkout(uuid, uuid) FROM PUBLIC, anon, authenticated;

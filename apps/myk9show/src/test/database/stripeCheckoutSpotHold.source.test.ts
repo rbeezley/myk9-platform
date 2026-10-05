@@ -33,7 +33,7 @@ describe('stripe-checkout holds spots for the life of the Stripe page', () => {
 
   it('opens a new page only through createSessionUnderHold, with the hold expiry', () => {
     expect(compact).toContain(
-      'const created = await createSessionUnderHold( supabase, lease, holdUntilEpoch, expiresAtEpoch => stripe.checkout.sessions.create({'
+      'const created = await createSessionUnderHold( supabase, lease, holdUntilEpoch, cart.updated_at, expiresAtEpoch => stripe.checkout.sessions.create({'
     );
     // The page's expiry is the hold's, not a second clock.
     expect(compact).toContain('expires_at: expiresAtEpoch,');
@@ -55,7 +55,16 @@ describe('stripe-checkout holds spots for the life of the Stripe page', () => {
   });
 
   it("re-takes the hold for a reused page, for that page's own expiry", () => {
-    expect(compact).toContain('holdCartSpots(supabase, lease, reusedExpiresAtEpoch, reused.id)');
+    expect(compact).toContain(
+      'holdCartSpots( supabase, lease, reusedExpiresAtEpoch, cart.updated_at, reused.id )'
+    );
+  });
+
+  it('answers a cart edited since it was read with 409, on both paths (Codex P2 on #2755)', () => {
+    expect(compact).toContain(
+      'if (error instanceof CartChangedError) { console.log(`Cart ${cart_id} changed before its spots were held`); return corsResponse(corsHeaders, { error: CART_CHANGED_MESSAGE }, 409); }'
+    );
+    expect(compact).toContain("if (hold.kind === 'cart_changed') {");
   });
 
   it('answers a refused line with 409 before any page exists', () => {

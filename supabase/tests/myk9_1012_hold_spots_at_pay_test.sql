@@ -45,6 +45,12 @@
 --       foreign or stale lease is refused; both reported interleavings (two
 --       requests holding before either links; a reuse between link and
 --       attach) are now refused at the claim.
+--   C   THE CART ACTED ON IS THE CART READ (Codex P2 on #2755): a reuse
+--       re-hold after another tab edited the cart is refused 'cart_changed'
+--       and creates nothing (no orphan hold tied to a page the cart no longer
+--       links); a fresh hold with a stale read is refused the same way; an
+--       unedited reuse still re-holds; end_cart_checkout gives back any hold
+--       tied to a page the cart no longer links.
 
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
 
@@ -130,7 +136,7 @@ BEGIN
   FOREACH v_fn IN ARRAY ARRAY[
     'public.claim_cart_checkout(uuid, uuid)',
     'public.require_cart_checkout_lease(uuid, uuid)',
-    'public.hold_cart_spots(uuid, uuid, timestamptz, text)',
+    'public.hold_cart_spots(uuid, uuid, timestamptz, timestamptz, text)',
     'public.link_cart_checkout(uuid, uuid, text, timestamptz, timestamptz, integer, integer, integer, integer)',
     'public.end_cart_checkout(uuid, uuid)',
     'public.held_spot_count(uuid[], uuid)',
@@ -263,7 +269,7 @@ BEGIN
     'H2 Ann''s Pay claims her cart''s checkout lease');
   PERFORM pg_temp.expect_eq(
     (SELECT string_agg(right(r.cart_item_id::text, 3) || ':' || r.outcome, ' ' ORDER BY r.cart_item_id)
-       FROM public.hold_cart_spots(pg_temp.id('601'), pg_temp.id('901'), now() + interval '40 minutes') r),
+       FROM public.hold_cart_spots(pg_temp.id('601'), pg_temp.id('901'), now() + interval '40 minutes', pg_temp.cart_stamp(pg_temp.id('601'))) r),
     '701:held 702:held 703:held', 'H2 Ann''s Pay holds every line');
 END;
 $$;
@@ -288,8 +294,8 @@ DECLARE
 BEGIN
   PERFORM pg_temp.expect_eq(pg_temp.claim(pg_temp.id('611'), pg_temp.id('911')), 'claimed',
     'H2 Bea''s Pay claims her own cart''s lease: leases are per cart');
-  SELECT count(*) INTO v_rows FROM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('911'), now() + interval '40 minutes');
-  SELECT * INTO r FROM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('911'), now() + interval '40 minutes');
+  SELECT count(*) INTO v_rows FROM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('911'), now() + interval '40 minutes', pg_temp.cart_stamp(pg_temp.id('611')));
+  SELECT * INTO r FROM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('911'), now() + interval '40 minutes', pg_temp.cart_stamp(pg_temp.id('611')));
   PERFORM pg_temp.expect_eq(
     v_rows || ' ' || r.outcome || ' ' || right(r.cart_item_id::text, 3) || ' '
       || right(r.class_id::text, 3) || ' ' || right(r.dog_id::text, 3) || ' '
@@ -459,7 +465,7 @@ BEGIN
 END;
 $$;
 SELECT pg_temp.expect_sqlstate(
-  format($q$SELECT public.hold_cart_spots(%L, %L, now() + interval '31 minutes')$q$,
+  format($q$SELECT public.hold_cart_spots(%L, %L, now() + interval '31 minutes', now())$q$,
          pg_temp.id('601'), pg_temp.id('902')),
   '55000', 'L a hold with a foreign lease is refused');
 SELECT pg_temp.expect_sqlstate(
@@ -601,7 +607,7 @@ BEGIN
   PERFORM pg_temp.claim(pg_temp.id('611'), pg_temp.id('912'));
   PERFORM pg_temp.expect_eq(
     (SELECT string_agg(right(h.cart_item_id::text, 3) || ':' || h.outcome, ' ' ORDER BY h.cart_item_id)
-       FROM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('912'), now() + interval '31 minutes') h),
+       FROM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('912'), now() + interval '31 minutes', pg_temp.cart_stamp(pg_temp.id('611'))) h),
     '712:held 713:held', 'H7 Bea holds C3 and C5''s one spot');
   PERFORM pg_temp.expect_eq(
     public.link_cart_checkout(pg_temp.id('611'), pg_temp.id('912'), 'cs_test_1012_b',
@@ -633,7 +639,7 @@ $$;
 DO $$
 BEGIN
   PERFORM pg_temp.claim(pg_temp.id('611'), pg_temp.id('913'));
-  PERFORM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('913'), now() + interval '31 minutes');
+  PERFORM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('913'), now() + interval '31 minutes', pg_temp.cart_stamp(pg_temp.id('611')));
   PERFORM pg_temp.expect_eq(
     (SELECT count(*)::text FROM public.cart_spot_holds h
       WHERE h.cart_id = pg_temp.id('611') AND h.stripe_checkout_session_id = 'cs_test_1012_b'
@@ -654,7 +660,7 @@ $$;
 DO $$
 BEGIN
   PERFORM pg_temp.claim(pg_temp.id('611'), pg_temp.id('914'));
-  PERFORM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('914'), now() + interval '31 minutes');
+  PERFORM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('914'), now() + interval '31 minutes', pg_temp.cart_stamp(pg_temp.id('611')));
   PERFORM public.link_cart_checkout(pg_temp.id('611'), pg_temp.id('914'), 'cs_test_1012_c',
     now() + interval '31 minutes', pg_temp.cart_stamp(pg_temp.id('611')), 2, 6000, 0, 6000);
   PERFORM public.end_cart_checkout(pg_temp.id('611'), pg_temp.id('914'));
@@ -672,7 +678,7 @@ $$;
 
 -- A deleted line, then a cart that leaves checkout.
 SELECT pg_temp.claim(pg_temp.id('611'), pg_temp.id('915'));
-SELECT public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('915'), now() + interval '31 minutes');
+SELECT public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('915'), now() + interval '31 minutes', pg_temp.cart_stamp(pg_temp.id('611')));
 DELETE FROM public.entry_cart_items WHERE id = pg_temp.id('713');
 DO $$
 BEGIN
@@ -697,7 +703,7 @@ UPDATE public.entry_carts SET status = 'active' WHERE id = pg_temp.id('611');
 DO $$
 BEGIN
   PERFORM pg_temp.claim(pg_temp.id('611'), pg_temp.id('916'));
-  PERFORM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('916'), now() + interval '31 minutes');
+  PERFORM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('916'), now() + interval '31 minutes', pg_temp.cart_stamp(pg_temp.id('611')));
   PERFORM pg_temp.expect_eq(
     (SELECT (l.lease_until = now() + make_interval(secs => public.cart_checkout_lease_seconds()))::text
        FROM public.cart_checkout_leases l WHERE l.cart_id = pg_temp.id('611')),
@@ -713,7 +719,7 @@ END;
 $$;
 -- Lapsed but not yet re-claimed: the stale lease still names this request.
 SELECT pg_temp.expect_sqlstate(
-  format($q$SELECT public.hold_cart_spots(%L, %L, now() + interval '31 minutes')$q$,
+  format($q$SELECT public.hold_cart_spots(%L, %L, now() + interval '31 minutes', now())$q$,
          pg_temp.id('611'), pg_temp.id('916')),
   '55000', 'H8 a lapsed lease can hold nothing, even before anyone re-claims the cart');
 SELECT pg_temp.expect_sqlstate(
@@ -727,7 +733,7 @@ BEGIN
 END;
 $$;
 SELECT pg_temp.expect_sqlstate(
-  format($q$SELECT public.hold_cart_spots(%L, %L, now() + interval '31 minutes')$q$,
+  format($q$SELECT public.hold_cart_spots(%L, %L, now() + interval '31 minutes', now())$q$,
          pg_temp.id('611'), pg_temp.id('916')),
   '55000', 'H8 and the crashed request''s old lease stays refused');
 
@@ -736,18 +742,18 @@ SELECT pg_temp.expect_sqlstate(
 -- ---------------------------------------------------------------------------
 SELECT pg_temp.claim(pg_temp.id('601'), pg_temp.id('918'));
 SELECT pg_temp.expect_sqlstate(
-  format($q$SELECT public.hold_cart_spots(%L, %L, now() + interval '31 minutes')$q$,
+  format($q$SELECT public.hold_cart_spots(%L, %L, now() + interval '31 minutes', now())$q$,
          pg_temp.id('601'), pg_temp.id('918')),
   '55000', 'H9 no hold on a cart that is not active (Ann''s is submitted)');
 SELECT pg_temp.expect_sqlstate(
-  format($q$SELECT public.hold_cart_spots(%L, %L, now())$q$, pg_temp.id('611'), pg_temp.id('917')),
+  format($q$SELECT public.hold_cart_spots(%L, %L, now(), now())$q$, pg_temp.id('611'), pg_temp.id('917')),
   '22023', 'H9 no hold that has already ended');
 SELECT pg_temp.expect_sqlstate(
-  format($q$SELECT public.hold_cart_spots(%L, %L, now() + interval '25 hours')$q$,
+  format($q$SELECT public.hold_cart_spots(%L, %L, now() + interval '25 hours', now())$q$,
          pg_temp.id('611'), pg_temp.id('917')),
   '22023', 'H9 no hold past a Stripe page''s 24-hour limit');
 SELECT pg_temp.expect_sqlstate(
-  format($q$SELECT public.hold_cart_spots(%L, NULL, now() + interval '31 minutes')$q$, pg_temp.id('611')),
+  format($q$SELECT public.hold_cart_spots(%L, NULL, now() + interval '31 minutes', now())$q$, pg_temp.id('611')),
   '22023', 'H9 no hold without a lease');
 
 -- ---------------------------------------------------------------------------
@@ -758,7 +764,7 @@ SELECT pg_temp.expect_sqlstate(
 -- reused A's page and expired it. Both B's need a lease while A holds it.
 DO $$
 BEGIN
-  PERFORM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('917'), now() + interval '31 minutes');
+  PERFORM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('917'), now() + interval '31 minutes', pg_temp.cart_stamp(pg_temp.id('611')));
   PERFORM pg_temp.expect_eq(pg_temp.claim(pg_temp.id('611'), pg_temp.id('921')), 'in_progress',
     'L round 1: a second request cannot start while the first holds untied spots');
   PERFORM pg_temp.expect_eq(
@@ -774,12 +780,66 @@ BEGIN
   PERFORM pg_temp.expect_eq(pg_temp.claim(pg_temp.id('611'), pg_temp.id('922')), 'claimed',
     'L once the first request ends, the next one claims the cart');
   PERFORM pg_temp.expect_eq(
-    (SELECT string_agg(h.outcome, ',') FROM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('922'),
-       now() + interval '31 minutes', 'cs_test_1012_win') h),
+    (SELECT string_agg(h.outcome, ',') FROM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('922'), now() + interval '31 minutes', pg_temp.cart_stamp(pg_temp.id('611')), 'cs_test_1012_win') h),
     'held', 'L the reuse re-holds the same page and is not refused by its own hold');
   PERFORM pg_temp.expect_eq(pg_temp.live_holds(pg_temp.id('611')), '712:cs_test_1012_win',
     'L the page is still held, once');
   PERFORM public.end_cart_checkout(pg_temp.id('611'), pg_temp.id('922'));
+END;
+$$;
+RESET ROLE;
+
+-- ---------------------------------------------------------------------------
+-- C. The cart acted on is the cart read
+-- ---------------------------------------------------------------------------
+SET LOCAL ROLE service_role;
+DO $$
+DECLARE
+  v_read timestamptz;
+BEGIN
+  PERFORM pg_temp.expect_eq(pg_temp.claim(pg_temp.id('611'), pg_temp.id('931')), 'claimed',
+    'C a reuse claims the cart');
+  v_read := pg_temp.cart_stamp(pg_temp.id('611'));
+  PERFORM pg_temp.expect_eq(
+    (SELECT string_agg(h.outcome, ',') FROM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('931'),
+       now() + interval '31 minutes', v_read, 'cs_test_1012_win') h),
+    'held', 'C an unedited reuse re-holds its page');
+
+  -- Another tab edits the cart: the page link is severed, its hold released.
+  UPDATE public.entry_cart_items SET special_requests = 'edited in another tab'
+   WHERE id = pg_temp.id('712');
+
+  PERFORM pg_temp.expect_eq(
+    (SELECT string_agg(h.outcome || ':' || COALESCE(h.cart_item_id::text, '-'), ',')
+       FROM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('931'),
+         now() + interval '31 minutes', v_read, 'cs_test_1012_win') h),
+    'cart_changed:-', 'C a reuse re-hold after the cart was edited is refused');
+  PERFORM pg_temp.expect_eq(pg_temp.live_holds(pg_temp.id('611')), '',
+    'C and holds nothing: no orphan tied to a page the cart no longer links');
+  -- One transaction keeps updated_at at now(); a read taken before the edit
+  -- is modelled as an earlier stamp.
+  PERFORM pg_temp.expect_eq(
+    (SELECT string_agg(h.outcome, ',') FROM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('931'),
+       now() + interval '31 minutes', v_read - interval '1 second') h),
+    'cart_changed', 'C a fresh hold on a stale read is refused too');
+  PERFORM pg_temp.expect_eq(pg_temp.live_holds(pg_temp.id('611')), '',
+    'C and holds nothing either');
+  PERFORM pg_temp.expect_eq(
+    (SELECT string_agg(h.outcome, ',') FROM public.hold_cart_spots(pg_temp.id('611'), pg_temp.id('931'),
+       now() + interval '31 minutes', pg_temp.cart_stamp(pg_temp.id('611')), 'cs_test_1012_win') h),
+    'cart_changed', 'C a reuse of a page the cart no longer links is refused even on a fresh read');
+  PERFORM pg_temp.expect_eq(public.end_cart_checkout(pg_temp.id('611'), pg_temp.id('931'))::text,
+    'true', 'C the refused checkout ends');
+
+  -- Belt and braces: a live hold tied to a page the cart does not link is
+  -- given back when a checkout ends.
+  PERFORM pg_temp.claim(pg_temp.id('611'), pg_temp.id('932'));
+  INSERT INTO public.cart_spot_holds (cart_id, cart_item_id, class_id, stripe_checkout_session_id, expires_at)
+  VALUES (pg_temp.id('611'), pg_temp.id('712'), pg_temp.id('303'), 'cs_test_1012_orphan',
+          now() + interval '31 minutes');
+  PERFORM public.end_cart_checkout(pg_temp.id('611'), pg_temp.id('932'));
+  PERFORM pg_temp.expect_eq(pg_temp.live_holds(pg_temp.id('611')), '',
+    'C end_cart_checkout releases a hold tied to a page the cart no longer links');
 END;
 $$;
 RESET ROLE;

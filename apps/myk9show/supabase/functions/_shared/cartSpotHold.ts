@@ -46,12 +46,14 @@ export interface RefusedCartLine {
 }
 
 interface HoldRow extends RefusedCartLine {
-  outcome: 'held' | 'refused';
+  outcome: 'held' | 'refused' | 'cart_changed';
 }
 
 export type CartHoldResult =
   | { kind: 'held'; heldCount: number }
   | { kind: 'refused'; lines: RefusedCartLine[] }
+  /** The cart is not the cart this request read (edited, or the page unlinked): nothing held. */
+  | { kind: 'cart_changed' }
   | { kind: 'error'; message: string };
 
 /** Epoch seconds for a hold starting now. */
@@ -107,24 +109,29 @@ export async function endCartCheckout(
 
 /**
  * Hold every new line of the cart under the lease, or hold nothing.
+ * `expectedUpdatedAt` is the cart's updated_at as this request read it; the
+ * database refuses (`cart_changed`) unless the cart is still that cart.
  * `sessionId` names the page the holds are for when it already exists (a
- * reused page); otherwise the page is opened next and `linkCartCheckout`
- * ties them to it.
+ * reused page, which the cart must still link); otherwise the page is opened
+ * next and `linkCartCheckout` ties them to it.
  */
 export async function holdCartSpots(
   db: HoldRpcClient,
   lease: CartLease,
   expiresAtEpoch: number,
+  expectedUpdatedAt: string,
   sessionId: string | null = null
 ): Promise<CartHoldResult> {
   const { data, error } = await db.rpc('hold_cart_spots', {
     p_cart_id: lease.cartId,
     p_lease_id: lease.leaseId,
     p_expires_at: epochToIso(expiresAtEpoch),
+    p_expected_updated_at: expectedUpdatedAt,
     p_checkout_session_id: sessionId,
   });
   if (error) return { kind: 'error', message: error.message ?? 'hold_cart_spots failed' };
   const rows = (Array.isArray(data) ? data : []) as HoldRow[];
+  if (rows.some(row => row.outcome === 'cart_changed')) return { kind: 'cart_changed' };
   const refused = rows.filter(row => row.outcome === 'refused');
   if (refused.length > 0) {
     return {
@@ -202,6 +209,17 @@ export class CartHoldUnavailableError extends Error {
   }
 }
 
+/** The cart was edited (another tab) after this request read it: start over. */
+export class CartChangedError extends Error {
+  constructor() {
+    super('cart changed since checkout read it');
+    this.name = 'CartChangedError';
+  }
+}
+
+export const CART_CHANGED_MESSAGE =
+  'Your cart changed while checkout was starting. Please try again.';
+
 export const CART_HOLD_UNAVAILABLE_MESSAGE =
   'We could not hold your spots just now. Nothing was charged. Please try again in a moment.';
 
@@ -213,10 +231,12 @@ export async function createSessionUnderHold<T>(
   db: HoldRpcClient,
   lease: CartLease,
   holdUntilEpoch: number,
+  expectedUpdatedAt: string,
   createSession: (expiresAtEpoch: number) => Promise<T>
 ): Promise<{ session: T; heldCount: number }> {
-  const hold = await holdCartSpots(db, lease, holdUntilEpoch);
+  const hold = await holdCartSpots(db, lease, holdUntilEpoch, expectedUpdatedAt);
   if (hold.kind === 'refused') throw new CartHoldRefusedError(hold.lines);
+  if (hold.kind === 'cart_changed') throw new CartChangedError();
   if (hold.kind === 'error') throw new CartHoldUnavailableError(hold.message);
   return { session: await createSession(holdUntilEpoch), heldCount: hold.heldCount };
 }

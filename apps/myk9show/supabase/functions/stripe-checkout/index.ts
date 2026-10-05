@@ -27,7 +27,9 @@ import {
   releasePriorSessionForClassGate,
 } from '../_shared/cartClassGate.ts';
 import {
+  CART_CHANGED_MESSAGE,
   CART_HOLD_UNAVAILABLE_MESSAGE,
+  CartChangedError,
   CHECKOUT_IN_PROGRESS_CODE,
   CHECKOUT_IN_PROGRESS_MESSAGE,
   CartHoldRefusedError,
@@ -859,6 +861,7 @@ async function checkoutUnderLease(
           supabase,
           lease,
           holdUntilEpoch,
+          cart.updated_at,
           expiresAtEpoch =>
             stripe.checkout.sessions.create({
               customer: customerId,
@@ -901,6 +904,10 @@ async function checkoutUnderLease(
         409
       );
     }
+    if (error instanceof CartChangedError) {
+      console.log(`Cart ${cart_id} changed before its spots were held`);
+      return corsResponse(corsHeaders, { error: CART_CHANGED_MESSAGE }, 409);
+    }
     if (error instanceof CartHoldUnavailableError) {
       console.error(`Could not hold spots for cart ${cart_id}: ${error.message}`);
       return corsResponse(corsHeaders, { error: CART_HOLD_UNAVAILABLE_MESSAGE }, 503);
@@ -923,7 +930,15 @@ async function checkoutUnderLease(
     // existed has none, and a line added since would have none.
     const reused = resolution.session;
     const reusedExpiresAtEpoch = reused.expires_at ?? holdUntilEpoch;
-    const hold = await holdCartSpots(supabase, lease, reusedExpiresAtEpoch, reused.id);
+    // The database refuses unless the cart is still the cart read above and
+    // still links this page (Codex P2 on #2755).
+    const hold = await holdCartSpots(
+      supabase,
+      lease,
+      reusedExpiresAtEpoch,
+      cart.updated_at,
+      reused.id
+    );
     if (hold.kind !== 'held') {
       try {
         await stripe.checkout.sessions.expire(reused.id);
@@ -933,6 +948,10 @@ async function checkoutUnderLease(
       if (hold.kind === 'error') {
         console.error(`Could not re-hold spots for cart ${cart_id}: ${hold.message}`);
         return corsResponse(corsHeaders, { error: CART_HOLD_UNAVAILABLE_MESSAGE }, 503);
+      }
+      if (hold.kind === 'cart_changed') {
+        console.log(`Cart ${cart_id} changed before its reused page was re-held`);
+        return corsResponse(corsHeaders, { error: CART_CHANGED_MESSAGE }, 409);
       }
       return corsResponse(
         corsHeaders,
@@ -985,11 +1004,7 @@ async function checkoutUnderLease(
   if (link.kind === 'cart_changed') {
     console.log(`Cart ${cart_id} changed mid-checkout — expiring session ${session.id}`);
     await abandonSession();
-    return corsResponse(
-      corsHeaders,
-      { error: 'Your cart changed while checkout was starting. Please try again.' },
-      409
-    );
+    return corsResponse(corsHeaders, { error: CART_CHANGED_MESSAGE }, 409);
   }
   if (link.kind === 'holds_lost') {
     console.error(`Holds for cart ${cart_id} not all tieable — expiring session ${session.id}`);

@@ -1,10 +1,10 @@
 /**
  * MYK9-1012 (Codex P2 on #2755): the secretary's Waitlist tab reads
- * `judge_day_summary`, whose confirmed_count now includes spots carts hold at
- * Pay (migration 20261005031700). A one-dog judge day whose only spot is held
- * must read Full here, as the server already refuses offers for it, and never
- * say anything about a hold. The view row is fed through the real
- * `useJudgeDayCapacity` mapping so the figure on screen is the view's.
+ * server's judge-day read (MYK9-1005), whose taken count includes spots carts
+ * hold at Pay (migration 20261005031700). A one-dog judge day whose only spot
+ * is held must read Full here, as the server already refuses offers for it,
+ * and never say anything about a hold. The server row is fed through the real
+ * `useJudgeDayCapacity` mapping so the figure on screen is the server's.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { render, renderHook, screen, waitFor } from '@testing-library/react';
@@ -13,6 +13,7 @@ import type { ReactNode } from 'react';
 import { JudgeCapacityOverview } from '../JudgeCapacityOverview';
 
 const viewRow = vi.hoisted(() => ({ confirmed_count: 1 }));
+const remaining = () => Math.max(0, 1 - viewRow.confirmed_count);
 
 function answer(data: unknown) {
   const result = { data, error: null };
@@ -35,36 +36,33 @@ vi.mock('@/services/database/supabaseClient', () => ({
             show_date: '2026-11-01',
             class_ids: ['class-c4'],
             class_names: ['Buried Novice'],
-            confirmed_count: viewRow.confirmed_count,
             waitlist_count: 0,
           },
         ]);
       }
-      if (table === 'shows') {
-        return answer({
-          default_judge_day_capacity: 125,
-          mail_in_strategy: null,
-          mail_in_value: null,
-          mail_in_deadline: null,
-          mail_in_auto_release: null,
-          mail_in_release_date: null,
-        });
-      }
-      return answer([
-        {
-          person_id: 'judge-jo',
-          class_id: 'class-c4',
-          day_capacity_override: 1,
-          trials: { date: '2026-11-01' },
-        },
-      ]);
+      throw new Error(`unexpected read of ${table}`);
     },
+    rpc: () =>
+      Promise.resolve({
+        data: [
+          {
+            class_id: 'class-c4',
+            judge_id: 'judge-jo',
+            show_date: '2026-11-01',
+            day_capacity: 1,
+            day_taken: viewRow.confirmed_count,
+            day_mail_in_reserved: 0,
+            day_remaining: remaining(),
+          },
+        ],
+        error: null,
+      }),
   },
 }));
 
 import { useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
 
-async function judgeDaysFromView() {
+async function judgeDaysFromServer() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const wrapper = ({ children }: { children: ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
@@ -77,9 +75,9 @@ async function judgeDaysFromView() {
 const HOLD_WORDING = /\bhold|\bheld/i;
 
 describe('JudgeCapacityOverview — a held last spot (MYK9-1012)', () => {
-  it('reads Full when the view counts the held spot as taken', async () => {
+  it('reads Full when the server counts the held spot as taken', async () => {
     viewRow.confirmed_count = 1;
-    const judgeDays = await judgeDaysFromView();
+    const judgeDays = await judgeDaysFromServer();
     expect(judgeDays[0]!.availableSpots).toBe(0);
 
     const { container } = render(
@@ -93,7 +91,7 @@ describe('JudgeCapacityOverview — a held last spot (MYK9-1012)', () => {
 
   it('has its spot back when the hold has ended', async () => {
     viewRow.confirmed_count = 0;
-    const judgeDays = await judgeDaysFromView();
+    const judgeDays = await judgeDaysFromServer();
 
     render(<JudgeCapacityOverview judgeDays={judgeDays} onViewWaitList={vi.fn()} />);
 

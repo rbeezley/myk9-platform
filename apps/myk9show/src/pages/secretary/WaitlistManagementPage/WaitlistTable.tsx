@@ -15,13 +15,16 @@ interface WaitlistTableProps {
   selectedClass: ClassWithWaitlistCount;
   isLoading: boolean;
   searchActive: boolean;
+  /** Offer and Remove are online calls: offline they are disabled, with the reason beside them. */
+  offline?: boolean;
   onSetActionDialog: (state: ActionDialogState) => void;
 }
 
 function buildColumns(
   selectedClass: ClassWithWaitlistCount,
   onOfferSpot: (entry: WaitlistEntry) => void,
-  onRemove: (entry: WaitlistEntry) => void
+  onRemove: (entry: WaitlistEntry) => void,
+  offline: boolean
 ): ColumnDef<WaitlistEntry, unknown>[] {
   const hasAvailableSpots =
     !selectedClass.max_entries || selectedClass.accepted_count < selectedClass.max_entries;
@@ -69,17 +72,22 @@ function buildColumns(
       id: 'actions',
       header: 'Actions',
       cell: ({ row }) => (
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {hasAvailableSpots && (
-            <Button onClick={() => onOfferSpot(row.original)}>
+            <Button disabled={offline} onClick={() => onOfferSpot(row.original)}>
               <ArrowUpCircle className="h-4 w-4 mr-1" />
               Offer Spot
             </Button>
           )}
-          <Button variant="destructive" onClick={() => onRemove(row.original)}>
+          <Button variant="destructive" disabled={offline} onClick={() => onRemove(row.original)}>
             <Trash2 className="h-4 w-4 mr-1" />
             Remove
           </Button>
+          {offline && (
+            <span className="text-xs text-muted-foreground" data-testid="waitlist-online-only">
+              Online only
+            </span>
+          )}
         </div>
       ),
       meta: { interactive: true },
@@ -94,6 +102,7 @@ export function WaitlistTable({
   selectedClass,
   isLoading,
   searchActive,
+  offline = false,
   onSetActionDialog,
 }: WaitlistTableProps) {
   const handleOfferSpot = useCallback(
@@ -111,8 +120,8 @@ export function WaitlistTable({
   );
 
   const columns = useMemo(
-    () => buildColumns(selectedClass, handleOfferSpot, handleRemove),
-    [selectedClass, handleOfferSpot, handleRemove]
+    () => buildColumns(selectedClass, handleOfferSpot, handleRemove, offline),
+    [selectedClass, handleOfferSpot, handleRemove, offline]
   );
 
   return (

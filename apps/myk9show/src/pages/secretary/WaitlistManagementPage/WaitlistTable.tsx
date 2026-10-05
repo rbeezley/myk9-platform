@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Clock, Dog, ArrowUpCircle, Trash2 } from 'lucide-react';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import type { WaitlistEntry, ClassWithWaitlistCount, ActionDialogState } from './types';
-import { formatEntryDateTime } from '@/lib/format/dates';
+import { formatEntryDate, formatEntryDateTime } from '@/lib/format/dates';
 
 interface WaitlistTableProps {
   entries: WaitlistEntry[];
@@ -125,6 +125,15 @@ export function WaitlistTable({
               {selectedClass.class_number ? `#${selectedClass.class_number} - ` : ''}
               {selectedClass.name} ({entries.length})
             </CardTitle>
+            {/* Shows repeat a class across trials, so name the trial and its day. The date is a
+                calendar date (no time), so it needs no timezone conversion. */}
+            {selectedClass.trial && (
+              <p className="text-sm font-medium text-muted-foreground">
+                {[selectedClass.trial.name, formatEntryDate(selectedClass.trial.date)]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
+            )}
             <CardDescription>
               In join order (first come, first served) &middot; {selectedClass.accepted_count}
               {selectedClass.max_entries ? ` of ${selectedClass.max_entries}` : ''} entered

@@ -47,7 +47,15 @@ export function useWaitlistManagementData(showId: string) {
 
   const [judgeDayKey, setJudgeDayKey] = useState<JudgeDayKey | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [actionError, setActionError] = useState<string | null>(null);
+  // Stamped with its show so a failed offer never outlives the show it happened in.
+  const [actionFailure, setActionFailure] = useState<{ showId: string; message: string } | null>(
+    null
+  );
+  const actionError = actionFailure?.showId === showId ? actionFailure.message : null;
+  const setActionError = useCallback(
+    (message: string | null) => setActionFailure(message ? { showId, message } : null),
+    [showId]
+  );
   const [searchTerm, setSearchTerm] = useState('');
   const [actionDialog, setActionDialog] = useState<ActionDialogState>({
     open: false,
@@ -126,6 +134,12 @@ export function useWaitlistManagementData(showId: string) {
       queryClient.invalidateQueries({ queryKey: judgeDayCapacityKey(showId) }),
     ]);
   }, [queryClient, showId]);
+
+  // "Try again": drop a failed offer/removal message too, then re-read.
+  const retry = useCallback(() => {
+    setActionError(null);
+    void reload();
+  }, [setActionError, reload]);
 
   useEffect(() => {
     if (!showId) return;
@@ -240,7 +254,14 @@ export function useWaitlistManagementData(showId: string) {
       setIsProcessing(false);
       setActionDialog({ open: false, action: null, entry: null });
     }
-  }, [actionDialog.entry, showId, reload, notifyOfferedExhibitor, createWaitlistPaymentLink]);
+  }, [
+    actionDialog.entry,
+    showId,
+    reload,
+    setActionError,
+    notifyOfferedExhibitor,
+    createWaitlistPaymentLink,
+  ]);
 
   const handleRemoveFromWaitlist = useCallback(async () => {
     if (!actionDialog.entry) return;
@@ -264,7 +285,7 @@ export function useWaitlistManagementData(showId: string) {
       setIsProcessing(false);
       setActionDialog({ open: false, action: null, entry: null });
     }
-  }, [actionDialog.entry, reload]);
+  }, [actionDialog.entry, reload, setActionError]);
 
   // Derived state: one group per class, each in join order, narrowed by the dog search. Classes
   // with nobody (left) waiting are omitted rather than rendered as empty cards.
@@ -305,7 +326,7 @@ export function useWaitlistManagementData(showId: string) {
     searchTerm,
     actionDialog,
     // Actions
-    reload,
+    retry,
     viewJudgeDay,
     showAllClasses,
     setSearchTerm,

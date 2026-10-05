@@ -76,6 +76,7 @@ vi.mock('@/services/database/waitlists', () => ({
           ],
           c2: [h.entry('w3', 'c2', 'Novice B', 1, 'Tera')],
           c3: [h.entry('w4', 'c3', 'Master', 1, 'Otherjudge')],
+          c4: [h.entry('w5', 'c4', 'Novice A', 1, 'Zed')],
         }[classId] ?? [],
       error: null,
     };
@@ -328,5 +329,53 @@ describe('WaitlistManagementPage', () => {
     await waitFor(() =>
       expect(invalidate).toHaveBeenCalledWith({ queryKey: judgeDayCapacityKey('show-1') })
     );
+  });
+
+  // Codex round 3: a failed removal's message must not outlive "Try again" or the show.
+  async function failARemoval() {
+    const { removeFromWaitlist } = await import('@/services/database/waitlists');
+    vi.mocked(removeFromWaitlist).mockResolvedValueOnce({
+      data: null,
+      error: new Error('nope'),
+    } as never);
+    const view = render(<WaitlistManagementPage showId="show-1" />);
+    await screen.findByText('Bella');
+    fireEvent.click(screen.getAllByRole('button', { name: /^remove$/i })[0]!);
+    const dialog = await screen.findByRole('alertdialog');
+    fireEvent.click(within(dialog).getByRole('button', { name: /^remove$/i }));
+    expect(await screen.findByText(/Failed to remove from waitlist/)).toBeInTheDocument();
+    return view;
+  }
+
+  it('Try again clears a failed removal message', async () => {
+    await failARemoval();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    await waitFor(() =>
+      expect(screen.queryByText(/Failed to remove from waitlist/)).not.toBeInTheDocument()
+    );
+  });
+
+  it('a failed removal message does not follow the tab to another show', async () => {
+    const { rerender } = await failARemoval();
+    rerender(<WaitlistManagementPage showId="show-2" />);
+    expect(screen.queryByText(/Failed to remove from waitlist/)).not.toBeInTheDocument();
+  });
+
+  it('tells apart same-named classes in different trials by trial name and date', async () => {
+    const { getClassesWithWaitlistCounts } = await import('@/services/database/waitlists');
+    vi.mocked(getClassesWithWaitlistCounts).mockResolvedValueOnce({
+      data: [
+        h.cls('c1', 'Novice A', '1', 2, 2),
+        {
+          ...h.cls('c4', 'Novice A', '1', 1, 0),
+          trial_id: 't2',
+          trial: { id: 't2', name: 'Trial 2', date: '2026-10-11' },
+        },
+      ],
+      error: null,
+    } as never);
+    render(<WaitlistManagementPage showId="show-1" />);
+    expect(await screen.findByText('Trial 1 · Sat, Oct 10, 2026')).toBeInTheDocument();
+    expect(screen.getByText('Trial 2 · Sun, Oct 11, 2026')).toBeInTheDocument();
   });
 });

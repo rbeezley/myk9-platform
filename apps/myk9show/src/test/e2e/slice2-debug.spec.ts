@@ -8,7 +8,7 @@ test('debug career switch', async ({ page }) => {
   const dogLink = page.locator('ul[aria-label="Dogs"] a, h3 a[href^="/dogs/"]').first();
   await dogLink.waitFor({ state: 'visible', timeout: 20000 });
   await dogLink.click();
-  await page.getByRole('heading', { level: 1 }).waitFor();
+  await page.getByRole('heading', { level: 1 }).last().waitFor();
 
   const tablists = await page.getByRole('tablist').count();
   console.log('TABLIST COUNT:', tablists);

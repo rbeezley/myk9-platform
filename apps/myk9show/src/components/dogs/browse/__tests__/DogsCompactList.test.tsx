@@ -19,7 +19,9 @@ const dogs: Dog[] = [
 ];
 
 function Probe() {
-  return <p data-testid="loc">{useLocation().pathname}</p>;
+  const location = useLocation();
+  const fromList = (location.state as { fromList?: boolean } | null)?.fromList === true;
+  return <p data-testid="loc">{`${location.pathname}${fromList ? ' fromList' : ''}`}</p>;
 }
 
 describe('DogsCompactList', () => {
@@ -53,5 +55,16 @@ describe('DogsCompactList', () => {
     await userEvent.keyboard('{ArrowDown}');
     expect(screen.getByTestId('loc')).toHaveTextContent('/dogs/d2');
     expect(screen.getByRole('link', { name: /Maple/ })).toHaveFocus();
+  });
+
+  it('marks its navigation as from the list, so the dog pane leaves focus on the row', async () => {
+    render(
+      <>
+        <DogsCompactList dogs={dogs} selectedId={undefined} />
+        <Probe />
+      </>
+    );
+    await userEvent.click(screen.getByRole('link', { name: /Maple/ }));
+    expect(screen.getByTestId('loc')).toHaveTextContent('/dogs/d2 fromList');
   });
 });

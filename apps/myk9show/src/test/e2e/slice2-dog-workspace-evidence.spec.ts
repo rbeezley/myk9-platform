@@ -59,7 +59,7 @@ async function openFirstOwnedDog(page: Page): Promise<void> {
     }
   }
   await dogLink.click();
-  await expect(page.getByRole('heading', { level: 1 })).toBeVisible({ timeout: 20000 });
+  await expect(page.getByRole('heading', { level: 1 }).last()).toBeVisible({ timeout: 20000 });
 }
 
 test.describe('Slice 2 dog workspace evidence (demo exhibitor)', () => {
@@ -78,7 +78,7 @@ test.describe('Slice 2 dog workspace evidence (demo exhibitor)', () => {
         // + reload to make the state deterministic per iteration.
         await page.evaluate(t => localStorage.setItem('theme', t), theme);
         await page.goto(dogPath);
-        await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+        await expect(page.getByRole('heading', { level: 1 }).last()).toBeVisible();
 
         // Top-level nav present and unclipped.
         const sectionNav = page.getByRole('tablist', { name: 'Dog details section' });

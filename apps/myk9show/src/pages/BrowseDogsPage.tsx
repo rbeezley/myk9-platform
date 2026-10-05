@@ -66,7 +66,6 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
   const { id: selectedId } = useParams<{ id: string }>();
-  const splitCapable = detail !== null;
 
   const { getUserRoles, userWithRoles } = useAuthContext();
   // Exhibitor-only users see their own roster; secretaries/admins see all dogs.
@@ -79,9 +78,9 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
   // the data instead of re-deriving it from a role (MYK9-219 review).
   const ownDogsOnly = useRosterIsOwnDogsOnly();
   const [viewMode, setViewMode] = useViewPreference('dogs', defaultListView(!isExhibitorOnly));
-  const [showCreateDogPanel, setShowCreateDogPanel] = useState(
-    () => searchParams.get('add') === 'true'
-  );
+  // From the URL, not seeded once: beside an open dog this page stays mounted, so the Add Dog
+  // shortcut (`/dogs?add=true`) must open the panel on a page that is already showing.
+  const showCreateDogPanel = searchParams.get('add') === 'true';
   const [cardPage, setCardPage] = useState(1);
 
   const currentUserPersonId = useCurrentUserPersonId();
@@ -98,6 +97,9 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
     hasActiveFilters,
     clearAllFilters,
   } = useBrowseDogsData();
+  // An empty roster has nothing to put beside a list (a first-time exhibitor would see an empty
+  // pane and a prompt for dogs that do not exist), unless a dog is already open.
+  const splitCapable = detail !== null && (dogs.length > 0 || Boolean(selectedId));
 
   // `useRoleBasedDogs` returns [] until `userWithRoles` resolves, while
   // `isLoading` tracks only the dogs query. Without this the page reaches
@@ -202,14 +204,12 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
   const breadcrumbs = useMemo(() => [{ label: pageTitle, href: '/dogs' }], [pageTitle]);
 
   const openCreateDogPanel = useCallback(() => {
-    setShowCreateDogPanel(true);
     const params = new URLSearchParams(searchParams);
     params.set('add', 'true');
     setSearchParams(params, { replace: true });
   }, [searchParams, setSearchParams]);
 
   const closeCreateDogPanel = useCallback(() => {
-    setShowCreateDogPanel(false);
     if (!searchParams.has('add')) return;
     const params = new URLSearchParams(searchParams);
     params.delete('add');
@@ -218,7 +218,6 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
 
   const handleDogCreated = useCallback(
     (newDog: DogType) => {
-      setShowCreateDogPanel(false);
       exitSelectMode();
       navigate(`/dogs/${newDog.id}`, { replace: true, state: { createdDog: newDog } });
     },
@@ -227,7 +226,7 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
 
   // Select mode is only offered where the split exists, to staff (the exhibitor roster has no bulk
   // actions); the narrow page keeps its table/cards toggle.
-  const showSelectMode = splitCapable && !isExhibitorOnly;
+  const showSelectMode = splitCapable && canBulkManageDogs;
   const actionButtons =
     showSelectMode || canCreateDogs ? (
       <>
@@ -314,7 +313,8 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
     }
 
     // Beside a dog the list is one compact line per dog; the table needs the full width, so it only
-    // gets it in select mode.
+    // gets it in select mode. Unpaged on purpose: the pane scrolls, and a row is one link, where the
+    // 25-per-page contract (MYK9-218) exists for the table's and the cards' mount cost.
     if (splitOpen) {
       return (
         <DogsCompactList dogs={filteredDogs} selectedId={selectedId} showOwner={!ownDogsOnly} />
@@ -357,11 +357,13 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
         <BrowseDogsSkeleton viewMode={isExhibitorOnly || viewMode === 'cards' ? 'grid' : 'table'} />
       )}
 
-      {hasError && !isLoading && (
+      {/* A failed refresh keeps the cached rows (and the open dog beside them) and says so inline;
+          the full error state is for when there is nothing to show. */}
+      {hasError && !isLoading && dogs.length === 0 && (
         <ErrorState message="We couldn't load your dogs." onRetry={handleRetry} />
       )}
 
-      {!isLoading && !isResolvingIdentity && !hasError && (
+      {!isLoading && !isResolvingIdentity && !(hasError && dogs.length === 0) && (
         <>
           <PageHeader
             breadcrumbs={breadcrumbs}
@@ -369,6 +371,18 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
             actions={actionButtons}
             showTitle
           />
+
+          {hasError && (
+            <div
+              role="alert"
+              className="flex flex-wrap items-center gap-3 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm"
+            >
+              <span>We couldn&apos;t refresh dogs. Showing what we have.</span>
+              <Button variant="outline" className="h-11" onClick={handleRetry}>
+                Try again
+              </Button>
+            </div>
+          )}
 
           <MasterDetailLayout
             id="dogs"

@@ -53,9 +53,9 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
 
   const [viewMode, setViewMode] = useViewPreference('people', defaultListView(true));
   const isMobileViewport = useMediaQuery('(max-width: 767px)');
-  const [showCreatePersonDialog, setShowCreatePersonDialog] = useState(
-    () => searchParams.get('add') === 'true'
-  );
+  // From the URL, not seeded once: beside an open person this page stays mounted, so the Add
+  // shortcut (`/people?add=true`) must open the dialog on a page that is already showing.
+  const showCreatePersonDialog = searchParams.get('add') === 'true';
 
   const { hasPermission, isLoading: rbacLoading } = useRBAC();
   const { addUser } = useUserStore();
@@ -107,14 +107,12 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
   const breadcrumbs = useMemo(() => [{ label: 'People', href: '/people' }], []);
 
   const openCreatePersonDialog = useCallback(() => {
-    setShowCreatePersonDialog(true);
     const params = new URLSearchParams(searchParams);
     params.set('add', 'true');
     setSearchParams(params, { replace: true });
   }, [searchParams, setSearchParams]);
 
   const closeCreatePersonDialog = useCallback(() => {
-    setShowCreatePersonDialog(false);
     if (!searchParams.has('add')) return;
     const params = new URLSearchParams(searchParams);
     params.delete('add');

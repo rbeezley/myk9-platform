@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { LIST_NAVIGATION_STATE } from './listNavigation';
 
 interface CompactRecordListProps<T> {
   items: T[];
@@ -47,7 +48,7 @@ export function CompactRecordList<T>({
     if (from === -1 || !next) return;
     event.preventDefault();
     rows[to]?.focus();
-    navigate(getHref(next), { replace: true });
+    navigate(getHref(next), { replace: true, state: LIST_NAVIGATION_STATE });
   };
 
   const opened = items.find(item => getId(item) === selectedId);
@@ -70,6 +71,7 @@ export function CompactRecordList<T>({
             <li key={id}>
               <Link
                 to={getHref(item)}
+                state={LIST_NAVIGATION_STATE}
                 aria-current={id === selectedId ? 'page' : undefined}
                 className={cn(
                   'flex min-h-14 flex-col justify-center px-3 py-2 transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none',

@@ -1,5 +1,6 @@
 import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { LIST_NAVIGATION_STATE } from './listNavigation';
 
 /**
  * "Select" mode for a master-detail list: it swaps the split for the full-width table so its
@@ -19,7 +20,11 @@ export function useSelectMode({
 }) {
   const [selectMode, setSelectMode] = useState(false);
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const enterSelectMode = useCallback(() => setSelectMode(true), []);
+  // Starts empty: ticks made in a narrow window must not reappear pre-loaded in the bulk bar.
+  const enterSelectMode = useCallback(() => {
+    clearSelection();
+    setSelectMode(true);
+  }, [clearSelection]);
   const exitSelectMode = useCallback(() => {
     setSelectMode(false);
     clearSelection();
@@ -33,7 +38,7 @@ export function useSelectMode({
     (href: string) => {
       exitSelectMode();
       buttonRef.current?.focus();
-      navigate(href);
+      navigate(href, { state: LIST_NAVIGATION_STATE });
     },
     [exitSelectMode, navigate]
   );

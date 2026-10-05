@@ -34,7 +34,8 @@ export const MasterDetailRoute: React.FC<MasterDetailRouteProps> = ({
 
   const record = id ? (
     <PageTransition>
-      <Detail />
+      {/* Keyed so a record's own state (a just-created dog, open panels) never leaks to the next. */}
+      <Detail key={id} />
     </PageTransition>
   ) : null;
 

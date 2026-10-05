@@ -12918,6 +12918,10 @@ export type Database = {
         Args: { p_dog_id: string }
         Returns: number
       }
+      count_live_waitlist_entries: {
+        Args: { p_ids: string[] }
+        Returns: number
+      }
       create_dog_with_registrations: {
         Args: { p_dog: Json; p_registrations: Json }
         Returns: string
@@ -13647,6 +13651,13 @@ export type Database = {
           state: string
         }[]
       }
+      get_my_entry_queue_places: {
+        Args: { p_entry_ids: string[] }
+        Returns: {
+          entry_id: string
+          place: number
+        }[]
+      }
       get_my_handled_dog_ids: { Args: never; Returns: string[] }
       get_my_onboarding_requests: {
         Args: never
@@ -14033,6 +14044,25 @@ export type Database = {
           link_closed: boolean
           link_status: string
           order_created: boolean
+          reason: string
+          refund_request_id: string
+          request_status: string
+          stripe_payment_intent_id: string
+        }[]
+      }
+      queue_unfulfilled_charge_refund: {
+        Args: {
+          p_amount_cents: number
+          p_cart_id?: string
+          p_detail?: Json
+          p_payment_intent_id: string
+          p_reason: string
+          p_session_id: string
+          p_show_id?: string
+        }
+        Returns: {
+          amount_cents: number
+          outcome: string
           reason: string
           refund_request_id: string
           request_status: string

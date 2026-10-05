@@ -254,6 +254,16 @@ type GetSecretaryLiveEntryCount = {
 };
 
 /**
+ * MYK9-1000 (`20261004235100`): how many of the given waitlist ids still exist,
+ * ignoring RLS; the waitlist replica's empty-scope proof. Hand-declared until
+ * the migration is applied and `supabase gen types` picks it up.
+ */
+type CountLiveWaitlistEntries = {
+  Args: { p_ids: string[] };
+  Returns: number;
+};
+
+/**
  * CRUD standard Phase 2 (`20261001233700`): `delete_preview(p_scope, p_id)`, the
  * counts and blockers the shared delete dialog reads before Delete is enabled.
  * Hand-declared until the migration is applied and `supabase gen types` picks it
@@ -277,6 +287,7 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
       | 'get_show_class_judge_day_availability'
       | 'get_club_officials'
       | 'get_secretary_live_entry_count'
+      | 'count_live_waitlist_entries'
       | keyof ClubMembershipRequestFunctions
       | keyof DeletePreviewFunctions
     > & {
@@ -287,6 +298,7 @@ export type Database = Omit<GeneratedDatabase, 'public'> & {
       update_show_style: UpdateShowStyle;
       get_club_officials: GetClubOfficials;
       get_secretary_live_entry_count: GetSecretaryLiveEntryCount;
+      count_live_waitlist_entries: CountLiveWaitlistEntries;
       get_show_class_availability: ShowClassAvailability;
       get_show_class_judge_day_availability: ShowClassJudgeDayAvailability;
     } & ClubMembershipRequestFunctions &

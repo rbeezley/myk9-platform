@@ -175,7 +175,7 @@ describe('WhereToBe', () => {
     expect(screen.getByText('10:30 AM')).toBeInTheDocument();
   });
 
-  it('shows "Waiting" and check-in state, never a place or a stored run number', () => {
+  it('without a server count, shows "Waiting" and check-in state, never a stored run number', () => {
     render(
       <WhereToBe
         entries={[makeEntry({ queue: { kind: 'waiting-unknown' }, checkInStatus: 'checked-in' })]}

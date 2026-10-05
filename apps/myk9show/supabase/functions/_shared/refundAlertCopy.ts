@@ -21,7 +21,7 @@ const DO_NOT_REFUND_IN_DASHBOARD =
 const QUEUE_IT_BY_HAND =
   'Once the amount is known, queue it with <code>queue_payment_link_refund</code> (service role: session, payment intent, amount, reason) so it appears under <strong>Refunds awaiting approval</strong> on /admin/health, then approve it there.';
 
-function dollars(cents: number): string {
+export function dollars(cents: number): string {
   return (cents / 100).toFixed(2);
 }
 
@@ -141,10 +141,115 @@ export function paymentLinkNeedsManualAmountAlert(input: {
   };
 }
 
+// MYK9-963: a paid cart checkout that created NOTHING is queued as an
+// unfulfilled_charge request for the full charge. The builders below are the
+// summary of its awaiting-approval alert (ensureRefundRequestAlert), one per
+// reason; the missing-inputs one is raised when nothing could be queued.
+const QUEUE_UNFULFILLED_BY_HAND =
+  'Once the payment intent and amount are known, queue it with <code>queue_unfulfilled_charge_refund</code> (service role: session, payment intent, the full amount charged, reason) so it appears under <strong>Refunds awaiting approval</strong> on /admin/health, then approve it there.';
+
+const QUEUED_IN_FULL =
+  'No entries were created, so the full amount charged, service fee included, is queued under <strong>Refunds awaiting approval</strong> on /admin/health.';
+
+/** The cart row is gone (reason no_cart). */
+export function noCartChargeAlert(input: { sessionId: string; cartId: string }): AlertCopy {
+  return {
+    title: 'Paid checkout has no cart — refund awaiting approval',
+    html: `Checkout session <code>${input.sessionId}</code> was PAID, but cart
+     <code>${input.cartId}</code> no longer exists. ${QUEUED_IN_FULL} If the exhibitor
+     confirms what they ordered and you enter it by hand instead, resolve the request
+     without a refund.`,
+  };
+}
+
+/** A cart class failed the show-membership filter (reason cart_classes_not_in_show). */
+export function cartClassesNotInShowChargeAlert(input: {
+  sessionId: string;
+  cartId: string;
+  missingClassIds: string[];
+}): AlertCopy {
+  return {
+    title: 'Cart classes do not belong to show — refund awaiting approval',
+    html: `Checkout session <code>${input.sessionId}</code> was PAID, but
+     ${input.missingClassIds.length} class(es) in cart <code>${input.cartId}</code> did not
+     pass the show-membership filter (<code>${input.missingClassIds.join(', ')}</code>). A
+     cross-show class id may have been injected into the cart: investigate it before any
+     manual re-entry. ${QUEUED_IN_FULL}`,
+  };
+}
+
+/** The charge disagrees with authoritative pricing (reason paid_amount_mismatch). */
+export function paidAmountMismatchChargeAlert(input: {
+  sessionId: string;
+  chargedCents: number;
+  authoritativeCents: number;
+}): AlertCopy {
+  return {
+    title: 'Paid amount disagrees with authoritative pricing — refund awaiting approval',
+    html: `Checkout session <code>${input.sessionId}</code> charged
+     ${dollars(input.chargedCents)} USD, but the show/class pricing says this cart is worth
+     ${dollars(input.authoritativeCents)} USD. Benign cause: the show's fees changed (or the
+     day-of-show fee tier started) between checkout and payment. Malicious cause: cart
+     values were tampered with after checkout started. The cart is untouched, so the
+     exhibitor can check out again. ${QUEUED_IN_FULL}`,
+  };
+}
+
+/** The cart is no longer active on this session (reason cart_not_claimable). */
+export function unclaimableCartChargeAlert(input: {
+  sessionId: string;
+  cartId: string;
+  cartStatus: string | null;
+}): AlertCopy {
+  return {
+    title: 'Possible duplicate entry payment — refund awaiting approval',
+    html: `Checkout session <code>${input.sessionId}</code> was PAID for cart
+     <code>${input.cartId}</code>, but the cart was no longer open for this checkout
+     (status <code>${input.cartStatus ?? 'gone'}</code>), and this session has no order, no
+     fulfillment run and no entries on its payment intent. Most likely the exhibitor was
+     charged twice for one cart. ${QUEUED_IN_FULL} Before approving, confirm in the entries
+     page that the cart's entries exist once, under the other payment.`,
+  };
+}
+
+/** The cart changed or expired after this checkout started (reason stale_checkout). */
+export function staleCheckoutChargeAlert(input: {
+  sessionId: string;
+  cartId: string;
+  staleReason: string;
+}): AlertCopy {
+  return {
+    title: 'Stale checkout payment — refund awaiting approval',
+    html: `Checkout session <code>${input.sessionId}</code> was PAID, but cart
+     <code>${input.cartId}</code> changed after that checkout started
+     (${input.staleReason}). The exhibitor's cart is untouched and they can check out again
+     normally. ${QUEUED_IN_FULL}`,
+  };
+}
+
+/** A paid checkout that created nothing, with no payment intent or amount: nothing was queued. */
+export function unfulfilledChargeMissingInputsAlert(input: {
+  summaryHtml: string;
+  sessionId: string;
+  paymentIntentId: string | null;
+  amountCents: number | null;
+}): AlertCopy {
+  return {
+    title: 'Paid checkout created nothing; refund not queued: payment intent or amount missing',
+    html: `<p>${input.summaryHtml}</p>
+     <p>No entries were created for Checkout Session <code>${input.sessionId}</code>, but
+     the payment intent or amount is missing (payment intent
+     <code>${input.paymentIntentId ?? 'unknown'}</code>, amount
+     <code>${input.amountCents ?? 'unknown'}</code>), so nothing was queued.</p>
+     <p>${DO_NOT_REFUND_IN_DASHBOARD} ${QUEUE_UNFULFILLED_BY_HAND}</p>`,
+  };
+}
+
 /**
  * True when text tells an operator to refund outside the approval queue
  * ("refund by hand", "refund it from the Stripe dashboard", ...). A sentence
- * that forbids it ("Do NOT refund it from the Stripe dashboard") is fine.
+ * that forbids it ("Do NOT refund it from the Stripe dashboard", "Never refund from
+ * the Stripe dashboard") is fine.
  */
 // "refund" + an optional object of up to three words ("it", "that amount",
 // "the no-service portion") + an outside-the-queue way. "Check the refund in
@@ -157,7 +262,10 @@ export function instructsManualRefund(text: string): boolean {
     .replace(/<[^>]+>/g, ' ')
     .replace(/\s+/g, ' ')
     .split(/[.!?] /)
-    .some(sentence => MANUAL_REFUND_INSTRUCTION.test(sentence) && !/\bdo not\b/i.test(sentence));
+    .some(
+      sentence =>
+        MANUAL_REFUND_INSTRUCTION.test(sentence) && !/\b(?:do not|never)\b/i.test(sentence)
+    );
 }
 
 /**
@@ -195,6 +303,30 @@ export const REFUND_ALERT_BUILDERS: Record<string, () => AlertCopy> = {
       sessionId: 'cs_1',
       invalidCartItemIds: ['ci-1'],
       missingLineIds: ['ci-1'],
+    }),
+  noCartChargeAlert: () => noCartChargeAlert({ sessionId: 'cs_1', cartId: 'cart-1' }),
+  cartClassesNotInShowChargeAlert: () =>
+    cartClassesNotInShowChargeAlert({
+      sessionId: 'cs_1',
+      cartId: 'cart-1',
+      missingClassIds: ['c-9'],
+    }),
+  paidAmountMismatchChargeAlert: () =>
+    paidAmountMismatchChargeAlert({
+      sessionId: 'cs_1',
+      chargedCents: 3210,
+      authoritativeCents: 3000,
+    }),
+  unclaimableCartChargeAlert: () =>
+    unclaimableCartChargeAlert({ sessionId: 'cs_1', cartId: 'cart-1', cartStatus: 'submitted' }),
+  staleCheckoutChargeAlert: () =>
+    staleCheckoutChargeAlert({ sessionId: 'cs_1', cartId: 'cart-1', staleReason: 'cart changed' }),
+  unfulfilledChargeMissingInputsAlert: () =>
+    unfulfilledChargeMissingInputsAlert({
+      summaryHtml: 'Summary.',
+      sessionId: 'cs_1',
+      paymentIntentId: null,
+      amountCents: null,
     }),
   cartOverflowCannotRefundAlert: () =>
     cartOverflowCannotRefundAlert({

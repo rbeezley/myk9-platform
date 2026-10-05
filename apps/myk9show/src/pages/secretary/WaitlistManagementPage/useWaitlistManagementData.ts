@@ -19,6 +19,7 @@ import {
   removeFromWaitlist,
   sendWaitlistOfferMessage,
 } from '@/services/database/waitlists';
+import { WaitlistEntryNotDeletedError } from '@/services/database/waitlists/deleteWaitlistEntryErrors';
 import type { ActionDialogState, WaitlistClassGroup, WaitlistEntry } from './types';
 
 /** The judge-day a secretary asked to see the wait list of (the card's own identity, in a show). */
@@ -54,7 +55,11 @@ const waitlistKey = (showId: string) => ['waitlist', showId] as const;
  */
 export function useWaitlistManagementData(showId: string) {
   const queryClient = useQueryClient();
-  const { judgeDays, isPaused: isCapacityUnavailable } = useJudgeDayCapacity(showId || undefined);
+  const {
+    judgeDays,
+    isPaused: isCapacityUnavailable,
+    error: capacityError,
+  } = useJudgeDayCapacity(showId || undefined);
 
   const [judgeDayKey, setJudgeDayKey] = useState<JudgeDayKey | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -285,7 +290,12 @@ export function useWaitlistManagementData(showId: string) {
     try {
       const { error } = await removeFromWaitlist(actionDialog.entry.id);
 
-      if (error) {
+      if (error instanceof WaitlistEntryNotDeletedError) {
+        // Nothing was deleted (MYK9-1000): reload what is really there, then say why, after the
+        // reload. The message is show-scoped state that reload does not clear.
+        await reload();
+        setActionError(error.message);
+      } else if (error) {
         setActionError('Failed to remove from waitlist. Please try again.');
         logger.error('Error removing from waitlist:', 'secretary', {}, error as Error);
       } else {
@@ -331,6 +341,7 @@ export function useWaitlistManagementData(showId: string) {
     // State
     judgeDays,
     isCapacityUnavailable,
+    capacityError,
     selectedJudgeDay,
     waitlistEntries,
     groups,

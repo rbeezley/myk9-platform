@@ -35,6 +35,7 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
   const {
     judgeDays,
     isCapacityUnavailable,
+    capacityError,
     selectedJudgeDay,
     waitlistEntries,
     groups,
@@ -104,6 +105,20 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
           <AlertCircle className="h-4 w-4" />
           <AlertDescription className="flex items-center justify-between gap-2">
             {error}
+            <Button variant="outline" onClick={retry}>
+              Try again
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* A failed capacity read is its own state, never "no judge-days" or "0 spots". It shares
+          the page's one recovery path with the queue errors. */}
+      {capacityError && !isCapacityUnavailable && (
+        <Alert variant="destructive" data-testid="judge-day-capacity-error">
+          <AlertCircle className="h-4 w-4" />
+          <AlertDescription className="flex items-center justify-between gap-2">
+            Judge-day capacity could not be loaded.
             <Button variant="outline" onClick={retry}>
               Try again
             </Button>

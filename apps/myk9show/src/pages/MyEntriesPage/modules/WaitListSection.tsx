@@ -9,6 +9,7 @@ import React from 'react';
 import { Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { getTrialTimezone } from '@/features/registries';
 import type { WaitListEntry } from '@/types/waitlist-types';
 
 interface WaitListSectionProps {
@@ -43,16 +44,29 @@ function getOfferDisplayState(entry: WaitListEntry, now: Date): OfferDisplayStat
   return 'offered';
 }
 
-function formatOfferDeadline(offerExpiresAt: string, now: Date): string {
-  const remainingMinutes = Math.max(
-    0,
-    Math.ceil((Date.parse(offerExpiresAt) - now.getTime()) / 60000)
-  );
-  if (remainingMinutes < 1) return 'Expires now';
-  if (remainingMinutes < 60) return `Expires in ${remainingMinutes} min`;
-  const hours = Math.floor(remainingMinutes / 60);
-  const minutes = remainingMinutes % 60;
-  return minutes > 0 ? `Expires in ${hours}h ${minutes}m` : `Expires in ${hours}h`;
+/**
+ * The deadline as a clock time in the trial's zone, matching the offer message
+ * and email ("claim it by <day, time>"). No countdown: a ticking figure turns a
+ * calm offer into pressure. Invalid or missing zones fall back to New York via
+ * `getTrialTimezone`, the same fallback the server-side copy uses.
+ */
+function formatOfferDeadline(entry: WaitListEntry): string {
+  if (!entry.offerExpiresAt || !Number.isFinite(Date.parse(entry.offerExpiresAt))) {
+    return 'Claim it before the offer ends.';
+  }
+  const when = new Intl.DateTimeFormat('en-US', {
+    timeZone: getTrialTimezone({ timezone: entry.trialTimezone }),
+    weekday: 'short',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  })
+    .formatToParts(new Date(entry.offerExpiresAt))
+    .map(part => (part.type === 'literal' && part.value === ' at ' ? ', ' : part.value))
+    .join('');
+  return `Claim by ${when}`;
 }
 
 export const WaitListSection: React.FC<WaitListSectionProps> = ({
@@ -163,9 +177,9 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
                         <p className="truncate text-xs text-muted-foreground">
                           {entry.className} <span aria-hidden="true">·</span> {entry.showName}
                         </p>
-                        {displayState === 'offered' && entry.offerExpiresAt && (
+                        {displayState === 'offered' && (
                           <p className="mt-1 text-sm font-medium text-success">
-                            {formatOfferDeadline(entry.offerExpiresAt, now)}
+                            {formatOfferDeadline(entry)}
                           </p>
                         )}
                         {displayState === 'checking' && (

@@ -61,7 +61,7 @@ export interface RequestInfo {
  * Requests whose charge never produced a stripe_orders row BY DESIGN (Codex
  * round 7 on #2689): an abandoned cart (refunded instead of fulfilled), and a
  * payment-link charge with no link record (the webhook returns before the
- * order insert). Their refunds have no order to book or reverse, so neither
+ * order insert), and a paid cart checkout that created nothing (MYK9-963). Their refunds have no order to book or reverse, so neither
  * the ledger nor a missing-order alert applies. The other payment-link
  * reasons record an order in the same delivery (right after the latch and its
  * request): a missing order there is a real anomaly and still alerts.
@@ -69,6 +69,7 @@ export interface RequestInfo {
 export function approvedRefundHasNoOrder(request: RequestInfo): boolean {
   return (
     request.kind === 'abandoned_cart' ||
+    request.kind === 'unfulfilled_charge' ||
     (request.kind === 'entry_payment_link' && request.reason === 'no_link_record')
   );
 }

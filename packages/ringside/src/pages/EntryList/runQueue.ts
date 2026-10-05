@@ -91,12 +91,23 @@ export function isInQueue(entry: RunQueueEntry): boolean {
   return entry.status == null || WAITING_STATUSES.has(entry.status);
 }
 
-/** Run-order comparator (mirrors the `run` sort: exhibitorOrder, armband fallback). */
+/**
+ * Run-order comparator (mirrors the `run` sort: exhibitorOrder, armband fallback).
+ *
+ * Equal keys break by armband, then id (MYK9-995). Nothing stops two runnable
+ * dogs sharing a run order (`entries_class_run_order_idx` is not unique, and
+ * live data has a class that does), and a stable sort then followed replica
+ * order, which is arbitrary per device. The server's place in line
+ * (`get_my_entry_queue_places`) applies the same tie-break.
+ */
 export function compareByRunOrder(a: RunQueueEntry, b: RunQueueEntry): number {
-  return (
+  const byKey =
     (a.exhibitorOrder || armbandSortKey(a.armband)) -
-    (b.exhibitorOrder || armbandSortKey(b.armband))
-  );
+    (b.exhibitorOrder || armbandSortKey(b.armband));
+  if (byKey !== 0) return byKey;
+  const byArmband = armbandSortKey(a.armband) - armbandSortKey(b.armband);
+  if (byArmband !== 0) return byArmband;
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
 /** The dog currently in the ring, or null. First match wins. */

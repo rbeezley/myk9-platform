@@ -4,7 +4,7 @@
  * blocked (staff add the entry by hand).
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@/test/utils/testUtils';
+import { render, screen, waitFor } from '@/test/utils/testUtils';
 
 const {
   mockUseClassAvailability,
@@ -150,10 +150,15 @@ function setupStepMocks(opts: {
     selector({
       cart: { id: 'cart-1', show_id: SHOW_ID, exhibitor_id: 'exhibitor-1', items: [] },
       isLoading: false,
-      ensureCart: vi.fn().mockResolvedValue({
-        kind: 'ready',
-        cart: { id: 'cart-1', show_id: SHOW_ID, exhibitor_id: 'exhibitor-1', items: [] },
-      }),
+      ensureCart: vi.fn().mockImplementation(
+        () =>
+          new Promise(resolve =>
+            setTimeout(resolve, 50, {
+              kind: 'ready',
+              cart: { id: 'cart-1', show_id: SHOW_ID, exhibitor_id: 'exhibitor-1', items: [] },
+            })
+          )
+      ),
       addItem: vi.fn().mockResolvedValue(true),
       removeItem: vi.fn().mockResolvedValue(true),
     })
@@ -245,7 +250,11 @@ describe('ClassSelectionStep — withdrawn re-entry (MYK9-982)', () => {
 
     expect(await screen.findByText('Advanced')).toBeInTheDocument();
     expect(screen.queryByText('Withdrawn from this class')).not.toBeInTheDocument();
-    expect(screen.getByRole('checkbox')).not.toHaveAttribute('aria-disabled', 'true');
+    // The chip stays aria-disabled ("Loading your cart…") until ensureCart resolves, so wait
+    // for the cart rather than asserting on the first paint.
+    await waitFor(() =>
+      expect(screen.getByRole('checkbox')).not.toHaveAttribute('aria-disabled', 'true')
+    );
   });
 
   it('does not block the secretary flow', async () => {

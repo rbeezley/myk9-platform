@@ -8,7 +8,17 @@ import { createTestQueryClient } from '@/test/utils/testUtils';
 import { judgeDayCapacityKey } from '@/hooks/queries/useJudgeDayCapacity';
 import type { WaitlistEntry } from '../types';
 import { supabase } from '@/lib/supabase';
-import { promoteWaitlistEntry, sendWaitlistOfferMessage } from '@/services/database/waitlists';
+import {
+  getClassesWithWaitlistCounts,
+  getWaitlistByClass,
+  promoteWaitlistEntry,
+  removeFromWaitlist,
+  sendWaitlistOfferMessage,
+} from '@/services/database/waitlists';
+import {
+  WaitlistEntryNotDeletedError,
+  WAITLIST_ENTRY_GONE_MESSAGE,
+} from '@/services/database/waitlists/deleteWaitlistEntryErrors';
 
 vi.mock('@/hooks/queries/useJudgeDayCapacity', async importOriginal => ({
   ...(await importOriginal<typeof import('@/hooks/queries/useJudgeDayCapacity')>()),
@@ -186,5 +196,83 @@ describe('useWaitlistManagementData — offer notification', () => {
       await result.current.handleOfferSpot();
     });
     expect(invalidate).toHaveBeenCalledWith({ queryKey: judgeDayCapacityKey('show-77') });
+  });
+});
+
+// MYK9-1000 Codex round 2: a Remove that deleted nothing (already removed or
+// claimed elsewhere) must not read as a success, nor as a generic failure.
+describe('useWaitlistManagementData — remove that deleted nothing', () => {
+  const entry = {
+    id: 'wl-9',
+    class_id: 'class-1',
+    dog_id: 'dog-1',
+    exhibitor_id: 'person-1',
+    handler_id: null,
+    position: 1,
+    status: 'waiting',
+    joined_via: 'online' as const,
+    offered_at: null,
+    offer_expires_at: null,
+    created_at: null,
+    updated_at: null,
+  } as WaitlistEntry;
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(getClassesWithWaitlistCounts).mockResolvedValue({
+      data: [
+        {
+          id: 'class-1',
+          name: 'Novice A',
+          class_number: '1',
+          max_entries: null,
+          trial_id: 't1',
+          trial: null,
+          accepted_count: 0,
+          waitlist_count: 1,
+        },
+      ],
+      error: null,
+    });
+  });
+
+  async function remove() {
+    const { result } = renderHook(() => useWaitlistManagementData('show-77'), {
+      wrapper: createWrapper(),
+    });
+    // The tab lists the show's waiting classes; class-1 has a queue, so a reload re-reads it.
+    await waitFor(() => expect(getWaitlistByClass).toHaveBeenCalledWith('class-1'));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    act(() => {
+      result.current.setActionDialog({ open: true, action: 'remove', entry });
+    });
+    vi.mocked(getWaitlistByClass).mockClear();
+    await act(async () => {
+      await result.current.handleRemoveFromWaitlist();
+    });
+    return { result };
+  }
+
+  it('reloads the list and says the dog is no longer on it', async () => {
+    vi.mocked(removeFromWaitlist).mockResolvedValue({
+      data: null,
+      error: new WaitlistEntryNotDeletedError(WAITLIST_ENTRY_GONE_MESSAGE),
+    });
+
+    const { result } = await remove();
+
+    expect(getWaitlistByClass).toHaveBeenCalledWith('class-1');
+    expect(result.current.error).toBe(WAITLIST_ENTRY_GONE_MESSAGE);
+  });
+
+  it('keeps the generic message for a real failure', async () => {
+    vi.mocked(removeFromWaitlist).mockResolvedValue({
+      data: null,
+      error: Object.assign(new Error('db down'), { name: 'DatabaseError' }) as never,
+    });
+
+    const { result } = await remove();
+
+    expect(result.current.error).toBe('Failed to remove from waitlist. Please try again.');
   });
 });

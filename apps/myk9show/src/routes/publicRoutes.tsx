@@ -43,8 +43,7 @@ function featurePage(enabled: boolean, page: ReactNode, coming: ComingSoonPagePr
 }
 
 // Public page lazy imports
-const BrowseDogsPage = lazy(() => import('@/pages/BrowseDogsPage'));
-const DogDetailPage = lazy(() => import('@/pages/DogDetailPage'));
+const DogsMasterDetailPage = lazy(() => import('@/pages/DogsMasterDetailPage'));
 const BrowseClubsPage = lazy(() => import('@/pages/BrowseClubsPage'));
 const ClubDetailPage = lazy(() => import('@/pages/ClubDetailPage'));
 const ShowDetailsPage = lazy(() => import('@/pages/ShowDetailsPage'));
@@ -142,6 +141,14 @@ function ShowManagementSectionRoute({ children }: { children: ReactNode }) {
   // this surface is secretary work and should report with secretary context.
   return <RoleSurfaceErrorBoundary surface="secretary">{children}</RoleSurfaceErrorBoundary>;
 }
+
+const dogsRouteElement = (
+  <ProtectedRoute>
+    <SuspenseWrapper>
+      <DogsMasterDetailPage />
+    </SuspenseWrapper>
+  </ProtectedRoute>
+);
 
 export const PublicRoutes = () => (
   <>
@@ -402,32 +409,9 @@ export const PublicRoutes = () => (
       }
     />
 
-    {/* Dogs */}
-    <Route
-      path="/dogs"
-      element={
-        <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <BrowseDogsPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
-
-    <Route
-      path="/dogs/:id"
-      element={
-        <ProtectedRoute>
-          <SuspenseWrapper>
-            <PageTransition>
-              <DogDetailPage />
-            </PageTransition>
-          </SuspenseWrapper>
-        </ProtectedRoute>
-      }
-    />
+    {/* Dogs: one element for both paths, so the list stays mounted beside an open dog. */}
+    <Route path="/dogs" element={dogsRouteElement} />
+    <Route path="/dogs/:id" element={dogsRouteElement} />
 
     {/* Clubs */}
     <Route

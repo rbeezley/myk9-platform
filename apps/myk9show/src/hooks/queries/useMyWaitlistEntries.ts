@@ -1,6 +1,13 @@
 import { useCallback, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/services/database/supabaseClient';
+import { toast } from 'sonner';
+import {
+  deleteWaitlistEntryAndEvict,
+  WaitlistEntryNotDeletedError,
+  WAITLIST_ENTRY_CHANGED_MESSAGE,
+} from '@/services/database/waitlists/deleteWaitlistEntry';
+import { getTrialTimezone } from '@/features/registries';
 import type { WaitListEntry } from '@/types/waitlist-types';
 
 /** Stable empty result. `query.data ?? []` would allocate a fresh array on
@@ -19,6 +26,8 @@ interface WaitlistEntryRow {
   classes: {
     name: string;
     trials: {
+      id: string;
+      timezone: string | null;
       shows: { name: string } | null;
     } | null;
   } | null;
@@ -55,6 +64,7 @@ function mapWaitlistEntry(row: WaitlistEntryRow, exhibitorId: string): WaitListE
     status: row.status,
     offeredAt: row.offered_at,
     offerExpiresAt: row.offer_expires_at,
+    trialTimezone: getTrialTimezone(row.classes?.trials),
     promotedEntryId: row.promoted_entry_id,
     createdAt: row.created_at,
   };
@@ -72,6 +82,8 @@ const WAITLIST_ENTRY_SELECT = `
   classes (
     name,
     trials (
+      id,
+      timezone,
       shows ( name )
     )
   ),
@@ -126,12 +138,22 @@ export function useMyWaitlistEntries(
   });
 
   const withdraw = useMutation({
-    mutationFn: async (waitlistEntryId: string) => {
-      const { error } = await supabase.from('waitlist_entries').delete().eq('id', waitlistEntryId);
-      if (error) throw error;
-    },
+    // Evicts the replica row only when the server confirms the delete: a spot
+    // offered a moment earlier matches nothing under the DELETE policy, and
+    // evicting it would hide a live offer (MYK9-1000).
+    mutationFn: (waitlistEntryId: string) =>
+      deleteWaitlistEntryAndEvict(waitlistEntryId, WAITLIST_ENTRY_CHANGED_MESSAGE),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [...MY_WAITLIST_KEY, exhibitorId] });
+    },
+    // Refetch so the spot shows where it really stands, and say why.
+    onError: error => {
+      queryClient.invalidateQueries({ queryKey: [...MY_WAITLIST_KEY, exhibitorId] });
+      toast.error(
+        error instanceof WaitlistEntryNotDeletedError
+          ? error.message
+          : 'We could not withdraw this dog from the wait list. Please try again.'
+      );
     },
   });
 

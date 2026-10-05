@@ -300,7 +300,9 @@ export function EntryManagementCockpit({
         {showDetail && !trialScopePending && cockpit.focusedGroup && (
           <div
             className={cn(
-              !responsive.compact && 'sticky top-[calc(var(--app-top-inset,3rem)+1rem)]'
+              // Under the pinned show header and tabs (`--show-sticky-offset`, set by the shell).
+              !responsive.compact &&
+                'sticky top-[calc(var(--app-top-inset,3rem)+var(--show-sticky-offset,0px)+1rem)]'
             )}
           >
             <EntryFocusedRegistration

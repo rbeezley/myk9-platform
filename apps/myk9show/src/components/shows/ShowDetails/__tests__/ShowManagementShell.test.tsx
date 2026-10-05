@@ -3,6 +3,11 @@ import { describe, it, expect, vi } from 'vitest';
 import { MemoryRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ShowManagementShell, type ShowManagementShellProps } from '../ShowManagementShell';
+import {
+  SHOW_HEADER_CLASS,
+  SHOW_STICKY_OFFSET_CLASS,
+  SHOW_TAB_STRIP_CLASS,
+} from '../showStickyLayout';
 import type { ShowDetailTabsProps } from '../ShowDetailTabs';
 import { buildShowManagementTabDefs } from '@/pages/ShowDetailsPage.tabDefs';
 import type { Show } from '@/types/show-types';
@@ -531,6 +536,38 @@ describe('ShowManagementShell', () => {
     renderShell({ activeManagementSection: 'entries' }, '/shows/show-1/entries');
     expect(screen.getByTestId('outlet-child')).toBeInTheDocument();
     expect(screen.queryByTestId('show-home-cockpit')).toBeNull();
+  });
+
+  it('swaps the full hero for a one-line header on every tab but Overview, with the same controls and the one h1', () => {
+    renderShell({ activeManagementSection: 'entries' }, '/shows/show-1/entries');
+    expect(screen.queryByTestId('detail-hero')).toBeNull();
+    expect(screen.getByRole('heading', { level: 1, name: 'Test Show' })).toBeInTheDocument();
+    // Offline readiness and the status pill must not be lost with the hero.
+    expect(screen.getByTestId('offline-ready-badge')).toBeInTheDocument();
+    expect(screen.getByTestId('sync-status')).toBeInTheDocument();
+    expect(screen.getByTestId('status-pill')).toBeInTheDocument();
+    // The host club is read, not linked: a link would need a 44px target (docs/INTENT.md).
+    expect(screen.getByText('Bergen KC')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Bergen KC' })).toBeNull();
+  });
+
+  it('keeps the full hero on Overview', () => {
+    renderShell();
+    expect(screen.getByTestId('detail-hero')).toBeInTheDocument();
+  });
+
+  it('pins the compact header and the tab strip, and publishes their height for the page below', () => {
+    renderShell({ activeManagementSection: 'entries' }, '/shows/show-1/entries');
+    const header = screen.getByRole('heading', { level: 1 }).closest('div[class*="sticky"]');
+    expect(header?.className).toContain(SHOW_HEADER_CLASS);
+    const strip = screen.getByRole('tab', { name: /^Entries/ }).closest('div[class*="sticky"]');
+    expect(strip?.className).toContain(SHOW_TAB_STRIP_CLASS);
+    expect(screen.getByRole('tabpanel').className).toContain(SHOW_STICKY_OFFSET_CLASS);
+  });
+
+  it('does not pin anything on Overview, which keeps the full hero', () => {
+    renderShell();
+    expect(screen.getByRole('tabpanel').className).not.toContain('show-sticky-offset');
   });
 
   it('no longer carries its own overflow menu', () => {

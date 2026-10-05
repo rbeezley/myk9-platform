@@ -989,7 +989,10 @@ describe('ShowDetailsPage', () => {
     renderPage('show-1', '/entries');
 
     expect(await screen.findAllByText("Couldn't load entry counts.")).toHaveLength(1);
-    expect(screen.getByTestId('hero-footer')).toHaveTextContent('Total EntriesUnavailable');
+    // The Entries tab carries the one-line header, not the hero with its quick-info cards; with the
+    // counts unavailable it names no count at all, so there is no false zero either.
+    expect(screen.queryByTestId('hero-footer')).not.toBeInTheDocument();
+    expect(screen.queryByText(/^\d+ entr(y|ies)$/)).not.toBeInTheDocument();
     expect(screen.queryByText('Total Entries0')).not.toBeInTheDocument();
     expect(screen.queryByTestId('show-map-tab')).not.toBeInTheDocument();
     expect(screen.getByRole('tab', { name: /^Entries$/ })).toBeInTheDocument();

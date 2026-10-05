@@ -288,11 +288,11 @@ const EntryManagementPage: React.FC = () => {
   }
 
   return (
-    <div className="manager-content-container container mx-auto space-y-6 p-4 sm:p-6">
+    <div className="manager-content-container container mx-auto space-y-4 p-4 sm:p-6">
       <ShowDeskReturnLink showId={selectedShowId || urlShowId} />
       <div className="manager-page-header">
         <div className="min-w-0">
-          <h1 className="break-words text-2xl font-bold tracking-tight sm:text-3xl">
+          <h1 className="break-words text-xl font-bold tracking-tight sm:text-2xl">
             Entry Management
           </h1>
           {/*
@@ -300,12 +300,11 @@ const EntryManagementPage: React.FC = () => {
             this page is scoped to one show, and the secretary can arrive here
             from a bare `/secretary/entries` link that resolves the show from
             localStorage — so without this line they act on a show the page
-            never named. The generic "Manage show entries, process payments…"
-            tagline that used to sit here restated the H1 and carried no state.
-            The fallback stays generic on purpose: an unresolved show must not
-            be described as a named one.
+            never named. The fallback stays generic on purpose: an unresolved
+            show must not be described as a named one. The pinned show header
+            above names it on screen, so this line is read aloud, not drawn.
           */}
-          <p className="break-words text-muted-foreground">
+          <p className="sr-only">
             {selectedShow?.name ?? 'Manage entries, payments, and exhibitor email for one show'}
           </p>
         </div>

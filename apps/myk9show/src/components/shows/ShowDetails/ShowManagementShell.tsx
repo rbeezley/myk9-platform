@@ -8,12 +8,10 @@ import { DetailHero } from '@/components/common/DetailHero';
 import { ErrorState } from '@/components/common/ErrorState';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 import { ShowDateBlock } from '@/components/shows/ShowDateBlock';
-import { ShowStatusPill } from '@/components/shows/ShowStatusPill';
 import { QuickInfoCards } from '@/components/shows/overview/QuickInfoCards';
-import { ShowPresenceStack } from '@/features/show-presence/ShowPresenceStack';
-import { LiveUpdateIndicator } from '@/features/show-live-sync/LiveUpdateIndicator';
-import { OfflineReadyBadge } from '@/features/offline-readiness/OfflineReadyBadge';
-import { ShowSyncStatus } from '@/components/shows/ShowDetails/ShowSyncStatus';
+import { ShowCompactHeader } from './ShowCompactHeader';
+import { ShowHeaderControls } from './ShowHeaderControls';
+import { SHOW_STICKY_OFFSET_CLASS, SHOW_TAB_STRIP_CLASS } from './showStickyLayout';
 import { PremiumDownloadCard } from '@/features/premium/PremiumDownloadCard';
 import { LandingPageCard } from '@/features/premium/LandingPageCard';
 import { ShowEditPanel } from '@/components/panels/edit/ShowEditPanel';
@@ -47,7 +45,6 @@ import { useShowStore, type ShowInput } from '@/store/showStore';
 import { showQueryKeys } from '@/hooks/queries/useShowsDatabase';
 import { SHOW_TABS, type ShowTabId } from '@/routes/showManagementSections';
 import { SETUP_PUBLISH_ANCHOR } from '@/features/show-workbench/setupReadinessSignals';
-import { SHOW_STATUS_CONTROL_ANCHOR } from '@/features/show-workbench/publishReadiness';
 import type { Show } from '@/types/show-types';
 import type { GeneratedPremium } from '@/types/premium-types';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
@@ -224,6 +221,10 @@ function AuthorizedShowManagementShell({
   // The shared dialog has already purged the show and refreshed its lists.
   const handleShowDeleted = () => navigate('/shows');
 
+  const headerControls = <ShowHeaderControls show={show} />;
+  // Overview keeps the full hero; the work tabs get a one-line header that stays pinned.
+  const compactHeader = Boolean(activeManagementSection);
+
   return (
     <>
       <PageShell>
@@ -235,46 +236,40 @@ function AuthorizedShowManagementShell({
             actions={<ShowPageHeaderActions showId={show.id} armbandCount={armbandCount} />}
           />
 
-          <DetailHero
-            cover={
-              show.startDate ? (
-                <ShowDateBlock startDate={show.startDate} endDate={show.endDate} />
-              ) : undefined
-            }
-            name={show.name || 'Untitled Show'}
-            headingLevel={1}
-            parent={showHeroParent(show, { viewer: heroViewer })}
-            badges={
-              show.organization ? [{ label: show.organization, variant: 'default' as const }] : []
-            }
-            metadata={[]}
-            headerActions={
-              <>
-                {/* Offline readiness and "Save now" (MYK9-957: was on Show Day). */}
-                <ShowSyncStatus />
-                <OfflineReadyBadge showId={show.id} />
-                <LiveUpdateIndicator />
-                <ShowPresenceStack />
-                <span id={SHOW_STATUS_CONTROL_ANCHOR} className="scroll-mt-20">
-                  <ShowStatusPill
-                    showId={show.id}
-                    status={show.status}
-                    clubId={show.clubId}
-                    entryOpenDate={show.entryOpenDate}
-                    entryCloseDate={show.entryCloseDate}
-                    onlineEntriesEnabled={show.onlineEntriesEnabled}
-                  />
-                </span>
-              </>
-            }
-            footer={
-              <QuickInfoCards
-                show={show}
-                canManageShow={canManageShow}
-                entryCount={entryDataUnavailable ? null : catalogEntryCount}
-              />
-            }
-          />
+          {compactHeader ? (
+            <ShowCompactHeader
+              name={show.name || 'Untitled Show'}
+              organization={show.organization}
+              startDate={show.startDate}
+              endDate={show.endDate}
+              parent={showHeroParent(show, { viewer: heroViewer })}
+              entryCount={entryDataUnavailable ? null : catalogEntryCount}
+              controls={headerControls}
+            />
+          ) : (
+            <DetailHero
+              cover={
+                show.startDate ? (
+                  <ShowDateBlock startDate={show.startDate} endDate={show.endDate} />
+                ) : undefined
+              }
+              name={show.name || 'Untitled Show'}
+              headingLevel={1}
+              parent={showHeroParent(show, { viewer: heroViewer })}
+              badges={
+                show.organization ? [{ label: show.organization, variant: 'default' as const }] : []
+              }
+              metadata={[]}
+              headerActions={headerControls}
+              footer={
+                <QuickInfoCards
+                  show={show}
+                  canManageShow={canManageShow}
+                  entryCount={entryDataUnavailable ? null : catalogEntryCount}
+                />
+              }
+            />
+          )}
         </>
 
         {entryDataUnavailable && (
@@ -337,8 +332,12 @@ function AuthorizedShowManagementShell({
             value={activeTabId}
             onValueChange={goToTab}
             className="mt-4"
+            stripClassName={compactHeader ? SHOW_TAB_STRIP_CLASS : undefined}
           >
-            <TabsContent value={activeTabId}>
+            <TabsContent
+              value={activeTabId}
+              className={compactHeader ? SHOW_STICKY_OFFSET_CLASS : undefined}
+            >
               {activeManagementSection ? (
                 <Outlet context={tabs} />
               ) : // MYK9-955: the manager Overview IS the secretary's home -- the

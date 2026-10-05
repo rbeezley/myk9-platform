@@ -3,6 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { formatWeekdayMonthDay } from '@/lib/format/dates';
 import type { JudgeDayCapacity } from '@/types/waitlist-types';
+import { OVER_LIMIT_EXPLANATION, overLimitLabel } from '@/utils/overLimitLabel';
 import { pluralize } from '@/utils/pluralize';
 
 interface JudgeCapacityOverviewProps {
@@ -31,6 +32,7 @@ export function JudgeCapacityOverview({ judgeDays, onViewWaitList }: JudgeCapaci
           day.capacity > 0 ? Math.min(100, (day.confirmedCount / day.capacity) * 100) : 0;
         const barColor = getBarColor(day.confirmedCount, day.capacity);
         const isFull = day.availableSpots === 0;
+        const overLimit = overLimitLabel(day.confirmedCount, day.capacity);
 
         return (
           <Card key={`${day.judgeId}-${day.showDate}`}>
@@ -61,10 +63,17 @@ export function JudgeCapacityOverview({ judgeDays, onViewWaitList }: JudgeCapaci
                     {day.confirmedCount} / {day.capacity}{' '}
                     {pluralize(day.capacity, 'entry', 'entries')}
                   </span>
-                  <span className="text-muted-foreground">
-                    {day.availableSpots} spot{day.availableSpots !== 1 ? 's' : ''} available
-                  </span>
+                  {overLimit ? (
+                    <span className="text-destructive font-medium">{overLimit}</span>
+                  ) : (
+                    <span className="text-muted-foreground">
+                      {day.availableSpots} spot{day.availableSpots !== 1 ? 's' : ''} available
+                    </span>
+                  )}
                 </div>
+                {overLimit && (
+                  <p className="text-muted-foreground mb-1 text-xs">{OVER_LIMIT_EXPLANATION}</p>
+                )}
                 <div className="bg-muted h-2 w-full overflow-hidden rounded-full">
                   <div
                     className={`h-full rounded-full transition-all ${barColor}`}

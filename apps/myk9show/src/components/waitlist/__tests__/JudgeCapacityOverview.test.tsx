@@ -74,3 +74,50 @@ describe('JudgeCapacityOverview', () => {
     expect(screen.getByText(/no judge-day assignments/i)).toBeInTheDocument();
   });
 });
+
+describe('JudgeCapacityOverview over-limit (MYK9-1006)', () => {
+  const base: JudgeDayCapacity = {
+    judgeId: 'j9',
+    judgeName: 'Over Judge',
+    showDate: '2026-05-01',
+    capacity: 2,
+    confirmedCount: 3,
+    waitlistCount: 0,
+    mailInReserved: 0,
+    availableSpots: 0,
+    classIds: ['c9'],
+    classNames: ['Open'],
+  };
+
+  it('says how far over the limit a day is and explains it, not just "0 spots available"', () => {
+    render(<JudgeCapacityOverview judgeDays={[base]} onViewWaitList={vi.fn()} />);
+    expect(screen.getByText('1 over the limit')).toBeInTheDocument();
+    expect(screen.getByText(/limit was lowered/i)).toBeInTheDocument();
+    expect(screen.queryByText(/spots? available/)).not.toBeInTheDocument();
+    expect(screen.getByText('Full')).toBeInTheDocument();
+  });
+
+  it('exactly at the limit is Full with no over-limit text', () => {
+    render(
+      <JudgeCapacityOverview
+        judgeDays={[{ ...base, confirmedCount: 2 }]}
+        onViewWaitList={vi.fn()}
+      />
+    );
+    expect(screen.getByText('Full')).toBeInTheDocument();
+    expect(screen.getByText('0 spots available')).toBeInTheDocument();
+    expect(screen.queryByText(/over the limit/)).not.toBeInTheDocument();
+  });
+
+  it('under the limit shows spots available and no over-limit text', () => {
+    render(
+      <JudgeCapacityOverview
+        judgeDays={[{ ...base, confirmedCount: 1, availableSpots: 1 }]}
+        onViewWaitList={vi.fn()}
+      />
+    );
+    expect(screen.getByText('1 spot available')).toBeInTheDocument();
+    expect(screen.queryByText(/over the limit/)).not.toBeInTheDocument();
+    expect(screen.queryByText('Full')).not.toBeInTheDocument();
+  });
+});

@@ -3,10 +3,14 @@
 Canonical terms for the myK9 platform domain. Use these names exactly in code,
 documentation, and architecture discussions — not synonyms.
 
+**On screen, use the words in this file.** Where a term below lists _Avoid_
+words, they must not appear in user-visible text. A few database and code names
+predate this vocabulary and stay as they are (listed under "Internal names").
+
 ## Core Entities
 
 **Entry**
-One dog's registration into one class at one trial. An Entry has a status
+One dog entered in one class at one trial. An Entry has a status
 (pending, accepted, wait-listed, scratched, absent) and belongs to exactly
 one Show via its Trial and Class. The unit of ringside work.
 
@@ -27,7 +31,7 @@ violation. Day-of-operations files (`day-of-operations/scratch.ts`,
 `move-up.ts`, `entries.ts`) retain their orchestration role
 (eligibility queries, capacity checks, secretary workflows) but compose
 lifecycle transitions rather than writing `entry_status` directly.
-INSERTs that create new entries (walk-in registration, waitlist
+INSERTs that create new entries (walk-in entry, waitlist
 promotion, the new row in a move-up's target class) are not transitions
 and stay where they are.
 
@@ -64,9 +68,38 @@ these functions with React Query adapters and local `useState` setters.
 New orchestration logic belongs in the module, not in the hook.
 
 **Class**
-A competitive division within a Trial (e.g. "Novice A Agility"). Defines
-the rules, judge assignment, run order, and entry limit. Classes belong to
-Trials, not directly to Shows.
+One competition offering at one Trial, such as "Container Novice A" on
+Saturday. Its identity is an Element, a Level and, where the sanctioning
+organization splits the level, a Section. It also holds that Trial's settings:
+entry limit, entry fee, assigned judge, run order, start time and status. The
+same Element, Level and Section at two different Trials are two different
+Classes. Classes belong to Trials, not directly to Shows.
+_Avoid_: Division (as a synonym for Class), Event
+
+**Class name**
+A Class's display label, built from its Element, Level and Section, such as
+"Container Novice A".
+
+**Element**
+The kind of search a Class tests, such as Container, Interior, Exterior,
+Buried or Handler Discrimination. Which Levels an Element offers depends on the
+sanctioning organization.
+
+**Level**
+The difficulty step within an Element, such as Novice, Advanced, Excellent or
+Masters. Levels are ordered from easiest to hardest.
+
+**Section**
+The split of one Level into separate Classes, such as A and B in AKC Novice, or
+"Level C" in ASCA. UKC calls the same thing a Division, so a UKC Trial shows
+"Division" where an AKC Trial shows "Section". Stored in `classes.section`.
+_Avoid_: Division, as a name for anything else (the code's `division` map groups
+Elements for the future titles surface; it is not shown to users)
+
+**Sanctioning organization**
+The body whose rules a Trial runs under: AKC, UKC or ASCA. A Show never mixes
+organizations. Stored as `trials.registry_id`.
+_Avoid_: Registry, Sanctioning body (in user-visible text)
 
 **Scheduled Start**
 The originally published or configured start time for a Class. It remains
@@ -120,8 +153,15 @@ choose another supported Report Scope.
 _Avoid_: Page scope, filter scope
 
 **Dog**
-A registered canine competitor. A Dog has an owner (Handler or Exhibitor),
-breed, titles, and health records. Dogs are shared across Shows.
+A canine competitor. A Dog has an owner (Handler or Exhibitor), breed, titles,
+health records, and, where it has one, a Registration with each sanctioning
+organization. Dogs are shared across Shows.
+
+**Registration**
+A Dog's registry number with a sanctioning organization such as AKC, UKC or
+ASCA. It identifies the Dog, not a Show submission. One Dog can have several
+Registrations. Stored in `dog_registrations`.
+_Avoid_: Registration for an Entry form, an Entry or a Payment
 
 **Achievement**
 A title, qualification, or recognition earned by a Dog from a sanctioning
@@ -168,19 +208,45 @@ _Avoid_: Ribbon label, Armband Label
 An ordered list of Entries that did not make the initial entry limit for a
 Class. Entries are promoted from the Wait List as space opens.
 
-**Show Registration**
-The submission workflow that turns an Exhibitor's selected Dogs and Classes
-into persisted Entries for a Show, including payment details, confirmation
-number, and Armband assignment. One Show Registration can contain multiple
-Entries, and each Entry may name a different Handler. The Show Registration's
-person is the Exhibitor/submitter and must not be presented as the Handler for
-every Entry.
+**Entry form**
+One Exhibitor's submission for a Show: the Dogs and Classes they chose, turned
+into persisted Entries, with the payment details, confirmation number and
+Armband assignment. One Entry form can contain multiple Entries, and each Entry
+may name a different Handler. The Entry form's person is the Exhibitor and must
+not be presented as the Handler for every Entry. A mail-in paper entry form
+becomes an Entry form when the Secretary keys it in.
+_Avoid_: Registration, Enrollment, Submission, Order (in user-visible text)
+
+**Pull**
+An Exhibitor chooses not to compete, such as leaving early or changing their
+mind, typically late or on the day. No refund is promised: the Club decides
+whether to refund. Pull is the only word for this act; the stored states
+`scratched` and `pulled` describe it.
+_Avoid_: Scratch, Withdraw (they are different acts)
+
+**Withdraw**
+An Entry is withdrawn for one of exactly two reasons, In Season or Judge
+Change, and is refunded under the premium's rules. Leaving a Wait List is also
+a withdrawal. The reasons and cutoff come from each sanctioning organization's
+rules (ASCA has no In Season withdrawal), not from app constants.
+_Avoid_: Pull (a different act), Cancel
+
+**Result**
+The outcome of one Entry's run in a Class: qualification (Q, NQ, E, EX, DQ,
+ABS), time, faults and, once the whole Class is scored, placement.
+
+**Payment**
+Money an Exhibitor pays for an Entry form, and what the Exhibitor sees on
+screen and on receipts. Card payments run through Stripe; cash and check
+payments are recorded by the Secretary. Refunds are never automatic: only a
+person's action may issue one.
+_Avoid_: Order (in user-visible text; it is the internal Stripe name)
 
 **Promo Code**
 A discount token issued by a Club, scoped to a single Show or a single Trial.
 Has a code string, discount type (`percentage` | `flat`), discount value,
 optional usage limit, optional expiry, and a running usage count. Applied at
-checkout during Show Registration to reduce entry fees. Trial-scoped codes
+checkout on an Entry form to reduce entry fees. Trial-scoped codes
 take priority over show-scoped codes when both match.
 
 **Announcement**
@@ -241,7 +307,7 @@ title requirements are met.
 
 **Club Membership**
 The people affiliated with a Club, spanning three sub-concepts: regular
-members (`club_members` — enrollment records with dues, voting eligibility,
+members (`club_members` — membership records with dues, voting eligibility,
 membership type), elected officers (`club_officers` — president,
 treasurer, etc. with term dates), and show managers (people granted the
 SECRETARY RBAC role scoped to the club, allowing them to create and
@@ -259,6 +325,19 @@ account-level milestones like first signup or first show; training
 milestones live per-Dog and represent learning checkpoints. Function
 names are entity-prefixed (`getAllTrainingMilestones` not
 `getAllMilestones`) so grep doesn't conflate the two domains.
+
+## Internal names
+
+These predate the vocabulary above. They stay as they are; do not rename them
+for the sake of the glossary, and do not copy them into user-visible text.
+
+| Glossary term            | Internal name                                                                                                                                         |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Entry form               | `enrollments` table, `Enrollment*` components, `enrollmentId`, `groupEntriesByEnrollment`, `registration_confirmation_seq`, `entries.registration_id` |
+| Payment (card)           | `stripe_orders`, `stripe_order_refunds`, `entry_payment_links`                                                                                        |
+| Payment (cash, check)    | `show_payments`, `record_enrollment_payment()`                                                                                                        |
+| Sanctioning organization | `registry_id`, `RegistryId`                                                                                                                           |
+| Registration             | `dog_registrations`                                                                                                                                   |
 
 ## Data Access Modules
 

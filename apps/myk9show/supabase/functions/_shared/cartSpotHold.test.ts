@@ -4,16 +4,16 @@ import {
   CART_SPOT_HOLD_SECONDS,
   CartHoldRefusedError,
   CartHoldUnavailableError,
-  attachCartSpotHolds,
   cartSpotHoldUntilEpoch,
+  claimCartCheckout,
   createSessionUnderHold,
   describeRefusedLines,
+  endCartCheckout,
   epochToIso,
   holdCartSpots,
-  pageIsFullyHeld,
-  releaseCartSpotHolds,
+  linkCartCheckout,
+  type CartLease,
   type HoldRpcClient,
-  type PayAttempt,
   type RefusedCartLine,
 } from './cartSpotHold';
 
@@ -27,7 +27,7 @@ function rpcClient(answers: Record<string, RpcAnswer>) {
 }
 
 const HOLD_UNTIL = 1_800_000_000;
-const attempt: PayAttempt = { cartId: 'cart-1', attemptId: 'attempt-1' };
+const lease: CartLease = { cartId: 'cart-1', leaseId: 'lease-1' };
 
 const zivaFull: RefusedCartLine = {
   cart_item_id: 'item-ziva',
@@ -49,52 +49,76 @@ describe('the hold window', () => {
   });
 });
 
-describe('holdCartSpots', () => {
-  it('asks hold_cart_spots for the attempt, the expiry, the page and the retired page', async () => {
+describe('the checkout lease: one checkout per cart', () => {
+  it('claims the cart for this request', async () => {
     const { client, rpc } = rpcClient({
-      hold_cart_spots: { data: [{ outcome: 'held' }, { outcome: 'held' }], error: null },
+      claim_cart_checkout: { data: [{ outcome: 'claimed' }], error: null },
     });
-    expect(
-      await holdCartSpots(client, attempt, HOLD_UNTIL, {
-        sessionId: 'cs_1',
-        retiredSessionId: 'cs_1',
-      })
-    ).toEqual({ kind: 'held', heldCount: 2 });
-    expect(rpc).toHaveBeenCalledWith('hold_cart_spots', {
+    expect(await claimCartCheckout(client, lease)).toEqual({ kind: 'claimed' });
+    expect(rpc).toHaveBeenCalledWith('claim_cart_checkout', {
       p_cart_id: 'cart-1',
-      p_attempt_id: 'attempt-1',
-      p_expires_at: epochToIso(HOLD_UNTIL),
-      p_checkout_session_id: 'cs_1',
-      p_release_session_id: 'cs_1',
+      p_lease_id: 'lease-1',
     });
   });
 
-  it('releases nothing by name unless the caller retired a page', async () => {
-    const { client, rpc } = rpcClient({ hold_cart_spots: { data: [], error: null } });
-    await holdCartSpots(client, attempt, HOLD_UNTIL);
-    expect(rpc).toHaveBeenCalledWith(
-      'hold_cart_spots',
-      expect.objectContaining({ p_checkout_session_id: null, p_release_session_id: null })
-    );
+  it('reports a checkout already in progress instead of starting a second one', async () => {
+    const { client } = rpcClient({
+      claim_cart_checkout: { data: [{ outcome: 'in_progress' }], error: null },
+    });
+    expect(await claimCartCheckout(client, lease)).toEqual({ kind: 'in_progress' });
+  });
+
+  it('never reads an unreadable answer as claimed', async () => {
+    const down = rpcClient({ claim_cart_checkout: { data: null, error: { message: 'down' } } });
+    expect(await claimCartCheckout(down.client, lease)).toEqual({ kind: 'error', message: 'down' });
+    const odd = rpcClient({ claim_cart_checkout: { data: [], error: null } });
+    expect((await claimCartCheckout(odd.client, lease)).kind).toBe('error');
+  });
+
+  it('ends the checkout with the same lease', async () => {
+    const { client, rpc } = rpcClient({ end_cart_checkout: { data: true, error: null } });
+    expect(await endCartCheckout(client, lease)).toEqual({ error: null });
+    expect(rpc).toHaveBeenCalledWith('end_cart_checkout', {
+      p_cart_id: 'cart-1',
+      p_lease_id: 'lease-1',
+    });
+  });
+});
+
+describe('holdCartSpots', () => {
+  it('asks hold_cart_spots under the lease, for the expiry and the page', async () => {
+    const { client, rpc } = rpcClient({
+      hold_cart_spots: { data: [{ outcome: 'held' }, { outcome: 'held' }], error: null },
+    });
+    expect(await holdCartSpots(client, lease, HOLD_UNTIL, 'cs_1')).toEqual({
+      kind: 'held',
+      heldCount: 2,
+    });
+    expect(rpc).toHaveBeenCalledWith('hold_cart_spots', {
+      p_cart_id: 'cart-1',
+      p_lease_id: 'lease-1',
+      p_expires_at: epochToIso(HOLD_UNTIL),
+      p_checkout_session_id: 'cs_1',
+    });
   });
 
   it('returns only the refused lines when any line has no room', async () => {
     const { client } = rpcClient({
       hold_cart_spots: { data: [{ outcome: 'refused', ...zivaFull }], error: null },
     });
-    expect(await holdCartSpots(client, attempt, HOLD_UNTIL)).toEqual({
+    expect(await holdCartSpots(client, lease, HOLD_UNTIL)).toEqual({
       kind: 'refused',
       lines: [zivaFull],
     });
   });
 
-  it('reports a database error instead of reading it as held', async () => {
+  it('reports a database error (a lapsed lease included) instead of reading it as held', async () => {
     const { client } = rpcClient({
-      hold_cart_spots: { data: null, error: { message: 'boom' } },
+      hold_cart_spots: { data: null, error: { message: 'no live checkout lease' } },
     });
-    expect(await holdCartSpots(client, attempt, HOLD_UNTIL)).toEqual({
+    expect(await holdCartSpots(client, lease, HOLD_UNTIL)).toEqual({
       kind: 'error',
-      message: 'boom',
+      message: 'no live checkout lease',
     });
   });
 });
@@ -106,7 +130,7 @@ describe('createSessionUnderHold: hold first, then a page that ends with the hol
     });
     const create = vi.fn(async (expiresAtEpoch: number) => ({ id: 'cs_new', expiresAtEpoch }));
 
-    const created = await createSessionUnderHold(client, attempt, HOLD_UNTIL, 'cs_old', create);
+    const created = await createSessionUnderHold(client, lease, HOLD_UNTIL, create);
 
     expect(created).toEqual({
       session: { id: 'cs_new', expiresAtEpoch: HOLD_UNTIL },
@@ -114,11 +138,7 @@ describe('createSessionUnderHold: hold first, then a page that ends with the hol
     });
     expect(rpc).toHaveBeenCalledWith(
       'hold_cart_spots',
-      expect.objectContaining({
-        p_attempt_id: 'attempt-1',
-        p_expires_at: epochToIso(HOLD_UNTIL),
-        p_release_session_id: 'cs_old',
-      })
+      expect.objectContaining({ p_lease_id: 'lease-1', p_expires_at: epochToIso(HOLD_UNTIL) })
     );
     expect(rpc.mock.invocationCallOrder[0]).toBeLessThan(create.mock.invocationCallOrder[0]!);
   });
@@ -129,7 +149,7 @@ describe('createSessionUnderHold: hold first, then a page that ends with the hol
     });
     const create = vi.fn();
 
-    const refused = createSessionUnderHold(client, attempt, HOLD_UNTIL, null, create);
+    const refused = createSessionUnderHold(client, lease, HOLD_UNTIL, create);
 
     await expect(refused).rejects.toBeInstanceOf(CartHoldRefusedError);
     await expect(refused).rejects.toMatchObject({ lines: [zivaFull] });
@@ -139,65 +159,52 @@ describe('createSessionUnderHold: hold first, then a page that ends with the hol
   it('never opens a page when the hold could not be taken', async () => {
     const { client } = rpcClient({ hold_cart_spots: { data: null, error: { message: 'down' } } });
     const create = vi.fn();
-    await expect(
-      createSessionUnderHold(client, attempt, HOLD_UNTIL, null, create)
-    ).rejects.toBeInstanceOf(CartHoldUnavailableError);
-    expect(create).not.toHaveBeenCalled();
-  });
-
-  it("gives this attempt's spots back when the page fails to open", async () => {
-    const { client, rpc } = rpcClient({
-      hold_cart_spots: { data: [{ outcome: 'held' }], error: null },
-    });
-    const create = vi.fn(async () => {
-      throw new Error('stripe down');
-    });
-
-    await expect(createSessionUnderHold(client, attempt, HOLD_UNTIL, null, create)).rejects.toThrow(
-      'stripe down'
+    await expect(createSessionUnderHold(client, lease, HOLD_UNTIL, create)).rejects.toBeInstanceOf(
+      CartHoldUnavailableError
     );
-    expect(rpc).toHaveBeenCalledWith('release_cart_spot_holds', {
-      p_cart_id: 'cart-1',
-      p_attempt_id: 'attempt-1',
-      p_reason: 'checkout_failed',
-    });
+    expect(create).not.toHaveBeenCalled();
   });
 });
 
-describe('attach and release', () => {
-  it("ties this attempt's holds to the page with the expiry Stripe returned", async () => {
-    const { client, rpc } = rpcClient({ attach_cart_spot_holds: { data: 2, error: null } });
-    expect(await attachCartSpotHolds(client, attempt, 'cs_1', HOLD_UNTIL + 7)).toEqual({
-      tied: 2,
-      error: null,
-    });
-    expect(rpc).toHaveBeenCalledWith('attach_cart_spot_holds', {
+describe('linkCartCheckout: link and tie in one call', () => {
+  const link = {
+    sessionId: 'cs_1',
+    sessionExpiresAtEpoch: HOLD_UNTIL + 7,
+    expectedUpdatedAt: '2026-10-05T00:00:00.123456+00:00',
+    heldCount: 2,
+    subtotalCents: 6000,
+    platformFeeCents: 420,
+    totalCents: 6420,
+  };
+
+  it('sends the page, its expiry, the cart stamp and the held count under the lease', async () => {
+    const { client, rpc } = rpcClient({ link_cart_checkout: { data: 'linked', error: null } });
+    expect(await linkCartCheckout(client, lease, link)).toEqual({ kind: 'linked' });
+    expect(rpc).toHaveBeenCalledWith('link_cart_checkout', {
       p_cart_id: 'cart-1',
-      p_attempt_id: 'attempt-1',
+      p_lease_id: 'lease-1',
       p_checkout_session_id: 'cs_1',
       p_expires_at: epochToIso(HOLD_UNTIL + 7),
+      p_expected_updated_at: '2026-10-05T00:00:00.123456+00:00',
+      p_held_count: 2,
+      p_subtotal_cents: 6000,
+      p_platform_fee_cents: 420,
+      p_total_cents: 6420,
     });
   });
 
-  it('hands a page out only when every held line is tied to it', () => {
-    expect(pageIsFullyHeld({ tied: 2, error: null }, 2)).toBe(true);
-    expect(pageIsFullyHeld({ tied: 0, error: null }, 0)).toBe(true);
-    // Another request released some of them, or they ran out before attach.
-    expect(pageIsFullyHeld({ tied: 1, error: null }, 2)).toBe(false);
-    expect(pageIsFullyHeld({ tied: null, error: 'down' }, 2)).toBe(false);
-    expect(pageIsFullyHeld({ tied: null, error: null }, 0)).toBe(false);
-  });
-
-  it('surfaces a failed attach or release', async () => {
-    const { client } = rpcClient({
-      attach_cart_spot_holds: { data: null, error: { message: 'nope' } },
-      release_cart_spot_holds: { data: null, error: { message: 'nope' } },
+  it('passes the refusals through and never reads an odd answer as linked', async () => {
+    for (const answer of ['cart_changed', 'holds_lost'] as const) {
+      const { client } = rpcClient({ link_cart_checkout: { data: answer, error: null } });
+      expect(await linkCartCheckout(client, lease, link)).toEqual({ kind: answer });
+    }
+    const odd = rpcClient({ link_cart_checkout: { data: null, error: null } });
+    expect((await linkCartCheckout(odd.client, lease, link)).kind).toBe('error');
+    const down = rpcClient({ link_cart_checkout: { data: null, error: { message: 'lapsed' } } });
+    expect(await linkCartCheckout(down.client, lease, link)).toEqual({
+      kind: 'error',
+      message: 'lapsed',
     });
-    expect(await attachCartSpotHolds(client, attempt, 'cs_1', HOLD_UNTIL)).toEqual({
-      tied: null,
-      error: 'nope',
-    });
-    expect(await releaseCartSpotHolds(client, attempt)).toEqual({ error: 'nope' });
   });
 });
 

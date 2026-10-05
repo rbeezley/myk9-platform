@@ -45,13 +45,26 @@ export async function createCheckoutSession(priceId: string, mode: 'payment' | '
  */
 export class CheckoutSessionError extends Error {
   readonly status: number | null;
+  /** The server's machine-readable reason, when it sent one. */
+  readonly code: string | null;
 
-  constructor(message: string, status: number | null = null) {
+  constructor(message: string, status: number | null = null, code: string | null = null) {
     super(message);
     this.name = 'CheckoutSessionError';
     this.status = status;
+    this.code = code;
   }
 }
+
+/**
+ * stripe-checkout runs one checkout per cart at a time (MYK9-1012). A Pay that
+ * arrives while another is still starting (a second tab, a double submit) is
+ * answered with this code instead of running alongside; it settles within a
+ * second or two, so the client waits once and asks again, which then picks up
+ * the page the first request opened.
+ */
+export const CHECKOUT_IN_PROGRESS_CODE = 'checkout_in_progress';
+export const CHECKOUT_IN_PROGRESS_RETRY_MS = 2000;
 
 /**
  * Pull the status and server-authored message out of a supabase-js function
@@ -60,21 +73,22 @@ export class CheckoutSessionError extends Error {
  */
 async function readEdgeFunctionError(
   error: unknown
-): Promise<{ status: number | null; message: string | null }> {
+): Promise<{ status: number | null; message: string | null; code: string | null }> {
   const context = (error as { context?: unknown })?.context;
-  if (!context || typeof context !== 'object') return { status: null, message: null };
+  if (!context || typeof context !== 'object') return { status: null, message: null, code: null };
 
   const response = context as { status?: number; json?: () => Promise<unknown> };
   const status = typeof response.status === 'number' ? response.status : null;
 
-  if (typeof response.json !== 'function') return { status, message: null };
+  if (typeof response.json !== 'function') return { status, message: null, code: null };
 
   try {
-    const body = (await response.json()) as { error?: unknown } | null;
+    const body = (await response.json()) as { error?: unknown; code?: unknown } | null;
     const message = typeof body?.error === 'string' && body.error.trim() ? body.error : null;
-    return { status, message };
+    const code = typeof body?.code === 'string' ? body.code : null;
+    return { status, message, code };
   } catch {
-    return { status, message: null };
+    return { status, message: null, code: null };
   }
 }
 
@@ -128,26 +142,37 @@ export async function createEntryCheckoutSession(
     `?session_id=${STRIPE_CHECKOUT_SESSION_ID_TOKEN}` +
     (extraQuery ? `&${extraQuery}` : '');
 
-  const { data, error } = await supabase.functions.invoke('stripe-checkout', {
-    body: {
-      mode: 'entry',
-      cart_id: cartId,
-      success_url: successUrl,
-      // The SAME literal token as `success_url`, for the same reason and one
-      // more: Stripe's cancel_url is also reachable AFTER a payment completes
-      // (the exhibitor hits Back from the receipt, or re-opens a stale tab).
-      // Without a session id the cancel page has no way to tell that apart
-      // from a genuine abandonment and tells someone whose card was charged
-      // that their payment was cancelled, one click from paying again
-      // (MYK9-509). Concatenated, never through URLSearchParams — see
-      // STRIPE_CHECKOUT_SESSION_ID_TOKEN for what encoding the braces costs.
-      cancel_url:
-        `${window.location.origin}/checkout/cancel` +
-        `?session_id=${STRIPE_CHECKOUT_SESSION_ID_TOKEN}`,
-    },
-  });
+  const invokeCheckout = () =>
+    supabase.functions.invoke('stripe-checkout', {
+      body: {
+        mode: 'entry',
+        cart_id: cartId,
+        success_url: successUrl,
+        // The SAME literal token as `success_url`, for the same reason and one
+        // more: Stripe's cancel_url is also reachable AFTER a payment completes
+        // (the exhibitor hits Back from the receipt, or re-opens a stale tab).
+        // Without a session id the cancel page has no way to tell that apart
+        // from a genuine abandonment and tells someone whose card was charged
+        // that their payment was cancelled, one click from paying again
+        // (MYK9-509). Concatenated, never through URLSearchParams — see
+        // STRIPE_CHECKOUT_SESSION_ID_TOKEN for what encoding the braces costs.
+        cancel_url:
+          `${window.location.origin}/checkout/cancel` +
+          `?session_id=${STRIPE_CHECKOUT_SESSION_ID_TOKEN}`,
+      },
+    });
 
-  if (error) {
+  let { data, error } = await invokeCheckout();
+  let parsed = error ? await readEdgeFunctionError(error) : null;
+  if (parsed?.code === CHECKOUT_IN_PROGRESS_CODE) {
+    // Another request is starting checkout for this cart. Wait for it once;
+    // the retry then picks up the page it opened.
+    await new Promise(resolve => setTimeout(resolve, CHECKOUT_IN_PROGRESS_RETRY_MS));
+    ({ data, error } = await invokeCheckout());
+    parsed = error ? await readEdgeFunctionError(error) : null;
+  }
+
+  if (error && parsed) {
     // supabase.functions.invoke reports every non-2xx as a FunctionsHttpError
     // whose `.message` is the generic "Edge Function returned a non-2xx status
     // code" - the server's actual message lives in the JSON body, reachable
@@ -156,8 +181,6 @@ export async function createEntryCheckoutSession(
     // has no payout account, 401 session expired) all reached the exhibitor as
     // one dead-end "try again", and the 409 case retried forever because the
     // client kept re-sending the same stale cart.
-    const parsed = await readEdgeFunctionError(error);
-
     if (
       parsed.status === 401 ||
       error.message?.includes('401') ||
@@ -166,7 +189,7 @@ export async function createEntryCheckoutSession(
       throw new CheckoutSessionError('Session expired. Please sign in again.', 401);
     }
     if (parsed.message) {
-      throw new CheckoutSessionError(parsed.message, parsed.status);
+      throw new CheckoutSessionError(parsed.message, parsed.status, parsed.code);
     }
     throw new CheckoutSessionError(
       error.message || 'Failed to create checkout session',

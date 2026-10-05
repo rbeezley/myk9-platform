@@ -17,41 +17,45 @@ const source = readFileSync(
 const compact = source.replace(/\s+/g, ' ');
 
 describe('stripe-checkout holds spots for the life of the Stripe page', () => {
+  it('runs one checkout per cart: claims the lease first and always ends it', () => {
+    const claimAt = compact.indexOf('const claim = await claimCartCheckout(supabase, lease);');
+    expect(claimAt).toBeGreaterThan(-1);
+    expect(compact.indexOf('checkoutUnderLease(')).toBeGreaterThan(claimAt);
+    expect(compact).toContain(
+      "if (claim.kind === 'in_progress') { return corsResponse( corsHeaders, { error: CHECKOUT_IN_PROGRESS_MESSAGE, code: CHECKOUT_IN_PROGRESS_CODE }, 409 ); }"
+    );
+    expect(compact).toContain('} finally { const ended = await endCartCheckout(supabase, lease);');
+    // The cart is read again under the lease, never only before it.
+    expect(
+      compact.indexOf('const { data: cart, error: cartError } = await loadCheckoutCart(cart_id);')
+    ).toBeGreaterThan(claimAt);
+  });
+
   it('opens a new page only through createSessionUnderHold, with the hold expiry', () => {
     expect(compact).toContain(
-      'const created = await createSessionUnderHold( supabase, attempt, holdUntilEpoch, priorSessionId, expiresAtEpoch => stripe.checkout.sessions.create({'
+      'const created = await createSessionUnderHold( supabase, lease, holdUntilEpoch, expiresAtEpoch => stripe.checkout.sessions.create({'
     );
     // The page's expiry is the hold's, not a second clock.
     expect(compact).toContain('expires_at: expiresAtEpoch,');
-    expect(compact).toContain('expires_at: epochToIso(sessionExpiresAtEpoch),');
     expect(source).not.toContain('31 * 60');
   });
 
-  it('ties the hold to the expiry Stripe returned once the cart links the page', () => {
+  it('links the page and ties its holds in one call, handing it out only when linked', () => {
     expect(compact).toContain(
       'const sessionExpiresAtEpoch = session.expires_at ?? holdUntilEpoch;'
     );
     expect(compact).toContain(
-      'attachCartSpotHolds(supabase, attempt, session.id, sessionExpiresAtEpoch)'
+      'const link = await linkCartCheckout(supabase, lease, { sessionId: session.id, sessionExpiresAtEpoch, expectedUpdatedAt: cart.updated_at, heldCount,'
     );
-  });
-
-  // Codex P1 on #2755: every hold write is scoped to this request's attempt,
-  // and a page whose holds are not all tied is expired, never handed out.
-  it('scopes every hold write to a fresh attempt and hands out only a fully held page', () => {
-    expect(compact).toContain(
-      'const attempt = { cartId: cart_id, attemptId: crypto.randomUUID() };'
-    );
-    expect(compact).toContain('releaseCartSpotHolds(supabase, attempt)');
-    expect(compact).not.toContain('releaseCartSpotHolds(supabase, cart_id)');
-    expect(compact).toContain('if (!pageIsFullyHeld(attached, heldCount)) {');
-    expect(compact).toContain("await abandonSession('holds not tied');");
+    for (const refusal of ['cart_changed', 'holds_lost', 'error']) {
+      expect(compact).toContain(`if (link.kind === '${refusal}') {`);
+    }
+    // No second path writes the session link.
+    expect(source).not.toMatch(/stripe_checkout_session_id: session\.id/);
   });
 
   it("re-takes the hold for a reused page, for that page's own expiry", () => {
-    expect(compact).toContain(
-      'holdCartSpots(supabase, attempt, reusedExpiresAtEpoch, { sessionId: reused.id, retiredSessionId: reused.id, })'
-    );
+    expect(compact).toContain('holdCartSpots(supabase, lease, reusedExpiresAtEpoch, reused.id)');
   });
 
   it('answers a refused line with 409 before any page exists', () => {

@@ -1,16 +1,22 @@
 // Hold class spots while the exhibitor pays (MYK9-1012).
 //
-// stripe-checkout holds a spot for every new cart line BEFORE it opens a Stripe
-// Checkout page, and the hold lasts exactly as long as the page: the page is
-// created with `expires_at` = the hold's expiry, and once the cart links the
-// page the hold is set to the expiry Stripe returned. The rule itself is in
-// the database (`hold_cart_spots`, migration 20261004235300): it decides each
-// line under evaluate_entry_capacity's locks, so two Pay clicks for the last
-// spot cannot both win, and it holds every line or none.
+// ONE CHECKOUT PER CART AT A TIME. stripe-checkout first claims the cart's
+// checkout lease (`claim_cart_checkout`, 90 seconds); a second Pay on the same
+// cart while it is live gets `checkout_in_progress` and never runs alongside.
+// Under the lease, in order: retire or reuse the old Stripe page, hold every
+// new line (`hold_cart_spots`), open the page with the hold's expiry, then in
+// ONE transaction link the page to the cart and tie the holds to it
+// (`link_cart_checkout`), and finally end the lease (`end_cart_checkout`,
+// which gives back any hold never tied to a page). Every hold write requires
+// the live lease. Codex rounds 1 and 2 on #2755 each found a race between two
+// Pay requests on one cart; the lease removes the second request instead of
+// guarding each interleaving.
 //
-// When a line has no room nothing is charged: the caller answers 409 with
-// `describeRefusedLines`, and the cart reloads to show the line as full (with
-// its wait-list option when the class has one).
+// The capacity rule is in the database (migration 20261004235300):
+// `hold_cart_spots` decides each line under evaluate_entry_capacity's locks,
+// so two carts racing for the last spot cannot both win, and it holds every
+// line or none. When a line has no room nothing is charged: the caller answers
+// 409 with `describeRefusedLines`.
 //
 // Pure apart from the injected rpc client, so the orchestration is
 // unit-testable without Deno or Stripe.
@@ -57,37 +63,65 @@ export function epochToIso(epochSeconds: number): string {
   return new Date(epochSeconds * 1000).toISOString();
 }
 
-/**
- * One Pay click. Every hold it takes carries `attemptId`, and attach and
- * release touch only that attempt's holds (Codex P1 on #2755): two Pay
- * requests for one cart can both hold before either records its page, and the
- * loser's cleanup must not take the winner's spots with it.
- */
-export interface PayAttempt {
+/** This request's claim on one cart's checkout. */
+export interface CartLease {
   cartId: string;
-  attemptId: string;
+  leaseId: string;
 }
 
-export interface HoldTarget {
-  /** The page these holds are for when it already exists (a reused page). */
-  sessionId?: string | null;
-  /** A page this Pay has retired (expired, or is re-holding): its holds go back. */
-  retiredSessionId?: string | null;
+export type CartLeaseClaim =
+  { kind: 'claimed' } | { kind: 'in_progress' } | { kind: 'error'; message: string };
+
+export const CHECKOUT_IN_PROGRESS_CODE = 'checkout_in_progress';
+
+export const CHECKOUT_IN_PROGRESS_MESSAGE =
+  'Checkout is already starting for this cart. One moment, then try again.';
+
+/** Claim the cart's checkout, or learn that another request holds it. */
+export async function claimCartCheckout(
+  db: HoldRpcClient,
+  lease: CartLease
+): Promise<CartLeaseClaim> {
+  const { data, error } = await db.rpc('claim_cart_checkout', {
+    p_cart_id: lease.cartId,
+    p_lease_id: lease.leaseId,
+  });
+  if (error) return { kind: 'error', message: error.message ?? 'claim_cart_checkout failed' };
+  const outcome = (Array.isArray(data) ? data[0] : data) as { outcome?: string } | null;
+  if (outcome?.outcome === 'claimed') return { kind: 'claimed' };
+  if (outcome?.outcome === 'in_progress') return { kind: 'in_progress' };
+  return { kind: 'error', message: `claim_cart_checkout answered ${JSON.stringify(data)}` };
 }
 
-/** Hold every new line of the cart for this attempt, or hold nothing. */
+/** End this request's checkout: untied holds go back and the cart is free. */
+export async function endCartCheckout(
+  db: HoldRpcClient,
+  lease: CartLease
+): Promise<{ error: string | null }> {
+  const { error } = await db.rpc('end_cart_checkout', {
+    p_cart_id: lease.cartId,
+    p_lease_id: lease.leaseId,
+  });
+  return { error: error ? (error.message ?? 'end_cart_checkout failed') : null };
+}
+
+/**
+ * Hold every new line of the cart under the lease, or hold nothing.
+ * `sessionId` names the page the holds are for when it already exists (a
+ * reused page); otherwise the page is opened next and `linkCartCheckout`
+ * ties them to it.
+ */
 export async function holdCartSpots(
   db: HoldRpcClient,
-  attempt: PayAttempt,
+  lease: CartLease,
   expiresAtEpoch: number,
-  target: HoldTarget = {}
+  sessionId: string | null = null
 ): Promise<CartHoldResult> {
   const { data, error } = await db.rpc('hold_cart_spots', {
-    p_cart_id: attempt.cartId,
-    p_attempt_id: attempt.attemptId,
+    p_cart_id: lease.cartId,
+    p_lease_id: lease.leaseId,
     p_expires_at: epochToIso(expiresAtEpoch),
-    p_checkout_session_id: target.sessionId ?? null,
-    p_release_session_id: target.retiredSessionId ?? null,
+    p_checkout_session_id: sessionId,
   });
   if (error) return { kind: 'error', message: error.message ?? 'hold_cart_spots failed' };
   const rows = (Array.isArray(data) ? data : []) as HoldRow[];
@@ -107,46 +141,47 @@ export async function holdCartSpots(
   return { kind: 'held', heldCount: rows.length };
 }
 
+export interface CheckoutLink {
+  sessionId: string;
+  sessionExpiresAtEpoch: number;
+  /** The cart's updated_at as this request read it, under the lease. */
+  expectedUpdatedAt: string;
+  heldCount: number;
+  subtotalCents: number;
+  platformFeeCents: number;
+  totalCents: number;
+}
+
+export type CheckoutLinkOutcome =
+  | { kind: 'linked' }
+  | { kind: 'cart_changed' }
+  | { kind: 'holds_lost' }
+  | { kind: 'error'; message: string };
+
 /**
- * Tie this attempt's holds to the page the cart now links, ending when the
- * page does. `tied` is how many it tied; the page may be handed out only when
- * that is every line the attempt held (`pageIsFullyHeld`).
+ * In one transaction: link the page to the (unchanged) cart and tie every
+ * held line to it, ending when the page does. Only `linked` may hand the
+ * page out.
  */
-export async function attachCartSpotHolds(
+export async function linkCartCheckout(
   db: HoldRpcClient,
-  attempt: PayAttempt,
-  sessionId: string,
-  sessionExpiresAtEpoch: number
-): Promise<{ tied: number | null; error: string | null }> {
-  const { data, error } = await db.rpc('attach_cart_spot_holds', {
-    p_cart_id: attempt.cartId,
-    p_attempt_id: attempt.attemptId,
-    p_checkout_session_id: sessionId,
-    p_expires_at: epochToIso(sessionExpiresAtEpoch),
+  lease: CartLease,
+  link: CheckoutLink
+): Promise<CheckoutLinkOutcome> {
+  const { data, error } = await db.rpc('link_cart_checkout', {
+    p_cart_id: lease.cartId,
+    p_lease_id: lease.leaseId,
+    p_checkout_session_id: link.sessionId,
+    p_expires_at: epochToIso(link.sessionExpiresAtEpoch),
+    p_expected_updated_at: link.expectedUpdatedAt,
+    p_held_count: link.heldCount,
+    p_subtotal_cents: link.subtotalCents,
+    p_platform_fee_cents: link.platformFeeCents,
+    p_total_cents: link.totalCents,
   });
-  if (error) return { tied: null, error: error.message ?? 'attach_cart_spot_holds failed' };
-  return { tied: typeof data === 'number' ? data : null, error: null };
-}
-
-/** A page is safe to hand out only when every line this attempt held is tied to it. */
-export function pageIsFullyHeld(
-  attach: { tied: number | null; error: string | null },
-  heldCount: number
-): boolean {
-  return attach.error === null && attach.tied === heldCount;
-}
-
-/** Give back THIS attempt's spots when its page could not be opened, recorded or tied. */
-export async function releaseCartSpotHolds(
-  db: HoldRpcClient,
-  attempt: PayAttempt
-): Promise<{ error: string | null }> {
-  const { error } = await db.rpc('release_cart_spot_holds', {
-    p_cart_id: attempt.cartId,
-    p_attempt_id: attempt.attemptId,
-    p_reason: 'checkout_failed',
-  });
-  return { error: error ? (error.message ?? 'release_cart_spot_holds failed') : null };
+  if (error) return { kind: 'error', message: error.message ?? 'link_cart_checkout failed' };
+  if (data === 'linked' || data === 'cart_changed' || data === 'holds_lost') return { kind: data };
+  return { kind: 'error', message: `link_cart_checkout answered ${JSON.stringify(data)}` };
 }
 
 /** A line refused at Pay: nothing is charged and the caller answers 409. */
@@ -171,27 +206,19 @@ export const CART_HOLD_UNAVAILABLE_MESSAGE =
   'We could not hold your spots just now. Nothing was charged. Please try again in a moment.';
 
 /**
- * Hold first, then open the page with the hold's expiry. `retiredSessionId`
- * is the cart's previous page, which resolveCheckoutSession has already
- * retired by the time it asks for a replacement. A page that fails to open
- * gives this attempt's spots straight back.
+ * Hold first, then open the page with the hold's expiry. Nothing to undo
+ * here when the page fails to open: ending the lease gives untied holds back.
  */
 export async function createSessionUnderHold<T>(
   db: HoldRpcClient,
-  attempt: PayAttempt,
+  lease: CartLease,
   holdUntilEpoch: number,
-  retiredSessionId: string | null,
   createSession: (expiresAtEpoch: number) => Promise<T>
 ): Promise<{ session: T; heldCount: number }> {
-  const hold = await holdCartSpots(db, attempt, holdUntilEpoch, { retiredSessionId });
+  const hold = await holdCartSpots(db, lease, holdUntilEpoch);
   if (hold.kind === 'refused') throw new CartHoldRefusedError(hold.lines);
   if (hold.kind === 'error') throw new CartHoldUnavailableError(hold.message);
-  try {
-    return { session: await createSession(holdUntilEpoch), heldCount: hold.heldCount };
-  } catch (error) {
-    await releaseCartSpotHolds(db, attempt);
-    throw error;
-  }
+  return { session: await createSession(holdUntilEpoch), heldCount: hold.heldCount };
 }
 
 const capitalize = (text: string): string => text.charAt(0).toUpperCase() + text.slice(1);

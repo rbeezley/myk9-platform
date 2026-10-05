@@ -28,16 +28,19 @@ import {
 } from '../_shared/cartClassGate.ts';
 import {
   CART_HOLD_UNAVAILABLE_MESSAGE,
+  CHECKOUT_IN_PROGRESS_CODE,
+  CHECKOUT_IN_PROGRESS_MESSAGE,
   CartHoldRefusedError,
   CartHoldUnavailableError,
-  attachCartSpotHolds,
   cartSpotHoldUntilEpoch,
+  claimCartCheckout,
   createSessionUnderHold,
   describeRefusedLines,
+  endCartCheckout,
   epochToIso,
   holdCartSpots,
-  pageIsFullyHeld,
-  releaseCartSpotHolds,
+  linkCartCheckout,
+  type CartLease,
 } from '../_shared/cartSpotHold.ts';
 
 const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
@@ -390,46 +393,108 @@ async function handleEntryCheckout(
   }
 
   // Fetch cart with items and verify ownership
-  const { data: cart, error: cartError } = await supabase
-    .from('entry_carts')
-    .select(
-      `
-      *,
-      exhibitor:exhibitor_profiles!inner(auth_user_id),
-      items:entry_cart_items(
-        id,
-        dog_id,
-        class_id,
-        entry_id,
-        handler_id,
-        entry_fee_cents,
-        junior_fee_declared,
-        jump_height,
-        special_requests,
-        dog:dogs(call_name),
-        class:classes(
-          name,
-          entry_fee,
-          trial:trials(
-            show:shows(name)
-          )
-        )
-      )
-    `
-    )
-    .eq('id', cart_id)
-    .in('status', ['active', 'expired'])
-    .single();
-
-  if (cartError || !cart) {
-    console.error('Cart not found:', cartError);
+  const { data: owned, error: ownedError } = await loadCheckoutCart(cart_id);
+  if (ownedError || !owned) {
+    console.error('Cart not found:', ownedError);
     return corsResponse(corsHeaders, { error: 'Cart not found or expired' }, 404);
   }
 
   // Verify ownership
-  if (cart.exhibitor.auth_user_id !== authUserId) {
+  if (owned.exhibitor.auth_user_id !== authUserId) {
     return corsResponse(corsHeaders, { error: 'Unauthorized access to cart' }, 403);
   }
+
+  // MYK9-1012: one checkout per cart at a time. Everything below (retiring or
+  // reusing the old page, holding spots, opening and linking the new page)
+  // runs under this request's lease, and a second Pay on the same cart is
+  // turned away rather than run alongside (Codex rounds 1 and 2 on #2755).
+  const lease: CartLease = { cartId: cart_id, leaseId: crypto.randomUUID() };
+  const claim = await claimCartCheckout(supabase, lease);
+  if (claim.kind === 'in_progress') {
+    return corsResponse(
+      corsHeaders,
+      { error: CHECKOUT_IN_PROGRESS_MESSAGE, code: CHECKOUT_IN_PROGRESS_CODE },
+      409
+    );
+  }
+  if (claim.kind === 'error') {
+    console.error(`Could not claim checkout for cart ${cart_id}: ${claim.message}`);
+    return corsResponse(corsHeaders, { error: CART_HOLD_UNAVAILABLE_MESSAGE }, 503);
+  }
+
+  try {
+    // Re-read under the lease: a checkout that finished between the read
+    // above and the claim may have linked a new page.
+    const { data: cart, error: cartError } = await loadCheckoutCart(cart_id);
+    if (cartError || !cart) {
+      console.error('Cart not found under lease:', cartError);
+      return corsResponse(corsHeaders, { error: 'Cart not found or expired' }, 404);
+    }
+    return await checkoutUnderLease(
+      corsHeaders,
+      cart,
+      lease,
+      authUserId,
+      customerId,
+      successUrl,
+      cancelUrl
+    );
+  } finally {
+    const ended = await endCartCheckout(supabase, lease);
+    if (ended.error) {
+      // The lease and any untied hold lapse on their own within 90 seconds.
+      console.error(`Could not end checkout for cart ${cart_id}: ${ended.error}`);
+    }
+  }
+}
+
+/** The cart with everything checkout prices and names. */
+function loadCheckoutCart(cartId: string) {
+  return supabase
+    .from('entry_carts')
+    .select(
+      `
+        *,
+        exhibitor:exhibitor_profiles!inner(auth_user_id),
+        items:entry_cart_items(
+          id,
+          dog_id,
+          class_id,
+          entry_id,
+          handler_id,
+          entry_fee_cents,
+          junior_fee_declared,
+          jump_height,
+          special_requests,
+          dog:dogs(call_name),
+          class:classes(
+            name,
+            entry_fee,
+            trial:trials(
+              show:shows(name)
+            )
+          )
+        )
+      `
+    )
+    .eq('id', cartId)
+    .in('status', ['active', 'expired'])
+    .single();
+}
+
+type CheckoutCart = NonNullable<Awaited<ReturnType<typeof loadCheckoutCart>>['data']>;
+
+/** Everything after the claim, under this request's lease on the cart. */
+async function checkoutUnderLease(
+  corsHeaders: Record<string, string>,
+  cart: CheckoutCart,
+  lease: CartLease,
+  authUserId: string,
+  customerId: string,
+  successUrl: string,
+  cancelUrl: string
+): Promise<Response> {
+  const cart_id = lease.cartId;
 
   // My Shows can send exhibitors back to /cart after the cart timer has
   // elapsed. Submitted/abandoned carts stay terminal, but an unpaid active or
@@ -785,10 +850,8 @@ async function handleEntryCheckout(
   // and then creates the page with expires_at = the hold's expiry; after the
   // cart links the page, the hold is set to the expiry Stripe RETURNS, so page
   // and hold die at the same instant (see cartSpotHold.ts for the 31 minutes).
-  // Every hold this request takes carries its own attempt id, and only this
-  // attempt's holds are tied or released below (Codex P1 on #2755).
+  // All of it under this request's lease on the cart.
   const holdUntilEpoch = cartSpotHoldUntilEpoch(Date.now());
-  const attempt = { cartId: cart_id, attemptId: crypto.randomUUID() };
   const priorSessionId: string | null = cart.stripe_checkout_session_id ?? null;
   let heldCount = 0;
   let resolution: CheckoutSessionResolution<Stripe.Checkout.Session>;
@@ -799,13 +862,12 @@ async function handleEntryCheckout(
       sessions: stripe.checkout.sessions,
       // A replacement is only asked for once the prior page is retired
       // (expired by resolveCheckoutSession, already expired, or missing), so
-      // its holds are released by name; no other attempt's are touched.
+      // the new hold replaces the cart's old holds.
       createReplacement: async () => {
         const created = await createSessionUnderHold(
           supabase,
-          attempt,
+          lease,
           holdUntilEpoch,
-          priorSessionId,
           expiresAtEpoch =>
             stripe.checkout.sessions.create({
               customer: customerId,
@@ -870,10 +932,7 @@ async function handleEntryCheckout(
     // existed has none, and a line added since would have none.
     const reused = resolution.session;
     const reusedExpiresAtEpoch = reused.expires_at ?? holdUntilEpoch;
-    const hold = await holdCartSpots(supabase, attempt, reusedExpiresAtEpoch, {
-      sessionId: reused.id,
-      retiredSessionId: reused.id,
-    });
+    const hold = await holdCartSpots(supabase, lease, reusedExpiresAtEpoch, reused.id);
     if (hold.kind !== 'held') {
       try {
         await stripe.checkout.sessions.expire(reused.id);
@@ -906,71 +965,50 @@ async function handleEntryCheckout(
   // Stripe's returned expiry is authoritative (it may round/adjust ours).
   const sessionExpiresAtEpoch = session.expires_at ?? holdUntilEpoch;
 
-  // A page that cannot be handed out gives its spots back, then dies.
-  const abandonSession = async (reason: string) => {
+  // A page that cannot be handed out dies; ending the lease gives its holds back.
+  const abandonSession = async () => {
     try {
       await stripe.checkout.sessions.expire(session.id);
     } catch (expireErr) {
       console.error(`CRITICAL: could not expire orphaned session ${session.id}:`, expireErr);
     }
-    const released = await releaseCartSpotHolds(supabase, attempt);
-    if (released.error) {
-      console.error(`Could not release holds for cart ${cart_id} (${reason}): ${released.error}`);
-    }
   };
 
-  // Update cart with checkout session
-  const { data: updated, error: updateError } = await supabase
-    .from('entry_carts')
-    .update({
-      stripe_checkout_session_id: session.id,
-      subtotal_cents: subtotal,
-      platform_fee_cents: platformFeeCents,
-      total_cents: subtotal + platformFeeCents,
-      expires_at: epochToIso(sessionExpiresAtEpoch),
-    })
-    .eq('id', cart_id)
-    // Optimistic concurrency (Codex round-6 P1): a cart mutation between our
-    // read and this write clears stripe_checkout_session_id and changes
-    // totals — writing the stale snapshot back would re-legitimize a session
-    // built from items the user no longer has. updated_at auto-touches on
-    // every entry_carts update (009 trigger), so equality means "unchanged
-    // since we read it".
-    .eq('status', 'active')
-    .eq('updated_at', cart.updated_at)
-    .select('id');
+  // Link the page to the cart and tie the holds to it in ONE transaction.
+  // The webhook REJECTS any paid session the cart doesn't point at
+  // (sessionCartGuard), so a page is handed out only once it is linked (Codex
+  // round-5 P1). Optimistic concurrency (Codex round-6 P1): the link is
+  // refused if the cart changed since it was read under the lease, so a
+  // session built from items the user no longer has is never legitimized.
+  // And it is refused unless every line held is still held to tie.
+  const link = await linkCartCheckout(supabase, lease, {
+    sessionId: session.id,
+    sessionExpiresAtEpoch,
+    expectedUpdatedAt: cart.updated_at,
+    heldCount,
+    subtotalCents: subtotal,
+    platformFeeCents,
+    totalCents: subtotal + platformFeeCents,
+  });
 
-  if (!updateError && (!updated || updated.length === 0)) {
+  if (link.kind === 'cart_changed') {
     console.log(`Cart ${cart_id} changed mid-checkout — expiring session ${session.id}`);
-    await abandonSession('cart changed');
+    await abandonSession();
     return corsResponse(
       corsHeaders,
       { error: 'Your cart changed while checkout was starting. Please try again.' },
       409
     );
   }
-
-  if (updateError) {
-    // The webhook REJECTS any paid session the cart doesn't point at
-    // (sessionCartGuard) — handing out this URL without the persisted link
-    // would let the user pay a session the webhook must then refuse (Codex
-    // round-5 P1). Kill the session and fail the request instead.
-    console.error('Error updating cart with session — expiring session:', updateError);
-    await abandonSession('cart update failed');
-    return corsResponse(corsHeaders, { error: 'Could not start checkout. Please try again.' }, 500);
-  }
-
-  // The holds now end exactly when the page does. A page is handed out only
-  // when every line this attempt held is tied to it: an unheld page could be
-  // paid for a spot someone else takes.
-  const attached = await attachCartSpotHolds(supabase, attempt, session.id, sessionExpiresAtEpoch);
-  if (!pageIsFullyHeld(attached, heldCount)) {
-    console.error(
-      `Holds for session ${session.id} not tied (${attached.tied ?? 'none'}/${heldCount}` +
-        `${attached.error ? `: ${attached.error}` : ''}) — expiring session`
-    );
-    await abandonSession('holds not tied');
+  if (link.kind === 'holds_lost') {
+    console.error(`Holds for cart ${cart_id} not all tieable — expiring session ${session.id}`);
+    await abandonSession();
     return corsResponse(corsHeaders, { error: CART_HOLD_UNAVAILABLE_MESSAGE }, 503);
+  }
+  if (link.kind === 'error') {
+    console.error(`Error linking session ${session.id} — expiring session: ${link.message}`);
+    await abandonSession();
+    return corsResponse(corsHeaders, { error: 'Could not start checkout. Please try again.' }, 500);
   }
 
   console.log(`Created entry checkout session ${session.id} for cart ${cart_id}`);

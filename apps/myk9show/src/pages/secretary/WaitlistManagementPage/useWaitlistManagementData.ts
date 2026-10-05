@@ -16,6 +16,7 @@ import {
   sendWaitlistOfferMessage,
 } from '@/services/database/waitlists';
 import { getSecretaryShows } from '@/services/database/shows';
+import { WaitlistEntryNotDeletedError } from '@/services/database/waitlists/deleteWaitlistEntryErrors';
 import type { Show, ActionDialogState, WaitlistEntry, ClassWithWaitlistCount } from './types';
 
 export function useWaitlistManagementData(showId?: string) {
@@ -263,7 +264,13 @@ export function useWaitlistManagementData(showId?: string) {
     try {
       const { error } = await removeFromWaitlist(actionDialog.entry.id);
 
-      if (error) {
+      if (error instanceof WaitlistEntryNotDeletedError) {
+        // Nothing was deleted (MYK9-1000): reload what is really there, then
+        // say why, after the reload so it does not clear the message.
+        if (selectedClassId) await loadWaitlist(selectedClassId);
+        if (selectedShowId) await loadClasses(selectedShowId);
+        setError(error.message);
+      } else if (error) {
         setError('Failed to remove from waitlist. Please try again.');
         logger.error('Error removing from waitlist:', 'secretary', {}, error as Error);
       } else {

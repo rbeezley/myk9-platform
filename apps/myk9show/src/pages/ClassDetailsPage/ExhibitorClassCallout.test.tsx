@@ -53,7 +53,7 @@ describe('ExhibitorClassCallout', () => {
     expect(screen.getByText(/2 dogs in this class/i)).toBeInTheDocument();
   });
 
-  it('says "Waiting", never a place, "up next" or a wait estimate, for a dog with an order', () => {
+  it('without a server count, says "Waiting", never "up next" or a wait estimate', () => {
     mockHook({
       myEntries: [makeEntry({ runOrder: 31, queue: { kind: 'waiting-unknown' } })],
       isAfterClass: false,

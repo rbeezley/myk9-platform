@@ -12918,6 +12918,10 @@ export type Database = {
         Args: { p_dog_id: string }
         Returns: number
       }
+      count_live_waitlist_entries: {
+        Args: { p_ids: string[] }
+        Returns: number
+      }
       create_dog_with_registrations: {
         Args: { p_dog: Json; p_registrations: Json }
         Returns: string

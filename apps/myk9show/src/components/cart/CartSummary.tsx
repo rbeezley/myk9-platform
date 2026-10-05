@@ -72,13 +72,13 @@ export function CartSummary({
 
   // INTENT: Entry carts are a calm flow, not a time-pressured checkout: no
   // ticking countdown, and nothing strands the user by redirecting to /shows
-  // mid-payment (UX walk remediation 4.B). MYK9-1012 removed the cart timer's
-  // last job. A cart's spots are held only from the Pay click until its Stripe
-  // page expires (the line under the Pay button says so), and a lapsed cart is
-  // simply saved: stripe-checkout reactivates it at Pay and re-checks every
-  // spot then. The old near-expiry heads-up and its one-tap extend promised
-  // a hold the cart timer never had, so they are gone, and Pay is never
-  // disabled for a lapsed cart.
+  // mid-payment (UX walk remediation 4.B). MYK9-1012 removed the cart timer
+  // (owner approved 2026-10-05): it had no job left. A cart's spots are held
+  // only from the Pay click until its Stripe page expires (the line under the
+  // Pay button says so), and a lapsed cart is simply saved: stripe-checkout
+  // reactivates it at Pay and re-checks every spot then. The old near-expiry
+  // heads-up and its one-tap extend promised a hold the cart timer never had,
+  // so they are gone, and Pay is never disabled for a lapsed cart.
 
   // exhibitor-ux-remediation (cart-integrity): a cart drafted before entries
   // closed must never let checkout proceed — the audit found a week-old draft

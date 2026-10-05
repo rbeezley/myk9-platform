@@ -65,9 +65,9 @@ describe('stripe-checkout holds spots for the life of the Stripe page', () => {
     );
   });
 
-  it("leaves the payer's own holds out of the class gate", () => {
+  it('decides the class gate on entries alone: a hold never removes a line', () => {
     expect(compact).toContain(
-      "supabase.rpc( 'class_entry_availability', classGateRpcArgs(classIds, authUserId) )"
+      "supabase.rpc( 'class_entry_availability', classGateRpcArgs(classIds) )"
     );
   });
 });

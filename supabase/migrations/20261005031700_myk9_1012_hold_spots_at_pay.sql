@@ -35,6 +35,15 @@
 --    exhibitors see the spot as taken, never as a hold: no read returns a held
 --    count of its own.
 --
+-- 2a. A HELD SPOT NEVER REMOVES ANOTHER CART'S LINE (owner, 2026-10-05). The
+--    cart reconcile (reconcile_cart_closed_classes) and stripe-checkout's
+--    class gate decide on entries alone (p_count_holds => false): a class
+--    full only because of other carts' unexpired holds keeps the line in the
+--    cart, shown full by the cart's own read (which does count holds) and not
+--    payable (hold_cart_spots refuses it at Pay). When the hold ends the line
+--    is payable again on the next read; only a class full by real entries
+--    (or closed) removes it, as before.
+--
 -- 3. A HOLD ENDS WITH ITS STRIPE PAGE. stripe-checkout creates the page with
 --    expires_at = the hold's expiry; link_cart_checkout then, in ONE
 --    transaction, links the page to the cart (the optimistic check on the
@@ -64,9 +73,9 @@
 -- because a hold is only ever taken from the self-service spots).
 --
 -- Signature changes (DROP + CREATE, defaults keep every existing caller):
---   get_judge_day_capacity_live(uuid, uuid, date)  + p_exclude_auth_user_id
---   class_judge_day_capacity(uuid[])               + p_exclude_auth_user_id
---   class_entry_availability(uuid[])               + p_exclude_auth_user_id
+--   get_judge_day_capacity_live(uuid, uuid, date)  + p_exclude_auth_user_id, p_count_holds
+--   class_judge_day_capacity(uuid[])               + p_exclude_auth_user_id, p_count_holds
+--   class_entry_availability(uuid[])               + p_exclude_auth_user_id, p_count_holds
 --
 -- Copied from the LATEST migration that defines each (bodies matched live
 -- 2026-10-04), with only the marked MYK9-1012 edits:
@@ -617,7 +626,8 @@ CREATE OR REPLACE FUNCTION public.get_judge_day_capacity_live(
   p_judge_id uuid,
   p_show_id uuid,
   p_date date,
-  p_exclude_auth_user_id uuid DEFAULT NULL
+  p_exclude_auth_user_id uuid DEFAULT NULL,
+  p_count_holds boolean DEFAULT true
 )
 RETURNS TABLE (
   judge_id uuid,
@@ -706,7 +716,9 @@ BEGIN
     AND e.deleted_at IS NULL;
 
   -- MYK9-1012: a spot a cart holds at Pay is taken until the hold ends.
-  v_confirmed := v_confirmed + public.held_spot_count(v_class_ids, p_exclude_auth_user_id);
+  IF p_count_holds THEN
+    v_confirmed := v_confirmed + public.held_spot_count(v_class_ids, p_exclude_auth_user_id);
+  END IF;
 
   SELECT COUNT(*)
   INTO v_waitlist
@@ -727,16 +739,17 @@ BEGIN
 END;
 $$;
 
-REVOKE ALL ON FUNCTION public.get_judge_day_capacity_live(uuid, uuid, date, uuid)
+REVOKE ALL ON FUNCTION public.get_judge_day_capacity_live(uuid, uuid, date, uuid, boolean)
   FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.get_judge_day_capacity_live(uuid, uuid, date, uuid)
+GRANT EXECUTE ON FUNCTION public.get_judge_day_capacity_live(uuid, uuid, date, uuid, boolean)
   TO service_role;
 
 -- From 20260925201300_myk9_753_class_judge_day_availability.sql. MYK9-1012:
 -- passes the exclusion through to get_judge_day_capacity_live.
 CREATE OR REPLACE FUNCTION public.class_judge_day_capacity(
   p_class_ids uuid[],
-  p_exclude_auth_user_id uuid DEFAULT NULL
+  p_exclude_auth_user_id uuid DEFAULT NULL,
+  p_count_holds boolean DEFAULT true
 )
 RETURNS TABLE (
   class_id uuid,
@@ -775,7 +788,7 @@ AS $$
       cap.available_spots
     FROM (SELECT DISTINCT person_id, show_id, trial_date FROM class_judges) d
     LEFT JOIN LATERAL public.get_judge_day_capacity_live(
-      d.person_id, d.show_id, d.trial_date, p_exclude_auth_user_id
+      d.person_id, d.show_id, d.trial_date, p_exclude_auth_user_id, p_count_holds
     ) cap ON true
   )
   SELECT
@@ -795,22 +808,23 @@ AS $$
    AND jd.trial_date = cj.trial_date;
 $$;
 
-COMMENT ON FUNCTION public.class_judge_day_capacity(uuid[], uuid) IS
+COMMENT ON FUNCTION public.class_judge_day_capacity(uuid[], uuid, boolean) IS
   'MYK9-753: one row per (class, confirmed judge day) with get_judge_day_capacity_live''s '
   'capacity, taken, mail-in reserve and self-service remaining (missing = 0). The judge-day '
   'half of the entry-capacity rule, read independently of the caller, so service_role only; '
   'clients read it through get_show_class_judge_day_availability. MYK9-1012: taken includes '
-  'held spots, except those of p_exclude_auth_user_id''s carts.';
+  'held spots (unless p_count_holds is false), except those of p_exclude_auth_user_id''s carts.';
 
-REVOKE ALL ON FUNCTION public.class_judge_day_capacity(uuid[], uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.class_judge_day_capacity(uuid[], uuid) TO service_role;
+REVOKE ALL ON FUNCTION public.class_judge_day_capacity(uuid[], uuid, boolean) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.class_judge_day_capacity(uuid[], uuid, boolean) TO service_role;
 
 -- From 20260925201300_myk9_753_class_judge_day_availability.sql. MYK9-1012:
 -- held spots join entry_count (the taken count every fullness reads), and the
 -- exclusion passes through to the judge days.
 CREATE OR REPLACE FUNCTION public.class_entry_availability(
   p_class_ids uuid[],
-  p_exclude_auth_user_id uuid DEFAULT NULL
+  p_exclude_auth_user_id uuid DEFAULT NULL,
+  p_count_holds boolean DEFAULT true
 )
 RETURNS TABLE (
   class_id uuid,
@@ -854,7 +868,10 @@ AS $$
           AND e.deleted_at IS NULL
       )
       -- MYK9-1012: a spot a cart holds at Pay is taken until the hold ends.
-      + public.held_spot_count(ARRAY[r.id], p_exclude_auth_user_id) AS entry_count,
+      + CASE
+          WHEN p_count_holds THEN public.held_spot_count(ARRAY[r.id], p_exclude_auth_user_id)
+          ELSE 0
+        END AS entry_count,
       (
         SELECT COUNT(*)::integer
         FROM public.waitlist_entries we
@@ -875,7 +892,7 @@ AS $$
       d.class_id,
       d.judge_id AS person_id,
       d.day_remaining AS available
-    FROM public.class_judge_day_capacity(p_class_ids, p_exclude_auth_user_id) d
+    FROM public.class_judge_day_capacity(p_class_ids, p_exclude_auth_user_id, p_count_holds) d
     ORDER BY d.class_id, d.day_remaining, d.judge_id
   ),
   decided AS (
@@ -913,16 +930,17 @@ AS $$
   FROM decided d;
 $$;
 
-COMMENT ON FUNCTION public.class_entry_availability(uuid[], uuid) IS
+COMMENT ON FUNCTION public.class_entry_availability(uuid[], uuid, boolean) IS
   'MYK9-705/656: per-class entry counts, started flag, class and judge-day fullness, and the '
   'self-service block (cancelled | started | finished | full | NULL), read independently of '
   'the caller. Counts and flags only. Ignores show visibility, so service_role only; clients '
   'read it through get_show_class_availability or reconcile_cart_closed_classes. MYK9-1012: '
   'entry_count is the taken count, held spots included except those of '
-  'p_exclude_auth_user_id''s carts.';
+  'p_exclude_auth_user_id''s carts; p_count_holds => false decides on entries alone (the cart '
+  'reconcile and the checkout class gate: a held spot never removes another cart''s line).';
 
-REVOKE ALL ON FUNCTION public.class_entry_availability(uuid[], uuid) FROM PUBLIC, anon, authenticated;
-GRANT EXECUTE ON FUNCTION public.class_entry_availability(uuid[], uuid) TO service_role;
+REVOKE ALL ON FUNCTION public.class_entry_availability(uuid[], uuid, boolean) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.class_entry_availability(uuid[], uuid, boolean) TO service_role;
 
 -- From 20260925201300_myk9_753_class_judge_day_availability.sql. MYK9-1012:
 -- the caller's own holds are left out of both reads.
@@ -1124,7 +1142,11 @@ BEGIN
         WHERE ci.cart_id = p_cart_id
           AND ci.entry_id IS NULL
       ),
-      auth.uid()
+      auth.uid(),
+      -- Owner 2026-10-05: another cart's hold never removes this line. The
+      -- line stays, read full by the cart until the hold ends; only real
+      -- entries (or closure) remove it here.
+      false
     ) a ON a.class_id = i.class_id
     WHERE i.cart_id = p_cart_id
       AND i.entry_id IS NULL
@@ -1146,8 +1168,8 @@ COMMENT ON FUNCTION public.reconcile_cart_closed_classes(uuid) IS
   'MYK9-656: atomically drops a caller-owned cart''s lines whose class self-service can no '
   'longer buy (class_entry_availability.self_service_block) and returns each dropped line with '
   'its reason. Finish Payment lines are never dropped, and a cart still linked to a Checkout '
-  'Session is left untouched until stripe-checkout retires the session. MYK9-1012: the '
-  'caller''s own held spots never make their own lines look full.';
+  'Session is left untouched until stripe-checkout retires the session. MYK9-1012: decided on '
+  'entries alone, so a spot held by any cart never removes a line.';
 
 REVOKE ALL ON FUNCTION public.reconcile_cart_closed_classes(uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.reconcile_cart_closed_classes(uuid) TO authenticated;

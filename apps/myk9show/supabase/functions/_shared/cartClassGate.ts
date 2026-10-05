@@ -42,16 +42,18 @@ export function newLineClassIds(items: readonly CartLineForClassGate[]): string[
 }
 
 /**
- * The class gate's `class_entry_availability` arguments. The paying account's
- * own held spots (MYK9-1012) are left out: a returning payer's earlier Pay
- * click holds the very spots their lines want, and counting those would read
- * their own lines as full and refuse them.
+ * The class gate's `class_entry_availability` arguments. The gate decides on
+ * entries alone (MYK9-1012, owner 2026-10-05): a class full only because of
+ * spots other carts hold at Pay must not send the cart into the reconcile that
+ * removes lines, and the payer's own earlier hold must not read their own
+ * lines as full. Held spots are refused at Pay by `hold_cart_spots`, with the
+ * dog and class named.
  */
-export function classGateRpcArgs(
-  classIds: readonly string[],
-  authUserId: string
-): { p_class_ids: string[]; p_exclude_auth_user_id: string } {
-  return { p_class_ids: [...classIds], p_exclude_auth_user_id: authUserId };
+export function classGateRpcArgs(classIds: readonly string[]): {
+  p_class_ids: string[];
+  p_count_holds: false;
+} {
+  return { p_class_ids: [...classIds], p_count_holds: false };
 }
 
 /** True when any new cart line is in a class self-service can no longer buy. */

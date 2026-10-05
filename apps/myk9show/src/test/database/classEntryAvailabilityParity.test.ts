@@ -95,7 +95,7 @@ describe('class_entry_availability parity', () => {
   it('reads judge-day capacity through class_judge_day_capacity, which calls get_judge_day_capacity_live', () => {
     const helper = latestDefinition('class_judge_day_capacity');
     expect(compact(availability.body)).toContain(
-      'public.class_judge_day_capacity(p_class_ids, p_exclude_auth_user_id)'
+      'public.class_judge_day_capacity(p_class_ids, p_exclude_auth_user_id, p_count_holds)'
     );
     expect(compact(availability.body)).not.toContain('get_judge_day_capacity_live');
     expect(compact(helper.body)).toContain('public.get_judge_day_capacity_live(');
@@ -114,7 +114,7 @@ describe('class_entry_availability parity', () => {
       "ON ja.class_id = c.id AND ja.show_id = t.show_id AND ja.status = 'confirmed' AND ja.person_id IS NOT NULL"
     );
     expect(helper).toContain(
-      'get_judge_day_capacity_live( d.person_id, d.show_id, d.trial_date, p_exclude_auth_user_id )'
+      'get_judge_day_capacity_live( d.person_id, d.show_id, d.trial_date, p_exclude_auth_user_id, p_count_holds )'
     );
   });
 
@@ -128,10 +128,10 @@ describe('class_entry_availability parity', () => {
       'v_class_count := v_class_count + public.held_spot_count(ARRAY[p_class_id]);'
     );
     expect(compact(judgeDay.body)).toContain(
-      'v_confirmed := v_confirmed + public.held_spot_count(v_class_ids, p_exclude_auth_user_id);'
+      'IF p_count_holds THEN v_confirmed := v_confirmed + public.held_spot_count(v_class_ids, p_exclude_auth_user_id); END IF;'
     );
     expect(compact(availability.body)).toContain(
-      '+ public.held_spot_count(ARRAY[r.id], p_exclude_auth_user_id) AS entry_count'
+      '+ CASE WHEN p_count_holds THEN public.held_spot_count(ARRAY[r.id], p_exclude_auth_user_id) ELSE 0 END AS entry_count'
     );
     expect(latestDefinition('promote_waitlist_entry_internal').body.match(held)).toHaveLength(1);
     // Only expired-or-released holds stop counting.
@@ -150,6 +150,12 @@ describe('class_entry_availability parity', () => {
     expect(cartRead).toContain(
       'class_judge_day_capacity(ARRAY(SELECT id FROM show_classes), auth.uid()) d'
     );
+    // Owner 2026-10-05: only the cart reconcile decides on entries alone.
+    expect(compact(latestDefinition('reconcile_cart_closed_classes').body)).toMatch(
+      /class_entry_availability\( ARRAY\(.*?\), auth\.uid\(\), (?:-- [^\n]*? )*false \) a/
+    );
+    expect(wizardRead).not.toContain('false');
+    expect(cartRead).not.toMatch(/auth\.uid\(\), false/);
     // The submit counts every hold: no exclusion reaches it.
     expect(compact(evaluate.body)).toContain(
       'get_judge_day_capacity_live(v_judge_id, resolved_show_id, v_trial_date)'

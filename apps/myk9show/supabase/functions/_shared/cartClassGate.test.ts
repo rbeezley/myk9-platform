@@ -128,11 +128,11 @@ describe('stripe-checkout class gate (MYK9-656)', () => {
   });
 });
 
-describe("the class gate leaves out the payer's own held spots (MYK9-1012)", () => {
-  it('passes the paying account to class_entry_availability', () => {
-    expect(classGateRpcArgs(['c1', 'c2'], 'auth-ann')).toEqual({
+describe('the class gate decides on entries alone (MYK9-1012)', () => {
+  it('never counts held spots, so a hold never sends a line to removal', () => {
+    expect(classGateRpcArgs(['c1', 'c2'])).toEqual({
       p_class_ids: ['c1', 'c2'],
-      p_exclude_auth_user_id: 'auth-ann',
+      p_count_holds: false,
     });
   });
 });

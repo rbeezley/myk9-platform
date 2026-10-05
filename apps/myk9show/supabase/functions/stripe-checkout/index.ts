@@ -430,15 +430,7 @@ async function handleEntryCheckout(
       console.error('Cart not found under lease:', cartError);
       return corsResponse(corsHeaders, { error: 'Cart not found or expired' }, 404);
     }
-    return await checkoutUnderLease(
-      corsHeaders,
-      cart,
-      lease,
-      authUserId,
-      customerId,
-      successUrl,
-      cancelUrl
-    );
+    return await checkoutUnderLease(corsHeaders, cart, lease, customerId, successUrl, cancelUrl);
   } finally {
     const ended = await endCartCheckout(supabase, lease);
     if (ended.error) {
@@ -489,7 +481,6 @@ async function checkoutUnderLease(
   corsHeaders: Record<string, string>,
   cart: CheckoutCart,
   lease: CartLease,
-  authUserId: string,
   customerId: string,
   successUrl: string,
   cancelUrl: string
@@ -673,7 +664,7 @@ async function checkoutUnderLease(
     if (classIds.length > 0) {
       const { data: availability, error: availabilityError } = await supabase.rpc(
         'class_entry_availability',
-        classGateRpcArgs(classIds, authUserId)
+        classGateRpcArgs(classIds)
       );
       if (availabilityError || !availability) {
         console.error(`Class gate read failed for cart ${cart_id}:`, availabilityError);

@@ -20,8 +20,11 @@
 --       evaluate_entry_capacity (self-service and organizer) and the wait-list
 --       promotion all count Ann's holds; leaving out Ann's own account gives
 --       her the spots back. The client reads: Bea sees C1 full, Ann does not.
---   H4  Bea's cart reconcile drops her line in the held no-wait-list class as
---       'full'; Ann's own holds never drop Ann's lines.
+--   H4  A HELD SPOT NEVER REMOVES ANOTHER CART'S LINE (owner, 2026-10-05):
+--       Bea's line in the class Ann holds stays in Bea's cart, shown full and
+--       not payable; when the hold ends the class reads open again; once a
+--       REAL entry fills the class (Ann's payment, H6b) the reconcile drops
+--       Bea's line as full, as before. Ann's own holds never drop Ann's lines.
 --   H5  link_cart_checkout links the page and ties the holds in one
 --       transaction, only for an unchanged cart and exactly the lines held;
 --       the hold then ends with the page, not later. Before that an untied
@@ -131,9 +134,9 @@ BEGIN
     'public.link_cart_checkout(uuid, uuid, text, timestamptz, timestamptz, integer, integer, integer, integer)',
     'public.end_cart_checkout(uuid, uuid)',
     'public.held_spot_count(uuid[], uuid)',
-    'public.class_entry_availability(uuid[], uuid)',
-    'public.class_judge_day_capacity(uuid[], uuid)',
-    'public.get_judge_day_capacity_live(uuid, uuid, date, uuid)'
+    'public.class_entry_availability(uuid[], uuid, boolean)',
+    'public.class_judge_day_capacity(uuid[], uuid, boolean)',
+    'public.get_judge_day_capacity_live(uuid, uuid, date, uuid, boolean)'
   ] LOOP
     PERFORM pg_temp.expect_eq(
       (SELECT p.prosecdef || ' ' || array_to_string(p.proconfig, ',')
@@ -403,12 +406,39 @@ SELECT set_config('request.jwt.claims',
 DO $$
 BEGIN
   PERFORM pg_temp.expect_eq(
-    (SELECT string_agg(right(r.item_id::text, 3) || ':' || r.reason, ' ')
-       FROM public.reconcile_cart_closed_classes(pg_temp.id('611')) r),
-    '711:full', 'H4 Bea''s line in the held no-wait-list class is dropped as full');
+    COALESCE((SELECT string_agg(right(r.item_id::text, 3) || ':' || r.reason, ' ')
+                FROM public.reconcile_cart_closed_classes(pg_temp.id('611')) r), '-'),
+    '-', 'H4 a class full only by Ann''s hold does not remove Bea''s saved line');
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*)::text FROM public.entry_cart_items i WHERE i.id = pg_temp.id('711')),
+    '1', 'H4 Bea''s line is still in her cart');
+  PERFORM pg_temp.expect_eq(
+    (SELECT d.class_full || ' ' || d.class_remaining || ' ' || COALESCE(d.self_service_block, '-')
+       FROM public.get_show_class_judge_day_availability(pg_temp.id('101')) d
+      WHERE d.class_id = pg_temp.id('301')),
+    'true 0 full', 'H4 and reads full, not payable, to Bea''s cart');
 END;
 $$;
 RESET ROLE;
+
+-- When Ann's hold ends, the same class reads open to Bea again.
+DO $$
+DECLARE
+  v_saved timestamptz;
+BEGIN
+  SELECT h.expires_at INTO v_saved FROM public.cart_spot_holds h
+   WHERE h.cart_item_id = pg_temp.id('701') AND h.released_at IS NULL;
+  UPDATE public.cart_spot_holds h SET expires_at = now() - interval '1 second'
+   WHERE h.cart_item_id = pg_temp.id('701') AND h.released_at IS NULL;
+  PERFORM pg_temp.expect_eq(
+    (SELECT a.class_full || ' ' || COALESCE(a.self_service_block, '-')
+       FROM public.class_entry_availability(ARRAY[pg_temp.id('301')], pg_temp.id('022')) a),
+    'false -', 'H4 once the hold ends, Bea''s line is payable again');
+  -- Ann's checkout is still in flight below; give the hold back its expiry.
+  UPDATE public.cart_spot_holds h SET expires_at = v_saved
+   WHERE h.cart_item_id = pg_temp.id('701') AND h.released_at IS NULL;
+END;
+$$;
 
 -- ---------------------------------------------------------------------------
 -- L. Single-flight checkout per cart (Ann's lease 901 is live)
@@ -540,6 +570,23 @@ BEGIN
     'submitted 0', 'H6 the latch closes with no cart_overflow refund request');
 END;
 $$;
+RESET ROLE;
+
+-- H6b. Ann's entry now fills C1 for real: Bea's line goes, as before holds.
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub', pg_temp.id('022')::text, true);
+SELECT set_config('request.jwt.claims',
+  format('{"sub":"%s","role":"authenticated"}', pg_temp.id('022')), true);
+DO $$
+BEGIN
+  PERFORM pg_temp.expect_eq(
+    (SELECT string_agg(right(r.item_id::text, 3) || ':' || r.reason, ' ')
+       FROM public.reconcile_cart_closed_classes(pg_temp.id('611')) r),
+    '711:full', 'H4 a class full by a real entry removes Bea''s line, as before');
+END;
+$$;
+RESET ROLE;
+SET LOCAL ROLE service_role;
 
 -- ---------------------------------------------------------------------------
 -- H7. An expired hold no longer counts

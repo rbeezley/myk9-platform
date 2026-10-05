@@ -57,6 +57,7 @@ vi.mock('@/services/database/waitlists', () => ({
     error: null,
   }),
   // Deliberately returned out of order: the page must show join order itself.
+  getWaitlistOffersByClass: vi.fn().mockResolvedValue({ data: [], error: null }),
   getWaitlistByClass: vi.fn(async (classId: string) => {
     if (state.failNextRead) {
       state.failNextRead = false;

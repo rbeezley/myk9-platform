@@ -1,8 +1,8 @@
 /**
  * Every replica table the Waitlist tab's readers (`getClassesWithWaitlistCounts`,
- * `getWaitlistByClass`) read. The tab re-reads when ANY of them changes, since a table that
- * finishes syncing after the others (dogs for names, trials for headings) would otherwise leave
- * the cached queue stale with no Refresh to recover it.
+ * `getWaitlistByClass`, `getWaitlistOffersByClass`) read. The tab re-reads when ANY of them
+ * changes, since a table that finishes syncing after the others (dogs for names, trials for
+ * headings) would otherwise leave the cached queue stale with no Refresh to recover it.
  *
  * `replicaDependencies.test.ts` fails when `services/database/waitlists/reads.ts` starts reading a
  * table that is not listed here, so a new dependency cannot be forgotten.

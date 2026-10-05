@@ -1,6 +1,6 @@
 import type { SupabaseClient } from 'npm:@supabase/supabase-js@2.49.1';
 
-export type WaitlistNotificationEventType = 'offered' | 'reminder' | 'expired';
+export type WaitlistNotificationEventType = 'offered' | 'reminder' | 'expired' | 'withdrawn';
 
 export interface QueuedWaitlistEvent {
   event_id: string;

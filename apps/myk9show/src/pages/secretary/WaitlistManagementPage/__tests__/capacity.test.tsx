@@ -43,6 +43,7 @@ vi.mock('@/services/database/supabaseClient', async importOriginal => {
 
 vi.mock('@/services/database/waitlists', () => ({
   getClassesWithWaitlistCounts: vi.fn().mockResolvedValue({ data: [], error: null }),
+  getWaitlistOffersByClass: vi.fn().mockResolvedValue({ data: [], error: null }),
   getWaitlistByClass: vi.fn().mockResolvedValue({ data: [], error: null }),
   promoteWaitlistEntry: vi.fn(),
   removeFromWaitlist: vi.fn(),

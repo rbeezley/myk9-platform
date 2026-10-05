@@ -2,11 +2,16 @@
  * Types for WaitlistManagementPage
  */
 
-import type { WaitlistEntry, ClassWithWaitlistCount } from '@/services/database/waitlists';
+import type {
+  WaitlistEntry,
+  WaitlistOffer,
+  ClassWithWaitlistCount,
+} from '@/services/database/waitlists';
 
 export interface ActionDialogState {
   open: boolean;
-  action: 'offer' | 'remove' | null;
+  /** 'withdraw' takes back an open offer (MYK9-1001). */
+  action: 'offer' | 'remove' | 'withdraw' | null;
   entry: WaitlistEntry | null;
 }
 
@@ -17,4 +22,4 @@ export interface WaitlistClassGroup {
 }
 
 // Re-export for convenience
-export type { WaitlistEntry, ClassWithWaitlistCount };
+export type { WaitlistEntry, WaitlistOffer, ClassWithWaitlistCount };

@@ -1,8 +1,10 @@
 /**
- * Action Confirmation Dialog for WaitlistManagementPage
+ * Action Confirmation Dialog for WaitlistManagementPage: offer a spot, remove
+ * a dog from the wait list, or withdraw an open offer (MYK9-1001). Each says
+ * what really happens, including who is and is not told (MYK9-1002).
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,23 +16,79 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Loader2 } from 'lucide-react';
+import { formatOfferDeadline, formatOfferWindow } from '@/lib/format/offerDeadline';
 import type { ActionDialogState } from './types';
+
+/** The window an offer made now gets, and the zone its deadline reads in. */
+export interface OfferWindow {
+  /** shows.waitlist_payment_deadline_hours as the server applies it; null while unknown. */
+  hours: number | null;
+  /** The offered class's trial zone (New York when unknown). */
+  timezone: string | null;
+}
 
 interface WaitlistActionDialogProps {
   actionDialog: ActionDialogState;
   isProcessing: boolean;
+  offerWindow: OfferWindow;
+  /** "Trial 1 · Sat, Oct 10": which trial the class is in, since shows repeat classes. */
+  trialLabel: string;
   onClose: () => void;
   onOfferSpot: () => void;
   onRemove: () => void;
+  onWithdraw: () => void;
+}
+
+const TITLES = {
+  offer: 'Offer Spot?',
+  remove: 'Remove from Waitlist?',
+  withdraw: 'Withdraw Offer?',
+} as const;
+
+const CONFIRM_LABELS = {
+  offer: 'Offer Spot',
+  remove: 'Remove',
+  withdraw: 'Withdraw offer',
+} as const;
+
+/** "They have 48 hours to pay (until Wed, Jul 15, 2:00 PM EDT)." Mounted when the dialog opens. */
+function OfferWindowSentence({ offerWindow }: { offerWindow: OfferWindow }) {
+  const [openedAt] = useState(() => Date.now());
+  if (offerWindow.hours === null) {
+    return <>They have the offer window set in Wait list settings to pay.</>;
+  }
+  const until = formatOfferDeadline(
+    new Date(openedAt + offerWindow.hours * 3_600_000),
+    offerWindow.timezone
+  );
+  return (
+    <>
+      They have <strong>{formatOfferWindow(offerWindow.hours)}</strong> to pay
+      {until ? <> (until {until})</> : null}.
+    </>
+  );
 }
 
 export const WaitlistActionDialog: React.FC<WaitlistActionDialogProps> = ({
   actionDialog,
   isProcessing,
+  offerWindow,
+  trialLabel,
   onClose,
   onOfferSpot,
   onRemove,
+  onWithdraw,
 }) => {
+  const action = actionDialog.action ?? 'remove';
+  const entry = actionDialog.entry;
+  const dogName = <strong>{entry?.dog?.call_name ?? entry?.dog?.name}</strong>;
+  const className = (
+    <>
+      <strong>{entry?.class?.name}</strong>
+      {trialLabel && <> ({trialLabel})</>}
+    </>
+  );
+
   const handleOpenChange = (open: boolean) => {
     if (!open) {
       onClose();
@@ -38,38 +96,47 @@ export const WaitlistActionDialog: React.FC<WaitlistActionDialogProps> = ({
   };
 
   const handleAction = () => {
-    if (actionDialog.action === 'offer') {
-      onOfferSpot();
-    } else {
-      onRemove();
-    }
+    if (action === 'offer') onOfferSpot();
+    else if (action === 'withdraw') onWithdraw();
+    else onRemove();
   };
 
   return (
     <AlertDialog open={actionDialog.open} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>
-            {actionDialog.action === 'offer' ? 'Offer Spot?' : 'Remove from Waitlist?'}
-          </AlertDialogTitle>
+          <AlertDialogTitle>{TITLES[action]}</AlertDialogTitle>
           <AlertDialogDescription>
-            {actionDialog.action === 'offer' ? (
+            {action === 'offer' && (
               <>
-                Are you sure you want to offer a spot to{' '}
-                <strong>
-                  {actionDialog.entry?.dog?.call_name ?? actionDialog.entry?.dog?.name}
-                </strong>{' '}
-                in <strong>{actionDialog.entry?.class?.name}</strong>? This will move them from the
-                waitlist to accepted entries. The exhibitor will be notified.
+                Offer a spot to {dogName} in {className}? This creates an entry waiting for payment
+                and tells the exhibitor.{' '}
+                {entry?.joined_via === 'mail_in' ? (
+                  // The expiry job never closes a mail-in offer, so there is no deadline to state.
+                  <>
+                    This dog was entered by mail, so no payment link is sent: collect payment
+                    directly. The spot stays held for this dog until you record the payment or
+                    withdraw the offer.
+                  </>
+                ) : (
+                  <>
+                    <OfferWindowSentence key={entry?.id} offerWindow={offerWindow} /> If they
+                    don&apos;t pay in time, the offer ends and the spot opens again.
+                  </>
+                )}
               </>
-            ) : (
+            )}
+            {action === 'remove' && (
               <>
-                Are you sure you want to remove{' '}
-                <strong>
-                  {actionDialog.entry?.dog?.call_name ?? actionDialog.entry?.dog?.name}
-                </strong>{' '}
-                from the waitlist for <strong>{actionDialog.entry?.class?.name}</strong>? This
-                action cannot be undone.
+                Remove {dogName} from the waitlist for {className}? The exhibitor is not notified,
+                so let them know. This cannot be undone.
+              </>
+            )}
+            {action === 'withdraw' && (
+              <>
+                Withdraw the offer to {dogName} in {className}? Their payment link stops working,
+                the entry waiting for payment is cancelled, and the dog leaves the wait list. The
+                exhibitor is notified that no payment is due.
               </>
             )}
           </AlertDialogDescription>
@@ -80,9 +147,9 @@ export const WaitlistActionDialog: React.FC<WaitlistActionDialogProps> = ({
             onClick={handleAction}
             disabled={isProcessing}
             className={
-              actionDialog.action === 'remove'
-                ? 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
-                : ''
+              action === 'offer'
+                ? ''
+                : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'
             }
           >
             {isProcessing ? (
@@ -90,10 +157,8 @@ export const WaitlistActionDialog: React.FC<WaitlistActionDialogProps> = ({
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                 Processing...
               </>
-            ) : actionDialog.action === 'offer' ? (
-              'Offer Spot'
             ) : (
-              'Remove'
+              CONFIRM_LABELS[action]
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

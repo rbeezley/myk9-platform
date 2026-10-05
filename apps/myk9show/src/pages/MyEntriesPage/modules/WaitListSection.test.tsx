@@ -178,3 +178,13 @@ describe('WaitListSection offer deadline as a clock time (MYK9-1002)', () => {
     expect(screen.getByText('Claim it before the offer ends.')).toBeInTheDocument();
   });
 });
+
+describe('WaitListSection withdrawn offer (MYK9-1001)', () => {
+  it('says the club withdrew the offer, never that the exhibitor declined it', () => {
+    renderSection({ entries: [{ ...ACTIVE_OFFER, status: 'withdrawn' }] });
+
+    expect(screen.getByText(/The club withdrew this offer/)).toBeInTheDocument();
+    expect(screen.queryByText('You declined this spot.')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /pay/i })).not.toBeInTheDocument();
+  });
+});

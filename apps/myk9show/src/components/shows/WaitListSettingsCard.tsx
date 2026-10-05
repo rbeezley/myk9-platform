@@ -4,8 +4,7 @@
  * Configures whether the show takes wait lists at all (MYK9-1019), whether open
  * spots are offered automatically (MYK9-1003), and wait list capacity and the
  * mail-in reservation strategy.
- * NOTE: The columns read/written here are added by migration 114 but the
- * Supabase generated types do not know about them yet. Cast via ShowCapacityRow.
+ * The read lives in `waitListSettingsQuery.ts`, shared with the offer dialog.
  */
 
 import { useState, useEffect, useRef, useContext } from 'react';
@@ -28,28 +27,12 @@ import { classAvailabilityQueryKey } from '@/hooks/useClassAvailability';
 import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 import type { WaitListShowConfig, MailInStrategy } from '@/types/waitlist-types';
 import type { TablesUpdate } from '@/types/supabase';
-import {
-  useWaitListSwitch,
-  waitListSettingsKey,
-  type WaitListSettings,
-  type WaitListSwitch,
-} from './useWaitListSwitch';
+import { waitListSettingsQueryOptions } from './waitListSettingsQuery';
+import { useWaitListSwitch, waitListSettingsKey, type WaitListSwitch } from './useWaitListSwitch';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-interface ShowCapacityRow {
-  default_judge_day_capacity: number | null;
-  mail_in_strategy: MailInStrategy | null;
-  mail_in_value: number | null;
-  mail_in_deadline: string | null;
-  mail_in_auto_release: boolean | null;
-  mail_in_release_date: string | null;
-  waitlist_payment_deadline_hours: number | null;
-  waitlist_auto_offer: boolean | null;
-  allow_waitlist: boolean | null;
-}
 
 interface WaitListSettingsCardProps {
   showId: string;
@@ -58,18 +41,6 @@ interface WaitListSettingsCardProps {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function rowToConfig(row: ShowCapacityRow): WaitListShowConfig {
-  return {
-    defaultJudgeDayCapacity: row.default_judge_day_capacity ?? 125,
-    mailInStrategy: row.mail_in_strategy ?? 'none',
-    mailInValue: row.mail_in_value,
-    mailInDeadline: row.mail_in_deadline,
-    mailInAutoRelease: row.mail_in_auto_release ?? false,
-    mailInReleaseDate: row.mail_in_release_date,
-    waitlistPaymentDeadlineHours: row.waitlist_payment_deadline_hours ?? 48,
-  };
-}
 
 /** One self-saving switch, with what its position means and a calm failure line. */
 function SettingSwitch({
@@ -119,26 +90,7 @@ function SettingSwitch({
 export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery({
-    queryKey: waitListSettingsKey(showId),
-    queryFn: async () => {
-      const { data: row, error } = await supabase
-        .from('shows')
-        .select(
-          'default_judge_day_capacity, mail_in_strategy, mail_in_value, mail_in_deadline, mail_in_auto_release, mail_in_release_date, waitlist_payment_deadline_hours, waitlist_auto_offer, allow_waitlist'
-        )
-        .eq('id', showId)
-        .single();
-
-      if (error) throw error;
-      const capacityRow = row as unknown as ShowCapacityRow;
-      return {
-        config: rowToConfig(capacityRow),
-        autoOffer: capacityRow.waitlist_auto_offer ?? true,
-        allowWaitlists: capacityRow.allow_waitlist ?? false,
-      } satisfies WaitListSettings;
-    },
-  });
+  const { data, isLoading } = useQuery(waitListSettingsQueryOptions(showId));
 
   const [form, setForm] = useState<WaitListShowConfig>({
     defaultJudgeDayCapacity: 125,

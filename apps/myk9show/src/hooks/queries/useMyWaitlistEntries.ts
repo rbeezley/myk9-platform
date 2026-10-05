@@ -18,7 +18,7 @@ interface WaitlistEntryRow {
   id: string;
   class_id: string;
   position: number;
-  status: 'waiting' | 'offered' | 'accepted' | 'declined' | 'expired';
+  status: 'waiting' | 'offered' | 'accepted' | 'declined' | 'expired' | 'withdrawn';
   offered_at: string | null;
   offer_expires_at: string | null;
   promoted_entry_id: string | null;

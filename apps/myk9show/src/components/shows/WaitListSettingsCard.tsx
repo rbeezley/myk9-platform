@@ -3,8 +3,7 @@
  *
  * Configures wait list capacity and mail-in reservation strategy for a show,
  * and whether open spots are offered automatically (MYK9-1003).
- * NOTE: The columns read/written here are added by migration 114 but the
- * Supabase generated types do not know about them yet. Cast via ShowCapacityRow.
+ * The read lives in `waitListSettingsQuery.ts`, shared with the offer dialog.
  */
 
 import { useState, useEffect, useRef } from 'react';
@@ -24,47 +23,19 @@ import {
 import { supabase } from '@/lib/supabase';
 import { judgeDayCapacityKey } from '@/hooks/queries/useJudgeDayCapacity';
 import type { WaitListShowConfig, MailInStrategy } from '@/types/waitlist-types';
+import {
+  waitListSettingsKey,
+  waitListSettingsQueryOptions,
+  type WaitListSettings,
+} from './waitListSettingsQuery';
 import type { TablesUpdate } from '@/types/supabase';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-interface ShowCapacityRow {
-  default_judge_day_capacity: number | null;
-  mail_in_strategy: MailInStrategy | null;
-  mail_in_value: number | null;
-  mail_in_deadline: string | null;
-  mail_in_auto_release: boolean | null;
-  mail_in_release_date: string | null;
-  waitlist_payment_deadline_hours: number | null;
-  waitlist_auto_offer: boolean | null;
-}
-
-interface WaitListSettings {
-  config: WaitListShowConfig;
-  /** shows.waitlist_auto_offer; the database default (true) is today's behaviour. */
-  autoOffer: boolean;
-}
-
 interface WaitListSettingsCardProps {
   showId: string;
-}
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
-
-function rowToConfig(row: ShowCapacityRow): WaitListShowConfig {
-  return {
-    defaultJudgeDayCapacity: row.default_judge_day_capacity ?? 125,
-    mailInStrategy: row.mail_in_strategy ?? 'none',
-    mailInValue: row.mail_in_value,
-    mailInDeadline: row.mail_in_deadline,
-    mailInAutoRelease: row.mail_in_auto_release ?? false,
-    mailInReleaseDate: row.mail_in_release_date,
-    waitlistPaymentDeadlineHours: row.waitlist_payment_deadline_hours ?? 48,
-  };
 }
 
 // ---------------------------------------------------------------------------
@@ -74,25 +45,7 @@ function rowToConfig(row: ShowCapacityRow): WaitListShowConfig {
 export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['waitlist-settings', showId],
-    queryFn: async () => {
-      const { data: row, error } = await supabase
-        .from('shows')
-        .select(
-          'default_judge_day_capacity, mail_in_strategy, mail_in_value, mail_in_deadline, mail_in_auto_release, mail_in_release_date, waitlist_payment_deadline_hours, waitlist_auto_offer'
-        )
-        .eq('id', showId)
-        .single();
-
-      if (error) throw error;
-      const capacityRow = row as unknown as ShowCapacityRow;
-      return {
-        config: rowToConfig(capacityRow),
-        autoOffer: capacityRow.waitlist_auto_offer ?? true,
-      } satisfies WaitListSettings;
-    },
-  });
+  const { data, isLoading } = useQuery(waitListSettingsQueryOptions(showId));
 
   const [form, setForm] = useState<WaitListShowConfig>({
     defaultJudgeDayCapacity: 125,
@@ -130,7 +83,7 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
     // Write the saved value into the cache before dropping the pending one, so
     // the switch never flickers back to the old position while a refetch runs.
     onSuccess: (_result, enabled) =>
-      queryClient.setQueryData<WaitListSettings>(['waitlist-settings', showId], current =>
+      queryClient.setQueryData<WaitListSettings>(waitListSettingsKey(showId), current =>
         current ? { ...current, autoOffer: enabled } : current
       ),
     onSettled: () => setPendingAutoOffer(null),
@@ -153,7 +106,7 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
     },
     onSuccess: () => {
       isDirty.current = false;
-      queryClient.invalidateQueries({ queryKey: ['waitlist-settings', showId] });
+      queryClient.invalidateQueries({ queryKey: waitListSettingsKey(showId) });
       // The Waitlist tab's Full / spots-available cards are computed from these settings.
       queryClient.invalidateQueries({ queryKey: judgeDayCapacityKey(showId) });
     },

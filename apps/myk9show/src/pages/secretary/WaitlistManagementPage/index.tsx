@@ -3,10 +3,12 @@
  *
  * The Waitlist tab of Entry Management: already scoped to one show, so it lists every waiting dog
  * in that show grouped by class (join order), or just a judge-day's classes after "View Wait
- * List" on its card. Offer a spot / remove from the waitlist (MYK9-1004).
+ * List" on its card. Offer a spot / remove from the waitlist (MYK9-1004); open offers are tracked
+ * and can be withdrawn in the Offered group (MYK9-1001).
  */
 
 import React from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { AlertCircle, ListOrdered } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -16,6 +18,9 @@ import { useWaitlistManagementData } from './useWaitlistManagementData';
 import { JudgeDayStatsCards } from './JudgeDayStatsCards';
 import { WaitlistTable } from './WaitlistTable';
 import { WaitlistActionDialog } from './WaitlistActionDialog';
+import { OfferedWaitlistTable } from './OfferedWaitlistTable';
+import { waitListSettingsQueryOptions } from '@/components/shows/waitListSettingsQuery';
+import { resolveOfferWindowHours } from '@/lib/format/offerDeadline';
 import { WaitListSettingsCard } from '@/components/shows/WaitListSettingsCard';
 import { AccessRestrictedState } from './EmptyStates';
 import { JudgeCapacityOverview } from '@/components/waitlist/JudgeCapacityOverview';
@@ -39,6 +44,7 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
     selectedJudgeDay,
     waitlistEntries,
     groups,
+    offers,
     isLoading,
     isProcessing,
     error,
@@ -51,7 +57,18 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
     setActionDialog,
     handleOfferSpot,
     handleRemoveFromWaitlist,
+    handleWithdrawOffer,
   } = useWaitlistManagementData(showId);
+
+  // The offer dialog states the window the server will give (MYK9-1002).
+  const { data: waitListSettings } = useQuery(waitListSettingsQueryOptions(showId));
+  const offerWindow = {
+    hours: waitListSettings
+      ? resolveOfferWindowHours(waitListSettings.config.waitlistPaymentDeadlineHours)
+      : null,
+    timezone:
+      groups.find(g => g.cls.id === actionDialog.entry?.class_id)?.cls.trial?.timezone ?? null,
+  };
 
   const shownCount = groups.reduce((sum, g) => sum + g.entries.length, 0);
 
@@ -167,6 +184,10 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
         onShowAll={() => setSearchTerm('')}
       />
 
+      {offers.length > 0 && (
+        <OfferedWaitlistTable offers={offers} onSetActionDialog={setActionDialog} />
+      )}
+
       {groups.map(({ cls, entries }) => (
         <WaitlistTable
           key={cls.id}
@@ -198,9 +219,11 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
       <WaitlistActionDialog
         actionDialog={actionDialog}
         isProcessing={isProcessing}
+        offerWindow={offerWindow}
         onClose={closeDialog}
         onOfferSpot={handleOfferSpot}
         onRemove={handleRemoveFromWaitlist}
+        onWithdraw={handleWithdrawOffer}
       />
     </div>
   );

@@ -15,9 +15,12 @@ import {
   promoteWaitlistEntry,
   removeFromWaitlist,
   sendWaitlistOfferMessage,
+  withdrawWaitlistOffer,
+  WaitlistOfferNotWithdrawnError,
 } from '@/services/database/waitlists';
 import { WaitlistEntryNotDeletedError } from '@/services/database/waitlists/deleteWaitlistEntryErrors';
 import { WAITLIST_READ_TABLES } from './replicaDependencies';
+import { useWaitlistOffers } from './useWaitlistOffers';
 import type { ActionDialogState, WaitlistClassGroup, WaitlistEntry } from './types';
 
 /** The judge-day a secretary asked to see the wait list of (the card's own identity, in a show). */
@@ -103,12 +106,12 @@ export function useWaitlistManagementData(showId: string) {
   const classes = useMemo(() => classesQuery.data ?? [], [classesQuery.data]);
 
   // Which classes' queues to read: the judge-day's classes, else every class in the show that has
-  // anyone waiting.
+  // anyone waiting or an open offer (MYK9-1001).
   const targetClassIds = useMemo(
     () =>
       (selectedJudgeDay
         ? selectedJudgeDay.classIds
-        : classes.filter(c => c.waitlist_count > 0).map(c => c.id)
+        : classes.filter(c => c.waitlist_count > 0 || (c.offered_count ?? 0) > 0).map(c => c.id)
       )
         .slice()
         .sort(),
@@ -130,12 +133,23 @@ export function useWaitlistManagementData(showId: string) {
     ...REPLICA_READ_OPTIONS,
   });
   const waitlistEntries = useMemo(() => queueQuery.data ?? [], [queueQuery.data]);
+  // The Offered group (MYK9-1001): same scope, same refresh path.
+  const offersRead = useWaitlistOffers(
+    waitlistKey(showId),
+    targetClassIds,
+    searchTerm,
+    !!showId,
+    REPLICA_READ_OPTIONS
+  );
 
   const isLoading =
-    !!showId && (classesQuery.isPending || (targetClassIds.length > 0 && queueQuery.isPending));
+    !!showId &&
+    (classesQuery.isPending ||
+      (targetClassIds.length > 0 && queueQuery.isPending) ||
+      offersRead.isPending);
   const loadError = classesQuery.error
     ? 'Failed to load classes'
-    : queueQuery.error
+    : queueQuery.error || offersRead.error
       ? 'Failed to load waitlist'
       : null;
   const error = actionError ?? loadError;
@@ -306,6 +320,32 @@ export function useWaitlistManagementData(showId: string) {
     }
   }, [actionDialog.entry, reload, setActionError]);
 
+  // Withdraw an open offer (MYK9-1001): the server closes the Stripe page, ends the pending-payment
+  // entry and marks the row withdrawn; a refusal (already paid, payment being confirmed) is shown
+  // in the server's own words.
+  const handleWithdrawOffer = useCallback(async () => {
+    if (!actionDialog.entry) return;
+
+    setIsProcessing(true);
+    setActionError(null);
+
+    try {
+      await withdrawWaitlistOffer(actionDialog.entry.id);
+      await reload();
+    } catch (err) {
+      await reload();
+      setActionError(
+        err instanceof WaitlistOfferNotWithdrawnError
+          ? err.message
+          : 'Failed to withdraw the offer. Please try again.'
+      );
+      logger.error('Error withdrawing waitlist offer:', 'secretary', {}, err as Error);
+    } finally {
+      setIsProcessing(false);
+      setActionDialog({ open: false, action: null, entry: null });
+    }
+  }, [actionDialog.entry, reload, setActionError]);
+
   // Derived state: one group per class, each in join order, narrowed by the dog search. Classes
   // with nobody (left) waiting are omitted rather than rendered as empty cards.
   const groups = useMemo<WaitlistClassGroup[]>(() => {
@@ -341,6 +381,7 @@ export function useWaitlistManagementData(showId: string) {
     selectedJudgeDay,
     waitlistEntries,
     groups,
+    offers: offersRead.offers,
     isLoading,
     isProcessing,
     error,
@@ -354,5 +395,6 @@ export function useWaitlistManagementData(showId: string) {
     setActionDialog,
     handleOfferSpot,
     handleRemoveFromWaitlist,
+    handleWithdrawOffer,
   };
 }

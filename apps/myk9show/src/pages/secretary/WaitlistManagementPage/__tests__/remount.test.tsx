@@ -42,6 +42,7 @@ vi.mock('@/services/database/waitlists', () => ({
     ],
     error: null,
   }),
+  getWaitlistOffersByClass: vi.fn().mockResolvedValue({ data: [], error: null }),
   getWaitlistByClass: vi.fn(),
   promoteWaitlistEntry: vi.fn(),
   removeFromWaitlist: vi.fn(),

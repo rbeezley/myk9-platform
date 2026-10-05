@@ -45,6 +45,11 @@
 --       Entries line.
 --   W2  With no offer_expires_at it reads "before the offer ends".
 --   W3  No offer message says "haven't been charged".
+--   W4  MYK9-1002 (migration 20261005152300): the deadline carries its weekday
+--       and zone abbreviation, and an offer with an offered_at states its
+--       window in hours ("You have 48 hours to claim it by paying (until Wed,
+--       Jul 15, 2:00 PM EDT)."); with no offered_at it reads "Claim it by
+--       paying before <deadline>." (asserted in the M1 and W1 known answers).
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
 
@@ -579,7 +584,9 @@ $$;
 -- ---------------------------------------------------------------------------
 -- W1 known answer: class 303's trial (201) has no timezone, so its zone is
 -- the America/New_York fallback; 18:00 UTC on Jul 15 2026 is 2:00 PM EDT.
-UPDATE public.waitlist_entries SET offer_expires_at = '2026-07-15 18:00:00+00'
+-- W4: offered 48 hours before that.
+UPDATE public.waitlist_entries SET offer_expires_at = '2026-07-15 18:00:00+00',
+  offered_at = '2026-07-13 18:00:00+00'
 WHERE id = pg_temp.fid('521');
 
 SET LOCAL ROLE authenticated;
@@ -618,7 +625,7 @@ BEGIN
       WHERE t.show_id = pg_temp.fid('101')
         AND t.participant_id = pg_temp.fid('023')
         AND m.body LIKE '%Class Race2%'),
-    '00000000-0000-0000-0000-000001003021 | A spot opened for Dog414 in Class Race2. Claim it by paying before Jul 15, 2026, 2:00 PM. You pay for this spot only if you claim it. Complete payment to claim it: https://checkout.example.test/pay/1003',
+    '00000000-0000-0000-0000-000001003021 | A spot opened for Dog414 in Class Race2. You have 48 hours to claim it by paying (until Wed, Jul 15, 2:00 PM EDT). You pay for this spot only if you claim it. Complete payment to claim it: https://checkout.example.test/pay/1003',
     'M1/W1 the manual message carries the deadline (New York) and the payment link, from the secretary');
 END;
 $$;
@@ -634,6 +641,11 @@ $$;
 UPDATE public.trials SET timezone = 'America/Denver' WHERE id = pg_temp.fid('205');
 UPDATE public.waitlist_entries SET offer_expires_at = '2026-07-15 18:00:00+00'
 WHERE id IN (pg_temp.fid('581'), pg_temp.fid('591'));
+-- W4: 581 has no offered_at (the "before <deadline>" form); 591 was offered
+-- 12 hours before its deadline.
+UPDATE public.waitlist_entries SET offered_at = NULL WHERE id = pg_temp.fid('581');
+UPDATE public.waitlist_entries SET offered_at = '2026-07-15 06:00:00+00'
+WHERE id = pg_temp.fid('591');
 
 SET LOCAL ROLE service_role;
 DO $$
@@ -676,7 +688,7 @@ BEGIN
       WHERE t.show_id = pg_temp.fid('103')
         AND t.participant_id = pg_temp.fid('023')
         AND m.body LIKE '%/pay/1013c'),
-    'A spot opened for Dog425 in Class Today. Claim it by paying before Jul 15, 2026, 1:00 PM. You pay for this spot only if you claim it. Complete payment to claim it: https://checkout.example.test/pay/1013c',
+    'A spot opened for Dog425 in Class Today. Claim it by paying before Wed, Jul 15, 1:00 PM CDT. You pay for this spot only if you claim it. Complete payment to claim it: https://checkout.example.test/pay/1013c',
     'W1 the deadline is rendered in the class''s trial zone (Chicago), with the payment link');
   PERFORM pg_temp.expect_eq(
     (SELECT m.body FROM public.show_messages m
@@ -684,7 +696,7 @@ BEGIN
       WHERE t.show_id = pg_temp.fid('103')
         AND t.participant_id = pg_temp.fid('023')
         AND m.body LIKE '%/pay/1013d'),
-    'A spot opened for Dog426 in Class Future. Claim it by paying before Jul 15, 2026, 12:00 PM. You pay for this spot only if you claim it. Complete payment to claim it: https://checkout.example.test/pay/1013d',
+    'A spot opened for Dog426 in Class Future. You have 12 hours to claim it by paying (until Wed, Jul 15, 12:00 PM MDT). You pay for this spot only if you claim it. Complete payment to claim it: https://checkout.example.test/pay/1013d',
     'W1 a two-zone show: the class''s own trial zone (Denver) wins over the show''s first trial (Chicago)');
   PERFORM pg_temp.expect_eq(
     (SELECT m.body FROM public.show_messages m

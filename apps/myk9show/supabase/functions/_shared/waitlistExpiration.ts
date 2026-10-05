@@ -67,7 +67,8 @@ export async function expireWaitlistOffer(input: {
   stripe: WaitlistExpirationStripe | null;
   offer: ExpiredWaitlistOffer;
   nowIso: string;
-  terminalStatus?: 'expired' | 'declined';
+  // 'withdrawn': the show's secretary took the offer back (MYK9-1001).
+  terminalStatus?: 'expired' | 'declined' | 'withdrawn';
 }): Promise<'expired' | 'paid' | 'error'> {
   const { supabase, stripe, offer, nowIso, terminalStatus = 'expired' } = input;
 

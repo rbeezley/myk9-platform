@@ -36,7 +36,7 @@ export interface WaitListEntry {
   dogName: string;
   handlerId: string | null;
   position: number;
-  status: 'waiting' | 'offered' | 'accepted' | 'declined' | 'expired';
+  status: 'waiting' | 'offered' | 'accepted' | 'declined' | 'expired' | 'withdrawn';
   offeredAt: string | null;
   offerExpiresAt: string | null;
   /** The class's trial timezone, resolved through getTrialTimezone. Exhibitor reads only. */

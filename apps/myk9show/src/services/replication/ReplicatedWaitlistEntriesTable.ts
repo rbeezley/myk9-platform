@@ -38,6 +38,7 @@ interface WaitlistEntryRow {
   joined_via: string | null;
   offered_at: string | null;
   offer_expires_at: string | null;
+  promoted_entry_id?: string | null;
   created_at: string | null;
   updated_at: string | null;
 }
@@ -52,10 +53,12 @@ export interface ReplicatedWaitlistEntry {
   exhibitorId?: string | undefined;
   handlerId?: string | undefined;
   position: number;
-  status: string; // 'waiting' | 'offered' | 'accepted' | 'expired' | 'declined'
+  status: string; // 'waiting' | 'offered' | 'accepted' | 'expired' | 'declined' | 'withdrawn'
   joinedVia?: 'online' | 'mail_in' | undefined;
   offeredAt?: string | undefined;
   offerExpiresAt?: string | undefined;
+  /** The pending-payment entry an offer created (MYK9-1001: its payment state). */
+  promotedEntryId?: string | undefined;
   createdAt?: string | undefined;
   updatedAt?: string | undefined;
   // Sync metadata
@@ -81,6 +84,7 @@ export function rowToWaitlistEntry(row: WaitlistEntryRow): ReplicatedWaitlistEnt
     joinedVia: row.joined_via === 'mail_in' ? 'mail_in' : 'online',
     offeredAt: row.offered_at ?? undefined,
     offerExpiresAt: row.offer_expires_at ?? undefined,
+    promotedEntryId: row.promoted_entry_id ?? undefined,
     createdAt: row.created_at ?? undefined,
     updatedAt: row.updated_at ?? undefined,
   };

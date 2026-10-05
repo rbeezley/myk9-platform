@@ -36,6 +36,7 @@ vi.mock('@/services/replication/ReplicatedWaitlistEntriesTable', () => ({
 
 vi.mock('@/services/database/waitlists', () => ({
   getClassesWithWaitlistCounts: vi.fn(),
+  getWaitlistOffersByClass: vi.fn().mockResolvedValue({ data: [], error: null }),
   getWaitlistByClass: vi.fn(),
   promoteWaitlistEntry: vi.fn(),
   removeFromWaitlist: vi.fn(),

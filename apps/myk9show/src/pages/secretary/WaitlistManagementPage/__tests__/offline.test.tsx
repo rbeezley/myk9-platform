@@ -25,6 +25,7 @@ vi.mock('@/services/database/waitlists', () => ({
     ],
     error: null,
   }),
+  getWaitlistOffersByClass: vi.fn().mockResolvedValue({ data: [], error: null }),
   getWaitlistByClass: vi.fn().mockResolvedValue({
     data: [
       {

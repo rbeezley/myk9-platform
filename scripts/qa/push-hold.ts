@@ -8,16 +8,17 @@ import { pathToFileURL } from 'node:url';
 import { commentTrusted, type GateComment } from './review-gate.ts';
 
 const COMMENTS_PER_PAGE = 100;
-// Freshness window: GitHub search indexes new comments with a lag (typically
-// seconds to a few minutes, occasionally longer), so every comment newer than
-// this bound is read straight from the feed; older ones are found by search.
-// 60 minutes is a deliberately conservative multiple of the observed lag.
+// Freshness window: GitHub search indexes new and edited comments with a lag
+// (typically seconds to a few minutes, occasionally longer), so every comment
+// UPDATED within this bound is read straight from the feed, which covers both
+// new comments and old ones edited into a directive. Comments last updated
+// earlier are indexed with their current body and come from search. 60 minutes
+// is a deliberately conservative multiple of the observed lag.
 const SEARCH_LAG_WINDOW_MS = 60 * 60 * 1000;
-// Page cap for covering that window. If the cap is hit before the window is
-// covered (about 2000 comments inside an hour, far above normal review
-// volume) the scan fails closed, because a hold in the uncovered gap could be
-// neither seen here nor indexed yet (MYK9-1015). Volume outside the window
-// can no longer block pushes.
+// Page cap for that window. If it is hit while the window still has comments
+// (about 2000 updates inside an hour, far above normal review volume) the scan
+// fails closed, because a hold in the uncovered gap could be neither seen here
+// nor indexed yet (MYK9-1015). Volume outside the window cannot block pushes.
 const RECENT_COMMENT_PAGES = 20;
 // A search or per-PR listing that cannot be read to its end fails closed.
 const MAX_SEARCH_PAGES = 10;
@@ -162,23 +163,24 @@ function latestDirectiveOnPr(repo: string, pr: number): PushDirective | undefine
   }
 }
 
-/** Newest comments straight from the repo feed, so a directive posted seconds ago is never missed. */
+/**
+ * Every comment updated inside the search-lag window, straight from the repo
+ * feed. The window is keyed on updated_at (`since` filters on it), so an old
+ * comment edited into a directive is seen; ordering among directives still
+ * uses created_at, which edits cannot change.
+ */
 function latestRecentDirective(repo: string): PushDirective | undefined {
   let latest: PushDirective | undefined;
-  let latestTime = -Infinity;
   const prCache = new Map<number, boolean>();
-  const windowStart = Date.now() - SEARCH_LAG_WINDOW_MS;
+  const since = encodeURIComponent(new Date(Date.now() - SEARCH_LAG_WINDOW_MS).toISOString());
   for (let page = 1; page <= RECENT_COMMENT_PAGES; page++) {
     const comments = ghJson<GitHubComment[]>(
-      `repos/${repo}/issues/comments?sort=created&direction=desc&per_page=${COMMENTS_PER_PAGE}&page=${page}`
+      `repos/${repo}/issues/comments?sort=updated&direction=desc&since=${since}&per_page=${COMMENTS_PER_PAGE}&page=${page}`
     );
     if (!Array.isArray(comments))
       throw new Error('GitHub issue comments response was not an array');
     for (const comment of comments) {
-      const createdAt = commentTime(comment);
-      // GitHub timestamps have second precision and the order within a second
-      // is unspecified, so finish the whole timestamp bucket before returning.
-      if (latest && createdAt < latestTime) return latest;
+      commentTime(comment);
       const pr = issueNumberOf(comment);
       const directive = parsePushDirective(comment, pr);
       if (!directive) continue;
@@ -189,17 +191,12 @@ function latestRecentDirective(repo: string): PushDirective | undefined {
         );
         prCache.set(pr, isPr);
       }
-      if (!isPr) continue;
-      latest = newer(latest, directive);
-      latestTime = Date.parse(latest.createdAt);
+      if (isPr) latest = newer(latest, directive);
     }
     if (comments.length < COMMENTS_PER_PAGE) return latest;
-    const oldest = Math.min(...comments.map(commentTime));
-    // A directive's own timestamp bucket may straddle the page boundary.
-    if (oldest < windowStart && (!latest || oldest < latestTime)) return latest;
   }
   throw new Error(
-    `the newest ${RECENT_COMMENT_PAGES * COMMENTS_PER_PAGE} comments all fall inside the last ${SEARCH_LAG_WINDOW_MS / 60_000} minutes, so a fresh directive cannot be ruled out; ask an owner or member to post PUSH RELEASE on a PR`
+    `more than ${RECENT_COMMENT_PAGES * COMMENTS_PER_PAGE} comments were updated in the last ${SEARCH_LAG_WINDOW_MS / 60_000} minutes, so a fresh directive cannot be ruled out; ask an owner or member to post PUSH RELEASE on a PR`
   );
 }
 

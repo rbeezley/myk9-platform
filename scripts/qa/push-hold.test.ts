@@ -53,9 +53,14 @@ function fixture() {
 printf '%s\\n' "$*" >> "$GH_CALLS"
 case "$*" in
   'api repos/{owner}/{repo} --jq .full_name') echo 'owner/repo' ;;
-  'api repos/owner/repo/issues/comments?sort=created&direction=desc&per_page=100&page='*)
+  'api repos/owner/repo/issues/comments?sort=updated&direction=desc&since='*'&per_page=100&page='*)
     page="$(printf '%s' "$*" | sed 's/.*page=//')"
-    if [ -f "$GH_FIXTURE_DIR/page-$page.json" ]; then cat "$GH_FIXTURE_DIR/page-$page.json"; else echo '[]'; fi ;;
+    since="$(printf '%s' "$*" | sed -E 's/.*since=([^&]*)&.*/\\1/' | sed 's/%3A/:/g')"
+    if [ -f "$GH_FIXTURE_DIR/page-$page.json" ]; then
+      if [ -f "$GH_FIXTURE_DIR/filter-since" ]; then
+        node -e 'const s=Date.parse(process.argv[2]);const c=JSON.parse(require("fs").readFileSync(process.argv[1],"utf8"));console.log(JSON.stringify(c.filter(x=>Date.parse(x.updated_at)>=s)))' "$GH_FIXTURE_DIR/page-$page.json" "$since"
+      else cat "$GH_FIXTURE_DIR/page-$page.json"; fi
+    else echo '[]'; fi ;;
   'api search/issues?q='*)
     if [ -f "$GH_FIXTURE_DIR/search-fail" ]; then echo 'search down' >&2; exit 1; fi
     page="$(printf '%s' "$*" | sed 's/.*page=//')"
@@ -255,6 +260,48 @@ describe('operator push hold', () => {
     expect(result.output).toContain('unindexed fresh hold');
   });
 
+  describe('edited comments (updated_at window)', () => {
+    const hoursAgo = (h: number) => new Date(Date.now() - h * 3_600_000).toISOString();
+    const editedHold = () => ({
+      ...comment(1, 'PUSH HOLD: edited into a hold', 'OWNER', hoursAgo(3)),
+      updated_at: new Date().toISOString(),
+    });
+
+    it('blocks on an old comment recently edited into a hold even though search is stale', () => {
+      const f = fixture();
+      writeFileSync(join(f.root, 'filter-since'), '');
+      f.setSearch([8]);
+      f.setPrComments(8, [comment(2, 'PUSH RELEASE', 'MEMBER', hoursAgo(5), 8)]);
+      f.setPage(1, [
+        ...Array.from({ length: 99 }, (_, id) => ({
+          ...comment(100 + id, 'Review gate: ok', 'OWNER', hoursAgo(2)),
+          updated_at: hoursAgo(0.1),
+        })),
+        editedHold(),
+      ]);
+      f.setPage(2, []);
+      const result = f.runPush();
+      expect(result.code).toBe(1);
+      expect(result.output).toContain('edited into a hold');
+    });
+
+    it('queries the feed by updated time with a since bound', () => {
+      const f = fixture();
+      f.runPush();
+      expect(readFileSync(f.calls, 'utf8')).toMatch(/sort=updated&direction=desc&since=\d{4}-/);
+    });
+
+    it('a comment last updated before the window is left to search, and noise there cannot block', () => {
+      const f = fixture();
+      writeFileSync(join(f.root, 'filter-since'), '');
+      const stale = Array.from({ length: 100 }, (_, id) =>
+        comment(100 + id, 'Review gate: ok', 'OWNER', hoursAgo(3))
+      );
+      for (let page = 1; page <= 20; page++) f.setPage(page, stale);
+      expect(f.runPush().code).toBe(0);
+    });
+  });
+
   it('fails closed when the lag window is not covered within the page cap', () => {
     const f = fixture();
     const now = new Date().toISOString();
@@ -284,6 +331,8 @@ describe('operator push hold', () => {
 
   describe('directive older than the recent comment window (MYK9-1015)', () => {
     const noisyFeed = (f: ReturnType<typeof fixture>) => {
+      // Real GitHub drops comments last updated before `since`; so does the mock.
+      writeFileSync(join(f.root, 'filter-since'), '');
       const noise = Array.from({ length: 100 }, (_, id) => comment(100 + id, 'Review gate: ok'));
       for (let page = 1; page <= 20; page++) f.setPage(page, noise);
     };

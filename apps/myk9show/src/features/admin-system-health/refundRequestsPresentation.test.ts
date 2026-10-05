@@ -9,6 +9,7 @@ import {
   approvalErrorMessage,
   DEFINITIVE_REJECTION_COPY,
   failedRowCopy,
+  refundKindLabel,
   resolutionErrorMessage,
   UNCONFIRMED_REFUND_MESSAGE,
   UNCONFIRMED_RESOLUTION_MESSAGE,
@@ -205,5 +206,14 @@ describe('failedRowCopy: each failure_reason and its copy', () => {
     const codes = [...block.matchAll(/'([a-z_]+)'/g)].map(m => m[1]);
     expect(codes.length).toBeGreaterThanOrEqual(4);
     expect(Object.keys(DEFINITIVE_REJECTION_COPY).sort()).toEqual([...codes].sort());
+  });
+});
+
+describe('refundKindLabel', () => {
+  it('names every queued kind, including a paid checkout that created nothing (MYK9-963)', () => {
+    expect(refundKindLabel('unfulfilled_charge')).toBe('Paid checkout that created no entries');
+    for (const kind of ['abandoned_cart', 'entry_payment_link', 'cart_overflow']) {
+      expect(refundKindLabel(kind)).not.toBe('Refund owed');
+    }
   });
 });

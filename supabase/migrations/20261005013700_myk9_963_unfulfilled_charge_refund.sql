@@ -1,0 +1,307 @@
+-- MYK9-963: a paid checkout that created NOTHING joins the refund approval
+-- queue, as kind 'unfulfilled_charge'.
+--
+-- stripe-webhook used to raise an operator alert that said "refund it from the
+-- Stripe dashboard" whenever a PAID cart checkout could not be fulfilled at
+-- all. Each reason is now a queued request instead (refund_requests.reason):
+--   no_cart                   the cart row is gone
+--   cart_classes_not_in_show  a cart class does not belong to the cart's show
+--   paid_amount_mismatch      the charge disagrees with authoritative pricing
+--   cart_not_claimable        the cart is no longer active on this session
+--                             (most often a second charge for a cart another
+--                             checkout already fulfilled)
+--   stale_checkout            the cart changed (or expired) after this
+--                             checkout started
+-- (The fifth alert the issue names, "Paid cart could not be claimed", no
+-- longer exists: MYK9-964 replaced that claim with begin_cart_fulfillment,
+-- whose failure is a 5xx that Stripe retries.)
+--
+-- The exhibitor got nothing, so the request is the FULL charge, service fee
+-- included (owner rule 2026-10-04, MYK9-997). Refunds stay human-approved:
+-- the webhook only queues, and stripe-approve-refund issues the refund after
+-- a site admin approves it.
+--
+-- 1. refund_requests_kind_check gains 'unfulfilled_charge' (restated from
+--    20261004214700_myk9_964_replayable_cart_fulfillment.sql).
+--
+-- 2. queue_unfulfilled_charge_refund (service_role only) inserts the request,
+--    idempotent on (session, kind), and reports:
+--      queued          this call inserted it
+--      already_queued  it was already there (a retry or a redelivery)
+--      delivered       the session HAS something: a stripe_orders row, a cart
+--                      fulfillment run, or entries stamped with the payment
+--                      intent. Nothing is inserted.
+--      other_request   the session already has a request of another kind.
+--                      Nothing is inserted.
+--    The cart (when named) is locked first, the lock begin_cart_fulfillment
+--    and claim_abandoned_cart_refund take, so a run cannot appear between
+--    the 'delivered' check and the insert. A cart or show deleted before the
+--    call is stored as NULL, with its original id kept in detail.
+--    Once the request exists, every redelivery of the session stops at the
+--    webhook's entry (paidSessionEntry.ts), so it is never fulfilled after.
+--
+-- 3. begin_refund_attempt refuses ('fulfilled') to approve an
+--    unfulfilled_charge request whose session has an order, a fulfillment
+--    run, or entries on its payment intent: the abandoned-cart guard, applied
+--    to this kind too. The approval UI already explains 'fulfilled'.
+--
+-- Copied from its LATEST definition:
+--   begin_refund_attempt  20261003013900_myk9_876_874_refund_requests.sql
+--                         (matches the live body, 2026-10-05)
+-- Changed: only the fulfilled guard (kind list, cart_fulfillments check).
+--
+-- DEPLOY ORDER: push this migration BEFORE deploying stripe-webhook. The
+-- deployed webhook never writes 'unfulfilled_charge'; the new one calls
+-- queue_unfulfilled_charge_refund.
+--
+-- Behavioral coverage (runs in CI only):
+-- supabase/tests/myk9_963_unfulfilled_charge_refund_test.sql
+
+BEGIN;
+
+-- ============================================================================
+-- 1. The unfulfilled_charge refund kind
+-- ============================================================================
+
+ALTER TABLE public.refund_requests DROP CONSTRAINT IF EXISTS refund_requests_kind_check;
+ALTER TABLE public.refund_requests
+  ADD CONSTRAINT refund_requests_kind_check
+  CHECK (kind IN ('abandoned_cart', 'entry_payment_link', 'cart_overflow', 'unfulfilled_charge'));
+
+-- ============================================================================
+-- 2. Queue a paid checkout that created nothing
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.queue_unfulfilled_charge_refund(
+  p_session_id text,
+  p_payment_intent_id text,
+  p_amount_cents integer,
+  p_reason text,
+  p_cart_id uuid DEFAULT NULL,
+  p_show_id uuid DEFAULT NULL,
+  p_detail jsonb DEFAULT '{}'::jsonb
+)
+RETURNS TABLE (
+  outcome text,
+  refund_request_id uuid,
+  request_status text,
+  amount_cents integer,
+  reason text,
+  stripe_payment_intent_id text
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+#variable_conflict use_column
+DECLARE
+  v_cart_id uuid;
+  v_show_id uuid;
+  v_req public.refund_requests%ROWTYPE;
+  v_id uuid;
+BEGIN
+  IF p_session_id IS NULL OR p_payment_intent_id IS NULL
+     OR p_amount_cents IS NULL OR p_amount_cents <= 0 THEN
+    RAISE EXCEPTION 'queue_unfulfilled_charge_refund: session, intent and a positive amount are required'
+      USING errcode = '22023';
+  END IF;
+  IF p_reason IS NULL OR p_reason NOT IN (
+       'no_cart', 'cart_classes_not_in_show', 'paid_amount_mismatch',
+       'cart_not_claimable', 'stale_checkout') THEN
+    RAISE EXCEPTION 'queue_unfulfilled_charge_refund: unknown reason %', p_reason
+      USING errcode = '22023';
+  END IF;
+
+  -- Lock order everywhere: entry_carts row first.
+  IF p_cart_id IS NOT NULL THEN
+    SELECT c.id INTO v_cart_id
+      FROM public.entry_carts c
+     WHERE c.id = p_cart_id
+     FOR UPDATE;
+  END IF;
+
+  SELECT * INTO v_req
+    FROM public.refund_requests r
+   WHERE r.stripe_checkout_session_id = p_session_id
+     AND r.kind = 'unfulfilled_charge';
+  IF v_req.id IS NOT NULL THEN
+    RETURN QUERY SELECT 'already_queued'::text, v_req.id, v_req.status, v_req.amount_cents,
+      v_req.reason, v_req.stripe_payment_intent_id;
+    RETURN;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM public.refund_requests r
+              WHERE r.stripe_checkout_session_id = p_session_id) THEN
+    RETURN QUERY SELECT 'other_request'::text, NULL::uuid, NULL::text, NULL::integer,
+      NULL::text, NULL::text;
+    RETURN;
+  END IF;
+
+  IF EXISTS (SELECT 1 FROM public.stripe_orders o
+              WHERE o.stripe_checkout_session_id = p_session_id)
+     OR EXISTS (SELECT 1 FROM public.cart_fulfillments f
+                 WHERE f.stripe_checkout_session_id = p_session_id)
+     OR EXISTS (SELECT 1 FROM public.entries e
+                 WHERE e.stripe_payment_intent_id = p_payment_intent_id) THEN
+    RETURN QUERY SELECT 'delivered'::text, NULL::uuid, NULL::text, NULL::integer,
+      NULL::text, NULL::text;
+    RETURN;
+  END IF;
+
+  IF p_show_id IS NOT NULL THEN
+    SELECT s.id INTO v_show_id FROM public.shows s WHERE s.id = p_show_id;
+  END IF;
+
+  INSERT INTO public.refund_requests (
+    kind, stripe_checkout_session_id, stripe_payment_intent_id, amount_cents,
+    reason, cart_id, show_id, detail
+  )
+  VALUES (
+    'unfulfilled_charge', p_session_id, p_payment_intent_id, p_amount_cents,
+    p_reason, v_cart_id, v_show_id,
+    COALESCE(p_detail, '{}'::jsonb)
+      || jsonb_strip_nulls(jsonb_build_object('cart_id', p_cart_id, 'show_id', p_show_id))
+  )
+  ON CONFLICT (stripe_checkout_session_id, kind) DO NOTHING
+  RETURNING id INTO v_id;
+
+  SELECT * INTO v_req
+    FROM public.refund_requests r
+   WHERE r.stripe_checkout_session_id = p_session_id
+     AND r.kind = 'unfulfilled_charge';
+  RETURN QUERY SELECT
+    CASE WHEN v_id IS NULL THEN 'already_queued' ELSE 'queued' END,
+    v_req.id, v_req.status, v_req.amount_cents, v_req.reason, v_req.stripe_payment_intent_id;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.queue_unfulfilled_charge_refund(text, text, integer, text, uuid, uuid, jsonb)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.queue_unfulfilled_charge_refund(text, text, integer, text, uuid, uuid, jsonb)
+  TO service_role;
+
+-- ============================================================================
+-- 3. Approval refuses an unfulfilled_charge whose session was fulfilled
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.begin_refund_attempt(
+  p_request_id uuid,
+  p_actor_auth_user_id uuid
+)
+RETURNS TABLE (
+  outcome text,
+  attempt_id uuid,
+  attempt_no integer,
+  kind text,
+  stripe_payment_intent_id text,
+  stripe_checkout_session_id text,
+  amount_cents integer,
+  reason text,
+  stripe_refund_id text,
+  attempt_version integer
+)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+#variable_conflict use_column
+DECLARE
+  v_req public.refund_requests%ROWTYPE;
+  v_attempt public.refund_request_attempts%ROWTYPE;
+  v_cart_status text;
+  v_next integer;
+BEGIN
+  IF p_actor_auth_user_id IS NULL THEN
+    RAISE EXCEPTION 'begin_refund_attempt: an approving user is required'
+      USING errcode = '22023';
+  END IF;
+
+  SELECT * INTO v_req
+    FROM public.refund_requests r
+   WHERE r.id = p_request_id
+   FOR UPDATE;
+  IF v_req.id IS NULL THEN
+    RETURN QUERY SELECT 'not_found'::text, NULL::uuid, NULL::integer, NULL::text, NULL::text,
+      NULL::text, NULL::integer, NULL::text, NULL::text, NULL::integer;
+    RETURN;
+  END IF;
+
+  IF v_req.status = 'resolved_without_refund' THEN
+    RETURN QUERY SELECT 'resolved'::text, NULL::uuid, NULL::integer, v_req.kind,
+      v_req.stripe_payment_intent_id, v_req.stripe_checkout_session_id, v_req.amount_cents,
+      v_req.reason, NULL::text, NULL::integer;
+    RETURN;
+  END IF;
+
+  SELECT * INTO v_attempt
+    FROM public.refund_request_attempts a
+   WHERE a.request_id = v_req.id AND a.status = 'succeeded'
+   ORDER BY a.attempt_no DESC
+   LIMIT 1;
+  IF v_attempt.id IS NOT NULL THEN
+    RETURN QUERY SELECT 'already_refunded'::text, v_attempt.id, v_attempt.attempt_no, v_req.kind,
+      v_req.stripe_payment_intent_id, v_req.stripe_checkout_session_id, v_req.amount_cents,
+      v_req.reason, v_attempt.stripe_refund_id, v_attempt.version;
+    RETURN;
+  END IF;
+
+  -- MYK9-874: approval and fulfillment are mutually exclusive. The cart must
+  -- still be held at refund_pending (or gone), and nothing may have fulfilled
+  -- this session or stamped an entry with its payment intent.
+  -- MYK9-963: an unfulfilled_charge request (a paid checkout that created
+  -- nothing) is refused the same way, and also once a cart fulfillment run
+  -- exists for its session. Its cart, if any, is locked first: the same lock
+  -- begin_cart_fulfillment takes before it writes a run.
+  IF v_req.kind IN ('abandoned_cart', 'unfulfilled_charge') THEN
+    IF v_req.cart_id IS NOT NULL THEN
+      SELECT c.status INTO v_cart_status
+        FROM public.entry_carts c
+       WHERE c.id = v_req.cart_id
+       FOR UPDATE;
+    END IF;
+    IF (v_req.kind = 'abandoned_cart' AND v_req.cart_id IS NOT NULL
+        AND v_cart_status IS DISTINCT FROM 'refund_pending')
+       OR (v_req.kind = 'unfulfilled_charge'
+           AND EXISTS (SELECT 1 FROM public.cart_fulfillments f
+                        WHERE f.stripe_checkout_session_id = v_req.stripe_checkout_session_id))
+       OR EXISTS (SELECT 1 FROM public.stripe_orders o
+                   WHERE o.stripe_checkout_session_id = v_req.stripe_checkout_session_id)
+       OR EXISTS (SELECT 1 FROM public.entries e
+                   WHERE e.stripe_payment_intent_id = v_req.stripe_payment_intent_id) THEN
+      RETURN QUERY SELECT 'fulfilled'::text, NULL::uuid, NULL::integer, v_req.kind,
+        v_req.stripe_payment_intent_id, v_req.stripe_checkout_session_id, v_req.amount_cents,
+        v_req.reason, NULL::text, NULL::integer;
+      RETURN;
+    END IF;
+  END IF;
+
+  SELECT * INTO v_attempt
+    FROM public.refund_request_attempts a
+   WHERE a.request_id = v_req.id AND a.status = 'pending';
+  IF v_attempt.id IS NOT NULL THEN
+    RETURN QUERY SELECT 'resume'::text, v_attempt.id, v_attempt.attempt_no, v_req.kind,
+      v_req.stripe_payment_intent_id, v_req.stripe_checkout_session_id, v_req.amount_cents,
+      v_req.reason, v_attempt.stripe_refund_id, v_attempt.version;
+    RETURN;
+  END IF;
+
+  SELECT COALESCE(max(a.attempt_no), 0) + 1 INTO v_next
+    FROM public.refund_request_attempts a
+   WHERE a.request_id = v_req.id;
+
+  INSERT INTO public.refund_request_attempts AS a
+    (request_id, attempt_no, approved_by_auth_user_id)
+  VALUES (v_req.id, v_next, p_actor_auth_user_id)
+  RETURNING a.* INTO v_attempt;
+
+  RETURN QUERY SELECT 'claimed'::text, v_attempt.id, v_attempt.attempt_no, v_req.kind,
+    v_req.stripe_payment_intent_id, v_req.stripe_checkout_session_id, v_req.amount_cents,
+    v_req.reason, NULL::text, v_attempt.version;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.begin_refund_attempt(uuid, uuid)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.begin_refund_attempt(uuid, uuid) TO service_role;
+
+COMMIT;

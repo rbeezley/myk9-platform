@@ -68,7 +68,18 @@ import {
   type SessionRefundRequest,
   type SettlingRefund,
 } from '../_shared/refundRequests.ts';
-import { paymentLinkNeedsManualAmountAlert } from '../_shared/refundAlertCopy.ts';
+import {
+  cartClassesNotInShowChargeAlert,
+  noCartChargeAlert,
+  paidAmountMismatchChargeAlert,
+  paymentLinkNeedsManualAmountAlert,
+  staleCheckoutChargeAlert,
+  unclaimableCartChargeAlert,
+} from '../_shared/refundAlertCopy.ts';
+import {
+  queueUnfulfilledChargeRefund,
+  type UnfulfilledChargeInput,
+} from '../_shared/unfulfilledChargeRefund.ts';
 import {
   beginCartFulfillment,
   CART_FULFILLMENT_LINE_COLUMNS,
@@ -1034,23 +1045,23 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     .eq('id', cartId)
     .single();
 
-  if (cartError || !cart) {
+  // A read ERROR is not a missing cart: 5xx, and Stripe redelivers (MYK9-963).
+  // PGRST116 is .single() finding no row.
+  if (cartError && cartError.code !== 'PGRST116') {
+    throw new Error(`Could not read cart ${cartId} for ${session.id}: ${cartError.message}`);
+  }
+  if (!cart) {
     // A PAID session whose cart row is gone (owner DELETE is allowed by RLS,
     // and Checkout tabs stay payable until they expire): charge taken, zero
-    // entries, no Stripe retry — same severity as every other paid-but-broken
-    // state (round-13 review).
-    console.error('Cart not found:', cartError);
-    await alertAdmin(
-      'Paid checkout has no cart — entries NOT created',
-      `<p>Checkout session <code>${session.id}</code> was PAID, but cart
-       <code>${cartId}</code> no longer exists${cartError ? ' (read error below)' : ''} —
-       no entries were created and Stripe will not retry.</p>
-       ${cartError ? `<pre>${cartError.message}</pre>` : ''}
-       <p>Recovery: verify the payment in the Stripe dashboard and refund it
-       (Payments → search the session's payment intent → Refund), or recreate the
-       entries manually if the exhibitor confirms what they ordered.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `paid-checkout-no-cart-${session.id}` }
-    );
+    // entries. MYK9-963: its full charge is queued for approval.
+    console.error(`Cart ${cartId} not found for paid session ${session.id}`);
+    await queueUnfulfilledCharge(session, {
+      reason: 'no_cart',
+      cartId,
+      showId: null,
+      detail: {},
+      copy: noCartChargeAlert({ sessionId: session.id, cartId }),
+    });
     return;
   }
 
@@ -1100,19 +1111,18 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     ),
   });
   if (!staleGuard.ok) {
-    const stalePiId = extractPaymentIntentId(session.payment_intent);
     console.error(`CRITICAL: stale-session payment for cart ${cartId} — ${staleGuard.reason}`);
-    await alertAdmin(
-      'Stale checkout payment needs a refund',
-      `<p>Checkout session <code>${session.id}</code> was PAID, but cart
-       <code>${cartId}</code> changed after that checkout started
-       (${staleGuard.reason}).</p>
-       <p>No entries were created for this charge. Refund payment intent
-       <code>${stalePiId ?? 'unknown — look up the session in Stripe'}</code> from the
-       Stripe dashboard. The exhibitor's cart is untouched and they can check out
-       again normally.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `stale-checkout-refund-${session.id}` }
-    );
+    await queueUnfulfilledCharge(session, {
+      reason: 'stale_checkout',
+      cartId,
+      showId: cart.show_id ?? null,
+      detail: { stale_reason: staleGuard.reason },
+      copy: staleCheckoutChargeAlert({
+        sessionId: session.id,
+        cartId,
+        staleReason: staleGuard.reason,
+      }),
+    });
     return;
   }
 
@@ -1184,16 +1194,18 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
       `CRITICAL: ${missingClassIds.length} class(es) not found in show ${cart.show_id} ` +
         `for cart ${cartId} — possible cross-show class_id: ${missingClassIds.join(', ')}`
     );
-    await alertAdmin(
-      'Cart classes do not belong to show — entries NOT created',
-      `<p>Checkout session <code>${session.id}</code> was PAID, but ${missingClassIds.length}
-       class(es) in cart <code>${cartId}</code> did not pass the show-membership filter.
-       This may indicate a cross-show class_id was injected into the cart.</p>
-       <p>Missing class IDs: <code>${missingClassIds.join(', ')}</code></p>
-       <p>No entries were created. Refund payment intent from the Stripe dashboard and
-       investigate the cart before manually re-entering.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `cart-classes-mismatch-${session.id}` }
-    );
+    await queueUnfulfilledCharge(session, {
+      reason: 'cart_classes_not_in_show',
+      cartId,
+      showId: cart.show_id ?? null,
+      detail: { missing_class_ids: missingClassIds },
+      chargedCents: freshTotalCents,
+      copy: cartClassesNotInShowChargeAlert({
+        sessionId: session.id,
+        cartId,
+        missingClassIds: missingClassIds.map(String),
+      }),
+    });
     return;
   }
 
@@ -1257,24 +1269,22 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
   const authoritativeTotal =
     authoritativeSubtotal + calculatePlatformFeeCents(authoritativeSubtotal, stampedFeeRates);
   if (authoritativeTotal !== freshTotalCents) {
-    const piId = extractPaymentIntentId(session.payment_intent);
     console.error(
       `CRITICAL: paid total ${freshTotalCents}¢ does not match authoritative pricing ` +
         `${authoritativeTotal}¢ for cart ${cartId} — entries NOT created`
     );
-    await alertAdmin(
-      'Paid amount disagrees with authoritative pricing — verify, then refund',
-      `<p>Checkout session <code>${session.id}</code> charged ${(freshTotalCents / 100).toFixed(2)}
-       USD, but the show/class pricing says this cart is worth
-       ${(authoritativeTotal / 100).toFixed(2)} USD. No entries were created; the cart
-       is untouched.</p>
-       <p>Benign cause: the show's fees changed (or the day-of-show fee tier started)
-       between checkout and payment. Malicious cause: cart values were tampered after
-       checkout started. Either way the charge doesn't match current pricing — refund
-       payment intent <code>${piId ?? 'unknown'}</code> from the Stripe dashboard and
-       ask the exhibitor to check out again.</p>`,
-      { source: 'stripe-webhook', dedupeKey: `paid-amount-mismatch-${session.id}` }
-    );
+    await queueUnfulfilledCharge(session, {
+      reason: 'paid_amount_mismatch',
+      cartId,
+      showId: cart.show_id ?? null,
+      detail: { authoritative_cents: authoritativeTotal },
+      chargedCents: freshTotalCents,
+      copy: paidAmountMismatchChargeAlert({
+        sessionId: session.id,
+        chargedCents: freshTotalCents,
+        authoritativeCents: authoritativeTotal,
+      }),
+    });
     return;
   }
 
@@ -1319,6 +1329,8 @@ async function handleEntryPaymentCompleted(session: Stripe.Checkout.Session) {
     await handleUnclaimableCart({
       session,
       cartId,
+      showId: cart.show_id ?? null,
+      cartStatus: begun.cartStatus,
       freshTotalCents,
     });
     return;
@@ -1497,6 +1509,36 @@ async function resumeCartFulfillment(
 }
 
 /**
+ * MYK9-963: a paid cart checkout that created NOTHING. Its FULL charge is
+ * queued for a site admin's approval (unfulfilledChargeRefund.ts); nothing is
+ * refunded here. `chargedCents` is the fresh amount when the caller already
+ * read it; otherwise the session is read again from Stripe.
+ */
+async function queueUnfulfilledCharge(
+  session: Stripe.Checkout.Session,
+  input: Omit<UnfulfilledChargeInput, 'sessionId' | 'paymentIntentId' | 'chargedCents'> & {
+    chargedCents?: number | null;
+  }
+) {
+  let chargedCents = input.chargedCents;
+  if (chargedCents === undefined) {
+    const fresh = await stripe.checkout.sessions.retrieve(session.id);
+    const gate = decideFreshSessionGate(fresh);
+    if (gate.action === 'skip') {
+      console.log(`Checkout session ${session.id}: ${gate.reason} — waiting`);
+      return;
+    }
+    chargedCents = gate.amountTotalCents;
+  }
+  await queueUnfulfilledChargeRefund(refundQueueDeps, {
+    ...input,
+    sessionId: session.id,
+    paymentIntentId: extractPaymentIntentId(session.payment_intent),
+    chargedCents,
+  });
+}
+
+/**
  * The cart could not be held for this session (begin_cart_fulfillment said
  * not_claimable): a racing abandonment (MYK9-874), a second paid session on a
  * cart already fulfilled (a duplicate charge), or a concurrent first delivery.
@@ -1504,6 +1546,8 @@ async function resumeCartFulfillment(
 async function handleUnclaimableCart(input: {
   session: Stripe.Checkout.Session;
   cartId: string;
+  showId: string | null;
+  cartStatus: string | null;
   freshTotalCents: number;
 }) {
   const { session, cartId } = input;
@@ -1524,29 +1568,38 @@ async function handleUnclaimableCart(input: {
     });
     if (abandonedOutcome !== 'not_refundable') return;
 
-    const { data: intentEntries } = await supabase
+    // MYK9-963: the cart is not open for this session, and begin_cart_fulfillment
+    // found no run for it (a concurrent delivery of the SAME session gets
+    // 'resumed', never this), so this session can never be fulfilled. Queue
+    // its full charge unless its payment intent owns entries. A failed read is
+    // a 5xx, never "no entries". The queue RPC re-checks order, run and
+    // entries atomically ('delivered').
+    const { data: intentEntries, error: intentEntriesError } = await supabase
       .from('entries')
       .select('id')
       .eq('stripe_payment_intent_id', dupIntentId)
       .limit(1);
+    if (intentEntriesError) {
+      throw new Error(
+        `Could not read the entries of ${dupIntentId} for ${session.id}: ${intentEntriesError.message}`
+      );
+    }
     if (!intentEntries || intentEntries.length === 0) {
       console.error(
-        `CRITICAL: paid session ${session.id} (${dupIntentId}) hit already-claimed cart ${cartId} — duplicate charge, needs manual refund`
+        `CRITICAL: paid session ${session.id} (${dupIntentId}) hit unclaimable cart ${cartId} (${input.cartStatus ?? 'gone'}) — no entries`
       );
-      await alertAdmin(
-        'Possible duplicate entry payment — verify, then refund',
-        `<p>Checkout session <code>${session.id}</code> was PAID for cart
-         <code>${cartId}</code>, but that cart was already claimed and this payment
-         intent owns no entries — most likely the exhibitor was charged twice.</p>
-         <p>VERIFY FIRST (a racing duplicate webhook delivery can trip this while
-         the winner's entries are still inserting): in the Stripe dashboard confirm
-         TWO separate successful payments exist for this cart, and in the entries
-         page confirm the cart's entries exist once. Then refund payment intent
-         <code>${dupIntentId}</code> (Payments → search the id → Refund). No entries
-         or orders were created for it, so the dashboard refund is the complete
-         fix.</p>`,
-        { source: 'stripe-webhook', dedupeKey: `duplicate-entry-payment-${session.id}` }
-      );
+      await queueUnfulfilledCharge(session, {
+        reason: 'cart_not_claimable',
+        cartId,
+        showId: input.showId,
+        detail: { cart_status: input.cartStatus },
+        chargedCents: input.freshTotalCents,
+        copy: unclaimableCartChargeAlert({
+          sessionId: session.id,
+          cartId,
+          cartStatus: input.cartStatus,
+        }),
+      });
       return;
     }
   }

@@ -63,6 +63,8 @@ describe('getWaitlistOffersByClass', () => {
     t.trials.getTrialById.mockResolvedValue({
       id: 'trial-1',
       showId: 'show-1',
+      name: 'Saturday Trial',
+      date: '2026-10-10',
       timezone: 'America/Denver',
     });
     t.dogs.getDogById.mockImplementation(async (id: string) => ({
@@ -113,6 +115,11 @@ describe('getWaitlistOffersByClass', () => {
       ['wl-late', 'Bolt', 'Interior Novice', 'America/Denver', true],
     ]);
     expect(t.entries.getEntryById).toHaveBeenCalledWith('entry-paid');
+    // Which trial: shows repeat a class across trials (Codex P2 on #2772).
+    expect(data.map(o => [o.trial_name, o.trial_date])).toEqual([
+      ['Saturday Trial', '2026-10-10'],
+      ['Saturday Trial', '2026-10-10'],
+    ]);
   });
 
   it('reads nothing else when the class has no open offer', async () => {

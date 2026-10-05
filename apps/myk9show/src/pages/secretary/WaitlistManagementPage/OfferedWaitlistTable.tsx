@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Dog, Send, Undo2 } from 'lucide-react';
 import { DataTable, type ColumnDef } from '@/components/ui/data-table';
 import { formatOfferDeadline } from '@/lib/format/offerDeadline';
+import { formatTrialLabel } from './trialLabel';
 import type { ActionDialogState, WaitlistOffer } from './types';
 
 interface OfferedWaitlistTableProps {
@@ -49,6 +50,19 @@ function buildColumns(
       id: 'class',
       header: 'Class',
       accessorFn: row => row.class?.name ?? '',
+      // The trial too: a dog offered the same class in two trials would read as two equal rows.
+      cell: ({ row }) => {
+        const trial = formatTrialLabel({
+          name: row.original.trial_name,
+          date: row.original.trial_date,
+        });
+        return (
+          <div>
+            <span>{row.original.class?.name}</span>
+            {trial && <p className="text-xs text-muted-foreground">{trial}</p>}
+          </div>
+        );
+      },
     },
     {
       id: 'offered',

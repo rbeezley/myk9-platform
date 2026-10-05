@@ -90,6 +90,9 @@ export interface ClassWithWaitlistCount {
 export interface WaitlistOffer extends WaitlistEntry {
   promoted_entry_paid: boolean;
   trial_timezone: string | null;
+  /** Which trial: shows repeat a class across trials, so the class name alone is ambiguous. */
+  trial_name: string | null;
+  trial_date: string | null;
 }
 
 /**
@@ -165,6 +168,8 @@ export const getWaitlistOffersByClass = async (classId: string) => {
             mapped.class && cls ? { ...mapped.class, name: waitlistClassDisplayName(cls) } : null,
           promoted_entry_paid: promotedEntries[i]?.paymentStatus === 'paid',
           trial_timezone: trial?.timezone ?? null,
+          trial_name: trial?.name ?? null,
+          trial_date: trial?.date ?? null,
         };
       })
       .sort((a, b) => (a.offered_at ?? '').localeCompare(b.offered_at ?? ''));

@@ -32,6 +32,8 @@ const h = vi.hoisted(() => {
       class: { id: 'c1', name: 'Novice A', class_number: null, max_entries: null },
       promoted_entry_paid: false,
       trial_timezone: 'America/Chicago',
+      trial_name: 'Trial 1',
+      trial_date: '2026-10-10',
       ...over,
     }),
   };
@@ -206,5 +208,37 @@ describe('WaitlistManagementPage offers', () => {
     fireEvent.click(screen.getByRole('button', { name: /Remove/ }));
     const dialog = await screen.findByRole('alertdialog');
     expect(dialog.textContent).toContain('The exhibitor is not notified, so let them know.');
+  });
+
+  // Codex P2 on #2772: a show repeats a class across trials, so the class name alone cannot tell
+  // two offers apart, and the Withdraw dialog must name the trial it acts on.
+  it('names the trial on each offer and in the Withdraw dialog when two trials share a class name', async () => {
+    h.withdraw.mockResolvedValue(undefined);
+    h.offers = [
+      h.offer(),
+      h.offer({
+        id: 'o2',
+        class_id: 'c2',
+        offered_at: '2026-10-05T16:00:00Z',
+        class: { id: 'c2', name: 'Novice A', class_number: null, max_entries: null },
+        trial_name: 'Trial 2',
+        trial_date: '2026-10-11',
+      }),
+    ];
+    render(<WaitlistManagementPage showId="show-1" />);
+    const group = within(await offeredGroup());
+
+    const rows = group.getAllByRole('row').slice(1);
+    expect(rows).toHaveLength(2);
+    expect(within(rows[0]).getByText(/Trial 1 · /)).toBeInTheDocument();
+    expect(within(rows[1]).getByText(/Trial 2 · /)).toBeInTheDocument();
+
+    fireEvent.click(within(rows[1]).getByRole('button', { name: /Withdraw offer/ }));
+    const dialog = await screen.findByRole('alertdialog');
+    expect(dialog.textContent).toMatch(/Novice A \(Trial 2 · [^)]+\)/);
+    expect(dialog.textContent).not.toContain('Trial 1');
+
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Withdraw offer' }));
+    await waitFor(() => expect(h.withdraw).toHaveBeenCalledWith('o2'));
   });
 });

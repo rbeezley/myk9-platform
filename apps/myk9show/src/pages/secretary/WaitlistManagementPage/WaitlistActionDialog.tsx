@@ -31,6 +31,8 @@ interface WaitlistActionDialogProps {
   actionDialog: ActionDialogState;
   isProcessing: boolean;
   offerWindow: OfferWindow;
+  /** "Trial 1 · Sat, Oct 10": which trial the class is in, since shows repeat classes. */
+  trialLabel: string;
   onClose: () => void;
   onOfferSpot: () => void;
   onRemove: () => void;
@@ -71,6 +73,7 @@ export const WaitlistActionDialog: React.FC<WaitlistActionDialogProps> = ({
   actionDialog,
   isProcessing,
   offerWindow,
+  trialLabel,
   onClose,
   onOfferSpot,
   onRemove,
@@ -79,7 +82,12 @@ export const WaitlistActionDialog: React.FC<WaitlistActionDialogProps> = ({
   const action = actionDialog.action ?? 'remove';
   const entry = actionDialog.entry;
   const dogName = <strong>{entry?.dog?.call_name ?? entry?.dog?.name}</strong>;
-  const className = <strong>{entry?.class?.name}</strong>;
+  const className = (
+    <>
+      <strong>{entry?.class?.name}</strong>
+      {trialLabel && <> ({trialLabel})</>}
+    </>
+  );
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {

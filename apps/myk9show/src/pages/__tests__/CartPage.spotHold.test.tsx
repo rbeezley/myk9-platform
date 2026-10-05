@@ -127,12 +127,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   createEntryCheckoutSessionMock.mockReset();
   loadActiveCartMock.mockReset().mockResolvedValue(null);
-  refetchCapacityMock
-    .mockReset()
-    .mockResolvedValue({
-      data: { judgeDays: [], classSpots: [], waitlistClassIds: [] },
-      isError: false,
-    });
+  refetchCapacityMock.mockReset().mockResolvedValue({
+    data: { judgeDays: [], classSpots: [], waitlistClassIds: [] },
+    isError: false,
+  });
   checkoutWithWaitlistMock.mockResolvedValue({ confirmed: ['class-1'], waitlisted: [] });
   sessionStorage.clear();
 });

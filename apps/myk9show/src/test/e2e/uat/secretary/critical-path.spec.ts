@@ -144,7 +144,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     await expect(page.getByRole('option', { name: /^Waitlist/ })).toBeVisible();
 
     await page.getByRole('option', { name: /^Waitlist/ }).click();
-    await expect(page.getByRole('heading', { name: 'Waitlist Management' })).toBeVisible();
+    await expect(page.getByText(/Wait list settings:/)).toBeVisible();
     await viewSelect.click();
     await page.getByRole('option', { name: /^All/ }).click();
     await expect(

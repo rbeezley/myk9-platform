@@ -5,9 +5,11 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { useWaitlistManagementData } from '../useWaitlistManagementData';
 import { createTestQueryClient } from '@/test/utils/testUtils';
+import { judgeDayCapacityKey } from '@/hooks/queries/useJudgeDayCapacity';
 import type { WaitlistEntry } from '../types';
 import { supabase } from '@/lib/supabase';
 import {
+  getClassesWithWaitlistCounts,
   getWaitlistByClass,
   promoteWaitlistEntry,
   removeFromWaitlist,
@@ -18,8 +20,9 @@ import {
   WAITLIST_ENTRY_GONE_MESSAGE,
 } from '@/services/database/waitlists/deleteWaitlistEntryErrors';
 
-vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => ({ user: { id: 'user-1' } }),
+vi.mock('@/hooks/queries/useJudgeDayCapacity', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/hooks/queries/useJudgeDayCapacity')>()),
+  useJudgeDayCapacity: () => ({ judgeDays: [] }),
 }));
 
 vi.mock('@/services/LoggingService', () => ({
@@ -38,10 +41,6 @@ vi.mock('sonner', () => ({
   toast: { warning: vi.fn(), success: vi.fn(), error: vi.fn() },
 }));
 
-vi.mock('@/services/database/shows', () => ({
-  getSecretaryShows: vi.fn().mockResolvedValue({ data: [], error: null }),
-}));
-
 vi.mock('@/services/database/waitlists', () => ({
   getClassesWithWaitlistCounts: vi.fn().mockResolvedValue({ data: [], error: null }),
   getWaitlistByClass: vi.fn().mockResolvedValue({ data: [], error: null }),
@@ -55,76 +54,6 @@ const createWrapper = () => {
   return ({ children }: { children: React.ReactNode }) =>
     React.createElement(QueryClientProvider, { client: queryClient }, children);
 };
-
-describe('useWaitlistManagementData — showId sync', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('selectedShowId defaults to empty string when no showId provided', async () => {
-    const { result } = renderHook(() => useWaitlistManagementData(), {
-      wrapper: createWrapper(),
-    });
-
-    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
-    expect(result.current.selectedShowId).toBe('');
-  });
-
-  it('selectedShowId is initialized from showId', async () => {
-    const { result } = renderHook(() => useWaitlistManagementData('show-abc'), {
-      wrapper: createWrapper(),
-    });
-
-    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
-    expect(result.current.selectedShowId).toBe('show-abc');
-  });
-
-  it('selectedShowId updates when showId changes', async () => {
-    let showId = 'show-1';
-    const { result, rerender } = renderHook(() => useWaitlistManagementData(showId), {
-      wrapper: createWrapper(),
-    });
-
-    await waitFor(() => expect(result.current.selectedShowId).toBe('show-1'));
-
-    act(() => {
-      showId = 'show-2';
-    });
-    rerender();
-
-    await waitFor(() => expect(result.current.selectedShowId).toBe('show-2'));
-  });
-
-  it('selectedShowId clears when showId becomes empty string', async () => {
-    let showId: string | undefined = 'show-1';
-    const { result, rerender } = renderHook(() => useWaitlistManagementData(showId), {
-      wrapper: createWrapper(),
-    });
-
-    await waitFor(() => expect(result.current.selectedShowId).toBe('show-1'));
-
-    act(() => {
-      showId = '';
-    });
-    rerender();
-
-    await waitFor(() => expect(result.current.selectedShowId).toBe(''));
-  });
-
-  it('local setSelectedShowId still overrides when user picks a different show', async () => {
-    const { result } = renderHook(() => useWaitlistManagementData('show-abc'), {
-      wrapper: createWrapper(),
-    });
-
-    await waitFor(() => expect(result.current.selectedShowId).toBe('show-abc'));
-
-    act(() => {
-      result.current.setSelectedShowId('show-xyz');
-    });
-
-    expect(result.current.selectedShowId).toBe('show-xyz');
-  });
-});
 
 describe('useWaitlistManagementData — offer notification', () => {
   const sampleEntry = {
@@ -163,7 +92,7 @@ describe('useWaitlistManagementData — offer notification', () => {
     const { result } = renderHook(() => useWaitlistManagementData('show-77'), {
       wrapper: createWrapper(),
     });
-    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
     act(() => {
       result.current.setActionDialog({ open: true, action: 'offer', entry });
     });
@@ -250,6 +179,24 @@ describe('useWaitlistManagementData — offer notification', () => {
       "Spot offered, but the in-app notification didn't send."
     );
   });
+
+  // The judge-day cards are their own query; without this they keep the old Full / spots figures.
+  it('re-reads the judge-day capacity cards after an offer', async () => {
+    const queryClient = createTestQueryClient();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    const { result } = renderHook(() => useWaitlistManagementData('show-77'), {
+      wrapper: ({ children }: { children: React.ReactNode }) =>
+        React.createElement(QueryClientProvider, { client: queryClient }, children),
+    });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    act(() => {
+      result.current.setActionDialog({ open: true, action: 'offer', entry: sampleEntry });
+    });
+    await act(async () => {
+      await result.current.handleOfferSpot();
+    });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: judgeDayCapacityKey('show-77') });
+  });
 });
 
 // MYK9-1000 Codex round 2: a Remove that deleted nothing (already removed or
@@ -272,15 +219,31 @@ describe('useWaitlistManagementData — remove that deleted nothing', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(getClassesWithWaitlistCounts).mockResolvedValue({
+      data: [
+        {
+          id: 'class-1',
+          name: 'Novice A',
+          class_number: '1',
+          max_entries: null,
+          trial_id: 't1',
+          trial: null,
+          accepted_count: 0,
+          waitlist_count: 1,
+        },
+      ],
+      error: null,
+    });
   });
 
   async function remove() {
     const { result } = renderHook(() => useWaitlistManagementData('show-77'), {
       wrapper: createWrapper(),
     });
-    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+    // The tab lists the show's waiting classes; class-1 has a queue, so a reload re-reads it.
+    await waitFor(() => expect(getWaitlistByClass).toHaveBeenCalledWith('class-1'));
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
     act(() => {
-      result.current.setSelectedClassId('class-1');
       result.current.setActionDialog({ open: true, action: 'remove', entry });
     });
     vi.mocked(getWaitlistByClass).mockClear();

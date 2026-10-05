@@ -117,12 +117,18 @@ export function useJudgeDayCapacity(showId: string | undefined) {
       return judgeDays;
     },
     enabled: !!showId,
+    // Counts move without this page's help (automatic offers, other secretaries); re-read on
+    // every mount rather than trusting a cached figure for the default five minutes.
+    staleTime: 0,
+    refetchOnMount: 'always',
   });
 
   return {
     judgeDays: query.data ?? [],
     isLoading: query.isLoading,
     isFetching: query.isFetching,
+    // Parked offline (a server read): no figures yet, which is not the same as no judge-days.
+    isPaused: query.fetchStatus === 'paused',
     error: query.error?.message ?? null,
     refetch: query.refetch,
   };

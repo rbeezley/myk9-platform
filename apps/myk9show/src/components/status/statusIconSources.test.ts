@@ -61,7 +61,7 @@ const MIGRATED_RENDERERS = [
   'pages/ClassDetailsPage/SecretaryRunSheet/RunSheetRow.tsx',
   'pages/MyEntriesPage/modules/entryTabDefs.ts',
   'pages/TrialDetailsPage.tsx',
-  'pages/secretary/WaitlistManagementPage/ClassStatsCards.tsx',
+  'pages/secretary/WaitlistManagementPage/JudgeDayStatsCards.tsx',
 ] as const;
 
 describe('status icon grammar source ownership', () => {

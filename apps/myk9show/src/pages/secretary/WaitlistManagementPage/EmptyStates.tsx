@@ -4,7 +4,7 @@
 
 import React from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { AlertCircle, ListOrdered } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
 
 /**
  * Shown when user doesn't have secretary permissions
@@ -22,22 +22,5 @@ export const AccessRestrictedState: React.FC = () => {
         </CardContent>
       </Card>
     </div>
-  );
-};
-
-/**
- * Shown when no show has been selected yet
- */
-export const NoShowSelectedState: React.FC = () => {
-  return (
-    <Card>
-      <CardContent className="py-12 text-center">
-        <ListOrdered className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-        <h3 className="mb-2 text-lg font-medium">Select a Show to Begin</h3>
-        <p className="text-muted-foreground">
-          Choose a show from the dropdown above to view and manage its waitlists.
-        </p>
-      </CardContent>
-    </Card>
   );
 };

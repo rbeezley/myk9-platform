@@ -12,15 +12,15 @@ Does this duplicate an existing page? No. The detail components already exist (`
 
 ## Survey (2026-10-04)
 
-| Entity  | List                                  | Detail today                       | Mode          |
-| ------- | ------------------------------------- | ---------------------------------- | ------------- |
-| People  | `pages/BrowsePeoplePage.tsx`          | `/people/:id` → `UserDetailsView`  | Page hop      |
-| Dogs    | `pages/BrowseDogsPage.tsx`            | `/dogs/:id` → `DogDetailsMain`     | Page hop      |
-| Entries | `pages/secretary/EntryManagementPage` | `EntryEditDialog`                  | Modal         |
-| Clubs   | `pages/BrowseClubsPage.tsx`           | `/clubs/:id` → `ClubDetails`       | Page hop      |
-| Shows   | `pages/BrowseShowsPage.tsx`           | `/shows/:id`                       | Page hop      |
-| Trials  | inside `ShowDetailsPage`              | `/shows/:showId/trials/:trialId`   | Page hop      |
-| Classes | inside trial page                     | `/.../classes/:classId`            | Page hop      |
+| Entity  | List                                  | Detail today                      | Mode     |
+| ------- | ------------------------------------- | --------------------------------- | -------- |
+| People  | `pages/BrowsePeoplePage.tsx`          | `/people/:id` → `UserDetailsView` | Page hop |
+| Dogs    | `pages/BrowseDogsPage.tsx`            | `/dogs/:id` → `DogDetailsMain`    | Page hop |
+| Entries | `pages/secretary/EntryManagementPage` | `EntryEditDialog`                 | Modal    |
+| Clubs   | `pages/BrowseClubsPage.tsx`           | `/clubs/:id` → `ClubDetails`      | Page hop |
+| Shows   | `pages/BrowseShowsPage.tsx`           | `/shows/:id`                      | Page hop |
+| Trials  | inside `ShowDetailsPage`              | `/shows/:showId/trials/:trialId`  | Page hop |
+| Classes | inside trial page                     | `/.../classes/:classId`           | Page hop |
 
 Existing precedent: `features/show-map/cockpit/SecretaryCockpit.tsx` is a hand-rolled left/right grid at the `xl` (1280px) breakpoint, collapsing inline below it. No resizable-panel library is installed.
 

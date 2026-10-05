@@ -221,7 +221,6 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
                   onOpenPerson: (person: User) => {
                     exitSelectMode();
                     // The focused row is about to unmount; without this focus falls to the body.
-                    // The focused row is about to unmount; without this focus falls to the body.
                     selectModeButtonRef.current?.focus();
                     navigate(`/people/${person.id}`);
                   },

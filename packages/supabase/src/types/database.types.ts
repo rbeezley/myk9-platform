@@ -13651,6 +13651,13 @@ export type Database = {
           state: string
         }[]
       }
+      get_my_entry_queue_places: {
+        Args: { p_entry_ids: string[] }
+        Returns: {
+          entry_id: string
+          place: number
+        }[]
+      }
       get_my_handled_dog_ids: { Args: never; Returns: string[] }
       get_my_onboarding_requests: {
         Args: never

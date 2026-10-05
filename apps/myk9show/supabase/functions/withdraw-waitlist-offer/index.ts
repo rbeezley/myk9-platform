@@ -1,24 +1,23 @@
 /**
  * withdraw-waitlist-offer (MYK9-1001): the show's secretary takes back an open
  * wait list offer from the Waitlist tab. The decision lives in
- * ../_shared/withdrawWaitlistOffer.ts; this file only wires it to Supabase and
- * Stripe. Deploy with --no-verify-jwt: the caller is authenticated here.
+ * ../_shared/withdrawWaitlistOffer.ts: authorize, expire the Stripe page, then
+ * withdraw_waitlist_offer_internal (the transition and its notices in one
+ * transaction). This file only wires it to Supabase and Stripe. Deploy with --no-verify-jwt: the caller is authenticated here.
  */
 import 'jsr:@supabase/functions-js/edge-runtime.d.ts';
 import Stripe from 'npm:stripe@17.7.0';
 import { createClient } from 'npm:@supabase/supabase-js@2.49.1';
 import {
-  expireWaitlistOffer,
+  expireOpenPaymentLinksForEntry,
   type WaitlistExpirationStripe,
   type WaitlistExpirationSupabase,
 } from '../_shared/waitlistExpiration.ts';
-import {
-  dispatchQueuedWaitlistEvents,
-  enqueueWaitlistEvent,
-} from '../_shared/waitlistNotificationDispatch.ts';
+import { dispatchQueuedWaitlistEvents } from '../_shared/waitlistNotificationDispatch.ts';
 import {
   WITHDRAW_MESSAGES,
   withdrawWaitlistOffer,
+  type DatabaseWithdrawal,
   type WithdrawableOffer,
 } from '../_shared/withdrawWaitlistOffer.ts';
 
@@ -62,7 +61,6 @@ interface OfferRow {
   id: string;
   status: string | null;
   promoted_entry_id: string | null;
-  offer_expires_at: string | null;
   class: { trial: { show: { id: string; club_id: string | null } | null } | null } | null;
 }
 
@@ -106,7 +104,7 @@ Deno.serve(async request => {
           const { data, error } = await supabase
             .from('waitlist_entries')
             .select(
-              'id, status, promoted_entry_id, offer_expires_at, class:class_id(trial:trial_id(show:show_id(id, club_id)))'
+              'id, status, promoted_entry_id, class:class_id(trial:trial_id(show:show_id(id, club_id)))'
             )
             .eq('id', id)
             .maybeSingle();
@@ -121,7 +119,6 @@ Deno.serve(async request => {
             id: row.id,
             status: row.status,
             promoted_entry_id: row.promoted_entry_id,
-            offer_expires_at: row.offer_expires_at,
             show_id: show?.id ?? null,
             club_id: show?.club_id ?? null,
           } satisfies WithdrawableOffer;
@@ -137,72 +134,37 @@ Deno.serve(async request => {
           ]);
           return secretary.data === true || clubAdmin.data === true || siteAdmin.data === true;
         },
-        recheckOpenOffer: async (id, nowIso) => {
-          const { data, error } = await supabase
-            .from('waitlist_entries')
-            .select('id, promoted_entry_id')
-            .eq('id', id)
-            .eq('status', 'offered')
-            .gt('offer_expires_at', nowIso)
-            .maybeSingle();
-          if (error) {
-            console.error('Could not recheck the open waitlist offer:', error);
-            return 'error';
-          }
-          return data ?? null;
-        },
-        expire: (offer, terminalStatus) =>
-          expireWaitlistOffer({
+        closePaymentPages: entryId =>
+          expireOpenPaymentLinksForEntry({
             supabase: supabase as unknown as WaitlistExpirationSupabase,
             stripe: stripe as unknown as WaitlistExpirationStripe,
-            offer,
+            entryId,
             nowIso: new Date().toISOString(),
-            terminalStatus,
           }),
-        // The offer's own channels, only after the row is closed (owner decision 2026-10-05).
-        notify: async (id, event) => {
-          let notified = true;
-          if (event === 'withdrawn') {
-            // In-app, from the secretary who withdrew (as a manual offer's message is).
-            const { data: outcome, error: messageError } = await supabase.rpc(
-              'send_waitlist_withdrawal_message_internal',
-              { p_waitlist_entry_id: id, p_sender_auth_user_id: user.id }
-            );
-            if (messageError || outcome !== 'sent') {
-              console.error(
-                `withdraw-waitlist-offer: in-app notice for ${id} not sent:`,
-                messageError?.message ?? outcome
-              );
-              notified = false;
-            }
-          }
-          // Email + push: a durable event; a failed dispatch is retried by
-          // cron-waitlist-expiration, so only a failed enqueue counts as not told.
-          const queued = await enqueueWaitlistEvent({
-            supabase,
-            waitlistEntryId: id,
-            eventType: event,
+        withdrawInDatabase: async id => {
+          // The caller is the secretary the in-app notice is sent from.
+          const { data, error } = await supabase.rpc('withdraw_waitlist_offer_internal', {
+            p_waitlist_entry_id: id,
+            p_actor_auth_user_id: user.id,
           });
-          if (!queued) {
-            console.error(`withdraw-waitlist-offer: ${event} email/push for ${id} not queued`);
-            return false;
+          if (error || !data) {
+            console.error('withdraw_waitlist_offer_internal failed:', error?.message);
+            return 'error';
           }
+          return data as DatabaseWithdrawal;
+        },
+        dispatchEvent: async ({ eventId, eventType, waitlistEntryId }) => {
           const delivery = await dispatchQueuedWaitlistEvents({
-            events: [queued],
+            events: [
+              { event_id: eventId, waitlist_entry_id: waitlistEntryId, event_type: eventType },
+            ],
             supabaseUrl,
             pushWebhookSecret,
           });
-          if (delivery.errors.length > 0) {
-            console.error(
-              `withdraw-waitlist-offer: ${event} email/push for ${id} left for retry:`,
-              delivery.errors.join('; ')
-            );
-          }
-          return notified;
+          if (delivery.errors.length > 0) throw new Error(delivery.errors.join('; '));
         },
       },
-      waitlist_entry_id,
-      new Date().toISOString()
+      waitlist_entry_id
     );
 
     return response(result.body, result.httpStatus);

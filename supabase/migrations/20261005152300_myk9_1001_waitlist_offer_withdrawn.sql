@@ -46,10 +46,22 @@
 --      cron-waitlist-expiration like every other waitlist event.
 --    Copy, in the club's voice: "The club withdrew the spot offered for
 --    <dog> in <class> (<trial>, <date>). No payment is due, and the payment
---    link no longer works." withdraw-waitlist-offer sends both only after
---    the row is 'withdrawn'; a failed notice never undoes the withdrawal.
---    An offer that had already lapsed closes as 'expired' and gets the
---    expiry path's notice, not this one.
+--    link no longer works."
+--
+-- 4. withdraw_waitlist_offer_internal is the ONE place a withdrawal happens
+--    (restructure approved 2026-10-05: two concurrent withdrawals both passed
+--    the edge function's re-check, and each sent the exhibitor a notice). In
+--    one transaction, under a row lock on the waitlist row, it closes the
+--    offer only if it is still 'offered', ends the pending-payment entry the
+--    way the expiry path does (promotion-expired, only while unpaid), and
+--    ONLY when this call made the transition writes the notices. A second
+--    call finds the row closed and returns 'already_closed' having sent
+--    nothing. A lapsed offer closes as 'expired' and gets the expiry path's
+--    email/push event instead of a withdrawal notice. The notices run in a
+--    sub-block, so a failed notice never undoes the withdrawal: the result
+--    says notified = false. withdraw-waitlist-offer authorizes the caller and
+--    expires the Stripe checkout page FIRST (Stripe cannot join the
+--    transaction), then calls this. service_role only.
 --
 --    Live constraint (pg_constraint, 2026-10-05):
 --      waitlist_notification_events_event_type_check
@@ -60,6 +72,12 @@
 --
 -- Behavioral coverage (CI only):
 --   supabase/tests/myk9_1001_waitlist_offer_withdrawn_test.sql
+--
+-- Applied out of order (live is at 20261005184700): nothing here touches
+-- what 20261005163700, 20261005164700 or 20261005184700 define. The entry
+-- update in section 4 writes entry_status only, which neither
+-- trg_entries_00_direct_write_gate nor trg_entries_capacity_override (164700)
+-- fires on, and it runs as the definer, not as a direct client write.
 --   supabase/tests/myk9_1003_waitlist_auto_offer_test.sql (M1, W1-W3 copy)
 --
 -- Deploy order: this migration, then the edge functions withdraw-waitlist-offer
@@ -331,6 +349,131 @@ COMMENT ON FUNCTION public.send_waitlist_withdrawal_message_internal(uuid, uuid)
 REVOKE ALL ON FUNCTION public.send_waitlist_withdrawal_message_internal(uuid, uuid)
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.send_waitlist_withdrawal_message_internal(uuid, uuid)
+  TO service_role;
+
+-- ---------------------------------------------------------------------------
+-- 4. The withdrawal itself, atomic with its notices
+-- ---------------------------------------------------------------------------
+-- Returns jsonb:
+--   result          'withdrawn' | 'expired' | 'already_closed' | 'paid' | 'not_found'
+--   status          the row's status after the call (null when not found)
+--   notified        true only when THIS call wrote every notice it owed
+--   message         the in-app outcome ('sent', 'no_account', ...), withdrawn only
+--   event_id        the queued email/push event this call wrote, if any
+--   event_type      'withdrawn' or 'expired', with event_id
+CREATE OR REPLACE FUNCTION public.withdraw_waitlist_offer_internal(
+  p_waitlist_entry_id uuid,
+  p_actor_auth_user_id uuid
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_wl public.waitlist_entries%ROWTYPE;
+  v_entry_status text;
+  v_payment_status text;
+  v_new_status text;
+  v_updated integer;
+  v_message text;
+  v_event_id uuid;
+  v_notified boolean := false;
+BEGIN
+  SELECT * INTO v_wl
+  FROM public.waitlist_entries
+  WHERE id = p_waitlist_entry_id
+  FOR UPDATE;
+
+  IF NOT FOUND THEN
+    RETURN jsonb_build_object('result', 'not_found', 'status', NULL, 'notified', false);
+  END IF;
+  IF v_wl.status = 'accepted' THEN
+    RETURN jsonb_build_object('result', 'paid', 'status', v_wl.status, 'notified', false);
+  END IF;
+
+  -- Money that landed wins: the offer stays for the webhook to resolve.
+  IF v_wl.promoted_entry_id IS NOT NULL THEN
+    SELECT e.entry_status, e.payment_status
+    INTO v_entry_status, v_payment_status
+    FROM public.entries e
+    WHERE e.id = v_wl.promoted_entry_id
+    FOR UPDATE;
+
+    IF v_payment_status = 'paid' OR v_entry_status = 'confirmed' THEN
+      RETURN jsonb_build_object('result', 'paid', 'status', v_wl.status, 'notified', false);
+    END IF;
+  END IF;
+
+  -- A deadline already past closes as the expiry it is.
+  v_new_status := CASE
+    WHEN v_wl.offer_expires_at IS NOT NULL AND v_wl.offer_expires_at <= now() THEN 'expired'
+    ELSE 'withdrawn'
+  END;
+
+  -- THE guard: only an offer still open is closed, so only one call ever makes
+  -- this transition and only that call writes the notices below.
+  UPDATE public.waitlist_entries
+  SET status = v_new_status,
+      updated_at = now()
+  WHERE id = p_waitlist_entry_id
+    AND status = 'offered';
+  GET DIAGNOSTICS v_updated = ROW_COUNT;
+
+  IF v_updated = 0 THEN
+    RETURN jsonb_build_object('result', 'already_closed', 'status', v_wl.status, 'notified', false);
+  END IF;
+
+  -- The entry the offer created ends the way the expiry path ends it
+  -- (expireWaitlistOffer's expirePromotedEntry): promotion-expired, only while
+  -- still pending and unpaid.
+  IF v_wl.promoted_entry_id IS NOT NULL THEN
+    UPDATE public.entries
+    SET entry_status = 'promotion-expired'
+    WHERE id = v_wl.promoted_entry_id
+      AND entry_status = 'pending-payment'
+      AND payment_status = 'pending';
+  END IF;
+
+  -- This call made the transition, so it alone tells the exhibitor. A failed
+  -- notice rolls back only this sub-block, never the withdrawal.
+  BEGIN
+    IF v_new_status = 'withdrawn' THEN
+      v_message := public.send_waitlist_withdrawal_message_internal(
+        p_waitlist_entry_id, p_actor_auth_user_id
+      );
+    END IF;
+    v_event_id := public.enqueue_waitlist_notification_event(p_waitlist_entry_id, v_new_status);
+    v_notified := v_event_id IS NOT NULL
+      AND (v_new_status = 'expired' OR v_message = 'sent');
+  EXCEPTION WHEN OTHERS THEN
+    RAISE WARNING 'withdraw_waitlist_offer_internal: notice for % failed: %',
+      p_waitlist_entry_id, SQLERRM;
+    v_message := NULL;
+    v_event_id := NULL;
+    v_notified := false;
+  END;
+
+  RETURN jsonb_build_object(
+    'result', v_new_status,
+    'status', v_new_status,
+    'notified', v_notified,
+    'message', v_message,
+    'event_id', v_event_id,
+    'event_type', CASE WHEN v_event_id IS NULL THEN NULL ELSE v_new_status END
+  );
+END;
+$$;
+
+COMMENT ON FUNCTION public.withdraw_waitlist_offer_internal(uuid, uuid) IS
+  'MYK9-1001: closes an open wait list offer (withdrawn, or expired when its deadline passed), '
+  'ends its pending-payment entry, and writes the exhibitor''s notices only when this call made '
+  'the transition. Called by withdraw-waitlist-offer after it authorized the caller and expired '
+  'the Stripe checkout page.';
+
+REVOKE ALL ON FUNCTION public.withdraw_waitlist_offer_internal(uuid, uuid)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.withdraw_waitlist_offer_internal(uuid, uuid)
   TO service_role;
 
 COMMIT;

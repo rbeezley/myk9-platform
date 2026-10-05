@@ -67,8 +67,7 @@ export async function expireWaitlistOffer(input: {
   stripe: WaitlistExpirationStripe | null;
   offer: ExpiredWaitlistOffer;
   nowIso: string;
-  // 'withdrawn': the show's secretary took the offer back (MYK9-1001).
-  terminalStatus?: 'expired' | 'declined' | 'withdrawn';
+  terminalStatus?: 'expired' | 'declined';
 }): Promise<'expired' | 'paid' | 'error'> {
   const { supabase, stripe, offer, nowIso, terminalStatus = 'expired' } = input;
 
@@ -142,7 +141,13 @@ async function expirePromotedEntry(
   return 'expired';
 }
 
-async function expireOpenPaymentLinksForEntry(input: {
+/**
+ * Close every open Stripe checkout page for a promoted entry, and mark its app
+ * payment link expired. 'paid' when Stripe reports a payment: the caller must
+ * not close the offer. Shared by the expiry path and withdraw-waitlist-offer,
+ * which runs it BEFORE its database transaction (Stripe cannot join it).
+ */
+export async function expireOpenPaymentLinksForEntry(input: {
   supabase: WaitlistExpirationSupabase;
   stripe: WaitlistExpirationStripe | null;
   entryId: string;

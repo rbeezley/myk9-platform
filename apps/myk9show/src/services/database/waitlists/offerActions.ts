@@ -9,6 +9,7 @@ import {
   replicatedWaitlistEntriesTable,
   rowToWaitlistEntry,
 } from '@/services/replication/ReplicatedWaitlistEntriesTable';
+import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { logger } from '@/services/LoggingService';
 
 export const WITHDRAW_OFFER_FAILED_MESSAGE = 'We could not withdraw this offer. Please try again.';
@@ -22,14 +23,21 @@ export class WaitlistOfferNotWithdrawnError extends Error {
 }
 
 /**
- * Re-read one waitlist row from the server and write it into the replica, so
- * the tab shows what the server just did (an offer made, an offer withdrawn)
- * without waiting for the next sync. The waitlist table is not on the realtime
- * publication, and the tab reads the replica only.
+ * Bring every row an offer action changed on the server into the replica, so
+ * the tab shows what the server just did without waiting for the next sync
+ * (MYK9-1001): the waitlist row (offered / withdrawn / expired) and the entry
+ * the offer created (pending-payment on an offer, promotion-expired after a
+ * withdrawal or expiry). The tab's class counts read that entry, so "Offer
+ * Spot" appears for a freed seat and never for a seat an offer just took.
  *
- * Best effort: a failure is logged and the next sync settles the row.
+ * Both go through the replication tables. The waitlist table is not on the
+ * realtime publication, and the tab reads the replica only. The entry uses the
+ * entries replica's own server read-back (`refreshServerChangedEntries`),
+ * inserting a new entry only when this show's entries are loaded here.
+ *
+ * Best effort: a failure is logged and the next sync settles the rows.
  */
-export async function refreshWaitlistEntryInReplica(waitlistEntryId: string): Promise<void> {
+export async function refreshOfferRowsInReplica(waitlistEntryId: string): Promise<void> {
   try {
     const { data, error } = await supabase
       .from('waitlist_entries')
@@ -39,11 +47,16 @@ export async function refreshWaitlistEntryInReplica(waitlistEntryId: string): Pr
       .eq('id', waitlistEntryId)
       .maybeSingle();
     if (error) throw error;
-    if (data) {
-      await replicatedWaitlistEntriesTable.set(waitlistEntryId, rowToWaitlistEntry(data));
+    if (!data) return;
+    await replicatedWaitlistEntriesTable.set(waitlistEntryId, rowToWaitlistEntry(data));
+    if (data.promoted_entry_id) {
+      await replicatedEntriesTable.refreshServerChangedEntries([data.promoted_entry_id], {
+        insert: 'if-show-loaded',
+        reason: 'wait list offer entry changed by the server',
+      });
     }
   } catch (err) {
-    logger.warn('Waitlist row not refreshed in the replica; the next sync will', 'secretary', {
+    logger.warn('Offer rows not refreshed in the replica; the next sync will', 'secretary', {
       waitlistEntryId,
       message: err instanceof Error ? err.message : String(err),
     });
@@ -80,7 +93,8 @@ export async function withdrawWaitlistOffer(
     );
   }
 
-  await refreshWaitlistEntryInReplica(waitlistEntryId);
+  // Every 200 (withdrawn, closed as expired, or already closed) changed or confirmed the rows.
+  await refreshOfferRowsInReplica(waitlistEntryId);
   // Only an answer that says so counts as not notified; an already-closed offer sends nothing new.
   return { notified: (data as { notified?: unknown } | null)?.notified !== false };
 }

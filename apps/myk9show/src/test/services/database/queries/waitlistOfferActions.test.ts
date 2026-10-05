@@ -14,6 +14,7 @@ const m = vi.hoisted(() => {
     from: vi.fn(() => query),
     maybeSingle,
     set: vi.fn(),
+    refreshEntries: vi.fn(),
   };
 });
 
@@ -25,6 +26,10 @@ vi.mock('@/services/replication/ReplicatedWaitlistEntriesTable', async importOri
     typeof import('@/services/replication/ReplicatedWaitlistEntriesTable')
   >()),
   replicatedWaitlistEntriesTable: { set: m.set },
+}));
+
+vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
+  replicatedEntriesTable: { refreshServerChangedEntries: m.refreshEntries },
 }));
 
 import {
@@ -67,6 +72,11 @@ describe('withdrawWaitlistOffer (client)', () => {
       'wl-1',
       expect.objectContaining({ id: 'wl-1', status: 'withdrawn', promotedEntryId: 'entry-1' })
     );
+    // The entry the offer created is refreshed too, so the tab's seat count frees the seat.
+    expect(m.refreshEntries).toHaveBeenCalledWith(['entry-1'], {
+      insert: 'if-show-loaded',
+      reason: 'wait list offer entry changed by the server',
+    });
   });
 
   it("throws the server's reason when the withdrawal is refused, and leaves the replica alone", async () => {

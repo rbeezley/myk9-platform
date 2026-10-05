@@ -1283,16 +1283,37 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
       );
       return;
     }
+    await this.refreshServerChangedEntries(entryIds, {
+      insert: 'always',
+      reason: 'move-up pair confirmed by the server',
+    });
+  }
 
+  /**
+   * Store entries a server-side operation just committed (a move-up RPC; a wait
+   * list offer or its withdrawal, MYK9-1001), CLEAN, read by id the way `sync`
+   * reads them (`getRowRefetchAdapter().fetchRowsById`). Counts the app derives
+   * from the replica (class capacity, the Waitlist tab's "Offer Spot") then
+   * match the server without waiting for the next sync.
+   *
+   * A row this store does not hold yet is INSERTed only as `insert` allows:
+   * `'always'` when the caller proved this show is loaded, `'if-show-loaded'`
+   * to insert only when the store already holds rows of the row's show. The
+   * show-scoped rule (MYK9-573/575) forbids seeding a show one row at a time.
+   *
+   * Best effort: the server change is COMMITTED; a failed read or write is
+   * logged and the next sync brings the rows in.
+   */
+  async refreshServerChangedEntries(
+    entryIds: readonly string[],
+    options: { insert: 'always' | 'if-show-loaded'; reason: string }
+  ): Promise<void> {
+    if (entryIds.length === 0) return;
     try {
-      const { data, error } = await supabase
-        .from('view_authenticated_entry_results_replication')
-        .select('*')
-        .in('id', entryIds);
-      if (error || !data) return;
-
-      for (const raw of data as unknown as EntryRow[]) {
+      const remotes = await this.getRowRefetchAdapter().fetchRowsById([...new Set(entryIds)]);
+      for (const raw of remotes) {
         const row = raw as EntryRow & Record<string, unknown>;
+        const id = String(row.id);
         // Never write a tombstone back into the cache. The view returns
         // soft-deleted rows to whoever OWNS or handles the dog
         // (`deleted_at IS NULL OR is_own_entry`), so a small-club secretary
@@ -1301,21 +1322,26 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
         // the dog live in two classes and inflating the target's capacity
         // count. `getEntriesByClass` filters nothing.
         if (row.deleted_at) {
-          await this.delete(String(row.id));
+          await this.delete(id);
           continue;
         }
-        const serverVersion = row.version as number | undefined;
+        const entry = rowToEntry(raw);
+        if (
+          options.insert === 'if-show-loaded' &&
+          !(await this.get(id)) &&
+          !(entry.showId && (await this.getEntriesByShow(entry.showId)).length > 0)
+        ) {
+          continue;
+        }
         this.reportSetResult(
-          String(row.id),
-          await this.set(String(row.id), rowToEntry(raw), false, undefined, serverVersion, {
-            allowColdInsert: 'move-up pair confirmed by the server',
+          id,
+          await this.set(id, entry, false, undefined, row.version as number | undefined, {
+            allowColdInsert: options.reason,
           })
         );
       }
     } catch (readBackError) {
-      // The server change is COMMITTED; this is only a cache refresh. The next
-      // incremental sync brings the pair in either way.
-      logger.warn(`[${this.getTableName()}] Move-up read-back failed`, readBackError);
+      logger.warn(`[${this.getTableName()}] Read-back failed (${options.reason})`, readBackError);
     }
   }
 

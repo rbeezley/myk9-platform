@@ -22,7 +22,7 @@ import {
   mapClassWithWaitlistCount,
   waitlistClassDisplayName,
 } from '@/services/mappers/waitlistMappers';
-import { refreshWaitlistEntryInReplica } from './offerActions';
+import { refreshOfferRowsInReplica } from './offerActions';
 import { buildMapFromArray } from '../_shared/maps';
 import {
   countQueuedWaitlistEntries,
@@ -318,8 +318,9 @@ export const promoteWaitlistEntry = async (
     throw createDatabaseError(error, 'waitlist_entries', 'promote_waitlist_entry');
   }
 
-  // The offered row moves to the tab's Offered group now, not at the next sync (MYK9-1001).
-  await refreshWaitlistEntryInReplica(waitlistEntryId);
+  // The offered row moves to the Offered group, and its new pending-payment entry joins the
+  // class count, now rather than at the next sync (MYK9-1001).
+  await refreshOfferRowsInReplica(waitlistEntryId);
 
   return data as string;
 };

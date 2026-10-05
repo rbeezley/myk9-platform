@@ -48,11 +48,8 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
   const navigate = useNavigate();
   const { id: selectedId } = useParams<{ id: string }>();
   // Select mode swaps the split for the full-width table so its checkboxes and the bulk bar work.
-  // Derived from `splitCapable`, so a stale request cannot outlive a narrow window, where the
-  // button to leave it does not exist.
-  const [selectModeRequested, setSelectMode] = useState(false);
+  const [selectMode, setSelectMode] = useState(false);
   const splitCapable = detail !== null;
-  const selectMode = selectModeRequested && splitCapable;
   const splitOpen = splitCapable && !selectMode;
 
   const [viewMode, setViewMode] = useViewPreference('people', defaultListView(true));
@@ -95,6 +92,9 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
     setSelectMode(false);
     clearSelection();
   };
+  // Select mode belongs to the split. Losing the split (a narrow window, where its Done button
+  // does not exist) ends it, with its ticks, so it cannot come back when the window widens.
+  if (selectMode && !splitCapable) exitSelectMode();
 
   // The whole-list export the table's own button used to be (owner decision 4): the filtered
   // roster, so no row needs ticking first. Offered in the table view and in the split, where the

@@ -41,7 +41,7 @@ const DogCard: React.FC<DogCardProps> = ({
   ).slice(0, 3); // Show max 3 orgs
 
   return (
-    <Card className="relative min-w-[300px] bg-card-secondary dark:bg-card rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700 snap-start flex-shrink-0 group">
+    <Card className="relative min-w-[min(100%,300px)] bg-card-secondary dark:bg-card rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-200 dark:border-gray-700 snap-start flex-shrink-0 group">
       <div className="absolute top-3 right-3 z-50">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

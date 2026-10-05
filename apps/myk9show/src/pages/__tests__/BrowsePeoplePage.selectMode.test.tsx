@@ -101,6 +101,18 @@ describe('BrowsePeoplePage select mode (wide, split)', () => {
     expect(screen.getByTestId('people-compact')).toBeInTheDocument();
   });
 
+  it('select mode ends when the split is lost and does not return when it comes back', async () => {
+    const { rerender } = render(<BrowsePeoplePage detail={<p>detail pane</p>} />);
+    await userEvent.click(screen.getByRole('button', { name: 'Select people' }));
+    expect(screen.getByTestId('people-table')).toBeInTheDocument();
+
+    rerender(<BrowsePeoplePage />); // narrow window: no split
+    rerender(<BrowsePeoplePage detail={<p>detail pane</p>} />); // wide again
+
+    expect(screen.getByTestId('people-compact')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Select people' })).toBeInTheDocument();
+  });
+
   it('offers no select mode on a narrow screen, where the table is always the list', () => {
     mockViewportWidth(1000);
     render(<BrowsePeoplePage />);

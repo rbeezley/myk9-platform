@@ -49,6 +49,17 @@ describe('PeopleCompactList', () => {
     expect(screen.getByRole('link', { name: /Ada Lovelace/ })).not.toHaveAttribute('aria-current');
   });
 
+  it('announces the open person, since focus stays on the list', () => {
+    const { rerender } = renderList();
+    expect(screen.getByRole('status')).toBeEmptyDOMElement();
+    rerender(
+      <MemoryRouter>
+        <PeopleCompactList people={people} selectedId="p2" />
+      </MemoryRouter>
+    );
+    expect(screen.getByRole('status')).toHaveTextContent('Showing details for Grace Hopper');
+  });
+
   describe('keyboard', () => {
     function Probe() {
       return <p data-testid="at">{useLocation().pathname}</p>;
@@ -71,6 +82,14 @@ describe('PeopleCompactList', () => {
       await userEvent.keyboard('{ArrowUp}');
       expect(screen.getByTestId('at')).toHaveTextContent('/people/p1');
       expect(screen.getByRole('link', { name: /Ada Lovelace/ })).toHaveFocus();
+    });
+
+    it('leaves Cmd/Ctrl/Alt/Shift + arrows to the browser', async () => {
+      renderKeyboard();
+      screen.getByRole('link', { name: /Ada Lovelace/ }).focus();
+      await userEvent.keyboard('{Meta>}{ArrowDown}{/Meta}');
+      await userEvent.keyboard('{Alt>}{ArrowDown}{/Alt}');
+      expect(screen.getByTestId('at')).toHaveTextContent('/people/p1');
     });
 
     it('stops at the ends instead of wrapping or leaving the list', async () => {

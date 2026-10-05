@@ -79,18 +79,26 @@ export function ListResultLine({
   children,
   className,
 }: ListResultLineProps) {
-  if (!ready || (quietWhenUnfiltered && !filtered && !children)) return null;
+  if (!ready) return null;
 
+  // Quiet keeps the live region in the DOM, empty: a region created already filled is often not
+  // announced, so the first search would say nothing.
+  const quiet = quietWhenUnfiltered && !filtered && !children;
   const canSelectAll =
     selectAll !== undefined && selectAll.selectedCount > 0 && selectAll.selectedCount < shown;
 
   return (
-    <div className={cn('flex flex-wrap items-center gap-x-4 gap-y-1 text-sm', className)}>
+    <div
+      className={cn(
+        quiet ? 'sr-only' : 'flex flex-wrap items-center gap-x-4 gap-y-1 text-sm',
+        className
+      )}
+    >
       <p
         {...(announce ? { role: 'status', 'aria-live': 'polite' as const } : {})}
         className="text-muted-foreground"
       >
-        {statusSentence({ shown, total, noun, filtered })}
+        {quiet ? '' : statusSentence({ shown, total, noun, filtered })}
       </p>
       {filtered && !showAllInEmptyState && (
         <button type="button" onClick={onShowAll} className={LIST_LINK_BUTTON}>

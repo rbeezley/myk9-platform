@@ -48,8 +48,11 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
   const navigate = useNavigate();
   const { id: selectedId } = useParams<{ id: string }>();
   // Select mode swaps the split for the full-width table so its checkboxes and the bulk bar work.
-  const [selectMode, setSelectMode] = useState(false);
+  // Derived from `splitCapable`, so a stale request cannot outlive a narrow window, where the
+  // button to leave it does not exist.
+  const [selectModeRequested, setSelectMode] = useState(false);
   const splitCapable = detail !== null;
+  const selectMode = selectModeRequested && splitCapable;
   const splitOpen = splitCapable && !selectMode;
 
   const [viewMode, setViewMode] = useViewPreference('people', defaultListView(true));
@@ -94,10 +97,11 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
   };
 
   // The whole-list export the table's own button used to be (owner decision 4): the filtered
-  // roster, in the table view, so no row needs ticking first.
+  // roster, so no row needs ticking first. Offered in the table view and in the split, where the
+  // view toggle is hidden and a saved "cards" view would otherwise strand it.
   usePageExportAction({
     id: 'people',
-    enabled: viewMode === 'table' && filteredPeople.length > 0,
+    enabled: (viewMode === 'table' || splitCapable) && filteredPeople.length > 0,
     run: () => exportRowsCsv('people', PEOPLE_EXPORT_HEADERS, peopleExportRows(filteredPeople)),
   });
 
@@ -169,6 +173,8 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
       queryClient.setQueryData(queryKeys.users.detail(newUser.id), newUser);
       // Background revalidation — fire-and-forget.
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      // Select mode hides the detail pane, so the new person would open unseen.
+      setSelectMode(false);
       navigate(`/people/${newUser.id}`, { replace: true });
     },
     [addUser, closeCreatePersonDialog, navigate, queryClient]

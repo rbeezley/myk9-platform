@@ -23,6 +23,8 @@ export const PeopleCompactList: React.FC<PeopleCompactListProps> = ({ people, se
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLUListElement>) => {
     if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
+    // Cmd+Down, Alt+Up and the like belong to the browser and the OS.
+    if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
     const rows = Array.from(event.currentTarget.querySelectorAll('a'));
     const from = rows.indexOf((event.target as HTMLElement).closest('a') as HTMLAnchorElement);
     const to = from + (event.key === 'ArrowDown' ? 1 : -1);
@@ -33,34 +35,43 @@ export const PeopleCompactList: React.FC<PeopleCompactListProps> = ({ people, se
     navigate(`/people/${next.id}`, { replace: true });
   };
 
+  const opened = people.find(person => person.id === selectedId);
+
   return (
-    <ul
-      className="divide-y divide-border rounded-lg border bg-card"
-      aria-label="People"
-      onKeyDown={handleKeyDown}
-    >
-      {people.map(person => {
-        const { fullName } = extractPersonName(person);
-        const selected = person.id === selectedId;
-        return (
-          <li key={person.id}>
-            <Link
-              to={`/people/${person.id}`}
-              aria-current={selected ? 'page' : undefined}
-              className={cn(
-                'flex min-h-14 flex-col justify-center px-3 py-2 transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none',
-                selected && 'bg-primary/10 hover:bg-primary/10'
-              )}
-            >
-              <span className="truncate text-sm font-medium">{fullName}</span>
-              <span className="truncate text-xs text-muted-foreground">
-                {[person.email, (person.roles ?? []).join(', ')].filter(Boolean).join(' · ') || '—'}
-              </span>
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
+    <>
+      {/* Focus stays on the list row, so the right pane changing is otherwise silent. */}
+      <p role="status" className="sr-only">
+        {opened ? `Showing details for ${extractPersonName(opened).fullName}` : ''}
+      </p>
+      <ul
+        className="divide-y divide-border rounded-lg border bg-card"
+        aria-label="People"
+        onKeyDown={handleKeyDown}
+      >
+        {people.map(person => {
+          const { fullName } = extractPersonName(person);
+          const selected = person.id === selectedId;
+          return (
+            <li key={person.id}>
+              <Link
+                to={`/people/${person.id}`}
+                aria-current={selected ? 'page' : undefined}
+                className={cn(
+                  'flex min-h-14 flex-col justify-center px-3 py-2 transition-colors hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none',
+                  selected && 'bg-primary/10 hover:bg-primary/10'
+                )}
+              >
+                <span className="truncate text-sm font-medium">{fullName}</span>
+                <span className="truncate text-xs text-muted-foreground">
+                  {[person.email, (person.roles ?? []).join(', ')].filter(Boolean).join(' · ') ||
+                    '—'}
+                </span>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </>
   );
 };
 

@@ -24,7 +24,9 @@ describe('ListResultLine', () => {
         onShowAll={vi.fn()}
       />
     );
-    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    // Silent but present: the same live region node is later filled, which screen readers announce.
+    const region = screen.getByRole('status');
+    expect(region).toBeEmptyDOMElement();
     rerender(
       <ListResultLine
         quietWhenUnfiltered
@@ -35,7 +37,8 @@ describe('ListResultLine', () => {
         onShowAll={vi.fn()}
       />
     );
-    expect(screen.getByRole('status').textContent).toBe('Showing 5 of 23 users.');
+    expect(screen.getByRole('status')).toBe(region);
+    expect(region.textContent).toBe('Showing 5 of 23 users.');
   });
 
   it('is a polite live region', () => {

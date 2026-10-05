@@ -43,6 +43,7 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
     error,
     searchTerm,
     actionDialog,
+    reload,
     viewJudgeDay,
     showAllClasses,
     setSearchTerm,
@@ -102,7 +103,12 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
       {error && (
         <Alert variant="destructive">
           <AlertCircle className="h-4 w-4" />
-          <AlertDescription>{error}</AlertDescription>
+          <AlertDescription className="flex items-center justify-between gap-2">
+            {error}
+            <Button variant="outline" size="sm" onClick={reload}>
+              Try again
+            </Button>
+          </AlertDescription>
         </Alert>
       )}
 

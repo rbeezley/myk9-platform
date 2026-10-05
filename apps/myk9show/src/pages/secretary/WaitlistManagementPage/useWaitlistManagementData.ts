@@ -9,6 +9,9 @@ import { toast } from 'sonner';
 import { judgeDayCapacityKey, useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
+import { replicatedWaitlistEntriesTable } from '@/services/replication/ReplicatedWaitlistEntriesTable';
+import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import {
   getClassesWithWaitlistCounts,
   getWaitlistByClass,
@@ -39,7 +42,9 @@ export function useWaitlistManagementData(showId: string) {
   const { judgeDays } = useJudgeDayCapacity(showId || undefined);
 
   const [classes, setClasses] = useState<ClassWithWaitlistCount[]>([]);
-  const [waitlistEntries, setWaitlistEntries] = useState<WaitlistEntry[]>([]);
+  // The queue read, stamped with the scope (class set) that produced it: a result can only be
+  // shown under that scope, never under the judge-day the secretary has since switched to.
+  const [queue, setQueue] = useState<{ key: string; entries: WaitlistEntry[] } | null>(null);
   const [judgeDayKey, setJudgeDayKey] = useState<JudgeDayKey | null>(null);
 
   // UI state
@@ -81,6 +86,12 @@ export function useWaitlistManagementData(showId: string) {
     [selectedJudgeDay, classes]
   );
   const targetKey = targetClassIds.join(',');
+  const waitlistEntries = useMemo(
+    () => (queue && queue.key === targetKey ? queue.entries : []),
+    [queue, targetKey]
+  );
+  // Waiting on the read for the current scope (it has not produced a result yet).
+  const isQueuePending = targetKey !== '' && queue?.key !== targetKey && !error;
 
   // Data loading callbacks
   const loadClasses = useCallback(async (forShowId: string) => {
@@ -119,7 +130,7 @@ export function useWaitlistManagementData(showId: string) {
         setError('Failed to load waitlist');
         logger.error('Error loading waitlist:', 'secretary', {}, failed.error as Error);
       } else {
-        setWaitlistEntries(results.flatMap(r => r.data ?? []));
+        setQueue({ key: classIds.join(','), entries: results.flatMap(r => r.data ?? []) });
       }
     } catch (err) {
       if (readId !== latestWaitlistRead.current) return;
@@ -136,7 +147,7 @@ export function useWaitlistManagementData(showId: string) {
       loadClasses(showId);
     } else {
       setClasses([]);
-      setWaitlistEntries([]);
+      setQueue(null);
     }
   }, [showId, loadClasses]);
 
@@ -146,10 +157,29 @@ export function useWaitlistManagementData(showId: string) {
       loadWaitlist(targetKey.split(','));
     } else {
       latestWaitlistRead.current++;
-      setWaitlistEntries([]);
+      setQueue(null);
       setIsLoadingWaitlist(false);
     }
   }, [targetKey, loadWaitlist]);
+
+  // Re-read the counts and the queues from the replica. Used by the retry button and when the
+  // replica reports a change (a new arrival, an automatic offer, a withdrawal), since there is no
+  // Refresh button any more. It reads the replica only: a read that wrote rows would notify again
+  // and loop.
+  const reload = useCallback(() => {
+    void loadWaitlist(targetClassIds);
+    if (showId) void loadClasses(showId);
+  }, [loadWaitlist, loadClasses, targetClassIds, showId]);
+
+  useEffect(() => {
+    if (!showId) return;
+    const unsubscribes = [
+      replicatedWaitlistEntriesTable.subscribe(reload, { emitCurrent: false }),
+      replicatedEntriesTable.subscribe(reload, { emitCurrent: false }),
+      replicatedClassesTable.subscribe(reload, { emitCurrent: false }),
+    ];
+    return () => unsubscribes.forEach(unsubscribe => unsubscribe());
+  }, [showId, reload]);
 
   // After an offer or removal: re-read the queues and counts, and the judge-day cards, which are
   // their own query and would otherwise keep showing the old Full / spots figures.
@@ -325,12 +355,13 @@ export function useWaitlistManagementData(showId: string) {
     waitlistEntries,
     groups,
     isLoadingClasses,
-    isLoadingWaitlist,
+    isLoadingWaitlist: isLoadingWaitlist || isQueuePending,
     isProcessing,
     error,
     searchTerm,
     actionDialog,
     // Actions
+    reload,
     viewJudgeDay,
     showAllClasses,
     setSearchTerm,

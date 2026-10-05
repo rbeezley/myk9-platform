@@ -10,7 +10,13 @@ import { render } from '@/test/utils/testUtils';
 import type { JudgeDayCapacity } from '@/types/waitlist-types';
 import WaitlistManagementPage from '../index';
 
-const state = vi.hoisted(() => ({ hasRole: true }));
+const state = vi.hoisted(() => ({
+  hasRole: true,
+  // A pending read for class c3 (Judge Two's day), settled by the test.
+  holdC3: null as null | { resolve: () => void },
+  failNextRead: false,
+  replicaListeners: [] as Array<() => void>,
+}));
 
 const h = vi.hoisted(() => ({
   cls: (id: string, name: string, number: string, waiting: number, entered: number) => ({
@@ -51,18 +57,29 @@ vi.mock('@/services/database/waitlists', () => ({
     error: null,
   }),
   // Deliberately returned out of order: the page must show join order itself.
-  getWaitlistByClass: vi.fn(async (classId: string) => ({
-    data:
-      {
-        c1: [
-          h.entry('w2', 'c1', 'Novice A', 2, 'Rexy'),
-          h.entry('w1', 'c1', 'Novice A', 1, 'Bella'),
-        ],
-        c2: [h.entry('w3', 'c2', 'Novice B', 1, 'Tera')],
-        c3: [h.entry('w4', 'c3', 'Master', 1, 'Otherjudge')],
-      }[classId] ?? [],
-    error: null,
-  })),
+  getWaitlistByClass: vi.fn(async (classId: string) => {
+    if (state.failNextRead) {
+      state.failNextRead = false;
+      return { data: [], error: new Error('replica unavailable') };
+    }
+    if (classId === 'c3' && state.holdC3) {
+      await new Promise<void>(resolve => {
+        state.holdC3 = { resolve };
+      });
+    }
+    return {
+      data:
+        {
+          c1: [
+            h.entry('w2', 'c1', 'Novice A', 2, 'Rexy'),
+            h.entry('w1', 'c1', 'Novice A', 1, 'Bella'),
+          ],
+          c2: [h.entry('w3', 'c2', 'Novice B', 1, 'Tera')],
+          c3: [h.entry('w4', 'c3', 'Master', 1, 'Otherjudge')],
+        }[classId] ?? [],
+      error: null,
+    };
+  }),
   promoteWaitlistEntry: vi.fn(),
   removeFromWaitlist: vi.fn(),
   sendWaitlistOfferMessage: vi.fn(),
@@ -101,6 +118,21 @@ vi.mock('@/hooks/queries/useJudgeDayCapacity', async importOriginal => ({
   }),
 }));
 
+vi.mock('@/services/replication/ReplicatedWaitlistEntriesTable', () => ({
+  replicatedWaitlistEntriesTable: {
+    subscribe: (cb: () => void) => {
+      state.replicaListeners.push(cb);
+      return () => undefined;
+    },
+  },
+}));
+vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
+  replicatedEntriesTable: { subscribe: () => () => undefined },
+}));
+vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
+  replicatedClassesTable: { subscribe: () => () => undefined },
+}));
+
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({ hasRole: () => state.hasRole }),
 }));
@@ -120,6 +152,9 @@ const viewWaitList = (judgeName: string) => {
 describe('WaitlistManagementPage', () => {
   beforeEach(() => {
     state.hasRole = true;
+    state.holdC3 = null;
+    state.failNextRead = false;
+    state.replicaListeners = [];
   });
 
   it('shows every waiting dog in the show, grouped by class, before any judge-day is chosen', async () => {
@@ -213,5 +248,50 @@ describe('WaitlistManagementPage', () => {
     state.hasRole = false;
     render(<WaitlistManagementPage showId="show-1" />);
     expect(screen.getByText('Access Restricted')).toBeInTheDocument();
+  });
+
+  // Codex P2: switching judge-days kept the previous day's dogs on screen, actionable, until the
+  // new read finished (or forever if it failed).
+  it("drops the previous judge-day's dogs while the next judge-day is still loading", async () => {
+    render(<WaitlistManagementPage showId="show-1" />);
+    await screen.findByText('Otherjudge');
+    viewWaitList('Judge One');
+    await waitFor(() => expect(screen.queryByText('Otherjudge')).not.toBeInTheDocument());
+    expect(screen.getByText('Bella')).toBeInTheDocument();
+
+    state.holdC3 = { resolve: () => undefined };
+    viewWaitList('Judge Two');
+
+    await waitFor(() =>
+      expect(screen.getByText('Wait list for Judge Two,', { exact: false })).toBeInTheDocument()
+    );
+    expect(screen.queryByText('Bella')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /offer spot|remove/i })).not.toBeInTheDocument();
+
+    state.holdC3!.resolve();
+    expect(await screen.findByText('Otherjudge')).toBeInTheDocument();
+  });
+
+  it('shows a failed read with a Try again that recovers', async () => {
+    state.failNextRead = true;
+    render(<WaitlistManagementPage showId="show-1" />);
+    expect(await screen.findByText(/Failed to load waitlist/)).toBeInTheDocument();
+    expect(screen.queryByText('Bella')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(await screen.findByText('Bella')).toBeInTheDocument();
+  });
+
+  it('re-reads the queues when the replica reports a change', async () => {
+    const { getWaitlistByClass } = await import('@/services/database/waitlists');
+    render(<WaitlistManagementPage showId="show-1" />);
+    await screen.findByText('Bella');
+    const before = vi.mocked(getWaitlistByClass).mock.calls.length;
+
+    state.replicaListeners.forEach(cb => cb());
+
+    await waitFor(() =>
+      expect(vi.mocked(getWaitlistByClass).mock.calls.length).toBeGreaterThan(before)
+    );
   });
 });

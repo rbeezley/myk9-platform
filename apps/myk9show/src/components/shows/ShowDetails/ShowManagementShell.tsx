@@ -6,7 +6,7 @@ import { PageShell } from '@/components/common/PageShell';
 import { PageHeader } from '@/components/common/PageHeader';
 import { ErrorState } from '@/components/common/ErrorState';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
-import { ShowCompactHeader } from './ShowCompactHeader';
+import { ShowHeader } from './ShowHeader';
 import { ShowHeaderControls } from './ShowHeaderControls';
 import { PublishAttentionChip } from './PublishAttentionChip';
 import { PUBLISH_PANEL_ANCHORS, ShowDetailsPanel } from './ShowDetailsPanel';
@@ -19,7 +19,6 @@ import { canDeleteShowForClub } from '@/components/clubs/ClubDetails/clubPermiss
 import { type ShowDetailTabsProps } from '@/components/shows/ShowDetails/ShowDetailTabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { TabsContent } from '@/components/ui/tabs';
-import { AboutThisShowCard } from '@/components/shows/overview/AboutThisShowCard';
 import { HomeClassSelection } from './HomeClassSelection';
 import { SELECT_CLASSES } from '@/pages/secretary/selectClassesRoutes';
 import {
@@ -238,7 +237,7 @@ function AuthorizedShowManagementShell({
             actions={<ShowPageHeaderActions showId={show.id} armbandCount={armbandCount} />}
           />
 
-          <ShowCompactHeader
+          <ShowHeader
             name={show.name || 'Untitled Show'}
             organization={show.organization}
             startDate={show.startDate}
@@ -262,6 +261,7 @@ function AuthorizedShowManagementShell({
             show={show}
             canManageShow={canManageShow}
             entryCount={detailsEntryCount}
+            judges={tabs.judges}
             open={details.open}
             showPublishing={isOverview}
           />
@@ -314,12 +314,9 @@ function AuthorizedShowManagementShell({
               searchParams.get('select') === SELECT_CLASSES ? (
                 <HomeClassSelection showId={show.id} tabs={tabs} />
               ) : (
-                <div className="space-y-4">
-                  <AboutThisShowCard show={show} judges={tabs.judges} />
-                  <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
-                    <ShowHomeCockpit />
-                  </Suspense>
-                </div>
+                <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
+                  <ShowHomeCockpit />
+                </Suspense>
               )}
             </TabsContent>
           </PrimaryTabs>

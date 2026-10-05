@@ -6,6 +6,7 @@
  * number of registrations that view would list — not a hand-picked mock.
  */
 import { describe, it, expect, vi } from 'vitest';
+import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 import { render, screen, within } from '@/test/utils/testUtils';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
@@ -154,6 +155,7 @@ describe('EntryManagementPage status sentence (MYK9-906)', () => {
   });
 
   it('ignores the retired paymentStatus param: a stale link shows the unfiltered list', async () => {
+    mockViewportWidth(1440);
     render(<EntryManagementPage />, {
       initialRoute: '/secretary/entries?queue=all&paymentStatus=paid_online',
     });

@@ -184,7 +184,6 @@ export default function ShowDeskPanel({
     <div className="space-y-4">
       <PhaseShell
         title="Your show"
-        kicker="Before, during and after the show"
         actions={
           tools && tools.length > 0 ? (
             <div className="flex flex-wrap items-center gap-2">

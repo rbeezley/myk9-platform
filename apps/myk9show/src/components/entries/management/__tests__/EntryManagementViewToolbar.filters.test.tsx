@@ -4,6 +4,7 @@
  * "Show all registrations" button that resets view, scope and search.
  */
 import { describe, expect, it, vi } from 'vitest';
+import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 import { render, screen } from '@/test/utils/testUtils';
 import { EntryManagementViewToolbar } from '../EntryManagementViewToolbar';
 import type { EntryManagementCockpitState } from '../entryManagementCockpitParams';
@@ -49,7 +50,15 @@ function renderToolbar(
 }
 
 describe('EntryManagementViewToolbar filters', () => {
-  it('stays quiet, with no Show all button, when nothing narrows the list', () => {
+  it('on a phone or tablet it still reads "Showing all", since the one-row layout does not fit', () => {
+    mockViewportWidth(768);
+    renderToolbar();
+
+    expect(screen.getByRole('status')).toHaveTextContent('Showing all 214 registrations.');
+  });
+
+  it('from lg it stays quiet, with no Show all button, when nothing narrows the list', () => {
+    mockViewportWidth(1440);
     renderToolbar();
 
     // The live region stays mounted but empty, so the first search is still announced.

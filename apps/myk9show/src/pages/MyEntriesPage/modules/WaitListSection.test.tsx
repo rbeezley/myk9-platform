@@ -154,3 +154,27 @@ describe('WaitListSection offered payment recovery', () => {
     expect(scrollIntoView).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('WaitListSection offer deadline as a clock time (MYK9-1002)', () => {
+  it('names the deadline in the trial timezone', () => {
+    renderSection({ entries: [{ ...ACTIVE_OFFER, trialTimezone: 'America/Chicago' }] });
+
+    expect(screen.getByText('Claim by Tue, Jul 14, 5:00 AM CDT')).toBeInTheDocument();
+    expect(screen.queryByText(/Expires in/)).not.toBeInTheDocument();
+  });
+
+  it('falls back to New York when the trial timezone is missing or invalid', () => {
+    const { unmount } = renderSection({ entries: [{ ...ACTIVE_OFFER }] });
+    expect(screen.getByText('Claim by Tue, Jul 14, 6:00 AM EDT')).toBeInTheDocument();
+    unmount();
+
+    renderSection({ entries: [{ ...ACTIVE_OFFER, trialTimezone: 'Not/AZone' }] });
+    expect(screen.getByText('Claim by Tue, Jul 14, 6:00 AM EDT')).toBeInTheDocument();
+  });
+
+  it('says the offer ends when it has no deadline', () => {
+    renderSection({ entries: [{ ...ACTIVE_OFFER, offerExpiresAt: null }] });
+
+    expect(screen.getByText('Claim it before the offer ends.')).toBeInTheDocument();
+  });
+});

@@ -754,6 +754,32 @@ export type Database = {
           },
         ]
       }
+      cart_checkout_leases: {
+        Row: {
+          cart_id: string
+          lease_id: string
+          lease_until: string
+        }
+        Insert: {
+          cart_id: string
+          lease_id: string
+          lease_until: string
+        }
+        Update: {
+          cart_id?: string
+          lease_id?: string
+          lease_until?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cart_checkout_leases_cart_id_fkey"
+            columns: ["cart_id"]
+            isOneToOne: true
+            referencedRelation: "entry_carts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cart_fulfillment_lines: {
         Row: {
           cart_item_id: string
@@ -863,6 +889,92 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "entry_carts"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      cart_spot_holds: {
+        Row: {
+          cart_id: string
+          cart_item_id: string
+          class_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          release_reason: string | null
+          released_at: string | null
+          stripe_checkout_session_id: string | null
+        }
+        Insert: {
+          cart_id: string
+          cart_item_id: string
+          class_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          release_reason?: string | null
+          released_at?: string | null
+          stripe_checkout_session_id?: string | null
+        }
+        Update: {
+          cart_id?: string
+          cart_item_id?: string
+          class_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          release_reason?: string | null
+          released_at?: string | null
+          stripe_checkout_session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cart_spot_holds_cart_id_fkey"
+            columns: ["cart_id"]
+            isOneToOne: false
+            referencedRelation: "entry_carts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cart_spot_holds_cart_item_id_fkey"
+            columns: ["cart_item_id"]
+            isOneToOne: false
+            referencedRelation: "entry_cart_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cart_spot_holds_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cart_spot_holds_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "cart_spot_holds_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "cart_spot_holds_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "cart_spot_holds_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["class_id"]
           },
         ]
       }
@@ -12744,6 +12856,7 @@ export type Database = {
       }
       can_manage_trial: { Args: { check_trial_id: string }; Returns: boolean }
       can_read_dog_directory: { Args: never; Returns: boolean }
+      cart_checkout_lease_seconds: { Args: never; Returns: number }
       check_and_record_premium_generation_attempt: {
         Args: { p_auth_user_id: string; p_show_id: string }
         Returns: {
@@ -12812,6 +12925,13 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_cart_checkout: {
+        Args: { p_cart_id: string; p_lease_id: string }
+        Returns: {
+          lease_until: string
+          outcome: string
+        }[]
+      }
       claim_sms_opt_in_attempt: {
         Args: { p_auth_user_id: string; p_phone_e164: string }
         Returns: boolean
@@ -12834,7 +12954,11 @@ export type Database = {
         }[]
       }
       class_entry_availability: {
-        Args: { p_class_ids: string[] }
+        Args: {
+          p_class_ids: string[]
+          p_count_holds?: boolean
+          p_exclude_auth_user_id?: string
+        }
         Returns: {
           allow_waitlist: boolean
           class_full: boolean
@@ -12849,7 +12973,11 @@ export type Database = {
         }[]
       }
       class_judge_day_capacity: {
-        Args: { p_class_ids: string[] }
+        Args: {
+          p_class_ids: string[]
+          p_count_holds?: boolean
+          p_exclude_auth_user_id?: string
+        }
         Returns: {
           class_id: string
           day_capacity: number
@@ -13078,6 +13206,10 @@ export type Database = {
         Returns: string
       }
       emergency_packet_section: { Args: { p_section: string }; Returns: string }
+      end_cart_checkout: {
+        Args: { p_cart_id: string; p_lease_id: string }
+        Returns: boolean
+      }
       enqueue_access_request_email_job: {
         Args: { p_event: string; p_request_id: string; p_request_kind: string }
         Returns: undefined
@@ -13583,7 +13715,13 @@ export type Database = {
         }[]
       }
       get_judge_day_capacity_live: {
-        Args: { p_date: string; p_judge_id: string; p_show_id: string }
+        Args: {
+          p_count_holds?: boolean
+          p_date: string
+          p_exclude_auth_user_id?: string
+          p_judge_id: string
+          p_show_id: string
+        }
         Returns: {
           available_spots: number
           capacity: number
@@ -13848,6 +13986,27 @@ export type Database = {
         Args: { role_name: string; scope_club_id?: string }
         Returns: boolean
       }
+      held_spot_count: {
+        Args: { p_class_ids: string[]; p_exclude_auth_user_id?: string }
+        Returns: number
+      }
+      hold_cart_spots: {
+        Args: {
+          p_cart_id: string
+          p_checkout_session_id?: string
+          p_expected_updated_at: string
+          p_expires_at: string
+          p_lease_id: string
+        }
+        Returns: {
+          allow_waitlist: boolean
+          cart_item_id: string
+          class_id: string
+          denial_reason: string
+          dog_id: string
+          outcome: string
+        }[]
+      }
       increment_promo_usage: { Args: { promo_id: string }; Returns: undefined }
       insert_club_access_request_from_signup: {
         Args: { p_auth_user_id: string; p_metadata: Json; p_person_id: string }
@@ -13892,6 +14051,20 @@ export type Database = {
       is_trial_secretary: { Args: { check_club_id?: string }; Returns: boolean }
       issue_calendar_feed_token: {
         Args: { p_show_id: string }
+        Returns: string
+      }
+      link_cart_checkout: {
+        Args: {
+          p_cart_id: string
+          p_checkout_session_id: string
+          p_expected_updated_at: string
+          p_expires_at: string
+          p_held_count: number
+          p_lease_id: string
+          p_platform_fee_cents: number
+          p_subtotal_cents: number
+          p_total_cents: number
+        }
         Returns: string
       }
       list_club_membership_requests: {
@@ -13963,6 +14136,10 @@ export type Database = {
         Returns: undefined
       }
       manageable_show_ids: { Args: never; Returns: string[] }
+      manager_held_spot_count: {
+        Args: { p_class_ids: string[]; p_show_id: string }
+        Returns: number
+      }
       mark_enrollment_paid_online: {
         Args: { p_enrollment_id: string }
         Returns: Json
@@ -14240,6 +14417,10 @@ export type Database = {
       request_trial_packet_print_reminders: {
         Args: { p_base_url: string; p_kind: string; p_secret: string }
         Returns: undefined
+      }
+      require_cart_checkout_lease: {
+        Args: { p_cart_id: string; p_lease_id: string }
+        Returns: string
       }
       resequence_class_waitlist: {
         Args: { p_class_ids: string[] }

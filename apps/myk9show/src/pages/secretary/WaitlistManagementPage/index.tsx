@@ -36,6 +36,7 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
     judgeDays,
     isCapacityUnavailable,
     capacityError,
+    isOffline,
     selectedJudgeDay,
     waitlistEntries,
     groups,
@@ -133,6 +134,15 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
         </p>
       )}
 
+      {/* Offline with figures on screen. isCapacityUnavailable alone misses a page that loaded
+          online and went offline while idle: nothing refetches, so the query never parks. */}
+      {(isCapacityUnavailable || isOffline) && judgeDays.length > 0 && (
+        <p className="text-sm text-muted-foreground" data-testid="judge-day-capacity-stale">
+          Offline: these capacity figures are from the last time this page was online and may be out
+          of date.
+        </p>
+      )}
+
       {judgeDays.length > 0 && (
         <JudgeCapacityOverview judgeDays={judgeDays} onViewWaitList={viewJudgeDay} />
       )}
@@ -175,6 +185,7 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
           isLoading={false}
           searchActive={searchTerm !== ''}
           onSetActionDialog={setActionDialog}
+          offline={isOffline}
         />
       ))}
 

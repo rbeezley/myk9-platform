@@ -7,6 +7,7 @@ import { onlineManager } from '@tanstack/react-query';
 import { screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
+import { NetworkStatusContext } from '@/hooks/useNetworkStatus';
 import WaitlistManagementPage from '../index';
 
 vi.mock('@/services/database/waitlists', () => ({
@@ -73,5 +74,35 @@ describe('WaitlistManagementPage offline', () => {
     expect(await screen.findByText('Bella')).toBeInTheDocument();
     expect(screen.getByTestId('judge-day-capacity-offline')).toBeInTheDocument();
     expect(screen.queryByText(/spots? available/)).not.toBeInTheDocument();
+  });
+
+  it('disables Offer Spot and Remove, saying they are online only, when the app is offline', async () => {
+    render(
+      <NetworkStatusContext.Provider
+        value={{
+          isOnline: false,
+          quality: null,
+          showOfflineMessage: true,
+          retryConnection: vi.fn(),
+        }}
+      >
+        <WaitlistManagementPage showId="show-1" />
+      </NetworkStatusContext.Provider>
+    );
+
+    await screen.findByText('Bella');
+    expect(screen.getByRole('button', { name: /Offer Spot/ })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Remove/ })).toBeDisabled();
+    expect(screen.getByTestId('waitlist-online-only')).toHaveTextContent('Online only');
+  });
+
+  it('leaves Offer Spot and Remove enabled when online', async () => {
+    onlineManager.setOnline(true);
+    render(<WaitlistManagementPage showId="show-1" />);
+
+    await screen.findByText('Bella');
+    expect(screen.getByRole('button', { name: /Offer Spot/ })).toBeEnabled();
+    expect(screen.getByRole('button', { name: /Remove/ })).toBeEnabled();
+    expect(screen.queryByTestId('waitlist-online-only')).not.toBeInTheDocument();
   });
 });

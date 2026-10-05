@@ -28,6 +28,17 @@ interface JudgeDayKey {
   showDate: string;
 }
 
+/**
+ * Replica reads: they run offline too (the app's default 'online' would park them), and they are
+ * re-read on every mount, because the replica subscription only listens while the tab is mounted,
+ * so a cached result may predate changes made while it was away.
+ */
+const REPLICA_READ_OPTIONS = {
+  networkMode: 'always',
+  staleTime: 0,
+  refetchOnMount: 'always',
+} as const;
+
 /** Every query of this tab lives under this key, so one invalidation refreshes all of it. */
 const waitlistKey = (showId: string) => ['waitlist', showId] as const;
 
@@ -84,8 +95,7 @@ export function useWaitlistManagementData(showId: string) {
       return data;
     },
     enabled: !!showId,
-    // A replica read: it must run offline too (the app's default 'online' would park it).
-    networkMode: 'always',
+    ...REPLICA_READ_OPTIONS,
   });
   const classes = useMemo(() => classesQuery.data ?? [], [classesQuery.data]);
 
@@ -114,7 +124,7 @@ export function useWaitlistManagementData(showId: string) {
       return results.flatMap(r => r.data ?? []);
     },
     enabled: !!showId && targetClassIds.length > 0,
-    networkMode: 'always',
+    ...REPLICA_READ_OPTIONS,
   });
   const waitlistEntries = useMemo(() => queueQuery.data ?? [], [queueQuery.data]);
 

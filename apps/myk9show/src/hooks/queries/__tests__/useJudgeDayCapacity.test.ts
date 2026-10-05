@@ -3,14 +3,13 @@ import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createElement } from 'react';
 import { useJudgeDayCapacity } from '../useJudgeDayCapacity';
-import { supabase } from '@/services/database/supabaseClient';
 
-const mockEq = vi.fn();
+const mockFrom = vi.fn();
 const mockRpc = vi.fn();
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
-    from: vi.fn(() => ({ select: () => ({ eq: mockEq }) })),
+    from: (...args: unknown[]) => mockFrom(...args),
     rpc: (...args: unknown[]) => mockRpc(...args),
   },
 }));
@@ -21,38 +20,27 @@ function createWrapper() {
     createElement(QueryClientProvider, { client: queryClient }, children);
 }
 
-const summaryRow = (over: Record<string, unknown> = {}) => ({
-  show_id: 'show-1',
+const managerRow = (over: Record<string, unknown> = {}) => ({
   judge_id: 'judge-1',
-  judge_name: 'Jane Doe',
+  judge_full_name: 'Jane Doe',
   show_date: '2026-05-01',
   class_ids: ['c1', 'c2'],
   class_names: ['Novice A', 'Novice B'],
-  confirmed_count: 80,
-  waitlist_count: 5,
-  ...over,
-});
-
-const serverRow = (over: Record<string, unknown> = {}) => ({
-  class_id: 'c1',
-  judge_id: 'judge-1',
-  show_date: '2026-05-01',
   day_capacity: 125,
   day_taken: 80,
   day_mail_in_reserved: 0,
   day_remaining: 45,
+  waitlist_count: 5,
   ...over,
 });
 
-function script(summary: unknown[], rows: unknown[] | null, rpcError: unknown = null) {
-  mockEq.mockResolvedValueOnce({ data: summary, error: null });
-  mockRpc.mockResolvedValueOnce({ data: rows, error: rpcError });
+function script(rows: unknown[] | null, error: unknown = null) {
+  mockRpc.mockResolvedValueOnce({ data: rows, error });
 }
 
 describe('useJudgeDayCapacity', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    mockEq.mockReset();
+    mockFrom.mockReset();
     mockRpc.mockReset();
   });
 
@@ -64,16 +52,10 @@ describe('useJudgeDayCapacity', () => {
     expect(result.current.isLoading).toBe(false);
   });
 
-  it("puts the server's figures on the card, not a recomputation (MYK9-1005)", async () => {
-    // Taken (82), mail-in (20) and remaining (23) are deliberately NOT what the view's count
-    // (80) and a client recompute (125 - 80 - 20 = 25) would give.
-    script(
-      [summaryRow()],
-      [
-        serverRow({ day_taken: 82, day_mail_in_reserved: 20, day_remaining: 23 }),
-        serverRow({ class_id: 'c2', day_taken: 82, day_mail_in_reserved: 20, day_remaining: 23 }),
-      ]
-    );
+  it("puts the manager read's figures on the card in one call, not a recomputation (MYK9-1005)", async () => {
+    // Remaining (21) is deliberately not capacity - taken - mail-in (23): the card shows the
+    // server's figure, never a recomputation.
+    script([managerRow({ day_taken: 82, day_mail_in_reserved: 20, day_remaining: 21 })]);
     const { result } = renderHook(() => useJudgeDayCapacity('show-1'), {
       wrapper: createWrapper(),
     });
@@ -87,21 +69,21 @@ describe('useJudgeDayCapacity', () => {
       confirmedCount: 82,
       waitlistCount: 5,
       mailInReserved: 20,
-      availableSpots: 23,
+      availableSpots: 21,
       classIds: ['c1', 'c2'],
       classNames: ['Novice A', 'Novice B'],
     });
-    expect(mockRpc).toHaveBeenCalledWith('get_show_class_judge_day_availability', {
+    // The manager read counts every account's holds, the secretary's own included; the cart's
+    // read (get_show_class_judge_day_availability) leaves the caller's own holds out.
+    expect(mockRpc).toHaveBeenCalledTimes(1);
+    expect(mockRpc).toHaveBeenCalledWith('get_show_judge_day_capacity_for_manager', {
       p_show_id: 'show-1',
     });
-    // Capacity is never rebuilt from the show's settings or the judge assignments.
-    expect(vi.mocked(supabase.from).mock.calls.map(([table]) => table)).toEqual([
-      'judge_day_summary',
-    ]);
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 
   it('keeps an over-limit day over the limit instead of clamping it', async () => {
-    script([summaryRow()], [serverRow({ day_capacity: 3, day_taken: 5, day_remaining: 0 })]);
+    script([managerRow({ day_capacity: 3, day_taken: 5, day_remaining: 0 })]);
     const { result } = renderHook(() => useJudgeDayCapacity('show-1'), {
       wrapper: createWrapper(),
     });
@@ -115,7 +97,7 @@ describe('useJudgeDayCapacity', () => {
   });
 
   it('a show with no judge-days is an empty list, not an error', async () => {
-    script([], []);
+    script([]);
     const { result } = renderHook(() => useJudgeDayCapacity('show-1'), {
       wrapper: createWrapper(),
     });
@@ -125,18 +107,8 @@ describe('useJudgeDayCapacity', () => {
     expect(result.current.error).toBeNull();
   });
 
-  it('judge-days the server did not report are an error, never a false zero', async () => {
-    script([summaryRow()], []);
-    const { result } = renderHook(() => useJudgeDayCapacity('show-1'), {
-      wrapper: createWrapper(),
-    });
-
-    await waitFor(() => expect(result.current.error).not.toBeNull());
-    expect(result.current.judgeDays).toEqual([]);
-  });
-
-  it('a day missing from the server rows is an error', async () => {
-    script([summaryRow()], [serverRow({ judge_id: 'judge-2' })]);
+  it('a day without figures is an error, never a false zero', async () => {
+    script([managerRow({ day_capacity: null, day_taken: null, day_remaining: null })]);
     const { result } = renderHook(() => useJudgeDayCapacity('show-1'), {
       wrapper: createWrapper(),
     });
@@ -146,7 +118,7 @@ describe('useJudgeDayCapacity', () => {
   });
 
   it('surfaces an RPC failure as an error', async () => {
-    script([summaryRow()], null, { message: 'rpc down' });
+    script(null, { message: 'rpc down' });
     const { result } = renderHook(() => useJudgeDayCapacity('show-1'), {
       wrapper: createWrapper(),
     });

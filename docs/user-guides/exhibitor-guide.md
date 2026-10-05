@@ -102,7 +102,7 @@ Your dog now appears in your list and is ready to enter shows.
 
 5. Review: dog, class, and entry fee.
 6. Read and accept the entry agreement → click **Pay with Card**.
-7. Complete payment in the secure checkout screen.
+7. Complete payment in the secure checkout screen. Your spots are held for 30 minutes while you pay, and if checkout times out first your cart is saved and checking out again re-checks the spots.
 
 **Step 3 — Confirmation:**
 

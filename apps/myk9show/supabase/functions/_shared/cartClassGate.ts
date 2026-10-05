@@ -41,6 +41,21 @@ export function newLineClassIds(items: readonly CartLineForClassGate[]): string[
   return [...new Set(items.filter(item => !item.entry_id).map(item => item.class_id))];
 }
 
+/**
+ * The class gate's `class_entry_availability` arguments. The gate decides on
+ * entries alone (MYK9-1012, owner 2026-10-05): a class full only because of
+ * spots other carts hold at Pay must not send the cart into the reconcile that
+ * removes lines, and the payer's own earlier hold must not read their own
+ * lines as full. Held spots are refused at Pay by `hold_cart_spots`, with the
+ * dog and class named.
+ */
+export function classGateRpcArgs(classIds: readonly string[]): {
+  p_class_ids: string[];
+  p_count_holds: false;
+} {
+  return { p_class_ids: [...classIds], p_count_holds: false };
+}
+
 /** True when any new cart line is in a class self-service can no longer buy. */
 export function cartHasBlockedClass(
   items: readonly CartLineForClassGate[],

@@ -64,10 +64,11 @@ export interface TrialClass {
   /**
    * `classes.max_entries` / `classes.allow_waitlist`, carried so Edit class can show and keep
    * them. `allowsWaitlist === undefined` means the source did not load them (the editor then
-   * hides the controls and never sends them); a loaded null `maxEntries` means no class limit.
+   * hides the controls and never sends them); a loaded null `maxEntries` means no class limit,
+   * a loaded null `allowsWaitlist` means the class follows the show's setting (MYK9-1019).
    */
   maxEntries?: number | null | undefined;
-  allowsWaitlist?: boolean | undefined;
+  allowsWaitlist?: boolean | null | undefined;
   /** The class's run-order position (`classes.class_order`), shown on Setup → Classes. */
   runOrder?: number | undefined;
   // Optional fields for enhanced class cards

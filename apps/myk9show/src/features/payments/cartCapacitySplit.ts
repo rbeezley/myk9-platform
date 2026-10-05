@@ -1,5 +1,6 @@
 import type { CartItemWithDetails } from '@/store/cartStore';
 import type { JudgeDayCapacity } from '@/types/waitlist-types';
+import { classAllowsWaitlist } from '@/utils/classAllowsWaitlist';
 
 /**
  * One judge's day, as the split reads it: the self-service spots left and every
@@ -38,11 +39,16 @@ export interface CartCapacitySplitDecision {
  * two-judge class uses a spot on both judges' days, and lines earlier in the
  * cart use up spots before later ones are judged. Advisory only: payment
  * re-decides under the server's locks.
+ *
+ * A full line goes to the wait list when its class allows one: the class's own
+ * setting, else the show's (`showAllowsWaitlist`, `shows.allow_waitlist`),
+ * else no (MYK9-1019, `classAllowsWaitlist`).
  */
 export function splitCartItemsByJudgeDayCapacity(
   items: CartItemWithDetails[],
   judgeDays: readonly CartJudgeDayCapacity[],
-  classSpots: readonly CartClassCapacity[] = []
+  classSpots: readonly CartClassCapacity[] = [],
+  showAllowsWaitlist: boolean | null | undefined = false
 ): CartCapacitySplitDecision {
   const remainingByJudgeDay = new Map<string, number>();
   const remainingByClass = new Map<string, number>();
@@ -88,10 +94,9 @@ export function splitCartItemsByJudgeDayCapacity(
 
     if (reason) {
       fullReasonByItemId.set(item.id, reason);
-      // submit_show_entries uses COALESCE(allow_waitlist, false), so a missing
-      // or NULL client value must not turn a denied class into a wait-list
-      // request.
-      if (item.class?.allow_waitlist !== true) {
+      // The server's rule (class_allows_waitlist): a value missing on both
+      // sides is "no", so it never turns a denied class into a wait-list request.
+      if (!classAllowsWaitlist(item.class?.allow_waitlist, showAllowsWaitlist)) {
         blockedItems.push(item);
       } else {
         waitlistItemIds.add(item.id);

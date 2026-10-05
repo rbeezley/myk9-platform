@@ -8391,6 +8391,7 @@ export type Database = {
           accept_check_payments: boolean
           address: string | null
           allow_non_owner_handlers: boolean | null
+          allow_waitlist: boolean
           brand_color: string
           cc_secretary_on_exhibitor_emails: boolean
           city: string | null
@@ -8461,6 +8462,7 @@ export type Database = {
           accept_check_payments?: boolean
           address?: string | null
           allow_non_owner_handlers?: boolean | null
+          allow_waitlist?: boolean
           brand_color?: string
           cc_secretary_on_exhibitor_emails?: boolean
           city?: string | null
@@ -8531,6 +8533,7 @@ export type Database = {
           accept_check_payments?: boolean
           address?: string | null
           allow_non_owner_handlers?: boolean | null
+          allow_waitlist?: boolean
           brand_color?: string
           cc_secretary_on_exhibitor_emails?: boolean
           city?: string | null
@@ -12953,6 +12956,7 @@ export type Database = {
           waitlist_entry_id: string
         }[]
       }
+      class_allows_waitlist: { Args: { p_class_id: string }; Returns: boolean }
       class_entry_availability: {
         Args: {
           p_class_ids: string[]
@@ -13589,6 +13593,7 @@ export type Database = {
           accept_check_payments: boolean
           address: string | null
           allow_non_owner_handlers: boolean | null
+          allow_waitlist: boolean
           brand_color: string
           cc_secretary_on_exhibitor_emails: boolean
           city: string | null
@@ -14599,6 +14604,7 @@ export type Database = {
           accept_check_payments: boolean
           address: string | null
           allow_non_owner_handlers: boolean | null
+          allow_waitlist: boolean
           brand_color: string
           cc_secretary_on_exhibitor_emails: boolean
           city: string | null

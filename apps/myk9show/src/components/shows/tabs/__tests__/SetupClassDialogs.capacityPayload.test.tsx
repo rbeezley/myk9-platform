@@ -10,6 +10,10 @@ import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { SetupClassDialogs } from '../SetupClassDialogs';
 
 const dbUpdateClass = vi.hoisted(() => vi.fn());
+// MYK9-1019: the show's "Allow wait lists", which a class with no setting of its own follows.
+const showState = vi.hoisted(() => ({
+  shows: [] as Array<{ id: string; allowsWaitlist?: boolean }>,
+}));
 
 vi.mock('@/services/database/classes', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/database/classes')>()),
@@ -21,7 +25,7 @@ vi.mock('@/services/replication', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/replication')>()),
   replicatedClassesTable: { sync: vi.fn().mockResolvedValue(undefined) },
 }));
-vi.mock('@/store/showStore', () => ({ useShowStore: () => ({ shows: [] }) }));
+vi.mock('@/store/showStore', () => ({ useShowStore: () => showState }));
 vi.mock('@/store/userStore', () => ({ useUserStore: () => ({ people: [] }) }));
 
 const snapshot = {
@@ -38,11 +42,16 @@ const snapshot = {
   allowsWaitlist: false,
 };
 
-function renderDialogs() {
+function renderDialogs(classSnapshot: Record<string, unknown> = snapshot) {
   return render(
     <SetupClassDialogs
       showId="s1"
-      pending={{ action: 'edit', trialId: 't1', requestId: 1, classSnapshot: snapshot as never }}
+      pending={{
+        action: 'edit',
+        trialId: 't1',
+        requestId: 1,
+        classSnapshot: classSnapshot as never,
+      }}
       onClose={vi.fn()}
     />
   );
@@ -57,6 +66,45 @@ describe('Edit class payload at the update layer', () => {
   beforeEach(() => {
     dbUpdateClass.mockReset();
     dbUpdateClass.mockResolvedValue({ data: { id: 'c1', trial_id: 't1' }, error: null });
+    showState.shows = [];
+  });
+
+  describe('a class that follows the show (MYK9-1019)', () => {
+    it('shows the inherited state, and flipping it saves this class as an exception', async () => {
+      showState.shows = [{ id: 's1', allowsWaitlist: true }];
+      const { user } = renderDialogs({ ...snapshot, allowsWaitlist: null });
+      const toggle = await screen.findByRole('switch', { name: 'Allow wait list' });
+      expect(toggle).toBeChecked();
+      expect(toggle).toHaveAccessibleDescription(/Follows show: On/);
+      expect(screen.queryByRole('button', { name: 'Use the show setting' })).toBeNull();
+
+      await user.click(toggle);
+      expect(toggle).toHaveAccessibleDescription(
+        /Set for this class only\. The show is set to On\./
+      );
+      await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+      await waitFor(() => expect(dbUpdateClass).toHaveBeenCalled());
+      expect(dbUpdateClass.mock.calls[0]![1]).toMatchObject({ allow_waitlist: false });
+    });
+
+    it('"Use the show setting" clears the exception: the save sends allow_waitlist null', async () => {
+      showState.shows = [{ id: 's1', allowsWaitlist: true }];
+      const { user } = renderDialogs({ ...snapshot, allowsWaitlist: false });
+      const toggle = await screen.findByRole('switch', { name: 'Allow wait list' });
+      expect(toggle).not.toBeChecked();
+      expect(toggle).toHaveAccessibleDescription(/Set for this class only/);
+
+      await user.click(screen.getByRole('button', { name: 'Use the show setting' }));
+      expect(toggle).toBeChecked();
+      expect(toggle).toHaveAccessibleDescription(/Follows show: On/);
+      await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+      await waitFor(() => expect(dbUpdateClass).toHaveBeenCalled());
+      const payload = dbUpdateClass.mock.calls[0]![1] as Record<string, unknown>;
+      expect(payload).toHaveProperty('allow_waitlist', null);
+      expect(payload).not.toHaveProperty('max_entries');
+    });
   });
 
   it('an unrelated edit sends no allow_waitlist and no max_entries', async () => {

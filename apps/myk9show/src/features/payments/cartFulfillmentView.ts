@@ -77,7 +77,9 @@ function sumFees(items: CartItemWithDetails[]): number {
 export function buildCartFulfillmentView(
   items: CartItemWithDetails[],
   judgeDays: readonly CartJudgeDayCapacity[] | null,
-  classSpots: readonly CartClassCapacity[] = []
+  classSpots: readonly CartClassCapacity[] = [],
+  /** `shows.allow_waitlist`: what a class with no setting of its own follows (MYK9-1019). */
+  showAllowsWaitlist: boolean | null | undefined = false
 ): CartFulfillmentView {
   if (items.length === 0) {
     return { capacityKnown: judgeDays !== null, ...EMPTY_VIEW };
@@ -113,7 +115,12 @@ export function buildCartFulfillmentView(
     };
   }
 
-  const decision = splitCartItemsByJudgeDayCapacity(items, judgeDays, classSpots);
+  const decision = splitCartItemsByJudgeDayCapacity(
+    items,
+    judgeDays,
+    classSpots,
+    showAllowsWaitlist
+  );
   const blockedItemIds = new Set(decision.blockedItems.map(item => item.id));
 
   const fulfillmentByItemId: Record<string, CartItemFulfillment> = {};

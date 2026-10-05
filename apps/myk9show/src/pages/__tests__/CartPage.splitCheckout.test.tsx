@@ -25,6 +25,7 @@ const cartState = vi.hoisted(() => ({
       name: 'Summer Show',
       start_date: '2026-09-01',
       entry_close_date: '2026-08-15',
+      allow_waitlist: false as boolean,
     },
   },
   error: null as string | null,
@@ -169,6 +170,7 @@ describe('CartPage split checkout wiring', () => {
     vi.clearAllMocks();
     sessionStorage.clear();
     cartState.error = null;
+    cartState.cart.show.allow_waitlist = false;
     judgeDayCapacityState.isError = false;
     // Answer the submit-time re-check with the capacity these cases render.
     // Read the state at CALL time, not at beforeEach time: cases below mutate
@@ -381,6 +383,37 @@ describe('CartPage split checkout wiring', () => {
     expect(checkoutWithWaitlistMock).not.toHaveBeenCalled();
     expect(createEntryCheckoutSessionMock).not.toHaveBeenCalled();
   });
+
+  it.each([
+    [true, 'wait-lists'],
+    [false, 'blocks'],
+  ])(
+    'a full class with no setting of its own follows the show (show on: %s, %s it)',
+    async showAllows => {
+      cartState.cart.show.allow_waitlist = showAllows;
+      cartItems.value = [
+        {
+          ...cartItems.value[1],
+          class: { ...cartItems.value[1]!.class, allow_waitlist: null as unknown as boolean },
+        },
+      ];
+
+      const { user } = render(<CartPage />, { initialRoute: '/cart' });
+      await user.click(screen.getByRole('button', { name: 'Checkout' }));
+
+      if (showAllows) {
+        await waitFor(() =>
+          expect(checkoutWithWaitlistMock).toHaveBeenCalledWith(
+            'exhibitor-1',
+            new Set(['item-full'])
+          )
+        );
+      } else {
+        await waitFor(() => expect(setErrorMock).toHaveBeenCalled());
+        expect(checkoutWithWaitlistMock).not.toHaveBeenCalled();
+      }
+    }
+  );
 
   it('spends remaining judge-day capacity on earlier cart items before waitlisting later items', async () => {
     judgeDayCapacityState.judgeDays = [

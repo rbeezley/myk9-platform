@@ -139,9 +139,17 @@ export default function CartPage() {
     !isCapacityLoading &&
     (!isCapacityFetching || isCheckingOut) &&
     !capacityError;
+  // MYK9-1019: a class with no wait-list setting of its own follows the show's.
+  const showAllowsWaitlist = cart?.show?.allow_waitlist;
   const fulfillment = useMemo(
-    () => buildCartFulfillmentView(items, capacityResolved ? judgeDays : null, classSpots),
-    [items, judgeDays, classSpots, capacityResolved]
+    () =>
+      buildCartFulfillmentView(
+        items,
+        capacityResolved ? judgeDays : null,
+        classSpots,
+        showAllowsWaitlist
+      ),
+    [items, judgeDays, classSpots, capacityResolved, showAllowsWaitlist]
   );
 
   // Param names come from the shared module `buildFinishPaymentHref` writes,
@@ -301,7 +309,8 @@ export default function CartPage() {
       const splitDecision = splitCartItemsByJudgeDayCapacity(
         items,
         freshJudgeDays,
-        freshClassSpots
+        freshClassSpots,
+        showAllowsWaitlist
       );
       const blockedItems = splitDecision.blockedItems;
 

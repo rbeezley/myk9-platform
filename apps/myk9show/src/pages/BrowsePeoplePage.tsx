@@ -88,10 +88,12 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
     setSelectedPeople([]);
     setSelectionEpoch(epoch => epoch + 1);
   }, []);
-  const exitSelectMode = () => {
+  // The ONE way out of select mode (Done, opening a person, creating one, losing the split):
+  // it always drops the ticks too, so a hidden selection can never feed the bulk bar.
+  const exitSelectMode = useCallback(() => {
     setSelectMode(false);
     clearSelection();
-  };
+  }, [clearSelection]);
   // Select mode belongs to the split. Losing the split (a narrow window, where its Done button
   // does not exist) ends it, with its ticks, so it cannot come back when the window widens.
   if (selectMode && !splitCapable) exitSelectMode();
@@ -174,10 +176,10 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
       // Background revalidation — fire-and-forget.
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
       // Select mode hides the detail pane, so the new person would open unseen.
-      setSelectMode(false);
+      exitSelectMode();
       navigate(`/people/${newUser.id}`, { replace: true });
     },
-    [addUser, closeCreatePersonDialog, navigate, queryClient]
+    [addUser, closeCreatePersonDialog, exitSelectMode, navigate, queryClient]
   );
 
   // Render view content

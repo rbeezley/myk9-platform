@@ -1,5 +1,6 @@
-import React, { useState, useCallback, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import React, { useState, useCallback, useMemo, useRef } from 'react';
+import { useSearchParams, useNavigate, useParams } from 'react-router-dom';
+import { MasterDetailLayout } from '@/components/layout/MasterDetailLayout';
 import { Button } from '@/components/ui/button';
 import { Plus, Users } from 'lucide-react';
 import { PageShell } from '@/components/common/PageShell';
@@ -19,6 +20,7 @@ import { useRBAC } from '@/hooks/useRBAC';
 import { PERMISSIONS } from '@/services/auth/rbacService';
 import { useBrowsePeopleData } from '@/hooks/useBrowsePeopleData';
 import {
+  PeopleCompactList,
   PeopleGridView,
   PeopleTableView,
   PeopleListToolbar,
@@ -33,9 +35,23 @@ import type { User } from '@/types/user-types';
 
 const PEOPLE_NOUN = ['person', 'people'] as const;
 
-const BrowsePeoplePage: React.FC = () => {
+interface BrowsePeoplePageProps {
+  /**
+   * What fills the right pane (the open person, or a "select a person" prompt). Only passed on a
+   * wide screen (see `PeopleMasterDetailPage`); the list then narrows to a compact one.
+   */
+  detail?: React.ReactNode;
+}
+
+const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { id: selectedId } = useParams<{ id: string }>();
+  // Select mode swaps the split for the full-width table so its checkboxes and the bulk bar work.
+  const [selectMode, setSelectMode] = useState(false);
+  const selectModeButtonRef = useRef<HTMLButtonElement>(null);
+  const splitCapable = detail !== null;
+  const splitOpen = splitCapable && !selectMode;
 
   const [viewMode, setViewMode] = useViewPreference('people', defaultListView(true));
   const isMobileViewport = useMediaQuery('(max-width: 767px)');
@@ -73,12 +89,22 @@ const BrowsePeoplePage: React.FC = () => {
     setSelectedPeople([]);
     setSelectionEpoch(epoch => epoch + 1);
   }, []);
+  // The ONE way out of select mode (Done, opening a person, creating one, losing the split):
+  // it always drops the ticks too, so a hidden selection can never feed the bulk bar.
+  const exitSelectMode = useCallback(() => {
+    setSelectMode(false);
+    clearSelection();
+  }, [clearSelection]);
+  // Select mode belongs to the split. Losing the split (a narrow window, where its Done button
+  // does not exist) ends it, with its ticks, so it cannot come back when the window widens.
+  if (selectMode && !splitCapable) exitSelectMode();
 
   // The whole-list export the table's own button used to be (owner decision 4): the filtered
-  // roster, in the table view, so no row needs ticking first.
+  // roster, so no row needs ticking first. Offered in the table view and in the split, where the
+  // view toggle is hidden and a saved "cards" view would otherwise strand it.
   usePageExportAction({
     id: 'people',
-    enabled: viewMode === 'table' && filteredPeople.length > 0,
+    enabled: (viewMode === 'table' || splitCapable) && filteredPeople.length > 0,
     run: () => exportRowsCsv('people', PEOPLE_EXPORT_HEADERS, peopleExportRows(filteredPeople)),
   });
 
@@ -150,9 +176,11 @@ const BrowsePeoplePage: React.FC = () => {
       queryClient.setQueryData(queryKeys.users.detail(newUser.id), newUser);
       // Background revalidation — fire-and-forget.
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      // Select mode hides the detail pane, so the new person would open unseen.
+      exitSelectMode();
       navigate(`/people/${newUser.id}`, { replace: true });
     },
-    [addUser, closeCreatePersonDialog, navigate, queryClient]
+    [addUser, closeCreatePersonDialog, exitSelectMode, navigate, queryClient]
   );
 
   // Render view content
@@ -174,7 +202,11 @@ const BrowsePeoplePage: React.FC = () => {
       );
     }
 
-    switch (viewMode) {
+    // The table needs ~720px and its checkboxes feed the bulk bar, so it only gets the full
+    // width in select mode; beside a person the list is one compact line per person.
+    if (splitOpen) return <PeopleCompactList people={filteredPeople} selectedId={selectedId} />;
+
+    switch (selectMode ? 'table' : viewMode) {
       case 'table':
         return isMobileViewport ? (
           <PeopleGridView people={filteredPeople} />
@@ -183,6 +215,17 @@ const BrowsePeoplePage: React.FC = () => {
             key={selectionEpoch}
             people={filteredPeople}
             onSelectionChange={setSelectedPeople}
+            {...(splitCapable
+              ? {
+                  // Opening someone ends select mode, so the person shows beside the list.
+                  onOpenPerson: (person: User) => {
+                    exitSelectMode();
+                    // The focused row is about to unmount; without this focus falls to the body.
+                    selectModeButtonRef.current?.focus();
+                    navigate(`/people/${person.id}`);
+                  },
+                }
+              : {})}
           />
         );
       case 'cards':
@@ -198,8 +241,25 @@ const BrowsePeoplePage: React.FC = () => {
     </Button>
   ) : null;
 
+  // Select mode is only offered where the split exists; the narrow page is always the table.
+  const selectModeButton = splitCapable ? (
+    <>
+      <Button
+        ref={selectModeButtonRef}
+        variant="outline"
+        onClick={selectMode ? exitSelectMode : () => setSelectMode(true)}
+      >
+        {selectMode ? 'Done' : 'Select people'}
+      </Button>
+      {/* The button's label changes, but the list swapping for a table is otherwise silent. */}
+      <p role="status" className="sr-only">
+        {selectMode ? 'Selecting people. Tick rows to copy emails or export.' : ''}
+      </p>
+    </>
+  ) : null;
+
   return (
-    <PageShell>
+    <PageShell {...(splitOpen ? { maxWidth: 'max-w-[110rem]' } : {})}>
       {/* Error state: only when there is nothing to show. A failed background refresh keeps the
           cached rows and says so inline (below). */}
       {error && !isLoading && people.length === 0 && (
@@ -217,7 +277,12 @@ const BrowsePeoplePage: React.FC = () => {
           <PageHeader
             breadcrumbs={breadcrumbs}
             title="People"
-            actions={addPersonButton}
+            actions={
+              <>
+                {selectModeButton}
+                {addPersonButton}
+              </>
+            }
             showTitle
           />
 
@@ -233,18 +298,29 @@ const BrowsePeoplePage: React.FC = () => {
             </div>
           )}
 
-          <PeopleListToolbar
-            people={people}
-            matchCount={filteredPeople.length}
-            filters={filters}
-            onFiltersChange={setFilters}
-            onClearAll={clearAllFilters}
-            hasActiveFilters={hasActiveFilters}
-            resultLineExtra={<ListViewToggle active={viewMode} onChange={setViewMode} />}
+          <MasterDetailLayout
+            id="people"
+            listLabel="People list"
+            detailLabel="Person details"
+            detail={splitOpen ? detail : null}
+            listHeader={
+              <PeopleListToolbar
+                people={people}
+                matchCount={filteredPeople.length}
+                filters={filters}
+                onFiltersChange={setFilters}
+                onClearAll={clearAllFilters}
+                hasActiveFilters={hasActiveFilters}
+                compact={splitOpen}
+                resultLineExtra={
+                  splitCapable ? undefined : (
+                    <ListViewToggle active={viewMode} onChange={setViewMode} />
+                  )
+                }
+              />
+            }
+            list={renderContent()}
           />
-
-          {/* People Cards */}
-          {renderContent()}
         </>
       )}
 
@@ -261,7 +337,9 @@ const BrowsePeoplePage: React.FC = () => {
       />
 
       {/* Floats at the bottom of the viewport, in view wherever rows were ticked. */}
-      <PeopleBulkBar selectedPeople={visibleSelection} onClearSelection={clearSelection} />
+      {!splitOpen && (
+        <PeopleBulkBar selectedPeople={visibleSelection} onClearSelection={clearSelection} />
+      )}
     </PageShell>
   );
 };

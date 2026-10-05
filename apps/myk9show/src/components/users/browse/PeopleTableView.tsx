@@ -9,6 +9,8 @@ interface PeopleTableViewProps {
   people: User[];
   /** Lifts row selection to the page for the list toolkit's bulk bar. */
   onSelectionChange?: (selected: User[]) => void;
+  /** Row click. Defaults to opening the person's page. */
+  onOpenPerson?: (person: User) => void;
 }
 
 function getFullName(user: User): string {
@@ -84,7 +86,11 @@ const columns: ColumnDef<User>[] = [
   },
 ];
 
-export const PeopleTableView: React.FC<PeopleTableViewProps> = ({ people, onSelectionChange }) => {
+export const PeopleTableView: React.FC<PeopleTableViewProps> = ({
+  people,
+  onSelectionChange,
+  onOpenPerson,
+}) => {
   const navigate = useNavigate();
 
   return (
@@ -101,7 +107,7 @@ export const PeopleTableView: React.FC<PeopleTableViewProps> = ({ people, onSele
           data={people}
           // The page's list-toolkit filter bar owns search; table keeps only
           // its Columns control.
-          onRowClick={person => navigate(`/people/${person.id}`)}
+          onRowClick={onOpenPerson ?? (person => navigate(`/people/${person.id}`))}
           getRowId={person => person.id}
           {...(onSelectionChange ? { selectable: 'multi' as const, onSelectionChange } : {})}
         />

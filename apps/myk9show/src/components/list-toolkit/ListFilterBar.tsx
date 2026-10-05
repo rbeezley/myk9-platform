@@ -31,6 +31,8 @@ interface ListFilterBarProps {
   fields: ListFilterField[];
   /** Resets search and every field. Shown only while something is active. */
   onClearAll?: () => void;
+  /** Narrow-pane layout: the search fills the row instead of a fixed 18-20rem. */
+  compact?: boolean;
   className?: string;
 }
 
@@ -132,6 +134,7 @@ export function ListFilterBar({
   searchPlaceholder,
   fields,
   onClearAll,
+  compact = false,
   className,
 }: ListFilterBarProps) {
   const anythingActive = fields.some(isFieldActive) || searchValue.trim() !== '';
@@ -143,7 +146,7 @@ export function ListFilterBar({
         onChange={onSearchChange}
         placeholder={searchPlaceholder}
         size="sm"
-        className="w-full sm:w-72 lg:w-80"
+        className={compact ? 'min-w-0 flex-1' : 'w-full sm:w-72 lg:w-80'}
       />
       {fields.map(field =>
         field.kind === 'options' ? (

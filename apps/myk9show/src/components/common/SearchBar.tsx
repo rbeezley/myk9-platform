@@ -55,6 +55,13 @@ export function SearchBar({
         placeholder={placeholder}
         value={value}
         onChange={e => onChange(e.target.value)}
+        onKeyDown={e => {
+          // Clearing text is the whole job of this Escape; it must not also close a dialog around it.
+          if (e.key === 'Escape' && value) {
+            e.stopPropagation();
+            onChange('');
+          }
+        }}
         aria-label={ariaLabel ?? placeholder}
         className={cn(
           // placeholder: the browser default gray reads at 2.5:1 on the white

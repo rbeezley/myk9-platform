@@ -11,7 +11,9 @@
  *   waiting queue, so "You're next" (dogsAhead 0) shows while a dog is still
  *   running. Scored and pulled entries are out of the queue entirely.
  *   Ordering is `run_order || armband` — a falsy run_order falls back to the
- *   armband, matching compareByRunOrder's `(a.exhibitorOrder || a.armband)`.
+ *   armband, matching compareByRunOrder's `(a.exhibitorOrder || a.armband)` —
+ *   and ties break by armband, then id, as compareByRunOrder does (MYK9-995;
+ *   pinned by runProximity.tieParity.test.ts against the real comparator).
  */
 
 export interface ProximityEntryRow {
@@ -71,9 +73,28 @@ export function isInQueue(entry: ProximityEntryRow): boolean {
   return entry.check_in_status == null || WAITING_CHECK_IN.has(entry.check_in_status);
 }
 
-function sortKey(entry: ProximityEntryRow): number {
-  // Mirrors `(a.exhibitorOrder || a.armband)` — 0 and null both fall through.
-  return entry.run_order || entry.armband || 0;
+/**
+ * The armband as a number, parsed like the ringside adapter (`parseInt`, else
+ * 0). `entries.armband` is TEXT, so the live select hands this a string
+ * whatever the row type says.
+ */
+function armbandKey(entry: ProximityEntryRow): number {
+  const parsed = Number.parseInt(String(entry.armband ?? ''), 10);
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
+/**
+ * Mirrors `compareByRunOrder`: `run_order || armband` (0 and null both fall
+ * through), then armband, then id on a tie (MYK9-995). Run order is not unique
+ * per class, and without the tie-break the push could name a different next
+ * dog than the screen and the server's place in line.
+ */
+function compareRunOrder(a: ProximityEntryRow, b: ProximityEntryRow): number {
+  const byKey = (a.run_order || armbandKey(a)) - (b.run_order || armbandKey(b));
+  if (byKey !== 0) return byKey;
+  const byArmband = armbandKey(a) - armbandKey(b);
+  if (byArmband !== 0) return byArmband;
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
 /**
@@ -84,7 +105,7 @@ export function pendingByRunOrder(entries: readonly ProximityEntryRow[]): Pendin
   return entries
     .filter(entry => isInQueue(entry) && !isInRing(entry))
     .slice()
-    .sort((a, b) => sortKey(a) - sortKey(b))
+    .sort(compareRunOrder)
     .map((entry, index) => ({
       entryId: entry.id,
       dogId: entry.dog_id,

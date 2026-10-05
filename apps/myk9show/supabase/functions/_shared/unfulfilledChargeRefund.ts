@@ -12,6 +12,12 @@
 // retried; a write it cannot confirm THROWS (5xx) and Stripe redelivers. Once
 // the request exists, every redelivery stops at the webhook's entry
 // (paidSessionEntry.ts) and ensures its alert there.
+//
+// The request is also the latch: begin_cart_fulfillment refuses a session
+// that has one, under the same cart lock the queue takes, and the queue
+// inserts nothing for a session whose run began first ('delivered'). So a
+// concurrent delivery can never fulfill a queued charge (Codex round 1 on
+// #2758).
 
 import type { AlertCopy } from './refundAlertCopy.ts';
 import { queueUnconfirmedAlert, unfulfilledChargeMissingInputsAlert } from './refundAlertCopy.ts';

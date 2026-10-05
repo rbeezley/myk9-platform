@@ -45,10 +45,21 @@
 --    run, or entries on its payment intent: the abandoned-cart guard, applied
 --    to this kind too. The approval UI already explains 'fulfilled'.
 --
--- Copied from its LATEST definition:
---   begin_refund_attempt  20261003013900_myk9_876_874_refund_requests.sql
---                         (matches the live body, 2026-10-05)
--- Changed: only the fulfilled guard (kind list, cart_fulfillments check).
+-- 4. begin_cart_fulfillment refuses ('not_claimable') a session that has an
+--    unfulfilled_charge request (Codex round 1 on #2758). The queue leaves
+--    the cart as it was (the exhibitor may check out again with a NEW
+--    session), so without this a concurrent delivery that passed validation
+--    could still begin fulfilling the queued session. Both functions take
+--    the cart row lock first, so queue and fulfillment are exclusive per
+--    session in both orders: queue first -> fulfillment refused; run first ->
+--    the queue reports 'delivered' and inserts nothing. One model for every
+--    reason: the request itself is the latch.
+--
+-- Copied from their LATEST definitions (each matches the live body, 2026-10-05):
+--   begin_refund_attempt    20261003013900_myk9_876_874_refund_requests.sql
+--                           changed: the fulfilled guard only
+--   begin_cart_fulfillment  20261004214700_myk9_964_replayable_cart_fulfillment.sql
+--                           changed: the not_claimable condition only
 --
 -- DEPLOY ORDER: push this migration BEFORE deploying stripe-webhook. The
 -- deployed webhook never writes 'unfulfilled_charge'; the new one calls
@@ -303,5 +314,120 @@ $$;
 REVOKE ALL ON FUNCTION public.begin_refund_attempt(uuid, uuid)
   FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.begin_refund_attempt(uuid, uuid) TO service_role;
+
+
+-- ============================================================================
+-- 4. Fulfillment refuses a session whose charge is queued as unfulfilled
+-- ============================================================================
+
+-- Copied from 20261004214700_myk9_964_replayable_cart_fulfillment.sql (its
+-- only definition; matches the live body, 2026-10-05). Changed: the
+-- not_claimable condition also covers an unfulfilled_charge request.
+CREATE OR REPLACE FUNCTION public.begin_cart_fulfillment(
+  p_cart_id uuid,
+  p_session_id text,
+  p_payment_intent_id text,
+  p_line_amounts jsonb
+)
+RETURNS TABLE (outcome text, cart_status text)
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+#variable_conflict use_column
+DECLARE
+  v_cart record;
+  v_run public.cart_fulfillments%ROWTYPE;
+  v_item_count integer;
+  v_amount_count integer;
+  v_priced_count integer;
+BEGIN
+  IF p_cart_id IS NULL OR p_session_id IS NULL OR p_payment_intent_id IS NULL
+     OR p_line_amounts IS NULL OR jsonb_typeof(p_line_amounts) <> 'object' THEN
+    RAISE EXCEPTION 'begin_cart_fulfillment: cart, session, intent and the line amounts are required'
+      USING errcode = '22023';
+  END IF;
+
+  SELECT c.id, c.status, c.stripe_checkout_session_id, c.show_id, c.exhibitor_id
+    INTO v_cart
+    FROM public.entry_carts c
+   WHERE c.id = p_cart_id
+   FOR UPDATE;
+
+  SELECT * INTO v_run
+    FROM public.cart_fulfillments f
+   WHERE f.stripe_checkout_session_id = p_session_id
+   FOR UPDATE;
+  IF v_run.stripe_checkout_session_id IS NOT NULL THEN
+    IF v_run.cart_id IS NOT NULL AND v_run.cart_id IS DISTINCT FROM p_cart_id THEN
+      RAISE EXCEPTION 'begin_cart_fulfillment: session % is being fulfilled for another cart', p_session_id
+        USING errcode = '22023';
+    END IF;
+    RETURN QUERY SELECT
+      CASE WHEN v_run.completed_at IS NULL THEN 'resumed' ELSE 'completed' END,
+      v_cart.status::text;
+    RETURN;
+  END IF;
+
+  -- MYK9-963 (Codex round 1 on #2758): a session whose charge is already
+  -- queued as unfulfilled_charge is never fulfilled, whatever its cart says.
+  -- Checked under the cart lock queue_unfulfilled_charge_refund also takes,
+  -- after the run check: a run that began first is resumed (and the queue
+  -- reports 'delivered' for it), so the two are exclusive in both orders.
+  IF v_cart.id IS NULL
+     OR v_cart.status IS DISTINCT FROM 'active'
+     OR v_cart.stripe_checkout_session_id IS DISTINCT FROM p_session_id
+     OR EXISTS (SELECT 1 FROM public.refund_requests r
+                 WHERE r.stripe_checkout_session_id = p_session_id
+                   AND r.kind = 'unfulfilled_charge') THEN
+    RETURN QUERY SELECT 'not_claimable'::text, v_cart.status::text;
+    RETURN;
+  END IF;
+
+  -- The verified amounts must price exactly the lines the cart holds now,
+  -- each a whole, non-negative number of cents.
+  SELECT count(*) INTO v_item_count
+    FROM public.entry_cart_items i WHERE i.cart_id = p_cart_id;
+  SELECT count(*) INTO v_amount_count FROM jsonb_object_keys(p_line_amounts);
+  SELECT count(*) INTO v_priced_count
+    FROM public.entry_cart_items i
+   WHERE i.cart_id = p_cart_id
+     AND jsonb_typeof(p_line_amounts -> i.id::text) = 'number'
+     AND (p_line_amounts ->> i.id::text)::numeric >= 0
+     AND (p_line_amounts ->> i.id::text)::numeric = trunc((p_line_amounts ->> i.id::text)::numeric);
+  IF v_item_count = 0 OR v_amount_count <> v_item_count OR v_priced_count <> v_item_count THEN
+    RAISE EXCEPTION 'begin_cart_fulfillment: the line amounts must price exactly the % line(s) of cart %',
+      v_item_count, p_cart_id
+      USING errcode = '22023';
+  END IF;
+
+  INSERT INTO public.cart_fulfillments (
+    stripe_checkout_session_id, cart_id, show_id, exhibitor_id, stripe_payment_intent_id
+  )
+  VALUES (p_session_id, p_cart_id, v_cart.show_id, v_cart.exhibitor_id, p_payment_intent_id);
+
+  INSERT INTO public.cart_fulfillment_lines (
+    stripe_checkout_session_id, cart_item_id, line_no, dog_id, class_id, trial_id, handler_id,
+    jump_height, special_requests, junior_fee_declared, existing_entry_id, line_amount_cents
+  )
+  SELECT p_session_id, i.id,
+         row_number() OVER (ORDER BY i.created_at, i.id)::integer,
+         i.dog_id, i.class_id, cl.trial_id, i.handler_id, i.jump_height, i.special_requests,
+         i.junior_fee_declared, i.entry_id, (p_line_amounts ->> i.id::text)::integer
+    FROM public.entry_cart_items i
+    LEFT JOIN public.classes cl ON cl.id = i.class_id
+   WHERE i.cart_id = p_cart_id;
+
+  UPDATE public.entry_carts c
+     SET status = 'fulfilling'
+   WHERE c.id = p_cart_id;
+
+  RETURN QUERY SELECT 'begun'::text, 'fulfilling'::text;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.begin_cart_fulfillment(uuid, text, text, jsonb)
+  FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.begin_cart_fulfillment(uuid, text, text, jsonb) TO service_role;
 
 COMMIT;

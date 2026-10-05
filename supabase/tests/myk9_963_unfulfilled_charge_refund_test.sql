@@ -22,6 +22,14 @@
 --   U8  Resolve without refund closes it (note required).
 --   U9  Approval is refused ('fulfilled', no attempt) once the session has an
 --       order, or a cart fulfillment run.
+--   U10 Queue BEFORE fulfillment (Codex round 1 on #2758): once a session's
+--       unfulfilled_charge request exists, begin_cart_fulfillment refuses it
+--       ('not_claimable') on a cart that is still active on that session, and
+--       writes no run; the cart stays as it was.
+--   U11 Fulfillment BEFORE queue: begin_cart_fulfillment holds the cart and
+--       writes the run; the queue then reports 'delivered' and inserts nothing.
+--   Both calls take the cart's row lock first, so they serialize per cart and
+--   one of these two orders is what any concurrent pair reduces to.
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
 
@@ -308,6 +316,86 @@ BEGIN
     (SELECT count(*)::text FROM public.refund_request_attempts
       WHERE request_id IN (v_late_order, v_late_run)),
     '0', 'U9 no attempt was created');
+END;
+$$;
+
+
+-- ---------------------------------------------------------------------------
+-- U10 / U11 fixtures: shows 963103/963104 (one active cart each per
+-- exhibitor), a trial and class on each, dog 963401, and one-line carts
+-- 963034 (cs_963_u10) and 963035 (cs_963_u11), both active on their session.
+-- ---------------------------------------------------------------------------
+RESET ROLE;
+INSERT INTO public.shows (id, name, organization, start_date, end_date, status, club_id)
+VALUES
+  (pg_temp.id('103'), 'MYK9-963 Show C', 'AKC', current_date + 30, current_date + 30, 'draft',
+   pg_temp.id('021')),
+  (pg_temp.id('104'), 'MYK9-963 Show D', 'AKC', current_date + 30, current_date + 30, 'draft',
+   pg_temp.id('021'));
+INSERT INTO public.trials (id, show_id, name, date, registry_id, trial_type)
+VALUES
+  (pg_temp.id('203'), pg_temp.id('103'), 'MYK9-963 Trial C', current_date + 30, 'AKC', 'Scent Work'),
+  (pg_temp.id('204'), pg_temp.id('104'), 'MYK9-963 Trial D', current_date + 30, 'AKC', 'Scent Work');
+INSERT INTO public.classes (id, trial_id, name, element, level, status, status_source, entry_fee)
+VALUES
+  (pg_temp.id('303'), pg_temp.id('203'), 'MYK9-963 C', 'Container', 'Novice', 'upcoming', 'manual', 30),
+  (pg_temp.id('304'), pg_temp.id('204'), 'MYK9-963 D', 'Container', 'Novice', 'upcoming', 'manual', 30);
+INSERT INTO public.dogs (id, name, call_name, breed, status, owner_id)
+VALUES (pg_temp.id('401'), 'MYK9-963 Dog', 'D', 'Beagle', 'active', pg_temp.id('011'));
+
+SET LOCAL ROLE service_role;
+INSERT INTO public.entry_carts (id, exhibitor_id, show_id, status)
+SELECT pg_temp.id(v.suffix), ep.id, pg_temp.id(v.show), 'active'
+FROM public.exhibitor_profiles ep
+CROSS JOIN (VALUES ('034', '103'), ('035', '104')) AS v(suffix, show)
+WHERE ep.auth_user_id = pg_temp.id('012');
+INSERT INTO public.entry_cart_items (id, cart_id, dog_id, class_id, entry_fee_cents)
+VALUES
+  (pg_temp.id('704'), pg_temp.id('034'), pg_temp.id('401'), pg_temp.id('303'), 3000),
+  (pg_temp.id('705'), pg_temp.id('035'), pg_temp.id('401'), pg_temp.id('304'), 3000);
+-- The session goes on AFTER the lines: every line insert severs it.
+UPDATE public.entry_carts SET stripe_checkout_session_id = 'cs_963_u10' WHERE id = pg_temp.id('034');
+UPDATE public.entry_carts SET stripe_checkout_session_id = 'cs_963_u11' WHERE id = pg_temp.id('035');
+
+-- U10. Queue first: fulfillment is refused --------------------------------
+DO $$
+DECLARE
+  v_b record;
+BEGIN
+  PERFORM pg_temp.expect_eq(
+    (SELECT outcome FROM pg_temp.queue('cs_963_u10', 'paid_amount_mismatch',
+                                        pg_temp.id('034'), pg_temp.id('103'))),
+    'queued', 'U10 the charge is queued while its cart is still active on the session');
+  SELECT * INTO v_b FROM public.begin_cart_fulfillment(
+    pg_temp.id('034'), 'cs_963_u10', 'pi_cs_963_u10',
+    jsonb_build_object(pg_temp.id('704')::text, 3000));
+  PERFORM pg_temp.expect_eq(v_b.outcome || ' ' || v_b.cart_status, 'not_claimable active',
+    'U10 begin_cart_fulfillment refuses a session with an unfulfilled_charge request');
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*)::text FROM public.cart_fulfillments
+      WHERE stripe_checkout_session_id = 'cs_963_u10')
+      || ' ' || (SELECT status FROM public.entry_carts WHERE id = pg_temp.id('034')),
+    '0 active', 'U10 no run was written and the cart is unchanged');
+END;
+$$;
+
+-- U11. Fulfillment first: the queue inserts nothing -----------------------
+DO $$
+DECLARE
+  v_b record;
+BEGIN
+  SELECT * INTO v_b FROM public.begin_cart_fulfillment(
+    pg_temp.id('035'), 'cs_963_u11', 'pi_cs_963_u11',
+    jsonb_build_object(pg_temp.id('705')::text, 3000));
+  PERFORM pg_temp.expect_eq(v_b.outcome, 'begun', 'U11 fulfillment begins first');
+  PERFORM pg_temp.expect_eq(
+    (SELECT outcome FROM pg_temp.queue('cs_963_u11', 'paid_amount_mismatch',
+                                        pg_temp.id('035'), pg_temp.id('104'))),
+    'delivered', 'U11 the queue then reports delivered');
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*)::text FROM public.refund_requests
+      WHERE stripe_checkout_session_id = 'cs_963_u11'),
+    '0', 'U11 and inserts no request');
 END;
 $$;
 

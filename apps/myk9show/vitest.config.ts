@@ -9,8 +9,7 @@ import path from 'path';
 // per-directory floors below would fail unpredictably depending on which shard
 // a directory's tests land in. Thresholds are only meaningful — and only
 // enforced here — against a run that saw the whole suite: a plain
-// `pnpm test:coverage` locally, the non-sharded post-merge
-// `test-show-coverage` job, or the shard-coverage merge step
+// `pnpm test:coverage` locally, or the shard-coverage merge step
 // (`--mergeReports=...`, which carries no `--shard` flag). MYK9-40.
 const isShardCollectionRun = process.argv.some(arg => arg.startsWith('--shard='));
 

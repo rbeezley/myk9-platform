@@ -17,7 +17,7 @@
 --   C1  waitlist_entries.status admits 'withdrawn' and still refuses an
 --       unknown status; the event queue still refuses an unknown type.
 --   C2  A withdrawn row frees the dog to join the wait list again.
---   M1  The offer message: a one-hour window reads "You have 1 hour"
+--   M1  The offer message (copy per 20261005235100): a one-hour window reads "You have 1 hour"
 --       (singular), and the deadline carries the trial zone's abbreviation
 --       (America/Phoenix: MST, no DST).
 --   MI1 A MAIL-IN offer past its deadline is withdrawn, not expired (the
@@ -385,7 +385,7 @@ BEGIN
   PERFORM pg_temp.expect_eq(
     (SELECT m.body FROM public.show_messages m
       WHERE m.show_id = pg_temp.fid('101') AND m.body LIKE 'A spot opened%'),
-    'A spot opened for Dog404 in Class Waitlist. You have 1 hour to claim it by paying (until Wed, Jul 15, 11:00 AM MST). You pay for this spot only if you claim it. Open My Entries to accept the offer before it expires.',
+    'A spot opened for Dog404 in Class Waitlist. You have 1 hour to pay (until Wed, Jul 15, 11:00 AM MST). You pay for this spot only if you claim it. Open My Entries to accept the offer before it expires.',
     'M1 one hour reads singular, and the deadline names the trial zone (Phoenix, MST)');
   PERFORM pg_temp.expect_eq((current_setting('TimeZone') <> 'America/Phoenix')::text,
     'true', 'M1 the session zone is put back after rendering');

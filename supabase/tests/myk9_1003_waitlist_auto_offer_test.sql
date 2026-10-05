@@ -45,9 +45,9 @@
 --       Entries line.
 --   W2  With no offer_expires_at it reads "before the offer ends".
 --   W3  No offer message says "haven't been charged".
---   W4  MYK9-1002 (migration 20261005152300): the deadline carries its weekday
+--   W4  MYK9-1002 (migrations 20261005152300, 20261005235100): the deadline carries its weekday
 --       and zone abbreviation, and an offer with an offered_at states its
---       window in hours ("You have 48 hours to claim it by paying (until Wed,
+--       window in hours ("You have 48 hours to pay (until Wed,
 --       Jul 15, 2:00 PM EDT)."); with no offered_at it reads "Claim it by
 --       paying before <deadline>." (asserted in the N2, M1 and W1 answers).
 --
@@ -89,7 +89,7 @@ $f$;
 
 -- The offer message's deadline line for a row whose times are set at offer
 -- time (now()), so the expected text cannot be a literal (MYK9-1002,
--- migration 20261005152300): "You have <N> hours to claim it by paying (until
+-- migrations 20261005152300, 20261005235100): "You have <N> hours to pay (until
 -- Wed, Oct 7, 12:30 PM EDT)." The zone abbreviation comes from to_char's TZ
 -- under that zone, set for this call only, as the message function does.
 CREATE FUNCTION pg_temp.offer_window_line(p_waitlist_entry_id uuid, p_zone text)
@@ -108,7 +108,7 @@ BEGIN
   PERFORM set_config('TimeZone', v_session, true);
   v_hours := round(extract(epoch FROM (v_expires - v_offered)) / 3600)::integer;
   RETURN 'You have ' || v_hours || CASE WHEN v_hours = 1 THEN ' hour' ELSE ' hours' END
-    || ' to claim it by paying (until ' || v_until || ').';
+    || ' to pay (until ' || v_until || ').';
 END;
 $f$;
 
@@ -648,7 +648,7 @@ BEGIN
       WHERE t.show_id = pg_temp.fid('101')
         AND t.participant_id = pg_temp.fid('023')
         AND m.body LIKE '%Class Race2%'),
-    '00000000-0000-0000-0000-000001003021 | A spot opened for Dog414 in Class Race2. You have 48 hours to claim it by paying (until Wed, Jul 15, 2:00 PM EDT). You pay for this spot only if you claim it. Complete payment to claim it: https://checkout.example.test/pay/1003',
+    '00000000-0000-0000-0000-000001003021 | A spot opened for Dog414 in Class Race2. You have 48 hours to pay (until Wed, Jul 15, 2:00 PM EDT). You pay for this spot only if you claim it. Complete payment to claim it: https://checkout.example.test/pay/1003',
     'M1/W1 the manual message carries the deadline (New York) and the payment link, from the secretary');
 END;
 $$;
@@ -719,7 +719,7 @@ BEGIN
       WHERE t.show_id = pg_temp.fid('103')
         AND t.participant_id = pg_temp.fid('023')
         AND m.body LIKE '%/pay/1013d'),
-    'A spot opened for Dog426 in Class Future. You have 12 hours to claim it by paying (until Wed, Jul 15, 12:00 PM MDT). You pay for this spot only if you claim it. Complete payment to claim it: https://checkout.example.test/pay/1013d',
+    'A spot opened for Dog426 in Class Future. You have 12 hours to pay (until Wed, Jul 15, 12:00 PM MDT). You pay for this spot only if you claim it. Complete payment to claim it: https://checkout.example.test/pay/1013d',
     'W1 a two-zone show: the class''s own trial zone (Denver) wins over the show''s first trial (Chicago)');
   PERFORM pg_temp.expect_eq(
     (SELECT m.body FROM public.show_messages m

@@ -143,6 +143,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_1003_waitlist_auto_offer_test.sql"
   "$TEST_DIR/myk9_1000_count_live_waitlist_entries_test.sql"
   "$TEST_DIR/myk9_1001_waitlist_offer_withdrawn_test.sql"
+  "$TEST_DIR/myk9_1002_waitlist_offer_message_deadline_test.sql"
   "$TEST_DIR/myk9_997_platform_income_club_funded_refunds_test.sql"
   "$TEST_DIR/myk9_941_dog_registrations_co_owner_writes_test.sql"
   "$TEST_DIR/myk9_923_entries_refuse_deleted_parent_test.sql"

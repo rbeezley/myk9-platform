@@ -19,10 +19,10 @@ import { describe, expect, it } from 'vitest';
  * for 18 hours across 12 commits, and the failure first surfaced on an
  * unrelated docs-only commit.
  *
- * NOT covered by this file, deliberately: `Test myK9Show (coverage)`. That job
- * is push-only ON PURPOSE — it is a post-merge whole-suite report and ratchet,
- * not a gate. Its gate counterpart is `Test myK9Show (coverage gate)`, which
- * merges the shard blobs and runs on PRs.
+ * Also pinned here: there is no second, single-runner full-suite coverage job.
+ * `Test myK9Show (coverage)` reran all ~26.8k myK9Show tests on one runner
+ * (27-45 min) duplicating the sharded `test-show` + `test-show-coverage-gate`
+ * pair, and its timeout cancelled whole CI runs, blocking deploys.
  */
 const workflow = readFileSync(
   resolve(import.meta.dirname, '../../.github/workflows/ci.yml'),
@@ -95,14 +95,23 @@ describe('CI collects coverage on pull requests, not only on push', () => {
     expect(runLineForStep('Test packages')).toMatch(/^run: pnpm test:packages\b/);
   });
 
-  it('leaves the post-merge myK9Show coverage report push-only', () => {
-    // The other half of the contract: this one is NOT a gate and must not
-    // start running on PRs, or every PR pays for a second full unsharded suite.
-    const lines = workflow.split('\n');
-    const jobStart = lines.findIndex(line => line.trim() === 'test-show-coverage:');
-    expect(jobStart, 'test-show-coverage job not found').toBeGreaterThan(-1);
+  it('has no single-runner full-suite coverage job beside the sharded gate', () => {
+    // The sharded `test-show` jobs upload blobs and `test-show-coverage-gate`
+    // merges them, enforces thresholds and runs the ratchet. A job that reruns
+    // the whole suite with --coverage on one runner duplicates that and is the
+    // slowest job in the run (it timed out and cancelled CI on 2026-10-05).
+    expect(workflow).not.toMatch(/^ {2}test-show-coverage:/m);
+    expect(workflow).not.toContain('Test myK9Show (coverage)`');
 
-    const jobBody = lines.slice(jobStart, jobStart + 12).join('\n');
-    expect(jobBody).toContain("if: github.event_name == 'push'");
+    const unsharded = workflow
+      .split('\n')
+      .filter(line => /vitest run/.test(line) && /--coverage(\s|$)/.test(line))
+      .filter(line => !/--shard=|--mergeReports/.test(line));
+    expect(unsharded).toEqual([]);
+  });
+
+  it('keeps the sharded gate that replaced it (positive control)', () => {
+    expect(workflow).toMatch(/^ {2}test-show-coverage-gate:/m);
+    expect(workflow).toContain('pnpm coverage:ratchet');
   });
 });

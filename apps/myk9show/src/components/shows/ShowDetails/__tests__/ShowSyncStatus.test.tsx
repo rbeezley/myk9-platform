@@ -45,4 +45,15 @@ describe('ShowSyncStatus', () => {
     rerender(<ShowSyncStatus />);
     expect(screen.getByRole('status')).toHaveTextContent('All changes saved');
   });
+
+  it('shrinks to the check mark on a phone only when everything is saved', () => {
+    mocks.sync.status = 'synced';
+    mocks.sync.isOnline = true;
+    const { rerender } = render(<ShowSyncStatus />);
+    expect(screen.getByText('All changes saved').className).toContain('sr-only');
+
+    mocks.sync.status = 'conflict';
+    rerender(<ShowSyncStatus />);
+    expect(screen.getByText('Sync needs attention').className).not.toContain('sr-only');
+  });
 });

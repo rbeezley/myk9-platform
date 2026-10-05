@@ -66,7 +66,7 @@ An earlier version of this note proposed building a new split and an `EntryDetai
 
 **Done in this change (variant B on the design canvas):**
 
-- Every management tab, Overview included, gets one `ShowCompactHeader` (name, dates, host club, entry count, and the same offline, sync, presence and status controls), pinned under the app header from `lg`; the tab strip is pinned under it. Its height is measured (`--show-header-h`), since the controls wrap on a narrow window. The full hero is gone.
+- Every management tab, Overview included, gets one `ShowHeader` (name, dates, host club, entry count, and the same offline, sync, presence and status controls), pinned under the app header from `lg`; the tab strip is pinned under it. Its height is measured (`--show-header-h`), since the controls wrap on a narrow window. The full hero is gone.
 - A chevron in the header slides open a details panel (`ShowDetailsPanel`): the quick-info cells on every tab, and on Overview the Premium List and Public Landing Page cards. Collapsed by default and remembered. A `#setup-publish*` link opens it, and while the premium list or landing page is unpublished a "Premium not published" chip in the header opens it, so collapsing hides no task.
 - The Entry Management toolbar uses the list toolkit's compact layout (views, search and filters on one row, count only when narrowed); the page title is smaller and the show-name line is read aloud, not drawn (the pinned header names the show).
 - The focused-registration pane sticks under the pinned header (`--show-sticky-offset`).
@@ -88,3 +88,7 @@ Each phase is not complete until these pass:
 - No new routes or pages.
 - No change to detail-view content or permissions.
 - No resizable panes below `lg`.
+
+## Show header polish (2026-10-05)
+
+Follow-up to the header redesign: the visible "Entry Management" title and the "Your show" title and kicker are gone (screen-reader headings stay), More and Add Entry live in the Entries toolbar row, and "About this show" is part of the expandable show header panel. The one-row toolbar applies from `lg` only; below it the controls stack so the search field keeps its width.

@@ -9,6 +9,8 @@ import {
 } from '@/features/show-workbench/publishReadiness';
 import { getShowStyle } from '@/features/registries';
 import { cn } from '@/lib/utils';
+import { AboutThisShowCard } from '@/components/shows/overview/AboutThisShowCard';
+import type { ShowJudgeAssignment } from '@/types/judge-types';
 import type { Show } from '@/types/show-types';
 
 export const SHOW_DETAILS_PANEL_ID = 'show-details-panel';
@@ -25,6 +27,7 @@ interface ShowDetailsPanelProps {
   canManageShow: boolean;
   /** `null` while entry counts are unavailable, so no false zero shows. */
   entryCount: number | null;
+  judges?: ShowJudgeAssignment[] | undefined;
   open: boolean;
   /**
    * INTENT: the publish row lives on Overview ONLY (Richard, decision 2). It was an always-on row
@@ -45,6 +48,7 @@ export const ShowDetailsPanel: React.FC<ShowDetailsPanelProps> = ({
   show,
   canManageShow,
   entryCount,
+  judges,
   open,
   showPublishing,
 }) => (
@@ -81,6 +85,7 @@ export const ShowDetailsPanel: React.FC<ShowDetailsPanelProps> = ({
           <LandingPageCard showId={show.id} showStyle={getShowStyle(show)} />
         </div>
       )}
+      {showPublishing && <AboutThisShowCard show={show} judges={judges} />}
     </section>
   </div>
 );

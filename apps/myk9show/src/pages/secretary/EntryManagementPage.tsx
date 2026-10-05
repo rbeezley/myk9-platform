@@ -287,15 +287,64 @@ const EntryManagementPage: React.FC = () => {
     );
   }
 
+  const entryActions = (
+    <>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button type="button" variant="outline" className="gap-2">
+            <MoreHorizontal className="h-4 w-4" aria-hidden />
+            More
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-64 space-y-2">
+          <p className="text-sm font-semibold">Entry tools</p>
+          <Button asChild variant="outline" size="sm" className="h-8 gap-2">
+            <Link
+              to={`/shows/${encodeURIComponent(selectedShowId || urlShowId || '')}?tool=people-at-show`}
+            >
+              <UserCheck className="h-4 w-4" aria-hidden />
+              Open Check-in desk
+            </Link>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleExportCSV}
+            disabled={!selectedShowId || isProcessing}
+            className="h-8 gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Export Full CSV
+          </Button>
+        </PopoverContent>
+      </Popover>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button type="button" disabled={!selectedShowId} className="gap-2">
+            <Plus className="h-4 w-4" aria-hidden />
+            Add Entry
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-auto max-w-[calc(100vw-2rem)] space-y-3">
+          <p className="text-sm font-semibold">Who are you entering?</p>
+          <SecretaryAddEntriesDecision
+            showId={selectedShowId}
+            mailInDisabledReason={secretaryOnlyReason}
+          />
+          {/* Moved from Show Day's Tools (MYK9-954): every way to add an
+                  entry lives behind this one button. */}
+          <WorkbenchLateEntryAction showId={selectedShowId} disabledReason={secretaryOnlyReason} />
+        </PopoverContent>
+      </Popover>
+    </>
+  );
+
   return (
     <div className="manager-content-container container mx-auto space-y-4 p-4 sm:p-6">
       <ShowDeskReturnLink showId={selectedShowId || urlShowId} />
-      <div className="manager-page-header">
-        <div className="min-w-0">
-          <h1 className="break-words text-xl font-bold tracking-tight sm:text-2xl">
-            Entry Management
-          </h1>
-          {/*
+      <div className="sr-only">
+        <h1>Entry Management</h1>
+        {/*
             Name the show. Every accept, reject, refund and exhibitor email on
             this page is scoped to one show, and the secretary can arrive here
             from a bare `/secretary/entries` link that resolves the show from
@@ -304,62 +353,7 @@ const EntryManagementPage: React.FC = () => {
             show must not be described as a named one. The pinned show header
             above names it on screen, so this line is read aloud, not drawn.
           */}
-          <p className="sr-only">
-            {selectedShow?.name ?? 'Manage entries, payments, and exhibitor email for one show'}
-          </p>
-        </div>
-        <div className="manager-page-actions">
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button type="button" variant="outline" className="gap-2">
-                <MoreHorizontal className="h-4 w-4" aria-hidden />
-                More
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-64 space-y-2">
-              <p className="text-sm font-semibold">Entry tools</p>
-              <Button asChild variant="outline" size="sm" className="h-8 gap-2">
-                <Link
-                  to={`/shows/${encodeURIComponent(selectedShowId || urlShowId || '')}?tool=people-at-show`}
-                >
-                  <UserCheck className="h-4 w-4" aria-hidden />
-                  Open Check-in desk
-                </Link>
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleExportCSV}
-                disabled={!selectedShowId || isProcessing}
-                className="h-8 gap-2"
-              >
-                <Download className="h-4 w-4" />
-                Export Full CSV
-              </Button>
-            </PopoverContent>
-          </Popover>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button type="button" disabled={!selectedShowId} className="gap-2">
-                <Plus className="h-4 w-4" aria-hidden />
-                Add Entry
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent align="end" className="w-auto max-w-[calc(100vw-2rem)] space-y-3">
-              <p className="text-sm font-semibold">Who are you entering?</p>
-              <SecretaryAddEntriesDecision
-                showId={selectedShowId}
-                mailInDisabledReason={secretaryOnlyReason}
-              />
-              {/* Moved from Show Day's Tools (MYK9-954): every way to add an
-                  entry lives behind this one button. */}
-              <WorkbenchLateEntryAction
-                showId={selectedShowId}
-                disabledReason={secretaryOnlyReason}
-              />
-            </PopoverContent>
-          </Popover>
-        </div>
+        <p>{selectedShow?.name ?? 'Manage entries, payments, and exhibitor email for one show'}</p>
       </div>
 
       {/*
@@ -416,6 +410,7 @@ const EntryManagementPage: React.FC = () => {
           onSearchChange={cockpit.setSearch}
           onDensityChange={cockpit.setDensity}
           onClearAll={handleClearEntryFilters}
+          actions={entryActions}
           result={
             canValidateFocus
               ? { shown: cockpit.page.total, total: cockpit.queueTotals.registrationCount }

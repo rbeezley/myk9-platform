@@ -23,12 +23,16 @@ const show = {
 } as unknown as Show;
 
 describe('AboutThisShowCard (MYK9-955)', () => {
-  it('starts folded and offers Edit show and View as exhibitor', async () => {
-    const { user } = render(<AboutThisShowCard show={show} />, {
+  it('shows officials, judges and sharing outright, and offers Edit show and View as exhibitor', () => {
+    render(<AboutThisShowCard show={show} />, {
       initialRoute: '/shows/show-1?focus=class-1',
     });
 
-    expect(screen.queryByTestId('officials')).toBeNull();
+    // It lives in the show header's details panel, which is already folded: no second disclosure.
+    expect(screen.queryByRole('button', { name: /about this show/i })).toBeNull();
+    expect(screen.getByTestId('officials')).toBeInTheDocument();
+    expect(screen.getByTestId('judges')).toBeInTheDocument();
+    expect(screen.getByTestId('share')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /edit show/i })).toHaveAttribute(
       'href',
       '/shows/show-1?focus=class-1&edit=true'
@@ -36,9 +40,5 @@ describe('AboutThisShowCard (MYK9-955)', () => {
     const preview = screen.getByRole('link', { name: /view as exhibitor/i }).getAttribute('href');
     expect(preview).toContain('preview=public');
     expect(decodeURIComponent(preview ?? '')).toContain('returnTo=/shows/show-1?focus=class-1');
-
-    await user.click(screen.getByRole('button', { name: /about this show/i }));
-    expect(screen.getByTestId('officials')).toBeInTheDocument();
-    expect(screen.getByTestId('judges')).toBeInTheDocument();
   });
 });

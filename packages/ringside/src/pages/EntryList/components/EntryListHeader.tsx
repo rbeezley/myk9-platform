@@ -196,8 +196,9 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
         }}
         currentPage="entries"
       />
-      {/* Hidden on phones: there is no room beside the title and the class list
-          shows the same chip. From 640px up it sits next to the back button. */}
+      {/* Hidden on phones: there is no room beside the title. The class list
+          shows the show's offline-ready badge instead. From 640px up the chip
+          sits next to the back button. */}
       <div className="max-sm:hidden">
         <CompactOfflineIndicator />
       </div>

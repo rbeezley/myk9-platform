@@ -25,6 +25,9 @@ function entry(id: string, registrationId: string, ownerName: string): EntryMana
         number: 'CN-A',
         fee: 25,
         status: 'entered',
+        trialId: 'trial-1',
+        trialDate: '2026-11-09',
+        trialNumber: '1',
       },
     ],
     totalFee: 25,
@@ -132,6 +135,14 @@ describe('EntryRegistrationQueue', () => {
       expect(screen.queryByText('Payment due')).not.toBeInTheDocument();
     });
 
+    it('says which trial date, trial number and class each form is for', () => {
+      restoreMatchMedia = stubMatchMedia(true);
+      renderQueue();
+
+      expect(screen.getAllByText('Mon, Nov 9 · Trial 1')).toHaveLength(2);
+      expect(screen.getAllByText(/Container Novice A/)).toHaveLength(2);
+    });
+
     it('clicking a row focuses it while its checkbox only changes bulk selection', async () => {
       restoreMatchMedia = stubMatchMedia(true);
       const { user, groups, onFocus, onToggle } = renderQueue();
@@ -194,6 +205,13 @@ describe('EntryRegistrationQueue', () => {
       const focused = screen.getByRole('listitem', { name: /alice martin/i });
       expect(focused.className).toContain('flex-col');
       expect(focused.className).not.toContain('grid-cols-[2.75rem_minmax(0,1.15fr)');
+    });
+
+    it('shows the trial date, number and class in the stacked row too', () => {
+      restoreMatchMedia = stubMatchMedia(false);
+      renderQueue();
+
+      expect(screen.getAllByText('Mon, Nov 9 · Trial 1')).toHaveLength(2);
     });
 
     it('renders each row exactly once (no CSS-hidden duplicate copy)', () => {

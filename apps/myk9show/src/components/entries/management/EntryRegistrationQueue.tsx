@@ -15,6 +15,7 @@ import {
   type ShowRegistrationGroup,
 } from './showRegistrationProjection';
 import { getRegistrationReviewLabel } from './reviewStateLabels';
+import { EntryFormTrialClasses } from './EntryFormTrialClasses';
 
 /**
  * Below this measured width (px) the queue stacks each registration into a
@@ -255,6 +256,8 @@ export function EntryRegistrationQueue({
                       {group.entryCount === 1 ? 'Entry' : 'Entries'}
                     </p>
 
+                    <EntryFormTrialClasses entries={group.entries} truncate={false} />
+
                     <div className="text-sm">
                       <p className="font-medium">{reviewLabel(group)}</p>
                       <p
@@ -315,6 +318,12 @@ export function EntryRegistrationQueue({
                     <div className="text-right text-sm">
                       <RegistrationActionButton group={group} onFocus={onFocus} />
                     </div>
+
+                    <EntryFormTrialClasses
+                      entries={group.entries}
+                      truncate
+                      className="col-span-4 col-start-2"
+                    />
                   </>
                 )}
               </div>

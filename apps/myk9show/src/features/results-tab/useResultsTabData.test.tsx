@@ -1,0 +1,134 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { render, screen } from '@/test/utils/testUtils';
+import type { SyncableTrial, SyncableTrialClass } from '@/store/trial-store-types';
+import { useResultsTabData } from './useResultsTabData';
+
+const SYNC = {
+  _version: 1,
+  _lastModified: new Date(0),
+  _lastModifiedBy: '',
+  _syncStatus: 'synced',
+} as const;
+
+const mocks = vi.hoisted(() => ({
+  schedule: {} as Record<string, unknown>,
+  entries: {} as Record<string, unknown>,
+  prints: {} as Record<string, unknown>,
+  classes: [] as { id: string; results_released_at: string | null }[],
+}));
+
+vi.mock('@/pages/secretary/useShowDeskScheduleRead', () => ({
+  useShowDeskScheduleRead: () => mocks.schedule,
+}));
+vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
+  useSecretaryShowEntriesQuery: () => mocks.entries,
+}));
+vi.mock('@/features/show-map/cockpit/useShowPaperworkPrints', () => ({
+  useShowPaperworkPrints: () => mocks.prints,
+}));
+vi.mock('@/store/classStore', () => ({
+  useClassStore: () => ({ classes: mocks.classes }),
+}));
+
+const trial = {
+  id: 'trial-1',
+  showId: 'show-1',
+  showName: 'Fall Trial',
+  trialDate: '2026-10-10',
+  trialNumber: '1',
+  status: 'Scheduled',
+  ...SYNC,
+} as SyncableTrial;
+const otherShowTrial = { ...trial, id: 'trial-x', showId: 'show-2' } as SyncableTrial;
+const cls = {
+  id: 'class-1',
+  element: 'Containers',
+  level: 'Novice',
+  section: '',
+  judgeId: 'j',
+  judgeName: 'Pat Judge',
+  startTime: '09:00',
+  status: 'Completed',
+  entries: 0,
+  ...SYNC,
+} as SyncableTrialClass;
+
+function Probe() {
+  const data = useResultsTabData('show-1');
+  return (
+    <div>
+      <span data-testid="state">{data.readState}</span>
+      <span data-testid="rows">
+        {data.rows
+          .map(row => `${row.id}:${row.phase}:${row.scoredCount}/${row.expectedCount}`)
+          .join()}
+      </span>
+    </div>
+  );
+}
+
+beforeEach(() => {
+  mocks.schedule = {
+    trials: [trial, otherShowTrial],
+    trialClasses: { 'trial-1': [cls], 'trial-x': [{ ...cls, id: 'class-other' }] },
+    hasConfirmedSnapshot: true,
+    readFailed: false,
+    readPending: false,
+    retry: vi.fn(),
+  };
+  mocks.entries = {
+    data: [
+      {
+        id: 'e1',
+        class_id: 'class-1',
+        entry_status: 'confirmed',
+        check_in_status: 'checked-in',
+        is_scored: true,
+        result_status: 'qualified',
+      },
+    ],
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  };
+  mocks.prints = { data: [], isError: false, syncFailed: false };
+  mocks.classes = [{ id: 'class-1', results_released_at: null }];
+});
+
+describe('useResultsTabData', () => {
+  it("returns only this show's classes, with scores from the secretary read and the release stamp from the class store", () => {
+    mocks.classes = [{ id: 'class-1', results_released_at: '2026-10-10T16:00:00Z' }];
+    render(<Probe />);
+
+    expect(screen.getByTestId('state')).toHaveTextContent('ready');
+    expect(screen.getByTestId('rows')).toHaveTextContent('class-1:released:1/1');
+    expect(screen.getByTestId('rows')).not.toHaveTextContent('class-other');
+  });
+
+  it('reports a paused entries read as unavailable, never as an empty show', () => {
+    mocks.entries = { data: undefined, isLoading: false, isError: false, refetch: vi.fn() };
+    render(<Probe />);
+
+    expect(screen.getByTestId('state')).toHaveTextContent('unavailable');
+  });
+
+  it('reports failed and loading reads as such', () => {
+    mocks.entries = { data: undefined, isLoading: false, isError: true, refetch: vi.fn() };
+    const { unmount } = render(<Probe />);
+    expect(screen.getByTestId('state')).toHaveTextContent('failed');
+    unmount();
+
+    mocks.entries = { data: undefined, isLoading: true, isError: false, refetch: vi.fn() };
+    render(<Probe />);
+    expect(screen.getByTestId('state')).toHaveTextContent('loading');
+  });
+
+  it('treats a failed print sync as unknown, so a released class is not read as printed', () => {
+    mocks.classes = [{ id: 'class-1', results_released_at: '2026-10-10T16:00:00Z' }];
+    mocks.prints = { data: [], isError: false, syncFailed: true };
+    render(<Probe />);
+
+    expect(screen.getByTestId('rows')).toHaveTextContent('class-1:released:1/1');
+  });
+});

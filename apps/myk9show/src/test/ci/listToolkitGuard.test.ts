@@ -80,10 +80,6 @@ const ARIA_PRESSED_DECLARED: Record<string, { count: number; reason: string }> =
     reason: 'payment method choice',
   },
   'pages/PricingPage.tsx': { count: 2, reason: 'billing period toggle' },
-  'pages/secretary/ShowResultsSection.tsx': {
-    count: 1,
-    reason: 'results section chip, not a list filter',
-  },
   'pages/secretary/ResultsControlPage/PresetSelector.tsx': {
     count: 1,
     reason: 'results preset, not a filter',

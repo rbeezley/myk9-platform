@@ -264,6 +264,18 @@ describe('ResultsControlPage', () => {
     expect(screen.getByRole('heading', { name: 'Results', level: 1 })).toBeInTheDocument();
   });
 
+  it('embedded (the Results tab sheet): drops the page heading but keeps the visibility controls', () => {
+    render(
+      <Routes>
+        <Route path="/shows/:id/results" element={<ResultsControlPage embedded />} />
+      </Routes>,
+      { initialRoute: '/shows/show-1/results' }
+    );
+
+    expect(screen.queryByRole('heading', { name: 'Results', level: 1 })).not.toBeInTheDocument();
+    expect(screen.getByText('Result visibility')).toBeInTheDocument();
+  });
+
   it('renders all three preset cards', () => {
     renderPage();
     expect(screen.getByText('Immediately')).toBeInTheDocument();

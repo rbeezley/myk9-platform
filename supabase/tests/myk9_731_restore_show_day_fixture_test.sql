@@ -90,7 +90,7 @@ LANGUAGE sql AS $$
     (SELECT jsonb_agg(to_jsonb(c) ORDER BY c.id)::text FROM public.classes c
       WHERE c.trial_id = '00000000-0000-0000-0000-000000731510'),
     (SELECT jsonb_agg(to_jsonb(e) ORDER BY e.id)::text FROM public.entries e
-      WHERE e.id::text LIKE '00000000-0000-0000-0000-000000731%'),
+      WHERE e.show_id = '00000000-0000-0000-0000-000000731500'),
     (SELECT jsonb_agg(to_jsonb(d) ORDER BY d.id)::text FROM public.dogs d),
     (SELECT jsonb_agg(to_jsonb(p) ORDER BY p.id)::text FROM public.people p)
   ));
@@ -219,6 +219,9 @@ BEGIN
   IF pg_temp.ready() <> 1 THEN
     RAISE EXCEPTION 'FAIL 2.3 the fixture is not ready after the second run';
   END IF;
+  IF pg_temp.outside() IS DISTINCT FROM (SELECT h FROM outside_before) THEN
+    RAISE EXCEPTION 'FAIL 2.4 the first two runs wrote a row outside the fixture (another show, a dog or a person)';
+  END IF;
   RAISE NOTICE 'PASS 2 a second run the same day is a no-op';
 END;
 $$;
@@ -242,6 +245,10 @@ UPDATE public.classes SET deleted_at = now()
 WHERE trial_id IN (SELECT id FROM public.trials WHERE show_id = 'dededede-0000-0000-0000-000000000014');
 UPDATE public.trials SET deleted_at = now() WHERE show_id = 'dededede-0000-0000-0000-000000000014';
 UPDATE public.shows SET deleted_at = now() WHERE id = 'dededede-0000-0000-0000-000000000014';
+
+-- The setup above is the test's own writes; re-take the outside snapshot so
+-- case 4 judges only what the case 3 restore does.
+UPDATE outside_before SET h = pg_temp.outside();
 
 CREATE TEMP TABLE walk_entry_before ON COMMIT DROP AS
 SELECT to_jsonb(e) AS row FROM public.entries e WHERE e.id = '00000000-0000-0000-0000-000000731602';

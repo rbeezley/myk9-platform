@@ -9,7 +9,7 @@
  * `judgeId`); the name is only a fallback for a row whose id did not resolve. A class with no
  * judge or no date is a day of its own, so it can still be signed off.
  *
- * Pure and component-free so the Show Map, the cockpit, the Reports page and the Results tab
+ * Pure and component-free so the Show Map, the cockpit and the Results tab
  * (MYK9-1031) group the same way.
  */
 import { formatEntryDate } from '@/lib/format/dates';

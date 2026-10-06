@@ -324,8 +324,7 @@ export const reportRegistry: ReportDefinition[] = [
     id: 'result-catalog',
     name: 'Result Catalog',
     phase: 'after',
-    // 'judge-day' (MYK9-1030): the marked catalog a judge initials at the end of their day.
-    scopes: ['show', 'trial', 'class', 'judge-day'],
+    scopes: ['show', 'trial', 'class'],
     sortOptions: [
       { value: 'placement', label: 'Placement' },
       { value: 'armband', label: 'Armband #' },

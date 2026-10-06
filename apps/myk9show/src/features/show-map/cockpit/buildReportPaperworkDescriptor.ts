@@ -27,9 +27,6 @@ export function buildReportPaperworkDescriptor(input: {
   classes: readonly DbClass[];
   entries: readonly DbEntry[];
 }): PaperworkDescriptor | null {
-  // No print record is kept for a judge's day (MYK9-1030): paperwork_prints scopes are show,
-  // trial and class.
-  if (input.scope.kind === 'judge-day') return null;
   const selected = input.entries.filter(entry => entryInScope(entry, input.scope, input.classes));
   if (selected.length === 0) return null;
   const classById = new Map(input.classes.map(classItem => [classItem.id, classItem] as const));

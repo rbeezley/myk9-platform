@@ -124,7 +124,7 @@ describe("judge's end-of-day sign-off (MYK9-1030)", () => {
       a => a.id === 'collect-judge-signature'
     );
     expect(collect?.href).toBe(
-      `/shows/show-1/reports?report=result-catalog&judgeId=judge-jane&date=${SATURDAY}`
+      '/shows/show-1/reports?report=result-catalog&trialId=trial-1&classId=c2'
     );
   });
 

@@ -332,12 +332,7 @@ export type ReportPhase = 'before' | 'during' | 'after' | 'anytime';
 export type ReportScope =
   | { kind: 'show'; showId: string }
   | { kind: 'trial'; showId: string; trialId: string }
-  | { kind: 'class'; showId: string; trialId: string; classId: string }
-  /**
-   * MYK9-1030: every class one judge judged on one date, across trials — the marked catalog the
-   * judge initials (or signs) at the end of their day. `judgeId` is the judge's `people.id`.
-   */
-  | { kind: 'judge-day'; showId: string; judgeId: string; date: string };
+  | { kind: 'class'; showId: string; trialId: string; classId: string };
 
 export type ReportScopeKind = ReportScope['kind'];
 

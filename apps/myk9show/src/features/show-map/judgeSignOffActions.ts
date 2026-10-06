@@ -1,8 +1,8 @@
 /**
  * MYK9-1030: the judge's end-of-day sign-off, as Show Map actions on a class node.
  *
- * - `collect-judge-signature` opens the marked Result Catalog for the judge's whole day (one
- *   catalog per judge per day, across trials), or the class when the judge is unknown.
+ * - `collect-judge-signature` opens the class's marked Result Catalog (as before MYK9-1030; a
+ *   judge's-day catalog is a follow-up).
  * - `record-judge-sign-off` records "Initialed by [judge], [day]" on EVERY completed class of that
  *   judge's day in one action. It carries the class ids so the executor never re-derives them.
  * - `clear-judge-sign-off` is the per-class undo.
@@ -19,7 +19,6 @@ import { getShowMapReportHref } from './showMapRoutes';
 import { SHOW_MAP_WRAP_UP_STATUS } from './showMapTypes';
 import type { ShowMapNode, ShowMapTree } from './showMapTypes';
 import type { ShowMapAction } from './showMapActions';
-import type { ReportScope } from '@/lib/reports/types';
 
 /**
  * The classes one sign-off records: every class of this node's judge-day still waiting for the
@@ -38,17 +37,6 @@ export function judgeDaySignOffClassIds(node: ShowMapNode, tree: ShowMapTree): s
     .map(candidate => getNodeSourceId(candidate, 'class'))
     .filter((id): id is string => Boolean(id))
     .sort();
-}
-
-function catalogScope(
-  node: ShowMapNode,
-  showId: string,
-  trialId: string,
-  classId: string
-): ReportScope {
-  return node.judgeId && node.trialDate
-    ? { kind: 'judge-day', showId, judgeId: node.judgeId, date: node.trialDate }
-    : { kind: 'class', showId, trialId, classId };
 }
 
 export function judgeSignOffActionsForClassNode(
@@ -99,7 +87,7 @@ export function judgeSignOffActionsForClassNode(
         ? {
             href: getShowMapReportHref({
               reportId: 'result-catalog',
-              scope: catalogScope(node, showId, trialId, classId),
+              scope: { kind: 'class', showId, trialId, classId },
             }),
           }
         : {}),

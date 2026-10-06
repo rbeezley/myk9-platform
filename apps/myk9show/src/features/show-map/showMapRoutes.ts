@@ -1,7 +1,6 @@
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
 import { getPaperScoringClassHref } from '@/pages/scoring/scoringRoutes';
 import type { ReportScope } from '@/lib/reports/types';
-import { getReportScopeSearchParams } from '@/lib/reports/reportScope';
 
 export interface ShowMapReportHrefInput {
   reportId: string;
@@ -30,7 +29,8 @@ export function getShowMapTrialScheduleHref(showId: string): string {
 
 export function getShowMapReportHref({ reportId, scope }: ShowMapReportHrefInput): string {
   const params = new URLSearchParams({ report: reportId });
-  getReportScopeSearchParams(scope).forEach((value, key) => params.set(key, value));
+  if (scope.kind === 'trial' || scope.kind === 'class') params.set('trialId', scope.trialId);
+  if (scope.kind === 'class') params.set('classId', scope.classId);
   return `/shows/${scope.showId}/reports?${params.toString()}`;
 }
 

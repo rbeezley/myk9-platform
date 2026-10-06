@@ -30,10 +30,39 @@ import { useHostedReportData } from './useHostedReportData';
 import { resolvePrintReadiness } from './reportReadinessCopy';
 import { ReportPrintStatus } from './ReportPrintStatus';
 import { useUKCTrialReportContext } from '@/hooks/queries/useUKCTrialReportContext';
-import { parseJudgeDayValue, useJudgeDayReportRows } from './useJudgeDayReportRows';
-import { resolveInitialReportId, resolveInitialReportScope } from './reportInitialScope';
 
 const UKC_TRIAL_REPORT_TYPES = new Set(['ukc-nosework-trial-report', 'trial-secretary-report']);
+
+const DEFAULT_REPORT_ID = 'check-in-sheet';
+
+export interface InitialReportScope {
+  trialId: string;
+  classId: string;
+  dogId: string;
+}
+
+function nonEmptyParam(params: URLSearchParams, key: string): string | undefined {
+  const value = params.get(key)?.trim();
+  return value ? value : undefined;
+}
+
+// Exported for unit testing — keeps the deep-link logic verifiable without
+// asserting against shadcn SelectValue render internals.
+// eslint-disable-next-line react-refresh/only-export-components
+export function resolveInitialReportId(queryParam: string | null): string {
+  if (!queryParam) return DEFAULT_REPORT_ID;
+  const candidate = getReportById(queryParam);
+  return candidate?.enabled ? queryParam : DEFAULT_REPORT_ID;
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function resolveInitialReportScope(params: URLSearchParams): InitialReportScope {
+  return {
+    trialId: nonEmptyParam(params, 'trialId') ?? 'all',
+    classId: nonEmptyParam(params, 'classId') ?? 'all',
+    dogId: nonEmptyParam(params, 'dogId') ?? 'all',
+  };
+}
 
 export default function ReportsPage() {
   const params = useParams<{ showId?: string; id?: string }>();
@@ -54,18 +83,11 @@ export default function ReportsPage() {
   const [trialId, setTrialId] = useState<string>(initialScope.trialId);
   const [classId, setClassId] = useState<string>(initialScope.classId);
   const [dogId, setDogId] = useState<string>(initialScope.dogId);
-  const [judgeDay, setJudgeDay] = useState<string>(initialScope.judgeDay);
   const { user } = useAuthContext();
   const [armbandDescriptor, setArmbandDescriptor] = useState<PaperworkDescriptor | null>(null);
   const effectiveScope = useMemo<ReportScope>(
-    () =>
-      resolveReportScope({
-        showId: showId ?? '',
-        trialId,
-        classId,
-        ...parseJudgeDayValue(judgeDay),
-      }),
-    [showId, trialId, classId, judgeDay]
+    () => resolveReportScope({ showId: showId ?? '', trialId, classId }),
+    [showId, trialId, classId]
   );
   const report = getReportById(reportType);
   const [sortOrder, setSortOrder] = useState(report?.defaultSort ?? 'run-order');
@@ -73,9 +95,9 @@ export default function ReportsPage() {
 
   const {
     show,
-    trials: loadedTrials,
-    classes: loadedClasses,
-    entries: loadedEntries,
+    trials,
+    classes,
+    entries,
     catalogProfilesReadComplete,
     dataState,
     isReady,
@@ -86,18 +108,6 @@ export default function ReportsPage() {
     show: currentShow,
     trialId,
     classId,
-  });
-  // MYK9-1030: a judge's day narrows the show-wide rows to that judge's classes on that date.
-  const {
-    trials,
-    classes,
-    entries,
-    options: judgeDayOptions,
-  } = useJudgeDayReportRows({
-    scope: effectiveScope,
-    trials: loadedTrials,
-    classes: loadedClasses,
-    entries: loadedEntries,
   });
   // MYK9-280: the page owns the hosted fetch; MYK9-721: Print and the preview
   // gate on the same readiness for it as for the report rows.
@@ -118,8 +128,8 @@ export default function ReportsPage() {
   // show detail and report query share the same show, so a non-empty detail row
   // is the only useful answer when the scoped query has no rows yet.
   const resolvedTrials = useMemo(
-    () => loadedTrials ?? currentShow?.trials ?? [],
-    [currentShow?.trials, loadedTrials]
+    () => trials ?? currentShow?.trials ?? [],
+    [currentShow?.trials, trials]
   );
   const showTimePhase = resolveShowTimePhase(
     currentShow,
@@ -147,7 +157,7 @@ export default function ReportsPage() {
 
   const classOptions = useMemo(
     () =>
-      ((loadedClasses ?? []) as Array<Record<string, unknown>>).map(c => ({
+      ((classes ?? []) as Array<Record<string, unknown>>).map(c => ({
         id: c.id as string,
         name: (c.name ?? '') as string,
         element: (c.element ?? '') as string,
@@ -155,7 +165,7 @@ export default function ReportsPage() {
         section: (c.section ?? '') as string,
         trial_id: (c.trial_id ?? '') as string,
       })),
-    [loadedClasses]
+    [classes]
   );
 
   const { dogs: dogOptions, unavailable: dogOptionsUnavailable } = useReportDogOptions(
@@ -166,7 +176,6 @@ export default function ReportsPage() {
     setReportType(value);
     const newReport = getReportById(value);
     setSortOrder(newReport?.defaultSort ?? 'run-order');
-    if (!newReport?.scopes.includes('judge-day')) setJudgeDay('all');
     if (!newReport?.scopes.includes(effectiveScope.kind)) {
       if (effectiveScope.kind === 'class' && newReport?.scopes.includes('trial')) {
         setClassId('all');
@@ -180,15 +189,8 @@ export default function ReportsPage() {
 
   const handleTrialChange = (value: string) => {
     setTrialId(value);
-    setJudgeDay('all');
     setDogId('all');
     setClassId('all');
-  };
-  const handleJudgeDayChange = (value: string) => {
-    setTrialId('all');
-    setDogId('all');
-    setClassId('all');
-    setJudgeDay(value);
   };
 
   const setCurrentArmbandDescriptor = useCallback(
@@ -404,7 +406,6 @@ export default function ReportsPage() {
         onSortChange={setSortOrder}
         onPrint={handlePrint}
         officialPdfAction={officialPdfAction}
-        judgeDay={{ value: judgeDay, options: judgeDayOptions, onChange: handleJudgeDayChange }}
         showPhase={showTimePhase}
       />
 

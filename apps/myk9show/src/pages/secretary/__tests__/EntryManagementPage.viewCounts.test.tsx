@@ -142,7 +142,7 @@ describe('EntryManagementPage status sentence (MYK9-906)', () => {
     render(<EntryManagementPage />, { initialRoute: '/secretary/entries?queue=all&class=class-9' });
 
     await screen.findByRole('combobox', { name: 'Show: Entry views' });
-    expect(sentence()).toMatch(/^Showing 0 of 3 registrations/);
+    expect(sentence()).toMatch(/^Showing 0 of 3 entry forms/);
   });
 
   it('keeps the same denominator when a search is added to the scope', async () => {
@@ -151,7 +151,7 @@ describe('EntryManagementPage status sentence (MYK9-906)', () => {
     });
 
     await screen.findByRole('combobox', { name: 'Show: Entry views' });
-    expect(sentence()).toMatch(/^Showing 0 of 3 registrations/);
+    expect(sentence()).toMatch(/^Showing 0 of 3 entry forms/);
   });
 
   it('ignores the retired paymentStatus param: a stale link shows the unfiltered list', async () => {
@@ -167,9 +167,9 @@ describe('EntryManagementPage status sentence (MYK9-906)', () => {
     const toolbarSentences = screen
       .getAllByRole('status')
       .map(el => el.textContent ?? '')
-      .filter(text => /^Showing (all )?\d+( of \d+)? registrations?\.$/.test(text));
+      .filter(text => /^Showing (all )?\d+( of \d+)? entry forms?\.$/.test(text));
     expect(toolbarSentences).toEqual([]);
-    const queue = await screen.findByRole('list', { name: 'Registration work queue' });
+    const queue = await screen.findByRole('list', { name: 'Entry form work queue' });
     expect(within(queue).getAllByRole('listitem')).toHaveLength(3);
   });
 });

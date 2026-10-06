@@ -1,7 +1,7 @@
 /**
  * MYK9-906: the Entries page's filter row is a labelled "Show:" select, a
  * labelled Trial/Class select pair, and a plain status sentence with a
- * "Show all registrations" button that resets view, scope and search.
+ * "Show all entry forms" button that resets view, scope and search.
  */
 import { describe, expect, it, vi } from 'vitest';
 import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
@@ -54,7 +54,7 @@ describe('EntryManagementViewToolbar filters', () => {
     mockViewportWidth(768);
     renderToolbar();
 
-    expect(screen.getByRole('status')).toHaveTextContent('Showing all 214 registrations.');
+    expect(screen.getByRole('status')).toHaveTextContent('Showing all 214 entry forms.');
   });
 
   it('from lg it stays quiet, with no Show all button, when nothing narrows the list', () => {
@@ -84,14 +84,14 @@ describe('EntryManagementViewToolbar filters', () => {
       { shown: 3, total: 214 }
     );
 
-    expect(screen.getByRole('status').textContent).toBe('Showing 3 of 214 registrations.');
-    await user.click(screen.getByRole('button', { name: 'Show all registrations' }));
+    expect(screen.getByRole('status').textContent).toBe('Showing 3 of 214 entry forms.');
+    await user.click(screen.getByRole('button', { name: 'Show all entry forms' }));
     expect(onClearAll).toHaveBeenCalledOnce();
   });
 
   it('counts a search as filtered too', () => {
     renderToolbar({ queue: 'all', search: 'bob' }, { shown: 4, total: 214 });
-    expect(screen.getByRole('status').textContent).toBe('Showing 4 of 214 registrations.');
+    expect(screen.getByRole('status').textContent).toBe('Showing 4 of 214 entry forms.');
   });
 
   it('shows no sentence until the entries have loaded', () => {

@@ -176,7 +176,7 @@ describe('EntryManagementBulkBar', () => {
 
     await user.click(screen.getByRole('button', { name: /Resend confirmation/ }));
     const dialog = await screen.findByRole('alertdialog');
-    expect(dialog).toHaveTextContent('1 exhibitor');
+    expect(dialog).toHaveTextContent('for 1 entry form');
 
     await user.click(screen.getByRole('button', { name: 'Resend' }));
 

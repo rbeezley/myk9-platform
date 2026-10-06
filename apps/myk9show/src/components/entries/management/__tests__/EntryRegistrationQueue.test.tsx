@@ -122,10 +122,10 @@ describe('EntryRegistrationQueue', () => {
       const focused = screen.getByRole('listitem', { name: /alice martin/i });
       expect(focused).toHaveAttribute('aria-current', 'true');
       expect(
-        screen.getByRole('button', { name: 'Review registration for Alice Martin' })
+        screen.getByRole('button', { name: 'Review entry form for Alice Martin' })
       ).toHaveAttribute('id', 'entry-registration-registration-1');
       expect(focused.className).toContain('shadow-[inset_4px_0_0');
-      expect(screen.getAllByText('Review registration')).toHaveLength(2);
+      expect(screen.getAllByText('Review entry form')).toHaveLength(2);
       expect(screen.getAllByText('Needs review')).toHaveLength(2);
       expect(screen.getAllByText('Not paid yet')).toHaveLength(2);
       expect(screen.queryByText('Payment due')).not.toBeInTheDocument();
@@ -147,7 +147,7 @@ describe('EntryRegistrationQueue', () => {
       restoreMatchMedia = stubMatchMedia(true);
       const { user, onToggleAll } = renderQueue();
 
-      const checkbox = screen.getByRole('checkbox', { name: /select all registrations/i });
+      const checkbox = screen.getByRole('checkbox', { name: /select all entry forms/i });
       expect(checkbox).toHaveAttribute('aria-checked', 'mixed');
       expect(checkbox).toHaveAttribute('data-indeterminate');
       expect(checkbox.className).toContain('before:-inset-3.5');
@@ -226,14 +226,14 @@ describe('EntryRegistrationQueue', () => {
       renderQueue();
 
       expect(screen.getAllByText('Needs review')).toHaveLength(2);
-      expect(screen.getAllByText('Review registration')).toHaveLength(2);
+      expect(screen.getAllByText('Review entry form')).toHaveLength(2);
     });
   });
 
   // MYK9-57: at a 768px tablet the persistent manager sidebar leaves this
   // column ~408px, but the viewport media query still reported "desktop", so
   // the grid rendered at its ~616px floor inside a 408px `overflow-hidden`
-  // box and put "Review registration" 9px past the right edge with nothing
+  // box and put "Review entry form" 9px past the right edge with nothing
   // scrollable between. The layout now follows the measured column width.
   describe('measured column width wins over the viewport (MYK9-57)', () => {
     it('stacks rows when the column is narrower than the grid needs, even on a 768px viewport', () => {
@@ -252,7 +252,7 @@ describe('EntryRegistrationQueue', () => {
       renderQueue();
 
       expect(
-        screen.getByRole('button', { name: 'Review registration for Alice Martin' })
+        screen.getByRole('button', { name: 'Review entry form for Alice Martin' })
       ).toBeVisible();
     });
 
@@ -282,10 +282,10 @@ describe('EntryRegistrationQueue', () => {
       renderQueue();
 
       expect(
-        screen.getByRole('button', { name: 'Review registration for Alice Martin' })
+        screen.getByRole('button', { name: 'Review entry form for Alice Martin' })
       ).toBeInTheDocument();
       expect(
-        screen.getByRole('button', { name: 'Review registration for Priya Shah' })
+        screen.getByRole('button', { name: 'Review entry form for Priya Shah' })
       ).toBeInTheDocument();
     });
 
@@ -293,7 +293,7 @@ describe('EntryRegistrationQueue', () => {
       restoreMatchMedia = stubMatchMedia(true);
       const { user, groups, onFocus } = renderQueue();
 
-      await user.click(screen.getByRole('button', { name: 'Review registration for Priya Shah' }));
+      await user.click(screen.getByRole('button', { name: 'Review entry form for Priya Shah' }));
       expect(onFocus).toHaveBeenCalledTimes(1);
       expect(onFocus).toHaveBeenCalledWith(groups[1]);
     });
@@ -302,7 +302,7 @@ describe('EntryRegistrationQueue', () => {
       restoreMatchMedia = stubMatchMedia(true);
       renderQueue();
 
-      const action = screen.getByRole('button', { name: 'Review registration for Alice Martin' });
+      const action = screen.getByRole('button', { name: 'Review entry form for Alice Martin' });
       expect(action.className).toContain('min-h-11');
     });
   });

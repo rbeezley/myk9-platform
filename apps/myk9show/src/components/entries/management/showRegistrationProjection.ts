@@ -61,7 +61,7 @@ function getRecommendedAction(entries: EntryManagementEntry[]): ShowRegistration
   if (pending.length > 0) {
     return {
       id: 'review-registration',
-      label: 'Review registration',
+      label: 'Review entry form',
       affectedEntryIds: pending,
     };
   }
@@ -77,7 +77,7 @@ function getRecommendedAction(entries: EntryManagementEntry[]): ShowRegistration
 
   return {
     id: 'view-registration',
-    label: 'View registration',
+    label: 'View entry form',
     affectedEntryIds: entries.map(item => item.id),
   };
 }

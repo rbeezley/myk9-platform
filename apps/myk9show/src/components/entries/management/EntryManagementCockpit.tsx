@@ -207,10 +207,10 @@ export function EntryManagementCockpit({
       {!trialScopePending && cockpit.queueTotalsDescribeWholeShow && (
         <p className="text-sm text-muted-foreground" data-testid="registration-totals">
           {cockpit.queueTotals.registrationCount}{' '}
-          {cockpit.queueTotals.registrationCount === 1 ? 'registration' : 'registrations'} &middot;{' '}
+          {cockpit.queueTotals.registrationCount === 1 ? 'entry form' : 'entry forms'} &middot;{' '}
           {cockpit.queueTotals.entryCount}{' '}
-          {cockpit.queueTotals.entryCount === 1 ? 'entry' : 'entries'}. All registrations includes
-          Needs review.
+          {cockpit.queueTotals.entryCount === 1 ? 'entry' : 'entries'}. The All view includes Needs
+          review.
         </p>
       )}
 
@@ -268,7 +268,7 @@ export function EntryManagementCockpit({
           is "not yet", not a superset presented as a subset.
         */}
         {(showQueue || showDetail) && trialScopePending && (
-          <div role="status" aria-label="Loading this trial's registrations" className="py-4">
+          <div role="status" aria-label="Loading this trial's entry forms" className="py-4">
             <TableSkeleton rows={6} columns={4} />
           </div>
         )}

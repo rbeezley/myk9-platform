@@ -154,7 +154,7 @@ export function EntryRegistrationQueue({
     <section
       ref={ref}
       className="overflow-hidden rounded-xl border bg-card shadow-sm"
-      aria-label="Registrations"
+      aria-label="Entry forms"
     >
       {compact ? (
         <div className="flex items-center gap-3 border-b bg-muted/35 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-foreground/70">
@@ -177,13 +177,13 @@ export function EntryRegistrationQueue({
           <span className="flex min-h-11 items-center justify-center">
             <Checkbox
               className="relative before:absolute before:-inset-3.5 before:content-['']"
-              aria-label="Select all registrations on this page"
+              aria-label="Select all entry forms on this page"
               checked={allSelected}
               indeterminate={partiallySelected}
               onCheckedChange={onToggleAll}
             />
           </span>
-          <span className="truncate">Registration</span>
+          <span className="truncate">Exhibitor</span>
           <span className="truncate">Entries</span>
           <span className="truncate">Review / payment</span>
           <span className="text-right">Next action</span>
@@ -193,16 +193,16 @@ export function EntryRegistrationQueue({
       {groups.length === 0 ? (
         <div className="px-5 py-12 text-center">
           <p className="font-semibold">
-            {showHasNoRegistrations ? 'No entries yet' : 'No matching registrations'}
+            {showHasNoRegistrations ? 'No entries yet' : 'No matching entry forms'}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
             {showHasNoRegistrations
-              ? 'Entries will appear here as exhibitors register, or you can add one.'
+              ? 'Entries will appear here as exhibitors enter, or you can add one.'
               : 'Try another queue, scope, or search.'}
           </p>
         </div>
       ) : (
-        <div role="list" aria-label="Registration work queue">
+        <div role="list" aria-label="Entry form work queue">
           {groups.map(group => {
             const focused = focusedKey === group.groupKey;
             const selected = selectedKeys.has(group.groupKey);
@@ -325,13 +325,13 @@ export function EntryRegistrationQueue({
 
       <nav
         className="flex flex-col gap-3 border-t px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
-        aria-label="Registration pagination"
+        aria-label="Entry form pagination"
       >
         {/* Typing in search silently rewrote this line, the queue badges and
             the empty state, with nothing announced. This is the one place that
             states the result count, so it is the one that should speak. */}
         <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
-          Showing {rangeStart}&ndash;{rangeEnd} of {total} registrations
+          Showing {rangeStart}&ndash;{rangeEnd} of {total} entry forms
         </p>
         <div className="flex items-center gap-2">
           <Button

@@ -59,14 +59,9 @@ Timing: after the Oct 10 test show unless the owner pulls a phase forward. Phase
 
 **Done when:** a secretary prints one marked catalog for a judge's day, marks it initialed in one action, every class of that judge's day reads "Initialed by judge" on Overview and Results after reload and offline replay, and no class nags for initials while its judge is still judging.
 
-### Phase 3 — "Verified against paper" (owner decision)
+### Phase 3 — "Verified against paper"
 
-Options:
-
-- **(a) Store it:** `classes.results_verified_at` / `_by` (migration). Release is gated on it. Per-row ticks are a client-side checklist that fills it.
-- **(b) Don't store it:** the per-row ticks are a session aid only, and Release itself is the confirmation.
-
-Recommendation: (a), class-level only. A secretary interrupted mid-check needs to see on return which classes were checked; per-row persistence is not worth a table.
+**Owner decision 2026-10-06: store it**, class-level: `classes.results_verified_at` / `results_verified_by`, in the same migration as Phase 2 (MYK9-1030) so the owner pushes once. Manager-only RPC to mark and clear; refuses an incomplete class. The Results tab's per-row ticks are a client-side checklist that sets it, and the tab's Release button unlocks on it. Server-side release and the automatic release presets are **not** gated on it. Open: whether a score change after verification should clear it.
 
 ### Phase 4 — Rebuild the Results tab (design A revised)
 

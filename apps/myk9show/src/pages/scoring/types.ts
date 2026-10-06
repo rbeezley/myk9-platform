@@ -18,7 +18,7 @@ import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTabl
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { SecretaryEntry } from '@/services/database/entries';
-import { toExistingScore } from './toExistingScore';
+import { canPrefillSheet, toExistingScore } from './toExistingScore';
 
 /**
  * Extended entry type for scoring UI
@@ -491,7 +491,11 @@ export function toRegistryKey(org: string, sport: string): ScoresheetSportType |
 }
 
 /** Convert ScoringEntry to ScoresheetEntry for scoresheet props. */
-export function toScoresheetEntry(entry: ScoringEntry, classInfo: ClassInfo): ScoresheetEntry {
+export function toScoresheetEntry(
+  entry: ScoringEntry,
+  classInfo: ClassInfo,
+  sheetKey?: ScoresheetSportType | null
+): ScoresheetEntry {
   return {
     id: entry.entryId,
     armband: entry.armband,
@@ -500,7 +504,7 @@ export function toScoresheetEntry(entry: ScoringEntry, classInfo: ClassInfo): Sc
     className: classInfo.name,
     ...(classInfo.element != null && { element: classInfo.element }),
     ...(classInfo.level != null && { level: classInfo.level }),
-    ...(entry.existingScore && { existingScore: entry.existingScore }),
+    ...(entry.existingScore && canPrefillSheet(sheetKey) && { existingScore: entry.existingScore }),
   };
 }
 

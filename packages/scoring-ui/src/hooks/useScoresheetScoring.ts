@@ -90,10 +90,15 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
   // React state updates after the current event. A ref closes the gap where a
   // rapid double tap can enter handleSubmit twice before isSubmitting renders.
   const submitInFlightRef = useRef(false);
+  // Saved find totals cannot be rebuilt from per-area flags (only the totals are
+  // stored), so while the judge has not touched a found/correct flag a
+  // correction keeps the saved totals instead of recomputing them from defaults.
+  const findFlagsEditedRef = useRef(false);
 
   const setQualifying = useCallback((value: ExtendedResult | '') => {
     setQualifyingRaw(value);
     if (value === 'EX') {
+      findFlagsEditedRef.current = true;
       setFaultCount(0);
       setAreas(prev => prev.map(area => ({ ...area, found: false, correct: false })));
     }
@@ -101,6 +106,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
 
   const handleAreaUpdate = useCallback(
     (index: number, field: keyof AreaScore, value: AreaScore[keyof AreaScore]) => {
+      if (field === 'found' || field === 'correct') findFlagsEditedRef.current = true;
       setAreas(prev => prev.map((area, i) => (i === index ? { ...area, [field]: value } : area)));
     },
     []
@@ -129,6 +135,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
 
   const buildScoreData = useCallback(
     (extra?: Partial<ScoreData>): ScoreData => {
+      const keepSavedFinds = existingScore !== undefined && !findFlagsEditedRef.current;
       const areaResults: Record<string, string> = {};
       areas.forEach(area => {
         areaResults[area.areaName.toLowerCase()] =
@@ -141,15 +148,19 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
         nonQualifyingReason: qualifying === 'Q' ? undefined : nonQualifyingReason || undefined,
         areas: areaResults,
         areaTimes: areas.map(a => a.time),
-        correctCount: areas.filter(a => a.correct).length,
-        incorrectCount: areas.filter(a => !a.correct && a.time !== '').length,
+        correctCount: keepSavedFinds
+          ? existingScore.correctCount
+          : areas.filter(a => a.correct).length,
+        incorrectCount: keepSavedFinds
+          ? existingScore.incorrectCount
+          : areas.filter(a => !a.correct && a.time !== '').length,
         faultCount,
-        finishCallErrors: 0,
-        points: 0,
+        finishCallErrors: existingScore?.finishCallErrors ?? 0,
+        points: existingScore?.points ?? 0,
         ...extra,
       };
     },
-    [areas, qualifying, nonQualifyingReason, faultCount, calculateTotalTime]
+    [areas, qualifying, nonQualifyingReason, faultCount, calculateTotalTime, existingScore]
   );
 
   const validate = useCallback((): ValidationResult => {

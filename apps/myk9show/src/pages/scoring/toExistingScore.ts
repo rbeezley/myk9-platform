@@ -1,4 +1,4 @@
-import type { ScoreData } from '@myk9/scoring-ui';
+import type { ScoreData, ScoresheetSportType } from '@myk9/scoring-ui';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import { dbSecondsToInputFormat } from '@/utils/scoringMappings';
 
@@ -37,18 +37,12 @@ export function toExistingScore(entry: ReplicatedEntry): ScoreData | undefined {
   const areaTimes = areaSeconds.map(s => dbSecondsToInputFormat(s));
   while (areaTimes.length > 1 && !areaTimes[areaTimes.length - 1]) areaTimes.pop();
 
-  // Per-area found/correct flags are not stored, only totals. A qualified area
-  // with a time was found and called correctly; honor the saved correct-find
-  // total when it is lower (multi-area classes with a missed hide).
-  const timedAreas = areaTimes.filter(Boolean).length;
-  const correctCount = entry.total_correct_finds ?? (resultText === 'Q' ? timedAreas : 0);
+  // Per-area found/correct flags are not stored, only totals. Seed them unset
+  // (what the sheet itself produces) and let the scoresheet hook keep the saved
+  // totals until the judge edits a flag. Only the keys matter for the time seed.
   const areas: Record<string, string> = {};
-  let correctRemaining = correctCount;
   areaTimes.forEach((time, i) => {
-    const credited = resultText === 'Q' && !!time && correctRemaining > 0;
-    if (credited) correctRemaining -= 1;
-    areas[`area ${i + 1}`] =
-      `${time}${credited ? ' FOUND' : ' NOT FOUND'}${credited ? ' CORRECT' : ' INCORRECT'}`;
+    areas[`area ${i + 1}`] = `${time} NOT FOUND INCORRECT`;
   });
 
   return {
@@ -56,7 +50,7 @@ export function toExistingScore(entry: ReplicatedEntry): ScoreData | undefined {
     searchTime: dbSecondsToInputFormat(totalSeconds) || '0.00',
     areas,
     areaTimes,
-    correctCount,
+    correctCount: entry.total_correct_finds ?? 0,
     incorrectCount: entry.total_incorrect_finds ?? 0,
     faultCount: entry.total_faults ?? entry.totalFaults ?? 0,
     finishCallErrors: entry.no_finish_count ?? 0,
@@ -65,4 +59,21 @@ export function toExistingScore(entry: ReplicatedEntry): ScoreData | undefined {
       ? { nonQualifyingReason: entry.disqualification_reason }
       : {}),
   };
+}
+
+/**
+ * Sheets whose every authoritative input is hydrated from `existingScore` (result,
+ * area times, faults, reason, and the saved find totals/points through
+ * `useScoresheetScoring`). The rest hold extra inputs in local state that start at
+ * zero (Rally deductions, Nationals alert counts, FastCAT result, Obedience
+ * result, Nosework element time), so a time-only correction would overwrite real
+ * saved data. They keep opening blank until each is hydrated.
+ */
+const PREFILL_SHEETS: ReadonlySet<ScoresheetSportType> = new Set([
+  'AKC_SCENT_WORK',
+  'ASCA_SCENT_DETECTION',
+]);
+
+export function canPrefillSheet(key: ScoresheetSportType | null | undefined): boolean {
+  return !!key && PREFILL_SHEETS.has(key);
 }

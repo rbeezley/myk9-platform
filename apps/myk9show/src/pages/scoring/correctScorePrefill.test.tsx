@@ -43,7 +43,7 @@ function savedRow(overrides: Partial<ReplicatedEntry> = {}): ReplicatedEntry {
 }
 
 function toSheet(row: ReplicatedEntry) {
-  return toScoresheetEntry(toScoringEntry(row, null, 0), classInfo);
+  return toScoresheetEntry(toScoringEntry(row, null, 0), classInfo, 'AKC_SCENT_WORK');
 }
 
 describe('Correct this score prefill (MYK9-1025)', () => {

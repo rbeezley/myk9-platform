@@ -18,6 +18,7 @@ import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTabl
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import type { SecretaryEntry } from '@/services/database/entries';
+import { toExistingScore } from './toExistingScore';
 
 /**
  * Extended entry type for scoring UI
@@ -44,6 +45,8 @@ export interface ScoringEntry extends BaseEntry {
   // Optional scoring result
   placement?: number;
   result?: ScoringResult;
+  /** Saved score rebuilt for the scoresheet form ("Correct this score"). */
+  existingScore?: ScoreData;
 
   // For combined A/B class views
   section?: 'A' | 'B';
@@ -118,6 +121,8 @@ export function toScoringEntry(
   const hasResult = !!resultStatus && resultStatus !== 'pending';
   const isScored = status === 'scored' || hasResult;
 
+  const existingScore = toExistingScore(entry);
+
   // Build result object from replicated entry fields
   const result: ScoringResult | undefined = hasResult
     ? {
@@ -149,6 +154,7 @@ export function toScoringEntry(
     isScored,
     exhibitorOrder: entry.runOrder || armband || index + 1,
     ...(result && { result }),
+    ...(existingScore && { existingScore }),
     // Note: section is optional and not available on ReplicatedEntry
     // It would need to be passed from class data if needed
   };
@@ -494,6 +500,7 @@ export function toScoresheetEntry(entry: ScoringEntry, classInfo: ClassInfo): Sc
     className: classInfo.name,
     ...(classInfo.element != null && { element: classInfo.element }),
     ...(classInfo.level != null && { level: classInfo.level }),
+    ...(entry.existingScore && { existingScore: entry.existingScore }),
   };
 }
 

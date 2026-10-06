@@ -164,13 +164,21 @@ BEGIN
 END;
 $$;
 
--- 8c. Deleted but still placed: the rollup would clear its placement.
-UPDATE public.entries SET deleted_at = now(), final_placement = 1
-WHERE id = '00000000-0000-0000-0000-000000731604';
+-- 8c. Deleted but still placed: the rollup would clear its placement. Two
+-- statements, because the delete itself re-derives the class and clears the
+-- placement; a later write of final_placement alone (an offline full-row
+-- upload, say) does not fire the scoring trigger and so can leave one behind.
+UPDATE public.entries SET deleted_at = now() WHERE id = '00000000-0000-0000-0000-000000731604';
+UPDATE public.entries SET final_placement = 1 WHERE id = '00000000-0000-0000-0000-000000731604';
 
 DO $$
-DECLARE err text := pg_temp.restore_error();
+DECLARE err text;
 BEGIN
+  IF (SELECT final_placement FROM public.entries WHERE id = '00000000-0000-0000-0000-000000731604')
+     IS DISTINCT FROM 1 THEN
+    RAISE EXCEPTION 'FIXTURE the walk entry does not hold a placement, so 8.3 proves nothing';
+  END IF;
+  err := pg_temp.restore_error();
   IF err IS NULL OR err NOT LIKE '%731604 that a walk created in a fixture class%' THEN
     RAISE EXCEPTION 'FAIL 8.3 a walk''s deleted but placed entry in a fixture class did not refuse: %', coalesce(err, '<no error>');
   END IF;

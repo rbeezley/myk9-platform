@@ -49,8 +49,9 @@
 --      marks one class verified (refused unless complete, 55000) or clears it
 --      (always allowed: a correction after checking means re-check). Same
 --      can_manage_trial authz. Server-side release and the automatic release
---      presets are NOT gated on it. OPEN QUESTION (no trigger yet): should a
---      score change after verification clear it automatically?
+--      presets are NOT gated on it.
+--   6. private.entries_clear_results_verified + trigger on public.entries: a
+--      changed result clears the check (owner decision; see section 3c).
 
 -- Grants
 --   * classes: authenticated holds a column-level SELECT allowlist
@@ -299,6 +300,106 @@ COMMENT ON FUNCTION public.set_class_results_verified(uuid, boolean, timestamptz
 
 REVOKE ALL ON FUNCTION public.set_class_results_verified(uuid, boolean, timestamptz) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.set_class_results_verified(uuid, boolean, timestamptz) TO authenticated;
+
+-- ---------------------------------------------------------------------------
+-- 3c. A changed result clears the check (owner, 2026-10-06)
+--
+-- The check means "these results match the paper", so any change to a result
+-- makes it untrue. Result columns = the scoring half of the ringside RPC's
+-- whitelist (ringside_update_entry; apps/myk9show/src/services/replication/
+-- ringsideEntryRpc.ts): is_scored, result_status, the time columns, the find
+-- and fault counts, the score and points columns, final_placement and
+-- disqualification_reason. Run order, check-in and ring times, judge notes,
+-- video review and scoring_started/completed_at are NOT results and do not
+-- clear it. Moving a scored entry to another class or soft-deleting it, and
+-- inserting or hard-deleting a scored entry, change a class's results too.
+--
+-- Fires on every writer (judges and passcode sessions write scores through
+-- ringside_update_entry), so the function is SECURITY DEFINER. It writes only
+-- WHERE results_verified_at IS NOT NULL, so a class that is not verified is
+-- never touched, and a correction costs at most one classes write (one version
+-- bump and one advisory broadcast from the existing classes triggers), not one
+-- per entry. Placement recalculation writes final_placement only when it
+-- changes (20260727235900, 20260828010000), and the trigger compares OLD with
+-- NEW, so a no-op recompute after the check cannot clear it.
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION private.entries_clear_results_verified()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_class_ids uuid[] := '{}';
+  v_old_has_result boolean;
+  v_new_has_result boolean;
+BEGIN
+  IF TG_OP <> 'INSERT' THEN
+    v_old_has_result := coalesce(OLD.is_scored, false) OR OLD.result_status IS NOT NULL
+      OR OLD.final_placement IS NOT NULL;
+  END IF;
+  IF TG_OP <> 'DELETE' THEN
+    v_new_has_result := coalesce(NEW.is_scored, false) OR NEW.result_status IS NOT NULL
+      OR NEW.final_placement IS NOT NULL;
+  END IF;
+
+  IF TG_OP = 'INSERT' THEN
+    IF v_new_has_result AND NEW.deleted_at IS NULL THEN
+      v_class_ids := ARRAY[NEW.class_id];
+    END IF;
+  ELSIF TG_OP = 'DELETE' THEN
+    IF v_old_has_result AND OLD.deleted_at IS NULL THEN
+      v_class_ids := ARRAY[OLD.class_id];
+    END IF;
+  ELSE
+    IF (OLD.is_scored, OLD.result_status, OLD.search_time_seconds,
+        OLD.area1_time_seconds, OLD.area2_time_seconds, OLD.area3_time_seconds,
+        OLD.area4_time_seconds, OLD.total_correct_finds, OLD.total_incorrect_finds,
+        OLD.total_faults, OLD.no_finish_count, OLD.area1_correct, OLD.area1_incorrect,
+        OLD.area1_faults, OLD.area2_correct, OLD.area2_incorrect, OLD.area2_faults,
+        OLD.area3_correct, OLD.area3_incorrect, OLD.area3_faults, OLD.total_score,
+        OLD.points_earned, OLD.points_possible, OLD.bonus_points, OLD.penalty_points,
+        OLD.time_over_limit, OLD.time_limit_exceeded_seconds, OLD.final_placement,
+        OLD.disqualification_reason)
+       IS DISTINCT FROM
+       (NEW.is_scored, NEW.result_status, NEW.search_time_seconds,
+        NEW.area1_time_seconds, NEW.area2_time_seconds, NEW.area3_time_seconds,
+        NEW.area4_time_seconds, NEW.total_correct_finds, NEW.total_incorrect_finds,
+        NEW.total_faults, NEW.no_finish_count, NEW.area1_correct, NEW.area1_incorrect,
+        NEW.area1_faults, NEW.area2_correct, NEW.area2_incorrect, NEW.area2_faults,
+        NEW.area3_correct, NEW.area3_incorrect, NEW.area3_faults, NEW.total_score,
+        NEW.points_earned, NEW.points_possible, NEW.bonus_points, NEW.penalty_points,
+        NEW.time_over_limit, NEW.time_limit_exceeded_seconds, NEW.final_placement,
+        NEW.disqualification_reason) THEN
+      v_class_ids := ARRAY[OLD.class_id, NEW.class_id];
+    ELSIF (OLD.class_id IS DISTINCT FROM NEW.class_id
+           OR OLD.deleted_at IS DISTINCT FROM NEW.deleted_at)
+          AND (v_old_has_result OR v_new_has_result) THEN
+      v_class_ids := ARRAY[OLD.class_id, NEW.class_id];
+    END IF;
+  END IF;
+
+  IF cardinality(v_class_ids) > 0 THEN
+    UPDATE public.classes c
+       SET results_verified_at = NULL,
+           results_verified_by = NULL
+     WHERE c.id = ANY (v_class_ids)
+       AND c.results_verified_at IS NOT NULL;
+  END IF;
+
+  RETURN NULL;
+END;
+$$;
+
+COMMENT ON FUNCTION private.entries_clear_results_verified() IS
+  'MYK9-1030: a changed result clears the class''s "checked against the paper" mark (classes.results_verified_at/_by). Writes only a verified class. Trigger function; nobody calls it.';
+
+REVOKE ALL ON FUNCTION private.entries_clear_results_verified() FROM PUBLIC, anon, authenticated;
+
+DROP TRIGGER IF EXISTS entries_clear_results_verified ON public.entries;
+CREATE TRIGGER entries_clear_results_verified
+  AFTER INSERT OR UPDATE OR DELETE ON public.entries
+  FOR EACH ROW EXECUTE FUNCTION private.entries_clear_results_verified();
 
 -- ---------------------------------------------------------------------------
 -- 4. authenticated may read the new columns (anon unchanged)

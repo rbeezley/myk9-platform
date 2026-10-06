@@ -21,6 +21,10 @@
 --      an incomplete class refused (55000); missing P0002; the secretary marks
 --      one class (stamped with the caller's auth uid, version returned, first
 --      stamp kept) and clears it; anon refused.
+--  11. a changed RESULT clears the check (trigger on entries, SECURITY
+--      DEFINER): a result column change, a scored insert and a scored delete
+--      clear a verified class; check-in, run order and a no-op placement
+--      rewrite do not; an unverified class is never written.
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
 
@@ -384,6 +388,130 @@ BEGIN
     RAISE EXCEPTION 'FAIL clearing the results check left it set';
   END IF;
   RAISE NOTICE 'PASS 10 results check: managers only, complete only, stamped, kept, cleared';
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 11. A changed result clears the check; nothing else does.
+-- ---------------------------------------------------------------------------
+RESET ROLE;
+
+INSERT INTO public.dogs (id, name, call_name, breed, owner_id)
+VALUES
+  ('00000000-0000-0000-0000-000001030031', 'Alpha Registered', 'Alpha', 'Beagle',
+   '00000000-0000-0000-0000-000000103003'),
+  ('00000000-0000-0000-0000-000001030032', 'Bravo Registered', 'Bravo', 'Beagle',
+   '00000000-0000-0000-0000-000000103003'),
+  ('00000000-0000-0000-0000-000001030033', 'Charlie Registered', 'Charlie', 'Beagle',
+   '00000000-0000-0000-0000-000000103003');
+
+INSERT INTO public.dog_registrations (dog_id, organization, registration_number, is_primary)
+SELECT d.id, 'AKC (American Kennel Club)', 'SR1030' || right(d.id::text, 2), true
+FROM public.dogs d
+WHERE d.id::text LIKE '00000000-0000-0000-0000-00000103003_';
+
+-- Two scored entries in c4 (completed, not yet checked: the inserts write nothing).
+INSERT INTO public.entries (
+  id, dog_id, class_id, show_id, trial_id, entry_status, payment_status, entry_fee,
+  armband, run_order, is_scored, result_status, search_time_seconds, total_faults,
+  total_score, final_placement
+) VALUES
+  ('00000000-0000-0000-0000-000001030051', '00000000-0000-0000-0000-000001030031',
+   '00000000-0000-0000-0000-000001030044', '00000000-0000-0000-0000-000001030002',
+   '00000000-0000-0000-0000-000001030003', 'confirmed', 'paid', 25, '201', 1,
+   true, 'qualified', 30.5, 0, 100, 1),
+  ('00000000-0000-0000-0000-000001030052', '00000000-0000-0000-0000-000001030032',
+   '00000000-0000-0000-0000-000001030044', '00000000-0000-0000-0000-000001030002',
+   '00000000-0000-0000-0000-000001030003', 'confirmed', 'paid', 25, '202', 2,
+   true, 'qualified', 41.25, 0, 100, 2);
+
+CREATE FUNCTION pg_temp.c4_verified()
+RETURNS boolean LANGUAGE sql AS $$
+  SELECT results_verified_at IS NOT NULL FROM public.classes
+  WHERE id = '00000000-0000-0000-0000-000001030044';
+$$;
+
+CREATE FUNCTION pg_temp.verify_c4()
+RETURNS void LANGUAGE sql AS $$
+  UPDATE public.classes
+     SET results_verified_at = now(),
+         results_verified_by = '00000000-0000-0000-0000-000000103011'
+   WHERE id = '00000000-0000-0000-0000-000001030044';
+$$;
+
+DO $$
+DECLARE
+  v_version integer;
+BEGIN
+  IF NOT (SELECT prosecdef FROM pg_proc
+          WHERE oid = 'private.entries_clear_results_verified()'::regprocedure) THEN
+    RAISE EXCEPTION 'FAIL the clear trigger must run as definer (judges and passcodes write scores)';
+  END IF;
+  IF (SELECT status FROM public.classes WHERE id = '00000000-0000-0000-0000-000001030044')
+     IS DISTINCT FROM 'completed' THEN
+    RAISE EXCEPTION 'FAIL fixture: c4 should still be completed with two scored entries';
+  END IF;
+
+  -- Not results: check-in, run order, ring time, judge notes; a no-op placement rewrite.
+  PERFORM pg_temp.verify_c4();
+  UPDATE public.entries
+     SET check_in_status = 'checked-in', run_order = 5, ring_entry_time = now(),
+         judge_notes = 'nice search', final_placement = final_placement
+   WHERE id = '00000000-0000-0000-0000-000001030051';
+  IF NOT pg_temp.c4_verified() THEN
+    RAISE EXCEPTION 'FAIL a non-result change cleared the results check';
+  END IF;
+
+  -- A result change (a column the class rollup does not watch).
+  UPDATE public.entries SET area1_correct = 2
+   WHERE id = '00000000-0000-0000-0000-000001030051';
+  IF pg_temp.c4_verified() THEN
+    RAISE EXCEPTION 'FAIL a changed result left the results check set';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.classes WHERE id = '00000000-0000-0000-0000-000001030044'
+             AND results_verified_by IS NOT NULL) THEN
+    RAISE EXCEPTION 'FAIL the clear left results_verified_by behind';
+  END IF;
+
+  -- Unverified class + result change: no classes write at all.
+  SELECT version INTO v_version FROM public.classes
+   WHERE id = '00000000-0000-0000-0000-000001030044';
+  UPDATE public.entries SET area1_correct = 3
+   WHERE id = '00000000-0000-0000-0000-000001030051';
+  IF (SELECT version FROM public.classes WHERE id = '00000000-0000-0000-0000-000001030044')
+     IS DISTINCT FROM v_version THEN
+    RAISE EXCEPTION 'FAIL a result change wrote an unverified class';
+  END IF;
+
+  -- A corrected time (a column the rollup also watches).
+  PERFORM pg_temp.verify_c4();
+  UPDATE public.entries SET search_time_seconds = 31.0
+   WHERE id = '00000000-0000-0000-0000-000001030051';
+  IF pg_temp.c4_verified() THEN
+    RAISE EXCEPTION 'FAIL a corrected time left the results check set';
+  END IF;
+
+  -- A scored entry inserted into, and one deleted from, a verified class.
+  PERFORM pg_temp.verify_c4();
+  INSERT INTO public.entries (
+    id, dog_id, class_id, show_id, trial_id, entry_status, payment_status, entry_fee,
+    armband, run_order, is_scored, result_status, search_time_seconds
+  ) VALUES (
+    '00000000-0000-0000-0000-000001030053', '00000000-0000-0000-0000-000001030033',
+    '00000000-0000-0000-0000-000001030044', '00000000-0000-0000-0000-000001030002',
+    '00000000-0000-0000-0000-000001030003', 'confirmed', 'pending', 0, '203', 3,
+    true, 'nq', 90.0
+  );
+  IF pg_temp.c4_verified() THEN
+    RAISE EXCEPTION 'FAIL a scored entry inserted into a verified class left it checked';
+  END IF;
+  PERFORM pg_temp.verify_c4();
+  DELETE FROM public.entries WHERE id = '00000000-0000-0000-0000-000001030053';
+  IF pg_temp.c4_verified() THEN
+    RAISE EXCEPTION 'FAIL a scored entry deleted from a verified class left it checked';
+  END IF;
+
+  RAISE NOTICE 'PASS 11 a changed result clears the check; check-in, run order and a no-op placement do not; an unverified class is never written';
 END;
 $$;
 

@@ -8,6 +8,7 @@
  */
 import { formatJudgeDayDate, groupClassesByJudgeDay } from '@/features/show-map/judgeDay';
 import { resolveClassJudgeName } from '@/utils/classJudgeDisplay';
+import { resolveClassJudgeFields } from '@/services/database/_shared/classJudgeFields';
 import type { ReportScope } from './types';
 
 interface ReportTrialLike {
@@ -25,14 +26,13 @@ interface ReportEntryLike {
   class_id?: string | null;
 }
 
-/** The class's judge (`people.id`): its confirmed assignment, else its first one. */
+/**
+ * The class's judge (`people.id`), by the SAME rule replication uses for `judgeId`
+ * (`resolveClassJudgeFields`: a confirmed assignment only, lowest id on a tie). Works on a cold
+ * PostgREST row (its embed carries id and status) and on a warm replica row.
+ */
 export function reportClassJudgeId(cls: ReportClassLike): string | undefined {
-  const assignments = Array.isArray(cls.judge_assignments)
-    ? (cls.judge_assignments as Array<Record<string, unknown>>)
-    : [];
-  const confirmed = assignments.find(row => row?.status === 'confirmed');
-  const personId = (confirmed ?? assignments[0])?.person_id;
-  return typeof personId === 'string' && personId ? personId : undefined;
+  return resolveClassJudgeFields({ judge_assignments: cls.judge_assignments }).personId;
 }
 
 export function filterReportDataToJudgeDay<

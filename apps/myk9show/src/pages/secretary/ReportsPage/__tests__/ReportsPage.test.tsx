@@ -70,7 +70,12 @@ vi.mock('@/hooks/queries/useReportData', () => ({
             trial_id: 'trial-1',
             judge_name: 'Pat Judge',
             judge_assignments: [
-              { person_id: 'person-pat', people: { first_name: 'Pat', last_name: 'Judge' } },
+              {
+                id: 'ja-1',
+                person_id: 'person-pat',
+                status: 'confirmed',
+                people: { first_name: 'Pat', last_name: 'Judge' },
+              },
             ],
             time_limit_seconds: 120,
             time_limit_area2_seconds: null,

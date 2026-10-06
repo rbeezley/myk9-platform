@@ -532,6 +532,9 @@ export const mapReplicatedClassToDbRow = (
     row.judge_assignments = [
       {
         person_id: cls.judgeId,
+        // The replica holds only the CONFIRMED judge (resolveClassJudgeFields), so say so:
+        // readers that apply the same rule (the judge-day catalog, MYK9-1030) need the status.
+        status: 'confirmed',
         people: { first_name: first ?? '', last_name: rest.join(' ') },
       },
     ];

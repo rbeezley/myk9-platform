@@ -229,7 +229,9 @@ async function postgrestGetAllClasses() {
         status
       ),
       judge_assignments!judge_assignments_class_id_fkey (
+        id,
         person_id,
+        status,
         people!inner (
           first_name,
           last_name
@@ -307,7 +309,9 @@ async function postgrestGetClassesByTrialId(trialId: string) {
       `
       ${CLASS_COLUMN_SELECT},
       judge_assignments!judge_assignments_class_id_fkey (
+        id,
         person_id,
+        status,
         people!inner (
           first_name,
           last_name

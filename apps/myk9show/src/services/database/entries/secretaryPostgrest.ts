@@ -70,7 +70,9 @@ const SECRETARY_ENTRIES_BASE_SELECT = `
         ),
         trial:trial_id (
           trial_type,
-          timezone
+          timezone,
+          trial_date:date,
+          trial_number
         ),
         dog:dog_id (
           id,

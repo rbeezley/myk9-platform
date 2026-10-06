@@ -67,6 +67,17 @@ describe('summarizeTrialClasses', () => {
     expect(hiddenClassCount).toBe(2);
   });
 
+  it('orders trial 2 before trial 10 on the same date', () => {
+    const { lines } = summarizeTrialClasses([
+      entryIn('Buried Advanced B', { id: 'a', date: '2026-11-09', number: '10' }),
+      entryIn('Container Novice A', { id: 'b', date: '2026-11-09', number: '2' }),
+    ]);
+    expect(lines.map(line => line.label)).toEqual([
+      'Mon, Nov 9 · Trial 2',
+      'Mon, Nov 9 · Trial 10',
+    ]);
+  });
+
   it('leaves out a pulled class unless nothing else is left', () => {
     expect(
       summarizeTrialClasses([

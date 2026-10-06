@@ -340,7 +340,7 @@ export function EntryRegistrationQueue({
             the empty state, with nothing announced. This is the one place that
             states the result count, so it is the one that should speak. */}
         <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
-          Showing {rangeStart}&ndash;{rangeEnd} of {total} forms
+          Showing {rangeStart}&ndash;{rangeEnd} of {total} {total === 1 ? 'form' : 'forms'}
         </p>
         <div className="flex items-center gap-2">
           <Button

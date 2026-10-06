@@ -56,7 +56,9 @@ export function summarizeTrialClasses(
     buckets.set(key, bucket);
   }
 
-  const ordered = [...buckets.values()].sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+  const ordered = [...buckets.values()].sort((a, b) =>
+    a.sortKey.localeCompare(b.sortKey, undefined, { numeric: true })
+  );
   const lines = ordered
     .slice(0, maxLines)
     .map(({ key, label, classes }) => ({ key, label, classes }));

@@ -94,9 +94,9 @@ On the show page, open the **status pill** in the header and choose **Publish Sh
 
 ## 4 · Approve or accept online entries
 
-**Entries → Needs review.** Each entry form shows the exhibitor, the dog, the trial date, trial number and class, the entry count, and payment status. Choose **Review** to accept, decline, or ask for a correction.
+**Entries → Needs review.** Each registration shows the dog, the entry count, and payment status. Choose **Review registration** to accept, decline, or ask for a correction.
 
-![Entry Management with the Needs review queue selected and Review on each row](../screenshots/S-07.png)
+![Entry Management with the Needs review queue selected and Review registration on each row](../screenshots/S-07.png)
 
 The view tabs across the top — _Needs review_, _Missing info_, _Payment due_, _All_ — show the count of each, so you can see what's waiting. A short sentence under them says how many you're looking at.
 

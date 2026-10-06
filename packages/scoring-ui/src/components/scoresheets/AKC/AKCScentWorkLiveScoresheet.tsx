@@ -119,7 +119,13 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
         <div className="max-w-2xl mx-auto">
           {/* Header */}
           <header className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
-            <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-11 w-11"
+              onClick={onBack}
+              aria-label="Back"
+            >
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex-1">
@@ -156,7 +162,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                 background); the Start button carries the accent. */}
             <div className="relative p-6 rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
               <button
-                className="absolute top-3 right-3 w-10 h-10 rounded-full bg-muted border-0 text-muted-foreground flex items-center justify-center cursor-pointer transition-all duration-200 hover:enabled:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
+                className="absolute top-2 right-2 w-11 h-11 rounded-full bg-muted border-0 text-muted-foreground flex items-center justify-center cursor-pointer transition-all duration-200 hover:enabled:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
                 onClick={stopwatch.reset}
                 disabled={stopwatch.isRunning}
                 title={

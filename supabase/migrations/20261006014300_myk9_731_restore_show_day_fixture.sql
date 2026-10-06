@@ -103,6 +103,10 @@ BEGIN
   IF v_n <> 1 THEN
     RAISE EXCEPTION 'show-day fixture: expected exactly 1 person for secretary@myk9t.com, found % (MYK9-731)', v_n;
   END IF;
+  -- The announcements' author (show_announcements.author_id is NOT NULL).
+  IF v_secretary_auth IS NULL THEN
+    RAISE EXCEPTION 'show-day fixture: secretary@myk9t.com has no sign-in account (people.auth_user_id is null), so the announcements have no author (MYK9-731)';
+  END IF;
   SELECT count(*), min(p.id::text)::uuid INTO v_n, v_judge
   FROM public.people p WHERE lower(p.email) = 'judge@myk9t.com';
   IF v_n <> 1 THEN

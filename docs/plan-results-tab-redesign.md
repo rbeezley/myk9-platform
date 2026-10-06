@@ -48,13 +48,16 @@ Timing: after the Oct 10 test show unless the owner pulls a phase forward. Phase
 
 ### Phase 2 — Judge sign-off gets a write path
 
-Owner decision needed before building: store the sign-off **per class** (new `classes.judge_signed_off_at` + `judge_signed_off_by`) or per entry (write the existing `entries.judge_signature_timestamp`). Recommendation: per class. The judge initials the marked catalog page by page for a class, not dog by dog, and one class row is one write instead of N.
+**How it happens (owner, 2026-10-06):** a judge verifies and initials the result catalog **at the end of the day, for all the classes they judged that day**, not class by class. So the sign-off is a per-judge, per-day act, and the app should treat it as one.
 
-- Migration (Opus, owner-run push), with grants per `CLAUDE.md` § Database Migrations and a manager-only write path (SECURITY DEFINER RPC or RLS-checked update).
-- `classifyClassWrapUpStatus` reads the new source; `classChecklist.ts` `signatureItem` follows.
-- A "Initialed by judge" control (undoable) on Results (Phase 4). Until Phase 4 ships, the existing Overview action can carry it.
+- **Storage: per class** (new `classes.judge_signed_off_at` + `judge_signed_off_by`), written for all of a judge's classes that day in one action. Per class, not per judge-day, so a partial sign-off (a judge who leaves early, a class added late) still has somewhere to live, and a class's status needs no join. Not per entry: no one initials dog by dog.
+- **Status:** a completed class whose judge still has classes to run that day reads **"Initials at end of day"** (neutral, no attention signal). It becomes **"Needs judge's initials"** (attention) only once that judge's last class of the day is complete. Today it nags from the moment each class finishes.
+- **Report:** the Result Catalog has show, trial and class scopes (`reportRegistry.ts`) but no **judge + day** scope. A judge's day can span trials, so add that scope and print one marked catalog per judge per day.
+- **Action:** one "Initialed by [judge] — [day]" control that marks every completed class of that judge that day; per-class undo.
+- Migration (Opus, owner-run push), grants per `CLAUDE.md` § Database Migrations, manager-only write path (SECURITY DEFINER RPC or RLS-checked update). `classifyClassWrapUpStatus` and `classChecklist.ts` `signatureItem` read the new source.
+- Until Phase 4 ships, the existing Overview "Collect judge's initials" action carries the control.
 
-**Done when:** marking a class initialed flips it to "Initialed by judge" on Overview and Results, survives reload and offline replay, and the Show Map pending signal count drops.
+**Done when:** a secretary prints one marked catalog for a judge's day, marks it initialed in one action, every class of that judge's day reads "Initialed by judge" on Overview and Results after reload and offline replay, and no class nags for initials while its judge is still judging.
 
 ### Phase 3 — "Verified against paper" (owner decision)
 
@@ -69,7 +72,7 @@ Recommendation: (a), class-level only. A secretary interrupted mid-check needs t
 
 - **Layout:** `MasterDetailLayout` (from the master-detail plan). List: classes with Scored, Status and **Next action** (Verify → Release → Print → Initials → Done; classes not yet complete read "Overview →" and link there).
 - **Filter bar:** search, Trial, "Show" status filter defaulting to _Needs me_, Density, More (Visibility settings, Submit to registry, Close the show), primary **Print all ready**.
-- **Detail:** class header and chips; **Primary work** card naming the current step; the class's results table with a "matches paper" tick and **Fix** per row (opens the existing correct-score flow; blocked on MYK9-1025); a "Then" list for Release, Results sheet, Ribbon labels, Marked catalog + Initialed.
+- **Detail:** class header and chips; **Primary work** card naming the current step; the class's results table with a "matches paper" tick and **Fix** per row (opens the existing correct-score flow; blocked on MYK9-1025); a "Then" list for Release, Results sheet and Ribbon labels. Judge sign-off is not a per-class step: a **Judge sign-off** section groups the day's classes by judge ("[Judge] · Saturday · 4 of 4 complete") with Print marked catalog and Initialed, per Phase 2.
 - **Reuse, not rewrite:** release uses the existing release mutation behind `ResultsControlPage`; prints use the existing report descriptors and paperwork print state (`buildReportPaperworkDescriptor.ts`, `paperworkPrintState.ts`); results rows read the same source as the class page's staff run sheet.
 - **Show-level work:** Submit and Close keep their current pages, reached from More and from a banner once every class is released and initialed. The visibility defaults and overrides (`ResultsControlPage` "Result visibility") move behind More as a sheet.
 - Replication-backed reads only (show-day reliability); offline: verify, tick and print work offline, release queues like other mutations.

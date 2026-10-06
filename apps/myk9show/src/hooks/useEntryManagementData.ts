@@ -160,6 +160,9 @@ export function mapSecretaryEntryToEntryManagementEntry(
             fee: entry.entry_fee || 0,
             ...(entry.jump_height ? { jumpHeight: entry.jump_height } : {}),
             ...(entry.trial?.trial_type ? { trialType: entry.trial.trial_type } : {}),
+            ...(entry.trial_id ? { trialId: entry.trial_id } : {}),
+            ...(entry.trial?.trial_date ? { trialDate: entry.trial.trial_date } : {}),
+            ...(entry.trial?.trial_number ? { trialNumber: entry.trial.trial_number } : {}),
             handlerId: entry.handler_id,
             status: mapClassEntryStatus(entry.entry_status),
             // MYK9-632: WHICH withdrawal. Already loaded on the entry below;

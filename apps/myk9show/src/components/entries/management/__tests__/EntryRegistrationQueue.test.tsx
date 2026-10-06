@@ -25,6 +25,9 @@ function entry(id: string, registrationId: string, ownerName: string): EntryMana
         number: 'CN-A',
         fee: 25,
         status: 'entered',
+        trialId: 'trial-1',
+        trialDate: '2026-11-09',
+        trialNumber: '1',
       },
     ],
     totalFee: 25,
@@ -121,14 +124,23 @@ describe('EntryRegistrationQueue', () => {
 
       const focused = screen.getByRole('listitem', { name: /alice martin/i });
       expect(focused).toHaveAttribute('aria-current', 'true');
-      expect(
-        screen.getByRole('button', { name: 'Review registration for Alice Martin' })
-      ).toHaveAttribute('id', 'entry-registration-registration-1');
+      expect(screen.getByRole('button', { name: 'Review for Alice Martin' })).toHaveAttribute(
+        'id',
+        'entry-registration-registration-1'
+      );
       expect(focused.className).toContain('shadow-[inset_4px_0_0');
-      expect(screen.getAllByText('Review registration')).toHaveLength(2);
+      expect(screen.getAllByText('Review')).toHaveLength(2);
       expect(screen.getAllByText('Needs review')).toHaveLength(2);
       expect(screen.getAllByText('Not paid yet')).toHaveLength(2);
       expect(screen.queryByText('Payment due')).not.toBeInTheDocument();
+    });
+
+    it('says which trial date, trial number and class each form is for', () => {
+      restoreMatchMedia = stubMatchMedia(true);
+      renderQueue();
+
+      expect(screen.getAllByText('Mon, Nov 9 · Trial 1')).toHaveLength(2);
+      expect(screen.getAllByText(/Container Novice A/)).toHaveLength(2);
     });
 
     it('clicking a row focuses it while its checkbox only changes bulk selection', async () => {
@@ -147,7 +159,7 @@ describe('EntryRegistrationQueue', () => {
       restoreMatchMedia = stubMatchMedia(true);
       const { user, onToggleAll } = renderQueue();
 
-      const checkbox = screen.getByRole('checkbox', { name: /select all registrations/i });
+      const checkbox = screen.getByRole('checkbox', { name: /select all entry forms/i });
       expect(checkbox).toHaveAttribute('aria-checked', 'mixed');
       expect(checkbox).toHaveAttribute('data-indeterminate');
       expect(checkbox.className).toContain('before:-inset-3.5');
@@ -195,6 +207,13 @@ describe('EntryRegistrationQueue', () => {
       expect(focused.className).not.toContain('grid-cols-[2.75rem_minmax(0,1.15fr)');
     });
 
+    it('shows the trial date, number and class in the stacked row too', () => {
+      restoreMatchMedia = stubMatchMedia(false);
+      renderQueue();
+
+      expect(screen.getAllByText('Mon, Nov 9 · Trial 1')).toHaveLength(2);
+    });
+
     it('renders each row exactly once (no CSS-hidden duplicate copy)', () => {
       restoreMatchMedia = stubMatchMedia(false);
       renderQueue();
@@ -226,14 +245,14 @@ describe('EntryRegistrationQueue', () => {
       renderQueue();
 
       expect(screen.getAllByText('Needs review')).toHaveLength(2);
-      expect(screen.getAllByText('Review registration')).toHaveLength(2);
+      expect(screen.getAllByText('Review')).toHaveLength(2);
     });
   });
 
   // MYK9-57: at a 768px tablet the persistent manager sidebar leaves this
   // column ~408px, but the viewport media query still reported "desktop", so
   // the grid rendered at its ~616px floor inside a 408px `overflow-hidden`
-  // box and put "Review registration" 9px past the right edge with nothing
+  // box and put "Review" 9px past the right edge with nothing
   // scrollable between. The layout now follows the measured column width.
   describe('measured column width wins over the viewport (MYK9-57)', () => {
     it('stacks rows when the column is narrower than the grid needs, even on a 768px viewport', () => {
@@ -251,9 +270,7 @@ describe('EntryRegistrationQueue', () => {
       restoreMeasuredWidth = stubMeasuredWidth(408);
       renderQueue();
 
-      expect(
-        screen.getByRole('button', { name: 'Review registration for Alice Martin' })
-      ).toBeVisible();
+      expect(screen.getByRole('button', { name: 'Review for Alice Martin' })).toBeVisible();
     });
 
     it('keeps the grid when the column is at least as wide as the desktop arrangement guarantees', () => {
@@ -281,19 +298,15 @@ describe('EntryRegistrationQueue', () => {
       restoreMatchMedia = stubMatchMedia(true);
       renderQueue();
 
-      expect(
-        screen.getByRole('button', { name: 'Review registration for Alice Martin' })
-      ).toBeInTheDocument();
-      expect(
-        screen.getByRole('button', { name: 'Review registration for Priya Shah' })
-      ).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Review for Alice Martin' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Review for Priya Shah' })).toBeInTheDocument();
     });
 
     it('opens the registration from the action without double-firing the row click', async () => {
       restoreMatchMedia = stubMatchMedia(true);
       const { user, groups, onFocus } = renderQueue();
 
-      await user.click(screen.getByRole('button', { name: 'Review registration for Priya Shah' }));
+      await user.click(screen.getByRole('button', { name: 'Review for Priya Shah' }));
       expect(onFocus).toHaveBeenCalledTimes(1);
       expect(onFocus).toHaveBeenCalledWith(groups[1]);
     });
@@ -302,7 +315,7 @@ describe('EntryRegistrationQueue', () => {
       restoreMatchMedia = stubMatchMedia(true);
       renderQueue();
 
-      const action = screen.getByRole('button', { name: 'Review registration for Alice Martin' });
+      const action = screen.getByRole('button', { name: 'Review for Alice Martin' });
       expect(action.className).toContain('min-h-11');
     });
   });

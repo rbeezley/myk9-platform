@@ -24,18 +24,16 @@ export function EntryFocusedRegistration({
   return (
     <section
       className="overflow-hidden rounded-xl border bg-card shadow-sm"
-      aria-label={`Focused registration for ${registration.exhibitorName}`}
+      aria-label={`Entry form for ${registration.exhibitorName}`}
     >
       <header className="border-b px-5 py-4">
         {onBack && (
           <Button variant="ghost" size="sm" className="-ml-2 mb-2 gap-2" onClick={onBack}>
             <ArrowLeft className="h-4 w-4" aria-hidden />
-            Back to registrations
+            Back to list
           </Button>
         )}
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
-          Focused registration
-        </p>
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Entry form</p>
         <h2 className="mt-1 text-xl font-bold">{registration.exhibitorName}</h2>
         <p className="text-sm text-muted-foreground">
           {registration.confirmationNumber

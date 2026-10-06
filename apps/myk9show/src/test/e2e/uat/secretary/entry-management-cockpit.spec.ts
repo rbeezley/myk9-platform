@@ -19,11 +19,9 @@ test('registration focus remains clear across desktop, history, and narrow layou
   });
 
   await page.setViewportSize({ width: 1440, height: 1000 });
-  await expect(page.getByText('Focused registration', { exact: true })).toBeVisible();
+  await expect(page.getByText('Entry form', { exact: true })).toBeVisible();
 
-  const queueRows = page
-    .getByRole('list', { name: 'Registration work queue' })
-    .getByRole('listitem');
+  const queueRows = page.getByRole('list', { name: 'Entry form work queue' }).getByRole('listitem');
   await expect(queueRows).not.toHaveCount(0);
   await expect(queueRows.first()).toHaveAttribute('aria-current', 'true');
   const offlineSearchTerm = (await queueRows.first().getAttribute('aria-label'))?.split(',')[0];
@@ -39,9 +37,9 @@ test('registration focus remains clear across desktop, history, and narrow layou
   await queueRows.nth(1).click();
 
   await page.setViewportSize({ width: 900, height: 1000 });
-  await expect(page.getByRole('button', { name: 'Back to registrations' })).toBeVisible();
-  await page.getByRole('button', { name: 'Back to registrations' }).click();
-  await expect(page.getByRole('list', { name: 'Registration work queue' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Back to list' })).toBeVisible();
+  await page.getByRole('button', { name: 'Back to list' }).click();
+  await expect(page.getByRole('list', { name: 'Entry form work queue' })).toBeVisible();
   // Focus returns to the row's action — the row's only button — rather than to
   // the `listitem`, which carries no interactive role.
   await expect(queueRows.nth(1).getByRole('button')).toBeFocused();
@@ -76,7 +74,7 @@ test('the registration queue keeps every row inside a 768px tablet viewport (MYK
     timeout: 30_000,
   });
 
-  const queue = page.getByRole('list', { name: 'Registration work queue' });
+  const queue = page.getByRole('list', { name: 'Entry form work queue' });
   const rows = queue.getByRole('listitem');
   await expect(rows).not.toHaveCount(0);
   await expect(rows.first().getByRole('button')).toBeVisible();

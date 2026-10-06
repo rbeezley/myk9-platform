@@ -227,15 +227,15 @@ describe('EntryManagementCockpit whole-show totals line (MYK9-635)', () => {
     );
 
     expect(screen.getByTestId('registration-totals')).toHaveTextContent(
-      '2 registrations · 3 entries. All registrations includes Needs review.'
+      '3 entries from 2 entry forms. The All view includes Needs review.'
     );
   });
 
-  it('says "registration" and "entry" in the singular for a one-entry show', () => {
+  it('says "entry form" and "entry" in the singular for a one-entry show', () => {
     renderCockpit(vi.fn<StatusChangeHandler>(async () => true));
 
     expect(screen.getByTestId('registration-totals')).toHaveTextContent(
-      '1 registration · 1 entry.'
+      '1 entry from 1 entry form.'
     );
   });
 

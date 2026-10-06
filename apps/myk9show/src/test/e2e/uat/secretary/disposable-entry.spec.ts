@@ -87,14 +87,14 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
       })
       .fill(seed.dogName);
     const registrationRow = page
-      .getByRole('list', { name: 'Registration work queue' })
+      .getByRole('list', { name: 'Entry form work queue' })
       .getByRole('listitem')
       .filter({ hasText: seed.dogName });
     await expect(registrationRow).toBeVisible({ timeout: 10000 });
     await registrationRow.click();
 
     const entryCard = page
-      .locator('section[aria-label^="Focused registration for"]')
+      .locator('section[aria-label^="Entry form for"]')
       .filter({ hasText: seed.dogName });
     await expect(entryCard).toContainText(seed.className, { timeout: 10000 });
 

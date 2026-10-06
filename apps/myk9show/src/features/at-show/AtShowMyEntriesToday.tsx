@@ -12,6 +12,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, ChevronRight, Clock3, Info, ListChecks } from 'lucide-react';
 import type { CheckInStatus } from '@myk9/core';
 import { Button } from '@/components/ui/button';
+import { ResultBadge } from '@/components/common/ResultBadge';
 import { getStatusDescriptor, StatusBadge } from '@/components/status';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { cn } from '@/lib/utils';
@@ -88,6 +89,16 @@ function EntryRow({
           label={getExhibitorStatusLabel(detail)}
           className="mt-1 text-xs"
         />
+        {detail.resultStatus && (
+          <div className="mt-1 flex items-center gap-2 text-sm" role="group" aria-label="Result">
+            <ResultBadge resultStatus={detail.resultStatus} />
+            {detail.resultTimeSeconds != null && (
+              <span className="tabular-nums text-muted-foreground">
+                {detail.resultTimeSeconds.toFixed(1)}s
+              </span>
+            )}
+          </div>
+        )}
         {action.kind === 'self-checkin-disabled' && (
           <div className="mt-1 flex items-start gap-1 text-xs text-muted-foreground">
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />

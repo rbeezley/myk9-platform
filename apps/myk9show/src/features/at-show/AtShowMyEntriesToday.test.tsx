@@ -3,6 +3,7 @@ import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { AtShowMyEntriesToday } from './AtShowMyEntriesToday';
 import type { AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
+import { buildMyAtShowEntryDetails, type AtShowClassSummary } from './myAtShowEntryDetails.helpers';
 
 const mockMutateAsync = vi.hoisted(() => vi.fn());
 const mockSync = vi.hoisted(() => vi.fn());
@@ -31,6 +32,8 @@ function entry(overrides: Partial<AtShowEntryDetail>): AtShowEntryDetail {
     isRevisedStart: false,
     hasRunOrder: true,
     isScored: false,
+    resultStatus: null,
+    resultTimeSeconds: null,
     selfCheckinState: 'allowed',
     trialLabel: null,
     ...overrides,
@@ -79,6 +82,70 @@ describe('AtShowMyEntriesToday — status badge falls back to the staff-grade la
     );
 
     expect(await screen.findByText('I have a conflict — tell the secretary')).toBeInTheDocument();
+  });
+});
+
+describe('AtShowMyEntriesToday — released result on the existing row', () => {
+  it('shows Ranger’s Q and time beside Completed', async () => {
+    const classes = new Map<string, AtShowClassSummary>([
+      [
+        'class-1',
+        {
+          className: 'Novice Container',
+          classStatus: 'completed',
+          resultsReleasedAt: '2026-10-06T15:00:00Z',
+        },
+      ],
+    ]);
+    const entries = buildMyAtShowEntryDetails(
+      [
+        {
+          id: 'entry-1',
+          classId: 'class-1',
+          dogCallName: 'Ranger',
+          checkInStatus: 'completed',
+          isScored: true,
+          resultStatus: 'qualified',
+          searchTimeSeconds: 58,
+        },
+      ],
+      new Set(['entry-1']),
+      classes,
+      new Map()
+    );
+    render(
+      <AtShowMyEntriesToday
+        showId="show-1"
+        entries={entries}
+        isLoading={false}
+        dataUpdatedAt={1}
+        loadFailed={false}
+        onRetry={vi.fn()}
+        onSeeAllClasses={vi.fn()}
+      />
+    );
+
+    expect(await screen.findByText('Completed')).toBeInTheDocument();
+    expect(screen.getByText('Q')).toBeInTheDocument();
+    expect(screen.getByText('58.0s')).toBeInTheDocument();
+  });
+
+  it('does not display a result or time when visibility masked the score', () => {
+    render(
+      <AtShowMyEntriesToday
+        showId="show-1"
+        entries={[entry({ isScored: true, checkInStatus: 'completed' })]}
+        isLoading={false}
+        dataUpdatedAt={1}
+        loadFailed={false}
+        onRetry={vi.fn()}
+        onSeeAllClasses={vi.fn()}
+      />
+    );
+
+    expect(screen.getByText('Completed')).toBeInTheDocument();
+    expect(screen.queryByText('Q')).not.toBeInTheDocument();
+    expect(screen.queryByText(/58\.0s/)).not.toBeInTheDocument();
   });
 });
 

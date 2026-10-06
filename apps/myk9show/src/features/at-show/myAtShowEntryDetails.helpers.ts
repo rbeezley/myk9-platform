@@ -39,6 +39,7 @@ export function isExhibitorOnlyForAtShow(hasRole: (role: UserRole) => boolean): 
 export interface AtShowClassSummary {
   className: string;
   classStatus: string;
+  resultsReleasedAt?: string | null | undefined;
   expectedStartLabel?: string | undefined;
   isRevisedStart?: boolean | undefined;
   /**
@@ -64,6 +65,9 @@ export interface AtShowEntryDetail {
   /** Whether the exhibitor's row has a run-order position assigned. */
   hasRunOrder: boolean;
   isScored: boolean;
+  /** Server-exposed result, shown only once this class is released. Null when withheld. */
+  resultStatus: string | null;
+  resultTimeSeconds: number | null;
   /** The class's resolved self-check-in cascade (MYK9-800 follow-up). */
   selfCheckinState: SelfCheckinState;
   /** "<trial label> · <date>" (`formatAtShowTrialHeading`), or null before the trial replica resolves. */
@@ -118,6 +122,16 @@ export function buildMyAtShowEntryDetails(
     if (trial && !isTrialDayToday(parseShowDate(trial.date), trial.timezone, now)) continue;
 
     const classSummary = entry.classId ? (classesById.get(entry.classId) ?? null) : null;
+    // The replication view already masks qualification/time by visibility and
+    // privacy. Require the class release too: an old staff-populated cache must
+    // never turn a preliminary result into a final exhibitor result.
+    const status = entry.resultStatus ?? entry.result_status;
+    const hasVisibleResult =
+      Boolean(classSummary?.resultsReleasedAt) &&
+      (entry.isScored ?? entry.is_scored) === true &&
+      status != null &&
+      status !== 'pending';
+    const seconds = entry.searchTimeSeconds ?? entry.search_time_seconds;
 
     details.push({
       entryId: entry.id,
@@ -130,6 +144,11 @@ export function buildMyAtShowEntryDetails(
       isRevisedStart: classSummary?.isRevisedStart ?? false,
       hasRunOrder: entry.runOrder != null,
       isScored: entry.isScored ?? false,
+      resultStatus: hasVisibleResult ? status : null,
+      resultTimeSeconds:
+        hasVisibleResult && typeof seconds === 'number' && Number.isFinite(seconds) && seconds >= 0
+          ? seconds
+          : null,
       selfCheckinState: classSummary?.selfCheckinState ?? 'unknown',
       trialLabel: trial?.label ?? null,
     });

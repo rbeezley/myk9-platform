@@ -11,7 +11,6 @@ import {
   type ShowRegistrationQueue,
 } from '@/components/entries/management/showRegistrationProjection';
 import {
-  writeCockpitDensity,
   writeCockpitException,
   writeCockpitFocus,
   writeCockpitQueue,
@@ -24,7 +23,6 @@ import {
   type EntryManagementException,
   type EntryManagementViewId,
 } from '@/components/entries/management/entryManagementCockpitParams';
-import type { OperationalViewDensity } from '@/features/operational-views/operationalViews';
 
 interface UseEntryManagementCockpitOptions {
   groups: ShowRegistrationGroup[];
@@ -157,8 +155,6 @@ export function useEntryManagementCockpit({
       updateParams(previous => writeCockpitTab(previous, tab)),
     setException: (exception: EntryManagementException) =>
       updateParams(previous => writeCockpitException(previous, exception)),
-    setDensity: (density: OperationalViewDensity) =>
-      updateParams(previous => writeCockpitDensity(previous, density)),
     /** Selects one of the seven unified `ListViewTabs` entries (MYK9-795). */
     setView: (viewId: EntryManagementViewId) =>
       updateParams(previous => writeCockpitView(previous, viewId)),

@@ -14,7 +14,6 @@ const BASE_STATE: EntryManagementCockpitState = {
   exception: 'move-ups',
   queue: 'all',
   search: '',
-  density: 'comfortable',
   trialId: null,
   classId: null,
   registrationKey: null,
@@ -37,11 +36,9 @@ function renderToolbar(
       counts={COUNTS}
       trials={[{ id: 't1', name: 'Saturday', date: null, trial_number: 1 }]}
       trialClasses={[]}
-      density="comfortable"
       onSelectView={vi.fn()}
       onScopeChange={vi.fn()}
       onSearchChange={vi.fn()}
-      onDensityChange={vi.fn()}
       onClearAll={onClearAll}
       result={result}
     />

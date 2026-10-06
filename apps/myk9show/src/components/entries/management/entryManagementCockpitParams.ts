@@ -1,8 +1,4 @@
 import {
-  isOperationalViewDensity,
-  type OperationalViewDensity,
-} from '@/features/operational-views/operationalViews';
-import {
   SHOW_REGISTRATION_QUEUES,
   type ShowRegistrationGroup,
   type ShowRegistrationQueue,
@@ -26,7 +22,6 @@ export interface EntryManagementCockpitState {
   exception: EntryManagementException;
   queue: ShowRegistrationQueue;
   search: string;
-  density: OperationalViewDensity;
   trialId: string | null;
   classId: string | null;
   registrationKey: string | null;
@@ -121,8 +116,6 @@ export function normalizeEntryManagementCockpitParams(
   const queue = getQueue(source);
   const rawSearch = source.get('search') ?? source.get('person') ?? '';
   const search = rawSearch.trim() ? rawSearch : '';
-  const rawDensity = source.get('density');
-  const density = isOperationalViewDensity(rawDensity) ? rawDensity : 'comfortable';
   const trialId = tab === 'registrations' ? source.get('trial') : null;
   const classId = tab === 'registrations' ? source.get('class') : null;
   const registrationKey = tab === 'registrations' ? getRegistrationKey(source, context) : null;
@@ -134,7 +127,6 @@ export function normalizeEntryManagementCockpitParams(
   } else {
     if (queue !== 'needs-review') params.set('queue', queue);
     if (search) params.set('search', search);
-    if (density !== 'comfortable') params.set('density', density);
     if (trialId) params.set('trial', trialId);
     if (classId) params.set('class', classId);
     if (registrationKey) params.set('registration', registrationKey);
@@ -147,7 +139,6 @@ export function normalizeEntryManagementCockpitParams(
       exception,
       queue,
       search,
-      density,
       trialId,
       classId,
       registrationKey,
@@ -195,16 +186,6 @@ export function writeCockpitScope(
   if (trialId && classId) next.set('class', classId);
   else next.delete('class');
   next.delete('registration');
-  return next;
-}
-
-export function writeCockpitDensity(
-  source: URLSearchParams,
-  density: OperationalViewDensity
-): URLSearchParams {
-  const next = new URLSearchParams(source);
-  if (density === 'comfortable') next.delete('density');
-  else next.set('density', density);
   return next;
 }
 

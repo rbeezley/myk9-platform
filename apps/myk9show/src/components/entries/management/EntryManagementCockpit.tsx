@@ -293,7 +293,6 @@ export function EntryManagementCockpit({
             pageIndex={cockpit.page.pageIndex}
             pageCount={cockpit.page.pageCount}
             onPageChange={cockpit.setPageIndex}
-            density={cockpit.state.density}
           />
         )}
 

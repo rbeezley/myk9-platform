@@ -134,13 +134,14 @@ describe('normalizeEntryManagementCockpitParams', () => {
     expect(normalized.params.get('search')).toBe('Alice ');
   });
 
-  it('drops retired presentation values while preserving supported density and scope', () => {
+  it('drops retired presentation values, density included, while preserving scope', () => {
     const normalized = normalizeEntryManagementCockpitParams(
       params('mode=day-of&view=cards&display=show-day&density=compact&trial=t1&class=c1')
     );
 
-    expect(normalized.params.toString()).toBe('density=compact&trial=t1&class=c1');
-    expect(normalized.state).toMatchObject({ density: 'compact', trialId: 't1', classId: 'c1' });
+    expect(normalized.params.toString()).toBe('trial=t1&class=c1');
+    expect(normalized.state).toMatchObject({ trialId: 't1', classId: 'c1' });
+    expect(normalized.state).not.toHaveProperty('density');
   });
 
   it('writes scope and canonical exception navigation while clearing incompatible focus', () => {

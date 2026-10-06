@@ -7,7 +7,6 @@ const BASE_STATE: EntryManagementCockpitState = {
   exception: 'move-ups',
   queue: 'needs-review',
   search: '',
-  density: 'comfortable',
   trialId: null,
   classId: null,
   registrationKey: null,

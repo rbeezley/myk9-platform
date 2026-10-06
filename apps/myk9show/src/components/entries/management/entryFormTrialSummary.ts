@@ -19,7 +19,11 @@ interface TrialBucket extends TrialClassLine {
   sortKey: string;
 }
 
-function trialLabel(date: string | null | undefined, number: string | null | undefined): string {
+/** "Mon, Nov 9 · Trial 1", or whatever part of it is known. */
+export function formatTrialLabel(
+  date: string | null | undefined,
+  number: string | null | undefined
+): string {
   const day = date ? formatWeekdayMonthDay(date) : '';
   // Trial numbers are free text: the seed data stores "Trial 1", other shows store just "1".
   const numberLabel = number
@@ -44,7 +48,7 @@ export function summarizeTrialClasses(
 
   const buckets = new Map<string, TrialBucket>();
   for (const cls of shown) {
-    const label = trialLabel(cls.trialDate, cls.trialNumber);
+    const label = formatTrialLabel(cls.trialDate, cls.trialNumber);
     const key = cls.trialId ?? (label || 'unknown');
     const bucket = buckets.get(key) ?? {
       key,

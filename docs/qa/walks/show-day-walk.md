@@ -19,12 +19,14 @@ Working directory: /Users/richardbeezley/AI Projects/myk9-platform
   select t.id as trial_id, t.date, c.id as class_id, c.name, c.start_time, c.status,
          (select count(*) from entries e where e.class_id = c.id) as entries
   from trials t
+  join shows s on s.id = t.show_id and s.deleted_at is null
   join classes c on c.trial_id = t.id and c.deleted_at is null
   where t.show_id = 'dededede-0000-0000-0000-000000000014'
+    and t.deleted_at is null
     and t.date = (now() at time zone t.timezone)::date;
   ```
 
-  One row is the fixture working. Zero rows means nobody has reseeded for seven days and the window has lapsed. Then stop, write a short report saying the walk is **blocked: show-day fixture stale**, name the fixture's last trial date, and do not walk anything else. Never create or re-date a show to work around it.
+  One row is the fixture working. Zero rows means the window has lapsed or the fixture was soft-deleted (it was, from the app, on 2026-10-01). Then stop, write a short report saying the walk is **blocked: show-day fixture stale**, name the fixture's last trial date and whether the show, its trials or classes carry `deleted_at`, and say the owner's restore is due (`select public.seed_demo_restore_show_day_fixture();`, [`docs/operations/staging-reseed.md`](../../operations/staging-reseed.md#show-day-fixture-restore-between-reseeds)). Do not walk anything else. Never run the restore, or create or re-date a show, yourself.
 
 - **Pick the walk's dog.** The walk enters `exhibitor@`'s seeded dog **Ranger** (`dededede-0000-0000-0000-000000000042`) in today's class. Assert first that Ranger has no entry in that class (`select count(*) from entries where dog_id = '…042' and class_id = '<today's class>'` is 0). If one exists, an earlier run left residue: report it, do not reuse or delete it, and stop.
 

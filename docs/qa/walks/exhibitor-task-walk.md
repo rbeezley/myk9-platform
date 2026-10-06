@@ -72,14 +72,16 @@ order by entry_close_date desc limit 10;
 select t.date, t.id as trial_id, c.id as class_id, c.start_time, e.id as entry_id,
        e.run_order, e.armband, e.check_in_status
 from trials t
+join shows s on s.id = t.show_id and s.deleted_at is null
 join classes c on c.trial_id = t.id and c.deleted_at is null
-join entries e on e.class_id = c.id
+join entries e on e.class_id = c.id and e.deleted_at is null
 join people p on p.id = e.handler_id and lower(p.email) = 'exhibitor@myk9t.com'
 where t.show_id = 'dededede-0000-0000-0000-000000000014'
+  and t.deleted_at is null
   and t.date = (now() at time zone t.timezone)::date;
 ```
 
-One row is the fixture working. Zero rows means the seven-day window has lapsed because nobody has reseeded for a week: record tasks 5 and 7 as **blocked: show-day fixture stale** (not "not exercised"), name the last trial date the fixture holds, and say a reseed is due. Do not create or re-date anything yourself.
+One row is the fixture working. Zero rows means the window has lapsed or the fixture was soft-deleted: record tasks 5 and 7 as **blocked: show-day fixture stale** (not "not exercised"), name the last trial date the fixture holds and whether any of its rows carry `deleted_at`, and say the owner's restore is due (`select public.seed_demo_restore_show_day_fixture();`, [`docs/operations/staging-reseed.md`](../../operations/staging-reseed.md#show-day-fixture-restore-between-reseeds)). Do not run it, or create or re-date anything, yourself.
 
 **The show to enter is `Heartland UKC Nosework Trial`** (`dededede-0000-0000-0000-000000000011`), a lean-seed show: entry window `CURRENT_DATE - 16 .. + 76` relative to the last reseed, so it is always open, zero seeded entries, and its Checkout runs against the Heartland club's sandbox Stripe account. It is UKC, so the throwaway dog needs a UKC registration number before a class can be selected — add one in task 1. (Until MYK9-558 this walk entered a MYK9-109 load show, which a plain reseed now removes.) Because the walk stops at Checkout it leaves no paid entry here. If one ever appears, it blocks the next reseed on the seed's money guard, so record its id and the run token for an operator (`seed-reset` skill, "When the seed aborts").
 

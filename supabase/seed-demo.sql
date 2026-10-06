@@ -60,7 +60,8 @@
 --   One exception, section 19: the show-day fixture runs from TODAY to TODAY + 6
 --   in the show's own timezone (America/Chicago), read from now() rather than
 --   CURRENT_DATE, and carries the file's only announcements. A trial is dated
---   today for a week after any reseed; reseed at least weekly (MYK9-731).
+--   today for a week after any reseed; between reseeds an operator renews it
+--   with public.seed_demo_restore_show_day_fixture() (MYK9-731).
 --
 --   So the show is always ~6 weeks out and always accepting entries. Judge
 --   qualifications are relative for the same reason (obtained -5y, expires +3y):
@@ -2402,12 +2403,14 @@ VALUES
 -- WHY SEVEN DAYS, NOT ONE. "Today" in a seed goes stale the day after the
 -- reseed. The window keeps a trial dated today for a week after any reseed,
 -- which covers one full cycle of the weekly walks (secretary Wednesday,
--- exhibitor Sunday). DECISION (MYK9-731): reseed on the walks' schedule, at
--- least weekly; there is no read-time roller. A roller would be a write to the
--- shared database on every walk, or a new RPC and cron for one fixture, and a
--- reseed already resets everything else the walks depend on. Every walk
--- prompt's precondition query reports a lapsed window as a stale fixture, so
--- a missed reseed is a named gap in the report, never a silent skip.
+-- exhibitor Sunday). DECISION (MYK9-731, revised 2026-10-06): the window
+-- still covers a week after a reseed, but a full reseed is no longer the only
+-- way to renew it. Since real paid entries sit on a real club show, the
+-- paid-stray guard aborts a scheduled reseed, so between reseeds an operator
+-- runs public.seed_demo_restore_show_day_fixture() (below), which re-dates and
+-- repairs ONLY this fixture. Every walk prompt's precondition query reports a
+-- lapsed window as a stale fixture, so a missed restore is a named gap in the
+-- report, never a silent skip.
 --
 -- "TODAY" IS THE SHOW'S DAY, NOT THE SERVER'S. The rest of this file offsets
 -- from CURRENT_DATE, which is the UTC date on this database. For a fixture 45
@@ -2481,152 +2484,28 @@ ON CONFLICT (id) DO UPDATE
       deleted_at       = NULL,
       deleted_by       = NULL;
 
--- 'open' preset like the demo show, with self-check-in on.
-INSERT INTO public.show_visibility_settings (
-  show_id, preset, placement_timing, qualification_timing,
-  time_timing, faults_timing, self_checkin_enabled
-)
-VALUES (
-  'dededede-0000-0000-0000-000000000014',
-  'open', 'class_complete', 'immediate', 'immediate', 'immediate', true
-)
-ON CONFLICT (show_id) DO UPDATE
-  SET preset               = EXCLUDED.preset,
-      placement_timing     = EXCLUDED.placement_timing,
-      qualification_timing = EXCLUDED.qualification_timing,
-      time_timing          = EXCLUDED.time_timing,
-      faults_timing        = EXCLUDED.faults_timing,
-      self_checkin_enabled = EXCLUDED.self_checkin_enabled;
-
-INSERT INTO public.trials (
-  id, show_id, name, date, trial_number, status,
-  planned_start_time, allow_self_checkin, trial_type, pipeline_stage,
-  display_order, category, registry_id, timezone, version
-)
-SELECT
-  ('dededede-0000-0000-0014-' || lpad(o.n::text, 12, '0'))::uuid,
-  'dededede-0000-0000-0000-000000000014',
-  'Trial ' || (o.n + 1), (d.today + o.n), 'Trial ' || (o.n + 1), 'upcoming',
-  '8:00 AM', true, 'scent_work', 1, o.n + 1, 'Trial ' || (o.n + 1), 'AKC', 'America/Chicago', 1
-FROM (SELECT (now() AT TIME ZONE 'America/Chicago')::date AS today) AS d
-CROSS JOIN generate_series(0, 6) AS o(n)
-ON CONFLICT (id) DO UPDATE
-  SET show_id            = EXCLUDED.show_id,
-      name               = EXCLUDED.name,
-      date               = EXCLUDED.date,
-      trial_number       = EXCLUDED.trial_number,
-      status             = EXCLUDED.status,
-      allow_self_checkin = EXCLUDED.allow_self_checkin,
-      registry_id        = EXCLUDED.registry_id,
-      timezone           = EXCLUDED.timezone,
-      deleted_at         = NULL,
-      deleted_by         = NULL;
-
--- start_time is the class's published time on the exhibitor's schedule
--- (services/database/trials/timeline.ts). The scoring columns are reset because
--- a walk scores these classes; a reseed returns them to "not started".
-INSERT INTO public.classes (
-  id, trial_id, name, level, element, section,
-  entry_fee, status, time_limit_seconds, num_hides, num_areas,
-  has_blank, timer_mode, hides_known, display_order, start_time, version
-)
-SELECT
-  ('dec1a55e-0000-0000-0014-' || lpad(o.n::text, 12, '0'))::uuid,
-  ('dededede-0000-0000-0014-' || lpad(o.n::text, 12, '0'))::uuid,
-  'Container Novice A', 'Novice', 'Container', 'A',
-  30.00, 'upcoming', 120, 1, 1, false, 'single', true, 1, '09:00'::time, 1
-FROM generate_series(0, 6) AS o(n)
-ON CONFLICT (id) DO UPDATE
-  SET trial_id             = EXCLUDED.trial_id,
-      name                 = EXCLUDED.name,
-      level                = EXCLUDED.level,
-      element              = EXCLUDED.element,
-      section              = EXCLUDED.section,
-      status               = EXCLUDED.status,
-      start_time           = EXCLUDED.start_time,
-      is_scoring_finalized = false,
-      scored_count         = 0,
-      results_released_at  = NULL,
-      deleted_at           = NULL,
-      deleted_by           = NULL;
-
--- Plain INSERTs: section 0 deleted these ids (and the dog delete cascaded any
--- other entry on Willow or Cooper), so a collision here is a real bug.
-INSERT INTO public.entries (
-  id, dog_id, class_id, show_id, trial_id, handler_id, handler,
-  entry_status, payment_status, entry_fee, armband, run_order, move_up_requested, version
-)
-SELECT
-  ('dededede-0000-0000-0014-0000000' || e.kind || lpad(o.n::text, 2, '0'))::uuid,
-  e.dog_id,
-  ('dec1a55e-0000-0000-0014-' || lpad(o.n::text, 12, '0'))::uuid,
-  'dededede-0000-0000-0000-000000000014',
-  ('dededede-0000-0000-0014-' || lpad(o.n::text, 12, '0'))::uuid,
-  (SELECT id FROM public.people WHERE lower(email) = e.email), e.handler,
-  'confirmed', 'paid', 30.00, e.armband, e.run_order, false, 1
-FROM generate_series(0, 6) AS o(n)
-CROSS JOIN (VALUES
-  ('001', 'dededede-0000-0000-0000-000000000041'::uuid, 'exhibitor@myk9t.com', 'Casey Morgan', 200, 1),
-  ('002', 'dededede-0000-0000-0000-000000000046'::uuid, 'secretary@myk9t.com', 'Jordan Ellis', 201, 2)
-) AS e(kind, dog_id, email, handler, armband, run_order);
-
--- One armband per dog per show, matching the entries' numbers (see section 7).
-INSERT INTO public.armbands (id, show_id, dog_id, armband_number, is_available, assigned_at, version)
-SELECT v.id, 'dededede-0000-0000-0000-000000000014', v.dog_id, v.num, false,
-       ((d.today - 3)::timestamp AT TIME ZONE 'UTC'), 1
-FROM (SELECT (now() AT TIME ZONE 'America/Chicago')::date AS today) AS d
-CROSS JOIN (VALUES
-  ('dededede-0000-0000-0014-0000000002a1'::uuid, 'dededede-0000-0000-0000-000000000041'::uuid, '200'),
-  ('dededede-0000-0000-0014-0000000002a2'::uuid, 'dededede-0000-0000-0000-000000000046'::uuid, '201')
-) AS v(id, dog_id, num);
-
--- The judge fixture judges every day, at class level (section 11 explains why a
--- trial-level row never reaches the dashboard). Its own block, after section 12,
--- so section 11's pinned assignment set is untouched.
+-- Everything else in the fixture -- the visibility row with self-check-in on,
+-- the seven trials, their classes, the running order, the armbands, the judge
+-- assignments and the two announcements -- is written by
+-- public.seed_demo_restore_show_day_fixture() (migration 20261006014300), the
+-- same function an operator runs to re-date the fixture between reseeds
+-- without a full reseed (docs/operations/staging-reseed.md). One body, so the
+-- reseed and the repair cannot drift apart. It refuses if money sits on this
+-- show, and asserts its own postcondition.
+--
+-- Section 0 already removed the fixture's 14 entries by id and its armbands on
+-- seeded dogs, so the function re-creates them. Two resets stay here because
+-- they are wider than a repair should be: every judge assignment on the show
+-- (a walk may have added one), and the two announcements by id, whose delete
+-- cascades their read receipts so the inbox is unread again after a reseed.
+-- exhibitor2@ has no entry here and stays the empty-state account.
 DELETE FROM public.judge_assignments
 WHERE show_id = 'dededede-0000-0000-0000-000000000014';
 
-INSERT INTO public.judge_assignments (
-  id, person_id, show_id, trial_id, class_id, status, confirmed_at, created_at, updated_at
-)
-SELECT
-  ('dededede-0000-0000-0014-0000000003' || lpad(o.n::text, 2, '0'))::uuid,
-  p.id, 'dededede-0000-0000-0000-000000000014',
-  ('dededede-0000-0000-0014-' || lpad(o.n::text, 12, '0'))::uuid,
-  ('dec1a55e-0000-0000-0014-' || lpad(o.n::text, 12, '0'))::uuid,
-  'confirmed', ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC'),
-  ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC'), ((CURRENT_DATE)::timestamp AT TIME ZONE 'UTC')
-FROM generate_series(0, 6) AS o(n)
-JOIN public.people p ON lower(p.email) = 'judge@myk9t.com';
-
--- Announcements, priority 'normal' ON PURPOSE: on_announcement_insert_push
--- fires only for 'high' / 'urgent' and fans the row out as a web push to the
--- show's subscribers, and a reseed must never push to anyone. Deleting by id
--- also removes each one's read receipts (show_announcement_reads cascades), so
--- they are unread again after every reseed. exhibitor2@ has no entry here and
--- stays the empty-state account; its empty inbox is the empty-state fixture.
 DELETE FROM public.show_announcements
 WHERE id IN ('dededede-0000-0000-0014-0000000004a1', 'dededede-0000-0000-0014-0000000004a2');
 
-INSERT INTO public.show_announcements (
-  id, show_id, author_id, author_role, author_name, title, content, priority,
-  expires_at, is_active, created_at, updated_at
-)
-SELECT
-  v.id, 'dededede-0000-0000-0000-000000000014',
-  (SELECT auth_user_id FROM public.people WHERE lower(email) = 'secretary@myk9t.com'),
-  'secretary', 'Jordan Ellis', v.title, v.content, 'normal', NULL, true,
-  ((d.today::timestamp + v.at) AT TIME ZONE 'America/Chicago'),
-  ((d.today::timestamp + v.at) AT TIME ZONE 'America/Chicago')
-FROM (SELECT (now() AT TIME ZONE 'America/Chicago')::date AS today) AS d
-CROSS JOIN (VALUES
-  ('dededede-0000-0000-0014-0000000004a1'::uuid, INTERVAL '06:30:00',
-   'Welcome to Scent Work Week',
-   'Check-in opens at 8:00 AM at the main tent. Container Novice A starts at 9:00 AM. Please keep dogs crated until your armband is called.'),
-  ('dededede-0000-0000-0014-0000000004a2'::uuid, INTERVAL '07:15:00',
-   'Parking update',
-   'The front lot is full. Please use the overflow field behind the barn; volunteers will direct you.')
-) AS v(id, at, title, content);
+SELECT public.seed_demo_restore_show_day_fixture();
 
 -- Postcondition: the whole point of this section is that SQL finds a trial
 -- dated today with self-check-in, published times and the demo exhibitor's
@@ -2647,6 +2526,10 @@ BEGIN
   JOIN public.people p ON p.id = e.handler_id
   WHERE s.id = 'dededede-0000-0000-0000-000000000014'
     AND s.status = 'published'
+    -- Every level LIVE: on 2026-10-01 the show was soft-deleted from the app
+    -- and this check, which did not look, would still have read it as ready.
+    AND s.deleted_at IS NULL AND t.deleted_at IS NULL
+    AND c.deleted_at IS NULL AND e.deleted_at IS NULL
     AND t.date = (now() AT TIME ZONE t.timezone)::date
     AND t.allow_self_checkin
     AND vs.self_checkin_enabled

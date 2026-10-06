@@ -38,9 +38,11 @@ database is left untouched — but the reseed has not happened either. Check wit
    entries on the demo show) plus the show-day fixture `Heartland Scent Work
 Week`, which has a trial dated today for seven days after the reseed
    (MYK9-731), and removes the MYK9-109 load fixture if it was applied.
-   **Reseed at least weekly** on the walks' schedule: once the seven days lapse,
-   no seeded show is running today and the walks record show-day check-in,
-   running order and announcements as a stale-fixture gap.
+   Once the seven days lapse, no seeded show is running today and the walks
+   record show-day check-in, running order and announcements as a
+   stale-fixture gap. Between reseeds, renew it with the targeted restore in
+   [Show-day fixture restore](#show-day-fixture-restore-between-reseeds) below
+   rather than a full reseed.
 3. **Load fixture (opt-in)** — only for a load rehearsal or a 63-entry PDF
    calibration, run `supabase/seed-load-fixture.sql` AFTER step 2 against the
    same URL (MYK9-558). It adds the 63 load dogs and 504 entries on the demo
@@ -57,6 +59,77 @@ psql "$(cat supabase/.temp/pooler-url)" -v ON_ERROR_STOP=1 -f supabase/seed-demo
 > Worktrees are NOT linked to Supabase (the CLI link cache lives in
 > `supabase/.temp`, which—like gitignored files—does not copy across worktrees).
 > Copy `supabase/.temp` from a linked checkout, or run from the linked tree.
+
+## Show-day fixture restore (between reseeds)
+
+The show-day fixture (`Heartland Scent Work Week`, show
+`dededede-0000-0000-0000-000000000014`) goes stale seven days after a reseed,
+and a walk or a person can soft-delete it from the app. On 2026-10-01 the demo
+secretary account deleted the whole show, which stamped its trials, classes and
+entries too, and the October 5 show-day walk found zero live classes. A full
+reseed is the wrong repair now: while real paid entries sit on a real club
+show, `seed_demo_assert_no_paid_strays()` aborts it, by design.
+
+`public.seed_demo_restore_show_day_fixture()` (migration `20261006014300`,
+MYK9-731) repairs only this fixture. It re-dates the seven trials to today
+through today + 6 in America/Chicago and undeletes the show, trials and classes.
+It resets the 14 fixture entries, the armbands, the judge assignments and the two
+announcements by their seed-fixed ids, and it turns self-check-in on. It never
+touches another show, a person, a dog, or any payment, refund or Stripe row, and
+it leaves an entry a walk created on the fixture as it is. Section 19 of
+`seed-demo.sql` calls the same function, so the reseed and the restore cannot
+drift apart.
+
+- **Who runs it:** the owner. It writes to the shared staging database, so an
+  agent does not run it unprompted, even in auto mode.
+- **When:** before a scheduled show-day or exhibitor walk whose precondition
+  query reports the fixture stale or missing, or on any day a show-day walk is
+  planned. It is idempotent: a second run on the same day writes nothing and
+  returns all-zero counts.
+- **Precondition:** migration `20261006014300` is on the database
+  (`supabase migration list`). Without it the call fails with `42883 function
+... does not exist` and changes nothing.
+
+```bash
+# From a checkout that has supabase/.env (no link needed).
+export PGPASSWORD="$(grep '^SUPABASE_DB_PASSWORD=' supabase/.env | cut -d= -f2-)"
+psql "postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase.com:5432/postgres" \
+  -X -v ON_ERROR_STOP=1 -c "select public.seed_demo_restore_show_day_fixture();"
+```
+
+It returns the rows it wrote per table plus the date it used, for example
+`{"shows": 1, "trials": 7, "classes": 7, "entries_reset": 14, "entries_inserted": 14, ..., "today": "2026-10-06"}`.
+
+It **refuses, and writes nothing,** when:
+
+- the show is missing (`P0002`). Run the full reseed instead.
+- the show is no longer under the Heartland demo club.
+- `exhibitor@`, `secretary@` or `judge@myk9t.com` does not resolve to exactly
+  one person, or the seeded dogs Willow and Cooper are missing or deleted.
+- money sits on the show. That means a paid or refunded entry with a payment
+  trail (the same predicate as the reseed guard, minus status history), a
+  Stripe intent or refund on any entry, a paid enrollment, a Stripe order, a
+  `show_payments` row, a cart line or a refund request. Resolve those rows
+  deliberately. Never widen the guard to get past it.
+
+Then confirm readiness, which is the query every walk's precondition runs:
+
+```sql
+select count(*) from public.trials t
+join public.shows s on s.id = t.show_id
+join public.show_visibility_settings vs on vs.show_id = s.id
+join public.classes c on c.trial_id = t.id
+join public.entries e on e.class_id = c.id
+join public.people p on p.id = e.handler_id
+where s.id = 'dededede-0000-0000-0000-000000000014'
+  and s.status = 'published'
+  and s.deleted_at is null and t.deleted_at is null
+  and c.deleted_at is null and e.deleted_at is null
+  and t.date = (now() at time zone t.timezone)::date
+  and t.allow_self_checkin and vs.self_checkin_enabled
+  and c.start_time is not null and e.run_order is not null
+  and lower(p.email) = 'exhibitor@myk9t.com';                    -- expect 1
+```
 
 ## Post-reseed verification — REQUIRED
 

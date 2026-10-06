@@ -232,18 +232,17 @@ export function ResultsClassDetail({
                 <PrintStatusUnavailable onRetry={onRetry} />
               </li>
             )}
-            {row.paperworkAvailable &&
-              row.paperwork.map(item => (
-                <li key={item.reportId}>
-                  <CockpitPaperworkRow
-                    item={{ ...item, label: THEN_LABEL[item.reportId] ?? item.label }}
-                    timeZone={timeZone}
-                    onCommand={() => undefined}
-                  />
-                </li>
-              ))}
+            {row.paperwork.map(item => (
+              <li key={item.reportId}>
+                <CockpitPaperworkRow
+                  item={{ ...item, label: THEN_LABEL[item.reportId] ?? item.label }}
+                  timeZone={timeZone}
+                  onCommand={() => undefined}
+                />
+              </li>
+            ))}
           </ul>
-          {!released && row.paperworkAvailable && row.paperwork.length > 0 && (
+          {!released && row.paperwork.length > 0 && (
             <p className="text-xs text-muted-foreground">
               Print after releasing, so the paperwork matches what exhibitors see.
             </p>

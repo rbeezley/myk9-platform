@@ -42,12 +42,12 @@ export function PrintAllReadyDialog({
       <Button
         type="button"
         className="min-h-11 gap-2"
-        disabled={paperworkAvailable && ready.length === 0}
+        disabled={ready.length === 0}
         onClick={() => setOpen(true)}
       >
         <Printer className="h-4 w-4" aria-hidden="true" />
         Print all ready
-        {paperworkAvailable && ready.length > 0 && <span aria-hidden="true">({ready.length})</span>}
+        {ready.length > 0 && <span aria-hidden="true">({ready.length})</span>}
       </Button>
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-h-[85dvh] overflow-y-auto sm:max-w-2xl">
@@ -59,24 +59,23 @@ export function PrintAllReadyDialog({
           </DialogHeader>
           <div className="space-y-4">
             {!paperworkAvailable && <PrintStatusUnavailable onRetry={onRetry} />}
-            {paperworkAvailable &&
-              ready.map(row => (
-                <section key={row.id} className="space-y-2" aria-label={row.name}>
-                  <h3 className="text-sm font-semibold">
-                    {row.name}
-                    <span className="font-normal text-muted-foreground"> · {row.trialLabel}</span>
-                  </h3>
-                  {row.paperwork.map(item => (
-                    <CockpitPaperworkRow
-                      key={item.reportId}
-                      item={{ ...item, label: PRINT_LABEL[item.reportId] ?? item.label }}
-                      timeZone={timeZone}
-                      onCommand={() => undefined}
-                    />
-                  ))}
-                </section>
-              ))}
-            {paperworkAvailable && ready.length === 0 && (
+            {ready.map(row => (
+              <section key={row.id} className="space-y-2" aria-label={row.name}>
+                <h3 className="text-sm font-semibold">
+                  {row.name}
+                  <span className="font-normal text-muted-foreground"> · {row.trialLabel}</span>
+                </h3>
+                {row.paperwork.map(item => (
+                  <CockpitPaperworkRow
+                    key={item.reportId}
+                    item={{ ...item, label: PRINT_LABEL[item.reportId] ?? item.label }}
+                    timeZone={timeZone}
+                    onCommand={() => undefined}
+                  />
+                ))}
+              </section>
+            ))}
+            {ready.length === 0 && (
               <p className="text-sm text-muted-foreground">Everything released is printed.</p>
             )}
           </div>

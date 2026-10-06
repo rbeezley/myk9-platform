@@ -308,3 +308,23 @@ describe('handler display (the canonical handler_identity projection)', () => {
     ).toBe('Olive Owner');
   });
 });
+
+describe('print actions when print status cannot be read', () => {
+  it('still offers a print link per report, with unknown state, even with no paperwork rows', () => {
+    const [row] = buildResultsClassRows({
+      trials: [trial],
+      trialClasses: { 'trial-1': [trialClass('class-1')] },
+      releasedAtByClassId: new Map([['class-1', '2026-10-10T16:00:00Z']]),
+      paperworkByClassId: new Map(),
+      paperworkAvailable: false,
+      printHrefFor: (classId, trialId, reportId) => `/print/${trialId}/${classId}/${reportId}`,
+      entries: [scored('e1', 'class-1')],
+    });
+
+    expect(row?.paperwork.map(item => [item.reportId, item.state, item.printHref])).toEqual([
+      ['results-sheet', 'unknown', '/print/trial-1/class-1/results-sheet'],
+      ['result-labels', 'unknown', '/print/trial-1/class-1/result-labels'],
+    ]);
+    expect(row?.phase).toBe('released');
+  });
+});

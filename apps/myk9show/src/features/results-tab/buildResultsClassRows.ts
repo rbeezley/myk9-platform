@@ -83,6 +83,11 @@ export interface BuildResultsClassRowsInput {
    * evidence of anything: rows report no print state and say so.
    */
   paperworkAvailable?: boolean;
+  /**
+   * Where a report prints for one class. Used only while print status is unreadable: the print
+   * actions never depend on knowing the status, so they are still offered, state unknown.
+   */
+  printHrefFor?: (classId: string, trialId: string, reportId: string) => string;
 }
 
 const RESULTS_REPORT_IDS = ['results-sheet', 'result-labels'] as const;
@@ -103,6 +108,29 @@ export function resultsPaperworkPrinted(
   return RESULTS_REPORT_IDS.every(reportId =>
     paperwork.some(item => item.reportId === reportId && item.state === 'current')
   );
+}
+
+const RESULTS_REPORT_LABELS = { 'results-sheet': 'Results', 'result-labels': 'Result labels' };
+
+function withUnknownPrintActions(
+  mapped: readonly SecretaryCockpitPaperwork[],
+  classId: string,
+  trialId: string,
+  printHrefFor: BuildResultsClassRowsInput['printHrefFor']
+): readonly SecretaryCockpitPaperwork[] {
+  return RESULTS_REPORT_IDS.flatMap((reportId): SecretaryCockpitPaperwork[] => {
+    const existing = mapped.find(item => item.reportId === reportId);
+    if (existing) return [{ ...existing, state: 'unknown' }];
+    if (!printHrefFor) return [];
+    return [
+      {
+        reportId,
+        label: RESULTS_REPORT_LABELS[reportId],
+        state: 'unknown',
+        printHref: printHrefFor(classId, trialId, reportId),
+      },
+    ];
+  });
 }
 
 function placementSort(a: ResultsEntryRow, b: ResultsEntryRow): number {
@@ -190,7 +218,10 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
       };
       const tally = tallies.get(cls.id);
       const releasedAt = input.releasedAtByClassId.get(cls.id) ?? null;
-      const paperwork = pickResultsPaperwork(input.paperworkByClassId.get(cls.id));
+      const mapped = pickResultsPaperwork(input.paperworkByClassId.get(cls.id));
+      const paperwork = paperworkAvailable
+        ? mapped
+        : withUnknownPrintActions(mapped, cls.id, trial.id, input.printHrefFor);
       const classEntries = (entriesByClass.get(cls.id) ?? []).map(toEntryRow).sort(placementSort);
       const state: ResultsClassState = {
         classStatus: cls.status,

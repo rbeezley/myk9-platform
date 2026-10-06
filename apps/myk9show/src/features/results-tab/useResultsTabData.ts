@@ -18,6 +18,7 @@ import { useLocation } from 'react-router-dom';
 
 import { combineReads, type CombinedReadState } from '@/features/_shared/combineReads';
 import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
+import { getCockpitReportHref } from '@/features/show-map/cockpit/cockpitRoutes';
 import { useShowClassPaperwork } from '@/features/show-map/cockpit/useShowClassPaperwork';
 import { getShowDeskEntriesAvailability } from '@/pages/secretary/showDeskEntryAvailability';
 import { useShowDeskScheduleRead } from '@/pages/secretary/useShowDeskScheduleRead';
@@ -66,13 +67,21 @@ export function useResultsTabData(showId: string) {
         entries,
         paperworkByClassId: paperwork.byClassId,
         paperworkAvailable: paperwork.available,
+        printHrefFor: (classId, trialId, reportId) =>
+          getCockpitReportHref({
+            reportId,
+            scope: { kind: 'class', showId, trialId, classId },
+            returnTo,
+          }),
       }),
     [
       entries,
       paperwork.available,
       paperwork.byClassId,
       releasedAtByClassId,
+      returnTo,
       schedule.trialClasses,
+      showId,
       showTrials,
     ]
   );

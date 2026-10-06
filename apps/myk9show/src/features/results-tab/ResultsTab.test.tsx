@@ -258,7 +258,7 @@ describe('ResultsTab detail', () => {
     expect(screen.getByText('Ribbon labels')).toBeInTheDocument();
   });
 
-  it('says print status is unavailable, with Retry, instead of hiding the print buttons', async () => {
+  it('keeps the print actions and says print status is unknown, with Retry, when history is unreadable', async () => {
     hook.value = {
       ...hook.value,
       paperworkAvailable: false,
@@ -266,7 +266,10 @@ describe('ResultsTab detail', () => {
     };
     const { user } = renderAt('?status=all&classId=class-released');
 
-    expect(screen.getByText(/Print status unavailable/)).toBeInTheDocument();
+    expect(screen.getByText(/Print status unknown/)).toBeInTheDocument();
+    const printLinks = screen.getAllByRole('link', { name: /Print/ });
+    expect(printLinks.length).toBeGreaterThanOrEqual(2);
+    expect(printLinks[0]).toHaveAttribute('href', expect.stringContaining('/reports'));
     await user.click(screen.getByRole('button', { name: 'Retry' }));
     expect(hook.value.retry).toHaveBeenCalledTimes(1);
   });

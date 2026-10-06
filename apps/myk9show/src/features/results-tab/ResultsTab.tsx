@@ -57,7 +57,7 @@ export default function ResultsTab() {
   const showId = params.showId ?? params.id ?? '';
   const [searchParams, setSearchParams] = useSearchParams();
   const state = readResultsTabUrlState(searchParams);
-  const { rows, trials, readState, retry } = useResultsTabData(showId);
+  const { rows, trials, readState, retry, refreshFailed } = useResultsTabData(showId);
   const release = useReleaseResults();
   const isWide = useMediaQuery(MASTER_DETAIL_QUERY);
   const [visibilityOpen, setVisibilityOpen] = useState(false);
@@ -175,6 +175,17 @@ export default function ResultsTab() {
   return (
     <div className="mt-4 space-y-4">
       <h1 className="sr-only">Results</h1>
+      {refreshFailed && (
+        <Alert>
+          <AlertTitle>Couldn&apos;t refresh the scores</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>What is shown may be out of date. Check your connection and try again.</span>
+            <Button type="button" variant="outline" className="min-h-11" onClick={retry}>
+              Retry
+            </Button>
+          </AlertDescription>
+        </Alert>
+      )}
       {everyClassReleased(rows) && (
         <Alert>
           <CheckCircle2 className="h-4 w-4" aria-hidden="true" />

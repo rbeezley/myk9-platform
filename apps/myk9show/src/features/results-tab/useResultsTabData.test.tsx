@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { render, screen } from '@/test/utils/testUtils';
 import type { SyncableTrial, SyncableTrialClass } from '@/store/trial-store-types';
+import { buildReportPaperworkDescriptor } from '@/features/show-map/cockpit/buildReportPaperworkDescriptor';
 import { useResultsTabData } from './useResultsTabData';
 
 const SYNC = {
@@ -16,6 +17,12 @@ const mocks = vi.hoisted(() => ({
   entries: {} as Record<string, unknown>,
   prints: {} as Record<string, unknown>,
   classes: [] as { id: string; results_released_at: string | null }[],
+  reportClasses: [] as Record<string, unknown>[],
+}));
+
+// The class source Reports reads (`useReportData`): full class rows, snake_case.
+vi.mock('@/services/database/classes', () => ({
+  getClassesByTrialId: async () => ({ data: mocks.reportClasses, error: null }),
 }));
 
 vi.mock('@/pages/secretary/useShowDeskScheduleRead', () => ({
@@ -58,6 +65,7 @@ function Probe() {
   const data = useResultsTabData('show-1');
   return (
     <div>
+      <span data-testid="refresh-failed">{String(data.refreshFailed)}</span>
       <span data-testid="state">{data.readState}</span>
       <span data-testid="rows">
         {data.rows
@@ -94,6 +102,7 @@ beforeEach(() => {
   };
   mocks.prints = { data: [], isError: false, syncFailed: false };
   mocks.classes = [{ id: 'class-1', results_released_at: null }];
+  mocks.reportClasses = [];
 });
 
 describe('useResultsTabData', () => {
@@ -130,5 +139,68 @@ describe('useResultsTabData', () => {
     render(<Probe />);
 
     expect(screen.getByTestId('rows')).toHaveTextContent('class-1:released:1/1');
+  });
+
+  it('reads a print confirmed on Reports as current, using the same class rows Reports fingerprints', async () => {
+    const reportClass = {
+      id: 'class-1',
+      trial_id: 'trial-1',
+      element: 'Containers',
+      level: 'Novice',
+      section: '',
+      status: 'Completed',
+      judge_name: 'Pat Judge',
+      time_limit_seconds: 180,
+      num_areas: 2,
+      num_hides: 3,
+    };
+    mocks.reportClasses = [reportClass];
+    const entries = mocks.entries.data as Record<string, unknown>[];
+    const confirm = (reportId: 'results-sheet' | 'result-labels') => {
+      const descriptor = buildReportPaperworkDescriptor({
+        reportId,
+        scope: { kind: 'class', showId: 'show-1', trialId: 'trial-1', classId: 'class-1' },
+        classes: [reportClass] as never,
+        entries: entries as never,
+      })!;
+      return {
+        id: `print-${reportId}`,
+        reportId,
+        scopeKind: 'class',
+        classId: 'class-1',
+        trialId: 'trial-1',
+        coverage: descriptor.coverage,
+        fingerprint: descriptor.fingerprint,
+        printedAt: '2026-10-10T17:00:00Z',
+        printedByName: 'Sec',
+      };
+    };
+    mocks.prints = {
+      data: [confirm('results-sheet'), confirm('result-labels')],
+      isError: false,
+      syncFailed: false,
+    };
+    mocks.classes = [{ id: 'class-1', results_released_at: '2026-10-10T16:00:00Z' }];
+    render(<Probe />);
+
+    await vi.waitFor(() =>
+      expect(screen.getByTestId('rows')).toHaveTextContent('class-1:done:1/1')
+    );
+  });
+
+  it('keeps the loaded snapshot and warns when a background refresh fails', () => {
+    mocks.schedule = { ...mocks.schedule, readFailed: true };
+    mocks.entries = { ...mocks.entries, isError: true };
+    render(<Probe />);
+
+    expect(screen.getByTestId('state')).toHaveTextContent('ready');
+    expect(screen.getByTestId('refresh-failed')).toHaveTextContent('true');
+    expect(screen.getByTestId('rows')).toHaveTextContent('class-1');
+  });
+
+  it('shows the full failure only when there is no data at all', () => {
+    mocks.schedule = { ...mocks.schedule, readFailed: true, hasConfirmedSnapshot: false };
+    render(<Probe />);
+    expect(screen.getByTestId('state')).toHaveTextContent('failed');
   });
 });

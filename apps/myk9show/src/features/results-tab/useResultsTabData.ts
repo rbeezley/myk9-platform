@@ -14,8 +14,10 @@
  * `disabled-query false zero`).
  */
 import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
-import { CLASS_STATUS } from '@myk9/core';
+import { cacheStrategies, queryKeys } from '@/lib/queryClient';
+import { getClassesByTrialId } from '@/services/database/classes';
 
 import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
 import { buildClassPaperworkMap } from '@/features/show-map/cockpit/buildClassPaperworkMap';
@@ -42,6 +44,25 @@ export function useResultsTabData(showId: string) {
     isError: entriesQuery.isError,
     isEnabled: Boolean(showId),
   });
+  const trialIds = useMemo(
+    () => schedule.trials.filter(trial => trial.showId === showId).map(trial => trial.id),
+    [schedule.trials, showId]
+  );
+  const classFactsQuery = useQuery({
+    queryKey: [...queryKeys.showClasses(showId), 'results-tab', trialIds],
+    queryFn: async () => {
+      const results = await Promise.all(trialIds.map(id => getClassesByTrialId(id)));
+      const failed = results.find(result => result.error);
+      if (failed?.error) throw failed.error;
+      return results.flatMap(({ data }) => data ?? []);
+    },
+    enabled: Boolean(showId) && trialIds.length > 0,
+    ...cacheStrategies.moderate,
+    networkMode: 'always',
+  });
+  // Without the class rows the fingerprints cannot be built, so "not printed" is not a finding.
+  const printHistoryUnavailable =
+    prints.isError || prints.syncFailed || classFactsQuery.data === undefined;
   const returnTo = `${location.pathname}${location.search}`;
 
   const showTrials = useMemo(
@@ -58,22 +79,13 @@ export function useResultsTabData(showId: string) {
     const entries = entriesQuery.data ?? NO_ENTRIES;
     const paperworkByClassId = buildClassPaperworkMap({
       showId,
-      // The shape Overview feeds this builder, so a print confirmed there reads as current here.
-      classes: showTrials.flatMap(trial =>
-        (schedule.trialClasses[trial.id] ?? []).map(cls => ({
-          id: cls.id,
-          trial_id: trial.id,
-          trialId: trial.id,
-          element: cls.element,
-          level: cls.level,
-          section: cls.section,
-          status: cls.status || CLASS_STATUS.SCHEDULED,
-        }))
-      ) as unknown as DbClass[],
+      // The class rows Reports fingerprints (`getClassesByTrialId`), not a hand-picked subset, so a
+      // print confirmed on Reports reads as current here.
+      classes: (classFactsQuery.data ?? []) as unknown as DbClass[],
       trials: showTrials.map(trial => ({ id: trial.id, trialDate: trial.trialDate })),
       entries: entries as unknown as DbEntry[],
       records: prints.data ?? [],
-      recordsUnavailable: prints.isError || prints.syncFailed,
+      recordsUnavailable: printHistoryUnavailable,
       returnTo,
     });
     return buildResultsClassRows({
@@ -84,10 +96,10 @@ export function useResultsTabData(showId: string) {
       paperworkByClassId,
     });
   }, [
+    classFactsQuery.data,
     entriesQuery.data,
     prints.data,
-    prints.isError,
-    prints.syncFailed,
+    printHistoryUnavailable,
     releasedAtByClassId,
     returnTo,
     schedule.trialClasses,
@@ -95,11 +107,15 @@ export function useResultsTabData(showId: string) {
     showTrials,
   ]);
 
-  const readState: ResultsTabReadState = schedule.readFailed
-    ? 'failed'
-    : entriesQuery.isError
+  // A failed background refresh keeps the confirmed schedule and cached entries on screen with a
+  // warning (as ResultsControlPage does); only a read with nothing to show is a full failure.
+  const hasSchedule = schedule.hasConfirmedSnapshot;
+  const hasEntries = entriesKnown;
+  const refreshFailed = (schedule.readFailed || entriesQuery.isError) && hasSchedule && hasEntries;
+  const readState: ResultsTabReadState =
+    !refreshFailed && (schedule.readFailed || entriesQuery.isError)
       ? 'failed'
-      : !schedule.hasConfirmedSnapshot && schedule.readPending
+      : !hasSchedule && schedule.readPending
         ? 'loading'
         : entriesQuery.isLoading
           ? 'loading'
@@ -112,7 +128,8 @@ export function useResultsTabData(showId: string) {
     trials: showTrials,
     readState,
     /** The paperwork history could not be read, so "not printed" is not a finding. */
-    printHistoryUnavailable: prints.isError || prints.syncFailed,
+    printHistoryUnavailable,
+    refreshFailed,
     retry: () => {
       void schedule.retry();
       void entriesQuery.refetch();

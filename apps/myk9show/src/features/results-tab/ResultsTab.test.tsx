@@ -109,6 +109,7 @@ const hook = vi.hoisted(() => ({
     trials: [] as SyncableTrial[],
     readState: 'ready' as ResultsTabReadState,
     printHistoryUnavailable: false,
+    refreshFailed: false,
     retry: vi.fn(),
   },
 }));
@@ -140,6 +141,7 @@ beforeEach(() => {
     trials: [trial],
     readState: 'ready',
     printHistoryUnavailable: false,
+    refreshFailed: false,
     retry: vi.fn(),
   };
 });
@@ -188,6 +190,14 @@ describe('ResultsTab list', () => {
 
     expect(screen.getByText("Couldn't load the scores")).toBeInTheDocument();
     expect(screen.queryByText('Nothing needs you right now.')).not.toBeInTheDocument();
+  });
+
+  it('keeps the classes and shows a warning when only a background refresh failed', () => {
+    hook.value = { ...hook.value, refreshFailed: true };
+    renderAt();
+
+    expect(screen.getByText("Couldn't refresh the scores")).toBeInTheDocument();
+    expect(screen.getByRole('list', { name: 'Classes' })).toBeInTheDocument();
   });
 
   it('says nothing needs the secretary only when the scores loaded and none do', () => {

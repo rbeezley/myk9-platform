@@ -277,7 +277,7 @@ describe('secretary show phase redirects', () => {
     expect(useToastStore.getState().toasts[0]?.payload).toMatchObject({
       id: 'waitlist-moved',
       title: 'Waitlist moved',
-      body: 'Waitlist work now lives in Entry Management for this show.',
+      body: 'Waitlist work now lives in Entry Forms for this show.',
     });
   });
 
@@ -294,7 +294,7 @@ describe('secretary show phase redirects', () => {
     expect(useToastStore.getState().toasts[0]?.payload).toMatchObject({
       id: 'waitlist-no-show-context',
       title: 'Select a show to continue',
-      body: 'Waitlist work lives in Entry Management inside a show.',
+      body: 'Waitlist work lives in Entry Forms inside a show.',
     });
   });
 

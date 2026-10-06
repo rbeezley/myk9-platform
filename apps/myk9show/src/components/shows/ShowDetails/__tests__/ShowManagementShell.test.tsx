@@ -366,7 +366,7 @@ describe('ShowManagementShell', () => {
     renderShell();
     expect(
       screen.getAllByRole('tab').map(tab => tab.textContent?.replace(/\d+$/, '').trim())
-    ).toEqual(['Overview', 'Entries', 'Results', 'Reports']);
+    ).toEqual(['Overview', 'Entry Forms', 'Results', 'Reports']);
   });
 
   it('carries NO standalone page links above the tabs — the tabs are the only row', () => {
@@ -398,7 +398,7 @@ describe('ShowManagementShell', () => {
       </>
     );
     fireEvent.click(screen.getByRole('tab', { name: /^Results/ }));
-    fireEvent.click(screen.getByRole('tab', { name: /^Entries/ }));
+    fireEvent.click(screen.getByRole('tab', { name: /^Entry Forms/ }));
     expect(screen.getByTestId('probe-url')).toHaveTextContent('/shows/show-1/entries');
 
     fireEvent.click(screen.getByTestId('go-back'));
@@ -434,7 +434,7 @@ describe('ShowManagementShell', () => {
 
   it('badges Entries with the show entry count the page already read', () => {
     renderShell();
-    expect(screen.getByRole('tab', { name: /^Entries/ }).textContent).toContain('517');
+    expect(screen.getByRole('tab', { name: /^Entry Forms/ }).textContent).toContain('517');
   });
 
   it('renders the staff armband lookup only when armbands exist', () => {
@@ -593,7 +593,7 @@ describe('ShowManagementShell', () => {
     renderShell({ activeManagementSection: 'entries' }, '/shows/show-1/entries');
     const header = screen.getByRole('heading', { level: 1 }).closest('div[class*="sticky"]');
     expect(header?.className).toContain(SHOW_HEADER_CLASS);
-    const strip = screen.getByRole('tab', { name: /^Entries/ }).closest('div[class*="sticky"]');
+    const strip = screen.getByRole('tab', { name: /^Entry Forms/ }).closest('div[class*="sticky"]');
     expect(strip?.className).toContain(SHOW_TAB_STRIP_CLASS);
     // The page below reads the measured height, so it sits under the header however it wraps.
     expect(document.documentElement.style.getPropertyValue(SHOW_HEADER_HEIGHT_VAR)).not.toBe('');

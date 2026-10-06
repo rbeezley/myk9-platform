@@ -263,7 +263,7 @@ function buildShowActions(
     },
     {
       id: 'show-open-entry-management',
-      label: 'Open Entries',
+      label: 'Open Entry Forms',
       href: `/shows/${encoded}/entries`,
     },
     {

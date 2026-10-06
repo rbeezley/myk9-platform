@@ -175,7 +175,7 @@ describe('CommandPalette contextual commands', () => {
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
     expect(screen.queryByText('Current show')).not.toBeInTheDocument();
-    expect(screen.queryByText(/Open Entry Management/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Open Entry Forms/)).not.toBeInTheDocument();
   });
 
   it('shows contextual Entry Management navigation when a context is registered', () => {
@@ -184,13 +184,13 @@ describe('CommandPalette contextual commands', () => {
 
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
-    expect(screen.getByText('Open Entry Management — needs review')).toBeInTheDocument();
-    expect(screen.getByText('Open Entry Management — payment due')).toBeInTheDocument();
-    expect(screen.getByText('Open Entry Management — needs check-in')).toBeInTheDocument();
+    expect(screen.getByText('Open Entry Forms — needs review')).toBeInTheDocument();
+    expect(screen.getByText('Open Entry Forms — payment due')).toBeInTheDocument();
+    expect(screen.getByText('Open Entry Forms — needs check-in')).toBeInTheDocument();
     // MYK9-630: the unfiltered "all entries" preset was replaced by the
     // action registry's "Open Entry Management", which the header Actions
     // menu and the palette both render from one list.
-    expect(screen.queryByText('Open Entry Management — all entries')).not.toBeInTheDocument();
+    expect(screen.queryByText('Open Entry Forms — all entries')).not.toBeInTheDocument();
   });
 
   it('offers no Class Management command: the page is now Setup → Classes', () => {

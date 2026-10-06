@@ -122,7 +122,7 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     await installSecretaryFixture(page);
     await signInAsSecretary(page, `/shows/${SHOW_ID}/entries`);
 
-    await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Entry Forms' })).toBeVisible({
       timeout: 15000,
     });
     await expect(page.getByRole('button', { name: 'Add Entry', exact: true })).toBeVisible();

@@ -513,7 +513,7 @@ describe('ShowDetailsPage', () => {
     expect(screen.queryByRole('tab', { name: /My Stats/ })).toBeNull();
     expect(screen.getByRole('tab', { name: /Results/ })).toBeInTheDocument();
     expect(screen.queryByRole('tab', { name: /Show Map/ })).toBeNull();
-    expect(screen.queryByRole('tab', { name: /^Entries$/ })).toBeNull();
+    expect(screen.queryByRole('tab', { name: /^Entry Forms$/ })).toBeNull();
   });
 
   it('defaults to My Entries tab when user has entries', () => {
@@ -854,7 +854,7 @@ describe('ShowDetailsPage', () => {
     // Positive control that the MANAGER shell rendered at all -- otherwise the
     // absence below would pass on any page. It used to be the `...` trigger,
     // which MYK9-630 phase 1 deleted, then the section nav, which phase 2 did.
-    expect(screen.getByRole('tab', { name: /^Entries/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^Entry Forms/ })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /premium list/i })).toBeNull();
   });
 
@@ -881,7 +881,7 @@ describe('ShowDetailsPage', () => {
 
     expect(
       screen.getAllByRole('tab').map(tab => tab.textContent?.replace(/\d+$/, '').trim())
-    ).toEqual(['Overview', 'Entries', 'Results', 'Reports']);
+    ).toEqual(['Overview', 'Entry Forms', 'Results', 'Reports']);
     expect(screen.queryByTestId('canonical-show-management-nav')).not.toBeInTheDocument();
     expect(screen.queryByRole('combobox', { name: /show management section/i })).toBeNull();
     for (const label of ['Show Desk', 'Entry Management', 'Reports', 'Results', 'Submit Results']) {
@@ -919,7 +919,7 @@ describe('ShowDetailsPage', () => {
     // There is no menu left to open: Edit and Delete moved into the Show Edit
     // panel's own surface, Preview moved to the Overview landing card.
     expect(screen.queryByRole('button', { name: /more show actions/i })).toBeNull();
-    expect(screen.getByRole('tab', { name: /^Entries/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^Entry Forms/ })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /preview public page/i })).not.toBeInTheDocument();
     expect(
       screen.queryByRole('menuitem', { name: /manage in workbench/i })
@@ -994,7 +994,7 @@ describe('ShowDetailsPage', () => {
     expect(screen.queryByText(/^\d+ entr(y|ies)$/)).not.toBeInTheDocument();
     expect(screen.queryByText('Total Entries0')).not.toBeInTheDocument();
     expect(screen.queryByTestId('show-map-tab')).not.toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: /^Entries$/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: /^Entry Forms$/ })).toBeInTheDocument();
   });
 
   it('uses the published experience style for public landing selection', () => {
@@ -1379,7 +1379,7 @@ describe('ShowDetailsPage', () => {
     it('gets the four-tab management strip, like a secretary', () => {
       renderPage();
 
-      for (const label of [/^Overview/, /^Entries/, /^Results/, /^Reports/]) {
+      for (const label of [/^Overview/, /^Entry Forms/, /^Results/, /^Reports/]) {
         expect(screen.getByRole('tab', { name: label })).toBeInTheDocument();
       }
     });
@@ -1557,7 +1557,7 @@ describe('ShowDetailsPage', () => {
 
       renderPage();
 
-      expect(screen.getByRole('tab', { name: /^Entries/ }).textContent).toContain('3');
+      expect(screen.getByRole('tab', { name: /^Entry Forms/ }).textContent).toContain('3');
       // The stub tab's private `getEntriesByShow` read is deleted, so the badge
       // and the body can no longer disagree (517 beside "No Entries Yet").
       expect(getEntriesByShowMock).not.toHaveBeenCalled();

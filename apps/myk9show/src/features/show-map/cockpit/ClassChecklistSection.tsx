@@ -53,7 +53,7 @@ function ChecklistStepRow({
           <Button
             type="button"
             variant="outline"
-            size="sm"
+            size="touch"
             aria-label={`${command.label} — ${item.label}`}
             onClick={() => onCommand(command.commandId)}
           >

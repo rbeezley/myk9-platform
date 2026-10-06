@@ -1183,6 +1183,8 @@ export type Database = {
           reopened_after_closeout_at: string | null
           results_released_at: string | null
           results_released_by: string | null
+          results_verified_at: string | null
+          results_verified_by: string | null
           revised_expected_start: string | null
           scored_count: number | null
           section: string | null
@@ -1241,6 +1243,8 @@ export type Database = {
           reopened_after_closeout_at?: string | null
           results_released_at?: string | null
           results_released_by?: string | null
+          results_verified_at?: string | null
+          results_verified_by?: string | null
           revised_expected_start?: string | null
           scored_count?: number | null
           section?: string | null
@@ -1299,6 +1303,8 @@ export type Database = {
           reopened_after_closeout_at?: string | null
           results_released_at?: string | null
           results_released_by?: string | null
+          results_verified_at?: string | null
+          results_verified_by?: string | null
           revised_expected_start?: string | null
           scored_count?: number | null
           section?: string | null
@@ -14783,6 +14789,14 @@ export type Database = {
           p_waitlist_entry_id: string
         }
         Returns: string
+      }
+      set_class_results_verified: {
+        Args: {
+          p_class_id: string
+          p_verified: boolean
+          p_verified_at?: string
+        }
+        Returns: number
       }
       set_club_authorization: {
         Args: { p_authorized: boolean; p_club_id: string }

@@ -1,4 +1,5 @@
--- MYK9-1030 (migration 20261006154700): the judge's end-of-day sign-off.
+-- MYK9-1030 (migration 20261006154700): the judge's end-of-day sign-off and
+-- the results check against the paper score sheets.
 --
 -- Properties asserted here:
 --   1. grants: anon and PUBLIC cannot execute either RPC, authenticated can;
@@ -15,6 +16,11 @@
 --   7. a signed-off-at in the future is clamped to now;
 --   8. the per-class undo clears one class only; the club admin may use it;
 --   9. anon calling it at all is refused.
+--  10. results checked against the paper (set_class_results_verified, same
+--      migration): grants as above; exhibitor / other club refused (42501);
+--      an incomplete class refused (55000); missing P0002; the secretary marks
+--      one class (stamped with the caller's auth uid, version returned, first
+--      stamp kept) and clears it; anon refused.
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
 
@@ -104,6 +110,13 @@ $$;
 
 -- How many fixture classes carry a sign-off, read as the test's owner role
 -- (SECURITY DEFINER), so a refused caller's RLS cannot hide a stray write.
+CREATE FUNCTION pg_temp.verified_count()
+RETURNS integer LANGUAGE sql SECURITY DEFINER AS $$
+  SELECT count(*)::integer FROM public.classes
+  WHERE id::text LIKE '00000000-0000-0000-0000-00000103004_'
+    AND (results_verified_at IS NOT NULL OR results_verified_by IS NOT NULL);
+$$;
+
 CREATE FUNCTION pg_temp.signed_count()
 RETURNS integer LANGUAGE sql SECURITY DEFINER AS $$
   SELECT count(*)::integer FROM public.classes
@@ -132,6 +145,22 @@ BEGIN
       AND a.grantee = 0 AND a.privilege_type = 'EXECUTE'
   ) THEN
     RAISE EXCEPTION 'FAIL PUBLIC keeps EXECUTE on a sign-off RPC';
+  END IF;
+  IF has_function_privilege('anon', 'public.set_class_results_verified(uuid, boolean, timestamptz)', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated', 'public.set_class_results_verified(uuid, boolean, timestamptz)', 'EXECUTE')
+     OR EXISTS (
+       SELECT 1
+       FROM pg_proc p, LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+       WHERE p.oid = 'public.set_class_results_verified(uuid, boolean, timestamptz)'::regprocedure
+         AND a.grantee = 0 AND a.privilege_type = 'EXECUTE'
+     ) THEN
+    RAISE EXCEPTION 'FAIL set_class_results_verified EXECUTE grants are wrong';
+  END IF;
+  IF NOT has_column_privilege('authenticated', 'public.classes', 'results_verified_at', 'SELECT')
+     OR NOT has_column_privilege('authenticated', 'public.classes', 'results_verified_by', 'SELECT')
+     OR has_column_privilege('anon', 'public.classes', 'results_verified_at', 'SELECT')
+     OR has_column_privilege('anon', 'public.classes', 'results_verified_by', 'SELECT') THEN
+    RAISE EXCEPTION 'FAIL results_verified columns: authenticated must read them, anon must not';
   END IF;
   IF NOT has_column_privilege('authenticated', 'public.classes', 'judge_signed_off_at', 'SELECT')
      OR NOT has_column_privilege('authenticated', 'public.classes', 'judge_signed_off_by', 'SELECT') THEN
@@ -289,6 +318,76 @@ END;
 $$;
 
 -- ---------------------------------------------------------------------------
+-- 10. Results checked against the paper score sheets.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  caller uuid;
+  v_result integer;
+  v_at timestamptz;
+BEGIN
+  FOREACH caller IN ARRAY ARRAY[
+    '00000000-0000-0000-0000-000000103013'::uuid,  -- exhibitor
+    '00000000-0000-0000-0000-000000103012'::uuid   -- club B secretary
+  ] LOOP
+    PERFORM pg_temp.act_as(caller);
+    BEGIN
+      PERFORM public.set_class_results_verified('00000000-0000-0000-0000-000001030041', true);
+      RAISE EXCEPTION 'FAIL % marked results checked on a class it does not manage', caller;
+    EXCEPTION WHEN insufficient_privilege THEN NULL;
+    END;
+    BEGIN
+      PERFORM public.set_class_results_verified('00000000-0000-0000-0000-000001030041', false);
+      RAISE EXCEPTION 'FAIL % cleared a results check on a class it does not manage', caller;
+    EXCEPTION WHEN insufficient_privilege THEN NULL;
+    END;
+  END LOOP;
+  IF pg_temp.verified_count() <> 0 THEN
+    RAISE EXCEPTION 'FAIL a refused results check wrote something';
+  END IF;
+
+  PERFORM pg_temp.act_as('00000000-0000-0000-0000-000000103011');
+  BEGIN
+    PERFORM public.set_class_results_verified('00000000-0000-0000-0000-000001030043', true);
+    RAISE EXCEPTION 'FAIL an in-progress class was marked checked';
+  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL;
+  END;
+  BEGIN
+    PERFORM public.set_class_results_verified('00000000-0000-0000-0000-0000010309ff', true);
+    RAISE EXCEPTION 'FAIL a missing class was marked checked';
+  EXCEPTION WHEN no_data_found THEN NULL;
+  END;
+  IF pg_temp.verified_count() <> 0 THEN
+    RAISE EXCEPTION 'FAIL a refused results check wrote something';
+  END IF;
+
+  v_result := public.set_class_results_verified(
+    '00000000-0000-0000-0000-000001030042', true, now() - interval '3 minutes');
+  IF v_result IS DISTINCT FROM (SELECT version FROM public.classes
+                                WHERE id = '00000000-0000-0000-0000-000001030042') THEN
+    RAISE EXCEPTION 'FAIL the results check did not return the class version';
+  END IF;
+  SELECT results_verified_at INTO v_at FROM public.classes
+  WHERE id = '00000000-0000-0000-0000-000001030042'
+    AND results_verified_by = '00000000-0000-0000-0000-000000103011'::uuid;
+  IF v_at IS DISTINCT FROM now() - interval '3 minutes' OR pg_temp.verified_count() <> 1 THEN
+    RAISE EXCEPTION 'FAIL results check not stamped with the time and the caller''s auth uid';
+  END IF;
+  PERFORM public.set_class_results_verified('00000000-0000-0000-0000-000001030042', true, now());
+  IF (SELECT results_verified_at FROM public.classes
+      WHERE id = '00000000-0000-0000-0000-000001030042') IS DISTINCT FROM v_at THEN
+    RAISE EXCEPTION 'FAIL a second results check replaced the first stamp';
+  END IF;
+
+  PERFORM public.set_class_results_verified('00000000-0000-0000-0000-000001030042', false);
+  IF pg_temp.verified_count() <> 0 THEN
+    RAISE EXCEPTION 'FAIL clearing the results check left it set';
+  END IF;
+  RAISE NOTICE 'PASS 10 results check: managers only, complete only, stamped, kept, cleared';
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
 -- 9. anon is refused outright.
 -- ---------------------------------------------------------------------------
 RESET ROLE;
@@ -307,7 +406,12 @@ BEGIN
     RAISE EXCEPTION 'FAIL anon called clear_class_judge_sign_off';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
-  RAISE NOTICE 'PASS 9 anon cannot call either RPC';
+  BEGIN
+    PERFORM public.set_class_results_verified('00000000-0000-0000-0000-000001030042', true);
+    RAISE EXCEPTION 'FAIL anon called set_class_results_verified';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  RAISE NOTICE 'PASS 9 anon cannot call any of the three RPCs';
 END;
 $$;
 

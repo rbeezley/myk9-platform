@@ -183,8 +183,8 @@ export const CLASS_HIDE_SECRET_COLUMNS = ['num_hides', 'has_blank', 'hides_known
 
 /**
  * What `authenticated` may read (20260731160000, MYK9-127) — the anon allowlist
- * plus `has_blank` and `hides_known`, and the judge's sign-off (MYK9-1030,
- * 20261006154700), which is staff paperwork anon never reads.
+ * plus `has_blank` and `hides_known`, the judge's sign-off and the results check (MYK9-1030,
+ * 20261006154700), which are staff paperwork anon never reads.
  *
  * Only `num_hides` is withheld from signed-in users, and only because a judge-set
  * count is a decisive pre-run advantage. `hides_known` is NOT secret:
@@ -200,7 +200,9 @@ export const CLASS_AUTHENTICATED_COLUMN_SELECT = `${CLASS_COLUMN_SELECT},
       has_blank,
       hides_known,
       judge_signed_off_at,
-      judge_signed_off_by`;
+      judge_signed_off_by,
+      results_verified_at,
+      results_verified_by`;
 
 /** Pinned by the contract test against the SQL grant. */
 export const CLASS_AUTHENTICATED_COLUMNS = CLASS_AUTHENTICATED_COLUMN_SELECT.split(',').map(

@@ -41,6 +41,17 @@
 -- call returns NULL. A class already signed off keeps its first stamp, so an
 -- offline replay or a second press is a no-op.
 --
+-- Also here (owner, 2026-10-06, one push): "results checked against the paper
+-- score sheets".
+--   4. classes.results_verified_at timestamptz / results_verified_by uuid, same
+--      identity convention (auth uid of whoever recorded it, from auth.uid()).
+--   5. public.set_class_results_verified(class id, verified, verified-at):
+--      marks one class verified (refused unless complete, 55000) or clears it
+--      (always allowed: a correction after checking means re-check). Same
+--      can_manage_trial authz. Server-side release and the automatic release
+--      presets are NOT gated on it. OPEN QUESTION (no trigger yet): should a
+--      score change after verification clear it automatically?
+
 -- Grants
 --   * classes: authenticated holds a column-level SELECT allowlist
 --     (20260731170000, restated by 20260912234500). A new column is NOT in it,
@@ -67,14 +78,26 @@ ALTER TABLE public.classes
   ADD COLUMN IF NOT EXISTS judge_signed_off_by uuid NULL
     REFERENCES auth.users (id) ON DELETE SET NULL;
 
+ALTER TABLE public.classes
+  ADD COLUMN IF NOT EXISTS results_verified_at timestamptz NULL,
+  ADD COLUMN IF NOT EXISTS results_verified_by uuid NULL
+    REFERENCES auth.users (id) ON DELETE SET NULL;
+
 -- Foreign keys are indexed in this project (20260728140000).
 CREATE INDEX IF NOT EXISTS idx_classes_judge_signed_off_by
   ON public.classes (judge_signed_off_by);
+CREATE INDEX IF NOT EXISTS idx_classes_results_verified_by
+  ON public.classes (results_verified_by);
 
 COMMENT ON COLUMN public.classes.judge_signed_off_at IS
   'MYK9-1030: when the class''s judge initialed (AKC) or signed (UKC, ASCA) the marked catalog for this class. Recorded for a whole judge-day at once by mark_classes_judge_signed_off; NULL = not yet.';
 COMMENT ON COLUMN public.classes.judge_signed_off_by IS
   'MYK9-1030: auth uid of the person who RECORDED the sign-off (a show manager), stamped server-side from auth.uid(). Not the judge: the judge is the class''s confirmed judge_assignments row.';
+
+COMMENT ON COLUMN public.classes.results_verified_at IS
+  'MYK9-1030: when a show manager checked this class''s results against the paper score sheets. NULL = not checked (or cleared for a re-check). Written by set_class_results_verified. Does not gate release.';
+COMMENT ON COLUMN public.classes.results_verified_by IS
+  'MYK9-1030: auth uid of the show manager who recorded the check, stamped server-side from auth.uid().';
 
 -- ---------------------------------------------------------------------------
 -- 2. Mark a set of classes signed off
@@ -211,6 +234,73 @@ REVOKE ALL ON FUNCTION public.clear_class_judge_sign_off(uuid) FROM PUBLIC, anon
 GRANT EXECUTE ON FUNCTION public.clear_class_judge_sign_off(uuid) TO authenticated;
 
 -- ---------------------------------------------------------------------------
+-- 3b. Results checked against the paper score sheets (one class)
+-- ---------------------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.set_class_results_verified(
+  p_class_id uuid,
+  p_verified boolean,
+  p_verified_at timestamptz DEFAULT NULL
+)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = ''
+AS $$
+DECLARE
+  v_uid uuid := auth.uid();
+  v_class record;
+  v_version integer;
+BEGIN
+  IF v_uid IS NULL THEN
+    RAISE EXCEPTION 'Sign in to record a results check.' USING ERRCODE = '42501';
+  END IF;
+  IF p_verified IS NULL THEN
+    RAISE EXCEPTION 'Say whether the results were checked.' USING ERRCODE = '22023';
+  END IF;
+
+  SELECT c.id, c.trial_id, c.name, c.status INTO v_class
+  FROM public.classes c
+  WHERE c.id = p_class_id AND c.deleted_at IS NULL
+  FOR UPDATE;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'That class no longer exists.' USING ERRCODE = 'P0002';
+  END IF;
+
+  IF NOT coalesce((SELECT public.can_manage_trial(v_class.trial_id)), false) THEN
+    RAISE EXCEPTION 'You do not manage the show this class belongs to.' USING ERRCODE = '42501';
+  END IF;
+
+  IF p_verified THEN
+    IF v_class.status IS DISTINCT FROM 'completed' THEN
+      RAISE EXCEPTION '% is not complete yet, so its results cannot be checked.', v_class.name
+        USING ERRCODE = '55000';
+    END IF;
+    -- Keeps the first stamp: an offline replay or a second press is a no-op.
+    UPDATE public.classes c
+       SET results_verified_at = least(coalesce(p_verified_at, now()), now()),
+           results_verified_by = v_uid
+     WHERE c.id = p_class_id
+       AND c.results_verified_at IS NULL;
+  ELSE
+    UPDATE public.classes c
+       SET results_verified_at = NULL,
+           results_verified_by = NULL
+     WHERE c.id = p_class_id
+       AND c.results_verified_at IS NOT NULL;
+  END IF;
+
+  SELECT c.version INTO v_version FROM public.classes c WHERE c.id = p_class_id;
+  RETURN v_version;
+END;
+$$;
+
+COMMENT ON FUNCTION public.set_class_results_verified(uuid, boolean, timestamptz) IS
+  'MYK9-1030: record (p_verified = true; class must be completed) or clear (false) that a class''s results were checked against the paper score sheets. Show managers only (can_manage_trial). Keeps an existing stamp. Returns the class''s new version. Does not gate release.';
+
+REVOKE ALL ON FUNCTION public.set_class_results_verified(uuid, boolean, timestamptz) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.set_class_results_verified(uuid, boolean, timestamptz) TO authenticated;
+
+-- ---------------------------------------------------------------------------
 -- 4. authenticated may read the new columns (anon unchanged)
 -- ---------------------------------------------------------------------------
 GRANT SELECT (
@@ -226,11 +316,12 @@ GRANT SELECT (
   is_results_reviewed, time_limit_area2_seconds,
   time_limit_area3_seconds, display_order, results_released_by, version,
   status_source, reopened_after_closeout_at, revised_expected_start,
-  judge_signed_off_at, judge_signed_off_by
+  judge_signed_off_at, judge_signed_off_by, results_verified_at,
+  results_verified_by
 ) ON public.classes TO authenticated;
 
 -- anon's decision, stated: the 20260912234500 allowlist, restated unchanged
--- and WITHOUT the sign-off columns (a pure no-op on the ACL, as that
+-- and WITHOUT the new columns (a pure no-op on the ACL, as that
 -- migration's own restatement was). anon holds no table-level privilege on
 -- classes (live relacl 2026-10-06: postgres, authenticated=awd, service_role),
 -- so the new columns stay unreadable to it. The allowlist contract tests read

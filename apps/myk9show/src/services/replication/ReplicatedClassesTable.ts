@@ -135,6 +135,12 @@ export interface ReplicatedClass {
    */
   judgeSignedOffAt?: string | null | undefined;
   judgeSignedOffBy?: string | null | undefined;
+  /**
+   * MYK9-1030: results checked against the paper score sheets. Written ONLY through
+   * `setResultsVerified` (the set_class_results_verified RPC), never by `toSupabaseRow`.
+   */
+  resultsVerifiedAt?: string | null | undefined;
+  resultsVerifiedBy?: string | null | undefined;
 
   // Scoring rule fields (from sport template, baked in at class creation)
   timerMode?: string | undefined;
@@ -241,6 +247,8 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
     results_released_by: row.results_released_by ?? null,
     judgeSignedOffAt: row.judge_signed_off_at ?? null,
     judgeSignedOffBy: row.judge_signed_off_by ?? null,
+    resultsVerifiedAt: row.results_verified_at ?? null,
+    resultsVerifiedBy: row.results_verified_by ?? null,
 
     // Scoring rule fields
     timerMode: (dbRow.timer_mode as string | undefined) ?? undefined,
@@ -792,6 +800,54 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
             args: { p_class_ids: [classId], p_signed_off_at: signOff.at },
           }
         : { name: 'clear_class_judge_sign_off', args: { p_class_id: classId } }
+    );
+    this._lastMutationId = mutationId;
+    return mutationId;
+  }
+
+  /**
+   * MYK9-1030: record (`check` set) or clear (`null`) that ONE class's results were checked
+   * against the paper score sheets, offline-first the same way as `setJudgeSignOff`: local row
+   * now, an RPC-routed UPDATE (set_class_results_verified) queued for the server, which
+   * authorizes it and refuses a class that is not complete. Keeps an existing stamp.
+   */
+  async setResultsVerified(
+    classId: string,
+    check: { at: string; by: string | null } | null
+  ): Promise<string | null> {
+    const currentClass = await this.get(classId);
+    if (!currentClass) {
+      throw new Error(`Class ${classId} not found`);
+    }
+
+    const keep = Boolean(check && currentClass.resultsVerifiedAt);
+    const resultsVerifiedAt = check ? (keep ? currentClass.resultsVerifiedAt : check.at) : null;
+    const resultsVerifiedBy = check ? (keep ? currentClass.resultsVerifiedBy : check.by) : null;
+
+    await this.set(
+      classId,
+      {
+        ...currentClass,
+        resultsVerifiedAt,
+        resultsVerifiedBy,
+        _lastModified: new Date(),
+        _syncStatus: 'pending',
+      },
+      true
+    );
+    const mutationId = await this.queueMutation(
+      'UPDATE',
+      classId,
+      { id: classId, results_verified_at: resultsVerifiedAt ?? null },
+      undefined,
+      {
+        name: 'set_class_results_verified',
+        args: {
+          p_class_id: classId,
+          p_verified: check !== null,
+          ...(check ? { p_verified_at: check.at } : {}),
+        },
+      }
     );
     this._lastMutationId = mutationId;
     return mutationId;

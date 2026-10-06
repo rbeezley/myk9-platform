@@ -153,4 +153,66 @@ describe('ReplicatedClassesTable judge sign-off (MYK9-1030)', () => {
       judgeSignedOffBy: 'auth-secretary',
     });
   });
+
+  describe('results checked against the paper score sheets', () => {
+    it('queues the check through set_class_results_verified', async () => {
+      await table.set('class-1', baseClass());
+
+      await table.setResultsVerified('class-1', { at: AT, by: 'auth-secretary' });
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'class-1',
+        { id: 'class-1', results_verified_at: AT },
+        undefined,
+        {
+          name: 'set_class_results_verified',
+          args: { p_class_id: 'class-1', p_verified: true, p_verified_at: AT },
+        }
+      );
+      expect(await table.getClassById('class-1')).toMatchObject({
+        resultsVerifiedAt: AT,
+        resultsVerifiedBy: 'auth-secretary',
+      });
+    });
+
+    it('queues the clear with p_verified false', async () => {
+      await table.set('class-1', baseClass({ resultsVerifiedAt: AT, resultsVerifiedBy: 'auth-x' }));
+
+      await table.setResultsVerified('class-1', null);
+
+      expect(queueMutation).toHaveBeenCalledWith(
+        'UPDATE',
+        'class-1',
+        { id: 'class-1', results_verified_at: null },
+        undefined,
+        {
+          name: 'set_class_results_verified',
+          args: { p_class_id: 'class-1', p_verified: false },
+        }
+      );
+      expect(await table.getClassById('class-1')).toMatchObject({
+        resultsVerifiedAt: null,
+        resultsVerifiedBy: null,
+      });
+    });
+
+    it('reads and never echoes the columns on an unrelated edit', async () => {
+      expect(
+        rowToClass({
+          id: 'class-1',
+          trial_id: 'trial-1',
+          name: 'Container Novice A',
+          results_verified_at: AT,
+          results_verified_by: 'auth-secretary',
+        } as Database['public']['Tables']['classes']['Row'])
+      ).toMatchObject({ resultsVerifiedAt: AT, resultsVerifiedBy: 'auth-secretary' });
+
+      await table.set('class-1', baseClass({ resultsVerifiedAt: AT }));
+      await table.updateClass('class-1', { name: 'Container Novice B' });
+      const payload = queueMutation.mock.calls.at(-1)?.[2] as Record<string, unknown>;
+      expect(payload).not.toHaveProperty('results_verified_at');
+      expect(payload).not.toHaveProperty('results_verified_by');
+    });
+  });
 });

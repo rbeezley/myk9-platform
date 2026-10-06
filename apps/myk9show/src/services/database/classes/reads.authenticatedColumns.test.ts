@@ -44,9 +44,14 @@ describe('authenticated column allowlist on public.classes', () => {
     expect([...CLASS_AUTHENTICATED_COLUMNS].sort()).toEqual(grantedAuthenticatedColumns().sort());
   });
 
-  it("grants the judge's sign-off columns (MYK9-1030)", () => {
+  it("grants the judge's sign-off and results-check columns (MYK9-1030)", () => {
     expect(grantedAuthenticatedColumns()).toEqual(
-      expect.arrayContaining(['judge_signed_off_at', 'judge_signed_off_by'])
+      expect.arrayContaining([
+        'judge_signed_off_at',
+        'judge_signed_off_by',
+        'results_verified_at',
+        'results_verified_by',
+      ])
     );
   });
 

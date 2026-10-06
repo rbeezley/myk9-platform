@@ -42,7 +42,6 @@ export const UserTable: React.FC<UserTableProps> = ({
   pageSize,
   onPageSizeChange,
   searchTerm = '',
-  densityMode = 'comfortable',
   sort = null,
   onSortChange,
 }) => {
@@ -123,7 +122,6 @@ export const UserTable: React.FC<UserTableProps> = ({
         onSelectAll,
         users,
         searchTerm,
-        densityMode,
         onViewUser,
         onEditUser,
         handleDeleteUser,
@@ -142,7 +140,6 @@ export const UserTable: React.FC<UserTableProps> = ({
       onSelectAll,
       users,
       searchTerm,
-      densityMode,
       onViewUser,
       onEditUser,
       handleDeleteUser,

@@ -200,17 +200,6 @@
   --token-space-3xl: 1.5rem; /* var(--token-space-3xl) - desktop container padding */
   --token-space-4xl: 2rem; /* var(--token-space-4xl) */
 
-  /* Density Spacing (multipliers for element spacing) */
-  --spacing-multiplier: 1;
-  --spacing-compact: 0.25rem;
-  --spacing-comfortable: 0.5rem;
-  --spacing-spacious: 1rem;
-
-  /* Element-specific spacing (adjusts with density) */
-  --element-padding: calc(var(--spacing-comfortable) * var(--spacing-multiplier));
-  --element-margin: calc(var(--spacing-comfortable) * var(--spacing-multiplier));
-  --element-gap: calc(var(--spacing-comfortable) * var(--spacing-multiplier));
-
   /* ===== BORDER RADIUS ===== */
   --token-radius-sm: 0.375rem; /* 6px */
   --token-radius-md: 0.5rem; /* var(--token-space-md) */
@@ -505,43 +494,6 @@
   --token-status-pulled-bg: var(--status-pulled-bg);
   --token-status-done: var(--status-completed);
   --token-status-done-bg: var(--status-completed-bg);
-}
-
-/* ===== DENSITY CLASSES ===== */
-html.density-compact {
-  --spacing-multiplier: 0.5;
-  --element-padding: var(--spacing-compact);
-  --element-margin: var(--spacing-compact);
-  --element-gap: var(--spacing-compact);
-}
-
-html.density-comfortable {
-  --spacing-multiplier: 1;
-  --element-padding: var(--spacing-comfortable);
-  --element-margin: var(--spacing-comfortable);
-  --element-gap: var(--spacing-comfortable);
-}
-
-html.density-spacious {
-  --spacing-multiplier: 1.5;
-  --element-padding: var(--spacing-spacious);
-  --element-margin: var(--spacing-spacious);
-  --element-gap: var(--spacing-spacious);
-}
-
-/* Apply density to common elements */
-html.density-compact button,
-html.density-compact .setting-item,
-html.density-compact .card {
-  padding: calc(var(--element-padding) * 0.75);
-  gap: calc(var(--element-gap) * 0.75);
-}
-
-html.density-spacious button,
-html.density-spacious .setting-item,
-html.density-spacious .card {
-  padding: calc(var(--element-padding) * 1.25);
-  gap: calc(var(--element-gap) * 1.25);
 }
 
 /* ===== UTILITY CLASSES ===== */

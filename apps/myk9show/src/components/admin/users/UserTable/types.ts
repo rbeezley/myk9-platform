@@ -9,7 +9,6 @@ import { UserRole as UserRoleType } from '@/types/auth-types';
 // Sort & display types
 export type SortField = 'name' | 'email' | 'role' | 'lastLogin' | 'created';
 export type SortDirection = 'asc' | 'desc';
-export type DensityMode = 'compact' | 'comfortable' | 'spacious';
 
 // Re-export for convenience within the module
 export type { UserRoleType };
@@ -37,7 +36,6 @@ export interface UserTableProps {
   pageSize: number;
   onPageSizeChange?: (size: number) => void;
   searchTerm?: string;
-  densityMode?: DensityMode;
   /**
    * Sorting is owned by the page, not the table: the table only ever holds the
    * current page's rows, so sorting here would reorder 25 of 1,000 rows and
@@ -118,8 +116,8 @@ export function getRoleLabel(role: string): string {
     .join(' ');
 }
 
-// Density mode configurations
-export interface DensityConfig {
+// Row styling: one comfortable size (no density option).
+export interface RowStyle {
   rowHeight: string;
   avatarSize: string;
   fontSize: string;
@@ -127,28 +125,12 @@ export interface DensityConfig {
   spacing: string;
 }
 
-export const DENSITY_CONFIG: Record<DensityMode, DensityConfig> = {
-  compact: {
-    rowHeight: 'h-12',
-    avatarSize: 'h-8 w-8',
-    fontSize: 'text-sm',
-    padding: 'p-2',
-    spacing: 'gap-2',
-  },
-  comfortable: {
-    rowHeight: 'h-16',
-    avatarSize: 'h-10 w-10',
-    fontSize: 'text-base',
-    padding: 'p-4',
-    spacing: 'gap-3',
-  },
-  spacious: {
-    rowHeight: 'h-20',
-    avatarSize: 'h-12 w-12',
-    fontSize: 'text-lg',
-    padding: 'p-6',
-    spacing: 'gap-4',
-  },
+export const ROW_STYLE: RowStyle = {
+  rowHeight: 'h-16',
+  avatarSize: 'h-10 w-10',
+  fontSize: 'text-base',
+  padding: 'p-4',
+  spacing: 'gap-3',
 };
 
 // (The former APPLE_FONT_STYLE constant forced the Apple system font stack over

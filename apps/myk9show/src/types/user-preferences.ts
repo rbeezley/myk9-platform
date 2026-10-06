@@ -28,13 +28,11 @@ export type UserPreferencesUpdate = Partial<UserPreferencesInsert>;
 // Theme preferences
 export type ThemeMode = 'light' | 'dark' | 'system';
 export type ColorScheme = 'clay' | 'grove' | 'dusk' | 'heather';
-export type LayoutDensity = 'compact' | 'comfortable' | 'spacious';
 export type FontSizeScale = 'small' | 'medium' | 'large' | 'extra-large';
 
 export interface ThemePreferences {
   mode: ThemeMode;
   colorScheme: ColorScheme;
-  layoutDensity: LayoutDensity;
   fontSize: FontSizeScale;
   reduceMotion: boolean;
   highContrast: boolean;
@@ -211,7 +209,6 @@ export interface UseUserPreferencesReturn {
 export const DEFAULT_THEME_PREFERENCES: ThemePreferences = {
   mode: 'system',
   colorScheme: 'clay',
-  layoutDensity: 'comfortable',
   fontSize: 'medium',
   reduceMotion: false,
   highContrast: false,

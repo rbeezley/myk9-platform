@@ -9,7 +9,6 @@ import type { ThemePreferences } from '@/types/user-preferences';
 const basePreferences: ThemePreferences = {
   mode: 'light',
   colorScheme: 'clay',
-  layoutDensity: 'comfortable',
   fontSize: 'medium',
   reduceMotion: false,
   highContrast: false,
@@ -112,18 +111,6 @@ describe('ThemeSelector mode wiring', () => {
     await user.click(screen.getByRole('switch', { name: 'High Contrast' }));
     expect(root.classList.contains('high-contrast')).toBe(true);
     expect(localStorage.getItem('highContrast')).toBe('true');
-  });
-
-  it('applies and persists layout density when a density option is selected', async () => {
-    const user = userEvent.setup();
-    renderSelector();
-
-    await user.click(screen.getByRole('radio', { name: /^Compact/ }));
-
-    // Density lives on <html>, not <body> — applyLayoutDensity scrubs the body copy.
-    expect(root.className).toContain('density-compact');
-    expect(document.body.className).not.toContain('density-compact');
-    expect(localStorage.getItem('layoutDensity')).toBe('compact');
   });
 
   it('syncs the legacy settingsStore theme so its OS-change listener agrees', async () => {

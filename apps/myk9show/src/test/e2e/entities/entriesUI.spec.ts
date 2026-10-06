@@ -86,7 +86,7 @@ test.describe('Browse entries', () => {
     await page.getByRole('tab', { name: 'Waitlist', exact: true }).click();
     await expect(page.getByText(/Wait list settings:/)).toBeVisible();
 
-    await page.getByRole('tab', { name: 'Entries', exact: true }).click();
+    await page.getByRole('tab', { name: 'Entry Forms', exact: true }).click();
     await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible();
   });
 

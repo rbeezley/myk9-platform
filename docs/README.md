@@ -89,6 +89,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-secretary-access-request.md](plan-secretary-access-request.md)                                             | Active    | Additional access request flow                                                     |
 | [plan-secretary-crud-consolidation.md](plan-secretary-crud-consolidation.md)                                     | Active    | Secretary CRUD consolidation — one way to do each thing                            |
 | [plan-secretary-show-actions.md](plan-secretary-show-actions.md)                                                 | Active    | Secretary Show Actions — inventory and collapse plan (MYK9-630)                    |
+| [plan-results-tab-redesign.md](plan-results-tab-redesign.md)                                                     | Active    | Results Tab Redesign — everything after a class is scored                          |
 | [plan-f29b-operational-actions-home.md](plan-f29b-operational-actions-home.md)                                   | Active    | F29b — move-up and run order have no reachable surface                             |
 | [plan-ai-support-triage.md](plan-ai-support-triage.md)                                                           | Active    | AI Support Triage — external scheduled agent (design spec)                         |
 | [plan-ai-support-triage-implementation.md](plan-ai-support-triage-implementation.md)                             | Active    | AI Support Triage — implementation plan (9 tasks)                                  |

@@ -26,6 +26,7 @@ const testEntry = vi.hoisted(() => ({
   totalFee: 25,
   paidAmount: 0,
   entryStatus: 'pending',
+  isScored: false,
   paymentStatus: 'pending',
   submittedAt: new Date(2026, 6, 1, 9),
   lastUpdated: new Date(2026, 6, 1, 9),
@@ -91,9 +92,15 @@ vi.mock('@/components/entries/management/EntryManagementCockpit', () => ({
   EntryManagementCockpit: ({
     cockpit,
   }: {
-    cockpit: { state: { registrationKey: string | null } };
+    cockpit: {
+      state: { registrationKey: string | null };
+      focusedGroup: { entries: { id: string }[] } | null;
+    };
   }) => (
-    <output data-testid="focused-registration">{cockpit.state.registrationKey ?? 'none'}</output>
+    <>
+      <output data-testid="focused-registration">{cockpit.state.registrationKey ?? 'none'}</output>
+      <output data-testid="visible-entry">{cockpit.focusedGroup?.entries[0]?.id ?? 'none'}</output>
+    </>
   ),
 }));
 vi.mock('@/components/entries/management', () => ({
@@ -134,6 +141,29 @@ describe('EntryManagementPage URL ownership', () => {
       )
     );
     expect(screen.getByTestId('focused-registration')).toHaveTextContent('registration-1');
+  });
+
+  it('keeps a scored entry visible when linked from blocked delete', async () => {
+    entryDataState.entries = [
+      { ...testEntry, id: 'entry-0', registrationId: 'registration-0', dogId: 'dog-0' },
+      { ...testEntry, entryStatus: 'accepted', paymentStatus: 'paid', isScored: true },
+    ];
+
+    render(
+      <>
+        <EntryManagementPage />
+        <LocationProbe />
+      </>,
+      { initialRoute: '/shows/show-1/entries?queue=all&entry=entry-1' }
+    );
+
+    await waitFor(() =>
+      expect(screen.getByTestId('location-search')).toHaveTextContent(
+        '?queue=all&registration=registration-1'
+      )
+    );
+    expect(screen.getByTestId('focused-registration')).toHaveTextContent('registration-1');
+    expect(screen.getByTestId('visible-entry')).toHaveTextContent('entry-1');
   });
 
   it('removes a registration focus that does not belong to the loaded show', async () => {

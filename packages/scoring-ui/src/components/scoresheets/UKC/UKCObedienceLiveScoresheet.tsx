@@ -115,7 +115,13 @@ export const UKCObedienceLiveScoresheet: React.FC<LiveScoresheetProps> = ({
         <div className="max-w-2xl mx-auto">
           {/* Header */}
           <header className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
-            <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-11 w-11"
+              onClick={onBack}
+              aria-label="Back"
+            >
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex-1">

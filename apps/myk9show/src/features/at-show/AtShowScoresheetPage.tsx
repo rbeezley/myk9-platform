@@ -367,7 +367,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
         onClick={toggleAudioMuted}
         aria-label={audioMuted ? 'Unmute timer sounds' : 'Mute timer sounds'}
         aria-pressed={audioMuted}
-        className="fixed right-3 top-3 z-40 flex h-9 w-9 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm"
+        className="fixed right-3 top-32 z-40 flex h-11 w-11 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm"
       >
         {audioMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
       </button>

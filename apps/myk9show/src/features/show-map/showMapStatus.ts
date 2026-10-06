@@ -42,11 +42,12 @@ interface ClassWrapUpStatusOptions {
   resultSubmittedAt?: string | null | undefined;
   /** The class's trial registry; selects initials (AKC) or signature wording. */
   registryId?: string | null | undefined;
-  /**
-   * MYK9-1030: the class's judge still has a class to run that day. The judge signs off once,
-   * at the end of their day, so until then a complete class waits without nagging.
-   */
-  judgeDayOpen?: boolean | undefined;
+}
+
+function entryHasJudgeSignature(entry: ShowMapEntryInput): boolean {
+  return Boolean(
+    readString(entry, 'judge_signature_timestamp') || readString(entry, 'judge_signature')
+  );
 }
 
 function isEntryPulledOrScratched(entry: ShowMapEntryInput): boolean {
@@ -87,22 +88,18 @@ export function classifyTrialStatus(status: TrialStatusKey): ShowMapDisplayStatu
   return { value: status, label, kind };
 }
 
-/**
- * Whether a class has finished running: its status says so, or every entry is accounted for.
- * The one completeness rule the wrap-up status and the judge's day (MYK9-1030) share.
- */
-export function isClassRunComplete(cls: ShowMapClassInput, entries: ShowMapEntryInput[]): boolean {
-  if (classifyClassStatus(cls.status)?.kind === 'complete') return true;
-  const progress = buildClassProgress(cls, entries);
-  return progress ? progress.completed >= progress.total && progress.total > 0 : false;
-}
-
 export function classifyClassWrapUpStatus(
   cls: ShowMapClassInput,
   entries: ShowMapEntryInput[],
   options: ClassWrapUpStatusOptions = {}
 ): ShowMapDisplayStatus | undefined {
-  if (!isClassRunComplete(cls, entries)) return undefined;
+  const baseStatus = classifyClassStatus(cls.status);
+  const progress = buildClassProgress(cls, entries);
+  const isComplete =
+    baseStatus?.kind === 'complete' ||
+    (progress ? progress.completed >= progress.total && progress.total > 0 : false);
+
+  if (!isComplete) return undefined;
 
   if (options.resultSubmittedAt) {
     return {
@@ -112,36 +109,27 @@ export function classifyClassWrapUpStatus(
     };
   }
 
-  // Every entry pulled or scratched: nothing for the judge to sign.
-  if (!entries.some(entry => !isEntryPulledOrScratched(entry))) {
+  const entriesRequiringSignature = entries.filter(entry => !isEntryPulledOrScratched(entry));
+  if (entriesRequiringSignature.length > 0) {
+    if (entriesRequiringSignature.every(entryHasJudgeSignature)) {
+      return {
+        value: SHOW_MAP_WRAP_UP_STATUS.SIGNED_BY_JUDGE,
+        label: judgeSignOffWording(options.registryId).doneStatusLabel,
+        kind: 'neutral',
+      };
+    }
+
     return {
-      value: SHOW_MAP_WRAP_UP_STATUS.CLASS_READY_FOR_WRAP_UP,
-      label: 'Ready for wrap-up',
-      kind: 'neutral',
+      value: SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE,
+      label: judgeSignOffWording(options.registryId).needsStatusLabel,
+      kind: 'attention',
     };
   }
 
-  // MYK9-1030: the sign-off lives on the class (classes.judge_signed_off_at), recorded for the
-  // judge's whole day at once. entries.judge_signature has no writer, so it is not read.
-  const wording = judgeSignOffWording(options.registryId);
-  if (cls.judgeSignedOffAt) {
-    return {
-      value: SHOW_MAP_WRAP_UP_STATUS.SIGNED_BY_JUDGE,
-      label: wording.doneStatusLabel,
-      kind: 'neutral',
-    };
-  }
-  if (options.judgeDayOpen) {
-    return {
-      value: SHOW_MAP_WRAP_UP_STATUS.JUDGE_SIGN_OFF_AT_END_OF_DAY,
-      label: wording.endOfDayStatusLabel,
-      kind: 'neutral',
-    };
-  }
   return {
-    value: SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE,
-    label: wording.needsStatusLabel,
-    kind: 'attention',
+    value: SHOW_MAP_WRAP_UP_STATUS.CLASS_READY_FOR_WRAP_UP,
+    label: 'Ready for wrap-up',
+    kind: 'neutral',
   };
 }
 

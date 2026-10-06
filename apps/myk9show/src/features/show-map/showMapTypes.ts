@@ -29,8 +29,6 @@ export interface ShowMapDisplayStatus {
 
 export const SHOW_MAP_WRAP_UP_STATUS = {
   NEEDS_JUDGE_SIGNATURE: 'needs-judge-signature',
-  /** MYK9-1030: complete, and its judge still has classes to run that day. Neutral. */
-  JUDGE_SIGN_OFF_AT_END_OF_DAY: 'judge-sign-off-at-end-of-day',
   SIGNED_BY_JUDGE: 'signed-by-judge',
   CLASS_READY_FOR_WRAP_UP: 'class-ready-for-wrap-up',
   SUBMITTED_TO_REGISTRY: 'submitted-to-registry',
@@ -66,9 +64,6 @@ export interface ShowMapNode {
   entryDisplay?: ShowMapEntryDisplay | undefined;
   dogEntryDisplay?: ShowMapDogEntryDisplay | undefined;
   parentId?: string | undefined;
-  /** Class-only: the confirmed judge's `people.id`, and the judge's day (MYK9-1030). */
-  judgeId?: string | undefined;
-  judgeDayKey?: string | undefined;
   /** Trial and class nodes: the show's resolved registry id, for registry-specific wording. */
   registryId?: string | undefined;
   childrenCount: number;
@@ -117,10 +112,6 @@ export interface ShowMapClassInput {
   level?: string | undefined;
   section?: string | undefined;
   judgeName?: string | undefined;
-  /** The confirmed judge's `people.id`; with the trial date it keys the judge's day (MYK9-1030). */
-  judgeId?: string | undefined;
-  /** MYK9-1030: when the judge's end-of-day sign-off was recorded for this class. */
-  judgeSignedOffAt?: string | null | undefined;
   time?: string | undefined;
   revisedExpectedStart?: string | null | undefined;
   actualStartTime?: string | undefined;

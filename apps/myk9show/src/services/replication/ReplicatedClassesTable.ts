@@ -128,19 +128,6 @@ export interface ReplicatedClass {
   results_released_at?: string | null | undefined;
   resultsReleasedBy?: string | null | undefined;
   results_released_by?: string | null | undefined;
-  /**
-   * MYK9-1030: the judge's end-of-day sign-off on the marked catalog. Written ONLY through the
-   * sign-off RPCs (`setJudgeSignOff`), never by `toSupabaseRow`, so an unrelated class edit can
-   * never echo a stale value back. `judgeSignedOffBy` is the auth uid of whoever recorded it.
-   */
-  judgeSignedOffAt?: string | null | undefined;
-  judgeSignedOffBy?: string | null | undefined;
-  /**
-   * MYK9-1030: results checked against the paper score sheets. Written ONLY through
-   * `setResultsVerified` (the set_class_results_verified RPC), never by `toSupabaseRow`.
-   */
-  resultsVerifiedAt?: string | null | undefined;
-  resultsVerifiedBy?: string | null | undefined;
 
   // Scoring rule fields (from sport template, baked in at class creation)
   timerMode?: string | undefined;
@@ -245,10 +232,6 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
     results_released_at: row.results_released_at ?? null,
     resultsReleasedBy: row.results_released_by ?? null,
     results_released_by: row.results_released_by ?? null,
-    judgeSignedOffAt: row.judge_signed_off_at ?? null,
-    judgeSignedOffBy: row.judge_signed_off_by ?? null,
-    resultsVerifiedAt: row.results_verified_at ?? null,
-    resultsVerifiedBy: row.results_verified_by ?? null,
 
     // Scoring rule fields
     timerMode: (dbRow.timer_mode as string | undefined) ?? undefined,
@@ -746,110 +729,6 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     );
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated class ${classId}`);
-    return mutationId;
-  }
-
-  /**
-   * MYK9-1030: record (`signOff` set) or clear (`null`) the judge's sign-off on ONE class,
-   * offline-first. The local row changes now; the write is queued as an RPC-routed UPDATE, so it
-   * replays in queue order on reconnect (after a queued Mark Complete, say) and the server
-   * authorizes it with can_manage_trial. One class per mutation, so the RPC's returned version
-   * keeps this row's OCC token fresh. A class already signed off keeps its first stamp, as the
-   * server does.
-   */
-  async setJudgeSignOff(
-    classId: string,
-    signOff: { at: string; by: string | null } | null
-  ): Promise<string | null> {
-    const currentClass = await this.get(classId);
-    if (!currentClass) {
-      throw new Error(`Class ${classId} not found`);
-    }
-
-    const alreadySigned = Boolean(currentClass.judgeSignedOffAt);
-    const judgeSignedOffAt = signOff
-      ? alreadySigned
-        ? currentClass.judgeSignedOffAt
-        : signOff.at
-      : null;
-    const judgeSignedOffBy = signOff
-      ? alreadySigned
-        ? currentClass.judgeSignedOffBy
-        : signOff.by
-      : null;
-
-    await this.set(
-      classId,
-      {
-        ...currentClass,
-        judgeSignedOffAt,
-        judgeSignedOffBy,
-        _lastModified: new Date(),
-        _syncStatus: 'pending',
-      },
-      true
-    );
-    const mutationId = await this.queueMutation(
-      'UPDATE',
-      classId,
-      { id: classId, judge_signed_off_at: judgeSignedOffAt ?? null },
-      undefined,
-      signOff
-        ? {
-            name: 'mark_classes_judge_signed_off',
-            args: { p_class_ids: [classId], p_signed_off_at: signOff.at },
-          }
-        : { name: 'clear_class_judge_sign_off', args: { p_class_id: classId } }
-    );
-    this._lastMutationId = mutationId;
-    return mutationId;
-  }
-
-  /**
-   * MYK9-1030: record (`check` set) or clear (`null`) that ONE class's results were checked
-   * against the paper score sheets, offline-first the same way as `setJudgeSignOff`: local row
-   * now, an RPC-routed UPDATE (set_class_results_verified) queued for the server, which
-   * authorizes it and refuses a class that is not complete. Keeps an existing stamp.
-   */
-  async setResultsVerified(
-    classId: string,
-    check: { at: string; by: string | null } | null
-  ): Promise<string | null> {
-    const currentClass = await this.get(classId);
-    if (!currentClass) {
-      throw new Error(`Class ${classId} not found`);
-    }
-
-    const keep = Boolean(check && currentClass.resultsVerifiedAt);
-    const resultsVerifiedAt = check ? (keep ? currentClass.resultsVerifiedAt : check.at) : null;
-    const resultsVerifiedBy = check ? (keep ? currentClass.resultsVerifiedBy : check.by) : null;
-
-    await this.set(
-      classId,
-      {
-        ...currentClass,
-        resultsVerifiedAt,
-        resultsVerifiedBy,
-        _lastModified: new Date(),
-        _syncStatus: 'pending',
-      },
-      true
-    );
-    const mutationId = await this.queueMutation(
-      'UPDATE',
-      classId,
-      { id: classId, results_verified_at: resultsVerifiedAt ?? null },
-      undefined,
-      {
-        name: 'set_class_results_verified',
-        args: {
-          p_class_id: classId,
-          p_verified: check !== null,
-          ...(check ? { p_verified_at: check.at } : {}),
-        },
-      }
-    );
-    this._lastMutationId = mutationId;
     return mutationId;
   }
 

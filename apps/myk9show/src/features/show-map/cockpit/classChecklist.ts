@@ -30,8 +30,6 @@ export interface ClassChecklistItem {
   detail?: string;
   /** Present on print items that have something to print, so print and Mark printed stay. */
   paperwork?: SecretaryCockpitPaperwork;
-  /** A command the item offers in place (the per-class undo of a judge's sign-off, MYK9-1030). */
-  command?: { commandId: string; label: string };
 }
 
 export interface ClassChecklistInput {
@@ -43,8 +41,6 @@ export interface ClassChecklistInput {
   paperwork: readonly SecretaryCockpitPaperwork[];
   /** The show's registry; selects initials (AKC) or signature wording. */
   registryId?: string | null | undefined;
-  /** The ShowDeskPanel command that clears this class's recorded sign-off, when it has one. */
-  judgeSignOffUndoCommandId?: string | null | undefined;
 }
 
 const PRINT_STATE: Record<SecretaryCockpitPaperwork['state'], ClassChecklistState> = {
@@ -79,19 +75,7 @@ function signatureItem(input: ClassChecklistInput, entriesKnown: boolean): Class
   const wording = judgeSignOffWording(input.registryId);
   const base = { id: 'judge-signature' as const, label: wording.checklistLabel };
   const status = input.wrapUpStatus;
-  if (status && SIGNED.has(status)) {
-    return input.judgeSignOffUndoCommandId
-      ? {
-          ...base,
-          state: 'done',
-          command: { commandId: input.judgeSignOffUndoCommandId, label: wording.undoActionLabel },
-        }
-      : { ...base, state: 'done' };
-  }
-  if (status === SHOW_MAP_WRAP_UP_STATUS.JUDGE_SIGN_OFF_AT_END_OF_DAY) {
-    // MYK9-1030: the judge signs off once their day is over; not a task yet.
-    return { ...base, state: 'todo', detail: wording.checklistEndOfDayDetail };
-  }
+  if (status && SIGNED.has(status)) return { ...base, state: 'done' };
   if (status === SHOW_MAP_WRAP_UP_STATUS.CLASS_READY_FOR_WRAP_UP) {
     // Every entry was pulled or scratched, so nothing needed signing.
     return entriesKnown

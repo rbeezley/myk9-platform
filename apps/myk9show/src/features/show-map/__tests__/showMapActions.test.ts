@@ -1110,10 +1110,16 @@ describe('showMapActions', () => {
           trialId: 'trial-1',
           name: 'Container Novice A',
           status: 'Complete',
-          judgeSignedOffAt: '2026-05-18T20:00:00Z',
         },
       ],
-      entries: [{ id: 'entry-signed', class_id: 'class-signed', is_scored: true }],
+      entries: [
+        {
+          id: 'entry-signed',
+          class_id: 'class-signed',
+          is_scored: true,
+          judge_signature_timestamp: '2026-05-18',
+        },
+      ],
     });
 
     expect(getAttentionActions('root', { tree })).toEqual([
@@ -1171,19 +1177,27 @@ describe('showMapActions', () => {
             trialId: 'trial-1',
             name: 'Container Novice A',
             status: 'Complete',
-            judgeSignedOffAt: '2026-05-18T20:00:00Z',
           },
           {
             id: 'class-b',
             trialId: 'trial-1',
             name: 'Interior Novice A',
             status: 'Complete',
-            judgeSignedOffAt: '2026-05-18T20:00:00Z',
           },
         ],
         entries: [
-          { id: 'e-a', class_id: 'class-a', is_scored: true },
-          { id: 'e-b', class_id: 'class-b', is_scored: true },
+          {
+            id: 'e-a',
+            class_id: 'class-a',
+            is_scored: true,
+            judge_signature_timestamp: '2026-05-18',
+          },
+          {
+            id: 'e-b',
+            class_id: 'class-b',
+            is_scored: true,
+            judge_signature_timestamp: '2026-05-18',
+          },
         ],
       });
 
@@ -1344,14 +1358,18 @@ describe('showMapActions', () => {
             trialId: 'trial-1',
             name: 'Interior Novice A',
             status: 'Complete',
-            judgeSignedOffAt: '2026-05-18T20:00:00Z',
           },
         ],
         entries: [
-          // class-needs-signature: scored, no judge sign-off → NEEDS_JUDGE_SIGNATURE
+          // class-needs-signature: scored, no judge signature → NEEDS_JUDGE_SIGNATURE
           { id: 'entry-1', class_id: 'class-needs-signature', is_scored: true },
-          // class-signed: scored, sign-off recorded on the class → SIGNED_BY_JUDGE → review-results
-          { id: 'entry-2', class_id: 'class-signed', is_scored: true },
+          // class-signed: scored AND signed → SIGNED_BY_JUDGE → review-results
+          {
+            id: 'entry-2',
+            class_id: 'class-signed',
+            is_scored: true,
+            judge_signature_timestamp: '2026-05-18',
+          },
         ],
       });
 
@@ -1645,7 +1663,9 @@ describe('showMapActions', () => {
         show,
         trials: [trialSubmitted],
         classes: [{ id: 'c', trialId: 'trial-1', name: 'Novice', status: 'Complete' }],
-        entries: [{ id: 'e1', class_id: 'c', is_scored: true }],
+        entries: [
+          { id: 'e1', class_id: 'c', is_scored: true, judge_signature_timestamp: '2026-05-18' },
+        ],
       });
 
       expect(getPrimaryActionForNode(tree.nodesById['class:c'], { tree })).toMatchObject({

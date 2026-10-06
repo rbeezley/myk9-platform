@@ -1169,8 +1169,6 @@ export type Database = {
           id: string
           is_results_reviewed: boolean | null
           is_scoring_finalized: boolean | null
-          judge_signed_off_at: string | null
-          judge_signed_off_by: string | null
           jump_heights: string[] | null
           level: string | null
           max_dogs_per_handler: number | null
@@ -1183,8 +1181,6 @@ export type Database = {
           reopened_after_closeout_at: string | null
           results_released_at: string | null
           results_released_by: string | null
-          results_verified_at: string | null
-          results_verified_by: string | null
           revised_expected_start: string | null
           scored_count: number | null
           section: string | null
@@ -1229,8 +1225,6 @@ export type Database = {
           id?: string
           is_results_reviewed?: boolean | null
           is_scoring_finalized?: boolean | null
-          judge_signed_off_at?: string | null
-          judge_signed_off_by?: string | null
           jump_heights?: string[] | null
           level?: string | null
           max_dogs_per_handler?: number | null
@@ -1243,8 +1237,6 @@ export type Database = {
           reopened_after_closeout_at?: string | null
           results_released_at?: string | null
           results_released_by?: string | null
-          results_verified_at?: string | null
-          results_verified_by?: string | null
           revised_expected_start?: string | null
           scored_count?: number | null
           section?: string | null
@@ -1289,8 +1281,6 @@ export type Database = {
           id?: string
           is_results_reviewed?: boolean | null
           is_scoring_finalized?: boolean | null
-          judge_signed_off_at?: string | null
-          judge_signed_off_by?: string | null
           jump_heights?: string[] | null
           level?: string | null
           max_dogs_per_handler?: number | null
@@ -1303,8 +1293,6 @@ export type Database = {
           reopened_after_closeout_at?: string | null
           results_released_at?: string | null
           results_released_by?: string | null
-          results_verified_at?: string | null
-          results_verified_by?: string | null
           revised_expected_start?: string | null
           scored_count?: number | null
           section?: string | null

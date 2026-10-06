@@ -133,8 +133,6 @@ export function ShowWorkbenchShowDeskPage() {
           level: cls.level,
           section: cls.section || '',
           judgeName: cls.judgeName || '',
-          judgeId: cls.judgeId || undefined,
-          judgeSignedOffAt: cls.judgeSignedOffAt ?? null,
           trialId: trial.id,
           time: cls.startTime || '',
           revisedExpectedStart: cls.revisedExpectedStart ?? null,

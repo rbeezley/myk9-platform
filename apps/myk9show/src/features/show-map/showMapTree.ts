@@ -7,10 +7,8 @@ import {
   classifyClassWrapUpStatus,
   classifyEntryCheckInStatus,
   classifyEntryRunStatus,
-  isClassRunComplete,
   isEntryComplete,
 } from './showMapStatus';
-import { judgeDayKey, openJudgeDayKeys } from './judgeDay';
 import { deriveTrialStatusKey, formatTrialLabel } from '@myk9/core';
 import { getEntryAttention } from './attention';
 import {
@@ -188,25 +186,6 @@ export function buildShowMapTree({
     classesByTrialId.set(cls.trialId, trialClasses);
   }
 
-  // MYK9-1030: the judge signs off at the end of their day, which can span trials, so whether a
-  // judge still has a class to run is decided across the whole show before any trial is built.
-  const trialDateById = new Map(trials.map(trial => [trial.id, trial.trialDate] as const));
-  const judgeDayInputs = classes.map(cls => ({
-    id: cls.id,
-    trialDate: trialDateById.get(cls.trialId) || cls.trialDate,
-    judgeId: cls.judgeId,
-    judgeName: cls.judgeName,
-  }));
-  const judgeDayKeyByClassId = new Map(judgeDayInputs.map(cls => [cls.id, judgeDayKey(cls)]));
-  const openJudgeDays = openJudgeDayKeys(
-    classes.map((cls, index) => ({
-      ...judgeDayInputs[index]!,
-      finished:
-        classifyClassStatus(cls.status)?.kind === 'muted' ||
-        isClassRunComplete(cls, entriesByClassId.get(cls.id) ?? []),
-    }))
-  );
-
   const root: ShowMapNode = {
     id: getShowMapNodeId('show', show.id),
     type: 'show',
@@ -264,7 +243,6 @@ export function buildShowMapTree({
         classifyClassWrapUpStatus(cls, entriesByClassId.get(cls.id) ?? [], {
           resultSubmittedAt,
           registryId: trialRegistryId,
-          judgeDayOpen: openJudgeDays.has(judgeDayKeyByClassId.get(cls.id) ?? ''),
         }),
       ])
     );
@@ -277,16 +255,8 @@ export function buildShowMapTree({
     // NEEDS_WRAP_UP stays loose: any complete class needing judge signature
     // is a legitimate trial-level attention signal even while other classes
     // run, because the secretary should chase the signature in parallel.
-    // MYK9-1030 (owner): a class needs it only once ITS JUDGE's day is over,
-    // since the judge initials the marked catalog once, at the end of the day.
-    // MYK9-1030: a class waiting for its judge's end-of-day sign-off (the
-    // judge's day runs on in another trial) is not ready to submit either.
     const allClassesComplete =
-      trialClasses.length > 0 &&
-      classWrapUpStatuses.length === trialClasses.length &&
-      !classWrapUpStatuses.some(
-        status => status.value === SHOW_MAP_WRAP_UP_STATUS.JUDGE_SIGN_OFF_AT_END_OF_DAY
-      );
+      trialClasses.length > 0 && classWrapUpStatuses.length === trialClasses.length;
     const trialWrapUpStatus = classWrapUpStatuses.some(status => status.kind === 'attention')
       ? {
           value: SHOW_MAP_WRAP_UP_STATUS.NEEDS_WRAP_UP,
@@ -351,8 +321,6 @@ export function buildShowMapTree({
         timezone: getTrialTimezone(trial),
         ringLabel: classRingLabel(cls),
         judgeName: cls.judgeName || undefined,
-        judgeId: cls.judgeId || undefined,
-        judgeDayKey: judgeDayKeyByClassId.get(cls.id),
         startTime: cls.time || undefined,
         registryId: trialRegistryId,
         parentId: trialNode.id,

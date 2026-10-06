@@ -198,6 +198,7 @@ describe('computeShowDeskStatus', () => {
           dog: { call_name: 'Bella' },
           entry_status: 'accepted',
           is_scored: true,
+          judge_signature_at: '2026-05-17T14:00:00Z',
         },
       ],
     });

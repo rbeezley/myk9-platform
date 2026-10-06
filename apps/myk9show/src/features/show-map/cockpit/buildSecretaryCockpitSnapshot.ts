@@ -10,7 +10,12 @@ import { SHOW_MAP_WRAP_UP_STATUS } from '../showMapTypes';
 import type { ShowDeskPendingSignal } from '../showDeskPendingSignals';
 import type { SecretaryCockpitEntryRow } from './secretaryCockpitTypes';
 import type { ShowMapAction } from '../showMapActions';
-import type { ShowMapClassInput, ShowMapTree, ShowMapTrialInput } from '../showMapTypes';
+import type {
+  ShowMapClassInput,
+  ShowMapNode,
+  ShowMapTree,
+  ShowMapTrialInput,
+} from '../showMapTypes';
 import {
   getCockpitClassDetailsHref,
   getCockpitClassManagementHref,
@@ -63,6 +68,7 @@ function closeoutFor(value: string | undefined): CockpitCloseoutState {
   if (value === SHOW_MAP_WRAP_UP_STATUS.SUBMITTED_TO_REGISTRY) return 'closed';
   if (
     value === SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE ||
+    value === SHOW_MAP_WRAP_UP_STATUS.JUDGE_SIGN_OFF_AT_END_OF_DAY ||
     value === SHOW_MAP_WRAP_UP_STATUS.CLASS_READY_FOR_WRAP_UP ||
     value === SHOW_MAP_WRAP_UP_STATUS.SIGNED_BY_JUDGE
   ) {
@@ -75,6 +81,7 @@ function attentionKind(action: ShowMapAction): CockpitAttentionKind {
   if (action.id === 'score-class' || action.id === 'edit-score') return 'active-work';
   if (
     action.id === 'collect-judge-signature' ||
+    action.id === 'record-judge-sign-off' ||
     action.id === 'review-results' ||
     action.id === 'submit-final-results'
   ) {
@@ -198,6 +205,18 @@ function classWorkActions(input: {
   ];
 }
 
+/** MYK9-1030: the per-class undo of a recorded sign-off, run through ShowDeskPanel.runCommand. */
+function judgeSignOffUndoCommandId(
+  node: ShowMapNode | undefined,
+  tree: ShowMapTree
+): string | null {
+  if (!node) return null;
+  const undo = getDirectActionsForNode(node, { tree }).find(
+    action => action.id === 'clear-judge-sign-off'
+  );
+  return undo ? `${undo.id}:${undo.nodeId}` : null;
+}
+
 function administrativeAttention(
   signals: readonly ShowDeskPendingSignal[],
   returnTo: string
@@ -292,6 +311,7 @@ export function buildSecretaryCockpitSnapshot({
         runListCount: classItem.runListCount ?? null,
         closeout: closeoutFor(node?.wrapUpStatus?.value),
         wrapUpStatus: node?.wrapUpStatus?.value ?? null,
+        judgeSignOffUndoCommandId: judgeSignOffUndoCommandId(node, tree),
         registryId: node?.registryId ?? null,
         judgeName: classItem.judgeName ?? null,
         operationalArea:

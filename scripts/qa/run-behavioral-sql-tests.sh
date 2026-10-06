@@ -153,6 +153,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_1005_manager_judge_day_capacity_test.sql"
   "$TEST_DIR/myk9_1018_capacity_override_server_marker_test.sql"
   "$TEST_DIR/myk9_1019_show_wide_allow_waitlist_test.sql"
+  "$TEST_DIR/myk9_1030_judge_sign_off_test.sql"
   "$TEST_DIR/myk9_963_unfulfilled_charge_refund_test.sql"
   "$TEST_DIR/myk9_969_results_privacy_test.sql"
   "$TEST_DIR/myk9_822_blocking_entries_rpc_test.sql"

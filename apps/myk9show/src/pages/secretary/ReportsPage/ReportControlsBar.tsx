@@ -16,6 +16,7 @@ import { resolveConfiguredRegistryId, type RegistryId } from '@/features/registr
 import { orderReportPhases, type ShowTimePhase } from '@/lib/reports/reportPhaseOrder';
 import { formatClassLabel } from '@/lib/utils';
 import { AlertTriangle, Download } from 'lucide-react';
+import { JudgeDayScopeSelect, type JudgeDayScopeControl } from './JudgeDayScopeSelect';
 
 // Trial/class rows carry a non-null `name` (the canonical human label) plus
 // nullable element/level/section/trial_number columns. Build the option label
@@ -124,6 +125,8 @@ interface ReportControlsBarProps {
   onSortChange: (value: string) => void;
   onPrint: () => void;
   officialPdfAction?: OfficialPdfAction | undefined;
+  /** MYK9-1030: shown when the report has a judge + day scope (the marked Result Catalog). */
+  judgeDay?: JudgeDayScopeControl | undefined;
   /**
    * Where the show sits relative to today, which orders the four phase groups
    * nearest-in-time first. Defaults to `'unknown'` (the plain
@@ -185,6 +188,7 @@ export function ReportControlsBar({
   onSortChange,
   onPrint,
   officialPdfAction,
+  judgeDay,
   showPhase = 'unknown',
 }: ReportControlsBarProps) {
   const selectedReport = getReportById(reportType);
@@ -295,6 +299,10 @@ export function ReportControlsBar({
             </SelectContent>
           </Select>
         </div>
+      )}
+
+      {judgeDay && selectedReport?.scopes.includes('judge-day') && (
+        <JudgeDayScopeSelect {...judgeDay} />
       )}
 
       {/* Class dropdown — hidden if report doesn't have class scope */}

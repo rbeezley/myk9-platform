@@ -1,7 +1,8 @@
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
-import ReportsPage, { resolveInitialReportId, resolveInitialReportScope } from '../index';
+import ReportsPage from '../index';
+import { resolveInitialReportId, resolveInitialReportScope } from '../reportInitialScope';
 
 const mockReportState = vi.hoisted(() => ({
   trialOneRegistryId: 'AKC',
@@ -68,6 +69,9 @@ vi.mock('@/hooks/queries/useReportData', () => ({
             section: '',
             trial_id: 'trial-1',
             judge_name: 'Pat Judge',
+            judge_assignments: [
+              { person_id: 'person-pat', people: { first_name: 'Pat', last_name: 'Judge' } },
+            ],
             time_limit_seconds: 120,
             time_limit_area2_seconds: null,
             time_limit_area3_seconds: null,
@@ -200,8 +204,13 @@ vi.mock('../reportPreviewUtils', () => ({
 }));
 
 vi.mock('../ReportPreview', () => ({
-  ReportPreview: (props: { trialId: string; classId: string }) => (
-    <div data-testid="report-preview" data-trial-id={props.trialId} data-class-id={props.classId}>
+  ReportPreview: (props: { trialId: string; classId: string; classes?: Array<{ id: string }> }) => (
+    <div
+      data-testid="report-preview"
+      data-trial-id={props.trialId}
+      data-class-id={props.classId}
+      data-class-ids={(props.classes ?? []).map(cls => cls.id).join(',')}
+    >
       Preview
     </div>
   ),
@@ -595,12 +604,45 @@ describe('resolveInitialReportId', () => {
   });
 });
 
+describe("Result Catalog for a judge's day (MYK9-1030)", () => {
+  it("previews only that judge's classes on that date when opened from the Show Map link", async () => {
+    render(<ReportsPage />, {
+      initialRoute:
+        '/shows/show-1/reports?report=result-catalog&judgeId=person-pat&date=2026-04-12',
+    });
+
+    const preview = await screen.findByTestId('report-preview');
+    expect(preview).toHaveAttribute('data-class-ids', 'class-1');
+    expect(preview).toHaveAttribute('data-trial-id', 'all');
+    expect(screen.getByLabelText(/judge.s day/i)).toHaveTextContent('Pat Judge · Sun, Apr 12');
+  });
+
+  it('previews the whole show without a judge-day', async () => {
+    render(<ReportsPage />, { initialRoute: '/shows/show-1/reports?report=result-catalog' });
+
+    expect(await screen.findByTestId('report-preview')).toHaveAttribute(
+      'data-class-ids',
+      'class-1,class-2'
+    );
+  });
+});
+
 describe('resolveInitialReportScope', () => {
   it('uses all scopes when no query params are provided', () => {
     expect(resolveInitialReportScope(new URLSearchParams())).toEqual({
       trialId: 'all',
       classId: 'all',
       dogId: 'all',
+      judgeDay: 'all',
+    });
+  });
+
+  it("opens on a judge's day from the Show Map's marked-catalog link (MYK9-1030)", () => {
+    const params = new URLSearchParams({ judgeId: 'person-7', date: '2026-10-10' });
+    expect(resolveInitialReportScope(params)).toMatchObject({
+      trialId: 'all',
+      classId: 'all',
+      judgeDay: 'person-7|2026-10-10',
     });
   });
 
@@ -615,6 +657,7 @@ describe('resolveInitialReportScope', () => {
       trialId: 'trial-1',
       classId: 'class-1',
       dogId: 'dog-1',
+      judgeDay: 'all',
     });
   });
 

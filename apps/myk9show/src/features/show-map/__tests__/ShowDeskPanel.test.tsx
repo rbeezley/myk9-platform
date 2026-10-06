@@ -335,16 +335,15 @@ describe('ShowDeskPanel cockpit', () => {
         show={show}
         trials={[trial]}
         classes={[
-          { id: 'class-1', trialId: 'trial-1', name: 'Container Novice', status: 'Complete' },
-        ]}
-        entries={[
           {
-            id: 'entry-1',
-            class_id: 'class-1',
-            is_scored: true,
-            judge_signature_timestamp: '2026-06-12T14:30:00.000Z',
+            id: 'class-1',
+            trialId: 'trial-1',
+            name: 'Container Novice',
+            status: 'Complete',
+            judgeSignedOffAt: '2026-06-12T14:30:00.000Z',
           },
         ]}
+        entries={[{ id: 'entry-1', class_id: 'class-1', is_scored: true }]}
         canManageShow
         scopeNow={now}
       />,

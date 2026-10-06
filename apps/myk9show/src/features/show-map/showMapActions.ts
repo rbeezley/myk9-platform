@@ -1,4 +1,4 @@
-import { judgeSignOffWording } from './judgeSignOff';
+import { judgeSignOffActionsForClassNode } from './judgeSignOffActions';
 import { getPaperScoringEntryHref } from '@/pages/scoring/scoringRoutes';
 import { getClassAttention } from './attention';
 import {
@@ -17,7 +17,6 @@ import {
   FileText,
   FolderOpen,
   MessageSquare,
-  PenLine,
   Pencil,
   PlayCircle,
   Send,
@@ -65,6 +64,8 @@ export const showMapActionIds = [
   'scratch-entry',
   'message-handler',
   'collect-judge-signature',
+  'record-judge-sign-off',
+  'clear-judge-sign-off',
   'review-results',
   'submit-final-results',
 ] as const;
@@ -79,6 +80,10 @@ export interface ShowMapAction {
   priority: number;
   href?: string;
   classId?: string | undefined;
+  /** Every class the action applies to, when it spans more than one (a judge's day). */
+  classIds?: readonly string[] | undefined;
+  /** The show's registry, for actions whose result toast is registry-worded (MYK9-1030). */
+  registryId?: string | undefined;
   trialId?: string | undefined;
   icon: ComponentType<SVGProps<SVGSVGElement>>;
   recommended?: boolean;
@@ -153,6 +158,7 @@ function withEntryContext(node: ShowMapNode, why: string): string {
 // entirely below live-ops; the within-band order matches the
 // natural wrap-up sequence.
 // - collect-judge-signature: 55  (was 95 — see audit)
+// - record-judge-sign-off:   54  (MYK9-1030, the judge's whole day)
 // - review-results:          52  (was 60)
 // - submit-final-results:    50
 //
@@ -167,29 +173,10 @@ function wrapUpActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapActi
     const trialId = getParentSourceId(node, tree, 'trial');
     const classId = getNodeSourceId(node, 'class');
 
+    // MYK9-1030: print the judge's marked catalog, record their end-of-day sign-off, undo it.
+    const signOffActions = judgeSignOffActionsForClassNode(node, tree);
     if (node.wrapUpStatus?.value === SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE) {
-      return [
-        withHref(
-          {
-            id: 'collect-judge-signature',
-            nodeId: node.id,
-            label: judgeSignOffWording(node.registryId).actionLabel,
-            why: judgeSignOffWording(node.registryId).actionWhy,
-            priority: 55,
-            icon: PenLine,
-            ...(classId ? { classId } : {}),
-            ...(trialId ? { trialId } : {}),
-            recommended: true,
-            createsAttention: true,
-          },
-          showId && trialId && classId
-            ? getShowMapReportHref({
-                reportId: 'result-catalog',
-                scope: { kind: 'class', showId, trialId, classId },
-              })
-            : undefined
-        ),
-      ];
+      return signOffActions;
     }
 
     if (
@@ -210,6 +197,7 @@ function wrapUpActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapActi
           recommended: true,
           createsAttention: true,
         },
+        ...signOffActions,
       ];
     }
   }
@@ -243,6 +231,7 @@ function isDateSensitiveRootAction(action: ShowMapAction): boolean {
     action.id === 'mark-class-started' ||
     action.id === 'mark-class-complete' ||
     action.id === 'collect-judge-signature' ||
+    action.id === 'record-judge-sign-off' ||
     action.id === 'review-results' ||
     action.id === 'submit-final-results'
   );

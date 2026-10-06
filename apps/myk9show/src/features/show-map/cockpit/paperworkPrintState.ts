@@ -331,6 +331,8 @@ function scopeCovers(record: PaperworkCoverage, current: ReportScope): boolean {
   const recordScope = record.scope;
   if (!('showId' in recordScope) || recordScope.showId !== current.showId) return false;
   if (recordScope.kind === 'show') return true;
+  // A judge's day (MYK9-1030) spans trials, so only a show-wide print covers it.
+  if (current.kind === 'judge-day' || recordScope.kind === 'judge-day') return false;
   if (recordScope.kind === 'trial') {
     return current.kind !== 'show' && current.trialId === recordScope.trialId;
   }
@@ -343,6 +345,7 @@ function subjectBelongsToScope(
 ): boolean {
   if (scope.kind === 'show') return true;
   if (scope.kind === 'trial') return subject.trialIds.includes(scope.trialId);
+  if (scope.kind === 'judge-day') return false;
   return subject.classIds.includes(scope.classId);
 }
 

@@ -1,5 +1,6 @@
 import { CheckCircle2, CircleHelp, Clock3, RefreshCw } from 'lucide-react';
 
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { CockpitPaperworkRow } from './CockpitPaperworkRow';
 import {
@@ -25,7 +26,14 @@ function StateIcon({ state }: { state: ClassChecklistState }) {
   return <Clock3 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />;
 }
 
-function ChecklistStepRow({ item }: { item: ClassChecklistItem }) {
+function ChecklistStepRow({
+  item,
+  onCommand,
+}: {
+  item: ClassChecklistItem;
+  onCommand: (commandId: string) => void;
+}) {
+  const command = item.command;
   return (
     <div
       className={cn(
@@ -37,7 +45,22 @@ function ChecklistStepRow({ item }: { item: ClassChecklistItem }) {
         <StateIcon state={item.state} />
         {item.label}
       </div>
-      <div className="text-xs text-muted-foreground">{item.detail ?? STATE_TEXT[item.state]}</div>
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground">
+          {item.detail ?? STATE_TEXT[item.state]}
+        </span>
+        {command && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            aria-label={`${command.label} — ${item.label}`}
+            onClick={() => onCommand(command.commandId)}
+          >
+            {command.label}
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
@@ -84,7 +107,7 @@ export function ClassChecklistSection({
                     onCommand={onCommand}
                   />
                 ) : (
-                  <ChecklistStepRow item={item} />
+                  <ChecklistStepRow item={item} onCommand={onCommand} />
                 )}
               </li>
             ))}

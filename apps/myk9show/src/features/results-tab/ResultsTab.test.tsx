@@ -108,8 +108,8 @@ const hook = vi.hoisted(() => ({
     rows: [] as ReturnType<typeof buildRows>,
     trials: [] as SyncableTrial[],
     readState: 'ready' as ResultsTabReadState,
-    printHistoryUnavailable: false,
     refreshFailed: false,
+    paperworkAvailable: true,
     retry: vi.fn(),
   },
 }));
@@ -140,8 +140,8 @@ beforeEach(() => {
     rows: buildRows(),
     trials: [trial],
     readState: 'ready',
-    printHistoryUnavailable: false,
     refreshFailed: false,
+    paperworkAvailable: true,
     retry: vi.fn(),
   };
 });
@@ -256,6 +256,19 @@ describe('ResultsTab detail', () => {
     expect(screen.getByText('Print the results sheet and ribbon labels')).toBeInTheDocument();
     expect(screen.getByText('Results sheet')).toBeInTheDocument();
     expect(screen.getByText('Ribbon labels')).toBeInTheDocument();
+  });
+
+  it('says print status is unavailable, with Retry, instead of hiding the print buttons', async () => {
+    hook.value = {
+      ...hook.value,
+      paperworkAvailable: false,
+      rows: buildRows().map(row => ({ ...row, paperworkAvailable: false })),
+    };
+    const { user } = renderAt('?status=all&classId=class-released');
+
+    expect(screen.getByText(/Print status unavailable/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(hook.value.retry).toHaveBeenCalledTimes(1);
   });
 
   it('sends an unfinished class back to Overview from its Primary work card', () => {

@@ -22,6 +22,8 @@ interface ResultsTabToolbarProps {
   /** Every class in the show, so the status counts do not shrink with the other filters. */
   rows: readonly ResultsClassRow[];
   timeZone: string;
+  paperworkAvailable: boolean;
+  onRetry: () => void;
   onChange: (next: Partial<ResultsTabUrlState>) => void;
   onOpenVisibility: () => void;
 }
@@ -43,6 +45,8 @@ export function ResultsTabToolbar({
   trials,
   rows,
   timeZone,
+  paperworkAvailable,
+  onRetry,
   onChange,
   onOpenVisibility,
 }: ResultsTabToolbarProps) {
@@ -111,7 +115,12 @@ export function ResultsTabToolbar({
             </Button>
           </PopoverContent>
         </Popover>
-        <PrintAllReadyDialog rows={rows} timeZone={timeZone} />
+        <PrintAllReadyDialog
+          rows={rows}
+          timeZone={timeZone}
+          paperworkAvailable={paperworkAvailable}
+          onRetry={onRetry}
+        />
       </div>
     </div>
   );

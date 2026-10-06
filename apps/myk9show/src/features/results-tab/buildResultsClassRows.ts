@@ -65,6 +65,8 @@ export interface ResultsClassRow {
   nextAction: ResultsNextAction;
   /** Results sheet and ribbon labels, as the Overview paperwork row builds them. */
   paperwork: readonly SecretaryCockpitPaperwork[];
+  /** False when print status could not be read; the UI says so rather than hiding the buttons. */
+  paperworkAvailable: boolean;
   entries: readonly ResultsEntryRow[];
 }
 
@@ -76,6 +78,11 @@ export interface BuildResultsClassRowsInput {
   releasedAtByClassId: ReadonlyMap<string, string | null | undefined>;
   entries: readonly SecretaryEntry[];
   paperworkByClassId: ReadonlyMap<string, readonly SecretaryCockpitPaperwork[]>;
+  /**
+   * The class rows or the print confirmations could not be read, so `paperworkByClassId` is not
+   * evidence of anything: rows report no print state and say so.
+   */
+  paperworkAvailable?: boolean;
 }
 
 const RESULTS_REPORT_IDS = ['results-sheet', 'result-labels'] as const;
@@ -107,14 +114,16 @@ function placementSort(a: ResultsEntryRow, b: ResultsEntryRow): number {
 }
 
 function toEntryRow(entry: SecretaryEntry): ResultsEntryRow {
-  const person = entry.handler_person;
-  const personName = person ? `${person.first_name ?? ''} ${person.last_name ?? ''}`.trim() : '';
+  // The canonical resolver's answer (entered text, else the assigned person, else the owner),
+  // already projected on the secretary read; nothing is re-derived from the raw handler fields.
+  const identity = entry.handler_identity;
+  const handlerName = identity && identity.source !== 'unknown' ? (identity.name ?? '') : '';
   const qualification = mapResultStatusToQualification(entry.result_status);
   return {
     entryId: entry.id,
     armband: entry.armband ?? '',
     dogName: entry.dog?.call_name || entry.dog?.name || 'Unknown dog',
-    handlerName: personName || entry.handler || '',
+    handlerName,
     placement: entry.final_placement ?? null,
     resultLabel: qualification ? (DISPLAY_LABELS[qualification] ?? qualification) : 'Pending',
     qualified: entry.result_status === 'qualified',
@@ -130,6 +139,7 @@ function trialLabelOf(trial: SyncableTrial): string {
 }
 
 export function buildResultsClassRows(input: BuildResultsClassRowsInput): ResultsClassRow[] {
+  const paperworkAvailable = input.paperworkAvailable ?? true;
   const tallies = tallyEntriesByClass(input.entries);
   const entriesByClass = new Map<string, SecretaryEntry[]>();
   for (const entry of input.entries) {
@@ -187,7 +197,7 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
         expectedCount: tally?.total ?? 0,
         scoredCount: tally?.scored ?? 0,
         releasedAt,
-        paperworkPrinted: resultsPaperworkPrinted(paperwork),
+        paperworkPrinted: paperworkAvailable ? resultsPaperworkPrinted(paperwork) : null,
       };
       rows.push({
         id: cls.id,
@@ -205,6 +215,7 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
         phase: deriveResultsPhase(state),
         nextAction: deriveResultsNextAction(state),
         paperwork,
+        paperworkAvailable,
         entries: classEntries,
       });
     }

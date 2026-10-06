@@ -17,6 +17,7 @@ import {
 import { CockpitPaperworkRow } from '@/features/show-map/cockpit/CockpitPaperworkRow';
 import { formatTime } from '@/lib/format/dates';
 import type { ResultsClassRow, ResultsEntryRow } from './buildResultsClassRows';
+import { PrintStatusUnavailable } from './PrintStatusUnavailable';
 import { ResultsStatusChip } from './ResultsClassList';
 import { getFixScoreHref, getOverviewFocusHref } from './resultsTabRoutes';
 
@@ -31,6 +32,8 @@ interface ResultsClassDetailProps {
   timeZone: string;
   releasing: boolean;
   onRelease: () => void;
+  /** Refetches every read; offered where print status could not be read. */
+  onRetry: () => void;
   /**
    * Part 2 seam: the per-row "matches paper" tick. When given, the table gains that column and
    * renders this for each dog; absent today, so no empty column ships.
@@ -163,6 +166,7 @@ export function ResultsClassDetail({
   timeZone,
   releasing,
   onRelease,
+  onRetry,
   renderRowVerifyCell,
   judgeSignOffSlot,
 }: ResultsClassDetailProps) {
@@ -223,17 +227,23 @@ export function ResultsClassDetail({
                 {released ? 'Released' : 'Not released yet'}
               </span>
             </li>
-            {row.paperwork.map(item => (
-              <li key={item.reportId}>
-                <CockpitPaperworkRow
-                  item={{ ...item, label: THEN_LABEL[item.reportId] ?? item.label }}
-                  timeZone={timeZone}
-                  onCommand={() => undefined}
-                />
+            {!row.paperworkAvailable && (
+              <li>
+                <PrintStatusUnavailable onRetry={onRetry} />
               </li>
-            ))}
+            )}
+            {row.paperworkAvailable &&
+              row.paperwork.map(item => (
+                <li key={item.reportId}>
+                  <CockpitPaperworkRow
+                    item={{ ...item, label: THEN_LABEL[item.reportId] ?? item.label }}
+                    timeZone={timeZone}
+                    onCommand={() => undefined}
+                  />
+                </li>
+              ))}
           </ul>
-          {!released && row.paperwork.length > 0 && (
+          {!released && row.paperworkAvailable && row.paperwork.length > 0 && (
             <p className="text-xs text-muted-foreground">
               Print after releasing, so the paperwork matches what exhibitors see.
             </p>

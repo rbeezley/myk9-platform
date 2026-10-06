@@ -21,9 +21,8 @@ const mocks = vi.hoisted(() => ({
 }));
 
 // The class source Reports reads (`useReportData`): full class rows, snake_case.
-vi.mock('@/services/database/classes', () => ({
-  getClassesByTrialId: async () => ({ data: mocks.reportClasses, error: null }),
-}));
+const getClassesByTrialId = vi.hoisted(() => vi.fn());
+vi.mock('@/services/database/classes', () => ({ getClassesByTrialId }));
 
 vi.mock('@/pages/secretary/useShowDeskScheduleRead', () => ({
   useShowDeskScheduleRead: () => mocks.schedule,
@@ -65,6 +64,8 @@ function Probe() {
   const data = useResultsTabData('show-1');
   return (
     <div>
+      <span data-testid="paperwork">{String(data.paperworkAvailable)}</span>
+      <button onClick={data.retry}>retry</button>
       <span data-testid="refresh-failed">{String(data.refreshFailed)}</span>
       <span data-testid="state">{data.readState}</span>
       <span data-testid="rows">
@@ -103,6 +104,8 @@ beforeEach(() => {
   mocks.prints = { data: [], isError: false, syncFailed: false };
   mocks.classes = [{ id: 'class-1', results_released_at: null }];
   mocks.reportClasses = [];
+  getClassesByTrialId.mockReset();
+  getClassesByTrialId.mockImplementation(async () => ({ data: mocks.reportClasses, error: null }));
 });
 
 describe('useResultsTabData', () => {
@@ -202,5 +205,36 @@ describe('useResultsTabData', () => {
     mocks.schedule = { ...mocks.schedule, readFailed: true, hasConfirmedSnapshot: false };
     render(<Probe />);
     expect(screen.getByTestId('state')).toHaveTextContent('failed');
+  });
+
+  it('exposes a class-facts failure as unavailable print status, and Retry refetches the class facts', async () => {
+    getClassesByTrialId.mockImplementation(async () => ({ data: null, error: new Error('boom') }));
+    mocks.classes = [{ id: 'class-1', results_released_at: '2026-10-10T16:00:00Z' }];
+    const { user } = render(<Probe />);
+
+    await vi.waitFor(() => expect(screen.getByTestId('paperwork')).toHaveTextContent('false'));
+    expect(screen.getByTestId('state')).toHaveTextContent('ready');
+    const callsBefore = getClassesByTrialId.mock.calls.length;
+
+    getClassesByTrialId.mockImplementation(async () => ({
+      data: mocks.reportClasses,
+      error: null,
+    }));
+    mocks.reportClasses = [
+      {
+        id: 'class-1',
+        trial_id: 'trial-1',
+        element: 'Containers',
+        level: 'Novice',
+        section: '',
+        status: 'Completed',
+      },
+    ];
+    await user.click(screen.getByRole('button', { name: 'retry' }));
+
+    await vi.waitFor(() =>
+      expect(getClassesByTrialId.mock.calls.length).toBeGreaterThan(callsBefore)
+    );
+    await vi.waitFor(() => expect(screen.getByTestId('paperwork')).toHaveTextContent('true'));
   });
 });

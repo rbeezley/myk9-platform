@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
 import type { SecretaryCockpitPaperwork } from '@/features/show-map/cockpit/secretaryCockpitTypes';
 import type { SecretaryEntry } from '@/services/database/entries';
 import type { SyncableTrial, SyncableTrialClass } from '@/store/trial-store-types';
@@ -97,7 +98,7 @@ describe('buildResultsClassRows', () => {
           search_time_seconds: 61.25,
           total_faults: 0,
           dog: { id: 'd', name: 'Ranger', call_name: 'Rex' },
-          handler_person: { id: 'p', first_name: 'Jane', last_name: 'Doe' },
+          handler_identity: { name: 'Jane Doe', person: null, source: 'assigned-person' },
         }),
       ],
     });
@@ -260,5 +261,50 @@ describe('results paperwork helpers', () => {
         paperwork('result-labels', 'unknown'),
       ])
     ).toBeNull();
+  });
+});
+
+describe('handler display (the canonical handler_identity projection)', () => {
+  const build = (fields: Record<string, unknown>) =>
+    buildResultsClassRows({
+      trials: [trial],
+      trialClasses: { 'trial-1': [trialClass('class-1')] },
+      releasedAtByClassId: new Map(),
+      paperworkByClassId: new Map(),
+      entries: [scored('e1', 'class-1', fields)],
+    })[0]?.entries[0]?.handlerName;
+
+  it('shows the entered handler when the handler changed but handler_id and the joined person are stale', () => {
+    const stale = { id: 'p-old', first_name: 'Old', last_name: 'Person' };
+    expect(
+      build({
+        handler: 'New Handler',
+        handler_id: 'p-old',
+        handler_person: stale,
+        handler_identity: projectHandlerIdentity({
+          assignedHandlerName: 'New Handler',
+          assignedHandlerId: 'p-old',
+          assignedHandlerPerson: stale,
+          ownerPerson: null,
+        }),
+      })
+    ).toBe('New Handler');
+  });
+
+  it('shows the owner when the entry has no handler fields at all', () => {
+    const owner = { id: 'p-owner', first_name: 'Olive', last_name: 'Owner' };
+    expect(
+      build({
+        handler: null,
+        handler_id: null,
+        handler_person: null,
+        handler_identity: projectHandlerIdentity({
+          assignedHandlerName: null,
+          assignedHandlerId: null,
+          assignedHandlerPerson: null,
+          ownerPerson: owner,
+        }),
+      })
+    ).toBe('Olive Owner');
   });
 });

@@ -57,7 +57,8 @@ export default function ResultsTab() {
   const showId = params.showId ?? params.id ?? '';
   const [searchParams, setSearchParams] = useSearchParams();
   const state = readResultsTabUrlState(searchParams);
-  const { rows, trials, readState, retry, refreshFailed } = useResultsTabData(showId);
+  const { rows, trials, readState, retry, refreshFailed, paperworkAvailable } =
+    useResultsTabData(showId);
   const release = useReleaseResults();
   const isWide = useMediaQuery(MASTER_DETAIL_QUERY);
   const [visibilityOpen, setVisibilityOpen] = useState(false);
@@ -164,6 +165,7 @@ export default function ResultsTab() {
       timeZone={timeZone}
       releasing={release.isPending}
       onRelease={() => handleRelease(selected.id)}
+      onRetry={retry}
     />
   ) : isWide ? (
     <div className="flex h-full min-h-64 flex-col items-center justify-center gap-2 text-center text-muted-foreground">
@@ -220,6 +222,8 @@ export default function ResultsTab() {
             trials={trials}
             rows={rows}
             timeZone={timeZone}
+            paperworkAvailable={paperworkAvailable}
+            onRetry={retry}
             onChange={update}
             onOpenVisibility={() => setVisibilityOpen(true)}
           />

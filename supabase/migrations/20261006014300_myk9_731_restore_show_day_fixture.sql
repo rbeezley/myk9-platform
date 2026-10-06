@@ -55,12 +55,27 @@ AS $fn$
     AND t.allow_self_checkin
     AND c.start_time IS NOT NULL
     AND e.run_order IS NOT NULL
-    -- Check-in eligible: isClassCheckInEligible() (MyEntriesPage/entryNextAction.ts)
-    -- offers check-in only when the row's UI status is EntryStatus.ACCEPTED, and
-    -- mapEntryStatus() (services/entryDisplay/entryStatusUiAdapter.ts) yields that
-    -- for exactly these raw values ('paid' is overridden to PENDING). A withdrawn
-    -- or scratched Willow leaves the fixture unready, so a fresh one is inserted.
+    -- CHECK-IN ELIGIBLE: every clause of isClassCheckInEligible()
+    -- (apps/myk9show/src/pages/MyEntriesPage/modules/entryNextAction.ts) a
+    -- fixture entry can drift into, on the fields useMyEntriesData.ts maps:
+    --  * UI status EntryStatus.ACCEPTED: mapEntryStatus(entry_status)
+    --    (services/entryDisplay/entryStatusUiAdapter.ts) yields it for exactly
+    --    these raw values; 'paid' is overridden to PENDING. This also keeps the
+    --    lifecycle live (myShowLifecycle.settledLifecycleKind) and
+    --    mapClassEntryStatus() at 'entered' (utils/entryManagementUtils.ts).
     AND e.entry_status IN ('confirmed', 'accepted', 'scheduled')
+    --  * not pulled: isExpectedClass() requires checkInStatus !== 'pulled';
+    --  * check-in not completed: entryStatusKind 'completed' comes from
+    --    getEntryStatusKindForDisplay(), whose check-in branch maps raw
+    --    'completed' (services/entryDisplay/entryDisplaySelectors.ts).
+    AND coalesce(e.check_in_status, '') NOT IN ('pulled', 'completed')
+    --  * not accounted for: isAccountedFor() (features/_shared/entryAccounting.ts)
+    --    is is_scored, or trimmed lower-case result_status 'absent' / 'excused';
+    --  * not settled by outcome: isSettledByOutcome() (myShowLifecycle.ts) adds
+    --    result_status 'withdrawn' (a WD result).
+    AND NOT coalesce(e.is_scored, false)
+    AND lower(btrim(coalesce(e.result_status, ''))) NOT IN ('absent', 'excused')
+    AND e.result_status IS DISTINCT FROM 'withdrawn'
     AND lower(p.email) = 'exhibitor@myk9t.com'
     AND EXISTS (SELECT 1 FROM public.show_announcements sa
                 WHERE sa.show_id = s.id AND sa.is_active

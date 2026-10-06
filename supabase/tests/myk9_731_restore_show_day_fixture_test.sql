@@ -14,8 +14,9 @@
 --   3. A second call the same day inserts nothing and returns the same show.
 --   4. Once that fixture stops being ready (soft-deleted from the app, as on
 --      2026-10-01), the next call inserts a new one with new ids.
---   4b. A withdrawn, then a scratched, exhibitor@ entry on today's trial makes
---      the fixture unready (check-in is offered only to accepted entries), so
+--   4b. Today's exhibitor@ entry withdrawn, scratched, pulled, check-in
+--      completed, scored, or carrying an absent / excused / WD result -- every
+--      state isClassCheckInEligible() refuses -- makes the fixture unready, so
 --      the next call inserts a new one and leaves the old fixture's rows
 --      byte-for-byte unchanged.
 --   5. exhibitor@ reads the fixture's announcements under RLS.
@@ -70,6 +71,9 @@ LANGUAGE sql AS $$
     AND t.allow_self_checkin AND vs.self_checkin_enabled
     AND c.start_time IS NOT NULL AND e.run_order IS NOT NULL
     AND e.entry_status IN ('confirmed', 'accepted', 'scheduled')
+    AND coalesce(e.check_in_status, '') NOT IN ('pulled', 'completed')
+    AND NOT coalesce(e.is_scored, false)
+    AND coalesce(e.result_status, 'pending') NOT IN ('absent', 'excused', 'withdrawn')
     AND lower(p.email) = 'exhibitor@myk9t.com'
     AND EXISTS (SELECT 1 FROM public.show_announcements sa
                 WHERE sa.show_id = s.id AND sa.is_active);
@@ -258,41 +262,56 @@ END;
 $$;
 
 -- ---------------------------------------------------------------------------
--- 4b. Today's exhibitor@ entry withdrawn, then scratched: each leaves the
--- fixture unready, and the restore inserts a new one without touching it.
+-- 4b. Today's exhibitor@ entry drifts into each state isClassCheckInEligible()
+-- refuses: withdrawn, scratched, pulled, check-in completed, scored, and an
+-- absent / excused / WD result. Each leaves the fixture unready, and the
+-- restore inserts a new ready one without touching the old fixture's rows.
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE
-  v_status text;
+  v_set text;
   v_old uuid;
   v_before text;
+  v_n integer;
   r jsonb;
 BEGIN
-  FOREACH v_status IN ARRAY ARRAY['withdrawn', 'scratched'] LOOP
+  FOREACH v_set IN ARRAY ARRAY[
+    'entry_status = ''withdrawn''',
+    'entry_status = ''scratched''',
+    'check_in_status = ''pulled''',
+    'check_in_status = ''completed''',
+    'is_scored = true',
+    'result_status = ''absent''',
+    'result_status = ''excused''',
+    'result_status = ''withdrawn'''
+  ] LOOP
     v_old := (SELECT show_id FROM run);
-    UPDATE public.entries e SET entry_status = v_status
-    FROM public.trials t, public.people p
-    WHERE e.show_id = v_old AND t.id = e.trial_id AND p.id = e.handler_id
-      AND t.date = (now() AT TIME ZONE t.timezone)::date
-      AND lower(p.email) = 'exhibitor@myk9t.com';
-    IF NOT FOUND THEN
-      RAISE EXCEPTION 'FIXTURE no exhibitor@ entry on today''s trial to mark %', v_status;
+    EXECUTE format(
+      $q$UPDATE public.entries e SET %s
+         FROM public.trials t, public.people p
+         WHERE e.show_id = $1 AND t.id = e.trial_id AND p.id = e.handler_id
+           AND t.date = (now() AT TIME ZONE t.timezone)::date
+           AND lower(p.email) = 'exhibitor@myk9t.com'$q$, v_set)
+    USING v_old;
+    GET DIAGNOSTICS v_n = ROW_COUNT;
+    IF v_n <> 1 THEN
+      RAISE EXCEPTION 'FIXTURE expected 1 exhibitor@ entry on today''s trial to set %, found %', v_set, v_n;
     END IF;
     IF public.seed_demo_show_day_fixture_today() IS NOT NULL THEN
-      RAISE EXCEPTION 'FAIL 4b.1 a % exhibitor@ entry still reads as a ready fixture', v_status;
+      RAISE EXCEPTION 'FAIL 4b.1 an exhibitor@ entry with % still reads as a ready fixture', v_set;
     END IF;
     v_before := pg_temp.show_rows(v_old);
     r := pg_temp.restore();
     IF NOT (r->>'created')::boolean OR (r->>'show_id')::uuid = v_old
        OR pg_temp.ready((r->>'show_id')::uuid) <> 1 THEN
-      RAISE EXCEPTION 'FAIL 4b.2 a % exhibitor@ entry did not lead to a new ready fixture: %', v_status, r;
+      RAISE EXCEPTION 'FAIL 4b.2 an exhibitor@ entry with % did not lead to a new ready fixture: %', v_set, r;
     END IF;
     IF pg_temp.show_rows(v_old) IS DISTINCT FROM v_before THEN
-      RAISE EXCEPTION 'FAIL 4b.3 the restore changed the old fixture''s rows after a % entry', v_status;
+      RAISE EXCEPTION 'FAIL 4b.3 the restore changed the old fixture''s rows after %', v_set;
     END IF;
+    RAISE NOTICE 'PASS 4b %: the fixture is unready, a new one is inserted, the old rows are unchanged', v_set;
     UPDATE run SET show_id = (r->>'show_id')::uuid;
   END LOOP;
-  RAISE NOTICE 'PASS 4b a withdrawn or scratched exhibitor@ entry makes the fixture unready; the restore inserts a new one and leaves the old rows unchanged';
 END;
 $$;
 

@@ -19,11 +19,12 @@
 --    withdrawWaitlistOffer.ts treat it the same way). Its message therefore
 --    states no deadline and no "before it expires", even though
 --    promote_waitlist_entry_internal still stamps offer_expires_at on it:
---      "A spot opened for <dog> in <class>. The club holds it for you until
---       they record your payment. You pay for this spot only if you claim it.
---       Pay the club directly to claim it."
+--      "A spot opened for <dog> in <class>. The club is holding it for you
+--       until they receive your payment. Pay the club directly and soon —
+--       they can release the spot if they don't hear from you. You pay for
+--       this spot only if you claim it."  (owner-approved copy, 2026-10-05)
 --    The secretary's Offer flow sends no payment link for a mail-in row; if a
---    link is ever passed, it is still shown.
+--    link is ever passed, it is still appended.
 --
 -- Copied from 20261005152300_myk9_1001_waitlist_offer_withdrawn.sql (the
 -- latest definition; identical to live pg_get_functiondef, 2026-10-05). Only
@@ -108,7 +109,8 @@ BEGIN
 
   IF coalesce(v_mail_in, false) THEN
     -- MYK9-1002: a mail-in offer never expires, so it states no deadline.
-    v_deadline_line := 'The club holds it for you until they record your payment.';
+    v_deadline_line := 'The club is holding it for you until they receive your payment. '
+      || 'Pay the club directly and soon — they can release the spot if they don''t hear from you.';
   ELSE
     -- The offered class's own trial's zone, validated; New York otherwise.
     v_trial_tz := COALESCE(
@@ -143,13 +145,13 @@ BEGIN
     || coalesce(' in ' || v_class_name, '')
     || '. '
     || v_deadline_line
-    || ' You pay for this spot only if you claim it. '
+    || ' You pay for this spot only if you claim it.'
     || CASE
          WHEN nullif(btrim(p_payment_link_url), '') IS NOT NULL
-           THEN 'Complete payment to claim it: ' || btrim(p_payment_link_url)
+           THEN ' Complete payment to claim it: ' || btrim(p_payment_link_url)
          WHEN coalesce(v_mail_in, false)
-           THEN 'Pay the club directly to claim it.'
-         ELSE 'Open My Entries to accept the offer before it expires.'
+           THEN ''
+         ELSE ' Open My Entries to accept the offer before it expires.'
        END;
 
   INSERT INTO public.show_messages (show_id, thread_id, sender_id, body)

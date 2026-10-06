@@ -10,8 +10,8 @@
 --       ("until Thu, Jul 16, 1:00 PM EDT"), and the no-link branch still
 --       ends "Open My Entries to accept the offer before it expires."
 --   D3  A MAIL-IN offer, even with offer_expires_at stamped on it, states no
---       hours, no clock time and no expiry: "The club holds it for you until
---       they record your payment. ... Pay the club directly to claim it."
+--       hours, no clock time and no expiry: "The club is holding it for you
+--       until they receive your payment. Pay the club directly and soon ..."
 --   D4  The session TimeZone is put back after rendering.
 --   A1  The function keeps SECURITY DEFINER, search_path '' and EXECUTE for
 --       service_role only.
@@ -167,7 +167,7 @@ BEGIN
   -- D3
   PERFORM pg_temp.expect_eq(
     pg_temp.body('Class Chicago', 'Dog404'),
-    'A spot opened for Dog404 in Class Chicago. The club holds it for you until they record your payment. You pay for this spot only if you claim it. Pay the club directly to claim it.',
+    'A spot opened for Dog404 in Class Chicago. The club is holding it for you until they receive your payment. Pay the club directly and soon — they can release the spot if they don''t hear from you. You pay for this spot only if you claim it.',
     'D3 a mail-in offer states no deadline');
   PERFORM pg_temp.expect_eq(
     (SELECT (pg_temp.body('Class Chicago', 'Dog404') ~* '(hour|expire|CDT|EDT| PM| AM|offer ends)')::text),

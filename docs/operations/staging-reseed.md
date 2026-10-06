@@ -111,6 +111,12 @@ It **refuses, and writes nothing,** when:
   Stripe intent or refund on any entry, a paid enrollment, a Stripe order, a
   `show_payments` row, a cart line or a refund request. Resolve those rows
   deliberately. Never widen the guard to get past it.
+- a fixture entry sits in a class outside the fixture, or an entry a walk
+  created in a fixture class holds a placement or, if not deleted, a result.
+  Resetting a fixture entry re-derives its class (class status and every
+  entry's `final_placement` in it) through the entries scoring trigger, so the
+  restore refuses rather than re-rank a row that is not the fixture's. Remove
+  the walk's entry through the app, or run the full reseed.
 
 Then confirm readiness, which is the query every walk's precondition runs:
 

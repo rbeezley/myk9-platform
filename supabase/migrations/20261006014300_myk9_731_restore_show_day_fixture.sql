@@ -32,7 +32,18 @@
 -- FAIL CLOSED. It refuses, before writing anything, when the show is missing
 -- or is not under the Heartland demo club, when a demo account it needs does
 -- not resolve to exactly one person, when the fixture's dogs are missing or
--- deleted, or when any money sits on the show (see v_money below).
+-- deleted, or when any money sits on the show (the MONEY GUARD below).
+--
+-- TRIGGER CONTAINMENT. Resetting a fixture entry deletes and re-inserts it,
+-- and entries' scoring trigger (handle_entry_scoring_state_change ->
+-- refresh_class_scoring_state -> recalculate_class_placements) then re-derives
+-- that entry's CLASS: the class row's status and counts, and final_placement on
+-- every entry in it. That rollup is per class and writes nothing else. So the
+-- function also refuses (a) when a fixture entry sits in a class that is not
+-- one of the fixture's seven (the delete would re-derive another show's class),
+-- and (b) when an entry a walk created in a fixture class holds a placement,
+-- or is live with a result, because the re-derivation could clear or move its
+-- placement. Inside those limits the rollup writes only fixture rows.
 --
 -- IDEMPOTENT. Every write is guarded by IS DISTINCT FROM, so a second run on
 -- the same day writes no rows. It returns the per-table row counts it wrote.
@@ -57,9 +68,15 @@ DECLARE
   v_secretary_auth uuid;
   v_judge uuid;
   v_n integer;
-  v_money text;
+  v_hits text;
   v_ready integer;
   v_counts jsonb := '{}'::jsonb;
+  v_entry_ids uuid[] := ARRAY(
+    SELECT ('dededede-0000-0000-0014-0000000' || k.kind || lpad(o.n::text, 2, '0'))::uuid
+    FROM generate_series(0, 6) AS o(n) CROSS JOIN (VALUES ('001'), ('002')) AS k(kind));
+  v_class_ids uuid[] := ARRAY(
+    SELECT ('dec1a55e-0000-0000-0014-' || lpad(o.n::text, 12, '0'))::uuid
+    FROM generate_series(0, 6) AS o(n));
 BEGIN
   -- Two concurrent runs would race the delete-and-reinsert of drifted entries.
   PERFORM pg_catalog.pg_advisory_xact_lock(731, 14);
@@ -114,8 +131,7 @@ BEGIN
        OR e.trial_id IN (SELECT t.id FROM public.trials t WHERE t.show_id = c_show)
        OR e.class_id IN (SELECT c.id FROM public.classes c
                          JOIN public.trials t ON t.id = c.trial_id WHERE t.show_id = c_show)
-       OR e.id IN (SELECT ('dededede-0000-0000-0014-0000000' || k.kind || lpad(o.n::text, 2, '0'))::uuid
-                   FROM generate_series(0, 6) AS o(n) CROSS JOIN (VALUES ('001'), ('002')) AS k(kind))
+       OR e.id = ANY (v_entry_ids)
   ),
   money AS (
     SELECT 'entry ' || e.id AS what FROM fixture_entries e
@@ -153,10 +169,34 @@ BEGIN
     SELECT 'refund_request ' || rr.id FROM public.refund_requests rr
     WHERE rr.show_id = c_show
   )
-  SELECT string_agg(DISTINCT m.what, ', ') INTO v_money FROM money m;
+  SELECT string_agg(DISTINCT m.what, ', ') INTO v_hits FROM money m;
 
-  IF v_money IS NOT NULL THEN
-    RAISE EXCEPTION 'show-day fixture: money sits on show %, refusing to touch it: %. Resolve those rows deliberately; never widen this guard to get past it (MYK9-731)', c_show, left(v_money, 1000);
+  IF v_hits IS NOT NULL THEN
+    RAISE EXCEPTION 'show-day fixture: money sits on show %, refusing to touch it: %. Resolve those rows deliberately; never widen this guard to get past it (MYK9-731)', c_show, left(v_hits, 1000);
+  END IF;
+
+  -- TRIGGER CONTAINMENT (see the header). (a) A fixture entry moved into
+  -- another show's class: its delete would re-derive that class.
+  SELECT string_agg(e.id::text, ', ' ORDER BY e.id) INTO v_hits
+  FROM public.entries e
+  WHERE e.id = ANY (v_entry_ids)
+    AND e.class_id IS NOT NULL
+    AND e.class_id <> ALL (v_class_ids);
+  IF v_hits IS NOT NULL THEN
+    RAISE EXCEPTION 'show-day fixture: fixture entr(ies) % sit in a class outside the fixture; resetting them would re-derive another show''s class. Move them back or run the full seed (MYK9-731)', v_hits;
+  END IF;
+
+  -- (b) A walk's entry in a fixture class that holds a placement, or is live
+  -- with a result: re-deriving the class could clear or move its placement.
+  SELECT string_agg(e.id::text, ', ' ORDER BY e.id) INTO v_hits
+  FROM public.entries e
+  WHERE e.class_id = ANY (v_class_ids)
+    AND e.id <> ALL (v_entry_ids)
+    AND (e.final_placement IS NOT NULL
+         OR (e.deleted_at IS NULL
+             AND (e.is_scored OR coalesce(e.result_status, 'pending') <> 'pending')));
+  IF v_hits IS NOT NULL THEN
+    RAISE EXCEPTION 'show-day fixture: entr(ies) % that a walk created in a fixture class carry a result or placement, which resetting the class would re-derive; remove them through the app first (MYK9-731)', v_hits;
   END IF;
 
   -- 1. Fixture entries that drifted from their declared state (deleted,

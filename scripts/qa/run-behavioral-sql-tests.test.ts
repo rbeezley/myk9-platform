@@ -162,6 +162,7 @@ const launchCriticalSqlTests = [
   'seed_demo_paid_stray_guard_test.sql',
   'seed_demo_paid_stray_guard_scopes_test.sql',
   'myk9_731_restore_show_day_fixture_test.sql',
+  'myk9_731_restore_show_day_fixture_containment_test.sql',
 ];
 
 describe('behavioral SQL test harness', () => {

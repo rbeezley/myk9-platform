@@ -16,6 +16,9 @@
 --   5. exhibitor@ reads the fixture's announcements under RLS.
 --   6. It refuses, writing nothing, when money sits on the show (a recorded
 --      paid entry, a Stripe intent), and when the show is missing.
+--   Trigger containment (a fixture entry in another show's class, a walk's
+--   placed or scored entry in a fixture class) is
+--   myk9_731_restore_show_day_fixture_containment_test.sql.
 --   7. ACL: SECURITY DEFINER, empty search_path, executable by service_role
 --      only; anon and authenticated are refused.
 --

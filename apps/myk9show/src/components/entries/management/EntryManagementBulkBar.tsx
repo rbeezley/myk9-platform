@@ -33,7 +33,7 @@ import { getUniqueResendTargets } from './entryBulkResendTargets';
 import type { BulkActionResult, EntryManagementEntry } from '@/types/entry-management-types';
 import type { EntryStatus } from '@/types/show-registration-types';
 
-const REGISTRATION_NOUN = ['entry form', 'entry forms'] as const;
+const REGISTRATION_NOUN = ['form', 'forms'] as const;
 
 interface EntryManagementBulkBarProps {
   /** Registrations selected — the count `FloatingBulkBar` announces. */
@@ -125,8 +125,8 @@ export function EntryManagementBulkBar({
             <AlertDialogTitle>Resend confirmation email?</AlertDialogTitle>
             <AlertDialogDescription>
               {resendTargets.length === 1
-                ? 'This resends the confirmation email for 1 entry form.'
-                : `This resends the confirmation email for ${resendTargets.length} entry forms.`}
+                ? 'This resends the confirmation email for 1 form.'
+                : `This resends the confirmation email for ${resendTargets.length} forms.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

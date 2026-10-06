@@ -68,7 +68,7 @@ describe('EntryFocusedRegistration', () => {
     expect(screen.getAllByText('Bean').length).toBeGreaterThan(0);
     expect(screen.getByText('Handler: Alice Martin')).toBeInTheDocument();
     expect(screen.getByText('Handler: Jamie Lee')).toBeInTheDocument();
-    expect(screen.getByText('Review entry form')).toBeInTheDocument();
+    expect(screen.getByText('Review')).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: /change check-in status/i })
     ).not.toBeInTheDocument();
@@ -93,7 +93,7 @@ describe('EntryFocusedRegistration', () => {
       />
     );
 
-    await user.click(screen.getByRole('button', { name: 'Back to entry forms' }));
+    await user.click(screen.getByRole('button', { name: 'Back to list' }));
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
@@ -147,7 +147,7 @@ describe('EntryFocusedRegistration', () => {
       />
     );
 
-    const panel = screen.getByText('Review entry form').closest('div')!;
+    const panel = screen.getByText('Review').closest('div')!;
     const acceptButton = within(panel).getByRole('button', { name: 'Accept' });
     const rejectButton = within(panel).getByRole('button', { name: 'Reject' });
     expect(acceptButton).toBeInTheDocument();

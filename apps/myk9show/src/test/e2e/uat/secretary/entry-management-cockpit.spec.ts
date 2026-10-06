@@ -37,8 +37,8 @@ test('registration focus remains clear across desktop, history, and narrow layou
   await queueRows.nth(1).click();
 
   await page.setViewportSize({ width: 900, height: 1000 });
-  await expect(page.getByRole('button', { name: 'Back to entry forms' })).toBeVisible();
-  await page.getByRole('button', { name: 'Back to entry forms' }).click();
+  await expect(page.getByRole('button', { name: 'Back to list' })).toBeVisible();
+  await page.getByRole('button', { name: 'Back to list' }).click();
   await expect(page.getByRole('list', { name: 'Entry form work queue' })).toBeVisible();
   // Focus returns to the row's action — the row's only button — rather than to
   // the `listitem`, which carries no interactive role.

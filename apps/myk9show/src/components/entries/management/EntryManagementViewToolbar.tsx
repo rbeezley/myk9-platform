@@ -117,7 +117,7 @@ export function EntryManagementViewToolbar({
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent align="end" className="w-auto">
-                    <p className="mb-2 text-sm font-semibold">Entry form row density</p>
+                    <p className="mb-2 text-sm font-semibold">Row density</p>
                     <DensityControl density={density} onChange={onDensityChange} />
                   </PopoverContent>
                 </Popover>
@@ -129,7 +129,7 @@ export function EntryManagementViewToolbar({
               <ListResultLine
                 shown={result.shown}
                 total={result.total}
-                noun={['entry form', 'entry forms']}
+                noun={['form', 'forms']}
                 filtered={
                   state.search.trim() !== '' ||
                   activeId !== 'all' ||

@@ -206,11 +206,11 @@ export function EntryManagementCockpit({
           be true of the rows below -- see `useEntryManagementCockpit`. */}
       {!trialScopePending && cockpit.queueTotalsDescribeWholeShow && (
         <p className="text-sm text-muted-foreground" data-testid="registration-totals">
-          {cockpit.queueTotals.registrationCount}{' '}
-          {cockpit.queueTotals.registrationCount === 1 ? 'entry form' : 'entry forms'} &middot;{' '}
           {cockpit.queueTotals.entryCount}{' '}
-          {cockpit.queueTotals.entryCount === 1 ? 'entry' : 'entries'}. The All view includes Needs
-          review.
+          {cockpit.queueTotals.entryCount === 1 ? 'entry' : 'entries'} from{' '}
+          {cockpit.queueTotals.registrationCount}{' '}
+          {cockpit.queueTotals.registrationCount === 1 ? 'entry form' : 'entry forms'}. The All view
+          includes Needs review.
         </p>
       )}
 

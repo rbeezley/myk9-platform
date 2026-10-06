@@ -193,7 +193,7 @@ export function EntryRegistrationQueue({
       {groups.length === 0 ? (
         <div className="px-5 py-12 text-center">
           <p className="font-semibold">
-            {showHasNoRegistrations ? 'No entries yet' : 'No matching entry forms'}
+            {showHasNoRegistrations ? 'No entries yet' : 'No matches'}
           </p>
           <p className="mt-1 text-sm text-muted-foreground">
             {showHasNoRegistrations
@@ -331,7 +331,7 @@ export function EntryRegistrationQueue({
             the empty state, with nothing announced. This is the one place that
             states the result count, so it is the one that should speak. */}
         <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
-          Showing {rangeStart}&ndash;{rangeEnd} of {total} entry forms
+          Showing {rangeStart}&ndash;{rangeEnd} of {total} forms
         </p>
         <div className="flex items-center gap-2">
           <Button

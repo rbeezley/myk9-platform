@@ -227,14 +227,16 @@ describe('EntryManagementCockpit whole-show totals line (MYK9-635)', () => {
     );
 
     expect(screen.getByTestId('registration-totals')).toHaveTextContent(
-      '2 entry forms · 3 entries. The All view includes Needs review.'
+      '3 entries from 2 entry forms. The All view includes Needs review.'
     );
   });
 
   it('says "entry form" and "entry" in the singular for a one-entry show', () => {
     renderCockpit(vi.fn<StatusChangeHandler>(async () => true));
 
-    expect(screen.getByTestId('registration-totals')).toHaveTextContent('1 entry form · 1 entry.');
+    expect(screen.getByTestId('registration-totals')).toHaveTextContent(
+      '1 entry from 1 entry form.'
+    );
   });
 
   it('withholds the line under a class scope rather than printing a wrong entry count', () => {

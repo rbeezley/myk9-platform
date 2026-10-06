@@ -30,7 +30,7 @@ export function EntryFocusedRegistration({
         {onBack && (
           <Button variant="ghost" size="sm" className="-ml-2 mb-2 gap-2" onClick={onBack}>
             <ArrowLeft className="h-4 w-4" aria-hidden />
-            Back to entry forms
+            Back to list
           </Button>
         )}
         <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Entry form</p>

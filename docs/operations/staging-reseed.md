@@ -40,7 +40,8 @@ Week`, which has a trial dated today for seven days after the reseed
    (MYK9-731), and removes the MYK9-109 load fixture if it was applied.
    Once the seven days lapse, no seeded show is running today and the walks
    record show-day check-in, running order and announcements as a
-   stale-fixture gap. Between reseeds, renew it with the targeted restore in
+   stale-fixture gap. Between reseeds, get a fresh one with the insert-only
+   restore in
    [Show-day fixture restore](#show-day-fixture-restore-between-reseeds) below
    rather than a full reseed.
 3. **Load fixture (opt-in)** — only for a load rehearsal or a 63-entry PDF
@@ -62,33 +63,47 @@ psql "$(cat supabase/.temp/pooler-url)" -v ON_ERROR_STOP=1 -f supabase/seed-demo
 
 ## Show-day fixture restore (between reseeds)
 
-The show-day fixture (`Heartland Scent Work Week`, show
-`dededede-0000-0000-0000-000000000014`) goes stale seven days after a reseed,
-and a walk or a person can soft-delete it from the app. On 2026-10-01 the demo
-secretary account deleted the whole show, which stamped its trials, classes and
-entries too, and the October 5 show-day walk found zero live classes. A full
-reseed is the wrong repair now: while real paid entries sit on a real club
-show, `seed_demo_assert_no_paid_strays()` aborts it, by design.
+The show-day fixture (`Heartland Scent Work Week`) goes stale seven days after
+it was created, and a walk or a person can soft-delete it from the app. On
+2026-10-01 the demo secretary account deleted the old fixed fixture show
+(`dededede-0000-0000-0000-000000000014`) from the app, which stamped its trials,
+classes and entries too, and the October 5 show-day walk found zero live
+classes. A full reseed is the wrong repair now: while real paid entries sit on
+a real club show, `seed_demo_assert_no_paid_strays()` aborts it, by design.
 
 `public.seed_demo_restore_show_day_fixture()` (migration `20261006014300`,
-MYK9-731) repairs only this fixture. It re-dates the seven trials to today
-through today + 6 in America/Chicago and undeletes the show, trials and classes.
-It resets the 14 fixture entries, the armbands, the judge assignments and the two
-announcements by their seed-fixed ids, and it turns self-check-in on. It deletes
-nothing: a drifted fixture entry is reset in place, so its status history, a
-walk's move-up entry that points at it, and its replication version survive (the
-version goes up, so a device with a queued offline edit still syncs). It never
-touches another show, a person, a dog, or any payment, refund or Stripe row, and
-it leaves an entry a walk created on the fixture as it is. Section 19 of
-`seed-demo.sql` calls the same function, so the reseed and the restore cannot
-drift apart.
+MYK9-731) is **insert-only**:
+
+- If a ready fixture already covers today, it returns that show and writes
+  nothing. Ready means a live trial dated today in its own timezone,
+  self-check-in on, a published class time, the demo exhibitor's live entry in
+  the running order, and an active announcement.
+- Otherwise it inserts a **brand-new** fixture show with fresh ids:
+  - seven one-day trials from today to today + 6 in America/Chicago;
+  - classes with a 9:00 AM start;
+  - Willow (`exhibitor@`, run 1) and Cooper (`secretary@`, run 2) in every class;
+  - armbands, the judge fixture, self-check-in, and two normal-priority
+    announcements.
+- It never updates or deletes an existing row. Older fixture shows, including
+  the retired `...014`, stay as they are and age into the past.
+- Section 19 of `seed-demo.sql` calls the same function, so the reseed and the
+  restore cannot drift apart.
+
+**Finding the fixture.** Every row the function mints has an id starting
+`dededede-0000-0000-0731-`. That prefix has UUID version nibble 0, which
+`gen_random_uuid()` never produces, so no real club show can carry it. Never
+look the fixture up by a fixed id. Use:
+
+```sql
+select public.seed_demo_show_day_fixture_today();   -- today's ready fixture show id, or null
+```
 
 - **Who runs it:** the owner. It writes to the shared staging database, so an
   agent does not run it unprompted, even in auto mode.
 - **When:** before a scheduled show-day or exhibitor walk whose precondition
-  query reports the fixture stale or missing, or on any day a show-day walk is
-  planned. It is idempotent: a second run on the same day writes nothing and
-  returns all-zero counts.
+  reports no ready fixture, or on any day a show-day walk is planned. It is
+  idempotent: a second call while a fixture is ready returns
+  `"created": false` and inserts nothing.
 - **Precondition:** migration `20261006014300` is on the database
   (`supabase migration list`). Without it the call fails with `42883 function
 ... does not exist` and changes nothing.
@@ -100,45 +115,22 @@ psql "postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase
   -X -v ON_ERROR_STOP=1 -c "select public.seed_demo_restore_show_day_fixture();"
 ```
 
-It returns the rows it wrote per table plus the date it used, for example
-`{"shows": 1, "trials": 7, "classes": 7, "entries_reset": 14, "entries_inserted": 14, ..., "today": "2026-10-06"}`.
+It returns, for example,
+`{"show_id": "dededede-0000-0000-0731-…", "created": true, "today": "2026-10-06"}`.
 
 It **refuses, and writes nothing,** when:
 
-- the show is missing (`P0002`). Run the full reseed instead.
-- the show is no longer under the Heartland demo club.
+- the Heartland demo club is missing (`P0002`). Run the full reseed instead.
 - `exhibitor@`, `secretary@` or `judge@myk9t.com` does not resolve to exactly
-  one person, or the seeded dogs Willow and Cooper are missing or deleted.
-- money sits on the show. That means a paid or refunded entry with a payment
-  trail (the same predicate as the reseed guard, minus status history), a
-  Stripe intent or refund on any entry, a paid enrollment, a Stripe order, a
-  `show_payments` row, a cart line or a refund request. Resolve those rows
-  deliberately. Never widen the guard to get past it.
-- a fixture entry sits in a class outside the fixture, or an entry a walk
-  created in a fixture class holds a placement or, if not deleted, a result.
-  Resetting a fixture entry re-derives its class (class status and every
-  entry's `final_placement` in it) through the entries scoring trigger, so the
-  restore refuses rather than re-rank a row that is not the fixture's. Remove
-  the walk's entry through the app, or run the full reseed.
+  one person, or `secretary@` has no sign-in account (it authors the
+  announcements).
+- the seeded dogs Willow and Cooper are missing or deleted.
 
-Then confirm readiness, which is the query every walk's precondition runs:
-
-```sql
-select count(*) from public.trials t
-join public.shows s on s.id = t.show_id
-join public.show_visibility_settings vs on vs.show_id = s.id
-join public.classes c on c.trial_id = t.id
-join public.entries e on e.class_id = c.id
-join public.people p on p.id = e.handler_id
-where s.id = 'dededede-0000-0000-0000-000000000014'
-  and s.status = 'published'
-  and s.deleted_at is null and t.deleted_at is null
-  and c.deleted_at is null and e.deleted_at is null
-  and t.date = (now() at time zone t.timezone)::date
-  and t.allow_self_checkin and vs.self_checkin_enabled
-  and c.start_time is not null and e.run_order is not null
-  and lower(p.email) = 'exhibitor@myk9t.com';                    -- expect 1
-```
+There is no money refusal: the function touches no existing row, so there is
+nothing for it to cascade or overwrite. Fixture shows accumulate, one per
+restore that found nothing ready and one per reseed. Section 0 of the reseed
+removes the entries and seeded-dog armbands the function minted, and leaves the
+shows themselves.
 
 ## Post-reseed verification — REQUIRED
 

@@ -60,8 +60,9 @@
 --   One exception, section 19: the show-day fixture runs from TODAY to TODAY + 6
 --   in the show's own timezone (America/Chicago), read from now() rather than
 --   CURRENT_DATE, and carries the file's only announcements. A trial is dated
---   today for a week after any reseed; between reseeds an operator renews it
---   with public.seed_demo_restore_show_day_fixture() (MYK9-731).
+--   today for a week after any reseed; between reseeds an operator runs
+--   public.seed_demo_restore_show_day_fixture(), which inserts a fresh fixture
+--   show when none is ready (MYK9-731).
 --
 --   So the show is always ~6 weeks out and always accepting entries. Judge
 --   qualifications are relative for the same reason (obtained -5y, expires +3y):
@@ -368,13 +369,17 @@ WHERE class_id IN (
 -- Armbands hang off the seeded show (and reference dogs/entries) — clear by show
 -- before deleting entries/dogs so their FKs can't block.
 DELETE FROM public.armbands WHERE show_id = 'dededede-0000-0000-0000-000000000010';
--- Section 19's show-day show is upserted, never deleted, so its armbands are
--- not cleared by a show delete. Clear every armband on it that holds a SEEDED
--- dog -- the fixture's own two and any a walk allocated to one -- because
+-- Show-day fixture shows (section 19) are never deleted, so their armbands are
+-- not cleared by a show delete: the retired fixed show ...014 and every show
+-- public.seed_demo_restore_show_day_fixture() minted (id range
+-- dededede-0000-0000-0731-*, MYK9-731). Clear every armband on them that holds
+-- a SEEDED dog -- the fixture's own and any a walk allocated to one -- because
 -- armbands.dog_id would block the dog delete below exactly as above. An
 -- armband a walk allocated to its own dog is not the seed's and survives.
 DELETE FROM public.armbands
-WHERE show_id = 'dededede-0000-0000-0000-000000000014'
+WHERE (show_id = 'dededede-0000-0000-0000-000000000014'
+       OR (show_id >= 'dededede-0000-0000-0731-000000000000'::uuid
+           AND show_id <  'dededede-0000-0000-0732-000000000000'::uuid))
   AND dog_id IN (
         'dededede-0000-0000-0000-000000000041','dededede-0000-0000-0000-000000000042',
         'dededede-0000-0000-0000-000000000043','dededede-0000-0000-0000-000000000044',
@@ -405,8 +410,8 @@ DELETE FROM public.entries WHERE id IN (
   'dededede-0000-0000-0000-000000000059','dededede-0000-0000-0000-000000000060',
   -- ...069 is the MYK9-515 full-class entry (paid, handled by the exhibitor).
   'dededede-0000-0000-0000-000000000069',
-  -- Section 19's show-day entries (MYK9-731): Willow ...0014-00000000010d and
-  -- Cooper ...0014-00000000020d for day offsets 0..6.
+  -- The retired fixed show-day fixture's entries (MYK9-731): Willow
+  -- ...0014-00000000010d and Cooper ...0014-00000000020d for day offsets 0..6.
   'dededede-0000-0000-0014-000000000100','dededede-0000-0000-0014-000000000101',
   'dededede-0000-0000-0014-000000000102','dededede-0000-0000-0014-000000000103',
   'dededede-0000-0000-0014-000000000104','dededede-0000-0000-0014-000000000105',
@@ -415,6 +420,12 @@ DELETE FROM public.entries WHERE id IN (
   'dededede-0000-0000-0014-000000000203','dededede-0000-0000-0014-000000000204',
   'dededede-0000-0000-0014-000000000205','dededede-0000-0000-0014-000000000206'
 );
+-- Every entry the show-day fixture function minted (section 19, MYK9-731): its
+-- own id range, so a walk's scratch on one (a status-history row) cannot trip
+-- the guard below. A walk's own entries there have random ids and stay under it.
+DELETE FROM public.entries
+WHERE id >= 'dededede-0000-0000-0731-000000000000'::uuid
+  AND id <  'dededede-0000-0000-0732-000000000000'::uuid;
 -- PAID-STRAY GUARD. Both entry deletes above are done, so every entry the seed
 -- itself created is gone and anything still standing was created by something
 -- else. entries cascades from FOUR parents — classes, dogs, shows and trials
@@ -2384,171 +2395,38 @@ VALUES
 -- ---------------------------------------------------------------------------
 -- 19. SHOW-DAY FIXTURE (MYK9-731): a show that is running TODAY.
 --
--- Every other show in this file is weeks away or long past, so no seeded show
--- was ever in progress and the walks recorded the same three gaps on every run:
--- no self-check-in (exhibitor task 7), no published running order or class
--- times (task 5), and an empty announcements inbox (task 6). Nothing in this
--- file seeded an announcement at all: the "announcements" offset in the header
--- timeline was documentation for rows that never existed. That, not
--- future-dating, is why the inbox was empty.
+-- Every other show in this file is weeks away or long past, so without this
+-- section no seeded show is ever in progress and the walks cannot reach
+-- self-check-in, the published running order or the announcements inbox.
 --
 -- WHAT IT IS. `Heartland Scent Work Week`, AKC, under the Heartland club so the
--- demo secretary manages it: seven one-day trials, one per day from TODAY to
--- TODAY + 6, each with one class (Container Novice A, start time 09:00) holding
--- a published running order of two entries -- the demo exhibitor's Willow
--- (run 1, checked in: no) and the secretary's Cooper (run 2) -- with confirmed
--- armbands, the judge fixture assigned at class level, and self-check-in on.
--- Two announcements are posted on it by the demo secretary.
+-- demo secretary manages it: seven one-day trials, one per day from today to
+-- today + 6 in America/Chicago, each with one class (Container Novice A, 09:00)
+-- holding a published running order of two entries -- the demo exhibitor's
+-- Willow (run 1) and the secretary's Cooper (run 2) -- with armbands, the judge
+-- fixture assigned at class level, self-check-in on, and two normal-priority
+-- announcements from the demo secretary.
 --
--- WHY SEVEN DAYS, NOT ONE. "Today" in a seed goes stale the day after the
--- reseed. The window keeps a trial dated today for a week after any reseed,
--- which covers one full cycle of the weekly walks (secretary Wednesday,
--- exhibitor Sunday). DECISION (MYK9-731, revised 2026-10-06): the window
--- still covers a week after a reseed, but a full reseed is no longer the only
--- way to renew it. Since real paid entries sit on a real club show, the
--- paid-stray guard aborts a scheduled reseed, so between reseeds an operator
--- runs public.seed_demo_restore_show_day_fixture() (below), which re-dates and
--- repairs ONLY this fixture. Every walk prompt's precondition query reports a
--- lapsed window as a stale fixture, so a missed restore is a named gap in the
--- report, never a silent skip.
+-- HOW. public.seed_demo_restore_show_day_fixture() (migration 20261006014300)
+-- is the one source of truth, called here and by an operator between reseeds
+-- (docs/operations/staging-reseed.md). It is INSERT-ONLY: if a ready fixture
+-- already covers today it returns it and writes nothing, otherwise it inserts a
+-- brand-new fixture show with fresh ids in the range dededede-0000-0000-0731-*.
+-- It never updates or deletes an existing row, so older fixture shows simply
+-- age into the past. Section 0 has already removed every entry it minted, so a
+-- reseed always gets a fresh fixture. Walks find it with
+-- public.seed_demo_show_day_fixture_today(), never by a fixed id.
 --
--- "TODAY" IS THE SHOW'S DAY, NOT THE SERVER'S. The rest of this file offsets
--- from CURRENT_DATE, which is the UTC date on this database. For a fixture 45
--- days out the difference is invisible; for one dated today it is the whole
--- point, and a reseed run in a Chicago evening would date the trial tomorrow.
--- So this section reads now() in the trials' own timezone, America/Chicago.
--- It is the one deliberate exception to the header's "no now()" rule.
---
--- UPSERTED, NEVER DELETED, like the Prairie Trail fixture in section 4c. Section
--- 0 deletes only shows the paid-stray guard names, and extending that list
--- needs a migration. An upsert destroys nothing, so the show, its trials and
--- classes need no guard; each row is reset to its declared state on every
--- reseed. What IS deleted is scoped to the seed's own ids: its 14 entries (in
--- section 0's hard-coded list, before the guard), its two armbands and two
--- announcements by id, and the judge assignments on this show. Willow and
--- Cooper are seeded dogs, so section 0's dog delete already cascades any entry
--- a walk put on them here, under the guard's dog arm.
---
--- The window's ids are fixed per day OFFSET d (0..6), never per date, so a
--- reseed on another day re-dates the same rows:
---   trial     dededede-0000-0000-0014-00000000000d
---   class     dec1a55e-0000-0000-0014-00000000000d
---   entries   dededede-0000-0000-0014-00000000010d (Willow), ...20d (Cooper)
---   judge     dededede-0000-0000-0014-00000000030d
--- plus armbands ...2a1/...2a2 and announcements ...4a1/...4a2.
+-- The fixed show ...014 this section used to upsert is retired: the reseed no
+-- longer creates or resets it, and on a database that has it, it stays as it
+-- is. exhibitor2@ has no entry here and stays the empty-state account.
 -- ---------------------------------------------------------------------------
-INSERT INTO public.shows (
-  id, name, organization, description,
-  start_date, end_date, entry_open_date, entry_close_date,
-  location, city, state, latitude, longitude, status, club_id,
-  pre_entry_fee, day_of_show_fee,
-  allow_non_owner_handlers, results_visible_to_all,
-  starting_armband_number, default_judge_day_capacity,
-  mail_in_strategy, mail_in_auto_release, waitlist_payment_deadline_hours,
-  accept_check_payments, accept_cash_payments,
-  cc_secretary_on_exhibitor_emails,
-  style, experience_is_published, experience_published_content,
-  brand_color, version, is_nationals
-)
-SELECT
-  'dededede-0000-0000-0000-000000000014',
-  'Heartland Scent Work Week',
-  'AKC',
-  'A week of one-day AKC Scent Work trials, one each day, so a trial is always running on show day.',
-  (d.today::timestamp AT TIME ZONE 'UTC'), ((d.today + 6)::timestamp AT TIME ZONE 'UTC'),
-  ((d.today - 30)::timestamp AT TIME ZONE 'UTC'), ((d.today - 3)::timestamp AT TIME ZONE 'UTC'),
-  '100 Dog Show Lane, Tulsa, OK 74101',
-  'Tulsa', 'Oklahoma',
-  36.15, -95.99,
-  'published',
-  'dededede-0000-0000-0000-000000000001',
-  30.00, 35.00,
-  true, true,
-  200, 125,
-  'none', false, 48,
-  true, true,
-  true,
-  'headline', false, '{}'::jsonb,
-  '#0d4d4f', 1, false
-FROM (SELECT (now() AT TIME ZONE 'America/Chicago')::date AS today) AS d
-ON CONFLICT (id) DO UPDATE
-  SET name             = EXCLUDED.name,
-      organization     = EXCLUDED.organization,
-      description      = EXCLUDED.description,
-      start_date       = EXCLUDED.start_date,
-      end_date         = EXCLUDED.end_date,
-      entry_open_date  = EXCLUDED.entry_open_date,
-      entry_close_date = EXCLUDED.entry_close_date,
-      status           = EXCLUDED.status,
-      club_id          = EXCLUDED.club_id,
-      deleted_at       = NULL,
-      deleted_by       = NULL;
-
--- Everything else in the fixture -- the visibility row with self-check-in on,
--- the seven trials, their classes, the running order, the armbands, the judge
--- assignments and the two announcements -- is written by
--- public.seed_demo_restore_show_day_fixture() (migration 20261006014300), the
--- same function an operator runs to re-date the fixture between reseeds
--- without a full reseed (docs/operations/staging-reseed.md). One body, so the
--- reseed and the repair cannot drift apart. It refuses if money sits on this
--- show, and asserts its own postcondition.
---
--- Section 0 already removed the fixture's 14 entries by id and its armbands on
--- seeded dogs, so the function re-creates them. Two resets stay here because
--- they are wider than a repair should be: every judge assignment on the show
--- (a walk may have added one), and the two announcements by id, whose delete
--- cascades their read receipts so the inbox is unread again after a reseed.
--- exhibitor2@ has no entry here and stays the empty-state account.
-DELETE FROM public.judge_assignments
-WHERE show_id = 'dededede-0000-0000-0000-000000000014';
-
-DELETE FROM public.show_announcements
-WHERE id IN ('dededede-0000-0000-0014-0000000004a1', 'dededede-0000-0000-0014-0000000004a2');
-
 SELECT public.seed_demo_restore_show_day_fixture();
 
--- Postcondition: the whole point of this section is that SQL finds a trial
--- dated today with self-check-in, published times and the demo exhibitor's
--- entry, and a non-empty inbox. Assert exactly that, so a silent failure of any
--- statement above aborts the reseed instead of shipping a fixture that looks
--- present and is not.
 DO $$
-DECLARE
-  v_ready integer;
-  v_announcements integer;
 BEGIN
-  SELECT count(*) INTO v_ready
-  FROM public.trials t
-  JOIN public.shows s ON s.id = t.show_id
-  JOIN public.show_visibility_settings vs ON vs.show_id = s.id
-  JOIN public.classes c ON c.trial_id = t.id
-  JOIN public.entries e ON e.class_id = c.id
-  JOIN public.people p ON p.id = e.handler_id
-  WHERE s.id = 'dededede-0000-0000-0000-000000000014'
-    AND s.status = 'published'
-    -- Every level LIVE: on 2026-10-01 the show was soft-deleted from the app
-    -- and this check, which did not look, would still have read it as ready.
-    AND s.deleted_at IS NULL AND t.deleted_at IS NULL
-    AND c.deleted_at IS NULL AND e.deleted_at IS NULL
-    AND t.date = (now() AT TIME ZONE t.timezone)::date
-    AND t.allow_self_checkin
-    AND vs.self_checkin_enabled
-    AND c.start_time IS NOT NULL
-    AND e.run_order IS NOT NULL
-    AND lower(p.email) = 'exhibitor@myk9t.com';
-
-  IF v_ready <> 1 THEN
-    RAISE EXCEPTION 'seed-demo: expected exactly 1 show-day entry for the demo exhibitor on a trial dated today with self-check-in and a published time, found % (MYK9-731)', v_ready;
-  END IF;
-
-  SELECT count(*) INTO v_announcements
-  FROM public.show_announcements
-  WHERE show_id = 'dededede-0000-0000-0000-000000000014'
-    AND is_active
-    AND (expires_at IS NULL OR expires_at > now());
-
-  IF v_announcements < 1 THEN
-    RAISE EXCEPTION 'seed-demo: expected at least 1 active announcement on the show-day fixture, found % (MYK9-731)', v_announcements;
+  IF public.seed_demo_show_day_fixture_today() IS NULL THEN
+    RAISE EXCEPTION 'seed-demo: no ready show-day fixture after section 19 (MYK9-731)';
   END IF;
 END $$;
 
@@ -2603,9 +2481,10 @@ UPDATE public.shows
  WHERE id IN (
    'dededede-0000-0000-0000-000000000010',
    'dededede-0000-0000-0000-000000000011',
-   'dededede-0000-0000-0000-000000000012',
-   'dededede-0000-0000-0000-000000000014'
+   'dededede-0000-0000-0000-000000000012'
  );
+-- The show-day fixture (section 19) is inserted with online entries on by the
+-- fixture function itself.
 
 COMMIT;
 

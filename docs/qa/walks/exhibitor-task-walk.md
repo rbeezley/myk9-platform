@@ -69,19 +69,18 @@ order by entry_close_date desc limit 10;
 **Is a show running today?** Tasks 5, 6 and 7 need it. Check, and put the answer in the report:
 
 ```sql
-select t.date, t.id as trial_id, c.id as class_id, c.start_time, e.id as entry_id,
+select t.show_id, t.date, t.id as trial_id, c.id as class_id, c.start_time, e.id as entry_id,
        e.run_order, e.armband, e.check_in_status
 from trials t
-join shows s on s.id = t.show_id and s.deleted_at is null
 join classes c on c.trial_id = t.id and c.deleted_at is null
 join entries e on e.class_id = c.id and e.deleted_at is null
 join people p on p.id = e.handler_id and lower(p.email) = 'exhibitor@myk9t.com'
-where t.show_id = 'dededede-0000-0000-0000-000000000014'
+where t.show_id = public.seed_demo_show_day_fixture_today()
   and t.deleted_at is null
   and t.date = (now() at time zone t.timezone)::date;
 ```
 
-One row is the fixture working. Zero rows means the window has lapsed or the fixture was soft-deleted: record tasks 5 and 7 as **blocked: show-day fixture stale** (not "not exercised"), name the last trial date the fixture holds and whether any of its rows carry `deleted_at`, and say the owner's restore is due (`select public.seed_demo_restore_show_day_fixture();`, [`docs/operations/staging-reseed.md`](../../operations/staging-reseed.md#show-day-fixture-restore-between-reseeds)). Do not run it, or create or re-date anything, yourself.
+One row is the fixture working; use its `show_id` throughout. Zero rows means no fixture is ready today (its window lapsed, or it was soft-deleted): record tasks 5 and 7 as **blocked: show-day fixture stale** (not "not exercised"), and say the owner's restore is due (`select public.seed_demo_restore_show_day_fixture();`, [`docs/operations/staging-reseed.md`](../../operations/staging-reseed.md#show-day-fixture-restore-between-reseeds)). Do not run it, or create or re-date anything, yourself.
 
 **The show to enter is `Heartland UKC Nosework Trial`** (`dededede-0000-0000-0000-000000000011`), a lean-seed show: entry window `CURRENT_DATE - 16 .. + 76` relative to the last reseed, so it is always open, zero seeded entries, and its Checkout runs against the Heartland club's sandbox Stripe account. It is UKC, so the throwaway dog needs a UKC registration number before a class can be selected — add one in task 1. (Until MYK9-558 this walk entered a MYK9-109 load show, which a plain reseed now removes.) Because the walk stops at Checkout it leaves no paid entry here. If one ever appears, it blocks the next reseed on the seed's money guard, so record its id and the run token for an operator (`seed-reset` skill, "When the seed aborts").
 
@@ -89,7 +88,7 @@ One row is the fixture working. Zero rows means the window has lapsed or the fix
 
 Deliberately NOT the target, and useful as fixtures in their own right:
 
-- `Heartland Scent Work Week` (`dededede-0000-0000-0000-000000000014`) — the show-day fixture (MYK9-731): one one-day trial per day from the reseed day to six days after, each with one class (`Container Novice A`, 9:00 AM) whose published running order is Willow (`exhibitor@`, run 1, armband 200) then Cooper (run 2), the judge fixture assigned, self-check-in on, and the only seeded announcements. This is the fixture for tasks 5, 6 and 7. Its entry window is closed on purpose (it is running): never enter it. Find today's entry with the show-day query below.
+- `Heartland Scent Work Week` — the show-day fixture (MYK9-731), found by `public.seed_demo_show_day_fixture_today()`, never by name or a fixed id: each fixture is a new show (id prefix `dededede-0000-0000-0731-`), and older ones with the same name stay behind in the past. One one-day trial per day from the day it was created to six days after, each with one class (`Container Novice A`, 9:00 AM) whose published running order is Willow (`exhibitor@`, run 1, armband 200) then Cooper (run 2), the judge fixture assigned, self-check-in on, and the only seeded announcements. This is the fixture for tasks 5, 6 and 7. Its entry window is closed on purpose (it is running): never enter it. Find today's entry with the show-day query below.
 - `Heartland Scent Work Classic` (`...010`) — the scored demo show: released results on Container Novice A, preliminary results on Interior Advanced (`...040`), a full class, a waitlist, a move-up request and a refunded entry. This is the fixture for tasks 8 and 9 (results, statistics). Never enter it: its entries are seed fixtures that CI pins.
 - `Heartland Scent Work Week` (entries closed because it is running) and `Prairie Trail Spring Scent Work Trial` (past) are the closed-show fixtures. The older `ZZ Audit - *` and `[E2E MYK9-336] Past Due` shows no longer exist on staging. **Walk what a CLOSED show offers an exhibitor every run.** A prior walk found the Enter CTA letting the user begin an impossible task (E24 / MYK9-336), and the 2026-09-13 walk skipped it with the fixture available. That omission is not repeated.
 

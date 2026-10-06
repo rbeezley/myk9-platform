@@ -14,6 +14,10 @@
 --   3. A second call the same day inserts nothing and returns the same show.
 --   4. Once that fixture stops being ready (soft-deleted from the app, as on
 --      2026-10-01), the next call inserts a new one with new ids.
+--   4b. A withdrawn, then a scratched, exhibitor@ entry on today's trial makes
+--      the fixture unready (check-in is offered only to accepted entries), so
+--      the next call inserts a new one and leaves the old fixture's rows
+--      byte-for-byte unchanged.
 --   5. exhibitor@ reads the fixture's announcements under RLS.
 --   6. ACL: both functions are service_role only; the restore is SECURITY
 --      DEFINER with an empty search_path.
@@ -65,9 +69,24 @@ LANGUAGE sql AS $$
     AND t.date = (now() AT TIME ZONE t.timezone)::date
     AND t.allow_self_checkin AND vs.self_checkin_enabled
     AND c.start_time IS NOT NULL AND e.run_order IS NOT NULL
+    AND e.entry_status IN ('confirmed', 'accepted', 'scheduled')
     AND lower(p.email) = 'exhibitor@myk9t.com'
     AND EXISTS (SELECT 1 FROM public.show_announcements sa
                 WHERE sa.show_id = s.id AND sa.is_active);
+$$;
+
+-- Every row of one fixture show, for a byte-for-byte comparison.
+CREATE FUNCTION pg_temp.show_rows(p_show uuid) RETURNS text
+LANGUAGE sql AS $$
+  SELECT md5(concat_ws('|',
+    (SELECT to_jsonb(s)::text FROM public.shows s WHERE s.id = p_show),
+    (SELECT jsonb_agg(to_jsonb(t) ORDER BY t.id)::text FROM public.trials t WHERE t.show_id = p_show),
+    (SELECT jsonb_agg(to_jsonb(c) ORDER BY c.id)::text FROM public.classes c
+      JOIN public.trials t ON t.id = c.trial_id WHERE t.show_id = p_show),
+    (SELECT jsonb_agg(to_jsonb(e) ORDER BY e.id)::text FROM public.entries e WHERE e.show_id = p_show),
+    (SELECT jsonb_agg(to_jsonb(a) ORDER BY a.id)::text FROM public.armbands a WHERE a.show_id = p_show),
+    (SELECT jsonb_agg(to_jsonb(h) ORDER BY h.id)::text FROM public.entry_status_history h
+      JOIN public.entries e ON e.id = h.entry_id WHERE e.show_id = p_show)));
 $$;
 
 -- Fixture shows in the marker range.
@@ -235,6 +254,45 @@ BEGIN
   END IF;
   UPDATE run SET show_id = (r->>'show_id')::uuid;
   RAISE NOTICE 'PASS 4 a deleted fixture is replaced by a new one and left deleted';
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- 4b. Today's exhibitor@ entry withdrawn, then scratched: each leaves the
+-- fixture unready, and the restore inserts a new one without touching it.
+-- ---------------------------------------------------------------------------
+DO $$
+DECLARE
+  v_status text;
+  v_old uuid;
+  v_before text;
+  r jsonb;
+BEGIN
+  FOREACH v_status IN ARRAY ARRAY['withdrawn', 'scratched'] LOOP
+    v_old := (SELECT show_id FROM run);
+    UPDATE public.entries e SET entry_status = v_status
+    FROM public.trials t, public.people p
+    WHERE e.show_id = v_old AND t.id = e.trial_id AND p.id = e.handler_id
+      AND t.date = (now() AT TIME ZONE t.timezone)::date
+      AND lower(p.email) = 'exhibitor@myk9t.com';
+    IF NOT FOUND THEN
+      RAISE EXCEPTION 'FIXTURE no exhibitor@ entry on today''s trial to mark %', v_status;
+    END IF;
+    IF public.seed_demo_show_day_fixture_today() IS NOT NULL THEN
+      RAISE EXCEPTION 'FAIL 4b.1 a % exhibitor@ entry still reads as a ready fixture', v_status;
+    END IF;
+    v_before := pg_temp.show_rows(v_old);
+    r := pg_temp.restore();
+    IF NOT (r->>'created')::boolean OR (r->>'show_id')::uuid = v_old
+       OR pg_temp.ready((r->>'show_id')::uuid) <> 1 THEN
+      RAISE EXCEPTION 'FAIL 4b.2 a % exhibitor@ entry did not lead to a new ready fixture: %', v_status, r;
+    END IF;
+    IF pg_temp.show_rows(v_old) IS DISTINCT FROM v_before THEN
+      RAISE EXCEPTION 'FAIL 4b.3 the restore changed the old fixture''s rows after a % entry', v_status;
+    END IF;
+    UPDATE run SET show_id = (r->>'show_id')::uuid;
+  END LOOP;
+  RAISE NOTICE 'PASS 4b a withdrawn or scratched exhibitor@ entry makes the fixture unready; the restore inserts a new one and leaves the old rows unchanged';
 END;
 $$;
 

@@ -55,6 +55,12 @@ AS $fn$
     AND t.allow_self_checkin
     AND c.start_time IS NOT NULL
     AND e.run_order IS NOT NULL
+    -- Check-in eligible: isClassCheckInEligible() (MyEntriesPage/entryNextAction.ts)
+    -- offers check-in only when the row's UI status is EntryStatus.ACCEPTED, and
+    -- mapEntryStatus() (services/entryDisplay/entryStatusUiAdapter.ts) yields that
+    -- for exactly these raw values ('paid' is overridden to PENDING). A withdrawn
+    -- or scratched Willow leaves the fixture unready, so a fresh one is inserted.
+    AND e.entry_status IN ('confirmed', 'accepted', 'scheduled')
     AND lower(p.email) = 'exhibitor@myk9t.com'
     AND EXISTS (SELECT 1 FROM public.show_announcements sa
                 WHERE sa.show_id = s.id AND sa.is_active

@@ -151,7 +151,7 @@ describe('WaitlistManagementPage offers', () => {
     expect(group.getByText('Bolt')).toBeInTheDocument();
     expect(group.getByText('Novice A')).toBeInTheDocument();
     expect(group.getByText('Mon, Oct 5, 10:00 AM CDT')).toBeInTheDocument();
-    expect(group.getByText('Wed, Oct 7, 10:00 AM CDT')).toBeInTheDocument();
+    expect(group.getByText('Pay by Wed, Oct 7, 10:00 AM CDT')).toBeInTheDocument();
     expect(group.getByText('Waiting for payment')).toBeInTheDocument();
     // The offered dog is no longer in the queue; the waiting one is.
     expect(screen.getByText('Bella')).toBeInTheDocument();
@@ -415,5 +415,16 @@ describe('WaitlistManagementPage offers', () => {
       group.getByText('Waiting for mailed payment. Held until you record it or withdraw the offer.')
     ).toBeInTheDocument();
     expect(group.queryByText(/closing/)).not.toBeInTheDocument();
+    expect(group.queryByText('Sat, Jan 3, 9:00 AM CST')).not.toBeInTheDocument();
+    expect(group.getByText('No automatic deadline')).toBeInTheDocument();
+  });
+
+  it('keeps the online offer deadline in the Offered table', async () => {
+    h.offers = [h.offer()];
+    render(<WaitlistManagementPage showId="show-1" />);
+    const group = within(await offeredGroup());
+
+    expect(group.getByText('Pay by Wed, Oct 7, 10:00 AM CDT')).toBeInTheDocument();
+    expect(group.queryByText('No automatic deadline')).not.toBeInTheDocument();
   });
 });

@@ -51,7 +51,7 @@ export const AlreadyEnteredNotice: React.FC<AlreadyEnteredNoticeProps> = ({
               to={`/shows/${showId}/entries`}
               className="font-medium underline underline-offset-2"
             >
-              Entry Management
+              Entry Forms
             </Link>
             .
           </>

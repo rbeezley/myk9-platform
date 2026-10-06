@@ -47,11 +47,11 @@ describe('ReceiptExits (4.A honest exits)', () => {
         isExhibitor={false}
         showId="show-1"
         onDone={onDone}
-        doneLabel="Return to Entry Management"
+        doneLabel="Return to Entry Forms"
       />
     );
 
-    await user.click(screen.getByRole('button', { name: /return to entry management/i }));
+    await user.click(screen.getByRole('button', { name: /return to entry forms/i }));
     expect(onDone).toHaveBeenCalledTimes(1);
   });
 });

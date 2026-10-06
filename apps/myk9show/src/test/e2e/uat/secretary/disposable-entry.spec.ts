@@ -77,7 +77,7 @@ test.describe('Phase 1 UAT - Secretary disposable entry management', () => {
     });
 
     await page.goto(`/shows/${seed.showId}/entries`, { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Entry Forms' })).toBeVisible({
       timeout: 15000,
     });
 

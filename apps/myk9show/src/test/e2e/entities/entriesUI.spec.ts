@@ -31,7 +31,7 @@ async function gotoEntries(page: Page) {
   await page.goto(ENTRIES_URL);
   // The page heading is the loaded signal (the quick-info cells now sit in the collapsed details
   // panel of the show header).
-  await page.getByRole('heading', { name: 'Entry Management' }).waitFor({ timeout: 10_000 });
+  await page.getByRole('heading', { name: 'Entry Forms' }).waitFor({ timeout: 10_000 });
   await entriesResponse;
 }
 
@@ -58,7 +58,7 @@ test.describe('Browse entries', () => {
     await gotoEntries(page);
 
     // Stats card subtitles are unique strings (avoids collision with tab labels)
-    await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Entry Forms' })).toBeVisible();
     await expect(page.getByText('Need review', { exact: true })).toBeVisible();
     await expect(page.getByText('Confirmed entries', { exact: true })).toBeVisible();
 
@@ -87,7 +87,7 @@ test.describe('Browse entries', () => {
     await expect(page.getByText(/Wait list settings:/)).toBeVisible();
 
     await page.getByRole('tab', { name: 'Entry Forms', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Entry Forms' })).toBeVisible();
   });
 
   test('entry row Actions menu teardown does not block the Add entries decision point', async ({
@@ -96,7 +96,7 @@ test.describe('Browse entries', () => {
     skipMobileTableCoverage(testInfo);
     await signInAsSecretary(page);
     await page.goto(`${ENTRIES_URL}?attention=all`);
-    await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Entry Forms' })).toBeVisible({
       timeout: 10_000,
     });
 

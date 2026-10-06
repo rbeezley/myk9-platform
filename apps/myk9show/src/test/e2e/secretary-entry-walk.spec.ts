@@ -239,9 +239,9 @@ test.describe('Secretary Entry Walk', () => {
       timeout: 10000,
     });
 
-    await page.getByRole('button', { name: 'Return to Entry Management' }).click();
+    await page.getByRole('button', { name: 'Return to Entry Forms' }).click();
     await expect(page).toHaveURL(new RegExp(`/shows/${TEST_SHOW_ID}/entries`));
-    await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Entry Forms' })).toBeVisible();
     expect(errors).toHaveLength(0);
   });
 });

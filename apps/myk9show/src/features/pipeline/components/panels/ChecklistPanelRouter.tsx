@@ -16,7 +16,7 @@ const panelConfig: Record<PanelKey, { title: string; subtitle: string }> = {
   fees: { title: 'Entry Fees', subtitle: 'Configure fee schedule' },
   classes: { title: 'Class Configuration', subtitle: 'Create and configure classes' },
   'entry-dates': { title: 'Entry Period', subtitle: 'Set open and close dates' },
-  entries: { title: 'Entry Management', subtitle: 'View and manage entries' },
+  entries: { title: 'Entry Forms', subtitle: 'View and manage entries' },
   'run-order': { title: 'Running Order', subtitle: 'Generate and review run order' },
   waitlist: { title: 'Waitlist', subtitle: 'Process waitlist entries' },
   'scoring-day': { title: 'Scoring Day', subtitle: 'Monitor scoring progress' },

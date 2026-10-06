@@ -92,7 +92,7 @@ export const ROLE_JOURNEY_MATRIX = [
       },
       {
         id: 'entry-management',
-        label: 'Entry Management',
+        label: 'Entry Forms',
         pathTemplate: '/shows/{secretaryShowId}/entries',
       },
     ],

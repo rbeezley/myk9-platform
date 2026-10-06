@@ -343,7 +343,7 @@ const EntryManagementPage: React.FC = () => {
     <div className="manager-content-container container mx-auto space-y-4 p-4 sm:p-6">
       <ShowDeskReturnLink showId={selectedShowId || urlShowId} />
       <div className="sr-only">
-        <h1>Entry Management</h1>
+        <h1>Entry Forms</h1>
         {/*
             Name the show. Every accept, reject, refund and exhibitor email on
             this page is scoped to one show, and the secretary can arrive here

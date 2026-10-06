@@ -104,6 +104,7 @@ export function EntryEditDialog({
     entry,
     enabled: canDelete,
     closeSheet: () => onOpenChange(false),
+    onBlockedNavigate: () => requestClose(),
     onDeleted,
     onRestored,
   });

@@ -433,7 +433,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
           dispatch pattern as the secretary ScoresheetPage. */}
       {/* eslint-disable-next-line react-hooks/static-components */}
       <LiveScoresheet
-        entry={toScoresheetEntry(entry, classInfo)}
+        entry={toScoresheetEntry(entry, classInfo, registryKey)}
         classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}
         rules={rules}
         onSubmit={submit}

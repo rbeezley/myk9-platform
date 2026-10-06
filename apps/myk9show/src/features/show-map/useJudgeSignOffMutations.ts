@@ -34,7 +34,10 @@ export function useJudgeSignOffMutations({
 }) {
   const { user } = useAuth();
 
+  // Offline-first (replica + queue), so it must run with no network: the app client's default
+  // 'online' networkMode would pause it before the write and lose it on reload.
   const clear = useMutation({
+    networkMode: 'always',
     mutationFn: async ({ classIds }: JudgeSignOffMutationInput) => {
       const outcome = await clearJudgeSignOffs(classIds);
       if (outcome.recorded.length === 0) {
@@ -55,6 +58,7 @@ export function useJudgeSignOffMutations({
   });
 
   const record = useMutation({
+    networkMode: 'always',
     mutationFn: async ({ classIds }: JudgeSignOffMutationInput) => {
       const outcome = await recordJudgeDaySignOff({ classIds, recordedBy: user?.id ?? null });
       if (outcome.recorded.length === 0) {

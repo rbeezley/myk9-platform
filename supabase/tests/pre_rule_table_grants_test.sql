@@ -52,8 +52,8 @@ BEGIN
     ('chatbot_query_log','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('class_visibility_overrides','SELECT,INSERT,UPDATE','SELECT','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     -- No table-level SELECT for authenticated: 20260731160000 replaced it with a
-    -- 53-column allowlist withholding num_hides (MYK9-127; 54 before judge_name
-    -- was dropped by MYK9-479). Writes are untouched,
+    -- column allowlist withholding num_hides (MYK9-127; 57 columns since
+    -- MYK9-1030 added the sign-off and results-check columns). Writes are untouched,
     -- so a secretary can still SET the hide count, just not read it back.
     ('classes','INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('club_access_requests','SELECT,UPDATE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
@@ -319,8 +319,10 @@ BEGIN
   FOR v_row IN
     WITH expected(tbl, role_name, n) AS (VALUES
       -- 52/54 became 51/53 when classes.judge_name was dropped (20260912234500, MYK9-479).
+      -- authenticated 53 -> 57: judge_signed_off_at/_by and results_verified_at/_by
+      -- (20261006154700, MYK9-1030). anon stays 51: it gets none of them.
       ('classes','anon',51),
-      ('classes','authenticated',53),
+      ('classes','authenticated',57),
       ('entries','anon',0),
       -- 54 became 55 when entries.withdrawal_reason_code was added and granted
       -- to authenticated (20260917214300, MYK9-632). anon stays 0: the same

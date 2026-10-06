@@ -28,7 +28,7 @@ $$;
 
 -- Every row that exists before the restore, in every table the restore or its
 -- triggers could write, keyed by table and id.
-CREATE FUNCTION pg_temp.snapshot() RETURNS TABLE (tbl text, id uuid, row jsonb)
+CREATE FUNCTION pg_temp.snapshot() RETURNS TABLE (tbl text, id uuid, rec jsonb)
 LANGUAGE sql AS $$
   SELECT 'shows', s.id, to_jsonb(s) FROM public.shows s
   UNION ALL SELECT 'trials', t.id, to_jsonb(t) FROM public.trials t
@@ -174,7 +174,7 @@ BEGIN
 
   SELECT string_agg(b.tbl || ' ' || b.id, ', ') INTO v_changed
   FROM snap_before b JOIN pg_temp.snapshot() a ON a.tbl = b.tbl AND a.id = b.id
-  WHERE a.row IS DISTINCT FROM b.row;
+  WHERE a.rec IS DISTINCT FROM b.rec;
   IF v_changed IS NOT NULL THEN
     RAISE EXCEPTION 'FAIL 7.2 the restore changed existing rows: %', v_changed;
   END IF;
@@ -195,12 +195,12 @@ BEGIN
     AND NOT (
       (a.tbl = 'shows' AND a.id = v_new)
       OR (a.tbl IN ('entries', 'armbands', 'judge_assignments', 'show_announcements')
-          AND (a.row->>'show_id')::uuid = v_new)
+          AND (a.rec->>'show_id')::uuid = v_new)
       OR (a.tbl = 'show_visibility_settings' AND a.id = v_new)
-      OR (a.tbl = 'trials' AND (a.row->>'show_id')::uuid = v_new)
-      OR (a.tbl = 'classes' AND (a.row->>'trial_id')::uuid IN
+      OR (a.tbl = 'trials' AND (a.rec->>'show_id')::uuid = v_new)
+      OR (a.tbl = 'classes' AND (a.rec->>'trial_id')::uuid IN
             (SELECT t.id FROM public.trials t WHERE t.show_id = v_new))
-      OR (a.tbl = 'entry_status_history' AND (a.row->>'entry_id')::uuid IN
+      OR (a.tbl = 'entry_status_history' AND (a.rec->>'entry_id')::uuid IN
             (SELECT e.id FROM public.entries e WHERE e.show_id = v_new)));
   IF v_foreign IS NOT NULL THEN
     RAISE EXCEPTION 'FAIL 7.4 the restore created rows outside the new fixture: %', v_foreign;

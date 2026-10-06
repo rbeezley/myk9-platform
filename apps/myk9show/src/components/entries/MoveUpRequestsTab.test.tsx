@@ -75,6 +75,18 @@ describe('MoveUpRequestsTab', () => {
     expect(await screen.findByText('Fido')).toBeInTheDocument();
   });
 
+  it("says which trial a request's class is in", async () => {
+    const { getTrialsByShow } = await import('@/services/database/trials');
+    vi.mocked(getTrialsByShow).mockResolvedValue({
+      data: [{ id: 'trial-1', date: '2026-11-09', trial_number: 'Trial 1' }],
+      error: null,
+    } as unknown as Awaited<ReturnType<typeof getTrialsByShow>>);
+
+    render(<MoveUpRequestsTab showId="show-1" />);
+
+    expect((await screen.findAllByText('Mon, Nov 9 · Trial 1')).length).toBeGreaterThan(0);
+  });
+
   it('does not render a search field when there are no pending requests', async () => {
     const { getPendingMoveUpRequests } = await import('@/services/database/day-of-operations');
     vi.mocked(getPendingMoveUpRequests).mockResolvedValueOnce({ data: [], error: null });

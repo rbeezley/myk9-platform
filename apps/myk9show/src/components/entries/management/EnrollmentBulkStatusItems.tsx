@@ -27,7 +27,7 @@ interface EnrollmentBulkStatusItemsProps {
  *
  * "Accept all" on a registration where one of five entries is already scored
  * would silently act on four. The multi-select toolbar has always said
- * "Accept 3 of 5 selected" in that situation; saying nothing here meant the
+ * "Accept 3 of 5 entries" in that situation; saying nothing here meant the
  * same action reported its scope in one place and concealed it in another.
  */
 export function EnrollmentBulkStatusItems({

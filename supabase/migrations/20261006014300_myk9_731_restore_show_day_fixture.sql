@@ -34,19 +34,21 @@
 -- not resolve to exactly one person, when the fixture's dogs are missing or
 -- deleted, or when any money sits on the show (the MONEY GUARD below).
 --
--- TRIGGER CONTAINMENT. Resetting a fixture entry deletes and re-inserts it,
--- and entries' scoring trigger (handle_entry_scoring_state_change ->
--- refresh_class_scoring_state -> recalculate_class_placements) then re-derives
--- that entry's CLASS: the class row's status and counts, and final_placement on
--- every entry in it. That rollup is per class and writes nothing else. So the
--- function also refuses (a) when a fixture entry sits in a class that is not
--- one of the fixture's seven (the delete would re-derive another show's class),
--- and (b) when an entry a walk created in a fixture class holds a placement,
--- or is live with a result, because the re-derivation could clear or move its
--- placement. Inside those limits the rollup writes only fixture rows.
+-- NOTHING IS DELETED. A drifted fixture entry is reset IN PLACE, so its id,
+-- its children (status history, a walk's move-up destination pointing at it)
+-- and its replication version survive; the version trigger bumps the version,
+-- so a device's queued offline edit still rebases.
+--
+-- TRIGGER CONTAINMENT. Resetting an entry fires the scoring rollup
+-- (refresh_class_scoring_state), which re-derives that entry's class row and
+-- final_placement on every entry in the class, and nothing else. So it also
+-- refuses (a) while a fixture entry sits outside the fixture's classes, and
+-- (b) while a walk's entry in a fixture class holds a placement or a live
+-- result. Inside those limits the rollup writes only fixture rows.
 --
 -- IDEMPOTENT. Every write is guarded by IS DISTINCT FROM, so a second run on
--- the same day writes no rows. It returns the per-table row counts it wrote.
+-- the same day writes no rows and bumps no version. It returns the per-table
+-- row counts it wrote.
 --
 -- "TODAY" is the trial's own day: now() in America/Chicago, the fixture's
 -- timezone, exactly as section 19 always read it.
@@ -61,6 +63,20 @@ DECLARE
   c_show  constant uuid := 'dededede-0000-0000-0000-000000000014';
   c_club  constant uuid := 'dededede-0000-0000-0000-000000000001';
   c_tz    constant text := 'America/Chicago';
+  -- The entry columns a walk can change, reset in place by step 6.
+  c_reset constant text[] := ARRAY[
+    'dog_id', 'class_id', 'show_id', 'trial_id', 'handler_id', 'handler', 'entry_status',
+    'payment_status', 'entry_fee', 'armband', 'run_order', 'move_up_requested', 'deleted_at',
+    'deleted_by', 'check_in_status', 'is_in_ring', 'is_scored', 'result_status',
+    'ring_entry_time', 'ring_exit_time', 'scoring_started_at', 'scoring_completed_at',
+    'search_time_seconds', 'area1_time_seconds', 'area2_time_seconds', 'area3_time_seconds',
+    'area4_time_seconds', 'total_correct_finds', 'total_incorrect_finds', 'total_faults',
+    'no_finish_count', 'area1_correct', 'area1_incorrect', 'area1_faults', 'area2_correct',
+    'area2_incorrect', 'area2_faults', 'area3_correct', 'area3_incorrect', 'area3_faults',
+    'total_score', 'points_earned', 'points_possible', 'bonus_points', 'penalty_points',
+    'time_over_limit', 'time_limit_exceeded_seconds', 'final_placement', 'judge_notes',
+    'judge_signature', 'judge_signature_timestamp', 'disqualification_reason',
+    'withdrawn_at', 'withdrawal_reason', 'withdrawal_reason_code', 'is_day_of_show'];
   v_today date := (now() AT TIME ZONE 'America/Chicago')::date;
   v_club uuid;
   v_exhibitor uuid;
@@ -78,7 +94,7 @@ DECLARE
     SELECT ('dec1a55e-0000-0000-0014-' || lpad(o.n::text, 12, '0'))::uuid
     FROM generate_series(0, 6) AS o(n));
 BEGIN
-  -- Two concurrent runs would race the delete-and-reinsert of drifted entries.
+  -- One run at a time.
   PERFORM pg_catalog.pg_advisory_xact_lock(731, 14);
 
   SELECT s.club_id INTO v_club FROM public.shows s WHERE s.id = c_show FOR UPDATE;
@@ -124,9 +140,8 @@ BEGIN
 
   -- MONEY GUARD. Same predicate as seed_demo_assert_no_paid_strays()'s
   -- `substantiated` arm, aimed at everything on this show, with ONE omission:
-  -- entry_status_history. The reseed guard counts history because a cascade
-  -- would destroy it; this function cascades nothing that carries money, and
-  -- a status history row is not money (a walk scratching Willow writes one).
+  -- entry_status_history, which the reseed guard counts only because its
+  -- cascade would destroy it. This function deletes nothing.
   -- Show-level money aborts outright, with no trail split: a paid enrollment,
   -- a Stripe order, a ledger row, a cart line, or any refund request.
   WITH fixture_entries AS (
@@ -180,7 +195,7 @@ BEGIN
   END IF;
 
   -- TRIGGER CONTAINMENT (see the header). (a) A fixture entry moved into
-  -- another show's class: its delete would re-derive that class.
+  -- another show's class: resetting it would re-derive that class.
   SELECT string_agg(e.id::text, ', ' ORDER BY e.id) INTO v_hits
   FROM public.entries e
   WHERE e.id = ANY (v_entry_ids)
@@ -203,38 +218,7 @@ BEGIN
     RAISE EXCEPTION 'show-day fixture: entr(ies) % that a walk created in a fixture class carry a result or placement, which resetting the class would re-derive; remove them through the app first (MYK9-731)', v_hits;
   END IF;
 
-  -- 1. Fixture entries that drifted from their declared state (deleted,
-  -- scratched, checked in, scored, moved) are removed and re-created below,
-  -- exactly as the reseed does. Deleting first lets the class scoring trigger
-  -- settle before the classes are reset.
-  DELETE FROM public.entries e
-  USING (
-    SELECT ('dededede-0000-0000-0014-0000000' || k.kind || lpad(o.n::text, 2, '0'))::uuid AS id,
-           k.dog_id, k.handler_id, k.handler, k.armband, k.run_order, o.n
-    FROM generate_series(0, 6) AS o(n)
-    CROSS JOIN (VALUES
-      ('001', 'dededede-0000-0000-0000-000000000041'::uuid, v_exhibitor, 'Casey Morgan', '200', 1),
-      ('002', 'dededede-0000-0000-0000-000000000046'::uuid, v_secretary, 'Jordan Ellis', '201', 2)
-    ) AS k(kind, dog_id, handler_id, handler, armband, run_order)
-  ) f
-  WHERE e.id = f.id
-    AND (e.deleted_at IS NOT NULL
-      OR (e.dog_id, e.class_id, e.trial_id, e.show_id, e.handler_id, e.handler,
-          e.entry_status, e.payment_status, e.entry_fee, e.armband, e.run_order,
-          e.check_in_status, e.is_scored, e.is_in_ring, e.result_status, e.move_up_requested)
-         IS DISTINCT FROM
-         (f.dog_id, ('dec1a55e-0000-0000-0014-' || lpad(f.n::text, 12, '0'))::uuid,
-          ('dededede-0000-0000-0014-' || lpad(f.n::text, 12, '0'))::uuid, c_show,
-          f.handler_id, f.handler, 'confirmed', 'paid', 30.00::numeric, f.armband, f.run_order,
-          'no-status', false, false, 'pending', false)
-      OR e.scoring_started_at IS NOT NULL
-      OR e.scoring_completed_at IS NOT NULL
-      OR e.final_placement IS NOT NULL
-      OR e.withdrawn_at IS NOT NULL);
-  GET DIAGNOSTICS v_n = ROW_COUNT;
-  v_counts := v_counts || jsonb_build_object('entries_reset', v_n);
-
-  -- 2. The show: re-dated and undeleted. Fees, settings and organization stay
+  -- 1. The show: re-dated and undeleted. Fees, settings and organization stay
   -- as the seed created them.
   UPDATE public.shows s
      SET name             = 'Heartland Scent Work Week',
@@ -258,7 +242,7 @@ BEGIN
   GET DIAGNOSTICS v_n = ROW_COUNT;
   v_counts := v_counts || jsonb_build_object('shows', v_n);
 
-  -- 3. 'open' preset like the demo show, with self-check-in on.
+  -- 2. 'open' preset like the demo show, with self-check-in on.
   INSERT INTO public.show_visibility_settings AS v (
     show_id, preset, placement_timing, qualification_timing,
     time_timing, faults_timing, self_checkin_enabled
@@ -279,7 +263,7 @@ BEGIN
   GET DIAGNOSTICS v_n = ROW_COUNT;
   v_counts := v_counts || jsonb_build_object('show_visibility_settings', v_n);
 
-  -- 4. Seven one-day trials, TODAY .. TODAY + 6, ids fixed per day OFFSET.
+  -- 3. Seven one-day trials, TODAY .. TODAY + 6, ids fixed per day OFFSET.
   INSERT INTO public.trials AS t (
     id, show_id, name, date, trial_number, status,
     planned_start_time, allow_self_checkin, trial_type, pipeline_stage,
@@ -310,7 +294,7 @@ BEGIN
   GET DIAGNOSTICS v_n = ROW_COUNT;
   v_counts := v_counts || jsonb_build_object('trials', v_n);
 
-  -- 5. One class per trial. start_time is the class's published time on the
+  -- 4. One class per trial. start_time is the class's published time on the
   -- exhibitor's schedule (services/database/trials/timeline.ts); the scoring
   -- columns return to "not started" because a walk scores these classes.
   INSERT INTO public.classes AS c (
@@ -349,33 +333,9 @@ BEGIN
   GET DIAGNOSTICS v_n = ROW_COUNT;
   v_counts := v_counts || jsonb_build_object('classes', v_n);
 
-  -- 6. The running order: Willow run 1, Cooper run 2, in every class. Only the
-  -- ids step 1 removed (or that never existed) are inserted.
-  INSERT INTO public.entries (
-    id, dog_id, class_id, show_id, trial_id, handler_id, handler,
-    entry_status, payment_status, entry_fee, armband, run_order, move_up_requested, version
-  )
-  SELECT
-    ('dededede-0000-0000-0014-0000000' || k.kind || lpad(o.n::text, 2, '0'))::uuid,
-    k.dog_id,
-    ('dec1a55e-0000-0000-0014-' || lpad(o.n::text, 12, '0'))::uuid,
-    c_show,
-    ('dededede-0000-0000-0014-' || lpad(o.n::text, 12, '0'))::uuid,
-    k.handler_id, k.handler,
-    'confirmed', 'paid', 30.00, k.armband, k.run_order, false, 1
-  FROM generate_series(0, 6) AS o(n)
-  CROSS JOIN (VALUES
-    ('001', 'dededede-0000-0000-0000-000000000041'::uuid, v_exhibitor, 'Casey Morgan', '200', 1),
-    ('002', 'dededede-0000-0000-0000-000000000046'::uuid, v_secretary, 'Jordan Ellis', '201', 2)
-  ) AS k(kind, dog_id, handler_id, handler, armband, run_order)
-  WHERE NOT EXISTS (
-    SELECT 1 FROM public.entries e
-    WHERE e.id = ('dededede-0000-0000-0014-0000000' || k.kind || lpad(o.n::text, 2, '0'))::uuid
-  );
-  GET DIAGNOSTICS v_n = ROW_COUNT;
-  v_counts := v_counts || jsonb_build_object('entries_inserted', v_n);
-
-  -- 7. One armband per dog per show, matching the entries' numbers.
+  -- 5. One armband per dog per show, matching the entries' numbers. Before the
+  -- entries: a fixture entry going back to 'confirmed' fires
+  -- auto_assign_armband_on_accept, which must find this armband, not mint one.
   INSERT INTO public.armbands AS a (id, show_id, dog_id, armband_number, is_available, assigned_at, version)
   SELECT v.id, c_show, v.dog_id, v.num, false,
          ((v_today - 3)::timestamp AT TIME ZONE 'UTC'), 1
@@ -394,7 +354,41 @@ BEGIN
   GET DIAGNOSTICS v_n = ROW_COUNT;
   v_counts := v_counts || jsonb_build_object('armbands', v_n);
 
-  -- 8. The judge fixture judges every day, at class level (seed section 11
+  -- 6. The running order: Willow run 1, Cooper run 2, in every class. A
+  -- missing row is inserted. An existing one that drifted (deleted, scratched,
+  -- checked in, scored, moved) is reset IN PLACE: every column in c_reset goes
+  -- back to EXCLUDED, which holds the seed's value or the column default. Money
+  -- columns are not in the list; the money guard has proved they hold nothing.
+  -- Dynamic only so the one column list drives both the SET and the
+  -- IS DISTINCT FROM test; the list and the ids are constants.
+  EXECUTE format($q$
+    INSERT INTO public.entries AS e (
+      id, dog_id, class_id, show_id, trial_id, handler_id, handler,
+      entry_status, payment_status, entry_fee, armband, run_order, move_up_requested, version
+    )
+    SELECT
+      ('dededede-0000-0000-0014-0000000' || k.kind || lpad(o.n::text, 2, '0'))::uuid,
+      k.dog_id,
+      ('dec1a55e-0000-0000-0014-' || lpad(o.n::text, 12, '0'))::uuid,
+      $1,
+      ('dededede-0000-0000-0014-' || lpad(o.n::text, 12, '0'))::uuid,
+      k.handler_id, k.handler,
+      'confirmed', 'paid', 30.00, k.armband, k.run_order, false, 1
+    FROM generate_series(0, 6) AS o(n)
+    CROSS JOIN (VALUES
+      ('001', 'dededede-0000-0000-0000-000000000041'::uuid, $2, 'Casey Morgan', '200', 1),
+      ('002', 'dededede-0000-0000-0000-000000000046'::uuid, $3, 'Jordan Ellis', '201', 2)
+    ) AS k(kind, dog_id, handler_id, handler, armband, run_order)
+    ON CONFLICT (id) DO UPDATE SET (%1$s) = (%2$s) WHERE (%3$s) IS DISTINCT FROM (%2$s)
+  $q$,
+    (SELECT string_agg(quote_ident(c), ', ') FROM unnest(c_reset) AS c),
+    (SELECT string_agg('EXCLUDED.' || quote_ident(c), ', ') FROM unnest(c_reset) AS c),
+    (SELECT string_agg('e.' || quote_ident(c), ', ') FROM unnest(c_reset) AS c))
+  USING c_show, v_exhibitor, v_secretary;
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  v_counts := v_counts || jsonb_build_object('entries', v_n);
+
+  -- 7. The judge fixture judges every day, at class level (seed section 11
   -- explains why a trial-level row never reaches the judge's dashboard).
   INSERT INTO public.judge_assignments AS j (
     id, person_id, show_id, trial_id, class_id, status, confirmed_at, created_at, updated_at
@@ -418,7 +412,7 @@ BEGIN
   GET DIAGNOSTICS v_n = ROW_COUNT;
   v_counts := v_counts || jsonb_build_object('judge_assignments', v_n);
 
-  -- 9. Two announcements, posted this morning, priority 'normal' ON PURPOSE:
+  -- 8. Two announcements, posted this morning, priority 'normal' ON PURPOSE:
   -- on_announcement_insert_push fires only for 'high' / 'urgent', and a
   -- fixture repair must never push to anyone.
   INSERT INTO public.show_announcements AS sa (

@@ -10,8 +10,10 @@
 --      replication version moves.
 --   3. The October 5 state -- dates a week stale, the show soft-deleted from
 --      the app with its trials, classes and entries, a fixture entry scratched
---      and another checked in -- is repaired, while a walk's own entry on a
---      fixture class stays exactly as it was.
+--      and another checked in -- is repaired IN PLACE: every reset entry's
+--      version rises (a queued offline edit still rebases), while a walk's own
+--      entry on a fixture class, and a walk's move-up destination pointing at
+--      a fixture entry, stay exactly as they were.
 --   4. A second show (stale, soft-deleted, same club) is not touched.
 --   5. exhibitor@ reads the fixture's announcements under RLS.
 --   6. It refuses, writing nothing, when money sits on the show (a recorded
@@ -183,7 +185,7 @@ BEGIN
   IF pg_temp.ready() <> 1 THEN
     RAISE EXCEPTION 'FAIL 1.1 expected exactly 1 ready exhibitor entry after the first restore, found % (%)', pg_temp.ready(), r;
   END IF;
-  IF (r->>'entries_inserted')::int <> 14 OR (r->>'trials')::int <> 7 OR (r->>'classes')::int <> 7
+  IF (r->>'entries')::int <> 14 OR (r->>'trials')::int <> 7 OR (r->>'classes')::int <> 7
      OR (r->>'show_announcements')::int <> 2 OR (r->>'judge_assignments')::int <> 7
      OR (r->>'armbands')::int <> 2 THEN
     RAISE EXCEPTION 'FAIL 1.2 the first restore did not build the whole fixture: %', r;
@@ -230,7 +232,8 @@ END;
 $$;
 
 -- ---------------------------------------------------------------------------
--- 3. The October 5 state. A walk enters its own dog on a fixture class, the
+-- 3. The October 5 state. A walk enters its own dog on a fixture class and
+-- moves a fixture entry up (a destination entry pointing back at it), the
 -- exhibitor's Day-7 entry is scratched and Day-2 checked in, the dates go a
 -- week stale, and the secretary deletes the show from the app (which stamps
 -- the show, trials, classes and entries alike).
@@ -240,6 +243,12 @@ VALUES ('00000000-0000-0000-0000-000000731602', '00000000-0000-0000-0000-0000007
         'dec1a55e-0000-0000-0014-000000000002', 'dededede-0000-0000-0014-000000000002',
         'dededede-0000-0000-0000-000000000014', '00000000-0000-0000-0000-000000731001',
         'confirmed', 'pending');
+INSERT INTO public.entries (id, dog_id, class_id, trial_id, show_id, handler_id, entry_status,
+                            payment_status, moved_from_entry_id)
+VALUES ('00000000-0000-0000-0000-000000731605', '00000000-0000-0000-0000-000000731401',
+        'dec1a55e-0000-0000-0014-000000000004', 'dededede-0000-0000-0014-000000000004',
+        'dededede-0000-0000-0000-000000000014', '00000000-0000-0000-0000-000000731001',
+        'confirmed', 'pending', 'dededede-0000-0000-0014-000000000103');
 UPDATE public.entries SET entry_status = 'scratched' WHERE id = 'dededede-0000-0000-0014-000000000106';
 UPDATE public.entries SET check_in_status = 'checked-in' WHERE id = 'dededede-0000-0000-0014-000000000101';
 UPDATE public.trials SET date = date - 11 WHERE show_id = 'dededede-0000-0000-0000-000000000014';
@@ -254,7 +263,10 @@ UPDATE public.shows SET deleted_at = now() WHERE id = 'dededede-0000-0000-0000-0
 UPDATE outside_before SET h = pg_temp.outside();
 
 CREATE TEMP TABLE walk_entry_before ON COMMIT DROP AS
-SELECT to_jsonb(e) AS row FROM public.entries e WHERE e.id = '00000000-0000-0000-0000-000000731602';
+SELECT e.id, to_jsonb(e) AS row FROM public.entries e
+WHERE e.id IN ('00000000-0000-0000-0000-000000731602', '00000000-0000-0000-0000-000000731605');
+CREATE TEMP TABLE fixture_version_before ON COMMIT DROP AS
+SELECT id, version FROM public.entries WHERE id::text LIKE 'dededede-0000-0000-0014-000000000%';
 
 DO $$
 DECLARE r jsonb;
@@ -266,7 +278,7 @@ BEGIN
   IF pg_temp.ready() <> 1 THEN
     RAISE EXCEPTION 'FAIL 3.1 the October 5 state is not ready after the restore (%)', r;
   END IF;
-  IF (r->>'entries_reset')::int <> 14 OR (r->>'entries_inserted')::int <> 14 THEN
+  IF (r->>'entries')::int <> 14 THEN
     RAISE EXCEPTION 'FAIL 3.2 expected all 14 deleted fixture entries reset: %', r;
   END IF;
   IF EXISTS (SELECT 1 FROM public.entries
@@ -280,14 +292,23 @@ BEGIN
      OR EXISTS (SELECT 1 FROM public.shows WHERE id = 'dededede-0000-0000-0000-000000000014' AND deleted_at IS NOT NULL) THEN
     RAISE EXCEPTION 'FAIL 3.4 a fixture show, trial or class is still soft-deleted';
   END IF;
-  IF (SELECT to_jsonb(e) FROM public.entries e WHERE e.id = '00000000-0000-0000-0000-000000731602')
-     IS DISTINCT FROM (SELECT row FROM walk_entry_before) THEN
+  IF EXISTS (SELECT 1 FROM walk_entry_before b JOIN public.entries e ON e.id = b.id
+             WHERE to_jsonb(e) IS DISTINCT FROM b.row) THEN
     RAISE EXCEPTION 'FAIL 3.5 the restore touched a walk''s own entry on a fixture class';
+  END IF;
+  IF (SELECT moved_from_entry_id FROM public.entries WHERE id = '00000000-0000-0000-0000-000000731605')
+     IS DISTINCT FROM 'dededede-0000-0000-0014-000000000103'::uuid THEN
+    RAISE EXCEPTION 'FAIL 3.7 a walk''s move-up destination lost its link to the fixture entry';
+  END IF;
+  IF (SELECT count(*) FROM fixture_version_before) <> 14
+     OR EXISTS (SELECT 1 FROM fixture_version_before b JOIN public.entries e ON e.id = b.id
+                WHERE e.version <= b.version) THEN
+    RAISE EXCEPTION 'FAIL 3.8 a reset fixture entry''s version did not rise, so a queued offline edit cannot rebase';
   END IF;
   IF (SELECT deleted_at FROM public.entries WHERE id = '00000000-0000-0000-0000-000000731602') IS NULL THEN
     RAISE EXCEPTION 'FAIL 3.6 the walk''s deleted entry was undeleted';
   END IF;
-  RAISE NOTICE 'PASS 3 the October 5 state is repaired and a walk''s own entry is left alone';
+  RAISE NOTICE 'PASS 3 the October 5 state is repaired in place: versions rise, a walk''s entries and move-up link are left alone';
 END;
 $$;
 

@@ -74,7 +74,10 @@ show, `seed_demo_assert_no_paid_strays()` aborts it, by design.
 MYK9-731) repairs only this fixture. It re-dates the seven trials to today
 through today + 6 in America/Chicago and undeletes the show, trials and classes.
 It resets the 14 fixture entries, the armbands, the judge assignments and the two
-announcements by their seed-fixed ids, and it turns self-check-in on. It never
+announcements by their seed-fixed ids, and it turns self-check-in on. It deletes
+nothing: a drifted fixture entry is reset in place, so its status history, a
+walk's move-up entry that points at it, and its replication version survive (the
+version goes up, so a device with a queued offline edit still syncs). It never
 touches another show, a person, a dog, or any payment, refund or Stripe row, and
 it leaves an entry a walk created on the fixture as it is. Section 19 of
 `seed-demo.sql` calls the same function, so the reseed and the restore cannot

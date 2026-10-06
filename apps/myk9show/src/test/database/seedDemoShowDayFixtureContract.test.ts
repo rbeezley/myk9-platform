@@ -82,8 +82,15 @@ describe('seed-demo show-day fixture (MYK9-731)', () => {
 
   it('generates the entry ids the seed clears, and only from fixed ids', () => {
     expect(fn).toContain("'dededede-0000-0000-0014-0000000' || k.kind || lpad(o.n::text, 2, '0')");
-    expect(fn).toContain("('001', 'dededede-0000-0000-0000-000000000041'::uuid, v_exhibitor");
-    expect(fn).toContain("('002', 'dededede-0000-0000-0000-000000000046'::uuid, v_secretary");
+    expect(fn).toContain("('001', 'dededede-0000-0000-0000-000000000041'::uuid, $2");
+    expect(fn).toContain("('002', 'dededede-0000-0000-0000-000000000046'::uuid, $3");
+    expect(fn).toContain('USING c_show, v_exhibitor, v_secretary;');
+    // Fixture entries are reset in place, never deleted: a delete would cascade
+    // their children and drop their replication version back to 1.
+    expect(fn).not.toMatch(/DELETE FROM public\.entries/);
+    expect(fn).toContain(
+      'ON CONFLICT (id) DO UPDATE SET (%1$s) = (%2$s) WHERE (%3$s) IS DISTINCT FROM (%2$s)'
+    );
     expect(fn).toContain('generate_series(0, 6)');
     // No predicate-wide write: every DELETE/UPDATE in the body names the
     // fixture by id.

@@ -197,7 +197,7 @@ DO $$
 DECLARE r jsonb;
 BEGIN
   r := pg_temp.restore();
-  IF (r->>'entries_reset')::int <> 1 OR pg_temp.ready() <> 1 THEN
+  IF (r->>'entries')::int <> 1 OR pg_temp.ready() <> 1 THEN
     RAISE EXCEPTION 'FAIL 8.4 the restore did not reset the deleted fixture entry beside a deleted scored walk entry: %', r;
   END IF;
   IF (SELECT to_jsonb(e) FROM public.entries e WHERE e.id = '00000000-0000-0000-0000-000000731604')

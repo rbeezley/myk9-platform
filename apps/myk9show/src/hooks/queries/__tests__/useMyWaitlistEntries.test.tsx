@@ -234,7 +234,11 @@ describe('MYK9-1035 mail-in offer mapping and card', () => {
     async at => {
       const { offer, onOfferDeadlineElapsed } = await renderMappedOffer('mail_in', at);
 
-      expect(offer.getByText(/The club is holding this spot for you/)).toBeInTheDocument();
+      expect(
+        offer.getByText(
+          'The club is holding this spot while awaiting your payment. Pay the club directly or contact the show secretary.'
+        )
+      ).toBeInTheDocument();
       expect(offer.queryByText(/Claim by|Checking whether|expired/)).not.toBeInTheDocument();
       expect(offer.queryByRole('button', { name: 'Complete payment' })).not.toBeInTheDocument();
       expect(onOfferDeadlineElapsed).not.toHaveBeenCalled();

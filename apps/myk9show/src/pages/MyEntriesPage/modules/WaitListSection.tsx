@@ -56,7 +56,7 @@ function getOfferDisplayState(entry: WaitListEntry, now: Date): OfferDisplayStat
  */
 function describeOfferTiming(entry: WaitListEntry): string {
   if (entry.joinedVia === 'mail_in') {
-    return 'The club is holding this spot for you until they receive your payment. Pay the club directly or contact the show secretary.';
+    return 'The club is holding this spot while awaiting your payment. Pay the club directly or contact the show secretary.';
   }
   const when = formatOfferDeadline(entry.offerExpiresAt, entry.trialTimezone);
   return when ? `Claim by ${when}` : 'Claim it before the offer ends.';

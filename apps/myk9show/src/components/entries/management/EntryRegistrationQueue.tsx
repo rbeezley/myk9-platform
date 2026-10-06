@@ -9,7 +9,6 @@ import {
   entryManagementPaymentLabel,
   resolvePaymentChannel,
 } from '@/features/payments/paymentChannel';
-import type { OperationalViewDensity } from '@/features/operational-views/operationalViews';
 import {
   getEntryRegistrationRowId,
   type ShowRegistrationGroup,
@@ -58,7 +57,6 @@ interface EntryRegistrationQueueProps {
   pageIndex: number;
   pageCount: number;
   onPageChange: (pageIndex: number) => void;
-  density?: OperationalViewDensity;
 }
 
 function formatSubmittedAt(value: Date): string {
@@ -142,7 +140,6 @@ export function EntryRegistrationQueue({
   pageIndex,
   pageCount,
   onPageChange,
-  density = 'comfortable',
 }: EntryRegistrationQueueProps) {
   // The persistent manager sidebar leaves this column far narrower than the
   // viewport, so the layout follows the width the queue actually has. The
@@ -220,8 +217,7 @@ export function EntryRegistrationQueue({
                   compact
                     ? 'flex flex-col items-stretch gap-1.5'
                     : cn('grid gap-3', QUEUE_GRID_COLUMNS),
-                  density === 'compact' && 'py-2',
-                  density === 'comfortable' && 'py-3',
+                  'py-3',
                   focused &&
                     'relative z-[1] bg-primary/10 shadow-[inset_4px_0_0_var(--primary)] ring-1 ring-inset ring-primary/55 hover:bg-primary/10'
                 )}

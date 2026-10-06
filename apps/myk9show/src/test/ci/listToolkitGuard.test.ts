@@ -64,7 +64,6 @@ const ARIA_PRESSED_DECLARED: Record<string, { count: number; reason: string }> =
     count: 1,
     reason: 'display preset, not a filter',
   },
-  'features/operational-views/DensityControl.tsx': { count: 1, reason: 'density toggle' },
   'components/dogs/DogDetails/TrainingJournal/RichTextEditor.tsx': {
     count: 1,
     reason: 'text formatting toggle',

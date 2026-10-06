@@ -10,9 +10,6 @@
 import type { ReactNode } from 'react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { MASTER_DETAIL_QUERY } from '@/components/layout/MasterDetailLayout';
-import { SlidersHorizontal } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   ListFilterBar,
   ListResultLine,
@@ -23,8 +20,6 @@ import type {
   EntryManagementTrial,
   EntryManagementTrialClass,
 } from '@/hooks/useEntryManagementTrialScope';
-import { DensityControl } from '@/features/operational-views/DensityControl';
-import type { OperationalViewDensity } from '@/features/operational-views/operationalViews';
 import {
   entryManagementViewId,
   type EntryManagementCockpitState,
@@ -38,11 +33,9 @@ interface EntryManagementViewToolbarProps {
   counts: EntryManagementViewCounts;
   trials: readonly EntryManagementTrial[];
   trialClasses: readonly EntryManagementTrialClass[];
-  density: OperationalViewDensity;
   onSelectView: (viewId: EntryManagementViewId) => void;
   onScopeChange: (trialId: string | null, classId?: string | null) => void;
   onSearchChange: (value: string) => void;
-  onDensityChange: (density: OperationalViewDensity) => void;
   onClearAll: () => void;
   /** Registrations on screen after every filter, and in the show's whole queue. */
   /** Null until the entries have loaded successfully: no sentence before then. */
@@ -56,11 +49,9 @@ export function EntryManagementViewToolbar({
   counts,
   trials,
   trialClasses,
-  density,
   onSelectView,
   onScopeChange,
   onSearchChange,
-  onDensityChange,
   onClearAll,
   result,
   actions,
@@ -94,34 +85,13 @@ export function EntryManagementViewToolbar({
           }
           filterBar={
             isRegistrationsView ? (
-              <div className="flex min-w-0 flex-1 flex-wrap items-start gap-2">
-                <div className="min-w-0 flex-1">
-                  <ListFilterBar
-                    searchValue={state.search}
-                    onSearchChange={onSearchChange}
-                    searchPlaceholder="Search exhibitor, dog, handler, armband, confirmation, class…"
-                    fields={filterFields}
-                    compact={singleRow}
-                  />
-                </div>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="min-h-11 shrink-0 gap-2"
-                    >
-                      <SlidersHorizontal className="h-4 w-4" aria-hidden />
-                      Density
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent align="end" className="w-auto">
-                    <p className="mb-2 text-sm font-semibold">Row density</p>
-                    <DensityControl density={density} onChange={onDensityChange} />
-                  </PopoverContent>
-                </Popover>
-              </div>
+              <ListFilterBar
+                searchValue={state.search}
+                onSearchChange={onSearchChange}
+                searchPlaceholder="Search exhibitor, dog, handler, armband, confirmation, class…"
+                fields={filterFields}
+                compact={singleRow}
+              />
             ) : null
           }
           resultLine={

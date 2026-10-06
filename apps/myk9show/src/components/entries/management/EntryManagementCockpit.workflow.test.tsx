@@ -118,7 +118,6 @@ function Harness({
     exception: 'move-ups',
     queue: 'needs-review',
     search: options.search ?? '',
-    density: 'comfortable',
     trialId: options.trialId ?? null,
     classId: options.classId ?? null,
     registrationKey: null,

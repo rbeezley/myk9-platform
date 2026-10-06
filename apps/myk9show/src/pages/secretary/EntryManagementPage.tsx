@@ -404,11 +404,9 @@ const EntryManagementPage: React.FC = () => {
           }}
           trials={trials}
           trialClasses={trialClasses}
-          density={cockpit.state.density}
           onSelectView={handleSelectView}
           onScopeChange={handleScopeChange}
           onSearchChange={cockpit.setSearch}
-          onDensityChange={cockpit.setDensity}
           onClearAll={handleClearEntryFilters}
           actions={entryActions}
           result={

@@ -14,6 +14,7 @@ describe('at-show Class timing projection', () => {
         actual_start_time: '2026-07-20T15:18:00.000Z',
         actual_end_time: '2026-07-20T15:47:00.000Z',
         classStatus: 'in_progress',
+        resultsReleasedAt: '2026-07-20T16:00:00.000Z',
       } satisfies ReplicatedClass,
       [] satisfies ReplicatedEntry[],
       new Set()
@@ -26,6 +27,7 @@ describe('at-show Class timing projection', () => {
       actual_start_time: '2026-07-20T15:18:00.000Z',
       actual_end_time: '2026-07-20T15:47:00.000Z',
       class_status: 'in_progress',
+      results_released_at: '2026-07-20T16:00:00.000Z',
     });
   });
 });

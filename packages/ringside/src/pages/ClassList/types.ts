@@ -57,6 +57,8 @@ export interface ClassEntry {
   actual_start_time?: string;
   actual_end_time?: string;
   last_result_at?: string;
+  /** Release gate for exhibitor result display on the show-day class picker. */
+  results_released_at?: string | null;
   pairedClassId?: string;
   self_checkin_enabled?: boolean;
   visibility_preset?: 'open' | 'standard' | 'review' | 'custom';

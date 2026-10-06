@@ -69,6 +69,70 @@ const trialWithLabel: ReadonlyMap<string, AtShowTrialSummary> = new Map([
 ]);
 
 describe('buildMyAtShowEntryDetails', () => {
+  it('carries a released Q and time from the owned, visibility-filtered entry', () => {
+    const scored: ReplicatedEntry = {
+      id: 'scored-1',
+      classId: 'class-1',
+      dogCallName: 'Ranger',
+      isScored: true,
+      resultStatus: 'qualified',
+      searchTimeSeconds: 58,
+    };
+    const released = new Map<string, AtShowClassSummary>([
+      [
+        'class-1',
+        {
+          className: 'Novice Container',
+          classStatus: 'completed',
+          resultsReleasedAt: '2026-10-06T15:00:00Z',
+        },
+      ],
+    ]);
+
+    expect(
+      buildMyAtShowEntryDetails([scored], new Set(['scored-1']), released, noTrials)[0]
+    ).toMatchObject({ resultStatus: 'qualified', resultTimeSeconds: 58 });
+  });
+
+  it('does not reveal withheld, unreleased, or unowned results', () => {
+    const scored: ReplicatedEntry = {
+      id: 'scored-1',
+      classId: 'class-1',
+      isScored: true,
+      resultStatus: 'qualified',
+      searchTimeSeconds: 58,
+    };
+    const released = new Map<string, AtShowClassSummary>([
+      [
+        'class-1',
+        {
+          className: 'Novice Container',
+          classStatus: 'completed',
+          resultsReleasedAt: '2026-10-06T15:00:00Z',
+        },
+      ],
+    ]);
+    const unreleased = new Map<string, AtShowClassSummary>([
+      [
+        'class-1',
+        { className: 'Novice Container', classStatus: 'completed', resultsReleasedAt: null },
+      ],
+    ]);
+
+    expect(
+      buildMyAtShowEntryDetails([scored], new Set(['scored-1']), unreleased, noTrials)[0]
+    ).toMatchObject({ resultStatus: null, resultTimeSeconds: null });
+    expect(
+      buildMyAtShowEntryDetails(
+        [{ ...scored, resultStatus: undefined, searchTimeSeconds: undefined }],
+        new Set(['scored-1']),
+        released,
+        noTrials
+      )[0]
+    ).toMatchObject({ resultStatus: null, resultTimeSeconds: null });
+    expect(buildMyAtShowEntryDetails([scored], new Set(), released, noTrials)).toEqual([]);
+  });
+
   it('only includes owned entries, in entry order', () => {
     const details = buildMyAtShowEntryDetails(
       entries,
@@ -297,6 +361,8 @@ describe('deriveAtShowNextAction', () => {
     isRevisedStart: false,
     hasRunOrder: true,
     isScored: false,
+    resultStatus: null,
+    resultTimeSeconds: null,
     selfCheckinState: 'allowed',
     trialLabel: null,
   };

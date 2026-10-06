@@ -4,8 +4,6 @@ import {
   applyThemeClasses,
   applyFontScale,
   getStoredFontScale,
-  applyLayoutDensity,
-  getStoredLayoutDensity,
   applyReduceMotion,
   getStoredReduceMotion,
   applyHighContrast,
@@ -73,15 +71,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Apply the persisted layout density / reduce-motion / high-contrast
+  // Apply the persisted reduce-motion / high-contrast
   // preferences on boot, same rationale as the font-scale hydration above:
   // without this, a reload shows the switch/radio as ON (server preference)
   // while the actual class was never re-applied to the DOM.
   useEffect(() => {
-    const storedDensity = getStoredLayoutDensity();
-    if (storedDensity) {
-      applyLayoutDensity(storedDensity);
-    }
     const storedReduceMotion = getStoredReduceMotion();
     if (storedReduceMotion !== null) {
       applyReduceMotion(storedReduceMotion);

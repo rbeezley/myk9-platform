@@ -1,6 +1,7 @@
 import { useLocation } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@/test/utils/testUtils';
+import { blockedActionFor } from '@/features/delete/deleteBlockedAction';
 import EntryManagementPage from '../EntryManagementPage';
 
 const testEntry = vi.hoisted(() => ({
@@ -149,12 +150,17 @@ describe('EntryManagementPage URL ownership', () => {
       { ...testEntry, entryStatus: 'accepted', paymentStatus: 'paid', isScored: true },
     ];
 
+    const action = blockedActionFor('entry', [
+      { id: 'entry-1', name: 'Scout', context: { showId: 'show-1' } },
+    ]);
+    expect(action).toBeDefined();
+
     render(
       <>
         <EntryManagementPage />
         <LocationProbe />
       </>,
-      { initialRoute: '/shows/show-1/entries?queue=all&entry=entry-1' }
+      { initialRoute: action!.to }
     );
 
     await waitFor(() =>

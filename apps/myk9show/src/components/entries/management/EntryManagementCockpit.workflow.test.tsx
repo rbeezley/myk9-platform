@@ -11,7 +11,7 @@ import { groupEntriesByShowRegistration } from './showRegistrationProjection';
 import { EntryManagementCockpit } from './EntryManagementCockpit';
 
 vi.mock('@/hooks/useElementWidth', () => ({
-  useElementWidth: () => ({ ref: { current: null }, width: 1000 }),
+  useElementWidth: () => ({ ref: { current: null }, width: window.innerWidth }),
 }));
 
 vi.mock('@/hooks/useEmailStatus', () => ({
@@ -96,6 +96,7 @@ interface RenderCockpitOptions {
   search?: string;
   classId?: string | null;
   trialId?: string | null;
+  registrationKey?: string | null;
 }
 
 // MYK9-795: `EntryManagementCockpit` no longer computes its own cockpit state
@@ -120,7 +121,7 @@ function Harness({
     search: options.search ?? '',
     trialId: options.trialId ?? null,
     classId: options.classId ?? null,
-    registrationKey: null,
+    registrationKey: options.registrationKey ?? null,
   };
   const cockpit = useEntryManagementCockpit({ groups: registrationGroups, state });
 
@@ -150,6 +151,27 @@ function renderCockpit(onStatusChange: StatusChangeHandler, options: RenderCockp
 }
 
 describe('EntryManagementCockpit status seam', () => {
+  it('opens a late-resolved URL focus on a compact screen', async () => {
+    const previousWidth = window.innerWidth;
+    window.innerWidth = 800;
+    try {
+      const onStatusChange = vi.fn<StatusChangeHandler>(async () => true);
+      const { rerender } = render(
+        <Harness onStatusChange={onStatusChange} options={{ registrationKey: null }} />
+      );
+      expect(screen.queryByRole('button', { name: /change entry status for Fido/i })).toBeNull();
+
+      rerender(
+        <Harness onStatusChange={onStatusChange} options={{ registrationKey: 'registration-1' }} />
+      );
+      expect(
+        await screen.findByRole('button', { name: /change entry status for Fido in Novice A/i })
+      ).toBeInTheDocument();
+    } finally {
+      window.innerWidth = previousWidth;
+    }
+  });
+
   it('propagates a failed production mutation to the status popover retry state', async () => {
     const user = userEvent.setup();
     const onStatusChange = vi.fn<StatusChangeHandler>(async () => false);

@@ -53,6 +53,8 @@ export interface DeleteObjectDialogProps {
   onDeleteStart?: (() => void) | undefined;
   /** Nothing was deleted (refused or failed); the dialog stays open with the reason. */
   onDeleteFailed?: (() => void) | undefined;
+  /** A caller with an enclosing panel can close it after the recovery link is used. */
+  onBlockedAction?: (() => void) | undefined;
 }
 
 export function DeleteObjectDialog({
@@ -64,6 +66,7 @@ export function DeleteObjectDialog({
   onRestored,
   onDeleteStart,
   onDeleteFailed,
+  onBlockedAction,
 }: DeleteObjectDialogProps) {
   const queryClient = useQueryClient();
   const { hasRole } = useAuthContext();
@@ -208,6 +211,7 @@ export function DeleteObjectDialog({
       isDeleting={isDeleting}
       errorMessage={errorMessage}
       blockedAction={blockedActionFor(kind, liveTargets)}
+      onBlockedAction={onBlockedAction}
       overrideArmed={overrideArmed}
       {...(allowOverride
         ? {

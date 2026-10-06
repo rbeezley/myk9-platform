@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { EnrollmentLedgerControls } from '@/hooks/useEnrollmentLedgerActions';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -115,6 +115,7 @@ export function EntryManagementCockpit({
     entryCockpitResponsiveReducer,
     initialEntryCockpitResponsiveState
   );
+  const previousFocusKey = useRef(cockpit.state.registrationKey);
 
   useEffect(() => {
     if (width !== null) {
@@ -125,6 +126,13 @@ export function EntryManagementCockpit({
       });
     }
   }, [cockpit.state.registrationKey, width]);
+
+  useEffect(() => {
+    const currentFocusKey = cockpit.state.registrationKey;
+    const focusChanged = currentFocusKey && currentFocusKey !== previousFocusKey.current;
+    previousFocusKey.current = currentFocusKey;
+    if (focusChanged) dispatchResponsive({ type: 'open-detail' });
+  }, [cockpit.state.registrationKey]);
 
   const registrationIds = useMemo(
     () => [...new Set(entries.map(entry => entry.registrationId).filter(Boolean))],

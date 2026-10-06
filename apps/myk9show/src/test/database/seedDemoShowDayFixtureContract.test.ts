@@ -3,104 +3,142 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 /**
- * Source-text contract for section 19 of supabase/seed-demo.sql, the show-day
- * fixture (MYK9-731): a show with a trial dated TODAY, self-check-in on, a
- * published class time and running order, the demo exhibitor's entry, and the
- * seed's only announcements.
+ * Source-text contract for the show-day fixture (MYK9-731): a show with a trial
+ * dated TODAY, self-check-in on, a published class time and running order, the
+ * demo exhibitor's entry, and the seed's only announcements.
  *
- * What it pins is what a later edit could quietly break without any SQL error:
- * the dates coming from the show's own timezone rather than the server's UTC
- * CURRENT_DATE, the fixture's entries being removed by id BEFORE the paid-stray
- * guard, the show never being deleted (an unguarded cascade), and the
- * announcements never being high priority (a web push on every reseed).
+ * The fixture is INSERT-ONLY. public.seed_demo_restore_show_day_fixture()
+ * (migration 20261006014300) returns today's ready fixture or inserts a new one
+ * with fresh ids in the marker range dededede-0000-0000-0731-*, and never
+ * updates or deletes an existing row. Section 19 of supabase/seed-demo.sql calls
+ * it; section 0 clears what it minted before the paid-stray guard.
  *
- * Source text only. The seed's own postcondition at the end of section 19 is
- * what proves, on a real database, that SQL finds the today-dated trial and a
- * non-empty inbox; this file cannot.
+ * Source text only. What the function DOES on a database -- readiness,
+ * idempotence, refusals, leaving every existing row byte-for-byte unchanged,
+ * RLS, ACL -- is supabase/tests/myk9_731_restore_show_day_fixture*_test.sql.
  */
 
 const repoRoot = resolve(__dirname, '../../../../..');
 const stripSqlComments = (text: string): string =>
   text.replace(/\/\*[\s\S]*?\*\//g, '').replace(/--[^\n]*/g, '');
 const seed = stripSqlComments(readFileSync(join(repoRoot, 'supabase/seed-demo.sql'), 'utf8'));
-
-const SHOW_ID = 'dededede-0000-0000-0000-000000000014';
-const sectionStart = seed.indexOf(`'${SHOW_ID}',\n  'Heartland Scent Work Week'`);
-const sectionEnd = seed.indexOf(
-  "WHERE show_id = 'dededede-0000-0000-0000-000000000010';\n\n  IF v_entry_count"
+const fn = stripSqlComments(
+  readFileSync(
+    join(repoRoot, 'supabase/migrations/20261006014300_myk9_731_restore_show_day_fixture.sql'),
+    'utf8'
+  )
 );
-const section = seed.slice(sectionStart, sectionEnd > -1 ? sectionEnd : undefined);
 
-/** The ids section 19 generates for its entries: Willow `…10d`, Cooper `…20d`, d = 0..6. */
-const showDayEntryIds = [1, 2].flatMap(kind =>
-  Array.from({ length: 7 }, (_, d) => `dededede-0000-0000-0014-000000000${kind}0${d}`)
-);
+const CALL = 'SELECT public.seed_demo_restore_show_day_fixture();';
+const MARKER = "'dededede-0000-0000-0731-'";
+const RANGE_LOW = "'dededede-0000-0000-0731-000000000000'::uuid";
+const RANGE_HIGH = "'dededede-0000-0000-0732-000000000000'::uuid";
+const RETIRED_SHOW = 'dededede-0000-0000-0000-000000000014';
+
+/** The restore's body, from its CREATE to the end of its dollar-quote. */
+const restoreBody = (() => {
+  const start = fn.indexOf(
+    'CREATE OR REPLACE FUNCTION public.seed_demo_restore_show_day_fixture()'
+  );
+  return fn.slice(start, fn.indexOf('$fn$;', start));
+})();
 
 describe('seed-demo show-day fixture (MYK9-731)', () => {
-  it('exists after every other section and generates the entry ids it claims', () => {
-    expect(sectionStart, 'section 19 show insert not found').toBeGreaterThan(-1);
-    expect(section).toContain(
-      "'dededede-0000-0000-0014-0000000' || e.kind || lpad(o.n::text, 2, '0')"
-    );
-    expect(section).toContain("('001', 'dededede-0000-0000-0000-000000000041'::uuid");
-    expect(section).toContain("('002', 'dededede-0000-0000-0000-000000000046'::uuid");
-    expect(section).toContain('generate_series(0, 6)');
-  });
-
-  it("dates the show from now() in the show's timezone, never from UTC CURRENT_DATE", () => {
-    // A reseed run in a Chicago evening is already tomorrow in UTC; a
-    // CURRENT_DATE offset would date the "today" trial tomorrow.
-    expect(section).toContain("(now() AT TIME ZONE 'America/Chicago')::date AS today");
-    const showInsert = section.slice(0, section.indexOf('ON CONFLICT (id) DO UPDATE'));
-    expect(showInsert).not.toMatch(/CURRENT_DATE/);
-    const trialInsert = section.slice(section.indexOf('INSERT INTO public.trials'));
-    expect(trialInsert.slice(0, trialInsert.indexOf('ON CONFLICT'))).toMatch(
-      /\(d\.today \+ o\.n\)/
-    );
-  });
-
-  it('deletes every show-day entry by id before the paid-stray guard, in the seed-owned id list', () => {
-    const guardCall = seed.indexOf('SELECT public.seed_demo_assert_no_paid_strays();');
-    const idListDelete = seed.indexOf(
-      "DELETE FROM public.entries WHERE id IN (\n  'dededede-0000-0000-0000-000000000051'"
-    );
-    expect(guardCall).toBeGreaterThan(-1);
-    expect(idListDelete).toBeGreaterThan(-1);
-    expect(idListDelete).toBeLessThan(guardCall);
-    const idList = seed.slice(idListDelete, seed.indexOf(';', idListDelete));
-    for (const id of showDayEntryIds) {
-      expect(idList, `show-day entry ${id} is not in the pre-guard id-list delete`).toContain(
-        `'${id}'`
+  it('section 19 calls the fixture function and inserts nothing of its own', () => {
+    const call = seed.indexOf(CALL);
+    expect(call, 'section 19 call not found').toBeGreaterThan(-1);
+    const section = seed.slice(call, seed.indexOf('IF v_entry_count', call));
+    expect(section).toContain('public.seed_demo_show_day_fixture_today() IS NULL');
+    for (const table of [
+      'shows',
+      'trials',
+      'classes',
+      'entries',
+      'armbands',
+      'judge_assignments',
+      'show_announcements',
+      'show_visibility_settings',
+    ]) {
+      expect(section, `section 19 still writes ${table}`).not.toMatch(
+        new RegExp(`(INSERT INTO|UPDATE|DELETE FROM) public\\.${table}\\b`)
       );
     }
+    // The retired fixed show is never created or reset any more.
+    expect(seed).not.toContain(`'${RETIRED_SHOW}',\n  'Heartland Scent Work Week'`);
   });
 
-  it('never deletes the show-day show, its trials or its classes: they are upserted', () => {
-    // Section 0 may only delete shows the paid-stray guard names, and this one
-    // is not named there. A delete would cascade its entries past the guard.
-    for (const table of ['shows', 'trials', 'classes']) {
-      for (const del of seed.matchAll(new RegExp(`DELETE FROM public\\.${table}\\b[^;]*;`, 'g'))) {
-        expect(del[0]).not.toContain(SHOW_ID);
-        expect(del[0]).not.toMatch(/dededede-0000-0000-0014-|dec1a55e-0000-0000-0014-/);
-      }
-    }
-    expect(section.match(/ON CONFLICT \(id\) DO UPDATE/g)?.length).toBe(3);
+  it('clears what the fixture minted before the paid-stray guard and the dog delete', () => {
+    const guard = seed.indexOf('SELECT public.seed_demo_assert_no_paid_strays();');
+    const entryDelete = seed.indexOf(
+      `DELETE FROM public.entries\nWHERE id >= ${RANGE_LOW}\n  AND id <  ${RANGE_HIGH};`
+    );
+    expect(entryDelete, 'marker-range entry delete not found').toBeGreaterThan(-1);
+    expect(entryDelete).toBeLessThan(guard);
+    const armbandDelete = seed.indexOf(`OR (show_id >= ${RANGE_LOW}`);
+    expect(armbandDelete, 'marker-range armband delete not found').toBeGreaterThan(-1);
+    expect(armbandDelete).toBeLessThan(guard);
+    expect(seed.indexOf(CALL)).toBeGreaterThan(guard);
   });
 
-  it('posts only normal-priority announcements, so a reseed never sends a web push', () => {
-    const insert = section.slice(section.indexOf('INSERT INTO public.show_announcements'));
-    const body = insert.slice(0, insert.indexOf(';'));
+  it('never updates or deletes an existing row', () => {
+    expect(restoreBody.length).toBeGreaterThan(1000);
+    expect(restoreBody).not.toMatch(/\bUPDATE\s+public\./);
+    expect(restoreBody).not.toMatch(/\bDELETE\s+FROM\b/);
+    expect(restoreBody).not.toMatch(/ON CONFLICT/);
+    expect(restoreBody).not.toMatch(/EXECUTE\s/);
+  });
+
+  it('mints every id in the marker range, which gen_random_uuid can never produce', () => {
+    const inserts = [...restoreBody.matchAll(/INSERT INTO public\.(\w+)/g)].map(m => m[1]);
+    expect(inserts).toEqual([
+      'shows',
+      'show_visibility_settings',
+      'trials',
+      'classes',
+      'armbands',
+      'entries',
+      'judge_assignments',
+      'show_announcements',
+    ]);
+    // Seven minting sites: trials, classes, the show, armbands, entries, judges,
+    // announcements (show_visibility_settings is keyed by the show).
+    expect(restoreBody.split(MARKER).length - 1).toBe(7);
+    expect(fn).toContain(`s.id >= ${RANGE_LOW}`);
+    expect(fn).toContain("s.club_id = 'dededede-0000-0000-0000-000000000001'");
+  });
+
+  it("dates the fixture from now() in the show's timezone, never from UTC CURRENT_DATE", () => {
+    expect(fn).toContain("v_today date := (now() AT TIME ZONE 'America/Chicago')::date;");
+    expect(fn).not.toMatch(/CURRENT_DATE/);
+    expect(restoreBody).toMatch(/v_today \+ o\.n/);
+    expect(fn).toContain('AND t.date = (now() AT TIME ZONE t.timezone)::date');
+  });
+
+  it('posts only normal-priority announcements, so a fixture never pushes', () => {
+    const at = restoreBody.indexOf('INSERT INTO public.show_announcements');
+    const body = restoreBody.slice(at, restoreBody.indexOf(';', at));
     expect(body).toContain("'secretary', 'Jordan Ellis', v.title, v.content, 'normal'");
     expect(body).not.toMatch(/'(high|urgent)'/);
   });
 
-  it('keeps self-check-in on at both levels and asserts the fixture after inserting it', () => {
-    expect(section).toContain("'8:00 AM', true, 'scent_work'");
-    expect(section).toContain(
+  it('keeps self-check-in on at both levels and requires live rows for readiness', () => {
+    expect(restoreBody).toContain("'8:00 AM', true, 'scent_work'");
+    expect(restoreBody).toContain(
       "'open', 'class_complete', 'immediate', 'immediate', 'immediate', true"
     );
-    expect(section).toContain("'09:00'::time");
-    expect(section).toContain('AND t.date = (now() AT TIME ZONE t.timezone)::date');
-    expect(section).toContain("RAISE EXCEPTION 'seed-demo: expected exactly 1 show-day entry");
+    expect(restoreBody).toContain("'09:00'::time");
+    expect(fn).toMatch(/s\.deleted_at IS NULL AND t\.deleted_at IS NULL/);
+    expect(fn).toMatch(/c\.deleted_at IS NULL AND e\.deleted_at IS NULL/);
+  });
+
+  it('is service-role only: a SECURITY DEFINER restore and an INVOKER lookup', () => {
+    expect(restoreBody).toMatch(/SECURITY DEFINER\s+SET search_path = ''/);
+    expect(fn).toMatch(/STABLE\s+SECURITY INVOKER\s+SET search_path = ''/);
+    for (const name of ['seed_demo_restore_show_day_fixture', 'seed_demo_show_day_fixture_today']) {
+      for (const role of ['PUBLIC', 'anon', 'authenticated']) {
+        expect(fn).toContain(`REVOKE ALL ON FUNCTION public.${name}() FROM ${role};`);
+      }
+      expect(fn).toContain(`GRANT EXECUTE ON FUNCTION public.${name}() TO service_role;`);
+    }
   });
 });

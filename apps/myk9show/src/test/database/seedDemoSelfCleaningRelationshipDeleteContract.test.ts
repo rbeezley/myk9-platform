@@ -250,11 +250,11 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
     // that runs BEFORE the guard and is scoped wider than the seed's own ids
     // removes the strays the guard exists to catch, and every placement
     // assertion stays green — the same shape as the two defects already found.
-    // So pin what may precede it: exactly the two id-scoped deletes.
+    // So pin what may precede it: exactly the three id-scoped deletes.
     const guard = seed.indexOf('SELECT public.seed_demo_assert_no_paid_strays();');
     const before = statements(/DELETE FROM public\.entries\b[^;]*;/g).filter(d => d.index < guard);
 
-    expect(before.length, 'an entries delete was added before the paid-stray guard').toBe(2);
+    expect(before.length, 'an entries delete was added before the paid-stray guard').toBe(3);
     expect(
       before[0].text,
       'the first pre-guard entries delete is no longer the myk9_109 id range'
@@ -263,6 +263,13 @@ describe('seed-demo self-cleaning relationship deletes (MYK9-490 follow-up)', ()
       before[1].text,
       'the second pre-guard entries delete is no longer the hard-coded id list'
     ).toMatch(/id IN \(\s*'dededede-0000-0000-0000-000000000051'/);
+    // MYK9-731: the ids the show-day fixture function mints, its own range.
+    expect(
+      before[2].text,
+      'the third pre-guard entries delete is no longer the show-day fixture id range'
+    ).toMatch(
+      /id >= 'dededede-0000-0000-0731-000000000000'::uuid\s+AND id < {2}'dededede-0000-0000-0732-000000000000'::uuid/
+    );
     for (const del of before) {
       expect(
         del.text,

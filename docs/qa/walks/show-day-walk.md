@@ -13,18 +13,19 @@ Working directory: /Users/richardbeezley/AI Projects/myk9-platform
 - **SQL access.** Every assertion below is checked against the database through the Supabase MCP server. Run `select 1` first. If the server is missing or needs authentication, say so at the top of the report and stop: this walk's whole claim is "the database holds exactly what each role saw", and without SQL it cannot make it.
 - **Record two SHAs:** the `origin/main` commit the worktree is cut from, and the prior show-day walk's baseline SHA (the newest `docs/audits/*-show-day-walk-*.md`). List, in the report, the commits since then touching `/at-show`, ringside scoring, check-in, the replication packages or entries' result columns (`git log --oneline <prior>..<current> -- apps/myk9show/src packages supabase/migrations`), and walk those first.
 - **Surface.** Say whether you walked the deployed staging bundle (and the commit it was built from, named by the latest Deploy myK9Show run summary) or a local dev server on `origin/main`. Both share the staging database.
-- **A show must be running today.** The walk runs on the show-day fixture `Heartland Scent Work Week` (`dededede-0000-0000-0000-000000000014`, seeded by `supabase/seed-demo.sql` section 19, MYK9-731). Find today's class:
+- **A show must be running today.** The walk runs on the show-day fixture `Heartland Scent Work Week`, created by `public.seed_demo_restore_show_day_fixture()` (seed section 19 and the owner's restore, MYK9-731). There is no fixed id: each fixture is a new show with an id starting `dededede-0000-0000-0731-`, and older ones with the same name stay behind in the past. Find today's show and class:
 
   ```sql
-  select t.id as trial_id, t.date, c.id as class_id, c.name, c.start_time, c.status,
-         (select count(*) from entries e where e.class_id = c.id) as entries
-  from trials t
+  select s.id as show_id, t.id as trial_id, t.date, c.id as class_id, c.name, c.start_time, c.status,
+         (select count(*) from entries e where e.class_id = c.id and e.deleted_at is null) as entries
+  from shows s
+  join trials t on t.show_id = s.id and t.deleted_at is null
   join classes c on c.trial_id = t.id and c.deleted_at is null
-  where t.show_id = 'dededede-0000-0000-0000-000000000014'
+  where s.id = public.seed_demo_show_day_fixture_today()
     and t.date = (now() at time zone t.timezone)::date;
   ```
 
-  One row is the fixture working. Zero rows means nobody has reseeded for seven days and the window has lapsed. Then stop, write a short report saying the walk is **blocked: show-day fixture stale**, name the fixture's last trial date, and do not walk anything else. Never create or re-date a show to work around it.
+  One row is the fixture working. Use that `show_id` for every page and query below; never pick a `Heartland Scent Work Week` by name, because older fixtures share it. Zero rows means no fixture is ready today: its window lapsed, or it was soft-deleted (the old fixed show was, from the app, on 2026-10-01). Then stop, write a short report saying the walk is **blocked: show-day fixture stale**, and say the owner's restore is due (`select public.seed_demo_restore_show_day_fixture();`, [`docs/operations/staging-reseed.md`](../../operations/staging-reseed.md#show-day-fixture-restore-between-reseeds)). Do not walk anything else. Never run the restore, or create or re-date a show, yourself.
 
 - **Pick the walk's dog.** The walk enters `exhibitor@`'s seeded dog **Ranger** (`dededede-0000-0000-0000-000000000042`) in today's class. Assert first that Ranger has no entry in that class (`select count(*) from entries where dog_id = '…042' and class_id = '<today's class>'` is 0). If one exists, an earlier run left residue: report it, do not reuse or delete it, and stop.
 
@@ -62,7 +63,7 @@ It never touches the seeded Willow or Cooper entries, never completes or release
 
 Record the SQL row for the walk's entry after every step: `check_in_status, is_scored, result_status, search_time_seconds, total_faults, run_order, armband, version, updated_at`.
 
-1. **Secretary: add and check in.** From the secretary's show page for `Heartland Scent Work Week`, add a day-of mail-in entry for Ranger in today's class. A secretary takes day-of entries on a real show day, so if the UI refuses because entries are closed, that is a finding (see MYK9-642 for the day-of entry flag), and the walk stops there with the refusal recorded. Then check the entry in from the check-in surface (Known mechanics has the route). Assert in SQL: exactly one new entry, handler `exhibitor@`, `check_in_status = 'checked-in'`, an armband and a run order.
+1. **Secretary: add and check in.** From the secretary's show page for today's fixture (the `show_id` the precondition returned), add a day-of mail-in entry for Ranger in today's class. A secretary takes day-of entries on a real show day, so if the UI refuses because entries are closed, that is a finding (see MYK9-642 for the day-of entry flag), and the walk stops there with the refusal recorded. Then check the entry in from the check-in surface (Known mechanics has the route). Assert in SQL: exactly one new entry, handler `exhibitor@`, `check_in_status = 'checked-in'`, an armband and a run order.
 2. **Judge: score online.** Sign in as the judge, open today's class from the judge dashboard into `/at-show`, and score Ranger: qualified, a search time you choose, zero faults. Assert in SQL that the row holds exactly those values once.
 3. **Judge: one offline cycle.** With the scoring screen still open, go offline (`context.setOffline(true)`). Edit Ranger's score (a different search time) and save. The UI must say the change is saved locally or pending, never that it failed or that it reached the server. Assert in SQL that the row still holds the ONLINE value, which proves the edit did not bypass the queue. Reconnect (`setOffline(false)`) and wait for the pending-sync indicator to clear. Assert in SQL: the row holds the OFFLINE value, `version` rose by exactly one per accepted write, there is still exactly one Ranger entry in the class, and no other entry changed. Record every scoring request the browser made during the cycle with its HTTP status: more than one conflict response, or any request still retrying after the indicator cleared, is the OCC conflict storm (MYK9-740, memory "Ringside OCC Conflict Storm") and a P1.
 4. **Exhibitor: read the same entry.** Sign in as `exhibitor@` in a fresh context (cold replica) and find Ranger's entry on every surface that states a fact about it: My Entries, the dog's own page, the show's schedule or trial timeline, and the show-day view.
@@ -110,7 +111,7 @@ Everything below this line is measured fact about the app, the fixtures and the 
 
 Written before the first run, from the code and the other walks' reports. **Verify each** and correct it here.
 
-- **The fixture.** `Heartland Scent Work Week` has one trial per day for seven days from the reseed day, each with one class, `Container Novice A` at 9:00 AM, holding Willow (`exhibitor@`, run 1, armband 200) and Cooper (`secretary@`'s dog, run 2, armband 201), judge fixture assigned at class level, self-check-in on, and two normal-priority announcements. Dates are in the trial's timezone, America/Chicago; the SQL above compares against that, not UTC.
+- **The fixture.** `Heartland Scent Work Week` has one trial per day for seven days from the day it was created, each with one class, `Container Novice A` at 9:00 AM, holding Willow (`exhibitor@`, run 1, armband 200) and Cooper (`secretary@`'s dog, run 2, armband 201), judge fixture assigned at class level, self-check-in on, and two normal-priority announcements. Dates are in the trial's timezone, America/Chicago; the SQL above compares against that, not UTC.
 - **Do not walk on the exhibitor walk's day.** The exhibitor walk self-checks-in today's Willow entry; a same-day run of this walk sees that change in the class. The schedule keeps them on different days.
 - **Routes.** Show Desk: `/shows/:id/show-day`, which accepts `?focus=<classId>`; Run order and Move up appear only on a focused class. Entry Management: `/shows/:id/entries`. Check-in: Show Desk → Tools → **People at show** → exhibitor row → `Check in`, plus a `Check-in status for <dog>` button on the class page; its undo lives in Ringside. Judge: `/judge/dashboard` → class → `/at-show`.
 - **The judge reaches this class only because its assignment is class-level.** A trial- or show-level `judge_assignments` row never reaches the dashboard (seed section 11). If the class is missing from the judge dashboard, check that before calling it a defect.

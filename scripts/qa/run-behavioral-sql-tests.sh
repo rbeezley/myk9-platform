@@ -167,6 +167,8 @@ TEST_FILES=(
   "$TEST_DIR/update_entry_handler_for_entry_management_test.sql"
   "$TEST_DIR/seed_demo_paid_stray_guard_test.sql"
   "$TEST_DIR/seed_demo_paid_stray_guard_scopes_test.sql"
+  "$TEST_DIR/myk9_731_restore_show_day_fixture_test.sql"
+  "$TEST_DIR/myk9_731_restore_show_day_fixture_containment_test.sql"
 )
 
 for test_file in "${TEST_FILES[@]}"; do

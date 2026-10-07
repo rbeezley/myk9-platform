@@ -22,6 +22,12 @@ describe('myK9Show brand assets', () => {
     ['public/pwa-512x512.png', 512],
     ['public/pwa-maskable-512x512.png', 512],
     ['public/notification-badge-96.png', 96],
+    ['public/brand-mark-28.png', 28],
+    ['public/brand-mark-56.png', 56],
+    ['public/brand-mark-84.png', 84],
+    ['public/brand-mark-primary-72.png', 72],
+    ['public/brand-mark-primary-144.png', 144],
+    ['public/brand-mark-primary-216.png', 216],
     ['public/brand-mark-64.png', 64],
     ['public/brand-mark-128.png', 128],
     ['public/logo.png', 1024],
@@ -86,20 +92,26 @@ describe('myK9Show brand assets', () => {
     expect(signIn).toContain('src="/logo.svg"');
   });
 
-  it.each(['logo.svg', 'brand-mark.svg'])('ships %s as self-contained vector paths', name => {
-    const svg = readFileSync(join(appRoot, 'public', name), 'utf8');
-    expect(svg).toContain('<path');
-    expect(svg).toContain('<title>myK9Show</title>');
-    expect(svg).not.toMatch(/<image\b|<text\b|data:image|font-family/);
-  });
+  it.each(['logo.svg', 'brand-mark.svg', 'brand-mark-primary.svg'])(
+    'ships %s as self-contained vector paths',
+    name => {
+      const svg = readFileSync(join(appRoot, 'public', name), 'utf8');
+      expect(svg).toContain('<path');
+      expect(svg).toContain('<title>myK9Show</title>');
+      expect(svg).not.toMatch(/<image\b|<text\b|data:image|font-family/);
+    }
+  );
 
-  it('uses the transparent approved mark in the About dialog', () => {
+  it('uses density-aware primary PNGs in the About dialog', () => {
     const aboutDialog = readFileSync(
       join(appRoot, 'src/components/common/AboutDialog.tsx'),
       'utf8'
     );
 
-    expect(aboutDialog).toContain('src="/brand-mark.svg"');
+    expect(aboutDialog).toContain('src="/brand-mark-primary-72.png"');
+    expect(aboutDialog).toContain(
+      'srcSet="/brand-mark-primary-72.png 1x, /brand-mark-primary-144.png 2x, /brand-mark-primary-216.png 3x"'
+    );
     expect(aboutDialog).not.toContain('src="/pwa-192x192.png"');
   });
 

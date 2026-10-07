@@ -14,5 +14,14 @@ export type {
   ListOptionsFilterField,
   ListDateRangeFilterField,
   ListDateRange,
+  ListMultiOptionsFilterField,
+  ListMenuFilterField,
 } from './types';
 export { patchSearchParams } from './patchSearchParams';
+export { parseListParam, serializeListParam } from './listParam';
+export {
+  describeAppliedFilter,
+  isFieldActive,
+  keepKnownValues,
+  toggleValue,
+} from './filterFieldState';

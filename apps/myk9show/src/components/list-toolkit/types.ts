@@ -41,6 +41,20 @@ export interface ListDateRangeFilterField extends ListFilterFieldBase {
 
 export type ListFilterField = ListOptionsFilterField | ListDateRangeFilterField;
 
+/**
+ * Pick any number of values from a list, e.g. Trial or Class in the Filter
+ * menu (docs/plan-entries-filter-button.md). An empty list means unfiltered.
+ */
+export interface ListMultiOptionsFilterField extends ListFilterFieldBase {
+  kind: 'multiOptions';
+  options: ListFilterOption[];
+  values: string[];
+  onChange: (values: string[]) => void;
+}
+
+/** Every field the Filter menu takes. `ListFilterBar` still takes only `ListFilterField`. */
+export type ListMenuFilterField = ListFilterField | ListMultiOptionsFilterField;
+
 export interface ListView {
   id: string;
   label: string;

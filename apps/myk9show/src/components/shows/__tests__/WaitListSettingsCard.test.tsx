@@ -106,7 +106,7 @@ describe('WaitListSettingsCard', () => {
     expect(screen.queryByLabelText('Mail-In Deadline')).not.toBeInTheDocument();
   });
 
-  it('shows "Mail-In Deadline" input when strategy is deadline', async () => {
+  it('replaces a legacy deadline strategy with none only when settings are saved', async () => {
     mockSingle.mockResolvedValue({
       data: makeRow({ mail_in_strategy: 'deadline', mail_in_deadline: '2026-05-01' }),
       error: null,
@@ -115,10 +115,37 @@ describe('WaitListSettingsCard', () => {
     render(<WaitListSettingsCard showId="show-1" />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText('Mail-In Deadline')).toBeInTheDocument();
+      expect(screen.getByLabelText('Judge Daily Capacity')).toHaveValue(125);
     });
+    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(screen.getByText(/Deadline reservations did not hold any spots/)).toBeVisible();
     expect(screen.queryByLabelText('Reserved Spots')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Reserved Percentage')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ mail_in_strategy: 'none', mail_in_deadline: null })
+      );
+    });
+    expect(screen.queryByLabelText('Mail-In Deadline')).not.toBeInTheDocument();
+  });
+
+  it('offers only strategies that reserve spots as described', async () => {
+    const user = userEvent.setup();
+    render(<WaitListSettingsCard showId="show-1" />);
+    await waitFor(() => expect(screen.getByLabelText('Judge Daily Capacity')).toHaveValue(125));
+    expect(screen.getByText('No spots are reserved for mail-in entries.')).toBeVisible();
+    await user.click(screen.getByRole('combobox', { name: 'Mail-In Reservation Strategy' }));
+    expect(screen.queryByRole('option', { name: 'Deadline' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: 'Fixed Count' }));
+    expect(screen.getByText(/Hold this many spots per judge day/)).toBeVisible();
+    fireEvent.change(screen.getByLabelText('Reserved Spots'), { target: { value: '10' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ mail_in_strategy: 'fixed', mail_in_value: 10 })
+      )
+    );
   });
 
   it('Save button submits updated config', async () => {

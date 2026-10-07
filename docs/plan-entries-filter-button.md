@@ -29,7 +29,7 @@ Showing 2 of 11 forms · 15 entries
 - **Filter:** one button. Opens a menu: a search box at the top, then the page's fields (Trial, Class), each with its values and live counts. Values are checkboxes: pick several, the menu stays open. `F` opens it (when no text field is focused). Arrow keys and Enter work; Escape closes.
 - **Applied filters** read as plain sentences with an ×: "Class: Interior Novice B, Exterior Excellent ×". Row hidden when nothing is applied. **Clear all** appears only then.
 - **Add Entry** is the only primary button. **More** stays secondary.
-- Targets 44px; the menu is a full-width sheet under 640px.
+- Targets 44px. On phones the menu is a near-full-width popover (22rem or the screen width minus 2rem), not a bottom sheet; a true sheet is added only if the Oct 10 observation shows the popover is hard to use. `F` goes through the app's shared `useKeyboardShortcuts`, so it is ignored while typing or while a dialog is open, and it only opens (Escape closes).
 
 Filters are **page-specific**: each page declares its fields (`ListMenuFilterField[]`, the single-select, date-range and multi-select kinds), the menu shows only those. No global filter list.
 
@@ -72,7 +72,7 @@ These are rules, not options; Phase 2-4 build to them.
 ## Phases
 
 1. **Model and pure helpers** (no UI): `multiOptions` type, active/sentence helpers, comma-list parse and serialize for params, with tests (round-trip, stale ids dropped, single-value links still work).
-2. **`ListFilterMenu`** (cmdk in a Popover): search, checkbox rows with counts, keyboard (`F`, arrows, Enter, Escape), sheet on phones. Tests: keyboard path, multi-pick keeps the menu open, count wording, empty search result.
+2. **`ListFilterMenu`** (cmdk in a Popover): search, checkbox rows with counts, keyboard (`F`, arrows, Enter, Escape), near-full-width popover on phones. Tests: keyboard path, multi-pick keeps the menu open, count wording, empty search result.
 3. **`ListAppliedFilters`** (sentences, ×, Clear all) and the quiet search; wire both into `ListToolbarLayout` behind a prop so other lists are unchanged.
 4. **Entries wiring**: cockpit params, `entryManagementFilterFields`, `Show:` checkable queues, result line "filtered" test, deep links from other pages (Reports, the show header) re-checked.
 5. **Testing phase** (a phase is not done until these pass): unit and component tests; shuffled full run (`pnpm vitest run --sequence.shuffle`); `pnpm typecheck`, ratchet; browser walk at 375, 768, 1280 with the seeded show: pick two classes, two queues, clear one chip, clear all, reload (URL restores), back button; a measured 44px check on every control with the harness in the scratchpad pattern (known-answer probes first).

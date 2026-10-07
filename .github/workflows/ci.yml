@@ -274,6 +274,7 @@ jobs:
           pnpm qa:edge-function-drift:test
           pnpm qa:worktree-liveness:test
           pnpm qa:primary-checkout:test
+          pnpm qa:logs-path-guard:test
           pnpm qa:ci-concurrency:test
           pnpm qa:deploy-picker:test
           pnpm qa:shared-rules:test

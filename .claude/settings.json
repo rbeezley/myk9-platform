@@ -60,6 +60,18 @@
     ]
   },
   "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "GUARD=\"$CLAUDE_PROJECT_DIR/scripts/qa/logs-path-guard.ts\"; [ -f \"$GUARD\" ] && node --experimental-strip-types --disable-warning=MODULE_TYPELESS_PACKAGE_JSON \"$GUARD\" || true",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "PostToolUse": [
       {
         "matcher": "EnterWorktree",
@@ -76,7 +88,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "INPUT=$(cat); STDERR=$(echo \"$INPUT\" | jq -r '.tool_response.stderr // \"\"' 2>/dev/null); if echo \"$STDERR\" | grep -qE 'getcwd|cannot open current directory'; then printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"CWD deleted \u2014 worktree was removed. Run immediately before next command: cd \\\"$CLAUDE_PROJECT_DIR\\\"\"}}'; fi",
+            "command": "INPUT=$(cat); STDERR=$(echo \"$INPUT\" | jq -r '.tool_response.stderr // \"\"' 2>/dev/null); if echo \"$STDERR\" | grep -qE 'getcwd|cannot open current directory'; then printf '{\"hookSpecificOutput\":{\"hookEventName\":\"PostToolUse\",\"additionalContext\":\"CWD deleted — worktree was removed. Run immediately before next command: cd \\\"$CLAUDE_PROJECT_DIR\\\"\"}}'; fi",
             "statusMessage": "Checking cwd..."
           }
         ]

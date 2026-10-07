@@ -14,6 +14,11 @@ const { trialsSync, classesSync, entriesSync } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/services/replication', () => ({
+  replicatedArmbandsTable: {
+    getByShow: vi.fn(async () => []),
+    sync: vi.fn(),
+    subscribe: vi.fn(() => vi.fn()),
+  },
   replicatedTrialsTable: {
     sync: (...args: unknown[]) => trialsSync(...args),
     getTrialsByShow: async () => [{ id: 'trial-1' }],
@@ -22,6 +27,7 @@ vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: { sync: (...args: unknown[]) => entriesSync(...args) },
 }));
 
+import { replicatedArmbandsTable } from '@/services/replication';
 import { subscribeAtShowSyncSettled, syncAtShowData } from './atShowDataAdapter';
 
 function deferred() {
@@ -37,6 +43,7 @@ const flush = () => new Promise(resolve => setTimeout(resolve, 0));
 describe('subscribeAtShowSyncSettled', () => {
   beforeEach(() => {
     trialsSync.mockClear();
+    vi.mocked(replicatedArmbandsTable.sync).mockReset();
     classesSync.mockReset().mockImplementation(async () => ({ success: true }));
     entriesSync.mockReset().mockImplementation(async () => ({ success: true }));
   });
@@ -98,6 +105,25 @@ describe('subscribeAtShowSyncSettled', () => {
     await flush();
     expect(listener).toHaveBeenCalledTimes(1);
     unsubscribe();
+  });
+
+  it('waits for armbands even if another scope fails, then releases the readiness listener', async () => {
+    const armbands = deferred();
+    vi.mocked(replicatedArmbandsTable.sync).mockReturnValueOnce(armbands.promise as never);
+    classesSync.mockRejectedValueOnce(new Error('network'));
+    const listener = vi.fn();
+    const stop = subscribeAtShowSyncSettled('show-armbands', listener);
+    const outcome = syncAtShowData('show-armbands').then(
+      () => 'resolved',
+      () => 'failed'
+    );
+    await flush();
+    expect(listener).not.toHaveBeenCalled();
+    armbands.resolve();
+    expect(await outcome).toBe('failed');
+    await flush();
+    expect(listener).toHaveBeenCalledTimes(1);
+    stop();
   });
 
   it('stops firing after unsubscribe', async () => {

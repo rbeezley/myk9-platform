@@ -12,6 +12,11 @@ const { trialsSync, classesSync, entriesSync } = vi.hoisted(() => ({
 }));
 
 vi.mock('@/services/replication', () => ({
+  replicatedArmbandsTable: {
+    getByShow: vi.fn(async () => []),
+    sync: vi.fn(),
+    subscribe: vi.fn(() => vi.fn()),
+  },
   replicatedTrialsTable: {
     sync: (id: string, options?: unknown) => trialsSync(id, options),
     getTrialsByShow: async () => [{ id: 'trial-1' }],
@@ -20,6 +25,7 @@ vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: { sync: (...args: unknown[]) => entriesSync(...args) },
 }));
 
+import { replicatedArmbandsTable } from '@/services/replication';
 import { syncAtShowData } from './atShowDataAdapter';
 
 function deferred() {
@@ -39,6 +45,7 @@ describe('syncAtShowData forceFullSync', () => {
     trialsSync.mockReset();
     classesSync.mockClear();
     entriesSync.mockClear();
+    vi.mocked(replicatedArmbandsTable.sync).mockClear();
   });
 
   it('passes forceFullSync to the trials, classes and entries syncs', async () => {
@@ -48,6 +55,8 @@ describe('syncAtShowData forceFullSync', () => {
     expect(trialsSync).toHaveBeenCalledWith('show-a', { forceFullSync: true });
     expect(classesSync).toHaveBeenCalledWith('trial-1', { forceFullSync: true });
     expect(entriesSync).toHaveBeenCalledWith('show-a', { forceFullSync: true });
+    // Armbands are always a full fetch, scoped to the same show.
+    expect(replicatedArmbandsTable.sync).toHaveBeenCalledWith('show-a');
   });
 
   it('an ordinary call shares the sync already running', async () => {

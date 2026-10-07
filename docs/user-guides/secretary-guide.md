@@ -353,7 +353,7 @@ The report works out who is eligible and ranks them for you. One section per dif
 
 > Per-class placements (1–4) are calculated separately and automatically — see card 20.
 
-> **High Combined Division is not calculated** (MYK9-973). If you offer Handler Discrimination alongside High in Trial, AKC requires you to confer HCD as well, and you'll need to work that one out by hand.
+> **High Combined Division appears in the same report** when a trial offers High in Trial and Handler Discrimination. Each HCD level counts its available odor classes plus Handler Discrimination, even when fewer odor elements run at that level. A team must qualify in every available odor element plus Handler Discrimination at that same level. Totals include all of those runs, ranked by fewest faults then fastest time; exact ties need a coin flip recorded by hand. PROVISIONAL means results or ranking numbers are still missing. If no team qualifies in every required class, there is no HCD award (AKC Chapter 6 §§9–10).
 
 ---
 
@@ -361,10 +361,9 @@ The report works out who is eligible and ranks them for you. One section per dif
 
 Honest list, so nothing surprises you mid-show.
 
-| What                         | Status                                                                                                                                 |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| High Combined Division (HCD) | Not built — calculate by hand when you offer Handler Discrimination (card 27, MYK9-973)                                                |
-| Waitlist offers              | Never run on real data; offers can't be tracked or withdrawn from the tab, and the deadline isn't shown (card 7, MYK9-1001, MYK9-1002) |
+| What            | Status                                                                                                                                 |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Waitlist offers | Never run on real data; offers can't be tracked or withdrawn from the tab, and the deadline isn't shown (card 7, MYK9-1001, MYK9-1002) |
 
 ---
 

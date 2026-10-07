@@ -31,6 +31,63 @@ describe('ReplicatedArmbandsTable', () => {
     await databaseManager.reset();
   });
 
+  it('scopes a download to one show and retains other shows in the replica', async () => {
+    const { supabase } = await import('@/services/database/supabaseClient');
+    const query = {
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      order: vi.fn().mockReturnThis(),
+      then: (resolve: (value: unknown) => unknown) =>
+        Promise.resolve({
+          count: 1,
+          data: [
+            { id: 'remote-one', show_id: 'show-1', armband_number: '101', is_available: false },
+          ],
+          error: null,
+        }).then(resolve),
+    };
+    vi.mocked(supabase.from).mockReturnValue(query as never);
+    await table.batchSet([
+      { id: 'other-show', showId: 'show-2', armbandNumber: '202', isAvailable: false },
+    ]);
+    expect((await table.sync('show-1')).success).toBe(true);
+    expect(query.eq).toHaveBeenCalledWith('show_id', 'show-1');
+    expect(await table.get('other-show')).toMatchObject({ armbandNumber: '202' });
+    expect(await table.getByShow('show-1')).toEqual([
+      expect.objectContaining({ id: 'remote-one', armbandNumber: '101' }),
+    ]);
+  });
+
+  it.each([2, undefined])(
+    'keeps cached scope rows when coverage is capped or unknown (%s)',
+    async count => {
+      const { supabase } = await import('@/services/database/supabaseClient');
+      const query = {
+        select: vi.fn().mockReturnThis(),
+        eq: vi.fn().mockReturnThis(),
+        order: vi.fn().mockReturnThis(),
+        then: (resolve: (value: unknown) => unknown) =>
+          Promise.resolve({
+            count,
+            data: [
+              { id: 'remote-one', show_id: 'show-1', armband_number: '101', is_available: false },
+            ],
+            error: null,
+          }).then(resolve),
+      };
+      vi.mocked(supabase.from).mockReturnValue(query as never);
+      await table.batchSet([
+        { id: 'not-returned', showId: 'show-1', armbandNumber: '102', isAvailable: false },
+        { id: 'other-show', showId: 'show-2', armbandNumber: '202', isAvailable: false },
+      ]);
+      const cleanup = vi.spyOn(table, 'removeStaleEntries');
+      expect((await table.sync('show-1')).success).toBe(true);
+      expect(cleanup).not.toHaveBeenCalled();
+      expect(await table.get('not-returned')).toMatchObject({ armbandNumber: '102' });
+      expect(await table.get('other-show')).toMatchObject({ armbandNumber: '202' });
+    }
+  );
+
   it('queues a narrow update when assigning an existing show/dog armband row', async () => {
     const queueMutation = vi.spyOn(
       table as unknown as {

@@ -167,7 +167,11 @@ const WaitlistManagementPage: React.FC<WaitlistManagementPageProps> = ({ showId 
       )}
 
       {judgeDays.length > 0 && (
-        <JudgeCapacityOverview judgeDays={judgeDays} onViewWaitList={viewJudgeDay} />
+        <JudgeCapacityOverview
+          judgeDays={judgeDays}
+          onViewWaitList={viewJudgeDay}
+          capacityShowId={showId}
+        />
       )}
 
       {selectedJudgeDay && (

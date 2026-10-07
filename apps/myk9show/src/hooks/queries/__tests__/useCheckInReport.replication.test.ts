@@ -162,43 +162,49 @@ describe('fetchReplicatedCheckInEntries', () => {
     ]);
   });
 
-  it('ignores armbands that are not explicitly assigned', async () => {
-    replicationMocks.getEntriesByShow.mockResolvedValue([
-      {
-        id: 'entry-1',
-        showId: 'show-1',
-        dogId: 'dog-1',
-        handlerId: 'handler-1',
-        handler: 'Cher',
-        dogCallName: 'Buddy',
-        classId: 'class-1',
-      },
-    ]);
-    replicationMocks.getClassById.mockResolvedValue({
-      id: 'class-1',
-      trialId: 'trial-1',
-      element: 'Buried',
-      level: 'Novice',
-    });
-    replicationMocks.getTrialsByShow.mockResolvedValue([
-      { id: 'trial-1', date: '2026-04-12', name: 'Trial 1', trialNumber: 'Trial 1' },
-    ]);
-    replicationMocks.getArmbandsByShow.mockResolvedValue([
-      {
-        id: 'pool-armband',
-        showId: 'show-1',
-        dogId: 'dog-1',
-        armbandNumber: '999',
-        isAvailable: undefined,
-      },
-    ]);
+  it.each([
+    [true, null],
+    [undefined, 999],
+  ])(
+    'uses canonical assignment availability for isAvailable=%s',
+    async (isAvailable, expectedArmband) => {
+      replicationMocks.getEntriesByShow.mockResolvedValue([
+        {
+          id: 'entry-1',
+          showId: 'show-1',
+          dogId: 'dog-1',
+          handlerId: 'handler-1',
+          handler: 'Cher',
+          dogCallName: 'Buddy',
+          classId: 'class-1',
+        },
+      ]);
+      replicationMocks.getClassById.mockResolvedValue({
+        id: 'class-1',
+        trialId: 'trial-1',
+        element: 'Buried',
+        level: 'Novice',
+      });
+      replicationMocks.getTrialsByShow.mockResolvedValue([
+        { id: 'trial-1', date: '2026-04-12', name: 'Trial 1', trialNumber: 'Trial 1' },
+      ]);
+      replicationMocks.getArmbandsByShow.mockResolvedValue([
+        {
+          id: 'pool-armband',
+          showId: 'show-1',
+          dogId: 'dog-1',
+          armbandNumber: '999',
+          isAvailable,
+        },
+      ]);
 
-    const { fetchReplicatedCheckInEntries } = await import('../useCheckInReportReplication');
+      const { fetchReplicatedCheckInEntries } = await import('../useCheckInReportReplication');
 
-    const rows = await fetchReplicatedCheckInEntries('show-1');
+      const rows = await fetchReplicatedCheckInEntries('show-1');
 
-    expect(rows[0].armband_number).toBeNull();
-    expect(rows[0].handler_first_name).toBe('Cher');
-    expect(rows[0].handler_last_name).toBeNull();
-  });
+      expect(rows[0].armband_number).toBe(expectedArmband);
+      expect(rows[0].handler_first_name).toBe('Cher');
+      expect(rows[0].handler_last_name).toBeNull();
+    }
+  );
 });

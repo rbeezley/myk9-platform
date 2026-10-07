@@ -114,6 +114,33 @@ INTENT names _checking schedule_ ("I know where to be") before _entry status_, w
 
 ---
 
+## Phase E — Show day: your dogs' classes in one order
+
+**Linear:** MYK9-1046 · **Added:** 2026-10-07 (from an outside design review, reconciled against existing work)
+**Entry trigger:** MYK9-992 (place in line from `runQueue.ts`) shipped. Not before the Oct 10 test show.
+**Exit criterion:** on a show's day, an exhibitor with two or more dogs answers _"where do I go next?"_ from one list, without reading several dog cards.
+
+**The gap.** On show day, My Shows groups a show's entries one card per dog (`MyShowGroup` → `MyShowDogCard` → `MyShowClassRow`). That suits receipts and edits. It does not suit logistics: with two dogs in two rings, the exhibitor builds the day's order in their head.
+
+**Does this duplicate an existing page?** No. It changes the order of the show group that is already there, on its show day only. No new route, page or tab. Receipts, edits and payments stay on the dog cards.
+
+### Work
+
+1. On a show's day, the show group opens with **"Your dogs today"**: every class entry for that day across the exhibitor's dogs, ordered by ring, then class start, then place in line, with a dog filter (All · each dog).
+2. Each row shows dog, class, ring, check-in state, and the one next action that already exists for it (check in, view class). No new actions.
+3. Place in line comes from MYK9-992. Do not compute a second run order.
+4. Every place-in-line value shows when it was last updated. Estimated times never read as promises.
+5. Reuse `detectMyRingConflicts` (`features/at-show/ringConflicts.ts`) to flag two of your dogs due in different rings at once, in words as well as color.
+
+### Verification
+
+- Unit: the order matches the run queue for a multi-dog fixture. The dog filter counts each entry once.
+- Render: off show day, My Shows is unchanged.
+- Offline: a reload renders the list from the replicated cache and says it may be out of date.
+- Browser: walk at 375px and 1440px as a seeded multi-dog exhibitor on a show day.
+
+---
+
 ## Sequencing rationale
 
 A gates B because both turn on one question — _what is the exhibitor's primary axis?_ Answering it twice is how the two front doors appeared in the first place. C and D are independent; D can be picked up by anyone at any time.
@@ -124,6 +151,7 @@ A gates B because both turn on one question — _what is the exhibitor's primary
 | B     | 1–2      | A                           |
 | C     | 1        | B (soft — could go earlier) |
 | D     | 1        | nothing                     |
+| E     | 1        | MYK9-992                    |
 
 ## Out of scope
 

@@ -12,26 +12,125 @@
  * Only WRITES are refused (`>`, `>>`, `2>`, `&>`, `tee`). Reading an old
  * `.logs-*.txt` stays allowed so a session can still inspect what it wrote.
  *
- * Words are read quote-aware: this repo lives under "AI Projects", and a guard
- * that splits on whitespace is off for every quoted path (LESSONS
- * guard-word-split). Known-answer fixtures live in logs-path-guard.test.ts.
+ * Commands are lexed quote-aware (see `tokenize`): this repo lives under
+ * "AI Projects", and a guard that splits on whitespace is off for every quoted
+ * path (LESSONS guard-word-split). Known-answer fixtures live in
+ * logs-path-guard.test.ts.
  */
 
 import { pathToFileURL } from 'node:url';
 
-// One shell word: double-quoted, single-quoted, or a bare run of non-separators.
-const WORD = String.raw`"(?:[^"\\]|\\.)*"|'[^']*'|(?:[^\s"';|&<>()\\]|\\.)+`;
+type Token =
+  | { kind: 'word'; value: string }
+  | { kind: 'sep' }
+  // write: `>` `>>` `>|` `&>` `&>>`; read: `<` `<<<`; dup: `>&N`, `<&N`
+  | { kind: 'redirect'; mode: 'write' | 'read' | 'dup' }
+  | { kind: 'heredoc'; stripTabs: boolean };
 
-// `>`, `>>`, `1>`, `2>>`, `&>`, `&>>`; never `>&` (an fd dup such as `2>&1`).
-const REDIRECT = new RegExp(String.raw`(?:^|[^<>&\d])(?:\d|&)?>>?(?!&)\s*(${WORD})`, 'g');
-const TEE = new RegExp(String.raw`\btee((?:\s+(?:${WORD}))+)`, 'g');
-const WORD_ONLY = new RegExp(WORD, 'g');
+/**
+ * A small quote-aware shell lexer: just enough to know which words are WRITE
+ * targets. Adjacent quoted and bare segments join into one word
+ * (`"/a b"/.logs-x.txt` is one path); text inside quotes is never an operator;
+ * `;`, `|`, `&`, `(`, `)` and newlines end a command; heredoc bodies are
+ * skipped, so prose in them is not parsed as commands. It is not a full shell
+ * parser (no `$(…)` nesting or `case` syntax) — a regex version of this guard
+ * both denied quoted prose and missed mixed-quote paths (Codex review, #2812).
+ */
+export function tokenize(command: string): Token[] {
+  const tokens: Token[] = [];
+  const pendingHeredocs: Array<{ delimiter: string; stripTabs: boolean }> = [];
+  let word = '';
+  let inWord = false;
+  let awaitingHeredocDelimiter: boolean | null = null;
+  let i = 0;
 
-function unquote(word: string): string {
-  if (word.length >= 2 && (word[0] === '"' || word[0] === "'") && word.at(-1) === word[0]) {
-    return word.slice(1, -1);
+  const endWord = (): void => {
+    if (!inWord) return;
+    if (awaitingHeredocDelimiter !== null) {
+      pendingHeredocs.push({ delimiter: word, stripTabs: awaitingHeredocDelimiter });
+      awaitingHeredocDelimiter = null;
+    } else {
+      tokens.push({ kind: 'word', value: word });
+    }
+    word = '';
+    inWord = false;
+  };
+
+  const skipHeredocBodies = (): void => {
+    while (pendingHeredocs.length > 0 && i < command.length) {
+      const { delimiter, stripTabs } = pendingHeredocs[0]!;
+      const lineEnd = command.indexOf('\n', i);
+      const stop = lineEnd === -1 ? command.length : lineEnd;
+      const line = command.slice(i, stop);
+      i = stop + 1;
+      if ((stripTabs ? line.replace(/^\t+/, '') : line) === delimiter) pendingHeredocs.shift();
+    }
+  };
+
+  while (i < command.length) {
+    const c = command[i]!;
+    const next = command[i + 1];
+    if (c === '\\') {
+      if (next === '\n') i += 2;
+      else {
+        word += next ?? '';
+        inWord = true;
+        i += 2;
+      }
+    } else if (c === "'") {
+      const close = command.indexOf("'", i + 1);
+      const stop = close === -1 ? command.length : close;
+      word += command.slice(i + 1, stop);
+      inWord = true;
+      i = stop + 1;
+    } else if (c === '"') {
+      i += 1;
+      while (i < command.length && command[i] !== '"') {
+        if (command[i] === '\\' && i + 1 < command.length) i += 1;
+        word += command[i];
+        i += 1;
+      }
+      inWord = true;
+      i += 1;
+    } else if (c === ' ' || c === '\t') {
+      endWord();
+      i += 1;
+    } else if (c === '\n') {
+      endWord();
+      tokens.push({ kind: 'sep' });
+      i += 1;
+      skipHeredocBodies();
+    } else if (c === '>' || c === '<' || (c === '&' && next === '>')) {
+      // A bare run of digits glued to the operator is its fd (`2>`), not a word.
+      if (inWord && /^\d+$/.test(word) && /\d/.test(command[i - 1] ?? '')) {
+        word = '';
+        inWord = false;
+      }
+      endWord();
+      const op = /^(?:&>>?|<<<|<<-?|<&|>&|>>|>\||<>|>|<)/.exec(command.slice(i))![0];
+      i += op.length;
+      if (op === '<<' || op === '<<-') {
+        awaitingHeredocDelimiter = op === '<<-';
+        tokens.push({ kind: 'heredoc', stripTabs: op === '<<-' });
+      } else if (op === '>&' || op === '<&') {
+        tokens.push({ kind: 'redirect', mode: 'dup' });
+      } else if (op === '<' || op === '<<<') {
+        tokens.push({ kind: 'redirect', mode: 'read' });
+      } else {
+        tokens.push({ kind: 'redirect', mode: 'write' });
+      }
+    } else if (c === ';' || c === '|' || c === '&' || c === '(' || c === ')') {
+      endWord();
+      tokens.push({ kind: 'sep' });
+      i += 1;
+    } else {
+      word += c;
+      inWord = true;
+      i += 1;
+    }
   }
-  return word;
+  endWord();
+  return tokens;
 }
 
 /** True when the path's last segment is a `.logs-*` FILE (not `.logs/…`). */
@@ -40,18 +139,40 @@ function isStrayLogPath(path: string): boolean {
   return /^\.logs-[^/]+$/.test(base);
 }
 
-/** The write targets of a command that are stray `.logs-*` files, in order. */
-export function findStrayLogWrites(command: string): string[] {
+/** Every path a command writes to: redirect targets and `tee` file operands. */
+export function writeTargets(command: string): string[] {
   const targets: string[] = [];
-  for (const match of command.matchAll(REDIRECT)) {
-    targets.push(unquote(match[1] ?? ''));
-  }
-  for (const match of command.matchAll(TEE)) {
-    for (const word of (match[1] ?? '').match(WORD_ONLY) ?? []) {
-      if (!word.startsWith('-')) targets.push(unquote(word));
+  let atCommandStart = true;
+  let inTee = false;
+  let redirect: 'write' | 'read' | 'dup' | null = null;
+  for (const token of tokenize(command)) {
+    if (token.kind === 'sep') {
+      atCommandStart = true;
+      inTee = false;
+      redirect = null;
+    } else if (token.kind === 'redirect') {
+      redirect = token.mode;
+    } else if (token.kind === 'word') {
+      if (redirect !== null) {
+        // `>&2` duplicates an fd; `>& file` (no fd number) is bash for `&> file`.
+        const isFd = /^(?:\d+-?|-)$/.test(token.value);
+        if (redirect === 'write' || (redirect === 'dup' && !isFd)) targets.push(token.value);
+        redirect = null;
+      } else if (atCommandStart) {
+        if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(token.value)) continue; // FOO=bar cmd
+        atCommandStart = false;
+        inTee = token.value.split('/').at(-1) === 'tee';
+      } else if (inTee && !token.value.startsWith('-')) {
+        targets.push(token.value);
+      }
     }
   }
-  return targets.filter(isStrayLogPath);
+  return targets;
+}
+
+/** The write targets of a command that are stray `.logs-*` files, in order. */
+export function findStrayLogWrites(command: string): string[] {
+  return writeTargets(command).filter(isStrayLogPath);
 }
 
 /** `../../.logs-w-2790.txt` → `../../.logs/w-2790.txt`. */

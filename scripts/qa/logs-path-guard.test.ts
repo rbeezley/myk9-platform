@@ -22,6 +22,14 @@ const REFUSED: ReadonlyArray<[string, string[]]> = [
   ['pnpm test>.logs-tight.txt', ['.logs-tight.txt']],
   ['pnpm test 2>&1 | tee -a .logs-deploy4.txt', ['.logs-deploy4.txt']],
   ['cd x && bash scripts/bootstrap-worktree.sh > .logs-boot.txt; echo done', ['.logs-boot.txt']],
+  // Codex review #2812: adjacent quoted and bare segments are ONE path.
+  [
+    'pnpm test > "/Users/richardbeezley/AI Projects"/.logs-old.txt',
+    ['/Users/richardbeezley/AI Projects/.logs-old.txt'],
+  ],
+  ['pnpm test >& .logs-both.txt', ['.logs-both.txt']],
+  ['FOO=1 tee -a out.txt .logs-two.txt < in.txt', ['.logs-two.txt']],
+  ['cat <<EOF > .logs-after-heredoc.txt\nbody\nEOF', ['.logs-after-heredoc.txt']],
 ];
 
 const ALLOWED: readonly string[] = [
@@ -34,6 +42,15 @@ const ALLOWED: readonly string[] = [
   'ls > /dev/null 2>&1',
   'cat <<EOF > notes.txt\nhello\nEOF',
   'git commit -m "committee notes"',
+  // Codex review #2812: quoted prose is not a redirect, and tee stops at a newline.
+  'git commit -m "Prevent > .logs-old.txt writes"',
+  "echo 'a > .logs-x.txt'",
+  'pnpm test | tee .logs/run.txt\ncat .logs-old.txt',
+  'pnpm test | tee .logs/run.txt; cat .logs-old.txt',
+  "cat <<'EOF' > .logs/notes.txt\nthen run > .logs-x.txt\nEOF",
+  'git commit -F - <<EOF\nfix: stop writing > .logs-x.txt\nEOF',
+  'grep -c x < .logs-old.txt',
+  'pnpm test 2>&1 >&2',
 ];
 
 describe('findStrayLogWrites', () => {

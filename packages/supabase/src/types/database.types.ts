@@ -13507,6 +13507,8 @@ export type Database = {
           id: string
           is_results_reviewed: boolean | null
           is_scoring_finalized: boolean | null
+          judge_signed_off_at: string | null
+          judge_signed_off_by: string | null
           jump_heights: string[] | null
           level: string | null
           max_dogs_per_handler: number | null
@@ -14200,6 +14202,10 @@ export type Database = {
         Args: { raw: string }
         Returns: string
       }
+      notify_mail_in_waitlist_head: {
+        Args: { p_waitlist_entry_id: string }
+        Returns: string
+      }
       notify_waitlist_auto_offer: {
         Args: { p_waitlist_entry_id: string }
         Returns: string
@@ -14551,6 +14557,8 @@ export type Database = {
           id: string
           is_results_reviewed: boolean | null
           is_scoring_finalized: boolean | null
+          judge_signed_off_at: string | null
+          judge_signed_off_by: string | null
           jump_heights: string[] | null
           level: string | null
           max_dogs_per_handler: number | null
@@ -14768,6 +14776,8 @@ export type Database = {
       }
       run_system_health_check_now: { Args: never; Returns: Json }
       seed_demo_assert_no_paid_strays: { Args: never; Returns: undefined }
+      seed_demo_restore_show_day_fixture: { Args: never; Returns: Json }
+      seed_demo_show_day_fixture_today: { Args: never; Returns: string }
       self_checkin_entry: {
         Args: { p_entry_id: string; p_new_status: string }
         Returns: undefined
@@ -14782,6 +14792,10 @@ export type Database = {
           p_sender_auth_user_id: string
           p_waitlist_entry_id: string
         }
+        Returns: string
+      }
+      send_waitlist_withdrawal_message_internal: {
+        Args: { p_sender_auth_user_id: string; p_waitlist_entry_id: string }
         Returns: string
       }
       set_club_authorization: {
@@ -15048,6 +15062,10 @@ export type Database = {
           p_reason?: string
         }
         Returns: number
+      }
+      withdraw_waitlist_offer_internal: {
+        Args: { p_actor_auth_user_id: string; p_waitlist_entry_id: string }
+        Returns: Json
       }
     }
     Enums: {

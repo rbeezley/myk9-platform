@@ -26,11 +26,6 @@ export function keepOfferedValues(
   return values.filter(value => known.has(value));
 }
 
-/** An option's label; a value the field no longer offers reads raw, so it stays visible. */
-function labelFor(options: readonly ListFilterOption[], value: string): string {
-  return options.find(option => option.value === value)?.label ?? value;
-}
-
 const DAY_FORMAT: Intl.DateTimeFormatOptions = { month: 'short', day: 'numeric', year: 'numeric' };
 
 function formatDay(date: Date): string {
@@ -52,15 +47,14 @@ export function describeDateRange({ start, end }: ListDateRange): string {
 export function describeAppliedFilter(field: ListMenuFilterField): string | null {
   if (!isFieldActive(field)) return null;
   if (field.kind === 'dateRange') return `${field.label}: ${describeDateRange(field.value)}`;
-  const labels =
-    field.kind === 'options'
-      ? [labelFor(field.options, field.value ?? '')]
-      : [
-          ...field.options.filter(o => field.values.includes(o.value)).map(o => o.label),
-          ...field.values.filter(v => !field.options.some(o => o.value === v)),
-        ];
+  const picked = field.kind === 'options' ? [field.value ?? ''] : [...new Set(field.values)];
+  // One entry per picked value, so two options that share a label both show.
+  const labels = [
+    ...field.options.filter(o => picked.includes(o.value)).map(o => o.label),
+    ...picked.filter(v => !field.options.some(o => o.value === v)),
+  ];
   // A blank label or value would read "Class: " or "A, , B"; say nothing instead.
-  const shown = [...new Set(labels)].filter(label => label !== '');
+  const shown = labels.filter(label => label.trim() !== '');
   return shown.length === 0 ? null : `${field.label}: ${shown.join(', ')}`;
 }
 

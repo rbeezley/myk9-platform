@@ -66,6 +66,21 @@ describe('describeAppliedFilter', () => {
     );
   });
 
+  it('shows both of two selected options that share a label', () => {
+    const twins: ListMultiOptionsFilterField = {
+      ...classField(['c1', 'c2']),
+      options: [
+        { value: 'c1', label: 'Interior Novice B' },
+        { value: 'c2', label: 'Interior Novice B' },
+      ],
+    };
+    expect(describeAppliedFilter(twins)).toBe('Class: Interior Novice B, Interior Novice B');
+  });
+
+  it('says nothing for a whitespace-only value', () => {
+    expect(describeAppliedFilter(classField([' ']))).toBeNull();
+  });
+
   it('says nothing rather than a blank, a doubled value or an empty label', () => {
     expect(describeAppliedFilter(classField(['']))).toBeNull();
     expect(describeAppliedFilter(classField(['x', 'x']))).toBe('Class: x');

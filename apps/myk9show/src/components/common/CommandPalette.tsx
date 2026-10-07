@@ -4,12 +4,8 @@ import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { Search, Dog, Users, Calendar, Building, Plus, Clock, ArrowRight } from 'lucide-react';
 import { Kbd } from '@/components/ui/kbd';
 import { useNavigate } from 'react-router-dom';
-import { useDogStore } from '@/store/dogStore';
-import { useUserStore } from '@/store/userStore';
-import { useShowStore } from '@/store/showStore';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRecentSearches } from '@/hooks/useRecentSearches';
-import { getDogBreedLabel, getDogDisplayName } from '@/types/dog-types';
 import { PERMISSIONS, UserRole } from '@/types/auth-types';
 import { useCommandMenuCommands } from '@/features/command-menu/useCommandMenuCommands';
 import {
@@ -17,6 +13,7 @@ import {
   type CommandAction,
 } from '@/features/command-menu/commandPaletteAdapter';
 import { getShortcutKeysForCommand } from '@/components/layout/appShortcuts';
+import { useCommandPaletteData } from './useCommandPaletteData';
 
 interface CommandPaletteProps {
   open: boolean;
@@ -65,9 +62,6 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
   const { navigationCommands: contextualNavCommands, actionCommands: registryActionCommands } =
     useCommandMenuCommands();
 
-  const dogs = useDogStore(state => state.dogs);
-  const people = useUserStore(state => state.people);
-  const shows = useShowStore(state => state.shows);
   const roles = userWithRoles?.roles ?? [];
   const canManageUsers =
     hasPermission(PERMISSIONS.USER_CREATE) || roles.includes(UserRole.SITE_ADMIN);
@@ -153,63 +147,7 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
     [canBrowsePeople, navigationCommands]
   );
 
-  // Build all data commands from full dataset, then let cmdk filter + we slice display
-  const allDataCommands: CommandAction[] = useMemo(() => {
-    const commands: CommandAction[] = [];
-
-    for (const dog of dogs) {
-      commands.push({
-        id: `dog-${dog.id}`,
-        title: getDogDisplayName(dog),
-        subtitle: `${getDogBreedLabel(dog)} · Go to dog profile`,
-        icon: <Dog className="h-4 w-4" />,
-        action: () =>
-          startTransition(() => {
-            navigate(`/dogs/${dog.id}`);
-            onOpenChange(false);
-          }),
-        keywords: [dog.name, dog.callName, getDogBreedLabel(dog)].filter(Boolean) as string[],
-        category: 'data',
-      });
-    }
-
-    if (canBrowsePeople) {
-      for (const person of people) {
-        const name = `${person.firstName} ${person.lastName}`;
-        commands.push({
-          id: `person-${person.id}`,
-          title: name,
-          subtitle: 'Go to person profile',
-          icon: <Users className="h-4 w-4" />,
-          action: () =>
-            startTransition(() => {
-              navigate(`/people/${person.id}`);
-              onOpenChange(false);
-            }),
-          keywords: [person.firstName, person.lastName, name],
-          category: 'data',
-        });
-      }
-    }
-
-    for (const show of shows) {
-      commands.push({
-        id: `show-${show.id}`,
-        title: show.name,
-        subtitle: `${show.location} · Go to show`,
-        icon: <Calendar className="h-4 w-4" />,
-        action: () =>
-          startTransition(() => {
-            navigate(`/shows/${show.id}`);
-            onOpenChange(false);
-          }),
-        keywords: [show.name, show.location, show.organization],
-        category: 'data',
-      });
-    }
-
-    return commands;
-  }, [canBrowsePeople, dogs, people, shows, navigate, onOpenChange]);
+  const allDataCommands = useCommandPaletteData(canBrowsePeople, navigate, onOpenChange);
 
   // When searching, filter data commands client-side and take top results.
   // cmdk also filters, but we limit the rendered count for performance.
@@ -329,7 +267,7 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
           <div className="flex items-center border-b border-border px-3" cmdk-input-wrapper="">
             <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
             <Command.Input
-              placeholder="Search dogs, people, shows, or type a command..."
+              placeholder="Search dogs, people, shows, clubs, or type a command..."
               value={search}
               onValueChange={setSearch}
               className="flex h-11 w-full rounded-md bg-background py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50 text-foreground"

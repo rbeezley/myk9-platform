@@ -544,6 +544,23 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
     return this.get(entryId);
   }
 
+  /** The scored row's durable upload state; a local cache write alone is not an acknowledgement. */
+  async getScoreUploadState(entryId: string): Promise<'pending' | 'failed' | 'uploaded'> {
+    if (!this.entryMutationManager || !(await this.get(entryId))) return 'pending';
+    const failed = await this.entryMutationManager.getFailedMutations();
+    if (failed.some(m => m.tableName === 'entries' && String(m.rowId) === entryId)) {
+      return 'failed';
+    }
+    return (await this.hasUnsyncedLocalWork(entryId)) ? 'pending' : 'uploaded';
+  }
+
+  /** Read through the same authenticated result view as replication, without changing the cache. */
+  async readScoreFromServer(entryId: string): Promise<ReplicatedEntry | null> {
+    const rows = await this.getRowRefetchAdapter().fetchRowsById([entryId]);
+    const row = rows.find(candidate => String(candidate.id) === entryId);
+    return row ? rowToEntry(row) : null;
+  }
+
   /**
    * Load an entry FOR A WRITE, hydrating the local replica from the server on
    * a cache miss.

@@ -14778,14 +14778,6 @@ export type Database = {
         }
         Returns: string
       }
-      set_class_results_verified: {
-        Args: {
-          p_class_id: string
-          p_verified: boolean
-          p_verified_at?: string
-        }
-        Returns: number
-      }
       set_club_authorization: {
         Args: { p_authorized: boolean; p_club_id: string }
         Returns: undefined

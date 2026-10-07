@@ -1,5 +1,4 @@
--- MYK9-1030 (migration 20261006154700): the judge's end-of-day sign-off and
--- the results check against the paper score sheets.
+-- MYK9-1030 (migration 20261006154700): the judge's end-of-day sign-off.
 --
 -- Properties asserted here:
 --   1. grants: anon and PUBLIC cannot execute either RPC, authenticated can;
@@ -16,15 +15,6 @@
 --   7. a signed-off-at in the future is clamped to now;
 --   8. the per-class undo clears one class only; the club admin may use it;
 --   9. anon calling it at all is refused.
---  10. results checked against the paper (set_class_results_verified, same
---      migration): grants as above; exhibitor / other club refused (42501);
---      an incomplete class refused (55000); missing P0002; the secretary marks
---      one class (stamped with the caller's auth uid, version returned, first
---      stamp kept) and clears it; anon refused.
---  11. a changed RESULT clears the check (trigger on entries, SECURITY
---      DEFINER): a result column change, a scored insert and a scored delete
---      clear a verified class; check-in, run order and a no-op placement
---      rewrite do not; an unverified class is never written.
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
 
@@ -114,13 +104,6 @@ $$;
 
 -- How many fixture classes carry a sign-off, read as the test's owner role
 -- (SECURITY DEFINER), so a refused caller's RLS cannot hide a stray write.
-CREATE FUNCTION pg_temp.verified_count()
-RETURNS integer LANGUAGE sql SECURITY DEFINER AS $$
-  SELECT count(*)::integer FROM public.classes
-  WHERE id::text LIKE '00000000-0000-0000-0000-00000103004_'
-    AND (results_verified_at IS NOT NULL OR results_verified_by IS NOT NULL);
-$$;
-
 CREATE FUNCTION pg_temp.signed_count()
 RETURNS integer LANGUAGE sql SECURITY DEFINER AS $$
   SELECT count(*)::integer FROM public.classes
@@ -149,22 +132,6 @@ BEGIN
       AND a.grantee = 0 AND a.privilege_type = 'EXECUTE'
   ) THEN
     RAISE EXCEPTION 'FAIL PUBLIC keeps EXECUTE on a sign-off RPC';
-  END IF;
-  IF has_function_privilege('anon', 'public.set_class_results_verified(uuid, boolean, timestamptz)', 'EXECUTE')
-     OR NOT has_function_privilege('authenticated', 'public.set_class_results_verified(uuid, boolean, timestamptz)', 'EXECUTE')
-     OR EXISTS (
-       SELECT 1
-       FROM pg_proc p, LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
-       WHERE p.oid = 'public.set_class_results_verified(uuid, boolean, timestamptz)'::regprocedure
-         AND a.grantee = 0 AND a.privilege_type = 'EXECUTE'
-     ) THEN
-    RAISE EXCEPTION 'FAIL set_class_results_verified EXECUTE grants are wrong';
-  END IF;
-  IF NOT has_column_privilege('authenticated', 'public.classes', 'results_verified_at', 'SELECT')
-     OR NOT has_column_privilege('authenticated', 'public.classes', 'results_verified_by', 'SELECT')
-     OR has_column_privilege('anon', 'public.classes', 'results_verified_at', 'SELECT')
-     OR has_column_privilege('anon', 'public.classes', 'results_verified_by', 'SELECT') THEN
-    RAISE EXCEPTION 'FAIL results_verified columns: authenticated must read them, anon must not';
   END IF;
   IF NOT has_column_privilege('authenticated', 'public.classes', 'judge_signed_off_at', 'SELECT')
      OR NOT has_column_privilege('authenticated', 'public.classes', 'judge_signed_off_by', 'SELECT') THEN
@@ -322,200 +289,6 @@ END;
 $$;
 
 -- ---------------------------------------------------------------------------
--- 10. Results checked against the paper score sheets.
--- ---------------------------------------------------------------------------
-DO $$
-DECLARE
-  caller uuid;
-  v_result integer;
-  v_at timestamptz;
-BEGIN
-  FOREACH caller IN ARRAY ARRAY[
-    '00000000-0000-0000-0000-000000103013'::uuid,  -- exhibitor
-    '00000000-0000-0000-0000-000000103012'::uuid   -- club B secretary
-  ] LOOP
-    PERFORM pg_temp.act_as(caller);
-    BEGIN
-      PERFORM public.set_class_results_verified('00000000-0000-0000-0000-000001030041', true);
-      RAISE EXCEPTION 'FAIL % marked results checked on a class it does not manage', caller;
-    EXCEPTION WHEN insufficient_privilege THEN NULL;
-    END;
-    BEGIN
-      PERFORM public.set_class_results_verified('00000000-0000-0000-0000-000001030041', false);
-      RAISE EXCEPTION 'FAIL % cleared a results check on a class it does not manage', caller;
-    EXCEPTION WHEN insufficient_privilege THEN NULL;
-    END;
-  END LOOP;
-  IF pg_temp.verified_count() <> 0 THEN
-    RAISE EXCEPTION 'FAIL a refused results check wrote something';
-  END IF;
-
-  PERFORM pg_temp.act_as('00000000-0000-0000-0000-000000103011');
-  BEGIN
-    PERFORM public.set_class_results_verified('00000000-0000-0000-0000-000001030043', true);
-    RAISE EXCEPTION 'FAIL an in-progress class was marked checked';
-  EXCEPTION WHEN object_not_in_prerequisite_state THEN NULL;
-  END;
-  BEGIN
-    PERFORM public.set_class_results_verified('00000000-0000-0000-0000-0000010309ff', true);
-    RAISE EXCEPTION 'FAIL a missing class was marked checked';
-  EXCEPTION WHEN no_data_found THEN NULL;
-  END;
-  IF pg_temp.verified_count() <> 0 THEN
-    RAISE EXCEPTION 'FAIL a refused results check wrote something';
-  END IF;
-
-  v_result := public.set_class_results_verified(
-    '00000000-0000-0000-0000-000001030042', true, now() - interval '3 minutes');
-  IF v_result IS DISTINCT FROM (SELECT version FROM public.classes
-                                WHERE id = '00000000-0000-0000-0000-000001030042') THEN
-    RAISE EXCEPTION 'FAIL the results check did not return the class version';
-  END IF;
-  SELECT results_verified_at INTO v_at FROM public.classes
-  WHERE id = '00000000-0000-0000-0000-000001030042'
-    AND results_verified_by = '00000000-0000-0000-0000-000000103011'::uuid;
-  IF v_at IS DISTINCT FROM now() - interval '3 minutes' OR pg_temp.verified_count() <> 1 THEN
-    RAISE EXCEPTION 'FAIL results check not stamped with the time and the caller''s auth uid';
-  END IF;
-  PERFORM public.set_class_results_verified('00000000-0000-0000-0000-000001030042', true, now());
-  IF (SELECT results_verified_at FROM public.classes
-      WHERE id = '00000000-0000-0000-0000-000001030042') IS DISTINCT FROM v_at THEN
-    RAISE EXCEPTION 'FAIL a second results check replaced the first stamp';
-  END IF;
-
-  PERFORM public.set_class_results_verified('00000000-0000-0000-0000-000001030042', false);
-  IF pg_temp.verified_count() <> 0 THEN
-    RAISE EXCEPTION 'FAIL clearing the results check left it set';
-  END IF;
-  RAISE NOTICE 'PASS 10 results check: managers only, complete only, stamped, kept, cleared';
-END;
-$$;
-
--- ---------------------------------------------------------------------------
--- 11. A changed result clears the check; nothing else does.
--- ---------------------------------------------------------------------------
-RESET ROLE;
-
-INSERT INTO public.dogs (id, name, call_name, breed, owner_id)
-VALUES
-  ('00000000-0000-0000-0000-000001030031', 'Alpha Registered', 'Alpha', 'Beagle',
-   '00000000-0000-0000-0000-000000103003'),
-  ('00000000-0000-0000-0000-000001030032', 'Bravo Registered', 'Bravo', 'Beagle',
-   '00000000-0000-0000-0000-000000103003'),
-  ('00000000-0000-0000-0000-000001030033', 'Charlie Registered', 'Charlie', 'Beagle',
-   '00000000-0000-0000-0000-000000103003');
-
-INSERT INTO public.dog_registrations (dog_id, organization, registration_number, is_primary)
-SELECT d.id, 'AKC (American Kennel Club)', 'SR1030' || right(d.id::text, 2), true
-FROM public.dogs d
-WHERE d.id::text LIKE '00000000-0000-0000-0000-00000103003_';
-
--- Two scored entries in c4 (completed, not yet checked: the inserts write nothing).
-INSERT INTO public.entries (
-  id, dog_id, class_id, show_id, trial_id, entry_status, payment_status, entry_fee,
-  armband, run_order, is_scored, result_status, search_time_seconds, total_faults,
-  total_score, final_placement
-) VALUES
-  ('00000000-0000-0000-0000-000001030051', '00000000-0000-0000-0000-000001030031',
-   '00000000-0000-0000-0000-000001030044', '00000000-0000-0000-0000-000001030002',
-   '00000000-0000-0000-0000-000001030003', 'confirmed', 'paid', 25, '201', 1,
-   true, 'qualified', 30.5, 0, 100, 1),
-  ('00000000-0000-0000-0000-000001030052', '00000000-0000-0000-0000-000001030032',
-   '00000000-0000-0000-0000-000001030044', '00000000-0000-0000-0000-000001030002',
-   '00000000-0000-0000-0000-000001030003', 'confirmed', 'paid', 25, '202', 2,
-   true, 'qualified', 41.25, 0, 100, 2);
-
-CREATE FUNCTION pg_temp.c4_verified()
-RETURNS boolean LANGUAGE sql AS $$
-  SELECT results_verified_at IS NOT NULL FROM public.classes
-  WHERE id = '00000000-0000-0000-0000-000001030044';
-$$;
-
-CREATE FUNCTION pg_temp.verify_c4()
-RETURNS void LANGUAGE sql AS $$
-  UPDATE public.classes
-     SET results_verified_at = now(),
-         results_verified_by = '00000000-0000-0000-0000-000000103011'
-   WHERE id = '00000000-0000-0000-0000-000001030044';
-$$;
-
-DO $$
-DECLARE
-  v_version integer;
-BEGIN
-  IF NOT (SELECT prosecdef FROM pg_proc
-          WHERE oid = 'private.entries_clear_results_verified()'::regprocedure) THEN
-    RAISE EXCEPTION 'FAIL the clear trigger must run as definer (judges and passcodes write scores)';
-  END IF;
-  IF (SELECT status FROM public.classes WHERE id = '00000000-0000-0000-0000-000001030044')
-     IS DISTINCT FROM 'completed' THEN
-    RAISE EXCEPTION 'FAIL fixture: c4 should still be completed with two scored entries';
-  END IF;
-
-  -- Not results: check-in, run order, ring time, judge notes; a no-op placement rewrite.
-  PERFORM pg_temp.verify_c4();
-  UPDATE public.entries
-     SET check_in_status = 'checked-in', run_order = 5, ring_entry_time = now(),
-         judge_notes = 'nice search', final_placement = final_placement
-   WHERE id = '00000000-0000-0000-0000-000001030051';
-  IF NOT pg_temp.c4_verified() THEN
-    RAISE EXCEPTION 'FAIL a non-result change cleared the results check';
-  END IF;
-
-  -- A result change (a column the class rollup does not watch).
-  UPDATE public.entries SET area1_correct = 2
-   WHERE id = '00000000-0000-0000-0000-000001030051';
-  IF pg_temp.c4_verified() THEN
-    RAISE EXCEPTION 'FAIL a changed result left the results check set';
-  END IF;
-  IF EXISTS (SELECT 1 FROM public.classes WHERE id = '00000000-0000-0000-0000-000001030044'
-             AND results_verified_by IS NOT NULL) THEN
-    RAISE EXCEPTION 'FAIL the clear left results_verified_by behind';
-  END IF;
-
-  -- Unverified class + result change: no classes write at all.
-  SELECT version INTO v_version FROM public.classes
-   WHERE id = '00000000-0000-0000-0000-000001030044';
-  UPDATE public.entries SET area1_correct = 3
-   WHERE id = '00000000-0000-0000-0000-000001030051';
-  IF (SELECT version FROM public.classes WHERE id = '00000000-0000-0000-0000-000001030044')
-     IS DISTINCT FROM v_version THEN
-    RAISE EXCEPTION 'FAIL a result change wrote an unverified class';
-  END IF;
-
-  -- A corrected time (a column the rollup also watches).
-  PERFORM pg_temp.verify_c4();
-  UPDATE public.entries SET search_time_seconds = 31.0
-   WHERE id = '00000000-0000-0000-0000-000001030051';
-  IF pg_temp.c4_verified() THEN
-    RAISE EXCEPTION 'FAIL a corrected time left the results check set';
-  END IF;
-
-  -- A scored entry inserted into, and one deleted from, a verified class.
-  PERFORM pg_temp.verify_c4();
-  INSERT INTO public.entries (
-    id, dog_id, class_id, show_id, trial_id, entry_status, payment_status, entry_fee,
-    armband, run_order, is_scored, result_status, search_time_seconds
-  ) VALUES (
-    '00000000-0000-0000-0000-000001030053', '00000000-0000-0000-0000-000001030033',
-    '00000000-0000-0000-0000-000001030044', '00000000-0000-0000-0000-000001030002',
-    '00000000-0000-0000-0000-000001030003', 'confirmed', 'pending', 0, '203', 3,
-    true, 'nq', 90.0
-  );
-  IF pg_temp.c4_verified() THEN
-    RAISE EXCEPTION 'FAIL a scored entry inserted into a verified class left it checked';
-  END IF;
-  PERFORM pg_temp.verify_c4();
-  DELETE FROM public.entries WHERE id = '00000000-0000-0000-0000-000001030053';
-  IF pg_temp.c4_verified() THEN
-    RAISE EXCEPTION 'FAIL a scored entry deleted from a verified class left it checked';
-  END IF;
-
-  RAISE NOTICE 'PASS 11 a changed result clears the check; check-in, run order and a no-op placement do not; an unverified class is never written';
-END;
-$$;
-
--- ---------------------------------------------------------------------------
 -- 9. anon is refused outright.
 -- ---------------------------------------------------------------------------
 RESET ROLE;
@@ -534,12 +307,7 @@ BEGIN
     RAISE EXCEPTION 'FAIL anon called clear_class_judge_sign_off';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
-  BEGIN
-    PERFORM public.set_class_results_verified('00000000-0000-0000-0000-000001030042', true);
-    RAISE EXCEPTION 'FAIL anon called set_class_results_verified';
-  EXCEPTION WHEN insufficient_privilege THEN NULL;
-  END;
-  RAISE NOTICE 'PASS 9 anon cannot call any of the three RPCs';
+  RAISE NOTICE 'PASS 9 anon cannot call either RPC';
 END;
 $$;
 

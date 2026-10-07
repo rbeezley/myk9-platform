@@ -40,18 +40,6 @@
 -- replica's OCC token stays fresh, as ringside_update_entry does. A multi-class
 -- call returns NULL. A class already signed off keeps its first stamp, so an
 -- offline replay or a second press is a no-op.
---
--- Also here (owner, 2026-10-06, one push): "results checked against the paper
--- score sheets".
---   4. classes.results_verified_at timestamptz / results_verified_by uuid, same
---      identity convention (auth uid of whoever recorded it, from auth.uid()).
---   5. public.set_class_results_verified(class id, verified, verified-at):
---      marks one class verified (refused unless complete, 55000) or clears it
---      (always allowed: a correction after checking means re-check). Same
---      can_manage_trial authz. Server-side release and the automatic release
---      presets are NOT gated on it.
---   6. private.entries_clear_results_verified + trigger on public.entries: a
---      changed result clears the check (owner decision; see section 3c).
 
 -- Grants
 --   * classes: authenticated holds a column-level SELECT allowlist
@@ -79,26 +67,14 @@ ALTER TABLE public.classes
   ADD COLUMN IF NOT EXISTS judge_signed_off_by uuid NULL
     REFERENCES auth.users (id) ON DELETE SET NULL;
 
-ALTER TABLE public.classes
-  ADD COLUMN IF NOT EXISTS results_verified_at timestamptz NULL,
-  ADD COLUMN IF NOT EXISTS results_verified_by uuid NULL
-    REFERENCES auth.users (id) ON DELETE SET NULL;
-
 -- Foreign keys are indexed in this project (20260728140000).
 CREATE INDEX IF NOT EXISTS idx_classes_judge_signed_off_by
   ON public.classes (judge_signed_off_by);
-CREATE INDEX IF NOT EXISTS idx_classes_results_verified_by
-  ON public.classes (results_verified_by);
 
 COMMENT ON COLUMN public.classes.judge_signed_off_at IS
   'MYK9-1030: when the class''s judge initialed (AKC) or signed (UKC, ASCA) the marked catalog for this class. Recorded for a whole judge-day at once by mark_classes_judge_signed_off; NULL = not yet.';
 COMMENT ON COLUMN public.classes.judge_signed_off_by IS
   'MYK9-1030: auth uid of the person who RECORDED the sign-off (a show manager), stamped server-side from auth.uid(). Not the judge: the judge is the class''s confirmed judge_assignments row.';
-
-COMMENT ON COLUMN public.classes.results_verified_at IS
-  'MYK9-1030: when a show manager checked this class''s results against the paper score sheets. NULL = not checked (or cleared for a re-check). Written by set_class_results_verified. Does not gate release.';
-COMMENT ON COLUMN public.classes.results_verified_by IS
-  'MYK9-1030: auth uid of the show manager who recorded the check, stamped server-side from auth.uid().';
 
 -- ---------------------------------------------------------------------------
 -- 2. Mark a set of classes signed off
@@ -235,173 +211,6 @@ REVOKE ALL ON FUNCTION public.clear_class_judge_sign_off(uuid) FROM PUBLIC, anon
 GRANT EXECUTE ON FUNCTION public.clear_class_judge_sign_off(uuid) TO authenticated;
 
 -- ---------------------------------------------------------------------------
--- 3b. Results checked against the paper score sheets (one class)
--- ---------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION public.set_class_results_verified(
-  p_class_id uuid,
-  p_verified boolean,
-  p_verified_at timestamptz DEFAULT NULL
-)
-RETURNS integer
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-DECLARE
-  v_uid uuid := auth.uid();
-  v_class record;
-  v_version integer;
-BEGIN
-  IF v_uid IS NULL THEN
-    RAISE EXCEPTION 'Sign in to record a results check.' USING ERRCODE = '42501';
-  END IF;
-  IF p_verified IS NULL THEN
-    RAISE EXCEPTION 'Say whether the results were checked.' USING ERRCODE = '22023';
-  END IF;
-
-  SELECT c.id, c.trial_id, c.name, c.status INTO v_class
-  FROM public.classes c
-  WHERE c.id = p_class_id AND c.deleted_at IS NULL
-  FOR UPDATE;
-  IF NOT FOUND THEN
-    RAISE EXCEPTION 'That class no longer exists.' USING ERRCODE = 'P0002';
-  END IF;
-
-  IF NOT coalesce((SELECT public.can_manage_trial(v_class.trial_id)), false) THEN
-    RAISE EXCEPTION 'You do not manage the show this class belongs to.' USING ERRCODE = '42501';
-  END IF;
-
-  IF p_verified THEN
-    IF v_class.status IS DISTINCT FROM 'completed' THEN
-      RAISE EXCEPTION '% is not complete yet, so its results cannot be checked.', v_class.name
-        USING ERRCODE = '55000';
-    END IF;
-    -- Keeps the first stamp: an offline replay or a second press is a no-op.
-    UPDATE public.classes c
-       SET results_verified_at = least(coalesce(p_verified_at, now()), now()),
-           results_verified_by = v_uid
-     WHERE c.id = p_class_id
-       AND c.results_verified_at IS NULL;
-  ELSE
-    UPDATE public.classes c
-       SET results_verified_at = NULL,
-           results_verified_by = NULL
-     WHERE c.id = p_class_id
-       AND c.results_verified_at IS NOT NULL;
-  END IF;
-
-  SELECT c.version INTO v_version FROM public.classes c WHERE c.id = p_class_id;
-  RETURN v_version;
-END;
-$$;
-
-COMMENT ON FUNCTION public.set_class_results_verified(uuid, boolean, timestamptz) IS
-  'MYK9-1030: record (p_verified = true; class must be completed) or clear (false) that a class''s results were checked against the paper score sheets. Show managers only (can_manage_trial). Keeps an existing stamp. Returns the class''s new version. Does not gate release.';
-
-REVOKE ALL ON FUNCTION public.set_class_results_verified(uuid, boolean, timestamptz) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.set_class_results_verified(uuid, boolean, timestamptz) TO authenticated;
-
--- ---------------------------------------------------------------------------
--- 3c. A changed result clears the check (owner, 2026-10-06)
---
--- The check means "these results match the paper", so any change to a result
--- makes it untrue. Result columns = the scoring half of the ringside RPC's
--- whitelist (ringside_update_entry; apps/myk9show/src/services/replication/
--- ringsideEntryRpc.ts): is_scored, result_status, the time columns, the find
--- and fault counts, the score and points columns, final_placement and
--- disqualification_reason. Run order, check-in and ring times, judge notes,
--- video review and scoring_started/completed_at are NOT results and do not
--- clear it. Moving a scored entry to another class or soft-deleting it, and
--- inserting or hard-deleting a scored entry, change a class's results too.
---
--- Fires on every writer (judges and passcode sessions write scores through
--- ringside_update_entry), so the function is SECURITY DEFINER. It writes only
--- WHERE results_verified_at IS NOT NULL, so a class that is not verified is
--- never touched, and a correction costs at most one classes write (one version
--- bump and one advisory broadcast from the existing classes triggers), not one
--- per entry. Placement recalculation writes final_placement only when it
--- changes (20260727235900, 20260828010000), and the trigger compares OLD with
--- NEW, so a no-op recompute after the check cannot clear it.
--- ---------------------------------------------------------------------------
-CREATE OR REPLACE FUNCTION private.entries_clear_results_verified()
-RETURNS trigger
-LANGUAGE plpgsql
-SECURITY DEFINER
-SET search_path = ''
-AS $$
-DECLARE
-  v_class_ids uuid[] := '{}';
-  v_old_has_result boolean;
-  v_new_has_result boolean;
-BEGIN
-  IF TG_OP <> 'INSERT' THEN
-    v_old_has_result := coalesce(OLD.is_scored, false) OR OLD.result_status IS NOT NULL
-      OR OLD.final_placement IS NOT NULL;
-  END IF;
-  IF TG_OP <> 'DELETE' THEN
-    v_new_has_result := coalesce(NEW.is_scored, false) OR NEW.result_status IS NOT NULL
-      OR NEW.final_placement IS NOT NULL;
-  END IF;
-
-  IF TG_OP = 'INSERT' THEN
-    IF v_new_has_result AND NEW.deleted_at IS NULL THEN
-      v_class_ids := ARRAY[NEW.class_id];
-    END IF;
-  ELSIF TG_OP = 'DELETE' THEN
-    IF v_old_has_result AND OLD.deleted_at IS NULL THEN
-      v_class_ids := ARRAY[OLD.class_id];
-    END IF;
-  ELSE
-    IF (OLD.is_scored, OLD.result_status, OLD.search_time_seconds,
-        OLD.area1_time_seconds, OLD.area2_time_seconds, OLD.area3_time_seconds,
-        OLD.area4_time_seconds, OLD.total_correct_finds, OLD.total_incorrect_finds,
-        OLD.total_faults, OLD.no_finish_count, OLD.area1_correct, OLD.area1_incorrect,
-        OLD.area1_faults, OLD.area2_correct, OLD.area2_incorrect, OLD.area2_faults,
-        OLD.area3_correct, OLD.area3_incorrect, OLD.area3_faults, OLD.total_score,
-        OLD.points_earned, OLD.points_possible, OLD.bonus_points, OLD.penalty_points,
-        OLD.time_over_limit, OLD.time_limit_exceeded_seconds, OLD.final_placement,
-        OLD.disqualification_reason)
-       IS DISTINCT FROM
-       (NEW.is_scored, NEW.result_status, NEW.search_time_seconds,
-        NEW.area1_time_seconds, NEW.area2_time_seconds, NEW.area3_time_seconds,
-        NEW.area4_time_seconds, NEW.total_correct_finds, NEW.total_incorrect_finds,
-        NEW.total_faults, NEW.no_finish_count, NEW.area1_correct, NEW.area1_incorrect,
-        NEW.area1_faults, NEW.area2_correct, NEW.area2_incorrect, NEW.area2_faults,
-        NEW.area3_correct, NEW.area3_incorrect, NEW.area3_faults, NEW.total_score,
-        NEW.points_earned, NEW.points_possible, NEW.bonus_points, NEW.penalty_points,
-        NEW.time_over_limit, NEW.time_limit_exceeded_seconds, NEW.final_placement,
-        NEW.disqualification_reason) THEN
-      v_class_ids := ARRAY[OLD.class_id, NEW.class_id];
-    ELSIF (OLD.class_id IS DISTINCT FROM NEW.class_id
-           OR OLD.deleted_at IS DISTINCT FROM NEW.deleted_at)
-          AND (v_old_has_result OR v_new_has_result) THEN
-      v_class_ids := ARRAY[OLD.class_id, NEW.class_id];
-    END IF;
-  END IF;
-
-  IF cardinality(v_class_ids) > 0 THEN
-    UPDATE public.classes c
-       SET results_verified_at = NULL,
-           results_verified_by = NULL
-     WHERE c.id = ANY (v_class_ids)
-       AND c.results_verified_at IS NOT NULL;
-  END IF;
-
-  RETURN NULL;
-END;
-$$;
-
-COMMENT ON FUNCTION private.entries_clear_results_verified() IS
-  'MYK9-1030: a changed result clears the class''s "checked against the paper" mark (classes.results_verified_at/_by). Writes only a verified class. Trigger function; nobody calls it.';
-
-REVOKE ALL ON FUNCTION private.entries_clear_results_verified() FROM PUBLIC, anon, authenticated;
-
-DROP TRIGGER IF EXISTS entries_clear_results_verified ON public.entries;
-CREATE TRIGGER entries_clear_results_verified
-  AFTER INSERT OR UPDATE OR DELETE ON public.entries
-  FOR EACH ROW EXECUTE FUNCTION private.entries_clear_results_verified();
-
--- ---------------------------------------------------------------------------
 -- 4. authenticated may read the new columns (anon unchanged)
 -- ---------------------------------------------------------------------------
 GRANT SELECT (
@@ -417,8 +226,7 @@ GRANT SELECT (
   is_results_reviewed, time_limit_area2_seconds,
   time_limit_area3_seconds, display_order, results_released_by, version,
   status_source, reopened_after_closeout_at, revised_expected_start,
-  judge_signed_off_at, judge_signed_off_by, results_verified_at,
-  results_verified_by
+  judge_signed_off_at, judge_signed_off_by
 ) ON public.classes TO authenticated;
 
 -- anon's decision, stated: the 20260912234500 allowlist, restated unchanged

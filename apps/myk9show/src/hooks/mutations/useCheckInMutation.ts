@@ -64,6 +64,9 @@ export function useCheckInMutation(options: UseCheckInMutationOptions = {}) {
 
   return useMutation<void, Error, CheckInMutationInput, CheckInMutationContext>({
     mutationFn: input => updateCheckInStatus(input, writer),
+    // The staff writer is replicated (IndexedDB + queue): 'online' would pause it before the
+    // write while offline and a reload would lose it. Self check-in is an RPC and must stay online.
+    networkMode: writer === 'replicated' ? 'always' : 'online',
 
     onMutate: async ({ entryId, newStatus, classId }) => {
       // Cancel in-flight queries to avoid overwriting our optimistic update

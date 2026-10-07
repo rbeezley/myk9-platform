@@ -127,6 +127,7 @@ const StubLiveScoresheet = ({
   onWarningChime,
   onVoiceAnnouncement,
   enableVoiceAnnouncements,
+  headerActions,
 }: {
   entry: { armband: number };
   onSubmit: (sd: unknown) => void;
@@ -134,8 +135,10 @@ const StubLiveScoresheet = ({
   onWarningChime?: () => void;
   onVoiceAnnouncement?: (secondsRemaining: number) => void;
   enableVoiceAnnouncements?: boolean;
+  headerActions?: React.ReactNode;
 }) => (
   <div>
+    <header>{headerActions}</header>
     <div data-testid="live-scoresheet">Live scoresheet for #{entry.armband}</div>
     <div data-testid="voice-announcements-enabled">{String(enableVoiceAnnouncements)}</div>
     <button onClick={() => onSubmit({ resultText: 'Qualified', searchTime: '0:30.00' })}>

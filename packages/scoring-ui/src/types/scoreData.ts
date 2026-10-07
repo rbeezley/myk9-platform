@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 /** Qualifying result options */
 export type QualifyingResult = 'Q' | 'NQ' | 'EX' | 'ABS';
 
@@ -71,6 +73,8 @@ export interface BaseScoresheetProps {
   rules: import('./resolvedClassRules').ResolvedClassRules;
   onSubmit: (scoreData: ScoreData) => void | Promise<void>;
   onBack: () => void;
+  /** Extra controls shown at the right end of the scoresheet header (e.g. mute timer sounds). */
+  headerActions?: ReactNode;
 }
 
 /** Additional props for LiveScoresheet variants */

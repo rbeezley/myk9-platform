@@ -5,6 +5,10 @@ export interface ShowWorkbenchClassSummary {
   level: string;
   section: string;
   judgeName: string;
+  /** The confirmed judge's `people.id`; groups a judge's day for the sign-off (MYK9-1030). */
+  judgeId?: string | undefined;
+  /** MYK9-1030: when the judge's sign-off was recorded for this class. */
+  judgeSignedOffAt?: string | null | undefined;
   trialId: string;
   time: string;
   revisedExpectedStart?: string | null;

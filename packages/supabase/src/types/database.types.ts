@@ -1169,6 +1169,8 @@ export type Database = {
           id: string
           is_results_reviewed: boolean | null
           is_scoring_finalized: boolean | null
+          judge_signed_off_at: string | null
+          judge_signed_off_by: string | null
           jump_heights: string[] | null
           level: string | null
           max_dogs_per_handler: number | null
@@ -1225,6 +1227,8 @@ export type Database = {
           id?: string
           is_results_reviewed?: boolean | null
           is_scoring_finalized?: boolean | null
+          judge_signed_off_at?: string | null
+          judge_signed_off_by?: string | null
           jump_heights?: string[] | null
           level?: string | null
           max_dogs_per_handler?: number | null
@@ -1281,6 +1285,8 @@ export type Database = {
           id?: string
           is_results_reviewed?: boolean | null
           is_scoring_finalized?: boolean | null
+          judge_signed_off_at?: string | null
+          judge_signed_off_by?: string | null
           jump_heights?: string[] | null
           level?: string | null
           max_dogs_per_handler?: number | null

@@ -9,6 +9,7 @@
  */
 
 import { useId } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -36,6 +37,7 @@ import type {
   ClassOverrideEntry,
 } from '@/hooks/queries/useShowSettingsDatabase';
 import { getClassName } from '@/components/classes/types/classTypes';
+import { getShowMapClassHref } from '@/features/show-map/showMapRoutes';
 import {
   resolveTrialVisibility,
   resolveTrialCheckin,
@@ -430,6 +432,15 @@ export function OverrideTree({
                           <FacetStatus facet={facet} visibility={classVis} checkin={classCheckin} />
                         </div>
                       </div>
+                      {facet === 'visibility' && (
+                        <Link
+                          to={getShowMapClassHref(showId, trial.id, cls.id)}
+                          aria-label={`View results for ${className}`}
+                          className="inline-flex min-h-11 shrink-0 items-center rounded-sm px-2 text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          View results
+                        </Link>
+                      )}
                       <OverrideControls
                         facet={facet}
                         name={className}

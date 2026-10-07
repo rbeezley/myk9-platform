@@ -172,6 +172,25 @@ describe('OverrideTree', () => {
     );
   });
 
+  it('links every class row to its class page in visibility mode only', async () => {
+    const { user } = renderTree();
+    await user.click(screen.getByRole('button', { name: /Trial A.*classes/ }));
+    expect(screen.getByRole('link', { name: 'View results for Container Novice' })).toHaveAttribute(
+      'href',
+      '/shows/show-1/trials/trial-1/classes/class-1'
+    );
+    expect(screen.getByRole('link', { name: 'View results for Interior Open' })).toHaveAttribute(
+      'href',
+      '/shows/show-1/trials/trial-1/classes/class-2'
+    );
+  });
+
+  it('does not show results links in check-in mode', async () => {
+    const { user } = renderTree({ facet: 'checkin' });
+    await user.click(screen.getByRole('button', { name: /Trial A.*classes/ }));
+    expect(screen.queryByRole('link', { name: /View results/ })).not.toBeInTheDocument();
+  });
+
   it.each(['visibility', 'checkin'] as const)(
     'fires bulk-selection callbacks in %s mode',
     async facet => {

@@ -31,7 +31,7 @@ Showing 2 of 11 forms · 15 entries
 - **Add Entry** is the only primary button. **More** stays secondary.
 - Targets 44px; the menu is a full-width sheet under 640px.
 
-Filters are **page-specific**: each page declares its fields (`ListFilterField[]`), the menu shows only those. No global filter list.
+Filters are **page-specific**: each page declares its fields (`ListMenuFilterField[]`, the single-select, date-range and multi-select kinds), the menu shows only those. No global filter list.
 
 ## Data model change (`list-toolkit/types.ts`)
 
@@ -40,7 +40,7 @@ Add `ListMultiOptionsFilterField` (`kind: 'multiOptions'`, `values: string[]`, `
 ## Entries wiring
 
 - **Trial / Class:** URL params become comma lists (`trial=a,b`, `class=c,d`); a single value stays valid, so every existing link works. Class options are the union of the selected trials' classes (all classes when no trial is picked, grouped by trial). Today `onScopeChange(trialId, classId)` clears the class when the trial changes; with lists, a class whose trial is deselected is dropped.
-- **Queues (Show:):** the four registration queues become checkable (`queue=needs-review,payment-due`; Needs review plus Payment due is a useful union). Waitlist, Pulls and Move-ups stay single choices: they are different lists with different rows, so "Needs review and Waitlist" cannot be one list. Picking one of those clears the queue checks. "All" is the empty set.
+- **Queues (Show:):** the four registration queues become checkable (`queue=needs-review,payment-due`; Needs review plus Payment due is a useful union). Waitlist, Pulls and Move-ups stay single choices: they are different lists with different rows, so "Needs review and Waitlist" cannot be one list. Picking one of those clears the queue checks. Exact queue rules are under "Settled before Phase 2" below.
 - **Registry filter** (`registration` key in the cockpit state) is a focused-form key, not a filter; unchanged.
 - Density stays gone (removed 2026-10-07).
 
@@ -49,6 +49,19 @@ Add `ListMultiOptionsFilterField` (`kind: 'multiOptions'`, `values: string[]`, `
 1. **Queues as checkboxes inside "Show:"** (above) versus keeping Show: single-select and multi-select only for Trial and Class. Recommendation: checkboxes, because the owner's example was combining queues, and the result stays one select.
 2. **Counts in the menu** are computed from the current queue and search, so they shrink as you filter (Linear behavior). Alternative: counts from the whole show. Recommendation: whole-show counts, so a value never reads "0" because of another filter; it is cheaper and steadier.
 3. **Search icon-collapse on desktop.** Recommendation: collapsed to an icon only below 1024px; a visible field above.
+
+## Settled before Phase 2 (found in the Phase 1 design review)
+
+These are rules, not options; Phase 2-4 build to them.
+
+1. **Queue semantics.** An absent `queue` param still means Needs review (today's default; old links keep working). The param holds either a list of non-All queues (`queue=needs-review,payment-due`) or exactly `all`. **All is exclusive**: choosing All clears the other checks, choosing any other check clears All. Unchecking the last box writes `queue=all`, never an empty set; Clear all also writes `all`. Legacy params map as `getQueue` does today (`payment=pending` becomes the list `payment-due`; `attention=missing_information` becomes `missing-information`; `attention=all|accepted|issues` becomes `all`). The exclusivity rules live in the Show: select component, not in the field type.
+2. **State shape and its ripple.** `EntryManagementCockpitState.queue` becomes a list. Phase 4 updates every reader: `entryManagementViewId` and the view row's highlighted value (several checks read as "Needs review + Payment due"), the result line's "filtered" test (trial list, class list and queue list all count), `writeCockpitQueue` / `writeCockpitView`, and the view counts. `entryManagementFilters.ts` (legacy `queue=pulled` handling) is read and updated in the same phase.
+3. **Several trials need classes for several trials.** `useEntryManagementTrialClasses` takes one trial today and returns `undefined` for "scope unknown, do not scope". With several trials it fetches per show (or per selected trial) and returns the union only when **every** selected trial has loaded; otherwise `undefined`, so a still-loading trial never hides registrations. With no trial picked, class options are all of the show's classes (a new fetch, not just a toggle).
+4. **One gesture, one URL write.** Choosing or dropping a trial can drop classes whose trial is no longer selected. That is one atomic `onScopeChange(trialIds, classIds)` through `patchSearchParams`; two separate field `onChange` calls would race on stale params. The Entries field builder computes the pruning, not the toolkit. `keepOfferedValues` must not run in the URL normalizer before the class options have loaded, or the first render erases the user's `class=`; gate it the way `registration` is gated.
+5. **Class names repeat across trials.** Entries option labels carry the trial ("Trial 2 · Interior Novice B"), so menu rows and the applied sentence are unambiguous. If Phase 2 needs grouped rows, it adds an optional `group` to `ListFilterOption` then; not before.
+6. **Options still loading.** The applied-filter row must not print raw ids while a field's options are loading (or offline): a field carries an optional `loading` flag, and while it is set the sentence is hidden and the menu shows "Loading…".
+7. **Count meaning.** `count` stays "rows that match this value on its own", measured over the whole show (open decision 2's recommendation); update the type comment when Phase 2 lands. Waitlist, Pulls and Move-ups counts keep coming from their own sources in the Show: select.
+8. **Naming.** The helpers are `toggleListValue` and `keepOfferedValues`. `ListFilterField` stays the narrow union `ListFilterBar` takes until the last list migrates; the end state (after `ListFilterBar` is deleted) is a single `ListFilterField` union including the multi-select kind.
 
 ## Phases
 

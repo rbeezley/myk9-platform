@@ -19,7 +19,7 @@ export function parseListParam(raw: string | null): string[] {
   if (!raw) return [];
   const values = raw
     .split(',')
-    .map(part => unescapeValue(part.trim()))
+    .map(unescapeValue)
     .filter(value => value !== '');
   return [...new Set(values)];
 }

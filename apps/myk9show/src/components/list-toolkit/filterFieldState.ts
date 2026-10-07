@@ -13,12 +13,12 @@ export function isFieldActive(field: ListMenuFilterField): boolean {
 }
 
 /** `values` with `value` added at the end, or removed when it is already there. */
-export function toggleValue(values: readonly string[], value: string): string[] {
+export function toggleListValue(values: readonly string[], value: string): string[] {
   return values.includes(value) ? values.filter(v => v !== value) : [...values, value];
 }
 
 /** Only the values the field still offers, so a stale link cannot filter on nothing. */
-export function keepKnownValues(
+export function keepOfferedValues(
   values: readonly string[],
   options: readonly ListFilterOption[]
 ): string[] {
@@ -51,16 +51,17 @@ export function describeDateRange({ start, end }: ListDateRange): string {
  */
 export function describeAppliedFilter(field: ListMenuFilterField): string | null {
   if (!isFieldActive(field)) return null;
-  if (field.kind === 'options') {
-    return `${field.label}: ${labelFor(field.options, field.value ?? '')}`;
-  }
-  if (field.kind === 'multiOptions') {
-    const offered = field.options.filter(option => field.values.includes(option.value));
-    const stale = field.values.filter(value => !field.options.some(o => o.value === value));
-    const labels = [...offered.map(option => option.label), ...stale];
-    return `${field.label}: ${labels.join(', ')}`;
-  }
-  return `${field.label}: ${describeDateRange(field.value)}`;
+  if (field.kind === 'dateRange') return `${field.label}: ${describeDateRange(field.value)}`;
+  const labels =
+    field.kind === 'options'
+      ? [labelFor(field.options, field.value ?? '')]
+      : [
+          ...field.options.filter(o => field.values.includes(o.value)).map(o => o.label),
+          ...field.values.filter(v => !field.options.some(o => o.value === v)),
+        ];
+  // A blank label or value would read "Class: " or "A, , B"; say nothing instead.
+  const shown = [...new Set(labels)].filter(label => label !== '');
+  return shown.length === 0 ? null : `${field.label}: ${shown.join(', ')}`;
 }
 
 /** `yyyy-mm-dd` for an `<input type="date">`, in local time. */

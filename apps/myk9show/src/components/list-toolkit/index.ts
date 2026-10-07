@@ -22,6 +22,6 @@ export { parseListParam, serializeListParam } from './listParam';
 export {
   describeAppliedFilter,
   isFieldActive,
-  keepKnownValues,
-  toggleValue,
+  keepOfferedValues,
+  toggleListValue,
 } from './filterFieldState';

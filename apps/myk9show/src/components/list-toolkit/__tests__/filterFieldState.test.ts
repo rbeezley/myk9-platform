@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import {
   describeAppliedFilter,
   isFieldActive,
-  keepKnownValues,
-  toggleValue,
+  keepOfferedValues,
+  toggleListValue,
 } from '../filterFieldState';
 import type { ListMenuFilterField, ListMultiOptionsFilterField } from '../types';
 
@@ -28,24 +28,24 @@ describe('isFieldActive for a multi-select field', () => {
   });
 });
 
-describe('toggleValue', () => {
+describe('toggleListValue', () => {
   it('adds a value at the end and removes one that is already there', () => {
-    expect(toggleValue(['a'], 'b')).toEqual(['a', 'b']);
-    expect(toggleValue(['a', 'b'], 'a')).toEqual(['b']);
-    expect(toggleValue([], 'a')).toEqual(['a']);
+    expect(toggleListValue(['a'], 'b')).toEqual(['a', 'b']);
+    expect(toggleListValue(['a', 'b'], 'a')).toEqual(['b']);
+    expect(toggleListValue([], 'a')).toEqual(['a']);
   });
 
   it('does not change the list it is given', () => {
     const before = ['a'];
-    toggleValue(before, 'b');
+    toggleListValue(before, 'b');
     expect(before).toEqual(['a']);
   });
 });
 
-describe('keepKnownValues', () => {
+describe('keepOfferedValues', () => {
   it('drops values the field no longer offers, keeping order', () => {
     const { options } = classField([]);
-    expect(keepKnownValues(['c2', 'gone', 'c1'], options)).toEqual(['c2', 'c1']);
+    expect(keepOfferedValues(['c2', 'gone', 'c1'], options)).toEqual(['c2', 'c1']);
   });
 });
 
@@ -64,6 +64,20 @@ describe('describeAppliedFilter', () => {
     expect(describeAppliedFilter(classField(['old-id', 'c3']))).toBe(
       'Class: Containers Advanced, old-id'
     );
+  });
+
+  it('says nothing rather than a blank, a doubled value or an empty label', () => {
+    expect(describeAppliedFilter(classField(['']))).toBeNull();
+    expect(describeAppliedFilter(classField(['x', 'x']))).toBe('Class: x');
+    const unlabelled: ListMultiOptionsFilterField = {
+      ...classField(['c1', 'c2']),
+      options: [
+        { value: 'c1', label: '' },
+        { value: 'c2', label: 'Exterior Excellent' },
+      ],
+    };
+    expect(describeAppliedFilter(unlabelled)).toBe('Class: Exterior Excellent');
+    expect(describeAppliedFilter({ ...unlabelled, values: ['c1'] })).toBeNull();
   });
 
   it('reads a single-select field by its option label, or raw when stale', () => {

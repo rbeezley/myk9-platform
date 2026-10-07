@@ -16,7 +16,7 @@ describe('parseListParam', () => {
   });
 
   it('drops blanks and repeats', () => {
-    expect(parseListParam('a,,b, ,a')).toEqual(['a', 'b']);
+    expect(parseListParam('a,,b,,a')).toEqual(['a', 'b']);
   });
 });
 
@@ -34,7 +34,10 @@ describe('serializeListParam', () => {
     expect(serializeListParam(['a', 'b', 'a'])).toBe('a,b');
   });
 
-  it.each([['a,b'], ['100%'], ['x%2Cy'], ['plain']])('round-trips %s', value => {
-    expect(parseListParam(serializeListParam([value, 'z']))).toEqual([value, 'z']);
-  });
+  it.each([['a,b'], ['100%'], ['x%2Cy'], ['plain'], [' padded '], ['  ']])(
+    'round-trips %j',
+    value => {
+      expect(parseListParam(serializeListParam([value, 'z']))).toEqual([value, 'z']);
+    }
+  );
 });

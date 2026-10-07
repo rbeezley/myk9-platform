@@ -46,6 +46,7 @@ export function describeDateRange({ start, end }: ListDateRange): string {
  */
 export function describeAppliedFilter(field: ListMenuFilterField): string | null {
   if (!isFieldActive(field)) return null;
+  if (field.kind === 'multiOptions' && field.loading) return null;
   if (field.kind === 'dateRange') return `${field.label}: ${describeDateRange(field.value)}`;
   const picked = field.kind === 'options' ? [field.value ?? ''] : [...new Set(field.values)];
   // One entry per picked value, so two options that share a label both show.

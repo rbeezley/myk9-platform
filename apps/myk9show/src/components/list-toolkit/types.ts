@@ -50,7 +50,15 @@ export interface ListMultiOptionsFilterField extends ListFilterFieldBase {
   options: ListFilterOption[];
   values: string[];
   onChange: (values: string[]) => void;
+  /**
+   * The options are not known yet (still loading, paused or offline). The menu says "Loading…"
+   * and the applied-filter sentence stays hidden, so a raw id never shows in place of a name.
+   */
+  loading?: boolean;
 }
+
+/** The field kinds the Filter menu can show today; date ranges follow when a list needs one. */
+export type ListFilterMenuField = ListOptionsFilterField | ListMultiOptionsFilterField;
 
 /** Every field the Filter menu takes. `ListFilterBar` still takes only `ListFilterField`. */
 export type ListMenuFilterField = ListFilterField | ListMultiOptionsFilterField;

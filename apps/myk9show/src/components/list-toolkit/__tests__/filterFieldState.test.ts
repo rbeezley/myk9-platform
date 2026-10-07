@@ -77,6 +77,13 @@ describe('describeAppliedFilter', () => {
     expect(describeAppliedFilter(twins)).toBe('Class: Interior Novice B, Interior Novice B');
   });
 
+  it('says nothing while the field’s options are still loading, so no raw id shows', () => {
+    expect(describeAppliedFilter({ ...classField(['c1']), loading: true })).toBeNull();
+    expect(describeAppliedFilter({ ...classField(['c1']), loading: false })).toBe(
+      'Class: Interior Novice B'
+    );
+  });
+
   it('says nothing for a whitespace-only value', () => {
     expect(describeAppliedFilter(classField([' ']))).toBeNull();
   });

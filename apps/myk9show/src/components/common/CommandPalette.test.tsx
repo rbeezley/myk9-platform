@@ -1,5 +1,6 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
+import { useLocation } from 'react-router-dom';
 import { render } from '@/test/utils/testUtils';
 import { CommandPalette } from './CommandPalette';
 import { PERMISSIONS, UserRole } from '@/types/auth-types';
@@ -36,11 +37,20 @@ vi.mock('@/hooks/useRecentSearches', () => ({
   }),
 }));
 
-type MockDog = { id: string; name: string; callName?: string; registrations?: unknown[] };
+type MockDog = { id: string; name: string | null; callName?: string; registrations?: unknown[] };
 let mockDogs: MockDog[] = [];
 
 vi.mock('@/store/dogStore', () => ({
-  useDogStore: (selector: (state: { dogs: MockDog[] }) => unknown) => selector({ dogs: mockDogs }),
+  // The deprecated store stays empty in production, even on the Dogs page.
+  useDogStore: (selector: (state: { dogs: MockDog[] }) => unknown) => selector({ dogs: [] }),
+}));
+
+vi.mock('@/hooks/queries/useDogsDatabase', () => ({
+  useDogsQuery: () => ({
+    data: mockDogs.map(dog => ({ ...dog, call_name: dog.callName })),
+    isLoading: false,
+    error: null,
+  }),
 }));
 
 vi.mock('@/store/userStore', () => ({
@@ -69,8 +79,30 @@ vi.mock('@/store/showStore', () => ({
     }),
 }));
 
+vi.mock('@/store/clubStore', () => ({
+  useClubStore: (selector: (state: { clubs: unknown[] }) => unknown) =>
+    selector({
+      clubs: ['Heartland Scent Club', 'E2E Club 174'].map((name, i) => ({
+        id: `club-${i}`,
+        name,
+        clubNumber: '',
+        email: '',
+        phone: '',
+        description: '',
+        logo: '',
+        coverImage: '',
+        accentColor: '',
+        upcomingShows: [],
+        pastShows: [],
+        address: { street: '', city: 'Austin', state: 'TX', zipCode: '', country: 'US' },
+      })),
+    }),
+}));
+
 function mockAuth(roles: UserRole[], permissions: string[] = []) {
   vi.mocked(useAuthContext).mockReturnValue({
+    user: { id: 'viewer', is_anonymous: false },
+    loading: false,
     userWithRoles: { roles },
     hasPermission: (permission: string) => permissions.includes(permission),
   } as ReturnType<typeof useAuthContext>);
@@ -224,6 +256,85 @@ describe('CommandPalette Entry Management context', () => {
     ]) {
       expect(screen.queryByText(forbidden)).not.toBeInTheDocument();
     }
+  });
+});
+
+function CurrentPath() {
+  return <output>{useLocation().pathname}</output>;
+}
+
+describe('CommandPalette dog search', () => {
+  it('finds a current roster dog by call name and opens its profile', () => {
+    mockAuth([UserRole.SECRETARY]);
+    // Modern dog records have a call_name and no legacy name.
+    mockDogs = [{ id: 'coco-id', name: null, callName: 'COCO', registrations: [] }];
+    const onOpenChange = vi.fn();
+    render(
+      <>
+        <CommandPalette open onOpenChange={onOpenChange} />
+        <CurrentPath />
+      </>
+    );
+
+    fireEvent.change(screen.getByPlaceholderText(/search dogs, people, shows/i), {
+      target: { value: 'coco' },
+    });
+
+    fireEvent.click(screen.getByText('COCO'));
+    expect(screen.getByText('/dogs/coco-id')).toBeInTheDocument();
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+});
+
+describe('CommandPalette other record searches', () => {
+  it.each([
+    ['ALICE', 'Alice Handler', '/people/person-1'],
+    ['handler', 'Alice Handler', '/people/person-1'],
+    ['alice handler', 'Alice Handler', '/people/person-1'],
+    ['spring', 'Spring Trial', '/shows/show-1'],
+    ['DENVER', 'Spring Trial', '/shows/show-1'],
+    ['akc', 'Spring Trial', '/shows/show-1'],
+    ['HEARTLAND', 'Heartland Scent Club', '/clubs/club-0'],
+  ])('searching %s opens %s at %s', (term, label, path) => {
+    mockAuth([UserRole.SECRETARY]);
+    const onOpenChange = vi.fn();
+    render(
+      <>
+        <CommandPalette open onOpenChange={onOpenChange} />
+        <CurrentPath />
+      </>
+    );
+    fireEvent.change(screen.getByPlaceholderText(/search dogs, people, shows/i), {
+      target: { value: term },
+    });
+    fireEvent.click(screen.getByText(label));
+    expect(screen.getByText(path)).toBeInTheDocument();
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it.each([UserRole.EXHIBITOR, UserRole.SECRETARY, UserRole.SITE_ADMIN])(
+    'preserves directory visibility for %s',
+    role => {
+      mockAuth([role]);
+      render(<CommandPalette open onOpenChange={vi.fn()} />);
+      fireEvent.change(screen.getByPlaceholderText(/search dogs, people, shows/i), {
+        target: { value: 'E2E Club' },
+      });
+      expect(Boolean(screen.queryByText('E2E Club 174'))).toBe(role === UserRole.SITE_ADMIN);
+    }
+  );
+
+  it('does not expose cached club records to a passcode session', () => {
+    mockAuth([UserRole.SECRETARY]);
+    vi.mocked(useAuthContext).mockReturnValue({
+      ...useAuthContext(),
+      user: { id: 'passcode', is_anonymous: true },
+    } as ReturnType<typeof useAuthContext>);
+    render(<CommandPalette open onOpenChange={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText(/search dogs, people, shows/i), {
+      target: { value: 'Heartland' },
+    });
+    expect(screen.queryByText('Heartland Scent Club')).not.toBeInTheDocument();
   });
 });
 

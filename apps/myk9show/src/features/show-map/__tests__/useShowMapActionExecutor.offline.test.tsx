@@ -73,7 +73,9 @@ describe('Show Map actions while offline', () => {
     onlineManager.setOnline(false);
     const { result } = renderHook(() => useShowMapActionExecutor({ showId: 's1' }), { wrapper });
 
-    act(() => result.current.executeAction(action({}), { kind: 'dialog', dialog: 'scratch-entry' }));
+    act(() =>
+      result.current.executeAction(action({}), { kind: 'dialog', dialog: 'scratch-entry' })
+    );
     act(() => result.current.confirmScratchNoShow('sick'));
 
     await waitFor(() => expect(writes.scratchShowMapEntry).toHaveBeenCalledWith('e1', 'sick'));

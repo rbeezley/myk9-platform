@@ -112,3 +112,7 @@ tmpclaude-*-cwd
 
 # Per-worktree log directory for local check output (see docs/plan-dev-process-hardening-2026-09-07.md)
 .logs/
+# The near-miss `> .logs-<name>.txt` (dash, not slash) that agents type by hand.
+# Ignored rather than blocked: a PreToolUse guard needed a shell parser and kept
+# failing review (#2812). Clear old ones with `git clean -X`.
+.logs-*

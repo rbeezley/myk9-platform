@@ -45,6 +45,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   rules,
   onSubmit,
   onBack,
+  headerActions,
   onWarningChime,
   onVoiceAnnouncement,
   enableVoiceAnnouncements,
@@ -129,7 +130,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex-1">
-              <h1 className="text-lg font-semibold flex items-center gap-2">
+              <h1 className="text-lg max-sm:text-base font-semibold flex items-center gap-2">
                 <ClipboardCheck className="h-5 w-5 text-primary" />
                 {headerTitle}
               </h1>
@@ -138,6 +139,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                 {classInfo.level && classInfo.level !== 'Unknown' ? ` ${classInfo.level}` : ''}
               </p>
             </div>
+            {headerActions}
           </header>
 
           <div className="p-4 space-y-3">
@@ -253,13 +255,14 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                       value={area.time}
                       onChange={e => scoring.handleAreaUpdate(index, 'time', e.target.value)}
                       placeholder="0:00.00"
-                      className="text-center text-base font-mono font-medium pr-8 h-12 rounded-xl border-2 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      className="text-center text-base font-mono font-medium pr-12 h-12 rounded-xl border-2 focus:border-primary focus:ring-2 focus:ring-primary/20"
                       aria-label={`${area.areaName} time`}
                     />
                     {area.time && (
                       <Button
                         variant="ghost"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 hover:-translate-y-1/2 active:-translate-y-1/2 h-7 w-7 p-0 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
+                        className="absolute right-0.5 top-1/2 -translate-y-1/2 hover:-translate-y-1/2 active:-translate-y-1/2 h-11 w-11 p-0 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
+                        aria-label={`Clear ${area.areaName} time`}
                         onClick={() => scoring.handleAreaUpdate(index, 'time', '')}
                       >
                         <X className="h-4 w-4" />

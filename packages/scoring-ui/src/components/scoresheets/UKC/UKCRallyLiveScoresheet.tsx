@@ -21,6 +21,7 @@ export const UKCRallyLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   rules,
   onSubmit,
   onBack,
+  headerActions,
   onWarningChime,
   onVoiceAnnouncement,
   enableVoiceAnnouncements,
@@ -114,11 +115,12 @@ export const UKCRallyLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex-1">
-              <h1 className="text-lg font-semibold">UKC Rally</h1>
+              <h1 className="text-lg max-sm:text-base font-semibold">UKC Rally</h1>
               <p className="text-sm text-muted-foreground">
                 {classInfo.element} {classInfo.level}
               </p>
             </div>
+            {headerActions}
           </header>
 
           <div className="p-4 space-y-4">

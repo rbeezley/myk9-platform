@@ -52,6 +52,7 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   rules,
   onSubmit,
   onBack,
+  headerActions,
   onWarningChime,
   onVoiceAnnouncement,
   enableVoiceAnnouncements,
@@ -128,7 +129,7 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex-1">
-              <h1 className="text-lg font-semibold flex items-center gap-2">
+              <h1 className="text-lg max-sm:text-base font-semibold flex items-center gap-2">
                 <Zap className="h-5 w-5 text-amber-500" />
                 AKC FastCAT
               </h1>
@@ -136,6 +137,7 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                 {classInfo.element} {classInfo.level}
               </p>
             </div>
+            {headerActions}
           </header>
 
           <div className="p-4 space-y-4">

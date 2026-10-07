@@ -36,6 +36,7 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
   rules,
   onSubmit,
   onBack,
+  headerActions,
   onWarningChime,
   onVoiceAnnouncement,
   enableVoiceAnnouncements,
@@ -123,7 +124,7 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex-1">
-              <h1 className="text-lg font-semibold flex items-center gap-2">
+              <h1 className="text-lg max-sm:text-base font-semibold flex items-center gap-2">
                 <ClipboardCheck className="h-5 w-5 text-primary" />
                 ASCA Scent Detection
               </h1>
@@ -131,6 +132,7 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
                 {classInfo.element} {classInfo.level}
               </p>
             </div>
+            {headerActions}
           </header>
 
           <div className="p-4 space-y-4">
@@ -268,13 +270,14 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
                     value={area.time}
                     onChange={e => scoring.handleAreaUpdate(index, 'time', e.target.value)}
                     placeholder="0:00.00"
-                    className="text-center text-xl font-mono pr-10"
+                    className="text-center text-xl font-mono pr-12"
                     aria-label={`${area.areaName} time`}
                   />
                   {area.time && (
                     <button
                       type="button"
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-muted-foreground hover:text-foreground"
+                      aria-label={`Clear ${area.areaName} time`}
                       onClick={() => scoring.handleAreaUpdate(index, 'time', '')}
                     >
                       <X className="h-4 w-4" />

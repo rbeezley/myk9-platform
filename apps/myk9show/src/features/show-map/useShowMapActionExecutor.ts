@@ -16,6 +16,7 @@ import {
   markShowDayDetailsCheckedIn,
 } from './showMapCheckInOptimisticUpdates';
 import { useShowMapMoveUpReversal } from './useShowMapMoveUpReversal';
+import { useJudgeSignOffMutations } from './useJudgeSignOffMutations';
 import type { ShowMapAction } from './showMapActions';
 import type { ExecutableShowMapActionExecution } from './showMapActionExecution';
 import {
@@ -108,6 +109,11 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
     },
     [queryClient, showId]
   );
+
+  // MYK9-1030: the judge's end-of-day sign-off, shared with the Results tab (MYK9-1031).
+  const judgeSignOff = useJudgeSignOffMutations({
+    onSettled: classIds => classIds.forEach(classId => invalidateShowMapActionQueries(classId)),
+  });
 
   const mutation = useMutation({
     mutationFn: async ({ action, execution }: MutationInput) => {
@@ -404,11 +410,24 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
         setMessageAction(action);
         return;
       }
+      if (execution.kind === 'mutation' && execution.mutation === 'record-judge-sign-off') {
+        judgeSignOff.recordSignOff({
+          classIds: action.classIds ?? (action.classId ? [action.classId] : []),
+          registryId: action.registryId,
+        });
+        return;
+      }
+      if (execution.kind === 'mutation' && execution.mutation === 'clear-judge-sign-off') {
+        if (action.classId) {
+          judgeSignOff.clearSignOff({ classIds: [action.classId], registryId: action.registryId });
+        }
+        return;
+      }
       if (execution.kind === 'mutation') {
         mutation.mutate({ action, execution });
       }
     },
-    [mutation]
+    [judgeSignOff, mutation]
   );
 
   return {
@@ -436,6 +455,7 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
     },
     isExecuting:
       mutation.isPending ||
+      judgeSignOff.isPending ||
       scratchMutation.isPending ||
       moveUpMutation.isPending ||
       messageHandlerMutation.isPending,

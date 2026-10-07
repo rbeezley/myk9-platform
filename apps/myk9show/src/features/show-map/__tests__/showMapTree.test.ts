@@ -517,14 +517,7 @@ describe('buildShowMapTree', () => {
           status: 'Complete',
         },
       ],
-      entries: [
-        {
-          id: 'entry-signed',
-          class_id: 'class-1',
-          is_scored: true,
-          judge_signature_timestamp: '2026-05-18T11:00:00Z',
-        },
-      ],
+      entries: [{ id: 'entry-signed', class_id: 'class-1', is_scored: true }],
     });
 
     expect(tree.nodesById['class:class-1']?.wrapUpStatus).toMatchObject({

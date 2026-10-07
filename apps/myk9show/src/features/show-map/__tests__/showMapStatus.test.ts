@@ -9,6 +9,9 @@ import {
 } from '../showMapStatus';
 
 const makeClass = (status: string): ShowMapClassInput => fromPartial({ status });
+// MYK9-1030: the judge's sign-off is recorded on the class, for the judge's whole day.
+const makeSignedClass = (status: string): ShowMapClassInput =>
+  fromPartial({ status, judgeSignedOffAt: '2026-05-18T20:00:00Z' });
 
 describe('showMapStatus', () => {
   describe('classifyClassWrapUpStatus', () => {
@@ -36,9 +39,7 @@ describe('showMapStatus', () => {
 
     it('marks signed completed classes before submission', () => {
       expect(
-        classifyClassWrapUpStatus(makeClass('Complete'), [
-          { judge_signature_timestamp: '2026-05-18' },
-        ])
+        classifyClassWrapUpStatus(makeSignedClass('Complete'), [{ is_scored: true }])
       ).toMatchObject({
         value: 'signed-by-judge',
         label: 'Initialed by judge',
@@ -60,9 +61,7 @@ describe('showMapStatus', () => {
 
     it('uses completed entry progress as the completion fallback', () => {
       expect(
-        classifyClassWrapUpStatus(makeClass('Scheduled'), [
-          { is_scored: true, judge_signature_timestamp: '2026-05-18' },
-        ])
+        classifyClassWrapUpStatus(makeSignedClass('Scheduled'), [{ is_scored: true }])
       ).toMatchObject({
         value: 'signed-by-judge',
         label: 'Initialed by judge',
@@ -72,7 +71,7 @@ describe('showMapStatus', () => {
 
     it('counts pulled entries as accounted for without requiring judge signatures', () => {
       const entries = [
-        { is_scored: true, judge_signature_timestamp: '2026-05-18' },
+        { is_scored: true },
         { entry_status: 'scratched', check_in_status: 'pulled' },
       ];
 
@@ -81,7 +80,7 @@ describe('showMapStatus', () => {
         total: 2,
         label: '2/2 entries complete',
       });
-      expect(classifyClassWrapUpStatus(makeClass('In Progress'), entries)).toMatchObject({
+      expect(classifyClassWrapUpStatus(makeSignedClass('In Progress'), entries)).toMatchObject({
         value: 'signed-by-judge',
         label: 'Initialed by judge',
         kind: 'neutral',

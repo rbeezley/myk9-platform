@@ -97,6 +97,17 @@ export function isClassRunComplete(cls: ShowMapClassInput, entries: ShowMapEntry
   return progress ? progress.completed >= progress.total && progress.total > 0 : false;
 }
 
+/**
+ * MYK9-1030: true only when the class is KNOWN to have nothing left to run: the caller's entries
+ * read produced data (the Show Desk passes `entryCount` as a number only then, `null` otherwise)
+ * and no entry is expected to run or waiting on acceptance. An unknown count is never "empty".
+ * Such a class is never completed by the server, so it must not hold its judge's day open.
+ */
+export function isClassConfirmedEmpty(cls: ShowMapClassInput): boolean {
+  if (typeof cls.entryCount !== 'number' || cls.entryCount !== 0) return false;
+  return cls.runListCount === undefined || cls.runListCount === 0;
+}
+
 export function classifyClassWrapUpStatus(
   cls: ShowMapClassInput,
   entries: ShowMapEntryInput[],

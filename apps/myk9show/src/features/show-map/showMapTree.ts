@@ -7,6 +7,7 @@ import {
   classifyClassWrapUpStatus,
   classifyEntryCheckInStatus,
   classifyEntryRunStatus,
+  isClassConfirmedEmpty,
   isClassRunComplete,
   isEntryComplete,
 } from './showMapStatus';
@@ -203,6 +204,7 @@ export function buildShowMapTree({
       ...judgeDayInputs[index]!,
       finished:
         classifyClassStatus(cls.status)?.kind === 'muted' ||
+        isClassConfirmedEmpty(cls) ||
         isClassRunComplete(cls, entriesByClassId.get(cls.id) ?? []),
     }))
   );

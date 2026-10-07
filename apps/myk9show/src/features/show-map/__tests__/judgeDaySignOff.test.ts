@@ -271,4 +271,110 @@ describe("judge's end-of-day sign-off (MYK9-1030)", () => {
       command: { commandId: 'clear-judge-sign-off:class:c1', label: 'Undo initials' },
     });
   });
+
+  describe('a class the judge will never run does not hold the day open', () => {
+    const NEEDS = {
+      value: SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE,
+      label: "Needs judge's initials",
+      kind: 'attention',
+    };
+    const AT_END = SHOW_MAP_WRAP_UP_STATUS.JUDGE_SIGN_OFF_AT_END_OF_DAY;
+    // The Show Desk passes counts only once the entries read produced data; null = unknown.
+    const knownEmpty = { entryCount: 0, scoredCount: 0, runListCount: 0 };
+    const unknown = { entryCount: null, scoredCount: null, runListCount: null };
+
+    const expectSignOffOffered = (tree: ShowMapTree) => {
+      expect(wrapUp(tree, 'c1')).toEqual(NEEDS);
+      const record = getDirectActionsForNode(tree.nodesById['class:c1']!, { tree }).find(
+        a => a.id === 'record-judge-sign-off'
+      );
+      expect(record).toMatchObject({ classIds: ['c1'] });
+      expect(actionIds(tree, 'c1')).toContain('collect-judge-signature');
+    };
+
+    it('a confirmed-empty class in the same trial', () => {
+      const tree = build({
+        trials: [trial('trial-1', SATURDAY)],
+        classes: [
+          cls('c1', 'trial-1', 'Completed', undefined, {
+            entryCount: 1,
+            scoredCount: 1,
+            runListCount: 1,
+          }),
+          cls('c2', 'trial-1', 'Upcoming', undefined, knownEmpty),
+        ],
+        entries: [scored('c1')],
+      });
+      expectSignOffOffered(tree);
+    });
+
+    it('a confirmed-empty class in another trial that day', () => {
+      const tree = build({
+        trials: [trial('trial-1', SATURDAY), trial('trial-2', SATURDAY)],
+        classes: [
+          cls('c1', 'trial-1', 'Completed', undefined, {
+            entryCount: 1,
+            scoredCount: 1,
+            runListCount: 1,
+          }),
+          cls('c2', 'trial-2', 'Upcoming', undefined, knownEmpty),
+        ],
+        entries: [scored('c1')],
+      });
+      expectSignOffOffered(tree);
+    });
+
+    it('a class whose only entries are pulled or scratched', () => {
+      const tree = build({
+        trials: [trial('trial-1', SATURDAY)],
+        classes: [
+          cls('c1', 'trial-1', 'Completed', undefined, {
+            entryCount: 1,
+            scoredCount: 1,
+            runListCount: 1,
+          }),
+          cls('c2', 'trial-1', 'Upcoming', undefined, knownEmpty),
+        ],
+        entries: [
+          scored('c1'),
+          { id: 'e-p', class_id: 'c2', check_in_status: 'pulled' },
+          { id: 'e-s', class_id: 'c2', entry_status: 'scratched' },
+        ],
+      });
+      expectSignOffOffered(tree);
+    });
+
+    it('keeps waiting when the empty class has an entry still pending acceptance', () => {
+      const tree = build({
+        trials: [trial('trial-1', SATURDAY)],
+        classes: [
+          cls('c1', 'trial-1', 'Completed', undefined, {
+            entryCount: 1,
+            scoredCount: 1,
+            runListCount: 1,
+          }),
+          cls('c2', 'trial-1', 'Upcoming', undefined, {
+            entryCount: 0,
+            scoredCount: 0,
+            runListCount: 1,
+          }),
+        ],
+        entries: [scored('c1'), { id: 'e-pending', class_id: 'c2', entry_status: 'pending' }],
+      });
+      expect(wrapUp(tree, 'c1')?.value).toBe(AT_END);
+    });
+
+    it('keeps waiting when the entries read has not produced data', () => {
+      const tree = build({
+        trials: [trial('trial-1', SATURDAY)],
+        classes: [
+          cls('c1', 'trial-1', 'Completed'),
+          cls('c2', 'trial-1', 'Upcoming', undefined, unknown),
+        ],
+        entries: [scored('c1')],
+      });
+      expect(wrapUp(tree, 'c1')?.value).toBe(AT_END);
+      expect(actionIds(tree, 'c1')).not.toContain('record-judge-sign-off');
+    });
+  });
 });

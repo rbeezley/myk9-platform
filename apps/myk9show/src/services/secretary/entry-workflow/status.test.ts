@@ -26,6 +26,24 @@ function makeEntry(overrides: Partial<EntryManagementEntry> = {}): EntryManageme
 }
 
 describe('changeSecretaryEntryStatus', () => {
+  it('sends the secretary Pull through the scratched lifecycle with the loaded entry seed', async () => {
+    const setEntryLifecycleStatus = vi.fn().mockResolvedValue({ data: {}, error: null });
+    const auditLog = vi.fn().mockResolvedValue(undefined);
+
+    await changeSecretaryEntryStatus(
+      { entry: makeEntry({ entryStatus: EntryStatus.ACCEPTED }), newStatus: EntryStatus.SCRATCHED },
+      { setEntryLifecycleStatus, auditLog }
+    );
+
+    expect(setEntryLifecycleStatus).toHaveBeenCalledTimes(1);
+    expect(setEntryLifecycleStatus).toHaveBeenCalledWith({
+      entryId: 'entry-1',
+      status: 'scratched',
+      reason: undefined,
+      sourceEntry: expect.objectContaining({ id: 'entry-1', showId: 'show-1' }),
+    });
+  });
+
   it('maps accepted entries to the DB status and returns known armband patch data', async () => {
     const setEntryLifecycleStatus = vi.fn().mockResolvedValue({ data: {}, error: null });
     const auditLog = vi.fn().mockResolvedValue(undefined);

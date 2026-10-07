@@ -10,7 +10,6 @@ import { useShowPaperworkPrints } from './cockpit/useShowPaperworkPrints';
 import { ShowDeskToolsSheet, type ShowDeskToolSection } from './ShowDeskToolsSheet';
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
 import { ShowMapMoveUpDialog } from './ShowMapMoveUpDialog';
-import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
 import { useMoveUpTargets } from './useMoveUpTargets';
 import { computeShowDeskPendingSignals } from './showDeskPendingSignals';
 import { computeShowDeskStatus } from './showDeskStatus';
@@ -78,9 +77,6 @@ export default function ShowDeskPanel({
     moveUpReversal,
     isReversingMoveUp,
     reverseMoveUp,
-    scratchAction,
-    closeScratchDialog,
-    confirmScratchNoShow,
     messageAction,
     closeMessageDialog,
     confirmMessageHandler,
@@ -246,13 +242,6 @@ export default function ShowDeskPanel({
             {...(moveUpReversal !== undefined && { reversal: moveUpReversal })}
             isReversing={isReversingMoveUp}
             onMoveBack={reverseMoveUp}
-          />
-          <ShowMapScratchNoShowDialog
-            open={Boolean(scratchAction)}
-            node={scratchAction ? tree.nodesById[scratchAction.nodeId] : undefined}
-            isSubmitting={isExecuting}
-            onOpenChange={open => !open && closeScratchDialog()}
-            onConfirm={confirmScratchNoShow}
           />
           <ShowMapMessageHandlerDialog
             open={Boolean(messageAction)}

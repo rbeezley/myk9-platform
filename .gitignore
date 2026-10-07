@@ -114,5 +114,6 @@ tmpclaude-*-cwd
 .logs/
 # The near-miss `> .logs-<name>.txt` (dash, not slash) that agents type by hand.
 # Ignored rather than blocked: a PreToolUse guard needed a shell parser and kept
-# failing review (#2812). Clear old ones with `git clean -X`.
+# failing review (#2812). Delete old ones with `rm .logs-*` at the checkout root
+# (never `git clean -X`: that removes every ignored file, node_modules and .env too).
 .logs-*

@@ -231,4 +231,57 @@ END;
 $$;
 RESET ROLE;
 
+-- MYK9-1017: every strategy still offered by settings reserves the advertised
+-- spots until its release date. Only this transaction's fixture is changed.
+DO $$
+DECLARE
+  strategy text;
+  release_day date;
+  reserved integer;
+  submission_source text;
+BEGIN
+  FOREACH strategy IN ARRAY ARRAY['none', 'fixed', 'percentage'] LOOP
+    UPDATE public.shows
+       SET mail_in_strategy = strategy,
+           mail_in_value = CASE WHEN strategy = 'percentage' THEN 50 ELSE 1 END,
+           mail_in_auto_release = true
+     WHERE id = pg_temp.id('101');
+    FOREACH release_day IN ARRAY ARRAY[CURRENT_DATE + 1, CURRENT_DATE, CURRENT_DATE - 1] LOOP
+      UPDATE public.shows SET mail_in_release_date = release_day WHERE id = pg_temp.id('101');
+      reserved := CASE WHEN strategy = 'none' OR release_day <= CURRENT_DATE THEN 0 ELSE 1 END;
+      PERFORM pg_temp.expect_eq(
+        (SELECT c.mail_in_reserved || '/' || c.available_spots
+           FROM public.get_judge_day_capacity_live(
+             pg_temp.id('032'), pg_temp.id('101'), CURRENT_DATE + 20) c),
+        reserved || '/' || (2 - reserved),
+        'MYK9-1017 ' || strategy || ' release ' || release_day);
+    END LOOP;
+    UPDATE public.shows SET mail_in_auto_release = false WHERE id = pg_temp.id('101');
+    reserved := CASE WHEN strategy = 'none' THEN 0 ELSE 1 END;
+    PERFORM pg_temp.expect_eq(
+      (SELECT c.mail_in_reserved || '/' || c.available_spots
+         FROM public.get_judge_day_capacity_live(
+           pg_temp.id('032'), pg_temp.id('101'), CURRENT_DATE + 20) c),
+      reserved || '/' || (2 - reserved),
+      'MYK9-1017 ' || strategy || ' keeps its reserve when release is disabled');
+  END LOOP;
+  UPDATE public.shows
+     SET mail_in_strategy = 'fixed', mail_in_value = 2,
+         mail_in_auto_release = true, mail_in_release_date = CURRENT_DATE + 1
+   WHERE id = pg_temp.id('101');
+  FOREACH submission_source IN ARRAY ARRAY['self_service', 'organizer', 'show_desk'] LOOP
+    PERFORM pg_temp.expect_eq(
+      (SELECT e.outcome FROM public.evaluate_entry_capacity(
+        pg_temp.id('302'), pg_temp.id('421'), NULL, NULL, submission_source) e),
+      CASE WHEN submission_source = 'self_service' THEN 'denied' ELSE 'available' END,
+      'MYK9-1017 saturated reserve gate for ' || submission_source);
+  END LOOP;
+  UPDATE public.shows SET mail_in_release_date = CURRENT_DATE WHERE id = pg_temp.id('101');
+  PERFORM pg_temp.expect_eq(
+    (SELECT e.outcome FROM public.evaluate_entry_capacity(
+      pg_temp.id('302'), pg_temp.id('421'), NULL, NULL, 'self_service') e),
+    'available', 'MYK9-1017 release returns reserved spots to self-service');
+END;
+$$;
+
 ROLLBACK;

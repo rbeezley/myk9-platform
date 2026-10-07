@@ -96,6 +96,72 @@ describe('ReplicatedEntriesTable', () => {
     });
   });
 
+  describe('score delivery proof (MYK9-1023)', () => {
+    const scored = {
+      id: 'entry-scored',
+      showId: 'show-123',
+      classId: 'class-1',
+      dogId: 'dog-1',
+      resultStatus: 'qualified',
+      searchTimeSeconds: 30,
+      scoringCompletedAt: '2026-06-01T12:00:00.000Z',
+    } as ReplicatedEntry;
+
+    function attachQueue(failed: unknown[] = [], pending: unknown[] = []) {
+      table.setMutationManager(
+        fromAny({
+          rowRefetchers: { register: vi.fn(() => vi.fn()) },
+          getFailedMutations: vi.fn(async () => failed),
+          getPendingMutationsForRow: vi.fn(async () => pending),
+        })
+      );
+    }
+
+    it('never treats an unconnected local cache as a server acknowledgement', async () => {
+      await seedSet(scored.id, scored);
+      expect(await table.getScoreUploadState(scored.id)).toBe('pending');
+    });
+
+    it('reports a failed mutation separately from a merely queued score', async () => {
+      await seedSet(scored.id, scored, true);
+      attachQueue([{ tableName: 'entries', rowId: scored.id }]);
+      expect(await table.getScoreUploadState(scored.id)).toBe('failed');
+    });
+
+    it('requires the row to be clean and its queue empty before readback', async () => {
+      await seedSet(scored.id, scored, true);
+      attachQueue();
+      expect(await table.getScoreUploadState(scored.id)).toBe('pending');
+      await table.markAsSynced(scored.id);
+      expect(await table.getScoreUploadState(scored.id)).toBe('uploaded');
+    });
+
+    it('reads the scoring fields from the authenticated replication view', async () => {
+      const inQuery = vi.fn().mockResolvedValue({
+        data: [
+          {
+            id: scored.id,
+            show_id: scored.showId,
+            class_id: scored.classId,
+            dog_id: scored.dogId,
+            result_status: 'qualified',
+            search_time_seconds: 30,
+            scoring_completed_at: '2026-06-01T12:00:00.000Z',
+          },
+        ],
+        error: null,
+      });
+      const select = vi.fn(() => ({ in: inQuery }));
+      vi.mocked(supabase.from).mockReturnValue(fromAny({ select }));
+
+      const remote = await table.readScoreFromServer(scored.id);
+
+      expect(supabase.from).toHaveBeenCalledWith('view_authenticated_entry_results_replication');
+      expect(inQuery).toHaveBeenCalledWith('id', [scored.id]);
+      expect(remote).toMatchObject({ resultStatus: 'qualified', searchTimeSeconds: 30 });
+    });
+  });
+
   describe('rowToEntry', () => {
     it('maps deleted_at so day-of capacity filters can exclude soft-deleted entries', () => {
       const deletedAt = '2026-06-05T12:00:00.000Z';

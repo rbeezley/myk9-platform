@@ -19,11 +19,12 @@
  * this works offline and never shows a locked stale snapshot.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { AlertCircle, ArrowLeft, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
+import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable.mapper';
 import { badgeClass } from './slots/atShowChrome.helpers';
 import {
   toQuickAdvanceChips,
@@ -55,6 +56,98 @@ function useQuickAdvanceChips(
   return toQuickAdvanceChips(data ?? [], { excludeEntryId: scoredEntryId });
 }
 
+type ScoreSaveState = 'pending' | 'acknowledged' | 'failed';
+
+const SCORE_DETAIL_KEYS = [
+  'area1_time_seconds',
+  'area2_time_seconds',
+  'area3_time_seconds',
+  'area4_time_seconds',
+  'total_correct_finds',
+  'total_incorrect_finds',
+  'no_finish_count',
+  'points_earned',
+  'disqualification_reason',
+] as const;
+
+function sameScoredRun(local: ReplicatedEntry, remote: ReplicatedEntry): boolean {
+  const localCompletedAt = local.scoringCompletedAt ?? local.scoring_completed_at;
+  const remoteCompletedAt = remote.scoringCompletedAt ?? remote.scoring_completed_at;
+  return (
+    !!localCompletedAt &&
+    !!remoteCompletedAt &&
+    Date.parse(localCompletedAt) === Date.parse(remoteCompletedAt) &&
+    (local.resultStatus ?? local.result_status) === (remote.resultStatus ?? remote.result_status) &&
+    (local.searchTimeSeconds ?? local.search_time_seconds) ===
+      (remote.searchTimeSeconds ?? remote.search_time_seconds) &&
+    (local.totalFaults ?? local.total_faults) === (remote.totalFaults ?? remote.total_faults) &&
+    SCORE_DETAIL_KEYS.every(key => (local[key] ?? null) === (remote[key] ?? null))
+  );
+}
+
+function useScoreSaveState(entryId: string | undefined): ScoreSaveState {
+  const [snapshot, setSnapshot] = useState<{ entryId: string | undefined; state: ScoreSaveState }>({
+    entryId,
+    state: 'pending',
+  });
+  const state = snapshot.entryId === entryId ? snapshot.state : 'pending';
+  const updateState = (next: ScoreSaveState) =>
+    setSnapshot(current =>
+      current.entryId === entryId && current.state === next ? current : { entryId, state: next }
+    );
+
+  useEffect(() => {
+    if (!entryId || state === 'acknowledged') return;
+    let cancelled = false;
+    let inFlight = false;
+    let local: ReplicatedEntry | null = null;
+
+    const check = async () => {
+      if (inFlight || cancelled) return;
+      inFlight = true;
+      try {
+        local ??= await replicatedEntriesTable.getEntryById(entryId);
+        if (!local) return;
+        const upload = await replicatedEntriesTable.getScoreUploadState(entryId);
+        if (cancelled) return;
+        if (navigator.onLine) {
+          try {
+            const remote = await replicatedEntriesTable.readScoreFromServer(entryId);
+            if (cancelled) return;
+            // A failed older edit can remain on this row after this score reaches
+            // the server. Matching readback is stronger proof than queue state.
+            if (remote && sameScoredRun(local, remote)) {
+              updateState('acknowledged');
+              return;
+            }
+          } catch {
+            // Keep the durable queue state below when readback is unavailable.
+          }
+        }
+        updateState(upload === 'failed' ? 'failed' : 'pending');
+      } catch {
+        // A failed read is not proof that the server has the score.
+        if (!cancelled) updateState('pending');
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    const unsubscribe = replicatedEntriesTable.subscribe(() => void check());
+    window.addEventListener('online', check);
+    const interval = window.setInterval(() => void check(), 3000);
+    void check();
+    return () => {
+      cancelled = true;
+      unsubscribe();
+      window.removeEventListener('online', check);
+      window.clearInterval(interval);
+    };
+  }, [entryId, state]);
+
+  return state;
+}
+
 export interface QuickAdvancePanelProps {
   classId: string | undefined;
   /** The entry just scored — never offered as its own next candidate. */
@@ -75,6 +168,7 @@ export const QuickAdvancePanel: React.FC<QuickAdvancePanelProps> = ({
   onPickEntry,
 }) => {
   const chips = useQuickAdvanceChips(classId, scoredEntryId);
+  const saveState = useScoreSaveState(scoredEntryId);
 
   return (
     <div className="ringside-root container mx-auto max-w-2xl px-4 py-6">
@@ -82,11 +176,23 @@ export const QuickAdvancePanel: React.FC<QuickAdvancePanelProps> = ({
         <div
           role="status"
           className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm ${badgeClass(
-            'neutral'
+            saveState === 'failed'
+              ? 'destructive'
+              : saveState === 'acknowledged'
+                ? 'success'
+                : 'neutral'
           )}`}
         >
-          <CheckCircle2 className="h-4 w-4" />
-          Score saved
+          {saveState === 'failed' ? (
+            <AlertCircle className="h-4 w-4" />
+          ) : (
+            <CheckCircle2 className="h-4 w-4" />
+          )}
+          {saveState === 'acknowledged'
+            ? 'Score saved'
+            : saveState === 'failed'
+              ? 'Saved on this device. Sync needs attention.'
+              : 'Saved on this device · waiting to sync'}
         </div>
 
         <Button className="mt-5 h-12 w-full text-base" onClick={onBackToList}>

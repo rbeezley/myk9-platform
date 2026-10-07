@@ -134,6 +134,7 @@ BEGIN
     class_id := v_candidate.class_id;
     waitlist_entry_id := v_candidate.waitlist_entry_id;
     IF v_candidate.joined_via = 'mail_in' THEN
+      PERFORM public.notify_mail_in_waitlist_head(v_candidate.waitlist_entry_id);
       outcome := 'mail_in';
       RETURN NEXT;
       CONTINUE;
@@ -175,6 +176,7 @@ BEGIN
     'public.list_waitlist_offer_candidates()',
     'public.promote_waitlist_entry_from_cron(uuid)',
     'public.notify_waitlist_auto_offer(uuid)',
+    'public.notify_mail_in_waitlist_head(uuid)',
     'public.send_waitlist_offer_message_internal(uuid, uuid, text)',
     'public.send_waitlist_offer_message(uuid, text)',
     'public.waitlist_class_trial_has_passed(uuid)',
@@ -190,6 +192,7 @@ BEGIN
     'public.list_waitlist_offer_candidates()',
     'public.promote_waitlist_entry_from_cron(uuid)',
     'public.notify_waitlist_auto_offer(uuid)',
+    'public.notify_mail_in_waitlist_head(uuid)',
     'public.send_waitlist_offer_message_internal(uuid, uuid, text)',
     'public.waitlist_class_trial_has_passed(uuid)'
   ] LOOP
@@ -204,6 +207,11 @@ BEGIN
     has_function_privilege('anon', 'public.send_waitlist_offer_message(uuid, text)', 'EXECUTE') || ' '
       || has_function_privilege('authenticated', 'public.send_waitlist_offer_message(uuid, text)', 'EXECUTE'),
     'false true', 'A1 send_waitlist_offer_message: authenticated, not anon');
+  PERFORM pg_temp.expect_eq(
+    has_table_privilege('anon', 'private.waitlist_mail_in_head_notices', 'SELECT') || ' '
+      || has_table_privilege('authenticated', 'private.waitlist_mail_in_head_notices', 'SELECT') || ' '
+      || has_table_privilege('service_role', 'private.waitlist_mail_in_head_notices', 'SELECT'),
+    'false false false', 'A1 mail-in notice markers are private to the definer');
 END;
 $$;
 
@@ -509,6 +517,51 @@ BEGIN
     'E1 setup: a class with an open offer is skipped');
 END;
 $$;
+
+-- MYK9-1021: the cron's mail-in candidate leaves one actionable secretary
+-- notice, not an online offer for the next dog and not a notice every tick.
+SET LOCAL ROLE service_role;
+DO $$
+BEGIN
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*)::text FROM public.notifications
+      WHERE type = 'waitlist_mail_in_head' AND user_id = pg_temp.fid('021')),
+    '1', 'MYK9-1021 one secretary notice for the mail-in head');
+  PERFORM pg_temp.expect_eq(
+    (SELECT message || '|' || deep_link_url FROM public.notifications
+      WHERE type = 'waitlist_mail_in_head' AND user_id = pg_temp.fid('021')),
+    'A spot opened in Class MailIn. Dog419 is next and joined by mail; offer it from the Waitlist tab.|/shows/'
+      || pg_temp.fid('101') || '/entries?tab=waitlist',
+    'MYK9-1021 notice names the dog, class and Waitlist action');
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*)::text FROM public.notifications
+      WHERE type = 'waitlist_mail_in_head' AND user_id = pg_temp.fid('022')),
+    '0', 'MYK9-1021 club admin is not notified while a secretary exists');
+  PERFORM pg_temp.expect_eq(
+    public.notify_mail_in_waitlist_head(pg_temp.fid('541')),
+    'already_sent_or_no_recipient', 'MYK9-1021 later cron ticks dedupe the same head');
+  UPDATE public.classes SET max_entries = 1 WHERE id = pg_temp.fid('305');
+  PERFORM pg_temp.expect_eq(
+    public.notify_mail_in_waitlist_head(pg_temp.fid('541')),
+    'no_spot', 'MYK9-1021 no notice when the class is full');
+  UPDATE public.classes SET max_entries = 2 WHERE id = pg_temp.fid('305');
+  UPDATE public.shows SET waitlist_auto_offer = false WHERE id = pg_temp.fid('101');
+  PERFORM pg_temp.expect_eq(
+    public.notify_mail_in_waitlist_head(pg_temp.fid('541')),
+    'not_eligible', 'MYK9-1021 no automatic manual-action notice when switch is off');
+  UPDATE public.shows SET waitlist_auto_offer = true WHERE id = pg_temp.fid('101');
+
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*)::text FROM public.notifications
+      WHERE type = 'waitlist_mail_in_head'),
+    '1', 'MYK9-1021 guards and repeat calls add no notices');
+END;
+$$;
+RESET ROLE;
+SELECT pg_temp.expect_eq(
+  (SELECT count(*)::text FROM private.waitlist_mail_in_head_notices
+    WHERE waitlist_entry_id = pg_temp.fid('541')),
+  '1', 'MYK9-1021 one durable recipient marker');
 
 -- R2: the secretary tries to offer class 304's next dog after the cron took
 -- its only seat.

@@ -10,6 +10,7 @@ function client(
 ) {
   const rpc = vi.fn(async (fn: string, args?: { p_waitlist_entry_id: string }) => {
     if (fn === 'list_waitlist_offer_candidates') return list;
+    if (fn === 'notify_mail_in_waitlist_head') return { data: 'sent', error: null };
     const result = promote[args?.p_waitlist_entry_id ?? ''] ?? { data: null, error: null };
     if (result instanceof Error) throw result;
     return result;
@@ -40,6 +41,7 @@ describe('waitlist cron offer step (MYK9-1003)', () => {
       ['list_waitlist_offer_candidates'],
       ['promote_waitlist_entry_from_cron', { p_waitlist_entry_id: 'w1' }],
       ['promote_waitlist_entry_from_cron', { p_waitlist_entry_id: 'w2' }],
+      ['notify_mail_in_waitlist_head', { p_waitlist_entry_id: 'w3' }],
     ]);
     expect(results).toEqual({ newOffers: 2, skippedMailInOffers: 1, errors: [] });
   });
@@ -73,6 +75,46 @@ describe('waitlist cron offer step (MYK9-1003)', () => {
     const results = emptyResults();
     await runWaitlistOfferStep(supabase, results);
     expect(results).toEqual({ newOffers: 0, skippedMailInOffers: 0, errors: [] });
+  });
+
+  it('asks the database to notify the secretary for a mail-in head without offering the next dog', async () => {
+    const { rpc, supabase } = client({
+      data: [candidate(1, 'mail_in'), candidate(2)],
+      error: null,
+    });
+    await runWaitlistOfferStep(supabase, emptyResults());
+
+    expect(rpc).toHaveBeenCalledWith('notify_mail_in_waitlist_head', {
+      p_waitlist_entry_id: 'w1',
+    });
+    expect(rpc).not.toHaveBeenCalledWith('promote_waitlist_entry_from_cron', {
+      p_waitlist_entry_id: 'w1',
+    });
+  });
+
+  it('a failed mail-in notice does not stop offers in other classes', async () => {
+    const { rpc, supabase } = client({
+      data: [candidate(1, 'mail_in'), candidate(2)],
+      error: null,
+    });
+    rpc.mockImplementationOnce(async () => ({
+      data: [candidate(1, 'mail_in'), candidate(2)],
+      error: null,
+    }));
+    rpc.mockImplementationOnce(async () => ({
+      data: null,
+      error: { message: 'notice unavailable' },
+    }));
+    rpc.mockImplementationOnce(async () => ({ data: 'e2', error: null }));
+    const results = emptyResults();
+
+    await runWaitlistOfferStep(supabase, results);
+
+    expect(results).toEqual({
+      newOffers: 1,
+      skippedMailInOffers: 1,
+      errors: ['Mail-in notice w1: notice unavailable'],
+    });
   });
 
   it('turns a failed candidate list into a cron error and offers nothing', async () => {

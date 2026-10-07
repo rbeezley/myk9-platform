@@ -1,13 +1,14 @@
 /**
  * The Filter button (docs/plan-entries-filter-button.md): one labelled button that opens a
  * searchable menu of the page's fields, each with its values and live counts. Several values of a
- * multi-select field can be ticked; the menu stays open while you pick. `F` opens it.
+ * multi-select field can be ticked; the menu stays open while you pick. `F` opens it (through the
+ * app's shared `useKeyboardShortcuts`).
  *
  * Which fields exist is the page's call (`fields`); the menu shows only those. What is applied is
  * drawn elsewhere, as plain sentences (`describeAppliedFilter`).
  */
 
-import { useCallback, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Check, ListFilter } from 'lucide-react';
 import {
   Command,
@@ -18,10 +19,17 @@ import {
   CommandList,
 } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useKeyboardShortcuts, type ShortcutDefinition } from '@/hooks/useKeyboardShortcuts';
 import { cn } from '@/lib/utils';
 import { isFieldActive, toggleListValue } from './filterFieldState';
 import type { ListFilterMenuField, ListFilterOption } from './types';
-import { useListFilterShortcut } from './useListFilterShortcut';
+
+/** Joins field and option into one unique row id; a character no key or id contains. */
+const ROW_SEPARATOR = '\u001f';
+
+function isLoading(field: ListFilterMenuField): boolean {
+  return field.kind === 'multiOptions' && field.loading === true;
+}
 
 interface ListFilterMenuProps {
   fields: ListFilterMenuField[];
@@ -43,9 +51,10 @@ function pick(field: ListFilterMenuField, option: ListFilterOption): void {
 }
 
 function FieldGroup({ field }: { field: ListFilterMenuField }) {
-  const loading = field.kind === 'multiOptions' && field.loading === true;
+  const loading = isLoading(field);
   return (
-    <CommandGroup heading={field.label}>
+    // A group that only carries a message has no rows to match a search, so keep it on screen.
+    <CommandGroup heading={field.label} forceMount={loading || field.options.length === 0}>
       {loading && <p className="px-2 py-2 text-sm text-muted-foreground">Loading…</p>}
       {!loading && field.options.length === 0 && (
         <p className="px-2 py-2 text-sm text-muted-foreground">Nothing to choose yet.</p>
@@ -56,7 +65,7 @@ function FieldGroup({ field }: { field: ListFilterMenuField }) {
           return (
             <CommandItem
               key={option.value}
-              value={`${field.key}:${option.value}`}
+              value={`${field.key}${ROW_SEPARATOR}${option.value}`}
               keywords={[option.label, field.label]}
               onSelect={() => pick(field, option)}
               className="min-h-11 gap-3 px-3"
@@ -89,9 +98,25 @@ function FieldGroup({ field }: { field: ListFilterMenuField }) {
 
 export function ListFilterMenu({ fields, className }: ListFilterMenuProps) {
   const [open, setOpen] = useState(false);
-  const toggleOpen = useCallback(() => setOpen(current => !current), []);
-  useListFilterShortcut(toggleOpen);
+  // `F` goes through the app's one shortcut hook, so it is ignored while typing in a field or while
+  // a dialog is open, like the other single-key shortcuts. It only opens; Escape closes.
+  const shortcuts = useMemo<ShortcutDefinition[]>(
+    () => [
+      {
+        id: 'open-list-filter',
+        label: 'Open filters',
+        keys: 'f',
+        category: 'actions',
+        action: () => setOpen(true),
+      },
+    ],
+    []
+  );
+  useKeyboardShortcuts(shortcuts);
   const applied = fields.filter(isFieldActive).length;
+  // "No matches." only makes sense when there are values to match; a menu that is all
+  // "Loading…" or "Nothing to choose yet." says that instead.
+  const hasValues = fields.some(field => !isLoading(field) && field.options.length > 0);
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -127,7 +152,7 @@ export function ListFilterMenu({ fields, className }: ListFilterMenuProps) {
         <Command>
           <CommandInput placeholder="Filter by…" />
           <CommandList className="max-h-[min(24rem,60vh)]">
-            <CommandEmpty>No matches.</CommandEmpty>
+            {hasValues && <CommandEmpty>No matches.</CommandEmpty>}
             {fields.map(field => (
               <FieldGroup key={field.key} field={field} />
             ))}

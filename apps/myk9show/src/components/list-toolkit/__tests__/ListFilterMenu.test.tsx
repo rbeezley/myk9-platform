@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { beforeAll, describe, it, expect, vi } from 'vitest';
-import { render, screen, userEvent } from '@/test/utils/testUtils';
+import { afterAll, beforeAll, describe, it, expect, vi } from 'vitest';
+import { fireEvent, render, screen, userEvent } from '@/test/utils/testUtils';
 import { ListFilterMenu } from '../ListFilterMenu';
 import type { ListFilterMenuField } from '../types';
 
@@ -58,8 +58,12 @@ async function openMenu() {
 
 describe('ListFilterMenu', () => {
   // cmdk scrolls the highlighted row into view; jsdom has no layout, so no scrollIntoView.
+  const originalScrollIntoView = Element.prototype.scrollIntoView;
   beforeAll(() => {
     Element.prototype.scrollIntoView = vi.fn();
+  });
+  afterAll(() => {
+    Element.prototype.scrollIntoView = originalScrollIntoView;
   });
 
   it('opens from the labelled button and lists every field with its values and counts', async () => {
@@ -134,6 +138,47 @@ describe('ListFilterMenu', () => {
     expect(screen.queryByRole('option', { name: /Interior Novice B/ })).not.toBeInTheDocument();
   });
 
+  it('keeps the Loading message when you type, and never says No matches next to it', async () => {
+    const fields: ListFilterMenuField[] = [
+      {
+        kind: 'multiOptions',
+        key: 'class',
+        label: 'Class',
+        values: [],
+        options: [],
+        loading: true,
+        onChange: vi.fn(),
+      },
+    ];
+    render(<ListFilterMenu fields={fields} />);
+    const user = await openMenu();
+
+    expect(screen.getByText('Loading…')).toBeInTheDocument();
+    expect(screen.queryByText('No matches.')).not.toBeInTheDocument();
+
+    await user.type(screen.getByPlaceholderText('Filter by…'), 'zzz');
+    expect(screen.getByText('Loading…')).toBeInTheDocument();
+    expect(screen.queryByText('No matches.')).not.toBeInTheDocument();
+  });
+
+  it('says there is nothing to choose, not No matches, when a field has no values', async () => {
+    const fields: ListFilterMenuField[] = [
+      {
+        kind: 'multiOptions',
+        key: 'class',
+        label: 'Class',
+        values: [],
+        options: [],
+        onChange: vi.fn(),
+      },
+    ];
+    render(<ListFilterMenu fields={fields} />);
+    await openMenu();
+
+    expect(screen.getByText('Nothing to choose yet.')).toBeInTheDocument();
+    expect(screen.queryByText('No matches.')).not.toBeInTheDocument();
+  });
+
   it('closes on Escape', async () => {
     render(<Harness />);
     const user = await openMenu();
@@ -165,6 +210,35 @@ describe('ListFilterMenu', () => {
       await user.keyboard('f');
 
       expect(screen.getByLabelText('Search')).toHaveValue('f');
+      expect(screen.queryByRole('option', { name: /Trial 1/ })).not.toBeInTheDocument();
+    });
+
+    it('only opens: pressing it again never closes the menu', () => {
+      render(<Harness />);
+
+      fireEvent.keyDown(document.body, { key: 'f' });
+      fireEvent.keyDown(document.body, { key: 'f' });
+
+      expect(screen.getByRole('option', { name: /Trial 1/ })).toBeInTheDocument();
+    });
+
+    it('does nothing while a dialog is open', () => {
+      render(
+        <>
+          <div role="dialog" data-state="open" />
+          <Harness />
+        </>
+      );
+
+      fireEvent.keyDown(document.body, { key: 'f' });
+
+      expect(screen.queryByRole('option', { name: /Trial 1/ })).not.toBeInTheDocument();
+    });
+
+    it('ignores key events that carry no key', () => {
+      render(<Harness />);
+
+      expect(() => fireEvent.keyDown(document.body, {})).not.toThrow();
       expect(screen.queryByRole('option', { name: /Trial 1/ })).not.toBeInTheDocument();
     });
 

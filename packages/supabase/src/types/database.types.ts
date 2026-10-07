@@ -13010,6 +13010,10 @@ export type Database = {
         }
         Returns: number
       }
+      clear_class_judge_sign_off: {
+        Args: { p_class_id: string }
+        Returns: number
+      }
       clear_my_sms_consent: {
         Args: {
           p_expected_opt_in_at: string
@@ -14158,6 +14162,10 @@ export type Database = {
       manageable_show_ids: { Args: never; Returns: string[] }
       manager_held_spot_count: {
         Args: { p_class_ids: string[]; p_show_id: string }
+        Returns: number
+      }
+      mark_classes_judge_signed_off: {
+        Args: { p_class_ids: string[]; p_signed_off_at?: string }
         Returns: number
       }
       mark_enrollment_paid_online: {

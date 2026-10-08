@@ -46,6 +46,7 @@ function renderToolbar(
       classes={{
         trialClasses: [{ id: 'c1', trialId: 't1', name: 'Novice A' }],
         classesLoaded: true,
+        classById: new Map([['c1', { id: 'c1', trialId: 't1', name: 'Novice A' }]]),
         classTrialById: new Map([['c1', 't1']]),
         knownClassIds: new Set(['c1']),
       }}
@@ -83,10 +84,11 @@ describe('EntryManagementViewToolbar filters', () => {
   it('is one Show: menu, a search and a Filter button, with no Trial or Class selects', () => {
     renderToolbar({ queues: ['needs-review', 'payment-due'] }, { shown: 15, total: 214 }, 15);
 
-    // The button reads "Needs review +1 (15)" so the count fits beside the search; its name lists all.
-    expect(
-      screen.getByRole('button', { name: 'Show: Needs review + Payment due (15)' })
-    ).toHaveTextContent('Needs review +1 (15)');
+    // "Needs review +1 (15)" keeps the count beside the search; the name starts with the visible
+    // text (WCAG 2.5.3) and the full list is the description.
+    const show = screen.getByRole('button', { name: 'Show: Needs review +1 (15)' });
+    expect(show).toHaveTextContent('Needs review +1 (15)');
+    expect(show).toHaveAccessibleDescription('Needs review + Payment due (15)');
     expect(screen.getByRole('button', { name: 'Filter' })).toBeInTheDocument();
     expect(
       screen.getByRole('textbox', { name: /Search exhibitor, dog, handler/ })

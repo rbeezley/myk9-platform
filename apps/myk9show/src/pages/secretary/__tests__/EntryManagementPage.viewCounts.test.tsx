@@ -107,6 +107,7 @@ vi.mock('@/hooks/useEntryManagementTrialScope', () => ({
   useEntryManagementTrialClasses: () => ({
     trialClasses: [],
     classesLoaded: true,
+    classById: new Map(),
     classTrialById: new Map(),
     knownClassIds: undefined,
     trialClassIds: undefined,

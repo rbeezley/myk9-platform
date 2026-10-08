@@ -51,7 +51,9 @@ export function useEntryManagementTrialClasses({
     queries: fetchedTrialIds.map(trialId => classesByTrialQueryOptions(trialId)),
   });
   // `useQueries` hands back a new array every render; key the derived values on what changed.
-  const resultsKey = results.map(result => `${result.status}:${result.dataUpdatedAt}`).join('|');
+  const resultsKey = results
+    .map(result => `${result.status}:${result.fetchStatus}:${result.dataUpdatedAt}`)
+    .join('|');
 
   return useMemo(() => {
     const byTrial = new Map(fetchedTrialIds.map((trialId, index) => [trialId, results[index]]));
@@ -68,6 +70,7 @@ export function useEntryManagementTrialClasses({
     const classesLoaded =
       (selectedTrialIds.length > 0 || trialsLoaded) && offeredTrialIds.every(loaded);
     const everyShowTrialLoaded = trialsLoaded && showTrialIds.every(loaded);
+    const loadedClasses = fetchedTrialIds.filter(loaded).flatMap(classesOf);
     const selectedLoading = selectedTrialIds.some(id => byTrial.get(id)?.isLoading === true);
 
     return {
@@ -75,10 +78,10 @@ export function useEntryManagementTrialClasses({
       trialClasses,
       /** Every offered trial's classes are in; until then the class field reads as loading. */
       classesLoaded,
-      /** Class to trial for every loaded class in the show, so a trial pick can drop its classes. */
-      classTrialById: new Map(
-        showTrialIds.filter(loaded).flatMap(trialId => classesOf(trialId).map(c => [c.id, trialId]))
-      ),
+      /** Every loaded class by id, so a picked class outside the offered trials still has a name. */
+      classById: new Map(loadedClasses.map(c => [c.id, c])),
+      /** Class to trial for every loaded class, so a trial pick can drop its classes. */
+      classTrialById: new Map(loadedClasses.map(c => [c.id, c.trialId])),
       /** Every class id in the show, only once every trial's classes have loaded (URL pruning). */
       knownClassIds: everyShowTrialLoaded
         ? new Set(showTrialIds.flatMap(trialId => classesOf(trialId).map(c => c.id)))

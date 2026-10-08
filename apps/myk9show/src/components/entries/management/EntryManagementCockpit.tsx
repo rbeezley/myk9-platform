@@ -244,8 +244,8 @@ export function EntryManagementCockpit({
           className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm"
         >
           <span className="text-foreground">
-            Couldn&rsquo;t load this trial&rsquo;s classes, so the list below covers the whole show,
-            not just this trial.
+            Couldn&rsquo;t load the classes for the picked trials, so the list below covers the
+            whole show, not just those trials.
           </span>
           {onRetryTrialClasses && (
             <Button

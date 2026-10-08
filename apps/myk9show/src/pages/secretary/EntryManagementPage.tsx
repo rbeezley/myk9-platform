@@ -168,7 +168,9 @@ const EntryManagementPage: React.FC = () => {
   // A trial is selected but which classes it holds is still being read —
   // scoping to it would render every registration in the show while
   // appearing scoped (see `EntryManagementCockpit`'s trialScopePending doc).
-  const trialScopePending = trialIds.length > 0 && isLoadingClasses;
+  // Picked classes scope the list on their own (settled rule 12), so neither state applies then.
+  const classesScopeIt = cockpitUrl.state.classIds.length > 0;
+  const trialScopePending = trialIds.length > 0 && isLoadingClasses && !classesScopeIt;
   const { count: moveUpRequestsCount, refetch: refetchMoveUpRequestsCount } =
     useMoveUpRequestsCount(selectedShowId || null);
 
@@ -477,7 +479,7 @@ const EntryManagementPage: React.FC = () => {
                 cockpit={cockpit}
                 showHasNoRegistrations={registrationGroups.length === 0}
                 trialScopePending={trialScopePending}
-                trialClassesUnknown={trialClassesUnknown}
+                trialClassesUnknown={trialClassesUnknown && !classesScopeIt}
                 onRetryTrialClasses={() => void refetchTrialClasses()}
                 showId={selectedShowId}
                 {...(selectedShow?.name ? { showName: selectedShow.name } : {})}

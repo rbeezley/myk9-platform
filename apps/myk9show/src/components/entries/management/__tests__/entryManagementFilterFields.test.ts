@@ -32,6 +32,8 @@ function build(overrides: Partial<BuildEntryManagementFilterFieldsOptions> = {})
     trialsLoaded: true,
     trialClasses: CLASSES,
     classesLoaded: true,
+    classById: new Map(CLASSES.map(entryClass => [entryClass.id, entryClass])),
+    allClassesLoaded: true,
     classTrialById: new Map([
       ['c1', 't1'],
       ['c2', 't2'],
@@ -96,6 +98,23 @@ describe('buildEntryManagementFilterFields', () => {
       counts: { byClass: new Map(), byTrial: new Map([['t2', 7]]) },
     });
     expect(withTrials.trial.options.map(option => option.count)).toEqual([0, 7]);
+  });
+
+  it('names a picked class from a trial that is not on offer, instead of printing its id', () => {
+    const fields = build({
+      state: { ...BASE_STATE, trialIds: ['t1'], classIds: ['c2'] },
+      trialClasses: [CLASSES[0]!],
+    });
+    expect(fields.class.loading).toBe(false);
+    expect(describeAppliedFilter(fields.class)).toBe('Class: Trial 2 · Interior Novice B');
+
+    // Not loaded yet: the field waits rather than show the id.
+    const waiting = build({
+      state: { ...BASE_STATE, trialIds: ['t1'], classIds: ['c9'] },
+      trialClasses: [CLASSES[0]!],
+      allClassesLoaded: false,
+    });
+    expect(waiting.class.loading).toBe(true);
   });
 
   it('marks a field loading so a restored link never shows raw ids (settled rule 6)', () => {

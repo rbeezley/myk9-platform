@@ -17,7 +17,6 @@ function Harness({
   const [value, setValue] = useState(initial);
   const reset = useRef(() => setValue(''));
   return (
-    // eslint-disable-next-line jsx-a11y/no-static-element-interactions -- stands in for a dialog around the list
     <div onKeyDown={onKeyDown}>
       <ListSearchField value={value} onChange={setValue} placeholder="Search entries" />
       <button type="button">elsewhere</button>
@@ -38,7 +37,9 @@ describe('ListSearchField', () => {
     // jsdom reports no window focus; a person using the page has it.
     vi.spyOn(document, 'hasFocus').mockReturnValue(true);
   });
-  afterEach(() => vi.restoreAllMocks());
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
 
   it('is a plain field from 1024px up', async () => {
     render(<Harness />);
@@ -49,7 +50,9 @@ describe('ListSearchField', () => {
   });
 
   describe('below 1024px', () => {
-    beforeEach(() => narrow(true));
+    beforeEach(() => {
+      narrow(true);
+    });
 
     it('is a 44px icon until tapped, then opens the field and focuses it', async () => {
       render(<Harness />);

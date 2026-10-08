@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { Dog, Registration } from '@/types/dog-types';
-import { getAgeInMonths } from '@/hooks/useEntryEligibility';
+import { MIN_ENTRY_AGE_MONTHS, getAgeInMonths } from '@/hooks/useEntryEligibility';
 import { getRegistry, listRegistries } from '@/features/registries';
 import { resolveRegistrationForShow } from './dogRegistrationForShow';
 
@@ -89,7 +89,7 @@ export function getDogEligibilityStatus(dog: Dog): { eligible: boolean; issues: 
   // `DogSelectionStep` — which has always used `getAgeInMonths` — showed the
   // same dog greyed out. The MYK9-519 handoff asks this function, so the
   // divergence would have preselected a dog the picker refuses.
-  if (dog.dateOfBirth && getAgeInMonths(dog.dateOfBirth) < 6) {
+  if (dog.dateOfBirth && getAgeInMonths(dog.dateOfBirth) < MIN_ENTRY_AGE_MONTHS) {
     issues.push('Too young (must be 6+ months)');
   }
   return { eligible: issues.length === 0, issues };

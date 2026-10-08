@@ -18,6 +18,12 @@ export interface AddDogPanelProps {
    * Dogs page) — not mid-registration, where the dog is already being entered.
    */
   onEnterShowWithDog?: ((dog: DogType) => void) | undefined;
+  /**
+   * `YYYY-MM-DD` start of the show being entered, when the caller is mid-
+   * registration. The date-of-birth warning judges "old enough" on that day
+   * instead of today (MYK9-1060).
+   */
+  showStartDate?: string | undefined;
 }
 
 export interface DogFormData extends Record<string, unknown> {

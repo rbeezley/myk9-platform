@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { getDogDisplayName } from '@/types/dog-types';
+import { isFutureDob } from '@/utils/dogDobCheck';
 import type { DogFormData, DogType, Registration } from './DogEditPanel.types';
 import { UserRole } from './DogEditPanel.types';
 
@@ -9,7 +10,10 @@ export const dogFormSchema = z.object({
   // `dogs.call_name` is NOT NULL, so "   " is not an acceptable identifier.
   callName: z.string().trim().min(1, 'Please enter a call name'),
   gender: z.string().min(1, 'Please select a sex'),
-  dateOfBirth: z.string().min(1, 'Please enter a date of birth'),
+  dateOfBirth: z
+    .string()
+    .min(1, 'Please enter a date of birth')
+    .refine(val => !isFutureDob(val), 'Date of birth cannot be in the future'),
   color: z.string(),
   weight: z.string(),
   height: z.string(),

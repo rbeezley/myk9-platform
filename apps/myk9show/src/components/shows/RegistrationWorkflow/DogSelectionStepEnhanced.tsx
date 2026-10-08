@@ -89,6 +89,8 @@ interface DogSelectionStepProps {
    * Null/undefined = not known yet; the copy then says "registration number".
    */
   showRegistryId?: string | null | undefined;
+  /** `YYYY-MM-DD` show start, handed to Add Dog so its DOB warning judges age on show day. */
+  showStartDate?: string | undefined;
 }
 
 function getEmptyStateMessage(
@@ -127,6 +129,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   onSelectionChange,
   offlineFirst = false,
   showRegistryId,
+  showStartDate,
 }) => {
   const registrationNumberLabel = getRegistrationNumberLabel(showRegistryId);
   const { dogs, isLoading: dogsLoading } = useDogStoreCompat();
@@ -378,6 +381,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
         offlineFirst={offlineFirst}
       />
       <AddDogPanel
+        showStartDate={showStartDate}
         open={showDogDialog}
         userRole={getPrimaryRole(roles)}
         onClose={() => setShowDogDialog(false)}

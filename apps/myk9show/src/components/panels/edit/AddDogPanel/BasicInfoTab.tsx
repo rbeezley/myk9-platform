@@ -18,6 +18,7 @@ import { FormField } from '@/components/common/FormField';
 import { useEditPanel } from '@/components/panels/edit/useEditPanel';
 import { calculateAge } from './validation';
 import type { DogFormData } from './types';
+import { DobYoungDogWarning } from '../DobYoungDogWarning';
 
 /**
  * First Unicode code point of a string, uppercased. `Array.from` iterates by
@@ -34,6 +35,8 @@ const firstGraphemeUpper = (str: string): string => {
 interface BasicInfoTabProps {
   userRole: UserRole;
   currentUserPersonId?: string | undefined;
+  /** Show start (`YYYY-MM-DD`) the young-dog warning is judged on; today when absent. */
+  referenceDate?: string | undefined;
   onPhotoOpen: () => void;
   onAddRegistration: () => void;
 }
@@ -41,6 +44,7 @@ interface BasicInfoTabProps {
 export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   userRole,
   currentUserPersonId,
+  referenceDate,
   onPhotoOpen,
   onAddRegistration,
 }) => {
@@ -191,6 +195,11 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               onChange={e => form.setValue('dateOfBirth', e.target.value)}
               onBlur={() => form.touchField('dateOfBirth')}
               {...form.getFieldProps('dateOfBirth')}
+            />
+            <DobYoungDogWarning
+              dateOfBirth={formData.dateOfBirth}
+              callName={formData.callName}
+              onDate={referenceDate}
             />
             {formData.dateOfBirth && !form.getError('dateOfBirth') && (
               <div className="text-xs text-muted-foreground bg-muted/30 px-3 py-2 rounded-lg animate-in fade-in-0 slide-in-from-bottom-1 duration-300">

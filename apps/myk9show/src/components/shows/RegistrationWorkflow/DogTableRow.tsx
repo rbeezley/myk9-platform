@@ -27,6 +27,7 @@ import {
 } from './dogRegistrationForShow';
 import { DOG_TABLE_GRID, getRegistrationShownInRow } from './DogSelectionStepEnhanced.helpers';
 import { RegistrationChipsForShow } from './RegistrationChipsForShow';
+import { DogIneligibleReason } from './DogIneligibleReason';
 
 export interface DogRowData {
   dogs: Dog[];
@@ -48,6 +49,7 @@ export const DogRow: React.FC<DogRowProps> = ({ index, style, data }) => {
   const { dogs, selectedDogs, onToggle, getDogEligibilityStatus, showRegistryId } = data;
   const dog = dogs[index];
   const descriptionId = useId();
+  const reasonId = useId();
   const { eligible, issues } = getDogEligibilityStatus(dog);
   const isSelected = selectedDogs.includes(dog.id);
   const breed = getDogBreedLabel(dog);
@@ -58,6 +60,7 @@ export const DogRow: React.FC<DogRowProps> = ({ index, style, data }) => {
 
   // The row is role="checkbox", whose children are presentational: nothing
   // inside it reaches a screen reader except through aria-describedby.
+  const hasReason = !eligible && issues.length > 0;
   const description = forShow.used
     ? `${registrationLabel(forShow.used)}, ${USED_FOR_THIS_SHOW}`
     : forShow.missingRegistrationMessage;
@@ -101,7 +104,11 @@ export const DogRow: React.FC<DogRowProps> = ({ index, style, data }) => {
       aria-label={`Select ${dogDisplayName}`}
       aria-checked={isSelected}
       aria-disabled={!eligible || undefined}
-      aria-describedby={description ? descriptionId : undefined}
+      aria-describedby={
+        [hasReason ? reasonId : null, description ? descriptionId : null]
+          .filter(Boolean)
+          .join(' ') || undefined
+      }
       onClick={handleRowToggle}
       onKeyDown={handleRowKeyDown}
     >
@@ -115,7 +122,19 @@ export const DogRow: React.FC<DogRowProps> = ({ index, style, data }) => {
       >
         {isSelected && <Check className="h-4 w-4" />}
       </span>
-      <span className="min-w-0 truncate text-sm font-medium">{dogDisplayName}</span>
+      <span className="flex min-w-0 flex-col">
+        <span className="truncate text-sm font-medium">{dogDisplayName}</span>
+        {hasReason && (
+          // Visible without hover: this is the only place a touch user can read
+          // why the row is greyed out (MYK9-1060). Fits the 44px row.
+          <DogIneligibleReason
+            id={reasonId}
+            issues={issues}
+            dateOfBirth={dog.dateOfBirth}
+            className="truncate leading-4"
+          />
+        )}
+      </span>
       <span className="min-w-0 truncate text-sm text-muted-foreground">{breed}</span>
       <span className="min-w-0 truncate text-sm text-muted-foreground">{ownerDisplay}</span>
       {forShow.missingRegistrationMessage ? (

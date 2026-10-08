@@ -87,10 +87,14 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     // MYK9-1055: once per table instance, before the cursor is read, heal rows a
     // pre-MYK9-1050 build left clean but flagged 'pending'. It resets the cursors
     // when it repairs anything, so the read below sees the full re-sync request.
+    // Rows named by a queued mutation are exposed by that reset download; it
+    // must leave them to their upload.
+    let repairHeldIds: ReadonlySet<string> | undefined;
     if (!repairedTables.has(table)) {
       try {
-        await table.repairStuckPendingFlags();
+        const repair = await table.repairStuckPendingFlags();
         repairedTables.add(table);
+        if (repair.repaired.length > 0) repairHeldIds = new Set(repair.held);
       } catch {
         // Best effort: a failed repair must not wedge sync; the next pass retries.
       }
@@ -217,6 +221,8 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       // Stored as serverVersion on the IDB row so the next offline UPDATE can
       // carry an OCC precondition (WHERE version = remoteServerVersion).
       const remoteServerVersion = (remote as Record<string, unknown>).version as number | undefined;
+
+      if (repairHeldIds?.has(id)) continue;
 
       if (adapter.shouldSkipRemoteRow?.(remote, { local })) {
         continue;

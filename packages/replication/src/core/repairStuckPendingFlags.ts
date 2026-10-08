@@ -31,6 +31,12 @@ export interface RepairStuckPendingFlagsResult {
   repaired: string[];
   /** Stuck-looking ids left alone because a mutation or dirty flag says work is unsent. */
   kept: string[];
+  /**
+   * Every row id of the table named by a pending/failed/offline mutation, set
+   * only when the repair reset the cursors. The full download that follows
+   * must not overwrite these rows' unsent local values.
+   */
+  held: string[];
 }
 
 function hasStuckFlag(data: unknown): boolean {
@@ -45,7 +51,7 @@ export async function repairStuckPendingFlags(
   db: IDBPDatabase,
   tableName: string
 ): Promise<RepairStuckPendingFlagsResult> {
-  const result: RepairStuckPendingFlagsResult = { repaired: [], kept: [] };
+  const result: RepairStuckPendingFlagsResult = { repaired: [], kept: [], held: [] };
 
   const tx = db.transaction(
     [
@@ -88,6 +94,7 @@ export async function repairStuckPendingFlags(
     }
 
     if (result.repaired.length > 0) {
+      result.held = [...heldRowIds];
       const metadata = tx.objectStore(REPLICATION_STORES.SYNC_METADATA);
       const existing = (await metadata.get(tableName)) as SyncMetadata | undefined;
       if (existing) {

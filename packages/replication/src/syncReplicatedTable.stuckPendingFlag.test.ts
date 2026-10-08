@@ -132,6 +132,30 @@ describe('stuck pending data flag repair (MYK9-1055)', () => {
     expect(row?.final_placement).toBeUndefined();
   });
 
+  it.each([REPLICATION_STORES.PENDING_MUTATIONS, REPLICATION_STORES.FAILED_MUTATIONS])(
+    'the download the repair triggers does not overwrite a queue-held row (%s)',
+    async store => {
+      await table.set('e1', stuckRow('e1'));
+      await table.set('held', { ...stuckRow('held'), _syncStatus: 'synced', final_placement: 9 });
+      await seedCursor();
+      const db = await databaseManager.getDatabase(table.getTableName());
+      await db.put(store, mutation('m1', 'held', table.getTableName()));
+      // A stuck-flag row held by the queue marks the table as repaired too.
+      await table.set('held2', stuckRow('held2'));
+      await db.put(store, mutation('m2', 'held2', table.getTableName()));
+
+      await syncReplicatedTable(
+        table,
+        adapterFor([serverRow('e1'), serverRow('held'), serverRow('held2')]),
+        { value: 'show-1' }
+      );
+
+      expect((await table.get('e1'))?.final_placement).toBe(1);
+      expect((await table.get('held'))?.final_placement).toBe(9);
+      expect((await table.get('held2'))?.final_placement).toBeUndefined();
+    }
+  );
+
   it('is idempotent: a second pass finds nothing and keeps the cursor', async () => {
     await table.set('e1', stuckRow('e1'));
     await seedCursor();
@@ -143,7 +167,7 @@ describe('stuck pending data flag repair (MYK9-1055)', () => {
     await table.updateSyncMetadata({ lastIncrementalSyncAt: CURSOR }, { scopeValue: 'show-1' });
     const second = await table.repairStuckPendingFlags();
 
-    expect(second).toEqual({ repaired: [], kept: [] });
+    expect(second).toEqual({ repaired: [], kept: [], held: [] });
     const meta = await db.get(REPLICATION_STORES.SYNC_METADATA, table.getTableName());
     expect(meta.scopes['show-1'].lastIncrementalSyncAt).toBe(CURSOR);
   });

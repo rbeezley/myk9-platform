@@ -1111,7 +1111,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /** One-time repair for rows stuck at a `'pending'` data flag (MYK9-1055). */
-  async repairStuckPendingFlags(): Promise<{ repaired: string[]; kept: string[] }> {
+  async repairStuckPendingFlags(): Promise<{ repaired: string[]; kept: string[]; held: string[] }> {
     return this.batchManager.repairStuckPendingFlags();
   }
 

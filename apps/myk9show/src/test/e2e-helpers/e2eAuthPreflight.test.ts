@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { resolveAuthPreflightConfig, verifyE2EAuthCredentials } from './e2eAuthPreflight';
 
@@ -58,7 +58,7 @@ describe('e2e auth preflight', () => {
     ]);
   });
 
-  it('posts a password-grant probe for each configured role', async () => {
+  it('posts a password-grant probe for each configured role, then signs that session out', async () => {
     const requests: Array<{ url: string; init: RequestInit }> = [];
     const fetchImpl = async (url: string | URL | Request, init?: RequestInit) => {
       requests.push({ url: String(url), init: init ?? {} });
@@ -82,7 +82,28 @@ describe('e2e auth preflight', () => {
           }),
         },
       },
+      {
+        url: 'https://project.supabase.co/auth/v1/logout?scope=local',
+        init: {
+          method: 'POST',
+          headers: { apikey: 'anon-key', Authorization: 'Bearer token' },
+        },
+      },
     ]);
+  });
+
+  it('still passes when signing the check session out fails (MYK9-1056)', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const fetchImpl = async (url: string | URL | Request) =>
+      String(url).includes('/logout')
+        ? new Response(null, { status: 503 })
+        : new Response(JSON.stringify({ access_token: 'token' }), { status: 200 });
+
+    await expect(
+      verifyE2EAuthCredentials(resolveAuthPreflightConfig(baseEnv, ['secretary']), fetchImpl)
+    ).resolves.toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('HTTP 503'));
+    warn.mockRestore();
   });
 
   it('fails with a role-specific action message when Supabase rejects credentials', async () => {

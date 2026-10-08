@@ -3,6 +3,7 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import {
   buildShowRegistrationPage,
+  countShowRegistrationQueueUnion,
   getScopedShowRegistrationQueueCounts,
   getShowRegistrationQueueCounts,
   getVisiblePageSelectionState,
@@ -150,15 +151,22 @@ describe('groupEntriesByShowRegistration', () => {
       all: 3,
     });
     expect(
-      selectShowRegistrationQueue(groups, 'needs-review').map(group => group.groupKey)
+      selectShowRegistrationQueue(groups, ['needs-review']).map(group => group.groupKey)
     ).toEqual(['registration-review']);
-    expect(selectShowRegistrationQueue(groups, 'missing-information')[0]?.groupKey).toBe(
+    expect(selectShowRegistrationQueue(groups, ['missing-information'])[0]?.groupKey).toBe(
       'registration-mixed'
     );
-    expect(selectShowRegistrationQueue(groups, 'payment-due')[0]?.groupKey).toBe(
+    expect(selectShowRegistrationQueue(groups, ['payment-due'])[0]?.groupKey).toBe(
       'registration-mixed'
     );
-    expect(selectShowRegistrationQueue(groups, 'all').map(group => group.groupKey)).toEqual([
+    // Several queues are a union, not a sum: the mixed form needs both and is listed once.
+    expect(
+      selectShowRegistrationQueue(groups, ['missing-information', 'payment-due']).map(
+        group => group.groupKey
+      )
+    ).toEqual(['registration-mixed']);
+    expect(countShowRegistrationQueueUnion(groups, ['missing-information', 'payment-due'])).toBe(1);
+    expect(selectShowRegistrationQueue(groups, ['all']).map(group => group.groupKey)).toEqual([
       'registration-clear',
       'registration-review',
       'registration-mixed',
@@ -280,12 +288,12 @@ describe('groupEntriesByShowRegistration', () => {
     ]);
 
     const scoped = buildShowRegistrationPage(groups, {
-      queue: 'needs-review',
+      queues: ['needs-review'],
       trialClassIds: ['class-trial-1'],
       pageIndex: 0,
     });
     const searched = buildShowRegistrationPage(groups, {
-      queue: 'needs-review',
+      queues: ['needs-review'],
       trialClassIds: ['class-trial-1'],
       search: 'Scout',
       pageIndex: 0,
@@ -302,13 +310,13 @@ describe('groupEntriesByShowRegistration', () => {
     ]);
 
     const scoped = buildShowRegistrationPage(groups, {
-      queue: 'all',
+      queues: ['all'],
       trialClassIds: [],
       pageIndex: 0,
     });
 
     expect(scoped.page.items).toEqual([]);
-    expect(getScopedShowRegistrationQueueCounts(groups, null, [])).toEqual({
+    expect(getScopedShowRegistrationQueueCounts(groups, [], [])).toEqual({
       'needs-review': 0,
       'missing-information': 0,
       'payment-due': 0,
@@ -344,11 +352,11 @@ describe('groupEntriesByShowRegistration', () => {
     const startedAt = performance.now();
     const groups = groupEntriesByShowRegistration(entries);
     const page = buildShowRegistrationPage(groups, {
-      queue: 'needs-review',
+      queues: ['needs-review'],
       pageIndex: 0,
     });
     const searched = buildShowRegistrationPage(groups, {
-      queue: 'needs-review',
+      queues: ['needs-review'],
       search: 'Performance Dog 999',
       pageIndex: 0,
     });

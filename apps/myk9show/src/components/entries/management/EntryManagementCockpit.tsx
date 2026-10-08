@@ -31,7 +31,7 @@ import type { CheckInStatus } from '@myk9/core';
 import { EntryStatus } from '@/types/show-registration-types';
 import { sendRegistrationConfirmationEmail } from '@/components/shows/RegistrationWorkflow/sendRegistrationConfirmationEmail';
 
-// INTENT: `cockpit.state.queue` (set from the page's unified `ListViewTabs`) is
+// INTENT: `cockpit.state.queues` (checked in the page's Show: menu) is
 // the single source of registration-status filtering on Entry Management. Do
 // not add a second status control: contradictory status filters create an
 // honest-looking zero-registration state. Show-day check-in is also
@@ -41,7 +41,7 @@ import { sendRegistrationConfirmationEmail } from '@/components/shows/Registrati
 interface EntryManagementCockpitProps {
   entries: EntryManagementEntry[];
   /** Built by the PAGE (`useEntryManagementCockpit`) and passed down, so the
-   * page's `ListViewTabs`/`ListFilterBar` and this list read one shared state
+   * page's Show: menu and Filter button and this list read one shared state
    * instead of each computing their own (MYK9-795). */
   cockpit: ReturnType<typeof useEntryManagementCockpit>;
   /** `registrationGroups` (unfiltered) is empty — the show itself has no

@@ -3,25 +3,25 @@ import { useSearchParams } from 'react-router-dom';
 import { useBulkSelection } from '@/hooks/useBulkSelection';
 import {
   buildShowRegistrationPage,
+  countShowRegistrationQueueUnion,
   getScopedShowRegistrationQueueCounts,
   getShowRegistrationQueueCounts,
   summarizeShowRegistrationTotals,
   getVisiblePageSelectionState,
+  scopeShowRegistrationGroups,
   type ShowRegistrationGroup,
   type ShowRegistrationQueue,
 } from '@/components/entries/management/showRegistrationProjection';
 import {
   writeCockpitException,
   writeCockpitFocus,
-  writeCockpitQueue,
+  writeCockpitQueues,
   writeCockpitScope,
   writeCockpitSearch,
   writeCockpitTab,
-  writeCockpitView,
   type EntryManagementCockpitTab,
   type EntryManagementCockpitState,
   type EntryManagementException,
-  type EntryManagementViewId,
 } from '@/components/entries/management/entryManagementCockpitParams';
 
 interface UseEntryManagementCockpitOptions {
@@ -33,6 +33,14 @@ interface UseEntryManagementCockpitOptions {
 
 const getGroupKey = (group: ShowRegistrationGroup) => group.groupKey;
 
+/** The same array while its contents are the same, so a caller that rebuilds state each render
+ * does not recompute every count. */
+function useStableList<T>(list: readonly T[]): readonly T[] {
+  const key = JSON.stringify(list);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo(() => list, [key]);
+}
+
 export function useEntryManagementCockpit({
   groups,
   state,
@@ -40,7 +48,17 @@ export function useEntryManagementCockpit({
   canValidateFocus = true,
 }: UseEntryManagementCockpitOptions) {
   const [, setSearchParams] = useSearchParams();
-  const viewKey = `${state.tab}|${state.exception}|${state.queue}|${state.search}|${state.trialId ?? ''}|${state.classId ?? ''}`;
+  const viewKey = [
+    state.tab,
+    state.exception,
+    state.queues.join(','),
+    state.search,
+    state.trialIds.join(','),
+    state.classIds.join(','),
+  ].join('|');
+  const queues = useStableList(state.queues);
+  const classIds = useStableList(state.classIds);
+  const scopedTrialClassIds = state.trialIds.length > 0 ? trialClassIds : undefined;
   const [pageState, setPageState] = useState({ viewKey, pageIndex: 0 });
   if (pageState.viewKey !== viewKey) {
     setPageState({ viewKey, pageIndex: 0 });
@@ -49,19 +67,19 @@ export function useEntryManagementCockpit({
   const builtPage = useMemo(
     () =>
       buildShowRegistrationPage(groups, {
-        queue: state.queue,
+        queues,
         search: state.search,
-        classId: state.classId,
-        // Scope by trial ONLY when the trial's class ids are actually known.
-        // `trialClassIds` is `undefined` when the classes query is pending,
+        classIds,
+        // Scope by trial ONLY when the trials' class ids are actually known.
+        // `trialClassIds` is `undefined` when a classes query is pending,
         // paused (offline) or errored; passing `[]` there is an empty
         // allowlist, which filters every registration out and reports zero as
         // fact. Omitting the key leaves the groups unscoped, and the cockpit
         // renders an explicit "scope unavailable" notice instead.
-        ...(state.trialId && trialClassIds ? { trialClassIds } : {}),
+        ...(scopedTrialClassIds ? { trialClassIds: scopedTrialClassIds } : {}),
         pageIndex,
       }),
-    [groups, pageIndex, state.classId, state.queue, state.search, state.trialId, trialClassIds]
+    [groups, pageIndex, classIds, queues, state.search, scopedTrialClassIds]
   );
   const selection = useBulkSelection({
     items: builtPage.effectiveGroups,
@@ -81,12 +99,18 @@ export function useEntryManagementCockpit({
     () =>
       state.search
         ? getShowRegistrationQueueCounts(groups)
-        : getScopedShowRegistrationQueueCounts(
-            groups,
-            state.classId,
-            state.trialId && trialClassIds ? trialClassIds : undefined
-          ),
-    [groups, state.classId, state.search, state.trialId, trialClassIds]
+        : getScopedShowRegistrationQueueCounts(groups, classIds, scopedTrialClassIds),
+    [groups, classIds, state.search, scopedTrialClassIds]
+  );
+  // The Show: trigger's number: distinct forms in the checked queues, on the same basis as the
+  // per-queue counts above (settled rule 8), so it never reads as their sum.
+  const queueSelectionCount = useMemo(
+    () =>
+      countShowRegistrationQueueUnion(
+        state.search ? groups : scopeShowRegistrationGroups(groups, classIds, scopedTrialClassIds),
+        queues
+      ),
+    [groups, classIds, queues, state.search, scopedTrialClassIds]
   );
   // WHOLE-SHOW totals, and said so only when they are true of what is on
   // screen (MYK9-635). A scope cannot be applied to them honestly: the class
@@ -99,7 +123,8 @@ export function useEntryManagementCockpit({
   // withheld while a scope or a search is active. The chips and the queue's own
   // "Showing X-Y of N" describe the filtered view.
   const queueTotals = useMemo(() => summarizeShowRegistrationTotals(groups), [groups]);
-  const queueTotalsDescribeWholeShow = !state.search && !state.classId && !state.trialId;
+  const queueTotalsDescribeWholeShow =
+    !state.search && state.classIds.length === 0 && state.trialIds.length === 0;
   const focusedGroup =
     builtPage.effectiveGroups.find(group => group.groupKey === state.registrationKey) ??
     builtPage.page.items[0] ??
@@ -127,6 +152,7 @@ export function useEntryManagementCockpit({
     state,
     groups,
     queueCounts,
+    queueSelectionCount,
     queueTotals,
     queueTotalsDescribeWholeShow,
     page: builtPage.page,
@@ -140,8 +166,9 @@ export function useEntryManagementCockpit({
       toggleAll: toggleVisiblePage,
     },
     setPageIndex: (nextPageIndex: number) => setPageState({ viewKey, pageIndex: nextPageIndex }),
-    setQueue: (queue: ShowRegistrationQueue) =>
-      updateParams(previous => writeCockpitQueue(previous, queue)),
+    /** The checked registration queues; switches back from an exception list if one is open. */
+    setQueues: (queues: readonly ShowRegistrationQueue[]) =>
+      updateParams(previous => writeCockpitQueues(writeCockpitTab(previous, 'registrations'), queues)),
     setSearch: (search: string) => updateParams(previous => writeCockpitSearch(previous, search)),
     // Focus changes are navigable work steps. Push them into history so browser
     // Back/Forward can move between focused registrations without losing scope.
@@ -149,14 +176,11 @@ export function useEntryManagementCockpit({
       setSearchParams(previous => writeCockpitFocus(previous, registrationKey), {
         preventScrollReset: true,
       }),
-    setScope: (trialId: string | null, classId: string | null = null) =>
-      updateParams(previous => writeCockpitScope(previous, trialId, classId)),
+    setScope: (trialIds: readonly string[], classIds: readonly string[]) =>
+      updateParams(previous => writeCockpitScope(previous, trialIds, classIds)),
     setTab: (tab: EntryManagementCockpitTab) =>
       updateParams(previous => writeCockpitTab(previous, tab)),
     setException: (exception: EntryManagementException) =>
       updateParams(previous => writeCockpitException(previous, exception)),
-    /** Selects one of the seven unified `ListViewTabs` entries (MYK9-795). */
-    setView: (viewId: EntryManagementViewId) =>
-      updateParams(previous => writeCockpitView(previous, viewId)),
   };
 }

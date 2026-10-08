@@ -37,8 +37,8 @@ import {
   writeCockpitScope,
   writeCockpitSearch,
   writeCockpitView,
-  type EntryManagementViewId,
 } from '@/components/entries/management/entryManagementCockpitParams';
+import { parseListParam } from '@/components/list-toolkit';
 import { groupEntriesByShowRegistration } from '@/components/entries/management/showRegistrationProjection';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
@@ -104,15 +104,34 @@ const EntryManagementPage: React.FC = () => {
   );
   const canValidateFocus =
     Boolean(selectedShowId) && loadedEntriesShowId === selectedShowId && !isLoading && !loadError;
+  const { trials, trialsLoaded } = useEntryManagementTrialScope({ selectedShowId });
+  const showTrialIds = useMemo(() => trials.map(trial => trial.id), [trials]);
+  // Read from the raw param: the normalizer below needs these classes to know which ids are stale.
+  const trialKey = searchParams.get('trial') ?? '';
+  const selectedTrialIds = useMemo(() => parseListParam(trialKey), [trialKey]);
+  const trialClassScope = useEntryManagementTrialClasses({
+    showTrialIds,
+    trialsLoaded,
+    selectedTrialIds,
+  });
+  const { trialClassIds, isLoadingClasses, trialClassesUnknown, refetchTrialClasses } =
+    trialClassScope;
   const normalizationContext = useMemo(
-    () => (canValidateFocus ? getCockpitNormalizationContext(registrationGroups) : {}),
-    [canValidateFocus, registrationGroups]
+    () => ({
+      ...(canValidateFocus ? getCockpitNormalizationContext(registrationGroups) : {}),
+      // Stale ids are dropped only once the list they belong to has loaded (settled rule 9).
+      ...(trialsLoaded ? { knownTrialIds: new Set(showTrialIds) } : {}),
+      ...(trialClassScope.knownClassIds ? { knownClassIds: trialClassScope.knownClassIds } : {}),
+    }),
+    [canValidateFocus, registrationGroups, showTrialIds, trialClassScope.knownClassIds, trialsLoaded]
   );
   const cockpitUrl = useMemo(
     () => normalizeEntryManagementCockpitParams(searchParams, normalizationContext),
     [normalizationContext, searchParams]
   );
-  const trialParam = cockpitUrl.state.trialId;
+  const { trialIds } = cockpitUrl.state;
+  // The command menu's trial commands need one trial; with several picked there is none to name.
+  const trialParam = trialIds.length === 1 ? trialIds[0] : null;
 
   useEffect(() => {
     if (!selectedShowId) return;
@@ -131,22 +150,11 @@ const EntryManagementPage: React.FC = () => {
     }
   }, [canValidateFocus, cockpitUrl.params, searchParams, setSearchParams]);
 
-  const {
-    trialClasses,
-    trialClassIds,
-    isLoadingClasses,
-    trialClassesUnknown,
-    refetchTrialClasses,
-  } = useEntryManagementTrialClasses(trialParam);
-
   const selectedShow = shows.find(s => s.id === selectedShowId) ?? null;
-  const { trials } = useEntryManagementTrialScope({
-    selectedShowId,
-  });
   const showTimeZone = useMemo(() => getEntryWindowTimezone(trials), [trials]);
   const paymentLedger = useEnrollmentLedgerActions({ setEntries, showTimeZone });
 
-  // One shared cockpit for the page's `ListViewTabs`/`ListFilterBar` AND the
+  // One shared cockpit for the page's Show: menu and Filter button AND the
   // registration list itself (MYK9-795) — previously computed inside
   // `EntryManagementCockpit`, lifted here so the unified view row (which spans
   // the registration queues AND the Waitlist/Pulls/Move-ups panes) and the
@@ -160,18 +168,15 @@ const EntryManagementPage: React.FC = () => {
   // A trial is selected but which classes it holds is still being read —
   // scoping to it would render every registration in the show while
   // appearing scoped (see `EntryManagementCockpit`'s trialScopePending doc).
-  const trialScopePending = Boolean(cockpitUrl.state.trialId) && isLoadingClasses;
+  const trialScopePending = trialIds.length > 0 && isLoadingClasses;
   const { count: moveUpRequestsCount, refetch: refetchMoveUpRequestsCount } =
     useMoveUpRequestsCount(selectedShowId || null);
 
-  const handleSelectView = (viewId: EntryManagementViewId) => cockpit.setView(viewId);
-  const handleScopeChange = (trialId: string | null, classId: string | null = null) =>
-    cockpit.setScope(trialId, classId);
   const handleClearEntryFilters = () => {
     setSearchParams(
       previous => {
         let next = writeCockpitSearch(previous, '');
-        next = writeCockpitScope(next, null, null);
+        next = writeCockpitScope(next, [], []);
         return writeCockpitView(next, 'all');
       },
       { replace: true }
@@ -396,17 +401,11 @@ const EntryManagementPage: React.FC = () => {
           selecting Waitlist/Pulls/Move-ups swaps in that surface instead. */}
       {selectedShowId && (
         <EntryManagementViewToolbar
-          state={cockpitUrl.state}
-          counts={{
-            queueCounts: cockpit.queueCounts,
-            pulls: pulledEntries.length,
-            moveUps: moveUpRequestsCount,
-          }}
+          cockpit={cockpit}
+          exceptionCounts={{ pulls: pulledEntries.length, moveUps: moveUpRequestsCount }}
           trials={trials}
-          trialClasses={trialClasses}
-          onSelectView={handleSelectView}
-          onScopeChange={handleScopeChange}
-          onSearchChange={cockpit.setSearch}
+          trialsLoaded={trialsLoaded}
+          classes={trialClassScope}
           onClearAll={handleClearEntryFilters}
           actions={entryActions}
           result={

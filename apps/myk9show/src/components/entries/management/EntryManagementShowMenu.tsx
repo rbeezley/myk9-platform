@@ -1,0 +1,138 @@
+/**
+ * The Entries tab's "Show:" control (docs/plan-entries-filter-button.md, settled rules 1 and 8).
+ * The four registration queues are checkboxes, so Needs review and Payment due can be listed
+ * together; the trigger counts the distinct forms in them, never the sum. Waitlist, Pulls and
+ * Move-ups are different lists with different rows, so each is a single choice that replaces the
+ * queues. The exclusivity rules (All against the rest, never an empty list) are
+ * `toggleQueueSelection`'s.
+ */
+import { ChevronDown } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import type { ListView } from '@/components/list-toolkit';
+import { cn } from '@/lib/utils';
+import {
+  ENTRY_MANAGEMENT_EXCEPTIONS,
+  toggleQueueSelection,
+  type EntryManagementCockpitState,
+  type EntryManagementException,
+} from './entryManagementCockpitParams';
+import { buildEntryManagementViews, type EntryManagementViewCounts } from './entryManagementViews';
+import type { ShowRegistrationQueue } from './showRegistrationProjection';
+
+interface EntryManagementShowMenuProps {
+  state: EntryManagementCockpitState;
+  counts: EntryManagementViewCounts;
+  /** Distinct forms in the checked queues. */
+  selectionCount: number;
+  onQueuesChange: (queues: ShowRegistrationQueue[]) => void;
+  onSelectException: (exception: EntryManagementException) => void;
+  /** Narrow layout: the visible "Show:" word is dropped (the button still says it). */
+  compact?: boolean;
+}
+
+function withCount(label: string, count: number | null | undefined): string {
+  return typeof count === 'number' ? `${label} (${count.toLocaleString()})` : label;
+}
+
+const isException = (view: ListView) =>
+  (ENTRY_MANAGEMENT_EXCEPTIONS as readonly string[]).includes(view.id);
+
+export function EntryManagementShowMenu({
+  state,
+  counts,
+  selectionCount,
+  onQueuesChange,
+  onSelectException,
+  compact = false,
+}: EntryManagementShowMenuProps) {
+  const views = buildEntryManagementViews(counts);
+  const queueViews = views.filter(view => !isException(view));
+  const exceptionViews = views.filter(isException);
+  const onRegistrations = state.tab === 'registrations';
+
+  const summary = onRegistrations
+    ? withCount(
+        queueViews
+          .filter(view => state.queues.includes(view.id as ShowRegistrationQueue))
+          .map(view => view.label)
+          .join(' + '),
+        selectionCount
+      )
+    : (() => {
+        const view = exceptionViews.find(candidate => candidate.id === state.exception);
+        return view ? withCount(view.label, view.count) : '';
+      })();
+
+  // From an exception list, a queue pick starts a fresh selection of just that queue.
+  const toggleQueue = (queue: ShowRegistrationQueue) =>
+    onQueuesChange(onRegistrations ? toggleQueueSelection(state.queues, queue) : [queue]);
+
+  return (
+    <div className="flex min-w-0 max-w-full items-center gap-2">
+      <span
+        className={cn('shrink-0 text-sm font-medium text-foreground', compact && 'hidden')}
+        aria-hidden="true"
+      >
+        Show:
+      </span>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            aria-label={`Show: ${summary}`}
+            className="h-11 min-w-0 max-w-[calc(100vw-5rem)] justify-between gap-2 font-normal"
+          >
+            <span className="truncate">{summary}</span>
+            <ChevronDown className="h-4 w-4 shrink-0 opacity-60" aria-hidden="true" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start" className="w-64">
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>Entry forms</DropdownMenuLabel>
+            {queueViews.map(view => (
+              <DropdownMenuCheckboxItem
+                key={view.id}
+                checked={onRegistrations && state.queues.includes(view.id as ShowRegistrationQueue)}
+                onCheckedChange={() => toggleQueue(view.id as ShowRegistrationQueue)}
+                className="min-h-11"
+              >
+                {withCount(view.label, view.count)}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            <DropdownMenuLabel>Other lists</DropdownMenuLabel>
+            <DropdownMenuRadioGroup
+              value={onRegistrations ? '' : state.exception}
+              onValueChange={value => onSelectException(value as EntryManagementException)}
+            >
+              {exceptionViews.map(view => (
+                <DropdownMenuRadioItem
+                  key={view.id}
+                  value={view.id}
+                  closeOnClick
+                  className="min-h-11"
+                >
+                  {withCount(view.label, view.count)}
+                </DropdownMenuRadioItem>
+              ))}
+            </DropdownMenuRadioGroup>
+          </DropdownMenuGroup>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
+  );
+}

@@ -67,7 +67,10 @@ vi.mock('@/hooks/queries/useShowTrials', () => ({
 }));
 
 vi.mock('@/hooks/queries/useClassesDatabase', () => ({
-  useClassesByTrialQuery: () => ({ data: [], isLoading: false }),
+  classesByTrialQueryOptions: (trialId: string) => ({
+    queryKey: ['classes', 'trial', trialId],
+    queryFn: async () => [],
+  }),
 }));
 
 vi.mock('@/hooks/queries/useTrialEntries', () => ({
@@ -84,9 +87,9 @@ describe('EntryManagementPage tab consolidation', () => {
   // one `ListViewTabs` row with seven entries.
   it('shows the seven unified views and no separate Registrations/Exceptions tabs', async () => {
     const { user } = render(<EntryManagementPage />, { initialRoute: '/secretary/entries' });
-    await user.click(screen.getByRole('combobox', { name: 'Show: Entry views' }));
+    await user.click(screen.getByRole('button', { name: /^Show:/ }));
     expect(screen.queryByRole('tab')).not.toBeInTheDocument();
-    const listbox = await screen.findByRole('listbox');
+    const menu = await screen.findByRole('menu');
     for (const label of [
       'Needs review',
       'Missing info',
@@ -96,7 +99,11 @@ describe('EntryManagementPage tab consolidation', () => {
       'Pulls',
       'Move-ups',
     ]) {
-      expect(within(listbox).getByRole('option', { name: new RegExp(label) })).toBeInTheDocument();
+      const items = [
+        ...within(menu).queryAllByRole('menuitemcheckbox'),
+        ...within(menu).queryAllByRole('menuitemradio'),
+      ];
+      expect(items.some(item => item.textContent?.startsWith(label))).toBe(true);
     }
   });
 
@@ -107,17 +114,13 @@ describe('EntryManagementPage tab consolidation', () => {
 
   it('normalizes a legacy Move-ups tab to the Exceptions workspace', () => {
     render(<EntryManagementPage />, { initialRoute: '/secretary/entries?tab=move-ups' });
-    expect(screen.getByRole('combobox', { name: 'Show: Entry views' })).toHaveTextContent(
-      /Move-ups/
-    );
+    expect(screen.getByRole('button', { name: /^Show:/ })).toHaveTextContent(/Move-ups/);
   });
 
   it('normalizes legacy pulled exception links to the Pulls queue', async () => {
     render(<EntryManagementPage />, {
       initialRoute: '/secretary/entries?tab=exceptions&queue=pulled',
     });
-    expect(await screen.findByRole('combobox', { name: 'Show: Entry views' })).toHaveTextContent(
-      /Pulls/
-    );
+    expect(await screen.findByRole('button', { name: /^Show:/ })).toHaveTextContent(/Pulls/);
   });
 });

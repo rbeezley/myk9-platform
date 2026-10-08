@@ -32,6 +32,7 @@ import { type Page } from '@playwright/test';
 import { resolveFixtureEmail } from '../../fixtures/fixtureEmail';
 import { assertAddressIsLive } from '../../fixtures/retiredFixtureDomain';
 import { runSignInLadder } from '../../e2e-helpers/signInRetryPolicy';
+import { restoreSharedSession, saveSharedSession } from './sharedSession';
 import { attemptSignIn } from './signInFlow';
 
 export interface TestUser {
@@ -169,6 +170,12 @@ export interface SignInOptions {
    * load the policy exists to survive. See `LOAD_HARNESS_SIGN_IN_OPTIONS`.
    */
   retry?: boolean;
+  /**
+   * Whether this sign-in may reuse the account's saved session from earlier in
+   * the run instead of creating another one (MYK9-1056). Defaults to true. The
+   * load harness passes false: its shards measure concurrent sign-ins.
+   */
+  reuseSession?: boolean;
 }
 
 /**
@@ -199,6 +206,9 @@ export async function signIn(
   // cliff in a preparation phase whose neighbours already allow 30-90s
   // (MYK9-463).
   const navigationTimeoutMs = options.navigationTimeoutMs ?? DEFAULT_SIGN_IN_NAVIGATION_TIMEOUT_MS;
+  const reuseSession = options.reuseSession !== false;
+
+  if (reuseSession && (await restoreSharedSession(page, email, returnTo))) return;
 
   await runSignInLadder(email, {
     attempt: () => attemptSignIn(page, email, password, returnTo, navigationTimeoutMs),
@@ -207,6 +217,8 @@ export async function signIn(
     log: line => console.warn(line),
     retriesEnabled: options.retry !== false,
   });
+
+  if (reuseSession) await saveSharedSession(page, email);
 }
 
 /**

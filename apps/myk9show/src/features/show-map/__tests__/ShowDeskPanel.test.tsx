@@ -21,7 +21,7 @@ vi.mock('@/features/show-live-sync/showChangeSignal', () => ({
   subscribeToShowChanges: vi.fn(() => () => undefined),
 }));
 vi.mock('@/services/replication', () => ({
-  replicatedClassesTable: { updateClass: vi.fn() },
+  replicatedClassesTable: { updateClass: vi.fn(), subscribe: vi.fn(() => () => undefined) },
   replicatedPaperworkPrintsTable: {
     subscribe: vi.fn(() => () => undefined),
     sync: vi.fn(async () => ({ success: true })),

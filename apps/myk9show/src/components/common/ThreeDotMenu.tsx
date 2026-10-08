@@ -1,85 +1,43 @@
 /**
- * ThreeDotMenu — user/dog/profile overflow menu (Edit / View / photo / status /
- * qualifications / Delete). A thin adapter over the canonical {@link RowActionMenu}
- * primitive: the prop API is preserved so its call sites don't change, but all menu
- * behavior (trigger, a11y, destructive token, separators) now lives in one place.
+ * ThreeDotMenu — a list ROW's overflow menu (View / Edit / qualifications / Delete). A thin
+ * adapter over the canonical {@link RowActionMenu} primitive: all menu behavior (trigger,
+ * a11y, destructive token, separators) lives there.
  *
- * New code should prefer RowActionMenu directly; this wrapper exists for the existing
- * profile/list surfaces that pass these named callbacks.
+ * Rows only. A detail page's own actions (Change Photo, Suspend account...) live in the
+ * header Actions menu (CRUD standard decision 6), never in a ⋮ on the page's card.
+ * New code should prefer RowActionMenu directly.
  */
 import React from 'react';
-import { Eye, Pencil, Camera, Activity, Award, Send, Trash2 } from 'lucide-react';
+import { Eye, Pencil, Award, Trash2 } from 'lucide-react';
 import { RowActionMenu, type RowAction } from '@/components/ui/RowActionMenu';
 
 interface ThreeDotMenuProps {
   onView?: (() => void) | undefined;
   onEdit?: (() => void) | undefined;
-  onEditPhoto?: (() => void) | undefined;
-  onChangeStatus?: (() => void) | undefined;
-  changeStatusLabel?: string | undefined;
-  changeStatusDisabled?: boolean | undefined;
-  changeStatusDescription?: string | undefined;
   onManageQualifications?: (() => void) | undefined;
-  /** Send or resend a sign-in invitation (MYK9-134). Omit to hide the item. */
-  onSendInvitation?: (() => void) | undefined;
   onDelete?: (() => void) | undefined;
   viewLabel?: string | undefined;
   editLabel?: string | undefined;
-  /** Wording differs for someone who already has an account vs one who does not. */
-  sendInvitationLabel?: string | undefined;
-  sendInvitationDisabled?: boolean | undefined;
   showManageQualifications?: boolean | undefined;
-  /** Hide the Edit item (use when a separate Edit button is rendered alongside) */
-  hideEdit?: boolean | undefined;
-  /**
-   * Trigger size override. Defaults to the 40px this menu has always rendered:
-   * RowActionMenu's `size="touch"` is h-11 w-11, but every existing call site
-   * has laid out against 40px, so a surface that needs the 44px touch target
-   * opts in rather than all ~10 of them changing untested.
-   */
-  triggerClassName?: string | undefined;
 }
 
 const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
   onView,
   onEdit,
-  onEditPhoto,
-  onChangeStatus,
-  changeStatusLabel = 'Change status',
-  changeStatusDisabled = false,
-  changeStatusDescription,
   onManageQualifications,
-  onSendInvitation,
   onDelete,
   viewLabel = 'View',
   editLabel = 'Edit Profile',
-  sendInvitationLabel = 'Send Invitation',
-  sendInvitationDisabled = false,
   showManageQualifications = false,
-  hideEdit = false,
-  triggerClassName = 'h-10 w-10',
 }) => {
   const actions: RowAction[] = [];
 
   // Edit is first on every row menu (MYK9-928).
-  if (onEdit && !hideEdit) {
+  if (onEdit) {
     actions.push({ id: 'edit', label: editLabel, icon: <Pencil />, onSelect: onEdit });
   }
   if (onView) {
     actions.push({ id: 'view', label: viewLabel, icon: <Eye />, onSelect: onView });
-  }
-  if (onEditPhoto) {
-    actions.push({ id: 'photo', label: 'Change Photo', icon: <Camera />, onSelect: onEditPhoto });
-  }
-  if (onChangeStatus) {
-    actions.push({
-      id: 'status',
-      label: changeStatusLabel,
-      icon: <Activity />,
-      onSelect: onChangeStatus,
-      disabled: changeStatusDisabled,
-      ...(changeStatusDescription ? { description: changeStatusDescription } : {}),
-    });
   }
   if (showManageQualifications && onManageQualifications) {
     actions.push({
@@ -87,16 +45,6 @@ const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
       label: 'Manage Qualifications',
       icon: <Award />,
       onSelect: onManageQualifications,
-      separatorBefore: true,
-    });
-  }
-  if (onSendInvitation) {
-    actions.push({
-      id: 'send-invitation',
-      label: sendInvitationLabel,
-      icon: <Send />,
-      onSelect: onSendInvitation,
-      disabled: sendInvitationDisabled,
       separatorBefore: true,
     });
   }
@@ -110,12 +58,13 @@ const ThreeDotMenu: React.FC<ThreeDotMenuProps> = ({
     });
   }
 
+  // Every row caller has laid out against this 40px trigger.
   return (
     <RowActionMenu
       actions={actions}
       label="More actions"
       size="touch"
-      triggerClassName={triggerClassName}
+      triggerClassName="h-10 w-10"
     />
   );
 };

@@ -112,7 +112,8 @@ export function usePageEditAction({
   );
 
   useEffect(() => {
-    const items = JSON.parse(extrasKey) as [string, string, PageExtraItem['icon'], string?][];
+    // JSON turns an absent reason into null.
+    const items = JSON.parse(extrasKey) as [string, string, PageExtraItem['icon'], string | null][];
     if (!enabled && items.length === 0) return;
     const owner = Symbol(kind);
     usePageEditTargetStore.getState().register(owner, {

@@ -1183,6 +1183,9 @@ export type Database = {
           reopened_after_closeout_at: string | null
           results_released_at: string | null
           results_released_by: string | null
+          results_verified_at: string | null
+          results_verified_by: string | null
+          results_verified_fingerprint: string | null
           revised_expected_start: string | null
           scored_count: number | null
           section: string | null
@@ -1241,6 +1244,9 @@ export type Database = {
           reopened_after_closeout_at?: string | null
           results_released_at?: string | null
           results_released_by?: string | null
+          results_verified_at?: string | null
+          results_verified_by?: string | null
+          results_verified_fingerprint?: string | null
           revised_expected_start?: string | null
           scored_count?: number | null
           section?: string | null
@@ -1299,6 +1305,9 @@ export type Database = {
           reopened_after_closeout_at?: string | null
           results_released_at?: string | null
           results_released_by?: string | null
+          results_verified_at?: string | null
+          results_verified_by?: string | null
+          results_verified_fingerprint?: string | null
           revised_expected_start?: string | null
           scored_count?: number | null
           section?: string | null
@@ -13020,6 +13029,10 @@ export type Database = {
         Args: { p_class_id: string }
         Returns: number
       }
+      clear_class_results_verified: {
+        Args: { p_class_id: string }
+        Returns: number
+      }
       clear_my_sms_consent: {
         Args: {
           p_expected_opt_in_at: string
@@ -13521,6 +13534,9 @@ export type Database = {
           reopened_after_closeout_at: string | null
           results_released_at: string | null
           results_released_by: string | null
+          results_verified_at: string | null
+          results_verified_by: string | null
+          results_verified_fingerprint: string | null
           revised_expected_start: string | null
           scored_count: number | null
           section: string | null
@@ -14172,6 +14188,14 @@ export type Database = {
         Args: { p_class_ids: string[]; p_show_id: string }
         Returns: number
       }
+      mark_class_results_verified: {
+        Args: {
+          p_class_id: string
+          p_results_fingerprint: string
+          p_verified_at?: string
+        }
+        Returns: number
+      }
       mark_classes_judge_signed_off: {
         Args: { p_class_ids: string[]; p_signed_off_at?: string }
         Returns: number
@@ -14571,6 +14595,9 @@ export type Database = {
           reopened_after_closeout_at: string | null
           results_released_at: string | null
           results_released_by: string | null
+          results_verified_at: string | null
+          results_verified_by: string | null
+          results_verified_fingerprint: string | null
           revised_expected_start: string | null
           scored_count: number | null
           section: string | null

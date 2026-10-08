@@ -4,7 +4,8 @@ import { fromPartial } from '@total-typescript/shoehorn';
 import { render } from '@/test/utils/testUtils';
 import type { Dog } from '@/types/dog-types';
 import { DogRow, type DogRowData } from '../DogTableRow';
-import { getDogEligibilityStatus } from '../DogSelectionStepEnhanced.helpers';
+import { formatDateMMDDYYYY } from '@/utils/dateFormat';
+import { DOG_ROW_HEIGHT, getDogEligibilityStatus, getDogRowHeight } from '../DogSelectionStepEnhanced.helpers';
 
 const dog = (overrides: Partial<Dog>): Dog =>
   fromPartial<Dog>({
@@ -41,6 +42,12 @@ describe('DogRow ineligible reason (MYK9-1060)', () => {
     expect(row).toHaveAttribute('aria-disabled', 'true');
     const reason = screen.getByText(/Too young \(must be 6\+ months\) — born/);
     expect(reason).toBeVisible();
+    // Never truncated: at the table's narrow name column an ellipsis would hide
+    // the requirement and the DOB from touch users (docs/INTENT.md: no hover-only).
+    expect(reason).not.toHaveClass('truncate');
+    expect(reason.textContent).toBe(
+      `Too young (must be 6+ months) — born ${formatDateMMDDYYYY(daysAgo(0))}`
+    );
     expect(row.getAttribute('aria-describedby')?.split(' ')).toContain(reason.id);
   });
 
@@ -57,5 +64,12 @@ describe('DogRow ineligible reason (MYK9-1060)', () => {
     const row = screen.getByRole('checkbox', { name: 'Select Cracker' });
     expect(row).not.toHaveAttribute('aria-disabled');
     expect(screen.queryByText(/too young/i)).not.toBeInTheDocument();
+  });
+});
+
+describe('ineligible row height (MYK9-1060)', () => {
+  it('gives a row with a reason more room than the 44px minimum', () => {
+    expect(getDogRowHeight(false)).toBeGreaterThan(DOG_ROW_HEIGHT);
+    expect(getDogRowHeight(true)).toBe(DOG_ROW_HEIGHT);
   });
 });

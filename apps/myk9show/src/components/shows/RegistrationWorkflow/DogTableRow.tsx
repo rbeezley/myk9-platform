@@ -122,7 +122,7 @@ export const DogRow: React.FC<DogRowProps> = ({ index, style, data }) => {
       >
         {isSelected && <Check className="h-4 w-4" />}
       </span>
-      <span className="flex min-w-0 flex-col">
+      <span className="flex min-w-0 flex-col py-1">
         <span className="truncate text-sm font-medium">{dogDisplayName}</span>
         {hasReason && (
           // Visible without hover: this is the only place a touch user can read
@@ -131,7 +131,7 @@ export const DogRow: React.FC<DogRowProps> = ({ index, style, data }) => {
             id={reasonId}
             issues={issues}
             dateOfBirth={dog.dateOfBirth}
-            className="truncate leading-4"
+            className="leading-4"
           />
         )}
       </span>

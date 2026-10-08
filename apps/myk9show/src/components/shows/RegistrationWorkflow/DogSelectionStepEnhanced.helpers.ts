@@ -16,6 +16,12 @@ export function getRegistrationNumberLabel(showRegistryId: string | null | undef
   return known ? `${getRegistry(known).id} number` : 'registration number';
 }
 
+/** Staff table row heights. A greyed-out row also carries its reason, which wraps (MYK9-1060). */
+export const DOG_ROW_HEIGHT = 44;
+const INELIGIBLE_DOG_ROW_HEIGHT = 80;
+export const getDogRowHeight = (eligible: boolean): number =>
+  eligible ? DOG_ROW_HEIGHT : INELIGIBLE_DOG_ROW_HEIGHT;
+
 // Shared grid template so the staff table's header and rows always align.
 export const DOG_TABLE_GRID: CSSProperties = {
   gridTemplateColumns: '20px 1.5fr 1.5fr 1.5fr 56px 112px',

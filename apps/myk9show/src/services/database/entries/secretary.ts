@@ -23,7 +23,6 @@ import { SECRETARY_ENTRIES_READ_ERROR } from './secretaryReadErrors';
 import { hydrateSecretaryEntriesForShow } from './secretaryReadHydration';
 import { hasUnsavedLocalEntryWrites } from '@/services/replication/entriesShowSyncState';
 import { verifySecretaryEmptyShow } from './secretaryEmptyProof';
-import { refreshShowEntriesOnOpen } from './refreshShowEntriesForRead';
 export type { PendingEntry, SecretaryEntry, SecretaryStatusEntrySeed } from './secretaryTypes';
 
 function toPendingEntry(row: Record<string, unknown>): PendingEntry {
@@ -83,17 +82,6 @@ export const getEntriesForShow = async (showId: string) => {
       return { data: result.data, error: null };
     }
     if (!result.isColdStore && result.data.length > 0) {
-      // MYK9-1064: a warm replica was served as-is and nothing else syncs this
-      // show's entries on a returning device. Decided BEFORE the refresh: a cold
-      // device falls through to hydration, which also syncs classes and trials.
-      // Bounded, coalesced, online only; the pre-refresh rows stand if it fails.
-      if (await refreshShowEntriesOnOpen(showId)) {
-        const refreshed = await getReplicatedSecretaryEntriesForShow(showId);
-        if (!refreshed.isColdStore) {
-          logQuery('entries', 'get_entries_for_show', Date.now() - startTime);
-          return { data: refreshed.data, error: null };
-        }
-      }
       logQuery('entries', 'get_entries_for_show', Date.now() - startTime);
       return { data: result.data, error: null };
     }

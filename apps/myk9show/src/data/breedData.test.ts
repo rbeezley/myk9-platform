@@ -32,6 +32,18 @@ describe('breedData', () => {
     });
   });
 
+  describe('FCI_BREEDS', () => {
+    it('keeps the FCI-specific names and groups it had before the AKC list grew', () => {
+      expect(getGroupForBreed('FCI', 'Shikoku')).toBe('Non-Sporting');
+      expect(getGroupForBreed('FCI', 'Thai Ridgeback')).toBe('Sighthound');
+      expect(FCI_BREEDS.find(b => b.name === 'German Spitz')?.varieties).toEqual([
+        'Giant',
+        'Medium',
+        'Miniature',
+      ]);
+    });
+  });
+
   describe('UKC_BREEDS', () => {
     it('includes Silken Windhound in Sighthound & Pariah Dog', () => {
       expect(getGroupForBreed('UKC', 'Silken Windhound')).toBe('Sighthound & Pariah Dog');

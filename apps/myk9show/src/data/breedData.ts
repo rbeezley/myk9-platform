@@ -25,6 +25,8 @@ const FCI_ONLY_BREEDS: BreedInfo[] = [
   { name: 'Dutch Shepherd', varieties: ['Short Hair', 'Long Hair', 'Wire Hair'], group: 'Herding' },
   { name: 'German Spitz', varieties: ['Giant', 'Medium', 'Miniature'], group: 'Non-Sporting' },
   { name: 'Peruvian Inca Orchid', varieties: ['Small', 'Medium', 'Large'], group: 'Sighthound' },
+  { name: 'Shikoku', varieties: [], group: 'Non-Sporting' },
+  { name: 'Thai Ridgeback', varieties: [], group: 'Sighthound' },
   { name: 'White Swiss Shepherd Dog', varieties: [], group: 'Herding' },
 ];
 

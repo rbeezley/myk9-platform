@@ -5,6 +5,8 @@ import { useFastShowDetails } from '@/hooks/useFastShowDetails';
 import { useReportData } from '@/hooks/queries/useReportData';
 import { getReportById } from '@/lib/reports/reportRegistry';
 import { ReportControlsBar } from './ReportControlsBar';
+import { ReportPhaseSections } from './ReportPhaseSections';
+import { useReportPrintStatus } from './useReportPrintStatus';
 import { resolveShowTimePhase } from '@/lib/reports/reportPhaseOrder';
 import { getEntryWindowTimezone } from '@/utils/entryWindowDate';
 import { ReportPreview } from './ReportPreview';
@@ -18,12 +20,8 @@ import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLi
 import type { ReportScope } from '@/lib/reports/types';
 import { resolveReportScope } from '@/lib/reports/reportScope';
 import { buildReportPaperworkDescriptor } from '@/features/show-map/cockpit/buildReportPaperworkDescriptor';
-import {
-  derivePaperworkPrintState,
-  type PaperworkDescriptor,
-} from '@/features/show-map/cockpit/paperworkPrintState';
+import type { PaperworkDescriptor } from '@/features/show-map/cockpit/paperworkPrintState';
 import { recordPaperworkPrinted } from '@/features/show-map/cockpit/paperworkPrintActions';
-import { useShowPaperworkPrints } from '@/features/show-map/cockpit/useShowPaperworkPrints';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useReportDogOptions } from './useReportDogOptions';
 import { useHostedReportData } from './useHostedReportData';
@@ -68,10 +66,10 @@ export default function ReportsPage() {
   const params = useParams<{ showId?: string; id?: string }>();
   const showId = params.showId ?? params.id;
   const { show: currentShow } = useFastShowDetails(showId);
-  // Orders the report picker's four phase groups nearest-in-time first, so on
+  // Orders the report sections nearest-in-time first and marks the current one "Now", so on
   // show day the check-in and score sheets lead instead of sitting under eleven
-  // pre-show planning reports. Headings and membership are unchanged and
-  // nothing is gated — see `orderReportPhases`.
+  // pre-show planning reports. Membership is unchanged and nothing is gated — see
+  // `orderReportPhases`.
   const linkShowId = showId ?? currentShow?.id;
   const [searchParams] = useSearchParams();
   const [initialScope] = useState(() => resolveInitialReportScope(searchParams));
@@ -131,17 +129,14 @@ export default function ReportsPage() {
     () => trials ?? currentShow?.trials ?? [],
     [currentShow?.trials, trials]
   );
-  const showTimePhase = resolveShowTimePhase(
-    currentShow,
-    new Date(),
-    getEntryWindowTimezone(
-      resolvedTrials as Array<{
-        id?: string | null;
-        date?: string | null;
-        timezone?: string | null;
-      }>
-    )
+  const showTimeZone = getEntryWindowTimezone(
+    resolvedTrials as Array<{
+      id?: string | null;
+      date?: string | null;
+      timezone?: string | null;
+    }>
   );
+  const showTimePhase = resolveShowTimePhase(currentShow, new Date(), showTimeZone);
 
   const trialOptions = useMemo(
     () =>
@@ -211,29 +206,18 @@ export default function ReportsPage() {
       >[0]['entries'],
     });
   }, [armbandDescriptor, reportType, effectiveScope, classes, entries]);
-  const paperworkPrints = useShowPaperworkPrints(showId ?? '');
-  // The descriptor is built from the class and entry rows, so a print confirmation (or an
-  // out-of-date verdict) is only meaningful once those reads are settled: React Query keeps `data`
-  // across a failed or in-flight refetch, and cached rows being replaced describe obsolete facts.
-  // The armband descriptor comes from its own read, so it is exempt (as it is from Print gating).
-  const paperworkRowsSettled = reportType === 'armband-labels' || dataState === 'ready';
-  const printStatusUnavailable =
-    paperworkPrints.isError ||
-    paperworkPrints.syncFailed ||
-    (!paperworkRowsSettled && dataState === 'error');
-  const printStatusChecking =
-    paperworkPrints.isLoading ||
-    printStatusUnavailable ||
-    !paperworkPrints.data ||
-    !paperworkRowsSettled;
-  const printStatusKnown = Boolean(paperworkPrints.data) && !printStatusChecking;
-  const printState = useMemo(
-    () =>
-      printStatusKnown && paperworkDescriptor && paperworkPrints.data
-        ? derivePaperworkPrintState(paperworkPrints.data, paperworkDescriptor)
-        : null,
-    [paperworkDescriptor, paperworkPrints.data, printStatusKnown]
-  );
+  const { printStatusUnavailable, printStatusChecking, printStatusKnown, printState, printChips } =
+    useReportPrintStatus({
+      showId: showId ?? '',
+      reportType,
+      dataState,
+      paperworkDescriptor,
+      armbandDescriptor,
+      scope: effectiveScope,
+      classes,
+      entries,
+      timeZone: showTimeZone,
+    });
 
   const handlePrint = () => {
     // Check the DATA before the iframe. A paused query renders an empty report
@@ -375,8 +359,8 @@ export default function ReportsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold tracking-tight">Reports</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Print check-in sheets, catalogs, official forms, and labels. Pick a report, narrow it to a
-          trial or class, then print or download.
+          Print check-in sheets, catalogs, official forms, and labels. Pick a report below, narrow
+          it to a trial or class, then print or download.
         </p>
       </div>
       {linkShowId && (
@@ -391,6 +375,16 @@ export default function ReportsPage() {
           .
         </p>
       )}
+
+      <ReportPhaseSections
+        reportType={reportType}
+        trialId={trialId}
+        trials={trialOptions}
+        showId={linkShowId}
+        showPhase={showTimePhase}
+        printChips={printChips}
+        onReportTypeChange={handleReportTypeChange}
+      />
 
       <ReportPrintStatus
         hasDescriptor={Boolean(paperworkDescriptor)}
@@ -410,14 +404,12 @@ export default function ReportsPage() {
         classes={classOptions}
         dogs={dogOptions}
         dogsUnavailable={dogOptionsUnavailable}
-        onReportTypeChange={handleReportTypeChange}
         onTrialChange={handleTrialChange}
         onClassChange={setClassId}
         onDogChange={setDogId}
         onSortChange={setSortOrder}
         onPrint={handlePrint}
         officialPdfAction={officialPdfAction}
-        showPhase={showTimePhase}
       />
 
       {/* Preview — the report iframe is a fixed 8.5in (letter) page. On viewports

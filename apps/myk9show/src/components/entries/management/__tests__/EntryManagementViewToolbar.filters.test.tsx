@@ -3,7 +3,7 @@
  * a quiet search, one Filter button for Trial and Class, the applied filters as sentences, and a
  * plain status sentence with a "Show all forms" button that resets view, scope and search.
  */
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 import { render, screen } from '@/test/utils/testUtils';
 import { EntryManagementViewToolbar } from '../EntryManagementViewToolbar';
@@ -64,6 +64,13 @@ function resultLine() {
 }
 
 describe('EntryManagementViewToolbar filters', () => {
+  // `mockViewportWidth` replaces `window.matchMedia`; put the setup's stub back so a narrow width
+  // from one test cannot leave the search collapsed to an icon in the next (shuffled runs).
+  const setupMatchMedia = window.matchMedia;
+  afterEach(() => {
+    window.matchMedia = setupMatchMedia;
+  });
+
   it('on a phone or tablet it still reads "Showing all", since the one-row layout does not fit', () => {
     mockViewportWidth(768);
     renderToolbar();

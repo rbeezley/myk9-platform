@@ -17,6 +17,7 @@ import {
 } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
 import { shouldShowQuickCreateShell } from './QuickCreateFlow.helpers';
+import { useCreatedInSession } from './CreatedInSessionContext';
 
 interface QuickCreateFlowProps {
   open: boolean;
@@ -54,6 +55,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   offlineFirst = false,
   showStartDate,
 }) => {
+  const createdInSession = useCreatedInSession();
   const [flowState, setFlowState] = useState<FlowState>(INITIAL_FLOW_STATE);
   const [showExhibitorDialog, setShowExhibitorDialog] = useState(false);
   const [showDogDialog, setShowDogDialog] = useState(false);
@@ -72,6 +74,8 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
     exhibitor: User,
     metadata?: { pendingMutationIds?: string[] | undefined }
   ) => {
+    // Saved the moment the dialog saves, even if the flow is closed before it completes.
+    createdInSession?.recordOwnerCreated(exhibitor);
     setFlowState(prev => ({
       ...prev,
       exhibitor,
@@ -83,6 +87,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
 
   // Handle dog creation
   const handleDogCreated = (dog: Dog) => {
+    createdInSession?.recordDogCreated(dog);
     setFlowState(prev => ({
       ...prev,
       dogs: [...prev.dogs, dog],

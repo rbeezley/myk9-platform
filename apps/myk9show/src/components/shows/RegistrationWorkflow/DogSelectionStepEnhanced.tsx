@@ -33,6 +33,7 @@ import { DogSearchInterface } from './DogSearchInterface';
 import { CreateExhibitorDialog } from './CreateExhibitorDialog';
 import { AddDogPanel } from '@/components/panels/edit';
 import { QuickCreateFlow } from './QuickCreateFlow';
+import { useCreatedInSession } from './CreatedInSessionContext';
 import { VariableSizeList as List, type VariableSizeList } from 'react-window';
 import { logger } from '@/services/LoggingService';
 import {
@@ -138,6 +139,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   const { roles, canBulkOperations, canCreateExhibitor, getMaxDogsPerRegistration } =
     useRegistrationPermissions();
   const { workflowConfig } = useRegistrationContext();
+  const createdInSession = useCreatedInSession();
 
   const [filteredDogs, setFilteredDogs] = useState<{ query: string; dogs: Dog[] }>({
     query: '',
@@ -293,6 +295,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
     metadata?: { pendingMutationIds?: string[] | undefined }
   ) => {
     logger.debug('Exhibitor created:', 'shows', { data: exhibitor });
+    createdInSession?.recordOwnerCreated(exhibitor);
     setCreatedExhibitorId(exhibitor.id);
     setCreatedExhibitorMutationIds(metadata?.pendingMutationIds ?? []);
     setShowDogDialog(true);
@@ -300,6 +303,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
 
   const handleDogCreated = (dog: Dog) => {
     logger.debug('Dog created:', 'shows', { data: dog });
+    createdInSession?.recordDogCreated(dog);
     onSelectionChange([...selectedDogs, dog.id]);
   };
 

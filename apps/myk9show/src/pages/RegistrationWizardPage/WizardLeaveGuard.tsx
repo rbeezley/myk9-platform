@@ -1,0 +1,49 @@
+import { useEffect, useMemo } from 'react';
+import { UnsavedChangesRouteGuard } from '@/components/navigation/UnsavedChangesRouteGuard';
+import { describeNoEntryYet, namesWithoutEntry } from '@/components/shows/RegistrationWorkflow/createdInSession';
+import { useCreatedInSession } from '@/components/shows/RegistrationWorkflow/CreatedInSessionContext';
+
+/**
+ * INTENT: a secretary who created owners and dogs here must not lose track of
+ * them by walking away before entries are submitted. In-app navigation gets our
+ * dialog; closing or reloading the tab gets the browser's own prompt (its text
+ * cannot be customised). Nothing is deleted on leaving, and no prompt appears
+ * once entries are submitted (`submitted` is the receipt step, reached by the
+ * online and the offline late-entry path alike) or when only existing dogs
+ * were selected.
+ */
+export function WizardLeaveGuard({ submitted }: { submitted: boolean }) {
+  const session = useCreatedInSession();
+  const created = session?.created;
+  const pending = !submitted && !!created && namesWithoutEntry(created).length > 0;
+
+  const dialog = useMemo(
+    () => ({
+      title: 'Leave without an entry?',
+      description: created ? describeNoEntryYet(created) : '',
+      stayLabel: 'Finish entry',
+      leaveLabel: 'Leave without entry',
+    }),
+    [created]
+  );
+
+  useEffect(() => {
+    if (!pending) return;
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      // Legacy browsers only show the prompt when returnValue is set.
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [pending]);
+
+  return (
+    <UnsavedChangesRouteGuard
+      isDirty={pending}
+      subject="this entry"
+      dialog={dialog}
+      pathScoped
+    />
+  );
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { digitsToSeconds, overTimeLimitError } from './paper-scoring-types';
+import { digitsToSeconds, overTimeLimitWarning } from './paper-scoring-types';
 
 describe('digitsToSeconds', () => {
   it('reads MMSShh digits', () => {
@@ -14,15 +14,15 @@ describe('digitsToSeconds', () => {
   });
 });
 
-describe('overTimeLimitError', () => {
+describe('overTimeLimitWarning', () => {
   it('flags a Q over the limit and names the limit', () => {
-    expect(overTimeLimitError('Q', '30001', 180)).toMatch(/3:00/);
+    expect(overTimeLimitWarning('Q', '30001', 180)).toMatch(/3:00/);
   });
   it('passes a Q at the limit', () => {
-    expect(overTimeLimitError('Q', '30000', 180)).toBeNull();
+    expect(overTimeLimitWarning('Q', '30000', 180)).toBeNull();
   });
   it('ignores non-Q results and unknown limits', () => {
-    expect(overTimeLimitError('NQ', '99999', 180)).toBeNull();
-    expect(overTimeLimitError('Q', '99999', undefined)).toBeNull();
+    expect(overTimeLimitWarning('NQ', '99999', 180)).toBeNull();
+    expect(overTimeLimitWarning('Q', '99999', undefined)).toBeNull();
   });
 });

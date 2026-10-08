@@ -76,17 +76,18 @@ export function sortByExhibitorOrder<T extends { exhibitorOrder: number }>(entri
 }
 
 /**
- * Inline error when a Q carries a time over the class time limit, else null.
+ * Inline warning when a Q carries a time over the class time limit, else null.
  * Same comparison as the scoresheet's validate() in scoring-ui, which warns
- * "Time … exceeds max …"; on paper a Q over the limit cannot stand (the run is
- * an NQ for Max Time), so the panel blocks the save instead of warning.
+ * "Time … exceeds max …"; like it, this warns
+ * and does not block: the limit can be the 180s default for a class with no stored
+ * limit, and a secretary must still be able to enter a valid paper Q.
  */
-export function overTimeLimitError(
+export function overTimeLimitWarning(
   result: PaperResult | null,
   timeDigits: string,
   maxTimeSeconds: number | undefined
 ): string | null {
   if (result !== 'Q' || !maxTimeSeconds || maxTimeSeconds <= 0) return null;
   if (digitsToSeconds(timeDigits) <= maxTimeSeconds) return null;
-  return `Over the class time limit of ${formatTimeLimitSeconds(maxTimeSeconds)}. A run over time is an NQ (Max Time), not a Q.`;
+  return `Over the class time limit of ${formatTimeLimitSeconds(maxTimeSeconds)} — check the score sheet; a run over time is normally NQ (Max Time).`;
 }

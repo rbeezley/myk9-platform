@@ -327,13 +327,14 @@ describe('EntryPanel', () => {
       expect(onSave).toHaveBeenCalledWith('Q', '521052', 0, undefined);
     });
 
-    it('blocks a Q over the class time limit with an inline error', async () => {
+    it('warns on a Q over the class time limit but still saves', async () => {
       const { onSave, input } = renderQ({ maxTimeSeconds: 180 });
       await userEvent.type(input, '30001');
       expect(screen.getByRole('alert')).toHaveTextContent(/over the class time limit of 3:00/i);
-      expect(screen.getByRole('button', { name: /^save$/i })).toBeDisabled();
-      expect(screen.getByRole('button', { name: /save & next/i })).toBeDisabled();
-      expect(onSave).not.toHaveBeenCalled();
+      expect(screen.getByRole('button', { name: /^save$/i })).toBeEnabled();
+      expect(screen.getByRole('button', { name: /save & next/i })).toBeEnabled();
+      await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+      expect(onSave).toHaveBeenCalledWith('Q', '30001', 0, undefined);
     });
 
     it('allows a Q at the limit', async () => {

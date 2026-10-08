@@ -5,6 +5,7 @@ import {
   buildFullClassLabel,
 } from '@/features/_shared/classLabel';
 import type { ShowMapClassInput } from './showMapTypes';
+import { formatTrialIdentity } from '@/features/show-desk-people-roster/peopleRoster';
 import { getPaperScoringClassHref } from '@/pages/scoring/scoringRoutes';
 import { formatDateOnly } from '@/lib/format/dates';
 
@@ -58,7 +59,7 @@ export function buildPaperScoringPicker(
   }
   for (const [trialId, list] of byTrial) {
     const first = list[0]!;
-    const title = first.trialName || (first.trialNumber ? `Trial ${first.trialNumber}` : 'Trial');
+    const title = formatTrialIdentity(first.trialName, first.trialNumber) ?? 'Trial';
     const date = first.trialDate ? formatDateOnly(first.trialDate) : '';
     const resolve = disambiguatorFor(trialId);
     const sorted = list

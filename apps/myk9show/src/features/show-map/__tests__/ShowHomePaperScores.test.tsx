@@ -64,6 +64,29 @@ describe('buildPaperScoringPicker', () => {
     expect(groups.map(g => g.trialId)).toEqual(['t1', 't2']);
   });
 
+  it('keeps same-name, same-date trials apart by trial number', () => {
+    const groups = buildPaperScoringPicker(
+      ['1', '2'].map(n =>
+        cls(`ina-${n}`, {
+          trialId: `t${n}`,
+          trialName: 'Saturday Trial',
+          trialNumber: n,
+          trialDate: '2026-10-10',
+          element: 'Interior',
+          level: 'Novice',
+          section: 'A',
+        })
+      )
+    );
+    expect(groups[0]?.label).not.toBe(groups[1]?.label);
+    expect(groups[0]?.label).toContain('(1)');
+    expect(groups[1]?.label).toContain('(2)');
+    expect(groups.map(g => g.classes[0]?.href)).toEqual([
+      '/scoring/classes/ina-1/entries?mode=split',
+      '/scoring/classes/ina-2/entries?mode=split',
+    ]);
+  });
+
   it('does not invent progress when the entries read failed', () => {
     const [group] = buildPaperScoringPicker([cls('a', { entryCount: null, scoredCount: null })]);
     expect(group?.classes[0]?.progress).toBe('Progress unavailable');

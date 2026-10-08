@@ -84,12 +84,22 @@ export function useCurrentActions(): CurrentActions {
   const pageKind = pageTarget?.kind;
   const pageAddClassesHref = pageTarget?.addClassesHref;
   const pageTitle = pageTarget?.title;
+  const pageCanEdit = pageTarget?.canEdit;
+  // Replaced only when the page re-registers, so a stable dependency.
+  const pageExtras = pageTarget?.extras;
 
   const resolved = useMemo(
     () =>
       resolveActions(route, {
         addClassesTrialId,
-        pageObject: pageKind ? { kind: pageKind, addClassesHref: pageAddClassesHref } : null,
+        pageObject: pageKind
+          ? {
+              kind: pageKind,
+              canEdit: pageCanEdit,
+              addClassesHref: pageAddClassesHref,
+              extras: pageExtras,
+            }
+          : null,
         pageExports: exportIdList.map(id => ({ id })),
         // Fail closed while ownership is still resolving: an empty list hides
         // the button, which is honest, where a flashed-then-withdrawn menu is
@@ -111,7 +121,9 @@ export function useCurrentActions(): CurrentActions {
       canCreatePeople,
       canCreateClubs,
       pageKind,
+      pageCanEdit,
       pageAddClassesHref,
+      pageExtras,
       addClassesTrialId,
       exportIdList,
     ]
@@ -126,6 +138,13 @@ export function useCurrentActions(): CurrentActions {
         // A search-only destination keeps the section's own query params.
         if (action.href?.startsWith('?')) {
           return { ...action, href: mergeSearchOnlyHref(action.href, search) };
+        }
+        // One of the page's other actions (Change Photo, Suspend account...), run by the page.
+        if (action.command === 'page-extra') {
+          const extra = pageTarget?.extras.find(
+            item => `${pageTarget.kind}-${item.id}` === action.id
+          );
+          return extra ? { ...action, run: extra.run } : action;
         }
         // The page's own Edit panel, opened by the page that registered it.
         if (action.command === 'edit-object') {

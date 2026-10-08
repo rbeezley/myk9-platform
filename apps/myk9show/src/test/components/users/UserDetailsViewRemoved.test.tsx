@@ -11,6 +11,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { User } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
 import { usePageEditTargetStore } from '@/features/actions/pageEditTarget';
+import { registeredPageActions } from '@/test/utils/pageActions';
 
 const hasPermission = vi.fn(() => true);
 const restoreUser = vi.fn(async () => ({ data: {}, error: null as unknown }));
@@ -102,34 +103,32 @@ describe('UserDetailsView — removed people', () => {
     await waitFor(() => expect(restoreUser).toHaveBeenCalledWith('p1'));
   });
 
-  it('offers no row menu at all on a removed record', () => {
+  it('offers no action at all on a removed record', () => {
     // The banner says the record cannot be edited, so Edit, photo, invitation and status are
     // all withheld. Delete is not here either: a removed record is purged only on Admin ->
     // Deleted Items, and a live one is deleted from the Edit panel's footer. With nothing left
-    // the menu does not render, so the absence below is a real one.
+    // the page registers nothing for the header Actions menu.
     renderView(person({ deletedAt: '2026-07-30T00:00:00Z' } as Partial<User>));
 
     // Positive control: the page rendered its removal banner.
     expect(screen.getByRole('status')).toHaveTextContent(/was removed/i);
     expect(screen.queryByRole('button', { name: /more actions/i })).not.toBeInTheDocument();
-    // Edit person is the header Actions menu's now (MYK9-928); a removed record registers none.
     expect(usePageEditTargetStore.getState().target).toBeNull();
     expect(screen.queryByRole('button', { name: /delete/i })).not.toBeInTheDocument();
   });
 
-  it('keeps edit affordances on a live record: Edit person in the Actions menu, photo in the row menu', async () => {
-    const user = userEvent.setup();
+  it('offers every action on a live record in the header Actions menu, and no ⋮ on the card', () => {
     renderView(person());
 
-    await user.click(screen.getByRole('button', { name: /more actions/i }));
-
-    // Positive control: the menu opened, and carries the person-level items that stay.
-    expect(await screen.findByRole('menuitem', { name: /change photo/i })).toBeInTheDocument();
-    // Delete person is the Edit panel's footer button, never a menu item.
-    expect(screen.queryByRole('menuitem', { name: /delete/i })).not.toBeInTheDocument();
-    // MYK9-928: no page-level Edit item here; it registered for the header Actions menu.
-    expect(screen.queryByRole('menuitem', { name: /edit person/i })).not.toBeInTheDocument();
-    expect(usePageEditTargetStore.getState().target?.kind).toBe('person');
+    // CRUD standard decision 6: one home for page actions. Delete person stays the Edit
+    // panel's footer button, never a menu item.
+    expect(registeredPageActions()).toEqual([
+      'Edit person',
+      'Change Photo',
+      'Send Invitation',
+      'Suspend account',
+    ]);
+    expect(screen.queryByRole('button', { name: /more actions/i })).not.toBeInTheDocument();
   });
 
   it('explains the removal without offering Restore to a viewer who cannot', () => {

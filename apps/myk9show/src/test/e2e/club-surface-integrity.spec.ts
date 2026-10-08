@@ -51,9 +51,8 @@ test.describe('club surface integrity — read-only', () => {
       timeout: 30_000,
     });
     await expect(page).toHaveURL(`/clubs/${SEEDED_CLUB_ID}`);
-    await page.getByRole('button', { name: 'Club options' }).click();
-    await expect(page.getByRole('menuitem', { name: 'Email Club' })).toBeVisible();
-    await expect(page.getByRole('menuitem', { name: 'Call Club' })).not.toBeVisible();
+    // Contact links live on About; the card has no ⋮ (CRUD standard decision 6).
+    await expect(page.getByRole('button', { name: 'Club options' })).toHaveCount(0);
 
     await page.goto(`/clubs/${MISSING_CLUB_ID}`, { waitUntil: 'domcontentloaded' });
     await expect(page.getByRole('heading', { name: 'Club Not Found' })).toBeVisible({

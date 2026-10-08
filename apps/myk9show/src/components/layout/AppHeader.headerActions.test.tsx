@@ -323,7 +323,7 @@ describe('AppHeader Actions menu — exhibitor on the same route', () => {
     viewer.isStaff = false;
     viewer.dogCreateOnly = true;
     usePageEditTargetStore.setState({
-      target: { kind: 'dog', run: vi.fn(), title: 'Ruby' },
+      target: { kind: 'dog', canEdit: true, run: vi.fn(), title: 'Ruby', extras: [] },
       owner: Symbol('dog'),
     });
     const user = userEvent.setup();
@@ -337,6 +337,46 @@ describe('AppHeader Actions menu — exhibitor on the same route', () => {
         .getAllByRole('menuitem')
         .map(item => item.textContent)
     ).toEqual(['Edit dog', 'Add Dog']);
+    usePageEditTargetStore.setState({ target: null, owner: null });
+  });
+
+  it("runs a page's other action from the menu, and greys one with its reason", async () => {
+    const changePhoto = vi.fn();
+    usePageEditTargetStore.setState({
+      target: {
+        kind: 'person',
+        canEdit: true,
+        run: vi.fn(),
+        title: 'Alex Whitfield',
+        extras: [
+          { id: 'photo', label: 'Change Photo', icon: 'photo', run: changePhoto },
+          {
+            id: 'status',
+            label: 'Suspend account',
+            icon: 'status',
+            disabledReason: 'You cannot suspend your own account',
+            run: vi.fn(),
+          },
+        ],
+      },
+      owner: Symbol('person'),
+    });
+    const user = userEvent.setup();
+
+    render(<AppHeader />, { initialRoute: '/people/p1' });
+    await user.click(screen.getByTestId('header-actions-trigger'));
+    const menu = await screen.findByRole('menu');
+    const page = within(menu).getByTestId('header-action-group-page');
+
+    expect(within(page).getByText('Alex Whitfield')).toBeInTheDocument();
+    expect(within(page).getByTestId('header-action-person-status')).toHaveAttribute(
+      'data-disabled'
+    );
+    expect(within(page).getByTestId('header-action-person-status')).toHaveTextContent(
+      'You cannot suspend your own account'
+    );
+    await user.click(within(page).getByRole('menuitem', { name: 'Change Photo' }));
+    expect(changePhoto).toHaveBeenCalledTimes(1);
     usePageEditTargetStore.setState({ target: null, owner: null });
   });
 

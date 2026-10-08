@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   describeAppliedFilter,
   isFieldActive,
+  isFieldLoading,
   keepOfferedValues,
   toggleListValue,
 } from '../filterFieldState';
@@ -82,6 +83,22 @@ describe('describeAppliedFilter', () => {
     expect(describeAppliedFilter({ ...classField(['c1']), loading: false })).toBe(
       'Class: Interior Novice B'
     );
+  });
+
+  it('says nothing for a single-select field whose options are still loading', () => {
+    const trial = (loading: boolean): ListMenuFilterField => ({
+      kind: 'options',
+      key: 'trial',
+      label: 'Trial',
+      value: 'bd5f-uuid',
+      loading,
+      onChange: () => undefined,
+      options: [],
+    });
+    expect(describeAppliedFilter(trial(true))).toBeNull();
+    expect(describeAppliedFilter(trial(false))).toBe('Trial: bd5f-uuid');
+    expect(isFieldLoading(trial(true))).toBe(true);
+    expect(isFieldLoading(trial(false))).toBe(false);
   });
 
   it('says nothing for a whitespace-only value', () => {

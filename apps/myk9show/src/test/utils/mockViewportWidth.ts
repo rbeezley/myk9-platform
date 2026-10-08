@@ -34,6 +34,12 @@ export function mockViewportWidth(width: number): void {
 }
 
 function evaluateMediaQuery(query: string, width: number): boolean {
+  const negated = /^\s*not all and\s/.test(query);
+  const matches = evaluateTerms(query, width);
+  return negated ? !matches : matches;
+}
+
+function evaluateTerms(query: string, width: number): boolean {
   const maxWidth = query.match(/max-width:\s*(\d+(?:\.\d+)?)px/);
   const minWidth = query.match(/min-width:\s*(\d+(?:\.\d+)?)px/);
   if (!maxWidth && !minWidth) return false;

@@ -212,9 +212,20 @@ export default function ReportsPage() {
     });
   }, [armbandDescriptor, reportType, effectiveScope, classes, entries]);
   const paperworkPrints = useShowPaperworkPrints(showId ?? '');
-  const printStatusUnavailable = paperworkPrints.isError || paperworkPrints.syncFailed;
+  // The descriptor is built from the class and entry rows, so a print confirmation (or an
+  // out-of-date verdict) is only meaningful once those reads are settled: React Query keeps `data`
+  // across a failed or in-flight refetch, and cached rows being replaced describe obsolete facts.
+  // The armband descriptor comes from its own read, so it is exempt (as it is from Print gating).
+  const paperworkRowsSettled = reportType === 'armband-labels' || dataState === 'ready';
+  const printStatusUnavailable =
+    paperworkPrints.isError ||
+    paperworkPrints.syncFailed ||
+    (!paperworkRowsSettled && dataState === 'error');
   const printStatusChecking =
-    paperworkPrints.isLoading || printStatusUnavailable || !paperworkPrints.data;
+    paperworkPrints.isLoading ||
+    printStatusUnavailable ||
+    !paperworkPrints.data ||
+    !paperworkRowsSettled;
   const printStatusKnown = Boolean(paperworkPrints.data) && !printStatusChecking;
   const printState = useMemo(
     () =>

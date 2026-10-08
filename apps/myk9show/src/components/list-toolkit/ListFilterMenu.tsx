@@ -8,7 +8,7 @@
  * drawn elsewhere, as plain sentences (`describeAppliedFilter`).
  */
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type Ref } from 'react';
 import { Check, ListFilter } from 'lucide-react';
 import {
   Command,
@@ -21,19 +21,19 @@ import {
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useKeyboardShortcuts, type ShortcutDefinition } from '@/hooks/useKeyboardShortcuts';
 import { cn } from '@/lib/utils';
-import { isFieldActive, toggleListValue } from './filterFieldState';
+import { isFieldActive, isFieldLoading, toggleListValue } from './filterFieldState';
 import type { ListFilterMenuField, ListFilterOption } from './types';
 
 /** Joins field and option into one unique row id; a character no key or id contains. */
 const ROW_SEPARATOR = '\u001f';
 
-function isLoading(field: ListFilterMenuField): boolean {
-  return field.kind === 'multiOptions' && field.loading === true;
-}
+const isLoading = isFieldLoading;
 
 interface ListFilterMenuProps {
   fields: ListFilterMenuField[];
   className?: string;
+  /** The Filter button, so applied-filter controls can send focus back to it after a removal. */
+  triggerRef?: Ref<HTMLButtonElement>;
 }
 
 function isPicked(field: ListFilterMenuField, option: ListFilterOption): boolean {
@@ -96,7 +96,7 @@ function FieldGroup({ field }: { field: ListFilterMenuField }) {
   );
 }
 
-export function ListFilterMenu({ fields, className }: ListFilterMenuProps) {
+export function ListFilterMenu({ fields, className, triggerRef }: ListFilterMenuProps) {
   const [open, setOpen] = useState(false);
   // `F` goes through the app's one shortcut hook, so it is ignored while typing in a field or while
   // a dialog is open, like the other single-key shortcuts. It only opens; Escape closes.
@@ -122,6 +122,7 @@ export function ListFilterMenu({ fields, className }: ListFilterMenuProps) {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <button
+          ref={triggerRef}
           type="button"
           aria-label={applied > 0 ? `Filter, ${applied} applied` : 'Filter'}
           className={cn(

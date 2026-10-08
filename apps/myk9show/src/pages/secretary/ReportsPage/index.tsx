@@ -7,6 +7,7 @@ import { getReportById } from '@/lib/reports/reportRegistry';
 import { ReportControlsBar } from './ReportControlsBar';
 import { ReportPhaseSections } from './ReportPhaseSections';
 import { useReportPrintStatus } from './useReportPrintStatus';
+import { useFocusReportControls } from './useFocusReportControls';
 import { resolveShowTimePhase } from '@/lib/reports/reportPhaseOrder';
 import { getEntryWindowTimezone } from '@/utils/entryWindowDate';
 import { ReportPreview } from './ReportPreview';
@@ -66,10 +67,7 @@ export default function ReportsPage() {
   const params = useParams<{ showId?: string; id?: string }>();
   const showId = params.showId ?? params.id;
   const { show: currentShow } = useFastShowDetails(showId);
-  // Orders the report sections nearest-in-time first and marks the current one "Now", so on
-  // show day the check-in and score sheets lead instead of sitting under eleven
-  // pre-show planning reports. Membership is unchanged and nothing is gated — see
-  // `orderReportPhases`.
+  // Sections are ordered nearest-in-time first by the show's own phase; nothing is gated.
   const linkShowId = showId ?? currentShow?.id;
   const [searchParams] = useSearchParams();
   const [initialScope] = useState(() => resolveInitialReportScope(searchParams));
@@ -90,6 +88,9 @@ export default function ReportsPage() {
   const report = getReportById(reportType);
   const [sortOrder, setSortOrder] = useState(report?.defaultSort ?? 'run-order');
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const { controlsRef, focusControls } = useFocusReportControls({
+    focusOnMount: Boolean(getReportById(searchParams.get('report') ?? '')?.enabled),
+  });
 
   const {
     show,
@@ -383,7 +384,10 @@ export default function ReportsPage() {
         showId={linkShowId}
         showPhase={showTimePhase}
         printChips={printChips}
-        onReportTypeChange={handleReportTypeChange}
+        onReportTypeChange={value => {
+          handleReportTypeChange(value);
+          focusControls();
+        }}
       />
 
       <ReportPrintStatus
@@ -394,23 +398,31 @@ export default function ReportsPage() {
       />
 
       {/* Controls */}
-      <ReportControlsBar
-        reportType={reportType}
-        trialId={trialId}
-        classId={classId}
-        dogId={dogId}
-        sortOrder={sortOrder}
-        trials={trialOptions}
-        classes={classOptions}
-        dogs={dogOptions}
-        dogsUnavailable={dogOptionsUnavailable}
-        onTrialChange={handleTrialChange}
-        onClassChange={setClassId}
-        onDogChange={setDogId}
-        onSortChange={setSortOrder}
-        onPrint={handlePrint}
-        officialPdfAction={officialPdfAction}
-      />
+      <div
+        ref={controlsRef}
+        tabIndex={-1}
+        role="group"
+        aria-label="Report controls"
+        className="scroll-mt-4 focus:outline-none"
+      >
+        <ReportControlsBar
+          reportType={reportType}
+          trialId={trialId}
+          classId={classId}
+          dogId={dogId}
+          sortOrder={sortOrder}
+          trials={trialOptions}
+          classes={classOptions}
+          dogs={dogOptions}
+          dogsUnavailable={dogOptionsUnavailable}
+          onTrialChange={handleTrialChange}
+          onClassChange={setClassId}
+          onDogChange={setDogId}
+          onSortChange={setSortOrder}
+          onPrint={handlePrint}
+          officialPdfAction={officialPdfAction}
+        />
+      </div>
 
       {/* Preview — the report iframe is a fixed 8.5in (letter) page. On viewports
           narrower than that (tablet/phone) it must scroll horizontally inside this

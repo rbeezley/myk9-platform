@@ -257,12 +257,12 @@ describe('ReportsPage shows the report phases as visible sections', () => {
 
   // Mount on the real route so `useParams` resolves the show id the way the app does; the print
   // records are scoped by it.
-  const renderPage = () =>
+  const renderPage = (route = '/shows/show-1/reports') =>
     render(
       <Routes>
         <Route path="/shows/:showId/reports" element={<ReportsPage />} />
       </Routes>,
-      { initialRoute: '/shows/show-1/reports' }
+      { initialRoute: route }
     );
 
   const card = (reportId: string) =>
@@ -309,6 +309,38 @@ describe('ReportsPage shows the report phases as visible sections', () => {
 
     expect(select('results-sheet')).toHaveAttribute('aria-pressed', 'true');
     expect(select('check-in-sheet')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  describe('moving to the controls', () => {
+    const scrollSpy = vi.fn();
+    beforeEach(() => {
+      scrollSpy.mockClear();
+      Element.prototype.scrollIntoView = scrollSpy;
+    });
+
+    it('moves focus to the controls region and scrolls it into view when a card is picked', async () => {
+      const user = userEvent.setup();
+      renderPage();
+      const controls = screen.getByRole('group', { name: 'Report controls' });
+      await user.click(within(card('results-sheet')).getAllByRole('button')[0] as HTMLElement);
+
+      expect(controls).toHaveFocus();
+      expect(scrollSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('lands a deep-linked report with its controls focused', () => {
+      renderPage('/shows/show-1/reports?report=scoresheet');
+
+      expect(screen.getByRole('group', { name: 'Report controls' })).toHaveFocus();
+      expect(scrollSpy).toHaveBeenCalled();
+    });
+
+    it('leaves focus alone when no report is named', () => {
+      renderPage();
+
+      expect(screen.getByRole('group', { name: 'Report controls' })).not.toHaveFocus();
+      expect(scrollSpy).not.toHaveBeenCalled();
+    });
   });
 
   it('links a report the Overview also offers, and only those', () => {

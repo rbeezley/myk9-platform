@@ -32,7 +32,7 @@ const seed = {
 /** A thenable query chain: every builder step returns it, awaiting yields the rows. */
 function mockServerRows(rows: Record<string, unknown>[]) {
   const chain: Record<string, unknown> = {};
-  for (const step of ['select', 'gt', 'or', 'order', 'eq', 'range']) {
+  for (const step of ['select', 'gt', 'or', 'order', 'eq', 'range', 'in']) {
     chain[step] = vi.fn(() => chain);
   }
   chain.then = (resolve: (value: unknown) => unknown) =>
@@ -102,7 +102,7 @@ describe('ReplicatedEntriesTable pull after an acknowledged local score (MYK9-10
     expect((await table.get(ID))?.finalPlacement).toBe('1');
   });
 
-  it('re-fetches from the epoch for a stuck row the incremental cursor had passed (MYK9-1055)', async () => {
+  it('refetches a stuck row by id when the incremental cursor had passed it (MYK9-1055)', async () => {
     // A first sync of a show per principal is full anyway (receipt-reference
     // refresh); run it once so the next one is incremental, then use a fresh
     // instance, as an app start would.
@@ -118,7 +118,7 @@ describe('ReplicatedEntriesTable pull after an acknowledged local score (MYK9-10
 
     await fresh.sync(SHOW);
 
-    expect(chain.gt).toHaveBeenCalledWith('updated_at', new Date(0).toISOString());
+    expect(chain.in).toHaveBeenCalledWith('id', [ID]);
     expect((await fresh.get(ID))?.finalPlacement).toBe('1');
   });
 

@@ -25,6 +25,7 @@ import { deleteRowsIfClean, type DeleteRowsIfCleanResult } from './deleteRowsIfC
 import {
   repairStuckPendingFlags,
   type RepairStuckPendingFlagsResult,
+  type StuckRepairAdapter,
 } from './repairStuckPendingFlags';
 
 /**
@@ -304,16 +305,15 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
     return result;
   }
 
-  /**
-   * Normalize clean rows stuck at `data._syncStatus === 'pending'` and reset the
-   * table's incremental cursors when any were (MYK9-1055; see repairStuckPendingFlags).
-   */
-  async repairStuckPendingFlags(): Promise<RepairStuckPendingFlagsResult> {
+  /** Refresh rows stuck at a `'pending'` data flag (MYK9-1055; see repairStuckPendingFlags). */
+  async repairStuckPendingFlags<TRemote>(
+    adapter: StuckRepairAdapter<TRemote, T>
+  ): Promise<RepairStuckPendingFlagsResult> {
     const db = await this.getDb();
-    const result = await repairStuckPendingFlags(db, this.tableName);
-    if (result.repaired.length > 0) {
+    const result = await repairStuckPendingFlags(db, this.tableName, adapter);
+    if (result.refreshed.length + result.normalized.length > 0) {
       this.logger.log(
-        `[${this.tableName}] Repaired ${result.repaired.length} rows stuck pending; full re-sync queued`
+        `[${this.tableName}] Repaired ${result.refreshed.length + result.normalized.length} rows stuck pending`
       );
       this.notifyListeners();
     }

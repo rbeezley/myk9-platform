@@ -1,5 +1,6 @@
 import type { ReplicatedTable } from './core/ReplicatedTable';
 import type { SyncOptions, SyncResult } from './types';
+import { repairStuckPendingFlagsOnce } from './core/repairStuckPendingFlags';
 import { reconcileDirtyRemoteRow } from './reconcileDirtyRemoteRow';
 import { countCoveredRows, staleCleanupKeepIds, getCoveredRemoteIds } from './replicaCoverage';
 import {
@@ -20,9 +21,6 @@ export type {
  *  older than this. Catches any residual watermark drift within a day even if an
  *  unforeseen path slips past the server-authoritative watermark. */
 const DEFAULT_FULL_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
-
-/** Tables whose stuck-pending repair has run in this page session. */
-const repairedTables = new WeakSet<object>();
 
 export interface SyncReplicatedTableOptions extends Partial<SyncOptions> {
   uploadPendingMutations?: () => Promise<unknown>;
@@ -79,26 +77,14 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
   };
 
   try {
+    // MYK9-1055: once per table instance, heal rows a pre-MYK9-1050 build left stuck.
+    await repairStuckPendingFlagsOnce(table, adapter);
+
     // Snapshot metadata BEFORE the 'syncing' write below, scoped to this sync's
     // scope.value so `since` is derived from the correct per-scope watermark. A
     // partial updateSyncMetadata does not preserve scope coverage metadata, so
     // reading after the status write would lose the prior counts needed to
     // detect an unexpected replica recovery.
-    // MYK9-1055: once per table instance, before the cursor is read, heal rows a
-    // pre-MYK9-1050 build left clean but flagged 'pending'. It resets the cursors
-    // when it repairs anything, so the read below sees the full re-sync request.
-    // Rows named by a queued mutation are exposed by that reset download; it
-    // must leave them to their upload.
-    let repairHeldIds: ReadonlySet<string> | undefined;
-    if (!repairedTables.has(table)) {
-      try {
-        const repair = await table.repairStuckPendingFlags();
-        repairedTables.add(table);
-        if (repair.repaired.length > 0) repairHeldIds = new Set(repair.held);
-      } catch {
-        // Best effort: a failed repair must not wedge sync; the next pass retries.
-      }
-    }
     const metadata = await table.getSyncMetadata(scope.value);
 
     await table.updateSyncMetadata({ syncStatus: 'syncing', errorMessage: undefined });
@@ -221,8 +207,6 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       // Stored as serverVersion on the IDB row so the next offline UPDATE can
       // carry an OCC precondition (WHERE version = remoteServerVersion).
       const remoteServerVersion = (remote as Record<string, unknown>).version as number | undefined;
-
-      if (repairHeldIds?.has(id)) continue;
 
       if (adapter.shouldSkipRemoteRow?.(remote, { local })) {
         continue;

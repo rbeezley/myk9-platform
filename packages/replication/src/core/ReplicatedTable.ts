@@ -12,6 +12,7 @@
  * - LRU/LFU cache eviction
  */
 
+import type { RepairStuckPendingFlagsResult, StuckRepairAdapter } from './repairStuckPendingFlags';
 import type { IDBPDatabase, IDBPObjectStore } from 'idb';
 import type {
   ReplicatedRow,
@@ -1111,8 +1112,10 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   }
 
   /** One-time repair for rows stuck at a `'pending'` data flag (MYK9-1055). */
-  async repairStuckPendingFlags(): Promise<{ repaired: string[]; kept: string[]; held: string[] }> {
-    return this.batchManager.repairStuckPendingFlags();
+  async repairStuckPendingFlags<TRemote>(
+    adapter: StuckRepairAdapter<TRemote, T>
+  ): Promise<RepairStuckPendingFlagsResult> {
+    return this.batchManager.repairStuckPendingFlags(adapter);
   }
 
   async clearCache(): Promise<void> {

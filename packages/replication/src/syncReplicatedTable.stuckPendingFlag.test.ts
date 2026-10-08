@@ -35,9 +35,16 @@ class FlagReadingTable extends ReplicatedTable<Row> {
 const CURSOR = 5000;
 const SERVER_UPDATED_AT = 2000;
 
-function adapterFor(server: Row[]): SyncReplicatedTableAdapter<Row, Row> {
+function adapterFor(
+  server: Row[],
+  fetchRowsById?: (ids: string[]) => Promise<Row[]>
+): SyncReplicatedTableAdapter<Row, Row> {
   return {
     fetchRemoteRows: vi.fn(async ({ since }) => server.filter(r => r.updated_at > since)),
+    fetchRowsById: vi.fn(
+      fetchRowsById ?? (async (ids: string[]) => server.filter(r => ids.includes(r.id)))
+    ),
+    filterLocalRows: rows => rows,
     getRemoteId: row => row.id,
     getRemoteUpdatedAt: row => row.updated_at,
     toLocalRow: row => ({ ...row, _syncStatus: 'synced' }),
@@ -93,23 +100,46 @@ describe('stuck pending data flag repair (MYK9-1055)', () => {
     );
   }
 
-  it('delivers the server placement a stuck clean row hid', async () => {
+  async function sync(adapter: SyncReplicatedTableAdapter<Row, Row>) {
+    return syncReplicatedTable(table, adapter, { value: 'show-1' });
+  }
+
+  async function hold(store: string, rowId: string) {
+    const db = await databaseManager.getDatabase(table.getTableName());
+    await db.put(store, mutation(`m-${rowId}`, rowId, table.getTableName()));
+  }
+
+  it('delivers the server placement a stuck clean row hid, past the sync cursor', async () => {
     await table.set('e1', stuckRow('e1'));
     await seedCursor();
 
-    await syncReplicatedTable(table, adapterFor([serverRow('e1')]), { value: 'show-1' });
+    await sync(adapterFor([serverRow('e1')]));
 
     const row = await table.get('e1');
     expect(row?.final_placement).toBe(1);
     expect(row?._syncStatus).toBe('synced');
   });
 
-  it('leaves a dirty row untouched', async () => {
+  it('never resets the sync cursor', async () => {
+    await table.set('e1', stuckRow('e1'));
+    await seedCursor();
+    const db = await databaseManager.getDatabase(table.getTableName());
+    const adapter = adapterFor([serverRow('e1')]);
+
+    await table.repairStuckPendingFlags(adapter as never);
+
+    const meta = await db.get(REPLICATION_STORES.SYNC_METADATA, table.getTableName());
+    expect(meta.scopes['show-1'].lastIncrementalSyncAt).toBe(CURSOR);
+  });
+
+  it('never fetches or touches a dirty row', async () => {
     await table.set('e1', { ...stuckRow('e1'), final_placement: 9 }, true);
     await seedCursor();
+    const adapter = adapterFor([serverRow('e1')]);
 
-    await syncReplicatedTable(table, adapterFor([serverRow('e1')]), { value: 'show-1' });
+    await sync(adapter);
 
+    expect(adapter.fetchRowsById).not.toHaveBeenCalled();
     const row = await table.get('e1');
     expect(row?.final_placement).toBe(9);
     expect(row?._syncStatus).toBe('pending');
@@ -119,66 +149,108 @@ describe('stuck pending data flag repair (MYK9-1055)', () => {
     REPLICATION_STORES.PENDING_MUTATIONS,
     REPLICATION_STORES.FAILED_MUTATIONS,
     REPLICATION_STORES.OFFLINE_QUEUE,
-  ])('leaves a clean-looking row alone while %s names it', async store => {
-    await table.set('e1', stuckRow('e1'));
+  ])('never fetches or touches a row %s names', async store => {
+    await table.set('held', stuckRow('held'));
+    await table.set('plain', { ...stuckRow('plain'), _syncStatus: 'synced', final_placement: 9 });
     await seedCursor();
-    const db = await databaseManager.getDatabase(table.getTableName());
-    await db.put(store, mutation('m1', 'e1', table.getTableName()));
+    await hold(store, 'held');
+    await hold(store, 'plain');
+    const adapter = adapterFor([serverRow('held'), serverRow('plain')]);
 
-    await syncReplicatedTable(table, adapterFor([serverRow('e1')]), { value: 'show-1' });
+    await sync(adapter);
 
-    const row = await table.get('e1');
-    expect(row?._syncStatus).toBe('pending');
-    expect(row?.final_placement).toBeUndefined();
+    expect(adapter.fetchRowsById).not.toHaveBeenCalled();
+    expect((await table.get('held'))?._syncStatus).toBe('pending');
+    expect((await table.get('plain'))?.final_placement).toBe(9);
   });
 
-  it.each([REPLICATION_STORES.PENDING_MUTATIONS, REPLICATION_STORES.FAILED_MUTATIONS])(
-    'the download the repair triggers does not overwrite a queue-held row (%s)',
-    async store => {
-      await table.set('e1', stuckRow('e1'));
-      await table.set('held', { ...stuckRow('held'), _syncStatus: 'synced', final_placement: 9 });
-      await seedCursor();
-      const db = await databaseManager.getDatabase(table.getTableName());
-      await db.put(store, mutation('m1', 'held', table.getTableName()));
-      // A stuck-flag row held by the queue marks the table as repaired too.
-      await table.set('held2', stuckRow('held2'));
-      await db.put(store, mutation('m2', 'held2', table.getTableName()));
+  it('repairs the stuck row and leaves queue-held rows alone in a mixed table', async () => {
+    await table.set('e1', stuckRow('e1'));
+    await table.set('held', stuckRow('held'));
+    await seedCursor();
+    await hold(REPLICATION_STORES.FAILED_MUTATIONS, 'held');
+    const adapter = adapterFor([serverRow('e1'), serverRow('held')]);
 
-      await syncReplicatedTable(
-        table,
-        adapterFor([serverRow('e1'), serverRow('held'), serverRow('held2')]),
-        { value: 'show-1' }
-      );
+    await sync(adapter);
 
-      expect((await table.get('e1'))?.final_placement).toBe(1);
-      expect((await table.get('held'))?.final_placement).toBe(9);
-      expect((await table.get('held2'))?.final_placement).toBeUndefined();
-    }
-  );
+    expect(adapter.fetchRowsById).toHaveBeenCalledWith(['e1']);
+    expect((await table.get('e1'))?.final_placement).toBe(1);
+    expect((await table.get('held'))?.final_placement).toBeUndefined();
+  });
 
-  it('is idempotent: a second pass finds nothing and keeps the cursor', async () => {
+  it('skips a row that gains a mutation between the fetch and the write', async () => {
+    await table.set('e1', stuckRow('e1'));
+    await table.set('e2', stuckRow('e2'));
+    await seedCursor();
+    const adapter = adapterFor([serverRow('e1'), serverRow('e2')], async ids => {
+      await hold(REPLICATION_STORES.PENDING_MUTATIONS, 'e1');
+      return [serverRow('e1'), serverRow('e2')].filter(r => ids.includes(r.id));
+    });
+
+    await sync(adapter);
+
+    expect((await table.get('e1'))?._syncStatus).toBe('pending');
+    expect((await table.get('e1'))?.final_placement).toBeUndefined();
+    expect((await table.get('e2'))?.final_placement).toBe(1);
+  });
+
+  it('skips a row that turns dirty between the fetch and the write', async () => {
     await table.set('e1', stuckRow('e1'));
     await seedCursor();
-    const db = await databaseManager.getDatabase(table.getTableName());
-    const first = await table.repairStuckPendingFlags();
-    expect(first.repaired).toEqual(['e1']);
+    const adapter = adapterFor([], async () => {
+      await table.set('e1', { ...stuckRow('e1'), final_placement: 9 }, true);
+      return [serverRow('e1')];
+    });
 
-    // The repair reset the cursor; stand in for the sync that then advanced it.
-    await table.updateSyncMetadata({ lastIncrementalSyncAt: CURSOR }, { scopeValue: 'show-1' });
-    const second = await table.repairStuckPendingFlags();
+    await sync(adapter);
 
-    expect(second).toEqual({ repaired: [], kept: [], held: [] });
-    const meta = await db.get(REPLICATION_STORES.SYNC_METADATA, table.getTableName());
-    expect(meta.scopes['show-1'].lastIncrementalSyncAt).toBe(CURSOR);
+    expect((await table.get('e1'))?.final_placement).toBe(9);
+  });
+
+  it('only normalizes the flag when the server returns no copy', async () => {
+    await table.set('gone', stuckRow('gone'));
+    await seedCursor();
+
+    await sync(adapterFor([]));
+
+    const row = await table.get('gone');
+    expect(row?._syncStatus).toBe('synced');
+  });
+
+  it('changes nothing when the fetch fails, and retries on the next pass', async () => {
+    await table.set('e1', stuckRow('e1'));
+    await seedCursor();
+    const failing = adapterFor([], async () => Promise.reject(new Error('offline')));
+
+    const result = await sync(failing);
+
+    expect(result.success).toBe(true);
+    expect((await table.get('e1'))?._syncStatus).toBe('pending');
+
+    await sync(adapterFor([serverRow('e1')]));
+
+    expect((await table.get('e1'))?.final_placement).toBe(1);
+  });
+
+  it('is idempotent: a second run finds nothing and does not fetch', async () => {
+    await table.set('e1', stuckRow('e1'));
+    await seedCursor();
+    const adapter = adapterFor([serverRow('e1')]);
+    expect((await table.repairStuckPendingFlags(adapter as never)).refreshed).toEqual(['e1']);
+
+    const second = await table.repairStuckPendingFlags(adapter as never);
+
+    expect(second).toEqual({ refreshed: [], normalized: [], skipped: [] });
+    expect(adapter.fetchRowsById).toHaveBeenCalledTimes(1);
   });
 
   it('repairs only on the first sync pass of a table instance', async () => {
     await seedCursor();
     const adapter = adapterFor([]);
-    await syncReplicatedTable(table, adapter, { value: 'show-1' });
+    await sync(adapter);
     await table.set('e1', stuckRow('e1'));
 
-    await syncReplicatedTable(table, adapter, { value: 'show-1' });
+    await sync(adapter);
 
     expect((await table.get('e1'))?._syncStatus).toBe('pending');
   });

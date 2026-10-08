@@ -173,7 +173,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
       description: 'Add the new registry number from the dog profile if needed.',
     });
     try {
-      onDogCreated(dog);
+      onDogCreated(dog, { existing: true });
       onClose();
     } catch (err) {
       logger.error(

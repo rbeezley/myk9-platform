@@ -33,6 +33,8 @@ import {
   useEntriesPanelGroups,
   useRemoveEntryLine,
 } from '@/components/shows/RegistrationWorkflow/EntriesPanel/useEntriesPanelData';
+import { CreatedInSessionProvider } from '@/components/shows/RegistrationWorkflow/CreatedInSessionContext';
+import { WizardLeaveGuard } from './RegistrationWizardPage/WizardLeaveGuard';
 import { useRegistrationWizard } from './RegistrationWizardPage/useRegistrationWizard';
 import { useEntryDogHandoff } from './RegistrationWizardPage/useEntryDogHandoff';
 import { getPaymentSubmitLabel } from './RegistrationWizardPage/commitLabels';
@@ -229,6 +231,7 @@ function RegistrationWizardContent() {
 
   return (
     <RegistrationErrorBoundary>
+      <WizardLeaveGuard submitted={isLastStep} />
       <RegistrationWizardShell
         rootRef={scrollTopRef}
         {...(entriesPanel ? { aside: entriesPanel } : {})}
@@ -500,7 +503,9 @@ export default function RegistrationWizardPage() {
 
   return (
     <RegistrationProvider>
-      <RegistrationWizardContent />
+      <CreatedInSessionProvider>
+        <RegistrationWizardContent />
+      </CreatedInSessionProvider>
     </RegistrationProvider>
   );
 }

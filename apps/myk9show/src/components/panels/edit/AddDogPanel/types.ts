@@ -5,7 +5,8 @@ import type { EditPanelVariant } from '../EditPanelWrapper';
 export interface AddDogPanelProps {
   open: boolean;
   onClose: () => void;
-  onDogCreated: (dog: DogType) => void;
+  /** `existing` is true when a duplicate match was chosen instead of creating a dog. */
+  onDogCreated: (dog: DogType, options?: { existing?: boolean }) => void;
   userRole?: UserRole | undefined;
   currentUserPersonId?: string | undefined;
   variant?: EditPanelVariant;

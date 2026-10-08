@@ -21,7 +21,13 @@ let mockAuthReturn: {
 };
 
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => mockAuthReturn,
+  // The page reads the club gate through hasRole (the shared create gate), derived from the
+  // fixture's roles the way AuthContext's own fallback does.
+  useAuthContext: () => ({
+    ...mockAuthReturn,
+    hasRole: (role: string) => mockAuthReturn.userWithRoles?.roles.includes(role) ?? false,
+    hasPermission: () => false,
+  }),
 }));
 
 // ── Mock data ───────────────────────────────────────────────────────────────

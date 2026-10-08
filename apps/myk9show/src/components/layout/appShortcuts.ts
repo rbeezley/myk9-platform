@@ -1,4 +1,5 @@
 import type { ShortcutDefinition } from '@/hooks/useKeyboardShortcuts';
+import { CREATE_HREFS } from '@/features/actions/createGates';
 
 /**
  * Canonical shortcut vocabulary (task 3.1). Single source of truth for the
@@ -121,9 +122,9 @@ export function buildAppShortcuts(
     'go-people': () => navigate('/people'),
     'go-shows': () => navigate('/shows'),
     'go-clubs': () => navigate('/clubs'),
-    'create-dog': () => navigate('/dogs?add=true'),
-    'create-person': () => navigate('/people?add=true'),
-    'create-show': () => navigate('/?wizard=true'),
+    'create-dog': () => navigate(CREATE_HREFS.dog),
+    'create-person': () => navigate(CREATE_HREFS.person),
+    'create-show': () => navigate(CREATE_HREFS.show),
   };
 
   return APP_SHORTCUTS.map(({ id, label, keys, category, global }) => ({

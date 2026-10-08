@@ -51,7 +51,8 @@ The consolidation plan gave each of the seven core objects (club, show, trial, c
    - **Labelled groups with dividers, in a fixed order:** (1) **this object**, headed by its display name, in the decision 5 order; (2) **this list**, headed by the list's name, only when the page shows a list (Export CSV); (3) **Create**, the same on every page.
    - **Every item has an icon**, the same in the menu and the command palette.
    - **Create holds only objects with no parent:** Add Show and Add Dog for anyone with the permission; Add Person and Add Club for secretaries and site admins only. Absent, not greyed, for anyone else. Each links to its list page's existing create panel. An object with a parent is created only from its parent's group, so the parent is never in doubt: Add Trial, Add Classes and Add Entry in the show's group, Add Classes (focused on that trial) in a trial's group. On a list page, its create item appears only in Create.
-   - **Navigation leaves the menu.** "Open Show Management" moves to the sidebar and ⌘K only.
+   - **The header button stays hidden when its only item would be Add Dog** (owner, 2026-10-08): an exhibitor off their own pages. On a phone that button cut the wordmark to "myK9S…" once the cart badge showed. Exhibitors add dogs from My Dogs and the Dogs page; ⌘K keeps Add Dog.
+   - **Navigation leaves the menu.** "Open Show Management" moves to the sidebar and ⌘K only (a ⌘K "Show Management" command for secretaries and site admins).
    - Unchanged: Delete is never in the menu (decision 3); an entry has no detail page, so its actions stay in its row menu, with Pull and Withdraw as separate items; the phone trigger stays icon-only ⋯ (MYK9-932).
 
 ## Defaults (change before Phase 1 if you disagree)
@@ -155,7 +156,7 @@ Create group on every page: Add Show, Add Dog, Add Person (staff), Add Club (sta
 
 **Phase 6a: Groups, icons and the Create group in the registry.**
 
-- `AppAction` gains `group: 'object' | 'list' | 'create'` and `icon`. `PageObject` gains the display name used as the object group's heading. `resolveActions` returns the groups in the fixed order; the `separatorBefore` bookkeeping is replaced by group boundaries.
+- `AppAction` gains `group: 'page' | 'show' | 'list' | 'create'` (the object section is `page` for a detail page and `show` for the show it sits in) and `icon`. `PageObject` gains the display name used as the object group's heading. `resolveActions` returns the groups in the fixed order; the `separatorBefore` bookkeeping is replaced by group boundaries.
 - `HeaderActions` renders a labelled group per non-empty group, with a divider between groups and the icon on every item. The command palette uses the same groups as its sections.
 - Add the Create group: Add Show (`SHOW_CREATE`), Add Dog (`DOG_CREATE`), Add Person and Add Club (secretary or site admin, matching the gate the list page's own Add button uses). Each links to its list page's create panel by URL; add the URL parameter on any list page that lacks one.
 - Remove "Open Show Management" from the registry. Confirm it is reachable from the sidebar and ⌘K first.

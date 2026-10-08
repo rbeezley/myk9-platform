@@ -41,7 +41,7 @@ const SECRETARY_ONLY_DESTINATIONS: ReadonlyArray<{
   {
     path: '/secretary/dashboard',
     requiredRole: [UserRole.SECRETARY, UserRole.SITE_ADMIN],
-    linkedFrom: 'Entries "Go to your shows", header Actions "Open Show Management"',
+    linkedFrom: 'Entries "Go to your shows", sidebar "Show Management"',
   },
 ];
 

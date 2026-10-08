@@ -1,13 +1,23 @@
 import { useState, useMemo, startTransition } from 'react';
 import { Command } from 'cmdk';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Search, Dog, Users, Calendar, Building, Plus, Clock, ArrowRight } from 'lucide-react';
+import {
+  Search,
+  Dog,
+  Users,
+  Calendar,
+  Building,
+  Clock,
+  ArrowRight,
+  LayoutDashboard,
+} from 'lucide-react';
 import { Kbd } from '@/components/ui/kbd';
 import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRecentSearches } from '@/hooks/useRecentSearches';
 import { PERMISSIONS, UserRole } from '@/types/auth-types';
 import { useCommandMenuCommands } from '@/features/command-menu/useCommandMenuCommands';
+import { ACTION_ICONS } from '@/features/actions/actionIcons';
 import {
   adaptCommandMenuCommand,
   type CommandAction,
@@ -59,13 +69,17 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
   const { userWithRoles, hasPermission } = useAuthContext();
 
   const { addSearch, getSuggestions } = useRecentSearches({ context: 'command-palette' });
-  const { navigationCommands: contextualNavCommands, actionCommands: registryActionCommands } =
-    useCommandMenuCommands();
+  const {
+    navigationCommands: contextualNavCommands,
+    actionCommands: registryActionCommands,
+    createActions,
+  } = useCommandMenuCommands();
 
   const roles = userWithRoles?.roles ?? [];
-  const canManageUsers =
-    hasPermission(PERMISSIONS.USER_CREATE) || roles.includes(UserRole.SITE_ADMIN);
-  const canCreateShows = hasPermission(PERMISSIONS.SHOW_CREATE);
+  // The same audience the old header "Open Show Management" item had: /secretary/dashboard is
+  // gated on SECRETARY or SITE_ADMIN.
+  const isShowManagementStaff =
+    roles.includes(UserRole.SECRETARY) || roles.includes(UserRole.SITE_ADMIN);
   const canBrowsePeople =
     hasPermission(PERMISSIONS.USER_READ) ||
     roles.includes(UserRole.SECRETARY) ||
@@ -138,13 +152,32 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
         category: 'navigation' as const,
         ...shortcutProp('nav-clubs'),
       },
+      {
+        // Left the header Actions menu (CRUD standard decision 6): it is a place, not an action.
+        id: 'nav-show-management',
+        title: 'Show Management',
+        subtitle: 'Your shows as secretary',
+        icon: <LayoutDashboard className="h-4 w-4" />,
+        action: () =>
+          startTransition(() => {
+            navigate('/secretary/dashboard');
+            onOpenChange(false);
+          }),
+        keywords: ['secretary', 'dashboard', 'manage', 'my shows'],
+        category: 'navigation' as const,
+      },
     ],
     [navigate, onOpenChange]
   );
 
   const visibleNavigationCommands = useMemo(
-    () => navigationCommands.filter(command => command.id !== 'nav-people' || canBrowsePeople),
-    [canBrowsePeople, navigationCommands]
+    () =>
+      navigationCommands.filter(
+        command =>
+          (command.id !== 'nav-people' || canBrowsePeople) &&
+          (command.id !== 'nav-show-management' || isShowManagementStaff)
+      ),
+    [canBrowsePeople, isShowManagementStaff, navigationCommands]
   );
 
   const allDataCommands = useCommandPaletteData(canBrowsePeople, navigate, onOpenChange);
@@ -169,57 +202,34 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
     return scored.slice(0, MAX_DATA_RESULTS).map(s => s.cmd);
   }, [allDataCommands, search]);
 
-  const actionCommands: CommandAction[] = useMemo(() => {
-    const commands: CommandAction[] = [
-      {
-        id: 'add-dog',
-        title: 'Add Dog',
-        icon: <Plus className="h-4 w-4" />,
-        action: () =>
-          startTransition(() => {
-            navigate('/dogs?add=true');
-            onOpenChange(false);
-          }),
-        keywords: ['add', 'new', 'create', 'dog'],
-        category: 'actions',
-        ...shortcutProp('add-dog'),
-      },
-    ];
-
-    if (canManageUsers) {
-      commands.push({
-        id: 'add-person',
-        title: 'Add Person',
-        icon: <Plus className="h-4 w-4" />,
-        action: () =>
-          startTransition(() => {
-            navigate('/people?add=true');
-            onOpenChange(false);
-          }),
-        keywords: ['add', 'new', 'create', 'person', 'contact'],
-        category: 'actions',
-        ...shortcutProp('add-person'),
-      });
-    }
-
-    if (canCreateShows) {
-      commands.push({
-        id: 'add-show',
-        title: 'Add Show',
-        icon: <Plus className="h-4 w-4" />,
-        action: () =>
-          startTransition(() => {
-            navigate('/?wizard=true');
-            onOpenChange(false);
-          }),
-        keywords: ['add', 'new', 'create', 'show', 'event'],
-        category: 'actions',
-        ...shortcutProp('add-show'),
-      });
-    }
-
-    return commands;
-  }, [canCreateShows, canManageUsers, navigate, onOpenChange]);
+  // The header Actions menu's Create group, so both doors offer the same creates behind the
+  // same gates (CRUD standard decision 6). Palette ids keep their `add-*` form, which the
+  // keyboard-shortcut badges are keyed by.
+  const actionCommands: CommandAction[] = useMemo(
+    () =>
+      createActions.flatMap(action => {
+        const href = action.href;
+        if (href === undefined) return [];
+        const id = action.id.replace(/^create-/, 'add-');
+        const Icon = ACTION_ICONS[action.icon];
+        return [
+          {
+            id,
+            title: action.label,
+            icon: <Icon className="h-4 w-4" />,
+            action: () =>
+              startTransition(() => {
+                navigate(href);
+                onOpenChange(false);
+              }),
+            keywords: [...(action.aliases ?? [])],
+            category: 'actions' as const,
+            ...shortcutProp(id),
+          },
+        ];
+      }),
+    [createActions, navigate, onOpenChange]
+  );
 
   // Contextual "current show" navigation (task 2.1/2.3) — only present when an
   // owner surface has registered a command-menu context (commandMenuContextStore).

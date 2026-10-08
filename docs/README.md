@@ -63,7 +63,6 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-ai-natural-language-access.md](plan-ai-natural-language-access.md)                                         | Active    | AI Natural-Language Access Plan                                                    |
 | [plan-core-object-ui-consistency.md](plan-core-object-ui-consistency.md)                                         | Active    | Core-Object UI Consistency                                                         |
 | [plan-crud-standard.md](plan-crud-standard.md)                                                                   | Active    | One Standard for Create, Edit and Delete                                           |
-| [plan-actions-menu.md](plan-actions-menu.md)                                                                     | Active    | Actions Menu: Grouped Sections, a Create Group, No Page ⋮                          |
 | [plan-junior-handler-fee-v2.md](plan-junior-handler-fee-v2.md)                                                   | Active    | Junior handler entry fee — restart plan (MYK9-662 v2)                              |
 | [plan-master-detail-lists.md](plan-master-detail-lists.md)                                                       | Active    | Master-Detail Lists — list left, detail right on wide screens                      |
 | [plan-entries-filter-button.md](plan-entries-filter-button.md)                                                   | Active    | Entries Filter Button — one Filter button, searchable multi-select                 |

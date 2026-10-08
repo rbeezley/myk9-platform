@@ -12,6 +12,13 @@ export function isFieldActive(field: ListMenuFilterField): boolean {
   return field.value.start !== null || field.value.end !== null;
 }
 
+/** Takes one field back to "not narrowing anything". */
+export function clearField(field: ListMenuFilterField): void {
+  if (field.kind === 'options') field.onChange(null);
+  else if (field.kind === 'multiOptions') field.onChange([]);
+  else field.onChange({ start: null, end: null });
+}
+
 /** `values` with `value` added at the end, or removed when it is already there. */
 export function toggleListValue(values: readonly string[], value: string): string[] {
   return values.includes(value) ? values.filter(v => v !== value) : [...values, value];

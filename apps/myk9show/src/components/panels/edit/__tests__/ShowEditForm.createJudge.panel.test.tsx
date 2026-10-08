@@ -20,6 +20,9 @@ vi.mock('@/components/shows/wizard/steps/useShowDetailsStepActions', () => ({
 vi.mock('@/features/judges/canWriteJudgeQualifications', () => ({
   useCanWriteJudgeQualifications: () => harness.canWrite,
 }));
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({ hasRole: () => false }),
+}));
 vi.mock('@/store/templateStore', () => ({ useTemplateStore: () => ({ templates: [] }) }));
 vi.mock('@/store/clubStore', () => ({
   useClubStore: () => ({ clubs: [{ id: 'c1' }], loadClubs: vi.fn() }),

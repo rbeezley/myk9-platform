@@ -2,7 +2,11 @@ import type { CheckInStatus } from '@myk9/core';
 
 export type ClassPhase = 'not-started' | 'in-progress' | 'finished';
 
+/** entries.result_status values a scored run can carry (see manual-result-types). */
+export type RunOutcome = 'qualified' | 'nq' | 'absent' | 'excused' | 'withdrawn';
+
 export interface RunSheetResult {
+  outcome: RunOutcome;
   qualified: boolean;
   timeStr: string;
   faults: number;

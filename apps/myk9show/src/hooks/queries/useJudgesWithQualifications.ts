@@ -16,6 +16,10 @@ export const useJudgesWithQualifications = (enabled = true) => {
       return data.map(mapDatabaseToUser);
     },
     staleTime: 5 * 60 * 1000,
+    // Refetch whenever the window regains focus, even inside staleTime: the Edit
+    // Show judge warning links to a judge record in another tab, and the
+    // qualification added there must show when the secretary returns.
+    refetchOnWindowFocus: 'always',
     enabled,
   });
 };

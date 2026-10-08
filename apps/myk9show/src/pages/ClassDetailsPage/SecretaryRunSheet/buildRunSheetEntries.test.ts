@@ -161,6 +161,17 @@ describe('buildRunSheetEntries', () => {
     expect(e.result!.timeStr).toBe('');
   });
 
+  it.each([
+    ['qualified', 'qualified'],
+    ['nq', 'nq'],
+    ['absent', 'absent'],
+    ['excused', 'excused'],
+    ['withdrawn', 'withdrawn'],
+  ] as const)('keeps result_status %s as outcome %s', (resultStatus, outcome) => {
+    const [e] = buildRunSheetEntries([makeRow({ is_scored: true, result_status: resultStatus })]);
+    expect(e.result!.outcome).toBe(outcome);
+  });
+
   it('maps final_placement 0 to null', () => {
     const [e] = buildRunSheetEntries([
       makeRow({ is_scored: true, result_status: 'qualified', final_placement: 0 }),

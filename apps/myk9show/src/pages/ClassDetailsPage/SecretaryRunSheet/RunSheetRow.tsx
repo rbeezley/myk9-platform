@@ -1,12 +1,12 @@
 import { ClipboardCheck, Pencil, X, CheckCircle2 } from 'lucide-react';
 import { CHECKIN_STATUSES, type CheckInStatus } from '@myk9/core';
 import { Button } from '@/components/ui/button';
-import { Chip } from '@/components/base/Chip';
+import { Chip, type ChipColor } from '@/components/base/Chip';
 import { StatusIcon, getStatusDescriptor } from '@/components/status';
 import { Select, SelectContent, SelectItem, SelectTrigger } from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import { PlacementPill } from '@/components/base/PlacementPill';
-import type { RunSheetEntry } from './types';
+import type { RunOutcome, RunSheetEntry } from './types';
 
 interface RunSheetRowProps {
   entry: RunSheetEntry;
@@ -18,6 +18,18 @@ interface RunSheetRowProps {
 function statusLabel(status: CheckInStatus): string {
   return getStatusDescriptor('entry', status).label;
 }
+
+// Short codes match ClassResultsTable's DISPLAY_LABELS (Q / NQ / ABS / EXC / WD).
+const OUTCOME_CHIP: Record<RunOutcome, { label: string; color: ChipColor }> = {
+  qualified: { label: 'Qualified', color: 'green' },
+  nq: { label: 'NQ', color: 'red' },
+  absent: { label: 'ABS', color: 'red' },
+  excused: { label: 'EXC', color: 'amber' },
+  withdrawn: { label: 'WD', color: 'amber' },
+};
+
+/** Time and faults only mean something for a run that was actually worked. */
+const RAN_OUTCOMES: readonly RunOutcome[] = ['qualified', 'nq'];
 
 // INTENT: Row identity + check-in select + score button. The drag handle
 // and SortableCard scaffolding that used to live here moved to Show Map
@@ -73,13 +85,18 @@ export function RunSheetRow({
           {isScored && result && (
             <>
               <Chip
-                color={result.qualified ? 'green' : 'red'}
+                color={OUTCOME_CHIP[result.outcome].color}
                 size="sm"
                 leadingIcon={result.qualified ? <CheckCircle2 size={12} /> : <X size={12} />}
               >
-                {result.qualified ? 'Qualified' : 'NQ'}
+                {OUTCOME_CHIP[result.outcome].label}
               </Chip>
-              {result.timeStr && (
+              {RAN_OUTCOMES.includes(result.outcome) && (
+                <span className="text-sm text-muted-foreground">
+                  {result.faults} {result.faults === 1 ? 'fault' : 'faults'}
+                </span>
+              )}
+              {result.timeStr && RAN_OUTCOMES.includes(result.outcome) && (
                 <span className="font-mono text-sm font-bold text-foreground">
                   {result.timeStr}
                 </span>

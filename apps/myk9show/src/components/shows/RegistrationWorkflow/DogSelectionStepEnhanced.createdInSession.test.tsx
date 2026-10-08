@@ -40,8 +40,13 @@ vi.mock('@/components/shows/RegistrationWorkflow/QuickCreateFlow', () => ({
   QuickCreateFlow: () => null,
 }));
 vi.mock('@/components/panels/edit', () => ({
-  AddDogPanel: (props: { onDogCreated: (dog: Dog) => void }) => (
-    <button onClick={() => props.onDogCreated(newDog)}>save dog</button>
+  AddDogPanel: (props: { onDogCreated: (dog: Dog, options?: { existing?: boolean }) => void }) => (
+    <>
+      <button onClick={() => props.onDogCreated(newDog)}>save dog</button>
+      <button onClick={() => props.onDogCreated(existingDog, { existing: true })}>
+        use existing dog
+      </button>
+    </>
   ),
 }));
 vi.mock('@/services/database/dogs', () => ({ SEARCH_ALL_DOGS_LIMIT: 25, searchAllDogs: vi.fn() }));
@@ -71,6 +76,12 @@ describe('DogSelectionStepEnhanced reports creations to the wizard session', () 
     renderStep();
     await userEvent.click(screen.getByText('save owner'));
     expect(screen.getByTestId('summary')).toHaveTextContent('Pat Lee has no entry yet.');
+  });
+
+  it('records nothing when "Use existing dog" picks a duplicate match', async () => {
+    renderStep();
+    await userEvent.click(screen.getByText('use existing dog'));
+    expect(screen.getByTestId('summary')).toHaveTextContent('');
   });
 
   it('records nothing when she only selects a dog that already existed', async () => {

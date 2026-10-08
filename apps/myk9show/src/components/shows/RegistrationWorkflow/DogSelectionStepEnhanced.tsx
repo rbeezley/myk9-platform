@@ -301,9 +301,9 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
     setShowDogDialog(true);
   };
 
-  const handleDogCreated = (dog: Dog) => {
+  const handleDogCreated = (dog: Dog, options?: { existing?: boolean }) => {
     logger.debug('Dog created:', 'shows', { data: dog });
-    createdInSession?.recordDogCreated(dog);
+    if (!options?.existing) createdInSession?.recordDogCreated(dog);
     onSelectionChange([...selectedDogs, dog.id]);
   };
 

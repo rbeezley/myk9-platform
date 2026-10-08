@@ -86,8 +86,8 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   };
 
   // Handle dog creation
-  const handleDogCreated = (dog: Dog) => {
-    createdInSession?.recordDogCreated(dog);
+  const handleDogCreated = (dog: Dog, options?: { existing?: boolean }) => {
+    if (!options?.existing) createdInSession?.recordDogCreated(dog);
     setFlowState(prev => ({
       ...prev,
       dogs: [...prev.dogs, dog],

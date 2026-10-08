@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { UnsavedChangesRouteGuard } from '@/components/navigation/UnsavedChangesRouteGuard';
 import {
   describeNoEntryYet,
@@ -18,7 +18,12 @@ import { useCreatedInSession } from '@/components/shows/RegistrationWorkflow/Cre
 export function WizardLeaveGuard({ submitted }: { submitted: boolean }) {
   const session = useCreatedInSession();
   const created = session?.created;
-  const pending = !submitted && !!created && namesWithoutEntry(created).length > 0;
+  // Sticky: once entries are submitted, clicking back to an earlier step must
+  // not bring the warning back.
+  const [everSubmitted, setEverSubmitted] = useState(false);
+  if (submitted && !everSubmitted) setEverSubmitted(true);
+  const pending =
+    !submitted && !everSubmitted && !!created && namesWithoutEntry(created).length > 0;
 
   const dialog = useMemo(
     () => ({

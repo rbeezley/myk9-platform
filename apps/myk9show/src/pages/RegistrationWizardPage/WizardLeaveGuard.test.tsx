@@ -36,6 +36,7 @@ function FakeWizard() {
         create second dog
       </button>
       <button onClick={() => setSubmitted(true)}>submit</button>
+      <button onClick={() => setSubmitted(false)}>go to earlier step</button>
       <button onClick={() => navigate('/secretary/register/s1?dogId=d9', { replace: true })}>
         clear handoff
       </button>
@@ -155,6 +156,18 @@ describe('WizardLeaveGuard (MYK9-1058)', () => {
 
     expect(router.state.location.pathname).toBe('/elsewhere');
     expect(screen.queryByText('Cracker has no entry yet.')).not.toBeInTheDocument();
+    expect(fireBeforeUnload()).toBe(false);
+  });
+
+  it('stays quiet after a submit even when she clicks back to an earlier step', async () => {
+    const user = userEvent.setup();
+    const router = renderWizard();
+    await user.click(screen.getByText('create dog'));
+    await user.click(screen.getByText('submit'));
+    await user.click(screen.getByText('go to earlier step'));
+    await user.click(screen.getByText('Back to show'));
+
+    expect(router.state.location.pathname).toBe('/elsewhere');
     expect(fireBeforeUnload()).toBe(false);
   });
 

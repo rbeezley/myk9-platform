@@ -1,9 +1,10 @@
 /**
- * MYK9-1057. Playwright trace archives record network bodies and evaluate
- * arguments, so a trace from any run against the live project holds the test
- * accounts' access and refresh tokens. This repository is public and so are its
+ * MYK9-1057. Playwright trace archives record network bodies, evaluate
+ * arguments and typed form values, so a trace holds the test accounts' tokens
+ * and passwords, which are the live project's (even a run against a disposable
+ * database signs in with them). This repository is public and so are its
  * workflow artifacts: every upload of a Playwright report or test-results
- * directory must exclude `**\/*.zip` beneath it.
+ * directory must exclude `**\/*.zip` beneath it. There are no exemptions.
  *
  * The workflows are read line by line rather than through a YAML library (none
  * is a dependency); `uploadSteps` is checked against planted known answers
@@ -16,16 +17,6 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const WORKFLOWS_DIR = resolve(import.meta.dirname, '../../../../../.github/workflows');
-
-/**
- * Uploads that may keep their traces, each with its reason. A declared list
- * rather than a heuristic, so a new exemption is a visible edit.
- */
-const EXEMPT_UPLOADS: Record<string, string> = {
-  // Runs against an isolated Supabase stack started and stopped inside the
-  // job, so its tokens die with it.
-  'nightly-e2e.yml:myk9show-playwright-regression-report': 'isolated Supabase target',
-};
 
 interface UploadStep {
   name: string;
@@ -66,13 +57,28 @@ export function uploadSteps(workflow: string): UploadStep[] {
   return steps;
 }
 
-/** Included directories that can hold trace archives but are not excluded. */
+/** `dir`, `dir/` and `dir/**` all upload the same tree; reduce them to `dir`. */
+function directoryOf(path: string): string {
+  return path.replace(/\/\*\*$/, '').replace(/\/+$/, '');
+}
+
+/** A path naming one file of a type a trace is not, e.g. `shard-1.json`. */
+function namesNonTraceFile(path: string): boolean {
+  return /\.(json|md|txt|html|png|webm|xml)$/.test(path);
+}
+
+/** Included report or test-results trees whose trace archives are not excluded. */
 export function unguardedTraceDirs(step: UploadStep): string[] {
-  const exclusions = new Set(step.paths.filter(p => p.startsWith('!')));
+  const excluded = new Set(
+    step.paths
+      .filter(p => p.startsWith('!') && p.endsWith('/**/*.zip'))
+      .map(p => p.slice(1, -'/**/*.zip'.length))
+  );
   return step.paths
     .filter(p => !p.startsWith('!') && /(playwright-report|test-results)/.test(p))
-    .filter(p => p.endsWith('/'))
-    .filter(p => !exclusions.has(`!${p}**/*.zip`));
+    .filter(p => !namesNonTraceFile(p))
+    .map(directoryOf)
+    .filter(dir => !excluded.has(dir));
 }
 
 const PLANTED_BAD = `
@@ -101,7 +107,31 @@ describe('uploadSteps / unguardedTraceDirs (known answers)', () => {
   it('finds a single-line report upload and reports it unguarded', () => {
     const [step] = uploadSteps(PLANTED_BAD);
     expect(step).toEqual({ name: 'planted', paths: ['apps/myk9show/playwright-report/'] });
-    expect(unguardedTraceDirs(step)).toEqual(['apps/myk9show/playwright-report/']);
+    expect(unguardedTraceDirs(step)).toEqual(['apps/myk9show/playwright-report']);
+  });
+
+  it.each([
+    'apps/myk9show/playwright-report',
+    'apps/myk9show/playwright-report/',
+    'apps/myk9show/playwright-report/**',
+  ])('treats %s as the whole tree, guarded only by its zip exclusion', path => {
+    expect(unguardedTraceDirs({ name: 'planted', paths: [path] })).toEqual([
+      'apps/myk9show/playwright-report',
+    ]);
+    expect(
+      unguardedTraceDirs({
+        name: 'planted',
+        paths: [path, '!apps/myk9show/playwright-report/**/*.zip'],
+      })
+    ).toEqual([]);
+  });
+
+  it('leaves a named JSON result file alone', () => {
+    const step = {
+      name: 'planted',
+      paths: ['apps/myk9show/test-results/load-shards/shard-1.json'],
+    };
+    expect(unguardedTraceDirs(step)).toEqual([]);
   });
 
   it('reads a block path list and accepts the zip exclusion', () => {
@@ -129,21 +159,15 @@ describe('public workflow artifacts never carry Playwright traces (MYK9-1057)', 
         'myk9show-nightly-health-report',
         'myk9show-cross-browser-health-report',
         'page-readiness-traces',
+        'myk9show-playwright-regression-report',
       ])
     );
   });
 
   it('excludes trace archives from every report or test-results upload', () => {
-    const unguarded = uploads
-      .filter(({ file, step }) => !(`${file}:${step.name}` in EXEMPT_UPLOADS))
-      .flatMap(({ file, step }) =>
-        unguardedTraceDirs(step).map(dir => `${file}:${step.name} uploads ${dir}`)
-      );
+    const unguarded = uploads.flatMap(({ file, step }) =>
+      unguardedTraceDirs(step).map(dir => `${file}:${step.name} uploads ${dir}`)
+    );
     expect(unguarded).toEqual([]);
-  });
-
-  it('every exemption still names a real upload', () => {
-    const present = new Set(uploads.map(({ file, step }) => `${file}:${step.name}`));
-    expect(Object.keys(EXEMPT_UPLOADS).filter(key => !present.has(key))).toEqual([]);
   });
 });

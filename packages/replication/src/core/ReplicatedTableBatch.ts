@@ -22,6 +22,11 @@ import { isOlderThanRow } from './ReplicatedTableRowState';
 import { MAX_CHUNK_SIZE } from '../constants';
 import { withQuotaEviction } from '../quota-eviction';
 import { deleteRowsIfClean, type DeleteRowsIfCleanResult } from './deleteRowsIfClean';
+import {
+  repairStuckPendingFlags,
+  type RepairStuckPendingFlagsResult,
+  type StuckRepairAdapter,
+} from './repairStuckPendingFlags';
 
 /**
  * Batch operations manager for a replicated table
@@ -295,6 +300,21 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
     const result = await deleteRowsIfClean(db, this.tableName, ids, remoteVersions);
     if (result.deleted.length > 0) {
       this.logger.log(`[${this.tableName}] Deleted ${result.deleted.length} clean rows`);
+      this.notifyListeners();
+    }
+    return result;
+  }
+
+  /** Refresh rows stuck at a `'pending'` data flag (MYK9-1055; see repairStuckPendingFlags). */
+  async repairStuckPendingFlags<TRemote>(
+    adapter: StuckRepairAdapter<TRemote, T>
+  ): Promise<RepairStuckPendingFlagsResult> {
+    const db = await this.getDb();
+    const result = await repairStuckPendingFlags(db, this.tableName, adapter);
+    if (result.refreshed.length + result.normalized.length > 0) {
+      this.logger.log(
+        `[${this.tableName}] Repaired ${result.refreshed.length + result.normalized.length} rows stuck pending`
+      );
       this.notifyListeners();
     }
     return result;

@@ -1,5 +1,6 @@
 import type { ReplicatedTable } from './core/ReplicatedTable';
 import type { SyncOptions, SyncResult } from './types';
+import { repairStuckPendingFlagsOnce } from './core/repairStuckPendingFlags';
 import { reconcileDirtyRemoteRow } from './reconcileDirtyRemoteRow';
 import { countCoveredRows, staleCleanupKeepIds, getCoveredRemoteIds } from './replicaCoverage';
 import {
@@ -76,6 +77,9 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
   };
 
   try {
+    // MYK9-1055: once per table instance, heal rows a pre-MYK9-1050 build left stuck.
+    await repairStuckPendingFlagsOnce(table, adapter);
+
     // Snapshot metadata BEFORE the 'syncing' write below, scoped to this sync's
     // scope.value so `since` is derived from the correct per-scope watermark. A
     // partial updateSyncMetadata does not preserve scope coverage metadata, so

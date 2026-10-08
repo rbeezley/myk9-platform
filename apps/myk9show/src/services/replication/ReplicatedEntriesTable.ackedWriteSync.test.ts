@@ -32,12 +32,13 @@ const seed = {
 /** A thenable query chain: every builder step returns it, awaiting yields the rows. */
 function mockServerRows(rows: Record<string, unknown>[]) {
   const chain: Record<string, unknown> = {};
-  for (const step of ['select', 'gt', 'or', 'order', 'eq', 'range']) {
+  for (const step of ['select', 'gt', 'or', 'order', 'eq', 'range', 'in']) {
     chain[step] = vi.fn(() => chain);
   }
   chain.then = (resolve: (value: unknown) => unknown) =>
     Promise.resolve({ data: rows, error: null, count: rows.length }).then(resolve);
   vi.mocked(supabase.from).mockReturnValue(chain as never);
+  return chain;
 }
 
 const serverRow = (overrides: Record<string, unknown>) => ({
@@ -99,6 +100,26 @@ describe('ReplicatedEntriesTable pull after an acknowledged local score (MYK9-10
     await table.sync(SHOW);
 
     expect((await table.get(ID))?.finalPlacement).toBe('1');
+  });
+
+  it('refetches a stuck row by id when the incremental cursor had passed it (MYK9-1055)', async () => {
+    // A first sync of a show per principal is full anyway (receipt-reference
+    // refresh); run it once so the next one is incremental, then use a fresh
+    // instance, as an app start would.
+    mockServerRows([]);
+    await table.sync(SHOW);
+    const fresh = new ReplicatedEntriesTable();
+    await fresh.set(ID, { ...seed, _syncStatus: 'pending' }, false);
+    await fresh.updateSyncMetadata(
+      { lastIncrementalSyncAt: Date.now(), lastFullSyncAt: Date.now() },
+      { scopeValue: SHOW }
+    );
+    const chain = mockServerRows([serverRow({})]);
+
+    await fresh.sync(SHOW);
+
+    expect(chain.in).toHaveBeenCalledWith('id', [ID]);
+    expect((await fresh.get(ID))?.finalPlacement).toBe('1');
   });
 
   it('a download that read the server before the ack does not roll the acked score back', async () => {

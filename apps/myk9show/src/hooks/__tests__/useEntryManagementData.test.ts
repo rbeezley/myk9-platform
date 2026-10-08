@@ -277,6 +277,90 @@ describe('useEntryManagementData', () => {
     expect(result.current.isLoading).toBe(true);
   });
 
+  const row = (id: string, showId: string) => ({
+    id,
+    show_id: showId,
+    entry_status: 'pending',
+    payment_status: 'pending',
+    entry_fee: 25,
+    dog: null,
+    class: null,
+    registration: null,
+    trial: null,
+  });
+
+  /** show-1's read waits for the returned controls; every other show answers at once. */
+  function holdShow1Read() {
+    const show1: {
+      finish: (value: { data: unknown[]; error: null }) => void;
+      fail: (err: Error) => void;
+    } = { finish: () => {}, fail: () => {} };
+    mocks.getEntriesForShow.mockImplementation((showId: string) =>
+      showId === 'show-1'
+        ? new Promise((resolve, reject) => {
+            show1.finish = resolve;
+            show1.fail = reject;
+          })
+        : Promise.resolve({ data: [row('entry-b', 'show-2')], error: null })
+    );
+    return show1;
+  }
+
+  it('never lets a slow read of the previous show replace the show switched to', async () => {
+    const show1 = holdShow1Read();
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+
+    act(() => result.current.setSelectedShowId('show-1'));
+    act(() => result.current.setSelectedShowId('show-2'));
+    await waitFor(() => expect(result.current.loadedEntriesShowId).toBe('show-2'));
+
+    await act(async () => {
+      show1.finish({ data: [row('entry-a', 'show-1')], error: null });
+    });
+
+    expect(result.current.entries.map(entry => entry.id)).toEqual(['entry-b']);
+    expect(result.current.loadedEntriesShowId).toBe('show-2');
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('never lets a failed read of the previous show put an error over the show switched to', async () => {
+    const show1 = holdShow1Read();
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+
+    act(() => result.current.setSelectedShowId('show-1'));
+    act(() => result.current.setSelectedShowId('show-2'));
+    await waitFor(() => expect(result.current.loadedEntriesShowId).toBe('show-2'));
+
+    await act(async () => {
+      show1.fail(new Error('network'));
+    });
+
+    expect(result.current.loadError).toBeNull();
+    expect(result.current.entries.map(entry => entry.id)).toEqual(['entry-b']);
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('drops a read still in flight when the show is cleared', async () => {
+    const show1 = holdShow1Read();
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+
+    act(() => result.current.setSelectedShowId('show-1'));
+    await waitFor(() => expect(result.current.isLoading).toBe(true));
+    act(() => result.current.setSelectedShowId(''));
+    expect(result.current.isLoading).toBe(false);
+
+    await act(async () => {
+      show1.finish({ data: [row('entry-a', 'show-1')], error: null });
+    });
+
+    expect(result.current.entries).toEqual([]);
+    expect(result.current.loadedEntriesShowId).toBeNull();
+    expect(result.current.isLoading).toBe(false);
+  });
+
   it('marks an empty load authoritative after entry replication has succeeded', async () => {
     const { result } = renderHook(() => useEntryManagementData());
     await waitFor(() => expect(result.current.isLoadingShows).toBe(false));

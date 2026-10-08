@@ -347,7 +347,10 @@ describe('DogSelectionStep', () => {
     // native disabled attribute, so we check aria-disabled="true".
     const checkbox = screen.getByRole('checkbox');
     expect(checkbox).toHaveAttribute('aria-disabled', 'true');
-    expect(screen.getByText(/too young/i)).toBeInTheDocument();
+    const reason = screen.getByText(/too young/i);
+    expect(reason).toBeInTheDocument();
+    expect(reason).toHaveTextContent(/— born /);
+    expect(checkbox.getAttribute('aria-describedby')?.split(' ')).toContain(reason.id);
   });
 
   it('shows a warning (not disabled) when registrations array is explicitly empty', () => {

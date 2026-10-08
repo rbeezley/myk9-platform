@@ -15,7 +15,12 @@ export function blockedActionFor(
     return { to: '/shows?tab=managing' };
   }
   const showId = first.context?.showId;
-  if ((kind === 'trial' || kind === 'class' || kind === 'entry') && showId) {
+  if (kind === 'entry' && showId) {
+    return {
+      to: `/shows/${encodeURIComponent(showId)}/entries?queue=all&entry=${encodeURIComponent(first.id)}`,
+    };
+  }
+  if ((kind === 'trial' || kind === 'class') && showId) {
     return { to: `/shows/${showId}/entries` };
   }
   return undefined;

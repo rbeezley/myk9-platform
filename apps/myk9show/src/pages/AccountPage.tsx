@@ -21,8 +21,6 @@ import {
   applyFontScale,
   storeFontScale,
   FONT_SIZE_SCALES,
-  applyLayoutDensity,
-  storeLayoutDensity,
   applyReduceMotion,
   storeReduceMotion,
   applyHighContrast,
@@ -126,13 +124,6 @@ export default function AccountPage() {
   // cache in sync with the loaded server preference, so server prefs win over
   // a stale cache and "Reset Theme Settings" actually reverts the applied
   // classes when the blob resets.
-  useEffect(() => {
-    const layoutDensity = preferences?.theme?.layoutDensity;
-    if (!layoutDensity) return;
-    applyLayoutDensity(layoutDensity);
-    storeLayoutDensity(layoutDensity);
-  }, [preferences?.theme?.layoutDensity]);
-
   useEffect(() => {
     const reduceMotion = preferences?.theme?.reduceMotion;
     if (reduceMotion === undefined) return;

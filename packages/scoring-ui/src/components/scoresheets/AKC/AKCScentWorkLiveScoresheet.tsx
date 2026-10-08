@@ -45,6 +45,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   rules,
   onSubmit,
   onBack,
+  headerActions,
   onWarningChime,
   onVoiceAnnouncement,
   enableVoiceAnnouncements,
@@ -119,11 +120,17 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
         <div className="max-w-2xl mx-auto">
           {/* Header */}
           <header className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card/80 backdrop-blur-sm sticky top-0 z-10">
-            <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-11 w-11"
+              onClick={onBack}
+              aria-label="Back"
+            >
               <ArrowLeft className="h-5 w-5" />
             </Button>
             <div className="flex-1">
-              <h1 className="text-lg font-semibold flex items-center gap-2">
+              <h1 className="text-lg max-sm:text-base font-semibold flex items-center gap-2">
                 <ClipboardCheck className="h-5 w-5 text-primary" />
                 {headerTitle}
               </h1>
@@ -132,6 +139,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                 {classInfo.level && classInfo.level !== 'Unknown' ? ` ${classInfo.level}` : ''}
               </p>
             </div>
+            {headerActions}
           </header>
 
           <div className="p-4 space-y-3">
@@ -156,7 +164,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                 background); the Start button carries the accent. */}
             <div className="relative p-6 rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
               <button
-                className="absolute top-3 right-3 w-10 h-10 rounded-full bg-muted border-0 text-muted-foreground flex items-center justify-center cursor-pointer transition-all duration-200 hover:enabled:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
+                className="absolute top-2 right-2 w-11 h-11 rounded-full bg-muted border-0 text-muted-foreground flex items-center justify-center cursor-pointer transition-all duration-200 hover:enabled:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
                 onClick={stopwatch.reset}
                 disabled={stopwatch.isRunning}
                 title={
@@ -247,13 +255,14 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                       value={area.time}
                       onChange={e => scoring.handleAreaUpdate(index, 'time', e.target.value)}
                       placeholder="0:00.00"
-                      className="text-center text-base font-mono font-medium pr-8 h-12 rounded-xl border-2 focus:border-primary focus:ring-2 focus:ring-primary/20"
+                      className="text-center text-base font-mono font-medium pr-12 h-12 rounded-xl border-2 focus:border-primary focus:ring-2 focus:ring-primary/20"
                       aria-label={`${area.areaName} time`}
                     />
                     {area.time && (
                       <Button
                         variant="ghost"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 hover:-translate-y-1/2 active:-translate-y-1/2 h-7 w-7 p-0 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
+                        className="absolute right-0.5 top-1/2 -translate-y-1/2 hover:-translate-y-1/2 active:-translate-y-1/2 h-11 w-11 p-0 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
+                        aria-label={`Clear ${area.areaName} time`}
                         onClick={() => scoring.handleAreaUpdate(index, 'time', '')}
                       >
                         <X className="h-4 w-4" />

@@ -12,6 +12,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, CheckCircle2, ChevronRight, Clock3, Info, ListChecks } from 'lucide-react';
 import type { CheckInStatus } from '@myk9/core';
 import { Button } from '@/components/ui/button';
+import { ResultBadge } from '@/components/common/ResultBadge';
 import { getStatusDescriptor, StatusBadge } from '@/components/status';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { cn } from '@/lib/utils';
@@ -19,7 +20,14 @@ import { notifications } from '@/lib/notifications';
 import { replicatedEntriesTable } from '@/services/replication';
 import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
 import { EXHIBITOR_STATUS_LABELS } from '@/types/check-in-types';
-import { deriveAtShowNextAction, type AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
+import { formatRunQueueState } from '@myk9/ringside/run-queue';
+import { useMyEntryQueuePlaces } from '@/hooks/queries/useMyEntryQueuePlaces';
+import {
+  deriveAtShowNextAction,
+  deriveAtShowQueueLine,
+  isAwaitingPlaceInLine,
+  type AtShowEntryDetail,
+} from './myAtShowEntryDetails.helpers';
 
 export interface AtShowMyEntriesTodayProps {
   showId: string;
@@ -47,16 +55,20 @@ function getExhibitorStatusLabel(detail: AtShowEntryDetail): string {
 
 function EntryRow({
   detail,
+  place,
   onOpenClass,
   onCheckIn,
   checkInPending,
 }: {
   detail: AtShowEntryDetail;
+  /** The server-counted place in line, when known (`useMyEntryQueuePlaces`). */
+  place: number | undefined;
   onOpenClass: (classId: string) => void;
   onCheckIn: (detail: AtShowEntryDetail) => void;
   checkInPending: boolean;
 }) {
   const action = deriveAtShowNextAction(detail);
+  const queueLine = deriveAtShowQueueLine(detail, place);
 
   return (
     <li
@@ -88,6 +100,23 @@ function EntryRow({
           label={getExhibitorStatusLabel(detail)}
           className="mt-1 text-xs"
         />
+        {queueLine && (
+          <div className="mt-1 text-sm font-medium" data-testid="at-show-my-entry-place">
+            {queueLine.kind === 'pending'
+              ? 'Position pending: running order not posted yet'
+              : formatRunQueueState(queueLine)}
+          </div>
+        )}
+        {detail.resultStatus && (
+          <div className="mt-1 flex items-center gap-2 text-sm" role="group" aria-label="Result">
+            <ResultBadge resultStatus={detail.resultStatus} />
+            {detail.resultTimeSeconds != null && (
+              <span className="tabular-nums text-muted-foreground">
+                {detail.resultTimeSeconds.toFixed(1)}s
+              </span>
+            )}
+          </div>
+        )}
         {action.kind === 'self-checkin-disabled' && (
           <div className="mt-1 flex items-start gap-1 text-xs text-muted-foreground">
             <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
@@ -193,6 +222,14 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
     [entries, statusOverrides]
   );
 
+  // Place in line is the server's count (an exhibitor holds only their own
+  // rows); offline it stays "Waiting" rather than a stale number (MYK9-992).
+  const awaitingIds = useMemo(
+    () => displayEntries.filter(isAwaitingPlaceInLine).map(detail => detail.entryId),
+    [displayEntries]
+  );
+  const places = useMyEntryQueuePlaces(awaitingIds);
+
   const handleOpenClass = useCallback(
     (classId: string) => {
       navigate(`/at-show/${showId}/class/${classId}`);
@@ -295,6 +332,7 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
               <EntryRow
                 key={detail.entryId}
                 detail={detail}
+                place={places.get(detail.entryId)}
                 onOpenClass={handleOpenClass}
                 onCheckIn={handleCheckIn}
                 checkInPending={pendingEntryId === detail.entryId}

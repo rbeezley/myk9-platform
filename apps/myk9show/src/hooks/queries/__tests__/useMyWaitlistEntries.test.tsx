@@ -6,9 +6,11 @@
  * them tells an exhibitor they are queued for a spot they have just lost.
  */
 import React from 'react';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { act, renderHook, screen, waitFor, within } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render } from '@/test/utils/testUtils';
+import { WaitListSection } from '@/pages/MyEntriesPage/modules/WaitListSection';
 
 const rows = vi.hoisted(() => ({
   active: [] as unknown[],
@@ -25,6 +27,7 @@ function makeRow(id: string, status: string, position: number) {
     class_id: `class-${id}`,
     position,
     status,
+    joined_via: 'online',
     offered_at: null,
     offer_expires_at: null,
     promoted_entry_id: null,
@@ -52,6 +55,7 @@ vi.mock('@/services/database/supabaseClient', () => {
   return {
     supabase: { from: vi.fn(() => builder), functions: { invoke: vi.fn() } },
     deleteBuilder,
+    selectBuilder: builder.select,
   };
 });
 
@@ -67,8 +71,9 @@ import { useMyWaitlistEntries } from '../useMyWaitlistEntries';
 import * as supabaseClientModule from '@/services/database/supabaseClient';
 import { WAITLIST_ENTRY_CHANGED_MESSAGE } from '@/services/database/waitlists/deleteWaitlistEntry';
 
-const { deleteBuilder } = supabaseClientModule as unknown as {
+const { deleteBuilder, selectBuilder } = supabaseClientModule as unknown as {
   deleteBuilder: { select: ReturnType<typeof vi.fn> };
+  selectBuilder: ReturnType<typeof vi.fn>;
 };
 
 function wrapper() {
@@ -162,5 +167,96 @@ describe('useMyWaitlistEntries active position count', () => {
 
     expect(replica.deleteLocal).not.toHaveBeenCalled();
     await waitFor(() => expect(toastSpy.error).toHaveBeenCalled());
+  });
+});
+
+async function renderMappedOffer(joinedVia: 'mail_in' | 'online', at: string) {
+  rows.active = [
+    {
+      ...makeRow('offer-1', 'offered', 1),
+      joined_via: joinedVia,
+      offered_at: '2026-01-01T15:00:00Z',
+      offer_expires_at: '2026-01-03T15:00:00Z',
+      promoted_entry_id: 'entry-1',
+      classes: {
+        name: 'Interior Advanced',
+        trials: { timezone: 'America/Chicago', shows: { name: 'Heartland' } },
+      },
+    },
+  ];
+  const { result } = renderHook(() => useMyWaitlistEntries('exhibitor-1'), {
+    wrapper: wrapper(),
+  });
+  await waitFor(() => expect(result.current.entries).toHaveLength(1));
+  expect(selectBuilder).toHaveBeenCalledWith(expect.stringContaining('joined_via'));
+  expect(result.current.entries[0].joinedVia).toBe(joinedVia);
+  const onOfferDeadlineElapsed = vi.fn();
+
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date(at));
+  const rendered = render(
+    React.createElement(WaitListSection, {
+      entries: result.current.entries,
+      isLoading: false,
+      onWithdraw: vi.fn(),
+      isWithdrawing: false,
+      onStartPayment: vi.fn(),
+      onDecline: vi.fn(),
+      payingEntryId: null,
+      decliningOfferId: null,
+      paymentError: null,
+      paymentErrorOfferId: null,
+      declineError: null,
+      declineErrorOfferId: null,
+      focusedOfferId: null,
+      onOfferDeadlineElapsed,
+    })
+  );
+  return {
+    offer: within(screen.getByRole('region', { name: /waitlist offer for juni/i })),
+    onOfferDeadlineElapsed,
+    ...rendered,
+  };
+}
+
+describe('MYK9-1035 mail-in offer mapping and card', () => {
+  beforeEach(() => {
+    rows.active = [];
+    rows.focused = null;
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it.each(['2026-01-02T15:00:00Z', '2026-01-04T15:00:00Z'])(
+    'keeps the mapped mail-in offer held without a deadline or checkout at %s',
+    async at => {
+      const { offer, onOfferDeadlineElapsed } = await renderMappedOffer('mail_in', at);
+
+      expect(
+        offer.getByText(
+          'The club is holding this spot while awaiting your payment. Pay the club directly or contact the show secretary.'
+        )
+      ).toBeInTheDocument();
+      expect(offer.queryByText(/Claim by|Checking whether|expired/)).not.toBeInTheDocument();
+      expect(offer.queryByRole('button', { name: 'Complete payment' })).not.toBeInTheDocument();
+      expect(onOfferDeadlineElapsed).not.toHaveBeenCalled();
+      act(() => {
+        vi.advanceTimersByTime(30_000);
+      });
+      expect(onOfferDeadlineElapsed).not.toHaveBeenCalled();
+    }
+  );
+
+  it.each([
+    ['2026-01-02T15:00:00Z', 'Claim by Sat, Jan 3, 9:00 AM CST', false],
+    ['2026-01-04T15:00:00Z', 'Checking whether this offer is still available.', true],
+  ])('preserves online deadline behavior at %s', async (at, expected, elapsed) => {
+    const { offer, onOfferDeadlineElapsed } = await renderMappedOffer('online', at);
+
+    expect(offer.getByText(expected)).toBeInTheDocument();
+    expect(!!onOfferDeadlineElapsed.mock.calls.length).toBe(elapsed);
+    expect(!!offer.queryByRole('button', { name: 'Complete payment' })).toBe(!elapsed);
   });
 });

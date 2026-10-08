@@ -252,6 +252,7 @@ const ClassDetailsPage: React.FC = () => {
     kind: 'class',
     enabled: canManageClass && !!currentClass,
     run: dialogs.openEditClassPanel,
+    title: classTitle,
   });
 
   // Early returns for different states. A guest's class is the server's

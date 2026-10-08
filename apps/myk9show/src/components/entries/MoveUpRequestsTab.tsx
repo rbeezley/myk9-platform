@@ -55,6 +55,17 @@ import {
 import { getAvailableMoveUpTargets, hasConfiguredCapacity } from './moveUpTargets';
 import { getTrialRegistry } from '@/features/registries';
 import type { RegistryId } from '@/features/registries';
+import { formatTrialLabel } from './management/entryFormTrialSummary';
+
+function trialLabelsById(trials: ReadonlyArray<Record<string, unknown>>): Record<string, string> {
+  const text = (value: unknown) => (typeof value === 'string' ? value : null);
+  return Object.fromEntries(
+    trials.map(trial => [
+      String(trial.id),
+      formatTrialLabel(text(trial.date), text(trial.trial_number)),
+    ])
+  );
+}
 
 interface MoveUpRequest {
   id: string;
@@ -88,6 +99,8 @@ interface MoveUpRequestsTabProps {
 export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, onRefresh }) => {
   const [requests, setRequests] = useState<MoveUpRequest[]>([]);
   const [classes, setClasses] = useState<ClassWithCapacity[]>([]);
+  /** trial id to "Mon, Nov 9 · Trial 1", so a request says which trial its class is in. */
+  const [trialLabels, setTrialLabels] = useState<Record<string, string>>({});
   // A show's trials always share one registry (scoping §7) — resolved once per
   // load so getAvailableMoveUpTargets recognizes UKC/ASCA-only levels.
   const [registryId, setRegistryId] = useState<RegistryId>('AKC');
@@ -136,6 +149,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
 
         if (!trialsResult.error) {
           setRegistryId(getTrialRegistry(trialsResult.data[0]).id);
+          setTrialLabels(trialLabelsById(trialsResult.data));
         }
       } catch (_err) {
         setError('An unexpected error occurred');
@@ -175,6 +189,7 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
 
       if (!trialsResult.error) {
         setRegistryId(getTrialRegistry(trialsResult.data[0]).id);
+        setTrialLabels(trialLabelsById(trialsResult.data));
       }
     } catch (_err) {
       setError('An unexpected error occurred');
@@ -390,6 +405,11 @@ export const MoveUpRequestsTab: React.FC<MoveUpRequestsTabProps> = ({ showId, on
                           {request.class?.name}
                         </span>
                       </div>
+                      {trialLabels[request.class?.trial_id ?? request.trial_id ?? ''] && (
+                        <div className="text-xs text-muted-foreground">
+                          {trialLabels[request.class?.trial_id ?? request.trial_id ?? '']}
+                        </div>
+                      )}
                     </div>
 
                     <ArrowUpCircle className="h-5 w-5 text-blue-500" />

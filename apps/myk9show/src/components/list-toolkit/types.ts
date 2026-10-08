@@ -25,6 +25,8 @@ export interface ListOptionsFilterField extends ListFilterFieldBase {
   allLabel?: string;
   value: string | null;
   onChange: (value: string | null) => void;
+  /** The options are not known yet; see `ListMultiOptionsFilterField.loading`. Read by the Filter menu. */
+  loading?: boolean;
 }
 
 export interface ListDateRange {
@@ -40,6 +42,28 @@ export interface ListDateRangeFilterField extends ListFilterFieldBase {
 }
 
 export type ListFilterField = ListOptionsFilterField | ListDateRangeFilterField;
+
+/**
+ * Pick any number of values from a list, e.g. Trial or Class in the Filter
+ * menu (docs/plan-entries-filter-button.md). An empty list means unfiltered.
+ */
+export interface ListMultiOptionsFilterField extends ListFilterFieldBase {
+  kind: 'multiOptions';
+  options: ListFilterOption[];
+  values: string[];
+  onChange: (values: string[]) => void;
+  /**
+   * The options are not known yet (still loading, paused or offline). The menu says "Loading…"
+   * and the applied-filter sentence stays hidden, so a raw id never shows in place of a name.
+   */
+  loading?: boolean;
+}
+
+/** The field kinds the Filter menu can show today; date ranges follow when a list needs one. */
+export type ListFilterMenuField = ListOptionsFilterField | ListMultiOptionsFilterField;
+
+/** Every field the Filter menu takes. `ListFilterBar` still takes only `ListFilterField`. */
+export type ListMenuFilterField = ListFilterField | ListMultiOptionsFilterField;
 
 export interface ListView {
   id: string;

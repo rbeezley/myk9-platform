@@ -32,7 +32,7 @@ test.describe('Secretary Entry Creation', () => {
   test('entry management page loads with the add-entry decision point', async ({ page }) => {
     await signInAsSecretary(page);
     await page.goto(`/secretary/entries/${TEST_SHOW_ID}`);
-    await page.waitForSelector('text=Entry Management', { timeout: 10000 });
+    await page.waitForSelector('text=Entry Forms', { timeout: 10000 });
 
     await expect(page.getByRole('button', { name: 'Add Entry', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: /refresh/i })).toBeVisible();
@@ -41,7 +41,7 @@ test.describe('Secretary Entry Creation', () => {
   test('Add entry for someone else navigates to registration wizard', async ({ page }) => {
     await signInAsSecretary(page);
     await page.goto(`/secretary/entries/${TEST_SHOW_ID}`);
-    await page.waitForSelector('text=Entry Management', { timeout: 10000 });
+    await page.waitForSelector('text=Entry Forms', { timeout: 10000 });
 
     // The decision point is inside the "Add entry" popover, which is not
     // mounted until the trigger is clicked.

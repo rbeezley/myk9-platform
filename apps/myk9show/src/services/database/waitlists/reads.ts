@@ -17,11 +17,17 @@ import {
   WaitlistEntryNotDeletedError,
   WAITLIST_ENTRY_GONE_MESSAGE,
 } from './deleteWaitlistEntry';
-import { mapWaitlistEntry, mapClassWithWaitlistCount } from '@/services/mappers/waitlistMappers';
+import {
+  mapWaitlistEntry,
+  mapClassWithWaitlistCount,
+  waitlistClassDisplayName,
+} from '@/services/mappers/waitlistMappers';
+import { refreshOfferRowsInReplica } from './offerActions';
 import { buildMapFromArray } from '../_shared/maps';
 import {
   countQueuedWaitlistEntries,
   countSeatHoldingEntries,
+  filterOfferedWaitlistEntries,
   filterQueuedWaitlistEntries,
 } from '@/utils/waitlistCountSelectors';
 
@@ -65,9 +71,28 @@ export interface ClassWithWaitlistCount {
     id: string;
     name: string | null;
     date: string | null;
+    /** The trial's IANA zone, when the replica has one (offer deadlines read in it). */
+    timezone?: string | null;
   } | null;
   accepted_count: number;
   waitlist_count: number;
+  /** Open offers (status 'offered'), so a class whose queue is empty still shows them. */
+  offered_count?: number;
+}
+
+/**
+ * An open offer on the Waitlist tab (MYK9-1001): the row, plus what the
+ * secretary needs to track it. An offered row is waiting for payment by
+ * definition (a payment resolves it to 'accepted'); `promoted_entry_paid` is
+ * the short window in which the money has landed and the offer is being
+ * resolved.
+ */
+export interface WaitlistOffer extends WaitlistEntry {
+  promoted_entry_paid: boolean;
+  trial_timezone: string | null;
+  /** Which trial: shows repeat a class across trials, so the class name alone is ambiguous. */
+  trial_name: string | null;
+  trial_date: string | null;
 }
 
 /**
@@ -109,6 +134,61 @@ export const getWaitlistByClass = async (classId: string) => {
 };
 
 /**
+ * Open offers (status 'offered') for a class, oldest offer first.
+ * Replica only, like the queue: an offer made from this tab lands in the
+ * replica through the same subscription that refreshes the queue.
+ */
+export const getWaitlistOffersByClass = async (classId: string) => {
+  const startTime = Date.now();
+
+  try {
+    const offered = filterOfferedWaitlistEntries(
+      await replicatedWaitlistEntriesTable.getByClass(classId)
+    );
+    if (offered.length === 0) return { data: [] as WaitlistOffer[], error: null };
+
+    const cls = await replicatedClassesTable.getClassById(classId);
+    const trial = cls?.trialId ? await replicatedTrialsTable.getTrialById(cls.trialId) : null;
+    const [dogs, promotedEntries] = await Promise.all([
+      Promise.all(offered.map(o => replicatedDogsTable.getDogById(o.dogId))),
+      Promise.all(
+        offered.map(o =>
+          o.promotedEntryId ? replicatedEntriesTable.getEntryById(o.promotedEntryId) : null
+        )
+      ),
+    ]);
+
+    const data = offered
+      .map((offer, i): WaitlistOffer => {
+        const mapped = mapWaitlistEntry(offer, dogs[i] ?? null, cls);
+        return {
+          ...mapped,
+          // The same class name the queue cards show.
+          class:
+            mapped.class && cls ? { ...mapped.class, name: waitlistClassDisplayName(cls) } : null,
+          promoted_entry_paid: promotedEntries[i]?.paymentStatus === 'paid',
+          trial_timezone: trial?.timezone ?? null,
+          trial_name: trial?.name ?? null,
+          trial_date: trial?.date ?? null,
+        };
+      })
+      .sort((a, b) => (a.offered_at ?? '').localeCompare(b.offered_at ?? ''));
+
+    logQuery('waitlist_entries', 'get_waitlist_offers_by_class', Date.now() - startTime);
+    return { data, error: null };
+  } catch (error) {
+    const dbError = createDatabaseError(error, 'waitlist_entries', 'get_waitlist_offers_by_class');
+    logQuery(
+      'waitlist_entries',
+      'get_waitlist_offers_by_class',
+      Date.now() - startTime,
+      dbError.message
+    );
+    return { data: [] as WaitlistOffer[], error: dbError };
+  }
+};
+
+/**
  * Get classes with waitlist counts for a show
  * Replication-first with PostgREST fallback.
  */
@@ -141,15 +221,15 @@ export const getClassesWithWaitlistCounts = async (showId: string) => {
 
     const classesWithCounts = classes.map(cls => {
       const acceptedCount = countSeatHoldingEntries(allEntries.filter(e => e.classId === cls.id));
-      const waitlistCount = countQueuedWaitlistEntries(
-        allWaitlist.filter(w => w.classId === cls.id)
-      );
+      const classWaitlist = allWaitlist.filter(w => w.classId === cls.id);
+      const waitlistCount = countQueuedWaitlistEntries(classWaitlist);
 
       return mapClassWithWaitlistCount(
         cls,
         trialsMap.get(cls.trialId ?? '') ?? null,
         acceptedCount,
-        waitlistCount
+        waitlistCount,
+        filterOfferedWaitlistEntries(classWaitlist).length
       );
     });
 
@@ -237,6 +317,10 @@ export const promoteWaitlistEntry = async (
   if (error) {
     throw createDatabaseError(error, 'waitlist_entries', 'promote_waitlist_entry');
   }
+
+  // The offered row moves to the Offered group, and its new pending-payment entry joins the
+  // class count, now rather than at the next sync (MYK9-1001).
+  await refreshOfferRowsInReplica(waitlistEntryId);
 
   return data as string;
 };

@@ -9,6 +9,7 @@ import { sendResendEmailWithRetry } from '../_shared/resendEmail.ts';
 import { requireEmailLogWrite } from '../_shared/emailLog.ts';
 import {
   buildWaitlistNotificationContent,
+  formatTrialLabel,
   parseWaitlistNotificationPayload,
   redactWaitlistDeliveryError,
   runWaitlistDeliveryChannels,
@@ -20,7 +21,7 @@ import {
 interface WebhookPayload {
   event_id: string;
   waitlist_entry_id: string;
-  event_type: 'offered' | 'reminder' | 'expired';
+  event_type: WaitlistNotificationEventType;
 }
 
 interface ClaimedEvent {
@@ -60,6 +61,8 @@ interface ExhibitorProfile {
 interface ClassContext {
   name: string | null;
   trial: {
+    name: string | null;
+    date: string | null;
     timezone: string | null;
     show: { id: string; name: string | null } | null;
   } | null;
@@ -128,6 +131,9 @@ handle<WebhookPayload>(
         showName: context.entryClass.trial?.show?.name || 'your show',
         expiresAt: context.waitlist.offer_expires_at,
         timezone: context.entryClass.trial?.timezone ?? null,
+        // A withdrawal names the trial: the class name alone is ambiguous across trials (MYK9-1001).
+        trialLabel:
+          payload.event_type === 'withdrawn' ? formatTrialLabel(context.entryClass.trial) : null,
         appOrigin: Deno.env.get('MYK9SHOW_APP_URL') || 'https://myk9show.com',
       });
 
@@ -212,7 +218,7 @@ async function loadContext(supabase: SupabaseClient, waitlistEntryId: string) {
   const [classResult, exhibitorResult, dogResult] = await Promise.all([
     supabase
       .from('classes')
-      .select('name, trial:trial_id(timezone, show:show_id(id, name))')
+      .select('name, trial:trial_id(name, date, timezone, show:show_id(id, name))')
       .eq('id', typedWaitlist.class_id)
       .single(),
     supabase
@@ -361,7 +367,7 @@ async function deliverPush(input: {
     title: input.content.title,
     body: input.content.body,
     actionUrl: input.content.actionUrl,
-    priority: input.eventType === 'expired' ? 'normal' : 'high',
+    priority: input.eventType === 'expired' || input.eventType === 'withdrawn' ? 'normal' : 'high',
     data: { waitlistEntryId: input.waitlistEntryId },
   });
 

@@ -82,6 +82,7 @@ export function toClassEntry(
         : {}),
     ...(cls.actual_start_time ? { actual_start_time: cls.actual_start_time } : {}),
     ...(cls.actual_end_time ? { actual_end_time: cls.actual_end_time } : {}),
+    results_released_at: cls.resultsReleasedAt ?? cls.results_released_at ?? null,
     // The card navigates by counts + identity; per-dog detail isn't needed here.
     dogs: [],
   };

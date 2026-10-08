@@ -149,7 +149,8 @@ export const mapDatabaseToShow = (
             entryFee: (classObj.entry_fee || 0) as number,
             jumpHeights: (classObj.jump_heights || []) as string[],
             maxEntries: classObj.max_entries as number | undefined,
-            allowWaitlist: (classObj.allow_waitlist || false) as boolean,
+            // The class's own exception; undefined follows the show (MYK9-1019).
+            allowWaitlist: (classObj.allow_waitlist as boolean | null | undefined) ?? undefined,
             maxDogsPerHandler: classObj.max_dogs_per_handler as number | undefined,
             level: classObj.level as string | undefined,
             element: classObj.element as string | undefined,

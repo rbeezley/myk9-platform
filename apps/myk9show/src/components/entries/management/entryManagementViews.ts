@@ -1,7 +1,6 @@
 /**
- * The seven unified `ListViewTabs` entries for Entry Management (MYK9-795),
- * replacing the page's Registrations/Exceptions `PrimaryTabs`, the queue
- * buttons-with-counts, and the Exceptions sub-tab buttons all at once.
+ * The seven views in the Entries tab's Show: menu (MYK9-795; `EntryManagementShowMenu`): the four
+ * registration queues, which can be checked together, and the three exception lists.
  *
  * The four registration queues carry a live count from `useEntryManagementCockpit`
  * (`cockpit.queueCounts`) — unchanged data, just surfaced on the new tabs.

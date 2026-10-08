@@ -1,33 +1,19 @@
 /**
- * CartSummary — the hold-expiry heads-up must survive the moment it matters.
+ * CartSummary — a lapsed cart is saved, not held (MYK9-1012).
  *
- * `showWarning` and `showUrgentWarning` both require `timeRemainingMs > 0`, so
- * at the instant a hold lapsed the banner unmounted and took the one-tap Extend
- * with it, while the Pay button stayed enabled over a dead hold. These pin the
- * repaired contract. They deliberately do NOT assert a persistent countdown or
- * an expiry redirect — the CartSummary INTENT rules both out, and
- * CartSummary.source.test.ts guards that separately.
+ * The cart's 30-minute timer never held a spot: spots are held only from the
+ * Pay click until the Stripe page expires (`hold_cart_spots`). Its heads-up
+ * ("Your hold has lapsed", one-tap Extend, Pay disabled until extended)
+ * promised a hold that did not exist, and stripe-checkout reactivates a lapsed
+ * cart at Pay and re-checks every spot then. So a lapsed cart reads like any
+ * other: no timer copy, Pay live, and the one line about holding at Pay.
+ * Still no countdown and no expiry redirect (UX walk remediation 4.B).
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { CartSummary } from './CartSummary';
-
-const timerState = {
-  timeRemainingFormatted: '0:00',
-  isExpired: false,
-  showWarning: false,
-  showUrgentWarning: false,
-};
-
-vi.mock('@/hooks/useCartExpirationTimer', () => ({
-  useCartExpirationTimer: () => ({
-    ...timerState,
-    extendExpiration: vi.fn().mockResolvedValue(true),
-    percentRemaining: 0,
-  }),
-}));
 
 const storeState = { cart: null as unknown, itemCount: 1, totalEntryFees: 2500 };
 
@@ -37,86 +23,62 @@ vi.mock('@/store/cartStore', () => ({
       cart: storeState.cart,
       getTotalEntryFees: () => storeState.totalEntryFees,
       getItemCount: () => storeState.itemCount,
-      extendExpiration: vi.fn().mockResolvedValue(true),
     }),
 }));
 
-beforeEach(() => {
-  storeState.cart = {
+function cartExpiring(msFromNow: number, entryCloseDate = '2027-06-30') {
+  return {
     id: 'cart-1',
     exhibitor_id: 'ex-1',
     show_id: 'show-1',
     status: 'active',
-    expires_at: new Date(Date.now() - 1000).toISOString(),
+    expires_at: new Date(Date.now() + msFromNow).toISOString(),
     show: {
       id: 'show-1',
       name: 'Heartland Scent Work Classic',
       start_date: '2027-08-01',
-      entry_close_date: '2027-06-30',
+      entry_close_date: entryCloseDate,
     },
   };
+}
+
+const TIMER_COPY = /hold has lapsed|expire soon|expiring very soon|extend/i;
+
+beforeEach(() => {
   storeState.itemCount = 1;
   storeState.totalEntryFees = 2500;
-  timerState.timeRemainingFormatted = '0:00';
-  timerState.isExpired = false;
-  timerState.showWarning = false;
-  timerState.showUrgentWarning = false;
 });
 
-describe('CartSummary — lapsed hold', () => {
-  it('keeps the Extend affordance on screen once the hold has lapsed', () => {
-    timerState.isExpired = true;
+describe('CartSummary — a lapsed cart is saved, not held', () => {
+  it('offers payment on a cart whose timer lapsed, with no timer copy', () => {
+    storeState.cart = cartExpiring(-60_000);
 
-    render(<CartSummary onCheckout={() => {}} />);
+    const { container } = render(<CartSummary onCheckout={() => {}} />);
 
-    expect(screen.getByText('Your hold has lapsed')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Extend' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /^pay \$\d/i })).toBeEnabled();
+    expect(container.textContent).not.toMatch(TIMER_COPY);
+    expect(
+      screen.getByText("We're holding your spots for 30 minutes while you pay.")
+    ).toBeInTheDocument();
   });
 
-  it('reassures that nothing was removed, rather than pressing the exhibitor', () => {
-    timerState.isExpired = true;
+  it('shows no near-expiry warning either', () => {
+    storeState.cart = cartExpiring(60_000);
 
-    render(<CartSummary onCheckout={() => {}} />);
+    const { container } = render(<CartSummary onCheckout={() => {}} />);
 
-    expect(screen.getByText(/nothing has been removed from your cart/i)).toBeInTheDocument();
+    expect(container.textContent).not.toMatch(TIMER_COPY);
+    expect(screen.getByRole('button', { name: /^pay \$\d/i })).toBeEnabled();
   });
 
-  it('will not offer to take payment against a hold that has lapsed', () => {
-    timerState.isExpired = true;
-
-    render(<CartSummary onCheckout={() => {}} />);
-
-    const pay = screen.getByRole('button', { name: /extend your hold to continue/i });
-    expect(pay).toBeDisabled();
-    expect(screen.queryByRole('button', { name: /^pay \$/i })).not.toBeInTheDocument();
-  });
-
-  it('names the real blocker when entries are closed AND the hold has lapsed', () => {
-    // The expiry banner - and the only Extend button - is gated on
-    // !entriesClosed. Testing isExpired first in the label chain therefore told
-    // the exhibitor to "Extend your hold to continue" on a page with no Extend
-    // button anywhere, while hiding the permanent reason.
-    timerState.isExpired = true;
-    (storeState.cart as { show: { entry_close_date: string } }).show.entry_close_date =
-      '2020-01-01';
+  it('still names entries closed as the blocker', () => {
+    storeState.cart = cartExpiring(-60_000, '2020-01-01');
 
     render(<CartSummary onCheckout={() => {}} />);
 
     expect(screen.getByRole('button', { name: /entries closed/i })).toBeDisabled();
     expect(
-      screen.queryByRole('button', { name: /extend your hold to continue/i })
+      screen.queryByText("We're holding your spots for 30 minutes while you pay.")
     ).not.toBeInTheDocument();
-  });
-
-  it('still offers payment while the hold is merely near its end', () => {
-    timerState.showWarning = true;
-    timerState.timeRemainingFormatted = '4:30';
-
-    render(<CartSummary onCheckout={() => {}} />);
-
-    expect(screen.getByText('Cart will expire soon')).toBeInTheDocument();
-    // The figure includes the platform fee; what matters here is that a real
-    // payable amount is offered rather than the lapsed-hold label.
-    expect(screen.getByRole('button', { name: /^pay \$\d/i })).toBeEnabled();
   });
 });

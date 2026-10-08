@@ -453,21 +453,20 @@ test("a single-registry show's report catalog holds only that registry's forms (
     .filter(([registry]) => registry !== target.registry)
     .map(([, prefix]) => prefix);
   await page.goto(`/shows/${target.showId}/reports?trialId=${target.trialId}`);
-  const picker = page.locator('#report-type-select');
-  await expect(picker).toBeVisible({ timeout: 30000 });
+  const cards = page.getByTestId('report-card');
+  await expect(cards.first()).toBeVisible({ timeout: 30000 });
 
   // Before the trials resolve the catalog is deliberately the full list
   // (getReportsForRegistries' fallback), so poll until it scopes, and fail if
   // it never does. An empty read is "not open yet", never "no foreign form":
   // the first version of this test passed on an empty list.
   const readCatalog = async () => {
-    await picker.click();
-    const options = page.getByRole('listbox').getByRole('option');
-    await expect(options.first()).toBeVisible();
-    const names = (await options.allTextContents()).map(n => n.trim());
-    await page.keyboard.press('Escape');
-    await expect(page.getByRole('listbox')).toHaveCount(0);
-    return names;
+    await expect(cards.first()).toBeVisible();
+    return await cards
+      .locator('button')
+      .evaluateAll(buttons =>
+        buttons.map(button => (button.querySelector('span')?.textContent ?? '').trim())
+      );
   };
   let names: string[] = [];
   await expect

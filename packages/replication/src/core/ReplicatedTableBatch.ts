@@ -18,9 +18,15 @@ import type { IDBPDatabase } from 'idb';
 import type { ReplicatedRow } from '../types';
 import type { Logger } from '../dependencies';
 import { REPLICATION_STORES } from './DatabaseManager';
+import { isOlderThanRow } from './ReplicatedTableRowState';
 import { MAX_CHUNK_SIZE } from '../constants';
 import { withQuotaEviction } from '../quota-eviction';
 import { deleteRowsIfClean, type DeleteRowsIfCleanResult } from './deleteRowsIfClean';
+import {
+  repairStuckPendingFlags,
+  type RepairStuckPendingFlagsResult,
+  type StuckRepairAdapter,
+} from './repairStuckPendingFlags';
 
 /**
  * Batch operations manager for a replicated table
@@ -70,6 +76,14 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
         this.logger.log(
           `[${this.tableName}] Skipped server push for row ${normalizedId} — local mutation pending`
         );
+        continue;
+      }
+
+      // A download that read the server before a local write was acknowledged
+      // carries an older version than the row now holds (MYK9-1050 review):
+      // applying it would roll the acknowledged write back. Same transaction
+      // as the put, so it is atomic against the ack.
+      if (existingRow && isOlderThanRow(existingRow, serverVersions?.get(normalizedId))) {
         continue;
       }
 
@@ -185,6 +199,10 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
             continue;
           }
 
+          if (existingRow && isOlderThanRow(existingRow, serverVersions?.get(normalizedId))) {
+            continue;
+          }
+
           const normalizedData = { ...item, id: normalizedId } as T;
           const serverVersion = serverVersions?.get(normalizedId) ?? existingRow?.serverVersion;
 
@@ -282,6 +300,21 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
     const result = await deleteRowsIfClean(db, this.tableName, ids, remoteVersions);
     if (result.deleted.length > 0) {
       this.logger.log(`[${this.tableName}] Deleted ${result.deleted.length} clean rows`);
+      this.notifyListeners();
+    }
+    return result;
+  }
+
+  /** Refresh rows stuck at a `'pending'` data flag (MYK9-1055; see repairStuckPendingFlags). */
+  async repairStuckPendingFlags<TRemote>(
+    adapter: StuckRepairAdapter<TRemote, T>
+  ): Promise<RepairStuckPendingFlagsResult> {
+    const db = await this.getDb();
+    const result = await repairStuckPendingFlags(db, this.tableName, adapter);
+    if (result.refreshed.length + result.normalized.length > 0) {
+      this.logger.log(
+        `[${this.tableName}] Repaired ${result.refreshed.length + result.normalized.length} rows stuck pending`
+      );
       this.notifyListeners();
     }
     return result;

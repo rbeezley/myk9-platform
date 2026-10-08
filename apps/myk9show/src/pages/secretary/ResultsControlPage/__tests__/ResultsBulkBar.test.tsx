@@ -88,7 +88,11 @@ describe('ResultsBulkBar', () => {
       const { user } = renderBar();
 
       await user.click(screen.getByRole('combobox'));
-      await user.click(await screen.findByText('Immediately'));
+      // Base UI pre-mounts hidden items on focus before the popup opens.
+      // Text presence is not readiness; wait for the exposed option.
+      const option = await screen.findByRole('option', { name: 'Immediately' });
+      expect(screen.getByRole('combobox')).toHaveAttribute('aria-expanded', 'true');
+      await user.click(option);
 
       expect(mockBulkMutate).toHaveBeenCalledTimes(1);
       expect(mockBulkMutate.mock.calls[0][0]).toEqual(
@@ -102,7 +106,9 @@ describe('ResultsBulkBar', () => {
       const { user } = renderBar({ onClearSelection });
 
       await user.click(screen.getByRole('combobox'));
-      await user.click(await screen.findByText('Immediately'));
+      const option = await screen.findByRole('option', { name: 'Immediately' });
+      expect(screen.getByRole('combobox')).toHaveAttribute('aria-expanded', 'true');
+      await user.click(option);
 
       expect(onClearSelection).toHaveBeenCalledTimes(1);
       expect(mockToast.success).toHaveBeenCalledWith(expect.stringMatching(/Applied ".*" to 2/i));

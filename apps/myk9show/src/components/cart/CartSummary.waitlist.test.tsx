@@ -14,7 +14,11 @@ import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { CartSummary } from './CartSummary';
 import { buildCartFulfillmentView } from '@/features/payments/cartFulfillmentView';
-import type { CartItemWithDetails } from '@/store/cartStore';
+import type {
+  CartClassCapacity,
+  CartJudgeDayCapacity,
+} from '@/features/payments/cartCapacitySplit';
+import { serverWaitlistClassIds, type CartTestLine } from '@/test/utils/cartWaitlistFixtures';
 import type { JudgeDayCapacity } from '@/types/waitlist-types';
 
 const FAR_FUTURE = new Date(Date.now() + 60 * 60 * 1000).toISOString();
@@ -52,7 +56,7 @@ function cart() {
   };
 }
 
-function item(id: string, classId: string, allowWaitlist = true): CartItemWithDetails {
+function item(id: string, classId: string, allowWaitlist = true): CartTestLine {
   return {
     id,
     cart_id: 'cart-1',
@@ -69,9 +73,18 @@ function item(id: string, classId: string, allowWaitlist = true): CartItemWithDe
       name: classId,
       level: null,
       trial_id: 'trial-1',
-      allow_waitlist: allowWaitlist,
     },
+    serverTakesWaitlist: allowWaitlist,
   };
+}
+
+/** The cart view, told which classes take a wait list the way the server's read reports them. */
+function view(
+  lines: CartTestLine[],
+  days: readonly CartJudgeDayCapacity[] | null,
+  spots: readonly CartClassCapacity[] = []
+) {
+  return buildCartFulfillmentView(lines, days, spots, serverWaitlistClassIds(lines));
 }
 
 function judgeDay(
@@ -105,7 +118,7 @@ describe('CartSummary — wait-list lines', () => {
   it('keeps a full class out of the payable subtotal and discloses it separately', () => {
     const open = item('item-open', 'class-open');
     const full = item('item-full', 'class-full');
-    const fulfillment = buildCartFulfillmentView(
+    const fulfillment = view(
       [open, full],
       [judgeDay(5, ['class-open']), judgeDay(0, ['class-full'], 'judge-2')]
     );
@@ -123,7 +136,7 @@ describe('CartSummary — wait-list lines', () => {
   it('names the wait-list requests on the pay button so the split is not a surprise', () => {
     const open = item('item-open', 'class-open');
     const full = item('item-full', 'class-full');
-    const fulfillment = buildCartFulfillmentView(
+    const fulfillment = view(
       [open, full],
       [judgeDay(5, ['class-open']), judgeDay(0, ['class-full'], 'judge-2')]
     );
@@ -138,7 +151,7 @@ describe('CartSummary — wait-list lines', () => {
     const full = item('item-full', 'class-full');
     storeState.itemCount = 1;
     storeState.totalEntryFees = 2500;
-    const fulfillment = buildCartFulfillmentView([full], [judgeDay(0, ['class-full'])]);
+    const fulfillment = view([full], [judgeDay(0, ['class-full'])]);
 
     render(<CartSummary onCheckout={() => {}} fulfillment={fulfillment} />);
 
@@ -151,7 +164,7 @@ describe('CartSummary — wait-list lines', () => {
     const blocked = item('item-blocked', 'class-full', false);
     storeState.itemCount = 1;
     storeState.totalEntryFees = 2500;
-    const fulfillment = buildCartFulfillmentView([blocked], [judgeDay(0, ['class-full'])]);
+    const fulfillment = view([blocked], [judgeDay(0, ['class-full'])]);
 
     render(<CartSummary onCheckout={() => {}} fulfillment={fulfillment} />);
 
@@ -170,7 +183,7 @@ describe('CartSummary — wait-list lines', () => {
     const open = item('item-open', 'class-open');
     storeState.itemCount = 1;
     storeState.totalEntryFees = 2500;
-    const fulfillment = buildCartFulfillmentView([open], null);
+    const fulfillment = view([open], null);
 
     render(<CartSummary onCheckout={() => {}} fulfillment={fulfillment} />);
 
@@ -187,7 +200,7 @@ describe('CartSummary — wait-list lines', () => {
     const open = item('item-open', 'class-open');
     storeState.itemCount = 1;
     storeState.totalEntryFees = 2500;
-    const fulfillment = buildCartFulfillmentView([open], null);
+    const fulfillment = view([open], null);
 
     render(<CartSummary onCheckout={() => {}} fulfillment={fulfillment} capacityUnavailable />);
 

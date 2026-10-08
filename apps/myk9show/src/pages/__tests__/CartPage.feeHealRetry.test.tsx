@@ -59,7 +59,6 @@ const cartItems = vi.hoisted(() => ({
         name: 'Novice Container',
         level: 'Novice',
         trial_id: 'trial-1',
-        allow_waitlist: false,
       },
     },
   ],
@@ -77,12 +76,16 @@ vi.mock('@/hooks/queries/useCartCapacity', () => ({
   useCartCapacity: () => ({
     judgeDays: [],
     classSpots: [],
+    waitlistClassIds: [],
     judgeNameById: new Map(),
     isLoading: false,
     isFetching: false,
     error: null,
     isError: false,
-    refetch: async () => ({ data: { judgeDays: [], classSpots: [] }, isError: false }),
+    refetch: async () => ({
+      data: { judgeDays: [], classSpots: [], waitlistClassIds: [] },
+      isError: false,
+    }),
   }),
 }));
 vi.mock('@/store/cartStore', () => ({

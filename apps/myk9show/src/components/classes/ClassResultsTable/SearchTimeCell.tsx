@@ -20,16 +20,27 @@ export const SearchTimeCell: React.FC<SearchTimeCellProps> = ({
   rowIndex,
   onFieldChange,
 }) => {
+  // The table stores the carried form ("1:00.00" for 60 s) because saving needs
+  // valid seconds, but re-reading that as digits would corrupt the next keystroke
+  // (typing 6000 then 0 must give 6:00.00, not 10:00.00). Keep the typed digits
+  // and use them while they still describe the stored value.
+  const [typedDigits, setTypedDigits] = React.useState('');
+  const inputValue =
+    typedDigits && formatSearchTime(typedDigits) === item.searchTime
+      ? typedDigits
+      : item.searchTime;
+
   if (canEdit) {
     return (
       <div className="flex justify-center">
         <div className={cn('inline-block rounded-md', item.hasEdits && 'ring-2 ring-blue-500/30')}>
           <div className="flex items-center gap-1">
             <TimeInput
-              value={item.searchTime}
-              onChange={digits =>
-                onFieldChange(item.entryId, 'searchTime', formatSearchTime(digits))
-              }
+              value={inputValue}
+              onChange={digits => {
+                setTypedDigits(digits);
+                onFieldChange(item.entryId, 'searchTime', formatSearchTime(digits));
+              }}
               onCommit={() => {
                 // INTENT: committing a time jumps focus to the same row's Faults input
                 // (Enter/Tab field navigation). Keep this selector in sync with FaultsCell's

@@ -59,6 +59,7 @@ export interface DeleteObjectDialogViewProps {
   isDeleting?: boolean | undefined;
   errorMessage?: string | null | undefined;
   blockedAction?: DeleteBlockedAction | undefined;
+  onBlockedAction?: (() => void) | undefined;
   /**
    * A site-admin override control (today: the dog force-delete opt-in). Shown
    * only when the delete is blocked; `overrideArmed` unlocks Delete.
@@ -162,6 +163,7 @@ export function DeleteObjectDialogView({
   isDeleting = false,
   errorMessage,
   blockedAction,
+  onBlockedAction,
   overrideControl,
   overrideArmed = false,
   unsavedWork = { status: 'clean' },
@@ -233,6 +235,7 @@ export function DeleteObjectDialogView({
                         // The link may point at the page already open, so the route
                         // never changes and nothing else would close this dialog.
                         onCancel();
+                        onBlockedAction?.();
                       }}
                       className="inline-flex min-h-11 items-center text-sm font-medium text-primary underline underline-offset-4"
                     >

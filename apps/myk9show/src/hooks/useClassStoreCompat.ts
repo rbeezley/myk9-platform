@@ -39,6 +39,22 @@ import {
   addClassesFromTemplateHelper,
 } from '@/hooks/classStoreCompatHelpers';
 
+type ClassRowWithoutResultsVerified = Omit<
+  DbClassWithRelations,
+  'results_verified_at' | 'results_verified_by' | 'results_verified_fingerprint'
+>;
+
+/**
+ * The mutation select does not carry the MYK9-1045 results_verified_* columns yet, so
+ * they map to null. A row that does carry them keeps its values.
+ */
+const toDbClassWithRelations = (row: ClassRowWithoutResultsVerified): DbClassWithRelations => ({
+  results_verified_at: null,
+  results_verified_by: null,
+  results_verified_fingerprint: null,
+  ...row,
+});
+
 /**
  * Compatibility hook that provides classStore-like API using React Query
  * This allows existing components to work unchanged while using the database
@@ -103,7 +119,7 @@ export const useClassStoreCompat = (showId?: string) => {
     validateClassInput(classData);
     const dbData = mapClassInputToInsert(classData);
     const result = await createClassMutation.mutateAsync(dbData);
-    return mapDatabaseToClass(result);
+    return mapDatabaseToClass(toDbClassWithRelations(result));
   };
 
   const updateClass = async (
@@ -113,7 +129,7 @@ export const useClassStoreCompat = (showId?: string) => {
     validateClassUpdate(id, updates);
     const dbUpdates = mapClassInputToUpdate(updates);
     const result = await updateClassMutation.mutateAsync({ id, updates: dbUpdates });
-    return result ? mapDatabaseToClass(result) : null;
+    return result ? mapDatabaseToClass(toDbClassWithRelations(result)) : null;
   };
 
   const getClassById = (id: string): SyncableClassData | null => {

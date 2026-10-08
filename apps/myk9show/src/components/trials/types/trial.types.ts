@@ -56,6 +56,9 @@ export interface TrialClass {
   /** Server-stamped timestamp set when a class is reopened after secretary closeout.
    *  Drives the show-map class-level attention signal (getClassAttention). */
   reopenedAfterCloseoutAt?: string | null;
+  /** MYK9-1030: `classes.judge_signed_off_at` / `_by` — the judge's end-of-day sign-off. */
+  judgeSignedOffAt?: string | null | undefined;
+  judgeSignedOffBy?: string | null | undefined;
   // Pipeline workflow flags (secretary review/publish flow)
   isScoringFinalized?: boolean | undefined;
   isResultsReviewed?: boolean | undefined;
@@ -64,10 +67,11 @@ export interface TrialClass {
   /**
    * `classes.max_entries` / `classes.allow_waitlist`, carried so Edit class can show and keep
    * them. `allowsWaitlist === undefined` means the source did not load them (the editor then
-   * hides the controls and never sends them); a loaded null `maxEntries` means no class limit.
+   * hides the controls and never sends them); a loaded null `maxEntries` means no class limit,
+   * a loaded null `allowsWaitlist` means the class follows the show's setting (MYK9-1019).
    */
   maxEntries?: number | null | undefined;
-  allowsWaitlist?: boolean | undefined;
+  allowsWaitlist?: boolean | null | undefined;
   /** The class's run-order position (`classes.class_order`), shown on Setup → Classes. */
   runOrder?: number | undefined;
   // Optional fields for enhanced class cards

@@ -14,7 +14,6 @@ import type { Club } from '@/types/club-types';
 import { useViewPreference } from '@/hooks/useViewPreference';
 import { defaultListView } from '@/utils/defaultListView';
 import { useAuthContext } from '@/hooks/useAuthContext';
-import { UserRole } from '@/types/auth-types';
 import { refreshScopesAfterClubUpload } from '@/components/clubs/refreshScopesAfterClubUpload';
 
 // Shared primitives
@@ -27,6 +26,7 @@ import {
   ListViewToggle,
 } from '@/components/list-toolkit';
 import { ErrorState } from '@/components/common/ErrorState';
+import { resolveCreateGates } from '@/features/actions/createGates';
 
 const CLUB_NOUN = ['club', 'clubs'] as const;
 
@@ -34,18 +34,13 @@ const BrowseClubsPage: React.FC = () => {
   const routerNavigate = useNavigate();
   const [searchParams] = useSearchParams();
 
-  const { user, userWithRoles, refreshPermissions } = useAuthContext();
+  const { user, refreshPermissions, hasRole, hasPermission } = useAuthContext();
   const isAuthenticated = !!user;
 
   // Keep the affordance aligned with migration 160's clubs_insert policy.
   // Secretaries need this complete surface when a host club does not yet exist;
   // the show wizard links here instead of maintaining a partial club creator.
-  const canCreateClub = useMemo(() => {
-    const roles = userWithRoles?.roles ?? [];
-    return [UserRole.SECRETARY, UserRole.CLUB_ADMIN, UserRole.SITE_ADMIN].some(role =>
-      roles.includes(role)
-    );
-  }, [userWithRoles]);
+  const { canCreateClubs: canCreateClub } = resolveCreateGates({ hasRole, hasPermission });
 
   const [viewMode, setViewMode] = useViewPreference('clubs', defaultListView(true));
   const [createPanelRequested, setCreatePanelRequested] = useState(

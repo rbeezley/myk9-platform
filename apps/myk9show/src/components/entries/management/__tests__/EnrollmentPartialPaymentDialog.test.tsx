@@ -23,7 +23,7 @@ describe('EnrollmentPartialPaymentDialog', () => {
       <EnrollmentPartialPaymentDialog {...baseProps} state={makeState({ amountPaid: '50' })} />
     );
     expect(
-      screen.getByText('Covers the full balance. This will mark the registration paid.')
+      screen.getByText('Covers the full balance. This will mark the entry form paid.')
     ).toBeTruthy();
   });
 
@@ -54,7 +54,7 @@ describe('EnrollmentPartialPaymentDialog', () => {
       />
     );
     expect(
-      screen.getByText('Covers the full balance. This will mark the registration paid.')
+      screen.getByText('Covers the full balance. This will mark the entry form paid.')
     ).toBeTruthy();
   });
 

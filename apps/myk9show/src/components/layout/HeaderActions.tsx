@@ -5,12 +5,17 @@ import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { cn } from '@/lib/utils';
 import { useCurrentActions } from '@/features/actions/useCurrentActions';
+import { ACTION_ICONS } from '@/features/actions/actionIcons';
+import { headerShowsActions } from '@/features/actions/actionGroups';
+import type { AppAction } from '@/features/actions/actionRegistry';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 
 const LABEL_BREAKPOINT_QUERY = '(min-width: 640px)';
@@ -23,7 +28,12 @@ const LABEL_BREAKPOINT_QUERY = '(min-width: 640px)';
  * It renders whatever `useCurrentActions` resolves for the current route, so
  * every page's action list is registry data rather than page-owned chrome. An
  * empty list HIDES the button -- a permanently disabled control would be a
- * promise the app cannot keep.
+ * promise the app cannot keep. So does a list whose only item is Add Dog
+ * (`headerShowsActions`): on a phone that button cost an exhibitor's wordmark its room.
+ *
+ * The list renders as labelled sections in a fixed order -- this object, the show it sits
+ * in, the lists on screen, Create -- each item with its icon (CRUD standard decision 6), so
+ * the viewer can tell what an item applies to.
  *
  * Below `sm` the trigger is ICON-ONLY with a screen-reader label. The labelled
  * button cost the brand wordmark 45px it does not have at 360-414px, so signed
@@ -32,11 +42,11 @@ const LABEL_BREAKPOINT_QUERY = '(min-width: 640px)';
  * from `sm` up, where the room exists.
  */
 export function HeaderActions() {
-  const { actions } = useCurrentActions();
+  const { groups } = useCurrentActions();
   // Fail narrow: without matchMedia we render the icon, which always fits.
   const showsLabel = useMediaQuery(LABEL_BREAKPOINT_QUERY, false);
 
-  if (actions.length === 0) return null;
+  if (!headerShowsActions(groups)) return null;
 
   return (
     <DropdownMenu>
@@ -62,45 +72,59 @@ export function HeaderActions() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
-        {actions.map(action => (
-          <Fragment key={action.id}>
-            {action.separatorBefore && <DropdownMenuSeparator />}
-            {action.disabledReason ? (
-              <DropdownMenuItem
-                disabled
-                data-testid={`header-action-${action.id}`}
-                title={action.disabledReason}
-                className="flex-col items-start gap-0"
-              >
-                <span>{action.label}</span>
-                <span className="text-xs text-muted-foreground">{action.disabledReason}</span>
-              </DropdownMenuItem>
-            ) : action.href !== undefined ? (
-              <DropdownMenuItem
-                asChild
-                className={cn(action.destructive && 'text-destructive focus:text-destructive')}
-              >
-                <Link to={action.href} data-testid={`header-action-${action.id}`}>
-                  {action.label}
-                </Link>
-              </DropdownMenuItem>
-            ) : (
-              // A side effect, not a destination. `useCurrentActions` bound the
-              // callback; a registry item with neither `href` nor `run` is a
-              // bug, so it renders nothing rather than a dead row.
-              action.run && (
-                <DropdownMenuItem
-                  onClick={action.run}
-                  data-testid={`header-action-${action.id}`}
-                  className={cn(action.destructive && 'text-destructive focus:text-destructive')}
-                >
-                  {action.label}
-                </DropdownMenuItem>
-              )
-            )}
+        {groups.map((group, index) => (
+          <Fragment key={group.id}>
+            {index > 0 && <DropdownMenuSeparator />}
+            <DropdownMenuGroup data-testid={`header-action-group-${group.id}`}>
+              <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">
+                {group.heading}
+              </DropdownMenuLabel>
+              {group.actions.map(action => (
+                <ActionItem key={action.id} action={action} />
+              ))}
+            </DropdownMenuGroup>
           </Fragment>
         ))}
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+/** One menu row: its icon, then its label; a greyed row also carries its reason. */
+function ActionItem({ action }: { action: AppAction }) {
+  const Icon = ACTION_ICONS[action.icon];
+  const icon = <Icon className="text-muted-foreground" aria-hidden="true" />;
+  const tone = cn(action.destructive && 'text-destructive focus:text-destructive');
+  const testId = `header-action-${action.id}`;
+
+  if (action.disabledReason) {
+    return (
+      <DropdownMenuItem disabled data-testid={testId} title={action.disabledReason}>
+        {icon}
+        <span className="flex flex-col">
+          <span>{action.label}</span>
+          <span className="text-xs text-muted-foreground">{action.disabledReason}</span>
+        </span>
+      </DropdownMenuItem>
+    );
+  }
+  if (action.href !== undefined) {
+    return (
+      <DropdownMenuItem asChild className={tone}>
+        <Link to={action.href} data-testid={testId}>
+          {icon}
+          {action.label}
+        </Link>
+      </DropdownMenuItem>
+    );
+  }
+  // A side effect, not a destination. `useCurrentActions` bound the callback; a registry item
+  // with neither `href` nor `run` is a bug, so it renders nothing rather than a dead row.
+  if (!action.run) return null;
+  return (
+    <DropdownMenuItem onClick={action.run} data-testid={testId} className={tone}>
+      {icon}
+      {action.label}
+    </DropdownMenuItem>
   );
 }

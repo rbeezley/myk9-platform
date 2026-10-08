@@ -26,7 +26,7 @@ export interface ShowTabDef {
 /** The four tabs, in order (owner, 2026-10-02: Setup and Show Day folded into Overview). */
 export const SHOW_TABS: readonly ShowTabDef[] = [
   { id: 'overview', label: 'Overview', path: '' },
-  { id: 'entries', label: 'Entries', path: 'entries' },
+  { id: 'entries', label: 'Entry Forms', path: 'entries' },
   { id: 'results', label: 'Results', path: 'results' },
   { id: 'reports', label: 'Reports', path: 'reports' },
 ];

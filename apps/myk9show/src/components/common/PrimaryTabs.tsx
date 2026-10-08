@@ -25,6 +25,8 @@ interface PrimaryTabsProps {
   /** When this key changes, the active tab resets to the first tab. */
   resetKey?: string;
   className?: string;
+  /** Classes for the strip's wrapper, e.g. to pin it under a sticky header. */
+  stripClassName?: string | undefined;
   /**
    * Render only the panel when there is a single tab: a one-item tab strip is
    * a label with nothing to switch to. Off by default so other pages keep
@@ -40,6 +42,7 @@ export function PrimaryTabs({
   children,
   resetKey,
   className,
+  stripClassName,
   hideWhenSingle = false,
 }: PrimaryTabsProps) {
   const prevResetKey = useRef(resetKey);
@@ -56,7 +59,10 @@ export function PrimaryTabs({
 
   return (
     <Tabs value={value} onValueChange={onValueChange} {...classNameProps}>
-      <div className="relative max-w-full" hidden={hideWhenSingle && tabs.length <= 1}>
+      <div
+        className={cn('relative max-w-full', stripClassName)}
+        hidden={hideWhenSingle && tabs.length <= 1}
+      >
         {/* scroll-shadow-x — the same content-aware overflow cue used by the
             exhibitor DogStrip rail (only shows a fade on an edge while there
             is more to scroll toward, and disappears once that edge is

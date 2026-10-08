@@ -44,14 +44,16 @@ BEGIN
     ('announcements','SELECT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('armbands','SELECT,INSERT,UPDATE,DELETE','SELECT','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('calendar_feed_tokens','SELECT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
+    ('cart_checkout_leases','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('cart_fulfillment_lines','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('cart_fulfillments','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
+    ('cart_spot_holds','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('chatbot_feedback','INSERT','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('chatbot_query_log','','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('class_visibility_overrides','SELECT,INSERT,UPDATE','SELECT','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     -- No table-level SELECT for authenticated: 20260731160000 replaced it with a
-    -- 53-column allowlist withholding num_hides (MYK9-127; 54 before judge_name
-    -- was dropped by MYK9-479). Writes are untouched,
+    -- column allowlist withholding num_hides (MYK9-127; 55 columns since
+    -- MYK9-1030 added the judge sign-off columns). Writes are untouched,
     -- so a secretary can still SET the hide count, just not read it back.
     ('classes','INSERT,UPDATE,DELETE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
     ('club_access_requests','SELECT,UPDATE','','SELECT,INSERT,UPDATE,DELETE,TRUNCATE,REFERENCES,TRIGGER,MAINTAIN'),
@@ -234,7 +236,7 @@ BEGIN
     AND c.relkind = 'r'
     AND c.relname NOT IN (
       'access_request_email_jobs','achievements','activity_log','allergies','analytics_events','announcement_reads',
-      'announcements','armbands','calendar_feed_tokens','cart_fulfillment_lines','cart_fulfillments',
+      'announcements','armbands','calendar_feed_tokens','cart_checkout_leases','cart_fulfillment_lines','cart_fulfillments','cart_spot_holds',
       'chatbot_feedback','chatbot_query_log',
       'class_visibility_overrides','classes','club_access_requests','club_members','club_membership_requests',
       'club_officers','club_premium_templates','club_stripe_accounts','clubs','dog_favorites',
@@ -317,8 +319,13 @@ BEGIN
   FOR v_row IN
     WITH expected(tbl, role_name, n) AS (VALUES
       -- 52/54 became 51/53 when classes.judge_name was dropped (20260912234500, MYK9-479).
+      -- authenticated 53 -> 55: judge_signed_off_at/_by (20261006154700,
+      -- MYK9-1030). anon stays 51: it gets neither of them.
+      -- authenticated 55 -> 57: results_verified_at/_by (20261008014300,
+      -- MYK9-1045). results_verified_fingerprint is granted to no API role, and
+      -- anon stays 51.
       ('classes','anon',51),
-      ('classes','authenticated',53),
+      ('classes','authenticated',57),
       ('entries','anon',0),
       -- 54 became 55 when entries.withdrawal_reason_code was added and granted
       -- to authenticated (20260917214300, MYK9-632). anon stays 0: the same

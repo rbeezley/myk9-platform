@@ -111,7 +111,7 @@ export const EnrollmentPartialPaymentDialog: React.FC<EnrollmentPartialPaymentDi
           return (
             <p className="text-xs text-muted-foreground">
               {paidDollars + amt >= totalDollars
-                ? 'Covers the full balance. This will mark the registration paid.'
+                ? 'Covers the full balance. This will mark the entry form paid.'
                 : `Remaining after payment: $${balanceAfterPayment(totalDollars, paidDollars, amt).toFixed(2)}`}
             </p>
           );

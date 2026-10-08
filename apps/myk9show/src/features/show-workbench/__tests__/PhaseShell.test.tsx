@@ -4,32 +4,19 @@ import { Button } from '@/components/ui/button';
 import { PhaseShell } from '../PhaseShell';
 
 describe('PhaseShell', () => {
-  it('stacks title and actions on mobile while preserving desktop alignment', () => {
-    render(
-      <PhaseShell
-        title="Heartland Scent Work Classic With A Very Long Show Desk Title"
-        kicker="During the show"
-        actions={<Button>Tools</Button>}
-      />
-    );
+  it('names the region and its heading for screen readers, and draws only the actions', () => {
+    render(<PhaseShell title="Your show" actions={<Button>Tools</Button>} />);
 
-    const shell = screen.getByLabelText(
-      'Heartland Scent Work Classic With A Very Long Show Desk Title'
+    const region = screen.getByRole('region', { name: 'Your show' });
+    expect(region).toContainElement(screen.getByRole('button', { name: 'Tools' }));
+    // The heading stays for the outline and the e2e loaded signal, but is not drawn.
+    expect(screen.getByRole('heading', { level: 2, name: 'Your show' }).className).toContain(
+      'sr-only'
     );
-    expect(shell.className).toContain('flex-col');
-    expect(shell.className).toContain('sm:flex-row');
-    const heading = screen.getByRole('heading', {
-      name: 'Heartland Scent Work Classic With A Very Long Show Desk Title',
-    });
-    expect(heading.className).toContain('truncate');
-    expect(heading).toHaveAttribute(
-      'title',
-      'Heartland Scent Work Classic With A Very Long Show Desk Title'
-    );
-    expect(heading.parentElement?.className).toContain('min-w-0');
-    expect(heading.parentElement?.className).toContain('flex-1');
-    const actions = screen.getByRole('button', { name: 'Tools' }).parentElement;
-    expect(actions?.className).toContain('w-full');
-    expect(actions?.className).toContain('sm:shrink-0');
+  });
+
+  it('renders no actions slot without actions', () => {
+    render(<PhaseShell title="Your show" />);
+    expect(screen.getByRole('region', { name: 'Your show' }).children).toHaveLength(1);
   });
 });

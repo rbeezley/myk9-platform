@@ -38,12 +38,22 @@ export interface CartCapacitySplitDecision {
  * two-judge class uses a spot on both judges' days, and lines earlier in the
  * cart use up spots before later ones are judged. Advisory only: payment
  * re-decides under the server's locks.
+ *
+ * A full line goes to the wait list only when its class is in
+ * `waitlistClassIds`: the classes the server's availability read reports as
+ * taking a wait list (`allow_waitlist`, the EFFECTIVE value: the class's own
+ * setting, else the show's, MYK9-1019). The cart never works that out itself,
+ * so checkout's refetch carries a setting changed while the cart was open.
+ * A class missing from the set is "no", so a denied class never becomes a
+ * wait-list request.
  */
 export function splitCartItemsByJudgeDayCapacity(
   items: CartItemWithDetails[],
   judgeDays: readonly CartJudgeDayCapacity[],
-  classSpots: readonly CartClassCapacity[] = []
+  classSpots: readonly CartClassCapacity[] = [],
+  waitlistClassIds: readonly string[] = []
 ): CartCapacitySplitDecision {
+  const takesWaitlist = new Set(waitlistClassIds);
   const remainingByJudgeDay = new Map<string, number>();
   const remainingByClass = new Map<string, number>();
 
@@ -88,10 +98,7 @@ export function splitCartItemsByJudgeDayCapacity(
 
     if (reason) {
       fullReasonByItemId.set(item.id, reason);
-      // submit_show_entries uses COALESCE(allow_waitlist, false), so a missing
-      // or NULL client value must not turn a denied class into a wait-list
-      // request.
-      if (item.class?.allow_waitlist !== true) {
+      if (!takesWaitlist.has(classId)) {
         blockedItems.push(item);
       } else {
         waitlistItemIds.add(item.id);

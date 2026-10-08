@@ -186,7 +186,7 @@ const SecretaryWaitlistRedirect = () => {
         to={getEntryManagementHref({ showId, tab: 'waitlist' })}
         toastId="waitlist-moved"
         toastTitle="Waitlist moved"
-        toastBody="Waitlist work now lives in Entry Management for this show."
+        toastBody="Waitlist work now lives in Entry Forms for this show."
       />
     );
   }
@@ -196,7 +196,7 @@ const SecretaryWaitlistRedirect = () => {
       to="/secretary/dashboard"
       toastId="waitlist-no-show-context"
       toastTitle="Select a show to continue"
-      toastBody="Waitlist work lives in Entry Management inside a show."
+      toastBody="Waitlist work lives in Entry Forms inside a show."
     />
   );
 };

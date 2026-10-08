@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
+import { replicatedToClass } from '@/store/class-store-helpers';
 import { OverrideTree } from '../OverrideTree';
 import type {
   ShowSettings,
@@ -56,6 +57,7 @@ function renderTree(opts?: {
   selectedClasses?: Set<string>;
   onToggleClass?: (id: string) => void;
   onToggleAllInTrial?: (trialId: string, ids: string[]) => void;
+  classes?: SyncableClassData[];
 }) {
   return render(
     <OverrideTree
@@ -63,7 +65,7 @@ function renderTree(opts?: {
       showId="show-1"
       settings={settings}
       trials={trials}
-      classes={classes}
+      classes={opts?.classes ?? classes}
       trialOverrides={opts?.trialOverrides ?? []}
       classOverrides={opts?.classOverrides ?? []}
       selectedClasses={opts?.selectedClasses ?? new Set()}
@@ -170,6 +172,100 @@ describe('OverrideTree', () => {
       expect.objectContaining({ entityId: 'class-1', level: 'class', facet: 'checkin' }),
       expect.any(Object)
     );
+  });
+
+  it('links every class row to its class page in visibility mode only', async () => {
+    const { user } = renderTree();
+    await user.click(screen.getByRole('button', { name: /Trial A.*classes/ }));
+    expect(screen.getByRole('link', { name: 'View results for Container Novice' })).toHaveAttribute(
+      'href',
+      '/shows/show-1/trials/trial-1/classes/class-1'
+    );
+    expect(screen.getByRole('link', { name: 'View results for Interior Open' })).toHaveAttribute(
+      'href',
+      '/shows/show-1/trials/trial-1/classes/class-2'
+    );
+  });
+
+  it('MYK9-1049: names the results link with the full class label, section included', async () => {
+    const { user } = renderTree({
+      classes: [
+        {
+          id: 'class-a',
+          trialId: 'trial-1',
+          element: 'Container',
+          level: 'Novice',
+          section: 'A',
+          className: 'Novice',
+        } as SyncableClassData,
+        {
+          id: 'class-b',
+          trialId: 'trial-1',
+          element: 'Container',
+          level: 'Novice',
+          section: 'B',
+          className: 'Novice',
+        } as SyncableClassData,
+      ],
+    });
+    await user.click(screen.getByRole('button', { name: /Trial A.*classes/ }));
+    expect(
+      screen.getByRole('link', { name: 'View results for Container Novice A' })
+    ).toHaveAttribute('href', '/shows/show-1/trials/trial-1/classes/class-a');
+    expect(
+      screen.getByRole('link', { name: 'View results for Container Novice B' })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'View results for Novice' })).not.toBeInTheDocument();
+  });
+
+  it('MYK9-1049: tells two same-element same-level classes apart by their stored name', async () => {
+    const { user } = renderTree({
+      classes: [
+        {
+          id: 'class-1',
+          trialId: 'trial-1',
+          element: 'Interior',
+          level: 'Advanced',
+          className: 'Interior Advanced',
+        } as SyncableClassData,
+        {
+          id: 'class-2',
+          trialId: 'trial-1',
+          element: 'Interior',
+          level: 'Advanced',
+          className: 'Interior Advanced Preliminary',
+        } as SyncableClassData,
+      ],
+    });
+    await user.click(screen.getByRole('button', { name: /Trial A.*classes/ }));
+    expect(
+      screen.getByRole('link', { name: 'View results for Interior Advanced Preliminary' })
+    ).toHaveAttribute('href', '/shows/show-1/trials/trial-1/classes/class-2');
+  });
+
+  it('MYK9-1049: labels a class from the real store mapping with element and section', async () => {
+    const { user } = renderTree({
+      classes: [
+        replicatedToClass({
+          id: 'class-a',
+          trialId: 'trial-1',
+          name: 'Novice',
+          level: 'Novice',
+          element: 'Container',
+          section: 'A',
+        }),
+      ],
+    });
+    await user.click(screen.getByRole('button', { name: /Trial A.*class/ }));
+    expect(
+      screen.getByRole('link', { name: 'View results for Container Novice A' })
+    ).toBeInTheDocument();
+  });
+
+  it('does not show results links in check-in mode', async () => {
+    const { user } = renderTree({ facet: 'checkin' });
+    await user.click(screen.getByRole('button', { name: /Trial A.*classes/ }));
+    expect(screen.queryByRole('link', { name: /View results/ })).not.toBeInTheDocument();
   });
 
   it.each(['visibility', 'checkin'] as const)(

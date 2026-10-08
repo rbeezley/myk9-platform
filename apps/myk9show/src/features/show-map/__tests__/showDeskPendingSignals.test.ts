@@ -47,6 +47,12 @@ const completedClass: ShowMapClassInput = {
   status: 'Completed',
 };
 
+// MYK9-1030: the judge's sign-off is recorded on the class.
+const signedClass: ShowMapClassInput = {
+  ...completedClass,
+  judgeSignedOffAt: '2026-05-17T14:00:00Z',
+};
+
 function tree(
   entries: Array<Record<string, unknown>>,
   classes: ShowMapClassInput[] = [activeClass]
@@ -316,10 +322,9 @@ describe('computeShowDeskPendingSignals', () => {
           dog: { call_name: 'Bella' },
           entry_status: 'accepted',
           is_scored: true,
-          judge_signature_timestamp: '2026-05-17T14:00:00Z',
         },
       ],
-      [completedClass]
+      [signedClass]
     );
     const signals = computeShowDeskPendingSignals({ showId: 'show-1', tree: t, entries: [] });
     expect(signals.some(s => s.id === 'results-pending-closeout')).toBe(true);
@@ -498,10 +503,9 @@ describe('computeShowDeskPendingSignals', () => {
             dog: { call_name: 'Bella' },
             entry_status: 'accepted',
             is_scored: true,
-            judge_signature_timestamp: '2026-05-17T14:00:00Z',
           },
         ],
-        [completedClass]
+        [signedClass]
       );
       const signals = computeShowDeskPendingSignals({ showId: 'show-1', tree: t, entries: [] });
       const closeout = signals.find(s => s.id === 'results-pending-closeout');

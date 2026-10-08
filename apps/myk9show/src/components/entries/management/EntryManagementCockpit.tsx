@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import type { EnrollmentLedgerControls } from '@/hooks/useEnrollmentLedgerActions';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -31,7 +31,7 @@ import type { CheckInStatus } from '@myk9/core';
 import { EntryStatus } from '@/types/show-registration-types';
 import { sendRegistrationConfirmationEmail } from '@/components/shows/RegistrationWorkflow/sendRegistrationConfirmationEmail';
 
-// INTENT: `cockpit.state.queue` (set from the page's unified `ListViewTabs`) is
+// INTENT: `cockpit.state.queues` (checked in the page's Show: menu) is
 // the single source of registration-status filtering on Entry Management. Do
 // not add a second status control: contradictory status filters create an
 // honest-looking zero-registration state. Show-day check-in is also
@@ -41,7 +41,7 @@ import { sendRegistrationConfirmationEmail } from '@/components/shows/Registrati
 interface EntryManagementCockpitProps {
   entries: EntryManagementEntry[];
   /** Built by the PAGE (`useEntryManagementCockpit`) and passed down, so the
-   * page's `ListViewTabs`/`ListFilterBar` and this list read one shared state
+   * page's Show: menu and Filter button and this list read one shared state
    * instead of each computing their own (MYK9-795). */
   cockpit: ReturnType<typeof useEntryManagementCockpit>;
   /** `registrationGroups` (unfiltered) is empty — the show itself has no
@@ -115,6 +115,7 @@ export function EntryManagementCockpit({
     entryCockpitResponsiveReducer,
     initialEntryCockpitResponsiveState
   );
+  const previousFocusKey = useRef(cockpit.state.registrationKey);
 
   useEffect(() => {
     if (width !== null) {
@@ -125,6 +126,13 @@ export function EntryManagementCockpit({
       });
     }
   }, [cockpit.state.registrationKey, width]);
+
+  useEffect(() => {
+    const currentFocusKey = cockpit.state.registrationKey;
+    const focusChanged = currentFocusKey && currentFocusKey !== previousFocusKey.current;
+    previousFocusKey.current = currentFocusKey;
+    if (focusChanged) dispatchResponsive({ type: 'open-detail' });
+  }, [cockpit.state.registrationKey]);
 
   const registrationIds = useMemo(
     () => [...new Set(entries.map(entry => entry.registrationId).filter(Boolean))],
@@ -195,6 +203,17 @@ export function EntryManagementCockpit({
   const showQueue = !responsive.compact || !responsive.detailOpen;
   const showDetail = !responsive.compact || responsive.detailOpen;
 
+  // "Back to list" on a narrow screen returns focus to the row it came from, once the URL has
+  // dropped the form and the list has re-rendered. A focus set in the next frame instead sometimes
+  // landed on the row's action just before that re-render replaced it (about 1 in 6 in a browser).
+  const returnFocusToRow = useRef<string | null>(null);
+  useEffect(() => {
+    const key = returnFocusToRow.current;
+    if (!key || !showQueue || cockpit.state.registrationKey !== null) return;
+    returnFocusToRow.current = null;
+    document.getElementById(getEntryRegistrationRowId(key))?.focus();
+  });
+
   return (
     <div ref={ref} className="space-y-4">
       {/* MYK9-635: "All registrations 514" beside a show page saying 517 entries
@@ -206,11 +225,11 @@ export function EntryManagementCockpit({
           be true of the rows below -- see `useEntryManagementCockpit`. */}
       {!trialScopePending && cockpit.queueTotalsDescribeWholeShow && (
         <p className="text-sm text-muted-foreground" data-testid="registration-totals">
-          {cockpit.queueTotals.registrationCount}{' '}
-          {cockpit.queueTotals.registrationCount === 1 ? 'registration' : 'registrations'} &middot;{' '}
           {cockpit.queueTotals.entryCount}{' '}
-          {cockpit.queueTotals.entryCount === 1 ? 'entry' : 'entries'}. All registrations includes
-          Needs review.
+          {cockpit.queueTotals.entryCount === 1 ? 'entry' : 'entries'} from{' '}
+          {cockpit.queueTotals.registrationCount}{' '}
+          {cockpit.queueTotals.registrationCount === 1 ? 'entry form' : 'entry forms'}. The All view
+          includes Needs review.
         </p>
       )}
 
@@ -236,8 +255,8 @@ export function EntryManagementCockpit({
           className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm"
         >
           <span className="text-foreground">
-            Couldn&rsquo;t load this trial&rsquo;s classes, so the list below covers the whole show,
-            not just this trial.
+            Couldn&rsquo;t load the classes for the picked trials, so the list below is not limited
+            to those trials.
           </span>
           {onRetryTrialClasses && (
             <Button
@@ -268,7 +287,7 @@ export function EntryManagementCockpit({
           is "not yet", not a superset presented as a subset.
         */}
         {(showQueue || showDetail) && trialScopePending && (
-          <div role="status" aria-label="Loading this trial's registrations" className="py-4">
+          <div role="status" aria-label="Loading the picked trials' entry forms" className="py-4">
             <TableSkeleton rows={6} columns={4} />
           </div>
         )}
@@ -281,6 +300,7 @@ export function EntryManagementCockpit({
             allSelected={cockpit.selection.isAllSelected}
             partiallySelected={cockpit.selection.isPartiallySelected}
             onFocus={group => {
+              returnFocusToRow.current = null;
               cockpit.setFocus(group.groupKey);
               dispatchResponsive({ type: 'open-detail' });
             }}
@@ -293,29 +313,28 @@ export function EntryManagementCockpit({
             pageIndex={cockpit.page.pageIndex}
             pageCount={cockpit.page.pageCount}
             onPageChange={cockpit.setPageIndex}
-            density={cockpit.state.density}
           />
         )}
 
         {showDetail && !trialScopePending && cockpit.focusedGroup && (
           <div
             className={cn(
-              !responsive.compact && 'sticky top-[calc(var(--app-top-inset,3rem)+1rem)]'
+              // Under the pinned show header (its measured `--show-header-h`) and the 3rem tab strip;
+              // keep in step with `showStickyLayout`. Written out because Tailwind only sees literal class names.
+              !responsive.compact &&
+                'sticky top-[calc(var(--app-top-inset,3rem)+1rem)] lg:top-[calc(var(--app-top-inset,3rem)+var(--show-header-h,0px)+3rem+1rem)]'
             )}
           >
             <EntryFocusedRegistration
               key={cockpit.focusedGroup.groupKey}
               registration={cockpit.focusedGroup}
+              focusHeadingOnMount={responsive.compact}
               {...(responsive.compact
                 ? {
                     onBack: () => {
+                      returnFocusToRow.current = focusedKey;
                       dispatchResponsive({ type: 'close-detail' as const });
                       cockpit.setFocus(null);
-                      requestAnimationFrame(() => {
-                        document
-                          .getElementById(getEntryRegistrationRowId(focusedKey ?? ''))
-                          ?.focus();
-                      });
                     },
                   }
                 : {})}

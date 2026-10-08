@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { useUserStore } from '@/store/userStore';
@@ -10,6 +10,9 @@ import { deriveDogPageGates, type DogPageGates } from './dogViewerAccess';
 import { useDogViewerRelationship } from './useDogViewerRelationship';
 import { DogPageSkeleton } from './Skeletons';
 import { PageShell } from '@/components/common/PageShell';
+import { CloseDetailLink } from '@/components/layout/CloseDetailLink';
+import { useEmbeddedDetail } from '@/components/layout/embeddedDetail';
+import { isListNavigation } from '@/components/layout/listNavigation';
 import { PageHeader } from '@/components/common/PageHeader';
 import { toPageHeaderCrumbs } from '@/components/common/pageHeaderCrumbs';
 import { useBreadcrumb } from '@/hooks/useBreadcrumb';
@@ -79,7 +82,11 @@ const DogDetailsLoaded: React.FC<DogDetailsMainProps & { gates: DogPageGates }> 
   // click or a Career/Records deep link lands on the main heading; browser
   // Back/Forward is left untouched. See useRouteEntryFocus for the guard.
   const headingRef = useRef<HTMLHeadingElement>(null);
-  useRouteEntryFocus(headingRef, dog.id);
+  const embedded = useEmbeddedDetail();
+  // Stepping through a list beside the dog keeps focus on the list row; any other arrival (a link
+  // from a person, the command palette, a new dog) still lands on the heading.
+  const fromList = isListNavigation(useLocation().state);
+  useRouteEntryFocus(headingRef, dog.id, !(embedded && fromList));
 
   const [addRegistrationDogId, setAddRegistrationDogId] = useState<string | null>(null);
   const [isManageRegistrationsOpen, setIsManageRegistrationsOpen] = useState(false);
@@ -163,7 +170,12 @@ const DogDetailsLoaded: React.FC<DogDetailsMainProps & { gates: DogPageGates }> 
   // Edit dog is the first item of the header Actions menu (MYK9-928). The page shows the
   // dog to its viewer only once access is checked, and the secretary's rail button and
   // the exhibitor's menu item this replaces had no narrower gate.
-  usePageEditAction({ kind: 'dog', enabled: true, run: () => setIsEditPanelOpen(true) });
+  usePageEditAction({
+    kind: 'dog',
+    enabled: true,
+    run: () => setIsEditPanelOpen(true),
+    title: dog.callName,
+  });
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
   const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -309,6 +321,7 @@ const DogDetailsLoaded: React.FC<DogDetailsMainProps & { gates: DogPageGates }> 
           breadcrumbs={toPageHeaderCrumbs(breadcrumbItems, `/dogs/${updatedDog.id}`)}
           title={getDogDisplayName(updatedDog)}
           omitTitle
+          actions={embedded ? <CloseDetailLink to="/dogs" label="Close dog" /> : undefined}
         />
         <DogHero
           dog={updatedDog}
@@ -316,8 +329,10 @@ const DogDetailsLoaded: React.FC<DogDetailsMainProps & { gates: DogPageGates }> 
           onStatusDialogOpen={openStatusDialog}
           headingRef={headingRef}
         />
-        {/* Identity rail beside the content column; stacked below lg. */}
-        <div className="flex flex-col lg:flex-row lg:items-start gap-4 lg:gap-6">
+        {/* Identity rail beside the content column; stacked below lg, and always in a pane. */}
+        <div
+          className={`flex flex-col gap-4 ${embedded ? '' : 'lg:flex-row lg:items-start lg:gap-6'}`}
+        >
           <DogIdentityRail
             dog={updatedDog}
             owner={owner}

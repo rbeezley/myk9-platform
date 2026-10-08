@@ -15,6 +15,8 @@ import { UserRole } from '@/types/auth-types';
 import { isTrialDayToday } from '@/pages/MyEntriesPage/modules/dayCheckIn';
 import { parseShowDate } from '@/pages/MyEntriesPage/modules/myEntriesStats.helpers';
 import type { SelfCheckinState } from '@/hooks/queries/useSelfCheckinEnabled';
+import type { RunQueueState } from '@myk9/ringside/run-queue';
+import { withServerPlace } from '@/utils/showEntryRunQueue';
 
 const STAFF_ROLES: readonly UserRole[] = [
   UserRole.SITE_ADMIN,
@@ -39,6 +41,7 @@ export function isExhibitorOnlyForAtShow(hasRole: (role: UserRole) => boolean): 
 export interface AtShowClassSummary {
   className: string;
   classStatus: string;
+  resultsReleasedAt?: string | null | undefined;
   expectedStartLabel?: string | undefined;
   isRevisedStart?: boolean | undefined;
   /**
@@ -64,6 +67,9 @@ export interface AtShowEntryDetail {
   /** Whether the exhibitor's row has a run-order position assigned. */
   hasRunOrder: boolean;
   isScored: boolean;
+  /** Server-exposed result, shown only once this class is released. Null when withheld. */
+  resultStatus: string | null;
+  resultTimeSeconds: number | null;
   /** The class's resolved self-check-in cascade (MYK9-800 follow-up). */
   selfCheckinState: SelfCheckinState;
   /** "<trial label> · <date>" (`formatAtShowTrialHeading`), or null before the trial replica resolves. */
@@ -118,6 +124,16 @@ export function buildMyAtShowEntryDetails(
     if (trial && !isTrialDayToday(parseShowDate(trial.date), trial.timezone, now)) continue;
 
     const classSummary = entry.classId ? (classesById.get(entry.classId) ?? null) : null;
+    // The replication view already masks qualification/time by visibility and
+    // privacy. Require the class release too: an old staff-populated cache must
+    // never turn a preliminary result into a final exhibitor result.
+    const status = entry.resultStatus ?? entry.result_status;
+    const hasVisibleResult =
+      Boolean(classSummary?.resultsReleasedAt) &&
+      (entry.isScored ?? entry.is_scored) === true &&
+      status != null &&
+      status !== 'pending';
+    const seconds = entry.searchTimeSeconds ?? entry.search_time_seconds;
 
     details.push({
       entryId: entry.id,
@@ -130,6 +146,11 @@ export function buildMyAtShowEntryDetails(
       isRevisedStart: classSummary?.isRevisedStart ?? false,
       hasRunOrder: entry.runOrder != null,
       isScored: entry.isScored ?? false,
+      resultStatus: hasVisibleResult ? status : null,
+      resultTimeSeconds:
+        hasVisibleResult && typeof seconds === 'number' && Number.isFinite(seconds) && seconds >= 0
+          ? seconds
+          : null,
       selfCheckinState: classSummary?.selfCheckinState ?? 'unknown',
       trialLabel: trial?.label ?? null,
     });
@@ -160,4 +181,37 @@ export function deriveAtShowNextAction(detail: AtShowEntryDetail): AtShowEntryNe
     return { kind: 'self-checkin-disabled' };
   }
   return { kind: 'check-in' };
+}
+
+/** Check-in states that already say where a dog is; a place in line adds nothing (MYK9-992). */
+const NO_PLACE_STATUSES: ReadonlySet<CheckInStatus> = new Set([
+  'no-status',
+  'in-ring',
+  'pulled',
+  'completed',
+]);
+
+/**
+ * True when this dog is waiting to run and its place in line is a fair thing
+ * to ask the server for: checked in (or at the gate), not yet scored, with an
+ * order posted. Finished, in-ring and pulled dogs are state-only.
+ */
+export function isAwaitingPlaceInLine(detail: AtShowEntryDetail): boolean {
+  return !detail.isScored && !NO_PLACE_STATUSES.has(detail.checkInStatus) && detail.hasRunOrder;
+}
+
+/**
+ * What a checked-in, unscored dog says about its place in line (MYK9-992):
+ * the server's count when known (`places`, from `useMyEntryQueuePlaces`),
+ * "Waiting" when an order is posted but the count is unavailable (offline,
+ * loading), and 'pending' when no running order is posted. Null for every
+ * dog whose state is already shown elsewhere on the row.
+ */
+export function deriveAtShowQueueLine(
+  detail: AtShowEntryDetail,
+  place: number | undefined
+): RunQueueState | { kind: 'pending' } | null {
+  if (detail.isScored || NO_PLACE_STATUSES.has(detail.checkInStatus)) return null;
+  if (!detail.hasRunOrder) return { kind: 'pending' };
+  return withServerPlace({ kind: 'waiting-unknown' }, place);
 }

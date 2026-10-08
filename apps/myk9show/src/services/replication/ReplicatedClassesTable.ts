@@ -48,7 +48,8 @@ export interface ReplicatedClass {
   entryFee?: number | undefined;
   jumpHeights?: string[] | undefined;
   maxEntries?: number | undefined;
-  allowsWaitlist?: boolean | undefined;
+  /** `classes.allow_waitlist`: null follows the show's "Allow wait lists" (MYK9-1019). */
+  allowsWaitlist?: boolean | null | undefined;
   maxDogsPerHandler?: number | undefined;
   level?: string | undefined;
   breedRestrictions?: string[] | undefined;
@@ -127,6 +128,13 @@ export interface ReplicatedClass {
   results_released_at?: string | null | undefined;
   resultsReleasedBy?: string | null | undefined;
   results_released_by?: string | null | undefined;
+  /**
+   * MYK9-1030: the judge's end-of-day sign-off on the marked catalog. Written ONLY through the
+   * sign-off RPCs (`setJudgeSignOff`), never by `toSupabaseRow`, so an unrelated class edit can
+   * never echo a stale value back. `judgeSignedOffBy` is the auth uid of whoever recorded it.
+   */
+  judgeSignedOffAt?: string | null | undefined;
+  judgeSignedOffBy?: string | null | undefined;
 
   // Scoring rule fields (from sport template, baked in at class creation)
   timerMode?: string | undefined;
@@ -183,7 +191,7 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
     entryFee: row.entry_fee ?? undefined,
     jumpHeights: row.jump_heights ?? undefined,
     maxEntries: row.max_entries ?? undefined,
-    allowsWaitlist: row.allow_waitlist ?? false,
+    allowsWaitlist: row.allow_waitlist,
     maxDogsPerHandler: row.max_dogs_per_handler ?? undefined,
     level: row.level ?? undefined,
     breedRestrictions: row.breed_restrictions ?? undefined,
@@ -231,6 +239,8 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
     results_released_at: row.results_released_at ?? null,
     resultsReleasedBy: row.results_released_by ?? null,
     results_released_by: row.results_released_by ?? null,
+    judgeSignedOffAt: row.judge_signed_off_at ?? null,
+    judgeSignedOffBy: row.judge_signed_off_by ?? null,
 
     // Scoring rule fields
     timerMode: (dbRow.timer_mode as string | undefined) ?? undefined,
@@ -728,6 +738,62 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     );
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated class ${classId}`);
+    return mutationId;
+  }
+
+  /**
+   * MYK9-1030: record (`signOff` set) or clear (`null`) the judge's sign-off on ONE class,
+   * offline-first. The local row changes now; the write is queued as an RPC-routed UPDATE, so it
+   * replays in queue order on reconnect (after a queued Mark Complete, say) and the server
+   * authorizes it with can_manage_trial. One class per mutation, so the RPC's returned version
+   * keeps this row's OCC token fresh. A class already signed off keeps its first stamp, as the
+   * server does.
+   */
+  async setJudgeSignOff(
+    classId: string,
+    signOff: { at: string; by: string | null } | null
+  ): Promise<string | null> {
+    const currentClass = await this.get(classId);
+    if (!currentClass) {
+      throw new Error(`Class ${classId} not found`);
+    }
+
+    const alreadySigned = Boolean(currentClass.judgeSignedOffAt);
+    const judgeSignedOffAt = signOff
+      ? alreadySigned
+        ? currentClass.judgeSignedOffAt
+        : signOff.at
+      : null;
+    const judgeSignedOffBy = signOff
+      ? alreadySigned
+        ? currentClass.judgeSignedOffBy
+        : signOff.by
+      : null;
+
+    await this.set(
+      classId,
+      {
+        ...currentClass,
+        judgeSignedOffAt,
+        judgeSignedOffBy,
+        _lastModified: new Date(),
+        _syncStatus: 'pending',
+      },
+      true
+    );
+    const mutationId = await this.queueMutation(
+      'UPDATE',
+      classId,
+      { id: classId, judge_signed_off_at: judgeSignedOffAt ?? null },
+      undefined,
+      signOff
+        ? {
+            name: 'mark_classes_judge_signed_off',
+            args: { p_class_ids: [classId], p_signed_off_at: signOff.at },
+          }
+        : { name: 'clear_class_judge_sign_off', args: { p_class_id: classId } }
+    );
+    this._lastMutationId = mutationId;
     return mutationId;
   }
 

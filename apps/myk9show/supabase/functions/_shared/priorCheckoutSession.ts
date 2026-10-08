@@ -10,7 +10,7 @@ export interface CheckoutSessionsApi<T extends CheckoutSessionLike> {
   expire: (sessionId: string) => Promise<unknown>;
 }
 
-type CheckoutSessionResolution<T extends CheckoutSessionLike> =
+export type CheckoutSessionResolution<T extends CheckoutSessionLike> =
   | { kind: 'ready'; session: T; reused: boolean; expiredSessionId: string | null }
   | {
       kind: 'blocked';

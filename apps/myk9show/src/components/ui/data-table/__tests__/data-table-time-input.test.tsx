@@ -1,3 +1,4 @@
+import React from 'react';
 import { screen, fireEvent } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { TimeInput } from '../data-table-time-input';
@@ -46,6 +47,57 @@ describe('TimeInput', () => {
     // Only digits should have been passed to onChange
     const calls = onChange.mock.calls.map(call => call[0] as string);
     calls.forEach(v => expect(v).toMatch(/^\d*$/));
+  });
+
+  function ControlledTimeInput({
+    onValue,
+    initial = '',
+  }: {
+    onValue?: (v: string) => void;
+    initial?: string;
+  }) {
+    const [value, setValue] = React.useState(initial);
+    return (
+      <TimeInput
+        value={value}
+        onChange={v => {
+          setValue(v);
+          onValue?.(v);
+        }}
+        onCommit={() => {}}
+        onCancel={() => {}}
+      />
+    );
+  }
+
+  it('ignores digits past six so they cannot shift into minutes', async () => {
+    const onValue = vi.fn();
+    const { user } = render(<ControlledTimeInput onValue={onValue} />);
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+    await user.click(input);
+    await user.keyboard('52105210');
+    expect(input.value).toBe('521052');
+    expect(onValue).toHaveBeenLastCalledWith('521052');
+  });
+
+  it('typing 60000 keeps every digit (no carry re-read)', async () => {
+    const { user } = render(<ControlledTimeInput />);
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+    await user.click(input);
+    await user.keyboard('60000');
+    expect(input.value).toBe('60000');
+  });
+
+  it('holds the raw digits of a loaded value, so select-all and type replaces it', async () => {
+    const onValue = vi.fn();
+    const { user } = render(<ControlledTimeInput initial="1:23.45" onValue={onValue} />);
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+    await user.click(input);
+    expect(input.value).toBe('12345');
+    await user.tripleClick(input);
+    await user.keyboard('13000');
+    expect(input.value).toBe('13000');
+    expect(onValue).toHaveBeenLastCalledWith('13000');
   });
 
   it('calls onCommit on Tab', async () => {

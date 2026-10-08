@@ -9,7 +9,7 @@
  * the OS dark-mode setting). theme-init.js reads `myK9Q_settings` synchronously
  * at boot, before React or auth exist, so the theme applies flash-free for
  * signed-out and anonymous passcode ringside sessions too. Per-user appearance
- * preferences (font size, density, motion, contrast) live server-side in
+ * preferences (font size, motion, contrast) live server-side in
  * user_preferences instead, with a localStorage boot cache that IS cleared on
  * sign-out — see clearAppearanceCache in @/context/themeClasses. Do not add a
  * sign-out reset for theme/accent without also building a server hydrate-back

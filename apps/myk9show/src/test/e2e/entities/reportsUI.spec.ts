@@ -6,8 +6,8 @@ import { signInAsSecretary } from '../helpers/testUsers';
  *
  * Strategy:
  *   - Sign in as the secretary fixture, land on /secretary/reports.
- *   - Open the report-type dropdown and verify the four SHOW-PHASE groups
- *     render (Before / During / After the show, Anytime). MYK9-630 phase 3
+ *   - Verify the four SHOW-PHASE sections render (Before / During / After the
+ *     show, Anytime). MYK9-630 phase 3
  *     replaced the old category headings (Operational / Organization /
  *     Financial / Statistics) with these; the reports themselves are
  *     unchanged and none is gated by show status.
@@ -28,10 +28,10 @@ test.describe.configure({ mode: 'serial' });
 const SHOW_ID = '4584f257-19b5-4016-aae6-5e7827b769cb';
 const REPORTS_PATH = `/shows/${SHOW_ID}/reports`;
 
-// The page has multiple comboboxes (show picker, report type, trial, class,
-// sort). The report-type one sits below a "Report" label.
-function getReportPicker(page: Page) {
-  return page.locator('label:has-text("Report")').locator('..').getByRole('combobox');
+// The catalog is shown as phase sections of report cards (MYK9-1033), not a dropdown.
+// A card's select button carries the report name.
+function getReportCard(page: Page, name: string) {
+  return page.getByTestId('report-card').filter({ hasText: name }).first();
 }
 
 test.describe('Reports UI — secretary', () => {
@@ -39,9 +39,8 @@ test.describe('Reports UI — secretary', () => {
     await signInAsSecretary(page);
   });
 
-  test('report-type dropdown renders all four category groups', async ({ page }) => {
+  test('report catalog renders all four phase sections', async ({ page }) => {
     await page.goto(REPORTS_PATH);
-    await getReportPicker(page).click();
 
     // INTENT (regression guard, carried across the MYK9-630 phase-3 regroup):
     // all four group labels must be present in the listbox. The guard exists
@@ -49,7 +48,7 @@ test.describe('Reports UI — secretary', () => {
     // it — that is how Financial Report and the four entry-counts reports
     // disappeared for weeks under the old category headings.
     for (const label of ['Before the show', 'During the show', 'After the show', 'Anytime']) {
-      await expect(page.getByRole('group').filter({ hasText: label }).first()).toBeVisible();
+      await expect(page.getByRole('region', { name: label })).toBeVisible();
     }
 
     // Financial Report and the four statistics reports are reachable.
@@ -60,7 +59,7 @@ test.describe('Reports UI — secretary', () => {
       'Breed Entry Counts',
       'Judge Entry Counts',
     ]) {
-      await expect(page.getByRole('option', { name })).toBeVisible();
+      await expect(getReportCard(page, name)).toBeVisible();
     }
   });
 
@@ -68,12 +67,11 @@ test.describe('Reports UI — secretary', () => {
     page,
   }) => {
     await page.goto(REPORTS_PATH);
-    const picker = getReportPicker(page);
-    await picker.click();
-    await page.getByRole('option', { name: 'Financial Report' }).click();
+    const card = getReportCard(page, 'Financial Report');
+    await card.getByRole('button').first().click();
 
-    // The report-type picker reflects the financial-report selection.
-    await expect(picker).toContainText(/financial-report|Financial Report/);
+    // The card reflects the financial-report selection.
+    await expect(card.getByRole('button').first()).toHaveAttribute('aria-pressed', 'true');
 
     // The page lands on one of three reachable end-states:
     //   1. Grand Total row (seed has accepted fee-bearing entries)

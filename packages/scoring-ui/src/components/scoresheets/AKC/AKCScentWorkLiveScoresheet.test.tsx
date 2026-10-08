@@ -136,6 +136,31 @@ describe('AKCScentWorkLiveScoresheet', () => {
     expect(onBack).toHaveBeenCalled();
   });
 
+  it('renders headerActions inside the header, after the title', () => {
+    render(
+      <AKCScentWorkLiveScoresheet
+        {...defaultProps}
+        headerActions={<button type="button">Mute</button>}
+      />
+    );
+
+    const header = screen.getByRole('banner');
+    const mute = screen.getByRole('button', { name: 'Mute' });
+    expect(header).toContainElement(mute);
+    expect(header.lastElementChild).toBe(mute);
+  });
+
+  it('clears a typed time with a labelled button and shows no button when the time is empty', () => {
+    render(<AKCScentWorkLiveScoresheet {...defaultProps} />);
+    const input = screen.getByLabelText(/time$/i) as HTMLInputElement;
+    expect(screen.queryByRole('button', { name: /^Clear .* time$/ })).not.toBeInTheDocument();
+
+    fireEvent.change(input, { target: { value: '1:23.45' } });
+    fireEvent.click(screen.getByRole('button', { name: /^Clear .* time$/ }));
+
+    expect(input.value).toBe('');
+  });
+
   it('pre-fills from existingScore', () => {
     const entryWithScore: ScoresheetEntry = {
       ...defaultEntry,

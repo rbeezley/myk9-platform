@@ -8,7 +8,10 @@
 # `deploy-staging.yml` used to gate on `workflow_run.conclusion == 'success'`.
 # That conclusion is an AND over every job in the run, including
 # `Test myK9Show (coverage)` -- a push-only, informational, non-gating report
-# that runs the whole unsharded suite and therefore runs long. When merges land
+# that ran the whole unsharded suite and therefore ran long. (That job has since
+# been deleted from ci.yml, its work being duplicated by the sharded
+# `Test myK9Show (coverage gate)`; its name stays below only so the recorded
+# historical runs in scripts/qa/fixtures/ci-runs still evaluate as they did.) When merges land
 # close together, CI's concurrency group cancels that job on the older run, the
 # run's conclusion becomes `cancelled`, and promotion is skipped even though
 # every gating job passed.

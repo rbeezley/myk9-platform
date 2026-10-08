@@ -18,8 +18,8 @@ describe('buildClassDetailsRelatedLinks', () => {
       },
       {
         key: 'entry-management',
-        label: 'Entry Management',
-        href: '/shows/show-1/entries?trial=trial-1&class=class-1',
+        label: 'Entry Forms',
+        href: '/shows/show-1/entries?trial=trial-1&class=class-1&queue=all',
       },
     ]);
   });
@@ -62,8 +62,8 @@ describe('buildClassDetailsRelatedLinks', () => {
       },
       {
         key: 'entry-management',
-        label: 'Entry Management',
-        href: '/shows/show-1/entries?class=class-1',
+        label: 'Entry Forms',
+        href: '/shows/show-1/entries?class=class-1&queue=all',
       },
     ]);
   });

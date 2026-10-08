@@ -123,9 +123,23 @@ export function buildReconciledDirtyRow<T extends { id: string }>({
   };
 }
 
+/**
+ * Domain rows carry their own `_syncStatus` inside `data` (a local write stamps
+ * `'pending'`). The wrapper's `isDirty`/`syncStatus` are the authority, but
+ * readers of the row's data see only the data flag, so when an upload is
+ * acknowledged the flag must follow the wrapper or it reads "unsynced" forever
+ * (MYK9-1050: a pull kept the stale local row over the server's placements).
+ */
+export function withAcknowledgedSyncFlag<T>(data: T): T {
+  if (data === null || typeof data !== 'object') return data;
+  if ((data as { _syncStatus?: unknown })._syncStatus !== 'pending') return data;
+  return { ...data, _syncStatus: 'synced' };
+}
+
 export function buildSyncedReplicatedRow<T>(row: ReplicatedRow<T>, now: number): ReplicatedRow<T> {
   return {
     ...row,
+    data: withAcknowledgedSyncFlag(row.data),
     isDirty: false,
     syncStatus: 'synced',
     lastSyncedAt: now,

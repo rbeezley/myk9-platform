@@ -362,15 +362,6 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
 
   return (
     <div className="ringside-root">
-      <button
-        type="button"
-        onClick={toggleAudioMuted}
-        aria-label={audioMuted ? 'Unmute timer sounds' : 'Mute timer sounds'}
-        aria-pressed={audioMuted}
-        className="fixed right-3 top-3 z-40 flex h-9 w-9 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm"
-      >
-        {audioMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-      </button>
       {showAddToHomeNudge && (
         // iOS Safari, not installed, persistence not granted: without Add-to-Home
         // the browser purges IndexedDB (and the backup) after 7 days idle, which
@@ -433,7 +424,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
           dispatch pattern as the secretary ScoresheetPage. */}
       {/* eslint-disable-next-line react-hooks/static-components */}
       <LiveScoresheet
-        entry={toScoresheetEntry(entry, classInfo)}
+        entry={toScoresheetEntry(entry, classInfo, registryKey)}
         classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}
         rules={rules}
         onSubmit={submit}
@@ -441,6 +432,17 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
         onWarningChime={audio.playWarning}
         onVoiceAnnouncement={handleVoiceAnnouncement}
         enableVoiceAnnouncements={!audioMuted}
+        headerActions={
+          <button
+            type="button"
+            onClick={toggleAudioMuted}
+            aria-label={audioMuted ? 'Unmute timer sounds' : 'Mute timer sounds'}
+            aria-pressed={audioMuted}
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm"
+          >
+            {audioMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+          </button>
+        }
       />
     </div>
   );

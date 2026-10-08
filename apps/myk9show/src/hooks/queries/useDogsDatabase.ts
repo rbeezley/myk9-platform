@@ -240,14 +240,6 @@ export const useUpdateDogMutation = () => {
       if (data) {
         const mappedDog = mapDatabaseToDog(data);
         queryClient.setQueryData(queryKeys.dog(id), mappedDog);
-
-        // Also update the dog in the main dogs list cache
-        queryClient.setQueryData(queryKeys.dogs, (oldData: unknown) => {
-          if (Array.isArray(oldData)) {
-            return oldData.map((dog: Record<string, unknown>) => (dog.id === id ? mappedDog : dog));
-          }
-          return oldData;
-        });
       }
 
       // Invalidate dogs list to ensure consistency

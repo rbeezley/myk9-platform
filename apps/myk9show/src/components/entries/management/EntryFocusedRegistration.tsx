@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,11 @@ import { getRegistrationReviewLabel, STATUS_COMMAND_LABELS } from './reviewState
 interface EntryFocusedRegistrationProps extends Omit<EnrollmentCardProps, 'group'> {
   registration: ShowRegistrationGroup;
   onBack?: () => void;
+  /**
+   * Move focus to the form's heading when it opens. On a narrow screen the form replaces the
+   * list, so the row that was tapped is gone and focus would otherwise fall to the page.
+   */
+  focusHeadingOnMount?: boolean;
 }
 
 const reviewLabel = getRegistrationReviewLabel;
@@ -19,24 +25,33 @@ const reviewLabel = getRegistrationReviewLabel;
 export function EntryFocusedRegistration({
   registration,
   onBack,
+  focusHeadingOnMount = false,
   ...enrollmentCardProps
 }: EntryFocusedRegistrationProps) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  // On mount only: the form is keyed by registration, so each open is one mount, and a resize
+  // into the narrow layout with a form already open does not move focus.
+  useEffect(() => {
+    if (focusHeadingOnMount) headingRef.current?.focus();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <section
       className="overflow-hidden rounded-xl border bg-card shadow-sm"
-      aria-label={`Focused registration for ${registration.exhibitorName}`}
+      aria-label={`Entry form for ${registration.exhibitorName}`}
     >
       <header className="border-b px-5 py-4">
         {onBack && (
           <Button variant="ghost" size="sm" className="-ml-2 mb-2 gap-2" onClick={onBack}>
             <ArrowLeft className="h-4 w-4" aria-hidden />
-            Back to registrations
+            Back to list
           </Button>
         )}
-        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">
-          Focused registration
-        </p>
-        <h2 className="mt-1 text-xl font-bold">{registration.exhibitorName}</h2>
+        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary">Entry form</p>
+        <h2 ref={headingRef} tabIndex={-1} className="mt-1 text-xl font-bold focus:outline-none">
+          {registration.exhibitorName}
+        </h2>
         <p className="text-sm text-muted-foreground">
           {registration.confirmationNumber
             ? formatConfirmationNumberLabel(registration.confirmationNumber)

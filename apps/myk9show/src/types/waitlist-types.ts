@@ -36,7 +36,9 @@ export interface WaitListEntry {
   dogName: string;
   handlerId: string | null;
   position: number;
-  status: 'waiting' | 'offered' | 'accepted' | 'declined' | 'expired';
+  status: 'waiting' | 'offered' | 'accepted' | 'declined' | 'expired' | 'withdrawn';
+  /** Mail-in offers remain held until staff records payment or withdraws them. */
+  joinedVia: 'online' | 'mail_in' | null;
   offeredAt: string | null;
   offerExpiresAt: string | null;
   /** The class's trial timezone, resolved through getTrialTimezone. Exhibitor reads only. */

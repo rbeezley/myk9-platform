@@ -1,40 +1,47 @@
 import { renderHook, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { createElement } from 'react';
 import { useJudgeDayCapacity } from '../useJudgeDayCapacity';
-import { supabase } from '@/services/database/supabaseClient';
 
-const mockSelect = vi.fn();
+const mockFrom = vi.fn();
+const mockRpc = vi.fn();
 
 vi.mock('@/services/database/supabaseClient', () => ({
   supabase: {
-    from: vi.fn(() => ({
-      select: mockSelect,
-    })),
+    from: (...args: unknown[]) => mockFrom(...args),
+    rpc: (...args: unknown[]) => mockRpc(...args),
   },
 }));
 
 function createWrapper() {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return ({ children }: { children: React.ReactNode }) =>
     createElement(QueryClientProvider, { client: queryClient }, children);
 }
 
-function mockJudgeAssignments(data: unknown[] = []) {
-  mockSelect.mockReturnValueOnce({
-    eq: vi.fn().mockReturnValueOnce({
-      eq: vi.fn().mockResolvedValueOnce({ data, error: null }),
-    }),
-  });
+const managerRow = (over: Record<string, unknown> = {}) => ({
+  judge_id: 'judge-1',
+  judge_full_name: 'Jane Doe',
+  show_date: '2026-05-01',
+  class_ids: ['c1', 'c2'],
+  class_names: ['Novice A', 'Novice B'],
+  day_capacity: 125,
+  day_taken: 80,
+  day_mail_in_reserved: 0,
+  day_remaining: 45,
+  waitlist_count: 5,
+  ...over,
+});
+
+function script(rows: unknown[] | null, error: unknown = null) {
+  mockRpc.mockResolvedValueOnce({ data: rows, error });
 }
 
 describe('useJudgeDayCapacity', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
-    mockSelect.mockReset();
+    mockFrom.mockReset();
+    mockRpc.mockReset();
   });
 
   it('returns empty array and no loading when showId is undefined', () => {
@@ -45,280 +52,78 @@ describe('useJudgeDayCapacity', () => {
     expect(result.current.isLoading).toBe(false);
   });
 
-  it('fetches judge-day capacity from judge_day_summary view', async () => {
-    const mockSummaryData = [
-      {
-        show_id: 'show-1',
-        judge_id: 'judge-1',
-        judge_name: 'Jane Doe',
-        show_date: '2026-05-01',
-        class_ids: ['c1', 'c2'],
-        class_names: ['Novice A', 'Novice B'],
-        confirmed_count: 80,
-        waitlist_count: 5,
-      },
-    ];
-
-    const mockShowData = {
-      default_judge_day_capacity: 125,
-      mail_in_strategy: 'none',
-      mail_in_value: null,
-      mail_in_deadline: null,
-    };
-
-    // First call: judge_day_summary view
-    mockSelect.mockReturnValueOnce({
-      eq: vi.fn().mockResolvedValueOnce({ data: mockSummaryData, error: null }),
-    });
-    // Second call: shows table
-    mockSelect.mockReturnValueOnce({
-      eq: vi.fn().mockReturnValueOnce({
-        single: vi.fn().mockResolvedValueOnce({ data: mockShowData, error: null }),
-      }),
-    });
-    mockJudgeAssignments();
-
+  it("puts the manager read's figures on the card in one call, not a recomputation (MYK9-1005)", async () => {
+    // Remaining (21) is deliberately not capacity - taken - mail-in (23): the card shows the
+    // server's figure, never a recomputation.
+    script([managerRow({ day_taken: 82, day_mail_in_reserved: 20, day_remaining: 21 })]);
     const { result } = renderHook(() => useJudgeDayCapacity('show-1'), {
       wrapper: createWrapper(),
     });
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.judgeDays).toHaveLength(1);
-    const day = result.current.judgeDays[0]!;
-    expect(day.judgeName).toBe('Jane Doe');
-    expect(day.confirmedCount).toBe(80);
-    expect(day.capacity).toBe(125);
-    expect(day.availableSpots).toBe(45);
-    expect(day.mailInReserved).toBe(0);
+    await waitFor(() => expect(result.current.judgeDays).toHaveLength(1));
+    expect(result.current.judgeDays[0]).toEqual({
+      judgeId: 'judge-1',
+      judgeName: 'Jane Doe',
+      showDate: '2026-05-01',
+      capacity: 125,
+      confirmedCount: 82,
+      waitlistCount: 5,
+      mailInReserved: 20,
+      availableSpots: 21,
+      classIds: ['c1', 'c2'],
+      classNames: ['Novice A', 'Novice B'],
+    });
+    // The manager read counts every account's holds, the secretary's own included; the cart's
+    // read (get_show_class_judge_day_availability) leaves the caller's own holds out.
+    expect(mockRpc).toHaveBeenCalledTimes(1);
+    expect(mockRpc).toHaveBeenCalledWith('get_show_judge_day_capacity_for_manager', {
+      p_show_id: 'show-1',
+    });
+    expect(mockFrom).not.toHaveBeenCalled();
   });
 
-  it('never recounts entries on the client: an empty summary is an empty list (MYK9-753)', async () => {
-    mockSelect.mockReturnValueOnce({
-      eq: vi.fn().mockResolvedValueOnce({ data: [], error: null }),
+  it('keeps an over-limit day over the limit instead of clamping it', async () => {
+    script([managerRow({ day_capacity: 3, day_taken: 5, day_remaining: 0 })]);
+    const { result } = renderHook(() => useJudgeDayCapacity('show-1'), {
+      wrapper: createWrapper(),
     });
-    mockSelect.mockReturnValueOnce({
-      eq: vi.fn().mockReturnValueOnce({
-        single: vi.fn().mockResolvedValueOnce({
-          data: { default_judge_day_capacity: 2, mail_in_strategy: 'none', mail_in_value: null },
-          error: null,
-        }),
-      }),
-    });
-    mockJudgeAssignments([
-      {
-        class_id: 'c1',
-        person_id: 'judge-1',
-        day_capacity_override: null,
-        trials: { date: '2026-05-01' },
-      },
-    ]);
 
+    await waitFor(() => expect(result.current.judgeDays).toHaveLength(1));
+    expect(result.current.judgeDays[0]).toMatchObject({
+      capacity: 3,
+      confirmedCount: 5,
+      availableSpots: 0,
+    });
+  });
+
+  it('a show with no judge-days is an empty list, not an error', async () => {
+    script([]);
     const { result } = renderHook(() => useJudgeDayCapacity('show-1'), {
       wrapper: createWrapper(),
     });
 
     await waitFor(() => expect(result.current.isLoading).toBe(false));
     expect(result.current.judgeDays).toEqual([]);
-    // judge_day_summary, shows, judge_assignments: no classes or entries read.
-    expect(vi.mocked(supabase.from).mock.calls.map(([table]) => table)).toEqual([
-      'judge_day_summary',
-      'shows',
-      'judge_assignments',
-    ]);
+    expect(result.current.error).toBeNull();
   });
 
-  it('calculates mail-in reserved spots for fixed strategy', async () => {
-    const mockSummaryData = [
-      {
-        show_id: 'show-1',
-        judge_id: 'judge-1',
-        judge_name: 'Jane Doe',
-        show_date: '2026-05-01',
-        class_ids: ['c1'],
-        class_names: ['Novice A'],
-        confirmed_count: 50,
-        waitlist_count: 0,
-      },
-    ];
-
-    const mockShowData = {
-      default_judge_day_capacity: 125,
-      mail_in_strategy: 'fixed',
-      mail_in_value: 20,
-      mail_in_deadline: null,
-    };
-
-    mockSelect.mockReturnValueOnce({
-      eq: vi.fn().mockResolvedValueOnce({ data: mockSummaryData, error: null }),
-    });
-    mockSelect.mockReturnValueOnce({
-      eq: vi.fn().mockReturnValueOnce({
-        single: vi.fn().mockResolvedValueOnce({ data: mockShowData, error: null }),
-      }),
-    });
-    mockJudgeAssignments();
-
+  it('a day without figures is an error, never a false zero', async () => {
+    script([managerRow({ day_capacity: null, day_taken: null, day_remaining: null })]);
     const { result } = renderHook(() => useJudgeDayCapacity('show-1'), {
       wrapper: createWrapper(),
     });
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    const day = result.current.judgeDays[0]!;
-    expect(day.mailInReserved).toBe(20);
-    expect(day.availableSpots).toBe(55); // 125 - 50 - 20
+    await waitFor(() => expect(result.current.error).not.toBeNull());
+    expect(result.current.judgeDays).toEqual([]);
   });
 
-  it('calculates mail-in reserved spots for percentage strategy', async () => {
-    const mockSummaryData = [
-      {
-        show_id: 'show-1',
-        judge_id: 'judge-1',
-        judge_name: 'Jane Doe',
-        show_date: '2026-05-01',
-        class_ids: ['c1'],
-        class_names: ['Novice A'],
-        confirmed_count: 0,
-        waitlist_count: 0,
-      },
-    ];
-
-    const mockShowData = {
-      default_judge_day_capacity: 100,
-      mail_in_strategy: 'percentage',
-      mail_in_value: 15,
-      mail_in_deadline: null,
-    };
-
-    mockSelect.mockReturnValueOnce({
-      eq: vi.fn().mockResolvedValueOnce({ data: mockSummaryData, error: null }),
-    });
-    mockSelect.mockReturnValueOnce({
-      eq: vi.fn().mockReturnValueOnce({
-        single: vi.fn().mockResolvedValueOnce({ data: mockShowData, error: null }),
-      }),
-    });
-    mockJudgeAssignments();
-
+  it('surfaces an RPC failure as an error', async () => {
+    script(null, { message: 'rpc down' });
     const { result } = renderHook(() => useJudgeDayCapacity('show-1'), {
       wrapper: createWrapper(),
     });
 
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    const day = result.current.judgeDays[0]!;
-    expect(day.mailInReserved).toBe(15); // 15% of 100
-    expect(day.availableSpots).toBe(85);
-  });
-
-  it('auto-releases mail-in reserved spots after the release date', async () => {
-    const mockSummaryData = [
-      {
-        show_id: 'show-1',
-        judge_id: 'judge-1',
-        judge_name: 'Jane Doe',
-        show_date: '2026-05-01',
-        class_ids: ['c1'],
-        class_names: ['Novice A'],
-        confirmed_count: 50,
-        waitlist_count: 0,
-      },
-    ];
-
-    const mockShowData = {
-      default_judge_day_capacity: 125,
-      mail_in_strategy: 'fixed',
-      mail_in_value: 20,
-      mail_in_deadline: null,
-      mail_in_auto_release: true,
-      mail_in_release_date: '2020-01-01',
-    };
-
-    mockSelect.mockReturnValueOnce({
-      eq: vi.fn().mockResolvedValueOnce({ data: mockSummaryData, error: null }),
-    });
-    mockSelect.mockReturnValueOnce({
-      eq: vi.fn().mockReturnValueOnce({
-        single: vi.fn().mockResolvedValueOnce({ data: mockShowData, error: null }),
-      }),
-    });
-    mockJudgeAssignments();
-
-    const { result } = renderHook(() => useJudgeDayCapacity('show-1'), {
-      wrapper: createWrapper(),
-    });
-
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    const day = result.current.judgeDays[0]!;
-    expect(day.mailInReserved).toBe(0);
-    expect(day.availableSpots).toBe(75); // 125 - 50
-  });
-
-  it('surfaces error from supabase', async () => {
-    mockSelect.mockReturnValueOnce({
-      eq: vi.fn().mockResolvedValueOnce({ data: null, error: { message: 'DB error' } }),
-    });
-    // Second select call (shows query) needs a stub so Promise.all doesn't crash
-    mockSelect.mockReturnValueOnce({
-      eq: vi.fn().mockReturnValueOnce({
-        single: vi.fn().mockResolvedValueOnce({ data: null, error: null }),
-      }),
-    });
-    mockJudgeAssignments();
-
-    const { result } = renderHook(() => useJudgeDayCapacity('show-1'), {
-      wrapper: createWrapper(),
-    });
-
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.error).toBe('DB error');
-  });
-
-  it.each([
-    { direction: 'above', override: 150 },
-    { direction: 'below', override: 80 },
-  ])('uses the $direction judge-day override instead of the show default', async ({ override }) => {
-    const mockSummaryData = [
-      {
-        show_id: 'show-1',
-        judge_id: 'judge-1',
-        judge_name: 'Jane Doe',
-        show_date: '2026-05-01',
-        class_ids: ['c1'],
-        class_names: ['Novice A'],
-        confirmed_count: override,
-        waitlist_count: 0,
-      },
-    ];
-
-    mockSelect.mockReturnValueOnce({
-      eq: vi.fn().mockResolvedValueOnce({ data: mockSummaryData, error: null }),
-    });
-    mockSelect.mockReturnValueOnce({
-      eq: vi.fn().mockReturnValueOnce({
-        single: vi.fn().mockResolvedValueOnce({
-          data: {
-            default_judge_day_capacity: 125,
-            mail_in_strategy: 'none',
-            mail_in_value: null,
-          },
-          error: null,
-        }),
-      }),
-    });
-    mockJudgeAssignments([
-      {
-        class_id: 'c1',
-        person_id: 'judge-1',
-        day_capacity_override: override,
-        trials: { date: '2026-05-01' },
-      },
-    ]);
-
-    const { result } = renderHook(() => useJudgeDayCapacity('show-1'), {
-      wrapper: createWrapper(),
-    });
-
-    await waitFor(() => expect(result.current.isLoading).toBe(false));
-    expect(result.current.judgeDays[0]?.capacity).toBe(override);
-    expect(result.current.judgeDays[0]?.availableSpots).toBe(0);
+    await waitFor(() => expect(result.current.error).toBe('rpc down'));
+    expect(result.current.judgeDays).toEqual([]);
   });
 });

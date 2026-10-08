@@ -75,6 +75,6 @@ describe('staff receipt label', () => {
   it('names Entry Management, where both staff completions land', () => {
     expect(resolveRegistrationCompletionPath('s1', true)).toBe('/shows/s1/entries');
     expect(resolveRegistrationCompletionPath('s1', false, true)).toBe('/shows/s1/entries');
-    expect(STAFF_RECEIPT_DONE_LABEL).toBe('Return to Entry Management');
+    expect(STAFF_RECEIPT_DONE_LABEL).toBe('Return to Entry Forms');
   });
 });

@@ -20,12 +20,12 @@ describe('AlreadyEnteredNotice', () => {
   });
 
   it.each(['secretary_new', 'club_admin', 'site_admin'] as const)(
-    'points %s staff at Entry Management, never at messaging themselves',
+    'points %s staff at Entry Forms, never at messaging themselves',
     mode => {
       render(<AlreadyEnteredNotice showId="show-1" dogName="Willow" workflowMode={mode} />);
 
       expect(screen.queryByRole('link', { name: /message the show team/i })).toBeNull();
-      const link = screen.getByRole('link', { name: /entry management/i });
+      const link = screen.getByRole('link', { name: /entry forms/i });
       expect(link).toHaveAttribute('href', '/shows/show-1/entries');
     }
   );

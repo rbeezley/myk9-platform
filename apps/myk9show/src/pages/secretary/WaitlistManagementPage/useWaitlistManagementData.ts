@@ -3,9 +3,11 @@
  * Handles state, data loading, and actions
  */
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { useAuthContext } from '@/hooks/useAuthContext';
+import { judgeDayCapacityKey, useJudgeDayCapacity } from '@/hooks/queries/useJudgeDayCapacity';
+import { useIsOnline } from '@/hooks/useNetworkStatus';
 import { supabase } from '@/lib/supabase';
 import { logger } from '@/services/LoggingService';
 import {
@@ -14,128 +16,174 @@ import {
   promoteWaitlistEntry,
   removeFromWaitlist,
   sendWaitlistOfferMessage,
+  withdrawWaitlistOffer,
+  WaitlistOfferNotWithdrawnError,
 } from '@/services/database/waitlists';
-import { getSecretaryShows } from '@/services/database/shows';
 import { WaitlistEntryNotDeletedError } from '@/services/database/waitlists/deleteWaitlistEntryErrors';
-import type { Show, ActionDialogState, WaitlistEntry, ClassWithWaitlistCount } from './types';
+import { WAITLIST_READ_TABLES } from './replicaDependencies';
+import { useWaitlistOffers } from './useWaitlistOffers';
+import { withdrawOutcomeNotice } from './withdrawOutcomeNotice';
+import type { ActionDialogState, WaitlistClassGroup, WaitlistEntry } from './types';
 
-export function useWaitlistManagementData(showId?: string) {
-  const { user } = useAuthContext();
+/** The judge-day a secretary asked to see the wait list of (the card's own identity, in a show). */
+interface JudgeDayKey {
+  showId: string;
+  judgeId: string;
+  showDate: string;
+}
 
-  const [shows, setShows] = useState<Show[]>([]);
-  const [selectedShowId, setSelectedShowId] = useState<string>(showId ?? '');
-  const [classes, setClasses] = useState<ClassWithWaitlistCount[]>([]);
-  const [selectedClassId, setSelectedClassId] = useState<string>('');
-  const [waitlistEntries, setWaitlistEntries] = useState<WaitlistEntry[]>([]);
+/**
+ * Replica reads: they run offline too (the app's default 'online' would park them), and they are
+ * re-read on every mount, because the replica subscription only listens while the tab is mounted,
+ * so a cached result may predate changes made while it was away.
+ */
+const REPLICA_READ_OPTIONS = {
+  networkMode: 'always',
+  staleTime: 0,
+  refetchOnMount: 'always',
+} as const;
 
-  // UI state
-  const [isLoadingShows, setIsLoadingShows] = useState(true);
-  const [isLoadingClasses, setIsLoadingClasses] = useState(false);
-  const [isLoadingWaitlist, setIsLoadingWaitlist] = useState(false);
+/** Every query of this tab lives under this key, so one invalidation refreshes all of it. */
+const waitlistKey = (showId: string) => ['waitlist', showId] as const;
+
+/**
+ * State for the Waitlist tab of Entry Management. The tab is already scoped to one show, so
+ * there is no show or class to choose: it lists every waiting dog in the show, grouped by class,
+ * and "View Wait List" on a judge-day card narrows that to the judge-day's classes (MYK9-1004).
+ *
+ * Every read is a query keyed by its full scope (show, class set), so data can only render under
+ * the scope that produced it: switching show or judge-day shows nothing, not the old rows, until
+ * the new read succeeds. One refresh path (`reload`) serves the replica subscription, mutation
+ * success and "Try again".
+ */
+export function useWaitlistManagementData(showId: string) {
+  const queryClient = useQueryClient();
+  // Offer and Remove are server calls (an RPC, a DELETE): offline they are disabled up front
+  // (MYK9-1005) instead of failing with "Please try again" after the click.
+  const isOffline = !useIsOnline();
+  const {
+    judgeDays,
+    isPaused: isCapacityUnavailable,
+    error: capacityError,
+  } = useJudgeDayCapacity(showId || undefined);
+
+  const [judgeDayKey, setJudgeDayKey] = useState<JudgeDayKey | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  // Stamped with its show so a failed offer never outlives the show it happened in.
+  const [actionFailure, setActionFailure] = useState<{ showId: string; message: string } | null>(
+    null
+  );
+  const actionError = actionFailure?.showId === showId ? actionFailure.message : null;
+  const setActionError = useCallback(
+    (message: string | null) => setActionFailure(message ? { showId, message } : null),
+    [showId]
+  );
   const [searchTerm, setSearchTerm] = useState('');
-
-  // Dialog state
   const [actionDialog, setActionDialog] = useState<ActionDialogState>({
     open: false,
     action: null,
     entry: null,
   });
 
-  useEffect(() => {
-    if (showId !== undefined) {
-      setSelectedShowId(showId);
-    }
-  }, [showId]);
+  const selectedJudgeDay = useMemo(
+    () =>
+      judgeDayKey && judgeDayKey.showId === showId
+        ? (judgeDays.find(
+            d => d.judgeId === judgeDayKey.judgeId && d.showDate === judgeDayKey.showDate
+          ) ?? null)
+        : null,
+    [judgeDays, judgeDayKey, showId]
+  );
 
-  // Data loading callbacks
-  const loadShows = useCallback(async () => {
-    setIsLoadingShows(true);
-    setError(null);
-
-    try {
-      const { data, error } = await getSecretaryShows(user?.id || '');
-      if (error) {
-        setError('Failed to load shows');
-        logger.error('Error loading shows for waitlist:', 'secretary', {}, error as Error);
-      } else {
-        setShows(data || []);
-      }
-    } catch (err) {
-      setError('Failed to load shows');
-      logger.error('Error loading shows:', 'secretary', {}, err as Error);
-    } finally {
-      setIsLoadingShows(false);
-    }
-  }, [user?.id]);
-
-  const loadClasses = useCallback(async (showId: string) => {
-    setIsLoadingClasses(true);
-    setError(null);
-    setSelectedClassId('');
-    setWaitlistEntries([]);
-
-    try {
+  const classesQuery = useQuery({
+    queryKey: [...waitlistKey(showId), 'classes'],
+    queryFn: async () => {
       const { data, error } = await getClassesWithWaitlistCounts(showId);
       if (error) {
-        setError('Failed to load classes');
         logger.error('Error loading classes for waitlist:', 'secretary', {}, error as Error);
-      } else {
-        setClasses(data || []);
+        throw error;
       }
-    } catch (err) {
-      setError('Failed to load classes');
-      logger.error('Error loading classes:', 'secretary', {}, err as Error);
-    } finally {
-      setIsLoadingClasses(false);
-    }
-  }, []);
+      return data;
+    },
+    enabled: !!showId,
+    ...REPLICA_READ_OPTIONS,
+  });
+  const classes = useMemo(() => classesQuery.data ?? [], [classesQuery.data]);
 
-  const loadWaitlist = useCallback(async (classId: string) => {
-    setIsLoadingWaitlist(true);
-    setError(null);
+  // Which classes' queues to read: the judge-day's classes, else every class in the show that has
+  // anyone waiting or an open offer (MYK9-1001).
+  const targetClassIds = useMemo(
+    () =>
+      (selectedJudgeDay
+        ? selectedJudgeDay.classIds
+        : classes.filter(c => c.waitlist_count > 0 || (c.offered_count ?? 0) > 0).map(c => c.id)
+      )
+        .slice()
+        .sort(),
+    [selectedJudgeDay, classes]
+  );
 
-    try {
-      const { data, error } = await getWaitlistByClass(classId);
-      if (error) {
-        setError('Failed to load waitlist');
-        logger.error('Error loading waitlist:', 'secretary', {}, error as Error);
-      } else {
-        setWaitlistEntries(data || []);
+  const queueQuery = useQuery({
+    queryKey: [...waitlistKey(showId), 'queue', targetClassIds],
+    queryFn: async () => {
+      const results = await Promise.all(targetClassIds.map(id => getWaitlistByClass(id)));
+      const failed = results.find(r => r.error);
+      if (failed) {
+        logger.error('Error loading waitlist:', 'secretary', {}, failed.error as Error);
+        throw failed.error;
       }
-    } catch (err) {
-      setError('Failed to load waitlist');
-      logger.error('Error loading waitlist:', 'secretary', {}, err as Error);
-    } finally {
-      setIsLoadingWaitlist(false);
-    }
-  }, []);
+      return results.flatMap(r => r.data ?? []);
+    },
+    enabled: !!showId && targetClassIds.length > 0,
+    ...REPLICA_READ_OPTIONS,
+  });
+  const waitlistEntries = useMemo(() => queueQuery.data ?? [], [queueQuery.data]);
+  // The Offered group (MYK9-1001): same scope, same refresh path.
+  const offersRead = useWaitlistOffers(
+    waitlistKey(showId),
+    targetClassIds,
+    searchTerm,
+    !!showId,
+    REPLICA_READ_OPTIONS
+  );
 
-  // Load shows on mount
-  useEffect(() => {
-    loadShows();
-  }, [loadShows]);
+  const isLoading =
+    !!showId &&
+    (classesQuery.isPending ||
+      (targetClassIds.length > 0 && queueQuery.isPending) ||
+      offersRead.isPending);
+  const loadError = classesQuery.error
+    ? 'Failed to load classes'
+    : queueQuery.error || offersRead.error
+      ? 'Failed to load waitlist'
+      : null;
+  const error = actionError ?? loadError;
 
-  // Load classes when show changes
-  useEffect(() => {
-    if (selectedShowId) {
-      loadClasses(selectedShowId);
-    } else {
-      setClasses([]);
-      setSelectedClassId('');
-      setWaitlistEntries([]);
-    }
-  }, [selectedShowId, loadClasses]);
+  // The one refresh path: the replica reporting a change (a new arrival, an automatic offer, a
+  // withdrawal), a finished offer or removal, and "Try again". It re-reads this tab's queries and
+  // the judge-day cards, which are their own query. Reads hit the replica only, so a refresh
+  // cannot notify itself into a loop.
+  const reload = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: waitlistKey(showId) }),
+      queryClient.invalidateQueries({ queryKey: judgeDayCapacityKey(showId) }),
+    ]);
+  }, [queryClient, showId]);
 
-  // Load waitlist when class changes
+  // "Try again": drop a failed offer/removal message too, then re-read.
+  const retry = useCallback(() => {
+    setActionError(null);
+    void reload();
+  }, [setActionError, reload]);
+
   useEffect(() => {
-    if (selectedClassId) {
-      loadWaitlist(selectedClassId);
-    } else {
-      setWaitlistEntries([]);
-    }
-  }, [selectedClassId, loadWaitlist]);
+    if (!showId) return;
+    const onChange = () => void reload();
+    const unsubscribes = WAITLIST_READ_TABLES.map(({ table }) =>
+      table.subscribe(onChange, { emitCurrent: false })
+    );
+    return () => unsubscribes.forEach(unsubscribe => unsubscribe());
+  }, [showId, reload]);
 
   // Actions
   // Send the offered exhibitor the in-app offer message. The database writes
@@ -199,7 +247,7 @@ export function useWaitlistManagementData(showId?: string) {
     if (!actionDialog.entry) return;
 
     setIsProcessing(true);
-    setError(null);
+    setActionError(null);
 
     try {
       const promotedEntryId = await promoteWaitlistEntry(actionDialog.entry.id);
@@ -207,7 +255,7 @@ export function useWaitlistManagementData(showId?: string) {
       let paymentLinkUrl: string | null = null;
       if (actionDialog.entry.joined_via !== 'mail_in') {
         try {
-          paymentLinkUrl = await createWaitlistPaymentLink(promotedEntryId, selectedShowId);
+          paymentLinkUrl = await createWaitlistPaymentLink(promotedEntryId, showId);
         } catch (err) {
           logger.error(
             'Waitlist offer: failed to create payment link',
@@ -224,18 +272,12 @@ export function useWaitlistManagementData(showId?: string) {
       // The exhibitor's inbox message (its insert sends the chat push).
       await notifyOfferedExhibitor(actionDialog.entry, paymentLinkUrl);
 
-      // Refresh the waitlist and class counts
-      if (selectedClassId) {
-        await loadWaitlist(selectedClassId);
-      }
-      if (selectedShowId) {
-        await loadClasses(selectedShowId);
-      }
+      await reload();
     } catch (err) {
       // 22023 is the database refusing on purpose (a trial that has already
       // taken place); its message says why, so show it instead of "try again".
       const refusal = err as { code?: string; message?: string };
-      setError(
+      setActionError(
         refusal.code === '22023' && refusal.message
           ? refusal.message
           : 'Failed to offer spot. Please try again.'
@@ -247,10 +289,9 @@ export function useWaitlistManagementData(showId?: string) {
     }
   }, [
     actionDialog.entry,
-    selectedClassId,
-    selectedShowId,
-    loadWaitlist,
-    loadClasses,
+    showId,
+    reload,
+    setActionError,
     notifyOfferedExhibitor,
     createWaitlistPaymentLink,
   ]);
@@ -259,86 +300,110 @@ export function useWaitlistManagementData(showId?: string) {
     if (!actionDialog.entry) return;
 
     setIsProcessing(true);
-    setError(null);
+    setActionError(null);
 
     try {
       const { error } = await removeFromWaitlist(actionDialog.entry.id);
 
       if (error instanceof WaitlistEntryNotDeletedError) {
-        // Nothing was deleted (MYK9-1000): reload what is really there, then
-        // say why, after the reload so it does not clear the message.
-        if (selectedClassId) await loadWaitlist(selectedClassId);
-        if (selectedShowId) await loadClasses(selectedShowId);
-        setError(error.message);
+        // Nothing was deleted (MYK9-1000): reload what is really there, then say why, after the
+        // reload. The message is show-scoped state that reload does not clear.
+        await reload();
+        setActionError(error.message);
       } else if (error) {
-        setError('Failed to remove from waitlist. Please try again.');
+        setActionError('Failed to remove from waitlist. Please try again.');
         logger.error('Error removing from waitlist:', 'secretary', {}, error as Error);
       } else {
-        // Refresh the waitlist and class counts
-        if (selectedClassId) {
-          await loadWaitlist(selectedClassId);
-        }
-        if (selectedShowId) {
-          await loadClasses(selectedShowId);
-        }
+        await reload();
       }
     } catch (err) {
-      setError('An unexpected error occurred');
+      setActionError('An unexpected error occurred');
       logger.error('Error removing from waitlist:', 'secretary', {}, err as Error);
     } finally {
       setIsProcessing(false);
       setActionDialog({ open: false, action: null, entry: null });
     }
-  }, [actionDialog.entry, selectedClassId, selectedShowId, loadWaitlist, loadClasses]);
+  }, [actionDialog.entry, reload, setActionError]);
 
-  const handleRefresh = useCallback(() => {
-    if (selectedClassId) {
-      loadWaitlist(selectedClassId);
-    }
-    if (selectedShowId) {
-      loadClasses(selectedShowId);
-    }
-  }, [selectedClassId, selectedShowId, loadWaitlist, loadClasses]);
+  // Withdraw an open offer (MYK9-1001): the server closes the Stripe page, ends the pending-payment
+  // entry and marks the row withdrawn; a refusal (already paid, payment being confirmed) is shown
+  // in the server's own words.
+  const handleWithdrawOffer = useCallback(async () => {
+    if (!actionDialog.entry) return;
 
-  // Derived state
-  const filteredEntries = useMemo(() => {
-    if (!searchTerm) return waitlistEntries;
+    setIsProcessing(true);
+    setActionError(null);
+
+    try {
+      const outcome = await withdrawWaitlistOffer(actionDialog.entry.id);
+      await reload();
+      // The server's result, never a boolean: a closed offer is not a failed notice.
+      const { tone, message } = withdrawOutcomeNotice(outcome);
+      toast[tone](message);
+    } catch (err) {
+      await reload();
+      setActionError(
+        err instanceof WaitlistOfferNotWithdrawnError
+          ? err.message
+          : 'Failed to withdraw the offer. Please try again.'
+      );
+      logger.error('Error withdrawing waitlist offer:', 'secretary', {}, err as Error);
+    } finally {
+      setIsProcessing(false);
+      setActionDialog({ open: false, action: null, entry: null });
+    }
+  }, [actionDialog.entry, reload, setActionError]);
+
+  // Derived state: one group per class, each in join order, narrowed by the dog search. Classes
+  // with nobody (left) waiting are omitted rather than rendered as empty cards.
+  const groups = useMemo<WaitlistClassGroup[]>(() => {
     const search = searchTerm.toLowerCase();
-    return waitlistEntries.filter(
-      entry =>
-        (entry.dog?.call_name ?? entry.dog?.name)?.toLowerCase().includes(search) ||
-        entry.dog?.call_name?.toLowerCase().includes(search)
-    );
-  }, [waitlistEntries, searchTerm]);
+    const matches = (entry: WaitlistEntry) =>
+      !search ||
+      (entry.dog?.call_name ?? entry.dog?.name)?.toLowerCase().includes(search) ||
+      entry.dog?.call_name?.toLowerCase().includes(search);
+    const byClass = new Map<string, WaitlistEntry[]>();
+    for (const entry of waitlistEntries) {
+      if (!matches(entry)) continue;
+      byClass.set(entry.class_id, [...(byClass.get(entry.class_id) ?? []), entry]);
+    }
+    return classes
+      .filter(cls => byClass.has(cls.id))
+      .map(cls => ({
+        cls,
+        entries: [...byClass.get(cls.id)!].sort((a, b) => a.position - b.position),
+      }));
+  }, [classes, waitlistEntries, searchTerm]);
 
-  const selectedClass = useMemo(
-    () => classes.find(c => c.id === selectedClassId),
-    [classes, selectedClassId]
+  const viewJudgeDay = useCallback(
+    (judgeId: string, showDate: string) => setJudgeDayKey({ showId, judgeId, showDate }),
+    [showId]
   );
+  const showAllClasses = useCallback(() => setJudgeDayKey(null), []);
 
   return {
     // State
-    shows,
-    selectedShowId,
-    classes,
-    selectedClassId,
+    judgeDays,
+    isCapacityUnavailable,
+    capacityError,
+    isOffline,
+    selectedJudgeDay,
     waitlistEntries,
-    filteredEntries,
-    selectedClass,
-    isLoadingShows,
-    isLoadingClasses,
-    isLoadingWaitlist,
+    groups,
+    offers: offersRead.offers,
+    isLoading,
     isProcessing,
     error,
     searchTerm,
     actionDialog,
     // Actions
-    setSelectedShowId,
-    setSelectedClassId,
+    retry,
+    viewJudgeDay,
+    showAllClasses,
     setSearchTerm,
     setActionDialog,
     handleOfferSpot,
     handleRemoveFromWaitlist,
-    handleRefresh,
+    handleWithdrawOffer,
   };
 }

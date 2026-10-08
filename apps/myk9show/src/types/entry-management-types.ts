@@ -18,6 +18,10 @@ export interface EntryClass {
   fee: number;
   jumpHeight?: string;
   trialType?: string;
+  /** Which trial this class belongs to, for the registration queue's "Sat, Nov 9 · Trial 1" line. */
+  trialId?: string | null;
+  trialDate?: string | null;
+  trialNumber?: string | null;
   handlerId?: string | null;
   /** MYK9-632: 'withdrawn' and 'scratched' (a pull) are DIFFERENT acts. */
   status: 'entered' | 'withdrawn' | 'scratched' | 'moved' | 'absent';

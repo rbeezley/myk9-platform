@@ -45,6 +45,11 @@
 --       Entries line.
 --   W2  With no offer_expires_at it reads "before the offer ends".
 --   W3  No offer message says "haven't been charged".
+--   W4  MYK9-1002 (migrations 20261005152300, 20261005235100): the deadline carries its weekday
+--       and zone abbreviation, and an offer with an offered_at states its
+--       window in hours ("You have 48 hours to pay (until Wed,
+--       Jul 15, 2:00 PM EDT)."); with no offered_at it reads "Claim it by
+--       paying before <deadline>." (asserted in the N2, M1 and W1 answers).
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
 
@@ -82,6 +87,31 @@ RETURNS uuid LANGUAGE sql IMMUTABLE AS $f$
   SELECT ('00000000-0000-0000-0000-000001003' || p_suffix)::uuid
 $f$;
 
+-- The offer message's deadline line for a row whose times are set at offer
+-- time (now()), so the expected text cannot be a literal (MYK9-1002,
+-- migrations 20261005152300, 20261005235100): "You have <N> hours to pay (until
+-- Wed, Oct 7, 12:30 PM EDT)." The zone abbreviation comes from to_char's TZ
+-- under that zone, set for this call only, as the message function does.
+CREATE FUNCTION pg_temp.offer_window_line(p_waitlist_entry_id uuid, p_zone text)
+RETURNS text LANGUAGE plpgsql AS $f$
+DECLARE
+  v_offered timestamptz;
+  v_expires timestamptz;
+  v_session text := current_setting('TimeZone');
+  v_until text;
+  v_hours integer;
+BEGIN
+  SELECT w.offered_at, w.offer_expires_at INTO v_offered, v_expires
+  FROM public.waitlist_entries w WHERE w.id = p_waitlist_entry_id;
+  PERFORM set_config('TimeZone', p_zone, true);
+  v_until := to_char(v_expires, 'Dy, Mon FMDD, FMHH12:MI AM TZ');
+  PERFORM set_config('TimeZone', v_session, true);
+  v_hours := round(extract(epoch FROM (v_expires - v_offered)) / 3600)::integer;
+  RETURN 'You have ' || v_hours || CASE WHEN v_hours = 1 THEN ' hour' ELSE ' hours' END
+    || ' to pay (until ' || v_until || ').';
+END;
+$f$;
+
 -- Open offers in a class.
 CREATE FUNCTION pg_temp.open_offers(p_class text)
 RETURNS text LANGUAGE sql AS $f$
@@ -104,6 +134,7 @@ BEGIN
     class_id := v_candidate.class_id;
     waitlist_entry_id := v_candidate.waitlist_entry_id;
     IF v_candidate.joined_via = 'mail_in' THEN
+      PERFORM public.notify_mail_in_waitlist_head(v_candidate.waitlist_entry_id);
       outcome := 'mail_in';
       RETURN NEXT;
       CONTINUE;
@@ -145,6 +176,7 @@ BEGIN
     'public.list_waitlist_offer_candidates()',
     'public.promote_waitlist_entry_from_cron(uuid)',
     'public.notify_waitlist_auto_offer(uuid)',
+    'public.notify_mail_in_waitlist_head(uuid)',
     'public.send_waitlist_offer_message_internal(uuid, uuid, text)',
     'public.send_waitlist_offer_message(uuid, text)',
     'public.waitlist_class_trial_has_passed(uuid)',
@@ -160,6 +192,7 @@ BEGIN
     'public.list_waitlist_offer_candidates()',
     'public.promote_waitlist_entry_from_cron(uuid)',
     'public.notify_waitlist_auto_offer(uuid)',
+    'public.notify_mail_in_waitlist_head(uuid)',
     'public.send_waitlist_offer_message_internal(uuid, uuid, text)',
     'public.waitlist_class_trial_has_passed(uuid)'
   ] LOOP
@@ -174,6 +207,11 @@ BEGIN
     has_function_privilege('anon', 'public.send_waitlist_offer_message(uuid, text)', 'EXECUTE') || ' '
       || has_function_privilege('authenticated', 'public.send_waitlist_offer_message(uuid, text)', 'EXECUTE'),
     'false true', 'A1 send_waitlist_offer_message: authenticated, not anon');
+  PERFORM pg_temp.expect_eq(
+    has_table_privilege('anon', 'private.waitlist_mail_in_head_notices', 'SELECT') || ' '
+      || has_table_privilege('authenticated', 'private.waitlist_mail_in_head_notices', 'SELECT') || ' '
+      || has_table_privilege('service_role', 'private.waitlist_mail_in_head_notices', 'SELECT'),
+    'false false false', 'A1 mail-in notice markers are private to the definer');
 END;
 $$;
 
@@ -480,6 +518,51 @@ BEGIN
 END;
 $$;
 
+-- MYK9-1021: the cron's mail-in candidate leaves one actionable secretary
+-- notice, not an online offer for the next dog and not a notice every tick.
+SET LOCAL ROLE service_role;
+DO $$
+BEGIN
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*)::text FROM public.notifications
+      WHERE type = 'waitlist_mail_in_head' AND user_id = pg_temp.fid('021')),
+    '1', 'MYK9-1021 one secretary notice for the mail-in head');
+  PERFORM pg_temp.expect_eq(
+    (SELECT message || '|' || deep_link_url FROM public.notifications
+      WHERE type = 'waitlist_mail_in_head' AND user_id = pg_temp.fid('021')),
+    'A spot opened in Class MailIn. Dog419 is next and joined by mail; offer it from the Waitlist tab.|/shows/'
+      || pg_temp.fid('101') || '/entries?tab=waitlist',
+    'MYK9-1021 notice names the dog, class and Waitlist action');
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*)::text FROM public.notifications
+      WHERE type = 'waitlist_mail_in_head' AND user_id = pg_temp.fid('022')),
+    '0', 'MYK9-1021 club admin is not notified while a secretary exists');
+  PERFORM pg_temp.expect_eq(
+    public.notify_mail_in_waitlist_head(pg_temp.fid('541')),
+    'already_sent_or_no_recipient', 'MYK9-1021 later cron ticks dedupe the same head');
+  UPDATE public.classes SET max_entries = 1 WHERE id = pg_temp.fid('305');
+  PERFORM pg_temp.expect_eq(
+    public.notify_mail_in_waitlist_head(pg_temp.fid('541')),
+    'no_spot', 'MYK9-1021 no notice when the class is full');
+  UPDATE public.classes SET max_entries = 2 WHERE id = pg_temp.fid('305');
+  UPDATE public.shows SET waitlist_auto_offer = false WHERE id = pg_temp.fid('101');
+  PERFORM pg_temp.expect_eq(
+    public.notify_mail_in_waitlist_head(pg_temp.fid('541')),
+    'not_eligible', 'MYK9-1021 no automatic manual-action notice when switch is off');
+  UPDATE public.shows SET waitlist_auto_offer = true WHERE id = pg_temp.fid('101');
+
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*)::text FROM public.notifications
+      WHERE type = 'waitlist_mail_in_head'),
+    '1', 'MYK9-1021 guards and repeat calls add no notices');
+END;
+$$;
+RESET ROLE;
+SELECT pg_temp.expect_eq(
+  (SELECT count(*)::text FROM private.waitlist_mail_in_head_notices
+    WHERE waitlist_entry_id = pg_temp.fid('541')),
+  '1', 'MYK9-1021 one durable recipient marker');
+
 -- R2: the secretary tries to offer class 304's next dog after the cron took
 -- its only seat.
 SET LOCAL ROLE authenticated;
@@ -532,11 +615,9 @@ BEGIN
       WHERE t.show_id = pg_temp.fid('101')
         AND t.participant_id = pg_temp.fid('023')
         AND m.body LIKE '%Class On%'),
-    '00000000-0000-0000-0000-000001003021 | A spot opened for Dog411 in Class On. Claim it by paying before '
-      || (SELECT to_char(w.offer_expires_at AT TIME ZONE 'America/New_York',
-                         'Mon FMDD, YYYY, FMHH12:MI AM')
-            FROM public.waitlist_entries w WHERE w.id = pg_temp.fid('501'))
-      || '. You pay for this spot only if you claim it. Open My Entries to accept the offer before it expires.',
+    '00000000-0000-0000-0000-000001003021 | A spot opened for Dog411 in Class On. '
+      || pg_temp.offer_window_line(pg_temp.fid('501'), 'America/New_York')
+      || ' You pay for this spot only if you claim it. Open My Entries to accept the offer before it expires.',
     'N2 the automatic offer sent the exhibitor the in-app message from the secretary');
   PERFORM pg_temp.expect_eq(
     (SELECT count(*)::text FROM public.show_message_threads t
@@ -579,7 +660,9 @@ $$;
 -- ---------------------------------------------------------------------------
 -- W1 known answer: class 303's trial (201) has no timezone, so its zone is
 -- the America/New_York fallback; 18:00 UTC on Jul 15 2026 is 2:00 PM EDT.
-UPDATE public.waitlist_entries SET offer_expires_at = '2026-07-15 18:00:00+00'
+-- W4: offered 48 hours before that.
+UPDATE public.waitlist_entries SET offer_expires_at = '2026-07-15 18:00:00+00',
+  offered_at = '2026-07-13 18:00:00+00'
 WHERE id = pg_temp.fid('521');
 
 SET LOCAL ROLE authenticated;
@@ -618,7 +701,7 @@ BEGIN
       WHERE t.show_id = pg_temp.fid('101')
         AND t.participant_id = pg_temp.fid('023')
         AND m.body LIKE '%Class Race2%'),
-    '00000000-0000-0000-0000-000001003021 | A spot opened for Dog414 in Class Race2. Claim it by paying before Jul 15, 2026, 2:00 PM. You pay for this spot only if you claim it. Complete payment to claim it: https://checkout.example.test/pay/1003',
+    '00000000-0000-0000-0000-000001003021 | A spot opened for Dog414 in Class Race2. You have 48 hours to pay (until Wed, Jul 15, 2:00 PM EDT). You pay for this spot only if you claim it. Complete payment to claim it: https://checkout.example.test/pay/1003',
     'M1/W1 the manual message carries the deadline (New York) and the payment link, from the secretary');
 END;
 $$;
@@ -634,6 +717,11 @@ $$;
 UPDATE public.trials SET timezone = 'America/Denver' WHERE id = pg_temp.fid('205');
 UPDATE public.waitlist_entries SET offer_expires_at = '2026-07-15 18:00:00+00'
 WHERE id IN (pg_temp.fid('581'), pg_temp.fid('591'));
+-- W4: 581 has no offered_at (the "before <deadline>" form); 591 was offered
+-- 12 hours before its deadline.
+UPDATE public.waitlist_entries SET offered_at = NULL WHERE id = pg_temp.fid('581');
+UPDATE public.waitlist_entries SET offered_at = '2026-07-15 06:00:00+00'
+WHERE id = pg_temp.fid('591');
 
 SET LOCAL ROLE service_role;
 DO $$
@@ -676,7 +764,7 @@ BEGIN
       WHERE t.show_id = pg_temp.fid('103')
         AND t.participant_id = pg_temp.fid('023')
         AND m.body LIKE '%/pay/1013c'),
-    'A spot opened for Dog425 in Class Today. Claim it by paying before Jul 15, 2026, 1:00 PM. You pay for this spot only if you claim it. Complete payment to claim it: https://checkout.example.test/pay/1013c',
+    'A spot opened for Dog425 in Class Today. Claim it by paying before Wed, Jul 15, 1:00 PM CDT. You pay for this spot only if you claim it. Complete payment to claim it: https://checkout.example.test/pay/1013c',
     'W1 the deadline is rendered in the class''s trial zone (Chicago), with the payment link');
   PERFORM pg_temp.expect_eq(
     (SELECT m.body FROM public.show_messages m
@@ -684,7 +772,7 @@ BEGIN
       WHERE t.show_id = pg_temp.fid('103')
         AND t.participant_id = pg_temp.fid('023')
         AND m.body LIKE '%/pay/1013d'),
-    'A spot opened for Dog426 in Class Future. Claim it by paying before Jul 15, 2026, 12:00 PM. You pay for this spot only if you claim it. Complete payment to claim it: https://checkout.example.test/pay/1013d',
+    'A spot opened for Dog426 in Class Future. You have 12 hours to pay (until Wed, Jul 15, 12:00 PM MDT). You pay for this spot only if you claim it. Complete payment to claim it: https://checkout.example.test/pay/1013d',
     'W1 a two-zone show: the class''s own trial zone (Denver) wins over the show''s first trial (Chicago)');
   PERFORM pg_temp.expect_eq(
     (SELECT m.body FROM public.show_messages m

@@ -65,10 +65,11 @@ export const AboutDialog: React.FC<AboutDialogProps> = ({ open, onOpenChange }) 
         <DialogHeader className="items-center text-center">
           <div className="mx-auto mb-2 h-20 w-20 p-1">
             <img
-              src="/brand-mark.svg"
+              src="/brand-mark-primary-72.png"
+              srcSet="/brand-mark-primary-72.png 1x, /brand-mark-primary-144.png 2x, /brand-mark-primary-216.png 3x"
               alt="myK9Show logo"
-              width="64"
-              height="64"
+              width="72"
+              height="72"
               className="h-full w-full object-contain dark:brightness-150 dark:saturate-50"
             />
           </div>

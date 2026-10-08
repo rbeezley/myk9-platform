@@ -288,3 +288,24 @@ describe('buildReplicatedRowForSet — lastOwnUpload (MYK9-770)', () => {
     expect(next.lastOwnUpload).toBeUndefined();
   });
 });
+
+describe('buildSyncedReplicatedRow - data-level _syncStatus (MYK9-1050)', () => {
+  it('clears a stale pending flag in the data when the row is marked synced', () => {
+    const dirty = row({
+      isDirty: true,
+      syncStatus: 'pending',
+      data: { id: 'entry-1', status: 'ready', _syncStatus: 'pending' } as TestRow,
+    });
+
+    const synced = buildSyncedReplicatedRow(dirty, now);
+
+    expect(synced.isDirty).toBe(false);
+    expect((synced.data as TestRow & { _syncStatus?: string })._syncStatus).toBe('synced');
+  });
+
+  it('leaves data without a pending flag untouched (same reference)', () => {
+    const dirty = row({ isDirty: true, syncStatus: 'pending' });
+
+    expect(buildSyncedReplicatedRow(dirty, now).data).toBe(dirty.data);
+  });
+});

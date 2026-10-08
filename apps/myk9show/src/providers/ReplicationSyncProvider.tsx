@@ -22,7 +22,6 @@ import {
   type ReplicationSyncContextValue,
 } from '@/context/ReplicationSyncContext';
 import {
-  SYNC_INTERVAL_MS,
   ReplicatedTable,
   configureConflictSurfacing,
   type ReplicationConflictEventDetail,
@@ -60,6 +59,7 @@ import {
   splitPermanentScoreAuthorizationFailures,
   DOWNLOAD_SYNC_FAILURE_TOAST_ID,
 } from './replicationSyncFormatters';
+import { useSyncPassScheduler } from './useSyncPassScheduler';
 import {
   classifyTableSyncResults,
   createTablesStatus,
@@ -528,36 +528,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     };
   }, []);
 
-  // Background poll — keeps data fresh and recovers from any failed startup sync.
-  // SYNC_INTERVAL_MS was defined in the replication package but never wired up.
-  useEffect(() => {
-    if (!autoSync) return undefined;
-    const interval = setInterval(() => {
-      triggerSyncRef.current?.();
-    }, SYNC_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, [autoSync]);
-
-  // Sync when tab regains visibility — catches stale data after the user returns.
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        triggerSyncRef.current?.();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []);
-
-  // Listen for sync-requested events (e.g., from wizard after publish)
-  useEffect(() => {
-    const handleSyncRequest = () => {
-      logger.info('Sync requested via event', 'replication');
-      triggerSyncRef.current?.();
-    };
-    window.addEventListener('replication:sync-requested', handleSyncRequest);
-    return () => window.removeEventListener('replication:sync-requested', handleSyncRequest);
-  }, []);
+  // Poll, tab-visible and sync-requested wiring; see useSyncPassScheduler.
+  useSyncPassScheduler(autoSync, triggerSyncRef);
 
   // Listen for mutation-queue overflow — the queue hit its hard cap and is now
   // rejecting new writes. This is a data-loss risk (a new score can't be

@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import React from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { useDogStoreCompat } from './useDogStoreCompat';
 import { mockSupabase } from '@/test/mocks/supabase';
 import type { DogInput } from '@/store/dogStore';
+import { queryKeys } from '@/lib/queryClient';
 import { fromAny } from '@total-typescript/shoehorn';
 
 // ---------------------------------------------------------------------------
@@ -12,13 +13,14 @@ import { fromAny } from '@total-typescript/shoehorn';
 // after vi.mock hoisting.
 // ---------------------------------------------------------------------------
 
-const { mockReplicatedDogsTable, mockMutateAsync } = vi.hoisted(() => ({
+const { mockReplicatedDogsTable, mockMutateAsync, mockUpdateMutateAsync } = vi.hoisted(() => ({
   mockReplicatedDogsTable: {
     set: vi.fn().mockResolvedValue(undefined),
     delete: vi.fn().mockResolvedValue(undefined),
     getDogById: vi.fn().mockResolvedValue(null),
   },
   mockMutateAsync: vi.fn(),
+  mockUpdateMutateAsync: vi.fn(),
 }));
 
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
@@ -49,7 +51,11 @@ vi.mock('@/hooks/queries/useDogsDatabase', () => ({
     refetch: vi.fn(),
   }),
   useCreateDogMutation: () => ({ mutateAsync: mockMutateAsync, isPending: false, error: null }),
-  useUpdateDogMutation: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
+  useUpdateDogMutation: () => ({
+    mutateAsync: mockUpdateMutateAsync,
+    isPending: false,
+    error: null,
+  }),
   useDeleteDogMutation: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
   useDogStatisticsQuery: () => ({ data: null, isLoading: false }),
 }));
@@ -271,5 +277,80 @@ describe('useDogStoreCompat.addDog — existing path (no registrations)', () => 
     });
 
     expect(mockReplicatedDogsTable.delete).toHaveBeenCalled();
+  });
+});
+
+describe('useDogStoreCompat.updateDog — roster refresh (MYK9-1061)', () => {
+  // A real roster query under the production key shape (prefix + personId + scope)
+  // whose queryFn reads the "IndexedDB" the local write lands in.
+  const setup = () => {
+    let storedBirthDate: string | undefined = '2020-01-01';
+    mockReplicatedDogsTable.getDogById.mockImplementation(async () => ({
+      id: 'dog-abc',
+      ownerId: 'owner-123',
+      dateOfBirth: storedBirthDate,
+    }));
+    mockReplicatedDogsTable.set.mockImplementation(
+      async (_id: string, dog: { dateOfBirth?: string }) => {
+        storedBirthDate = dog.dateOfBirth;
+      }
+    );
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false, staleTime: 5 * 60 * 1000 },
+        mutations: { retry: false },
+      },
+    });
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client }, children);
+    const { result } = renderHook(
+      () => ({
+        compat: useDogStoreCompat(),
+        roster: useQuery({
+          queryKey: [...queryKeys.dogs, 'owner-123', 'scope'],
+          queryFn: async () => storedBirthDate,
+        }),
+      }),
+      { wrapper }
+    );
+    return { result, client };
+  };
+
+  it('refetches the roster with the new date while the network write is pending', async () => {
+    mockUpdateMutateAsync.mockReturnValue(new Promise(() => {}));
+    const { result } = setup();
+    await vi.waitFor(() => expect(result.current.roster.data).toBe('2020-01-01'));
+
+    await act(async () => {
+      await result.current.compat.updateDog('dog-abc', { birthDate: '2021-02-03' });
+    });
+
+    await vi.waitFor(() => expect(result.current.roster.data).toBe('2021-02-03'));
+  });
+
+  it('keeps the new date after the network write rejects', async () => {
+    mockUpdateMutateAsync.mockRejectedValue(new Error('offline'));
+    const { result } = setup();
+    await vi.waitFor(() => expect(result.current.roster.data).toBe('2020-01-01'));
+
+    await act(async () => {
+      await result.current.compat.updateDog('dog-abc', { birthDate: '2021-02-03' });
+    });
+
+    await vi.waitFor(() => expect(result.current.roster.data).toBe('2021-02-03'));
+    expect(mockUpdateMutateAsync).toHaveBeenCalled();
+  });
+
+  it('invalidates the dogs prefix and the owner person-dogs key', async () => {
+    mockUpdateMutateAsync.mockReturnValue(new Promise(() => {}));
+    const { result, client } = setup();
+    const spy = vi.spyOn(client, 'invalidateQueries');
+
+    await act(async () => {
+      await result.current.compat.updateDog('dog-abc', { birthDate: '2021-02-03' });
+    });
+
+    expect(spy).toHaveBeenCalledWith({ queryKey: queryKeys.dogs });
+    expect(spy).toHaveBeenCalledWith({ queryKey: queryKeys.personDogs('owner-123') });
   });
 });

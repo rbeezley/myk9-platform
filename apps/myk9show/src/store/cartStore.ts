@@ -115,7 +115,7 @@ export const useCartStore = create<CartState>()(
             const { data: itemsData, error: itemsError } = await supabase
               .from('entry_cart_items')
               .select(
-                `*, dog:dogs(id, name, call_name, registrations:dog_registrations(id, created_at, breed)), class:classes(id, name, level, trial_id, allow_waitlist), handler:people(id, first_name, last_name)`
+                `*, dog:dogs(id, name, call_name, registrations:dog_registrations(id, created_at, breed)), class:classes(id, name, level, trial_id), handler:people(id, first_name, last_name)`
               )
               .eq('cart_id', cartData.id);
 
@@ -514,7 +514,7 @@ export const useCartStore = create<CartState>()(
               .from('entry_cart_items')
               .insert(itemInsert)
               .select(
-                `*, dog:dogs(id, name, call_name, registrations:dog_registrations(id, created_at, breed)), class:classes(id, name, level, trial_id, allow_waitlist), handler:people(id, first_name, last_name)`
+                `*, dog:dogs(id, name, call_name, registrations:dog_registrations(id, created_at, breed)), class:classes(id, name, level, trial_id), handler:people(id, first_name, last_name)`
               )
               .single();
 
@@ -891,51 +891,6 @@ export const useCartStore = create<CartState>()(
           const { cart } = get();
           if (!cart) return;
           await get().loadCart(cart.show_id, cart.exhibitor_id);
-        },
-
-        // Extend cart expiration by another 30 minutes
-        extendExpiration: async () => {
-          const guard = captureCartWriteGuard();
-          const write = guardedSet<CartState>(set, guard);
-          const { cart } = get();
-          if (!cart) {
-            write({ error: 'No active cart' });
-            return false;
-          }
-
-          try {
-            const newExpiresAt = new Date(
-              Date.now() + CART_EXPIRATION_MINUTES * 60 * 1000
-            ).toISOString();
-
-            const { error: updateError } = await supabase
-              .from('entry_carts')
-              .update({ expires_at: newExpiresAt })
-              .eq('id', cart.id);
-
-            if (updateError) {
-              logger.error(
-                'Error extending cart expiration',
-                'cartStore',
-                { cartId: cart.id },
-                updateError
-              );
-              throw updateError;
-            }
-
-            write({
-              cart: { ...cart, expires_at: newExpiresAt },
-              expirationWarning: false,
-              lastSyncedAt: new Date().toISOString(),
-            });
-
-            return true;
-          } catch (error) {
-            const message = error instanceof Error ? error.message : 'Failed to extend expiration';
-            write({ error: message });
-            logger.error('Failed to extend cart expiration', 'cartStore', {}, ensureError(error));
-            return false;
-          }
         },
 
         // Abandon cart (mark as abandoned)

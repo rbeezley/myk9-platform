@@ -41,7 +41,7 @@ export function buildClassDetailsRelatedLinks({
   if (classId) {
     items.push({
       key: 'entry-management',
-      label: 'Entry Management',
+      label: 'Entry Forms',
       href: getEntryManagementHref({ showId, trialId: trialId ?? null, classId }),
     });
   }

@@ -31,8 +31,11 @@ export interface ClassData {
   entryFee?: number | undefined; // Keep for backward compatibility
   /** The class's own entry limit (`classes.max_entries`); null/absent means no class limit. */
   maxEntries?: number | null | undefined;
-  /** `classes.allow_waitlist`: a full class queues exhibitors instead of turning them away. */
-  allowsWaitlist?: boolean | undefined;
+  /**
+   * `classes.allow_waitlist`, this class's own wait-list exception: null follows the show's
+   * "Allow wait lists" (MYK9-1019), true/false overrides it. Online reads take the server's effective `allow_waitlist`.
+   */
+  allowsWaitlist?: boolean | null | undefined;
   // Time management
   estimatedJudgingTime?: string | undefined;
   timeLimit1?: string | undefined;

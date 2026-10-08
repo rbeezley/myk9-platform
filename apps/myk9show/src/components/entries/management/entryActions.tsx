@@ -106,7 +106,7 @@ export const entryActions: ReadonlyArray<EntryActionDefinition> = [
       applicableWhen: entry => getEligibleForBulkAction([entry], 'approve').length === 1,
       label: (eligibleCount, selectedCount) =>
         eligibleCount > 0
-          ? `Accept ${eligibleCount} of ${selectedCount} selected`
+          ? `Accept ${eligibleCount} of ${selectedCount} ${selectedCount === 1 ? 'entry' : 'entries'}`
           : 'Accept selected',
       unavailableReason: 'No selected entries can be accepted',
       run: (eligible, handlers) =>
@@ -210,7 +210,7 @@ export const entryActions: ReadonlyArray<EntryActionDefinition> = [
       applicableWhen: entry => getEligibleForBulkAction([entry], 'reject').length === 1,
       label: (eligibleCount, selectedCount) =>
         eligibleCount > 0
-          ? `Reject ${eligibleCount} of ${selectedCount} selected`
+          ? `Reject ${eligibleCount} of ${selectedCount} ${selectedCount === 1 ? 'entry' : 'entries'}`
           : 'Reject selected',
       unavailableReason: 'No selected entries can be rejected',
       run: (eligible, handlers) =>

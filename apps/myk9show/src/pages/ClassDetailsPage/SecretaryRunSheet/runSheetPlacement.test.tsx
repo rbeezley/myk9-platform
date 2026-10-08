@@ -1,6 +1,7 @@
 import { render, screen } from '@/test/utils/testUtils';
 import { describe, expect, it, vi } from 'vitest';
 import type { SecretaryEntry } from '@/services/database/entries';
+import { rowToEntry } from '@/services/replication/ReplicatedEntriesTable.mapper';
 import { toSecretaryEntry } from '@/services/database/entries/secretaryReadReplication';
 import { secretaryEntryToRawRow } from '../useClassDetailsData';
 import { buildRunSheetEntries } from './buildRunSheetEntries';
@@ -52,7 +53,7 @@ describe('class page run sheet placement', () => {
     expect(screen.queryByText(/^\d+(st|nd|rd|th)$/)).not.toBeInTheDocument();
   });
 
-  it('keeps the placement the replica holds as a string', () => {
+  it('keeps the placement of a view_authenticated_entry_results row through the replica', () => {
     const empty = {
       dogsMap: new Map(),
       classesMap: new Map(),
@@ -64,15 +65,18 @@ describe('class page run sheet placement', () => {
       pullMetadataMap: new Map(),
     } as unknown as Parameters<typeof toSecretaryEntry>[1];
     const secretaryEntry = toSecretaryEntry(
-      {
+      rowToEntry({
         id: 'e1',
-        dogId: 'd1',
-        classId: 'c1',
-        entryStatus: 'confirmed',
-        isScored: true,
-        resultStatus: 'qualified',
-        finalPlacement: '1',
-      } as never,
+        dog_id: 'd1',
+        class_id: 'c1',
+        show_id: 's1',
+        entry_status: 'confirmed',
+        is_scored: true,
+        result_status: 'qualified',
+        search_time_seconds: 45.2,
+        final_placement: 1,
+        check_in_status: 'checked-in',
+      } as never),
       empty
     );
     const [entry] = buildRunSheetEntries([secretaryEntryToRawRow(secretaryEntry)]);

@@ -143,6 +143,13 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
       }));
   }, [judges, data.organization]);
 
+  // Assignments the list above cannot show (judge no longer qualified for this org).
+  // They still count toward "N judge(s) assigned", so they must stay visible and removable.
+  const unlistedAssignedJudges = useMemo(
+    () => data.assignedJudges.filter(aj => !availableJudges.some(j => j.id === aj.judgeId)),
+    [data.assignedJudges, availableJudges]
+  );
+
   // The create-then-assign operation and its modal dialog are owned here, above
   // the Tabs, so they do not depend on the Judges tab staying mounted.
   const judgeCreate = useShowEditJudgeCreate(form, data.organization);
@@ -259,7 +266,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
                 </Button>
               )}
               {data.organization ? (
-                availableJudges.length > 0 ? (
+                availableJudges.length > 0 || unlistedAssignedJudges.length > 0 ? (
                   <div className="space-y-4">
                     <p className="text-sm text-muted-foreground">
                       Select judges qualified for {data.organization} shows:
@@ -313,6 +320,36 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
                         </div>
                       );
                     })}
+
+                    {unlistedAssignedJudges.map(aj => (
+                      <div
+                        key={aj.judgeId}
+                        className="border border-warning rounded-xl p-4 bg-warning/10 transition-all duration-200"
+                      >
+                        <div className="flex items-start gap-3">
+                          <Checkbox
+                            id={`judge-${aj.judgeId}`}
+                            checked
+                            onCheckedChange={checked =>
+                              handleJudgeToggle(aj.judgeId, aj.judgeName, checked as boolean)
+                            }
+                          />
+                          <div className="flex-1">
+                            <label
+                              htmlFor={`judge-${aj.judgeId}`}
+                              className="font-medium cursor-pointer"
+                            >
+                              {aj.judgeName}
+                            </label>
+                            <div className="text-sm text-muted-foreground mt-1">
+                              Not qualified for {data.organization} shows. Add an active{' '}
+                              {data.organization} qualification to this judge, or uncheck to remove
+                              them from this show.
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
 
                     {data.assignedJudges.length > 0 && (
                       <div className="text-sm text-muted-foreground bg-info/10 p-4 rounded-xl">

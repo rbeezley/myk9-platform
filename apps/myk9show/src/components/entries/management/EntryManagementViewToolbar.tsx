@@ -110,7 +110,9 @@ export function EntryManagementViewToolbar({
           }
           filterBar={
             isRegistrationsView ? (
-              <div className="flex min-w-0 flex-1 items-center gap-2">
+              // From lg the search is a fixed-width field, so this group keeps its width and a long
+              // Show: summary truncates instead of sliding over the Filter button.
+              <div className="flex min-w-0 flex-1 items-center gap-2 lg:flex-none">
                 <ListSearchField
                   value={state.search}
                   onChange={cockpit.setSearch}

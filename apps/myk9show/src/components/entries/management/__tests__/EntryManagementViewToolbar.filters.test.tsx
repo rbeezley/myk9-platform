@@ -83,9 +83,10 @@ describe('EntryManagementViewToolbar filters', () => {
   it('is one Show: menu, a search and a Filter button, with no Trial or Class selects', () => {
     renderToolbar({ queues: ['needs-review', 'payment-due'] }, { shown: 15, total: 214 }, 15);
 
+    // The button reads "Needs review +1 (15)" so the count fits beside the search; its name lists all.
     expect(
       screen.getByRole('button', { name: 'Show: Needs review + Payment due (15)' })
-    ).toBeInTheDocument();
+    ).toHaveTextContent('Needs review +1 (15)');
     expect(screen.getByRole('button', { name: 'Filter' })).toBeInTheDocument();
     expect(
       screen.getByRole('textbox', { name: /Search exhibitor, dog, handler/ })

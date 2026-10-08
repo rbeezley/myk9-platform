@@ -72,7 +72,7 @@ export function ListSearchField({ value, onChange, placeholder, className }: Lis
   return (
     <div
       ref={wrapperRef}
-      className={cn('min-w-0 flex-1 lg:w-72 lg:flex-none xl:w-80', className)}
+      className={cn('min-w-0 flex-1 lg:w-56 lg:flex-none xl:w-64', className)}
       onFocus={() => {
         setFocused(true);
         setRequested(false);

@@ -198,6 +198,20 @@ describe('ListFilterMenu', () => {
     expect(screen.queryByText('No matches.')).not.toBeInTheDocument();
   });
 
+  it('leaves enabled rows clickable, though cmdk marks every row data-disabled="false"', async () => {
+    render(<Harness />);
+    await openMenu();
+
+    // A bare `data-[disabled]:` variant matches the attribute's presence, so it set
+    // `pointer-events: none` on every row and no mouse pick landed (found in the browser walk).
+    for (const option of screen.getAllByRole('option')) {
+      expect(option).toHaveAttribute('data-disabled', 'false');
+      expect(option.className.split(/\s+/).filter(token => token.startsWith('data-[disabled]:'))).toEqual(
+        []
+      );
+    }
+  });
+
   it('closes on Escape', async () => {
     render(<Harness />);
     const user = await openMenu();

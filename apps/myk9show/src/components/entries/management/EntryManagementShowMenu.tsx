@@ -61,18 +61,19 @@ export function EntryManagementShowMenu({
   const exceptionViews = views.filter(isException);
   const onRegistrations = state.tab === 'registrations';
 
-  const summary = onRegistrations
-    ? withCount(
-        queueViews
-          .filter(view => state.queues.includes(view.id as ShowRegistrationQueue))
-          .map(view => view.label)
-          .join(' + '),
-        selectionCount
-      )
-    : (() => {
-        const view = exceptionViews.find(candidate => candidate.id === state.exception);
-        return view ? withCount(view.label, view.count) : '';
-      })();
+  const checkedLabels = queueViews
+    .filter(view => state.queues.includes(view.id as ShowRegistrationQueue))
+    .map(view => view.label);
+  const exceptionView = exceptionViews.find(candidate => candidate.id === state.exception);
+  const count = onRegistrations ? selectionCount : exceptionView?.count;
+  // The button shows the first queue and how many more ("Needs review +1"), so the count still
+  // fits beside the search on a laptop; its accessible name lists every queue.
+  const fullLabel = onRegistrations ? checkedLabels.join(' + ') : (exceptionView?.label ?? '');
+  const shortLabel =
+    onRegistrations && checkedLabels.length > 1
+      ? `${checkedLabels[0]} +${checkedLabels.length - 1}`
+      : fullLabel;
+  const countText = typeof count === 'number' ? ` (${count.toLocaleString()})` : '';
 
   // From an exception list, a queue pick starts a fresh selection of just that queue.
   const toggleQueue = (queue: ShowRegistrationQueue) =>
@@ -91,10 +92,14 @@ export function EntryManagementShowMenu({
           <Button
             type="button"
             variant="outline"
-            aria-label={`Show: ${summary}`}
-            className="h-11 min-w-0 max-w-[calc(100vw-5rem)] justify-between gap-2 font-normal"
+            aria-label={`Show: ${fullLabel}${countText}`}
+            title={`${fullLabel}${countText}`}
+            className="h-11 min-w-0 max-w-[calc(100vw-5rem)] justify-between gap-2 px-3 font-normal"
           >
-            <span className="truncate">{summary}</span>
+            <span className="flex min-w-0">
+              <span className="truncate">{shortLabel}</span>
+              <span className="shrink-0 whitespace-pre">{countText}</span>
+            </span>
             <ChevronDown className="h-4 w-4 shrink-0 opacity-60" aria-hidden="true" />
           </Button>
         </DropdownMenuTrigger>

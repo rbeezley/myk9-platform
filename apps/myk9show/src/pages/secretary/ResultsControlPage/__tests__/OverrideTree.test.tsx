@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
+import { replicatedToClass } from '@/store/class-store-helpers';
 import { OverrideTree } from '../OverrideTree';
 import type {
   ShowSettings,
@@ -240,6 +241,25 @@ describe('OverrideTree', () => {
     expect(
       screen.getByRole('link', { name: 'View results for Interior Advanced Preliminary' })
     ).toHaveAttribute('href', '/shows/show-1/trials/trial-1/classes/class-2');
+  });
+
+  it('MYK9-1049: labels a class from the real store mapping with element and section', async () => {
+    const { user } = renderTree({
+      classes: [
+        replicatedToClass({
+          id: 'class-a',
+          trialId: 'trial-1',
+          name: 'Novice',
+          level: 'Novice',
+          element: 'Container',
+          section: 'A',
+        }),
+      ],
+    });
+    await user.click(screen.getByRole('button', { name: /Trial A.*class/ }));
+    expect(
+      screen.getByRole('link', { name: 'View results for Container Novice A' })
+    ).toBeInTheDocument();
   });
 
   it('does not show results links in check-in mode', async () => {

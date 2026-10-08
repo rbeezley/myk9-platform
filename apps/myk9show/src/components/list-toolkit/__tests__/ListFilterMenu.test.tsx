@@ -241,10 +241,13 @@ describe('ListFilterMenu', () => {
       expect(screen.getByRole('option', { name: /Trial 1/ })).toBeInTheDocument();
     });
 
-    it('does nothing while a dialog is open', () => {
+    it.each([
+      ['Base UI', { 'data-open': '' }],
+      ['Radix', { 'data-state': 'open' }],
+    ])('does nothing while a dialog is open (%s markup)', (_kind, attributes) => {
       render(
         <>
-          <div role="dialog" data-state="open" />
+          <div role="dialog" {...attributes} />
           <Harness />
         </>
       );

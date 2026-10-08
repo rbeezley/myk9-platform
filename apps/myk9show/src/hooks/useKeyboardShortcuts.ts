@@ -27,8 +27,19 @@ function isInputFocused(): boolean {
   return false;
 }
 
+/**
+ * An open dialog, popover or alert dialog. Base UI (the app's dialogs) marks an open popup
+ * `data-open`; `data-state="open"` is the Radix form, kept for anything still rendering it.
+ */
+const OPEN_DIALOG_SELECTOR = [
+  '[role="dialog"][data-open]',
+  '[role="alertdialog"][data-open]',
+  '[role="dialog"][data-state="open"]',
+  '[role="alertdialog"][data-state="open"]',
+].join(', ');
+
 function isModalOpen(): boolean {
-  return document.querySelector('[role="dialog"][data-state="open"]') !== null;
+  return document.querySelector(OPEN_DIALOG_SELECTOR) !== null;
 }
 
 type ParsedKeys =

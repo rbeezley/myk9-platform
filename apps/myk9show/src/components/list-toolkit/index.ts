@@ -27,6 +27,7 @@ export {
   clearField,
   describeAppliedFilter,
   isFieldActive,
+  isFieldLoading,
   keepOfferedValues,
   toggleListValue,
 } from './filterFieldState';

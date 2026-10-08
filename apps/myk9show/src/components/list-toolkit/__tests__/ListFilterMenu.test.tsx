@@ -138,6 +138,25 @@ describe('ListFilterMenu', () => {
     expect(screen.queryByRole('option', { name: /Interior Novice B/ })).not.toBeInTheDocument();
   });
 
+  it('says Loading for a single-select field whose options are not known yet', async () => {
+    const fields: ListFilterMenuField[] = [
+      {
+        kind: 'options',
+        key: 'trial',
+        label: 'Trial',
+        value: 't1',
+        options: [],
+        loading: true,
+        onChange: vi.fn(),
+      },
+    ];
+    render(<ListFilterMenu fields={fields} />);
+    await openMenu();
+
+    expect(screen.getByText('Loading…')).toBeInTheDocument();
+    expect(screen.queryByText('Nothing to choose yet.')).not.toBeInTheDocument();
+  });
+
   it('keeps the Loading message when you type, and never says No matches next to it', async () => {
     const fields: ListFilterMenuField[] = [
       {

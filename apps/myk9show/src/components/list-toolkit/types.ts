@@ -25,6 +25,8 @@ export interface ListOptionsFilterField extends ListFilterFieldBase {
   allLabel?: string;
   value: string | null;
   onChange: (value: string | null) => void;
+  /** The options are not known yet; see `ListMultiOptionsFilterField.loading`. Read by the Filter menu. */
+  loading?: boolean;
 }
 
 export interface ListDateRange {

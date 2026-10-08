@@ -12,6 +12,11 @@ export function isFieldActive(field: ListMenuFilterField): boolean {
   return field.value.start !== null || field.value.end !== null;
 }
 
+/** The field's options are not known yet, so its values cannot be shown by name. */
+export function isFieldLoading(field: ListMenuFilterField): boolean {
+  return field.kind !== 'dateRange' && field.loading === true;
+}
+
 /** Takes one field back to "not narrowing anything". */
 export function clearField(field: ListMenuFilterField): void {
   if (field.kind === 'options') field.onChange(null);
@@ -53,7 +58,7 @@ export function describeDateRange({ start, end }: ListDateRange): string {
  */
 export function describeAppliedFilter(field: ListMenuFilterField): string | null {
   if (!isFieldActive(field)) return null;
-  if (field.kind === 'multiOptions' && field.loading) return null;
+  if (isFieldLoading(field)) return null;
   if (field.kind === 'dateRange') return `${field.label}: ${describeDateRange(field.value)}`;
   const picked = field.kind === 'options' ? [field.value ?? ''] : [...new Set(field.values)];
   // One entry per picked value, so two options that share a label both show.

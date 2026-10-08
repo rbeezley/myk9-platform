@@ -328,6 +328,14 @@ function checkInColumnGeometry() {
 }
 
 describe('buildEmergencyTrialPacketPdf', () => {
+  it.each(['123456', '123457'])(
+    'prints the whole check-in armband %s rather than truncating it',
+    armband => {
+      const { texts } = renderPageOfKind('check-in', { armband });
+      expect(texts).toContain(armband);
+    }
+  );
+
   it('prints the six check-in columns', () => {
     const { doc, texts } = renderPageOfKind('check-in');
     for (const header of ['Gate', 'Order', 'Armband', 'Call Name', 'Breed', 'Handler']) {

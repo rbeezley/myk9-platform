@@ -362,7 +362,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
                                 to={`/people/${aj.judgeId}`}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-sm font-medium text-primary underline mt-2 inline-block"
+                                className="inline-flex min-h-[44px] items-center text-sm font-medium text-primary underline mt-2"
                               >
                                 Open judge record to add a qualification
                               </Link>

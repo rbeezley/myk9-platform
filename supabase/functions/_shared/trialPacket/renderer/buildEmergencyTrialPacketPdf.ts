@@ -411,8 +411,22 @@ type CheckInColumnKey = 'gate' | 'order' | 'armband' | 'callName' | 'breed' | 'h
 
 /** Check-in sheet text size. Rows stay 10mm, so the batch size is unchanged. */
 const CHECK_IN_FONT_PT = 12;
-/** Armband number in the data rows: bold and larger, for reading across the room. */
+/**
+ * Armband number in the data rows: bold and larger, for reading across the room.
+ * Steps down toward the body size only when a long number would not fit its
+ * column, so a distinct armband is never cut short.
+ */
 const CHECK_IN_ARMBAND_FONT_PT = 18;
+
+function fitArmbandFontSize(doc: jsPDF, text: string, budget: number): number {
+  doc.setFont('helvetica', 'bold');
+  let pt = CHECK_IN_ARMBAND_FONT_PT;
+  for (; pt > CHECK_IN_FONT_PT; pt -= 1) {
+    doc.setFontSize(pt);
+    if (doc.getTextWidth(text) <= budget) break;
+  }
+  return pt;
+}
 
 /**
  * Widths here are sized to the widest HEADER, not the widest expected data —
@@ -523,10 +537,16 @@ function renderCheckIn(doc: jsPDF, page: EmergencyPacketPage): void {
       // The armband is the number a judge looks for across the room, so it
       // gets its own larger bold size. Its baseline sits lower to stay centred.
       const isArmband = column.key === 'armband';
-      doc.setFont('helvetica', isArmband ? 'bold' : 'normal');
-      doc.setFontSize(isArmband ? CHECK_IN_ARMBAND_FONT_PT : CHECK_IN_FONT_PT);
+      const cellText = checkInCellValue(entry, column.key);
+      if (isArmband) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(fitArmbandFontSize(doc, cellText, column.width - 3));
+      } else {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(CHECK_IN_FONT_PT);
+      }
       doc.text(
-        fitTextToWidth(doc, checkInCellValue(entry, column.key), column.width - 3),
+        fitTextToWidth(doc, cellText, column.width - 3),
         column.x + 1.5,
         isArmband ? y + 7 : y + 6
       );

@@ -332,45 +332,57 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
                       );
                     })}
 
-                    {unlistedAssignedJudges.map(aj => (
-                      <div
-                        key={aj.judgeId}
-                        className="border border-warning rounded-xl p-4 bg-warning/10 transition-all duration-200"
-                      >
-                        <div className="flex items-start gap-3">
-                          <Checkbox
-                            id={`judge-${aj.judgeId}`}
-                            checked
-                            onCheckedChange={checked =>
-                              handleJudgeToggle(aj.judgeId, aj.judgeName, checked as boolean)
-                            }
-                          />
-                          <div className="flex-1">
-                            <label
-                              htmlFor={`judge-${aj.judgeId}`}
-                              className="font-medium cursor-pointer"
-                            >
-                              {aj.judgeName}
-                            </label>
-                            <div className="text-sm text-muted-foreground mt-1">
-                              Not qualified for {data.organization} shows. Add an active{' '}
-                              {data.organization} qualification to this judge, or uncheck to remove
-                              them from this show.
-                            </div>
-                            {canOpenPeople && (
-                              <Link
-                                to={`/people/${aj.judgeId}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="inline-flex min-h-[44px] items-center text-sm font-medium text-primary underline mt-2"
-                              >
-                                Open judge record to add a qualification
-                              </Link>
+                    {unlistedAssignedJudges.map(aj => {
+                      const removable = aj.hasShowLevelAssignment !== false;
+                      return (
+                        <div
+                          key={aj.judgeId}
+                          className="border border-warning rounded-xl p-4 bg-warning/10 transition-all duration-200"
+                        >
+                          {/* Unchecking only removes show-level rows; a class-only judge must be changed on the class. */}
+                          <div className="flex items-start gap-3">
+                            {removable && (
+                              <Checkbox
+                                id={`judge-${aj.judgeId}`}
+                                checked
+                                onCheckedChange={checked =>
+                                  handleJudgeToggle(aj.judgeId, aj.judgeName, checked as boolean)
+                                }
+                              />
                             )}
+                            <div className="flex-1">
+                              {removable ? (
+                                <label
+                                  htmlFor={`judge-${aj.judgeId}`}
+                                  className="font-medium cursor-pointer"
+                                >
+                                  {aj.judgeName}
+                                </label>
+                              ) : (
+                                <div className="font-medium">{aj.judgeName}</div>
+                              )}
+                              <div className="text-sm text-muted-foreground mt-1">
+                                Not qualified for {data.organization} shows. Add an active{' '}
+                                {data.organization} qualification to this judge
+                                {removable
+                                  ? ', or uncheck to remove them from this show.'
+                                  : '. They are assigned through a class only, so change that class’s judge to remove them.'}
+                              </div>
+                              {canOpenPeople && (
+                                <Link
+                                  to={`/people/${aj.judgeId}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex min-h-[44px] items-center text-sm font-medium text-primary underline mt-2"
+                                >
+                                  Open judge record to add a qualification
+                                </Link>
+                              )}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
 
                     {data.assignedJudges.length > 0 && (
                       <div className="text-sm text-muted-foreground bg-info/10 p-4 rounded-xl">

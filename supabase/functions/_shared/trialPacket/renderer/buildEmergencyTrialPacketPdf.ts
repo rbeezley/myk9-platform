@@ -417,11 +417,13 @@ const CHECK_IN_FONT_PT = 12;
  * column, so a distinct armband is never cut short.
  */
 const CHECK_IN_ARMBAND_FONT_PT = 18;
+/** Smallest a long armband may shrink to: the body size this sheet used before. */
+const CHECK_IN_ARMBAND_MIN_PT = 7;
 
 function fitArmbandFontSize(doc: jsPDF, text: string, budget: number): number {
   doc.setFont('helvetica', 'bold');
   let pt = CHECK_IN_ARMBAND_FONT_PT;
-  for (; pt > CHECK_IN_FONT_PT; pt -= 1) {
+  for (; pt > CHECK_IN_ARMBAND_MIN_PT; pt -= 1) {
     doc.setFontSize(pt);
     if (doc.getTextWidth(text) <= budget) break;
   }

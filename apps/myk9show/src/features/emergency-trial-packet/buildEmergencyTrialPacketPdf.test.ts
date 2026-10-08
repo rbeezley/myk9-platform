@@ -328,7 +328,7 @@ function checkInColumnGeometry() {
 }
 
 describe('buildEmergencyTrialPacketPdf', () => {
-  it.each(['123456', '123457'])(
+  it.each(['123456', '123457', '123456789', '123456780'])(
     'prints the whole check-in armband %s rather than truncating it',
     armband => {
       const { texts } = renderPageOfKind('check-in', { armband });

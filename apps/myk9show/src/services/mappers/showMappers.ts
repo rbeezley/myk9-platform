@@ -226,6 +226,7 @@ export const mapDatabaseToShow = (
       assignedClasses: rows
         .map(r => r.class_id as string | null)
         .filter((id): id is string => id !== null),
+      hasShowLevelAssignment: rows.some(r => (r.class_id ?? null) === null),
     };
   });
 

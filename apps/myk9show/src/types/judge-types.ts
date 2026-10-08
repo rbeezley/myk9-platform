@@ -8,6 +8,8 @@ export interface ShowJudgeAssignment {
   availableStartTime?: string;
   availableEndTime?: string;
   assignedClasses?: string[]; // Classes this judge is assigned to
+  /** True when the judge has a show-level row (not only class-level rows). Show-level removal only touches these. */
+  hasShowLevelAssignment?: boolean;
 }
 
 // Legacy format used in some parts of the codebase

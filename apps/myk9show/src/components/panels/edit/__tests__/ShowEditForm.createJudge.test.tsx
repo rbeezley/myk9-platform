@@ -3,7 +3,7 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // The REAL Tabs component is used on purpose: inactive panels unmount, which is
 // the lifetime this suite exists to pin (MYK9-908). Do not mock it.
@@ -19,6 +19,7 @@ const harness = vi.hoisted(() => ({
   canWrite: true,
   createJudge: vi.fn(),
   judges: [] as unknown[],
+  judgesLoaded: true,
 }));
 
 vi.mock('@/components/shows/wizard/steps/useShowDetailsStepActions', () => ({
@@ -40,7 +41,7 @@ vi.mock('@/store/userStore', () => ({
   useUserStore: () => ({ people: [{ id: 'p1' }], loadUsers: vi.fn() }),
 }));
 vi.mock('@/hooks/queries/useJudgesWithQualifications', () => ({
-  useJudgesWithQualifications: () => ({ data: harness.judges }),
+  useJudgesWithQualifications: () => ({ data: harness.judges, isSuccess: harness.judgesLoaded }),
 }));
 vi.mock('../ShowEditBasicInfoTab', () => ({ ShowEditBasicInfoTab: () => null }));
 vi.mock('../ShowEditFeesTab', () => ({ ShowEditFeesTab: () => null }));
@@ -112,6 +113,41 @@ function renderPanel(organization = 'AKC') {
   const view = render(<PanelHarness organization={organization} client={client} />);
   return { ...view, invalidate };
 }
+
+describe('unlisted assigned judges', () => {
+  afterEach(() => {
+    roster.current = [];
+    harness.judges = [];
+    harness.judgesLoaded = true;
+  });
+
+  it('gives a class-only judge no removal checkbox, and says to change the class', () => {
+    roster.current = [
+      { judgeId: 'class-only', judgeName: 'Casey Class', hasShowLevelAssignment: false } as never,
+    ];
+    renderPanel('AKC');
+    expect(screen.getByText('Casey Class')).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: /casey class/i })).not.toBeInTheDocument();
+    expect(screen.getByText(/assigned through a class only/i)).toBeInTheDocument();
+  });
+
+  it('keeps a removal checkbox for a show-level judge', () => {
+    roster.current = [
+      { judgeId: 'show-level', judgeName: 'Sam Show', hasShowLevelAssignment: true } as never,
+    ];
+    renderPanel('AKC');
+    expect(screen.getByRole('checkbox', { name: /sam show/i })).toBeChecked();
+  });
+
+  it('flags no one while the qualification read is still loading', () => {
+    harness.judgesLoaded = false;
+    roster.current = [
+      { judgeId: 'show-level', judgeName: 'Sam Show', hasShowLevelAssignment: true } as never,
+    ];
+    renderPanel('AKC');
+    expect(screen.queryByText(/not qualified for AKC shows/i)).not.toBeInTheDocument();
+  });
+});
 
 async function fillForm(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('button', { name: /add a new judge/i }));

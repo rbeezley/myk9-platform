@@ -211,7 +211,7 @@ describe('ReplicationSyncProvider: idle load', () => {
     expect(invalidateSpy).not.toHaveBeenCalled();
   });
 
-  it('invalidates only the tables whose rows changed', async () => {
+  it('invalidates every replicated table key set when any table changed', async () => {
     syncSpies.entries.mockResolvedValue({ success: true, rowsAffected: 2 });
 
     await act(async () => {
@@ -222,9 +222,12 @@ describe('ReplicationSyncProvider: idle load', () => {
     const keys = invalidateSpy.mock.calls.map(
       ([filters]: [{ queryKey: string[] }]) => filters.queryKey
     );
+    // Query keys do not reliably start with their table (['shows', id, 'entries'],
+    // ['classes', id, 'entries', 'auth'] read entries), so any change refetches
+    // every replicated table's keys; only a no-change pass refetches nothing.
     expect(keys).toContainEqual(['entries']);
-    expect(keys).not.toContainEqual(['shows']);
-    expect(keys).not.toContainEqual(['dogs']);
+    expect(keys).toContainEqual(['shows']);
+    expect(keys).toContainEqual(['classes']);
   });
 
   it('spaces polls and visibility catch-ups at least 15s apart', async () => {

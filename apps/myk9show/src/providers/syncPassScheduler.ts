@@ -51,7 +51,10 @@ export function createSyncPassScheduler({
     if (timer) return; // coalesce into the pass already owed
     timer = setTimeout(() => {
       timer = null;
-      fire();
+      // A pass may have started (explicit request) since this was scheduled.
+      const remaining = minGapMs - (Date.now() - lastStartedAt);
+      if (remaining > 0) schedule(remaining);
+      else fire();
     }, delayMs);
   };
 

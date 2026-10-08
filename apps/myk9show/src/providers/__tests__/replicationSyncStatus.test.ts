@@ -53,6 +53,20 @@ describe('replicationSyncStatus helpers', () => {
     ]);
   });
 
+  it('counts rows committed by a pass that then failed', () => {
+    expect(
+      getChangedTableNames([
+        {
+          name: 'entries',
+          ok: false,
+          rowsAffected: 2,
+          error: 'meta',
+          recoveredFromEmptyReplica: false,
+        },
+      ])
+    ).toEqual(['entries']);
+  });
+
   it('invalidates nothing when no table changed', () => {
     expect(getPostSyncInvalidationKeys([])).toEqual([]);
   });
@@ -64,7 +78,7 @@ describe('replicationSyncStatus helpers', () => {
         { name: 'shows', ok: true, rowsAffected: 0, ...base },
         { name: 'entries', ok: true, rowsAffected: 3, ...base },
         { name: 'entries', ok: true, rowsAffected: 1, ...base },
-        { name: 'dogs', ok: false, rowsAffected: 5, error: 'denied', ...base },
+        { name: 'dogs', ok: false, rowsAffected: 0, error: 'denied', ...base },
         { name: 'clubs', ok: true, ...base },
       ])
     ).toEqual(['entries']);

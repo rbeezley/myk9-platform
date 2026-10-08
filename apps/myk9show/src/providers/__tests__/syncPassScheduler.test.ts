@@ -54,6 +54,19 @@ describe('createSyncPassScheduler', () => {
     expect(run).toHaveBeenCalledTimes(1);
   });
 
+  it('re-spaces a pending pass when an explicit pass starts after it was scheduled', () => {
+    const scheduler = make();
+    scheduler.notePassStarted();
+    vi.advanceTimersByTime(10_000);
+    scheduler.requestUntargeted(); // due at +15s
+    vi.advanceTimersByTime(4_000);
+    scheduler.notePassStarted(); // explicit pass at +14s
+    vi.advanceTimersByTime(1_000); // old schedule fires at +15s
+    expect(run).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(GAP - 1_000);
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
   it('does not run an untargeted request while hidden', () => {
     visible = false;
     const scheduler = make();

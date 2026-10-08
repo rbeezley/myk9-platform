@@ -417,8 +417,12 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         }));
         syncInFlightRef.current = false;
 
-        // A pass that changed nothing refetches nothing (MYK9-1054).
-        for (const queryKey of getPostSyncInvalidationKeys(getChangedTableNames(syncResults))) {
+        // A pass that changed nothing refetches nothing (MYK9-1054). When any
+        // table changed, refetch every selected table's keys: query keys do not
+        // reliably start with the table they read (['shows', id, 'entries'],
+        // ['classes', id, 'entries', 'auth']), so a per-table map would miss some.
+        const anyChanged = getChangedTableNames(syncResults).length > 0;
+        for (const queryKey of getPostSyncInvalidationKeys(anyChanged ? selectedNames : [])) {
           queryClient.invalidateQueries({ queryKey });
         }
 

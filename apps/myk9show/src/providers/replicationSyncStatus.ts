@@ -51,9 +51,13 @@ export function classifyTableSyncResults(
   return { tableStatusUpdates, downloadFailures, recoveredTables, abortedTables };
 }
 
-/** Tables a pass successfully changed rows in. Nothing else needs a refetch (MYK9-1054). */
+/**
+ * Tables a pass committed rows in, even if the pass then failed (a later
+ * metadata write can fail after rows landed). A pass that changed nothing
+ * refetches nothing (MYK9-1054).
+ */
 export function getChangedTableNames(results: readonly TableSyncResultSummary[]): string[] {
-  return [...new Set(results.filter(r => r.ok && (r.rowsAffected ?? 0) > 0).map(r => r.name))];
+  return [...new Set(results.filter(r => (r.rowsAffected ?? 0) > 0).map(r => r.name))];
 }
 
 export function getPostSyncInvalidationKeys(changedTableNames: readonly string[]): string[][] {

@@ -1103,9 +1103,8 @@ export interface DogEntriesReadResult {
 //   - `locallyDeletedIds` — rows held as soft-delete tombstones, i.e. a queued
 //     delete not yet synced, so an online read cannot resurrect them from a
 //     server row that predates the delete.
-//   - `pendingIds` — rows with unsynced local writes. `ReplicatedEntriesTable`'s
-//     own `resolveConflict` keeps a `_syncStatus: 'pending'` row over the server
-//     copy for exactly this reason; merging follows that same rule.
+//   - `pendingIds` — rows with unsynced local writes (`_syncStatus: 'pending'`, which
+//     the replication layer flips to 'synced' once the upload is acknowledged).
 async function replicaGetEntriesByDog(dogId: string) {
   const [allEntries, dogsMap, classesMap, showsMap] = await Promise.all([
     replicatedEntriesTable.getAllOrThrow(),

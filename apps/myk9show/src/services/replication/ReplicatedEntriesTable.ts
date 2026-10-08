@@ -503,14 +503,14 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
 
   /**
    * Conflict resolution for entries.
-   * If the local entry has unsynced changes (pending mutation), keep it so the
-   * write is not overwritten by a stale server snapshot before it uploads.
-   * Server state is applied on the next sync after the mutation is uploaded.
+   * Only clean rows reach here: `syncReplicatedTable` holds a dirty row (a
+   * write whose mutation has not uploaded) back before calling it. So the
+   * server row wins. Do NOT test the data-level `_syncStatus` here: it is a
+   * display hint that older builds left 'pending' after the upload was
+   * acknowledged, and honouring it pinned the local row over the server's
+   * recalculated placements forever (MYK9-1050).
    */
-  protected resolveConflict(local: ReplicatedEntry, remote: ReplicatedEntry): ReplicatedEntry {
-    if (local._syncStatus === 'pending') {
-      return local;
-    }
+  protected resolveConflict(_local: ReplicatedEntry, remote: ReplicatedEntry): ReplicatedEntry {
     return remote;
   }
 

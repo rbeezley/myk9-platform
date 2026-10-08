@@ -340,3 +340,70 @@ describe('removeOrphanedLocalOnlyRow', () => {
     expect(row).toBeDefined();
   });
 });
+
+describe('markReplicatedRowSynced - data-level _syncStatus (MYK9-1050)', () => {
+  beforeEach(async () => {
+    await databaseManager.reset();
+  });
+
+  afterEach(async () => {
+    await databaseManager.reset();
+  });
+
+  async function seed(name: string, extraMutationIds: string[]) {
+    const db = await databaseManager.getDatabase(name);
+    // reset() closes the connection but keeps the stored data: empty the stores
+    // so a mutation queued by an earlier (shuffled) case cannot leak in.
+    await db.clear(REPLICATION_STORES.PENDING_MUTATIONS);
+    await db.clear(REPLICATION_STORES.REPLICATED_TABLES);
+    const mutation = (id: string, sequenceNumber: number): PendingMutation => ({
+      id,
+      tableName: 'entries',
+      operation: 'UPDATE',
+      rowId: 'entry-1',
+      data: { id: 'entry-1' },
+      timestamp: sequenceNumber,
+      sequenceNumber,
+      retries: 0,
+      status: 'pending',
+      authUserId: 'user-1',
+    });
+    const row: ReplicatedRow<{ id: string; _syncStatus: string }> = {
+      tableName: 'entries',
+      id: 'entry-1',
+      data: { id: 'entry-1', _syncStatus: 'pending' },
+      version: 2,
+      lastSyncedAt: 1,
+      lastAccessedAt: 1,
+      isDirty: true,
+      syncStatus: 'pending',
+    };
+    await db.put(REPLICATION_STORES.REPLICATED_TABLES, row);
+    const current = mutation('mutation-1', 1);
+    await db.put(REPLICATION_STORES.PENDING_MUTATIONS, current);
+    for (const [i, id] of extraMutationIds.entries()) {
+      await db.put(REPLICATION_STORES.PENDING_MUTATIONS, mutation(id, i + 2));
+    }
+    return { db, current };
+  }
+
+  it('flips the data flag to synced when the last queued write is acknowledged', async () => {
+    const { db, current } = await seed('ack-flag-test', []);
+
+    await markReplicatedRowSynced(db, current, 3);
+
+    await expect(
+      db.get(REPLICATION_STORES.REPLICATED_TABLES, ['entries', 'entry-1'])
+    ).resolves.toMatchObject({ isDirty: false, data: { _syncStatus: 'synced' } });
+  });
+
+  it('keeps the data flag pending while a later write for the row is still queued', async () => {
+    const { db, current } = await seed('ack-flag-later-test', ['mutation-2']);
+
+    await markReplicatedRowSynced(db, current, 3);
+
+    await expect(
+      db.get(REPLICATION_STORES.REPLICATED_TABLES, ['entries', 'entry-1'])
+    ).resolves.toMatchObject({ isDirty: true, data: { _syncStatus: 'pending' } });
+  });
+});

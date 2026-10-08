@@ -1597,7 +1597,10 @@ describe('ReplicatedEntriesTable', () => {
       expect(resolved).toBe(remote);
     });
 
-    it('local wins when local has pending unsynced changes', async () => {
+    it('remote wins even when the local data still carries a stale pending flag (MYK9-1050)', async () => {
+      // A dirty row never reaches resolveConflict (syncReplicatedTable holds it
+      // back; pinned in ReplicatedEntriesTable.ackedWriteSync.test.ts), so the
+      // data-level flag is no evidence of unsynced work.
       const local: ReplicatedEntry = {
         id: 'entry-1',
         runOrder: 3,
@@ -1610,8 +1613,7 @@ describe('ReplicatedEntriesTable', () => {
 
       const resolved = getResolveConflict(table)(local, remote);
 
-      expect(resolved).toBe(local);
-      expect(resolved.runOrder).toBe(3);
+      expect(resolved).toBe(remote);
     });
   });
 

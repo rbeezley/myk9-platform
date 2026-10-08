@@ -1,3 +1,4 @@
+import React from 'react';
 import { screen, fireEvent } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { TimeInput } from '../data-table-time-input';
@@ -21,20 +22,54 @@ describe('TimeInput', () => {
     expect(input.value).toBe('0:45.32');
   });
 
-  it('shows raw digits when focused', async () => {
+  it('shows the formatted time while focused, not raw digits', async () => {
     const { user } = renderTimeInput({ value: '4532' });
     const input = screen.getByRole('textbox') as HTMLInputElement;
     await user.click(input);
-    expect(input.value).toBe('4532');
+    expect(input.value).toBe('0:45.32');
   });
 
-  it('formats on blur', async () => {
+  it('keeps the formatted time on blur', async () => {
     const { user } = renderTimeInput({ value: '4532' });
     const input = screen.getByRole('textbox') as HTMLInputElement;
     await user.click(input);
-    expect(input.value).toBe('4532');
     fireEvent.blur(input);
     expect(input.value).toBe('0:45.32');
+  });
+
+  function ControlledTimeInput({ onValue }: { onValue?: (v: string) => void }) {
+    const [value, setValue] = React.useState('');
+    return (
+      <TimeInput
+        value={value}
+        onChange={v => {
+          setValue(v);
+          onValue?.(v);
+        }}
+        onCommit={() => {}}
+        onCancel={() => {}}
+      />
+    );
+  }
+
+  it('formats live as digits are typed', async () => {
+    const { user } = render(<ControlledTimeInput />);
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+    await user.click(input);
+    await user.keyboard('4');
+    expect(input.value).toBe('0:00.04');
+    await user.keyboard('520');
+    expect(input.value).toBe('0:45.20');
+  });
+
+  it('ignores digits past six so they cannot shift into minutes', async () => {
+    const onValue = vi.fn();
+    const { user } = render(<ControlledTimeInput onValue={onValue} />);
+    const input = screen.getByRole('textbox') as HTMLInputElement;
+    await user.click(input);
+    await user.keyboard('52105210');
+    expect(input.value).toBe('52:10.52');
+    expect(onValue).toHaveBeenLastCalledWith('521052');
   });
 
   it('only accepts numeric input (filters letters)', async () => {
@@ -82,11 +117,11 @@ describe('TimeInput', () => {
     expect(input.value).toBe('1:23.45');
   });
 
-  it('autofocuses and shows raw digits when autoFocus is true', () => {
+  it('autofocuses and shows the formatted time when autoFocus is true', () => {
     renderTimeInput({ value: '4532', autoFocus: true });
     const input = screen.getByRole('textbox') as HTMLInputElement;
-    // With autoFocus, the input should be focused and show raw digits
+    // With autoFocus, the input should be focused and show separators
     expect(document.activeElement).toBe(input);
-    expect(input.value).toBe('4532');
+    expect(input.value).toBe('0:45.32');
   });
 });

@@ -16,6 +16,7 @@ interface SequentialViewProps {
   onSaveAndNext: (result: PaperResult, timeDigits: string, faults: number, reason?: string) => void;
   onClearResult?: (() => void) | undefined;
   isSaving: boolean;
+  maxTimeSeconds?: number | undefined;
 }
 
 export function SequentialView({
@@ -27,6 +28,7 @@ export function SequentialView({
   onSaveAndNext,
   onClearResult,
   isSaving,
+  maxTimeSeconds,
 }: SequentialViewProps) {
   const sorted = useMemo(() => sortByExhibitorOrder(entries), [entries]);
   const currentEntry = sorted[currentIndex] ?? null;
@@ -84,6 +86,7 @@ export function SequentialView({
           onClearResult={onClearResult}
           onClose={() => {}}
           isSaving={isSaving}
+          maxTimeSeconds={maxTimeSeconds}
         />
       </Card>
     </div>

@@ -10,6 +10,7 @@ import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLi
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { loadEntriesWithDogs } from './paperScoresheetData';
 import { REFRESH_FAILED_MESSAGE, refreshEntriesAfterSave } from './paperScoresheetReload';
+import { buildResolvedClassRules } from '@myk9/scoring-ui';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { calculatePlacements } from './types';
 import { usePaperScoring } from './hooks/usePaperScoring';
@@ -55,6 +56,9 @@ export function PaperScoresheetPage() {
 
   const [entries, setEntries] = useState<ScoringEntry[]>([]);
   const [className, setClassName] = useState<string | null>(null);
+  // Undefined for multi-area classes: the paper form has one total-time field,
+  // and the per-area limits do not compare against a total.
+  const [maxTimeSeconds, setMaxTimeSeconds] = useState<number | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
@@ -85,6 +89,8 @@ export function PaperScoresheetPage() {
         setEntries(calculatePlacements(scoringEntries));
         setFreshLoads(count => count + 1);
         setClassName(cls.name);
+        const rules = buildResolvedClassRules(cls);
+        setMaxTimeSeconds(rules.areaCount > 1 ? undefined : rules.maxTimeSeconds);
       } catch (err) {
         if (cancelled) return;
         setError(err instanceof Error ? err.message : 'Failed to load');
@@ -278,6 +284,7 @@ export function PaperScoresheetPage() {
             onSaveAndNext={handleSaveAndNext}
             onClearResult={handleClearResult}
             isSaving={scoring.isSaving}
+            maxTimeSeconds={maxTimeSeconds}
           />
         ) : (
           <SequentialView
@@ -291,6 +298,7 @@ export function PaperScoresheetPage() {
             onSaveAndNext={handleSaveAndNext}
             onClearResult={handleClearResult}
             isSaving={scoring.isSaving}
+            maxTimeSeconds={maxTimeSeconds}
           />
         )}
       </div>

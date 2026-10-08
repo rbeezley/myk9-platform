@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import { formatSearchTime, parseSearchTimeDigits } from './sorting';
 
@@ -13,7 +13,14 @@ export interface TimeInputProps {
   autoFocus?: boolean;
   className?: string;
   id?: string;
+  'aria-invalid'?: boolean | undefined;
+  'aria-describedby'?: string | undefined;
+  /** Most digits accepted (MMSShh = 6). Further keystrokes are ignored. */
+  maxDigits?: number;
 }
+
+/** MMSShh: two digits each for minutes, seconds and hundredths. */
+export const TIME_INPUT_MAX_DIGITS = 6;
 
 /**
  * Resolve the internal digit string from a value that may already be formatted.
@@ -30,9 +37,9 @@ function toDigits(value: string): string {
 /**
  * Specialized input for entering dog search times as a digit stream.
  *
- * - When focused: shows raw digits for fast entry (e.g. "4532")
- * - When blurred: shows formatted time (e.g. "0:45.32")
- * - Only accepts numeric input
+ * - Always shows the formatted time (e.g. "0:45.32"), live while typing, so a
+ *   mistake is visible as it happens. Digits fill in from the right.
+ * - Only accepts numeric input, capped at `maxDigits` (default 6)
  * - Tab/Enter calls onCommit; Escape calls onCancel
  */
 export function TimeInput({
@@ -43,13 +50,16 @@ export function TimeInput({
   autoFocus = false,
   className,
   id,
+  maxDigits = TIME_INPUT_MAX_DIGITS,
+  'aria-invalid': ariaInvalid,
+  'aria-describedby': ariaDescribedBy,
 }: TimeInputProps) {
   const digits = toDigits(value);
-  const [focused, setFocused] = useState(autoFocus);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Derive the display value based on focus state
-  const displayValue = focused ? digits : formatSearchTime(digits) || value;
+  // Derived only from the value, never from focus, so what the field shows
+  // cannot drift from what the parent holds.
+  const displayValue = formatSearchTime(digits) || value;
 
   // Auto-focus on mount if requested
   useEffect(() => {
@@ -58,36 +68,32 @@ export function TimeInput({
     }
   }, [autoFocus]);
 
-  const handleFocus = useCallback(() => {
-    setFocused(true);
-  }, [setFocused]);
-
   const handleBlur = useCallback(() => {
-    setFocused(false);
     onCommit();
-  }, [onCommit, setFocused]);
+  }, [onCommit]);
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      // Filter to digits only
-      const raw = e.target.value.replace(/\D/g, '');
+      // The field shows "0:45.20", so the typed string carries separators and
+      // the zero padding; keep the significant digits only.
+      const raw = e.target.value.replace(/\D/g, '').replace(/^0+/, '');
+      // A seventh digit would shift into minutes unseen. Ignore it.
+      if (raw.length > maxDigits) return;
       onChange(raw);
     },
-    [onChange]
+    [onChange, maxDigits]
   );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
       if (e.key === 'Escape') {
         e.preventDefault();
-        setFocused(false);
         onCancel();
         return;
       }
 
       if (e.key === 'Tab' || e.key === 'Enter') {
         e.preventDefault();
-        setFocused(false);
         onCommit();
         return;
       }
@@ -109,18 +115,19 @@ export function TimeInput({
         e.preventDefault();
       }
     },
-    [onCommit, onCancel, setFocused]
+    [onCommit, onCancel]
   );
 
   return (
     <input
       ref={inputRef}
       id={id}
+      aria-invalid={ariaInvalid}
+      aria-describedby={ariaDescribedBy}
       type="text"
       inputMode="numeric"
       value={displayValue}
       onChange={handleChange}
-      onFocus={handleFocus}
       onBlur={handleBlur}
       onKeyDown={handleKeyDown}
       className={cn(

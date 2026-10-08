@@ -217,7 +217,7 @@ describe('EntryPanel', () => {
     );
 
     expect(screen.getByRole('button', { name: /^Q$/i })).toHaveAttribute('data-selected', 'true');
-    expect(screen.getByLabelText(/search time/i)).toHaveValue('12345');
+    expect(screen.getByLabelText(/search time/i)).toHaveValue('1:23.45');
     expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^save$/i })).toBeInTheDocument();
   });
@@ -294,5 +294,53 @@ describe('EntryPanel', () => {
     await userEvent.click(screen.getByRole('button', { name: /^Q$/i }));
     await userEvent.click(screen.getByRole('button', { name: /save & next/i }));
     expect(onSaveAndNext).toHaveBeenCalledWith('Q', expect.any(String), 0, undefined);
+  });
+
+  describe('search time entry', () => {
+    const renderQ = (props: Partial<React.ComponentProps<typeof EntryPanel>> = {}) => {
+      const onSave = vi.fn();
+      render(
+        <EntryPanel
+          entry={makeEntry()}
+          settings={{ preFill: 'Q', timeRecordMode: 'q-only' }}
+          onSave={onSave}
+          onSaveAndNext={vi.fn()}
+          onClose={vi.fn()}
+          isSaving={false}
+          {...props}
+        />
+      );
+      return { onSave, input: screen.getByLabelText(/search time/i) as HTMLInputElement };
+    };
+
+    it('shows separators while typing', async () => {
+      const { input } = renderQ();
+      await userEvent.type(input, '4520');
+      expect(input.value).toBe('0:45.20');
+    });
+
+    it('cannot enter or save eight digits as 52 minutes', async () => {
+      const { onSave, input } = renderQ();
+      await userEvent.type(input, '52105210');
+      expect(input.value).toBe('52:10.52');
+      await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+      expect(onSave).toHaveBeenCalledWith('Q', '521052', 0, undefined);
+    });
+
+    it('blocks a Q over the class time limit with an inline error', async () => {
+      const { onSave, input } = renderQ({ maxTimeSeconds: 180 });
+      await userEvent.type(input, '30001');
+      expect(screen.getByRole('alert')).toHaveTextContent(/over the class time limit of 3:00/i);
+      expect(screen.getByRole('button', { name: /^save$/i })).toBeDisabled();
+      expect(screen.getByRole('button', { name: /save & next/i })).toBeDisabled();
+      expect(onSave).not.toHaveBeenCalled();
+    });
+
+    it('allows a Q at the limit', async () => {
+      const { input } = renderQ({ maxTimeSeconds: 180 });
+      await userEvent.type(input, '30000');
+      expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /^save$/i })).toBeEnabled();
+    });
   });
 });

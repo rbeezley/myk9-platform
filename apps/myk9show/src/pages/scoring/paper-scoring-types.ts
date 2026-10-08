@@ -1,3 +1,6 @@
+import { formatTimeLimitSeconds } from '@myk9/scoring-ui';
+import { parseSearchTimeDigits } from '@/components/ui/data-table/sorting';
+
 /** Display codes used in UI buttons */
 export type PaperResult = 'Q' | 'NQ' | 'ABS' | 'EX';
 
@@ -49,9 +52,11 @@ export const DEFAULT_SESSION_SETTINGS: SessionSettings = {
 /**
  * Convert a TimeInput digit string to floating-point seconds.
  * "12345" → digits padded to "012345" → 1 min 23.45 sec → 83.45
+ * A formatted time ("1:23.45", as a saved result is loaded) reads the same.
  * "" or "0" → 0
  */
-export function digitsToSeconds(digits: string): number {
+export function digitsToSeconds(input: string): number {
+  const digits = parseSearchTimeDigits(input);
   if (!digits || digits === '0') return 0;
   const padded = digits.padStart(6, '0');
   const min = parseInt(padded.slice(0, 2), 10);
@@ -68,4 +73,20 @@ export function modeStorageKey(userId: string): string {
 /** Sort entries by exhibitorOrder ascending (stable copy). */
 export function sortByExhibitorOrder<T extends { exhibitorOrder: number }>(entries: T[]): T[] {
   return [...entries].sort((a, b) => a.exhibitorOrder - b.exhibitorOrder);
+}
+
+/**
+ * Inline error when a Q carries a time over the class time limit, else null.
+ * Same comparison as the scoresheet's validate() in scoring-ui, which warns
+ * "Time … exceeds max …"; on paper a Q over the limit cannot stand (the run is
+ * an NQ for Max Time), so the panel blocks the save instead of warning.
+ */
+export function overTimeLimitError(
+  result: PaperResult | null,
+  timeDigits: string,
+  maxTimeSeconds: number | undefined
+): string | null {
+  if (result !== 'Q' || !maxTimeSeconds || maxTimeSeconds <= 0) return null;
+  if (digitsToSeconds(timeDigits) <= maxTimeSeconds) return null;
+  return `Over the class time limit of ${formatTimeLimitSeconds(maxTimeSeconds)}. A run over time is an NQ (Max Time), not a Q.`;
 }

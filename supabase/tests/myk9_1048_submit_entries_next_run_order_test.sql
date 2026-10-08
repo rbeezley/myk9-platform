@@ -21,6 +21,16 @@
 --   4. In the SAME submission, class D's only positive run_order is on a
 --      soft-deleted row: the class has no live order, so NULL.
 --   5. A SECOND submission into A appends after the first's rows (7).
+--   6. CARD CHECKOUT (fulfill_cart_line -> create_online_paid_entry), one
+--      paid cart, three lines worked in order:
+--        a. a dog withdrawn from A re-entering A -> DENIED by the capacity
+--           decision, no entry, so no position is taken;
+--        b. a dog into A -> 8 (after case 5's 7; 9 would mean the denied
+--           line took one);
+--        c. a dog into unordered B -> NULL.
+--   7. A REDELIVERED fulfill of line (b) replays the recorded outcome: same
+--      entry id, still one entry for that dog in A, and A's last position
+--      is still 8.
 --
 -- Concurrency (two sessions racing on one class) cannot be exercised from a
 -- single psql session; the guarantee is the class advisory lock, asserted
@@ -107,7 +117,10 @@ FROM (VALUES
   ('00000000-0000-0000-0000-000001048408'::uuid, 'ZZ1048 Deleted Only'),
   ('00000000-0000-0000-0000-000001048411'::uuid, 'ZZ1048 New One'),
   ('00000000-0000-0000-0000-000001048412'::uuid, 'ZZ1048 New Two'),
-  ('00000000-0000-0000-0000-000001048413'::uuid, 'ZZ1048 New Three')
+  ('00000000-0000-0000-0000-000001048413'::uuid, 'ZZ1048 New Three'),
+  ('00000000-0000-0000-0000-000001048421'::uuid, 'ZZ1048 Card One'),
+  ('00000000-0000-0000-0000-000001048422'::uuid, 'ZZ1048 Card Two'),
+  ('00000000-0000-0000-0000-000001048425'::uuid, 'ZZ1048 Card Withdrawn')
 ) AS d(id, name);
 
 INSERT INTO public.dog_registrations (dog_id, organization, registration_number, is_primary)
@@ -150,6 +163,14 @@ VALUES
   ('00000000-0000-0000-0000-000001048100', '00000000-0000-0000-0000-000001048200',
    '00000000-0000-0000-0000-000001048304', '00000000-0000-0000-0000-000001048408',
    'confirmed', 'no-status', 3, now());
+
+-- Case 6a: dog 425 was withdrawn from A (paid, so not a pending line the
+-- re-entry guard lets through). run_order NULL, so cases 1-5 are unchanged.
+INSERT INTO public.entries (show_id, trial_id, class_id, dog_id, entry_status,
+                            payment_status, check_in_status, run_order)
+VALUES ('00000000-0000-0000-0000-000001048100', '00000000-0000-0000-0000-000001048200',
+        '00000000-0000-0000-0000-000001048301', '00000000-0000-0000-0000-000001048425',
+        'withdrawn', 'paid', 'no-status', NULL);
 
 INSERT INTO public.enrollments (id, show_id, handler_id)
 VALUES ('00000000-0000-0000-0000-000001048500', '00000000-0000-0000-0000-000001048100',
@@ -274,6 +295,129 @@ BEGIN
   END IF;
 
   RAISE NOTICE 'PASS myk9_1048_submit_entries_next_run_order_test';
+END;
+$$;
+
+-- ---------------------------------------------------------------------------
+-- Cases 6-7: the card checkout path. The exhibitor (the dogs' owner) pays a
+-- cart; the webhook (service_role) works each line through fulfill_cart_line.
+-- ---------------------------------------------------------------------------
+INSERT INTO auth.users (
+  id, instance_id, aud, role, email, encrypted_password, email_confirmed_at,
+  created_at, updated_at, raw_app_meta_data, raw_user_meta_data,
+  is_super_admin, is_sso_user, is_anonymous
+)
+VALUES ('00000000-0000-0000-0000-000001048102', '00000000-0000-0000-0000-000000000000',
+        'authenticated', 'authenticated', 'myk9-1048-owner@example.test', '', now(), now(), now(),
+        '{}', '{}', false, false, false);
+
+UPDATE public.people
+SET auth_user_id = '00000000-0000-0000-0000-000001048102'
+WHERE id = '00000000-0000-0000-0000-000001048001';
+
+INSERT INTO public.exhibitor_profiles (person_id, auth_user_id)
+SELECT '00000000-0000-0000-0000-000001048001', '00000000-0000-0000-0000-000001048102'
+WHERE NOT EXISTS (SELECT 1 FROM public.exhibitor_profiles
+                   WHERE auth_user_id = '00000000-0000-0000-0000-000001048102');
+
+SET LOCAL ROLE service_role;
+
+INSERT INTO public.entry_carts (id, exhibitor_id, show_id, status, expires_at)
+SELECT '00000000-0000-0000-0000-000001048601', ep.id, '00000000-0000-0000-0000-000001048100',
+       'active', now() + interval '30 minutes'
+FROM public.exhibitor_profiles ep
+WHERE ep.auth_user_id = '00000000-0000-0000-0000-000001048102';
+
+INSERT INTO public.entry_cart_items (id, cart_id, dog_id, class_id, entry_fee_cents, entry_id, created_at)
+VALUES
+  ('00000000-0000-0000-0000-000001048731', '00000000-0000-0000-0000-000001048601',
+   '00000000-0000-0000-0000-000001048425', '00000000-0000-0000-0000-000001048301',
+   3000, NULL, now() - interval '3 minutes'),
+  ('00000000-0000-0000-0000-000001048732', '00000000-0000-0000-0000-000001048601',
+   '00000000-0000-0000-0000-000001048421', '00000000-0000-0000-0000-000001048301',
+   3000, NULL, now() - interval '2 minutes'),
+  ('00000000-0000-0000-0000-000001048733', '00000000-0000-0000-0000-000001048601',
+   '00000000-0000-0000-0000-000001048422', '00000000-0000-0000-0000-000001048302',
+   3000, NULL, now() - interval '1 minute');
+
+-- The session goes on AFTER the lines: every line insert severs it.
+UPDATE public.entry_carts SET stripe_checkout_session_id = 'cs_test_1048'
+ WHERE id = '00000000-0000-0000-0000-000001048601';
+
+DO $$
+DECLARE
+  r record;
+  outcomes text := '';
+BEGIN
+  SELECT * INTO r FROM public.begin_cart_fulfillment(
+    '00000000-0000-0000-0000-000001048601', 'cs_test_1048', 'pi_test_1048',
+    jsonb_build_object(
+      '00000000-0000-0000-0000-000001048731', 3000,
+      '00000000-0000-0000-0000-000001048732', 3000,
+      '00000000-0000-0000-0000-000001048733', 3000));
+  IF r.outcome IS DISTINCT FROM 'begun' THEN
+    RAISE EXCEPTION 'FAIL case 6 setup: begin_cart_fulfillment returned %', r.outcome;
+  END IF;
+
+  SELECT * INTO r FROM public.fulfill_cart_line('cs_test_1048', '00000000-0000-0000-0000-000001048731');
+  outcomes := r.outcome;
+  SELECT * INTO r FROM public.fulfill_cart_line('cs_test_1048', '00000000-0000-0000-0000-000001048732');
+  outcomes := outcomes || ' ' || r.outcome;
+  PERFORM set_config('myk9_1048.card_entry', r.entry_id::text, true);
+  SELECT * INTO r FROM public.fulfill_cart_line('cs_test_1048', '00000000-0000-0000-0000-000001048733');
+  outcomes := outcomes || ' ' || r.outcome;
+  PERFORM set_config('myk9_1048.card_entry_b', r.entry_id::text, true);
+  IF outcomes IS DISTINCT FROM 'denied created_entry created_entry' THEN
+    RAISE EXCEPTION 'FAIL case 6 setup: line outcomes were % (expected denied created_entry created_entry)', outcomes;
+  END IF;
+
+  -- Case 7: a redelivery of line (b).
+  SELECT * INTO r FROM public.fulfill_cart_line('cs_test_1048', '00000000-0000-0000-0000-000001048732');
+  IF r.replayed IS NOT TRUE OR r.entry_id::text IS DISTINCT FROM current_setting('myk9_1048.card_entry') THEN
+    RAISE EXCEPTION 'FAIL case 7: redelivered line did not replay its recorded entry (replayed %, entry %)',
+      r.replayed, r.entry_id;
+  END IF;
+END;
+$$;
+
+RESET ROLE;
+
+DO $$
+DECLARE
+  got       integer;
+  got_found boolean;
+  n         integer;
+BEGIN
+  SELECT e.run_order INTO got FROM public.entries e
+   WHERE e.id = current_setting('myk9_1048.card_entry')::uuid;
+  IF got IS DISTINCT FROM 8 THEN
+    RAISE EXCEPTION 'FAIL case 6b: card checkout entry into ordered class A got run_order % (expected 8; the denied line takes no position)', got;
+  END IF;
+
+  SELECT e.run_order, true INTO got, got_found FROM public.entries e
+   WHERE e.id = current_setting('myk9_1048.card_entry_b')::uuid;
+  IF got_found IS NOT TRUE THEN
+    RAISE EXCEPTION 'FAIL case 6c: card checkout entry into class B not found';
+  END IF;
+  IF got IS NOT NULL THEN
+    RAISE EXCEPTION 'FAIL case 6c: card checkout entry into unordered class B got run_order %', got;
+  END IF;
+
+  SELECT count(*) INTO n FROM public.entries e
+   WHERE e.class_id = '00000000-0000-0000-0000-000001048301'
+     AND e.dog_id = '00000000-0000-0000-0000-000001048421'
+     AND e.deleted_at IS NULL;
+  IF n <> 1 THEN
+    RAISE EXCEPTION 'FAIL case 7: % entries for the card dog in class A after a redelivery (expected 1)', n;
+  END IF;
+
+  SELECT max(e.run_order) INTO got FROM public.entries e
+   WHERE e.class_id = '00000000-0000-0000-0000-000001048301' AND e.deleted_at IS NULL;
+  IF got IS DISTINCT FROM 8 THEN
+    RAISE EXCEPTION 'FAIL case 7: class A''s last position is % after a redelivery (expected 8)', got;
+  END IF;
+
+  RAISE NOTICE 'PASS myk9_1048_submit_entries_next_run_order_test (card checkout)';
 END;
 $$;
 

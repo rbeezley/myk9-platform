@@ -164,11 +164,15 @@ export function normalizeEntryManagementCockpitParams(
   const queues = getQueues(source);
   const rawSearch = source.get('search') ?? source.get('person') ?? '';
   const search = rawSearch.trim() ? rawSearch : '';
-  const trialIds = tab === 'registrations' ? getIds(source.get('trial'), context.knownTrialIds) : [];
+  const trialIds =
+    tab === 'registrations' ? getIds(source.get('trial'), context.knownTrialIds) : [];
   const classIds =
     tab === 'registrations'
       ? getIds(source.get('class'), context.knownClassIds).filter(
-          id => trialIds.length === 0 || !context.selectedTrialClassIds || context.selectedTrialClassIds.has(id)
+          id =>
+            trialIds.length === 0 ||
+            !context.selectedTrialClassIds ||
+            context.selectedTrialClassIds.has(id)
         )
       : [];
   const registrationKey = tab === 'registrations' ? getRegistrationKey(source, context) : null;

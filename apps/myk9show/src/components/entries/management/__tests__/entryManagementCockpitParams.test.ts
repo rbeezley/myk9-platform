@@ -186,7 +186,11 @@ describe('normalizeEntryManagementCockpitParams', () => {
   // docs/plan-entries-filter-button.md, settled rules 1, 4, 9 and 12.
   describe('several queues, trials and classes', () => {
     it.each([
-      ['queue=payment-due,needs-review', ['needs-review', 'payment-due'], 'queue=needs-review%2Cpayment-due'],
+      [
+        'queue=payment-due,needs-review',
+        ['needs-review', 'payment-due'],
+        'queue=needs-review%2Cpayment-due',
+      ],
       ['queue=needs-review,needs-review,bogus', ['needs-review'], ''],
       ['queue=payment-due,all', ['all'], 'queue=all'],
       ['queue=bogus&payment=pending', ['payment-due'], 'queue=payment-due'],
@@ -195,7 +199,9 @@ describe('normalizeEntryManagementCockpitParams', () => {
       expect(normalized.state.queues).toEqual(queues);
       expect(normalized.params.toString()).toBe(query);
       // Canonical: normalizing again changes nothing, so the replace effect settles.
-      expect(normalizeEntryManagementCockpitParams(normalized.params).params.toString()).toBe(query);
+      expect(normalizeEntryManagementCockpitParams(normalized.params).params.toString()).toBe(
+        query
+      );
     });
 
     it('reads trial and class lists, and a single value as a list of one', () => {

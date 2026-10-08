@@ -168,7 +168,9 @@ export function useEntryManagementCockpit({
     setPageIndex: (nextPageIndex: number) => setPageState({ viewKey, pageIndex: nextPageIndex }),
     /** The checked registration queues; switches back from an exception list if one is open. */
     setQueues: (queues: readonly ShowRegistrationQueue[]) =>
-      updateParams(previous => writeCockpitQueues(writeCockpitTab(previous, 'registrations'), queues)),
+      updateParams(previous =>
+        writeCockpitQueues(writeCockpitTab(previous, 'registrations'), queues)
+      ),
     setSearch: (search: string) => updateParams(previous => writeCockpitSearch(previous, search)),
     // Focus changes are navigable work steps. Push them into history so browser
     // Back/Forward can move between focused registrations without losing scope.

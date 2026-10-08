@@ -111,12 +111,13 @@ export function useEntryManagementTrialClasses({
   }, [fetchedTrialIds, resultsKey, selectedTrialIds, showTrialIds, trialsLoaded]);
 }
 
-export function useEntryManagementTrialScope({ selectedShowId }: { selectedShowId: string | null }) {
+export function useEntryManagementTrialScope({
+  selectedShowId,
+}: {
+  selectedShowId: string | null;
+}) {
   const { data: rawTrials, isLoading: isLoadingTrials, isSuccess } = useShowTrials(selectedShowId);
-  const trials = useMemo(
-    () => (rawTrials ?? []) as unknown as EntryManagementTrial[],
-    [rawTrials]
-  );
+  const trials = useMemo(() => (rawTrials ?? []) as unknown as EntryManagementTrial[], [rawTrials]);
 
   return {
     trials,

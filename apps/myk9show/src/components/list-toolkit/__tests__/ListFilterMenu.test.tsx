@@ -206,9 +206,9 @@ describe('ListFilterMenu', () => {
     // `pointer-events: none` on every row and no mouse pick landed (found in the browser walk).
     for (const option of screen.getAllByRole('option')) {
       expect(option).toHaveAttribute('data-disabled', 'false');
-      expect(option.className.split(/\s+/).filter(token => token.startsWith('data-[disabled]:'))).toEqual(
-        []
-      );
+      expect(
+        option.className.split(/\s+/).filter(token => token.startsWith('data-[disabled]:'))
+      ).toEqual([]);
     }
   });
 

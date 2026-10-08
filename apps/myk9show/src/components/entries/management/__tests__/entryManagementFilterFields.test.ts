@@ -81,9 +81,10 @@ describe('buildEntryManagementFilterFields', () => {
 
   it('keeps every class when the last trial is removed, since all classes are then offered', () => {
     const onScopeChange = vi.fn();
-    build({ state: { ...BASE_STATE, trialIds: ['t1'], classIds: ['c1'] }, onScopeChange }).trial.onChange(
-      []
-    );
+    build({
+      state: { ...BASE_STATE, trialIds: ['t1'], classIds: ['c1'] },
+      onScopeChange,
+    }).trial.onChange([]);
     expect(onScopeChange).toHaveBeenCalledWith([], ['c1']);
   });
 

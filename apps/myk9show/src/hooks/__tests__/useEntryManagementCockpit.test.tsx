@@ -163,7 +163,11 @@ describe('useEntryManagementCockpit', () => {
     let search = '';
     // Form 1 holds an entry that needs review AND an accepted one with payment due, so it is in
     // both queues; form 2 only needs review; form 3 only has payment due.
-    const accepted = (index: number, classId: string, registrationId = `registration-${index}`) => ({
+    const accepted = (
+      index: number,
+      classId: string,
+      registrationId = `registration-${index}`
+    ) => ({
       ...entry(index, classId),
       registrationId,
       entryStatus: EntryStatus.ACCEPTED,

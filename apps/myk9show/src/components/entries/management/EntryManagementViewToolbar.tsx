@@ -41,7 +41,10 @@ interface EntryManagementViewToolbarProps {
   exceptionCounts: { pulls: number; moveUps: number | undefined };
   trials: readonly EntryManagementTrial[];
   trialsLoaded: boolean;
-  classes: Pick<TrialClasses, 'trialClasses' | 'classesLoaded' | 'classTrialById' | 'knownClassIds'>;
+  classes: Pick<
+    TrialClasses,
+    'trialClasses' | 'classesLoaded' | 'classTrialById' | 'knownClassIds'
+  >;
   onClearAll: () => void;
   /** Registrations on screen after every filter, and in the show's whole queue. */
   /** Null until the entries have loaded successfully: no sentence before then. */

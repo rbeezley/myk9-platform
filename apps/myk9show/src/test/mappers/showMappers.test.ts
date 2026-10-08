@@ -76,6 +76,7 @@ describe('mapDatabaseToShow — branding fallback', () => {
         judgeName: 'Liz Beezley',
         assignedDate: '2026-05-01',
         assignedClasses: [],
+        hasShowLevelAssignment: true,
       },
     ]);
   });

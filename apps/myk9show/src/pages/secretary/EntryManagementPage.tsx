@@ -34,9 +34,7 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 import {
   getCockpitNormalizationContext,
   normalizeEntryManagementCockpitParams,
-  writeCockpitScope,
-  writeCockpitSearch,
-  writeCockpitView,
+  widenCockpitFilters,
   type EntryManagementViewId,
 } from '@/components/entries/management/entryManagementCockpitParams';
 import { groupEntriesByShowRegistration } from '@/components/entries/management/showRegistrationProjection';
@@ -168,14 +166,7 @@ const EntryManagementPage: React.FC = () => {
   const handleScopeChange = (trialId: string | null, classId: string | null = null) =>
     cockpit.setScope(trialId, classId);
   const handleClearEntryFilters = () => {
-    setSearchParams(
-      previous => {
-        let next = writeCockpitSearch(previous, '');
-        next = writeCockpitScope(next, null, null);
-        return writeCockpitView(next, 'all');
-      },
-      { replace: true }
-    );
+    setSearchParams(previous => widenCockpitFilters(previous, cockpitUrl.state), { replace: true });
   };
 
   const {

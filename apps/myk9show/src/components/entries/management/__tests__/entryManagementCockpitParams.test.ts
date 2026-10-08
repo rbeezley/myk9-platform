@@ -8,6 +8,7 @@ import {
   writeCockpitScope,
   writeCockpitSearch,
   writeCockpitTab,
+  widenCockpitFilters,
   writeCockpitView,
 } from '../entryManagementCockpitParams';
 
@@ -185,5 +186,21 @@ describe('normalizeEntryManagementCockpitParams', () => {
       const next = writeCockpitView(params('trial=t1&search=Poppy'), 'all');
       expect(next.toString()).toBe('trial=t1&search=Poppy&queue=all');
     });
+  });
+});
+
+describe('widenCockpitFilters', () => {
+  it('widens the queue first and keeps trial, class and search', () => {
+    const next = widenCockpitFilters(params('trial=t&class=c&search=bob'), {
+      queue: 'needs-review',
+    });
+    expect(next.toString()).toBe('trial=t&class=c&search=bob&queue=all');
+  });
+
+  it('only once the queue is all does it drop the scope and search', () => {
+    const next = widenCockpitFilters(params('queue=all&trial=t&class=c&search=bob'), {
+      queue: 'all',
+    });
+    expect(next.toString()).toBe('queue=all');
   });
 });

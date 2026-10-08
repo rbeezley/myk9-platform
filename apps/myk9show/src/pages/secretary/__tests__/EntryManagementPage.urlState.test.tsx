@@ -220,4 +220,24 @@ describe('EntryManagementPage URL ownership', () => {
     await waitFor(() => expect(screen.getByTestId('location-search')).toBeEmptyDOMElement());
     expect(screen.getByTestId('focused-registration')).toHaveTextContent('none');
   });
+
+  it('Show all forms widens only the queue and keeps the trial and class scope', async () => {
+    entryDataState.entries = [{ ...testEntry, entryStatus: 'accepted', paymentStatus: 'paid' }];
+
+    const { user } = render(
+      <>
+        <EntryManagementPage />
+        <LocationProbe />
+      </>,
+      { initialRoute: '/shows/show-1/entries?trial=trial-1&class=class-1' }
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Show all forms' }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('location-search').textContent).toBe(
+        '?queue=all&trial=trial-1&class=class-1'
+      )
+    );
+  });
 });

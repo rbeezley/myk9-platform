@@ -151,8 +151,8 @@ export const mapClassInputToInsert = (classData: ClassInput): DbClassInsert => {
     handler_age_min: null,
     handler_age_max: null,
 
-    // Rules and restrictions
-    allow_waitlist: true,
+    // Rules and restrictions. allow_waitlist is left to the column (NULL): a new class
+    // follows the show's "Allow wait lists" (MYK9-1019).
     breed_restrictions: null,
     max_dogs_per_handler: null,
   };
@@ -270,9 +270,9 @@ export const mapDatabaseToClass = (dbClass: DbClassWithRelations): SyncableClass
     // save of the class editor would write back as a real limit.
     maxEntries: dbClass.max_entries ?? undefined,
     // Absent (a read that does not select the column, e.g. the public one) stays undefined so
-    // the editor treats the switch as not loaded; a null column is the server's `false`.
-    allowsWaitlist:
-      dbClass.allow_waitlist === undefined ? undefined : (dbClass.allow_waitlist ?? false),
+    // the editor treats the switch as not loaded; a null column means the class follows the
+    // show's "Allow wait lists" (MYK9-1019) and stays null.
+    allowsWaitlist: dbClass.allow_waitlist,
     requiresJumpHeight: Array.isArray(dbClass.jump_heights) && dbClass.jump_heights.length > 0,
 
     // Scent work specific fields (legacy compatibility)

@@ -32,6 +32,8 @@ export interface EditPanelDeleteOption {
   onDeleteStart?: (() => void) | undefined;
   /** Nothing was deleted (refused or failed); the dialog stays open with the reason. */
   onDeleteFailed?: (() => void) | undefined;
+  /** Invoked only when the blocked-delete recovery link is followed. */
+  onBlockedAction?: (() => void) | undefined;
 }
 
 interface EditPanelDeleteButtonProps {
@@ -91,6 +93,7 @@ export function EditPanelDeleteDialog({
       onRestored={option.onRestored}
       onDeleteStart={option.onDeleteStart}
       onDeleteFailed={option.onDeleteFailed}
+      onBlockedAction={option.onBlockedAction}
     />
   );
 }

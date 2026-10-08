@@ -74,6 +74,9 @@ export interface SecretaryEntry {
   trial: {
     trial_type: string | null;
     timezone?: string | null;
+    /** The trial's calendar date (YYYY-MM-DD) and its number within the show, for display. */
+    trial_date?: string | null;
+    trial_number?: string | null;
   } | null;
   /** Joined person for handler_id — online entries set the FK, not the legacy text. */
   handler_person: {

@@ -38,9 +38,12 @@ database is left untouched — but the reseed has not happened either. Check wit
    entries on the demo show) plus the show-day fixture `Heartland Scent Work
 Week`, which has a trial dated today for seven days after the reseed
    (MYK9-731), and removes the MYK9-109 load fixture if it was applied.
-   **Reseed at least weekly** on the walks' schedule: once the seven days lapse,
-   no seeded show is running today and the walks record show-day check-in,
-   running order and announcements as a stale-fixture gap.
+   Once the seven days lapse, no seeded show is running today and the walks
+   record show-day check-in, running order and announcements as a
+   stale-fixture gap. Between reseeds, get a fresh one with the insert-only
+   restore in
+   [Show-day fixture restore](#show-day-fixture-restore-between-reseeds) below
+   rather than a full reseed.
 3. **Load fixture (opt-in)** — only for a load rehearsal or a 63-entry PDF
    calibration, run `supabase/seed-load-fixture.sql` AFTER step 2 against the
    same URL (MYK9-558). It adds the 63 load dogs and 504 entries on the demo
@@ -57,6 +60,77 @@ psql "$(cat supabase/.temp/pooler-url)" -v ON_ERROR_STOP=1 -f supabase/seed-demo
 > Worktrees are NOT linked to Supabase (the CLI link cache lives in
 > `supabase/.temp`, which—like gitignored files—does not copy across worktrees).
 > Copy `supabase/.temp` from a linked checkout, or run from the linked tree.
+
+## Show-day fixture restore (between reseeds)
+
+The show-day fixture (`Heartland Scent Work Week`) goes stale seven days after
+it was created, and a walk or a person can soft-delete it from the app. On
+2026-10-01 the demo secretary account deleted the old fixed fixture show
+(`dededede-0000-0000-0000-000000000014`) from the app, which stamped its trials,
+classes and entries too, and the October 5 show-day walk found zero live
+classes. A full reseed is the wrong repair now: while real paid entries sit on
+a real club show, `seed_demo_assert_no_paid_strays()` aborts it, by design.
+
+`public.seed_demo_restore_show_day_fixture()` (migration `20261006014300`,
+MYK9-731) is **insert-only**:
+
+- If a ready fixture already covers today, it returns that show and writes
+  nothing. Ready means a live trial dated today in its own timezone,
+  self-check-in on, a published class time, the demo exhibitor's live entry in
+  the running order, and an active announcement.
+- Otherwise it inserts a **brand-new** fixture show with fresh ids:
+  - seven one-day trials from today to today + 6 in America/Chicago;
+  - classes with a 9:00 AM start;
+  - Willow (`exhibitor@`, run 1) and Cooper (`secretary@`, run 2) in every class;
+  - armbands, the judge fixture, self-check-in, and two normal-priority
+    announcements.
+- It never updates or deletes an existing row. Older fixture shows, including
+  the retired `...014`, stay as they are and age into the past.
+- Section 19 of `seed-demo.sql` calls the same function, so the reseed and the
+  restore cannot drift apart.
+
+**Finding the fixture.** Every row the function mints has an id starting
+`dededede-0000-0000-0731-`. That prefix has UUID version nibble 0, which
+`gen_random_uuid()` never produces, so no real club show can carry it. Never
+look the fixture up by a fixed id. Use:
+
+```sql
+select public.seed_demo_show_day_fixture_today();   -- today's ready fixture show id, or null
+```
+
+- **Who runs it:** the owner. It writes to the shared staging database, so an
+  agent does not run it unprompted, even in auto mode.
+- **When:** before a scheduled show-day or exhibitor walk whose precondition
+  reports no ready fixture, or on any day a show-day walk is planned. It is
+  idempotent: a second call while a fixture is ready returns
+  `"created": false` and inserts nothing.
+- **Precondition:** migration `20261006014300` is on the database
+  (`supabase migration list`). Without it the call fails with `42883 function
+... does not exist` and changes nothing.
+
+```bash
+# From a checkout that has supabase/.env (no link needed).
+export PGPASSWORD="$(grep '^SUPABASE_DB_PASSWORD=' supabase/.env | cut -d= -f2-)"
+psql "postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase.com:5432/postgres" \
+  -X -v ON_ERROR_STOP=1 -c "select public.seed_demo_restore_show_day_fixture();"
+```
+
+It returns, for example,
+`{"show_id": "dededede-0000-0000-0731-…", "created": true, "today": "2026-10-06"}`.
+
+It **refuses, and writes nothing,** when:
+
+- the Heartland demo club is missing (`P0002`). Run the full reseed instead.
+- `exhibitor@`, `secretary@` or `judge@myk9t.com` does not resolve to exactly
+  one person, or `secretary@` has no sign-in account (it authors the
+  announcements).
+- the seeded dogs Willow and Cooper are missing or deleted.
+
+There is no money refusal: the function touches no existing row, so there is
+nothing for it to cascade or overwrite. Fixture shows accumulate, one per
+restore that found nothing ready and one per reseed. Section 0 of the reseed
+removes the entries and seeded-dog armbands the function minted, and leaves the
+shows themselves.
 
 ## Post-reseed verification — REQUIRED
 

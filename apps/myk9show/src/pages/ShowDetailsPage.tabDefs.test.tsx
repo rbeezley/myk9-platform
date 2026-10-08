@@ -120,7 +120,7 @@ describe("buildShowManagementTabDefs — the secretary's one row of four", () =>
         managerEntryDataUnavailable: false,
         resultsCount: 2,
       }).map(tab => tab.label)
-    ).toEqual(['Overview', 'Entries', 'Results', 'Reports']);
+    ).toEqual(['Overview', 'Entry Forms', 'Results', 'Reports']);
   });
 
   it('carries the tab ids the route model declares', () => {

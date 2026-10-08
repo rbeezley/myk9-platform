@@ -30,9 +30,9 @@ jobs:
     name: Promote exact SHA to staging release refs
     # `cancelled` is admitted here and then judged by "Evaluate CI gating jobs"
     # below, which looks at the JOBS. The run-level conclusion is an AND over
-    # every job including `Test myK9Show (coverage)` -- a push-only informational
-    # report that CI's concurrency group cancels whenever merges land close
-    # together. Gating on the conclusion alone stranded three consecutive green
+    # every job, including a push-only informational one (`Test myK9Show
+    # (coverage)`, since deleted) that CI's concurrency group cancelled whenever
+    # merges landed close together. Gating on the conclusion alone stranded three consecutive green
     # merges on 2026-09-04 (f7876cd6a, 68a0bd813, ad060903c) with the release
     # refs pinned to 6d7a2db9a.
     #

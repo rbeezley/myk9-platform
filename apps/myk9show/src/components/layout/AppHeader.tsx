@@ -149,7 +149,8 @@ const AppHeader: React.FC = () => {
               }`}
             >
               <img
-                src="/brand-mark.svg"
+                src="/brand-mark-28.png"
+                srcSet="/brand-mark-28.png 1x, /brand-mark-56.png 2x, /brand-mark-84.png 3x"
                 alt=""
                 aria-hidden="true"
                 width="28"

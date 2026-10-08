@@ -134,7 +134,7 @@ test.describe('Shows UI — Detail (secretary)', () => {
     await page.locator('h3').first().click();
     await page.waitForURL(/\/shows\/[a-f0-9-]{36}/);
 
-    for (const tab of ['Overview', 'Trials', 'Classes', 'Entries', 'Results']) {
+    for (const tab of ['Overview', 'Trials', 'Classes', 'Entry Forms', 'Results']) {
       await expect(page.getByRole('tab', { name: new RegExp(`^${tab}`) })).toBeVisible();
     }
 

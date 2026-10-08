@@ -128,6 +128,12 @@ async function waitlistIdsForClass(): Promise<string[]> {
 
 describe('ReplicatedWaitlistEntriesTable — MYK9-660 read path', () => {
   beforeEach(async () => {
+    // A second sync must begin after the first row's lastSyncedAt. Real clock
+    // milliseconds can tie in this fast test; the production stale-row guard
+    // correctly preserves a row on a tie because an upload may have raced it.
+    const start = Date.now();
+    let tick = 0;
+    vi.spyOn(Date, 'now').mockImplementation(() => start + tick++);
     await resetReplica();
     server.visibleRows = [];
     server.queries = [];
@@ -137,6 +143,7 @@ describe('ReplicatedWaitlistEntriesTable — MYK9-660 read path', () => {
   afterEach(async () => {
     vi.unstubAllGlobals();
     await resetReplica();
+    vi.restoreAllMocks();
   });
 
   it('heals a replica cached before the RLS widening, whose rows predate the watermark', async () => {

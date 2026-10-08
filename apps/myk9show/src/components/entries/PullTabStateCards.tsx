@@ -43,7 +43,7 @@ export function PulledEntriesUnknownCard() {
     <StateCard
       icon={ERROR_ICON}
       title="Couldn't load this show's entries"
-      detail="Pulled entries come from the same read, so we don't know whether this show has any. Retry from the Registrations tab."
+      detail="Pulled entries come from the same read, so we don't know whether this show has any. Retry from the All view."
     />
   );
 }

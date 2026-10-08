@@ -8,7 +8,8 @@
  * status label and gets its own reset.
  */
 
-import { useId } from 'react';
+import { useId, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import {
@@ -35,7 +36,11 @@ import type {
   TrialOverrideEntry,
   ClassOverrideEntry,
 } from '@/hooks/queries/useShowSettingsDatabase';
-import { getClassName } from '@/components/classes/types/classTypes';
+import {
+  buildClassDisambiguatorsByGroup,
+  buildFullClassLabel,
+} from '@/features/_shared/classLabel';
+import { getShowMapClassHref } from '@/features/show-map/showMapRoutes';
 import {
   resolveTrialVisibility,
   resolveTrialCheckin,
@@ -70,19 +75,23 @@ interface OverrideTreeProps {
 const PRESET_KEYS = Object.keys(PRESET_INFO) as VisibilityPreset[];
 type OverrideFacet = 'visibility' | 'checkin';
 
-function getOverrideClassName(cls: {
-  name?: string | undefined;
-  element?: string | undefined;
-  level?: string | undefined;
-  section?: string | undefined;
-  className?: string | undefined;
-}): string {
-  return getClassName({
+/**
+ * The canonical full class label ("Container Novice A"), the same composer the
+ * Show Desk cockpit uses, so a row never degrades to a bare level ("Novice").
+ */
+function buildOverrideClassLabeler(classes: OverrideTreeProps['classes']) {
+  const identityOf = (cls: OverrideTreeProps['classes'][number]) => ({
+    trialId: cls.trialId,
+    name: cls.className ?? cls.name,
     element: cls.element,
     level: cls.level,
     section: cls.section,
-    className: cls.className ?? cls.name,
   });
+  const disambiguatorFor = buildClassDisambiguatorsByGroup(classes.map(identityOf), c => c.trialId);
+  return (cls: OverrideTreeProps['classes'][number]): string => {
+    const identity = identityOf(cls);
+    return buildFullClassLabel(identity, disambiguatorFor(cls.trialId)(identity), identity.name);
+  };
 }
 
 // ── Shared per-row controls for the owner-selected facet ──
@@ -227,6 +236,7 @@ export function OverrideTree({
   const updateClassOverride = useUpdateClassOverride();
   const resetOverride = useResetOverride();
   const connectionHint = useConnectionHint();
+  const labelFor = useMemo(() => buildOverrideClassLabeler(classes), [classes]);
 
   const mutating =
     updateTrialOverride.isPending ||
@@ -406,7 +416,7 @@ export function OverrideTree({
                   <span className="text-xs text-muted-foreground">Select all</span>
                 </div>
                 {trialClasses.map(cls => {
-                  const className = getOverrideClassName(cls);
+                  const className = labelFor(cls);
                   const classOverride = classOverrideById.get(cls.id);
                   const classVis = resolveClassVisibility(settings, classOverride, trialOverride);
                   const classCheckin = resolveClassCheckin(settings, classOverride, trialOverride);
@@ -430,6 +440,15 @@ export function OverrideTree({
                           <FacetStatus facet={facet} visibility={classVis} checkin={classCheckin} />
                         </div>
                       </div>
+                      {facet === 'visibility' && (
+                        <Link
+                          to={getShowMapClassHref(showId, trial.id, cls.id)}
+                          aria-label={`View results for ${className}`}
+                          className="inline-flex min-h-11 shrink-0 items-center rounded-sm px-2 text-sm font-medium text-primary underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          View results
+                        </Link>
+                      )}
                       <OverrideControls
                         facet={facet}
                         name={className}

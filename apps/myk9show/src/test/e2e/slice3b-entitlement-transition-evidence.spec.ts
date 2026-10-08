@@ -65,7 +65,8 @@ async function openDogTitleProgress(page: Page) {
   // real <a> elements elsewhere on the page also expose the link role, so match
   // the attribute directly. Waiting on the card itself matters: before the dogs
   // query settles the page briefly renders unrelated headings.
-  const dogCards = page.locator('[role="link"]');
+  // From 1024px the list is compact rows (plain <a>, no role attribute).
+  const dogCards = page.locator('ul[aria-label="Dogs"] a, [role="link"]');
   await expect(dogCards.first(), 'the e2e exhibitor must own at least one dog').toBeVisible({
     timeout: 20000,
   });

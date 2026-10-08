@@ -188,7 +188,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
   }, [classInfo]);
 
   return (
-    <header className="sticky top-0 z-10 flex min-h-[60px] items-center gap-4 rounded-b-xl border-b border-border bg-card p-3">
+    <header className="sticky top-0 z-10 flex min-h-[60px] items-center gap-2 rounded-b-xl border-b border-border bg-card p-3 sm:gap-4">
       <HamburgerMenu
         backNavigation={{
           label: 'Back to Classes',
@@ -202,7 +202,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
         ref={classInfoRef}
         data-class-info-trigger={hasExtraInfo ? '' : undefined}
         className={cn(
-          'absolute left-1/2 top-1/2 flex min-h-11 max-w-[55%] -translate-x-1/2 -translate-y-1/2 flex-col items-center justify-center gap-0.5 rounded-md px-1.5 py-1 text-center',
+          'flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-md px-1.5 py-1 text-center md:absolute md:left-1/2 md:top-1/2 md:max-w-[55%] md:flex-none md:-translate-x-1/2 md:-translate-y-1/2',
           hasExtraInfo &&
             'group cursor-pointer transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
         )}
@@ -216,7 +216,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
       >
         {/* Class name with small info indicator */}
         <div className="flex items-center justify-center gap-1">
-          <h1 className="m-0 whitespace-nowrap text-center text-lg font-[590] leading-none tracking-tight text-foreground">
+          <h1 className="m-0 text-balance text-center text-base font-[590] leading-tight tracking-tight text-foreground md:whitespace-nowrap md:text-lg md:leading-none">
             {classInfo?.className?.toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) ||
               'Loading...'}
           </h1>
@@ -231,7 +231,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
         </div>
         {/* Trial date and number */}
         {trialInfoText && (
-          <div className="flex w-full justify-center">
+          <div className="flex w-full justify-center max-sm:hidden">
             <span className="text-xs font-medium leading-tight text-muted-foreground">
               {trialInfoText}
             </span>

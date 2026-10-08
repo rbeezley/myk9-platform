@@ -49,10 +49,14 @@ const ANON_EXECUTE_KEEP_LIST: Readonly<Record<string, string>> = {
 };
 
 const TABLE_GRANT_DECISION_KEEP_LIST: Readonly<Record<string, string>> = {
+  cart_checkout_leases:
+    'RLS with no policies intentionally denies API roles; the checkout lease RPCs own access (MYK9-1012).',
   cart_fulfillment_lines:
     'RLS with no policies intentionally denies API roles; the cart fulfillment RPCs own access (MYK9-964).',
   cart_fulfillments:
     'RLS with no policies intentionally denies API roles; the cart fulfillment RPCs own access (MYK9-964).',
+  cart_spot_holds:
+    'RLS with no policies intentionally denies API roles; hold_cart_spots, link_cart_checkout and end_cart_checkout own access (MYK9-1012).',
   login_attempts: 'RLS with no policies intentionally denies API roles; service paths use RPCs.',
   premium_generation_attempts:
     'RLS with no policies intentionally denies API roles; service paths use RPCs.',

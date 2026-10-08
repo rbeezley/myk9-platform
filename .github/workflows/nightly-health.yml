@@ -80,7 +80,11 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: myk9show-nightly-health-report
-          path: apps/myk9show/playwright-report/
+          # Never the trace archives: they hold live test-account tokens and
+          # this repository's artifacts are public (MYK9-1057).
+          path: |
+            apps/myk9show/playwright-report/
+            !apps/myk9show/playwright-report/**/*.zip
           retention-days: 7
 
   # Cross-browser route health — WebKit and iOS Safari.
@@ -177,7 +181,11 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: myk9show-cross-browser-health-report
-          path: apps/myk9show/playwright-report/
+          # Never the trace archives: they hold live test-account tokens and
+          # this repository's artifacts are public (MYK9-1057).
+          path: |
+            apps/myk9show/playwright-report/
+            !apps/myk9show/playwright-report/**/*.zip
           retention-days: 7
 
   # Reported by its OWN job rather than a step inside one of the two above,

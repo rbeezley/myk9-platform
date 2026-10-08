@@ -9,7 +9,7 @@ import React from 'react';
 import { Users } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { getTrialTimezone } from '@/features/registries';
+import { formatOfferDeadline } from '@/lib/format/offerDeadline';
 import type { WaitListEntry } from '@/types/waitlist-types';
 
 interface WaitListSectionProps {
@@ -30,13 +30,17 @@ interface WaitListSectionProps {
   onOfferDeadlineElapsed: () => void;
 }
 
-type OfferDisplayState = 'waiting' | 'offered' | 'checking' | 'expired' | 'declined' | 'reconciled';
+type OfferDisplayState =
+  'waiting' | 'offered' | 'checking' | 'expired' | 'declined' | 'withdrawn' | 'reconciled';
 
 function getOfferDisplayState(entry: WaitListEntry, now: Date): OfferDisplayState {
   if (entry.status === 'declined') return 'declined';
+  if (entry.status === 'withdrawn') return 'withdrawn';
   if (entry.status === 'accepted') return 'reconciled';
   if (entry.status === 'expired') return 'expired';
   if (entry.status !== 'offered') return 'waiting';
+  // Mail-in offers keep their stored timestamp but the expiry job never closes them.
+  if (entry.joinedVia === 'mail_in') return 'offered';
 
   const offerDeadline = entry.offerExpiresAt ? Date.parse(entry.offerExpiresAt) : Number.NaN;
   if (Number.isFinite(offerDeadline) && offerDeadline <= now.getTime()) return 'checking';
@@ -45,28 +49,17 @@ function getOfferDisplayState(entry: WaitListEntry, now: Date): OfferDisplayStat
 }
 
 /**
- * The deadline as a clock time in the trial's zone, matching the offer message
- * and email ("claim it by <day, time>"). No countdown: a ticking figure turns a
- * calm offer into pressure. Invalid or missing zones fall back to New York via
- * `getTrialTimezone`, the same fallback the server-side copy uses.
+ * Mail-in offers have no automatic deadline. Online deadlines use the trial's
+ * zone, matching the offer message and email ("claim it by <day, time>"). No
+ * countdown: a ticking figure turns a calm offer into pressure. Invalid or
+ * missing zones fall back to New York, like the server-side copy.
  */
-function formatOfferDeadline(entry: WaitListEntry): string {
-  if (!entry.offerExpiresAt || !Number.isFinite(Date.parse(entry.offerExpiresAt))) {
-    return 'Claim it before the offer ends.';
+function describeOfferTiming(entry: WaitListEntry): string {
+  if (entry.joinedVia === 'mail_in') {
+    return 'The club is holding this spot while awaiting your payment. Pay the club directly or contact the show secretary.';
   }
-  const when = new Intl.DateTimeFormat('en-US', {
-    timeZone: getTrialTimezone({ timezone: entry.trialTimezone }),
-    weekday: 'short',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZoneName: 'short',
-  })
-    .formatToParts(new Date(entry.offerExpiresAt))
-    .map(part => (part.type === 'literal' && part.value === ' at ' ? ', ' : part.value))
-    .join('');
-  return `Claim by ${when}`;
+  const when = formatOfferDeadline(entry.offerExpiresAt, entry.trialTimezone);
+  return when ? `Claim by ${when}` : 'Claim it before the offer ends.';
 }
 
 export const WaitListSection: React.FC<WaitListSectionProps> = ({
@@ -148,10 +141,14 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
             {entries.map(entry => {
               const displayState = getOfferDisplayState(entry, now);
               const isFocused = entry.id === focusedOfferId;
-              const isOfferActionable = displayState === 'offered' && entry.promotedEntryId;
+              const isOfferActionable =
+                displayState === 'offered' &&
+                entry.joinedVia !== 'mail_in' &&
+                entry.promotedEntryId;
               const isPayingOffer = payingEntryId === entry.promotedEntryId;
               const isDecliningOffer = decliningOfferId === entry.id;
-              const hasPaymentError = paymentErrorOfferId === entry.id && !!paymentError;
+              const hasPaymentError =
+                entry.joinedVia !== 'mail_in' && paymentErrorOfferId === entry.id && !!paymentError;
               const hasDeclineError = declineErrorOfferId === entry.id && !!declineError;
 
               return (
@@ -179,7 +176,7 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
                         </p>
                         {displayState === 'offered' && (
                           <p className="mt-1 text-sm font-medium text-success">
-                            {formatOfferDeadline(entry)}
+                            {describeOfferTiming(entry)}
                           </p>
                         )}
                         {displayState === 'checking' && (
@@ -195,6 +192,11 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
                         {displayState === 'declined' && (
                           <p className="mt-1 text-sm text-muted-foreground">
                             You declined this spot.
+                          </p>
+                        )}
+                        {displayState === 'withdrawn' && (
+                          <p className="mt-1 text-sm text-muted-foreground">
+                            The club withdrew this offer. Contact the show secretary with questions.
                           </p>
                         )}
                         {displayState === 'reconciled' && (

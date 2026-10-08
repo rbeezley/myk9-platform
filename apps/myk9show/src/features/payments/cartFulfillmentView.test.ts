@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { buildCartFulfillmentView } from './cartFulfillmentView';
-import type { CartItemWithDetails } from '@/store/cartStore';
+import type {
+  CartClassCapacity,
+  CartJudgeDayCapacity,
+} from '@/features/payments/cartCapacitySplit';
+import { serverWaitlistClassIds, type CartTestLine } from '@/test/utils/cartWaitlistFixtures';
 import type { JudgeDayCapacity } from '@/types/waitlist-types';
 
-function item(id: string, classId: string, allowWaitlist = true): CartItemWithDetails {
+function item(id: string, classId: string, allowWaitlist = true): CartTestLine {
   return {
     id,
     cart_id: 'cart-1',
@@ -20,9 +24,18 @@ function item(id: string, classId: string, allowWaitlist = true): CartItemWithDe
       name: classId,
       level: null,
       trial_id: 'trial-1',
-      allow_waitlist: allowWaitlist,
     },
+    serverTakesWaitlist: allowWaitlist,
   };
+}
+
+/** The cart view, told which classes take a wait list the way the server's read reports them. */
+function fulfillmentFor(
+  lines: CartTestLine[],
+  days: readonly CartJudgeDayCapacity[] | null,
+  spots: readonly CartClassCapacity[] = []
+) {
+  return buildCartFulfillmentView(lines, days, spots, serverWaitlistClassIds(lines));
 }
 
 // judgeId + showDate is the capacity bucket key, so a fixture with two distinct
@@ -50,7 +63,7 @@ describe('buildCartFulfillmentView', () => {
   it('marks an open class payable and counts its fee toward the payable subtotal', () => {
     const open = item('item-open', 'class-open');
 
-    const view = buildCartFulfillmentView([open], [judgeDay(5, ['class-open'])]);
+    const view = fulfillmentFor([open], [judgeDay(5, ['class-open'])]);
 
     expect(view.fulfillmentByItemId['item-open']).toBe('payable');
     expect(view.payableItems).toEqual([open]);
@@ -63,7 +76,7 @@ describe('buildCartFulfillmentView', () => {
   it('marks a full class that accepts a wait list as a wait-list request, not a payable line', () => {
     const full = item('item-full', 'class-full');
 
-    const view = buildCartFulfillmentView([full], [judgeDay(0, ['class-full'])]);
+    const view = fulfillmentFor([full], [judgeDay(0, ['class-full'])]);
 
     expect(view.fulfillmentByItemId['item-full']).toBe('waitlist');
     expect(view.payableItems).toEqual([]);
@@ -75,7 +88,7 @@ describe('buildCartFulfillmentView', () => {
   it('marks a full class that refuses a wait list as blocked', () => {
     const blocked = item('item-blocked', 'class-full', false);
 
-    const view = buildCartFulfillmentView([blocked], [judgeDay(0, ['class-full'])]);
+    const view = fulfillmentFor([blocked], [judgeDay(0, ['class-full'])]);
 
     expect(view.fulfillmentByItemId['item-blocked']).toBe('blocked');
     expect(view.blockedItems).toEqual([blocked]);
@@ -87,7 +100,7 @@ describe('buildCartFulfillmentView', () => {
   it('keeps a recovered unpaid entry payable after its class fills', () => {
     const recovered = { ...item('item-recovered', 'class-full', false), entry_id: 'entry-1' };
 
-    const view = buildCartFulfillmentView(
+    const view = fulfillmentFor(
       [recovered],
       [judgeDay(0, ['class-full'])],
       [{ classId: 'class-full', availableSpots: 0 }]
@@ -102,7 +115,7 @@ describe('buildCartFulfillmentView', () => {
   it('keeps recovered entries payable when capacity cannot be loaded', () => {
     const recovered = { ...item('item-recovered', 'class-full', false), entry_id: 'entry-1' };
 
-    const view = buildCartFulfillmentView([recovered], null);
+    const view = fulfillmentFor([recovered], null);
 
     expect(view.capacityKnown).toBe(true);
     expect(view.fulfillmentByItemId['item-recovered']).toBe('payable');
@@ -112,7 +125,7 @@ describe('buildCartFulfillmentView', () => {
     const open = item('item-open', 'class-open');
     const full = item('item-full', 'class-full');
 
-    const view = buildCartFulfillmentView(
+    const view = fulfillmentFor(
       [open, full],
       [judgeDay(5, ['class-open']), judgeDay(0, ['class-full'], 'judge-2')]
     );
@@ -129,7 +142,7 @@ describe('buildCartFulfillmentView', () => {
     const first = item('item-1', 'class-open');
     const second = item('item-2', 'class-open');
 
-    const view = buildCartFulfillmentView([first, second], [judgeDay(1, ['class-open'])]);
+    const view = fulfillmentFor([first, second], [judgeDay(1, ['class-open'])]);
 
     expect(view.fulfillmentByItemId['item-1']).toBe('payable');
     expect(view.fulfillmentByItemId['item-2']).toBe('waitlist');
@@ -139,7 +152,7 @@ describe('buildCartFulfillmentView', () => {
   it('reports capacity as unknown while judge-day capacity has not resolved', () => {
     const open = item('item-open', 'class-open');
 
-    const view = buildCartFulfillmentView([open], null);
+    const view = fulfillmentFor([open], null);
 
     expect(view.capacityKnown).toBe(false);
     // Nothing may be claimed about availability yet, so no line is demoted to a
@@ -151,14 +164,14 @@ describe('buildCartFulfillmentView', () => {
   it('reports capacity as known once judge days resolve, even when the show has none', () => {
     const open = item('item-open', 'class-open');
 
-    const view = buildCartFulfillmentView([open], []);
+    const view = fulfillmentFor([open], []);
 
     expect(view.capacityKnown).toBe(true);
     expect(view.fulfillmentByItemId['item-open']).toBe('payable');
   });
 
   it('returns an empty view for an empty cart', () => {
-    const view = buildCartFulfillmentView([], [judgeDay(5, ['class-open'])]);
+    const view = fulfillmentFor([], [judgeDay(5, ['class-open'])]);
 
     expect(view.payableItems).toEqual([]);
     expect(view.waitlistItems).toEqual([]);

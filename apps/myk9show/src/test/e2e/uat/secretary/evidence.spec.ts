@@ -44,7 +44,7 @@ test.describe('Phase 1 UAT - Secretary evidence pass', () => {
     );
 
     await page.goto(`/shows/${SHOW_ID}/entries`, { waitUntil: 'domcontentloaded' });
-    await expect(page.getByRole('heading', { name: 'Entry Management' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Entry Forms' })).toBeVisible({
       timeout: 15000,
     });
     await page.getByRole('button', { name: 'More', exact: true }).click();
@@ -52,7 +52,7 @@ test.describe('Phase 1 UAT - Secretary evidence pass', () => {
     await attachScreenshot(page, testInfo, 'secretary-entry-management');
 
     await page.getByRole('button', { name: 'Waitlist', exact: true }).click();
-    await expect(page.getByRole('heading', { name: 'Waitlist Management' })).toBeVisible();
+    await expect(page.getByText(/Wait list settings:/)).toBeVisible();
     await attachScreenshot(page, testInfo, 'secretary-waitlist');
 
     await captureSecretaryPage(

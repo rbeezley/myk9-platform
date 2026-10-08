@@ -24,7 +24,11 @@ const auth = vi.hoisted(() => ({
 }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
-  useAuthContext: () => auth.value,
+  useAuthContext: () => ({
+    ...auth.value,
+    hasRole: (role: string) => auth.value.userWithRoles?.roles.includes(role) ?? false,
+    hasPermission: () => false,
+  }),
 }));
 
 vi.mock('@/store/clubStore', () => ({

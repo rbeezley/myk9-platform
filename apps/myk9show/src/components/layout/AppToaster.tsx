@@ -109,6 +109,18 @@ export function AppToaster() {
       position="bottom-right"
       offset={offset}
       mobileOffset={offset}
+      // Sonner's own action buttons are 24px tall; "Keep mine" / "Take theirs"
+      // decide whether a score survives, so they get a full touch target. Two
+      // full-size buttons would squeeze the message to a sliver in sonner's
+      // single flex row, so the buttons wrap onto their own line.
+      toastOptions={{
+        classNames: {
+          toast: '!flex-wrap !gap-y-2',
+          content: '!basis-[calc(100%-2rem)]',
+          actionButton: '!h-11 !px-4 !text-sm',
+          cancelButton: '!h-11 !px-4 !text-sm',
+        },
+      }}
     />
   );
 }

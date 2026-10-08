@@ -212,7 +212,7 @@ const TrialClassEditForm: React.FC<{ showId?: string; capacityLoaded: boolean }>
         </CardContent>
       </Card>
 
-      {capacityLoaded && <ClassWaitlistFields />}
+      {capacityLoaded && <ClassWaitlistFields showId={showId} />}
     </div>
   );
 };

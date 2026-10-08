@@ -19,6 +19,15 @@ export function getEntryManagementHref(input: EntryManagementHrefInput): string 
   if (input.payment && input.payment !== 'all') params.set('payment', input.payment);
   if (input.trialId) params.set('trial', input.trialId);
   if (input.classId) params.set('class', input.classId);
+  // A bare trial/class link means "this scope's forms". The cockpit defaults to the
+  // "Needs review" queue, which is empty for a fully accepted class -- a dead end --
+  // so name the queue that shows them all. Show-wide links keep the triage default.
+  const scoped = Boolean(input.trialId || input.classId);
+  const narrowed =
+    (input.attention && input.attention !== 'all') ||
+    (input.payment && input.payment !== 'all') ||
+    (input.tab && input.tab !== 'entries');
+  if (scoped && !narrowed) params.set('queue', 'all');
   const query = params.toString();
   return `/shows/${encodeURIComponent(input.showId)}/entries${query ? `?${query}` : ''}`;
 }

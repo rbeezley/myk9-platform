@@ -34,6 +34,11 @@ export function buildClassPaperworkMap(input: {
    * produce it.
    */
   recordsUnavailable?: boolean;
+  /**
+   * The class facts these rows were built from cannot be trusted (loading or a failed read), so
+   * no row may offer to record a print: the stored fingerprint would describe obsolete facts.
+   */
+  withholdConfirmation?: boolean;
   returnTo: string;
 }): ReadonlyMap<string, readonly SecretaryCockpitPaperwork[]> {
   const result = new Map<string, SecretaryCockpitPaperwork[]>();
@@ -81,11 +86,15 @@ export function buildClassPaperworkMap(input: {
               scope,
               returnTo: input.returnTo,
             }),
-            confirmation: {
-              scope: descriptor.scope,
-              coverage: descriptor.coverage as unknown as Record<string, unknown>,
-              fingerprint: descriptor.fingerprint,
-            },
+            ...(input.withholdConfirmation
+              ? {}
+              : {
+                  confirmation: {
+                    scope: descriptor.scope,
+                    coverage: descriptor.coverage as unknown as Record<string, unknown>,
+                    fingerprint: descriptor.fingerprint,
+                  },
+                }),
             ...(derived.record
               ? {
                   printedAt: derived.record.printedAt,
@@ -105,11 +114,15 @@ export function buildClassPaperworkMap(input: {
           label: report.label,
           state: input.recordsUnavailable ? 'unknown' : derived.state,
           printHref: getCockpitReportHref({ reportId: report.id, scope, returnTo: input.returnTo }),
-          confirmation: {
-            scope: descriptor.scope,
-            coverage: descriptor.coverage as unknown as Record<string, unknown>,
-            fingerprint: descriptor.fingerprint,
-          },
+          ...(input.withholdConfirmation
+            ? {}
+            : {
+                confirmation: {
+                  scope: descriptor.scope,
+                  coverage: descriptor.coverage as unknown as Record<string, unknown>,
+                  fingerprint: descriptor.fingerprint,
+                },
+              }),
           ...(derived.record
             ? {
                 printedAt: derived.record.printedAt,

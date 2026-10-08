@@ -110,6 +110,9 @@ const TrialDetailsPage: React.FC = () => {
     enabled: canManageTrial && !!currentTrial,
     run: () => dialogsRef.current?.openEditTrial(),
     addClassesHref,
+    title: currentTrial
+      ? formatTrialLabel({ name: currentTrial.name, trialNumber: currentTrial.trialNumber })
+      : undefined,
   });
 
   // Tab state — URL-synced. Pass only the tabs this visitor may see so a

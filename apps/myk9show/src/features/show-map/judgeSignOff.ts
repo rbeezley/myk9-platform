@@ -1,5 +1,6 @@
 /**
  * MYK9-1009: the words for the judge's sign-off on a completed class, per registry.
+ * MYK9-1030: the judge signs off once at the END of their day, for every class they judged.
  *
  * AKC Scent Work Regulations Ch.3 §37 has the judge INITIAL each page of the marked
  * catalog, so on an AKC show the secretary collects the judge's initials. UKC and
@@ -18,10 +19,20 @@ export interface JudgeSignOffWording {
   actionLabel: string;
   actionWhy: string;
   needsStatusLabel: string;
+  /** MYK9-1030: complete, but the judge still has classes to run that day (neutral). */
+  endOfDayStatusLabel: string;
   doneStatusLabel: string;
   checklistLabel: string;
   checklistNoneDetail: string;
+  checklistEndOfDayDetail: string;
   resultsControlInstruction: string;
+  /** "Record initials: Jane Smith, Sat, Oct 10": records the sign-off for the judge's whole day. */
+  recordActionLabel: (judgeName: string | undefined, day: string) => string;
+  recordActionWhy: string;
+  /** Per-class undo of a recorded sign-off. */
+  undoActionLabel: string;
+  recordedMessage: (count: number) => string;
+  undoneMessage: string;
   /** "2 classes need judge's initials" / "1 class needs judge signature". */
   pendingSignalLabel: (count: number) => string;
 }
@@ -30,11 +41,19 @@ const AKC_WORDING: JudgeSignOffWording = {
   actionLabel: "Collect judge's initials",
   actionWhy: "Completed class still needs the judge's initials",
   needsStatusLabel: "Needs judge's initials",
+  endOfDayStatusLabel: 'Initials at end of day',
   doneStatusLabel: 'Initialed by judge',
   checklistLabel: "Judge's initials collected",
   checklistNoneDetail: 'No entries to initial',
+  checklistEndOfDayDetail: 'Judge initials at end of day',
   resultsControlInstruction:
     "Verify the judge's initials on the printed result catalog before sending.",
+  recordActionLabel: (judgeName, day) =>
+    `Record initials: ${judgeName?.trim() || 'judge'}${day ? `, ${day}` : ''}`,
+  recordActionWhy: "Records the judge's initials on every completed class they judged that day",
+  undoActionLabel: 'Undo initials',
+  recordedMessage: count => `Initials recorded on ${count} ${count === 1 ? 'class' : 'classes'}`,
+  undoneMessage: 'Initials removed',
   pendingSignalLabel: count =>
     `${count} ${count === 1 ? 'class needs' : 'classes need'} judge's initials`,
 };
@@ -43,10 +62,18 @@ const SIGNATURE_WORDING: JudgeSignOffWording = {
   actionLabel: 'Collect judge signature',
   actionWhy: 'Completed class still needs judge sign-off',
   needsStatusLabel: 'Needs judge signature',
+  endOfDayStatusLabel: 'Signature at end of day',
   doneStatusLabel: 'Signed by judge',
   checklistLabel: 'Judge signature collected',
   checklistNoneDetail: 'No entries to sign',
+  checklistEndOfDayDetail: 'Judge signs at end of day',
   resultsControlInstruction: 'Verify judge signatures on the paper reports before sending.',
+  recordActionLabel: (judgeName, day) =>
+    `Record signature: ${judgeName?.trim() || 'judge'}${day ? `, ${day}` : ''}`,
+  recordActionWhy: "Records the judge's signature on every completed class they judged that day",
+  undoActionLabel: 'Undo signature',
+  recordedMessage: count => `Signature recorded on ${count} ${count === 1 ? 'class' : 'classes'}`,
+  undoneMessage: 'Signature removed',
   pendingSignalLabel: count =>
     `${count} ${count === 1 ? 'class needs' : 'classes need'} judge signature`,
 };

@@ -11,6 +11,7 @@
  * one click into a live cart. The rule lives in `CheckoutCancelPage.session`.
  */
 
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   XCircle,
@@ -28,6 +29,7 @@ import { readTrustedRecoveryInfo } from '@/store/cartStore.recoveryInfo';
 import { useExhibitorProfile } from '@/hooks/useExhibitorProfile';
 import { continueShoppingTarget } from '@/features/registration/continueShoppingTarget';
 import { useCancelledCheckoutSession } from './CheckoutCancelPage.session';
+import { CHECKOUT_HOLD_ENDED_MESSAGE, checkoutHoldEnded } from '@/features/payments/checkoutHold';
 
 export default function CheckoutCancelPage() {
   const navigate = useNavigate();
@@ -45,6 +47,8 @@ export default function CheckoutCancelPage() {
   const itemCount = items.length;
 
   const { status: sessionStatus, sessionId } = useCancelledCheckoutSession();
+  // MYK9-1012: a return from a Stripe page that expired with its hold.
+  const [holdEnded] = useState(() => checkoutHoldEnded(Date.now(), sessionId));
 
   if (sessionStatus === 'paid') {
     return (
@@ -123,9 +127,13 @@ export default function CheckoutCancelPage() {
             <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
               <XCircle className="h-8 w-8 text-muted-foreground" />
             </div>
-            <CardTitle className="text-2xl">Payment Cancelled</CardTitle>
+            <CardTitle className="text-2xl">
+              {holdEnded ? 'Your hold ended' : 'Payment Cancelled'}
+            </CardTitle>
             <p className="text-muted-foreground mt-2">
-              Your payment was not completed. Don't worry - your cart has been saved.
+              {holdEnded
+                ? CHECKOUT_HOLD_ENDED_MESSAGE
+                : "Your payment was not completed. Don't worry - your cart has been saved."}
             </p>
           </CardHeader>
 

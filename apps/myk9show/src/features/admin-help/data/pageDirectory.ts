@@ -246,7 +246,7 @@ export const pageDirectory: readonly PageEntry[] = [
   },
   {
     path: '/shows/:showId/entries',
-    title: 'Entry Management',
+    title: 'Entry Forms',
     description: 'Review, approve, and manage show entries from one canonical show page.',
     roles: [UserRole.SECRETARY, UserRole.SITE_ADMIN],
     classification: 'critical-path',

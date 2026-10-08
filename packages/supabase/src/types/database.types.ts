@@ -754,6 +754,32 @@ export type Database = {
           },
         ]
       }
+      cart_checkout_leases: {
+        Row: {
+          cart_id: string
+          lease_id: string
+          lease_until: string
+        }
+        Insert: {
+          cart_id: string
+          lease_id: string
+          lease_until: string
+        }
+        Update: {
+          cart_id?: string
+          lease_id?: string
+          lease_until?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cart_checkout_leases_cart_id_fkey"
+            columns: ["cart_id"]
+            isOneToOne: true
+            referencedRelation: "entry_carts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cart_fulfillment_lines: {
         Row: {
           cart_item_id: string
@@ -863,6 +889,92 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "entry_carts"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      cart_spot_holds: {
+        Row: {
+          cart_id: string
+          cart_item_id: string
+          class_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          release_reason: string | null
+          released_at: string | null
+          stripe_checkout_session_id: string | null
+        }
+        Insert: {
+          cart_id: string
+          cart_item_id: string
+          class_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          release_reason?: string | null
+          released_at?: string | null
+          stripe_checkout_session_id?: string | null
+        }
+        Update: {
+          cart_id?: string
+          cart_item_id?: string
+          class_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          release_reason?: string | null
+          released_at?: string | null
+          stripe_checkout_session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cart_spot_holds_cart_id_fkey"
+            columns: ["cart_id"]
+            isOneToOne: false
+            referencedRelation: "entry_carts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cart_spot_holds_cart_item_id_fkey"
+            columns: ["cart_item_id"]
+            isOneToOne: false
+            referencedRelation: "entry_cart_items"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cart_spot_holds_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cart_spot_holds_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "cart_spot_holds_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "cart_spot_holds_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["class_id"]
+          },
+          {
+            foreignKeyName: "cart_spot_holds_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["class_id"]
           },
         ]
       }
@@ -1057,6 +1169,8 @@ export type Database = {
           id: string
           is_results_reviewed: boolean | null
           is_scoring_finalized: boolean | null
+          judge_signed_off_at: string | null
+          judge_signed_off_by: string | null
           jump_heights: string[] | null
           level: string | null
           max_dogs_per_handler: number | null
@@ -1069,6 +1183,9 @@ export type Database = {
           reopened_after_closeout_at: string | null
           results_released_at: string | null
           results_released_by: string | null
+          results_verified_at: string | null
+          results_verified_by: string | null
+          results_verified_fingerprint: string | null
           revised_expected_start: string | null
           scored_count: number | null
           section: string | null
@@ -1113,6 +1230,8 @@ export type Database = {
           id?: string
           is_results_reviewed?: boolean | null
           is_scoring_finalized?: boolean | null
+          judge_signed_off_at?: string | null
+          judge_signed_off_by?: string | null
           jump_heights?: string[] | null
           level?: string | null
           max_dogs_per_handler?: number | null
@@ -1125,6 +1244,9 @@ export type Database = {
           reopened_after_closeout_at?: string | null
           results_released_at?: string | null
           results_released_by?: string | null
+          results_verified_at?: string | null
+          results_verified_by?: string | null
+          results_verified_fingerprint?: string | null
           revised_expected_start?: string | null
           scored_count?: number | null
           section?: string | null
@@ -1169,6 +1291,8 @@ export type Database = {
           id?: string
           is_results_reviewed?: boolean | null
           is_scoring_finalized?: boolean | null
+          judge_signed_off_at?: string | null
+          judge_signed_off_by?: string | null
           jump_heights?: string[] | null
           level?: string | null
           max_dogs_per_handler?: number | null
@@ -1181,6 +1305,9 @@ export type Database = {
           reopened_after_closeout_at?: string | null
           results_released_at?: string | null
           results_released_by?: string | null
+          results_verified_at?: string | null
+          results_verified_by?: string | null
+          results_verified_fingerprint?: string | null
           revised_expected_start?: string | null
           scored_count?: number | null
           section?: string | null
@@ -8279,6 +8406,7 @@ export type Database = {
           accept_check_payments: boolean
           address: string | null
           allow_non_owner_handlers: boolean | null
+          allow_waitlist: boolean
           brand_color: string
           cc_secretary_on_exhibitor_emails: boolean
           city: string | null
@@ -8349,6 +8477,7 @@ export type Database = {
           accept_check_payments?: boolean
           address?: string | null
           allow_non_owner_handlers?: boolean | null
+          allow_waitlist?: boolean
           brand_color?: string
           cc_secretary_on_exhibitor_emails?: boolean
           city?: string | null
@@ -8419,6 +8548,7 @@ export type Database = {
           accept_check_payments?: boolean
           address?: string | null
           allow_non_owner_handlers?: boolean | null
+          allow_waitlist?: boolean
           brand_color?: string
           cc_secretary_on_exhibitor_emails?: boolean
           city?: string | null
@@ -12744,6 +12874,7 @@ export type Database = {
       }
       can_manage_trial: { Args: { check_trial_id: string }; Returns: boolean }
       can_read_dog_directory: { Args: never; Returns: boolean }
+      cart_checkout_lease_seconds: { Args: never; Returns: number }
       check_and_record_premium_generation_attempt: {
         Args: { p_auth_user_id: string; p_show_id: string }
         Returns: {
@@ -12812,6 +12943,13 @@ export type Database = {
           isSetofReturn: true
         }
       }
+      claim_cart_checkout: {
+        Args: { p_cart_id: string; p_lease_id: string }
+        Returns: {
+          lease_until: string
+          outcome: string
+        }[]
+      }
       claim_sms_opt_in_attempt: {
         Args: { p_auth_user_id: string; p_phone_e164: string }
         Returns: boolean
@@ -12833,8 +12971,13 @@ export type Database = {
           waitlist_entry_id: string
         }[]
       }
+      class_allows_waitlist: { Args: { p_class_id: string }; Returns: boolean }
       class_entry_availability: {
-        Args: { p_class_ids: string[] }
+        Args: {
+          p_class_ids: string[]
+          p_count_holds?: boolean
+          p_exclude_auth_user_id?: string
+        }
         Returns: {
           allow_waitlist: boolean
           class_full: boolean
@@ -12849,7 +12992,11 @@ export type Database = {
         }[]
       }
       class_judge_day_capacity: {
-        Args: { p_class_ids: string[] }
+        Args: {
+          p_class_ids: string[]
+          p_count_holds?: boolean
+          p_exclude_auth_user_id?: string
+        }
         Returns: {
           class_id: string
           day_capacity: number
@@ -12876,6 +13023,14 @@ export type Database = {
           p_ended_grace?: string
           p_max_age?: string
         }
+        Returns: number
+      }
+      clear_class_judge_sign_off: {
+        Args: { p_class_id: string }
+        Returns: number
+      }
+      clear_class_results_verified: {
+        Args: { p_class_id: string }
         Returns: number
       }
       clear_my_sms_consent: {
@@ -13078,6 +13233,10 @@ export type Database = {
         Returns: string
       }
       emergency_packet_section: { Args: { p_section: string }; Returns: string }
+      end_cart_checkout: {
+        Args: { p_cart_id: string; p_lease_id: string }
+        Returns: boolean
+      }
       enqueue_access_request_email_job: {
         Args: { p_event: string; p_request_id: string; p_request_kind: string }
         Returns: undefined
@@ -13361,6 +13520,8 @@ export type Database = {
           id: string
           is_results_reviewed: boolean | null
           is_scoring_finalized: boolean | null
+          judge_signed_off_at: string | null
+          judge_signed_off_by: string | null
           jump_heights: string[] | null
           level: string | null
           max_dogs_per_handler: number | null
@@ -13373,6 +13534,9 @@ export type Database = {
           reopened_after_closeout_at: string | null
           results_released_at: string | null
           results_released_by: string | null
+          results_verified_at: string | null
+          results_verified_by: string | null
+          results_verified_fingerprint: string | null
           revised_expected_start: string | null
           scored_count: number | null
           section: string | null
@@ -13457,6 +13621,7 @@ export type Database = {
           accept_check_payments: boolean
           address: string | null
           allow_non_owner_handlers: boolean | null
+          allow_waitlist: boolean
           brand_color: string
           cc_secretary_on_exhibitor_emails: boolean
           city: string | null
@@ -13583,7 +13748,13 @@ export type Database = {
         }[]
       }
       get_judge_day_capacity_live: {
-        Args: { p_date: string; p_judge_id: string; p_show_id: string }
+        Args: {
+          p_count_holds?: boolean
+          p_date: string
+          p_exclude_auth_user_id?: string
+          p_judge_id: string
+          p_show_id: string
+        }
         Returns: {
           available_spots: number
           capacity: number
@@ -13762,6 +13933,21 @@ export type Database = {
           status_updated_at: string
         }[]
       }
+      get_show_judge_day_capacity_for_manager: {
+        Args: { p_show_id: string }
+        Returns: {
+          class_ids: string[]
+          class_names: string[]
+          day_capacity: number
+          day_mail_in_reserved: number
+          day_remaining: number
+          day_taken: number
+          judge_full_name: string
+          judge_id: string
+          show_date: string
+          waitlist_count: number
+        }[]
+      }
       get_show_judges: {
         Args: { p_show_id: string }
         Returns: {
@@ -13848,6 +14034,27 @@ export type Database = {
         Args: { role_name: string; scope_club_id?: string }
         Returns: boolean
       }
+      held_spot_count: {
+        Args: { p_class_ids: string[]; p_exclude_auth_user_id?: string }
+        Returns: number
+      }
+      hold_cart_spots: {
+        Args: {
+          p_cart_id: string
+          p_checkout_session_id?: string
+          p_expected_updated_at: string
+          p_expires_at: string
+          p_lease_id: string
+        }
+        Returns: {
+          allow_waitlist: boolean
+          cart_item_id: string
+          class_id: string
+          denial_reason: string
+          dog_id: string
+          outcome: string
+        }[]
+      }
       increment_promo_usage: { Args: { promo_id: string }; Returns: undefined }
       insert_club_access_request_from_signup: {
         Args: { p_auth_user_id: string; p_metadata: Json; p_person_id: string }
@@ -13892,6 +14099,20 @@ export type Database = {
       is_trial_secretary: { Args: { check_club_id?: string }; Returns: boolean }
       issue_calendar_feed_token: {
         Args: { p_show_id: string }
+        Returns: string
+      }
+      link_cart_checkout: {
+        Args: {
+          p_cart_id: string
+          p_checkout_session_id: string
+          p_expected_updated_at: string
+          p_expires_at: string
+          p_held_count: number
+          p_lease_id: string
+          p_platform_fee_cents: number
+          p_subtotal_cents: number
+          p_total_cents: number
+        }
         Returns: string
       }
       list_club_membership_requests: {
@@ -13963,6 +14184,22 @@ export type Database = {
         Returns: undefined
       }
       manageable_show_ids: { Args: never; Returns: string[] }
+      manager_held_spot_count: {
+        Args: { p_class_ids: string[]; p_show_id: string }
+        Returns: number
+      }
+      mark_class_results_verified: {
+        Args: {
+          p_class_id: string
+          p_results_fingerprint: string
+          p_verified_at?: string
+        }
+        Returns: number
+      }
+      mark_classes_judge_signed_off: {
+        Args: { p_class_ids: string[]; p_signed_off_at?: string }
+        Returns: number
+      }
       mark_enrollment_paid_online: {
         Args: { p_enrollment_id: string }
         Returns: Json
@@ -13987,6 +14224,10 @@ export type Database = {
       }
       normalize_registry_organization: {
         Args: { raw: string }
+        Returns: string
+      }
+      notify_mail_in_waitlist_head: {
+        Args: { p_waitlist_entry_id: string }
         Returns: string
       }
       notify_waitlist_auto_offer: {
@@ -14241,6 +14482,10 @@ export type Database = {
         Args: { p_base_url: string; p_kind: string; p_secret: string }
         Returns: undefined
       }
+      require_cart_checkout_lease: {
+        Args: { p_cart_id: string; p_lease_id: string }
+        Returns: string
+      }
       resequence_class_waitlist: {
         Args: { p_class_ids: string[] }
         Returns: undefined
@@ -14336,6 +14581,8 @@ export type Database = {
           id: string
           is_results_reviewed: boolean | null
           is_scoring_finalized: boolean | null
+          judge_signed_off_at: string | null
+          judge_signed_off_by: string | null
           jump_heights: string[] | null
           level: string | null
           max_dogs_per_handler: number | null
@@ -14348,6 +14595,9 @@ export type Database = {
           reopened_after_closeout_at: string | null
           results_released_at: string | null
           results_released_by: string | null
+          results_verified_at: string | null
+          results_verified_by: string | null
+          results_verified_fingerprint: string | null
           revised_expected_start: string | null
           scored_count: number | null
           section: string | null
@@ -14418,6 +14668,7 @@ export type Database = {
           accept_check_payments: boolean
           address: string | null
           allow_non_owner_handlers: boolean | null
+          allow_waitlist: boolean
           brand_color: string
           cc_secretary_on_exhibitor_emails: boolean
           city: string | null
@@ -14552,6 +14803,8 @@ export type Database = {
       }
       run_system_health_check_now: { Args: never; Returns: Json }
       seed_demo_assert_no_paid_strays: { Args: never; Returns: undefined }
+      seed_demo_restore_show_day_fixture: { Args: never; Returns: Json }
+      seed_demo_show_day_fixture_today: { Args: never; Returns: string }
       self_checkin_entry: {
         Args: { p_entry_id: string; p_new_status: string }
         Returns: undefined
@@ -14566,6 +14819,10 @@ export type Database = {
           p_sender_auth_user_id: string
           p_waitlist_entry_id: string
         }
+        Returns: string
+      }
+      send_waitlist_withdrawal_message_internal: {
+        Args: { p_sender_auth_user_id: string; p_waitlist_entry_id: string }
         Returns: string
       }
       set_club_authorization: {
@@ -14832,6 +15089,10 @@ export type Database = {
           p_reason?: string
         }
         Returns: number
+      }
+      withdraw_waitlist_offer_internal: {
+        Args: { p_actor_auth_user_id: string; p_waitlist_entry_id: string }
+        Returns: Json
       }
     }
     Enums: {

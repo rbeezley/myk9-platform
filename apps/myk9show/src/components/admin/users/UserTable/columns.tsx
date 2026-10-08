@@ -13,7 +13,7 @@ import { type ColumnDef } from '@tanstack/react-table';
 import { User } from '@/types/user-types';
 import type { AdminUser } from '@/hooks/queries/useUsersQuery';
 import { formatRelativeTime } from '@/lib/timeUtils';
-import { DENSITY_CONFIG, ROLE_CONFIG, UNKNOWN_ROLE_CHIP } from './types';
+import { ROLE_CONFIG, ROW_STYLE, UNKNOWN_ROLE_CHIP } from './types';
 import type { UserTableProps } from './types';
 import { RowActions } from './RowActions';
 import {
@@ -55,7 +55,6 @@ export function buildColumns(
   onSelectAll: UserTableProps['onSelectAll'],
   users: AdminUser[],
   searchTerm: string,
-  densityMode: NonNullable<UserTableProps['densityMode']>,
   onViewUser: (user: User) => void,
   onEditUser: (user: User) => void,
   onDeleteUser: (user: User) => void,
@@ -64,7 +63,7 @@ export function buildColumns(
   onChangeStatusUser?: (user: User) => void,
   currentUserId?: string
 ): ColumnDef<AdminUser, unknown>[] {
-  const density = DENSITY_CONFIG[densityMode];
+  const density = ROW_STYLE;
 
   const isUserSelected = (userId: string) => selectedUsers.some(item => item.id === userId);
   const allSelected = users.length > 0 && users.every(u => isUserSelected(u.id));

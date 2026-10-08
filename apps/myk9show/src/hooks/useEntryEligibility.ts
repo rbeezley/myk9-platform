@@ -369,9 +369,13 @@ function validateEligibility(dog: DogData, classReq: ClassRequirements): Eligibi
   };
 }
 
-export function getAgeInMonths(dateOfBirth: string): number {
+/** The youngest a dog may be to enter a show; the one number every picker and form checks. */
+export const MIN_ENTRY_AGE_MONTHS = 6;
+
+/** Calendar-month age on `asOf` (default now). Pass a show date to ask "old enough by then?". */
+export function getAgeInMonths(dateOfBirth: string, asOf: Date = new Date()): number {
   const dob = new Date(dateOfBirth);
-  const now = new Date();
+  const now = asOf;
   const months = (now.getFullYear() - dob.getFullYear()) * 12 + (now.getMonth() - dob.getMonth());
   return Math.floor(months);
 }

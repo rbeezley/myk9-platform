@@ -68,7 +68,7 @@ const entry = {
   ],
 };
 
-async function openDeleteDialog() {
+async function openDeleteDialog({ dirty = false }: { dirty?: boolean } = {}) {
   const onOpenChange = vi.fn();
   const onDeleted = vi.fn();
   const rendered = render(
@@ -83,6 +83,11 @@ async function openDeleteDialog() {
     />
   );
   await screen.findByText(/Container Novice A/);
+  if (dirty) {
+    const handler = screen.getByRole('textbox', { name: 'Handler for Container Novice A' });
+    await rendered.user.clear(handler);
+    await rendered.user.type(handler, 'New handler');
+  }
   await rendered.user.click(screen.getByRole('button', { name: 'Delete entry' }));
   const dialog = await screen.findByRole('alertdialog', { name: 'Delete the entry for Ace?' });
   return { ...rendered, dialog, onOpenChange, onDeleted };
@@ -131,5 +136,35 @@ describe('EntryEditDialog footer Delete with the real dialog', () => {
 
     await waitFor(() => expect(onDeleted).toHaveBeenCalledWith(['entry-1']));
     expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('a blocked-delete recovery link closes the clean edit sheet', async () => {
+    mocks.preview.mockResolvedValue({ ...NOTHING, scored: 1, blocking: 1 });
+    const { user, dialog, onOpenChange } = await openDeleteDialog();
+    const recoveryLink = await within(dialog).findByRole('link', {
+      name: 'Withdraw / Pull entries',
+    });
+
+    await user.click(recoveryLink);
+
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
+    expect(mocks.remove).not.toHaveBeenCalled();
+  });
+
+  it('asks before discarding unsaved edits after a blocked-delete recovery link', async () => {
+    mocks.preview.mockResolvedValue({ ...NOTHING, scored: 1, blocking: 1 });
+    const { user, dialog, onOpenChange } = await openDeleteDialog({ dirty: true });
+    const recoveryLink = await within(dialog).findByRole('link', {
+      name: 'Withdraw / Pull entries',
+    });
+
+    await user.click(recoveryLink);
+
+    expect(
+      await screen.findByRole('alertdialog', { name: 'Discard changes?' })
+    ).toBeInTheDocument();
+    expect(onOpenChange).not.toHaveBeenCalledWith(false);
+    await user.click(screen.getByRole('button', { name: 'Discard changes' }));
+    await waitFor(() => expect(onOpenChange).toHaveBeenCalledWith(false));
   });
 });

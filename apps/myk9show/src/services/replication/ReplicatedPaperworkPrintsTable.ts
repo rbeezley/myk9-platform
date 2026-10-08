@@ -243,11 +243,12 @@ export class ReplicatedPaperworkPrintsTable extends ReplicatedTable<ReplicatedPa
     return this.getByShowOrThrow(showId);
   }
 
+  /** Only clean rows reach here (dirty ones are held back by the sync); the data-level `_syncStatus` goes stale after an ack (MYK9-1050). */
   protected resolveConflict(
-    local: ReplicatedPaperworkPrint,
+    _local: ReplicatedPaperworkPrint,
     remote: ReplicatedPaperworkPrint
   ): ReplicatedPaperworkPrint {
-    return local._syncStatus === 'pending' ? local : remote;
+    return remote;
   }
 
   protected override rebuildUpdatePayload(

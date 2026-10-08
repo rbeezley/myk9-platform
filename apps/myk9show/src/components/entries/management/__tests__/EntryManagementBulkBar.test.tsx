@@ -96,6 +96,27 @@ describe('EntryManagementBulkBar', () => {
     );
   });
 
+  it('names entries, not forms, when it says how many of the selection an action covers', () => {
+    const accepted = makeEntry({ id: 'a', entryStatus: EntryStatus.ACCEPTED });
+    const pending = makeEntry({ id: 'b', entryStatus: EntryStatus.PENDING });
+
+    render(
+      <EntryManagementBulkBar
+        registrations={1}
+        selectedEntries={[accepted, pending]}
+        onBulkStatusChange={vi.fn()}
+        onClear={noop}
+        isResendDisabled={() => false}
+        onBulkResend={vi.fn()}
+        onExportSelected={vi.fn()}
+      />
+    );
+
+    // One form selected, but the action counts its two entries.
+    expect(screen.getByRole('button', { name: 'Accept 1 of 2 entries' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Reject 2 of 2 entries' })).toBeInTheDocument();
+  });
+
   it('dispatches Reject against the current selection, not a stale one (existing safety)', async () => {
     const user = userEvent.setup();
     const onBulkStatusChange = vi.fn(
@@ -176,7 +197,7 @@ describe('EntryManagementBulkBar', () => {
 
     await user.click(screen.getByRole('button', { name: /Resend confirmation/ }));
     const dialog = await screen.findByRole('alertdialog');
-    expect(dialog).toHaveTextContent('1 exhibitor');
+    expect(dialog).toHaveTextContent('for 1 form');
 
     await user.click(screen.getByRole('button', { name: 'Resend' }));
 

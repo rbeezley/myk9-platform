@@ -37,7 +37,7 @@ function line(id: string, classId: string): CartItemWithDetails {
     special_requests: null,
     junior_fee_declared: false,
     created_at: '2026-09-25T00:00:00.000Z',
-    class: { id: classId, name: classId, level: null, trial_id: 'trial-1', allow_waitlist: false },
+    class: { id: classId, name: classId, level: null, trial_id: 'trial-1' },
   };
 }
 
@@ -91,7 +91,8 @@ describe('cartCapacityFromJudgeDays', () => {
     const decision = splitCartItemsByJudgeDayCapacity(
       [line('interior-line', 'interior'), line('exterior-line', 'exterior')],
       facts.judgeDays,
-      facts.classSpots
+      facts.classSpots,
+      facts.waitlistClassIds
     );
 
     expect(decision.blockedItems.map(item => item.id)).toEqual(['interior-line']);
@@ -116,10 +117,32 @@ describe('cartCapacityFromJudgeDays', () => {
     const decision = splitCartItemsByJudgeDayCapacity(
       [line('interior-line', 'interior'), line('exterior-line', 'exterior')],
       bertOneLeft,
-      facts.classSpots
+      facts.classSpots,
+      facts.waitlistClassIds
     );
 
     expect(decision.confirmedItemIds).toEqual(new Set(['interior-line']));
     expect(decision.blockedItems.map(item => item.id)).toEqual(['exterior-line']);
+  });
+
+  // MYK9-1019: the server reports the EFFECTIVE allow_waitlist (class, else show); the cart
+  // takes it as given, once per class, whatever its day rows.
+  it('lists each class the server says takes a wait list, once', () => {
+    const facts = cartCapacityFromJudgeDays([
+      row({
+        class_id: 'interior',
+        judge_id: 'alma',
+        show_date: '2026-10-10',
+        allow_waitlist: true,
+      }),
+      row({
+        class_id: 'interior',
+        judge_id: 'bert',
+        show_date: '2026-10-10',
+        allow_waitlist: true,
+      }),
+      row({ class_id: 'exterior', allow_waitlist: false }),
+    ]);
+    expect(facts.waitlistClassIds).toEqual(['interior']);
   });
 });

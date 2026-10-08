@@ -70,11 +70,15 @@ jobs:
           E2E_DEMO_EXHIBITOR_EMAIL: ${{ secrets.E2E_DEMO_EXHIBITOR_EMAIL }}
           E2E_DEMO_EXHIBITOR_PASSWORD: ${{ secrets.E2E_DEMO_EXHIBITOR_PASSWORD }}
 
-      - name: Upload readiness traces
+      - name: Upload readiness results
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: page-readiness-traces
-          path: apps/myk9show/test-results/readiness/
+          # Never the trace archives: they hold live test-account tokens and
+          # this repository's artifacts are public (MYK9-1057).
+          path: |
+            apps/myk9show/test-results/readiness/
+            !apps/myk9show/test-results/readiness/**/*.zip
           if-no-files-found: warn
           retention-days: 14

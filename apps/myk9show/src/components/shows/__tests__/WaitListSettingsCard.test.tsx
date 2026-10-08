@@ -3,6 +3,7 @@ import { screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render, createTestQueryClient } from '@/test/utils/testUtils';
 import { judgeDayCapacityKey } from '@/hooks/queries/useJudgeDayCapacity';
+import { classAvailabilityQueryKey } from '@/hooks/useClassAvailability';
 import { WaitListSettingsCard } from '../WaitListSettingsCard';
 
 // ---------------------------------------------------------------------------
@@ -48,6 +49,7 @@ function makeRow(overrides: Record<string, unknown> = {}) {
     mail_in_release_date: null,
     waitlist_payment_deadline_hours: 48,
     waitlist_auto_offer: true,
+    allow_waitlist: false,
     ...overrides,
   };
 }
@@ -104,7 +106,7 @@ describe('WaitListSettingsCard', () => {
     expect(screen.queryByLabelText('Mail-In Deadline')).not.toBeInTheDocument();
   });
 
-  it('shows "Mail-In Deadline" input when strategy is deadline', async () => {
+  it('replaces a legacy deadline strategy with none only when settings are saved', async () => {
     mockSingle.mockResolvedValue({
       data: makeRow({ mail_in_strategy: 'deadline', mail_in_deadline: '2026-05-01' }),
       error: null,
@@ -113,10 +115,37 @@ describe('WaitListSettingsCard', () => {
     render(<WaitListSettingsCard showId="show-1" />);
 
     await waitFor(() => {
-      expect(screen.getByLabelText('Mail-In Deadline')).toBeInTheDocument();
+      expect(screen.getByLabelText('Judge Daily Capacity')).toHaveValue(125);
     });
+    expect(mockUpdate).not.toHaveBeenCalled();
+    expect(screen.getByText(/Deadline reservations did not hold any spots/)).toBeVisible();
     expect(screen.queryByLabelText('Reserved Spots')).not.toBeInTheDocument();
     expect(screen.queryByLabelText('Reserved Percentage')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() => {
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ mail_in_strategy: 'none', mail_in_deadline: null })
+      );
+    });
+    expect(screen.queryByLabelText('Mail-In Deadline')).not.toBeInTheDocument();
+  });
+
+  it('offers only strategies that reserve spots as described', async () => {
+    const user = userEvent.setup();
+    render(<WaitListSettingsCard showId="show-1" />);
+    await waitFor(() => expect(screen.getByLabelText('Judge Daily Capacity')).toHaveValue(125));
+    expect(screen.getByText('No spots are reserved for mail-in entries.')).toBeVisible();
+    await user.click(screen.getByRole('combobox', { name: 'Mail-In Reservation Strategy' }));
+    expect(screen.queryByRole('option', { name: 'Deadline' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: 'Fixed Count' }));
+    expect(screen.getByText(/Hold this many spots per judge day/)).toBeVisible();
+    fireEvent.change(screen.getByLabelText('Reserved Spots'), { target: { value: '10' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+    await waitFor(() =>
+      expect(mockUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ mail_in_strategy: 'fixed', mail_in_value: 10 })
+      )
+    );
   });
 
   it('Save button submits updated config', async () => {
@@ -231,4 +260,94 @@ describe('WaitListSettingsCard', () => {
       expect(toggle).toBeChecked();
     });
   });
+
+  // MYK9-1019: one show-wide "Allow wait lists"; classes follow it unless set on their own.
+  describe('allow wait lists switch', () => {
+    const switchName = 'Allow wait lists';
+
+    it('shows the stored setting: off by default, with what that means', async () => {
+      render(<WaitListSettingsCard showId="show-1" />);
+      const toggle = await screen.findByRole('switch', { name: switchName });
+      await waitFor(() => expect(mockSingle).toHaveBeenCalled());
+      expect(toggle).not.toBeChecked();
+      expect(toggle).toHaveAccessibleDescription(/new entries are turned away/);
+    });
+
+    it('shows a show that takes wait lists as on', async () => {
+      mockSingle.mockResolvedValue({ data: makeRow({ allow_waitlist: true }), error: null });
+      render(<WaitListSettingsCard showId="show-1" />);
+      const toggle = await screen.findByRole('switch', { name: switchName });
+      await waitFor(() => expect(toggle).toBeChecked());
+      expect(toggle).toHaveAccessibleDescription(/new entries join the wait list/);
+    });
+
+    it('turning it on saves only shows.allow_waitlist and refreshes class availability', async () => {
+      const user = userEvent.setup();
+      const queryClient = createTestQueryClient();
+      const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+      render(<WaitListSettingsCard showId="show-1" />, { queryClient });
+      const toggle = await screen.findByRole('switch', { name: switchName });
+      await waitFor(() => expect(toggle).not.toBeDisabled());
+      fireEvent.change(screen.getByLabelText('Judge Daily Capacity'), { target: { value: '150' } });
+
+      await user.click(toggle);
+
+      await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1));
+      expect(mockUpdate).toHaveBeenCalledWith({ allow_waitlist: true });
+      expect(mockUpdateEq).toHaveBeenCalledWith('id', 'show-1');
+      await waitFor(() => expect(toggle).toBeChecked());
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: classAvailabilityQueryKey('show-1') });
+      expect(screen.getByRole('switch', { name: 'Offer open spots automatically' })).toBeChecked();
+    });
+
+    it('the Save button never writes it', async () => {
+      render(<WaitListSettingsCard showId="show-1" />);
+      await waitFor(() =>
+        expect((screen.getByLabelText('Judge Daily Capacity') as HTMLInputElement).value).toBe(
+          '125'
+        )
+      );
+      fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+      await waitFor(() => expect(mockUpdate).toHaveBeenCalledTimes(1));
+      expect(mockUpdate.mock.calls[0]).toEqual([
+        expect.not.objectContaining({ allow_waitlist: expect.anything() }),
+      ]);
+    });
+
+    it('a failed save says so and puts the switch back', async () => {
+      mockUpdateEq.mockResolvedValue({ data: null, error: { message: 'permission denied' } });
+      const user = userEvent.setup();
+      render(<WaitListSettingsCard showId="show-1" />);
+      const toggle = await screen.findByRole('switch', { name: switchName });
+      await waitFor(() => expect(toggle).not.toBeDisabled());
+
+      await user.click(toggle);
+
+      expect(await screen.findByRole('alert')).toHaveTextContent("Couldn't save that change");
+      expect(toggle).not.toBeChecked();
+    });
+  });
+
+  // docs/INTENT.md § Accessibility First: the switch track is 20px, so its label is the 44px
+  // target. jsdom has no layout, so this proves the label really operates the switch (a click on
+  // it saves) and carries the floor token; the geometry itself is the measurement sweep's job.
+  it.each([
+    ['allow-waitlists', 'Allow wait lists', { allow_waitlist: true }],
+    ['auto-offer', 'Offer open spots automatically', { waitlist_auto_offer: false }],
+  ])(
+    '"%s": clicking its label flips the switch, and the label keeps the 44px floor',
+    async (id, name, payload) => {
+      const user = userEvent.setup();
+      render(<WaitListSettingsCard showId="show-1" />);
+      const toggle = await screen.findByRole('switch', { name });
+      await waitFor(() => expect(toggle).not.toBeDisabled());
+      const label = document.querySelector(`label[for="${id}"]`) as HTMLLabelElement | null;
+      expect(label).not.toBeNull();
+      expect(label!.className.split(/\s+/)).toContain('min-h-11');
+
+      await user.click(label!);
+
+      await waitFor(() => expect(mockUpdate).toHaveBeenCalledWith(payload));
+    }
+  );
 });

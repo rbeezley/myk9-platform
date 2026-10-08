@@ -140,6 +140,10 @@ describe('LOAD_HARNESS_SIGN_IN_OPTIONS', () => {
     expect(LOAD_HARNESS_SIGN_IN_OPTIONS.retry).toBe(false);
   });
 
+  it('signs every shard in for real instead of reusing a saved session (MYK9-1056)', () => {
+    expect(LOAD_HARNESS_SIGN_IN_OPTIONS.reuseSession).toBe(false);
+  });
+
   it('still carries the harness budget, read from the constant and not retyped', () => {
     expect(LOAD_HARNESS_SIGN_IN_OPTIONS.navigationTimeoutMs).toBe(AUTH_STATE_SIGN_IN_TIMEOUT_MS);
   });

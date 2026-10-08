@@ -101,3 +101,32 @@ describe('useRouteEntryFocus', () => {
     expect(window.scrollTo).toHaveBeenCalledTimes(1);
   });
 });
+
+const DisabledHarness: React.FC<{ entryKey: string }> = ({ entryKey }) => {
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  useRouteEntryFocus(headingRef, entryKey, false);
+  return (
+    <h1 ref={headingRef} tabIndex={-1}>
+      Heading for {entryKey}
+    </h1>
+  );
+};
+
+describe('useRouteEntryFocus when disabled (a dog beside its list)', () => {
+  it('neither steals focus from the list nor scrolls the window on a new dog', () => {
+    mockUseNavigationType.mockReturnValue('PUSH' as NavigationType);
+    window.scrollTo = vi.fn();
+    const { getByText, rerender } = render(
+      <MemoryRouter>
+        <DisabledHarness entryKey="dog-1" />
+      </MemoryRouter>
+    );
+    rerender(
+      <MemoryRouter>
+        <DisabledHarness entryKey="dog-2" />
+      </MemoryRouter>
+    );
+    expect(getByText('Heading for dog-2')).not.toHaveFocus();
+    expect(window.scrollTo).not.toHaveBeenCalled();
+  });
+});

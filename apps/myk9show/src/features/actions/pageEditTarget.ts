@@ -17,6 +17,8 @@ export interface PageEditTarget {
   run: () => void;
   /** Trial pages only: where "Add classes" goes for this viewer. */
   addClassesHref?: string | undefined;
+  /** The object's display name, which heads its section of the menu ("Richard Beezley"). */
+  title?: string | undefined;
 }
 
 /** A whole-list "Export CSV" a list page offers the header Actions menu (MYK9-929). */
@@ -64,6 +66,8 @@ export interface PageEditActionOptions {
   enabled: boolean;
   run: () => void;
   addClassesHref?: string | undefined;
+  /** The object's display name, for its menu section heading. Absent while it loads. */
+  title?: string | undefined;
 }
 
 /**
@@ -76,6 +80,7 @@ export function usePageEditAction({
   enabled,
   run,
   addClassesHref,
+  title,
 }: PageEditActionOptions): void {
   const runRef = useRef(run);
   useEffect(() => {
@@ -89,9 +94,10 @@ export function usePageEditAction({
       kind,
       run: () => runRef.current(),
       addClassesHref,
+      title,
     });
     return () => usePageEditTargetStore.getState().clear(owner);
-  }, [kind, enabled, addClassesHref]);
+  }, [kind, enabled, addClassesHref, title]);
 }
 
 /**

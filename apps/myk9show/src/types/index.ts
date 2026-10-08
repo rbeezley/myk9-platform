@@ -250,7 +250,6 @@ export type {
   UserPreferencesUpdate,
   ThemeMode,
   ColorScheme,
-  LayoutDensity,
   FontSizeScale,
   ThemePreferences,
   DefaultView,

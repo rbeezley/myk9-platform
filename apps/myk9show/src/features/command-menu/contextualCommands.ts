@@ -33,7 +33,7 @@ export function buildContextualNavigationCommands(
     commands.push({
       id: `command-menu-entry-management-${preset.id}`,
       group: 'go-to',
-      label: `Open Entry Management — ${preset.label.toLowerCase()}`,
+      label: `Open Entry Forms — ${preset.label.toLowerCase()}`,
       sublabel: 'Current show',
       showScope: ctx.showId,
       href: getEntryManagementHref({

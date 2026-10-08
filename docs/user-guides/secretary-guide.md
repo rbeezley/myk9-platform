@@ -7,8 +7,9 @@
 
 > **What "verified" covers here.** Each card's path, tab and button label was checked against the
 > current code on 2026-10-03. Card 7 was also walked in a browser on 2026-10-04, but only as far
-> as the app allows today: a class cannot yet be set to take a wait list (MYK9-998), so no dog could be
-> put on one and the offer step has still never run on real data. Submitting results to a registry
+> as the app allowed then: a class could not yet be set to take a wait list (since added: MYK9-998 per
+> class, MYK9-1019 for the whole show), so no dog could be put on one and the offer step has still
+> never run on real data. Submitting results to a registry
 > is the other flow not exercised end to end (that is a real submission).
 
 > **About the screenshots.** The screenshots below predate the October 2026 show home and are
@@ -126,10 +127,14 @@ The view tabs across the top — _Needs review_, _Missing info_, _Payment due_, 
 
 ![Entry Management with the waitlist selected](../screenshots/S-10.png)
 
-**Turn it on first.** A class only queues people when its wait list is on. On the show home, click the class, then **Edit class**, and in **Entry limit and wait list** switch on **Allow wait list** (and set an **Entry limit**, or leave it blank for no class limit). Whether open spots are offered automatically, the judge's daily capacity, how long an offer lasts, and the mail-in hold are under **Wait list settings** at the top of this tab.
+**Turn it on first.** A full class only queues people when wait lists are on for it. One switch covers the whole show: **Allow wait lists**, under **Wait list settings** at the top of this tab. It starts off, so a full class turns new entries away until you switch it on, and it saves the moment you flip it. Every class follows it.
+
+To treat one class differently, click the class on the show home, then **Edit class**, and in **Entry limit and wait list** flip **Allow wait list** for that class (and set an **Entry limit**, or leave it blank for no class limit). The line under the switch says which applies: **Follows show: On** (or Off), or **Set for this class only**. **Use the show setting** hands the class back to the show switch. A class you set on its own keeps its setting when you change the show switch.
+
+Whether open spots are offered automatically, the judge's daily capacity, how long an offer lasts, and the mail-in hold are under **Wait list settings** too.
 
 1. Each judge-day shows as a card — the judge's name, the date, and how full it is (for example _3 / 200 entries_). A day at or over its limit reads **Full** with 0 spots available. It can read over the limit (for example _3 / 2_) when the limit was lowered after entries came in, or when a late entry was added with the capacity override.
-2. **View Wait List** on a card opens the queue for the **first class** of that judge-day, not the whole day. Use the **Class** menu below the cards to look at another class.
+2. **View Wait List** on a card lists every dog waiting in that judge-day's classes, one block per class in the order people joined, with the day's own numbers (limit, entered, available) above it. **Show every class** goes back to the whole show, which is what the tab lists until you pick a day.
 3. When a spot opens, who offers it depends on **Offer open spots automatically** under **Wait list settings**. It is on for every show until you turn it off, and it saves the moment you flip it.
    - **On:** within 15 minutes the system offers the spot to the dog at the top of the queue (the order people joined), and you get a notification in the bell naming the dog and the class, with a **View** link back to this tab. It makes one offer per class at a time and never offers a mail-in entry; when the dog at the top joined by mail, offer it yourself. You can still offer a spot yourself, and the system never adds a second offer to a class that already has one.
    - **Off:** nothing is offered for you. Click **Offer Spot** on the dog at the top of the queue (the button only appears while the class has a free spot).
@@ -138,7 +143,7 @@ The view tabs across the top — _Needs review_, _Missing info_, _Payment due_, 
 
 4. **Remove** takes a dog off the queue for good. The exhibitor is not told.
 
-> **Capacity is enforced by the server, not just displayed.** Since 2026-07-12 an online entry that would put a class or a judge's day over its limit is refused or, where the class takes a wait list, queued. The numbers on the cards are a view of that limit. Only a late entry added with the capacity override, or lowering the limit after entries exist, can take a day past it.
+> **Capacity is enforced by the server, not just displayed.** Since 2026-07-12 an online entry that would put a class or a judge's day over its limit is refused or, where the class takes a wait list, queued. The numbers on the cards are a view of that limit. Only a late entry added with the capacity override, or lowering the limit after entries exist, can take a day past it. A class can also read **Full** for up to 30 minutes while an exhibitor pays for its last spots: those spots are held at checkout and open again if the payment is not finished.
 
 > **When an offer lapses.** If an offer is not paid in time it lapses and no money is taken. With automatic offers on, the next dog in line is offered at the same 15-minute check and you are notified; with them off, the spot waits for you to offer it.
 
@@ -356,11 +361,10 @@ The report works out who is eligible and ranks them for you. One section per dif
 
 Honest list, so nothing surprises you mid-show.
 
-| What                          | Status                                                                                                                                 |
-| ----------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| High Combined Division (HCD)  | Not built — calculate by hand when you offer Handler Discrimination (card 27, MYK9-973)                                                |
-| Wait lists can't be turned on | No screen sets a class's entry limit or "allow wait list", so a full class refuses entries instead of queueing them (card 7, MYK9-998) |
-| Waitlist offers               | Never run on real data; offers can't be tracked or withdrawn from the tab, and the deadline isn't shown (card 7, MYK9-1001, MYK9-1002) |
+| What                         | Status                                                                                                                                 |
+| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| High Combined Division (HCD) | Not built — calculate by hand when you offer Handler Discrimination (card 27, MYK9-973)                                                |
+| Waitlist offers              | Never run on real data; offers can't be tracked or withdrawn from the tab, and the deadline isn't shown (card 7, MYK9-1001, MYK9-1002) |
 
 ---
 

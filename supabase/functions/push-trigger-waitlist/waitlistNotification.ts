@@ -1,4 +1,5 @@
-export type WaitlistNotificationEventType = 'offered' | 'reminder' | 'expired';
+// 'withdrawn': the club took the offer back (MYK9-1001).
+export type WaitlistNotificationEventType = 'offered' | 'reminder' | 'expired' | 'withdrawn';
 
 export interface WaitlistNotificationPayload {
   event_id: string;
@@ -33,7 +34,12 @@ export interface WaitlistDeliveryChannel {
 }
 
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-const EVENT_TYPES = new Set<WaitlistNotificationEventType>(['offered', 'reminder', 'expired']);
+const EVENT_TYPES = new Set<WaitlistNotificationEventType>([
+  'offered',
+  'reminder',
+  'expired',
+  'withdrawn',
+]);
 
 export function parseWaitlistNotificationPayload(value: unknown): WaitlistNotificationPayload {
   if (!value || typeof value !== 'object') throw new Error('Invalid payload');
@@ -65,6 +71,8 @@ export function buildWaitlistNotificationContent(input: {
   showName: string;
   expiresAt: string | null;
   timezone: string | null;
+  /** "Saturday Trial · Sat, Oct 10, 2026": shows repeat a class across trials. */
+  trialLabel?: string | null;
   appOrigin: string;
 }): WaitlistNotificationContent {
   const actionUrl = `${input.appOrigin.replace(/\/$/, '')}/exhibitor/entries?waitlistOffer=${encodeURIComponent(input.waitlistEntryId)}`;
@@ -77,14 +85,19 @@ export function buildWaitlistNotificationContent(input: {
       })
     : null;
   const deadlineHtml =
-    input.eventType !== 'expired' && deadline
+    input.eventType !== 'expired' && input.eventType !== 'withdrawn' && deadline
       ? `<p style="margin:16px 0;color:#78350f"><strong>Held until:</strong> ${escapeHtml(deadline)}</p>`
       : '';
+
+  const entryClass = input.trialLabel
+    ? `${input.className} (${input.trialLabel})`
+    : input.className;
+  const body = copy.body(input.dogName, entryClass, input.showName, deadline);
 
   return {
     title: copy.title,
     subject: `${copy.title} — ${input.showName}`,
-    body: copy.body(input.dogName, input.className, input.showName, deadline),
+    body,
     actionLabel: copy.actionLabel,
     actionUrl,
     emailHtml: `<!doctype html>
@@ -92,12 +105,35 @@ export function buildWaitlistNotificationContent(input: {
 <main style="max-width:600px;margin:auto;background:#fff;border-radius:8px;padding:28px">
 <h1 style="font-size:24px;margin:0 0 20px">${escapeHtml(copy.title)}</h1>
 <p>Hi ${escapeHtml(input.recipientName || 'there')},</p>
-<p>${escapeHtml(copy.body(input.dogName, input.className, input.showName, deadline))}</p>
+<p>${escapeHtml(body)}</p>
 ${deadlineHtml}
 <p style="margin:28px 0"><a href="${escapeHtml(actionUrl)}" style="display:inline-block;background:#2563eb;color:#fff;padding:14px 22px;border-radius:6px;text-decoration:none;font-weight:600">${escapeHtml(copy.actionLabel)}</a></p>
 <p style="color:#6b7280;font-size:14px">You can always return to My Entries to check the current status.</p>
 </main></body></html>`,
   };
+}
+
+/**
+ * "Saturday Trial · Sat, Oct 10, 2026" — the same label the app and the in-app
+ * message use (trials.date is a calendar date, so it is read in UTC).
+ */
+export function formatTrialLabel(
+  trial: { name: string | null; date: string | null } | null | undefined
+): string | null {
+  if (!trial) return null;
+  const parsed = trial.date ? new Date(`${trial.date}T00:00:00Z`) : null;
+  const date =
+    parsed && Number.isFinite(parsed.getTime())
+      ? parsed.toLocaleDateString('en-US', {
+          timeZone: 'UTC',
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          year: 'numeric',
+        })
+      : null;
+  const label = [trial.name?.trim() || null, date].filter(Boolean).join(' · ');
+  return label || null;
 }
 
 export function shouldDeliverWaitlistEvent(state: WaitlistDeliveryState): boolean {
@@ -114,6 +150,10 @@ export function shouldDeliverWaitlistEvent(state: WaitlistDeliveryState): boolea
 
   if (state.eventType === 'expired') {
     return state.waitlistStatus === 'expired';
+  }
+
+  if (state.eventType === 'withdrawn') {
+    return state.waitlistStatus === 'withdrawn';
   }
 
   if (
@@ -173,6 +213,13 @@ function eventCopy(eventType: WaitlistNotificationEventType): EventCopy {
         actionLabel: 'Complete your entry',
         body: (dog: string, entryClass: string, show: string) =>
           `There is still time to complete ${dog}'s entry in ${entryClass} at ${show}.`,
+      };
+    case 'withdrawn':
+      return {
+        title: 'Your waitlist offer was withdrawn',
+        actionLabel: 'View your entries',
+        body: (dog: string, entryClass: string, show: string) =>
+          `The club withdrew the spot offered for ${dog} in ${entryClass} at ${show}. No payment is due, and the payment link no longer works.`,
       };
     case 'expired':
       return {

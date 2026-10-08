@@ -350,12 +350,14 @@ export function WorkflowStepContent({
               onSelectionChange={onDogSelectionChange}
               offlineFirst={offlineFirstCreate}
               showRegistryId={showRegistryId}
+              showStartDate={currentShow?.startDate}
             />
           ) : (
             <DogSelectionStep
               selectedDogs={registrationData.selectedDogs}
               onSelectionChange={onDogSelectionChange}
               showRegistryId={showRegistryId}
+              showStartDate={currentShow?.startDate}
             />
           )}
         </SearchErrorBoundary>

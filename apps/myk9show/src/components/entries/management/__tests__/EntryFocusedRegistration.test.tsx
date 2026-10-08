@@ -68,7 +68,7 @@ describe('EntryFocusedRegistration', () => {
     expect(screen.getAllByText('Bean').length).toBeGreaterThan(0);
     expect(screen.getByText('Handler: Alice Martin')).toBeInTheDocument();
     expect(screen.getByText('Handler: Jamie Lee')).toBeInTheDocument();
-    expect(screen.getByText('Review registration')).toBeInTheDocument();
+    expect(screen.getByText('Review')).toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: /change check-in status/i })
     ).not.toBeInTheDocument();
@@ -93,7 +93,7 @@ describe('EntryFocusedRegistration', () => {
       />
     );
 
-    await user.click(screen.getByRole('button', { name: 'Back to registrations' }));
+    await user.click(screen.getByRole('button', { name: 'Back to list' }));
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 
@@ -147,7 +147,7 @@ describe('EntryFocusedRegistration', () => {
       />
     );
 
-    const panel = screen.getByText('Review registration').closest('div')!;
+    const panel = screen.getByText('Review').closest('div')!;
     const acceptButton = within(panel).getByRole('button', { name: 'Accept' });
     const rejectButton = within(panel).getByRole('button', { name: 'Reject' });
     expect(acceptButton).toBeInTheDocument();
@@ -216,5 +216,32 @@ describe('EntryFocusedRegistration', () => {
     );
 
     expect(screen.getByText(/1 of 2 Entries currently needs this action\./)).toBeInTheDocument();
+  });
+
+  it.each([
+    [true, 'moves focus to the heading when it opens on a narrow screen'],
+    [false, 'leaves focus alone in the side-by-side layout'],
+  ])('focusHeadingOnMount=%s %s', focusHeadingOnMount => {
+    const registration = groupEntriesByShowRegistration([
+      entry('entry-1', 'Poppy', 'Alice Martin', 'dog-1'),
+    ])[0]!;
+
+    render(
+      <EntryFocusedRegistration
+        registration={registration}
+        focusHeadingOnMount={focusHeadingOnMount}
+        onStatusChange={vi.fn()}
+        onCheckInStatusChange={vi.fn()}
+        onOpenArmbandDialog={vi.fn()}
+        onEntryRemoved={vi.fn()}
+        onBulkStatusChange={vi.fn()}
+        paymentLedger={{ record: vi.fn(), markPaidOnline: vi.fn(), todayInShowZone: '2026-09-17' }}
+        showCheckInStatus={false}
+      />
+    );
+
+    const heading = screen.getByRole('heading', { name: 'Alice Martin' });
+    if (focusHeadingOnMount) expect(heading).toHaveFocus();
+    else expect(heading).not.toHaveFocus();
   });
 });

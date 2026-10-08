@@ -168,7 +168,7 @@ describe('EntryManagementPage derives its gate from the one manage scope', () =>
     renderAtShow();
 
     expect(screen.queryByRole('heading', { name: /access restricted/i })).toBeNull();
-    expect(screen.getByRole('heading', { name: 'Entry Management' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Entry Forms' })).toBeInTheDocument();
   });
 
   // REV-2341 R-4. The round-1 commit claimed "Entry Management carried the same

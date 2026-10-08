@@ -53,7 +53,8 @@ export interface ClassEditFormData extends Record<string, unknown> {
   // Entry limit and wait list (`classes.max_entries` / `classes.allow_waitlist`)
   /** null = no class limit. */
   maxEntries?: number | null;
-  allowsWaitlist?: boolean;
+  /** null follows the show's "Allow wait lists" (MYK9-1019). */
+  allowsWaitlist?: boolean | null;
   /** Capacity controls the user edited in THIS session; only these reach the save. */
   editedCapacity?: CapacityControl[];
 
@@ -73,7 +74,8 @@ export interface TrialClassEditFormData extends Record<string, unknown> {
   entries: number;
   /** null = no class limit. */
   maxEntries?: number | null;
-  allowsWaitlist?: boolean;
+  /** null follows the show's "Allow wait lists" (MYK9-1019). */
+  allowsWaitlist?: boolean | null;
   /** Capacity controls the user edited in THIS session; only these reach the save. */
   editedCapacity?: CapacityControl[];
 }

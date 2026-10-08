@@ -51,6 +51,13 @@ export function mapWaitlistEntry(
   };
 }
 
+/** The class name the Waitlist tab shows: element, level and section, else the stored name. */
+export function waitlistClassDisplayName(cls: ReplicatedClass): string {
+  return (
+    [cls.element, cls.level, cls.section].filter(Boolean).join(' ') || cls.name || 'Unnamed Class'
+  );
+}
+
 /**
  * Map a ReplicatedClass + trial + counts into the ClassWithWaitlistCount shape
  * expected by the original PostgREST query consumers.
@@ -59,14 +66,12 @@ export function mapClassWithWaitlistCount(
   cls: ReplicatedClass,
   trial: ReplicatedTrial | null,
   acceptedCount: number,
-  waitlistCount: number
+  waitlistCount: number,
+  offeredCount = 0
 ): ClassWithWaitlistCount {
   return {
     id: cls.id,
-    name:
-      [cls.element, cls.level, cls.section].filter(Boolean).join(' ') ||
-      cls.name ||
-      'Unnamed Class',
+    name: waitlistClassDisplayName(cls),
     class_number: null, // ReplicatedClass does not have classNumber
     max_entries: cls.maxEntries ?? null,
     trial_id: cls.trialId ?? '',
@@ -75,9 +80,11 @@ export function mapClassWithWaitlistCount(
           id: trial.id,
           name: trial.name ?? null,
           date: trial.date ?? null,
+          timezone: trial.timezone ?? null,
         }
       : null,
     accepted_count: acceptedCount,
     waitlist_count: waitlistCount,
+    offered_count: offeredCount,
   };
 }

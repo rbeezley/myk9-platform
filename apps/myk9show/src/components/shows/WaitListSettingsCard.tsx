@@ -1,13 +1,13 @@
 /**
  * WaitListSettingsCard
  *
- * Configures wait list capacity and mail-in reservation strategy for a show,
- * and whether open spots are offered automatically (MYK9-1003).
- * NOTE: The columns read/written here are added by migration 114 but the
- * Supabase generated types do not know about them yet. Cast via ShowCapacityRow.
+ * Configures whether the show takes wait lists at all (MYK9-1019), whether open
+ * spots are offered automatically (MYK9-1003), and wait list capacity and the
+ * mail-in reservation strategy.
+ * The read lives in `waitListSettingsQuery.ts`, shared with the offer dialog.
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useContext } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -23,29 +23,16 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/lib/supabase';
 import { judgeDayCapacityKey } from '@/hooks/queries/useJudgeDayCapacity';
+import { classAvailabilityQueryKey } from '@/hooks/useClassAvailability';
+import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 import type { WaitListShowConfig, MailInStrategy } from '@/types/waitlist-types';
 import type { TablesUpdate } from '@/types/supabase';
+import { waitListSettingsQueryOptions } from './waitListSettingsQuery';
+import { useWaitListSwitch, waitListSettingsKey, type WaitListSwitch } from './useWaitListSwitch';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-interface ShowCapacityRow {
-  default_judge_day_capacity: number | null;
-  mail_in_strategy: MailInStrategy | null;
-  mail_in_value: number | null;
-  mail_in_deadline: string | null;
-  mail_in_auto_release: boolean | null;
-  mail_in_release_date: string | null;
-  waitlist_payment_deadline_hours: number | null;
-  waitlist_auto_offer: boolean | null;
-}
-
-interface WaitListSettings {
-  config: WaitListShowConfig;
-  /** shows.waitlist_auto_offer; the database default (true) is today's behaviour. */
-  autoOffer: boolean;
-}
 
 interface WaitListSettingsCardProps {
   showId: string;
@@ -55,16 +42,45 @@ interface WaitListSettingsCardProps {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function rowToConfig(row: ShowCapacityRow): WaitListShowConfig {
-  return {
-    defaultJudgeDayCapacity: row.default_judge_day_capacity ?? 125,
-    mailInStrategy: row.mail_in_strategy ?? 'none',
-    mailInValue: row.mail_in_value,
-    mailInDeadline: row.mail_in_deadline,
-    mailInAutoRelease: row.mail_in_auto_release ?? false,
-    mailInReleaseDate: row.mail_in_release_date,
-    waitlistPaymentDeadlineHours: row.waitlist_payment_deadline_hours ?? 48,
-  };
+/** One self-saving switch, with what its position means and a calm failure line. */
+function SettingSwitch({
+  id,
+  label,
+  help,
+  control,
+  disabled,
+}: {
+  id: string;
+  label: string;
+  help: string;
+  control: WaitListSwitch;
+  disabled: boolean;
+}) {
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center gap-3">
+        <Switch
+          id={id}
+          aria-describedby={`${id}-help`}
+          checked={control.checked}
+          disabled={disabled || control.isPending}
+          onCheckedChange={checked => control.save(checked)}
+        />
+        {/* The label is the switch's 44px target (docs/INTENT.md § Accessibility First). */}
+        <Label htmlFor={id} className="flex min-h-11 items-center">
+          {label}
+        </Label>
+      </div>
+      <p className="text-sm text-muted-foreground" id={`${id}-help`}>
+        {help}
+      </p>
+      {control.isError && (
+        <p className="text-sm text-destructive" role="alert">
+          Couldn't save that change. Check your connection and try again.
+        </p>
+      )}
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -74,25 +90,7 @@ function rowToConfig(row: ShowCapacityRow): WaitListShowConfig {
 export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['waitlist-settings', showId],
-    queryFn: async () => {
-      const { data: row, error } = await supabase
-        .from('shows')
-        .select(
-          'default_judge_day_capacity, mail_in_strategy, mail_in_value, mail_in_deadline, mail_in_auto_release, mail_in_release_date, waitlist_payment_deadline_hours, waitlist_auto_offer'
-        )
-        .eq('id', showId)
-        .single();
-
-      if (error) throw error;
-      const capacityRow = row as unknown as ShowCapacityRow;
-      return {
-        config: rowToConfig(capacityRow),
-        autoOffer: capacityRow.waitlist_auto_offer ?? true,
-      } satisfies WaitListSettings;
-    },
-  });
+  const { data, isLoading } = useQuery(waitListSettingsQueryOptions(showId));
 
   const [form, setForm] = useState<WaitListShowConfig>({
     defaultJudgeDayCapacity: 125,
@@ -113,37 +111,30 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
     }
   }, [data]);
 
-  // The automatic-offer switch saves on its own, and only its own column: it
-  // is a mode, not a form field, and must never carry (or wait on) the
-  // capacity edits below. `pendingAutoOffer` shows the new position while the
-  // save is in flight; a failed save falls back to the stored value.
-  const [pendingAutoOffer, setPendingAutoOffer] = useState<boolean | null>(null);
-  const autoOfferMutation = useMutation({
-    mutationFn: async (enabled: boolean) => {
-      const { error } = await supabase
-        .from('shows')
-        .update({ waitlist_auto_offer: enabled })
-        .eq('id', showId);
-      if (error) throw error;
-    },
-    onMutate: enabled => setPendingAutoOffer(enabled),
-    // Write the saved value into the cache before dropping the pending one, so
-    // the switch never flickers back to the old position while a refetch runs.
-    onSuccess: (_result, enabled) =>
-      queryClient.setQueryData<WaitListSettings>(['waitlist-settings', showId], current =>
-        current ? { ...current, autoOffer: enabled } : current
-      ),
-    onSettled: () => setPendingAutoOffer(null),
-  });
-  const autoOffer = pendingAutoOffer ?? data?.autoOffer ?? true;
+  // Optional: the provider wraps the app; a test without it simply skips the pull.
+  const syncTable = useContext(ReplicationSyncContext)?.syncTable;
+  const allowWaitlists = useWaitListSwitch(
+    showId,
+    'allowWaitlists',
+    data?.allowWaitlists,
+    false,
+    () => {
+      // Every class without its own setting changed with it: the wizard's and
+      // the cart's Full / wait-list reads, and the show row Edit class reads
+      // the inherited value from.
+      void queryClient.invalidateQueries({ queryKey: classAvailabilityQueryKey(showId) });
+      void syncTable?.('shows');
+    }
+  );
+  const autoOffer = useWaitListSwitch(showId, 'autoOffer', data?.autoOffer, true);
 
   const mutation = useMutation({
     mutationFn: async (config: WaitListShowConfig) => {
       const payload: TablesUpdate<'shows'> = {
         default_judge_day_capacity: config.defaultJudgeDayCapacity,
-        mail_in_strategy: config.mailInStrategy,
+        mail_in_strategy: config.mailInStrategy === 'deadline' ? 'none' : config.mailInStrategy,
         mail_in_value: config.mailInValue,
-        mail_in_deadline: config.mailInDeadline,
+        mail_in_deadline: null,
         mail_in_auto_release: config.mailInAutoRelease,
         mail_in_release_date: config.mailInReleaseDate,
         waitlist_payment_deadline_hours: config.waitlistPaymentDeadlineHours,
@@ -153,7 +144,7 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
     },
     onSuccess: () => {
       isDirty.current = false;
-      queryClient.invalidateQueries({ queryKey: ['waitlist-settings', showId] });
+      queryClient.invalidateQueries({ queryKey: waitListSettingsKey(showId) });
       // The Waitlist tab's Full / spots-available cards are computed from these settings.
       queryClient.invalidateQueries({ queryKey: judgeDayCapacityKey(showId) });
     },
@@ -175,33 +166,36 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
       <CardHeader>
         <CardTitle>Wait List Settings</CardTitle>
         <CardDescription>
-          Choose how open spots are offered, and set judge daily capacity and mail-in rules.
+          Choose whether full classes take a wait list and how open spots are offered, and set judge
+          daily capacity and mail-in rules.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
+        {/* The show-wide wait list switch (MYK9-1019) */}
+        <SettingSwitch
+          id="allow-waitlists"
+          label="Allow wait lists"
+          help={
+            allowWaitlists.checked
+              ? "When a class or a judge's day is full, new entries join the wait list. A class set on its own in Edit class keeps its own setting."
+              : "When a class or a judge's day is full, new entries are turned away. A class set on its own in Edit class keeps its own setting."
+          }
+          control={allowWaitlists}
+          disabled={isLoading}
+        />
+
         {/* Automatic offers (MYK9-1003) */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-3">
-            <Switch
-              id="auto-offer"
-              aria-describedby="auto-offer-help"
-              checked={autoOffer}
-              disabled={isLoading || autoOfferMutation.isPending}
-              onCheckedChange={checked => autoOfferMutation.mutate(checked)}
-            />
-            <Label htmlFor="auto-offer">Offer open spots automatically</Label>
-          </div>
-          <p className="text-sm text-muted-foreground" id="auto-offer-help">
-            {autoOffer
+        <SettingSwitch
+          id="auto-offer"
+          label="Offer open spots automatically"
+          help={
+            autoOffer.checked
               ? 'When a spot opens, the next dog in line is offered it within 15 minutes, and you get a notification each time.'
-              : 'You offer every open spot yourself, from the queue below.'}
-          </p>
-          {autoOfferMutation.isError && (
-            <p className="text-sm text-destructive" role="alert">
-              Couldn't save that change. Check your connection and try again.
-            </p>
-          )}
-        </div>
+              : 'You offer every open spot yourself, from the queue below.'
+          }
+          control={autoOffer}
+          disabled={isLoading}
+        />
 
         {/* Judge Daily Capacity */}
         <div className="space-y-1">
@@ -220,7 +214,7 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
         <div className="space-y-1">
           <Label htmlFor="mail-in-strategy">Mail-In Reservation Strategy</Label>
           <Select
-            value={form.mailInStrategy}
+            value={strategy === 'deadline' ? 'none' : strategy}
             onValueChange={value => updateForm({ mailInStrategy: value as MailInStrategy })}
           >
             <SelectTrigger id="mail-in-strategy">
@@ -230,9 +224,21 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
               <SelectItem value="none">None</SelectItem>
               <SelectItem value="fixed">Fixed Count</SelectItem>
               <SelectItem value="percentage">Percentage</SelectItem>
-              <SelectItem value="deadline">Deadline</SelectItem>
             </SelectContent>
           </Select>
+          <p className="text-sm text-muted-foreground">
+            {strategy === 'fixed'
+              ? 'Hold this many spots per judge day for mail-in entries. Online entries cannot use them.'
+              : strategy === 'percentage'
+                ? 'Hold this percentage of each judge day’s capacity for mail-in entries, rounded down. Online entries cannot use them.'
+                : 'No spots are reserved for mail-in entries.'}
+          </p>
+          {strategy === 'deadline' && (
+            <p className="text-sm text-muted-foreground">
+              Deadline reservations did not hold any spots. Choose Fixed Count or Percentage to
+              reserve spots, or save None to clear the old setting.
+            </p>
+          )}
         </div>
 
         {/* Conditional: fixed */}
@@ -266,19 +272,6 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
               onChange={e =>
                 updateForm({ mailInValue: e.target.value ? Number(e.target.value) : null })
               }
-            />
-          </div>
-        )}
-
-        {/* Conditional: deadline */}
-        {strategy === 'deadline' && (
-          <div className="space-y-1">
-            <Label htmlFor="mail-in-deadline">Mail-In Deadline</Label>
-            <Input
-              id="mail-in-deadline"
-              type="date"
-              value={form.mailInDeadline ?? ''}
-              onChange={e => updateForm({ mailInDeadline: e.target.value || null })}
             />
           </div>
         )}

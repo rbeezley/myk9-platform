@@ -300,7 +300,10 @@ describe('DeleteObjectDialog three states', () => {
 
       const dialog = await screen.findByRole('alertdialog');
       const link = await within(dialog).findByRole('link', { name: 'Withdraw / Pull entries' });
-      expect(link).toHaveAttribute('href', '/shows/s1/entries');
+      expect(link).toHaveAttribute(
+        'href',
+        kind === 'entry' ? '/shows/s1/entries?queue=all&entry=entry-1' : '/shows/s1/entries'
+      );
       expect(within(dialog).getByRole('button', { name: `Delete ${kind}` })).toBeDisabled();
     }
   );
@@ -312,6 +315,7 @@ describe('DeleteObjectDialog three states', () => {
 
     const dialog = await screen.findByRole('alertdialog');
     const link = await within(dialog).findByRole('link', { name: 'Withdraw / Pull entries' });
+    expect(link).toHaveAttribute('href', '/shows/s1/entries?queue=all&entry=e1');
     await userEvent.click(link);
 
     expect(onOpenChange).toHaveBeenCalledWith(false);

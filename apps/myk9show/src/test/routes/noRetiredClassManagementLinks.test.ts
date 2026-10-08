@@ -28,7 +28,9 @@ const viewer = {
   canManageShow: true,
   canOperateShow: true,
   canCreateShows: true,
-  isShowManagementStaff: true,
+  canCreateDogs: true,
+  canCreatePeople: true,
+  canCreateClubs: true,
 };
 
 function collectHrefs(): string[] {

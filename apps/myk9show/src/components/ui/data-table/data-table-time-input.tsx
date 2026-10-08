@@ -13,7 +13,13 @@ export interface TimeInputProps {
   autoFocus?: boolean;
   className?: string;
   id?: string;
+  'aria-describedby'?: string | undefined;
+  /** Most digits accepted (MMSShh = 6). Further digits are ignored. */
+  maxDigits?: number;
 }
+
+/** MMSShh: two digits each for minutes, seconds and hundredths. */
+export const TIME_INPUT_MAX_DIGITS = 6;
 
 /**
  * Resolve the internal digit string from a value that may already be formatted.
@@ -32,7 +38,7 @@ function toDigits(value: string): string {
  *
  * - When focused: shows raw digits for fast entry (e.g. "4532")
  * - When blurred: shows formatted time (e.g. "0:45.32")
- * - Only accepts numeric input
+ * - Only accepts numeric input, capped at `maxDigits` (default 6)
  * - Tab/Enter calls onCommit; Escape calls onCancel
  */
 export function TimeInput({
@@ -43,6 +49,8 @@ export function TimeInput({
   autoFocus = false,
   className,
   id,
+  maxDigits = TIME_INPUT_MAX_DIGITS,
+  'aria-describedby': ariaDescribedBy,
 }: TimeInputProps) {
   const digits = toDigits(value);
   const [focused, setFocused] = useState(autoFocus);
@@ -71,9 +79,11 @@ export function TimeInput({
     (e: React.ChangeEvent<HTMLInputElement>) => {
       // Filter to digits only
       const raw = e.target.value.replace(/\D/g, '');
+      // A seventh digit would shift into minutes unseen. Ignore it.
+      if (raw.length > maxDigits) return;
       onChange(raw);
     },
-    [onChange]
+    [onChange, maxDigits]
   );
 
   const handleKeyDown = useCallback(
@@ -116,6 +126,7 @@ export function TimeInput({
     <input
       ref={inputRef}
       id={id}
+      aria-describedby={ariaDescribedBy}
       type="text"
       inputMode="numeric"
       value={displayValue}

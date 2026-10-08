@@ -16,6 +16,7 @@ import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
 import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
+import { QuickAdvancePanel } from './quickAdvancePanel';
 
 // Effective ringside role drives the scoring gate. Default to a JUDGE (can
 // score) so the happy-path wiring tests render the scoresheet; individual tests
@@ -58,6 +59,9 @@ vi.mock('@/services/replication/ReplicatedClassesTable', () => ({
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: {
     getEntriesByClass: vi.fn(),
+    getEntryById: vi.fn(),
+    getScoreUploadState: vi.fn().mockResolvedValue('pending'),
+    readScoreFromServer: vi.fn().mockResolvedValue(null),
     sync: vi.fn(),
     subscribe: vi.fn(() => () => undefined),
   },
@@ -123,6 +127,7 @@ const StubLiveScoresheet = ({
   onWarningChime,
   onVoiceAnnouncement,
   enableVoiceAnnouncements,
+  headerActions,
 }: {
   entry: { armband: number };
   onSubmit: (sd: unknown) => void;
@@ -130,8 +135,10 @@ const StubLiveScoresheet = ({
   onWarningChime?: () => void;
   onVoiceAnnouncement?: (secondsRemaining: number) => void;
   enableVoiceAnnouncements?: boolean;
+  headerActions?: React.ReactNode;
 }) => (
   <div>
+    <header>{headerActions}</header>
     <div data-testid="live-scoresheet">Live scoresheet for #{entry.armband}</div>
     <div data-testid="voice-announcements-enabled">{String(enableVoiceAnnouncements)}</div>
     <button onClick={() => onSubmit({ resultText: 'Qualified', searchTime: '0:30.00' })}>
@@ -182,6 +189,13 @@ function seed() {
   vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([
     { id: 'entry-1', armband: 105, dogId: 'dog-1', checkInStatus: 'no-status' },
   ] as never);
+  vi.mocked(replicatedEntriesTable.getEntryById).mockResolvedValue({
+    id: 'entry-1',
+    resultStatus: 'qualified',
+    searchTimeSeconds: 30,
+    totalFaults: 0,
+    scoringCompletedAt: '2026-06-01T12:00:00.000Z',
+  } as never);
   vi.mocked(replicatedDogsTable.get).mockResolvedValue({ id: 'dog-1', callName: 'Rex' } as never);
   vi.mocked(replicatedTrialsTable.getTrialById).mockResolvedValue({
     id: 'trial-1',
@@ -221,6 +235,8 @@ const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledS
 describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(replicatedEntriesTable.getScoreUploadState).mockResolvedValue('pending');
+    vi.mocked(replicatedEntriesTable.readScoreFromServer).mockResolvedValue(null);
     mockRoles = [UserRole.JUDGE];
     mockPersonId = 'judge-1';
     mockIsAnonymous = false;
@@ -383,6 +399,18 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     );
   });
 
+  it('calls a queued offline score saved on this device, not server-saved', async () => {
+    submitScoreOptimistically.mockImplementationOnce(
+      async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
+    );
+    renderPage();
+    await screen.findByTestId('live-scoresheet');
+    fireEvent.click(screen.getByText('Submit Score'));
+
+    expect(await screen.findByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
+    expect(screen.queryByText('Score saved')).not.toBeInTheDocument();
+  });
+
   it('rehydrates the saved entry when correcting a score from Quick Advance', async () => {
     submitScoreOptimistically.mockImplementationOnce(
       async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
@@ -393,7 +421,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     fireEvent.click(screen.getByText('Submit Score'));
 
     await waitFor(() => expect(submitScoreOptimistically).toHaveBeenCalledTimes(1));
-    expect(await screen.findByText('Score saved')).toBeInTheDocument();
+    expect(await screen.findByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: /correct this score/i }));
 
     expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
@@ -401,6 +429,160 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     // still forces the canonical scoped refresh once.
     expect(replicatedTrialsTable.sync).toHaveBeenCalledTimes(1);
     expect(replicatedEntriesTable.sync).toHaveBeenCalledTimes(2);
+  });
+
+  it('shows server-saved only after the uploaded score matches an authenticated readback', async () => {
+    vi.mocked(replicatedEntriesTable.getScoreUploadState).mockResolvedValue('uploaded');
+    vi.mocked(replicatedEntriesTable.readScoreFromServer).mockResolvedValue({
+      id: 'entry-1',
+      resultStatus: 'qualified',
+      searchTimeSeconds: 30,
+      totalFaults: 0,
+      scoringCompletedAt: '2026-06-01T12:00:00.000Z',
+    } as never);
+    submitScoreOptimistically.mockImplementationOnce(
+      async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
+    );
+    renderPage();
+    await screen.findByTestId('live-scoresheet');
+    fireEvent.click(screen.getByText('Submit Score'));
+
+    expect(await screen.findByText('Score saved')).toBeInTheDocument();
+    expect(replicatedEntriesTable.readScoreFromServer).toHaveBeenCalledWith('entry-1');
+  });
+
+  it('does not reuse an earlier entry’s server confirmation for the next score', async () => {
+    vi.mocked(replicatedEntriesTable.getScoreUploadState).mockImplementation(async entryId =>
+      entryId === 'entry-1' ? 'uploaded' : 'pending'
+    );
+    vi.mocked(replicatedEntriesTable.readScoreFromServer).mockResolvedValue({
+      id: 'entry-1',
+      resultStatus: 'qualified',
+      searchTimeSeconds: 30,
+      totalFaults: 0,
+      scoringCompletedAt: '2026-06-01T12:00:00.000Z',
+    } as never);
+    const actions = {
+      classId: 'class-1',
+      onBackToList: vi.fn(),
+      onCorrectScore: vi.fn(),
+      onPickEntry: vi.fn(),
+    };
+    const view = render(<QuickAdvancePanel {...actions} scoredEntryId="entry-1" />);
+    expect(await screen.findByText('Score saved')).toBeInTheDocument();
+
+    view.rerender(<QuickAdvancePanel {...actions} scoredEntryId="entry-2" />);
+    expect(screen.queryByText('Score saved')).not.toBeInTheDocument();
+    expect(screen.getByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
+  });
+
+  it('changes a queued confirmation to server-saved after upload and readback', async () => {
+    submitScoreOptimistically.mockImplementationOnce(
+      async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
+    );
+    renderPage();
+    await screen.findByTestId('live-scoresheet');
+    fireEvent.click(screen.getByText('Submit Score'));
+    expect(await screen.findByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
+    await waitFor(() => expect(replicatedEntriesTable.getScoreUploadState).toHaveBeenCalled());
+
+    vi.mocked(replicatedEntriesTable.getScoreUploadState).mockResolvedValue('uploaded');
+    vi.mocked(replicatedEntriesTable.readScoreFromServer).mockResolvedValue({
+      id: 'entry-1',
+      resultStatus: 'qualified',
+      searchTimeSeconds: 30,
+      totalFaults: 0,
+      scoringCompletedAt: '2026-06-01T12:00:00.000Z',
+    } as never);
+    fireEvent(window, new Event('online'));
+
+    expect(await screen.findByText('Score saved')).toBeInTheDocument();
+  });
+
+  it('keeps local-pending wording when the server readback is a different score', async () => {
+    vi.mocked(replicatedEntriesTable.getScoreUploadState).mockResolvedValue('uploaded');
+    vi.mocked(replicatedEntriesTable.readScoreFromServer).mockResolvedValue({
+      id: 'entry-1',
+      resultStatus: 'qualified',
+      searchTimeSeconds: 65,
+      totalFaults: 0,
+      scoringCompletedAt: '2026-06-01T11:00:00.000Z',
+    } as never);
+    submitScoreOptimistically.mockImplementationOnce(
+      async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
+    );
+    renderPage();
+    await screen.findByTestId('live-scoresheet');
+    fireEvent.click(screen.getByText('Submit Score'));
+
+    expect(await screen.findByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
+    await waitFor(() => expect(replicatedEntriesTable.readScoreFromServer).toHaveBeenCalled());
+    expect(screen.queryByText('Score saved')).not.toBeInTheDocument();
+  });
+
+  it('does not acknowledge a score whose server readback lost an area time', async () => {
+    vi.mocked(replicatedEntriesTable.getEntryById).mockResolvedValue({
+      id: 'entry-1',
+      resultStatus: 'qualified',
+      searchTimeSeconds: 30,
+      totalFaults: 0,
+      scoringCompletedAt: '2026-06-01T12:00:00.000Z',
+      area1_time_seconds: 15,
+    } as never);
+    vi.mocked(replicatedEntriesTable.getScoreUploadState).mockResolvedValue('uploaded');
+    vi.mocked(replicatedEntriesTable.readScoreFromServer).mockResolvedValue({
+      id: 'entry-1',
+      resultStatus: 'qualified',
+      searchTimeSeconds: 30,
+      totalFaults: 0,
+      scoringCompletedAt: '2026-06-01T12:00:00.000Z',
+      area1_time_seconds: 17,
+    } as never);
+    submitScoreOptimistically.mockImplementationOnce(
+      async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
+    );
+    renderPage();
+    await screen.findByTestId('live-scoresheet');
+    fireEvent.click(screen.getByText('Submit Score'));
+
+    expect(await screen.findByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
+    await waitFor(() => expect(replicatedEntriesTable.readScoreFromServer).toHaveBeenCalled());
+    expect(screen.queryByText('Score saved')).not.toBeInTheDocument();
+  });
+
+  it('distinguishes a failed upload from a score that reached the server', async () => {
+    vi.mocked(replicatedEntriesTable.getScoreUploadState).mockResolvedValue('failed');
+    submitScoreOptimistically.mockImplementationOnce(
+      async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
+    );
+    renderPage();
+    await screen.findByTestId('live-scoresheet');
+    fireEvent.click(screen.getByText('Submit Score'));
+
+    expect(
+      await screen.findByText(/Saved on this device.*sync needs attention/i)
+    ).toBeInTheDocument();
+    expect(replicatedEntriesTable.readScoreFromServer).toHaveBeenCalledWith('entry-1');
+  });
+
+  it('acknowledges a matching server score despite an older failed edit on the entry', async () => {
+    vi.mocked(replicatedEntriesTable.getScoreUploadState).mockResolvedValue('failed');
+    vi.mocked(replicatedEntriesTable.readScoreFromServer).mockResolvedValue({
+      id: 'entry-1',
+      resultStatus: 'qualified',
+      searchTimeSeconds: 30,
+      totalFaults: 0,
+      scoringCompletedAt: '2026-06-01T12:00:00.000Z',
+    } as never);
+    submitScoreOptimistically.mockImplementationOnce(
+      async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
+    );
+    renderPage();
+    await screen.findByTestId('live-scoresheet');
+    fireEvent.click(screen.getByText('Submit Score'));
+
+    expect(await screen.findByText('Score saved')).toBeInTheDocument();
+    expect(replicatedEntriesTable.readScoreFromServer).toHaveBeenCalledWith('entry-1');
   });
 
   it('navigates back to the at-show entry list', async () => {

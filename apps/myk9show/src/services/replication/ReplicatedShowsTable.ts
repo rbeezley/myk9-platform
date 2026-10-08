@@ -69,6 +69,11 @@ export interface ReplicatedShow {
   acceptCheckPayments?: boolean | undefined;
   acceptCashPayments?: boolean | undefined;
   onlineEntriesEnabled?: boolean | undefined;
+  /**
+   * shows.allow_waitlist (MYK9-1019), read-only here: the Waitlist tab's settings card writes it
+   * directly, so a rebuilt row never carries a cached copy back over it.
+   */
+  allowsWaitlist?: boolean | undefined;
   /** shows.version as last read from the server (read-only; never written). */
   serverVersion?: number | undefined;
   logoUrl?: string | undefined;

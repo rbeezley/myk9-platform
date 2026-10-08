@@ -7,7 +7,7 @@ const mockReportState = vi.hoisted(() => ({
   trialOneRegistryId: 'AKC',
   isLoading: false,
   /** Overrides the derived state so the paused/stale paths are reachable. */
-  dataState: null as null | 'loading' | 'unavailable' | 'stale' | 'error' | 'ready',
+  dataState: null as null | 'loading' | 'unavailable' | 'stale' | 'refreshing' | 'error' | 'ready',
 }));
 
 const mockPrintState = vi.hoisted(() => ({
@@ -282,6 +282,29 @@ describe('ReportsPage', () => {
     expect(lastToast?.[0]).toMatch(/wait for print status/i);
     expect(lastToast?.[1]).toBeUndefined();
   });
+
+  it.each([
+    ['refreshing', 'Checking print status…'],
+    ['error', 'Print status unavailable'],
+  ] as const)(
+    'does not claim Printed or offer to record while the class rows are %s',
+    async (dataState, label) => {
+      mockReportState.dataState = dataState;
+      // A record whose fingerprint matches would read as current if the rows were trusted.
+      mockPrintState.records = [];
+      const user = userEvent.setup();
+
+      render(<ReportsPage />, {
+        initialRoute: '/shows/show-1/reports?report=check-in-sheet',
+      });
+
+      const status = screen.getByTestId('report-print-status');
+      expect(status).toHaveTextContent(label);
+      expect(status).not.toHaveTextContent('Not confirmed printed');
+      await user.click(screen.getByRole('button', { name: /^print$/i }));
+      expect(toastSpy.called.mock.calls.at(-1)?.[1]).toBeUndefined();
+    }
+  );
 
   it('does not offer to record a print when replicated status sync failed', async () => {
     mockPrintState.isError = true;

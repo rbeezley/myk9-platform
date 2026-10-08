@@ -68,9 +68,9 @@ test.describe('Show management workflow', () => {
     await expect(page.getByRole('button', { name: 'More show actions' })).toHaveCount(0);
     await expect(page.getByTestId('header-actions-trigger')).toBeVisible({ timeout: 15000 });
     await page.getByTestId('header-actions-trigger').click();
-    // "Open Entry Management" was renamed "Open Entries" by #2331; the hero's
+    // "Open Entry Management" was renamed "Open Entries" by #2331 and "Open Entry Forms" by MYK9-1029; the hero's
     // The header Edit button is gone: "Edit show" is this menu's first item (MYK9-736, MYK9-928).
-    await expect(page.getByRole('menuitem', { name: 'Open Entries' })).toBeVisible();
+    await expect(page.getByRole('menuitem', { name: 'Open Entry Forms' })).toBeVisible();
     await expect(page.getByRole('menuitem').first()).toHaveText('Edit show');
     await expect(page.getByRole('button', { name: 'Edit show', exact: true })).toHaveCount(0);
     await page.keyboard.press('Escape');

@@ -3,31 +3,47 @@ import {
   mergeSearchOnlyHref,
   parseActionRouteContext,
   resolveActions,
+  type ActionGroupId,
   type ActionViewer,
+  type AppAction,
 } from '@/features/actions/actionRegistry';
 
 const SHOW_ID = 'dededede-0000-0000-0000-000000000010';
 
+// Create gates as the live roles hold them (migration 140 and `BrowseClubsPage`): a secretary
+// creates everything, a club admin dogs and clubs, an exhibitor only their own dogs.
 const secretary: ActionViewer = {
   canManageShow: true,
   canOperateShow: true,
   canCreateShows: true,
-  isShowManagementStaff: true,
+  canCreateDogs: true,
+  canCreatePeople: true,
+  canCreateClubs: true,
 };
 
 const clubAdmin: ActionViewer = {
   canManageShow: true,
   canOperateShow: false,
   canCreateShows: false,
-  isShowManagementStaff: false,
+  canCreateDogs: true,
+  canCreatePeople: false,
+  canCreateClubs: true,
 };
 
 const exhibitor: ActionViewer = {
   canManageShow: false,
   canOperateShow: false,
   canCreateShows: false,
-  isShowManagementStaff: false,
+  canCreateDogs: true,
+  canCreatePeople: false,
+  canCreateClubs: false,
 };
+
+function inGroup(actions: AppAction[], group: ActionGroupId): AppAction[] {
+  return actions.filter(action => action.group === group);
+}
+
+const CREATE_IDS = ['create-show', 'create-dog', 'create-person', 'create-club'];
 
 describe('parseActionRouteContext', () => {
   it('reads the show id from every show-scoped route', () => {
@@ -82,10 +98,9 @@ describe('parseActionRouteContext', () => {
     for (const path of ['/shows/new', '/shows/new/', '/shows/browse', '/shows/browse/']) {
       expect(parseActionRouteContext(path)).toEqual({ kind: 'global' });
     }
-    expect(resolveActions(parseActionRouteContext('/shows/new'), secretary)).toEqual([
-      { id: 'create-show', label: 'Add Show', href: '/?wizard=true' },
-      { id: 'open-show-management', label: 'Open Show Management', href: '/secretary/dashboard' },
-    ]);
+    expect(resolveActions(parseActionRouteContext('/shows/new'), secretary).map(a => a.id)).toEqual(
+      CREATE_IDS
+    );
   });
 
   it('decodes an encoded show id and ignores a trailing slash or query-free hash', () => {
@@ -100,7 +115,7 @@ const SHOW_CONTEXT = { kind: 'show', showId: SHOW_ID, shellMounted: true } as co
 const SIBLING_CONTEXT = { kind: 'show', showId: SHOW_ID, shellMounted: false } as const;
 
 describe('resolveActions — secretary on a show', () => {
-  const actions = resolveActions(SHOW_CONTEXT, secretary);
+  const actions = inGroup(resolveActions(SHOW_CONTEXT, secretary), 'show');
 
   it('puts Edit show first and opens the edit panel where the secretary stands', () => {
     // MYK9-928: Edit is the first item of every page's Actions menu and the
@@ -110,7 +125,6 @@ describe('resolveActions — secretary on a show', () => {
     expect(first?.id).toBe('show-settings');
     expect(first?.label).toBe('Edit show');
     expect(first?.href).toBe('?edit=true');
-    expect(first?.separatorBefore).toBeUndefined();
     expect(actions.some(action => action.href?.endsWith('/setup'))).toBe(false);
   });
 
@@ -164,10 +178,10 @@ describe('resolveActions — secretary on a show', () => {
     }
   });
 
-  it('separates the groups: Add after Edit, status after the rest', () => {
-    expect(actions.filter(a => a.separatorBefore).map(a => a.id)).toEqual([
-      'show-add-mail-in-entry',
-      'show-generate-publish-premium',
+  it('puts the show section ahead of Create, which follows it on a show page too', () => {
+    expect(resolveActions(SHOW_CONTEXT, secretary).map(a => a.group)).toEqual([
+      ...actions.map(() => 'show'),
+      ...CREATE_IDS.map(() => 'create'),
     ]);
   });
 
@@ -181,7 +195,7 @@ describe('resolveActions — secretary on a show', () => {
 });
 
 describe('resolveActions — club admin on a show', () => {
-  const actions = resolveActions(SHOW_CONTEXT, clubAdmin);
+  const actions = inGroup(resolveActions(SHOW_CONTEXT, clubAdmin), 'show');
 
   // "Open Show Day" went with the tab (MYK9-957): the show home is the page this menu opens over.
   it('keeps the same seven items', () => {
@@ -218,24 +232,71 @@ describe('resolveActions — club admin on a show', () => {
 
 describe('resolveActions — a viewer who cannot manage the show', () => {
   it('returns no show actions (the exhibitor list is MYK9-631)', () => {
-    expect(resolveActions(SHOW_CONTEXT, exhibitor)).toEqual([]);
+    expect(inGroup(resolveActions(SHOW_CONTEXT, exhibitor), 'show')).toEqual([]);
   });
 
-  it('falls back to nothing at all for an exhibitor off a show route', () => {
-    expect(resolveActions({ kind: 'global' }, exhibitor)).toEqual([]);
+  it('leaves an exhibitor only the creates they hold, on or off a show route', () => {
+    for (const route of [SHOW_CONTEXT, { kind: 'global' } as const]) {
+      expect(resolveActions(route, exhibitor).map(a => a.id)).toEqual(['create-dog']);
+    }
+  });
+
+  it('offers nothing at all to a viewer who can create nothing', () => {
+    expect(resolveActions({ kind: 'global' }, { ...exhibitor, canCreateDogs: false })).toEqual([]);
   });
 });
 
-describe('resolveActions — role-wide list', () => {
-  it('offers a secretary create-a-show and Show Management', () => {
-    const actions = resolveActions({ kind: 'global' }, secretary);
-    expect(actions.map(a => a.id)).toEqual(['create-show', 'open-show-management']);
-    expect(actions.map(a => a.href)).toEqual(['/?wizard=true', '/secretary/dashboard']);
+describe('resolveActions — the Create group (CRUD standard decision 6)', () => {
+  it('offers a secretary all four creates, each linking to its list page create panel', () => {
+    const actions = inGroup(resolveActions({ kind: 'global' }, secretary), 'create');
+    expect(actions.map(a => [a.id, a.label, a.href])).toEqual([
+      ['create-show', 'Add Show', '/?wizard=true'],
+      ['create-dog', 'Add Dog', '/dogs?add=true'],
+      ['create-person', 'Add Person', '/people?add=true'],
+      ['create-club', 'Add Club', '/clubs?create=true'],
+    ]);
   });
 
-  it('omits create-a-show for staff who cannot create shows', () => {
-    const actions = resolveActions({ kind: 'global' }, { ...secretary, canCreateShows: false });
-    expect(actions.map(a => a.id)).toEqual(['open-show-management']);
+  it('is the same on every page: global, a show, and any detail page', () => {
+    const kinds = ['trial', 'class', 'club', 'dog', 'person'] as const;
+    for (const route of [{ kind: 'global' } as const, SHOW_CONTEXT, SIBLING_CONTEXT]) {
+      for (const pageObject of [null, ...kinds.map(kind => ({ kind }))]) {
+        const ids = inGroup(resolveActions(route, { ...secretary, pageObject }), 'create').map(
+          a => a.id
+        );
+        expect(ids).toEqual(CREATE_IDS);
+      }
+    }
+  });
+
+  it.each([
+    ['canCreateShows', 'create-show'],
+    ['canCreateDogs', 'create-dog'],
+    ['canCreatePeople', 'create-person'],
+    ['canCreateClubs', 'create-club'],
+  ] as const)('omits, never greys, the item when %s is false', (gate, id) => {
+    const actions = resolveActions({ kind: 'global' }, { ...secretary, [gate]: false });
+    expect(actions.map(a => a.id)).not.toContain(id);
+    expect(actions.every(a => !a.disabledReason)).toBe(true);
+  });
+
+  it('gives a club admin dogs and clubs, but not shows or people', () => {
+    expect(inGroup(resolveActions({ kind: 'global' }, clubAdmin), 'create').map(a => a.id)).toEqual(
+      ['create-dog', 'create-club']
+    );
+  });
+
+  it('never holds a child object: trials, classes and entries are created from their parent', () => {
+    for (const viewer of [secretary, clubAdmin, exhibitor]) {
+      const labels = inGroup(resolveActions(SHOW_CONTEXT, viewer), 'create').map(a => a.label);
+      for (const label of labels) expect(label).not.toMatch(/trial|class|entry/i);
+    }
+  });
+
+  it('no longer offers Show Management, which is navigation, not an action', () => {
+    for (const route of [{ kind: 'global' } as const, SHOW_CONTEXT]) {
+      expect(resolveActions(route, secretary).map(a => a.id)).not.toContain('open-show-management');
+    }
   });
 });
 
@@ -254,22 +315,22 @@ describe('resolveActions — the object a detail page registers (MYK9-928)', () 
       const actions = resolveActions(GLOBAL, { ...secretary, pageObject: { kind } });
       expect(actions[0]).toMatchObject({ id: `${kind}-edit`, label, command: 'edit-object' });
       expect(actions[0]?.href).toBeUndefined();
-      expect(actions[0]?.separatorBefore).toBeUndefined();
+      expect(actions[0]?.group).toBe('page');
     }
   );
 
   it('offers an exhibitor their dog Edit and nothing else', () => {
     expect(
       resolveActions(GLOBAL, { ...exhibitor, pageObject: { kind: 'dog' } }).map(a => a.id)
-    ).toEqual(['dog-edit']);
+    ).toEqual(['dog-edit', 'create-dog']);
   });
 
   it('offers nothing extra when the page registered no object (gate closed)', () => {
-    expect(resolveActions(GLOBAL, { ...exhibitor, pageObject: null })).toEqual([]);
-    expect(resolveActions(GLOBAL, exhibitor)).toEqual([]);
+    expect(inGroup(resolveActions(GLOBAL, { ...exhibitor, pageObject: null }), 'page')).toEqual([]);
+    expect(inGroup(resolveActions(GLOBAL, exhibitor), 'page')).toEqual([]);
   });
 
-  it('puts the trial group first, then the show list behind a divider', () => {
+  it('puts the trial section first, then the show section', () => {
     const actions = resolveActions(SIBLING_CONTEXT, {
       ...secretary,
       pageObject: { kind: 'trial', addClassesHref: '/secretary/create-show/wizard?mode=x' },
@@ -280,7 +341,7 @@ describe('resolveActions — the object a detail page registers (MYK9-928)', () 
       'show-settings',
     ]);
     expect(actions[1]?.href).toBe('/secretary/create-show/wizard?mode=x');
-    expect(actions[2]?.separatorBefore).toBe(true);
+    expect(actions.slice(0, 3).map(a => a.group)).toEqual(['page', 'page', 'show']);
   });
 
   it('offers ONE Add classes on a trial page: the trial-focused one replaces the show-wide one', () => {
@@ -321,7 +382,7 @@ describe('resolveActions — the object a detail page registers (MYK9-928)', () 
       resolveActions(SIBLING_CONTEXT, { ...exhibitor, pageObject: { kind: 'class' } }).map(
         a => a.id
       )
-    ).toEqual(['class-edit']);
+    ).toEqual(['class-edit', 'create-dog']);
   });
 });
 

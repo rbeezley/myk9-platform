@@ -5,6 +5,7 @@ import { formatEntryDateTime } from '@/lib/format/dates';
 import { withdrawalReasonLabel } from '@/features/registries';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import { PullReconciliationActions } from './PullReconciliationActions';
+import { formatTrialLabel } from './entryFormTrialSummary';
 
 interface PullReconciliationCardProps {
   entry: EntryManagementEntry;
@@ -63,6 +64,7 @@ export function PullReconciliationCard({
   onResolved,
 }: PullReconciliationCardProps) {
   const entryClass = entry.classes[0];
+  const trialLabel = formatTrialLabel(entryClass?.trialDate, entryClass?.trialNumber);
   const isWithdrawal = entry.rawEntryStatus === 'withdrawn';
   return (
     <Card className="transition-colors hover:bg-muted/50">
@@ -78,6 +80,7 @@ export function PullReconciliationCard({
                 {entry.armbandNumber && <Badge variant="outline">#{entry.armbandNumber}</Badge>}
               </div>
               <div className="text-sm text-muted-foreground">
+                {trialLabel && `${trialLabel} · `}
                 {entryClass?.number && `#${entryClass.number} - `}
                 {entryClass?.name}
               </div>

@@ -27,8 +27,20 @@ function isInputFocused(): boolean {
   return false;
 }
 
+/**
+ * Any open popup: a dialog, alert dialog, or popover (Base UI popovers are role=dialog too, so a
+ * shortcut never fires behind an open date picker or filter menu either). Base UI marks an open
+ * popup `data-open`; the hand-rolled modals (SlideOverPanel, CommonDialog, RingsideModal) mount
+ * only while open and say `aria-modal="true"`.
+ */
+const OPEN_POPUP_SELECTOR = [
+  '[role="dialog"][data-open]',
+  '[role="alertdialog"][data-open]',
+  '[role="dialog"][aria-modal="true"]',
+].join(', ');
+
 function isModalOpen(): boolean {
-  return document.querySelector('[role="dialog"][data-state="open"]') !== null;
+  return document.querySelector(OPEN_POPUP_SELECTOR) !== null;
 }
 
 type ParsedKeys =

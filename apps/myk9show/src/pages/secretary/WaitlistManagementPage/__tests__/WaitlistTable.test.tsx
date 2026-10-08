@@ -1,8 +1,3 @@
-import {
-  captureCsvDownload,
-  registeredPageExports,
-  resetPageExports,
-} from '@/test/utils/csvDownload';
 import { render, screen } from '@/test/utils/testUtils';
 import { WaitlistTable } from '../WaitlistTable';
 import type { WaitlistEntry, ClassWithWaitlistCount } from '../types';
@@ -62,8 +57,7 @@ const defaultProps = {
   entries: mockEntries,
   selectedClass: mockClassWithSpots,
   isLoading: false,
-  searchTerm: '',
-  onSearchChange: vi.fn(),
+  searchActive: false,
   onSetActionDialog: vi.fn(),
 };
 
@@ -167,28 +161,5 @@ describe('WaitlistTable', () => {
   it('renders empty state when no entries', () => {
     render(<WaitlistTable {...defaultProps} entries={[]} />);
     expect(screen.getByText(/no entries on waitlist/i)).toBeInTheDocument();
-  });
-
-  it('registers an Export CSV page action: Position, Dog, Added, narrowed by the search', () => {
-    render(<WaitlistTable {...defaultProps} searchTerm="Bella" />);
-    const registered = registeredPageExports();
-    expect(registered.map(item => item.id)).toEqual(['waitlist']);
-
-    const download = captureCsvDownload();
-    try {
-      registered[0]!.run();
-      const lines = download.csv().split('\n');
-      expect(lines[0]).toBe('Position,Dog,Added');
-      expect(lines).toHaveLength(2);
-      expect(lines[1]).toContain('"Bella"');
-    } finally {
-      download.restore();
-      resetPageExports();
-    }
-  });
-
-  it('registers nothing for an empty waitlist', () => {
-    render(<WaitlistTable {...defaultProps} entries={[]} />);
-    expect(registeredPageExports()).toEqual([]);
   });
 });

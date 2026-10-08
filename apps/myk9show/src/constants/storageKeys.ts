@@ -82,6 +82,9 @@ export const STORAGE_KEYS = {
   /** Pending split-checkout summary for the existing cart success page */
   CART_SPLIT_CHECKOUT: 'cart-split-checkout',
 
+  /** When the spots held for the last Stripe checkout page are released (MYK9-1012) */
+  CHECKOUT_HOLD: 'checkout-hold',
+
   // ==========================================================================
   // Security (Handled by SecureStorage, not direct localStorage)
   // ==========================================================================

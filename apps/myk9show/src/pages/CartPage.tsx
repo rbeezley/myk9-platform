@@ -29,6 +29,7 @@ import { CartItemCard } from '@/components/cart/CartItemCard';
 import { CartSummary } from '@/components/cart/CartSummary';
 import { CheckoutSessionError, createEntryCheckoutSession } from '@/lib/stripe';
 import { CHECKOUT_RETURN_PARAM, readCheckoutReturnStatus } from './cartCheckoutNotice';
+import { CHECKOUT_HOLD_ENDED_MESSAGE, checkoutHoldEnded } from '@/features/payments/checkoutHold';
 import { useCartCapacity } from '@/hooks/queries/useCartCapacity';
 import {
   ClosedClassRemovedNotice,
@@ -73,6 +74,7 @@ export default function CartPage() {
   const {
     judgeDays,
     classSpots,
+    waitlistClassIds,
     judgeNameById,
     isLoading: isCapacityLoading,
     isFetching: isCapacityFetching,
@@ -102,6 +104,8 @@ export default function CartPage() {
   // is unchanged.
   const showCancelNotice =
     readCheckoutReturnStatus(searchParams) === 'cancelled' && !cancelNoticeDismissed;
+  // Read once on arrival: a return after the hold ended says so (MYK9-1012).
+  const [holdEnded] = useState(() => checkoutHoldEnded(Date.now()));
 
   const dismissCancelNotice = () => {
     setCancelNoticeDismissed(true);
@@ -137,8 +141,14 @@ export default function CartPage() {
     (!isCapacityFetching || isCheckingOut) &&
     !capacityError;
   const fulfillment = useMemo(
-    () => buildCartFulfillmentView(items, capacityResolved ? judgeDays : null, classSpots),
-    [items, judgeDays, classSpots, capacityResolved]
+    () =>
+      buildCartFulfillmentView(
+        items,
+        capacityResolved ? judgeDays : null,
+        classSpots,
+        waitlistClassIds
+      ),
+    [items, judgeDays, classSpots, capacityResolved, waitlistClassIds]
   );
 
   // Param names come from the shared module `buildFinishPaymentHref` writes,
@@ -294,11 +304,15 @@ export default function CartPage() {
 
       const freshJudgeDays = fresh?.data?.judgeDays ?? [];
       const freshClassSpots = fresh?.data?.classSpots ?? [];
+      // MYK9-1019: the server's effective "takes a wait list", read fresh, so a
+      // setting the secretary changed while this cart was open is honoured.
+      const freshWaitlistClassIds = fresh?.data?.waitlistClassIds ?? [];
 
       const splitDecision = splitCartItemsByJudgeDayCapacity(
         items,
         freshJudgeDays,
-        freshClassSpots
+        freshClassSpots,
+        freshWaitlistClassIds
       );
       const blockedItems = splitDecision.blockedItems;
 
@@ -384,6 +398,9 @@ export default function CartPage() {
         // flight, so a quick retry re-submitted exactly the same stale cart and
         // earned another 409 - the loop this fix exists to break.
         await loadActiveCart(profile.id, reloadOptions);
+        // A class that filled at Pay (MYK9-1012) must read as full on the
+        // reloaded cart, with its wait-list option, not as payable.
+        await refetchCapacity();
       }
 
       setError(message);
@@ -540,9 +557,18 @@ export default function CartPage() {
             <Info className="h-4 w-4 text-primary" />
             <AlertDescription className="flex items-start justify-between gap-4">
               <span className="text-foreground">
-                <span className="font-medium">Checkout cancelled. Your card was not charged.</span>{' '}
-                Anything still in your cart is below. Any wait list requests you made are saved
-                under{' '}
+                {/* MYK9-1012: back from a Stripe page that outlived its hold. */}
+                {holdEnded ? (
+                  <span className="font-medium">{CHECKOUT_HOLD_ENDED_MESSAGE}</span>
+                ) : (
+                  <>
+                    <span className="font-medium">
+                      Checkout cancelled. Your card was not charged.
+                    </span>{' '}
+                    Anything still in your cart is below.
+                  </>
+                )}{' '}
+                Any wait list requests you made are saved under{' '}
                 <Link to="/exhibitor/entries" className="text-primary hover:underline">
                   My Shows
                 </Link>

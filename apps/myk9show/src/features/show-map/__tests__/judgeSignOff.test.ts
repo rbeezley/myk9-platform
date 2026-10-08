@@ -43,8 +43,9 @@ function needsSignOffTree(registryId: string) {
 }
 
 const WRAP_UP_CLASS = { status: 'Complete' } as never;
-const UNSIGNED = [{ judge_signature_timestamp: null }];
-const SIGNED = [{ judge_signature_timestamp: '2026-05-18' }];
+// MYK9-1030: the sign-off is on the class (judge_signed_off_at), not on its entries.
+const SIGNED_CLASS = { status: 'Complete', judgeSignedOffAt: '2026-05-18T20:00:00Z' } as never;
+const SCORED = [{ is_scored: true }];
 
 describe('judge sign-off wording by registry', () => {
   it('AKC says initials and everything else keeps the signature wording', () => {
@@ -81,15 +82,30 @@ describe('judge sign-off wording by registry', () => {
     ['AKC', "Needs judge's initials", 'Initialed by judge'],
     ['UKC', 'Needs judge signature', 'Signed by judge'],
   ])('labels the class wrap-up status for %s', (registryId, needs, done) => {
-    expect(classifyClassWrapUpStatus(WRAP_UP_CLASS, UNSIGNED, { registryId })).toMatchObject({
+    expect(classifyClassWrapUpStatus(WRAP_UP_CLASS, SCORED, { registryId })).toMatchObject({
       value: SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE,
       label: needs,
     });
-    expect(classifyClassWrapUpStatus(WRAP_UP_CLASS, SIGNED, { registryId })).toMatchObject({
+    expect(classifyClassWrapUpStatus(SIGNED_CLASS, SCORED, { registryId })).toMatchObject({
       value: SHOW_MAP_WRAP_UP_STATUS.SIGNED_BY_JUDGE,
       label: done,
     });
   });
+
+  it.each([
+    ['AKC', 'Record initials: Pat Donovan, Wed, Oct 7', 'Initialed by judge'],
+    ['UKC', 'Record signature: Pat Donovan, Wed, Oct 7', 'Signed by judge'],
+  ])(
+    'MYK9-1049: the %s record action states the action, never the done status',
+    (registryId, action, done) => {
+      const wording = judgeSignOffWording(registryId);
+      expect(wording.recordActionLabel('Pat Donovan', 'Wed, Oct 7')).toBe(action);
+      expect(wording.recordActionLabel('Pat Donovan', 'Wed, Oct 7')).not.toMatch(
+        /^(Initialed|Signed) by/
+      );
+      expect(wording.doneStatusLabel).toBe(done);
+    }
+  );
 
   it('puts the registry on the trial and class nodes the tree builds', () => {
     const tree = needsSignOffTree('UKC');

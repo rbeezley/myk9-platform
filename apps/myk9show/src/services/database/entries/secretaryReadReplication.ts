@@ -299,7 +299,12 @@ export function toSecretaryEntry(
         }
       : null,
     trial: trial
-      ? { trial_type: trial.trialType ?? null, timezone: getTrialTimezone(trial) }
+      ? {
+          trial_type: trial.trialType ?? null,
+          timezone: getTrialTimezone(trial),
+          trial_date: trial.date ?? null,
+          trial_number: trial.trialNumber ?? null,
+        }
       : null,
     handler_person: handler
       ? {

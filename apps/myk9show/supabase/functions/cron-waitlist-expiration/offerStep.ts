@@ -7,7 +7,8 @@
  * call, which is its own transaction and re-checks every rule under the class
  * lock: the show's automatic-offer switch, one open offer per class, first in
  * line, mail-in rows left to the secretary, a trial not past, and a free class
- * and judge-day seat. It also tells the secretary and sends the exhibitor's
+ * and judge-day seat. Mail-in heads get a deduped secretary action notice;
+ * online offers tell the secretary and send the exhibitor's
  * in-app message.
  *
  * One transaction per class is deliberate. A single call that offered several
@@ -34,6 +35,10 @@ interface RpcResult<T> {
 export interface OfferStepClient {
   rpc(fn: 'list_waitlist_offer_candidates'): PromiseLike<RpcResult<OfferCandidate[]>>;
   rpc(
+    fn: 'notify_mail_in_waitlist_head',
+    args: { p_waitlist_entry_id: string }
+  ): PromiseLike<RpcResult<string>>;
+  rpc(
     fn: 'promote_waitlist_entry_from_cron',
     args: { p_waitlist_entry_id: string }
   ): PromiseLike<RpcResult<string>>;
@@ -59,6 +64,20 @@ export async function runWaitlistOfferStep(
     if (candidate.joined_via === 'mail_in') {
       // The first dog in line joined by mail; the secretary offers it by hand.
       results.skippedMailInOffers++;
+      try {
+        const { error: noticeError } = await supabase.rpc('notify_mail_in_waitlist_head', {
+          p_waitlist_entry_id: candidate.waitlist_entry_id,
+        });
+        if (noticeError) {
+          results.errors.push(
+            `Mail-in notice ${candidate.waitlist_entry_id}: ${noticeError.message}`
+          );
+        }
+      } catch (err) {
+        results.errors.push(
+          `Mail-in notice ${candidate.waitlist_entry_id}: ${err instanceof Error ? err.message : 'Unknown error'}`
+        );
+      }
       continue;
     }
 

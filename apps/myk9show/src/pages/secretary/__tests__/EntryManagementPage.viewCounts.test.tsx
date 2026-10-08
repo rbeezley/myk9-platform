@@ -6,6 +6,7 @@
  * number of registrations that view would list — not a hand-picked mock.
  */
 import { describe, it, expect, vi } from 'vitest';
+import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
 import { render, screen, within } from '@/test/utils/testUtils';
 import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
@@ -105,12 +106,15 @@ vi.mock('@/hooks/useEntryManagementActions', () => ({
 vi.mock('@/hooks/useEntryManagementTrialScope', () => ({
   useEntryManagementTrialClasses: () => ({
     trialClasses: [],
-    trialClassIds: [],
+    classesLoaded: true,
+    classTrialById: new Map(),
+    knownClassIds: undefined,
+    trialClassIds: undefined,
     isLoadingClasses: false,
     trialClassesUnknown: false,
     refetchTrialClasses: vi.fn(),
   }),
-  useEntryManagementTrialScope: () => ({ trials: [], isLoadingTrials: false }),
+  useEntryManagementTrialScope: () => ({ trials: [], isLoadingTrials: false, trialsLoaded: false }),
 }));
 
 describe('EntryManagementPage view-tab counts (MYK9-810)', () => {
@@ -118,15 +122,15 @@ describe('EntryManagementPage view-tab counts (MYK9-810)', () => {
     const view = render(<EntryManagementPage />, { initialRoute: '/secretary/entries' });
 
     const { user } = view;
-    const select = await screen.findByRole('combobox', { name: 'Show: Entry views' });
-    await user.click(select);
-    const listbox = await screen.findByRole('listbox');
-    const optionText = (name: RegExp) => within(listbox).getByRole('option', { name }).textContent;
-    expect(optionText(/Needs review/)).toBe('Needs review (1)');
-    expect(optionText(/Missing info/)).toBe('Missing info (1)');
-    expect(optionText(/Payment due/)).toBe('Payment due (1)');
-    expect(optionText(/^All/)).toBe('All (3)');
-    expect(optionText(/Move-ups/)).toBe('Move-ups (5)');
+    await user.click(await screen.findByRole('button', { name: /^Show:/ }));
+    const menu = await screen.findByRole('menu');
+    const itemText = (role: 'menuitemcheckbox' | 'menuitemradio', name: RegExp) =>
+      within(menu).getByRole(role, { name }).textContent;
+    expect(itemText('menuitemcheckbox', /Needs review/)).toBe('Needs review (1)');
+    expect(itemText('menuitemcheckbox', /Missing info/)).toBe('Missing info (1)');
+    expect(itemText('menuitemcheckbox', /Payment due/)).toBe('Payment due (1)');
+    expect(itemText('menuitemcheckbox', /^All/)).toBe('All (3)');
+    expect(itemText('menuitemradio', /Move-ups/)).toBe('Move-ups (5)');
   });
 });
 
@@ -140,8 +144,8 @@ describe('EntryManagementPage status sentence (MYK9-906)', () => {
   it('keeps the whole-show total as the denominator while a class scope narrows the list', async () => {
     render(<EntryManagementPage />, { initialRoute: '/secretary/entries?queue=all&class=class-9' });
 
-    await screen.findByRole('combobox', { name: 'Show: Entry views' });
-    expect(sentence()).toMatch(/^Showing 0 of 3 registrations/);
+    await screen.findByRole('button', { name: /^Show:/ });
+    expect(sentence()).toMatch(/^Showing 0 of 3 forms/);
   });
 
   it('keeps the same denominator when a search is added to the scope', async () => {
@@ -149,16 +153,26 @@ describe('EntryManagementPage status sentence (MYK9-906)', () => {
       initialRoute: '/secretary/entries?queue=all&class=class-9&search=nomatch',
     });
 
-    await screen.findByRole('combobox', { name: 'Show: Entry views' });
-    expect(sentence()).toMatch(/^Showing 0 of 3 registrations/);
+    await screen.findByRole('button', { name: /^Show:/ });
+    expect(sentence()).toMatch(/^Showing 0 of 3 forms/);
   });
 
   it('ignores the retired paymentStatus param: a stale link shows the unfiltered list', async () => {
+    mockViewportWidth(1440);
     render(<EntryManagementPage />, {
       initialRoute: '/secretary/entries?queue=all&paymentStatus=paid_online',
     });
 
-    await screen.findByRole('combobox', { name: 'Show: Entry views' });
-    expect(sentence()).toBe('Showing all 3 registrations.');
+    await screen.findByRole('button', { name: /^Show:/ });
+    // Unfiltered, the toolbar's result line says nothing (the view select carries the totals): no
+    // "Showing all 3 registrations." and no narrowed "Showing 1 of 3 registrations." The pager's own
+    // "Showing 1–3 of 3 registrations" is a different status.
+    const toolbarSentences = screen
+      .getAllByRole('status')
+      .map(el => el.textContent ?? '')
+      .filter(text => /^Showing (all )?\d+( of \d+)? forms?\.$/.test(text));
+    expect(toolbarSentences).toEqual([]);
+    const queue = await screen.findByRole('list', { name: 'Entry form work queue' });
+    expect(within(queue).getAllByRole('listitem')).toHaveLength(3);
   });
 });

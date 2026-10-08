@@ -49,6 +49,23 @@ describe('PullManagementTab — no approval queue (MYK9-609)', () => {
   });
 });
 
+describe('PullManagementTab — which trial a pull is in', () => {
+  it('shows the trial date and number beside the class, so two trials of the same class read apart', () => {
+    const pull: EntryManagementEntry = {
+      ...reconciledPull,
+      classes: reconciledPull.classes.map(cls => ({
+        ...cls,
+        trialId: 'trial-2',
+        trialDate: '2026-11-10',
+        trialNumber: 'Trial 2',
+      })),
+    };
+    render(<PullManagementTab processedEntries={[pull]} />);
+
+    expect(screen.getByText(/Tue, Nov 10 · Trial 2 · #110 - Novice A/)).toBeInTheDocument();
+  });
+});
+
 describe('PullManagementTab — loading state (Phase 4 skeleton convergence)', () => {
   it('renders the table skeleton (not a spinner) while the entries read is in flight', () => {
     render(<PullManagementTab processedEntries={[]} processedEntriesLoading />);

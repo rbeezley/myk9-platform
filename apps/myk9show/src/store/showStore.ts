@@ -66,6 +66,7 @@ export function replicatedToShow(replicated: ReplicatedShow): Show {
     acceptCheckPayments: replicated.acceptCheckPayments,
     acceptCashPayments: replicated.acceptCashPayments,
     onlineEntriesEnabled: replicated.onlineEntriesEnabled,
+    allowsWaitlist: replicated.allowsWaitlist,
     serverVersion: replicated.serverVersion,
     // Preserve the Nationals placement flag across sync/reload. Dropping it here
     // would surface as undefined → showToFormData defaults false → an unrelated

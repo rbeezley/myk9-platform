@@ -163,15 +163,13 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
     await signInAsSecretary(page, `/shows/${SHOW_ID}/reports`);
 
     await expect(page.getByRole('heading', { name: 'Reports' })).toBeVisible({ timeout: 15000 });
-    const picker = page.locator('label:has-text("Report")').locator('..').getByRole('combobox');
-    await picker.click();
 
     for (const label of ['Before the show', 'During the show', 'After the show', 'Anytime']) {
-      await expect(page.getByRole('group').filter({ hasText: label }).first()).toBeVisible();
+      await expect(page.getByRole('region', { name: label })).toBeVisible();
     }
 
     for (const name of ['Financial Report', 'Show Entry Counts', 'Trial Entry Counts']) {
-      await expect(page.getByRole('option', { name })).toBeVisible();
+      await expect(page.getByTestId('report-card').filter({ hasText: name }).first()).toBeVisible();
     }
   });
 });

@@ -1,21 +1,17 @@
 import {
   Select,
   SelectContent,
-  SelectGroup,
   SelectItem,
-  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
 import { formatTrialLabel } from '@myk9/core';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { getReportById, getReportsForRegistries } from '@/lib/reports/reportRegistry';
-import type { ReportDefinition, ReportPhase } from '@/lib/reports/types';
-import { resolveConfiguredRegistryId, type RegistryId } from '@/features/registries';
-import { orderReportPhases, type ShowTimePhase } from '@/lib/reports/reportPhaseOrder';
+import { getReportById } from '@/lib/reports/reportRegistry';
 import { formatClassLabel } from '@/lib/utils';
 import { AlertTriangle, Download } from 'lucide-react';
+import type { TrialReportOption } from './reportScopedRegistries';
 
 // Trial/class rows carry a non-null `name` (the canonical human label) plus
 // nullable element/level/section/trial_number columns. Build the option label
@@ -52,38 +48,6 @@ function formatDogOptionLabel(dog: {
   return `${dog.callName}${registered}${armband}`;
 }
 
-type TrialReportOption = {
-  id: string;
-  name: string;
-  trial_number: string;
-  date: string;
-  registry_id?: string | null;
-};
-
-const KNOWN_REGISTRY_IDS: readonly RegistryId[] = ['AKC', 'UKC', 'ASCA'];
-
-function getScopedRegistryIds(
-  trials: readonly TrialReportOption[],
-  trialId: string
-): RegistryId[] | undefined {
-  if (trials.length === 0) return undefined;
-
-  const scopedTrials = trialId === 'all' ? trials : trials.filter(trial => trial.id === trialId);
-  if (scopedTrials.length === 0) return undefined;
-
-  const ids = new Set<RegistryId>();
-  for (const trial of scopedTrials) {
-    const normalized = resolveConfiguredRegistryId(trial.registry_id);
-    if (!normalized || !KNOWN_REGISTRY_IDS.includes(normalized)) {
-      // An unexpected value should never hide a form. Leave the catalog
-      // unfiltered until the data contract is corrected.
-      return undefined;
-    }
-    ids.add(normalized);
-  }
-  return [...ids];
-}
-
 export interface OfficialPdfAction {
   disabled: boolean;
   isLoading: boolean;
@@ -117,55 +81,12 @@ interface ReportControlsBarProps {
   }>;
   /** The dog list failed to load, so an empty `dogs` means unknown, not none. */
   dogsUnavailable?: boolean;
-  onReportTypeChange: (value: string) => void;
   onTrialChange: (value: string) => void;
   onClassChange: (value: string) => void;
   onDogChange: (value: string) => void;
   onSortChange: (value: string) => void;
   onPrint: () => void;
   officialPdfAction?: OfficialPdfAction | undefined;
-  /**
-   * Where the show sits relative to today, which orders the four phase groups
-   * nearest-in-time first. Defaults to `'unknown'` (the plain
-   * before/during/after order) so a caller that has not resolved the show yet
-   * gets a stable list rather than a reshuffle mid-load. NOTHING is gated by it
-   * — every report is listed under its own heading in every state.
-   */
-  showPhase?: ShowTimePhase | undefined;
-}
-
-/**
- * The heading for each phase. `Record<ReportPhase, string>` is the guard the old
- * category map carried: adding a phase to the `ReportPhase` union without
- * extending this fails TypeScript, which prevents the kind of silent omission
- * that hid Financial + Statistics for several weeks (fixed 2026-04-26).
- *
- * The RENDER iterates this object's own keys (below), not a hand-written order
- * array. `REPORT_GROUP_ORDER` on `main` and the first cut of `REPORT_PHASE_ORDER`
- * were both `readonly T[]`, which is NOT exhaustiveness-checked: a developer who
- * added `'closeout'`, fixed the two type errors and forgot the order array would
- * have silently hidden every closeout report — the exact 2026-04-26 bug the
- * comment above claims to prevent. Ordering is now a pure function over these
- * same keys, so a phase cannot be rendered-but-unordered or ordered-but-unlisted.
- */
-export const PHASE_LABELS: Record<ReportPhase, string> = {
-  before: 'Before the show',
-  during: 'During the show',
-  after: 'After the show',
-  anytime: 'Anytime',
-};
-
-/**
- * Every phase, in the order `orderReportPhases` leaves them for this show.
- *
- * Built by intersecting the ordering with `Object.keys(PHASE_LABELS)` so the two
- * can never drift: a phase the ordering forgets still renders (at the end), and
- * a phase the ordering names but `PHASE_LABELS` does not cannot render at all.
- */
-function resolvePhaseOrder(showPhase: ShowTimePhase): ReportPhase[] {
-  const known = Object.keys(PHASE_LABELS) as ReportPhase[];
-  const ordered = orderReportPhases(showPhase).filter(phase => known.includes(phase));
-  return [...ordered, ...known.filter(phase => !ordered.includes(phase))];
 }
 
 export function ReportControlsBar({
@@ -178,27 +99,14 @@ export function ReportControlsBar({
   classes,
   dogs,
   dogsUnavailable = false,
-  onReportTypeChange,
   onTrialChange,
   onClassChange,
   onDogChange,
   onSortChange,
   onPrint,
   officialPdfAction,
-  showPhase = 'unknown',
 }: ReportControlsBarProps) {
   const selectedReport = getReportById(reportType);
-  const visibleReports = getReportsForRegistries(getScopedRegistryIds(trials, trialId), reportType);
-  // Grouped from the ALREADY registry-scoped `visibleReports`, never from the
-  // whole registry: scope first, then group, so a UKC-only show never sees an
-  // AKC form under any heading.
-  const reportsByPhase: Record<ReportPhase, ReportDefinition[]> = {
-    before: visibleReports.filter(r => r.phase === 'before'),
-    during: visibleReports.filter(r => r.phase === 'during'),
-    after: visibleReports.filter(r => r.phase === 'after'),
-    anytime: visibleReports.filter(r => r.phase === 'anytime'),
-  };
-
   const hasTrialScope = selectedReport?.scopes.includes('trial') ?? false;
   const hasClassScope = selectedReport?.scopes.includes('class') ?? false;
   const hasDogFilter = selectedReport?.supportsDogFilter ?? false;
@@ -235,46 +143,15 @@ export function ReportControlsBar({
           const dog = dogs.find(d => d.id === dogId);
           return dog ? formatDogOptionLabel(dog) : 'All Dogs';
         })();
-  // The report-type and sort triggers had the same raw-id echo as the
-  // trial/class/dog triggers did before 2026-06-09: their option ids are
-  // kebab-case strings (`check-in-sheet`, `run-order`), not UUIDs, but the
-  // collapsed trigger still printed them. Resolve explicit human labels from the
-  // report registry so the trigger always shows a name, falling back to the
-  // placeholder text rather than the raw id.
-  const selectedReportLabel = selectedReport?.name ?? 'Select report';
+  // The sort trigger needs the same explicit label as the trial/class/dog triggers: its
+  // option values are kebab-case strings (`run-order`) and the collapsed trigger would
+  // otherwise print them. Resolve the human label from the report registry.
   const isPdfOnlyReport = selectedReport?.pdfOnly ?? false;
   const selectedSortLabel =
     selectedReport?.sortOptions.find(opt => opt.value === sortOrder)?.label ?? 'Sort by';
 
   return (
     <div className="flex flex-col items-stretch gap-3 border-b px-4 py-3 sm:flex-row sm:flex-wrap sm:items-end">
-      {/* Report Type */}
-      <div className="flex min-w-0 flex-col gap-1 sm:w-auto">
-        <label htmlFor="report-type-select" className="text-xs font-medium text-muted-foreground">
-          Report
-        </label>
-        <Select value={reportType} onValueChange={onReportTypeChange}>
-          <SelectTrigger id="report-type-select" className="h-10 w-full sm:w-[200px]">
-            <SelectValue placeholder="Select report">{selectedReportLabel}</SelectValue>
-          </SelectTrigger>
-          <SelectContent>
-            {resolvePhaseOrder(showPhase)
-              .filter(phase => reportsByPhase[phase].length > 0)
-              .map(phase => (
-                <SelectGroup key={phase}>
-                  <SelectLabel>{PHASE_LABELS[phase]}</SelectLabel>
-                  {reportsByPhase[phase].map(report => (
-                    <SelectItem key={report.id} value={report.id} disabled={!report.enabled}>
-                      {report.name}
-                      {!report.enabled ? ' (Coming Soon)' : ''}
-                    </SelectItem>
-                  ))}
-                </SelectGroup>
-              ))}
-          </SelectContent>
-        </Select>
-      </div>
-
       {/* Trial dropdown — hidden if report doesn't have trial/class scope */}
       {(hasTrialScope || hasClassScope) && (
         <div className="flex min-w-0 flex-col gap-1 sm:w-auto">

@@ -28,18 +28,19 @@ function isInputFocused(): boolean {
 }
 
 /**
- * An open dialog, popover or alert dialog. Base UI (the app's dialogs) marks an open popup
- * `data-open`; `data-state="open"` is the Radix form, kept for anything still rendering it.
+ * Any open popup: a dialog, alert dialog, or popover (Base UI popovers are role=dialog too, so a
+ * shortcut never fires behind an open date picker or filter menu either). Base UI marks an open
+ * popup `data-open`; the hand-rolled modals (SlideOverPanel, CommonDialog, RingsideModal) mount
+ * only while open and say `aria-modal="true"`.
  */
-const OPEN_DIALOG_SELECTOR = [
+const OPEN_POPUP_SELECTOR = [
   '[role="dialog"][data-open]',
   '[role="alertdialog"][data-open]',
-  '[role="dialog"][data-state="open"]',
-  '[role="alertdialog"][data-state="open"]',
+  '[role="dialog"][aria-modal="true"]',
 ].join(', ');
 
 function isModalOpen(): boolean {
-  return document.querySelector(OPEN_DIALOG_SELECTOR) !== null;
+  return document.querySelector(OPEN_POPUP_SELECTOR) !== null;
 }
 
 type ParsedKeys =

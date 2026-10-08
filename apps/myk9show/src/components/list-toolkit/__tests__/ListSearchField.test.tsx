@@ -29,7 +29,7 @@ function Harness({
 
 const narrow = (isNarrow: boolean) => vi.mocked(useMediaQuery).mockReturnValue(isNarrow);
 const field = () => screen.queryByRole('textbox', { name: 'Search entries' });
-const icon = () => screen.queryByRole('button', { name: 'Search' });
+const icon = () => screen.queryByRole('button', { name: 'Search entries' });
 
 describe('ListSearchField', () => {
   beforeEach(() => {

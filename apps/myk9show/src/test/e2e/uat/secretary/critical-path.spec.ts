@@ -135,18 +135,22 @@ test.describe('Phase 1 UAT - Secretary critical path', () => {
         name: 'Search exhibitor, dog, handler, armband, confirmation, class…',
       })
     ).toBeVisible();
-    // MYK9-906: the views are a labelled "Show:" select, with the count in each option.
-    const viewSelect = page.getByRole('combobox', { name: 'Show: Entry views' });
-    await expect(viewSelect).toBeVisible();
-    await viewSelect.click();
-    await expect(page.getByRole('option', { name: /^Needs review/ })).toBeVisible();
-    await expect(page.getByRole('option', { name: /^All/ })).toBeVisible();
-    await expect(page.getByRole('option', { name: /^Waitlist/ })).toBeVisible();
+    // The views are a "Show:" menu: the registration queues are checkboxes, Waitlist, Pulls and
+    // Move-ups single choices, each with its count (docs/plan-entries-filter-button.md).
+    const showMenu = page.getByRole('button', { name: /^Show:/ });
+    await expect(showMenu).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Filter/ })).toBeVisible();
+    await showMenu.click();
+    await expect(page.getByRole('menuitemcheckbox', { name: /^Needs review/ })).toBeVisible();
+    await expect(page.getByRole('menuitemcheckbox', { name: /^All/ })).toBeVisible();
+    await expect(page.getByRole('menuitemradio', { name: /^Waitlist/ })).toBeVisible();
 
-    await page.getByRole('option', { name: /^Waitlist/ }).click();
+    await page.getByRole('menuitemradio', { name: /^Waitlist/ }).click();
     await expect(page.getByText(/Wait list settings:/)).toBeVisible();
-    await viewSelect.click();
-    await page.getByRole('option', { name: /^All/ }).click();
+    await showMenu.click();
+    await page.getByRole('menuitemcheckbox', { name: /^All/ }).click();
+    // A queue checkbox keeps the menu open, so more can be checked; Escape closes it.
+    await page.keyboard.press('Escape');
     await expect(
       page.getByRole('textbox', {
         name: 'Search exhibitor, dog, handler, armband, confirmation, class…',

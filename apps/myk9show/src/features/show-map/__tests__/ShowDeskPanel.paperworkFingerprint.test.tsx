@@ -193,7 +193,9 @@ describe('Overview and Reports agree on what has been printed', () => {
 
     renderOverview();
 
-    await waitFor(() => expect(screen.getAllByText(/Printed .* by Jannie/).length).toBeGreaterThan(0));
+    await waitFor(() =>
+      expect(screen.getAllByText(/Printed .* by Jannie/).length).toBeGreaterThan(0)
+    );
     expect(screen.queryByText(/Class data changed after printing/)).not.toBeInTheDocument();
   });
 
@@ -203,7 +205,9 @@ describe('Overview and Reports agree on what has been printed', () => {
     const recordButton = await waitFor(() => {
       const button = screen
         .getAllByRole('button', { name: 'Record as printed' })
-        .find(candidate => candidate.closest('div.rounded-lg')?.textContent?.includes('Score sheets'));
+        .find(candidate =>
+          candidate.closest('div.rounded-lg')?.textContent?.includes('Score sheets')
+        );
       expect(button).toBeDefined();
       return button!;
     });

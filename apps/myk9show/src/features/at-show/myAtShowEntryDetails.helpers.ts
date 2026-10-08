@@ -15,6 +15,8 @@ import { UserRole } from '@/types/auth-types';
 import { isTrialDayToday } from '@/pages/MyEntriesPage/modules/dayCheckIn';
 import { parseShowDate } from '@/pages/MyEntriesPage/modules/myEntriesStats.helpers';
 import type { SelfCheckinState } from '@/hooks/queries/useSelfCheckinEnabled';
+import type { RunQueueState } from '@myk9/ringside/run-queue';
+import { withServerPlace } from '@/utils/showEntryRunQueue';
 
 const STAFF_ROLES: readonly UserRole[] = [
   UserRole.SITE_ADMIN,
@@ -179,4 +181,37 @@ export function deriveAtShowNextAction(detail: AtShowEntryDetail): AtShowEntryNe
     return { kind: 'self-checkin-disabled' };
   }
   return { kind: 'check-in' };
+}
+
+/** Check-in states that already say where a dog is; a place in line adds nothing (MYK9-992). */
+const NO_PLACE_STATUSES: ReadonlySet<CheckInStatus> = new Set([
+  'no-status',
+  'in-ring',
+  'pulled',
+  'completed',
+]);
+
+/**
+ * True when this dog is waiting to run and its place in line is a fair thing
+ * to ask the server for: checked in (or at the gate), not yet scored, with an
+ * order posted. Finished, in-ring and pulled dogs are state-only.
+ */
+export function isAwaitingPlaceInLine(detail: AtShowEntryDetail): boolean {
+  return !detail.isScored && !NO_PLACE_STATUSES.has(detail.checkInStatus) && detail.hasRunOrder;
+}
+
+/**
+ * What a checked-in, unscored dog says about its place in line (MYK9-992):
+ * the server's count when known (`places`, from `useMyEntryQueuePlaces`),
+ * "Waiting" when an order is posted but the count is unavailable (offline,
+ * loading), and 'pending' when no running order is posted. Null for every
+ * dog whose state is already shown elsewhere on the row.
+ */
+export function deriveAtShowQueueLine(
+  detail: AtShowEntryDetail,
+  place: number | undefined
+): RunQueueState | { kind: 'pending' } | null {
+  if (detail.isScored || NO_PLACE_STATUSES.has(detail.checkInStatus)) return null;
+  if (!detail.hasRunOrder) return { kind: 'pending' };
+  return withServerPlace({ kind: 'waiting-unknown' }, place);
 }

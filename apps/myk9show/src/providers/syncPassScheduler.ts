@@ -4,9 +4,9 @@
  * idle tab costs almost nothing against the live database (MYK9-1054).
  *
  * Explicit requests (a user action, upload-complete, a realtime change nudge)
- * bypass this and run promptly; they only report their start via
- * {@link SyncPassScheduler.notePassStarted} so the next untargeted pass is spaced
- * from them too.
+ * and scoped passes bypass this entirely: the scheduler's only clock is the last
+ * full pass it launched itself, so frequent scoped syncs can never postpone the
+ * poll.
  */
 
 /** Minimum spacing between untargeted passes. */
@@ -34,8 +34,6 @@ export interface SyncPassScheduler {
    * Delayed by the gap (not dropped); the 60s poll remains the backstop.
    */
   requestDeferred: () => void;
-  /** Record that a pass started for any reason, so untargeted passes space from it. */
-  notePassStarted: () => void;
   dispose: () => void;
 }
 
@@ -51,7 +49,7 @@ export function createSyncPassScheduler({
     if (timer) return; // coalesce into the pass already owed
     timer = setTimeout(() => {
       timer = null;
-      // A pass may have started (explicit request) since this was scheduled.
+      // Space from the last pass THIS scheduler launched (a request may have fired since).
       const remaining = minGapMs - (Date.now() - lastStartedAt);
       if (remaining > 0) schedule(remaining);
       else fire();
@@ -80,9 +78,6 @@ export function createSyncPassScheduler({
     },
     requestDeferred: () => {
       schedule(minGapMs);
-    },
-    notePassStarted: () => {
-      lastStartedAt = Date.now();
     },
     dispose: () => {
       if (timer) clearTimeout(timer);

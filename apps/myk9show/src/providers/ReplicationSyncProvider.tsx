@@ -59,7 +59,6 @@ import {
   splitPermanentScoreAuthorizationFailures,
   DOWNLOAD_SYNC_FAILURE_TOAST_ID,
 } from './replicationSyncFormatters';
-import type { SyncPassScheduler } from './syncPassScheduler';
 import { useSyncPassScheduler } from './useSyncPassScheduler';
 import {
   classifyTableSyncResults,
@@ -207,7 +206,6 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   const scopedSyncInFlight = useRef(false);
   const pendingFullSync = useRef(false);
   const syncInFlightRef = useRef(false);
-  const passSchedulerRef = useRef<SyncPassScheduler | null>(null);
   const failedSyncToastIdsRef = useRef<string[]>([]);
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -324,7 +322,6 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       const selectedNames = [...new Set(selectedTables.map(table => table.name))];
       logger.info(targets ? 'Starting scoped ringside sync' : 'Starting full sync', 'replication');
       syncInFlightRef.current = true;
-      passSchedulerRef.current?.notePassStarted();
       scopedSyncInFlight.current = targets !== undefined;
       setStatus(prev => ({ ...prev, isSyncing: true, error: null }));
 
@@ -532,7 +529,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   }, []);
 
   // Poll, tab-visible and sync-requested wiring; see useSyncPassScheduler.
-  useSyncPassScheduler(autoSync, triggerSyncRef, passSchedulerRef);
+  useSyncPassScheduler(autoSync, triggerSyncRef);
 
   // Listen for mutation-queue overflow — the queue hit its hard cap and is now
   // rejecting new writes. This is a data-loss risk (a new score can't be

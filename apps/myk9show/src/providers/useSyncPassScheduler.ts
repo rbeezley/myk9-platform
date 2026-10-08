@@ -1,7 +1,7 @@
 import { useEffect, type MutableRefObject } from 'react';
 import { SYNC_INTERVAL_MS } from '@myk9/replication';
 import { logger } from '@/services/LoggingService';
-import { createSyncPassScheduler, type SyncPassScheduler } from './syncPassScheduler';
+import { createSyncPassScheduler } from './syncPassScheduler';
 
 /**
  * Wires the triggers that start an UNTARGETED full sync pass: the background
@@ -9,19 +9,19 @@ import { createSyncPassScheduler, type SyncPassScheduler } from './syncPassSched
  *
  * Poll and visibility go through one scheduler that spaces them >= 15s apart and
  * never polls a hidden tab (a pass owed to a hidden tab is made up by the
- * visibility catch-up). Explicit requests run promptly.
+ * visibility catch-up). Explicit and scoped passes neither read nor write the
+ * scheduler's clock; an explicit full pass already in flight is coalesced by the
+ * provider's own in-flight guard.
  */
 export function useSyncPassScheduler(
   autoSync: boolean,
-  triggerSyncRef: MutableRefObject<(() => Promise<void>) | undefined>,
-  schedulerRef: MutableRefObject<SyncPassScheduler | null>
+  triggerSyncRef: MutableRefObject<(() => Promise<void>) | undefined>
 ): void {
   useEffect(() => {
     const scheduler = createSyncPassScheduler({
       run: () => void triggerSyncRef.current?.(),
       canRun: () => document.visibilityState !== 'hidden',
     });
-    schedulerRef.current = scheduler;
     // Keeps data fresh and recovers from any failed startup sync.
     const interval = autoSync ? setInterval(scheduler.requestUntargeted, SYNC_INTERVAL_MS) : null;
     const handleVisibilityChange = () => {
@@ -48,7 +48,6 @@ export function useSyncPassScheduler(
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('replication:sync-requested', handleSyncRequest);
       scheduler.dispose();
-      schedulerRef.current = null;
     };
-  }, [autoSync, triggerSyncRef, schedulerRef]);
+  }, [autoSync, triggerSyncRef]);
 }

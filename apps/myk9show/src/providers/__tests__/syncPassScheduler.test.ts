@@ -44,29 +44,6 @@ describe('createSyncPassScheduler', () => {
     expect(run).toHaveBeenCalledTimes(2);
   });
 
-  it('measures the gap from a pass an explicit request started', () => {
-    const scheduler = make();
-    scheduler.notePassStarted();
-    vi.advanceTimersByTime(3_000);
-    scheduler.requestUntargeted();
-    expect(run).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(GAP - 3_000);
-    expect(run).toHaveBeenCalledTimes(1);
-  });
-
-  it('re-spaces a pending pass when an explicit pass starts after it was scheduled', () => {
-    const scheduler = make();
-    scheduler.notePassStarted();
-    vi.advanceTimersByTime(10_000);
-    scheduler.requestUntargeted(); // due at +15s
-    vi.advanceTimersByTime(4_000);
-    scheduler.notePassStarted(); // explicit pass at +14s
-    vi.advanceTimersByTime(1_000); // old schedule fires at +15s
-    expect(run).not.toHaveBeenCalled();
-    vi.advanceTimersByTime(GAP - 1_000);
-    expect(run).toHaveBeenCalledTimes(1);
-  });
-
   it('does not run an untargeted request while hidden', () => {
     visible = false;
     const scheduler = make();
@@ -77,15 +54,16 @@ describe('createSyncPassScheduler', () => {
 
   it('drops a pending pass that comes due while hidden, then catches up on visible', () => {
     const scheduler = make();
-    scheduler.notePassStarted();
     scheduler.requestUntargeted();
+    scheduler.requestUntargeted();
+    expect(run).toHaveBeenCalledTimes(1);
     visible = false;
     vi.advanceTimersByTime(GAP);
-    expect(run).not.toHaveBeenCalled();
+    expect(run).toHaveBeenCalledTimes(1);
 
     visible = true;
     scheduler.requestUntargeted();
-    expect(run).toHaveBeenCalledTimes(1);
+    expect(run).toHaveBeenCalledTimes(2);
   });
 
   it('a deferred request never starts a pass at once, but is not dropped', () => {

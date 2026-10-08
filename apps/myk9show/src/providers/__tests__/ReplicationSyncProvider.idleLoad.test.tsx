@@ -247,6 +247,32 @@ describe('ReplicationSyncProvider: idle load', () => {
     expect(fullPassCount()).toBe(1);
   });
 
+  it('scoped ringside passes every 5s do not postpone the full poll', async () => {
+    for (let i = 0; i < 36; i++) {
+      await act(async () => {
+        window.dispatchEvent(
+          new CustomEvent('replication:upload-complete', {
+            detail: {
+              tables: ['entries'],
+              count: 1,
+              mutations: [
+                {
+                  tableName: 'entries',
+                  operation: 'UPDATE',
+                  rowId: 'entry-1',
+                  rpcName: 'ringside_update_entry',
+                },
+              ],
+            },
+          })
+        );
+        await vi.advanceTimersByTimeAsync(5_000);
+      });
+    }
+    // 3 minutes: at least one full pass per 60s poll interval.
+    expect(fullPassCount()).toBeGreaterThanOrEqual(3);
+  });
+
   it('an explicit request still runs promptly right after a pass', async () => {
     await act(async () => {
       window.dispatchEvent(new Event('replication:sync-requested'));

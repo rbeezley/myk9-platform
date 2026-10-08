@@ -14,7 +14,7 @@
 --    Only the cron_jobs lookup changes; the jsonb shape the runner parses is unchanged.
 -- 2. class_results_push_health() reads its job's runs once.
 --    Re-emitted from 20260925194700_myk9_737_class_results_push.sql.
--- 3. A daily job keeps 7 days of run history, so the table cannot grow back.
+-- 3. An hourly job keeps 7 days of run history, so the table cannot grow back.
 
 begin;
 
@@ -246,10 +246,12 @@ begin
         -- One pass over the run history for every job. A lateral lookup per job seq-scanned
         -- cron.job_run_details once per job (there is no usable index and the table belongs
         -- to supabase_admin), about 1 GB of reads per probe once the history reached 144k rows.
+        -- The last 8 days only bounds the sort; every job runs at least daily, so its latest run is in it.
         left join (
           select distinct on (d.jobid) d.jobid, d.status, d.start_time, d.end_time, d.return_message
           from cron.job_run_details d
-          order by d.jobid, d.start_time desc nulls last
+          where d.start_time > now() - interval '8 days' or d.start_time is null
+          order by d.jobid, d.start_time desc nulls last, d.runid desc
         ) lr on lr.jobid = job.jobid
       ) sub
     )
@@ -383,10 +385,12 @@ begin
         -- One pass over the run history for every job. A lateral lookup per job seq-scanned
         -- cron.job_run_details once per job (there is no usable index and the table belongs
         -- to supabase_admin), about 1 GB of reads per probe once the history reached 144k rows.
+        -- The last 8 days only bounds the sort; every job runs at least daily, so its latest run is in it.
         left join (
           select distinct on (d.jobid) d.jobid, d.status, d.start_time, d.end_time, d.return_message
           from cron.job_run_details d
-          order by d.jobid, d.start_time desc nulls last
+          where d.start_time > now() - interval '8 days' or d.start_time is null
+          order by d.jobid, d.start_time desc nulls last, d.runid desc
         ) lr on lr.jobid = job.jobid
       ) sub
     )
@@ -426,7 +430,7 @@ AS $$
   ),
   -- This job's runs, read once: the three lookups below each seq-scanned the whole history.
   runs AS MATERIALIZED (
-    SELECT d.status, d.start_time, d.end_time, d.return_message
+    SELECT d.runid, d.status, d.start_time, d.end_time, d.return_message
     FROM cron.job_run_details d
     WHERE d.jobid = (SELECT jobid FROM job)
   )
@@ -445,10 +449,11 @@ AS $$
         SELECT max(r.end_time) FROM runs r WHERE r.status = 'succeeded'
       ),
       'last_status', (
-        SELECT r.status FROM runs r ORDER BY r.start_time DESC NULLS LAST LIMIT 1
+        SELECT r.status FROM runs r ORDER BY r.start_time DESC NULLS LAST, r.runid DESC LIMIT 1
       ),
       'last_message', (
-        SELECT left(r.return_message, 200) FROM runs r ORDER BY r.start_time DESC NULLS LAST LIMIT 1
+        SELECT left(r.return_message, 200) FROM runs r
+        ORDER BY r.start_time DESC NULLS LAST, r.runid DESC LIMIT 1
       )
     )
   );
@@ -461,11 +466,14 @@ REVOKE ALL ON FUNCTION public.class_results_push_health() FROM PUBLIC, anon, aut
 GRANT EXECUTE ON FUNCTION public.class_results_push_health() TO service_role;
 
 -- 3. Retention for pg_cron's run history (Supabase's recommended clean-up; pg_cron has none).
---    cron.schedule with a name replaces an existing job of that name, so this is re-runnable.
+--    Hourly: the delete is small at 7 days of rows, and an hourly job never reads as overdue on the
+--    health board's 13-hour background_jobs threshold. A run that never recorded an end time (crashed
+--    or stuck) ages out by its start time. Unscheduled first, as the other cron migrations do.
+select cron.unschedule(jobid) from cron.job where jobname = 'cron-run-history-retention';
 select cron.schedule(
   'cron-run-history-retention',
-  '23 4 * * *',
-  $$delete from cron.job_run_details where end_time < now() - interval '7 days'$$
+  '23 * * * *',
+  $$delete from cron.job_run_details where coalesce(end_time, start_time) < now() - interval '7 days'$$
 );
 
 commit;

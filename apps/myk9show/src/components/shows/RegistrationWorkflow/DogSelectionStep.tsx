@@ -129,7 +129,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
 
   const addDogPanel = (
     <AddDogPanel
-        showStartDate={showStartDate}
+      showStartDate={showStartDate}
       open={isAddDogPanelOpen}
       onClose={() => setIsAddDogPanelOpen(false)}
       onDogCreated={handleDogCreated}
@@ -291,7 +291,9 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                           checked={isSelected}
                           disabled={!eligible}
                           aria-describedby={
-                            !eligible && issues.length > 0 ? `${dog.id}-ineligible-reason` : undefined
+                            !eligible && issues.length > 0
+                              ? `${dog.id}-ineligible-reason`
+                              : undefined
                           }
                           onCheckedChange={() => handleDogToggle(dog.id)}
                           onClick={e => e.stopPropagation()}

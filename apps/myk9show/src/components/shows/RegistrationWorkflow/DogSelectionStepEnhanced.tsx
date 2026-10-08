@@ -644,7 +644,10 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
                   {/* Dog list */}
                   <List
                     ref={listRef}
-                    height={Math.min(rowHeights.reduce((sum, h) => sum + h, 0), 440)}
+                    height={Math.min(
+                      rowHeights.reduce((sum, h) => sum + h, 0),
+                      440
+                    )}
                     width="100%"
                     itemCount={visibleDogs.length}
                     itemSize={index => rowHeights[index] ?? DOG_ROW_HEIGHT}

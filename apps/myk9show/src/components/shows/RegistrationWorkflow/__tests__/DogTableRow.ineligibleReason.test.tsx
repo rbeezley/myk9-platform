@@ -5,7 +5,11 @@ import { render } from '@/test/utils/testUtils';
 import type { Dog } from '@/types/dog-types';
 import { DogRow, type DogRowData } from '../DogTableRow';
 import { formatDateMMDDYYYY } from '@/utils/dateFormat';
-import { DOG_ROW_HEIGHT, getDogEligibilityStatus, getDogRowHeight } from '../DogSelectionStepEnhanced.helpers';
+import {
+  DOG_ROW_HEIGHT,
+  getDogEligibilityStatus,
+  getDogRowHeight,
+} from '../DogSelectionStepEnhanced.helpers';
 
 const dog = (overrides: Partial<Dog>): Dog =>
   fromPartial<Dog>({

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useSyncExternalStore } from 'react';
 import { onlineManager, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getTrialsByShow } from '@/services/database/trials';
-import { readTrialClassRows } from '@/features/show-map/cockpit/readTrialClassRows';
+import { useShowClassRows } from './useShowClassRows';
 import {
   getEntriesByClass,
   getEntriesByShowFromReplication,
@@ -245,23 +245,11 @@ export function useReportData({ show, trialId, classId }: UseReportDataOptions) 
     trialId === 'all' ||
     (reportTrials !== undefined && reportTrials.some(trial => trial.id === trialId));
 
-  const classesQuery = useQuery({
-    queryKey: [
-      ...queryKeys.showClasses(showId),
-      trialId,
-      trialId === 'all'
-        ? ((reportTrials ?? []) as Array<{ id: string }>).map(trial => trial.id)
-        : [],
-    ],
-    queryFn: async () => {
-      if (trialId === 'all') {
-        const trials = (reportTrials ?? []) as Array<{ id: string }>;
-        return readTrialClassRows(trials.map(trial => trial.id));
-      }
-      return readTrialClassRows([trialId]);
-    },
+  const classesQuery = useShowClassRows({
+    showId,
+    trialId,
+    trialIds: ((reportTrials ?? []) as Array<{ id: string }>).map(trial => trial.id),
     enabled: selectedTrialIsInShow && (trialsQuery.isSuccess || reportTrials !== undefined),
-    ...REPLICA_READ_OPTIONS,
   });
 
   const entriesQuery = useQuery({

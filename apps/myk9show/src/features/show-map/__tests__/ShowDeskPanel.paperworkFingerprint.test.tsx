@@ -316,6 +316,40 @@ describe('Overview paperwork follows the replicated class rows and never claims 
     expect(screen.getAllByText('Print anyway').length).toBeGreaterThan(0);
   });
 
+  it('does not claim current or offer to record while a replica-triggered refetch is in flight', async () => {
+    renderOverview();
+    await waitFor(() =>
+      expect(screen.getAllByText(/Printed .* by Jannie/).length).toBeGreaterThan(0)
+    );
+
+    // The refetch started by the replica notice has not finished: the cached rows are obsolete.
+    mocks.getClassesByTrialId.mockReturnValue(new Promise(() => undefined));
+    act(() => mocks.classListeners.forEach(listener => listener()));
+
+    await waitFor(() => expect(screen.queryByText(/Printed .* by Jannie/)).not.toBeInTheDocument());
+    expect(screen.queryByRole('button', { name: 'Record as printed' })).not.toBeInTheDocument();
+    expect(screen.getAllByText('Print anyway').length).toBeGreaterThan(0);
+  });
+
+  it('re-reads the replica on remount, so a class changed while away reads as stale', async () => {
+    const queryClient = createTestQueryClient();
+    const first = renderOverview(queryClient);
+    await waitFor(() =>
+      expect(screen.getAllByText(/Printed .* by Jannie/).length).toBeGreaterThan(0)
+    );
+    first.unmount();
+
+    // Changed while Overview was unmounted: its subscription never saw it.
+    const changed = [{ ...reportsClassRows[0]!, time_limit_seconds: 240 }] as unknown as DbClass[];
+    mocks.getClassesByTrialId.mockResolvedValue({ data: changed, error: null });
+    renderOverview(queryClient);
+
+    expect(
+      (await screen.findAllByText(/Class data changed after printing/)).length
+    ).toBeGreaterThan(0);
+    expect(screen.queryByText(/^Printed .* by Jannie/)).not.toBeInTheDocument();
+  });
+
   it('keeps Print available while the class rows are still loading', async () => {
     mocks.getClassesByTrialId.mockReturnValue(new Promise(() => undefined));
     renderOverview();

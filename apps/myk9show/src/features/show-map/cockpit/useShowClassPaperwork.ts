@@ -4,26 +4,24 @@
  * confirmations (MYK9-1031).
  *
  * A print is "current" only when the descriptor built here equals the one the confirmation stored,
- * so every surface that answers "is this printed?" must build it from the same class rows
- * (`readTrialClassRows`). Overview (`ShowDeskPanel`) uses this hook; Reports reads its class rows
- * through the same `readTrialClassRows`.
+ * so every surface that answers "is this printed?" must build it from the same class rows.
+ * Overview (`ShowDeskPanel`) uses this hook; Reports reads its class rows through the same
+ * `useShowClassRows` hook (one query key), and both gate on `resolveReportReadiness`.
  *
  * `available` is false until BOTH sub-reads can be trusted: without the class rows or the confirmations,
- * "not printed" is not a finding. React Query keeps `data` after a failed refetch, so a class read
- * that errored makes the hook unavailable even over cached rows.
+ * "not printed" is not a finding. React Query keeps `data` after a failed or in-flight refetch, so
+ * the class read must be `ready` (settled, not erroring, not refetching), never merely have data.
  *
  * A status that reads unknown never hides an action: while the class rows are loading or failed,
  * rows still render from the tree classes (print link only, state unknown, no confirmation, because
  * those rows lack the facts a fingerprint includes and would record a print against obsolete facts).
  */
-import { useEffect, useMemo } from 'react';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 
-import { cacheStrategies, queryKeys } from '@/lib/queryClient';
-import { replicatedClassesTable } from '@/services/replication';
+import { readinessOf, resolveReportReadiness } from '@/hooks/queries/reportReadiness';
+import { useShowClassRows } from '@/hooks/queries/useShowClassRows';
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 import { buildClassPaperworkMap } from './buildClassPaperworkMap';
-import { readTrialClassRows } from './readTrialClassRows';
 import type { SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
 import { useShowPaperworkPrints } from './useShowPaperworkPrints';
 
@@ -36,31 +34,21 @@ export function useShowClassPaperwork(input: {
   returnTo: string;
 }) {
   const { showId, trials, classes, entries, returnTo } = input;
-  const queryClient = useQueryClient();
   const prints = useShowPaperworkPrints(showId);
   const trialIds = useMemo(() => trials.map(trial => trial.id), [trials]);
-  const classFactsKey = useMemo(() => [...queryKeys.showClasses(showId), 'paperwork'], [showId]);
 
-  // The class rows are read from the replica, so a replicated class change (Mark complete,
-  // offline included) is a change to every fingerprint built from them. Same signal and
-  // `emitCurrent: false` as useReportData: re-read on notices, never on the initial emit.
-  useEffect(() => {
-    if (!showId) return;
-    return replicatedClassesTable.subscribe(
-      () => void queryClient.invalidateQueries({ queryKey: classFactsKey }),
-      { emitCurrent: false }
-    );
-  }, [classFactsKey, queryClient, showId]);
-
-  const classFacts = useQuery({
-    queryKey: [...classFactsKey, trialIds],
-    queryFn: () => readTrialClassRows(trialIds),
-    enabled: Boolean(showId) && trialIds.length > 0,
-    ...cacheStrategies.moderate,
-    networkMode: 'always',
+  // The same cached read Reports fingerprints (one key, one subscription, refetch on mount).
+  const classFacts = useShowClassRows({
+    showId,
+    trialId: 'all',
+    trialIds,
+    enabled: trialIds.length > 0,
   });
 
-  const classesAvailable = classFacts.data !== undefined && !classFacts.isError;
+  // Only a settled read counts: `data` survives a failed or in-flight refetch, and cached rows
+  // that are being replaced describe obsolete facts, so a confirmation recorded now would stamp
+  // a fingerprint nobody can match. `ready` is Reports' rule for the same question.
+  const classesAvailable = resolveReportReadiness([readinessOf(classFacts)]) === 'ready';
   const available =
     classesAvailable && prints.data !== undefined && !prints.isError && !prints.syncFailed;
 

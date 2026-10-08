@@ -205,7 +205,8 @@ describe('EntryManagementCockpit status seam', () => {
       const { rerender } = render(harness('registration-2'));
 
       await user.click(await screen.findByRole('button', { name: 'Back to list' }));
-      // The URL drops the open form after the click.
+      // The URL drops the open form after the click; focus waits until the list has re-rendered.
+      // (This pins the ordering; the browser race it guards is timing jsdom does not reproduce.)
       await new Promise(resolve => setTimeout(resolve, 50));
       rerender(harness(null));
 

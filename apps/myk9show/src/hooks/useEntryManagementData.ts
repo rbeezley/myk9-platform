@@ -329,6 +329,8 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
       const { data, error: queryError } = await getEntriesForShow(showId);
 
       if (queryError) {
+        // A failed load leaves nothing trustworthy on screen, so a retry shows the loading state.
+        shownShowIdRef.current = null;
         setLoadError(SECRETARY_ENTRIES_READ_ERROR);
         logger.error('Error loading entries:', 'secretary', {}, queryError as Error);
         return;
@@ -353,6 +355,7 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
       shownShowIdRef.current = loadedShowId;
       setLoadedEntriesShowId(loadedShowId);
     } catch (err) {
+      shownShowIdRef.current = null;
       setLoadError(SECRETARY_ENTRIES_READ_ERROR);
       logger.error('Error loading entries:', 'secretary', {}, err as Error);
     } finally {

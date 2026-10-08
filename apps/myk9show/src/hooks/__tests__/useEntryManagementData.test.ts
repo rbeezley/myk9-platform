@@ -258,6 +258,25 @@ describe('useEntryManagementData', () => {
     expect(result.current.isLoading).toBe(true);
   });
 
+  it('shows the loading state again for a retry after a failed reload', async () => {
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+    act(() => result.current.setSelectedShowId('show-1'));
+    await waitFor(() => expect(result.current.loadedEntriesShowId).toBe('show-1'));
+
+    mocks.getEntriesForShow.mockResolvedValueOnce({ data: null, error: new Error('read failed') });
+    await act(async () => {
+      await result.current.loadEntries('show-1');
+    });
+    expect(result.current.loadError).not.toBeNull();
+
+    mocks.getEntriesForShow.mockReturnValueOnce(new Promise(() => {}));
+    act(() => {
+      void result.current.loadEntries('show-1');
+    });
+    expect(result.current.isLoading).toBe(true);
+  });
+
   it('marks an empty load authoritative after entry replication has succeeded', async () => {
     const { result } = renderHook(() => useEntryManagementData());
     await waitFor(() => expect(result.current.isLoadingShows).toBe(false));

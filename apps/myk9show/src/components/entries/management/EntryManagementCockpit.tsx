@@ -300,6 +300,7 @@ export function EntryManagementCockpit({
             allSelected={cockpit.selection.isAllSelected}
             partiallySelected={cockpit.selection.isPartiallySelected}
             onFocus={group => {
+              returnFocusToRow.current = null;
               cockpit.setFocus(group.groupKey);
               dispatchResponsive({ type: 'open-detail' });
             }}

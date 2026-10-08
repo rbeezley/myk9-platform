@@ -17,7 +17,8 @@
  *     it still holds no unsent work (the `deleteRowsIfClean` pattern: every
  *     await is an IndexedDB request, so another tab cannot queue an edit
  *     between the check and the write). A row that became ineligible is skipped.
- *     The row is clean and unqueued, so the server copy simply replaces it.
+ *     The stored row is what the download builds for a clean existing row: the
+ *     adapter's resolveConflict(local with the flag normalized, server copy).
  *  4. A stuck row the server did not return (deleted, not visible), or whose
  *     server copy is older than the row's own token (an ack landed mid-fetch),
  *     only has its flag normalized; nothing is deleted here.
@@ -35,7 +36,7 @@ import {
 
 export type StuckRepairAdapter<TRemote, TLocal extends { id: string }> = Pick<
   SyncReplicatedTableAdapter<TRemote, TLocal>,
-  'getRemoteId' | 'toLocalRow'
+  'getRemoteId' | 'toLocalRow' | 'resolveConflict'
 > &
   Required<Pick<SyncReplicatedTableAdapter<TRemote, TLocal>, 'fetchRowsById'>>;
 
@@ -127,12 +128,16 @@ export async function repairStuckPendingFlags<TRemote, TLocal extends { id: stri
       result.normalized.push(id);
       continue;
     }
+    // The download's own step for a clean existing row: the table's
+    // resolveConflict, after the local flag stops reading as unsent work.
+    const local = { ...(withAcknowledgedSyncFlag(row.data) as object), id } as TLocal;
     const incoming = { ...adapter.toLocalRow(remote), id } as TLocal;
+    const resolved = adapter.resolveConflict?.(local, incoming) ?? incoming;
     await rows.put(
       buildReplicatedRowForSet({
         tableName,
         id,
-        data: withAcknowledgedSyncFlag(incoming),
+        data: { ...withAcknowledgedSyncFlag(resolved), id },
         isDirty: false,
         existingRow: row,
         incomingServerVersion: serverVersion,

@@ -14,6 +14,7 @@ interface Row {
   _syncStatus?: 'pending' | 'synced';
   updated_at: number;
   final_placement?: number | undefined;
+  judgeName?: string | undefined;
 }
 
 class FlagReadingTable extends ReplicatedTable<Row> {
@@ -48,7 +49,11 @@ function adapterFor(
     getRemoteId: row => row.id,
     getRemoteUpdatedAt: row => row.updated_at,
     toLocalRow: row => ({ ...row, _syncStatus: 'synced' }),
-    resolveConflict: (local, remote) => (local._syncStatus === 'pending' ? local : remote),
+    // Mirrors the classes table: enrichment the remote lacks survives from local.
+    resolveConflict: (local, remote) => ({
+      ...(local._syncStatus === 'pending' ? local : remote),
+      judgeName: remote.judgeName ?? local.judgeName,
+    }),
   };
 }
 
@@ -118,6 +123,17 @@ describe('stuck pending data flag repair (MYK9-1055)', () => {
     const row = await table.get('e1');
     expect(row?.final_placement).toBe(1);
     expect(row?._syncStatus).toBe('synced');
+  });
+
+  it('keeps what the table resolveConflict preserves, e.g. cached enrichment', async () => {
+    await table.set('e1', { ...stuckRow('e1'), judgeName: 'Cached Judge' });
+    await seedCursor();
+
+    await sync(adapterFor([serverRow('e1')]));
+
+    const row = await table.get('e1');
+    expect(row?.judgeName).toBe('Cached Judge');
+    expect(row?.final_placement).toBe(1);
   });
 
   it('never resets the sync cursor', async () => {

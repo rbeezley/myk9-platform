@@ -181,6 +181,21 @@ Create group on every page: Add Show, Add Dog, Add Person (staff), Add Club (sta
 
 - For each _(if a surface exists)_ item in the target table, find the existing surface. Link to it or drop the item, and record which in the PR.
 - Tests: one resolver test per added item, including its gate.
+- **Outcome (owner, 2026-10-08):**
+  - Linked:
+    - **Close out show**: the Results section's close-out step.
+    - **Add Show for this club**: the show wizard with `?clubId=`. It replaces the club's toolbar Add Show button; the empty-list invitation stays.
+    - **Print reports** on a trial: the show's Reports page, scoped to the trial.
+    - **Print score sheets** on a class: Reports with the score sheet selected, scoped to the class.
+    - **Manage Entries** on a class: moved from a visible page button into the menu.
+  - Removed:
+    - The class page's ⋮ ("Show home" was navigation the breadcrumb carries).
+    - **Requirements** became a plain page button. It is information for any viewer, and a menu item would give an exhibitor a header button that costs the phone wordmark.
+  - Dropped:
+    - **Cancel show**: the pieces exist separately (Edit show status; Refund all entries on `/secretary/settings`, which has no show deep link). Joining them is core-object decision 15, not a link.
+    - **Close / Open entries now**: nothing exists; that is core-object decision 19.
+    - **Appoint secretary**: it exists on Club Members → Show Access, but nothing opens that tab or club from a URL.
+    - **Open ringside scoring**: the route exists, but `ringside_update_entry` accepts a signed-in account only as the class's assigned judge, so a secretary's scores may not sync.
 
 **Phase 6d: Verification walk.**
 

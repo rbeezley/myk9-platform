@@ -66,7 +66,9 @@ export type ActionIconName =
   | 'status'
   | 'send'
   | 'authorize'
-  | 'revoke';
+  | 'revoke'
+  | 'close-out'
+  | 'reports';
 
 /**
  * One more thing a detail page lets this viewer do to its object, beyond Edit: Change Photo,
@@ -335,6 +337,15 @@ function buildShowActions(
       command: 'publish-premium',
       group: 'show',
       icon: 'premium',
+    },
+    {
+      // The Results section's own close-out step, opened on it (CRUD standard decision 6);
+      // the step's confirm dialog does the work. Same gate as the route.
+      id: 'show-close-out',
+      label: 'Close out show',
+      href: `/shows/${encoded}/results?step=close`,
+      group: 'show',
+      icon: 'close-out',
     },
   ];
 }

@@ -7,7 +7,7 @@
 import { startTransition, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { formatTrialLabel } from '@myk9/core';
-import { ClipboardList, LayoutDashboard, MoreVertical } from 'lucide-react';
+import { ClipboardList } from 'lucide-react';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import ClassDetailsMain from '@/components/classes/ClassDetailsMain';
 import { ClassEditPanel } from '@/components/panels/edit/ClassEditPanel';
@@ -16,12 +16,6 @@ import { ClassRequirementsPanel } from '@/components/classes/ClassRequirementsPa
 import { formatClassTitle } from '@/components/classes/ClassDetailsMain.helpers';
 import type { ClassData } from '@/components/classes/types/classTypes';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 import { usePageEditAction } from '@/features/actions/pageEditTarget';
 import { useClassReleasedResults } from '@/hooks/queries/useClassReleasedResults';
@@ -47,6 +41,7 @@ import { PageHeader } from '@/components/common/PageHeader';
 import { heroViewerFromUser } from '@/components/common/heroParentLink';
 import { ShowPresenceProvider } from '@/features/show-presence/ShowPresenceProvider';
 import { getEntryManagementHref } from '@/features/entry-operations/entryAttentionRoutes';
+import { getShowMapReportHref } from '@/features/show-map/showMapRoutes';
 import { RelatedContextLinks } from '@/components/common/RelatedContextLinks';
 import { buildClassDetailsRelatedLinks } from './classDetailsRelatedLinks';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
@@ -193,66 +188,70 @@ const ClassDetailsPage: React.FC = () => {
   // Keep class management and run-order work on this page, but route result entry
   // through the dedicated scoring flow so secretaries do not choose between tools.
 
-  // Action buttons for the compact header
-  const headerActions = useMemo(() => {
-    return (
-      <div className="flex items-center gap-2">
-        {canManageClass && parentShow?.id && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              navigate(
-                getEntryManagementHref({
-                  showId: parentShow.id,
-                  trialId: trialId || currentClass?.trialId || null,
-                  classId: classId || null,
-                })
-              )
-            }
-          >
-            <ClipboardList className="mr-1.5 h-3.5 w-3.5" />
-            Manage Entries
-          </Button>
-        )}
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" aria-label="Class options">
-              <MoreVertical className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {canManageClass && parentShow?.id && (
-              <DropdownMenuItem onClick={() => navigate(`/shows/${parentShow.id}`)}>
-                <LayoutDashboard className="mr-2 h-4 w-4" />
-                Show home
-              </DropdownMenuItem>
-            )}
-            <DropdownMenuItem onClick={() => setRequirementsPanelOpen(true)}>
-              <ClipboardList className="mr-2 h-4 w-4" />
-              Requirements
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
-    );
-  }, [
-    setRequirementsPanelOpen,
-    canManageClass,
-    parentShow,
-    trialId,
-    currentClass?.trialId,
-    navigate,
-    classId,
-  ]);
+  // Every action on this class is in the header Actions menu (CRUD standard decision 6).
+  // Requirements stays on the page as a plain button: it shows the class's rules to
+  // anyone viewing it, so it is information rather than an action, and putting it in the
+  // menu would give an exhibitor a header button that costs the phone wordmark its room.
+  const headerActions = useMemo(
+    () => (
+      <Button variant="outline" size="sm" onClick={() => setRequirementsPanelOpen(true)}>
+        <ClipboardList className="mr-1.5 h-3.5 w-3.5" />
+        Requirements
+      </Button>
+    ),
+    [setRequirementsPanelOpen]
+  );
 
   // Edit class is the header Actions menu's (MYK9-928), behind the same gate the hero Edit
   // button had. Registered with the panel's opener, so it opens THIS page's panel.
+  const classShowId = parentShow?.id;
+  const classTrialId = trialId || currentClass?.trialId || null;
   usePageEditAction({
     kind: 'class',
     enabled: canManageClass && !!currentClass,
     run: dialogs.openEditClassPanel,
     title: classTitle,
+    // The class's entries on Entry Management, and its score sheet on the show's Reports
+    // page: both existing surfaces, behind this page's own staff gate.
+    extras:
+      canManageClass && classShowId
+        ? [
+            {
+              id: 'manage-entries',
+              label: 'Manage Entries',
+              icon: 'entry-forms',
+              run: () =>
+                navigate(
+                  getEntryManagementHref({
+                    showId: classShowId,
+                    trialId: classTrialId,
+                    classId: classId || null,
+                  })
+                ),
+            },
+            ...(classTrialId && classId
+              ? [
+                  {
+                    id: 'score-sheets',
+                    label: 'Print score sheets',
+                    icon: 'reports' as const,
+                    run: () =>
+                      navigate(
+                        getShowMapReportHref({
+                          reportId: 'scoresheet',
+                          scope: {
+                            kind: 'class',
+                            showId: classShowId,
+                            trialId: classTrialId,
+                            classId,
+                          },
+                        })
+                      ),
+                  },
+                ]
+              : []),
+          ]
+        : [],
   });
 
   // Early returns for different states. A guest's class is the server's

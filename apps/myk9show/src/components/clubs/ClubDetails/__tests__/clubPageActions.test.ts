@@ -3,12 +3,14 @@ import { buildClubPageActions, type ClubPageActionInput } from '../clubPageActio
 
 function input(overrides: Partial<ClubPageActionInput> = {}): ClubPageActionInput {
   return {
+    canAddShow: false,
     canEditBranding: false,
     canAuthorizeClub: false,
     isClubAuthorized: false,
     isAuthorizationLoading: false,
     isAuthorizationUpdating: false,
     onEditPhoto: vi.fn(),
+    onAddShow: vi.fn(),
     onAuthorize: vi.fn(),
     onRequestRevoke: vi.fn(),
     ...overrides,
@@ -62,8 +64,18 @@ describe('buildClubPageActions (CRUD standard decision 6)', () => {
     expect(item?.disabledReason).toBe('Saving…');
   });
 
-  it('puts the photo first, then the authorization item', () => {
-    expect(labels({ canEditBranding: true, canAuthorizeClub: true })).toEqual([
+  it('offers Add Show for this club to a viewer who may create its shows, and it opens the wizard', () => {
+    const onAddShow = vi.fn();
+    const actions = buildClubPageActions(input({ canAddShow: true, onAddShow }));
+    expect(actions.map(action => action.label)).toEqual(['Add Show for this club']);
+    actions[0]?.run();
+    expect(onAddShow).toHaveBeenCalledTimes(1);
+    expect(labels({ canAddShow: false })).toEqual([]);
+  });
+
+  it('orders Add Show, then the photo, then the authorization item', () => {
+    expect(labels({ canAddShow: true, canEditBranding: true, canAuthorizeClub: true })).toEqual([
+      'Add Show for this club',
       'Change Photo',
       'Authorize Club',
     ]);

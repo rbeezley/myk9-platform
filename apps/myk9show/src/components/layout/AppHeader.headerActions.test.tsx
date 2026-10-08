@@ -238,6 +238,7 @@ describe('AppHeader Actions menu — secretary on a show route', () => {
       'Add classes',
       'Open Entry Forms',
       'Generate & publish premium',
+      'Close out show',
       'Add Show',
       'Add Dog',
       'Add Person',

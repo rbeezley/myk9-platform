@@ -112,6 +112,7 @@ describe('useCurrentActions — ownership must be resolved before anything is of
       'show-add-classes',
       'show-open-entry-management',
       'show-generate-publish-premium',
+      'show-close-out',
     ]);
   });
 

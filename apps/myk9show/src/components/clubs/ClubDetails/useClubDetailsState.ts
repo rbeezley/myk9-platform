@@ -161,7 +161,9 @@ export function useClubDetailsState(selectedClub: Club | null) {
     extras: selectedClub
       ? buildClubPageActions({
           ...authorizationControl,
+          canAddShow,
           canEditBranding,
+          onAddShow: () => handleAddShow(),
           onEditPhoto: () => setShowPhotoDialog(true),
           onAuthorize: authorizationControl.handleAuthorizeClub,
           onRequestRevoke: () => setShowRevokeConfirm(true),

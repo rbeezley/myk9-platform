@@ -4,7 +4,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { EntryPanel } from './EntryPanel';
-import { DEFAULT_SESSION_SETTINGS } from '../paper-scoring-types';
+import { DEFAULT_SESSION_SETTINGS, digitsToSeconds } from '../paper-scoring-types';
 import type { ScoringEntry } from '../types';
 
 function makeEntry(overrides: Partial<ScoringEntry> = {}): ScoringEntry {
@@ -217,7 +217,7 @@ describe('EntryPanel', () => {
     );
 
     expect(screen.getByRole('button', { name: /^Q$/i })).toHaveAttribute('data-selected', 'true');
-    expect(screen.getByLabelText(/search time/i)).toHaveValue('1:23.45');
+    expect(screen.getByLabelText(/search time/i)).toHaveValue('12345');
     expect(screen.getByText('2')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /^save$/i })).toBeInTheDocument();
   });
@@ -313,18 +313,26 @@ describe('EntryPanel', () => {
       return { onSave, input: screen.getByLabelText(/search time/i) as HTMLInputElement };
     };
 
-    it('shows separators while typing', async () => {
-      const { input } = renderQ();
-      await userEvent.type(input, '4520');
-      expect(input.value).toBe('0:45.20');
-    });
-
     it('cannot enter or save eight digits as 52 minutes', async () => {
       const { onSave, input } = renderQ();
       await userEvent.type(input, '52105210');
-      expect(input.value).toBe('52:10.52');
+      expect(input.value).toBe('521052');
       await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
       expect(onSave).toHaveBeenCalledWith('Q', '521052', 0, undefined);
+    });
+
+    it('select-all then typing over a loaded 1:23.45 saves 1:30.00', async () => {
+      const { onSave, input } = renderQ({
+        entry: makeEntry({
+          isScored: true,
+          result: { time: 83450, faults: 0, qualification: 'Qualified' },
+        }),
+      });
+      await userEvent.tripleClick(input);
+      await userEvent.keyboard('13000');
+      await userEvent.click(screen.getByRole('button', { name: /^save$/i }));
+      expect(onSave).toHaveBeenCalledWith('Q', '13000', 0, undefined);
+      expect(digitsToSeconds('13000')).toBe(90);
     });
 
     it('warns on a Q over the class time limit but still saves', async () => {

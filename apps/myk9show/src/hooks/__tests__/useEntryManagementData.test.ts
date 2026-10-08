@@ -277,6 +277,42 @@ describe('useEntryManagementData', () => {
     expect(result.current.isLoading).toBe(true);
   });
 
+  it('never lets a slow read of the previous show replace the show switched to', async () => {
+    const row = (id: string, showId: string) => ({
+      id,
+      show_id: showId,
+      entry_status: 'pending',
+      payment_status: 'pending',
+      entry_fee: 25,
+      dog: null,
+      class: null,
+      registration: null,
+      trial: null,
+    });
+    let finishShow1: (value: { data: unknown[]; error: null }) => void = () => {};
+    mocks.getEntriesForShow.mockImplementation((showId: string) =>
+      showId === 'show-1'
+        ? new Promise(resolve => {
+            finishShow1 = resolve;
+          })
+        : Promise.resolve({ data: [row('entry-b', 'show-2')], error: null })
+    );
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+
+    act(() => result.current.setSelectedShowId('show-1'));
+    act(() => result.current.setSelectedShowId('show-2'));
+    await waitFor(() => expect(result.current.loadedEntriesShowId).toBe('show-2'));
+
+    await act(async () => {
+      finishShow1({ data: [row('entry-a', 'show-1')], error: null });
+    });
+
+    expect(result.current.entries.map(entry => entry.id)).toEqual(['entry-b']);
+    expect(result.current.loadedEntriesShowId).toBe('show-2');
+    expect(result.current.isLoading).toBe(false);
+  });
+
   it('marks an empty load authoritative after entry replication has succeeded', async () => {
     const { result } = renderHook(() => useEntryManagementData());
     await waitFor(() => expect(result.current.isLoadingShows).toBe(false));

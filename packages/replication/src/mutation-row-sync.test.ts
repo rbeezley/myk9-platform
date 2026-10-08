@@ -352,6 +352,10 @@ describe('markReplicatedRowSynced - data-level _syncStatus (MYK9-1050)', () => {
 
   async function seed(name: string, extraMutationIds: string[]) {
     const db = await databaseManager.getDatabase(name);
+    // reset() closes the connection but keeps the stored data: empty the stores
+    // so a mutation queued by an earlier (shuffled) case cannot leak in.
+    await db.clear(REPLICATION_STORES.PENDING_MUTATIONS);
+    await db.clear(REPLICATION_STORES.REPLICATED_TABLES);
     const mutation = (id: string, sequenceNumber: number): PendingMutation => ({
       id,
       tableName: 'entries',

@@ -101,6 +101,24 @@ describe('ReplicatedEntriesTable pull after an acknowledged local score (MYK9-10
     expect((await table.get(ID))?.finalPlacement).toBe('1');
   });
 
+  it('a download that read the server before the ack does not roll the acked score back', async () => {
+    await table.batchSet([{ ...seed, resultStatus: 'qualified' }], new Map([[ID, 7]]));
+    mockServerRows([serverRow({ result_status: 'pending', final_placement: undefined, version: 6 })]);
+
+    await table.sync(SHOW);
+
+    expect((await table.get(ID))?.resultStatus).toBe('qualified');
+  });
+
+  it('a newer server row (placements recalculated) still wins over the acked score', async () => {
+    await table.batchSet([{ ...seed, resultStatus: 'qualified' }], new Map([[ID, 7]]));
+    mockServerRows([serverRow({ version: 8 })]);
+
+    await table.sync(SHOW);
+
+    expect((await table.get(ID))?.finalPlacement).toBe('1');
+  });
+
   it('keeps a score that has not uploaded yet (dirty row is not clobbered)', async () => {
     await table.updateEntry(ID, { resultStatus: 'qualified', searchTimeSeconds: 52.1 });
     mockServerRows([serverRow({ result_status: 'pending', final_placement: undefined })]);

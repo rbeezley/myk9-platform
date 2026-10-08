@@ -73,9 +73,6 @@ export const getEntriesForShow = async (showId: string) => {
   const startTime = Date.now();
 
   try {
-    // MYK9-1064: a warm replica is served as-is below, and nothing else syncs
-    // this show's entries on a returning device. Bounded, coalesced, online only.
-    await refreshShowEntriesOnOpen(showId);
     const result = await getReplicatedSecretaryEntriesForShow(showId);
     if (
       result.data.length === 0 &&
@@ -86,6 +83,17 @@ export const getEntriesForShow = async (showId: string) => {
       return { data: result.data, error: null };
     }
     if (!result.isColdStore && result.data.length > 0) {
+      // MYK9-1064: a warm replica was served as-is and nothing else syncs this
+      // show's entries on a returning device. Decided BEFORE the refresh: a cold
+      // device falls through to hydration, which also syncs classes and trials.
+      // Bounded, coalesced, online only; the pre-refresh rows stand if it fails.
+      if (await refreshShowEntriesOnOpen(showId)) {
+        const refreshed = await getReplicatedSecretaryEntriesForShow(showId);
+        if (!refreshed.isColdStore) {
+          logQuery('entries', 'get_entries_for_show', Date.now() - startTime);
+          return { data: refreshed.data, error: null };
+        }
+      }
       logQuery('entries', 'get_entries_for_show', Date.now() - startTime);
       return { data: result.data, error: null };
     }

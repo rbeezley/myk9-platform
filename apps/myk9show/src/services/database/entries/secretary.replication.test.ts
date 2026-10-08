@@ -403,7 +403,7 @@ describe('secretary entry read replication', () => {
     mockMetadataLookups();
   });
 
-  it('refreshes the show scope before serving a warm replica (MYK9-1064)', async () => {
+  it('refreshes a warm show scope, then serves the refreshed rows (MYK9-1064)', async () => {
     mocks.syncEntries.mockResolvedValue({ success: true });
 
     const result = await getEntriesForShow('show-1');
@@ -411,9 +411,53 @@ describe('secretary entry read replication', () => {
     expect(result.error).toBeNull();
     expect(mocks.syncEntries).toHaveBeenCalledTimes(1);
     expect(mocks.syncEntries).toHaveBeenCalledWith('show-1');
+    expect(mocks.syncTrials).not.toHaveBeenCalled();
+    expect(mocks.syncClasses).not.toHaveBeenCalled();
+    // read, refresh, re-read
+    expect(mocks.getEntriesByShow).toHaveBeenCalledTimes(2);
     expect(mocks.syncEntries.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.getEntriesByShow.mock.invocationCallOrder[0] ?? Infinity
+      mocks.getEntriesByShow.mock.invocationCallOrder[1] ?? Infinity
     );
+  });
+
+  it('hydrates a cold device once, with class and trial relations, and no extra open refresh', async () => {
+    const fresh = {
+      id: 'entry-1',
+      showId: 'show-1',
+      dogId: 'dog-1',
+      classId: 'class-1',
+      trialId: 'trial-1',
+      entryStatus: 'confirmed',
+      submittedAt: '2026-06-01T10:00:00.000Z',
+    };
+    let synced = false;
+    mocks.getEntriesSyncMetadata.mockImplementation(async () =>
+      synced ? { tableName: 'entries', totalRows: 1 } : undefined
+    );
+    mocks.getEntriesByShow.mockImplementation(async () => (synced ? [fresh] : []));
+    mocks.getAllClasses.mockImplementation(async () =>
+      synced ? [{ id: 'class-1', name: 'Novice', trialId: 'trial-1' }] : []
+    );
+    mocks.getTrialsByShow.mockImplementation(async () =>
+      synced ? [{ id: 'trial-1', trialType: 'scent', date: '2026-06-02', trialNumber: 1 }] : []
+    );
+    mocks.syncEntries.mockImplementation(async () => {
+      synced = true;
+      return { success: true };
+    });
+
+    const result = await getEntriesForShow('show-1');
+
+    expect(mocks.syncEntries).toHaveBeenCalledTimes(1);
+    expect(mocks.syncTrials).toHaveBeenCalledTimes(1);
+    expect(mocks.syncClasses).toHaveBeenCalledWith('trial-1');
+    expect(result.data).toEqual([
+      expect.objectContaining({
+        id: 'entry-1',
+        class: expect.objectContaining({ id: 'class-1' }),
+        trial: expect.objectContaining({ timezone: expect.anything() }),
+      }),
+    ]);
   });
 
   it('builds secretary entries from replication with only scoped online reconciliation metadata', async () => {
@@ -841,8 +885,8 @@ describe('secretary entry read replication', () => {
 
     expect(result.error).toBeNull();
     expect(result.data).toEqual([]);
-    // The one open refresh (MYK9-1064); a trusted empty scope adds no hydration sync.
-    expect(mocks.syncEntries).toHaveBeenCalledTimes(1);
+    // A trusted empty scope syncs nothing: no hydration, no open refresh.
+    expect(mocks.syncEntries).not.toHaveBeenCalled();
     expect(mocks.supabaseRpc).toHaveBeenCalledWith('get_secretary_live_entry_count', {
       p_show_id: 'show-1',
     });

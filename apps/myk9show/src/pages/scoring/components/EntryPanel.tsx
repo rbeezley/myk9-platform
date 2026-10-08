@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils';
 import type { ScoringEntry } from '../types';
 import {
   getReasonOptions,
+  overTimeLimitWarning,
   resultRequiresReason,
   type PaperResult,
   type SessionSettings,
@@ -19,6 +20,8 @@ interface EntryPanelProps {
   onClearResult?: (() => void) | undefined;
   onClose: () => void;
   isSaving: boolean;
+  /** Class time limit in seconds; a Q over it shows a warning (still saveable). Omit when unknown. */
+  maxTimeSeconds?: number | undefined;
 }
 
 const RESULT_BUTTONS: { code: PaperResult; label: string; description: string }[] = [
@@ -73,6 +76,7 @@ export function EntryPanel({
   onClearResult,
   onClose,
   isSaving,
+  maxTimeSeconds,
 }: EntryPanelProps) {
   const [selectedResult, setSelectedResult] = useState<PaperResult | null>(() =>
     initialResultForEntry(entry, settings)
@@ -97,6 +101,9 @@ export function EntryPanel({
   const displayTimeField = showTimeField(selectedResult, settings);
   const reasonOptions = getReasonOptions(selectedResult);
   const needsReason = resultRequiresReason(selectedResult);
+  const timeWarning = displayTimeField
+    ? overTimeLimitWarning(selectedResult, timeDigits, maxTimeSeconds)
+    : null;
   const canSave = !needsReason || reason.trim().length > 0;
   const normalizedReason = needsReason ? reason.trim() : undefined;
   const canClearResult = !!onClearResult && (entry.isScored || entry.result);
@@ -175,8 +182,17 @@ export function EntryPanel({
             onCommit={() => {}}
             onCancel={() => setTimeDigits('')}
             autoFocus
-            className="h-12 text-xl text-center font-mono rounded-lg border-2 focus:border-primary"
+            aria-describedby={timeWarning ? 'time-input-warning' : undefined}
+            className={cn(
+              'h-12 text-xl text-center font-mono rounded-lg border-2 focus:border-primary',
+              timeWarning && 'border-warning focus:border-warning'
+            )}
           />
+          {timeWarning && (
+            <p id="time-input-warning" role="alert" className="text-sm text-warning">
+              {timeWarning}
+            </p>
+          )}
         </div>
       )}
 

@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { useState } from 'react';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { SearchTimeCell } from '../SearchTimeCell';
@@ -114,5 +115,28 @@ describe('SearchTimeCell', () => {
       />
     );
     expect(screen.getByText('--')).toBeInTheDocument();
+  });
+
+  it('typing 60000 stores 6:00.00, not a time re-read from the carried 1:00.00', async () => {
+    const onFieldChange = vi.fn();
+    function Harness() {
+      const [searchTime, setSearchTime] = useState('');
+      return (
+        <SearchTimeCell
+          item={makeRow({ searchTime })}
+          canEdit={true}
+          visible={true}
+          rowIndex={0}
+          onFieldChange={(id, field, value) => {
+            onFieldChange(id, field, value);
+            setSearchTime(value);
+          }}
+        />
+      );
+    }
+    const { user } = render(<Harness />);
+    await user.click(screen.getByRole('textbox'));
+    await user.keyboard('60000');
+    expect(onFieldChange).toHaveBeenLastCalledWith('e1', 'searchTime', '6:00.00');
   });
 });

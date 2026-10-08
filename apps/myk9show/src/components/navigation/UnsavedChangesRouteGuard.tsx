@@ -195,7 +195,11 @@ function DataRouterUnsavedChangesBlocker({
   return (
     <>
       {children}
-      <BlockedNavigationDialog blocker={blocker} subject={blocked.subject} dialog={blocked.dialog} />
+      <BlockedNavigationDialog
+        blocker={blocker}
+        subject={blocked.subject}
+        dialog={blocked.dialog}
+      />
     </>
   );
 }
@@ -208,7 +212,8 @@ function DataRouterUnsavedChangesGuard({
   pathScoped,
 }: UnsavedChangesRouteGuardProps) {
   const shouldBlock = useCallback<BlockerFunction>(
-    args => isDirty && !isSelfNavigating({ selfNavigationRef }) && !staysOnPath({ pathScoped }, args),
+    args =>
+      isDirty && !isSelfNavigating({ selfNavigationRef }) && !staysOnPath({ pathScoped }, args),
     [isDirty, selfNavigationRef, pathScoped]
   );
   const blocker = useBlocker(shouldBlock);

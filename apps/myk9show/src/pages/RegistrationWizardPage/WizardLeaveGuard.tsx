@@ -1,6 +1,9 @@
 import { useEffect, useMemo } from 'react';
 import { UnsavedChangesRouteGuard } from '@/components/navigation/UnsavedChangesRouteGuard';
-import { describeNoEntryYet, namesWithoutEntry } from '@/components/shows/RegistrationWorkflow/createdInSession';
+import {
+  describeNoEntryYet,
+  namesWithoutEntry,
+} from '@/components/shows/RegistrationWorkflow/createdInSession';
 import { useCreatedInSession } from '@/components/shows/RegistrationWorkflow/CreatedInSessionContext';
 
 /**
@@ -39,11 +42,6 @@ export function WizardLeaveGuard({ submitted }: { submitted: boolean }) {
   }, [pending]);
 
   return (
-    <UnsavedChangesRouteGuard
-      isDirty={pending}
-      subject="this entry"
-      dialog={dialog}
-      pathScoped
-    />
+    <UnsavedChangesRouteGuard isDirty={pending} subject="this entry" dialog={dialog} pathScoped />
   );
 }

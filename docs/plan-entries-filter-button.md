@@ -2,6 +2,8 @@
 
 > **Status:** Active
 
+> **Progress (2026-10-08):** Phases 1–6 merged for the Entries tab: #2809, #2811, #2817, #2822 (2026-10-08). Not deployed until a Deploy myK9Show run. Still open: the "After Oct 10" migration of the other lists.
+
 ## Goal
 
 The Entries tab toolbar carries a search box, a "Show:" select, two filter selects, a Clear all button, More and Add Entry. That is too much at once with no hierarchy. Replace the filter selects with one labelled **Filter** button that opens a searchable multi-select menu (Linear-style), show what is applied as plain sentences, and keep one primary button. Built as a `list-toolkit` component so every list can adopt it later; the Entries tab is the only user until after the Oct 10 show.

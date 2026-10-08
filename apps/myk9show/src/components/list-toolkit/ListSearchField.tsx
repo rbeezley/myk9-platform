@@ -48,7 +48,8 @@ export function ListSearchField({ value, onChange, placeholder, className }: Lis
       <button
         ref={buttonRef}
         type="button"
-        aria-label="Search"
+        // Named after the field it opens, so it is not mistaken for the app header's Search.
+        aria-label={placeholder}
         aria-expanded={false}
         onClick={() => setRequested(true)}
         className={cn(
@@ -72,7 +73,7 @@ export function ListSearchField({ value, onChange, placeholder, className }: Lis
   return (
     <div
       ref={wrapperRef}
-      className={cn('min-w-0 flex-1 lg:w-72 lg:flex-none xl:w-80', className)}
+      className={cn('min-w-0 flex-1 lg:w-56 lg:flex-none xl:w-64', className)}
       onFocus={() => {
         setFocused(true);
         setRequested(false);

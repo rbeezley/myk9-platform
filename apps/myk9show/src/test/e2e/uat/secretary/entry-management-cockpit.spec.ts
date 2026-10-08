@@ -6,6 +6,8 @@ import {
   expectNoHorizontalScroll,
 } from '../../shared/horizontalOverflow';
 
+const SEARCH_LABEL = 'Search exhibitor, dog, handler, armband, confirmation, class…';
+
 test('registration focus remains clear across desktop, history, and narrow layouts', async ({
   page,
 }) => {
@@ -46,15 +48,15 @@ test('registration focus remains clear across desktop, history, and narrow layou
 
   await page.context().setOffline(true);
   try {
+    // Below 1024px the search is an icon named after its field; tapping it opens the field.
+    await page.getByRole('button', { name: SEARCH_LABEL }).click();
     await page
-      .getByRole('textbox', {
-        name: 'Search exhibitor, dog, handler, armband, confirmation, class…',
-      })
+      .getByRole('textbox', { name: SEARCH_LABEL })
       .fill(offlineSearchTerm ?? 'registration');
     await expect(queueRows).not.toHaveCount(0);
-    // The Show: select and the Trial/Class selects are labelled controls (MYK9-906).
-    await expect(page.getByRole('combobox', { name: 'Show: Entry views' })).toBeVisible();
-    await expect(page.getByRole('combobox', { name: 'Trial' })).toBeVisible();
+    // One Show: menu and one Filter button (docs/plan-entries-filter-button.md).
+    await expect(page.getByRole('button', { name: /^Show:/ })).toBeVisible();
+    await expect(page.getByRole('button', { name: /^Filter/ })).toBeVisible();
     await expect(page.getByText(/Search covers the whole show/i)).toBeVisible();
   } finally {
     await page.context().setOffline(false);
@@ -66,13 +68,8 @@ test('the registration queue keeps every row inside a 768px tablet viewport (MYK
 }) => {
   await page.setViewportSize({ width: 768, height: 1024 });
   await signInAsSecretary(page, `/shows/${LIVE_SECRETARY_SHOW_ID}/entries`);
-  await expect(
-    page.getByRole('textbox', {
-      name: 'Search exhibitor, dog, handler, armband, confirmation, class…',
-    })
-  ).toBeVisible({
-    timeout: 30_000,
-  });
+  // Below 1024px the search is a 44px icon until tapped.
+  await expect(page.getByRole('button', { name: SEARCH_LABEL })).toBeVisible({ timeout: 30_000 });
 
   const queue = page.getByRole('list', { name: 'Entry form work queue' });
   const rows = queue.getByRole('listitem');
@@ -100,14 +97,8 @@ test('the registration queue keeps every row inside a 768px tablet viewport (MYK
 test('Entry Management does not scroll sideways at 150% zoom on a phone', async ({ page }) => {
   await page.setViewportSize(PHONE_AT_150_PERCENT_ZOOM);
   await signInAsSecretary(page, `/shows/${LIVE_SECRETARY_SHOW_ID}/entries`);
-  await expect(
-    page.getByRole('textbox', {
-      name: 'Search exhibitor, dog, handler, armband, confirmation, class…',
-    })
-  ).toBeVisible({
-    timeout: 30_000,
-  });
-  await expect(page.getByRole('combobox', { name: 'Show: Entry views' })).toBeVisible();
+  await expect(page.getByRole('button', { name: SEARCH_LABEL })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByRole('button', { name: /^Show:/ })).toBeVisible();
   await expectNoHorizontalScroll(page, 'Entry Management');
 });
 

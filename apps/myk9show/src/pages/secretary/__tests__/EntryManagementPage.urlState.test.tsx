@@ -83,7 +83,7 @@ vi.mock('@/hooks/useEntryManagementActions', () => ({
 vi.mock('@/hooks/useEntryManagementTrialScope', () => ({
   useEntryManagementTrialClasses: () => ({
     trialClasses: [],
-    trialClassIds: [],
+    trialClassIds: ['class-1'],
     isLoadingClasses: false,
   }),
   useEntryManagementTrialScope: () => ({ trials: [], isLoadingTrials: false }),

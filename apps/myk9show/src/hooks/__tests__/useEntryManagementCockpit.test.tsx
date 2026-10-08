@@ -77,7 +77,7 @@ describe('useEntryManagementCockpit', () => {
       }
     );
 
-    expect(result.current.state.queue).toBe('all');
+    expect(result.current.state.queues).toEqual(['all']);
     expect(search).toBe('?view=cards&queue=all');
   });
 
@@ -101,7 +101,7 @@ describe('useEntryManagementCockpit', () => {
     expect(result.current.selection.selectedCount).toBe(1);
     const queueCounts = result.current.queueCounts;
 
-    act(() => result.current.setQueue('needs-review'));
+    act(() => result.current.setQueues(['needs-review']));
     await waitFor(() => {
       expect(result.current.page.pageIndex).toBe(0);
       expect(result.current.selection.selectedCount).toBe(0);
@@ -157,5 +157,53 @@ describe('useEntryManagementCockpit', () => {
     );
 
     await waitFor(() => expect(search).toBe('?registration=registration-1'));
+  });
+
+  it('counts checked queues as distinct forms, never their sum, and writes scope in one step', async () => {
+    let search = '';
+    // Form 1 holds an entry that needs review AND an accepted one with payment due, so it is in
+    // both queues; form 2 only needs review; form 3 only has payment due.
+    const accepted = (
+      index: number,
+      classId: string,
+      registrationId = `registration-${index}`
+    ) => ({
+      ...entry(index, classId),
+      registrationId,
+      entryStatus: EntryStatus.ACCEPTED,
+    });
+    const groups = groupEntriesByShowRegistration([
+      entry(1, 'c1'),
+      accepted(4, 'c1', 'registration-1'),
+      entry(2, 'c2'),
+      accepted(3, 'c2'),
+    ]);
+    const { result } = renderHook(
+      () => {
+        const [searchParams] = useSearchParams();
+        return useEntryManagementCockpit({
+          groups,
+          state: normalizeEntryManagementCockpitParams(searchParams).state,
+        });
+      },
+      {
+        wrapper: wrapper('/?queue=needs-review,payment-due', value => {
+          search = value;
+        }),
+      }
+    );
+
+    expect(result.current.queueCounts['needs-review']).toBe(2);
+    expect(result.current.queueCounts['payment-due']).toBe(2);
+    expect(result.current.queueSelectionCount).toBe(3);
+
+    act(() => result.current.setScope(['t1'], ['c2']));
+    await waitFor(() => expect(result.current.page.total).toBe(2));
+    expect(result.current.queueSelectionCount).toBe(2);
+    expect(new URLSearchParams(search).get('trial')).toBe('t1');
+    expect(new URLSearchParams(search).get('class')).toBe('c2');
+
+    act(() => result.current.setQueues(['payment-due']));
+    await waitFor(() => expect(result.current.state.queues).toEqual(['payment-due']));
   });
 });

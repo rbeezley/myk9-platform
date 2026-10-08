@@ -8,7 +8,6 @@ import {
   writeCockpitScope,
   writeCockpitSearch,
   writeCockpitTab,
-  widenCockpitFilters,
   writeCockpitView,
 } from '../entryManagementCockpitParams';
 
@@ -267,31 +266,5 @@ describe('normalizeEntryManagementCockpitParams', () => {
     ] as const)('%j toggling %s gives %j', (current, queue, expected) => {
       expect(toggleQueueSelection(current, queue)).toEqual(expected);
     });
-  });
-});
-
-describe('widenCockpitFilters', () => {
-  it('widens the queue first, clearing search but keeping trial and class', () => {
-    const next = widenCockpitFilters(params('trial=t&class=c&search=bob'), {
-      queues: ['needs-review'],
-      search: 'bob',
-    });
-    expect(next.toString()).toBe('trial=t&class=c&queue=all');
-  });
-
-  it('clears an active search even when the queue is already all', () => {
-    const next = widenCockpitFilters(params('queue=all&trial=t&class=c&search=bob'), {
-      queues: ['all'],
-      search: 'bob',
-    });
-    expect(next.toString()).toBe('queue=all&trial=t&class=c');
-  });
-
-  it('only once nothing else narrows does it drop the scope', () => {
-    const next = widenCockpitFilters(params('queue=all&trial=t&class=c'), {
-      queues: ['all'],
-      search: '',
-    });
-    expect(next.toString()).toBe('queue=all');
   });
 });

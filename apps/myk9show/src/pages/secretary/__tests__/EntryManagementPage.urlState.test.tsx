@@ -262,4 +262,25 @@ describe('EntryManagementPage URL ownership', () => {
       '?queue=all&trial=trial-1&class=class-1'
     );
   });
+
+  it('Clear all drops the trial, class, search and non-All queue together', async () => {
+    entryDataState.entries = [{ ...testEntry, entryStatus: 'accepted', paymentStatus: 'paid' }];
+
+    const { user } = render(
+      <>
+        <EntryManagementPage />
+        <LocationProbe />
+      </>,
+      {
+        initialRoute:
+          '/shows/show-1/entries?queue=needs-review&trial=trial-1&class=class-1&search=zzz',
+      }
+    );
+
+    await user.click(await screen.findByRole('button', { name: 'Clear all filters' }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('location-search').textContent).toBe('?queue=all')
+    );
+  });
 });

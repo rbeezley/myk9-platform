@@ -299,21 +299,3 @@ export function writeCockpitView(
     viewId as ShowRegistrationQueue,
   ]);
 }
-
-/**
- * The empty-state "Show all forms" step: widen the queue first and clear any
- * search (it overrides queue and scope), keeping the trial/class scope, so a
- * class with no forms awaiting review shows its own forms rather than the whole
- * show. Only once nothing else narrows does it drop the scope.
- */
-export function widenCockpitFilters(
-  source: URLSearchParams,
-  state: Pick<EntryManagementCockpitState, 'queues' | 'search'>
-): URLSearchParams {
-  // An active search overrides queue and scope in `buildShowRegistrationPage`, so
-  // the first step must clear it too or widening the queue changes nothing.
-  if (!state.queues.includes('all') || state.search) {
-    return writeCockpitView(writeCockpitSearch(source, ''), 'all');
-  }
-  return writeCockpitScope(source, [], []);
-}

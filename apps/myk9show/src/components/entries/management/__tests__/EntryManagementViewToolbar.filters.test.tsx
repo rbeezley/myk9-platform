@@ -1,7 +1,7 @@
 /**
  * The Entries toolbar (docs/plan-entries-filter-button.md): a "Show:" menu with checkable queues,
  * a quiet search, one Filter button for Trial and Class, the applied filters as sentences, and a
- * plain status sentence with a "Show all forms" button that resets view, scope and search.
+ * plain status sentence with a "Show all forms" button that widens the view (scope is the page's call).
  */
 import { describe, expect, it, vi } from 'vitest';
 import { mockViewportWidth } from '@/test/utils/mockViewportWidth';
@@ -36,7 +36,7 @@ function renderToolbar(
     setScope: vi.fn(),
     setSearch: vi.fn(),
   };
-  const onClearAll = vi.fn();
+  const onShowAllForms = vi.fn();
   const view = render(
     <EntryManagementViewToolbar
       cockpit={cockpit}
@@ -49,11 +49,12 @@ function renderToolbar(
         classTrialById: new Map([['c1', 't1']]),
         knownClassIds: new Set(['c1']),
       }}
-      onClearAll={onClearAll}
+      onClearAll={vi.fn()}
+      onShowAllForms={onShowAllForms}
       result={result}
     />
   );
-  return { ...view, cockpit, onClearAll };
+  return { ...view, cockpit, onShowAllForms };
 }
 
 /** The result line's live region, not the applied-filter count's. */
@@ -97,14 +98,14 @@ describe('EntryManagementViewToolbar filters', () => {
   });
 
   it('says "Showing X of Y" with a count only, and Show all resets the applied state', async () => {
-    const { user, onClearAll } = renderToolbar(
+    const { user, onShowAllForms } = renderToolbar(
       { queues: ['needs-review'], trialIds: ['t1'] },
       { shown: 3, total: 214 }
     );
 
     expect(resultLine()?.textContent).toBe('Showing 3 of 214 forms.');
     await user.click(screen.getByRole('button', { name: 'Show all forms' }));
-    expect(onClearAll).toHaveBeenCalledOnce();
+    expect(onShowAllForms).toHaveBeenCalledOnce();
   });
 
   it('counts a search as filtered too', () => {

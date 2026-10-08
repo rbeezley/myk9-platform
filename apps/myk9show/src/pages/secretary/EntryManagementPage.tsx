@@ -34,7 +34,9 @@ import type { EntryManagementEntry } from '@/types/entry-management-types';
 import {
   getCockpitNormalizationContext,
   normalizeEntryManagementCockpitParams,
-  widenCockpitFilters,
+  writeCockpitScope,
+  writeCockpitSearch,
+  writeCockpitView,
 } from '@/components/entries/management/entryManagementCockpitParams';
 import { parseListParam } from '@/components/list-toolkit';
 import { groupEntriesByShowRegistration } from '@/components/entries/management/showRegistrationProjection';
@@ -179,7 +181,21 @@ const EntryManagementPage: React.FC = () => {
     useMoveUpRequestsCount(selectedShowId || null);
 
   const handleClearEntryFilters = () => {
-    setSearchParams(previous => widenCockpitFilters(previous, cockpitUrl.state), { replace: true });
+    setSearchParams(
+      previous => {
+        let next = writeCockpitSearch(previous, '');
+        next = writeCockpitScope(next, [], []);
+        return writeCockpitView(next, 'all');
+      },
+      { replace: true }
+    );
+  };
+  // The empty state's "Show all forms": widen the queue and drop the search (which
+  // overrides queue and scope) but keep the trial/class scope the user came in with.
+  const handleShowAllForms = () => {
+    setSearchParams(previous => writeCockpitView(writeCockpitSearch(previous, ''), 'all'), {
+      replace: true,
+    });
   };
 
   const {
@@ -406,6 +422,7 @@ const EntryManagementPage: React.FC = () => {
           trialsLoaded={trialsLoaded}
           classes={trialClassScope}
           onClearAll={handleClearEntryFilters}
+          onShowAllForms={handleShowAllForms}
           actions={entryActions}
           result={
             canValidateFocus

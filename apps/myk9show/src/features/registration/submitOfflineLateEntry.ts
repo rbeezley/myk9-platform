@@ -15,6 +15,7 @@ import {
   replicatedShowsTable,
   type ReplicatedEntry,
 } from '@/services/replication';
+import { rowsOrThrow } from '@/services/database/_shared/readRows';
 import { resolveStartNumber } from '@/utils/armbandUtils';
 import type {
   ClassSelectionData,
@@ -111,6 +112,25 @@ function maxArmbandNumber(armbands: Array<{ armbandNumber: string }>): string | 
   return max > 0 ? String(max) : null;
 }
 
+/**
+ * MYK9-868: where a late entry runs. A class that already has a run order takes
+ * the entry AFTER its last position, so it carries a stored position like every
+ * other dog (the exhibitor's place in line and the judge's list both read
+ * `run_order`; a NULL one fell out of both). A class with no run order yet is
+ * left unset, because a preset or hand placement will order the whole class.
+ * Returns the next position per class, advanced by the caller for each entry.
+ */
+function nextRunOrderByClass(
+  entries: Array<{ classId?: string | undefined; runOrder?: number | undefined }>
+): Map<string, number> {
+  const next = new Map<string, number>();
+  for (const { classId, runOrder } of entries) {
+    if (!classId || !runOrder || runOrder <= 0) continue;
+    next.set(classId, Math.max(next.get(classId) ?? 1, runOrder + 1));
+  }
+  return next;
+}
+
 export async function submitOfflineLateEntry({
   showId,
   classSelections,
@@ -176,11 +196,16 @@ export async function submitOfflineLateEntry({
       classId: selectedClass.classId,
     }))
   );
-  const [cachedShow, showArmbands, capacityOverrides] = await Promise.all([
+  const [cachedShow, showArmbands, capacityOverrides, showEntries] = await Promise.all([
     replicatedShowsTable.getShowById(showId),
     replicatedArmbandsTable.getByShow(showId),
     loadOfflineCapacityOverrides(showId, capacitySelections),
+    rowsOrThrow(
+      replicatedEntriesTable.getByShowWithStatus(showId),
+      "We couldn't read this show's entries on this device. Reload the page and try again."
+    ),
   ]);
+  const nextRunOrder = nextRunOrderByClass(showEntries);
   const startingArmbandNumber = cachedShow?.startingArmbandNumber ?? 100;
   let nextArmband = resolveStartNumber(maxArmbandNumber(showArmbands), startingArmbandNumber);
   const dogReservations = new Map<string, DogReservation>();
@@ -237,6 +262,8 @@ export async function submitOfflineLateEntry({
       const capacityOverride =
         capacityOverrides[makeHandlerKey(selection.dogId, selectedClass.classId)] === true;
       const submittedAt = new Date().toISOString();
+      const runOrder = nextRunOrder.get(selectedClass.classId);
+      if (runOrder !== undefined) nextRunOrder.set(selectedClass.classId, runOrder + 1);
       const entry: ReplicatedEntry = {
         id: generateUUID(),
         dogId: selection.dogId,
@@ -256,6 +283,7 @@ export async function submitOfflineLateEntry({
         entryFee,
         ...(chargeJuniorFee ? { juniorFeeOverrideBy: JUNIOR_FEE_OVERRIDE_REQUEST } : {}),
         armband: reservation.armband,
+        ...(runOrder !== undefined ? { runOrder } : {}),
         jumpHeight: selectedClass.jumpHeight,
         moveUpRequested: selectedClass.moveUpRequested,
         move_up_requested: selectedClass.moveUpRequested,

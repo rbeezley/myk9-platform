@@ -203,6 +203,17 @@ export function EntryManagementCockpit({
   const showQueue = !responsive.compact || !responsive.detailOpen;
   const showDetail = !responsive.compact || responsive.detailOpen;
 
+  // "Back to list" on a narrow screen returns focus to the row it came from, once the URL has
+  // dropped the form and the list has re-rendered. A focus set in the next frame instead sometimes
+  // landed on the row's action just before that re-render replaced it (about 1 in 6 in a browser).
+  const returnFocusToRow = useRef<string | null>(null);
+  useEffect(() => {
+    const key = returnFocusToRow.current;
+    if (!key || !showQueue || cockpit.state.registrationKey !== null) return;
+    returnFocusToRow.current = null;
+    document.getElementById(getEntryRegistrationRowId(key))?.focus();
+  });
+
   return (
     <div ref={ref} className="space-y-4">
       {/* MYK9-635: "All registrations 514" beside a show page saying 517 entries
@@ -289,6 +300,7 @@ export function EntryManagementCockpit({
             allSelected={cockpit.selection.isAllSelected}
             partiallySelected={cockpit.selection.isPartiallySelected}
             onFocus={group => {
+              returnFocusToRow.current = null;
               cockpit.setFocus(group.groupKey);
               dispatchResponsive({ type: 'open-detail' });
             }}
@@ -316,16 +328,13 @@ export function EntryManagementCockpit({
             <EntryFocusedRegistration
               key={cockpit.focusedGroup.groupKey}
               registration={cockpit.focusedGroup}
+              focusHeadingOnMount={responsive.compact}
               {...(responsive.compact
                 ? {
                     onBack: () => {
+                      returnFocusToRow.current = focusedKey;
                       dispatchResponsive({ type: 'close-detail' as const });
                       cockpit.setFocus(null);
-                      requestAnimationFrame(() => {
-                        document
-                          .getElementById(getEntryRegistrationRowId(focusedKey ?? ''))
-                          ?.focus();
-                      });
                     },
                   }
                 : {})}

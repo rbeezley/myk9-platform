@@ -227,6 +227,56 @@ describe('useEntryManagementData', () => {
     expect(mocks.getEntriesForShow).toHaveBeenCalledWith('show-1');
   });
 
+  it('keeps the rows on screen while it reloads the same show, and loads afresh for another', async () => {
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+    act(() => result.current.setSelectedShowId('show-1'));
+    await waitFor(() => expect(result.current.loadedEntriesShowId).toBe('show-1'));
+
+    // Every replica sync reloads the show. Showing the loading state for it unmounted the list.
+    let finishReload: (value: { data: unknown[]; error: null }) => void = () => {};
+    mocks.getEntriesForShow.mockReturnValueOnce(
+      new Promise(resolve => {
+        finishReload = resolve;
+      })
+    );
+    let reload: Promise<void> = Promise.resolve();
+    act(() => {
+      reload = result.current.loadEntries('show-1');
+    });
+    expect(result.current.isLoading).toBe(false);
+    await act(async () => {
+      finishReload({ data: [], error: null });
+      await reload;
+    });
+
+    // A different show has nothing of its own on screen yet, so it does show the loading state.
+    mocks.getEntriesForShow.mockReturnValueOnce(new Promise(() => {}));
+    act(() => {
+      void result.current.loadEntries('show-2');
+    });
+    expect(result.current.isLoading).toBe(true);
+  });
+
+  it('shows the loading state again for a retry after a failed reload', async () => {
+    const { result } = renderHook(() => useEntryManagementData());
+    await waitFor(() => expect(result.current.isLoadingShows).toBe(false));
+    act(() => result.current.setSelectedShowId('show-1'));
+    await waitFor(() => expect(result.current.loadedEntriesShowId).toBe('show-1'));
+
+    mocks.getEntriesForShow.mockResolvedValueOnce({ data: null, error: new Error('read failed') });
+    await act(async () => {
+      await result.current.loadEntries('show-1');
+    });
+    expect(result.current.loadError).not.toBeNull();
+
+    mocks.getEntriesForShow.mockReturnValueOnce(new Promise(() => {}));
+    act(() => {
+      void result.current.loadEntries('show-1');
+    });
+    expect(result.current.isLoading).toBe(true);
+  });
+
   it('marks an empty load authoritative after entry replication has succeeded', async () => {
     const { result } = renderHook(() => useEntryManagementData());
     await waitFor(() => expect(result.current.isLoadingShows).toBe(false));

@@ -94,12 +94,14 @@ vi.mock('@/components/entries/management/EntryManagementCockpit', () => ({
     cockpit,
   }: {
     cockpit: {
+      page: { total: number };
       state: { registrationKey: string | null };
       focusedGroup: { entries: { id: string }[] } | null;
     };
   }) => (
     <>
       <output data-testid="focused-registration">{cockpit.state.registrationKey ?? 'none'}</output>
+      <output data-testid="form-total">{cockpit.page.total}</output>
       <output data-testid="visible-entry">{cockpit.focusedGroup?.entries[0]?.id ?? 'none'}</output>
     </>
   ),
@@ -238,6 +240,26 @@ describe('EntryManagementPage URL ownership', () => {
       expect(screen.getByTestId('location-search').textContent).toBe(
         '?queue=all&trial=trial-1&class=class-1'
       )
+    );
+  });
+
+  it('Show all forms clears a search that hid the class forms, keeping the scope', async () => {
+    entryDataState.entries = [{ ...testEntry, entryStatus: 'accepted', paymentStatus: 'paid' }];
+
+    const { user } = render(
+      <>
+        <EntryManagementPage />
+        <LocationProbe />
+      </>,
+      { initialRoute: '/shows/show-1/entries?trial=trial-1&class=class-1&search=zzz' }
+    );
+
+    await waitFor(() => expect(screen.getByTestId('form-total')).toHaveTextContent('0'));
+    await user.click(await screen.findByRole('button', { name: 'Show all forms' }));
+
+    await waitFor(() => expect(screen.getByTestId('form-total')).toHaveTextContent('1'));
+    expect(screen.getByTestId('location-search').textContent).toBe(
+      '?queue=all&trial=trial-1&class=class-1'
     );
   });
 });

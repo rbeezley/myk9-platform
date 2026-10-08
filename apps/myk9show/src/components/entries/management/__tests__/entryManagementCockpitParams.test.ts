@@ -190,16 +190,26 @@ describe('normalizeEntryManagementCockpitParams', () => {
 });
 
 describe('widenCockpitFilters', () => {
-  it('widens the queue first and keeps trial, class and search', () => {
+  it('widens the queue first, clearing search but keeping trial and class', () => {
     const next = widenCockpitFilters(params('trial=t&class=c&search=bob'), {
       queue: 'needs-review',
+      search: 'bob',
     });
-    expect(next.toString()).toBe('trial=t&class=c&search=bob&queue=all');
+    expect(next.toString()).toBe('trial=t&class=c&queue=all');
   });
 
-  it('only once the queue is all does it drop the scope and search', () => {
+  it('clears an active search even when the queue is already all', () => {
     const next = widenCockpitFilters(params('queue=all&trial=t&class=c&search=bob'), {
       queue: 'all',
+      search: 'bob',
+    });
+    expect(next.toString()).toBe('queue=all&trial=t&class=c');
+  });
+
+  it('only once nothing else narrows does it drop the scope', () => {
+    const next = widenCockpitFilters(params('queue=all&trial=t&class=c'), {
+      queue: 'all',
+      search: '',
     });
     expect(next.toString()).toBe('queue=all');
   });

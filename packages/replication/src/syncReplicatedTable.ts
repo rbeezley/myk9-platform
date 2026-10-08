@@ -21,6 +21,9 @@ export type {
  *  unforeseen path slips past the server-authoritative watermark. */
 const DEFAULT_FULL_SYNC_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
+/** Tables whose stuck-pending repair has run in this page session. */
+const repairedTables = new WeakSet<object>();
+
 export interface SyncReplicatedTableOptions extends Partial<SyncOptions> {
   uploadPendingMutations?: () => Promise<unknown>;
   incrementalBufferMs?: number;
@@ -81,6 +84,17 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
     // partial updateSyncMetadata does not preserve scope coverage metadata, so
     // reading after the status write would lose the prior counts needed to
     // detect an unexpected replica recovery.
+    // MYK9-1055: once per table instance, before the cursor is read, heal rows a
+    // pre-MYK9-1050 build left clean but flagged 'pending'. It resets the cursors
+    // when it repairs anything, so the read below sees the full re-sync request.
+    if (!repairedTables.has(table)) {
+      try {
+        await table.repairStuckPendingFlags();
+        repairedTables.add(table);
+      } catch {
+        // Best effort: a failed repair must not wedge sync; the next pass retries.
+      }
+    }
     const metadata = await table.getSyncMetadata(scope.value);
 
     await table.updateSyncMetadata({ syncStatus: 'syncing', errorMessage: undefined });

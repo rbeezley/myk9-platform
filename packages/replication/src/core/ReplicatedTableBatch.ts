@@ -22,6 +22,10 @@ import { isOlderThanRow } from './ReplicatedTableRowState';
 import { MAX_CHUNK_SIZE } from '../constants';
 import { withQuotaEviction } from '../quota-eviction';
 import { deleteRowsIfClean, type DeleteRowsIfCleanResult } from './deleteRowsIfClean';
+import {
+  repairStuckPendingFlags,
+  type RepairStuckPendingFlagsResult,
+} from './repairStuckPendingFlags';
 
 /**
  * Batch operations manager for a replicated table
@@ -295,6 +299,22 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
     const result = await deleteRowsIfClean(db, this.tableName, ids, remoteVersions);
     if (result.deleted.length > 0) {
       this.logger.log(`[${this.tableName}] Deleted ${result.deleted.length} clean rows`);
+      this.notifyListeners();
+    }
+    return result;
+  }
+
+  /**
+   * Normalize clean rows stuck at `data._syncStatus === 'pending'` and reset the
+   * table's incremental cursors when any were (MYK9-1055; see repairStuckPendingFlags).
+   */
+  async repairStuckPendingFlags(): Promise<RepairStuckPendingFlagsResult> {
+    const db = await this.getDb();
+    const result = await repairStuckPendingFlags(db, this.tableName);
+    if (result.repaired.length > 0) {
+      this.logger.log(
+        `[${this.tableName}] Repaired ${result.repaired.length} rows stuck pending; full re-sync queued`
+      );
       this.notifyListeners();
     }
     return result;

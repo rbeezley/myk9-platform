@@ -1110,6 +1110,11 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     return this.batchManager.deleteRowsIfClean(ids, remoteVersions);
   }
 
+  /** One-time repair for rows stuck at a `'pending'` data flag (MYK9-1055). */
+  async repairStuckPendingFlags(): Promise<{ repaired: string[]; kept: string[] }> {
+    return this.batchManager.repairStuckPendingFlags();
+  }
+
   async clearCache(): Promise<void> {
     await this.batchManager.clearCache();
 

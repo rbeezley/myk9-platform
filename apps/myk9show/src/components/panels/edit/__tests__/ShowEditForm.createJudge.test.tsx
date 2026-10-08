@@ -128,7 +128,20 @@ describe('unlisted assigned judges', () => {
     renderPanel('AKC');
     expect(screen.getByText('Casey Class')).toBeInTheDocument();
     expect(screen.queryByRole('checkbox', { name: /casey class/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/assigned through a class only/i)).toBeInTheDocument();
+    expect(screen.getByText(/still assigned to a class/i)).toBeInTheDocument();
+  });
+
+  it('gives a judge with show-level and class rows no checkbox either', () => {
+    roster.current = [
+      {
+        judgeId: 'mixed',
+        judgeName: 'Morgan Mixed',
+        hasShowLevelAssignment: true,
+        assignedClasses: ['class-1'],
+      } as never,
+    ];
+    renderPanel('AKC');
+    expect(screen.queryByRole('checkbox', { name: /morgan mixed/i })).not.toBeInTheDocument();
   });
 
   it('keeps a removal checkbox for a show-level judge', () => {

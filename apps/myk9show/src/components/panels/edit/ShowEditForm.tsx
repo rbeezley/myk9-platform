@@ -333,7 +333,10 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
                     })}
 
                     {unlistedAssignedJudges.map(aj => {
-                      const removable = aj.hasShowLevelAssignment !== false;
+                      // Unchecking removes only show-level rows. Offer it only when no class
+                      // row would survive the save and reappear on reload.
+                      const removable =
+                        aj.hasShowLevelAssignment === true && !aj.assignedClasses?.length;
                       return (
                         <div
                           key={aj.judgeId}
@@ -366,7 +369,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
                                 {data.organization} qualification to this judge
                                 {removable
                                   ? ', or uncheck to remove them from this show.'
-                                  : '. They are assigned through a class only, so change that class’s judge to remove them.'}
+                                  : '. They are still assigned to a class, so change that class’s judge to remove them.'}
                               </div>
                               {canOpenPeople && (
                                 <Link

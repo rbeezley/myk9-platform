@@ -19,6 +19,7 @@ import type { ShowDeskActionableTone } from './showDeskActionable';
 import type { BuildShowMapTreeInput } from './showMapTypes';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 import { ShowHomeSetupLinks } from './ShowHomeSetupLinks';
+import { ShowHomePaperScores } from './ShowHomePaperScores';
 import { getTrialRegistry } from '@/features/registries';
 
 interface ShowDeskPanelProps extends BuildShowMapTreeInput {
@@ -167,6 +168,7 @@ export default function ShowDeskPanel({
           tools && tools.length > 0 ? (
             <div className="flex flex-wrap items-center gap-2">
               {canManageShow && <ShowHomeSetupLinks showId={show.id} />}
+              {canManageShow && <ShowHomePaperScores classes={classes} />}
               <ShowDeskToolsSheet
                 showId={show.id}
                 tools={tools}

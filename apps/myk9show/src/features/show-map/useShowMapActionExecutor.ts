@@ -116,6 +116,9 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
   });
 
   const mutation = useMutation({
+    // Replicated write (IndexedDB + queue): the app client's mutation default 'online' would
+    // pause it BEFORE the function runs while offline and a reload would lose it.
+    networkMode: 'always',
     mutationFn: async ({ action, execution }: MutationInput) => {
       if (
         execution.mutation === 'mark-class-started' ||
@@ -255,6 +258,9 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
   });
 
   const undoScratchMutation = useMutation({
+    // Replicated write (IndexedDB + queue): the app client's mutation default 'online' would
+    // pause it BEFORE the function runs while offline and a reload would lose it.
+    networkMode: 'always',
     mutationFn: async (input: ShowMapScratchUndoMutationInput) => undoShowMapScratch(input),
     onSuccess: () => {
       toast.success('Pull undone');
@@ -268,6 +274,9 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
   });
 
   const scratchMutation = useMutation({
+    // Replicated write (IndexedDB + queue): the app client's mutation default 'online' would
+    // pause it BEFORE the function runs while offline and a reload would lose it.
+    networkMode: 'always',
     mutationFn: async ({
       action,
       reason,

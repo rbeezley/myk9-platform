@@ -103,6 +103,7 @@ export default function ShowDeskPanel({
   const { byClassId: paperworkByClassId } = useShowClassPaperwork({
     showId: show.id,
     trials: trialRefs,
+    classes,
     entries,
     returnTo,
   });

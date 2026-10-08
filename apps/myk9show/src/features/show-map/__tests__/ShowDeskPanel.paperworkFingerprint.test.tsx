@@ -8,11 +8,12 @@
  * These tests use the real descriptor builders on both sides.
  */
 import { createDatabaseError } from '@/services/database/databaseError';
-import { screen, waitFor } from '@testing-library/react';
+import { act, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fromAny } from '@total-typescript/shoehorn';
 
-import { render } from '@/test/utils/testUtils';
+import { createTestQueryClient, render } from '@/test/utils/testUtils';
+import { queryKeys } from '@/lib/queryClient';
 import type { SyncableTrial } from '@/store/trial-store-types';
 import type { Show } from '@/types/show-types';
 import type { DbClass, DbEntry } from '@/types/database-mappings';
@@ -26,6 +27,7 @@ const mocks = vi.hoisted(() => ({
   getClassesByTrialId: vi.fn(),
   getByShow: vi.fn(),
   confirmPrinted: vi.fn(),
+  classListeners: new Set<() => void>(),
 }));
 
 vi.mock('@/services/database/supabaseClient', () => ({
@@ -44,7 +46,13 @@ vi.mock('@/features/show-live-sync/showChangeSignal', () => ({
   subscribeToShowChanges: vi.fn(() => () => undefined),
 }));
 vi.mock('@/services/replication', () => ({
-  replicatedClassesTable: { updateClass: vi.fn() },
+  replicatedClassesTable: {
+    updateClass: vi.fn(),
+    subscribe: vi.fn((listener: () => void) => {
+      mocks.classListeners.add(listener);
+      return () => mocks.classListeners.delete(listener);
+    }),
+  },
   replicatedPaperworkPrintsTable: {
     subscribe: vi.fn(() => () => undefined),
     sync: vi.fn(async () => ({ success: true })),
@@ -153,7 +161,7 @@ function reportsDescriptor() {
   return descriptor!;
 }
 
-function renderOverview() {
+function renderOverview(queryClient = createTestQueryClient()) {
   return render(
     <ShowDeskPanel
       show={show}
@@ -163,8 +171,30 @@ function renderOverview() {
       canManageShow
       scopeNow={new Date('2026-06-12T15:00:00.000Z')}
     />,
-    { initialRoute: '/shows/show-1/show-day?focus=class-1' }
+    { initialRoute: '/shows/show-1/show-day?focus=class-1', queryClient }
   );
+}
+
+function printRecordFor(rows: DbClass[]): ReplicatedPaperworkPrint {
+  const descriptor = buildReportPaperworkDescriptor({
+    reportId: 'scoresheet',
+    scope,
+    classes: rows,
+    entries,
+  })!;
+  return {
+    id: 'print-1',
+    showId: 'show-1',
+    trialId: 'trial-1',
+    classId: 'class-1',
+    scopeKind: 'class',
+    reportId: 'scoresheet',
+    coverage: descriptor.coverage,
+    fingerprint: descriptor.fingerprint,
+    printedBy: 'user-1',
+    printedByName: 'Jannie',
+    printedAt: '2026-06-12T14:00:00.000Z',
+  } as ReplicatedPaperworkPrint;
 }
 
 describe('Overview and Reports agree on what has been printed', () => {
@@ -240,5 +270,65 @@ describe('Overview and Reports agree on what has been printed', () => {
     expect(derivePaperworkPrintState([printedFromOverview], reportsDescriptor()).state).toBe(
       'current'
     );
+  });
+});
+
+describe('Overview paperwork follows the replicated class rows and never claims on a failed read', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mocks.classListeners.clear();
+    mocks.getClassesByTrialId.mockResolvedValue({ data: reportsClassRows, error: null });
+    mocks.getByShow.mockResolvedValue([printRecordFor(reportsClassRows)]);
+  });
+
+  it('reads a print as stale, without a reload, when the replicated class changes after it', async () => {
+    renderOverview();
+    await waitFor(() =>
+      expect(screen.getAllByText(/Printed .* by Jannie/).length).toBeGreaterThan(0)
+    );
+    expect(screen.queryByText(/Class data changed after printing/)).not.toBeInTheDocument();
+
+    const changed = [{ ...reportsClassRows[0]!, time_limit_seconds: 240 }] as unknown as DbClass[];
+    mocks.getClassesByTrialId.mockResolvedValue({ data: changed, error: null });
+    expect(mocks.classListeners.size).toBeGreaterThan(0);
+    act(() => mocks.classListeners.forEach(listener => listener()));
+
+    expect(
+      (await screen.findAllByText(/Class data changed after printing/)).length
+    ).toBeGreaterThan(0);
+  });
+
+  it('stops claiming current and stops recording when a refetch fails over cached rows', async () => {
+    const queryClient = createTestQueryClient();
+    renderOverview(queryClient);
+    await waitFor(() =>
+      expect(screen.getAllByText(/Printed .* by Jannie/).length).toBeGreaterThan(0)
+    );
+
+    mocks.getClassesByTrialId.mockResolvedValue({ data: null, error: new Error('read failed') });
+    await act(() => queryClient.invalidateQueries({ queryKey: queryKeys.showClasses('show-1') }));
+
+    await waitFor(() =>
+      expect(screen.getAllByText('Print history unavailable').length).toBeGreaterThan(0)
+    );
+    expect(screen.queryByText(/Printed .* by Jannie/)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Record as printed' })).not.toBeInTheDocument();
+    expect(screen.getAllByText('Print anyway').length).toBeGreaterThan(0);
+  });
+
+  it('keeps Print available while the class rows are still loading', async () => {
+    mocks.getClassesByTrialId.mockReturnValue(new Promise(() => undefined));
+    renderOverview();
+
+    expect((await screen.findAllByText('Print anyway')).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: 'Record as printed' })).not.toBeInTheDocument();
+  });
+
+  it('keeps Print available when the class rows never loaded', async () => {
+    mocks.getClassesByTrialId.mockResolvedValue({ data: null, error: new Error('read failed') });
+    renderOverview();
+
+    expect((await screen.findAllByText('Print anyway')).length).toBeGreaterThan(0);
+    expect(screen.queryByRole('button', { name: 'Record as printed' })).not.toBeInTheDocument();
   });
 });

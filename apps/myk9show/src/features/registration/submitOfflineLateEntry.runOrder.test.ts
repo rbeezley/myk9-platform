@@ -10,6 +10,7 @@ import { submitOfflineLateEntry } from './submitOfflineLateEntry';
 const mocks = vi.hoisted(() => ({
   createEntry: vi.fn(),
   existingEntries: [] as Array<Record<string, unknown>>,
+  refreshedEntries: null as Array<Record<string, unknown>> | null,
   classRows: [
     { id: 'class-1', trialId: 'trial-1', maxEntries: 20 },
     { id: 'class-2', trialId: 'trial-1', maxEntries: 20 },
@@ -20,6 +21,15 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
   replicatedEntriesTable: {
     getSyncMetadata: async () => ({ tableName: 'entries', totalRows: 1 }),
+  },
+}));
+
+// The sync guard the capacity check runs first: on a cold or partial cache it
+// fills the replica, so a snapshot taken before it is incomplete.
+vi.mock('@/services/database/entries/requireShowEntriesSynced', () => ({
+  requireShowEntriesSynced: async () => {
+    await new Promise(resolve => setTimeout(resolve, 0));
+    if (mocks.refreshedEntries) mocks.existingEntries = mocks.refreshedEntries;
   },
 }));
 
@@ -107,6 +117,7 @@ function createdRows(): ReplicatedEntry[] {
 describe('submitOfflineLateEntry run order', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mocks.refreshedEntries = null;
     mocks.createEntry.mockImplementation(entry => Promise.resolve(entry));
     mocks.existingEntries = [
       existing('e-1', 'class-1', '101', 1),
@@ -150,5 +161,17 @@ describe('submitOfflineLateEntry run order', () => {
     const [created] = createdRows();
     expect(created?.runOrder).toBeUndefined();
     expect(created && entryToSupabaseRow(created).run_order).toBeNull();
+  });
+
+  it('allocates from the entries the sync guard refreshed, not a stale snapshot', async () => {
+    mocks.existingEntries = [existing('e-1', 'class-1', '101', 1)];
+    mocks.refreshedEntries = [
+      existing('e-1', 'class-1', '101', 1),
+      existing('e-2', 'class-1', '102', 2),
+      existing('e-3', 'class-1', '103', 3),
+    ];
+    await submitOfflineLateEntry(lateEntry([{ dogId: 'dog-1', classId: 'class-1' }]));
+
+    expect(createdRows().map(row => row.runOrder)).toEqual([4]);
   });
 });

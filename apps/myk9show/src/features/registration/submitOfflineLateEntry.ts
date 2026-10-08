@@ -196,15 +196,18 @@ export async function submitOfflineLateEntry({
       classId: selectedClass.classId,
     }))
   );
-  const [cachedShow, showArmbands, capacityOverrides, showEntries] = await Promise.all([
+  const [cachedShow, showArmbands, capacityOverrides] = await Promise.all([
     replicatedShowsTable.getShowById(showId),
     replicatedArmbandsTable.getByShow(showId),
     loadOfflineCapacityOverrides(showId, capacitySelections),
-    rowsOrThrow(
-      replicatedEntriesTable.getByShowWithStatus(showId),
-      "We couldn't read this show's entries on this device. Reload the page and try again."
-    ),
   ]);
+  // Read AFTER the capacity check: it runs the show-entries sync guard, which
+  // fills a cold or partial replica. A snapshot taken alongside it could miss
+  // the rows that hold the last run order and hand out an occupied position.
+  const showEntries = await rowsOrThrow(
+    replicatedEntriesTable.getByShowWithStatus(showId),
+    "We couldn't read this show's entries on this device. Reload the page and try again."
+  );
   const nextRunOrder = nextRunOrderByClass(showEntries);
   const startingArmbandNumber = cachedShow?.startingArmbandNumber ?? 100;
   let nextArmband = resolveStartNumber(maxArmbandNumber(showArmbands), startingArmbandNumber);

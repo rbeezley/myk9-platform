@@ -1,5 +1,7 @@
 import {
+  Activity,
   Building2,
+  Camera,
   CalendarPlus,
   ClipboardList,
   Download,
@@ -8,6 +10,9 @@ import {
   ListPlus,
   PawPrint,
   Pencil,
+  Send,
+  ShieldCheck,
+  ShieldOff,
   Ticket,
   UserPlus,
   Users,
@@ -32,4 +37,9 @@ export const ACTION_ICONS: Readonly<Record<ActionIconName, LucideIcon>> = {
   'add-dog': PawPrint,
   'add-person': UserPlus,
   'add-club': Building2,
+  photo: Camera,
+  status: Activity,
+  send: Send,
+  authorize: ShieldCheck,
+  revoke: ShieldOff,
 };

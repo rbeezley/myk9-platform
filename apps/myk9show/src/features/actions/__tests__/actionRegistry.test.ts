@@ -425,3 +425,64 @@ describe('Delete never lives in the Actions menu (CRUD standard decision 3)', ()
     }
   });
 });
+
+describe("resolveActions — a page's other actions (CRUD standard decision 6)", () => {
+  const GLOBAL = { kind: 'global' } as const;
+
+  it('lists them after Edit, in the page section, as commands', () => {
+    const actions = inGroup(
+      resolveActions(GLOBAL, {
+        ...exhibitor,
+        pageObject: {
+          kind: 'person',
+          extras: [
+            { id: 'photo', label: 'Change Photo', icon: 'photo' },
+            { id: 'status', label: 'Suspend account', icon: 'status' },
+          ],
+        },
+      }),
+      'page'
+    );
+    expect(actions.map(a => [a.id, a.label, a.command, a.icon])).toEqual([
+      ['person-edit', 'Edit person', 'edit-object', 'edit'],
+      ['person-photo', 'Change Photo', 'page-extra', 'photo'],
+      ['person-status', 'Suspend account', 'page-extra', 'status'],
+    ]);
+  });
+
+  it('keeps an unavailable one, greyed with its reason', () => {
+    const [, status] = resolveActions(GLOBAL, {
+      ...exhibitor,
+      pageObject: {
+        kind: 'person',
+        extras: [
+          {
+            id: 'status',
+            label: 'Suspend account',
+            icon: 'status',
+            disabledReason: 'You cannot suspend your own account',
+          },
+        ],
+      },
+    });
+    expect(status).toMatchObject({
+      id: 'person-status',
+      disabledReason: 'You cannot suspend your own account',
+    });
+  });
+
+  it('offers the others without Edit when this viewer may not edit', () => {
+    const actions = inGroup(
+      resolveActions(GLOBAL, {
+        ...exhibitor,
+        pageObject: {
+          kind: 'club',
+          canEdit: false,
+          extras: [{ id: 'authorize', label: 'Authorize Club', icon: 'authorize' }],
+        },
+      }),
+      'page'
+    );
+    expect(actions.map(a => a.id)).toEqual(['club-authorize']);
+  });
+});

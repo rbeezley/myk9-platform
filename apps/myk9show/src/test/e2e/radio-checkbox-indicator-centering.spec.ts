@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { signInAsAdmin } from './helpers/testUsers';
+import { chooseAction } from './helpers/actionsMenu';
 
 /**
  * Base UI's Radio.Root and Checkbox.Root render a <span>, which is display:inline.
@@ -179,11 +180,8 @@ test.describe('radio and checkbox indicator centering', () => {
     await signInAsAdmin(page);
     await openFirstDog(page);
 
-    await page.getByRole('button', { name: 'More actions' }).first().click();
-    await page
-      .getByRole('menuitem', { name: /status/i })
-      .first()
-      .click();
+    // Change status is in the header Actions menu (CRUD standard decision 6).
+    await chooseAction(page, 'Change status');
 
     const dialog = page.getByRole('dialog');
     await expect(dialog).toBeVisible({ timeout: 15_000 });

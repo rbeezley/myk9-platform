@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { create } from 'zustand';
-import type { EditableObjectKind } from './actionRegistry';
+import type { EditableObjectKind, PageExtraItem } from './actionRegistry';
 
 /**
  * What the detail page on screen has told the header Actions menu (MYK9-928).
@@ -11,14 +11,23 @@ import type { EditableObjectKind } from './actionRegistry';
  * button it replaced can never disagree, and the header pays for no per-object
  * reads on every other page.
  */
+/** A page's extra action with the callback that performs it. */
+export interface PageExtraAction extends PageExtraItem {
+  run: () => void;
+}
+
 export interface PageEditTarget {
   kind: EditableObjectKind;
+  /** Whether Edit is offered; the page may register only extras (see `PageObject.canEdit`). */
+  canEdit: boolean;
   /** Opens the object's Edit panel. */
   run: () => void;
   /** Trial pages only: where "Add classes" goes for this viewer. */
   addClassesHref?: string | undefined;
   /** The object's display name, which heads its section of the menu ("Richard Beezley"). */
   title?: string | undefined;
+  /** The page's other actions on its object, each already gated for this viewer. */
+  extras: PageExtraAction[];
 }
 
 /** A whole-list "Export CSV" a list page offers the header Actions menu (MYK9-929). */
@@ -60,14 +69,21 @@ export const usePageEditTargetStore = create<PageEditTargetState>(set => ({
 export interface PageEditActionOptions {
   kind: EditableObjectKind;
   /**
-   * The page's own "may this viewer edit this object" gate. False registers
-   * nothing, so the menu item is absent rather than greyed.
+   * The page's own "may this viewer edit this object" gate. False leaves Edit out, so the
+   * item is absent rather than greyed; the page's extras still register.
    */
   enabled: boolean;
   run: () => void;
   addClassesHref?: string | undefined;
   /** The object's display name, for its menu section heading. Absent while it loads. */
   title?: string | undefined;
+  /**
+   * The page's other actions on its object (Change Photo, Suspend account...), each ALREADY
+   * gated: list only what this viewer may do, as the hero ⋮ they replace did. A new array
+   * every render is fine; the registration changes only when an item's id, label, icon or
+   * reason does, and each `run` always calls the latest callback.
+   */
+  extras?: readonly PageExtraAction[] | undefined;
 }
 
 /**
@@ -81,23 +97,40 @@ export function usePageEditAction({
   run,
   addClassesHref,
   title,
+  extras,
 }: PageEditActionOptions): void {
   const runRef = useRef(run);
+  const extrasRef = useRef(extras);
   useEffect(() => {
     runRef.current = run;
+    extrasRef.current = extras;
   });
 
+  // What the menu shows, without the callbacks: the registration's identity.
+  const extrasKey = JSON.stringify(
+    (extras ?? []).map(({ id, label, icon, disabledReason }) => [id, label, icon, disabledReason])
+  );
+
   useEffect(() => {
-    if (!enabled) return;
+    const items = JSON.parse(extrasKey) as [string, string, PageExtraItem['icon'], string?][];
+    if (!enabled && items.length === 0) return;
     const owner = Symbol(kind);
     usePageEditTargetStore.getState().register(owner, {
       kind,
+      canEdit: enabled,
       run: () => runRef.current(),
       addClassesHref,
       title,
+      extras: items.map(([id, label, icon, disabledReason]) => ({
+        id,
+        label,
+        icon,
+        ...(disabledReason ? { disabledReason } : {}),
+        run: () => extrasRef.current?.find(extra => extra.id === id)?.run(),
+      })),
     });
     return () => usePageEditTargetStore.getState().clear(owner);
-  }, [kind, enabled, addClassesHref, title]);
+  }, [kind, enabled, addClassesHref, title, extrasKey]);
 }
 
 /**

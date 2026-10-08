@@ -28,7 +28,7 @@ import { CREATE_HREFS, type CreateGates } from './createGates';
  * React state the pure resolver has no access to. `useCurrentActions` binds
  * each one to a real callback; nothing else may invent a command.
  */
-export type ActionCommand = 'publish-premium' | 'edit-object' | 'page-export';
+export type ActionCommand = 'publish-premium' | 'edit-object' | 'page-export' | 'page-extra';
 
 /**
  * The objects whose DETAIL page owns an Edit panel (the show's own Edit is a
@@ -61,15 +61,42 @@ export type ActionIconName =
   | 'add-show'
   | 'add-dog'
   | 'add-person'
-  | 'add-club';
+  | 'add-club'
+  | 'photo'
+  | 'status'
+  | 'send'
+  | 'authorize'
+  | 'revoke';
+
+/**
+ * One more thing a detail page lets this viewer do to its object, beyond Edit: Change Photo,
+ * Suspend account, Authorize Club. These lived in a ⋮ on the page's hero card until CRUD
+ * standard decision 6 gave every page action one home. The page owns the gate (it registers
+ * only what this viewer may do) and the callback; the registry only places it.
+ */
+export interface PageExtraItem {
+  /** Unique on the page ('photo', 'status'); the action id is `<kind>-<id>`. */
+  id: string;
+  label: string;
+  icon: ActionIconName;
+  /** Belongs here but is unavailable right now, with the one-line reason. */
+  disabledReason?: string | undefined;
+}
 
 export interface PageObject {
   kind: EditableObjectKind;
+  /**
+   * Whether this viewer may edit the object. False keeps the page's other items (a person
+   * the viewer may suspend but not edit) without offering an Edit that would be refused.
+   */
+  canEdit?: boolean | undefined;
   /**
    * Where "Add classes" goes, for a trial page whose viewer may add them. Absent
    * means no such action is offered (read-only viewer, or no show to open it on).
    */
   addClassesHref?: string | undefined;
+  /** The page's other actions on its object, in the order they should appear. */
+  extras?: readonly PageExtraItem[] | undefined;
 }
 
 export interface AppAction {
@@ -371,15 +398,16 @@ function buildCreateActions(viewer: ActionViewer): AppAction[] {
 function buildPageObjectActions(pageObject: PageObject | null | undefined): AppAction[] {
   if (!pageObject) return [];
   const { kind } = pageObject;
-  const actions: AppAction[] = [
-    {
+  const actions: AppAction[] = [];
+  if (pageObject.canEdit !== false) {
+    actions.push({
       id: `${kind}-edit`,
       label: `Edit ${kind}`,
       command: 'edit-object',
       group: 'page',
       icon: 'edit',
-    },
-  ];
+    });
+  }
   if (kind === 'trial' && pageObject.addClassesHref) {
     actions.push({
       id: 'trial-add-classes',
@@ -387,6 +415,16 @@ function buildPageObjectActions(pageObject: PageObject | null | undefined): AppA
       href: pageObject.addClassesHref,
       group: 'page',
       icon: 'add-classes',
+    });
+  }
+  for (const extra of pageObject.extras ?? []) {
+    actions.push({
+      id: `${kind}-${extra.id}`,
+      label: extra.label,
+      command: 'page-extra',
+      group: 'page',
+      icon: extra.icon,
+      ...(extra.disabledReason ? { disabledReason: extra.disabledReason } : {}),
     });
   }
   return actions;

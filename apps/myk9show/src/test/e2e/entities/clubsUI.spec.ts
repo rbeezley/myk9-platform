@@ -340,10 +340,8 @@ test.describe('Clubs UI — Non-admin permissions', () => {
     await page.waitForURL(/\/clubs\/[0-9a-f-]{36}$/);
     // An exhibitor has no page action at all, so the header Actions menu is absent (MYK9-928).
     await expect(actionsTrigger(page)).toHaveCount(0);
-
-    await page.getByRole('button', { name: 'Club options' }).click();
-    await expect(page.getByRole('menuitem', { name: /Change Photo/i })).not.toBeVisible();
-    await expect(page.getByRole('menuitem', { name: /Delete Club/i })).not.toBeVisible();
+    // Nor any ⋮ on the card: Change Photo and Authorize live in that header menu.
+    await expect(page.getByRole('button', { name: 'Club options' })).toHaveCount(0);
   });
 });
 

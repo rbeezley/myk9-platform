@@ -17,6 +17,7 @@ import { BrandingTab } from './BrandingTab';
 import { ClubDialogs } from './ClubDialogs';
 import { ClubShowsUnsettled } from './ClubShowsUnsettled';
 import { useClubDetailsState } from './useClubDetailsState';
+import { RevokeClubAuthorizationDialog } from './RevokeClubAuthorizationDialog';
 
 export type { ClubDetailsProps };
 
@@ -106,10 +107,12 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
           canEditBranding={state.canEditBranding}
           canAuthorizeClub={state.canAuthorizeClub}
           isClubAuthorized={state.isClubAuthorized}
-          isAuthorizationLoading={state.isAuthorizationLoading}
-          isAuthorizationUpdating={state.isAuthorizationUpdating}
-          onAuthorizeClub={state.handleAuthorizeClub}
-          onRevokeAuthorization={state.handleRevokeAuthorization}
+        />
+        <RevokeClubAuthorizationDialog
+          open={state.showRevokeConfirm}
+          onOpenChange={state.setShowRevokeConfirm}
+          clubName={selectedClub.name}
+          onConfirm={state.handleRevokeAuthorization}
         />
 
         {!state.canEditClub && (

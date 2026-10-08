@@ -18,6 +18,7 @@ import { canOpenCreateShowWizard } from '@/routes/createShowWizardAccess';
 import { useClubAuthorizationControl } from './useClubAuthorizationControl';
 import { clubShowsStat, useClubShows } from './useClubShows';
 import type { ClubTab, StatCard } from './types';
+import { buildClubPageActions } from './clubPageActions';
 
 /** Maximum photo file size in bytes (5 MB) */
 const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024;
@@ -148,13 +149,24 @@ export function useClubDetailsState(selectedClub: Club | null) {
     setShowEditPanel(true);
   }, []);
 
-  // Edit club is the first item of the header Actions menu (MYK9-928), behind the
-  // clubs_update gate the ghost Edit button on the club header carried.
+  // Every action on this club lives in the header Actions menu (MYK9-928; CRUD standard
+  // decision 6). Edit sits behind the clubs_update gate the ghost Edit button carried; the
+  // rest keep the gates of the hero ⋮ they replace (`buildClubPageActions`).
+  const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
   usePageEditAction({
     kind: 'club',
     enabled: canEditClub && Boolean(selectedClub),
     run: handleEditClub,
     title: selectedClub?.name,
+    extras: selectedClub
+      ? buildClubPageActions({
+          ...authorizationControl,
+          canEditBranding,
+          onEditPhoto: () => setShowPhotoDialog(true),
+          onAuthorize: authorizationControl.handleAuthorizeClub,
+          onRequestRevoke: () => setShowRevokeConfirm(true),
+        })
+      : [],
   });
 
   // The shared delete dialog (features/delete) soft-deletes the club through
@@ -391,6 +403,8 @@ export function useClubDetailsState(selectedClub: Club | null) {
     canDeleteClub,
     canAddShow,
     ...authorizationControl, // MYK9-572: authorize/revoke control (site-admin only)
+    showRevokeConfirm,
+    setShowRevokeConfirm,
     // Edit panel
     showEditPanel,
     setShowEditPanel,

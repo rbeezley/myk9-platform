@@ -19,9 +19,10 @@
  * this works offline and never shows a locked stale snapshot.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, ArrowLeft, CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable.mapper';
@@ -85,16 +86,33 @@ function sameScoredRun(local: ReplicatedEntry, remote: ReplicatedEntry): boolean
   );
 }
 
-function useScoreSaveState(entryId: string | undefined): ScoreSaveState {
-  const [snapshot, setSnapshot] = useState<{ entryId: string | undefined; state: ScoreSaveState }>({
+interface ScoreSaveSnapshot {
+  entryId: string | undefined;
+  state: ScoreSaveState;
+  /** A completed check found the score still queued (not just the initial default). */
+  sawQueued: boolean;
+}
+
+function useScoreSaveState(entryId: string | undefined): {
+  state: ScoreSaveState;
+  sawQueued: boolean;
+} {
+  const [snapshot, setSnapshot] = useState<ScoreSaveSnapshot>({
     entryId,
     state: 'pending',
+    sawQueued: false,
   });
-  const state = snapshot.entryId === entryId ? snapshot.state : 'pending';
+  const current = snapshot.entryId === entryId ? snapshot : null;
+  const state = current?.state ?? 'pending';
+  const sawQueued = current?.sawQueued ?? false;
   const updateState = (next: ScoreSaveState) =>
-    setSnapshot(current =>
-      current.entryId === entryId && current.state === next ? current : { entryId, state: next }
-    );
+    setSnapshot(prev => {
+      const base =
+        prev.entryId === entryId ? prev : { entryId, state: 'pending' as const, sawQueued: false };
+      const sawQueued = base.sawQueued || next !== 'acknowledged';
+      if (base.state === next && base.sawQueued === sawQueued && prev === base) return prev;
+      return { entryId, state: next, sawQueued };
+    });
 
   useEffect(() => {
     if (!entryId || state === 'acknowledged') return;
@@ -145,7 +163,37 @@ function useScoreSaveState(entryId: string | undefined): ScoreSaveState {
     };
   }, [entryId, state]);
 
-  return state;
+  return { state, sawQueued };
+}
+
+/** Live `navigator.onLine`, so the offline wording flips when signal returns. */
+function useIsOnline(): boolean {
+  const [online, setOnline] = useState(() => navigator.onLine);
+  useEffect(() => {
+    const update = () => setOnline(navigator.onLine);
+    window.addEventListener('online', update);
+    window.addEventListener('offline', update);
+    return () => {
+      window.removeEventListener('online', update);
+      window.removeEventListener('offline', update);
+    };
+  }, []);
+  return online;
+}
+
+/**
+ * MYK9-1023: a score that was queued (not yet on the server) and is later
+ * acknowledged gets a brief toast, so a judge who lost signal can see it landed.
+ * A score acknowledged on the first check never toasts.
+ */
+function useScoresSentToast(saveState: ScoreSaveState, sawQueued: boolean): void {
+  const toasted = useRef(false);
+  useEffect(() => {
+    if (saveState === 'acknowledged' && sawQueued && !toasted.current) {
+      toasted.current = true;
+      toast.success('Scores sent');
+    }
+  }, [saveState, sawQueued]);
 }
 
 export interface QuickAdvancePanelProps {
@@ -168,7 +216,9 @@ export const QuickAdvancePanel: React.FC<QuickAdvancePanelProps> = ({
   onPickEntry,
 }) => {
   const chips = useQuickAdvanceChips(classId, scoredEntryId);
-  const saveState = useScoreSaveState(scoredEntryId);
+  const { state: saveState, sawQueued } = useScoreSaveState(scoredEntryId);
+  const online = useIsOnline();
+  useScoresSentToast(saveState, sawQueued);
 
   return (
     <div className="ringside-root container mx-auto max-w-2xl px-4 py-6">
@@ -192,7 +242,9 @@ export const QuickAdvancePanel: React.FC<QuickAdvancePanelProps> = ({
             ? 'Score saved'
             : saveState === 'failed'
               ? 'Saved on this device. Sync needs attention.'
-              : 'Saved on this device · waiting to sync'}
+              : online
+                ? 'Saved on this device · waiting to sync'
+                : "Saved on this device — will send when you're back online"}
         </div>
 
         <Button className="mt-5 h-12 w-full text-base" onClick={onBackToList}>

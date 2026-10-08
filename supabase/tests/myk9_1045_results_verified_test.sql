@@ -19,17 +19,22 @@
 --   6. a pull of a placed dog re-ranks the completed class THROUGH
 --      recalculate_class_placements, and a direct recompute too: identical
 --      results write no placement and leave the check set;
---   7. a recompute over tied results always gives the same placements, and a
---      nationals class still ranks by most points, then fastest time;
+--   7. exact ties: an unresolved tie within 1st-4th is placed consecutively
+--      and flagged (a tie for 5th is not); recomputes never reorder it;
+--      set_class_tie_order records the coin flip, places the tie in that
+--      order, clears the flag and the results check, and survives a recompute;
+--      non-tied, partial-group and cross-class orders are refused (MK016);
+--      unplacing a class drops the flag (7f); 7e. a nationals class still
+--      ranks by most points, then fastest time;
 --   8. soft-deleting an entry without a result leaves the check set;
 --   9. a changed result clears the check;
 --  10. the offline replay: the verify that succeeded before the correction is
 --      refused (MK015) when it replays, and nothing is re-stamped;
---  11. a manager cannot write the columns directly (42501);
+--  11. a manager cannot write the results-check or tie columns directly (42501);
 --  12. soft-deleting a resulted entry and moving one to another class clear the
 --      check (both classes on a move);
 --  13. the club admin clears a check with the per-class undo;
---  14. anon calling either RPC at all is refused.
+--  14. anon calling any of the three RPCs is refused.
 --
 -- All fixtures roll back. Run with psql -X -v ON_ERROR_STOP=1 after migrations.
 
@@ -105,6 +110,7 @@ VALUES
   ('00000000-0000-0000-0000-000001045042', '00000000-0000-0000-0000-000001045003', 'Container Novice', 'upcoming'),
   ('00000000-0000-0000-0000-000001045043', '00000000-0000-0000-0000-000001045003', 'Interior Novice', 'upcoming'),
   ('00000000-0000-0000-0000-000001045044', '00000000-0000-0000-0000-000001045003', 'Exterior Novice', 'upcoming'),
+  ('00000000-0000-0000-0000-000001045047', '00000000-0000-0000-0000-000001045003', 'Vehicle Novice', 'upcoming'),
   ('00000000-0000-0000-0000-000001045045', '00000000-0000-0000-0000-000001045003', 'Buried Novice', 'upcoming');
 
 -- The fingerprint fixture. Kept byte-for-byte in step with FIXTURE in
@@ -143,7 +149,8 @@ VALUES
 
 -- Main class 42: three qualified runs (placements 1-3) and one entry that
 -- never ran and was scratched (no result). Class 43: one run scored, one not
--- (in progress). Class 44: two qualified runs tied on faults and time.
+-- (in progress). Class 44: three qualified runs tied exactly on faults and time
+-- (a coin flip decides). Class 47: four distinct runs, then two tied for 5th.
 INSERT INTO public.entries (
   id, class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status,
   search_time_seconds, total_faults
@@ -159,7 +166,14 @@ FROM (VALUES
   ('00000000-0000-0000-0000-000000104531', '00000000-0000-0000-0000-000001045043', 'checked-in', 'checked-in', true,  'qualified', 20.0, 0),
   ('00000000-0000-0000-0000-000000104532', '00000000-0000-0000-0000-000001045043', 'checked-in', 'checked-in', false, 'pending',   0,    0),
   ('00000000-0000-0000-0000-000000104542', '00000000-0000-0000-0000-000001045044', 'checked-in', 'checked-in', true,  'qualified', 30.0, 0),
-  ('00000000-0000-0000-0000-000000104541', '00000000-0000-0000-0000-000001045044', 'checked-in', 'checked-in', true,  'qualified', 30.0, 0)
+  ('00000000-0000-0000-0000-000000104541', '00000000-0000-0000-0000-000001045044', 'checked-in', 'checked-in', true,  'qualified', 30.0, 0),
+  ('00000000-0000-0000-0000-000000104543', '00000000-0000-0000-0000-000001045044', 'checked-in', 'checked-in', true,  'qualified', 30.0, 0),
+  ('00000000-0000-0000-0000-000000104571', '00000000-0000-0000-0000-000001045047', 'checked-in', 'checked-in', true,  'qualified', 11.0, 0),
+  ('00000000-0000-0000-0000-000000104572', '00000000-0000-0000-0000-000001045047', 'checked-in', 'checked-in', true,  'qualified', 12.0, 0),
+  ('00000000-0000-0000-0000-000000104573', '00000000-0000-0000-0000-000001045047', 'checked-in', 'checked-in', true,  'qualified', 13.0, 0),
+  ('00000000-0000-0000-0000-000000104574', '00000000-0000-0000-0000-000001045047', 'checked-in', 'checked-in', true,  'qualified', 14.0, 0),
+  ('00000000-0000-0000-0000-000000104576', '00000000-0000-0000-0000-000001045047', 'checked-in', 'checked-in', true,  'qualified', 15.0, 0),
+  ('00000000-0000-0000-0000-000000104575', '00000000-0000-0000-0000-000001045047', 'checked-in', 'checked-in', true,  'qualified', 15.0, 0)
 ) AS v(id, class_id, entry_status, check_in, is_scored, result_status, secs, faults);
 
 -- Act as an account (NULL = anon). Claims are transaction-local.
@@ -199,6 +213,13 @@ RETURNS text LANGUAGE sql SECURITY DEFINER AS $$
   SELECT string_agg(right(id::text, 6) || '=' || coalesce(final_placement::text, '-')
                     || '@v' || version, ',' ORDER BY id)
   FROM public.entries WHERE class_id = p_class;
+$$;
+-- 'id=placement' per placed entry, '!' when flagged as an unresolved tie.
+CREATE FUNCTION pg_temp.ties(p_class uuid)
+RETURNS text LANGUAGE sql SECURITY DEFINER AS $$
+  SELECT string_agg(right(id::text, 6) || '=' || final_placement::text
+                    || CASE WHEN placement_tie_unresolved THEN '!' ELSE '' END, ',' ORDER BY id)
+  FROM public.entries WHERE class_id = p_class AND final_placement IS NOT NULL;
 $$;
 
 -- ---------------------------------------------------------------------------
@@ -242,7 +263,24 @@ BEGIN
      OR has_column_privilege('anon', 'public.classes', 'results_verified_fingerprint', 'SELECT') THEN
     RAISE EXCEPTION 'FAIL anon may read a results_verified column';
   END IF;
-  RAISE NOTICE 'PASS 1 grants: RPCs authenticated-only, columns at/_by authenticated-only, fingerprint private';
+  IF has_function_privilege('anon', 'public.set_class_tie_order(uuid, uuid[])', 'EXECUTE')
+     OR NOT has_function_privilege('authenticated', 'public.set_class_tie_order(uuid, uuid[])', 'EXECUTE')
+     OR EXISTS (
+       SELECT 1
+       FROM pg_proc p, LATERAL aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) a
+       WHERE p.oid = 'public.set_class_tie_order(uuid, uuid[])'::regprocedure
+         AND a.grantee = 0 AND a.privilege_type = 'EXECUTE') THEN
+    RAISE EXCEPTION 'FAIL set_class_tie_order is not authenticated-only';
+  END IF;
+  IF NOT has_column_privilege('authenticated', 'public.entries', 'placement_tiebreak', 'SELECT')
+     OR NOT has_column_privilege('authenticated', 'public.entries', 'placement_tie_unresolved', 'SELECT') THEN
+    RAISE EXCEPTION 'FAIL authenticated cannot read the tie columns (the replica needs them)';
+  END IF;
+  IF has_column_privilege('anon', 'public.entries', 'placement_tiebreak', 'SELECT')
+     OR has_column_privilege('anon', 'public.entries', 'placement_tie_unresolved', 'SELECT') THEN
+    RAISE EXCEPTION 'FAIL anon may read a tie column';
+  END IF;
+  RAISE NOTICE 'PASS 1 grants: RPCs authenticated-only, columns at/_by and tie columns authenticated-only, fingerprint private';
 END;
 $$;
 
@@ -296,11 +334,24 @@ BEGIN
       RAISE EXCEPTION 'FAIL % cleared a class it does not manage', caller;
     EXCEPTION WHEN insufficient_privilege THEN NULL;
     END;
+    BEGIN
+      PERFORM public.set_class_tie_order('00000000-0000-0000-0000-000001045044', ARRAY[
+        '00000000-0000-0000-0000-000000104543'::uuid,
+        '00000000-0000-0000-0000-000000104542'::uuid,
+        '00000000-0000-0000-0000-000000104541'::uuid]);
+      RAISE EXCEPTION 'FAIL % recorded a tie order in a class it does not manage', caller;
+    EXCEPTION WHEN insufficient_privilege THEN NULL;
+    END;
   END LOOP;
   IF pg_temp.verified_count() <> 0 THEN
     RAISE EXCEPTION 'FAIL a refused call wrote a results check';
   END IF;
-  RAISE NOTICE 'PASS 3 exhibitor and other club''s secretary refused by both RPCs, nothing written';
+  IF pg_temp.ties('00000000-0000-0000-0000-000001045044')
+     IS DISTINCT FROM '104541=1!,104542=2!,104543=3!' THEN
+    RAISE EXCEPTION 'FAIL a refused tie order changed placements: %',
+      pg_temp.ties('00000000-0000-0000-0000-000001045044');
+  END IF;
+  RAISE NOTICE 'PASS 3 exhibitor and other club''s secretary refused by all three RPCs, nothing written';
 END;
 $$;
 
@@ -427,29 +478,141 @@ END;
 $$;
 
 -- ---------------------------------------------------------------------------
--- 7. Tied runs always rank the same way (entry id breaks the tie).
+-- 7. Exact ties are decided by the secretary's recorded coin flip.
+--    a. An unresolved three-way tie is placed 1/2/3 (consecutive, as before)
+--       and every member is flagged; a tie for 5th is not flagged.
+--    b. A recompute over the same inputs never reorders it (no flip-flop).
+--    c. Recording the flip places the dogs in that order, clears the flag, and
+--       clears a results check that the reorder invalidated; a recompute keeps
+--       the recorded order.
+--    d. Ids that are not exactly one tie group are refused (MK016), as is a
+--       single id (22023).
 -- ---------------------------------------------------------------------------
 DO $$
 DECLARE
   v_first text := pg_temp.placements('00000000-0000-0000-0000-000001045044');
 BEGIN
-  IF v_first !~ '^104541=1@v[0-9]+,104542=2@v[0-9]+$' THEN
-    RAISE EXCEPTION 'FAIL tied runs did not rank by entry id: %', v_first;
+  IF pg_temp.ties('00000000-0000-0000-0000-000001045044')
+     IS DISTINCT FROM '104541=1!,104542=2!,104543=3!' THEN
+    RAISE EXCEPTION 'FAIL 7a an unresolved tie is not placed 1-3 and flagged: %',
+      pg_temp.ties('00000000-0000-0000-0000-000001045044');
   END IF;
-  -- Touch the lower-id row so its heap position moves, then recompute.
+  IF pg_temp.ties('00000000-0000-0000-0000-000001045047')
+     IS DISTINCT FROM '104571=1,104572=2,104573=3,104574=4,104575=5,104576=6' THEN
+    RAISE EXCEPTION 'FAIL 7a a tie for 5th was flagged or misplaced: %',
+      pg_temp.ties('00000000-0000-0000-0000-000001045047');
+  END IF;
+  RAISE NOTICE 'PASS 7a an unresolved tie within 1st-4th is placed consecutively and flagged; a tie for 5th is not';
+
+  -- Touch a row so its heap position moves, then recompute twice.
   UPDATE public.entries SET judge_notes = 'moved in the heap'
   WHERE id = '00000000-0000-0000-0000-000000104541';
   PERFORM public.recalculate_class_placements(ARRAY['00000000-0000-0000-0000-000001045044'::uuid], false);
-  IF pg_temp.placements('00000000-0000-0000-0000-000001045044') !~ '^104541=1@v[0-9]+,104542=2@v[0-9]+$' THEN
-    RAISE EXCEPTION 'FAIL tied runs swapped on a recompute: %',
-      pg_temp.placements('00000000-0000-0000-0000-000001045044');
+  PERFORM public.recalculate_class_placements(ARRAY['00000000-0000-0000-0000-000001045044'::uuid], false);
+  IF regexp_replace(pg_temp.placements('00000000-0000-0000-0000-000001045044'), '104541=[^,]*', '')
+     IS DISTINCT FROM regexp_replace(v_first, '104541=[^,]*', '')
+     OR pg_temp.ties('00000000-0000-0000-0000-000001045044')
+        IS DISTINCT FROM '104541=1!,104542=2!,104543=3!' THEN
+    RAISE EXCEPTION 'FAIL 7b a recompute reordered or rewrote an unresolved tie: % -> %',
+      v_first, pg_temp.placements('00000000-0000-0000-0000-000001045044');
   END IF;
-  RAISE NOTICE 'PASS 7 tied runs rank by entry id on every recompute';
+  RAISE NOTICE 'PASS 7b recomputes over the same inputs leave an unresolved tie untouched';
+
+  -- A late expected entry reopens the class: refresh_class_scoring_state
+  -- unplaces everyone, and the tie flag must go with the placement.
+  INSERT INTO public.entries (id, class_id, show_id, trial_id, entry_status, check_in_status,
+                              is_scored, result_status)
+  VALUES ('00000000-0000-0000-0000-000000104549', '00000000-0000-0000-0000-000001045044',
+          '00000000-0000-0000-0000-000001045002', '00000000-0000-0000-0000-000001045003',
+          'checked-in', 'checked-in', false, 'pending');
+  IF EXISTS (SELECT 1 FROM public.entries
+             WHERE class_id = '00000000-0000-0000-0000-000001045044'
+               AND (final_placement IS NOT NULL OR placement_tie_unresolved)) THEN
+    RAISE EXCEPTION 'FAIL 7f an unplaced entry kept its placement or tie flag';
+  END IF;
+  DELETE FROM public.entries WHERE id = '00000000-0000-0000-0000-000000104549';
+  IF pg_temp.ties('00000000-0000-0000-0000-000001045044')
+     IS DISTINCT FROM '104541=1!,104542=2!,104543=3!' THEN
+    RAISE EXCEPTION 'FAIL 7f the tie was not re-placed and re-flagged on completion: %',
+      pg_temp.ties('00000000-0000-0000-0000-000001045044');
+  END IF;
+  RAISE NOTICE 'PASS 7f unplacing a class drops the tie flag; completing it again restores it';
 END;
 $$;
 
+SET LOCAL ROLE authenticated;
+DO $$
+BEGIN
+  PERFORM pg_temp.act_as('00000000-0000-0000-0000-000000104511');
+  PERFORM public.mark_class_results_verified(
+    '00000000-0000-0000-0000-000001045044', pg_temp.fp('00000000-0000-0000-0000-000001045044'));
+  IF NOT pg_temp.verified('00000000-0000-0000-0000-000001045044') THEN
+    RAISE EXCEPTION 'FAIL 7c setup: class 44 was not verified';
+  END IF;
+
+  -- The flip: 4543 won, then 4542, then 4541.
+  PERFORM public.set_class_tie_order('00000000-0000-0000-0000-000001045044', ARRAY[
+    '00000000-0000-0000-0000-000000104543'::uuid,
+    '00000000-0000-0000-0000-000000104542'::uuid,
+    '00000000-0000-0000-0000-000000104541'::uuid]);
+  IF pg_temp.ties('00000000-0000-0000-0000-000001045044')
+     IS DISTINCT FROM '104541=3,104542=2,104543=1' THEN
+    RAISE EXCEPTION 'FAIL 7c the recorded order did not place the tie: %',
+      pg_temp.ties('00000000-0000-0000-0000-000001045044');
+  END IF;
+  IF pg_temp.verified('00000000-0000-0000-0000-000001045044') THEN
+    RAISE EXCEPTION 'FAIL 7c reordering the tie left the results check set';
+  END IF;
+  -- The recalculator is not an API function; recompute as the owner.
+  RESET ROLE;
+  PERFORM public.recalculate_class_placements(ARRAY['00000000-0000-0000-0000-000001045044'::uuid], false);
+  SET LOCAL ROLE authenticated;
+  IF pg_temp.ties('00000000-0000-0000-0000-000001045044')
+     IS DISTINCT FROM '104541=3,104542=2,104543=1' THEN
+    RAISE EXCEPTION 'FAIL 7c a recompute lost the recorded order: %',
+      pg_temp.ties('00000000-0000-0000-0000-000001045044');
+  END IF;
+  RAISE NOTICE 'PASS 7c recording the flip places the tie, clears the flag and the check, and survives a recompute';
+
+  -- Not tied (20.0s vs 25.0s in class 42).
+  BEGIN
+    PERFORM public.set_class_tie_order('00000000-0000-0000-0000-000001045042', ARRAY[
+      '00000000-0000-0000-0000-000000104521'::uuid, '00000000-0000-0000-0000-000000104522'::uuid]);
+    RAISE EXCEPTION 'FAIL 7d an order over dogs that are not tied was accepted';
+  EXCEPTION WHEN SQLSTATE 'MK016' THEN NULL;
+  END;
+  -- Part of a tie group.
+  BEGIN
+    PERFORM public.set_class_tie_order('00000000-0000-0000-0000-000001045044', ARRAY[
+      '00000000-0000-0000-0000-000000104541'::uuid, '00000000-0000-0000-0000-000000104542'::uuid]);
+    RAISE EXCEPTION 'FAIL 7d an order over part of a tie group was accepted';
+  EXCEPTION WHEN SQLSTATE 'MK016' THEN NULL;
+  END;
+  -- A tied entry of another class.
+  BEGIN
+    PERFORM public.set_class_tie_order('00000000-0000-0000-0000-000001045047', ARRAY[
+      '00000000-0000-0000-0000-000000104575'::uuid, '00000000-0000-0000-0000-000000104541'::uuid]);
+    RAISE EXCEPTION 'FAIL 7d an entry of another class was accepted';
+  EXCEPTION WHEN SQLSTATE 'MK016' THEN NULL;
+  END;
+  BEGIN
+    PERFORM public.set_class_tie_order('00000000-0000-0000-0000-000001045044', ARRAY[
+      '00000000-0000-0000-0000-000000104541'::uuid]);
+    RAISE EXCEPTION 'FAIL 7d a one-entry order was accepted';
+  EXCEPTION WHEN invalid_parameter_value THEN NULL;
+  END;
+  IF pg_temp.ties('00000000-0000-0000-0000-000001045044')
+     IS DISTINCT FROM '104541=3,104542=2,104543=1' THEN
+    RAISE EXCEPTION 'FAIL 7d a refused order changed placements: %',
+      pg_temp.ties('00000000-0000-0000-0000-000001045044');
+  END IF;
+  RAISE NOTICE 'PASS 7d non-tied, partial and cross-class orders refused (MK016), one id refused (22023)';
+END;
+$$;
+RESET ROLE;
+
 -- ---------------------------------------------------------------------------
--- 7b. A nationals class still ranks by most points, then fastest time.
+-- 7e. A nationals class still ranks by most points, then fastest time.
 -- ---------------------------------------------------------------------------
 DO $$
 BEGIN
@@ -479,7 +642,7 @@ BEGIN
     RAISE EXCEPTION 'FAIL nationals ranking is not most points then fastest time: %',
       pg_temp.placements('00000000-0000-0000-0000-000001045046');
   END IF;
-  RAISE NOTICE 'PASS 7b a nationals class ranks by most points, then fastest time';
+  RAISE NOTICE 'PASS 7e a nationals class ranks by most points, then fastest time';
 END;
 $$;
 
@@ -551,10 +714,22 @@ BEGIN
     RAISE EXCEPTION 'FAIL a manager wrote results_verified_at directly';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
+  BEGIN
+    UPDATE public.entries SET placement_tiebreak = 1
+    WHERE id = '00000000-0000-0000-0000-000000104541';
+    RAISE EXCEPTION 'FAIL a manager wrote placement_tiebreak directly';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    UPDATE public.entries SET placement_tie_unresolved = true
+    WHERE id = '00000000-0000-0000-0000-000000104541';
+    RAISE EXCEPTION 'FAIL a manager wrote placement_tie_unresolved directly';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
   IF NOT pg_temp.verified('00000000-0000-0000-0000-000001045042') THEN
     RAISE EXCEPTION 'FAIL the refused direct write changed the check';
   END IF;
-  RAISE NOTICE 'PASS 11 a direct write to the columns is refused (42501)';
+  RAISE NOTICE 'PASS 11 direct writes to the results-check and tie columns are refused (42501)';
 END;
 $$;
 RESET ROLE;
@@ -630,7 +805,13 @@ BEGIN
     RAISE EXCEPTION 'FAIL anon called clear_class_results_verified';
   EXCEPTION WHEN insufficient_privilege THEN NULL;
   END;
-  RAISE NOTICE 'PASS 14 anon cannot call either RPC';
+  BEGIN
+    PERFORM public.set_class_tie_order('00000000-0000-0000-0000-000001045047', ARRAY[
+      '00000000-0000-0000-0000-000000104576'::uuid, '00000000-0000-0000-0000-000000104575'::uuid]);
+    RAISE EXCEPTION 'FAIL anon called set_class_tie_order';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  RAISE NOTICE 'PASS 14 anon cannot call any of the three RPCs';
 END;
 $$;
 

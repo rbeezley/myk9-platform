@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   groupActions,
+  headerShowsActions,
   listHeading,
   pageObjectHeading,
   type ActionGroupHeadings,
@@ -48,6 +49,37 @@ describe('groupActions', () => {
 
   it('returns nothing for an empty list, which hides the header button', () => {
     expect(groupActions([], HEADINGS)).toEqual([]);
+  });
+});
+
+describe('headerShowsActions', () => {
+  it('hides the button when its only item would be Add Dog (an exhibitor off their own pages)', () => {
+    expect(headerShowsActions(groupActions([action('create-dog', 'create')], HEADINGS))).toBe(
+      false
+    );
+  });
+
+  it('hides it when there is nothing at all', () => {
+    expect(headerShowsActions([])).toBe(false);
+  });
+
+  it('shows it as soon as anything else is there', () => {
+    for (const extra of [
+      action('dog-edit', 'page'),
+      action('page-export-dogs', 'list'),
+      action('create-show', 'create'),
+    ]) {
+      expect(
+        headerShowsActions(groupActions([action('create-dog', 'create'), extra], HEADINGS)),
+        extra.id
+      ).toBe(true);
+    }
+  });
+
+  it('shows a staff Create section without Add Dog', () => {
+    expect(headerShowsActions(groupActions([action('create-club', 'create')], HEADINGS))).toBe(
+      true
+    );
   });
 });
 

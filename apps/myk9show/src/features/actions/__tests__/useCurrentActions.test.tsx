@@ -22,11 +22,13 @@ const scope = vi.hoisted(() => ({
 }));
 
 const publishInfoRead = vi.hoisted(() => vi.fn());
+const rbac = vi.hoisted(() => ({ loading: false }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     hasRole: () => true,
     hasPermission: () => true,
+    rbacLoading: rbac.loading,
   }),
 }));
 
@@ -72,6 +74,7 @@ beforeEach(() => {
   scope.status = 'resolved';
   scope.canManage = true;
   scope.canOperate = true;
+  rbac.loading = false;
   publishInfoRead.mockReset();
   publishInfoRead.mockResolvedValue({ data: null, error: null });
 });
@@ -250,5 +253,19 @@ describe('useCurrentActions — labelled sections (CRUD standard decision 6)', (
   it('keeps every action in exactly one section, in the flat list order', () => {
     const { result } = renderHook(() => useCurrentActions(), { wrapper });
     expect(result.current.groups.flatMap(group => group.actions)).toEqual(result.current.actions);
+  });
+});
+
+describe('useCurrentActions — Create waits for permissions', () => {
+  it('offers no Create item while RBAC is loading, then all four once it settles', () => {
+    rbac.loading = true;
+    const { result, rerender } = renderHook(() => useCurrentActions(), { wrapper });
+    expect(result.current.actions.filter(action => action.group === 'create')).toEqual([]);
+
+    rbac.loading = false;
+    rerender();
+    expect(
+      result.current.actions.filter(action => action.group === 'create').map(action => action.id)
+    ).toEqual(['create-show', 'create-dog', 'create-person', 'create-club']);
   });
 });

@@ -13,6 +13,8 @@ const viewer = vi.hoisted(() => ({
   canManage: true,
   canOperate: true,
   isStaff: true,
+  // An exhibitor: holds dog:create and nothing else.
+  dogCreateOnly: false,
 }));
 const notificationsMock = vi.hoisted(() => ({
   success: vi.fn(),
@@ -29,7 +31,8 @@ vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     user: { id: 'user-1', email: 'secretary@myk9t.com' },
     hasRole: () => viewer.isStaff,
-    hasPermission: () => viewer.isStaff,
+    hasPermission: (permission: string) =>
+      viewer.isStaff || (viewer.dogCreateOnly && permission === 'dog:create'),
     userWithRoles: null,
   }),
 }));
@@ -174,6 +177,7 @@ beforeEach(() => {
   viewer.canManage = true;
   viewer.canOperate = true;
   viewer.isStaff = true;
+  viewer.dogCreateOnly = false;
   premiumEdges.generate.mockClear();
   premiumEdges.runPremiumPublishOperation.mockClear();
   premiumEdges.publishExperience.mockClear();
@@ -302,6 +306,40 @@ describe('AppHeader Actions menu — a club admin who cannot add mail-in entries
 });
 
 describe('AppHeader Actions menu — exhibitor on the same route', () => {
+  it('hides the button for an exhibitor whose only item would be Add Dog (owner, 2026-10-08)', () => {
+    viewer.canManage = false;
+    viewer.canOperate = false;
+    viewer.isStaff = false;
+    viewer.dogCreateOnly = true;
+
+    render(<AppHeader />, { initialRoute: '/exhibitor/entries' });
+
+    expect(screen.queryByTestId('header-actions-trigger')).toBeNull();
+  });
+
+  it('shows it to that exhibitor on their own dog page, where Edit dog joins Add Dog', async () => {
+    viewer.canManage = false;
+    viewer.canOperate = false;
+    viewer.isStaff = false;
+    viewer.dogCreateOnly = true;
+    usePageEditTargetStore.setState({
+      target: { kind: 'dog', run: vi.fn(), title: 'Ruby' },
+      owner: Symbol('dog'),
+    });
+    const user = userEvent.setup();
+
+    render(<AppHeader />, { initialRoute: '/dogs/d1' });
+    await user.click(screen.getByTestId('header-actions-trigger'));
+    const menu = await screen.findByRole('menu');
+
+    expect(
+      within(menu)
+        .getAllByRole('menuitem')
+        .map(item => item.textContent)
+    ).toEqual(['Edit dog', 'Add Dog']);
+    usePageEditTargetStore.setState({ target: null, owner: null });
+  });
+
   it('hides the button entirely rather than offering a disabled one', () => {
     viewer.canManage = false;
     viewer.canOperate = false;

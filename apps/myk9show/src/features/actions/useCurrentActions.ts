@@ -6,6 +6,7 @@ import { usePremiumPublishControl } from '@/features/premium/usePremiumPublishCo
 import { useShowStore } from '@/store/showStore';
 import { usePageEditTargetStore } from './pageEditTarget';
 import { resolveCreateGates } from './createGates';
+import { useShowQuery } from '@/hooks/queries/useShowsDatabase';
 import { groupActions, listHeading, pageObjectHeading, type ActionGroup } from './actionGroups';
 import {
   mergeSearchOnlyHref,
@@ -34,20 +35,29 @@ export interface CurrentActions {
 export function useCurrentActions(): CurrentActions {
   const { pathname, search } = useLocation();
   const route = useMemo(() => parseActionRouteContext(pathname), [pathname]);
-  const { hasRole, hasPermission } = useAuthContext();
+  const { hasRole, hasPermission, rbacLoading } = useAuthContext();
 
   const showId = route.kind === 'show' ? route.showId : undefined;
   const scope = useShowManageScope(showId);
 
-  const { canCreateShows, canCreateDogs, canCreatePeople, canCreateClubs } = resolveCreateGates({
-    hasRole,
-    hasPermission,
-  });
-  // The show section's heading. Read from the replicated store, so it works offline and costs
-  // no read; "This show" covers the moment before the store has it.
-  const showName = useShowStore(state =>
+  // Fail closed while the viewer's permissions load, as the list pages' own Add buttons do:
+  // an item that appears late is honest, one shown and then withdrawn is not.
+  const gates = resolveCreateGates({ hasRole, hasPermission });
+  const canCreateShows = !rbacLoading && gates.canCreateShows;
+  const canCreateDogs = !rbacLoading && gates.canCreateDogs;
+  const canCreatePeople = !rbacLoading && gates.canCreatePeople;
+  const canCreateClubs = !rbacLoading && gates.canCreateClubs;
+  // The show section's heading: the replicated store first (offline-durable, no read), then the
+  // show's own query, which the show page has already cached under the same key. Asked only
+  // when the section will render and the store does not have the show.
+  const storedShowName = useShowStore(state =>
     showId ? state.shows.find(show => show.id === showId)?.name : undefined
   );
+  const canSeeShowSection = scope.status === 'resolved' && scope.canManage;
+  const { data: queriedShow } = useShowQuery(
+    showId && canSeeShowSection && !storedShowName ? showId : ''
+  );
+  const showName = storedShowName ?? queriedShow?.name;
 
   // The one control behind the `publish-premium` command -- the same read,
   // derivation and flow the Premium List card renders, so the menu can never

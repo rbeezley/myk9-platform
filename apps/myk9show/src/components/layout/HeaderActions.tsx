@@ -14,6 +14,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useCurrentActions } from '@/features/actions/useCurrentActions';
 import { ACTION_ICONS } from '@/features/actions/actionIcons';
+import { headerShowsActions } from '@/features/actions/actionGroups';
 import type { AppAction } from '@/features/actions/actionRegistry';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 
@@ -27,7 +28,8 @@ const LABEL_BREAKPOINT_QUERY = '(min-width: 640px)';
  * It renders whatever `useCurrentActions` resolves for the current route, so
  * every page's action list is registry data rather than page-owned chrome. An
  * empty list HIDES the button -- a permanently disabled control would be a
- * promise the app cannot keep.
+ * promise the app cannot keep. So does a list whose only item is Add Dog
+ * (`headerShowsActions`): on a phone that button cost an exhibitor's wordmark its room.
  *
  * The list renders as labelled sections in a fixed order -- this object, the show it sits
  * in, the lists on screen, Create -- each item with its icon (CRUD standard decision 6), so
@@ -44,7 +46,7 @@ export function HeaderActions() {
   // Fail narrow: without matchMedia we render the icon, which always fits.
   const showsLabel = useMediaQuery(LABEL_BREAKPOINT_QUERY, false);
 
-  if (groups.length === 0) return null;
+  if (!headerShowsActions(groups)) return null;
 
   return (
     <DropdownMenu>

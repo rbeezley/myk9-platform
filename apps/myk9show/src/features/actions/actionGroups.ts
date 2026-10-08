@@ -58,3 +58,15 @@ export function groupActions(
     actions: actions.filter(action => action.group === id),
   })).filter(group => group.actions.length > 0);
 }
+
+/**
+ * Whether the header shows the Actions button for these sections. Hidden when the only thing
+ * it would hold is Add Dog: an exhibitor's whole menu off their own pages. That viewer adds
+ * dogs from My Dogs and the Dogs page, and on a phone the button cost the wordmark its last
+ * 44px once the cart badge showed ("myK9S...", owner decision 2026-10-08). Anything else --
+ * a page, show or list item, or a staff create -- keeps the button.
+ */
+export function headerShowsActions(groups: readonly ActionGroup[]): boolean {
+  const ids = groups.flatMap(group => group.actions.map(action => action.id));
+  return ids.length > 0 && !(ids.length === 1 && ids[0] === 'create-dog');
+}

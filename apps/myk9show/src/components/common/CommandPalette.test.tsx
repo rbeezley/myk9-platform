@@ -521,6 +521,19 @@ describe('CommandPalette permission suppression role matrix (task 3.2)', () => {
     expect(screen.queryByText('Add Show')).not.toBeInTheDocument();
   });
 
+  it('offers Show Management to a secretary or site admin, never to an exhibitor', () => {
+    for (const [roles, expected] of [
+      [[UserRole.SECRETARY], true],
+      [[UserRole.SITE_ADMIN], true],
+      [[UserRole.EXHIBITOR], false],
+    ] as const) {
+      mockAuth([...roles]);
+      const { unmount } = render(<CommandPalette open onOpenChange={vi.fn()} />);
+      expect(screen.queryByText('Show Management') !== null, roles.join()).toBe(expected);
+      unmount();
+    }
+  });
+
   it('site admin: sees every gated surface', () => {
     // Add Person follows people:create, the gate BrowsePeoplePage's own button uses; site
     // admins hold it (migration 140).

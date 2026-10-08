@@ -1,7 +1,16 @@
 import { useState, useMemo, startTransition } from 'react';
 import { Command } from 'cmdk';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import { Search, Dog, Users, Calendar, Building, Clock, ArrowRight } from 'lucide-react';
+import {
+  Search,
+  Dog,
+  Users,
+  Calendar,
+  Building,
+  Clock,
+  ArrowRight,
+  LayoutDashboard,
+} from 'lucide-react';
 import { Kbd } from '@/components/ui/kbd';
 import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -67,6 +76,10 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
   } = useCommandMenuCommands();
 
   const roles = userWithRoles?.roles ?? [];
+  // The same audience the old header "Open Show Management" item had: /secretary/dashboard is
+  // gated on SECRETARY or SITE_ADMIN.
+  const isShowManagementStaff =
+    roles.includes(UserRole.SECRETARY) || roles.includes(UserRole.SITE_ADMIN);
   const canBrowsePeople =
     hasPermission(PERMISSIONS.USER_READ) ||
     roles.includes(UserRole.SECRETARY) ||
@@ -139,13 +152,32 @@ export function CommandPalette({ open, onOpenChange, onShowShortcuts }: CommandP
         category: 'navigation' as const,
         ...shortcutProp('nav-clubs'),
       },
+      {
+        // Left the header Actions menu (CRUD standard decision 6): it is a place, not an action.
+        id: 'nav-show-management',
+        title: 'Show Management',
+        subtitle: 'Your shows as secretary',
+        icon: <LayoutDashboard className="h-4 w-4" />,
+        action: () =>
+          startTransition(() => {
+            navigate('/secretary/dashboard');
+            onOpenChange(false);
+          }),
+        keywords: ['secretary', 'dashboard', 'manage', 'my shows'],
+        category: 'navigation' as const,
+      },
     ],
     [navigate, onOpenChange]
   );
 
   const visibleNavigationCommands = useMemo(
-    () => navigationCommands.filter(command => command.id !== 'nav-people' || canBrowsePeople),
-    [canBrowsePeople, navigationCommands]
+    () =>
+      navigationCommands.filter(
+        command =>
+          (command.id !== 'nav-people' || canBrowsePeople) &&
+          (command.id !== 'nav-show-management' || isShowManagementStaff)
+      ),
+    [canBrowsePeople, isShowManagementStaff, navigationCommands]
   );
 
   const allDataCommands = useCommandPaletteData(canBrowsePeople, navigate, onOpenChange);

@@ -3,7 +3,7 @@
  *
  * - `collect-judge-signature` opens the class's marked Result Catalog (as before MYK9-1030; a
  *   judge's-day catalog is a follow-up).
- * - `record-judge-sign-off` records "Initialed by [judge], [day]" on EVERY completed class of that
+ * - `record-judge-sign-off` records "Record initials: [judge], [day]" on EVERY completed class of that
  *   judge's day in one action. It carries the class ids so the executor never re-derives them.
  * - `clear-judge-sign-off` is the per-class undo.
  *

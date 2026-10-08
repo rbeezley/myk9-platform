@@ -64,7 +64,6 @@ import { useSyncPassScheduler } from './useSyncPassScheduler';
 import {
   classifyTableSyncResults,
   createTablesStatus,
-  getChangedTableNames,
   getPostSyncInvalidationKeys,
   shouldRequestPostUploadSync,
   type TableSyncStatus,
@@ -264,8 +263,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           if (result.recoveredFromEmptyReplica) {
             warnRecoveredFromEmptyReplica(tableName);
           }
-          // Only a table that gained or changed rows needs its queries refetched.
-          if (result.rowsAffected > 0) queryClient.invalidateQueries({ queryKey: [tableName] });
+          queryClient.invalidateQueries({ queryKey: [tableName] });
           setStatus(prev => ({
             ...prev,
             tablesStatus: { ...prev.tablesStatus, [tableName]: 'success' },
@@ -362,7 +360,6 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
                 name,
                 ok: result.success,
                 error: result.error,
-                rowsAffected: result.rowsAffected,
                 recoveredFromEmptyReplica: result.recoveredFromEmptyReplica ?? false,
               };
             } catch (err) {
@@ -371,7 +368,6 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
                 name,
                 ok: false,
                 error: err instanceof Error ? err.message : String(err),
-                rowsAffected: 0,
                 recoveredFromEmptyReplica: false,
               };
             }
@@ -417,12 +413,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         }));
         syncInFlightRef.current = false;
 
-        // A pass that changed nothing refetches nothing (MYK9-1054). When any
-        // table changed, refetch every selected table's keys: query keys do not
-        // reliably start with the table they read (['shows', id, 'entries'],
-        // ['classes', id, 'entries', 'auth']), so a per-table map would miss some.
-        const anyChanged = getChangedTableNames(syncResults).length > 0;
-        for (const queryKey of getPostSyncInvalidationKeys(anyChanged ? selectedNames : [])) {
+        for (const queryKey of getPostSyncInvalidationKeys(selectedNames)) {
           queryClient.invalidateQueries({ queryKey });
         }
 

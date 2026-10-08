@@ -761,7 +761,7 @@ describe('ReplicatedDogsTable', () => {
         vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(null);
 
         // syncReplicatedTable uses batchSet to write clean rows in a single IDB transaction
-        const batchSetSpy = vi.spyOn(dogsTable, 'batchSet').mockResolvedValue(2);
+        const batchSetSpy = vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
 
         // Mock updateSyncMetadata
         const updateMetadataSpy = vi.spyOn(dogsTable, 'updateSyncMetadata').mockResolvedValue();
@@ -847,7 +847,7 @@ describe('ReplicatedDogsTable', () => {
         );
 
         vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(null);
-        vi.spyOn(dogsTable, 'batchSet').mockResolvedValue(0);
+        vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
         vi.spyOn(dogsTable, 'updateSyncMetadata').mockResolvedValue();
 
         const result = await dogsTable.sync('owner-123');
@@ -938,7 +938,7 @@ describe('ReplicatedDogsTable', () => {
         // syncReplicatedTable uses getReplicatedRow to detect existing rows
         vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(createReplicatedRow(localDog));
 
-        const batchSetSpy = vi.spyOn(dogsTable, 'batchSet').mockResolvedValue(0);
+        const batchSetSpy = vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
 
         const mockRemoteRow = createMockRow(remoteDog);
 
@@ -988,7 +988,7 @@ describe('ReplicatedDogsTable', () => {
         vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue([localDog]);
         vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(createReplicatedRow(localDog));
 
-        const batchSetSpy = vi.spyOn(dogsTable, 'batchSet').mockResolvedValue(0);
+        const batchSetSpy = vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
 
         const mockRemoteRow = createMockRow(remoteDog);
 
@@ -1032,7 +1032,7 @@ describe('ReplicatedDogsTable', () => {
         vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue([localDog]);
         vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(createReplicatedRow(localDog));
 
-        const batchSetSpy = vi.spyOn(dogsTable, 'batchSet').mockResolvedValue(0);
+        const batchSetSpy = vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
 
         const mockRemoteRow = createMockRow(remoteDog);
 
@@ -1183,7 +1183,7 @@ describe('ReplicatedDogsTable', () => {
       vi.spyOn(dogsTable, 'getSyncMetadata').mockResolvedValue(null);
       vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue([]);
       vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(null);
-      vi.spyOn(dogsTable, 'batchSet').mockResolvedValue(0);
+      vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
       vi.spyOn(dogsTable, 'updateSyncMetadata').mockResolvedValue();
 
       const mockQuery = {
@@ -1208,7 +1208,7 @@ describe('ReplicatedDogsTable', () => {
       vi.spyOn(dogsTable, 'getSyncMetadata').mockResolvedValue(null);
       vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue([]);
       vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(null);
-      vi.spyOn(dogsTable, 'batchSet').mockResolvedValue(0);
+      vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
       vi.spyOn(dogsTable, 'updateSyncMetadata').mockResolvedValue();
 
       const mockQuery = {
@@ -1289,7 +1289,7 @@ describe('ReplicatedDogsTable', () => {
       vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue([]);
       vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(null);
 
-      const batchSetSpy = vi.spyOn(dogsTable, 'batchSet').mockResolvedValue(0);
+      const batchSetSpy = vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
 
       const mockQuery = {
         select: vi.fn().mockReturnThis(),
@@ -1349,7 +1349,7 @@ describe('ReplicatedDogsTable', () => {
       vi.spyOn(dogsTable, 'getAllOrThrow').mockResolvedValue([]);
       vi.spyOn(dogsTable, 'getReplicatedRow').mockResolvedValue(null);
 
-      const batchSetSpy = vi.spyOn(dogsTable, 'batchSet').mockResolvedValue(0);
+      const batchSetSpy = vi.spyOn(dogsTable, 'batchSet').mockResolvedValue();
 
       const mockQuery = {
         select: vi.fn().mockReturnThis(),

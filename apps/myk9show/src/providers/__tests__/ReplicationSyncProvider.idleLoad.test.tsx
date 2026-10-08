@@ -125,13 +125,10 @@ vi.mock(import('@myk9/replication'), async importOriginal => {
 
 import { ReplicationSyncProvider } from '../ReplicationSyncProvider';
 
-const queryClientRef: { current: QueryClient | null } = { current: null };
-
 function renderProvider() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  queryClientRef.current = queryClient;
   return render(
     <QueryClientProvider client={queryClient}>
       <NetworkStatusContext.Provider
@@ -163,8 +160,6 @@ const settle = () => act(async () => {});
 
 // MYK9-1054: an idle signed-in tab must cost almost nothing.
 describe('ReplicationSyncProvider: idle load', () => {
-  let invalidateSpy: ReturnType<typeof vi.spyOn>;
-
   beforeEach(async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     vi.setSystemTime(2_000_000);
@@ -182,7 +177,6 @@ describe('ReplicationSyncProvider: idle load', () => {
       spy.mockResolvedValue({ success: true, rowsAffected: 0 });
     }
     renderProvider();
-    invalidateSpy = vi.spyOn(queryClientRef.current!, 'invalidateQueries');
     await act(async () => {
       authState.callback?.('INITIAL_SESSION', fakeSession());
     });
@@ -192,42 +186,12 @@ describe('ReplicationSyncProvider: idle load', () => {
       await vi.advanceTimersByTimeAsync(1_000);
     });
     expect(fullPassCount()).toBeGreaterThan(0);
-    invalidateSpy.mockClear();
     for (const spy of Object.values(syncSpies)) spy.mockClear();
   });
 
   afterEach(() => {
     setVisibility('visible');
     vi.useRealTimers();
-  });
-
-  it('a pass in which no rows changed invalidates no queries', async () => {
-    await act(async () => {
-      window.dispatchEvent(new Event('replication:sync-requested'));
-    });
-    await settle();
-
-    expect(fullPassCount()).toBe(1);
-    expect(invalidateSpy).not.toHaveBeenCalled();
-  });
-
-  it('invalidates every replicated table key set when any table changed', async () => {
-    syncSpies.entries.mockResolvedValue({ success: true, rowsAffected: 2 });
-
-    await act(async () => {
-      window.dispatchEvent(new Event('replication:sync-requested'));
-    });
-    await settle();
-
-    const keys = invalidateSpy.mock.calls.map(
-      ([filters]: [{ queryKey: string[] }]) => filters.queryKey
-    );
-    // Query keys do not reliably start with their table (['shows', id, 'entries'],
-    // ['classes', id, 'entries', 'auth'] read entries), so any change refetches
-    // every replicated table's keys; only a no-change pass refetches nothing.
-    expect(keys).toContainEqual(['entries']);
-    expect(keys).toContainEqual(['shows']);
-    expect(keys).toContainEqual(['classes']);
   });
 
   it('spaces polls and visibility catch-ups at least 15s apart', async () => {

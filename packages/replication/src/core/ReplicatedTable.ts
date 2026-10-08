@@ -1082,7 +1082,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
   // --- Batch Operations ---
 
-  async batchSet(items: T[], serverVersions?: Map<string, number>): Promise<number> {
+  async batchSet(items: T[], serverVersions?: Map<string, number>): Promise<void> {
     return this.batchManager.batchSet(items, serverVersions);
   }
 

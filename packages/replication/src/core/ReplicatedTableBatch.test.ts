@@ -145,17 +145,7 @@ describe('ReplicatedTableBatchManager', () => {
 
       const rows = await getAllRows();
       expect(rows).toHaveLength(0);
-      expect(notifyListeners).not.toHaveBeenCalled();
-    });
-
-    it('does not notify listeners when every row is an identical re-delivery', async () => {
-      await batchManager.batchSet([{ id: '1', name: 'Rex' }]);
-      notifyListeners.mockClear();
-
-      const changed = await batchManager.batchSet([{ id: '1', name: 'Rex' }]);
-
-      expect(changed).toBe(0);
-      expect(notifyListeners).not.toHaveBeenCalled();
+      expect(notifyListeners).toHaveBeenCalled();
     });
 
     it('should overwrite existing rows with same ID', async () => {

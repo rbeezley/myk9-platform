@@ -23,17 +23,6 @@ import { MAX_CHUNK_SIZE } from '../constants';
 import { withQuotaEviction } from '../quota-eviction';
 import { deleteRowsIfClean, type DeleteRowsIfCleanResult } from './deleteRowsIfClean';
 
-/** True when a clean server row is byte-for-byte what this device already holds. */
-function isUnchangedRedelivery<T>(
-  existingRow: ReplicatedRow<T> | undefined,
-  next: T,
-  nextServerVersion: number | undefined
-): boolean {
-  if (!existingRow || existingRow.syncStatus !== 'synced') return false;
-  if (existingRow.serverVersion !== nextServerVersion) return false;
-  return JSON.stringify(existingRow.data) === JSON.stringify(next);
-}
-
 /**
  * Batch operations manager for a replicated table
  */
@@ -56,16 +45,11 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
    * A dirty row has a pending mutation that hasn't been flushed to Supabase
    * yet. Allowing a sync download (isDirty=false) to clobber it would cause
    * data loss — this mirrors the Phase 1 set() guard (scoring-sync-bug fix).
-   *
-   * Resolves to the number of rows whose content actually changed. An identical
-   * re-delivery (the incremental overlap window) is rewritten to refresh its
-   * sync timestamp but is neither counted nor announced to listeners, so an
-   * idle sync pass does not make every subscriber refetch (MYK9-1054).
    */
-  async batchSet(items: T[], serverVersions?: Map<string, number>): Promise<number> {
+  async batchSet(items: T[], serverVersions?: Map<string, number>): Promise<void> {
     // Bulk sync downloads are the most likely point to overflow the storage
     // quota. Evict + retry once on a quota abort instead of letting it escape.
-    return withQuotaEviction(
+    await withQuotaEviction(
       () => this.batchSetOnce(items, serverVersions),
       () => this.relieveQuota(),
       this.logger
@@ -73,9 +57,8 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
   }
 
   /** Single attempt of {@link batchSet}; opens its own transaction so it is safe to retry. */
-  private async batchSetOnce(items: T[], serverVersions?: Map<string, number>): Promise<number> {
+  private async batchSetOnce(items: T[], serverVersions?: Map<string, number>): Promise<void> {
     const db = await this.getDb();
-    let changedRows = 0;
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
 
     for (const item of items) {
@@ -117,16 +100,12 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
       };
 
       await tx.store.put(row);
-      if (!isUnchangedRedelivery(existingRow, normalizedData, serverVersion)) changedRows++;
     }
 
     await tx.done;
-    this.logger.log(
-      `[${this.tableName}] Batch cached ${items.length} rows (${changedRows} changed)`
-    );
+    this.logger.log(`[${this.tableName}] Batch cached ${items.length} rows`);
 
-    if (changedRows > 0) this.notifyListeners();
-    return changedRows;
+    this.notifyListeners();
   }
 
   /**
@@ -156,8 +135,7 @@ export class ReplicatedTableBatchManager<T extends { id: string }> {
     const totalRows = items.length;
 
     if (totalRows <= chunkSize) {
-      await this.batchSet(items, serverVersions);
-      return;
+      return this.batchSet(items, serverVersions);
     }
 
     // The chunked write already rolls itself back atomically on failure, so a

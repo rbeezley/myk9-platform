@@ -22,7 +22,6 @@ import {
   type ReplicationSyncContextValue,
 } from '@/context/ReplicationSyncContext';
 import {
-  SYNC_INTERVAL_MS,
   ReplicatedTable,
   configureConflictSurfacing,
   type ReplicationConflictEventDetail,
@@ -60,9 +59,12 @@ import {
   splitPermanentScoreAuthorizationFailures,
   DOWNLOAD_SYNC_FAILURE_TOAST_ID,
 } from './replicationSyncFormatters';
+import type { SyncPassScheduler } from './syncPassScheduler';
+import { useSyncPassScheduler } from './useSyncPassScheduler';
 import {
   classifyTableSyncResults,
   createTablesStatus,
+  getChangedTableNames,
   getPostSyncInvalidationKeys,
   shouldRequestPostUploadSync,
   type TableSyncStatus,
@@ -206,6 +208,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   const scopedSyncInFlight = useRef(false);
   const pendingFullSync = useRef(false);
   const syncInFlightRef = useRef(false);
+  const passSchedulerRef = useRef<SyncPassScheduler | null>(null);
   const failedSyncToastIdsRef = useRef<string[]>([]);
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -261,7 +264,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           if (result.recoveredFromEmptyReplica) {
             warnRecoveredFromEmptyReplica(tableName);
           }
-          queryClient.invalidateQueries({ queryKey: [tableName] });
+          // Only a table that gained or changed rows needs its queries refetched.
+          if (result.rowsAffected > 0) queryClient.invalidateQueries({ queryKey: [tableName] });
           setStatus(prev => ({
             ...prev,
             tablesStatus: { ...prev.tablesStatus, [tableName]: 'success' },
@@ -322,6 +326,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       const selectedNames = [...new Set(selectedTables.map(table => table.name))];
       logger.info(targets ? 'Starting scoped ringside sync' : 'Starting full sync', 'replication');
       syncInFlightRef.current = true;
+      passSchedulerRef.current?.notePassStarted();
       scopedSyncInFlight.current = targets !== undefined;
       setStatus(prev => ({ ...prev, isSyncing: true, error: null }));
 
@@ -357,6 +362,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
                 name,
                 ok: result.success,
                 error: result.error,
+                rowsAffected: result.rowsAffected,
                 recoveredFromEmptyReplica: result.recoveredFromEmptyReplica ?? false,
               };
             } catch (err) {
@@ -365,6 +371,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
                 name,
                 ok: false,
                 error: err instanceof Error ? err.message : String(err),
+                rowsAffected: 0,
                 recoveredFromEmptyReplica: false,
               };
             }
@@ -410,7 +417,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         }));
         syncInFlightRef.current = false;
 
-        for (const queryKey of getPostSyncInvalidationKeys(selectedNames)) {
+        // A pass that changed nothing refetches nothing (MYK9-1054).
+        for (const queryKey of getPostSyncInvalidationKeys(getChangedTableNames(syncResults))) {
           queryClient.invalidateQueries({ queryKey });
         }
 
@@ -528,36 +536,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     };
   }, []);
 
-  // Background poll — keeps data fresh and recovers from any failed startup sync.
-  // SYNC_INTERVAL_MS was defined in the replication package but never wired up.
-  useEffect(() => {
-    if (!autoSync) return undefined;
-    const interval = setInterval(() => {
-      triggerSyncRef.current?.();
-    }, SYNC_INTERVAL_MS);
-    return () => clearInterval(interval);
-  }, [autoSync]);
-
-  // Sync when tab regains visibility — catches stale data after the user returns.
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        triggerSyncRef.current?.();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []);
-
-  // Listen for sync-requested events (e.g., from wizard after publish)
-  useEffect(() => {
-    const handleSyncRequest = () => {
-      logger.info('Sync requested via event', 'replication');
-      triggerSyncRef.current?.();
-    };
-    window.addEventListener('replication:sync-requested', handleSyncRequest);
-    return () => window.removeEventListener('replication:sync-requested', handleSyncRequest);
-  }, []);
+  // Poll, tab-visible and sync-requested wiring; see useSyncPassScheduler.
+  useSyncPassScheduler(autoSync, triggerSyncRef, passSchedulerRef);
 
   // Listen for mutation-queue overflow — the queue hit its hard cap and is now
   // rejecting new writes. This is a data-loss risk (a new score can't be

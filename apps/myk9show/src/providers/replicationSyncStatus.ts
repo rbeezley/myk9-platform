@@ -4,6 +4,8 @@ export interface TableSyncResultSummary {
   name: string;
   ok: boolean;
   error?: string | undefined;
+  /** Rows the pass actually changed; identical re-delivered rows do not count. */
+  rowsAffected?: number | undefined;
   recoveredFromEmptyReplica: boolean;
 }
 
@@ -49,9 +51,15 @@ export function classifyTableSyncResults(
   return { tableStatusUpdates, downloadFailures, recoveredTables, abortedTables };
 }
 
-export function getPostSyncInvalidationKeys(tableNames: readonly string[]): string[][] {
+/** Tables a pass successfully changed rows in. Nothing else needs a refetch (MYK9-1054). */
+export function getChangedTableNames(results: readonly TableSyncResultSummary[]): string[] {
+  return [...new Set(results.filter(r => r.ok && (r.rowsAffected ?? 0) > 0).map(r => r.name))];
+}
+
+export function getPostSyncInvalidationKeys(changedTableNames: readonly string[]): string[][] {
+  if (changedTableNames.length === 0) return [];
   // The judge dashboard reads a denormalized judge_assignments + classes query.
-  return [...tableNames.map(name => [name]), ['judges', 'assignments']];
+  return [...changedTableNames.map(name => [name]), ['judges', 'assignments']];
 }
 
 export function shouldRequestPostUploadSync(

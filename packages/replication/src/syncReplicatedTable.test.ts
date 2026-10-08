@@ -151,7 +151,8 @@ describe('syncReplicatedTable', () => {
 
     const result = await syncReplicatedTable(table, adapter);
 
-    expect(result.rowsAffected).toBe(2);
+    // Row 1 is an identical re-delivery (MYK9-1054); only the removal counts.
+    expect(result.rowsAffected).toBe(1);
     expect(await table.get('1')).toMatchObject({ name: 'Still Remote' });
     expect(await table.get('2')).toBeNull();
     expect(await table.get('3')).toMatchObject({ name: 'Stale Dirty' });

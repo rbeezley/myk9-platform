@@ -256,11 +256,12 @@ export async function syncReplicatedTable<TRemote, TLocal extends { id: string }
       if (remoteServerVersion !== undefined) {
         serverVersionMap.set(id, remoteServerVersion);
       }
-      rowsAffected++;
     }
 
     if (cleanRowsToCache.length > 0) {
-      await table.batchSet(
+      // Only rows whose content differs count: the overlap window re-delivers
+      // rows already held, and those are not a change (MYK9-1054).
+      rowsAffected += await table.batchSet(
         cleanRowsToCache,
         serverVersionMap.size > 0 ? serverVersionMap : undefined
       );

@@ -131,6 +131,16 @@ describe('unlisted assigned judges', () => {
     expect(screen.getByText(/still assigned to a class/i)).toBeInTheDocument();
   });
 
+  it('keeps a pending show-level judge removable after the organization changes', async () => {
+    harness.judges = [OLIVE];
+    renderPanel('AKC');
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('checkbox', { name: /olive other/i }));
+    act(() => orgControl.set('UKC'));
+    expect(await screen.findByRole('checkbox', { name: /olive other/i })).toBeChecked();
+    expect(screen.queryByText(/still assigned to a class/i)).not.toBeInTheDocument();
+  });
+
   it('gives a judge with show-level and class rows no checkbox either', () => {
     roster.current = [
       {

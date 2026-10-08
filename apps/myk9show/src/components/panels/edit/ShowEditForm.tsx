@@ -175,6 +175,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
           assignedDate: new Date().toISOString().split('T')[0],
           availableStartTime: 'Full Day',
           availableEndTime: 'Full Day',
+          hasShowLevelAssignment: true,
         };
         const updatedJudges = [...data.assignedJudges, newAssignment];
         form?.setValue('assignedJudges', updatedJudges);

@@ -26,6 +26,11 @@ import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncConte
 import { UserRole, type UserWithRoles } from '@/types/auth-types';
 
 vi.mock('@/services/replication', () => ({
+  replicatedArmbandsTable: {
+    getByShow: vi.fn(async () => []),
+    sync: vi.fn(),
+    subscribe: vi.fn(() => vi.fn()),
+  },
   replicatedShowsTable: { getShowById: vi.fn() },
   replicatedTrialsTable: {
     getTrialsByShow: vi.fn(),

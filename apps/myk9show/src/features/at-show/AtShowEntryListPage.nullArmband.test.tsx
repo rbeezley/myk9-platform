@@ -11,6 +11,7 @@ import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { AtShowEntryListPage } from './AtShowEntryListPage';
 import {
+  replicatedArmbandsTable,
   replicatedShowsTable,
   replicatedClassesTable,
   replicatedEntriesTable,
@@ -18,6 +19,11 @@ import {
 } from '@/services/replication';
 
 vi.mock('@/services/replication', () => ({
+  replicatedArmbandsTable: {
+    getByShow: vi.fn(async () => []),
+    sync: vi.fn(),
+    subscribe: vi.fn(() => vi.fn()),
+  },
   replicatedShowsTable: { getShowById: vi.fn() },
   replicatedClassesTable: {
     batchDelete: vi.fn(),
@@ -67,10 +73,11 @@ function entryRows() {
       entryStatus: 'confirmed',
       runOrder: 1,
     },
-    // Withdrawn dogs have no entries.armband; the replica never carries the armbands table.
+    // Withdrawn dogs may retain their number only in the show armband replica.
     {
       ...baseRow,
       id: 'wd-null',
+      dogId: 'dog-maple',
       armband: null,
       dogCallName: 'Maple',
       entryStatus: 'withdrawn',
@@ -128,6 +135,7 @@ describe('AtShowEntryListPage — a missing armband is never shown as 0 (MYK9-97
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    vi.mocked(replicatedArmbandsTable.getByShow).mockResolvedValue([]);
   });
 
   it.each(['Maple', 'Ranger'])('shows an em dash, not 0, for %s under Not running', async name => {
@@ -136,6 +144,23 @@ describe('AtShowEntryListPage — a missing armband is never shown as 0 (MYK9-97
 
     const card = screen.getByText(name).closest('[data-testid="dog-card"]') as HTMLElement;
     expect(within(card).getByTestId('dog-card-armband')).toHaveTextContent(/^—$/);
+  });
+
+  it('shows the cached assignment on a withdrawn dog while sync is offline', async () => {
+    vi.mocked(replicatedArmbandsTable.sync).mockRejectedValueOnce(new Error('offline'));
+    vi.mocked(replicatedArmbandsTable.getByShow).mockResolvedValue([
+      {
+        id: 'armband-maple',
+        showId: 'show-1',
+        dogId: 'dog-maple',
+        armbandNumber: '142',
+        isAvailable: false,
+      },
+    ] as never);
+    renderPage();
+    await screen.findByText('Not running (2)');
+    const card = screen.getByText('Maple').closest('[data-testid="dog-card"]') as HTMLElement;
+    expect(within(card).getByTestId('dog-card-armband')).toHaveTextContent(/^142$/);
   });
 
   it('still shows the real armband on a numbered runner', async () => {

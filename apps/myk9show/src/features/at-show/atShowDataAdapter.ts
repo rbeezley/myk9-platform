@@ -19,6 +19,7 @@
 import type { Entry, ClassInfo, EntryListData, EntryListDataDependencies } from '@myk9/ringside';
 import type { EntryStatus } from '@myk9/core';
 import {
+  replicatedArmbandsTable,
   replicatedEntriesTable,
   replicatedClassesTable,
   replicatedTrialsTable,
@@ -30,6 +31,7 @@ import {
   composeClassTitle,
   resolveClassSection,
 } from '@/services/entryDisplay/entryDisplaySelectors';
+import { buildShowArmbandMaps, resolveEntryArmband } from '@/features/_shared/entryArmband';
 import type { ShowChangeSignal } from '@/features/show-live-sync/showChangeSignal';
 import {
   classifyEntries,
@@ -93,6 +95,7 @@ export function syncAtShowData(
       // to this show. An empty scope would fetch every visible changed class.
       ...showTrials.map(trial => replicatedClassesTable.sync(trial.id, ...syncArgs)),
       replicatedEntriesTable.sync(showId, ...syncArgs),
+      replicatedArmbandsTable.sync(showId),
     ]);
     const failed = results.find(result => result.status === 'rejected');
     if (failed) throw failed.reason;
@@ -157,7 +160,9 @@ export async function syncAtShowChangeSignals(
   }
 
   await Promise.all([
-    ...(includesEntries ? [replicatedEntriesTable.sync(showId)] : []),
+    ...(includesEntries
+      ? [replicatedEntriesTable.sync(showId), replicatedArmbandsTable.sync(showId)]
+      : []),
     ...[...trialIds].map(trialId => replicatedClassesTable.sync(trialId)),
   ]);
 }
@@ -357,7 +362,10 @@ export function buildClassInfo(
   };
 }
 
-async function fetchClassData(classId: string): Promise<{
+async function fetchClassData(
+  classId: string,
+  showId: string
+): Promise<{
   cls: ReplicatedClass | null;
   trial: ReplicatedTrial | null;
   entries: Entry[];
@@ -365,7 +373,10 @@ async function fetchClassData(classId: string): Promise<{
 }> {
   const cls = await replicatedClassesTable.getClassById(classId);
   const rawEntries = await replicatedEntriesTable.getEntriesByClass(classId);
-  const entries = rawEntries.map(re => transformEntry(re, cls));
+  const armbandMaps = buildShowArmbandMaps(await replicatedArmbandsTable.getByShow(showId));
+  const entries = rawEntries.map(re =>
+    transformEntry({ ...re, armband: resolveEntryArmband(re, armbandMaps) ?? undefined }, cls)
+  );
   const trial =
     (cls?.trialId ?? cls?.trial_id)
       ? await replicatedTrialsTable.getTrialById((cls?.trialId ?? cls?.trial_id) as string)
@@ -385,17 +396,17 @@ export function createAtShowDataDependencies(): Pick<
   | 'subscribeToReplicationChanges'
 > {
   return {
-    fetchSingleClass: async (classId): Promise<EntryListData> => {
-      const { cls, trial, entries, rawEntries } = await fetchClassData(classId);
+    fetchSingleClass: async (classId, showId): Promise<EntryListData> => {
+      const { cls, trial, entries, rawEntries } = await fetchClassData(classId, showId);
       return {
         entries,
         classInfo: cls ? buildClassInfo(cls, trial, entries, rawEntries) : null,
       };
     },
 
-    fetchCombinedClasses: async (classIdA, classIdB): Promise<EntryListData> => {
-      const a = await fetchClassData(classIdA);
-      const b = await fetchClassData(classIdB);
+    fetchCombinedClasses: async (classIdA, classIdB, showId): Promise<EntryListData> => {
+      const a = await fetchClassData(classIdA, showId);
+      const b = await fetchClassData(classIdB, showId);
       const entries = [...a.entries, ...b.entries];
       const rawEntries = [...a.rawEntries, ...b.rawEntries];
       // Combined view uses class A as the header source (mirrors myK9Q).
@@ -441,10 +452,12 @@ export function createAtShowDataDependencies(): Pick<
       // waiting for a second replication change.
       const unsubscribeEntries = replicatedEntriesTable.subscribe(() => callback());
       const unsubscribeClasses = replicatedClassesTable.subscribe(() => callback());
+      const unsubscribeArmbands = replicatedArmbandsTable.subscribe(() => callback());
 
       return () => {
         unsubscribeEntries();
         unsubscribeClasses();
+        unsubscribeArmbands();
       };
     },
   };

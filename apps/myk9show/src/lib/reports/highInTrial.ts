@@ -30,11 +30,6 @@
  *    human act. Picking a winner here would fabricate a result, which is exactly what
  *    the deleted `AwardsProcessor` mock did.
  *
- * High Combined Division (§9) is deliberately NOT implemented: our copy of the
- * regulations truncates mid-sentence at the page break after "participate in the same
- * difficulty level in all elements plus Handler Discrimination, and", and no AKC Scent
- * Work regulations PDF is in the repo to confirm the rest. Guessing a rule is worse than
- * omitting the award.
  */
 import type { PacketArmband } from '@/features/emergency-trial-packet/armband';
 import type { ReportEntry } from '@/lib/reports/types';
@@ -99,14 +94,14 @@ export const HIT_PARTICIPATING_STATUSES: ReadonlySet<string> = new Set([
   'move_up_requested',
 ]);
 
-export interface HighInTrialElementScore {
-  element: HitElement;
+export interface HighInTrialElementScore<E extends string = HitElement> {
+  element: E;
   /** Null when the run qualified but its fault count was never recorded. */
   faults: number | null;
   timeSeconds: number | null;
 }
 
-export interface HighInTrialTeam {
+export interface HighInTrialTeam<E extends string = HitElement> {
   /** Stable per dog within the trial; see `teamKey`. */
   key: string;
   armband: PacketArmband;
@@ -124,19 +119,19 @@ export interface HighInTrialTeam {
    * ranked below every team whose data is complete.
    */
   hasIncompleteScores: boolean;
-  elements: HighInTrialElementScore[];
+  elements: HighInTrialElementScore<E>[];
   /** 1-based. Tied teams share a rank, and the next rank skips accordingly. */
   rank: number;
   /** How many teams share this rank; > 1 means §8's coin flip decides between them. */
   tiedCount: number;
 }
 
-export interface HighInTrialLevel {
+export interface HighInTrialLevel<E extends string = HitElement> {
   level: string;
   /** The elements offered at this level, in `HIT_ELEMENTS` order. */
-  elements: HitElement[];
+  elements: E[];
   /** Eligible teams only (entered and qualified in every element), ranked. */
-  teams: HighInTrialTeam[];
+  teams: HighInTrialTeam<E>[];
   /** Entries at this level still awaiting a result. */
   pendingCount: number;
   /** Eligible teams whose qualifying runs are missing a fault count or a time. */
@@ -156,8 +151,8 @@ export interface HighInTrialExclusion {
   reason: 'not-an-odor-search-element' | 'single-element-level' | 'cancelled-class';
 }
 
-export interface HighInTrialModel {
-  levels: HighInTrialLevel[];
+export interface HighInTrialModel<E extends string = HitElement> {
+  levels: HighInTrialLevel<E>[];
   /** Classes the report did not count, so the secretary can see the omission is intended. */
   exclusions: HighInTrialExclusion[];
 }
@@ -187,10 +182,6 @@ const CANCELLED_CLASS_STATUS = 'cancelled';
 function levelOrder(level: string): number {
   const index = (AKC_SCENT_WORK_LEVELS as readonly string[]).indexOf(level);
   return index === -1 ? AKC_SCENT_WORK_LEVELS.length : index;
-}
-
-function isHitElement(element: string): element is HitElement {
-  return (HIT_ELEMENTS as readonly string[]).includes(element);
 }
 
 /**
@@ -244,7 +235,7 @@ function isBetterRun(candidate: ReportEntry, incumbent: ReportEntry): boolean {
   return false;
 }
 
-function compareTeams(a: HighInTrialTeam, b: HighInTrialTeam): number {
+function compareTeams<E extends string>(a: HighInTrialTeam<E>, b: HighInTrialTeam<E>): number {
   // Missing data never sorts as a good score. Coercing an unrecorded fault count to 0
   // would read as a clean run and could take the award outright, which is the same
   // fabrication the deleted AwardsProcessor committed — just quieter.
@@ -262,8 +253,8 @@ function compareTeams(a: HighInTrialTeam, b: HighInTrialTeam): number {
 }
 
 /** Assign 1-based ranks, sharing a rank across teams §8 cannot separate. */
-function assignRanks(sorted: HighInTrialTeam[]): HighInTrialTeam[] {
-  const ranked: HighInTrialTeam[] = [];
+function assignRanks<E extends string>(sorted: HighInTrialTeam<E>[]): HighInTrialTeam<E>[] {
+  const ranked: HighInTrialTeam<E>[] = [];
   let index = 0;
 
   while (index < sorted.length) {
@@ -281,79 +272,102 @@ function assignRanks(sorted: HighInTrialTeam[]): HighInTrialTeam[] {
 }
 
 /**
- * Compute High in Trial for one trial.
+ * Shared all-elements award engine for one trial; callers provide verified award rules.
  *
  * `classes` must be the trial's classes — eligibility depends on which elements were
  * *offered*, which entries alone cannot tell you: an element nobody qualified in still
  * makes every team at that level ineligible.
  */
-export function buildHighInTrial(input: {
-  entries: readonly ReportEntry[];
-  classes: readonly HighInTrialClassLike[];
-}): HighInTrialModel {
+export function buildCombinedAward<E extends string>(
+  input: {
+    entries: readonly ReportEntry[];
+    classes: readonly HighInTrialClassLike[];
+  },
+  rules: {
+    elements: readonly E[];
+    minimumElements: number;
+    requiredElement?: E;
+    knownLevelsOnly?: boolean;
+    scoredOnly?: boolean;
+  }
+): HighInTrialModel<E> {
   const { entries, classes } = input;
+  const isAwardElement = (element: string): element is E => rules.elements.includes(element as E);
   const exclusions: HighInTrialExclusion[] = [];
 
   // Which elements each level offers. Section is deliberately not part of the key.
-  const elementsByLevel = new Map<string, Set<HitElement>>();
+  const elementsByLevel = new Map<string, Set<E>>();
   const cancelledClassIds = new Set<string>();
   for (const cls of classes) {
     const level = cls.level?.trim() ?? '';
     const element = cls.element?.trim() ?? '';
     if (level === '' || element === '') continue;
+    if (rules.knownLevelsOnly && !(AKC_SCENT_WORK_LEVELS as readonly string[]).includes(level))
+      continue;
 
     if ((cls.status ?? '').toLowerCase() === CANCELLED_CLASS_STATUS) {
       cancelledClassIds.add(cls.id);
-      if (isHitElement(element)) {
+      if (isAwardElement(element)) {
         exclusions.push({ element, level, reason: 'cancelled-class' });
       }
       continue;
     }
 
-    if (!isHitElement(element)) {
+    if (!isAwardElement(element)) {
       exclusions.push({ element, level, reason: 'not-an-odor-search-element' });
       continue;
     }
-    const set = elementsByLevel.get(level) ?? new Set<HitElement>();
+    const set = elementsByLevel.get(level) ?? new Set<E>();
     set.add(element);
     elementsByLevel.set(level, set);
   }
 
-  const levels: HighInTrialLevel[] = [];
+  const levels: HighInTrialLevel<E>[] = [];
 
   for (const [level, elementSet] of elementsByLevel) {
     // §8: HIT exists only where more than one element runs at the level.
-    if (elementSet.size < 2) {
+    if (
+      elementSet.size < rules.minimumElements ||
+      (rules.requiredElement && !elementSet.has(rules.requiredElement))
+    ) {
       for (const element of elementSet) {
         exclusions.push({ element, level, reason: 'single-element-level' });
       }
       continue;
     }
 
-    const offered = HIT_ELEMENTS.filter(element => elementSet.has(element));
+    const offered = rules.elements.filter(element => elementSet.has(element));
     const levelEntries = entries.filter(
       entry =>
         (entry.classLevel?.trim() ?? '') === level &&
-        isHitElement(entry.classElement?.trim() ?? '') &&
-        elementSet.has((entry.classElement?.trim() ?? '') as HitElement) &&
+        isAwardElement(entry.classElement?.trim() ?? '') &&
+        elementSet.has((entry.classElement?.trim() ?? '') as E) &&
         // A stale qualifying row on a cancelled class must not count toward the award,
         // nor hold the level open awaiting a result that will never come.
         !(entry.classId != null && cancelledClassIds.has(entry.classId))
     );
 
-    const pendingCount = levelEntries.filter(isPending).length;
+    const pendingCount = levelEntries.filter(entry =>
+      rules.scoredOnly
+        ? isEntered(entry) &&
+          (!entry.isScored ||
+            !entry.resultText?.trim() ||
+            entry.resultText.trim().toLowerCase() === 'pending')
+        : isPending(entry)
+    ).length;
 
     // Best qualifying run per (team, element).
-    const qualifyingByTeam = new Map<string, Map<HitElement, ReportEntry>>();
+    const qualifyingByTeam = new Map<string, Map<E, ReportEntry>>();
     const identityByTeam = new Map<string, ReportEntry>();
 
     for (const entry of levelEntries) {
-      if (!isEntered(entry) || !isQualified(entry)) continue;
+      if (!isEntered(entry) || !isQualified(entry) || (rules.scoredOnly && !entry.isScored))
+        continue;
       const key = teamKey(entry);
       if (!key) continue;
 
-      const element = (entry.classElement?.trim() ?? '') as HitElement;
-      const perElement = qualifyingByTeam.get(key) ?? new Map<HitElement, ReportEntry>();
+      const element = (entry.classElement?.trim() ?? '') as E;
+      const perElement = qualifyingByTeam.get(key) ?? new Map<E, ReportEntry>();
       const existing = perElement.get(element);
       // A dog should not qualify twice in one element at one level, but if the data says
       // so, count the better run rather than whichever happened to be first.
@@ -364,13 +378,13 @@ export function buildHighInTrial(input: {
       if (!identityByTeam.has(key)) identityByTeam.set(key, entry);
     }
 
-    const teams: HighInTrialTeam[] = [];
+    const teams: HighInTrialTeam<E>[] = [];
     for (const [key, perElement] of qualifyingByTeam) {
       // §8: qualified in EVERY element offered at this level.
       if (offered.some(element => !perElement.has(element))) continue;
 
       const identity = identityByTeam.get(key)!;
-      const scores: HighInTrialElementScore[] = offered.map(element => {
+      const scores: HighInTrialElementScore<E>[] = offered.map(element => {
         const entry = perElement.get(element)!;
         return {
           element,
@@ -437,4 +451,12 @@ export function buildHighInTrial(input: {
   });
 
   return { levels, exclusions: dedupedExclusions };
+}
+
+/** HIT keeps its four-element allowlist and existing eligibility semantics. */
+export function buildHighInTrial(input: {
+  entries: readonly ReportEntry[];
+  classes: readonly HighInTrialClassLike[];
+}): HighInTrialModel {
+  return buildCombinedAward(input, { elements: HIT_ELEMENTS, minimumElements: 2 });
 }

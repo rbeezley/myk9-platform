@@ -1,3 +1,4 @@
+import { JudgeDayCapacityEditor } from './JudgeDayCapacityEditor';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +9,7 @@ import { pluralize } from '@/utils/pluralize';
 
 interface JudgeCapacityOverviewProps {
   judgeDays: JudgeDayCapacity[];
+  capacityShowId?: string;
   onViewWaitList: (judgeId: string, showDate: string) => void;
 }
 
@@ -18,7 +20,11 @@ function getBarColor(confirmedCount: number, capacity: number): string {
   return 'bg-green-500';
 }
 
-export function JudgeCapacityOverview({ judgeDays, onViewWaitList }: JudgeCapacityOverviewProps) {
+export function JudgeCapacityOverview({
+  judgeDays,
+  onViewWaitList,
+  capacityShowId,
+}: JudgeCapacityOverviewProps) {
   if (judgeDays.length === 0) {
     return (
       <p className="text-muted-foreground text-sm">No judge-day assignments found for this show.</p>
@@ -97,6 +103,13 @@ export function JudgeCapacityOverview({ judgeDays, onViewWaitList }: JudgeCapaci
                 )}
               </div>
 
+              {capacityShowId && (
+                <JudgeDayCapacityEditor
+                  key={`${capacityShowId}-${day.judgeId}-${day.showDate}`}
+                  showId={capacityShowId}
+                  day={day}
+                />
+              )}
               <Button
                 variant="outline"
                 size="sm"

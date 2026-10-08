@@ -284,4 +284,188 @@ BEGIN
 END;
 $$;
 
+-- MYK9-1016: atomic set/change/clear against this transaction's fixtures.
+INSERT INTO public.trials (id, show_id, name, date, registry_id, trial_type)
+VALUES (pg_temp.id('202'), pg_temp.id('101'), 'MYK9-1016 other date', CURRENT_DATE + 21, 'AKC', 'Scent Work');
+INSERT INTO public.classes (id, trial_id, name, element, level, status, status_source, entry_fee, max_entries, allow_waitlist)
+VALUES (pg_temp.id('304'), pg_temp.id('202'), 'MYK9-1016 other date', 'Buried', 'Novice', 'upcoming', 'manual', 30, NULL, true);
+INSERT INTO public.judge_assignments (person_id, show_id, trial_id, class_id, status, day_capacity_override)
+VALUES (pg_temp.id('032'), pg_temp.id('101'), pg_temp.id('202'), pg_temp.id('304'), 'confirmed', 9);
+UPDATE public.shows SET mail_in_strategy = 'none', default_judge_day_capacity = 40 WHERE id = pg_temp.id('101');
+UPDATE public.judge_assignments SET day_capacity_override = 5, notes = 'MYK9-1016 private note' WHERE class_id = pg_temp.id('303');
+DO $$
+DECLARE
+  v_fn constant text := 'public.set_judge_day_capacity(uuid,uuid,date,integer)';
+BEGIN
+  PERFORM pg_temp.expect_eq(
+    (SELECT p.prosecdef || ' ' || array_to_string(p.proconfig, ',') FROM pg_proc p WHERE p.oid = v_fn::regprocedure),
+    'true search_path=""', 'MYK9-1016 writer SECURITY DEFINER with empty search_path');
+  PERFORM pg_temp.expect_eq(
+    has_function_privilege('anon', v_fn, 'EXECUTE') || ' ' || has_function_privilege('authenticated', v_fn, 'EXECUTE'),
+    'false true', 'MYK9-1016 authenticated-only execute ACL');
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*)::text FROM pg_proc p, aclexplode(p.proacl) a WHERE p.oid = v_fn::regprocedure AND a.grantee = 0),
+    '0', 'MYK9-1016 no PUBLIC execute');
+  PERFORM pg_temp.expect_eq(
+    (SELECT c.capacity::text FROM public.get_judge_day_capacity_live(pg_temp.id('032'),pg_temp.id('101'),CURRENT_DATE+20) c),
+    '5', 'MYK9-1016 historical disagreement keeps MAX merge rule');
+END;
+$$;
+-- Proof helpers are SECURITY INVOKER: they never change or elevate the caller.
+CREATE FUNCTION pg_temp.expect_capacity(p_capacity integer, p_reserved integer, p_remaining integer)
+RETURNS void LANGUAGE plpgsql SECURITY INVOKER AS $f$
+BEGIN
+  PERFORM pg_temp.expect_eq(current_user, 'authenticated', 'MYK9-1016 public reads use authenticated');
+  PERFORM pg_temp.expect_eq(
+    (SELECT d.day_capacity || '/' || d.day_mail_in_reserved || '/' || d.day_remaining
+      FROM public.get_show_judge_day_capacity_for_manager(pg_temp.id('101')) d
+      WHERE d.judge_id=pg_temp.id('032') AND d.show_date=CURRENT_DATE+20),
+    p_capacity || '/' || p_reserved || '/' || p_remaining, 'MYK9-1016 manager capacity ' || p_capacity);
+  PERFORM pg_temp.expect_eq(
+    (SELECT string_agg(a.day_capacity || '/' || a.day_mail_in_reserved || '/' || a.day_remaining, ',' ORDER BY a.class_id)
+      FROM public.get_show_class_judge_day_availability(pg_temp.id('101')) a
+      WHERE a.class_id IN (pg_temp.id('302'),pg_temp.id('303'))),
+    concat(p_capacity,'/',p_reserved,'/',p_remaining,',',p_capacity,'/',p_reserved,'/',p_remaining),
+    'MYK9-1016 exhibitor capacity ' || p_capacity);
+  PERFORM pg_temp.expect_eq(
+    (SELECT string_agg(a.judge_day_full::text, ',' ORDER BY a.class_id)
+      FROM public.get_show_class_availability(pg_temp.id('101')) a
+      WHERE a.class_id IN (pg_temp.id('302'),pg_temp.id('303'))),
+    CASE WHEN p_remaining = 0 THEN 'true,true' ELSE 'false,false' END,
+    'MYK9-1016 exhibitor Full matches capacity ' || p_capacity);
+END;
+$f$;
+CREATE FUNCTION pg_temp.expect_internal_gate(p_online text, p_staff text, p_label text)
+RETURNS void LANGUAGE plpgsql SECURITY INVOKER AS $f$
+DECLARE source text;
+BEGIN
+  PERFORM pg_temp.expect_eq(current_user, 'service_role', 'MYK9-1016 internal gate uses service_role');
+  FOREACH source IN ARRAY ARRAY['self_service','organizer','show_desk'] LOOP
+    PERFORM pg_temp.expect_eq(
+      (SELECT e.outcome FROM public.evaluate_entry_capacity(pg_temp.id('302'),pg_temp.id('421'),NULL,NULL,source) e),
+      CASE WHEN source='self_service' THEN p_online ELSE p_staff END,
+      'MYK9-1016 ' || p_label || ' gate ' || source);
+  END LOOP;
+END;
+$f$;
+
+-- Each phase writes/reads as the manager, then verifies the internal decision
+-- as service_role. Clearing returns to the manager; no helper hides authority.
+-- Percentage multiplication must support both positive integer boundaries.
+UPDATE public.shows SET mail_in_strategy='percentage', mail_in_value=50,
+  mail_in_auto_release=false WHERE id=pg_temp.id('101');
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.act_as(pg_temp.id('012'));
+SELECT pg_temp.expect_eq(public.set_judge_day_capacity(pg_temp.id('101'),pg_temp.id('032'),CURRENT_DATE+20,50000000)::text,
+  '2', 'MYK9-1016 50M boundary updates both assignments');
+SELECT pg_temp.expect_capacity(50000000,25000000,24999999);
+RESET ROLE;
+SET LOCAL ROLE service_role;
+SELECT pg_temp.expect_internal_gate('available','available','50M percentage boundary');
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.expect_eq(public.set_judge_day_capacity(pg_temp.id('101'),pg_temp.id('032'),CURRENT_DATE+20,NULL)::text,
+  '2', 'MYK9-1016 50M boundary clears both overrides');
+RESET ROLE;
+
+UPDATE public.shows SET mail_in_value=100 WHERE id=pg_temp.id('101');
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.expect_eq(public.set_judge_day_capacity(pg_temp.id('101'),pg_temp.id('032'),CURRENT_DATE+20,2147483647)::text,
+  '2', 'MYK9-1016 INTMAX boundary updates both assignments');
+SELECT pg_temp.expect_capacity(2147483647,2147483647,0);
+RESET ROLE;
+SET LOCAL ROLE service_role;
+SELECT pg_temp.expect_internal_gate('denied','available','INTMAX percentage boundary');
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.expect_eq(public.set_judge_day_capacity(pg_temp.id('101'),pg_temp.id('032'),CURRENT_DATE+20,NULL)::text,
+  '2', 'MYK9-1016 INTMAX boundary clears both overrides');
+RESET ROLE;
+
+UPDATE public.shows SET mail_in_strategy='none' WHERE id=pg_temp.id('101');
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.expect_eq(public.set_judge_day_capacity(pg_temp.id('101'),pg_temp.id('032'),CURRENT_DATE+20,80)::text,
+  '2', 'MYK9-1016 set updates both assignments');
+SELECT pg_temp.expect_capacity(80,0,79);
+RESET ROLE;
+SET LOCAL ROLE service_role;
+SELECT pg_temp.expect_internal_gate('available','available','set limit');
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.expect_eq(public.set_judge_day_capacity(pg_temp.id('101'),pg_temp.id('032'),CURRENT_DATE+20,1)::text,
+  '2', 'MYK9-1016 change normalizes both assignments');
+SELECT pg_temp.expect_capacity(1,0,0);
+RESET ROLE;
+SET LOCAL ROLE service_role;
+SELECT pg_temp.expect_internal_gate('denied','denied','lowered limit');
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.expect_eq(public.set_judge_day_capacity(pg_temp.id('101'),pg_temp.id('032'),CURRENT_DATE+20,NULL)::text,
+  '2', 'MYK9-1016 clear updates all assignments');
+SELECT pg_temp.expect_capacity(40,0,39);
+RESET ROLE;
+SET LOCAL ROLE service_role;
+SELECT pg_temp.expect_internal_gate('available','available','cleared limit');
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+DO $$
+DECLARE requested integer;
+BEGIN
+  FOREACH requested IN ARRAY ARRAY[0,-1] LOOP
+    BEGIN
+      PERFORM public.set_judge_day_capacity(pg_temp.id('101'),pg_temp.id('032'),CURRENT_DATE+20,requested);
+      RAISE EXCEPTION 'MYK9-1016 invalid limit accepted';
+    EXCEPTION WHEN SQLSTATE '22023' THEN RAISE NOTICE 'PASS MYK9-1016 invalid limit rejected: %', requested;
+    END;
+  END LOOP;
+  BEGIN
+    PERFORM public.set_judge_day_capacity(pg_temp.id('101'),pg_temp.id('032'),CURRENT_DATE+22,5);
+    RAISE EXCEPTION 'MYK9-1016 no-assignment date accepted';
+  EXCEPTION WHEN SQLSTATE '22023' THEN RAISE NOTICE 'PASS MYK9-1016 no-assignment date rejected';
+  END;
+END;
+$$;
+RESET ROLE;
+DO $$
+BEGIN
+  PERFORM pg_temp.expect_eq(
+    (SELECT count(*)::text FROM public.judge_assignments WHERE class_id IN (pg_temp.id('302'),pg_temp.id('303')) AND day_capacity_override IS NULL),
+    '2', 'MYK9-1016 no override survives clear');
+  PERFORM pg_temp.expect_eq(
+    (SELECT day_capacity_override::text FROM public.judge_assignments WHERE class_id=pg_temp.id('304')),
+    '9', 'MYK9-1016 other date untouched');
+  PERFORM pg_temp.expect_eq(
+    (SELECT day_capacity_override::text FROM public.judge_assignments WHERE class_id=pg_temp.id('301')),
+    '1', 'MYK9-1016 other judge untouched');
+  PERFORM pg_temp.expect_eq(
+    (SELECT notes FROM public.judge_assignments WHERE class_id=pg_temp.id('303')),
+    'MYK9-1016 private note', 'MYK9-1016 private assignment fields untouched');
+END;
+$$;
+INSERT INTO public.user_roles (user_id, role_id, club_id, show_id, is_active, auth_user_id)
+SELECT pg_temp.id('061'), r.id, pg_temp.id('041'), pg_temp.id('101'), true, pg_temp.id('062') FROM public.roles r WHERE r.name IN ('judge','steward');
+SET LOCAL ROLE authenticated;
+SELECT pg_temp.act_as(pg_temp.id('062'));
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.set_judge_day_capacity(pg_temp.id('101'),pg_temp.id('032'),CURRENT_DATE+20,10);
+    RAISE EXCEPTION 'MYK9-1016 official write accepted';
+  EXCEPTION WHEN SQLSTATE '42501' THEN RAISE NOTICE 'PASS MYK9-1016 judge/steward cannot write capacity';
+  END;
+END;
+$$;
+SELECT set_config('request.jwt.claim.sub','',true);
+SELECT set_config('request.jwt.claims','{}',true);
+DO $$
+BEGIN
+  BEGIN
+    PERFORM public.set_judge_day_capacity(pg_temp.id('101'),pg_temp.id('032'),CURRENT_DATE+20,10);
+    RAISE EXCEPTION 'MYK9-1016 unauthenticated write accepted';
+  EXCEPTION WHEN SQLSTATE '42501' THEN RAISE NOTICE 'PASS MYK9-1016 missing auth cannot write capacity';
+  END;
+END;
+$$;
+RESET ROLE;
+
 ROLLBACK;

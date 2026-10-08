@@ -25,7 +25,29 @@ import {
   sharedSessionFileName,
 } from '../../e2e-helpers/sharedSessionPolicy';
 
-const RUN_DIR = path.join(os.tmpdir(), 'myk9-e2e-sessions', String(process.ppid));
+const SESSIONS_DIR = path.join(os.tmpdir(), 'myk9-e2e-sessions');
+const RUN_DIR = path.join(SESSIONS_DIR, String(process.ppid));
+/** Earlier runs' directories older than this are removed: their tokens are past use. */
+const STALE_RUN_DIR_MS = 2 * 60 * 60 * 1000;
+/** How long a restore lets the app settle before judging whether it kept the session. */
+const RESTORE_SETTLE_MS = 5_000;
+const USER_CHECK_TIMEOUT_MS = 5_000;
+
+/** Remove earlier runs' saved tokens; nothing else signs them out or deletes them. */
+async function removeStaleRunDirs(): Promise<void> {
+  const entries = await fs.readdir(SESSIONS_DIR).catch(() => [] as string[]);
+  await Promise.all(
+    entries
+      .filter(entry => entry !== String(process.ppid))
+      .map(async entry => {
+        const dir = path.join(SESSIONS_DIR, entry);
+        const stat = await fs.stat(dir).catch(() => null);
+        if (stat && Date.now() - stat.mtimeMs > STALE_RUN_DIR_MS) {
+          await fs.rm(dir, { recursive: true, force: true });
+        }
+      })
+  );
+}
 
 function sessionFile(email: string): string {
   return path.join(RUN_DIR, sharedSessionFileName(email));
@@ -55,19 +77,24 @@ async function forget(email: string): Promise<void> {
  * every holder, while its access token keeps verifying locally until expiry.
  * Ask the auth server, which knows, before handing the token to another spec.
  */
-async function stillSignedIn(saved: SavedSession): Promise<boolean> {
+async function sessionStatus(saved: SavedSession): Promise<'valid' | 'revoked' | 'unknown'> {
   const env = supabaseEnv();
   const token = readSessionToken(saved.value);
-  if (!env || !token) return false;
+  if (!env || !token) return 'unknown';
   const response = await fetch(`${env.url}/auth/v1/user`, {
     headers: { apikey: env.anonKey, Authorization: `Bearer ${token.accessToken}` },
+    signal: AbortSignal.timeout(USER_CHECK_TIMEOUT_MS),
   }).catch(() => null);
-  return response?.ok === true;
+  if (response?.ok) return 'valid';
+  // Only the server's "no" retires the file for every worker. A blip (429, 5xx,
+  // timeout) sends just this sign-in to the form, or every worker would at once.
+  return response?.status === 401 || response?.status === 403 ? 'revoked' : 'unknown';
 }
 
 /**
  * Put the account's saved session in the page and open `returnTo`. Returns
- * false, leaving the page signed out, when there is nothing usable to restore.
+ * false, leaving the page signed out, when there is nothing usable to restore
+ * or anything about restoring it fails: the form sign-in is always the fallback.
  */
 export async function restoreSharedSession(
   page: Page,
@@ -76,19 +103,22 @@ export async function restoreSharedSession(
 ): Promise<boolean> {
   const saved = await readSaved(email);
   if (!saved || !isReusableSession(saved, Date.now())) return false;
-  if (!(await stillSignedIn(saved))) {
-    await forget(email);
-    return false;
+  const status = await sessionStatus(saved);
+  if (status === 'revoked') await forget(email);
+  if (status !== 'valid') return false;
+
+  try {
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await page.evaluate(({ key, value }) => localStorage.setItem(key, value), saved);
+    await page.goto(returnTo, { waitUntil: 'domcontentloaded' });
+    // The app decides auth after boot; give a bounce to /sign-in time to happen.
+    await page.waitForLoadState('networkidle', { timeout: RESTORE_SETTLE_MS }).catch(() => {});
+    if (!new URL(page.url()).pathname.includes('/sign-in')) return true;
+  } catch {
+    // Any failure here falls back to the caller's form sign-in.
   }
 
-  await page.goto('/', { waitUntil: 'domcontentloaded' });
-  await page.evaluate(({ key, value }) => localStorage.setItem(key, value), saved);
-  await page.goto(returnTo, { waitUntil: 'domcontentloaded' });
-  if (!new URL(page.url()).pathname.includes('/sign-in')) return true;
-
-  // The app did not accept it; leave the page as a form sign-in expects it.
-  await page.evaluate(key => localStorage.removeItem(key), saved.key);
-  await forget(email);
+  await page.evaluate(key => localStorage.removeItem(key), saved.key).catch(() => {});
   return false;
 }
 
@@ -102,6 +132,7 @@ export async function saveSharedSession(page: Page, email: string): Promise<void
   }, SUPABASE_AUTH_TOKEN_KEY_PATTERN);
   if (!saved || !isReusableSession(saved, Date.now())) return;
 
+  await removeStaleRunDirs();
   await fs.mkdir(RUN_DIR, { recursive: true, mode: 0o700 });
   // Write then rename, so a worker reading at the same moment never sees half a file.
   const temporary = `${sessionFile(email)}.${process.pid}.tmp`;

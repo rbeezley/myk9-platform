@@ -99,11 +99,14 @@ describe('e2e auth preflight', () => {
         ? new Response(null, { status: 503 })
         : new Response(JSON.stringify({ access_token: 'token' }), { status: 200 });
 
-    await expect(
-      verifyE2EAuthCredentials(resolveAuthPreflightConfig(baseEnv, ['secretary']), fetchImpl)
-    ).resolves.toBeUndefined();
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining('HTTP 503'));
-    warn.mockRestore();
+    try {
+      await expect(
+        verifyE2EAuthCredentials(resolveAuthPreflightConfig(baseEnv, ['secretary']), fetchImpl)
+      ).resolves.toBeUndefined();
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('HTTP 503'));
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('fails with a role-specific action message when Supabase rejects credentials', async () => {

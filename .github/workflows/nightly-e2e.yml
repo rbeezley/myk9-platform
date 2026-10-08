@@ -154,9 +154,14 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: myk9show-playwright-regression-report
+          # Never the trace archives: they record typed passwords, and this run
+          # signs in with the live test accounts' credentials; this repository's
+          # artifacts are public (MYK9-1057).
           path: |
             apps/myk9show/playwright-report-ci/
             apps/myk9show/playwright-report-ci-first/
+            !apps/myk9show/playwright-report-ci/**/*.zip
+            !apps/myk9show/playwright-report-ci-first/**/*.zip
           retention-days: 7
 
       - name: Stop isolated Supabase target

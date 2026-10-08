@@ -788,7 +788,11 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: myk9show-a11y-report
-          path: apps/myk9show/playwright-report-ci/
+          # Never the trace archives: they hold live test-account tokens and
+          # this repository's artifacts are public (MYK9-1057).
+          path: |
+            apps/myk9show/playwright-report-ci/
+            !apps/myk9show/playwright-report-ci/**/*.zip
           retention-days: 7
 
   # PR Smoke E2E — 2 stable specs (connectivity + secretary regression proof).
@@ -885,5 +889,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: myk9show-e2e-results
-          path: apps/myk9show/playwright-report-ci/
+          # Never the trace archives: they hold live test-account tokens and
+          # this repository's artifacts are public (MYK9-1057).
+          path: |
+            apps/myk9show/playwright-report-ci/
+            !apps/myk9show/playwright-report-ci/**/*.zip
           retention-days: 7

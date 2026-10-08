@@ -56,6 +56,7 @@ function renderTree(opts?: {
   selectedClasses?: Set<string>;
   onToggleClass?: (id: string) => void;
   onToggleAllInTrial?: (trialId: string, ids: string[]) => void;
+  classes?: SyncableClassData[];
 }) {
   return render(
     <OverrideTree
@@ -63,7 +64,7 @@ function renderTree(opts?: {
       showId="show-1"
       settings={settings}
       trials={trials}
-      classes={classes}
+      classes={opts?.classes ?? classes}
       trialOverrides={opts?.trialOverrides ?? []}
       classOverrides={opts?.classOverrides ?? []}
       selectedClasses={opts?.selectedClasses ?? new Set()}
@@ -183,6 +184,62 @@ describe('OverrideTree', () => {
       'href',
       '/shows/show-1/trials/trial-1/classes/class-2'
     );
+  });
+
+  it('MYK9-1049: names the results link with the full class label, section included', async () => {
+    const { user } = renderTree({
+      classes: [
+        {
+          id: 'class-a',
+          trialId: 'trial-1',
+          element: 'Container',
+          level: 'Novice',
+          section: 'A',
+          className: 'Novice',
+        } as SyncableClassData,
+        {
+          id: 'class-b',
+          trialId: 'trial-1',
+          element: 'Container',
+          level: 'Novice',
+          section: 'B',
+          className: 'Novice',
+        } as SyncableClassData,
+      ],
+    });
+    await user.click(screen.getByRole('button', { name: /Trial A.*classes/ }));
+    expect(
+      screen.getByRole('link', { name: 'View results for Container Novice A' })
+    ).toHaveAttribute('href', '/shows/show-1/trials/trial-1/classes/class-a');
+    expect(
+      screen.getByRole('link', { name: 'View results for Container Novice B' })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'View results for Novice' })).not.toBeInTheDocument();
+  });
+
+  it('MYK9-1049: tells two same-element same-level classes apart by their stored name', async () => {
+    const { user } = renderTree({
+      classes: [
+        {
+          id: 'class-1',
+          trialId: 'trial-1',
+          element: 'Interior',
+          level: 'Advanced',
+          className: 'Interior Advanced',
+        } as SyncableClassData,
+        {
+          id: 'class-2',
+          trialId: 'trial-1',
+          element: 'Interior',
+          level: 'Advanced',
+          className: 'Interior Advanced Preliminary',
+        } as SyncableClassData,
+      ],
+    });
+    await user.click(screen.getByRole('button', { name: /Trial A.*classes/ }));
+    expect(
+      screen.getByRole('link', { name: 'View results for Interior Advanced Preliminary' })
+    ).toHaveAttribute('href', '/shows/show-1/trials/trial-1/classes/class-2');
   });
 
   it('does not show results links in check-in mode', async () => {

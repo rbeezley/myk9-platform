@@ -26,7 +26,7 @@ export interface JudgeSignOffWording {
   checklistNoneDetail: string;
   checklistEndOfDayDetail: string;
   resultsControlInstruction: string;
-  /** "Initialed by Jane Smith, Sat, Oct 10": records the sign-off for the judge's whole day. */
+  /** "Record initials: Jane Smith, Sat, Oct 10": records the sign-off for the judge's whole day. */
   recordActionLabel: (judgeName: string | undefined, day: string) => string;
   recordActionWhy: string;
   /** Per-class undo of a recorded sign-off. */
@@ -49,7 +49,7 @@ const AKC_WORDING: JudgeSignOffWording = {
   resultsControlInstruction:
     "Verify the judge's initials on the printed result catalog before sending.",
   recordActionLabel: (judgeName, day) =>
-    `Initialed by ${judgeName?.trim() || 'judge'}${day ? `, ${day}` : ''}`,
+    `Record initials: ${judgeName?.trim() || 'judge'}${day ? `, ${day}` : ''}`,
   recordActionWhy: "Records the judge's initials on every completed class they judged that day",
   undoActionLabel: 'Undo initials',
   recordedMessage: count => `Initials recorded on ${count} ${count === 1 ? 'class' : 'classes'}`,
@@ -69,7 +69,7 @@ const SIGNATURE_WORDING: JudgeSignOffWording = {
   checklistEndOfDayDetail: 'Judge signs at end of day',
   resultsControlInstruction: 'Verify judge signatures on the paper reports before sending.',
   recordActionLabel: (judgeName, day) =>
-    `Signed by ${judgeName?.trim() || 'judge'}${day ? `, ${day}` : ''}`,
+    `Record signature: ${judgeName?.trim() || 'judge'}${day ? `, ${day}` : ''}`,
   recordActionWhy: "Records the judge's signature on every completed class they judged that day",
   undoActionLabel: 'Undo signature',
   recordedMessage: count => `Signature recorded on ${count} ${count === 1 ? 'class' : 'classes'}`,

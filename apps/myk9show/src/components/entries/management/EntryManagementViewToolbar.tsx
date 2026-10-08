@@ -1,41 +1,50 @@
 /**
- * Page-level view row for Entry Management (MYK9-795): one `ListViewTabs`
- * replacing the Registrations/Exceptions `PrimaryTabs`, the queue
- * buttons-with-counts, AND the Exceptions sub-tab buttons, plus the
- * `ListFilterBar` for the four registration-queue views (Trial, Class,
- * Payment status, search). The three exception views (Waitlist, Pulls,
- * Move-ups) render their own search-only filter bar inside their own
- * component, so nothing else is rendered here for them.
+ * The Entries tab toolbar (docs/plan-entries-filter-button.md): the "Show:" menu of queues and
+ * lists, a quiet search, one Filter button for Trial and Class, the applied filters as plain
+ * sentences, and the result line. The three exception views (Waitlist, Pulls, Move-ups) render
+ * their own search inside their own component, so only Show: is drawn here for them.
  */
-import type { ReactNode } from 'react';
+import { useMemo, useRef, type ReactNode } from 'react';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { MASTER_DETAIL_QUERY } from '@/components/layout/MasterDetailLayout';
 import {
-  ListFilterBar,
+  ListAppliedFilters,
+  ListFilterMenu,
   ListResultLine,
+  ListSearchField,
   ListToolbarLayout,
-  ListViewTabs,
 } from '@/components/list-toolkit';
+import type { useEntryManagementCockpit } from '@/hooks/useEntryManagementCockpit';
 import type {
   EntryManagementTrial,
-  EntryManagementTrialClass,
+  useEntryManagementTrialClasses,
 } from '@/hooks/useEntryManagementTrialScope';
-import {
-  entryManagementViewId,
-  type EntryManagementCockpitState,
-  type EntryManagementViewId,
-} from './entryManagementCockpitParams';
+import { EntryManagementShowMenu } from './EntryManagementShowMenu';
+import { countFormsByTrialAndClass } from './entryManagementFilterCounts';
 import { buildEntryManagementFilterFields } from './entryManagementFilterFields';
-import { buildEntryManagementViews, type EntryManagementViewCounts } from './entryManagementViews';
+
+type Cockpit = ReturnType<typeof useEntryManagementCockpit>;
+type TrialClasses = ReturnType<typeof useEntryManagementTrialClasses>;
 
 interface EntryManagementViewToolbarProps {
-  state: EntryManagementCockpitState;
-  counts: EntryManagementViewCounts;
+  cockpit: Pick<
+    Cockpit,
+    | 'state'
+    | 'groups'
+    | 'queueCounts'
+    | 'queueSelectionCount'
+    | 'setQueues'
+    | 'setException'
+    | 'setScope'
+    | 'setSearch'
+  >;
+  exceptionCounts: { pulls: number; moveUps: number | undefined };
   trials: readonly EntryManagementTrial[];
-  trialClasses: readonly EntryManagementTrialClass[];
-  onSelectView: (viewId: EntryManagementViewId) => void;
-  onScopeChange: (trialId: string | null, classId?: string | null) => void;
-  onSearchChange: (value: string) => void;
+  trialsLoaded: boolean;
+  classes: Pick<
+    TrialClasses,
+    'trialClasses' | 'classesLoaded' | 'classTrialById' | 'knownClassIds'
+  >;
   onClearAll: () => void;
   /** Registrations on screen after every filter, and in the show's whole queue. */
   /** Null until the entries have loaded successfully: no sentence before then. */
@@ -45,52 +54,84 @@ interface EntryManagementViewToolbarProps {
 }
 
 export function EntryManagementViewToolbar({
-  state,
-  counts,
+  cockpit,
+  exceptionCounts,
   trials,
-  trialClasses,
-  onSelectView,
-  onScopeChange,
-  onSearchChange,
+  trialsLoaded,
+  classes,
   onClearAll,
   result,
   actions,
 }: EntryManagementViewToolbarProps) {
-  const views = buildEntryManagementViews(counts);
-  const activeId = entryManagementViewId(state);
+  const { state } = cockpit;
   const isRegistrationsView = state.tab === 'registrations';
+  const filterButtonRef = useRef<HTMLButtonElement>(null);
+  const entriesLoaded = result !== null;
+  const filterCounts = useMemo(
+    () =>
+      entriesLoaded
+        ? countFormsByTrialAndClass(
+            cockpit.groups,
+            classes.knownClassIds ? classes.classTrialById : undefined
+          )
+        : null,
+    [classes.classTrialById, classes.knownClassIds, cockpit.groups, entriesLoaded]
+  );
   const filterFields = buildEntryManagementFilterFields({
     state,
     trials,
-    trialClasses,
-    onScopeChange,
+    trialsLoaded,
+    trialClasses: classes.trialClasses,
+    classesLoaded: classes.classesLoaded,
+    classTrialById: classes.classTrialById,
+    counts: filterCounts,
+    onScopeChange: cockpit.setScope,
   });
-  // From lg: views, search and filters on one row, and the count only once the list is narrowed,
-  // because the queue is the work and three stacked rows of controls pushed it below the fold. On a
-  // phone or tablet the one row does not fit (the search shrinks to nothing), so the controls stack.
+  // From lg: Show:, search and Filter on one row, and the count only once the list is narrowed,
+  // because the queue is the work. On a phone or tablet the one row does not fit, so they stack.
   const singleRow = useMediaQuery(MASTER_DETAIL_QUERY);
+  const filtered =
+    state.search.trim() !== '' ||
+    !(state.queues.length === 1 && state.queues[0] === 'all') ||
+    state.trialIds.length > 0 ||
+    state.classIds.length > 0;
+
   return (
     <div className="flex flex-wrap items-start gap-x-3 gap-y-2">
       <div className="min-w-0 flex-1 basis-[22rem]">
         <ListToolbarLayout
           compact={singleRow}
           viewTabs={
-            <ListViewTabs
-              label="Entry views"
-              views={views}
-              activeId={activeId}
+            <EntryManagementShowMenu
+              state={state}
+              counts={{ queueCounts: cockpit.queueCounts, ...exceptionCounts }}
+              selectionCount={cockpit.queueSelectionCount}
+              onQueuesChange={cockpit.setQueues}
+              onSelectException={cockpit.setException}
               compact={singleRow}
-              onSelect={id => onSelectView(id as EntryManagementViewId)}
             />
           }
           filterBar={
             isRegistrationsView ? (
-              <ListFilterBar
-                searchValue={state.search}
-                onSearchChange={onSearchChange}
-                searchPlaceholder="Search exhibitor, dog, handler, armband, confirmation, class…"
+              // From lg the search is a fixed-width field, so this group keeps its width and a long
+              // Show: summary truncates instead of sliding over the Filter button.
+              <div className="flex min-w-0 flex-1 items-center gap-2 lg:flex-none">
+                <ListSearchField
+                  value={state.search}
+                  onChange={cockpit.setSearch}
+                  placeholder="Search exhibitor, dog, handler, armband, confirmation, class…"
+                />
+                <ListFilterMenu fields={filterFields} triggerRef={filterButtonRef} />
+              </div>
+            ) : null
+          }
+          appliedFilters={
+            isRegistrationsView ? (
+              <ListAppliedFilters
                 fields={filterFields}
-                compact={singleRow}
+                onClearAll={onClearAll}
+                alsoNarrowed={state.search.trim() !== ''}
+                focusTargetRef={filterButtonRef}
               />
             ) : null
           }
@@ -100,12 +141,7 @@ export function EntryManagementViewToolbar({
                 shown={result.shown}
                 total={result.total}
                 noun={['form', 'forms']}
-                filtered={
-                  state.search.trim() !== '' ||
-                  activeId !== 'all' ||
-                  state.trialId !== null ||
-                  state.classId !== null
-                }
+                filtered={filtered}
                 onShowAll={onClearAll}
                 quietWhenUnfiltered={singleRow}
               />

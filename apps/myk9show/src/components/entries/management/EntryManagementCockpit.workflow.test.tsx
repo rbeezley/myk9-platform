@@ -117,10 +117,10 @@ function Harness({
   const state: EntryManagementCockpitState = {
     tab: 'registrations',
     exception: 'move-ups',
-    queue: 'needs-review',
+    queues: ['needs-review'],
     search: options.search ?? '',
-    trialId: options.trialId ?? null,
-    classId: options.classId ?? null,
+    trialIds: options.trialId ? [options.trialId] : [],
+    classIds: options.classId ? [options.classId] : [],
     registrationKey: options.registrationKey ?? null,
   };
   const cockpit = useEntryManagementCockpit({ groups: registrationGroups, state });

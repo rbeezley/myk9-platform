@@ -118,13 +118,29 @@ function groupMatchesQueue(group: ShowRegistrationGroup, queue: ShowRegistration
   return group.attentionReasons.includes('payment_due');
 }
 
+/** Several queues are a union: one form can need review AND have payment due (settled rule 8). */
+function groupMatchesAnyQueue(
+  group: ShowRegistrationGroup,
+  queues: readonly ShowRegistrationQueue[]
+): boolean {
+  return queues.some(queue => groupMatchesQueue(group, queue));
+}
+
 export function selectShowRegistrationQueue(
   groups: ShowRegistrationGroup[],
-  queue: ShowRegistrationQueue
+  queues: readonly ShowRegistrationQueue[]
 ): ShowRegistrationGroup[] {
   return groups
-    .filter(group => groupMatchesQueue(group, queue))
+    .filter(group => groupMatchesAnyQueue(group, queues))
     .sort((left, right) => left.submittedAt.getTime() - right.submittedAt.getTime());
+}
+
+/** Distinct forms in any of the queues: the Show: trigger's count, never the sum of the queues'. */
+export function countShowRegistrationQueueUnion(
+  groups: ShowRegistrationGroup[],
+  queues: readonly ShowRegistrationQueue[]
+): number {
+  return groups.filter(group => groupMatchesAnyQueue(group, queues)).length;
 }
 
 export interface ShowRegistrationTotals {
@@ -182,9 +198,9 @@ export interface ShowRegistrationSearchResult {
 }
 
 export interface BuildShowRegistrationPageOptions {
-  queue: ShowRegistrationQueue;
+  queues: readonly ShowRegistrationQueue[];
   search?: string;
-  classId?: string | null;
+  classIds?: readonly string[];
   trialClassIds?: readonly string[];
   pageIndex: number;
   pageSize?: number;
@@ -236,48 +252,53 @@ export function searchShowRegistrationGroups(
   });
 }
 
-function entryClassId(entryClass: EntryManagementEntry['classes'][number]): string {
+export function entryClassId(entryClass: EntryManagementEntry['classes'][number]): string {
   return entryClass.classId ?? entryClass.id;
 }
 
-function scopeShowRegistrationGroupsByClassOrTrial(
+function groupsInClasses(
   groups: ShowRegistrationGroup[],
-  classId: string | null | undefined,
-  trialClassIds: readonly string[] | undefined
+  classIds: Iterable<string>
 ): ShowRegistrationGroup[] {
-  if (classId) {
-    return groups.filter(group =>
-      group.entries.some(entry =>
-        entry.classes.some(entryClass => entryClassId(entryClass) === classId)
-      )
-    );
-  }
-  if (trialClassIds !== undefined) {
-    const trialIds = new Set(trialClassIds);
-    return groups.filter(group =>
-      group.entries.some(entry =>
-        entry.classes.some(entryClass => trialIds.has(entryClassId(entryClass)))
-      )
-    );
-  }
-  return groups;
+  const allowed = new Set(classIds);
+  return groups.filter(group =>
+    group.entries.some(entry =>
+      entry.classes.some(entryClass => allowed.has(entryClassId(entryClass)))
+    )
+  );
 }
 
+/**
+ * Picked classes narrow WITHIN the selected trials (settled rule 12): when the trials' classes are
+ * known the two lists intersect, so no row ever shows under a trial it is not in. With no class
+ * picked, the selected trials' classes scope the list, but only when they are known.
+ * `trialClassIds` undefined means "scope unknown": leave the groups unscoped rather than filter on
+ * an empty allowlist that matches nothing.
+ */
 export function scopeShowRegistrationGroups(
   groups: ShowRegistrationGroup[],
-  classId: string | null | undefined,
+  classIds: readonly string[] | undefined,
   trialClassIds: readonly string[] | undefined
 ): ShowRegistrationGroup[] {
-  return scopeShowRegistrationGroupsByClassOrTrial(groups, classId, trialClassIds);
+  if (classIds && classIds.length > 0) {
+    if (trialClassIds === undefined) return groupsInClasses(groups, classIds);
+    const inTrials = new Set(trialClassIds);
+    return groupsInClasses(
+      groups,
+      classIds.filter(id => inTrials.has(id))
+    );
+  }
+  if (trialClassIds !== undefined) return groupsInClasses(groups, trialClassIds);
+  return groups;
 }
 
 export function getScopedShowRegistrationQueueCounts(
   groups: ShowRegistrationGroup[],
-  classId: string | null | undefined,
+  classIds: readonly string[] | undefined,
   trialClassIds: readonly string[] | undefined
 ): ShowRegistrationQueueCounts {
   return getShowRegistrationQueueCounts(
-    scopeShowRegistrationGroups(groups, classId, trialClassIds)
+    scopeShowRegistrationGroups(groups, classIds, trialClassIds)
   );
 }
 
@@ -315,10 +336,10 @@ export function buildShowRegistrationPage(
   } else {
     const scopedGroups = scopeShowRegistrationGroups(
       groups,
-      options.classId,
+      options.classIds,
       options.trialClassIds
     );
-    effectiveGroups = selectShowRegistrationQueue(scopedGroups, options.queue);
+    effectiveGroups = selectShowRegistrationQueue(scopedGroups, options.queues);
   }
 
   return {

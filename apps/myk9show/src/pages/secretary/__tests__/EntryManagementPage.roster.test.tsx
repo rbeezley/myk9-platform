@@ -51,16 +51,17 @@ vi.mock('@/hooks/queries/useShowTrials', () => ({
   useShowTrials: () => ({
     data: [{ id: 't1', name: 'Trial 1', date: null, trial_number: 1 }],
     isLoading: false,
+    isSuccess: true,
   }),
 }));
 
 vi.mock('@/hooks/queries/useClassesDatabase', () => ({
-  useClassesByTrialQuery: () => ({
-    data: [
+  classesByTrialQueryOptions: (trialId: string) => ({
+    queryKey: ['classes', 'trial', trialId],
+    queryFn: async () => [
       { id: 'c1', name: 'Novice A' },
       { id: 'c2', name: 'Open B' },
     ],
-    isLoading: false,
   }),
 }));
 
@@ -94,11 +95,10 @@ vi.mock('@/hooks/queries/useTrialEntries', () => ({
 vi.mock('@/services/AuditService', () => ({ auditService: { log: vi.fn() } }));
 
 describe('EntryManagementPage legacy roster links', () => {
-  // MYK9-795: the search input and the Trial/Class `<select>`s were replaced
-  // by the shared `ListFilterBar` (a text search field plus removable
-  // filter chips) — this still proves the legacy `?trial=&class=` scope
+  // The Trial/Class selects became one Filter button with the applied filters as sentences
+  // (docs/plan-entries-filter-button.md); this still proves the legacy `?trial=&class=` scope
   // survives normalization onto that toolbar.
-  it('normalizes the retired roster presentation into the scoped registration cockpit', () => {
+  it('normalizes the retired roster presentation into the scoped registration cockpit', async () => {
     render(<EntryManagementPage />, {
       initialRoute: '/secretary/entries?tab=entries&trial=t1&roster=1&class=c1',
     });
@@ -106,7 +106,8 @@ describe('EntryManagementPage legacy roster links', () => {
     expect(
       screen.getByPlaceholderText('Search exhibitor, dog, handler, armband, confirmation, class…')
     ).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'Trial' })).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'Class' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Filter, 2 applied' })).toBeInTheDocument();
+    expect(await screen.findByText('Trial: Trial 1')).toBeInTheDocument();
+    expect(await screen.findByText('Class: Novice A')).toBeInTheDocument();
   });
 });

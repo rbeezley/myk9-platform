@@ -2,7 +2,7 @@ import { isCheckInStatus, type CheckInStatus } from '@myk9/core';
 import type { RawEntryRow } from '@/hooks/queries/useClassEntriesRaw';
 import { isOnClassRunList } from '@/features/_shared/entryAccounting';
 import type { Dog } from '@/types/dog-types';
-import type { RunSheetEntry, RunSheetResult } from './types';
+import type { RunOutcome, RunSheetEntry, RunSheetResult } from './types';
 import { formatSearchTime } from './types';
 
 function normalizeOrganization(value: string | null | undefined): string {
@@ -29,6 +29,13 @@ function registeredBreedForOrganization(
   return row.dog?.breed ?? storeDog?.breed ?? null;
 }
 
+const RUN_OUTCOMES: readonly RunOutcome[] = ['qualified', 'nq', 'absent', 'excused', 'withdrawn'];
+
+/** Unknown or missing scored status reads as NQ, the prior behaviour for non-qualifying runs. */
+function readOutcome(value: string | null): RunOutcome {
+  return RUN_OUTCOMES.find(outcome => outcome === value) ?? 'nq';
+}
+
 function readCheckInStatus(value: string | null): CheckInStatus {
   return value && isCheckInStatus(value) ? value : 'no-status';
 }
@@ -51,8 +58,10 @@ function rawToEntry(
 
   let result: RunSheetResult | null = null;
   if (isScored) {
+    const outcome = readOutcome(row.result_status);
     result = {
-      qualified: row.result_status === 'qualified',
+      outcome,
+      qualified: outcome === 'qualified',
       timeStr: row.search_time_seconds != null ? formatSearchTime(row.search_time_seconds) : '',
       faults: row.total_faults ?? 0,
       placement: row.final_placement && row.final_placement > 0 ? row.final_placement : null,

@@ -328,19 +328,13 @@ function checkInColumnGeometry() {
 }
 
 describe('buildEmergencyTrialPacketPdf', () => {
-  it('prints all eight check-in columns', () => {
+  it('prints the six check-in columns', () => {
     const { doc, texts } = renderPageOfKind('check-in');
-    for (const header of [
-      'Gate',
-      'Order',
-      'Armband',
-      'Call Name',
-      'Breed',
-      'Reg #',
-      'Handler',
-      'Pull / Move / Note',
-    ]) {
+    for (const header of ['Gate', 'Order', 'Armband', 'Call Name', 'Breed', 'Handler']) {
       expect(texts, header).toContain(header);
+    }
+    for (const dropped of ['Reg #', 'Pull / Move / Note']) {
+      expect(texts, dropped).not.toContain(dropped);
     }
     expect(doc).toBeDefined();
   });
@@ -360,12 +354,11 @@ describe('buildEmergencyTrialPacketPdf', () => {
     ['breed', 'Nederlandse Kooikerhondje Extremely Long Registered Breed Name'],
     ['callName', 'Bartholomew Fitzgerald Wellington The Third Of Somewhere'],
     ['handler', 'Anastasia Konstantinopoulos-Wetherbottom'],
-    ['registrationNumber', 'SR-99999999-XX-ALTERNATE-REGISTRY-LONGFORM'],
   ])('truncates an overlong %s rather than overprinting the next column', (field, value) => {
     const { texts } = renderPageOfKind('check-in', { [field]: value });
     // A bare `value.startsWith(text.slice(0, 8))` is vacuously true for `text
     // === ''` (`startsWith('')` is always true), and every check-in row has
-    // two empty ruled cells (gate, note) that sort ahead of every other
+    // an empty ruled gate cell that sorts ahead of every other
     // field in `texts` — so the naive predicate matches the empty gate cell
     // before ever reaching the field under test, and the assertion below
     // passes whether or not truncation happened. Require a real, non-empty

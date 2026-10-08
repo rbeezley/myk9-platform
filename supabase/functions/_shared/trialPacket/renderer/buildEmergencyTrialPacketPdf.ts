@@ -407,44 +407,40 @@ function renderCatalog(doc: jsPDF, page: EmergencyPacketPage): void {
   );
 }
 
-type CheckInColumnKey =
-  'gate' | 'order' | 'armband' | 'callName' | 'breed' | 'registrationNumber' | 'handler' | 'note';
+type CheckInColumnKey = 'gate' | 'order' | 'armband' | 'callName' | 'breed' | 'handler';
+
+/** Check-in sheet text size. Rows stay 10mm, so the batch size is unchanged. */
+const CHECK_IN_FONT_PT = 12;
+/** Armband number in the data rows: bold and larger, for reading across the room. */
+const CHECK_IN_ARMBAND_FONT_PT = 18;
 
 /**
  * Widths here are sized to the widest HEADER, not the widest expected data —
  * the non-obvious constraint the next editor needs to know before "fixing"
  * one that looks generous for its column's content. All measured at the
- * shared 7.5pt bold header font (`doc.getTextWidth`), budget = width - 3:
+ * Check-in table font, bold header (`doc.getTextWidth`), budget = width - 3.
+ * Sized at CHECK_IN_FONT_PT (readable at a distance on a board near the ring):
  *
- *   gate     'Gate'                5.85mm text, 6.90mm budget -> 1.05mm margin
- *   order    'Order'               7.20mm text, 8.50mm budget -> 1.30mm margin
- *   note     'Pull / Move / Note' 21.85mm text, 22.90mm budget -> 1.05mm margin
+ *   gate     'Gate'                 8.60mm text,  9.50mm budget
+ *   order    'Order'               10.60mm text, 11.50mm budget
+ *   armband  'Armband'             17.00mm text, 18.50mm budget
  *
- * `gate` and `order` hold no real per-entry text (a checkbox and a usually
- * ≤3-digit number) and `note` is always blank too, so their margins only
- * have to clear their OWN header, not any data. `breed` and `handler` hold
- * real per-entry data that `fitTextToWidth` already truncates gracefully, so
- * they were trimmed slightly (32->30.6, 30 unchanged) to fund `gate`/`order`
- * rather than the other way around; both still carry >17mm of slack over
- * their own header. Data that overflows any column is still truncated by
- * `fitTextToWidth`, never overprinted.
+ * The Reg # and Pull / Move / Note columns were dropped to make room for the
+ * larger text, so callName, breed and handler take the remaining width. Data
+ * that overflows a column is still truncated by `fitTextToWidth`, never
+ * overprinted.
  */
 const CHECK_IN_COLUMN_DEFS: ReadonlyArray<{ key: CheckInColumnKey; label: string; width: number }> =
   [
-    { key: 'gate', label: 'Gate', width: 9.9 },
-    { key: 'order', label: 'Order', width: 11.5 },
-    { key: 'armband', label: 'Armband', width: 20 },
-    { key: 'callName', label: 'Call Name', width: 34 },
-    { key: 'breed', label: 'Breed', width: 30.6 },
-    { key: 'registrationNumber', label: 'Reg #', width: 26 },
-    { key: 'handler', label: 'Handler', width: 30 },
-    { key: 'note', label: 'Pull / Move / Note', width: 25.9 },
+    { key: 'gate', label: 'Gate', width: 13 },
+    { key: 'order', label: 'Order', width: 15 },
+    { key: 'armband', label: 'Armband', width: 22.5 },
+    { key: 'callName', label: 'Call Name', width: 50 },
+    { key: 'breed', label: 'Breed', width: 56 },
+    { key: 'handler', label: 'Handler', width: 29.4 },
   ];
 
 /**
- * The union of the two check-in sheets this replaced: `Order` and
- * `Pull / Move / Note` came from the packet, `Reg #` from the Reports sheet.
- *
  * `x` is derived by summing preceding widths (not a literal) so a width edit
  * moves every column after it — the property the width test relies on: it
  * only checks the FIRST and LAST column's bounds, so a column downstream of
@@ -470,7 +466,6 @@ export const CHECK_IN_COLUMNS: ReadonlyArray<{
 function checkInCellValue(entry: EmergencyPacketEntry, key: CheckInColumnKey): string {
   switch (key) {
     case 'gate':
-    case 'note':
       return '';
     case 'order':
       return entry.runOrderDisplay;
@@ -480,8 +475,6 @@ function checkInCellValue(entry: EmergencyPacketEntry, key: CheckInColumnKey): s
       return entry.callName;
     case 'breed':
       return entry.breed;
-    case 'registrationNumber':
-      return entry.registrationNumber ?? '';
     case 'handler':
       return entry.handler;
     default:
@@ -490,12 +483,11 @@ function checkInCellValue(entry: EmergencyPacketEntry, key: CheckInColumnKey): s
 }
 
 /**
- * Custom layout rather than `renderTable`: this table needs the SAME 7.5pt
- * bold header the other tables use — this is a sheet read at arm's length by
- * a secretary or judge, not fine print — so the column widths above (not the
- * font) are what make `'Pull / Move / Note'` fit. `fitTextToWidth` still
- * backstops every header and every cell so a real overflow is truncated,
- * never overprinted.
+ * Custom layout rather than `renderTable`: this sheet is posted on a board
+ * near the ring and read from a distance, so it uses CHECK_IN_FONT_PT rather
+ * than the 7.5pt the other tables use. The column widths above are sized to
+ * that font. `fitTextToWidth` still backstops every header and every cell so
+ * a real overflow is truncated, never overprinted.
  */
 function renderCheckIn(doc: jsPDF, page: EmergencyPacketPage): void {
   const startY = addTitle(doc, page);
@@ -507,7 +499,7 @@ function renderCheckIn(doc: jsPDF, page: EmergencyPacketPage): void {
   doc.rect(LEFT, y, totalWidth, rowHeight, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
+  doc.setFontSize(CHECK_IN_FONT_PT);
   for (const column of CHECK_IN_COLUMNS) {
     // 3mm padding (vs. the 2mm `renderTable` cells use elsewhere) is
     // deliberate, not a typo against the plan: it truncates a hair earlier,
@@ -518,7 +510,7 @@ function renderCheckIn(doc: jsPDF, page: EmergencyPacketPage): void {
   y += rowHeight;
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
+  doc.setFontSize(CHECK_IN_FONT_PT);
   doc.setTextColor(20, 20, 20);
   page.entries.forEach((entry, rowIndex) => {
     if (rowIndex % 2 === 1) {
@@ -528,11 +520,18 @@ function renderCheckIn(doc: jsPDF, page: EmergencyPacketPage): void {
     doc.setDrawColor(150, 150, 150);
     for (const column of CHECK_IN_COLUMNS) {
       doc.rect(column.x, y, column.width, rowHeight);
+      // The armband is the number a judge looks for across the room, so it
+      // gets its own larger bold size. Its baseline sits lower to stay centred.
+      const isArmband = column.key === 'armband';
+      doc.setFont('helvetica', isArmband ? 'bold' : 'normal');
+      doc.setFontSize(isArmband ? CHECK_IN_ARMBAND_FONT_PT : CHECK_IN_FONT_PT);
       doc.text(
         fitTextToWidth(doc, checkInCellValue(entry, column.key), column.width - 3),
         column.x + 1.5,
-        y + 6
+        isArmband ? y + 7 : y + 6
       );
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(CHECK_IN_FONT_PT);
     }
     y += rowHeight;
   });

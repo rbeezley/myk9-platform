@@ -23,6 +23,7 @@ import { SECRETARY_ENTRIES_READ_ERROR } from './secretaryReadErrors';
 import { hydrateSecretaryEntriesForShow } from './secretaryReadHydration';
 import { hasUnsavedLocalEntryWrites } from '@/services/replication/entriesShowSyncState';
 import { verifySecretaryEmptyShow } from './secretaryEmptyProof';
+import { refreshShowEntriesOnOpen } from './refreshShowEntriesForRead';
 export type { PendingEntry, SecretaryEntry, SecretaryStatusEntrySeed } from './secretaryTypes';
 
 function toPendingEntry(row: Record<string, unknown>): PendingEntry {
@@ -72,6 +73,9 @@ export const getEntriesForShow = async (showId: string) => {
   const startTime = Date.now();
 
   try {
+    // MYK9-1064: a warm replica is served as-is below, and nothing else syncs
+    // this show's entries on a returning device. Bounded, coalesced, online only.
+    await refreshShowEntriesOnOpen(showId);
     const result = await getReplicatedSecretaryEntriesForShow(showId);
     if (
       result.data.length === 0 &&

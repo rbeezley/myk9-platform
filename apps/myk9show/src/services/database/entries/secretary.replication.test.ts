@@ -89,6 +89,7 @@ import {
   getEntriesForShow,
   updateEntryStatus,
 } from './secretary';
+import { resetShowOpenRefreshesForTests } from './refreshShowEntriesForRead';
 
 function mockLegacyEntryUpdate() {
   const query = {
@@ -315,6 +316,7 @@ describe('secretary entry status replication', () => {
 describe('secretary entry read replication', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    resetShowOpenRefreshesForTests();
     mocks.hasPendingWritesForShow.mockReset().mockResolvedValue(false);
     mocks.getReplicatedRow.mockReset().mockResolvedValue({ isDirty: false });
     localStorage.clear();
@@ -399,6 +401,19 @@ describe('secretary entry read replication', () => {
       },
     ]);
     mockMetadataLookups();
+  });
+
+  it('refreshes the show scope before serving a warm replica (MYK9-1064)', async () => {
+    mocks.syncEntries.mockResolvedValue({ success: true });
+
+    const result = await getEntriesForShow('show-1');
+
+    expect(result.error).toBeNull();
+    expect(mocks.syncEntries).toHaveBeenCalledTimes(1);
+    expect(mocks.syncEntries).toHaveBeenCalledWith('show-1');
+    expect(mocks.syncEntries.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.getEntriesByShow.mock.invocationCallOrder[0] ?? Infinity
+    );
   });
 
   it('builds secretary entries from replication with only scoped online reconciliation metadata', async () => {
@@ -826,7 +841,8 @@ describe('secretary entry read replication', () => {
 
     expect(result.error).toBeNull();
     expect(result.data).toEqual([]);
-    expect(mocks.syncEntries).not.toHaveBeenCalled();
+    // The one open refresh (MYK9-1064); a trusted empty scope adds no hydration sync.
+    expect(mocks.syncEntries).toHaveBeenCalledTimes(1);
     expect(mocks.supabaseRpc).toHaveBeenCalledWith('get_secretary_live_entry_count', {
       p_show_id: 'show-1',
     });

@@ -1,3 +1,4 @@
+import { onlineManager } from '@tanstack/react-query';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 
 const REFRESH_WAIT_MS = 3000;
@@ -21,4 +22,44 @@ export async function refreshShowEntriesForRead(showId: string): Promise<boolean
   } finally {
     if (timeout !== undefined) clearTimeout(timeout);
   }
+}
+
+/** Opens of one show within this window share a single refresh. */
+const SHOW_OPEN_REFRESH_GAP_MS = 15_000;
+
+const showOpenRefreshes = new Map<string, { startedAt: number; refresh: Promise<boolean> }>();
+
+/**
+ * Refresh a show's entries when someone opens it (MYK9-1064).
+ *
+ * The app-level sync pass runs `entries` with no show scope, which downloads
+ * nothing, so a returning device's show replica only moves when a reader asks.
+ * Staff surfaces that serve a warm replica (class details, Show Desk, Entry
+ * Management) never asked. This is the incremental, per-scope sync, never
+ * polled: opens within the gap share one refresh, an offline device keeps its
+ * replica, and a hidden tab refreshes a show once per page session so a
+ * background invalidation cannot turn into a poll.
+ */
+export function refreshShowEntriesOnOpen(showId: string): Promise<boolean> {
+  if (!onlineManager.isOnline()) return Promise.resolve(false);
+  const now = Date.now();
+  const previous = showOpenRefreshes.get(showId);
+  if (previous) {
+    if (now - previous.startedAt < SHOW_OPEN_REFRESH_GAP_MS) return previous.refresh;
+    if (typeof document !== 'undefined' && document.visibilityState === 'hidden') {
+      return Promise.resolve(false);
+    }
+  }
+  const refresh = refreshShowEntriesForRead(showId).then(ok => {
+    // A failed refresh is not remembered, so the next open retries at once.
+    if (!ok && showOpenRefreshes.get(showId)?.refresh === refresh) showOpenRefreshes.delete(showId);
+    return ok;
+  });
+  showOpenRefreshes.set(showId, { startedAt: now, refresh });
+  return refresh;
+}
+
+/** Test seam: forget which shows were refreshed. */
+export function resetShowOpenRefreshesForTests(): void {
+  showOpenRefreshes.clear();
 }

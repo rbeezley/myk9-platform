@@ -190,13 +190,6 @@ const EntryManagementPage: React.FC = () => {
       { replace: true }
     );
   };
-  // The empty state's "Show all forms": widen the queue and drop the search (which
-  // overrides queue and scope) but keep the trial/class scope the user came in with.
-  const handleShowAllForms = () => {
-    setSearchParams(previous => writeCockpitView(writeCockpitSearch(previous, ''), 'all'), {
-      replace: true,
-    });
-  };
 
   const {
     isProcessing,
@@ -422,7 +415,6 @@ const EntryManagementPage: React.FC = () => {
           trialsLoaded={trialsLoaded}
           classes={trialClassScope}
           onClearAll={handleClearEntryFilters}
-          onShowAllForms={handleShowAllForms}
           actions={entryActions}
           result={
             canValidateFocus

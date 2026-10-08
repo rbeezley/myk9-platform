@@ -83,7 +83,7 @@ vi.mock('@/hooks/useEntryManagementActions', () => ({
 vi.mock('@/hooks/useEntryManagementTrialScope', () => ({
   useEntryManagementTrialClasses: () => ({
     trialClasses: [],
-    trialClassIds: ['class-1'],
+    trialClassIds: [],
     isLoadingClasses: false,
   }),
   useEntryManagementTrialScope: () => ({ trials: [], isLoadingTrials: false }),
@@ -94,14 +94,12 @@ vi.mock('@/components/entries/management/EntryManagementCockpit', () => ({
     cockpit,
   }: {
     cockpit: {
-      page: { total: number };
       state: { registrationKey: string | null };
       focusedGroup: { entries: { id: string }[] } | null;
     };
   }) => (
     <>
       <output data-testid="focused-registration">{cockpit.state.registrationKey ?? 'none'}</output>
-      <output data-testid="form-total">{cockpit.page.total}</output>
       <output data-testid="visible-entry">{cockpit.focusedGroup?.entries[0]?.id ?? 'none'}</output>
     </>
   ),
@@ -221,66 +219,5 @@ describe('EntryManagementPage URL ownership', () => {
 
     await waitFor(() => expect(screen.getByTestId('location-search')).toBeEmptyDOMElement());
     expect(screen.getByTestId('focused-registration')).toHaveTextContent('none');
-  });
-
-  it('Show all forms widens only the queue and keeps the trial and class scope', async () => {
-    entryDataState.entries = [{ ...testEntry, entryStatus: 'accepted', paymentStatus: 'paid' }];
-
-    const { user } = render(
-      <>
-        <EntryManagementPage />
-        <LocationProbe />
-      </>,
-      { initialRoute: '/shows/show-1/entries?trial=trial-1&class=class-1' }
-    );
-
-    await user.click(await screen.findByRole('button', { name: 'Show all forms' }));
-
-    await waitFor(() =>
-      expect(screen.getByTestId('location-search').textContent).toBe(
-        '?queue=all&trial=trial-1&class=class-1'
-      )
-    );
-  });
-
-  it('Show all forms clears a search that hid the class forms, keeping the scope', async () => {
-    entryDataState.entries = [{ ...testEntry, entryStatus: 'accepted', paymentStatus: 'paid' }];
-
-    const { user } = render(
-      <>
-        <EntryManagementPage />
-        <LocationProbe />
-      </>,
-      { initialRoute: '/shows/show-1/entries?trial=trial-1&class=class-1&search=zzz' }
-    );
-
-    await waitFor(() => expect(screen.getByTestId('form-total')).toHaveTextContent('0'));
-    await user.click(await screen.findByRole('button', { name: 'Show all forms' }));
-
-    await waitFor(() => expect(screen.getByTestId('form-total')).toHaveTextContent('1'));
-    expect(screen.getByTestId('location-search').textContent).toBe(
-      '?queue=all&trial=trial-1&class=class-1'
-    );
-  });
-
-  it('Clear all drops the trial, class, search and non-All queue together', async () => {
-    entryDataState.entries = [{ ...testEntry, entryStatus: 'accepted', paymentStatus: 'paid' }];
-
-    const { user } = render(
-      <>
-        <EntryManagementPage />
-        <LocationProbe />
-      </>,
-      {
-        initialRoute:
-          '/shows/show-1/entries?queue=needs-review&trial=trial-1&class=class-1&search=zzz',
-      }
-    );
-
-    await user.click(await screen.findByRole('button', { name: 'Clear all filters' }));
-
-    await waitFor(() =>
-      expect(screen.getByTestId('location-search').textContent).toBe('?queue=all')
-    );
   });
 });

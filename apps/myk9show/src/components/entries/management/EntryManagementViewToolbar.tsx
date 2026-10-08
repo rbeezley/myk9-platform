@@ -46,8 +46,6 @@ interface EntryManagementViewToolbarProps {
     'trialClasses' | 'classesLoaded' | 'classTrialById' | 'knownClassIds'
   >;
   onClearAll: () => void;
-  /** The result line's "Show all forms": widens the view but keeps trial/class scope. */
-  onShowAllForms: () => void;
   /** Registrations on screen after every filter, and in the show's whole queue. */
   /** Null until the entries have loaded successfully: no sentence before then. */
   result: { shown: number; total: number } | null;
@@ -62,7 +60,6 @@ export function EntryManagementViewToolbar({
   trialsLoaded,
   classes,
   onClearAll,
-  onShowAllForms,
   result,
   actions,
 }: EntryManagementViewToolbarProps) {
@@ -145,7 +142,7 @@ export function EntryManagementViewToolbar({
                 total={result.total}
                 noun={['form', 'forms']}
                 filtered={filtered}
-                onShowAll={onShowAllForms}
+                onShowAll={onClearAll}
                 quietWhenUnfiltered={singleRow}
               />
             ) : null

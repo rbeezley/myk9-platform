@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
@@ -7,7 +7,10 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import type { EntryManagementCockpitState } from './entryManagementCockpitParams';
 import type { ShowRegistrationGroup } from './showRegistrationProjection';
-import { groupEntriesByShowRegistration } from './showRegistrationProjection';
+import {
+  getEntryRegistrationRowId,
+  groupEntriesByShowRegistration,
+} from './showRegistrationProjection';
 import { EntryManagementCockpit } from './EntryManagementCockpit';
 
 vi.mock('@/hooks/useElementWidth', () => ({
@@ -35,8 +38,10 @@ vi.mock('./EntryFocusedRegistration', async () => {
     EntryFocusedRegistration: ({
       registration,
       onStatusChange,
+      onBack,
     }: {
       registration: Pick<ShowRegistrationGroup, 'entries'>;
+      onBack?: () => void;
       onStatusChange: (
         entryId: string,
         status: EntryStatus,
@@ -45,11 +50,18 @@ vi.mock('./EntryFocusedRegistration', async () => {
     }) => {
       const entry = registration.entries[0]!;
       return (
-        <EntryStatusPopover
-          entry={entry}
-          entryClassName={entry.classes[0]!.name}
-          onStatusChange={onStatusChange}
-        />
+        <>
+          {onBack && (
+            <button type="button" onClick={onBack}>
+              Back to list
+            </button>
+          )}
+          <EntryStatusPopover
+            entry={entry}
+            entryClassName={entry.classes[0]!.name}
+            onStatusChange={onStatusChange}
+          />
+        </>
       );
     },
   };
@@ -167,6 +179,39 @@ describe('EntryManagementCockpit status seam', () => {
       expect(
         await screen.findByRole('button', { name: /change entry status for Fido in Novice A/i })
       ).toBeInTheDocument();
+    } finally {
+      window.innerWidth = previousWidth;
+    }
+  });
+
+  it('returns focus to the row after Back to list on a compact screen', async () => {
+    const previousWidth = window.innerWidth;
+    window.innerWidth = 800;
+    try {
+      const onStatusChange = vi.fn<StatusChangeHandler>(async () => true);
+      const user = userEvent.setup();
+      const entries = [
+        makeEntry(),
+        makeEntry({
+          id: 'entry-2',
+          registrationId: 'registration-2',
+          dogId: 'dog-2',
+          dogName: 'Rex',
+        }),
+      ];
+      const harness = (registrationKey: string | null) => (
+        <Harness onStatusChange={onStatusChange} options={{ entries, registrationKey }} />
+      );
+      const { rerender } = render(harness('registration-2'));
+
+      await user.click(await screen.findByRole('button', { name: 'Back to list' }));
+      // The URL drops the open form after the click.
+      await new Promise(resolve => setTimeout(resolve, 50));
+      rerender(harness(null));
+
+      await waitFor(() =>
+        expect(document.activeElement?.id).toBe(getEntryRegistrationRowId('registration-2'))
+      );
     } finally {
       window.innerWidth = previousWidth;
     }

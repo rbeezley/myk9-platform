@@ -321,8 +321,11 @@ BEGIN
       -- 52/54 became 51/53 when classes.judge_name was dropped (20260912234500, MYK9-479).
       -- authenticated 53 -> 55: judge_signed_off_at/_by (20261006154700,
       -- MYK9-1030). anon stays 51: it gets neither of them.
+      -- authenticated 55 -> 57: results_verified_at/_by (20261008014300,
+      -- MYK9-1045). results_verified_fingerprint is granted to no API role, and
+      -- anon stays 51.
       ('classes','anon',51),
-      ('classes','authenticated',55),
+      ('classes','authenticated',57),
       ('entries','anon',0),
       -- 54 became 55 when entries.withdrawal_reason_code was added and granted
       -- to authenticated (20260917214300, MYK9-632). anon stays 0: the same

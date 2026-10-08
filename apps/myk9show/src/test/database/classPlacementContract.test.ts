@@ -85,20 +85,32 @@ const forceRlsSweepMigration = readFileSync(
   'utf8'
 );
 
-// The function has two ranking branches: nationals (points) vs regular (faults).
-const nationalsBranch = rankingMigration.slice(
-  rankingMigration.indexOf('IF p_is_nationals THEN'),
-  rankingMigration.indexOf('ELSE', rankingMigration.indexOf('IF p_is_nationals THEN'))
+// The ranking function's body only, without line comments: the migration's
+// header and the body's own comments discuss the old clear-then-rank shape.
+const rankingStart = rankingMigration.indexOf(
+  'CREATE OR REPLACE FUNCTION public.recalculate_class_placements'
 );
-const regularBranch = rankingMigration.slice(
-  rankingMigration.indexOf('ELSE', rankingMigration.indexOf('IF p_is_nationals THEN')),
-  rankingMigration.indexOf('END IF', rankingMigration.indexOf('IF p_is_nationals THEN'))
+const rankingBody = rankingMigration
+  .slice(
+    rankingMigration.indexOf('AS $$', rankingStart),
+    rankingMigration.indexOf('$$;', rankingMigration.indexOf('AS $$', rankingStart))
+  )
+  .replace(/--[^\n]*/g, '');
+// Since MYK9-1045 the ranking is ONE diff-writing UPDATE: every entry of the
+// class gets its computed placement (NULL unless eligible), and only rows whose
+// placement changes are written. The eligibility test and the ORDER BY are the
+// two halves that used to be the nationals/regular branches.
+const eligibility = rankingBody.slice(
+  rankingBody.indexOf('SELECT coalesce('),
+  rankingBody.indexOf(') AS eligible')
 );
-// The stale-clearing UPDATE only — not the comment above it, which discusses
-// deleted_at at length.
-const clearStatement = rankingMigration.slice(
-  rankingMigration.indexOf('UPDATE public.entries\n    SET final_placement = NULL'),
-  rankingMigration.indexOf('IF p_is_nationals THEN')
+const orderBy = rankingBody.slice(
+  rankingBody.indexOf('ORDER BY'),
+  rankingBody.indexOf(')', rankingBody.indexOf('e2.id ASC'))
+);
+const rankedSubqueryWhere = rankingBody.slice(
+  rankingBody.indexOf(') ranked_in'),
+  rankingBody.indexOf(') ranked\n')
 );
 
 describe('placement ranking — recalculate_class_placements (latest definition)', () => {
@@ -106,58 +118,60 @@ describe('placement ranking — recalculate_class_placements (latest definition)
     // If this fails, a later migration redefined the ranking: repoint the pin
     // rather than deleting it, and re-check every assertion below against the
     // new body. Silently leaving it behind is how a contract goes vacuous.
-    expect(latestRankingMigrationFile).toBe(
-      '20260817120000_placement_ranking_ignores_soft_deleted_entries.sql'
-    );
+    expect(latestRankingMigrationFile).toBe('20261008014300_myk9_1045_results_verified.sql');
   });
 
   it('places ONLY scored + qualified entries (NQ/ABS/EX/WD get no placement)', () => {
-    for (const branch of [nationalsBranch, regularBranch]) {
-      expect(branch).toContain('e2.is_scored = true');
-      expect(branch).toContain("e2.result_status = 'qualified'");
-    }
+    expect(eligibility).toContain('e2.is_scored = true');
+    expect(eligibility).toContain("e2.result_status = 'qualified'");
+    // Ineligible rows get the CASE's implicit NULL, never a ROW_NUMBER().
+    expect(rankingBody).toMatch(/CASE WHEN ranked_in\.eligible THEN\s+ROW_NUMBER\(\) OVER \(/);
+    expect(rankingBody).toContain('PARTITION BY ranked_in.eligible');
   });
 
-  it('excludes SOFT-DELETED entries from the ranking in both branches', () => {
+  it('excludes SOFT-DELETED entries from the ranking', () => {
     // A tombstoned entry that was scored + qualified used to keep its
     // ROW_NUMBER() slot, pushing every live entry below it down one place
     // (1/2/3 -> soft-delete the 2nd -> survivors stranded at 1 and 3).
-    for (const branch of [nationalsBranch, regularBranch]) {
-      expect(branch).toContain('e2.deleted_at IS NULL');
-    }
+    expect(eligibility).toContain('e2.deleted_at IS NULL');
   });
 
-  it('clears stale placements to NULL before re-ranking', () => {
-    // A changed/reset score must not leave an old placement behind.
-    const clear = rankingMigration.indexOf('SET final_placement = NULL');
-    const firstRank = rankingMigration.indexOf('SET final_placement = ranked.placement');
-    expect(clear).toBeGreaterThanOrEqual(0);
-    expect(firstRank).toBeGreaterThan(clear); // clear precedes assignment
+  it('writes NULL over a stale placement, and writes only placements that change', () => {
+    // A changed/reset score must not leave an old placement behind: every row of
+    // the class is in the update set and an ineligible one is set to NULL. The
+    // IS DISTINCT FROM guard is MYK9-1045: a recompute over unchanged results
+    // must write nothing (no version bump, no results-check clear).
+    expect(rankingBody).toContain('SET final_placement = ranked.placement');
+    expect(rankingBody).toContain('AND e.final_placement IS DISTINCT FROM ranked.placement');
+    expect(rankingBody).not.toContain('SET final_placement = NULL');
   });
 
-  it('clears placements on soft-deleted rows too, so a tombstone is left unplaced', () => {
-    // Deliberately NOT filtered by deleted_at, unlike the identical-looking
-    // clears in refresh_class_scoring_state: those are terminal, this one is
-    // followed by re-assignment. Filtering here would leave the deleted entry
-    // holding the placement the live entry below it is about to be given, and
-    // view_entry_with_results / view_myk9q_entries / view_stats_summary do not
-    // filter deleted_at.
-    expect(clearStatement).toContain('WHERE class_id = v_class_id');
-    expect(clearStatement).not.toContain('deleted_at');
+  it('covers soft-deleted rows too, so a tombstone is left unplaced', () => {
+    // The ranked set is filtered by class only, unlike the identical-looking
+    // clears in refresh_class_scoring_state. Filtering it by deleted_at would
+    // leave the deleted entry holding a placement a live entry is about to be
+    // given, and view_entry_with_results / view_myk9q_entries /
+    // view_stats_summary do not filter deleted_at.
+    expect(rankedSubqueryWhere).toContain('WHERE e2.class_id = v_class_id');
+    expect(rankedSubqueryWhere).not.toContain('deleted_at');
   });
 
-  it('ranks a REGULAR class by fewest faults, then fastest time', () => {
-    expect(regularBranch).toContain('ROW_NUMBER() OVER (');
-    const faults = regularBranch.indexOf('e2.total_faults ASC NULLS LAST');
-    const time = regularBranch.indexOf('e2.search_time_seconds ASC NULLS LAST');
+  it('ranks a REGULAR class by fewest faults, then fastest time, then entry id', () => {
+    const faults = orderBy.indexOf(
+      'CASE WHEN p_is_nationals IS NOT TRUE THEN e2.total_faults END ASC NULLS LAST'
+    );
+    const time = orderBy.indexOf('e2.search_time_seconds ASC NULLS LAST');
+    const id = orderBy.indexOf('e2.id ASC');
     expect(faults).toBeGreaterThanOrEqual(0);
     expect(time).toBeGreaterThan(faults); // faults is the primary key, time the tiebreak
+    expect(id).toBeGreaterThan(time); // a deterministic last resort for exact ties
   });
 
   it('ranks a NATIONALS class by most points, then fastest time', () => {
-    expect(nationalsBranch).toContain('ROW_NUMBER() OVER (');
-    const points = nationalsBranch.indexOf('e2.points_earned DESC NULLS LAST');
-    const time = nationalsBranch.indexOf('e2.search_time_seconds ASC NULLS LAST');
+    const points = orderBy.indexOf(
+      'CASE WHEN p_is_nationals THEN e2.points_earned END DESC NULLS LAST'
+    );
+    const time = orderBy.indexOf('e2.search_time_seconds ASC NULLS LAST');
     expect(points).toBeGreaterThanOrEqual(0);
     expect(time).toBeGreaterThan(points);
   });

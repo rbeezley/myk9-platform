@@ -115,6 +115,12 @@ function renderPanel(organization = 'AKC') {
 }
 
 describe('unlisted assigned judges', () => {
+  beforeEach(() => {
+    roster.current = [];
+    harness.judges = [];
+    harness.judgesLoaded = true;
+  });
+
   afterEach(() => {
     roster.current = [];
     harness.judges = [];

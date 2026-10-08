@@ -43,6 +43,18 @@ describe('refreshShowEntriesOnOpen (MYK9-1064)', () => {
     expect(mocks.sync).toHaveBeenCalledWith('show-1');
   });
 
+  it('reports success for a slow sync instead of giving up at the 3 s read deadline', async () => {
+    mocks.sync.mockImplementation(
+      () => new Promise(resolve => setTimeout(() => resolve({ success: true }), 4_000))
+    );
+
+    const pending = refreshShowEntriesOnOpen('show-1');
+    await vi.advanceTimersByTimeAsync(4_000);
+
+    expect(await pending).toBe(true);
+    expect(mocks.sync).toHaveBeenCalledTimes(1);
+  });
+
   it('syncs again once the gap has passed, and per show', async () => {
     await refreshShowEntriesOnOpen('show-1');
     await refreshShowEntriesOnOpen('show-2');

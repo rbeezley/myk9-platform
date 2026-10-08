@@ -50,11 +50,20 @@ export function refreshShowEntriesOnOpen(showId: string): Promise<boolean> {
       return Promise.resolve(false);
     }
   }
-  const refresh = refreshShowEntriesForRead(showId).then(ok => {
-    // A failed refresh is not remembered, so the next open retries at once.
-    if (!ok && showOpenRefreshes.get(showId)?.refresh === refresh) showOpenRefreshes.delete(showId);
-    return ok;
-  });
+  // No read deadline here: nothing waits on this, so a slow sync that succeeds
+  // must still report success (the 3 s race in refreshShowEntriesForRead is for
+  // readers that must not block).
+  const refresh = Promise.resolve(replicatedEntriesTable.sync(showId))
+    .then(
+      result => result.success === true,
+      () => false
+    )
+    .then(ok => {
+      // A failed refresh is not remembered, so the next open retries at once.
+      if (!ok && showOpenRefreshes.get(showId)?.refresh === refresh)
+        showOpenRefreshes.delete(showId);
+      return ok;
+    });
   showOpenRefreshes.set(showId, { startedAt: now, refresh });
   return refresh;
 }

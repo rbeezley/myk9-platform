@@ -32,7 +32,13 @@ export function useRefreshShowEntriesOnOpen(showId: string, enabled: boolean): v
         const refresh = refreshShowEntriesOnOpen(showId);
         if (!(await refresh) || invalidatedRefreshes.has(refresh)) return;
         invalidatedRefreshes.add(refresh);
-        await queryClient.invalidateQueries({ queryKey: queryKeys.showEntries(showId) });
+        // Cancel first: with no cached data TanStack reuses a fetch already in
+        // flight (query-core query.js: cancelRefetch only cancels when data
+        // exists), and that fetch may have assembled its rows before the sync.
+        // cancelQueries reverts it, then invalidate starts a fresh read.
+        const queryKey = queryKeys.showEntries(showId);
+        await queryClient.cancelQueries({ queryKey });
+        await queryClient.invalidateQueries({ queryKey });
       } catch {
         // The cached read stays usable; the next open retries.
       }

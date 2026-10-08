@@ -76,6 +76,37 @@ describe('useRefreshShowEntriesOnOpen via the staff entries query (MYK9-1064)', 
     expect(mocks.sync).toHaveBeenCalledTimes(1);
   });
 
+  it('a sync that finishes during the first fetch still ends with the post-sync read', async () => {
+    let finishFirstFetch: (value: { data: unknown[]; error: null }) => void = () => {};
+    mocks.getEntriesForShow
+      .mockImplementationOnce(
+        () =>
+          new Promise(resolve => {
+            finishFirstFetch = resolve;
+          })
+      )
+      .mockResolvedValue({ data: [row('fresh')], error: null });
+    const { render } = setup();
+    const view = render();
+
+    await waitFor(() => expect(mocks.sync).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mocks.getEntriesForShow).toHaveBeenCalledTimes(2));
+    finishFirstFetch({ data: [row('stale')], error: null });
+
+    await waitFor(() => expect(view.result.current.data).toEqual([row('fresh')]));
+  });
+
+  it('a slow successful sync still invalidates exactly once', async () => {
+    mocks.sync.mockImplementation(
+      () => new Promise(resolve => setTimeout(() => resolve({ success: true }), 3_500))
+    );
+    const { invalidate, render } = setup();
+    render();
+
+    await waitFor(() => expect(invalidate).toHaveBeenCalledTimes(1), { timeout: 6_000 });
+    expect(mocks.sync).toHaveBeenCalledTimes(1);
+  }, 10_000);
+
   it('cold open: the hook syncs nothing', async () => {
     mocks.hasSynced.mockResolvedValue(false);
     const { invalidate, render } = setup();

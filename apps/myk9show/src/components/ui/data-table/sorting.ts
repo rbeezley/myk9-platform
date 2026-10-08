@@ -44,6 +44,19 @@ export function formatSearchTime(digits: string): string {
 }
 
 /**
+ * Format a digit stream positionally as M:SS.hh with NO carry: "6000" shows
+ * "0:60.00". For live display while typing, where the digits typed so far must
+ * stay the source of truth; a carried display ("1:00.00") re-read as digits
+ * would corrupt the next keystroke. Normalise only on save (formatSearchTime).
+ */
+export function formatTimeDigits(digits: string): string {
+  if (!digits) return '';
+  const padded = digits.padStart(4, '0');
+  const minutes = parseInt(padded.slice(0, -4) || '0', 10);
+  return `${minutes}:${padded.slice(-4, -2)}.${padded.slice(-2)}`;
+}
+
+/**
  * Parse formatted time (M:SS.hh) back to raw digits for editing.
  * Strips leading zeros from the result.
  */

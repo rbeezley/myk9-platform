@@ -1,6 +1,6 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
-import { formatSearchTime, parseSearchTimeDigits } from './sorting';
+import { formatTimeDigits, parseSearchTimeDigits } from './sorting';
 
 export interface TimeInputProps {
   /** Raw digits (e.g. "4532") or pre-formatted time (e.g. "0:45.32") */
@@ -59,7 +59,7 @@ export function TimeInput({
 
   // Derived only from the value, never from focus, so what the field shows
   // cannot drift from what the parent holds.
-  const displayValue = formatSearchTime(digits) || value;
+  const displayValue = formatTimeDigits(digits) || value;
 
   // Auto-focus on mount if requested
   useEffect(() => {
@@ -74,14 +74,25 @@ export function TimeInput({
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      // The field shows "0:45.20", so the typed string carries separators and
-      // the zero padding; keep the significant digits only.
-      const raw = e.target.value.replace(/\D/g, '').replace(/^0+/, '');
+      // The raw digits are the source of truth; the displayed text is never
+      // parsed back into them (its separators and zero padding are not digits
+      // the user typed). Work out the edit from how the text changed instead.
+      const text = e.target.value;
+      let next: string;
+      if (text.startsWith(displayValue) && text.length > displayValue.length) {
+        next = digits + text.slice(displayValue.length).replace(/\D/g, '');
+      } else if (displayValue.startsWith(text)) {
+        next = digits.slice(0, Math.max(0, digits.length - (displayValue.length - text.length)));
+      } else {
+        // Paste or a mid-string edit: take the digits of the new text as a fresh stream.
+        next = text.replace(/\D/g, '');
+      }
+      next = next.replace(/^0+/, '');
       // A seventh digit would shift into minutes unseen. Ignore it.
-      if (raw.length > maxDigits) return;
-      onChange(raw);
+      if (next.length > maxDigits) return;
+      onChange(next);
     },
-    [onChange, maxDigits]
+    [onChange, maxDigits, digits, displayValue]
   );
 
   const handleKeyDown = useCallback(

@@ -244,8 +244,8 @@ export function EntryManagementCockpit({
           className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2 text-sm"
         >
           <span className="text-foreground">
-            Couldn&rsquo;t load the classes for the picked trials, so the list below covers the
-            whole show, not just those trials.
+            Couldn&rsquo;t load the classes for the picked trials, so the list below is not
+            limited to those trials.
           </span>
           {onRetryTrialClasses && (
             <Button
@@ -276,7 +276,7 @@ export function EntryManagementCockpit({
           is "not yet", not a superset presented as a subset.
         */}
         {(showQueue || showDetail) && trialScopePending && (
-          <div role="status" aria-label="Loading this trial's entry forms" className="py-4">
+          <div role="status" aria-label="Loading the picked trials' entry forms" className="py-4">
             <TableSkeleton rows={6} columns={4} />
           </div>
         )}

@@ -92,8 +92,8 @@ export function EntryManagementShowMenu({
           <Button
             type="button"
             variant="outline"
-            // The name starts with the visible text (WCAG 2.5.3, so voice control matches it);
-            // the full queue list is the description.
+            // The name contains the visible text (WCAG 2.5.3, so voice control matches it) after
+            // the "Show:" the label outside the button carries; the full list is the description.
             aria-label={`Show: ${shortLabel}${countText}`}
             title={`${fullLabel}${countText}`}
             className="h-11 min-w-0 max-w-[calc(100vw-5rem)] justify-between gap-2 px-3 font-normal"

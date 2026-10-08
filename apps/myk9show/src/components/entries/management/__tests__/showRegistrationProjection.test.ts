@@ -302,6 +302,23 @@ describe('groupEntriesByShowRegistration', () => {
     expect(scoped.page.items.map(group => group.groupKey)).toEqual(['registration-trial-1']);
     expect(searched.page.items.map(group => group.groupKey)).toEqual(['registration-trial-2']);
     expect(searched.matchingEntryIdsByGroup.get('registration-trial-2')).toEqual(['trial-2-entry']);
+
+    // A picked class narrows WITHIN the selected trials (settled rule 12): a Trial 2 class under
+    // a Trial 1 scope shows nothing, never Trial 2's forms under the Trial 1 chip.
+    const crossTrial = buildShowRegistrationPage(groups, {
+      queues: ['needs-review'],
+      classIds: ['class-trial-2'],
+      trialClassIds: ['class-trial-1'],
+      pageIndex: 0,
+    });
+    expect(crossTrial.page.items).toEqual([]);
+    const inTrial = buildShowRegistrationPage(groups, {
+      queues: ['needs-review'],
+      classIds: ['class-trial-1', 'class-trial-2'],
+      trialClassIds: ['class-trial-1'],
+      pageIndex: 0,
+    });
+    expect(inTrial.page.items.map(group => group.groupKey)).toEqual(['registration-trial-1']);
   });
 
   it('treats an explicitly selected Trial with no loaded Classes as an empty scope', () => {

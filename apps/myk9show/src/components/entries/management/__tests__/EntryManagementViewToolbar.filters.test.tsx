@@ -46,7 +46,6 @@ function renderToolbar(
       classes={{
         trialClasses: [{ id: 'c1', trialId: 't1', name: 'Novice A' }],
         classesLoaded: true,
-        classById: new Map([['c1', { id: 'c1', trialId: 't1', name: 'Novice A' }]]),
         classTrialById: new Map([['c1', 't1']]),
         knownClassIds: new Set(['c1']),
       }}

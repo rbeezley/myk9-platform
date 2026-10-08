@@ -35,10 +35,6 @@ export interface BuildEntryManagementFilterFieldsOptions {
   /** The classes on offer: the picked trials', or the whole show's before a trial is picked. */
   trialClasses: readonly EntryManagementTrialClass[];
   classesLoaded: boolean;
-  /** Every loaded class, so a picked class from a trial not on offer is named, not shown as an id. */
-  classById: ReadonlyMap<string, EntryManagementTrialClass>;
-  /** Every trial's classes have loaded, so a picked id still unknown is stale (and gets pruned). */
-  allClassesLoaded: boolean;
   classTrialById: ReadonlyMap<string, string>;
   /** Null until the entries have loaded. */
   counts: EntryManagementFilterCounts | null;
@@ -56,8 +52,6 @@ export function buildEntryManagementFilterFields({
   trialsLoaded,
   trialClasses,
   classesLoaded,
-  classById,
-  allClassesLoaded,
   classTrialById,
   counts,
   onScopeChange,
@@ -70,15 +64,6 @@ export function buildEntryManagementFilterFields({
     const trial = trialById.get(entryClass.trialId);
     return trials.length > 1 && trial ? `${shortTrialLabel(trial)} · ${name}` : name;
   };
-  // A picked class outside the offered trials (a hand-edited link) is still listed, so its chip
-  // and its menu row carry its name; one not loaded yet keeps the field loading, never an id.
-  const offeredIds = new Set(trialClasses.map(entryClass => entryClass.id));
-  const pickedElsewhere = state.classIds.filter(id => !offeredIds.has(id));
-  const classOptions = [
-    ...trialClasses,
-    ...pickedElsewhere.flatMap(id => classById.get(id) ?? []),
-  ];
-  const pickedUnnamed = pickedElsewhere.some(id => !classById.has(id)) && !allClassesLoaded;
 
   return [
     {
@@ -107,9 +92,9 @@ export function buildEntryManagementFilterFields({
       key: 'class',
       label: 'Class',
       values: state.classIds,
-      loading: !classesLoaded || pickedUnnamed,
+      loading: !classesLoaded,
       onChange: classIds => onScopeChange(state.trialIds, classIds),
-      options: classOptions.map(entryClass => ({
+      options: trialClasses.map(entryClass => ({
         value: entryClass.id,
         label: classLabel(entryClass),
         ...withCount(counts ? (counts.byClass.get(entryClass.id) ?? 0) : undefined),

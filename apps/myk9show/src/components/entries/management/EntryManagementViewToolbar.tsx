@@ -41,10 +41,7 @@ interface EntryManagementViewToolbarProps {
   exceptionCounts: { pulls: number; moveUps: number | undefined };
   trials: readonly EntryManagementTrial[];
   trialsLoaded: boolean;
-  classes: Pick<
-    TrialClasses,
-    'trialClasses' | 'classesLoaded' | 'classById' | 'classTrialById' | 'knownClassIds'
-  >;
+  classes: Pick<TrialClasses, 'trialClasses' | 'classesLoaded' | 'classTrialById' | 'knownClassIds'>;
   onClearAll: () => void;
   /** Registrations on screen after every filter, and in the show's whole queue. */
   /** Null until the entries have loaded successfully: no sentence before then. */
@@ -83,8 +80,6 @@ export function EntryManagementViewToolbar({
     trialsLoaded,
     trialClasses: classes.trialClasses,
     classesLoaded: classes.classesLoaded,
-    classById: classes.classById,
-    allClassesLoaded: classes.knownClassIds !== undefined,
     classTrialById: classes.classTrialById,
     counts: filterCounts,
     onScopeChange: cockpit.setScope,

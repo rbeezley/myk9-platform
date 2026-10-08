@@ -269,16 +269,25 @@ function groupsInClasses(
 }
 
 /**
- * Picked classes narrow first (settled rule 12); otherwise the selected trials' classes, but
- * only when they are known. `trialClassIds` undefined means "scope unknown": leave the groups
- * unscoped rather than filter on an empty allowlist that matches nothing.
+ * Picked classes narrow WITHIN the selected trials (settled rule 12): when the trials' classes are
+ * known the two lists intersect, so no row ever shows under a trial it is not in. With no class
+ * picked, the selected trials' classes scope the list, but only when they are known.
+ * `trialClassIds` undefined means "scope unknown": leave the groups unscoped rather than filter on
+ * an empty allowlist that matches nothing.
  */
 export function scopeShowRegistrationGroups(
   groups: ShowRegistrationGroup[],
   classIds: readonly string[] | undefined,
   trialClassIds: readonly string[] | undefined
 ): ShowRegistrationGroup[] {
-  if (classIds && classIds.length > 0) return groupsInClasses(groups, classIds);
+  if (classIds && classIds.length > 0) {
+    if (trialClassIds === undefined) return groupsInClasses(groups, classIds);
+    const inTrials = new Set(trialClassIds);
+    return groupsInClasses(
+      groups,
+      classIds.filter(id => inTrials.has(id))
+    );
+  }
   if (trialClassIds !== undefined) return groupsInClasses(groups, trialClassIds);
   return groups;
 }

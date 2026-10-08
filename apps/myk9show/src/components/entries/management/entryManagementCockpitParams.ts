@@ -39,6 +39,12 @@ export interface CockpitNormalizationContext {
   knownTrialIds?: ReadonlySet<string>;
   /** The show's class ids, only once every trial's classes have loaded. */
   knownClassIds?: ReadonlySet<string>;
+  /**
+   * The selected trials' class ids, only once each of them has loaded. A picked class narrows
+   * WITHIN the selected trials (settled rule 12), so one outside them (a stale or hand-edited
+   * link) is dropped rather than shown under a trial it does not belong to.
+   */
+  selectedTrialClassIds?: ReadonlySet<string>;
 }
 
 export function getCockpitNormalizationContext(
@@ -159,7 +165,12 @@ export function normalizeEntryManagementCockpitParams(
   const rawSearch = source.get('search') ?? source.get('person') ?? '';
   const search = rawSearch.trim() ? rawSearch : '';
   const trialIds = tab === 'registrations' ? getIds(source.get('trial'), context.knownTrialIds) : [];
-  const classIds = tab === 'registrations' ? getIds(source.get('class'), context.knownClassIds) : [];
+  const classIds =
+    tab === 'registrations'
+      ? getIds(source.get('class'), context.knownClassIds).filter(
+          id => trialIds.length === 0 || !context.selectedTrialClassIds || context.selectedTrialClassIds.has(id)
+        )
+      : [];
   const registrationKey = tab === 'registrations' ? getRegistrationKey(source, context) : null;
   const params = new URLSearchParams();
 

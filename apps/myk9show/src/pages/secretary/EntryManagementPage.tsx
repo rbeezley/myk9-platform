@@ -122,8 +122,16 @@ const EntryManagementPage: React.FC = () => {
       // Stale ids are dropped only once the list they belong to has loaded (settled rule 9).
       ...(trialsLoaded ? { knownTrialIds: new Set(showTrialIds) } : {}),
       ...(trialClassScope.knownClassIds ? { knownClassIds: trialClassScope.knownClassIds } : {}),
+      ...(trialClassIds ? { selectedTrialClassIds: new Set(trialClassIds) } : {}),
     }),
-    [canValidateFocus, registrationGroups, showTrialIds, trialClassScope.knownClassIds, trialsLoaded]
+    [
+      canValidateFocus,
+      registrationGroups,
+      showTrialIds,
+      trialClassIds,
+      trialClassScope.knownClassIds,
+      trialsLoaded,
+    ]
   );
   const cockpitUrl = useMemo(
     () => normalizeEntryManagementCockpitParams(searchParams, normalizationContext),
@@ -168,9 +176,7 @@ const EntryManagementPage: React.FC = () => {
   // A trial is selected but which classes it holds is still being read —
   // scoping to it would render every registration in the show while
   // appearing scoped (see `EntryManagementCockpit`'s trialScopePending doc).
-  // Picked classes scope the list on their own (settled rule 12), so neither state applies then.
-  const classesScopeIt = cockpitUrl.state.classIds.length > 0;
-  const trialScopePending = trialIds.length > 0 && isLoadingClasses && !classesScopeIt;
+  const trialScopePending = trialIds.length > 0 && isLoadingClasses;
   const { count: moveUpRequestsCount, refetch: refetchMoveUpRequestsCount } =
     useMoveUpRequestsCount(selectedShowId || null);
 
@@ -479,7 +485,7 @@ const EntryManagementPage: React.FC = () => {
                 cockpit={cockpit}
                 showHasNoRegistrations={registrationGroups.length === 0}
                 trialScopePending={trialScopePending}
-                trialClassesUnknown={trialClassesUnknown && !classesScopeIt}
+                trialClassesUnknown={trialClassesUnknown}
                 onRetryTrialClasses={() => void refetchTrialClasses()}
                 showId={selectedShowId}
                 {...(selectedShow?.name ? { showName: selectedShow.name } : {})}

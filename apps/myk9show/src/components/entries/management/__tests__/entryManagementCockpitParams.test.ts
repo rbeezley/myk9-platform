@@ -218,6 +218,25 @@ describe('normalizeEntryManagementCockpitParams', () => {
       expect(loaded.params.toString()).toBe('trial=t1&class=c1');
     });
 
+    it('drops a class outside the selected trials once their classes are known (settled rule 12)', () => {
+      const raw = params('trial=t1&class=c1,c2');
+      // Not known yet: nothing is dropped, so a slow load never erases a link's classes.
+      expect(normalizeEntryManagementCockpitParams(raw).state.classIds).toEqual(['c1', 'c2']);
+
+      const known = normalizeEntryManagementCockpitParams(raw, {
+        selectedTrialClassIds: new Set(['c1']),
+      });
+      expect(known.state.classIds).toEqual(['c1']);
+      expect(known.params.toString()).toBe('trial=t1&class=c1');
+
+      // With no trial picked every class in the show is on offer, so nothing is dropped.
+      expect(
+        normalizeEntryManagementCockpitParams(params('class=c2'), {
+          selectedTrialClassIds: new Set(['c1']),
+        }).state.classIds
+      ).toEqual(['c2']);
+    });
+
     it('writes trials and classes in one step, and keeps a class with no trial', () => {
       const next = writeCockpitScope(params('trial=t1&class=c1'), [], ['c1', 'c2']);
       expect(next.toString()).toBe('class=c1%2Cc2');

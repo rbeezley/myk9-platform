@@ -78,8 +78,6 @@ export function useEntryManagementTrialClasses({
       trialClasses,
       /** Every offered trial's classes are in; until then the class field reads as loading. */
       classesLoaded,
-      /** Every loaded class by id, so a picked class outside the offered trials still has a name. */
-      classById: new Map(loadedClasses.map(c => [c.id, c])),
       /** Class to trial for every loaded class, so a trial pick can drop its classes. */
       classTrialById: new Map(loadedClasses.map(c => [c.id, c.trialId])),
       /** Every class id in the show, only once every trial's classes have loaded (URL pruning). */

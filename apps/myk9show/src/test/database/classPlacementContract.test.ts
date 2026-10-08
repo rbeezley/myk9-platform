@@ -142,9 +142,9 @@ describe('placement ranking — recalculate_class_placements (latest definition)
     // the class is in the update set and an ineligible one is set to NULL. The
     // IS DISTINCT FROM guard is MYK9-1045: a recompute over unchanged inputs
     // must write nothing (no version bump, no results-check clear).
-    expect(rankingBody).toContain('SET final_placement = f.placement');
-    expect(rankingBody).toContain('e.final_placement IS DISTINCT FROM f.placement');
-    expect(rankingBody).toContain('e.placement_tie_unresolved IS DISTINCT FROM f.tie_unresolved');
+    expect(rankingBody).toContain('SET final_placement = p.placement');
+    expect(rankingBody).toContain('e.final_placement IS DISTINCT FROM p.placement');
+    expect(rankingBody).toContain('e.placement_tie IS DISTINCT FROM p.tie');
     expect(rankingBody).not.toContain('SET final_placement = NULL');
   });
 
@@ -184,12 +184,21 @@ describe('placement ranking — recalculate_class_placements (latest definition)
     expect(time).toBeGreaterThan(points);
   });
 
-  it('flags an unresolved exact tie only within the awarded placements', () => {
+  it('places a ribbon tie by the flip and a tie below 4th at the shared competition rank', () => {
+    // Owner, 2026-10-08: every qualified dog is ranked. A tie whose competition
+    // rank is 1st-4th (also one straddling 4th) is decided by a coin flip, so it
+    // gets consecutive placements (ROW_NUMBER) and is marked unresolved until the
+    // flip is recorded. Below 4th the dogs share the rank: 5, 5, then 7 (RANK).
     expect(rankingBody).toContain(
       'WINDOW tie_group AS (PARTITION BY k.eligible, k.points_key, k.faults_key, k.time_key)'
     );
+    expect(rankingBody).toMatch(/RANK\(\) OVER \(\s+PARTITION BY k\.eligible/);
+    expect(rankingBody).toContain(
+      'CASE WHEN r.competition_rank <= 4 THEN r.row_place ELSE r.competition_rank END AS placement'
+    );
+    expect(rankingBody).toContain("WHEN r.competition_rank > 4 THEN 'shared'");
     expect(rankingBody).toContain('r.tiebreaks_set < r.tie_size');
-    expect(rankingBody).toMatch(/min\(r\.placement\)\s+OVER \([^)]*\) <= 4/);
+    expect(rankingBody).toContain("THEN 'unresolved'");
   });
 
   it('recomputes on score writes via an AFTER UPDATE trigger over the scoring columns', () => {

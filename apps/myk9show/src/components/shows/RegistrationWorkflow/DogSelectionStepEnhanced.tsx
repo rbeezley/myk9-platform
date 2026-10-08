@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Users,
@@ -33,12 +33,14 @@ import { DogSearchInterface } from './DogSearchInterface';
 import { CreateExhibitorDialog } from './CreateExhibitorDialog';
 import { AddDogPanel } from '@/components/panels/edit';
 import { QuickCreateFlow } from './QuickCreateFlow';
-import { FixedSizeList as List } from 'react-window';
+import { VariableSizeList as List, type VariableSizeList } from 'react-window';
 import { logger } from '@/services/LoggingService';
 import {
   addDogSelection,
   addVisibleDogSelections,
+  DOG_ROW_HEIGHT,
   DOG_TABLE_GRID,
+  getDogRowHeight,
   filterAccessibleDogs,
   getDogEligibilityStatus,
   getRegistrationNumberLabel,
@@ -47,7 +49,7 @@ import {
   removeVisibleDogSelections,
 } from './DogSelectionStepEnhanced.helpers';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
-import { DogRow } from './DogTableRow';
+import { DogRow, type DogRowData } from './DogTableRow';
 
 type SortColumn = 'callName' | 'breed' | 'owner' | 'regNumber';
 
@@ -89,6 +91,8 @@ interface DogSelectionStepProps {
    * Null/undefined = not known yet; the copy then says "registration number".
    */
   showRegistryId?: string | null | undefined;
+  /** `YYYY-MM-DD` show start, handed to Add Dog so its DOB warning judges age on show day. */
+  showStartDate?: string | undefined;
 }
 
 function getEmptyStateMessage(
@@ -127,6 +131,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   onSelectionChange,
   offlineFirst = false,
   showRegistryId,
+  showStartDate,
 }) => {
   const registrationNumberLabel = getRegistrationNumberLabel(showRegistryId);
   const { dogs, isLoading: dogsLoading } = useDogStoreCompat();
@@ -241,6 +246,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
     [normalizedSearchQuery]
   );
 
+  const listRef = useRef<VariableSizeList<DogRowData>>(null);
   const visibleDogs = useMemo(() => {
     if (!sortColumn) return unsortedDogs;
     const sorted = [...unsortedDogs].sort((a, b) => {
@@ -345,6 +351,15 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   };
 
   const eligibleVisible = visibleDogs.filter(d => getDogEligibilityStatus(d).eligible);
+
+  // react-window caches row sizes, so drop the cache whenever the rows change.
+  const rowHeights = useMemo(
+    () => visibleDogs.map(d => getDogRowHeight(getDogEligibilityStatus(d).eligible)),
+    [visibleDogs]
+  );
+  useEffect(() => {
+    listRef.current?.resetAfterIndex(0);
+  }, [rowHeights]);
   const allEligibleSelected =
     eligibleVisible.length > 0 && eligibleVisible.every(d => selectedDogs.includes(d.id));
 
@@ -368,6 +383,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
         onFlowCompleted={handleQuickCreateFlowCompleted}
         searchQuery={searchQuery}
         mode="batch"
+        showStartDate={showStartDate}
         offlineFirst={offlineFirst}
       />
       <CreateExhibitorDialog
@@ -378,6 +394,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
         offlineFirst={offlineFirst}
       />
       <AddDogPanel
+        showStartDate={showStartDate}
         open={showDogDialog}
         userRole={getPrimaryRole(roles)}
         onClose={() => setShowDogDialog(false)}
@@ -626,10 +643,14 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
 
                   {/* Dog list */}
                   <List
-                    height={Math.min(visibleDogs.length * 44, 440)}
+                    ref={listRef}
+                    height={Math.min(
+                      rowHeights.reduce((sum, h) => sum + h, 0),
+                      440
+                    )}
                     width="100%"
                     itemCount={visibleDogs.length}
-                    itemSize={44}
+                    itemSize={index => rowHeights[index] ?? DOG_ROW_HEIGHT}
                     itemData={{
                       dogs: visibleDogs,
                       selectedDogs,

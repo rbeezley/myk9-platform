@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react';
 import type { Dog, Registration } from '@/types/dog-types';
-import { getAgeInMonths } from '@/hooks/useEntryEligibility';
+import { MIN_ENTRY_AGE_MONTHS, getAgeInMonths } from '@/hooks/useEntryEligibility';
 import { getRegistry, listRegistries } from '@/features/registries';
 import { resolveRegistrationForShow } from './dogRegistrationForShow';
 
@@ -15,6 +15,12 @@ export function getRegistrationNumberLabel(showRegistryId: string | null | undef
   const known = listRegistries().find(id => id === showRegistryId);
   return known ? `${getRegistry(known).id} number` : 'registration number';
 }
+
+/** Staff table row heights. A greyed-out row also carries its reason, which wraps (MYK9-1060). */
+export const DOG_ROW_HEIGHT = 44;
+const INELIGIBLE_DOG_ROW_HEIGHT = 80;
+export const getDogRowHeight = (eligible: boolean): number =>
+  eligible ? DOG_ROW_HEIGHT : INELIGIBLE_DOG_ROW_HEIGHT;
 
 // Shared grid template so the staff table's header and rows always align.
 export const DOG_TABLE_GRID: CSSProperties = {
@@ -89,7 +95,7 @@ export function getDogEligibilityStatus(dog: Dog): { eligible: boolean; issues: 
   // `DogSelectionStep` — which has always used `getAgeInMonths` — showed the
   // same dog greyed out. The MYK9-519 handoff asks this function, so the
   // divergence would have preselected a dog the picker refuses.
-  if (dog.dateOfBirth && getAgeInMonths(dog.dateOfBirth) < 6) {
+  if (dog.dateOfBirth && getAgeInMonths(dog.dateOfBirth) < MIN_ENTRY_AGE_MONTHS) {
     issues.push('Too young (must be 6+ months)');
   }
   return { eligible: issues.length === 0, issues };

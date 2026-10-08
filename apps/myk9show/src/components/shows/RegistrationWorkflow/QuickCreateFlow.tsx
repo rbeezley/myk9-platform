@@ -25,6 +25,8 @@ interface QuickCreateFlowProps {
   searchQuery?: string; // Pre-fill from search if provided
   mode?: 'single' | 'batch'; // Single dog or multiple dogs
   offlineFirst?: boolean;
+  /** `YYYY-MM-DD` show start, forwarded to Add Dog so its DOB warning judges age on show day. */
+  showStartDate?: string | undefined;
 }
 
 interface FlowState {
@@ -50,6 +52,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   searchQuery = '',
   mode = 'single',
   offlineFirst = false,
+  showStartDate,
 }) => {
   const [flowState, setFlowState] = useState<FlowState>(INITIAL_FLOW_STATE);
   const [showExhibitorDialog, setShowExhibitorDialog] = useState(false);
@@ -451,6 +454,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
         variant="dialog"
         offlineFirst={offlineFirst}
         offlineDependsOn={flowState.exhibitorPendingMutationIds}
+        showStartDate={showStartDate}
       />
     </>
   );

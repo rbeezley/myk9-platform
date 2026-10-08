@@ -1,4 +1,5 @@
 import React, { useContext } from 'react';
+import { DobYoungDogWarning } from './DobYoungDogWarning';
 import { useEditPanel } from './useEditPanel';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -257,6 +258,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               {...form?.getFieldProps('dateOfBirth')}
             />
             <p className="text-xs text-muted-foreground mt-1">Format: MM/DD/YYYY</p>
+            <DobYoungDogWarning dateOfBirth={data.dateOfBirth} callName={data.callName} />
           </FormField>
         </div>
 

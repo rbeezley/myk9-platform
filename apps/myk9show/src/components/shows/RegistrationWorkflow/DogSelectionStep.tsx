@@ -5,7 +5,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
-import { getAgeInMonths } from '@/hooks/useEntryEligibility';
+import { MIN_ENTRY_AGE_MONTHS, getAgeInMonths } from '@/hooks/useEntryEligibility';
 import { useAuthContext, getPrimaryRole } from '@/hooks/useAuthContext';
 import { useCurrentUserPersonId } from '@/hooks/useRoleBasedData';
 import {
@@ -23,6 +23,7 @@ import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistration
 import { AddDogPanel } from '@/components/panels/edit';
 import { useInlineDogRegistration } from './useInlineDogRegistration';
 import { resolveRegistrationForShow, type RegistrationForShow } from './dogRegistrationForShow';
+import { DogIneligibleReason } from './DogIneligibleReason';
 import { RegistrationChipsForShow } from './RegistrationChipsForShow';
 import '@/styles/myk9-registration-workflow.css';
 
@@ -35,12 +36,15 @@ interface DogSelectionStepProps {
    * Undefined = not known yet; the card then marks nothing and blocks nobody.
    */
   showRegistryId?: string | null | undefined;
+  /** `YYYY-MM-DD` show start, handed to Add Dog so its DOB warning judges age on show day. */
+  showStartDate?: string | undefined;
 }
 
 export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
   selectedDogs,
   onSelectionChange,
   showRegistryId,
+  showStartDate,
 }) => {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [isAddDogPanelOpen, setIsAddDogPanelOpen] = React.useState(false);
@@ -82,7 +86,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
     const issues: string[] = [];
     const warnings: string[] = [];
 
-    if (dog.dateOfBirth && getAgeInMonths(dog.dateOfBirth) < 6) {
+    if (dog.dateOfBirth && getAgeInMonths(dog.dateOfBirth) < MIN_ENTRY_AGE_MONTHS) {
       issues.push('Too young (must be 6+ months)');
     }
 
@@ -125,6 +129,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
 
   const addDogPanel = (
     <AddDogPanel
+      showStartDate={showStartDate}
       open={isAddDogPanelOpen}
       onClose={() => setIsAddDogPanelOpen(false)}
       onDogCreated={handleDogCreated}
@@ -285,6 +290,11 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                           aria-label={`Select ${getDogDisplayName(dog)}`}
                           checked={isSelected}
                           disabled={!eligible}
+                          aria-describedby={
+                            !eligible && issues.length > 0
+                              ? `${dog.id}-ineligible-reason`
+                              : undefined
+                          }
                           onCheckedChange={() => handleDogToggle(dog.id)}
                           onClick={e => e.stopPropagation()}
                         />
@@ -319,13 +329,12 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
                         )}
 
                         {!eligible && issues.length > 0 && (
-                          <div className="mt-2">
-                            {issues.map((issue, idx) => (
-                              <p key={idx} className="text-xs text-destructive">
-                                • {issue}
-                              </p>
-                            ))}
-                          </div>
+                          <DogIneligibleReason
+                            id={`${dog.id}-ineligible-reason`}
+                            issues={issues}
+                            dateOfBirth={dog.dateOfBirth}
+                            className="mt-2"
+                          />
                         )}
 
                         {eligible && warnings.length > 0 && (

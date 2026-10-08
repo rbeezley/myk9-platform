@@ -5,6 +5,7 @@ import { screen, within } from '@/test/utils/testUtils';
 import { render } from '@/test/utils/testUtils';
 import type { ClassData } from '@/components/classes/types/classTypes';
 import { usePageEditTargetStore } from '@/features/actions/pageEditTarget';
+import { registeredPageActions, runPageAction } from '@/test/utils/pageActions';
 
 const mockUseClassDetailsData = vi.hoisted(() => vi.fn());
 const mockUseClassDetailsDialogs = vi.hoisted(() => vi.fn());
@@ -77,7 +78,8 @@ vi.mock('@/features/delete/DeleteObjectDialog', () => ({
 }));
 
 vi.mock('@/components/classes/ClassRequirementsPanel', () => ({
-  ClassRequirementsPanel: () => null,
+  ClassRequirementsPanel: ({ open }: { open: boolean }) =>
+    open ? <div data-testid="requirements-panel" /> : null,
 }));
 
 vi.mock('@/components/ui/dropdown-menu', () => ({
@@ -313,22 +315,25 @@ describe('ClassDetailsPage header actions', () => {
     });
   });
 
-  it('routes secretaries to the workbench instead of duplicating class lifecycle actions', async () => {
-    const { user } = renderClassDetailsPage();
-
-    expect(screen.getByRole('menuitem', { name: /^show home$/i })).toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /mark in progress/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /mark completed/i })).not.toBeInTheDocument();
-
-    await user.click(screen.getByRole('menuitem', { name: /^show home$/i }));
-
-    expect(screen.getByTestId('location')).toHaveTextContent('/shows/show-1');
-  });
-
-  it('names the overflow trigger "Class options" for screen readers', () => {
+  it('offers every class action in the header Actions menu, and no ⋮ on the page (decision 6)', () => {
     renderClassDetailsPage();
 
-    expect(screen.getByRole('button', { name: 'Class options' })).toBeInTheDocument();
+    expect(registeredPageActions()).toEqual(['Edit class', 'Manage Entries', 'Print score sheets']);
+    // No lifecycle duplicates: the show's own surfaces own those.
+    expect(registeredPageActions().join()).not.toMatch(/mark in progress|mark completed/i);
+    // "Show home" was navigation the breadcrumb already carries.
+    expect(screen.queryByRole('button', { name: 'Class options' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('menuitem', { name: /^show home$/i })).not.toBeInTheDocument();
+  });
+
+  it("opens this class's score sheet on the show's Reports page", () => {
+    renderClassDetailsPage();
+
+    runPageAction('Print score sheets');
+
+    expect(screen.getByTestId('location')).toHaveTextContent(
+      '/shows/show-1/reports?report=scoresheet&trialId=trial-1&classId=class-1'
+    );
   });
 
   it('does not duplicate show messaging from the class header', () => {
@@ -339,10 +344,11 @@ describe('ClassDetailsPage header actions', () => {
     expect(screen.queryByRole('button', { name: /show messages/i })).not.toBeInTheDocument();
   });
 
-  it('keeps the current class when opening Manage Entries', async () => {
-    const { user } = renderClassDetailsPage();
+  it('keeps the current class when opening Manage Entries', () => {
+    renderClassDetailsPage();
 
-    await user.click(screen.getByRole('button', { name: /manage entries/i }));
+    expect(screen.queryByRole('button', { name: /manage entries/i })).not.toBeInTheDocument();
+    runPageAction('Manage Entries');
 
     expect(screen.getByTestId('location')).toHaveTextContent(
       '/shows/show-1/entries?trial=trial-1&class=class-1&queue=all'
@@ -394,12 +400,16 @@ describe('ClassDetailsPage header actions', () => {
       expect(screen.queryByTestId('delete-class-dialog')).not.toBeInTheDocument();
     });
 
-    it('keeps the read-only affordances that are theirs', () => {
-      renderClassDetailsPage();
+    it('keeps the read-only affordances that are theirs', async () => {
+      const { user } = renderClassDetailsPage();
+      expect(screen.queryByTestId('requirements-panel')).not.toBeInTheDocument();
 
-      expect(screen.getByRole('menuitem', { name: /requirements/i })).toBeInTheDocument();
+      // Requirements is information for anyone viewing the class: a plain page button, not
+      // a header action, so an exhibitor gets no header Actions button for it.
+      await user.click(screen.getByRole('button', { name: /requirements/i }));
+      expect(screen.getByTestId('requirements-panel')).toBeInTheDocument();
+      expect(usePageEditTargetStore.getState().target).toBeNull();
       expect(screen.queryByRole('button', { name: /manage entries/i })).not.toBeInTheDocument();
-      expect(screen.queryByRole('menuitem', { name: /^show home$/i })).not.toBeInTheDocument();
     });
   });
 

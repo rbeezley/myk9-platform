@@ -44,6 +44,7 @@ import { useTrialStats, type EntryForStats } from '@/hooks/useTrialStats';
 import { useTrialEntries } from '@/hooks/queries/useTrialEntries';
 import { deriveTrialCompositeStatus, deriveTrialStatusKey, formatTrialLabel } from '@myk9/core';
 import { StatusIcon, getStatusDescriptor } from '@/components/status';
+import { getReportScopeSearchParams } from '@/lib/reports/reportScope';
 
 // The route is authentication-gated; management tabs are additionally scoped.
 // useUrlTab validates `?tab=` against this list, so hidden tabs cannot be
@@ -113,6 +114,24 @@ const TrialDetailsPage: React.FC = () => {
     title: currentTrial
       ? formatTrialLabel({ name: currentTrial.name, trialNumber: currentTrial.trialNumber })
       : undefined,
+    // The show's Reports page, scoped to this trial (CRUD standard decision 6). Behind the
+    // same staff gate as the reports route itself.
+    extras:
+      canManageTrial && addClassesShowId && trialId
+        ? [
+            {
+              id: 'reports',
+              label: 'Print reports',
+              icon: 'reports',
+              run: () =>
+                navigate(
+                  `/shows/${encodeURIComponent(addClassesShowId)}/reports?${getReportScopeSearchParams(
+                    { kind: 'trial', showId: addClassesShowId, trialId }
+                  ).toString()}`
+                ),
+            },
+          ]
+        : [],
   });
 
   // Tab state — URL-synced. Pass only the tabs this visitor may see so a

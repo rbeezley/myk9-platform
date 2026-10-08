@@ -112,6 +112,7 @@ describe('useCurrentActions — ownership must be resolved before anything is of
       'show-add-classes',
       'show-open-entry-management',
       'show-generate-publish-premium',
+      'show-close-out',
     ]);
   });
 
@@ -223,6 +224,16 @@ describe('useCurrentActions — labelled sections (CRUD standard decision 6)', (
       ['show', 'Fall Scent Weekend'],
       ['create', 'Create'],
     ]);
+  });
+
+  it('withholds Close out show once the stored show is completed', () => {
+    useShowStore.setState({
+      shows: [{ id: SHOW_ID, name: 'Fall Scent Weekend', status: 'completed' }] as never,
+    });
+    const { result } = renderHook(() => useCurrentActions(), { wrapper });
+    const ids = result.current.actions.map(action => action.id);
+    expect(ids).not.toContain('show-close-out');
+    expect(ids).toContain('show-settings');
   });
 
   it('falls back to "This show" before the store has the show', () => {

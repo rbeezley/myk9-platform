@@ -154,6 +154,7 @@ describe('resolveActions — secretary on a show', () => {
       'show-add-classes',
       'show-open-entry-management',
       'show-generate-publish-premium',
+      'show-close-out',
     ]);
   });
 
@@ -166,6 +167,7 @@ describe('resolveActions — secretary on a show', () => {
       `/secretary/create-show/wizard?showId=${SHOW_ID}&mode=add-classes`,
       `/shows/${SHOW_ID}/entries`,
       undefined, // the premium flow is a command, not a place
+      `/shows/${SHOW_ID}/results?step=close`, // the Results section's close-out step
     ]);
   });
 
@@ -198,8 +200,8 @@ describe('resolveActions — club admin on a show', () => {
   const actions = inGroup(resolveActions(SHOW_CONTEXT, clubAdmin), 'show');
 
   // "Open Show Day" went with the tab (MYK9-957): the show home is the page this menu opens over.
-  it('keeps the same seven items', () => {
-    expect(actions).toHaveLength(7);
+  it('keeps the same eight items', () => {
+    expect(actions).toHaveLength(8);
   });
 
   it('greys mail-in entry with a reason, because /secretary/register is secretary-only', () => {
@@ -484,5 +486,20 @@ describe("resolveActions — a page's other actions (CRUD standard decision 6)",
       'page'
     );
     expect(actions.map(a => a.id)).toEqual(['club-authorize']);
+  });
+});
+
+describe("resolveActions — Close out show follows the show's life", () => {
+  it.each(['completed', 'cancelled'])('withholds it from a %s show', status => {
+    const ids = resolveActions(SHOW_CONTEXT, { ...secretary, showStatus: status }).map(a => a.id);
+    expect(ids).not.toContain('show-close-out');
+    // Positive control: the rest of the show section is still there.
+    expect(ids).toContain('show-settings');
+  });
+
+  it.each(['open', 'closed', undefined])('offers it while the show is %s', status => {
+    expect(
+      resolveActions(SHOW_CONTEXT, { ...secretary, showStatus: status }).map(a => a.id)
+    ).toContain('show-close-out');
   });
 });

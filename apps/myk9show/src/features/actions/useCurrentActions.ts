@@ -58,6 +58,11 @@ export function useCurrentActions(): CurrentActions {
     showId && canSeeShowSection && !storedShowName ? showId : ''
   );
   const showName = storedShowName ?? queriedShow?.name;
+  // Same sources, for the one item that depends on where the show is in its life (close-out).
+  const storedShowStatus = useShowStore(state =>
+    showId ? state.shows.find(show => show.id === showId)?.status : undefined
+  );
+  const showStatus = storedShowStatus ?? queriedShow?.status;
 
   // The one control behind the `publish-premium` command -- the same read,
   // derivation and flow the Premium List card renders, so the menu can never
@@ -110,6 +115,7 @@ export function useCurrentActions(): CurrentActions {
         canCreateDogs,
         canCreatePeople,
         canCreateClubs,
+        showStatus,
       }),
     [
       route,
@@ -120,6 +126,7 @@ export function useCurrentActions(): CurrentActions {
       canCreateDogs,
       canCreatePeople,
       canCreateClubs,
+      showStatus,
       pageKind,
       pageCanEdit,
       pageAddClassesHref,

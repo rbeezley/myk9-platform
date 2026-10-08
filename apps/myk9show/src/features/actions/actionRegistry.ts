@@ -66,7 +66,9 @@ export type ActionIconName =
   | 'status'
   | 'send'
   | 'authorize'
-  | 'revoke';
+  | 'revoke'
+  | 'close-out'
+  | 'reports';
 
 /**
  * One more thing a detail page lets this viewer do to its object, beyond Edit: Change Photo,
@@ -155,6 +157,11 @@ export interface ActionViewer extends CreateGates {
    * SITE_ADMIN (`routes/secretaryRoutes.tsx`), so mail-in entry is not theirs.
    */
   canOperateShow: boolean;
+  /**
+   * The show's status, when known. A completed or cancelled show is already closed out, so
+   * "Close out show" is withheld rather than offered as a dead end.
+   */
+  showStatus?: string | undefined;
   /**
    * The detail page on screen, when its viewer may edit it. Registered by the page
    * itself so the gate is the one its Edit button used (MYK9-928).
@@ -246,6 +253,8 @@ export function mergeSearchOnlyHref(href: string, currentSearch: string): string
   return `?${merged.toString()}`;
 }
 
+const CLOSED_SHOW_STATUSES = new Set(['completed', 'cancelled']);
+
 function buildShowActions(
   showId: string,
   shellMounted: boolean,
@@ -336,6 +345,19 @@ function buildShowActions(
       group: 'show',
       icon: 'premium',
     },
+    ...(CLOSED_SHOW_STATUSES.has(viewer.showStatus ?? '')
+      ? []
+      : [
+          {
+            // The Results section's own close-out step, opened on it (CRUD standard
+            // decision 6); the step's confirm dialog does the work. Same gate as the route.
+            id: 'show-close-out',
+            label: 'Close out show',
+            href: `/shows/${encoded}/results?step=close`,
+            group: 'show' as const,
+            icon: 'close-out' as const,
+          },
+        ]),
   ];
 }
 

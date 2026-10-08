@@ -6,6 +6,7 @@ import { SHOW_SHELL_CHILD_SEGMENTS } from '@/routes/showManagementSections';
 import { getAddClassesHref } from '@/pages/secretary/ShowCreationWizard/addClassesHref';
 import { getAddTrialsHref } from '@/pages/secretary/ShowCreationWizard/addTrialsHref';
 import { TRIAL_SECRETARY_ONLY_REASON } from './trialSecretaryAccess';
+import { CREATE_HREFS, type CreateGates } from './createGates';
 
 /**
  * THE registry of "what can I do from here" (MYK9-630).
@@ -38,6 +39,30 @@ export type ActionCommand = 'publish-premium' | 'edit-object' | 'page-export';
  */
 export type EditableObjectKind = 'trial' | 'class' | 'club' | 'dog' | 'person';
 
+/**
+ * The menu's labelled sections, in the order they render (CRUD standard decision 6):
+ * the detail page's own object, then the show it sits in, then the lists on screen, then
+ * Create, which is the same on every page. Each section is headed by a name, never a
+ * divider alone, so the viewer can tell what an item applies to.
+ */
+export const ACTION_GROUP_ORDER = ['page', 'show', 'list', 'create'] as const;
+export type ActionGroupId = (typeof ACTION_GROUP_ORDER)[number];
+
+/** Resolved to a component by `actionIcons.ts`, so this module stays free of React. */
+export type ActionIconName =
+  | 'edit'
+  | 'add-entry'
+  | 'add-entry-other'
+  | 'add-trial'
+  | 'add-classes'
+  | 'entry-forms'
+  | 'premium'
+  | 'export'
+  | 'add-show'
+  | 'add-dog'
+  | 'add-person'
+  | 'add-club';
+
 export interface PageObject {
   kind: EditableObjectKind;
   /**
@@ -67,19 +92,16 @@ export interface AppAction {
   run?: () => void;
   /** Present when the item belongs here but the viewer cannot use it. */
   disabledReason?: string;
-  /** Renders a divider above this item. */
-  separatorBefore?: boolean;
+  /** Which labelled section of the menu this item sits in (CRUD standard decision 6). */
+  group: ActionGroupId;
+  /** One icon per action, the same in the header menu and the command palette. */
+  icon: ActionIconName;
   destructive?: boolean;
   /**
    * Search-only synonyms for the command palette, never displayed. For words a
    * user will type that the label deliberately does not carry (MYK9-672).
    */
   aliases?: readonly string[];
-  /**
-   * Owned by the detail page on screen (its Edit, a trial's Add classes), not by the show or
-   * the viewer's role. The command palette offers these on every route, show or not.
-   */
-  pageOwned?: boolean;
 }
 
 export type ActionRouteContext =
@@ -96,7 +118,7 @@ export type ActionRouteContext =
     }
   | { kind: 'global' };
 
-export interface ActionViewer {
+export interface ActionViewer extends CreateGates {
   /** May manage THIS show -- the same gate the management routes use. */
   canManageShow: boolean;
   /**
@@ -106,9 +128,6 @@ export interface ActionViewer {
    * SITE_ADMIN (`routes/secretaryRoutes.tsx`), so mail-in entry is not theirs.
    */
   canOperateShow: boolean;
-  canCreateShows: boolean;
-  /** Holds a show-management staff role anywhere (drives the role-wide list). */
-  isShowManagementStaff: boolean;
   /**
    * The detail page on screen, when its viewer may edit it. Registered by the page
    * itself so the gate is the one its Edit button used (MYK9-928).
@@ -121,7 +140,7 @@ export interface ActionViewer {
   addClassesTrialId?: string | null | undefined;
   /**
    * Whole-list "Export CSV" actions the lists on screen registered (`usePageExportAction`), by
-   * list id. They form the menu's last group.
+   * list id. They form the menu's list section.
    */
   pageExports?: ReadonlyArray<{ id: string }> | undefined;
 }
@@ -217,6 +236,8 @@ function buildShowActions(
     // domain noun secretaries, guides and entry blanks use (MYK9-672).
     aliases: ['mail-in', 'paper', 'phone', 'walk-up', 'on behalf'],
     href: buildSecretaryRegistrationPath(showId),
+    group: 'show',
+    icon: 'add-entry-other',
     ...(viewer.canOperateShow ? {} : { disabledReason: TRIAL_SECRETARY_ONLY_REASON }),
   };
 
@@ -242,17 +263,23 @@ function buildShowActions(
       label: 'Edit show',
       aliases: ['show details', 'edit show details', 'settings'],
       href: shellMounted ? '?edit=true' : `/shows/${encoded}?edit=true`,
+      group: 'show',
+      icon: 'edit',
     },
-    { ...entryForSomeoneElse, separatorBefore: true },
+    entryForSomeoneElse,
     {
       id: 'show-enter-own-dogs',
       label: 'Add entry for my dog',
       href: buildExhibitorRegistrationPath(showId),
+      group: 'show',
+      icon: 'add-entry',
     },
     {
       id: 'show-add-new-trial',
       label: 'Add Trial',
       href: getAddTrialsHref(showId),
+      group: 'show',
+      icon: 'add-trial',
     },
     {
       // The show-level door into the one class-create flow (the Setup toolbar
@@ -260,11 +287,15 @@ function buildShowActions(
       id: 'show-add-classes',
       label: 'Add classes',
       href: getAddClassesHref(showId, viewer.addClassesTrialId),
+      group: 'show',
+      icon: 'add-classes',
     },
     {
       id: 'show-open-entry-management',
       label: 'Open Entry Forms',
       href: `/shows/${encoded}/entries`,
+      group: 'show',
+      icon: 'entry-forms',
     },
     {
       // Runs the Premium List card's OWN flow, from whatever section the
@@ -275,21 +306,59 @@ function buildShowActions(
       id: 'show-generate-publish-premium',
       label: 'Generate & publish premium',
       command: 'publish-premium',
-      separatorBefore: true,
+      group: 'show',
+      icon: 'premium',
     },
   ];
 }
 
-function buildRoleWideActions(viewer: ActionViewer): AppAction[] {
+/**
+ * The Create group: the same on every page, so a first-time secretary never has to know which
+ * page to visit before starting something. It holds ONLY objects with no parent; a trial, class
+ * or entry is created from its parent's own group, so the parent is never in doubt (CRUD
+ * standard decision 6). Each item links to its list page's existing create panel. "Open Show
+ * Management" used to sit here; it is navigation, and lives in the sidebar and the palette.
+ */
+function buildCreateActions(viewer: ActionViewer): AppAction[] {
   const actions: AppAction[] = [];
   if (viewer.canCreateShows) {
-    actions.push({ id: 'create-show', label: 'Add Show', href: '/?wizard=true' });
-  }
-  if (viewer.isShowManagementStaff) {
     actions.push({
-      id: 'open-show-management',
-      label: 'Open Show Management',
-      href: '/secretary/dashboard',
+      id: 'create-show',
+      label: 'Add Show',
+      aliases: ['new', 'create', 'event'],
+      href: CREATE_HREFS.show,
+      group: 'create',
+      icon: 'add-show',
+    });
+  }
+  if (viewer.canCreateDogs) {
+    actions.push({
+      id: 'create-dog',
+      label: 'Add Dog',
+      aliases: ['new', 'create'],
+      href: CREATE_HREFS.dog,
+      group: 'create',
+      icon: 'add-dog',
+    });
+  }
+  if (viewer.canCreatePeople) {
+    actions.push({
+      id: 'create-person',
+      label: 'Add Person',
+      aliases: ['new', 'create', 'contact'],
+      href: CREATE_HREFS.person,
+      group: 'create',
+      icon: 'add-person',
+    });
+  }
+  if (viewer.canCreateClubs) {
+    actions.push({
+      id: 'create-club',
+      label: 'Add Club',
+      aliases: ['new', 'create'],
+      href: CREATE_HREFS.club,
+      group: 'create',
+      icon: 'add-club',
     });
   }
   return actions;
@@ -303,48 +372,46 @@ function buildPageObjectActions(pageObject: PageObject | null | undefined): AppA
   if (!pageObject) return [];
   const { kind } = pageObject;
   const actions: AppAction[] = [
-    { id: `${kind}-edit`, label: `Edit ${kind}`, command: 'edit-object', pageOwned: true },
+    {
+      id: `${kind}-edit`,
+      label: `Edit ${kind}`,
+      command: 'edit-object',
+      group: 'page',
+      icon: 'edit',
+    },
   ];
   if (kind === 'trial' && pageObject.addClassesHref) {
     actions.push({
       id: 'trial-add-classes',
       label: 'Add classes',
       href: pageObject.addClassesHref,
-      pageOwned: true,
+      group: 'page',
+      icon: 'add-classes',
     });
   }
   return actions;
 }
 
 /**
- * The ordered actions for one route context. An empty list means the header
- * button is HIDDEN, not disabled.
+ * The ordered actions for one route context, already in `ACTION_GROUP_ORDER`. An empty list
+ * means the header button is HIDDEN, not disabled.
  *
- * A detail page's own group comes first, then the context's list (the show's,
- * or the role-wide one) behind a divider.
+ * The detail page's own object comes first, then the show it sits in, then the lists on
+ * screen, then Create. `groupActions` turns this flat list into the labelled sections.
  */
 export function resolveActions(route: ActionRouteContext, viewer: ActionViewer): AppAction[] {
-  const exports: AppAction[] = (viewer.pageExports ?? []).map((item, index) => ({
-    id: `page-export-${item.id}`,
-    label: 'Export CSV',
-    command: 'page-export',
-    pageOwned: true,
-    ...(index === 0 ? { separatorBefore: true } : {}),
-  }));
   const own = buildPageObjectActions(viewer.pageObject);
   // One "Add classes": a trial page's own (focused on that trial) replaces the show-wide one.
   const hasTrialAddClasses = own.some(action => action.id === 'trial-add-classes');
-  const context = (
-    route.kind === 'show'
-      ? buildShowActions(route.showId, route.shellMounted, viewer)
-      : buildRoleWideActions(viewer)
+  const show = (
+    route.kind === 'show' ? buildShowActions(route.showId, route.shellMounted, viewer) : []
   ).filter(action => !(hasTrialAddClasses && action.id === 'show-add-classes'));
-  if (own.length === 0) return [...context, ...exports];
-  return [
-    ...own,
-    ...context.map((action, index) =>
-      index === 0 ? { ...action, separatorBefore: true } : action
-    ),
-    ...exports,
-  ];
+  const exports: AppAction[] = (viewer.pageExports ?? []).map(item => ({
+    id: `page-export-${item.id}`,
+    label: 'Export CSV',
+    command: 'page-export',
+    group: 'list',
+    icon: 'export',
+  }));
+  return [...own, ...show, ...exports, ...buildCreateActions(viewer)];
 }

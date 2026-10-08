@@ -19,7 +19,6 @@ import {
 } from '@/components/users/browse/peopleBulkActions';
 import { defaultListView } from '@/utils/defaultListView';
 import { useRBAC } from '@/hooks/useRBAC';
-import { PERMISSIONS } from '@/services/auth/rbacService';
 import { useBrowsePeopleData } from '@/hooks/useBrowsePeopleData';
 import {
   PeopleCompactList,
@@ -34,6 +33,8 @@ import { useUserStore, PersonInput } from '@/store/userStore';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
 import type { User } from '@/types/user-types';
+import { resolveCreateGates } from '@/features/actions/createGates';
+import { useAuthContext } from '@/hooks/useAuthContext';
 
 const PEOPLE_NOUN = ['person', 'people'] as const;
 
@@ -58,6 +59,7 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
   const showCreatePersonDialog = searchParams.get('add') === 'true';
 
   const { hasPermission, isLoading: rbacLoading } = useRBAC();
+  const { hasRole } = useAuthContext();
   const { addUser } = useUserStore();
   const queryClient = useQueryClient();
 
@@ -102,7 +104,8 @@ const BrowsePeoplePage: React.FC<BrowsePeoplePageProps> = ({ detail = null }) =>
     run: () => exportRowsCsv('people', PEOPLE_EXPORT_HEADERS, peopleExportRows(filteredPeople)),
   });
 
-  const canCreatePeople = !rbacLoading && hasPermission(PERMISSIONS.PEOPLE_CREATE);
+  const canCreatePeople =
+    !rbacLoading && resolveCreateGates({ hasRole, hasPermission }).canCreatePeople;
 
   const breadcrumbs = useMemo(() => [{ label: 'People', href: '/people' }], []);
 

@@ -155,7 +155,7 @@ Create group on every page: Add Show, Add Dog, Add Person (staff), Add Club (sta
 
 **Phase 6a: Groups, icons and the Create group in the registry.**
 
-- `AppAction` gains `group: 'object' | 'list' | 'create'` and `icon`. `PageObject` gains the display name used as the object group's heading. `resolveActions` returns the groups in the fixed order; the `separatorBefore` bookkeeping is replaced by group boundaries.
+- `AppAction` gains `group: 'page' | 'show' | 'list' | 'create'` (the object section is `page` for a detail page and `show` for the show it sits in) and `icon`. `PageObject` gains the display name used as the object group's heading. `resolveActions` returns the groups in the fixed order; the `separatorBefore` bookkeeping is replaced by group boundaries.
 - `HeaderActions` renders a labelled group per non-empty group, with a divider between groups and the icon on every item. The command palette uses the same groups as its sections.
 - Add the Create group: Add Show (`SHOW_CREATE`), Add Dog (`DOG_CREATE`), Add Person and Add Club (secretary or site admin, matching the gate the list page's own Add button uses). Each links to its list page's create panel by URL; add the URL parameter on any list page that lacks one.
 - Remove "Open Show Management" from the registry. Confirm it is reachable from the sidebar and ⌘K first.

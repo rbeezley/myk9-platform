@@ -170,7 +170,12 @@ const DogDetailsLoaded: React.FC<DogDetailsMainProps & { gates: DogPageGates }> 
   // Edit dog is the first item of the header Actions menu (MYK9-928). The page shows the
   // dog to its viewer only once access is checked, and the secretary's rail button and
   // the exhibitor's menu item this replaces had no narrower gate.
-  usePageEditAction({ kind: 'dog', enabled: true, run: () => setIsEditPanelOpen(true) });
+  usePageEditAction({
+    kind: 'dog',
+    enabled: true,
+    run: () => setIsEditPanelOpen(true),
+    title: dog.callName,
+  });
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
   const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);

@@ -114,6 +114,7 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
     kind: 'person',
     enabled: !isRemoved,
     run: () => setIsEditModalOpen(true),
+    title: fullName,
   });
   const [isQualificationsPanelOpen, setIsQualificationsPanelOpen] = useState(false);
   // Name the list the user actually came in through — a site admin arriving from

@@ -58,7 +58,9 @@ describe('command palette show actions come from the action registry', () => {
         canManageShow: true,
         canOperateShow: true,
         canCreateShows: true,
-        isShowManagementStaff: true,
+        canCreateDogs: true,
+        canCreatePeople: true,
+        canCreateClubs: true,
       }
     );
 
@@ -66,7 +68,11 @@ describe('command palette show actions come from the action registry', () => {
     // resolved its state is unknown, `useCurrentActions` greys it rather than
     // guess, and the palette drops greyed items because it has no disabled row
     // and nowhere to put the reason. The header menu is where the reason shows.
-    const expectedInPalette = expected.filter(a => a.command !== 'publish-premium');
+    // The Create group is absent too: the palette renders it as its own commands, with
+    // their keyboard shortcuts (`createActions`, pinned below).
+    const expectedInPalette = expected.filter(
+      a => a.command !== 'publish-premium' && a.group !== 'create'
+    );
     expect(result.current.actionCommands.map(c => c.label)).toEqual(
       expectedInPalette.map(a => a.label)
     );
@@ -97,6 +103,20 @@ describe('command palette show actions come from the action registry', () => {
 
     expect(result.current.actionCommands).toEqual([]);
   });
+
+  it("hands the palette the header's Create group, on and off a show route", () => {
+    for (const route of ['/dogs', '/shows/show-1']) {
+      const { result } = renderHook(() => useCommandMenuCommands(), {
+        wrapper: wrapperAt(route),
+      });
+      expect(result.current.createActions.map(a => [a.label, a.href])).toEqual([
+        ['Add Show', '/?wizard=true'],
+        ['Add Dog', '/dogs?add=true'],
+        ['Add Person', '/people?add=true'],
+        ['Add Club', '/clubs?create=true'],
+      ]);
+    }
+  });
 });
 
 describe('command palette offers the detail page own actions off a show route (MYK9-928)', () => {
@@ -116,7 +136,7 @@ describe('command palette offers the detail page own actions off a show route (M
     expect(run).toHaveBeenCalledTimes(1);
   });
 
-  it('offers only the page-owned items there, not the role-wide Add Show / Show Management', () => {
+  it("offers only the page's own items there, and no Create items (the palette renders those itself)", () => {
     const { result } = renderHook(
       () => {
         usePageEditAction({ kind: 'person', enabled: true, run: vi.fn() });

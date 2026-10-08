@@ -224,7 +224,8 @@ describe('AppHeader Actions menu — secretary on a show route', () => {
       .getAllByRole('menuitem')
       .map(item => item.textContent?.trim());
 
-    // Group order (MYK9-928): Edit, Add, then navigation, then status.
+    // Item order (MYK9-928): Edit, Add, then navigation, then status; then the Create
+    // section, which is on every page (CRUD standard decision 6).
     expect(labels).toEqual([
       'Edit show',
       'Add entry for someone else',
@@ -233,7 +234,34 @@ describe('AppHeader Actions menu — secretary on a show route', () => {
       'Add classes',
       'Open Entry Forms',
       'Generate & publish premium',
+      'Add Show',
+      'Add Dog',
+      'Add Person',
+      'Add Club',
     ]);
+  });
+
+  it('heads each section, divides only between sections, and gives every item an icon', async () => {
+    const user = userEvent.setup();
+    render(<AppHeader />, { initialRoute: SHOW_ROUTE });
+
+    await user.click(screen.getByRole('button', { name: /^actions$/i }));
+    const menu = await screen.findByRole('menu');
+
+    const show = within(menu).getByTestId('header-action-group-show');
+    const create = within(menu).getByTestId('header-action-group-create');
+    expect(within(show).getAllByRole('menuitem')[0]).toHaveTextContent('Edit show');
+    expect(within(create).getByText('Create')).toBeInTheDocument();
+    expect(
+      within(create)
+        .getAllByRole('menuitem')
+        .map(item => item.textContent)
+    ).toEqual(['Add Show', 'Add Dog', 'Add Person', 'Add Club']);
+    // Two sections, so exactly one divider.
+    expect(within(menu).getAllByRole('separator')).toHaveLength(1);
+    for (const item of within(menu).getAllByRole('menuitem')) {
+      expect(item.querySelector('svg'), item.textContent ?? '').not.toBeNull();
+    }
   });
 
   it('links each item at the canonical route', async () => {
@@ -288,18 +316,23 @@ describe('AppHeader Actions menu — exhibitor on the same route', () => {
 });
 
 describe('AppHeader Actions menu — off a show route', () => {
-  it('falls back to the role-wide list for a secretary', async () => {
+  it('offers a secretary the Create section, and no Show Management link', async () => {
     const user = userEvent.setup();
     render(<AppHeader />, { initialRoute: '/dogs' });
 
     await user.click(screen.getByRole('button', { name: /^actions$/i }));
     const menu = await screen.findByRole('menu');
 
+    expect(within(menu).getByText('Create')).toBeInTheDocument();
     expect(
       within(menu)
         .getAllByRole('menuitem')
         .map(item => item.textContent?.trim())
-    ).toEqual(['Add Show', 'Open Show Management']);
+    ).toEqual(['Add Show', 'Add Dog', 'Add Person', 'Add Club']);
+    expect(within(menu).getByText('Add Club').closest('a')).toHaveAttribute(
+      'href',
+      '/clubs?create=true'
+    );
   });
 });
 
@@ -575,7 +608,7 @@ describe('AppHeader Actions menu — a detail page registers its Edit (MYK9-928)
     usePageEditTargetStore.setState({ target: null, owner: null });
   });
 
-  it('lists Edit trial first, then Add classes, then the show list behind a divider', async () => {
+  it('lists the trial section first, then the show section, then Create', async () => {
     const user = userEvent.setup();
     render(
       <>
@@ -592,7 +625,11 @@ describe('AppHeader Actions menu — a detail page registers its Edit (MYK9-928)
       .map(item => item.textContent?.trim());
 
     expect(labels.slice(0, 3)).toEqual(['Edit trial', 'Add classes', 'Edit show']);
-    expect(within(menu).getAllByRole('separator').length).toBeGreaterThan(0);
+    expect(
+      within(within(menu).getByTestId('header-action-group-page')).getAllByRole('menuitem')
+    ).toHaveLength(2);
+    // Three sections (trial, show, Create), so two dividers.
+    expect(within(menu).getAllByRole('separator')).toHaveLength(2);
   });
 
   it('runs the page Edit when the item is chosen', async () => {

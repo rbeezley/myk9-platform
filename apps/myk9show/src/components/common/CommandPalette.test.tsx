@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { render } from '@/test/utils/testUtils';
 import { CommandPalette } from './CommandPalette';
 import { PERMISSIONS, UserRole } from '@/types/auth-types';
+import { PERMISSIONS as RBAC_PERMISSIONS } from '@/services/auth/rbacService';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import {
   registerCommandMenuContext,
@@ -11,20 +12,56 @@ import {
 } from '@/features/command-menu/commandMenuContextStore';
 import type { CommandMenuContext } from '@/features/command-menu/commandMenuTypes';
 import { getShortcutKeysForCommand } from '@/components/layout/appShortcuts';
-import { resolveActions } from '@/features/actions/actionRegistry';
+import { resolveActions, type AppAction } from '@/features/actions/actionRegistry';
 
 const currentActions = vi.hoisted(() => ({
   value: { route: { kind: 'global' }, actions: [] } as { route: unknown; actions: unknown[] },
 }));
 
-vi.mock('@/features/actions/useCurrentActions', () => ({
+vi.mock('@/features/actions/useCurrentActions', async importOriginal => {
   // The registry -> palette contract has its own test
   // (features/command-menu/__tests__/commandMenuRegistryActions.test.tsx).
   // Stubbed here so this file's per-test useAuthContext mocks do not each have
   // to carry the show-management RBAC the registry reads. A test that needs
   // show actions sets `currentActions.value` from the real `resolveActions`.
-  useCurrentActions: () => currentActions.value,
-}));
+  //
+  // The Create group is appended from the REAL registry and the REAL gates, under the
+  // viewer `mockAuth` set, because the palette's create commands now come from it.
+  const actual = await importOriginal<typeof import('@/features/actions/useCurrentActions')>();
+  const { resolveCreateGates } = await vi.importActual<
+    typeof import('@/features/actions/createGates')
+  >('@/features/actions/createGates');
+  const { groupActions } = await vi.importActual<typeof import('@/features/actions/actionGroups')>(
+    '@/features/actions/actionGroups'
+  );
+  const registry = await vi.importActual<typeof import('@/features/actions/actionRegistry')>(
+    '@/features/actions/actionRegistry'
+  );
+  const auth = await import('@/hooks/useAuthContext');
+  return {
+    ...actual,
+    useCurrentActions: () => {
+      const gates = resolveCreateGates(auth.useAuthContext());
+      const creates = registry
+        .resolveActions(
+          { kind: 'global' },
+          { canManageShow: false, canOperateShow: false, ...gates }
+        )
+        .filter(action => action.group === 'create');
+      const actions = [...(currentActions.value.actions as AppAction[]), ...creates];
+      return {
+        ...currentActions.value,
+        actions,
+        groups: groupActions(actions, {
+          page: 'This page',
+          show: 'This show',
+          list: 'This list',
+          create: 'Create',
+        }),
+      };
+    },
+  };
+});
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: vi.fn(),
@@ -104,6 +141,7 @@ function mockAuth(roles: UserRole[], permissions: string[] = []) {
     user: { id: 'viewer', is_anonymous: false },
     loading: false,
     userWithRoles: { roles },
+    hasRole: (role: UserRole) => roles.includes(role),
     hasPermission: (permission: string) => permissions.includes(permission),
   } as ReturnType<typeof useAuthContext>);
 }
@@ -139,7 +177,9 @@ describe('CommandPalette show-action aliases (MYK9-672)', () => {
           canManageShow: true,
           canOperateShow: true,
           canCreateShows: true,
-          isShowManagementStaff: true,
+          canCreateDogs: true,
+          canCreatePeople: true,
+          canCreateClubs: true,
         }
       ),
     };
@@ -169,7 +209,8 @@ describe('CommandPalette show-action aliases (MYK9-672)', () => {
 
 describe('CommandPalette role scoping', () => {
   it('excludes people and user-management commands for exhibitor-only sessions', () => {
-    mockAuth([UserRole.EXHIBITOR]);
+    // An exhibitor holds dog:create (DEFAULT_ROLE_PERMISSIONS), so Add Dog stays.
+    mockAuth([UserRole.EXHIBITOR], [PERMISSIONS.DOG_CREATE]);
 
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
@@ -180,7 +221,7 @@ describe('CommandPalette role scoping', () => {
   });
 
   it('keeps staff-authorized people and creation commands available', () => {
-    mockAuth([UserRole.SECRETARY], [PERMISSIONS.USER_CREATE, PERMISSIONS.SHOW_CREATE]);
+    mockAuth([UserRole.SECRETARY], [RBAC_PERMISSIONS.PEOPLE_CREATE, PERMISSIONS.SHOW_CREATE]);
 
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
@@ -191,7 +232,7 @@ describe('CommandPalette role scoping', () => {
   });
 
   it('treats mixed exhibitor and staff sessions as staff when permissions allow it', () => {
-    mockAuth([UserRole.EXHIBITOR, UserRole.SECRETARY], [PERMISSIONS.USER_CREATE]);
+    mockAuth([UserRole.EXHIBITOR, UserRole.SECRETARY], [RBAC_PERMISSIONS.PEOPLE_CREATE]);
 
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
@@ -237,12 +278,12 @@ describe('CommandPalette contextual commands', () => {
 
 describe('CommandPalette Entry Management context', () => {
   it('does not add Entry Management mutations', () => {
-    mockAuth([UserRole.SECRETARY], [PERMISSIONS.USER_CREATE, PERMISSIONS.SHOW_CREATE]);
+    mockAuth([UserRole.SECRETARY], [RBAC_PERMISSIONS.PEOPLE_CREATE, PERMISSIONS.SHOW_CREATE]);
     registerEntryManagementContext();
 
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
-    const actionTitles = ['Add Dog', 'Add Person', 'Add Show'];
+    const actionTitles = ['Add Person', 'Add Show', 'Add Club'];
     for (const title of actionTitles) {
       expect(screen.getByText(title)).toBeInTheDocument();
     }
@@ -376,7 +417,7 @@ describe('CommandPalette shortcut badges (task 3.1)', () => {
   });
 
   it('renders the registered key badges next to their commands', () => {
-    mockAuth([UserRole.SECRETARY], [PERMISSIONS.USER_CREATE, PERMISSIONS.SHOW_CREATE]);
+    mockAuth([UserRole.SECRETARY], [RBAC_PERMISSIONS.PEOPLE_CREATE, PERMISSIONS.SHOW_CREATE]);
 
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
@@ -471,7 +512,7 @@ describe('CommandPalette permission suppression role matrix (task 3.2)', () => {
     expect(screen.queryByText('Add Show')).not.toBeInTheDocument();
   });
 
-  it('secretary without USER_CREATE/SHOW_CREATE: browses people but cannot create users/shows', () => {
+  it('secretary without PEOPLE_CREATE/SHOW_CREATE: browses people but cannot create people/shows', () => {
     mockAuth([UserRole.SECRETARY]);
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
@@ -481,7 +522,9 @@ describe('CommandPalette permission suppression role matrix (task 3.2)', () => {
   });
 
   it('site admin: sees every gated surface', () => {
-    mockAuth([UserRole.SITE_ADMIN], [PERMISSIONS.USER_READ]);
+    // Add Person follows people:create, the gate BrowsePeoplePage's own button uses; site
+    // admins hold it (migration 140).
+    mockAuth([UserRole.SITE_ADMIN], [PERMISSIONS.USER_READ, RBAC_PERMISSIONS.PEOPLE_CREATE]);
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
     expect(screen.getByText('Users')).toBeInTheDocument();

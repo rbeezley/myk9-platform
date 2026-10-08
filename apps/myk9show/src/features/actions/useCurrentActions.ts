@@ -2,9 +2,11 @@ import { useMemo } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useShowManageScope } from '@/hooks/useShowManageScope';
-import { PERMISSIONS, UserRole } from '@/types/auth-types';
 import { usePremiumPublishControl } from '@/features/premium/usePremiumPublishControl';
+import { useShowStore } from '@/store/showStore';
 import { usePageEditTargetStore } from './pageEditTarget';
+import { resolveCreateGates } from './createGates';
+import { groupActions, listHeading, pageObjectHeading, type ActionGroup } from './actionGroups';
 import {
   mergeSearchOnlyHref,
   parseActionRouteContext,
@@ -16,6 +18,8 @@ import {
 export interface CurrentActions {
   route: ActionRouteContext;
   actions: AppAction[];
+  /** The same actions as labelled sections, in menu order. */
+  groups: ActionGroup[];
 }
 
 /**
@@ -35,8 +39,15 @@ export function useCurrentActions(): CurrentActions {
   const showId = route.kind === 'show' ? route.showId : undefined;
   const scope = useShowManageScope(showId);
 
-  const canCreateShows = hasPermission(PERMISSIONS.SHOW_CREATE);
-  const isShowManagementStaff = hasRole(UserRole.SECRETARY) || hasRole(UserRole.SITE_ADMIN);
+  const { canCreateShows, canCreateDogs, canCreatePeople, canCreateClubs } = resolveCreateGates({
+    hasRole,
+    hasPermission,
+  });
+  // The show section's heading. Read from the replicated store, so it works offline and costs
+  // no read; "This show" covers the moment before the store has it.
+  const showName = useShowStore(state =>
+    showId ? state.shows.find(show => show.id === showId)?.name : undefined
+  );
 
   // The one control behind the `publish-premium` command -- the same read,
   // derivation and flow the Premium List card renders, so the menu can never
@@ -55,22 +66,30 @@ export function useCurrentActions(): CurrentActions {
   const addClassesTrialId = usePageEditTargetStore(state => state.addClassesTrialId);
   const pageExports = usePageEditTargetStore(state => state.exports);
   const pageExportIds = pageExports.map(item => item.id).join('|');
+  // Joined for a stable memo dependency, then split once for both readers.
+  const exportIdList = useMemo(
+    () => (pageExportIds === '' ? [] : pageExportIds.split('|')),
+    [pageExportIds]
+  );
   const pageKind = pageTarget?.kind;
   const pageAddClassesHref = pageTarget?.addClassesHref;
+  const pageTitle = pageTarget?.title;
 
   const resolved = useMemo(
     () =>
       resolveActions(route, {
         addClassesTrialId,
         pageObject: pageKind ? { kind: pageKind, addClassesHref: pageAddClassesHref } : null,
-        pageExports: pageExportIds === '' ? [] : pageExportIds.split('|').map(id => ({ id })),
+        pageExports: exportIdList.map(id => ({ id })),
         // Fail closed while ownership is still resolving: an empty list hides
         // the button, which is honest, where a flashed-then-withdrawn menu is
         // the mistake-anxiety bug docs/INTENT.md names.
         canManageShow: scope.status === 'resolved' && scope.canManage,
         canOperateShow: scope.status === 'resolved' && scope.canOperate,
         canCreateShows,
-        isShowManagementStaff,
+        canCreateDogs,
+        canCreatePeople,
+        canCreateClubs,
       }),
     [
       route,
@@ -78,11 +97,13 @@ export function useCurrentActions(): CurrentActions {
       scope.canManage,
       scope.canOperate,
       canCreateShows,
-      isShowManagementStaff,
+      canCreateDogs,
+      canCreatePeople,
+      canCreateClubs,
       pageKind,
       pageAddClassesHref,
       addClassesTrialId,
-      pageExportIds,
+      exportIdList,
     ]
   );
 
@@ -128,5 +149,16 @@ export function useCurrentActions(): CurrentActions {
     ]
   );
 
-  return { route, actions };
+  const groups = useMemo(
+    () =>
+      groupActions(actions, {
+        page: pageKind ? pageObjectHeading(pageKind, pageTitle) : 'This page',
+        show: showName?.trim() || 'This show',
+        list: listHeading(exportIdList),
+        create: 'Create',
+      }),
+    [actions, pageKind, pageTitle, showName, exportIdList]
+  );
+
+  return { route, actions, groups };
 }

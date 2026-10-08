@@ -154,6 +154,7 @@ export function useClubDetailsState(selectedClub: Club | null) {
     kind: 'club',
     enabled: canEditClub && Boolean(selectedClub),
     run: handleEditClub,
+    title: selectedClub?.name,
   });
 
   // The shared delete dialog (features/delete) soft-deletes the club through

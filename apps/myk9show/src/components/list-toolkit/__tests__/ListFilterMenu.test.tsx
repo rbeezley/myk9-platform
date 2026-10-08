@@ -258,7 +258,7 @@ describe('ListFilterMenu', () => {
     it('does nothing while a dialog is open', () => {
       render(
         <>
-          <div role="dialog" data-state="open" />
+          <div role="dialog" data-open="" />
           <Harness />
         </>
       );

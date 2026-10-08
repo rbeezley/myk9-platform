@@ -20,9 +20,9 @@ export function replicatedToClass(replicated: ReplicatedClass): SyncableClassDat
     status: 'Scheduled',
     judge: '', // Local-only
     className: replicated.name,
-    element: '', // Local-only
+    element: replicated.element || '',
     level: replicated.level || '',
-    section: '', // Local-only
+    section: replicated.section || '',
     entryFee: replicated.entryFee || 25,
     maxEntries: replicated.maxEntries || 40,
     results_released_at: replicated.results_released_at ?? null,
@@ -54,8 +54,8 @@ export function mergeClassData(
     classOrder: existing.classOrder || '',
     status: existing.status || 'Scheduled',
     judge: existing.judge || '',
-    element: existing.element || '',
-    section: existing.section || '',
+    element: base.element || existing.element || '',
+    section: base.section || existing.section || '',
     hidesUsed: existing.hidesUsed || '',
     distractionsUsed: existing.distractionsUsed || '',
     itemsUsed: existing.itemsUsed || '',

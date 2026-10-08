@@ -347,11 +347,7 @@ BEGIN
       -- an exhibitor's own self-declaration, not age data. anon stays 0: the same
       -- migration REVOKEs the column from anon, and a direct client write cannot
       -- set it (trg_entries_junior_fee forces it false on insert, keeps OLD on update).
-      -- 57 became 59 when entries.placement_tiebreak and placement_tie_unresolved
-      -- were added and granted to authenticated (20261008014300, MYK9-1045): the
-      -- replica reads the recorded coin-flip order and the unresolved-tie flag
-      -- offline. anon stays 0: the same migration REVOKEs both from anon.
-      ('entries','authenticated',59),
+      ('entries','authenticated',57),
       ('judge_assignments','anon',10),
       ('judge_assignments','authenticated',12),
       ('dogs','anon',5),

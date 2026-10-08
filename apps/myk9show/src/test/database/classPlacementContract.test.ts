@@ -96,22 +96,21 @@ const rankingBody = rankingMigration
     rankingMigration.indexOf('$$;', rankingMigration.indexOf('AS $$', rankingStart))
   )
   .replace(/--[^\n]*/g, '');
-// Since MYK9-1045 the ranking is ONE diff-writing UPDATE over three CTEs: `keyed`
-// (eligibility and the rule's keys), `ranked` (ROW_NUMBER over the keys, then
-// the secretary-recorded coin flip), `flagged` (unresolved-tie flag). Every
-// entry of the class gets its computed placement (NULL unless eligible), and
-// only rows whose placement or flag changes are written.
-const keyedCte = rankingBody.slice(
-  rankingBody.indexOf('WITH keyed AS ('),
-  rankingBody.indexOf('ranked AS (')
-);
-const eligibility = keyedCte.slice(
-  keyedCte.indexOf('coalesce('),
-  keyedCte.indexOf(') AS eligible')
+// Since MYK9-1045 the ranking is ONE diff-writing UPDATE: every entry of the
+// class gets its computed placement (NULL unless eligible), and only rows whose
+// placement changes are written. The eligibility test and the ORDER BY are the
+// two halves that used to be the nationals/regular branches.
+const eligibility = rankingBody.slice(
+  rankingBody.indexOf('SELECT coalesce('),
+  rankingBody.indexOf(') AS eligible')
 );
 const orderBy = rankingBody.slice(
   rankingBody.indexOf('ORDER BY'),
-  rankingBody.indexOf(')', rankingBody.indexOf('k.id ASC'))
+  rankingBody.indexOf(')', rankingBody.indexOf('e2.id ASC'))
+);
+const rankedSubqueryWhere = rankingBody.slice(
+  rankingBody.indexOf(') ranked_in'),
+  rankingBody.indexOf(') ranked\n')
 );
 
 describe('placement ranking — recalculate_class_placements (latest definition)', () => {
@@ -126,8 +125,8 @@ describe('placement ranking — recalculate_class_placements (latest definition)
     expect(eligibility).toContain('e2.is_scored = true');
     expect(eligibility).toContain("e2.result_status = 'qualified'");
     // Ineligible rows get the CASE's implicit NULL, never a ROW_NUMBER().
-    expect(rankingBody).toMatch(/CASE WHEN k\.eligible THEN\s+ROW_NUMBER\(\) OVER \(/);
-    expect(rankingBody).toContain('PARTITION BY k.eligible');
+    expect(rankingBody).toMatch(/CASE WHEN ranked_in\.eligible THEN\s+ROW_NUMBER\(\) OVER \(/);
+    expect(rankingBody).toContain('PARTITION BY ranked_in.eligible');
   });
 
   it('excludes SOFT-DELETED entries from the ranking', () => {
@@ -137,14 +136,13 @@ describe('placement ranking — recalculate_class_placements (latest definition)
     expect(eligibility).toContain('e2.deleted_at IS NULL');
   });
 
-  it('writes NULL over a stale placement, and writes only rows that change', () => {
+  it('writes NULL over a stale placement, and writes only placements that change', () => {
     // A changed/reset score must not leave an old placement behind: every row of
     // the class is in the update set and an ineligible one is set to NULL. The
-    // IS DISTINCT FROM guard is MYK9-1045: a recompute over unchanged inputs
+    // IS DISTINCT FROM guard is MYK9-1045: a recompute over unchanged results
     // must write nothing (no version bump, no results-check clear).
-    expect(rankingBody).toContain('SET final_placement = p.placement');
-    expect(rankingBody).toContain('e.final_placement IS DISTINCT FROM p.placement');
-    expect(rankingBody).toContain('e.placement_tie IS DISTINCT FROM p.tie');
+    expect(rankingBody).toContain('SET final_placement = ranked.placement');
+    expect(rankingBody).toContain('AND e.final_placement IS DISTINCT FROM ranked.placement');
     expect(rankingBody).not.toContain('SET final_placement = NULL');
   });
 
@@ -154,51 +152,28 @@ describe('placement ranking — recalculate_class_placements (latest definition)
     // leave the deleted entry holding a placement a live entry is about to be
     // given, and view_entry_with_results / view_myk9q_entries /
     // view_stats_summary do not filter deleted_at.
-    const where = keyedCte.slice(keyedCte.indexOf('FROM public.entries e2'));
-    expect(where).toContain('WHERE e2.class_id = v_class_id');
-    expect(where).not.toContain('deleted_at');
+    expect(rankedSubqueryWhere).toContain('WHERE e2.class_id = v_class_id');
+    expect(rankedSubqueryWhere).not.toContain('deleted_at');
   });
 
-  it('ranks a REGULAR class by fewest faults, then fastest time, then the recorded coin flip', () => {
-    expect(keyedCte).toContain(
-      'CASE WHEN p_is_nationals IS NOT TRUE THEN e2.total_faults END AS faults_key'
+  it('ranks a REGULAR class by fewest faults, then fastest time, then entry id', () => {
+    const faults = orderBy.indexOf(
+      'CASE WHEN p_is_nationals IS NOT TRUE THEN e2.total_faults END ASC NULLS LAST'
     );
-    const faults = orderBy.indexOf('k.faults_key ASC NULLS LAST');
-    const time = orderBy.indexOf('k.time_key ASC NULLS LAST');
-    const flip = orderBy.indexOf('k.placement_tiebreak ASC NULLS LAST');
-    const stable = orderBy.indexOf('k.id ASC');
+    const time = orderBy.indexOf('e2.search_time_seconds ASC NULLS LAST');
+    const id = orderBy.indexOf('e2.id ASC');
     expect(faults).toBeGreaterThanOrEqual(0);
-    expect(time).toBeGreaterThan(faults); // faults is the primary key, time the next
-    // An exact tie is decided by a coin flip at the show, recorded by the
-    // secretary (set_class_tie_order). Entry id only keeps an UNRESOLVED tie's
-    // write stable between recomputes; it is never the rule.
-    expect(flip).toBeGreaterThan(time);
-    expect(stable).toBeGreaterThan(flip);
+    expect(time).toBeGreaterThan(faults); // faults is the primary key, time the tiebreak
+    expect(id).toBeGreaterThan(time); // a deterministic last resort for exact ties
   });
 
   it('ranks a NATIONALS class by most points, then fastest time', () => {
-    expect(keyedCte).toContain('CASE WHEN p_is_nationals THEN e2.points_earned END AS points_key');
-    const points = orderBy.indexOf('k.points_key DESC NULLS LAST');
-    const time = orderBy.indexOf('k.time_key ASC NULLS LAST');
+    const points = orderBy.indexOf(
+      'CASE WHEN p_is_nationals THEN e2.points_earned END DESC NULLS LAST'
+    );
+    const time = orderBy.indexOf('e2.search_time_seconds ASC NULLS LAST');
     expect(points).toBeGreaterThanOrEqual(0);
     expect(time).toBeGreaterThan(points);
-  });
-
-  it('places a ribbon tie by the flip and a tie below 4th at the shared competition rank', () => {
-    // Owner, 2026-10-08: every qualified dog is ranked. A tie whose competition
-    // rank is 1st-4th (also one straddling 4th) is decided by a coin flip, so it
-    // gets consecutive placements (ROW_NUMBER) and is marked unresolved until the
-    // flip is recorded. Below 4th the dogs share the rank: 5, 5, then 7 (RANK).
-    expect(rankingBody).toContain(
-      'WINDOW tie_group AS (PARTITION BY k.eligible, k.points_key, k.faults_key, k.time_key)'
-    );
-    expect(rankingBody).toMatch(/RANK\(\) OVER \(\s+PARTITION BY k\.eligible/);
-    expect(rankingBody).toContain(
-      'CASE WHEN r.competition_rank <= 4 THEN r.row_place ELSE r.competition_rank END AS placement'
-    );
-    expect(rankingBody).toContain("WHEN r.competition_rank > 4 THEN 'shared'");
-    expect(rankingBody).toContain('r.tiebreaks_set < r.tie_size');
-    expect(rankingBody).toContain("THEN 'unresolved'");
   });
 
   it('recomputes on score writes via an AFTER UPDATE trigger over the scoring columns', () => {

@@ -11,7 +11,7 @@ describe('resolveScoresheetConfig', () => {
   it('returns the registry-specific config when the id is known', () => {
     const config = resolveScoresheetConfig('akc');
     expect(config.orgTitle).toBe('AKC Scent Work');
-    expect(config.resultStates).toEqual(['Q', 'NQ', 'EX', 'ABS']);
+    expect(config.resultStates).toEqual(['Q', 'ABS']);
   });
 
   it('resolves an UPPERCASE registry id, the shape every app trial actually has', () => {

@@ -586,18 +586,18 @@ describe('buildEmergencyTrialPacketPdf', () => {
 });
 
 describe('scoresheet per-dog block', () => {
-  it('prints all four result states', () => {
+  it('prints only the Q and ABS result boxes', () => {
     const { texts } = renderPageOfKind('score-recording');
-    for (const state of ['Q', 'NQ', 'EX', 'ABS']) {
+    for (const state of ['Q', 'ABS']) {
       expect(texts).toContain(state);
     }
   });
 
-  it('prints a place field, which only matters when the app is down', () => {
-    // INTENT: extra information the judge ignores when the app is up. Do not
-    // remove as a simplification — see the spec's "one sheet, superset" note.
+  it('prints no place field', () => {
+    // NQ and EX are recorded by checking a reason, so the sheet has no
+    // NQ/EX result boxes and no Place line.
     const { texts } = renderPageOfKind('score-recording');
-    expect(texts.some(text => text.startsWith('Place'))).toBe(true);
+    expect(texts.some(text => text.startsWith('Place'))).toBe(false);
   });
 
   it('prints the registry reason lists, not a hard-coded set', () => {

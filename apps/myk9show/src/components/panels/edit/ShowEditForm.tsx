@@ -17,6 +17,8 @@ import { useTemplateStore } from '@/store/templateStore';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
 import { useJudgesWithQualifications } from '@/hooks/queries/useJudgesWithQualifications';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { UserRole } from '@/types/auth-types';
 import { isQualifiedForOrganization, judgeDisplayName } from '@/features/judges/qualifiedJudges';
 import { ShowOfficialsEditor } from './ShowOfficialsEditor';
 import { toLocalDateOnly } from '@/utils/date-format';
@@ -145,6 +147,10 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
 
   // Assignments the list above cannot show (judge no longer qualified for this org).
   // They still count toward "N judge(s) assigned", so they must stay visible and removable.
+  // Same roles as the /people/:id route guard; others would land on an access-denied page.
+  const { hasRole } = useAuthContext();
+  const canOpenPeople = hasRole(UserRole.SECRETARY) || hasRole(UserRole.SITE_ADMIN);
+
   const unlistedAssignedJudges = useMemo(
     () => data.assignedJudges.filter(aj => !availableJudges.some(j => j.id === aj.judgeId)),
     [data.assignedJudges, availableJudges]
@@ -346,6 +352,16 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
                               {data.organization} qualification to this judge, or uncheck to remove
                               them from this show.
                             </div>
+                            {canOpenPeople && (
+                              <Link
+                                to={`/people/${aj.judgeId}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm font-medium text-primary underline mt-2 inline-block"
+                              >
+                                Open judge record to add a qualification
+                              </Link>
+                            )}
                           </div>
                         </div>
                       </div>

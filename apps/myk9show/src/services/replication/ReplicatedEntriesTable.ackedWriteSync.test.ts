@@ -103,7 +103,9 @@ describe('ReplicatedEntriesTable pull after an acknowledged local score (MYK9-10
 
   it('a download that read the server before the ack does not roll the acked score back', async () => {
     await table.batchSet([{ ...seed, resultStatus: 'qualified' }], new Map([[ID, 7]]));
-    mockServerRows([serverRow({ result_status: 'pending', final_placement: undefined, version: 6 })]);
+    mockServerRows([
+      serverRow({ result_status: 'pending', final_placement: undefined, version: 6 }),
+    ]);
 
     await table.sync(SHOW);
 

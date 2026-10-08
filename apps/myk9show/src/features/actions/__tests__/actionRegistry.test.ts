@@ -488,3 +488,18 @@ describe("resolveActions — a page's other actions (CRUD standard decision 6)",
     expect(actions.map(a => a.id)).toEqual(['club-authorize']);
   });
 });
+
+describe("resolveActions — Close out show follows the show's life", () => {
+  it.each(['completed', 'cancelled'])('withholds it from a %s show', status => {
+    const ids = resolveActions(SHOW_CONTEXT, { ...secretary, showStatus: status }).map(a => a.id);
+    expect(ids).not.toContain('show-close-out');
+    // Positive control: the rest of the show section is still there.
+    expect(ids).toContain('show-settings');
+  });
+
+  it.each(['open', 'closed', undefined])('offers it while the show is %s', status => {
+    expect(
+      resolveActions(SHOW_CONTEXT, { ...secretary, showStatus: status }).map(a => a.id)
+    ).toContain('show-close-out');
+  });
+});

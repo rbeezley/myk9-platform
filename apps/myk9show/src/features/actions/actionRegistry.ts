@@ -158,6 +158,11 @@ export interface ActionViewer extends CreateGates {
    */
   canOperateShow: boolean;
   /**
+   * The show's status, when known. A completed or cancelled show is already closed out, so
+   * "Close out show" is withheld rather than offered as a dead end.
+   */
+  showStatus?: string | undefined;
+  /**
    * The detail page on screen, when its viewer may edit it. Registered by the page
    * itself so the gate is the one its Edit button used (MYK9-928).
    */
@@ -247,6 +252,8 @@ export function mergeSearchOnlyHref(href: string, currentSearch: string): string
   new URLSearchParams(href).forEach((value, key) => merged.set(key, value));
   return `?${merged.toString()}`;
 }
+
+const CLOSED_SHOW_STATUSES = new Set(['completed', 'cancelled']);
 
 function buildShowActions(
   showId: string,
@@ -338,15 +345,19 @@ function buildShowActions(
       group: 'show',
       icon: 'premium',
     },
-    {
-      // The Results section's own close-out step, opened on it (CRUD standard decision 6);
-      // the step's confirm dialog does the work. Same gate as the route.
-      id: 'show-close-out',
-      label: 'Close out show',
-      href: `/shows/${encoded}/results?step=close`,
-      group: 'show',
-      icon: 'close-out',
-    },
+    ...(CLOSED_SHOW_STATUSES.has(viewer.showStatus ?? '')
+      ? []
+      : [
+          {
+            // The Results section's own close-out step, opened on it (CRUD standard
+            // decision 6); the step's confirm dialog does the work. Same gate as the route.
+            id: 'show-close-out',
+            label: 'Close out show',
+            href: `/shows/${encoded}/results?step=close`,
+            group: 'show' as const,
+            icon: 'close-out' as const,
+          },
+        ]),
   ];
 }
 

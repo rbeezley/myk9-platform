@@ -115,7 +115,7 @@ describe("judge's end-of-day sign-off (MYK9-1030)", () => {
       a => a.id === 'record-judge-sign-off'
     );
     expect(record).toMatchObject({
-      label: 'Initialed by Jane Smith, Sat, Oct 10',
+      label: 'Record initials: Jane Smith, Sat, Oct 10',
       classIds: ['c1', 'c2'],
       registryId: 'AKC',
       createsAttention: true,

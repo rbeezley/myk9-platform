@@ -92,6 +92,21 @@ describe('judge sign-off wording by registry', () => {
     });
   });
 
+  it.each([
+    ['AKC', 'Record initials: Pat Donovan, Wed, Oct 7', 'Initialed by judge'],
+    ['UKC', 'Record signature: Pat Donovan, Wed, Oct 7', 'Signed by judge'],
+  ])(
+    'MYK9-1049: the %s record action states the action, never the done status',
+    (registryId, action, done) => {
+      const wording = judgeSignOffWording(registryId);
+      expect(wording.recordActionLabel('Pat Donovan', 'Wed, Oct 7')).toBe(action);
+      expect(wording.recordActionLabel('Pat Donovan', 'Wed, Oct 7')).not.toMatch(
+        /^(Initialed|Signed) by/
+      );
+      expect(wording.doneStatusLabel).toBe(done);
+    }
+  );
+
   it('puts the registry on the trial and class nodes the tree builds', () => {
     const tree = needsSignOffTree('UKC');
     expect(tree.nodesById['class:c1']?.registryId).toBe('UKC');

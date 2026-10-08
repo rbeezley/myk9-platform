@@ -55,7 +55,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
   const { templates } = useTemplateStore();
   const { clubs, loadClubs } = useClubStore();
   const { people, loadUsers } = useUserStore();
-  const { data: judges = [] } = useJudgesWithQualifications();
+  const { data: judges = [], isSuccess: judgesLoaded } = useJudgesWithQualifications();
 
   // Ensure clubs and people are loaded when the form opens
   useEffect(() => {
@@ -151,9 +151,14 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
   const { hasRole } = useAuthContext();
   const canOpenPeople = hasRole(UserRole.SECRETARY) || hasRole(UserRole.SITE_ADMIN);
 
+  // Only meaningful once the qualification read has succeeded: while loading, or
+  // after a failed read, `judges` is empty and would wrongly flag every judge.
   const unlistedAssignedJudges = useMemo(
-    () => data.assignedJudges.filter(aj => !availableJudges.some(j => j.id === aj.judgeId)),
-    [data.assignedJudges, availableJudges]
+    () =>
+      judgesLoaded
+        ? data.assignedJudges.filter(aj => !availableJudges.some(j => j.id === aj.judgeId))
+        : [],
+    [judgesLoaded, data.assignedJudges, availableJudges]
   );
 
   // The create-then-assign operation and its modal dialog are owned here, above

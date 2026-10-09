@@ -1,6 +1,10 @@
 {
   "$schema": "https://v2-8-0.turborepo.dev/schema.json",
   "ui": "tui",
+  // turbo >= 2.11.7 otherwise writes a managed block into AGENTS.md whenever
+  // it detects an agent, dirtying every fresh worktree on bootstrap. AGENTS.md
+  // is generated from docs/agents/shared-rules.md; keep turbo out of it.
+  "agentGuidance": false,
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

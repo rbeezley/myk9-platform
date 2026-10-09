@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { replicatedPaperworkPrintsTable } from '@/services/replication';
@@ -19,29 +19,36 @@ export function useShowPaperworkPrints(showId: string) {
   const [syncFailed, setSyncFailed] = useState(false);
   const queryKey = ['show-desk', 'paperwork-prints', showId] as const;
 
-  useEffect(() => {
-    const invalidate = () =>
+  const invalidate = useCallback(
+    () =>
       void queryClient.invalidateQueries({
         queryKey: ['show-desk', 'paperwork-prints', showId],
-      });
-    const refresh = () =>
+      }),
+    [queryClient, showId]
+  );
+  const resync = useCallback(
+    () =>
       void replicatedPaperworkPrintsTable
         .sync(showId)
         .then(result => {
           setSyncFailed(!result?.success);
           invalidate();
         })
-        .catch(() => setSyncFailed(true));
+        .catch(() => setSyncFailed(true)),
+    [invalidate, showId]
+  );
+
+  useEffect(() => {
     const unsubscribeLocal = replicatedPaperworkPrintsTable.subscribe(invalidate);
     const unsubscribeRealtime = subscribeToShowChanges(showId, signal => {
-      if (signal.table === 'paperwork_prints') refresh();
+      if (signal.table === 'paperwork_prints') resync();
     });
-    refresh();
+    resync();
     return () => {
       unsubscribeLocal();
       unsubscribeRealtime();
     };
-  }, [queryClient, showId]);
+  }, [invalidate, resync, showId]);
 
   const query = useQuery({
     queryKey,
@@ -52,5 +59,5 @@ export function useShowPaperworkPrints(showId: string) {
 
   // Existing callers keep reading `data`/`isError` unchanged; `syncFailed` is
   // additive.
-  return { ...query, syncFailed };
+  return { ...query, syncFailed, resync };
 }

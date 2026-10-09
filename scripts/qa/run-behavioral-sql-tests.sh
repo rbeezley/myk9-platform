@@ -168,6 +168,8 @@ TEST_FILES=(
   "$TEST_DIR/update_own_entry_jump_height_test.sql"
   "$TEST_DIR/myk9_995_my_entry_queue_places_test.sql"
   "$TEST_DIR/myk9_1048_submit_entries_next_run_order_test.sql"
+  "$TEST_DIR/myk9_1010_owner_address_required_test.sql"
+  "$TEST_DIR/myk9_1010_fill_entry_owner_address_test.sql"
   "$TEST_DIR/update_entry_handler_for_entry_management_test.sql"
   "$TEST_DIR/seed_demo_paid_stray_guard_test.sql"
   "$TEST_DIR/seed_demo_paid_stray_guard_scopes_test.sql"

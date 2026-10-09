@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { Route, Routes, useLocation } from 'react-router-dom';
+import { Route, Routes } from 'react-router-dom';
 import { render, screen } from '@/test/utils/testUtils';
 import ShowResultsSection from '../ShowResultsSection';
 
-vi.mock('@/pages/secretary/ResultsControlPage', () => ({
-  default: () => <div data-testid="step-release" />,
+vi.mock('@/features/results-tab/ResultsTab', () => ({
+  default: () => <div data-testid="results-tab" />,
 }));
 vi.mock('@/pages/secretary/ResultsSubmissionPage', () => ({
   default: () => <div data-testid="step-submit" />,
@@ -13,62 +13,44 @@ vi.mock('@/pages/secretary/ShowCloseStep', () => ({
   default: () => <div data-testid="step-close" />,
 }));
 
-function LocationProbe() {
-  const location = useLocation();
-  return <div data-testid="location">{location.search}</div>;
-}
-
 function renderAt(search: string) {
   return render(
     <Routes>
-      <Route
-        path="/shows/:id/results"
-        element={
-          <>
-            <ShowResultsSection />
-            <LocationProbe />
-          </>
-        }
-      />
+      <Route path="/shows/:id/results" element={<ShowResultsSection />} />
     </Routes>,
     { initialRoute: `/shows/show-1/results${search}` }
   );
 }
 
-describe('ShowResultsSection (MYK9-954: Close the show is step 3)', () => {
-  it('offers three steps in order', () => {
+describe('ShowResultsSection (MYK9-1031: the class list, with Submit and Close behind it)', () => {
+  it('opens on the class list, with no step buttons of its own', async () => {
     renderAt('');
 
-    const steps = screen.getAllByRole('button').map(button => button.textContent);
-    expect(steps).toEqual(['Review & release', 'Submit to registry', 'Close the show']);
+    expect(await screen.findByTestId('results-tab')).toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
-  it('deep-links to Close the show with ?step=close', async () => {
-    renderAt('?step=close');
-
+  it('keeps the ?step=submit and ?step=close deep links (MYK9-954 and the old /submit-results redirect)', async () => {
+    const { unmount } = renderAt('?step=close');
     expect(await screen.findByTestId('step-close')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Close the show' })).toHaveAttribute(
-      'aria-pressed',
-      'true'
+    unmount();
+
+    renderAt('?step=submit');
+    expect(await screen.findByTestId('step-submit')).toBeInTheDocument();
+  });
+
+  it('offers a way back to the class list from Submit and Close', async () => {
+    renderAt('?step=submit');
+
+    expect(await screen.findByRole('link', { name: 'All classes' })).toHaveAttribute(
+      'href',
+      '/shows/show-1/results'
     );
   });
 
-  it('switches to Close the show and writes the step to the URL', async () => {
-    const { user } = renderAt('');
-    expect(await screen.findByTestId('step-release')).toBeInTheDocument();
-
-    await user.click(screen.getByRole('button', { name: 'Close the show' }));
-
-    expect(await screen.findByTestId('step-close')).toBeInTheDocument();
-    expect(screen.getByTestId('location')).toHaveTextContent('?step=close');
-  });
-
-  it('keeps ?step=submit and falls back to release for an unknown step', async () => {
-    const { unmount } = renderAt('?step=submit');
-    expect(await screen.findByTestId('step-submit')).toBeInTheDocument();
-    unmount();
-
+  it('falls back to the class list for an unknown step', async () => {
     renderAt('?step=bogus');
-    expect(await screen.findByTestId('step-release')).toBeInTheDocument();
+
+    expect(await screen.findByTestId('results-tab')).toBeInTheDocument();
   });
 });

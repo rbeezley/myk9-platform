@@ -345,6 +345,32 @@ WHERE lower(p.email) = names.email
   AND (p.first_name IS DISTINCT FROM names.first_name
        OR p.last_name IS DISTINCT FROM names.last_name);
 
+-- MYK9-1010: an AKC entry is refused when the dog's owner has no complete
+-- address, and the demo accounts own the dogs below (and the specs' dogs).
+-- Fills only BLANK parts, so a reseed never overwrites an address someone
+-- typed. Obviously fake; the single source is
+-- apps/myk9show/scripts/demoAccountNames.ts (DEMO_ACCOUNT_ADDRESSES), pinned by
+-- demoAccountAddressesContract.test.ts.
+UPDATE public.people AS p
+SET street_address = COALESCE(NULLIF(btrim(p.street_address), ''), address.street_address),
+    city = COALESCE(NULLIF(btrim(p.city), ''), address.city),
+    state = COALESCE(NULLIF(btrim(p.state), ''), address.state),
+    zip_code = COALESCE(NULLIF(btrim(p.zip_code), ''), address.zip_code)
+FROM (VALUES
+  ('exhibitor@myk9t.com', '101 Demo Lane', 'Demoville', 'KS', '99999'),
+  ('secretary@myk9t.com', '102 Demo Lane', 'Demoville', 'KS', '99999'),
+  ('judge@myk9t.com', '103 Demo Lane', 'Demoville', 'KS', '99999'),
+  ('testadmin@myk9t.com', '104 Demo Lane', 'Demoville', 'KS', '99999'),
+  ('clubadmin@myk9t.com', '105 Demo Lane', 'Demoville', 'KS', '99999'),
+  ('chairman@myk9t.com', '106 Demo Lane', 'Demoville', 'KS', '99999'),
+  ('exhibitor2@myk9t.com', '107 Demo Lane', 'Demoville', 'KS', '99999')
+) AS address(email, street_address, city, state, zip_code)
+WHERE lower(p.email) = address.email
+  AND (NULLIF(btrim(p.street_address), '') IS NULL
+       OR NULLIF(btrim(p.city), '') IS NULL
+       OR NULLIF(btrim(p.state), '') IS NULL
+       OR NULLIF(btrim(p.zip_code), '') IS NULL);
+
 -- Cart items reference classes/dogs with NO ACTION FKs — clear any that point at
 -- seeded classes/dogs first, or a demo cart would block the class/dog deletes.
 DELETE FROM public.entry_cart_items

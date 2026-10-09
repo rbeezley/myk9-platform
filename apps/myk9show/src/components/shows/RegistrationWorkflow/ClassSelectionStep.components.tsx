@@ -1,16 +1,16 @@
 import React from 'react';
-import { ChevronRight, Info, CheckCircle2, ShoppingCart, Plus } from 'lucide-react';
+import { ChevronRight, Info, CheckCircle2, ShoppingCart } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { formatWeekdayLongMonthDay } from '@/lib/format/dates';
 import type { Dog } from '@/types/dog-types';
 import { formatTrialTypeLabel } from '@/types/template.types';
 import type { LevelInfo } from './ClassSelectionStep.types';
+import { RegistrationFixAction } from './OwnerAddressFix';
 
 // ─── Dog Tab Trigger ───────────────────────────────────────────────────────────
 
@@ -166,6 +166,8 @@ interface ElementCardProps {
   cartBlockedReason?: string | null | undefined;
   onToggle: (classId: string) => void;
   onAddRegistration?: (() => void) | undefined;
+  /** MYK9-1010: the fix for a class blocked on the owner's address. */
+  ownerAddressAction?: React.ReactNode;
 }
 
 export const ElementCard: React.FC<ElementCardProps> = ({
@@ -176,6 +178,7 @@ export const ElementCard: React.FC<ElementCardProps> = ({
   cartBlockedReason = null,
   onToggle,
   onAddRegistration,
+  ownerAddressAction,
 }) => {
   const isCartPending = Boolean(cartBlockedReason);
   if (isSingleClass) {
@@ -198,9 +201,9 @@ export const ElementCard: React.FC<ElementCardProps> = ({
               disabled={
                 isCartPending ||
                 cls.isAlreadyEntered ||
-                cls.isRegistrationBlocked ||
-                // Selected + closed stays operable so a stale cart line can be
-                // removed; see the LevelChip note.
+                // Selected + blocked or closed stays operable so a stale cart
+                // line can be removed; see the LevelChip note.
+                (cls.isRegistrationBlocked && !cls.isSelected) ||
                 (cls.isClassClosed && !cls.isSelected) ||
                 (cls.isFull && cls.allowsWaitlist === false)
               }
@@ -264,12 +267,11 @@ export const ElementCard: React.FC<ElementCardProps> = ({
         {cls.isRegistrationBlocked && cls.registrationGuidance && (
           <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-warning/10 p-2">
             <span className="text-sm text-foreground">{cls.registrationGuidance}</span>
-            {onAddRegistration && (
-              <Button type="button" variant="outline" size="touch" onClick={onAddRegistration}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add required registration
-              </Button>
-            )}
+            <RegistrationFixAction
+              fix={cls.registrationFix}
+              onAddRegistration={onAddRegistration}
+              ownerAddressAction={ownerAddressAction}
+            />
           </div>
         )}
       </div>
@@ -313,12 +315,11 @@ export const ElementCard: React.FC<ElementCardProps> = ({
           <span className="text-sm text-foreground">
             {blockedRegistration.registrationGuidance}
           </span>
-          {onAddRegistration && (
-            <Button type="button" variant="outline" size="touch" onClick={onAddRegistration}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add required registration
-            </Button>
-          )}
+          <RegistrationFixAction
+            fix={blockedRegistration.registrationFix}
+            onAddRegistration={onAddRegistration}
+            ownerAddressAction={ownerAddressAction}
+          />
         </div>
       )}
     </div>
@@ -407,7 +408,9 @@ const LevelChip: React.FC<LevelChipProps> = ({
           disabled={
             isCartPending ||
             isAlreadyEntered ||
-            isRegistrationBlocked ||
+            // The same holds for a registration or owner-address block that
+            // appeared after the class went in (MYK9-1010, Codex round 2).
+            (isRegistrationBlocked && !isSelected) ||
             // A closed class that is ALREADY SELECTED stays operable, so the
             // exhibitor can uncheck it. Disabling it strands a stale cart line:
             // the class started after it went in, Payment now refuses the whole

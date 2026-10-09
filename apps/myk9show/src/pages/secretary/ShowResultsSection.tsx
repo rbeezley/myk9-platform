@@ -1,82 +1,43 @@
 import { lazy, Suspense } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { ArrowLeft } from 'lucide-react';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
 
-const ResultsControlPage = lazy(() => import('@/pages/secretary/ResultsControlPage'));
+const ResultsTab = lazy(() => import('@/features/results-tab/ResultsTab'));
 const ResultsSubmissionPage = lazy(() => import('@/pages/secretary/ResultsSubmissionPage'));
 const ShowCloseStep = lazy(() => import('@/pages/secretary/ShowCloseStep'));
 
-const RESULTS_STEPS = [
-  { id: 'release', label: 'Review & release' },
-  { id: 'submit', label: 'Submit to registry' },
-  { id: 'close', label: 'Close the show' },
-] as const;
-
-type ResultsStepId = (typeof RESULTS_STEPS)[number]['id'];
-
-function resolveResultsStep(raw: string | null): ResultsStepId {
-  return RESULTS_STEPS.find(item => item.id === raw)?.id ?? 'release';
-}
-
 /**
- * The Results tab (MYK9-630 phase 2). Submit Results stopped being a peer of
- * Results and became the second STEP of it: a secretary reviews and releases,
- * then submits to the registry, and the old `/submit-results` URL redirects to
- * `?step=submit` here. Show Day's closeout became the third step,
- * `?step=close` (MYK9-954).
+ * The Results tab (MYK9-630 phase 2, rebuilt by MYK9-1031): by default the class list with each
+ * class's scores beside it (`features/results-tab`).
  *
- * Every step is an existing page or card, mounted unchanged — links, not
- * re-implementations. This file owns nothing but which step is showing.
+ * Submit to registry and Close the show are still the pages they were, reached from the tab's
+ * More menu and its all-released banner. They keep their `?step=submit` and `?step=close` URLs
+ * (the old `/submit-results` redirect and Overview's links emit them), so this file owns nothing
+ * but which of the three is showing.
  */
 export default function ShowResultsSection() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const step = resolveResultsStep(searchParams.get('step'));
-
-  const setStep = (next: ResultsStepId) => {
-    setSearchParams(
-      previous => {
-        const params = new URLSearchParams(previous);
-        if (next === 'release') params.delete('step');
-        else params.set('step', next);
-        return params;
-      },
-      { replace: true, preventScrollReset: true }
-    );
-  };
+  const params = useParams<{ showId?: string; id?: string }>();
+  const showId = params.showId ?? params.id ?? '';
+  const [searchParams] = useSearchParams();
+  const step = searchParams.get('step');
 
   return (
-    <div className="mt-4 space-y-4">
-      <div className="flex flex-wrap gap-2" role="group" aria-label="Results step">
-        {RESULTS_STEPS.map(item => {
-          const isActive = item.id === step;
-          return (
-            <Button
-              key={item.id}
-              type="button"
-              variant={isActive ? 'secondary' : 'ghost'}
-              aria-pressed={isActive}
-              className={cn(
-                'min-h-11 shrink-0',
-                isActive && 'border border-primary/30 bg-primary/10'
-              )}
-              onClick={() => setStep(item.id)}
-            >
-              {item.label}
-            </Button>
-          );
-        })}
-      </div>
-      <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
-        {step === 'submit' ? (
-          <ResultsSubmissionPage />
-        ) : step === 'close' ? (
-          <ShowCloseStep />
-        ) : (
-          <ResultsControlPage />
-        )}
-      </Suspense>
-    </div>
+    <Suspense fallback={<LoadingSkeleton variant="cards" count={2} />}>
+      {step === 'submit' || step === 'close' ? (
+        <div className="mt-4 space-y-4">
+          <Link
+            to={`/shows/${encodeURIComponent(showId)}/results`}
+            className="inline-flex min-h-11 items-center gap-1 text-sm font-medium text-primary hover:underline"
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+            All classes
+          </Link>
+          {step === 'submit' ? <ResultsSubmissionPage /> : <ShowCloseStep />}
+        </div>
+      ) : (
+        <ResultsTab />
+      )}
+    </Suspense>
   );
 }

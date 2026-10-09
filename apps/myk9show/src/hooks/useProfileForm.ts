@@ -220,6 +220,9 @@ export function useProfileForm() {
         lastName: values.lastName.trim(),
         phone: values.phone.trim() || undefined,
         streetAddress: values.streetAddress.trim(),
+        // `useUpdatePerson` writes `address || streetAddress`, so the stored
+        // `address` spread above would otherwise win over the edit (MYK9-1010).
+        address: values.streetAddress.trim(),
         city: values.city.trim(),
         state: values.state.trim(),
         zipCode: values.zipCode.trim(),

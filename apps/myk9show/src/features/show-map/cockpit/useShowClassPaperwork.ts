@@ -18,6 +18,7 @@
  */
 import { useMemo } from 'react';
 
+import type { ReadStatus } from '@/features/_shared/combineReads';
 import { readinessOf, resolveReportReadiness } from '@/hooks/queries/reportReadiness';
 import { useShowClassRows } from '@/hooks/queries/useShowClassRows';
 import type { DbClass, DbEntry } from '@/types/database-mappings';
@@ -29,11 +30,11 @@ export function useShowClassPaperwork(input: {
   showId: string;
   trials: readonly { id: string; trialDate: string }[];
   /** Tree class rows (camelCase): the print-link-only fallback while the full rows are unavailable. */
-  classes: readonly { id: string; trialId?: string | null }[];
+  classes?: readonly { id: string; trialId?: string | null }[];
   entries: readonly unknown[];
   returnTo: string;
 }) {
-  const { showId, trials, classes, entries, returnTo } = input;
+  const { showId, trials, classes = [], entries, returnTo } = input;
   const prints = useShowPaperworkPrints(showId);
   const trialIds = useMemo(() => trials.map(trial => trial.id), [trials]);
 
@@ -80,12 +81,35 @@ export function useShowClassPaperwork(input: {
     trials,
   ]);
 
+  // Reported for `combineReads` so a caller can say which part is unavailable (MYK9-1031).
+  const reads: ReadStatus[] = [
+    {
+      key: 'class-rows',
+      critical: false,
+      hasData: classFacts.data !== undefined,
+      isLoading: classFacts.isLoading,
+      isError: classFacts.isError,
+    },
+    {
+      key: 'print-history',
+      critical: false,
+      hasData: prints.data !== undefined && !prints.syncFailed,
+      isLoading: prints.isLoading,
+      isError: prints.isError || prints.syncFailed,
+    },
+  ];
+
   return {
     byClassId,
     available,
-    /** Refetches the class rows and the print confirmations. */
+    /** The settled full class rows (carry `results_released_at`); undefined until read. */
+    classRows: classFacts.data as
+      readonly { id: string; results_released_at?: string | null }[] | undefined,
+    reads,
+    /** Refetches the class rows and re-syncs the print confirmations. */
     refetch: () => {
       void classFacts.refetch();
+      prints.resync?.();
       void prints.refetch();
     },
   };

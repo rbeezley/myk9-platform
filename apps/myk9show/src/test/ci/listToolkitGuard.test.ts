@@ -84,10 +84,6 @@ const ARIA_PRESSED_DECLARED: Record<string, { count: number; reason: string }> =
     count: 1,
     reason: 'selected report card, a report chooser rather than a list filter',
   },
-  'pages/secretary/ShowResultsSection.tsx': {
-    count: 1,
-    reason: 'results section chip, not a list filter',
-  },
   'pages/secretary/ResultsControlPage/PresetSelector.tsx': {
     count: 1,
     reason: 'results preset, not a filter',

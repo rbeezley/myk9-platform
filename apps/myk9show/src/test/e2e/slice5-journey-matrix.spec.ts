@@ -33,6 +33,7 @@
  */
 import { test, expect, type Page } from '@playwright/test';
 import { signInAsTestUser } from './helpers/testUsers';
+import { expectNoHorizontalOverflow } from './helpers/horizontalOverflow';
 
 const EVIDENCE_DIR = process.env.SLICE5_EVIDENCE_DIR ?? 'test-results/slice5-evidence';
 
@@ -64,35 +65,6 @@ async function settle(page: Page) {
   await page.waitForLoadState('networkidle').catch(() => undefined);
   await page.evaluate(() => document.fonts?.ready).catch(() => undefined);
   await page.waitForTimeout(400);
-}
-
-/**
- * The document must never scroll horizontally. 1px absorbs sub-pixel rounding
- * at fractional device widths.
- */
-async function expectNoHorizontalOverflow(page: Page, label: string) {
-  const overflow = await page.evaluate(() => {
-    const de = document.documentElement;
-    return {
-      docOverflow: de.scrollWidth - de.clientWidth,
-      bodyOverflow: document.body.scrollWidth - document.body.clientWidth,
-      // Name the widest offending element so a failure is diagnosable without
-      // opening the trace.
-      widest: Array.from(document.querySelectorAll<HTMLElement>('body *'))
-        .filter(el => el.getBoundingClientRect().right > de.clientWidth + 1)
-        .slice(0, 3)
-        .map(el => `${el.tagName.toLowerCase()}.${(el.className || '').toString().slice(0, 60)}`),
-    };
-  });
-
-  expect(
-    overflow.docOverflow,
-    `${label}: document scrolls horizontally by ${overflow.docOverflow}px (widest: ${overflow.widest.join(' | ')})`
-  ).toBeLessThanOrEqual(1);
-  expect(
-    overflow.bodyOverflow,
-    `${label}: body scrolls horizontally by ${overflow.bodyOverflow}px (widest: ${overflow.widest.join(' | ')})`
-  ).toBeLessThanOrEqual(1);
 }
 
 /** Confirms the html theme trio is coherent — a split state is its own bug. */

@@ -13,14 +13,14 @@ import { fromAny } from '@total-typescript/shoehorn';
 // after vi.mock hoisting.
 // ---------------------------------------------------------------------------
 
-const { mockReplicatedDogsTable, mockMutateAsync, mockUpdateMutateAsync } = vi.hoisted(() => ({
+const { mockReplicatedDogsTable, mockMutateAsync } = vi.hoisted(() => ({
   mockReplicatedDogsTable: {
     set: vi.fn().mockResolvedValue(undefined),
     delete: vi.fn().mockResolvedValue(undefined),
     getDogById: vi.fn().mockResolvedValue(null),
+    updateDog: vi.fn().mockResolvedValue('mutation-1'),
   },
   mockMutateAsync: vi.fn(),
-  mockUpdateMutateAsync: vi.fn(),
 }));
 
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
@@ -51,11 +51,6 @@ vi.mock('@/hooks/queries/useDogsDatabase', () => ({
     refetch: vi.fn(),
   }),
   useCreateDogMutation: () => ({ mutateAsync: mockMutateAsync, isPending: false, error: null }),
-  useUpdateDogMutation: () => ({
-    mutateAsync: mockUpdateMutateAsync,
-    isPending: false,
-    error: null,
-  }),
   useDeleteDogMutation: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
   useDogStatisticsQuery: () => ({ data: null, isLoading: false }),
 }));
@@ -290,9 +285,11 @@ describe('useDogStoreCompat.updateDog — roster refresh (MYK9-1061)', () => {
       ownerId: 'owner-123',
       dateOfBirth: storedBirthDate,
     }));
-    mockReplicatedDogsTable.set.mockImplementation(
-      async (_id: string, dog: { dateOfBirth?: string }) => {
-        storedBirthDate = dog.dateOfBirth;
+    // updateDog is the local write + queued UPDATE; the roster reads what it stored.
+    mockReplicatedDogsTable.updateDog.mockImplementation(
+      async (_id: string, patch: { dateOfBirth?: string }) => {
+        storedBirthDate = patch.dateOfBirth;
+        return 'mutation-1';
       }
     );
     const client = new QueryClient({
@@ -316,8 +313,7 @@ describe('useDogStoreCompat.updateDog — roster refresh (MYK9-1061)', () => {
     return { result, client };
   };
 
-  it('refetches the roster with the new date while the network write is pending', async () => {
-    mockUpdateMutateAsync.mockReturnValue(new Promise(() => {}));
+  it('refetches the roster with the new date right after the local write', async () => {
     const { result } = setup();
     await vi.waitFor(() => expect(result.current.roster.data).toBe('2020-01-01'));
 
@@ -326,23 +322,10 @@ describe('useDogStoreCompat.updateDog — roster refresh (MYK9-1061)', () => {
     });
 
     await vi.waitFor(() => expect(result.current.roster.data).toBe('2021-02-03'));
-  });
-
-  it('keeps the new date after the network write rejects', async () => {
-    mockUpdateMutateAsync.mockRejectedValue(new Error('offline'));
-    const { result } = setup();
-    await vi.waitFor(() => expect(result.current.roster.data).toBe('2020-01-01'));
-
-    await act(async () => {
-      await result.current.compat.updateDog('dog-abc', { birthDate: '2021-02-03' });
-    });
-
-    await vi.waitFor(() => expect(result.current.roster.data).toBe('2021-02-03'));
-    expect(mockUpdateMutateAsync).toHaveBeenCalled();
+    expect(mockReplicatedDogsTable.updateDog).toHaveBeenCalledTimes(1);
   });
 
   it('invalidates the dogs prefix and the owner person-dogs key', async () => {
-    mockUpdateMutateAsync.mockReturnValue(new Promise(() => {}));
     const { result, client } = setup();
     const spy = vi.spyOn(client, 'invalidateQueries');
 

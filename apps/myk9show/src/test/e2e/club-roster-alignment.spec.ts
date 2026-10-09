@@ -1,5 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 import { signInAsAdmin } from './helpers/testUsers';
+import { expectNoHorizontalOverflow } from './helpers/horizontalOverflow';
 
 const SEEDED_CLUB_ID = 'dededede-0000-0000-0000-000000000001';
 const SEEDED_CLUB_NAME = 'Heartland Scent Work Club';
@@ -11,17 +12,6 @@ function installRuntimeGuards(page: Page): string[] {
   });
   page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
   return errors;
-}
-
-async function expectNoHorizontalOverflow(page: Page): Promise<void> {
-  const metrics = await page.evaluate(() => ({
-    viewport: window.innerWidth,
-    documentWidth: document.documentElement.scrollWidth,
-  }));
-  expect(
-    metrics.documentWidth,
-    `horizontal overflow: ${JSON.stringify(metrics)}`
-  ).toBeLessThanOrEqual(metrics.viewport);
 }
 
 async function readProfileRoster(page: Page): Promise<{ count: number; names: string[] }> {

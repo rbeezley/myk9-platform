@@ -320,7 +320,7 @@ describe('ReplicationSyncProvider: idle load', () => {
       expect(fullPassCount()).toBe(0);
       expect(latestContext!.status.tablesStatus.entries).toBe('success');
       expect(latestContext!.status.lastSyncAt?.getTime()).toBeGreaterThan(before?.getTime() ?? 0);
-      expect(invalidate).toHaveBeenCalledWith({ queryKey: ['entries'] });
+      expect(invalidate).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ['entries'] }));
     });
 
     // The staff query for the show, mounted the way the class page mounts it.

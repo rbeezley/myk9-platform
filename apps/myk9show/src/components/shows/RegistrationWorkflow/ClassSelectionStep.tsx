@@ -48,6 +48,9 @@ import { getRegistrationPrerequisite } from './registrationPrerequisite';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistrationDialog';
 import { useInlineDogRegistration } from './useInlineDogRegistration';
+import { getOwnerAddressPrerequisite, prerequisiteLevelFields } from './ownerAddressPrerequisite';
+import { OwnerAddressAction } from './OwnerAddressFix';
+import { OwnerAddressFillDialog, type OwnerAddressFillTarget } from './OwnerAddressFillDialog';
 import '@/styles/myk9-registration-workflow.css';
 import {
   buildAvailabilityMap,
@@ -70,6 +73,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   handlerAssignments,
   onHandlerAssignmentChange,
   workflowMode,
+  ownerAddressWarnOnly = false,
 }) => {
   const { dogs, refetch } = useDogStoreCompat();
   const { shows = [] } = useShowStore();
@@ -102,6 +106,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const addingItemRef = useRef<string | null>(null);
   const { registrationDogId, openRegistrationEditor, closeRegistrationEditor, saveRegistration } =
     useInlineDogRegistration(refetch);
+  // MYK9-1010: the dog whose owner's missing address parts staff are filling.
+  const [addressTarget, setAddressTarget] = useState<OwnerAddressFillTarget | null>(null);
+  const isOwnAddress = (workflowMode ?? 'exhibitor') === 'exhibitor';
 
   const cartItems = useCartItems();
   const cartShowId = useCartStore(state => state.cart?.show_id ?? null);
@@ -584,6 +591,12 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                         // Depends only on the trial, so it is resolved once
                         // here rather than per level inside the map below.
                         const trialRegistryId = resolveConfiguredRegistryId(trial.registryId);
+                        const addressPrerequisite = getOwnerAddressPrerequisite({
+                          owner: dog?.owner,
+                          registryId: trial.registryId,
+                          isOwnAddress,
+                          warnOnly: ownerAddressWarnOnly,
+                        });
 
                         return (
                           <TrialSection
@@ -631,8 +644,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                       classSelections
                                     ),
                                     isAlreadyEntered: !!getExistingEntry(dogId, l.classId),
-                                    isRegistrationBlocked: !prerequisite.allowed,
-                                    registrationGuidance: prerequisite.message,
+                                    ...prerequisiteLevelFields(prerequisite, addressPrerequisite),
                                     isAvailabilityUnknown:
                                       availabilityLoading || avail === undefined,
                                     ...(avail !== undefined && {
@@ -655,6 +667,14 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                   handleClassToggle(dogId, trial.id, classId, group.fee)
                                 }
                                 onAddRegistration={() => openRegistrationEditor(dogId)}
+                                ownerAddressAction={
+                                  <OwnerAddressAction
+                                    isOwnAddress={isOwnAddress}
+                                    onEditOwner={() =>
+                                      dog?.owner && setAddressTarget({ dogId, owner: dog.owner })
+                                    }
+                                  />
+                                }
                               />
                             ))}
                           </TrialSection>
@@ -685,6 +705,15 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           onSave={saveRegistration}
         />
       </div>
+      <OwnerAddressFillDialog
+        showId={showId}
+        target={addressTarget}
+        onClose={() => setAddressTarget(null)}
+        onSaved={() => {
+          setAddressTarget(null);
+          void refetch();
+        }}
+      />
     </div>
   );
 };

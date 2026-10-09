@@ -55,6 +55,7 @@ vi.mock('@/services/mappers/dogMappers', () => ({
   mapDogInputToInsert: vi.fn(input => ({ ...input, id: `db-${Date.now()}` })),
   mapDogInputToReplicated: vi.fn((input, id) => ({ id, ...input })),
   mapPartialDogInputToReplicated: vi.fn(input => ({ ...input })),
+  mapDogInputToUpdate: vi.fn(input => ({ ...input })),
   mapReplicatedDogToDbRow: vi.fn(dog => ({ ...dog })),
   mapDatabaseToDog: vi.fn(dbDog => ({ ...dbDog })),
   mapDatabaseDogsArray: vi.fn(dbDogs => dbDogs || []),

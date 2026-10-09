@@ -11,10 +11,16 @@ vi.mock('sonner', () => ({
 
 const updateDogMutateAsync = vi.fn();
 
-vi.mock('@/hooks/queries/useDogsDatabase', () => ({
-  useUpdateDogMutation: () => ({
-    mutateAsync: (...args: unknown[]) => updateDogMutateAsync(...args),
-  }),
+// The queued write (MYK9-1070): the bar reads the replica row, then calls the
+// dogs table's queued updateDog. The queue itself is exercised in
+// DogsBulkActionsBar.queue.test.tsx.
+vi.mock('@/hooks/useDogReplicaForEdit', () => ({
+  useDogReplicaForEdit: () => async (id: string) => ({ id, ownerId: 'owner-1' }),
+}));
+vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
+  replicatedDogsTable: {
+    updateDog: (...args: unknown[]) => updateDogMutateAsync(...args),
+  },
 }));
 
 let mockIsSiteAdmin = false;
@@ -122,16 +128,16 @@ describe('DogsBulkActionsBar', () => {
     expect(onClear).toHaveBeenCalledTimes(1);
   });
 
-  it('mark retired dispatches useUpdateDogMutation for eligible dogs and clears selection', async () => {
+  it('mark retired queues the dog update for eligible dogs and clears selection', async () => {
     const { user, onClear } = setup([dog('1', 'active'), dog('2', 'retired')]);
     await user.click(screen.getByRole('button', { name: 'Change status' }));
     await user.click(await screen.findByRole('menuitem', { name: /mark 1 of 2 dogs retired/i }));
 
     await waitFor(() => {
-      expect(updateDogMutateAsync).toHaveBeenCalledWith({
-        id: '1',
-        updates: { status: 'retired' },
-      });
+      expect(updateDogMutateAsync).toHaveBeenCalledWith(
+        '1',
+        expect.objectContaining({ status: 'retired' })
+      );
     });
     expect(updateDogMutateAsync).toHaveBeenCalledTimes(1);
     expect(onClear).toHaveBeenCalled();

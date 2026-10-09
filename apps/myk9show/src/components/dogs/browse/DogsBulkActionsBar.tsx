@@ -3,7 +3,7 @@
  * (design.md decision D2/D3, tasks.md slice 3.4), on the shared list-toolkit
  * `FloatingBulkBar` shell (MYK9-796). Named buttons (MYK9-929): Change status (a menu resolved
  * from `dogActions`), Export, and Delete. Status-change actions dispatch
- * directly through `useUpdateDogMutation`; delete opens the shared
+ * through the replication mutation queue (`replicatedDogsTable.updateDog`, MYK9-1070); delete opens the shared
  * `DeleteObjectDialog` (counts, paid/scored blockers named up front, Undo).
  */
 import { useRef, useState, useEffect } from 'react';
@@ -12,7 +12,12 @@ import { toBulkActions } from '@/components/ui/RowActionMenu';
 import { BulkBarActions, BulkBarButton, FloatingBulkBar } from '@/components/list-toolkit';
 import { exportRowsCsv } from '@/utils/downloadCsv';
 import { dogExportHeaders, dogExportRows } from './dogsExport';
-import { useUpdateDogMutation } from '@/hooks/queries/useDogsDatabase';
+import { useQueryClient } from '@tanstack/react-query';
+import { useDogReplicaForEdit } from '@/hooks/useDogReplicaForEdit';
+import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
+import { patchCachedDogRows } from '@/hooks/patchCachedDogRows';
+import { mapDogInputToUpdate, mapPartialDogInputToReplicated } from '@/services/mappers/dogMappers';
+import { queryKeys } from '@/lib/queryClient';
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
 import { getDogDisplayName, type Dog, type DogStatus } from '@/types/dog-types';
 import { dogActions } from '@/components/dogs/common/dogActions';
@@ -39,7 +44,8 @@ export function DogsBulkActionsBar({
   canDelete = false,
   includeOwner = true,
 }: DogsBulkActionsBarProps) {
-  const updateDogMutation = useUpdateDogMutation();
+  const queryClient = useQueryClient();
+  const getDogForEdit = useDogReplicaForEdit();
   const [pendingDelete, setPendingDelete] = useState<Dog[] | null>(null);
 
   const statusDispatch = useBulkDispatch<Dog>({ getLabel: getDogDisplayName });
@@ -65,7 +71,19 @@ export function DogsBulkActionsBar({
       await statusDispatch.run(
         dogs,
         async d => {
-          await updateDogMutation.mutateAsync({ id: d.id, updates: { status } });
+          // Local write + queued UPDATE (offline-safe, OCC-versioned). A dog the
+          // replica cannot supply after a normal table sync is a per-dog failure:
+          // the user was told and nothing was queued.
+          const current = await getDogForEdit(d.id);
+          if (!current) throw new Error(`Dog ${d.id} is not saved on this device yet`);
+          await replicatedDogsTable.updateDog(d.id, mapPartialDogInputToReplicated({ status }));
+          // Offline the invalidation below pauses until reconnect; patch the cached
+          // rows so the new status shows now (owners/registrations untouched).
+          patchCachedDogRows(queryClient, d.id, current.ownerId, mapDogInputToUpdate({ status }));
+          queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
+          if (current.ownerId) {
+            queryClient.invalidateQueries({ queryKey: queryKeys.personDogs(current.ownerId) });
+          }
         },
         {
           onFullSuccess: onClear,

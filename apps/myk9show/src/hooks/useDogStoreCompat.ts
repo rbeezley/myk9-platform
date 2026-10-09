@@ -20,11 +20,13 @@ import {
   mapDatabaseDogsArray,
   mapReplicatedDogToDbRow,
   mapPartialDogInputToReplicated,
+  mapDogInputToUpdate,
   normalizeDogInputForWrite,
 } from '@/services/mappers/dogMappers';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { logger } from '@/services/LoggingService';
-import { useOptionalReplicationSync } from '@/hooks/useOptionalReplicationSync';
+import { patchCachedDogRows } from '@/hooks/patchCachedDogRows';
+import { useDogReplicaForEdit } from '@/hooks/useDogReplicaForEdit';
 import { queryKeys } from '@/lib/queryClient';
 import { aggregateQueryErrors, aggregateLoadingStates } from '@/hooks/storeCompatUtils';
 import { syncDogRegistrations } from '@/hooks/dogStoreCompatHelpers';
@@ -236,21 +238,7 @@ export const useDogStoreCompat = () => {
     return await mapReplicatedDogWithRegistrations(savedDog);
   };
 
-  // Cold replica (roster filled by the PostgREST fallback): run the dogs table's
-  // NORMAL sync - the provider's own syncTable - so the replica fills completely
-  // (a one-row replica would read as "complete" and shrink the roster) and rows
-  // arrive with their server version. No partial replica writes, and never a
-  // replica row built from the roster's display model.
-  const replicationSync = useOptionalReplicationSync();
-  const syncDogsThenGet = async (id: string) => {
-    if (!replicationSync) return null;
-    try {
-      await replicationSync.syncTable('dogs');
-    } catch (err) {
-      logger.warn('Dogs sync before edit failed', 'dogs', { dogId: id }, err as Error);
-    }
-    return replicatedDogsTable.getDogById(id);
-  };
+  const getDogForEdit = useDogReplicaForEdit();
 
   const updateDog = async (id: string, updates: Partial<DogInput>): Promise<Dog | null> => {
     logger.debug('updateDog called', 'dogs', {
@@ -271,16 +259,8 @@ export const useDogStoreCompat = () => {
     // and a permanent rejection lands in failed_mutations with the sync-failed
     // toast. There is deliberately no second, direct PostgREST write: it was
     // fire-and-forget and lost the edit silently whenever it failed.
-    let current = await replicatedDogsTable.getDogById(id);
-    if (!current) {
-      current = await syncDogsThenGet(id);
-      if (!current) {
-        notifications.error(
-          'This dog is not saved on this device yet. Reconnect and try the edit again.'
-        );
-        return null;
-      }
-    }
+    const current = await getDogForEdit(id);
+    if (!current) return null;
     let localDog: Dog | null = null;
     if (current) {
       const patch = mapPartialDogInputToReplicated(normalizedUpdates);
@@ -296,6 +276,9 @@ export const useDogStoreCompat = () => {
 
       // The local write is what the roster reads, so refresh it NOW. Waiting on
       // an upload left the detail page on the old value until reload (MYK9-1061).
+      // Offline the invalidation below pauses until reconnect; patch the cached
+      // rows so the edit shows now (owners/registrations untouched).
+      patchCachedDogRows(queryClient, id, updated.ownerId, mapDogInputToUpdate(normalizedUpdates));
       queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
       if (updated.ownerId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.personDogs(updated.ownerId) });

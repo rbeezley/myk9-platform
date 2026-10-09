@@ -2,24 +2,24 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Registration } from '@/types/dog-types';
 
-const { mutateAsync, toastSuccess, toastError } = vi.hoisted(() => ({
-  mutateAsync: vi.fn(),
+const { addRegistration, toastSuccess, toastError } = vi.hoisted(() => ({
+  addRegistration: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
 }));
 
-vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
-  useCreateRegistrationMutation: () => ({ mutateAsync }),
+vi.mock('@/hooks/useQueuedRegistrationWrites', () => ({
+  useQueuedRegistrationWrites: () => ({ addRegistration }),
 }));
 vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }));
 vi.mock('@/hooks/translateDogDbError', () => ({
   dogSaveMessage: (error: Error) => error.message,
 }));
 
-import { toDogRegistrationInsert, useInlineDogRegistration } from './useInlineDogRegistration';
+import { toRegistrationAddFields, useInlineDogRegistration } from './useInlineDogRegistration';
 
-describe('toDogRegistrationInsert', () => {
-  it('keeps every organization-scoped registration field in the canonical mutation payload', () => {
+describe('toRegistrationAddFields', () => {
+  it('keeps every organization-scoped registration field in the queued insert (MYK9-1071)', () => {
     const registration: Registration = {
       id: 'local-registration',
       organization: 'UKC',
@@ -34,17 +34,16 @@ describe('toDogRegistrationInsert', () => {
       certificate: 'certificate.pdf',
     };
 
-    expect(toDogRegistrationInsert('dog-1', registration)).toEqual({
-      dog_id: 'dog-1',
+    expect(toRegistrationAddFields(registration)).toEqual({
       organization: 'UKC',
-      registered_name: 'Official Name',
-      registration_number: 'UKC-123',
+      registeredName: 'Official Name',
+      registrationNumber: 'UKC-123',
       breed: 'Beagle',
       variety: '13 inch',
       status: 'Active',
-      application_number: 'APP-1',
-      submission_date: '2026-08-20',
-      registration_date: '2026-08-21',
+      applicationNumber: 'APP-1',
+      submissionDate: '2026-08-20',
+      registrationDate: '2026-08-21',
       certificate: 'certificate.pdf',
     });
   });
@@ -56,7 +55,7 @@ describe('useInlineDogRegistration', () => {
   });
 
   it('keeps the registration editor targeted at the dog when saving fails', async () => {
-    mutateAsync.mockRejectedValueOnce(new Error('Registration could not be saved.'));
+    addRegistration.mockRejectedValueOnce(new Error('Registration could not be saved.'));
     const onSaved = vi.fn();
     const { result } = renderHook(() => useInlineDogRegistration(onSaved));
 

@@ -1,41 +1,36 @@
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { useCreateRegistrationMutation } from '@/hooks/queries/useRegistrationsDatabase';
+import { useQueuedRegistrationWrites } from '@/hooks/useQueuedRegistrationWrites';
+import type { RegistrationAddFields } from '@/services/replication/ReplicatedDogRegistrationsTable';
 import { dogSaveMessage } from '@/hooks/translateDogDbError';
 import type { Registration } from '@/types/dog-types';
-import type { DbDogRegistrationInsert } from '@/types/database-mappings';
 
-export function toDogRegistrationInsert(
-  dogId: string,
-  registration: Registration
-): DbDogRegistrationInsert {
+/** The add-panel registration as the queued INSERT's fields (MYK9-1071). */
+export function toRegistrationAddFields(registration: Registration): RegistrationAddFields {
   return {
-    dog_id: dogId,
     organization: registration.organization,
-    registered_name: registration.registeredName,
-    registration_number: registration.registrationNumber,
+    registeredName: registration.registeredName,
+    registrationNumber: registration.registrationNumber,
     breed: registration.breed || null,
     variety: registration.variety || null,
     status: registration.status,
-    application_number: registration.applicationNumber || null,
-    submission_date: registration.submissionDate || null,
-    registration_date: registration.registrationDate || null,
+    applicationNumber: registration.applicationNumber || null,
+    submissionDate: registration.submissionDate || null,
+    registrationDate: registration.registrationDate || null,
     certificate: registration.certificate || null,
   };
 }
 
-/** Reuses the canonical registration mutation while keeping wizard context in place. */
+/** Queues the registration (MYK9-1071) while keeping wizard context in place. */
 export function useInlineDogRegistration(onSaved?: () => void) {
   const [registrationDogId, setRegistrationDogId] = useState<string | null>(null);
-  const createRegistration = useCreateRegistrationMutation();
+  const { addRegistration } = useQueuedRegistrationWrites();
 
   const saveRegistration = async (registration: Registration): Promise<boolean> => {
     if (!registrationDogId) return false;
 
     try {
-      await createRegistration.mutateAsync(
-        toDogRegistrationInsert(registrationDogId, registration)
-      );
+      await addRegistration(registrationDogId, toRegistrationAddFields(registration));
       toast.success('Registration added');
       setRegistrationDogId(null);
       onSaved?.();

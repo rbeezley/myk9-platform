@@ -15,10 +15,12 @@
  * trust and what an empty result is allowed to mean. They are kept together
  * because that trade-off — not the mapping — is the actual subject matter.
  *
- * A note for whoever changes this next: `ReplicatedDogRegistrationsTable.sync()`
- * is a NO-OP. The replica only ever holds registrations created on this device,
- * so an empty result from it is never evidence of absence. Several fixes here
- * exist solely because that was assumed otherwise.
+ * A note for whoever changes this next: until MYK9-1071
+ * `ReplicatedDogRegistrationsTable.sync()` was a no-op and the replica held only
+ * registrations created on this device. It now syncs every registration RLS
+ * shows, but only a replica that has COMPLETED a sync (`isCold()` false) is
+ * evidence of absence; a cold replica still is not. Several fixes here exist
+ * solely because a cold replica's empty answer was once trusted.
  */
 
 import type { QueryClient } from '@tanstack/react-query';
@@ -36,13 +38,11 @@ import { queryKeys } from '@/lib/queryClient';
  * bare row and handed the result straight to `DogDialogs`, which flipped a
  * registered dog's breed label to "Breed not set" until the next refetch.
  *
- * Reads through `loadDogRegistrations`, the MERGED server+replica path. Round 2
- * used `replicatedDogRegistrationsTable` alone, which was inert in production:
- * that table's `sync()` is a no-op and server reads are never written into it,
- * so it only ever holds registrations created locally. For the common dog —
- * whose registrations came from PostgREST — it returned nothing and the label
- * still flipped to "Breed not set". The merged read answers from the server when
- * online and from the replica when not.
+ * Reads through `loadDogRegistrations`: the warm replica once it has synced
+ * (MYK9-1071), otherwise the MERGED server+replica path. Round 2 used
+ * `replicatedDogRegistrationsTable` alone back when its `sync()` was a no-op, so
+ * for the common dog it returned nothing and the label still flipped to "Breed
+ * not set". `loadDogRegistrations` trusts the replica alone only when it is warm.
  *
  * ONLY use this off the latency-critical path. `updateDog` is local-first and
  * must not await a network read — see `cachedRegistrationRowsForDog`.

@@ -9,7 +9,16 @@ import DogRegistrationDialogs from './DogRegistrationDialogs';
 
 const mocks = vi.hoisted(() => ({
   createRegistration: vi.fn(),
+  addRegistration: vi.fn(),
   registrations: vi.fn(),
+}));
+
+// Add and Edit are queued since MYK9-1071; this is the add's seam.
+vi.mock('@/hooks/useQueuedRegistrationWrites', () => ({
+  useQueuedRegistrationWrites: () => ({
+    addRegistration: mocks.addRegistration,
+    editRegistration: vi.fn(),
+  }),
 }));
 
 vi.mock('@/hooks/queries/useRegistrationsDatabase', () => ({
@@ -143,8 +152,8 @@ describe('registration name editing', () => {
   // insert has to reject — swallowing it closed the panel and, because the panel
   // is keyed to remount blank, threw away everything the user typed.
   it('rejects a failed add so the panel keeps what was typed', async () => {
-    mocks.createRegistration.mockImplementation((_data, opts) =>
-      opts.onError(new Error('duplicate key value violates unique constraint'))
+    mocks.addRegistration.mockRejectedValue(
+      new Error('duplicate key value violates unique constraint')
     );
     const dog = { id: 'dog-1', callName: 'Test Dog' } as Dog;
     render(<DogRegistrationDialogs dog={dog} />);

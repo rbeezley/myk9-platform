@@ -29,7 +29,7 @@ import { patchCachedDogRows } from '@/hooks/patchCachedDogRows';
 import { useDogReplicaForEdit } from '@/hooks/useDogReplicaForEdit';
 import { queryKeys } from '@/lib/queryClient';
 import { aggregateQueryErrors, aggregateLoadingStates } from '@/hooks/storeCompatUtils';
-import { syncDogRegistrations } from '@/hooks/dogStoreCompatHelpers';
+import { useQueueDogRegistrationEdits } from '@/hooks/useQueueDogRegistrationEdits';
 import { rethrownDogDbError } from '@/hooks/translateDogDbError';
 import { supabase } from '@/lib/supabase';
 import { selectOwnedDogs } from '@/utils/dogOwnership';
@@ -247,6 +247,7 @@ export const useDogStoreCompat = () => {
   };
 
   const getDogForEdit = useDogReplicaForEdit();
+  const queueRegistrationEdits = useQueueDogRegistrationEdits();
 
   const updateDog = async (id: string, updates: Partial<DogInput>): Promise<Dog | null> => {
     logger.debug('updateDog called', 'dogs', {
@@ -293,18 +294,10 @@ export const useDogStoreCompat = () => {
       }
     }
 
+    // Queued too (MYK9-1071): a registration edit used to write PostgREST
+    // directly and was lost offline.
     if (updates.registrations && updates.registrations.length > 0) {
-      try {
-        const changed = await syncDogRegistrations(id, updates.registrations);
-        if (changed) {
-          queryClient.invalidateQueries({ queryKey: queryKeys.registrationsByDog(id) });
-        }
-      } catch (err) {
-        logger.error('Failed to update/create registrations', 'dogs', { dogId: id }, err as Error);
-        notifications.warning(
-          'Dog details saved, but registration changes could not be synced. Please try editing registrations again.'
-        );
-      }
+      await queueRegistrationEdits(id, updates.registrations);
     }
 
     return localDog;

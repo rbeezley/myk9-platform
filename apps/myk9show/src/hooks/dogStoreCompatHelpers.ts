@@ -1,12 +1,10 @@
 // Pure helper functions for useDogStoreCompat
 
-import {
-  updateRegistration,
-  getRegistrationsByDog,
-  createRegistration,
-} from '@/services/database/registrations';
 import { logger } from '@/services/LoggingService';
-import type { DbDogRegistration } from '@/types/database-mappings';
+import {
+  replicatedDogRegistrationsTable,
+  type ReplicatedDogRegistration,
+} from '@/services/replication/ReplicatedDogRegistrationsTable';
 import { normalizeDogRegistrationOrganization } from '@/utils/dogIdentity';
 
 interface RegistrationInput {
@@ -22,8 +20,8 @@ interface RegistrationInput {
  */
 function findMatchingRegistration(
   inputReg: RegistrationInput,
-  existingRegs: DbDogRegistration[]
-): DbDogRegistration | undefined {
+  existingRegs: ReplicatedDogRegistration[]
+): ReplicatedDogRegistration | undefined {
   const inputOrganization = normalizeDogRegistrationOrganization(inputReg.organization || 'AKC');
   return existingRegs.find(
     er => normalizeDogRegistrationOrganization(er.organization) === inputOrganization
@@ -31,61 +29,52 @@ function findMatchingRegistration(
 }
 
 /**
- * Updates or creates registrations for a dog.
+ * Updates or creates registrations for a dog through the replication mutation
+ * queue (MYK9-1071): an existing organization gets a queued UPDATE, a new one a
+ * queued INSERT. Reads the local replica, so the caller must make sure the
+ * registrations replica is warm first (useEnsureReplicaWarm).
  * Returns true if any registrations were changed.
- *
- * Does not throw — registration failures are logged but do not
- * fail the parent dog update.
  */
 export async function syncDogRegistrations(
   dogId: string,
-  registrations: RegistrationInput[]
+  registrations: RegistrationInput[],
+  options: { dependsOn?: string[] } = {}
 ): Promise<boolean> {
   if (registrations.length === 0) return false;
 
   let changed = false;
-
-  const { data: existingRegs } = await getRegistrationsByDog(dogId);
+  const existingRegs = await replicatedDogRegistrationsTable.getLocalRegistrationsForDog(dogId);
+  const toCreate: RegistrationInput[] = [];
 
   for (const inputReg of registrations) {
     if (!inputReg.registeredName) continue;
 
-    const existing = findMatchingRegistration(inputReg, existingRegs ?? []);
-
+    const existing = findMatchingRegistration(inputReg, existingRegs);
     if (existing) {
-      await updateRegistration(existing.id, {
-        registered_name: inputReg.registeredName,
+      await replicatedDogRegistrationsTable.updateRegistration(existing.id, {
+        registeredName: inputReg.registeredName,
         breed: inputReg.type || null,
         status: inputReg.status || null,
       });
-      logger.debug('Updated registration', 'dogs', {
-        registrationId: existing.id,
-        registeredName: inputReg.registeredName,
-      });
+      logger.debug('Queued registration update', 'dogs', { registrationId: existing.id });
       changed = true;
       continue;
     }
+    toCreate.push(inputReg);
+  }
 
-    // Create new registration for this organization
-    const { error: createError, data: newReg } = await createRegistration({
-      dog_id: dogId,
-      organization: inputReg.organization || 'AKC',
-      registered_name: inputReg.registeredName,
-      registration_number: inputReg.number || '',
-      breed: inputReg.type || null,
-      status: inputReg.status || 'pending',
-    });
-
-    if (createError) {
-      logger.error('Failed to create registration', 'dogs', { dogId }, createError as Error);
-      continue;
-    }
-
-    logger.debug('Created new registration', 'dogs', {
-      registrationId: newReg?.id,
-      registeredName: inputReg.registeredName,
-      organization: inputReg.organization || 'AKC',
-    });
+  if (toCreate.length > 0) {
+    // Blank fields fall back inside the table exactly as the old direct insert did
+    // (organization 'AKC', status 'pending').
+    const inputs = toCreate.map(reg => ({
+      organization: reg.organization ?? '',
+      number: reg.number ?? '',
+      registeredName: reg.registeredName,
+      type: reg.type ?? '',
+      status: reg.status ?? '',
+    }));
+    await replicatedDogRegistrationsTable.createRegistrationsForDog(dogId, inputs, options);
+    logger.debug('Queued new registrations', 'dogs', { dogId, count: toCreate.length });
     changed = true;
   }
 

@@ -19,6 +19,7 @@ import {
 } from '@/utils/dogIdentity';
 import { chunk, ID_CHUNK_SIZE } from '@/utils/chunkIds';
 import { parseRestoreDogResult } from './restoreDogResult';
+import { readWarmReplicaOwners, readWarmReplicaRegistrations } from './replicaFirstRelatedReads';
 
 // PostgREST OR filter for dogs owned or co-owned by a person
 const ownedByPerson = (personId: string) => `owner_id.eq.${personId},co_owner_id.eq.${personId}`;
@@ -35,7 +36,7 @@ function filterByOwnership(dogs: ReplicatedDog[], personId: string): ReplicatedD
 }
 
 // ---------------------------------------------------------------------------
-// Helpers — batch-load owner data from PostgREST (people is NOT replicated)
+// Helpers — batch-load owner data (people replica first since MYK9-1071, else PostgREST)
 // ---------------------------------------------------------------------------
 
 interface OwnerRow {
@@ -57,6 +58,9 @@ interface OwnerRow {
 async function loadOwnersMap(ownerIds: string[]): Promise<Map<string, OwnerRow>> {
   if (ownerIds.length === 0) return new Map();
   const uniqueIds = [...new Set(ownerIds)];
+  // People replicate since MYK9-1071: a warm replica answers, offline included.
+  const fromReplica = await readWarmReplicaOwners(uniqueIds);
+  if (fromReplica) return fromReplica;
   const { data } = await supabase
     .from('people')
     .select('id, first_name, last_name, email, phone, street_address, city, state, zip_code')
@@ -152,8 +156,8 @@ function overlayLocalCreationOrder(
  * Registrations merged from the server and the offline replica, plus whether
  * either read leg failed.
  *
- * The flag matters because `ReplicatedDogRegistrationsTable.sync()` is a no-op:
- * the replica only ever holds registrations CREATED locally, so for a dog whose
+ * The flag matters on the COLD-replica path: before the replica's first sync
+ * (MYK9-1071) it holds only registrations CREATED locally, so for a dog whose
  * registrations came from PostgREST the local leg returns nothing. An empty
  * result is therefore ambiguous — "this dog has no registrations" and "we could
  * not read them" look identical — and callers that print paperwork must be able
@@ -171,6 +175,17 @@ export interface DogRegistrationsResult {
 export async function loadDogRegistrations(dogIds: string[]): Promise<DogRegistrationsResult> {
   if (dogIds.length === 0) {
     return { byDog: new Map(), serverError: null, registrationsReadComplete: true };
+  }
+  // MYK9-1071: once the registrations replica has synced it holds every row RLS
+  // shows this user, so it answers alone (a queued edit included). The merged
+  // server+replica read below is the cold-replica path.
+  const warm = await readWarmReplicaRegistrations(dogIds);
+  if (warm) {
+    const byDog = new Map<string, Record<string, unknown>[]>();
+    appendRegistrations(byDog, warm.synced);
+    appendRegistrations(byDog, warm.local);
+    overlayLocalCreationOrder(byDog, warm.local);
+    return { byDog, serverError: null, registrationsReadComplete: true };
   }
   const map = new Map<string, Record<string, unknown>[]>();
   const [localResult, serverResult] = await Promise.all([

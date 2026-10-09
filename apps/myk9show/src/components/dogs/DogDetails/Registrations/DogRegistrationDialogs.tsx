@@ -1,6 +1,6 @@
 /**
- * The dog's registration Add / Edit / Delete panels, plus the mutations behind
- * them, mounted ONCE per Dog Details page.
+ * The dog's registration Add / Edit / Delete panels, plus the writes behind
+ * them (Add and Edit queued for offline since MYK9-1071), mounted ONCE per Dog Details page.
  *
  * They used to live inside RegistrationsSection, which made the list a
  * prerequisite for the panels: the rail's "Add registration" only worked while
@@ -20,6 +20,7 @@ import EditRegistrationPanel from './EditRegistrationPanel';
 import ConfirmDeleteRegistrationDialog from './ConfirmDeleteRegistrationDialog';
 import { useDogRegistrationManagement } from '@/hooks/queries/useRegistrationsDatabase';
 import { useRegistrationsStore } from '@/store/registrationsStore';
+import { useQueuedRegistrationWrites } from '@/hooks/useQueuedRegistrationWrites';
 import { dogSaveFailure, dogSaveMessage } from '@/hooks/translateDogDbError';
 
 interface DogRegistrationDialogsProps {
@@ -39,15 +40,16 @@ interface RegistrationFormData {
   registrationDate: string;
 }
 
-function toDbRegistration(data: RegistrationFormData) {
+/** The panel's fields as the queued write's fields (MYK9-1071). */
+function toRegistrationFields(data: RegistrationFormData) {
   return {
     organization: data.organization,
-    registered_name: data.registeredName,
+    registeredName: data.registeredName,
     breed: data.breed,
     variety: data.variety || null,
-    registration_number: data.registrationNumber,
+    registrationNumber: data.registrationNumber,
     status: data.status,
-    registration_date: data.registrationDate || null,
+    registrationDate: data.registrationDate || null,
   };
 }
 
@@ -56,8 +58,9 @@ export default function DogRegistrationDialogs({
   autoOpenAddDialog = false,
   onAddRequestConsumed,
 }: DogRegistrationDialogsProps) {
-  const { createRegistration, updateRegistration, deleteRegistration } =
-    useDogRegistrationManagement(dog?.id || '');
+  // Add and edit are queued (MYK9-1071); delete stays online (MYK9-1075).
+  const { deleteRegistration } = useDogRegistrationManagement(dog?.id || '');
+  const { addRegistration, editRegistration } = useQueuedRegistrationWrites();
 
   const isAddOpen = useRegistrationsStore(state => state.isAddRegistrationDialogOpen);
   const setIsAddOpen = useRegistrationsStore(state => state.setIsAddRegistrationDialogOpen);
@@ -107,31 +110,25 @@ export default function DogRegistrationDialogs({
   // and deliberately does not close, so the user keeps the form they typed. Add
   // clears itself on its next open, so a swallowed failure would throw the whole
   // form away and leave only a toast.
-  const handleAdd = (data: RegistrationFormData) =>
-    new Promise<void>((resolve, reject) => {
-      createRegistration(toDbRegistration(data), {
-        onSuccess: () => {
-          setIsAddOpen(false);
-          resolve();
-        },
-        onError: error => reject(dogSaveFailure(error)),
-      });
-    });
+  const handleAdd = async (data: RegistrationFormData) => {
+    if (!dog?.id) return;
+    try {
+      await addRegistration(dog.id, toRegistrationFields(data));
+    } catch (error) {
+      throw dogSaveFailure(error);
+    }
+    setIsAddOpen(false);
+  };
 
-  const handleUpdate = (data: RegistrationFormData & { id: string }) =>
-    new Promise<void>((resolve, reject) => {
-      updateRegistration(
-        { id: data.id, updates: toDbRegistration(data) },
-        {
-          onSuccess: () => {
-            setIsEditOpen(false);
-            setSelectedRegistration(null);
-            resolve();
-          },
-          onError: error => reject(dogSaveFailure(error)),
-        }
-      );
-    });
+  const handleUpdate = async (data: RegistrationFormData & { id: string }) => {
+    try {
+      await editRegistration(data.id, toRegistrationFields(data));
+    } catch (error) {
+      throw dogSaveFailure(error);
+    }
+    setIsEditOpen(false);
+    setSelectedRegistration(null);
+  };
 
   const handleDelete = () => {
     // Same onError as add and update: the optimistic update targets a different

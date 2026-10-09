@@ -4,7 +4,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   getAllRegistrations,
   getRegistrationById,
-  getRegistrationsByDog,
   getRegistrationsByOrganization,
   getRegistrationsByOwner,
   createRegistration,
@@ -15,6 +14,7 @@ import {
   validateRegistrationNumber,
 } from '@/services/database/registrations';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
+import { readRegistrationsForDog } from '@/services/database/registrations/replicaFirstReads';
 import { invalidateQueries } from '@/services/database/queryClient';
 import type { DbDogRegistrationInsert, DbDogRegistrationUpdate } from '@/types/database-mappings';
 
@@ -49,8 +49,9 @@ export const useRegistrationQuery = (id: string, enabled = true) => {
 export const useRegistrationsByDogQuery = (dogId: string, enabled = true) => {
   return useQuery({
     queryKey: queryKeys.registrationsByDog(dogId),
+    // Replica-first once the registrations replica has synced (MYK9-1071).
     queryFn: async () => {
-      const { data, error } = await getRegistrationsByDog(dogId);
+      const { data, error } = await readRegistrationsForDog(dogId);
       if (error) throw error;
       return data;
     },

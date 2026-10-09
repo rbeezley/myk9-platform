@@ -12,11 +12,7 @@ describe('HealthRecordsHeader', () => {
   it('lets the header and the view-toggle row wrap, with both actions reachable', async () => {
     const onViewModeChange = vi.fn();
     render(
-      <HealthRecordsHeader
-        viewMode="timeline"
-        onViewModeChange={onViewModeChange}
-        showViewToggle
-      />
+      <HealthRecordsHeader viewMode="timeline" onViewModeChange={onViewModeChange} showViewToggle />
     );
 
     expect(screen.getByTestId('health-records-header').className).toContain('flex-wrap');

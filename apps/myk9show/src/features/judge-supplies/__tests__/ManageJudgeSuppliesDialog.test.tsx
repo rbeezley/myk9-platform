@@ -1,6 +1,6 @@
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
@@ -203,7 +203,7 @@ describe('ManageJudgeSuppliesDialog', () => {
     expect(screen.getByLabelText('Delete Custom item')).toBeInTheDocument();
   });
 
-  it('deleting a custom row calls deleteCustomRow', async () => {
+  it('deleting a custom row asks first and only deletes once confirmed', async () => {
     const user = userEvent.setup();
     const muts = setupHook([row({ id: 'r1', item_label: 'Phone charger', is_custom: true })]);
     render(
@@ -217,7 +217,68 @@ describe('ManageJudgeSuppliesDialog', () => {
       { wrapper }
     );
     await user.click(screen.getByLabelText('Delete Phone charger'));
+    expect(muts.deleteCustomRow.mutate).not.toHaveBeenCalled();
+    const confirm = await screen.findByRole('alertdialog');
+    expect(confirm).toHaveTextContent('Phone charger');
+    await user.click(within(confirm).getByRole('button', { name: 'Keep it' }));
+    expect(muts.deleteCustomRow.mutate).not.toHaveBeenCalled();
+
+    await user.click(screen.getByLabelText('Delete Phone charger'));
+    const second = await screen.findByRole('alertdialog');
+    await user.click(within(second).getByRole('button', { name: 'Delete item' }));
     expect(muts.deleteCustomRow.mutate).toHaveBeenCalledWith('r1', expect.anything());
+  });
+
+  it('opens as a right slide-out, not a dialog, and Close panel closes it', async () => {
+    const user = userEvent.setup();
+    const onOpenChange = vi.fn();
+    setupHook([row({ id: 'r1' })]);
+    render(
+      <ManageJudgeSuppliesDialog
+        open
+        onOpenChange={onOpenChange}
+        trialId="trial-1"
+        judge={judge}
+        registryId="AKC"
+      />,
+      { wrapper }
+    );
+    const panel = document.querySelector('.slide-over-panel');
+    expect(panel).not.toBeNull();
+    expect(within(panel as HTMLElement).getByText(/Manage supplies/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Close panel' }));
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it('Escape closes the slide-out and focus returns to the opener', async () => {
+    const user = userEvent.setup();
+    setupHook([row({ id: 'r1' })]);
+    function Harness() {
+      const [open, setOpen] = React.useState(false);
+      return (
+        <>
+          <button onClick={() => setOpen(true)}>Open supplies</button>
+          {open && (
+            <ManageJudgeSuppliesDialog
+              open
+              onOpenChange={o => setOpen(o)}
+              trialId="trial-1"
+              judge={judge}
+              registryId="AKC"
+            />
+          )}
+        </>
+      );
+    }
+    render(<Harness />, { wrapper });
+    const opener = screen.getByRole('button', { name: 'Open supplies' });
+    await user.click(opener);
+    expect(document.querySelector('.slide-over-panel')).not.toBeNull();
+    // Focus moves into the panel after its open animation; only then is focus return a real check.
+    await waitFor(() => expect(opener).not.toHaveFocus());
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(document.querySelector('.slide-over-panel')).toBeNull());
+    await waitFor(() => expect(opener).toHaveFocus());
   });
 
   describe('Add custom item', () => {

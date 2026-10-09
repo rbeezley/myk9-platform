@@ -43,7 +43,10 @@ Count before every spawn or resume, and queue the work when you're at 3.
 
 Every implementer runs in **its own worktree** (`isolation: "worktree"`, or a worktree you made
 for that issue). Two implementers never share a worktree or a branch. After you dispatch,
-confirm the worktree with `git worktree list`.
+confirm the worktree with `git worktree list`. A worktree holds only committed files, so commit
+everything the implementer needs before you create it. In OpenSpec mode, commit the change
+artifacts (`openspec/changes/<id>/`) on the change branch first, and branch each batch's
+worktree from that commit.
 
 The dispatch prompt is self-contained and has these parts, in order:
 
@@ -57,18 +60,10 @@ The dispatch prompt is self-contained and has these parts, in order:
 4. Scope fence: "Change only what the task requires. No opportunistic refactors. Do not touch
    `tasks.md`, migrations or Linear. Do not deploy, push, open a PR, spawn sub-agents, run a
    review or post a `Review gate:` comment. Do not run the full app suite; run the affected
-   test files. Run `pnpm exec prettier --write` on every file you touch. `turbo` appends a
-   `turborepo-agent-rules` block to `AGENTS.md` on every `pnpm typecheck`. Before each commit,
-   strip only that block with the command below, so that a deliberate `AGENTS.md` change
-   (`pnpm qa:shared-rules:write`) survives. Commit `wip:` before any verification that takes
-   longer than a minute. Use bounded waits only (the Bash tool's timeout, or
+   test files. Run `pnpm exec prettier --write` on every file you touch. Commit `wip:` before
+   any verification that takes longer than a minute. Use bounded waits only (the Bash tool's timeout, or
    `for i in $(seq 1 40)`; macOS has no `timeout` command), never open-ended `sleep` loops, and
    wait for your tests to finish before you end your turn."
-
-   ```bash
-   perl -0pi -e 's/\n*<!-- BEGIN:turborepo-agent-rules -->.*?<!-- END:turborepo-agent-rules -->\n?/\n/s' AGENTS.md
-   ```
-
 5. The report format below, as its final message.
 
 ```
@@ -94,9 +89,7 @@ commands check `main`, not the proposed change.
    - [ ] Tests exist for new logic. If anything is value-sensitive, re-run the focused tests yourself
    - [ ] `pnpm typecheck` clean (run it yourself on the final round)
    - [ ] No direct Supabase reads where replication is required, and no file pushed over 500 lines
-   - [ ] `pnpm format:check:changed` clean, and the diff carries no stray files (turbo's
-         `AGENTS.md` block, scratch files). An `AGENTS.md` change is legitimate only when the
-         task changed `docs/agents/shared-rules.md` too
+   - [ ] `pnpm format:check:changed` clean, and the diff carries no stray or unrelated files
    - [ ] A layout or behavior fix is proven by the real artifact, not by a class or source-text
          assertion. Run the issue's repro (e2e spec, browser at the stated width) on the branch,
          and once on `main` as a control that must fail
@@ -104,8 +97,12 @@ commands check `main`, not the proposed change.
    and re-review. **Max 3 rounds.** After that, escalate (see Model routing) or implement it
    yourself. A cheap model looping past the point where you'd be faster is waste.
 4. Only you tick `tasks.md` boxes or move Linear state. A tick means _reviewed and accepted_.
-5. Once accepted, ship it through `ship-pr` from the implementer's worktree before you start the
-   next batch or issue that touches the same files. `ship-pr` Step 7 removes the worktree; one
+5. Once accepted, un-commit the implementer's `wip:` commits so that `ship-pr`'s `/simplify` and
+   `/commit`, which scope from uncommitted changes, see the whole diff:
+   `git -C "$WT" reset --soft "$(git -C "$WT" merge-base origin/main HEAD)"`. Use the merge
+   base, never `origin/main` itself, which may have moved. Then ship it through `ship-pr` from
+   the implementer's worktree before you start the next batch or issue that touches the same
+   files. `ship-pr` Step 7 removes the worktree; one
    created by `isolation: "worktree"` is locked and needs `git worktree remove -f -f`. In
    OpenSpec mode, the LAST batch skips `ship-pr` Step 7: archive runs from that worktree, so
    remove it only after `opsx:ship`'s archive phase (Phase 5).

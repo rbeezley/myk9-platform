@@ -63,9 +63,7 @@ git -C "$MAIN" worktree add "$WT" -b "$BRANCH" origin/main
 ```
 
 Keep the `cd` inside the subshell: a bare `cd` moves the orchestrator's own working directory
-into the issue worktree. `git -C "$WT" status --short` must be empty afterwards. If bootstrap's
-`turbo` run injected its agent-guidance block into `AGENTS.md`, `git -C "$WT" restore AGENTS.md`
-so it doesn't ride along in the PR.
+into the issue worktree. `git -C "$WT" status --short` must be empty afterwards.
 
 Then `save_issue` → **In Progress**. Write the ledger row.
 
@@ -92,7 +90,7 @@ attach to another worktree's dev server. Never print the env values.
 
 ### 4. Ship
 
-From `$WT`, run `ship-pr` (Steps A–C, 3a, 4, 5). This run's authorization covers the push, the
+After the soft reset in `../SKILL.md` review step 5, run `ship-pr` from `$WT` (Steps A–C, 3a, 4, 5). This run's authorization covers the push, the
 PR and the squash-merge. Additions specific to the run:
 
 - **PR title and body name only `MYK9-<n>`** (`Fixes MYK9-<n>`). A sibling or parent id in the

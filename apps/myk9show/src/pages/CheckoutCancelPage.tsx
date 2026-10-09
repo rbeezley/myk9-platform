@@ -155,7 +155,16 @@ export default function CheckoutCancelPage() {
             <div className="text-sm text-muted-foreground p-4 rounded-lg bg-muted/30">
               <p className="font-medium text-foreground mb-2">Need help?</p>
               <ul className="list-disc list-inside space-y-1">
-                <li>Your selections are saved for 30 minutes</li>
+                {/*
+                  MYK9-1073: "for 30 minutes" is true only while the hold lives. After
+                  the hold ended the message above says those 30 minutes are over, and
+                  the cart itself is still saved, so the line drops the duration.
+                */}
+                <li>
+                  {holdEnded
+                    ? 'Your selections are saved'
+                    : 'Your selections are saved for 30 minutes'}
+                </li>
                 <li>You can return to checkout anytime</li>
                 <li>If you experienced an issue, try again or contact support</li>
               </ul>

@@ -7,8 +7,9 @@ interface JudgeDayCapacityArguments {
   p_capacity: number | null;
 }
 
-// Migration 20261007184317. Keep this one callable typed here until the applied
-// database can generate its signature; never patch the generated schema by hand.
+// Migration 20261007184317. The generated signature types p_capacity as
+// `number`, but NULL clears the limit, so this callable keeps its own typing;
+// never patch the generated schema by hand.
 type CapacityRpc = (
   name: 'set_judge_day_capacity',
   args: JudgeDayCapacityArguments

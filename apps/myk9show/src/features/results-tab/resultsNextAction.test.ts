@@ -3,12 +3,12 @@ import {
   deriveResultsNextAction,
   deriveResultsPhase,
   matchesResultsStatusFilter,
-  RESULTS_STATUS_FILTER_OPTIONS,
+  offeredResultsStatusFilters,
   type ResultsClassState,
 } from './resultsNextAction';
 
 const base: ResultsClassState = {
-  classStatus: 'Completed',
+  classStatus: 'Scheduled',
   expectedCount: 8,
   scoredCount: 0,
   releasedAt: null,
@@ -55,26 +55,9 @@ describe('deriveResultsNextAction', () => {
     expect(deriveResultsNextAction(early).kind).toBe('overview');
   });
 
-  it('every dog scored but the class not marked Completed: Mark complete, never Check scores', () => {
-    // A manually started class never completes itself, and the server refuses to record a check
-    // on a class that is not Completed. (The earlier rule, "scored means complete whatever the
-    // stored status", is gone for that reason: git log -S on its test name, part 1.)
-    for (const classStatus of ['In Progress', 'Scheduled', undefined]) {
-      const waiting = state({ classStatus, scoredCount: 8, verifiedAt: null });
-      expect(deriveResultsPhase(waiting)).toBe('ready-to-complete');
-      expect(deriveResultsNextAction(waiting)).toEqual({
-        kind: 'overview',
-        label: 'Mark complete',
-      });
-    }
-    expect(matchesResultsStatusFilter('ready-to-complete', 'needs-me')).toBe(true);
-    // Marked Completed, it moves on to the check.
-    expect(
-      deriveResultsPhase(state({ classStatus: 'Completed', scoredCount: 8, verifiedAt: null }))
-    ).toBe('needs-checking');
-    // Still being scored is still in the ring.
-    expect(deriveResultsPhase(state({ classStatus: 'In Progress', scoredCount: 7 }))).toBe(
-      'in-ring'
+  it('every dog scored counts as complete even while the stored status lags', () => {
+    expect(deriveResultsPhase(state({ classStatus: 'In Progress', scoredCount: 8 }))).toBe(
+      'ready-to-release'
     );
   });
 
@@ -94,6 +77,9 @@ describe('deriveResultsNextAction', () => {
     });
     expect(deriveResultsPhase(waiting)).toBe('needs-initials');
     expect(deriveResultsNextAction(waiting)).toEqual({ kind: 'initials', label: 'Initials' });
+    expect(matchesResultsStatusFilter('needs-initials', 'needs-me')).toBe(true);
+    expect(matchesResultsStatusFilter('needs-initials', 'released')).toBe(true);
+    expect(matchesResultsStatusFilter('needs-initials', 'done')).toBe(false);
   });
 
   it('does not ask for initials while the judge still has a class to run that day', () => {
@@ -140,21 +126,6 @@ describe('deriveResultsNextAction', () => {
     expect(deriveResultsNextAction(done)).toEqual({ kind: 'none', label: 'Done' });
   });
 
-  it('released but not checked (undone, or cleared by a correction): back to Check scores', () => {
-    const released = state({
-      scoredCount: 8,
-      releasedAt: '2026-10-10T18:00:00Z',
-      paperworkPrinted: true,
-      verifiedAt: null,
-    });
-    expect(deriveResultsPhase(released)).toBe('needs-checking');
-    expect(deriveResultsNextAction(released)).toEqual({ kind: 'verify', label: 'Check scores' });
-    // Checked again, it picks up where it was.
-    expect(deriveResultsPhase({ ...released, verifiedAt: '2026-10-10T19:00:00Z' })).toBe('done');
-    // Release state unknown still outranks everything.
-    expect(deriveResultsPhase({ ...released, releasedAt: undefined })).toBe('release-unknown');
-  });
-
   it('cancelled: nothing to do, even when it carries a stale release stamp', () => {
     const cancelled = state({ classStatus: 'Cancelled', releasedAt: '2026-10-10T18:00:00Z' });
     expect(deriveResultsPhase(cancelled)).toBe('cancelled');
@@ -172,7 +143,7 @@ describe('deriveResultsNextAction', () => {
     expect(deriveResultsPhase(state({ classStatus: undefined }))).toBe('not-started');
   });
 
-  it('a stored check lets the class through; a missing one holds it at Needs checking', () => {
+  it('part 2 seam: a tracked, missing verification holds the class at Needs checking', () => {
     const complete = state({ scoredCount: 8 });
     expect(deriveResultsPhase({ ...complete, verifiedAt: null })).toBe('needs-checking');
     expect(deriveResultsNextAction({ ...complete, verifiedAt: null }).kind).toBe('verify');
@@ -200,18 +171,13 @@ describe('matchesResultsStatusFilter', () => {
     expect(matchesResultsStatusFilter('released', 'done')).toBe(false);
   });
 
-  it('offers the Needs checking filter now that the check is stored', () => {
-    expect(RESULTS_STATUS_FILTER_OPTIONS.map(option => option.id)).toEqual([
+  it('does not offer a filter that cannot match until verification is stored', () => {
+    expect(offeredResultsStatusFilters().map(option => option.id)).toEqual([
       'needs-me',
       'all',
-      'needs-checking',
       'ready-to-release',
       'released',
       'done',
     ]);
-    expect(matchesResultsStatusFilter('needs-checking', 'needs-checking')).toBe(true);
-    expect(matchesResultsStatusFilter('needs-initials', 'needs-me')).toBe(true);
-    expect(matchesResultsStatusFilter('needs-initials', 'released')).toBe(true);
-    expect(matchesResultsStatusFilter('needs-initials', 'done')).toBe(false);
   });
 });

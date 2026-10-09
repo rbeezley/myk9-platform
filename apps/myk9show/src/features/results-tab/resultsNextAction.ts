@@ -6,10 +6,9 @@
  * apart. A class lives on Overview until scoring is complete, then on Results
  * (`docs/plan-results-tab-redesign.md`).
  *
- * Part 2 (MYK9-1031) feeds the two stored facts that finish the flow, both read in
- * {@link deriveResultsPhase} and nowhere else: `verifiedAt` (checked against the paper) and
- * `judgeSignedOffAt` (the judge's end-of-day initials), giving Verify, Release, Print, Initials,
- * Done.
+ * Part 2a (MYK9-1031) feeds the judge's sign-off (`judgeSignedOffAt`), giving Print, Initials,
+ * Done. SEAM still open: `verifiedAt` is not supplied yet (the paper check ships separately), so
+ * it never gates anything. Both are read in {@link deriveResultsPhase}, nowhere else.
  */
 import { CLASS_STATUS, LEGACY_STATUS_MAP } from '@myk9/core';
 
@@ -31,10 +30,9 @@ export interface ResultsClassState {
    */
   paperworkPrinted: boolean | null;
   /**
-   * When the secretary's check against the paper score sheets was recorded for this class
-   * (`classes.results_verified_at`, cleared server-side when a result changes), counted only
-   * while no score change of the class is waiting to sync. `null` = not checked, whether or not
-   * the class is released; `undefined` = not tracked here, so it never gates anything.
+   * Part 2 seam: when the secretary's check against the paper score sheets is stored per class,
+   * pass it here. `undefined` means verification is not tracked, so it never gates anything;
+   * `null` means tracked and not done yet.
    */
   verifiedAt?: string | null | undefined;
   /**
@@ -52,7 +50,6 @@ export interface ResultsClassState {
 export type ResultsClassPhase =
   | 'not-started'
   | 'in-ring'
-  | 'ready-to-complete'
   | 'needs-checking'
   | 'ready-to-release'
   | 'release-unknown'
@@ -86,27 +83,19 @@ export function deriveResultsPhase(state: ResultsClassState): ResultsClassPhase 
   if (state.scoredCount < state.expectedCount) {
     return state.scoredCount > 0 || status === CLASS_STATUS.IN_PROGRESS ? 'in-ring' : 'not-started';
   }
-  // Every dog is scored but the class was never marked Completed: a manually started class does
-  // not complete itself. The check cannot be saved before that (the server refuses an incomplete
-  // class), so the step is Mark Class Complete, which lives on Overview.
-  if (status !== CLASS_STATUS.COMPLETED) return 'ready-to-complete';
   if (state.releasedAt === undefined) return 'release-unknown';
-  // Unchecked comes before released: a class whose check was undone, or cleared by a correction,
-  // goes back to Check scores even after its results were released.
-  if (state.verifiedAt === null) return 'needs-checking';
   if (state.releasedAt) {
     if (state.paperworkPrinted !== true) return 'released';
     return state.judgeSignedOffAt === null && state.judgeDayOpen !== true
       ? 'needs-initials'
       : 'done';
   }
-  return 'ready-to-release';
+  return state.verifiedAt === null ? 'needs-checking' : 'ready-to-release';
 }
 
 const NEXT_ACTION_BY_PHASE: Record<ResultsClassPhase, ResultsNextAction> = {
   'not-started': { kind: 'overview', label: 'Overview' },
   'in-ring': { kind: 'overview', label: 'Overview' },
-  'ready-to-complete': { kind: 'overview', label: 'Mark complete' },
   'needs-checking': { kind: 'verify', label: 'Check scores' },
   'ready-to-release': { kind: 'release', label: 'Release' },
   'release-unknown': { kind: 'none', label: 'Status unknown' },
@@ -125,7 +114,6 @@ export function deriveResultsNextAction(state: ResultsClassState): ResultsNextAc
 export const RESULTS_PHASE_LABEL: Record<ResultsClassPhase, string> = {
   'not-started': 'Not started',
   'in-ring': 'In the ring',
-  'ready-to-complete': 'Ready to complete',
   'needs-checking': 'Needs checking',
   'ready-to-release': 'Ready to release',
   'release-unknown': 'Release status unknown',
@@ -141,8 +129,13 @@ export type ResultsStatusFilterId =
 
 export const DEFAULT_RESULTS_STATUS_FILTER: ResultsStatusFilterId = 'needs-me';
 
+/**
+ * Whether the secretary's check against the paper is stored yet. While it is not, no class can be
+ * "Needs checking", so the filter that would always be empty is not offered. Flip with part 2.
+ */
+export const RESULTS_VERIFICATION_TRACKED = false;
+
 const NEEDS_ME: ReadonlySet<ResultsClassPhase> = new Set([
-  'ready-to-complete',
   'needs-checking',
   'ready-to-release',
   'released',
@@ -180,4 +173,11 @@ export const RESULTS_STATUS_FILTER_OPTIONS: readonly {
 
 export function isResultsStatusFilterId(value: string | null): value is ResultsStatusFilterId {
   return RESULTS_STATUS_FILTER_OPTIONS.some(option => option.id === value);
+}
+
+/** The filters worth offering today; see {@link RESULTS_VERIFICATION_TRACKED}. */
+export function offeredResultsStatusFilters() {
+  return RESULTS_STATUS_FILTER_OPTIONS.filter(
+    option => option.id !== 'needs-checking' || RESULTS_VERIFICATION_TRACKED
+  );
 }

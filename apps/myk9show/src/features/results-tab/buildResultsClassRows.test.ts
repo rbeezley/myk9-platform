@@ -192,7 +192,7 @@ describe('buildResultsClassRows', () => {
   it('walks a finished class through release and print using the class-row release stamp and the paperwork map', () => {
     const base = {
       trials: [trial],
-      // Initialed by the judge, so the walk ends at Done (see the sign-off test below).
+      // Initialed by the judge, so the walk ends at Done (see the sign-off tests below).
       trialClasses: {
         'trial-1': [trialClass('class-1', { judgeSignedOffAt: '2026-10-10T21:00:00Z' })],
       },
@@ -224,37 +224,14 @@ describe('buildResultsClassRows', () => {
     expect(phase(released, printed)).toBe('done');
   });
 
-  describe('paper check and judge sign-off (MYK9-1031 part 2)', () => {
+  describe('judge sign-off (MYK9-1031 part 2a)', () => {
     const entries = [scored('e-1', 'class-1', { result_status: 'qualified', final_placement: 1 })];
     const released = new Map([['class-1', '2026-10-10T16:00:00Z']]);
     const printed = new Map([
       ['class-1', [paperwork('results-sheet', 'current'), paperwork('result-labels', 'current')]],
     ]);
 
-    it('holds an unchecked class at Needs checking and lets a checked one through to Release', () => {
-      const build = (verified: { at: string | null; by: string | null }) =>
-        buildResultsClassRows({
-          trials: [trial],
-          trialClasses: { 'trial-1': [trialClass('class-1')] },
-          releasedAtByClassId: new Map([['class-1', null]]),
-          verifiedByClassId: new Map([['class-1', verified]]),
-          paperworkByClassId: new Map(),
-          entries,
-        })[0]!;
-
-      const unchecked = build({ at: null, by: null });
-      expect(unchecked).toMatchObject({ phase: 'needs-checking', verifiedAt: null });
-      expect(unchecked.nextAction).toEqual({ kind: 'verify', label: 'Check scores' });
-
-      const checked = build({ at: '2026-10-10T15:45:00Z', by: 'auth-1' });
-      expect(checked).toMatchObject({
-        phase: 'ready-to-release',
-        verifiedAt: '2026-10-10T15:45:00Z',
-        verifiedBy: 'auth-1',
-      });
-    });
-
-    function build(classes: SyncableTrialClass[], extraEntries: SecretaryEntry[] = []) {
+    function build(classes: SyncableTrialClass[]) {
       return buildResultsClassRows({
         trials: [trial],
         trialClasses: { 'trial-1': classes },
@@ -262,12 +239,9 @@ describe('buildResultsClassRows', () => {
         paperworkByClassId: new Map(
           classes.map(cls => [cls.id, printed.get('class-1') ?? []] as const)
         ),
-        entries: [
-          ...classes.map(cls =>
-            scored(`e-${cls.id}`, cls.id, { result_status: 'qualified', final_placement: 1 })
-          ),
-          ...extraEntries,
-        ],
+        entries: classes.map(cls =>
+          scored(`e-${cls.id}`, cls.id, { result_status: 'qualified', final_placement: 1 })
+        ),
       });
     }
 
@@ -322,14 +296,25 @@ describe('buildResultsClassRows', () => {
       expect(row?.phaseLabel).toBe('Needs judge signature');
     });
 
-    it('a class holding only entries not yet accepted keeps its judge day open', () => {
-      // Its expected count is 0 (pending entries are not on the results table), which reads as
-      // "no dogs" - but they are on the run list, so the class is not KNOWN empty (the Overview
-      // rule, isClassConfirmedEmpty) and the judge is not done for the day.
+    it('only a Completed class can be recorded', () => {
+      const [completed, running] = build([
+        trialClass('class-1'),
+        trialClass('class-2', { status: 'In Progress' }),
+      ]);
+      expect(completed?.signOffRecordable).toBe(true);
+      expect(running?.signOffRecordable).toBe(false);
+    });
+
+    // Same scenario as judgeDaySignOff.test on the Overview tree ("keeps waiting when the empty
+    // class has an entry still pending acceptance"): one rule, two surfaces.
+    it("a class holding only entries not yet accepted keeps its judge's day open (as on Overview)", () => {
       const [done, waiting] = buildResultsClassRows({
         trials: [trial],
         trialClasses: {
-          'trial-1': [trialClass('class-1'), trialClass('class-2', { startTime: '13:00' })],
+          'trial-1': [
+            trialClass('class-1'),
+            trialClass('class-2', { startTime: '13:00', status: 'Scheduled' }),
+          ],
         },
         releasedAtByClassId: released,
         paperworkByClassId: printed,
@@ -340,11 +325,74 @@ describe('buildResultsClassRows', () => {
       expect(done?.runFinished).toBe(true);
     });
 
+    // Same scenario as judgeDaySignOff.test on the Overview tree ("a Completed class whose entries
+    // are all absent still needs the judge's initials"): the rule is Overview's, applied here.
+    it('a Completed class whose entries are all absent still takes the sign-off (as on Overview)', () => {
+      const [row] = buildResultsClassRows({
+        trials: [trial],
+        trialClasses: { 'trial-1': [trialClass('class-1')] },
+        releasedAtByClassId: new Map([['class-1', null]]),
+        paperworkByClassId: new Map(),
+        entries: [entry('e-absent', 'class-1', { entry_status: 'absent' })],
+      });
+      expect(row).toMatchObject({
+        runFinished: true,
+        takesJudgeSignOff: true,
+        signOffRecordable: true,
+        // Nothing to release or print, but the sign-off is owed: read from that, not the dog count.
+        phase: 'needs-initials',
+        nextAction: { kind: 'initials', label: 'Initials' },
+      });
+    });
+
+    it('that all-absent class reads Done once signed, and quiet while the judge is still judging', () => {
+      const absent = entry('e-absent', 'class-1', { entry_status: 'absent' });
+      const base = {
+        trials: [trial],
+        releasedAtByClassId: new Map<string, string | null>(),
+        paperworkByClassId: new Map(),
+      };
+      const [signed] = buildResultsClassRows({
+        ...base,
+        trialClasses: {
+          'trial-1': [trialClass('class-1', { judgeSignedOffAt: '2026-10-10T21:00:00Z' })],
+        },
+        entries: [absent],
+      });
+      expect(signed).toMatchObject({ phase: 'done', nextAction: { kind: 'none' } });
+
+      const [waiting] = buildResultsClassRows({
+        ...base,
+        trialClasses: {
+          'trial-1': [
+            trialClass('class-1'),
+            trialClass('class-2', { startTime: '13:00', status: 'In Progress' }),
+          ],
+        },
+        entries: [absent, entry('e-2', 'class-2')],
+      });
+      expect(waiting).toMatchObject({ phase: 'done', judgeSignedOffAt: null });
+    });
+
+    it('a class with every entry pulled has nothing to sign, on both surfaces', () => {
+      const [row] = buildResultsClassRows({
+        trials: [trial],
+        trialClasses: { 'trial-1': [trialClass('class-1')] },
+        releasedAtByClassId: new Map([['class-1', null]]),
+        paperworkByClassId: new Map(),
+        entries: [entry('e-pulled', 'class-1', { check_in_status: 'pulled' })],
+      });
+      expect(row).toMatchObject({ takesJudgeSignOff: false, signOffRecordable: false });
+    });
+
     it('a class that is known empty does not hold the day open', () => {
       const [done, empty] = buildResultsClassRows({
         trials: [trial],
         trialClasses: {
-          'trial-1': [trialClass('class-1'), trialClass('class-2', { startTime: '13:00' })],
+          'trial-1': [
+            trialClass('class-1'),
+            trialClass('class-2', { startTime: '13:00', status: 'Scheduled' }),
+          ],
         },
         releasedAtByClassId: released,
         paperworkByClassId: printed,
@@ -352,15 +400,6 @@ describe('buildResultsClassRows', () => {
       });
       expect(empty).toMatchObject({ phase: 'no-dogs', runFinished: true });
       expect(done?.phase).toBe('needs-initials');
-    });
-
-    it('only a Completed class can be recorded', () => {
-      const [completed, running] = build([
-        trialClass('class-1'),
-        trialClass('class-2', { status: 'In Progress' }),
-      ]);
-      expect(completed?.signOffRecordable).toBe(true);
-      expect(running?.signOffRecordable).toBe(false);
     });
   });
 

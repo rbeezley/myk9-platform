@@ -9,9 +9,6 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { getTrialTimezone } from '@/features/registries';
 import { useJudgeSignOffMutations } from '@/features/show-map/useJudgeSignOffMutations';
-import { useResultsVerifiedMutations } from '@/features/show-map/useResultsVerifiedMutations';
-import { useAuth } from '@/hooks/useAuth';
-import { useIsOnline } from '@/hooks/useNetworkStatus';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useReleaseResults } from '@/hooks/mutations/useReleaseResults';
 import type { ResultsClassRow } from './buildResultsClassRows';
@@ -49,9 +46,22 @@ function rowMatchesSearch(row: ResultsClassRow, rawQuery: string): boolean {
  * Submit and Close.
  */
 function everyClassReleasedAndInitialed(rows: readonly ResultsClassRow[]): boolean {
-  const ran = rows.filter(row => row.phase !== 'cancelled' && row.phase !== 'no-dogs');
+  // Every class that ran, plus any class that owes the judge's sign-off without having a dog to
+  // release (all entries absent).
+  const ran = rows.filter(
+    row => (row.phase !== 'cancelled' && row.phase !== 'no-dogs') || row.takesJudgeSignOff
+  );
   return (
-    ran.length > 0 && ran.every(row => Boolean(row.releasedAt) && row.judgeSignedOffAt !== null)
+    ran.length > 0 &&
+    // Currently complete (a late entry reopens a released, signed class: it is in the ring again)
+    // AND released AND signed off.
+    ran.every(
+      row =>
+        (row.phase === 'released' || row.phase === 'done') &&
+        // Nothing to release when no dog was expected.
+        (Boolean(row.releasedAt) || row.expectedCount === 0) &&
+        row.judgeSignedOffAt !== null
+    )
   );
 }
 
@@ -71,10 +81,7 @@ export default function ResultsTab() {
   const { rows, trials, readState, retry, refreshFailed, paperworkAvailable } =
     useResultsTabData(showId);
   const release = useReleaseResults();
-  const { user } = useAuth();
   const { pathname, search } = useLocation();
-  const verification = useResultsVerifiedMutations();
-  const isOnline = useIsOnline();
   const judgeSignOff = useJudgeSignOffMutations();
   const isWide = useMediaQuery(MASTER_DETAIL_QUERY);
   const [visibilityOpen, setVisibilityOpen] = useState(false);
@@ -109,11 +116,9 @@ export default function ResultsTab() {
     [rows, selected, showId]
   );
 
-  const handleRelease = (row: ResultsClassRow) => {
-    // Release in this tab waits for the paper check (the server does not, by design).
-    if (row.phase !== 'ready-to-release') return;
+  const handleRelease = (classId: string) =>
     release.mutate(
-      { classIds: [row.id], showId },
+      { classIds: [classId], showId },
       {
         onSuccess: ({ released }) =>
           released.length > 0
@@ -122,7 +127,6 @@ export default function ResultsTab() {
         onError: () => toast.error('Could not release the results. Try again.'),
       }
     );
-  };
 
   if (readState === 'loading') {
     return (
@@ -191,16 +195,12 @@ export default function ResultsTab() {
       row={selected}
       timeZone={timeZone}
       releasing={release.isPending}
-      onRelease={() => handleRelease(selected)}
+      onRelease={() => handleRelease(selected.id)}
       onRetry={retry}
-      onVerify={() => verification.verifyAsync({ classId: selected.id })}
-      onUndoVerify={() => verification.undo({ classId: selected.id })}
-      verifying={verification.isPending}
-      online={isOnline}
-      currentUserId={user?.id ?? null}
       judgeSignOffSlot={
         judgeGroup ? (
           <ResultsJudgeSignOff
+            showId={showId}
             group={judgeGroup}
             returnTo={`${pathname}${search}`}
             pending={judgeSignOff.isPending}

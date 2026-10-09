@@ -16,7 +16,9 @@ function row(id: string, overrides: Partial<ResultsClassRow> = {}): ResultsClass
     registryId: 'AKC',
     phase: 'done',
     runFinished: true,
+    takesJudgeSignOff: true,
     signOffRecordable: true,
+    signOffNeedsCompletion: false,
     judgeSignedOffAt: null,
     ...overrides,
   } as ResultsClassRow;
@@ -57,18 +59,57 @@ describe('buildJudgeSignOffGroup', () => {
       'show-1',
       [
         row('c1'),
-        row('c2', { phase: 'cancelled' }),
-        row('c3', { phase: 'no-dogs' }),
-        row('c4', { judgeId: 'judge-2', judgeName: 'Sam Judge' }),
-        row('c5', { trialDate: '2026-10-11' }),
+        row('c2', { phase: 'cancelled', takesJudgeSignOff: false }),
+        row('c3', { phase: 'no-dogs', takesJudgeSignOff: false }),
+        row('c4', {
+          judgeId: 'judge-2',
+          judgeName: 'Sam Judge',
+          judgeDayKey: 'judge:judge-2|2026-10-10',
+        }),
+        row('c5', { trialDate: '2026-10-11', judgeDayKey: 'judge:judge-1|2026-10-11' }),
       ],
       'c1'
     );
     expect(group?.classes.map(item => item.id)).toEqual(['c1']);
   });
 
+  it('lists a class with only entries not yet accepted and keeps the day open for it', () => {
+    // Its expected count is 0 ("no dogs") but it is not KNOWN empty, so it is not finished.
+    const group = buildJudgeSignOffGroup(
+      'show-1',
+      [row('c1'), row('c2', { phase: 'no-dogs', runFinished: false, signOffRecordable: false })],
+      'c1'
+    );
+    expect(group?.classes.map(item => item.id)).toEqual(['c1', 'c2']);
+    expect(group).toMatchObject({ finishedCount: 1, dayComplete: false, recordClassIds: [] });
+  });
+
+  it('does not list a class known to have nothing to run, but it does not hold the day open', () => {
+    const group = buildJudgeSignOffGroup(
+      'show-1',
+      [
+        row('c1'),
+        row('c2', {
+          phase: 'no-dogs',
+          runFinished: true,
+          takesJudgeSignOff: false,
+          signOffRecordable: false,
+        }),
+      ],
+      'c1'
+    );
+    expect(group?.classes.map(item => item.id)).toEqual(['c1']);
+    expect(group).toMatchObject({ dayComplete: true, recordClassIds: ['c1'] });
+  });
+
   it('returns null when nothing in the day can be signed', () => {
-    expect(buildJudgeSignOffGroup('show-1', [row('c1', { phase: 'cancelled' })], 'c1')).toBeNull();
+    expect(
+      buildJudgeSignOffGroup(
+        'show-1',
+        [row('c1', { phase: 'cancelled', takesJudgeSignOff: false })],
+        'c1'
+      )
+    ).toBeNull();
   });
 
   it('picks the narrowest existing Result Catalog scope that covers the day', () => {

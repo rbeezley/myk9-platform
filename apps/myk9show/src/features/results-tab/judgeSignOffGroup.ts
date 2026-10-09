@@ -2,13 +2,15 @@
  * The judge's day around one class, for the Results tab's Judge sign-off section (MYK9-1031).
  *
  * The judge initials (AKC) or signs (UKC, ASCA) the marked catalog once, at the END of their day,
- * for every class they judged that day (MYK9-1030). Grouping is Overview's: `groupClassesByJudgeDay`
- * (judge and trial DATE, so a day can span trials). Cancelled classes and classes where no dog ran
- * have nothing to sign and are left out of the group and its counts.
+ * for every class they judged that day (MYK9-1030). The day and whether it is over are NOT derived
+ * here: every row carries the Overview's own `judgeDayKey` and `runFinished` (judgeDayStatus.ts),
+ * so a class holding only entries waiting on acceptance keeps the day open here exactly as it does
+ * on Overview. Cancelled classes and classes KNOWN to have nothing to run have nothing to sign and
+ * are not listed, but every class of the day (listed or not) must be finished before the day is.
  *
  * Pure, so the grouping and the record/undo gates are tested on the real row shape.
  */
-import { formatJudgeDayDate, groupClassesByJudgeDay } from '@/features/show-map/judgeDay';
+import { formatJudgeDayDate } from '@/features/show-map/judgeDay';
 import type { ReportScope } from '@/lib/reports/types';
 import type { ResultsClassRow } from './buildResultsClassRows';
 
@@ -17,6 +19,8 @@ export interface JudgeSignOffGroupClass {
   name: string;
   trialLabel: string;
   runFinished: boolean;
+  /** Fully scored but not marked Completed: the sign-off cannot be recorded until it is. */
+  needsCompletion: boolean;
   signedOffAt: string | null;
   /** Complete, status Completed, not yet signed: what one "Initialed" press records. */
   recordable: boolean;
@@ -56,21 +60,10 @@ export function buildJudgeSignOffGroup(
   rows: readonly ResultsClassRow[],
   classId: string
 ): JudgeSignOffGroup | null {
-  const days = groupClassesByJudgeDay(
-    rows.map(row => ({
-      id: row.id,
-      trialDate: row.trialDate,
-      judgeId: row.judgeId,
-      judgeName: row.judgeName,
-    }))
-  );
-  const day = [...days.values()].find(candidate => candidate.classIds.includes(classId));
-  if (!day) return null;
-  const byId = new Map(rows.map(row => [row.id, row] as const));
-  const members = day.classIds
-    .map(id => byId.get(id))
-    .filter((row): row is ResultsClassRow => row !== undefined)
-    .filter(row => row.phase !== 'cancelled' && row.phase !== 'no-dogs');
+  const selected = rows.find(row => row.id === classId);
+  if (!selected) return null;
+  const dayRows = rows.filter(row => row.judgeDayKey === selected.judgeDayKey);
+  const members = dayRows.filter(row => row.takesJudgeSignOff);
   if (members.length === 0) return null;
 
   const classes = members.map((row): JudgeSignOffGroupClass => ({
@@ -78,14 +71,15 @@ export function buildJudgeSignOffGroup(
     name: row.name,
     trialLabel: row.trialLabel,
     runFinished: row.runFinished,
+    needsCompletion: row.signOffNeedsCompletion && row.judgeSignedOffAt === null,
     signedOffAt: row.judgeSignedOffAt,
     recordable: row.signOffRecordable && row.judgeSignedOffAt === null,
   }));
-  const dayComplete = classes.every(item => item.runFinished);
+  const dayComplete = dayRows.every(row => row.runFinished);
   return {
-    key: day.key,
-    judgeName: day.judgeName ?? '',
-    dayLabel: formatJudgeDayDate(day.date),
+    key: selected.judgeDayKey,
+    judgeName: selected.judgeName,
+    dayLabel: formatJudgeDayDate(selected.trialDate),
     registryId: members[0]!.registryId,
     classes,
     finishedCount: classes.filter(item => item.runFinished).length,

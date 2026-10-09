@@ -3,12 +3,14 @@ import { Link } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { getCockpitReportHref } from '@/features/show-map/cockpit/cockpitRoutes';
+import { getOverviewFocusHref } from './resultsTabRoutes';
 import { judgeSignOffWording } from '@/features/show-map/judgeSignOff';
 import type { JudgeSignOffGroup } from './judgeSignOffGroup';
 
 export const JUDGE_SIGN_OFF_SECTION_ID = 'judge-sign-off';
 
 interface ResultsJudgeSignOffProps {
+  showId: string;
   group: JudgeSignOffGroup;
   /** Where the Result Catalog's Back goes: this class on Results. */
   returnTo: string;
@@ -24,6 +26,7 @@ interface ResultsJudgeSignOffProps {
  * every completed class of the day at once; each class keeps its own undo.
  */
 export function ResultsJudgeSignOff({
+  showId,
   group,
   returnTo,
   pending,
@@ -32,6 +35,8 @@ export function ResultsJudgeSignOff({
 }: ResultsJudgeSignOffProps) {
   const wording = judgeSignOffWording(group.registryId);
   const total = group.classes.length;
+  // Two trials on one judge day can hold a class of the same name: say which one each row is.
+  const spansTrials = new Set(group.classes.map(item => item.trialLabel)).size > 1;
   const heading = [group.judgeName || 'Judge not set', group.dayLabel].filter(Boolean).join(' · ');
   const printHref = getCockpitReportHref({
     reportId: 'result-catalog',
@@ -88,14 +93,29 @@ export function ResultsJudgeSignOff({
                 ) : (
                   <Circle className="h-4 w-4 flex-none text-muted-foreground" aria-hidden="true" />
                 )}
-                <span className="truncate">{item.name}</span>
-                <span className="text-xs text-muted-foreground">
-                  {item.signedOffAt
-                    ? wording.doneStatusLabel
-                    : item.runFinished
-                      ? wording.needsStatusLabel
-                      : 'Still running'}
+                <span className="truncate">
+                  {item.name}
+                  {spansTrials && (
+                    <span className="text-xs text-muted-foreground"> · {item.trialLabel}</span>
+                  )}
                 </span>
+                {item.needsCompletion && !item.signedOffAt ? (
+                  <Link
+                    to={getOverviewFocusHref(showId, item.id)}
+                    aria-label={`Mark complete first: ${item.name}${spansTrials ? `, ${item.trialLabel}` : ''}`}
+                    className="inline-flex min-h-11 items-center text-xs font-medium text-primary hover:underline"
+                  >
+                    Mark complete first
+                  </Link>
+                ) : (
+                  <span className="text-xs text-muted-foreground">
+                    {item.signedOffAt
+                      ? wording.doneStatusLabel
+                      : item.runFinished
+                        ? wording.needsStatusLabel
+                        : 'Still running'}
+                  </span>
+                )}
               </span>
               {item.signedOffAt && (
                 <Button
@@ -103,7 +123,7 @@ export function ResultsJudgeSignOff({
                   variant="outline"
                   size="touch"
                   disabled={pending}
-                  aria-label={`${wording.undoActionLabel}: ${item.name}`}
+                  aria-label={`${wording.undoActionLabel}: ${item.name}${spansTrials ? `, ${item.trialLabel}` : ''}`}
                   onClick={() => onUndo(item.id)}
                 >
                   {wording.undoActionLabel}

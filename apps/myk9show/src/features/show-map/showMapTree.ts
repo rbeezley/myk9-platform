@@ -7,11 +7,9 @@ import {
   classifyClassWrapUpStatus,
   classifyEntryCheckInStatus,
   classifyEntryRunStatus,
-  isClassConfirmedEmpty,
-  isClassRunComplete,
   isEntryComplete,
 } from './showMapStatus';
-import { judgeDayKey, openJudgeDayKeys } from './judgeDay';
+import { classifyJudgeDays } from './judgeDayStatus';
 import { deriveTrialStatusKey, formatTrialLabel } from '@myk9/core';
 import { getEntryAttention } from './attention';
 import {
@@ -191,22 +189,13 @@ export function buildShowMapTree({
 
   // MYK9-1030: the judge signs off at the end of their day, which can span trials, so whether a
   // judge still has a class to run is decided across the whole show before any trial is built.
-  const trialDateById = new Map(trials.map(trial => [trial.id, trial.trialDate] as const));
-  const judgeDayInputs = classes.map(cls => ({
-    id: cls.id,
-    trialDate: trialDateById.get(cls.trialId) || cls.trialDate,
-    judgeId: cls.judgeId,
-    judgeName: cls.judgeName,
-  }));
-  const judgeDayKeyByClassId = new Map(judgeDayInputs.map(cls => [cls.id, judgeDayKey(cls)]));
-  const openJudgeDays = openJudgeDayKeys(
-    classes.map((cls, index) => ({
-      ...judgeDayInputs[index]!,
-      finished:
-        classifyClassStatus(cls.status)?.kind === 'muted' ||
-        isClassConfirmedEmpty(cls) ||
-        isClassRunComplete(cls, entriesByClassId.get(cls.id) ?? []),
-    }))
+  const { byClassId: judgeDayByClassId, openDayKeys: openJudgeDays } = classifyJudgeDays(
+    classes,
+    entriesByClassId,
+    new Map(trials.map(trial => [trial.id, trial.trialDate] as const))
+  );
+  const judgeDayKeyByClassId = new Map(
+    [...judgeDayByClassId].map(([classId, day]) => [classId, day.dayKey] as const)
   );
 
   const root: ShowMapNode = {

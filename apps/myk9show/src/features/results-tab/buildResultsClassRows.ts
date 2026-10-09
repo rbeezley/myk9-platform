@@ -17,9 +17,11 @@ import {
 import { isExpectedEntry } from '@/features/_shared/entryAccounting';
 import { isPendingEntryStatus } from '@/features/entry-operations/classEntryBreakdown';
 import { getTrialRegistry } from '@/features/registries';
-import { isClassConfirmedEmpty } from '@/features/show-map/showMapStatus';
-import { judgeDayKey, openJudgeDayKeys } from '@/features/show-map/judgeDay';
+import { classifyClassWrapUpStatus } from '@/features/show-map/showMapStatus';
+import { SHOW_MAP_WRAP_UP_STATUS } from '@/features/show-map/showMapTypes';
+import { classifyJudgeDays } from '@/features/show-map/judgeDayStatus';
 import { judgeSignOffWording } from '@/features/show-map/judgeSignOff';
+import type { ShowMapClassInput, ShowMapEntryInput } from '@/features/show-map/showMapTypes';
 import { compareClassesByProgression } from '@/features/premium/pdf/bodies/classOrder';
 import type { SecretaryCockpitPaperwork } from '@/features/show-map/cockpit/secretaryCockpitTypes';
 import { accountingFields, tallyEntriesByClass } from '@/pages/secretary/showDeskEntryAvailability';
@@ -65,23 +67,26 @@ export interface ResultsClassRow {
   scoredCount: number;
   qualifiedCount: number;
   releasedAt: string | null;
-  /** When the paper check was recorded and by whom (auth uid); null = not checked. */
-  verifiedAt: string | null;
-  verifiedBy: string | null;
-  /** A score change of this class is still waiting to sync: no check can be saved until it has. */
-  scoresUnsynced: boolean;
   /** The judge's end-of-day sign-off (`classes.judge_signed_off_at`); null = not yet. */
   judgeSignedOffAt: string | null;
   /** The registry's wording for that sign-off (initials or signature). */
-  judgeSignOff: { nextActionLabel: string; needsLabel: string; undoLabel: string };
   registryId: string;
   judgeId: string;
   /** The judge's day (`judgeDayKey`): the classes one judge judges on one date share it. */
   judgeDayKey: string;
   /** Scoring is over for this class (or it never runs): it does not hold its judge's day open. */
   runFinished: boolean;
-  /** The server can record the judge's sign-off on it: its stored status is Completed. */
+  /**
+   * The class belongs in the judge's sign-off: Overview's own wrap-up rule
+   * (`classifyClassWrapUpStatus`) says it needs, awaits or has the sign-off, or it is still
+   * running and so holds its judge's day open. Cancelled classes, known-empty classes and classes
+   * with nothing to sign (every entry pulled or scratched) are not.
+   */
+  takesJudgeSignOff: boolean;
+  /** The server can record the sign-off on it: it takes one and its stored status is Completed. */
   signOffRecordable: boolean;
+  /** Finished and takes the sign-off, but not stored Completed: the server refuses until it is. */
+  signOffNeedsCompletion: boolean;
   state: ResultsClassState;
   phase: ResultsClassPhase;
   /** The phase's label, in the registry's wording where it differs (initials or signature). */
@@ -100,15 +105,6 @@ export interface BuildResultsClassRowsInput {
   trialClasses: Readonly<Record<string, readonly SyncableTrialClass[]>>;
   /** `classes.results_released_at` by class id (the class store). */
   releasedAtByClassId: ReadonlyMap<string, string | null | undefined>;
-  /**
-   * The paper check by class id (`classes.results_verified_at` / `_by`, after the local
-   * unsynced-score rule in `useResultsTabData`). A class with no entry is not tracked here and never
-   * waits on it.
-   */
-  verifiedByClassId?: ReadonlyMap<
-    string,
-    { at: string | null; by: string | null; scoresUnsynced?: boolean }
-  >;
   entries: readonly SecretaryEntry[];
   paperworkByClassId: ReadonlyMap<string, readonly SecretaryCockpitPaperwork[]>;
   /**
@@ -199,15 +195,6 @@ function trialLabelOf(trial: SyncableTrial): string {
   return trial.name?.trim() || number || 'Trial';
 }
 
-function judgeDayInput(cls: SyncableTrialClass, trial: SyncableTrial) {
-  return {
-    id: cls.id,
-    trialDate: trial.trialDate,
-    judgeId: cls.judgeId,
-    judgeName: cls.judgeName,
-  };
-}
-
 function isCompletedStatus(raw: string | null | undefined): boolean {
   return (raw ? (LEGACY_STATUS_MAP[raw] ?? raw) : null) === CLASS_STATUS.COMPLETED;
 }
@@ -226,18 +213,12 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
   };
   const tallies = tallyEntriesByClass(input.entries);
   const entriesByClass = new Map<string, SecretaryEntry[]>();
-  // Entries still waiting on an accept decision: not on the results table, but they are on the run
-  // list, so a class holding only those is not "empty" (it keeps its judge's day open).
-  const pendingByClass = new Map<string, number>();
   for (const entry of input.entries) {
     if (!entry.class_id) continue;
     // The same rows `tallyEntriesByClass` counts toward `expectedCount`: not pulled, withdrawn,
     // moved or absent, and not still waiting on an accept decision.
-    if (!isExpectedEntry(accountingFields(entry))) continue;
-    if (isPendingEntryStatus(entry.entry_status)) {
-      pendingByClass.set(entry.class_id, (pendingByClass.get(entry.class_id) ?? 0) + 1);
+    if (!isExpectedEntry(accountingFields(entry)) || isPendingEntryStatus(entry.entry_status))
       continue;
-    }
     const list = entriesByClass.get(entry.class_id) ?? [];
     list.push(entry);
     entriesByClass.set(entry.class_id, list);
@@ -264,8 +245,7 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
     trial: SyncableTrial;
     registryId: string;
     state: ResultsClassState;
-    judgeDay: ReturnType<typeof judgeDayInput>;
-    finished: boolean;
+    tally: ReturnType<typeof tallies.get>;
   }
   const drafts: Draft[] = [];
   for (const trial of trialsInOrder) {
@@ -281,63 +261,102 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
     );
     for (const cls of classes) {
       const tally = tallies.get(cls.id);
-      const verified = input.verifiedByClassId?.get(cls.id);
       const paperwork = classPaperwork(input, cls.id, trial.id);
-      const state: ResultsClassState = {
-        classStatus: cls.status,
-        expectedCount: tally?.total ?? 0,
-        scoredCount: tally?.scored ?? 0,
-        // `undefined` (no row in the read) is unknown, not unreleased: it never offers Release.
-        releasedAt: input.releasedAtByClassId.get(cls.id),
-        paperworkPrinted: paperworkAvailable ? resultsPaperworkPrinted(paperwork) : null,
-        ...(verified ? { verifiedAt: verified.at } : {}),
-        judgeSignedOffAt: cls.judgeSignedOffAt ?? null,
-      };
-      const phase = deriveResultsPhase(state);
       drafts.push({
         cls,
         trial,
         registryId,
-        state,
-        judgeDay: judgeDayInput(cls, trial),
-        // The Overview rule (`isClassConfirmedEmpty`): a class with nothing to run only stops
-        // holding the day open when it is KNOWN empty, pending entries included.
-        finished:
-          phase !== 'not-started' &&
-          phase !== 'in-ring' &&
-          (phase !== 'no-dogs' ||
-            isClassConfirmedEmpty({
-              id: cls.id,
-              trialId: trial.id,
-              name: cls.name ?? '',
-              entryCount: state.expectedCount,
-              runListCount: state.expectedCount + (pendingByClass.get(cls.id) ?? 0),
-            })),
+        tally,
+        state: {
+          classStatus: cls.status,
+          expectedCount: tally?.total ?? 0,
+          scoredCount: tally?.scored ?? 0,
+          // `undefined` (no row in the read) is unknown, not unreleased: it never offers Release.
+          releasedAt: input.releasedAtByClassId.get(cls.id),
+          paperworkPrinted: paperworkAvailable ? resultsPaperworkPrinted(paperwork) : null,
+          judgeSignedOffAt: cls.judgeSignedOffAt ?? null,
+        },
       });
     }
   }
 
-  // The judge initials once, at the END of their day, which can span trials, so whether a judge
-  // still has a class to run is decided across the whole show (the Overview rule, MYK9-1030).
-  const openDays = openJudgeDayKeys(
-    drafts.map(draft => ({ ...draft.judgeDay, finished: draft.finished }))
+  // The judge initials once, at the END of their day, which can span trials. Whether a day is
+  // still open is NOT derived here: it is the Overview's own rule (`classifyJudgeDays`), fed the
+  // same counts and entries the Show Desk feeds it, so the two surfaces cannot disagree.
+  const allEntriesByClass = new Map<string, ShowMapEntryInput[]>();
+  for (const entry of input.entries) {
+    if (!entry.class_id) continue;
+    const list = allEntriesByClass.get(entry.class_id) ?? [];
+    list.push(entry as unknown as ShowMapEntryInput);
+    allEntriesByClass.set(entry.class_id, list);
+  }
+  const classInputs = new Map(
+    drafts.map(({ cls, trial, tally }) => {
+      const classInput: ShowMapClassInput = {
+        id: cls.id,
+        trialId: trial.id,
+        name: cls.name ?? '',
+        judgeName: cls.judgeName,
+        judgeId: cls.judgeId,
+        judgeSignedOffAt: cls.judgeSignedOffAt ?? null,
+        status: cls.status,
+        entryCount: tally?.total ?? 0,
+        scoredCount: tally?.scored ?? 0,
+        runListCount: tally?.runList ?? 0,
+      };
+      return [cls.id, classInput] as const;
+    })
+  );
+  const judgeDays = classifyJudgeDays(
+    [...classInputs.values()],
+    allEntriesByClass,
+    new Map(input.trials.map(trial => [trial.id, trial.trialDate] as const))
   );
 
-  return drafts.map(({ cls, trial, registryId, state: baseState, judgeDay, finished }) => {
+  return drafts.map(({ cls, trial, registryId, state: baseState }) => {
     const identity = {
       name: cls.name ?? '',
       element: cls.element,
       level: cls.level,
       section: cls.section,
     };
-    const dayKey = judgeDayKey(judgeDay);
-    const state: ResultsClassState = { ...baseState, judgeDayOpen: openDays.has(dayKey) };
-    const phase = deriveResultsPhase(state);
-    const nextAction = deriveResultsNextAction(state);
+    const day = judgeDays.byClassId.get(cls.id);
+    const state: ResultsClassState = {
+      ...baseState,
+      judgeDayOpen: day ? judgeDays.openDayKeys.has(day.dayKey) : false,
+    };
+    const derivedPhase = deriveResultsPhase(state);
     const wording = judgeSignOffWording(registryId);
     const paperwork = classPaperwork(input, cls.id, trial.id);
     const classEntries = (entriesByClass.get(cls.id) ?? []).map(toEntryRow).sort(placementSort);
-    const verified = input.verifiedByClassId?.get(cls.id);
+    const runFinished = day?.finished ?? false;
+    // Who takes a sign-off is Overview's wrap-up rule, not a filter of Results' own: a Completed
+    // class whose entries are all absent still needs initials there, so it does here.
+    const wrapUp = classifyClassWrapUpStatus(
+      classInputs.get(cls.id)!,
+      allEntriesByClass.get(cls.id) ?? [],
+      { registryId, judgeDayOpen: state.judgeDayOpen === true }
+    )?.value;
+    const takesJudgeSignOff =
+      derivedPhase !== 'cancelled' &&
+      (!runFinished ||
+        wrapUp === SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE ||
+        wrapUp === SHOW_MAP_WRAP_UP_STATUS.JUDGE_SIGN_OFF_AT_END_OF_DAY ||
+        wrapUp === SHOW_MAP_WRAP_UP_STATUS.SIGNED_BY_JUDGE);
+    // A class with nothing to release or print (every entry absent: no expected dog) can still
+    // owe the judge's sign-off, so that duty is read from the sign-off state, not the dog count:
+    // it asks for initials once the judge's day is over and reads Done once signed.
+    const signOffOnly = derivedPhase === 'no-dogs' && takesJudgeSignOff && runFinished;
+    const phase: ResultsClassPhase = signOffOnly
+      ? state.judgeSignedOffAt === null && state.judgeDayOpen !== true
+        ? 'needs-initials'
+        : 'done'
+      : derivedPhase;
+    const nextAction: ResultsNextAction = signOffOnly
+      ? phase === 'needs-initials'
+        ? { kind: 'initials', label: wording.nextActionLabel }
+        : { kind: 'none', label: 'Done' }
+      : deriveResultsNextAction(state);
     return {
       id: cls.id,
       trialId: trial.id,
@@ -350,20 +369,14 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
       scoredCount: state.scoredCount,
       qualifiedCount: classEntries.filter(entry => entry.qualified).length,
       releasedAt: state.releasedAt ?? null,
-      verifiedAt: verified?.at ?? null,
-      verifiedBy: verified?.by ?? null,
-      scoresUnsynced: verified?.scoresUnsynced ?? false,
       judgeSignedOffAt: state.judgeSignedOffAt ?? null,
-      judgeSignOff: {
-        nextActionLabel: wording.nextActionLabel,
-        needsLabel: wording.needsStatusLabel,
-        undoLabel: wording.undoActionLabel,
-      },
       registryId,
       judgeId: cls.judgeId ?? '',
-      judgeDayKey: dayKey,
-      runFinished: finished,
-      signOffRecordable: finished && isCompletedStatus(cls.status),
+      judgeDayKey: day?.dayKey ?? `class:${cls.id}`,
+      runFinished,
+      takesJudgeSignOff,
+      signOffRecordable: runFinished && takesJudgeSignOff && isCompletedStatus(cls.status),
+      signOffNeedsCompletion: runFinished && takesJudgeSignOff && !isCompletedStatus(cls.status),
       state,
       phase,
       phaseLabel:

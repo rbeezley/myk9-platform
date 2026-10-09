@@ -10,7 +10,7 @@ import type { ResultsClassRow } from './buildResultsClassRows';
 import { PrintAllReadyDialog } from './PrintAllReadyDialog';
 import {
   matchesResultsStatusFilter,
-  RESULTS_STATUS_FILTER_OPTIONS,
+  offeredResultsStatusFilters,
   type ResultsStatusFilterId,
 } from './resultsNextAction';
 import { getResultsStepHref, type ResultsTabUrlState } from './resultsTabRoutes';
@@ -68,11 +68,13 @@ export function ResultsTabToolbar({
       label: 'Show',
       allLabel: 'All classes',
       value: state.status === 'all' ? null : state.status,
-      options: RESULTS_STATUS_FILTER_OPTIONS.filter(option => option.id !== 'all').map(option => ({
-        value: option.id,
-        label: option.label,
-        count: countFor(option.id),
-      })),
+      options: offeredResultsStatusFilters()
+        .filter(option => option.id !== 'all')
+        .map(option => ({
+          value: option.id,
+          label: option.label,
+          count: countFor(option.id),
+        })),
       onChange: value => onChange({ status: (value as ResultsStatusFilterId | null) ?? 'all' }),
     },
   ];

@@ -9,7 +9,6 @@ import { RESULTS_PHASE_LABEL, type ResultsClassPhase } from './resultsNextAction
 import { getOverviewFocusHref, getResultsClassHref } from './resultsTabRoutes';
 
 const PHASE_CHIP_CLASS: Partial<Record<ResultsClassPhase, string>> = {
-  'ready-to-complete': 'border-warning/40 bg-warning/10 text-foreground',
   'needs-checking': 'border-warning/40 bg-warning/10 text-foreground',
   'ready-to-release': 'border-warning/40 bg-warning/10 text-foreground',
   released: 'border-primary/30 bg-primary/10 text-foreground',

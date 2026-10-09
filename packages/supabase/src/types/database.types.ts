@@ -13289,6 +13289,22 @@ export type Database = {
           outcome: string
         }[]
       }
+      fill_entry_owner_address: {
+        Args: {
+          p_city: string
+          p_dog_id: string
+          p_show_id: string
+          p_state: string
+          p_street_address: string
+          p_zip_code: string
+        }
+        Returns: {
+          city: string
+          state: string
+          street_address: string
+          zip_code: string
+        }[]
+      }
       financial_reconciliation_orders: {
         Args: {
           p_after_created_at?: string
@@ -14832,6 +14848,15 @@ export type Database = {
       set_entry_refund_decision: {
         Args: { p_decision: string; p_entry_id: string }
         Returns: undefined
+      }
+      set_judge_day_capacity: {
+        Args: {
+          p_capacity: number
+          p_date: string
+          p_judge_id: string
+          p_show_id: string
+        }
+        Returns: number
       }
       set_my_judge_numbers: { Args: { p_numbers: Json }; Returns: number }
       set_my_notification_preferences: {

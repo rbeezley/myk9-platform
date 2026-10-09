@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
 
-import { render, screen, waitFor, within } from '@/test/utils/testUtils';
+import { render, screen, within } from '@/test/utils/testUtils';
 import type { SecretaryCockpitPaperwork } from '@/features/show-map/cockpit/secretaryCockpitTypes';
 import type { SecretaryEntry } from '@/services/database/entries';
 import type { SyncableTrial, SyncableTrialClass } from '@/store/trial-store-types';
@@ -70,17 +70,8 @@ const unprinted = (reportId: string): SecretaryCockpitPaperwork => ({
   printHref: `/shows/show-1/reports?report=${reportId}`,
 });
 
-const CHECKED = { at: '2026-10-10T15:45:00Z', by: 'auth-me' };
-
-/** `checked: false` leaves the first class at Needs checking; `dayOver` finishes the judge's day. */
-function buildRows({
-  checked = true,
-  dayOver = false,
-  doneSigned = true,
-  releasedChecked = true,
-  unsynced = false,
-  readyStatus = 'Completed',
-} = {}) {
+/** `dayOver` finishes the judge's last class; `doneSigned: false` leaves Advanced un-initialed. */
+function buildRows({ dayOver = false, doneSigned = true, readyStatus = 'Completed' } = {}) {
   return buildResultsClassRows({
     trials: [trial],
     trialClasses: {
@@ -97,17 +88,6 @@ function buildRows({
         } as SyncableTrialClass,
       ],
     },
-    verifiedByClassId: new Map([
-      [
-        'class-ready',
-        checked && !unsynced
-          ? CHECKED
-          : { at: null, by: null, ...(unsynced ? { scoresUnsynced: true } : {}) },
-      ],
-      ['class-released', releasedChecked ? CHECKED : { at: null, by: null }],
-      ['class-done', CHECKED],
-      ['class-ring', { at: null, by: null }],
-    ]),
     releasedAtByClassId: new Map<string, string | null>([
       ['class-ready', null],
       ['class-ring', null],
@@ -148,26 +128,11 @@ vi.mock('@/hooks/mutations/useReleaseResults', () => ({
   useReleaseResults: () => ({ mutate: releaseMutate, isPending: false }),
 }));
 
-const verifyMutate = vi.hoisted(() => vi.fn(async () => undefined));
-const net = vi.hoisted(() => ({ online: true }));
-vi.mock('@/hooks/useNetworkStatus', async importOriginal => ({
-  ...(await importOriginal<typeof import('@/hooks/useNetworkStatus')>()),
-  useIsOnline: () => net.online,
-}));
-const undoMutate = vi.hoisted(() => vi.fn());
-vi.mock('@/features/show-map/useResultsVerifiedMutations', () => ({
-  useResultsVerifiedMutations: () => ({
-    verifyAsync: verifyMutate,
-    undo: undoMutate,
-    isPending: false,
-  }),
-}));
 const recordSignOff = vi.hoisted(() => vi.fn());
 const clearSignOff = vi.hoisted(() => vi.fn());
 vi.mock('@/features/show-map/useJudgeSignOffMutations', () => ({
   useJudgeSignOffMutations: () => ({ recordSignOff, clearSignOff, isPending: false }),
 }));
-vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'auth-me' } }) }));
 
 const media = vi.hoisted(() => ({ wide: false }));
 vi.mock('@/hooks/useMediaQuery', () => ({ useMediaQuery: () => media.wide }));
@@ -189,10 +154,6 @@ function renderAt(search = '') {
 beforeEach(() => {
   media.wide = false;
   releaseMutate.mockReset();
-  verifyMutate.mockReset();
-  verifyMutate.mockResolvedValue(undefined);
-  net.online = true;
-  undoMutate.mockReset();
   recordSignOff.mockReset();
   clearSignOff.mockReset();
   hook.value = {
@@ -271,6 +232,8 @@ describe('ResultsTab list', () => {
       ...row,
       judgeSignedOffAt: '2026-10-10T21:00:00Z',
       releasedAt: row.releasedAt ?? '2026-10-10T16:00:00Z',
+      // Every class released, printed and initialed: the phase a finished class settles in.
+      phase: 'done' as const,
     }));
     hook.value = { ...hook.value, rows: initialed };
     renderAt();
@@ -284,6 +247,83 @@ describe('ResultsTab list', () => {
       'href',
       '/shows/show-1/results?step=close'
     );
+  });
+
+  it('an all-absent Completed class owes the sign-off: Needs me lists it and the banner waits', () => {
+    const build = (judgeSignedOffAt: string | null) =>
+      buildResultsClassRows({
+        trials: [trial],
+        trialClasses: {
+          'trial-1': [{ ...level('c1', 'Novice', '08:00'), judgeSignedOffAt }],
+        },
+        releasedAtByClassId: new Map([['c1', null]]),
+        paperworkByClassId: new Map(),
+        entries: [entry('e1', 'c1', { entry_status: 'absent' })],
+      });
+
+    hook.value = { ...hook.value, rows: build(null) };
+    const first = renderAt();
+    expect(screen.getByRole('link', { name: 'Initials: Containers Novice' })).toBeInTheDocument();
+    expect(screen.queryByText('Every class is released and signed off')).not.toBeInTheDocument();
+    first.unmount();
+
+    hook.value = { ...hook.value, rows: build('2026-10-10T21:00:00Z') };
+    renderAt('?status=all');
+    expect(screen.getByText('Every class is released and signed off')).toBeInTheDocument();
+  });
+
+  it('holds the banner back while a class holding only unaccepted entries is still to run', () => {
+    hook.value = {
+      ...hook.value,
+      rows: buildResultsClassRows({
+        trials: [trial],
+        trialClasses: {
+          'trial-1': [
+            { ...level('c1', 'Novice', '08:00'), judgeSignedOffAt: '2026-10-10T21:00:00Z' },
+            { ...level('c2', 'Open', '13:00'), status: 'Scheduled' } as SyncableTrialClass,
+          ],
+        },
+        releasedAtByClassId: new Map([
+          ['c1', '2026-10-10T16:00:00Z'],
+          ['c2', null],
+        ]),
+        paperworkByClassId: new Map(),
+        entries: [
+          entry('e1', 'c1'),
+          entry('e2', 'c2', {
+            entry_status: 'pending',
+            is_scored: false,
+            result_status: 'pending',
+          }),
+        ],
+      }),
+    };
+    renderAt();
+
+    expect(screen.queryByText('Every class is released and signed off')).not.toBeInTheDocument();
+  });
+
+  it('holds the banner back when a released, signed class has been reopened by a late entry', () => {
+    const rows = buildResultsClassRows({
+      trials: [trial],
+      trialClasses: {
+        'trial-1': [
+          { ...level('c1', 'Novice', '08:00'), judgeSignedOffAt: '2026-10-10T21:00:00Z' },
+        ],
+      },
+      releasedAtByClassId: new Map([['c1', '2026-10-10T16:00:00Z']]),
+      paperworkByClassId: new Map(),
+      // The class was complete when released and signed; a new entry arrived unscored.
+      entries: [
+        entry('e1', 'c1'),
+        entry('e2', 'c1', { is_scored: false, result_status: 'pending' }),
+      ],
+    });
+    expect(rows[0]).toMatchObject({ phase: 'in-ring' });
+    hook.value = { ...hook.value, rows };
+    renderAt();
+
+    expect(screen.queryByText('Every class is released and signed off')).not.toBeInTheDocument();
   });
 
   it('holds the banner back while a released class still waits for the judge', () => {
@@ -380,169 +420,77 @@ describe('ResultsTab detail', () => {
   });
 });
 
-describe('ResultsTab class not marked complete', () => {
-  it('routes a fully scored but not Completed class to Mark complete, with no checklist', () => {
-    media.wide = true;
-    hook.value = { ...hook.value, rows: buildRows({ readyStatus: 'In Progress' }) };
+describe('ResultsTab judge sign-off: classes not marked complete', () => {
+  it('shows the section row as "Mark complete first" with the link, instead of hiding Record silently', () => {
+    hook.value = { ...hook.value, rows: buildRows({ dayOver: true, readyStatus: 'In Progress' }) };
+    renderAt('?status=all&classId=class-done');
+
+    const section = screen.getByRole('region', { name: 'Judge sign-off' });
+    expect(
+      within(section).getByRole('link', { name: 'Mark complete first: Containers Novice' })
+    ).toHaveAttribute('href', '/shows/show-1?focus=class-ready');
+    // The classes that can be recorded still can: only the one needing completion is held back.
+    expect(within(section).getByRole('button', { name: /^Record initials/ })).toBeInTheDocument();
+  });
+
+  it('with only the unfinished-status class left to record, says why there is nothing to press', () => {
+    const rows = buildRows({ dayOver: true, readyStatus: 'In Progress' }).filter(
+      row => row.id === 'class-ready'
+    );
+    hook.value = { ...hook.value, rows };
     renderAt('?status=all&classId=class-ready');
 
-    expect(screen.getByText('Mark the class complete')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Mark complete on Overview/ })).toHaveAttribute(
-      'href',
-      '/shows/show-1?focus=class-ready'
-    );
+    const section = screen.getByRole('region', { name: 'Judge sign-off' });
     expect(
-      screen.getByRole('link', { name: 'Mark complete: Containers Novice' })
-    ).toBeInTheDocument();
-    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
-    expect(
-      screen.queryByRole('button', { name: 'Scores match the paper' })
+      within(section).queryByRole('button', { name: /^Record initials/ })
     ).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Release results' })).not.toBeInTheDocument();
+    expect(within(section).getByRole('link', { name: /Mark complete first/ })).toBeInTheDocument();
   });
 });
 
-describe('ResultsTab paper check', () => {
-  const uncheckedRows = () => buildRows({ checked: false });
+describe('ResultsTab judge sign-off: a day across trials', () => {
+  const trial2 = { ...trial, id: 'trial-2', trialNumber: '2' } as SyncableTrial;
+  const crossTrialRows = () =>
+    buildResultsClassRows({
+      trials: [trial, trial2],
+      trialClasses: {
+        'trial-1': [
+          { ...level('c1', 'Novice', '08:00'), judgeSignedOffAt: '2026-10-10T21:00:00Z' },
+        ],
+        'trial-2': [
+          { ...level('c2', 'Novice', '08:00'), judgeSignedOffAt: '2026-10-10T21:00:00Z' },
+        ],
+      },
+      releasedAtByClassId: new Map([
+        ['c1', '2026-10-10T16:00:00Z'],
+        ['c2', '2026-10-10T16:00:00Z'],
+      ]),
+      paperworkByClassId: new Map(),
+      entries: [entry('e1', 'c1'), entry('e2', 'c2')],
+    });
 
-  it('keeps Release disabled until every dog is ticked and the scores are confirmed', async () => {
-    hook.value = { ...hook.value, rows: uncheckedRows() };
-    const { user } = renderAt('?status=all&classId=class-ready');
+  it('says which trial each row is, in the row and in the Undo label', async () => {
+    hook.value = { ...hook.value, rows: crossTrialRows(), trials: [trial, trial2] };
+    const { user } = renderAt('?status=all&classId=c1');
 
-    expect(screen.getByText('Check the scores against the paper')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
-    const confirm = screen.getByRole('button', { name: 'Scores match the paper' });
-    expect(confirm).toBeDisabled();
-
-    await user.click(screen.getByRole('checkbox', { name: 'Rex matches the paper' }));
-    expect(confirm).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
-
-    await user.click(confirm);
-    expect(verifyMutate).toHaveBeenCalledWith({ classId: 'class-ready' });
-    expect(releaseMutate).not.toHaveBeenCalled();
+    const section = screen.getByRole('region', { name: 'Judge sign-off' });
+    expect(within(section).getByText(/Trial 1/)).toBeInTheDocument();
+    expect(within(section).getByText(/Trial 2/)).toBeInTheDocument();
+    const undoTwo = within(section).getByRole('button', {
+      name: 'Undo initials: Containers Novice, Trial 2',
+    });
+    expect(
+      within(section).getByRole('button', { name: 'Undo initials: Containers Novice, Trial 1' })
+    ).toBeInTheDocument();
+    await user.click(undoTwo);
+    expect(clearSignOff).toHaveBeenCalledWith({ classIds: ['c2'], registryId: 'AKC' });
   });
 
-  it('offline: dogs can still be ticked, but saving the check waits for a connection', async () => {
-    net.online = false;
-    hook.value = { ...hook.value, rows: uncheckedRows() };
-    const { user } = renderAt('?status=all&classId=class-ready');
+  it('stays quiet when the whole day is in one trial', () => {
+    renderAt('?status=all&classId=class-done');
 
-    await user.click(screen.getByRole('checkbox', { name: 'Rex matches the paper' }));
-    expect(screen.getByRole('checkbox', { name: 'Rex matches the paper' })).toBeChecked();
-    expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeDisabled();
-    expect(screen.getByText('Connect to save the check')).toBeInTheDocument();
-    expect(verifyMutate).not.toHaveBeenCalled();
-  });
-
-  it('offline: a saved check cannot be undone until the connection is back', () => {
-    net.online = false;
-    renderAt('?status=all&classId=class-ready');
-
-    expect(screen.getByRole('button', { name: 'Undo check' })).toBeDisabled();
-    expect(screen.getByText('Connect to save the check')).toBeInTheDocument();
-  });
-
-  it('with score changes waiting to sync: Confirm and Release wait, and the reason is shown', async () => {
-    hook.value = { ...hook.value, rows: buildRows({ unsynced: true }) };
-    const { user } = renderAt('?status=all&classId=class-ready');
-
-    await user.click(screen.getByRole('checkbox', { name: 'Rex matches the paper' }));
-    expect(screen.getByText('Waiting for score changes to sync')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
-  });
-
-  it('when the server says the scores moved (MK015), the ticks start over', async () => {
-    verifyMutate.mockRejectedValueOnce({ code: 'MK015', message: 'changed' });
-    hook.value = { ...hook.value, rows: uncheckedRows() };
-    const { user } = renderAt('?status=all&classId=class-ready');
-
-    await user.click(screen.getByRole('checkbox', { name: 'Rex matches the paper' }));
-    await user.click(screen.getByRole('button', { name: 'Scores match the paper' }));
-
-    await waitFor(() =>
-      expect(screen.getByRole('checkbox', { name: 'Rex matches the paper' })).not.toBeChecked()
-    );
-    expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeDisabled();
-  });
-
-  it('keeps ticks when the save fails for any other reason', async () => {
-    verifyMutate.mockRejectedValueOnce(new Error('network down'));
-    hook.value = { ...hook.value, rows: uncheckedRows() };
-    const { user } = renderAt('?status=all&classId=class-ready');
-
-    await user.click(screen.getByRole('checkbox', { name: 'Rex matches the paper' }));
-    await user.click(screen.getByRole('button', { name: 'Scores match the paper' }));
-
-    await waitFor(() => expect(verifyMutate).toHaveBeenCalledTimes(1));
-    expect(screen.getByRole('checkbox', { name: 'Rex matches the paper' })).toBeChecked();
-  });
-
-  it('a released class whose check was undone shows the checklist again, and no second Release', async () => {
-    media.wide = true;
-    hook.value = { ...hook.value, rows: buildRows({ releasedChecked: false }) };
-    const { user } = renderAt('?status=all&classId=class-released');
-
-    expect(screen.getByText('Check the scores against the paper')).toBeInTheDocument();
-    expect(screen.getByText(/already released/)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Release results' })).not.toBeInTheDocument();
-    await user.click(screen.getByRole('checkbox', { name: 'Rex matches the paper' }));
-    expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled();
-    // The list sends it back to Check scores.
-    expect(screen.getByRole('link', { name: 'Check scores: Containers Open' })).toBeInTheDocument();
-  });
-
-  it('un-ticking a dog locks the confirmation again', async () => {
-    hook.value = { ...hook.value, rows: uncheckedRows() };
-    const { user } = renderAt('?status=all&classId=class-ready');
-
-    const tick = screen.getByRole('checkbox', { name: 'Rex matches the paper' });
-    await user.click(tick);
-    await user.click(tick);
-    expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeDisabled();
-  });
-
-  it('a corrected score needs checking again: a tick is only good for the result it was made on', async () => {
-    hook.value = { ...hook.value, rows: uncheckedRows() };
-    const { user, rerender } = renderAt('?status=all&classId=class-ready');
-    await user.click(screen.getByRole('checkbox', { name: 'Rex matches the paper' }));
-    expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled();
-
-    hook.value = {
-      ...hook.value,
-      rows: uncheckedRows().map(row =>
-        row.id === 'class-ready'
-          ? { ...row, entries: row.entries.map(item => ({ ...item, resultLabel: 'NQ' })) }
-          : row
-      ),
-    };
-    rerender(
-      <Routes>
-        <Route path="/shows/:id/results" element={<ResultsTab />} />
-      </Routes>
-    );
-
-    expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeDisabled();
-    expect(screen.getByRole('checkbox', { name: 'Rex matches the paper' })).not.toBeChecked();
-  });
-
-  it('a checked class shows who checked it, offers Release, and can take the check back', async () => {
-    const { user } = renderAt('?status=all&classId=class-ready');
-
-    expect(screen.getByText(/Scores checked against the paper by you/)).toBeInTheDocument();
-    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Undo check' }));
-    expect(undoMutate).toHaveBeenCalledWith({ classId: 'class-ready' });
-  });
-
-  it('never releases a class that is not checked, even if the button were pressed', async () => {
-    hook.value = { ...hook.value, rows: uncheckedRows() };
-    renderAt('?status=all&classId=class-ready');
-
-    // Disabled in the DOM; the page also refuses an unchecked class on its own.
-    expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
-    expect(releaseMutate).not.toHaveBeenCalled();
+    const section = screen.getByRole('region', { name: 'Judge sign-off' });
+    expect(within(section).queryByText(/Trial 1/)).not.toBeInTheDocument();
   });
 });
 
@@ -581,6 +529,8 @@ describe('ResultsTab judge sign-off', () => {
       ...row,
       judgeName: '',
       judgeId: '',
+      // No judge: each class is a day of its own (the shared rule keys it by class).
+      judgeDayKey: `class:${row.id}`,
     }));
     hook.value = { ...hook.value, rows };
     renderAt('?status=all&classId=class-released');

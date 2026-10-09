@@ -49,7 +49,8 @@ import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistrationDialog';
 import { useInlineDogRegistration } from './useInlineDogRegistration';
 import { getOwnerAddressPrerequisite, prerequisiteLevelFields } from './ownerAddressPrerequisite';
-import { OwnerAddressAction, OwnerAddressEditPanel } from './OwnerAddressFix';
+import { OwnerAddressAction } from './OwnerAddressFix';
+import { OwnerAddressFillDialog, type OwnerAddressFillTarget } from './OwnerAddressFillDialog';
 import '@/styles/myk9-registration-workflow.css';
 import {
   buildAvailabilityMap,
@@ -105,8 +106,8 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const addingItemRef = useRef<string | null>(null);
   const { registrationDogId, openRegistrationEditor, closeRegistrationEditor, saveRegistration } =
     useInlineDogRegistration(refetch);
-  // MYK9-1010: the owner whose address staff are fixing in place, or null.
-  const [addressOwnerId, setAddressOwnerId] = useState<string | null>(null);
+  // MYK9-1010: the dog whose owner's missing address parts staff are filling.
+  const [addressTarget, setAddressTarget] = useState<OwnerAddressFillTarget | null>(null);
   const isOwnAddress = (workflowMode ?? 'exhibitor') === 'exhibitor';
 
   const cartItems = useCartItems();
@@ -669,7 +670,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                 ownerAddressAction={
                                   <OwnerAddressAction
                                     isOwnAddress={isOwnAddress}
-                                    onEditOwner={() => setAddressOwnerId(dog?.ownerId ?? null)}
+                                    onEditOwner={() =>
+                                      dog?.owner && setAddressTarget({ dogId, owner: dog.owner })
+                                    }
                                   />
                                 }
                               />
@@ -702,11 +705,12 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           onSave={saveRegistration}
         />
       </div>
-      <OwnerAddressEditPanel
-        ownerId={addressOwnerId}
-        onClose={() => setAddressOwnerId(null)}
+      <OwnerAddressFillDialog
+        showId={showId}
+        target={addressTarget}
+        onClose={() => setAddressTarget(null)}
         onSaved={() => {
-          setAddressOwnerId(null);
+          setAddressTarget(null);
           void refetch();
         }}
       />

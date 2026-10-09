@@ -21,8 +21,7 @@ const {
   mockUseExhibitorProfile,
   mockUseExistingEntries,
   mockRefetchDogs,
-  mockUseUserQuery,
-  mockUpdateUser,
+  mockFillAddress,
 } = vi.hoisted(() => ({
   mockUseClassAvailability: vi.fn(),
   mockUseDogStoreCompat: vi.fn(),
@@ -35,8 +34,7 @@ const {
   mockUseExhibitorProfile: vi.fn(),
   mockUseExistingEntries: vi.fn(),
   mockRefetchDogs: vi.fn(),
-  mockUseUserQuery: vi.fn(),
-  mockUpdateUser: vi.fn(),
+  mockFillAddress: vi.fn(),
 }));
 
 vi.mock('@/hooks/useClassAvailability', () => ({ useClassAvailability: mockUseClassAvailability }));
@@ -60,37 +58,10 @@ vi.mock('@/hooks/useReplicationSync', () => ({
     status: { isSyncing: false, tablesStatus: { trials: 'success' } },
   }),
 }));
-vi.mock('@/hooks/queries/useUsersQuery', () => ({
-  useUserQuery: mockUseUserQuery,
-  useUpdateUserMutation: () => ({ mutateAsync: mockUpdateUser, isPending: false }),
-}));
-// The real panel is a large form; this stand-in proves the step opens it for
-// the right person, saves through the person update, and refreshes the dogs.
-vi.mock('@/components/panels/edit/UserEditPanel', () => ({
-  UserEditPanel: (props: {
-    open: boolean;
-    userId: string;
-    userName: string;
-    onSave?: (data: Record<string, unknown>) => Promise<void>;
-  }) =>
-    props.open ? (
-      <div role="dialog" aria-label={`Edit ${props.userName}`}>
-        <span>{props.userId}</span>
-        <button
-          type="button"
-          onClick={() =>
-            void props.onSave?.({
-              streetAddress: '12 Elm St',
-              city: 'Springfield',
-              state: 'IL',
-              zipCode: '62701',
-            })
-          }
-        >
-          Save person
-        </button>
-      </div>
-    ) : null,
+// The staff fix calls the show-scoped fill-blanks RPC (Codex P1): the full
+// person editor needs a prior entry, which a mail-in owner does not have.
+vi.mock('@/features/registration/fillEntryOwnerAddress', () => ({
+  fillEntryOwnerAddress: mockFillAddress,
 }));
 
 import { ClassSelectionStep } from '@/components/shows/RegistrationWorkflow/ClassSelectionStep';
@@ -248,16 +219,12 @@ const enabled = () =>
 describe("ClassSelectionStep — the owner's address on AKC classes (MYK9-1010)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseUserQuery.mockReturnValue({
-      data: {
-        id: 'person-owner',
-        firstName: 'Pat',
-        lastName: 'Owner',
-        city: 'Springfield',
-        state: 'IL',
-      },
+    mockFillAddress.mockResolvedValue({
+      streetAddress: '12 Elm St',
+      city: 'Springfield',
+      state: 'IL',
+      zipCode: '62701',
     });
-    mockUpdateUser.mockResolvedValue({});
   });
 
   it('blocks an AKC class, names the missing parts, and links to the profile', async () => {
@@ -315,22 +282,41 @@ describe("ClassSelectionStep — the owner's address on AKC classes (MYK9-1010)"
     expect(screen.getByRole('checkbox')).toHaveAttribute('aria-disabled', 'true');
 
     await userEvent.click(screen.getByRole('button', { name: "Add the owner's address" }));
-    const panel = await screen.findByRole('dialog', { name: 'Edit Pat Owner' });
-    expect(panel).toHaveTextContent('person-owner');
+    const dialog = await screen.findByRole('dialog', { name: "Add Pat Owner's address" });
+    // Only the missing parts are asked for; the parts on file are named as kept.
+    expect(screen.queryByRole('textbox', { name: 'City' })).not.toBeInTheDocument();
+    expect(dialog).toHaveTextContent('Already on file, and kept: Springfield, IL.');
 
-    await userEvent.click(screen.getByRole('button', { name: 'Save person' }));
+    await userEvent.type(screen.getByRole('textbox', { name: 'Street address' }), '12 Elm St');
+    await userEvent.type(screen.getByRole('textbox', { name: 'ZIP or postal code' }), '62701');
+    await userEvent.click(screen.getByRole('button', { name: 'Save address' }));
+
     await waitFor(() =>
-      expect(mockUpdateUser).toHaveBeenCalledWith({
-        id: 'person-owner',
-        updates: expect.objectContaining({
-          address: '12 Elm St',
-          city: 'Springfield',
-          state: 'IL',
-          zipCode: '62701',
-        }),
+      expect(mockFillAddress).toHaveBeenCalledWith({
+        showId: SHOW_ID,
+        dogId: DOG_ID,
+        streetAddress: '12 Elm St',
+        city: '',
+        state: '',
+        zipCode: '62701',
       })
     );
     await waitFor(() => expect(mockRefetchDogs).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+  });
+
+  it('keeps the dialog open and the dogs unrefreshed when the server refuses', async () => {
+    mockFillAddress.mockRejectedValueOnce(new Error('Permission denied for show'));
+    setupStepMocks({ owner: NO_STREET_OR_ZIP, isStaff: true });
+    renderStep({ workflowMode: 'secretary_new' });
+
+    await userEvent.click(await screen.findByRole('button', { name: "Add the owner's address" }));
+    await userEvent.type(await screen.findByRole('textbox', { name: 'Street address' }), '1 A');
+    await userEvent.click(screen.getByRole('button', { name: 'Save address' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Permission denied for show');
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
+    expect(mockRefetchDogs).not.toHaveBeenCalled();
   });
 
   it('the desk late-entry path warns but leaves the class selectable', async () => {

@@ -16,7 +16,6 @@ import {
 import {
   mapDogInputToInsert,
   mapDogInputToReplicated,
-  mapDogToDogInput,
   mapDatabaseToDog,
   mapDatabaseDogsArray,
   mapReplicatedDogToDbRow,
@@ -236,25 +235,14 @@ export const useDogStoreCompat = () => {
     return await mapReplicatedDogWithRegistrations(savedDog);
   };
 
-  const hydrateMissingDog = async (id: string) => {
-    if (typeof navigator === 'undefined' || navigator.onLine) {
-      const fetched = await replicatedDogsTable.hydrateFromServer(id);
-      if (fetched) return fetched;
-    }
-    const rosterDog = dogs.find(d => d.id === id);
-    if (!rosterDog) return null;
-    try {
-      const row = mapDogInputToReplicated(
-        { ...mapDogToDogInput(rosterDog), callName: rosterDog.callName },
-        id
-      );
-      await replicatedDogsTable.set(id, row, false);
-      return row;
-    } catch (err) {
-      logger.warn('Could not hydrate dog from roster row', 'dogs', { dogId: id }, err as Error);
-      return null;
-    }
-  };
+  // Cold replica (roster filled by the PostgREST fallback): fetch the one server
+  // row into the replica through the sync download's own store path. Never build
+  // a replica row from the roster's display model - it carries display defaults
+  // (sex, derived breed) that a queued full-row UPDATE would persist.
+  const hydrateMissingDog = (id: string) =>
+    typeof navigator !== 'undefined' && !navigator.onLine
+      ? Promise.resolve(null)
+      : replicatedDogsTable.hydrateFromServer(id);
 
   const updateDog = async (id: string, updates: Partial<DogInput>): Promise<Dog | null> => {
     logger.debug('updateDog called', 'dogs', {
@@ -277,10 +265,6 @@ export const useDogStoreCompat = () => {
     // fire-and-forget and lost the edit silently whenever it failed.
     let current = await replicatedDogsTable.getDogById(id);
     if (!current) {
-      // Cold replica: the roster can be filled by the PostgREST fallback without
-      // IndexedDB holding the row. Hydrate it (server row first, else the roster
-      // row we already have) so the edit still queues; never write the server
-      // directly.
       current = await hydrateMissingDog(id);
       if (!current) {
         notifications.error(

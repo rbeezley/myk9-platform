@@ -404,9 +404,13 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
       const rows = await this.getRowRefetchAdapter().fetchRowsById([dogId]);
       const row = rows[0];
       if (!row) return null;
+      // Same store call the sync download makes (syncReplicatedTable): the row's
+      // `version` is kept as serverVersion so a queued UPDATE attaches the OCC
+      // precondition exactly as it would for a normally-synced row.
       const dog = rowToDog(row);
-      await this.set(dogId, dog, false);
-      return dog;
+      const versions = typeof row.version === 'number' ? new Map([[dogId, row.version]]) : undefined;
+      await this.batchSet([dog], versions);
+      return (await this.get(dogId)) ?? null;
     } catch (err) {
       logger.warn(`[${this.getTableName()}] hydrateFromServer failed for ${dogId}`, err);
       return null;

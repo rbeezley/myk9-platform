@@ -119,10 +119,12 @@ Not doing: a queued registration DELETE, `is_primary` editing, replicating `peop
 8. SQL contract tests (CI-only) for the versioned RPC: version conflict 40001, NULL → 42501, authz parity with `update_person_details`. Run `src/test/database/` locally before the push. Shuffled vitest run, `pnpm typecheck`, `qa:code-quality-ratchet`.
 9. Browser walk on staging after the push: edit a registration and a person offline, reconnect, confirm upload and server state.
 
-## Open decisions
+## Decisions (owner, 2026-10-09)
 
-- **D1** Approve the migration in §3 (version columns, triggers, `update_person_details_versioned`) and the small `rpc.versionArg` package change.
-- **D2** Email edits online-only (recommended) vs queued with likely refusal.
-- **D3** Re-pull the row on non-retryable refusal and on Discard, for these two tables now; dogs as a follow-up.
-- **D4** Also route registration _adds_ (dialog, inline add-entry) through the existing queued INSERT (recommended), or leave them online.
-- **D5** Delete the dead `useUserStoreCompat` (recommended).
+- **D1 approved, as two PRs.** PR 1 is the migration only: `20261009214700_myk9_1071_registration_people_versions.sql` plus its behavioral SQL test, and this plan. PR 2 is the app code and the `rpc.versionArg` package change, after the migration is pushed.
+- **D2: email edits are online-only.** `update_person_details_versioned` refuses an `email` key with 22023, so the queue cannot carry one. The UI keeps email edits on the online path.
+- **D3: re-pull refused rows.** A non-retryable refusal, or a Discard, re-pulls the row for these two tables. The same gap in dogs is a follow-up.
+- **D4: registration add and edit are queued; delete stays online.** The coordinator files the follow-up issue for a queued delete.
+- **D5: delete the dead `useUserStoreCompat`** (in PR 2).
+
+As built in PR 1, the wrapper signature is `update_person_details_versioned(p_person_id uuid, p_expected_version integer, p_people jsonb DEFAULT '{}', p_private jsonb DEFAULT '{}') RETURNS integer`. It runs the authorization check before the version check, so a refused caller never sees the version in a 40001 DETAIL. A NULL expected version means no precondition, the same as the table path when no `serverVersion` is set.

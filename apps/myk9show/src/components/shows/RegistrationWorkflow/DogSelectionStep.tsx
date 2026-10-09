@@ -38,6 +38,8 @@ interface DogSelectionStepProps {
   showRegistryId?: string | null | undefined;
   /** `YYYY-MM-DD` show start, handed to Add Dog so its DOB warning judges age on show day. */
   showStartDate?: string | undefined;
+  /** The show being entered; recorded on dogs created here (MYK9-1059). */
+  createdFromShowId?: string | undefined;
 }
 
 export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
@@ -45,6 +47,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
   onSelectionChange,
   showRegistryId,
   showStartDate,
+  createdFromShowId,
 }) => {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [isAddDogPanelOpen, setIsAddDogPanelOpen] = React.useState(false);
@@ -130,6 +133,7 @@ export const DogSelectionStep: React.FC<DogSelectionStepProps> = ({
   const addDogPanel = (
     <AddDogPanel
       showStartDate={showStartDate}
+      createdFromShowId={createdFromShowId}
       open={isAddDogPanelOpen}
       onClose={() => setIsAddDogPanelOpen(false)}
       onDogCreated={handleDogCreated}

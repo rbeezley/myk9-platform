@@ -46,6 +46,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   offlineDependsOn,
   onEnterShowWithDog,
   showStartDate,
+  createdFromShowId,
 }) => {
   const { addDog, addDogOfflineFirst, dogs, error: saveError } = useDogStoreCompat();
   const [localSaveError, setLocalSaveError] = useState<string | null>(null);
@@ -132,12 +133,13 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
 
     let newDog;
     try {
+      const creation = { ...(createdFromShowId && { createdFromShowId }) };
       newDog = offlineFirst
-        ? await addDogOfflineFirst(
-            dogInput,
-            offlineDependsOn && offlineDependsOn.length > 0 ? { dependsOn: offlineDependsOn } : {}
-          )
-        : await addDog(dogInput);
+        ? await addDogOfflineFirst(dogInput, {
+            ...(offlineDependsOn && offlineDependsOn.length > 0 && { dependsOn: offlineDependsOn }),
+            ...creation,
+          })
+        : await addDog(dogInput, creation);
     } catch (error) {
       setLocalSaveError(friendlySaveMessage(error));
       throw error;

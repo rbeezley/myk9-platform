@@ -94,6 +94,8 @@ interface DogSelectionStepProps {
   showRegistryId?: string | null | undefined;
   /** `YYYY-MM-DD` show start, handed to Add Dog so its DOB warning judges age on show day. */
   showStartDate?: string | undefined;
+  /** The show being entered; recorded on dogs and people created here (MYK9-1059). */
+  createdFromShowId?: string | undefined;
 }
 
 function getEmptyStateMessage(
@@ -133,6 +135,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   offlineFirst = false,
   showRegistryId,
   showStartDate,
+  createdFromShowId,
 }) => {
   const registrationNumberLabel = getRegistrationNumberLabel(showRegistryId);
   const { dogs, isLoading: dogsLoading } = useDogStoreCompat();
@@ -388,6 +391,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
         searchQuery={searchQuery}
         mode="batch"
         showStartDate={showStartDate}
+        createdFromShowId={createdFromShowId}
         offlineFirst={offlineFirst}
       />
       <CreateExhibitorDialog
@@ -396,9 +400,11 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
         onExhibitorCreated={handleExhibitorCreated}
         searchQuery={searchQuery}
         offlineFirst={offlineFirst}
+        createdFromShowId={createdFromShowId}
       />
       <AddDogPanel
         showStartDate={showStartDate}
+        createdFromShowId={createdFromShowId}
         open={showDogDialog}
         userRole={getPrimaryRole(roles)}
         onClose={() => setShowDogDialog(false)}

@@ -86,7 +86,10 @@ export const useDogStoreCompat = () => {
   // impossible. Without registrations the existing createMutation path handles
   // the write (it carries React Query optimistic-update machinery we don't
   // need to replicate for the simple case).
-  const addDog = async (dogData: DogInput): Promise<Dog> => {
+  const addDog = async (
+    dogData: DogInput,
+    options: { createdFromShowId?: string | undefined } = {}
+  ): Promise<Dog> => {
     const dogId = crypto.randomUUID();
 
     // MYK9-90 §5.1 — both mappers run BEFORE the local write, not after. They
@@ -96,7 +99,11 @@ export const useDogStoreCompat = () => {
     // leaving a ghost dog in IndexedDB that no cleanup path removed. Nothing is
     // persisted until the payload is known to be acceptable.
     const replicatedDog = mapDogInputToReplicated(dogData, dogId);
-    const dbData = { ...mapDogInputToInsert(dogData), id: dogId };
+    const dbData = {
+      ...mapDogInputToInsert(dogData),
+      id: dogId,
+      ...(options.createdFromShowId && { created_from_show_id: options.createdFromShowId }),
+    };
 
     await replicatedDogsTable.set(dogId, replicatedDog, false);
 
@@ -178,7 +185,7 @@ export const useDogStoreCompat = () => {
 
   const addDogOfflineFirst = async (
     dogData: DogInput,
-    options: { dependsOn?: string[] } = {}
+    options: { dependsOn?: string[]; createdFromShowId?: string | undefined } = {}
   ): Promise<Dog> => {
     const dogId = crypto.randomUUID();
     // MUST stay the first statement: `mapDogInputToReplicated` calls
@@ -186,6 +193,10 @@ export const useDogStoreCompat = () => {
     // call name (§5.1). Nothing below it — including the registration mirror —
     // may write to IndexedDB or queue a mutation before that check has run.
     const replicatedDog = mapDogInputToReplicated(dogData, dogId);
+    const createOptions = {
+      ...(options.dependsOn && { dependsOn: options.dependsOn }),
+      ...(options.createdFromShowId && { createdFromShowId: options.createdFromShowId }),
+    };
 
     let registrations: Record<string, unknown>[] = [];
     if (dogData.registrations && dogData.registrations.length > 0) {
@@ -210,7 +221,7 @@ export const useDogStoreCompat = () => {
       const savedDog = await replicatedDogsTable.createDogWithRegistrationsRpc(
         replicatedDog,
         registrationRows,
-        options.dependsOn ? { dependsOn: options.dependsOn } : {}
+        createOptions
       );
       registrations = savedRegistrations.map(registration =>
         replicatedDogRegistrationsTable.toSupabaseRow(registration)
@@ -225,10 +236,7 @@ export const useDogStoreCompat = () => {
       return mapDatabaseToDog(mapReplicatedDogToDbRow(savedDog, { registrations }));
     }
 
-    const savedDog = await replicatedDogsTable.createDogWithId(
-      replicatedDog,
-      options.dependsOn ? { dependsOn: options.dependsOn } : {}
-    );
+    const savedDog = await replicatedDogsTable.createDogWithId(replicatedDog, createOptions);
 
     await queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
     if (savedDog.ownerId) {

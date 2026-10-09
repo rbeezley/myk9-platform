@@ -28,6 +28,8 @@ interface QuickCreateFlowProps {
   offlineFirst?: boolean;
   /** `YYYY-MM-DD` show start, forwarded to Add Dog so its DOB warning judges age on show day. */
   showStartDate?: string | undefined;
+  /** The show being entered; recorded on people and dogs created here (MYK9-1059). */
+  createdFromShowId?: string | undefined;
 }
 
 interface FlowState {
@@ -54,6 +56,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   mode = 'single',
   offlineFirst = false,
   showStartDate,
+  createdFromShowId,
 }) => {
   const createdInSession = useCreatedInSession();
   const [flowState, setFlowState] = useState<FlowState>(INITIAL_FLOW_STATE);
@@ -448,6 +451,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
         onExhibitorCreated={handleExhibitorCreated}
         searchQuery={searchQuery}
         offlineFirst={offlineFirst}
+        createdFromShowId={createdFromShowId}
       />
 
       <AddDogPanel
@@ -460,6 +464,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
         offlineFirst={offlineFirst}
         offlineDependsOn={flowState.exhibitorPendingMutationIds}
         showStartDate={showStartDate}
+        createdFromShowId={createdFromShowId}
       />
     </>
   );

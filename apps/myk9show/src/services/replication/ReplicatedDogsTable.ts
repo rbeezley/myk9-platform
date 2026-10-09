@@ -135,6 +135,20 @@ function assertQueueableCallName(dog: ReplicatedDog): void {
   }
 }
 
+/** Options for the two INSERT paths. `createdFromShowId` is never sent on an UPDATE (MYK9-1059). */
+export interface DogCreateOptions {
+  dependsOn?: string[];
+  /** The show whose add-entry flow created the dog; omitted everywhere else. */
+  createdFromShowId?: string | undefined;
+}
+
+function withCreationShow(
+  row: Record<string, unknown>,
+  createdFromShowId: string | undefined
+): Record<string, unknown> {
+  return createdFromShowId ? { ...row, created_from_show_id: createdFromShowId } : row;
+}
+
 export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
   /** Most recent mutation ID from a create/update operation */
   private _lastMutationId: string | null = null;
@@ -454,7 +468,7 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
    */
   async createDogWithId(
     dog: ReplicatedDog,
-    options: { dependsOn?: string[] } = {}
+    options: DogCreateOptions = {}
   ): Promise<ReplicatedDog> {
     assertQueueableCallName(dog);
 
@@ -470,7 +484,7 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
     const mutationId = await this.queueMutation(
       'INSERT',
       newDog.id,
-      this.toSupabaseRow(newDog),
+      withCreationShow(this.toSupabaseRow(newDog), options.createdFromShowId),
       options.dependsOn
     );
     this._lastMutationId = mutationId;
@@ -481,7 +495,7 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
   async createDogWithRegistrationsRpc(
     dog: ReplicatedDog,
     registrations: DogRegistrationRpcInput[],
-    options: { dependsOn?: string[] } = {}
+    options: DogCreateOptions = {}
   ): Promise<ReplicatedDog> {
     assertQueueableCallName(dog);
 
@@ -492,7 +506,7 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
       _syncStatus: 'pending',
       _localOnly: true,
     };
-    const dogRow = this.toSupabaseRow(newDog);
+    const dogRow = withCreationShow(this.toSupabaseRow(newDog), options.createdFromShowId);
 
     await this.set(newDog.id, newDog, true);
     const mutationId = await this.queueMutation('INSERT', newDog.id, dogRow, options.dependsOn, {

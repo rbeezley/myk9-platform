@@ -68,4 +68,40 @@ describe('useAccountTodayEntries', () => {
       expect(vi.mocked(source.subscribe).mock.results[0]?.value).toHaveBeenCalledOnce();
     }
   });
+
+  it('re-hydrates from the replicas on a sync storm without calling the RPC again', async () => {
+    mocks.rpc.mockClear();
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false } },
+    });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+    // Capture the invalidate callback the registry hands every replica source.
+    const callbacks: Array<() => void> = [];
+    for (const source of [mocks.entries, mocks.classes, mocks.trials, mocks.shows]) {
+      source.subscribe.mockImplementation(((cb: () => void) => {
+        callbacks.push(cb);
+        return vi.fn();
+      }) as never);
+    }
+    mocks.rpc.mockResolvedValue({ data: [{ entry_id: 'e1' }], error: null });
+    mocks.entries.getAll.mockClear();
+
+    const { result, unmount } = renderHook(() => useAccountTodayEntries(), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mocks.rpc).toHaveBeenCalledTimes(1);
+    const hydrationsBefore = mocks.entries.getAll.mock.calls.length;
+
+    // Four replica tables write at different moments across a sync (>coalesce apart).
+    for (const cb of callbacks) {
+      cb();
+      await new Promise(resolve => setTimeout(resolve, 150));
+    }
+    await waitFor(() =>
+      expect(mocks.entries.getAll.mock.calls.length).toBeGreaterThan(hydrationsBefore)
+    );
+    expect(mocks.rpc).toHaveBeenCalledTimes(1);
+    unmount();
+  });
 });

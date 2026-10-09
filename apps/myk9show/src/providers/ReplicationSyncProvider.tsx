@@ -63,11 +63,13 @@ import { useSyncPassScheduler } from './useSyncPassScheduler';
 import {
   classifyTableSyncResults,
   createTablesStatus,
-  getPostSyncInvalidationKeys,
   shouldRequestPostUploadSync,
   type TableSyncStatus,
 } from './replicationSyncStatus';
-import { refetchShowEntriesAfterScopedSync } from './showEntriesPostSync';
+import {
+  invalidatePostSyncQueries,
+  refetchShowEntriesAfterScopedSync,
+} from './showEntriesPostSync';
 import { getRingsideUploadSyncTargets, type UploadSyncTarget } from './ringsideUploadSyncTargets';
 
 interface SyncStatus {
@@ -411,9 +413,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         }));
         syncInFlightRef.current = false;
 
-        for (const queryKey of getPostSyncInvalidationKeys(selectedNames)) {
-          queryClient.invalidateQueries({ queryKey });
-        }
+        void invalidatePostSyncQueries(queryClient, selectedNames);
         // MYK9-1064: the canonical show-entries query for each show a scoped
         // entries pass downloaded, whatever component or hook asked for it.
         refetchShowEntriesAfterScopedSync(

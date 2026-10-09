@@ -1,5 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
+import { getPostSyncInvalidationKeys } from './replicationSyncStatus';
 
 /**
  * After a successful scoped `entries` pass, make the show's canonical entries
@@ -27,4 +28,29 @@ export function refetchShowEntriesAfterScopedSync(
       .then(() => queryClient.invalidateQueries({ queryKey }))
       .catch(() => undefined);
   }
+}
+
+/**
+ * A show's entries read lives at `['shows', showId, 'entries', ...]`, so the
+ * `['shows']` table invalidation after every pass refetched it too, whether or
+ * not any entries were downloaded (MYK9-1066: one class page read it, and its
+ * per-row pull metadata, three times). Only a scoped `entries` pass changes
+ * those rows, and `refetchShowEntriesAfterScopedSync` refetches them then.
+ */
+const isShowEntriesQueryKey = (queryKey: readonly unknown[]): boolean =>
+  queryKey[0] === 'shows' && queryKey[2] === 'entries';
+
+/** Invalidate the per-table queries for the tables a pass synced. */
+export function invalidatePostSyncQueries(
+  queryClient: QueryClient,
+  tableNames: readonly string[]
+): Promise<void[]> {
+  return Promise.all(
+    getPostSyncInvalidationKeys(tableNames).map(queryKey =>
+      queryClient.invalidateQueries({
+        queryKey,
+        predicate: query => !isShowEntriesQueryKey(query.queryKey),
+      })
+    )
+  );
 }

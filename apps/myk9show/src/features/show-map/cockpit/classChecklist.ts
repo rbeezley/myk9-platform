@@ -160,7 +160,8 @@ export function buildClassChecklist(input: ClassChecklistInput): ClassChecklistI
     scoring,
     resultsItem('results-sheet', 'Preliminary results', input, countsKnown),
     resultsItem('result-labels', 'Ribbon labels', input, countsKnown),
-    withResultsHref(signatureItem(input, countsKnown), input),
+    // Initials stay as on main until MYK9-1031 part 2 gives Results a sign-off slot to land on.
+    signatureItem(input, countsKnown),
   ];
 }
 

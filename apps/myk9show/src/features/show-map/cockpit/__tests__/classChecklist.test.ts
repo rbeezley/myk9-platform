@@ -68,13 +68,13 @@ describe('buildClassChecklist', () => {
     expect(item?.paperwork?.printHref).toBe('/print/check-in-sheet');
   });
 
-  it('links the three after-scoring items to Results and keeps the pre-scoring items as they were (MYK9-1032)', () => {
+  it('links preliminary results and ribbon labels to Results and keeps the pre-scoring items as they were (MYK9-1032)', () => {
     const items = buildClassChecklist({
       ...NOT_STARTED,
       resultsHref: '/shows/s/results?classId=c',
     });
     const byId = Object.fromEntries(items.map(item => [item.id, item]));
-    for (const id of ['results-sheet', 'result-labels', 'judge-signature']) {
+    for (const id of ['results-sheet', 'result-labels']) {
       expect(byId[id]?.href).toBe('/shows/s/results?classId=c');
       expect(byId[id]?.paperwork).toBeUndefined();
       expect(byId[id]?.command).toBeUndefined();
@@ -82,6 +82,8 @@ describe('buildClassChecklist', () => {
     for (const id of ['check-in-sheet', 'scoresheet', 'class-started', 'scoring-complete']) {
       expect(byId[id]?.href).toBeUndefined();
     }
+    // Deferred to MYK9-1031 part 2: Results has no judge sign-off slot yet, so initials stay put.
+    expect(byId['judge-signature']?.href).toBeUndefined();
     expect(byId['check-in-sheet']?.paperwork).toBeDefined();
     expect(byId.scoresheet?.paperwork).toBeDefined();
   });

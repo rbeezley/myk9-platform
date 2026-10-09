@@ -64,7 +64,7 @@ describe('ClassChecklistSection after-scoring items (MYK9-1032)', () => {
     printable('result-labels', 'Result labels'),
   ];
 
-  it('links preliminary results, ribbon labels and initials to the class on Results, as links not actions', () => {
+  it('links preliminary results and ribbon labels to the class on Results, as links not actions', () => {
     render(
       <ClassChecklistSection
         showId="show-1"
@@ -77,7 +77,7 @@ describe('ClassChecklistSection after-scoring items (MYK9-1032)', () => {
     const items = within(screen.getByRole('region', { name: 'Class checklist' })).getAllByRole(
       'listitem'
     );
-    for (const index of [4, 5, 6]) {
+    for (const index of [4, 5]) {
       const link = within(items[index]!).getByRole('link');
       const url = new URL(link.getAttribute('href')!, 'https://x.test');
       expect(url.pathname).toBe('/shows/show-1/results');
@@ -90,6 +90,22 @@ describe('ClassChecklistSection after-scoring items (MYK9-1032)', () => {
       });
       expect(within(items[index]!).queryByRole('button')).toBeNull();
     }
+  });
+
+  it('leaves the initials item without a Results link until Results has a sign-off slot', () => {
+    render(
+      <ClassChecklistSection
+        showId="show-1"
+        sourceClass={completeClass}
+        paperwork={paperwork}
+        timeZone="America/New_York"
+        onCommand={vi.fn()}
+      />
+    );
+    const items = within(screen.getByRole('region', { name: 'Class checklist' })).getAllByRole(
+      'listitem'
+    );
+    expect(within(items[6]!).queryByRole('link')).toBeNull();
   });
 
   it('offers print only for check-in and score sheets, never the results sheet or result labels', () => {

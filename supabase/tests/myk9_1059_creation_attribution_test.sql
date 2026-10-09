@@ -179,6 +179,7 @@ SELECT public.create_dog_with_registrations(
     'id', '00000000-0000-0000-0000-000001059403',
     'owner_id', '00000000-0000-0000-0000-000001059003',
     'call_name', 'MYK9-1059 ViaRpc',
+    'breed', 'Mixed Breed',
     'created_by', '00000000-0000-0000-0000-000001059999'),
   '[]'::jsonb);
 

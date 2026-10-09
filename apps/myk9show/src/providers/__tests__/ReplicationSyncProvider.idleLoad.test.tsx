@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { useContext, useEffect } from 'react';
 import { act, render } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { AuthChangeEvent, Session, Subscription } from '@supabase/supabase-js';
@@ -124,11 +125,27 @@ vi.mock(import('@myk9/replication'), async importOriginal => {
 });
 
 import { ReplicationSyncProvider } from '../ReplicationSyncProvider';
+import {
+  ReplicationSyncContext,
+  type ReplicationSyncContextValue,
+} from '@/context/ReplicationSyncContext';
+
+let latestContext: ReplicationSyncContextValue | null = null;
+let providerQueryClient: QueryClient | null = null;
+
+function ContextProbe() {
+  const value = useContext(ReplicationSyncContext);
+  useEffect(() => {
+    latestContext = value;
+  });
+  return null;
+}
 
 function renderProvider() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
+  providerQueryClient = queryClient;
   return render(
     <QueryClientProvider client={queryClient}>
       <NetworkStatusContext.Provider
@@ -140,7 +157,7 @@ function renderProvider() {
         }}
       >
         <ReplicationSyncProvider autoSync syncOnReconnect={false}>
-          <div />
+          <ContextProbe />
         </ReplicationSyncProvider>
       </NetworkStatusContext.Provider>
     </QueryClientProvider>
@@ -283,5 +300,62 @@ describe('ReplicationSyncProvider: idle load', () => {
     });
     await settle();
     expect(fullPassCount()).toBe(2);
+  });
+
+  // MYK9-1064: a staff open asks for a scoped entries pass through the context.
+  describe('triggerSync with a scoped entries target', () => {
+    const TARGET = [{ name: 'entries' as const, scopeId: 'show-9' }];
+
+    it('syncs only that show, advances the status and invalidates entries', async () => {
+      const invalidate = vi.spyOn(providerQueryClient!, 'invalidateQueries');
+      const before = latestContext!.status.lastSyncAt;
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(10);
+        await latestContext!.triggerSync(TARGET);
+      });
+
+      expect(syncSpies.entries.mock.calls).toEqual([['show-9']]);
+      expect(fullPassCount()).toBe(0);
+      expect(latestContext!.status.tablesStatus.entries).toBe('success');
+      expect(latestContext!.status.lastSyncAt?.getTime()).toBeGreaterThan(before?.getTime() ?? 0);
+      expect(invalidate).toHaveBeenCalledWith({ queryKey: ['entries'] });
+    });
+
+    it('does not move the full-pass spacing clock', async () => {
+      await act(async () => {
+        await latestContext!.triggerSync(TARGET);
+        await vi.advanceTimersByTimeAsync(60_000);
+      });
+
+      expect(fullPassCount()).toBe(1);
+    });
+
+    it('queues behind a full pass in flight and still runs afterwards', async () => {
+      let releaseShows: () => void = () => {};
+      syncSpies.shows.mockImplementationOnce(
+        () =>
+          new Promise(resolve => {
+            releaseShows = () => resolve({ success: true, rowsAffected: 0 });
+          })
+      );
+      let full: Promise<void> = Promise.resolve();
+      await act(async () => {
+        full = latestContext!.triggerSync();
+        await Promise.resolve();
+      });
+      await act(async () => {
+        await latestContext!.triggerSync(TARGET);
+      });
+      expect(syncSpies.entries.mock.calls.some(call => call[0] === 'show-9')).toBe(false);
+
+      await act(async () => {
+        releaseShows();
+        await full;
+      });
+      await settle();
+
+      expect(syncSpies.entries.mock.calls.some(call => call[0] === 'show-9')).toBe(true);
+    });
   });
 });

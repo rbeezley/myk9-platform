@@ -1,17 +1,15 @@
 import type { ReactNode } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
-import { renderHook, waitFor } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
+import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 
 const mocks = vi.hoisted(() => ({
-  sync: vi.fn(),
   hasSynced: vi.fn(),
   getEntriesForShow: vi.fn(),
+  triggerSync: vi.fn(),
 }));
 
-vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
-  replicatedEntriesTable: { sync: mocks.sync },
-}));
 vi.mock('@/services/replication/entriesShowSyncState', () => ({
   hasShowEntriesSynced: mocks.hasSynced,
 }));
@@ -28,31 +26,63 @@ vi.mock('@/hooks/useAuthContext', () => ({
 }));
 
 import { useSecretaryShowEntriesQuery } from './useEntriesDatabase';
-import { resetShowOpenRefreshesForTests } from '@/services/database/entries/refreshShowEntriesForRead';
+import { resetShowOpenRefreshesForTests } from '@/services/database/entries/showOpenRefreshGate';
+
+const TARGET = [{ name: 'entries', scopeId: 'show-1' }];
 
 function setVisibility(state: 'visible' | 'hidden') {
   Object.defineProperty(document, 'visibilityState', { value: state, configurable: true });
 }
 
-function setup(showId = 'show-1') {
+function makeStatus(overrides: { isSyncing?: boolean; lastSyncAt?: Date | null } = {}) {
+  return {
+    isSyncing: false,
+    lastSyncAt: null as Date | null,
+    error: null,
+    tablesStatus: {},
+    ...overrides,
+  };
+}
+
+function setup() {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const invalidate = vi.spyOn(client, 'invalidateQueries');
-  const wrapper = ({ children }: { children: ReactNode }) => (
-    <QueryClientProvider client={client}>{children}</QueryClientProvider>
+  const wrapper = ({
+    children,
+    status,
+  }: {
+    children: ReactNode;
+    status: ReturnType<typeof makeStatus>;
+  }) => (
+    <QueryClientProvider client={client}>
+      <ReplicationSyncContext.Provider
+        value={{ status, triggerSync: mocks.triggerSync, syncTable: vi.fn() }}
+      >
+        {children}
+      </ReplicationSyncContext.Provider>
+    </QueryClientProvider>
   );
-  const render = (id = showId) =>
-    renderHook(({ id: current }) => useSecretaryShowEntriesQuery(current), {
-      wrapper,
-      initialProps: { id },
+  const render = () =>
+    renderHook(() => useSecretaryShowEntriesQuery('show-1'), {
+      wrapper: ({ children }) => wrapper({ children, status: currentStatus.value }),
     });
-  return { client, invalidate, render };
+  const currentStatus = { value: makeStatus() };
+  return {
+    invalidate,
+    currentStatus,
+    render: (status = makeStatus()) => {
+      currentStatus.value = status;
+      return render();
+    },
+  };
 }
 
 const row = (id: string) => ({ id });
+const settle = () => new Promise(resolve => setTimeout(resolve, 30));
 
 describe('useRefreshShowEntriesOnOpen via the staff entries query (MYK9-1064)', () => {
   beforeEach(() => {
-    mocks.sync.mockReset().mockResolvedValue({ success: true });
+    mocks.triggerSync.mockReset().mockResolvedValue(undefined);
     mocks.hasSynced.mockReset().mockResolvedValue(true);
     mocks.getEntriesForShow.mockReset().mockResolvedValue({ data: [row('e1')], error: null });
     resetShowOpenRefreshesForTests();
@@ -65,15 +95,34 @@ describe('useRefreshShowEntriesOnOpen via the staff entries query (MYK9-1064)', 
     setVisibility('visible');
   });
 
-  it('warm open: one sync, then one invalidation that re-runs the read', async () => {
+  it('warm open: one scoped entries pass through the provider, then one invalidation', async () => {
     const { invalidate, render } = setup();
     render();
 
     await waitFor(() => expect(invalidate).toHaveBeenCalledTimes(1));
-    expect(mocks.sync).toHaveBeenCalledTimes(1);
-    expect(mocks.sync).toHaveBeenCalledWith('show-1');
+    expect(mocks.triggerSync).toHaveBeenCalledTimes(1);
+    expect(mocks.triggerSync).toHaveBeenCalledWith(TARGET);
     await waitFor(() => expect(mocks.getEntriesForShow).toHaveBeenCalledTimes(2));
-    expect(mocks.sync).toHaveBeenCalledTimes(1);
+  });
+
+  it('cold open: nothing is triggered', async () => {
+    mocks.hasSynced.mockResolvedValue(false);
+    const { invalidate, render } = setup();
+    const view = render();
+
+    await waitFor(() => expect(view.result.current.isSuccess).toBe(true));
+    await settle();
+    expect(mocks.triggerSync).not.toHaveBeenCalled();
+    expect(invalidate).not.toHaveBeenCalled();
+  });
+
+  it('offline: nothing is triggered', async () => {
+    onlineManager.setOnline(false);
+    const { render } = setup();
+    render();
+    await settle();
+
+    expect(mocks.triggerSync).not.toHaveBeenCalled();
   });
 
   it('a sync that finishes during the first fetch still ends with the post-sync read', async () => {
@@ -89,33 +138,11 @@ describe('useRefreshShowEntriesOnOpen via the staff entries query (MYK9-1064)', 
     const { render } = setup();
     const view = render();
 
-    await waitFor(() => expect(mocks.sync).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(mocks.triggerSync).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(mocks.getEntriesForShow).toHaveBeenCalledTimes(2));
     finishFirstFetch({ data: [row('stale')], error: null });
 
     await waitFor(() => expect(view.result.current.data).toEqual([row('fresh')]));
-  });
-
-  it('a slow successful sync still invalidates exactly once', async () => {
-    mocks.sync.mockImplementation(
-      () => new Promise(resolve => setTimeout(() => resolve({ success: true }), 3_500))
-    );
-    const { invalidate, render } = setup();
-    render();
-
-    await waitFor(() => expect(invalidate).toHaveBeenCalledTimes(1), { timeout: 6_000 });
-    expect(mocks.sync).toHaveBeenCalledTimes(1);
-  }, 10_000);
-
-  it('cold open: the hook syncs nothing', async () => {
-    mocks.hasSynced.mockResolvedValue(false);
-    const { invalidate, render } = setup();
-    const view = render();
-
-    await waitFor(() => expect(view.result.current.isSuccess).toBe(true));
-    await new Promise(resolve => setTimeout(resolve, 20));
-    expect(mocks.sync).not.toHaveBeenCalled();
-    expect(invalidate).not.toHaveBeenCalled();
   });
 
   it('a refresh that removes the last entry refetches to an empty list, not stale rows', async () => {
@@ -128,48 +155,48 @@ describe('useRefreshShowEntriesOnOpen via the staff entries query (MYK9-1064)', 
     await waitFor(() => expect(view.result.current.data).toEqual([]));
   });
 
-  it('a failed refresh invalidates nothing and the next open retries', async () => {
-    mocks.sync.mockResolvedValueOnce({ success: false });
-    const { invalidate, render } = setup();
-    const first = render();
-    await waitFor(() => expect(mocks.sync).toHaveBeenCalledTimes(1));
-    await new Promise(resolve => setTimeout(resolve, 20));
-    expect(invalidate).not.toHaveBeenCalled();
-    first.unmount();
-
-    render();
-    await waitFor(() => expect(invalidate).toHaveBeenCalledTimes(1));
-    expect(mocks.sync).toHaveBeenCalledTimes(2);
-  });
-
-  it('a second open inside 15 s shares the refresh and the invalidation', async () => {
+  it('a second open inside 15 s does not trigger another pass', async () => {
     const { invalidate, render } = setup();
     const first = render();
     await waitFor(() => expect(invalidate).toHaveBeenCalledTimes(1));
     first.unmount();
     render();
-    await new Promise(resolve => setTimeout(resolve, 30));
+    await settle();
 
-    expect(mocks.sync).toHaveBeenCalledTimes(1);
+    expect(mocks.triggerSync).toHaveBeenCalledTimes(1);
   });
 
-  it('concurrent mounts share one sync and one invalidation', async () => {
-    const { invalidate, render } = setup();
-    render();
-    render();
-
+  it('the provider status changing after the pass does not re-trigger it (no loop)', async () => {
+    const { invalidate, currentStatus, render } = setup();
+    const view = render();
     await waitFor(() => expect(invalidate).toHaveBeenCalledTimes(1));
-    await new Promise(resolve => setTimeout(resolve, 30));
-    expect(mocks.sync).toHaveBeenCalledTimes(1);
+
+    currentStatus.value = makeStatus({ lastSyncAt: new Date('2026-10-08T22:00:05Z') });
+    view.rerender();
+    await settle();
+
+    expect(mocks.triggerSync).toHaveBeenCalledTimes(1);
     expect(invalidate).toHaveBeenCalledTimes(1);
   });
 
-  it('offline: no sync', async () => {
-    onlineManager.setOnline(false);
-    const { render } = setup();
-    render();
-    await new Promise(resolve => setTimeout(resolve, 30));
+  it('a pass already running queues the target; the show refetches when the passes end', async () => {
+    const { invalidate, currentStatus, render } = setup();
+    const view = render(makeStatus({ isSyncing: true }));
+    await waitFor(() => expect(mocks.triggerSync).toHaveBeenCalledTimes(1));
+    await settle();
+    expect(invalidate).not.toHaveBeenCalled();
 
-    expect(mocks.sync).not.toHaveBeenCalled();
+    await act(async () => {
+      currentStatus.value = makeStatus({ lastSyncAt: new Date('2026-10-08T22:00:05Z') });
+      view.rerender();
+    });
+    await waitFor(() => expect(invalidate).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      currentStatus.value = makeStatus({ lastSyncAt: new Date('2026-10-08T22:00:07Z') });
+      view.rerender();
+    });
+    await waitFor(() => expect(invalidate).toHaveBeenCalledTimes(2));
+    expect(mocks.triggerSync).toHaveBeenCalledTimes(1);
   });
 });

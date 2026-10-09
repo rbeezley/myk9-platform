@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 import { captureRestAuth, dataAbsent, requireRead } from './helpers/liveCanary';
 import { installSharedStagingWriteGuard } from './helpers/sharedStagingWriteGuard';
 import { signInAsSecretary } from './helpers/testUsers';
+import { expectNoHorizontalOverflow } from './helpers/horizontalOverflow';
 
 /**
  * The PageHeader breadcrumb must never push a detail page wider than a phone
@@ -23,17 +24,6 @@ interface TrialRow {
   show_id: string;
   shows: { name: string | null } | null;
   classes: Array<{ id: string }>;
-}
-
-async function expectNoHorizontalOverflow(page: Page, label: string): Promise<void> {
-  const metrics = await page.evaluate(() => ({
-    viewport: window.innerWidth,
-    documentWidth: document.documentElement.scrollWidth,
-  }));
-  expect(
-    metrics.documentWidth,
-    `${label}: horizontal overflow ${JSON.stringify(metrics)}`
-  ).toBeLessThanOrEqual(metrics.viewport);
 }
 
 /**

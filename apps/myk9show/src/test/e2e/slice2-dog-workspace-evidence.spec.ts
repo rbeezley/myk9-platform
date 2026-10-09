@@ -10,6 +10,7 @@
  */
 import { test, expect, type Page } from '@playwright/test';
 import { signInAsTestUser } from './helpers/testUsers';
+import { expectNoHorizontalOverflow } from './helpers/horizontalOverflow';
 
 const SHOTS = process.env.EVIDENCE_DIR ?? 'evidence-slice2';
 
@@ -34,13 +35,6 @@ function recordsNavOrSelect(page: Page) {
     .getByRole('tablist', { name: 'Records view' })
     .or(page.getByLabel('Records view'))
     .first();
-}
-
-async function assertNoHorizontalOverflow(page: Page, label: string) {
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth
-  );
-  expect(overflow, `${label}: horizontal overflow px`).toBeLessThanOrEqual(1);
 }
 
 async function openFirstOwnedDog(page: Page): Promise<void> {
@@ -83,7 +77,7 @@ test.describe('Slice 2 dog workspace evidence (demo exhibitor)', () => {
         // Top-level nav present and unclipped.
         const sectionNav = page.getByRole('tablist', { name: 'Dog details section' });
         await expect(sectionNav).toBeVisible();
-        await assertNoHorizontalOverflow(page, `${vp.name}/${theme}/overview`);
+        await expectNoHorizontalOverflow(page, `${vp.name}/${theme}/overview`);
         await page.screenshot({
           path: `${SHOTS}/${vp.name}-${theme}-overview.png`,
           fullPage: false,
@@ -100,7 +94,7 @@ test.describe('Slice 2 dog workspace evidence (demo exhibitor)', () => {
           'aria-selected',
           'true'
         );
-        await assertNoHorizontalOverflow(page, `${vp.name}/${theme}/career`);
+        await expectNoHorizontalOverflow(page, `${vp.name}/${theme}/career`);
         await page.screenshot({ path: `${SHOTS}/${vp.name}-${theme}-career.png` });
 
         // Records — grouped/locked treatment.
@@ -111,7 +105,7 @@ test.describe('Slice 2 dog workspace evidence (demo exhibitor)', () => {
           'aria-selected',
           'true'
         );
-        await assertNoHorizontalOverflow(page, `${vp.name}/${theme}/records`);
+        await expectNoHorizontalOverflow(page, `${vp.name}/${theme}/records`);
         await page.screenshot({ path: `${SHOTS}/${vp.name}-${theme}-records.png` });
       }
     }

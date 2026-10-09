@@ -54,6 +54,19 @@ describe('CheckoutCancelPage — the hold ended (MYK9-1012)', () => {
     expect(screen.getByRole('button', { name: /return to cart/i })).toBeInTheDocument();
   });
 
+  // MYK9-1073: the help list under the message must not say the selections are
+  // saved "for 30 minutes" when the page has just said those 30 minutes ended.
+  it('does not tell a returning exhibitor their selections are saved for 30 minutes', async () => {
+    rememberCheckoutHold('cs_expired', new Date(Date.now() - 1000).toISOString());
+
+    render(<CheckoutCancelPage />, { initialRoute: '/checkout/cancel?session_id=cs_expired' });
+
+    expect(await screen.findByRole('heading', { name: 'Your hold ended' })).toBeInTheDocument();
+    expect(screen.queryByText(/saved for 30 minutes/i)).not.toBeInTheDocument();
+    expect(screen.getByText('Your selections are saved')).toBeInTheDocument();
+    expect(screen.getByText('You can return to checkout anytime')).toBeInTheDocument();
+  });
+
   it('keeps the cancel landing while the hold still lives', async () => {
     rememberCheckoutHold('cs_live', new Date(Date.now() + 10 * 60 * 1000).toISOString());
 
@@ -61,6 +74,8 @@ describe('CheckoutCancelPage — the hold ended (MYK9-1012)', () => {
 
     expect(await screen.findByRole('heading', { name: /payment cancelled/i })).toBeInTheDocument();
     expect(screen.queryByText(HOLD_ENDED)).not.toBeInTheDocument();
+    // The live hold still lasts up to 30 minutes, so the original wording stays true.
+    expect(screen.getByText('Your selections are saved for 30 minutes')).toBeInTheDocument();
   });
 
   it("does not blame an older page: only this session's hold counts", async () => {

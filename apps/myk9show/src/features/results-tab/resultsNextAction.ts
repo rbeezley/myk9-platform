@@ -19,7 +19,10 @@ export interface ResultsClassState {
   expectedCount: number;
   /** Of `expectedCount`, those the server counts as accounted for (scored, absent, excused). */
   scoredCount: number;
-  /** `classes.results_released_at`. */
+  /**
+   * `classes.results_released_at`. `null` = confirmed unreleased; `undefined` = the release state
+   * could not be read for this class, which proves nothing (never offer Release on it).
+   */
   releasedAt: string | null | undefined;
   /**
    * The results sheet AND the ribbon labels both have a current print confirmation.
@@ -39,6 +42,7 @@ export type ResultsClassPhase =
   | 'in-ring'
   | 'needs-checking'
   | 'ready-to-release'
+  | 'release-unknown'
   | 'released'
   | 'done'
   | 'cancelled'
@@ -67,6 +71,7 @@ export function deriveResultsPhase(state: ResultsClassState): ResultsClassPhase 
   if (state.scoredCount < state.expectedCount) {
     return state.scoredCount > 0 || status === CLASS_STATUS.IN_PROGRESS ? 'in-ring' : 'not-started';
   }
+  if (state.releasedAt === undefined) return 'release-unknown';
   if (state.releasedAt) return state.paperworkPrinted === true ? 'done' : 'released';
   return state.verifiedAt === null ? 'needs-checking' : 'ready-to-release';
 }
@@ -76,6 +81,7 @@ const NEXT_ACTION_BY_PHASE: Record<ResultsClassPhase, ResultsNextAction> = {
   'in-ring': { kind: 'overview', label: 'Overview' },
   'needs-checking': { kind: 'verify', label: 'Check scores' },
   'ready-to-release': { kind: 'release', label: 'Release' },
+  'release-unknown': { kind: 'none', label: 'Status unknown' },
   released: { kind: 'print', label: 'Print' },
   done: { kind: 'none', label: 'Done' },
   cancelled: { kind: 'none', label: 'Cancelled' },
@@ -91,6 +97,7 @@ export const RESULTS_PHASE_LABEL: Record<ResultsClassPhase, string> = {
   'in-ring': 'In the ring',
   'needs-checking': 'Needs checking',
   'ready-to-release': 'Ready to release',
+  'release-unknown': 'Release status unknown',
   released: 'Released',
   done: 'Done',
   cancelled: 'Cancelled',

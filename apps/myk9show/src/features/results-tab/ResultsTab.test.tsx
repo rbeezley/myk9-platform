@@ -84,7 +84,9 @@ function buildRows() {
         } as SyncableTrialClass,
       ],
     },
-    releasedAtByClassId: new Map([
+    releasedAtByClassId: new Map<string, string | null>([
+      ['class-ready', null],
+      ['class-ring', null],
       ['class-released', '2026-10-10T16:00:00Z'],
       ['class-done', '2026-10-10T16:00:00Z'],
     ]),

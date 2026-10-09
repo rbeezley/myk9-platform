@@ -102,6 +102,9 @@ export function useShowClassPaperwork(input: {
   return {
     byClassId,
     available,
+    /** The settled full class rows (carry `results_released_at`); undefined until read. */
+    classRows: classFacts.data as
+      readonly { id: string; results_released_at?: string | null }[] | undefined,
     reads,
     /** Refetches the class rows and re-syncs the print confirmations. */
     refetch: () => {

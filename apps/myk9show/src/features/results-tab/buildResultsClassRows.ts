@@ -217,7 +217,8 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
         section: cls.section,
       };
       const tally = tallies.get(cls.id);
-      const releasedAt = input.releasedAtByClassId.get(cls.id) ?? null;
+      // `undefined` (no row in the read) is unknown, not unreleased: it never offers Release.
+      const releasedAt = input.releasedAtByClassId.get(cls.id);
       const mapped = pickResultsPaperwork(input.paperworkByClassId.get(cls.id));
       const paperwork = paperworkAvailable
         ? mapped
@@ -241,7 +242,7 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
         expectedCount: state.expectedCount,
         scoredCount: state.scoredCount,
         qualifiedCount: classEntries.filter(entry => entry.qualified).length,
-        releasedAt,
+        releasedAt: releasedAt ?? null,
         state,
         phase: deriveResultsPhase(state),
         nextAction: deriveResultsNextAction(state),

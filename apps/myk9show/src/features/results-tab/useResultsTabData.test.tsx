@@ -16,7 +16,6 @@ const mocks = vi.hoisted(() => ({
   schedule: {} as Record<string, unknown>,
   entries: {} as Record<string, unknown>,
   prints: {} as Record<string, unknown>,
-  classes: [] as { id: string; results_released_at: string | null }[],
   reportClasses: [] as Record<string, unknown>[],
 }));
 
@@ -33,9 +32,17 @@ vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
 vi.mock('@/features/show-map/cockpit/useShowPaperworkPrints', () => ({
   useShowPaperworkPrints: () => mocks.prints,
 }));
-vi.mock('@/store/classStore', () => ({
-  useClassStore: () => ({ classes: mocks.classes }),
-}));
+
+/** The full class row Reports reads, carrying the release stamp. */
+const classRow = (releasedAt: string | null) => ({
+  id: 'class-1',
+  trial_id: 'trial-1',
+  element: 'Containers',
+  level: 'Novice',
+  section: '',
+  status: 'Completed',
+  results_released_at: releasedAt,
+});
 
 const trial = {
   id: 'trial-1',
@@ -102,27 +109,55 @@ beforeEach(() => {
     refetch: vi.fn(),
   };
   mocks.prints = { data: [], isError: false, syncFailed: false };
-  mocks.classes = [{ id: 'class-1', results_released_at: null }];
-  mocks.reportClasses = [];
+  mocks.reportClasses = [classRow(null)];
   getClassesByTrialId.mockReset();
   getClassesByTrialId.mockImplementation(async () => ({ data: mocks.reportClasses, error: null }));
 });
 
 describe('useResultsTabData', () => {
-  it("returns only this show's classes, with scores from the secretary read and the release stamp from the class store", () => {
-    mocks.classes = [{ id: 'class-1', results_released_at: '2026-10-10T16:00:00Z' }];
+  it("returns only this show's classes, with scores from the secretary read and the release stamp from the class rows", async () => {
+    mocks.reportClasses = [classRow('2026-10-10T16:00:00Z')];
     render(<Probe />);
 
+    await vi.waitFor(() =>
+      expect(screen.getByTestId('rows')).toHaveTextContent('class-1:released:1/1')
+    );
     expect(screen.getByTestId('state')).toHaveTextContent('ready');
-    expect(screen.getByTestId('rows')).toHaveTextContent('class-1:released:1/1');
     expect(screen.getByTestId('rows')).not.toHaveTextContent('class-other');
   });
 
-  it('reports a paused entries read as unavailable, never as an empty show', () => {
+  it('offers Release only for a confirmed-null release stamp', async () => {
+    mocks.reportClasses = [classRow(null)];
+    render(<Probe />);
+
+    await vi.waitFor(() =>
+      expect(screen.getByTestId('rows')).toHaveTextContent('class-1:ready-to-release:1/1')
+    );
+  });
+
+  it('reads a class with no row in the settled class read as release-unknown, not unreleased', async () => {
+    mocks.reportClasses = [{ ...classRow(null), id: 'some-other-class' }];
+    render(<Probe />);
+
+    await vi.waitFor(() => expect(screen.getByTestId('state')).toHaveTextContent('ready'));
+    expect(screen.getByTestId('rows')).toHaveTextContent('class-1:release-unknown:1/1');
+  });
+
+  it('fails the tab and offers no Release for any class when the class read fails', async () => {
+    getClassesByTrialId.mockImplementation(async () => ({ data: null, error: new Error('boom') }));
+    render(<Probe />);
+
+    await vi.waitFor(() => expect(screen.getByTestId('state')).toHaveTextContent('failed'));
+    expect(screen.getByTestId('rows')).toHaveTextContent('class-1:release-unknown:1/1');
+    expect(screen.getByTestId('rows')).not.toHaveTextContent('ready-to-release');
+  });
+
+  it('reports a paused entries read as unavailable, never as an empty show', async () => {
     mocks.entries = { data: undefined, isLoading: false, isError: false, refetch: vi.fn() };
     render(<Probe />);
 
-    expect(screen.getByTestId('state')).toHaveTextContent('unavailable');
+    await vi.waitFor(() => expect(getClassesByTrialId).toHaveBeenCalled());
+    await vi.waitFor(() => expect(screen.getByTestId('state')).toHaveTextContent('unavailable'));
   });
 
   it('reports failed and loading reads as such', () => {
@@ -136,12 +171,14 @@ describe('useResultsTabData', () => {
     expect(screen.getByTestId('state')).toHaveTextContent('loading');
   });
 
-  it('treats a failed print sync as unknown, so a released class is not read as printed', () => {
-    mocks.classes = [{ id: 'class-1', results_released_at: '2026-10-10T16:00:00Z' }];
+  it('treats a failed print sync as unknown, so a released class is not read as printed', async () => {
+    mocks.reportClasses = [classRow('2026-10-10T16:00:00Z')];
     mocks.prints = { data: [], isError: false, syncFailed: true };
     render(<Probe />);
 
-    expect(screen.getByTestId('rows')).toHaveTextContent('class-1:released:1/1');
+    await vi.waitFor(() =>
+      expect(screen.getByTestId('rows')).toHaveTextContent('class-1:released:1/1')
+    );
   });
 
   it('reads a print confirmed on Reports as current, using the same class rows Reports fingerprints', async () => {
@@ -156,6 +193,7 @@ describe('useResultsTabData', () => {
       time_limit_seconds: 180,
       num_areas: 2,
       num_hides: 3,
+      results_released_at: '2026-10-10T16:00:00Z',
     };
     mocks.reportClasses = [reportClass];
     const entries = mocks.entries.data as Record<string, unknown>[];
@@ -183,7 +221,6 @@ describe('useResultsTabData', () => {
       isError: false,
       syncFailed: false,
     };
-    mocks.classes = [{ id: 'class-1', results_released_at: '2026-10-10T16:00:00Z' }];
     render(<Probe />);
 
     await vi.waitFor(() =>
@@ -191,12 +228,12 @@ describe('useResultsTabData', () => {
     );
   });
 
-  it('keeps the loaded snapshot and warns when a background refresh fails', () => {
+  it('keeps the loaded snapshot and warns when a background refresh fails', async () => {
     mocks.schedule = { ...mocks.schedule, readFailed: true };
     mocks.entries = { ...mocks.entries, isError: true };
     render(<Probe />);
 
-    expect(screen.getByTestId('state')).toHaveTextContent('ready');
+    await vi.waitFor(() => expect(screen.getByTestId('state')).toHaveTextContent('ready'));
     expect(screen.getByTestId('refresh-failed')).toHaveTextContent('true');
     expect(screen.getByTestId('rows')).toHaveTextContent('class-1');
   });
@@ -207,34 +244,25 @@ describe('useResultsTabData', () => {
     expect(screen.getByTestId('state')).toHaveTextContent('failed');
   });
 
-  it('exposes a class-facts failure as unavailable print status, and Retry refetches the class facts', async () => {
+  it('reports a class-read failure as failed, and Retry refetches the class rows', async () => {
     getClassesByTrialId.mockImplementation(async () => ({ data: null, error: new Error('boom') }));
-    mocks.classes = [{ id: 'class-1', results_released_at: '2026-10-10T16:00:00Z' }];
     const { user } = render(<Probe />);
 
-    await vi.waitFor(() => expect(screen.getByTestId('paperwork')).toHaveTextContent('false'));
-    expect(screen.getByTestId('state')).toHaveTextContent('ready');
+    await vi.waitFor(() => expect(screen.getByTestId('state')).toHaveTextContent('failed'));
+    expect(screen.getByTestId('paperwork')).toHaveTextContent('false');
     const callsBefore = getClassesByTrialId.mock.calls.length;
 
     getClassesByTrialId.mockImplementation(async () => ({
       data: mocks.reportClasses,
       error: null,
     }));
-    mocks.reportClasses = [
-      {
-        id: 'class-1',
-        trial_id: 'trial-1',
-        element: 'Containers',
-        level: 'Novice',
-        section: '',
-        status: 'Completed',
-      },
-    ];
+    mocks.reportClasses = [classRow('2026-10-10T16:00:00Z')];
     await user.click(screen.getByRole('button', { name: 'retry' }));
 
     await vi.waitFor(() =>
       expect(getClassesByTrialId.mock.calls.length).toBeGreaterThan(callsBefore)
     );
-    await vi.waitFor(() => expect(screen.getByTestId('paperwork')).toHaveTextContent('true'));
+    await vi.waitFor(() => expect(screen.getByTestId('state')).toHaveTextContent('ready'));
+    expect(screen.getByTestId('paperwork')).toHaveTextContent('true');
   });
 });

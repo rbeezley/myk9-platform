@@ -72,6 +72,10 @@ function PrimaryWork({
         {releasing ? 'Releasing…' : 'Release results'}
       </Button>
     );
+  } else if (phase === 'release-unknown') {
+    title = 'Release status unknown';
+    body =
+      'Could not read whether this class is released. Retry from the class list; Release is held back until it is known.';
   } else if (phase === 'released') {
     title = 'Print the results sheet and ribbon labels';
     body = 'The results are released. Print the paperwork below and record it as printed.';
@@ -203,7 +207,9 @@ export function ResultsClassDetail({
             Scored {row.scoredCount} / {row.expectedCount}
           </Badge>
           <Badge variant="outline">{row.qualifiedCount} Q</Badge>
-          <Badge variant="outline">{released ? 'Released' : 'Not released'}</Badge>
+          <Badge variant="outline">
+            {released ? 'Released' : row.phase === 'release-unknown' ? 'Unknown' : 'Not released'}
+          </Badge>
           <ResultsStatusChip phase={row.phase} />
         </div>
       </header>
@@ -224,7 +230,11 @@ export function ResultsClassDetail({
               )}
               Release results
               <span className="font-normal text-muted-foreground">
-                {released ? 'Released' : 'Not released yet'}
+                {released
+                  ? 'Released'
+                  : row.phase === 'release-unknown'
+                    ? 'Status unknown'
+                    : 'Not released yet'}
               </span>
             </li>
             {!row.paperworkAvailable && (

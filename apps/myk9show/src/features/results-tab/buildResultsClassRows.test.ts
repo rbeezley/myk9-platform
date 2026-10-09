@@ -80,7 +80,7 @@ describe('buildResultsClassRows', () => {
       trialClasses: {
         'trial-1': [trialClass('class-1', { actualFinishTime: '2026-10-10T15:30:00Z' })],
       },
-      releasedAtByClassId: new Map(),
+      releasedAtByClassId: new Map([['class-1', null]]),
       paperworkByClassId: new Map(),
       entries: [
         entry('e-pending', 'class-1', { armband: '103' }),
@@ -137,7 +137,7 @@ describe('buildResultsClassRows', () => {
     const [row] = buildResultsClassRows({
       trials: [trial],
       trialClasses: { 'trial-1': [trialClass('class-1')] },
-      releasedAtByClassId: new Map(),
+      releasedAtByClassId: new Map([['class-1', null]]),
       paperworkByClassId: new Map(),
       entries: [
         scored('e-ran', 'class-1', { result_status: 'qualified', final_placement: 1 }),
@@ -155,7 +155,7 @@ describe('buildResultsClassRows', () => {
     const [row] = buildResultsClassRows({
       trials: [trial],
       trialClasses: { 'trial-1': [trialClass('class-1')] },
-      releasedAtByClassId: new Map(),
+      releasedAtByClassId: new Map([['class-1', null]]),
       paperworkByClassId: new Map(),
       entries: [entry('e-pulled', 'class-1', { check_in_status: 'pulled' })],
     });
@@ -164,11 +164,24 @@ describe('buildResultsClassRows', () => {
     expect(row?.nextAction.kind).toBe('none');
   });
 
+  it('reads a class with no release row as release-unknown, never as ready to release', () => {
+    const [row] = buildResultsClassRows({
+      trials: [trial],
+      trialClasses: { 'trial-1': [trialClass('class-1')] },
+      releasedAtByClassId: new Map(),
+      paperworkByClassId: new Map(),
+      entries: [scored('e-1', 'class-1')],
+    });
+
+    expect(row).toMatchObject({ phase: 'release-unknown', releasedAt: null });
+    expect(row?.nextAction.kind).toBe('none');
+  });
+
   it('reads a cancelled class as cancelled', () => {
     const [row] = buildResultsClassRows({
       trials: [trial],
       trialClasses: { 'trial-1': [trialClass('class-1', { status: 'Cancelled' })] },
-      releasedAtByClassId: new Map(),
+      releasedAtByClassId: new Map([['class-1', null]]),
       paperworkByClassId: new Map(),
       entries: [scored('e-1', 'class-1')],
     });
@@ -176,7 +189,7 @@ describe('buildResultsClassRows', () => {
     expect(row?.phase).toBe('cancelled');
   });
 
-  it('walks a finished class through release and print using the class store stamp and the paperwork map', () => {
+  it('walks a finished class through release and print using the class-row release stamp and the paperwork map', () => {
     const base = {
       trials: [trial],
       trialClasses: { 'trial-1': [trialClass('class-1')] },
@@ -202,7 +215,7 @@ describe('buildResultsClassRows', () => {
       paperworkByClassId: ReadonlyMap<string, readonly SecretaryCockpitPaperwork[]>
     ) => buildResultsClassRows({ ...base, releasedAtByClassId, paperworkByClassId })[0]?.phase;
 
-    expect(phase(new Map(), printed)).toBe('ready-to-release');
+    expect(phase(new Map([['class-1', null]]), printed)).toBe('ready-to-release');
     expect(phase(released, new Map())).toBe('released');
     expect(phase(released, stale)).toBe('released');
     expect(phase(released, printed)).toBe('done');
@@ -224,7 +237,7 @@ describe('buildResultsClassRows', () => {
         ],
         'trial-2': [trialClass('sunday')],
       },
-      releasedAtByClassId: new Map(),
+      releasedAtByClassId: new Map([['class-1', null]]),
       paperworkByClassId: new Map(),
       entries: [],
     });
@@ -269,7 +282,7 @@ describe('handler display (the canonical handler_identity projection)', () => {
     buildResultsClassRows({
       trials: [trial],
       trialClasses: { 'trial-1': [trialClass('class-1')] },
-      releasedAtByClassId: new Map(),
+      releasedAtByClassId: new Map([['class-1', null]]),
       paperworkByClassId: new Map(),
       entries: [scored('e1', 'class-1', fields)],
     })[0]?.entries[0]?.handlerName;

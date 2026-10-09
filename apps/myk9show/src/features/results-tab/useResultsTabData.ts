@@ -3,8 +3,9 @@
  *
  * This hook assembles nothing itself. Every part is a shared builder:
  *  - the schedule: the replicated trial store (`useShowDeskScheduleRead`, Overview);
- *  - release stamps: the replicated class store (`ResultsControlPage`). The store reports no read
- *    status of its own, so it cannot contribute a failure here;
+ *  - release stamps: `results_released_at` on the same full class rows the paperwork fingerprints
+ *    use (`useShowClassRows`, replication-backed). That read is CRITICAL: a failed or unsettled
+ *    one is never "nothing is released", and a class with no row is unknown, not unreleased;
  *  - the dogs, scores and handler names: `useSecretaryShowEntriesQuery`, the cache the class page's
  *    staff run sheet reads, whose rows carry the canonical `handler_identity`;
  *  - print state: `useShowClassPaperwork`, the class rows Reports fingerprints plus the replicated
@@ -22,7 +23,6 @@ import { getCockpitReportHref } from '@/features/show-map/cockpit/cockpitRoutes'
 import { useShowClassPaperwork } from '@/features/show-map/cockpit/useShowClassPaperwork';
 import { getShowDeskEntriesAvailability } from '@/pages/secretary/showDeskEntryAvailability';
 import { useShowDeskScheduleRead } from '@/pages/secretary/useShowDeskScheduleRead';
-import { useClassStore } from '@/store/classStore';
 import { buildResultsClassRows, type ResultsClassRow } from './buildResultsClassRows';
 
 const NO_ENTRIES: never[] = [];
@@ -32,7 +32,6 @@ export type ResultsTabReadState = CombinedReadState;
 export function useResultsTabData(showId: string) {
   const location = useLocation();
   const schedule = useShowDeskScheduleRead();
-  const { classes: storeClasses } = useClassStore();
   const entriesQuery = useSecretaryShowEntriesQuery(showId, Boolean(showId));
   const { entriesKnown } = getShowDeskEntriesAvailability({
     data: entriesQuery.data,
@@ -68,8 +67,11 @@ export function useResultsTabData(showId: string) {
   });
 
   const releasedAtByClassId = useMemo(
-    () => new Map(storeClasses.map(cls => [cls.id, cls.results_released_at ?? null] as const)),
-    [storeClasses]
+    () =>
+      new Map(
+        (paperwork.classRows ?? []).map(cls => [cls.id, cls.results_released_at ?? null] as const)
+      ),
+    [paperwork.classRows]
   );
 
   const rows = useMemo<ResultsClassRow[]>(
@@ -116,6 +118,10 @@ export function useResultsTabData(showId: string) {
       isError: entriesQuery.isError,
     },
     ...paperwork.reads,
+    // Release state is read from the class rows; without them every class would read unreleased.
+    ...paperwork.reads
+      .filter(read => read.key === 'class-rows')
+      .map(read => ({ ...read, key: 'release-state', critical: true })),
   ]);
 
   return {

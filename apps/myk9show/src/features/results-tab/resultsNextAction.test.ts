@@ -21,6 +21,17 @@ const state = (overrides: Partial<ResultsClassState>): ResultsClassState => ({
 });
 
 describe('deriveResultsNextAction', () => {
+  it('a complete class whose release state is unknown offers no Release and is not "needs me"', () => {
+    const unknown = state({ scoredCount: 8, releasedAt: undefined });
+    expect(deriveResultsPhase(unknown)).toBe('release-unknown');
+    expect(deriveResultsNextAction(unknown).kind).toBe('none');
+    expect(matchesResultsStatusFilter('release-unknown', 'needs-me')).toBe(false);
+    expect(matchesResultsStatusFilter('release-unknown', 'ready-to-release')).toBe(false);
+    expect(deriveResultsPhase(state({ scoredCount: 8, releasedAt: null }))).toBe(
+      'ready-to-release'
+    );
+  });
+
   it('not started: links to Overview', () => {
     expect(deriveResultsPhase(base)).toBe('not-started');
     expect(deriveResultsNextAction(base)).toEqual({ kind: 'overview', label: 'Overview' });

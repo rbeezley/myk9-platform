@@ -34,41 +34,69 @@ export function PageHeader({
   showTitle = false,
   omitTitle = false,
 }: PageHeaderProps) {
+  // Ancestors folded into "…" below `sm`: everything before the immediate parent.
+  const foldCount = Math.max(0, breadcrumbs.length - 2);
   return (
     <div className={cn('space-y-1', className)}>
       {!showTitle && !omitTitle && <h1 className="sr-only">{title}</h1>}
       {/* Wrap, don't overflow: on phones the actions drop below the
           breadcrumb instead of pushing the page into a horizontal pan. */}
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+        {/* min-w-0 down the chain lets a long trail truncate instead of widening
+            the page (MYK9-1065); middle crumbs shrink first, labels keep their
+            full text in `title`, and below `sm` all but the parent fold into "…". */}
         <nav
           aria-label="Breadcrumb"
-          className="flex items-center gap-1.5 text-sm text-muted-foreground"
+          className="flex min-w-0 max-w-full items-center gap-1.5 text-sm text-muted-foreground"
         >
           {/* -my-2 keeps the breadcrumb row its original height while giving the
               only tap target in it a 44px box instead of the old 24px. */}
           <Link
             to="/"
             aria-label="Home"
-            className="-my-2 inline-flex h-11 w-11 items-center justify-center rounded-lg transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="-my-2 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lg transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             <Home className="h-4 w-4" />
           </Link>
-          {breadcrumbs.map((item, i) => (
-            <span key={item.href} className="flex items-center gap-1.5">
-              <ChevronRight className="h-3.5 w-3.5" />
-              {i === breadcrumbs.length - 1 ? (
-                <span className="text-foreground font-medium">{item.label}</span>
-              ) : (
-                <Link
-                  to={item.href}
-                  onClick={item.onClick}
-                  className="hover:text-foreground transition-colors"
-                >
-                  {item.label}
-                </Link>
-              )}
+          {foldCount > 0 && (
+            <span aria-hidden="true" className="flex shrink-0 items-center gap-1.5 sm:hidden">
+              <ChevronRight className="h-3.5 w-3.5" />…
             </span>
-          ))}
+          )}
+          {breadcrumbs.map((item, i) => {
+            const isLast = i === breadcrumbs.length - 1;
+            const isMiddle = i > 0 && !isLast;
+            return (
+              <span
+                key={item.href}
+                className={cn(
+                  'flex min-w-0 items-center gap-1.5',
+                  isMiddle && 'shrink-[3]',
+                  i < foldCount && 'hidden sm:flex'
+                )}
+              >
+                <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                {isLast ? (
+                  <span
+                    aria-current="page"
+                    title={item.label}
+                    className="truncate font-medium text-foreground"
+                  >
+                    {item.label}
+                  </span>
+                ) : (
+                  <Link
+                    to={item.href}
+                    onClick={item.onClick}
+                    title={item.label}
+                    className="truncate transition-colors hover:text-foreground"
+                  >
+                    {item.label}
+                  </Link>
+                )}
+              </span>
+            );
+          })}
         </nav>
         {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
       </div>

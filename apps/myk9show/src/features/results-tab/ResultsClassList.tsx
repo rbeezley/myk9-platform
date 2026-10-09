@@ -12,13 +12,21 @@ const PHASE_CHIP_CLASS: Partial<Record<ResultsClassPhase, string>> = {
   'needs-checking': 'border-warning/40 bg-warning/10 text-foreground',
   'ready-to-release': 'border-warning/40 bg-warning/10 text-foreground',
   released: 'border-primary/30 bg-primary/10 text-foreground',
+  'needs-initials': 'border-primary/30 bg-primary/10 text-foreground',
   done: 'border-success/40 bg-success/10 text-foreground',
 };
 
-export function ResultsStatusChip({ phase }: { phase: ResultsClassPhase }) {
+export function ResultsStatusChip({
+  phase,
+  label,
+}: {
+  phase: ResultsClassPhase;
+  /** The registry's wording where it differs from the phase's default (initials or signature). */
+  label?: string | undefined;
+}) {
   return (
     <Badge variant="outline" className={cn('whitespace-nowrap', PHASE_CHIP_CLASS[phase])}>
-      {RESULTS_PHASE_LABEL[phase]}
+      {label ?? RESULTS_PHASE_LABEL[phase]}
     </Badge>
   );
 }
@@ -88,7 +96,7 @@ export function ResultsClassList({
                   {row.scoredCount} / {row.expectedCount}
                 </span>
               </span>
-              <ResultsStatusChip phase={row.phase} />
+              <ResultsStatusChip phase={row.phase} label={row.phaseLabel} />
             </div>
           </li>
         );

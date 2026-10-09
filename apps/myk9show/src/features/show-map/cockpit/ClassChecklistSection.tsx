@@ -1,7 +1,6 @@
 import { CheckCircle2, CircleHelp, Clock3, RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { getCockpitResultsControlHref, getShowHomeHref } from './cockpitRoutes';
 import { CockpitPaperworkRow } from './CockpitPaperworkRow';
@@ -28,14 +27,7 @@ function StateIcon({ state }: { state: ClassChecklistState }) {
   return <Clock3 className="h-4 w-4 text-muted-foreground" aria-hidden="true" />;
 }
 
-function ChecklistStepRow({
-  item,
-  onCommand,
-}: {
-  item: ClassChecklistItem;
-  onCommand: (commandId: string) => void;
-}) {
-  const command = item.command;
+function ChecklistStepRow({ item }: { item: ClassChecklistItem }) {
   return (
     <div
       className={cn(
@@ -57,22 +49,7 @@ function ChecklistStepRow({
           item.label
         )}
       </div>
-      <div className="flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">
-          {item.detail ?? STATE_TEXT[item.state]}
-        </span>
-        {command && (
-          <Button
-            type="button"
-            variant="outline"
-            size="touch"
-            aria-label={`${command.label} — ${item.label}`}
-            onClick={() => onCommand(command.commandId)}
-          >
-            {command.label}
-          </Button>
-        )}
-      </div>
+      <span className="text-xs text-muted-foreground">{item.detail ?? STATE_TEXT[item.state]}</span>
     </div>
   );
 }
@@ -90,7 +67,7 @@ export function ClassChecklistSection({
   timeZone: string;
   onCommand: (commandId: string) => void;
 }) {
-  // MYK9-1032: preliminary results, ribbon labels and initials link to the class on Results.
+  // MYK9-1032/1031: preliminary results, ribbon labels and the judge's sign-off link to the class on Results.
   const resultsHref = getCockpitResultsControlHref({
     showId,
     trialId: sourceClass.trialId,
@@ -131,7 +108,7 @@ export function ClassChecklistSection({
                     onCommand={onCommand}
                   />
                 ) : (
-                  <ChecklistStepRow item={item} onCommand={onCommand} />
+                  <ChecklistStepRow item={item} />
                 )}
               </li>
             ))}

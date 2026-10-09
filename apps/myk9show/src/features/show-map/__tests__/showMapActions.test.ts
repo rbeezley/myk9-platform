@@ -865,8 +865,8 @@ describe('showMapActions', () => {
         expect.objectContaining({
           id: 'collect-judge-signature',
           nodeId: 'class:class-needs-signature',
-          // Deferred to MYK9-1031 part 2: Results has no Result Catalog print yet, so this stays.
-          href: '/shows/show-1/reports?report=result-catalog&trialId=trial-1&classId=class-needs-signature',
+          // MYK9-1031: the sign-off is recorded on Results, so the action links to the class there.
+          href: '/shows/show-1/results?trialId=trial-1&classId=class-needs-signature',
           createsAttention: true,
         }),
       ])

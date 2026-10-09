@@ -3,11 +3,7 @@ import type { ShowMapAction, ShowMapActionId } from './showMapActions';
 export type ShowMapActionDialogKey = 'move-up-entry' | 'scratch-entry' | 'message-handler';
 
 export type ShowMapActionMutationKey =
-  | 'mark-checked-in'
-  | 'mark-class-started'
-  | 'mark-class-complete'
-  | 'record-judge-sign-off'
-  | 'clear-judge-sign-off';
+  'mark-checked-in' | 'mark-class-started' | 'mark-class-complete';
 
 export type ShowMapActionExecution =
   | {
@@ -66,17 +62,6 @@ export const showMapActionExecutionById = {
   'open-schedule': { kind: 'navigate' },
   'print-trial-reports': { kind: 'navigate' },
   'collect-judge-signature': { kind: 'navigate' },
-  // MYK9-1030: the toasts carry registry wording, so the executor writes them.
-  'record-judge-sign-off': {
-    kind: 'mutation',
-    mutation: 'record-judge-sign-off',
-    successMessage: 'Sign-off recorded',
-  },
-  'clear-judge-sign-off': {
-    kind: 'mutation',
-    mutation: 'clear-judge-sign-off',
-    successMessage: 'Sign-off removed',
-  },
   'review-results': { kind: 'navigate' },
   'submit-final-results': { kind: 'navigate' },
   'mark-checked-in': {

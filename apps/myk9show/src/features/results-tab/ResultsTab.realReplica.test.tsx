@@ -34,7 +34,7 @@ const trial = {
   status: 'Scheduled',
   ...SYNC,
 } as SyncableTrial;
-const scheduleClass = (id: string, level: string) =>
+const scheduleClass = (id: string, level: string, judgeSignedOffAt: string | null = null) =>
   ({
     id,
     element: 'Containers',
@@ -45,6 +45,7 @@ const scheduleClass = (id: string, level: string) =>
     startTime: '09:00',
     status: 'Completed',
     entries: 0,
+    judgeSignedOffAt,
     ...SYNC,
   }) as SyncableTrialClass;
 
@@ -72,7 +73,10 @@ beforeEach(async () => {
   mocks.schedule = {
     trials: [trial],
     trialClasses: {
-      'trial-1': [scheduleClass('class-released', 'Novice'), scheduleClass('class-open', 'Open')],
+      'trial-1': [
+        scheduleClass('class-released', 'Novice', '2026-10-10T21:00:00Z'),
+        scheduleClass('class-open', 'Open'),
+      ],
     },
     hasConfirmedSnapshot: true,
     readFailed: false,

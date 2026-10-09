@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { ArrowRight, CheckCircle2, ListChecks } from 'lucide-react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 
 import { LoadingSkeleton } from '@/components/common/LoadingSkeleton';
@@ -8,11 +8,14 @@ import { MASTER_DETAIL_QUERY, MasterDetailLayout } from '@/components/layout/Mas
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { getTrialTimezone } from '@/features/registries';
+import { useJudgeSignOffMutations } from '@/features/show-map/useJudgeSignOffMutations';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useReleaseResults } from '@/hooks/mutations/useReleaseResults';
 import type { ResultsClassRow } from './buildResultsClassRows';
 import { ResultsClassDetail } from './ResultsClassDetail';
 import { ResultsClassList } from './ResultsClassList';
+import { ResultsJudgeSignOff } from './ResultsJudgeSignOff';
+import { buildJudgeSignOffGroup } from './judgeSignOffGroup';
 import { ResultsTabToolbar } from './ResultsTabToolbar';
 import { ResultsVisibilitySheet } from './ResultsVisibilitySheet';
 import { matchesResultsStatusFilter } from './resultsNextAction';
@@ -38,10 +41,15 @@ function rowMatchesSearch(row: ResultsClassRow, rawQuery: string): boolean {
   );
 }
 
-/** Every class that ran has been released: time to point at Submit and Close. */
-function everyClassReleased(rows: readonly ResultsClassRow[]): boolean {
+/**
+ * Every class that ran has been released and the judge has signed off on it: time to point at
+ * Submit and Close.
+ */
+function everyClassReleasedAndInitialed(rows: readonly ResultsClassRow[]): boolean {
   const ran = rows.filter(row => row.phase !== 'cancelled' && row.phase !== 'no-dogs');
-  return ran.length > 0 && ran.every(row => row.phase === 'released' || row.phase === 'done');
+  return (
+    ran.length > 0 && ran.every(row => Boolean(row.releasedAt) && row.judgeSignedOffAt !== null)
+  );
 }
 
 /**
@@ -60,6 +68,8 @@ export default function ResultsTab() {
   const { rows, trials, readState, retry, refreshFailed, paperworkAvailable } =
     useResultsTabData(showId);
   const release = useReleaseResults();
+  const { pathname, search } = useLocation();
+  const judgeSignOff = useJudgeSignOffMutations();
   const isWide = useMediaQuery(MASTER_DETAIL_QUERY);
   const [visibilityOpen, setVisibilityOpen] = useState(false);
   const timeZone = getTrialTimezone(trials[0]);
@@ -87,6 +97,11 @@ export default function ResultsTab() {
     [rows, state.classId, state.search, state.status, state.trialId]
   );
   const selected = rows.find(row => row.id === state.classId) ?? null;
+
+  const judgeGroup = useMemo(
+    () => (selected?.runFinished ? buildJudgeSignOffGroup(showId, rows, selected.id) : null),
+    [rows, selected, showId]
+  );
 
   const handleRelease = (classId: string) =>
     release.mutate(
@@ -169,6 +184,21 @@ export default function ResultsTab() {
       releasing={release.isPending}
       onRelease={() => handleRelease(selected.id)}
       onRetry={retry}
+      judgeSignOffSlot={
+        judgeGroup ? (
+          <ResultsJudgeSignOff
+            group={judgeGroup}
+            returnTo={`${pathname}${search}`}
+            pending={judgeSignOff.isPending}
+            onRecord={classIds =>
+              judgeSignOff.recordSignOff({ classIds, registryId: judgeGroup.registryId })
+            }
+            onUndo={classId =>
+              judgeSignOff.clearSignOff({ classIds: [classId], registryId: judgeGroup.registryId })
+            }
+          />
+        ) : null
+      }
     />
   ) : isWide ? (
     <div className="flex h-full min-h-64 flex-col items-center justify-center gap-2 text-center text-muted-foreground">
@@ -191,10 +221,10 @@ export default function ResultsTab() {
           </AlertDescription>
         </Alert>
       )}
-      {everyClassReleased(rows) && (
+      {everyClassReleasedAndInitialed(rows) && (
         <Alert>
           <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-          <AlertTitle>Every class is released</AlertTitle>
+          <AlertTitle>Every class is released and signed off</AlertTitle>
           <AlertDescription className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <span>Next: submit the results to the registry, then close the show.</span>
             <Link

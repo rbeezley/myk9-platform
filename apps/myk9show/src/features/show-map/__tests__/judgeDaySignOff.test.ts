@@ -86,7 +86,6 @@ describe("judge's end-of-day sign-off (MYK9-1030)", () => {
       kind: 'neutral',
     });
     expect(actionIds(tree, 'c1')).not.toContain('collect-judge-signature');
-    expect(actionIds(tree, 'c1')).not.toContain('record-judge-sign-off');
     expect(getAttentionActions('root', { tree })).toEqual([]);
     const signals = computeShowDeskPendingSignals({ showId: 'show-1', tree, entries: [] });
     expect(signals.find(s => s.id === 'classes-needing-signature')).toBeUndefined();
@@ -111,24 +110,16 @@ describe("judge's end-of-day sign-off (MYK9-1030)", () => {
       label: "2 classes need judge's initials",
     });
 
-    const record = getDirectActionsForNode(tree.nodesById['class:c1']!, { tree }).find(
-      a => a.id === 'record-judge-sign-off'
-    );
-    expect(record).toMatchObject({
-      label: 'Record initials: Jane Smith, Sat, Oct 10',
-      classIds: ['c1', 'c2'],
-      registryId: 'AKC',
-      createsAttention: true,
-    });
+    // The sign-off itself is recorded on Results (MYK9-1031): Overview only links there.
+    expect(actionIds(tree, 'c1')).not.toContain('record-judge-sign-off');
     const collect = getDirectActionsForNode(tree.nodesById['class:c2']!, { tree }).find(
       a => a.id === 'collect-judge-signature'
     );
-    expect(collect?.href).toBe(
-      '/shows/show-1/reports?report=result-catalog&trialId=trial-1&classId=c2'
-    );
+    expect(collect).toMatchObject({ label: "Collect judge's initials", createsAttention: true });
+    expect(collect?.href).toBe('/shows/show-1/results?trialId=trial-1&classId=c2');
   });
 
-  it('reads the registry done wording once signed, and offers only the per-class undo', () => {
+  it('reads the registry done wording once signed, with nothing left to do on Overview', () => {
     const signed = { judgeSignedOffAt: '2026-10-10T21:00:00Z' };
     const tree = build({
       trials: [trial('trial-1', SATURDAY, 'UKC')],
@@ -143,7 +134,8 @@ describe("judge's end-of-day sign-off (MYK9-1030)", () => {
       label: 'Signed by judge',
       kind: 'neutral',
     });
-    expect(actionIds(tree, 'c1')).toContain('clear-judge-sign-off');
+    // Undo lives on Results too: Overview offers neither action.
+    expect(actionIds(tree, 'c1')).not.toContain('clear-judge-sign-off');
     expect(actionIds(tree, 'c1')).not.toContain('record-judge-sign-off');
     expect(getAttentionActions('root', { tree }).map(a => a.id)).not.toContain(
       'collect-judge-signature'
@@ -192,10 +184,8 @@ describe("judge's end-of-day sign-off (MYK9-1030)", () => {
       trials: [trial('trial-1', SATURDAY), trial('trial-2', SATURDAY)],
       classes: [cls('c1', 'trial-1', 'Completed'), cls('c2', 'trial-2', 'Completed')],
     });
-    const record = getDirectActionsForNode(done.nodesById['class:c2']!, { tree: done }).find(
-      a => a.id === 'record-judge-sign-off'
-    );
-    expect(record?.classIds).toEqual(['c1', 'c2']);
+    expect(wrapUp(done, 'c1')?.value).toBe(SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE);
+    expect(wrapUp(done, 'c2')?.value).toBe(SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE);
   });
 
   it("keeps two judges' days apart on one date", () => {
@@ -210,10 +200,7 @@ describe("judge's end-of-day sign-off (MYK9-1030)", () => {
 
     // Jane is done for the day even though Raj is still judging.
     expect(wrapUp(tree, 'c1')?.value).toBe(SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE);
-    const record = getDirectActionsForNode(tree.nodesById['class:c1']!, { tree }).find(
-      a => a.id === 'record-judge-sign-off'
-    );
-    expect(record?.classIds).toEqual(['c1']);
+    expect(wrapUp(tree, 'c2')).toBeUndefined();
   });
 
   it("does not hold Saturday's classes for the same judge's Sunday", () => {
@@ -236,7 +223,7 @@ describe("judge's end-of-day sign-off (MYK9-1030)", () => {
     expect(wrapUp(tree, 'c1')?.value).toBe(SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE);
   });
 
-  it('says "at end of day" on the checklist, and offers Undo once signed', () => {
+  it('says "at end of day" on the checklist, and reads done (no Undo here) once signed', () => {
     expect(
       buildClassChecklist({
         lifecycle: 'complete',
@@ -266,10 +253,7 @@ describe("judge's end-of-day sign-off (MYK9-1030)", () => {
       buildClassChecklist({ ...sourceClass, paperwork: [] }).find(
         item => item.id === 'judge-signature'
       )
-    ).toMatchObject({
-      state: 'done',
-      command: { commandId: 'clear-judge-sign-off:class:c1', label: 'Undo initials' },
-    });
+    ).toEqual({ id: 'judge-signature', label: "Judge's initials collected", state: 'done' });
   });
 
   describe('a class the judge will never run does not hold the day open', () => {
@@ -285,10 +269,6 @@ describe("judge's end-of-day sign-off (MYK9-1030)", () => {
 
     const expectSignOffOffered = (tree: ShowMapTree) => {
       expect(wrapUp(tree, 'c1')).toEqual(NEEDS);
-      const record = getDirectActionsForNode(tree.nodesById['class:c1']!, { tree }).find(
-        a => a.id === 'record-judge-sign-off'
-      );
-      expect(record).toMatchObject({ classIds: ['c1'] });
       expect(actionIds(tree, 'c1')).toContain('collect-judge-signature');
     };
 
@@ -374,7 +354,7 @@ describe("judge's end-of-day sign-off (MYK9-1030)", () => {
         entries: [scored('c1')],
       });
       expect(wrapUp(tree, 'c1')?.value).toBe(AT_END);
-      expect(actionIds(tree, 'c1')).not.toContain('record-judge-sign-off');
+      expect(actionIds(tree, 'c1')).not.toContain('collect-judge-signature');
     });
   });
 });

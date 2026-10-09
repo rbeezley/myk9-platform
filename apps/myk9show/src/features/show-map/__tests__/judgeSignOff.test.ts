@@ -150,3 +150,17 @@ describe('judge sign-off wording by registry', () => {
     expect(signals.find(signal => signal.id === 'classes-needing-signature')?.label).toBe(label);
   });
 });
+
+describe('record action wording without a judge (MYK9-1031)', () => {
+  it('reads naturally when no judge is set, in both registries', () => {
+    expect(judgeSignOffWording('AKC').recordActionLabel(undefined, 'Mon, Nov 9')).toBe(
+      'Record initials: Mon, Nov 9'
+    );
+    expect(judgeSignOffWording('UKC').recordActionLabel('  ', 'Mon, Nov 9')).toBe(
+      'Record signature: Mon, Nov 9'
+    );
+    expect(judgeSignOffWording('AKC').recordActionLabel('Pat Donovan', '')).toBe(
+      'Record initials: Pat Donovan'
+    );
+  });
+});

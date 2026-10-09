@@ -35,8 +35,6 @@ export interface ClassChecklistItem {
    * Results, where the work is done, rather than offering print or sign-off controls here.
    */
   href?: string;
-  /** A command the item offers in place (the per-class undo of a judge's sign-off, MYK9-1030). */
-  command?: { commandId: string; label: string };
 }
 
 export interface ClassChecklistInput {
@@ -50,8 +48,6 @@ export interface ClassChecklistInput {
   registryId?: string | null | undefined;
   /** The class selected on the Results tab; set on the after-scoring items (MYK9-1032). */
   resultsHref?: string | null | undefined;
-  /** The ShowDeskPanel command that clears this class's recorded sign-off, when it has one. */
-  judgeSignOffUndoCommandId?: string | null | undefined;
 }
 
 const PRINT_STATE: Record<SecretaryCockpitPaperwork['state'], ClassChecklistState> = {
@@ -104,19 +100,19 @@ function withResultsHref(item: ClassChecklistItem, input: ClassChecklistInput): 
   return input.resultsHref ? { ...item, href: input.resultsHref } : item;
 }
 
+/**
+ * Status only on Overview (MYK9-1031): the judge's sign-off is recorded and undone on the class's
+ * Judge sign-off section on Results, which this item links to.
+ */
 function signatureItem(input: ClassChecklistInput, entriesKnown: boolean): ClassChecklistItem {
+  return withResultsHref(signatureStatus(input, entriesKnown), input);
+}
+
+function signatureStatus(input: ClassChecklistInput, entriesKnown: boolean): ClassChecklistItem {
   const wording = judgeSignOffWording(input.registryId);
   const base = { id: 'judge-signature' as const, label: wording.checklistLabel };
   const status = input.wrapUpStatus;
-  if (status && SIGNED.has(status)) {
-    return input.judgeSignOffUndoCommandId
-      ? {
-          ...base,
-          state: 'done',
-          command: { commandId: input.judgeSignOffUndoCommandId, label: wording.undoActionLabel },
-        }
-      : { ...base, state: 'done' };
-  }
+  if (status && SIGNED.has(status)) return { ...base, state: 'done' };
   if (status === SHOW_MAP_WRAP_UP_STATUS.JUDGE_SIGN_OFF_AT_END_OF_DAY) {
     // MYK9-1030: the judge signs off once their day is over; not a task yet.
     return { ...base, state: 'todo', detail: wording.checklistEndOfDayDetail };

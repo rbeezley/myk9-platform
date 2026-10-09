@@ -152,6 +152,18 @@ describe("judge's end-of-day sign-off (MYK9-1030)", () => {
     expect(wrapUp(tree, 'c1')?.value).toBe(SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE);
   });
 
+  it("a Completed class whose entries are all absent still needs the judge's initials", () => {
+    // Overview's wrap-up rule: only pulled or scratched entries mean "nothing to sign". The
+    // Results tab applies this same rule (buildResultsClassRows.test mirrors this case).
+    const tree = build({
+      trials: [trial('trial-1', SATURDAY)],
+      classes: [cls('c1', 'trial-1', 'Completed')],
+      entries: [{ id: 'e1', class_id: 'c1', entry_status: 'absent' }],
+    });
+
+    expect(wrapUp(tree, 'c1')?.value).toBe(SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE);
+  });
+
   it('keeps a class with only pulled or scratched entries at "Ready for wrap-up"', () => {
     const tree = build({
       trials: [trial('trial-1', SATURDAY)],

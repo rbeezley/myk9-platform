@@ -325,6 +325,35 @@ describe('buildResultsClassRows', () => {
       expect(done?.runFinished).toBe(true);
     });
 
+    // Same scenario as judgeDaySignOff.test on the Overview tree ("a Completed class whose entries
+    // are all absent still needs the judge's initials"): the rule is Overview's, applied here.
+    it('a Completed class whose entries are all absent still takes the sign-off (as on Overview)', () => {
+      const [row] = buildResultsClassRows({
+        trials: [trial],
+        trialClasses: { 'trial-1': [trialClass('class-1')] },
+        releasedAtByClassId: new Map([['class-1', null]]),
+        paperworkByClassId: new Map(),
+        entries: [entry('e-absent', 'class-1', { entry_status: 'absent' })],
+      });
+      expect(row).toMatchObject({
+        phase: 'no-dogs',
+        runFinished: true,
+        takesJudgeSignOff: true,
+        signOffRecordable: true,
+      });
+    });
+
+    it('a class with every entry pulled has nothing to sign, on both surfaces', () => {
+      const [row] = buildResultsClassRows({
+        trials: [trial],
+        trialClasses: { 'trial-1': [trialClass('class-1')] },
+        releasedAtByClassId: new Map([['class-1', null]]),
+        paperworkByClassId: new Map(),
+        entries: [entry('e-pulled', 'class-1', { check_in_status: 'pulled' })],
+      });
+      expect(row).toMatchObject({ takesJudgeSignOff: false, signOffRecordable: false });
+    });
+
     it('a class that is known empty does not hold the day open', () => {
       const [done, empty] = buildResultsClassRows({
         trials: [trial],

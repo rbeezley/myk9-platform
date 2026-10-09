@@ -17,6 +17,8 @@ import {
 import { isExpectedEntry } from '@/features/_shared/entryAccounting';
 import { isPendingEntryStatus } from '@/features/entry-operations/classEntryBreakdown';
 import { getTrialRegistry } from '@/features/registries';
+import { classifyClassWrapUpStatus } from '@/features/show-map/showMapStatus';
+import { SHOW_MAP_WRAP_UP_STATUS } from '@/features/show-map/showMapTypes';
 import { classifyJudgeDays } from '@/features/show-map/judgeDayStatus';
 import { judgeSignOffWording } from '@/features/show-map/judgeSignOff';
 import type { ShowMapClassInput, ShowMapEntryInput } from '@/features/show-map/showMapTypes';
@@ -74,8 +76,17 @@ export interface ResultsClassRow {
   judgeDayKey: string;
   /** Scoring is over for this class (or it never runs): it does not hold its judge's day open. */
   runFinished: boolean;
-  /** The server can record the judge's sign-off on it: its stored status is Completed. */
+  /**
+   * The class belongs in the judge's sign-off: Overview's own wrap-up rule
+   * (`classifyClassWrapUpStatus`) says it needs, awaits or has the sign-off, or it is still
+   * running and so holds its judge's day open. Cancelled classes, known-empty classes and classes
+   * with nothing to sign (every entry pulled or scratched) are not.
+   */
+  takesJudgeSignOff: boolean;
+  /** The server can record the sign-off on it: it takes one and its stored status is Completed. */
   signOffRecordable: boolean;
+  /** Finished and takes the sign-off, but not stored Completed: the server refuses until it is. */
+  signOffNeedsCompletion: boolean;
   state: ResultsClassState;
   phase: ResultsClassPhase;
   /** The phase's label, in the registry's wording where it differs (initials or signature). */
@@ -279,18 +290,25 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
     list.push(entry as unknown as ShowMapEntryInput);
     allEntriesByClass.set(entry.class_id, list);
   }
+  const classInputs = new Map(
+    drafts.map(({ cls, trial, tally }) => {
+      const classInput: ShowMapClassInput = {
+        id: cls.id,
+        trialId: trial.id,
+        name: cls.name ?? '',
+        judgeName: cls.judgeName,
+        judgeId: cls.judgeId,
+        judgeSignedOffAt: cls.judgeSignedOffAt ?? null,
+        status: cls.status,
+        entryCount: tally?.total ?? 0,
+        scoredCount: tally?.scored ?? 0,
+        runListCount: tally?.runList ?? 0,
+      };
+      return [cls.id, classInput] as const;
+    })
+  );
   const judgeDays = classifyJudgeDays(
-    drafts.map(({ cls, trial, tally }): ShowMapClassInput => ({
-      id: cls.id,
-      trialId: trial.id,
-      name: cls.name ?? '',
-      judgeName: cls.judgeName,
-      judgeId: cls.judgeId,
-      status: cls.status,
-      entryCount: tally?.total ?? 0,
-      scoredCount: tally?.scored ?? 0,
-      runListCount: tally?.runList ?? 0,
-    })),
+    [...classInputs.values()],
     allEntriesByClass,
     new Map(input.trials.map(trial => [trial.id, trial.trialDate] as const))
   );
@@ -313,6 +331,19 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
     const paperwork = classPaperwork(input, cls.id, trial.id);
     const classEntries = (entriesByClass.get(cls.id) ?? []).map(toEntryRow).sort(placementSort);
     const runFinished = day?.finished ?? false;
+    // Who takes a sign-off is Overview's wrap-up rule, not a filter of Results' own: a Completed
+    // class whose entries are all absent still needs initials there, so it does here.
+    const wrapUp = classifyClassWrapUpStatus(
+      classInputs.get(cls.id)!,
+      allEntriesByClass.get(cls.id) ?? [],
+      { registryId, judgeDayOpen: state.judgeDayOpen === true }
+    )?.value;
+    const takesJudgeSignOff =
+      phase !== 'cancelled' &&
+      (!runFinished ||
+        wrapUp === SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE ||
+        wrapUp === SHOW_MAP_WRAP_UP_STATUS.JUDGE_SIGN_OFF_AT_END_OF_DAY ||
+        wrapUp === SHOW_MAP_WRAP_UP_STATUS.SIGNED_BY_JUDGE);
     return {
       id: cls.id,
       trialId: trial.id,
@@ -330,7 +361,9 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
       judgeId: cls.judgeId ?? '',
       judgeDayKey: day?.dayKey ?? `class:${cls.id}`,
       runFinished,
-      signOffRecordable: runFinished && isCompletedStatus(cls.status),
+      takesJudgeSignOff,
+      signOffRecordable: runFinished && takesJudgeSignOff && isCompletedStatus(cls.status),
+      signOffNeedsCompletion: runFinished && takesJudgeSignOff && !isCompletedStatus(cls.status),
       state,
       phase,
       phaseLabel:

@@ -50,7 +50,6 @@ export interface ResultsClassState {
 export type ResultsClassPhase =
   | 'not-started'
   | 'in-ring'
-  | 'ready-to-complete'
   | 'needs-checking'
   | 'ready-to-release'
   | 'release-unknown'
@@ -84,10 +83,6 @@ export function deriveResultsPhase(state: ResultsClassState): ResultsClassPhase 
   if (state.scoredCount < state.expectedCount) {
     return state.scoredCount > 0 || status === CLASS_STATUS.IN_PROGRESS ? 'in-ring' : 'not-started';
   }
-  // Every dog is scored but the class was never marked Completed: a manually started class does
-  // not complete itself, and the judge's sign-off (like any check) needs a Completed class. The
-  // step is Mark Class Complete, which lives on Overview.
-  if (status !== CLASS_STATUS.COMPLETED) return 'ready-to-complete';
   if (state.releasedAt === undefined) return 'release-unknown';
   if (state.releasedAt) {
     if (state.paperworkPrinted !== true) return 'released';
@@ -101,7 +96,6 @@ export function deriveResultsPhase(state: ResultsClassState): ResultsClassPhase 
 const NEXT_ACTION_BY_PHASE: Record<ResultsClassPhase, ResultsNextAction> = {
   'not-started': { kind: 'overview', label: 'Overview' },
   'in-ring': { kind: 'overview', label: 'Overview' },
-  'ready-to-complete': { kind: 'overview', label: 'Mark complete' },
   'needs-checking': { kind: 'verify', label: 'Check scores' },
   'ready-to-release': { kind: 'release', label: 'Release' },
   'release-unknown': { kind: 'none', label: 'Status unknown' },
@@ -120,7 +114,6 @@ export function deriveResultsNextAction(state: ResultsClassState): ResultsNextAc
 export const RESULTS_PHASE_LABEL: Record<ResultsClassPhase, string> = {
   'not-started': 'Not started',
   'in-ring': 'In the ring',
-  'ready-to-complete': 'Ready to complete',
   'needs-checking': 'Needs checking',
   'ready-to-release': 'Ready to release',
   'release-unknown': 'Release status unknown',
@@ -143,7 +136,6 @@ export const DEFAULT_RESULTS_STATUS_FILTER: ResultsStatusFilterId = 'needs-me';
 export const RESULTS_VERIFICATION_TRACKED = false;
 
 const NEEDS_ME: ReadonlySet<ResultsClassPhase> = new Set([
-  'ready-to-complete',
   'needs-checking',
   'ready-to-release',
   'released',

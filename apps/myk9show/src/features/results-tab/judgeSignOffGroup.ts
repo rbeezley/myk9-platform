@@ -63,9 +63,7 @@ export function buildJudgeSignOffGroup(
   const selected = rows.find(row => row.id === classId);
   if (!selected) return null;
   const dayRows = rows.filter(row => row.judgeDayKey === selected.judgeDayKey);
-  const members = dayRows.filter(
-    row => row.phase !== 'cancelled' && !(row.phase === 'no-dogs' && row.runFinished)
-  );
+  const members = dayRows.filter(row => row.takesJudgeSignOff);
   if (members.length === 0) return null;
 
   const classes = members.map((row): JudgeSignOffGroupClass => ({
@@ -73,7 +71,7 @@ export function buildJudgeSignOffGroup(
     name: row.name,
     trialLabel: row.trialLabel,
     runFinished: row.runFinished,
-    needsCompletion: row.phase === 'ready-to-complete',
+    needsCompletion: row.signOffNeedsCompletion && row.judgeSignedOffAt === null,
     signedOffAt: row.judgeSignedOffAt,
     recordable: row.signOffRecordable && row.judgeSignedOffAt === null,
   }));

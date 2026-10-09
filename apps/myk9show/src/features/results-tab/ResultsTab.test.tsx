@@ -232,6 +232,8 @@ describe('ResultsTab list', () => {
       ...row,
       judgeSignedOffAt: '2026-10-10T21:00:00Z',
       releasedAt: row.releasedAt ?? '2026-10-10T16:00:00Z',
+      // Every class released, printed and initialed: the phase a finished class settles in.
+      phase: 'done' as const,
     }));
     hook.value = { ...hook.value, rows: initialed };
     renderAt();
@@ -245,6 +247,29 @@ describe('ResultsTab list', () => {
       'href',
       '/shows/show-1/results?step=close'
     );
+  });
+
+  it('holds the banner back when a released, signed class has been reopened by a late entry', () => {
+    const rows = buildResultsClassRows({
+      trials: [trial],
+      trialClasses: {
+        'trial-1': [
+          { ...level('c1', 'Novice', '08:00'), judgeSignedOffAt: '2026-10-10T21:00:00Z' },
+        ],
+      },
+      releasedAtByClassId: new Map([['c1', '2026-10-10T16:00:00Z']]),
+      paperworkByClassId: new Map(),
+      // The class was complete when released and signed; a new entry arrived unscored.
+      entries: [
+        entry('e1', 'c1'),
+        entry('e2', 'c1', { is_scored: false, result_status: 'pending' }),
+      ],
+    });
+    expect(rows[0]).toMatchObject({ phase: 'in-ring' });
+    hook.value = { ...hook.value, rows };
+    renderAt();
+
+    expect(screen.queryByText('Every class is released and signed off')).not.toBeInTheDocument();
   });
 
   it('holds the banner back while a released class still waits for the judge', () => {
@@ -342,22 +367,6 @@ describe('ResultsTab detail', () => {
 });
 
 describe('ResultsTab judge sign-off: classes not marked complete', () => {
-  it('routes a fully scored but not Completed class to Mark complete, from the list and the card', () => {
-    media.wide = true;
-    hook.value = { ...hook.value, rows: buildRows({ readyStatus: 'In Progress' }) };
-    renderAt('?status=all&classId=class-ready');
-
-    expect(screen.getByText('Mark the class complete')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Mark complete on Overview/ })).toHaveAttribute(
-      'href',
-      '/shows/show-1?focus=class-ready'
-    );
-    expect(
-      screen.getByRole('link', { name: 'Mark complete: Containers Novice' })
-    ).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Release results' })).not.toBeInTheDocument();
-  });
-
   it('shows the section row as "Mark complete first" with the link, instead of hiding Record silently', () => {
     hook.value = { ...hook.value, rows: buildRows({ dayOver: true, readyStatus: 'In Progress' }) };
     renderAt('?status=all&classId=class-done');

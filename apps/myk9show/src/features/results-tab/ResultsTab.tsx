@@ -48,7 +48,15 @@ function rowMatchesSearch(row: ResultsClassRow, rawQuery: string): boolean {
 function everyClassReleasedAndInitialed(rows: readonly ResultsClassRow[]): boolean {
   const ran = rows.filter(row => row.phase !== 'cancelled' && row.phase !== 'no-dogs');
   return (
-    ran.length > 0 && ran.every(row => Boolean(row.releasedAt) && row.judgeSignedOffAt !== null)
+    ran.length > 0 &&
+    // Currently complete (a late entry reopens a released, signed class: it is in the ring again)
+    // AND released AND signed off.
+    ran.every(
+      row =>
+        (row.phase === 'released' || row.phase === 'done') &&
+        Boolean(row.releasedAt) &&
+        row.judgeSignedOffAt !== null
+    )
   );
 }
 

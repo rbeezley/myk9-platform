@@ -18,6 +18,10 @@ import {
   type CheckoutSessionResolution,
 } from '../_shared/priorCheckoutSession.ts';
 import { showOnlineEntryRefusal } from '../_shared/showOnlineEntryGate.ts';
+import {
+  cartOwnerAddressRefusal,
+  type OwnerAddressGateLine,
+} from '../_shared/cartOwnerAddressGate.ts';
 import { formatStatementDescriptorSuffix } from '../_shared/statementDescriptor.ts';
 import {
   cartHasBlockedClass,
@@ -406,6 +410,15 @@ async function handleEntryCheckout(
     return corsResponse(corsHeaders, { error: 'Unauthorized access to cart' }, 403);
   }
 
+  // MYK9-1010: an AKC line needs its owner's full address (the marked catalog
+  // prints it). Refused here, before the lease and before any Checkout Session
+  // call: the entry is created only after payment, and refusing there would
+  // be a charge with no entry (MYK9-963).
+  const addressRefusal = cartOwnerAddressRefusal(owned.items as OwnerAddressGateLine[]);
+  if (addressRefusal) {
+    return corsResponse(corsHeaders, addressRefusal, 422);
+  }
+
   // MYK9-1012: one checkout per cart at a time. Everything below (retiring or
   // reusing the old page, holding spots, opening and linking the new page)
   // runs under this request's lease, and a second Pay on the same cart is
@@ -460,11 +473,15 @@ function loadCheckoutCart(cartId: string) {
           junior_fee_declared,
           jump_height,
           special_requests,
-          dog:dogs(call_name),
+          dog:dogs(
+            call_name,
+            owner:people!dogs_owner_id_fkey(street_address, city, state, zip_code)
+          ),
           class:classes(
             name,
             entry_fee,
             trial:trials(
+              registry_id,
               show:shows(name)
             )
           )

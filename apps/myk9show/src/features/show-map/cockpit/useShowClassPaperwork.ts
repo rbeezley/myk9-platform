@@ -102,9 +102,19 @@ export function useShowClassPaperwork(input: {
   return {
     byClassId,
     available,
-    /** The settled full class rows (carry `results_released_at`); undefined until read. */
+    /**
+     * The full class rows (carry `results_released_at` and, MYK9-1031, the paper check);
+     * undefined until read.
+     */
     classRows: classFacts.data as
-      readonly { id: string; results_released_at?: string | null }[] | undefined,
+      | readonly {
+          id: string;
+          results_released_at?: string | null;
+          results_verified_at?: string | null;
+          results_verified_by?: string | null;
+          results_verified_fingerprint?: string | null;
+        }[]
+      | undefined,
     reads,
     /** Refetches the class rows and re-syncs the print confirmations. */
     refetch: () => {

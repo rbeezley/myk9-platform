@@ -26,6 +26,13 @@ import {
 } from './resolveClassVisibility';
 import { resolveHideCountsForClassRows } from './resolveClassHideCounts';
 import { resolveJudgeNamesForClassRows } from './resolveClassJudgeNames';
+import {
+  CLEAR_RESULTS_VERIFIED_RPC,
+  MARK_RESULTS_VERIFIED_RPC,
+  keepLocalResultsFingerprint,
+  nextResultsVerifiedFields,
+  type ResultsVerifiedStamp,
+} from './classResultsVerified';
 import { resolveClassJudgeFields } from '@/services/database/_shared/classJudgeFields';
 import type { JudgeNameParts } from '@/services/database/_shared/judgeNamesByClass';
 import { CLASS_AUTHENTICATED_COLUMN_SELECT } from '@/services/database/classes/reads';
@@ -135,6 +142,16 @@ export interface ReplicatedClass {
    */
   judgeSignedOffAt?: string | null | undefined;
   judgeSignedOffBy?: string | null | undefined;
+  /**
+   * MYK9-1031: the secretary's "scores match the paper" check (`classes.results_verified_at` /
+   * `_by`). Like the sign-off, written ONLY through its RPCs (`setResultsVerified`), never by
+   * `toSupabaseRow`. `resultsVerifiedFingerprint` is LOCAL ONLY (the server never sends it): the
+   * results fingerprint this device sent with the check, kept so a local correction made before
+   * the server clears its own stamp stops reading as "checked".
+   */
+  resultsVerifiedAt?: string | null | undefined;
+  resultsVerifiedBy?: string | null | undefined;
+  resultsVerifiedFingerprint?: string | null | undefined;
 
   // Scoring rule fields (from sport template, baked in at class creation)
   timerMode?: string | undefined;
@@ -241,6 +258,8 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
     results_released_by: row.results_released_by ?? null,
     judgeSignedOffAt: row.judge_signed_off_at ?? null,
     judgeSignedOffBy: row.judge_signed_off_by ?? null,
+    resultsVerifiedAt: row.results_verified_at ?? null,
+    resultsVerifiedBy: row.results_verified_by ?? null,
 
     // Scoring rule fields
     timerMode: (dbRow.timer_mode as string | undefined) ?? undefined,
@@ -664,11 +683,11 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     // enrichment-only (not on the raw row), so any sync path that didn't enrich
     // carries them as undefined — preserve the prior values rather than wiping
     // an already-enriched class.
-    const merged: ReplicatedClass = {
+    const merged: ReplicatedClass = keepLocalResultsFingerprint(local, {
       ...remote,
       selfCheckinEnabled: remote.selfCheckinEnabled ?? local.selfCheckinEnabled,
       visibilityPreset: remote.visibilityPreset ?? local.visibilityPreset,
-    };
+    });
 
     // MYK9-494: judge NAMES are enrichment too, and their resolver is allowed to fail (the
     // catch at fetchRemoteRows swallows it). `judgeResolved === false` therefore means
@@ -792,6 +811,48 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
             args: { p_class_ids: [classId], p_signed_off_at: signOff.at },
           }
         : { name: 'clear_class_judge_sign_off', args: { p_class_id: classId } }
+    );
+    this._lastMutationId = mutationId;
+    return mutationId;
+  }
+
+  /**
+   * MYK9-1031: record (`stamp` set) or clear (`null`) the "scores match the paper" check on ONE
+   * class, offline-first, exactly as {@link setJudgeSignOff} does: the local row changes now and
+   * the write is queued as an RPC-routed UPDATE. The mark carries the fingerprint of the results
+   * the secretary checked, so a replay after a correction is refused by the server (MK015) rather
+   * than re-stamping results nobody checked; see `healRefusedResultsVerified`.
+   */
+  async setResultsVerified(
+    classId: string,
+    stamp: ResultsVerifiedStamp | null
+  ): Promise<string | null> {
+    const currentClass = await this.get(classId);
+    if (!currentClass) {
+      throw new Error(`Class ${classId} not found`);
+    }
+    const next = nextResultsVerifiedFields(currentClass, stamp);
+
+    await this.set(
+      classId,
+      { ...currentClass, ...next, _lastModified: new Date(), _syncStatus: 'pending' },
+      true
+    );
+    const mutationId = await this.queueMutation(
+      'UPDATE',
+      classId,
+      { id: classId, results_verified_at: next.resultsVerifiedAt },
+      undefined,
+      stamp
+        ? {
+            name: MARK_RESULTS_VERIFIED_RPC,
+            args: {
+              p_class_id: classId,
+              p_results_fingerprint: stamp.fingerprint,
+              p_verified_at: next.resultsVerifiedAt,
+            },
+          }
+        : { name: CLEAR_RESULTS_VERIFIED_RPC, args: { p_class_id: classId } }
     );
     this._lastMutationId = mutationId;
     return mutationId;

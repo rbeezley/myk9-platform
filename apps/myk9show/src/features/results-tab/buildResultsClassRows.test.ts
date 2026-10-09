@@ -192,7 +192,10 @@ describe('buildResultsClassRows', () => {
   it('walks a finished class through release and print using the class-row release stamp and the paperwork map', () => {
     const base = {
       trials: [trial],
-      trialClasses: { 'trial-1': [trialClass('class-1')] },
+      // Initialed by the judge, so the walk ends at Done (see the sign-off test below).
+      trialClasses: {
+        'trial-1': [trialClass('class-1', { judgeSignedOffAt: '2026-10-10T21:00:00Z' })],
+      },
       entries: [scored('e-1', 'class-1', { result_status: 'qualified', final_placement: 1 })],
     };
     const released = new Map([['class-1', '2026-10-10T16:00:00Z']]);
@@ -219,6 +222,114 @@ describe('buildResultsClassRows', () => {
     expect(phase(released, new Map())).toBe('released');
     expect(phase(released, stale)).toBe('released');
     expect(phase(released, printed)).toBe('done');
+  });
+
+  describe('paper check and judge sign-off (MYK9-1031 part 2)', () => {
+    const entries = [scored('e-1', 'class-1', { result_status: 'qualified', final_placement: 1 })];
+    const released = new Map([['class-1', '2026-10-10T16:00:00Z']]);
+    const printed = new Map([
+      ['class-1', [paperwork('results-sheet', 'current'), paperwork('result-labels', 'current')]],
+    ]);
+
+    it('holds an unchecked class at Needs checking and lets a checked one through to Release', () => {
+      const build = (verified: { at: string | null; by: string | null }) =>
+        buildResultsClassRows({
+          trials: [trial],
+          trialClasses: { 'trial-1': [trialClass('class-1')] },
+          releasedAtByClassId: new Map([['class-1', null]]),
+          verifiedByClassId: new Map([['class-1', verified]]),
+          paperworkByClassId: new Map(),
+          entries,
+        })[0]!;
+
+      const unchecked = build({ at: null, by: null });
+      expect(unchecked).toMatchObject({ phase: 'needs-checking', verifiedAt: null });
+      expect(unchecked.nextAction).toEqual({ kind: 'verify', label: 'Check scores' });
+
+      const checked = build({ at: '2026-10-10T15:45:00Z', by: 'auth-1' });
+      expect(checked).toMatchObject({
+        phase: 'ready-to-release',
+        verifiedAt: '2026-10-10T15:45:00Z',
+        verifiedBy: 'auth-1',
+      });
+    });
+
+    function build(classes: SyncableTrialClass[], extraEntries: SecretaryEntry[] = []) {
+      return buildResultsClassRows({
+        trials: [trial],
+        trialClasses: { 'trial-1': classes },
+        releasedAtByClassId: new Map(classes.map(cls => [cls.id, '2026-10-10T16:00:00Z'] as const)),
+        paperworkByClassId: new Map(
+          classes.map(cls => [cls.id, printed.get('class-1') ?? []] as const)
+        ),
+        entries: [
+          ...classes.map(cls =>
+            scored(`e-${cls.id}`, cls.id, { result_status: 'qualified', final_placement: 1 })
+          ),
+          ...extraEntries,
+        ],
+      });
+    }
+
+    it('asks for initials once released and printed, when the judge day is over', () => {
+      const [row] = build([trialClass('class-1')]);
+      expect(row).toMatchObject({ phase: 'needs-initials', judgeSignedOffAt: null });
+      expect(row?.nextAction).toEqual({ kind: 'initials', label: 'Initials' });
+      expect(row?.phaseLabel).toBe("Needs judge's initials");
+    });
+
+    it('does not ask while the same judge still has a class to run that day', () => {
+      const [first, second] = buildResultsClassRows({
+        trials: [trial],
+        trialClasses: {
+          'trial-1': [
+            trialClass('class-1'),
+            trialClass('class-2', { startTime: '13:00', status: 'In Progress' }),
+          ],
+        },
+        releasedAtByClassId: released,
+        paperworkByClassId: printed,
+        entries: [...entries, entry('e-pending', 'class-2')],
+      });
+      expect(first?.phase).toBe('done');
+      expect(first?.runFinished).toBe(true);
+      expect(second?.runFinished).toBe(false);
+      expect(first?.judgeDayKey).toBe(second?.judgeDayKey);
+    });
+
+    it('is Done once the judge has signed off, and keeps judges apart', () => {
+      const [signed, other] = build([
+        trialClass('class-1', { judgeSignedOffAt: '2026-10-10T21:00:00Z' }),
+        trialClass('class-2', { judgeId: 'judge-2', judgeName: 'Sam Judge' }),
+      ]);
+      expect(signed?.phase).toBe('done');
+      expect(other?.phase).toBe('needs-initials');
+      expect(signed?.judgeDayKey).not.toBe(other?.judgeDayKey);
+    });
+
+    it('speaks the registry wording: a UKC show asks for the signature', () => {
+      const ukcTrial = { ...trial, registryId: 'UKC' } as unknown as SyncableTrial;
+      const [row] = buildResultsClassRows({
+        trials: [ukcTrial],
+        trialClasses: { 'trial-1': [trialClass('class-1')] },
+        releasedAtByClassId: released,
+        paperworkByClassId: printed,
+        entries,
+      });
+      expect(row?.registryId).not.toBe('AKC');
+      expect(row?.phase).toBe('needs-initials');
+      expect(row?.nextAction.label).toBe('Signature');
+      expect(row?.phaseLabel).toBe('Needs judge signature');
+    });
+
+    it('only a Completed class can be recorded', () => {
+      const [completed, running] = build([
+        trialClass('class-1'),
+        trialClass('class-2', { status: 'In Progress' }),
+      ]);
+      expect(completed?.signOffRecordable).toBe(true);
+      expect(running?.signOffRecordable).toBe(false);
+    });
   });
 
   it('orders trials by date, then classes by schedule time and level', () => {

@@ -16,6 +16,7 @@ import type { SyncableTrial, SyncableTrialClass } from '@/store/trial-store-type
 import { getClassesByTrialId } from '@/services/database/classes';
 import { getEntriesForShow } from '@/services/database/entries/secretary';
 import { buildReportPaperworkDescriptor } from '@/features/show-map/cockpit/buildReportPaperworkDescriptor';
+import { currentClassResultsFingerprint } from '@/features/show-map/resultsVerifiedMutations';
 import ResultsTab from './ResultsTab';
 
 const SYNC = {
@@ -34,7 +35,7 @@ const trial = {
   status: 'Scheduled',
   ...SYNC,
 } as SyncableTrial;
-const scheduleClass = (id: string, level: string) =>
+const scheduleClass = (id: string, level: string, judgeSignedOffAt: string | null = null) =>
   ({
     id,
     element: 'Containers',
@@ -45,6 +46,7 @@ const scheduleClass = (id: string, level: string) =>
     startTime: '09:00',
     status: 'Completed',
     entries: 0,
+    judgeSignedOffAt,
     ...SYNC,
   }) as SyncableTrialClass;
 
@@ -72,7 +74,10 @@ beforeEach(async () => {
   mocks.schedule = {
     trials: [trial],
     trialClasses: {
-      'trial-1': [scheduleClass('class-released', 'Novice'), scheduleClass('class-open', 'Open')],
+      'trial-1': [
+        scheduleClass('class-released', 'Novice', '2026-10-10T21:00:00Z'),
+        scheduleClass('class-open', 'Open'),
+      ],
     },
     hasConfirmedSnapshot: true,
     readFailed: false,
@@ -118,6 +123,8 @@ beforeEach(async () => {
       startTime: '10:00',
       resultsReleasedAt: null,
       results_released_at: null,
+      resultsVerifiedAt: '2026-10-10T15:00:00Z',
+      resultsVerifiedBy: 'u-1',
     },
   ] as never);
 });
@@ -132,6 +139,18 @@ describe('Results tab on the real replicated class rows', () => {
       ])
     );
     expect(stamps).toEqual({ 'class-released': '2026-10-10T16:00:00Z', 'class-open': null });
+  });
+
+  it('the class read carries the paper check the replica holds (last hop, MYK9-1031)', async () => {
+    const { data } = await getClassesByTrialId('trial-1');
+    const stamps = Object.fromEntries(
+      (data ?? []).map(row => [
+        row.id,
+        (row as { results_verified_at?: unknown; results_verified_by?: unknown })
+          .results_verified_at,
+      ])
+    );
+    expect(stamps).toEqual({ 'class-released': null, 'class-open': '2026-10-10T15:00:00Z' });
   });
 
   it('shows a released class as released and enables Print all ready', async () => {
@@ -149,7 +168,52 @@ describe('Results tab on the real replicated class rows', () => {
     expect(screen.getByText('Ready to release')).toBeInTheDocument();
   });
 
+  it('a check recorded in the replica unlocks Release, and removing it locks Release again', async () => {
+    render(
+      <Routes>
+        <Route path="/shows/:id/results" element={<ResultsTab />} />
+      </Routes>,
+      { initialRoute: '/shows/show-1/results?status=all&classId=class-open' }
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled()
+    );
+    expect(screen.getByText(/Scores checked against the paper by you/)).toBeInTheDocument();
+
+    await replicatedClassesTable.setResultsVerified('class-open', null);
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled()
+    );
+    expect(screen.getByText('Check the scores against the paper')).toBeInTheDocument();
+  });
+
   describe('a local score change', () => {
+    it('a local correction retracts a check this device sent, before the server hears of it', async () => {
+      const fingerprint = await currentClassResultsFingerprint('class-open');
+      await replicatedClassesTable.setResultsVerified('class-open', {
+        at: '2026-10-10T15:30:00Z',
+        by: 'u-1',
+        fingerprint,
+      });
+      render(
+        <Routes>
+          <Route path="/shows/:id/results" element={<ResultsTab />} />
+        </Routes>,
+        { initialRoute: '/shows/show-1/results?status=all&classId=class-open' }
+      );
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled()
+      );
+
+      await replicatedEntriesTable.updateEntry('e-class-open', { resultStatus: 'nq' } as never);
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled()
+      );
+      expect(screen.getByText('Check the scores against the paper')).toBeInTheDocument();
+    });
+
     const renderClass = (queryClient?: QueryClient) =>
       render(
         <Routes>

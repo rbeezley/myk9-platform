@@ -293,6 +293,12 @@ export function isRetryableError(error: unknown): boolean {
       return false;
     }
 
+    // MYK9-1045: mark_class_results_verified refuses a check whose fingerprint no longer
+    // matches the class's results. The results stay changed, so a retry can never land.
+    if (code === 'MK015') {
+      return false;
+    }
+
     // RLS / insufficient-privilege denials need a role/permission fix.
     if (isAuthorizationError(error)) {
       return false;

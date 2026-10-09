@@ -140,8 +140,6 @@ export interface SecretaryCockpitClass {
   closeout?: CockpitCloseoutState | null;
   /** The tree's wrap-up value; `closeout` folds signed and unsigned together, the checklist cannot. */
   wrapUpStatus?: string | null;
-  /** MYK9-1030: the command that clears this class's recorded judge sign-off, when it has one. */
-  judgeSignOffUndoCommandId?: string | null;
   judgeName?: string | null;
   operationalArea?: {
     kind: OperationalAreaKind;

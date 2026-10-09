@@ -17,6 +17,8 @@ import { resolveConfiguredRegistryId } from '@/features/registries';
 
 export interface JudgeSignOffWording {
   actionLabel: string;
+  /** The Results tab's Next action when the judge's sign-off is the step left: "Initials". */
+  nextActionLabel: string;
   actionWhy: string;
   needsStatusLabel: string;
   /** MYK9-1030: complete, but the judge still has classes to run that day (neutral). */
@@ -39,6 +41,7 @@ export interface JudgeSignOffWording {
 
 const AKC_WORDING: JudgeSignOffWording = {
   actionLabel: "Collect judge's initials",
+  nextActionLabel: 'Initials',
   actionWhy: "Completed class still needs the judge's initials",
   needsStatusLabel: "Needs judge's initials",
   endOfDayStatusLabel: 'Initials at end of day',
@@ -60,6 +63,7 @@ const AKC_WORDING: JudgeSignOffWording = {
 
 const SIGNATURE_WORDING: JudgeSignOffWording = {
   actionLabel: 'Collect judge signature',
+  nextActionLabel: 'Signature',
   actionWhy: 'Completed class still needs judge sign-off',
   needsStatusLabel: 'Needs judge signature',
   endOfDayStatusLabel: 'Signature at end of day',

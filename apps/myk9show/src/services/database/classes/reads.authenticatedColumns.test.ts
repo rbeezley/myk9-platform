@@ -39,29 +39,15 @@ function grantedAuthenticatedColumns(): string[] {
     .filter(Boolean);
 }
 
-/**
- * Granted ahead of the client (MYK9-1045, 20261008014300): the migration ships before
- * anything selects these, because the running app must never name a column the live
- * database does not have yet. Granted-but-unselected is harmless; selected-but-ungranted
- * 42501s. The Results tab rebuild adds them to `CLASS_AUTHENTICATED_COLUMN_SELECT` and
- * empties this list (the test below fails until it does).
- */
-const GRANTED_NOT_YET_SELECTED = ['results_verified_at', 'results_verified_by'];
-
 describe('authenticated column allowlist on public.classes', () => {
-  it('selects exactly what the latest migration grants, less the columns granted ahead of the client', () => {
-    expect([...CLASS_AUTHENTICATED_COLUMNS].sort()).toEqual(
-      grantedAuthenticatedColumns()
-        .filter(column => !GRANTED_NOT_YET_SELECTED.includes(column))
-        .sort()
-    );
+  it('selects exactly what the latest migration grants', () => {
+    expect([...CLASS_AUTHENTICATED_COLUMNS].sort()).toEqual(grantedAuthenticatedColumns().sort());
   });
 
-  it('lists only columns that are granted and not yet selected as granted ahead of the client', () => {
-    for (const column of GRANTED_NOT_YET_SELECTED) {
-      expect(grantedAuthenticatedColumns()).toContain(column);
-      expect(CLASS_AUTHENTICATED_COLUMNS).not.toContain(column);
-    }
+  it('selects the paper check the Results tab reads (MYK9-1045)', () => {
+    expect(CLASS_AUTHENTICATED_COLUMNS).toEqual(
+      expect.arrayContaining(['results_verified_at', 'results_verified_by'])
+    );
   });
 
   it('never grants the stored results fingerprint (MYK9-1045)', () => {

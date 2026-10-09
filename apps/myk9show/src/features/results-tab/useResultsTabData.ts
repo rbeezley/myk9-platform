@@ -27,6 +27,7 @@ import { useShowClassPaperwork } from '@/features/show-map/cockpit/useShowClassP
 import { getShowDeskEntriesAvailability } from '@/pages/secretary/showDeskEntryAvailability';
 import { useShowDeskScheduleRead } from '@/pages/secretary/useShowDeskScheduleRead';
 import { buildResultsClassRows, type ResultsClassRow } from './buildResultsClassRows';
+import { useVerifiedStamps } from './useVerifiedStamps';
 
 const NO_ENTRIES: never[] = [];
 
@@ -89,12 +90,15 @@ export function useResultsTabData(showId: string) {
     [paperwork.classRows]
   );
 
+  const verifiedByClassId = useVerifiedStamps(paperwork.classRows, entries);
+
   const rows = useMemo<ResultsClassRow[]>(
     () =>
       buildResultsClassRows({
         trials: showTrials,
         trialClasses: schedule.trialClasses,
         releasedAtByClassId,
+        ...(verifiedByClassId ? { verifiedByClassId } : {}),
         entries,
         paperworkByClassId: paperwork.byClassId,
         paperworkAvailable: paperwork.available,
@@ -114,6 +118,7 @@ export function useResultsTabData(showId: string) {
       schedule.trialClasses,
       showId,
       showTrials,
+      verifiedByClassId,
     ]
   );
 

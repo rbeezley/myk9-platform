@@ -3,7 +3,7 @@ import {
   deriveResultsNextAction,
   deriveResultsPhase,
   matchesResultsStatusFilter,
-  offeredResultsStatusFilters,
+  RESULTS_STATUS_FILTER_OPTIONS,
   type ResultsClassState,
 } from './resultsNextAction';
 
@@ -68,6 +68,51 @@ describe('deriveResultsNextAction', () => {
     expect(deriveResultsPhase({ ...released, paperworkPrinted: null })).toBe('released');
   });
 
+  it('released and printed, judge not yet initialed and their day over: Initials', () => {
+    const waiting = state({
+      scoredCount: 8,
+      releasedAt: '2026-10-10T18:00:00Z',
+      paperworkPrinted: true,
+      judgeSignedOffAt: null,
+    });
+    expect(deriveResultsPhase(waiting)).toBe('needs-initials');
+    expect(deriveResultsNextAction(waiting)).toEqual({ kind: 'initials', label: 'Initials' });
+  });
+
+  it('does not ask for initials while the judge still has a class to run that day', () => {
+    const open = state({
+      scoredCount: 8,
+      releasedAt: '2026-10-10T18:00:00Z',
+      paperworkPrinted: true,
+      judgeSignedOffAt: null,
+      judgeDayOpen: true,
+    });
+    expect(deriveResultsPhase(open)).toBe('done');
+    expect(deriveResultsNextAction(open).kind).toBe('none');
+  });
+
+  it('initialed (or sign-off not tracked) and printed: Done', () => {
+    const printed = state({
+      scoredCount: 8,
+      releasedAt: '2026-10-10T18:00:00Z',
+      paperworkPrinted: true,
+    });
+    expect(deriveResultsPhase({ ...printed, judgeSignedOffAt: '2026-10-10T21:00:00Z' })).toBe(
+      'done'
+    );
+    expect(deriveResultsPhase(printed)).toBe('done');
+  });
+
+  it('initials come after the print, not before it', () => {
+    const unprinted = state({
+      scoredCount: 8,
+      releasedAt: '2026-10-10T18:00:00Z',
+      paperworkPrinted: false,
+      judgeSignedOffAt: null,
+    });
+    expect(deriveResultsPhase(unprinted)).toBe('released');
+  });
+
   it('released and printed: Done', () => {
     const done = state({
       scoredCount: 8,
@@ -95,7 +140,7 @@ describe('deriveResultsNextAction', () => {
     expect(deriveResultsPhase(state({ classStatus: undefined }))).toBe('not-started');
   });
 
-  it('part 2 seam: a tracked, missing verification holds the class at Needs checking', () => {
+  it('a stored check lets the class through; a missing one holds it at Needs checking', () => {
     const complete = state({ scoredCount: 8 });
     expect(deriveResultsPhase({ ...complete, verifiedAt: null })).toBe('needs-checking');
     expect(deriveResultsNextAction({ ...complete, verifiedAt: null }).kind).toBe('verify');
@@ -123,13 +168,18 @@ describe('matchesResultsStatusFilter', () => {
     expect(matchesResultsStatusFilter('released', 'done')).toBe(false);
   });
 
-  it('does not offer a filter that cannot match until verification is stored', () => {
-    expect(offeredResultsStatusFilters().map(option => option.id)).toEqual([
+  it('offers the Needs checking filter now that the check is stored', () => {
+    expect(RESULTS_STATUS_FILTER_OPTIONS.map(option => option.id)).toEqual([
       'needs-me',
       'all',
+      'needs-checking',
       'ready-to-release',
       'released',
       'done',
     ]);
+    expect(matchesResultsStatusFilter('needs-checking', 'needs-checking')).toBe(true);
+    expect(matchesResultsStatusFilter('needs-initials', 'needs-me')).toBe(true);
+    expect(matchesResultsStatusFilter('needs-initials', 'released')).toBe(true);
+    expect(matchesResultsStatusFilter('needs-initials', 'done')).toBe(false);
   });
 });

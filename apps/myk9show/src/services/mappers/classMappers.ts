@@ -500,6 +500,12 @@ export const mapReplicatedClassToDbRow = (
     results_released_by: cls.results_released_by ?? cls.resultsReleasedBy ?? null,
     judge_signed_off_at: cls.judgeSignedOffAt ?? null,
     judge_signed_off_by: cls.judgeSignedOffBy ?? null,
+    // MYK9-1031: the paper check. `results_verified_fingerprint` is the replica's LOCAL copy of the
+    // fingerprint this device sent (never a server value): the Results tab compares it with the
+    // class's current results so a local correction retracts a check the server has not heard of.
+    results_verified_at: cls.resultsVerifiedAt ?? null,
+    results_verified_by: cls.resultsVerifiedBy ?? null,
+    results_verified_fingerprint: cls.resultsVerifiedFingerprint ?? null,
     deleted_at: null,
   };
 

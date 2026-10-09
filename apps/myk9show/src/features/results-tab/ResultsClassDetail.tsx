@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { ArrowLeft, ArrowRight, CheckCircle2, Circle } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 
@@ -6,6 +6,7 @@ import { useEmbeddedDetail } from '@/components/layout/embeddedDetail';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
   TableBody,
@@ -34,13 +35,29 @@ interface ResultsClassDetailProps {
   onRelease: () => void;
   /** Refetches every read; offered where print status could not be read. */
   onRetry: () => void;
-  /**
-   * Part 2 seam: the per-row "matches paper" tick. When given, the table gains that column and
-   * renders this for each dog; absent today, so no empty column ships.
-   */
-  renderRowVerifyCell?: ((entry: ResultsEntryRow) => ReactNode) | undefined;
-  /** Part 2 seam: the Judge sign-off section, rendered between the results table and "Then". */
+  /** Records "scores match the paper" for this class, once every row is ticked. */
+  onVerify: () => void;
+  /** Removes that check. */
+  onUndoVerify: () => void;
+  verifying: boolean;
+  /** Auth uid of the signed-in user, so the check can say "you". */
+  currentUserId: string | null;
+  /** The Judge sign-off section for this class's judge-day, rendered between the table and "Then". */
   judgeSignOffSlot?: ReactNode | undefined;
+}
+
+/** What a tick vouches for. A correction changes it, so the dog needs checking again. */
+function resultSignature(entry: ResultsEntryRow): string {
+  return [entry.placement, entry.resultLabel, entry.timeLabel, entry.faults].join('|');
+}
+
+interface PrimaryWorkProps extends Pick<
+  ResultsClassDetailProps,
+  'showId' | 'row' | 'releasing' | 'onRelease'
+> {
+  tickedCount: number;
+  verifying: boolean;
+  onVerify: () => void;
 }
 
 function PrimaryWork({
@@ -48,8 +65,12 @@ function PrimaryWork({
   row,
   releasing,
   onRelease,
-}: Pick<ResultsClassDetailProps, 'showId' | 'row' | 'releasing' | 'onRelease'>) {
+  tickedCount,
+  verifying,
+  onVerify,
+}: PrimaryWorkProps) {
   const { phase } = row;
+  const noun = row.judgeSignOff.nextActionLabel.toLowerCase();
   let title: string;
   let body: string;
   let action: ReactNode = null;
@@ -64,9 +85,28 @@ function PrimaryWork({
         </Link>
       </Button>
     );
-  } else if (phase === 'needs-checking' || phase === 'ready-to-release') {
-    title = 'Check the scores, then release';
-    body = 'Compare the table below with the paper score sheets. Fix anything that is off first.';
+  } else if (phase === 'needs-checking') {
+    const allTicked = row.entries.length > 0 && tickedCount === row.entries.length;
+    title = 'Check the scores against the paper';
+    body = `Tick each dog below when it matches its paper score sheet (${tickedCount} of ${row.entries.length}). Fix anything that is off first. Release unlocks once the scores are checked.`;
+    action = (
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          className="min-h-11"
+          disabled={!allTicked || verifying}
+          onClick={onVerify}
+        >
+          {verifying ? 'Saving…' : 'Scores match the paper'}
+        </Button>
+        <Button type="button" variant="outline" className="min-h-11" disabled>
+          Release results
+        </Button>
+      </div>
+    );
+  } else if (phase === 'ready-to-release') {
+    title = 'Release the results';
+    body = 'The scores are checked against the paper. Release makes them visible to exhibitors.';
     action = (
       <Button type="button" className="min-h-11" disabled={releasing} onClick={onRelease}>
         {releasing ? 'Releasing…' : 'Release results'}
@@ -79,9 +119,15 @@ function PrimaryWork({
   } else if (phase === 'released') {
     title = 'Print the results sheet and ribbon labels';
     body = 'The results are released. Print the paperwork below and record it as printed.';
+  } else if (phase === 'needs-initials') {
+    title = `Record the judge's ${noun}`;
+    body = `The judge's day is over. Print the marked catalog, have the judge ${noun === 'initials' ? 'initial' : 'sign'} it, then record it in Judge sign-off below.`;
   } else if (phase === 'done') {
     title = 'All done for this class';
-    body = 'Results are released and the paperwork is printed.';
+    body =
+      row.judgeSignedOffAt === null
+        ? `Results are released and the paperwork is printed. The judge's ${noun} are collected at the end of their day.`
+        : 'Results are released, the paperwork is printed and the judge has signed off.';
   } else if (phase === 'cancelled') {
     title = 'This class was cancelled';
     body = 'There are no results to check, release or print.';
@@ -105,11 +151,42 @@ function PrimaryWork({
   );
 }
 
+/** Who checked the scores and when, with the way to take the check back. */
+function VerifiedLine({
+  row,
+  timeZone,
+  currentUserId,
+  verifying,
+  onUndo,
+}: Pick<ResultsClassDetailProps, 'row' | 'timeZone' | 'currentUserId' | 'verifying'> & {
+  onUndo: () => void;
+}) {
+  const by = row.verifiedBy && row.verifiedBy === currentUserId ? 'you' : 'another show manager';
+  const at = formatTime(row.verifiedAt, timeZone);
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-success/5 px-3 py-2 text-sm">
+      <span className="flex items-center gap-2">
+        <CheckCircle2 className="h-4 w-4 text-success" aria-hidden="true" />
+        Scores checked against the paper by {by}
+        {at ? ` at ${at}` : ''}
+      </span>
+      <Button type="button" variant="outline" size="touch" disabled={verifying} onClick={onUndo}>
+        Undo check
+      </Button>
+    </div>
+  );
+}
+
+interface TickColumn {
+  isTicked: (entry: ResultsEntryRow) => boolean;
+  onToggle: (entry: ResultsEntryRow, checked: boolean) => void;
+}
+
 function ResultsTable({
   showId,
   row,
-  renderRowVerifyCell,
-}: Pick<ResultsClassDetailProps, 'showId' | 'row' | 'renderRowVerifyCell'>) {
+  tickColumn,
+}: Pick<ResultsClassDetailProps, 'showId' | 'row'> & { tickColumn: TickColumn | null }) {
   if (row.entries.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">No dogs are expected to run in this class.</p>
@@ -126,7 +203,7 @@ function ResultsTable({
             <TableHead>Result</TableHead>
             <TableHead>Time</TableHead>
             <TableHead>Faults</TableHead>
-            {renderRowVerifyCell && <TableHead>Matches paper</TableHead>}
+            {tickColumn && <TableHead>Matches paper</TableHead>}
             <TableHead>
               <span className="sr-only">Fix</span>
             </TableHead>
@@ -146,7 +223,17 @@ function ResultsTable({
               <TableCell>{entry.resultLabel}</TableCell>
               <TableCell className="font-mono">{entry.timeLabel || '—'}</TableCell>
               <TableCell>{entry.faults ?? '—'}</TableCell>
-              {renderRowVerifyCell && <TableCell>{renderRowVerifyCell(entry)}</TableCell>}
+              {tickColumn && (
+                <TableCell>
+                  <label className="inline-flex min-h-11 min-w-11 cursor-pointer items-center justify-center">
+                    <Checkbox
+                      checked={tickColumn.isTicked(entry)}
+                      onCheckedChange={checked => tickColumn.onToggle(entry, checked)}
+                      aria-label={`${entry.dogName} matches the paper`}
+                    />
+                  </label>
+                </TableCell>
+              )}
               <TableCell>
                 <Link
                   to={getFixScoreHref(showId, row.id, entry.entryId)}
@@ -171,10 +258,31 @@ export function ResultsClassDetail({
   releasing,
   onRelease,
   onRetry,
-  renderRowVerifyCell,
+  onVerify,
+  onUndoVerify,
+  verifying,
+  currentUserId,
   judgeSignOffSlot,
 }: ResultsClassDetailProps) {
   const embedded = useEmbeddedDetail();
+  // Ephemeral checklist: a tick is only good for the result it was made against, so a Fix
+  // (which changes the row's signature) un-ticks that dog.
+  const [ticks, setTicks] = useState<Record<string, string>>({});
+  const isTicked = (entry: ResultsEntryRow) => ticks[entry.entryId] === resultSignature(entry);
+  const tickedCount = row.entries.filter(isTicked).length;
+  const tickColumn: TickColumn | null =
+    row.phase === 'needs-checking'
+      ? {
+          isTicked,
+          onToggle: (entry, checked) =>
+            setTicks(previous => {
+              const next = { ...previous };
+              if (checked) next[entry.entryId] = resultSignature(entry);
+              else delete next[entry.entryId];
+              return next;
+            }),
+        }
+      : null;
   const { search } = useLocation();
   const backParams = new URLSearchParams(search);
   backParams.delete('classId');
@@ -210,12 +318,29 @@ export function ResultsClassDetail({
           <Badge variant="outline">
             {released ? 'Released' : row.phase === 'release-unknown' ? 'Unknown' : 'Not released'}
           </Badge>
-          <ResultsStatusChip phase={row.phase} />
+          <ResultsStatusChip phase={row.phase} label={row.phaseLabel} />
         </div>
       </header>
 
-      <PrimaryWork showId={showId} row={row} releasing={releasing} onRelease={onRelease} />
-      <ResultsTable showId={showId} row={row} renderRowVerifyCell={renderRowVerifyCell} />
+      <PrimaryWork
+        showId={showId}
+        row={row}
+        releasing={releasing}
+        onRelease={onRelease}
+        tickedCount={tickedCount}
+        verifying={verifying}
+        onVerify={onVerify}
+      />
+      {row.verifiedAt && row.phase !== 'needs-checking' && (
+        <VerifiedLine
+          row={row}
+          timeZone={timeZone}
+          currentUserId={currentUserId}
+          verifying={verifying}
+          onUndo={onUndoVerify}
+        />
+      )}
+      <ResultsTable showId={showId} row={row} tickColumn={tickColumn} />
       {judgeSignOffSlot}
 
       {row.expectedCount > 0 && (

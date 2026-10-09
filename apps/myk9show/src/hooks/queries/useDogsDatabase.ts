@@ -67,10 +67,6 @@ export const useDogsQuery = () => {
       return data ?? [];
     },
     enabled: scope === 'all' || (scope === 'own' && !!personId),
-    // Replica-first read (`withReplicationFallback`): the default networkMode
-    // 'online' parks it at fetchStatus 'paused' offline, so a queued local edit
-    // never showed until reconnect (MYK9-1070). Same as `useExhibitorUpcomingShows`.
-    networkMode: 'always' as const,
     ...cacheStrategies.moderate, // 5 minutes stale, 10 minutes cache
   });
 
@@ -91,10 +87,6 @@ export const useDogQuery = (id: string, enabled = true) => {
       return data;
     },
     enabled: !!id && enabled,
-    // Replica-first read (`withReplicationFallback`): the default networkMode
-    // 'online' parks it at fetchStatus 'paused' offline, so a queued local edit
-    // never showed until reconnect (MYK9-1070). Same as `useExhibitorUpcomingShows`.
-    networkMode: 'always' as const,
     ...cacheStrategies.moderate,
   });
 };
@@ -109,10 +101,6 @@ export const useDogsByOwnerQuery = (ownerId: string, enabled = true) => {
       return data;
     },
     enabled: !!ownerId && enabled,
-    // Replica-first read (`withReplicationFallback`): the default networkMode
-    // 'online' parks it at fetchStatus 'paused' offline, so a queued local edit
-    // never showed until reconnect (MYK9-1070). Same as `useExhibitorUpcomingShows`.
-    networkMode: 'always' as const,
     ...cacheStrategies.moderate,
   });
 };

@@ -1,9 +1,11 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 import {
   buildActivityWindows,
   chunk,
   findDuplicateEntryGroups,
+  INACTIVE_ENTRY_STATUSES,
   inAnyWindow,
   stuckReasons,
   type LooseEntry,
@@ -51,6 +53,8 @@ describe('findDuplicateEntryGroups', () => {
       e({ id: '4', class_id: 'other' }),
       e({ id: '5', dog_id: null }),
       e({ id: '6', dog_id: null }),
+      e({ id: '7', class_id: 'k' }),
+      e({ id: '8', class_id: 'k', entry_status: 'not_accepted' }),
     ]);
     expect(groups.map(g => g.map(x => x.id))).toEqual([['1', '2']]);
   });
@@ -69,5 +73,22 @@ describe('stuckReasons', () => {
 describe('chunk', () => {
   it('splits into fixed-size parts', () => {
     expect(chunk([1, 2, 3], 2)).toEqual([[1, 2], [3]]);
+  });
+});
+
+describe('INACTIVE_ENTRY_STATUSES', () => {
+  it('only holds values the entries CHECK constraint stores (latest definition)', () => {
+    const sql = readFileSync(
+      new URL(
+        '../../../../supabase/migrations/20260924094300_myk9_719_retire_scratch_requested.sql',
+        import.meta.url
+      ),
+      'utf8'
+    );
+    const check = sql.slice(sql.indexOf('ADD CONSTRAINT entries_entry_status_check'));
+    const stored = [...check.slice(0, check.indexOf('));')).matchAll(/'([^']+)'/g)].map(m => m[1]);
+    expect(stored.length).toBeGreaterThan(10);
+    for (const status of INACTIVE_ENTRY_STATUSES) expect(stored).toContain(status);
+    expect(INACTIVE_ENTRY_STATUSES.has('not_accepted')).toBe(true);
   });
 });

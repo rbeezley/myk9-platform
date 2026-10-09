@@ -149,4 +149,69 @@ describe('diagnoseShowLooseEnds', () => {
     expect(result.links[0]?.url).toBe(`https://app.myk9show.com/shows/${SHOW_ID}`);
     expect(result.envLabel).toBe('staging');
   });
+
+  it('excludes accountless people who handle or own a dog entered at another show', async () => {
+    const { rows } = await run();
+    const people = rows(`${GUESS_LABEL}: person`).join();
+    expect(people).toContain('Zed');
+    expect(people).not.toContain('Hank');
+    expect(people).not.toContain('Owen');
+  });
+
+  it('still sees a cross-show entry that sits past the first 1000-row page', async () => {
+    const tables = looseEndsTables();
+    // 1100 other-show entries for one in-window dog sort before the entry that
+    // proves 'Latecomer' is in use; an unpaginated lookup would miss it.
+    tables.dogs!.push(
+      {
+        id: 'dBusy',
+        call_name: 'Busy',
+        owner_id: 'pAnn',
+        created_at: '2026-10-01T10:20:00Z',
+        created_by: null,
+        created_from_show_id: null,
+        deleted_at: null,
+      },
+      {
+        id: 'dLate',
+        call_name: 'Latecomer',
+        owner_id: 'pAnn',
+        created_at: '2026-10-01T10:21:00Z',
+        created_by: null,
+        created_from_show_id: null,
+        deleted_at: null,
+      }
+    );
+    for (let i = 0; i < 1100; i += 1) {
+      tables.entries!.push({
+        id: `a-${String(i).padStart(5, '0')}`,
+        show_id: OTHER_SHOW,
+        dog_id: 'dBusy',
+        class_id: `x${i}`,
+        registration_id: null,
+        handler_id: 'pAnn',
+        entry_status: 'confirmed',
+        confirmation_email_status: 'sent',
+        created_at: '2026-10-02T00:00:00Z',
+        deleted_at: null,
+      });
+    }
+    tables.entries!.push({
+      id: 'z-late',
+      show_id: OTHER_SHOW,
+      dog_id: 'dLate',
+      class_id: 'c1',
+      registration_id: null,
+      handler_id: 'pAnn',
+      entry_status: 'confirmed',
+      confirmation_email_status: 'sent',
+      created_at: '2026-10-02T00:00:00Z',
+      deleted_at: null,
+    });
+    const { rows } = await run(tables);
+    const guesses = rows(`${GUESS_LABEL}: dog`).join();
+    expect(guesses).not.toContain('Latecomer');
+    expect(guesses).not.toContain('Busy');
+    expect(guesses).toContain('Liddle');
+  });
 });

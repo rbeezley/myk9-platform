@@ -38,6 +38,8 @@ export function makeCtx(
           rows = [...rows].sort((a, b) => String(a[col] ?? '').localeCompare(String(b[col] ?? '')));
         }
         if (range) rows = rows.slice(range[0], range[1] + 1);
+        // PostgREST max_rows (supabase/config.toml): a response never exceeds 1000 rows.
+        rows = rows.slice(0, 1000);
         return { data: rows, error: null };
       };
       builder.select = (columns: string) => {
@@ -146,6 +148,9 @@ export function looseEndsTables(): Tables {
       person('pZed', 'Zed', { created_at: `${SESSION}12:00Z` }),
       person('pAcct', 'Acct', { created_at: `${SESSION}13:00Z`, auth_user_id: 'auth-9' }),
       person('pOld', 'Olga', { created_at: '2026-01-01T00:00:00Z' }),
+      // accountless, in the window, but in use at ANOTHER show: not abandoned
+      person('pHandler', 'Hank', { created_at: `${SESSION}17:00Z` }),
+      person('pOwner', 'Owen', { created_at: `${SESSION}18:00Z` }),
     ],
     dogs: [
       dog('dA', 'Anchor', {}),
@@ -168,6 +173,7 @@ export function looseEndsTables(): Tables {
       dog('dUsed', 'Used', { created_at: `${SESSION}15:00Z` }),
       dog('dFar', 'Faraway', { created_at: '2026-10-01T14:00:00Z' }),
       dog('dEnteredHere', 'Veteran', { created_at: `${SESSION}16:00Z` }),
+      dog('dOwned', 'Owned', { owner_id: 'pOwner', created_at: '2026-08-01T00:00:00Z' }),
     ],
     enrollments: [
       {
@@ -206,6 +212,8 @@ export function looseEndsTables(): Tables {
       entry('e8', { dog_id: 'dB', class_id: 'c1', deleted_at: '2026-10-02T00:00:00Z' }),
       // in use at another show: not abandoned
       entry('eX', { show_id: OTHER_SHOW, dog_id: 'dUsed', class_id: 'c1' }),
+      entry('eH', { show_id: OTHER_SHOW, dog_id: 'dA', class_id: 'c9', handler_id: 'pHandler' }),
+      entry('eO', { show_id: OTHER_SHOW, dog_id: 'dOwned', class_id: 'c9', handler_id: 'pAnn' }),
     ],
   };
 }

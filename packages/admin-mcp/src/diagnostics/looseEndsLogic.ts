@@ -65,14 +65,15 @@ export function describeWindows(windows: readonly ActivityWindow[]): string {
 }
 
 /**
- * Entry statuses (from `entries_entry_status_check`) that mean the entry no
+ * Entry statuses (stored values, from `entries_entry_status_check` in migration
+ * 20260924094300; a test checks each against that file) that mean the entry no
  * longer holds a place, so two of them for the same dog and class are history,
  * not a duplicate.
  */
 export const INACTIVE_ENTRY_STATUSES: ReadonlySet<string> = new Set([
   'withdrawn',
   'scratched',
-  'rejected',
+  'not_accepted',
   'moved',
   'promotion-expired',
 ]);

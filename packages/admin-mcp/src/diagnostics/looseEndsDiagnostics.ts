@@ -88,6 +88,29 @@ async function fetchPaged<T>(
   return { rows, truncated: true };
 }
 
+/**
+ * Like {@link fetchByIds}, for lookups whose matches can outnumber the ids
+ * (e.g. every entry of 150 dogs): pages each chunk with `.range()` until a short
+ * page, because PostgREST silently caps a response at max_rows (1000).
+ */
+async function fetchByIdsPaged<T>(
+  what: string,
+  ids: readonly string[],
+  build: (ids: string[], from: number, to: number) => Page<T>
+): Promise<T[]> {
+  const rows: T[] = [];
+  for (const part of chunk([...new Set(ids)], IN_CHUNK)) {
+    for (let from = 0; ; from += PAGE) {
+      const { data, error } = await build(part, from, from + PAGE - 1);
+      if (error) throw new SourceError(`Could not read ${what}.`);
+      const batch = data ?? [];
+      rows.push(...batch);
+      if (batch.length < PAGE) break;
+    }
+  }
+  return rows;
+}
+
 async function fetchByIds<T>(
   what: string,
   ids: readonly string[],
@@ -306,28 +329,78 @@ async function build(
     // A dog entered in any other show is in use, not abandoned.
     const enteredElsewhere = new Set(
       (
-        await fetchByIds<{ dog_id: string | null }>(
+        await fetchByIdsPaged<{ dog_id: string | null }>(
           'entries for heuristic dogs',
           windowDogs.map(d => d.id),
-          ids =>
+          (ids, from, to) =>
             supabase
               .from('entries')
               .select('dog_id')
               .in('dog_id', ids)
               .is('deleted_at', null)
+              .order('id', { ascending: true })
+              .range(from, to)
               .returns<{ dog_id: string | null }[]>()
         )
       ).flatMap(r => (r.dog_id ? [r.dog_id] : []))
     );
     guessDogs = windowDogs.filter(d => !enteredElsewhere.has(d.id));
     // A person with an account signed themselves up; the add-entry flow makes accountless rows.
-    guessPeople = candidatePeople.rows.filter(
+    const windowPeople = candidatePeople.rows.filter(
       p =>
         inAnyWindow(p.created_at, windows) &&
         !involvedPeople.has(p.id) &&
         !enrollmentHandlers.has(p.id) &&
         !p.auth_user_id
     );
+    // Someone who handles, or owns a dog entered, in ANY show is in use, not abandoned.
+    const personIds = windowPeople.map(p => p.id);
+    const handlers = await fetchByIdsPaged<{ handler_id: string | null }>(
+      'entries for heuristic people',
+      personIds,
+      (ids, from, to) =>
+        supabase
+          .from('entries')
+          .select('handler_id')
+          .in('handler_id', ids)
+          .is('deleted_at', null)
+          .order('id', { ascending: true })
+          .range(from, to)
+          .returns<{ handler_id: string | null }[]>()
+    );
+    const ownedDogs = await fetchByIdsPaged<{ id: string; owner_id: string | null }>(
+      'dogs of heuristic people',
+      personIds,
+      (ids, from, to) =>
+        supabase
+          .from('dogs')
+          .select('id, owner_id')
+          .in('owner_id', ids)
+          .is('deleted_at', null)
+          .order('id', { ascending: true })
+          .range(from, to)
+          .returns<{ id: string; owner_id: string | null }[]>()
+    );
+    const ownedDogEntries = await fetchByIdsPaged<{ dog_id: string | null }>(
+      'entries for dogs of heuristic people',
+      ownedDogs.map(d => d.id),
+      (ids, from, to) =>
+        supabase
+          .from('entries')
+          .select('dog_id')
+          .in('dog_id', ids)
+          .is('deleted_at', null)
+          .order('id', { ascending: true })
+          .range(from, to)
+          .returns<{ dog_id: string | null }[]>()
+    );
+    const usedPeople = new Set(handlers.flatMap(r => (r.handler_id ? [r.handler_id] : [])));
+    const ownerOfDog = new Map(ownedDogs.map(d => [d.id, d.owner_id]));
+    for (const r of ownedDogEntries) {
+      const owner = r.dog_id ? ownerOfDog.get(r.dog_id) : null;
+      if (owner) usedPeople.add(owner);
+    }
+    guessPeople = windowPeople.filter(p => !usedPeople.has(p.id));
   }
 
   // Names for the rows that will be shown.
@@ -437,7 +510,7 @@ async function build(
 
   addLink(buildEntryManagementLink(config, showId));
   limitations.push(
-    `${GUESS}: rows with created_from_show_id and created_by both NULL (they predate attribution), created inside an add-entry session of this show (consecutive entries ≤ 2h apart, window padded 30 min), no live entry in this show or any other, and for people no sign-in account. Window(s): ${describeWindows(windows)}. Treat every GUESS row as a lead to check, not a finding.`
+    `${GUESS}: rows with created_from_show_id and created_by both NULL (they predate attribution), created inside an add-entry session of this show (consecutive entries ≤ 2h apart, window padded 30 min), no live entry in this show or any other (for people: not a handler or dog owner on one), and for people no sign-in account. Window(s): ${describeWindows(windows)}. Treat every GUESS row as a lead to check, not a finding.`
   );
   if (!(attributedDogs.length + attributedPeople.length + guessDogs.length + guessPeople.length)) {
     limitations.push('No dogs or people were found added-and-never-entered for this show.');

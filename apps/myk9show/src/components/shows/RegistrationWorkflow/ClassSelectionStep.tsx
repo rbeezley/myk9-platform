@@ -48,6 +48,8 @@ import { getRegistrationPrerequisite } from './registrationPrerequisite';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistrationDialog';
 import { useInlineDogRegistration } from './useInlineDogRegistration';
+import { getOwnerAddressPrerequisite, prerequisiteLevelFields } from './ownerAddressPrerequisite';
+import { OwnerAddressAction, OwnerAddressEditPanel } from './OwnerAddressFix';
 import '@/styles/myk9-registration-workflow.css';
 import {
   buildAvailabilityMap,
@@ -70,6 +72,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   handlerAssignments,
   onHandlerAssignmentChange,
   workflowMode,
+  ownerAddressWarnOnly = false,
 }) => {
   const { dogs, refetch } = useDogStoreCompat();
   const { shows = [] } = useShowStore();
@@ -102,6 +105,9 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
   const addingItemRef = useRef<string | null>(null);
   const { registrationDogId, openRegistrationEditor, closeRegistrationEditor, saveRegistration } =
     useInlineDogRegistration(refetch);
+  // MYK9-1010: the owner whose address staff are fixing in place, or null.
+  const [addressOwnerId, setAddressOwnerId] = useState<string | null>(null);
+  const isOwnAddress = (workflowMode ?? 'exhibitor') === 'exhibitor';
 
   const cartItems = useCartItems();
   const cartShowId = useCartStore(state => state.cart?.show_id ?? null);
@@ -584,6 +590,12 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                         // Depends only on the trial, so it is resolved once
                         // here rather than per level inside the map below.
                         const trialRegistryId = resolveConfiguredRegistryId(trial.registryId);
+                        const addressPrerequisite = getOwnerAddressPrerequisite({
+                          owner: dog?.owner,
+                          registryId: trial.registryId,
+                          isOwnAddress,
+                          warnOnly: ownerAddressWarnOnly,
+                        });
 
                         return (
                           <TrialSection
@@ -631,8 +643,7 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                       classSelections
                                     ),
                                     isAlreadyEntered: !!getExistingEntry(dogId, l.classId),
-                                    isRegistrationBlocked: !prerequisite.allowed,
-                                    registrationGuidance: prerequisite.message,
+                                    ...prerequisiteLevelFields(prerequisite, addressPrerequisite),
                                     isAvailabilityUnknown:
                                       availabilityLoading || avail === undefined,
                                     ...(avail !== undefined && {
@@ -655,6 +666,12 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
                                   handleClassToggle(dogId, trial.id, classId, group.fee)
                                 }
                                 onAddRegistration={() => openRegistrationEditor(dogId)}
+                                ownerAddressAction={
+                                  <OwnerAddressAction
+                                    isOwnAddress={isOwnAddress}
+                                    onEditOwner={() => setAddressOwnerId(dog?.ownerId ?? null)}
+                                  />
+                                }
                               />
                             ))}
                           </TrialSection>
@@ -685,6 +702,14 @@ export const ClassSelectionStep: React.FC<ClassSelectionStepProps> = ({
           onSave={saveRegistration}
         />
       </div>
+      <OwnerAddressEditPanel
+        ownerId={addressOwnerId}
+        onClose={() => setAddressOwnerId(null)}
+        onSaved={() => {
+          setAddressOwnerId(null);
+          void refetch();
+        }}
+      />
     </div>
   );
 };

@@ -1,16 +1,16 @@
 import React from 'react';
-import { ChevronRight, Info, CheckCircle2, ShoppingCart, Plus } from 'lucide-react';
+import { ChevronRight, Info, CheckCircle2, ShoppingCart } from 'lucide-react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { TabsTrigger } from '@/components/ui/tabs';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { formatWeekdayLongMonthDay } from '@/lib/format/dates';
 import type { Dog } from '@/types/dog-types';
 import { formatTrialTypeLabel } from '@/types/template.types';
 import type { LevelInfo } from './ClassSelectionStep.types';
+import { RegistrationFixAction } from './OwnerAddressFix';
 
 // ─── Dog Tab Trigger ───────────────────────────────────────────────────────────
 
@@ -166,6 +166,8 @@ interface ElementCardProps {
   cartBlockedReason?: string | null | undefined;
   onToggle: (classId: string) => void;
   onAddRegistration?: (() => void) | undefined;
+  /** MYK9-1010: the fix for a class blocked on the owner's address. */
+  ownerAddressAction?: React.ReactNode;
 }
 
 export const ElementCard: React.FC<ElementCardProps> = ({
@@ -176,6 +178,7 @@ export const ElementCard: React.FC<ElementCardProps> = ({
   cartBlockedReason = null,
   onToggle,
   onAddRegistration,
+  ownerAddressAction,
 }) => {
   const isCartPending = Boolean(cartBlockedReason);
   if (isSingleClass) {
@@ -264,12 +267,11 @@ export const ElementCard: React.FC<ElementCardProps> = ({
         {cls.isRegistrationBlocked && cls.registrationGuidance && (
           <div className="mt-2 flex flex-wrap items-center gap-2 rounded-md bg-warning/10 p-2">
             <span className="text-sm text-foreground">{cls.registrationGuidance}</span>
-            {onAddRegistration && (
-              <Button type="button" variant="outline" size="touch" onClick={onAddRegistration}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add required registration
-              </Button>
-            )}
+            <RegistrationFixAction
+              fix={cls.registrationFix}
+              onAddRegistration={onAddRegistration}
+              ownerAddressAction={ownerAddressAction}
+            />
           </div>
         )}
       </div>
@@ -313,12 +315,11 @@ export const ElementCard: React.FC<ElementCardProps> = ({
           <span className="text-sm text-foreground">
             {blockedRegistration.registrationGuidance}
           </span>
-          {onAddRegistration && (
-            <Button type="button" variant="outline" size="touch" onClick={onAddRegistration}>
-              <Plus className="mr-2 h-4 w-4" />
-              Add required registration
-            </Button>
-          )}
+          <RegistrationFixAction
+            fix={blockedRegistration.registrationFix}
+            onAddRegistration={onAddRegistration}
+            ownerAddressAction={ownerAddressAction}
+          />
         </div>
       )}
     </div>

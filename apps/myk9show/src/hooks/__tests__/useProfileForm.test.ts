@@ -201,6 +201,27 @@ describe('useProfileForm', () => {
     );
   });
 
+  // MYK9-1010: an AKC entry sends the exhibitor here to add their street
+  // address. `useUpdatePerson` writes `address || streetAddress`, so the stale
+  // `address` spread from the loaded person must not win over the edit.
+  it('save() writes an edited street address, not the stored one', async () => {
+    const { result } = renderHook(() => useProfileForm(), { wrapper: createWrapper() });
+
+    await waitForFormLoaded(result);
+
+    act(() => {
+      result.current.setValue('streetAddress', ' 9 Oak Ave ');
+    });
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(mockMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ address: '9 Oak Ave', streetAddress: '9 Oak Ave' })
+    );
+  });
+
   it('save() allows profile changes when address fields are blank', async () => {
     mockMaybeSingle.mockResolvedValue({
       data: {

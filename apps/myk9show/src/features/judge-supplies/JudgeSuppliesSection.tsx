@@ -22,62 +22,67 @@ export function JudgeSuppliesSection({ trialId }: JudgeSuppliesSectionProps) {
   const isLoading = judgesQuery.isLoading;
 
   return (
-    <div className="myk9-trials-section">
-      <div className="myk9-trials-header">
-        <div className="myk9-trials-title">
-          <div className="myk9-trials-icon">
-            <Package className="w-4 h-4" />
+    <>
+      <div className="myk9-trials-section">
+        <div className="myk9-trials-header">
+          <div className="myk9-trials-title">
+            <div className="myk9-trials-icon">
+              <Package className="w-4 h-4" />
+            </div>
+            Judge Supplies
           </div>
-          Judge Supplies
         </div>
+
+        {isLoading && <p className="text-sm text-muted-foreground p-4">Loading judges…</p>}
+
+        {!isLoading && judges.length === 0 && (
+          <p className="text-sm text-muted-foreground p-4" data-testid="judge-supplies-empty">
+            No judges assigned yet — supplies appear once judges are added to classes in this trial.
+          </p>
+        )}
+
+        {!isLoading && judges.length > 0 && (
+          <ul className="divide-y divide-border/40" role="list">
+            {judges.map(judge => {
+              const key = judgeKey(judge);
+              const judgeRows = rowsByJudge.get(key) ?? [];
+              const total = judgeRows.length;
+              const customCount = judgeRows.filter(r => r.is_custom).length;
+              const excludedCount = judgeRows.filter(r => !r.included).length;
+              const summary =
+                total === 0
+                  ? 'Not configured yet'
+                  : `${total} item${total === 1 ? '' : 's'}` +
+                    (customCount > 0 ? ` · ${customCount} custom` : '') +
+                    (excludedCount > 0 ? ` · ${excludedCount} excluded` : '');
+              return (
+                <li
+                  key={key}
+                  className="flex items-center justify-between px-4 py-3"
+                  data-testid={`judge-row-${key}`}
+                >
+                  <div>
+                    <p className="font-medium text-sm">{judge.judge_name}</p>
+                    <p className="text-xs text-muted-foreground">{summary}</p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setOpenJudge(judge)}
+                    aria-label={`Edit supplies for ${judge.judge_name}`}
+                  >
+                    Edit
+                  </Button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </div>
 
-      {isLoading && <p className="text-sm text-muted-foreground p-4">Loading judges…</p>}
-
-      {!isLoading && judges.length === 0 && (
-        <p className="text-sm text-muted-foreground p-4" data-testid="judge-supplies-empty">
-          No judges assigned yet — supplies appear once judges are added to classes in this trial.
-        </p>
-      )}
-
-      {!isLoading && judges.length > 0 && (
-        <ul className="divide-y divide-border/40" role="list">
-          {judges.map(judge => {
-            const key = judgeKey(judge);
-            const judgeRows = rowsByJudge.get(key) ?? [];
-            const total = judgeRows.length;
-            const customCount = judgeRows.filter(r => r.is_custom).length;
-            const excludedCount = judgeRows.filter(r => !r.included).length;
-            const summary =
-              total === 0
-                ? 'Not configured yet'
-                : `${total} item${total === 1 ? '' : 's'}` +
-                  (customCount > 0 ? ` · ${customCount} custom` : '') +
-                  (excludedCount > 0 ? ` · ${excludedCount} excluded` : '');
-            return (
-              <li
-                key={key}
-                className="flex items-center justify-between px-4 py-3"
-                data-testid={`judge-row-${key}`}
-              >
-                <div>
-                  <p className="font-medium text-sm">{judge.judge_name}</p>
-                  <p className="text-xs text-muted-foreground">{summary}</p>
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setOpenJudge(judge)}
-                  aria-label={`Edit supplies for ${judge.judge_name}`}
-                >
-                  Edit
-                </Button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-
+      {/* INTENT: a sibling of the card, not a child. The card has `backdrop-filter`, which makes it
+          the containing block for `position: fixed`; SlideOverPanel is not portaled, so inside the
+          card the panel would be sized to the card instead of the viewport. */}
       {openJudge && (
         <ManageJudgeSuppliesDialog
           open={!!openJudge}
@@ -89,7 +94,7 @@ export function JudgeSuppliesSection({ trialId }: JudgeSuppliesSectionProps) {
           registryId={registryQuery.data ?? null}
         />
       )}
-    </div>
+    </>
   );
 }
 

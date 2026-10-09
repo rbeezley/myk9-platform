@@ -18,9 +18,10 @@ don't try to salvage it.
 | A description of new design-level work                   | Run `opsx:propose` yourself (proposal quality is orchestrator work), then OpenSpec mode. |
 | One or more `MYK9-<n>` ids, or "run the queue / tonight" | **Linear run mode**: read `references/linear-issue-run.md` before the first issue.       |
 
-Both modes share the model routing, dispatch protocol and review gate below. Both hand
-everything after an accepted, committed batch to **`ship-pr`** (review tier, gate, watcher,
-squash-merge from the main checkout, cleanup). Never restate or shortcut those rules here.
+Both modes share the model routing, dispatch protocol and review gate below. Linear run mode
+hands everything after an accepted issue to **`ship-pr`** (review tier, gate, watcher,
+squash-merge from the main checkout, cleanup). OpenSpec mode ships each batch as its own section
+describes, and cleans up only after archive.
 
 ## Model routing
 
@@ -99,9 +100,9 @@ commands check `main`, not the proposed change.
    and re-review. **Max 3 rounds.** After that, escalate (see Model routing) or implement it
    yourself. A cheap model looping past the point where you'd be faster is waste.
 4. Only you tick `tasks.md` boxes or move Linear state. A tick means _reviewed and accepted_.
-5. Once accepted, ship it through `ship-pr` before you start the next batch or issue that
-   touches the same files. The mode sections say how: OpenSpec mode commits a checkpoint per
-   batch; Linear run mode first soft-resets the implementer's `wip:` commits.
+5. Once accepted, ship it before you start the next batch or issue that touches the same
+   files. How depends on the mode: see the OpenSpec section below, or `ship-pr` per
+   `references/linear-issue-run.md`.
 
 ## OpenSpec mode
 
@@ -117,13 +118,16 @@ implementation → PR → archive → cleanup).
 | Merge, archive, cleanup                  | Orchestrator                                   |
 
 Group `tasks.md` items into coherent batches (one file cluster or one requirement each) and run
-them **one at a time**. Ship each batch as its own PR before you dispatch the next: one PR per
-batch (shared rules, Gates § 3), because the reviewer reads the whole net diff, so one PR for N
-batches costs roughly N times the review rounds (#2210: 63 files, 8 rounds). Before the LAST
-batch's PR, run `opsx:verify` on the integrated tree and fix CRITICAL findings in that PR, never
-after the merge. Batches that can't compile or pass CI on their own ship together, and the PR
-says so. After the last merge, archive and clean up. The LAST batch skips `ship-pr` Step 7 (cleanup): archive runs from
-that worktree, so remove it only after `opsx:ship`'s archive phase.
+them **one at a time**. Commit a checkpoint after each accepted batch, then **ship that batch
+before dispatching the next**: open its PR, run the OTHER harness's review with the flag that
+posts the gate (`pnpm qa:codex-review --post` from Claude Code), record the gate, merge, and
+start the next batch from the merged `main`. Before the LAST batch's PR is opened, run
+`opsx:verify` against the integrated tree and fix CRITICAL findings in that PR, never after the
+merge. One PR per batch (shared rules, Gates § 3): the reviewer reads the whole net diff, so one
+end-of-change PR of N batches costs roughly N times the review rounds and hides cross-batch
+interactions until the end (#2210: 63 files, 8 rounds). Batches that can't compile or pass CI
+on their own ship together, and the PR says so. After the last merge, archive and clean up per
+the pipeline.
 
 ## Shared-system authority
 

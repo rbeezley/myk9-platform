@@ -14,7 +14,24 @@ import {
 import { useTrialSecretaryOnlyReason } from '@/features/actions/TrialSecretaryAccessContext';
 
 import type { ShowMapClassInput } from './showMapTypes';
-import { buildPaperScoringPicker } from './paperScoringPicker';
+import { buildPaperScoringPicker, type PaperScoringPickerClass } from './paperScoringPicker';
+
+function PickerClassLink({ cls }: { cls: PaperScoringPickerClass }) {
+  return (
+    <li>
+      <Link
+        to={cls.href}
+        className="flex min-h-11 items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm hover:bg-muted"
+      >
+        <span className="font-medium">{cls.label}</span>
+        <span className="text-muted-foreground">
+          {cls.progress}
+          {cls.done && ' - done'}
+        </span>
+      </Link>
+    </li>
+  );
+}
 
 /**
  * MYK9-1062: the show home's door to paper scoring. Paper scoring is per class
@@ -24,8 +41,9 @@ import { buildPaperScoringPicker } from './paperScoringPicker';
  */
 export function ShowHomePaperScores({ classes }: { classes: readonly ShowMapClassInput[] }) {
   const secretaryOnlyReason = useTrialSecretaryOnlyReason();
-  const groups = useMemo(() => buildPaperScoringPicker(classes), [classes]);
-  const all = groups.flatMap(group => group.classes);
+  const picker = useMemo(() => buildPaperScoringPicker(classes), [classes]);
+  const { groups, finished } = picker;
+  const all = [...groups.flatMap(group => group.classes), ...finished];
 
   if (secretaryOnlyReason !== undefined || all.length === 0) return null;
 
@@ -61,22 +79,21 @@ export function ShowHomePaperScores({ classes }: { classes: readonly ShowMapClas
               <h3 className="text-sm font-semibold text-muted-foreground">{group.label}</h3>
               <ul className="space-y-2">
                 {group.classes.map(cls => (
-                  <li key={cls.id}>
-                    <Link
-                      to={cls.href}
-                      className="flex min-h-11 items-center justify-between gap-3 rounded-md border px-3 py-2 text-sm hover:bg-muted"
-                    >
-                      <span className="font-medium">{cls.label}</span>
-                      <span className="text-muted-foreground">
-                        {cls.progress}
-                        {cls.done && ' - done'}
-                      </span>
-                    </Link>
-                  </li>
+                  <PickerClassLink key={cls.id} cls={cls} />
                 ))}
               </ul>
             </section>
           ))}
+          {finished.length > 0 && (
+            <section aria-label="Finished" className="space-y-2">
+              <h3 className="text-sm font-semibold text-muted-foreground">Finished</h3>
+              <ul className="space-y-2">
+                {finished.map(cls => (
+                  <PickerClassLink key={cls.id} cls={cls} />
+                ))}
+              </ul>
+            </section>
+          )}
         </div>
       </DialogContent>
     </Dialog>

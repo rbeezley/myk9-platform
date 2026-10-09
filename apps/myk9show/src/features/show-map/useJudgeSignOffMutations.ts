@@ -30,8 +30,9 @@ function failedDescription(outcome: JudgeSignOffOutcome): string | undefined {
 export function useJudgeSignOffMutations({
   onSettled,
 }: {
-  onSettled: (classIds: readonly string[]) => void;
-}) {
+  /** Optional: Results reads the replica, which refreshes itself when the write lands. */
+  onSettled?: (classIds: readonly string[]) => void;
+} = {}) {
   const { user } = useAuth();
 
   // Offline-first (replica + queue), so it must run with no network: the app client's default
@@ -54,7 +55,7 @@ export function useJudgeSignOffMutations({
     onError: error => {
       toast.error(getUserFriendlyError(error, 'The sign-off could not be removed. Try again.'));
     },
-    onSettled: (_data, _error, variables) => onSettled(variables.classIds),
+    onSettled: (_data, _error, variables) => onSettled?.(variables.classIds),
   });
 
   const record = useMutation({
@@ -77,7 +78,7 @@ export function useJudgeSignOffMutations({
     onError: error => {
       toast.error(getUserFriendlyError(error, 'The sign-off could not be recorded. Try again.'));
     },
-    onSettled: (_data, _error, variables) => onSettled(variables.classIds),
+    onSettled: (_data, _error, variables) => onSettled?.(variables.classIds),
   });
 
   return {

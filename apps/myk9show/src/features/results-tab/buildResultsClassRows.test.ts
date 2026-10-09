@@ -192,7 +192,10 @@ describe('buildResultsClassRows', () => {
   it('walks a finished class through release and print using the class-row release stamp and the paperwork map', () => {
     const base = {
       trials: [trial],
-      trialClasses: { 'trial-1': [trialClass('class-1')] },
+      // Initialed by the judge, so the walk ends at Done (see the sign-off tests below).
+      trialClasses: {
+        'trial-1': [trialClass('class-1', { judgeSignedOffAt: '2026-10-10T21:00:00Z' })],
+      },
       entries: [scored('e-1', 'class-1', { result_status: 'qualified', final_placement: 1 })],
     };
     const released = new Map([['class-1', '2026-10-10T16:00:00Z']]);
@@ -219,6 +222,185 @@ describe('buildResultsClassRows', () => {
     expect(phase(released, new Map())).toBe('released');
     expect(phase(released, stale)).toBe('released');
     expect(phase(released, printed)).toBe('done');
+  });
+
+  describe('judge sign-off (MYK9-1031 part 2a)', () => {
+    const entries = [scored('e-1', 'class-1', { result_status: 'qualified', final_placement: 1 })];
+    const released = new Map([['class-1', '2026-10-10T16:00:00Z']]);
+    const printed = new Map([
+      ['class-1', [paperwork('results-sheet', 'current'), paperwork('result-labels', 'current')]],
+    ]);
+
+    function build(classes: SyncableTrialClass[]) {
+      return buildResultsClassRows({
+        trials: [trial],
+        trialClasses: { 'trial-1': classes },
+        releasedAtByClassId: new Map(classes.map(cls => [cls.id, '2026-10-10T16:00:00Z'] as const)),
+        paperworkByClassId: new Map(
+          classes.map(cls => [cls.id, printed.get('class-1') ?? []] as const)
+        ),
+        entries: classes.map(cls =>
+          scored(`e-${cls.id}`, cls.id, { result_status: 'qualified', final_placement: 1 })
+        ),
+      });
+    }
+
+    it('asks for initials once released and printed, when the judge day is over', () => {
+      const [row] = build([trialClass('class-1')]);
+      expect(row).toMatchObject({ phase: 'needs-initials', judgeSignedOffAt: null });
+      expect(row?.nextAction).toEqual({ kind: 'initials', label: 'Initials' });
+      expect(row?.phaseLabel).toBe("Needs judge's initials");
+    });
+
+    it('does not ask while the same judge still has a class to run that day', () => {
+      const [first, second] = buildResultsClassRows({
+        trials: [trial],
+        trialClasses: {
+          'trial-1': [
+            trialClass('class-1'),
+            trialClass('class-2', { startTime: '13:00', status: 'In Progress' }),
+          ],
+        },
+        releasedAtByClassId: released,
+        paperworkByClassId: printed,
+        entries: [...entries, entry('e-pending', 'class-2')],
+      });
+      expect(first?.phase).toBe('done');
+      expect(first?.runFinished).toBe(true);
+      expect(second?.runFinished).toBe(false);
+      expect(first?.judgeDayKey).toBe(second?.judgeDayKey);
+    });
+
+    it('is Done once the judge has signed off, and keeps judges apart', () => {
+      const [signed, other] = build([
+        trialClass('class-1', { judgeSignedOffAt: '2026-10-10T21:00:00Z' }),
+        trialClass('class-2', { judgeId: 'judge-2', judgeName: 'Sam Judge' }),
+      ]);
+      expect(signed?.phase).toBe('done');
+      expect(other?.phase).toBe('needs-initials');
+      expect(signed?.judgeDayKey).not.toBe(other?.judgeDayKey);
+    });
+
+    it('speaks the registry wording: a UKC show asks for the signature', () => {
+      const ukcTrial = { ...trial, registryId: 'UKC' } as unknown as SyncableTrial;
+      const [row] = buildResultsClassRows({
+        trials: [ukcTrial],
+        trialClasses: { 'trial-1': [trialClass('class-1')] },
+        releasedAtByClassId: released,
+        paperworkByClassId: printed,
+        entries,
+      });
+      expect(row?.registryId).not.toBe('AKC');
+      expect(row?.phase).toBe('needs-initials');
+      expect(row?.nextAction.label).toBe('Signature');
+      expect(row?.phaseLabel).toBe('Needs judge signature');
+    });
+
+    it('only a Completed class can be recorded', () => {
+      const [completed, running] = build([
+        trialClass('class-1'),
+        trialClass('class-2', { status: 'In Progress' }),
+      ]);
+      expect(completed?.signOffRecordable).toBe(true);
+      expect(running?.signOffRecordable).toBe(false);
+    });
+
+    // Same scenario as judgeDaySignOff.test on the Overview tree ("keeps waiting when the empty
+    // class has an entry still pending acceptance"): one rule, two surfaces.
+    it("a class holding only entries not yet accepted keeps its judge's day open (as on Overview)", () => {
+      const [done, waiting] = buildResultsClassRows({
+        trials: [trial],
+        trialClasses: {
+          'trial-1': [
+            trialClass('class-1'),
+            trialClass('class-2', { startTime: '13:00', status: 'Scheduled' }),
+          ],
+        },
+        releasedAtByClassId: released,
+        paperworkByClassId: printed,
+        entries: [...entries, entry('e-pending', 'class-2', { entry_status: 'pending' })],
+      });
+      expect(waiting).toMatchObject({ phase: 'no-dogs', runFinished: false });
+      expect(done?.phase).toBe('done');
+      expect(done?.runFinished).toBe(true);
+    });
+
+    // Same scenario as judgeDaySignOff.test on the Overview tree ("a Completed class whose entries
+    // are all absent still needs the judge's initials"): the rule is Overview's, applied here.
+    it('a Completed class whose entries are all absent still takes the sign-off (as on Overview)', () => {
+      const [row] = buildResultsClassRows({
+        trials: [trial],
+        trialClasses: { 'trial-1': [trialClass('class-1')] },
+        releasedAtByClassId: new Map([['class-1', null]]),
+        paperworkByClassId: new Map(),
+        entries: [entry('e-absent', 'class-1', { entry_status: 'absent' })],
+      });
+      expect(row).toMatchObject({
+        runFinished: true,
+        takesJudgeSignOff: true,
+        signOffRecordable: true,
+        // Nothing to release or print, but the sign-off is owed: read from that, not the dog count.
+        phase: 'needs-initials',
+        nextAction: { kind: 'initials', label: 'Initials' },
+      });
+    });
+
+    it('that all-absent class reads Done once signed, and quiet while the judge is still judging', () => {
+      const absent = entry('e-absent', 'class-1', { entry_status: 'absent' });
+      const base = {
+        trials: [trial],
+        releasedAtByClassId: new Map<string, string | null>(),
+        paperworkByClassId: new Map(),
+      };
+      const [signed] = buildResultsClassRows({
+        ...base,
+        trialClasses: {
+          'trial-1': [trialClass('class-1', { judgeSignedOffAt: '2026-10-10T21:00:00Z' })],
+        },
+        entries: [absent],
+      });
+      expect(signed).toMatchObject({ phase: 'done', nextAction: { kind: 'none' } });
+
+      const [waiting] = buildResultsClassRows({
+        ...base,
+        trialClasses: {
+          'trial-1': [
+            trialClass('class-1'),
+            trialClass('class-2', { startTime: '13:00', status: 'In Progress' }),
+          ],
+        },
+        entries: [absent, entry('e-2', 'class-2')],
+      });
+      expect(waiting).toMatchObject({ phase: 'done', judgeSignedOffAt: null });
+    });
+
+    it('a class with every entry pulled has nothing to sign, on both surfaces', () => {
+      const [row] = buildResultsClassRows({
+        trials: [trial],
+        trialClasses: { 'trial-1': [trialClass('class-1')] },
+        releasedAtByClassId: new Map([['class-1', null]]),
+        paperworkByClassId: new Map(),
+        entries: [entry('e-pulled', 'class-1', { check_in_status: 'pulled' })],
+      });
+      expect(row).toMatchObject({ takesJudgeSignOff: false, signOffRecordable: false });
+    });
+
+    it('a class that is known empty does not hold the day open', () => {
+      const [done, empty] = buildResultsClassRows({
+        trials: [trial],
+        trialClasses: {
+          'trial-1': [
+            trialClass('class-1'),
+            trialClass('class-2', { startTime: '13:00', status: 'Scheduled' }),
+          ],
+        },
+        releasedAtByClassId: released,
+        paperworkByClassId: printed,
+        entries,
+      });
+      expect(empty).toMatchObject({ phase: 'no-dogs', runFinished: true });
+      expect(done?.phase).toBe('needs-initials');
+    });
   });
 
   it('orders trials by date, then classes by schedule time and level', () => {

@@ -205,6 +205,10 @@ describe('useResultsTabData', () => {
       results_released_at: '2026-10-10T16:00:00Z',
     };
     mocks.reportClasses = [reportClass];
+    mocks.schedule = {
+      ...mocks.schedule,
+      trialClasses: { 'trial-1': [{ ...cls, judgeSignedOffAt: '2026-10-10T21:00:00Z' }] },
+    };
     const entries = mocks.entries.data as Record<string, unknown>[];
     const confirm = (reportId: 'results-sheet' | 'result-labels') => {
       const descriptor = buildReportPaperworkDescriptor({

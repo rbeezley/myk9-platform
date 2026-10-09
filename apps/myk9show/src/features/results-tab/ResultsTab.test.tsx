@@ -70,17 +70,21 @@ const unprinted = (reportId: string): SecretaryCockpitPaperwork => ({
   printHref: `/shows/show-1/reports?report=${reportId}`,
 });
 
-function buildRows() {
+/** `dayOver` finishes the judge's last class; `doneSigned: false` leaves Advanced un-initialed. */
+function buildRows({ dayOver = false, doneSigned = true, readyStatus = 'Completed' } = {}) {
   return buildResultsClassRows({
     trials: [trial],
     trialClasses: {
       'trial-1': [
-        level('class-ready', 'Novice', '08:00'),
+        { ...level('class-ready', 'Novice', '08:00'), status: readyStatus } as SyncableTrialClass,
         level('class-released', 'Open', '09:00'),
-        level('class-done', 'Advanced', '10:00'),
+        {
+          ...level('class-done', 'Advanced', '10:00'),
+          judgeSignedOffAt: doneSigned ? '2026-10-10T21:00:00Z' : null,
+        },
         {
           ...level('class-ring', 'Excellent', '11:00'),
-          status: 'In Progress',
+          status: dayOver ? 'Completed' : 'In Progress',
         } as SyncableTrialClass,
       ],
     },
@@ -100,7 +104,9 @@ function buildRows() {
       entry('e-released', 'class-released'),
       entry('e-done', 'class-done'),
       entry('e-ring-1', 'class-ring'),
-      entry('e-ring-2', 'class-ring', { is_scored: false, result_status: 'pending' }),
+      dayOver
+        ? entry('e-ring-2', 'class-ring')
+        : entry('e-ring-2', 'class-ring', { is_scored: false, result_status: 'pending' }),
     ],
   });
 }
@@ -120,6 +126,12 @@ vi.mock('./useResultsTabData', () => ({ useResultsTabData: () => hook.value }));
 const releaseMutate = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/mutations/useReleaseResults', () => ({
   useReleaseResults: () => ({ mutate: releaseMutate, isPending: false }),
+}));
+
+const recordSignOff = vi.hoisted(() => vi.fn());
+const clearSignOff = vi.hoisted(() => vi.fn());
+vi.mock('@/features/show-map/useJudgeSignOffMutations', () => ({
+  useJudgeSignOffMutations: () => ({ recordSignOff, clearSignOff, isPending: false }),
 }));
 
 const media = vi.hoisted(() => ({ wide: false }));
@@ -142,6 +154,8 @@ function renderAt(search = '') {
 beforeEach(() => {
   media.wide = false;
   releaseMutate.mockReset();
+  recordSignOff.mockReset();
+  clearSignOff.mockReset();
   hook.value = {
     rows: buildRows(),
     trials: [trial],
@@ -213,14 +227,18 @@ describe('ResultsTab list', () => {
     expect(screen.getByText('Nothing needs you right now.')).toBeInTheDocument();
   });
 
-  it('points at Submit and Close once every class is released', () => {
-    hook.value = {
-      ...hook.value,
-      rows: buildRows().filter(row => row.phase === 'done' || row.phase === 'released'),
-    };
+  it('points at Submit and Close once every class is released and initialed', () => {
+    const initialed = buildRows({ dayOver: true }).map(row => ({
+      ...row,
+      judgeSignedOffAt: '2026-10-10T21:00:00Z',
+      releasedAt: row.releasedAt ?? '2026-10-10T16:00:00Z',
+      // Every class released, printed and initialed: the phase a finished class settles in.
+      phase: 'done' as const,
+    }));
+    hook.value = { ...hook.value, rows: initialed };
     renderAt();
 
-    expect(screen.getByText('Every class is released')).toBeInTheDocument();
+    expect(screen.getByText('Every class is released and signed off')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Submit to registry/ })).toHaveAttribute(
       'href',
       '/shows/show-1/results?step=submit'
@@ -229,6 +247,93 @@ describe('ResultsTab list', () => {
       'href',
       '/shows/show-1/results?step=close'
     );
+  });
+
+  it('an all-absent Completed class owes the sign-off: Needs me lists it and the banner waits', () => {
+    const build = (judgeSignedOffAt: string | null) =>
+      buildResultsClassRows({
+        trials: [trial],
+        trialClasses: {
+          'trial-1': [{ ...level('c1', 'Novice', '08:00'), judgeSignedOffAt }],
+        },
+        releasedAtByClassId: new Map([['c1', null]]),
+        paperworkByClassId: new Map(),
+        entries: [entry('e1', 'c1', { entry_status: 'absent' })],
+      });
+
+    hook.value = { ...hook.value, rows: build(null) };
+    const first = renderAt();
+    expect(screen.getByRole('link', { name: 'Initials: Containers Novice' })).toBeInTheDocument();
+    expect(screen.queryByText('Every class is released and signed off')).not.toBeInTheDocument();
+    first.unmount();
+
+    hook.value = { ...hook.value, rows: build('2026-10-10T21:00:00Z') };
+    renderAt('?status=all');
+    expect(screen.getByText('Every class is released and signed off')).toBeInTheDocument();
+  });
+
+  it('holds the banner back while a class holding only unaccepted entries is still to run', () => {
+    hook.value = {
+      ...hook.value,
+      rows: buildResultsClassRows({
+        trials: [trial],
+        trialClasses: {
+          'trial-1': [
+            { ...level('c1', 'Novice', '08:00'), judgeSignedOffAt: '2026-10-10T21:00:00Z' },
+            { ...level('c2', 'Open', '13:00'), status: 'Scheduled' } as SyncableTrialClass,
+          ],
+        },
+        releasedAtByClassId: new Map([
+          ['c1', '2026-10-10T16:00:00Z'],
+          ['c2', null],
+        ]),
+        paperworkByClassId: new Map(),
+        entries: [
+          entry('e1', 'c1'),
+          entry('e2', 'c2', {
+            entry_status: 'pending',
+            is_scored: false,
+            result_status: 'pending',
+          }),
+        ],
+      }),
+    };
+    renderAt();
+
+    expect(screen.queryByText('Every class is released and signed off')).not.toBeInTheDocument();
+  });
+
+  it('holds the banner back when a released, signed class has been reopened by a late entry', () => {
+    const rows = buildResultsClassRows({
+      trials: [trial],
+      trialClasses: {
+        'trial-1': [
+          { ...level('c1', 'Novice', '08:00'), judgeSignedOffAt: '2026-10-10T21:00:00Z' },
+        ],
+      },
+      releasedAtByClassId: new Map([['c1', '2026-10-10T16:00:00Z']]),
+      paperworkByClassId: new Map(),
+      // The class was complete when released and signed; a new entry arrived unscored.
+      entries: [
+        entry('e1', 'c1'),
+        entry('e2', 'c1', { is_scored: false, result_status: 'pending' }),
+      ],
+    });
+    expect(rows[0]).toMatchObject({ phase: 'in-ring' });
+    hook.value = { ...hook.value, rows };
+    renderAt();
+
+    expect(screen.queryByText('Every class is released and signed off')).not.toBeInTheDocument();
+  });
+
+  it('holds the banner back while a released class still waits for the judge', () => {
+    hook.value = {
+      ...hook.value,
+      rows: buildRows().filter(row => row.id === 'class-released' || row.id === 'class-done'),
+    };
+    renderAt();
+
+    expect(screen.queryByText('Every class is released and signed off')).not.toBeInTheDocument();
   });
 });
 
@@ -312,6 +417,155 @@ describe('ResultsTab detail', () => {
       'href',
       '/shows/show-1?focus=class-ring'
     );
+  });
+});
+
+describe('ResultsTab judge sign-off: classes not marked complete', () => {
+  it('shows the section row as "Mark complete first" with the link, instead of hiding Record silently', () => {
+    hook.value = { ...hook.value, rows: buildRows({ dayOver: true, readyStatus: 'In Progress' }) };
+    renderAt('?status=all&classId=class-done');
+
+    const section = screen.getByRole('region', { name: 'Judge sign-off' });
+    expect(
+      within(section).getByRole('link', { name: 'Mark complete first: Containers Novice' })
+    ).toHaveAttribute('href', '/shows/show-1?focus=class-ready');
+    // The classes that can be recorded still can: only the one needing completion is held back.
+    expect(within(section).getByRole('button', { name: /^Record initials/ })).toBeInTheDocument();
+  });
+
+  it('with only the unfinished-status class left to record, says why there is nothing to press', () => {
+    const rows = buildRows({ dayOver: true, readyStatus: 'In Progress' }).filter(
+      row => row.id === 'class-ready'
+    );
+    hook.value = { ...hook.value, rows };
+    renderAt('?status=all&classId=class-ready');
+
+    const section = screen.getByRole('region', { name: 'Judge sign-off' });
+    expect(
+      within(section).queryByRole('button', { name: /^Record initials/ })
+    ).not.toBeInTheDocument();
+    expect(within(section).getByRole('link', { name: /Mark complete first/ })).toBeInTheDocument();
+  });
+});
+
+describe('ResultsTab judge sign-off: a day across trials', () => {
+  const trial2 = { ...trial, id: 'trial-2', trialNumber: '2' } as SyncableTrial;
+  const crossTrialRows = () =>
+    buildResultsClassRows({
+      trials: [trial, trial2],
+      trialClasses: {
+        'trial-1': [
+          { ...level('c1', 'Novice', '08:00'), judgeSignedOffAt: '2026-10-10T21:00:00Z' },
+        ],
+        'trial-2': [
+          { ...level('c2', 'Novice', '08:00'), judgeSignedOffAt: '2026-10-10T21:00:00Z' },
+        ],
+      },
+      releasedAtByClassId: new Map([
+        ['c1', '2026-10-10T16:00:00Z'],
+        ['c2', '2026-10-10T16:00:00Z'],
+      ]),
+      paperworkByClassId: new Map(),
+      entries: [entry('e1', 'c1'), entry('e2', 'c2')],
+    });
+
+  it('says which trial each row is, in the row and in the Undo label', async () => {
+    hook.value = { ...hook.value, rows: crossTrialRows(), trials: [trial, trial2] };
+    const { user } = renderAt('?status=all&classId=c1');
+
+    const section = screen.getByRole('region', { name: 'Judge sign-off' });
+    expect(within(section).getByText(/Trial 1/)).toBeInTheDocument();
+    expect(within(section).getByText(/Trial 2/)).toBeInTheDocument();
+    const undoTwo = within(section).getByRole('button', {
+      name: 'Undo initials: Containers Novice, Trial 2',
+    });
+    expect(
+      within(section).getByRole('button', { name: 'Undo initials: Containers Novice, Trial 1' })
+    ).toBeInTheDocument();
+    await user.click(undoTwo);
+    expect(clearSignOff).toHaveBeenCalledWith({ classIds: ['c2'], registryId: 'AKC' });
+  });
+
+  it('stays quiet when the whole day is in one trial', () => {
+    renderAt('?status=all&classId=class-done');
+
+    const section = screen.getByRole('region', { name: 'Judge sign-off' });
+    expect(within(section).queryByText(/Trial 1/)).not.toBeInTheDocument();
+  });
+});
+
+describe('ResultsTab judge sign-off', () => {
+  it('groups the open class by judge and day, and waits while the judge still has a class to run', () => {
+    renderAt('?status=all&classId=class-done');
+
+    const section = screen.getByRole('region', { name: 'Judge sign-off' });
+    expect(within(section).getByText(/Pat Judge · .*Oct 10 · 3 of 4 complete/)).toBeInTheDocument();
+    expect(within(section).getByText(/1 of 4 initialed by judge/i)).toBeInTheDocument();
+    expect(within(section).getByText('Judge initials at end of day')).toBeInTheDocument();
+    expect(
+      within(section).queryByRole('button', { name: /Record initials/ })
+    ).not.toBeInTheDocument();
+    expect(within(section).getByRole('link', { name: /Print marked catalog/ })).toHaveAttribute(
+      'href',
+      expect.stringContaining('report=result-catalog')
+    );
+  });
+
+  it('records the whole completed day at once, once the judge is done for the day', async () => {
+    hook.value = { ...hook.value, rows: buildRows({ dayOver: true }) };
+    const { user } = renderAt('?status=all&classId=class-released');
+
+    const section = screen.getByRole('region', { name: 'Judge sign-off' });
+    expect(within(section).getByText(/4 of 4 complete/)).toBeInTheDocument();
+    await user.click(within(section).getByRole('button', { name: /^Record initials: Pat Judge/ }));
+    expect(recordSignOff).toHaveBeenCalledWith({
+      classIds: ['class-ready', 'class-released', 'class-ring'],
+      registryId: 'AKC',
+    });
+  });
+
+  it('says "Judge not set" and drops the judge from the button when no judge is assigned', () => {
+    const rows = buildRows({ dayOver: true }).map(row => ({
+      ...row,
+      judgeName: '',
+      judgeId: '',
+      // No judge: each class is a day of its own (the shared rule keys it by class).
+      judgeDayKey: `class:${row.id}`,
+    }));
+    hook.value = { ...hook.value, rows };
+    renderAt('?status=all&classId=class-released');
+
+    // With no judge each class is its own day, so the section is that one class.
+    const section = screen.getByRole('region', { name: 'Judge sign-off' });
+    expect(
+      within(section).getByText(/^Judge not set · .*Oct 10 · 1 of 1 complete/)
+    ).toBeInTheDocument();
+    expect(
+      within(section).getByRole('button', { name: /^Record initials: \w{3}, Oct 10$/ })
+    ).toBeInTheDocument();
+    expect(within(section).queryByText(/judge,/i)).not.toBeInTheDocument();
+  });
+
+  it('undoes one class at a time', async () => {
+    hook.value = { ...hook.value, rows: buildRows({ dayOver: true }) };
+    const { user } = renderAt('?status=all&classId=class-done');
+
+    await user.click(screen.getByRole('button', { name: 'Undo initials: Containers Advanced' }));
+    expect(clearSignOff).toHaveBeenCalledWith({ classIds: ['class-done'], registryId: 'AKC' });
+  });
+
+  it('asks for initials on a finished, released and printed class once the day is over', () => {
+    hook.value = { ...hook.value, rows: buildRows({ dayOver: true, doneSigned: false }) };
+    renderAt('?status=all');
+
+    const list = screen.getByRole('list', { name: 'Classes' });
+    expect(within(list).getByText("Needs judge's initials")).toBeInTheDocument();
+  });
+
+  it('shows no sign-off section for a class still in the ring', () => {
+    renderAt('?status=all&classId=class-ring');
+
+    expect(screen.queryByRole('region', { name: 'Judge sign-off' })).not.toBeInTheDocument();
   });
 });
 

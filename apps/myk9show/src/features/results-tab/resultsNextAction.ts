@@ -6,9 +6,9 @@
  * apart. A class lives on Overview until scoring is complete, then on Results
  * (`docs/plan-results-tab-redesign.md`).
  *
- * SEAMS for part 2 (not built here, see the plan's Phases 2 and 3): the input
- * gains `judgeSignedOffAt`, and `verifiedAt` starts being supplied. Both are
- * read in {@link deriveResultsPhase}, nowhere else.
+ * Part 2a (MYK9-1031) feeds the judge's sign-off (`judgeSignedOffAt`), giving Print, Initials,
+ * Done. SEAM still open: `verifiedAt` is not supplied yet (the paper check ships separately), so
+ * it never gates anything. Both are read in {@link deriveResultsPhase}, nowhere else.
  */
 import { CLASS_STATUS, LEGACY_STATUS_MAP } from '@myk9/core';
 
@@ -35,6 +35,16 @@ export interface ResultsClassState {
    * `null` means tracked and not done yet.
    */
   verifiedAt?: string | null | undefined;
+  /**
+   * `classes.judge_signed_off_at`. `null` = not yet initialed; `undefined` = not tracked, so the
+   * class never waits on initials.
+   */
+  judgeSignedOffAt?: string | null | undefined;
+  /**
+   * The judge still has a class to run that day. The judge initials once, at the END of the day
+   * (MYK9-1030), so a class does not ask for initials while its judge is still judging.
+   */
+  judgeDayOpen?: boolean | undefined;
 }
 
 export type ResultsClassPhase =
@@ -44,11 +54,13 @@ export type ResultsClassPhase =
   | 'ready-to-release'
   | 'release-unknown'
   | 'released'
+  | 'needs-initials'
   | 'done'
   | 'cancelled'
   | 'no-dogs';
 
-export type ResultsNextActionKind = 'overview' | 'verify' | 'release' | 'print' | 'none';
+export type ResultsNextActionKind =
+  'overview' | 'verify' | 'release' | 'print' | 'initials' | 'none';
 
 export interface ResultsNextAction {
   kind: ResultsNextActionKind;
@@ -72,7 +84,12 @@ export function deriveResultsPhase(state: ResultsClassState): ResultsClassPhase 
     return state.scoredCount > 0 || status === CLASS_STATUS.IN_PROGRESS ? 'in-ring' : 'not-started';
   }
   if (state.releasedAt === undefined) return 'release-unknown';
-  if (state.releasedAt) return state.paperworkPrinted === true ? 'done' : 'released';
+  if (state.releasedAt) {
+    if (state.paperworkPrinted !== true) return 'released';
+    return state.judgeSignedOffAt === null && state.judgeDayOpen !== true
+      ? 'needs-initials'
+      : 'done';
+  }
   return state.verifiedAt === null ? 'needs-checking' : 'ready-to-release';
 }
 
@@ -83,6 +100,8 @@ const NEXT_ACTION_BY_PHASE: Record<ResultsClassPhase, ResultsNextAction> = {
   'ready-to-release': { kind: 'release', label: 'Release' },
   'release-unknown': { kind: 'none', label: 'Status unknown' },
   released: { kind: 'print', label: 'Print' },
+  // The label is the AKC wording; a signature registry overrides it (buildResultsClassRows).
+  'needs-initials': { kind: 'initials', label: 'Initials' },
   done: { kind: 'none', label: 'Done' },
   cancelled: { kind: 'none', label: 'Cancelled' },
   'no-dogs': { kind: 'none', label: 'Nothing to do' },
@@ -99,6 +118,7 @@ export const RESULTS_PHASE_LABEL: Record<ResultsClassPhase, string> = {
   'ready-to-release': 'Ready to release',
   'release-unknown': 'Release status unknown',
   released: 'Released',
+  'needs-initials': "Needs judge's initials",
   done: 'Done',
   cancelled: 'Cancelled',
   'no-dogs': 'No dogs ran',
@@ -119,6 +139,7 @@ const NEEDS_ME: ReadonlySet<ResultsClassPhase> = new Set([
   'needs-checking',
   'ready-to-release',
   'released',
+  'needs-initials',
 ]);
 
 const FILTER_PHASES: Record<ResultsStatusFilterId, ReadonlySet<ResultsClassPhase> | null> = {
@@ -126,7 +147,7 @@ const FILTER_PHASES: Record<ResultsStatusFilterId, ReadonlySet<ResultsClassPhase
   all: null,
   'needs-checking': new Set(['needs-checking']),
   'ready-to-release': new Set(['ready-to-release']),
-  released: new Set(['released', 'done']),
+  released: new Set(['released', 'needs-initials', 'done']),
   done: new Set(['done']),
 };
 

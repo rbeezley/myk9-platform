@@ -15,6 +15,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { CockpitPaperworkRow } from '@/features/show-map/cockpit/CockpitPaperworkRow';
+import { judgeSignOffWording } from '@/features/show-map/judgeSignOff';
 import { formatTime } from '@/lib/format/dates';
 import type { ResultsClassRow, ResultsEntryRow } from './buildResultsClassRows';
 import { PrintStatusUnavailable } from './PrintStatusUnavailable';
@@ -50,6 +51,7 @@ function PrimaryWork({
   onRelease,
 }: Pick<ResultsClassDetailProps, 'showId' | 'row' | 'releasing' | 'onRelease'>) {
   const { phase } = row;
+  const noun = judgeSignOffWording(row.registryId).nextActionLabel.toLowerCase();
   let title: string;
   let body: string;
   let action: ReactNode = null;
@@ -79,9 +81,15 @@ function PrimaryWork({
   } else if (phase === 'released') {
     title = 'Print the results sheet and ribbon labels';
     body = 'The results are released. Print the paperwork below and record it as printed.';
+  } else if (phase === 'needs-initials') {
+    title = `Record the judge's ${noun}`;
+    body = `The judge's day is over. Print the marked catalog, have the judge ${noun === 'initials' ? 'initial' : 'sign'} it, then record it in Judge sign-off below.`;
   } else if (phase === 'done') {
     title = 'All done for this class';
-    body = 'Results are released and the paperwork is printed.';
+    body =
+      row.judgeSignedOffAt === null
+        ? `Results are released and the paperwork is printed. The judge's ${noun} are collected at the end of their day.`
+        : 'Results are released, the paperwork is printed and the judge has signed off.';
   } else if (phase === 'cancelled') {
     title = 'This class was cancelled';
     body = 'There are no results to check, release or print.';
@@ -210,7 +218,7 @@ export function ResultsClassDetail({
           <Badge variant="outline">
             {released ? 'Released' : row.phase === 'release-unknown' ? 'Unknown' : 'Not released'}
           </Badge>
-          <ResultsStatusChip phase={row.phase} />
+          <ResultsStatusChip phase={row.phase} label={row.phaseLabel} />
         </div>
       </header>
 

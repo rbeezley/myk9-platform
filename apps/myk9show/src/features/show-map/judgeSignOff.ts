@@ -17,6 +17,8 @@ import { resolveConfiguredRegistryId } from '@/features/registries';
 
 export interface JudgeSignOffWording {
   actionLabel: string;
+  /** The Results tab's Next action when the judge's sign-off is the step left: "Initials". */
+  nextActionLabel: string;
   actionWhy: string;
   needsStatusLabel: string;
   /** MYK9-1030: complete, but the judge still has classes to run that day (neutral). */
@@ -37,8 +39,15 @@ export interface JudgeSignOffWording {
   pendingSignalLabel: (count: number) => string;
 }
 
+/** "Record initials: Jane Smith, Sat, Oct 10"; with no judge set, just "Record initials: Sat, Oct 10". */
+function recordLabel(verb: string, judgeName: string | undefined, day: string): string {
+  const detail = [judgeName?.trim(), day].filter(Boolean).join(', ');
+  return detail ? `${verb}: ${detail}` : verb;
+}
+
 const AKC_WORDING: JudgeSignOffWording = {
   actionLabel: "Collect judge's initials",
+  nextActionLabel: 'Initials',
   actionWhy: "Completed class still needs the judge's initials",
   needsStatusLabel: "Needs judge's initials",
   endOfDayStatusLabel: 'Initials at end of day',
@@ -48,8 +57,7 @@ const AKC_WORDING: JudgeSignOffWording = {
   checklistEndOfDayDetail: 'Judge initials at end of day',
   resultsControlInstruction:
     "Verify the judge's initials on the printed result catalog before sending.",
-  recordActionLabel: (judgeName, day) =>
-    `Record initials: ${judgeName?.trim() || 'judge'}${day ? `, ${day}` : ''}`,
+  recordActionLabel: (judgeName, day) => recordLabel('Record initials', judgeName, day),
   recordActionWhy: "Records the judge's initials on every completed class they judged that day",
   undoActionLabel: 'Undo initials',
   recordedMessage: count => `Initials recorded on ${count} ${count === 1 ? 'class' : 'classes'}`,
@@ -60,6 +68,7 @@ const AKC_WORDING: JudgeSignOffWording = {
 
 const SIGNATURE_WORDING: JudgeSignOffWording = {
   actionLabel: 'Collect judge signature',
+  nextActionLabel: 'Signature',
   actionWhy: 'Completed class still needs judge sign-off',
   needsStatusLabel: 'Needs judge signature',
   endOfDayStatusLabel: 'Signature at end of day',
@@ -68,8 +77,7 @@ const SIGNATURE_WORDING: JudgeSignOffWording = {
   checklistNoneDetail: 'No entries to sign',
   checklistEndOfDayDetail: 'Judge signs at end of day',
   resultsControlInstruction: 'Verify judge signatures on the paper reports before sending.',
-  recordActionLabel: (judgeName, day) =>
-    `Record signature: ${judgeName?.trim() || 'judge'}${day ? `, ${day}` : ''}`,
+  recordActionLabel: (judgeName, day) => recordLabel('Record signature', judgeName, day),
   recordActionWhy: "Records the judge's signature on every completed class they judged that day",
   undoActionLabel: 'Undo signature',
   recordedMessage: count => `Signature recorded on ${count} ${count === 1 ? 'class' : 'classes'}`,

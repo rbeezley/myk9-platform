@@ -1,40 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fromPartial } from '@total-typescript/shoehorn';
-import userEvent from '@testing-library/user-event';
 import { render, screen, within } from '@/test/utils/testUtils';
 
 import { readResultsTabUrlState } from '@/features/results-tab/resultsTabRoutes';
 import { ClassChecklistSection } from './ClassChecklistSection';
 import { SHOW_MAP_WRAP_UP_STATUS } from '../showMapTypes';
 import type { SecretaryCockpitClass } from './secretaryCockpitTypes';
-
-describe('ClassChecklistSection judge sign-off undo (MYK9-1030)', () => {
-  it('offers Undo initials as a full-size touch target that runs the undo command', async () => {
-    const onCommand = vi.fn();
-    render(
-      <ClassChecklistSection
-        showId="show-1"
-        sourceClass={fromPartial<SecretaryCockpitClass>({
-          id: 'c1',
-          lifecycle: 'complete',
-          entryCount: 2,
-          scoredCount: 2,
-          wrapUpStatus: SHOW_MAP_WRAP_UP_STATUS.SIGNED_BY_JUDGE,
-          registryId: 'AKC',
-          judgeSignOffUndoCommandId: 'clear-judge-sign-off:class:c1',
-        })}
-        paperwork={[]}
-        timeZone="America/New_York"
-        onCommand={onCommand}
-      />
-    );
-
-    const undo = screen.getByRole('button', { name: /undo initials/i });
-    expect(undo).toHaveClass('min-h-11');
-    await userEvent.click(undo);
-    expect(onCommand).toHaveBeenCalledWith('clear-judge-sign-off:class:c1');
-  });
-});
 
 describe('ClassChecklistSection after-scoring items (MYK9-1032)', () => {
   const completeClass = fromPartial<SecretaryCockpitClass>({
@@ -92,11 +63,11 @@ describe('ClassChecklistSection after-scoring items (MYK9-1032)', () => {
     }
   });
 
-  it('leaves the initials item without a Results link until Results has a sign-off slot', () => {
+  it('links the initials item to the class on Results, with no Undo of its own', () => {
     render(
       <ClassChecklistSection
         showId="show-1"
-        sourceClass={completeClass}
+        sourceClass={{ ...completeClass, wrapUpStatus: SHOW_MAP_WRAP_UP_STATUS.SIGNED_BY_JUDGE }}
         paperwork={paperwork}
         timeZone="America/New_York"
         onCommand={vi.fn()}
@@ -105,7 +76,15 @@ describe('ClassChecklistSection after-scoring items (MYK9-1032)', () => {
     const items = within(screen.getByRole('region', { name: 'Class checklist' })).getAllByRole(
       'listitem'
     );
-    expect(within(items[6]!).queryByRole('link')).toBeNull();
+    const link = within(items[6]!).getByRole('link');
+    const url = new URL(link.getAttribute('href')!, 'https://x.test');
+    expect(url.pathname).toBe('/shows/show-1/results');
+    expect(url.searchParams.get('classId')).toBe('c1');
+    expect(readResultsTabUrlState(url.searchParams)).toMatchObject({
+      classId: 'c1',
+      trialId: 't1',
+    });
+    expect(within(items[6]!).queryByRole('button')).toBeNull();
   });
 
   it('offers print only for check-in and score sheets, never the results sheet or result labels', () => {

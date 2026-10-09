@@ -77,7 +77,9 @@ export function ManageJudgeSuppliesDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, thisJudgeKey, registryId]);
 
+  // The row stays set while the confirm animates out, so its title never loses the item name.
   const [pendingDelete, setPendingDelete] = useState<TrialJudgeSupplyRow | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   const isSeeding = supplies.ensureSeeded.isPending && judgeRows.length === 0;
 
@@ -118,7 +120,12 @@ export function ManageJudgeSuppliesDialog({
                 { onError: err => notifications.error(toMessage(err, 'Could not update note')) }
               )
             }
-            onDelete={id => setPendingDelete(judgeRows.find(r => r.id === id) ?? null)}
+            onDelete={id => {
+              const row = judgeRows.find(r => r.id === id);
+              if (!row) return;
+              setPendingDelete(row);
+              setConfirmOpen(true);
+            }}
             onReorder={orderedIds =>
               supplies.reorder.mutate(orderedIds, {
                 onError: err => notifications.error(toMessage(err, 'Could not reorder items')),
@@ -146,21 +153,19 @@ export function ManageJudgeSuppliesDialog({
       </div>
 
       <ConfirmDialog
-        open={pendingDelete !== null}
-        onOpenChange={o => {
-          if (!o) setPendingDelete(null);
-        }}
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
         title={`Delete the supply item ${pendingDelete?.item_label ?? ''}?`}
         description="It is removed from this judge's list. You can add it again later."
         confirmLabel="Delete item"
         cancelLabel="Keep it"
         destructive
         onConfirm={() => {
-          if (!pendingDelete) return;
+          if (!pendingDelete || !confirmOpen) return;
           supplies.deleteCustomRow.mutate(pendingDelete.id, {
             onError: err => notifications.error(toMessage(err, 'Could not delete item')),
           });
-          setPendingDelete(null);
+          setConfirmOpen(false);
         }}
       />
     </SlideOverPanel>

@@ -274,6 +274,8 @@ describe('ManageJudgeSuppliesDialog', () => {
     const opener = screen.getByRole('button', { name: 'Open supplies' });
     await user.click(opener);
     expect(document.querySelector('.slide-over-panel')).not.toBeNull();
+    // Focus moves into the panel after its open animation; only then is focus return a real check.
+    await waitFor(() => expect(opener).not.toHaveFocus());
     await user.keyboard('{Escape}');
     await waitFor(() => expect(document.querySelector('.slide-over-panel')).toBeNull());
     await waitFor(() => expect(opener).toHaveFocus());

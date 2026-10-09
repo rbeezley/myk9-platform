@@ -394,6 +394,26 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
   }
 
   /**
+   * Fetch one dog from the server and store it as a clean (non-dirty) replica row.
+   * For a device whose replica has not filled yet but whose roster came from the
+   * PostgREST fallback; returns null when the row cannot be read (offline, denied,
+   * gone) so the caller can fall back or tell the user.
+   */
+  async hydrateFromServer(dogId: string): Promise<ReplicatedDog | null> {
+    try {
+      const rows = await this.getRowRefetchAdapter().fetchRowsById([dogId]);
+      const row = rows[0];
+      if (!row) return null;
+      const dog = rowToDog(row);
+      await this.set(dogId, dog, false);
+      return dog;
+    } catch (err) {
+      logger.warn(`[${this.getTableName()}] hydrateFromServer failed for ${dogId}`, err);
+      return null;
+    }
+  }
+
+  /**
    * Get dogs by owner
    */
   async getDogsByOwner(ownerId: string): Promise<ReplicatedDog[]> {

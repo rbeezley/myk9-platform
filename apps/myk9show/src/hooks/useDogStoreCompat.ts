@@ -16,6 +16,7 @@ import {
 import {
   mapDogInputToInsert,
   mapDogInputToReplicated,
+  mapDogToDogInput,
   mapDatabaseToDog,
   mapDatabaseDogsArray,
   mapReplicatedDogToDbRow,
@@ -235,6 +236,26 @@ export const useDogStoreCompat = () => {
     return await mapReplicatedDogWithRegistrations(savedDog);
   };
 
+  const hydrateMissingDog = async (id: string) => {
+    if (typeof navigator === 'undefined' || navigator.onLine) {
+      const fetched = await replicatedDogsTable.hydrateFromServer(id);
+      if (fetched) return fetched;
+    }
+    const rosterDog = dogs.find(d => d.id === id);
+    if (!rosterDog) return null;
+    try {
+      const row = mapDogInputToReplicated(
+        { ...mapDogToDogInput(rosterDog), callName: rosterDog.callName },
+        id
+      );
+      await replicatedDogsTable.set(id, row, false);
+      return row;
+    } catch (err) {
+      logger.warn('Could not hydrate dog from roster row', 'dogs', { dogId: id }, err as Error);
+      return null;
+    }
+  };
+
   const updateDog = async (id: string, updates: Partial<DogInput>): Promise<Dog | null> => {
     logger.debug('updateDog called', 'dogs', {
       dogId: id,
@@ -254,7 +275,20 @@ export const useDogStoreCompat = () => {
     // and a permanent rejection lands in failed_mutations with the sync-failed
     // toast. There is deliberately no second, direct PostgREST write: it was
     // fire-and-forget and lost the edit silently whenever it failed.
-    const current = await replicatedDogsTable.getDogById(id);
+    let current = await replicatedDogsTable.getDogById(id);
+    if (!current) {
+      // Cold replica: the roster can be filled by the PostgREST fallback without
+      // IndexedDB holding the row. Hydrate it (server row first, else the roster
+      // row we already have) so the edit still queues; never write the server
+      // directly.
+      current = await hydrateMissingDog(id);
+      if (!current) {
+        notifications.error(
+          'This dog is not saved on this device yet. Reconnect and try the edit again.'
+        );
+        return null;
+      }
+    }
     let localDog: Dog | null = null;
     if (current) {
       const patch = mapPartialDogInputToReplicated(normalizedUpdates);
@@ -274,8 +308,6 @@ export const useDogStoreCompat = () => {
       if (updated.ownerId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.personDogs(updated.ownerId) });
       }
-    } else {
-      throw new Error(`Dog ${id} is not in the local store, so the edit cannot be saved.`);
     }
 
     if (updates.registrations && updates.registrations.length > 0) {

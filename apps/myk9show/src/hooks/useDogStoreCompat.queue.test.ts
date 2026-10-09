@@ -18,10 +18,18 @@ import { useDogStoreCompat } from './useDogStoreCompat';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { queryKeys } from '@/lib/queryClient';
 
-const { mockDirectUpdate } = vi.hoisted(() => ({ mockDirectUpdate: vi.fn() }));
+const { mockDirectUpdate, mockRoster, mockNotify } = vi.hoisted(() => ({
+  mockDirectUpdate: vi.fn(),
+  mockRoster: { rows: [] as unknown[] },
+  mockNotify: vi.fn(),
+}));
+
+vi.mock('@/lib/notifications', () => ({
+  notifications: { error: mockNotify, warning: vi.fn(), success: vi.fn(), info: vi.fn() },
+}));
 
 vi.mock('@/hooks/queries/useDogsDatabase', () => ({
-  useDogsQuery: () => ({ data: [], isLoading: false, error: null, isStale: false }),
+  useDogsQuery: () => ({ data: mockRoster.rows, isLoading: false, error: null, isStale: false }),
   useDogQuery: () => ({ data: null, isLoading: false, error: null, isStale: false }),
   useDogsByOwnerQuery: () => ({ data: [], isLoading: false, error: null, isStale: false }),
   useCreateDogMutation: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
@@ -78,6 +86,8 @@ describe('useDogStoreCompat.updateDog — mutation queue (MYK9-1067)', () => {
 
   beforeEach(() => {
     mockDirectUpdate.mockReset();
+    mockRoster.rows = [];
+    mockNotify.mockReset();
     mockDirectUpdate.mockRejectedValue(new Error('network down'));
     setOnline(true);
   });
@@ -167,5 +177,68 @@ describe('useDogStoreCompat.updateDog — mutation queue (MYK9-1067)', () => {
 
     expect(spy).toHaveBeenCalledWith({ queryKey: queryKeys.dogs });
     expect(spy).toHaveBeenCalledWith({ queryKey: queryKeys.personDogs('owner-1') });
+  });
+
+  describe('cold local replica (dog on the roster via the PostgREST fallback)', () => {
+    const rosterRow = {
+      id: DOG_ID,
+      name: 'Tera',
+      call_name: 'Tera',
+      breed: 'Beagle',
+      owner_id: 'owner-1',
+      registrations: [],
+    };
+
+    const coldSetup = async (opts: { online: boolean; roster: boolean; server: boolean }) => {
+      mockRoster.rows = opts.roster ? [rosterRow] : [];
+      const ctx = await setup(() => ({ data: [{ id: DOG_ID, version: 2 }], error: null }));
+      await replicatedDogsTable.delete(DOG_ID);
+      vi.spyOn(replicatedDogsTable, 'hydrateFromServer').mockImplementation(async id => {
+        if (!opts.server) return null;
+        const dog = { id, name: 'Tera', callName: 'Tera', breed: 'Beagle', ownerId: 'owner-1' };
+        await replicatedDogsTable.set(id, dog, false);
+        return dog;
+      });
+      setOnline(opts.online);
+      return ctx;
+    };
+
+    it('hydrates from the roster row, then queues and uploads once', async () => {
+      const { hook, update } = await coldSetup({ online: false, roster: true, server: false });
+
+      await act(async () => {
+        await hook.current.updateDog(DOG_ID, { color: 'tri' });
+      });
+      expect(await manager!.getPendingCount()).toBe(1);
+
+      setOnline(true);
+      await act(async () => {
+        await manager!.uploadPendingMutations();
+      });
+      expect(update).toHaveBeenCalledTimes(1);
+      expect(update.mock.calls[0]![0]).toMatchObject({ id: DOG_ID, color: 'tri' });
+      expect(mockDirectUpdate).not.toHaveBeenCalled();
+    });
+
+    it('prefers the server row when it can be fetched', async () => {
+      const { hook } = await coldSetup({ online: true, roster: false, server: true });
+
+      await act(async () => {
+        await hook.current.updateDog(DOG_ID, { color: 'tri' });
+      });
+      expect(await manager!.getPendingCount()).toBe(1);
+    });
+
+    it('offline with no cached row: tells the user and queues nothing', async () => {
+      const { hook } = await coldSetup({ online: false, roster: false, server: false });
+
+      await act(async () => {
+        await hook.current.updateDog(DOG_ID, { color: 'tri' });
+      });
+
+      expect(mockNotify).toHaveBeenCalledTimes(1);
+      expect(await manager!.getPendingCount()).toBe(0);
+      expect(mockDirectUpdate).not.toHaveBeenCalled();
+    });
   });
 });

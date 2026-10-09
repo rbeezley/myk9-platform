@@ -34,6 +34,7 @@
  */
 import { test, expect, type Page } from '@playwright/test';
 import { signInAsTestUser } from './helpers/testUsers';
+import { expectNoHorizontalOverflow } from './helpers/horizontalOverflow';
 
 const EVIDENCE_DIR = process.env.SLICE5_EVIDENCE_DIR ?? 'test-results/slice5-evidence';
 const SEED_DOG_ID = 'dededede-0000-0000-0000-000000000041';
@@ -45,15 +46,6 @@ const VACCINE = 'MYK9-71 verification vaccine';
 async function settle(page: Page) {
   await page.waitForLoadState('networkidle').catch(() => undefined);
   await page.waitForTimeout(600);
-}
-
-async function expectNoHorizontalOverflow(page: Page, label: string) {
-  const overflow = await page.evaluate(
-    () => document.documentElement.scrollWidth - document.documentElement.clientWidth
-  );
-  expect(overflow, `${label}: document scrolls horizontally by ${overflow}px`).toBeLessThanOrEqual(
-    1
-  );
 }
 
 /** Console errors are a first-class result here, not incidental noise. */

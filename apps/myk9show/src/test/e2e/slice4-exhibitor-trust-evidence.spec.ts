@@ -19,6 +19,7 @@
  */
 import { test, expect, type Page } from '@playwright/test';
 import { signInAsTestUser } from './helpers/testUsers';
+import { expectNoHorizontalOverflow } from './helpers/horizontalOverflow';
 
 const EVIDENCE_DIR = process.env.SLICE4_EVIDENCE_DIR ?? 'test-results/slice4-evidence';
 const EVIDENCE_PROJECT = process.env.SLICE4_EVIDENCE_PROJECT ?? 'chromium';
@@ -38,32 +39,6 @@ async function settle(page: Page) {
 async function shoot(page: Page, name: string) {
   await settle(page);
   await page.screenshot({ path: `${EVIDENCE_DIR}/${name}.png`, fullPage: true });
-}
-
-/**
- * The document must never scroll horizontally. Compares scrollWidth against
- * clientWidth on both <html> and <body>; a 1px tolerance absorbs sub-pixel
- * rounding at fractional device widths.
- */
-async function expectNoHorizontalOverflow(page: Page, label: string) {
-  const overflow = await page.evaluate(() => {
-    const de = document.documentElement;
-    const body = document.body;
-    return {
-      docScroll: de.scrollWidth,
-      docClient: de.clientWidth,
-      bodyScroll: body.scrollWidth,
-      bodyClient: body.clientWidth,
-    };
-  });
-  expect(
-    overflow.docScroll - overflow.docClient,
-    `${label}: <html> overflows horizontally (${overflow.docScroll} > ${overflow.docClient})`
-  ).toBeLessThanOrEqual(1);
-  expect(
-    overflow.bodyScroll - overflow.bodyClient,
-    `${label}: <body> overflows horizontally (${overflow.bodyScroll} > ${overflow.bodyClient})`
-  ).toBeLessThanOrEqual(1);
 }
 
 test.describe.configure({ mode: 'serial' });

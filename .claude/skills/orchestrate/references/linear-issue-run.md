@@ -90,7 +90,11 @@ attach to another worktree's dev server. Never print the env values.
 
 ### 4. Ship
 
-After the soft reset in `../SKILL.md` review step 5, run `ship-pr` from `$WT` (Steps A–C, 3a, 4, 5). This run's authorization covers the push, the
+First un-commit the implementer's `wip:` commits, so that `ship-pr`'s `/simplify` and `/commit`
+(which scope from uncommitted changes) see the whole diff:
+`git -C "$WT" reset --soft "$(git -C "$WT" merge-base origin/main HEAD)"`. Use the merge base,
+never `origin/main` itself, which may have moved. Then run `ship-pr` from `$WT` (Steps A–C, 3a,
+4, 5). This run's authorization covers the push, the
 PR and the squash-merge. Additions specific to the run:
 
 - **PR title and body name only `MYK9-<n>`** (`Fixes MYK9-<n>`). A sibling or parent id in the

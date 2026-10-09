@@ -41,12 +41,14 @@ Count before every spawn or resume, and queue the work when you're at 3.
 
 ## Dispatch protocol
 
-Every implementer runs in **its own worktree** (`isolation: "worktree"`, or a worktree you made
-for that issue). Two implementers never share a worktree or a branch. After you dispatch,
-confirm the worktree with `git worktree list`. A worktree holds only committed files, so commit
-everything the implementer needs before you create it. In OpenSpec mode, commit the change
-artifacts (`openspec/changes/<id>/`) on the change branch first, and branch each batch's
-worktree from that commit.
+Where the implementer works depends on the mode. Two implementers never work in one worktree at
+the same time.
+
+- **OpenSpec mode:** in the change's own worktree, where its artifacts already live, one batch
+  at a time.
+- **Linear run mode:** each issue gets its own worktree and branch, created by the orchestrator
+  (see `references/linear-issue-run.md`). After you dispatch, confirm it with
+  `git worktree list`.
 
 The dispatch prompt is self-contained and has these parts, in order:
 
@@ -97,15 +99,9 @@ commands check `main`, not the proposed change.
    and re-review. **Max 3 rounds.** After that, escalate (see Model routing) or implement it
    yourself. A cheap model looping past the point where you'd be faster is waste.
 4. Only you tick `tasks.md` boxes or move Linear state. A tick means _reviewed and accepted_.
-5. Once accepted, un-commit the implementer's `wip:` commits so that `ship-pr`'s `/simplify` and
-   `/commit`, which scope from uncommitted changes, see the whole diff:
-   `git -C "$WT" reset --soft "$(git -C "$WT" merge-base origin/main HEAD)"`. Use the merge
-   base, never `origin/main` itself, which may have moved. Then ship it through `ship-pr` from
-   the implementer's worktree before you start the next batch or issue that touches the same
-   files. `ship-pr` Step 7 removes the worktree; one
-   created by `isolation: "worktree"` is locked and needs `git worktree remove -f -f`. In
-   OpenSpec mode, the LAST batch skips `ship-pr` Step 7: archive runs from that worktree, so
-   remove it only after `opsx:ship`'s archive phase (Phase 5).
+5. Once accepted, ship it through `ship-pr` before you start the next batch or issue that
+   touches the same files. The mode sections say how: OpenSpec mode commits a checkpoint per
+   batch; Linear run mode first soft-resets the implementer's `wip:` commits.
 
 ## OpenSpec mode
 
@@ -126,7 +122,8 @@ batch (shared rules, Gates § 3), because the reviewer reads the whole net diff,
 batches costs roughly N times the review rounds (#2210: 63 files, 8 rounds). Before the LAST
 batch's PR, run `opsx:verify` on the integrated tree and fix CRITICAL findings in that PR, never
 after the merge. Batches that can't compile or pass CI on their own ship together, and the PR
-says so. After the last merge, archive and clean up.
+says so. After the last merge, archive and clean up. The LAST batch skips `ship-pr` Step 7 (cleanup): archive runs from
+that worktree, so remove it only after `opsx:ship`'s archive phase.
 
 ## Shared-system authority
 

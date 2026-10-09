@@ -183,3 +183,5 @@ export type { MutationManagerOptions, MutationUploadAuthContext } from './Mutati
 
 // Perf instrumentation
 export { markPerf, measurePerf } from './perf';
+
+export type { RefusedRowReplacement, ReplaceRefusedRowsResult } from './core/replaceRefusedRows';

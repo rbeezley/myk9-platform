@@ -40,6 +40,11 @@ import { ReplicatedTableBatchManager } from './ReplicatedTableBatch';
 import { ReplicatedTableQueryManager } from './ReplicatedTableQuery';
 import { RowLockRegistry } from './RowLockRegistry';
 import {
+  replaceRefusedRows,
+  type RefusedRowReplacement,
+  type ReplaceRefusedRowsResult,
+} from './replaceRefusedRows';
+import {
   applyConflictSnapshot,
   buildRemoteReplacementRow,
   clearConflictSnapshot,
@@ -1105,6 +1110,16 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     remoteVersions?: ReadonlyMap<string, number>
   ): Promise<{ deleted: string[]; kept: string[] }> {
     return this.batchManager.deleteRowsIfClean(ids, remoteVersions);
+  }
+
+  /** Atomically re-pull rows whose queued write was refused (MYK9-1071; see replaceRefusedRows). */
+  async replaceRefusedRows(
+    entries: readonly RefusedRowReplacement<T>[]
+  ): Promise<ReplaceRefusedRowsResult> {
+    const db = await this.init();
+    const result = await replaceRefusedRows(db, this.tableName, entries);
+    if (result.replaced.length > 0 || result.removed.length > 0) this.notifyListeners();
+    return result;
   }
 
   /** One-time repair for rows stuck at a `'pending'` data flag (MYK9-1055). */

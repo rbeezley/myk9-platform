@@ -116,7 +116,7 @@ function PrimaryWork({
           <Button
             type="button"
             className="min-h-11"
-            disabled={!allTicked || verifying || blocked !== null}
+            disabled={!allTicked || verifying || releasing || blocked !== null}
             onClick={onVerify}
           >
             {verifying ? 'Saving…' : 'Scores match the paper'}
@@ -150,7 +150,7 @@ function PrimaryWork({
         <Button
           type="button"
           className="min-h-11"
-          disabled={releasing || releaseBlockedReason !== null}
+          disabled={releasing || verifying || releaseBlockedReason !== null}
           onClick={onRelease}
         >
           {releasing ? 'Releasing…' : 'Release results'}
@@ -205,9 +205,13 @@ function VerifiedLine({
   timeZone,
   currentUserId,
   verifying,
+  releasing,
   online,
   onUndo,
-}: Pick<ResultsClassDetailProps, 'row' | 'timeZone' | 'currentUserId' | 'verifying' | 'online'> & {
+}: Pick<
+  ResultsClassDetailProps,
+  'row' | 'timeZone' | 'currentUserId' | 'verifying' | 'releasing' | 'online'
+> & {
   onUndo: () => void;
 }) {
   const by = row.verifiedBy && row.verifiedBy === currentUserId ? 'you' : 'another show manager';
@@ -227,7 +231,7 @@ function VerifiedLine({
           type="button"
           variant="outline"
           size="touch"
-          disabled={verifying || !online}
+          disabled={verifying || releasing || !online}
           onClick={onUndo}
         >
           Undo check
@@ -415,6 +419,7 @@ export function ResultsClassDetail({
           timeZone={timeZone}
           currentUserId={currentUserId}
           verifying={verifying}
+          releasing={releasing}
           online={online}
           onUndo={onUndoVerify}
         />

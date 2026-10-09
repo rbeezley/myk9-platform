@@ -831,6 +831,15 @@ describe('ResultsTab Release asks the server', () => {
     expect(releaseMutate).not.toHaveBeenCalled();
   });
 
+  it('while the server is being asked, Undo check and the confirm are disabled', async () => {
+    serverCheck.read.mockImplementation(() => new Promise<string>(() => undefined));
+    const { user } = renderAt('?status=all&classId=class-ready');
+
+    await user.click(screen.getByRole('button', { name: 'Release results' }));
+
+    expect(await screen.findByRole('button', { name: 'Undo check' })).toBeDisabled();
+  });
+
   it('does not release when the server says the check is gone, tells the user, and refreshes the class', async () => {
     serverCheck.read.mockResolvedValue(null as never);
     const { user } = renderAt('?status=all&classId=class-ready');

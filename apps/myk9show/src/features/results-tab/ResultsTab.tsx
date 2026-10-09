@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { ArrowRight, CheckCircle2, ListChecks } from 'lucide-react';
 import { Link, useLocation, useParams, useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -120,6 +120,8 @@ export default function ResultsTab() {
   const selected = rows.find(row => row.id === state.classId) ?? null;
   const unsyncedScores = useClassUnsyncedScores(selected?.id ?? null);
   const [releaseChecking, setReleaseChecking] = useState(false);
+  // Bumped whenever the check is taken back, so a Release already reading the server can tell.
+  const checkGeneration = useRef(0);
   // Release on this tab asks the SERVER whether the class is checked, so it needs a connection and
   // no score change of the class still waiting to sync (the answer would describe older results).
   const releaseBlockedReason = !isOnline
@@ -138,6 +140,7 @@ export default function ResultsTab() {
     // replica's copy of the check is only a hint that enabled the button: the click is decided by
     // a fresh read of the class on the server.
     if (row.phase !== 'ready-to-release' || releaseBlockedReason !== null) return;
+    const generationAtClick = checkGeneration.current;
     setReleaseChecking(true);
     let verifiedAt: string | null;
     try {
@@ -147,6 +150,11 @@ export default function ResultsTab() {
       return;
     } finally {
       setReleaseChecking(false);
+    }
+    // The check was taken back (Undo) while the server was being asked: that read is stale.
+    if (checkGeneration.current !== generationAtClick) {
+      toast.error('The check was just changed. Check the class and try again.');
+      return;
     }
     // A correction can land while the server was being asked: the answer then describes older
     // results. Look again, directly, before anything is queued.
@@ -253,7 +261,10 @@ export default function ResultsTab() {
           canonical,
         })
       }
-      onUndoVerify={() => verification.undo({ classId: selected.id, trialId: selected.trialId })}
+      onUndoVerify={() => {
+        checkGeneration.current += 1;
+        verification.undo({ classId: selected.id, trialId: selected.trialId });
+      }}
       releaseBlockedReason={releaseBlockedReason}
       verifying={verification.isPending}
       online={isOnline}

@@ -1,7 +1,8 @@
 /**
- * MYK9-1031: saving the paper check is ONLINE ONLY. With the app's query client (default
- * networkMode 'online') an offline mutation pauses before its function runs, so no RPC fires and
- * nothing is queued; the Results tab also disables the button. When the server says the scores
+ * MYK9-1031: saving the paper check is ONLINE ONLY and never held back for later: offline it is
+ * REFUSED at execution start (React Query's default networkMode 'online' would instead pause the
+ * mutation and replay it on reconnect, which is a queued write); the Results tab also disables the
+ * button. When the server says the scores
  * moved (MK015) the mutation rejects so the caller can reset its ticks, and the user sees the
  * friendly line.
  */
@@ -21,19 +22,32 @@ const toast = vi.hoisted(() => Object.assign(vi.fn(), { success: vi.fn(), error:
 vi.mock('sonner', () => ({ toast }));
 
 import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
+import { NetworkStatusContext } from '@/hooks/useNetworkStatus';
 import { createAppQueryClient } from '@/lib/queryClient';
 import { useResultsVerifiedMutations } from '../useResultsVerifiedMutations';
 
 const triggerSync = vi.fn(async () => undefined);
 
+const network = { online: true };
+const client = createAppQueryClient();
+
 function wrapper({ children }: { children: ReactNode }) {
   return (
-    <QueryClientProvider client={createAppQueryClient()}>
-      <ReplicationSyncContext.Provider
-        value={{ status: {} as never, triggerSync, syncTable: vi.fn() }}
+    <QueryClientProvider client={client}>
+      <NetworkStatusContext.Provider
+        value={{
+          isOnline: network.online,
+          quality: null,
+          showOfflineMessage: false,
+          retryConnection: vi.fn(),
+        }}
       >
-        {children}
-      </ReplicationSyncContext.Provider>
+        <ReplicationSyncContext.Provider
+          value={{ status: {} as never, triggerSync, syncTable: vi.fn() }}
+        >
+          {children}
+        </ReplicationSyncContext.Provider>
+      </NetworkStatusContext.Provider>
     </QueryClientProvider>
   );
 }
@@ -45,6 +59,7 @@ afterEach(() => {
   toast.error.mockReset();
   toast.success.mockReset();
   triggerSync.mockClear();
+  network.online = true;
 });
 
 describe('paper check mutations (online only)', () => {
@@ -120,20 +135,28 @@ describe('paper check mutations (online only)', () => {
     expect(triggerSync).not.toHaveBeenCalledWith([{ name: 'classes', scopeId: 't1' }]);
   });
 
-  it('does not run, and queues nothing, while offline', async () => {
-    onlineManager.setOnline(false);
-    const { result } = renderHook(() => useResultsVerifiedMutations(), { wrapper });
+  it('refuses offline instead of pausing, and a reconnect later does not fire the RPC', async () => {
+    network.online = false;
+    const { result, rerender } = renderHook(() => useResultsVerifiedMutations(), { wrapper });
 
-    act(() => {
-      void result.current.verifyAsync({
-        classId: 'c1',
-        trialId: 't1',
-        showId: 's1',
-        canonical: 'TEXT',
-      });
+    await act(async () => {
+      await expect(
+        result.current.verifyAsync({
+          classId: 'c1',
+          trialId: 't1',
+          showId: 's1',
+          canonical: 'TEXT',
+        })
+      ).rejects.toThrow('Connect to save the check');
       result.current.undo({ classId: 'c1', trialId: 't1' });
     });
-    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(toast.error).toHaveBeenCalledWith('Connect to save the check');
+
+    // Coming back online does not replay anything: nothing was queued or paused.
+    network.online = true;
+    onlineManager.setOnline(true);
+    rerender();
+    await new Promise(resolve => setTimeout(resolve, 80));
 
     expect(recordResultsVerified).not.toHaveBeenCalled();
     expect(clearResultsVerified).not.toHaveBeenCalled();

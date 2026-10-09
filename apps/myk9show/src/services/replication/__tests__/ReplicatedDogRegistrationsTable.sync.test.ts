@@ -8,7 +8,10 @@ import type { SyncReplicatedTableAdapter } from '@myk9/replication';
 const { calls, response, captured } = vi.hoisted(() => ({
   calls: [] as Array<[string, ...unknown[]]>,
   response: { data: [] as unknown[] | null, error: null as { message: string } | null },
-  captured: { adapter: null as SyncReplicatedTableAdapter<unknown, { id: string }> | null },
+  captured: {
+    adapter: null as SyncReplicatedTableAdapter<unknown, { id: string }> | null,
+    options: null as Record<string, unknown> | null,
+  },
 }));
 
 function makeBuilder(): Record<string, unknown> {
@@ -36,13 +39,19 @@ vi.mock('@myk9/core', () => ({
 }));
 vi.mock('@myk9/replication', async importOriginal => ({
   ...(await importOriginal<typeof import('@myk9/replication')>()),
-  syncReplicatedTable: vi.fn(async (_table: unknown, adapter: never) => {
-    captured.adapter = adapter;
-    return { tableName: 'dog_registrations', success: true, operation: 'full-sync' };
-  }),
+  syncReplicatedTable: vi.fn(
+    async (_table: unknown, adapter: never, _scope: unknown, options: Record<string, unknown>) => {
+      captured.adapter = adapter;
+      captured.options = options;
+      return { tableName: 'dog_registrations', success: true, operation: 'full-sync' };
+    }
+  ),
 }));
 
-import { ReplicatedDogRegistrationsTable } from '../ReplicatedDogRegistrationsTable';
+import {
+  REGISTRATION_STILL_BEING_CREATED,
+  ReplicatedDogRegistrationsTable,
+} from '../ReplicatedDogRegistrationsTable';
 import {
   DOG_REGISTRATION_REPLICA_COLUMNS,
   REGISTRATION_UPDATE_COLUMNS,
@@ -78,6 +87,18 @@ describe('ReplicatedDogRegistrationsTable sync (MYK9-1071)', () => {
     response.error = null;
   });
 
+  it('forces a full sync until one has completed, and syncs incrementally after (P1)', async () => {
+    const table = new ReplicatedDogRegistrationsTable();
+    vi.spyOn(table, 'removeStaleEntries').mockResolvedValue(0);
+    const isCold = vi.spyOn(table, 'isCold').mockResolvedValue(true);
+    await table.sync();
+    expect(captured.options).toMatchObject({ forceFullSync: true });
+
+    isCold.mockResolvedValue(false);
+    await table.sync();
+    expect(captured.options).not.toHaveProperty('forceFullSync');
+  });
+
   it('downloads the declared columns (version included), unscoped', async () => {
     const table = new ReplicatedDogRegistrationsTable();
     vi.spyOn(table, 'removeStaleEntries').mockResolvedValue(0);
@@ -95,6 +116,8 @@ describe('ReplicatedDogRegistrationsTable sync (MYK9-1071)', () => {
       ['select', DOG_REGISTRATION_REPLICA_COLUMNS],
       ['gt', 'updated_at', new Date(0).toISOString()],
       ['order', 'updated_at', { ascending: true }],
+      ['order', 'id', { ascending: true }],
+      ['limit', 1000],
     ]);
     expect(DOG_REGISTRATION_REPLICA_COLUMNS).toContain('version');
     expect(DOG_REGISTRATION_REPLICA_COLUMNS).not.toContain('*');
@@ -152,5 +175,31 @@ describe('ReplicatedDogRegistrationsTable.updateRegistration (MYK9-1071)', () =>
     for (const forbidden of ['dog_id', 'created_at', 'verified', 'is_primary', 'version']) {
       expect(payload).not.toHaveProperty(forbidden);
     }
+  });
+});
+
+describe('ReplicatedDogRegistrationsTable mirrors (MYK9-1071 P1)', () => {
+  it('refuses to queue an UPDATE for a local mirror that has no INSERT of its own', async () => {
+    const table = new ReplicatedDogRegistrationsTable();
+    vi.spyOn(table, 'get').mockResolvedValue({ ...rowToRegistration(serverRow), _localOnly: true });
+    vi.spyOn(table, 'getPendingMutationIdsForRow').mockResolvedValue([]);
+    const set = vi.spyOn(table, 'set').mockResolvedValue({ written: true });
+
+    await expect(table.updateRegistration('reg-1', { registeredName: 'X' })).rejects.toThrow(
+      REGISTRATION_STILL_BEING_CREATED
+    );
+    expect(set).not.toHaveBeenCalled();
+  });
+
+  it('allows editing a queued add before it uploads (its INSERT precedes the UPDATE)', async () => {
+    const table = new ReplicatedDogRegistrationsTable();
+    vi.spyOn(table, 'get').mockResolvedValue({ ...rowToRegistration(serverRow), _localOnly: true });
+    vi.spyOn(table, 'getPendingMutationIdsForRow').mockResolvedValue(['insert-1']);
+    vi.spyOn(table, 'set').mockResolvedValue({ written: true });
+    vi.spyOn(
+      table as unknown as { queueMutation: () => Promise<string> },
+      'queueMutation'
+    ).mockResolvedValue('m');
+    await expect(table.updateRegistration('reg-1', { registeredName: 'X' })).resolves.toBe('m');
   });
 });

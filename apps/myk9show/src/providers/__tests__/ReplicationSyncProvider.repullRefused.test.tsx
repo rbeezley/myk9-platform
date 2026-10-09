@@ -23,7 +23,7 @@ vi.mock('sonner', () => ({
 vi.mock('@/hooks/useStoreSubscriptions', () => ({ useStoreSubscriptions: () => undefined }));
 
 const { repullRowsForMutations, discardFailedMutationMock } = vi.hoisted(() => ({
-  repullRowsForMutations: vi.fn().mockResolvedValue(undefined),
+  repullRowsForMutations: vi.fn().mockResolvedValue(['people']),
   discardFailedMutationMock: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -61,8 +61,9 @@ const refused = {
 };
 const exhausted = { ...refused, id: 'mut-2', rowId: 'person-2', failureKind: 'max-retries' };
 
+let queryClient: QueryClient;
 function renderProvider() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={queryClient}>
       <NetworkStatusContext.Provider
@@ -101,6 +102,15 @@ describe('ReplicationSyncProvider re-pulls refused rows (MYK9-1071)', () => {
     act(() => dispatchSyncFailed([refused, exhausted]));
 
     expect(repullRowsForMutations).toHaveBeenCalledWith([refused]);
+  });
+
+  it('refreshes the people readers after a re-pull changed rows', async () => {
+    renderProvider();
+    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    act(() => dispatchSyncFailed([refused]));
+
+    await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['users'] }));
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['dogs'] });
   });
 
   it('re-pulls the discarded mutations after Discard', async () => {

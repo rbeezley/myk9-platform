@@ -13,6 +13,7 @@ import { PEOPLE_REPLICA_COLUMNS } from '@/services/database/users/peopleColumns'
 import type { PersonPrivatePatch } from '@/services/database/users/personPrivate';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { fetchLiveIdSet } from './liveIdSet';
+import { afterCursorFilter, fetchUpdatedRowsInPages } from './updatedRowPages';
 import {
   applyPersonColumns,
   buildQueuedPersonDelta,
@@ -86,25 +87,36 @@ export class ReplicatedShowDeskPeopleTable extends ReplicatedTable<ReplicatedSho
   async sync(): Promise<SyncResult> {
     const adapter: SyncReplicatedTableAdapter<PersonReplicaRow, ReplicatedShowDeskPerson> = {
       ...this.getRowRefetchAdapter(),
-      fetchRemoteRows: async ({ since }) => {
-        const { data, error } = await supabase
-          .from('people')
-          .select(PEOPLE_REPLICA_COLUMNS)
-          .is('deleted_at', null)
-          .gt('updated_at', new Date(since).toISOString())
-          .order('updated_at', { ascending: true });
-        if (error) throw new Error(`Supabase query failed: ${error.message}`);
-        return (data ?? []) as PersonReplicaRow[];
-      },
+      fetchRemoteRows: async ({ since }) =>
+        fetchUpdatedRowsInPages<PersonReplicaRow>((cursor, pageSize) => {
+          let query = supabase.from('people').select(PEOPLE_REPLICA_COLUMNS).is('deleted_at', null);
+          query = cursor
+            ? query.or(afterCursorFilter(cursor))
+            : query.gt('updated_at', new Date(since).toISOString());
+          return query
+            .order('updated_at', { ascending: true })
+            .order('id', { ascending: true })
+            .limit(pageSize) as unknown as PromiseLike<{
+            data: PersonReplicaRow[] | null;
+            error: { message: string } | null;
+          }>;
+        }),
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),
     };
 
+    // A replica populated by an earlier build (local creates only) is not empty,
+    // so the engine would sync incrementally and never record lastFullSyncAt:
+    // isCold() would stay true for good. Force a full sync until one completes.
+    const coverageEstablished = !(await this.isCold());
     const result = await syncReplicatedTable(
       this,
       adapter,
       { value: '' },
-      { incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS }
+      {
+        incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
+        ...(!coverageEstablished && { forceFullSync: true }),
+      }
     );
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {

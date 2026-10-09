@@ -9,7 +9,10 @@ import type { SyncReplicatedTableAdapter } from '@myk9/replication';
 const { calls, response, captured } = vi.hoisted(() => ({
   calls: [] as Array<[string, ...unknown[]]>,
   response: { data: [] as unknown[] | null, error: null as { message: string } | null },
-  captured: { adapter: null as SyncReplicatedTableAdapter<unknown, { id: string }> | null },
+  captured: {
+    adapter: null as SyncReplicatedTableAdapter<unknown, { id: string }> | null,
+    options: null as Record<string, unknown> | null,
+  },
 }));
 
 function makeBuilder(): Record<string, unknown> {
@@ -37,10 +40,13 @@ vi.mock('@myk9/core', () => ({
 }));
 vi.mock('@myk9/replication', async importOriginal => ({
   ...(await importOriginal<typeof import('@myk9/replication')>()),
-  syncReplicatedTable: vi.fn(async (_table: unknown, adapter: never) => {
-    captured.adapter = adapter;
-    return { tableName: 'people', success: true, operation: 'incremental-sync', rowsAffected: 0 };
-  }),
+  syncReplicatedTable: vi.fn(
+    async (_table: unknown, adapter: never, _scope: unknown, options: Record<string, unknown>) => {
+      captured.adapter = adapter;
+      captured.options = options;
+      return { tableName: 'people', success: true, operation: 'incremental-sync', rowsAffected: 0 };
+    }
+  ),
 }));
 
 import {
@@ -90,6 +96,18 @@ describe('ReplicatedShowDeskPeopleTable sync (MYK9-1071)', () => {
     captured.adapter = null;
   });
 
+  it('forces a full sync until one has completed, and syncs incrementally after (P1)', async () => {
+    const table = new ReplicatedShowDeskPeopleTable();
+    vi.spyOn(table, 'removeStaleEntries').mockResolvedValue(0);
+    const isCold = vi.spyOn(table, 'isCold').mockResolvedValue(true);
+    await table.sync();
+    expect(captured.options).toMatchObject({ forceFullSync: true });
+
+    isCold.mockResolvedValue(false);
+    await table.sync();
+    expect(captured.options).not.toHaveProperty('forceFullSync');
+  });
+
   it('downloads the replica columns, live rows only, unscoped (RLS decides)', async () => {
     const table = new ReplicatedShowDeskPeopleTable();
     vi.spyOn(table, 'removeStaleEntries').mockResolvedValue(0);
@@ -108,6 +126,8 @@ describe('ReplicatedShowDeskPeopleTable sync (MYK9-1071)', () => {
       ['is', 'deleted_at', null],
       ['gt', 'updated_at', new Date(0).toISOString()],
       ['order', 'updated_at', { ascending: true }],
+      ['order', 'id', { ascending: true }],
+      ['limit', 1000],
     ]);
   });
 

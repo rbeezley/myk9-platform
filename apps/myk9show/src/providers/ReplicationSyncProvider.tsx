@@ -39,7 +39,11 @@ import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntries
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
 import { replicatedShowDeskPeopleTable } from '@/services/replication/ReplicatedShowDeskPeopleTable';
-import { isFinalRefusal, repullRowsForMutations } from '@/services/replication/repullRefusedRows';
+import {
+  isFinalRefusal,
+  REPULL_CONSUMER_QUERY_KEYS,
+  repullRowsForMutations,
+} from '@/services/replication/repullRefusedRows';
 import { replicatedClubsTable } from '@/services/replication/ReplicatedClubsTable';
 import { replicatedJudgeAssignmentsTable } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
 import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
@@ -616,6 +620,14 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   // Failed mutations are kept in the failed_mutations IDB store until the
   // user explicitly retries or discards them — never auto-deleted.
   useEffect(() => {
+    // MYK9-1071: the people and registration readers do not watch the replica.
+    const refreshRepullConsumers = (tables: string[]) => {
+      for (const table of tables) {
+        for (const queryKey of REPULL_CONSUMER_QUERY_KEYS[table] ?? []) {
+          void queryClient.invalidateQueries({ queryKey: [...queryKey] });
+        }
+      }
+    };
     const handleSyncFailed = (event: Event) => {
       const detail = (event as CustomEvent<SyncFailedEventDetail>).detail;
       logger.error('Replication sync failed', 'replication', {
@@ -635,7 +647,9 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       }
 
       // MYK9-1071 (D3): a final refusal re-pulls the server copy of the row.
-      void repullRowsForMutations(detail.mutations.filter(isFinalRefusal));
+      void repullRowsForMutations(detail.mutations.filter(isFinalRefusal)).then(
+        refreshRepullConsumers
+      );
 
       for (const failureDetail of splitPermanentScoreAuthorizationFailures(detail)) {
         const ids = failureDetail.mutations.map(m => m.id).filter(Boolean);
@@ -677,7 +691,9 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
             onClick: () => {
               void Promise.allSettled(
                 ids.map(id => mutationManager.discardFailedMutation(id))
-              ).then(() => repullRowsForMutations(failureDetail.mutations));
+              )
+                .then(() => repullRowsForMutations(failureDetail.mutations))
+                .then(refreshRepullConsumers);
               clearToastId();
             },
           },
@@ -686,7 +702,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     };
     window.addEventListener('replication:sync-failed', handleSyncFailed);
     return () => window.removeEventListener('replication:sync-failed', handleSyncFailed);
-  }, []);
+  }, [queryClient]);
 
   // Re-surface persisted sync failures from previous sessions when the user
   // authenticates. A failure toast lost to navigation or reload must not bury

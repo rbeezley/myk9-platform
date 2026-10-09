@@ -9,7 +9,8 @@ import { isFinalRefusal, repullRows, type RepullableTable } from './repullRefuse
 type Local = { id: string; name: string };
 type Remote = { id: string; name: string; version: number };
 
-function makeTable(remoteRows: Remote[], pending: Record<string, string[]> = {}) {
+function makeTable(remoteRows: Remote[]) {
+  const replaceRefusedRows = vi.fn(async () => ({ replaced: [], removed: [], skipped: [] }));
   const table: RepullableTable<Remote, Local> = {
     getTableName: () => 'people',
     getRefetchAdapter: () => ({
@@ -17,34 +18,28 @@ function makeTable(remoteRows: Remote[], pending: Record<string, string[]> = {})
       getRemoteId: (remote: Remote) => remote.id,
       toLocalRow: (remote: Remote) => ({ id: remote.id, name: remote.name }),
     }),
-    getPendingMutationIdsForRow: vi.fn(async (id: string) => pending[id] ?? []),
-    replaceFromRemote: vi.fn(async () => undefined),
-    delete: vi.fn(async () => undefined),
+    getReplicatedRow: vi.fn(async (id: string) =>
+      id === 'missing-locally' ? null : ({ version: id === 'p1' ? 4 : 2 } as never)
+    ),
+    replaceRefusedRows,
   };
-  return table;
+  return { table, replaceRefusedRows };
 }
 
 describe('repullRows (MYK9-1071, D3)', () => {
-  it('replaces a refused row with the server copy and its version', async () => {
-    const table = makeTable([{ id: 'p1', name: 'Server', version: 7 }]);
-    const result = await repullRows(table, ['p1']);
-    expect(table.replaceFromRemote).toHaveBeenCalledWith('p1', { id: 'p1', name: 'Server' }, 7);
-    expect(result).toEqual({ replaced: ['p1'], removed: [], skipped: [] });
-  });
+  it('hands the atomic replace the pre-fetch local revision, the server copy and its version', async () => {
+    const { table, replaceRefusedRows } = makeTable([{ id: 'p1', name: 'Server', version: 7 }]);
+    await repullRows(table, ['p1', 'gone', 'p1']);
 
-  it('removes a row the server does not return (a refused INSERT)', async () => {
-    const table = makeTable([]);
-    const result = await repullRows(table, ['local-only']);
-    expect(table.delete).toHaveBeenCalledWith('local-only');
-    expect(result.removed).toEqual(['local-only']);
-  });
-
-  it('leaves a row with a pending mutation alone', async () => {
-    const table = makeTable([{ id: 'p1', name: 'Server', version: 7 }], { p1: ['m-2'] });
-    const result = await repullRows(table, ['p1']);
-    expect(table.replaceFromRemote).not.toHaveBeenCalled();
-    expect(table.delete).not.toHaveBeenCalled();
-    expect(result.skipped).toEqual(['p1']);
+    expect(replaceRefusedRows).toHaveBeenCalledWith([
+      {
+        id: 'p1',
+        expectedRowVersion: 4,
+        remote: { id: 'p1', name: 'Server' },
+        remoteServerVersion: 7,
+      },
+      { id: 'gone', expectedRowVersion: 2, remote: null, remoteServerVersion: undefined },
+    ]);
   });
 
   it('treats permanent and authorization failures as final, max-retries as not', () => {

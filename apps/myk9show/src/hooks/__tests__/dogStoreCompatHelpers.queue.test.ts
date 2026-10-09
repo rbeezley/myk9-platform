@@ -63,6 +63,16 @@ describe('syncDogRegistrations queues registration writes (MYK9-1071)', () => {
     expect(directDb.getRegistrationsByDog).not.toHaveBeenCalled();
   });
 
+  it('edits the canonical server row, never the local mirror of the dog create RPC (P1)', async () => {
+    replica.getLocalRegistrationsForDog.mockResolvedValue([
+      { ...existing, id: 'mirror-1', _localOnly: true },
+      existing,
+    ]);
+    await syncDogRegistrations('dog-1', [{ organization: 'AKC', registeredName: 'New Name' }]);
+    expect(replica.updateRegistration).toHaveBeenCalledTimes(1);
+    expect(replica.updateRegistration.mock.calls[0]?.[0]).toBe('reg-1');
+  });
+
   it('queues an INSERT for a new organization behind the given dependencies', async () => {
     await syncDogRegistrations(
       'dog-1',

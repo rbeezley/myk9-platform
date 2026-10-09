@@ -12,6 +12,7 @@ import type { DogInput } from '@/store/dogStore';
 import { supabase } from '@/services/database/supabaseClient';
 import { getSyncErrorMessage, isAbortSyncError } from './syncErrorUtils';
 import { fetchLiveIdSet } from './liveIdSet';
+import { afterCursorFilter, fetchUpdatedRowsInPages } from './updatedRowPages';
 import {
   DOG_REGISTRATION_REPLICA_COLUMNS,
   registrationToRow,
@@ -23,6 +24,9 @@ import {
 } from './dogRegistrationRowMapping';
 
 export type { ReplicatedDogRegistration, RegistrationEditableFields };
+
+export const REGISTRATION_STILL_BEING_CREATED =
+  'This registration is still being created with its dog. Edit it again once the dog has synced.';
 
 type RegistrationInput = NonNullable<DogInput['registrations']>[number];
 
@@ -111,24 +115,36 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
   async sync(): Promise<SyncResult> {
     const adapter: SyncReplicatedTableAdapter<DogRegistrationRow, ReplicatedDogRegistration> = {
       ...this.getRowRefetchAdapter(),
-      fetchRemoteRows: async ({ since }) => {
-        const { data, error } = await supabase
-          .from('dog_registrations')
-          .select(DOG_REGISTRATION_REPLICA_COLUMNS)
-          .gt('updated_at', new Date(since).toISOString())
-          .order('updated_at', { ascending: true });
-        if (error) throw new Error(`Supabase query failed: ${error.message}`);
-        return (data ?? []) as DogRegistrationRow[];
-      },
+      fetchRemoteRows: async ({ since }) =>
+        fetchUpdatedRowsInPages<DogRegistrationRow>((cursor, pageSize) => {
+          let query = supabase.from('dog_registrations').select(DOG_REGISTRATION_REPLICA_COLUMNS);
+          query = cursor
+            ? query.or(afterCursorFilter(cursor))
+            : query.gt('updated_at', new Date(since).toISOString());
+          return query
+            .order('updated_at', { ascending: true })
+            .order('id', { ascending: true })
+            .limit(pageSize) as unknown as PromiseLike<{
+            data: DogRegistrationRow[] | null;
+            error: { message: string } | null;
+          }>;
+        }),
       getRemoteUpdatedAt: remote => parseUpdatedAtMs(remote.updated_at),
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),
     };
 
+    // A replica populated by an earlier build (local creates only) is not empty,
+    // so the engine would sync incrementally and never record lastFullSyncAt:
+    // isCold() would stay true for good. Force a full sync until one completes.
+    const coverageEstablished = !(await this.isCold());
     const result = await syncReplicatedTable(
       this,
       adapter,
       { value: '' },
-      { incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS }
+      {
+        incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
+        ...(!coverageEstablished && { forceFullSync: true }),
+      }
     );
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
@@ -202,6 +218,12 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
   ): Promise<string | null> {
     const current = await this.get(id);
     if (!current) throw new Error(`Registration ${id} not found`);
+    // A local-only row with no INSERT of its own queued is a mirror of a
+    // registration the dog's create RPC sends under a SERVER id: an UPDATE of
+    // this id would target a row that never exists. Refuse it explicitly.
+    if (current._localOnly && (await this.getPendingMutationIdsForRow(id)).length === 0) {
+      throw new Error(REGISTRATION_STILL_BEING_CREATED);
+    }
 
     const updated: ReplicatedDogRegistration = {
       ...current,
@@ -316,37 +338,28 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     return pendingIds.flat();
   }
 
+  /**
+   * This device's UNSENT registration rows for these dogs: local-only rows (a
+   * queued add, or a mirror of a dog's create RPC) and queued edits. The
+   * registration readers stay on PostgREST and overlay exactly these (MYK9-1071),
+   * so a row the server has, or has since deleted, is never read from here.
+   */
   async getRegistrationsForDogs(dogIds: string[]): Promise<Record<string, unknown>[]> {
     if (dogIds.length === 0) return [];
 
     const dogIdSet = new Set(dogIds);
     const registrations = await this.getAllOrThrow();
     return registrations
-      .filter(registration => dogIdSet.has(registration.dogId))
+      .filter(
+        registration =>
+          dogIdSet.has(registration.dogId) &&
+          (registration._localOnly === true || registration._syncStatus === 'pending')
+      )
       .map(registration => this.toSupabaseRow(registration));
   }
 
   async getRegistrationsForDog(dogId: string): Promise<Record<string, unknown>[]> {
     return this.getRegistrationsForDogs([dogId]);
-  }
-
-  /**
-   * Registrations for these dogs, split into rows the server has (synced) and
-   * rows only this device has (`_localOnly`: a pending add, or a local mirror of
-   * a dog created through the registrations RPC). A warm read merges them the
-   * same way the cold read merges server and replica rows.
-   */
-  async getRegistrationsForDogsPartitioned(
-    dogIds: string[]
-  ): Promise<{ synced: Record<string, unknown>[]; local: Record<string, unknown>[] }> {
-    const dogIdSet = new Set(dogIds);
-    const synced: Record<string, unknown>[] = [];
-    const local: Record<string, unknown>[] = [];
-    for (const registration of await this.getAllOrThrow()) {
-      if (!dogIdSet.has(registration.dogId)) continue;
-      (registration._localOnly ? local : synced).push(this.toSupabaseRow(registration));
-    }
-    return { synced, local };
   }
 
   toSupabaseRow(registration: ReplicatedDogRegistration): Record<string, unknown> {

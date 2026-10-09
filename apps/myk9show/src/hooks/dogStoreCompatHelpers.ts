@@ -23,9 +23,12 @@ function findMatchingRegistration(
   existingRegs: ReplicatedDogRegistration[]
 ): ReplicatedDogRegistration | undefined {
   const inputOrganization = normalizeDogRegistrationOrganization(inputReg.organization || 'AKC');
-  return existingRegs.find(
+  const matches = existingRegs.filter(
     er => normalizeDogRegistrationOrganization(er.organization) === inputOrganization
   );
+  // Prefer the canonical server row over a local mirror of the same registration
+  // (MYK9-1071): the mirror's id never exists on the server.
+  return matches.find(er => !er._localOnly) ?? matches[0];
 }
 
 /**

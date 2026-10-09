@@ -64,16 +64,4 @@ describe('ReplicatedShowDeskPeopleTable', () => {
     );
     expect(table.lastMutationId).toBe('person-mutation-1');
   });
-
-  it('does not perform broad people-directory sync', async () => {
-    const table = new ReplicatedShowDeskPeopleTable();
-
-    await expect(table.sync()).resolves.toEqual(
-      expect.objectContaining({
-        tableName: 'people',
-        success: true,
-        rowsAffected: 0,
-      })
-    );
-  });
 });

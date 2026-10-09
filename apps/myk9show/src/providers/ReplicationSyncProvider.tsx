@@ -39,6 +39,7 @@ import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntries
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
 import { replicatedShowDeskPeopleTable } from '@/services/replication/ReplicatedShowDeskPeopleTable';
+import { isFinalRefusal, repullRowsForMutations } from '@/services/replication/repullRefusedRows';
 import { replicatedClubsTable } from '@/services/replication/ReplicatedClubsTable';
 import { replicatedJudgeAssignmentsTable } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
 import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
@@ -633,6 +634,9 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         return;
       }
 
+      // MYK9-1071 (D3): a final refusal re-pulls the server copy of the row.
+      void repullRowsForMutations(detail.mutations.filter(isFinalRefusal));
+
       for (const failureDetail of splitPermanentScoreAuthorizationFailures(detail)) {
         const ids = failureDetail.mutations.map(m => m.id).filter(Boolean);
         const isPermanentScoreAuthorizationFailure =
@@ -671,7 +675,9 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           cancel: {
             label: 'Discard',
             onClick: () => {
-              void Promise.allSettled(ids.map(id => mutationManager.discardFailedMutation(id)));
+              void Promise.allSettled(
+                ids.map(id => mutationManager.discardFailedMutation(id))
+              ).then(() => repullRowsForMutations(failureDetail.mutations));
               clearToastId();
             },
           },

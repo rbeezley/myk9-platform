@@ -29,3 +29,35 @@
  */
 export const PEOPLE_MAPPER_COLUMNS =
   'id, first_name, last_name, email, phone, street_address, city, state, zip_code, country, profile_image, auth_user_id, status, created_at, updated_at, deleted_at, deleted_by' as const;
+
+/**
+ * The people replica's download (MYK9-1071): the mapper columns plus the OCC
+ * `version`. Pinned to `PEOPLE_MAPPER_COLUMNS + ', version'` by a test; a literal
+ * for the same typed-client reason as above.
+ */
+export const PEOPLE_REPLICA_COLUMNS =
+  'id, first_name, last_name, email, phone, street_address, city, state, zip_code, country, profile_image, auth_user_id, status, created_at, updated_at, deleted_at, deleted_by, version' as const;
+
+/**
+ * The ONLY `people` columns a queued (offline) person save may send, through
+ * `update_person_details_versioned` (MYK9-1071). A subset of that function's
+ * `v_editable` whitelist, which a test parses out of the latest migration that
+ * defines `update_person_details`.
+ *
+ * `email` is deliberately absent (owner decision D2): an email change needs the
+ * sign-in identity checks, which only work online, and the versioned function
+ * refuses the key outright.
+ */
+export const PERSON_QUEUED_UPDATE_COLUMNS = [
+  'first_name',
+  'last_name',
+  'phone',
+  'street_address',
+  'city',
+  'state',
+  'zip_code',
+  'country',
+  'profile_image',
+] as const;
+
+export type PersonQueuedUpdateColumn = (typeof PERSON_QUEUED_UPDATE_COLUMNS)[number];

@@ -325,8 +325,7 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
       ...baseState,
       judgeDayOpen: day ? judgeDays.openDayKeys.has(day.dayKey) : false,
     };
-    const phase = deriveResultsPhase(state);
-    const nextAction = deriveResultsNextAction(state);
+    const derivedPhase = deriveResultsPhase(state);
     const wording = judgeSignOffWording(registryId);
     const paperwork = classPaperwork(input, cls.id, trial.id);
     const classEntries = (entriesByClass.get(cls.id) ?? []).map(toEntryRow).sort(placementSort);
@@ -339,11 +338,25 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
       { registryId, judgeDayOpen: state.judgeDayOpen === true }
     )?.value;
     const takesJudgeSignOff =
-      phase !== 'cancelled' &&
+      derivedPhase !== 'cancelled' &&
       (!runFinished ||
         wrapUp === SHOW_MAP_WRAP_UP_STATUS.NEEDS_JUDGE_SIGNATURE ||
         wrapUp === SHOW_MAP_WRAP_UP_STATUS.JUDGE_SIGN_OFF_AT_END_OF_DAY ||
         wrapUp === SHOW_MAP_WRAP_UP_STATUS.SIGNED_BY_JUDGE);
+    // A class with nothing to release or print (every entry absent: no expected dog) can still
+    // owe the judge's sign-off, so that duty is read from the sign-off state, not the dog count:
+    // it asks for initials once the judge's day is over and reads Done once signed.
+    const signOffOnly = derivedPhase === 'no-dogs' && takesJudgeSignOff && runFinished;
+    const phase: ResultsClassPhase = signOffOnly
+      ? state.judgeSignedOffAt === null && state.judgeDayOpen !== true
+        ? 'needs-initials'
+        : 'done'
+      : derivedPhase;
+    const nextAction: ResultsNextAction = signOffOnly
+      ? phase === 'needs-initials'
+        ? { kind: 'initials', label: wording.nextActionLabel }
+        : { kind: 'none', label: 'Done' }
+      : deriveResultsNextAction(state);
     return {
       id: cls.id,
       trialId: trial.id,

@@ -46,7 +46,11 @@ function rowMatchesSearch(row: ResultsClassRow, rawQuery: string): boolean {
  * Submit and Close.
  */
 function everyClassReleasedAndInitialed(rows: readonly ResultsClassRow[]): boolean {
-  const ran = rows.filter(row => row.phase !== 'cancelled' && row.phase !== 'no-dogs');
+  // Every class that ran, plus any class that owes the judge's sign-off without having a dog to
+  // release (all entries absent).
+  const ran = rows.filter(
+    row => (row.phase !== 'cancelled' && row.phase !== 'no-dogs') || row.takesJudgeSignOff
+  );
   return (
     ran.length > 0 &&
     // Currently complete (a late entry reopens a released, signed class: it is in the ring again)
@@ -54,7 +58,8 @@ function everyClassReleasedAndInitialed(rows: readonly ResultsClassRow[]): boole
     ran.every(
       row =>
         (row.phase === 'released' || row.phase === 'done') &&
-        Boolean(row.releasedAt) &&
+        // Nothing to release when no dog was expected.
+        (Boolean(row.releasedAt) || row.expectedCount === 0) &&
         row.judgeSignedOffAt !== null
     )
   );

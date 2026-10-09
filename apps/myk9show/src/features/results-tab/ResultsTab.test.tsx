@@ -249,6 +249,60 @@ describe('ResultsTab list', () => {
     );
   });
 
+  it('an all-absent Completed class owes the sign-off: Needs me lists it and the banner waits', () => {
+    const build = (judgeSignedOffAt: string | null) =>
+      buildResultsClassRows({
+        trials: [trial],
+        trialClasses: {
+          'trial-1': [{ ...level('c1', 'Novice', '08:00'), judgeSignedOffAt }],
+        },
+        releasedAtByClassId: new Map([['c1', null]]),
+        paperworkByClassId: new Map(),
+        entries: [entry('e1', 'c1', { entry_status: 'absent' })],
+      });
+
+    hook.value = { ...hook.value, rows: build(null) };
+    const first = renderAt();
+    expect(screen.getByRole('link', { name: 'Initials: Containers Novice' })).toBeInTheDocument();
+    expect(screen.queryByText('Every class is released and signed off')).not.toBeInTheDocument();
+    first.unmount();
+
+    hook.value = { ...hook.value, rows: build('2026-10-10T21:00:00Z') };
+    renderAt('?status=all');
+    expect(screen.getByText('Every class is released and signed off')).toBeInTheDocument();
+  });
+
+  it('holds the banner back while a class holding only unaccepted entries is still to run', () => {
+    hook.value = {
+      ...hook.value,
+      rows: buildResultsClassRows({
+        trials: [trial],
+        trialClasses: {
+          'trial-1': [
+            { ...level('c1', 'Novice', '08:00'), judgeSignedOffAt: '2026-10-10T21:00:00Z' },
+            { ...level('c2', 'Open', '13:00'), status: 'Scheduled' } as SyncableTrialClass,
+          ],
+        },
+        releasedAtByClassId: new Map([
+          ['c1', '2026-10-10T16:00:00Z'],
+          ['c2', null],
+        ]),
+        paperworkByClassId: new Map(),
+        entries: [
+          entry('e1', 'c1'),
+          entry('e2', 'c2', {
+            entry_status: 'pending',
+            is_scored: false,
+            result_status: 'pending',
+          }),
+        ],
+      }),
+    };
+    renderAt();
+
+    expect(screen.queryByText('Every class is released and signed off')).not.toBeInTheDocument();
+  });
+
   it('holds the banner back when a released, signed class has been reopened by a late entry', () => {
     const rows = buildResultsClassRows({
       trials: [trial],

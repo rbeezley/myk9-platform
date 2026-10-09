@@ -336,11 +336,42 @@ describe('buildResultsClassRows', () => {
         entries: [entry('e-absent', 'class-1', { entry_status: 'absent' })],
       });
       expect(row).toMatchObject({
-        phase: 'no-dogs',
         runFinished: true,
         takesJudgeSignOff: true,
         signOffRecordable: true,
+        // Nothing to release or print, but the sign-off is owed: read from that, not the dog count.
+        phase: 'needs-initials',
+        nextAction: { kind: 'initials', label: 'Initials' },
       });
+    });
+
+    it('that all-absent class reads Done once signed, and quiet while the judge is still judging', () => {
+      const absent = entry('e-absent', 'class-1', { entry_status: 'absent' });
+      const base = {
+        trials: [trial],
+        releasedAtByClassId: new Map<string, string | null>(),
+        paperworkByClassId: new Map(),
+      };
+      const [signed] = buildResultsClassRows({
+        ...base,
+        trialClasses: {
+          'trial-1': [trialClass('class-1', { judgeSignedOffAt: '2026-10-10T21:00:00Z' })],
+        },
+        entries: [absent],
+      });
+      expect(signed).toMatchObject({ phase: 'done', nextAction: { kind: 'none' } });
+
+      const [waiting] = buildResultsClassRows({
+        ...base,
+        trialClasses: {
+          'trial-1': [
+            trialClass('class-1'),
+            trialClass('class-2', { startTime: '13:00', status: 'In Progress' }),
+          ],
+        },
+        entries: [absent, entry('e-2', 'class-2')],
+      });
+      expect(waiting).toMatchObject({ phase: 'done', judgeSignedOffAt: null });
     });
 
     it('a class with every entry pulled has nothing to sign, on both surfaces', () => {

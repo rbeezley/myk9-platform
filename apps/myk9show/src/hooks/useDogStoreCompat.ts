@@ -11,13 +11,11 @@ import {
   useDogQuery,
   useDogsByOwnerQuery,
   useCreateDogMutation,
-  useUpdateDogMutation,
   useDogStatisticsQuery,
 } from '@/hooks/queries/useDogsDatabase';
 import {
   mapDogInputToInsert,
   mapDogInputToReplicated,
-  mapDogInputToUpdate,
   mapDatabaseToDog,
   mapDatabaseDogsArray,
   mapReplicatedDogToDbRow,
@@ -49,7 +47,6 @@ export const useDogStoreCompat = () => {
   const queryClient = useQueryClient();
   const dogsQuery = useDogsQuery();
   const createMutation = useCreateDogMutation();
-  const updateMutation = useUpdateDogMutation();
   const statisticsQuery = useDogStatisticsQuery();
 
   // Convert database results to Dog format for backward compatibility
@@ -59,15 +56,11 @@ export const useDogStoreCompat = () => {
   }, [dogsQuery.data]);
 
   // Aggregate loading and error states
-  const isLoading = aggregateLoadingStates(
-    dogsQuery.isLoading,
-    createMutation.isPending,
-    updateMutation.isPending
-  );
+  const isLoading = aggregateLoadingStates(dogsQuery.isLoading, createMutation.isPending);
 
   const error = useMemo(
-    () => aggregateQueryErrors(dogsQuery.error, createMutation.error, updateMutation.error),
-    [dogsQuery.error, createMutation.error, updateMutation.error]
+    () => aggregateQueryErrors(dogsQuery.error, createMutation.error),
+    [dogsQuery.error, createMutation.error]
   );
 
   const runDogMutation = async <T>(op: () => Promise<T>): Promise<T> => {
@@ -256,12 +249,17 @@ export const useDogStoreCompat = () => {
     // local value. Both mappers below receive this identical normalised patch.
     const normalizedUpdates = normalizeDogInputForWrite(updates);
 
-    // Write to IndexedDB first so getAllDogs() reads fresh data on the next React Query refetch.
+    // Local write + queued UPDATE in one step (MYK9-1067). `updateDog` marks the
+    // row dirty and enqueues the mutation, so an offline edit uploads on reconnect
+    // and a permanent rejection lands in failed_mutations with the sync-failed
+    // toast. There is deliberately no second, direct PostgREST write: it was
+    // fire-and-forget and lost the edit silently whenever it failed.
     const current = await replicatedDogsTable.getDogById(id);
     let localDog: Dog | null = null;
     if (current) {
-      const updated = { ...current, ...mapPartialDogInputToReplicated(normalizedUpdates) };
-      await replicatedDogsTable.set(id, updated, false);
+      const patch = mapPartialDogInputToReplicated(normalizedUpdates);
+      await replicatedDogsTable.updateDog(id, patch);
+      const updated = { ...current, ...patch };
       // Local-first: resolve the breed from data already in memory rather than
       // awaiting a PostgREST round-trip on the save path.
       localDog = mapDatabaseToDog(
@@ -271,27 +269,14 @@ export const useDogStoreCompat = () => {
       );
 
       // The local write is what the roster reads, so refresh it NOW. Waiting on
-      // the network write's onSuccess left the detail page on the old value
-      // until reload (MYK9-1061), and never refreshed it when that write failed.
+      // an upload left the detail page on the old value until reload (MYK9-1061).
       queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
       if (updated.ownerId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.personDogs(updated.ownerId) });
       }
+    } else {
+      throw new Error(`Dog ${id} is not in the local store, so the edit cannot be saved.`);
     }
-
-    // Background Supabase sync — the roster was already invalidated after the local write.
-    const dbUpdates = mapDogInputToUpdate(normalizedUpdates);
-    runDogMutation(() => updateMutation.mutateAsync({ id, updates: dbUpdates })).catch(err => {
-      logger.error(
-        'Background Supabase sync failed for dog update',
-        'dogs',
-        { dogId: id },
-        err as Error
-      );
-      notifications.warning(
-        'Changes saved locally but could not sync. Please check your connection.'
-      );
-    });
 
     if (updates.registrations && updates.registrations.length > 0) {
       try {
@@ -355,7 +340,6 @@ export const useDogStoreCompat = () => {
 
     // Individual mutation states for fine-grained control
     isCreating: createMutation.isPending,
-    isUpdating: updateMutation.isPending,
 
     // Legacy compatibility flags
     _usingDatabase: true,

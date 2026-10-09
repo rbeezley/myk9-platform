@@ -22,7 +22,7 @@ const {
   mockCreateReplicatedDogRegistrationsForDog,
   mockCreateLocalReplicatedDogRegistrationsForDog,
   mockGetRegistrationsForDogs,
-  mockUpdateMutateAsync,
+  mockUpdateReplicatedDog,
   mockServerRegistrationsIn,
   mockDogsQueryData,
   mockGetReplicatedDogById,
@@ -38,7 +38,7 @@ const {
   mockCreateReplicatedDogRegistrationsForDog: vi.fn(),
   mockCreateLocalReplicatedDogRegistrationsForDog: vi.fn(),
   mockGetRegistrationsForDogs: vi.fn(),
-  mockUpdateMutateAsync: vi.fn(),
+  mockUpdateReplicatedDog: vi.fn(),
   mockServerRegistrationsIn: vi.fn(),
   mockDogsQueryData: vi.fn(() => [] as unknown[]),
   mockGetReplicatedDogById: vi.fn(),
@@ -54,6 +54,7 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: {
     getAllDogs: mockGetAllReplicatedDogs,
     set: mockSetReplicatedDog,
+    updateDog: mockUpdateReplicatedDog,
     createDogWithId: mockCreateReplicatedDogWithId,
     createDogWithRegistrationsRpc: mockCreateReplicatedDogWithRegistrationsRpc,
     getPendingMutationIdsForRow: mockGetPendingDogMutationIdsForRow,
@@ -87,11 +88,6 @@ vi.mock('@/hooks/queries/useDogsDatabase', () => ({
   }),
   useCreateDogMutation: () => ({
     mutateAsync: mockCreateMutateAsync,
-    isPending: false,
-    error: null,
-  }),
-  useUpdateDogMutation: () => ({
-    mutateAsync: mockUpdateMutateAsync,
     isPending: false,
     error: null,
   }),
@@ -454,7 +450,7 @@ describe('useDogStoreCompat.updateDog — breed survives the local re-map', () =
 
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUpdateMutateAsync.mockResolvedValue({});
+    mockUpdateReplicatedDog.mockResolvedValue('mutation-1');
     mockGetReplicatedDogById.mockResolvedValue({
       id: 'dog-1',
       name: 'Ziva',
@@ -616,9 +612,27 @@ describe('cachedRegistrationRowsForDog', () => {
 });
 
 describe('useDogStoreCompat.updateDog — one normalized value reaches both destinations', () => {
+  let queuedPayload: Record<string, unknown> | undefined;
+
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUpdateMutateAsync.mockResolvedValue(mockDbDog);
+    queuedPayload = undefined;
+    // The queued UPDATE payload is built by the REAL table from the merged row, so
+    // "what reaches the server" is measured, not restated by a stub.
+    mockUpdateReplicatedDog.mockImplementation(
+      async (_id: string, patch: Record<string, unknown>) => {
+        const { ReplicatedDogsTable } = await vi.importActual<
+          typeof import('@/services/replication/ReplicatedDogsTable')
+        >('@/services/replication/ReplicatedDogsTable');
+        const current = await mockGetReplicatedDogById();
+        queuedPayload = (
+          new ReplicatedDogsTable() as unknown as {
+            toSupabaseRow: (dog: unknown) => Record<string, unknown>;
+          }
+        ).toSupabaseRow({ ...current, ...patch });
+        return 'mutation-1';
+      }
+    );
     mockGetReplicatedDogById.mockResolvedValue({
       id: 'dog-123',
       name: 'Biscuit',
@@ -641,15 +655,13 @@ describe('useDogStoreCompat.updateDog — one normalized value reaches both dest
       await result.current.updateDog('dog-123', { callName: '  Tera  ' });
     });
 
-    expect(mockSetReplicatedDog).toHaveBeenCalledTimes(1);
-    expect(mockUpdateMutateAsync).toHaveBeenCalledTimes(1);
+    // One call: the local write and the queued UPDATE are the same step.
+    expect(mockUpdateReplicatedDog).toHaveBeenCalledTimes(1);
 
     const indexedDbCallName = (
-      mockSetReplicatedDog.mock.calls[0]?.[1] as { callName?: string } | undefined
+      mockUpdateReplicatedDog.mock.calls[0]?.[1] as { callName?: string } | undefined
     )?.callName;
-    const supabaseCallName = (
-      mockUpdateMutateAsync.mock.calls[0]?.[0] as { updates?: { call_name?: string } } | undefined
-    )?.updates?.call_name;
+    const supabaseCallName = queuedPayload?.call_name;
 
     // The invariant: one value, not two that happen to look similar.
     expect(indexedDbCallName).toBe(supabaseCallName);
@@ -663,17 +675,15 @@ describe('useDogStoreCompat.updateDog — one normalized value reaches both dest
       await result.current.updateDog('dog-123', { callName: '   ', breed: 'Border Collie' });
     });
 
-    const localPatch = mockSetReplicatedDog.mock.calls[0]?.[1] as {
+    const localPatch = mockUpdateReplicatedDog.mock.calls[0]?.[1] as {
       callName?: string;
       breed?: string;
     };
-    const dbPatch = (
-      mockUpdateMutateAsync.mock.calls[0]?.[0] as { updates?: Record<string, unknown> } | undefined
-    )?.updates;
+    const dbPatch = queuedPayload;
 
     // Neither clears the required identifier; the rest of the edit still lands.
-    expect(localPatch?.callName).toBe('Biscuit');
-    expect(dbPatch).not.toHaveProperty('call_name');
+    expect(localPatch).not.toHaveProperty('callName');
+    expect(dbPatch?.call_name).toBe('Biscuit');
     expect(localPatch?.breed).toBe('Border Collie');
     expect(dbPatch?.breed).toBe('Border Collie');
   });
@@ -685,9 +695,8 @@ describe('useDogStoreCompat.updateDog — one normalized value reaches both dest
    * while the two values disagree, which is exactly the bug being pinned.
    */
   const bothDestinations = () => ({
-    local: mockSetReplicatedDog.mock.calls[0]?.[1] as Record<string, unknown> | undefined,
-    db: (mockUpdateMutateAsync.mock.calls[0]?.[0] as { updates?: Record<string, unknown> })
-      ?.updates,
+    local: mockUpdateReplicatedDog.mock.calls[0]?.[1] as Record<string, unknown> | undefined,
+    db: queuedPayload,
   });
 
   it('marks a dog deceased in IndexedDB and in Supabase, not just in Supabase', async () => {

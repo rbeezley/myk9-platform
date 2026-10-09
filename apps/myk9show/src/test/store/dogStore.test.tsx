@@ -3,6 +3,7 @@ import { act, renderHook } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useDogStore } from '@/store/dogStore';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
+import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { resetFactories } from '@/test/utils/factories';
 import type { DogInput } from '@/store/dogStore';
 import type { Dog } from '@/types/dog-types';
@@ -35,7 +36,6 @@ const mockDogs: Dog[] = [
 // Mock the database hooks
 const mockUseDogsQuery = vi.fn();
 const mockUseCreateDogMutation = vi.fn();
-const mockUseUpdateDogMutation = vi.fn();
 const mockUseDeleteDogMutation = vi.fn();
 const mockUseDogStatisticsQuery = vi.fn();
 const mockUseDogQuery = vi.fn();
@@ -46,7 +46,6 @@ vi.mock('@/hooks/queries/useDogsDatabase', () => ({
   useDogQuery: () => mockUseDogQuery(),
   useDogsByOwnerQuery: () => mockUseDogsByOwnerQuery(),
   useCreateDogMutation: () => mockUseCreateDogMutation(),
-  useUpdateDogMutation: () => mockUseUpdateDogMutation(),
   useDeleteDogMutation: () => mockUseDeleteDogMutation(),
   useDogStatisticsQuery: () => mockUseDogStatisticsQuery(),
 }));
@@ -55,7 +54,8 @@ vi.mock('@/hooks/queries/useDogsDatabase', () => ({
 vi.mock('@/services/mappers/dogMappers', () => ({
   mapDogInputToInsert: vi.fn(input => ({ ...input, id: `db-${Date.now()}` })),
   mapDogInputToReplicated: vi.fn((input, id) => ({ id, ...input })),
-  mapDogInputToUpdate: vi.fn(input => ({ ...input })),
+  mapPartialDogInputToReplicated: vi.fn(input => ({ ...input })),
+  mapReplicatedDogToDbRow: vi.fn(dog => ({ ...dog })),
   mapDatabaseToDog: vi.fn(dbDog => ({ ...dbDog })),
   mapDatabaseDogsArray: vi.fn(dbDogs => dbDogs || []),
   // MYK9-90 §5.1 — mirrors the real normaliser: one trim, above both writes.
@@ -76,6 +76,7 @@ vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
     },
     getAllDogs: vi.fn().mockResolvedValue([]),
     getDogById: vi.fn().mockResolvedValue(null),
+    updateDog: vi.fn().mockResolvedValue('mutation-1'),
   },
 }));
 
@@ -112,12 +113,6 @@ describe('dogStore (with database integration)', () => {
     });
 
     mockUseCreateDogMutation.mockReturnValue({
-      mutateAsync: vi.fn().mockResolvedValue(mockDogs[0]),
-      isPending: false,
-      error: null,
-    });
-
-    mockUseUpdateDogMutation.mockReturnValue({
       mutateAsync: vi.fn().mockResolvedValue(mockDogs[0]),
       isPending: false,
       error: null,
@@ -197,12 +192,11 @@ describe('dogStore (with database integration)', () => {
       expect(mockMutateAsync).toHaveBeenCalledWith(expect.objectContaining(dogInput));
     });
 
-    it('should update an existing dog using database', async () => {
-      const mockMutateAsync = vi.fn().mockResolvedValue(mockDogs[0]);
-      mockUseUpdateDogMutation.mockReturnValue({
-        mutateAsync: mockMutateAsync,
-        isPending: false,
-        error: null,
+    it('should update an existing dog through the replicated table queue', async () => {
+      vi.mocked(replicatedDogsTable.getDogById).mockResolvedValue({
+        id: 'dog-1',
+        name: 'Buddy',
+        breed: 'Golden Retriever',
       });
 
       const { result } = renderHook(() => useDogStoreCompat(), {
@@ -215,10 +209,7 @@ describe('dogStore (with database integration)', () => {
         await result.current.updateDog('dog-1', updateData);
       });
 
-      expect(mockMutateAsync).toHaveBeenCalledWith({
-        id: 'dog-1',
-        updates: updateData,
-      });
+      expect(replicatedDogsTable.updateDog).toHaveBeenCalledWith('dog-1', updateData);
     });
 
     it('should retrieve dogs from database', () => {

@@ -17,13 +17,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Plus, Trash2 } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
+import { ConfirmDialog } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -82,15 +77,26 @@ export function ManageJudgeSuppliesDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, thisJudgeKey, registryId]);
 
+  const [pendingDelete, setPendingDelete] = useState<TrialJudgeSupplyRow | null>(null);
+
   const isSeeding = supplies.ensureSeeded.isPending && judgeRows.length === 0;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Manage supplies — {judge.judge_name}</DialogTitle>
-        </DialogHeader>
-
+    <SlideOverPanel
+      open={open}
+      onClose={() => onOpenChange(false)}
+      title={`Manage supplies — ${judge.judge_name}`}
+      size="md"
+      className="sm:max-w-lg"
+      footer={
+        <div className="flex justify-end">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Done
+          </Button>
+        </div>
+      }
+    >
+      <div className="p-4">
         {isSeeding && <SupplySkeleton />}
         {!isSeeding && judgeRows.length === 0 && (
           <p className="text-sm text-muted-foreground py-6 text-center">
@@ -112,11 +118,7 @@ export function ManageJudgeSuppliesDialog({
                 { onError: err => notifications.error(toMessage(err, 'Could not update note')) }
               )
             }
-            onDelete={id =>
-              supplies.deleteCustomRow.mutate(id, {
-                onError: err => notifications.error(toMessage(err, 'Could not delete item')),
-              })
-            }
+            onDelete={id => setPendingDelete(judgeRows.find(r => r.id === id) ?? null)}
             onReorder={orderedIds =>
               supplies.reorder.mutate(orderedIds, {
                 onError: err => notifications.error(toMessage(err, 'Could not reorder items')),
@@ -141,14 +143,27 @@ export function ManageJudgeSuppliesDialog({
             )
           }
         />
+      </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Done
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <ConfirmDialog
+        open={pendingDelete !== null}
+        onOpenChange={o => {
+          if (!o) setPendingDelete(null);
+        }}
+        title={`Delete the supply item ${pendingDelete?.item_label ?? ''}?`}
+        description="It is removed from this judge's list. You can add it again later."
+        confirmLabel="Delete item"
+        cancelLabel="Keep it"
+        destructive
+        onConfirm={() => {
+          if (!pendingDelete) return;
+          supplies.deleteCustomRow.mutate(pendingDelete.id, {
+            onError: err => notifications.error(toMessage(err, 'Could not delete item')),
+          });
+          setPendingDelete(null);
+        }}
+      />
+    </SlideOverPanel>
   );
 }
 

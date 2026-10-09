@@ -10,7 +10,7 @@ See also: [`CLAUDE.md`](../CLAUDE.md) for hard rules (worktrees, merges, migrati
 
 1. `opsx:explore` — think through the idea, investigate the problem, clarify requirements before committing to an approach.
 2. `opsx:propose` — creates the OpenSpec change (`openspec/changes/<id>/`) with proposal, design, specs, and `tasks.md` in one step. This **is** the plan — do not also write a `docs/plan-*.md` for the same work.
-3. Implement: `opsx:apply` (direct) or `opsx-orchestrate` (cheaper-model sub-agents implement, you stay as reviewer/gatekeeper) or `opsx:ship` (full end-to-end: propose → implement → PR → review → merge → archive, autonomous).
+3. Implement: `opsx:apply` (direct) or `orchestrate` (cheaper-model sub-agents implement, you stay as reviewer/gatekeeper; it also runs a picked list of Linear issues to merge) or `opsx:ship` (full end-to-end: propose → implement → PR → review → merge → archive, autonomous).
 4. `opsx:verify` — confirm implementation matches the change artifacts before archiving.
 5. `opsx:archive` — closes out the change. `tasks.md` must show a testing phase completed (config's task rules enforce this).
 

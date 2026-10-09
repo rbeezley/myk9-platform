@@ -19,8 +19,8 @@ export const SKILL_TREES = ['.claude/skills', '.agents/skills', '.codex/skills']
  * silently outlive the fork it excuses.
  */
 export const INTENTIONAL_VARIANTS: Readonly<Record<string, string>> = {
-  'opsx-orchestrate':
-    'Codex port (#1260) is written against spawn_agent/followup_task and cannot pick a model tier; the Claude version dispatches sonnet/opus via the Agent tool.',
+  orchestrate:
+    'Codex port (#1260) is written against spawn_agent/followup_task and cannot pick a model tier; the Claude version dispatches haiku/sonnet via the Agent tool and adds the Linear-issue run mode, which depends on that routing.',
 };
 
 export interface SkillTreeProblem {

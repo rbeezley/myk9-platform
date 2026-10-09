@@ -1,6 +1,6 @@
 ---
 name: ship-it
-description: Use when given a docs/plan-*.md path to autonomously implement, test, simplify and harden a feature, then ship it through ship-pr (PR, independent review gate, merge, cleanup) with no human input until final merge confirmation. For OpenSpec changes use opsx:ship or opsx-orchestrate instead.
+description: Use when given a docs/plan-*.md path to autonomously implement, test, simplify and harden a feature, then ship it through ship-pr (PR, independent review gate, merge, cleanup) with no human input until final merge confirmation. For OpenSpec changes use opsx:ship or orchestrate instead; for a list of Linear issues use orchestrate.
 ---
 
 # Ship It — Autonomous PR Pipeline

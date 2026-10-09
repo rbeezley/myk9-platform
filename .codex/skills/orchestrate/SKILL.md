@@ -1,9 +1,9 @@
 ---
-name: opsx-orchestrate
-description: Use when the user invokes /opsx-orchestrate, asks to orchestrate an OpenSpec change, requests sub-agent implementation with the main agent as reviewer, or wants an implementation/review loop for an OpenSpec remediation.
+name: orchestrate
+description: Use when the user invokes /orchestrate or /opsx-orchestrate, asks to orchestrate an OpenSpec change, requests sub-agent implementation with the main agent as reviewer, or wants an implementation/review loop for an OpenSpec remediation.
 ---
 
-# OPSX Orchestrate
+# Orchestrate (Codex)
 
 ## Overview
 
@@ -11,7 +11,7 @@ Run `opsx-ship` with a strict role split: the root agent owns judgment and gates
 
 **REQUIRED SUB-SKILL:** Use `opsx-ship` for the phase order and shipping rules.
 
-For `openspec/changes/<change-id>/` only. Use `ship-it` for `docs/plan-*.md`.
+For `openspec/changes/<change-id>/` only. Use `ship-it` for `docs/plan-*.md`. The Claude Code variant (`.claude/skills/orchestrate`) also runs lists of Linear issues to merge; that mode depends on model-tier routing, which Codex cannot select, so it is not ported here.
 
 ## Codex Capability Contract
 

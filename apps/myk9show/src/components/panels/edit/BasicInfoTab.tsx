@@ -16,6 +16,7 @@ import {
 import { JuniorHandlerFields } from '@/components/common/JuniorHandlerFields';
 import type { RegistryId } from '@/features/registries';
 import { useEditPanel } from './useEditPanel';
+import { useIsOnline } from '@/hooks/useNetworkStatus';
 import type { UserFormData } from './UserEditPanel.types';
 
 /**
@@ -55,6 +56,9 @@ function usePersonEmailLock(
   return decidePersonEmailLock({ isSiteAdmin, facts: query.data ?? null });
 }
 
+const EMAIL_NEEDS_CONNECTION_NOTE =
+  'An email address can only be changed while online. The other details still save.';
+
 const EMAIL_LOCK_NOTE = {
   pending: 'Checking whether this email can be changed...',
   'sign-in': "This is the address they sign in with, so it can't be changed here.",
@@ -85,6 +89,14 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   // `admin:manage` is held by site_admin only, which is who the database lets
   // change a locked email.
   const emailLock = usePersonEmailLock(personId, hasAdminPermission);
+  // MYK9-1071 (D2): an email change only saves online; the rest of the form
+  // saves offline through the queue.
+  const emailNeedsConnection = !useIsOnline() && !isCreate;
+  const emailNote = emailNeedsConnection
+    ? EMAIL_NEEDS_CONNECTION_NOTE
+    : emailLock.locked === false
+      ? null
+      : EMAIL_LOCK_NOTE[emailLock.locked === 'pending' ? 'pending' : emailLock.reason];
 
   const firstNameError = form?.getError('firstName');
   const lastNameError = form?.getError('lastName');
@@ -156,7 +168,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           once the person has entries or roles (MYK9-710): the database refuses
           those edits, so the editor does not offer them. */}
       <FormField label="Email Address" fieldId="email" optional error={emailError}>
-        {emailLock.locked !== false ? (
+        {emailNote ? (
           <>
             <Input
               {...emailInputProps}
@@ -164,9 +176,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
               aria-readonly="true"
               className="cursor-default bg-muted text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0"
             />
-            <p className="mt-1.5 text-xs text-muted-foreground">
-              {EMAIL_LOCK_NOTE[emailLock.locked === 'pending' ? 'pending' : emailLock.reason]}
-            </p>
+            <p className="mt-1.5 text-xs text-muted-foreground">{emailNote}</p>
           </>
         ) : (
           <Input

@@ -44,8 +44,17 @@ vi.mock('@/hooks/useAuthContext', () => ({
 
 vi.mock('@/hooks/useRoleBasedData', () => ({ useRoleBasedPeople: () => [] }));
 
-vi.mock('@/hooks/queries/useUsersQuery', () => ({
-  useUpdateUserMutation: () => ({ mutateAsync }),
+// MYK9-1071: the profile save goes through useSavePersonDetails (queued for
+// offline). `mutateAsync` stays the seam, called with the same { id, updates }.
+vi.mock('@/hooks/useSavePersonDetails', () => ({
+  useSavePersonDetails: () => (id: string, updates: Record<string, unknown>) =>
+    mutateAsync({ id, updates }),
+}));
+
+vi.mock('@/hooks/queries/useUsersQuery', async importOriginal => ({
+  mapUserToDbUpdate: (await importOriginal<typeof import('@/hooks/queries/useUsersQuery')>())
+    .mapUserToDbUpdate,
+  useUpdateUserMutation: () => ({ mutateAsync: vi.fn() }),
   useDeleteUserMutation: () => ({ mutateAsync: vi.fn() }),
   usePermanentDeleteUserMutation: () => ({ mutateAsync: vi.fn() }),
 }));

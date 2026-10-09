@@ -17,3 +17,17 @@ export const SIGN_IN_EMAIL_LOCKED_MESSAGE =
 
 export const SIGN_IN_EMAIL_UNVERIFIABLE_MESSAGE =
   'Could not verify this account before changing its email address. Please try again.';
+
+/**
+ * MYK9-1071 (decision D2): an email change needs the identity checks above,
+ * which only work online, so a save that changes the email is refused offline.
+ */
+export const EMAIL_CHANGE_NEEDS_CONNECTION_CODE = 'EMAIL_CHANGE_NEEDS_CONNECTION';
+export const EMAIL_CHANGE_NEEDS_CONNECTION_MESSAGE =
+  'An email address can only be changed while online. Reconnect and save again, ' +
+  'or leave the email as it is to save the other changes now.';
+
+/** MYK9-1071: a person save offline needs the person on this device first. */
+export const PERSON_NOT_ON_DEVICE_CODE = 'PERSON_NOT_ON_DEVICE';
+export const PERSON_NOT_ON_DEVICE_MESSAGE =
+  'This person is not saved on this device yet. Reconnect and try the save again.';

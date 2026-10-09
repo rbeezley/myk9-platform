@@ -13,6 +13,20 @@ vi.mock('@/services/database/users', () => ({
   })),
 }));
 
+// The save is queued since MYK9-1071; the replica is its seam.
+vi.mock('@/services/replication/ReplicatedShowDeskPeopleTable', () => ({
+  replicatedShowDeskPeopleTable: {
+    getPersonById: vi.fn(async (id: string) => ({
+      id,
+      firstName: 'Pat',
+      lastName: 'Owner',
+      address: '1 Elm St',
+      status: 'active',
+    })),
+    updatePerson: vi.fn(async () => 'mutation-1'),
+  },
+}));
+
 import { useUpdatePerson } from '@/hooks/useUsers';
 import type { User } from '@/types/user-types';
 

@@ -187,8 +187,9 @@ because `main.tsx` installs it at application boot.
 
 The `useMineToggle` and `useModal` test files were test-only coverage for
 unmounted compatibility hooks and were removed with their subjects.
-`useUserStoreCompat` remains because store/integration tests still import it;
-no live barrel entry references the deleted set.
+`useUserStoreCompat` remained because store/integration tests still imported it;
+MYK9-1071 deleted it with those tests. No live barrel entry references the
+deleted set.
 
 ## Verification map
 

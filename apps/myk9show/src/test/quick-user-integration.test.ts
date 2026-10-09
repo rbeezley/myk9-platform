@@ -88,22 +88,6 @@ describe('User Integration - Import Validation', () => {
     expect(mapUserToUserInput).toBeDefined();
   });
 
-  it('should import user store compatibility layer without errors', async () => {
-    const {
-      useUserStoreCompat,
-      useUserWithQuery,
-      useUserSearchWithQuery,
-      useUsersWithDogCountsCompat,
-      useUsersByRoleWithQuery,
-    } = await import('@/hooks/useUserStoreCompat');
-
-    expect(useUserStoreCompat).toBeDefined();
-    expect(useUserWithQuery).toBeDefined();
-    expect(useUserSearchWithQuery).toBeDefined();
-    expect(useUsersWithDogCountsCompat).toBeDefined();
-    expect(useUsersByRoleWithQuery).toBeDefined();
-  });
-
   it('should import user database queries without errors', async () => {
     const {
       getAllUsers,
@@ -195,19 +179,5 @@ describe('User Integration - Type Mapping Validation', () => {
     expect(result.dogs).toEqual([]);
     expect(result.roles).toEqual([]);
     expect(result._syncStatus).toBe('synced');
-  });
-});
-
-// Test that the compatibility layer maintains the expected API
-describe('User Integration - Compatibility API Validation', () => {
-  it('should maintain backward compatible API structure', async () => {
-    // This test verifies the API structure without actually running the hooks
-    const { useUserStoreCompat } = await import('@/hooks/useUserStoreCompat');
-
-    // Verify the hook exists and is a function
-    expect(typeof useUserStoreCompat).toBe('function');
-
-    // Test passes if imports work and types are correct
-    expect(true).toBe(true);
   });
 });

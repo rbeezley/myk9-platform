@@ -43,8 +43,9 @@ const stored = {
   status: 'active',
 };
 
+let client: QueryClient;
 function setup() {
-  const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   const wrapper = ({ children }: { children: React.ReactNode }) => (
     <QueryClientProvider client={client}>{children}</QueryClientProvider>
   );
@@ -86,6 +87,16 @@ describe('useUpdatePerson queues the save (MYK9-1071)', () => {
     // The unchanged sign-in email is never part of a queued save.
     expect(replica.updatePerson.mock.calls[0]?.[1]).not.toHaveProperty('email');
     expect(directDb.updateUser).not.toHaveBeenCalled();
+  });
+
+  it('does not refetch the people reads after a queued save (they would read stale server values)', async () => {
+    const { result } = setup();
+    const invalidate = vi.spyOn(client, 'invalidateQueries');
+    await act(async () => {
+      await result.current.mutateAsync(save({ firstName: 'Patricia' }));
+    });
+    expect(invalidate).not.toHaveBeenCalledWith({ queryKey: ['users'] });
+    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['dogs'] });
   });
 
   it('refuses an email change while offline and queues nothing', async () => {

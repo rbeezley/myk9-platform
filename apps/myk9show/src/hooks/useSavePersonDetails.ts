@@ -27,8 +27,11 @@ export function useSavePersonDetails(): (
 
   return async (personId, updates) => {
     const result = await savePersonDetails(personId, updates, { getRow });
-    if (result.route === 'queued') patchCachedPersonRows(queryClient, personId, result.columns);
-    queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+    if (result.route === 'queued') patchCachedPersonRows(queryClient, personId, result.columns, result.privatePatch);
+    // A queued save is not invalidated: a refetch now would read the server
+    // before the upload lands and overwrite the patch (the people reads overlay
+    // pending replica values, and the upload's own sync refreshes them later).
+    if (result.route === 'online') queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
     return result;
   };
 }

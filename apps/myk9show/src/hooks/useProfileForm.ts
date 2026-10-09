@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useUpdatePerson } from '@/hooks/useUsers';
+import { overlayPendingPeople } from '@/services/replication/pendingPeopleOverlay';
 import { mapDbUserToUser } from '@/hooks/queries/useUsersQuery';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { notifications } from '@/lib/notifications';
@@ -90,7 +91,9 @@ export function useCurrentUserPerson(authUserId: string | undefined) {
 
       if (error || !data) return null;
 
-      const person = mapDbUserToUser(data);
+      // A queued edit not yet uploaded wins over the server copy (MYK9-1071).
+      const [person] = await overlayPendingPeople([mapDbUserToUser(data)]);
+      if (!person) return null;
       // MYK9-664: the person's own date of birth and junior numbers live in
       // `people_private`, which RLS lets them (and site admins) read. A failed
       // read leaves both undefined rather than failing the whole profile.

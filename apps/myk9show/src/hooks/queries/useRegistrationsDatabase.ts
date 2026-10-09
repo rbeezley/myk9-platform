@@ -14,7 +14,7 @@ import {
   validateRegistrationNumber,
 } from '@/services/database/registrations';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
-import { readRegistrationsForDog } from '@/services/database/registrations/replicaFirstReads';
+import { readRegistrationsForDog } from '@/services/database/registrations/readRegistrationsForDog';
 import { invalidateQueries } from '@/services/database/queryClient';
 import type { DbDogRegistrationInsert, DbDogRegistrationUpdate } from '@/types/database-mappings';
 

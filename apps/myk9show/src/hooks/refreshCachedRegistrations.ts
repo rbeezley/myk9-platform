@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
-import { readRegistrationsForDog } from '@/services/database/registrations/replicaFirstReads';
+import { readRegistrationsForDog } from '@/services/database/registrations/readRegistrationsForDog';
 
 /**
  * Show a queued registration add or edit in the dog's Registrations list at

@@ -29,6 +29,8 @@ export type PersonSaveResult =
       person: Record<string, unknown>;
       /** The people columns this save sent to the queue (its own values). */
       columns: Record<string, unknown>;
+      /** The private-details patch queued with it. */
+      privatePatch: PersonPrivatePatch;
     }
   | { route: 'online'; person: Record<string, unknown> };
 
@@ -126,5 +128,5 @@ export async function savePersonDetails(
   for (const [key, value] of Object.entries(peopleUpdates)) {
     if (QUEUED_COLUMNS.has(key)) person[key] = value;
   }
-  return { route: 'queued', person, columns: peopleUpdates };
+  return { route: 'queued', person, columns: peopleUpdates, privatePatch };
 }

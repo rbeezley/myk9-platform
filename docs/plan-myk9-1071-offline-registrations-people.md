@@ -128,3 +128,7 @@ Not doing: a queued registration DELETE, `is_primary` editing, replicating `peop
 - **D5: delete the dead `useUserStoreCompat`** (in PR 2).
 
 As built in PR 1, the wrapper signature is `update_person_details_versioned(p_person_id uuid, p_expected_version integer, p_people jsonb DEFAULT '{}', p_private jsonb DEFAULT '{}') RETURNS integer`. It runs the authorization check before the version check, so a refused caller never sees the version in a 40001 DETAIL. A NULL expected version means no precondition, the same as the table path when no `serverVersion` is set.
+
+## Review round 1 (Codex, PR #2873): scope decision
+
+The registration and owner READERS went back to their PostgREST reads, with one step that overlays this device's unsent writes (queued edits replace their server row, queued adds are appended, queued person edits overlay the people reads). That removed four findings at the source instead of guarding them: cold reads that missed queued adds, an online delete reappearing from the replica, directory refetches overwriting pending person edits, and the warm-path merge. The acceptance criteria only require the queued WRITE paths. The replicas still sync, because the edit paths need them, with paged downloads keyed on (updated_at, id) and a full sync forced until coverage is recorded. The refusal re-pull runs atomically in the package (`replaceRefusedRows`) and refreshes the consumer caches.

@@ -38,4 +38,32 @@ describe('patchCachedPersonRows (MYK9-1071)', () => {
       judge_qualifications: [{ id: 'q1' }],
     });
   });
+
+  it('patches private details only into the own-profile cache (P2)', () => {
+    const client = new QueryClient();
+    client.setQueryData(['users', 'currentProfile', 'auth-1'], {
+      id: 'p1',
+      firstName: 'Pat',
+      privateDetailsLoaded: true,
+      dateOfBirth: '1990-01-01',
+      juniorHandlerNumbers: { AKC: 'J1', UKC: 'U1' },
+    });
+    client.setQueryData(['users'], [{ id: 'p1', firstName: 'Pat' }]);
+
+    patchCachedPersonRows(
+      client,
+      'p1',
+      { first_name: 'Patricia' },
+      { date_of_birth: '2000-02-02', junior_handler_numbers: { AKC: 'J2', UKC: '' } }
+    );
+
+    expect(client.getQueryData(['users', 'currentProfile', 'auth-1'])).toEqual({
+      id: 'p1',
+      firstName: 'Patricia',
+      privateDetailsLoaded: true,
+      dateOfBirth: '2000-02-02',
+      juniorHandlerNumbers: { AKC: 'J2' },
+    });
+    expect(client.getQueryData(['users'])).toEqual([{ id: 'p1', firstName: 'Patricia' }]);
+  });
 });

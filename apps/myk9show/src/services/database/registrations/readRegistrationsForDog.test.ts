@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { replica, getRegistrationsByDog } = vi.hoisted(() => ({
-  replica: { isCold: vi.fn(), getRegistrationsForDogsPartitioned: vi.fn() },
+  replica: { getRegistrationsForDog: vi.fn() },
   getRegistrationsByDog: vi.fn(),
 }));
 
@@ -10,46 +10,48 @@ vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
 }));
 vi.mock('./reads', () => ({ getRegistrationsByDog }));
 
-import { readRegistrationsForDog } from './replicaFirstReads';
+import { readRegistrationsForDog } from './readRegistrationsForDog';
+
+const server = [
+  { id: 'r1', organization: 'AKC', registration_number: 'A1', registered_name: 'Old' },
+  { id: 'r2', organization: 'UKC', registration_number: 'U1', registered_name: 'Kept' },
+];
 
 describe('readRegistrationsForDog (MYK9-1071)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    getRegistrationsByDog.mockResolvedValue({ data: [{ id: 'server' }], error: null });
+    getRegistrationsByDog.mockResolvedValue({ data: server, error: null });
   });
 
-  it('a warm replica answers, newest registration date first (NULLs first like PostgREST)', async () => {
-    replica.isCold.mockResolvedValue(false);
-    replica.getRegistrationsForDogsPartitioned.mockResolvedValue({
-      synced: [
-        {
-          id: 'old',
-          registration_date: '2019-01-01',
-          organization: 'AKC',
-          registration_number: 'A1',
-        },
-        {
-          id: 'new',
-          registration_date: '2024-01-01',
-          organization: 'UKC',
-          registration_number: 'U1',
-        },
-      ],
-      local: [
-        // A pending add: shown.
-        { id: 'none', registration_date: null, organization: 'ASCA', registration_number: 'S1' },
-        // A local mirror of a row the server already holds under its own id: hidden.
-        { id: 'mirror', registration_date: null, organization: 'AKC', registration_number: 'A1' },
-      ],
-    });
+  it('overlays a queued edit, appends a queued add, hides a mirror of a server row', async () => {
+    replica.getRegistrationsForDog.mockResolvedValue([
+      { id: 'r1', organization: 'AKC', registration_number: 'A1', registered_name: 'New' },
+      { id: 'add', organization: 'ASCA', registration_number: 'S1' },
+      { id: 'mirror', organization: 'UKC', registration_number: 'U1' },
+    ]);
     const { data, error } = await readRegistrationsForDog('dog-1');
     expect(error).toBeNull();
-    expect(data.map(row => row.id)).toEqual(['none', 'new', 'old']);
-    expect(getRegistrationsByDog).not.toHaveBeenCalled();
+    expect(data.map(row => [row.id, row.registered_name])).toEqual([
+      ['r1', 'New'],
+      ['r2', 'Kept'],
+      ['add', undefined],
+    ]);
   });
 
-  it('a cold replica reads the server', async () => {
-    replica.isCold.mockResolvedValue(true);
-    expect((await readRegistrationsForDog('dog-1')).data).toEqual([{ id: 'server' }]);
+  it('never resurfaces a row the server no longer has (an online delete)', async () => {
+    // The replica's synced copy of a deleted row is not "unsent", so the table
+    // never returns it here; only the server read decides.
+    replica.getRegistrationsForDog.mockResolvedValue([]);
+    getRegistrationsByDog.mockResolvedValue({ data: [server[1]], error: null });
+    expect((await readRegistrationsForDog('dog-1')).data.map(row => row.id)).toEqual(['r2']);
+  });
+
+  it('offline, a queued add still shows instead of the read error', async () => {
+    getRegistrationsByDog.mockResolvedValue({ data: [], error: new Error('offline') });
+    replica.getRegistrationsForDog.mockResolvedValue([{ id: 'add', organization: 'ASCA' }]);
+    expect(await readRegistrationsForDog('dog-1')).toEqual({
+      data: [{ id: 'add', organization: 'ASCA' }],
+      error: null,
+    });
   });
 });

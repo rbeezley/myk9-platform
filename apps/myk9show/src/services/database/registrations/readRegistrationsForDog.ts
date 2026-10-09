@@ -9,50 +9,34 @@ const registryIdentity = (row: Record<string, unknown>) =>
   `${normalizeDogRegistrationOrganization(row.organization as string | null)}|${normalizeDogRegistrationNumber(row.registration_number as string | null)}`;
 
 /**
- * Server-known rows plus this device's local-only rows, minus a local mirror of
- * a registration the server already holds under its own id (the registrations
- * RPC assigns server ids), matched on organization + number like the dog read.
- */
-function mergeLocalRows(
-  synced: Record<string, unknown>[],
-  local: Record<string, unknown>[]
-): Record<string, unknown>[] {
-  const known = new Set(synced.map(registryIdentity));
-  return [...synced, ...local.filter(row => !known.has(registryIdentity(row)))];
-}
-
-/**
- * One dog's registrations, newest registration date first (the order
- * `getRegistrationsByDog` uses), from the local replica once it has synced and
- * from PostgREST while it is cold (MYK9-1071). Replica-first is what makes a
- * queued add or edit show at once, offline included, and keeps a reconnect
- * refetch from reading the server before the queued write has uploaded.
+ * One dog's registrations for the Registrations list: the PostgREST read with
+ * this device's UNSENT writes overlaid (MYK9-1071). A queued edit replaces its
+ * server row; a queued add is appended unless the server already holds the same
+ * registration (a mirror of the dog's create RPC, under a server id). A row the
+ * server has, or deleted, is never read from the replica.
+ *
+ * Offline, a failed server read returns the unsent rows alone, so a queued add
+ * still shows, rather than an error.
  */
 export async function readRegistrationsForDog(
   dogId: string
 ): Promise<{ data: Record<string, unknown>[]; error: unknown }> {
-  if (!(await replicatedDogRegistrationsTable.isCold())) {
-    try {
-      const { synced, local } =
-        await replicatedDogRegistrationsTable.getRegistrationsForDogsPartitioned([dogId]);
-      return { data: sortByRegistrationDateDesc(mergeLocalRows(synced, local)), error: null };
-    } catch {
-      // An unreadable replica falls through to the server read.
-    }
+  const unsent = await replicatedDogRegistrationsTable
+    .getRegistrationsForDog(dogId)
+    .catch(() => [] as Record<string, unknown>[]);
+  const server = await getRegistrationsByDog(dogId);
+  if (server.error) {
+    return unsent.length > 0 ? { data: unsent, error: null } : server;
   }
-  return getRegistrationsByDog(dogId);
-}
 
-function sortByRegistrationDateDesc(rows: Record<string, unknown>[]): Record<string, unknown>[] {
-  const key = (row: Record<string, unknown>) =>
-    typeof row.registration_date === 'string' ? row.registration_date : '';
-  // PostgREST's `order(... desc)` puts NULLs first; keep that.
-  return [...rows].sort((a, b) => {
-    const left = key(a);
-    const right = key(b);
-    if (left === right) return 0;
-    if (left === '') return -1;
-    if (right === '') return 1;
-    return left < right ? 1 : -1;
-  });
+  const byId = new Map(unsent.map(row => [row.id, row]));
+  const merged = (server.data as Record<string, unknown>[]).map(row =>
+    byId.has(row.id) ? { ...row, ...byId.get(row.id)! } : row
+  );
+  const known = new Set(merged.map(row => row.id));
+  const identities = new Set(merged.map(registryIdentity));
+  for (const row of unsent) {
+    if (!known.has(row.id) && !identities.has(registryIdentity(row))) merged.push(row);
+  }
+  return { data: merged, error: null };
 }

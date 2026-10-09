@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
 import { UserRole } from '@/types/auth-types';
@@ -62,6 +63,9 @@ export function useAddPerson() {
 export function useUpdatePerson() {
   const queryClient = useQueryClient();
   const savePerson = useSavePersonDetails();
+  // A queued save must not refetch the people reads: they would read the server
+  // before the upload lands, and a private-details edit cannot be overlaid.
+  const lastRoute = useRef<'queued' | 'online'>('online');
   return useMutation({
     // Queued saves work offline (MYK9-1071), so the mutation must not pause there.
     networkMode: 'always',
@@ -88,10 +92,13 @@ export function useUpdatePerson() {
           junior_handler_numbers: person.juniorHandlerNumbers,
         }),
       });
+      lastRoute.current = result.route;
       return mapDatabaseToUser(result.person);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      if (lastRoute.current === 'online') {
+        queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      }
       // MYK9-1010: the dog roster carries each owner's address, which gates
       // AKC classes in the entry wizard.
       queryClient.invalidateQueries({ queryKey: queryKeys.dogs });

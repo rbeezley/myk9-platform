@@ -187,6 +187,7 @@ export default function ResultsTab() {
       judgeSignOffSlot={
         judgeGroup ? (
           <ResultsJudgeSignOff
+            showId={showId}
             group={judgeGroup}
             returnTo={`${pathname}${search}`}
             pending={judgeSignOff.isPending}

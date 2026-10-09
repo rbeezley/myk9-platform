@@ -19,6 +19,8 @@ export interface JudgeSignOffGroupClass {
   name: string;
   trialLabel: string;
   runFinished: boolean;
+  /** Fully scored but not marked Completed: the sign-off cannot be recorded until it is. */
+  needsCompletion: boolean;
   signedOffAt: string | null;
   /** Complete, status Completed, not yet signed: what one "Initialed" press records. */
   recordable: boolean;
@@ -71,6 +73,7 @@ export function buildJudgeSignOffGroup(
     name: row.name,
     trialLabel: row.trialLabel,
     runFinished: row.runFinished,
+    needsCompletion: row.phase === 'ready-to-complete',
     signedOffAt: row.judgeSignedOffAt,
     recordable: row.signOffRecordable && row.judgeSignedOffAt === null,
   }));

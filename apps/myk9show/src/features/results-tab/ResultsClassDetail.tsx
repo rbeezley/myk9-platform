@@ -66,6 +66,18 @@ function PrimaryWork({
         </Link>
       </Button>
     );
+  } else if (phase === 'ready-to-complete') {
+    title = 'Mark the class complete';
+    body =
+      'Every dog is scored, but the class is not marked complete. Mark it complete on Overview, then release the results and record the judge sign-off here.';
+    action = (
+      <Button asChild className="min-h-11 gap-2">
+        <Link to={getOverviewFocusHref(showId, row.id)}>
+          Mark complete on Overview
+          <ArrowRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
+      </Button>
+    );
   } else if (phase === 'needs-checking' || phase === 'ready-to-release') {
     title = 'Check the scores, then release';
     body = 'Compare the table below with the paper score sheets. Fix anything that is off first.';

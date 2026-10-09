@@ -8,7 +8,7 @@ import {
 } from './resultsNextAction';
 
 const base: ResultsClassState = {
-  classStatus: 'Scheduled',
+  classStatus: 'Completed',
   expectedCount: 8,
   scoredCount: 0,
   releasedAt: null,
@@ -55,9 +55,24 @@ describe('deriveResultsNextAction', () => {
     expect(deriveResultsNextAction(early).kind).toBe('overview');
   });
 
-  it('every dog scored counts as complete even while the stored status lags', () => {
-    expect(deriveResultsPhase(state({ classStatus: 'In Progress', scoredCount: 8 }))).toBe(
+  it('every dog scored but the class not marked Completed: Mark complete, not Release or Initials', () => {
+    // A manually started class never completes itself, and the sign-off can only be recorded on a
+    // Completed class. (This replaces part 1's "scored means complete whatever the stored status";
+    // git log -S on its name finds it.)
+    for (const classStatus of ['In Progress', 'Scheduled', undefined]) {
+      const waiting = state({ classStatus, scoredCount: 8 });
+      expect(deriveResultsPhase(waiting)).toBe('ready-to-complete');
+      expect(deriveResultsNextAction(waiting)).toEqual({
+        kind: 'overview',
+        label: 'Mark complete',
+      });
+    }
+    expect(matchesResultsStatusFilter('ready-to-complete', 'needs-me')).toBe(true);
+    expect(deriveResultsPhase(state({ classStatus: 'Completed', scoredCount: 8 }))).toBe(
       'ready-to-release'
+    );
+    expect(deriveResultsPhase(state({ classStatus: 'In Progress', scoredCount: 7 }))).toBe(
+      'in-ring'
     );
   });
 

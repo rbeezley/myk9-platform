@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ConfirmDialog } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { TimeInput } from '@/components/ui/data-table';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
@@ -78,6 +79,7 @@ export function EntryPanel({
   isSaving,
   maxTimeSeconds,
 }: EntryPanelProps) {
+  const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
   const [selectedResult, setSelectedResult] = useState<PaperResult | null>(() =>
     initialResultForEntry(entry, settings)
   );
@@ -109,8 +111,7 @@ export function EntryPanel({
   const canClearResult = !!onClearResult && (entry.isScored || entry.result);
 
   const handleClearResult = () => {
-    const confirmed = window.confirm(`Clear the saved result for ${entry.callName}?`);
-    if (!confirmed) return;
+    setIsClearConfirmOpen(false);
     setSelectedResult(settings.preFill === 'none' ? null : settings.preFill);
     setTimeDigits('');
     setFaults(0);
@@ -266,7 +267,7 @@ export function EntryPanel({
         <Button
           variant="outline"
           size="sm"
-          onClick={handleClearResult}
+          onClick={() => setIsClearConfirmOpen(true)}
           disabled={isSaving}
           className="border-destructive/40 text-destructive hover:bg-destructive/10"
         >
@@ -277,6 +278,17 @@ export function EntryPanel({
       <Button variant="ghost" size="sm" onClick={onClose} className="text-muted-foreground">
         Cancel
       </Button>
+
+      <ConfirmDialog
+        open={isClearConfirmOpen}
+        onOpenChange={setIsClearConfirmOpen}
+        title={`Clear the saved result for ${entry.callName}?`}
+        description="This removes the saved result, time and faults so the dog can be scored again."
+        confirmLabel="Clear result"
+        cancelLabel="Keep result"
+        destructive
+        onConfirm={handleClearResult}
+      />
     </div>
   );
 }

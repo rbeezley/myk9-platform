@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   CircleAlert,
@@ -32,6 +31,13 @@ import { resetAllMockData } from '@/utils/debugUtils';
 import { clearDevelopmentCache } from '@/utils/clearDevelopmentCache';
 import { AskQIcon } from '@/components/layout/AskQIcon';
 
+export interface DevActionRequest {
+  title: string;
+  description: string;
+  confirmLabel: string;
+  run: () => void;
+}
+
 interface AccountMenuContentProps {
   /** Opens the About dialog owned by the shared account-menu host. */
   onAbout: () => void;
@@ -40,6 +46,12 @@ interface AccountMenuContentProps {
    * like the About dialog so the closing menu can never stack above it.
    */
   onGuardedSignOut: (context: SignOutWarningContext) => void;
+  /**
+   * Asks the host to confirm a developer action before running it. The host
+   * owns the dialog for the same reason as the sign-out warning: this content
+   * unmounts the moment the menu closes.
+   */
+  onConfirmDevAction: (request: DevActionRequest) => void;
   align?: 'start' | 'center' | 'end';
 }
 
@@ -51,6 +63,7 @@ function AccountMenuSeparator() {
 export function AccountMenuContent({
   onAbout,
   onGuardedSignOut,
+  onConfirmDevAction,
   align = 'end',
 }: AccountMenuContentProps) {
   const { user, signOut, userWithRoles, getUserRoles } = useAuthContext();
@@ -58,7 +71,6 @@ export function AccountMenuContent({
   const networkStatus = useNetworkStatus();
   const { toggle: toggleAskQ } = useAskQPanelStore();
   const { theme, toggleTheme } = useTheme();
-  const [isClearingCache, setIsClearingCache] = useState(false);
 
   const isOffline = !networkStatus.isOnline || globalSync.status === 'offline';
   const needsAttention = globalSync.status === 'error' || globalSync.status === 'conflict';
@@ -78,15 +90,13 @@ export function AccountMenuContent({
         ? 'Saving changes...'
         : 'All changes saved';
 
-  const handleResetData = () => {
-    if (
-      window.confirm(
-        'Reset shared development data? This preserves templates and UI preferences, then reloads the page.'
-      )
-    ) {
-      resetAllMockData();
-    }
-  };
+  const handleResetData = () =>
+    onConfirmDevAction({
+      title: 'Reset shared development data?',
+      description: 'This preserves templates and UI preferences, then reloads the page.',
+      confirmLabel: 'Reset data',
+      run: resetAllMockData,
+    });
 
   // MYK9-202: signing out destroys the session AND the persisted RBAC cache,
   // and sign-in needs the auth server — so a signed-out device at an offline
@@ -105,19 +115,13 @@ export function AccountMenuContent({
     onGuardedSignOut({ mode: signOutGuardMode, hasUnsyncedChanges });
   };
 
-  const handleClearCache = async () => {
-    if (
-      !window.confirm('Clear development cache and browser storage? This will reload the page.')
-    ) {
-      return;
-    }
-
-    setIsClearingCache(true);
-    const didClear = await clearDevelopmentCache();
-    if (!didClear) {
-      setIsClearingCache(false);
-    }
-  };
+  const handleClearCache = () =>
+    onConfirmDevAction({
+      title: 'Clear development cache and browser storage?',
+      description: 'This will reload the page.',
+      confirmLabel: 'Clear cache',
+      run: () => void clearDevelopmentCache(),
+    });
 
   return (
     <DropdownMenuContent align={align} className="w-64">
@@ -205,15 +209,9 @@ export function AccountMenuContent({
                 <RefreshCw className="h-4 w-4" />
                 Reset Data
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => {
-                  void handleClearCache();
-                }}
-                disabled={isClearingCache}
-                className="cursor-pointer"
-              >
-                <RefreshCw className={`h-4 w-4 ${isClearingCache ? 'animate-spin' : ''}`} />
-                {isClearingCache ? 'Clearing Cache...' : 'Clear Cache'}
+              <DropdownMenuItem onClick={handleClearCache} className="cursor-pointer">
+                <RefreshCw className="h-4 w-4" />
+                Clear Cache
               </DropdownMenuItem>
             </DropdownMenuSubContent>
           </DropdownMenuSub>

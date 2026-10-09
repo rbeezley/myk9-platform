@@ -1,4 +1,4 @@
-import { fireEvent, screen } from '@testing-library/react';
+import { fireEvent, screen, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { DropdownMenu, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AccountMenuContent } from '@/components/layout/AccountMenuContent';
@@ -67,7 +67,11 @@ function renderOpenAccountMenu() {
   return render(
     <DropdownMenu open>
       <DropdownMenuTrigger>Account menu</DropdownMenuTrigger>
-      <AccountMenuContent onAbout={vi.fn()} onGuardedSignOut={vi.fn()} />
+      <AccountMenuContent
+        onAbout={vi.fn()}
+        onGuardedSignOut={vi.fn()}
+        onConfirmDevAction={vi.fn()}
+      />
     </DropdownMenu>
   );
 }
@@ -97,7 +101,6 @@ describe('AccountMenuContent developer tools', () => {
   beforeEach(() => {
     vi.mocked(resetAllMockData).mockClear();
     vi.mocked(clearDevelopmentCache).mockClear();
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
   });
 
   afterEach(() => {
@@ -130,42 +133,50 @@ describe('AccountMenuContent developer tools', () => {
     expect(screen.queryByRole('menuitem', { name: /clear cache/i })).not.toBeInTheDocument();
   });
 
-  it('requires confirmation before resetting shared development data', async () => {
+  it('asks the host to confirm before resetting shared development data', async () => {
     process.env.NODE_ENV = 'development';
-    vi.mocked(window.confirm).mockReturnValueOnce(false).mockReturnValueOnce(true);
-
-    const firstRender = renderOpenAccountMenu();
-    const { user } = firstRender;
+    const onConfirmDevAction = vi.fn();
+    const { user } = render(
+      <DropdownMenu open>
+        <DropdownMenuTrigger>Account menu</DropdownMenuTrigger>
+        <AccountMenuContent
+          onAbout={vi.fn()}
+          onGuardedSignOut={vi.fn()}
+          onConfirmDevAction={onConfirmDevAction}
+        />
+      </DropdownMenu>
+    );
     await user.hover(screen.getByRole('menuitem', { name: /developer/i }));
-    const resetData = await screen.findByRole('menuitem', { name: /reset data/i });
-
-    fireEvent.click(resetData);
-    expect(resetAllMockData).not.toHaveBeenCalled();
-    firstRender.unmount();
-
-    const secondRender = renderOpenAccountMenu();
-    await secondRender.user.hover(screen.getByRole('menuitem', { name: /developer/i }));
     fireEvent.click(await screen.findByRole('menuitem', { name: /reset data/i }));
+
+    expect(resetAllMockData).not.toHaveBeenCalled();
+    expect(onConfirmDevAction).toHaveBeenCalledWith(
+      expect.objectContaining({ confirmLabel: 'Reset data', run: resetAllMockData })
+    );
+  });
+
+  it('resets shared development data only after the host dialog is confirmed', async () => {
+    process.env.NODE_ENV = 'development';
+    const { user } = await renderAccountMenuAndOpen();
+    await user.hover(screen.getByRole('menuitem', { name: /developer/i }));
+    fireEvent.click(await screen.findByRole('menuitem', { name: /reset data/i }));
+
+    const dialog = await screen.findByRole('alertdialog');
+    expect(resetAllMockData).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole('button', { name: 'Reset data' }));
     expect(resetAllMockData).toHaveBeenCalledTimes(1);
   });
 
-  it('requires confirmation before clearing development cache', async () => {
+  it('clears the development cache only after the host dialog is confirmed', async () => {
     process.env.NODE_ENV = 'development';
-    vi.mocked(window.confirm).mockReturnValueOnce(false).mockReturnValueOnce(true);
-
-    const firstRender = renderOpenAccountMenu();
-    const { user } = firstRender;
+    const { user } = await renderAccountMenuAndOpen();
     await user.hover(screen.getByRole('menuitem', { name: /developer/i }));
-    const clearCache = await screen.findByRole('menuitem', { name: /clear cache/i });
-
-    fireEvent.click(clearCache);
-    expect(clearDevelopmentCache).not.toHaveBeenCalled();
-    firstRender.unmount();
-
-    const secondRender = renderOpenAccountMenu();
-    await secondRender.user.hover(screen.getByRole('menuitem', { name: /developer/i }));
     fireEvent.click(await screen.findByRole('menuitem', { name: /clear cache/i }));
-    expect(clearDevelopmentCache).toHaveBeenCalledTimes(1);
+
+    const dialog = await screen.findByRole('alertdialog');
+    expect(clearDevelopmentCache).not.toHaveBeenCalled();
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(clearDevelopmentCache).not.toHaveBeenCalled();
   });
 });
 

@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { AboutDialog } from '@/components/common/AboutDialog';
-import { AccountMenuContent } from '@/components/layout/AccountMenuContent';
+import { AccountMenuContent, type DevActionRequest } from '@/components/layout/AccountMenuContent';
+import { ConfirmDialog } from '@/components/ui/alert-dialog';
 import { SignOutWarningDialog } from '@/components/layout/SignOutWarningDialog';
 import type { SignOutWarningContext } from '@/components/layout/signOutGuard';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -34,6 +35,7 @@ export function AccountMenu({
   const { data: currentPerson } = useCurrentUserPerson(user?.id);
   const [aboutOpen, setAboutOpen] = useState(false);
   const [signOutWarning, setSignOutWarning] = useState<SignOutWarningContext | null>(null);
+  const [devAction, setDevAction] = useState<DevActionRequest | null>(null);
 
   const resolvedName = displayName?.trim() || 'Account';
   const fallback =
@@ -104,10 +106,20 @@ export function AccountMenu({
         <AccountMenuContent
           onAbout={() => setAboutOpen(true)}
           onGuardedSignOut={setSignOutWarning}
+          onConfirmDevAction={setDevAction}
           align={isSidebar ? 'start' : 'end'}
         />
       </DropdownMenu>
       <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
+      <ConfirmDialog
+        open={devAction !== null}
+        onOpenChange={open => !open && setDevAction(null)}
+        title={devAction?.title ?? ''}
+        description={devAction?.description}
+        confirmLabel={devAction?.confirmLabel ?? 'Confirm'}
+        destructive
+        onConfirm={() => devAction?.run()}
+      />
       <SignOutWarningDialog
         context={signOutWarning}
         onCancel={() => setSignOutWarning(null)}

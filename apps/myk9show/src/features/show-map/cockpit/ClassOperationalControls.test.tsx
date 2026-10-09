@@ -1,6 +1,7 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { CLASS_STATUS } from '@myk9/core';
 import { toast } from 'sonner';
 
 import { render } from '@/test/utils/testUtils';
@@ -29,7 +30,6 @@ vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 describe('ClassStatusControl', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(window, 'confirm').mockReturnValue(false);
   });
 
   it('requires confirmation before completing a Class with unentered scores', async () => {
@@ -44,10 +44,31 @@ describe('ClassStatusControl', () => {
 
     await user.click(screen.getByRole('menuitem', { name: 'Complete' }));
 
-    expect(window.confirm).toHaveBeenCalledWith(
-      '2 paper scores still need entry. Mark this Class complete anyway?'
-    );
+    const dialog = await screen.findByRole('alertdialog');
+    expect(
+      within(dialog).getByText('2 paper scores still need entry. Mark this Class complete anyway?')
+    ).toBeInTheDocument();
     expect(applyManualClassStatus).not.toHaveBeenCalled();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(applyManualClassStatus).not.toHaveBeenCalled();
+  });
+
+  it('completes the Class once the warning is confirmed', async () => {
+    const { user } = render(
+      <ClassStatusControl
+        classId="class-1"
+        lifecycle="in-progress"
+        unenteredScoreCount={2}
+        canManageShow
+      />
+    );
+
+    await user.click(screen.getByRole('menuitem', { name: 'Complete' }));
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Mark complete' }));
+
+    expect(applyManualClassStatus).toHaveBeenCalledWith('class-1', CLASS_STATUS.COMPLETED);
   });
 
   it('keeps cancellation separate from routine lifecycle choices', () => {

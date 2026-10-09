@@ -3,6 +3,7 @@ import { Check, ChevronDown, Clock3, Pencil, X } from 'lucide-react';
 import { CLASS_STATUS, type ClassStatusValue } from '@myk9/core';
 import { toast } from 'sonner';
 
+import { ConfirmDialog } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -54,6 +55,7 @@ export function ClassStatusControl({
   canManageShow: boolean;
 }) {
   const [isSaving, setIsSaving] = useState(false);
+  const [completeWarning, setCompleteWarning] = useState<string | null>(null);
   const label = lifecycle ? STATUS_LABEL[lifecycle] : 'Status unknown';
   const tone =
     lifecycle === 'complete'
@@ -72,20 +74,21 @@ export function ClassStatusControl({
     );
   }
 
-  const update = async (status: ClassStatusValue) => {
+  const update = (status: ClassStatusValue) => {
     const scoresUnknown = unenteredScoreCount === null;
     const outstanding = unenteredScoreCount ?? 0;
-    if (
-      status === CLASS_STATUS.COMPLETED &&
-      (scoresUnknown || outstanding > 0) &&
-      !window.confirm(
+    if (status === CLASS_STATUS.COMPLETED && (scoresUnknown || outstanding > 0)) {
+      setCompleteWarning(
         scoresUnknown
           ? 'Entry data is unavailable, so we cannot tell whether paper scores still need entry. Mark this Class complete anyway?'
           : `${outstanding} paper ${outstanding === 1 ? 'score still needs' : 'scores still need'} entry. Mark this Class complete anyway?`
-      )
-    ) {
+      );
       return;
     }
+    void applyStatus(status);
+  };
+
+  const applyStatus = async (status: ClassStatusValue) => {
     setIsSaving(true);
     try {
       await applyManualClassStatus(classId, status);
@@ -100,43 +103,53 @@ export function ClassStatusControl({
   };
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          disabled={isSaving}
-          aria-label={`Change class status. Current status: ${label}`}
-          className={cn(
-            'inline-flex min-h-11 items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold transition hover:brightness-95 disabled:opacity-60',
-            tone
-          )}
-        >
-          {label}
-          <ChevronDown className="h-3 w-3" />
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="start">
-        {STATUS_OPTIONS.filter(option => option.value !== CLASS_STATUS.CANCELLED).map(option => (
-          <DropdownMenuItem
-            key={option.value}
-            disabled={option.label === label}
-            onClick={() => void update(option.value)}
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            disabled={isSaving}
+            aria-label={`Change class status. Current status: ${label}`}
+            className={cn(
+              'inline-flex min-h-11 items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold transition hover:brightness-95 disabled:opacity-60',
+              tone
+            )}
           >
-            {option.label}
-            {option.label === label && <Check className="ml-auto h-4 w-4" />}
+            {label}
+            <ChevronDown className="h-3 w-3" />
+          </button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          {STATUS_OPTIONS.filter(option => option.value !== CLASS_STATUS.CANCELLED).map(option => (
+            <DropdownMenuItem
+              key={option.value}
+              disabled={option.label === label}
+              onClick={() => update(option.value)}
+            >
+              {option.label}
+              {option.label === label && <Check className="ml-auto h-4 w-4" />}
+            </DropdownMenuItem>
+          ))}
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            disabled={label === 'Cancelled'}
+            className="text-destructive focus:text-destructive"
+            onClick={() => update(CLASS_STATUS.CANCELLED)}
+          >
+            Cancelled
+            {label === 'Cancelled' && <Check className="ml-auto h-4 w-4" />}
           </DropdownMenuItem>
-        ))}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          disabled={label === 'Cancelled'}
-          className="text-destructive focus:text-destructive"
-          onClick={() => void update(CLASS_STATUS.CANCELLED)}
-        >
-          Cancelled
-          {label === 'Cancelled' && <Check className="ml-auto h-4 w-4" />}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <ConfirmDialog
+        open={completeWarning !== null}
+        onOpenChange={open => !open && setCompleteWarning(null)}
+        title="Mark this Class complete?"
+        description={completeWarning}
+        confirmLabel="Mark complete"
+        onConfirm={() => void applyStatus(CLASS_STATUS.COMPLETED)}
+      />
+    </>
   );
 }
 

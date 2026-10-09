@@ -6,6 +6,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import { ConfirmDialog } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -43,6 +44,7 @@ export function VolunteerDialog({
   const [notes, setNotes] = useState('');
   const [personId, setPersonId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   // Blur hides the suggestion list on a delay so a click on a suggestion lands
   // before the list unmounts. That timer MUST be cancelled on unmount: it calls
@@ -112,12 +114,6 @@ export function VolunteerDialog({
 
   async function handleDelete() {
     if (!volunteer || !onDelete) return;
-    if (
-      !window.confirm(
-        `Delete volunteer "${volunteer.name}"? This will also remove all their assignments.`
-      )
-    )
-      return;
     setSaving(true);
     try {
       await onDelete(volunteer.id);
@@ -221,7 +217,7 @@ export function VolunteerDialog({
                 <Button
                   type="button"
                   variant="destructive"
-                  onClick={handleDelete}
+                  onClick={() => setConfirmDeleteOpen(true)}
                   disabled={saving}
                 >
                   Delete
@@ -238,6 +234,15 @@ export function VolunteerDialog({
             </div>
           </DialogFooter>
         </form>
+        <ConfirmDialog
+          open={confirmDeleteOpen}
+          onOpenChange={setConfirmDeleteOpen}
+          title={`Delete volunteer "${volunteer?.name ?? ''}"?`}
+          description="This will also remove all their assignments."
+          confirmLabel="Delete"
+          destructive
+          onConfirm={() => void handleDelete()}
+        />
       </DialogContent>
     </Dialog>
   );

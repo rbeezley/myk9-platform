@@ -79,12 +79,13 @@ function buildRows({
   doneSigned = true,
   releasedChecked = true,
   unsynced = false,
+  readyStatus = 'Completed',
 } = {}) {
   return buildResultsClassRows({
     trials: [trial],
     trialClasses: {
       'trial-1': [
-        level('class-ready', 'Novice', '08:00'),
+        { ...level('class-ready', 'Novice', '08:00'), status: readyStatus } as SyncableTrialClass,
         level('class-released', 'Open', '09:00'),
         {
           ...level('class-done', 'Advanced', '10:00'),
@@ -376,6 +377,28 @@ describe('ResultsTab detail', () => {
       'href',
       '/shows/show-1?focus=class-ring'
     );
+  });
+});
+
+describe('ResultsTab class not marked complete', () => {
+  it('routes a fully scored but not Completed class to Mark complete, with no checklist', () => {
+    media.wide = true;
+    hook.value = { ...hook.value, rows: buildRows({ readyStatus: 'In Progress' }) };
+    renderAt('?status=all&classId=class-ready');
+
+    expect(screen.getByText('Mark the class complete')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Mark complete on Overview/ })).toHaveAttribute(
+      'href',
+      '/shows/show-1?focus=class-ready'
+    );
+    expect(
+      screen.getByRole('link', { name: 'Mark complete: Containers Novice' })
+    ).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Scores match the paper' })
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Release results' })).not.toBeInTheDocument();
   });
 });
 

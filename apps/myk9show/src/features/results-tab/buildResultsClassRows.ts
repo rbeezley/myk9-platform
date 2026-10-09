@@ -17,6 +17,7 @@ import {
 import { isExpectedEntry } from '@/features/_shared/entryAccounting';
 import { isPendingEntryStatus } from '@/features/entry-operations/classEntryBreakdown';
 import { getTrialRegistry } from '@/features/registries';
+import { isClassConfirmedEmpty } from '@/features/show-map/showMapStatus';
 import { judgeDayKey, openJudgeDayKeys } from '@/features/show-map/judgeDay';
 import { judgeSignOffWording } from '@/features/show-map/judgeSignOff';
 import { compareClassesByProgression } from '@/features/premium/pdf/bodies/classOrder';
@@ -225,12 +226,18 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
   };
   const tallies = tallyEntriesByClass(input.entries);
   const entriesByClass = new Map<string, SecretaryEntry[]>();
+  // Entries still waiting on an accept decision: not on the results table, but they are on the run
+  // list, so a class holding only those is not "empty" (it keeps its judge's day open).
+  const pendingByClass = new Map<string, number>();
   for (const entry of input.entries) {
     if (!entry.class_id) continue;
     // The same rows `tallyEntriesByClass` counts toward `expectedCount`: not pulled, withdrawn,
     // moved or absent, and not still waiting on an accept decision.
-    if (!isExpectedEntry(accountingFields(entry)) || isPendingEntryStatus(entry.entry_status))
+    if (!isExpectedEntry(accountingFields(entry))) continue;
+    if (isPendingEntryStatus(entry.entry_status)) {
+      pendingByClass.set(entry.class_id, (pendingByClass.get(entry.class_id) ?? 0) + 1);
       continue;
+    }
     const list = entriesByClass.get(entry.class_id) ?? [];
     list.push(entry);
     entriesByClass.set(entry.class_id, list);
@@ -293,7 +300,19 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
         registryId,
         state,
         judgeDay: judgeDayInput(cls, trial),
-        finished: phase !== 'not-started' && phase !== 'in-ring',
+        // The Overview rule (`isClassConfirmedEmpty`): a class with nothing to run only stops
+        // holding the day open when it is KNOWN empty, pending entries included.
+        finished:
+          phase !== 'not-started' &&
+          phase !== 'in-ring' &&
+          (phase !== 'no-dogs' ||
+            isClassConfirmedEmpty({
+              id: cls.id,
+              trialId: trial.id,
+              name: cls.name ?? '',
+              entryCount: state.expectedCount,
+              runListCount: state.expectedCount + (pendingByClass.get(cls.id) ?? 0),
+            })),
       });
     }
   }

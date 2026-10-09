@@ -88,6 +88,44 @@ describe('ReplicatedClassesTable.applyResultsVerified (MYK9-1031)', () => {
     expect(stored?.serverVersion).toBe(9);
   });
 
+  it('ignores a late answer older than the cached row: no overwrite, no version downgrade', async () => {
+    // A download at version 5 already cleared the check; the mark's answer (version 4) arrives late.
+    await table.set('class-1', baseClass({ resultsVerifiedAt: null }), false, undefined, 5);
+
+    await table.applyResultsVerified('class-1', { at: AT, by: 'auth-1' }, 4);
+
+    expect(await table.getClassById('class-1')).toMatchObject({ resultsVerifiedAt: null });
+    expect((await table.getReplicatedRow('class-1'))?.serverVersion).toBe(5);
+    // The same answer at a version at least as new does apply.
+    await table.applyResultsVerified('class-1', { at: AT, by: 'auth-1' }, 6);
+    expect(await table.getClassById('class-1')).toMatchObject({ resultsVerifiedAt: AT });
+    expect((await table.getReplicatedRow('class-1'))?.serverVersion).toBe(6);
+  });
+
+  it('without a version in the answer, a row that has a known version is left alone', async () => {
+    await table.set('class-1', baseClass(), false, undefined, 5);
+
+    await table.applyResultsVerified('class-1', { at: AT, by: 'auth-1' });
+
+    expect((await table.getClassById('class-1'))?.resultsVerifiedAt ?? null).toBeNull();
+  });
+
+  it('loses to a download that lands between its read and its write', async () => {
+    await table.set('class-1', baseClass(), false, undefined, 5);
+    const original = table.getReplicatedRow.bind(table);
+    vi.spyOn(table, 'getReplicatedRow').mockImplementationOnce(async id => {
+      const snapshot = await original(id);
+      // The download arrives right after the snapshot was taken.
+      await table.set('class-1', baseClass({ resultsVerifiedAt: null }), false, undefined, 6);
+      return snapshot;
+    });
+
+    await table.applyResultsVerified('class-1', { at: AT, by: 'auth-1' }, 5);
+
+    expect(await table.getClassById('class-1')).toMatchObject({ resultsVerifiedAt: null });
+    expect((await table.getReplicatedRow('class-1'))?.serverVersion).toBe(6);
+  });
+
   it('clears the local row the same way', async () => {
     await table.applyResultsVerified('class-1', { at: AT, by: 'auth-1' });
     await table.applyResultsVerified('class-1', null);

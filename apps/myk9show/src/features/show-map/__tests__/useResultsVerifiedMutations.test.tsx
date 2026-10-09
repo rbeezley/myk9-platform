@@ -12,7 +12,14 @@ import type { ReactNode } from 'react';
 
 const recordResultsVerified = vi.hoisted(() => vi.fn());
 const clearResultsVerified = vi.hoisted(() => vi.fn());
-vi.mock('../resultsVerifiedMutations', () => ({ recordResultsVerified, clearResultsVerified }));
+const captureResultsCheck = vi.hoisted(() =>
+  vi.fn(async (classId: string) => ({ classId, fingerprint: 'f'.repeat(64), at: 'AT' }))
+);
+vi.mock('../resultsVerifiedMutations', () => ({
+  recordResultsVerified,
+  clearResultsVerified,
+  captureResultsCheck,
+}));
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'auth-secretary' } }) }));
 const toast = vi.hoisted(() => Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }));
 vi.mock('sonner', () => ({ toast }));
@@ -28,6 +35,7 @@ afterEach(() => {
   onlineManager.setOnline(true);
   recordResultsVerified.mockReset();
   clearResultsVerified.mockReset();
+  captureResultsCheck.mockClear();
   toast.error.mockReset();
   toast.success.mockReset();
 });
@@ -40,7 +48,7 @@ describe('paper check mutations (online only)', () => {
     await act(() => result.current.verifyAsync({ classId: 'c1' }));
 
     expect(recordResultsVerified).toHaveBeenCalledWith({
-      classId: 'c1',
+      claim: { classId: 'c1', fingerprint: 'f'.repeat(64), at: 'AT' },
       recordedBy: 'auth-secretary',
     });
     expect(toast.success).toHaveBeenCalled();
@@ -58,6 +66,20 @@ describe('paper check mutations (online only)', () => {
 
     expect(recordResultsVerified).not.toHaveBeenCalled();
     expect(clearResultsVerified).not.toHaveBeenCalled();
+  });
+
+  it('does not run a refused check again, and does not re-read the scores', async () => {
+    recordResultsVerified.mockRejectedValue({ code: 'MK015', message: 'changed' });
+    const { result } = renderHook(() => useResultsVerifiedMutations(), { wrapper });
+
+    await act(async () => {
+      await result.current.verifyAsync({ classId: 'c1' }).catch(() => undefined);
+    });
+    // Longer than the app client's default mutation retry delay would have waited.
+    await new Promise(resolve => setTimeout(resolve, 1300));
+
+    expect(recordResultsVerified).toHaveBeenCalledTimes(1);
+    expect(captureResultsCheck).toHaveBeenCalledTimes(1);
   });
 
   it('rejects on MK015 and says the scores changed', async () => {

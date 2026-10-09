@@ -322,6 +322,38 @@ describe('buildResultsClassRows', () => {
       expect(row?.phaseLabel).toBe('Needs judge signature');
     });
 
+    it('a class holding only entries not yet accepted keeps its judge day open', () => {
+      // Its expected count is 0 (pending entries are not on the results table), which reads as
+      // "no dogs" - but they are on the run list, so the class is not KNOWN empty (the Overview
+      // rule, isClassConfirmedEmpty) and the judge is not done for the day.
+      const [done, waiting] = buildResultsClassRows({
+        trials: [trial],
+        trialClasses: {
+          'trial-1': [trialClass('class-1'), trialClass('class-2', { startTime: '13:00' })],
+        },
+        releasedAtByClassId: released,
+        paperworkByClassId: printed,
+        entries: [...entries, entry('e-pending', 'class-2', { entry_status: 'pending' })],
+      });
+      expect(waiting).toMatchObject({ phase: 'no-dogs', runFinished: false });
+      expect(done?.phase).toBe('done');
+      expect(done?.runFinished).toBe(true);
+    });
+
+    it('a class that is known empty does not hold the day open', () => {
+      const [done, empty] = buildResultsClassRows({
+        trials: [trial],
+        trialClasses: {
+          'trial-1': [trialClass('class-1'), trialClass('class-2', { startTime: '13:00' })],
+        },
+        releasedAtByClassId: released,
+        paperworkByClassId: printed,
+        entries,
+      });
+      expect(empty).toMatchObject({ phase: 'no-dogs', runFinished: true });
+      expect(done?.phase).toBe('needs-initials');
+    });
+
     it('only a Completed class can be recorded', () => {
       const [completed, running] = build([
         trialClass('class-1'),

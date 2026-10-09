@@ -3,7 +3,12 @@ import { toast } from 'sonner';
 
 import { useAuth } from '@/hooks/useAuth';
 import { getUserFriendlyError, mappedErrorMessage } from '@/utils/errorMessages';
-import { clearResultsVerified, recordResultsVerified } from './resultsVerifiedMutations';
+import {
+  captureResultsCheck,
+  clearResultsVerified,
+  recordResultsVerified,
+  type ResultsCheckClaim,
+} from './resultsVerifiedMutations';
 
 /**
  * MYK9-1031: "scores match the paper" as React Query mutations. Online only (the default
@@ -14,9 +19,12 @@ import { clearResultsVerified, recordResultsVerified } from './resultsVerifiedMu
 export function useResultsVerifiedMutations() {
   const { user } = useAuth();
 
+  // No automatic retry on either: a repeat of a refused check (MK015) must reach the caller, and
+  // the app client's default mutation retry would otherwise run it again.
   const verify = useMutation({
-    mutationFn: ({ classId }: { classId: string }) =>
-      recordResultsVerified({ classId, recordedBy: user?.id ?? null }),
+    retry: false,
+    mutationFn: (claim: ResultsCheckClaim) =>
+      recordResultsVerified({ claim, recordedBy: user?.id ?? null }),
     onSuccess: () => toast.success('Scores marked as matching the paper'),
     onError: error => {
       toast.error(
@@ -27,6 +35,7 @@ export function useResultsVerifiedMutations() {
   });
 
   const undo = useMutation({
+    retry: false,
     mutationFn: ({ classId }: { classId: string }) => clearResultsVerified(classId),
     onSuccess: () => toast.success('Check removed'),
     onError: error => {
@@ -38,7 +47,9 @@ export function useResultsVerifiedMutations() {
   });
 
   return {
-    verifyAsync: verify.mutateAsync,
+    /** Captures what is ticked NOW (once), then saves exactly that claim. */
+    verifyAsync: async ({ classId }: { classId: string }) =>
+      verify.mutateAsync(await captureResultsCheck(classId)),
     undo: undo.mutate,
     isPending: verify.isPending || undo.isPending,
   };

@@ -17,6 +17,7 @@ vi.mock('@/services/database/supabaseClient', () => ({ supabase: { rpc } }));
 
 import { classResultsFingerprint } from '../classResultsFingerprint';
 import {
+  captureResultsCheck,
   classResultsSnapshot,
   clearResultsVerified,
   currentClassResultsFingerprint,
@@ -123,25 +124,45 @@ describe('currentClassResultsFingerprint', () => {
 
 describe('saving the check (online only, MYK9-1031)', () => {
   const AT = '2026-10-10T21:15:00.000Z';
+  const claimFor = async (classId = 'class-1') => ({
+    classId,
+    fingerprint: await currentClassResultsFingerprint(classId),
+    at: AT,
+  });
 
   it('calls mark_class_results_verified directly with exactly these argument names', async () => {
     getEntriesByClass.mockResolvedValue([replicaEntry()]);
-    const fingerprint = await currentClassResultsFingerprint('class-1');
+    const claim = await captureResultsCheck('class-1');
 
-    await recordResultsVerified({ classId: 'class-1', recordedBy: 'auth-1', at: AT });
+    await recordResultsVerified({ claim: { ...claim, at: AT }, recordedBy: 'auth-1' });
 
     expect(rpc).toHaveBeenCalledTimes(1);
     expect(rpc).toHaveBeenCalledWith('mark_class_results_verified', {
       p_class_id: 'class-1',
-      p_results_fingerprint: fingerprint,
+      p_results_fingerprint: await currentClassResultsFingerprint('class-1'),
       p_verified_at: AT,
     });
+  });
+
+  it('sends the fingerprint captured at the click, even if the replica moves afterwards', async () => {
+    getEntriesByClass.mockResolvedValue([replicaEntry()]);
+    const claim = await captureResultsCheck('class-1');
+    const ticked = claim.fingerprint;
+
+    // A correction downloads before the request (or a retry of it) goes out.
+    getEntriesByClass.mockResolvedValue([replicaEntry({ resultStatus: 'nq' })]);
+    await recordResultsVerified({ claim, recordedBy: 'auth-1' });
+
+    expect(rpc).toHaveBeenCalledWith(
+      'mark_class_results_verified',
+      expect.objectContaining({ p_results_fingerprint: ticked })
+    );
   });
 
   it('mirrors the accepted check onto the local class with the returned version, never queued', async () => {
     getEntriesByClass.mockResolvedValue([replicaEntry()]);
 
-    await recordResultsVerified({ classId: 'class-1', recordedBy: 'auth-1', at: AT });
+    await recordResultsVerified({ claim: await claimFor(), recordedBy: 'auth-1' });
 
     expect(applyResultsVerified).toHaveBeenCalledWith('class-1', { at: AT, by: 'auth-1' }, 7);
   });
@@ -151,9 +172,10 @@ describe('saving the check (online only, MYK9-1031)', () => {
     const refusal = { code: 'MK015', message: 'results changed' };
     rpc.mockResolvedValue({ data: null, error: refusal });
 
-    const failure = await recordResultsVerified({ classId: 'class-1', recordedBy: 'a' }).catch(
-      error => error
-    );
+    const failure = await recordResultsVerified({
+      claim: await claimFor(),
+      recordedBy: 'a',
+    }).catch(error => error);
 
     expect(failure).toBe(refusal);
     expect(isStaleResultsError(failure)).toBe(true);
@@ -161,12 +183,10 @@ describe('saving the check (online only, MYK9-1031)', () => {
     expect(applyResultsVerified).not.toHaveBeenCalled();
   });
 
-  it('sends nothing while an entry of the class has a score change waiting to sync', async () => {
+  it('captures nothing while an entry of the class has a score change waiting to sync', async () => {
     getEntriesByClass.mockResolvedValue([replicaEntry({ _syncStatus: 'pending' })]);
 
-    await expect(recordResultsVerified({ classId: 'class-1', recordedBy: 'a' })).rejects.toThrow(
-      /waiting/i
-    );
+    await expect(captureResultsCheck('class-1')).rejects.toThrow(/waiting/i);
     expect(rpc).not.toHaveBeenCalled();
   });
 

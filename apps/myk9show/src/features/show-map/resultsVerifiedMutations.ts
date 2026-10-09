@@ -62,25 +62,40 @@ export function isStaleResultsError(error: unknown): boolean {
   );
 }
 
-export async function recordResultsVerified(input: {
+/** What the secretary vouched for, captured ONCE at the click and never recomputed. */
+export interface ResultsCheckClaim {
   classId: string;
-  /** Auth uid of the secretary recording it (the server stamps its own from the JWT). */
-  recordedBy: string | null;
-  at?: string;
-}): Promise<void> {
-  const { fingerprint, hasUnsyncedEntries } = await classResultsSnapshot(input.classId);
+  fingerprint: string;
+  at: string;
+}
+
+/**
+ * The claim for a click: the fingerprint of the results held right now. Taken once, before the
+ * request, so a repeat of the request (or a late retry) can only restate the same claim, never
+ * re-read results the secretary did not tick.
+ */
+export async function captureResultsCheck(classId: string): Promise<ResultsCheckClaim> {
+  const { fingerprint, hasUnsyncedEntries } = await classResultsSnapshot(classId);
   // Results waiting to sync are results the server has never seen: its fingerprint would differ.
   if (hasUnsyncedEntries) throw new Error('Waiting for score changes to sync.');
-  const at = input.at ?? new Date().toISOString();
+  return { classId, fingerprint, at: new Date().toISOString() };
+}
+
+export async function recordResultsVerified(input: {
+  claim: ResultsCheckClaim;
+  /** Auth uid of the secretary recording it (the server stamps its own from the JWT). */
+  recordedBy: string | null;
+}): Promise<void> {
+  const { classId, fingerprint, at } = input.claim;
   const { data, error } = await supabase.rpc('mark_class_results_verified', {
-    p_class_id: input.classId,
+    p_class_id: classId,
     p_results_fingerprint: fingerprint,
     p_verified_at: at,
   });
   if (error) throw error;
   // The server keeps the FIRST stamp on a repeat; its `at` is not echoed, so a repeat mirrors ours.
   await replicatedClassesTable.applyResultsVerified(
-    input.classId,
+    classId,
     { at, by: input.recordedBy },
     typeof data === 'number' ? data : undefined
   );

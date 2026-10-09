@@ -819,19 +819,33 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     stamp: { at: string; by: string | null } | null,
     serverVersion?: number
   ): Promise<void> {
-    const row = await this.get(classId);
-    if (!row) return;
-    await this.set(
-      classId,
-      {
-        ...row,
-        resultsVerifiedAt: stamp?.at ?? null,
-        resultsVerifiedBy: stamp?.by ?? null,
-      },
-      false,
-      undefined,
-      serverVersion
-    );
+    // One read-compare-write. A response that arrives late can describe a class the server has
+    // since moved past (a download that cleared the check, or any newer write): only an answer at
+    // least as new as the cached row is applied, and `expectedVersion` makes the write itself fail
+    // if the row changed between this read and the write, in which case the newer row wins.
+    const stored = await this.getReplicatedRow(classId);
+    const row = stored?.data;
+    if (!stored || !row) return;
+    if (stored.serverVersion !== undefined) {
+      if (serverVersion === undefined || serverVersion < stored.serverVersion) return;
+    }
+    try {
+      await this.set(
+        classId,
+        {
+          ...row,
+          resultsVerifiedAt: stamp?.at ?? null,
+          resultsVerifiedBy: stamp?.by ?? null,
+        },
+        false,
+        stored.version,
+        serverVersion
+      );
+    } catch (error) {
+      logger.warn(`[${this.getTableName()}] Skipped a stale paper-check answer for ${classId}`, {
+        error,
+      });
+    }
   }
 
   /**

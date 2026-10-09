@@ -245,6 +245,25 @@ describe('Results tab on the real replicated class rows', () => {
       expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeDisabled();
     });
 
+    it('unlocks again when the upload is acknowledged, though no other field changed', async () => {
+      renderOpen();
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled()
+      );
+      await replicatedEntriesTable.updateEntry('e-class-open', { resultStatus: 'nq' } as never);
+      await waitFor(() =>
+        expect(screen.getByText('Waiting for score changes to sync')).toBeInTheDocument()
+      );
+
+      // The ack flips only _syncStatus: the projected entries array is structurally unchanged.
+      await replicatedEntriesTable.markAsSynced('e-class-open');
+
+      await waitFor(() =>
+        expect(screen.queryByText('Waiting for score changes to sync')).not.toBeInTheDocument()
+      );
+      expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled();
+    });
+
     it('a class with a correction already waiting at first sight is never offered Release', async () => {
       await replicatedEntriesTable.updateEntry('e-class-open', { resultStatus: 'nq' } as never);
       renderOpen();

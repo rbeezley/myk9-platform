@@ -28,12 +28,14 @@ const DogCard = ({
   callName,
   primaryAction,
   actionButton,
+  trailing,
   onClick,
   className,
 }: {
   callName: string;
   primaryAction?: React.ReactNode;
   actionButton?: React.ReactNode;
+  trailing?: React.ReactNode;
   onClick?: () => void;
   className?: string;
 }) => (
@@ -41,6 +43,7 @@ const DogCard = ({
     <span>{callName}</span>
     {primaryAction}
     {actionButton}
+    {trailing}
   </div>
 );
 
@@ -91,9 +94,12 @@ function renderCard(
 }
 
 describe('SortableEntryCard — scoringDisabled (MYK9-645)', () => {
-  it('renders the Score button when scoring is allowed', () => {
-    renderCard(false);
-    expect(screen.getByRole('button', { name: 'Score Willow' })).toBeInTheDocument();
+  // MYK9-1086: the row tap IS the scoring action; there is no separate button.
+  it('opens the scoresheet from the card tap when scoring is allowed', () => {
+    const handleEntryClick = renderCard(false);
+    expect(screen.queryByRole('button', { name: 'Score Willow' })).not.toBeInTheDocument();
+    screen.getByTestId('dog-card').click();
+    expect(handleEntryClick).toHaveBeenCalledTimes(1);
   });
 
   it('renders NO Score button when the row is not running', () => {
@@ -109,7 +115,7 @@ describe('SortableEntryCard — scoringDisabled (MYK9-645)', () => {
 
   it('keeps the status chip, so the existing check-in flow is still reachable', () => {
     renderCard(true);
-    expect(screen.getByTitle('Tap to change status')).toBeInTheDocument();
+    expect(screen.getByTitle('Change check-in')).toBeInTheDocument();
   });
 
   // MYK9-645 round 5: a dog SCORED and then withdrawn lands in the group with
@@ -118,7 +124,7 @@ describe('SortableEntryCard — scoringDisabled (MYK9-645)', () => {
   it('keeps the chip for a SCORED row inside the group, so there is still a way back', () => {
     renderCard(true, vi.fn(), { isScored: true });
 
-    expect(screen.getByTitle('Tap to change status')).toBeInTheDocument();
+    expect(screen.getByTitle('Change check-in')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Score options/i })).not.toBeInTheDocument();
   });
 
@@ -126,7 +132,7 @@ describe('SortableEntryCard — scoringDisabled (MYK9-645)', () => {
     renderCard(false, vi.fn(), { isScored: true });
 
     expect(screen.getByRole('button', { name: /Score options/i })).toBeInTheDocument();
-    expect(screen.queryByTitle('Tap to change status')).not.toBeInTheDocument();
+    expect(screen.queryByTitle('Change check-in')).not.toBeInTheDocument();
   });
 
   it('drops the clickable affordance class', () => {

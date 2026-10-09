@@ -259,6 +259,15 @@ export interface DogCardProps {
   sectionBadge?: 'A' | 'B' | null;
   onPrefetch?: () => void;
   dragHandle?: ReactNode;
+  /**
+   * Right-hand column, vertically centred (MYK9-1086): the check-in icon on a
+   * pending row, the result on a scored one.
+   */
+  trailing?: ReactNode;
+  /** Small tag after the call name ("Your dog"). */
+  nameAddon?: ReactNode;
+  /** `hero` = the dog in the ring, `next` = up next (MYK9-1086). */
+  variant?: 'hero' | 'next';
 }
 
 /**

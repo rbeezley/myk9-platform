@@ -33,6 +33,7 @@ import {
 } from '@/services/entryDisplay/entryDisplaySelectors';
 import { buildShowArmbandMaps, resolveEntryArmband } from '@/features/_shared/entryArmband';
 import type { ShowChangeSignal } from '@/features/show-live-sync/showChangeSignal';
+import { getTrialRegistry } from '@/features/registries';
 import {
   classifyEntries,
   countEntryAccounting,
@@ -327,6 +328,8 @@ export function buildClassInfo(
     // sync time so they survive offline (Phase 1h). Fall back to enabled/
     // 'standard' when a row hasn't been enriched yet (e.g. pre-migration cache).
     selfCheckin: cls.selfCheckinEnabled ?? true,
+    // Ribbon colours differ by registry (MYK9-1086); read via the helper, never the raw column.
+    registry: getTrialRegistry(trial).id,
     classStatus: cls.classStatus ?? 'pending',
     totalEntries: counts.expected,
     completedEntries: counts.accounted,

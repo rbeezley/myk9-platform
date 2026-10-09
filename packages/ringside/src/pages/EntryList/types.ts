@@ -61,6 +61,8 @@ export interface ClassInfo {
   actualClassIdA?: string;
   actualClassIdB?: string;
   selfCheckin?: boolean;
+  /** Registry id ('AKC' | 'UKC' | 'ASCA') for placement ribbon colours (MYK9-1086). */
+  registry?: string;
   classStatus?: string;
   /**
    * The host's canonical expected / accounted pair (`entryAccounting.ts`).

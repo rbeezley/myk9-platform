@@ -316,6 +316,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
               onOpenDragMode={handleOpenDragMode}
+              showNowAndNext={activeTab === 'pending' && !isDragMode && !searchTerm}
               {...(favorites ? { favorites } : {})}
               {...(ownership ? { ownership } : {})}
               DogCard={layout.DogCard}

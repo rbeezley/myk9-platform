@@ -620,7 +620,7 @@ async function runCheckIn(
     .filter({ hasText: String(fixture.armband) })
     .first();
   await dogCard.waitFor({ state: 'visible', timeout: 60_000 });
-  await dogCard.locator('[title="Tap to change status"]').click();
+  await dogCard.locator('[title="Change check-in"]').click();
   const checkedInButton = page.getByRole('button', { name: 'Checked-in', exact: true });
   await checkedInButton.waitFor({ state: 'visible', timeout: 20_000 });
   await checkedInButton.click();

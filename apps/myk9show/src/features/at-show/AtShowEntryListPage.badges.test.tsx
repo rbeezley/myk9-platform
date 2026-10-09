@@ -188,13 +188,16 @@ describe('AtShowEntryListPage — tab badges follow the canonical rule (MYK9-645
   it('does not render the withdrawn or absent dog among the pending runners', async () => {
     renderPage();
 
-    const pendingGrid = (await screen.findByText('Runner 1')).closest('div.grid') as HTMLElement;
+    await screen.findByText('Runner 1');
 
-    // The withdrawn dog IS on the page -- under the Not running group, not in
-    // the pending grid. Asserting only that the group exists would pass with
-    // the dog ALSO rendered among the runners.
-    expect(within(pendingGrid).queryByText('Withdrawn Dog')).not.toBeInTheDocument();
-    expect(screen.getByText('Withdrawn Dog')).toBeInTheDocument();
+    // The withdrawn dog IS on the page -- under the Not running group, not among
+    // the runners. Asserting only that the group exists would pass with the dog
+    // ALSO rendered among the runners. (MYK9-1086: the first runners now sit in
+    // the in-ring / up-next cards outside the grid, so assert on the group.)
+    const withdrawn = screen.getAllByText('Withdrawn Dog');
+    expect(withdrawn).toHaveLength(1);
+    expect(withdrawn[0]?.closest('details')).not.toBeNull();
+    expect(screen.getByText('Runner 1').closest('details')).toBeNull();
 
     // The absent-result dog is accounted for, so it belongs to Completed.
     expect(screen.queryByText('Absent Dog')).not.toBeInTheDocument();
@@ -209,9 +212,17 @@ describe('AtShowEntryListPage — tab badges follow the canonical rule (MYK9-645
       within(withdrawnCard).queryByRole('button', { name: /^Score /i })
     ).not.toBeInTheDocument();
 
-    // ...while a pending runner still has one.
-    const pendingGrid = screen.getByText('Runner 1').closest('div.grid') as HTMLElement;
-    expect(within(pendingGrid).getByRole('button', { name: 'Score Runner 1' })).toBeInTheDocument();
+    expect(
+      (screen.getByText('Withdrawn Dog').closest('[data-testid="dog-card"]') as HTMLElement)
+        .className
+    ).not.toContain('clickable');
+
+    // ...while a pending runner's card is still the scoring tap target (MYK9-1086:
+    // the row tap replaced the separate Score button).
+    const runnerCard = screen
+      .getByText('Runner 1')
+      .closest('[data-testid="dog-card"]') as HTMLElement;
+    expect(runnerCard.className).toContain('clickable');
   });
 });
 

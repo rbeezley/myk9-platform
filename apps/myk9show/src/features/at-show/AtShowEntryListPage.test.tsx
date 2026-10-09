@@ -61,12 +61,15 @@ vi.mock('@/services/replication', () => ({
 // Auth: force a SITE_ADMIN primary role (→ ringside 'admin', canScore = true)
 // so the pending card is clickable. Real getPrimaryRole is preserved so the
 // role→permission mapping under test stays genuine.
+// Role override for the one test that needs a non-scorer; reset in beforeEach.
+const authRoles = vi.hoisted(() => ({ current: null as string[] | null }));
+
 vi.mock('@/hooks/useAuthContext', async importOriginal => {
   const actual = await importOriginal<typeof import('@/hooks/useAuthContext')>();
   const { UserRole } = await import('@/types/auth-types');
   return {
     ...actual,
-    useAuthContext: () => ({ getUserRoles: () => [UserRole.SITE_ADMIN] }),
+    useAuthContext: () => ({ getUserRoles: () => authRoles.current ?? [UserRole.SITE_ADMIN] }),
   };
 });
 
@@ -136,6 +139,7 @@ const renderPage = (syncStatus: ReplicationSyncContextValue['status'] = settledS
 
 describe('AtShowEntryListPage (Phase 1a shim)', () => {
   beforeEach(() => {
+    authRoles.current = null;
     vi.clearAllMocks();
     localStorage.clear();
     vi.mocked(replicatedEntriesTable.subscribe)
@@ -311,6 +315,9 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
   });
 
   it('favorites a dog by armband without opening the scoresheet flow', async () => {
+    // The heart is an exhibitor control; a scorer's row tap opens the scoresheet
+    // and the heart is hidden from them (MYK9-1086).
+    authRoles.current = ['exhibitor'];
     renderPage();
     const favoriteButton = await screen.findByRole('button', { name: 'Favorite Rex' });
 

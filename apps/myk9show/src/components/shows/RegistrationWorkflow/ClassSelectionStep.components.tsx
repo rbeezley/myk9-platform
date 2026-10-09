@@ -201,9 +201,9 @@ export const ElementCard: React.FC<ElementCardProps> = ({
               disabled={
                 isCartPending ||
                 cls.isAlreadyEntered ||
-                cls.isRegistrationBlocked ||
-                // Selected + closed stays operable so a stale cart line can be
-                // removed; see the LevelChip note.
+                // Selected + blocked or closed stays operable so a stale cart
+                // line can be removed; see the LevelChip note.
+                (cls.isRegistrationBlocked && !cls.isSelected) ||
                 (cls.isClassClosed && !cls.isSelected) ||
                 (cls.isFull && cls.allowsWaitlist === false)
               }
@@ -408,7 +408,9 @@ const LevelChip: React.FC<LevelChipProps> = ({
           disabled={
             isCartPending ||
             isAlreadyEntered ||
-            isRegistrationBlocked ||
+            // The same holds for a registration or owner-address block that
+            // appeared after the class went in (MYK9-1010, Codex round 2).
+            (isRegistrationBlocked && !isSelected) ||
             // A closed class that is ALREADY SELECTED stays operable, so the
             // exhibitor can uncheck it. Disabling it strands a stale cart line:
             // the class started after it went in, Payment now refuses the whole

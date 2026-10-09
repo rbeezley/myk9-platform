@@ -22,6 +22,7 @@ import {
   cartOwnerAddressRefusal,
   type OwnerAddressGateLine,
 } from '../_shared/cartOwnerAddressGate.ts';
+import { checkoutLeasedCart } from '../_shared/leasedCheckoutCart.ts';
 import { formatStatementDescriptorSuffix } from '../_shared/statementDescriptor.ts';
 import {
   cartHasBlockedClass,
@@ -411,9 +412,10 @@ async function handleEntryCheckout(
   }
 
   // MYK9-1010: an AKC line needs its owner's full address (the marked catalog
-  // prints it). Refused here, before the lease and before any Checkout Session
-  // call: the entry is created only after payment, and refusing there would
-  // be a charge with no entry (MYK9-963).
+  // prints it); the entry is created only after payment, so refusing there
+  // would be a charge with no entry (MYK9-963). This early check only saves a
+  // lease round trip; the AUTHORITATIVE gate is on the leased snapshot below
+  // (checkoutLeasedCart), which is the cart that is priced and paid.
   const addressRefusal = cartOwnerAddressRefusal(owned.items as OwnerAddressGateLine[]);
   if (addressRefusal) {
     return corsResponse(corsHeaders, addressRefusal, 422);
@@ -439,13 +441,14 @@ async function handleEntryCheckout(
 
   try {
     // Re-read under the lease: a checkout that finished between the read
-    // above and the claim may have linked a new page.
-    const { data: cart, error: cartError } = await loadCheckoutCart(cart_id);
-    if (cartError || !cart) {
-      console.error('Cart not found under lease:', cartError);
-      return corsResponse(corsHeaders, { error: 'Cart not found or expired' }, 404);
-    }
-    return await checkoutUnderLease(corsHeaders, cart, lease, customerId, successUrl, cancelUrl);
+    // above and the claim may have linked a new page, and lines may have
+    // changed. The owner-address gate judges THIS snapshot (Codex round 2).
+    return await checkoutLeasedCart<CheckoutCart>({
+      reload: () => loadCheckoutCart(cart_id),
+      proceed: cart =>
+        checkoutUnderLease(corsHeaders, cart, lease, customerId, successUrl, cancelUrl),
+      respond: (body, status) => corsResponse(corsHeaders, body, status),
+    });
   } finally {
     const ended = await endCartCheckout(supabase, lease);
     if (ended.error) {

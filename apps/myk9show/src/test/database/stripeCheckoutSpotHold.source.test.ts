@@ -25,9 +25,13 @@ describe('stripe-checkout holds spots for the life of the Stripe page', () => {
       "if (claim.kind === 'in_progress') { return corsResponse( corsHeaders, { error: CHECKOUT_IN_PROGRESS_MESSAGE, code: CHECKOUT_IN_PROGRESS_CODE }, 409 ); }"
     );
     expect(compact).toContain('} finally { const ended = await endCartCheckout(supabase, lease);');
-    // The cart is read again under the lease, never only before it.
+    // The cart is read again under the lease, never only before it. Since
+    // MYK9-1010 (Codex round 2) the re-read goes through checkoutLeasedCart,
+    // which also gates that snapshot (its behavior: leasedCheckoutCart.test.ts).
     expect(
-      compact.indexOf('const { data: cart, error: cartError } = await loadCheckoutCart(cart_id);')
+      compact.indexOf(
+        'return await checkoutLeasedCart<CheckoutCart>({ reload: () => loadCheckoutCart(cart_id),'
+      )
     ).toBeGreaterThan(claimAt);
   });
 

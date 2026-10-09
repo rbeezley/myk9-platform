@@ -70,6 +70,7 @@ const SHOW_ID = 'dededede-0000-0000-0000-000000001010';
 const TRIAL_ID = 'trial-saturday';
 const DOG_ID = 'dog-1';
 const CLASS_ID = 'dec1a55e-0000-0000-0000-000000001010';
+const SECOND_CLASS_ID = 'dec1a55e-0000-0000-0000-000000001011';
 const CLUB_ID = 'club-heartland';
 
 const NO_STREET_OR_ZIP = {
@@ -317,6 +318,67 @@ describe("ClassSelectionStep — the owner's address on AKC classes (MYK9-1010)"
     expect(await screen.findByRole('alert')).toHaveTextContent('Permission denied for show');
     expect(screen.getByRole('dialog')).toBeInTheDocument();
     expect(mockRefetchDogs).not.toHaveBeenCalled();
+  });
+
+  // Codex round 2: a class already in the selection when the block appears
+  // (an existing cart, a loaded draft) must stay removable, as a selected
+  // closed class does, or the submit refuses a line nobody can take out.
+  it('keeps an already-selected AKC class removable while an unselected one stays blocked', async () => {
+    setupStepMocks({ owner: NO_STREET_OR_ZIP, isStaff: true });
+    // Add an unselected second AKC class to the one setupStepMocks provides.
+    const availability = mockUseClassAvailability();
+    const second = {
+      ...availability.classes[0],
+      classId: SECOND_CLASS_ID,
+      className: 'Interior Excellent',
+      level: 'Excellent',
+    };
+    mockUseClassAvailability.mockReturnValue({
+      ...availability,
+      classes: [...availability.classes, second],
+    });
+    const onSelectionChange = vi.fn();
+    renderStep({
+      workflowMode: 'secretary_new',
+      onSelectionChange,
+      classSelections: [
+        { dogId: DOG_ID, trialId: TRIAL_ID, selectedClasses: [{ classId: CLASS_ID }] },
+      ],
+    });
+
+    const selected = await screen.findByRole('checkbox', { name: /Advanced/ });
+    const unselected = screen.getByRole('checkbox', { name: /Excellent/ });
+    await waitFor(() => expect(selected).not.toHaveAttribute('aria-disabled', 'true'));
+    expect(selected).toHaveAttribute('aria-checked', 'true');
+    expect(unselected).toHaveAttribute('aria-disabled', 'true');
+
+    await userEvent.click(selected);
+    await waitFor(() =>
+      expect(onSelectionChange).toHaveBeenCalledWith(
+        expect.not.arrayContaining([
+          expect.objectContaining({
+            selectedClasses: expect.arrayContaining([{ classId: CLASS_ID }]),
+          }),
+        ])
+      )
+    );
+  });
+
+  it('keeps a pre-selected single-class AKC element removable too', async () => {
+    setupStepMocks({ owner: NO_STREET_OR_ZIP, isStaff: true });
+    const onSelectionChange = vi.fn();
+    renderStep({
+      workflowMode: 'secretary_new',
+      onSelectionChange,
+      classSelections: [
+        { dogId: DOG_ID, trialId: TRIAL_ID, selectedClasses: [{ classId: CLASS_ID }] },
+      ],
+    });
+
+    const selected = await screen.findByRole('checkbox');
+    await waitFor(() => expect(selected).not.toHaveAttribute('aria-disabled', 'true'));
+    await userEvent.click(selected);
+    await waitFor(() => expect(onSelectionChange).toHaveBeenCalled());
   });
 
   it('the desk late-entry path warns but leaves the class selectable', async () => {

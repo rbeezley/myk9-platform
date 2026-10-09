@@ -36,7 +36,9 @@ describe('cartOwnerAddressRefusal (MYK9-1010)', () => {
       code: OWNER_ADDRESS_REQUIRED_CODE,
       error:
         "Add the owner's street address and ZIP or postal code to enter Rex in an AKC trial. AKC prints the owner's address in the marked catalog.",
-      dogs: [{ dog_id: 'dog-1', dog_name: 'Rex', missing: ['street address', 'ZIP or postal code'] }],
+      dogs: [
+        { dog_id: 'dog-1', dog_name: 'Rex', missing: ['street address', 'ZIP or postal code'] },
+      ],
     });
   });
 

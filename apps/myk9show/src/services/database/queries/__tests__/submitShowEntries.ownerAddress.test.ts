@@ -65,7 +65,8 @@ describe('submitShowEntries — owner address refusal (MYK9-1010)', () => {
     mockRpc.mockResolvedValue({
       data: null,
       error: {
-        message: 'This dog has no AKC registration number. A registration number is required to enter.',
+        message:
+          'This dog has no AKC registration number. A registration number is required to enter.',
         code: '23514',
         details: null,
         hint: null,

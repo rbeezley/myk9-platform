@@ -45,7 +45,10 @@ describe('prerequisiteLevelFields', () => {
 
   it('offers the address fix once the registration is there', () => {
     expect(
-      prerequisiteLevelFields({ allowed: true, puppyException: false, message: null }, blockedAddress)
+      prerequisiteLevelFields(
+        { allowed: true, puppyException: false, message: null },
+        blockedAddress
+      )
     ).toEqual({
       isRegistrationBlocked: true,
       registrationGuidance: 'address',

@@ -29,15 +29,17 @@ const addresslessAkcLine: OwnerAddressGateLine = {
   class: { trial: { registry_id: 'AKC' } },
 };
 
-const respond = (body: object, status: number) =>
-  new Response(JSON.stringify(body), { status });
+const respond = (body: object, status: number) => new Response(JSON.stringify(body), { status });
 
 describe('checkoutLeasedCart', () => {
   it('refuses when the LEASED snapshot gained an addressless AKC line, before proceeding', async () => {
     // The first read (before the lease) held only the clean line.
     const proceed = vi.fn(async () => respond({ url: 'https://checkout.stripe.com/x' }, 200));
     const response = await checkoutLeasedCart<Cart>({
-      reload: async () => ({ data: { id: 'cart-1', items: [cleanLine, addresslessAkcLine] }, error: null }),
+      reload: async () => ({
+        data: { id: 'cart-1', items: [cleanLine, addresslessAkcLine] },
+        error: null,
+      }),
       proceed,
       respond,
     });

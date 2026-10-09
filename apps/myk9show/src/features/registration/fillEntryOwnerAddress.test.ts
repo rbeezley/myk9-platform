@@ -50,7 +50,12 @@ describe('fillEntryOwnerAddress (MYK9-1010)', () => {
   it('throws the server refusal with its message and code', async () => {
     mockRpc.mockResolvedValue({
       data: null,
-      error: { message: 'Permission denied for show show-1', code: '42501', details: null, hint: null },
+      error: {
+        message: 'Permission denied for show show-1',
+        code: '42501',
+        details: null,
+        hint: null,
+      },
     });
 
     await expect(fillEntryOwnerAddress(input)).rejects.toMatchObject({

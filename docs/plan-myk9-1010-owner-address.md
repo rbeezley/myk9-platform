@@ -17,13 +17,13 @@ AKC Scent Work Regulations Ch.3 §36 item 8 requires the owner's address for eve
 
 ### Where the check lives
 
-| Path | Check | Why |
-| --- | --- | --- |
-| Class selection, all wizard paths | Client: an AKC class is blocked with "Add the owner's address" and an in-place fix, as a sibling of `getRegistrationPrerequisite` (`RegistrationWorkflow/registrationPrerequisite.ts`, applied at `ClassSelectionStep.tsx` ~606). | This is the existing per-class, per-registry block pattern, so no new UI concept. |
-| Mail-in / organizer / non-card exhibitor submit | Server: `submit_show_entries` refuses an AKC line whose dog's owner lacks an address, with a coded error. | It is the single SECURITY DEFINER RPC for this path. A trigger cannot tell this path from day-of. |
-| Card checkout | Server: `stripe-checkout` refuses the cart **before** creating the Checkout Session. | The entry is created only after payment (`create_online_paid_entry`). A refusal there would be a charge with no entry (MYK9-963). |
-| Staff day-of (`submitOfflineLateEntry`) | Client warning only. | The entry is written locally and synced later, so a server refusal at the ring is unacceptable. |
-| Move-up, waitlist promotion | None. | The same dog is already entered, and the catalog flags it. |
+| Path                                            | Check                                                                                                                                                                                                                             | Why                                                                                                                               |
+| ----------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Class selection, all wizard paths               | Client: an AKC class is blocked with "Add the owner's address" and an in-place fix, as a sibling of `getRegistrationPrerequisite` (`RegistrationWorkflow/registrationPrerequisite.ts`, applied at `ClassSelectionStep.tsx` ~606). | This is the existing per-class, per-registry block pattern, so no new UI concept.                                                 |
+| Mail-in / organizer / non-card exhibitor submit | Server: `submit_show_entries` refuses an AKC line whose dog's owner lacks an address, with a coded error.                                                                                                                         | It is the single SECURITY DEFINER RPC for this path. A trigger cannot tell this path from day-of.                                 |
+| Card checkout                                   | Server: `stripe-checkout` refuses the cart **before** creating the Checkout Session.                                                                                                                                              | The entry is created only after payment (`create_online_paid_entry`). A refusal there would be a charge with no entry (MYK9-963). |
+| Staff day-of (`submitOfflineLateEntry`)         | Client warning only.                                                                                                                                                                                                              | The entry is written locally and synced later, so a server refusal at the ring is unacceptable.                                   |
+| Move-up, waitlist promotion                     | None.                                                                                                                                                                                                                             | The same dog is already entered, and the catalog flags it.                                                                        |
 
 No `entries` trigger is added: a trigger would also refuse day-of syncs, move-ups and fixtures.
 
@@ -56,13 +56,13 @@ Reuse the inline fix pattern of `useInlineDogRegistration` if it fits. Otherwise
 
 ## Phases and testing
 
-1. **Data + predicate.** Owner address in reads and the type, plus `ownerAddressMissingParts`. *Tests:* unit tests for the predicate, and a mapper/read test showing the fields reach `Owner`.
+1. **Data + predicate.** Owner address in reads and the type, plus `ownerAddressMissingParts`. _Tests:_ unit tests for the predicate, and a mapper/read test showing the fields reach `Owner`.
 2. **Client block.**
    - Class-selection prerequisite for AKC trials, with copy and a fix link.
    - A day-of warning in the staff late-entry path.
-   - *Tests:* render ClassSelectionStep with an AKC trial and an addressless owner (blocked, message names the missing parts), the same with a UKC trial (not blocked), and with a complete address (not blocked). The day-of path warns but submits.
-3. **Server: `submit_show_entries`.** The migration. *Tests:* the src/test/database contract suite, plus a behavioral SQL test under `supabase/tests/` (CI only) covering an AKC refusal, a UKC pass, and a complete address passing.
-4. **Server: `stripe-checkout`.** The pre-payment refusal. *Tests:* a function test under `// @vitest-environment node` showing the AKC addressless cart is refused before any Stripe call and a UKC cart proceeds.
+   - _Tests:_ render ClassSelectionStep with an AKC trial and an addressless owner (blocked, message names the missing parts), the same with a UKC trial (not blocked), and with a complete address (not blocked). The day-of path warns but submits.
+3. **Server: `submit_show_entries`.** The migration. _Tests:_ the src/test/database contract suite, plus a behavioral SQL test under `supabase/tests/` (CI only) covering an AKC refusal, a UKC pass, and a complete address passing.
+4. **Server: `stripe-checkout`.** The pre-payment refusal. _Tests:_ a function test under `// @vitest-environment node` showing the AKC addressless cart is refused before any Stripe call and a UKC cart proceeds.
 5. **Verification and ship.**
    - Full typecheck, lint, ratchet, and a shuffled app suite.
    - Codex review (independent tier: migration plus a payments edge function).

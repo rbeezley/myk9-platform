@@ -37,7 +37,10 @@ vi.mock('@/services/database/supabaseClient', () => ({
         selects.push({ table, columns });
         const rows =
           table === 'people' ? peopleRows.map(row => project(row, columns)) : postgrestDogRows;
-        const result = Promise.resolve({ data: table === 'dog_registrations' ? [] : rows, error: null });
+        const result = Promise.resolve({
+          data: table === 'dog_registrations' ? [] : rows,
+          error: null,
+        });
         const chain: Record<string, unknown> = {
           in: () => result,
           is: () => chain,

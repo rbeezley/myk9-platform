@@ -396,6 +396,7 @@ export function WorkflowStepContent({
             onSelectionChange={onClassSelectionChange}
             showId={showId}
             workflowMode={currentWorkflowMode}
+            ownerAddressWarnOnly={offlineFirstCreate}
             {...(!hasHandlerStep && {
               handlerAssignments: optimisticState.handlerAssignments,
               onHandlerAssignmentChange,

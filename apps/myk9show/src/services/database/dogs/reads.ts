@@ -44,14 +44,22 @@ interface OwnerRow {
   last_name: string;
   email: string | null;
   phone: string | null;
+  street_address: string | null;
+  city: string | null;
+  state: string | null;
+  zip_code: string | null;
 }
 
+// MYK9-1010: the address is read with the owner (here and in the PostgREST
+// embed below) so an AKC entry can be blocked in the wizard until it is
+// complete. Inlined, not a constant: peopleJuniorHandlerPiiContract audits
+// every people column list.
 async function loadOwnersMap(ownerIds: string[]): Promise<Map<string, OwnerRow>> {
   if (ownerIds.length === 0) return new Map();
   const uniqueIds = [...new Set(ownerIds)];
   const { data } = await supabase
     .from('people')
-    .select('id, first_name, last_name, email, phone')
+    .select('id, first_name, last_name, email, phone, street_address, city, state, zip_code')
     .in('id', uniqueIds);
   const map = new Map<string, OwnerRow>();
   if (data) {
@@ -261,7 +269,11 @@ async function postgrestGetAllDogs(personId: string, showAll = false) {
         first_name,
         last_name,
         email,
-        phone
+        phone,
+        street_address,
+        city,
+        state,
+        zip_code
       ),
       registrations:dog_registrations(*)
     `

@@ -12,6 +12,7 @@ const mockForm = {
     firstName: 'Jane',
     lastName: 'Doe',
     phone: '',
+    streetAddress: '',
     city: '',
     state: '',
     zipCode: '',
@@ -176,6 +177,15 @@ describe('AccountPage', () => {
     render();
     expect(screen.getByText('Profile photo')).toBeInTheDocument();
     expect(screen.getByText('Personal information')).toBeInTheDocument();
+  });
+
+  // MYK9-1010: an AKC class sends the exhibitor here to add a missing street
+  // address, so the Profile section must have somewhere to type it.
+  it('edits the street address in the Profile section', () => {
+    render();
+    const street = screen.getByRole('textbox', { name: 'Street address' });
+    fireEvent.change(street, { target: { value: '9 Oak Ave' } });
+    expect(mockForm.setValue).toHaveBeenCalledWith('streetAddress', '9 Oak Ave');
   });
 
   // MYK9-862 removed the sidebar's "Request additional access" shortcut in

@@ -2,7 +2,7 @@
 // Phase 2.1: Dog Store Integration
 
 import { mapFields } from './mapperUtils';
-import type { Dog, DogStatus } from '@/types/dog-types';
+import type { Dog, DogStatus, Owner } from '@/types/dog-types';
 import type { DbDogInsert, DbDogUpdate } from '@/types/database-mappings';
 import type { DogInput } from '@/store/dogStore';
 import type { ReplicatedDog } from '@/services/replication/ReplicatedDogsTable';
@@ -265,6 +265,32 @@ const regNumber = (reg: Record<string, unknown>): string =>
 const regVariety = (reg: Record<string, unknown>): string | null =>
   (reg.variety as string | null) || null;
 
+const ownerText = (row: Record<string, unknown>, key: string): string | undefined =>
+  typeof row[key] === 'string' ? (row[key] as string) : undefined;
+
+/**
+ * The `owner` embed (or batch-loaded owner row) as an `Owner`, or undefined when
+ * the owner was not read. MYK9-1010: the address parts ride along so the entry
+ * wizard can block an AKC class until they are complete; an absent row is
+ * "unknown", never "no address".
+ */
+function mapDbOwner(owner: unknown): Owner | undefined {
+  if (!owner || typeof owner !== 'object' || typeof (owner as { id?: unknown }).id !== 'string') {
+    return undefined;
+  }
+  const row = owner as Record<string, unknown>;
+  return {
+    id: row.id as string,
+    name: `${ownerText(row, 'first_name') ?? ''} ${ownerText(row, 'last_name') ?? ''}`.trim(),
+    email: ownerText(row, 'email'),
+    phone: ownerText(row, 'phone'),
+    streetAddress: ownerText(row, 'street_address'),
+    city: ownerText(row, 'city'),
+    state: ownerText(row, 'state'),
+    zipCode: ownerText(row, 'zip_code'),
+  };
+}
+
 export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
   const sex = dbDog.sex as 'male' | 'female' | null;
   const dateOfBirth = dbDog.date_of_birth as string | null;
@@ -301,6 +327,7 @@ export const mapDatabaseToDog = (dbDog: Record<string, unknown>): Dog => {
     ownerName: dbDog.owner
       ? `${(dbDog.owner as Record<string, unknown>).first_name} ${(dbDog.owner as Record<string, unknown>).last_name}`.trim()
       : '',
+    ...(mapDbOwner(dbDog.owner) && { owner: mapDbOwner(dbDog.owner) }),
     microchipNumber: dbDog.microchip_number as string,
     imageUrl: (dbDog.image_url as string) || undefined,
     spayedNeutered: (dbDog.spayed_neutered as boolean) ?? undefined,

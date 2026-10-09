@@ -18,6 +18,11 @@ import {
   type CheckoutSessionResolution,
 } from '../_shared/priorCheckoutSession.ts';
 import { showOnlineEntryRefusal } from '../_shared/showOnlineEntryGate.ts';
+import {
+  cartOwnerAddressRefusal,
+  type OwnerAddressGateLine,
+} from '../_shared/cartOwnerAddressGate.ts';
+import { checkoutLeasedCart } from '../_shared/leasedCheckoutCart.ts';
 import { formatStatementDescriptorSuffix } from '../_shared/statementDescriptor.ts';
 import {
   cartHasBlockedClass,
@@ -406,6 +411,16 @@ async function handleEntryCheckout(
     return corsResponse(corsHeaders, { error: 'Unauthorized access to cart' }, 403);
   }
 
+  // MYK9-1010: an AKC line needs its owner's full address (the marked catalog
+  // prints it); the entry is created only after payment, so refusing there
+  // would be a charge with no entry (MYK9-963). This early check only saves a
+  // lease round trip; the AUTHORITATIVE gate is on the leased snapshot below
+  // (checkoutLeasedCart), which is the cart that is priced and paid.
+  const addressRefusal = cartOwnerAddressRefusal(owned.items as OwnerAddressGateLine[]);
+  if (addressRefusal) {
+    return corsResponse(corsHeaders, addressRefusal, 422);
+  }
+
   // MYK9-1012: one checkout per cart at a time. Everything below (retiring or
   // reusing the old page, holding spots, opening and linking the new page)
   // runs under this request's lease, and a second Pay on the same cart is
@@ -426,13 +441,14 @@ async function handleEntryCheckout(
 
   try {
     // Re-read under the lease: a checkout that finished between the read
-    // above and the claim may have linked a new page.
-    const { data: cart, error: cartError } = await loadCheckoutCart(cart_id);
-    if (cartError || !cart) {
-      console.error('Cart not found under lease:', cartError);
-      return corsResponse(corsHeaders, { error: 'Cart not found or expired' }, 404);
-    }
-    return await checkoutUnderLease(corsHeaders, cart, lease, customerId, successUrl, cancelUrl);
+    // above and the claim may have linked a new page, and lines may have
+    // changed. The owner-address gate judges THIS snapshot (Codex round 2).
+    return await checkoutLeasedCart<CheckoutCart>({
+      reload: () => loadCheckoutCart(cart_id),
+      proceed: cart =>
+        checkoutUnderLease(corsHeaders, cart, lease, customerId, successUrl, cancelUrl),
+      respond: (body, status) => corsResponse(corsHeaders, body, status),
+    });
   } finally {
     const ended = await endCartCheckout(supabase, lease);
     if (ended.error) {
@@ -460,11 +476,15 @@ function loadCheckoutCart(cartId: string) {
           junior_fee_declared,
           jump_height,
           special_requests,
-          dog:dogs(call_name),
+          dog:dogs(
+            call_name,
+            owner:people!dogs_owner_id_fkey(street_address, city, state, zip_code)
+          ),
           class:classes(
             name,
             entry_fee,
             trial:trials(
+              registry_id,
               show:shows(name)
             )
           )

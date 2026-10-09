@@ -197,8 +197,16 @@ export function ProfileSection() {
           <div className="space-y-1.5">
             <Label>
               <MapPin className="inline h-3.5 w-3.5 mr-1 opacity-60" />
-              Location
+              Mailing address
             </Label>
+            {/* MYK9-1010: AKC prints the owner's address in the catalog. */}
+            <Input
+              aria-label="Street address"
+              placeholder="Street address"
+              autoComplete="street-address"
+              value={form.values.streetAddress}
+              onChange={e => form.setValue('streetAddress', e.target.value)}
+            />
             <div className="grid gap-2 sm:grid-cols-3">
               <Input
                 aria-label="City"

@@ -128,6 +128,13 @@ SELECT '00000000-0000-0000-0000-000000878a04', roles.id,
        '00000000-0000-0000-0000-000000878b04'
 FROM public.roles WHERE roles.name = 'secretary';
 
+-- MYK9-1010: submit_show_entries refuses an AKC entry whose dog's owner has
+-- no complete address. These trials are AKC, so the owners get one; this test
+-- is about the junior fee, not the address.
+UPDATE public.people
+SET street_address = '1 Fixture Way', city = 'Testville', state = 'TX', zip_code = '75001'
+WHERE id IN ('00000000-0000-0000-0000-000000878a01', '00000000-0000-0000-0000-000000878a02');
+
 INSERT INTO public.dogs (id, name, call_name, breed, status, owner_id)
 VALUES
   ('00000000-0000-0000-0000-000000878c01', 'MYK9-878 JR', 'JR', 'Beagle', 'active',

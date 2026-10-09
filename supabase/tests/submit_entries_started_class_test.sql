@@ -137,6 +137,13 @@ BEGIN
 END;
 $$;
 
+-- MYK9-1010: submit_show_entries refuses an AKC entry whose dog's owner has
+-- no complete address. This trial is AKC, so the owner gets one; this test is
+-- about started classes, not the address.
+UPDATE public.people
+SET street_address = '1 Fixture Way', city = 'Testville', state = 'TX', zip_code = '75001'
+WHERE id = '00000000-0000-0000-0000-000000516001';
+
 -- `breed` and `call_name` are NOT NULL without defaults on public.dogs.
 INSERT INTO public.dogs (id, name, call_name, breed, status, owner_id)
 VALUES

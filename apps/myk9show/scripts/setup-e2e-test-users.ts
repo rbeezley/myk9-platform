@@ -15,7 +15,11 @@
 
 import { createClient, type User } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
-import { DEMO_ACCOUNT_NAMES } from './demoAccountNames';
+import {
+  DEMO_ACCOUNT_ADDRESSES,
+  DEMO_ACCOUNT_NAMES,
+  type DemoAccountAddress,
+} from './demoAccountNames';
 import {
   planAccountProvisioning,
   planRoleReconciliation,
@@ -50,6 +54,8 @@ interface TestUser {
   passwordEnv: string;
   firstName: string;
   lastName: string;
+  /** MYK9-1010: an AKC entry needs the dog owner's complete address. */
+  address?: DemoAccountAddress;
   roles: string[];
   /** Provisioned only where its password env is set; otherwise skipped. */
   optional?: boolean;
@@ -108,24 +114,28 @@ const CANONICAL_TEST_USERS: TestUser[] = [
     email: 'exhibitor@myk9t.com',
     passwordEnv: 'E2E_DEMO_EXHIBITOR_PASSWORD',
     ...DEMO_ACCOUNT_NAMES['exhibitor@myk9t.com']!,
+    address: DEMO_ACCOUNT_ADDRESSES['exhibitor@myk9t.com']!,
     roles: ['exhibitor'],
   },
   {
     email: 'secretary@myk9t.com',
     passwordEnv: 'E2E_SECRETARY_PASSWORD',
     ...DEMO_ACCOUNT_NAMES['secretary@myk9t.com']!,
+    address: DEMO_ACCOUNT_ADDRESSES['secretary@myk9t.com']!,
     roles: ['secretary', 'steward', 'exhibitor'],
   },
   {
     email: 'judge@myk9t.com',
     passwordEnv: 'E2E_JUDGE_PASSWORD',
     ...DEMO_ACCOUNT_NAMES['judge@myk9t.com']!,
+    address: DEMO_ACCOUNT_ADDRESSES['judge@myk9t.com']!,
     roles: ['judge'],
   },
   {
     email: 'testadmin@myk9t.com',
     passwordEnv: 'E2E_ADMIN_PASSWORD',
     ...DEMO_ACCOUNT_NAMES['testadmin@myk9t.com']!,
+    address: DEMO_ACCOUNT_ADDRESSES['testadmin@myk9t.com']!,
     roles: ['site_admin', 'secretary', 'club_admin', 'exhibitor'],
   },
   // Club-scoped authority with NO site-wide role (MYK9-137). e2e-admin above is
@@ -147,6 +157,7 @@ const CANONICAL_TEST_USERS: TestUser[] = [
     email: 'clubadmin@myk9t.com',
     passwordEnv: 'E2E_CLUB_ADMIN_PASSWORD',
     ...DEMO_ACCOUNT_NAMES['clubadmin@myk9t.com']!,
+    address: DEMO_ACCOUNT_ADDRESSES['clubadmin@myk9t.com']!,
     roles: ['club_admin'],
     optional: true,
   },
@@ -158,6 +169,7 @@ const CANONICAL_TEST_USERS: TestUser[] = [
     email: 'chairman@myk9t.com',
     passwordEnv: 'E2E_CHAIRMAN_PASSWORD',
     ...DEMO_ACCOUNT_NAMES['chairman@myk9t.com']!,
+    address: DEMO_ACCOUNT_ADDRESSES['chairman@myk9t.com']!,
     roles: ['chairman'],
     optional: true,
   },
@@ -168,6 +180,7 @@ const CANONICAL_TEST_USERS: TestUser[] = [
     email: 'exhibitor2@myk9t.com',
     passwordEnv: 'E2E_EXHIBITOR2_PASSWORD',
     ...DEMO_ACCOUNT_NAMES['exhibitor2@myk9t.com']!,
+    address: DEMO_ACCOUNT_ADDRESSES['exhibitor2@myk9t.com']!,
     roles: ['exhibitor'],
     optional: true,
   },
@@ -332,8 +345,16 @@ async function reconcileRoles(
 }
 
 async function createTestUser(user: TestUser): Promise<TestUserResult> {
-  const { email, passwordEnv, firstName, lastName, roles } = user;
+  const { email, passwordEnv, firstName, lastName, address, roles } = user;
   const password = process.env[passwordEnv];
+  const addressColumns = address
+    ? {
+        street_address: address.streetAddress,
+        city: address.city,
+        state: address.state,
+        zip_code: address.zipCode,
+      }
+    : {};
 
   if (!password) {
     return { success: false, email, error: `Missing ${passwordEnv}` };
@@ -402,7 +423,7 @@ async function createTestUser(user: TestUser): Promise<TestUserResult> {
       if (!isPreview) {
         const { error: updateError } = await supabase
           .from('people')
-          .update({ first_name: firstName, last_name: lastName, email })
+          .update({ first_name: firstName, last_name: lastName, email, ...addressColumns })
           .eq('auth_user_id', userId);
 
         if (updateError) {
@@ -417,7 +438,13 @@ async function createTestUser(user: TestUser): Promise<TestUserResult> {
       }
       const { data: newProfile, error: insertError } = await supabase
         .from('people')
-        .insert({ auth_user_id: userId, first_name: firstName, last_name: lastName, email })
+        .insert({
+          auth_user_id: userId,
+          first_name: firstName,
+          last_name: lastName,
+          email,
+          ...addressColumns,
+        })
         .select('id')
         .single();
 

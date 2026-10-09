@@ -9,6 +9,7 @@ import { logger } from '@/services/LoggingService';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import type { DbEntryInsert, DbEntryUpdate } from '../../../types/database-mappings';
 import type { EntryStatus } from '@/types/entry-lifecycle';
+import { OWNER_ADDRESS_REQUIRED_CODE } from '@/features/registration/ownerAddress';
 import { removeEntryAsManager, setEntryLifecycleStatus } from './lifecycle';
 import { withdrawOwnEntry } from './withdrawOwnEntry';
 import type {
@@ -462,7 +463,14 @@ export async function submitShowEntries(params: {
   );
 
   if (error) {
-    throw createDatabaseError(error, 'entry_submissions', 'rpc_submit');
+    // MYK9-1010: the AKC owner-address refusal is a 23514 like the
+    // registration-number trigger; its HINT tells them apart. The message is
+    // already the exhibitor-facing sentence (dog and missing parts).
+    const refusal =
+      error.hint === OWNER_ADDRESS_REQUIRED_CODE
+        ? { ...error, code: OWNER_ADDRESS_REQUIRED_CODE }
+        : error;
+    throw createDatabaseError(refusal, 'entry_submissions', 'rpc_submit');
   }
 
   const result = data as unknown as {

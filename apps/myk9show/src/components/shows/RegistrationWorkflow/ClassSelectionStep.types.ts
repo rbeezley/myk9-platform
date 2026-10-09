@@ -1,5 +1,6 @@
 import type { ClassSelectionData, HandlerInfo } from '@/types/show-registration-types';
 import type { WorkflowMode } from './RegistrationWorkflow.types';
+import type { RegistrationFix } from './ownerAddressPrerequisite';
 
 export interface ClassSelectionStepProps {
   selectedDogs: string[];
@@ -16,6 +17,12 @@ export interface ClassSelectionStepProps {
    * thread with themselves). Defaults to the exhibitor wizard.
    */
   workflowMode?: WorkflowMode | undefined;
+  /**
+   * Staff taking a late entry at the desk (the offline late-entry path): an
+   * incomplete owner's address on an AKC class warns instead of blocking
+   * (MYK9-1010).
+   */
+  ownerAddressWarnOnly?: boolean | undefined;
 }
 
 export interface RegistrationClassSource {
@@ -57,6 +64,8 @@ export interface LevelInfo {
   isRegistrationBlocked?: boolean | undefined;
   /** Calm explanation for a registration block or puppy-class exception. */
   registrationGuidance?: string | null | undefined;
+  /** Which fix the block offers: the dog's registration, or the owner's address (MYK9-1010). */
+  registrationFix?: RegistrationFix | undefined;
   /**
    * The class has started or finished, so it can no longer be entered
    * (MYK9-516). Distinct from `isFull`: a full class may still take a wait-list

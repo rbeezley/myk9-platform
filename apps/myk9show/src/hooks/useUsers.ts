@@ -94,6 +94,9 @@ export function useUpdatePerson() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users.all });
+      // MYK9-1010: the dog roster carries each owner's address, which gates
+      // AKC classes in the entry wizard.
+      queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
     },
   });
 }

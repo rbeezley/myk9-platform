@@ -68,6 +68,7 @@ retired to [`archive/`](archive/) (kept for history, not maintained).
 | [plan-overview-schedule-hub.md](plan-overview-schedule-hub.md)                                                   | Active    | Overview Schedule as the Secretary's Hub — status, checklist, lighter Setup        |
 | [plan-secretary-show-home.md](plan-secretary-show-home.md)                                                       | Active    | Secretary Show Home — one page for Overview, Show Day and Setup                    |
 | [plan-list-toolkit.md](plan-list-toolkit.md)                                                                     | Active    | List Toolkit — shared search, filter and bulk actions                              |
+| [plan-myk9-1010-owner-address.md](plan-myk9-1010-owner-address.md)                                               | Active    | MYK9-1010 — Require the owner's address on AKC entries                             |
 | [plan-myk9-110-recovery-rehearsal-2026-09-07.md](plan-myk9-110-recovery-rehearsal-2026-09-07.md)                 | Active    | MYK9-110 cross-project recovery rehearsal — execution plan                         |
 | [plan-myk9-110-backup-activation.md](plan-myk9-110-backup-activation.md)                                         | Active    | MYK9-110 independent backup activation                                             |
 | [plan-docs-site.md](plan-docs-site.md)                                                                           | Active    | Plan: myK9Show Guides — public docs site                                           |

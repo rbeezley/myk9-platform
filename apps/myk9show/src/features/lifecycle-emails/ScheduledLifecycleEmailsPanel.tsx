@@ -2,15 +2,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CalendarClock } from 'lucide-react';
 import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
+import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox/checkbox';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch/switch';
 import { Textarea } from '@/components/ui/textarea';
@@ -226,12 +220,29 @@ function LifecycleBatchReviewDialog({
   const overriddenCount = selectedJobs.length;
 
   return (
-    <Dialog open={true} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>{STEP_LABELS[stepType]} review</DialogTitle>
-        </DialogHeader>
-
+    <SlideOverPanel
+      open={true}
+      onClose={() => onOpenChange(false)}
+      title={`${STEP_LABELS[stepType]} review`}
+      size="lg"
+      footer={
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+            Close
+          </Button>
+          <Button
+            type="button"
+            disabled={
+              sendMutation.isPending || (selectedJobs.length === 0 && skippedJobIds.length === 0)
+            }
+            onClick={() => sendMutation.mutate({ sendJobs: selectedJobs, skippedJobIds })}
+          >
+            {sendMutation.isPending ? 'Sending...' : 'Send now'}
+          </Button>
+        </div>
+      }
+    >
+      <div className="space-y-3 p-6">
         {jobsQuery.isError ? (
           <p className="rounded border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
             Recipient previews are not available right now.
@@ -332,23 +343,8 @@ function LifecycleBatchReviewDialog({
             </div>
           ) : null}
         </div>
-
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-            Close
-          </Button>
-          <Button
-            type="button"
-            disabled={
-              sendMutation.isPending || (selectedJobs.length === 0 && skippedJobIds.length === 0)
-            }
-            onClick={() => sendMutation.mutate({ sendJobs: selectedJobs, skippedJobIds })}
-          >
-            {sendMutation.isPending ? 'Sending...' : 'Send now'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </SlideOverPanel>
   );
 }
 

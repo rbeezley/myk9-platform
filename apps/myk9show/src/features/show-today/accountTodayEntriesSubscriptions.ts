@@ -15,19 +15,16 @@ interface SharedSubscription {
   unsubscribes: Array<() => void>;
 }
 
+// A sync's replica writes land more than 100 ms apart (~5 RPCs in 2 s on one page load, MYK9-1066).
+export const ACCOUNT_TODAY_COALESCE_MS = 1500;
+
 export function createAccountTodayEntriesSubscriptionRegistry(
   sources: readonly AccountTodaySubscriptionSource[],
-  coalesceMs = 100,
-  /** Sources whose writes can change WHICH entries are the account's (membership). */
-  membershipSources: readonly AccountTodaySubscriptionSource[] = []
+  coalesceMs = ACCOUNT_TODAY_COALESCE_MS
 ) {
   const clients = new WeakMap<QueryClient, Map<string, SharedSubscription>>();
 
-  const retain = (
-    queryClient: QueryClient,
-    queryKey: QueryKey,
-    idsQueryKey?: QueryKey
-  ): (() => void) => {
+  const retain = (queryClient: QueryClient, queryKey: QueryKey): (() => void) => {
     let entries = clients.get(queryClient);
     if (!entries) {
       entries = new Map();
@@ -53,17 +50,7 @@ export function createAccountTodayEntriesSubscriptionRegistry(
         }, coalesceMs);
       };
       created.unsubscribes = sources.map(source =>
-        source.subscribe(
-          () => {
-            // Mark the id list stale at once so the coalesced re-hydration below
-            // re-asks the server; other tables re-hydrate from the cached ids.
-            if (idsQueryKey && membershipSources.includes(source)) {
-              void queryClient.invalidateQueries({ queryKey: idsQueryKey });
-            }
-            invalidate();
-          },
-          { emitCurrent: false }
-        )
+        source.subscribe(invalidate, { emitCurrent: false })
       );
       shared = created;
       entries.set(registryKey, created);

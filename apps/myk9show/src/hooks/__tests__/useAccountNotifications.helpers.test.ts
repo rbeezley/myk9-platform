@@ -62,4 +62,23 @@ describe('buildAccountNotificationPayload', () => {
       data: { accountNotificationUserId: 'auth-user-1' },
     });
   });
+
+  it('titles a mail-in head notice as a manual action (MYK9-1021)', () => {
+    const payload = buildAccountNotificationPayload(
+      {
+        id: 'notif-mail-1',
+        type: 'waitlist_mail_in_head',
+        message:
+          'A spot opened in Novice A. Rex is next and joined by mail; offer it from the Waitlist tab.',
+        deep_link_url: '/shows/show-1/entries?tab=waitlist',
+        created_at: '2026-10-07T01:00:00.000Z',
+      },
+      'auth-user-1'
+    );
+
+    expect(payload).toMatchObject({
+      title: 'Mail-in dog needs an offer',
+      actionUrl: '/shows/show-1/entries?tab=waitlist',
+    });
+  });
 });

@@ -17,6 +17,8 @@ import { useTemplateStore } from '@/store/templateStore';
 import { useClubStore } from '@/store/clubStore';
 import { useUserStore } from '@/store/userStore';
 import { useJudgesWithQualifications } from '@/hooks/queries/useJudgesWithQualifications';
+import { useAuthContext } from '@/hooks/useAuthContext';
+import { UserRole } from '@/types/auth-types';
 import { isQualifiedForOrganization, judgeDisplayName } from '@/features/judges/qualifiedJudges';
 import { ShowOfficialsEditor } from './ShowOfficialsEditor';
 import { toLocalDateOnly } from '@/utils/date-format';
@@ -53,7 +55,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
   const { templates } = useTemplateStore();
   const { clubs, loadClubs } = useClubStore();
   const { people, loadUsers } = useUserStore();
-  const { data: judges = [] } = useJudgesWithQualifications();
+  const { data: judges = [], isSuccess: judgesLoaded } = useJudgesWithQualifications();
 
   // Ensure clubs and people are loaded when the form opens
   useEffect(() => {
@@ -143,6 +145,22 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
       }));
   }, [judges, data.organization]);
 
+  // Assignments the list above cannot show (judge no longer qualified for this org).
+  // They still count toward "N judge(s) assigned", so they must stay visible and removable.
+  // Same roles as the /people/:id route guard; others would land on an access-denied page.
+  const { hasRole } = useAuthContext();
+  const canOpenPeople = hasRole(UserRole.SECRETARY) || hasRole(UserRole.SITE_ADMIN);
+
+  // Only meaningful once the qualification read has succeeded: while loading, or
+  // after a failed read, `judges` is empty and would wrongly flag every judge.
+  const unlistedAssignedJudges = useMemo(
+    () =>
+      judgesLoaded
+        ? data.assignedJudges.filter(aj => !availableJudges.some(j => j.id === aj.judgeId))
+        : [],
+    [judgesLoaded, data.assignedJudges, availableJudges]
+  );
+
   // The create-then-assign operation and its modal dialog are owned here, above
   // the Tabs, so they do not depend on the Judges tab staying mounted.
   const judgeCreate = useShowEditJudgeCreate(form, data.organization);
@@ -157,6 +175,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
           assignedDate: new Date().toISOString().split('T')[0],
           availableStartTime: 'Full Day',
           availableEndTime: 'Full Day',
+          hasShowLevelAssignment: true,
         };
         const updatedJudges = [...data.assignedJudges, newAssignment];
         form?.setValue('assignedJudges', updatedJudges);
@@ -259,7 +278,7 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
                 </Button>
               )}
               {data.organization ? (
-                availableJudges.length > 0 ? (
+                availableJudges.length > 0 || unlistedAssignedJudges.length > 0 ? (
                   <div className="space-y-4">
                     <p className="text-sm text-muted-foreground">
                       Select judges qualified for {data.organization} shows:
@@ -307,6 +326,61 @@ export const ShowEditForm: React.FC<ShowEditFormProps> = ({
                                 <div className="text-sm text-success mt-2 font-medium">
                                   Assigned to show
                                 </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+
+                    {unlistedAssignedJudges.map(aj => {
+                      // Unchecking removes only show-level rows. Offer it only when no class
+                      // row would survive the save and reappear on reload.
+                      const removable =
+                        aj.hasShowLevelAssignment === true && !aj.assignedClasses?.length;
+                      return (
+                        <div
+                          key={aj.judgeId}
+                          className="border border-warning rounded-xl p-4 bg-warning/10 transition-all duration-200"
+                        >
+                          {/* Unchecking only removes show-level rows; a class-only judge must be changed on the class. */}
+                          <div className="flex items-start gap-3">
+                            {removable && (
+                              <Checkbox
+                                id={`judge-${aj.judgeId}`}
+                                checked
+                                onCheckedChange={checked =>
+                                  handleJudgeToggle(aj.judgeId, aj.judgeName, checked as boolean)
+                                }
+                              />
+                            )}
+                            <div className="flex-1">
+                              {removable ? (
+                                <label
+                                  htmlFor={`judge-${aj.judgeId}`}
+                                  className="font-medium cursor-pointer"
+                                >
+                                  {aj.judgeName}
+                                </label>
+                              ) : (
+                                <div className="font-medium">{aj.judgeName}</div>
+                              )}
+                              <div className="text-sm text-muted-foreground mt-1">
+                                Not qualified for {data.organization} shows. Add an active{' '}
+                                {data.organization} qualification to this judge
+                                {removable
+                                  ? ', or uncheck to remove them from this show.'
+                                  : '. They are still assigned to a class, so change that class’s judge to remove them.'}
+                              </div>
+                              {canOpenPeople && (
+                                <Link
+                                  to={`/people/${aj.judgeId}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="inline-flex min-h-[44px] items-center text-sm font-medium text-primary underline mt-2"
+                                >
+                                  Open judge record to add a qualification
+                                </Link>
                               )}
                             </div>
                           </div>

@@ -1,6 +1,5 @@
 import React, { useCallback, useMemo, useRef } from 'react';
-import { Plus, Calendar, History, Info, Users, Palette } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Calendar, History, Info, Users, Palette } from 'lucide-react';
 import { TabsContent } from '@/components/ui/tabs';
 import { PrimaryTabs, type PrimaryTabDef } from '@/components/common/PrimaryTabs';
 import { PageShell } from '@/components/common/PageShell';
@@ -17,6 +16,7 @@ import { BrandingTab } from './BrandingTab';
 import { ClubDialogs } from './ClubDialogs';
 import { ClubShowsUnsettled } from './ClubShowsUnsettled';
 import { useClubDetailsState } from './useClubDetailsState';
+import { RevokeClubAuthorizationDialog } from './RevokeClubAuthorizationDialog';
 
 export type { ClubDetailsProps };
 
@@ -106,10 +106,12 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
           canEditBranding={state.canEditBranding}
           canAuthorizeClub={state.canAuthorizeClub}
           isClubAuthorized={state.isClubAuthorized}
-          isAuthorizationLoading={state.isAuthorizationLoading}
-          isAuthorizationUpdating={state.isAuthorizationUpdating}
-          onAuthorizeClub={state.handleAuthorizeClub}
-          onRevokeAuthorization={state.handleRevokeAuthorization}
+        />
+        <RevokeClubAuthorizationDialog
+          open={state.showRevokeConfirm}
+          onOpenChange={state.setShowRevokeConfirm}
+          clubName={selectedClub.name}
+          onConfirm={state.handleRevokeAuthorization}
         />
 
         {!state.canEditClub && (
@@ -129,14 +131,8 @@ const ClubDetails: React.FC<ClubDetailsProps> = ({ selectedClub }) => {
             onValueChange={value => state.setActiveTab(value as ClubTab)}
           >
             <TabsContent value="upcoming" className="pt-6">
-              <div className="flex justify-end mb-4">
-                {upcomingShows.length > 0 && state.canAddShow && (
-                  <Button onClick={state.handleAddShow} className="min-h-[44px]">
-                    <Plus className="w-5 h-5 mr-2" />
-                    Add Show
-                  </Button>
-                )}
-              </div>
+              {/* Add Show for this club is in the header Actions menu (CRUD standard
+                  decision 6); an empty list still invites the first show below. */}
               {showsStatus === 'ready' ? (
                 <UpcomingShowsTab
                   shows={upcomingShows}

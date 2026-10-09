@@ -4,21 +4,23 @@
  * confirmations (MYK9-1031).
  *
  * A print is "current" only when the descriptor built here equals the one the confirmation stored,
- * so every surface that answers "is this printed?" must build it from the same class rows. Reports
- * reads them with `getClassesByTrialId`; this hook is that read plus `buildClassPaperworkMap`, in
- * one place. Overview (`ShowDeskPanel`) and Reports still assemble their own and should migrate
- * onto it (MYK9-1032).
+ * so every surface that answers "is this printed?" must build it from the same class rows.
+ * Overview (`ShowDeskPanel`) uses this hook; Reports reads its class rows through the same
+ * `useShowClassRows` hook (one query key), and both gate on `resolveReportReadiness`.
  *
- * Both sub-reads are reported as `ReadStatus` so the caller can fold them with `combineReads`, and
- * `available` is false until BOTH can be trusted: without the class rows or the confirmations,
- * "not printed" is not a finding and no print row should be drawn from it.
+ * `available` is false until BOTH sub-reads can be trusted: without the class rows or the confirmations,
+ * "not printed" is not a finding. React Query keeps `data` after a failed or in-flight refetch, so
+ * the class read must be `ready` (settled, not erroring, not refetching), never merely have data.
+ *
+ * A status that reads unknown never hides an action: while the class rows are loading or failed,
+ * rows still render from the tree classes (print link only, state unknown, no confirmation, because
+ * those rows lack the facts a fingerprint includes and would record a print against obsolete facts).
  */
 import { useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
 
 import type { ReadStatus } from '@/features/_shared/combineReads';
-import { cacheStrategies, queryKeys } from '@/lib/queryClient';
-import { getClassesByTrialId } from '@/services/database/classes';
+import { readinessOf, resolveReportReadiness } from '@/hooks/queries/reportReadiness';
+import { useShowClassRows } from '@/hooks/queries/useShowClassRows';
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 import { buildClassPaperworkMap } from './buildClassPaperworkMap';
 import type { SecretaryCockpitPaperwork } from './secretaryCockpitTypes';
@@ -27,45 +29,59 @@ import { useShowPaperworkPrints } from './useShowPaperworkPrints';
 export function useShowClassPaperwork(input: {
   showId: string;
   trials: readonly { id: string; trialDate: string }[];
+  /** Tree class rows (camelCase): the print-link-only fallback while the full rows are unavailable. */
+  classes?: readonly { id: string; trialId?: string | null }[];
   entries: readonly unknown[];
   returnTo: string;
 }) {
-  const { showId, trials, entries, returnTo } = input;
+  const { showId, trials, classes = [], entries, returnTo } = input;
   const prints = useShowPaperworkPrints(showId);
   const trialIds = useMemo(() => trials.map(trial => trial.id), [trials]);
-  const classFacts = useQuery({
-    queryKey: [...queryKeys.showClasses(showId), 'paperwork', trialIds],
-    queryFn: async () => {
-      const results = await Promise.all(trialIds.map(id => getClassesByTrialId(id)));
-      const failed = results.find(result => result.error);
-      if (failed?.error) throw failed.error;
-      return results.flatMap(({ data }) => data ?? []);
-    },
-    enabled: Boolean(showId) && trialIds.length > 0,
-    ...cacheStrategies.moderate,
-    networkMode: 'always',
+
+  // The same cached read Reports fingerprints (one key, one subscription, refetch on mount).
+  const classFacts = useShowClassRows({
+    showId,
+    trialId: 'all',
+    trialIds,
+    enabled: trialIds.length > 0,
   });
 
+  // Only a settled read counts: `data` survives a failed or in-flight refetch, and cached rows
+  // that are being replaced describe obsolete facts, so a confirmation recorded now would stamp
+  // a fingerprint nobody can match. `ready` is Reports' rule for the same question.
+  const classesAvailable = resolveReportReadiness([readinessOf(classFacts)]) === 'ready';
   const available =
-    classFacts.data !== undefined &&
-    prints.data !== undefined &&
-    !prints.isError &&
-    !prints.syncFailed;
+    classesAvailable && prints.data !== undefined && !prints.isError && !prints.syncFailed;
 
-  const byClassId = useMemo<ReadonlyMap<string, readonly SecretaryCockpitPaperwork[]>>(
-    () =>
-      buildClassPaperworkMap({
-        showId,
-        classes: (classFacts.data ?? []) as unknown as DbClass[],
-        trials,
-        entries: entries as unknown as DbEntry[],
-        records: prints.data ?? [],
-        recordsUnavailable: !available,
-        returnTo,
-      }),
-    [available, classFacts.data, entries, prints.data, returnTo, showId, trials]
-  );
+  const byClassId = useMemo<ReadonlyMap<string, readonly SecretaryCockpitPaperwork[]>>(() => {
+    return buildClassPaperworkMap({
+      showId,
+      classes: (classesAvailable
+        ? (classFacts.data ?? [])
+        : classes.map(classItem => ({
+            ...classItem,
+            trial_id: classItem.trialId,
+          }))) as unknown as DbClass[],
+      trials,
+      entries: entries as unknown as DbEntry[],
+      records: classesAvailable ? (prints.data ?? []) : [],
+      recordsUnavailable: !available,
+      withholdConfirmation: !classesAvailable,
+      returnTo,
+    });
+  }, [
+    available,
+    classFacts.data,
+    classes,
+    classesAvailable,
+    entries,
+    prints.data,
+    returnTo,
+    showId,
+    trials,
+  ]);
 
+  // Reported for `combineReads` so a caller can say which part is unavailable (MYK9-1031).
   const reads: ReadStatus[] = [
     {
       key: 'class-rows',

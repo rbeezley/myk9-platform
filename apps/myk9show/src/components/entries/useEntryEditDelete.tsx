@@ -6,7 +6,7 @@
  * `soft_delete_entry` requires `can_manage_show` for the entry's show, so the host passes
  * `enabled` from its own per-show manage gate; an exhibitor withdraws instead.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { entryDeleteDetail } from '@/features/delete';
 import {
   EditPanelDeleteButton,
@@ -28,6 +28,7 @@ interface UseEntryEditDeleteArgs {
   closeSheet: () => void;
   onDeleted?: ((entryIds: string[]) => void) | undefined;
   onRestored?: (() => void) | undefined;
+  onBlockedNavigate?: (() => void) | undefined;
 }
 
 export function useEntryEditDelete({
@@ -36,8 +37,15 @@ export function useEntryEditDelete({
   closeSheet,
   onDeleted,
   onRestored,
+  onBlockedNavigate,
 }: UseEntryEditDeleteArgs) {
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const recoveryNavigationPending = useRef(false);
+  useEffect(() => {
+    if (!recoveryNavigationPending.current || deleteOpen) return;
+    recoveryNavigationPending.current = false;
+    onBlockedNavigate?.();
+  }, [deleteOpen, onBlockedNavigate]);
   const option = {
     kind: 'entry' as const,
     objectLabel: 'entry',
@@ -54,6 +62,9 @@ export function useEntryEditDelete({
       },
     ],
     onRestored,
+    onBlockedAction: () => {
+      recoveryNavigationPending.current = true;
+    },
   };
 
   /** DOM-first in the footer: the bottom line on a phone (it stacks in reverse), far left from sm up. */

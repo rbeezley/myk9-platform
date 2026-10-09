@@ -9,6 +9,7 @@ import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import type { Dog } from '@/types/dog-types';
 import DogDetailsMain from '../index';
+import { registeredPageActions, resetPageActions, runPageAction } from '@/test/utils/pageActions';
 
 const dog: Dog = {
   id: 'dog-1',
@@ -141,5 +142,23 @@ describe('saving a dog status from the card badge', () => {
     await waitFor(() => expect(onUpdate).toHaveBeenCalled());
     expect(screen.getByRole('button', { name: /active.*change status/i })).toBeInTheDocument();
     expect(screen.queryByText('Retired')).not.toBeInTheDocument();
+  });
+});
+
+describe('the dog page in the header Actions menu (CRUD standard decision 6)', () => {
+  beforeEach(() => {
+    resetPageActions();
+  });
+
+  it('offers Edit, Change Photo and Change status, the items its card ⋮ used to hold', () => {
+    render(<DogDetailsMain dog={dog} onUpdate={vi.fn()} />);
+    expect(registeredPageActions()).toEqual(['Edit dog', 'Change Photo', 'Change status']);
+  });
+
+  it('opens the same status dialog the badge does', () => {
+    render(<DogDetailsMain dog={dog} onUpdate={vi.fn()} />);
+    expect(screen.queryByText('Deceased')).not.toBeInTheDocument();
+    runPageAction('Change status');
+    expect(screen.getByText('Deceased')).toBeInTheDocument();
   });
 });

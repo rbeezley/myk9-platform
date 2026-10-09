@@ -9,6 +9,8 @@ import {
   usePageEditTargetStore,
   useSetupAddClassesTrial,
 } from '@/features/actions/pageEditTarget';
+import type { AppAction } from '@/features/actions/actionRegistry';
+import { useShowStore } from '@/store/showStore';
 import type { ShowManageScope, ShowManageScopeStatus } from '@/hooks/useShowManageScope';
 
 const SHOW_ID = 'dededede-0000-0000-0000-000000000010';
@@ -20,11 +22,13 @@ const scope = vi.hoisted(() => ({
 }));
 
 const publishInfoRead = vi.hoisted(() => vi.fn());
+const rbac = vi.hoisted(() => ({ loading: false }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => ({
     hasRole: () => true,
     hasPermission: () => true,
+    rbacLoading: rbac.loading,
   }),
 }));
 
@@ -48,6 +52,12 @@ vi.mock('@/services/database/supabaseClient', () => ({
   },
 }));
 
+/** The mocked viewer holds every create, so the Create group is on every route; these tests
+ * are about the sections above it, which are its own describe's business. */
+function aboveCreate(actions: AppAction[]): AppAction[] {
+  return actions.filter(action => action.group !== 'create');
+}
+
 function wrapper({ children }: { children: ReactNode }) {
   // A QueryClient too: the hook composes the premium publish flow, which the
   // app always renders inside a provider.
@@ -64,6 +74,7 @@ beforeEach(() => {
   scope.status = 'resolved';
   scope.canManage = true;
   scope.canOperate = true;
+  rbac.loading = false;
   publishInfoRead.mockReset();
   publishInfoRead.mockResolvedValue({ data: null, error: null });
 });
@@ -87,13 +98,13 @@ describe('useCurrentActions — ownership must be resolved before anything is of
       scope.status = status;
       const { result } = renderHook(() => useCurrentActions(), { wrapper });
       expect(result.current.route).toMatchObject({ kind: 'show', showId: SHOW_ID });
-      expect(result.current.actions).toEqual([]);
+      expect(aboveCreate(result.current.actions)).toEqual([]);
     }
   );
 
   it('offers the show list once the scope resolves (positive control)', () => {
     const { result } = renderHook(() => useCurrentActions(), { wrapper });
-    expect(result.current.actions.map(action => action.id)).toEqual([
+    expect(aboveCreate(result.current.actions).map(action => action.id)).toEqual([
       'show-settings',
       'show-add-mail-in-entry',
       'show-enter-own-dogs',
@@ -101,6 +112,7 @@ describe('useCurrentActions — ownership must be resolved before anything is of
       'show-add-classes',
       'show-open-entry-management',
       'show-generate-publish-premium',
+      'show-close-out',
     ]);
   });
 
@@ -108,7 +120,7 @@ describe('useCurrentActions — ownership must be resolved before anything is of
     scope.canManage = false;
     scope.canOperate = false;
     const { result } = renderHook(() => useCurrentActions(), { wrapper });
-    expect(result.current.actions).toEqual([]);
+    expect(aboveCreate(result.current.actions)).toEqual([]);
   });
 
   it.each([
@@ -167,7 +179,7 @@ describe('useCurrentActions — a detail page registers its Edit (MYK9-928)', ()
     const { result } = renderHook(() => useBoth({ kind: 'trial', enabled: false, run: vi.fn() }), {
       wrapper,
     });
-    expect(result.current.actions).toEqual([]);
+    expect(aboveCreate(result.current.actions)).toEqual([]);
   });
 
   it('withdraws the item when the page unmounts', () => {
@@ -177,7 +189,7 @@ describe('useCurrentActions — a detail page registers its Edit (MYK9-928)', ()
       () => useBoth({ kind: 'dog', enabled: true, run: vi.fn() }),
       { wrapper }
     );
-    expect(result.current.actions.map(action => action.id)).toEqual(['dog-edit']);
+    expect(aboveCreate(result.current.actions).map(action => action.id)).toEqual(['dog-edit']);
     unmount();
     expect(usePageEditTargetStore.getState().target).toBeNull();
   });
@@ -195,5 +207,76 @@ describe('useCurrentActions — Setup hands its picked trial to Add classes (MYK
     expect(result.current.actions.find(a => a.id === 'show-add-classes')?.href).toBe(
       `/secretary/create-show/wizard?showId=${SHOW_ID}&mode=add-classes&trialId=t3`
     );
+  });
+});
+
+describe('useCurrentActions — labelled sections (CRUD standard decision 6)', () => {
+  beforeEach(() => {
+    useShowStore.setState({ shows: [] });
+  });
+
+  it('heads the show section with the show name from the replicated store', () => {
+    useShowStore.setState({
+      shows: [{ id: SHOW_ID, name: 'Fall Scent Weekend' }] as never,
+    });
+    const { result } = renderHook(() => useCurrentActions(), { wrapper });
+    expect(result.current.groups.map(group => [group.id, group.heading])).toEqual([
+      ['show', 'Fall Scent Weekend'],
+      ['create', 'Create'],
+    ]);
+  });
+
+  it('withholds Close out show once the stored show is completed', () => {
+    useShowStore.setState({
+      shows: [{ id: SHOW_ID, name: 'Fall Scent Weekend', status: 'completed' }] as never,
+    });
+    const { result } = renderHook(() => useCurrentActions(), { wrapper });
+    const ids = result.current.actions.map(action => action.id);
+    expect(ids).not.toContain('show-close-out');
+    expect(ids).toContain('show-settings');
+  });
+
+  it('falls back to "This show" before the store has the show', () => {
+    const { result } = renderHook(() => useCurrentActions(), { wrapper });
+    expect(result.current.groups[0]?.heading).toBe('This show');
+  });
+
+  it('heads the page section with the title the page registered', () => {
+    const { result } = renderHook(
+      () => {
+        usePageEditAction({
+          kind: 'trial',
+          enabled: true,
+          run: vi.fn(),
+          title: 'Saturday trial 1',
+        });
+        return useCurrentActions();
+      },
+      { wrapper }
+    );
+    expect(result.current.groups.map(group => group.heading)).toEqual([
+      'Saturday trial 1',
+      'This show',
+      'Create',
+    ]);
+  });
+
+  it('keeps every action in exactly one section, in the flat list order', () => {
+    const { result } = renderHook(() => useCurrentActions(), { wrapper });
+    expect(result.current.groups.flatMap(group => group.actions)).toEqual(result.current.actions);
+  });
+});
+
+describe('useCurrentActions — Create waits for permissions', () => {
+  it('offers no Create item while RBAC is loading, then all four once it settles', () => {
+    rbac.loading = true;
+    const { result, rerender } = renderHook(() => useCurrentActions(), { wrapper });
+    expect(result.current.actions.filter(action => action.group === 'create')).toEqual([]);
+
+    rbac.loading = false;
+    rerender();
+    expect(
+      result.current.actions.filter(action => action.group === 'create').map(action => action.id)
+    ).toEqual(['create-show', 'create-dog', 'create-person', 'create-club']);
   });
 });

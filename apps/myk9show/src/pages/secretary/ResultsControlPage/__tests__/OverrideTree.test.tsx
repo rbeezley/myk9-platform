@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
+import { replicatedToClass } from '@/store/class-store-helpers';
 import { OverrideTree } from '../OverrideTree';
 import type {
   ShowSettings,
@@ -56,6 +57,7 @@ function renderTree(opts?: {
   selectedClasses?: Set<string>;
   onToggleClass?: (id: string) => void;
   onToggleAllInTrial?: (trialId: string, ids: string[]) => void;
+  classes?: SyncableClassData[];
 }) {
   return render(
     <OverrideTree
@@ -63,7 +65,7 @@ function renderTree(opts?: {
       showId="show-1"
       settings={settings}
       trials={trials}
-      classes={classes}
+      classes={opts?.classes ?? classes}
       trialOverrides={opts?.trialOverrides ?? []}
       classOverrides={opts?.classOverrides ?? []}
       selectedClasses={opts?.selectedClasses ?? new Set()}
@@ -170,6 +172,73 @@ describe('OverrideTree', () => {
       expect.objectContaining({ entityId: 'class-1', level: 'class', facet: 'checkin' }),
       expect.any(Object)
     );
+  });
+
+  it('MYK9-1049: labels each class row with the full class label, section included', async () => {
+    const { user } = renderTree({
+      classes: [
+        {
+          id: 'class-a',
+          trialId: 'trial-1',
+          element: 'Container',
+          level: 'Novice',
+          section: 'A',
+          className: 'Novice',
+        } as SyncableClassData,
+        {
+          id: 'class-b',
+          trialId: 'trial-1',
+          element: 'Container',
+          level: 'Novice',
+          section: 'B',
+          className: 'Novice',
+        } as SyncableClassData,
+      ],
+    });
+    await user.click(screen.getByRole('button', { name: /Trial A.*classes/ }));
+    expect(screen.getByText('Container Novice A')).toBeInTheDocument();
+    expect(screen.getByText('Container Novice B')).toBeInTheDocument();
+    expect(screen.queryByText('Novice', { exact: true })).not.toBeInTheDocument();
+  });
+
+  it('MYK9-1049: tells two same-element same-level classes apart by their stored name', async () => {
+    const { user } = renderTree({
+      classes: [
+        {
+          id: 'class-1',
+          trialId: 'trial-1',
+          element: 'Interior',
+          level: 'Advanced',
+          className: 'Interior Advanced',
+        } as SyncableClassData,
+        {
+          id: 'class-2',
+          trialId: 'trial-1',
+          element: 'Interior',
+          level: 'Advanced',
+          className: 'Interior Advanced Preliminary',
+        } as SyncableClassData,
+      ],
+    });
+    await user.click(screen.getByRole('button', { name: /Trial A.*classes/ }));
+    expect(screen.getByText('Interior Advanced Preliminary')).toBeInTheDocument();
+  });
+
+  it('MYK9-1049: labels a class from the real store mapping with element and section', async () => {
+    const { user } = renderTree({
+      classes: [
+        replicatedToClass({
+          id: 'class-a',
+          trialId: 'trial-1',
+          name: 'Novice',
+          level: 'Novice',
+          element: 'Container',
+          section: 'A',
+        }),
+      ],
+    });
+    await user.click(screen.getByRole('button', { name: /Trial A.*class/ }));
+    expect(screen.getByText('Container Novice A')).toBeInTheDocument();
   });
 
   it.each(['visibility', 'checkin'] as const)(

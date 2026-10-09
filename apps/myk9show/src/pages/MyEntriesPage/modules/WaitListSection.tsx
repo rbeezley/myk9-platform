@@ -39,6 +39,8 @@ function getOfferDisplayState(entry: WaitListEntry, now: Date): OfferDisplayStat
   if (entry.status === 'accepted') return 'reconciled';
   if (entry.status === 'expired') return 'expired';
   if (entry.status !== 'offered') return 'waiting';
+  // Mail-in offers keep their stored timestamp but the expiry job never closes them.
+  if (entry.joinedVia === 'mail_in') return 'offered';
 
   const offerDeadline = entry.offerExpiresAt ? Date.parse(entry.offerExpiresAt) : Number.NaN;
   if (Number.isFinite(offerDeadline) && offerDeadline <= now.getTime()) return 'checking';
@@ -47,12 +49,15 @@ function getOfferDisplayState(entry: WaitListEntry, now: Date): OfferDisplayStat
 }
 
 /**
- * The deadline as a clock time in the trial's zone, matching the offer message
- * and email ("claim it by <day, time>"). No countdown: a ticking figure turns a
- * calm offer into pressure. Invalid or missing zones fall back to New York, the
- * same fallback the server-side copy uses.
+ * Mail-in offers have no automatic deadline. Online deadlines use the trial's
+ * zone, matching the offer message and email ("claim it by <day, time>"). No
+ * countdown: a ticking figure turns a calm offer into pressure. Invalid or
+ * missing zones fall back to New York, like the server-side copy.
  */
-function describeOfferDeadline(entry: WaitListEntry): string {
+function describeOfferTiming(entry: WaitListEntry): string {
+  if (entry.joinedVia === 'mail_in') {
+    return 'The club is holding this spot while awaiting your payment. Pay the club directly or contact the show secretary.';
+  }
   const when = formatOfferDeadline(entry.offerExpiresAt, entry.trialTimezone);
   return when ? `Claim by ${when}` : 'Claim it before the offer ends.';
 }
@@ -136,10 +141,14 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
             {entries.map(entry => {
               const displayState = getOfferDisplayState(entry, now);
               const isFocused = entry.id === focusedOfferId;
-              const isOfferActionable = displayState === 'offered' && entry.promotedEntryId;
+              const isOfferActionable =
+                displayState === 'offered' &&
+                entry.joinedVia !== 'mail_in' &&
+                entry.promotedEntryId;
               const isPayingOffer = payingEntryId === entry.promotedEntryId;
               const isDecliningOffer = decliningOfferId === entry.id;
-              const hasPaymentError = paymentErrorOfferId === entry.id && !!paymentError;
+              const hasPaymentError =
+                entry.joinedVia !== 'mail_in' && paymentErrorOfferId === entry.id && !!paymentError;
               const hasDeclineError = declineErrorOfferId === entry.id && !!declineError;
 
               return (
@@ -167,7 +176,7 @@ export const WaitListSection: React.FC<WaitListSectionProps> = ({
                         </p>
                         {displayState === 'offered' && (
                           <p className="mt-1 text-sm font-medium text-success">
-                            {describeOfferDeadline(entry)}
+                            {describeOfferTiming(entry)}
                           </p>
                         )}
                         {displayState === 'checking' && (

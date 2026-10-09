@@ -107,13 +107,9 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
               </Select>
             </FormField>
 
-            <FormField
-              label="Status"
-              fieldId="status"
-              hint={
-                !initialIsPublic ? 'Publish from the status badge on the show page.' : undefined
-              }
-            >
+            {/* Hint sits BELOW the select: FormField renders hints above the control,
+                which pushed this select out of line with Show Name and Organization. */}
+            <FormField label="Status" fieldId="status">
               <Select value={data.status} onValueChange={handleSelectChange('status')}>
                 <SelectTrigger id="status">
                   <SelectValue placeholder="Select status" />
@@ -188,6 +184,11 @@ export const ShowEditBasicInfoTab: React.FC<ShowEditBasicInfoTabProps> = ({
                   </SelectItem>
                 </SelectContent>
               </Select>
+              {!initialIsPublic && (
+                <p id="status-hint" className="text-xs text-muted-foreground">
+                  Publish from the status badge on the show page.
+                </p>
+              )}
             </FormField>
           </div>
 

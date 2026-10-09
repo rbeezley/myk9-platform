@@ -15,9 +15,12 @@ interface SharedSubscription {
   unsubscribes: Array<() => void>;
 }
 
+// A sync's replica writes land more than 100 ms apart (~5 RPCs in 2 s on one page load, MYK9-1066).
+export const ACCOUNT_TODAY_COALESCE_MS = 1500;
+
 export function createAccountTodayEntriesSubscriptionRegistry(
   sources: readonly AccountTodaySubscriptionSource[],
-  coalesceMs = 100
+  coalesceMs = ACCOUNT_TODAY_COALESCE_MS
 ) {
   const clients = new WeakMap<QueryClient, Map<string, SharedSubscription>>();
 

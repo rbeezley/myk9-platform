@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@/test/utils/testUtils';
+import { render, screen, within } from '@/test/utils/testUtils';
 import userEvent from '@testing-library/user-event';
+import { Route, Routes } from 'react-router-dom';
 import ReportsPage from '../index';
+import { buildReportPaperworkDescriptor } from '@/features/show-map/cockpit/buildReportPaperworkDescriptor';
 
 const mockReportState = vi.hoisted(() => ({
   trialOneRegistryId: 'AKC',
@@ -9,6 +11,9 @@ const mockReportState = vi.hoisted(() => ({
   /** Overrides the derived state so the paused/stale paths are reachable. */
   dataState: null as null | 'loading' | 'unavailable' | 'stale' | 'error' | 'ready',
 }));
+
+/** The rows the page hands the preview, captured so a test can fingerprint exactly what it saw. */
+const seenRows = vi.hoisted(() => ({ classes: [] as unknown[], entries: [] as unknown[] }));
 
 const mockPrintState = vi.hoisted(() => ({
   records: [] as Array<Record<string, unknown>>,
@@ -209,24 +214,31 @@ vi.mock('../reportPreviewUtils', () => ({
 }));
 
 vi.mock('../ReportPreview', () => ({
-  ReportPreview: (props: { trialId: string; classId: string }) => (
-    <div data-testid="report-preview" data-trial-id={props.trialId} data-class-id={props.classId}>
-      Preview
-    </div>
-  ),
+  ReportPreview: (props: {
+    trialId: string;
+    classId: string;
+    classes?: unknown[];
+    entries?: unknown[];
+  }) => {
+    seenRows.classes = props.classes ?? [];
+    seenRows.entries = props.entries ?? [];
+    return (
+      <div data-testid="report-preview" data-trial-id={props.trialId} data-class-id={props.classId}>
+        Preview
+      </div>
+    );
+  },
 }));
 
-describe('ReportsPage wires the show’s own phase into the report picker', () => {
+describe('ReportsPage shows the report phases as visible sections', () => {
   /**
-   * REV-2341 R-4. The ordering function and the control bar were both well
-   * pinned; the HOP between them was not. `grep -rn showPhase src` returned one
-   * production occurrence, and forcing it to `'unknown'` left every ReportsPage
-   * test green — the classic last-hop drop. This file renders the real page on a
-   * show that is running today and reads the order off the DOM.
+   * REV-2341 R-4: the ordering function and the control bar were both well pinned; the HOP
+   * between them was not, and forcing `showPhase` to 'unknown' left every page test green.
+   * This renders the real page on a show that is running today and reads the sections off the DOM.
    */
   beforeEach(() => {
-    // Freeze only Date. Keeping real timers lets user-event and Base UI's
-    // popover scheduling run normally while every render sees one show day.
+    // Freeze only Date. Keeping real timers lets user-event run normally while every render
+    // sees one show day.
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(SHOW_DAY_AFTERNOON);
     mockReportState.trialOneRegistryId = 'AKC';
@@ -243,38 +255,176 @@ describe('ReportsPage wires the show’s own phase into the report picker', () =
     vi.useRealTimers();
   });
 
-  it('puts "During the show" first, and Check-in Sheet first within it', async () => {
-    const user = userEvent.setup();
-    render(<ReportsPage />, { initialRoute: '/shows/show-1/reports' });
-
-    await user.click(screen.getByRole('combobox', { name: /report/i }));
-    // Wait for the listbox to mount before reading order off it. Under load the
-    // click resolves before the options render, and a synchronous read then
-    // fails on an empty popover rather than on the order.
-    await screen.findByText('During the show');
-
-    const headings = ['Before the show', 'During the show', 'After the show', 'Anytime'].map(
-      label => screen.getByText(label)
+  // Mount on the real route so `useParams` resolves the show id the way the app does; the print
+  // records are scoped by it.
+  const renderPage = (route = '/shows/show-1/reports') =>
+    render(
+      <Routes>
+        <Route path="/shows/:showId/reports" element={<ReportsPage />} />
+      </Routes>,
+      { initialRoute: route }
     );
-    const firstHeading = [...headings].sort((a, b) =>
-      a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
-    )[0];
-    expect(firstHeading).toHaveTextContent('During the show');
 
-    const options = screen.getAllByRole('option').map(option => option.textContent ?? '');
-    expect(options[0]).toContain('Check-in Sheet');
-    expect(options[1]).toContain('Score Sheet');
+  const card = (reportId: string) =>
+    document.querySelector<HTMLElement>(`[data-report-id="${reportId}"]`) as HTMLElement;
+
+  it('shows Before, During and After as sections with the current phase first, marked Now', () => {
+    renderPage();
+
+    const headings = screen
+      .getAllByRole('heading', { level: 2 })
+      .map(heading => heading.textContent ?? '');
+    expect(headings).toEqual(['During the show', 'After the show', 'Before the show', 'Anytime']);
+    // "Now" appears once, on the phase the show is in, and nowhere else.
+    expect(screen.getAllByText('Now')).toHaveLength(1);
+    const duringSection = screen.getByRole('region', { name: 'During the show' });
+    expect(within(duringSection).getByText('Now')).toBeInTheDocument();
   });
 
-  it('still lists the pre-show reports — the order is not a filter', async () => {
+  it('puts Check-in Sheet and Score Sheet first within the current phase', () => {
+    renderPage();
+
+    const during = screen.getByRole('region', { name: 'During the show' });
+    const ids = within(during)
+      .getAllByTestId('report-card')
+      .map(item => item.getAttribute('data-report-id'));
+    expect(ids.slice(0, 2)).toEqual(['check-in-sheet', 'scoresheet']);
+  });
+
+  it('still lists the pre-show reports — the order is not a filter', () => {
+    renderPage();
+
+    const before = screen.getByRole('region', { name: 'Before the show' });
+    expect(within(before).getByText('Show Flyer')).toBeInTheDocument();
+    expect(within(before).getByText('Waitlist Report')).toBeInTheDocument();
+  });
+
+  it('selects a report from its card and shows which one is selected', async () => {
     const user = userEvent.setup();
-    render(<ReportsPage />, { initialRoute: '/shows/show-1/reports' });
+    renderPage();
+    const select = (id: string) => within(card(id)).getAllByRole('button')[0] as HTMLElement;
 
-    await user.click(screen.getByRole('combobox', { name: /report/i }));
-    await screen.findByText('Before the show');
+    expect(select('check-in-sheet')).toHaveAttribute('aria-pressed', 'true');
+    await user.click(select('results-sheet'));
 
-    const options = screen.getAllByRole('option').map(option => option.textContent ?? '');
-    expect(options.some(name => name.includes('Show Flyer'))).toBe(true);
-    expect(options.some(name => name.includes('Waitlist Report'))).toBe(true);
+    expect(select('results-sheet')).toHaveAttribute('aria-pressed', 'true');
+    expect(select('check-in-sheet')).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  describe('moving to the controls', () => {
+    const scrollSpy = vi.fn();
+    beforeEach(() => {
+      scrollSpy.mockClear();
+      Element.prototype.scrollIntoView = scrollSpy;
+    });
+
+    it('moves focus to the controls region and scrolls it into view when a card is picked', async () => {
+      const user = userEvent.setup();
+      renderPage();
+      const controls = screen.getByRole('group', { name: 'Report controls' });
+      await user.click(within(card('results-sheet')).getAllByRole('button')[0] as HTMLElement);
+
+      expect(controls).toHaveFocus();
+      expect(scrollSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('lands a deep-linked report with its controls focused', () => {
+      renderPage('/shows/show-1/reports?report=scoresheet');
+
+      expect(screen.getByRole('group', { name: 'Report controls' })).toHaveFocus();
+      expect(scrollSpy).toHaveBeenCalled();
+    });
+
+    it('leaves focus alone when no report is named', () => {
+      renderPage();
+
+      expect(screen.getByRole('group', { name: 'Report controls' })).not.toHaveFocus();
+      expect(scrollSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  it('links a report the Overview also offers, and only those', () => {
+    renderPage();
+
+    const link = within(card('check-in-sheet')).getByRole('link', {
+      name: 'Also on Overview, per class',
+    });
+    expect(link).toHaveAttribute('href', '/shows/show-1');
+    expect(within(card('show-flyer')).queryByRole('link')).not.toBeInTheDocument();
+    // Results offers no report today, so no card claims it does.
+    expect(screen.queryByText(/Also on Results/)).not.toBeInTheDocument();
+  });
+
+  describe('print status chips', () => {
+    /** The page's own rows, fingerprinted the way the page fingerprints them. */
+    function checkInEvidence(mutate?: (record: Record<string, unknown>) => void) {
+      const descriptor = buildReportPaperworkDescriptor({
+        reportId: 'check-in-sheet',
+        scope: { kind: 'show', showId: 'show-1' },
+        classes: seenRows.classes as never,
+        entries: seenRows.entries as never,
+      });
+      if (!descriptor) throw new Error('fixture has no check-in descriptor');
+      const record: Record<string, unknown> = {
+        id: 'print-1',
+        reportId: 'check-in-sheet',
+        coverage: JSON.parse(JSON.stringify(descriptor.coverage)),
+        fingerprint: descriptor.fingerprint,
+        printedAt: '2026-03-22T17:00:00.000Z',
+        printedByName: 'Taylor Secretary',
+      };
+      mutate?.(record);
+      return record;
+    }
+
+    it('shows when a report was printed, from the print record', () => {
+      const first = renderPage();
+      const record = checkInEvidence();
+      first.unmount();
+      mockPrintState.records = [record];
+      renderPage();
+
+      expect(within(card('check-in-sheet')).getByTestId('report-card-status')).toHaveTextContent(
+        'Printed Mar 22'
+      );
+      // A fingerprinted report nobody has printed says so; one with no print record says nothing.
+      expect(within(card('scoresheet')).getByTestId('report-card-status')).toHaveTextContent(
+        'Not printed'
+      );
+      expect(
+        within(card('show-flyer')).queryByTestId('report-card-status')
+      ).not.toBeInTheDocument();
+    });
+
+    it('says the rows changed after the print when the fingerprint no longer matches', () => {
+      const first = renderPage();
+      const record = checkInEvidence(r => {
+        const coverage = r.coverage as { subjectFingerprints: Record<string, string> };
+        for (const key of Object.keys(coverage.subjectFingerprints)) {
+          coverage.subjectFingerprints[key] = 'fnv1a64:0000000000000000';
+        }
+      });
+      first.unmount();
+      mockPrintState.records = [record];
+      renderPage();
+
+      expect(within(card('check-in-sheet')).getByTestId('report-card-status')).toHaveTextContent(
+        'Changed since printed'
+      );
+    });
+
+    it('shows no status while the rows are not settled', () => {
+      mockReportState.dataState = 'stale';
+      renderPage();
+
+      expect(screen.queryAllByTestId('report-card-status')).toHaveLength(0);
+    });
+
+    it('shows no status when the print record could not be read', () => {
+      mockPrintState.syncFailed = true;
+      renderPage();
+
+      expect(screen.queryAllByTestId('report-card-status')).toHaveLength(0);
+    });
   });
 });

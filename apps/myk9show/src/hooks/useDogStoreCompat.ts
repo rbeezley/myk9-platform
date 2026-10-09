@@ -269,10 +269,17 @@ export const useDogStoreCompat = () => {
           registrations: cachedRegistrationRowsForDog(id, dogs, queryClient),
         })
       );
+
+      // The local write is what the roster reads, so refresh it NOW. Waiting on
+      // the network write's onSuccess left the detail page on the old value
+      // until reload (MYK9-1061), and never refreshed it when that write failed.
+      queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
+      if (updated.ownerId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.personDogs(updated.ownerId) });
+      }
     }
 
-    // Background Supabase sync — onSuccess invalidates the list query, which refetches from
-    // the now-fresh IndexedDB instead of returning stale data.
+    // Background Supabase sync — the roster was already invalidated after the local write.
     const dbUpdates = mapDogInputToUpdate(normalizedUpdates);
     runDogMutation(() => updateMutation.mutateAsync({ id, updates: dbUpdates })).catch(err => {
       logger.error(

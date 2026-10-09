@@ -127,7 +127,8 @@ export async function verifyE2EAuthCredentials(
   config: AuthPreflightConfig,
   fetchImpl: typeof fetch = fetch
 ): Promise<void> {
-  const tokenUrl = `${config.supabaseUrl.replace(/\/$/, '')}/auth/v1/token?grant_type=password`;
+  const authUrl = `${config.supabaseUrl.replace(/\/$/, '')}/auth/v1`;
+  const tokenUrl = `${authUrl}/token?grant_type=password`;
 
   for (const credential of config.credentials) {
     const response = await fetchImpl(tokenUrl, {
@@ -152,6 +153,19 @@ export async function verifyE2EAuthCredentials(
     if (typeof body?.access_token !== 'string' || body.access_token.length === 0) {
       throw new Error(
         `E2E auth preflight failed for ${credential.role}: Supabase returned no access token. Check VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.`
+      );
+    }
+
+    // The check created a session; end just that one so it does not pile up
+    // with the rest (MYK9-1056). The credentials are proven either way, so a
+    // failed sign-out is reported, not fatal.
+    const signOut = await fetchImpl(`${authUrl}/logout?scope=local`, {
+      method: 'POST',
+      headers: { apikey: config.anonKey, Authorization: `Bearer ${body.access_token}` },
+    }).catch(() => null);
+    if (!signOut?.ok) {
+      console.warn(
+        `E2E auth preflight: could not sign out the ${credential.role} check session (HTTP ${signOut?.status ?? 'none'}).`
       );
     }
   }

@@ -105,18 +105,20 @@ export const useClassQuery = (id: string, enabled = true) => {
 /**
  * Get classes by trial ID
  */
+export const classesByTrialQueryOptions = (trialId: string, enabled = true) => ({
+  queryKey: classKeys.byTrial(trialId),
+  queryFn: async () => {
+    const { data, error } = await getClassesByTrialId(trialId);
+    if (error) throw error;
+    return data;
+  },
+  enabled: enabled && !!trialId,
+  staleTime: 2 * 60 * 1000, // 2 minutes - trial data changes more frequently
+  gcTime: 5 * 60 * 1000, // 5 minutes
+});
+
 export const useClassesByTrialQuery = (trialId: string, enabled = true) => {
-  return useQuery({
-    queryKey: classKeys.byTrial(trialId),
-    queryFn: async () => {
-      const { data, error } = await getClassesByTrialId(trialId);
-      if (error) throw error;
-      return data;
-    },
-    enabled: enabled && !!trialId,
-    staleTime: 2 * 60 * 1000, // 2 minutes - trial data changes more frequently
-    gcTime: 5 * 60 * 1000, // 5 minutes
-  });
+  return useQuery(classesByTrialQueryOptions(trialId, enabled));
 };
 
 /**

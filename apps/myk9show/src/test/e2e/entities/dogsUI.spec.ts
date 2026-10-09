@@ -405,15 +405,17 @@ test.describe('Dogs UI — Detail page (secretary)', () => {
   test('actions menu shows Change Photo and Change Status, and no Delete', async ({ page }) => {
     await navigateToDogA(page);
 
-    // Open the identity rail's ⋮ (three-dot) menu
-    await page.locator('[data-dog-identity]').getByRole('button', { name: 'More actions' }).click();
-
-    await expect(page.getByRole('menuitem', { name: /Change Photo/i })).toBeVisible();
-    await expect(page.getByRole('menuitem', { name: /Change Status/i })).toBeVisible();
+    // The card has no ⋮ any more: every page action is in the header Actions menu
+    // (CRUD standard decision 6).
+    await expect(
+      page.locator('[data-dog-identity]').getByRole('button', { name: 'More actions' })
+    ).toHaveCount(0);
+    const menu = await openHeaderActionsMenu(page);
+    await expect(menu.getByRole('menuitem', { name: /Change Photo/i })).toBeVisible();
+    await expect(menu.getByRole('menuitem', { name: /Change Status/i })).toBeVisible();
     // Delete dog is the Edit panel's footer button (CRUD standard Phase 3).
-    await expect(page.getByRole('menuitem', { name: /Delete/i })).toHaveCount(0);
+    await expect(menu.getByRole('menuitem', { name: /Delete/i })).toHaveCount(0);
 
-    // Close menu
     await page.keyboard.press('Escape');
   });
 });

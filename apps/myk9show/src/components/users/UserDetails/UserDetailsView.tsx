@@ -108,12 +108,54 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
 
   const [isPhotoModalOpen, setIsPhotoModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  // Edit person is the first item of the header Actions menu (MYK9-928), offered only while
-  // the person is live: a removed record is readable, not editable, and its banner says so.
+  // Every action on this person lives in the header Actions menu (CRUD standard decision 6),
+  // each offered only while the person is live: a removed record is readable, not editable,
+  // and its banner says so. Delete is the Edit panel's footer button, never a menu item.
   usePageEditAction({
     kind: 'person',
     enabled: !isRemoved,
     run: () => setIsEditModalOpen(true),
+    title: fullName,
+    extras: isRemoved
+      ? []
+      : [
+          {
+            id: 'photo',
+            label: 'Change Photo',
+            icon: 'photo',
+            run: () => setIsPhotoModalOpen(true),
+          },
+          ...(canInvite
+            ? [
+                {
+                  id: 'send-invitation',
+                  label: hasSignInAccount ? 'Send Sign-In Link' : 'Send Invitation',
+                  icon: 'send' as const,
+                  disabledReason: isSending ? 'Sending…' : undefined,
+                  run: () =>
+                    sendInvitation({
+                      personId: person.id,
+                      email: person.email,
+                      firstName,
+                      roleNames: (person.roles ?? []).map(String),
+                    }),
+                },
+              ]
+            : []),
+          ...(canManageStatus
+            ? [
+                {
+                  id: 'status',
+                  label: accountStatus === 'suspended' ? 'Reinstate account' : 'Suspend account',
+                  icon: 'status' as const,
+                  disabledReason: statusActionDisabled
+                    ? 'You cannot suspend your own account'
+                    : undefined,
+                  run: () => setIsStatusDialogOpen(true),
+                },
+              ]
+            : []),
+        ],
   });
   const [isQualificationsPanelOpen, setIsQualificationsPanelOpen] = useState(false);
   // Name the list the user actually came in through — a site admin arriving from
@@ -355,30 +397,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
               photo={formData.photo}
               isRemoved={isRemoved}
               onEditPhoto={() => setIsPhotoModalOpen(true)}
-              {...(canManageStatus
-                ? {
-                    onChangeStatus: () => setIsStatusDialogOpen(true),
-                    changeStatusLabel:
-                      accountStatus === 'suspended' ? 'Reinstate account' : 'Suspend account',
-                    changeStatusDisabled: statusActionDisabled,
-                    ...(statusActionDisabled
-                      ? { changeStatusDescription: 'You cannot suspend your own account' }
-                      : {}),
-                  }
-                : {})}
-              onSendInvitation={
-                !isRemoved && canInvite
-                  ? () =>
-                      sendInvitation({
-                        personId: person.id,
-                        email: person.email,
-                        firstName,
-                        roleNames: (person.roles ?? []).map(String),
-                      })
-                  : undefined
-              }
-              sendInvitationLabel={hasSignInAccount ? 'Send Sign-In Link' : 'Send Invitation'}
-              sendInvitationDisabled={isSending}
             />
           }
           properties={properties}

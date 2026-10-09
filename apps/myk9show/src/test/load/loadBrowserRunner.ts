@@ -68,10 +68,14 @@ export const AUTH_STATE_SIGN_IN_TIMEOUT_MS = 45_000;
  * ~21s, and 16 shards retrying in lockstep would amplify exactly the auth load
  * this rehearsal exists to measure. Exported so a unit test can pin it against
  * the real constant rather than a hardcoded 45000.
+ *
+ * `reuseSession: false` for the same reason: every shard must really sign in,
+ * or the rehearsal stops measuring concurrent sign-ins (MYK9-1056).
  */
 export const LOAD_HARNESS_SIGN_IN_OPTIONS = {
   navigationTimeoutMs: AUTH_STATE_SIGN_IN_TIMEOUT_MS,
   retry: false,
+  reuseSession: false,
 } as const;
 const BROWSER_CONTEXT_CLOSE_TIMEOUT_MS = 2_000;
 /** Kinds that score. They finish when their dogs are scored rather than holding open. */

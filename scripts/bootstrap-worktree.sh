@@ -112,6 +112,12 @@ if [ -d "$WORKTREE_DIR/.githooks" ]; then
   echo "  Git hooks activated (.githooks)" >&2
 fi
 
+# Every checkout gets the gitignored .logs/ that CLAUDE.md sends check output
+# to. Before the main-repo skip so the primary checkout has it too; a missing
+# directory makes `> .logs/x.txt` fail, which is how `.logs-x.txt` files began.
+# A convenience, never a reason to abort (set -e): warn and continue.
+mkdir -p "$WORKTREE_DIR/.logs" || echo "  Could not create $WORKTREE_DIR/.logs (continuing)" >&2
+
 # Skip if this IS the main repo (not a worktree)
 if [ "$WORKTREE_DIR" = "$MAIN_REPO" ]; then
   echo "  Not a worktree — skipping bootstrap" >&2

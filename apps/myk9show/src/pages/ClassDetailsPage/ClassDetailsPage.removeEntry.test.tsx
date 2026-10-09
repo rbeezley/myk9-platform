@@ -160,7 +160,7 @@ describe('ClassDetailsPage remove-entry dialog', () => {
     ).toBeVisible();
     expect(within(dialog).getByRole('link', { name: 'Withdraw / Pull entries' })).toHaveAttribute(
       'href',
-      '/shows/show-1/entries'
+      '/shows/show-1/entries?queue=all&entry=entry-1'
     );
     expect(within(dialog).getByRole('button', { name: 'Delete entry' })).toBeDisabled();
     expect(deleteMocks.remove).not.toHaveBeenCalled();

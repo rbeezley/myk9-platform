@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import TrialDetailsPage from '@/pages/TrialDetailsPage';
 import type { Trial } from '@/components/trials/types/trial.types';
 import { usePageEditTargetStore } from '@/features/actions/pageEditTarget';
+import { registeredPageActions, runPageAction } from '@/test/utils/pageActions';
 
 // ---------------------------------------------------------------------------
 // Lane 3.7 regression: a logged-out guest never syncs the trial store, so the
@@ -237,6 +238,7 @@ function renderPage(initialEntry = '/trials/trial-1') {
           <Route path="/shows/:showId" element={<div data-testid="show-page" />} />
           <Route path="/shows/:showId/trials/:trialId" element={<TrialDetailsPage />} />
           <Route path="/secretary/create-show/wizard" element={<WizardLocation />} />
+          <Route path="/shows/:showId/reports" element={<WizardLocation />} />
         </Routes>
       </MemoryRouter>
     </QueryClientProvider>
@@ -481,6 +483,18 @@ describe('TrialDetailsPage', () => {
         addClassesHref:
           '/secretary/create-show/wizard?showId=show-1&mode=add-classes&trialId=trial-1',
       });
+    });
+
+    it("offers Print reports, opening the show's Reports page on this trial (decision 6)", () => {
+      secretaryOnWarmStore();
+      renderPage();
+
+      expect(registeredPageActions()).toEqual(['Edit trial', 'Print reports']);
+      runPageAction('Print reports');
+
+      expect(screen.getByTestId('wizard-location')).toHaveTextContent(
+        '/shows/show-1/reports?trialId=trial-1'
+      );
     });
 
     it('opens the trial Edit panel when the registered Edit runs', () => {

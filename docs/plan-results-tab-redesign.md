@@ -61,7 +61,7 @@ Timing: after the Oct 10 test show unless the owner pulls a phase forward. Phase
 
 ### Phase 3 — "Verified against paper"
 
-**Owner decision 2026-10-06: store it**, class-level: `classes.results_verified_at` / `results_verified_by`, in the same migration as Phase 2 (MYK9-1030) so the owner pushes once. Manager-only RPC to mark and clear; refuses an incomplete class. The Results tab's per-row ticks are a client-side checklist that sets it, and the tab's Release button unlocks on it. Server-side release and the automatic release presets are **not** gated on it. Open: whether a score change after verification should clear it.
+**Owner decision 2026-10-06: store it**, class-level: `classes.results_verified_at` / `results_verified_by`, in the same migration as Phase 2 (MYK9-1030) so the owner pushes once. Manager-only RPC to mark and clear; refuses an incomplete class. The Results tab's per-row ticks are a client-side checklist that sets it, and the tab's Release button unlocks on it. Server-side release and the automatic release presets are **not** gated on it. **Owner decision 2026-10-06:** a change to any scoring-result column on an entry clears its class's verification (DB trigger, in MYK9-1030's migration), so "checked" always describes the results on screen.
 
 ### Phase 4 — Rebuild the Results tab (design A revised)
 

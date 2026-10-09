@@ -503,14 +503,14 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
 
   /**
    * Conflict resolution for entries.
-   * If the local entry has unsynced changes (pending mutation), keep it so the
-   * write is not overwritten by a stale server snapshot before it uploads.
-   * Server state is applied on the next sync after the mutation is uploaded.
+   * Only clean rows reach here: `syncReplicatedTable` holds a dirty row (a
+   * write whose mutation has not uploaded) back before calling it. So the
+   * server row wins. Do NOT test the data-level `_syncStatus` here: it is a
+   * display hint that older builds left 'pending' after the upload was
+   * acknowledged, and honouring it pinned the local row over the server's
+   * recalculated placements forever (MYK9-1050).
    */
-  protected resolveConflict(local: ReplicatedEntry, remote: ReplicatedEntry): ReplicatedEntry {
-    if (local._syncStatus === 'pending') {
-      return local;
-    }
+  protected resolveConflict(_local: ReplicatedEntry, remote: ReplicatedEntry): ReplicatedEntry {
     return remote;
   }
 
@@ -542,6 +542,23 @@ export class ReplicatedEntriesTable extends ReplicatedTable<ReplicatedEntry> {
    */
   async getEntryById(entryId: string): Promise<ReplicatedEntry | null> {
     return this.get(entryId);
+  }
+
+  /** The scored row's durable upload state; a local cache write alone is not an acknowledgement. */
+  async getScoreUploadState(entryId: string): Promise<'pending' | 'failed' | 'uploaded'> {
+    if (!this.entryMutationManager || !(await this.get(entryId))) return 'pending';
+    const failed = await this.entryMutationManager.getFailedMutations();
+    if (failed.some(m => m.tableName === 'entries' && String(m.rowId) === entryId)) {
+      return 'failed';
+    }
+    return (await this.hasUnsyncedLocalWork(entryId)) ? 'pending' : 'uploaded';
+  }
+
+  /** Read through the same authenticated result view as replication, without changing the cache. */
+  async readScoreFromServer(entryId: string): Promise<ReplicatedEntry | null> {
+    const rows = await this.getRowRefetchAdapter().fetchRowsById([entryId]);
+    const row = rows.find(candidate => String(candidate.id) === entryId);
+    return row ? rowToEntry(row) : null;
   }
 
   /**

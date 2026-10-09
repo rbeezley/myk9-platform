@@ -42,6 +42,7 @@ import {
   ListViewTabs,
   ListViewToggle,
 } from '@/components/list-toolkit';
+import { resolveCreateGates } from '@/features/actions/createGates';
 
 const DOG_NOUN = ['dog', 'dogs'] as const;
 
@@ -67,7 +68,7 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
   const navigate = useNavigate();
   const { id: selectedId } = useParams<{ id: string }>();
 
-  const { getUserRoles, userWithRoles } = useAuthContext();
+  const { getUserRoles, userWithRoles, hasRole } = useAuthContext();
   // Exhibitor-only users see their own roster; secretaries/admins see all dogs.
   // NOTE: this drives the page's chrome (title, card-only view, placeholder),
   // and it is NOT the same question as "is this roster only my own dogs" —
@@ -117,7 +118,8 @@ const BrowseDogsPage: React.FC<BrowseDogsPageProps> = ({ detail = null }) => {
     handleRetry();
   }, [refreshRbac, handleRetry]);
 
-  const canCreateDogs = !rbacLoading && hasPermission('dog:create');
+  const canCreateDogs =
+    !rbacLoading && resolveCreateGates({ hasRole, hasPermission }).canCreateDogs;
   // Bulk selection/actions gated the same coarse way as the rest of this page
   // (management-capable roles, not exhibitor-only roster view). No per-action
   // RBAC — see design.md decision D1.

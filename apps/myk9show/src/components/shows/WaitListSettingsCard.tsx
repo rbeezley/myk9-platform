@@ -132,9 +132,9 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
     mutationFn: async (config: WaitListShowConfig) => {
       const payload: TablesUpdate<'shows'> = {
         default_judge_day_capacity: config.defaultJudgeDayCapacity,
-        mail_in_strategy: config.mailInStrategy,
+        mail_in_strategy: config.mailInStrategy === 'deadline' ? 'none' : config.mailInStrategy,
         mail_in_value: config.mailInValue,
-        mail_in_deadline: config.mailInDeadline,
+        mail_in_deadline: null,
         mail_in_auto_release: config.mailInAutoRelease,
         mail_in_release_date: config.mailInReleaseDate,
         waitlist_payment_deadline_hours: config.waitlistPaymentDeadlineHours,
@@ -214,7 +214,7 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
         <div className="space-y-1">
           <Label htmlFor="mail-in-strategy">Mail-In Reservation Strategy</Label>
           <Select
-            value={form.mailInStrategy}
+            value={strategy === 'deadline' ? 'none' : strategy}
             onValueChange={value => updateForm({ mailInStrategy: value as MailInStrategy })}
           >
             <SelectTrigger id="mail-in-strategy">
@@ -224,9 +224,21 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
               <SelectItem value="none">None</SelectItem>
               <SelectItem value="fixed">Fixed Count</SelectItem>
               <SelectItem value="percentage">Percentage</SelectItem>
-              <SelectItem value="deadline">Deadline</SelectItem>
             </SelectContent>
           </Select>
+          <p className="text-sm text-muted-foreground">
+            {strategy === 'fixed'
+              ? 'Hold this many spots per judge day for mail-in entries. Online entries cannot use them.'
+              : strategy === 'percentage'
+                ? 'Hold this percentage of each judge day’s capacity for mail-in entries, rounded down. Online entries cannot use them.'
+                : 'No spots are reserved for mail-in entries.'}
+          </p>
+          {strategy === 'deadline' && (
+            <p className="text-sm text-muted-foreground">
+              Deadline reservations did not hold any spots. Choose Fixed Count or Percentage to
+              reserve spots, or save None to clear the old setting.
+            </p>
+          )}
         </div>
 
         {/* Conditional: fixed */}
@@ -260,19 +272,6 @@ export function WaitListSettingsCard({ showId }: WaitListSettingsCardProps) {
               onChange={e =>
                 updateForm({ mailInValue: e.target.value ? Number(e.target.value) : null })
               }
-            />
-          </div>
-        )}
-
-        {/* Conditional: deadline */}
-        {strategy === 'deadline' && (
-          <div className="space-y-1">
-            <Label htmlFor="mail-in-deadline">Mail-In Deadline</Label>
-            <Input
-              id="mail-in-deadline"
-              type="date"
-              value={form.mailInDeadline ?? ''}
-              onChange={e => updateForm({ mailInDeadline: e.target.value || null })}
             />
           </div>
         )}

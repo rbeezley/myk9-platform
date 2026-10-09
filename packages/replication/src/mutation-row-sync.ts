@@ -1,6 +1,7 @@
 import type { IDBPDatabase } from 'idb';
 import type { Logger } from './dependencies';
 import { REPLICATION_STORES } from './core/DatabaseManager';
+import { withAcknowledgedSyncFlag } from './core/ReplicatedTableRowState';
 import type { PendingMutation, ReplicatedRow } from './types';
 
 export async function markReplicatedRowSynced(
@@ -41,10 +42,11 @@ export async function markReplicatedRowSynced(
     delete uploaded._localOnly;
     nextData = uploaded;
   }
+  const stillDirty = existingRow.isDirty && hasAnotherPendingMutation;
   await db.put(REPLICATION_STORES.REPLICATED_TABLES, {
     ...existingRow,
-    data: nextData,
-    isDirty: existingRow.isDirty && hasAnotherPendingMutation,
+    data: stillDirty ? nextData : withAcknowledgedSyncFlag(nextData),
+    isDirty: stillDirty,
     syncStatus: existingRow.isDirty && hasAnotherPendingMutation ? 'pending' : 'synced',
     lastSyncedAt: Date.now(),
     ...(newServerVersion !== undefined && { serverVersion: newServerVersion }),

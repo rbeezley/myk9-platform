@@ -5,12 +5,10 @@ import { PhaseShell } from '@/features/show-workbench/PhaseShell';
 
 import { SecretaryCockpit } from './cockpit/SecretaryCockpit';
 import { buildSecretaryCockpitSnapshot } from './cockpit/buildSecretaryCockpitSnapshot';
-import { buildClassPaperworkMap } from './cockpit/buildClassPaperworkMap';
-import { useShowPaperworkPrints } from './cockpit/useShowPaperworkPrints';
+import { useShowClassPaperwork } from './cockpit/useShowClassPaperwork';
 import { ShowDeskToolsSheet, type ShowDeskToolSection } from './ShowDeskToolsSheet';
 import { ShowMapMessageHandlerDialog } from './ShowMapMessageHandlerDialog';
 import { ShowMapMoveUpDialog } from './ShowMapMoveUpDialog';
-import { ShowMapScratchNoShowDialog } from './ShowMapScratchNoShowDialog';
 import { useMoveUpTargets } from './useMoveUpTargets';
 import { computeShowDeskPendingSignals } from './showDeskPendingSignals';
 import { computeShowDeskStatus } from './showDeskStatus';
@@ -21,8 +19,8 @@ import type { ShowDeskActionableTone } from './showDeskActionable';
 import type { BuildShowMapTreeInput } from './showMapTypes';
 import type { ClassEntryBreakdown } from '@/features/entry-operations/classEntryBreakdown';
 import { ShowHomeSetupLinks } from './ShowHomeSetupLinks';
+import { ShowHomePaperScores } from './ShowHomePaperScores';
 import { getTrialRegistry } from '@/features/registries';
-import type { DbClass, DbEntry } from '@/types/database-mappings';
 
 interface ShowDeskPanelProps extends BuildShowMapTreeInput {
   canManageShow: boolean;
@@ -78,9 +76,6 @@ export default function ShowDeskPanel({
     moveUpReversal,
     isReversingMoveUp,
     reverseMoveUp,
-    scratchAction,
-    closeScratchDialog,
-    confirmScratchNoShow,
     messageAction,
     closeMessageDialog,
     confirmMessageHandler,
@@ -100,34 +95,19 @@ export default function ShowDeskPanel({
     [canManageShow, effectiveScopeNow, entries, show.id, tree]
   );
   const returnTo = `${location.pathname}${location.search}`;
-  const paperworkPrints = useShowPaperworkPrints(show.id);
-  const paperworkByClassId = useMemo(
-    () =>
-      buildClassPaperworkMap({
-        showId: show.id,
-        classes: classes.map(classItem => ({
-          ...classItem,
-          trial_id: classItem.trialId,
-        })) as unknown as DbClass[],
-        trials: trials.map(trialItem => ({ id: trialItem.id, trialDate: trialItem.trialDate })),
-        entries: entries as unknown as DbEntry[],
-        records: paperworkPrints.data ?? [],
-        // Dropping this is what made "Not confirmed printed" a claim rather
-        // than a reading -- see useShowPaperworkPrints' own comment.
-        recordsUnavailable: paperworkPrints.isError || paperworkPrints.syncFailed,
-        returnTo,
-      }),
-    [
-      classes,
-      entries,
-      paperworkPrints.data,
-      paperworkPrints.isError,
-      paperworkPrints.syncFailed,
-      returnTo,
-      show.id,
-      trials,
-    ]
+  const trialRefs = useMemo(
+    () => trials.map(trialItem => ({ id: trialItem.id, trialDate: trialItem.trialDate })),
+    [trials]
   );
+  // One class projection for paperwork fingerprints, shared with Reports -- never the camelCase
+  // tree rows, which lack the facts a fingerprint includes (time limit, area count).
+  const { byClassId: paperworkByClassId } = useShowClassPaperwork({
+    showId: show.id,
+    trials: trialRefs,
+    classes,
+    entries,
+    returnTo,
+  });
   const snapshot = useMemo(
     () =>
       buildSecretaryCockpitSnapshot({
@@ -188,6 +168,7 @@ export default function ShowDeskPanel({
           tools && tools.length > 0 ? (
             <div className="flex flex-wrap items-center gap-2">
               {canManageShow && <ShowHomeSetupLinks showId={show.id} />}
+              {canManageShow && <ShowHomePaperScores classes={classes} />}
               <ShowDeskToolsSheet
                 showId={show.id}
                 tools={tools}
@@ -246,13 +227,6 @@ export default function ShowDeskPanel({
             {...(moveUpReversal !== undefined && { reversal: moveUpReversal })}
             isReversing={isReversingMoveUp}
             onMoveBack={reverseMoveUp}
-          />
-          <ShowMapScratchNoShowDialog
-            open={Boolean(scratchAction)}
-            node={scratchAction ? tree.nodesById[scratchAction.nodeId] : undefined}
-            isSubmitting={isExecuting}
-            onOpenChange={open => !open && closeScratchDialog()}
-            onConfirm={confirmScratchNoShow}
           />
           <ShowMapMessageHandlerDialog
             open={Boolean(messageAction)}

@@ -16,6 +16,7 @@ import {
   markShowDayDetailsCheckedIn,
 } from './showMapCheckInOptimisticUpdates';
 import { useShowMapMoveUpReversal } from './useShowMapMoveUpReversal';
+import { useJudgeSignOffMutations } from './useJudgeSignOffMutations';
 import type { ShowMapAction } from './showMapActions';
 import type { ExecutableShowMapActionExecution } from './showMapActionExecution';
 import {
@@ -109,7 +110,15 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
     [queryClient, showId]
   );
 
+  // MYK9-1030: the judge's end-of-day sign-off, shared with the Results tab (MYK9-1031).
+  const judgeSignOff = useJudgeSignOffMutations({
+    onSettled: classIds => classIds.forEach(classId => invalidateShowMapActionQueries(classId)),
+  });
+
   const mutation = useMutation({
+    // Replicated write (IndexedDB + queue): the app client's mutation default 'online' would
+    // pause it BEFORE the function runs while offline and a reload would lose it.
+    networkMode: 'always',
     mutationFn: async ({ action, execution }: MutationInput) => {
       if (
         execution.mutation === 'mark-class-started' ||
@@ -249,6 +258,9 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
   });
 
   const undoScratchMutation = useMutation({
+    // Replicated write (IndexedDB + queue): the app client's mutation default 'online' would
+    // pause it BEFORE the function runs while offline and a reload would lose it.
+    networkMode: 'always',
     mutationFn: async (input: ShowMapScratchUndoMutationInput) => undoShowMapScratch(input),
     onSuccess: () => {
       toast.success('Pull undone');
@@ -262,6 +274,9 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
   });
 
   const scratchMutation = useMutation({
+    // Replicated write (IndexedDB + queue): the app client's mutation default 'online' would
+    // pause it BEFORE the function runs while offline and a reload would lose it.
+    networkMode: 'always',
     mutationFn: async ({
       action,
       reason,
@@ -404,11 +419,24 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
         setMessageAction(action);
         return;
       }
+      if (execution.kind === 'mutation' && execution.mutation === 'record-judge-sign-off') {
+        judgeSignOff.recordSignOff({
+          classIds: action.classIds ?? (action.classId ? [action.classId] : []),
+          registryId: action.registryId,
+        });
+        return;
+      }
+      if (execution.kind === 'mutation' && execution.mutation === 'clear-judge-sign-off') {
+        if (action.classId) {
+          judgeSignOff.clearSignOff({ classIds: [action.classId], registryId: action.registryId });
+        }
+        return;
+      }
       if (execution.kind === 'mutation') {
         mutation.mutate({ action, execution });
       }
     },
-    [mutation]
+    [judgeSignOff, mutation]
   );
 
   return {
@@ -436,6 +464,7 @@ export function useShowMapActionExecutor({ showId }: UseShowMapActionExecutorInp
     },
     isExecuting:
       mutation.isPending ||
+      judgeSignOff.isPending ||
       scratchMutation.isPending ||
       moveUpMutation.isPending ||
       messageHandlerMutation.isPending,

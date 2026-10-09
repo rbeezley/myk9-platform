@@ -47,6 +47,48 @@ describe('ReplicatedTableBatchManager', () => {
     return rows;
   }
 
+  describe('stale download vs acknowledged write (MYK9-1050)', () => {
+    const versions = (v: number) => new Map([['1', v]]);
+    const apply = (method: 'batchSet' | 'batchSetChunked', items: TestEntity[], v: number) =>
+      method === 'batchSet'
+        ? batchManager.batchSet(items, versions(v))
+        : batchManager.batchSetChunked(items, 1, versions(v));
+
+    it.each(['batchSet', 'batchSetChunked'] as const)(
+      '%s skips a download older than the row serverVersion',
+      async method => {
+        await batchManager.batchSet([{ id: '1', name: 'acked' }], versions(7));
+
+        await apply(method, [{ id: '1', name: 'stale' }], 6);
+
+        const [row] = await getAllRows();
+        expect(row?.data.name).toBe('acked');
+        expect(row?.serverVersion).toBe(7);
+      }
+    );
+
+    it.each(['batchSet', 'batchSetChunked'] as const)(
+      '%s accepts a newer server row (recalculated fields)',
+      async method => {
+        await batchManager.batchSet([{ id: '1', name: 'acked' }], versions(7));
+
+        await apply(method, [{ id: '1', name: 'recalculated' }], 8);
+
+        const [row] = await getAllRows();
+        expect(row?.data.name).toBe('recalculated');
+        expect(row?.serverVersion).toBe(8);
+      }
+    );
+
+    it('still applies a download that carries no version', async () => {
+      await batchManager.batchSet([{ id: '1', name: 'acked' }], versions(7));
+
+      await batchManager.batchSet([{ id: '1', name: 'unversioned' }]);
+
+      expect((await getAllRows())[0]?.data.name).toBe('unversioned');
+    });
+  });
+
   describe('batchSet', () => {
     it('should insert multiple items in a single transaction', async () => {
       const items: TestEntity[] = [

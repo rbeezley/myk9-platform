@@ -47,24 +47,25 @@ beforeEach(() => {
 });
 
 describe('resolveActions with a page export', () => {
-  it('adds one "Export CSV" item, last, behind a divider, owned by the page', () => {
+  it('adds one "Export CSV" item in the list section, ahead of Create', () => {
     const actions = resolveActions(
       { kind: 'global' },
       {
         canManageShow: false,
         canOperateShow: false,
         canCreateShows: true,
-        isShowManagementStaff: false,
+        canCreateDogs: false,
+        canCreatePeople: false,
+        canCreateClubs: false,
         pageExports: [{ id: 'dogs' }],
       }
     );
-    const last = actions[actions.length - 1]!;
-    expect(last).toMatchObject({
-      id: 'page-export-dogs',
+    expect(actions.map(action => action.id)).toEqual(['page-export-dogs', 'create-show']);
+    expect(actions[0]).toMatchObject({
       label: 'Export CSV',
       command: 'page-export',
-      separatorBefore: true,
-      pageOwned: true,
+      group: 'list',
+      icon: 'export',
     });
   });
 
@@ -75,7 +76,9 @@ describe('resolveActions with a page export', () => {
         canManageShow: false,
         canOperateShow: false,
         canCreateShows: false,
-        isShowManagementStaff: false,
+        canCreateDogs: false,
+        canCreatePeople: false,
+        canCreateClubs: false,
         pageExports: [{ id: 'clubs' }],
       }
     );

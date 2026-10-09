@@ -45,6 +45,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   offlineFirst = false,
   offlineDependsOn,
   onEnterShowWithDog,
+  showStartDate,
 }) => {
   const { addDog, addDogOfflineFirst, dogs, error: saveError } = useDogStoreCompat();
   const [localSaveError, setLocalSaveError] = useState<string | null>(null);
@@ -172,7 +173,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
       description: 'Add the new registry number from the dog profile if needed.',
     });
     try {
-      onDogCreated(dog);
+      onDogCreated(dog, { existing: true });
       onClose();
     } catch (err) {
       logger.error(
@@ -213,6 +214,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
         activeTab={activeTab}
         onActiveTabChange={setActiveTab}
         userRole={userRole}
+        showStartDate={showStartDate}
         currentUserPersonId={currentUserPersonId}
         saveError={localSaveError ?? saveError}
         duplicateCandidate={duplicateCandidate}
@@ -233,6 +235,7 @@ interface AddDogPanelContentProps {
   onActiveTabChange: (tab: TabValue) => void;
   userRole: UserRole;
   currentUserPersonId?: string | undefined;
+  showStartDate?: string | undefined;
   saveError: string | null;
   duplicateCandidate: DogIdentityCandidate | null;
   onUseExistingDog: (dog: Dog) => void;
@@ -245,6 +248,7 @@ const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
   onActiveTabChange,
   userRole,
   currentUserPersonId,
+  showStartDate,
   saveError,
   duplicateCandidate,
   onUseExistingDog,
@@ -365,6 +369,7 @@ const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
             <BasicInfoTab
               userRole={userRole}
               currentUserPersonId={currentUserPersonId}
+              referenceDate={showStartDate}
               onPhotoOpen={() => handlePhotoDialogOpen(true)}
               onAddRegistration={openAddRegistration}
             />

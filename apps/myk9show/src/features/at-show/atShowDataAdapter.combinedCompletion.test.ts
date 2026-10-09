@@ -21,6 +21,11 @@ const getEntriesByClass = vi.fn();
 const getTrialById = vi.fn();
 
 vi.mock('@/services/replication', () => ({
+  replicatedArmbandsTable: {
+    getByShow: vi.fn(async () => []),
+    sync: vi.fn(),
+    subscribe: vi.fn(() => vi.fn()),
+  },
   replicatedClassesTable: { getClassById: (id: string) => getClassById(id) },
   replicatedEntriesTable: { getEntriesByClass: (id: string) => getEntriesByClass(id) },
   replicatedTrialsTable: { getTrialById: (id: string) => getTrialById(id) },

@@ -18,6 +18,11 @@ const stops = vi.hoisted(() => ({
 }));
 
 vi.mock('@/services/replication', () => ({
+  replicatedArmbandsTable: {
+    getByShow: vi.fn(async () => []),
+    sync: vi.fn(),
+    subscribe: vi.fn(() => vi.fn()),
+  },
   replicatedShowsTable: { getShowById: vi.fn() },
   replicatedTrialsTable: {
     getTrialsByShow: vi.fn(),

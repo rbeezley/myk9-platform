@@ -19,6 +19,7 @@ interface WaitlistEntryRow {
   class_id: string;
   position: number;
   status: 'waiting' | 'offered' | 'accepted' | 'declined' | 'expired' | 'withdrawn';
+  joined_via: 'online' | 'mail_in' | null;
   offered_at: string | null;
   offer_expires_at: string | null;
   promoted_entry_id: string | null;
@@ -62,6 +63,7 @@ function mapWaitlistEntry(row: WaitlistEntryRow, exhibitorId: string): WaitListE
     handlerId: null,
     position: row.position,
     status: row.status,
+    joinedVia: row.joined_via,
     offeredAt: row.offered_at,
     offerExpiresAt: row.offer_expires_at,
     trialTimezone: getTrialTimezone(row.classes?.trials),
@@ -75,6 +77,7 @@ const WAITLIST_ENTRY_SELECT = `
   class_id,
   position,
   status,
+  joined_via,
   offered_at,
   offer_expires_at,
   promoted_entry_id,

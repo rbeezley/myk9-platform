@@ -94,12 +94,18 @@ export const CompactOfflineIndicator: React.FC<CompactOfflineIndicatorProps> = (
     <span
       className={cn(
         'at-show-offline-indicator inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
+        // Phones have no room beside the class title: when ready the chip is
+        // hidden, and while preparing it shrinks to the icon (text stays for
+        // screen readers).
+        ready ? 'max-sm:hidden' : 'max-sm:px-1.5',
         badgeClass('neutral'),
         className
       )}
     >
       <CloudOff size={13} className="shrink-0" />
-      {ready ? 'Offline ready' : 'Preparing offline copy…'}
+      <span className={cn(!ready && 'max-sm:sr-only')}>
+        {ready ? 'Offline ready' : 'Preparing offline copy…'}
+      </span>
     </span>
   );
 };

@@ -9,7 +9,6 @@
 import React from 'react';
 import type { RefObject } from 'react';
 import { Camera, Pencil } from 'lucide-react';
-import ThreeDotMenu from '@/components/common/ThreeDotMenu';
 import { DetailHero } from '@/components/common/DetailHero';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -85,8 +84,8 @@ const DogHero: React.FC<DogHeroProps> = ({
           )}
           {statusBadge && (
             /* The badge announces the lifecycle state, so it is also the control
-               that changes it. The ThreeDotMenu item opens the same dialog, kept
-               for parity with the card's other actions. */
+               that changes it. The header Actions menu's "Change status" opens the
+               same dialog. */
             <button
               type="button"
               onClick={onStatusDialogOpen}
@@ -109,13 +108,6 @@ const DogHero: React.FC<DogHeroProps> = ({
             </button>
           )}
         </>
-      }
-      secondaryActions={
-        <ThreeDotMenu
-          onEditPhoto={onPhotoDialogOpen}
-          onChangeStatus={onStatusDialogOpen}
-          triggerClassName="h-11 w-11 rounded-full border border-border bg-card text-foreground shadow-sm hover:bg-accent"
-        />
       }
     />
   );

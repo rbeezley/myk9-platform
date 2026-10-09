@@ -11,6 +11,11 @@ import { UserRole } from '@/types/auth-types';
 import { mockSupabase } from '@/test/mocks/supabase';
 
 vi.mock('@/services/replication', () => ({
+  replicatedArmbandsTable: {
+    getByShow: vi.fn(async () => []),
+    sync: vi.fn(),
+    subscribe: vi.fn(() => vi.fn()),
+  },
   replicatedShowsTable: {
     getShowById: vi.fn(),
     getAll: vi.fn().mockResolvedValue([]),
@@ -165,6 +170,54 @@ describe('AtShowClassListPage — exhibitor "Your dogs today" default', () => {
     expect(await screen.findByText('Your dogs today')).toBeInTheDocument();
     expect(await screen.findByText('Rex')).toBeInTheDocument();
     expect(screen.getByText('#101')).toBeInTheDocument();
+  });
+
+  it('shows the released Q and time on the owned show-day row', async () => {
+    mockAuthState.hasRole = role => role === UserRole.EXHIBITOR;
+    mockAuthState.user = { id: 'user-1' };
+    seedOwnedEntry({
+      dogCallName: 'Ranger',
+      checkInStatus: 'completed',
+      isScored: true,
+      resultStatus: 'qualified',
+      searchTimeSeconds: 58,
+    });
+    vi.mocked(replicatedClassesTable.getClassesByTrial).mockResolvedValue([
+      {
+        id: 'class-1',
+        element: 'Container',
+        level: 'Novice',
+        section: '-',
+        classStatus: 'completed',
+        classOrder: 1,
+        resultsReleasedAt: '2026-06-01T18:00:00Z',
+      },
+    ] as never);
+
+    renderPage();
+
+    expect(await screen.findByText('Ranger')).toBeInTheDocument();
+    expect(screen.getByText('Completed')).toBeInTheDocument();
+    expect(screen.getByText('Q')).toBeInTheDocument();
+    expect(screen.getByText('58.0s')).toBeInTheDocument();
+  });
+
+  it('keeps a completed score hidden while the class is unreleased', async () => {
+    mockAuthState.hasRole = role => role === UserRole.EXHIBITOR;
+    mockAuthState.user = { id: 'user-1' };
+    seedOwnedEntry({
+      checkInStatus: 'completed',
+      isScored: true,
+      resultStatus: 'qualified',
+      searchTimeSeconds: 58,
+    });
+
+    renderPage();
+
+    expect(await screen.findByText('Rex')).toBeInTheDocument();
+    expect(screen.getByText('Completed')).toBeInTheDocument();
+    expect(screen.queryByText('Q')).not.toBeInTheDocument();
+    expect(screen.queryByText('58.0s')).not.toBeInTheDocument();
   });
 
   it('keeps the class-first default for a secretary who also exhibits', async () => {

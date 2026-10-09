@@ -1,4 +1,5 @@
 import { createContext } from 'react';
+import type { UploadSyncTarget } from '@/providers/ringsideUploadSyncTargets';
 
 interface SyncStatus {
   isSyncing: boolean;
@@ -9,7 +10,8 @@ interface SyncStatus {
 
 export interface ReplicationSyncContextValue {
   status: SyncStatus;
-  triggerSync: () => Promise<void>;
+  /** No targets: a full pass. Targets: a scoped pass over just those tables and scopes. */
+  triggerSync: (targets?: UploadSyncTarget[]) => Promise<void>;
   syncTable: (tableName: string) => Promise<void>;
 }
 

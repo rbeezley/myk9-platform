@@ -16,6 +16,7 @@ const ACTIVE_OFFER: WaitListEntry = {
   handlerId: null,
   position: 1,
   status: 'offered',
+  joinedVia: 'online',
   offeredAt: '2026-07-13T10:00:00.000Z',
   offerExpiresAt: '2026-07-14T10:00:00.000Z',
   promotedEntryId: 'entry-1',

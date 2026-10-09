@@ -23,7 +23,9 @@ export interface ScoresheetRegistryConfig {
   exReasons: readonly string[];
 }
 
-const SCENT_WORK_RESULT_STATES = ['Q', 'NQ', 'EX', 'ABS'] as const;
+// NQ and EX are not boxes on the sheet: checking a reason in the NQ or EX
+// column records that result.
+const SCENT_WORK_RESULT_STATES = ['Q', 'ABS'] as const;
 const SCENT_WORK_FAULTS = ['Handler Error', 'Safety Concern', 'Mild Disruption'] as const;
 
 export const GENERIC_SCORESHEET_CONFIG: ScoresheetRegistryConfig = {

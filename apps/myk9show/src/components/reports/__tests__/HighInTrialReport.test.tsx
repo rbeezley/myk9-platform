@@ -10,7 +10,7 @@
  *   - a trial with no eligible level must say why, rather than render an empty page.
  */
 import { describe, expect, it } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 
 import { HighInTrialReport } from '../HighInTrialReport';
@@ -218,12 +218,123 @@ describe('HighInTrialReport', () => {
     expect(screen.getByText(/Exterior Novice/)).toBeInTheDocument();
   });
 
-  it('states the two limits a secretary would otherwise assume away', () => {
+  it('states why Handler Discrimination does not count toward HIT', () => {
     renderReport({ entries: [...team('dog-a', '101', 'Ranger', 0, 20)] });
 
     // HD exclusion is a rule, not an oversight...
     expect(screen.getByText(/Handler Discrimination is excluded/i)).toBeInTheDocument();
-    // ...and HCD is deliberately not computed, because §9 is truncated in our copy.
-    expect(screen.getByText(/High Combined Division/i)).toBeInTheDocument();
+    expect(screen.queryByText('Novice High Combined Division')).toBeNull();
   });
 });
+
+describe('High Combined Division presentation', () => {
+  it('adds a distinct HCD section with Handler Discrimination scores', () => {
+    renderReport({
+      allClasses: [
+        ...TWO_ELEMENT_NOVICE,
+        { id: 'hd', trialId: 't1', element: 'Handler Discrimination', level: 'Novice' },
+      ],
+      entries: [
+        ...team('dog-a', '101', 'Ranger', 0, 20),
+        entry({
+          dogId: 'dog-a',
+          classElement: 'Handler Discrimination',
+          classLevel: 'Novice',
+          searchTimeSeconds: 10,
+        }),
+      ],
+    });
+    expect(screen.getByText('Novice High Combined Division')).toBeInTheDocument();
+    expect(screen.getByText('Container, Interior, Handler Discrimination')).toBeInTheDocument();
+  });
+});
+
+it.each(['UKC', 'ASCA'])('omits HCD for %s trials even with HD classes', organization => {
+  renderReport({
+    organization,
+    allClasses: [
+      ...TWO_ELEMENT_NOVICE,
+      { id: 'hd', trialId: 't1', element: 'Handler Discrimination', level: 'Novice' },
+    ],
+  });
+  expect(screen.queryByRole('region', { name: 'High Combined Division' })).toBeNull();
+});
+it('omits HCD when HD was cancelled', () => {
+  renderReport({
+    allClasses: [
+      ...TWO_ELEMENT_NOVICE,
+      {
+        id: 'hd',
+        trialId: 't1',
+        element: 'Handler Discrimination',
+        level: 'Novice',
+        status: 'cancelled',
+      },
+    ],
+  });
+  expect(screen.queryByRole('region', { name: 'High Combined Division' })).toBeNull();
+});
+
+it('prints HCD ties as ties and requests a coin flip', () => {
+  const hd = (dogId: string) =>
+    entry({ dogId, classElement: 'Handler Discrimination', classLevel: 'Novice' });
+  renderReport({
+    allClasses: [
+      ...TWO_ELEMENT_NOVICE,
+      { id: 'hd', trialId: 't1', element: 'Handler Discrimination', level: 'Novice' },
+    ],
+    entries: [
+      ...team('a', '101', 'Ranger', 0, 20),
+      hd('a'),
+      ...team('b', '102', 'Juni', 0, 20),
+      hd('b'),
+    ],
+  });
+  const combined = within(screen.getByRole('region', { name: 'High Combined Division' }));
+  expect(combined.getByText(/TIE.*coin flip/)).toBeInTheDocument();
+  expect(combined.getAllByText('1 (tie)')).toHaveLength(2);
+});
+it('holds only HCD provisional when HD is unscored and shows no award for missing HD', () => {
+  renderReport({
+    allClasses: [
+      ...TWO_ELEMENT_NOVICE,
+      { id: 'hd', trialId: 't1', element: 'Handler Discrimination', level: 'Novice' },
+    ],
+    entries: [
+      ...team('a', '101', 'Ranger', 0, 20),
+      entry({
+        dogId: 'a',
+        classElement: 'Handler Discrimination',
+        classLevel: 'Novice',
+        isScored: false,
+        resultText: 'qualified',
+      }),
+    ],
+  });
+  expect(screen.getByText('Novice High in Trial')).toBeInTheDocument();
+  const combined = within(screen.getByRole('region', { name: 'High Combined Division' }));
+  expect(combined.getByText('Novice High Combined Division — PROVISIONAL')).toBeInTheDocument();
+  expect(combined.getByText(/do not award/)).toBeInTheDocument();
+  expect(combined.getByText(/no High Combined Division is awarded/)).toBeInTheDocument();
+});
+
+it.each([
+  ['UKC', 'AKC', true],
+  ['AKC', 'UKC', false],
+  ['AKC', 'ASCA', false],
+])(
+  'uses trial registry %s/%s for HCD rather than hosting show organization',
+  (organization, registryId, expected) => {
+    renderReport({
+      organization,
+      trial: { date: '2026-07-20', trialNumber: '1', judgeName: 'Judge One', registryId },
+      allClasses: [
+        ...TWO_ELEMENT_NOVICE,
+        { id: 'hd', trialId: 't1', element: 'Handler Discrimination', level: 'Novice' },
+      ],
+    });
+    expect(screen.queryByRole('region', { name: 'High Combined Division' }) !== null).toBe(
+      expected
+    );
+  }
+);

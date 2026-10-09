@@ -23,6 +23,26 @@ describe('replicatedToClass', () => {
   });
 });
 
+describe('replicatedToClass element and section (MYK9-1049)', () => {
+  it('keeps the replicated element and section so the full class label can be built', () => {
+    const cls = replicatedToClass(
+      replicatedClass({ name: 'Novice', level: 'Novice', element: 'Container', section: 'A' })
+    );
+    expect(cls.element).toBe('Container');
+    expect(cls.section).toBe('A');
+  });
+
+  it('prefers the replicated element and section over stale local values on merge', () => {
+    const existing = replicatedToClass(replicatedClass());
+    const merged = mergeClassData(
+      replicatedClass({ level: 'Novice', element: 'Container', section: 'B' }),
+      existing
+    );
+    expect(merged.element).toBe('Container');
+    expect(merged.section).toBe('B');
+  });
+});
+
 describe('mergeClassData', () => {
   it('reflects the latest results_released_at from the replicated row, not stale local data', () => {
     const existing: SyncableClassData = {

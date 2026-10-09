@@ -83,12 +83,13 @@ function buildColumns(
     },
     {
       id: 'expires',
-      header: 'Pay by',
-      accessorFn: row => row.offer_expires_at ?? '',
+      header: 'Payment timing',
+      accessorFn: row => (row.joined_via === 'mail_in' ? '' : (row.offer_expires_at ?? '')),
       cell: ({ row }) => (
         <span className="text-sm">
-          {formatOfferDeadline(row.original.offer_expires_at, row.original.trial_timezone) ??
-            'Unknown'}
+          {row.original.joined_via === 'mail_in'
+            ? 'No automatic deadline'
+            : `Pay by ${formatOfferDeadline(row.original.offer_expires_at, row.original.trial_timezone) ?? 'Unknown'}`}
         </span>
       ),
     },

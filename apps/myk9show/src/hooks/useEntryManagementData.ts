@@ -289,6 +289,11 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
   const [entries, setEntries] = useState<EntryManagementEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [loadedEntriesShowId, setLoadedEntriesShowId] = useState<string | null>(null);
+  // The show whose rows are on screen, read inside `loadEntries` without re-creating it.
+  const shownShowIdRef = useRef<string | null>(null);
+  // Each load's number. Only the newest may write: a slow read of the previous show finishing
+  // after a switch would otherwise put that show's entries under this one.
+  const latestLoadRef = useRef(0);
   // Action errors (multiplexed channel — see interface doc).
   const [error, setError] = useState<string | null>(null);
   // Load-specific errors (only set by `loadEntries`; never by actions).
@@ -318,12 +323,20 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
   }, [user?.id]);
 
   const loadEntries = useCallback(async (showId: string) => {
-    setIsLoading(true);
+    // A reload of the show already on screen (after every replica sync, or an action's refresh)
+    // keeps its rows. Flipping to the loading skeleton unmounted the whole list a few times a
+    // minute while the secretary worked, losing scroll position, focus and any open menu.
+    if (shownShowIdRef.current !== showId) setIsLoading(true);
     setLoadError(null);
+    const load = ++latestLoadRef.current;
+    const superseded = () => load !== latestLoadRef.current;
     try {
       const { data, error: queryError } = await getEntriesForShow(showId);
+      if (superseded()) return;
 
       if (queryError) {
+        // A failed load leaves nothing trustworthy on screen, so a retry shows the loading state.
+        shownShowIdRef.current = null;
         setLoadError(SECRETARY_ENTRIES_READ_ERROR);
         logger.error('Error loading entries:', 'secretary', {}, queryError as Error);
         return;
@@ -343,14 +356,17 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
       );
 
       setEntries(transformedEntries);
-      setLoadedEntriesShowId(
-        transformedEntries.length > 0 || entriesSyncStatusRef.current === 'success' ? showId : null
-      );
+      const loadedShowId =
+        transformedEntries.length > 0 || entriesSyncStatusRef.current === 'success' ? showId : null;
+      shownShowIdRef.current = loadedShowId;
+      setLoadedEntriesShowId(loadedShowId);
     } catch (err) {
+      if (superseded()) return;
+      shownShowIdRef.current = null;
       setLoadError(SECRETARY_ENTRIES_READ_ERROR);
       logger.error('Error loading entries:', 'secretary', {}, err as Error);
     } finally {
-      setIsLoading(false);
+      if (!superseded()) setIsLoading(false);
     }
   }, []);
 
@@ -441,7 +457,11 @@ export function useEntryManagementData(initialShowId?: string): UseEntryManageme
     if (selectedShowId) {
       loadEntries(selectedShowId);
     } else {
+      // No show: a read still in flight must not land afterwards.
+      latestLoadRef.current += 1;
+      setIsLoading(false);
       setEntries([]);
+      shownShowIdRef.current = null;
       setLoadedEntriesShowId(null);
     }
   }, [selectedShowId, loadEntries]);

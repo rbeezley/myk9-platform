@@ -1,5 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useState } from 'react';
-import { useBlocker, UNSAFE_DataRouterContext, type Blocker } from 'react-router-dom';
+import {
+  useBlocker,
+  UNSAFE_DataRouterContext,
+  type Blocker,
+  type BlockerFunction,
+} from 'react-router-dom';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,10 +28,30 @@ import {
  */
 export type SelfNavigationRef = { current: number };
 
+/**
+ * Copy for a guard whose situation is not "unsaved edits" — e.g. records that
+ * were already saved but have no entry yet. Omit it for the default
+ * "Leave <subject>?" prompt.
+ */
+export interface UnsavedChangesDialogCopy {
+  title: string;
+  description: string;
+  stayLabel: string;
+  leaveLabel: string;
+}
+
 interface UnsavedChangesRouteGuardProps {
   isDirty: boolean;
   subject: string;
   selfNavigationRef?: SelfNavigationRef | undefined;
+  /** Replaces the default dialog text. Memoize it: it is compared by identity. */
+  dialog?: UnsavedChangesDialogCopy | undefined;
+  /**
+   * Block only navigation that changes the pathname. A search-param or hash
+   * change on the same route (a `?dogId=` handoff being cleared) leaves the
+   * page, and the work on it, in place.
+   */
+  pathScoped?: boolean | undefined;
 }
 
 /** True while the form owning this guard is navigating on its own behalf. */
@@ -60,7 +85,9 @@ export function UnsavedChangesRouteGuardProvider({ children }: { children: React
         existing &&
         existing.isDirty === guard.isDirty &&
         existing.subject === guard.subject &&
-        existing.selfNavigationRef === guard.selfNavigationRef
+        existing.selfNavigationRef === guard.selfNavigationRef &&
+        existing.dialog === guard.dialog &&
+        existing.pathScoped === guard.pathScoped
       ) {
         return current;
       }
@@ -98,6 +125,8 @@ export function UnsavedChangesRouteGuard({
   isDirty,
   subject,
   selfNavigationRef,
+  dialog,
+  pathScoped,
 }: UnsavedChangesRouteGuardProps) {
   const dataRouterContext = useContext(UNSAFE_DataRouterContext);
   const registry = useContext(UnsavedChangesRegistryContext);
@@ -106,9 +135,9 @@ export function UnsavedChangesRouteGuard({
   useEffect(() => {
     if (!registry || !dataRouterContext) return;
 
-    registry.register({ id, isDirty, subject, selfNavigationRef });
+    registry.register({ id, isDirty, subject, selfNavigationRef, dialog, pathScoped });
     return () => registry.unregister(id);
-  }, [dataRouterContext, id, isDirty, registry, subject, selfNavigationRef]);
+  }, [dataRouterContext, id, isDirty, registry, subject, selfNavigationRef, dialog, pathScoped]);
 
   if (!dataRouterContext || registry) return null;
 
@@ -117,8 +146,18 @@ export function UnsavedChangesRouteGuard({
       isDirty={isDirty}
       subject={subject}
       selfNavigationRef={selfNavigationRef}
+      dialog={dialog}
+      pathScoped={pathScoped}
     />
   );
+}
+
+/** True when a path-scoped guard should let this navigation through. */
+function staysOnPath(
+  guard: { pathScoped?: boolean | undefined },
+  args: Pick<Parameters<BlockerFunction>[0], 'currentLocation' | 'nextLocation'>
+): boolean {
+  return !!guard.pathScoped && args.currentLocation.pathname === args.nextLocation.pathname;
 }
 
 function DataRouterUnsavedChangesBlocker({
@@ -136,19 +175,31 @@ function DataRouterUnsavedChangesBlocker({
   // mounted, the one that stops this navigation is whichever is not currently
   // self-navigating, and naming a different form would tell the user they are
   // discarding work they are not.
-  const [blockedSubject, setBlockedSubject] = useState('this page');
-  const shouldBlock = useCallback(() => {
-    const blocking = dirtyGuards.find(guard => !isSelfNavigating(guard));
-    if (!blocking) return false;
-    setBlockedSubject(blocking.subject);
-    return true;
-  }, [dirtyGuards]);
+  const [blocked, setBlocked] = useState<{
+    subject: string;
+    dialog?: UnsavedChangesDialogCopy | undefined;
+  }>({ subject: 'this page' });
+  const shouldBlock = useCallback<BlockerFunction>(
+    args => {
+      const blocking = dirtyGuards.find(
+        guard => !isSelfNavigating(guard) && !staysOnPath(guard, args)
+      );
+      if (!blocking) return false;
+      setBlocked({ subject: blocking.subject, dialog: blocking.dialog });
+      return true;
+    },
+    [dirtyGuards]
+  );
   const blocker = useBlocker(shouldBlock);
 
   return (
     <>
       {children}
-      <BlockedNavigationDialog blocker={blocker} subject={blockedSubject} />
+      <BlockedNavigationDialog
+        blocker={blocker}
+        subject={blocked.subject}
+        dialog={blocked.dialog}
+      />
     </>
   );
 }
@@ -157,35 +208,50 @@ function DataRouterUnsavedChangesGuard({
   isDirty,
   subject,
   selfNavigationRef,
+  dialog,
+  pathScoped,
 }: UnsavedChangesRouteGuardProps) {
-  const shouldBlock = useCallback(
-    () => isDirty && !isSelfNavigating({ selfNavigationRef }),
-    [isDirty, selfNavigationRef]
+  const shouldBlock = useCallback<BlockerFunction>(
+    args =>
+      isDirty && !isSelfNavigating({ selfNavigationRef }) && !staysOnPath({ pathScoped }, args),
+    [isDirty, selfNavigationRef, pathScoped]
   );
   const blocker = useBlocker(shouldBlock);
 
-  return <BlockedNavigationDialog blocker={blocker} subject={subject} />;
+  return <BlockedNavigationDialog blocker={blocker} subject={subject} dialog={dialog} />;
 }
 
-function BlockedNavigationDialog({ blocker, subject }: { blocker: Blocker; subject: string }) {
+function BlockedNavigationDialog({
+  blocker,
+  subject,
+  dialog,
+}: {
+  blocker: Blocker;
+  subject: string;
+  dialog?: UnsavedChangesDialogCopy | undefined;
+}) {
   if (blocker.state !== 'blocked') return null;
+  const copy: UnsavedChangesDialogCopy = dialog ?? {
+    title: `Leave ${subject}?`,
+    description: `You have unsaved changes in ${subject}. They will be lost if you leave this page.`,
+    stayLabel: 'Keep editing',
+    leaveLabel: 'Discard changes',
+  };
 
   return (
     <AlertDialog open onOpenChange={open => !open && blocker.reset()}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Leave {subject}?</AlertDialogTitle>
-          <AlertDialogDescription>
-            You have unsaved changes in {subject}. They will be lost if you leave this page.
-          </AlertDialogDescription>
+          <AlertDialogTitle>{copy.title}</AlertDialogTitle>
+          <AlertDialogDescription>{copy.description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={() => blocker.reset()}>Keep editing</AlertDialogCancel>
+          <AlertDialogCancel onClick={() => blocker.reset()}>{copy.stayLabel}</AlertDialogCancel>
           <AlertDialogAction
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             onClick={() => blocker.proceed()}
           >
-            Discard changes
+            {copy.leaveLabel}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -1,9 +1,13 @@
 import {
+  buildShowArmbandMaps,
+  resolveEntryArmband,
+  type ShowArmbandMaps,
+} from '@/features/_shared/entryArmband';
+import {
   replicatedArmbandsTable,
   replicatedClassesTable,
   replicatedEntriesTable,
   replicatedTrialsTable,
-  type ReplicatedArmband,
   type ReplicatedClass,
   type ReplicatedEntry,
 } from '@/services/replication';
@@ -44,25 +48,11 @@ function splitHandlerName(handlerName: string | undefined) {
   };
 }
 
-function buildArmbandMaps(armbands: ReplicatedArmband[]) {
-  const assignedArmbands = armbands.filter(a => a.isAvailable === false);
-  return {
-    byEntryId: new Map(assignedArmbands.flatMap(a => (a.entryId ? [[a.entryId, a]] : []))),
-    byDogId: new Map(assignedArmbands.flatMap(a => (a.dogId ? [[a.dogId, a]] : []))),
-  };
-}
-
-function armbandNumberForEntry(
-  entry: ReplicatedEntry,
-  armbandsByEntryId: ReadonlyMap<string, ReplicatedArmband>,
-  armbandsByDogId: ReadonlyMap<string, ReplicatedArmband>
-) {
-  const value =
-    entry.armband ??
-    entry.armbandNumber ??
-    entry.armband_number ??
-    armbandsByEntryId.get(entry.id)?.armbandNumber ??
-    (entry.dogId ? armbandsByDogId.get(entry.dogId)?.armbandNumber : undefined);
+function armbandNumberForEntry(entry: ReplicatedEntry, maps: ShowArmbandMaps) {
+  const value = resolveEntryArmband(
+    { ...entry, armband: entry.armband ?? entry.armbandNumber ?? entry.armband_number },
+    maps
+  );
   if (!value) return null;
   const parsed = Number.parseInt(value, 10);
   return Number.isNaN(parsed) ? null : parsed;
@@ -89,7 +79,7 @@ export async function fetchReplicatedCheckInEntries(showId: string): Promise<Che
     replicatedArmbandsTable.getByShow(showId),
   ]);
   const trialsById = new Map(trials.map(trial => [trial.id, trial]));
-  const { byEntryId: armbandsByEntryId, byDogId: armbandsByDogId } = buildArmbandMaps(armbands);
+  const armbandMaps = buildShowArmbandMaps(armbands);
   const classCache = new Map<string, Promise<ReplicatedClass | null>>();
   const activeEntries = entries.filter(isNotDeleted);
 
@@ -105,7 +95,7 @@ export async function fetchReplicatedCheckInEntries(showId: string): Promise<Che
         dog_id: entry.dogId ?? '',
         handler_id: entry.handlerId ?? '',
         check_in_status: getEntryCheckInStatus(entry),
-        armband_number: armbandNumberForEntry(entry, armbandsByEntryId, armbandsByDogId),
+        armband_number: armbandNumberForEntry(entry, armbandMaps),
         handler_first_name: handler.firstName,
         handler_last_name: handler.lastName,
         dog_call_name: getDogCallName(entry),

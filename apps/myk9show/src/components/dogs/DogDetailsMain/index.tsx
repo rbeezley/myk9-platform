@@ -167,12 +167,27 @@ const DogDetailsLoaded: React.FC<DogDetailsMainProps & { gates: DogPageGates }> 
 
   // Dialog state
   const [isEditPanelOpen, setIsEditPanelOpen] = useState(false);
-  // Edit dog is the first item of the header Actions menu (MYK9-928). The page shows the
-  // dog to its viewer only once access is checked, and the secretary's rail button and
-  // the exhibitor's menu item this replaces had no narrower gate.
-  usePageEditAction({ kind: 'dog', enabled: true, run: () => setIsEditPanelOpen(true) });
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
   const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
+  // Every action on this dog lives in the header Actions menu (MYK9-928; CRUD standard
+  // decision 6). The page shows the dog to its viewer only once access is checked, and the
+  // rail button and hero ⋮ these replace had no narrower gate. The hero keeps its camera
+  // button and status badge: controls on the thing itself, not a menu.
+  usePageEditAction({
+    kind: 'dog',
+    enabled: true,
+    run: () => setIsEditPanelOpen(true),
+    title: dog.callName,
+    extras: [
+      { id: 'photo', label: 'Change Photo', icon: 'photo', run: () => setIsPhotoDialogOpen(true) },
+      {
+        id: 'status',
+        label: 'Change status',
+        icon: 'status',
+        run: () => setIsStatusDialogOpen(true),
+      },
+    ],
+  });
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   // The raw File is what we upload to Storage; photoPreview is only the data-URL
   // shown in the dialog. Keeping just the preview was the original bug.

@@ -40,6 +40,7 @@ const KNOWN_JUDGES = [
     judgeName: 'Pat Judge',
     assignedDate: '2026-09-01',
     assignedClasses: ['class-1'],
+    hasShowLevelAssignment: false,
   },
 ];
 

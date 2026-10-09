@@ -407,44 +407,56 @@ function renderCatalog(doc: jsPDF, page: EmergencyPacketPage): void {
   );
 }
 
-type CheckInColumnKey =
-  'gate' | 'order' | 'armband' | 'callName' | 'breed' | 'registrationNumber' | 'handler' | 'note';
+type CheckInColumnKey = 'gate' | 'order' | 'armband' | 'callName' | 'breed' | 'handler';
+
+/** Check-in sheet text size. Rows stay 10mm, so the batch size is unchanged. */
+const CHECK_IN_FONT_PT = 12;
+/**
+ * Armband number in the data rows: bold and larger, for reading across the room.
+ * Steps down toward the body size only when a long number would not fit its
+ * column, so a distinct armband is never cut short.
+ */
+const CHECK_IN_ARMBAND_FONT_PT = 18;
+/** Smallest a long armband may shrink to: the body size this sheet used before. */
+const CHECK_IN_ARMBAND_MIN_PT = 7;
+
+function fitArmbandFontSize(doc: jsPDF, text: string, budget: number): number {
+  doc.setFont('helvetica', 'bold');
+  let pt = CHECK_IN_ARMBAND_FONT_PT;
+  for (; pt > CHECK_IN_ARMBAND_MIN_PT; pt -= 1) {
+    doc.setFontSize(pt);
+    if (doc.getTextWidth(text) <= budget) break;
+  }
+  return pt;
+}
 
 /**
  * Widths here are sized to the widest HEADER, not the widest expected data —
  * the non-obvious constraint the next editor needs to know before "fixing"
  * one that looks generous for its column's content. All measured at the
- * shared 7.5pt bold header font (`doc.getTextWidth`), budget = width - 3:
+ * Check-in table font, bold header (`doc.getTextWidth`), budget = width - 3.
+ * Sized at CHECK_IN_FONT_PT (readable at a distance on a board near the ring):
  *
- *   gate     'Gate'                5.85mm text, 6.90mm budget -> 1.05mm margin
- *   order    'Order'               7.20mm text, 8.50mm budget -> 1.30mm margin
- *   note     'Pull / Move / Note' 21.85mm text, 22.90mm budget -> 1.05mm margin
+ *   gate     'Gate'                 8.60mm text,  9.50mm budget
+ *   order    'Order'               10.60mm text, 11.50mm budget
+ *   armband  'Armband'             17.00mm text, 18.50mm budget
  *
- * `gate` and `order` hold no real per-entry text (a checkbox and a usually
- * ≤3-digit number) and `note` is always blank too, so their margins only
- * have to clear their OWN header, not any data. `breed` and `handler` hold
- * real per-entry data that `fitTextToWidth` already truncates gracefully, so
- * they were trimmed slightly (32->30.6, 30 unchanged) to fund `gate`/`order`
- * rather than the other way around; both still carry >17mm of slack over
- * their own header. Data that overflows any column is still truncated by
- * `fitTextToWidth`, never overprinted.
+ * The Reg # and Pull / Move / Note columns were dropped to make room for the
+ * larger text, so callName, breed and handler take the remaining width. Data
+ * that overflows a column is still truncated by `fitTextToWidth`, never
+ * overprinted.
  */
 const CHECK_IN_COLUMN_DEFS: ReadonlyArray<{ key: CheckInColumnKey; label: string; width: number }> =
   [
-    { key: 'gate', label: 'Gate', width: 9.9 },
-    { key: 'order', label: 'Order', width: 11.5 },
-    { key: 'armband', label: 'Armband', width: 20 },
-    { key: 'callName', label: 'Call Name', width: 34 },
-    { key: 'breed', label: 'Breed', width: 30.6 },
-    { key: 'registrationNumber', label: 'Reg #', width: 26 },
-    { key: 'handler', label: 'Handler', width: 30 },
-    { key: 'note', label: 'Pull / Move / Note', width: 25.9 },
+    { key: 'gate', label: 'Gate', width: 13 },
+    { key: 'order', label: 'Order', width: 15 },
+    { key: 'armband', label: 'Armband', width: 22.5 },
+    { key: 'callName', label: 'Call Name', width: 50 },
+    { key: 'breed', label: 'Breed', width: 56 },
+    { key: 'handler', label: 'Handler', width: 29.4 },
   ];
 
 /**
- * The union of the two check-in sheets this replaced: `Order` and
- * `Pull / Move / Note` came from the packet, `Reg #` from the Reports sheet.
- *
  * `x` is derived by summing preceding widths (not a literal) so a width edit
  * moves every column after it — the property the width test relies on: it
  * only checks the FIRST and LAST column's bounds, so a column downstream of
@@ -470,7 +482,6 @@ export const CHECK_IN_COLUMNS: ReadonlyArray<{
 function checkInCellValue(entry: EmergencyPacketEntry, key: CheckInColumnKey): string {
   switch (key) {
     case 'gate':
-    case 'note':
       return '';
     case 'order':
       return entry.runOrderDisplay;
@@ -480,8 +491,6 @@ function checkInCellValue(entry: EmergencyPacketEntry, key: CheckInColumnKey): s
       return entry.callName;
     case 'breed':
       return entry.breed;
-    case 'registrationNumber':
-      return entry.registrationNumber ?? '';
     case 'handler':
       return entry.handler;
     default:
@@ -490,12 +499,11 @@ function checkInCellValue(entry: EmergencyPacketEntry, key: CheckInColumnKey): s
 }
 
 /**
- * Custom layout rather than `renderTable`: this table needs the SAME 7.5pt
- * bold header the other tables use — this is a sheet read at arm's length by
- * a secretary or judge, not fine print — so the column widths above (not the
- * font) are what make `'Pull / Move / Note'` fit. `fitTextToWidth` still
- * backstops every header and every cell so a real overflow is truncated,
- * never overprinted.
+ * Custom layout rather than `renderTable`: this sheet is posted on a board
+ * near the ring and read from a distance, so it uses CHECK_IN_FONT_PT rather
+ * than the 7.5pt the other tables use. The column widths above are sized to
+ * that font. `fitTextToWidth` still backstops every header and every cell so
+ * a real overflow is truncated, never overprinted.
  */
 function renderCheckIn(doc: jsPDF, page: EmergencyPacketPage): void {
   const startY = addTitle(doc, page);
@@ -507,7 +515,7 @@ function renderCheckIn(doc: jsPDF, page: EmergencyPacketPage): void {
   doc.rect(LEFT, y, totalWidth, rowHeight, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7.5);
+  doc.setFontSize(CHECK_IN_FONT_PT);
   for (const column of CHECK_IN_COLUMNS) {
     // 3mm padding (vs. the 2mm `renderTable` cells use elsewhere) is
     // deliberate, not a typo against the plan: it truncates a hair earlier,
@@ -518,7 +526,7 @@ function renderCheckIn(doc: jsPDF, page: EmergencyPacketPage): void {
   y += rowHeight;
 
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7.5);
+  doc.setFontSize(CHECK_IN_FONT_PT);
   doc.setTextColor(20, 20, 20);
   page.entries.forEach((entry, rowIndex) => {
     if (rowIndex % 2 === 1) {
@@ -528,11 +536,24 @@ function renderCheckIn(doc: jsPDF, page: EmergencyPacketPage): void {
     doc.setDrawColor(150, 150, 150);
     for (const column of CHECK_IN_COLUMNS) {
       doc.rect(column.x, y, column.width, rowHeight);
+      // The armband is the number a judge looks for across the room, so it
+      // gets its own larger bold size. Its baseline sits lower to stay centred.
+      const isArmband = column.key === 'armband';
+      const cellText = checkInCellValue(entry, column.key);
+      if (isArmband) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(fitArmbandFontSize(doc, cellText, column.width - 3));
+      } else {
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(CHECK_IN_FONT_PT);
+      }
       doc.text(
-        fitTextToWidth(doc, checkInCellValue(entry, column.key), column.width - 3),
+        fitTextToWidth(doc, cellText, column.width - 3),
         column.x + 1.5,
-        y + 6
+        isArmband ? y + 7 : y + 6
       );
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(CHECK_IN_FONT_PT);
     }
     y += rowHeight;
   });
@@ -544,7 +565,7 @@ function renderCheckIn(doc: jsPDF, page: EmergencyPacketPage): void {
  * rows of ~6mm) also fits, which is why a 3-area class does not need a taller
  * block. Exported so pagination and its tests share ONE number.
  */
-export const SCORE_BLOCK_HEIGHT_MM = 36;
+export const SCORE_BLOCK_HEIGHT_MM = 40;
 
 /**
  * Minimum headroom a per-dog block must keep below `SCORE_BLOCK_HEIGHT_MM`.
@@ -557,11 +578,12 @@ export const SCORE_BLOCK_HEIGHT_MM = 36;
  */
 export const MIN_BLOCK_MARGIN_MM = 1.5;
 
-// INTENT: this sheet is a SUPERSET of what either surface needs. `Place`
-// and the free-text note are dead weight when the app is up and the only
-// record when it is down. Do not split this into "normal" and "emergency"
-// variants, and do not delete the unused-looking fields as a simplification.
-// One document, printed the same way every time, is the point.
+// INTENT: this sheet is a SUPERSET of what either surface needs: the fields
+// that look unused while the app is up are the only record when it is down.
+// `Place` was removed by explicit request (the judge reads the result from the
+// NQ/EX reason columns instead). Do not split this into "normal" and
+// "emergency" variants. One document, printed the same way every time, is the
+// point.
 
 /**
  * Fixed left edges and widths, in mm, tiling the printable 187.9mm width
@@ -571,30 +593,20 @@ export const MIN_BLOCK_MARGIN_MM = 1.5;
  * then result, then why, then how long it took.
  */
 const SCORE_REGIONS = {
-  identity: { x: 14, width: 55 },
-  result: { x: 69, width: 30 },
-  faults: { x: 99, width: 35 },
-  reasons: { x: 134, width: 45 },
-  time: { x: 179, width: 22.9 },
+  identity: { x: 14, width: 45 },
+  result: { x: 59, width: 18 },
+  faults: { x: 77, width: 31 },
+  nq: { x: 108, width: 35 },
+  ex: { x: 143, width: 35 },
+  time: { x: 178, width: 23.9 },
 } as const;
 
-const CHECKBOX_SIZE_MM = 2.6;
+/** Sized for a judge reading the box at arm's length on a clipboard. */
 const TALLY_BOX_SIZE_MM = 4.5;
-const REASON_ROW_HEIGHT_MM = 2.7;
-const TIME_ROW_HEIGHT_MM = 6;
-
-/** A ruled checkbox (never prose) followed by its label, `fitTextToWidth`-safe. */
-function drawCheckboxLabel(
-  doc: jsPDF,
-  x: number,
-  baselineY: number,
-  label: string,
-  maxLabelWidth: number
-): void {
-  doc.setDrawColor(90, 90, 90);
-  doc.rect(x, baselineY - CHECKBOX_SIZE_MM + 0.6, CHECKBOX_SIZE_MM, CHECKBOX_SIZE_MM);
-  doc.text(fitTextToWidth(doc, label, maxLabelWidth), x + CHECKBOX_SIZE_MM + 1.3, baselineY);
-}
+const REASON_ROW_HEIGHT_MM = 6;
+const TIME_ROW_HEIGHT_MM = 7;
+const SCORE_TEXT_PT = 9;
+const REASON_TEXT_PT = 8;
 
 /**
  * Four separate lines, matching the deleted React component
@@ -615,36 +627,32 @@ function renderIdentityRegion(doc: jsPDF, entry: EmergencyPacketEntry, y0: numbe
   const textX = region.x + 2;
   const maxWidth = region.width - 4;
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(11);
+  doc.setFontSize(13);
   doc.text(
     fitTextToWidth(doc, `#${formatPacketArmband(entry.armband)}  ${entry.callName}`, maxWidth),
     textX,
-    y0 + 7
+    y0 + 8
   );
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
+  doc.setFontSize(SCORE_TEXT_PT);
   const lines = [entry.breed, entry.registrationNumber, entry.handler].filter(
     (value): value is string => Boolean(value)
   );
   lines.forEach((line, index) => {
-    doc.text(fitTextToWidth(doc, line, maxWidth), textX, y0 + 13 + index * 5);
+    doc.text(fitTextToWidth(doc, line, maxWidth), textX, y0 + 15 + index * 6);
   });
 }
 
+/** Q and ABS only. NQ and EX are recorded by checking a reason, not a box here. */
 function renderResultRegion(doc: jsPDF, config: ScoresheetRegistryConfig, y0: number): void {
   const region = SCORE_REGIONS.result;
-  const colWidth = region.width / 2 - 4;
-  const col1 = region.x + 2;
-  const col2 = region.x + region.width / 2 + 2;
-  doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
+  const labelX = region.x + 2;
+  const maxLabelWidth = region.width - 4;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(SCORE_TEXT_PT);
   config.resultStates.forEach((state, index) => {
-    const x = index % 2 === 0 ? col1 : col2;
-    const row = Math.floor(index / 2);
-    drawCheckboxLabel(doc, x, y0 + 6 + row * 7, state, colWidth);
+    doc.text(fitTextToWidth(doc, state, maxLabelWidth), labelX, y0 + 10 + index * 10);
   });
-  const rows = Math.ceil(config.resultStates.length / 2);
-  doc.text(fitTextToWidth(doc, 'Place: ______', region.width - 4), col1, y0 + 6 + rows * 7 + 4);
 }
 
 function renderFaultsRegion(doc: jsPDF, config: ScoresheetRegistryConfig, y0: number): void {
@@ -653,43 +661,41 @@ function renderFaultsRegion(doc: jsPDF, config: ScoresheetRegistryConfig, y0: nu
   const labelX = boxX + TALLY_BOX_SIZE_MM + 2;
   const maxLabelWidth = region.width - TALLY_BOX_SIZE_MM - 6;
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
+  doc.setFontSize(REASON_TEXT_PT);
   config.faultCounters.forEach((label, index) => {
-    const y = y0 + 6 + index * 8;
+    const y = y0 + 10 + index * 10;
     doc.setDrawColor(90, 90, 90);
     doc.rect(boxX, y - TALLY_BOX_SIZE_MM + 1, TALLY_BOX_SIZE_MM, TALLY_BOX_SIZE_MM);
     doc.text(fitTextToWidth(doc, label, maxLabelWidth), labelX, y);
   });
 }
 
-/** One vertical list of checkbox reasons under a bold section label. Returns the y reached. */
-function renderReasonList(
+/**
+ * One column of checkbox reasons under a bold heading. A checked reason is
+ * the record of the result: NQ or EX is implied by which column it sits in.
+ */
+function renderReasonColumn(
   doc: jsPDF,
-  x: number,
-  startY: number,
-  label: string,
+  region: { x: number; width: number },
+  heading: string,
   reasons: readonly string[],
-  maxLabelWidth: number
-): number {
-  let y = startY;
+  y0: number
+): void {
+  const x = region.x + 2;
+  const maxLabelWidth = region.width - 4;
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(7);
-  doc.text(label, x, y);
+  doc.setFontSize(SCORE_TEXT_PT);
+  doc.text(heading, x, y0 + 7);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(6);
-  for (const reason of reasons) {
-    y += REASON_ROW_HEIGHT_MM;
-    drawCheckboxLabel(doc, x, y, reason, maxLabelWidth);
-  }
-  return y;
+  doc.setFontSize(SCORE_TEXT_PT);
+  reasons.forEach((reason, index) => {
+    doc.text(fitTextToWidth(doc, reason, maxLabelWidth), x, y0 + 13 + index * REASON_ROW_HEIGHT_MM);
+  });
 }
 
 function renderReasonsRegion(doc: jsPDF, config: ScoresheetRegistryConfig, y0: number): void {
-  const region = SCORE_REGIONS.reasons;
-  const x = region.x + 2;
-  const maxLabelWidth = region.width - CHECKBOX_SIZE_MM - 5;
-  const afterNq = renderReasonList(doc, x, y0 + 3.5, 'NQ', config.nqReasons, maxLabelWidth);
-  renderReasonList(doc, x, afterNq + 3, 'EX', config.exReasons, maxLabelWidth);
+  renderReasonColumn(doc, SCORE_REGIONS.nq, 'NQ', config.nqReasons, y0);
+  renderReasonColumn(doc, SCORE_REGIONS.ex, 'EX', config.exReasons, y0);
 }
 
 /**
@@ -736,8 +742,9 @@ const TIME_REGION_MAX_ROWS = 5;
 function renderTimeRegion(doc: jsPDF, areaCount: number, y0: number): void {
   const region = SCORE_REGIONS.time;
   const labelX = region.x + 1;
-  const boxX = region.x + 7.5;
-  const boxWidth = region.width - 8.5;
+  // The label column has to hold `Total` at SCORE_TEXT_PT (about 7.1mm).
+  const boxX = region.x + 9;
+  const boxWidth = region.width - 10;
   const maxLabelWidth = boxX - labelX - 0.8;
   const desiredRows =
     areaCount <= 1
@@ -751,12 +758,12 @@ function renderTimeRegion(doc: jsPDF, areaCount: number, y0: number): void {
     rows = [...shownAreas, `+${hiddenCount}`, 'Total'];
   }
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
+  doc.setFontSize(SCORE_TEXT_PT);
   rows.forEach((label, index) => {
-    const y = y0 + 6 + index * TIME_ROW_HEIGHT_MM;
+    const y = y0 + 7 + index * TIME_ROW_HEIGHT_MM;
     doc.text(fitTextToWidth(doc, label, maxLabelWidth), labelX, y);
     doc.setDrawColor(90, 90, 90);
-    doc.rect(boxX, y - 4, boxWidth, 4.5);
+    doc.rect(boxX, y - 5, boxWidth, 6);
   });
 }
 

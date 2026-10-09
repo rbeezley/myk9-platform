@@ -1,41 +1,11 @@
-import React, { useMemo, useState } from 'react';
-import {
-  MapPin,
-  Mail,
-  Phone,
-  Globe,
-  Award,
-  Shield,
-  MoreVertical,
-  Camera,
-  ShieldCheck,
-  ShieldOff,
-  ShieldAlert,
-} from 'lucide-react';
+import React, { useMemo } from 'react';
+import { MapPin, Award, Shield, ShieldAlert } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import { CoverImageUpload } from '@/components/ui/cover-image-upload';
 import { DetailHero, type HeroBadge } from '@/components/common/DetailHero';
 import { Club } from '@/types/club-types';
 import { generatePalette } from '@/lib/branding';
 import { getClubInitials } from './utils';
-import { normalizeContactDestinations } from './contactDestinations';
 import { CLUB_UNAUTHORIZED_MESSAGE } from '@/features/payments/onlineEntryGate';
 import { useClubOfficials } from './useClubOfficials';
 import { ClubOfficialsLine } from './ClubOfficialsLine';
@@ -48,15 +18,11 @@ interface ClubHeaderProps {
   onCoverRemove?: () => void;
   isUploadingCover?: boolean;
   canEditBranding?: boolean;
-  // MYK9-572: site-admin-only authorize/revoke control. canAuthorizeClub
-  // gates the affordance (mirrors set_club_authorization's own
-  // is_site_admin() check); isClubAuthorized is undefined while loading.
+  // MYK9-572: who may authorize (site admin) and the club's state, for the
+  // Unauthorized badge and notice. isClubAuthorized is undefined while loading.
+  // The Authorize / Revoke action itself is in the header Actions menu.
   canAuthorizeClub?: boolean;
   isClubAuthorized?: boolean | undefined;
-  isAuthorizationLoading?: boolean;
-  isAuthorizationUpdating?: boolean;
-  onAuthorizeClub?: () => void;
-  onRevokeAuthorization?: () => void;
 }
 
 export const ClubHeader: React.FC<ClubHeaderProps> = ({
@@ -68,35 +34,16 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
   canEditBranding = false,
   canAuthorizeClub = false,
   isClubAuthorized,
-  isAuthorizationLoading = false,
-  isAuthorizationUpdating = false,
-  onAuthorizeClub,
-  onRevokeAuthorization,
 }) => {
-  const handleAuthorizeClub = onAuthorizeClub ?? (() => {});
-  const handleRevokeAuthorization = onRevokeAuthorization ?? (() => {});
-  // P3-C: revoking has no confirm today even though it immediately blocks the club from
-  // publishing any NEW show — cheap to fat-finger from a dropdown item.
-  const [showRevokeConfirm, setShowRevokeConfirm] = useState(false);
   const palette = useMemo(
     () => (club.accentColor ? generatePalette(club.accentColor) : null),
     [club.accentColor]
   );
-  const contact = useMemo(() => normalizeContactDestinations(club), [club]);
   const {
     data: officials,
     isError: officialsError,
     refetch: refetchOfficials,
   } = useClubOfficials(club.id);
-  const hasMenuActions =
-    canEditBranding || canAuthorizeClub || !!contact.email || !!contact.phone || !!contact.website;
-  // P3-3: the separator before the Authorize/Revoke item should only render
-  // when something actually precedes it in the menu — otherwise a club with
-  // ONLY the authorize affordance (no branding edit, no contact info) shows
-  // a leading divider with nothing above it.
-  const hasItemsAboveAuthorize =
-    canEditBranding || !!contact.email || !!contact.phone || !!contact.website;
-
   const foundedYear = club.founded
     ? club.founded instanceof Date
       ? club.founded.getFullYear()
@@ -116,76 +63,7 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
   // hero card (DetailHero's `banner` slot).
   const banner = (
     <div className="relative">
-      {/* Edit club is the first item of the header Actions menu (MYK9-928), not a button here. */}
-      <div className="absolute top-4 right-4 z-20 flex items-center gap-1">
-        {hasMenuActions && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild nativeButton>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-11 w-11 p-0 bg-black/30 hover:bg-black/50 text-white"
-                aria-label="Club options"
-              >
-                <MoreVertical className="h-5 w-5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              {canEditBranding && (
-                <>
-                  <DropdownMenuItem onClick={onEditPhoto}>
-                    <Camera className="mr-2 h-4 w-4" />
-                    Change Photo
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                </>
-              )}
-              {contact.email && (
-                <DropdownMenuItem onClick={() => window.open(contact.email!, '_self')}>
-                  <Mail className="mr-2 h-4 w-4" />
-                  Email Club
-                </DropdownMenuItem>
-              )}
-              {contact.phone && (
-                <DropdownMenuItem onClick={() => window.open(contact.phone!, '_self')}>
-                  <Phone className="mr-2 h-4 w-4" />
-                  Call Club
-                </DropdownMenuItem>
-              )}
-              {contact.website && (
-                <DropdownMenuItem
-                  onClick={() => window.open(contact.website!, '_blank', 'noopener,noreferrer')}
-                >
-                  <Globe className="mr-2 h-4 w-4" />
-                  Visit Website
-                </DropdownMenuItem>
-              )}
-              {canAuthorizeClub && !isAuthorizationLoading && (
-                <>
-                  {hasItemsAboveAuthorize && <DropdownMenuSeparator />}
-                  {isClubAuthorized ? (
-                    <DropdownMenuItem
-                      onClick={() => setShowRevokeConfirm(true)}
-                      disabled={isAuthorizationUpdating}
-                    >
-                      <ShieldOff className="mr-2 h-4 w-4" />
-                      Revoke Authorization
-                    </DropdownMenuItem>
-                  ) : (
-                    <DropdownMenuItem
-                      onClick={handleAuthorizeClub}
-                      disabled={isAuthorizationUpdating}
-                    >
-                      <ShieldCheck className="mr-2 h-4 w-4" />
-                      Authorize Club
-                    </DropdownMenuItem>
-                  )}
-                </>
-              )}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
-      </div>
+      {/* Every action on this club lives in the header Actions menu (CRUD standard decision 6). */}
 
       {/* Accent color bar at very top */}
       {palette && (
@@ -316,7 +194,7 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
           className="max-w-2xl text-sm text-muted-foreground"
         >
           {canAuthorizeClub
-            ? 'Pending myK9 authorization. Authorize this club from the ⋮ menu above to unlock show publishing and the public club directory.'
+            ? 'Pending myK9 authorization. Authorize this club from the Actions menu at the top of the page to unlock show publishing and the public club directory.'
             : 'Pending myK9 authorization — a myK9 operator reviews new clubs and will authorize this one soon. You can build shows now; publishing unlocks once the club is authorized.'}
         </p>
       )}
@@ -336,30 +214,6 @@ export const ClubHeader: React.FC<ClubHeaderProps> = ({
         metadata={facts}
         details={details}
       />
-
-      <AlertDialog open={showRevokeConfirm} onOpenChange={setShowRevokeConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Revoke this club&apos;s authorization?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Stop {club.name} from publishing new shows. It stays visible wherever it already has a
-              published show.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                handleRevokeAuthorization();
-                setShowRevokeConfirm(false);
-              }}
-              className="bg-destructive hover:bg-destructive/90 text-destructive-foreground"
-            >
-              Revoke Authorization
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 };

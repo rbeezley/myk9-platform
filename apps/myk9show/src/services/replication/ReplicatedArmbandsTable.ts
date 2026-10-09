@@ -126,6 +126,8 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
   /**
    * Sync armbands from Supabase.
    * Full sync — armbands table has no updated_at column.
+   * A show scope limits both the download and stale cleanup; omitted keeps the provider
+   * all-show sync behavior.
    */
   /**
    * Reads rows by id the way `sync` does, so a full-row UPDATE rejected for a
@@ -148,17 +150,19 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
     };
   }
 
-  async sync(_syncScopeId?: string): Promise<SyncResult> {
+  async sync(syncScopeId?: string): Promise<SyncResult> {
     logger.log(`[${this.getTableName()}] Starting full sync`);
 
     const adapter: SyncReplicatedTableAdapter<ArmbandRow, ReplicatedArmband> = {
       ...this.getRowRefetchAdapter(),
-      fetchRemoteRows: async () => {
-        const { data, error } = await supabase
+      fetchRemoteRows: async ({ scope }) => {
+        let query = supabase
           .from('armbands')
           .select('*')
           .eq('is_available', false)
           .order('created_at', { ascending: true });
+        if (scope.value) query = query.eq('show_id', scope.value);
+        const { data, error } = await query;
 
         if (error) {
           throw new Error(`Supabase query failed: ${error.message}`);
@@ -167,10 +171,34 @@ export class ReplicatedArmbandsTable extends ReplicatedTable<ReplicatedArmband> 
         return (data ?? []) as unknown as ArmbandRow[];
       },
       resolveConflict: (_local, remote) => remote,
-      shouldCleanupStaleRows: true,
+      ...(syncScopeId
+        ? {
+            filterLocalRows: (rows: ReplicatedArmband[]) =>
+              rows.filter(row => row.showId === syncScopeId),
+            getRemoteRowCount: async () => {
+              try {
+                const { count, error } = await supabase
+                  .from('armbands')
+                  .select('id', { count: 'exact', head: true })
+                  .eq('is_available', false)
+                  .eq('show_id', syncScopeId);
+                return error ? undefined : (count ?? undefined);
+              } catch {
+                return undefined;
+              }
+            },
+            // Scoped cleanup preserves other shows and requires complete coverage.
+            cleanupStaleRowsOnFullSync: true,
+          }
+        : { shouldCleanupStaleRows: true }),
     };
 
-    const result = await syncReplicatedTable(this, adapter, {}, { forceFullSync: true });
+    const result = await syncReplicatedTable(
+      this,
+      adapter,
+      syncScopeId ? { value: syncScopeId } : {},
+      { forceFullSync: true }
+    );
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);

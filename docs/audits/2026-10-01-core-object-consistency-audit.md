@@ -1,6 +1,6 @@
 # Core-Object UI Consistency Audit
 
-**Date:** 2026-10-01 · **Method:** read-only code read of `origin/main` (no browser walk; layout and mobile points are marked _verify_) · **Scope:** list pages, detail pages, and create/edit forms for the seven core objects: club, show, trial, class, entry, dog and person. **Excluded:** Edit/Delete placement and delete behavior, already decided in [`plan-crud-standard.md`](../plan-crud-standard.md) (MYK9-914); and the dog page role view (MYK9-912).
+**Date:** 2026-10-01 · **Method:** read-only code read of `origin/main` (no browser walk; layout and mobile points are marked _verify_) · **Scope:** list pages, detail pages, and create/edit forms for the seven core objects: club, show, trial, class, entry, dog and person. **Excluded:** Edit/Delete placement and delete behavior, already decided in [`plan-crud-standard.md`](../archive/plan-crud-standard.md) (MYK9-914); and the dog page role view (MYK9-912).
 
 **Why:** the target secretary is experienced but older and not very computer literate ([`INTENT.md`](../INTENT.md)). For her, a screen that behaves differently from the last one is a reason to stop and doubt. Where two screens do the same thing differently, one of them is wrong.
 

@@ -84,6 +84,24 @@ const bothRefused =
     Object.fromEntries(ids.map(id => [id, { withdraw: verdict, pull: verdict }]));
 
 describe('EntryEditDialog — MYK9-535 withdraw guard', () => {
+  it('keeps a secretary edit sheet free of a second Pull or Withdraw control', async () => {
+    render(
+      <EntryEditDialog
+        open
+        entry={entry}
+        onOpenChange={noop}
+        onUpdate={noop}
+        asShowManager
+        allowLeaveClass={false}
+      />
+    );
+
+    expect(await screen.findByText('Classes Entered')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /withdraw or pull/i })).not.toBeInTheDocument();
+    expect(mocks.getRemoveFromClassEligibilityForEntries).not.toHaveBeenCalled();
+    expect(mocks.withdrawEntry).not.toHaveBeenCalled();
+  });
+
   it('asks for the whole card in ONE call, not one per class row', async () => {
     // A card groups by registration_id, so a multi-dog order is routinely 20-40
     // rows; per-row reads would be that many round trips on every open.

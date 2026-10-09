@@ -1,7 +1,6 @@
 import React from 'react';
 import { Camera, Dog } from 'lucide-react';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import ThreeDotMenu from '@/components/common/ThreeDotMenu';
 import { DetailHero } from '@/components/common/DetailHero';
 import { getInitials } from '@/lib/utils';
 import type { User as UserType } from '@/types/dog-types';
@@ -13,23 +12,11 @@ interface HeroProfileCardProps {
   fullName: string;
   photo: string;
   onEditPhoto: () => void;
-  onChangeStatus?: (() => void) | undefined;
-  changeStatusLabel?: string | undefined;
-  changeStatusDisabled?: boolean | undefined;
-  changeStatusDescription?: string | undefined;
   /**
-   * The person is removed. Editing them is not an operation — the record is
-   * readable so an admin can decide whether to restore it (MYK9-153), and a
-   * banner says exactly that, so leaving Edit / photo / invitation live here
-   * would make the banner a liar. Delete is not here either: a live person is
-   * deleted from the Edit panel's footer, and a removed one is purged only on
-   * Admin → Deleted Items.
+   * The person is removed: the record is readable so an admin can decide whether to restore
+   * it (MYK9-153), and a banner says so, so the photo control is not offered.
    */
   isRemoved?: boolean;
-  /** Send/resend a sign-in invitation (MYK9-134). Omit to hide the menu item. */
-  onSendInvitation?: (() => void) | undefined;
-  sendInvitationLabel?: string | undefined;
-  sendInvitationDisabled?: boolean | undefined;
 }
 
 /**
@@ -45,14 +32,7 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
   fullName,
   photo,
   onEditPhoto,
-  onChangeStatus,
-  changeStatusLabel,
-  changeStatusDisabled,
-  changeStatusDescription,
   isRemoved = false,
-  onSendInvitation,
-  sendInvitationLabel,
-  sendInvitationDisabled,
 }) => {
   const roles = person.roles ?? [];
   const dogCount = person.dogs?.length ?? 0;
@@ -108,20 +88,6 @@ const HeroProfileCard: React.FC<HeroProfileCardProps> = ({
               },
             ]
           : []
-      }
-      /* Row-level actions. Edit person is the first item of the header Actions
-         menu (MYK9-928), registered by the page only while the person is live.
-         Delete person is the Edit panel's footer button, never a menu item. */
-      secondaryActions={
-        <ThreeDotMenu
-          {...(onChangeStatus ? { onChangeStatus } : {})}
-          {...(changeStatusLabel ? { changeStatusLabel } : {})}
-          {...(changeStatusDisabled !== undefined ? { changeStatusDisabled } : {})}
-          {...(changeStatusDescription ? { changeStatusDescription } : {})}
-          {...(isRemoved ? {} : { onEditPhoto, onSendInvitation })}
-          sendInvitationLabel={sendInvitationLabel}
-          sendInvitationDisabled={sendInvitationDisabled}
-        />
       }
     />
   );

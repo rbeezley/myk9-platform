@@ -5,7 +5,8 @@ import type { EditPanelVariant } from '../EditPanelWrapper';
 export interface AddDogPanelProps {
   open: boolean;
   onClose: () => void;
-  onDogCreated: (dog: DogType) => void;
+  /** `existing` is true when a duplicate match was chosen instead of creating a dog. */
+  onDogCreated: (dog: DogType, options?: { existing?: boolean }) => void;
   userRole?: UserRole | undefined;
   currentUserPersonId?: string | undefined;
   variant?: EditPanelVariant;
@@ -18,6 +19,12 @@ export interface AddDogPanelProps {
    * Dogs page) — not mid-registration, where the dog is already being entered.
    */
   onEnterShowWithDog?: ((dog: DogType) => void) | undefined;
+  /**
+   * `YYYY-MM-DD` start of the show being entered, when the caller is mid-
+   * registration. The date-of-birth warning judges "old enough" on that day
+   * instead of today (MYK9-1060).
+   */
+  showStartDate?: string | undefined;
 }
 
 export interface DogFormData extends Record<string, unknown> {

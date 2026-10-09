@@ -10,14 +10,16 @@
  * model to search params:
  *   - `attention` -> EntryAttentionFilter (all | pending | missing_information |
  *     accepted | waitlist | issues). The live cockpit replaces this with its
- *     single `queue` control, where the status-filter INTENT guard now lives.
+ *     `queue` list (the Show: menu's checked queues), where the status-filter
+ *     INTENT guard now lives.
  *   - `payment` -> EntryPaymentFilter (all | pending | paid_online |
  *     paid_by_check | paid_by_cash | waived | refunded).
  *   - `mode` -> EntryWorkMode (review | day-of) — a curated combination of
  *     attention/payment/view via ENTRY_WORK_MODE_PRESETS.
  *   - `view` -> EntryManagementViewMode (table | cards) — display, not a filter.
- *   - `trial`, `class` -> scope (trial/class id), not validated against an
- *     allowlist here (ids), cleared together per `setTrialFilter`.
+ *   - `trial`, `class` -> scope (comma lists of trial/class ids), not validated
+ *     here; the cockpit writes both in one step (`writeCockpitScope`), and a
+ *     class may be picked with no trial.
  *   - `roster` -> boolean display toggle, trial-scoped only (orphan cleared by
  *     the normalizer when `trial` is absent).
  *   - `entryTab` (legacy) and `attention=move-ups|pulled` (legacy) migrate to

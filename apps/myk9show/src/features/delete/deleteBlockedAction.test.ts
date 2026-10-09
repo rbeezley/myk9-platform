@@ -40,3 +40,13 @@ describe('blocked show delete: Cancel show link', () => {
     expect(url.pathname).toBe('/shows');
   });
 });
+
+describe('blocked entry delete: Withdraw / Pull link', () => {
+  it('opens the blocked entry in the all-registrations queue', () => {
+    const action = blockedActionFor('entry', [
+      { id: 'entry-1', name: 'Scout', context: { showId: 'show-1' } },
+    ]);
+
+    expect(action?.to).toBe('/shows/show-1/entries?queue=all&entry=entry-1');
+  });
+});

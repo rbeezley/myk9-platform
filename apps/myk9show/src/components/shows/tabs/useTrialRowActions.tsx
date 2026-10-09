@@ -101,7 +101,7 @@ export function useTrialRowActions(showId: string, enabled: boolean) {
         locked={actionLocked}
         onEdit={() => void openTrialAction(trialId, 'edit')}
         // On the show home, Delete is only in the trial edit panel's footer
-        // (owner, 2026-10-03; plan-crud-standard.md placement).
+        // (owner, 2026-10-03; docs/archive/plan-crud-standard.md placement).
         onDelete={withDetails ? undefined : () => void openTrialAction(trialId, 'delete')}
       />
     ),

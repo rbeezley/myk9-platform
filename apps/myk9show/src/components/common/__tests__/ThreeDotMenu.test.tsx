@@ -17,16 +17,13 @@ describe('ThreeDotMenu', () => {
   // The only assertion of item ORDER anywhere. Without it, reordering the list
   // here changes every surface that renders this menu with nothing going red --
   // and a call site that pins order in its own mock is pinning the mock.
-  it('orders the items Edit, View, Photo, Status, Qualifications, Invitation, Delete', async () => {
+  it('orders the items Edit, View, Qualifications, Delete', async () => {
     const { user } = render(
       <ThreeDotMenu
         onView={vi.fn()}
         onEdit={vi.fn()}
-        onEditPhoto={vi.fn()}
-        onChangeStatus={vi.fn()}
         onManageQualifications={vi.fn()}
         showManageQualifications
-        onSendInvitation={vi.fn()}
         onDelete={vi.fn()}
       />
     );
@@ -36,10 +33,7 @@ describe('ThreeDotMenu', () => {
     expect(screen.getAllByRole('menuitem').map(item => item.textContent?.trim())).toEqual([
       'Edit Profile',
       'View',
-      'Change Photo',
-      'Change status',
       'Manage Qualifications',
-      'Send Invitation',
       'Delete',
     ]);
   });
@@ -61,15 +55,6 @@ describe('ThreeDotMenu', () => {
     expect(screen.queryByText('Edit User')).not.toBeInTheDocument();
   });
 
-  it('hides Edit when hideEdit is set', async () => {
-    const { user } = render(<ThreeDotMenu onView={vi.fn()} onEdit={vi.fn()} hideEdit />);
-    await user.click(screen.getByRole('button', { name: /more actions/i }));
-    await screen.findByRole('menu');
-
-    expect(screen.queryByRole('menuitem', { name: /edit/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('menuitem', { name: /^view$/i })).toBeInTheDocument();
-  });
-
   it('shows Manage Qualifications only when enabled', async () => {
     const onManageQualifications = vi.fn();
     const { user } = render(
@@ -82,23 +67,6 @@ describe('ThreeDotMenu', () => {
     await user.click(screen.getByRole('button', { name: /more actions/i }));
     await user.click(await screen.findByRole('menuitem', { name: /manage qualifications/i }));
     expect(onManageQualifications).toHaveBeenCalledTimes(1);
-  });
-
-  it('renders the account lifecycle action with its disabled reason', async () => {
-    const { user } = render(
-      <ThreeDotMenu
-        onChangeStatus={vi.fn()}
-        changeStatusLabel="Suspend account"
-        changeStatusDisabled
-        changeStatusDescription="You cannot suspend your own account"
-      />
-    );
-
-    await user.click(screen.getByRole('button', { name: /more actions/i }));
-    const statusItem = await screen.findByRole('menuitem', { name: /suspend account/i });
-
-    expect(statusItem).toHaveAttribute('data-disabled');
-    expect(statusItem).toHaveTextContent('You cannot suspend your own account');
   });
 
   it('invokes the matching callback and styles Delete with the destructive token', async () => {
@@ -115,15 +83,10 @@ describe('ThreeDotMenu', () => {
   });
 
   // MYK9-518: RowActionMenu's size="touch" is h-11 w-11 but this wrapper has
-  // always overridden it to 40px, and ~10 surfaces lay out against that. A
-  // surface needing the 44px touch target opts in; nothing resizes app-wide by
-  // accident.
-  it('keeps a 40px trigger by default and lets one call site opt into 44px', () => {
-    const { unmount } = render(<ThreeDotMenu onView={vi.fn()} />);
+  // always overridden it to 40px, and its row callers lay out against that. The
+  // one 44px caller (the dog card) left with the card's ⋮ (CRUD standard decision 6).
+  it('keeps the 40px row trigger', () => {
+    render(<ThreeDotMenu onView={vi.fn()} />);
     expect(screen.getByRole('button', { name: /more actions/i })).toHaveClass('h-10', 'w-10');
-    unmount();
-
-    render(<ThreeDotMenu onView={vi.fn()} triggerClassName="h-11 w-11" />);
-    expect(screen.getByRole('button', { name: /more actions/i })).toHaveClass('h-11', 'w-11');
   });
 });

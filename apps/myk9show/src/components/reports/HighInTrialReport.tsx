@@ -1,7 +1,9 @@
 import React from 'react';
+import { getTrialRegistry } from '@/features/registries';
 import type { ReportProps } from '@/lib/reports/types';
 import { formatReportTime, buildReportOrgTitle } from '@/lib/reports/reportUtils';
 import { formatArmbandDisplay } from '@/utils/armbandUtils';
+import { buildHighCombinedDivision } from '@/lib/reports/highCombinedDivision';
 import { buildHighInTrial } from '@/lib/reports/highInTrial';
 import type { HighInTrialExclusion, HighInTrialLevel } from '@/lib/reports/highInTrial';
 import { TrialInfoBox } from './TrialInfoBox';
@@ -65,13 +67,17 @@ const ExclusionNote: React.FC<{ exclusions: HighInTrialExclusion[] }> = ({ exclu
   );
 };
 
-const LevelSection: React.FC<{ level: HighInTrialLevel }> = ({ level }) => {
+const LevelSection: React.FC<{
+  level: HighInTrialLevel<string>;
+  award?: string;
+  section?: string;
+}> = ({ level, award = 'High in Trial', section = '8' }) => {
   const winners = level.teams.filter(team => team.rank === 1);
 
   return (
     <div className="stats-section">
       <div className="stats-section-header">
-        {level.level} High in Trial
+        {level.level} {award}
         {!level.isFinal && ' — PROVISIONAL'}
       </div>
 
@@ -91,22 +97,22 @@ const LevelSection: React.FC<{ level: HighInTrialLevel }> = ({ level }) => {
         <p className="catalog-empty">
           {level.incompleteScoreCount}{' '}
           {level.incompleteScoreCount === 1 ? 'team qualified but is' : 'teams qualified but are'}{' '}
-          missing a fault count or a time (shown as —). §8 ranks on exactly those two numbers, so
-          record them before awarding; until then these teams rank below every team whose scores are
-          complete.
+          missing a fault count or a time (shown as —). §{section} ranks on exactly those two
+          numbers, so record them before awarding; until then these teams rank below every team
+          whose scores are complete.
         </p>
       )}
 
       {level.teams.length === 0 ? (
         <p className="catalog-empty">
-          No team qualified in every element offered at this level, so no High in Trial is awarded.
+          No team qualified in every element offered at this level, so no {award} is awarded.
         </p>
       ) : (
         <>
           {level.needsCoinFlip && (
             <p className="nq-text">
-              TIE — {winners.length} teams are tied on both faults and time. Chapter 6 §8 requires a
-              coin flip to decide the winner. Record the outcome by hand.
+              TIE — {winners.length} teams are tied on both faults and time. Chapter 6 §{section}{' '}
+              requires a coin flip to decide the winner. Record the outcome by hand.
             </p>
           )}
 
@@ -150,7 +156,7 @@ const LevelSection: React.FC<{ level: HighInTrialLevel }> = ({ level }) => {
 
           <p className="qualified-count">
             Per-element cells show faults / time. Ranked by fewest total faults, then fastest total
-            time (Chapter 6 §8).
+            time (Chapter 6 §{section}).
           </p>
         </>
       )}
@@ -180,6 +186,12 @@ export const HighInTrialReport: React.FC<ReportProps> = ({
       status: c.status ?? null,
     })),
   });
+  const isAkcTrial = trial?.registryId
+    ? getTrialRegistry(trial).id === 'AKC'
+    : organization === 'AKC';
+  const combined = isAkcTrial
+    ? buildHighCombinedDivision({ entries, classes: allClasses ?? [] })
+    : null;
   // buildReportOrgTitle appends an element slot; with none it leaves a trailing space.
   const orgTitle = buildReportOrgTitle(organization, activityType).trim();
 
@@ -203,6 +215,20 @@ export const HighInTrialReport: React.FC<ReportProps> = ({
         model.levels.map(level => <LevelSection key={level.level} level={level} />)
       )}
 
+      {combined && combined.levels.length > 0 && (
+        <section aria-label="High Combined Division">
+          <h2 className="stats-section-header">High Combined Division</h2>
+          {combined.levels.map(level => (
+            <LevelSection
+              key={level.level}
+              level={level}
+              award="High Combined Division"
+              section="9"
+            />
+          ))}
+        </section>
+      )}
+
       <ExclusionNote exclusions={model.exclusions} />
 
       {/*
@@ -218,10 +244,12 @@ export const HighInTrialReport: React.FC<ReportProps> = ({
             each. Handler Discrimination is excluded from High in Trial even when offered (Chapter 6
             §8). The High in Trial award is not recorded by the AKC.
           </p>
-          <p>
-            High Combined Division (§9) is not calculated by this report and must be worked out by
-            hand where a club offers Handler Discrimination alongside High in Trial.
-          </p>
+          {combined && combined.levels.length > 0 && (
+            <p>
+              High Combined Division (§9) also requires a qualifying Handler Discrimination run at
+              the same level. No eligible team means no award.
+            </p>
+          )}
         </div>
       </div>
     </div>

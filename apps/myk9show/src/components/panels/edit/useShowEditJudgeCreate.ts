@@ -75,6 +75,7 @@ export function useShowEditJudgeCreate(
               assignedDate: new Date().toISOString().split('T')[0],
               availableStartTime: 'Full Day',
               availableEndTime: 'Full Day',
+              hasShowLevelAssignment: true,
             },
           ];
         });

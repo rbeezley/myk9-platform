@@ -15,6 +15,7 @@ import { ScopeType, UserRole } from '@/types/auth-types';
 import { CREATE_SHOW_WIZARD_ROLES } from '@/routes/createShowWizardAccess';
 import type { RoleScope, UserWithRoles } from '@/types/auth-types';
 import type { Club } from '@/types/club-types';
+import { registeredPageActions } from '@/test/utils/pageActions';
 
 const CLUB_A = '11111111-1111-4111-8111-111111111111';
 const CLUB_B = '22222222-2222-4222-8222-222222222222';
@@ -204,12 +205,22 @@ describe('useClubDetailsState registers Edit club for the header Actions menu (M
       [UserRole.CLUB_ADMIN],
       [clubScope(UserRole.CLUB_ADMIN, CLUB_B)],
     ],
-    ['a secretary of this club', [UserRole.SECRETARY], [clubScope(UserRole.SECRETARY, CLUB_A)]],
     ['an exhibitor', [UserRole.EXHIBITOR], []],
   ] as const)('registers nothing for %s', (_label, roles, scopes) => {
     mockAuth.userWithRoles = userWith([...roles], [...scopes]);
     renderState();
     expect(usePageEditTargetStore.getState().target).toBeNull();
+  });
+
+  it('offers a secretary of this club Add Show for this club, and no Edit', () => {
+    // The secretary may create this club's shows (a staff grant on it) but not edit the club,
+    // so the page registers its one other action without Edit (CRUD standard decision 6).
+    mockAuth.userWithRoles = userWith(
+      [UserRole.SECRETARY],
+      [clubScope(UserRole.SECRETARY, CLUB_A)]
+    );
+    renderState();
+    expect(registeredPageActions()).toEqual(['Add Show for this club']);
   });
 });
 

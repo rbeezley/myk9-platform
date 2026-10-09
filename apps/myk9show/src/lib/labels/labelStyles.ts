@@ -38,10 +38,15 @@ export function buildLabelStylesheet(
   margin: ${effectiveTop}in ${effectiveRight}in ${effectiveBottom}in ${effectiveLeft}in;
 }
 
+/* The sheet renders in an iframe. Pin a light canvas: in dark mode the iframe
+   otherwise inherits a dark background, and the black label text disappears. */
+html,
 body {
   margin: 0;
   padding: 0;
   font-family: Arial, sans-serif;
+  background: #fff;
+  color-scheme: light;
 }
 
 .label-sheet {

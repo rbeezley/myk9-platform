@@ -17,6 +17,7 @@ import {
 } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
 import { shouldShowQuickCreateShell } from './QuickCreateFlow.helpers';
+import { useCreatedInSession } from './CreatedInSessionContext';
 
 interface QuickCreateFlowProps {
   open: boolean;
@@ -25,6 +26,8 @@ interface QuickCreateFlowProps {
   searchQuery?: string; // Pre-fill from search if provided
   mode?: 'single' | 'batch'; // Single dog or multiple dogs
   offlineFirst?: boolean;
+  /** `YYYY-MM-DD` show start, forwarded to Add Dog so its DOB warning judges age on show day. */
+  showStartDate?: string | undefined;
 }
 
 interface FlowState {
@@ -50,7 +53,9 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   searchQuery = '',
   mode = 'single',
   offlineFirst = false,
+  showStartDate,
 }) => {
+  const createdInSession = useCreatedInSession();
   const [flowState, setFlowState] = useState<FlowState>(INITIAL_FLOW_STATE);
   const [showExhibitorDialog, setShowExhibitorDialog] = useState(false);
   const [showDogDialog, setShowDogDialog] = useState(false);
@@ -69,6 +74,8 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
     exhibitor: User,
     metadata?: { pendingMutationIds?: string[] | undefined }
   ) => {
+    // Saved the moment the dialog saves, even if the flow is closed before it completes.
+    createdInSession?.recordOwnerCreated(exhibitor);
     setFlowState(prev => ({
       ...prev,
       exhibitor,
@@ -79,7 +86,8 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   };
 
   // Handle dog creation
-  const handleDogCreated = (dog: Dog) => {
+  const handleDogCreated = (dog: Dog, options?: { existing?: boolean }) => {
+    if (!options?.existing) createdInSession?.recordDogCreated(dog);
     setFlowState(prev => ({
       ...prev,
       dogs: [...prev.dogs, dog],
@@ -451,6 +459,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
         variant="dialog"
         offlineFirst={offlineFirst}
         offlineDependsOn={flowState.exhibitorPendingMutationIds}
+        showStartDate={showStartDate}
       />
     </>
   );

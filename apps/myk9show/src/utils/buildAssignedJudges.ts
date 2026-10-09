@@ -50,6 +50,7 @@ export function buildAssignedJudges(
         firstAssignment.invitedAt ||
         new Date().toISOString().split('T')[0],
       assignedClasses: group.map(a => a.classId).filter((id): id is string => id !== null),
+      hasShowLevelAssignment: group.some(a => a.classId === null),
     };
   });
 }

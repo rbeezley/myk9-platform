@@ -1,6 +1,6 @@
 /**
  * The Edit panel's one Delete control (CRUD standard Phase 3,
- * docs/plan-crud-standard.md): a "Delete ‹object›" button at the far left of the
+ * docs/archive/plan-crud-standard.md): a "Delete ‹object›" button at the far left of the
  * footer that opens the shared `DeleteObjectDialog`.
  *
  * INTENT: delete is settings, not a daily action. It sits apart from Cancel and
@@ -32,6 +32,8 @@ export interface EditPanelDeleteOption {
   onDeleteStart?: (() => void) | undefined;
   /** Nothing was deleted (refused or failed); the dialog stays open with the reason. */
   onDeleteFailed?: (() => void) | undefined;
+  /** Invoked only when the blocked-delete recovery link is followed. */
+  onBlockedAction?: (() => void) | undefined;
 }
 
 interface EditPanelDeleteButtonProps {
@@ -91,6 +93,7 @@ export function EditPanelDeleteDialog({
       onRestored={option.onRestored}
       onDeleteStart={option.onDeleteStart}
       onDeleteFailed={option.onDeleteFailed}
+      onBlockedAction={option.onBlockedAction}
     />
   );
 }

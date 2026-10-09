@@ -5,19 +5,20 @@
  * This issue existed because `UserSecurityActions` (Send password reset /
  * Generate reset link) lives inside `UserDetailsDialog`, which nothing renders —
  * 11 tests passed against a component no user can open. So these tests render
- * the real `UserDetailsView` and assert the menu item is present and wired,
- * not that a component in isolation behaves.
+ * the real `UserDetailsView` and assert the action is present and wired,
+ * not that a component in isolation behaves. It lives in the header Actions
+ * menu (CRUD standard decision 6), so the page's registration is what's read.
  */
 import React from 'react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import UserDetailsView from '@/components/users/UserDetails/UserDetailsView';
 import type { User } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
+import { registeredPageActions, resetPageActions, runPageAction } from '@/test/utils/pageActions';
 
 const hasPermission = vi.fn().mockReturnValue(true);
 const sendInvitation = vi.fn();
@@ -98,22 +99,17 @@ function renderView(user: User) {
   );
 }
 
-async function openMenu() {
-  await userEvent.click(screen.getByRole('button', { name: /more actions/i }));
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
   hasPermission.mockReturnValue(true);
+  resetPageActions();
 });
 
 describe('UserDetailsView — invitation action', () => {
   it('offers "Send Invitation" for a person with no auth identity', async () => {
     renderView(makeUser());
 
-    await openMenu();
-
-    expect(await screen.findByRole('menuitem', { name: /send invitation/i })).toBeInTheDocument();
+    expect(registeredPageActions()).toContain('Send Invitation');
   });
 
   it('offers "Send Sign-In Link" once the person already has an account', async () => {
@@ -121,16 +117,14 @@ describe('UserDetailsView — invitation action', () => {
     // being created for someone who already has an identity.
     renderView(makeUser({ user_id: 'auth-uuid' }));
 
-    await openMenu();
-
-    expect(await screen.findByRole('menuitem', { name: /send sign-in link/i })).toBeInTheDocument();
+    expect(registeredPageActions()).toContain('Send Sign-In Link');
+    expect(registeredPageActions()).not.toContain('Send Invitation');
   });
 
   it('sends the invitation with the saved email when chosen', async () => {
     renderView(makeUser());
 
-    await openMenu();
-    await userEvent.click(await screen.findByRole('menuitem', { name: /send invitation/i }));
+    runPageAction('Send Invitation');
 
     await waitFor(() =>
       expect(sendInvitation).toHaveBeenCalledWith(
@@ -164,9 +158,9 @@ describe('UserDetailsView — invitation action', () => {
     hasPermission.mockReturnValue(false);
     renderView(makeUser());
 
-    await openMenu();
-
-    expect(screen.queryByRole('menuitem', { name: /send invitation/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /send sign-in link/i })).not.toBeInTheDocument();
+    expect(registeredPageActions()).not.toContain('Send Invitation');
+    expect(registeredPageActions()).not.toContain('Send Sign-In Link');
+    // Positive control: the page did register, just without the gated item.
+    expect(registeredPageActions()).toContain('Change Photo');
   });
 });

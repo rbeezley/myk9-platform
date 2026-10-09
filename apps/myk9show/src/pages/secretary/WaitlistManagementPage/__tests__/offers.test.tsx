@@ -131,6 +131,9 @@ const offeredGroup = () => screen.findByTestId('waitlist-offered-group');
 
 describe('WaitlistManagementPage offers', () => {
   beforeEach(() => {
+    // Pin offer age without replacing the async timers used by the page.
+    vi.useFakeTimers({ toFake: ['Date'] });
+    vi.setSystemTime(new Date('2026-10-05T15:00:00Z'));
     h.offers = [h.offer()];
     h.queue = [h.waiting()];
     h.withdraw.mockReset();
@@ -141,6 +144,7 @@ describe('WaitlistManagementPage offers', () => {
   });
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it('lists an open offer with when it was offered, the pay-by deadline in the trial zone, and its payment state', async () => {
@@ -151,13 +155,27 @@ describe('WaitlistManagementPage offers', () => {
     expect(group.getByText('Bolt')).toBeInTheDocument();
     expect(group.getByText('Novice A')).toBeInTheDocument();
     expect(group.getByText('Mon, Oct 5, 10:00 AM CDT')).toBeInTheDocument();
-    expect(group.getByText('Wed, Oct 7, 10:00 AM CDT')).toBeInTheDocument();
+    expect(group.getByText('Pay by Wed, Oct 7, 10:00 AM CDT')).toBeInTheDocument();
     expect(group.getByText('Waiting for payment')).toBeInTheDocument();
     // The offered dog is no longer in the queue; the waiting one is.
     expect(screen.getByText('Bella')).toBeInTheDocument();
   });
 
+  it.each([
+    ['2026-10-07T14:59:59Z', 'Waiting for payment'],
+    ['2026-10-07T15:00:00Z', 'Not paid in time, closing'],
+    ['2026-10-08T15:00:00Z', 'Not paid in time, closing'],
+  ])('shows the online payment state at %s', async (now, expected) => {
+    vi.setSystemTime(new Date(now));
+    render(<WaitlistManagementPage showId="show-1" />);
+    const group = within(await offeredGroup());
+
+    expect(group.getByText(expected)).toBeInTheDocument();
+    expect(group.getByText('Pay by Wed, Oct 7, 10:00 AM CDT')).toBeInTheDocument();
+  });
+
   it('shows a paid offer as being confirmed, with nothing to withdraw', async () => {
+    vi.setSystemTime(new Date('2026-10-08T15:00:00Z'));
     h.offers = [h.offer({ promoted_entry_paid: true })];
     render(<WaitlistManagementPage showId="show-1" />);
     const group = within(await offeredGroup());
@@ -415,5 +433,16 @@ describe('WaitlistManagementPage offers', () => {
       group.getByText('Waiting for mailed payment. Held until you record it or withdraw the offer.')
     ).toBeInTheDocument();
     expect(group.queryByText(/closing/)).not.toBeInTheDocument();
+    expect(group.queryByText('Sat, Jan 3, 9:00 AM CST')).not.toBeInTheDocument();
+    expect(group.getByText('No automatic deadline')).toBeInTheDocument();
+  });
+
+  it('keeps the online offer deadline in the Offered table', async () => {
+    h.offers = [h.offer()];
+    render(<WaitlistManagementPage showId="show-1" />);
+    const group = within(await offeredGroup());
+
+    expect(group.getByText('Pay by Wed, Oct 7, 10:00 AM CDT')).toBeInTheDocument();
+    expect(group.queryByText('No automatic deadline')).not.toBeInTheDocument();
   });
 });

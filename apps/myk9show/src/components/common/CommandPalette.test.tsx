@@ -1,8 +1,10 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
+import { useLocation } from 'react-router-dom';
 import { render } from '@/test/utils/testUtils';
 import { CommandPalette } from './CommandPalette';
 import { PERMISSIONS, UserRole } from '@/types/auth-types';
+import { PERMISSIONS as RBAC_PERMISSIONS } from '@/services/auth/rbacService';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import {
   registerCommandMenuContext,
@@ -10,20 +12,56 @@ import {
 } from '@/features/command-menu/commandMenuContextStore';
 import type { CommandMenuContext } from '@/features/command-menu/commandMenuTypes';
 import { getShortcutKeysForCommand } from '@/components/layout/appShortcuts';
-import { resolveActions } from '@/features/actions/actionRegistry';
+import { resolveActions, type AppAction } from '@/features/actions/actionRegistry';
 
 const currentActions = vi.hoisted(() => ({
   value: { route: { kind: 'global' }, actions: [] } as { route: unknown; actions: unknown[] },
 }));
 
-vi.mock('@/features/actions/useCurrentActions', () => ({
+vi.mock('@/features/actions/useCurrentActions', async importOriginal => {
   // The registry -> palette contract has its own test
   // (features/command-menu/__tests__/commandMenuRegistryActions.test.tsx).
   // Stubbed here so this file's per-test useAuthContext mocks do not each have
   // to carry the show-management RBAC the registry reads. A test that needs
   // show actions sets `currentActions.value` from the real `resolveActions`.
-  useCurrentActions: () => currentActions.value,
-}));
+  //
+  // The Create group is appended from the REAL registry and the REAL gates, under the
+  // viewer `mockAuth` set, because the palette's create commands now come from it.
+  const actual = await importOriginal<typeof import('@/features/actions/useCurrentActions')>();
+  const { resolveCreateGates } = await vi.importActual<
+    typeof import('@/features/actions/createGates')
+  >('@/features/actions/createGates');
+  const { groupActions } = await vi.importActual<typeof import('@/features/actions/actionGroups')>(
+    '@/features/actions/actionGroups'
+  );
+  const registry = await vi.importActual<typeof import('@/features/actions/actionRegistry')>(
+    '@/features/actions/actionRegistry'
+  );
+  const auth = await import('@/hooks/useAuthContext');
+  return {
+    ...actual,
+    useCurrentActions: () => {
+      const gates = resolveCreateGates(auth.useAuthContext());
+      const creates = registry
+        .resolveActions(
+          { kind: 'global' },
+          { canManageShow: false, canOperateShow: false, ...gates }
+        )
+        .filter(action => action.group === 'create');
+      const actions = [...(currentActions.value.actions as AppAction[]), ...creates];
+      return {
+        ...currentActions.value,
+        actions,
+        groups: groupActions(actions, {
+          page: 'This page',
+          show: 'This show',
+          list: 'This list',
+          create: 'Create',
+        }),
+      };
+    },
+  };
+});
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: vi.fn(),
@@ -36,11 +74,20 @@ vi.mock('@/hooks/useRecentSearches', () => ({
   }),
 }));
 
-type MockDog = { id: string; name: string; callName?: string; registrations?: unknown[] };
+type MockDog = { id: string; name: string | null; callName?: string; registrations?: unknown[] };
 let mockDogs: MockDog[] = [];
 
 vi.mock('@/store/dogStore', () => ({
-  useDogStore: (selector: (state: { dogs: MockDog[] }) => unknown) => selector({ dogs: mockDogs }),
+  // The deprecated store stays empty in production, even on the Dogs page.
+  useDogStore: (selector: (state: { dogs: MockDog[] }) => unknown) => selector({ dogs: [] }),
+}));
+
+vi.mock('@/hooks/queries/useDogsDatabase', () => ({
+  useDogsQuery: () => ({
+    data: mockDogs.map(dog => ({ ...dog, call_name: dog.callName })),
+    isLoading: false,
+    error: null,
+  }),
 }));
 
 vi.mock('@/store/userStore', () => ({
@@ -69,9 +116,32 @@ vi.mock('@/store/showStore', () => ({
     }),
 }));
 
+vi.mock('@/store/clubStore', () => ({
+  useClubStore: (selector: (state: { clubs: unknown[] }) => unknown) =>
+    selector({
+      clubs: ['Heartland Scent Club', 'E2E Club 174'].map((name, i) => ({
+        id: `club-${i}`,
+        name,
+        clubNumber: '',
+        email: '',
+        phone: '',
+        description: '',
+        logo: '',
+        coverImage: '',
+        accentColor: '',
+        upcomingShows: [],
+        pastShows: [],
+        address: { street: '', city: 'Austin', state: 'TX', zipCode: '', country: 'US' },
+      })),
+    }),
+}));
+
 function mockAuth(roles: UserRole[], permissions: string[] = []) {
   vi.mocked(useAuthContext).mockReturnValue({
+    user: { id: 'viewer', is_anonymous: false },
+    loading: false,
     userWithRoles: { roles },
+    hasRole: (role: UserRole) => roles.includes(role),
     hasPermission: (permission: string) => permissions.includes(permission),
   } as ReturnType<typeof useAuthContext>);
 }
@@ -107,7 +177,9 @@ describe('CommandPalette show-action aliases (MYK9-672)', () => {
           canManageShow: true,
           canOperateShow: true,
           canCreateShows: true,
-          isShowManagementStaff: true,
+          canCreateDogs: true,
+          canCreatePeople: true,
+          canCreateClubs: true,
         }
       ),
     };
@@ -137,7 +209,8 @@ describe('CommandPalette show-action aliases (MYK9-672)', () => {
 
 describe('CommandPalette role scoping', () => {
   it('excludes people and user-management commands for exhibitor-only sessions', () => {
-    mockAuth([UserRole.EXHIBITOR]);
+    // An exhibitor holds dog:create (DEFAULT_ROLE_PERMISSIONS), so Add Dog stays.
+    mockAuth([UserRole.EXHIBITOR], [PERMISSIONS.DOG_CREATE]);
 
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
@@ -148,7 +221,7 @@ describe('CommandPalette role scoping', () => {
   });
 
   it('keeps staff-authorized people and creation commands available', () => {
-    mockAuth([UserRole.SECRETARY], [PERMISSIONS.USER_CREATE, PERMISSIONS.SHOW_CREATE]);
+    mockAuth([UserRole.SECRETARY], [RBAC_PERMISSIONS.PEOPLE_CREATE, PERMISSIONS.SHOW_CREATE]);
 
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
@@ -159,7 +232,7 @@ describe('CommandPalette role scoping', () => {
   });
 
   it('treats mixed exhibitor and staff sessions as staff when permissions allow it', () => {
-    mockAuth([UserRole.EXHIBITOR, UserRole.SECRETARY], [PERMISSIONS.USER_CREATE]);
+    mockAuth([UserRole.EXHIBITOR, UserRole.SECRETARY], [RBAC_PERMISSIONS.PEOPLE_CREATE]);
 
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
@@ -205,12 +278,12 @@ describe('CommandPalette contextual commands', () => {
 
 describe('CommandPalette Entry Management context', () => {
   it('does not add Entry Management mutations', () => {
-    mockAuth([UserRole.SECRETARY], [PERMISSIONS.USER_CREATE, PERMISSIONS.SHOW_CREATE]);
+    mockAuth([UserRole.SECRETARY], [RBAC_PERMISSIONS.PEOPLE_CREATE, PERMISSIONS.SHOW_CREATE]);
     registerEntryManagementContext();
 
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
-    const actionTitles = ['Add Dog', 'Add Person', 'Add Show'];
+    const actionTitles = ['Add Person', 'Add Show', 'Add Club'];
     for (const title of actionTitles) {
       expect(screen.getByText(title)).toBeInTheDocument();
     }
@@ -224,6 +297,85 @@ describe('CommandPalette Entry Management context', () => {
     ]) {
       expect(screen.queryByText(forbidden)).not.toBeInTheDocument();
     }
+  });
+});
+
+function CurrentPath() {
+  return <output>{useLocation().pathname}</output>;
+}
+
+describe('CommandPalette dog search', () => {
+  it('finds a current roster dog by call name and opens its profile', () => {
+    mockAuth([UserRole.SECRETARY]);
+    // Modern dog records have a call_name and no legacy name.
+    mockDogs = [{ id: 'coco-id', name: null, callName: 'COCO', registrations: [] }];
+    const onOpenChange = vi.fn();
+    render(
+      <>
+        <CommandPalette open onOpenChange={onOpenChange} />
+        <CurrentPath />
+      </>
+    );
+
+    fireEvent.change(screen.getByPlaceholderText(/search dogs, people, shows/i), {
+      target: { value: 'coco' },
+    });
+
+    fireEvent.click(screen.getByText('COCO'));
+    expect(screen.getByText('/dogs/coco-id')).toBeInTheDocument();
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+});
+
+describe('CommandPalette other record searches', () => {
+  it.each([
+    ['ALICE', 'Alice Handler', '/people/person-1'],
+    ['handler', 'Alice Handler', '/people/person-1'],
+    ['alice handler', 'Alice Handler', '/people/person-1'],
+    ['spring', 'Spring Trial', '/shows/show-1'],
+    ['DENVER', 'Spring Trial', '/shows/show-1'],
+    ['akc', 'Spring Trial', '/shows/show-1'],
+    ['HEARTLAND', 'Heartland Scent Club', '/clubs/club-0'],
+  ])('searching %s opens %s at %s', (term, label, path) => {
+    mockAuth([UserRole.SECRETARY]);
+    const onOpenChange = vi.fn();
+    render(
+      <>
+        <CommandPalette open onOpenChange={onOpenChange} />
+        <CurrentPath />
+      </>
+    );
+    fireEvent.change(screen.getByPlaceholderText(/search dogs, people, shows/i), {
+      target: { value: term },
+    });
+    fireEvent.click(screen.getByText(label));
+    expect(screen.getByText(path)).toBeInTheDocument();
+    expect(onOpenChange).toHaveBeenCalledWith(false);
+  });
+
+  it.each([UserRole.EXHIBITOR, UserRole.SECRETARY, UserRole.SITE_ADMIN])(
+    'preserves directory visibility for %s',
+    role => {
+      mockAuth([role]);
+      render(<CommandPalette open onOpenChange={vi.fn()} />);
+      fireEvent.change(screen.getByPlaceholderText(/search dogs, people, shows/i), {
+        target: { value: 'E2E Club' },
+      });
+      expect(Boolean(screen.queryByText('E2E Club 174'))).toBe(role === UserRole.SITE_ADMIN);
+    }
+  );
+
+  it('does not expose cached club records to a passcode session', () => {
+    mockAuth([UserRole.SECRETARY]);
+    vi.mocked(useAuthContext).mockReturnValue({
+      ...useAuthContext(),
+      user: { id: 'passcode', is_anonymous: true },
+    } as ReturnType<typeof useAuthContext>);
+    render(<CommandPalette open onOpenChange={vi.fn()} />);
+    fireEvent.change(screen.getByPlaceholderText(/search dogs, people, shows/i), {
+      target: { value: 'Heartland' },
+    });
+    expect(screen.queryByText('Heartland Scent Club')).not.toBeInTheDocument();
   });
 });
 
@@ -265,7 +417,7 @@ describe('CommandPalette shortcut badges (task 3.1)', () => {
   });
 
   it('renders the registered key badges next to their commands', () => {
-    mockAuth([UserRole.SECRETARY], [PERMISSIONS.USER_CREATE, PERMISSIONS.SHOW_CREATE]);
+    mockAuth([UserRole.SECRETARY], [RBAC_PERMISSIONS.PEOPLE_CREATE, PERMISSIONS.SHOW_CREATE]);
 
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
@@ -360,7 +512,7 @@ describe('CommandPalette permission suppression role matrix (task 3.2)', () => {
     expect(screen.queryByText('Add Show')).not.toBeInTheDocument();
   });
 
-  it('secretary without USER_CREATE/SHOW_CREATE: browses people but cannot create users/shows', () => {
+  it('secretary without PEOPLE_CREATE/SHOW_CREATE: browses people but cannot create people/shows', () => {
     mockAuth([UserRole.SECRETARY]);
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
@@ -369,8 +521,23 @@ describe('CommandPalette permission suppression role matrix (task 3.2)', () => {
     expect(screen.queryByText('Add Show')).not.toBeInTheDocument();
   });
 
+  it('offers Show Management to a secretary or site admin, never to an exhibitor', () => {
+    for (const [roles, expected] of [
+      [[UserRole.SECRETARY], true],
+      [[UserRole.SITE_ADMIN], true],
+      [[UserRole.EXHIBITOR], false],
+    ] as const) {
+      mockAuth([...roles]);
+      const { unmount } = render(<CommandPalette open onOpenChange={vi.fn()} />);
+      expect(screen.queryByText('Show Management') !== null, roles.join()).toBe(expected);
+      unmount();
+    }
+  });
+
   it('site admin: sees every gated surface', () => {
-    mockAuth([UserRole.SITE_ADMIN], [PERMISSIONS.USER_READ]);
+    // Add Person follows people:create, the gate BrowsePeoplePage's own button uses; site
+    // admins hold it (migration 140).
+    mockAuth([UserRole.SITE_ADMIN], [PERMISSIONS.USER_READ, RBAC_PERMISSIONS.PEOPLE_CREATE]);
     render(<CommandPalette open onOpenChange={vi.fn()} />);
 
     expect(screen.getByText('Users')).toBeInTheDocument();

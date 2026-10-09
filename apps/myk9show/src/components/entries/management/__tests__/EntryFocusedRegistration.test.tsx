@@ -217,4 +217,31 @@ describe('EntryFocusedRegistration', () => {
 
     expect(screen.getByText(/1 of 2 Entries currently needs this action\./)).toBeInTheDocument();
   });
+
+  it.each([
+    [true, 'moves focus to the heading when it opens on a narrow screen'],
+    [false, 'leaves focus alone in the side-by-side layout'],
+  ])('focusHeadingOnMount=%s %s', focusHeadingOnMount => {
+    const registration = groupEntriesByShowRegistration([
+      entry('entry-1', 'Poppy', 'Alice Martin', 'dog-1'),
+    ])[0]!;
+
+    render(
+      <EntryFocusedRegistration
+        registration={registration}
+        focusHeadingOnMount={focusHeadingOnMount}
+        onStatusChange={vi.fn()}
+        onCheckInStatusChange={vi.fn()}
+        onOpenArmbandDialog={vi.fn()}
+        onEntryRemoved={vi.fn()}
+        onBulkStatusChange={vi.fn()}
+        paymentLedger={{ record: vi.fn(), markPaidOnline: vi.fn(), todayInShowZone: '2026-09-17' }}
+        showCheckInStatus={false}
+      />
+    );
+
+    const heading = screen.getByRole('heading', { name: 'Alice Martin' });
+    if (focusHeadingOnMount) expect(heading).toHaveFocus();
+    else expect(heading).not.toHaveFocus();
+  });
 });

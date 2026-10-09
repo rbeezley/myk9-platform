@@ -15,6 +15,7 @@ interface SplitPanelViewProps {
   onSaveAndNext: (result: PaperResult, timeDigits: string, faults: number, reason?: string) => void;
   onClearResult?: (() => void) | undefined;
   isSaving: boolean;
+  maxTimeSeconds?: number | undefined;
 }
 
 export function SplitPanelView({
@@ -26,6 +27,7 @@ export function SplitPanelView({
   onSaveAndNext,
   onClearResult,
   isSaving,
+  maxTimeSeconds,
 }: SplitPanelViewProps) {
   const sorted = useMemo(() => sortByExhibitorOrder(entries), [entries]);
   const selectedEntry = sorted.find(e => e.entryId === selectedEntryId) ?? null;
@@ -55,6 +57,7 @@ export function SplitPanelView({
             onClearResult={onClearResult}
             onClose={() => onSelectEntry(null)}
             isSaving={isSaving}
+            maxTimeSeconds={maxTimeSeconds}
           />
         </Card>
       )}

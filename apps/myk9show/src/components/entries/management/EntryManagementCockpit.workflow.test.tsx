@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
@@ -7,11 +7,14 @@ import { EntryStatus, PaymentStatus } from '@/types/show-registration-types';
 import type { EntryManagementEntry } from '@/types/entry-management-types';
 import type { EntryManagementCockpitState } from './entryManagementCockpitParams';
 import type { ShowRegistrationGroup } from './showRegistrationProjection';
-import { groupEntriesByShowRegistration } from './showRegistrationProjection';
+import {
+  getEntryRegistrationRowId,
+  groupEntriesByShowRegistration,
+} from './showRegistrationProjection';
 import { EntryManagementCockpit } from './EntryManagementCockpit';
 
 vi.mock('@/hooks/useElementWidth', () => ({
-  useElementWidth: () => ({ ref: { current: null }, width: 1000 }),
+  useElementWidth: () => ({ ref: { current: null }, width: window.innerWidth }),
 }));
 
 vi.mock('@/hooks/useEmailStatus', () => ({
@@ -35,8 +38,10 @@ vi.mock('./EntryFocusedRegistration', async () => {
     EntryFocusedRegistration: ({
       registration,
       onStatusChange,
+      onBack,
     }: {
       registration: Pick<ShowRegistrationGroup, 'entries'>;
+      onBack?: () => void;
       onStatusChange: (
         entryId: string,
         status: EntryStatus,
@@ -45,11 +50,18 @@ vi.mock('./EntryFocusedRegistration', async () => {
     }) => {
       const entry = registration.entries[0]!;
       return (
-        <EntryStatusPopover
-          entry={entry}
-          entryClassName={entry.classes[0]!.name}
-          onStatusChange={onStatusChange}
-        />
+        <>
+          {onBack && (
+            <button type="button" onClick={onBack}>
+              Back to list
+            </button>
+          )}
+          <EntryStatusPopover
+            entry={entry}
+            entryClassName={entry.classes[0]!.name}
+            onStatusChange={onStatusChange}
+          />
+        </>
       );
     },
   };
@@ -96,6 +108,7 @@ interface RenderCockpitOptions {
   search?: string;
   classId?: string | null;
   trialId?: string | null;
+  registrationKey?: string | null;
 }
 
 // MYK9-795: `EntryManagementCockpit` no longer computes its own cockpit state
@@ -116,11 +129,11 @@ function Harness({
   const state: EntryManagementCockpitState = {
     tab: 'registrations',
     exception: 'move-ups',
-    queue: 'needs-review',
+    queues: ['needs-review'],
     search: options.search ?? '',
-    trialId: options.trialId ?? null,
-    classId: options.classId ?? null,
-    registrationKey: null,
+    trialIds: options.trialId ? [options.trialId] : [],
+    classIds: options.classId ? [options.classId] : [],
+    registrationKey: options.registrationKey ?? null,
   };
   const cockpit = useEntryManagementCockpit({ groups: registrationGroups, state });
 
@@ -150,6 +163,61 @@ function renderCockpit(onStatusChange: StatusChangeHandler, options: RenderCockp
 }
 
 describe('EntryManagementCockpit status seam', () => {
+  it('opens a late-resolved URL focus on a compact screen', async () => {
+    const previousWidth = window.innerWidth;
+    window.innerWidth = 800;
+    try {
+      const onStatusChange = vi.fn<StatusChangeHandler>(async () => true);
+      const { rerender } = render(
+        <Harness onStatusChange={onStatusChange} options={{ registrationKey: null }} />
+      );
+      expect(screen.queryByRole('button', { name: /change entry status for Fido/i })).toBeNull();
+
+      rerender(
+        <Harness onStatusChange={onStatusChange} options={{ registrationKey: 'registration-1' }} />
+      );
+      expect(
+        await screen.findByRole('button', { name: /change entry status for Fido in Novice A/i })
+      ).toBeInTheDocument();
+    } finally {
+      window.innerWidth = previousWidth;
+    }
+  });
+
+  it('returns focus to the row after Back to list on a compact screen', async () => {
+    const previousWidth = window.innerWidth;
+    window.innerWidth = 800;
+    try {
+      const onStatusChange = vi.fn<StatusChangeHandler>(async () => true);
+      const user = userEvent.setup();
+      const entries = [
+        makeEntry(),
+        makeEntry({
+          id: 'entry-2',
+          registrationId: 'registration-2',
+          dogId: 'dog-2',
+          dogName: 'Rex',
+        }),
+      ];
+      const harness = (registrationKey: string | null) => (
+        <Harness onStatusChange={onStatusChange} options={{ entries, registrationKey }} />
+      );
+      const { rerender } = render(harness('registration-2'));
+
+      await user.click(await screen.findByRole('button', { name: 'Back to list' }));
+      // The URL drops the open form after the click; focus waits until the list has re-rendered.
+      // (This pins the ordering; the browser race it guards is timing jsdom does not reproduce.)
+      await new Promise(resolve => setTimeout(resolve, 50));
+      rerender(harness(null));
+
+      await waitFor(() =>
+        expect(document.activeElement?.id).toBe(getEntryRegistrationRowId('registration-2'))
+      );
+    } finally {
+      window.innerWidth = previousWidth;
+    }
+  });
+
   it('propagates a failed production mutation to the status popover retry state', async () => {
     const user = userEvent.setup();
     const onStatusChange = vi.fn<StatusChangeHandler>(async () => false);

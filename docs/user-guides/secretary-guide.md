@@ -83,7 +83,7 @@ On the show page, open the **status pill** in the header and choose **Publish Sh
 - **Show details:** **Actions → Edit show** (the Actions button sits in the top bar, left of the bell; on a phone it is the lightning icon), or **Edit show** on the _About this show_ bar. The edit panel opens over the section you are on, with tabs **Basic Info**, **Officials**, **Judges** and **Fees**.
 - **Add a judge to the show:** open **Edit show**, then the **Judges** tab.
 - **Add classes to a show that already exists:** on **Overview**, choose **Add Classes** on the trial's heading (or on the trial's own page). The wizard opens on the **Classes** step with Show Details and Trials locked, because you are only adding classes. To add a trial instead, use **Add Trial** at the top of **Overview**.
-- **Edit or delete a trial or class:** on **Overview**, open the **⋮** menu on a trial's heading and choose **Edit Trial** or **Delete Trial**; for a class, click it and use **Edit class** or **Delete class** in its panel. Deleting a trial or class also deletes its entries, so read the confirmation before you accept it.
+- **Edit or delete a trial or class:** on **Overview**, open the **⋮** menu on a trial's heading and choose **Edit Trial** (on the trial's own page, it is **Actions → Edit Trial**). **Delete trial** is the button at the bottom left of the edit panel. For a class, click it and use **Edit class** or **Delete class** in its panel. Deleting a trial or class also deletes its entries, so read the confirmation before you accept it.
 - **Change a class's judge, or several classes at once:** **Overview → Select classes**, then the judge dropdown on that class's row. To set many classes in one trial to the same status, export them or delete them, tick their checkboxes and use the bar that appears. **Done** returns you to the schedule.
 
 > A class's judge dropdown only offers judges already attached to the show. If the one you want isn't listed, add them on the **Judges** tab first, then come back.
@@ -353,7 +353,7 @@ The report works out who is eligible and ranks them for you. One section per dif
 
 > Per-class placements (1–4) are calculated separately and automatically — see card 20.
 
-> **High Combined Division is not calculated** (MYK9-973). If you offer Handler Discrimination alongside High in Trial, AKC requires you to confer HCD as well, and you'll need to work that one out by hand.
+> **High Combined Division appears in the same report** when a trial offers High in Trial and Handler Discrimination. Each HCD level counts its available odor classes plus Handler Discrimination, even when fewer odor elements run at that level. A team must qualify in every available odor element plus Handler Discrimination at that same level. Totals include all of those runs, ranked by fewest faults then fastest time; exact ties need a coin flip recorded by hand. PROVISIONAL means results or ranking numbers are still missing. If no team qualifies in every required class, there is no HCD award (AKC Chapter 6 §§9–10).
 
 ---
 
@@ -361,10 +361,9 @@ The report works out who is eligible and ranks them for you. One section per dif
 
 Honest list, so nothing surprises you mid-show.
 
-| What                         | Status                                                                                                                                 |
-| ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| High Combined Division (HCD) | Not built — calculate by hand when you offer Handler Discrimination (card 27, MYK9-973)                                                |
-| Waitlist offers              | Never run on real data; offers can't be tracked or withdrawn from the tab, and the deadline isn't shown (card 7, MYK9-1001, MYK9-1002) |
+| What            | Status                                                                                                                                 |
+| --------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Waitlist offers | Never run on real data; offers can't be tracked or withdrawn from the tab, and the deadline isn't shown (card 7, MYK9-1001, MYK9-1002) |
 
 ---
 

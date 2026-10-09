@@ -21,6 +21,7 @@ import { AtShowEntryListPage } from './AtShowEntryListPage';
 import { createAtShowDataDependencies, syncAtShowChangeSignals } from './atShowDataAdapter';
 import { AtShowRoutes } from '@/routes/atShowRoutes';
 import {
+  replicatedArmbandsTable,
   replicatedShowsTable,
   replicatedClassesTable,
   replicatedEntriesTable,
@@ -30,6 +31,11 @@ import {
 // Replication is the single host singleton the shim + adapters + actions all
 // reach for. Mock the whole module so every table is a vi.fn() bag.
 vi.mock('@/services/replication', () => ({
+  replicatedArmbandsTable: {
+    getByShow: vi.fn(async () => []),
+    sync: vi.fn(),
+    subscribe: vi.fn(() => vi.fn()),
+  },
   replicatedShowsTable: { getShowById: vi.fn() },
   replicatedClassesTable: {
     batchDelete: vi.fn(),
@@ -132,6 +138,16 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    vi.mocked(replicatedEntriesTable.subscribe)
+      .mockReset()
+      .mockImplementation(() => vi.fn());
+    vi.mocked(replicatedClassesTable.subscribe)
+      .mockReset()
+      .mockImplementation(() => vi.fn());
+    vi.mocked(replicatedArmbandsTable.subscribe)
+      .mockReset()
+      .mockImplementation(() => vi.fn());
+    vi.mocked(replicatedArmbandsTable.getByShow).mockResolvedValue([]);
     seedReplication();
   });
 
@@ -140,6 +156,42 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     expect(await screen.findByText('Rex')).toBeInTheDocument();
     expect(screen.getByText('Border Collie')).toBeInTheDocument();
     expect(screen.getByText('Jane Handler')).toBeInTheDocument();
+  });
+
+  it('reads a withdrawn dog armband from the cached show assignment without a network fetch', async () => {
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockResolvedValue([
+      { ...PENDING_ENTRY, armband: null, dogId: 'dog-1', entryStatus: 'withdrawn' },
+    ] as never);
+    vi.mocked(replicatedArmbandsTable.getByShow).mockResolvedValue([
+      {
+        id: 'armband-1',
+        showId: 'show-1',
+        dogId: 'dog-1',
+        armbandNumber: '101',
+        isAvailable: false,
+      },
+    ] as never);
+    const data = await createAtShowDataDependencies().fetchSingleClass(
+      'class-1',
+      'show-1',
+      'judge'
+    );
+    expect(data.entries[0]).toMatchObject({ armband: 101, status: 'pulled' });
+    expect(replicatedArmbandsTable.getByShow).toHaveBeenCalledWith('show-1');
+    expect(replicatedArmbandsTable.sync).not.toHaveBeenCalled();
+  });
+
+  it('invalidates on an armband replica change and unsubscribes on teardown', () => {
+    const callback = vi.fn();
+    const unsubscribe = vi.fn();
+    vi.mocked(replicatedArmbandsTable.subscribe).mockImplementationOnce(listener => {
+      listener([]);
+      return unsubscribe;
+    });
+    const stop = createAtShowDataDependencies().subscribeToReplicationChanges(callback);
+    expect(callback).toHaveBeenCalledTimes(1);
+    stop();
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
   });
 
   it('keeps showing the loading skeleton instead of No Entries Yet while first sync is pending', async () => {
@@ -179,6 +231,7 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
       expect(replicatedClassesTable.sync).toHaveBeenCalledWith('trial-2');
       expect(replicatedClassesTable.sync).not.toHaveBeenCalledWith('');
       expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
+      expect(replicatedArmbandsTable.sync).toHaveBeenCalledWith('show-1');
     });
   });
 
@@ -204,10 +257,11 @@ describe('AtShowEntryListPage (Phase 1a shim)', () => {
     expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('empty-show');
   });
 
-  it('syncs only entries for a scoped entry signal', async () => {
+  it('syncs entries and their armband assignments for a scoped entry signal', async () => {
     await syncAtShowChangeSignals('show-1', [{ table: 'entries', classIds: ['class-1'] }]);
 
     expect(replicatedEntriesTable.sync).toHaveBeenCalledWith('show-1');
+    expect(replicatedArmbandsTable.sync).toHaveBeenCalledWith('show-1');
     expect(replicatedTrialsTable.sync).not.toHaveBeenCalled();
     expect(replicatedClassesTable.sync).not.toHaveBeenCalled();
   });

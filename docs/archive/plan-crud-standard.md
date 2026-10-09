@@ -1,9 +1,9 @@
 # One Standard for Create, Edit and Delete
 
-> **Status:** Active
+> **Status:** Complete (2026-10-08: Phases 1–6 merged; Phase 5 walk folded into 6d, MYK9-1063)
 
-**Date:** 2026-10-01 · **Follows:** [`plan-secretary-crud-consolidation.md`](plan-secretary-crud-consolidation.md) (one way to create and edit each object) and [`plan-secretary-show-actions.md`](plan-secretary-show-actions.md) (the placement rule).
-**Read first:** [`INTENT.md`](INTENT.md) § Trial Secretary: the anti-pattern is "anything that makes the user feel like they need to learn the software."
+**Date:** 2026-10-01 · **Follows:** [`plan-secretary-crud-consolidation.md`](../plan-secretary-crud-consolidation.md) (one way to create and edit each object) and [`plan-secretary-show-actions.md`](../plan-secretary-show-actions.md) (the placement rule).
+**Read first:** [`INTENT.md`](../INTENT.md) § Trial Secretary: the anti-pattern is "anything that makes the user feel like they need to learn the software."
 
 ## Why
 
@@ -46,6 +46,14 @@ The consolidation plan gave each of the seven core objects (club, show, trial, c
    - Item-level actions stay in the row ⋮ menu or the bulk bar, because the header cannot know which row is meant.
    - Show-day screens (ringside, Show Day / Show Desk) keep their own large-target layout. That layout is the same across all show-day screens.
    - The visible "Edit show" header button from the consolidation plan's Phase 6 (MYK9-904) is removed. The owner set aside its finding that Edit inside the menu was too hidden: one predictable place outweighs a visible shortcut.
+6. **Actions menu structure** (2026-10-08, MYK9-1063). Phase 4 moved only Edit out of the hero ⋮ menus; the rest of each (Change Photo, Change status, Send Sign-In Link) stayed on the page, so the person page had two menus holding different items, and on phones both triggers are "more" icons. The menu itself was one flat list mixing this object, this list, global create and navigation.
+   - **One home.** Remove every ⋮ from detail-page heroes; their items move into the header menu with their current gates. Row ⋮ menus and bulk bars stay.
+   - **Labelled groups with dividers, in a fixed order:** (1) **this object**, headed by its display name, in the decision 5 order; (2) **this list**, headed by the list's name, only when the page shows a list (Export CSV); (3) **Create**, the same on every page.
+   - **Every item has an icon**, the same in the menu and the command palette.
+   - **Create holds only objects with no parent:** Add Show and Add Dog for anyone with the permission; Add Person and Add Club for secretaries and site admins only. Absent, not greyed, for anyone else. Each links to its list page's existing create panel. An object with a parent is created only from its parent's group, so the parent is never in doubt: Add Trial, Add Classes and Add Entry in the show's group, Add Classes (focused on that trial) in a trial's group. On a list page, its create item appears only in Create.
+   - **The header button stays hidden when its only item would be Add Dog** (owner, 2026-10-08): an exhibitor off their own pages. On a phone that button cut the wordmark to "myK9S…" once the cart badge showed. Exhibitors add dogs from My Dogs and the Dogs page; ⌘K keeps Add Dog.
+   - **Navigation leaves the menu.** "Open Show Management" moves to the sidebar and ⌘K only (a ⌘K "Show Management" command for secretaries and site admins).
+   - Unchanged: Delete is never in the menu (decision 3); an entry has no detail page, so its actions stay in its row menu, with Pull and Withdraw as separate items; the phone trigger stays icon-only ⋯ (MYK9-932).
 
 ## Defaults (change before Phase 1 if you disagree)
 
@@ -118,8 +126,88 @@ Each phase is one PR, independently verifiable. A phase is not complete until it
 - Owner walk on a test show: delete and Undo each object as a secretary; confirm a paid or scored object is blocked with the right pointer; restore as a site admin; confirm counts and lists are fresh without a reload.
 - Record the walk on the parent issue.
 
+**Phase 6: Actions menu structure (decision 6, MYK9-1063).** Four PRs, 6a to 6d.
+
+Survey of hero ⋮ menus on 2026-10-08:
+
+| Page   | Component                                                           | Items today                                                                                            | Destination                                                                                                                                                                                                 |
+| ------ | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Person | `components/users/UserDetails/HeroProfileCard.tsx` (`ThreeDotMenu`) | Change Photo, Change status (Suspend / Reactivate), Send Sign-In Link                                  | Person group, with the same gates                                                                                                                                                                           |
+| Dog    | `components/dogs/DogDetailsMain/DogHero.tsx` (`ThreeDotMenu`)       | Change Photo, Change status                                                                            | Dog group. The status pill button in the hero stays; it shows the current status                                                                                                                            |
+| Club   | `components/clubs/ClubDetails/ClubHeader.tsx` (inline dropdown)     | Change Photo; Email Club, Call Club, Visit Website; Authorize Club / Revoke Authorization (site admin) | Change Photo and Authorize / Revoke go to the club group; Revoke keeps its confirm dialog. Email, Call and Website are contact links, already shown on the club's About tab, so the menu copies are dropped |
+| Trial  | `components/trials/TrialDetail/TrialInfo.tsx` (Popover)             | Change Photo, Edit Details                                                                             | **Dead code**: only its own test imports it. Delete the component, its `index.ts` export and `TrialInfo.wording.test.tsx`                                                                                   |
+| Show   | none found                                                          |                                                                                                        |                                                                                                                                                                                                             |
+| Class  | none found                                                          |                                                                                                        |                                                                                                                                                                                                             |
+
+**Row-level ⋮ menus that stay** (each acts on one row): the dog page sections (Achievements, Pedigree, Registrations, Past Results, Upcoming Shows), `UserTable`, the club's Upcoming and Past Shows tabs, `MemberList`, `EntryListCard`, `EnrollmentCard`, `RoleAssignmentsPanel`.
+
+Target menus (an item marked _(if a surface exists)_ links to an existing page or dialog, or is dropped; nothing new is built behind a menu item):
+
+| Page   | Object group                                                                                                                                                                                 | List group                           |
+| ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------ |
+| Club   | Edit Club, Change Photo, Add Show for this club _(if a surface exists)_, Appoint secretary _(if a surface exists)_                                                                           | Export CSV (Clubs list, when on it)  |
+| Show   | Edit Show, Add Entry for someone else, Add Entry for my dog, Add Trial, Add Classes, Open Entry Forms, Generate & publish premium, plus the status items core-object decisions 15 and 19 add |                                      |
+| Trial  | Edit Trial, Add Classes, Print reports _(if a surface exists)_                                                                                                                               |                                      |
+| Class  | Edit Class, Open ringside scoring _(if a surface exists)_, Print scoresheets _(if a surface exists)_                                                                                         | Export CSV (entries in this class)   |
+| Dog    | Edit Dog, Change Photo, Change status                                                                                                                                                        | Export CSV (Dogs list, when on it)   |
+| Person | Edit Person, Change Photo, Send Sign-In Link, Suspend account / Reactivate                                                                                                                   | Export CSV (People list, when on it) |
+
+Create group on every page: Add Show, Add Dog, Add Person (staff), Add Club (staff). On a list page, the list's own create item appears only in Create, never also in the list group: one action, one row.
+
+**Phase 6a: Groups, icons and the Create group in the registry.**
+
+- `AppAction` gains `group: 'page' | 'show' | 'list' | 'create'` (the object section is `page` for a detail page and `show` for the show it sits in) and `icon`. `PageObject` gains the display name used as the object group's heading. `resolveActions` returns the groups in the fixed order; the `separatorBefore` bookkeeping is replaced by group boundaries.
+- `HeaderActions` renders a labelled group per non-empty group, with a divider between groups and the icon on every item. The command palette uses the same groups as its sections.
+- Add the Create group: Add Show (`SHOW_CREATE`), Add Dog (`DOG_CREATE`), Add Person and Add Club (secretary or site admin, matching the gate the list page's own Add button uses). Each links to its list page's create panel by URL; add the URL parameter on any list page that lacks one.
+- Remove "Open Show Management" from the registry. Confirm it is reachable from the sidebar and ⌘K first.
+- Tests:
+  - Resolver unit tests for each route context (show, global, each detail page kind): group order, headings, no item in two groups.
+  - Create gating for exhibitor, secretary, club admin and site admin: staff-only items are absent, not disabled, for an exhibitor.
+  - `HeaderActions` render test: group labels, dividers between groups only, an icon on every item.
+  - The palette and the header list the same actions in the same groups.
+  - Grep `e2e/` for "Open Show Management" and "Add Show" locators and update them in the same PR.
+
+**Phase 6b: Move hero ⋮ items into the menu; remove the hero ⋮.**
+
+- Pages register their extra object actions next to `usePageEditAction` (new `ActionCommand` values for change photo, change status and send sign-in link, bound to the dialogs the ⋮ opens today). Each item keeps the gate it has today.
+- Remove the ⋮ from `HeroProfileCard`, `DogHero` and `ClubHeader`. The club's Email / Call / Website are already links on About; drop the menu copies. The dog card keeps its camera button and status badge, which are controls on the thing itself.
+- Delete `TrialInfo.tsx`, its export and its test.
+- If `components/common/ThreeDotMenu.tsx` is left with only row callers, drop the props they no longer use.
+- Tests:
+  - For person, dog and club: no ⋮ in the hero; the Actions menu's object group lists the moved items in order; each opens the same dialog as before; each is absent for a viewer the old ⋮ hid it from.
+  - Grep `e2e/` for "More actions", "Dog actions for" and "Club options" locators and move them to the header menu.
+
+**Phase 6c: Complete the object groups.**
+
+- For each _(if a surface exists)_ item in the target table, find the existing surface. Link to it or drop the item, and record which in the PR.
+- Tests: one resolver test per added item, including its gate.
+- **Outcome (owner, 2026-10-08):**
+  - Linked:
+    - **Close out show**: the Results section's close-out step.
+    - **Add Show for this club**: the show wizard with `?clubId=`. It replaces the club's toolbar Add Show button; the empty-list invitation stays.
+    - **Print reports** on a trial: the show's Reports page, scoped to the trial.
+    - **Print score sheets** on a class: Reports with the score sheet selected, scoped to the class.
+    - **Manage Entries** on a class: moved from a visible page button into the menu.
+  - Removed:
+    - The class page's ⋮ ("Show home" was navigation the breadcrumb carries).
+    - **Requirements** became a plain page button. It is information for any viewer, and a menu item would give an exhibitor a header button that costs the phone wordmark.
+  - Dropped:
+    - **Cancel show**: the pieces exist separately (Edit show status; Refund all entries on `/secretary/settings`, which has no show deep link). Joining them is core-object decision 15, not a link.
+    - **Close / Open entries now**: nothing exists; that is core-object decision 19.
+    - **Appoint secretary**: it exists on Club Members → Show Access, but nothing opens that tab or club from a URL.
+    - **Open ringside scoring**: the route exists, but `ringside_update_entry` accepts a signed-in account only as the class's assigned judge, so a secretary's scores may not sync.
+
+**Phase 6d: Verification walk.**
+
+- Walk club, show, trial, class, dog and person detail pages, and the Entry Management and class-page row menus, at 375px and desktop, as exhibitor, secretary and site admin.
+- Confirm: one menu per page, labelled groups in order, icons on every item, the Create group on every page with the right items per role, and no hero ⋮.
+- `header-wordmark-fits.spec.ts` stays green.
+- Also run Phase 5's walk here (owner, 2026-10-08): delete and Undo each object as a secretary on a test show; confirm a paid or scored object is blocked with the right pointer; restore as a site admin; confirm counts and lists are fresh without a reload.
+- Record the walk with screenshots on the Linear issue.
+
 ## Non-goals
 
 - Create-door consolidation, which belongs to the consolidation plan.
 - Refund logic. Cancel and Withdraw already own it; this plan only points to them.
 - A secretary Deleted Items page. Undo covers the mistake case.
+- Show-day screens and the phone-width Actions trigger (MYK9-932) in Phase 6.

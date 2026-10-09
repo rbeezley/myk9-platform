@@ -51,7 +51,21 @@ export function useResultsTabData(showId: string) {
     [showTrials]
   );
   const entries = entriesQuery.data ?? NO_ENTRIES;
-  const paperwork = useShowClassPaperwork({ showId, trials: trialDates, entries, returnTo });
+  // Schedule classes are the print-link-only fallback while the full class rows load or fail.
+  const scheduleClasses = useMemo(
+    () =>
+      showTrials.flatMap(trial =>
+        (schedule.trialClasses[trial.id] ?? []).map(cls => ({ id: cls.id, trialId: trial.id }))
+      ),
+    [schedule.trialClasses, showTrials]
+  );
+  const paperwork = useShowClassPaperwork({
+    showId,
+    trials: trialDates,
+    classes: scheduleClasses,
+    entries,
+    returnTo,
+  });
 
   const releasedAtByClassId = useMemo(
     () => new Map(storeClasses.map(cls => [cls.id, cls.results_released_at ?? null] as const)),

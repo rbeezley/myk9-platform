@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useCommandMenuContext } from './commandMenuContextStore';
 import { buildContextualNavigationCommands } from './contextualCommands';
 import { useCurrentActions } from '@/features/actions/useCurrentActions';
+import type { AppAction } from '@/features/actions/actionRegistry';
 import type { CommandMenuCommand } from './commandMenuTypes';
 
 export interface CommandMenuCommands {
@@ -21,6 +22,9 @@ export interface CommandMenuCommands {
    * know WHY something is unavailable. Revisit if the palette grows a disabled
    * row that can carry a sublabel. */
   actionCommands: CommandMenuCommand[];
+  /** The header's Create group (Add Show, Add Dog, Add Person, Add Club), with its gates, so
+   * the palette's own create commands can never offer a different set. */
+  createActions: AppAction[];
 }
 
 /**
@@ -32,16 +36,21 @@ export interface CommandMenuCommands {
  */
 export function useCommandMenuCommands(): CommandMenuCommands {
   const context = useCommandMenuContext();
-  const { route, actions } = useCurrentActions();
+  const { route, actions, groups } = useCurrentActions();
+  const createActions = useMemo(
+    () => groups.find(group => group.id === 'create')?.actions ?? [],
+    [groups]
+  );
 
   const navigationCommands = useMemo(() => buildContextualNavigationCommands(context), [context]);
 
   const actionCommands = useMemo<CommandMenuCommand[]>(() => {
-    // Off a show route only the detail page's own actions apply (Edit dog, Edit person...);
-    // the role-wide header items (Add Show...) have their own palette entries.
+    // Off a show route only the detail page's own actions apply (Edit dog, Edit person...).
+    // The Create group is left out here: the palette renders it as its own "actions"
+    // commands, with their keyboard shortcuts (`createActions`).
     const inShow = route.kind === 'show';
     return actions
-      .filter(action => !action.disabledReason && (inShow || action.pageOwned))
+      .filter(action => action.group !== 'create' && !action.disabledReason)
       .map(action => ({
         id: `command-menu-action-${action.id}`,
         group: 'actions' as const,
@@ -58,5 +67,5 @@ export function useCommandMenuCommands(): CommandMenuCommands {
       }));
   }, [actions, route]);
 
-  return { navigationCommands, actionCommands };
+  return { navigationCommands, actionCommands, createActions };
 }

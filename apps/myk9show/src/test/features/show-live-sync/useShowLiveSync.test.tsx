@@ -90,7 +90,7 @@ describe('useShowLiveSync', () => {
     expect((syncEvents[0] as CustomEvent).detail).toBeUndefined();
   });
 
-  it('nudges on reconnect but not the initial connection', () => {
+  it('nudges on reconnect, deferred, but not the initial connection', () => {
     renderHook(() => useShowLiveSync('show-1'));
 
     act(() => {
@@ -103,7 +103,27 @@ describe('useShowLiveSync', () => {
       statusListener?.('SUBSCRIBED');
       vi.advanceTimersByTime(400);
     });
-    expect(dispatchedSyncEvents()).toHaveLength(1);
+    const events = dispatchedSyncEvents().map(([event]) => event as CustomEvent);
+    expect(events).toHaveLength(1);
+    // A reconnect must not demand an immediate full pass (MYK9-1054).
+    expect(events[0]?.detail).toEqual({ deferred: true });
+  });
+
+  it('keeps the prompt pass when a change lands in the same window as a reconnect', () => {
+    renderHook(() => useShowLiveSync('show-1'));
+    act(() => {
+      statusListener?.('SUBSCRIBED');
+    });
+
+    act(() => {
+      emitChange();
+      statusListener?.('SUBSCRIBED');
+      vi.advanceTimersByTime(400);
+    });
+
+    const events = dispatchedSyncEvents().map(([event]) => event as CustomEvent);
+    expect(events).toHaveLength(1);
+    expect(events[0]?.detail).toBeUndefined();
   });
 
   it('unsubscribes and clears a pending nudge on unmount', () => {

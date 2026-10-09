@@ -1,6 +1,6 @@
 import React from 'react';
 import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
-import { render, screen, waitFor, within } from '@/test/utils/testUtils';
+import { render, screen, waitFor } from '@/test/utils/testUtils';
 import type { Club } from '@/types/club-types';
 import { AboutTab } from '../AboutTab';
 import { ClubHeader } from '../ClubHeader';
@@ -43,24 +43,9 @@ const baseClub: Club = {
 
 const noop = () => undefined;
 
-describe('club page-level actions (MYK9-928)', () => {
-  it('renders no Edit button even for a viewer who can edit: Edit club is in the Actions menu', () => {
+describe('club page-level actions (MYK9-928; CRUD standard decision 6)', () => {
+  it('renders no Edit button and no ⋮ menu for any viewer: every action is in the header menu', () => {
     render(
-      <ClubHeader
-        club={baseClub}
-        onEditPhoto={noop}
-
-        canEditBranding
-      />
-    );
-
-    expect(screen.queryByRole('button', { name: /^edit/i })).not.toBeInTheDocument();
-    // Positive control: the header did render its overflow menu for this viewer.
-    expect(screen.getByRole('button', { name: 'Club options' })).toBeInTheDocument();
-  });
-
-  it('offers no Delete in the header menu for any viewer: it lives in the Edit panel footer', async () => {
-    const { user } = render(
       <ClubHeader
         club={{ ...baseClub, email: 'club@example.test' }}
         onEditPhoto={noop}
@@ -70,10 +55,12 @@ describe('club page-level actions (MYK9-928)', () => {
       />
     );
 
-    await user.click(screen.getByRole('button', { name: 'Club options' }));
-    // Positive control: the menu is open and carries its other items.
-    expect(await screen.findByText('Authorize Club')).toBeInTheDocument();
-    expect(screen.queryByRole('menuitem', { name: /delete/i })).not.toBeInTheDocument();
+    // Positive control: the card rendered, unauthorized badge and all.
+    expect(screen.getByRole('heading', { level: 1, name: 'Heartland Club' })).toBeInTheDocument();
+    expect(screen.getByTestId('club-unauthorized-badge')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^edit/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Club options' })).not.toBeInTheDocument();
+    expect(screen.queryByText('Authorize Club')).not.toBeInTheDocument();
   });
 });
 
@@ -108,18 +95,13 @@ describe('club hero (MYK9-930)', () => {
     expect(screen.queryByText('Not set')).not.toBeInTheDocument();
   });
 
-  it('keeps the options menu trigger a 44px tap target', () => {
-    render(<ClubHeader club={{ ...heroClub, email: 'a@b.example' }} onEditPhoto={noop} />);
-    expect(screen.getByRole('button', { name: 'Club options' })).toHaveClass('h-11', 'w-11');
-  });
-
   it('keeps the cover banner and accent bar inside the hero card', () => {
     render(<ClubHeader club={{ ...heroClub, accentColor: '#336699' }} onEditPhoto={noop} />);
     expect(screen.getByTestId('gradient-placeholder')).toBeInTheDocument();
     expect(screen.getByTestId('accent-bar')).toBeInTheDocument();
   });
 
-  it('renders no visible action buttons: contact and photo actions live in the options menu', () => {
+  it('renders no visible action buttons: contact links are on About, actions in the header menu', () => {
     render(
       <ClubHeader
         club={{ ...heroClub, email: 'a@b.example', phone: '555-0100' }}
@@ -130,7 +112,7 @@ describe('club hero (MYK9-930)', () => {
     );
     expect(screen.queryByRole('button', { name: /^email$/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^call$/i })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Club options' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Club options' })).not.toBeInTheDocument();
   });
 });
 
@@ -143,9 +125,7 @@ describe('club contact actions', () => {
     expect(screen.queryByRole('button', { name: /call/i })).not.toBeInTheDocument();
   });
 
-  it('renders only the usable partial contact destinations', async () => {
-    const { default: userEvent } = await import('@testing-library/user-event');
-    const user = userEvent.setup();
+  it('renders only the usable partial contact destinations, as About links', () => {
     const club = { ...baseClub, email: ' contact@heartland.example ', phone: '   ' };
 
     render(
@@ -155,9 +135,8 @@ describe('club contact actions', () => {
       </>
     );
 
-    await user.click(screen.getByRole('button', { name: 'Club options' }));
-    expect(await screen.findByText('Email Club')).toBeInTheDocument();
-    expect(screen.queryByText('Call Club')).not.toBeInTheDocument();
+    // The card no longer repeats them in a menu; About is where they live.
+    expect(screen.queryByText('Email Club')).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'contact@heartland.example' })).toHaveAttribute(
       'href',
       'mailto:contact@heartland.example'
@@ -168,126 +147,12 @@ describe('club contact actions', () => {
 
 // MYK9-572: site-admin-only authorize/revoke AFFORDANCE; the Unauthorized
 // badge itself is visible to any viewer who can see the club at all (P2-B).
+// The Authorize / Revoke ACTION is the header Actions menu's (clubPageActions.test.ts,
+// RevokeClubAuthorizationDialog.test.tsx); the card keeps the badge and the notice.
 describe('club authorization control', () => {
-  it('shows an Unauthorized badge and an Authorize Club menu item for a site admin viewing an unauthorized club', async () => {
-    const { default: userEvent } = await import('@testing-library/user-event');
-    const user = userEvent.setup();
-    const onAuthorizeClub = vi.fn();
-
-    render(
-      <ClubHeader
-        club={baseClub}
-
-        onEditPhoto={noop}
-
-        canAuthorizeClub
-        isClubAuthorized={false}
-        onAuthorizeClub={onAuthorizeClub}
-      />
-    );
-
-    expect(screen.getByTestId('club-unauthorized-badge')).toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Club options' }));
-    await user.click(await screen.findByText('Authorize Club'));
-
-    expect(onAuthorizeClub).toHaveBeenCalledTimes(1);
-  });
-
-  it('shows a Revoke Authorization menu item (behind a confirm dialog), and no badge, for an authorized club', async () => {
-    const { default: userEvent } = await import('@testing-library/user-event');
-    const user = userEvent.setup();
-    const onRevokeAuthorization = vi.fn();
-
-    render(
-      <ClubHeader
-        club={baseClub}
-
-        onEditPhoto={noop}
-
-        canAuthorizeClub
-        isClubAuthorized
-        onRevokeAuthorization={onRevokeAuthorization}
-      />
-    );
-
-    expect(screen.queryByTestId('club-unauthorized-badge')).not.toBeInTheDocument();
-    await user.click(screen.getByRole('button', { name: 'Club options' }));
-    await user.click(await screen.findByText('Revoke Authorization'));
-
-    // P3-C: revoking is destructive to the club's publish ability, so it now
-    // sits behind a confirm dialog rather than firing straight from the
-    // dropdown item.
-    expect(onRevokeAuthorization).not.toHaveBeenCalled();
-    const dialog = await screen.findByRole('alertdialog');
-    // MYK9-572 round 4 (P2-3): the confirm copy must describe what actually
-    // happens (stops NEW publishes; already-published shows stay visible),
-    // not the earlier "hidden from the directory" claim.
-    expect(within(dialog).getByText(/stop .* from publishing new shows/i)).toBeInTheDocument();
-    expect(
-      within(dialog).getByText(/stays visible wherever it already has a published show/i)
-    ).toBeInTheDocument();
-    await user.click(within(dialog).getByRole('button', { name: 'Revoke Authorization' }));
-
-    expect(onRevokeAuthorization).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not call onRevokeAuthorization when the confirm dialog is cancelled', async () => {
-    const { default: userEvent } = await import('@testing-library/user-event');
-    const user = userEvent.setup();
-    const onRevokeAuthorization = vi.fn();
-
-    render(
-      <ClubHeader
-        club={baseClub}
-
-        onEditPhoto={noop}
-
-        canAuthorizeClub
-        isClubAuthorized
-        onRevokeAuthorization={onRevokeAuthorization}
-      />
-    );
-
-    await user.click(screen.getByRole('button', { name: 'Club options' }));
-    await user.click(await screen.findByText('Revoke Authorization'));
-
-    const dialog = await screen.findByRole('alertdialog');
-    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
-
-    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
-    expect(onRevokeAuthorization).not.toHaveBeenCalled();
-  });
-
-  it('omits the leading separator when the authorize item is the only menu entry', async () => {
-    // P3-3: the separator before Authorize/Revoke should only render when
-    // something else precedes it (branding edit or contact actions) — a
-    // club with no branding/contact affordances and only the authorize
-    // action must not show a leading divider with nothing above it.
-    const { default: userEvent } = await import('@testing-library/user-event');
-    const user = userEvent.setup();
-
-    render(
-      <ClubHeader
-        club={baseClub}
-
-        onEditPhoto={noop}
-
-        canAuthorizeClub
-        isClubAuthorized={false}
-      />
-    );
-
-    await user.click(screen.getByRole('button', { name: 'Club options' }));
-    await screen.findByText('Authorize Club');
-
-    expect(screen.queryByRole('separator')).not.toBeInTheDocument();
-  });
-
-  it('shows the badge (but no menu item) for a non-site-admin viewer of an unauthorized club', () => {
+  it('shows the badge for a non-site-admin viewer of an unauthorized club', () => {
     // P2-B: the club's own admin/secretary needs to know publish is blocked
-    // just as much as a site admin does — canEditBranding is forced true here
-    // only so the options menu renders at all (contact-less baseClub has no
-    // other menu action), to prove Authorize Club specifically is absent.
+    // just as much as a site admin does.
     render(
       <ClubHeader
         club={baseClub}
@@ -339,7 +204,7 @@ describe('club authorization control', () => {
     );
 
     const notice = screen.getByTestId('club-unauthorized-notice');
-    expect(notice).toHaveTextContent(/authorize this club/i);
+    expect(notice).toHaveTextContent(/authorize this club from the actions menu/i);
     expect(notice).not.toHaveTextContent(/myk9 operator/i);
   });
 
@@ -382,31 +247,10 @@ describe('club authorization control', () => {
 
         canAuthorizeClub
         isClubAuthorized={undefined}
-        isAuthorizationLoading
       />
     );
 
     expect(screen.queryByTestId('club-unauthorized-badge')).not.toBeInTheDocument();
-  });
-
-  it('disables the Authorize/Revoke menu items while an update is in flight', async () => {
-    const { default: userEvent } = await import('@testing-library/user-event');
-    const user = userEvent.setup();
-
-    render(
-      <ClubHeader
-        club={baseClub}
-
-        onEditPhoto={noop}
-
-        canAuthorizeClub
-        isClubAuthorized={false}
-        isAuthorizationUpdating
-      />
-    );
-
-    await user.click(screen.getByRole('button', { name: 'Club options' }));
-    expect(await screen.findByText('Authorize Club')).toHaveAttribute('aria-disabled', 'true');
   });
 });
 

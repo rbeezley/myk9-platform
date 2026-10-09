@@ -1,6 +1,6 @@
 /**
  * Every word the delete dialog and its toasts say, in one place (CRUD standard
- * Phase 2). The rules, from docs/plan-crud-standard.md and docs/INTENT.md:
+ * Phase 2). The rules, from docs/archive/plan-crud-standard.md and docs/INTENT.md:
  *
  * - Delete is a SOFT delete everywhere, so nothing here says "permanently" or
  *   "cannot be undone". The deleter has a 10-minute Undo; after that only a site

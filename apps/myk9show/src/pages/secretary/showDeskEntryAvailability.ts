@@ -58,7 +58,7 @@ export function getShowDeskEntriesAvailability(input: {
   };
 }
 
-function accountingFields(entry: SecretaryEntry): EntryAccountingFields {
+export function accountingFields(entry: SecretaryEntry): EntryAccountingFields {
   return {
     entry_status: entry.entry_status ?? undefined,
     check_in_status: entry.check_in_status ?? undefined,

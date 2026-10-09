@@ -68,7 +68,17 @@ export const useVerifiedEntriesByShowQuery = (showId: string, enabled = true) =>
  * this cache identity so a cold per-show replica cannot look populated on one
  * surface and confidently empty on another.
  */
-export const useSecretaryShowEntriesQuery = (showId: string, enabled = true) => {
+export const useSecretaryShowEntriesQuery = (
+  showId: string,
+  enabled = true,
+  options: {
+    /**
+     * Re-read the replica on every mount, as `useShowClassRows` does: a local write made while no
+     * subscriber was mounted (an offline score fix) is otherwise hidden by a still-fresh cache.
+     */
+    rereadOnMount?: boolean;
+  } = {}
+) => {
   useRefreshShowEntriesOnOpen(showId, enabled);
   return useQuery<SecretaryEntry[]>({
     queryKey: queryKeys.showEntries(showId),
@@ -86,6 +96,7 @@ export const useSecretaryShowEntriesQuery = (showId: string, enabled = true) => 
     // pausing (MYK9-955): an offline cold reload of the show home then has its
     // counts. A cold replica still needs the network and reports an error.
     networkMode: 'offlineFirst',
+    ...(options.rereadOnMount && { refetchOnMount: 'always' as const }),
   });
 };
 

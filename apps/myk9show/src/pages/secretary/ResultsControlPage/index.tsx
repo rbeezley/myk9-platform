@@ -46,7 +46,12 @@ function CardLoadError() {
   );
 }
 
-export default function ResultsControlPage() {
+/**
+ * `embedded` is the Results tab's "Visibility settings" sheet (MYK9-1031): the sheet supplies the
+ * title and the tab owns navigation, so the page's own heading and return link stay out. Nothing
+ * else changes, so the visibility cascade and the bulk release bar are the ones the page always had.
+ */
+export default function ResultsControlPage({ embedded = false }: { embedded?: boolean } = {}) {
   const params = useParams<{ showId?: string; id?: string }>();
   const showId = params.showId ?? params.id ?? '';
   const { trials } = useTrialStore();
@@ -212,9 +217,9 @@ export default function ResultsControlPage() {
   }, [showClasses, bulkOps.selectedIds, classHasManualReleaseTiming]);
 
   return (
-    <div className="container mx-auto py-6 space-y-8">
-      <ShowDeskReturnLink showId={showId} />
-      <h1 className="text-3xl font-bold tracking-tight">Results</h1>
+    <div className={embedded ? 'space-y-8' : 'container mx-auto py-6 space-y-8'}>
+      {!embedded && <ShowDeskReturnLink showId={showId} />}
+      {!embedded && <h1 className="text-3xl font-bold tracking-tight">Results</h1>}
 
       <Card>
         <CardHeader>

@@ -2,6 +2,8 @@
 
 > **Status:** Active
 
+Tracking: [MYK9-1086](https://linear.app/myk9-platform/issue/MYK9-1086/redesign-the-at-show-entry-list-cards-option-g-in-ring-and-up-next)
+
 The `/at-show/:showId/class/:classId` entry list, redesigned around who actually reads it. Design reference: the **G** row of the "Ringside entry cards" canvas (`https://claude.ai/artifact/MR1V69oSJbzEED8pR5pD9a`): boards _G · Exhibitor watching_, _G · Judge's timer_ and _G · Completed_.
 
 ## Who the page is for

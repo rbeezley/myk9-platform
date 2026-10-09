@@ -1,12 +1,13 @@
 /**
  * V1 tool registry.
  *
- * V1.0 ships the three cross-table diagnostics — `diagnose_confirmation_email`,
- * `diagnose_payment`, and `list_show_access`. Each handler closes over
+ * V1.0 ships the cross-table diagnostics — `diagnose_confirmation_email`,
+ * `diagnose_payment`, `list_show_access`, and `diagnose_show_loose_ends`. Each handler closes over
  * `ctx.supabase`. Lookup tools (`lookup_show`/`lookup_entry`/...) are V1.1.
  */
 import { listShowAccessTool } from '../diagnostics/accessDiagnostics';
 import { diagnoseConfirmationEmailTool } from '../diagnostics/emailDiagnostics';
+import { diagnoseShowLooseEndsTool } from '../diagnostics/looseEndsDiagnostics';
 import { diagnosePaymentTool } from '../diagnostics/paymentDiagnostics';
 import type { AdminMcpConfig } from '../config';
 import type { AdminSupabaseClient } from '../db/supabaseAdmin';
@@ -18,5 +19,10 @@ export interface ToolContext {
 }
 
 export function buildAdminTools(ctx: ToolContext): AdminToolDefinition[] {
-  return [diagnoseConfirmationEmailTool(ctx), diagnosePaymentTool(ctx), listShowAccessTool(ctx)];
+  return [
+    diagnoseConfirmationEmailTool(ctx),
+    diagnosePaymentTool(ctx),
+    listShowAccessTool(ctx),
+    diagnoseShowLooseEndsTool(ctx),
+  ];
 }

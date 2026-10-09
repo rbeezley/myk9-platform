@@ -4,7 +4,7 @@
  * V1 has no write tools; instead each diagnostic returns links to the app
  * surface where the admin can act. Routes verified against
  * apps/myk9show/src (show detail `/shows/:id`, entry management
- * `/shows/:showId/entry-management`).
+ * `/shows/:showId/entry-management`, person `/people/:id`, dog `/dogs/:id`).
  */
 import type { AdminMcpConfig } from '../config';
 import type { DiagnosticLink } from './types';
@@ -23,5 +23,23 @@ export function buildEntryManagementLink(config: AdminMcpConfig, showId: string)
   return {
     label: 'Open entry management',
     url: `${config.appBaseUrl}/shows/${encodeURIComponent(showId)}/entry-management`,
+  };
+}
+
+export function buildDogLink(config: AdminMcpConfig, dogId: string, name?: string): DiagnosticLink {
+  return {
+    label: name ? `Open dog ${name}` : 'Open dog',
+    url: `${config.appBaseUrl}/dogs/${encodeURIComponent(dogId)}`,
+  };
+}
+
+export function buildPersonLink(
+  config: AdminMcpConfig,
+  personId: string,
+  name?: string
+): DiagnosticLink {
+  return {
+    label: name ? `Open person ${name}` : 'Open person',
+    url: `${config.appBaseUrl}/people/${encodeURIComponent(personId)}`,
   };
 }

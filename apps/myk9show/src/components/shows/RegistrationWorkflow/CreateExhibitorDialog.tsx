@@ -25,6 +25,8 @@ interface CreateExhibitorDialogProps {
   onDuplicateSelected?: (existingExhibitor: User) => void;
   searchQuery?: string; // Pre-fill from search if provided
   offlineFirst?: boolean;
+  /** The show whose add-entry flow this is; recorded as `created_from_show_id` (MYK9-1059). */
+  createdFromShowId?: string | undefined;
 }
 
 /** The possible-duplicate card: announced, focused and scrolled into view when it appears. */
@@ -71,6 +73,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
   onDuplicateSelected,
   searchQuery = '',
   offlineFirst = false,
+  createdFromShowId,
 }) => {
   const { people, loadUsers } = useUserStore();
   // The candidates and the "add anyway" answer belong to ONE identity (name and
@@ -147,6 +150,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
         city: data.city || null,
         state: data.state || null,
         zipCode: data.zipCode || null,
+        ...(createdFromShowId && { createdFromShowId }),
       });
 
       const newExhibitor: User = {
@@ -179,6 +183,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
       city: data.city || null,
       state: data.state || null,
       zip_code: data.zipCode || null,
+      ...(createdFromShowId && { created_from_show_id: createdFromShowId }),
     });
     if (error || !row) {
       // The original error, not a copy: its SQLSTATE is what tells a duplicate

@@ -36,6 +36,7 @@ export const ALLOWED_TOOL_NAMES = [
   'diagnose_confirmation_email',
   'diagnose_payment',
   'list_show_access',
+  'diagnose_show_loose_ends',
 ] as const;
 
 export type AllowedToolName = (typeof ALLOWED_TOOL_NAMES)[number];

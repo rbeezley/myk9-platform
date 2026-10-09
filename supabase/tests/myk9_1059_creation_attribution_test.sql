@@ -8,6 +8,9 @@
 --   1. created_by is stamped from the JWT on INSERT and a forged value is
 --      ignored, for people and dogs, through PostgREST-shaped inserts AND
 --      through the SECURITY DEFINER create_dog_with_registrations RPC;
+--   1b. create_dog_with_registrations reads p_dog.created_from_show_id
+--      (migration 20261009194100): kept for a managed show, NULL for an
+--      unmanaged one, NULL when the key is absent;
 --   2. created_from_show_id is kept when the inserter manages the show, and
 --      silently dropped to NULL (the insert still lands) when it does not;
 --   3. on UPDATE created_by cannot change, created_from_show_id cannot be moved
@@ -183,6 +186,33 @@ SELECT public.create_dog_with_registrations(
     'created_by', '00000000-0000-0000-0000-000001059999'),
   '[]'::jsonb);
 
+-- Secretary A adds dogs through the RPC (migration 20261009194100): claiming
+-- show A (hers), show B (not hers), and no show at all.
+SELECT pg_temp.act_as('00000000-0000-0000-0000-000001059101');
+SELECT public.create_dog_with_registrations(
+  jsonb_build_object(
+    'id', '00000000-0000-0000-0000-000001059404',
+    'owner_id', '00000000-0000-0000-0000-000001059201',
+    'call_name', 'MYK9-1059 RpcShowA',
+    'breed', 'Border Collie',
+    'created_from_show_id', '00000000-0000-0000-0000-000001059100'),
+  '[]'::jsonb);
+SELECT public.create_dog_with_registrations(
+  jsonb_build_object(
+    'id', '00000000-0000-0000-0000-000001059405',
+    'owner_id', '00000000-0000-0000-0000-000001059201',
+    'call_name', 'MYK9-1059 RpcShowB',
+    'breed', 'Border Collie',
+    'created_from_show_id', '00000000-0000-0000-0000-000001059110'),
+  '[]'::jsonb);
+SELECT public.create_dog_with_registrations(
+  jsonb_build_object(
+    'id', '00000000-0000-0000-0000-000001059406',
+    'owner_id', '00000000-0000-0000-0000-000001059201',
+    'call_name', 'MYK9-1059 RpcNoShow',
+    'breed', 'Border Collie'),
+  '[]'::jsonb);
+
 RESET ROLE;
 
 SELECT pg_temp.expect('people: created_by is the inserter''s auth uid, forged value ignored; managed show kept',
@@ -213,6 +243,21 @@ SELECT pg_temp.expect('dogs: an exhibitor cannot claim a show, nor forge another
 SELECT pg_temp.expect('dogs: create_dog_with_registrations (SECURITY DEFINER) stamps the caller''s auth uid',
   (SELECT created_by::text FROM public.dogs WHERE id = '00000000-0000-0000-0000-000001059403'),
   '00000000-0000-0000-0000-000001059103');
+
+SELECT pg_temp.expect('RPC: a secretary''s managed show in p_dog.created_from_show_id is kept',
+  (SELECT created_by::text || '|' || coalesce(created_from_show_id::text, 'NULL') FROM public.dogs
+    WHERE id = '00000000-0000-0000-0000-000001059404'),
+  '00000000-0000-0000-0000-000001059101|00000000-0000-0000-0000-000001059100');
+
+SELECT pg_temp.expect('RPC: a show the secretary does not manage is dropped to NULL, the dog still lands',
+  (SELECT created_by::text || '|' || coalesce(created_from_show_id::text, 'NULL') FROM public.dogs
+    WHERE id = '00000000-0000-0000-0000-000001059405'),
+  '00000000-0000-0000-0000-000001059101|NULL');
+
+SELECT pg_temp.expect('RPC: no created_from_show_id key leaves the column NULL',
+  (SELECT created_by::text || '|' || coalesce(created_from_show_id::text, 'NULL') FROM public.dogs
+    WHERE id = '00000000-0000-0000-0000-000001059406'),
+  '00000000-0000-0000-0000-000001059101|NULL');
 
 -- ---------------------------------------------------------------------------
 -- 3. Updates. Each also changes an ordinary column: proof RLS admitted it.

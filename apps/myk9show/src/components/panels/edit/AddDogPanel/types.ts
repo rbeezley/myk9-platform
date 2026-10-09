@@ -25,6 +25,12 @@ export interface AddDogPanelProps {
    * instead of today (MYK9-1060).
    */
   showStartDate?: string | undefined;
+  /**
+   * The show whose add-entry flow opened the panel. Recorded on the new dog as
+   * `created_from_show_id` so an admin diagnostic can find dogs added and never
+   * entered (MYK9-1059). Left unset everywhere else.
+   */
+  createdFromShowId?: string | undefined;
 }
 
 export interface DogFormData extends Record<string, unknown> {

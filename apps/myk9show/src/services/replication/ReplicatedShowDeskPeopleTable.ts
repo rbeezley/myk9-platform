@@ -12,6 +12,8 @@ export interface ShowDeskPersonInput {
   state?: string | null;
   zipCode?: string | null;
   status?: string;
+  /** The show whose add-entry flow created this person (MYK9-1059). INSERT only. */
+  createdFromShowId?: string | null;
 }
 
 export interface ReplicatedShowDeskPerson {
@@ -25,6 +27,7 @@ export interface ReplicatedShowDeskPerson {
   state?: string | null;
   zipCode?: string | null;
   status: string;
+  createdFromShowId?: string | null;
   _version?: number;
   _lastModified?: Date;
   _syncStatus?: 'synced' | 'pending' | 'error' | 'conflict';
@@ -65,6 +68,7 @@ export class ReplicatedShowDeskPeopleTable extends ReplicatedTable<ReplicatedSho
       state: input.state?.trim() || null,
       zipCode: input.zipCode?.trim() || null,
       status: input.status ?? 'active',
+      ...(input.createdFromShowId && { createdFromShowId: input.createdFromShowId }),
       _version: 1,
       _lastModified: new Date(),
       _syncStatus: 'pending',
@@ -97,6 +101,7 @@ export class ReplicatedShowDeskPeopleTable extends ReplicatedTable<ReplicatedSho
       state: person.state ?? null,
       zip_code: person.zipCode ?? null,
       status: person.status,
+      ...(person.createdFromShowId && { created_from_show_id: person.createdFromShowId }),
       updated_at: new Date().toISOString(),
     };
   }

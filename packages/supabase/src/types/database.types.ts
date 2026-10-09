@@ -1971,6 +1971,8 @@ export type Database = {
           co_owner_id: string | null
           color: string | null
           created_at: string | null
+          created_by: string | null
+          created_from_show_id: string | null
           date_of_birth: string | null
           deceased: boolean | null
           deceased_date: string | null
@@ -1997,6 +1999,8 @@ export type Database = {
           co_owner_id?: string | null
           color?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_from_show_id?: string | null
           date_of_birth?: string | null
           deceased?: boolean | null
           deceased_date?: string | null
@@ -2023,6 +2027,8 @@ export type Database = {
           co_owner_id?: string | null
           color?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_from_show_id?: string | null
           date_of_birth?: string | null
           deceased?: boolean | null
           deceased_date?: string | null
@@ -2056,6 +2062,55 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "people"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dogs_created_from_show_id_fkey"
+            columns: ["created_from_show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "dogs_created_from_show_id_fkey"
+            columns: ["created_from_show_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "dogs_created_from_show_id_fkey"
+            columns: ["created_from_show_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "dogs_created_from_show_id_fkey"
+            columns: ["created_from_show_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "dogs_created_from_show_id_fkey"
+            columns: ["created_from_show_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "dogs_created_from_show_id_fkey"
+            columns: ["created_from_show_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "dogs_created_from_show_id_fkey"
+            columns: ["created_from_show_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
           },
           {
             foreignKeyName: "dogs_owner_id_fkey"
@@ -5018,6 +5073,8 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string | null
+          created_by: string | null
+          created_from_show_id: string | null
           deleted_at: string | null
           deleted_by: string | null
           email: string | null
@@ -5040,6 +5097,8 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_from_show_id?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           email?: string | null
@@ -5062,6 +5121,8 @@ export type Database = {
           city?: string | null
           country?: string | null
           created_at?: string | null
+          created_by?: string | null
+          created_from_show_id?: string | null
           deleted_at?: string | null
           deleted_by?: string | null
           email?: string | null
@@ -5077,7 +5138,57 @@ export type Database = {
           updated_at?: string | null
           zip_code?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "people_created_from_show_id_fkey"
+            columns: ["created_from_show_id"]
+            isOneToOne: false
+            referencedRelation: "shows"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "people_created_from_show_id_fkey"
+            columns: ["created_from_show_id"]
+            isOneToOne: false
+            referencedRelation: "view_breed_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "people_created_from_show_id_fkey"
+            columns: ["created_from_show_id"]
+            isOneToOne: false
+            referencedRelation: "view_clean_sweep_dogs"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "people_created_from_show_id_fkey"
+            columns: ["created_from_show_id"]
+            isOneToOne: false
+            referencedRelation: "view_fastest_times"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "people_created_from_show_id_fkey"
+            columns: ["created_from_show_id"]
+            isOneToOne: false
+            referencedRelation: "view_judge_stats"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "people_created_from_show_id_fkey"
+            columns: ["created_from_show_id"]
+            isOneToOne: false
+            referencedRelation: "view_myk9q_entries"
+            referencedColumns: ["show_id"]
+          },
+          {
+            foreignKeyName: "people_created_from_show_id_fkey"
+            columns: ["created_from_show_id"]
+            isOneToOne: false
+            referencedRelation: "view_stats_summary"
+            referencedColumns: ["show_id"]
+          },
+        ]
       }
       people_private: {
         Row: {
@@ -13598,6 +13709,8 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string | null
+          created_by: string | null
+          created_from_show_id: string | null
           deleted_at: string | null
           deleted_by: string | null
           email: string | null
@@ -14654,6 +14767,8 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string | null
+          created_by: string | null
+          created_from_show_id: string | null
           deleted_at: string | null
           deleted_by: string | null
           email: string | null
@@ -14914,6 +15029,8 @@ export type Database = {
           city: string | null
           country: string | null
           created_at: string | null
+          created_by: string | null
+          created_from_show_id: string | null
           deleted_at: string | null
           deleted_by: string | null
           email: string | null

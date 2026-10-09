@@ -50,16 +50,16 @@ interface OwnerRow {
   zip_code: string | null;
 }
 
-// MYK9-1010: the address is read with the owner so an AKC entry can be blocked
-// in the wizard until it is complete.
-const OWNER_COLUMNS = 'id, first_name, last_name, email, phone, street_address, city, state, zip_code';
-
+// MYK9-1010: the address is read with the owner (here and in the PostgREST
+// embed below) so an AKC entry can be blocked in the wizard until it is
+// complete. Inlined, not a constant: peopleJuniorHandlerPiiContract audits
+// every people column list.
 async function loadOwnersMap(ownerIds: string[]): Promise<Map<string, OwnerRow>> {
   if (ownerIds.length === 0) return new Map();
   const uniqueIds = [...new Set(ownerIds)];
   const { data } = await supabase
     .from('people')
-    .select(OWNER_COLUMNS)
+    .select('id, first_name, last_name, email, phone, street_address, city, state, zip_code')
     .in('id', uniqueIds);
   const map = new Map<string, OwnerRow>();
   if (data) {
@@ -264,7 +264,17 @@ async function postgrestGetAllDogs(personId: string, showAll = false) {
     .select(
       `
       *,
-      owner:people!dogs_owner_id_fkey(${OWNER_COLUMNS}),
+      owner:people!dogs_owner_id_fkey(
+        id,
+        first_name,
+        last_name,
+        email,
+        phone,
+        street_address,
+        city,
+        state,
+        zip_code
+      ),
       registrations:dog_registrations(*)
     `
     )

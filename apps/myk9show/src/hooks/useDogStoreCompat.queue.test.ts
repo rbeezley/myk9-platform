@@ -12,10 +12,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import React from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 import { MutationManager, configureConflictSurfacing } from '@myk9/replication';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { useDogStoreCompat } from './useDogStoreCompat';
-import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
+import { replicatedDogsTable, rowToDog } from '@/services/replication/ReplicatedDogsTable';
 import { queryKeys } from '@/lib/queryClient';
 
 const { mockDirectUpdate, mockRoster, mockNotify } = vi.hoisted(() => ({
@@ -44,6 +45,9 @@ vi.mock('@/hooks/dogStoreCompatHelpers', () => ({
 }));
 
 const USER = 'auth-user-1';
+
+// What the provider's syncTable('dogs') does in the cold-replica tests.
+let syncDogsImpl: (() => Promise<void>) | undefined;
 const DOG_ID = 'dog-queue-1';
 
 type UpdateResult = { data: { id: string; version: number }[] | null; error: unknown };
@@ -86,8 +90,19 @@ describe('useDogStoreCompat.updateDog — mutation queue (MYK9-1067)', () => {
       false
     );
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const syncValue = {
+      status: { isSyncing: false, lastSyncAt: null, error: null, tablesStatus: {} },
+      triggerSync: async () => {},
+      syncTable: async () => {
+        await syncDogsImpl?.();
+      },
+    };
     const wrapper = ({ children }: { children: React.ReactNode }) =>
-      React.createElement(QueryClientProvider, { client: queryClient }, children);
+      React.createElement(
+        ReplicationSyncContext.Provider,
+        { value: syncValue },
+        React.createElement(QueryClientProvider, { client: queryClient }, children)
+      );
     const { result: hook } = renderHook(() => useDogStoreCompat(), { wrapper });
     return { hook, update, queryClient, eqs };
   };
@@ -96,6 +111,7 @@ describe('useDogStoreCompat.updateDog — mutation queue (MYK9-1067)', () => {
     mockDirectUpdate.mockReset();
     mockRoster.rows = [];
     mockNotify.mockReset();
+    syncDogsImpl = undefined;
     mockDirectUpdate.mockRejectedValue(new Error('network down'));
     setOnline(true);
   });
@@ -188,16 +204,17 @@ describe('useDogStoreCompat.updateDog — mutation queue (MYK9-1067)', () => {
   });
 
   describe('cold local replica (dog on the roster via the PostgREST fallback)', () => {
-    // The server row, exactly as PostgREST returns it: sex NULL, version 7.
-    const serverRow = {
-      id: DOG_ID,
+    // The server rows, exactly as PostgREST returns them: sex NULL, version 7.
+    const serverRow = (id: string) => ({
+      id,
       name: null,
-      call_name: 'Tera',
+      call_name: id,
       breed: 'Beagle',
       sex: null,
       owner_id: 'owner-1',
       version: 7,
-    };
+    });
+    const OTHER_IDS = ['dog-b', 'dog-c'];
 
     // The OCC precondition is only attached while conflict surfacing is on.
     beforeEach(() => {
@@ -207,7 +224,13 @@ describe('useDogStoreCompat.updateDog — mutation queue (MYK9-1067)', () => {
       configureConflictSurfacing(false);
     });
 
-    const coldSetup = async (opts: { server: boolean }) => {
+    /** Stands in for the provider's table sync: stores EVERY server row like a download. */
+    const normalSync = async () => {
+      const rows = [DOG_ID, ...OTHER_IDS].map(id => rowToDog(serverRow(id) as never));
+      await replicatedDogsTable.batchSet(rows, new Map(rows.map(r => [r.id, 7])));
+    };
+
+    const coldSetup = async () => {
       // Roster display rows must NOT feed the replica: give it a row whose display
       // defaults (sex 'male') differ from the server row.
       mockRoster.rows = [
@@ -215,37 +238,41 @@ describe('useDogStoreCompat.updateDog — mutation queue (MYK9-1067)', () => {
       ];
       const ctx = await setup(() => ({ data: [{ id: DOG_ID, version: 8 }], error: null }));
       await replicatedDogsTable.delete(DOG_ID);
-      vi.spyOn(
-        replicatedDogsTable as unknown as { getRowRefetchAdapter: () => unknown },
-        'getRowRefetchAdapter'
-      ).mockReturnValue({
-        fetchRowsById: async () => {
-          if (!opts.server) throw new Error('offline');
-          return [serverRow];
-        },
-      });
       return ctx;
     };
 
-    it('stores the fetched row with its serverVersion and queues the same OCC precondition as a warm row', async () => {
-      const cold = await coldSetup({ server: true });
+    afterEach(async () => {
+      for (const id of OTHER_IDS) await replicatedDogsTable.delete(id);
+    });
+
+    it('syncs the whole table first: full roster present, edit queues with the OCC version', async () => {
+      const cold = await coldSetup();
+      syncDogsImpl = normalSync;
+
       await act(async () => {
         await cold.hook.current.updateDog(DOG_ID, { color: 'tri' });
       });
-      const stored = await replicatedDogsTable.getReplicatedRow(DOG_ID);
-      expect(stored?.serverVersion).toBe(7);
+
+      const all = await replicatedDogsTable.getAllDogs();
+      expect(all.map(d => d.id).sort()).toEqual([DOG_ID, ...OTHER_IDS].sort());
+      expect((await replicatedDogsTable.getReplicatedRow(DOG_ID))?.serverVersion).toBe(7);
+
       await act(async () => {
         await manager!.uploadPendingMutations();
       });
       const coldEqs = [...cold.eqs];
       expect(coldEqs).toContainEqual(['version', 7]);
+      const payload = cold.update.mock.calls[0]![0];
+      // Display defaults never reach the server.
+      expect(payload.sex).toBeNull();
+      expect(payload.breed).toBe('Beagle');
 
-      // Warm row with the same server version attaches the identical precondition.
+      // A warm row at the same server version attaches the identical precondition.
       await manager!.clearAllMutations();
       await replicatedDogsTable.delete(DOG_ID);
       await replicatedDogsTable.set(
         DOG_ID,
-        { id: DOG_ID, name: 'Tera', callName: 'Tera', breed: 'Beagle', ownerId: 'owner-1' },
+        { id: DOG_ID, name: DOG_ID, callName: DOG_ID, breed: 'Beagle', ownerId: 'owner-1' },
         false,
         undefined,
         7
@@ -258,27 +285,20 @@ describe('useDogStoreCompat.updateDog — mutation queue (MYK9-1067)', () => {
       expect(cold.eqs).toEqual(coldEqs);
     });
 
-    it('never writes display defaults: an unrelated edit leaves sex null and breed unchanged', async () => {
-      const { hook, update } = await coldSetup({ server: true });
-      await act(async () => {
-        await hook.current.updateDog(DOG_ID, { color: 'tri' });
-        await manager!.uploadPendingMutations();
-      });
-      const payload = update.mock.calls[0]![0];
-      expect(payload.sex).toBeNull();
-      expect(payload.breed).toBe('Beagle');
-    });
-
-    it('offline with no fetchable row: tells the user and queues nothing', async () => {
-      const { hook } = await coldSetup({ server: false });
-      setOnline(false);
+    it('sync that cannot fill the replica: error toast, nothing queued, replica untouched', async () => {
+      const { hook } = await coldSetup();
+      syncDogsImpl = async () => {
+        throw new Error('offline');
+      };
 
       await act(async () => {
-        await hook.current.updateDog(DOG_ID, { color: 'tri' });
+        const out = await hook.current.updateDog(DOG_ID, { color: 'tri' });
+        expect(out).toBeNull();
       });
 
       expect(mockNotify).toHaveBeenCalledTimes(1);
       expect(await manager!.getPendingCount()).toBe(0);
+      expect(await replicatedDogsTable.getAllDogs()).toEqual([]);
       expect(mockDirectUpdate).not.toHaveBeenCalled();
     });
   });

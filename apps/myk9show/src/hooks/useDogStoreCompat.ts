@@ -24,6 +24,7 @@ import {
 } from '@/services/mappers/dogMappers';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { logger } from '@/services/LoggingService';
+import { useOptionalReplicationSync } from '@/hooks/useOptionalReplicationSync';
 import { queryKeys } from '@/lib/queryClient';
 import { aggregateQueryErrors, aggregateLoadingStates } from '@/hooks/storeCompatUtils';
 import { syncDogRegistrations } from '@/hooks/dogStoreCompatHelpers';
@@ -235,14 +236,21 @@ export const useDogStoreCompat = () => {
     return await mapReplicatedDogWithRegistrations(savedDog);
   };
 
-  // Cold replica (roster filled by the PostgREST fallback): fetch the one server
-  // row into the replica through the sync download's own store path. Never build
-  // a replica row from the roster's display model - it carries display defaults
-  // (sex, derived breed) that a queued full-row UPDATE would persist.
-  const hydrateMissingDog = (id: string) =>
-    typeof navigator !== 'undefined' && !navigator.onLine
-      ? Promise.resolve(null)
-      : replicatedDogsTable.hydrateFromServer(id);
+  // Cold replica (roster filled by the PostgREST fallback): run the dogs table's
+  // NORMAL sync - the provider's own syncTable - so the replica fills completely
+  // (a one-row replica would read as "complete" and shrink the roster) and rows
+  // arrive with their server version. No partial replica writes, and never a
+  // replica row built from the roster's display model.
+  const replicationSync = useOptionalReplicationSync();
+  const syncDogsThenGet = async (id: string) => {
+    if (!replicationSync) return null;
+    try {
+      await replicationSync.syncTable('dogs');
+    } catch (err) {
+      logger.warn('Dogs sync before edit failed', 'dogs', { dogId: id }, err as Error);
+    }
+    return replicatedDogsTable.getDogById(id);
+  };
 
   const updateDog = async (id: string, updates: Partial<DogInput>): Promise<Dog | null> => {
     logger.debug('updateDog called', 'dogs', {
@@ -265,7 +273,7 @@ export const useDogStoreCompat = () => {
     // fire-and-forget and lost the edit silently whenever it failed.
     let current = await replicatedDogsTable.getDogById(id);
     if (!current) {
-      current = await hydrateMissingDog(id);
+      current = await syncDogsThenGet(id);
       if (!current) {
         notifications.error(
           'This dog is not saved on this device yet. Reconnect and try the edit again.'

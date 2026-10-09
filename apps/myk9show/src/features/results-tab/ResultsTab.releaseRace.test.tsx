@@ -74,7 +74,10 @@ vi.mock('@/features/show-map/useJudgeSignOffMutations', () => ({
 vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'u' } }) }));
 vi.mock('./useClassUnsyncedScores', () => ({
   useClassUnsyncedScores: () => false,
-  classHasUnsyncedScores: async () => false,
+  classHasUnsyncedScores: (id: string) => unsyncedNow.check(id),
+}));
+const unsyncedNow = vi.hoisted(() => ({
+  check: async (_id: string): Promise<boolean> => false,
 }));
 const read = vi.hoisted(() => ({ resolve: (_value: string | null) => undefined as void }));
 vi.mock('@/features/show-map/resultsVerifiedMutations', async importOriginal => ({
@@ -133,5 +136,30 @@ describe('Release after an Undo that started during the server read', () => {
     });
 
     expect(releaseMutate).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps Undo from slipping in during the unsynced re-check: a bump there still aborts', async () => {
+    let finishUnsynced: (value: boolean) => void = () => undefined;
+    unsyncedNow.check = () => new Promise<boolean>(resolve => (finishUnsynced = resolve));
+    mount();
+    await act(async () => {
+      captured.props!.onRelease();
+    });
+    // The server read is done; the unsynced re-check is still pending.
+    await act(async () => {
+      read.resolve('2026-10-10T15:45:00Z');
+    });
+    await act(async () => {
+      captured.props!.onUndoVerify();
+    });
+    await act(async () => {
+      finishUnsynced(false);
+    });
+
+    expect(releaseMutate).not.toHaveBeenCalled();
+    expect(toastError).toHaveBeenCalledWith(
+      'The check was just changed. Check the class and try again.'
+    );
+    unsyncedNow.check = async () => false;
   });
 });

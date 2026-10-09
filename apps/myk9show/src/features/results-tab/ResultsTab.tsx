@@ -141,47 +141,52 @@ export default function ResultsTab() {
     // a fresh read of the class on the server.
     if (row.phase !== 'ready-to-release' || releaseBlockedReason !== null) return;
     const generationAtClick = checkGeneration.current;
+    // Held for the WHOLE preflight (server read and unsynced re-check), so Undo and the confirm
+    // stay disabled until the release is queued or the preflight gives up.
     setReleaseChecking(true);
-    let verifiedAt: string | null;
     try {
-      verifiedAt = await readServerResultsVerifiedAt(row.id);
-    } catch {
-      toast.error('Could not check this class. Try again.');
-      return;
+      let verifiedAt: string | null;
+      try {
+        verifiedAt = await readServerResultsVerifiedAt(row.id);
+      } catch {
+        toast.error('Could not check this class. Try again.');
+        return;
+      }
+      // A correction can land while the server was being asked: the answer then describes older
+      // results. Look again, directly, before anything is queued.
+      try {
+        if (await classHasUnsyncedScores(row.id)) {
+          toast.error('Waiting for score changes to sync');
+          return;
+        }
+      } catch {
+        toast.error('Could not check this class. Try again.');
+        return;
+      }
+      // The check was taken back (Undo) at any point since the click: the read is stale. Compared
+      // after the LAST await, immediately before anything is queued.
+      if (checkGeneration.current !== generationAtClick) {
+        toast.error('The check was just changed. Check the class and try again.');
+        return;
+      }
+      if (!verifiedAt) {
+        toast.error('This class needs checking again — the scores changed.');
+        verification.refreshClass(row.trialId);
+        return;
+      }
+      release.mutate(
+        { classIds: [row.id], showId },
+        {
+          onSuccess: ({ released }) =>
+            released.length > 0
+              ? toast.success('Results released')
+              : toast.error('Could not release the results. Try again.'),
+          onError: () => toast.error('Could not release the results. Try again.'),
+        }
+      );
     } finally {
       setReleaseChecking(false);
     }
-    // The check was taken back (Undo) while the server was being asked: that read is stale.
-    if (checkGeneration.current !== generationAtClick) {
-      toast.error('The check was just changed. Check the class and try again.');
-      return;
-    }
-    // A correction can land while the server was being asked: the answer then describes older
-    // results. Look again, directly, before anything is queued.
-    try {
-      if (await classHasUnsyncedScores(row.id)) {
-        toast.error('Waiting for score changes to sync');
-        return;
-      }
-    } catch {
-      toast.error('Could not check this class. Try again.');
-      return;
-    }
-    if (!verifiedAt) {
-      toast.error('This class needs checking again — the scores changed.');
-      verification.refreshClass(row.trialId);
-      return;
-    }
-    release.mutate(
-      { classIds: [row.id], showId },
-      {
-        onSuccess: ({ released }) =>
-          released.length > 0
-            ? toast.success('Results released')
-            : toast.error('Could not release the results. Try again.'),
-        onError: () => toast.error('Could not release the results. Try again.'),
-      }
-    );
   };
 
   if (readState === 'loading') {

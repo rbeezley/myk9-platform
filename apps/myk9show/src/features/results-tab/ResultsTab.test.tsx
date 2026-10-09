@@ -840,6 +840,22 @@ describe('ResultsTab Release asks the server', () => {
     expect(await screen.findByRole('button', { name: 'Undo check' })).toBeDisabled();
   });
 
+  it('Undo check stays disabled through the whole preflight, including the unsynced re-check', async () => {
+    let finishUnsynced: (value: boolean) => void = () => undefined;
+    unsyncedNow.check.mockImplementation(
+      () => new Promise<boolean>(resolve => (finishUnsynced = resolve))
+    );
+    const { user } = renderAt('?status=all&classId=class-ready');
+    await user.click(screen.getByRole('button', { name: 'Release results' }));
+    // The server read is answered; the re-check is still pending.
+    await waitFor(() => expect(unsyncedNow.check).toHaveBeenCalledWith('class-ready'));
+
+    expect(screen.getByRole('button', { name: 'Undo check' })).toBeDisabled();
+
+    finishUnsynced(false);
+    await waitFor(() => expect(releaseMutate).toHaveBeenCalledTimes(1));
+  });
+
   it('does not release when the server says the check is gone, tells the user, and refreshes the class', async () => {
     serverCheck.read.mockResolvedValue(null as never);
     const { user } = renderAt('?status=all&classId=class-ready');

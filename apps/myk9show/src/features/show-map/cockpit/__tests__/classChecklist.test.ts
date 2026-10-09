@@ -68,6 +68,36 @@ describe('buildClassChecklist', () => {
     expect(item?.paperwork?.printHref).toBe('/print/check-in-sheet');
   });
 
+  it('links preliminary results and ribbon labels to Results and keeps the pre-scoring items as they were (MYK9-1032)', () => {
+    const items = buildClassChecklist({
+      ...NOT_STARTED,
+      resultsHref: '/shows/s/results?classId=c',
+    });
+    const byId = Object.fromEntries(items.map(item => [item.id, item]));
+    for (const id of ['results-sheet', 'result-labels']) {
+      expect(byId[id]?.href).toBe('/shows/s/results?classId=c');
+      expect(byId[id]?.paperwork).toBeUndefined();
+      expect(byId[id]?.command).toBeUndefined();
+    }
+    for (const id of ['check-in-sheet', 'scoresheet', 'class-started', 'scoring-complete']) {
+      expect(byId[id]?.href).toBeUndefined();
+    }
+    // Deferred to MYK9-1031 part 2: Results has no judge sign-off slot yet, so initials stay put.
+    expect(byId['judge-signature']?.href).toBeUndefined();
+    expect(byId['check-in-sheet']?.paperwork).toBeDefined();
+    expect(byId.scoresheet?.paperwork).toBeDefined();
+  });
+
+  it('keeps the status of a linked print item from its print record', () => {
+    const items = buildClassChecklist({
+      ...NOT_STARTED,
+      resultsHref: '/r',
+      paperwork: [paper('results-sheet', 'current'), paper('result-labels', 'stale')],
+    });
+    expect(items.find(item => item.id === 'results-sheet')?.state).toBe('done');
+    expect(items.find(item => item.id === 'result-labels')?.state).toBe('reprint');
+  });
+
   it('treats a report with nothing to print yet as not done, without a paperwork row', () => {
     const item = buildClassChecklist({ ...NOT_STARTED, paperwork: [] }).find(
       entry => entry.id === 'results-sheet'

@@ -1,7 +1,9 @@
 import { CheckCircle2, CircleHelp, Clock3, RefreshCw } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { getCockpitResultsControlHref, getShowHomeHref } from './cockpitRoutes';
 import { CockpitPaperworkRow } from './CockpitPaperworkRow';
 import {
   buildClassChecklist,
@@ -43,7 +45,17 @@ function ChecklistStepRow({
     >
       <div className="flex items-center gap-2 font-medium">
         <StateIcon state={item.state} />
-        {item.label}
+        {item.href ? (
+          <Link
+            to={item.href}
+            className="inline-flex min-h-11 items-center underline-offset-4 hover:underline"
+            aria-label={`${item.label} — open in Results`}
+          >
+            {item.label}
+          </Link>
+        ) : (
+          item.label
+        )}
       </div>
       <div className="flex items-center gap-2">
         <span className="text-xs text-muted-foreground">
@@ -66,17 +78,29 @@ function ChecklistStepRow({
 }
 
 export function ClassChecklistSection({
+  showId,
   sourceClass,
   paperwork,
   timeZone,
   onCommand,
 }: {
+  showId: string;
   sourceClass: SecretaryCockpitClass;
   paperwork: readonly SecretaryCockpitPaperwork[];
   timeZone: string;
   onCommand: (commandId: string) => void;
 }) {
-  const items = buildClassChecklist({ ...sourceClass, paperwork });
+  // MYK9-1032: preliminary results, ribbon labels and initials link to the class on Results.
+  const resultsHref = getCockpitResultsControlHref({
+    showId,
+    trialId: sourceClass.trialId,
+    classId: sourceClass.id,
+    returnTo: getShowHomeHref({
+      showId,
+      state: { filter: 'all', focusedClassId: sourceClass.id },
+    }),
+  });
+  const items = buildClassChecklist({ ...sourceClass, paperwork, resultsHref });
   const checklistIds = new Set<string>(items.map(item => item.id));
   const otherPaperwork = paperwork.filter(item => !checklistIds.has(item.reportId));
   const summary = summarizeClassChecklist(items);

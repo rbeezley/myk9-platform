@@ -8,6 +8,10 @@ import {
   SIGN_IN_EMAIL_LOCKED_CODE,
   SIGN_IN_EMAIL_LOCKED_MESSAGE,
 } from './signInEmailGuard';
+import {
+  PERSON_EDIT_NEEDS_CONNECTION_CODE,
+  PERSON_EDIT_NEEDS_CONNECTION_MESSAGE,
+} from '@/utils/signInEmailMessages';
 import { hydrateVisibleRoles } from './roleLabels';
 import { PEOPLE_MAPPER_COLUMNS } from './peopleColumns';
 import type { PersonPrivatePatch } from './personPrivate';
@@ -175,6 +179,15 @@ async function updatePersonStatus(id: string, status: string, startTime: number)
 // Update user
 export const updateUser = async (id: string, updates: PersonUpdate) => {
   const startTime = Date.now();
+
+  // MYK9-1071: person edits are online-only. Refuse offline with a coded error
+  // the save panels report, instead of a network failure or a paused mutation.
+  if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+    const offline = Object.assign(new Error(PERSON_EDIT_NEEDS_CONNECTION_MESSAGE), {
+      code: PERSON_EDIT_NEEDS_CONNECTION_CODE,
+    });
+    return { data: null, error: createDatabaseError(offline, 'user', 'update') };
+  }
 
   try {
     // Account status is its own site-admin action (MYK9-712, the suspend /

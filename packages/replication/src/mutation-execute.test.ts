@@ -226,64 +226,6 @@ describe('executeMutation', () => {
   });
 
   describe('UPDATE', () => {
-    describe('RPC versionArg (MYK9-1071)', () => {
-      function rpcUpdate(serverVersion: number | undefined) {
-        return makeMutation({
-          tableName: 'people',
-          operation: 'UPDATE',
-          rowId: 'person-1',
-          data: { id: 'person-1', city: 'Edison' },
-          ...(serverVersion !== undefined && { serverVersion }),
-          rpc: {
-            name: 'update_person_details_versioned',
-            args: { p_person_id: 'person-1', p_expected_version: 3, p_people: { city: 'Edison' } },
-            versionArg: 'p_expected_version',
-          },
-        });
-      }
-
-      it('sends the CURRENT serverVersion, not the one frozen into args at queue time', async () => {
-        const rpc = vi.fn(() => Promise.resolve({ data: 8, error: null }));
-        const supabase = { from: vi.fn(), rpc } as unknown as SupabaseClient;
-
-        const result = await executeMutation(supabase, makeLogger(), rpcUpdate(7));
-
-        expect(rpc).toHaveBeenCalledWith('update_person_details_versioned', {
-          p_person_id: 'person-1',
-          p_expected_version: 7,
-          p_people: { city: 'Edison' },
-        });
-        expect(result).toEqual({ newServerVersion: 8 });
-      });
-
-      it('sends null when the row has no server version yet', async () => {
-        const rpc = vi.fn(() => Promise.resolve({ data: 1, error: null }));
-        const supabase = { from: vi.fn(), rpc } as unknown as SupabaseClient;
-
-        await executeMutation(supabase, makeLogger(), rpcUpdate(undefined));
-
-        expect(rpc).toHaveBeenCalledWith(
-          'update_person_details_versioned',
-          expect.objectContaining({ p_expected_version: null })
-        );
-      });
-
-      it('maps a 40001 with the current version in DETAIL to an OccRejectionError', async () => {
-        const rpc = vi.fn(() =>
-          Promise.resolve({
-            data: null,
-            error: { code: '40001', message: 'Version conflict', details: '9' },
-          })
-        );
-        const supabase = { from: vi.fn(), rpc } as unknown as SupabaseClient;
-
-        const failure = await executeMutation(supabase, makeLogger(), rpcUpdate(7)).catch(e => e);
-
-        expect(failure).toBeInstanceOf(OccRejectionError);
-        expect((failure as OccRejectionError).currentServerVersion).toBe(9);
-      });
-    });
-
     it('omits a stale deleted_at null from an older queued entry update', async () => {
       const updateChain = chainable({ data: [{ id: 'entry-1', version: 5 }], error: null });
       const update = vi.fn(() => updateChain);

@@ -19,7 +19,7 @@ import {
 } from '@/utils/dogIdentity';
 import { chunk, ID_CHUNK_SIZE } from '@/utils/chunkIds';
 import { parseRestoreDogResult } from './restoreDogResult';
-import { overlayPendingOwners, overlayPendingRegistrationEdits } from './pendingLocalOverlays';
+import { overlayPendingRegistrationEdits } from './pendingLocalOverlays';
 
 // PostgREST OR filter for dogs owned or co-owned by a person
 const ownedByPerson = (personId: string) => `owner_id.eq.${personId},co_owner_id.eq.${personId}`;
@@ -36,7 +36,7 @@ function filterByOwnership(dogs: ReplicatedDog[], personId: string): ReplicatedD
 }
 
 // ---------------------------------------------------------------------------
-// Helpers — batch-load owner data from PostgREST, queued person edits overlaid (MYK9-1071)
+// Helpers — batch-load owner data from PostgREST (person edits are online-only, MYK9-1071)
 // ---------------------------------------------------------------------------
 
 interface OwnerRow {
@@ -68,8 +68,7 @@ async function loadOwnersMap(ownerIds: string[]): Promise<Map<string, OwnerRow>>
       map.set(row.id, row as OwnerRow);
     }
   }
-  // Queued person edits not yet uploaded stay visible (MYK9-1071).
-  return overlayPendingOwners(map, uniqueIds);
+  return map;
 }
 
 function appendRegistrations(

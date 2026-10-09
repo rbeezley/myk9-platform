@@ -58,8 +58,6 @@ import { ReplicatedClubsTable } from './ReplicatedClubsTable';
 import { ReplicatedDogsTable } from './ReplicatedDogsTable';
 import { ReplicatedDogRegistrationsTable } from './ReplicatedDogRegistrationsTable';
 import { DOG_REGISTRATION_REPLICA_COLUMNS } from './dogRegistrationRowMapping';
-import { ReplicatedShowDeskPeopleTable } from './ReplicatedShowDeskPeopleTable';
-import { PEOPLE_REPLICA_COLUMNS } from '@/services/database/users/peopleColumns';
 import { ReplicatedEntriesTable } from './ReplicatedEntriesTable';
 import { ReplicatedJudgeAssignmentsTable } from './ReplicatedJudgeAssignmentsTable';
 import { JUDGE_ASSIGNMENT_SELECT } from './ReplicatedJudgeAssignmentsTable';
@@ -146,16 +144,6 @@ const cases: Array<{
     expected: [
       ['from', 'dog_registrations'],
       ['select', DOG_REGISTRATION_REPLICA_COLUMNS],
-      ['in', 'id', ['r1', 'r2']],
-    ],
-  },
-  {
-    name: 'people',
-    make: () => new ReplicatedShowDeskPeopleTable(),
-    expected: [
-      ['from', 'people'],
-      ['select', PEOPLE_REPLICA_COLUMNS],
-      ['is', 'deleted_at', null],
       ['in', 'id', ['r1', 'r2']],
     ],
   },

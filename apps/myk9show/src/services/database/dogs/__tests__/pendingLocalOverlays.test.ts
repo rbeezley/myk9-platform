@@ -6,10 +6,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * device's unsent writes, so a queued edit shows before upload and a row the
  * server deleted is never read back from the replica.
  */
-const { serverIn, unsent, pendingPeople } = vi.hoisted(() => ({
+const { serverIn, unsent } = vi.hoisted(() => ({
   serverIn: vi.fn(),
   unsent: vi.fn(),
-  pendingPeople: vi.fn(),
 }));
 
 vi.mock('../../supabaseClient', () => ({
@@ -20,12 +19,8 @@ vi.mock('../../supabaseClient', () => ({
 vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
   replicatedDogRegistrationsTable: { getRegistrationsForDogs: unsent },
 }));
-vi.mock('@/services/replication/ReplicatedShowDeskPeopleTable', () => ({
-  replicatedShowDeskPeopleTable: { getPeopleByIds: pendingPeople },
-}));
 
 import { loadDogRegistrations } from '../reads';
-import { overlayPendingOwners } from '../pendingLocalOverlays';
 
 describe('loadDogRegistrations overlays unsent registration writes', () => {
   beforeEach(() => {
@@ -61,63 +56,5 @@ describe('loadDogRegistrations overlays unsent registration writes', () => {
       expect.objectContaining({ id: 'r1', registered_name: 'New' }),
     ]);
     expect(result.registrationsReadComplete).toBe(true);
-  });
-});
-
-describe('overlayPendingOwners', () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it('applies a queued person edit to the roster owner and keeps the server email', async () => {
-    pendingPeople.mockResolvedValue([
-      {
-        id: 'p1',
-        firstName: 'Patricia',
-        lastName: 'Owner',
-        address: '2 New St',
-        _syncStatus: 'pending',
-      },
-      { id: 'p2', firstName: 'Clean', lastName: 'Row', _syncStatus: 'synced' },
-    ]);
-    const owners = new Map([
-      [
-        'p1',
-        {
-          id: 'p1',
-          first_name: 'Pat',
-          last_name: 'Owner',
-          email: 'p@x.test',
-          phone: null,
-          street_address: '1 Old St',
-          city: null,
-          state: null,
-          zip_code: null,
-        },
-      ],
-      [
-        'p2',
-        {
-          id: 'p2',
-          first_name: 'Server',
-          last_name: 'Row',
-          email: null,
-          phone: null,
-          street_address: null,
-          city: null,
-          state: null,
-          zip_code: null,
-        },
-      ],
-    ]);
-
-    const result = await overlayPendingOwners(owners, ['p1', 'p2']);
-
-    expect(result.get('p1')).toMatchObject({
-      first_name: 'Patricia',
-      street_address: '2 New St',
-      email: 'p@x.test',
-    });
-    expect(result.get('p2')).toMatchObject({ first_name: 'Server' });
   });
 });

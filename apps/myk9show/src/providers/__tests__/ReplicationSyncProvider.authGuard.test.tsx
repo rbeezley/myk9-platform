@@ -18,7 +18,6 @@ const hoisted = vi.hoisted(() => {
     entries: makeSyncSpy(),
     dogs: makeSyncSpy(),
     dog_registrations: makeSyncSpy(),
-    people: makeSyncSpy(),
     clubs: makeSyncSpy(),
     judge_assignments: makeSyncSpy(),
     armbands: makeSyncSpy(),
@@ -91,15 +90,12 @@ vi.mock('@/services/replication/ReplicatedEntriesTable', () => ({
 vi.mock('@/services/replication/ReplicatedDogsTable', () => ({
   replicatedDogsTable: { setMutationManager: vi.fn(), sync: hoisted.syncSpies.dogs },
 }));
-// Both sync for real since MYK9-1071, so they are stubbed like their siblings.
+// Registrations sync for real since MYK9-1071, so they are stubbed like their siblings.
 vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
   replicatedDogRegistrationsTable: {
     setMutationManager: vi.fn(),
     sync: hoisted.syncSpies.dog_registrations,
   },
-}));
-vi.mock('@/services/replication/ReplicatedShowDeskPeopleTable', () => ({
-  replicatedShowDeskPeopleTable: { setMutationManager: vi.fn(), sync: hoisted.syncSpies.people },
 }));
 vi.mock('@/services/replication/ReplicatedClubsTable', () => ({
   replicatedClubsTable: { setMutationManager: vi.fn(), sync: hoisted.syncSpies.clubs },

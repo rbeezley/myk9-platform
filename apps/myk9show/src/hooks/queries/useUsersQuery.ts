@@ -1,5 +1,4 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { overlayPendingPeople } from '@/services/replication/pendingPeopleOverlay';
 import { queryKeys } from '@/lib/queryClient';
 import type { User } from '@/types/user-types';
 import {
@@ -99,8 +98,7 @@ const UserService = {
     // getAllUsers now selects an explicit column allowlist (SA-008), so its rows
     // are a subset of the full DbUser Row; mapDbUserToUser only reads allowlisted
     // columns. Cast mirrors the existing pattern below.
-    // Queued person edits not yet uploaded stay visible across refetches (MYK9-1071).
-    return overlayPendingPeople(result.data.map(row => mapDbUserToUser(row as unknown as DbUser)));
+    return result.data.map(row => mapDbUserToUser(row as unknown as DbUser));
   },
 
   getById: async (id: string): Promise<User | null> => {
@@ -311,6 +309,9 @@ export function useUpdateUserMutation() {
   const queryClient = useQueryClient();
 
   return useMutation({
+    // Offline, the save is refused with a reconnect message (MYK9-1071); an
+    // 'online' mutation would pause silently instead.
+    networkMode: 'always',
     mutationFn: ({ id, updates }: { id: string; updates: Partial<User> }) =>
       UserService.update(id, updates),
     onSuccess: (updatedUser: User) => {

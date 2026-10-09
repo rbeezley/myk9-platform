@@ -6,8 +6,7 @@ import { buildUserEditSavePayload, buildSavedFormDataUpdates } from './userEditS
 import { notifications } from '@/lib/notifications';
 import { uploadProfilePhoto } from '@/services/imageUploadService';
 import { useUserStore } from '@/store/userStore';
-import { mapUserToDbUpdate, useUpdateUserMutation } from '@/hooks/queries/useUsersQuery';
-import { useSavePersonDetails } from '@/hooks/useSavePersonDetails';
+import { useUpdateUserMutation } from '@/hooks/queries/useUsersQuery';
 import UserDetailsTabs from '@/components/users/UserDetails/UserDetailsTabs';
 import { PageShell } from '@/components/common/PageShell';
 import { CloseDetailLink } from '@/components/layout/CloseDetailLink';
@@ -50,7 +49,6 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const { user: currentUser, hasPermission, getUserRoles } = useAuthContext();
   const { loadUsers } = useUserStore();
   const updateUserMutation = useUpdateUserMutation();
-  const savePerson = useSavePersonDetails();
   const { people } = useRoleBasedPeople();
   const queryClient = useQueryClient();
 
@@ -219,8 +217,10 @@ const UserDetailsView: React.FC<UserDetailsViewProps> = ({ person }) => {
   const handleUserEditSave = async (userData: Partial<UserType>) => {
     logger.debug('Saving user data', 'users', { userId: person.id });
     try {
-      // Queued for offline (MYK9-1071); an email change saves online only.
-      await savePerson(person.id, mapUserToDbUpdate(buildUserEditSavePayload(userData)));
+      await updateUserMutation.mutateAsync({
+        id: person.id,
+        updates: buildUserEditSavePayload(userData),
+      });
     } catch (error) {
       logger.error('Failed to save user data', 'users', { userId: person.id }, error as Error);
       throw error;

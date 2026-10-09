@@ -188,14 +188,6 @@ export interface PendingMutation {
     args?: Record<string, unknown>;
     /** When true, a UUID/string RPC return must match `rowId` or the mutation fails. */
     expectRowId?: boolean;
-    /**
-     * UPDATE only: the `args` key that carries the OCC token. `executeMutation` fills it
-     * with the mutation's CURRENT `serverVersion` (null when none) at send time, so an
-     * OCC rebase, which only advances `serverVersion`, reaches the server. Without it a
-     * token frozen into `args` at queue time re-conflicts until the write is parked
-     * (MYK9-1071).
-     */
-    versionArg?: string;
   };
 }
 

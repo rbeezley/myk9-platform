@@ -42,26 +42,6 @@ export function isPrimaryKeyDuplicateError(
 }
 
 /**
- * Arguments for an RPC-routed UPDATE. Explicit `args` are sent as queued, except
- * that `versionArg` names the key that carries the OCC token, which is filled from
- * the mutation's current `serverVersion` so a rebased token reaches the server.
- * Without explicit `args`, the legacy entry-update shape is used.
- */
-function rpcUpdateArgs(mutation: PendingMutation): Record<string, unknown> {
-  const rpc = mutation.rpc!;
-  if (rpc.args) {
-    return rpc.versionArg
-      ? { ...rpc.args, [rpc.versionArg]: mutation.serverVersion ?? null }
-      : rpc.args;
-  }
-  return {
-    p_entry_id: mutation.data.id as string,
-    p_fields: rpc.fields ?? {},
-    p_expected_version: mutation.serverVersion ?? null,
-  };
-}
-
-/**
  * Execute a single mutation on the server with timeout protection.
  *
  * Uses `select()` after upsert/delete to get the returned rows,
@@ -136,7 +116,14 @@ export async function executeMutation(
       // function returns the authoritative post-trigger version.
       if (mutation.rpc) {
         const { data: returned, error } = await withTimeout(
-          supabase.rpc(mutation.rpc.name, rpcUpdateArgs(mutation)),
+          supabase.rpc(
+            mutation.rpc.name,
+            mutation.rpc.args ?? {
+              p_entry_id: data.id as string,
+              p_fields: mutation.rpc.fields ?? {},
+              p_expected_version: mutation.serverVersion ?? null,
+            }
+          ),
           TIMEOUT_PRESETS.standard,
           `${tableName} rpc ${mutation.rpc.name}`
         );

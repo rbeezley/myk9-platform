@@ -15,10 +15,6 @@
 import { describe, it, expect } from 'vitest';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
-import {
-  PEOPLE_MAPPER_COLUMNS,
-  PEOPLE_REPLICA_COLUMNS,
-} from '@/services/database/users/peopleColumns';
 
 const MIGRATIONS_DIR = resolve(process.cwd(), '../../supabase/migrations');
 const SRC_DIR = resolve(process.cwd(), 'src');
@@ -77,13 +73,7 @@ function peopleSelectChains(source: string): string[] {
  * round 2 noted that `.select(VARIABLE)` sailed through regardless of what the
  * variable held, which is the same blind spot as `select('*')` wearing a hat.
  */
-// PEOPLE_REPLICA_COLUMNS (MYK9-1071) is vouched because it is pinned, below and in
-// peopleQueuedColumns.contract.test.ts, to exactly PEOPLE_MAPPER_COLUMNS + version.
-const VOUCHED_COLUMN_CONSTANTS = new Set([
-  'PEOPLE_MAPPER_COLUMNS',
-  'PEOPLE_REPLICA_COLUMNS',
-  'COUNT_COLUMN',
-]);
+const VOUCHED_COLUMN_CONSTANTS = new Set(['PEOPLE_MAPPER_COLUMNS', 'COUNT_COLUMN']);
 
 /** 'star' | 'opaque' | null — why this chain's select cannot be vouched for. */
 function selectProblem(chain: string): 'star' | 'opaque' | null {
@@ -216,10 +206,6 @@ describe('no public or anon-facing app read carries the columns', () => {
    * NAMES, and `select('*')` contains neither, so a star-select on `people` is
    * green by construction while shipping the PII. There were six of them.
    */
-  it('vouches for PEOPLE_REPLICA_COLUMNS only while it is the mapper list plus version', () => {
-    expect(PEOPLE_REPLICA_COLUMNS).toBe(`${PEOPLE_MAPPER_COLUMNS}, version`);
-  });
-
   it('no read of public.people anywhere uses a star or an unvouched column list', () => {
     const offenders: string[] = [];
     for (const root of SCAN_ROOTS) {

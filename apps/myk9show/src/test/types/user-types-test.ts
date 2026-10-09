@@ -9,6 +9,8 @@ const personRow: PersonTable['Row'] = {
   city: null,
   country: 'USA',
   created_at: null,
+  created_by: null,
+  created_from_show_id: null,
   deleted_at: null,
   deleted_by: null,
   email: 'john@example.com',

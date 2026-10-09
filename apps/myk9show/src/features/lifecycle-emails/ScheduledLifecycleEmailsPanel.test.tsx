@@ -140,7 +140,11 @@ describe('ScheduledLifecycleEmailsPanel', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Review' }));
 
-    expect(await screen.findByRole('dialog')).toHaveTextContent('Accepted entries review');
+    const review = await screen.findByRole('dialog');
+    expect(review).toHaveTextContent('Accepted entries review');
+    // Work, not a decision (INTENT: Dialog or Slide-Out): rendered by SlideOverPanel.
+    expect(review.querySelector('.slide-over-panel')).not.toBeNull();
+    expect(screen.getByRole('button', { name: 'Close panel' })).toBeInTheDocument();
     expect(mockFetchJobs).toHaveBeenCalledWith(
       expect.objectContaining({ showId: 'show-1', stepType: 'accepted' })
     );
@@ -157,5 +161,17 @@ describe('ScheduledLifecycleEmailsPanel', () => {
         })
       );
     });
+  });
+
+  it('closes the review slide-out on Escape and returns focus to the Review button', async () => {
+    const { user } = render(<ScheduledLifecycleEmailsPanel showId="show-1" />);
+    const reviewButton = await screen.findByRole('button', { name: 'Review' });
+    await user.click(reviewButton);
+    await screen.findByRole('dialog');
+
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Review' })).toHaveFocus());
   });
 });

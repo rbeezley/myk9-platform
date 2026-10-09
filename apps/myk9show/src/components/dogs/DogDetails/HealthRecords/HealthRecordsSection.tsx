@@ -2,8 +2,9 @@ import React, { useState, useMemo, useCallback, lazy, Suspense } from 'react';
 import { toast } from 'sonner';
 import { friendlyDbError } from '@/utils/friendlyDbError';
 import { HealthTimeline } from './HealthTimeline';
+import { HealthRecordsHeader, type HealthViewMode } from './HealthRecordsHeader';
 import { Button } from '@/components/ui/button';
-import { Heart, Calendar, List, AlertTriangle } from 'lucide-react';
+import { Heart, AlertTriangle } from 'lucide-react';
 import type { HealthItemType } from './AddHealthItemDialog';
 import {
   useDogHealthDataQuery,
@@ -60,7 +61,7 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
   readOnly: readOnlyProp = false,
 }) => {
   const readOnly = readOnlyProp || (!user.isPremium && !vaccinationsOnly);
-  const [viewMode, setViewMode] = useState<'timeline' | 'traditional'>('timeline');
+  const [viewMode, setViewMode] = useState<HealthViewMode>('timeline');
   const [addDialogType, setAddDialogType] = useState<HealthItemType | null>(null);
   const [editingVaccination, setEditingVaccination] = useState<VaccinationRecord | null>(null);
   const [editingMedication, setEditingMedication] = useState<MedicationRecord | null>(null);
@@ -394,37 +395,11 @@ const HealthRecordsSection: React.FC<HealthRecordsSectionProps> = ({
         </div>
       )}
 
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h2 className="myk9-section-title flex items-center gap-2">
-            <Heart className="h-5 w-5" />
-            Health Records
-          </h2>
-          <p className="text-muted-foreground text-sm mt-1">
-            Track your dog&apos;s health history and upcoming care needs
-          </p>
-        </div>
-        {!vaccinationsOnly && (
-          <div className="flex gap-2">
-            <Button
-              variant={viewMode === 'timeline' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode('timeline')}
-            >
-              <Calendar className="h-4 w-4 mr-2" />
-              Timeline View
-            </Button>
-            <Button
-              variant={viewMode === 'traditional' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode('traditional')}
-            >
-              <List className="h-4 w-4 mr-2" />
-              Traditional View
-            </Button>
-          </div>
-        )}
-      </div>
+      <HealthRecordsHeader
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        showViewToggle={!vaccinationsOnly}
+      />
 
       {viewMode === 'timeline' ? (
         <HealthTimeline

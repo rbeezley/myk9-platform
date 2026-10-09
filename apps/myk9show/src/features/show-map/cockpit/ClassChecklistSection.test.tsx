@@ -3,6 +3,7 @@ import { fromPartial } from '@total-typescript/shoehorn';
 import userEvent from '@testing-library/user-event';
 import { render, screen, within } from '@/test/utils/testUtils';
 
+import { readResultsTabUrlState } from '@/features/results-tab/resultsTabRoutes';
 import { ClassChecklistSection } from './ClassChecklistSection';
 import { SHOW_MAP_WRAP_UP_STATUS } from '../showMapTypes';
 import type { SecretaryCockpitClass } from './secretaryCockpitTypes';
@@ -82,6 +83,11 @@ describe('ClassChecklistSection after-scoring items (MYK9-1032)', () => {
       expect(url.pathname).toBe('/shows/show-1/results');
       expect(url.searchParams.get('classId')).toBe('c1');
       expect(url.searchParams.get('trialId')).toBe('t1');
+      // The Results tab itself reads this URL back to the same class.
+      expect(readResultsTabUrlState(url.searchParams)).toMatchObject({
+        classId: 'c1',
+        trialId: 't1',
+      });
       expect(within(items[index]!).queryByRole('button')).toBeNull();
     }
   });

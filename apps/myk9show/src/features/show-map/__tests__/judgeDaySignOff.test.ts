@@ -123,7 +123,9 @@ describe("judge's end-of-day sign-off (MYK9-1030)", () => {
     const collect = getDirectActionsForNode(tree.nodesById['class:c2']!, { tree }).find(
       a => a.id === 'collect-judge-signature'
     );
-    expect(collect?.href).toBe('/shows/show-1/results?trialId=trial-1&classId=c2');
+    expect(collect?.href).toBe(
+      '/shows/show-1/reports?report=result-catalog&trialId=trial-1&classId=c2'
+    );
   });
 
   it('reads the registry done wording once signed, and offers only the per-class undo', () => {

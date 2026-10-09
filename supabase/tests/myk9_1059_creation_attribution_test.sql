@@ -328,7 +328,7 @@ SELECT pg_temp.expect('the guard function is executable by no API role',
   'false');
 
 SELECT pg_temp.expect('both created_from_show_id FKs reference shows ON DELETE SET NULL',
-  (SELECT string_agg(conrelid::regclass::text || ':' || confrelid::regclass::text || ':' || confdeltype, ','
+  (SELECT string_agg(conrelid::regclass::text || ':' || confrelid::regclass::text || ':' || confdeltype::text, ','
                      ORDER BY conrelid::regclass::text)
      FROM pg_constraint
     WHERE conname IN ('dogs_created_from_show_id_fkey', 'people_created_from_show_id_fkey')),

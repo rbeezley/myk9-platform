@@ -152,7 +152,11 @@ vi.mock('@/features/show-map/resultsVerifiedMutations', async importOriginal => 
   readServerResultsVerifiedAt: serverCheck.read,
 }));
 const unsynced = vi.hoisted(() => ({ value: false as boolean | null }));
-vi.mock('./useClassUnsyncedScores', () => ({ useClassUnsyncedScores: () => unsynced.value }));
+const unsyncedNow = vi.hoisted(() => ({ check: vi.fn(async (_id: string) => false) }));
+vi.mock('./useClassUnsyncedScores', () => ({
+  useClassUnsyncedScores: () => unsynced.value,
+  classHasUnsyncedScores: unsyncedNow.check,
+}));
 const refreshClass = vi.hoisted(() => vi.fn());
 const toastError = vi.hoisted(() => vi.fn());
 vi.mock('sonner', () => ({
@@ -205,6 +209,8 @@ beforeEach(() => {
   serverCheck.read.mockReset();
   serverCheck.read.mockResolvedValue('2026-10-10T15:45:00Z');
   unsynced.value = false;
+  unsyncedNow.check.mockReset();
+  unsyncedNow.check.mockResolvedValue(false);
   refreshClass.mockReset();
   toastError.mockReset();
   verifyMutate.mockResolvedValue(undefined);
@@ -646,6 +652,7 @@ describe('ResultsTab paper check', () => {
     expect(verifyMutate).toHaveBeenCalledWith({
       classId: 'class-ready',
       trialId: 'trial-1',
+      showId: 'show-1',
       canonical: hook.value.rows.find(row => row.id === 'class-ready')!.resultsCanonical,
     });
     expect(releaseMutate).not.toHaveBeenCalled();
@@ -805,6 +812,23 @@ describe('ResultsTab Release asks the server', () => {
 
     await waitFor(() => expect(releaseMutate).toHaveBeenCalledTimes(1));
     expect(serverCheck.read).toHaveBeenCalledWith('class-ready');
+  });
+
+  it('does not queue the release when a correction landed while the server was being asked', async () => {
+    // The hook value was fine at click time; the direct re-check after the read finds the write.
+    let answer: (value: string) => void = () => undefined;
+    serverCheck.read.mockImplementation(() => new Promise<string>(resolve => (answer = resolve)));
+    const { user } = renderAt('?status=all&classId=class-ready');
+    await user.click(screen.getByRole('button', { name: 'Release results' }));
+    unsyncedNow.check.mockResolvedValue(true);
+
+    answer('2026-10-10T15:45:00Z');
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith('Waiting for score changes to sync')
+    );
+    expect(unsyncedNow.check).toHaveBeenCalledWith('class-ready');
+    expect(releaseMutate).not.toHaveBeenCalled();
   });
 
   it('does not release when the server says the check is gone, tells the user, and refreshes the class', async () => {

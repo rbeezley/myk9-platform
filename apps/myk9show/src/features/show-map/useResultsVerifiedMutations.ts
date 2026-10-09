@@ -4,7 +4,11 @@ import { toast } from 'sonner';
 
 import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 import { getUserFriendlyError, mappedErrorMessage } from '@/utils/errorMessages';
-import { clearResultsVerified, recordResultsVerified } from './resultsVerifiedMutations';
+import {
+  clearResultsVerified,
+  isStaleResultsError,
+  recordResultsVerified,
+} from './resultsVerifiedMutations';
 
 /**
  * MYK9-1031: "scores match the paper" as React Query mutations. Online only (the default
@@ -23,17 +27,29 @@ export function useResultsVerifiedMutations() {
   // the app client's default mutation retry would otherwise run it again.
   const verify = useMutation({
     retry: false,
-    mutationFn: (claim: { classId: string; trialId: string; canonical: string; at: string }) =>
+    mutationFn: (claim: {
+      classId: string;
+      trialId: string;
+      showId: string;
+      canonical: string;
+      at: string;
+    }) =>
       recordResultsVerified({ classId: claim.classId, canonical: claim.canonical, at: claim.at }),
     onSuccess: (_data, claim) => {
       toast.success('Scores marked as matching the paper');
       refreshClass(claim.trialId);
     },
-    onError: error => {
+    onError: (error, claim) => {
       toast.error(
         mappedErrorMessage(error) ??
           getUserFriendlyError(error, 'The check could not be saved. Try again.')
       );
+      // The server says the scores moved: this device's copy of them is stale (the app-wide sync
+      // has no entries scope of its own), so pull the show's entries again, or the next tick would
+      // resend the same stale fingerprint forever.
+      if (isStaleResultsError(error)) {
+        void sync?.triggerSync([{ name: 'entries', scopeId: claim.showId }]);
+      }
     },
   });
 
@@ -58,12 +74,14 @@ export function useResultsVerifiedMutations() {
     verifyAsync: ({
       classId,
       trialId,
+      showId,
       canonical,
     }: {
       classId: string;
       trialId: string;
+      showId: string;
       canonical: string;
-    }) => verify.mutateAsync({ classId, trialId, canonical, at: new Date().toISOString() }),
+    }) => verify.mutateAsync({ classId, trialId, showId, canonical, at: new Date().toISOString() }),
     undo: undo.mutate,
     isPending: verify.isPending || undo.isPending,
     /** Pulls the class row again (the Release check found the server disagrees with the replica). */

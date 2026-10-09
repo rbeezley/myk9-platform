@@ -14,6 +14,15 @@ import { useEffect, useState } from 'react';
 
 import { replicatedEntriesTable } from '@/services/replication';
 
+/** The check itself, for callers that must not trust a hook value that may be a render behind. */
+export async function classHasUnsyncedScores(classId: string): Promise<boolean> {
+  const entries = await replicatedEntriesTable.getEntriesByClass(classId);
+  const flags = await Promise.all(
+    entries.map(entry => replicatedEntriesTable.hasUnsyncedLocalWork(entry.id))
+  );
+  return flags.some(Boolean);
+}
+
 export function useClassUnsyncedScores(classId: string | null): boolean | null {
   const [state, setState] = useState<{ classId: string; unsynced: boolean } | null>(null);
   const [notices, setNotices] = useState(0);
@@ -31,11 +40,8 @@ export function useClassUnsyncedScores(classId: string | null): boolean | null {
     let cancelled = false;
     void (async () => {
       try {
-        const entries = await replicatedEntriesTable.getEntriesByClass(classId);
-        const flags = await Promise.all(
-          entries.map(entry => replicatedEntriesTable.hasUnsyncedLocalWork(entry.id))
-        );
-        if (!cancelled) setState({ classId, unsynced: flags.some(Boolean) });
+        const unsynced = await classHasUnsyncedScores(classId);
+        if (!cancelled) setState({ classId, unsynced });
       } catch {
         if (!cancelled) setState(null);
       }

@@ -12,7 +12,11 @@ import type { ReactNode } from 'react';
 
 const recordResultsVerified = vi.hoisted(() => vi.fn());
 const clearResultsVerified = vi.hoisted(() => vi.fn());
-vi.mock('../resultsVerifiedMutations', () => ({ recordResultsVerified, clearResultsVerified }));
+vi.mock('../resultsVerifiedMutations', async importOriginal => ({
+  ...(await importOriginal<typeof import('../resultsVerifiedMutations')>()),
+  recordResultsVerified,
+  clearResultsVerified,
+}));
 const toast = vi.hoisted(() => Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }));
 vi.mock('sonner', () => ({ toast }));
 
@@ -49,7 +53,7 @@ describe('paper check mutations (online only)', () => {
     const { result } = renderHook(() => useResultsVerifiedMutations(), { wrapper });
 
     await act(() =>
-      result.current.verifyAsync({ classId: 'c1', trialId: 't1', canonical: 'TEXT' })
+      result.current.verifyAsync({ classId: 'c1', trialId: 't1', showId: 's1', canonical: 'TEXT' })
     );
 
     expect(recordResultsVerified).toHaveBeenCalledWith({
@@ -66,7 +70,7 @@ describe('paper check mutations (online only)', () => {
     const { result } = renderHook(() => useResultsVerifiedMutations(), { wrapper });
 
     await act(() =>
-      result.current.verifyAsync({ classId: 'c1', trialId: 't1', canonical: 'TEXT' })
+      result.current.verifyAsync({ classId: 'c1', trialId: 't1', showId: 's1', canonical: 'TEXT' })
     );
     expect(triggerSync).toHaveBeenCalledWith([{ name: 'classes', scopeId: 't1' }]);
 
@@ -77,17 +81,43 @@ describe('paper check mutations (online only)', () => {
     );
   });
 
-  it('does not sync after a refused check', async () => {
+  it('on MK015 pulls the show entries again so a re-tick cannot resend the stale fingerprint', async () => {
     recordResultsVerified.mockRejectedValue({ code: 'MK015', message: 'changed' });
     const { result } = renderHook(() => useResultsVerifiedMutations(), { wrapper });
 
     await act(async () => {
       await result.current
-        .verifyAsync({ classId: 'c1', trialId: 't1', canonical: 'TEXT' })
+        .verifyAsync({ classId: 'c1', trialId: 't1', showId: 's1', canonical: 'TEXT' })
+        .catch(() => undefined);
+    });
+
+    expect(triggerSync).toHaveBeenCalledWith([{ name: 'entries', scopeId: 's1' }]);
+  });
+
+  it('any other failure pulls nothing', async () => {
+    recordResultsVerified.mockRejectedValue(new Error('network down'));
+    const { result } = renderHook(() => useResultsVerifiedMutations(), { wrapper });
+
+    await act(async () => {
+      await result.current
+        .verifyAsync({ classId: 'c1', trialId: 't1', showId: 's1', canonical: 'TEXT' })
         .catch(() => undefined);
     });
 
     expect(triggerSync).not.toHaveBeenCalled();
+  });
+
+  it('a refused check syncs no class: the class did not change', async () => {
+    recordResultsVerified.mockRejectedValue({ code: 'MK015', message: 'changed' });
+    const { result } = renderHook(() => useResultsVerifiedMutations(), { wrapper });
+
+    await act(async () => {
+      await result.current
+        .verifyAsync({ classId: 'c1', trialId: 't1', showId: 's1', canonical: 'TEXT' })
+        .catch(() => undefined);
+    });
+
+    expect(triggerSync).not.toHaveBeenCalledWith([{ name: 'classes', scopeId: 't1' }]);
   });
 
   it('does not run, and queues nothing, while offline', async () => {
@@ -95,7 +125,12 @@ describe('paper check mutations (online only)', () => {
     const { result } = renderHook(() => useResultsVerifiedMutations(), { wrapper });
 
     act(() => {
-      void result.current.verifyAsync({ classId: 'c1', trialId: 't1', canonical: 'TEXT' });
+      void result.current.verifyAsync({
+        classId: 'c1',
+        trialId: 't1',
+        showId: 's1',
+        canonical: 'TEXT',
+      });
       result.current.undo({ classId: 'c1', trialId: 't1' });
     });
     await new Promise(resolve => setTimeout(resolve, 50));
@@ -110,7 +145,7 @@ describe('paper check mutations (online only)', () => {
 
     await act(async () => {
       await result.current
-        .verifyAsync({ classId: 'c1', trialId: 't1', canonical: 'TEXT' })
+        .verifyAsync({ classId: 'c1', trialId: 't1', showId: 's1', canonical: 'TEXT' })
         .catch(() => undefined);
     });
     // Longer than the app client's default mutation retry delay would have waited.
@@ -126,7 +161,12 @@ describe('paper check mutations (online only)', () => {
 
     await act(async () => {
       await expect(
-        result.current.verifyAsync({ classId: 'c1', trialId: 't1', canonical: 'TEXT' })
+        result.current.verifyAsync({
+          classId: 'c1',
+          trialId: 't1',
+          showId: 's1',
+          canonical: 'TEXT',
+        })
       ).rejects.toBe(refusal);
     });
 

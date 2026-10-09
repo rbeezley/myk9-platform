@@ -29,7 +29,7 @@ import {
   writeResultsTabUrlState,
   type ResultsTabUrlState,
 } from './resultsTabRoutes';
-import { useClassUnsyncedScores } from './useClassUnsyncedScores';
+import { classHasUnsyncedScores, useClassUnsyncedScores } from './useClassUnsyncedScores';
 import { useResultsTabData } from './useResultsTabData';
 
 function rowMatchesSearch(row: ResultsClassRow, rawQuery: string): boolean {
@@ -148,6 +148,17 @@ export default function ResultsTab() {
     } finally {
       setReleaseChecking(false);
     }
+    // A correction can land while the server was being asked: the answer then describes older
+    // results. Look again, directly, before anything is queued.
+    try {
+      if (await classHasUnsyncedScores(row.id)) {
+        toast.error('Waiting for score changes to sync');
+        return;
+      }
+    } catch {
+      toast.error('Could not check this class. Try again.');
+      return;
+    }
     if (!verifiedAt) {
       toast.error('This class needs checking again — the scores changed.');
       verification.refreshClass(row.trialId);
@@ -235,7 +246,12 @@ export default function ResultsTab() {
       onRelease={() => handleRelease(selected)}
       onRetry={retry}
       onVerify={canonical =>
-        verification.verifyAsync({ classId: selected.id, trialId: selected.trialId, canonical })
+        verification.verifyAsync({
+          classId: selected.id,
+          trialId: selected.trialId,
+          showId,
+          canonical,
+        })
       }
       onUndoVerify={() => verification.undo({ classId: selected.id, trialId: selected.trialId })}
       releaseBlockedReason={releaseBlockedReason}

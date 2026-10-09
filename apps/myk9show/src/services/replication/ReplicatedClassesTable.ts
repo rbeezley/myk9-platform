@@ -849,6 +849,33 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
   }
 
   /**
+   * MYK9-1031: a local score correction retracts the paper check on this device at once, as the
+   * server will when it hears of the change (see clearVerifiedOnLocalCorrection). A clean local
+   * write: nothing queued, no write lock, the server version untouched. Returns whether the
+   * check was cleared; a class row with queued writes of its own cannot be written clean and is
+   * left to the next sync.
+   */
+  async clearResultsVerifiedLocally(classId: string): Promise<boolean> {
+    const stored = await this.getReplicatedRow(classId);
+    const row = stored?.data;
+    if (!stored || !row?.resultsVerifiedAt) return false;
+    try {
+      const result = await this.set(
+        classId,
+        { ...row, resultsVerifiedAt: null, resultsVerifiedBy: null },
+        false,
+        stored.version
+      );
+      return result.written;
+    } catch (error) {
+      logger.warn(`[${this.getTableName()}] Skipped clearing the paper check for ${classId}`, {
+        error,
+      });
+      return false;
+    }
+  }
+
+  /**
    * Create a new class locally (queued for sync)
    * @param classData - Class data (must include id)
    * @param trialMutationId - Optional mutation ID of the parent trial (for dependency tracking)

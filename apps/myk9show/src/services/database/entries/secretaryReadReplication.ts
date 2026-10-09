@@ -1,4 +1,5 @@
 import { supabase } from '../supabaseClient';
+import { replicatedEntryResultsLine } from '@/services/replication/replicatedEntryResultsLine';
 import {
   replicatedArmbandsTable,
   type ReplicatedArmband,
@@ -249,6 +250,7 @@ export function toSecretaryEntry(
     total_faults: numberFrom(replicatedField(entry, 'totalFaults', 'total_faults')),
     final_placement: numberFrom(replicatedField(entry, 'finalPlacement', 'final_placement')),
     judge_notes: stringFrom(replicatedField(entry, 'judgeNotes', 'judge_notes')),
+    results_line: replicatedEntryResultsLine(entry),
     disqualification_reason: stringFrom(
       replicatedField(entry, 'disqualificationReason', 'disqualification_reason')
     ),

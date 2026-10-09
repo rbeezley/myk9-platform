@@ -19,6 +19,7 @@ import { isPendingEntryStatus } from '@/features/entry-operations/classEntryBrea
 import { getTrialRegistry } from '@/features/registries';
 import { classifyClassWrapUpStatus } from '@/features/show-map/showMapStatus';
 import { SHOW_MAP_WRAP_UP_STATUS } from '@/features/show-map/showMapTypes';
+import { classResultsCanonicalTextFromLines } from '@/features/show-map/classResultsFingerprint';
 import { classifyJudgeDays } from '@/features/show-map/judgeDayStatus';
 import { judgeSignOffWording } from '@/features/show-map/judgeSignOff';
 import type { ShowMapClassInput, ShowMapEntryInput } from '@/features/show-map/showMapTypes';
@@ -67,6 +68,19 @@ export interface ResultsClassRow {
   scoredCount: number;
   qualifiedCount: number;
   releasedAt: string | null;
+  /** When the paper check was recorded and by whom (auth uid); null = not checked. */
+  verifiedAt: string | null;
+  verifiedBy: string | null;
+  /** Stored status is Completed: the only state in which the server accepts a check. */
+  statusCompleted: boolean;
+  /**
+   * The canonical text of this class's results, built from the `results_line` of the very rows
+   * this row was projected from. Hashing it gives the fingerprint of what is on screen, so a
+   * check can never attest to results that were not displayed. `null` when any of the class's
+   * rows came from a read that does not carry its line (the online fallback), so there is nothing
+   * to bind a fingerprint to and the check cannot be saved from this display.
+   */
+  resultsCanonical: string | null;
   /** The judge's end-of-day sign-off (`classes.judge_signed_off_at`); null = not yet. */
   judgeSignedOffAt: string | null;
   /** The registry's wording for that sign-off (initials or signature). */
@@ -105,6 +119,11 @@ export interface BuildResultsClassRowsInput {
   trialClasses: Readonly<Record<string, readonly SyncableTrialClass[]>>;
   /** `classes.results_released_at` by class id (the class store). */
   releasedAtByClassId: ReadonlyMap<string, string | null | undefined>;
+  /**
+   * The paper check by class id (`classes.results_verified_at` / `_by`). A class with no entry is
+   * not tracked here and never waits on it.
+   */
+  verifiedByClassId?: ReadonlyMap<string, { at: string | null; by: string | null }>;
   entries: readonly SecretaryEntry[];
   paperworkByClassId: ReadonlyMap<string, readonly SecretaryCockpitPaperwork[]>;
   /**
@@ -195,6 +214,16 @@ function trialLabelOf(trial: SyncableTrial): string {
   return trial.name?.trim() || number || 'Trial';
 }
 
+function canonicalOfDisplayedRows(entries: readonly ShowMapEntryInput[]): string | null {
+  const lines: string[] = [];
+  for (const entry of entries) {
+    const line = (entry as { results_line?: string | null }).results_line;
+    if (line === undefined) return null;
+    if (line) lines.push(line);
+  }
+  return classResultsCanonicalTextFromLines(lines);
+}
+
 function isCompletedStatus(raw: string | null | undefined): boolean {
   return (raw ? (LEGACY_STATUS_MAP[raw] ?? raw) : null) === CLASS_STATUS.COMPLETED;
 }
@@ -274,6 +303,9 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
           // `undefined` (no row in the read) is unknown, not unreleased: it never offers Release.
           releasedAt: input.releasedAtByClassId.get(cls.id),
           paperworkPrinted: paperworkAvailable ? resultsPaperworkPrinted(paperwork) : null,
+          ...(input.verifiedByClassId?.get(cls.id)
+            ? { verifiedAt: input.verifiedByClassId.get(cls.id)!.at }
+            : {}),
           judgeSignedOffAt: cls.judgeSignedOffAt ?? null,
         },
       });
@@ -369,6 +401,10 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
       scoredCount: state.scoredCount,
       qualifiedCount: classEntries.filter(entry => entry.qualified).length,
       releasedAt: state.releasedAt ?? null,
+      verifiedAt: input.verifiedByClassId?.get(cls.id)?.at ?? null,
+      verifiedBy: input.verifiedByClassId?.get(cls.id)?.by ?? null,
+      statusCompleted: isCompletedStatus(cls.status),
+      resultsCanonical: canonicalOfDisplayedRows(allEntriesByClass.get(cls.id) ?? []),
       judgeSignedOffAt: state.judgeSignedOffAt ?? null,
       registryId,
       judgeId: cls.judgeId ?? '',

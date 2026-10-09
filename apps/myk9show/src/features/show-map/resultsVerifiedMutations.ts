@@ -9,51 +9,16 @@
  * (`applyResultsVerified`: clean, unqueued) so the Results tab updates at once. Ticking the dogs
  * is local and works offline; only saving the check needs a connection.
  *
- * The fingerprint is computed from the same replica the Results tab renders
- * (`replicatedEntriesTable.getEntriesByClass`), which holds every column the server hashes; the
- * secretary read behind the table does not.
+ * The fingerprint is hashed from the canonical results text the Results tab built from the rows it
+ * DISPLAYED (`ResultsClassRow.resultsCanonical`) and that the secretary ticked: nothing is re-read
+ * at click time, so a correction that downloaded after the ticks makes the server refuse the check
+ * (MK015) instead of the app attesting to scores nobody looked at.
  *
  * No React here, so the Results tab and its tests share it.
  */
-import { replicatedEntriesTable, replicatedClassesTable } from '@/services/replication';
+import { replicatedClassesTable } from '@/services/replication';
 import { supabase } from '@/services/database/supabaseClient';
-import { entryToSupabaseRow } from '@/services/replication/ReplicatedEntriesTable.mapper';
-import {
-  classResultsFingerprint,
-  type ClassResultsFingerprintEntry,
-} from './classResultsFingerprint';
-
-/**
- * A class's results as this device holds them right now: their fingerprint, and whether any entry
- * still has a local change the server has not acknowledged (so the fingerprint may describe
- * results the server has never seen).
- *
- * Each entry is projected through `entryToSupabaseRow`, the exact row the upload writes, so the
- * hash covers what the server will hold (the legacy snake_case aliases can be stale: a placement
- * recalculation updates `finalPlacement` alone, and a non-qualified result uploads no placement).
- */
-export async function classResultsSnapshot(
-  classId: string
-): Promise<{ fingerprint: string; hasUnsyncedEntries: boolean }> {
-  const entries = await replicatedEntriesTable.getEntriesByClass(classId);
-  const fingerprint = await classResultsFingerprint(
-    entries.map(entry => {
-      const row = entryToSupabaseRow(entry) as Omit<ClassResultsFingerprintEntry, 'id'>;
-      return { ...row, id: entry.id } as ClassResultsFingerprintEntry;
-    })
-  );
-  return {
-    fingerprint,
-    hasUnsyncedEntries: entries.some(
-      entry => entry._syncStatus !== undefined && entry._syncStatus !== 'synced'
-    ),
-  };
-}
-
-/** The fingerprint of a class's results as this device holds them right now. */
-export async function currentClassResultsFingerprint(classId: string): Promise<string> {
-  return (await classResultsSnapshot(classId)).fingerprint;
-}
+import { hashClassResultsText } from './classResultsFingerprint';
 
 /** The server refused the check because the class's results changed since they were ticked. */
 export function isStaleResultsError(error: unknown): boolean {
@@ -62,40 +27,24 @@ export function isStaleResultsError(error: unknown): boolean {
   );
 }
 
-/** What the secretary vouched for, captured ONCE at the click and never recomputed. */
-export interface ResultsCheckClaim {
-  classId: string;
-  fingerprint: string;
-  at: string;
-}
-
-/**
- * The claim for a click: the fingerprint of the results held right now. Taken once, before the
- * request, so a repeat of the request (or a late retry) can only restate the same claim, never
- * re-read results the secretary did not tick.
- */
-export async function captureResultsCheck(classId: string): Promise<ResultsCheckClaim> {
-  const { fingerprint, hasUnsyncedEntries } = await classResultsSnapshot(classId);
-  // Results waiting to sync are results the server has never seen: its fingerprint would differ.
-  if (hasUnsyncedEntries) throw new Error('Waiting for score changes to sync.');
-  return { classId, fingerprint, at: new Date().toISOString() };
-}
-
 export async function recordResultsVerified(input: {
-  claim: ResultsCheckClaim;
+  classId: string;
+  /** The canonical results text of the rows the secretary ticked. */
+  canonical: string;
   /** Auth uid of the secretary recording it (the server stamps its own from the JWT). */
   recordedBy: string | null;
+  at?: string;
 }): Promise<void> {
-  const { classId, fingerprint, at } = input.claim;
+  const at = input.at ?? new Date().toISOString();
   const { data, error } = await supabase.rpc('mark_class_results_verified', {
-    p_class_id: classId,
-    p_results_fingerprint: fingerprint,
+    p_class_id: input.classId,
+    p_results_fingerprint: await hashClassResultsText(input.canonical),
     p_verified_at: at,
   });
   if (error) throw error;
   // The server keeps the FIRST stamp on a repeat; its `at` is not echoed, so a repeat mirrors ours.
   await replicatedClassesTable.applyResultsVerified(
-    classId,
+    input.classId,
     { at, by: input.recordedBy },
     typeof data === 'number' ? data : undefined
   );

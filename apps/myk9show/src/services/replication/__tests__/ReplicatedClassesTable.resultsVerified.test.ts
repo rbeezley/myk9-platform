@@ -126,6 +126,32 @@ describe('ReplicatedClassesTable.applyResultsVerified (MYK9-1031)', () => {
     expect((await table.getReplicatedRow('class-1'))?.serverVersion).toBe(6);
   });
 
+  it('clears a local check for a correction as a clean write, keeping the server version', async () => {
+    await table.set(
+      'class-1',
+      baseClass({ resultsVerifiedAt: AT, resultsVerifiedBy: 'a' }),
+      false,
+      undefined,
+      5
+    );
+
+    await expect(table.clearResultsVerifiedLocally('class-1')).resolves.toBe(true);
+
+    expect(await table.getClassById('class-1')).toMatchObject({
+      resultsVerifiedAt: null,
+      resultsVerifiedBy: null,
+    });
+    const stored = await table.getReplicatedRow('class-1');
+    expect(stored?.isDirty).toBe(false);
+    expect(stored?.serverVersion).toBe(5);
+    expect(manager.queueMutation).not.toHaveBeenCalled();
+    expect(manager.acquireMutationWriteLock).not.toHaveBeenCalled();
+  });
+
+  it('says so when there was no check to clear', async () => {
+    await expect(table.clearResultsVerifiedLocally('class-1')).resolves.toBe(false);
+  });
+
   it('clears the local row the same way', async () => {
     await table.applyResultsVerified('class-1', { at: AT, by: 'auth-1' });
     await table.applyResultsVerified('class-1', null);

@@ -9,6 +9,9 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { getTrialTimezone } from '@/features/registries';
 import { useJudgeSignOffMutations } from '@/features/show-map/useJudgeSignOffMutations';
+import { useResultsVerifiedMutations } from '@/features/show-map/useResultsVerifiedMutations';
+import { useAuth } from '@/hooks/useAuth';
+import { useIsOnline } from '@/hooks/useNetworkStatus';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useReleaseResults } from '@/hooks/mutations/useReleaseResults';
 import type { ResultsClassRow } from './buildResultsClassRows';
@@ -83,6 +86,9 @@ export default function ResultsTab() {
   const release = useReleaseResults();
   const { pathname, search } = useLocation();
   const judgeSignOff = useJudgeSignOffMutations();
+  const { user } = useAuth();
+  const isOnline = useIsOnline();
+  const verification = useResultsVerifiedMutations();
   const isWide = useMediaQuery(MASTER_DETAIL_QUERY);
   const [visibilityOpen, setVisibilityOpen] = useState(false);
   const timeZone = getTrialTimezone(trials[0]);
@@ -116,9 +122,11 @@ export default function ResultsTab() {
     [rows, selected, showId]
   );
 
-  const handleRelease = (classId: string) =>
+  const handleRelease = (row: ResultsClassRow) => {
+    // Release in this tab waits for the paper check (the server does not, by design).
+    if (row.phase !== 'ready-to-release') return;
     release.mutate(
-      { classIds: [classId], showId },
+      { classIds: [row.id], showId },
       {
         onSuccess: ({ released }) =>
           released.length > 0
@@ -127,6 +135,7 @@ export default function ResultsTab() {
         onError: () => toast.error('Could not release the results. Try again.'),
       }
     );
+  };
 
   if (readState === 'loading') {
     return (
@@ -195,8 +204,13 @@ export default function ResultsTab() {
       row={selected}
       timeZone={timeZone}
       releasing={release.isPending}
-      onRelease={() => handleRelease(selected.id)}
+      onRelease={() => handleRelease(selected)}
       onRetry={retry}
+      onVerify={canonical => verification.verifyAsync({ classId: selected.id, canonical })}
+      onUndoVerify={() => verification.undo({ classId: selected.id })}
+      verifying={verification.isPending}
+      online={isOnline}
+      currentUserId={user?.id ?? null}
       judgeSignOffSlot={
         judgeGroup ? (
           <ResultsJudgeSignOff

@@ -27,7 +27,6 @@ import { useShowClassPaperwork } from '@/features/show-map/cockpit/useShowClassP
 import { getShowDeskEntriesAvailability } from '@/pages/secretary/showDeskEntryAvailability';
 import { useShowDeskScheduleRead } from '@/pages/secretary/useShowDeskScheduleRead';
 import { buildResultsClassRows, type ResultsClassRow } from './buildResultsClassRows';
-import { useUnsyncedScoreClasses } from './useUnsyncedScoreClasses';
 
 const NO_ENTRIES: never[] = [];
 
@@ -90,28 +89,22 @@ export function useResultsTabData(showId: string) {
     [paperwork.classRows]
   );
 
-  // A stored check only counts while no score change of that class is still waiting to sync;
-  // until that is known it does not count either (see useUnsyncedScoreClasses).
-  const unsyncedClassIds = useUnsyncedScoreClasses(showId, entries);
+  // The stored paper check, as the class rows hold it. A local correction clears the local copy
+  // at once (clearVerifiedOnLocalCorrection), the server clears its own when it hears of it.
   const verifiedByClassId = useMemo(
     () =>
       paperwork.classRows
         ? new Map(
-            paperwork.classRows.map(cls => {
-              const unsynced = unsyncedClassIds === null || unsyncedClassIds.has(cls.id);
-              const counts = !unsynced && cls.results_verified_at != null;
-              return [
-                cls.id,
-                {
-                  at: counts ? cls.results_verified_at! : null,
-                  by: counts ? (cls.results_verified_by ?? null) : null,
-                  scoresUnsynced: unsyncedClassIds !== null && unsyncedClassIds.has(cls.id),
-                },
-              ] as const;
-            })
+            paperwork.classRows.map(
+              cls =>
+                [
+                  cls.id,
+                  { at: cls.results_verified_at ?? null, by: cls.results_verified_by ?? null },
+                ] as const
+            )
           )
         : undefined,
-    [paperwork.classRows, unsyncedClassIds]
+    [paperwork.classRows]
   );
 
   const rows = useMemo<ResultsClassRow[]>(

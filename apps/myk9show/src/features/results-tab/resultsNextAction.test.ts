@@ -3,7 +3,7 @@ import {
   deriveResultsNextAction,
   deriveResultsPhase,
   matchesResultsStatusFilter,
-  offeredResultsStatusFilters,
+  RESULTS_STATUS_FILTER_OPTIONS,
   type ResultsClassState,
 } from './resultsNextAction';
 
@@ -126,6 +126,28 @@ describe('deriveResultsNextAction', () => {
     expect(deriveResultsNextAction(done)).toEqual({ kind: 'none', label: 'Done' });
   });
 
+  it('a stored check lets the class through; a missing one holds it at Needs checking', () => {
+    const complete = state({ scoredCount: 8 });
+    expect(deriveResultsPhase({ ...complete, verifiedAt: null })).toBe('needs-checking');
+    expect(deriveResultsNextAction({ ...complete, verifiedAt: null }).kind).toBe('verify');
+    expect(deriveResultsPhase({ ...complete, verifiedAt: '2026-10-10T17:00:00Z' })).toBe(
+      'ready-to-release'
+    );
+  });
+
+  it('released but not checked (undone, or cleared by a correction): back to Check scores', () => {
+    const released = state({
+      scoredCount: 8,
+      releasedAt: '2026-10-10T18:00:00Z',
+      paperworkPrinted: true,
+      verifiedAt: null,
+    });
+    expect(deriveResultsPhase(released)).toBe('needs-checking');
+    expect(deriveResultsNextAction(released)).toEqual({ kind: 'verify', label: 'Check scores' });
+    expect(deriveResultsPhase({ ...released, verifiedAt: '2026-10-10T19:00:00Z' })).toBe('done');
+    expect(deriveResultsPhase({ ...released, releasedAt: undefined })).toBe('release-unknown');
+  });
+
   it('cancelled: nothing to do, even when it carries a stale release stamp', () => {
     const cancelled = state({ classStatus: 'Cancelled', releasedAt: '2026-10-10T18:00:00Z' });
     expect(deriveResultsPhase(cancelled)).toBe('cancelled');
@@ -171,13 +193,15 @@ describe('matchesResultsStatusFilter', () => {
     expect(matchesResultsStatusFilter('released', 'done')).toBe(false);
   });
 
-  it('does not offer a filter that cannot match until verification is stored', () => {
-    expect(offeredResultsStatusFilters().map(option => option.id)).toEqual([
+  it('offers the Needs checking filter now that the check is stored', () => {
+    expect(RESULTS_STATUS_FILTER_OPTIONS.map(option => option.id)).toEqual([
       'needs-me',
       'all',
+      'needs-checking',
       'ready-to-release',
       'released',
       'done',
     ]);
+    expect(matchesResultsStatusFilter('needs-checking', 'needs-checking')).toBe(true);
   });
 });

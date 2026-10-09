@@ -16,6 +16,7 @@ import type { SyncableTrial, SyncableTrialClass } from '@/store/trial-store-type
 import { getClassesByTrialId } from '@/services/database/classes';
 import { getEntriesForShow } from '@/services/database/entries/secretary';
 import { buildReportPaperworkDescriptor } from '@/features/show-map/cockpit/buildReportPaperworkDescriptor';
+import { startClearVerifiedOnLocalCorrection } from '@/services/replication/clearVerifiedOnLocalCorrection';
 import ResultsTab from './ResultsTab';
 
 const SYNC = {
@@ -229,49 +230,31 @@ describe('Results tab on the real replicated class rows', () => {
         { initialRoute: '/shows/show-1/results?status=all&classId=class-open' }
       );
 
-    it('a correction waiting to sync locks Release and Confirm, and says why', async () => {
-      renderOpen();
-      await waitFor(() =>
-        expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled()
-      );
+    it('a correction on a check downloaded from another device retracts it, and the upload ack does not bring it back', async () => {
+      // class-open holds a server stamp this device never made (see beforeEach).
+      const stop = startClearVerifiedOnLocalCorrection();
+      try {
+        await new Promise(resolve => setTimeout(resolve, 120)); // the watcher remembers the results
+        renderOpen();
+        await waitFor(() =>
+          expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled()
+        );
 
-      await replicatedEntriesTable.updateEntry('e-class-open', { resultStatus: 'nq' } as never);
+        await replicatedEntriesTable.updateEntry('e-class-open', { resultStatus: 'nq' } as never);
 
-      // The wording appears only for the "waiting to sync" state, never for "still reading".
-      await waitFor(() =>
-        expect(screen.getByText('Waiting for score changes to sync')).toBeInTheDocument()
-      );
-      expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
-      expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeDisabled();
-    });
+        await waitFor(() =>
+          expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled()
+        );
+        expect(screen.getByText('Check the scores against the paper')).toBeInTheDocument();
 
-    it('unlocks again when the upload is acknowledged, though no other field changed', async () => {
-      renderOpen();
-      await waitFor(() =>
-        expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled()
-      );
-      await replicatedEntriesTable.updateEntry('e-class-open', { resultStatus: 'nq' } as never);
-      await waitFor(() =>
-        expect(screen.getByText('Waiting for score changes to sync')).toBeInTheDocument()
-      );
-
-      // The ack flips only _syncStatus: the projected entries array is structurally unchanged.
-      await replicatedEntriesTable.markAsSynced('e-class-open');
-
-      await waitFor(() =>
-        expect(screen.queryByText('Waiting for score changes to sync')).not.toBeInTheDocument()
-      );
-      expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled();
-    });
-
-    it('a class with a correction already waiting at first sight is never offered Release', async () => {
-      await replicatedEntriesTable.updateEntry('e-class-open', { resultStatus: 'nq' } as never);
-      renderOpen();
-
-      await waitFor(() =>
-        expect(screen.getByText('Waiting for score changes to sync')).toBeInTheDocument()
-      );
-      expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
+        // The upload is acknowledged: nothing re-opens Release.
+        await replicatedEntriesTable.markAsSynced('e-class-open');
+        await new Promise(resolve => setTimeout(resolve, 150));
+        expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
+        expect((await replicatedClassesTable.getReplicatedRow('class-open'))?.isDirty).toBe(false);
+      } finally {
+        stop();
+      }
     });
 
     it('shows an offline Fix (Q to NQ) without any manual invalidation', async () => {

@@ -6,9 +6,9 @@
  * apart. A class lives on Overview until scoring is complete, then on Results
  * (`docs/plan-results-tab-redesign.md`).
  *
- * Part 2a (MYK9-1031) feeds the judge's sign-off (`judgeSignedOffAt`), giving Print, Initials,
- * Done. SEAM still open: `verifiedAt` is not supplied yet (the paper check ships separately), so
- * it never gates anything. Both are read in {@link deriveResultsPhase}, nowhere else.
+ * Part 2 (MYK9-1031) feeds the two stored facts that finish the flow, both read in
+ * {@link deriveResultsPhase} and nowhere else: `verifiedAt` (checked against the paper) and
+ * `judgeSignedOffAt` (the judge's end-of-day initials): Verify, Release, Print, Initials, Done.
  */
 import { CLASS_STATUS, LEGACY_STATUS_MAP } from '@myk9/core';
 
@@ -30,9 +30,10 @@ export interface ResultsClassState {
    */
   paperworkPrinted: boolean | null;
   /**
-   * Part 2 seam: when the secretary's check against the paper score sheets is stored per class,
-   * pass it here. `undefined` means verification is not tracked, so it never gates anything;
-   * `null` means tracked and not done yet.
+   * When the secretary's check against the paper score sheets was recorded
+   * (`classes.results_verified_at`; the server clears it when a result changes, and a local
+   * correction clears the local copy at once). `null` = not checked, whether or not the class is
+   * released; `undefined` = not tracked here, so it never gates anything.
    */
   verifiedAt?: string | null | undefined;
   /**
@@ -84,13 +85,16 @@ export function deriveResultsPhase(state: ResultsClassState): ResultsClassPhase 
     return state.scoredCount > 0 || status === CLASS_STATUS.IN_PROGRESS ? 'in-ring' : 'not-started';
   }
   if (state.releasedAt === undefined) return 'release-unknown';
+  // Unchecked comes before released: a class whose check was undone, or cleared by a correction,
+  // goes back to Check scores even after its results were released.
+  if (state.verifiedAt === null) return 'needs-checking';
   if (state.releasedAt) {
     if (state.paperworkPrinted !== true) return 'released';
     return state.judgeSignedOffAt === null && state.judgeDayOpen !== true
       ? 'needs-initials'
       : 'done';
   }
-  return state.verifiedAt === null ? 'needs-checking' : 'ready-to-release';
+  return 'ready-to-release';
 }
 
 const NEXT_ACTION_BY_PHASE: Record<ResultsClassPhase, ResultsNextAction> = {
@@ -128,12 +132,6 @@ export type ResultsStatusFilterId =
   'needs-me' | 'all' | 'needs-checking' | 'ready-to-release' | 'released' | 'done';
 
 export const DEFAULT_RESULTS_STATUS_FILTER: ResultsStatusFilterId = 'needs-me';
-
-/**
- * Whether the secretary's check against the paper is stored yet. While it is not, no class can be
- * "Needs checking", so the filter that would always be empty is not offered. Flip with part 2.
- */
-export const RESULTS_VERIFICATION_TRACKED = false;
 
 const NEEDS_ME: ReadonlySet<ResultsClassPhase> = new Set([
   'needs-checking',
@@ -173,11 +171,4 @@ export const RESULTS_STATUS_FILTER_OPTIONS: readonly {
 
 export function isResultsStatusFilterId(value: string | null): value is ResultsStatusFilterId {
   return RESULTS_STATUS_FILTER_OPTIONS.some(option => option.id === value);
-}
-
-/** The filters worth offering today; see {@link RESULTS_VERIFICATION_TRACKED}. */
-export function offeredResultsStatusFilters() {
-  return RESULTS_STATUS_FILTER_OPTIONS.filter(
-    option => option.id !== 'needs-checking' || RESULTS_VERIFICATION_TRACKED
-  );
 }

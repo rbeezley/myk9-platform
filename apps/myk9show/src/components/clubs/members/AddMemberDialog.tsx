@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { Sheet, SheetContent, SheetHeader, SheetBody, SheetFooter, SheetTitle } from '@myk9/ui';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import {
   Select,
@@ -78,58 +84,56 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent size="sm">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
             <Plus className="h-4 w-4" />
             Add Member to {club.name}
-          </SheetTitle>
-        </SheetHeader>
+          </DialogTitle>
+        </DialogHeader>
 
-        <SheetBody>
-          <div className="space-y-4">
-            {availablePeople.length === 0 ? (
-              <div className="text-center py-8">
-                <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-60" />
-                <div className="text-sm text-muted-foreground">
-                  No people available to add as members.
-                  {people.length === 0 ? (
-                    <span className="block mt-1">
-                      Create some people first to add them as members.
-                    </span>
-                  ) : (
-                    <span className="block mt-1">All existing people are already members.</span>
-                  )}
-                </div>
+        <div className="space-y-4">
+          {availablePeople.length === 0 ? (
+            <div className="text-center py-8">
+              <Users className="w-12 h-12 mx-auto mb-4 text-muted-foreground opacity-60" />
+              <div className="text-sm text-muted-foreground">
+                No people available to add as members.
+                {people.length === 0 ? (
+                  <span className="block mt-1">
+                    Create some people first to add them as members.
+                  </span>
+                ) : (
+                  <span className="block mt-1">All existing people are already members.</span>
+                )}
               </div>
-            ) : (
-              <FormField label="Select User" fieldId="person-select">
-                <Select value={selectedPersonId} onValueChange={setSelectedPersonId}>
-                  <SelectTrigger id="person-select">
-                    <SelectValue placeholder="Choose a person to add as member" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availablePeople.map(person => (
-                      <SelectItem key={person.id} value={person.id.toString()}>
-                        <div className="flex flex-col">
-                          <div className="font-medium">
-                            {person.firstName} {person.lastName}
-                          </div>
-                          {person.email && (
-                            <div className="text-xs text-muted-foreground">{person.email}</div>
-                          )}
+            </div>
+          ) : (
+            <FormField label="Select User" fieldId="person-select">
+              <Select value={selectedPersonId} onValueChange={setSelectedPersonId}>
+                <SelectTrigger id="person-select">
+                  <SelectValue placeholder="Choose a person to add as member" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availablePeople.map(person => (
+                    <SelectItem key={person.id} value={person.id.toString()}>
+                      <div className="flex flex-col">
+                        <div className="font-medium">
+                          {person.firstName} {person.lastName}
                         </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </FormField>
-            )}
-          </div>
-        </SheetBody>
+                        {person.email && (
+                          <div className="text-xs text-muted-foreground">{person.email}</div>
+                        )}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </FormField>
+          )}
+        </div>
 
-        <SheetFooter>
+        <DialogFooter>
           <Button variant="outline" onClick={handleCancel} disabled={isLoading}>
             Cancel
           </Button>
@@ -139,8 +143,8 @@ export const AddMemberDialog: React.FC<AddMemberDialogProps> = ({
           >
             {isLoading ? 'Adding...' : 'Add Member'}
           </Button>
-        </SheetFooter>
-      </SheetContent>
-    </Sheet>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };

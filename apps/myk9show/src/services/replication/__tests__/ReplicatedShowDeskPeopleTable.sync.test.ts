@@ -115,8 +115,12 @@ describe('ReplicatedShowDeskPeopleTable sync (MYK9-1071)', () => {
     const table = new ReplicatedShowDeskPeopleTable();
     vi.spyOn(table, 'removeStaleEntries').mockResolvedValue(0);
     await table.sync();
+    const resolve = captured.adapter!.resolveConflict as unknown as (
+      local: ReplicatedShowDeskPerson,
+      remote: ReplicatedShowDeskPerson
+    ) => ReplicatedShowDeskPerson;
     const remote = { ...stored, city: 'Server' };
-    expect(captured.adapter!.resolveConflict!({ ...stored, city: 'Local' }, remote)).toBe(remote);
+    expect(resolve({ ...stored, city: 'Local' }, remote)).toBe(remote);
   });
 
   it('prunes against the complete live id set after a successful sync', async () => {

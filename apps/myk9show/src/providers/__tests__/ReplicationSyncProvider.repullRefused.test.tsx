@@ -108,7 +108,7 @@ describe('ReplicationSyncProvider re-pulls refused rows (MYK9-1071)', () => {
     act(() => dispatchSyncFailed([exhausted]));
     repullRowsForMutations.mockClear();
 
-    const options = vi.mocked(toast.error).mock.calls[0]?.[1] as {
+    const options = vi.mocked(toast.error).mock.calls[0]?.[1] as unknown as {
       cancel: { onClick: () => void };
     };
     act(() => options.cancel.onClick());

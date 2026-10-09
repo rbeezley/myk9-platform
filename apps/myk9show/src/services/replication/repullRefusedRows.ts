@@ -95,11 +95,11 @@ export function isFinalRefusal(mutation: Pick<PendingMutation, 'failureKind'>): 
  * tries again.
  */
 export async function repullRowsForMutations(
-  mutations: readonly Pick<PendingMutation, 'tableName' | 'rowId'>[]
+  mutations: readonly (Pick<PendingMutation, 'tableName'> & { rowId?: string })[]
 ): Promise<void> {
   const idsByTable = new Map<string, string[]>();
   for (const mutation of mutations) {
-    if (!(mutation.tableName in REPULL_TABLES)) continue;
+    if (!(mutation.tableName in REPULL_TABLES) || mutation.rowId === undefined) continue;
     const ids = idsByTable.get(mutation.tableName) ?? [];
     ids.push(String(mutation.rowId));
     idsByTable.set(mutation.tableName, ids);

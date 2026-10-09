@@ -4,10 +4,9 @@ import { PUBLISH_GATE_MESSAGES } from '@/features/payments/onlineEntryGate';
 export interface SyncFailedEventDetail {
   count: number;
   mutations: Array<
-    Pick<
-      PendingMutation,
-      'id' | 'tableName' | 'rowId' | 'operation' | 'error' | 'failureKind' | 'rpc'
-    >
+    Pick<PendingMutation, 'id' | 'tableName' | 'operation' | 'error' | 'failureKind' | 'rpc'> &
+      // The queue sends whole mutations; rowId drives the refusal re-pull (MYK9-1071).
+      Partial<Pick<PendingMutation, 'rowId'>>
   >;
   message: string;
 }

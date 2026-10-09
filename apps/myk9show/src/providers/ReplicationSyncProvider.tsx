@@ -689,9 +689,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           cancel: {
             label: 'Discard',
             onClick: () => {
-              void Promise.allSettled(
-                ids.map(id => mutationManager.discardFailedMutation(id))
-              )
+              void Promise.allSettled(ids.map(id => mutationManager.discardFailedMutation(id)))
                 .then(() => repullRowsForMutations(failureDetail.mutations))
                 .then(refreshRepullConsumers);
               clearToastId();

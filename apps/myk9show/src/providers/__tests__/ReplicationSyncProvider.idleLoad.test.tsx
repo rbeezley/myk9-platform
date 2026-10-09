@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useContext, useEffect } from 'react';
 import { act, render } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, QueryObserver } from '@tanstack/react-query';
+import { queryKeys } from '@/lib/queryClient';
 import type { AuthChangeEvent, Session, Subscription } from '@supabase/supabase-js';
 import { NetworkStatusContext } from '@/hooks/useNetworkStatus';
 
@@ -320,6 +321,105 @@ describe('ReplicationSyncProvider: idle load', () => {
       expect(latestContext!.status.tablesStatus.entries).toBe('success');
       expect(latestContext!.status.lastSyncAt?.getTime()).toBeGreaterThan(before?.getTime() ?? 0);
       expect(invalidate).toHaveBeenCalledWith({ queryKey: ['entries'] });
+    });
+
+    // The staff query for the show, mounted the way the class page mounts it.
+    function mountShowEntries(queryFn: () => Promise<string[]>) {
+      const observer = new QueryObserver(providerQueryClient!, {
+        queryKey: queryKeys.showEntries('show-9'),
+        queryFn,
+        retry: false,
+      });
+      const unsubscribe = observer.subscribe(() => undefined);
+      return { observer, unsubscribe };
+    }
+
+    it('refetches the show entries query after the pass, with no hook mounted', async () => {
+      const queryFn = vi.fn().mockResolvedValue(['row']);
+      const { unsubscribe } = mountShowEntries(queryFn);
+      await settle();
+      expect(queryFn).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        await latestContext!.triggerSync(TARGET);
+      });
+      await settle();
+
+      expect(queryFn).toHaveBeenCalledTimes(2);
+      unsubscribe();
+    });
+
+    it('a first fetch still in flight ends with the post-sync read', async () => {
+      let finishFirst: (rows: string[]) => void = () => {};
+      const queryFn = vi
+        .fn()
+        .mockImplementationOnce(
+          () =>
+            new Promise<string[]>(resolve => {
+              finishFirst = resolve;
+            })
+        )
+        .mockResolvedValue(['fresh']);
+      const { observer, unsubscribe } = mountShowEntries(queryFn);
+
+      await act(async () => {
+        await latestContext!.triggerSync(TARGET);
+      });
+      await act(async () => {
+        finishFirst(['stale']);
+      });
+      await settle();
+
+      expect(observer.getCurrentResult().data).toEqual(['fresh']);
+      unsubscribe();
+    });
+
+    it('refetches after a queued pass runs, even though no hook is waiting', async () => {
+      // Reads "post-sync" only once the show's entries pass has run.
+      const queryFn = vi.fn(async () =>
+        syncSpies.entries.mock.calls.some(call => call[0] === 'show-9') ? ['post'] : ['pre']
+      );
+      const { observer, unsubscribe } = mountShowEntries(queryFn);
+      await settle();
+      let releaseShows: () => void = () => {};
+      syncSpies.shows.mockImplementationOnce(
+        () =>
+          new Promise(resolve => {
+            releaseShows = () => resolve({ success: true, rowsAffected: 0 });
+          })
+      );
+      let full: Promise<void> = Promise.resolve();
+      await act(async () => {
+        full = latestContext!.triggerSync();
+        await Promise.resolve();
+      });
+      await act(async () => {
+        await latestContext!.triggerSync(TARGET);
+      });
+
+      await act(async () => {
+        releaseShows();
+        await full;
+      });
+      await settle();
+
+      expect(observer.getCurrentResult().data).toEqual(['post']);
+      unsubscribe();
+    });
+
+    it('a failed entries sync refetches nothing', async () => {
+      syncSpies.entries.mockResolvedValueOnce({ success: false, error: 'boom' });
+      const queryFn = vi.fn().mockResolvedValue(['row']);
+      const { unsubscribe } = mountShowEntries(queryFn);
+      await settle();
+
+      await act(async () => {
+        await latestContext!.triggerSync(TARGET);
+      });
+      await settle();
+
+      expect(queryFn).toHaveBeenCalledTimes(1);
+      unsubscribe();
     });
 
     it('does not move the full-pass spacing clock', async () => {

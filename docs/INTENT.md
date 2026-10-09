@@ -162,6 +162,22 @@ Our users are not 25-year-old engineers. Many are retired, with varying levels o
 - **No dead ends** — every screen has an obvious next step or way back
 - **Readiness chips land on the fix** — a readiness chip may only ship if its destination contains the affordance that clears it. If the destination only explains the problem, keep narrowing the route or add the clearing action to the existing destination surface.
 
+### Dialog or Slide-Out: Decision vs Work
+
+A **dialog** is for a decision. A **right slide-out panel** is for work or reference the user wants beside the page.
+
+| Use a **dialog** when…                                              | Use a **slide-out** when…                                       |
+| ------------------------------------------------------------------- | --------------------------------------------------------------- |
+| The task is a decision: confirm, pick one thing, fill 1–3 fields    | The task is work or reference: a form, a card, a list, a log    |
+| The user must answer before anything else, so blocking is the point | The user may want to see the page behind it                     |
+| It ends in one tap                                                  | It is longer than about 4 fields or scrolls                     |
+| It is destructive or irreversible (always a dialog)                 | It shows one entity's details the user opens, reads, and closes |
+
+- **Quick tests:** can it be answered in under 10 seconds with a clear yes/no or pick (dialog)? Does the user need the page behind it (slide-out)? More than ~4 fields, or does it scroll (slide-out)? Destructive (dialog, even when a slide-out launched it)?
+- **Never stack a dialog on a slide-out for a routine step.** A destructive confirm is the one exception.
+- **Never use a slide-out for a one-field question** just because a slide-out is already open.
+- **A slide-out holds one thing.** A panel opened from a menu row shows only the tool or record the user chose; the menu is the index, so the panel never repeats it as a list.
+
 ### Say Which Act Happened: Withdraw vs Pull
 
 An exhibitor leaving a class does one of exactly two things, and the app must never tell them one and store the other (MYK9-632).

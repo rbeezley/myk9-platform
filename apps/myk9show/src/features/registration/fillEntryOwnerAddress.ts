@@ -36,18 +36,17 @@ interface FillRow {
 export async function fillEntryOwnerAddress(
   input: FillEntryOwnerAddressInput
 ): Promise<OwnerAddressParts> {
-  const { data, error } = await supabase.rpc(
-    'fill_entry_owner_address' as never,
-    {
-      p_show_id: input.showId,
-      p_dog_id: input.dogId,
-      p_street_address: input.streetAddress,
-      p_city: input.city,
-      p_state: input.state,
-      p_zip_code: input.zipCode,
-    } as never
-  );
+  const { data, error } = await supabase.rpc('fill_entry_owner_address', {
+    p_show_id: input.showId,
+    p_dog_id: input.dogId,
+    p_street_address: input.streetAddress,
+    p_city: input.city,
+    p_state: input.state,
+    p_zip_code: input.zipCode,
+  });
   if (error) throw createDatabaseError(error, 'people', 'rpc_fill_entry_owner_address');
+  // The generator types RETURNS TABLE columns as non-null; a part still blank
+  // after the fill comes back NULL, so read the row as FillRow.
   const row = (Array.isArray(data) ? data[0] : data) as FillRow | null | undefined;
   return {
     streetAddress: row?.street_address ?? null,

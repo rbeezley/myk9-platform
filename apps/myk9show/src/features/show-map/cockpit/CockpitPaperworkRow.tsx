@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { CheckCircle2, Clock3, Printer, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { ConfirmDialog } from '@/components/ui/alert-dialog';
 import { formatTime } from '@/lib/format/dates';
 import { cn } from '@/lib/utils';
 import { useAuthContext } from '@/hooks/useAuthContext';
@@ -24,6 +25,7 @@ export function CockpitPaperworkRow({
   const { user } = useAuthContext();
   const [isRecording, setIsRecording] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [voidRecordId, setVoidRecordId] = useState<string | null>(null);
   const current = item.state === 'current';
   const stale = item.state === 'stale';
   /** The print records could not be read, so absence of a record proves nothing. */
@@ -134,17 +136,7 @@ export function CockpitPaperworkRow({
                   <button
                     type="button"
                     className="ml-2 inline-flex min-h-11 items-center text-destructive underline-offset-4 hover:underline"
-                    onClick={() => {
-                      if (!window.confirm('Mark this print confirmation as incorrect?')) return;
-                      void replicatedPaperworkPrintsTable
-                        .voidPrint({
-                          id: record.id,
-                          voidedBy: user.id,
-                          reason: 'Marked incorrect from Show Desk print history',
-                        })
-                        .then(() => toast.success('Print confirmation marked incorrect.'))
-                        .catch(() => toast.error('Print confirmation could not be changed.'));
-                    }}
+                    onClick={() => setVoidRecordId(record.id)}
                   >
                     Mark incorrect
                   </button>
@@ -154,6 +146,25 @@ export function CockpitPaperworkRow({
           </div>
         </details>
       )}
+      <ConfirmDialog
+        open={voidRecordId !== null}
+        onOpenChange={open => !open && setVoidRecordId(null)}
+        title="Mark this print confirmation as incorrect?"
+        description="The record stays in the print history, struck through."
+        confirmLabel="Mark incorrect"
+        destructive
+        onConfirm={() => {
+          if (!user || !voidRecordId) return;
+          void replicatedPaperworkPrintsTable
+            .voidPrint({
+              id: voidRecordId,
+              voidedBy: user.id,
+              reason: 'Marked incorrect from Show Desk print history',
+            })
+            .then(() => toast.success('Print confirmation marked incorrect.'))
+            .catch(() => toast.error('Print confirmation could not be changed.'));
+        }}
+      />
     </div>
   );
 }

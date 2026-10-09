@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@/test/utils/testUtils';
+import { fireEvent, render, screen, within } from '@/test/utils/testUtils';
 import { VolunteerDialog } from '../VolunteerDialog';
 import type { Volunteer } from '@/types/volunteer';
 
@@ -157,9 +157,13 @@ describe('VolunteerDialog', () => {
       createdAt: '',
       updatedAt: '',
     };
-    vi.spyOn(window, 'confirm').mockReturnValue(true);
     const { user } = render(<VolunteerDialog {...defaultProps} volunteer={volunteer} />);
     await user.click(screen.getByRole('button', { name: /delete/i }));
+    expect(defaultProps.onDelete).not.toHaveBeenCalled();
+
+    const confirm = await screen.findByRole('alertdialog');
+    expect(within(confirm).getByText('Delete volunteer "Sarah"?')).toBeInTheDocument();
+    await user.click(within(confirm).getByRole('button', { name: /^delete$/i }));
     expect(defaultProps.onDelete).toHaveBeenCalledWith('v-1');
   });
 });

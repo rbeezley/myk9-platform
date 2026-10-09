@@ -1,6 +1,6 @@
 // apps/myk9show/src/pages/scoring/components/EntryPanel.test.tsx
 import { describe, it, expect, vi } from 'vitest';
-import { screen } from '@testing-library/react';
+import { screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { render } from '@/test/utils/testUtils';
 import { EntryPanel } from './EntryPanel';
@@ -249,7 +249,6 @@ describe('EntryPanel', () => {
 
   it('clears an already-scored result after confirmation', async () => {
     const onClearResult = vi.fn();
-    vi.spyOn(window, 'confirm').mockReturnValueOnce(true);
 
     render(
       <EntryPanel
@@ -273,7 +272,11 @@ describe('EntryPanel', () => {
 
     await userEvent.click(screen.getByRole('button', { name: /clear result/i }));
 
-    expect(window.confirm).toHaveBeenCalledWith('Clear the saved result for Buddy?');
+    const dialog = await screen.findByRole('alertdialog');
+    expect(within(dialog).getByText('Clear the saved result for Buddy?')).toBeInTheDocument();
+    expect(onClearResult).not.toHaveBeenCalled();
+    await userEvent.click(within(dialog).getByRole('button', { name: /clear result/i }));
+
     expect(onClearResult).toHaveBeenCalledOnce();
     expect(screen.queryByLabelText(/reason/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /^save$/i })).not.toBeInTheDocument();

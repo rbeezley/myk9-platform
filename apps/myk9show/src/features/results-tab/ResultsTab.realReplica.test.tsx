@@ -6,13 +6,16 @@
  * "Ready to release" and Print all ready stayed disabled.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { QueryClient } from '@tanstack/react-query';
 import { Route, Routes } from 'react-router-dom';
 
 import { render, screen, waitFor } from '@/test/utils/testUtils';
 import { mockSupabase } from '@/test/mocks/supabase';
-import { replicatedClassesTable } from '@/services/replication';
+import { replicatedClassesTable, replicatedEntriesTable } from '@/services/replication';
 import type { SyncableTrial, SyncableTrialClass } from '@/store/trial-store-types';
 import { getClassesByTrialId } from '@/services/database/classes';
+import { getEntriesForShow } from '@/services/database/entries/secretary';
+import { buildReportPaperworkDescriptor } from '@/features/show-map/cockpit/buildReportPaperworkDescriptor';
 import ResultsTab from './ResultsTab';
 
 const SYNC = {
@@ -49,27 +52,19 @@ const mocks = vi.hoisted(() => ({ schedule: {} as Record<string, unknown> }));
 vi.mock('@/pages/secretary/useShowDeskScheduleRead', () => ({
   useShowDeskScheduleRead: () => mocks.schedule,
 }));
-vi.mock('@/hooks/queries/useEntriesDatabase', () => ({
-  useSecretaryShowEntriesQuery: () => ({
-    data: ['class-released', 'class-open'].map(classId => ({
-      id: `e-${classId}`,
-      class_id: classId,
-      entry_status: 'confirmed',
-      check_in_status: 'checked-in',
-      is_scored: true,
-      result_status: 'qualified',
-    })),
+const prints = vi.hoisted(() => ({ data: [] as unknown[] }));
+vi.mock('@/features/show-map/cockpit/useShowPaperworkPrints', () => ({
+  useShowPaperworkPrints: () => ({
+    data: prints.data,
     isLoading: false,
     isError: false,
-    refetch: vi.fn(),
+    syncFailed: false,
   }),
-}));
-vi.mock('@/features/show-map/cockpit/useShowPaperworkPrints', () => ({
-  useShowPaperworkPrints: () => ({ data: [], isLoading: false, isError: false, syncFailed: false }),
 }));
 vi.mock('./ResultsVisibilitySheet', () => ({ ResultsVisibilitySheet: () => null }));
 
 beforeEach(async () => {
+  prints.data = [];
   mockSupabase.auth.getSession.mockResolvedValue({
     data: { session: { user: { id: 'u-1', is_anonymous: false } } },
     error: null,
@@ -85,6 +80,24 @@ beforeEach(async () => {
     retry: vi.fn(),
   };
   await replicatedClassesTable.clearCache();
+  await replicatedEntriesTable.clearCache();
+  await replicatedEntriesTable.batchSet(
+    ['class-released', 'class-open'].map(classId => ({
+      id: `e-${classId}`,
+      showId: 'show-1',
+      classId,
+      dogId: `dog-${classId}`,
+      armband: '101',
+      entryStatus: 'confirmed',
+      checkInStatus: 'checked-in',
+      isScored: true,
+      resultStatus: 'qualified',
+    })) as never
+  );
+  await replicatedEntriesTable.updateSyncMetadata(
+    { lastIncrementalSyncAt: Date.now(), totalRows: 2 },
+    { scopeValue: 'show-1' }
+  );
   await replicatedClassesTable.batchSet([
     {
       id: 'class-released',
@@ -134,5 +147,83 @@ describe('Results tab on the real replicated class rows', () => {
     );
     expect(screen.getByText('Released')).toBeInTheDocument();
     expect(screen.getByText('Ready to release')).toBeInTheDocument();
+  });
+
+  describe('a local score change', () => {
+    const renderClass = (queryClient?: QueryClient) =>
+      render(
+        <Routes>
+          <Route path="/shows/:id/results" element={<ResultsTab />} />
+        </Routes>,
+        {
+          initialRoute: '/shows/show-1/results?status=all&classId=class-open',
+          ...(queryClient && { queryClient }),
+        }
+      );
+
+    it('shows an offline Fix (Q to NQ) without any manual invalidation', async () => {
+      renderClass();
+      await waitFor(() => expect(screen.getByText('Q')).toBeInTheDocument());
+
+      await replicatedEntriesTable.updateEntry('e-class-open', { resultStatus: 'nq' } as never);
+
+      await waitFor(() => expect(screen.getByText('NQ')).toBeInTheDocument());
+      expect(screen.queryByText('Q')).not.toBeInTheDocument();
+    });
+
+    it('re-reads the replica on return within the cache window', async () => {
+      // One client across both mounts: the cached read is still inside its stale window.
+      const client = new QueryClient({
+        defaultOptions: { queries: { retry: false, gcTime: Number.POSITIVE_INFINITY } },
+      });
+      const first = renderClass(client);
+      await waitFor(() => expect(screen.getByText('Q')).toBeInTheDocument());
+      first.unmount();
+
+      await replicatedEntriesTable.updateEntry('e-class-open', { resultStatus: 'nq' } as never);
+      renderClass(client);
+
+      await waitFor(() => expect(screen.getByText('NQ')).toBeInTheDocument());
+    });
+
+    it('a print confirmed against the old score stops counting as current after the fix', async () => {
+      // Confirm both sheets against the Q the replica holds now, built from the same real reads.
+      const classes = ((await getClassesByTrialId('trial-1')).data ?? []) as never[];
+      const entries = ((await getEntriesForShow('show-1')).data ?? []) as never[];
+      prints.data = (['results-sheet', 'result-labels'] as const).map(reportId => {
+        const descriptor = buildReportPaperworkDescriptor({
+          reportId,
+          scope: { kind: 'class', showId: 'show-1', trialId: 'trial-1', classId: 'class-released' },
+          classes,
+          entries,
+        })!;
+        return {
+          id: `print-${reportId}`,
+          reportId,
+          scopeKind: 'class',
+          classId: 'class-released',
+          trialId: 'trial-1',
+          coverage: descriptor.coverage,
+          fingerprint: descriptor.fingerprint,
+          printedAt: '2026-10-10T17:00:00Z',
+          printedByName: 'Sec',
+        };
+      });
+      render(
+        <Routes>
+          <Route path="/shows/:id/results" element={<ResultsTab />} />
+        </Routes>,
+        { initialRoute: '/shows/show-1/results?status=all&classId=class-released' }
+      );
+      await waitFor(() => expect(screen.getAllByText('Done').length).toBeGreaterThan(0));
+
+      await replicatedEntriesTable.updateEntry('e-class-released', { resultStatus: 'nq' } as never);
+
+      // Both together: Done can drop while the re-read is in flight, before the NQ renders.
+      await waitFor(() => {
+        expect(screen.getByText('NQ')).toBeInTheDocument();
+        expect(screen.queryByText('Done')).not.toBeInTheDocument();
+      });
+    });
   });
 });

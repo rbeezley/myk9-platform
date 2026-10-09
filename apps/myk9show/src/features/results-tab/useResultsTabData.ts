@@ -14,11 +14,14 @@
  * `combineReads` folds every sub-read into ONE state, so a failed read is never an empty one
  * (LESSONS `disabled-query false zero`) and Retry refetches all of them.
  */
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'react-router-dom';
 
 import { combineReads, type CombinedReadState } from '@/features/_shared/combineReads';
 import { useSecretaryShowEntriesQuery } from '@/hooks/queries/useEntriesDatabase';
+import { queryKeys } from '@/lib/queryClient';
+import { replicatedEntriesTable } from '@/services/replication';
 import { getCockpitReportHref } from '@/features/show-map/cockpit/cockpitRoutes';
 import { useShowClassPaperwork } from '@/features/show-map/cockpit/useShowClassPaperwork';
 import { getShowDeskEntriesAvailability } from '@/pages/secretary/showDeskEntryAvailability';
@@ -32,7 +35,19 @@ export type ResultsTabReadState = CombinedReadState;
 export function useResultsTabData(showId: string) {
   const location = useLocation();
   const schedule = useShowDeskScheduleRead();
-  const entriesQuery = useSecretaryShowEntriesQuery(showId, Boolean(showId));
+  const queryClient = useQueryClient();
+  // The scores are the replica's, so a local write (an offline Fix) must reach this tab: re-read on
+  // mount, and on every replica notice (already debounced by the table). Never on the initial emit.
+  const entriesQuery = useSecretaryShowEntriesQuery(showId, Boolean(showId), {
+    rereadOnMount: true,
+  });
+  useEffect(() => {
+    if (!showId) return;
+    return replicatedEntriesTable.subscribe(
+      () => void queryClient.invalidateQueries({ queryKey: queryKeys.showEntries(showId) }),
+      { emitCurrent: false }
+    );
+  }, [queryClient, showId]);
   const { entriesKnown } = getShowDeskEntriesAvailability({
     data: entriesQuery.data,
     isLoading: entriesQuery.isLoading,

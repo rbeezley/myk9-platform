@@ -16,7 +16,6 @@ import type { SyncableTrial, SyncableTrialClass } from '@/store/trial-store-type
 import { getClassesByTrialId } from '@/services/database/classes';
 import { getEntriesForShow } from '@/services/database/entries/secretary';
 import { buildReportPaperworkDescriptor } from '@/features/show-map/cockpit/buildReportPaperworkDescriptor';
-import { startClearVerifiedOnLocalCorrection } from '@/services/replication/clearVerifiedOnLocalCorrection';
 import ResultsTab from './ResultsTab';
 
 const SYNC = {
@@ -131,6 +130,16 @@ beforeEach(async () => {
   ] as never);
 });
 
+/** What an ordinary class sync does when the server's check is gone: a clean write of the row. */
+async function downloadClassWithoutCheck(classId: string) {
+  const row = await replicatedClassesTable.get(classId);
+  await replicatedClassesTable.set(
+    classId,
+    { ...row!, resultsVerifiedAt: null, resultsVerifiedBy: null },
+    false
+  );
+}
+
 describe('Results tab on the real replicated class rows', () => {
   it('the class read carries the release stamp the replica holds', async () => {
     const { data } = await getClassesByTrialId('trial-1');
@@ -186,7 +195,7 @@ describe('Results tab on the real replicated class rows', () => {
     );
     expect(screen.getByText(/Scores checked against the paper by you/)).toBeInTheDocument();
 
-    await replicatedClassesTable.applyResultsVerified('class-open', null);
+    await downloadClassWithoutCheck('class-open');
 
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled()
@@ -195,7 +204,7 @@ describe('Results tab on the real replicated class rows', () => {
   });
 
   it('keeps verification reachable after release: released and unchecked shows the checklist, not Release', async () => {
-    await replicatedClassesTable.applyResultsVerified('class-released', null);
+    await downloadClassWithoutCheck('class-released');
     render(
       <Routes>
         <Route path="/shows/:id/results" element={<ResultsTab />} />
@@ -230,31 +239,24 @@ describe('Results tab on the real replicated class rows', () => {
         { initialRoute: '/shows/show-1/results?status=all&classId=class-open' }
       );
 
-    it('a correction on a check downloaded from another device retracts it, and the upload ack does not bring it back', async () => {
-      // class-open holds a server stamp this device never made (see beforeEach).
-      const stop = startClearVerifiedOnLocalCorrection();
-      try {
-        await new Promise(resolve => setTimeout(resolve, 120)); // the watcher remembers the results
-        renderOpen();
-        await waitFor(() =>
-          expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled()
-        );
+    it('Release waits for a correction to reach the server, and an upload ack re-enables it', async () => {
+      renderOpen();
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled()
+      );
 
-        await replicatedEntriesTable.updateEntry('e-class-open', { resultStatus: 'nq' } as never);
+      // A local correction: the row is dirty until the upload is acknowledged.
+      await replicatedEntriesTable.updateEntry('e-class-open', { resultStatus: 'nq' } as never);
+      await waitFor(() =>
+        expect(screen.getByText('Waiting for score changes to sync')).toBeInTheDocument()
+      );
+      expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
 
-        await waitFor(() =>
-          expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled()
-        );
-        expect(screen.getByText('Check the scores against the paper')).toBeInTheDocument();
-
-        // The upload is acknowledged: nothing re-opens Release.
-        await replicatedEntriesTable.markAsSynced('e-class-open');
-        await new Promise(resolve => setTimeout(resolve, 150));
-        expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
-        expect((await replicatedClassesTable.getReplicatedRow('class-open'))?.isDirty).toBe(false);
-      } finally {
-        stop();
-      }
+      // The ack flips only the row's dirty flag: the displayed rows do not change.
+      await replicatedEntriesTable.markAsSynced('e-class-open');
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled()
+      );
     });
 
     it('shows an offline Fix (Q to NQ) without any manual invalidation', async () => {

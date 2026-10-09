@@ -9,6 +9,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { getTrialTimezone } from '@/features/registries';
 import { useJudgeSignOffMutations } from '@/features/show-map/useJudgeSignOffMutations';
+import { readServerResultsVerifiedAt } from '@/features/show-map/resultsVerifiedMutations';
 import { useResultsVerifiedMutations } from '@/features/show-map/useResultsVerifiedMutations';
 import { useAuth } from '@/hooks/useAuth';
 import { useIsOnline } from '@/hooks/useNetworkStatus';
@@ -28,6 +29,7 @@ import {
   writeResultsTabUrlState,
   type ResultsTabUrlState,
 } from './resultsTabRoutes';
+import { useClassUnsyncedScores } from './useClassUnsyncedScores';
 import { useResultsTabData } from './useResultsTabData';
 
 function rowMatchesSearch(row: ResultsClassRow, rawQuery: string): boolean {
@@ -116,15 +118,41 @@ export default function ResultsTab() {
     [rows, state.classId, state.search, state.status, state.trialId]
   );
   const selected = rows.find(row => row.id === state.classId) ?? null;
+  const unsyncedScores = useClassUnsyncedScores(selected?.id ?? null);
+  const [releaseChecking, setReleaseChecking] = useState(false);
+  // Release on this tab asks the SERVER whether the class is checked, so it needs a connection and
+  // no score change of the class still waiting to sync (the answer would describe older results).
+  const releaseBlockedReason = !isOnline
+    ? 'Connect to release from here'
+    : unsyncedScores !== false
+      ? 'Waiting for score changes to sync'
+      : null;
 
   const judgeGroup = useMemo(
     () => (selected?.runFinished ? buildJudgeSignOffGroup(showId, rows, selected.id) : null),
     [rows, selected, showId]
   );
 
-  const handleRelease = (row: ResultsClassRow) => {
-    // Release in this tab waits for the paper check (the server does not, by design).
-    if (row.phase !== 'ready-to-release') return;
+  const handleRelease = async (row: ResultsClassRow) => {
+    // Release in this tab waits for the paper check (the server does not, by design). The
+    // replica's copy of the check is only a hint that enabled the button: the click is decided by
+    // a fresh read of the class on the server.
+    if (row.phase !== 'ready-to-release' || releaseBlockedReason !== null) return;
+    setReleaseChecking(true);
+    let verifiedAt: string | null;
+    try {
+      verifiedAt = await readServerResultsVerifiedAt(row.id);
+    } catch {
+      toast.error('Could not check this class. Try again.');
+      return;
+    } finally {
+      setReleaseChecking(false);
+    }
+    if (!verifiedAt) {
+      toast.error('This class needs checking again — the scores changed.');
+      verification.refreshClass(row.trialId);
+      return;
+    }
     release.mutate(
       { classIds: [row.id], showId },
       {
@@ -203,11 +231,14 @@ export default function ResultsTab() {
       showId={showId}
       row={selected}
       timeZone={timeZone}
-      releasing={release.isPending}
+      releasing={release.isPending || releaseChecking}
       onRelease={() => handleRelease(selected)}
       onRetry={retry}
-      onVerify={canonical => verification.verifyAsync({ classId: selected.id, canonical })}
-      onUndoVerify={() => verification.undo({ classId: selected.id })}
+      onVerify={canonical =>
+        verification.verifyAsync({ classId: selected.id, trialId: selected.trialId, canonical })
+      }
+      onUndoVerify={() => verification.undo({ classId: selected.id, trialId: selected.trialId })}
+      releaseBlockedReason={releaseBlockedReason}
       verifying={verification.isPending}
       online={isOnline}
       currentUserId={user?.id ?? null}

@@ -144,6 +144,20 @@ vi.mock('@/hooks/mutations/useReleaseResults', () => ({
   useReleaseResults: () => ({ mutate: releaseMutate, isPending: false }),
 }));
 
+const serverCheck = vi.hoisted(() => ({
+  read: vi.fn(async (_id: string) => '2026-10-10T15:45:00Z'),
+}));
+vi.mock('@/features/show-map/resultsVerifiedMutations', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/features/show-map/resultsVerifiedMutations')>()),
+  readServerResultsVerifiedAt: serverCheck.read,
+}));
+const unsynced = vi.hoisted(() => ({ value: false as boolean | null }));
+vi.mock('./useClassUnsyncedScores', () => ({ useClassUnsyncedScores: () => unsynced.value }));
+const refreshClass = vi.hoisted(() => vi.fn());
+const toastError = vi.hoisted(() => vi.fn());
+vi.mock('sonner', () => ({
+  toast: Object.assign(vi.fn(), { success: vi.fn(), error: toastError }),
+}));
 const verifyMutate = vi.hoisted(() => vi.fn(async (_input: unknown) => undefined));
 const undoMutate = vi.hoisted(() => vi.fn());
 vi.mock('@/features/show-map/useResultsVerifiedMutations', () => ({
@@ -151,6 +165,7 @@ vi.mock('@/features/show-map/useResultsVerifiedMutations', () => ({
     verifyAsync: verifyMutate,
     undo: undoMutate,
     isPending: false,
+    refreshClass,
   }),
 }));
 const net = vi.hoisted(() => ({ online: true }));
@@ -187,6 +202,11 @@ beforeEach(() => {
   releaseMutate.mockReset();
   recordSignOff.mockReset();
   verifyMutate.mockReset();
+  serverCheck.read.mockReset();
+  serverCheck.read.mockResolvedValue('2026-10-10T15:45:00Z');
+  unsynced.value = false;
+  refreshClass.mockReset();
+  toastError.mockReset();
   verifyMutate.mockResolvedValue(undefined);
   undoMutate.mockReset();
   net.online = true;
@@ -388,7 +408,7 @@ describe('ResultsTab detail', () => {
 
     await user.click(screen.getByRole('button', { name: 'Release results' }));
 
-    expect(releaseMutate).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(releaseMutate).toHaveBeenCalledTimes(1));
     expect(releaseMutate).toHaveBeenCalledWith(
       { classIds: ['class-ready'], showId: 'show-1' },
       expect.any(Object)
@@ -625,6 +645,7 @@ describe('ResultsTab paper check', () => {
     await user.click(confirm);
     expect(verifyMutate).toHaveBeenCalledWith({
       classId: 'class-ready',
+      trialId: 'trial-1',
       canonical: hook.value.rows.find(row => row.id === 'class-ready')!.resultsCanonical,
     });
     expect(releaseMutate).not.toHaveBeenCalled();
@@ -751,7 +772,7 @@ describe('ResultsTab paper check', () => {
     expect(screen.getByText(/Scores checked against the paper by you/)).toBeInTheDocument();
     expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Undo check' }));
-    expect(undoMutate).toHaveBeenCalledWith({ classId: 'class-ready' });
+    expect(undoMutate).toHaveBeenCalledWith({ classId: 'class-ready', trialId: 'trial-1' });
   });
 
   it('a released class whose check was undone shows the checklist again, and no second Release', async () => {
@@ -773,6 +794,70 @@ describe('ResultsTab paper check', () => {
 
     expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
     expect(releaseMutate).not.toHaveBeenCalled();
+  });
+});
+
+describe('ResultsTab Release asks the server', () => {
+  it('releases once when the server says the class is checked', async () => {
+    const { user } = renderAt('?status=all&classId=class-ready');
+
+    await user.click(screen.getByRole('button', { name: 'Release results' }));
+
+    await waitFor(() => expect(releaseMutate).toHaveBeenCalledTimes(1));
+    expect(serverCheck.read).toHaveBeenCalledWith('class-ready');
+  });
+
+  it('does not release when the server says the check is gone, tells the user, and refreshes the class', async () => {
+    serverCheck.read.mockResolvedValue(null as never);
+    const { user } = renderAt('?status=all&classId=class-ready');
+
+    await user.click(screen.getByRole('button', { name: 'Release results' }));
+
+    await waitFor(() => expect(refreshClass).toHaveBeenCalledWith('trial-1'));
+    expect(releaseMutate).not.toHaveBeenCalled();
+    expect(toastError).toHaveBeenCalledWith(
+      'This class needs checking again — the scores changed.'
+    );
+  });
+
+  it('does not release when the server cannot be asked: unknown is never "checked"', async () => {
+    serverCheck.read.mockRejectedValue(new Error('down'));
+    const { user } = renderAt('?status=all&classId=class-ready');
+
+    await user.click(screen.getByRole('button', { name: 'Release results' }));
+
+    await waitFor(() =>
+      expect(toastError).toHaveBeenCalledWith('Could not check this class. Try again.')
+    );
+    expect(releaseMutate).not.toHaveBeenCalled();
+  });
+
+  it('is disabled offline, with the reason; Print and ticks are untouched', () => {
+    net.online = false;
+    renderAt('?status=all&classId=class-ready');
+
+    expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
+    expect(screen.getByText('Connect to release from here')).toBeInTheDocument();
+    expect(serverCheck.read).not.toHaveBeenCalled();
+  });
+
+  it('is disabled while a score change of the class is still waiting to sync, and again enabled after the ack', () => {
+    unsynced.value = true;
+    const first = renderAt('?status=all&classId=class-ready');
+    expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
+    expect(screen.getByText('Waiting for score changes to sync')).toBeInTheDocument();
+    first.unmount();
+
+    unsynced.value = false;
+    renderAt('?status=all&classId=class-ready');
+    expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled();
+  });
+
+  it('is disabled until the unsynced check has been read (unknown is not "nothing waiting")', () => {
+    unsynced.value = null;
+    renderAt('?status=all&classId=class-ready');
+
+    expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
   });
 });
 

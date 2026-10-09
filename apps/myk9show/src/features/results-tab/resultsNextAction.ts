@@ -31,9 +31,9 @@ export interface ResultsClassState {
   paperworkPrinted: boolean | null;
   /**
    * When the secretary's check against the paper score sheets was recorded
-   * (`classes.results_verified_at`; the server clears it when a result changes, and a local
-   * correction clears the local copy at once). `null` = not checked, whether or not the class is
-   * released; `undefined` = not tracked here, so it never gates anything.
+   * (`classes.results_verified_at`; the server clears it when a result changes). The replica's
+   * copy is a hint: Release on the Results tab asks the server at click time. `null` = not checked,
+   * whether or not the class is released; `undefined` = not tracked here, so it never gates.
    */
   verifiedAt?: string | null | undefined;
   /**

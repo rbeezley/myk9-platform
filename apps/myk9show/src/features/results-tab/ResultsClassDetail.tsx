@@ -47,6 +47,8 @@ interface ResultsClassDetailProps {
   verifying: boolean;
   /** Saving or removing the check needs the server; ticking the dogs does not. */
   online: boolean;
+  /** Why Release is held back on this tab right now (offline, scores still syncing), or null. */
+  releaseBlockedReason: string | null;
   /** Auth uid of the signed-in user, so the check can say "you". */
   currentUserId: string | null;
   /** The Judge sign-off section, rendered between the results table and "Then". */
@@ -60,7 +62,7 @@ function resultSignature(entry: ResultsEntryRow): string {
 
 interface PrimaryWorkProps extends Pick<
   ResultsClassDetailProps,
-  'showId' | 'row' | 'releasing' | 'onRelease' | 'online'
+  'showId' | 'row' | 'releasing' | 'onRelease' | 'online' | 'releaseBlockedReason'
 > {
   tickedCount: number;
   verifying: boolean;
@@ -73,6 +75,7 @@ function PrimaryWork({
   releasing,
   onRelease,
   online,
+  releaseBlockedReason,
   tickedCount,
   verifying,
   onVerify,
@@ -143,9 +146,19 @@ function PrimaryWork({
     title = 'Release the results';
     body = 'The scores are checked against the paper. Release makes them visible to exhibitors.';
     action = (
-      <Button type="button" className="min-h-11" disabled={releasing} onClick={onRelease}>
-        {releasing ? 'Releasing…' : 'Release results'}
-      </Button>
+      <div className="space-y-1">
+        <Button
+          type="button"
+          className="min-h-11"
+          disabled={releasing || releaseBlockedReason !== null}
+          onClick={onRelease}
+        >
+          {releasing ? 'Releasing…' : 'Release results'}
+        </Button>
+        {releaseBlockedReason && (
+          <p className="text-xs text-muted-foreground">{releaseBlockedReason}</p>
+        )}
+      </div>
     );
   } else if (phase === 'release-unknown') {
     title = 'Release status unknown';
@@ -309,6 +322,7 @@ export function ResultsClassDetail({
   onUndoVerify,
   verifying,
   online,
+  releaseBlockedReason,
   currentUserId,
   judgeSignOffSlot,
 }: ResultsClassDetailProps) {
@@ -390,6 +404,7 @@ export function ResultsClassDetail({
         releasing={releasing}
         onRelease={onRelease}
         online={online}
+        releaseBlockedReason={releaseBlockedReason}
         tickedCount={tickedCount}
         verifying={verifying}
         onVerify={handleVerify}

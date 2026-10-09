@@ -5,14 +5,15 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const applyResultsVerified = vi.hoisted(() => vi.fn(async () => undefined));
 const getEntriesByClass = vi.hoisted(() => vi.fn(async () => [] as unknown[]));
+const classWrites = vi.hoisted(() => vi.fn());
 const rpc = vi.hoisted(() => vi.fn());
+const from = vi.hoisted(() => vi.fn());
 vi.mock('@/services/replication', () => ({
-  replicatedClassesTable: { applyResultsVerified },
+  replicatedClassesTable: { set: classWrites, updateClass: classWrites },
   replicatedEntriesTable: { getEntriesByClass },
 }));
-vi.mock('@/services/database/supabaseClient', () => ({ supabase: { rpc } }));
+vi.mock('@/services/database/supabaseClient', () => ({ supabase: { rpc, from } }));
 
 import {
   classResultsCanonicalTextFromLines,
@@ -21,6 +22,7 @@ import {
 import {
   clearResultsVerified,
   isStaleResultsError,
+  readServerResultsVerifiedAt,
   recordResultsVerified,
 } from '../resultsVerifiedMutations';
 
@@ -30,7 +32,8 @@ const LINE = (id: string, status: string) =>
 const DISPLAYED = classResultsCanonicalTextFromLines([LINE('e1', 'qualified')]);
 
 beforeEach(() => {
-  applyResultsVerified.mockClear();
+  classWrites.mockClear();
+  from.mockReset();
   getEntriesByClass.mockClear();
   rpc.mockReset();
   rpc.mockResolvedValue({ data: 7, error: null });
@@ -41,7 +44,6 @@ describe('saving the check (online only, MYK9-1031)', () => {
     await recordResultsVerified({
       classId: 'class-1',
       canonical: DISPLAYED,
-      recordedBy: 'auth-1',
       at: AT,
     });
 
@@ -58,7 +60,7 @@ describe('saving the check (online only, MYK9-1031)', () => {
     getEntriesByClass.mockResolvedValue([{ id: 'e1', resultStatus: 'nq', isScored: true }]);
     const moved = classResultsCanonicalTextFromLines([LINE('e1', 'nq')]);
 
-    await recordResultsVerified({ classId: 'class-1', canonical: DISPLAYED, recordedBy: 'a' });
+    await recordResultsVerified({ classId: 'class-1', canonical: DISPLAYED });
 
     const sent = rpc.mock.calls[0]?.[1] as { p_results_fingerprint: string };
     expect(sent.p_results_fingerprint).toBe(await hashClassResultsText(DISPLAYED));
@@ -66,15 +68,11 @@ describe('saving the check (online only, MYK9-1031)', () => {
     expect(getEntriesByClass).not.toHaveBeenCalled();
   });
 
-  it('mirrors the accepted check onto the local class with the returned version, never queued', async () => {
-    await recordResultsVerified({
-      classId: 'class-1',
-      canonical: DISPLAYED,
-      recordedBy: 'auth-1',
-      at: AT,
-    });
+  it('writes nothing to the local class: no stamp, no version, nothing queued', async () => {
+    await recordResultsVerified({ classId: 'class-1', canonical: DISPLAYED, at: AT });
+    await clearResultsVerified('class-1');
 
-    expect(applyResultsVerified).toHaveBeenCalledWith('class-1', { at: AT, by: 'auth-1' }, 7);
+    expect(classWrites).not.toHaveBeenCalled();
   });
 
   it('writes nothing locally when the server refuses, and flags MK015 as stale scores', async () => {
@@ -84,19 +82,51 @@ describe('saving the check (online only, MYK9-1031)', () => {
     const failure = await recordResultsVerified({
       classId: 'class-1',
       canonical: DISPLAYED,
-      recordedBy: 'a',
     }).catch(error => error);
 
     expect(failure).toBe(refusal);
     expect(isStaleResultsError(failure)).toBe(true);
     expect(isStaleResultsError({ code: '42501' })).toBe(false);
-    expect(applyResultsVerified).not.toHaveBeenCalled();
+    expect(classWrites).not.toHaveBeenCalled();
   });
 
-  it('calls clear_class_results_verified directly and mirrors the cleared row', async () => {
+  it('calls clear_class_results_verified directly', async () => {
     await clearResultsVerified('class-1');
 
     expect(rpc).toHaveBeenCalledWith('clear_class_results_verified', { p_class_id: 'class-1' });
-    expect(applyResultsVerified).toHaveBeenCalledWith('class-1', null, 7);
+  });
+});
+
+describe('the server check Release asks (MYK9-1031)', () => {
+  const stubRead = (result: { data: unknown; error: unknown }) => {
+    const chain = {
+      select: vi.fn(() => chain),
+      eq: vi.fn(() => chain),
+      maybeSingle: vi.fn(async () => result),
+    };
+    from.mockReturnValue(chain);
+    return chain;
+  };
+
+  it('reads named columns (never *) of exactly that class', async () => {
+    const chain = stubRead({ data: { id: 'class-1', results_verified_at: AT }, error: null });
+
+    await expect(readServerResultsVerifiedAt('class-1')).resolves.toBe(AT);
+
+    expect(from).toHaveBeenCalledWith('classes');
+    expect(chain.select).toHaveBeenCalledWith('id, results_verified_at');
+    expect(chain.eq).toHaveBeenCalledWith('id', 'class-1');
+  });
+
+  it('reads null when the server holds no check', async () => {
+    stubRead({ data: { id: 'class-1', results_verified_at: null }, error: null });
+    await expect(readServerResultsVerifiedAt('class-1')).resolves.toBeNull();
+  });
+
+  it('throws when the read fails or finds no class: an unknown answer never counts as checked', async () => {
+    stubRead({ data: null, error: { code: '500', message: 'down' } });
+    await expect(readServerResultsVerifiedAt('class-1')).rejects.toBeDefined();
+    stubRead({ data: null, error: null });
+    await expect(readServerResultsVerifiedAt('class-1')).rejects.toThrow('Class not found');
   });
 });

@@ -137,9 +137,8 @@ export interface ReplicatedClass {
   judgeSignedOffBy?: string | null | undefined;
   /**
    * MYK9-1031: the secretary's "scores match the paper" check (`classes.results_verified_at` /
-   * `_by`). Read-only here, like the release stamp's server-derived siblings: it is saved by
-   * calling the RPCs directly while online (`applyResultsVerified` then mirrors the answer), never
-   * by `toSupabaseRow`, and never queued.
+   * `_by`). Read-only here: it is saved by calling the RPCs directly while online and reaches this
+   * replica only by the ordinary class sync, never by `toSupabaseRow` and never queued.
    */
   resultsVerifiedAt?: string | null | undefined;
   resultsVerifiedBy?: string | null | undefined;
@@ -805,74 +804,6 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     );
     this._lastMutationId = mutationId;
     return mutationId;
-  }
-
-  /**
-   * MYK9-1031: mirror the paper check the SERVER just accepted (or cleared) onto the local class,
-   * so the Results tab updates before the next sync. A clean download-style write: nothing is
-   * queued, the row is not marked dirty, and no mutation write lock is taken (those belong to
-   * `set(…, true)`). `serverVersion` is the class version the RPC returned, so a release queued
-   * next carries a fresh OCC token. A row with queued writes of its own is left to the next sync.
-   */
-  async applyResultsVerified(
-    classId: string,
-    stamp: { at: string; by: string | null } | null,
-    serverVersion?: number
-  ): Promise<void> {
-    // One read-compare-write. A response that arrives late can describe a class the server has
-    // since moved past (a download that cleared the check, or any newer write): only an answer at
-    // least as new as the cached row is applied, and `expectedVersion` makes the write itself fail
-    // if the row changed between this read and the write, in which case the newer row wins.
-    const stored = await this.getReplicatedRow(classId);
-    const row = stored?.data;
-    if (!stored || !row) return;
-    if (stored.serverVersion !== undefined) {
-      if (serverVersion === undefined || serverVersion < stored.serverVersion) return;
-    }
-    try {
-      await this.set(
-        classId,
-        {
-          ...row,
-          resultsVerifiedAt: stamp?.at ?? null,
-          resultsVerifiedBy: stamp?.by ?? null,
-        },
-        false,
-        stored.version,
-        serverVersion
-      );
-    } catch (error) {
-      logger.warn(`[${this.getTableName()}] Skipped a stale paper-check answer for ${classId}`, {
-        error,
-      });
-    }
-  }
-
-  /**
-   * MYK9-1031: a local score correction retracts the paper check on this device at once, as the
-   * server will when it hears of the change (see clearVerifiedOnLocalCorrection). A clean local
-   * write: nothing queued, no write lock, the server version untouched. Returns whether the
-   * check was cleared; a class row with queued writes of its own cannot be written clean and is
-   * left to the next sync.
-   */
-  async clearResultsVerifiedLocally(classId: string): Promise<boolean> {
-    const stored = await this.getReplicatedRow(classId);
-    const row = stored?.data;
-    if (!stored || !row?.resultsVerifiedAt) return false;
-    try {
-      const result = await this.set(
-        classId,
-        { ...row, resultsVerifiedAt: null, resultsVerifiedBy: null },
-        false,
-        stored.version
-      );
-      return result.written;
-    } catch (error) {
-      logger.warn(`[${this.getTableName()}] Skipped clearing the paper check for ${classId}`, {
-        error,
-      });
-      return false;
-    }
   }
 
   /**

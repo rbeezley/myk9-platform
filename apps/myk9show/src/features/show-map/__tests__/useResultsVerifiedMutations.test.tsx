@@ -13,15 +13,25 @@ import type { ReactNode } from 'react';
 const recordResultsVerified = vi.hoisted(() => vi.fn());
 const clearResultsVerified = vi.hoisted(() => vi.fn());
 vi.mock('../resultsVerifiedMutations', () => ({ recordResultsVerified, clearResultsVerified }));
-vi.mock('@/hooks/useAuth', () => ({ useAuth: () => ({ user: { id: 'auth-secretary' } }) }));
 const toast = vi.hoisted(() => Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }));
 vi.mock('sonner', () => ({ toast }));
 
+import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 import { createAppQueryClient } from '@/lib/queryClient';
 import { useResultsVerifiedMutations } from '../useResultsVerifiedMutations';
 
+const triggerSync = vi.fn(async () => undefined);
+
 function wrapper({ children }: { children: ReactNode }) {
-  return <QueryClientProvider client={createAppQueryClient()}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={createAppQueryClient()}>
+      <ReplicationSyncContext.Provider
+        value={{ status: {} as never, triggerSync, syncTable: vi.fn() }}
+      >
+        {children}
+      </ReplicationSyncContext.Provider>
+    </QueryClientProvider>
+  );
 }
 
 afterEach(() => {
@@ -30,6 +40,7 @@ afterEach(() => {
   clearResultsVerified.mockReset();
   toast.error.mockReset();
   toast.success.mockReset();
+  triggerSync.mockClear();
 });
 
 describe('paper check mutations (online only)', () => {
@@ -37,15 +48,46 @@ describe('paper check mutations (online only)', () => {
     recordResultsVerified.mockResolvedValue(undefined);
     const { result } = renderHook(() => useResultsVerifiedMutations(), { wrapper });
 
-    await act(() => result.current.verifyAsync({ classId: 'c1', canonical: 'TEXT' }));
+    await act(() =>
+      result.current.verifyAsync({ classId: 'c1', trialId: 't1', canonical: 'TEXT' })
+    );
 
     expect(recordResultsVerified).toHaveBeenCalledWith({
       classId: 'c1',
       canonical: 'TEXT',
       at: expect.any(String),
-      recordedBy: 'auth-secretary',
     });
     expect(toast.success).toHaveBeenCalled();
+  });
+
+  it('after a saved check or an undo, pulls that class again through the ordinary class sync', async () => {
+    recordResultsVerified.mockResolvedValue(undefined);
+    clearResultsVerified.mockResolvedValue(undefined);
+    const { result } = renderHook(() => useResultsVerifiedMutations(), { wrapper });
+
+    await act(() =>
+      result.current.verifyAsync({ classId: 'c1', trialId: 't1', canonical: 'TEXT' })
+    );
+    expect(triggerSync).toHaveBeenCalledWith([{ name: 'classes', scopeId: 't1' }]);
+
+    triggerSync.mockClear();
+    act(() => result.current.undo({ classId: 'c1', trialId: 't1' }));
+    await waitFor(() =>
+      expect(triggerSync).toHaveBeenCalledWith([{ name: 'classes', scopeId: 't1' }])
+    );
+  });
+
+  it('does not sync after a refused check', async () => {
+    recordResultsVerified.mockRejectedValue({ code: 'MK015', message: 'changed' });
+    const { result } = renderHook(() => useResultsVerifiedMutations(), { wrapper });
+
+    await act(async () => {
+      await result.current
+        .verifyAsync({ classId: 'c1', trialId: 't1', canonical: 'TEXT' })
+        .catch(() => undefined);
+    });
+
+    expect(triggerSync).not.toHaveBeenCalled();
   });
 
   it('does not run, and queues nothing, while offline', async () => {
@@ -53,8 +95,8 @@ describe('paper check mutations (online only)', () => {
     const { result } = renderHook(() => useResultsVerifiedMutations(), { wrapper });
 
     act(() => {
-      void result.current.verifyAsync({ classId: 'c1', canonical: 'TEXT' });
-      result.current.undo({ classId: 'c1' });
+      void result.current.verifyAsync({ classId: 'c1', trialId: 't1', canonical: 'TEXT' });
+      result.current.undo({ classId: 'c1', trialId: 't1' });
     });
     await new Promise(resolve => setTimeout(resolve, 50));
 
@@ -67,7 +109,9 @@ describe('paper check mutations (online only)', () => {
     const { result } = renderHook(() => useResultsVerifiedMutations(), { wrapper });
 
     await act(async () => {
-      await result.current.verifyAsync({ classId: 'c1', canonical: 'TEXT' }).catch(() => undefined);
+      await result.current
+        .verifyAsync({ classId: 'c1', trialId: 't1', canonical: 'TEXT' })
+        .catch(() => undefined);
     });
     // Longer than the app client's default mutation retry delay would have waited.
     await new Promise(resolve => setTimeout(resolve, 1300));
@@ -81,9 +125,9 @@ describe('paper check mutations (online only)', () => {
     const { result } = renderHook(() => useResultsVerifiedMutations(), { wrapper });
 
     await act(async () => {
-      await expect(result.current.verifyAsync({ classId: 'c1', canonical: 'TEXT' })).rejects.toBe(
-        refusal
-      );
+      await expect(
+        result.current.verifyAsync({ classId: 'c1', trialId: 't1', canonical: 'TEXT' })
+      ).rejects.toBe(refusal);
     });
 
     await waitFor(() =>

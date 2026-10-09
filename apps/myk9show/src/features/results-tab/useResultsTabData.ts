@@ -89,8 +89,8 @@ export function useResultsTabData(showId: string) {
     [paperwork.classRows]
   );
 
-  // The stored paper check, as the class rows hold it. A local correction clears the local copy
-  // at once (clearVerifiedOnLocalCorrection), the server clears its own when it hears of it.
+  // The stored paper check, as the class rows hold it: a HINT that enables Release. The click asks
+  // the server (ResultsTab.handleRelease), which is what decides.
   const verifiedByClassId = useMemo(
     () =>
       paperwork.classRows

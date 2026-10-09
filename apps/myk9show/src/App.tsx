@@ -26,7 +26,6 @@ import { useAccountNotifications } from '@/hooks/useAccountNotifications';
 import { AudioSettingsProvider } from './context/AudioSettingsContext';
 import { StoreProvider } from './providers/StoreProvider';
 import { ReplicationSyncProvider } from './providers/ReplicationSyncProvider';
-import { startClearVerifiedOnLocalCorrection } from './services/replication/clearVerifiedOnLocalCorrection';
 
 import { UnsavedChangesRouteGuardProvider } from './components/navigation/UnsavedChangesRouteGuard';
 
@@ -191,12 +190,6 @@ function AccountNotificationsInitializer() {
   return null;
 }
 
-/** MYK9-1031: a local score correction retracts the paper check on its class at once. */
-function CheckCorrectionWatcher() {
-  React.useEffect(() => startClearVerifiedOnLocalCorrection(), []);
-  return null;
-}
-
 function App() {
   // Initialize global error handler - deferred to not block initial render
   React.useEffect(() => {
@@ -232,7 +225,6 @@ function App() {
             <MessageSubscriptionInitializer />
             <NotificationMonitorInitializer />
             <AccountNotificationsInitializer />
-            <CheckCorrectionWatcher />
             <AudioSettingsProvider>
               <UnsavedChangesRouteGuardProvider>
                 <ExhibitorOnboardingChecker>

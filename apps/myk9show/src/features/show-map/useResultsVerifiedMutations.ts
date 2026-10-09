@@ -1,26 +1,34 @@
+import { useContext } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-import { useAuth } from '@/hooks/useAuth';
+import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 import { getUserFriendlyError, mappedErrorMessage } from '@/utils/errorMessages';
 import { clearResultsVerified, recordResultsVerified } from './resultsVerifiedMutations';
 
 /**
  * MYK9-1031: "scores match the paper" as React Query mutations. Online only (the default
  * networkMode pauses them offline; the Results tab also disables the buttons): the check is saved
- * by calling the server, never queued. `verifyAsync` rejects so the caller can reset its ticks
- * when the server says the scores moved (MK015).
+ * by calling the server, never queued, and the local class learns the answer by an ordinary scoped
+ * class sync afterwards (nothing is written from the response). `verifyAsync` rejects so the
+ * caller can reset its ticks when the server says the scores moved (MK015).
  */
 export function useResultsVerifiedMutations() {
-  const { user } = useAuth();
+  const sync = useContext(ReplicationSyncContext);
+  const refreshClass = (trialId: string) => {
+    void sync?.triggerSync([{ name: 'classes', scopeId: trialId }]);
+  };
 
   // No automatic retry on either: a repeat of a refused check (MK015) must reach the caller, and
   // the app client's default mutation retry would otherwise run it again.
   const verify = useMutation({
     retry: false,
-    mutationFn: (claim: { classId: string; canonical: string; at: string }) =>
-      recordResultsVerified({ ...claim, recordedBy: user?.id ?? null }),
-    onSuccess: () => toast.success('Scores marked as matching the paper'),
+    mutationFn: (claim: { classId: string; trialId: string; canonical: string; at: string }) =>
+      recordResultsVerified({ classId: claim.classId, canonical: claim.canonical, at: claim.at }),
+    onSuccess: (_data, claim) => {
+      toast.success('Scores marked as matching the paper');
+      refreshClass(claim.trialId);
+    },
     onError: error => {
       toast.error(
         mappedErrorMessage(error) ??
@@ -31,8 +39,12 @@ export function useResultsVerifiedMutations() {
 
   const undo = useMutation({
     retry: false,
-    mutationFn: ({ classId }: { classId: string }) => clearResultsVerified(classId),
-    onSuccess: () => toast.success('Check removed'),
+    mutationFn: ({ classId }: { classId: string; trialId: string }) =>
+      clearResultsVerified(classId),
+    onSuccess: (_data, { trialId }) => {
+      toast.success('Check removed');
+      refreshClass(trialId);
+    },
     onError: error => {
       toast.error(
         mappedErrorMessage(error) ??
@@ -43,9 +55,18 @@ export function useResultsVerifiedMutations() {
 
   return {
     /** Saves the check for exactly the results text the caller ticked (see recordResultsVerified). */
-    verifyAsync: ({ classId, canonical }: { classId: string; canonical: string }) =>
-      verify.mutateAsync({ classId, canonical, at: new Date().toISOString() }),
+    verifyAsync: ({
+      classId,
+      trialId,
+      canonical,
+    }: {
+      classId: string;
+      trialId: string;
+      canonical: string;
+    }) => verify.mutateAsync({ classId, trialId, canonical, at: new Date().toISOString() }),
     undo: undo.mutate,
     isPending: verify.isPending || undo.isPending,
+    /** Pulls the class row again (the Release check found the server disagrees with the replica). */
+    refreshClass,
   };
 }

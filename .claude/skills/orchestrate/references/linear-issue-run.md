@@ -19,12 +19,18 @@ what an issue queue needs: selection, holds, Linear state and the run summary.
      show-day reliability first), then closest to done. Propose the top 3 with one line each and
      wait for one yes. This is the only question the run asks. If no Todo issue is eligible (all
      held, or human-only), say so and ask for ids. Never fall back to Backlog yourself.
+   - **Continuous mode** applies when the owner says "overnight", "unattended", "keep going" or
+     "until the queue is empty". Your one question then also states the limits, and the owner's
+     yes covers all of them: the approved list first, then refills, an issue cap (default 8),
+     and a stop time (default 07:00 local). Record the limits in the ledger header.
 3. **Preflight.** One `get_issue` call proves the Linear connector works. If it's down, stop: a
    run that can't write Linear can't leave it accurate. Check that `codex --version` answers; if
    it doesn't, say before starting that any `independent`-tier PR will wait unmerged.
 4. **Ledger.** Keep `<scratchpad>/orchestrate-run.md` with one row per issue: id, tier, worktree,
    branch, PR, outcome and reason. Update it at every state change, so a compacted context or a
    crash can resume from it.
+5. **Continuous mode only: keep the Mac awake.** Call `request_keep_awake` (the `ccd_host` tool)
+   so the machine can't sleep mid-merge. If it's unavailable, say so before starting.
 
 ## Per-issue loop
 
@@ -149,6 +155,25 @@ explicitly after a fresh read:
 Then `ship-pr` Step 7 from `$MAIN`. A worktree that was created locked needs
 `git worktree remove -f -f "$WT"`. Worktree removal is the last command for that issue.
 
+## Refill (continuous mode)
+
+When the approved list is finished, don't end the run. Pick the next issue yourself, without
+asking:
+
+1. **Check the stop conditions first.** End the run (go to Run end) when any of these holds:
+   - the issue cap is reached (each issue attempted counts, held ones included);
+   - it's past the stop time. Never start an issue after the stop time; an in-flight one finishes
+     or parks as "merge pending";
+   - the last two issues both ended in a hold. That pattern means something systemic (a red
+     `main`, Codex down, a broken connector), and more attempts would only burn budget;
+   - no eligible Todo issue is left.
+2. **Re-query fresh.** Run `list_issues` (state `Todo`) again rather than reusing the run-start
+   list, because the board changes overnight. Rank by the same rules, and drop every issue
+   already attempted this run, whatever its outcome. Never read Backlog.
+3. **Pick the top-ranked eligible issue** and run the per-issue loop, starting at Triage, whose
+   holds still apply. Mark it `refill` in the ledger, so the summary separates the issues the
+   owner approved from the ones the run chose.
+
 ## Run end
 
 1. **Leftovers:** `git worktree list` shows only the expected worktrees (merge-pending ones are
@@ -166,15 +191,18 @@ Then `ship-pr` Step 7 from `$MAIN`. A worktree that was created locked needs
 ```
 
 Follow it with the orchestration stats from `../SKILL.md` and one line listing every judgement
-call made without asking.
+call made without asking. In continuous mode, add one line naming the stop condition that ended the
+run, and mark each `refill` issue in the table (e.g. `MYK9-321 (refill)`).
 
 ## Common mistakes
 
-| Mistake                                                    | Instead                                              |
-| ---------------------------------------------------------- | ---------------------------------------------------- |
-| Trusting Linear's auto-Done after the merge                | Always re-read and set Done or In Review yourself    |
-| Picking from Backlog, or grading issues up front           | Todo only; risk is judged from the diff at ship time |
-| Handing a refund fix to sonnet "because it's small"        | Money is held, whatever its size                     |
-| Letting the implementer push, open the PR or post the gate | The orchestrator owns every shared-system write      |
-| Retrying a red CI a third time                             | Hold at In Review after two attempts                 |
-| Removing a merge-pending worktree                          | Keep it; `/cleanup` after GitHub merges              |
+| Mistake                                                    | Instead                                                        |
+| ---------------------------------------------------------- | -------------------------------------------------------------- |
+| Trusting Linear's auto-Done after the merge                | Always re-read and set Done or In Review yourself              |
+| Picking from Backlog, or grading issues up front           | Todo only; risk is judged from the diff at ship time           |
+| Handing a refund fix to sonnet "because it's small"        | Money is held, whatever its size                               |
+| Letting the implementer push, open the PR or post the gate | The orchestrator owns every shared-system write                |
+| Retrying a red CI a third time                             | Hold at In Review after two attempts                           |
+| Removing a merge-pending worktree                          | Keep it; `/cleanup` after GitHub merges                        |
+| Ending an overnight run when the approved list is done     | Continuous mode refills from Todo until a stop condition holds |
+| Reusing the run-start Todo list for refills                | Re-query; the board changes overnight                          |

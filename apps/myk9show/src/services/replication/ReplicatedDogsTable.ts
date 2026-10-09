@@ -408,7 +408,8 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
       // `version` is kept as serverVersion so a queued UPDATE attaches the OCC
       // precondition exactly as it would for a normally-synced row.
       const dog = rowToDog(row);
-      const versions = typeof row.version === 'number' ? new Map([[dogId, row.version]]) : undefined;
+      const versions =
+        typeof row.version === 'number' ? new Map([[dogId, row.version]]) : undefined;
       await this.batchSet([dog], versions);
       return (await this.get(dogId)) ?? null;
     } catch (err) {

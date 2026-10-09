@@ -200,8 +200,12 @@ describe('useDogStoreCompat.updateDog — mutation queue (MYK9-1067)', () => {
     };
 
     // The OCC precondition is only attached while conflict surfacing is on.
-    beforeEach(() => configureConflictSurfacing(true));
-    afterEach(() => configureConflictSurfacing(false));
+    beforeEach(() => {
+      configureConflictSurfacing(true);
+    });
+    afterEach(() => {
+      configureConflictSurfacing(false);
+    });
 
     const coldSetup = async (opts: { server: boolean }) => {
       // Roster display rows must NOT feed the replica: give it a row whose display

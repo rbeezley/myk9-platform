@@ -9,6 +9,12 @@
  * and `stripe-checkout` (`_shared/cartOwnerAddressGate.ts`).
  */
 
+/**
+ * The code both servers use for this refusal: `submit_show_entries` raises it
+ * as the HINT of a 23514, and `stripe-checkout` returns it as `code`.
+ */
+export const OWNER_ADDRESS_REQUIRED_CODE = 'owner_address_required';
+
 export interface AddressPartsLike {
   streetAddress?: string | null | undefined;
   city?: string | null | undefined;

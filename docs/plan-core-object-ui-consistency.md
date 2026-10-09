@@ -2,7 +2,7 @@
 
 > **Status:** Active
 
-**Date:** 2026-10-01 · **Evidence:** [`audits/2026-10-01-core-object-consistency-audit.md`](audits/2026-10-01-core-object-consistency-audit.md) (finding ids H1–H16, M1–M18 below refer to it) · **Sibling:** [`plan-crud-standard.md`](plan-crud-standard.md) (Edit and Delete placement and delete behavior; not repeated here).
+**Date:** 2026-10-01 · **Evidence:** [`audits/2026-10-01-core-object-consistency-audit.md`](audits/2026-10-01-core-object-consistency-audit.md) (finding ids H1–H16, M1–M18 below refer to it) · **Sibling:** [`archive/plan-crud-standard.md`](archive/plan-crud-standard.md) (Edit and Delete placement and delete behavior; not repeated here).
 **Read first:** [`INTENT.md`](INTENT.md) § Trial Secretary. The target user is experienced but older and not very computer literate. A screen that behaves differently from the last one makes her stop and doubt.
 
 ## Owner decisions (2026-10-01)
@@ -17,7 +17,7 @@
 8. **Default list view:** table for staff lists (Managing shows, trials, classes, entries, people, clubs). Cards for exhibitor and public lists (Find Shows, My Dogs). Her own choice is remembered on every list (`useViewPreference`).
 9. **Premium tab:** "Premium" (the show edit tab currently says "Experience").
 10. **Save confirmation:** always. "‹Name› saved" after an edit, "‹Name› added" after a create, on every path.
-11. **Detail layout:** one page width (`PageShell`) and one shared header (`DetailHero`: title, status badge, facts row; no action buttons, because page actions live only in the header Actions menu, per `plan-crud-standard.md` decision 5) for every detail page. This includes a calmer Person header.
+11. **Detail layout:** one page width (`PageShell`) and one shared header (`DetailHero`: title, status badge, facts row; no action buttons, because page actions live only in the header Actions menu, per `archive/plan-crud-standard.md` decision 5) for every detail page. This includes a calmer Person header.
 12. **Class lists:** merge Class Management into Setup → Classes. Judge assignment and bulk status move into the Setup tab; the Class Management route becomes a redirect to it. One concern, one page.
 13. **Add panels walk every tab** (2026-10-01). In create mode, a panel with tabs shows **"Next: ‹tab name›"** as its primary button on every tab but the last; only the last tab shows **"Add ‹Object›"**.
     - **Validation:** Next checks the current tab's required fields first. If one is missing, the panel says which and stays on that tab.
@@ -50,7 +50,7 @@ These come from [`audits/2026-10-01-duplicate-actions-audit.md`](audits/2026-10-
 
 ## Phases
 
-Each phase is one PR (or a few small ones), independently verifiable. A phase is not complete until its tests pass. Coordinate with `plan-crud-standard.md` Phases 3–4, which touch the same detail headers and edit panels: do Phase 5 here after or together with CRUD Phase 4.
+Each phase is one PR (or a few small ones), independently verifiable. A phase is not complete until its tests pass. Coordinate with `archive/plan-crud-standard.md` Phases 3–4, which touch the same detail headers and edit panels: do Phase 5 here after or together with CRUD Phase 4.
 
 **Phase 1: Wording and quick wins** (copy and one-line changes).
 
@@ -150,5 +150,5 @@ Each phase is one PR (or a few small ones), independently verifiable. A phase is
 
 ## Non-goals
 
-- Delete and Edit placement and delete behavior (`plan-crud-standard.md`).
+- Delete and Edit placement and delete behavior (`archive/plan-crud-standard.md`).
 - New features or surfaces. Every change here either copies an existing pattern or removes a duplicate.

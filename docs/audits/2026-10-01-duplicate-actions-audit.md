@@ -2,7 +2,7 @@
 
 **Date:** 2026-10-01 · **Method:** read-only code read of `origin/main`. "P" = the entry point performs the action itself. "L" = it links to the page that performs it. Anything not confirmed is marked _unverified_.
 **Goal (owner):** do each action in one place, the most common place, and minimize copies.
-**Placement rules (owner, 2026-10-01; see [`plan-crud-standard.md`](../plan-crud-standard.md)):**
+**Placement rules (owner, 2026-10-01; see [`plan-crud-standard.md`](../archive/plan-crud-standard.md)):**
 
 - Page-level actions live only in the header Actions menu, in this group order: Edit, Add…, status changes, reports/export.
 - Item actions live on the row ⋮ menu or the bulk bar.

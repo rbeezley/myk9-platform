@@ -1,9 +1,9 @@
 # One Standard for Create, Edit and Delete
 
-> **Status:** Active
+> **Status:** Complete (2026-10-08: Phases 1–6 merged; Phase 5 walk folded into 6d, MYK9-1063)
 
-**Date:** 2026-10-01 · **Follows:** [`plan-secretary-crud-consolidation.md`](plan-secretary-crud-consolidation.md) (one way to create and edit each object) and [`plan-secretary-show-actions.md`](plan-secretary-show-actions.md) (the placement rule).
-**Read first:** [`INTENT.md`](INTENT.md) § Trial Secretary: the anti-pattern is "anything that makes the user feel like they need to learn the software."
+**Date:** 2026-10-01 · **Follows:** [`plan-secretary-crud-consolidation.md`](../plan-secretary-crud-consolidation.md) (one way to create and edit each object) and [`plan-secretary-show-actions.md`](../plan-secretary-show-actions.md) (the placement rule).
+**Read first:** [`INTENT.md`](../INTENT.md) § Trial Secretary: the anti-pattern is "anything that makes the user feel like they need to learn the software."
 
 ## Why
 

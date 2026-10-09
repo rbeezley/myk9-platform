@@ -1,6 +1,6 @@
 /**
  * The ONE delete confirmation for clubs, shows, trials, classes, entries, dogs
- * and people (CRUD standard Phase 2, docs/plan-crud-standard.md).
+ * and people (CRUD standard Phase 2, docs/archive/plan-crud-standard.md).
  *
  * It always asks first, says what goes with the item (counts from the server),
  * refuses up front when the server would refuse (paid or scored work, a club

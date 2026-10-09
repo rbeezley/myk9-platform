@@ -277,7 +277,7 @@ function buildShowActions(
     ...(viewer.canOperateShow ? {} : { disabledReason: TRIAL_SECRETARY_ONLY_REASON }),
   };
 
-  // Group order (docs/plan-crud-standard.md): Edit, then Add, then the rest,
+  // Group order (docs/archive/plan-crud-standard.md): Edit, then Add, then the rest,
   // then status changes. Edit first on every page, so the one place to look
   // for "change this" is the same everywhere.
   return [

@@ -1,6 +1,6 @@
 /**
  * The Edit panel's one Delete control (CRUD standard Phase 3,
- * docs/plan-crud-standard.md): a "Delete ‹object›" button at the far left of the
+ * docs/archive/plan-crud-standard.md): a "Delete ‹object›" button at the far left of the
  * footer that opens the shared `DeleteObjectDialog`.
  *
  * INTENT: delete is settings, not a daily action. It sits apart from Cancel and

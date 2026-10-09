@@ -1,6 +1,6 @@
 /**
  * The shared vocabulary of the one client delete path (CRUD standard Phase 2,
- * docs/plan-crud-standard.md). Every delete of a core object goes through
+ * docs/archive/plan-crud-standard.md). Every delete of a core object goes through
  * `DeleteObjectDialog` and `deleteRecords` with one of these kinds.
  */
 

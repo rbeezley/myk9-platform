@@ -234,3 +234,44 @@ describe('SecretaryCockpit class selection (show home overview)', () => {
     expect(window.location.search).toContain('focus=class-2');
   });
 });
+
+describe('SecretaryCockpit Results hand-off (MYK9-1032)', () => {
+  const withLifecycles = (...lifecycles: ('complete' | 'in-progress' | 'cancelled')[]) => ({
+    ...snapshot,
+    classes: lifecycles.map((lifecycle, index) => ({
+      ...snapshot.classes[0]!,
+      id: `class-${index + 1}`,
+      name: `Class ${index + 1}`,
+      classOrder: index,
+      lifecycle,
+      attention: [],
+    })),
+  });
+
+  it('links to Results only once every class is complete', () => {
+    const open = render(
+      <SecretaryCockpit
+        snapshot={withLifecycles('complete', 'in-progress')}
+        canManageShow
+        onCommand={vi.fn()}
+      />,
+      { initialRoute: '/shows/show-1' }
+    );
+    expect(screen.queryByTestId('cockpit-results-handoff')).toBeNull();
+    open.unmount();
+
+    render(
+      <SecretaryCockpit
+        snapshot={withLifecycles('complete', 'complete', 'cancelled')}
+        canManageShow
+        onCommand={vi.fn()}
+      />,
+      { initialRoute: '/shows/show-1' }
+    );
+    const handoff = screen.getByTestId('cockpit-results-handoff');
+    expect(within(handoff).getByRole('link', { name: /results/i })).toHaveAttribute(
+      'href',
+      '/shows/show-1/results'
+    );
+  });
+});

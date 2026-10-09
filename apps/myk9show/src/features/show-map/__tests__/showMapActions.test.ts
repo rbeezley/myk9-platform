@@ -865,7 +865,7 @@ describe('showMapActions', () => {
         expect.objectContaining({
           id: 'collect-judge-signature',
           nodeId: 'class:class-needs-signature',
-          href: '/shows/show-1/reports?report=result-catalog&trialId=trial-1&classId=class-needs-signature',
+          href: '/shows/show-1/results?trialId=trial-1&classId=class-needs-signature',
           createsAttention: true,
         }),
       ])
@@ -1121,7 +1121,7 @@ describe('showMapActions', () => {
         id: 'review-results',
         nodeId: 'class:class-signed',
         label: 'View entries and results',
-        href: '/shows/show-1/trials/trial-1/classes/class-signed',
+        href: '/shows/show-1/results?trialId=trial-1&classId=class-signed',
       }),
       expect.objectContaining({
         id: 'submit-final-results',
@@ -1513,7 +1513,8 @@ describe('showMapActions', () => {
       );
       expect(editAction).toBeDefined();
       expect(editAction).toMatchObject({
-        href: '/scoring/classes/class-complete/entries?entryId=entry-scored&mode=split',
+        // MYK9-1032: a completed class's score is corrected on Results, not in the ring.
+        href: '/shows/show-1/results?trialId=trial-1&classId=class-complete',
       });
     });
 

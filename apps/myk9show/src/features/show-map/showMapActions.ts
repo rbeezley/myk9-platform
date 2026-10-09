@@ -1,8 +1,8 @@
 import { judgeSignOffActionsForClassNode } from './judgeSignOffActions';
 import { getPaperScoringEntryHref } from '@/pages/scoring/scoringRoutes';
 import { getClassAttention } from './attention';
+import { getCockpitResultsControlHref, getCockpitSubmitResultsHref } from './cockpit/cockpitRoutes';
 import {
-  getShowMapClassHref,
   getShowMapReportHref,
   getShowMapReviewEntryHref,
   getShowMapTrialScheduleHref,
@@ -191,7 +191,7 @@ function wrapUpActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapActi
           why: 'Inspect entered result values before final submission',
           priority: 52,
           ...(showId && trialId && classId
-            ? { href: getShowMapClassHref(showId, trialId, classId) }
+            ? { href: getCockpitResultsControlHref({ showId, trialId, classId }) }
             : {}),
           icon: FileText,
           recommended: true,
@@ -214,7 +214,7 @@ function wrapUpActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapActi
         label: 'Submit final results',
         why: 'Completed trial is ready for closeout submission',
         priority: 50,
-        ...(showId ? { href: `/shows/${showId}/results?step=submit` } : {}),
+        ...(showId ? { href: getCockpitSubmitResultsHref({ showId }) } : {}),
         icon: Send,
         recommended: true,
         createsAttention: true,
@@ -302,6 +302,11 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
     const parentNode = node.parentId ? tree.nodesById[node.parentId] : undefined;
     const entryScored = node.status?.kind === 'complete';
     const classActive = parentNode?.status?.kind === 'active';
+    // MYK9-1032: once the class is complete, correcting a score is Results work (verify, then
+    // fix); the in-ring correction stays on the paper-scoring screen.
+    const classComplete = parentNode?.status?.kind === 'complete';
+    const showId = getRootShowId(tree);
+    const trialId = parentNode ? getParentSourceId(parentNode, tree, 'trial') : undefined;
     const entryId = getNodeSourceId(node, 'entry');
     if ((entryScored || classActive) && classId && entryId) {
       actions.push({
@@ -310,7 +315,10 @@ function liveOpsActionsForNode(node: ShowMapNode, tree: ShowMapTree): ShowMapAct
         label: 'Edit score',
         why: withEntryContext(node, 'Open the scoring screen at this entry'),
         priority: 40,
-        href: getPaperScoringEntryHref(classId, entryId),
+        href:
+          classComplete && showId && trialId
+            ? getCockpitResultsControlHref({ showId, trialId, classId })
+            : getPaperScoringEntryHref(classId, entryId),
         icon: Pencil,
         classId,
       });

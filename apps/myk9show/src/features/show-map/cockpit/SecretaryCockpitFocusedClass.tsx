@@ -297,6 +297,7 @@ export function SecretaryCockpitFocusedClass({
         )}
 
         <ClassChecklistSection
+          showId={showId}
           sourceClass={sourceClass}
           paperwork={focused.paperwork}
           timeZone={timeZone}

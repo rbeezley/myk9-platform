@@ -69,7 +69,8 @@ export function writeCockpitUrlState(
   return params;
 }
 
-function withReturnTo(href: string, returnTo: string): string {
+function withReturnTo(href: string, returnTo?: string): string {
+  if (!returnTo) return href;
   const separator = href.includes('?') ? '&' : '?';
   return `${href}${separator}returnTo=${encodeURIComponent(returnTo)}`;
 }
@@ -128,7 +129,7 @@ export function getCockpitResultsControlHref(input: {
   showId: string;
   trialId?: string;
   classId?: string;
-  returnTo: string;
+  returnTo?: string;
 }): string {
   const params = new URLSearchParams();
   if (input.trialId) params.set('trialId', input.trialId);
@@ -143,7 +144,7 @@ export function getCockpitResultsControlHref(input: {
 export function getCockpitSubmitResultsHref(input: {
   showId: string;
   trialId?: string;
-  returnTo: string;
+  returnTo?: string;
 }): string {
   // Submit Results is a STEP inside the Results tab now (MYK9-630 phase 2), not
   // a route of its own, so `step` rides in the query with everything else.

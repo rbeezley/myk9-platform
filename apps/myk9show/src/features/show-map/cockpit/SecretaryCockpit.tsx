@@ -14,6 +14,8 @@ import { useSecretaryCockpitUrlState } from './useSecretaryCockpitUrlState';
 import { CockpitAttentionStrip } from './CockpitAttentionStrip';
 import { SecretaryCockpitFocusedClass } from './SecretaryCockpitFocusedClass';
 import { useFocusedClassSetupActions } from './FocusedClassSetupActions';
+import { CockpitResultsHandoff } from './CockpitResultsHandoff';
+import { isEveryClassComplete } from './resultsHandoff';
 import { SecretaryCockpitSchedule } from './SecretaryCockpitSchedule';
 import { getCockpitAnchorElementId } from './cockpitRoutes';
 import type {
@@ -171,6 +173,8 @@ export function SecretaryCockpit({
           ))}
         </div>
       )}
+
+      {isEveryClassComplete(snapshot.classes) && <CockpitResultsHandoff showId={snapshot.showId} />}
 
       {model.attention.items.length > 0 && (
         <CockpitAttentionStrip

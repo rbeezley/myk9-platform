@@ -1,8 +1,8 @@
 /**
  * MYK9-1030: the judge's end-of-day sign-off, as Show Map actions on a class node.
  *
- * - `collect-judge-signature` opens the class's marked Result Catalog (as before MYK9-1030; a
- *   judge's-day catalog is a follow-up).
+ * - `collect-judge-signature` links to the class on Results (MYK9-1032), where the marked Result
+ *   Catalog is printed; a judge's-day catalog is a follow-up.
  * - `record-judge-sign-off` records "Record initials: [judge], [day]" on EVERY completed class of that
  *   judge's day in one action. It carries the class ids so the executor never re-derives them.
  * - `clear-judge-sign-off` is the per-class undo.
@@ -15,7 +15,7 @@ import { CheckCircle2, PenLine, Undo2 } from 'lucide-react';
 import { judgeSignOffWording } from './judgeSignOff';
 import { formatJudgeDayDate } from './judgeDay';
 import { getNodeSourceId, getParentSourceId, getRootShowId } from './showMapActionHelpers';
-import { getShowMapReportHref } from './showMapRoutes';
+import { getCockpitResultsControlHref } from './cockpit/cockpitRoutes';
 import { SHOW_MAP_WRAP_UP_STATUS } from './showMapTypes';
 import type { ShowMapNode, ShowMapTree } from './showMapTypes';
 import type { ShowMapAction } from './showMapActions';
@@ -85,10 +85,7 @@ export function judgeSignOffActionsForClassNode(
       createsAttention: true,
       ...(showId && trialId
         ? {
-            href: getShowMapReportHref({
-              reportId: 'result-catalog',
-              scope: { kind: 'class', showId, trialId, classId },
-            }),
+            href: getCockpitResultsControlHref({ showId, trialId, classId }),
           }
         : {}),
     },

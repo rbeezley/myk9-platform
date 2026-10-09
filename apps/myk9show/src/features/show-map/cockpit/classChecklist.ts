@@ -30,6 +30,11 @@ export interface ClassChecklistItem {
   detail?: string;
   /** Present on print items that have something to print, so print and Mark printed stay. */
   paperwork?: SecretaryCockpitPaperwork;
+  /**
+   * After-scoring items (MYK9-1032) are status only on Overview: they link to the class on
+   * Results, where the work is done, rather than offering print or sign-off controls here.
+   */
+  href?: string;
   /** A command the item offers in place (the per-class undo of a judge's sign-off, MYK9-1030). */
   command?: { commandId: string; label: string };
 }
@@ -43,6 +48,8 @@ export interface ClassChecklistInput {
   paperwork: readonly SecretaryCockpitPaperwork[];
   /** The show's registry; selects initials (AKC) or signature wording. */
   registryId?: string | null | undefined;
+  /** The class selected on the Results tab; set on the after-scoring items (MYK9-1032). */
+  resultsHref?: string | null | undefined;
   /** The ShowDeskPanel command that clears this class's recorded sign-off, when it has one. */
   judgeSignOffUndoCommandId?: string | null | undefined;
 }
@@ -66,13 +73,35 @@ function printItem(
   id: ClassChecklistItemId,
   label: string,
   paperwork: readonly SecretaryCockpitPaperwork[],
-  entriesKnown: boolean
+  entriesKnown: boolean,
+  attachRow = true
 ): ClassChecklistItem {
   const row = paperwork.find(item => item.reportId === id);
-  if (row) return { id, label, state: PRINT_STATE[row.state], paperwork: row };
+  if (row) {
+    return attachRow
+      ? { id, label, state: PRINT_STATE[row.state], paperwork: row }
+      : { id, label, state: PRINT_STATE[row.state] };
+  }
   return entriesKnown
     ? { id, label, state: 'todo', detail: 'Nothing to print yet' }
     : { id, label, state: 'unknown' };
+}
+
+/**
+ * An after-scoring item: its state still reads from the print record, but the print controls
+ * live on Results, so the item carries a link instead of the paperwork row.
+ */
+function resultsItem(
+  id: ClassChecklistItemId,
+  label: string,
+  input: ClassChecklistInput,
+  entriesKnown: boolean
+): ClassChecklistItem {
+  return withResultsHref(printItem(id, label, input.paperwork, entriesKnown, false), input);
+}
+
+function withResultsHref(item: ClassChecklistItem, input: ClassChecklistInput): ClassChecklistItem {
+  return input.resultsHref ? { ...item, href: input.resultsHref } : item;
 }
 
 function signatureItem(input: ClassChecklistInput, entriesKnown: boolean): ClassChecklistItem {
@@ -129,9 +158,9 @@ export function buildClassChecklist(input: ClassChecklistInput): ClassChecklistI
     printItem('scoresheet', 'Score sheets', input.paperwork, countsKnown),
     { id: 'class-started', label: 'Class started', state: started },
     scoring,
-    printItem('results-sheet', 'Preliminary results', input.paperwork, countsKnown),
-    printItem('result-labels', 'Ribbon labels', input.paperwork, countsKnown),
-    signatureItem(input, countsKnown),
+    resultsItem('results-sheet', 'Preliminary results', input, countsKnown),
+    resultsItem('result-labels', 'Ribbon labels', input, countsKnown),
+    withResultsHref(signatureItem(input, countsKnown), input),
   ];
 }
 

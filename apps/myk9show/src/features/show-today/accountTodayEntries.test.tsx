@@ -68,4 +68,35 @@ describe('useAccountTodayEntries', () => {
       expect(vi.mocked(source.subscribe).mock.results[0]?.value).toHaveBeenCalledOnce();
     }
   });
+
+  it('answers one sync burst spread across ~1.2 s with one RPC, and a later write with one more', async () => {
+    mocks.rpc.mockClear();
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+    const writes: Array<() => void> = [];
+    for (const source of [mocks.entries, mocks.classes, mocks.trials, mocks.shows]) {
+      source.subscribe.mockImplementation(((cb: () => void) => {
+        writes.push(cb);
+        return vi.fn();
+      }) as never);
+    }
+    const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    const { result, unmount } = renderHook(() => useAccountTodayEntries(), { wrapper });
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    expect(mocks.rpc).toHaveBeenCalledTimes(1);
+
+    for (const write of writes) {
+      write();
+      await pause(400);
+    }
+    await pause(1700);
+    expect(mocks.rpc).toHaveBeenCalledTimes(2);
+
+    writes[0]?.();
+    await pause(1700);
+    expect(mocks.rpc).toHaveBeenCalledTimes(3);
+    unmount();
+  }, 15_000);
 });

@@ -67,6 +67,7 @@ import {
   shouldRequestPostUploadSync,
   type TableSyncStatus,
 } from './replicationSyncStatus';
+import { refetchShowEntriesAfterScopedSync } from './showEntriesPostSync';
 import { getRingsideUploadSyncTargets, type UploadSyncTarget } from './ringsideUploadSyncTargets';
 
 interface SyncStatus {
@@ -413,6 +414,14 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         for (const queryKey of getPostSyncInvalidationKeys(selectedNames)) {
           queryClient.invalidateQueries({ queryKey });
         }
+        // MYK9-1064: the canonical show-entries query for each show a scoped
+        // entries pass downloaded, whatever component or hook asked for it.
+        refetchShowEntriesAfterScopedSync(
+          queryClient,
+          selectedTables
+            .filter((_, i) => syncResults[i]?.ok)
+            .map(({ name, scope }) => ({ name, scope }))
+        );
 
         logger.info(
           targets ? 'Scoped ringside sync complete' : 'Full sync complete',

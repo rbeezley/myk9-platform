@@ -13,6 +13,7 @@ import {
 import type { SecretaryEntry } from '@/services/database/entries';
 import { queryKeys, cacheStrategies } from '@/lib/queryClient';
 import { useAuthContext } from '@/hooks/useAuthContext';
+import { useRefreshShowEntriesOnOpen } from './useRefreshShowEntriesOnOpen';
 
 // Get entries by show ID
 export const useEntriesByShowQuery = (showId: string, enabled = true) => {
@@ -67,8 +68,9 @@ export const useVerifiedEntriesByShowQuery = (showId: string, enabled = true) =>
  * this cache identity so a cold per-show replica cannot look populated on one
  * surface and confidently empty on another.
  */
-export const useSecretaryShowEntriesQuery = (showId: string, enabled = true) =>
-  useQuery<SecretaryEntry[]>({
+export const useSecretaryShowEntriesQuery = (showId: string, enabled = true) => {
+  useRefreshShowEntriesOnOpen(showId, enabled);
+  return useQuery<SecretaryEntry[]>({
     queryKey: queryKeys.showEntries(showId),
     queryFn: async () => {
       const { data, error } = await getEntriesForShow(showId);
@@ -85,6 +87,7 @@ export const useSecretaryShowEntriesQuery = (showId: string, enabled = true) =>
     // counts. A cold replica still needs the network and reports an error.
     networkMode: 'offlineFirst',
   });
+};
 
 // Get entries by dog ID
 // Returns `{ rows, verified }` rather than a bare array: a dog's entries span

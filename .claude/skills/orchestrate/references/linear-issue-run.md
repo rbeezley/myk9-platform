@@ -34,6 +34,15 @@ what an issue queue needs: selection, holds, Linear state and the run summary.
 
 ## Per-issue loop
 
+**Continuous mode: check the stop conditions before EVERY issue**, approved or refill. End the
+run (go to Run end) when any of these holds:
+
+- the issue cap is reached (each issue attempted counts, held ones included);
+- it's past the stop time. Never start an issue after the stop time; an in-flight one finishes
+  or parks as "merge pending";
+- the last two issues both ended in a hold. That pattern means something systemic (a red `main`,
+  Codex down, a broken connector), and more attempts would only burn budget.
+
 Run issues one at a time by default. Run two at once only when their expected file sets are
 disjoint, and stay inside the 3-heavy-job cap (each issue's implementer, `/simplify`, Codex
 review and suites all count).
@@ -160,19 +169,13 @@ Then `ship-pr` Step 7 from `$MAIN`. A worktree that was created locked needs
 When the approved list is finished, don't end the run. Pick the next issue yourself, without
 asking:
 
-1. **Check the stop conditions first.** End the run (go to Run end) when any of these holds:
-   - the issue cap is reached (each issue attempted counts, held ones included);
-   - it's past the stop time. Never start an issue after the stop time; an in-flight one finishes
-     or parks as "merge pending";
-   - the last two issues both ended in a hold. That pattern means something systemic (a red
-     `main`, Codex down, a broken connector), and more attempts would only burn budget;
-   - no eligible Todo issue is left.
-2. **Re-query fresh.** Run `list_issues` (state `Todo`) again rather than reusing the run-start
+1. **Re-query fresh.** Run `list_issues` (state `Todo`) again rather than reusing the run-start
    list, because the board changes overnight. Rank by the same rules, and drop every issue
-   already attempted this run, whatever its outcome. Never read Backlog.
-3. **Pick the top-ranked eligible issue** and run the per-issue loop, starting at Triage, whose
-   holds still apply. Mark it `refill` in the ledger, so the summary separates the issues the
-   owner approved from the ones the run chose.
+   already attempted this run, whatever its outcome. Never read Backlog. If nothing eligible is
+   left, the run ends.
+2. **Pick the top-ranked eligible issue** and run the per-issue loop, starting with the stop
+   check and then Triage, whose holds still apply. Mark it `refill` in the ledger, so the
+   summary separates the issues the owner approved from the ones the run chose.
 
 ## Run end
 

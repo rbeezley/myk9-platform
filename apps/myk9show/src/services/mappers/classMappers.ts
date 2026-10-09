@@ -494,6 +494,12 @@ export const mapReplicatedClassToDbRow = (
     is_completed: cls.isCompleted ?? false,
     is_scoring_finalized: cls.isScoringFinalized ?? false,
     is_results_reviewed: cls.isResultsReviewed ?? false,
+    // The release and sign-off stamps live on the replica row; omitting them here made every
+    // replication-backed read report a released class as unreleased (MYK9-1031).
+    results_released_at: cls.results_released_at ?? cls.resultsReleasedAt ?? null,
+    results_released_by: cls.results_released_by ?? cls.resultsReleasedBy ?? null,
+    judge_signed_off_at: cls.judgeSignedOffAt ?? null,
+    judge_signed_off_by: cls.judgeSignedOffBy ?? null,
     deleted_at: null,
   };
 

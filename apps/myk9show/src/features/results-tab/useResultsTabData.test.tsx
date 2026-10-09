@@ -126,6 +126,15 @@ describe('useResultsTabData', () => {
     expect(screen.getByTestId('rows')).not.toHaveTextContent('class-other');
   });
 
+  it('treats a settled schedule with no trials as an empty show, not an unavailable read', async () => {
+    mocks.schedule = { ...mocks.schedule, trials: [], trialClasses: {} };
+    render(<Probe />);
+
+    await vi.waitFor(() => expect(screen.getByTestId('state')).toHaveTextContent('ready'));
+    expect(screen.getByTestId('rows')).toHaveTextContent('');
+    expect(getClassesByTrialId).not.toHaveBeenCalled();
+  });
+
   it('offers Release only for a confirmed-null release stamp', async () => {
     mocks.reportClasses = [classRow(null)];
     render(<Probe />);

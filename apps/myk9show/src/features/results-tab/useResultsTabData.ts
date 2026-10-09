@@ -102,6 +102,7 @@ export function useResultsTabData(showId: string) {
     ]
   );
 
+  const noTrials = schedule.hasConfirmedSnapshot && showTrials.length === 0;
   const combined = combineReads([
     {
       key: 'schedule',
@@ -121,7 +122,14 @@ export function useResultsTabData(showId: string) {
     // Release state is read from the class rows; without them every class would read unreleased.
     ...paperwork.reads
       .filter(read => read.key === 'class-rows')
-      .map(read => ({ ...read, key: 'release-state', critical: true })),
+      .map(read => ({
+        ...read,
+        key: 'release-state',
+        // The class read is disabled when the show has no trials. A settled schedule with none
+        // is a confirmed empty show, not a missing read.
+        hasData: read.hasData || noTrials,
+        critical: !noTrials,
+      })),
   ]);
 
   return {

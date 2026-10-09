@@ -90,8 +90,9 @@ test('a deep class breadcrumb fits a 360px phone without horizontal scroll (MYK9
   const current = nav.locator('[aria-current="page"]');
   await expect(current).toBeVisible({ timeout: 30_000 });
   // The trail is complete once the show crumb has resolved from its id. It is
-  // folded into "…" at this width, so match it by attribute, not by role.
-  await expect(nav.locator(`a[title="${showName}"]`)).toHaveCount(1, {
+  // folded into "…" at this width, so match it by title, not by role (which
+  // skips hidden nodes); getByTitle also needs no CSS escaping of the name.
+  await expect(nav.getByTitle(showName, { exact: true })).toHaveCount(1, {
     timeout: 30_000,
   });
 

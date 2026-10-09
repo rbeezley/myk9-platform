@@ -57,12 +57,18 @@ The dispatch prompt is self-contained and has these parts, in order:
 4. Scope fence: "Change only what the task requires. No opportunistic refactors. Do not touch
    `tasks.md`, migrations or Linear. Do not deploy, push, open a PR, spawn sub-agents, run a
    review or post a `Review gate:` comment. Do not run the full app suite; run the affected
-   test files. Run `pnpm exec prettier --write` on every file you touch. Never commit
-   `AGENTS.md`: `turbo` rewrites it on every `pnpm typecheck`, so `git restore AGENTS.md` before
-   each commit. Commit `wip:` before any verification that takes longer than a minute. Use
-   bounded waits only (the Bash tool's timeout, or `for i in $(seq 1 40)`; macOS has no
-   `timeout` command), never open-ended `sleep` loops, and wait for your tests to finish before
-   you end your turn."
+   test files. Run `pnpm exec prettier --write` on every file you touch. `turbo` appends a
+   `turborepo-agent-rules` block to `AGENTS.md` on every `pnpm typecheck`. Before each commit,
+   strip only that block with the command below, so that a deliberate `AGENTS.md` change
+   (`pnpm qa:shared-rules:write`) survives. Commit `wip:` before any verification that takes
+   longer than a minute. Use bounded waits only (the Bash tool's timeout, or
+   `for i in $(seq 1 40)`; macOS has no `timeout` command), never open-ended `sleep` loops, and
+   wait for your tests to finish before you end your turn."
+
+   ```bash
+   perl -0pi -e 's/\n*<!-- BEGIN:turborepo-agent-rules -->.*?<!-- END:turborepo-agent-rules -->\n?/\n/s' AGENTS.md
+   ```
+
 5. The report format below, as its final message.
 
 ```
@@ -75,7 +81,9 @@ CONCERNS: <anything ambiguous, skipped, or smelly; "none" only if true>
 
 ## Review gate (per batch or per issue)
 
-Don't trust the report. Verify it.
+Don't trust the report. Verify it. Run every check below inside the implementer's worktree
+(`(cd "$WT" && pnpm typecheck)`), never from wherever you sit: from the main checkout these
+commands check `main`, not the proposed change.
 
 1. `git -C <worktree> diff origin/main...HEAD` plus the uncommitted diff. Read the actual code.
 2. Checklist (all must pass):
@@ -86,8 +94,9 @@ Don't trust the report. Verify it.
    - [ ] Tests exist for new logic. If anything is value-sensitive, re-run the focused tests yourself
    - [ ] `pnpm typecheck` clean (run it yourself on the final round)
    - [ ] No direct Supabase reads where replication is required, and no file pushed over 500 lines
-   - [ ] `pnpm format:check:changed` clean, and the diff carries no stray files (`AGENTS.md`'s
-         turbo block, scratch files)
+   - [ ] `pnpm format:check:changed` clean, and the diff carries no stray files (turbo's
+         `AGENTS.md` block, scratch files). An `AGENTS.md` change is legitimate only when the
+         task changed `docs/agents/shared-rules.md` too
    - [ ] A layout or behavior fix is proven by the real artifact, not by a class or source-text
          assertion. Run the issue's repro (e2e spec, browser at the stated width) on the branch,
          and once on `main` as a control that must fail
@@ -97,7 +106,9 @@ Don't trust the report. Verify it.
 4. Only you tick `tasks.md` boxes or move Linear state. A tick means _reviewed and accepted_.
 5. Once accepted, ship it through `ship-pr` from the implementer's worktree before you start the
    next batch or issue that touches the same files. `ship-pr` Step 7 removes the worktree; one
-   created by `isolation: "worktree"` is locked and needs `git worktree remove -f -f`.
+   created by `isolation: "worktree"` is locked and needs `git worktree remove -f -f`. In
+   OpenSpec mode, the LAST batch skips `ship-pr` Step 7: archive runs from that worktree, so
+   remove it only after `opsx:ship`'s archive phase (Phase 5).
 
 ## OpenSpec mode
 

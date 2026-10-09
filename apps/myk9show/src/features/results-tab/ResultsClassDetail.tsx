@@ -16,6 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { CockpitPaperworkRow } from '@/features/show-map/cockpit/CockpitPaperworkRow';
+import { isStaleResultsError } from '@/features/show-map/resultsVerifiedMutations';
 import { formatTime } from '@/lib/format/dates';
 import type { ResultsClassRow, ResultsEntryRow } from './buildResultsClassRows';
 import { PrintStatusUnavailable } from './PrintStatusUnavailable';
@@ -35,11 +36,16 @@ interface ResultsClassDetailProps {
   onRelease: () => void;
   /** Refetches every read; offered where print status could not be read. */
   onRetry: () => void;
-  /** Records "scores match the paper" for this class, once every row is ticked. */
-  onVerify: () => void;
+  /**
+   * Saves "scores match the paper" for this class, once every row is ticked. Rejects when the
+   * server refuses (the caller has already told the user why).
+   */
+  onVerify: () => Promise<unknown>;
   /** Removes that check. */
   onUndoVerify: () => void;
   verifying: boolean;
+  /** Saving or removing the check needs the server; ticking the dogs does not. */
+  online: boolean;
   /** Auth uid of the signed-in user, so the check can say "you". */
   currentUserId: string | null;
   /** The Judge sign-off section for this class's judge-day, rendered between the table and "Then". */
@@ -57,6 +63,7 @@ interface PrimaryWorkProps extends Pick<
 > {
   tickedCount: number;
   verifying: boolean;
+  online: boolean;
   onVerify: () => void;
 }
 
@@ -67,6 +74,7 @@ function PrimaryWork({
   onRelease,
   tickedCount,
   verifying,
+  online,
   onVerify,
 }: PrimaryWorkProps) {
   const { phase } = row;
@@ -87,21 +95,32 @@ function PrimaryWork({
     );
   } else if (phase === 'needs-checking') {
     const allTicked = row.entries.length > 0 && tickedCount === row.entries.length;
+    const released = Boolean(row.releasedAt);
+    const blocked = !online
+      ? 'Connect to save the check'
+      : row.scoresUnsynced
+        ? 'Waiting for score changes to sync'
+        : null;
     title = 'Check the scores against the paper';
-    body = `Tick each dog below when it matches its paper score sheet (${tickedCount} of ${row.entries.length}). Fix anything that is off first. Release unlocks once the scores are checked.`;
+    body = `Tick each dog below when it matches its paper score sheet (${tickedCount} of ${row.entries.length}). Fix anything that is off first.${released ? ' These results are already released.' : ' Release unlocks once the scores are checked.'}`;
     action = (
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          className="min-h-11"
-          disabled={!allTicked || verifying}
-          onClick={onVerify}
-        >
-          {verifying ? 'Saving…' : 'Scores match the paper'}
-        </Button>
-        <Button type="button" variant="outline" className="min-h-11" disabled>
-          Release results
-        </Button>
+      <div className="space-y-1">
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            className="min-h-11"
+            disabled={!allTicked || verifying || blocked !== null}
+            onClick={onVerify}
+          >
+            {verifying ? 'Saving…' : 'Scores match the paper'}
+          </Button>
+          {!released && (
+            <Button type="button" variant="outline" className="min-h-11" disabled>
+              Release results
+            </Button>
+          )}
+        </div>
+        {blocked && <p className="text-xs text-muted-foreground">{blocked}</p>}
       </div>
     );
   } else if (phase === 'ready-to-release') {
@@ -157,8 +176,9 @@ function VerifiedLine({
   timeZone,
   currentUserId,
   verifying,
+  online,
   onUndo,
-}: Pick<ResultsClassDetailProps, 'row' | 'timeZone' | 'currentUserId' | 'verifying'> & {
+}: Pick<ResultsClassDetailProps, 'row' | 'timeZone' | 'currentUserId' | 'verifying' | 'online'> & {
   onUndo: () => void;
 }) {
   const by = row.verifiedBy && row.verifiedBy === currentUserId ? 'you' : 'another show manager';
@@ -170,9 +190,20 @@ function VerifiedLine({
         Scores checked against the paper by {by}
         {at ? ` at ${at}` : ''}
       </span>
-      <Button type="button" variant="outline" size="touch" disabled={verifying} onClick={onUndo}>
-        Undo check
-      </Button>
+      <span className="flex flex-wrap items-center gap-2">
+        {!online && (
+          <span className="text-xs text-muted-foreground">Connect to save the check</span>
+        )}
+        <Button
+          type="button"
+          variant="outline"
+          size="touch"
+          disabled={verifying || !online}
+          onClick={onUndo}
+        >
+          Undo check
+        </Button>
+      </span>
     </div>
   );
 }
@@ -261,6 +292,7 @@ export function ResultsClassDetail({
   onVerify,
   onUndoVerify,
   verifying,
+  online,
   currentUserId,
   judgeSignOffSlot,
 }: ResultsClassDetailProps) {
@@ -283,6 +315,13 @@ export function ResultsClassDetail({
             }),
         }
       : null;
+  const handleVerify = () => {
+    // The server says the scores moved since they were ticked: the ticks no longer vouch for
+    // anything, so start the checklist over (the hook has already shown why).
+    onVerify().catch(error => {
+      if (isStaleResultsError(error)) setTicks({});
+    });
+  };
   const { search } = useLocation();
   const backParams = new URLSearchParams(search);
   backParams.delete('classId');
@@ -329,7 +368,8 @@ export function ResultsClassDetail({
         onRelease={onRelease}
         tickedCount={tickedCount}
         verifying={verifying}
-        onVerify={onVerify}
+        online={online}
+        onVerify={handleVerify}
       />
       {row.verifiedAt && row.phase !== 'needs-checking' && (
         <VerifiedLine
@@ -337,6 +377,7 @@ export function ResultsClassDetail({
           timeZone={timeZone}
           currentUserId={currentUserId}
           verifying={verifying}
+          online={online}
           onUndo={onUndoVerify}
         />
       )}

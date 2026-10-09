@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { Route, Routes } from 'react-router-dom';
 
-import { render, screen, within } from '@/test/utils/testUtils';
+import { render, screen, waitFor, within } from '@/test/utils/testUtils';
 import type { SecretaryCockpitPaperwork } from '@/features/show-map/cockpit/secretaryCockpitTypes';
 import type { SecretaryEntry } from '@/services/database/entries';
 import type { SyncableTrial, SyncableTrialClass } from '@/store/trial-store-types';
@@ -73,7 +73,13 @@ const unprinted = (reportId: string): SecretaryCockpitPaperwork => ({
 const CHECKED = { at: '2026-10-10T15:45:00Z', by: 'auth-me' };
 
 /** `checked: false` leaves the first class at Needs checking; `dayOver` finishes the judge's day. */
-function buildRows({ checked = true, dayOver = false, doneSigned = true } = {}) {
+function buildRows({
+  checked = true,
+  dayOver = false,
+  doneSigned = true,
+  releasedChecked = true,
+  unsynced = false,
+} = {}) {
   return buildResultsClassRows({
     trials: [trial],
     trialClasses: {
@@ -91,8 +97,13 @@ function buildRows({ checked = true, dayOver = false, doneSigned = true } = {}) 
       ],
     },
     verifiedByClassId: new Map([
-      ['class-ready', checked ? CHECKED : { at: null, by: null }],
-      ['class-released', CHECKED],
+      [
+        'class-ready',
+        checked && !unsynced
+          ? CHECKED
+          : { at: null, by: null, ...(unsynced ? { scoresUnsynced: true } : {}) },
+      ],
+      ['class-released', releasedChecked ? CHECKED : { at: null, by: null }],
       ['class-done', CHECKED],
       ['class-ring', { at: null, by: null }],
     ]),
@@ -136,10 +147,19 @@ vi.mock('@/hooks/mutations/useReleaseResults', () => ({
   useReleaseResults: () => ({ mutate: releaseMutate, isPending: false }),
 }));
 
-const verifyMutate = vi.hoisted(() => vi.fn());
+const verifyMutate = vi.hoisted(() => vi.fn(async () => undefined));
+const net = vi.hoisted(() => ({ online: true }));
+vi.mock('@/hooks/useNetworkStatus', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/hooks/useNetworkStatus')>()),
+  useIsOnline: () => net.online,
+}));
 const undoMutate = vi.hoisted(() => vi.fn());
 vi.mock('@/features/show-map/useResultsVerifiedMutations', () => ({
-  useResultsVerifiedMutations: () => ({ verify: verifyMutate, undo: undoMutate, isPending: false }),
+  useResultsVerifiedMutations: () => ({
+    verifyAsync: verifyMutate,
+    undo: undoMutate,
+    isPending: false,
+  }),
 }));
 const recordSignOff = vi.hoisted(() => vi.fn());
 const clearSignOff = vi.hoisted(() => vi.fn());
@@ -169,6 +189,8 @@ beforeEach(() => {
   media.wide = false;
   releaseMutate.mockReset();
   verifyMutate.mockReset();
+  verifyMutate.mockResolvedValue(undefined);
+  net.online = true;
   undoMutate.mockReset();
   recordSignOff.mockReset();
   clearSignOff.mockReset();
@@ -376,6 +398,76 @@ describe('ResultsTab paper check', () => {
     await user.click(confirm);
     expect(verifyMutate).toHaveBeenCalledWith({ classId: 'class-ready' });
     expect(releaseMutate).not.toHaveBeenCalled();
+  });
+
+  it('offline: dogs can still be ticked, but saving the check waits for a connection', async () => {
+    net.online = false;
+    hook.value = { ...hook.value, rows: uncheckedRows() };
+    const { user } = renderAt('?status=all&classId=class-ready');
+
+    await user.click(screen.getByRole('checkbox', { name: 'Rex matches the paper' }));
+    expect(screen.getByRole('checkbox', { name: 'Rex matches the paper' })).toBeChecked();
+    expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeDisabled();
+    expect(screen.getByText('Connect to save the check')).toBeInTheDocument();
+    expect(verifyMutate).not.toHaveBeenCalled();
+  });
+
+  it('offline: a saved check cannot be undone until the connection is back', () => {
+    net.online = false;
+    renderAt('?status=all&classId=class-ready');
+
+    expect(screen.getByRole('button', { name: 'Undo check' })).toBeDisabled();
+    expect(screen.getByText('Connect to save the check')).toBeInTheDocument();
+  });
+
+  it('with score changes waiting to sync: Confirm and Release wait, and the reason is shown', async () => {
+    hook.value = { ...hook.value, rows: buildRows({ unsynced: true }) };
+    const { user } = renderAt('?status=all&classId=class-ready');
+
+    await user.click(screen.getByRole('checkbox', { name: 'Rex matches the paper' }));
+    expect(screen.getByText('Waiting for score changes to sync')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
+  });
+
+  it('when the server says the scores moved (MK015), the ticks start over', async () => {
+    verifyMutate.mockRejectedValueOnce({ code: 'MK015', message: 'changed' });
+    hook.value = { ...hook.value, rows: uncheckedRows() };
+    const { user } = renderAt('?status=all&classId=class-ready');
+
+    await user.click(screen.getByRole('checkbox', { name: 'Rex matches the paper' }));
+    await user.click(screen.getByRole('button', { name: 'Scores match the paper' }));
+
+    await waitFor(() =>
+      expect(screen.getByRole('checkbox', { name: 'Rex matches the paper' })).not.toBeChecked()
+    );
+    expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeDisabled();
+  });
+
+  it('keeps ticks when the save fails for any other reason', async () => {
+    verifyMutate.mockRejectedValueOnce(new Error('network down'));
+    hook.value = { ...hook.value, rows: uncheckedRows() };
+    const { user } = renderAt('?status=all&classId=class-ready');
+
+    await user.click(screen.getByRole('checkbox', { name: 'Rex matches the paper' }));
+    await user.click(screen.getByRole('button', { name: 'Scores match the paper' }));
+
+    await waitFor(() => expect(verifyMutate).toHaveBeenCalledTimes(1));
+    expect(screen.getByRole('checkbox', { name: 'Rex matches the paper' })).toBeChecked();
+  });
+
+  it('a released class whose check was undone shows the checklist again, and no second Release', async () => {
+    media.wide = true;
+    hook.value = { ...hook.value, rows: buildRows({ releasedChecked: false }) };
+    const { user } = renderAt('?status=all&classId=class-released');
+
+    expect(screen.getByText('Check the scores against the paper')).toBeInTheDocument();
+    expect(screen.getByText(/already released/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Release results' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('checkbox', { name: 'Rex matches the paper' }));
+    expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeEnabled();
+    // The list sends it back to Check scores.
+    expect(screen.getByRole('link', { name: 'Check scores: Containers Open' })).toBeInTheDocument();
   });
 
   it('un-ticking a dog locks the confirmation again', async () => {

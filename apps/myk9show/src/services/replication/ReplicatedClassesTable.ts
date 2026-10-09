@@ -26,13 +26,6 @@ import {
 } from './resolveClassVisibility';
 import { resolveHideCountsForClassRows } from './resolveClassHideCounts';
 import { resolveJudgeNamesForClassRows } from './resolveClassJudgeNames';
-import {
-  CLEAR_RESULTS_VERIFIED_RPC,
-  MARK_RESULTS_VERIFIED_RPC,
-  keepLocalResultsFingerprint,
-  nextResultsVerifiedFields,
-  type ResultsVerifiedStamp,
-} from './classResultsVerified';
 import { resolveClassJudgeFields } from '@/services/database/_shared/classJudgeFields';
 import type { JudgeNameParts } from '@/services/database/_shared/judgeNamesByClass';
 import { CLASS_AUTHENTICATED_COLUMN_SELECT } from '@/services/database/classes/reads';
@@ -144,14 +137,12 @@ export interface ReplicatedClass {
   judgeSignedOffBy?: string | null | undefined;
   /**
    * MYK9-1031: the secretary's "scores match the paper" check (`classes.results_verified_at` /
-   * `_by`). Like the sign-off, written ONLY through its RPCs (`setResultsVerified`), never by
-   * `toSupabaseRow`. `resultsVerifiedFingerprint` is LOCAL ONLY (the server never sends it): the
-   * results fingerprint this device sent with the check, kept so a local correction made before
-   * the server clears its own stamp stops reading as "checked".
+   * `_by`). Read-only here, like the release stamp's server-derived siblings: it is saved by
+   * calling the RPCs directly while online (`applyResultsVerified` then mirrors the answer), never
+   * by `toSupabaseRow`, and never queued.
    */
   resultsVerifiedAt?: string | null | undefined;
   resultsVerifiedBy?: string | null | undefined;
-  resultsVerifiedFingerprint?: string | null | undefined;
 
   // Scoring rule fields (from sport template, baked in at class creation)
   timerMode?: string | undefined;
@@ -683,11 +674,11 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     // enrichment-only (not on the raw row), so any sync path that didn't enrich
     // carries them as undefined — preserve the prior values rather than wiping
     // an already-enriched class.
-    const merged: ReplicatedClass = keepLocalResultsFingerprint(local, {
+    const merged: ReplicatedClass = {
       ...remote,
       selfCheckinEnabled: remote.selfCheckinEnabled ?? local.selfCheckinEnabled,
       visibilityPreset: remote.visibilityPreset ?? local.visibilityPreset,
-    });
+    };
 
     // MYK9-494: judge NAMES are enrichment too, and their resolver is allowed to fail (the
     // catch at fetchRemoteRows swallows it). `judgeResolved === false` therefore means
@@ -817,73 +808,30 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
   }
 
   /**
-   * MYK9-1031: record (`stamp` set) or clear (`null`) the "scores match the paper" check on ONE
-   * class, offline-first, exactly as {@link setJudgeSignOff} does: the local row changes now and
-   * the write is queued as an RPC-routed UPDATE. The mark carries the fingerprint of the results
-   * the secretary checked, so a replay after a correction is refused by the server (MK015) rather
-   * than re-stamping results nobody checked; see `healRefusedResultsVerified`.
+   * MYK9-1031: mirror the paper check the SERVER just accepted (or cleared) onto the local class,
+   * so the Results tab updates before the next sync. A clean download-style write: nothing is
+   * queued, the row is not marked dirty, and no mutation write lock is taken (those belong to
+   * `set(…, true)`). `serverVersion` is the class version the RPC returned, so a release queued
+   * next carries a fresh OCC token. A row with queued writes of its own is left to the next sync.
    */
-  async setResultsVerified(
+  async applyResultsVerified(
     classId: string,
-    stamp: ResultsVerifiedStamp | null
-  ): Promise<string | null> {
-    const currentClass = await this.get(classId);
-    if (!currentClass) {
-      throw new Error(`Class ${classId} not found`);
-    }
-    const next = nextResultsVerifiedFields(currentClass, stamp);
-    const wasDirty = (await this.getReplicatedRow(classId))?.isDirty ?? false;
-
+    stamp: { at: string; by: string | null } | null,
+    serverVersion?: number
+  ): Promise<void> {
+    const row = await this.get(classId);
+    if (!row) return;
     await this.set(
       classId,
-      { ...currentClass, ...next, _lastModified: new Date(), _syncStatus: 'pending' },
-      true
+      {
+        ...row,
+        resultsVerifiedAt: stamp?.at ?? null,
+        resultsVerifiedBy: stamp?.by ?? null,
+      },
+      false,
+      undefined,
+      serverVersion
     );
-    let mutationId: string | null;
-    try {
-      mutationId = await this.queueMutation(
-        'UPDATE',
-        classId,
-        { id: classId, results_verified_at: next.resultsVerifiedAt },
-        undefined,
-        stamp
-          ? {
-              name: MARK_RESULTS_VERIFIED_RPC,
-              args: {
-                p_class_id: classId,
-                p_results_fingerprint: stamp.fingerprint,
-                p_verified_at: next.resultsVerifiedAt,
-              },
-            }
-          : { name: CLEAR_RESULTS_VERIFIED_RPC, args: { p_class_id: classId } }
-      );
-    } catch (error) {
-      // The local stamp is only honest while a queued call backs it: with none, Release would
-      // stay unlocked after the caller was told the check failed. Put the row back as it was.
-      await this.set(classId, currentClass, true);
-      if (!wasDirty) await this.markAsSynced(classId);
-      throw error;
-    }
-    this._lastMutationId = mutationId;
-    return mutationId;
-  }
-
-  /**
-   * MYK9-1031: remember the results this device held when it first saw a check made elsewhere,
-   * so a later local correction can retract it (see `useVerifiedStamps`). Local only: nothing is
-   * queued, and a row with queued writes of its own is left alone. Returns whether it was stored.
-   */
-  async rememberResultsBaseline(
-    classId: string,
-    stampedAt: string,
-    fingerprint: string
-  ): Promise<boolean> {
-    const row = await this.get(classId);
-    if (!row?.resultsVerifiedAt || row.resultsVerifiedFingerprint) return false;
-    if (new Date(row.resultsVerifiedAt).getTime() !== new Date(stampedAt).getTime()) return false;
-    if ((await this.getReplicatedRow(classId))?.isDirty) return false;
-    await this.set(classId, { ...row, resultsVerifiedFingerprint: fingerprint }, false);
-    return true;
   }
 
   /**

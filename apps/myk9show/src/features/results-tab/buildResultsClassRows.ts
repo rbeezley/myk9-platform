@@ -67,6 +67,8 @@ export interface ResultsClassRow {
   /** When the paper check was recorded and by whom (auth uid); null = not checked. */
   verifiedAt: string | null;
   verifiedBy: string | null;
+  /** A score change of this class is still waiting to sync: no check can be saved until it has. */
+  scoresUnsynced: boolean;
   /** The judge's end-of-day sign-off (`classes.judge_signed_off_at`); null = not yet. */
   judgeSignedOffAt: string | null;
   /** The registry's wording for that sign-off (initials or signature). */
@@ -99,10 +101,13 @@ export interface BuildResultsClassRowsInput {
   releasedAtByClassId: ReadonlyMap<string, string | null | undefined>;
   /**
    * The paper check by class id (`classes.results_verified_at` / `_by`, after the local
-   * correction rule in `useVerifiedStamps`). A class with no entry is not tracked here and never
+   * unsynced-score rule in `useResultsTabData`). A class with no entry is not tracked here and never
    * waits on it.
    */
-  verifiedByClassId?: ReadonlyMap<string, { at: string | null; by: string | null }>;
+  verifiedByClassId?: ReadonlyMap<
+    string,
+    { at: string | null; by: string | null; scoresUnsynced?: boolean }
+  >;
   entries: readonly SecretaryEntry[];
   paperworkByClassId: ReadonlyMap<string, readonly SecretaryCockpitPaperwork[]>;
   /**
@@ -328,6 +333,7 @@ export function buildResultsClassRows(input: BuildResultsClassRowsInput): Result
       releasedAt: state.releasedAt ?? null,
       verifiedAt: verified?.at ?? null,
       verifiedBy: verified?.by ?? null,
+      scoresUnsynced: verified?.scoresUnsynced ?? false,
       judgeSignedOffAt: state.judgeSignedOffAt ?? null,
       judgeSignOff: {
         nextActionLabel: wording.nextActionLabel,

@@ -1,19 +1,22 @@
 /**
- * MYK9-1031: record and undo "scores match the paper" for one class.
+ * MYK9-1031: record and undo "scores match the paper" for one class. ONLINE ONLY.
  *
- * Offline-first, like the judge's sign-off beside it: the local class row changes at once and the
- * write is queued as an RPC-routed UPDATE (`ReplicatedClassesTable.setResultsVerified`), so a
- * secretary with no signal checks the class and it syncs, in queue order, on reconnect. The
- * server authorizes each one (`mark_class_results_verified` / `clear_class_results_verified`,
- * show managers only).
+ * The check is a claim about the results as the SERVER holds them: the mark carries their
+ * fingerprint and the server refuses it (MK015) when they have moved. A queued, replayed mark can
+ * never be told apart from a stale one once corrections are queued around it, so it is not queued:
+ * the RPC (`mark_class_results_verified` / `clear_class_results_verified`, show managers only) is
+ * called directly, and on success the answer is mirrored onto the local class row
+ * (`applyResultsVerified`: clean, unqueued) so the Results tab updates at once. Ticking the dogs
+ * is local and works offline; only saving the check needs a connection.
  *
- * The mark carries the fingerprint of the results the secretary was looking at. It is computed
- * from the same replica the Results tab renders (`replicatedEntriesTable.getEntriesByClass`),
- * which holds every column the server hashes; the secretary read behind the table does not.
+ * The fingerprint is computed from the same replica the Results tab renders
+ * (`replicatedEntriesTable.getEntriesByClass`), which holds every column the server hashes; the
+ * secretary read behind the table does not.
  *
  * No React here, so the Results tab and its tests share it.
  */
 import { replicatedEntriesTable, replicatedClassesTable } from '@/services/replication';
+import { supabase } from '@/services/database/supabaseClient';
 import { entryToSupabaseRow } from '@/services/replication/ReplicatedEntriesTable.mapper';
 import {
   classResultsFingerprint,
@@ -52,20 +55,45 @@ export async function currentClassResultsFingerprint(classId: string): Promise<s
   return (await classResultsSnapshot(classId)).fingerprint;
 }
 
+/** The server refused the check because the class's results changed since they were ticked. */
+export function isStaleResultsError(error: unknown): boolean {
+  return (
+    typeof error === 'object' && error !== null && (error as { code?: unknown }).code === 'MK015'
+  );
+}
+
 export async function recordResultsVerified(input: {
   classId: string;
   /** Auth uid of the secretary recording it (the server stamps its own from the JWT). */
   recordedBy: string | null;
   at?: string;
 }): Promise<void> {
-  const fingerprint = await currentClassResultsFingerprint(input.classId);
-  await replicatedClassesTable.setResultsVerified(input.classId, {
-    at: input.at ?? new Date().toISOString(),
-    by: input.recordedBy,
-    fingerprint,
+  const { fingerprint, hasUnsyncedEntries } = await classResultsSnapshot(input.classId);
+  // Results waiting to sync are results the server has never seen: its fingerprint would differ.
+  if (hasUnsyncedEntries) throw new Error('Waiting for score changes to sync.');
+  const at = input.at ?? new Date().toISOString();
+  const { data, error } = await supabase.rpc('mark_class_results_verified', {
+    p_class_id: input.classId,
+    p_results_fingerprint: fingerprint,
+    p_verified_at: at,
   });
+  if (error) throw error;
+  // The server keeps the FIRST stamp on a repeat; its `at` is not echoed, so a repeat mirrors ours.
+  await replicatedClassesTable.applyResultsVerified(
+    input.classId,
+    { at, by: input.recordedBy },
+    typeof data === 'number' ? data : undefined
+  );
 }
 
 export async function clearResultsVerified(classId: string): Promise<void> {
-  await replicatedClassesTable.setResultsVerified(classId, null);
+  const { data, error } = await supabase.rpc('clear_class_results_verified', {
+    p_class_id: classId,
+  });
+  if (error) throw error;
+  await replicatedClassesTable.applyResultsVerified(
+    classId,
+    null,
+    typeof data === 'number' ? data : undefined
+  );
 }

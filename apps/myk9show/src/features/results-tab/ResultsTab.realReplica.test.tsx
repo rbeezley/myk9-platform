@@ -16,7 +16,6 @@ import type { SyncableTrial, SyncableTrialClass } from '@/store/trial-store-type
 import { getClassesByTrialId } from '@/services/database/classes';
 import { getEntriesForShow } from '@/services/database/entries/secretary';
 import { buildReportPaperworkDescriptor } from '@/features/show-map/cockpit/buildReportPaperworkDescriptor';
-import { currentClassResultsFingerprint } from '@/features/show-map/resultsVerifiedMutations';
 import ResultsTab from './ResultsTab';
 
 const SYNC = {
@@ -113,6 +112,8 @@ beforeEach(async () => {
       startTime: '09:00',
       resultsReleasedAt: '2026-10-10T16:00:00Z',
       results_released_at: '2026-10-10T16:00:00Z',
+      resultsVerifiedAt: '2026-10-10T15:00:00Z',
+      resultsVerifiedBy: 'u-1',
     },
     {
       id: 'class-open',
@@ -150,7 +151,10 @@ describe('Results tab on the real replicated class rows', () => {
           .results_verified_at,
       ])
     );
-    expect(stamps).toEqual({ 'class-released': null, 'class-open': '2026-10-10T15:00:00Z' });
+    expect(stamps).toEqual({
+      'class-released': '2026-10-10T15:00:00Z',
+      'class-open': '2026-10-10T15:00:00Z',
+    });
   });
 
   it('shows a released class as released and enables Print all ready', async () => {
@@ -181,7 +185,7 @@ describe('Results tab on the real replicated class rows', () => {
     );
     expect(screen.getByText(/Scores checked against the paper by you/)).toBeInTheDocument();
 
-    await replicatedClassesTable.setResultsVerified('class-open', null);
+    await replicatedClassesTable.applyResultsVerified('class-open', null);
 
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled()
@@ -189,78 +193,24 @@ describe('Results tab on the real replicated class rows', () => {
     expect(screen.getByText('Check the scores against the paper')).toBeInTheDocument();
   });
 
+  it('keeps verification reachable after release: released and unchecked shows the checklist, not Release', async () => {
+    await replicatedClassesTable.applyResultsVerified('class-released', null);
+    render(
+      <Routes>
+        <Route path="/shows/:id/results" element={<ResultsTab />} />
+      </Routes>,
+      { initialRoute: '/shows/show-1/results?status=all&classId=class-released' }
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText('Check the scores against the paper')).toBeInTheDocument()
+    );
+    expect(screen.getByRole('checkbox', { name: /matches the paper/ })).toBeInTheDocument();
+    expect(screen.getByText(/already released/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Release results' })).not.toBeInTheDocument();
+  });
+
   describe('a local score change', () => {
-    const renderOpen = () =>
-      render(
-        <Routes>
-          <Route path="/shows/:id/results" element={<ResultsTab />} />
-        </Routes>,
-        { initialRoute: '/shows/show-1/results?status=all&classId=class-open' }
-      );
-
-    it('a local correction retracts a check downloaded from another device (no local fingerprint)', async () => {
-      // class-open holds a server stamp with no fingerprint (see beforeEach).
-      expect(
-        (await replicatedClassesTable.getClassById('class-open'))?.resultsVerifiedFingerprint
-      ).toBeUndefined();
-      renderOpen();
-      await waitFor(() =>
-        expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled()
-      );
-      // First sight stored the baseline on the replica row.
-      await waitFor(async () =>
-        expect(
-          (await replicatedClassesTable.getClassById('class-open'))?.resultsVerifiedFingerprint
-        ).toMatch(/^[0-9a-f]{64}$/)
-      );
-
-      await replicatedEntriesTable.updateEntry('e-class-open', { resultStatus: 'nq' } as never);
-
-      await waitFor(() =>
-        expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled()
-      );
-      expect(screen.getByText('Check the scores against the paper')).toBeInTheDocument();
-    });
-
-    it('a downloaded check is not trusted when a correction was already waiting to sync at first sight', async () => {
-      await replicatedEntriesTable.updateEntry('e-class-open', { resultStatus: 'nq' } as never);
-      renderOpen();
-
-      await waitFor(() => expect(screen.getByText('NQ')).toBeInTheDocument());
-      // Not enough to see it disabled once: it also reads disabled while the comparison runs.
-      // Let the comparison settle (a baseline would be stored by now), then check again.
-      await new Promise(resolve => setTimeout(resolve, 150));
-      expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
-      expect(
-        (await replicatedClassesTable.getClassById('class-open'))?.resultsVerifiedFingerprint
-      ).toBeUndefined();
-    });
-
-    it('a local correction retracts a check this device sent, before the server hears of it', async () => {
-      const fingerprint = await currentClassResultsFingerprint('class-open');
-      await replicatedClassesTable.setResultsVerified('class-open', {
-        at: '2026-10-10T15:30:00Z',
-        by: 'u-1',
-        fingerprint,
-      });
-      render(
-        <Routes>
-          <Route path="/shows/:id/results" element={<ResultsTab />} />
-        </Routes>,
-        { initialRoute: '/shows/show-1/results?status=all&classId=class-open' }
-      );
-      await waitFor(() =>
-        expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled()
-      );
-
-      await replicatedEntriesTable.updateEntry('e-class-open', { resultStatus: 'nq' } as never);
-
-      await waitFor(() =>
-        expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled()
-      );
-      expect(screen.getByText('Check the scores against the paper')).toBeInTheDocument();
-    });
-
     const renderClass = (queryClient?: QueryClient) =>
       render(
         <Routes>
@@ -271,6 +221,39 @@ describe('Results tab on the real replicated class rows', () => {
           ...(queryClient && { queryClient }),
         }
       );
+    const renderOpen = () =>
+      render(
+        <Routes>
+          <Route path="/shows/:id/results" element={<ResultsTab />} />
+        </Routes>,
+        { initialRoute: '/shows/show-1/results?status=all&classId=class-open' }
+      );
+
+    it('a correction waiting to sync locks Release and Confirm, and says why', async () => {
+      renderOpen();
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled()
+      );
+
+      await replicatedEntriesTable.updateEntry('e-class-open', { resultStatus: 'nq' } as never);
+
+      // The wording appears only for the "waiting to sync" state, never for "still reading".
+      await waitFor(() =>
+        expect(screen.getByText('Waiting for score changes to sync')).toBeInTheDocument()
+      );
+      expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
+      expect(screen.getByRole('button', { name: 'Scores match the paper' })).toBeDisabled();
+    });
+
+    it('a class with a correction already waiting at first sight is never offered Release', async () => {
+      await replicatedEntriesTable.updateEntry('e-class-open', { resultStatus: 'nq' } as never);
+      renderOpen();
+
+      await waitFor(() =>
+        expect(screen.getByText('Waiting for score changes to sync')).toBeInTheDocument()
+      );
+      expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
+    });
 
     it('shows an offline Fix (Q to NQ) without any manual invalidation', async () => {
       renderClass();

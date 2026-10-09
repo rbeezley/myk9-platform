@@ -35,7 +35,6 @@ import { supabase } from '@/services/database/supabaseClient';
 import { replicatedShowsTable } from '@/services/replication/ReplicatedShowsTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
-import { healRefusedResultsVerified } from '@/services/replication/healRefusedResultsVerified';
 import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntriesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
@@ -622,9 +621,6 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         count: detail.count,
         mutations: detail.mutations,
       });
-
-      // MYK9-1031: a refused "scores match the paper" must not stay on the local class.
-      void healRefusedResultsVerified(detail.mutations);
 
       // J1.3 — a ringside SCORE/check-in write rejected because the secretary
       // regenerated passcodes surfaces here (42501, non-retryable). Route it to

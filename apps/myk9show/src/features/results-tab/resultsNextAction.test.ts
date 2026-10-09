@@ -123,6 +123,21 @@ describe('deriveResultsNextAction', () => {
     expect(deriveResultsNextAction(done)).toEqual({ kind: 'none', label: 'Done' });
   });
 
+  it('released but not checked (undone, or cleared by a correction): back to Check scores', () => {
+    const released = state({
+      scoredCount: 8,
+      releasedAt: '2026-10-10T18:00:00Z',
+      paperworkPrinted: true,
+      verifiedAt: null,
+    });
+    expect(deriveResultsPhase(released)).toBe('needs-checking');
+    expect(deriveResultsNextAction(released)).toEqual({ kind: 'verify', label: 'Check scores' });
+    // Checked again, it picks up where it was.
+    expect(deriveResultsPhase({ ...released, verifiedAt: '2026-10-10T19:00:00Z' })).toBe('done');
+    // Release state unknown still outranks everything.
+    expect(deriveResultsPhase({ ...released, releasedAt: undefined })).toBe('release-unknown');
+  });
+
   it('cancelled: nothing to do, even when it carries a stale release stamp', () => {
     const cancelled = state({ classStatus: 'Cancelled', releasedAt: '2026-10-10T18:00:00Z' });
     expect(deriveResultsPhase(cancelled)).toBe('cancelled');

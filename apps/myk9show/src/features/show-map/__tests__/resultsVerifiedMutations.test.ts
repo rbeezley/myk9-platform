@@ -7,13 +7,22 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const getEntriesByClass = vi.hoisted(() => vi.fn());
+const applyResultsVerified = vi.hoisted(() => vi.fn(async () => undefined));
+const rpc = vi.hoisted(() => vi.fn());
 vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: { getEntriesByClass },
-  replicatedClassesTable: { setResultsVerified: vi.fn() },
+  replicatedClassesTable: { applyResultsVerified },
 }));
+vi.mock('@/services/database/supabaseClient', () => ({ supabase: { rpc } }));
 
 import { classResultsFingerprint } from '../classResultsFingerprint';
-import { classResultsSnapshot, currentClassResultsFingerprint } from '../resultsVerifiedMutations';
+import {
+  classResultsSnapshot,
+  clearResultsVerified,
+  currentClassResultsFingerprint,
+  isStaleResultsError,
+  recordResultsVerified,
+} from '../resultsVerifiedMutations';
 
 const replicaEntry = (overrides: Record<string, unknown> = {}) => ({
   id: '00000000-0000-0000-0000-000000104513',
@@ -31,6 +40,9 @@ const replicaEntry = (overrides: Record<string, unknown> = {}) => ({
 
 beforeEach(() => {
   getEntriesByClass.mockReset();
+  applyResultsVerified.mockClear();
+  rpc.mockReset();
+  rpc.mockResolvedValue({ data: 7, error: null });
 });
 
 describe('currentClassResultsFingerprint', () => {
@@ -106,5 +118,62 @@ describe('currentClassResultsFingerprint', () => {
 
     getEntriesByClass.mockResolvedValue([replicaEntry({ resultStatus: 'nq' })]);
     await expect(currentClassResultsFingerprint('class-1')).resolves.not.toBe(before);
+  });
+});
+
+describe('saving the check (online only, MYK9-1031)', () => {
+  const AT = '2026-10-10T21:15:00.000Z';
+
+  it('calls mark_class_results_verified directly with exactly these argument names', async () => {
+    getEntriesByClass.mockResolvedValue([replicaEntry()]);
+    const fingerprint = await currentClassResultsFingerprint('class-1');
+
+    await recordResultsVerified({ classId: 'class-1', recordedBy: 'auth-1', at: AT });
+
+    expect(rpc).toHaveBeenCalledTimes(1);
+    expect(rpc).toHaveBeenCalledWith('mark_class_results_verified', {
+      p_class_id: 'class-1',
+      p_results_fingerprint: fingerprint,
+      p_verified_at: AT,
+    });
+  });
+
+  it('mirrors the accepted check onto the local class with the returned version, never queued', async () => {
+    getEntriesByClass.mockResolvedValue([replicaEntry()]);
+
+    await recordResultsVerified({ classId: 'class-1', recordedBy: 'auth-1', at: AT });
+
+    expect(applyResultsVerified).toHaveBeenCalledWith('class-1', { at: AT, by: 'auth-1' }, 7);
+  });
+
+  it('writes nothing locally when the server refuses, and flags MK015 as stale scores', async () => {
+    getEntriesByClass.mockResolvedValue([replicaEntry()]);
+    const refusal = { code: 'MK015', message: 'results changed' };
+    rpc.mockResolvedValue({ data: null, error: refusal });
+
+    const failure = await recordResultsVerified({ classId: 'class-1', recordedBy: 'a' }).catch(
+      error => error
+    );
+
+    expect(failure).toBe(refusal);
+    expect(isStaleResultsError(failure)).toBe(true);
+    expect(isStaleResultsError({ code: '42501' })).toBe(false);
+    expect(applyResultsVerified).not.toHaveBeenCalled();
+  });
+
+  it('sends nothing while an entry of the class has a score change waiting to sync', async () => {
+    getEntriesByClass.mockResolvedValue([replicaEntry({ _syncStatus: 'pending' })]);
+
+    await expect(recordResultsVerified({ classId: 'class-1', recordedBy: 'a' })).rejects.toThrow(
+      /waiting/i
+    );
+    expect(rpc).not.toHaveBeenCalled();
+  });
+
+  it('calls clear_class_results_verified directly and mirrors the cleared row', async () => {
+    await clearResultsVerified('class-1');
+
+    expect(rpc).toHaveBeenCalledWith('clear_class_results_verified', { p_class_id: 'class-1' });
+    expect(applyResultsVerified).toHaveBeenCalledWith('class-1', null, 7);
   });
 });

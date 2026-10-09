@@ -112,7 +112,6 @@ export function useShowClassPaperwork(input: {
           results_released_at?: string | null;
           results_verified_at?: string | null;
           results_verified_by?: string | null;
-          results_verified_fingerprint?: string | null;
         }[]
       | undefined,
     reads,

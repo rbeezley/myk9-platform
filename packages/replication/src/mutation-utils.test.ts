@@ -114,17 +114,6 @@ describe('isRetryableError', () => {
     });
   });
 
-  describe('stale results check (MYK9-1045)', () => {
-    it('dead-letters a results check whose fingerprint no longer matches (MK015)', () => {
-      expect(
-        isRetryableError({
-          message: 'The class results have changed since they were checked.',
-          code: 'MK015',
-        })
-      ).toBe(false);
-    });
-  });
-
   describe('DOMException and IndexedDB errors (regression)', () => {
     // DOMException — what idb throws for things like NotFoundError when an
     // object store is missing — has a string `message` AND a numeric `code`.

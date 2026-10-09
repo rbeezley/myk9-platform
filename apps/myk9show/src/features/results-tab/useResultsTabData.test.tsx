@@ -118,7 +118,7 @@ beforeEach(() => {
 
 describe('useResultsTabData', () => {
   it("returns only this show's classes, with scores from the secretary read and the release stamp from the class rows", async () => {
-    mocks.reportClasses = [classRow('2026-10-10T16:00:00Z')];
+    mocks.reportClasses = [classRow('2026-10-10T16:00:00Z', '2026-10-10T15:45:00Z')];
     render(<Probe />);
 
     await vi.waitFor(() =>
@@ -192,7 +192,7 @@ describe('useResultsTabData', () => {
   });
 
   it('treats a failed print sync as unknown, so a released class is not read as printed', async () => {
-    mocks.reportClasses = [classRow('2026-10-10T16:00:00Z')];
+    mocks.reportClasses = [classRow('2026-10-10T16:00:00Z', '2026-10-10T15:45:00Z')];
     mocks.prints = { data: [], isError: false, syncFailed: true };
     render(<Probe />);
 
@@ -214,6 +214,7 @@ describe('useResultsTabData', () => {
       num_areas: 2,
       num_hides: 3,
       results_released_at: '2026-10-10T16:00:00Z',
+      results_verified_at: '2026-10-10T15:45:00Z',
     };
     mocks.reportClasses = [reportClass];
     mocks.schedule = {
@@ -280,7 +281,7 @@ describe('useResultsTabData', () => {
       data: mocks.reportClasses,
       error: null,
     }));
-    mocks.reportClasses = [classRow('2026-10-10T16:00:00Z')];
+    mocks.reportClasses = [classRow('2026-10-10T16:00:00Z', '2026-10-10T15:45:00Z')];
     await user.click(screen.getByRole('button', { name: 'retry' }));
 
     await vi.waitFor(() =>

@@ -11,6 +11,7 @@ import { getTrialTimezone } from '@/features/registries';
 import { useJudgeSignOffMutations } from '@/features/show-map/useJudgeSignOffMutations';
 import { useResultsVerifiedMutations } from '@/features/show-map/useResultsVerifiedMutations';
 import { useAuth } from '@/hooks/useAuth';
+import { useIsOnline } from '@/hooks/useNetworkStatus';
 import { useMediaQuery } from '@/hooks/useMediaQuery';
 import { useReleaseResults } from '@/hooks/mutations/useReleaseResults';
 import type { ResultsClassRow } from './buildResultsClassRows';
@@ -73,6 +74,7 @@ export default function ResultsTab() {
   const { user } = useAuth();
   const { pathname, search } = useLocation();
   const verification = useResultsVerifiedMutations();
+  const isOnline = useIsOnline();
   const judgeSignOff = useJudgeSignOffMutations();
   const isWide = useMediaQuery(MASTER_DETAIL_QUERY);
   const [visibilityOpen, setVisibilityOpen] = useState(false);
@@ -191,9 +193,10 @@ export default function ResultsTab() {
       releasing={release.isPending}
       onRelease={() => handleRelease(selected)}
       onRetry={retry}
-      onVerify={() => verification.verify({ classId: selected.id })}
+      onVerify={() => verification.verifyAsync({ classId: selected.id })}
       onUndoVerify={() => verification.undo({ classId: selected.id })}
       verifying={verification.isPending}
+      online={isOnline}
       currentUserId={user?.id ?? null}
       judgeSignOffSlot={
         judgeGroup ? (

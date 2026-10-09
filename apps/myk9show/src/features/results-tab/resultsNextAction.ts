@@ -32,8 +32,9 @@ export interface ResultsClassState {
   paperworkPrinted: boolean | null;
   /**
    * When the secretary's check against the paper score sheets was recorded for this class
-   * (`classes.results_verified_at`, cleared server-side when a result changes). `null` = not
-   * checked; `undefined` = not tracked here, so it never gates anything.
+   * (`classes.results_verified_at`, cleared server-side when a result changes), counted only
+   * while no score change of the class is waiting to sync. `null` = not checked, whether or not
+   * the class is released; `undefined` = not tracked here, so it never gates anything.
    */
   verifiedAt?: string | null | undefined;
   /**
@@ -85,13 +86,16 @@ export function deriveResultsPhase(state: ResultsClassState): ResultsClassPhase 
     return state.scoredCount > 0 || status === CLASS_STATUS.IN_PROGRESS ? 'in-ring' : 'not-started';
   }
   if (state.releasedAt === undefined) return 'release-unknown';
+  // Unchecked comes before released: a class whose check was undone, or cleared by a correction,
+  // goes back to Check scores even after its results were released.
+  if (state.verifiedAt === null) return 'needs-checking';
   if (state.releasedAt) {
     if (state.paperworkPrinted !== true) return 'released';
     return state.judgeSignedOffAt === null && state.judgeDayOpen !== true
       ? 'needs-initials'
       : 'done';
   }
-  return state.verifiedAt === null ? 'needs-checking' : 'ready-to-release';
+  return 'ready-to-release';
 }
 
 const NEXT_ACTION_BY_PHASE: Record<ResultsClassPhase, ResultsNextAction> = {

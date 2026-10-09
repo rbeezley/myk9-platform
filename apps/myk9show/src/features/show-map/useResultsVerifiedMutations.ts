@@ -2,45 +2,43 @@ import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { useAuth } from '@/hooks/useAuth';
-import { getUserFriendlyError } from '@/utils/errorMessages';
+import { getUserFriendlyError, mappedErrorMessage } from '@/utils/errorMessages';
 import { clearResultsVerified, recordResultsVerified } from './resultsVerifiedMutations';
 
 /**
- * MYK9-1031: "scores match the paper" as React Query mutations.
- * `onSettled` receives the class id so the caller can refresh what it shows.
+ * MYK9-1031: "scores match the paper" as React Query mutations. Online only (the default
+ * networkMode pauses them offline; the Results tab also disables the buttons): the check is saved
+ * by calling the server, never queued. `verifyAsync` rejects so the caller can reset its ticks
+ * when the server says the scores moved (MK015).
  */
-export function useResultsVerifiedMutations({
-  onSettled,
-}: {
-  onSettled?: (classId: string) => void;
-} = {}) {
+export function useResultsVerifiedMutations() {
   const { user } = useAuth();
 
-  // Offline-first (replica + queue), so it must run with no network: the app client's default
-  // 'online' networkMode would pause it before the write and lose it on reload.
   const verify = useMutation({
-    networkMode: 'always',
     mutationFn: ({ classId }: { classId: string }) =>
       recordResultsVerified({ classId, recordedBy: user?.id ?? null }),
     onSuccess: () => toast.success('Scores marked as matching the paper'),
     onError: error => {
-      toast.error(getUserFriendlyError(error, 'The check could not be saved. Try again.'));
+      toast.error(
+        mappedErrorMessage(error) ??
+          getUserFriendlyError(error, 'The check could not be saved. Try again.')
+      );
     },
-    onSettled: (_data, _error, variables) => onSettled?.(variables.classId),
   });
 
   const undo = useMutation({
-    networkMode: 'always',
     mutationFn: ({ classId }: { classId: string }) => clearResultsVerified(classId),
     onSuccess: () => toast.success('Check removed'),
     onError: error => {
-      toast.error(getUserFriendlyError(error, 'The check could not be removed. Try again.'));
+      toast.error(
+        mappedErrorMessage(error) ??
+          getUserFriendlyError(error, 'The check could not be removed. Try again.')
+      );
     },
-    onSettled: (_data, _error, variables) => onSettled?.(variables.classId),
   });
 
   return {
-    verify: verify.mutate,
+    verifyAsync: verify.mutateAsync,
     undo: undo.mutate,
     isPending: verify.isPending || undo.isPending,
   };

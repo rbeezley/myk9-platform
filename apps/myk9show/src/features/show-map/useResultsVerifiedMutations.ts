@@ -1,4 +1,4 @@
-import { useContext, useRef } from 'react';
+import { useContext, useEffect, useRef } from 'react';
 import { useMutation } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
@@ -38,7 +38,9 @@ export function useResultsVerifiedMutations() {
   // Read at execution time, not at render time: the connection can drop between click and run.
   const online = useIsOnline();
   const onlineRef = useRef(online);
-  onlineRef.current = online;
+  useEffect(() => {
+    onlineRef.current = online;
+  }, [online]);
   const requireOnline = () => {
     if (!onlineRef.current) throw new OfflineCheckError();
   };

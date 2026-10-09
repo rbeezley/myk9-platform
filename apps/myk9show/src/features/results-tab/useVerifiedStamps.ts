@@ -4,18 +4,21 @@
  * The stored stamp (`classes.results_verified_at`) is the server's word, and the server clears it
  * when a result changes. A correction made on THIS device before it syncs has not reached the
  * server yet, so the replica still says "checked" for results that are no longer the ones that
- * were checked. The replica row therefore keeps the fingerprint this device sent with its check
- * (`results_verified_fingerprint`, local only); when that no longer matches the class's results
- * on this device, the stamp is treated as cleared, so Release locks again at once instead of after
- * the next sync. A stamp with no local fingerprint (made on another device, or already echoed back
- * and cleared by the server's own rule) is the server's word and is shown as stored.
- *
- * While a fingerprint is still being computed a locally checked class reads as NOT checked: the
- * safe side for a gate in front of Release.
+ * were checked. So every stamp is compared with the results this device holds:
+ *  - a check this device sent carries the fingerprint it sent (`results_verified_fingerprint`,
+ *    local only); it stands only while the class's results still hash to it;
+ *  - a check downloaded from the server has none, so the first time it is seen the results then
+ *    held become its baseline (stored on the replica row, `rememberResultsBaseline`), and later
+ *    changes retract it. If some entry already has a local change the server has not
+ *    acknowledged, there is no honest baseline, so the check reads as not done.
+ * A wrong "not checked" costs the secretary a re-tick; a wrong "checked" releases unchecked
+ * scores, so every doubt resolves to not checked. While a snapshot is still being computed, a
+ * checked class reads as not checked too.
  */
 import { useEffect, useMemo, useState } from 'react';
 
-import { currentClassResultsFingerprint } from '@/features/show-map/resultsVerifiedMutations';
+import { classResultsSnapshot } from '@/features/show-map/resultsVerifiedMutations';
+import { replicatedClassesTable } from '@/services/replication';
 
 interface VerifiedClassRow {
   id: string;
@@ -34,55 +37,64 @@ export function useVerifiedStamps(
   /** Changes whenever the scores do (the entries read), so the comparison reruns after a Fix. */
   entriesVersion: unknown
 ): ReadonlyMap<string, VerifiedStamp> | undefined {
-  const localChecks = useMemo(
-    () =>
-      (classRows ?? []).filter(
-        row => row.results_verified_at != null && row.results_verified_fingerprint != null
-      ),
+  const stamped = useMemo(
+    () => (classRows ?? []).filter(row => row.results_verified_at != null),
     [classRows]
   );
   const [current, setCurrent] = useState<{
     rows: readonly VerifiedClassRow[];
     version: unknown;
-    fingerprints: ReadonlyMap<string, string>;
+    stillChecked: ReadonlySet<string>;
   } | null>(null);
 
   useEffect(() => {
-    if (localChecks.length === 0) return;
+    if (stamped.length === 0) return;
     let cancelled = false;
     void Promise.all(
-      localChecks.map(async row => [row.id, await currentClassResultsFingerprint(row.id)] as const)
+      stamped.map(async row => {
+        const { fingerprint, hasUnsyncedEntries } = await classResultsSnapshot(row.id);
+        const sent = row.results_verified_fingerprint;
+        if (sent != null) return fingerprint === sent ? row.id : null;
+        if (hasUnsyncedEntries) return null;
+        // First sight of a check made elsewhere: the results held now are its baseline.
+        void replicatedClassesTable
+          .rememberResultsBaseline(row.id, row.results_verified_at as string, fingerprint)
+          .catch(() => undefined);
+        return row.id;
+      })
     )
-      .then(pairs => {
-        if (!cancelled) {
-          setCurrent({ rows: localChecks, version: entriesVersion, fingerprints: new Map(pairs) });
-        }
+      .then(ids => {
+        if (cancelled) return;
+        setCurrent({
+          rows: stamped,
+          version: entriesVersion,
+          stillChecked: new Set(ids.filter((id): id is string => id !== null)),
+        });
       })
       .catch(() => {
-        // An unreadable replica proves nothing: the locally checked classes stay unchecked.
+        // An unreadable replica proves nothing: every stamp stays unchecked.
         if (!cancelled) setCurrent(null);
       });
     return () => {
       cancelled = true;
     };
-  }, [localChecks, entriesVersion]);
+  }, [stamped, entriesVersion]);
 
   return useMemo(() => {
     if (!classRows) return undefined;
-    const fresh = current?.rows === localChecks && current.version === entriesVersion;
+    const fresh = current?.rows === stamped && current.version === entriesVersion;
     return new Map(
       classRows.map(row => {
-        const at = row.results_verified_at ?? null;
-        const sent = row.results_verified_fingerprint;
-        const stillCurrent = sent == null || (fresh && current.fingerprints.get(row.id) === sent);
+        const stillChecked =
+          row.results_verified_at == null || (fresh && current.stillChecked.has(row.id));
         return [
           row.id,
           {
-            at: stillCurrent ? at : null,
-            by: stillCurrent ? (row.results_verified_by ?? null) : null,
+            at: stillChecked ? (row.results_verified_at ?? null) : null,
+            by: stillChecked ? (row.results_verified_by ?? null) : null,
           },
         ] as const;
       })
     );
-  }, [classRows, current, entriesVersion, localChecks]);
+  }, [classRows, current, entriesVersion, stamped]);
 }

@@ -832,30 +832,58 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       throw new Error(`Class ${classId} not found`);
     }
     const next = nextResultsVerifiedFields(currentClass, stamp);
+    const wasDirty = (await this.getReplicatedRow(classId))?.isDirty ?? false;
 
     await this.set(
       classId,
       { ...currentClass, ...next, _lastModified: new Date(), _syncStatus: 'pending' },
       true
     );
-    const mutationId = await this.queueMutation(
-      'UPDATE',
-      classId,
-      { id: classId, results_verified_at: next.resultsVerifiedAt },
-      undefined,
-      stamp
-        ? {
-            name: MARK_RESULTS_VERIFIED_RPC,
-            args: {
-              p_class_id: classId,
-              p_results_fingerprint: stamp.fingerprint,
-              p_verified_at: next.resultsVerifiedAt,
-            },
-          }
-        : { name: CLEAR_RESULTS_VERIFIED_RPC, args: { p_class_id: classId } }
-    );
+    let mutationId: string | null;
+    try {
+      mutationId = await this.queueMutation(
+        'UPDATE',
+        classId,
+        { id: classId, results_verified_at: next.resultsVerifiedAt },
+        undefined,
+        stamp
+          ? {
+              name: MARK_RESULTS_VERIFIED_RPC,
+              args: {
+                p_class_id: classId,
+                p_results_fingerprint: stamp.fingerprint,
+                p_verified_at: next.resultsVerifiedAt,
+              },
+            }
+          : { name: CLEAR_RESULTS_VERIFIED_RPC, args: { p_class_id: classId } }
+      );
+    } catch (error) {
+      // The local stamp is only honest while a queued call backs it: with none, Release would
+      // stay unlocked after the caller was told the check failed. Put the row back as it was.
+      await this.set(classId, currentClass, true);
+      if (!wasDirty) await this.markAsSynced(classId);
+      throw error;
+    }
     this._lastMutationId = mutationId;
     return mutationId;
+  }
+
+  /**
+   * MYK9-1031: remember the results this device held when it first saw a check made elsewhere,
+   * so a later local correction can retract it (see `useVerifiedStamps`). Local only: nothing is
+   * queued, and a row with queued writes of its own is left alone. Returns whether it was stored.
+   */
+  async rememberResultsBaseline(
+    classId: string,
+    stampedAt: string,
+    fingerprint: string
+  ): Promise<boolean> {
+    const row = await this.get(classId);
+    if (!row?.resultsVerifiedAt || row.resultsVerifiedFingerprint) return false;
+    if (new Date(row.resultsVerifiedAt).getTime() !== new Date(stampedAt).getTime()) return false;
+    if ((await this.getReplicatedRow(classId))?.isDirty) return false;
+    await this.set(classId, { ...row, resultsVerifiedFingerprint: fingerprint }, false);
+    return true;
   }
 
   /**

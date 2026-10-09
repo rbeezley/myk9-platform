@@ -165,7 +165,8 @@ describe('Results tab on the real replicated class rows', () => {
       expect(screen.getByRole('button', { name: /Print all ready/ })).toBeEnabled()
     );
     expect(screen.getByText('Released')).toBeInTheDocument();
-    expect(screen.getByText('Ready to release')).toBeInTheDocument();
+    // The check is compared with the results on this device first, so it settles a beat later.
+    await waitFor(() => expect(screen.getByText('Ready to release')).toBeInTheDocument());
   });
 
   it('a check recorded in the replica unlocks Release, and removing it locks Release again', async () => {
@@ -189,6 +190,52 @@ describe('Results tab on the real replicated class rows', () => {
   });
 
   describe('a local score change', () => {
+    const renderOpen = () =>
+      render(
+        <Routes>
+          <Route path="/shows/:id/results" element={<ResultsTab />} />
+        </Routes>,
+        { initialRoute: '/shows/show-1/results?status=all&classId=class-open' }
+      );
+
+    it('a local correction retracts a check downloaded from another device (no local fingerprint)', async () => {
+      // class-open holds a server stamp with no fingerprint (see beforeEach).
+      expect(
+        (await replicatedClassesTable.getClassById('class-open'))?.resultsVerifiedFingerprint
+      ).toBeUndefined();
+      renderOpen();
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled()
+      );
+      // First sight stored the baseline on the replica row.
+      await waitFor(async () =>
+        expect(
+          (await replicatedClassesTable.getClassById('class-open'))?.resultsVerifiedFingerprint
+        ).toMatch(/^[0-9a-f]{64}$/)
+      );
+
+      await replicatedEntriesTable.updateEntry('e-class-open', { resultStatus: 'nq' } as never);
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled()
+      );
+      expect(screen.getByText('Check the scores against the paper')).toBeInTheDocument();
+    });
+
+    it('a downloaded check is not trusted when a correction was already waiting to sync at first sight', async () => {
+      await replicatedEntriesTable.updateEntry('e-class-open', { resultStatus: 'nq' } as never);
+      renderOpen();
+
+      await waitFor(() => expect(screen.getByText('NQ')).toBeInTheDocument());
+      // Not enough to see it disabled once: it also reads disabled while the comparison runs.
+      // Let the comparison settle (a baseline would be stored by now), then check again.
+      await new Promise(resolve => setTimeout(resolve, 150));
+      expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
+      expect(
+        (await replicatedClassesTable.getClassById('class-open'))?.resultsVerifiedFingerprint
+      ).toBeUndefined();
+    });
+
     it('a local correction retracts a check this device sent, before the server hears of it', async () => {
       const fingerprint = await currentClassResultsFingerprint('class-open');
       await replicatedClassesTable.setResultsVerified('class-open', {

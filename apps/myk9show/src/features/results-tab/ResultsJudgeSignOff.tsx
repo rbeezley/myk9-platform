@@ -32,7 +32,7 @@ export function ResultsJudgeSignOff({
 }: ResultsJudgeSignOffProps) {
   const wording = judgeSignOffWording(group.registryId);
   const total = group.classes.length;
-  const heading = [group.judgeName || 'Judge', group.dayLabel].filter(Boolean).join(' · ');
+  const heading = [group.judgeName || 'Judge not set', group.dayLabel].filter(Boolean).join(' · ');
   const printHref = getCockpitReportHref({
     reportId: 'result-catalog',
     scope: group.catalogScope,

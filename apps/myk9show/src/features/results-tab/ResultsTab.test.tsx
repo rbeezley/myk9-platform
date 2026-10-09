@@ -461,6 +461,26 @@ describe('ResultsTab judge sign-off', () => {
     });
   });
 
+  it('says "Judge not set" and drops the judge from the button when no judge is assigned', () => {
+    const rows = buildRows({ dayOver: true }).map(row => ({
+      ...row,
+      judgeName: '',
+      judgeId: '',
+    }));
+    hook.value = { ...hook.value, rows };
+    renderAt('?status=all&classId=class-released');
+
+    // With no judge each class is its own day, so the section is that one class.
+    const section = screen.getByRole('region', { name: 'Judge sign-off' });
+    expect(
+      within(section).getByText(/^Judge not set · .*Oct 10 · 1 of 1 complete/)
+    ).toBeInTheDocument();
+    expect(
+      within(section).getByRole('button', { name: /^Record initials: \w{3}, Oct 10$/ })
+    ).toBeInTheDocument();
+    expect(within(section).queryByText(/judge,/i)).not.toBeInTheDocument();
+  });
+
   it('undoes one class at a time', async () => {
     hook.value = { ...hook.value, rows: buildRows({ dayOver: true }) };
     const { user } = renderAt('?status=all&classId=class-done');

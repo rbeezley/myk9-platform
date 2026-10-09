@@ -139,6 +139,38 @@ describe('ReplicatedClassesTable results verified (MYK9-1031)', () => {
     });
   });
 
+  it('puts the row back when the queue refuses the write, so Release does not unlock', async () => {
+    await table.set('class-1', baseClass());
+    queueMutation.mockRejectedValueOnce(new Error('queue full'));
+
+    await expect(
+      table.setResultsVerified('class-1', { at: AT, by: 'auth-secretary', fingerprint: FP })
+    ).rejects.toThrow('queue full');
+
+    const row = await table.getClassById('class-1');
+    expect(row?.resultsVerifiedAt ?? null).toBeNull();
+    expect(row?.resultsVerifiedFingerprint ?? null).toBeNull();
+    expect((await table.getReplicatedRow('class-1'))?.isDirty).toBe(false);
+  });
+
+  it('stores a baseline for a check made elsewhere, once, locally, with nothing queued', async () => {
+    await table.set('class-1', baseClass({ resultsVerifiedAt: AT, resultsVerifiedBy: 'auth-x' }));
+
+    await expect(table.rememberResultsBaseline('class-1', AT, FP)).resolves.toBe(true);
+    expect(await table.getClassById('class-1')).toMatchObject({ resultsVerifiedFingerprint: FP });
+    expect(queueMutation).not.toHaveBeenCalled();
+    // A second sight never overwrites the first baseline.
+    await expect(table.rememberResultsBaseline('class-1', AT, 'c'.repeat(64))).resolves.toBe(false);
+    expect(await table.getClassById('class-1')).toMatchObject({ resultsVerifiedFingerprint: FP });
+  });
+
+  it('stores no baseline for a stamp that has since changed', async () => {
+    await table.set('class-1', baseClass({ resultsVerifiedAt: AT }));
+    await expect(
+      table.rememberResultsBaseline('class-1', '2026-10-11T08:00:00.000Z', FP)
+    ).resolves.toBe(false);
+  });
+
   it('queues the undo through clear_class_results_verified', async () => {
     await table.set(
       'class-1',

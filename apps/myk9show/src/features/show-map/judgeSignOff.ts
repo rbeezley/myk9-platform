@@ -39,6 +39,12 @@ export interface JudgeSignOffWording {
   pendingSignalLabel: (count: number) => string;
 }
 
+/** "Record initials: Jane Smith, Sat, Oct 10"; with no judge set, just "Record initials: Sat, Oct 10". */
+function recordLabel(verb: string, judgeName: string | undefined, day: string): string {
+  const detail = [judgeName?.trim(), day].filter(Boolean).join(', ');
+  return detail ? `${verb}: ${detail}` : verb;
+}
+
 const AKC_WORDING: JudgeSignOffWording = {
   actionLabel: "Collect judge's initials",
   nextActionLabel: 'Initials',
@@ -51,8 +57,7 @@ const AKC_WORDING: JudgeSignOffWording = {
   checklistEndOfDayDetail: 'Judge initials at end of day',
   resultsControlInstruction:
     "Verify the judge's initials on the printed result catalog before sending.",
-  recordActionLabel: (judgeName, day) =>
-    `Record initials: ${judgeName?.trim() || 'judge'}${day ? `, ${day}` : ''}`,
+  recordActionLabel: (judgeName, day) => recordLabel('Record initials', judgeName, day),
   recordActionWhy: "Records the judge's initials on every completed class they judged that day",
   undoActionLabel: 'Undo initials',
   recordedMessage: count => `Initials recorded on ${count} ${count === 1 ? 'class' : 'classes'}`,
@@ -72,8 +77,7 @@ const SIGNATURE_WORDING: JudgeSignOffWording = {
   checklistNoneDetail: 'No entries to sign',
   checklistEndOfDayDetail: 'Judge signs at end of day',
   resultsControlInstruction: 'Verify judge signatures on the paper reports before sending.',
-  recordActionLabel: (judgeName, day) =>
-    `Record signature: ${judgeName?.trim() || 'judge'}${day ? `, ${day}` : ''}`,
+  recordActionLabel: (judgeName, day) => recordLabel('Record signature', judgeName, day),
   recordActionWhy: "Records the judge's signature on every completed class they judged that day",
   undoActionLabel: 'Undo signature',
   recordedMessage: count => `Signature recorded on ${count} ${count === 1 ? 'class' : 'classes'}`,

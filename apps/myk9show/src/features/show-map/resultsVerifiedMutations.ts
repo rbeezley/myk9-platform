@@ -14,35 +14,42 @@
  * No React here, so the Results tab and its tests share it.
  */
 import { replicatedEntriesTable, replicatedClassesTable } from '@/services/replication';
+import { entryToSupabaseRow } from '@/services/replication/ReplicatedEntriesTable.mapper';
 import {
   classResultsFingerprint,
   type ClassResultsFingerprintEntry,
 } from './classResultsFingerprint';
 
+/**
+ * A class's results as this device holds them right now: their fingerprint, and whether any entry
+ * still has a local change the server has not acknowledged (so the fingerprint may describe
+ * results the server has never seen).
+ *
+ * Each entry is projected through `entryToSupabaseRow`, the exact row the upload writes, so the
+ * hash covers what the server will hold (the legacy snake_case aliases can be stale: a placement
+ * recalculation updates `finalPlacement` alone, and a non-qualified result uploads no placement).
+ */
+export async function classResultsSnapshot(
+  classId: string
+): Promise<{ fingerprint: string; hasUnsyncedEntries: boolean }> {
+  const entries = await replicatedEntriesTable.getEntriesByClass(classId);
+  const fingerprint = await classResultsFingerprint(
+    entries.map(entry => {
+      const row = entryToSupabaseRow(entry) as Omit<ClassResultsFingerprintEntry, 'id'>;
+      return { ...row, id: entry.id } as ClassResultsFingerprintEntry;
+    })
+  );
+  return {
+    fingerprint,
+    hasUnsyncedEntries: entries.some(
+      entry => entry._syncStatus !== undefined && entry._syncStatus !== 'synced'
+    ),
+  };
+}
+
 /** The fingerprint of a class's results as this device holds them right now. */
 export async function currentClassResultsFingerprint(classId: string): Promise<string> {
-  const entries = await replicatedEntriesTable.getEntriesByClass(classId);
-  return classResultsFingerprint(
-    entries.map((entry): ClassResultsFingerprintEntry => ({
-      id: entry.id,
-      deleted_at: entry.deleted_at ?? entry.deletedAt ?? null,
-      is_scored: entry.is_scored ?? entry.isScored ?? null,
-      result_status: entry.result_status ?? entry.resultStatus ?? null,
-      search_time_seconds: entry.search_time_seconds ?? entry.searchTimeSeconds ?? null,
-      area1_time_seconds: entry.area1_time_seconds ?? null,
-      area2_time_seconds: entry.area2_time_seconds ?? null,
-      area3_time_seconds: entry.area3_time_seconds ?? null,
-      area4_time_seconds: entry.area4_time_seconds ?? null,
-      total_correct_finds: entry.total_correct_finds ?? null,
-      total_incorrect_finds: entry.total_incorrect_finds ?? null,
-      total_faults: entry.total_faults ?? entry.totalFaults ?? null,
-      no_finish_count: entry.no_finish_count ?? null,
-      total_score: entry.total_score ?? entry.totalScore ?? null,
-      points_earned: entry.points_earned ?? null,
-      final_placement: entry.final_placement ?? entry.finalPlacement ?? null,
-      disqualification_reason: entry.disqualification_reason ?? null,
-    }))
-  );
+  return (await classResultsSnapshot(classId)).fingerprint;
 }
 
 export async function recordResultsVerified(input: {

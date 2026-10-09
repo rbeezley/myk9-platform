@@ -413,15 +413,13 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         }));
         syncInFlightRef.current = false;
 
-        void invalidatePostSyncQueries(queryClient, selectedNames);
+        const succeededTables = selectedTables
+          .filter((_, i) => syncResults[i]?.ok)
+          .map(({ name, scope }) => ({ name, scope }));
+        void invalidatePostSyncQueries(queryClient, selectedNames, succeededTables);
         // MYK9-1064: the canonical show-entries query for each show a scoped
         // entries pass downloaded, whatever component or hook asked for it.
-        refetchShowEntriesAfterScopedSync(
-          queryClient,
-          selectedTables
-            .filter((_, i) => syncResults[i]?.ok)
-            .map(({ name, scope }) => ({ name, scope }))
-        );
+        refetchShowEntriesAfterScopedSync(queryClient, succeededTables);
 
         logger.info(
           targets ? 'Scoped ringside sync complete' : 'Full sync complete',

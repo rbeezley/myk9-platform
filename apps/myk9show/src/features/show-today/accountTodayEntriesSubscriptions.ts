@@ -17,11 +17,17 @@ interface SharedSubscription {
 
 export function createAccountTodayEntriesSubscriptionRegistry(
   sources: readonly AccountTodaySubscriptionSource[],
-  coalesceMs = 100
+  coalesceMs = 100,
+  /** Sources whose writes can change WHICH entries are the account's (membership). */
+  membershipSources: readonly AccountTodaySubscriptionSource[] = []
 ) {
   const clients = new WeakMap<QueryClient, Map<string, SharedSubscription>>();
 
-  const retain = (queryClient: QueryClient, queryKey: QueryKey): (() => void) => {
+  const retain = (
+    queryClient: QueryClient,
+    queryKey: QueryKey,
+    idsQueryKey?: QueryKey
+  ): (() => void) => {
     let entries = clients.get(queryClient);
     if (!entries) {
       entries = new Map();
@@ -47,7 +53,17 @@ export function createAccountTodayEntriesSubscriptionRegistry(
         }, coalesceMs);
       };
       created.unsubscribes = sources.map(source =>
-        source.subscribe(invalidate, { emitCurrent: false })
+        source.subscribe(
+          () => {
+            // Mark the id list stale at once so the coalesced re-hydration below
+            // re-asks the server; other tables re-hydrate from the cached ids.
+            if (idsQueryKey && membershipSources.includes(source)) {
+              void queryClient.invalidateQueries({ queryKey: idsQueryKey });
+            }
+            invalidate();
+          },
+          { emitCurrent: false }
+        )
       );
       shared = created;
       entries.set(registryKey, created);

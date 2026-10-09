@@ -69,7 +69,7 @@ describe('useAccountTodayEntries', () => {
     }
   });
 
-  it('re-hydrates from the replicas on a sync storm without calling the RPC again', async () => {
+  async function mountWithCapturedWrites() {
     mocks.rpc.mockClear();
     const queryClient = new QueryClient({
       defaultOptions: { queries: { retry: false } },
@@ -77,31 +77,50 @@ describe('useAccountTodayEntries', () => {
     const wrapper = ({ children }: { children: ReactNode }) => (
       <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
     );
-    // Capture the invalidate callback the registry hands every replica source.
-    const callbacks: Array<() => void> = [];
-    for (const source of [mocks.entries, mocks.classes, mocks.trials, mocks.shows]) {
+    const writes: Record<string, () => void> = {};
+    for (const [name, source] of Object.entries({
+      entries: mocks.entries,
+      classes: mocks.classes,
+      trials: mocks.trials,
+      shows: mocks.shows,
+    })) {
       source.subscribe.mockImplementation(((cb: () => void) => {
-        callbacks.push(cb);
+        writes[name] = cb;
         return vi.fn();
       }) as never);
     }
     mocks.rpc.mockResolvedValue({ data: [{ entry_id: 'e1' }], error: null });
-    mocks.entries.getAll.mockClear();
-
-    const { result, unmount } = renderHook(() => useAccountTodayEntries(), { wrapper });
-    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    const hook = renderHook(() => useAccountTodayEntries(), { wrapper });
+    await waitFor(() => expect(hook.result.current.isSuccess).toBe(true));
     expect(mocks.rpc).toHaveBeenCalledTimes(1);
-    const hydrationsBefore = mocks.entries.getAll.mock.calls.length;
+    return { ...hook, writes };
+  }
+  const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-    // Four replica tables write at different moments across a sync (>coalesce apart).
-    for (const cb of callbacks) {
-      cb();
-      await new Promise(resolve => setTimeout(resolve, 150));
+  it('re-hydrates from the replicas on classes/trials/shows writes without the RPC', async () => {
+    const { result, unmount, writes } = await mountWithCapturedWrites();
+    const hydrationsBefore = mocks.entries.getAll.mock.calls.length;
+    for (const name of ['classes', 'trials', 'shows']) {
+      writes[name]?.();
+      await pause(150);
     }
     await waitFor(() =>
       expect(mocks.entries.getAll.mock.calls.length).toBeGreaterThan(hydrationsBefore)
     );
+    expect(result.current.isSuccess).toBe(true);
     expect(mocks.rpc).toHaveBeenCalledTimes(1);
+    unmount();
+  });
+
+  it('asks the server once per coalesced burst of entries writes and drops a withdrawn entry', async () => {
+    const { result, unmount, writes } = await mountWithCapturedWrites();
+    mocks.rpc.mockResolvedValue({ data: [], error: null });
+    writes.entries?.();
+    writes.entries?.();
+    writes.entries?.();
+    await waitFor(() => expect(result.current.data).toEqual([]));
+    await pause(150);
+    expect(mocks.rpc).toHaveBeenCalledTimes(2);
     unmount();
   });
 });

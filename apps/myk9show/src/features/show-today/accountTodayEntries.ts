@@ -19,20 +19,20 @@ import { createAccountTodayEntriesSubscriptionRegistry } from './accountTodayEnt
 export const accountTodayEntriesQueryKey = (userId: string | undefined) =>
   ['account-today-entries', userId ?? 'anonymous'] as const;
 
-const accountTodaySubscriptions = createAccountTodayEntriesSubscriptionRegistry([
-  replicatedEntriesTable,
-  replicatedClassesTable,
-  replicatedTrialsTable,
-  replicatedShowsTable,
-]);
+const accountTodaySubscriptions = createAccountTodayEntriesSubscriptionRegistry(
+  [replicatedEntriesTable, replicatedClassesTable, replicatedTrialsTable, replicatedShowsTable],
+  100,
+  [replicatedEntriesTable]
+);
 
 /**
  * The server's list of entry ids is its own query, apart from the hydrated rows.
- * Replica writes during a sync (entries, classes, trials, shows land apart)
- * only change how those ids hydrate, so they re-run the hydration, never the
- * RPC (MYK9-1066: a class page issued 6 RPC calls in 2 s). The RPC re-runs when
- * ids go stale (60 s), which also covers an entry placed elsewhere. The key sits
- * outside the hydrated key's prefix, which the subscriptions invalidate.
+ * Writes to classes, trials and shows only change how the ids hydrate, so they
+ * re-run the hydration, never the RPC (MYK9-1066: a class page issued 6 RPC
+ * calls in 2 s). A write to `entries` can change membership (added, withdrawn,
+ * pulled), so it marks the ids stale and the coalesced burst re-asks once. The
+ * 60 s staleTime still bounds an entry placed elsewhere. The key sits outside
+ * the hydrated key's prefix so the hydration invalidation does not mark it.
  */
 const accountTodayIdsQueryKey = (userId: string | undefined) =>
   ['account-today-entry-ids', userId ?? 'anonymous'] as const;
@@ -82,12 +82,13 @@ export function useAccountTodayEntries(options: UseAccountTodayEntriesOptions = 
   const { user } = useAuthContext();
   const queryClient = useQueryClient();
   const enabled = (options.enabled ?? true) && !!user;
-  const queryKey = useMemo(() => accountTodayEntriesQueryKey(user?.id), [user?.id]);
+  const userId = user?.id;
+  const queryKey = useMemo(() => accountTodayEntriesQueryKey(userId), [userId]);
 
   useEffect(() => {
     if (!enabled) return;
-    return accountTodaySubscriptions.retain(queryClient, queryKey);
-  }, [enabled, queryClient, queryKey]);
+    return accountTodaySubscriptions.retain(queryClient, queryKey, accountTodayIdsQueryKey(userId));
+  }, [enabled, queryClient, queryKey, userId]);
 
   return useQuery({
     queryKey,

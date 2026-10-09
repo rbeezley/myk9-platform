@@ -27,26 +27,46 @@ async function mountObservers(s: ReturnType<typeof setup>): Promise<() => void> 
 }
 
 describe('post-sync show entries refetch (MYK9-1066)', () => {
-  it('a shows-table sync refreshes show queries but not the show entries read', async () => {
+  it('an unscoped pass touching shows refetches a mounted show-entries query once', async () => {
     const s = setup();
     const stop = await mountObservers(s);
     expect(s.showEntriesFn).toHaveBeenCalledTimes(1);
 
     await invalidatePostSyncQueries(s.queryClient, ['shows']);
-    await new Promise(resolve => setTimeout(resolve, 20));
+    refetchShowEntriesAfterScopedSync(s.queryClient, []);
+    await new Promise(resolve => setTimeout(resolve, 30));
 
-    expect(s.showFn).toHaveBeenCalledTimes(2);
-    expect(s.showEntriesFn).toHaveBeenCalledTimes(1);
+    expect(s.showEntriesFn).toHaveBeenCalledTimes(2);
     stop();
   });
 
-  it('a scoped entries pass plus the table invalidation reads show entries exactly once more', async () => {
+  it('a pass with a scoped entries target for the show refetches it once, not twice', async () => {
     const s = setup();
     const stop = await mountObservers(s);
+    const succeeded = [
+      { name: 'entries', scope: 's1' },
+      { name: 'shows', scope: '' },
+    ];
 
-    await invalidatePostSyncQueries(s.queryClient, ['entries', 'shows']);
-    refetchShowEntriesAfterScopedSync(s.queryClient, [{ name: 'entries', scope: 's1' }]);
+    await invalidatePostSyncQueries(s.queryClient, ['entries', 'shows'], succeeded);
+    refetchShowEntriesAfterScopedSync(s.queryClient, succeeded);
     await new Promise(resolve => setTimeout(resolve, 50));
+
+    expect(s.showEntriesFn).toHaveBeenCalledTimes(2);
+    expect(s.showFn).toHaveBeenCalledTimes(2);
+    stop();
+  });
+
+  it('a scoped pass for another show still refetches this show through the prefix', async () => {
+    const s = setup();
+    const stop = await mountObservers(s);
+    const succeeded = [
+      { name: 'entries', scope: 's2' },
+      { name: 'shows', scope: '' },
+    ];
+
+    await invalidatePostSyncQueries(s.queryClient, ['entries', 'shows'], succeeded);
+    await new Promise(resolve => setTimeout(resolve, 30));
 
     expect(s.showEntriesFn).toHaveBeenCalledTimes(2);
     stop();

@@ -16,12 +16,9 @@ import { getPostSyncInvalidationKeys } from './replicationSyncStatus';
  */
 export function refetchShowEntriesAfterScopedSync(
   queryClient: QueryClient,
-  succeeded: readonly { name: string; scope: string }[]
+  succeeded: readonly SucceededTable[]
 ): void {
-  const showIds = new Set(
-    succeeded.filter(({ name, scope }) => name === 'entries' && scope).map(({ scope }) => scope)
-  );
-  for (const showId of showIds) {
+  for (const showId of scopedEntriesShowIds(succeeded)) {
     const queryKey = queryKeys.showEntries(showId);
     void queryClient
       .cancelQueries({ queryKey })
@@ -30,26 +27,43 @@ export function refetchShowEntriesAfterScopedSync(
   }
 }
 
-/**
- * A show's entries read lives at `['shows', showId, 'entries', ...]`, so the
- * `['shows']` table invalidation after every pass refetched it too, whether or
- * not any entries were downloaded (MYK9-1066: one class page read it, and its
- * per-row pull metadata, three times). Only a scoped `entries` pass changes
- * those rows, and `refetchShowEntriesAfterScopedSync` refetches them then.
- */
-const isShowEntriesQueryKey = (queryKey: readonly unknown[]): boolean =>
-  queryKey[0] === 'shows' && queryKey[2] === 'entries';
+type SucceededTable = { name: string; scope: string };
 
-/** Invalidate the per-table queries for the tables a pass synced. */
+/** Shows a successful scoped `entries` pass downloaded. */
+const scopedEntriesShowIds = (succeeded: readonly SucceededTable[]): Set<string> =>
+  new Set(
+    succeeded.filter(({ name, scope }) => name === 'entries' && scope).map(({ scope }) => scope)
+  );
+
+/**
+ * Invalidate the per-table queries for the tables a pass synced.
+ *
+ * A show's entries read lives at `['shows', showId, 'entries', ...]`, so the
+ * `['shows']` prefix reaches it. That stays: a pass cannot say what changed
+ * (armbands, dogs, trials and refund metadata all feed those rows). But a show
+ * the same pass refetches through `refetchShowEntriesAfterScopedSync` is left
+ * out here, so each mounted show-entries query refetches once per pass, not
+ * twice (MYK9-1066: one class page read it, and its per-row pull metadata,
+ * three times).
+ */
 export function invalidatePostSyncQueries(
   queryClient: QueryClient,
-  tableNames: readonly string[]
+  tableNames: readonly string[],
+  succeeded: readonly SucceededTable[] = []
 ): Promise<void[]> {
+  const refetchedByScopedPass = scopedEntriesShowIds(succeeded);
   return Promise.all(
     getPostSyncInvalidationKeys(tableNames).map(queryKey =>
       queryClient.invalidateQueries({
         queryKey,
-        predicate: query => !isShowEntriesQueryKey(query.queryKey),
+        predicate: query => {
+          const key = query.queryKey;
+          return !(
+            key[0] === 'shows' &&
+            key[2] === 'entries' &&
+            refetchedByScopedPass.has(String(key[1]))
+          );
+        },
       })
     )
   );

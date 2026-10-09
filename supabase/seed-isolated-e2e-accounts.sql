@@ -61,6 +61,26 @@ WHERE NOT EXISTS (
      OR lower(person.email) = account.email
 );
 
+-- MYK9-1010: an AKC entry is refused when the dog's owner has no complete
+-- address, and these accounts own the dogs the specs enter. Obviously fake;
+-- the single source is apps/myk9show/scripts/demoAccountNames.ts
+-- (DEMO_ACCOUNT_ADDRESSES), pinned by demoAccountAddressesContract.test.ts.
+UPDATE public.people AS person
+SET street_address = address.street_address,
+    city = address.city,
+    state = address.state,
+    zip_code = address.zip_code
+FROM (VALUES
+  ('exhibitor@myk9t.com', '101 Demo Lane', 'Demoville', 'KS', '99999'),
+  ('secretary@myk9t.com', '102 Demo Lane', 'Demoville', 'KS', '99999'),
+  ('judge@myk9t.com', '103 Demo Lane', 'Demoville', 'KS', '99999'),
+  ('testadmin@myk9t.com', '104 Demo Lane', 'Demoville', 'KS', '99999'),
+  ('clubadmin@myk9t.com', '105 Demo Lane', 'Demoville', 'KS', '99999'),
+  ('chairman@myk9t.com', '106 Demo Lane', 'Demoville', 'KS', '99999'),
+  ('exhibitor2@myk9t.com', '107 Demo Lane', 'Demoville', 'KS', '99999')
+) AS address(email, street_address, city, state, zip_code)
+WHERE lower(person.email) = address.email;
+
 DO $$
 DECLARE
   account_count integer;

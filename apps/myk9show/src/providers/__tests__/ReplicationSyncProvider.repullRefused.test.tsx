@@ -23,7 +23,13 @@ vi.mock('sonner', () => ({
 vi.mock('@/hooks/useStoreSubscriptions', () => ({ useStoreSubscriptions: () => undefined }));
 
 const { repullRowsForMutations, discardFailedMutationMock } = vi.hoisted(() => ({
-  repullRowsForMutations: vi.fn().mockResolvedValue(['people']),
+  repullRowsForMutations: vi.fn().mockResolvedValue([
+    {
+      tableName: 'dog_registrations',
+      replacedRows: [],
+      removedRows: [{ id: 'reg-1', dogId: 'dog-1' }],
+    },
+  ]),
   discardFailedMutationMock: vi.fn().mockResolvedValue(undefined),
 }));
 
@@ -53,13 +59,13 @@ import { toast } from 'sonner';
 
 const refused = {
   id: 'mut-1',
-  tableName: 'people',
-  rowId: 'person-1',
+  tableName: 'dog_registrations',
+  rowId: 'reg-1',
   operation: 'UPDATE',
   error: 'Permission denied',
   failureKind: 'authorization',
 };
-const exhausted = { ...refused, id: 'mut-2', rowId: 'person-2', failureKind: 'max-retries' };
+const exhausted = { ...refused, id: 'mut-2', rowId: 'reg-2', failureKind: 'max-retries' };
 
 let queryClient: QueryClient;
 function renderProvider() {
@@ -104,13 +110,14 @@ describe('ReplicationSyncProvider re-pulls refused rows (MYK9-1071)', () => {
     expect(repullRowsForMutations).toHaveBeenCalledWith([refused]);
   });
 
-  it('refreshes the people readers after a re-pull changed rows', async () => {
+  it('applies a re-pull to the registration caches through the shared cache update', async () => {
     renderProvider();
-    const invalidate = vi.spyOn(queryClient, 'invalidateQueries');
+    queryClient.setQueryData(['registrations', 'dog', 'dog-1'], [{ id: 'reg-1' }, { id: 'reg-9' }]);
     act(() => dispatchSyncFailed([refused]));
 
-    await waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['users'] }));
-    expect(invalidate).toHaveBeenCalledWith({ queryKey: ['dogs'] });
+    await waitFor(() =>
+      expect(queryClient.getQueryData(['registrations', 'dog', 'dog-1'])).toEqual([{ id: 'reg-9' }])
+    );
   });
 
   it('re-pulls the discarded mutations after Discard', async () => {

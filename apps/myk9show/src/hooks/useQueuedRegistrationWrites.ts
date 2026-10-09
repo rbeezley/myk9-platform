@@ -1,5 +1,4 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { queryKeys } from '@/lib/queryClient';
 import {
   replicatedDogRegistrationsTable,
   type RegistrationAddFields,
@@ -7,7 +6,7 @@ import {
 } from '@/services/replication/ReplicatedDogRegistrationsTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { useReplicaRowForEdit } from '@/hooks/useReplicaRowForEdit';
-import { refreshCachedRegistrations } from '@/hooks/refreshCachedRegistrations';
+import { applyUnsentRegistrations } from '@/hooks/registrationCacheUpdate';
 
 export const REGISTRATION_NOT_ON_DEVICE =
   'This registration is not saved on this device yet. Reconnect and try the edit again.';
@@ -31,10 +30,7 @@ export function useQueuedRegistrationWrites() {
     onMissing: 'silent',
   });
 
-  const refresh = async (dogId: string) => {
-    await refreshCachedRegistrations(queryClient, dogId);
-    queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
-  };
+  const refresh = (dogId: string) => applyUnsentRegistrations(queryClient, dogId);
 
   const addRegistration = async (dogId: string, fields: RegistrationAddFields) => {
     const dog = await replicatedDogsTable.getDogById(dogId);

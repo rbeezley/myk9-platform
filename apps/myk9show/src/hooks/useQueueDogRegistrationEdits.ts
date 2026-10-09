@@ -1,13 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { notifications } from '@/lib/notifications';
-import { queryKeys } from '@/lib/queryClient';
 import { logger } from '@/services/LoggingService';
 import type { DogInput } from '@/store/dogStore';
 import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { syncDogRegistrations } from '@/hooks/dogStoreCompatHelpers';
 import { useEnsureReplicaWarm } from '@/hooks/useReplicaRowForEdit';
-import { refreshCachedRegistrations } from '@/hooks/refreshCachedRegistrations';
+import { applyUnsentRegistrations } from '@/hooks/registrationCacheUpdate';
 
 type RegistrationEdits = NonNullable<DogInput['registrations']>;
 
@@ -46,8 +45,7 @@ export function useQueueDogRegistrationEdits(): (
         dependsOn ? { dependsOn } : {}
       );
       if (changed) {
-        await refreshCachedRegistrations(queryClient, dogId);
-        queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
+        await applyUnsentRegistrations(queryClient, dogId);
       }
     } catch (err) {
       logger.error('Failed to queue registration changes', 'dogs', { dogId }, err as Error);

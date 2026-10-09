@@ -7,7 +7,6 @@ import type {
 } from '@myk9/replication';
 import { logger } from '@myk9/core';
 import { replicatedDogRegistrationsTable } from './ReplicatedDogRegistrationsTable';
-import { replicatedShowDeskPeopleTable } from './ReplicatedShowDeskPeopleTable';
 
 /**
  * Re-pull a refused row from the server (MYK9-1071, decision D3).
@@ -35,7 +34,12 @@ export interface RepullableTable<TRemote, TLocal extends { id: string }> {
   ): Promise<ReplaceRefusedRowsResult>;
 }
 
-export type RepullResult = ReplaceRefusedRowsResult;
+export interface RepullResult<TLocal> extends ReplaceRefusedRowsResult {
+  /** The server copies now in the replica, for the caller's caches. */
+  replacedRows: TLocal[];
+  /** The local rows that were removed (refused adds, or rows gone server-side). */
+  removedRows: TLocal[];
+}
 
 function remoteVersionOf(remote: unknown): number | undefined {
   const version = (remote as { version?: unknown } | null)?.version;
@@ -50,27 +54,39 @@ function remoteVersionOf(remote: unknown): number | undefined {
 export async function repullRows<TRemote, TLocal extends { id: string }>(
   table: RepullableTable<TRemote, TLocal>,
   rowIds: readonly string[]
-): Promise<RepullResult> {
+): Promise<RepullResult<TLocal>> {
   const ids = [...new Set(rowIds.map(String))];
-  if (ids.length === 0) return { replaced: [], removed: [], skipped: [] };
+  if (ids.length === 0) {
+    return { replaced: [], removed: [], skipped: [], replacedRows: [], removedRows: [] };
+  }
   const expected = new Map<string, number | undefined>();
-  for (const id of ids) expected.set(id, (await table.getReplicatedRow(id))?.version);
+  const localRows = new Map<string, TLocal>();
+  for (const id of ids) {
+    const row = await table.getReplicatedRow(id);
+    expected.set(id, row?.version);
+    if (row) localRows.set(id, row.data);
+  }
 
   const adapter = table.getRefetchAdapter();
   const remoteRows = await adapter.fetchRowsById(ids);
   const byId = new Map(remoteRows.map(remote => [adapter.getRemoteId(remote), remote]));
 
-  return table.replaceRefusedRows(
-    ids.map(id => {
-      const remote = byId.get(id);
-      return {
-        id,
-        expectedRowVersion: expected.get(id),
-        remote: remote === undefined ? null : adapter.toLocalRow(remote),
-        remoteServerVersion: remote === undefined ? undefined : remoteVersionOf(remote),
-      };
-    })
-  );
+  const entries = ids.map(id => {
+    const remote = byId.get(id);
+    return {
+      id,
+      expectedRowVersion: expected.get(id),
+      remote: remote === undefined ? null : adapter.toLocalRow(remote),
+      remoteServerVersion: remote === undefined ? undefined : remoteVersionOf(remote),
+    };
+  });
+  const result = await table.replaceRefusedRows(entries);
+  const entryById = new Map(entries.map(entry => [entry.id, entry]));
+  return {
+    ...result,
+    replacedRows: result.replaced.flatMap(id => entryById.get(id)?.remote ?? []),
+    removedRows: result.removed.flatMap(id => localRows.get(id) ?? []),
+  };
 }
 
 /** The tables whose refused rows are re-pulled. */
@@ -79,7 +95,6 @@ const REPULL_TABLES: Record<string, RepullableTable<unknown, { id: string }>> = 
     unknown,
     { id: string }
   >,
-  people: replicatedShowDeskPeopleTable as unknown as RepullableTable<unknown, { id: string }>,
 };
 
 /** Failed mutations whose refusal is final, so the local claim must go now. */
@@ -87,14 +102,21 @@ export function isFinalRefusal(mutation: Pick<PendingMutation, 'failureKind'>): 
   return mutation.failureKind === 'permanent' || mutation.failureKind === 'authorization';
 }
 
+/** A table's re-pull outcome, for the caches that show it. */
+export interface RepulledRows {
+  tableName: string;
+  replacedRows: { id: string }[];
+  removedRows: { id: string }[];
+}
+
 /**
  * Re-pull the rows behind these mutations, for the tables in REPULL_TABLES.
  * Never rejects: a failed re-pull is logged and the next refusal or Discard
- * tries again. Returns the tables whose rows changed.
+ * tries again. Returns, per table, the rows that changed.
  */
 export async function repullRowsForMutations(
   mutations: readonly (Pick<PendingMutation, 'tableName'> & { rowId?: string })[]
-): Promise<string[]> {
+): Promise<RepulledRows[]> {
   const idsByTable = new Map<string, string[]>();
   for (const mutation of mutations) {
     if (!(mutation.tableName in REPULL_TABLES) || mutation.rowId === undefined) continue;
@@ -103,26 +125,17 @@ export async function repullRowsForMutations(
     idsByTable.set(mutation.tableName, ids);
   }
 
-  const touched = await Promise.all(
-    [...idsByTable].map(async ([tableName, ids]) => {
+  const outcomes = await Promise.all(
+    [...idsByTable].map(async ([tableName, ids]): Promise<RepulledRows | null> => {
       try {
         const result = await repullRows(REPULL_TABLES[tableName]!, ids);
-        return result.replaced.length + result.removed.length > 0 ? tableName : null;
+        if (result.replacedRows.length + result.removedRows.length === 0) return null;
+        return { tableName, replacedRows: result.replacedRows, removedRows: result.removedRows };
       } catch (err) {
         logger.warn(`[${tableName}] Re-pull of refused rows failed`, err);
         return null;
       }
     })
   );
-  return touched.filter((name): name is string => name !== null);
+  return outcomes.filter((outcome): outcome is RepulledRows => outcome !== null);
 }
-
-/**
- * The React Query caches that show each re-pullable table (MYK9-1071). Those
- * readers do not subscribe to the replica, so a re-pull must refresh them or the
- * UI keeps showing the refused value.
- */
-export const REPULL_CONSUMER_QUERY_KEYS: Record<string, readonly (readonly string[])[]> = {
-  dog_registrations: [['registrations'], ['dogs']],
-  people: [['users'], ['dogs']],
-};

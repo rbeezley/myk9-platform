@@ -41,9 +41,10 @@ import { replicatedDogRegistrationsTable } from '@/services/replication/Replicat
 import { replicatedShowDeskPeopleTable } from '@/services/replication/ReplicatedShowDeskPeopleTable';
 import {
   isFinalRefusal,
-  REPULL_CONSUMER_QUERY_KEYS,
   repullRowsForMutations,
+  type RepulledRows,
 } from '@/services/replication/repullRefusedRows';
+import { applyRepullToCaches } from '@/services/replication/repullCacheUpdate';
 import { replicatedClubsTable } from '@/services/replication/ReplicatedClubsTable';
 import { replicatedJudgeAssignmentsTable } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
 import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
@@ -620,14 +621,9 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   // Failed mutations are kept in the failed_mutations IDB store until the
   // user explicitly retries or discards them — never auto-deleted.
   useEffect(() => {
-    // MYK9-1071: the people and registration readers do not watch the replica.
-    const refreshRepullConsumers = (tables: string[]) => {
-      for (const table of tables) {
-        for (const queryKey of REPULL_CONSUMER_QUERY_KEYS[table] ?? []) {
-          void queryClient.invalidateQueries({ queryKey: [...queryKey] });
-        }
-      }
-    };
+    // MYK9-1071: the registration readers do not watch the replica.
+    const refreshRepullConsumers = (outcomes: RepulledRows[]) =>
+      applyRepullToCaches(queryClient, outcomes);
     const handleSyncFailed = (event: Event) => {
       const detail = (event as CustomEvent<SyncFailedEventDetail>).detail;
       logger.error('Replication sync failed', 'replication', {

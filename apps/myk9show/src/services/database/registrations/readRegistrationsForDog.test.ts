@@ -46,12 +46,10 @@ describe('readRegistrationsForDog (MYK9-1071)', () => {
     expect((await readRegistrationsForDog('dog-1')).data.map(row => row.id)).toEqual(['r2']);
   });
 
-  it('offline, a queued add still shows instead of the read error', async () => {
-    getRegistrationsByDog.mockResolvedValue({ data: [], error: new Error('offline') });
+  it('a failed read reports the error, never the unsent rows alone (review round 2)', async () => {
+    const offline = new Error('offline');
+    getRegistrationsByDog.mockResolvedValue({ data: [], error: offline });
     replica.getRegistrationsForDog.mockResolvedValue([{ id: 'add', organization: 'ASCA' }]);
-    expect(await readRegistrationsForDog('dog-1')).toEqual({
-      data: [{ id: 'add', organization: 'ASCA' }],
-      error: null,
-    });
+    expect(await readRegistrationsForDog('dog-1')).toEqual({ data: [], error: offline });
   });
 });

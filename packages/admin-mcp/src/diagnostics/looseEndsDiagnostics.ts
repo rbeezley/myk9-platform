@@ -30,8 +30,7 @@ import { redactEmail } from './redaction';
 import type { DiagnosticEvidence, DiagnosticLink, DiagnosticResult } from './types';
 import { createDiagnosticResult } from './types';
 
-/** Most rows read per table; PostgREST pages are 1000, so this is five pages. */
-const SCAN_CAP = 5000;
+/** PostgREST returns at most max_rows (1000) per request. */
 const PAGE = 1000;
 const IN_CHUNK = 150;
 
@@ -73,19 +72,19 @@ type Page<T> = PromiseLike<{ data: T[] | null; error: unknown }>;
 
 class SourceError extends Error {}
 
+/** Read a show-scoped input to completion: page with `.range()` until a short page. */
 async function fetchPaged<T>(
   what: string,
   build: (from: number, to: number) => Page<T>
-): Promise<{ rows: T[]; truncated: boolean }> {
+): Promise<T[]> {
   const rows: T[] = [];
-  for (let from = 0; from < SCAN_CAP; from += PAGE) {
+  for (let from = 0; ; from += PAGE) {
     const { data, error } = await build(from, from + PAGE - 1);
     if (error) throw new SourceError(`Could not read ${what}.`);
     const batch = data ?? [];
     rows.push(...batch);
-    if (batch.length < PAGE) return { rows, truncated: false };
+    if (batch.length < PAGE) return rows;
   }
-  return { rows, truncated: true };
 }
 
 /**
@@ -205,7 +204,7 @@ async function build(
       .range(from, to)
       .returns<LooseEntry[]>()
   );
-  const entries = entriesRead.rows;
+  const entries = entriesRead;
   const enrollmentsRead = await fetchPaged<EnrollmentRow>('enrollments', (from, to) =>
     supabase
       .from('enrollments')
@@ -238,15 +237,6 @@ async function build(
       .range(from, to)
       .returns<PersonRow[]>()
   );
-  for (const [what, read] of [
-    ['entries', entriesRead],
-    ['enrollments', enrollmentsRead],
-    ['attributed dogs', dogsRead],
-    ['attributed people', peopleRead],
-  ] as const) {
-    if (read.truncated) limitations.push(`Only the first ${SCAN_CAP} ${what} were scanned.`);
-  }
-
   // Who is "in" the show: dogs with a live entry, and the people tied to them.
   const entryDogIds = new Set(entries.flatMap(e => (e.dog_id ? [e.dog_id] : [])));
   const enteredDogs = await fetchByIds<{ id: string; owner_id: string | null }>(
@@ -263,17 +253,17 @@ async function build(
   for (const e of entries) if (e.handler_id) involvedPeople.add(e.handler_id);
   for (const d of enteredDogs) if (d.owner_id) involvedPeople.add(d.owner_id);
 
-  const enrollmentHandlers = new Set(enrollmentsRead.rows.map(e => e.handler_id));
+  const enrollmentHandlers = new Set(enrollmentsRead.map(e => e.handler_id));
 
   // (a) attributed. An enrollment handler with no entries is reported under (b), not here.
-  const attributedDogs = dogsRead.rows.filter(d => !entryDogIds.has(d.id));
-  const attributedPeople = peopleRead.rows.filter(p => !involvedPeople.has(p.id));
+  const attributedDogs = dogsRead.filter(d => !entryDogIds.has(d.id));
+  const attributedPeople = peopleRead.filter(p => !involvedPeople.has(p.id));
 
   // (b) enrollments <-> entries
   const enrollmentIdsWithEntries = new Set(
     entries.flatMap(e => (e.registration_id ? [e.registration_id] : []))
   );
-  const emptyEnrollments = enrollmentsRead.rows.filter(e => !enrollmentIdsWithEntries.has(e.id));
+  const emptyEnrollments = enrollmentsRead.filter(e => !enrollmentIdsWithEntries.has(e.id));
   const orphanEntries = entries.filter(e => !e.registration_id);
 
   // (c) duplicates, (d) stuck
@@ -320,10 +310,7 @@ async function build(
           .range(from, to)
           .returns<PersonRow[]>()
     );
-    if (candidateDogs.truncated || candidatePeople.truncated) {
-      limitations.push(`Heuristic scan stopped at ${SCAN_CAP} rows; the guess list is incomplete.`);
-    }
-    const windowDogs = candidateDogs.rows.filter(
+    const windowDogs = candidateDogs.filter(
       d => inAnyWindow(d.created_at, windows) && !entryDogIds.has(d.id)
     );
     // A dog entered in any other show is in use, not abandoned.
@@ -346,7 +333,7 @@ async function build(
     );
     guessDogs = windowDogs.filter(d => !enteredElsewhere.has(d.id));
     // A person with an account signed themselves up; the add-entry flow makes accountless rows.
-    const windowPeople = candidatePeople.rows.filter(
+    const windowPeople = candidatePeople.filter(
       p =>
         inAnyWindow(p.created_at, windows) &&
         !involvedPeople.has(p.id) &&

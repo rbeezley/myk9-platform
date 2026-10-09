@@ -214,4 +214,69 @@ describe('diagnoseShowLooseEnds', () => {
     expect(guesses).not.toContain('Busy');
     expect(guesses).toContain('Liddle');
   });
+
+  it('reads every page of a large show: an entry past row 5000 still counts', async () => {
+    const tables = looseEndsTables();
+    tables.people!.push({
+      id: 'pBerk',
+      first_name: 'Berk',
+      last_name: 'Tester',
+      email: null,
+      created_at: '2026-10-01T10:06:00Z',
+      created_by: 'auth-1',
+      created_from_show_id: SHOW_ID,
+      auth_user_id: null,
+      deleted_at: null,
+    });
+    tables.dogs!.push({
+      id: 'dBerk',
+      call_name: 'Berkeley2',
+      owner_id: 'pBerk',
+      created_at: '2026-10-01T10:06:00Z',
+      created_by: 'auth-1',
+      created_from_show_id: SHOW_ID,
+      deleted_at: null,
+    });
+    tables.enrollments!.push({
+      id: 'enB',
+      show_id: SHOW_ID,
+      confirmation_number: 'C-BERK',
+      handler_id: 'pBerk',
+      payment_status: 'paid',
+      created_at: '2026-10-01T10:06:00Z',
+    });
+    for (let i = 0; i < 5200; i += 1) {
+      tables.entries!.push({
+        id: `f-${String(i).padStart(5, '0')}`,
+        show_id: SHOW_ID,
+        dog_id: 'dA',
+        class_id: `fill${i}`,
+        registration_id: 'en1',
+        handler_id: 'pAnn',
+        entry_status: 'confirmed',
+        confirmation_email_status: 'sent',
+        created_at: '2026-10-01T10:01:00Z',
+        deleted_at: null,
+      });
+    }
+    // Sorts after every filler row (created_at asc), so it lands on page 6.
+    tables.entries!.push({
+      id: 'z-berk',
+      show_id: SHOW_ID,
+      dog_id: 'dBerk',
+      class_id: 'c1',
+      registration_id: 'enB',
+      handler_id: 'pBerk',
+      entry_status: 'confirmed',
+      confirmation_email_status: 'sent',
+      created_at: '2026-10-01T10:20:00Z',
+      deleted_at: null,
+    });
+    const { result, rows } = await run(tables);
+    expect(rows('Dog created from this show').join()).not.toContain('Berkeley2');
+    expect(rows('Person created from this show').join()).not.toContain('Berk Tester');
+    expect(rows('Enrollment with no entries').join()).not.toContain('C-BERK');
+    expect(result.summary).toMatchObject({ entriesScanned: expect.any(Number) });
+    expect(Number(result.summary['entriesScanned'])).toBeGreaterThan(5200);
+  });
 });

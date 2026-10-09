@@ -9,13 +9,16 @@ what an issue queue needs: selection, holds, Linear state and the run summary.
 
 1. **Where you sit.** The orchestrator runs from the main checkout
    (`/Users/richardbeezley/AI Projects/myk9-platform`) on a clean, pulled `main`. It never edits
-   files there. Every issue gets its own worktree.
+   files there. Every issue gets its own worktree. Don't start the run from an `EnterWorktree`
+   session: that isolation refuses git in the main checkout, which the merge step and the
+   per-issue `git worktree add` need. `ExitWorktree` (keep) first.
 2. **Selection.**
    - The owner named ids: that list, in that order.
    - No list: `list_issues` (team `MyK9-platform`, state `Todo`; Backlog is never read). Rank by
      priority, then by fit with `docs/goals/fall-2026-launch-readiness.md` (secretary and
      show-day reliability first), then closest to done. Propose the top 3 with one line each and
-     wait for one yes. This is the only question the run asks.
+     wait for one yes. This is the only question the run asks. If no Todo issue is eligible (all
+     held, or human-only), say so and ask for ids. Never fall back to Backlog yourself.
 3. **Preflight.** One `get_issue` call proves the Linear connector works. If it's down, stop: a
    run that can't write Linear can't leave it accurate. Check that `codex --version` answers; if
    it doesn't, say before starting that any `independent`-tier PR will wait unmerged.
@@ -59,6 +62,11 @@ git -C "$MAIN" worktree add "$WT" -b "$BRANCH" origin/main
 (cd "$WT" && bash scripts/bootstrap-worktree.sh)
 ```
 
+Keep the `cd` inside the subshell: a bare `cd` moves the orchestrator's own working directory
+into the issue worktree. `git -C "$WT" status --short` must be empty afterwards. If bootstrap's
+`turbo` run injected its agent-guidance block into `AGENTS.md`, `git -C "$WT" restore AGENTS.md`
+so it doesn't ride along in the PR.
+
 Then `save_issue` → **In Progress**. Write the ledger row.
 
 ### 3. Implement and review
@@ -77,15 +85,27 @@ review gate, with a maximum of 3 rounds.
 - a test runner hangs for more than 30s, or required CI is still red after two fix attempts;
 - the implementer failed 3 review rounds and escalation would need Opus.
 
+**E2E repro runs** need the main checkout's `apps/myk9show/.env.local` (bootstrap doesn't copy
+it): `set -a; . "$MAIN/apps/myk9show/.env.local"; set +a`, then run the spec pinned to its own
+port (`PLAYWRIGHT_BASE_URL=http://127.0.0.1:<port> PLAYWRIGHT_PORT=<port>`) so it doesn't
+attach to another worktree's dev server. Never print the env values.
+
 ### 4. Ship
 
 From `$WT`, run `ship-pr` (Steps A–C, 3a, 4, 5). This run's authorization covers the push, the
 PR and the squash-merge. Additions specific to the run:
 
 - **PR title and body name only `MYK9-<n>`** (`Fixes MYK9-<n>`). A sibling or parent id in the
-  body auto-completes that issue too when this PR merges.
+  body auto-completes that issue too when this PR merges. That includes the agent-involvement and risk prose: write "the orchestrate dry run", not its tracking id.
+- **Step A (simplify):** under 150 changed lines, your line-by-line review read is the simplify
+  pass, so don't spend three more agents on it. Larger diffs run `/simplify`.
 - **Ratchet:** `pnpm qa:code-quality-ratchet` from `$WT` when the diff adds lines to an
   existing file.
+- **`adversarial` floor:** dispatch two `sonnet` lenses (read only, distinct bug-finding
+  angles) in parallel. Fix or evidence every finding, then **re-run both lenses on the new
+  head**: `post-review-gate.sh` posts "all findings addressed" only over a clean final log.
+  That log's first paragraph must open with the contract sentence `No actionable findings at
+<sha>: …`, and it must carry no `[P*]` bullets, so record round-1 findings in prose.
 - **Migration in the diff:** carry it through the PR and the review gate (`migration-auditor`
   is one adversarial lens), then **do not merge**. Set In Review: "PR #X ready; needs
   `supabase db push` after merge, then merge."
@@ -94,6 +114,9 @@ PR and the squash-merge. Additions specific to the run:
 - **Watcher exit 3:** run it once more. If it times out again, arm `gh pr merge --squash
 --auto`, keep the worktree, leave the issue In Progress, and mark the ledger "merge pending".
   The run summary lists it for `/cleanup` later.
+- **Read the watcher's own exit code** (`…; echo "WATCH_EXIT=$?"`), never a wrapper's. If
+  the failed check is `Review gate` and its status predates your gate comment, the
+  comment-triggered run hasn't finished yet. Re-run the watcher once before treating it as red.
 - **Watcher exit 1:** a fix attempt, which counts toward the two-red-CI hold. Exit 2 means a new
   head, so re-run the gate.
 

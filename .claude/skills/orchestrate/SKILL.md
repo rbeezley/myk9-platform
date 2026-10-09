@@ -57,9 +57,12 @@ The dispatch prompt is self-contained and has these parts, in order:
 4. Scope fence: "Change only what the task requires. No opportunistic refactors. Do not touch
    `tasks.md`, migrations or Linear. Do not deploy, push, open a PR, spawn sub-agents, run a
    review or post a `Review gate:` comment. Do not run the full app suite; run the affected
-   test files. Commit `wip:` before any verification that takes longer than a minute. Use
-   bounded waits only (`timeout`, never open-ended `sleep` loops), and wait for your tests to
-   finish before you end your turn."
+   test files. Run `pnpm exec prettier --write` on every file you touch. Never commit
+   `AGENTS.md`: `turbo` rewrites it on every `pnpm typecheck`, so `git restore AGENTS.md` before
+   each commit. Commit `wip:` before any verification that takes longer than a minute. Use
+   bounded waits only (the Bash tool's timeout, or `for i in $(seq 1 40)`; macOS has no
+   `timeout` command), never open-ended `sleep` loops, and wait for your tests to finish before
+   you end your turn."
 5. The report format below, as its final message.
 
 ```
@@ -83,6 +86,11 @@ Don't trust the report. Verify it.
    - [ ] Tests exist for new logic. If anything is value-sensitive, re-run the focused tests yourself
    - [ ] `pnpm typecheck` clean (run it yourself on the final round)
    - [ ] No direct Supabase reads where replication is required, and no file pushed over 500 lines
+   - [ ] `pnpm format:check:changed` clean, and the diff carries no stray files (`AGENTS.md`'s
+         turbo block, scratch files)
+   - [ ] A layout or behavior fix is proven by the real artifact, not by a class or source-text
+         assertion. Run the issue's repro (e2e spec, browser at the stated width) on the branch,
+         and once on `main` as a control that must fail
 3. On failure, send the same agent (SendMessage, which keeps its context) a numbered defect list
    and re-review. **Max 3 rounds.** After that, escalate (see Model routing) or implement it
    yourself. A cheap model looping past the point where you'd be faster is waste.

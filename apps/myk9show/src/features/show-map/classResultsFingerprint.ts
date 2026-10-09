@@ -91,23 +91,36 @@ export function entryResultsLine(entry: ClassResultsFingerprintEntry): string | 
   ].join('|');
 }
 
+/**
+ * The canonical text from lines already built by {@link entryResultsLine} (entries with no result
+ * contribute none). Lets a row carry its own line, so a fingerprint can be hashed later from
+ * exactly the rows that were on screen.
+ */
+export function classResultsCanonicalTextFromLines(lines: readonly string[]): string {
+  const keyed = lines.map(line => ({ id: line.slice(0, line.indexOf('|')), line }));
+  keyed.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+  return `${CLASS_RESULTS_FINGERPRINT_VERSION}\n${keyed.map(row => row.line).join('\n')}`;
+}
+
 /** The exact string the fingerprint hashes. Exported for the agreement test. */
 export function classResultsCanonicalText(
   entries: readonly ClassResultsFingerprintEntry[]
 ): string {
-  const lines = entries
-    .map(entry => ({ id: entry.id.toLowerCase(), line: entryResultsLine(entry) }))
-    .filter((row): row is { id: string; line: string } => row.line != null)
-    .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0))
-    .map(row => row.line);
-  return `${CLASS_RESULTS_FINGERPRINT_VERSION}\n${lines.join('\n')}`;
+  return classResultsCanonicalTextFromLines(
+    entries.map(entryResultsLine).filter((line): line is string => line != null)
+  );
+}
+
+/** sha256 hex of a canonical results text: the value `mark_class_results_verified` expects. */
+export async function hashClassResultsText(text: string): Promise<string> {
+  const bytes = new TextEncoder().encode(text);
+  const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
+  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
 }
 
 /** sha256 hex of the class's canonical results text: the value `mark_class_results_verified` expects. */
 export async function classResultsFingerprint(
   entries: readonly ClassResultsFingerprintEntry[]
 ): Promise<string> {
-  const bytes = new TextEncoder().encode(classResultsCanonicalText(entries));
-  const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
-  return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+  return hashClassResultsText(classResultsCanonicalText(entries));
 }

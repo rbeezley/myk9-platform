@@ -4,6 +4,7 @@ import { projectHandlerIdentity } from '@/features/registries/handlerIdentity';
 import type { SecretaryCockpitPaperwork } from '@/features/show-map/cockpit/secretaryCockpitTypes';
 import type { SecretaryEntry } from '@/services/database/entries';
 import type { SyncableTrial, SyncableTrialClass } from '@/store/trial-store-types';
+import { classResultsCanonicalTextFromLines } from '@/features/show-map/classResultsFingerprint';
 import {
   buildResultsClassRows,
   pickResultsPaperwork,
@@ -222,6 +223,70 @@ describe('buildResultsClassRows', () => {
     expect(phase(released, new Map())).toBe('released');
     expect(phase(released, stale)).toBe('released');
     expect(phase(released, printed)).toBe('done');
+  });
+
+  describe('paper check (MYK9-1031 part 2b)', () => {
+    const build = (
+      verified: { at: string | null; by: string | null } | undefined,
+      status = 'Completed',
+      extra: Record<string, unknown> = {}
+    ) =>
+      buildResultsClassRows({
+        trials: [trial],
+        trialClasses: {
+          'trial-1': [trialClass('class-1', { status: status as SyncableTrialClass['status'] })],
+        },
+        releasedAtByClassId: new Map([['class-1', null]]),
+        ...(verified ? { verifiedByClassId: new Map([['class-1', verified]]) } : {}),
+        paperworkByClassId: new Map(),
+        entries: [
+          scored('e-1', 'class-1', {
+            result_status: 'qualified',
+            final_placement: 1,
+            results_line: 'e-1|line',
+            ...extra,
+          }),
+        ],
+      })[0]!;
+
+    it('holds an unchecked class at Needs checking and lets a checked one through to Release', () => {
+      const unchecked = build({ at: null, by: null });
+      expect(unchecked).toMatchObject({ phase: 'needs-checking', verifiedAt: null });
+      expect(unchecked.nextAction).toEqual({ kind: 'verify', label: 'Check scores' });
+
+      expect(build({ at: '2026-10-10T15:45:00Z', by: 'auth-1' })).toMatchObject({
+        phase: 'ready-to-release',
+        verifiedAt: '2026-10-10T15:45:00Z',
+        verifiedBy: 'auth-1',
+      });
+      // Not tracked (no map): never gates, as part 1 left it.
+      expect(build(undefined).phase).toBe('ready-to-release');
+    });
+
+    it('carries the canonical results text of the rows it was projected from', () => {
+      const row = build({ at: null, by: null });
+      expect(row.resultsCanonical).toBe(classResultsCanonicalTextFromLines(['e-1|line']));
+      // A new line from the same read changes it: that is what lapses the ticks.
+      expect(
+        build({ at: null, by: null }, 'Completed', { results_line: 'e-1|other' }).resultsCanonical
+      ).not.toBe(row.resultsCanonical);
+    });
+
+    it('has no canonical text when a row came from a read that carries no line', () => {
+      const row = buildResultsClassRows({
+        trials: [trial],
+        trialClasses: { 'trial-1': [trialClass('class-1')] },
+        releasedAtByClassId: new Map([['class-1', null]]),
+        paperworkByClassId: new Map(),
+        entries: [scored('e-1', 'class-1', { result_status: 'qualified' })],
+      })[0]!;
+      expect(row.resultsCanonical).toBeNull();
+    });
+
+    it('says whether the stored status is Completed, the only state the server accepts a check in', () => {
+      expect(build({ at: null, by: null }, 'Completed').statusCompleted).toBe(true);
+      expect(build({ at: null, by: null }, 'In Progress').statusCompleted).toBe(false);
+    });
   });
 
   describe('judge sign-off (MYK9-1031 part 2a)', () => {

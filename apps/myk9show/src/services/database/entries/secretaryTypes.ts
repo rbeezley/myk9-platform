@@ -2,6 +2,11 @@ import type { ProjectedEntryHandler } from './entryHandlerProjection';
 
 export interface SecretaryEntry {
   id: string;
+  /**
+   * MYK9-1031: this entry's results line as the replica held it when the row was read (null = no
+   * result yet). Hashed with its class's other lines it is the paper check's fingerprint.
+   */
+  results_line?: string | null;
   dog_id: string | null;
   class_id: string | null;
   trial_id: string | null;

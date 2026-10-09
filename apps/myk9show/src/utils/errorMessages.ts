@@ -39,6 +39,9 @@ export const ERROR_CODE_MESSAGES: Record<string, string> = {
   MK014:
     'This class, trial or show has been deleted, so it can no longer take entries. Refresh to see the current schedule.',
 
+  // MYK9-1045: mark_class_results_verified refuses a check whose scores moved since they were ticked.
+  MK015: 'The scores changed since you ticked them. Check them again.',
+
   // Application-level refusals (MYK9-136). These carry copy that is the whole
   // point of the refusal, so they must be mapped — this function discards the
   // original message in production.

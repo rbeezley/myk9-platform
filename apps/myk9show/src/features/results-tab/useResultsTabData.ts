@@ -89,12 +89,31 @@ export function useResultsTabData(showId: string) {
     [paperwork.classRows]
   );
 
+  // The stored paper check, as the class rows hold it: a HINT that enables Release. The click asks
+  // the server (ResultsTab.handleRelease), which is what decides.
+  const verifiedByClassId = useMemo(
+    () =>
+      paperwork.classRows
+        ? new Map(
+            paperwork.classRows.map(
+              cls =>
+                [
+                  cls.id,
+                  { at: cls.results_verified_at ?? null, by: cls.results_verified_by ?? null },
+                ] as const
+            )
+          )
+        : undefined,
+    [paperwork.classRows]
+  );
+
   const rows = useMemo<ResultsClassRow[]>(
     () =>
       buildResultsClassRows({
         trials: showTrials,
         trialClasses: schedule.trialClasses,
         releasedAtByClassId,
+        ...(verifiedByClassId ? { verifiedByClassId } : {}),
         entries,
         paperworkByClassId: paperwork.byClassId,
         paperworkAvailable: paperwork.available,
@@ -114,6 +133,7 @@ export function useResultsTabData(showId: string) {
       schedule.trialClasses,
       showId,
       showTrials,
+      verifiedByClassId,
     ]
   );
 

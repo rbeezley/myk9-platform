@@ -34,7 +34,7 @@ vi.mock('@/features/show-map/cockpit/useShowPaperworkPrints', () => ({
 }));
 
 /** The full class row Reports reads, carrying the release stamp. */
-const classRow = (releasedAt: string | null) => ({
+const classRow = (releasedAt: string | null, verifiedAt: string | null = null) => ({
   id: 'class-1',
   trial_id: 'trial-1',
   element: 'Containers',
@@ -42,6 +42,8 @@ const classRow = (releasedAt: string | null) => ({
   section: '',
   status: 'Completed',
   results_released_at: releasedAt,
+  results_verified_at: verifiedAt,
+  results_verified_by: verifiedAt ? 'auth-1' : null,
 });
 
 const trial = {
@@ -116,7 +118,7 @@ beforeEach(() => {
 
 describe('useResultsTabData', () => {
   it("returns only this show's classes, with scores from the secretary read and the release stamp from the class rows", async () => {
-    mocks.reportClasses = [classRow('2026-10-10T16:00:00Z')];
+    mocks.reportClasses = [classRow('2026-10-10T16:00:00Z', '2026-10-10T15:45:00Z')];
     render(<Probe />);
 
     await vi.waitFor(() =>
@@ -135,12 +137,21 @@ describe('useResultsTabData', () => {
     expect(getClassesByTrialId).not.toHaveBeenCalled();
   });
 
-  it('offers Release only for a confirmed-null release stamp', async () => {
-    mocks.reportClasses = [classRow(null)];
+  it('offers Release only for a confirmed-null release stamp on a class checked against the paper', async () => {
+    mocks.reportClasses = [classRow(null, '2026-10-10T15:45:00Z')];
     render(<Probe />);
 
     await vi.waitFor(() =>
       expect(screen.getByTestId('rows')).toHaveTextContent('class-1:ready-to-release:1/1')
+    );
+  });
+
+  it('holds a class whose stored check is empty at needs-checking, read from the class row', async () => {
+    mocks.reportClasses = [classRow(null)];
+    render(<Probe />);
+
+    await vi.waitFor(() =>
+      expect(screen.getByTestId('rows')).toHaveTextContent('class-1:needs-checking:1/1')
     );
   });
 
@@ -181,7 +192,7 @@ describe('useResultsTabData', () => {
   });
 
   it('treats a failed print sync as unknown, so a released class is not read as printed', async () => {
-    mocks.reportClasses = [classRow('2026-10-10T16:00:00Z')];
+    mocks.reportClasses = [classRow('2026-10-10T16:00:00Z', '2026-10-10T15:45:00Z')];
     mocks.prints = { data: [], isError: false, syncFailed: true };
     render(<Probe />);
 
@@ -203,6 +214,7 @@ describe('useResultsTabData', () => {
       num_areas: 2,
       num_hides: 3,
       results_released_at: '2026-10-10T16:00:00Z',
+      results_verified_at: '2026-10-10T15:45:00Z',
     };
     mocks.reportClasses = [reportClass];
     mocks.schedule = {
@@ -269,7 +281,7 @@ describe('useResultsTabData', () => {
       data: mocks.reportClasses,
       error: null,
     }));
-    mocks.reportClasses = [classRow('2026-10-10T16:00:00Z')];
+    mocks.reportClasses = [classRow('2026-10-10T16:00:00Z', '2026-10-10T15:45:00Z')];
     await user.click(screen.getByRole('button', { name: 'retry' }));
 
     await vi.waitFor(() =>

@@ -135,6 +135,13 @@ export interface ReplicatedClass {
    */
   judgeSignedOffAt?: string | null | undefined;
   judgeSignedOffBy?: string | null | undefined;
+  /**
+   * MYK9-1031: the secretary's "scores match the paper" check (`classes.results_verified_at` /
+   * `_by`). Read-only here: it is saved by calling the RPCs directly while online and reaches this
+   * replica only by the ordinary class sync, never by `toSupabaseRow` and never queued.
+   */
+  resultsVerifiedAt?: string | null | undefined;
+  resultsVerifiedBy?: string | null | undefined;
 
   // Scoring rule fields (from sport template, baked in at class creation)
   timerMode?: string | undefined;
@@ -241,6 +248,8 @@ export function rowToClass(row: ClassRow): ReplicatedClass {
     results_released_by: row.results_released_by ?? null,
     judgeSignedOffAt: row.judge_signed_off_at ?? null,
     judgeSignedOffBy: row.judge_signed_off_by ?? null,
+    resultsVerifiedAt: row.results_verified_at ?? null,
+    resultsVerifiedBy: row.results_verified_by ?? null,
 
     // Scoring rule fields
     timerMode: (dbRow.timer_mode as string | undefined) ?? undefined,

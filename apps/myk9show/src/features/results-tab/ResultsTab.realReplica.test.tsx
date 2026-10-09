@@ -112,6 +112,8 @@ beforeEach(async () => {
       startTime: '09:00',
       resultsReleasedAt: '2026-10-10T16:00:00Z',
       results_released_at: '2026-10-10T16:00:00Z',
+      resultsVerifiedAt: '2026-10-10T15:00:00Z',
+      resultsVerifiedBy: 'u-1',
     },
     {
       id: 'class-open',
@@ -122,9 +124,21 @@ beforeEach(async () => {
       startTime: '10:00',
       resultsReleasedAt: null,
       results_released_at: null,
+      resultsVerifiedAt: '2026-10-10T15:00:00Z',
+      resultsVerifiedBy: 'u-1',
     },
   ] as never);
 });
+
+/** What an ordinary class sync does when the server's check is gone: a clean write of the row. */
+async function downloadClassWithoutCheck(classId: string) {
+  const row = await replicatedClassesTable.get(classId);
+  await replicatedClassesTable.set(
+    classId,
+    { ...row!, resultsVerifiedAt: null, resultsVerifiedBy: null },
+    false
+  );
+}
 
 describe('Results tab on the real replicated class rows', () => {
   it('the class read carries the release stamp the replica holds', async () => {
@@ -136,6 +150,21 @@ describe('Results tab on the real replicated class rows', () => {
       ])
     );
     expect(stamps).toEqual({ 'class-released': '2026-10-10T16:00:00Z', 'class-open': null });
+  });
+
+  it('the class read carries the paper check the replica holds (last hop, MYK9-1031)', async () => {
+    const { data } = await getClassesByTrialId('trial-1');
+    const stamps = Object.fromEntries(
+      (data ?? []).map(row => [
+        row.id,
+        (row as { results_verified_at?: unknown; results_verified_by?: unknown })
+          .results_verified_at,
+      ])
+    );
+    expect(stamps).toEqual({
+      'class-released': '2026-10-10T15:00:00Z',
+      'class-open': '2026-10-10T15:00:00Z',
+    });
   });
 
   it('shows a released class as released and enables Print all ready', async () => {
@@ -150,7 +179,45 @@ describe('Results tab on the real replicated class rows', () => {
       expect(screen.getByRole('button', { name: /Print all ready/ })).toBeEnabled()
     );
     expect(screen.getByText('Released')).toBeInTheDocument();
-    expect(screen.getByText('Ready to release')).toBeInTheDocument();
+    // The check is compared with the results on this device first, so it settles a beat later.
+    await waitFor(() => expect(screen.getByText('Ready to release')).toBeInTheDocument());
+  });
+
+  it('a check recorded in the replica unlocks Release, and removing it locks Release again', async () => {
+    render(
+      <Routes>
+        <Route path="/shows/:id/results" element={<ResultsTab />} />
+      </Routes>,
+      { initialRoute: '/shows/show-1/results?status=all&classId=class-open' }
+    );
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled()
+    );
+    expect(screen.getByText(/Scores checked against the paper by you/)).toBeInTheDocument();
+
+    await downloadClassWithoutCheck('class-open');
+
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled()
+    );
+    expect(screen.getByText('Check the scores against the paper')).toBeInTheDocument();
+  });
+
+  it('keeps verification reachable after release: released and unchecked shows the checklist, not Release', async () => {
+    await downloadClassWithoutCheck('class-released');
+    render(
+      <Routes>
+        <Route path="/shows/:id/results" element={<ResultsTab />} />
+      </Routes>,
+      { initialRoute: '/shows/show-1/results?status=all&classId=class-released' }
+    );
+
+    await waitFor(() =>
+      expect(screen.getByText('Check the scores against the paper')).toBeInTheDocument()
+    );
+    expect(screen.getByRole('checkbox', { name: /matches the paper/ })).toBeInTheDocument();
+    expect(screen.getByText(/already released/)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Release results' })).not.toBeInTheDocument();
   });
 
   describe('a local score change', () => {
@@ -164,6 +231,33 @@ describe('Results tab on the real replicated class rows', () => {
           ...(queryClient && { queryClient }),
         }
       );
+    const renderOpen = () =>
+      render(
+        <Routes>
+          <Route path="/shows/:id/results" element={<ResultsTab />} />
+        </Routes>,
+        { initialRoute: '/shows/show-1/results?status=all&classId=class-open' }
+      );
+
+    it('Release waits for a correction to reach the server, and an upload ack re-enables it', async () => {
+      renderOpen();
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled()
+      );
+
+      // A local correction: the row is dirty until the upload is acknowledged.
+      await replicatedEntriesTable.updateEntry('e-class-open', { resultStatus: 'nq' } as never);
+      await waitFor(() =>
+        expect(screen.getByText('Waiting for score changes to sync')).toBeInTheDocument()
+      );
+      expect(screen.getByRole('button', { name: 'Release results' })).toBeDisabled();
+
+      // The ack flips only the row's dirty flag: the displayed rows do not change.
+      await replicatedEntriesTable.markAsSynced('e-class-open');
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Release results' })).toBeEnabled()
+      );
+    });
 
     it('shows an offline Fix (Q to NQ) without any manual invalidation', async () => {
       renderClass();

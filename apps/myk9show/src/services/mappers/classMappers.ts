@@ -500,6 +500,11 @@ export const mapReplicatedClassToDbRow = (
     results_released_by: cls.results_released_by ?? cls.resultsReleasedBy ?? null,
     judge_signed_off_at: cls.judgeSignedOffAt ?? null,
     judge_signed_off_by: cls.judgeSignedOffBy ?? null,
+    // MYK9-1031: the paper check. The fingerprint column is the server's private copy; the
+    // replica never holds it.
+    results_verified_at: cls.resultsVerifiedAt ?? null,
+    results_verified_by: cls.resultsVerifiedBy ?? null,
+    results_verified_fingerprint: null,
     deleted_at: null,
   };
 

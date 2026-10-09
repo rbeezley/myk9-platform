@@ -119,6 +119,10 @@ const REGRESSION_SPECS = [
   // sets each case's own viewport via `page.setViewportSize`, so it does
   // not depend on which project runs it.
   '**/banner-sticky-cta.spec.ts',
+  // MYK9-1065: PageHeader breadcrumb geometry at 360px on the deepest class
+  // trail. Secretary-authed and read-only; finds its target live and skips as
+  // data-absent (fails under MYK9_PLAYWRIGHT_REGRESSION_ENABLED) without one.
+  '**/class-breadcrumb-fits.spec.ts',
 ];
 
 // PR Smoke: stable specs — connectivity, secretary regression proof, the

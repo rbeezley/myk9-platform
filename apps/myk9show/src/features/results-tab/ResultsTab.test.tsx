@@ -120,6 +120,9 @@ vi.mock('@/hooks/mutations/useReleaseResults', () => ({
   useReleaseResults: () => ({ mutate: releaseMutate, isPending: false }),
 }));
 
+const media = vi.hoisted(() => ({ wide: false }));
+vi.mock('@/hooks/useMediaQuery', () => ({ useMediaQuery: () => media.wide }));
+
 vi.mock('./ResultsVisibilitySheet', () => ({
   ResultsVisibilitySheet: ({ open }: { open: boolean }) =>
     open ? <div data-testid="visibility-sheet" /> : null,
@@ -135,6 +138,7 @@ function renderAt(search = '') {
 }
 
 beforeEach(() => {
+  media.wide = false;
   releaseMutate.mockReset();
   hook.value = {
     rows: buildRows(),
@@ -246,6 +250,30 @@ describe('ResultsTab detail', () => {
     expect(releaseMutate).toHaveBeenCalledWith(
       { classIds: ['class-ready'], showId: 'show-1' },
       expect.any(Object)
+    );
+  });
+
+  it('selects the class named by ?classId under the default filter and keeps it in the list', () => {
+    // Overview deep-links with only classId + trialId (getCockpitResultsControlHref), so the
+    // default "Needs me" filter must not hide the class the link points at.
+    media.wide = true;
+    renderAt('?trialId=trial-1&classId=class-done');
+
+    // The class name appears in the list row and again in the detail header.
+    expect(screen.getAllByText(/Containers Advanced/).length).toBeGreaterThanOrEqual(2);
+    const list = screen.getByRole('list', { name: 'Classes' });
+    expect(within(list).getByRole('link', { name: /^Containers Advanced/ })).toHaveAttribute(
+      'aria-current',
+      'page'
+    );
+  });
+
+  it('ignores a ?classId that is not in this show', () => {
+    renderAt('?classId=class-gone');
+
+    expect(screen.queryByRole('button', { name: 'Release results' })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /^Containers Novice/ })).not.toHaveAttribute(
+      'aria-current'
     );
   });
 

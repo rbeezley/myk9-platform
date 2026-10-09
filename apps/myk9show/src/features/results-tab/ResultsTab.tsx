@@ -77,11 +77,14 @@ export default function ResultsTab() {
     () =>
       rows.filter(
         row =>
-          (state.trialId === null || row.trialId === state.trialId) &&
-          matchesResultsStatusFilter(row.phase, state.status) &&
-          rowMatchesSearch(row, state.search)
+          // The class a link points at stays listed whatever the filters say: Overview deep-links
+          // with classId/trialId only, and the default "Needs me" filter would otherwise hide it.
+          row.id === state.classId ||
+          ((state.trialId === null || row.trialId === state.trialId) &&
+            matchesResultsStatusFilter(row.phase, state.status) &&
+            rowMatchesSearch(row, state.search))
       ),
-    [rows, state.search, state.status, state.trialId]
+    [rows, state.classId, state.search, state.status, state.trialId]
   );
   const selected = rows.find(row => row.id === state.classId) ?? null;
 

@@ -6,6 +6,7 @@
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { ownerAddressMissingParts } from '@/features/registration/ownerAddress';
 
 export interface ProfileData {
   firstName: string;
@@ -16,13 +17,6 @@ export interface ProfileData {
   state: string;
   zipCode: string;
 }
-
-const ADDRESS_FIELDS = [
-  ['streetAddress', 'street address'],
-  ['city', 'city'],
-  ['state', 'state or province'],
-  ['zipCode', 'ZIP or postal code'],
-] as const;
 
 interface StoredPerson {
   first_name?: string | null;
@@ -67,7 +61,7 @@ export function personNeedsAddress(person: StoredPerson | undefined): boolean {
  * naming what is missing, or '' when the address is complete.
  */
 export function missingAddressMessage(data: ProfileData): string {
-  const missing = ADDRESS_FIELDS.filter(([key]) => !data[key].trim()).map(([, label]) => label);
+  const missing = ownerAddressMissingParts(data);
   if (missing.length === 0) return '';
   return `Please enter your ${missing.join(', ')}.`;
 }

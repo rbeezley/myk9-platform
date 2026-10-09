@@ -114,6 +114,11 @@ export interface Owner {
   email?: string | undefined;
   phone?: string | undefined;
   profileImage?: string | undefined;
+  /** MYK9-1010: the mailing address an AKC entry prints in the marked catalog. */
+  streetAddress?: string | undefined;
+  city?: string | undefined;
+  state?: string | undefined;
+  zipCode?: string | undefined;
 }
 
 /**

@@ -21,7 +21,7 @@ export function HealthRecordsHeader({
       data-testid="health-records-header"
       className="flex flex-wrap items-center justify-between gap-3 mb-6"
     >
-      <div className="min-w-0">
+      <div className="min-w-0 flex-1 basis-64">
         <h2 className="myk9-section-title flex items-center gap-2">
           <Heart className="h-5 w-5" />
           Health Records

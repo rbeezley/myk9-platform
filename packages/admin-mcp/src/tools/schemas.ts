@@ -43,6 +43,10 @@ export const listShowAccessInput = z.object({
   showId: uuidSchema,
 });
 
+export const diagnoseShowLooseEndsInput = z.object({
+  showId: uuidSchema,
+});
+
 export const diagnosePaymentInput = z
   .object({
     entryId: uuidSchema.optional(),
@@ -61,4 +65,5 @@ export const diagnosePaymentInput = z
 
 export type DiagnoseConfirmationEmailInput = z.infer<typeof diagnoseConfirmationEmailInput>;
 export type ListShowAccessInput = z.infer<typeof listShowAccessInput>;
+export type DiagnoseShowLooseEndsInput = z.infer<typeof diagnoseShowLooseEndsInput>;
 export type DiagnosePaymentInput = z.infer<typeof diagnosePaymentInput>;

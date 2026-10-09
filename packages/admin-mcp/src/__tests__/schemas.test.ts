@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { AdminMcpConfig } from '../config';
 import {
   diagnosePaymentInput,
+  diagnoseShowLooseEndsInput,
   makeLimitSchema,
   searchStringSchema,
   uuidSchema,
@@ -78,5 +79,15 @@ describe('diagnosePaymentInput', () => {
     expect(() =>
       diagnosePaymentInput.parse({ entryId: VALID_UUID, paymentIntentId: 'pi_123' })
     ).toThrow();
+  });
+});
+
+describe('diagnoseShowLooseEndsInput', () => {
+  it('requires a UUID show id', () => {
+    expect(diagnoseShowLooseEndsInput.parse({ showId: VALID_UUID })).toEqual({
+      showId: VALID_UUID,
+    });
+    expect(() => diagnoseShowLooseEndsInput.parse({ showId: 'nope' })).toThrow();
+    expect(() => diagnoseShowLooseEndsInput.parse({})).toThrow();
   });
 });

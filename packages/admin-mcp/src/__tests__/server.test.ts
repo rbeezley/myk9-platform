@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { AdminMcpConfig } from '../config';
 import { createDiagnosticResult } from '../diagnostics/types';
 import type { AdminToolDefinition, AllowedToolName, ToolCallLog } from '../mcp/server';
-import { createToolDispatcher } from '../mcp/server';
+import { ALLOWED_TOOL_NAMES, createToolDispatcher } from '../mcp/server';
 
 const CONFIG: AdminMcpConfig = {
   supabaseUrl: 'https://example.supabase.co',
@@ -30,6 +30,15 @@ function parseBody(text: string) {
 }
 
 describe('createToolDispatcher', () => {
+  it('allowlists diagnose_show_loose_ends and lists it when registered', () => {
+    expect(ALLOWED_TOOL_NAMES).toContain('diagnose_show_loose_ends');
+    const dispatcher = createToolDispatcher({
+      config: CONFIG,
+      tools: [tool({ name: 'diagnose_show_loose_ends' })],
+    });
+    expect(dispatcher.listTools().map(t => t.name)).toEqual(['diagnose_show_loose_ends']);
+  });
+
   it('lists only registered, allowlisted tools', () => {
     const dispatcher = createToolDispatcher({
       config: CONFIG,

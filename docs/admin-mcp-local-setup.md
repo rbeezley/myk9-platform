@@ -8,11 +8,12 @@
 
 Three cross-table diagnostics, each returning a typed, redacted result with the database it ran against (`envLabel`) stamped on every answer:
 
-| Tool                          | Answers                                                                                                                       |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `diagnose_confirmation_email` | Why an entry did/didn't get its confirmation email (entry record cross-checked against `email_log`).                          |
-| `diagnose_payment`            | Payment state for an entry (by id) or a Stripe payment-intent / checkout-session id.                                          |
-| `list_show_access`            | Who has secretary/admin-style access to a show (show-scoped **and** club-scoped roles), each labeled active/inactive/expired. |
+| Tool                          | Answers                                                                                                                                                                                                                                              |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `diagnose_confirmation_email` | Why an entry did/didn't get its confirmation email (entry record cross-checked against `email_log`).                                                                                                                                                 |
+| `diagnose_payment`            | Payment state for an entry (by id) or a Stripe payment-intent / checkout-session id.                                                                                                                                                                 |
+| `list_show_access`            | Who has secretary/admin-style access to a show (show-scoped **and** club-scoped roles), each labeled active/inactive/expired.                                                                                                                        |
+| `diagnose_show_loose_ends`    | A show's operator loose ends: dogs/people added through its add-entry flow but never entered, enrollments with no entries and entries with no enrollment, duplicate entries, stuck entries. Pre-attribution rows appear in a separate GUESS section. |
 
 Lookup tools (`lookup_show`, `lookup_entry`, …) are deferred to V1.1 — in V1.0 you source entry/show ids via the generic Supabase MCP or the app UI, then feed them to a diagnostic.
 

@@ -11,7 +11,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
 import React from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  QueryClient,
+  QueryClientProvider,
+  QueryObserver,
+  onlineManager,
+} from '@tanstack/react-query';
 import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 import { MutationManager, configureConflictSurfacing } from '@myk9/replication';
 import type { SupabaseClient } from '@supabase/supabase-js';
@@ -122,6 +127,7 @@ describe('useDogStoreCompat.updateDog — mutation queue (MYK9-1067)', () => {
     await manager?.clearAllMutations();
     manager?.destroy();
     await replicatedDogsTable.delete(DOG_ID);
+    onlineManager.setOnline(true);
     setOnline(true);
   });
 
@@ -188,6 +194,41 @@ describe('useDogStoreCompat.updateDog — mutation queue (MYK9-1067)', () => {
     const failed = await manager!.getFailedMutations();
     expect(failed).toHaveLength(1);
     expect(failed[0]).toMatchObject({ tableName: 'dogs', rowId: DOG_ID });
+  });
+
+  it('offline: cached roster shows the edit at once with owner and registrations kept; one refetch on reconnect', async () => {
+    const { hook, queryClient } = await setup(() => ({ data: [], error: null }));
+    const rosterKey = [...queryKeys.dogs, 'person-1', 'all'];
+    const row = {
+      id: DOG_ID,
+      color: 'black',
+      breed: 'Beagle',
+      owner: { id: 'owner-1', first_name: 'Ann', last_name: 'Lee' },
+      registrations: [{ id: 'reg-1', registered_name: 'Reg Name' }],
+    };
+    const rosterFetch = vi.fn(async () => [row]);
+    const unsubscribe = new QueryObserver(queryClient, {
+      queryKey: rosterKey,
+      queryFn: rosterFetch,
+      staleTime: Infinity,
+    }).subscribe(() => {});
+    await vi.waitFor(() => expect(rosterFetch).toHaveBeenCalledTimes(1));
+    onlineManager.setOnline(false);
+    setOnline(false);
+
+    await act(async () => {
+      await hook.current.updateDog(DOG_ID, { color: 'tri' });
+    });
+
+    const cached = queryClient.getQueryData(rosterKey) as (typeof row)[];
+    expect(cached[0]).toMatchObject({ color: 'tri', breed: 'Beagle' });
+    expect(cached[0]!.owner.first_name).toBe('Ann');
+    expect(cached[0]!.registrations).toHaveLength(1);
+    expect(rosterFetch).toHaveBeenCalledTimes(1);
+
+    onlineManager.setOnline(true);
+    await vi.waitFor(() => expect(rosterFetch).toHaveBeenCalledTimes(2));
+    unsubscribe();
   });
 
   it('still refreshes the roster immediately after the local write (#2840)', async () => {

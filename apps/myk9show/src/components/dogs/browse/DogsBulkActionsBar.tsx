@@ -15,7 +15,8 @@ import { dogExportHeaders, dogExportRows } from './dogsExport';
 import { useQueryClient } from '@tanstack/react-query';
 import { useDogReplicaForEdit } from '@/hooks/useDogReplicaForEdit';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
-import { mapPartialDogInputToReplicated } from '@/services/mappers/dogMappers';
+import { patchCachedDogRows } from '@/hooks/patchCachedDogRows';
+import { mapDogInputToUpdate, mapPartialDogInputToReplicated } from '@/services/mappers/dogMappers';
 import { queryKeys } from '@/lib/queryClient';
 import { useBulkDispatch } from '@/hooks/useBulkDispatch';
 import { getDogDisplayName, type Dog, type DogStatus } from '@/types/dog-types';
@@ -76,6 +77,9 @@ export function DogsBulkActionsBar({
           const current = await getDogForEdit(d.id);
           if (!current) throw new Error(`Dog ${d.id} is not saved on this device yet`);
           await replicatedDogsTable.updateDog(d.id, mapPartialDogInputToReplicated({ status }));
+          // Offline the invalidation below pauses until reconnect; patch the cached
+          // rows so the new status shows now (owners/registrations untouched).
+          patchCachedDogRows(queryClient, d.id, current.ownerId, mapDogInputToUpdate({ status }));
           queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
           if (current.ownerId) {
             queryClient.invalidateQueries({ queryKey: queryKeys.personDogs(current.ownerId) });

@@ -20,10 +20,12 @@ import {
   mapDatabaseDogsArray,
   mapReplicatedDogToDbRow,
   mapPartialDogInputToReplicated,
+  mapDogInputToUpdate,
   normalizeDogInputForWrite,
 } from '@/services/mappers/dogMappers';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { logger } from '@/services/LoggingService';
+import { patchCachedDogRows } from '@/hooks/patchCachedDogRows';
 import { useDogReplicaForEdit } from '@/hooks/useDogReplicaForEdit';
 import { queryKeys } from '@/lib/queryClient';
 import { aggregateQueryErrors, aggregateLoadingStates } from '@/hooks/storeCompatUtils';
@@ -274,6 +276,9 @@ export const useDogStoreCompat = () => {
 
       // The local write is what the roster reads, so refresh it NOW. Waiting on
       // an upload left the detail page on the old value until reload (MYK9-1061).
+      // Offline the invalidation below pauses until reconnect; patch the cached
+      // rows so the edit shows now (owners/registrations untouched).
+      patchCachedDogRows(queryClient, id, updated.ownerId, mapDogInputToUpdate(normalizedUpdates));
       queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
       if (updated.ownerId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.personDogs(updated.ownerId) });

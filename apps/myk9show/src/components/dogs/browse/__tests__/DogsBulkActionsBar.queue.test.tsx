@@ -9,12 +9,18 @@ import React from 'react';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import {
+  QueryClient,
+  QueryClientProvider,
+  QueryObserver,
+  onlineManager,
+} from '@tanstack/react-query';
 import { MutationManager } from '@myk9/replication';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 import { replicatedDogsTable, rowToDog } from '@/services/replication/ReplicatedDogsTable';
 import type { Dog } from '@/types/dog-types';
+import { queryKeys } from '@/lib/queryClient';
 import { DogsBulkActionsBar } from '../DogsBulkActionsBar';
 
 const { mockDirectUpdate, mockNotify } = vi.hoisted(() => ({
@@ -56,6 +62,7 @@ function setOnline(online: boolean) {
 describe('DogsBulkActionsBar — status change uses the mutation queue (MYK9-1070)', () => {
   let manager: MutationManager | undefined;
   let syncDogsImpl: (() => Promise<void>) | undefined;
+  const unsubscribers: (() => void)[] = [];
 
   const setup = async (result: () => UpdateResult, seed = true) => {
     const update = vi.fn((_payload: Record<string, unknown>) => {
@@ -88,6 +95,26 @@ describe('DogsBulkActionsBar — status change uses the mutation queue (MYK9-107
       },
     };
     const onClear = vi.fn();
+    // A mounted roster read in the REAL cached shape: DB-row objects with the
+    // joined owner and registrations the PostgREST half supplies.
+    const rosterKey = [...queryKeys.dogs, 'person-1', 'all'];
+    const rosterRows = [ID_A, ID_B].map(id => ({
+      id,
+      status: 'active',
+      breed: 'Beagle',
+      owner: { id: 'owner-1', first_name: 'Ann', last_name: 'Lee' },
+      registrations: [{ id: `reg-${id}`, registered_name: 'Reg Name' }],
+    }));
+    const rosterFetch = vi.fn(async () => rosterRows);
+    const observer = new QueryObserver(queryClient, {
+      queryKey: rosterKey,
+      queryFn: rosterFetch,
+      staleTime: Infinity,
+    });
+    const unsubscribe = observer.subscribe(() => {});
+    await vi.waitFor(() => expect(rosterFetch).toHaveBeenCalledTimes(1));
+    unsubscribers.push(unsubscribe);
+    const roster = () => queryClient.getQueryData(rosterKey) as typeof rosterRows;
     render(
       <ReplicationSyncContext.Provider value={syncValue}>
         <QueryClientProvider client={queryClient}>
@@ -100,7 +127,7 @@ describe('DogsBulkActionsBar — status change uses the mutation queue (MYK9-107
       await user.click(screen.getByRole('button', { name: 'Change status' }));
       await user.click(await screen.findByRole('menuitem', { name: /mark 2 dogs retired/i }));
     };
-    return { update, run, onClear };
+    return { update, run, onClear, roster, rosterFetch };
   };
 
   beforeEach(() => {
@@ -114,7 +141,26 @@ describe('DogsBulkActionsBar — status change uses the mutation queue (MYK9-107
     await manager?.clearAllMutations();
     manager?.destroy();
     for (const id of [ID_A, ID_B]) await replicatedDogsTable.delete(id);
+    unsubscribers.splice(0).forEach(u => u());
+    onlineManager.setOnline(true);
     setOnline(true);
+  });
+
+  it('offline: roster shows the new status at once, owner and registrations kept, one refetch on reconnect', async () => {
+    const { run, onClear, roster, rosterFetch } = await setup(() => ({ data: [], error: null }));
+    onlineManager.setOnline(false);
+    setOnline(false);
+    await run();
+    await waitFor(() => expect(onClear).toHaveBeenCalled());
+
+    expect(roster().map(r => r.status)).toEqual(['retired', 'retired']);
+    expect(roster()[0]!.owner.first_name).toBe('Ann');
+    expect(roster()[0]!.registrations).toHaveLength(1);
+    expect(roster()[0]!.breed).toBe('Beagle');
+    expect(rosterFetch).toHaveBeenCalledTimes(1);
+
+    onlineManager.setOnline(true);
+    await waitFor(() => expect(rosterFetch).toHaveBeenCalledTimes(2));
   });
 
   it('offline: queues one UPDATE per dog, no direct write; reconnect uploads each once', async () => {

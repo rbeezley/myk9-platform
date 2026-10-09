@@ -1,9 +1,10 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { renderHook, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
+import { renderHook, waitFor, act } from '@testing-library/react';
+import { QueryClient, QueryClientProvider, onlineManager } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { UserRole } from '@/types/auth-types';
 import { useDogsQuery } from './useDogsDatabase';
+import { queryKeys } from '@/lib/queryClient';
 
 const {
   mockGetAllDogs,
@@ -200,3 +201,40 @@ describe('useDogsQuery identity resolution (MYK9-854 Codex follow-up)', () => {
  * back into the list, which is what the bulk-delete path did: it calls this
  * mutation directly and never went through `useDogStoreCompat`'s cleanup.
  */
+
+/**
+ * MYK9-1070: the dog reads are replica-first, so they must run offline. With the
+ * default networkMode 'online' an invalidation after a queued local edit PAUSED
+ * the roster, which kept showing the old status until reconnect.
+ */
+describe('dog reads while offline (MYK9-1070)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mockGetAllDogs.mockResolvedValue({ data: [{ id: 'd1', status: 'active' }], error: null });
+    mockUseCurrentPersonId.mockReturnValue('person-1');
+    mockUserWithRoles = { id: 'user-1' };
+    mockGetUserRoles.mockReturnValue([UserRole.SECRETARY]);
+    mockHasRole.mockImplementation((role: UserRole) => role === UserRole.SECRETARY);
+  });
+  afterEach(() => {
+    onlineManager.setOnline(true);
+  });
+
+  it('refetches the roster after an invalidation, instead of pausing', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+    );
+    const { result } = renderHook(() => useDogsQuery(), { wrapper });
+    await waitFor(() => expect(result.current.data).toEqual([{ id: 'd1', status: 'active' }]));
+
+    onlineManager.setOnline(false);
+    mockGetAllDogs.mockResolvedValue({ data: [{ id: 'd1', status: 'retired' }], error: null });
+    await act(async () => {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
+    });
+
+    await waitFor(() => expect(result.current.data).toEqual([{ id: 'd1', status: 'retired' }]));
+    expect(result.current.fetchStatus).not.toBe('paused');
+  });
+});

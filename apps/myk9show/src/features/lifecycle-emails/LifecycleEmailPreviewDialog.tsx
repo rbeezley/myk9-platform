@@ -74,95 +74,101 @@ export function LifecycleEmailPreviewDialog({
   const values = { subject, body, secretaryNote };
 
   return (
-    <SlideOverPanel
-      open={open}
-      onClose={() => onOpenChange(false)}
-      title={title ?? TITLE_BY_STEP[stepType]}
-      size="lg"
-      footer={
-        <div className="flex justify-between gap-2">
-          <Button type="button" variant="outline" onClick={() => onNotNow(values)}>
-            {notNowLabel}
-          </Button>
-          <Button type="button" onClick={() => onSend(values)} disabled={isSending}>
-            {isSending ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
-                Sending...
-              </>
-            ) : (
-              <>
-                <Send className="mr-2 h-4 w-4" aria-hidden="true" />
-                Send now
-              </>
-            )}
-          </Button>
-        </div>
-      }
-    >
-      <div className="grid gap-4 p-6">
-        <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
-          <p className="font-medium">{recipient.name || 'Exhibitor'}</p>
-          <p className="text-muted-foreground">{recipient.email || 'No email on file'}</p>
-          <p className="mt-1 text-muted-foreground">
-            {[entry.dogName, entry.className].filter(Boolean).join(' - ') || 'Entry decision'}
-          </p>
-        </div>
-
-        {preview.warnings.length > 0 ? (
-          <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
-            {preview.warnings.join(' ')}
+    // INTENT: the `contents` wrapper keeps a parent's `space-y-*` margin off the panel's fixed
+    // backdrop. SlideOverPanel is not portaled and the cockpit renders this as the last child of a
+    // `space-y-4` container, so without it the backdrop gets `margin-top: 1rem` (an undimmed
+    // strip along the top). The wrapper has no box, so the margin has nothing to apply to.
+    <div className="contents">
+      <SlideOverPanel
+        open={open}
+        onClose={() => onOpenChange(false)}
+        title={title ?? TITLE_BY_STEP[stepType]}
+        size="lg"
+        footer={
+          <div className="flex justify-between gap-2">
+            <Button type="button" variant="outline" onClick={() => onNotNow(values)}>
+              {notNowLabel}
+            </Button>
+            <Button type="button" onClick={() => onSend(values)} disabled={isSending}>
+              {isSending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden="true" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send className="mr-2 h-4 w-4" aria-hidden="true" />
+                  Send now
+                </>
+              )}
+            </Button>
           </div>
-        ) : null}
+        }
+      >
+        <div className="grid gap-4 p-6">
+          <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm">
+            <p className="font-medium">{recipient.name || 'Exhibitor'}</p>
+            <p className="text-muted-foreground">{recipient.email || 'No email on file'}</p>
+            <p className="mt-1 text-muted-foreground">
+              {[entry.dogName, entry.className].filter(Boolean).join(' - ') || 'Entry decision'}
+            </p>
+          </div>
 
-        <div className="space-y-2">
-          <Label htmlFor="lifecycle-email-subject">Subject</Label>
-          <Input
-            id="lifecycle-email-subject"
-            value={subject}
-            onChange={event => setSubject(event.target.value)}
-            maxLength={200}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="lifecycle-email-body">Message</Label>
-          <Textarea
-            id="lifecycle-email-body"
-            value={body}
-            onChange={event => setBody(event.target.value)}
-            rows={7}
-            maxLength={5000}
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="lifecycle-email-note">
-            Secretary note <span className="font-normal text-muted-foreground">(optional)</span>
-          </Label>
-          <Textarea
-            id="lifecycle-email-note"
-            value={secretaryNote}
-            onChange={event => setSecretaryNote(event.target.value)}
-            rows={3}
-            maxLength={2000}
-          />
-        </div>
-
-        <div className="rounded-md border bg-background p-3">
-          <p className="mb-2 text-sm font-medium">Preview</p>
-          <p className="text-sm font-semibold">{preview.subject}</p>
-          <pre className="mt-2 whitespace-pre-wrap font-sans text-sm text-muted-foreground">
-            {preview.bodyText}
-          </pre>
-          {preview.secretaryNote ? (
-            <div className="mt-3 rounded-md bg-blue-50 p-3 text-sm text-blue-950">
-              <p className="font-medium">From the show secretary</p>
-              <p className="mt-1 whitespace-pre-wrap">{preview.secretaryNote}</p>
+          {preview.warnings.length > 0 ? (
+            <div className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+              {preview.warnings.join(' ')}
             </div>
           ) : null}
+
+          <div className="space-y-2">
+            <Label htmlFor="lifecycle-email-subject">Subject</Label>
+            <Input
+              id="lifecycle-email-subject"
+              value={subject}
+              onChange={event => setSubject(event.target.value)}
+              maxLength={200}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="lifecycle-email-body">Message</Label>
+            <Textarea
+              id="lifecycle-email-body"
+              value={body}
+              onChange={event => setBody(event.target.value)}
+              rows={7}
+              maxLength={5000}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="lifecycle-email-note">
+              Secretary note <span className="font-normal text-muted-foreground">(optional)</span>
+            </Label>
+            <Textarea
+              id="lifecycle-email-note"
+              value={secretaryNote}
+              onChange={event => setSecretaryNote(event.target.value)}
+              rows={3}
+              maxLength={2000}
+            />
+          </div>
+
+          <div className="rounded-md border bg-background p-3">
+            <p className="mb-2 text-sm font-medium">Preview</p>
+            <p className="text-sm font-semibold">{preview.subject}</p>
+            <pre className="mt-2 whitespace-pre-wrap font-sans text-sm text-muted-foreground">
+              {preview.bodyText}
+            </pre>
+            {preview.secretaryNote ? (
+              <div className="mt-3 rounded-md bg-blue-50 p-3 text-sm text-blue-950">
+                <p className="font-medium">From the show secretary</p>
+                <p className="mt-1 whitespace-pre-wrap">{preview.secretaryNote}</p>
+              </div>
+            ) : null}
+          </div>
         </div>
-      </div>
-    </SlideOverPanel>
+      </SlideOverPanel>
+    </div>
   );
 }

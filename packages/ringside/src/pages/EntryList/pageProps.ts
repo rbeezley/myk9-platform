@@ -702,6 +702,8 @@ export interface EntryListPageProps {
      * non-exhibitor roles).
      */
     hidePrintOptions?: boolean;
+    /** "Back to main app" in the actions menu; omitted means no exit item. */
+    exitToApp?: { label: string; onClick: () => void } | undefined;
   };
 }
 

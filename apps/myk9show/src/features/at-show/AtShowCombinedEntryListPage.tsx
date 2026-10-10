@@ -62,6 +62,7 @@ import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
 import { useMyAtShowEntries } from './useMyAtShowEntries';
 import { useMyRingConflicts } from './useMyRingConflicts';
 import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
+import { useLeaveRingside } from './useLeaveRingside';
 
 export const AtShowCombinedEntryListPage: React.FC = () => {
   const { showId, classIdA, classIdB } = useParams<{
@@ -74,6 +75,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   // show-scoped passcode grant overriding the mapping. Shared with the
   // single-class and scoresheet shims via `useRingsideEffectiveRole`.
   const navigate = useNavigate();
+  const leaveRingside = useLeaveRingside();
   const { showRole, grantRole, ringsideRole, hasPermission } = useRingsideEffectiveRole(showId);
   // Device-local favorites, mirrored to `dog_favorites` when signed in so the
   // notification monitor can watch them for "your turn" push (MYK9-79).
@@ -396,6 +398,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             hideSettingsOption: !canManageClasses,
             // No printing at ringside — reports live on the secretary Reports page.
             hidePrintOptions: true,
+            exitToApp: { label: leaveRingside.label, onClick: leaveRingside.leave },
           }}
         />
       </div>

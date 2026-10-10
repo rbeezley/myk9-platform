@@ -26,6 +26,7 @@ import {
   ListOrdered,
   Trophy,
   Settings,
+  House,
 } from 'lucide-react';
 import { formatTrialDate, formatTrialLabel } from '@myk9/core';
 import { getStatusDescriptor } from '@myk9/ui';
@@ -51,6 +52,11 @@ export interface ActionsMenuConfig {
   onRecalculatePlacements?: () => void;
   onClassSettingsClick?: () => void;
   printOptions: PrintOption[];
+  /**
+   * Leave Ringside for the main app (MYK9-1086). Host-supplied because the
+   * destination depends on the signed-in user's role.
+   */
+  exitToApp?: { label: string; onClick: () => void } | undefined;
 }
 
 // ============================================================================
@@ -203,6 +209,22 @@ export const ActionsDropdownMenu: React.FC<ActionsDropdownMenuProps> = ({
               {option.label}
             </button>
           ))}
+
+          {actionsMenu.exitToApp && (
+            <>
+              <div className="my-1 h-px bg-border" />
+              <button
+                onClick={() => {
+                  onClose();
+                  actionsMenu.exitToApp?.onClick();
+                }}
+                className={ACTION_MENU_ITEM_CLASS}
+              >
+                <House className="h-4 w-4" />
+                {actionsMenu.exitToApp.label}
+              </button>
+            </>
+          )}
         </div>
       )}
     </div>

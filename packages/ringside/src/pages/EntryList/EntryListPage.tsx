@@ -229,6 +229,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
           onRunOrderClick: () => setRunOrderDialogOpen(true),
           onRecalculatePlacements: handlers.handleRecalculatePlacements,
           onClassSettingsClick: () => setClassOptionsDialogOpen(true),
+          exitToApp: context.exitToApp,
           printOptions: [
             {
               label: 'Check-In Sheet',

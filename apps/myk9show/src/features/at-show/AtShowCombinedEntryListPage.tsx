@@ -16,7 +16,8 @@
  *    All / Section A / Section B tabs + counts, sorted 'section-armband'
  *  - `handleApplyRunOrder` → `applyCombinedRunOrder`, the one handler that
  *    honours the A/B `scope` + `renumberMode` contract
- *  - `buildScoreSheetState` → carries the PAIRED classId to the scoresheet
+ *  - `buildScoreSheetRoute` → carries the A/B pair (`?combined=`) so the
+ *    scoresheet's Back returns here, not to the dog's single section
  *
  * Run order persists offline-first through the replication layer (same RLS /
  * `ringside_update_entry` routing as the single-class shim) on both paths:
@@ -63,6 +64,7 @@ import { useMyAtShowEntries } from './useMyAtShowEntries';
 import { useMyRingConflicts } from './useMyRingConflicts';
 import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
 import { useLeaveRingside } from './useLeaveRingside';
+import { buildAtShowScoreSheetRoute, combinedPairParam } from './atShowScoresheetRoutes';
 
 export const AtShowCombinedEntryListPage: React.FC = () => {
   const { showId, classIdA, classIdB } = useParams<{
@@ -204,15 +206,17 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   });
 
   const replication = useMemo(() => buildRingsideReplication(), []);
+  // The pair rides on the scoresheet URL so its Back (and next-dog) return to
+  // THIS combined list rather than the dog's single section.
   const buildScoreSheetRoute = useCallback(
-    (entry: Entry) => `/at-show/${showId}/class/${entry.classId}/score/${entry.id}`,
-    [showId]
-  );
-  // The scoresheet needs to know the OTHER section is running alongside this
-  // one; a single-class list has no pair, so it passes no state at all.
-  const buildScoreSheetState = useCallback(
-    (entry: Entry) => ({ pairedClassId: entry.classId === classIdA ? classIdB : classIdA }),
-    [classIdA, classIdB]
+    (entry: Entry) =>
+      buildAtShowScoreSheetRoute(
+        showId ?? '',
+        entry.classId,
+        entry.id,
+        classIdA && classIdB ? combinedPairParam(classIdA, classIdB) : null
+      ),
+    [showId, classIdA, classIdB]
   );
 
   const baseHandlers = useAtShowEntryListHandlers({
@@ -225,7 +229,6 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     hasPermission,
     navigate,
     buildScoreSheetRoute,
-    buildScoreSheetState,
     refresh,
     setActiveStatusPopup: uiActions.setActiveStatusPopup,
     setActiveResetMenu: uiActions.setActiveResetMenu,

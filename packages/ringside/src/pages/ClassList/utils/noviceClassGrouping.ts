@@ -12,11 +12,13 @@ import type { ClassEntry } from '../types';
 
 /**
  * Check if the organization uses A/B sections for all levels
- * Currently only UKC Nosework uses divisions for all levels
+ * Currently only UKC Nosework uses divisions for all levels. myK9Show stores
+ * the organization as the bare registry id (`UKC`), myK9Q as `UKC Nosework`.
  */
 export function shouldCombineAllSections(organization: string | undefined): boolean {
   if (!organization) return false;
-  const orgLower = organization.toLowerCase();
+  const orgLower = organization.trim().toLowerCase();
+  if (orgLower === 'ukc') return true;
   return orgLower.includes('ukc') && orgLower.includes('nosework');
 }
 

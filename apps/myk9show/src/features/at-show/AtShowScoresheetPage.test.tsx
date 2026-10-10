@@ -293,6 +293,33 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     expect(screen.getByRole('button', { name: 'Back to Entry List' })).toBeInTheDocument();
   });
 
+  it('returns to the combined Novice A/B list when opened from it', async () => {
+    vi.mocked(replicatedClassesTable.getClassById).mockResolvedValue(null as never);
+
+    render(
+      <ReplicationSyncContext.Provider
+        value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
+      >
+        <Routes>
+          <Route
+            path="/at-show/:showId/class/:classId/score/:entryId"
+            element={<AtShowScoresheetPage />}
+          />
+          <Route path="/at-show/:showId/class/:classId" element={<div>Single list</div>} />
+          <Route
+            path="/at-show/:showId/class/:classIdA/:classIdB"
+            element={<div>Combined list</div>}
+          />
+        </Routes>
+      </ReplicationSyncContext.Provider>,
+      { initialRoute: '/at-show/show-1/class/class-1/score/entry-1?combined=class-1,class-2' }
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to Entry List' }));
+
+    expect(await screen.findByText('Combined list')).toBeInTheDocument();
+  });
+
   it('retries the same scoped hydration path from the recoverable error', async () => {
     vi.mocked(replicatedClassesTable.getClassById)
       .mockResolvedValueOnce(null as never)

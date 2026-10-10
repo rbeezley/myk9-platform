@@ -108,7 +108,8 @@ export const AtShowClassListPage: React.FC = () => {
   // inconvenience; showing them nothing is a dead end at ringside.
   const scopeToAssignedClasses = isJudgeOnly && !assignmentsUnknown;
 
-  // Group Novice A/B pairs into single combined entries per trial.
+  // Group A/B pairs into single combined entries per trial (AKC: Novice only;
+  // UKC: every level).
   const groupedByTrial = useMemo(
     () =>
       groups

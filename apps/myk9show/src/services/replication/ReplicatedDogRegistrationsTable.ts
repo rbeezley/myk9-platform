@@ -106,7 +106,6 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     };
   }
 
-
   /** Unscoped: RLS decides, so the replica holds what the online read shows. */
   async sync(): Promise<SyncResult> {
     const adapter: SyncReplicatedTableAdapter<DogRegistrationRow, ReplicatedDogRegistration> = {

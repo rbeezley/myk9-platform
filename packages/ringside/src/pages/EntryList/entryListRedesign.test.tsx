@@ -243,7 +243,11 @@ describe('EntryListContent now and next (MYK9-1086)', () => {
       constructor(private readonly cb: ResizeObserverCallback) {}
       observe() {
         this.cb(
-          [{ borderBoxSize: [{ blockSize: 152, inlineSize: 343 }] } as unknown as ResizeObserverEntry],
+          [
+            {
+              borderBoxSize: [{ blockSize: 152, inlineSize: 343 }],
+            } as unknown as ResizeObserverEntry,
+          ],
           this as unknown as ResizeObserver
         );
       }

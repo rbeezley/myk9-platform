@@ -6,6 +6,7 @@ import {
   classifyEntryCheckInStatus,
   classifyEntryRunStatus,
   isEntryComplete,
+  isEntryCountedInProgress,
 } from './showMapStatus';
 import type {
   ShowMapClassInput,
@@ -197,7 +198,8 @@ export function addAllExhibitorsBranch({
   for (const { dogKey, dogEntries } of dogBranches) {
     const primaryDogEntry = dogEntries[0]!;
     const dogNodeId = getNodeId('dog', dogKey);
-    const completedEntries = dogEntries.filter(({ entry }) => isEntryComplete(entry)).length;
+    const countedEntries = dogEntries.filter(({ entry }) => isEntryCountedInProgress(entry));
+    const completedEntries = countedEntries.filter(({ entry }) => isEntryComplete(entry)).length;
     const attentionCount = dogEntries.filter(
       ({ entry }) => getEntryAttention(entry) !== null
     ).length;
@@ -208,7 +210,7 @@ export function addAllExhibitorsBranch({
       label: dogLabel(primaryDogEntry.display),
       subtitle: dogSubtitle(primaryDogEntry.display),
       count: dogEntries.length,
-      progress: buildProgress(completedEntries, dogEntries.length, 'entries'),
+      progress: buildProgress(completedEntries, countedEntries.length, 'entries'),
       attentionCount,
       parentId: allExhibitorsId,
       childrenCount: dogEntries.length,

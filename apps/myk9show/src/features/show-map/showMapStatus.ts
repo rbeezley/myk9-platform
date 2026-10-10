@@ -6,6 +6,7 @@ import {
   type TrialStatusKey,
 } from '@myk9/core';
 import { getStatusDescriptor } from '@/components/status';
+import { isExpectedEntry } from '@/features/_shared/entryAccounting';
 import type {
   ShowMapClassInput,
   ShowMapDisplayStatus,
@@ -233,6 +234,15 @@ export function isEntryComplete(entry: ShowMapEntryInput): boolean {
   return runStatus?.kind === 'complete' || isEntryPulledOrScratched(entry);
 }
 
+/**
+ * MYK9-1072: whether a row belongs in a progress count. A row that will never run (a moved-out
+ * source row, a not-accepted entry) and carries no result is not an outstanding run. Pulled and
+ * scratched dogs still count as accounted for, and a pending-acceptance dog stays outstanding.
+ */
+export function isEntryCountedInProgress(entry: ShowMapEntryInput): boolean {
+  return isExpectedEntry(entry) || isEntryComplete(entry);
+}
+
 export function buildProgress(
   completed: number,
   total: number,
@@ -251,7 +261,8 @@ export function buildClassProgress(
   entries: ShowMapEntryInput[]
 ): ShowMapProgress | undefined {
   if (entries.length > 0) {
-    return buildProgress(entries.filter(isEntryComplete).length, entries.length, 'entries');
+    const counted = entries.filter(isEntryCountedInProgress);
+    return buildProgress(counted.filter(isEntryComplete).length, counted.length, 'entries');
   }
   if (typeof cls.scoredCount === 'number' && typeof cls.entryCount === 'number') {
     return buildProgress(cls.scoredCount, cls.entryCount, 'entries');

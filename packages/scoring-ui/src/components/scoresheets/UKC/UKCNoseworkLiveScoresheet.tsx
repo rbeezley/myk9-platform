@@ -159,6 +159,43 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   const isStarted = stopwatch.time > 0 || elementTimer.time > 0;
   const isBothStopped = !stopwatch.isRunning && !elementTimer.isRunning;
 
+  // Remaining max time. In dual mode it counts down the ELEMENT time, so it lives in
+  // that row; pinned in the card's corner it covered the row's time and Finish button
+  // (owner, 2026-10-09).
+  const renderRing = (className: string) =>
+    maxTimeMs > 0 ? (
+      <svg
+        className={className}
+        aria-hidden="true"
+        data-testid="max-time-ring"
+        width={ringSize}
+        height={ringSize}
+        viewBox={`0 0 ${ringSize} ${ringSize}`}
+      >
+        <circle
+          cx={ringSize / 2}
+          cy={ringSize / 2}
+          r={radius}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={strokeWidth}
+          className="text-muted/20"
+        />
+        <circle
+          cx={ringSize / 2}
+          cy={ringSize / 2}
+          r={radius}
+          fill="none"
+          stroke={getRingColor()}
+          strokeWidth={strokeWidth}
+          strokeLinecap="round"
+          strokeDasharray={circumference}
+          strokeDashoffset={dashOffset}
+          transform={`rotate(-90 ${ringSize / 2} ${ringSize / 2})`}
+        />
+      </svg>
+    ) : null;
+
   return (
     <>
       <div className="min-h-screen bg-background">
@@ -192,41 +229,12 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
             {/* Timer Card */}
             <Card className="p-6 relative overflow-hidden">
-              {maxTimeMs > 0 && (
-                <svg
-                  className="absolute top-3 right-3"
-                  width={ringSize}
-                  height={ringSize}
-                  viewBox={`0 0 ${ringSize} ${ringSize}`}
-                >
-                  <circle
-                    cx={ringSize / 2}
-                    cy={ringSize / 2}
-                    r={radius}
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth={strokeWidth}
-                    className="text-muted/20"
-                  />
-                  <circle
-                    cx={ringSize / 2}
-                    cy={ringSize / 2}
-                    r={radius}
-                    fill="none"
-                    stroke={getRingColor()}
-                    strokeWidth={strokeWidth}
-                    strokeLinecap="round"
-                    strokeDasharray={circumference}
-                    strokeDashoffset={dashOffset}
-                    transform={`rotate(-90 ${ringSize / 2} ${ringSize / 2})`}
-                  />
-                </svg>
-              )}
+              {!isDual && renderRing('absolute top-3 right-3')}
 
               {/* Element timer row — dual mode only */}
               {isDual && (
                 <div
-                  className="flex items-center justify-between mb-4 p-3 bg-violet-500/10 rounded-lg"
+                  className="flex items-center justify-between gap-2 mb-4 p-3 bg-violet-500/10 rounded-lg"
                   data-testid="element-timer-row"
                 >
                   <span className="text-sm font-medium text-violet-600">Element Time:</span>
@@ -243,6 +251,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                       Finish
                     </Button>
                   )}
+                  {renderRing('shrink-0')}
                 </div>
               )}
 

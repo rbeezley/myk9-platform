@@ -129,6 +129,24 @@ describe('JudgeSuppliesSection', () => {
     expect(screen.getByTestId('dialog-stub')).toHaveTextContent('Dialog open for Alice');
   });
 
+  it('mounts the manage panel outside the blurred section card', async () => {
+    // `.myk9-trials-section` has `backdrop-filter`, which makes it the containing block for any
+    // `position: fixed` descendant. SlideOverPanel is not portaled, so a panel mounted inside the
+    // card is sized to the card (about 190px tall) instead of the viewport.
+    const user = userEvent.setup();
+    mockUseTrialJudges.mockReturnValue({
+      data: [{ person_id: 'p1', judge_name: 'Alice' }],
+      isLoading: false,
+    } as unknown as ReturnType<typeof useTrialJudgesMod.useTrialJudges>);
+
+    const { container } = render(<JudgeSuppliesSection trialId="trial-1" />, { wrapper });
+    await user.click(screen.getByRole('button', { name: /edit supplies for alice/i }));
+
+    const card = container.querySelector('.myk9-trials-section');
+    expect(card).not.toBeNull();
+    expect(card).not.toContainElement(screen.getByTestId('dialog-stub'));
+  });
+
   it('uses singular "item" when the count is 1', () => {
     mockUseTrialJudges.mockReturnValue({
       data: [{ person_id: 'p1', judge_name: 'Alice' }],

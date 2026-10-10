@@ -1,7 +1,7 @@
 /**
  * Scoresheet ↔ entry-list routes for the at-show flow.
  *
- * A combined Novice A/B list (`/at-show/:showId/class/:classIdA/:classIdB`)
+ * A combined A/B list (AKC Novice; every UKC level) (`/at-show/:showId/class/:classIdA/:classIdB`)
  * opens each dog's scoresheet under that dog's OWN class id, so the scoresheet
  * URL alone cannot say which list it came from. The pair rides along as
  * `?combined=<classIdA>,<classIdB>` so "Back to Entry List" — and the next dog
@@ -27,6 +27,17 @@ export function combinedPairParam(classIdA: string, classIdB: string): string {
   return `${classIdA},${classIdB}`;
 }
 
+/** The OTHER class of a valid combined pair that includes `classId`, else undefined. */
+export function pairedClassIdFor(classId: string, combined: string | null): string | undefined {
+  const ids = combined?.split(',') ?? [];
+  if (ids.length !== 2) return undefined;
+  const [classIdA, classIdB] = ids;
+  if (!classIdA || !classIdB || classIdA === classIdB) return undefined;
+  if (classId === classIdA) return classIdB;
+  if (classId === classIdB) return classIdA;
+  return undefined;
+}
+
 /**
  * The entry list a scoresheet returns to: the combined A/B list when `combined`
  * names exactly two distinct classes that include this one, else the single
@@ -37,11 +48,8 @@ export function resolveScoreSheetEntryListRoute(
   classId: string,
   combined: string | null
 ): string {
-  const single = `/at-show/${showId}/class/${classId}`;
-  const ids = combined?.split(',') ?? [];
-  if (ids.length !== 2) return single;
-  const [classIdA, classIdB] = ids;
-  if (!classIdA || !classIdB || classIdA === classIdB) return single;
-  if (classId !== classIdA && classId !== classIdB) return single;
-  return `/at-show/${showId}/class/${classIdA}/${classIdB}`;
+  if (!combined || pairedClassIdFor(classId, combined) === undefined) {
+    return `/at-show/${showId}/class/${classId}`;
+  }
+  return `/at-show/${showId}/class/${combined.split(',').join('/')}`;
 }

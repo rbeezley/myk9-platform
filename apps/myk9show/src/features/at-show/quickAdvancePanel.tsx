@@ -35,6 +35,7 @@ import {
 
 function useQuickAdvanceChips(
   classId: string | undefined,
+  pairedClassId: string | undefined,
   scoredEntryId: string | undefined
 ): QuickAdvanceChip[] {
   const queryClient = useQueryClient();
@@ -44,13 +45,21 @@ function useQuickAdvanceChips(
   useEffect(() => {
     if (!classId) return;
     return replicatedEntriesTable.subscribe(() => {
-      void queryClient.invalidateQueries({ queryKey: ['at-show', 'quick-advance', classId] });
+      void queryClient.invalidateQueries({
+        queryKey: ['at-show', 'quick-advance', classId, pairedClassId],
+      });
     });
-  }, [classId, queryClient]);
+  }, [classId, pairedClassId, queryClient]);
 
+  // A combined A/B list runs both sections together, so the dog at the gate
+  // may come from either; offer candidates from both.
   const { data } = useQuery({
-    queryKey: ['at-show', 'quick-advance', classId],
-    queryFn: () => replicatedEntriesTable.getEntriesByClass(classId as string),
+    queryKey: ['at-show', 'quick-advance', classId, pairedClassId],
+    queryFn: async () => {
+      const ids = [classId as string, ...(pairedClassId ? [pairedClassId] : [])];
+      const lists = await Promise.all(ids.map(id => replicatedEntriesTable.getEntriesByClass(id)));
+      return lists.flat();
+    },
     enabled: !!classId,
   });
 
@@ -198,6 +207,8 @@ function useScoresSentToast(saveState: ScoreSaveState, sawQueued: boolean): void
 
 export interface QuickAdvancePanelProps {
   classId: string | undefined;
+  /** The other section when scoring from a combined A/B list. */
+  pairedClassId?: string | undefined;
   /** The entry just scored — never offered as its own next candidate. */
   scoredEntryId: string | undefined;
   /** Primary action: return to the entry list to pick anyone. */
@@ -205,17 +216,18 @@ export interface QuickAdvancePanelProps {
   /** Reopen the just-saved sheet with its score pre-filled for correction. */
   onCorrectScore: () => void;
   /** Open a candidate's scoresheet (normal route, so it transitions to in-ring). */
-  onPickEntry: (entryId: string) => void;
+  onPickEntry: (entryId: string, classId: string) => void;
 }
 
 export const QuickAdvancePanel: React.FC<QuickAdvancePanelProps> = ({
   classId,
+  pairedClassId,
   scoredEntryId,
   onBackToList,
   onCorrectScore,
   onPickEntry,
 }) => {
-  const chips = useQuickAdvanceChips(classId, scoredEntryId);
+  const chips = useQuickAdvanceChips(classId, pairedClassId, scoredEntryId);
   const { state: saveState, sawQueued } = useScoreSaveState(scoredEntryId);
   const online = useIsOnline();
   useScoresSentToast(saveState, sawQueued);
@@ -265,7 +277,7 @@ export const QuickAdvancePanel: React.FC<QuickAdvancePanelProps> = ({
                 <li key={chip.entryId}>
                   <button
                     type="button"
-                    onClick={() => onPickEntry(chip.entryId)}
+                    onClick={() => onPickEntry(chip.entryId, chip.classId)}
                     className="flex min-h-12 w-full items-center justify-between gap-3 rounded-lg border bg-background px-4 py-2 text-left text-base"
                     data-testid="quick-advance-entry"
                   >

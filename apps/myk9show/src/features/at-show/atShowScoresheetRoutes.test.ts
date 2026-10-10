@@ -12,9 +12,9 @@ describe('atShowScoresheetRoutes', () => {
   });
 
   it('carries the combined pair on the scoresheet route', () => {
-    expect(
-      buildAtShowScoreSheetRoute('show-1', 'class-a', 'entry-1', 'class-a,class-b')
-    ).toBe('/at-show/show-1/class/class-a/score/entry-1?combined=class-a%2Cclass-b');
+    expect(buildAtShowScoreSheetRoute('show-1', 'class-a', 'entry-1', 'class-a,class-b')).toBe(
+      '/at-show/show-1/class/class-a/score/entry-1?combined=class-a%2Cclass-b'
+    );
   });
 
   it('returns to the combined A/B list when the scoresheet came from it', () => {

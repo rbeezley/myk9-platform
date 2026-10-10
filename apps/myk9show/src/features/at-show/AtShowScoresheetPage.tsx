@@ -60,6 +60,7 @@ import { QuickAdvancePanel } from './quickAdvancePanel';
 import {
   COMBINED_PARAM,
   buildAtShowScoreSheetRoute,
+  pairedClassIdFor,
   resolveScoreSheetEntryListRoute,
 } from './atShowScoresheetRoutes';
 
@@ -259,11 +260,19 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
   const [savedEntryId, setSavedEntryId] = useState<string | null>(null);
   const handleScored = useCallback(() => setSavedEntryId(entryId ?? null), [entryId]);
   const handlePickEntry = useCallback(
-    (nextEntryId: string) => {
+    (nextEntryId: string, nextClassId: string) => {
       setSavedEntryId(null);
       // The normal scoresheet route, so the picked dog goes through the same
       // load + `transitionToInRing` path as a tap from the entry list.
-      navigate(buildAtShowScoreSheetRoute(showId ?? '', classId ?? '', nextEntryId, combined));
+      // A chip from the other section opens under ITS class, keeping the pair.
+      navigate(
+        buildAtShowScoreSheetRoute(
+          showId ?? '',
+          nextClassId || (classId ?? ''),
+          nextEntryId,
+          combined
+        )
+      );
     },
     [navigate, showId, classId, combined]
   );
@@ -325,6 +334,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     return (
       <QuickAdvancePanel
         classId={classId}
+        pairedClassId={pairedClassIdFor(classId ?? '', combined)}
         scoredEntryId={savedEntryId}
         onBackToList={onBack}
         onCorrectScore={handleCorrectScore}

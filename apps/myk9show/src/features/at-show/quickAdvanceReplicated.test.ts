@@ -27,6 +27,7 @@ describe('toQuickAdvanceChips — no check-in status data (paper gate)', () => {
     expect(chips.map(c => c.entryId)).toEqual(['1', '2', '3']);
     expect(chips[0]).toEqual({
       entryId: '1',
+      classId: 'class-1',
       armband: '1',
       callName: 'Dog 1',
       breed: 'Golden Retriever',

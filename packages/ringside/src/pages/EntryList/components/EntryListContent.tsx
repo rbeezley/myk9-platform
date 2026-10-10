@@ -216,8 +216,11 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
             {inRing ? (
               renderCard(inRing, 'hero')
             ) : (
+              // As tall as the hero card it stands in for (168px measured live at 375px):
+              // at 70px, every dog leaving and entering the ring shifted the whole list
+              // ~100px up and back, which read as the page bouncing (owner, 2026-10-09).
               <div
-                className="flex min-h-[70px] items-center gap-3 rounded-2xl border-2 border-dashed border-primary/30 bg-primary/[0.05] p-3"
+                className="flex min-h-[10.5rem] items-center gap-3 rounded-2xl border-2 border-dashed border-primary/30 bg-primary/[0.05] p-3"
                 data-testid="ring-clear"
               >
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl border-2 border-dashed border-primary/40 text-primary">

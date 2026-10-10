@@ -237,7 +237,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
         {/* Trial date and number */}
         {trialInfoText && (
           <div className="flex w-full justify-center max-sm:hidden">
-            <span className="text-xs font-medium leading-tight text-muted-foreground">
+            <span className="min-w-0 truncate text-xs font-medium leading-tight text-muted-foreground">
               {trialInfoText}
             </span>
           </div>

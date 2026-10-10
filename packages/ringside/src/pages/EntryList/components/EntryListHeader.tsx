@@ -202,7 +202,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
         ref={classInfoRef}
         data-class-info-trigger={hasExtraInfo ? '' : undefined}
         className={cn(
-          'flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-md px-1.5 py-1 text-center max-md:min-h-12 sm:max-md:min-h-[66px] md:absolute md:left-1/2 md:top-1/2 md:max-w-[55%] md:flex-none md:-translate-x-1/2 md:-translate-y-1/2',
+          'flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-md px-1.5 py-1 text-center md:absolute md:left-1/2 md:top-1/2 md:max-w-[55%] md:flex-none md:-translate-x-1/2 md:-translate-y-1/2',
           hasExtraInfo &&
             'group cursor-pointer transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
         )}
@@ -214,11 +214,13 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
           hasExtraInfo ? event => handleClassInfoKeyDown(event, toggleInfoPopup) : undefined
         }
       >
-        {/* Class name with small info indicator. On phones the block reserves two lines
-            (min-h-12) and the title clamps to two: the indicators beside it come and go
-            with every background sync, and a title that rewrapped each time bounced the
-            whole list under the sticky header (owner report, 2026-10-09). */}
-        <div className="flex items-center justify-center gap-1">
+        {/* Class name with small info indicator. On phones this row is always two title
+            lines tall (2.5em at the title's own size and leading-tight 1.25) and the title
+            clamps to two: the indicators beside it come and go with every background sync,
+            and a title that rewrapped each time bounced the whole list under the sticky
+            header (owner report, 2026-10-09). Sized in em, not px, so the app's text scale
+            (text-base is 20px at ringside) cannot under-reserve it again. */}
+        <div className="flex items-center justify-center gap-1 max-md:min-h-[2.5em] max-md:text-base">
           <h1 className="m-0 text-balance max-md:line-clamp-2 text-center text-base font-[590] leading-tight tracking-tight text-foreground md:whitespace-nowrap md:text-lg md:leading-none">
             {classInfo?.className?.toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) ||
               'Loading...'}

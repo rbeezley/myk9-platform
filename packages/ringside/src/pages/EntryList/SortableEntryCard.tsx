@@ -212,11 +212,22 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
   // Nationals, whose per-area badges have no compact form yet.
   const isNationals = isNationalsCompetition(showContext);
   const showStatus = !entry.isScored || scoringDisabled;
+  // The judge's NQ/excused reason is for the ring and the dog's own team, not
+  // every exhibitor reading the list (MYK9-1086 review).
+  const canSeeReason = hasPermission('canScore') || hasPermission('canManageClasses') || isOwnEntry;
+  const result = (
+    <CompletedResult
+      entry={entry}
+      registry={classInfo?.registry ?? null}
+      showReason={canSeeReason}
+    />
+  );
   const actionPill = (label: string) => (
     <span
       className={cn(
         'inline-flex min-h-11 items-center rounded-xl px-4 text-[0.9375rem] font-bold',
-        variant === 'hero' ? 'bg-white text-primary' : 'bg-primary text-primary-foreground'
+        // Hero pill: fixed dark text on white so it reads in both themes.
+        variant === 'hero' ? 'bg-white text-neutral-900' : 'bg-primary text-primary-foreground'
       )}
     >
       {label}
@@ -224,9 +235,16 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
   );
   const trailing =
     variant === 'hero' ? (
-      scoringAllowed ? (
-        actionPill('Resume')
-      ) : undefined
+      <>
+        {/* The ring steward can still correct an in-ring dog's status from here. */}
+        <StatusBadge
+          entry={entry}
+          isDisabled={isCheckInDisabled}
+          onClick={handleStatusBadgeClick}
+          inverse
+        />
+        {scoringAllowed && actionPill('Resume')}
+      </>
     ) : variant === 'next' ? (
       <>
         <StatusBadge
@@ -239,6 +257,8 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
       </>
     ) : showStatus ? (
       <>
+        {/* A dog scored and then moved to Not running keeps its result visible. */}
+        {entry.isScored && !isNationals && result}
         <StatusBadge
           entry={entry}
           isDisabled={isCheckInDisabled}
@@ -248,7 +268,7 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
       </>
     ) : (
       <>
-        {!isNationals && <CompletedResult entry={entry} registry={classInfo?.registry ?? null} />}
+        {!isNationals && result}
         {scoringAllowed && <ResetButton onClick={handleResetClick} callName={entry.callName} />}
       </>
     );
@@ -278,7 +298,10 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
           entry.status === 'in-ring' && 'in-ring',
           // Own-dog highlight: calm primary ring + faint tint. Layered via
           // className so the DogCard primitive's API stays untouched.
-          isOwnEntry && 'ring-1 ring-primary/50 border-primary/40 bg-primary/[0.06]'
+          // Not on the hero: its solid fill must win, or the white text vanishes.
+          isOwnEntry &&
+            variant !== 'hero' &&
+            'ring-1 ring-primary/50 border-primary/40 bg-primary/[0.06]'
         )}
         nameAddon={
           isOwnEntry ? (
@@ -290,10 +313,11 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
         trailing={trailing}
         {...(variant ? { variant } : {})}
         resultBadges={
-          isOwnEntry && conflictLabel ? (
-            <OwnDogConflictChip label={conflictLabel} />
-          ) : isNationals ? (
-            <ResultBadges entry={entry} showContext={showContext} />
+          (isOwnEntry && conflictLabel) || isNationals ? (
+            <>
+              {isOwnEntry && conflictLabel && <OwnDogConflictChip label={conflictLabel} />}
+              {isNationals && <ResultBadges entry={entry} showContext={showContext} />}
+            </>
           ) : undefined
         }
         sectionBadge={sectionBadge}
@@ -355,9 +379,11 @@ interface StatusBadgeProps {
   entry: Entry;
   isDisabled: boolean;
   onClick: (e: React.MouseEvent) => void;
+  /** Draw on the solid primary hero card. */
+  inverse?: boolean;
 }
 
-const StatusBadge: React.FC<StatusBadgeProps> = ({ entry, isDisabled, onClick }) => {
+const StatusBadge: React.FC<StatusBadgeProps> = ({ entry, isDisabled, onClick, inverse }) => {
   const displayStatus = entry.inRing ? 'in-ring' : entry.status;
 
   // Track pulse animation state - triggers when timestamp changes
@@ -411,7 +437,7 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ entry, isDisabled, onClick })
       onTouchStart={e => e.stopPropagation()}
       title={isDisabled ? 'Self check-in disabled' : 'Change check-in'}
     >
-      <CheckInIndicator status={displayStatus} />
+      <CheckInIndicator status={displayStatus} inverse={inverse} />
     </button>
   );
 };

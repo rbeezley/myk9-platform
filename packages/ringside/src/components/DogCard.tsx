@@ -62,7 +62,7 @@ export const DogCard = React.memo<DogCardProps>(
         className={cn(
           'relative flex min-h-[70px] flex-col overflow-hidden rounded-2xl border border-solid border-border bg-card p-3 shadow-sm transition-[transform,box-shadow,border-color] duration-200',
           onClick &&
-            'cursor-pointer hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg active:scale-[0.98]',
+            'cursor-pointer hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring active:scale-[0.98]',
           RESULT_BORDER[statusBorder] ?? '',
           isHero && 'border-primary bg-primary text-primary-foreground',
           variant === 'next' && 'border-2 border-primary',
@@ -70,6 +70,22 @@ export const DogCard = React.memo<DogCardProps>(
           className
         )}
         onClick={onClick}
+        // The card is the scoring action now that the separate Score button is
+        // gone, so it must be reachable by keyboard and switch control.
+        {...(onClick
+          ? {
+              role: 'button',
+              tabIndex: 0,
+              'aria-label': `${callName}, armband ${armbandText}`,
+              onKeyDown: (event: React.KeyboardEvent<HTMLDivElement>) => {
+                if (event.target !== event.currentTarget) return;
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  onClick();
+                }
+              },
+            }
+          : {})}
         onMouseEnter={onPrefetch}
         onTouchStart={onPrefetch}
         data-testid="dog-card"
@@ -127,7 +143,7 @@ export const DogCard = React.memo<DogCardProps>(
           </div>
 
           {trailing && (
-            <div className="flex shrink-0 flex-col items-end gap-1 self-center">
+            <div className="flex min-w-0 max-w-[45%] shrink-0 flex-col items-end gap-1 self-center">
               {trailing}
               {/* With a trailing column the heart joins it, so it never sits on top of the check-in icon. */}
               {favoriteButton}

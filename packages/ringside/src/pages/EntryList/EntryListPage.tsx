@@ -316,7 +316,13 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
               onOpenDragMode={handleOpenDragMode}
-              showNowAndNext={activeTab === 'pending' && !isDragMode && !searchTerm}
+              showNowAndNext={
+                activeTab === 'pending' &&
+                !isDragMode &&
+                !searchTerm &&
+                // A filtered section cannot see the other section's in-ring dog.
+                (!combined || combined.sectionFilter === 'all')
+              }
               {...(favorites ? { favorites } : {})}
               {...(ownership ? { ownership } : {})}
               DogCard={layout.DogCard}

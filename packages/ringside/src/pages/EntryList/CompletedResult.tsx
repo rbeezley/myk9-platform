@@ -22,17 +22,24 @@ function reasonFor(entry: Entry, code: string): string | null {
   return null;
 }
 
-export const CompletedResult: React.FC<{ entry: Entry; registry?: string | null }> = ({
-  entry,
-  registry,
-}) => {
+export const CompletedResult: React.FC<{
+  entry: Entry;
+  registry?: string | null;
+  /** NQ / excused reasons are shown only to the ring team and the dog's owner. */
+  showReason?: boolean;
+}> = ({ entry, registry, showReason = true }) => {
   const code = normalizeResultText(entry.resultText);
   const qualified = code === 'Q';
   const showQual = entry.showQualification !== false;
   const placement = entry.placement ?? 0;
   const showPlace = qualified && entry.showPlacement !== false && placement > 0;
   const faults = entry.faultCount ?? 0;
-  const reason = showQual && !qualified ? reasonFor(entry, code) : null;
+  const rawReason = showQual && !qualified ? reasonFor(entry, code) : null;
+  // NQ keeps its code next to the reason; EX / ABS / WD would only repeat it.
+  const codeIsTheReason = code === 'EX' || code === 'ABS' || code === 'WD';
+  const reason = rawReason && (showReason || codeIsTheReason) ? rawReason : null;
+  const formattedTime = entry.searchTime ? formatTimeForDisplay(entry.searchTime) : '';
+  const hasTime = formattedTime !== '' && !/^0+:0+(\.0+)?$/.test(formattedTime);
 
   let badge: React.ReactNode = null;
   if (showPlace) {
@@ -50,7 +57,7 @@ export const CompletedResult: React.FC<{ entry: Entry; registry?: string | null 
         {getPlacementText(placement)}
       </span>
     );
-  } else if (showQual && entry.resultText) {
+  } else if (showQual && entry.resultText && !(codeIsTheReason && reason)) {
     badge = (
       <span
         className={
@@ -65,9 +72,9 @@ export const CompletedResult: React.FC<{ entry: Entry; registry?: string | null 
   return (
     <div className="flex flex-col items-end gap-0.5 text-right" data-testid="completed-result">
       {badge}
-      {qualified && entry.showTime !== false && entry.searchTime ? (
+      {qualified && entry.showTime !== false && hasTime ? (
         <span className="text-[0.9375rem] font-semibold tabular-nums text-foreground">
-          {formatTimeForDisplay(entry.searchTime)}
+          {formattedTime}
         </span>
       ) : null}
       {qualified && entry.showFaults !== false && faults > 0 ? (
@@ -76,7 +83,9 @@ export const CompletedResult: React.FC<{ entry: Entry; registry?: string | null 
         </span>
       ) : null}
       {reason ? (
-        <span className="text-sm font-semibold text-muted-foreground">{reason}</span>
+        <span className="line-clamp-2 break-words text-sm font-semibold text-muted-foreground">
+          {reason}
+        </span>
       ) : null}
     </div>
   );

@@ -301,6 +301,15 @@ export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null)
  * tell `moved` or `not_accepted` from a live runner. Required, not optional, so
  * a caller cannot silently fall back to raw `entries.length`.
  */
+/** Registry for ribbon colours only; an unknown id must not take the class page down. */
+function safeRegistryId(trial: ReplicatedTrial | null): string {
+  try {
+    return getTrialRegistry(trial).id;
+  } catch {
+    return 'AKC';
+  }
+}
+
 export function buildClassInfo(
   cls: ReplicatedClass,
   trial: ReplicatedTrial | null,
@@ -329,7 +338,7 @@ export function buildClassInfo(
     // 'standard' when a row hasn't been enriched yet (e.g. pre-migration cache).
     selfCheckin: cls.selfCheckinEnabled ?? true,
     // Ribbon colours differ by registry (MYK9-1086); read via the helper, never the raw column.
-    registry: getTrialRegistry(trial).id,
+    registry: safeRegistryId(trial),
     classStatus: cls.classStatus ?? 'pending',
     totalEntries: counts.expected,
     completedEntries: counts.accounted,

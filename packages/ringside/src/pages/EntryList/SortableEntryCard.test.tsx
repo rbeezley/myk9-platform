@@ -364,6 +364,29 @@ describe('SortableEntryCard', () => {
     expect(onEntryClick).toHaveBeenCalledTimes(1);
   });
 
+  it('keeps the check-in button on the hero and no own-dog tint over its fill', () => {
+    const inRing: Entry = { ...baseEntry, inRing: true, status: 'in-ring' };
+    renderInDndContext(
+      <SortableEntryCard
+        entry={inRing}
+        variant="hero"
+        isOwnEntry
+        isDragMode={false}
+        hasPermission={allowAll}
+        handleEntryClick={vi.fn()}
+        handleStatusClick={vi.fn()}
+        handleResetMenuClick={vi.fn()}
+        setSelfCheckinDisabledDialog={vi.fn()}
+        DogCard={StubDogCard}
+      />
+    );
+
+    expect(screen.getByTestId('check-in-button')).toBeTruthy();
+    expect(screen.getByTestId('dog-card').getAttribute('data-class-name')).not.toContain(
+      'bg-primary/'
+    );
+  });
+
   it('shows no Resume on the hero for a viewer who cannot score', () => {
     const inRing: Entry = { ...baseEntry, inRing: true, status: 'in-ring' };
     renderInDndContext(

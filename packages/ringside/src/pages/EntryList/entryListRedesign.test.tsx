@@ -117,6 +117,30 @@ describe('CompletedResult', () => {
   });
 });
 
+describe('MYK9-1086 review fixes', () => {
+  it('hides the NQ reason from a viewer outside the ring team', () => {
+    render(
+      <CompletedResult
+        entry={entry({ isScored: true, resultText: 'NQ', nqReason: 'Incorrect call' })}
+        showReason={false}
+      />
+    );
+    const text = screen.getByTestId('completed-result').textContent ?? '';
+    expect(text).toContain('NQ');
+    expect(text).not.toContain('Incorrect call');
+  });
+
+  it('shows Excused once, not as code plus reason', () => {
+    render(<CompletedResult entry={entry({ isScored: true, resultText: 'Excused' })} />);
+    expect(screen.getByTestId('completed-result').textContent).toBe('Excused');
+  });
+
+  it('does not render a zero time for a qualified dog', () => {
+    render(<CompletedResult entry={entry({ isScored: true, resultText: 'Q', searchTime: '0' })} />);
+    expect(screen.getByTestId('completed-result').textContent).toBe('Q');
+  });
+});
+
 describe('getCheckInPresentation', () => {
   it('covers every check-in status with a label', () => {
     for (const status of CHECKIN_STATUSES) {

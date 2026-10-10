@@ -74,8 +74,14 @@ export function getCheckInPresentation(status: string | null | undefined): Check
   };
 }
 
-export const CheckInIndicator: React.FC<{ status: string | null | undefined }> = ({ status }) => {
-  const { Icon, label, colorClass, showWord } = getCheckInPresentation(status);
+export const CheckInIndicator: React.FC<{
+  status: string | null | undefined;
+  /** On a solid primary surface (the in-ring hero): draw in the foreground-on-primary colour. */
+  inverse?: boolean | undefined;
+}> = ({ status, inverse = false }) => {
+  const presentation = getCheckInPresentation(status);
+  const { Icon, label, showWord } = presentation;
+  const colorClass = inverse ? 'text-primary-foreground' : presentation.colorClass;
   return (
     <span
       className={cn('inline-flex items-center gap-1.5', colorClass)}

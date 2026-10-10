@@ -86,7 +86,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     return registrationToUpdatePayload(registration);
   }
 
-  /** Reads rows by id the way `sync` does (stale-OCC re-fetch, refusal re-pull). */
+  /** Reads rows by id the way `sync` does (stale-OCC re-fetch, MYK9-771). */
   protected override getRowRefetchAdapter(): RowRefetchAdapter<
     DogRegistrationRow,
     ReplicatedDogRegistration
@@ -106,10 +106,6 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     };
   }
 
-  /** The public face of the refetch adapter, for the refusal re-pull (D3). */
-  getRefetchAdapter(): RowRefetchAdapter<DogRegistrationRow, ReplicatedDogRegistration> {
-    return this.getRowRefetchAdapter();
-  }
 
   /** Unscoped: RLS decides, so the replica holds what the online read shows. */
   async sync(): Promise<SyncResult> {

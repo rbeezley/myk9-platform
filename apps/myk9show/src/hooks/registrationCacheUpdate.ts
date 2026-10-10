@@ -99,3 +99,53 @@ export async function applyUnsentRegistrations(
   const upsert = await replicatedDogRegistrationsTable.getRegistrationsForDog(dogId);
   applyRegistrationCacheUpdate(queryClient, { upsert });
 }
+
+/**
+ * THE invalidation rule for the registrations replica (MYK9-1071, review round
+ * 3): whenever `dog_registrations` changes outside a queued write (a sync, a
+ * conflict resolution, a discard), every query that shows registrations is
+ * invalidated: the Registrations lists, the dog reads (roster, one dog) and the
+ * owner's dogs. Queue-time writes patch through applyRegistrationCacheUpdate.
+ */
+export function invalidateRegistrationConsumers(queryClient: QueryClient): void {
+  void queryClient.invalidateQueries({ queryKey: ['registrations'] });
+  void queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
+  void queryClient.invalidateQueries({
+    predicate: query => query.queryKey[0] === 'users' && query.queryKey[2] === 'dogs',
+  });
+}
+
+/**
+ * Invalidate what a replicated table's change can show. Every provider path
+ * that refreshes after a table changes goes through this, so the registration
+ * readers (which do not use the table name as a query key) are never missed.
+ */
+export function invalidateTableConsumers(queryClient: QueryClient, tableName: string): void {
+  void queryClient.invalidateQueries({ queryKey: [tableName] });
+  if (tableName === 'dog_registrations') invalidateRegistrationConsumers(queryClient);
+}
+
+/**
+ * A discarded registration INSERT never reaches the server, and the queue
+ * removes its local-only row: drop it from the caches now (offline the
+ * invalidation alone would pause and leave it on screen).
+ */
+export function dropDiscardedRegistrationInserts(
+  queryClient: QueryClient,
+  mutations: ReadonlyArray<{
+    tableName: string;
+    operation?: string;
+    rowId?: string;
+    data?: Record<string, unknown>;
+  }>
+): void {
+  const remove = mutations
+    .filter(m => m.tableName === 'dog_registrations' && m.operation === 'INSERT' && m.rowId)
+    .flatMap(m =>
+      typeof m.data?.dog_id === 'string' ? [{ id: String(m.rowId), dogId: m.data.dog_id }] : []
+    );
+  if (remove.length > 0) applyRegistrationCacheUpdate(queryClient, { remove });
+  if (mutations.some(m => m.tableName === 'dog_registrations')) {
+    invalidateRegistrationConsumers(queryClient);
+  }
+}

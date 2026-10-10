@@ -40,11 +40,10 @@ import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable'
 import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
 import { replicatedShowDeskPeopleTable } from '@/services/replication/ReplicatedShowDeskPeopleTable';
 import {
-  isFinalRefusal,
-  repullRowsForMutations,
-  type RepulledRows,
-} from '@/services/replication/repullRefusedRows';
-import { applyRepullToCaches } from '@/services/replication/repullCacheUpdate';
+  dropDiscardedRegistrationInserts,
+  invalidateRegistrationConsumers,
+  invalidateTableConsumers,
+} from '@/hooks/registrationCacheUpdate';
 import { replicatedClubsTable } from '@/services/replication/ReplicatedClubsTable';
 import { replicatedJudgeAssignmentsTable } from '@/services/replication/ReplicatedJudgeAssignmentsTable';
 import { replicatedArmbandsTable } from '@/services/replication/ReplicatedArmbandsTable';
@@ -270,7 +269,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           if (result.recoveredFromEmptyReplica) {
             warnRecoveredFromEmptyReplica(tableName);
           }
-          queryClient.invalidateQueries({ queryKey: [tableName] });
+          invalidateTableConsumers(queryClient, tableName);
           setStatus(prev => ({
             ...prev,
             tablesStatus: { ...prev.tablesStatus, [tableName]: 'success' },
@@ -423,6 +422,8 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           .filter((_, i) => syncResults[i]?.ok)
           .map(({ name, scope }) => ({ name, scope }));
         void invalidatePostSyncQueries(queryClient, selectedNames, succeededTables);
+        if (selectedNames.includes('dog_registrations'))
+          invalidateRegistrationConsumers(queryClient);
         // MYK9-1064: the canonical show-entries query for each show a scoped
         // entries pass downloaded, whatever component or hook asked for it.
         refetchShowEntriesAfterScopedSync(queryClient, succeededTables);
@@ -598,7 +599,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
       // queue. (The overflow handler shows it with this fixed id.)
       toast.dismiss('replication-queue-overflow');
       for (const table of tables) {
-        queryClient.invalidateQueries({ queryKey: [table] });
+        invalidateTableConsumers(queryClient, table);
       }
       void getRingsideUploadSyncTargets(detail, {
         getEntry: id => replicatedEntriesTable.get(id),
@@ -621,9 +622,6 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
   // Failed mutations are kept in the failed_mutations IDB store until the
   // user explicitly retries or discards them — never auto-deleted.
   useEffect(() => {
-    // MYK9-1071: the registration readers do not watch the replica.
-    const refreshRepullConsumers = (outcomes: RepulledRows[]) =>
-      applyRepullToCaches(queryClient, outcomes);
     const handleSyncFailed = (event: Event) => {
       const detail = (event as CustomEvent<SyncFailedEventDetail>).detail;
       logger.error('Replication sync failed', 'replication', {
@@ -641,11 +639,6 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
         revokeRingsidePasscodeAccess();
         return;
       }
-
-      // MYK9-1071 (D3): a final refusal re-pulls the server copy of the row.
-      void repullRowsForMutations(detail.mutations.filter(isFinalRefusal)).then(
-        refreshRepullConsumers
-      );
 
       for (const failureDetail of splitPermanentScoreAuthorizationFailures(detail)) {
         const ids = failureDetail.mutations.map(m => m.id).filter(Boolean);
@@ -685,9 +678,9 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           cancel: {
             label: 'Discard',
             onClick: () => {
-              void Promise.allSettled(ids.map(id => mutationManager.discardFailedMutation(id)))
-                .then(() => repullRowsForMutations(failureDetail.mutations))
-                .then(refreshRepullConsumers);
+              void Promise.allSettled(
+                ids.map(id => mutationManager.discardFailedMutation(id))
+              ).then(() => dropDiscardedRegistrationInserts(queryClient, failureDetail.mutations));
               clearToastId();
             },
           },
@@ -755,8 +748,10 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
             // Replace local row with remote data (reads snapshot from IDB) AND
             // discard the pending mutation that would re-upload the old local value.
             if (anyTable) {
-              void anyTable.resolveReplicationConflict(detail.rowId, 'take-remote');
-              void mutationManager.discardPendingMutationsForRow(detail.tableName, detail.rowId);
+              void Promise.allSettled([
+                anyTable.resolveReplicationConflict(detail.rowId, 'take-remote'),
+                mutationManager.discardPendingMutationsForRow(detail.tableName, detail.rowId),
+              ]).then(() => invalidateTableConsumers(queryClient, detail.tableName));
             }
             toast.dismiss(conflictId);
           },
@@ -766,7 +761,9 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           onClick: () => {
             // Clear the conflict snapshot and let the table refresh queued
             // mutation OCC state from the resolved row.
-            void anyTable?.resolveReplicationConflict(detail.rowId, 'keep-local');
+            void anyTable
+              ?.resolveReplicationConflict(detail.rowId, 'keep-local')
+              .then(() => invalidateTableConsumers(queryClient, detail.tableName));
             toast.dismiss(conflictId);
           },
         },
@@ -775,7 +772,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
 
     window.addEventListener('replication:conflict', handleConflict);
     return () => window.removeEventListener('replication:conflict', handleConflict);
-  }, []);
+  }, [queryClient]);
 
   // Re-surface persisted conflicts from previous sessions when the user
   // authenticates.  A conflict navigated away from before resolving stays

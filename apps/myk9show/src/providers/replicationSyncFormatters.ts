@@ -5,8 +5,9 @@ export interface SyncFailedEventDetail {
   count: number;
   mutations: Array<
     Pick<PendingMutation, 'id' | 'tableName' | 'operation' | 'error' | 'failureKind' | 'rpc'> &
-      // The queue sends whole mutations; rowId drives the refusal re-pull (MYK9-1071).
-      Partial<Pick<PendingMutation, 'rowId'>>
+      // The queue sends whole mutations; a discarded registration INSERT is
+      // dropped from the caches by rowId and data.dog_id (MYK9-1071).
+      Partial<Pick<PendingMutation, 'rowId' | 'data'>>
   >;
   message: string;
 }

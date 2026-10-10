@@ -1,6 +1,6 @@
 import {
   isAccountedFor,
-  isExpectedEntry,
+  isEntryToScore,
   isOnClassRunList,
   type EntryAccountingFields,
 } from '@/features/_shared/entryAccounting';
@@ -102,7 +102,7 @@ export function tallyEntriesByClass(
     const fields = accountingFields(entry);
     const onRunList = isOnClassRunList(fields);
     const pending = Boolean(entry.entry_status && isPendingEntryStatus(entry.entry_status));
-    const toScore = isExpectedEntry(fields) && !pending;
+    const toScore = isEntryToScore(fields);
     if (!onRunList && !toScore) continue;
     const tally = tallies.get(classId) ?? { total: 0, scored: 0, runList: 0, pending: 0 };
     if (onRunList) tally.runList += 1;

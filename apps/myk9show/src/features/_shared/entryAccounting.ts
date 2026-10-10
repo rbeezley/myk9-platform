@@ -1,3 +1,5 @@
+import { isPendingEntryStatus } from '@/features/entry-operations/classEntryBreakdown';
+
 /**
  * Canonical answer to "is this entry expected to be scored, and has it been?"
  *
@@ -145,6 +147,16 @@ export function isOnClassRunList(entry: EntryAccountingFields): boolean {
     entry_status: entry.entry_status,
     status: entry.status,
   });
+}
+
+/**
+ * THE "counts toward the scoring tally" predicate: expected to run AND already accepted.
+ * A pending-acceptance entry is counted on its own "N pending" link, not as outstanding
+ * scoring work. Results tab, Show Desk and Overview progress all answer to this (MYK9-1072).
+ */
+export function isEntryToScore(entry: EntryAccountingFields): boolean {
+  const entryStatus = entry.entryStatus ?? entry.entry_status ?? entry.status;
+  return isExpectedEntry(entry) && !(entryStatus && isPendingEntryStatus(entryStatus));
 }
 
 /** Entries the show expects to run, in input order. */

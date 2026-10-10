@@ -76,9 +76,9 @@ describe('showMapStatus', () => {
       ];
 
       expect(buildClassProgress(makeClass('In Progress'), entries)).toMatchObject({
-        completed: 2,
-        total: 2,
-        label: '2/2 entries complete',
+        completed: 1,
+        total: 1,
+        label: '1/1 entries complete',
       });
       expect(classifyClassWrapUpStatus(makeSignedClass('In Progress'), entries)).toMatchObject({
         value: 'signed-by-judge',

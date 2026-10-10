@@ -607,6 +607,82 @@ describe('showMapActions', () => {
     expect(actionIds).not.toContain('mark-class-complete');
   });
 
+  it('offers Mark Class Complete when the only unscored row is a moved-out source row (MYK9-1072)', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [
+        {
+          id: 'class-active',
+          trialId: 'trial-1',
+          name: 'Interior Novice A',
+          status: 'In Progress',
+        },
+      ],
+      entries: [
+        {
+          id: 'entry-scored',
+          class_id: 'class-active',
+          dog: { call_name: 'Bella' },
+          is_scored: true,
+        },
+        {
+          id: 'entry-moved',
+          class_id: 'class-active',
+          dog: { call_name: 'Scout' },
+          entry_status: 'moved',
+        },
+      ],
+    });
+
+    expect(tree.nodesById['class:class-active'].progress).toMatchObject({
+      completed: 1,
+      total: 1,
+    });
+    expect(
+      getRankedActions(tree.nodesById['class:class-active'], { tree }).map(action => action.id)
+    ).toContain('mark-class-complete');
+  });
+
+  it('does not let a pending-acceptance entry hold Mark Class Complete, and root progress agrees (MYK9-1072)', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [
+        {
+          id: 'class-active',
+          trialId: 'trial-1',
+          name: 'Interior Novice A',
+          status: 'In Progress',
+        },
+      ],
+      entries: [
+        { id: 'e1', class_id: 'class-active', dog: { call_name: 'Bella' }, is_scored: true },
+        {
+          id: 'e2',
+          class_id: 'class-active',
+          dog: { call_name: 'Scout' },
+          entry_status: 'pending',
+        },
+        {
+          id: 'e3',
+          class_id: 'class-active',
+          dog: { call_name: 'Rex' },
+          entry_status: 'moved',
+        },
+      ],
+    });
+
+    expect(tree.nodesById['class:class-active'].progress).toMatchObject({
+      completed: 1,
+      total: 1,
+    });
+    expect(tree.root.progress).toMatchObject({ completed: 1, total: 1 });
+    expect(
+      getRankedActions(tree.nodesById['class:class-active'], { tree }).map(action => action.id)
+    ).toContain('mark-class-complete');
+  });
+
   it('allows empty active classes to be marked complete', () => {
     const tree = buildShowMapTree({
       show,

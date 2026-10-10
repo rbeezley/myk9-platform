@@ -1,3 +1,4 @@
+import { isEntryToScore } from '@/features/_shared/entryAccounting';
 import { resolveConfiguredRegistryId } from '@/features/registries';
 import {
   buildClassProgress,
@@ -384,10 +385,11 @@ export function buildShowMapTree({
   }
 
   const totalClasses = classes.length;
-  const completedEntries = entries.filter(isEntryComplete).length;
+  const toScoreEntries = entries.filter(isEntryToScore);
+  const completedEntries = toScoreEntries.filter(isEntryComplete).length;
   tree.root.count = trials.length;
   tree.root.subtitle = `${trials.length} trials · ${totalClasses} classes · ${entries.length} entries`;
-  tree.root.progress = buildProgress(completedEntries, entries.length, 'entries');
+  tree.root.progress = buildProgress(completedEntries, toScoreEntries.length, 'entries');
   tree.root.attentionCount = entries.filter(entry => getEntryAttention(entry) !== null).length;
 
   return tree;

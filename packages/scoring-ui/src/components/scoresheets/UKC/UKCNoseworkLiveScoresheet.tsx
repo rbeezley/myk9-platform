@@ -5,7 +5,10 @@
  * - Dual mode (Superior/Master/Elite): Search timer + continuous Element timer
  * - Single mode (Novice/Advanced): Search timer only
  *
- * Multi-area support (1–3 areas), fault counter, and result chips.
+ * UKC Nosework is always ONE search area (owner, MYK9-1086): the sheet forces a
+ * single area whatever the class record says, shows one editable recorded time,
+ * and records no found/correct flags (UKC judges never use them).
+ * Fault counter and result chips as usual.
  */
 
 import React, { useState, useCallback } from 'react';
@@ -52,8 +55,9 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   const maxTimeStr = `${Math.floor(rules.maxTimeSeconds / 60)}:${String(rules.maxTimeSeconds % 60).padStart(2, '0')}`;
 
   const scoring = useScoresheetScoring({
-    rules,
+    rules: { ...rules, areaCount: 1 },
     existingScore: entry.existingScore,
+    recordFinds: false,
   });
 
   const stopwatch = useStopwatch({
@@ -384,47 +388,27 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               </div>
             )}
 
-            {/* Area Sections */}
-            {scoring.areas.map((area, index) => (
-              <Card key={index} className="p-4 space-y-3">
-                <h3 className="font-medium text-sm text-muted-foreground uppercase tracking-wide">
-                  {area.areaName}
-                </h3>
-                <div className="space-y-2">
-                  <label className="text-sm font-medium">Search Time</label>
+            {/* Recorded time: the one UKC search area. Filled when the timer stops;
+                editable for a hand correction. */}
+            {scoring.areas[0] && (
+              <Card className="p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <label htmlFor="ukc-recorded-time" className="font-medium">
+                    Recorded time
+                  </label>
                   <Input
+                    id="ukc-recorded-time"
                     type="text"
-                    value={area.time}
-                    onChange={e => scoring.handleAreaUpdate(index, 'time', e.target.value)}
+                    inputMode="decimal"
+                    value={scoring.areas[0].time}
+                    onChange={e => scoring.handleAreaUpdate(0, 'time', e.target.value)}
                     placeholder="0:00.00"
-                    className="text-center text-xl font-mono"
-                    aria-label={`${area.areaName} search time`}
+                    className="h-12 w-40 text-center text-xl font-mono"
+                    data-testid="ukc-recorded-time"
                   />
                 </div>
-                <div className="flex gap-4">
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={area.found}
-                      onChange={e => scoring.handleAreaUpdate(index, 'found', e.target.checked)}
-                      className="h-4 w-4"
-                      aria-label={`${area.areaName} found`}
-                    />
-                    Found
-                  </label>
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={area.correct}
-                      onChange={e => scoring.handleAreaUpdate(index, 'correct', e.target.checked)}
-                      className="h-4 w-4"
-                      aria-label={`${area.areaName} correct`}
-                    />
-                    Correct
-                  </label>
-                </div>
               </Card>
-            ))}
+            )}
 
             {/* Faults */}
             <Card className="p-4">

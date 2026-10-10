@@ -15,6 +15,12 @@ export interface ScoresheetScoringConfig {
   rules: ResolvedClassRules;
   areaNames?: string[];
   existingScore?: ScoreData;
+  /**
+   * False for sports that never score found / correct per area (UKC Nosework,
+   * MYK9-1086): the save then carries no find counts and no FOUND/CORRECT
+   * words, instead of recording every dog as "NOT FOUND INCORRECT".
+   */
+  recordFinds?: boolean;
 }
 
 export interface ValidationResult {
@@ -73,7 +79,7 @@ function initializeAreas(
 }
 
 export function useScoresheetScoring(config: ScoresheetScoringConfig): ScoresheetScoringReturn {
-  const { rules, areaNames, existingScore } = config;
+  const { rules, areaNames, existingScore, recordFinds = true } = config;
 
   const [areas, setAreas] = useState<AreaScore[]>(() =>
     initializeAreas(rules, areaNames, existingScore)
@@ -138,8 +144,9 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
       const keepSavedFinds = existingScore !== undefined && !findFlagsEditedRef.current;
       const areaResults: Record<string, string> = {};
       areas.forEach(area => {
-        areaResults[area.areaName.toLowerCase()] =
-          `${area.time}${area.found ? ' FOUND' : ' NOT FOUND'}${area.correct ? ' CORRECT' : ' INCORRECT'}`;
+        areaResults[area.areaName.toLowerCase()] = recordFinds
+          ? `${area.time}${area.found ? ' FOUND' : ' NOT FOUND'}${area.correct ? ' CORRECT' : ' INCORRECT'}`
+          : area.time;
       });
 
       return {
@@ -148,12 +155,16 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
         nonQualifyingReason: qualifying === 'Q' ? undefined : nonQualifyingReason || undefined,
         areas: areaResults,
         areaTimes: areas.map(a => a.time),
-        correctCount: keepSavedFinds
-          ? existingScore.correctCount
-          : areas.filter(a => a.correct).length,
-        incorrectCount: keepSavedFinds
-          ? existingScore.incorrectCount
-          : areas.filter(a => !a.correct && a.time !== '').length,
+        correctCount: !recordFinds
+          ? 0
+          : keepSavedFinds
+            ? existingScore.correctCount
+            : areas.filter(a => a.correct).length,
+        incorrectCount: !recordFinds
+          ? 0
+          : keepSavedFinds
+            ? existingScore.incorrectCount
+            : areas.filter(a => !a.correct && a.time !== '').length,
         faultCount,
         finishCallErrors: existingScore?.finishCallErrors ?? 0,
         points: existingScore?.points ?? 0,

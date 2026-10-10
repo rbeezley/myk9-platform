@@ -183,8 +183,30 @@ describe('CloneStatusBanner', () => {
     expect(cleared).toHaveTextContent('Show dates');
     expect(cleared).toHaveTextContent('Entry period dates');
     expect(cleared).toHaveTextContent('Trial dates');
-    expect(cleared).toHaveTextContent('Officials (you are set as secretary)');
+    expect(cleared).toHaveTextContent('Officials');
     expect(screen.getByRole('button', { name: /start fresh/i })).toBeVisible();
+  });
+
+  it('the judges control focuses the existing judges field', async () => {
+    mockGetClassesByTrialId.mockResolvedValueOnce({ data: [], error: null });
+    queryState.current = {
+      data: [
+        {
+          ...sourceShow,
+          assignedJudges: [{ judgeId: 'j1', judgeName: 'Ann Judge', assignedClasses: [] }],
+        },
+      ],
+      isLoading: false,
+      isError: false,
+    };
+    const { user } = await pickSourceShow();
+    await waitFor(() => expect(cloneStatus()).toBe('ready'));
+    const target = document.createElement('button');
+    target.id = 'judges-picker-trigger';
+    document.body.appendChild(target);
+    await user.click(screen.getByRole('button', { name: 'Check judges' }));
+    expect(target).toHaveFocus();
+    target.remove();
   });
 
   it('shows no clone summary for a draft that is not a clone', () => {

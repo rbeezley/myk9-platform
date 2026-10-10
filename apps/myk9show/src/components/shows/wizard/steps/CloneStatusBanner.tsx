@@ -30,22 +30,20 @@ const SummaryGroup: React.FC<{
   if (items.length === 0) return null;
   return (
     <div data-testid={testId} className="space-y-1">
-      <p className="text-sm font-medium text-foreground">{title}</p>
+      <h3 className="text-sm font-medium text-foreground">{title}</h3>
       <ul className="space-y-1 text-sm text-muted-foreground">
-        {items.map(({ text, targetId }) => (
-          <li key={text}>
+        {items.map(({ text, targetId, fieldLabel }) => (
+          <li key={text} className="flex flex-col items-start gap-1">
             {text}
             {targetId && (
-              <>
-                {' '}
-                <button
-                  type="button"
-                  className="min-h-11 text-primary underline underline-offset-2 sm:min-h-0"
-                  onClick={() => goToField(targetId)}
-                >
-                  Check it
-                </button>
-              </>
+              <Button
+                type="button"
+                variant="outline"
+                size="touch"
+                onClick={() => goToField(targetId)}
+              >
+                {fieldLabel}
+              </Button>
             )}
           </li>
         ))}
@@ -71,15 +69,8 @@ const CloneSummaryGroups: React.FC<{ summary: CloneSummary }> = ({ summary }) =>
 );
 
 export const CloneStatusBanner: React.FC = () => {
-  const {
-    cloneHydration,
-    cloneGeneration,
-    cancelCloneHydration,
-    resetWizard,
-    show,
-    trials,
-    judgeDetails,
-  } = useWizardStore();
+  const { cloneHydration, cloneGeneration, cancelCloneHydration, resetWizard, show, trials } =
+    useWizardStore();
   const { data: shows = [] } = useShowsQuery();
   const startClone = useCloneFromShow();
 
@@ -149,14 +140,11 @@ export const CloneStatusBanner: React.FC = () => {
 
       {status === 'ready' && (
         <>
-          <CloneSummaryGroups
-            summary={summarizeClone({
-              sourceShowName: sourceShowName ?? '',
-              show,
-              judgeDetails,
-              trials,
-            })}
-          />
+          {cloneHydration.snapshot && (
+            <CloneSummaryGroups
+              summary={summarizeClone(cloneHydration.snapshot, { show, trials })}
+            />
+          )}
           <Button type="button" variant="outline" size="touch" onClick={resetWizard}>
             Start fresh
           </Button>

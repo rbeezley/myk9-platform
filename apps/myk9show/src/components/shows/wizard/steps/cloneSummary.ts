@@ -10,6 +10,8 @@ export interface CloneSummaryItem {
   text: string;
   /** DOM id of the existing field this item is about, on the same wizard step. */
   targetId?: string;
+  /** Short button label for `targetId`, e.g. "Check judges". */
+  fieldLabel?: string;
 }
 
 export interface CloneSummary {
@@ -18,18 +20,27 @@ export interface CloneSummary {
   cleared: CloneSummaryItem[];
 }
 
-/** The slice of a snapshot (or of the live draft after one) the summary reads. */
-export type CloneSummarySource = Pick<
-  CloneHydrationSnapshot,
-  'sourceShowName' | 'show' | 'judgeDetails' | 'trials'
->;
+/** The slice of a snapshot the summary reads: what the clone did, captured once. */
+export type CloneSummarySource = Pick<CloneHydrationSnapshot, 'sourceShowName' | 'show' | 'trials'>;
+
+/**
+ * The live draft. It may only REMOVE items the snapshot produced (a judge list emptied, a name
+ * edited, a date filled in); it never adds one, so hand-entered data never reads as cloned.
+ */
+export interface CloneSummaryLiveDraft {
+  show: Pick<
+    WizardState['show'],
+    'name' | 'judgeIds' | 'startDate' | 'endDate' | 'entryOpenDate' | 'entryCloseDate'
+  >;
+  trials: ReadonlyArray<{ trialDate: string; eventNumber: string }>;
+}
 
 type ShowKey = keyof WizardState['show'];
 type TrialKey = keyof CloneHydrationSnapshot['trials'][number];
 
 type FieldRule =
   /** Copied from the source and listed under `label` (fields sharing a label list once). */
-  | { kind: 'carried'; label: string }
+  | { kind: 'carried'; label: string; whenDefined?: true }
   /** Not copied; the secretary fills it in or it takes the default. Listed under `label`. */
   | { kind: 'cleared'; label: string }
   /** Copied, but worth a second look; handled by a dedicated rule below. */
@@ -61,15 +72,15 @@ export const CLONE_SHOW_FIELD_RULES: Record<ShowKey, FieldRule> = {
   startingArmbandNumber: { kind: 'carried', label: 'Starting armband number' },
   acceptCheckPayments: { kind: 'carried', label: 'Payment options' },
   acceptCashPayments: { kind: 'carried', label: 'Payment options' },
-  onlineEntriesEnabled: { kind: 'carried', label: 'Payment options' },
+  onlineEntriesEnabled: { kind: 'carried', label: 'Online entries setting', whenDefined: true },
   judgeIds: { kind: 'confirm' },
   startDate: { kind: 'cleared', label: 'Show dates' },
   endDate: { kind: 'cleared', label: 'Show dates' },
   entryOpenDate: { kind: 'cleared', label: 'Entry period dates' },
   entryCloseDate: { kind: 'cleared', label: 'Entry period dates' },
-  latitude: { kind: 'cleared', label: 'Venue map pin' },
-  longitude: { kind: 'cleared', label: 'Venue map pin' },
-  officials: { kind: 'cleared', label: 'Officials (you are set as secretary)' },
+  latitude: { kind: 'cleared', label: 'Venue map location' },
+  longitude: { kind: 'cleared', label: 'Venue map location' },
+  officials: { kind: 'cleared', label: 'Officials' },
   style: { kind: 'cleared', label: 'Premium style' },
 };
 
@@ -90,21 +101,25 @@ function hasValue(value: unknown): boolean {
 
 const item = (text: string): CloneSummaryItem => ({ text });
 
-function confirmItems(source: CloneSummarySource): CloneSummaryItem[] {
+const YEAR = /\b(19|20)\d{2}\b/;
+
+function confirmItems(source: CloneSummarySource, live: CloneSummaryLiveDraft): CloneSummaryItem[] {
   const items: CloneSummaryItem[] = [];
   const judgeCount = source.show.judgeIds?.length ?? 0;
-  if (judgeCount > 0) {
+  if (judgeCount > 0 && live.show.judgeIds.length > 0) {
     items.push({
       text: `Judges: ${judgeCount} carried forward. Confirm they are judging this year.`,
       targetId: JUDGES_TARGET_ID,
+      fieldLabel: 'Check judges',
     });
   }
   const name = (source.show.name ?? '').trim();
-  const sameAsSource = name !== '' && name === source.sourceShowName.trim();
-  if (name !== '' && (sameAsSource || /\b\d{4}\b/.test(name))) {
+  const needsCheck = name !== '' && (name === source.sourceShowName.trim() || YEAR.test(name));
+  if (needsCheck && live.show.name.trim() === name) {
     items.push({
-      text: `Show name copied as '${name}'. Check it for last year's date.`,
+      text: `Show name copied as '${name}'. Check the year or date in it.`,
       targetId: SHOW_NAME_TARGET_ID,
+      fieldLabel: 'Check show name',
     });
   }
   return items;
@@ -119,12 +134,25 @@ function carriedItems(source: CloneSummarySource): CloneSummaryItem[] {
 
   for (const key of Object.keys(CLONE_SHOW_FIELD_RULES) as ShowKey[]) {
     const rule = CLONE_SHOW_FIELD_RULES[key];
-    if (rule.kind === 'carried' && hasValue(source.show[key])) labels.add(rule.label);
+    if (rule.kind !== 'carried') continue;
+    const value = source.show[key];
+    if (rule.whenDefined ? value !== undefined : hasValue(value)) labels.add(rule.label);
   }
-  return [...labels].map(label => item(label));
+  return [...labels].map(item);
 }
 
-function clearedItems(source: CloneSummarySource): CloneSummaryItem[] {
+/** Cleared labels that disappear once the secretary has filled every live field behind them. */
+function filledLabels(live: CloneSummaryLiveDraft): Set<string> {
+  const { show, trials } = live;
+  const filled = new Set<string>();
+  if (show.startDate && show.endDate) filled.add('Show dates');
+  if (show.entryOpenDate && show.entryCloseDate) filled.add('Entry period dates');
+  if (trials.every(trial => trial.trialDate)) filled.add('Trial dates');
+  if (trials.every(trial => trial.eventNumber)) filled.add('Event numbers');
+  return filled;
+}
+
+function clearedItems(source: CloneSummarySource, live: CloneSummaryLiveDraft): CloneSummaryItem[] {
   const labels = new Set<string>();
   for (const rule of Object.values(CLONE_SHOW_FIELD_RULES)) {
     if (rule.kind === 'cleared') labels.add(rule.label);
@@ -134,13 +162,17 @@ function clearedItems(source: CloneSummarySource): CloneSummaryItem[] {
       if (rule.kind === 'cleared') labels.add(rule.label);
     }
   }
-  return [...labels].map(label => item(label));
+  const filled = filledLabels(live);
+  return [...labels].filter(label => !filled.has(label)).map(item);
 }
 
-export function summarizeClone(source: CloneSummarySource): CloneSummary {
+export function summarizeClone(
+  source: CloneSummarySource,
+  live: CloneSummaryLiveDraft
+): CloneSummary {
   return {
-    needsConfirm: confirmItems(source),
+    needsConfirm: confirmItems(source, live),
     carried: carriedItems(source),
-    cleared: clearedItems(source),
+    cleared: clearedItems(source, live),
   };
 }

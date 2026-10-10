@@ -64,6 +64,14 @@ BEGIN
   IF NEW.class_id IS NOT NULL
      AND NEW.class_id IS NOT DISTINCT FROM OLD.class_id
      AND NEW.deleted_at IS NULL
+     -- Same expected-entry filter as the late-entry branch: clearing a stale
+     -- score on a scratched or pulled dog is not a dog owed a run.
+     AND COALESCE(NEW.entry_status, '') NOT IN (
+       'scratched', 'withdrawn', 'moved', 'not_accepted', 'absent'
+     )
+     AND NEW.check_in_status IS DISTINCT FROM 'pulled'
+     AND NEW.result_status IS DISTINCT FROM 'absent'
+     AND NEW.result_status IS DISTINCT FROM 'excused'
      AND OLD.is_scored = true
      AND NEW.is_scored IS DISTINCT FROM true THEN
     UPDATE public.classes

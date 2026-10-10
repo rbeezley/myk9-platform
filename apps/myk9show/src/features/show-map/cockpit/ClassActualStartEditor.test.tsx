@@ -4,7 +4,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from '@/test/utils/testUtils';
 import { replicatedClassesTable } from '@/services/replication';
 
-import { ClassActualStartEditor, classStartToIso } from './ClassActualStartEditor';
+import { clockOnDateToIso } from '@/components/trials/trialDateTime';
+
+import { ClassActualStartEditor } from './ClassActualStartEditor';
 
 vi.mock('@/services/replication', () => ({
   replicatedClassesTable: { updateClass: vi.fn(async () => 'mutation-1') },
@@ -12,17 +14,17 @@ vi.mock('@/services/replication', () => ({
 
 const updateClass = vi.mocked(replicatedClassesTable.updateClass);
 
-describe('classStartToIso', () => {
+describe('clockOnDateToIso', () => {
   it('reads the typed clock in the trial time zone on the trial date', () => {
     // 9:42 AM in Chicago on Oct 10 (CDT, UTC-5) is 14:42Z.
-    expect(classStartToIso('2026-10-10', '9:42 AM', 'America/Chicago')).toBe(
+    expect(clockOnDateToIso('2026-10-10', '9:42 AM', 'America/Chicago')).toBe(
       '2026-10-10T14:42:00.000Z'
     );
   });
 
   it('returns null for a time or date it cannot read', () => {
-    expect(classStartToIso('2026-10-10', 'soon', 'America/Chicago')).toBeNull();
-    expect(classStartToIso('10/10/2026', '9:42 AM', 'America/Chicago')).toBeNull();
+    expect(clockOnDateToIso('2026-10-10', 'soon', 'America/Chicago')).toBeNull();
+    expect(clockOnDateToIso('10/10/2026', '9:42 AM', 'America/Chicago')).toBeNull();
   });
 });
 

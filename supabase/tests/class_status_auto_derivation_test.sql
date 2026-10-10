@@ -510,6 +510,9 @@ WHERE NOT EXISTS (
   SELECT status, status_source, reopened_after_closeout_at
     INTO v_status, v_source, v_reopened
     FROM public.classes WHERE id = v_c13;
+  IF (SELECT actual_end_time FROM public.classes WHERE id = v_c13) IS NOT NULL THEN
+    RAISE EXCEPTION '3.14 FAIL: reopened class kept its finish time';
+  END IF;
   IF v_status IS DISTINCT FROM 'in_progress' THEN
     RAISE EXCEPTION '3.14 FAIL: score reset left a manual Complete at status=%', v_status;
   END IF;

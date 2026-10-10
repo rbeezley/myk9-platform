@@ -133,9 +133,12 @@ export const useTrialStore = create<TrialStore>()((set, get) => ({
       if (updates.trialType !== undefined) replicatedUpdates.trialType = updates.trialType;
       if (updates.plannedStartTime !== undefined)
         replicatedUpdates.plannedStartTime = updates.plannedStartTime;
+      // Blank means "cleared": an explicit undefined reaches the row as NULL, where '' would
+      // be rejected by the timestamptz column at sync (MYK9-1086).
       if (updates.timeStarted !== undefined)
-        replicatedUpdates.actualStartTime = updates.timeStarted;
-      if (updates.timeEnded !== undefined) replicatedUpdates.actualEndTime = updates.timeEnded;
+        replicatedUpdates.actualStartTime = updates.timeStarted || undefined;
+      if (updates.timeEnded !== undefined)
+        replicatedUpdates.actualEndTime = updates.timeEnded || undefined;
       if (updates.eventNumber !== undefined) replicatedUpdates.eventNumber = updates.eventNumber;
       if (updates.order !== undefined)
         replicatedUpdates.displayOrder = updates.order ? parseInt(updates.order, 10) : 0;

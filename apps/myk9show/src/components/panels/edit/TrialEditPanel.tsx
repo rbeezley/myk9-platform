@@ -24,6 +24,8 @@ import { TimeOfDayInput } from '@/components/common/TimeOfDayInput';
 import { TrialDateField } from '@/components/trials/TrialDateField';
 import { TrialStartTimeField } from '@/components/trials/TrialStartTimeField';
 import { parseLocalDateString } from '@/utils/dateLocal';
+import { clockOnDateToIso, isoToClock } from '@/components/trials/trialDateTime';
+import { getTrialTimezone } from '@/features/registries';
 import { format } from 'date-fns';
 import { usePanelValidationNavigation, type FieldLocation } from './usePanelValidationNavigation';
 
@@ -129,8 +131,10 @@ const ClearableTime: React.FC<{
   </div>
 );
 
-// Convert Trial to form data
+// Convert Trial to form data. Actual times are stored as instants and shown as clock text
+// in the trial's own zone (MYK9-1086).
 const trialToFormData = (trial: Partial<Trial>): TrialEditFormData => {
+  const timeZone = getTrialTimezone(trial);
   return {
     name: trial.name || '',
     showId: trial.showId || '',
@@ -139,8 +143,8 @@ const trialToFormData = (trial: Partial<Trial>): TrialEditFormData => {
     trialNumber: trial.trialNumber || '',
     status: trial.status || 'Upcoming',
     plannedStartTime: trial.plannedStartTime || '',
-    timeStarted: trial.timeStarted || '',
-    timeEnded: trial.timeEnded || '',
+    timeStarted: isoToClock(trial.timeStarted, timeZone),
+    timeEnded: isoToClock(trial.timeEnded, timeZone),
     eventNumber: trial.eventNumber || '',
     type: trial.type || '',
     order: trial.order || '1',
@@ -149,8 +153,17 @@ const trialToFormData = (trial: Partial<Trial>): TrialEditFormData => {
   };
 };
 
+/**
+ * Clock text -> instant on the trial date. Blank stays '' (the store clears the column); text
+ * that cannot be read is dropped rather than written raw into a timestamptz column.
+ */
+const actualTimeToSave = (clock: string | undefined, date: string, timeZone: string) => {
+  if (!clock?.trim()) return '';
+  return clockOnDateToIso(date, clock, timeZone) ?? undefined;
+};
+
 // Convert form data back to Trial
-const formDataToTrial = (formData: TrialEditFormData): Partial<Trial> => ({
+const formDataToTrial = (formData: TrialEditFormData, timeZone: string): Partial<Trial> => ({
   name: formData.name,
   showId: formData.showId,
   showName: formData.showName,
@@ -158,8 +171,8 @@ const formDataToTrial = (formData: TrialEditFormData): Partial<Trial> => ({
   trialNumber: formData.trialNumber,
   status: formData.status,
   plannedStartTime: formData.plannedStartTime,
-  timeStarted: formData.timeStarted,
-  timeEnded: formData.timeEnded,
+  timeStarted: actualTimeToSave(formData.timeStarted, formData.trialDate, timeZone),
+  timeEnded: actualTimeToSave(formData.timeEnded, formData.trialDate, timeZone),
   eventNumber: formData.eventNumber,
   type: formData.type,
   order: formData.order,
@@ -551,12 +564,12 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
   // Handle save
   const handleSave = useCallback(
     async (formData: TrialEditFormData) => {
-      const trialData = formDataToTrial(formData);
+      const trialData = formDataToTrial(formData, getTrialTimezone(initialTrialData));
       if (onSave) {
         await onSave(trialData);
       }
     },
-    [onSave]
+    [onSave, initialTrialData]
   );
 
   return (

@@ -19,6 +19,7 @@ import { CockpitPaperworkRow } from '@/features/show-map/cockpit/CockpitPaperwor
 import { judgeSignOffWording } from '@/features/show-map/judgeSignOff';
 import { isStaleResultsError } from '@/features/show-map/resultsVerifiedMutations';
 import { formatTime } from '@/lib/format/dates';
+import { useShowManageScope } from '@/hooks/useShowManageScope';
 import type { ResultsClassRow, ResultsEntryRow } from './buildResultsClassRows';
 import { PrintStatusUnavailable } from './PrintStatusUnavailable';
 import { ResultsStatusChip } from './ResultsClassList';
@@ -247,9 +248,14 @@ interface TickColumn {
 }
 
 function ResultsTable({
+  showId,
   row,
   tickColumn,
-}: Pick<ResultsClassDetailProps, 'row'> & { tickColumn: TickColumn | null }) {
+}: Pick<ResultsClassDetailProps, 'showId' | 'row'> & { tickColumn: TickColumn | null }) {
+  // Only a scope RESOLVED as non-operator falls back to the ringside flow; while it resolves,
+  // the paper page's own route guard is the safety net.
+  const manageScope = useShowManageScope(showId);
+  const canOperate = !(manageScope.status === 'resolved' && !manageScope.canOperate);
   if (row.entries.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">No dogs are expected to run in this class.</p>
@@ -299,7 +305,7 @@ function ResultsTable({
               )}
               <TableCell>
                 <Link
-                  to={getFixScoreHref(row.id, entry.entryId)}
+                  to={getFixScoreHref(showId, row.id, entry.entryId, canOperate)}
                   aria-label={`Fix score for ${entry.dogName}`}
                   className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
@@ -423,7 +429,7 @@ export function ResultsClassDetail({
           onUndo={onUndoVerify}
         />
       )}
-      <ResultsTable row={row} tickColumn={tickColumn} />
+      <ResultsTable showId={showId} row={row} tickColumn={tickColumn} />
       {judgeSignOffSlot}
 
       {row.expectedCount > 0 && (

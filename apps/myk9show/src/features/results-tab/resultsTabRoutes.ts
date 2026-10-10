@@ -68,9 +68,21 @@ export function getOverviewFocusHref(showId: string, classId: string): string {
 /**
  * Score from paper, with that entry selected (MYK9-1086): a correction from Results is
  * desk work against the judge's sheet, not the ringside stopwatch (owner, 2026-10-09).
+ *
+ * Score from paper is secretary/judge only, so a manager known NOT to operate the show (a club
+ * admin) keeps the ringside correct-score flow (MYK9-1025), which their ringside admin role can
+ * use, instead of a link that ends on an access-denied page.
  */
-export function getFixScoreHref(classId: string, entryId: string): string {
-  return getPaperScoringEntryHref(classId, entryId);
+export function getFixScoreHref(
+  showId: string,
+  classId: string,
+  entryId: string,
+  canOperate: boolean
+): string {
+  if (canOperate) return getPaperScoringEntryHref(classId, entryId);
+  return `/at-show/${encodeURIComponent(showId)}/class/${encodeURIComponent(
+    classId
+  )}/score/${encodeURIComponent(entryId)}`;
 }
 
 export function getResultsStepHref(showId: string, step: 'submit' | 'close'): string {

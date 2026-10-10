@@ -11,28 +11,8 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { TimeOfDayInput } from '@/components/common/TimeOfDayInput';
-import { parseTimeOfDay } from '@/components/trials/trialDateTime';
-import { zonedTimeToUtcDate } from '@/features/lifecycle-emails/schedule';
+import { clockOnDateToIso } from '@/components/trials/trialDateTime';
 import { replicatedClassesTable } from '@/services/replication';
-
-/** `yyyy-MM-dd` + a typed clock time in `timeZone` → ISO instant, or null if either is invalid. */
-export function classStartToIso(trialDate: string, clock: string, timeZone: string): string | null {
-  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(trialDate);
-  const time = parseTimeOfDay(clock);
-  if (!day || !time) return null;
-  return zonedTimeToUtcDate(
-    {
-      year: Number(day[1]),
-      month: Number(day[2]),
-      day: Number(day[3]),
-      hour: time.hours,
-      minute: time.minutes,
-      second: 0,
-      millisecond: 0,
-    },
-    timeZone
-  ).toISOString();
-}
 
 export function ClassActualStartEditor({
   classId,
@@ -97,7 +77,7 @@ export function ClassActualStartEditor({
   }
 
   const save = () => {
-    const iso = classStartToIso(trialDate, draft, timeZone);
+    const iso = clockOnDateToIso(trialDate, draft, timeZone);
     if (!iso) {
       setError('Enter a time like 9:42 AM.');
       return;

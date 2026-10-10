@@ -167,6 +167,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
       <svg
         className={className}
         aria-hidden="true"
+        data-testid="max-time-ring"
         width={ringSize}
         height={ringSize}
         viewBox={`0 0 ${ringSize} ${ringSize}`}

@@ -100,6 +100,21 @@ describe('UKCNoseworkLiveScoresheet', () => {
     expect(screen.queryByTestId('element-timer-row')).not.toBeInTheDocument();
   });
 
+  // MYK9-1086 (owner): pinned in the card corner, the ring covered the element row's time
+  // and Finish button. Dual mode carries it inside that row; single mode keeps the corner.
+  it('places the max-time ring in the element row in dual mode and in the corner otherwise', () => {
+    const { unmount } = render(<UKCNoseworkLiveScoresheet {...defaultProps} rules={dualRules} />);
+    const dualRings = screen.getAllByTestId('max-time-ring');
+    expect(dualRings).toHaveLength(1);
+    expect(screen.getByTestId('element-timer-row')).toContainElement(dualRings[0]!);
+    unmount();
+
+    render(<UKCNoseworkLiveScoresheet {...defaultProps} rules={singleRules} />);
+    const singleRings = screen.getAllByTestId('max-time-ring');
+    expect(singleRings).toHaveLength(1);
+    expect(singleRings[0]!.getAttribute('class')).toContain('absolute');
+  });
+
   it('dual timer: both search and element timer render when rules.timerMode is dual', () => {
     render(<UKCNoseworkLiveScoresheet {...defaultProps} rules={dualRules} />);
 

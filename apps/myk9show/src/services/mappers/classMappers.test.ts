@@ -83,3 +83,29 @@ describe('allowsWaitlist is undefined when the read did not carry the column (MY
     ).toBeNull();
   });
 });
+
+describe('class search time limits persist (UKC max time)', () => {
+  it('writes the editor M:SS limits to the seconds columns', () => {
+    expect(
+      mapClassInputToUpdate({ timeLimit1: '05:00', timeLimit2: '2:30', timeLimit3: '' })
+    ).toEqual({
+      time_limit_seconds: 300,
+      time_limit_area2_seconds: 150,
+      time_limit_area3_seconds: null,
+    });
+    // Untouched fields stay untouched.
+    expect(mapClassInputToUpdate({ className: 'x' })).not.toHaveProperty('time_limit_seconds');
+  });
+
+  it('reads the saved limit back instead of a hard-coded 3:00', () => {
+    const base = { id: 'c1', trial_id: 't1', name: 'n' };
+    const cls = mapDatabaseToClass({
+      ...base,
+      time_limit_seconds: 300,
+      time_limit_area2_seconds: null,
+    } as unknown as DbClassWithRelations);
+    expect(cls.timeLimit1).toBe('05:00');
+    expect(cls.timeLimit2).toBe('');
+    expect(mapDatabaseToClass(base as unknown as DbClassWithRelations).timeLimit1).toBe('');
+  });
+});

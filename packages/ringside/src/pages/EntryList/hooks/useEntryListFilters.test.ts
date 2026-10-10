@@ -157,3 +157,44 @@ describe('useEntryListFilters - placement sort keeps combined sections apart', (
     expect(result.current.completedEntries.map(e => e.id)).toEqual(['x1', 'x2', 'x3']);
   });
 });
+
+describe('useEntryListFilters — combined A/B counts', () => {
+  // A: 5 dogs, 2 scored. B: 4 dogs, 1 pulled (not running), none scored.
+  const combined: Entry[] = [
+    ...[1, 2, 3, 4, 5].map(n =>
+      entry({ id: `a${n}`, armband: n, section: 'A', classId: 'cA', isScored: n <= 2 })
+    ),
+    ...[6, 7, 8, 9].map(n => entry({ id: `b${n}`, armband: n, section: 'B', classId: 'cB' })),
+  ];
+  const entryClassification = {
+    a1: 'completed',
+    a2: 'completed',
+    a3: 'pending',
+    a4: 'pending',
+    a5: 'pending',
+    b6: 'not_running',
+    b7: 'pending',
+    b8: 'pending',
+    b9: 'pending',
+  } as const;
+
+  it('counts section tabs over running dogs only', () => {
+    const { result } = renderHook(() =>
+      useEntryListFilters({ entries: combined, entryClassification, supportSectionFilter: true })
+    );
+
+    expect(result.current.sectionCounts).toEqual({ all: 8, A: 5, B: 3 });
+  });
+
+  it('counts the status badges within the selected section', () => {
+    const { result } = renderHook(() =>
+      useEntryListFilters({ entries: combined, entryClassification, supportSectionFilter: true })
+    );
+    expect(result.current.entryCounts).toEqual({ pending: 6, completed: 2 });
+
+    act(() => result.current.setSectionFilter('B'));
+
+    expect(result.current.entryCounts).toEqual({ pending: 3, completed: 0 });
+    expect(result.current.pendingEntries).toHaveLength(3);
+  });
+});

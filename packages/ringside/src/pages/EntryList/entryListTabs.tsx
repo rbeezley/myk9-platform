@@ -6,9 +6,9 @@
  * than components: the page memoises them, and they are cheap to test directly.
  */
 
+import type { Entry } from '../../stores/entryStore';
 import { StatusIcon, type Tab } from '@myk9/ui';
 import { ArrowUpDown, Trophy } from 'lucide-react';
-import type { Entry } from '../../stores/entryStore';
 import type { FilterPanelSortOption } from './pageProps';
 
 /** Which of the two combined sections the list is scoped to. */
@@ -47,11 +47,23 @@ export function buildStatusTabs(
   ];
 }
 
-export function buildSectionTabs(entries: Entry[]): Tab[] {
+/**
+ * Section tabs from the filter hook's running-dog `sectionCounts`; a host that
+ * does not pass them falls back to plain row counts per section.
+ */
+export function buildSectionTabs(
+  counts: { all: number; A: number; B: number } | null | undefined,
+  entries: readonly Entry[]
+): Tab[] {
+  const c = counts ?? {
+    all: entries.length,
+    A: entries.filter(e => e.section === 'A').length,
+    B: entries.filter(e => e.section === 'B').length,
+  };
   return [
-    { id: 'all', label: 'All Sections', count: entries.length },
-    { id: 'A', label: 'Section A', count: entries.filter(e => e.section === 'A').length },
-    { id: 'B', label: 'Section B', count: entries.filter(e => e.section === 'B').length },
+    { id: 'all', label: 'All Sections', count: c.all },
+    { id: 'A', label: 'Section A', count: c.A },
+    { id: 'B', label: 'Section B', count: c.B },
   ];
 }
 

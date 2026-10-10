@@ -172,6 +172,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     completedEntries,
     notRunningEntries,
     entryCounts,
+    sectionCounts,
   } = useEntryListFilters({
     entries: localEntries,
     // The host owns the counting rule; the package groups rows by what it is
@@ -387,6 +388,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
             notRunningEntries,
             currentEntries,
             entryCounts,
+            sectionCounts,
           }}
           favorites={{ favoriteArmbands, onToggleFavoriteArmband: toggleFavoriteArmband }}
           {...(ownership ? { ownership } : {})}

@@ -15,6 +15,12 @@ import { useState, useRef, useEffect } from 'react';
 import type { StopwatchOptions, StopwatchReturn } from '../types';
 
 /**
+ * How often the running display repaints (ms). 100ms is myK9Q's battery fix
+ * (cf477a6: 10ms → 100ms, after 7% drain in 35 min of scoring).
+ */
+const PAINT_INTERVAL_MS = 100;
+
+/**
  * Parse a time string "MM:SS" or "M:SS" to milliseconds
  */
 function parseMaxTimeToMs(maxTime: string): number {
@@ -63,6 +69,9 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
   // derived (Date.now), so it stays accurate even if the browser throttles rAF
   // while the tab is backgrounded.
   const rafRef = useRef<number | null>(null);
+  // Wall-clock origin of the current run, so pause can record the exact
+  // elapsed time rather than the last painted frame.
+  const startTimeRef = useRef(0);
   const has30SecondAnnouncedRef = useRef(false);
 
   // Cancel any in-flight frame on unmount.
@@ -165,9 +174,13 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
    * Start or resume the timer
    */
   const start = () => {
+    // A second start must not leave an orphaned loop that pause cannot stop.
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
     setIsRunning(true);
     const startTime = Date.now() - time;
+    startTimeRef.current = startTime;
     const maxTimeMs = maxTime ? parseMaxTimeToMs(maxTime) : 0;
+    let lastPaint = -Infinity;
 
     const tick = () => {
       const currentTime = Date.now() - startTime;
@@ -184,7 +197,13 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
         return;
       }
 
-      setTime(currentTime);
+      // Battery: the frame loop runs at the display rate (60-120Hz), but every
+      // setTime re-renders the whole scoresheet. Paint every 100ms (tenths tick
+      // smoothly) while expiry above is still checked per frame.
+      if (currentTime - lastPaint >= PAINT_INTERVAL_MS) {
+        lastPaint = currentTime;
+        setTime(currentTime);
+      }
       rafRef.current = requestAnimationFrame(tick);
     };
 
@@ -197,6 +216,8 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
   const pause = () => {
     setIsRunning(false);
     if (rafRef.current !== null) {
+      // Record the exact elapsed time; the display may be up to one paint stale.
+      setTime(Date.now() - startTimeRef.current);
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }

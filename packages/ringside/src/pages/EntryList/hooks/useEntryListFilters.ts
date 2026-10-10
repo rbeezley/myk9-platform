@@ -348,13 +348,16 @@ export const useEntryListFilters = ({
   ]);
 
   /**
-   * Count entries by tab
+   * Count entries by tab, within the selected section (so the badges match the
+   * rows under them) but ignoring search and the active tab (so the inactive
+   * tab still shows its real count while a search narrows the active one).
    */
   const entryCounts = useMemo(() => {
-    const pending = entries.filter(e => filterByTab(e, 'pending')).length;
-    const completed = entries.filter(e => filterByTab(e, 'completed')).length;
+    const inSection = entries.filter(e => filterBySection(e, sectionFilter));
+    const pending = inSection.filter(e => filterByTab(e, 'pending')).length;
+    const completed = inSection.filter(e => filterByTab(e, 'completed')).length;
     return { pending, completed };
-  }, [entries, filterByTab]);
+  }, [entries, filterByTab, filterBySection, sectionFilter]);
 
   /**
    * Pending, completed and not-running entries (filtered by tab, search,
@@ -380,16 +383,19 @@ export const useEntryListFilters = ({
   );
 
   /**
-   * Count entries by section (for combined view)
+   * Count entries by section (for combined view). Running dogs only -- the same
+   * rule as the Pending/Completed badges, so a section's count equals its two
+   * badges and "All Sections" equals the class card (MYK9-645).
    */
   const sectionCounts = useMemo(() => {
     if (!supportSectionFilter) return null;
+    const running = entries.filter(e => classify(e) !== 'not_running');
     return {
-      all: entries.length,
-      A: entries.filter(e => e.section === 'A').length,
-      B: entries.filter(e => e.section === 'B').length,
+      all: running.length,
+      A: running.filter(e => e.section === 'A').length,
+      B: running.filter(e => e.section === 'B').length,
     };
-  }, [entries, supportSectionFilter]);
+  }, [entries, supportSectionFilter, classify]);
 
   /**
    * Reset all filters

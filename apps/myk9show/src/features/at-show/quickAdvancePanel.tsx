@@ -130,7 +130,8 @@ function useScoreSaveState(entryId: string | undefined): {
     let local: ReplicatedEntry | null = null;
 
     const check = async () => {
-      if (inFlight || cancelled) return;
+      // Battery: a phone in a pocket has nothing to show; re-check on return.
+      if (inFlight || cancelled || document.visibilityState === 'hidden') return;
       inFlight = true;
       try {
         local ??= await replicatedEntriesTable.getEntryById(entryId);
@@ -160,15 +161,32 @@ function useScoreSaveState(entryId: string | undefined): {
       }
     };
 
+    // Battery: back off 3s → 6s → 12s → 24s → 30s while unconfirmed. Replica
+    // changes, regaining signal and unlocking the phone still check at once.
+    let delay = 3000;
+    let timer: number | undefined;
+    const schedule = () => {
+      timer = window.setTimeout(() => {
+        void check();
+        delay = Math.min(delay * 2, 30_000);
+        schedule();
+      }, delay);
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') void check();
+    };
+
     const unsubscribe = replicatedEntriesTable.subscribe(() => void check());
     window.addEventListener('online', check);
-    const interval = window.setInterval(() => void check(), 3000);
+    document.addEventListener('visibilitychange', onVisible);
+    schedule();
     void check();
     return () => {
       cancelled = true;
       unsubscribe();
       window.removeEventListener('online', check);
-      window.clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.clearTimeout(timer);
     };
   }, [entryId, state]);
 

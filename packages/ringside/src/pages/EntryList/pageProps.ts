@@ -538,6 +538,11 @@ export interface EntryListDerived {
    * the active tab.
    */
   entryCounts: { pending: number; completed: number };
+  /**
+   * Combined A/B section-tab counts (running dogs only), from the same filter
+   * hook. Absent on a single-class list, which has no section tabs.
+   */
+  sectionCounts?: { all: number; A: number; B: number } | null | undefined;
 }
 
 /**

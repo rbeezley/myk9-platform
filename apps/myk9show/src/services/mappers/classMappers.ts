@@ -11,6 +11,7 @@ import type {
   DbEntry,
   DbEntryUpdate,
 } from '@/types/database-mappings';
+import { formatTimeLimitSeconds, mapTimeLimitUpdates } from './classTimeLimits';
 import type {
   ClassInput,
   EntryInput,
@@ -209,7 +210,7 @@ export const mapClassInputToUpdate = (updates: Partial<ClassInput>): DbClassUpda
     updateData.section = updates.section || null;
   }
 
-  return updateData;
+  return { ...updateData, ...mapTimeLimitUpdates(updates) };
 };
 
 function formatClassStartTime(value: string | null): string {
@@ -279,9 +280,9 @@ export const mapDatabaseToClass = (dbClass: DbClassWithRelations): SyncableClass
     hidesUsed: '',
     distractionsUsed: '',
     itemsUsed: '',
-    timeLimit1: '3:00',
-    timeLimit2: '',
-    timeLimit3: '',
+    timeLimit1: formatTimeLimitSeconds(dbClass.time_limit_seconds),
+    timeLimit2: formatTimeLimitSeconds(dbClass.time_limit_area2_seconds),
+    timeLimit3: formatTimeLimitSeconds(dbClass.time_limit_area3_seconds),
     photoUrl: '',
 
     // Display order (secretary drag-reorder; maps to classes.display_order)

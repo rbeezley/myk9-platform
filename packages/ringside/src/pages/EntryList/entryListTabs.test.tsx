@@ -9,7 +9,7 @@
  * supply nothing.
  */
 import { describe, it, expect } from 'vitest';
-import { buildStatusTabs } from './entryListTabs';
+import { buildSectionTabs, buildStatusTabs } from './entryListTabs';
 
 describe('buildStatusTabs', () => {
   it('uses the entries-array derivation when the host passes no counts', () => {
@@ -45,6 +45,18 @@ describe('buildStatusTabs', () => {
     expect(tabs.map(tab => [tab.id, tab.count])).toEqual([
       ['pending', 7],
       ['completed', 2],
+    ]);
+  });
+});
+
+describe('buildSectionTabs', () => {
+  it('renders the counts it is handed, not the raw row count', () => {
+    const tabs = buildSectionTabs({ all: 8, A: 5, B: 3 }, []);
+
+    expect(tabs.map(tab => [tab.id, tab.count])).toEqual([
+      ['all', 8],
+      ['A', 5],
+      ['B', 3],
     ]);
   });
 });

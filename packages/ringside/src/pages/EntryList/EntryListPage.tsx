@@ -117,6 +117,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
     notRunningEntries,
     currentEntries,
     entryCounts,
+    sectionCounts,
   } = derived;
   const { sensors, handleDragStart, handleDragEnd } = drag;
   const { isSyncing, hasError } = actions;
@@ -149,8 +150,8 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
   );
 
   const sectionTabs = useMemo(
-    () => (isCombined ? buildSectionTabs(entries) : []),
-    [isCombined, entries]
+    () => (isCombined ? buildSectionTabs(sectionCounts, entries) : []),
+    [isCombined, entries, sectionCounts]
   );
 
   const sortOptions = useMemo(

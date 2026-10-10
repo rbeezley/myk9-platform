@@ -409,7 +409,7 @@ describe('ResultsTab detail', () => {
     expect(within(table).getByText('1:01.25')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Fix score for Rex' })).toHaveAttribute(
       'href',
-      '/at-show/show-1/class/class-ready/score/e-ready'
+      '/scoring/classes/class-ready/entries?entryId=e-ready&mode=split'
     );
 
     await user.click(screen.getByRole('button', { name: 'Release results' }));

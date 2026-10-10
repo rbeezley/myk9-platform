@@ -247,10 +247,9 @@ interface TickColumn {
 }
 
 function ResultsTable({
-  showId,
   row,
   tickColumn,
-}: Pick<ResultsClassDetailProps, 'showId' | 'row'> & { tickColumn: TickColumn | null }) {
+}: Pick<ResultsClassDetailProps, 'row'> & { tickColumn: TickColumn | null }) {
   if (row.entries.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">No dogs are expected to run in this class.</p>
@@ -300,7 +299,7 @@ function ResultsTable({
               )}
               <TableCell>
                 <Link
-                  to={getFixScoreHref(showId, row.id, entry.entryId)}
+                  to={getFixScoreHref(row.id, entry.entryId)}
                   aria-label={`Fix score for ${entry.dogName}`}
                   className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 >
@@ -424,7 +423,7 @@ export function ResultsClassDetail({
           onUndo={onUndoVerify}
         />
       )}
-      <ResultsTable showId={showId} row={row} tickColumn={tickColumn} />
+      <ResultsTable row={row} tickColumn={tickColumn} />
       {judgeSignOffSlot}
 
       {row.expectedCount > 0 && (

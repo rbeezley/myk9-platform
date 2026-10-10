@@ -6,6 +6,7 @@
  * (`getCockpitResultsControlHref`), so a class selected from there opens here unchanged.
  */
 import { ALL_DAYS, getShowHomeHref } from '@/features/show-map/cockpit/cockpitRoutes';
+import { getPaperScoringEntryHref } from '@/pages/scoring/scoringRoutes';
 import {
   DEFAULT_RESULTS_STATUS_FILTER,
   isResultsStatusFilterId,
@@ -65,13 +66,11 @@ export function getOverviewFocusHref(showId: string, classId: string): string {
 }
 
 /**
- * The live scoresheet, pre-filled with the saved result (MYK9-1025): the existing correct-score
- * flow ringside reaches from a class's entry list.
+ * Score from paper, with that entry selected (MYK9-1086): a correction from Results is
+ * desk work against the judge's sheet, not the ringside stopwatch (owner, 2026-10-09).
  */
-export function getFixScoreHref(showId: string, classId: string, entryId: string): string {
-  return `/at-show/${encodeURIComponent(showId)}/class/${encodeURIComponent(
-    classId
-  )}/score/${encodeURIComponent(entryId)}`;
+export function getFixScoreHref(classId: string, entryId: string): string {
+  return getPaperScoringEntryHref(classId, entryId);
 }
 
 export function getResultsStepHref(showId: string, step: 'submit' | 'close'): string {

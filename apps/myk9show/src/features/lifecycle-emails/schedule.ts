@@ -78,13 +78,13 @@ export function calculateLifecycleEmailDueAt(
   return now;
 }
 
-interface CalendarDate {
+export interface CalendarDate {
   year: number;
   month: number;
   day: number;
 }
 
-interface ZonedDateTime extends CalendarDate {
+export interface ZonedDateTime extends CalendarDate {
   hour: number;
   minute: number;
   second: number;
@@ -118,7 +118,7 @@ function addCalendarDays(date: CalendarDate, days: number): CalendarDate {
   };
 }
 
-function zonedTimeToUtcDate(target: ZonedDateTime, timezone: string): Date {
+export function zonedTimeToUtcDate(target: ZonedDateTime, timezone: string): Date {
   let guess = Date.UTC(
     target.year,
     target.month - 1,
@@ -157,7 +157,7 @@ function zonedTimeToUtcDate(target: ZonedDateTime, timezone: string): Date {
   return new Date(guess + target.millisecond);
 }
 
-function getZonedParts(date: Date, timezone: string): Omit<ZonedDateTime, 'millisecond'> {
+export function getZonedParts(date: Date, timezone: string): Omit<ZonedDateTime, 'millisecond'> {
   const formatter = new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
     year: 'numeric',

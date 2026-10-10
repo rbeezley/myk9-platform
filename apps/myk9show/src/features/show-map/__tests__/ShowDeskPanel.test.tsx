@@ -290,7 +290,7 @@ describe('ShowDeskPanel cockpit', () => {
       'href',
       expect.stringContaining('/trials/trial-1/classes/class-1')
     );
-    expect(screen.getAllByRole('link', { name: /enter paper scores/i })[0]).toHaveAttribute(
+    expect(screen.getAllByRole('link', { name: /enter results from scoresheet/i })[0]).toHaveAttribute(
       'href',
       expect.stringContaining('/scoring/classes/class-1/entries')
     );

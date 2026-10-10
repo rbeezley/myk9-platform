@@ -359,46 +359,49 @@ export const TrialConfigurationStep: React.FC<TrialConfigurationStepProps> = ({
                         )}
                       </div>
 
-                      <div className="space-y-2">
-                        <Label
-                          htmlFor={`trial-${trial.id}-eventNumber`}
-                          className="flex items-center gap-1.5"
-                        >
-                          Event Number
-                          {show.organization === 'AKC' && <RequiredMark />}
-                          <TooltipProvider>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
-                              </TooltipTrigger>
-                              <TooltipContent side="top" className="max-w-xs">
-                                <p>
-                                  {show.organization === 'AKC'
-                                    ? 'Required for AKC events. Needed for the AKC XML results submission. Assigned by AKC when you apply for the event.'
-                                    : 'The number assigned to this trial by the sanctioning organization. Optional for non-AKC events.'}
-                                </p>
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                        </Label>
-                        <Input
-                          id={`trial-${trial.id}-eventNumber`}
-                          value={trial.eventNumber}
-                          onChange={e => updateTrial(trial.id, { eventNumber: e.target.value })}
-                          placeholder={
-                            show.organization === 'AKC'
-                              ? 'Required: AKC event number'
-                              : 'Optional event number'
-                          }
-                          className="h-10"
-                          required={show.organization === 'AKC'}
-                        />
-                        {errors[`trial-${index}-eventNumber`] && (
-                          <p className="text-sm text-destructive">
-                            {errors[`trial-${index}-eventNumber`]}
-                          </p>
-                        )}
-                      </div>
+                      {/* UKC trials have no event number (owner, MYK9-1086). */}
+                      {show.organization !== 'UKC' && (
+                        <div className="space-y-2">
+                          <Label
+                            htmlFor={`trial-${trial.id}-eventNumber`}
+                            className="flex items-center gap-1.5"
+                          >
+                            Event Number
+                            {show.organization === 'AKC' && <RequiredMark />}
+                            <TooltipProvider>
+                              <Tooltip>
+                                <TooltipTrigger asChild>
+                                  <HelpCircle className="h-3.5 w-3.5 text-muted-foreground cursor-help" />
+                                </TooltipTrigger>
+                                <TooltipContent side="top" className="max-w-xs">
+                                  <p>
+                                    {show.organization === 'AKC'
+                                      ? 'Required for AKC events. Needed for the AKC XML results submission. Assigned by AKC when you apply for the event.'
+                                      : 'The number assigned to this trial by the sanctioning organization. Optional for non-AKC events.'}
+                                  </p>
+                                </TooltipContent>
+                              </Tooltip>
+                            </TooltipProvider>
+                          </Label>
+                          <Input
+                            id={`trial-${trial.id}-eventNumber`}
+                            value={trial.eventNumber}
+                            onChange={e => updateTrial(trial.id, { eventNumber: e.target.value })}
+                            placeholder={
+                              show.organization === 'AKC'
+                                ? 'Required: AKC event number'
+                                : 'Optional event number'
+                            }
+                            className="h-10"
+                            required={show.organization === 'AKC'}
+                          />
+                          {errors[`trial-${index}-eventNumber`] && (
+                            <p className="text-sm text-destructive">
+                              {errors[`trial-${index}-eventNumber`]}
+                            </p>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

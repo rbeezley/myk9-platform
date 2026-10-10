@@ -152,7 +152,7 @@ export function EntryPanel({
                   !isSelected && !isPrefilled && 'border-border hover:bg-accent'
                 )}
               >
-                <span className="text-lg w-10">{label}</span>
+                <span className="w-14 shrink-0 text-lg">{label}</span>
                 <span className="text-sm font-normal opacity-80">{description}</span>
                 {isPrefilled && (
                   <span className="ml-auto text-xs text-muted-foreground">

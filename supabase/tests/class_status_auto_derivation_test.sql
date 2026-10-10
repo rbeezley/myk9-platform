@@ -31,6 +31,8 @@ DECLARE
   v_c10 uuid := gen_random_uuid(); -- 3.11 MYK9-330 moved source row must not block completion
   v_c11 uuid := gen_random_uuid(); -- 3.12 MYK9-330 not_accepted must not block completion
   v_c12 uuid := gen_random_uuid(); -- 3.13 MYK9-330 a moved-only class is not 'complete'
+  v_c13 uuid := gen_random_uuid(); -- 3.14 MYK9-1086 score reset reopens a manual Complete
+  v_e13 uuid;
   v_before_updated timestamptz;
   v_after_updated timestamptz;
   v_before_version integer;
@@ -480,6 +482,44 @@ WHERE NOT EXISTS (
     RAISE EXCEPTION '3.13 FAIL: a class of only moved/not_accepted rows derived to %, expected upcoming', v_status;
   END IF;
   RAISE NOTICE '3.13 PASS: an all-excluded class stays upcoming, not completed (status=%)', v_status;
+
+  -- =====================================================================
+  -- 3.14 MYK9-1086: resetting a score in a class marked Complete by hand
+  --      reopens it (derived, in_progress, finish cleared, reopen stamped),
+  --      where 3.2 shows that scoring MORE dogs leaves it closed.
+  -- =====================================================================
+  INSERT INTO public.classes (id, trial_id, name, status)
+    VALUES (v_c13, v_trial, '3.14 Score Reset', 'upcoming');
+
+  INSERT INTO public.entries
+    (class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status)
+  VALUES
+    (v_c13, v_show, v_trial, 'checked-in', 'checked-in', true, 'qualified')
+  RETURNING id INTO v_e13;
+  INSERT INTO public.entries
+    (class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status)
+  VALUES
+    (v_c13, v_show, v_trial, 'checked-in', 'checked-in', true, 'qualified');
+
+  UPDATE public.classes SET status = 'completed', status_source = 'manual' WHERE id = v_c13;
+
+  UPDATE public.entries
+    SET is_scored = false, result_status = 'pending'
+    WHERE id = v_e13;
+
+  SELECT status, status_source, reopened_after_closeout_at
+    INTO v_status, v_source, v_reopened
+    FROM public.classes WHERE id = v_c13;
+  IF v_status IS DISTINCT FROM 'in_progress' THEN
+    RAISE EXCEPTION '3.14 FAIL: score reset left a manual Complete at status=%', v_status;
+  END IF;
+  IF v_source IS DISTINCT FROM 'derived' THEN
+    RAISE EXCEPTION '3.14 FAIL: score reset kept status_source=%', v_source;
+  END IF;
+  IF v_reopened IS NULL THEN
+    RAISE EXCEPTION '3.14 FAIL: reopened_after_closeout_at not stamped';
+  END IF;
+  RAISE NOTICE '3.14 PASS: score reset reopened a manual Complete (status=%, source=%)', v_status, v_source;
 
   RAISE NOTICE 'ALL class-status-auto-derivation assertions passed.';
 END $$;

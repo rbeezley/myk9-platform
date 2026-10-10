@@ -170,7 +170,7 @@ describe('buildSecretaryCockpitSnapshot', () => {
     });
     expect(snapshot.classes[0]?.actions.map(action => action.label)).toEqual(
       expect.arrayContaining([
-        'Enter paper scores',
+        'Enter results from scoresheet',
         'View entries and results',
         // F29b phase 2a: was 'Run order and class setup'. It pointed at Manage
         // Classes, which has no run-order control; run order now lives on the
@@ -185,7 +185,7 @@ describe('buildSecretaryCockpitSnapshot', () => {
       destination: { kind: 'href', href: expect.stringContaining('/classes/class-1') },
     });
 
-    // REV-2341 U-2. "Enter paper scores" goes to `/scoring/classes/:id/entries`,
+    // REV-2341 U-2. "Enter results from scoresheet" goes to `/scoring/classes/:id/entries`,
     // ProtectedRoute(SECRETARY | JUDGE | SITE_ADMIN), so it is the ONE class-work
     // action a club admin cannot use and the one the cockpit greys. Deleting this
     // flag left 394 tests green, which is why it is asserted here — and asserted
@@ -195,6 +195,6 @@ describe('buildSecretaryCockpitSnapshot', () => {
       snapshot.classes[0]?.actions
         .filter(action => action.operatorOnly === true)
         .map(action => action.label)
-    ).toEqual(['Enter paper scores']);
+    ).toEqual(['Enter results from scoresheet']);
   });
 });

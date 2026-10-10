@@ -69,7 +69,7 @@ function makeSnapshot(overrides: Partial<SecretaryCockpitSnapshot> = {}): Secret
             id: 'scores',
             dedupeKey: 'active:scores',
             kind: 'active-work',
-            label: 'Enter paper scores',
+            label: 'Enter results from scoresheet',
             reason: '2 paper scores still need entry',
             destination: { kind: 'href', href: '/scoring/active' },
           },

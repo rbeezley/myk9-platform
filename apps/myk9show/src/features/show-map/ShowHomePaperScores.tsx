@@ -54,7 +54,7 @@ export function ShowHomePaperScores({ classes }: { classes: readonly ShowMapClas
       <Button asChild variant="outline" size="sm" className="min-h-11 gap-2">
         <Link to={only.href}>
           {icon}
-          Enter paper scores
+          Enter results from scoresheet
         </Link>
       </Button>
     );
@@ -65,12 +65,12 @@ export function ShowHomePaperScores({ classes }: { classes: readonly ShowMapClas
       <DialogTrigger asChild>
         <Button type="button" variant="outline" size="sm" className="min-h-11 gap-2">
           {icon}
-          Enter paper scores
+          Enter results from scoresheet
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Enter paper scores</DialogTitle>
+          <DialogTitle>Enter results from scoresheet</DialogTitle>
           <DialogDescription>Choose a class. Unfinished classes come first.</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">

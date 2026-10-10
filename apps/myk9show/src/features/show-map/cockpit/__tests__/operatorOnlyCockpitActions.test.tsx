@@ -45,7 +45,7 @@ function renderAction(
  */
 const PAPER_SCORES = {
   id: 'paper-scoring:class-1',
-  label: 'Enter paper scores',
+  label: 'Enter results from scoresheet',
   destination: { kind: 'href', href: '/scoring/classes/class-1/entries?mode=split' } as const,
   operatorOnly: true,
 };
@@ -59,7 +59,7 @@ describe('operator-only cockpit actions', () => {
   it('greys it for a manager who is not an operator, with no anchor to /scoring', () => {
     renderAction(PAPER_SCORES, TRIAL_SECRETARY_ONLY_REASON);
 
-    expect(screen.getByRole('button', { name: /enter paper scores/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /enter results from scoresheet/i })).toBeDisabled();
     expect(screen.getByText(TRIAL_SECRETARY_ONLY_REASON)).toBeInTheDocument();
     // The dead end this exists to prevent: no link into the secretary-only route.
     expect(screen.queryByRole('link')).toBeNull();
@@ -70,7 +70,7 @@ describe('operator-only cockpit actions', () => {
     renderAction(PAPER_SCORES, TRIAL_SECRETARY_ONLY_REASON);
 
     const describedBy = screen
-      .getByRole('button', { name: /enter paper scores/i })
+      .getByRole('button', { name: /enter results from scoresheet/i })
       .getAttribute('aria-describedby');
     expect(describedBy).toContain('/scoring/');
     expect(document.getElementById(describedBy ?? '')).toHaveTextContent(
@@ -81,7 +81,7 @@ describe('operator-only cockpit actions', () => {
   it('positive control: with no reason it is a live link again', () => {
     renderAction(PAPER_SCORES, undefined);
 
-    const link = screen.getByRole('link', { name: /enter paper scores/i });
+    const link = screen.getByRole('link', { name: /enter results from scoresheet/i });
     expect(link).toHaveAttribute('href', expect.stringContaining('/scoring/'));
     expect(screen.queryByText(TRIAL_SECRETARY_ONLY_REASON)).toBeNull();
   });

@@ -50,8 +50,11 @@ const RingsideEntryPage: React.FC = () => {
     );
   }
 
-  // Exactly one live show on show day → straight into the ring, no extra tap.
-  if (entry.liveShows.length === 1) {
+  // Exactly one live show on show day, and nothing else to choose → straight into
+  // the ring, no extra tap. With another show coming up the chooser shows instead
+  // (today's show listed first): auto-jumping left no way to reach the other
+  // show, and "Back to Ringside" looped back into the live one (owner, MYK9-1086).
+  if (entry.liveShows.length === 1 && entry.upcomingShows.length === 0) {
     return <Navigate to={`/at-show/${entry.liveShows[0].showId}`} replace />;
   }
 

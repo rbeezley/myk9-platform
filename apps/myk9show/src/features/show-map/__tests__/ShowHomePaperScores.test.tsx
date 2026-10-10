@@ -192,7 +192,9 @@ describe('ShowHomePaperScores', () => {
         <ShowHomePaperScores classes={MIXED} />
       </TrialSecretaryAccessProvider>
     );
-    expect(screen.getByRole('button', { name: 'Enter results from scoresheet' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Enter results from scoresheet' })
+    ).toBeInTheDocument();
   });
 
   it('is hidden for a club admin who is not the trial secretary', () => {

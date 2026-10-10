@@ -1,4 +1,11 @@
 import { mappedErrorMessage } from '@/utils/errorMessages';
+import {
+  PERSON_EDIT_NEEDS_CONNECTION_CODE,
+  PERSON_EDIT_NEEDS_CONNECTION_MESSAGE,
+} from '@/utils/signInEmailMessages';
+
+/** Codes of refusals we raise on purpose while offline, with our own copy. */
+const AUTHORED_OFFLINE_REFUSALS: ReadonlySet<string> = new Set([PERSON_EDIT_NEEDS_CONNECTION_CODE]);
 
 /** Title of every failed-save toast, so a failed save reads the same on every surface. */
 export const SAVE_FAILED_TITLE = "Couldn't save your changes";
@@ -90,6 +97,14 @@ function isTechnicalFailure(error: unknown): boolean {
 function classify(error: unknown): Classified {
   const code = typeof field(error, 'code') === 'string' ? (field(error, 'code') as string) : '';
   const retryable = RETRYABLE_CODE.test(code);
+  // An authored offline refusal (MYK9-1071) IS the explanation. Checked before the
+  // offline test, which would otherwise replace it with generic copy.
+  if (AUTHORED_OFFLINE_REFUSALS.has(code)) {
+    return {
+      detail: mappedErrorMessage(error) ?? PERSON_EDIT_NEEDS_CONNECTION_MESSAGE,
+      retryable: false,
+    };
+  }
   if (isTechnicalFailure(error)) return { detail: undefined, retryable: true };
   // PostgREST's own diagnostics (PGRST204 names a column, PGRST116 describes
   // row counts) are never written for a person, whatever their text says.

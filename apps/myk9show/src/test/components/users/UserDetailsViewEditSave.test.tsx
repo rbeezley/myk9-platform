@@ -23,6 +23,10 @@ import { HeaderActions } from '@/components/layout/HeaderActions';
 import type { User } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
 import { usePageEditTargetStore } from '@/features/actions/pageEditTarget';
+import {
+  PERSON_EDIT_NEEDS_CONNECTION_CODE,
+  PERSON_EDIT_NEEDS_CONNECTION_MESSAGE,
+} from '@/utils/signInEmailMessages';
 
 const { mutateAsync, notifySuccess, notifyError, hasPermission } = vi.hoisted(() => ({
   mutateAsync: vi.fn(),
@@ -175,6 +179,33 @@ describe('UserDetailsView edit save', () => {
     // case below shows a closing panel unmounts).
     await new Promise(resolve => setTimeout(resolve, 600));
     expect(screen.getByRole('dialog')).toBeInTheDocument();
+  });
+
+  it('offline, says to reconnect (MYK9-1071: person edits are online-only)', async () => {
+    const onLine = vi.spyOn(window.navigator, 'onLine', 'get').mockReturnValue(false);
+    // What updateUser returns offline, through UserService.update's code-keeping throw.
+    mutateAsync.mockRejectedValue(
+      Object.assign(new Error(PERSON_EDIT_NEEDS_CONNECTION_MESSAGE), {
+        code: PERSON_EDIT_NEEDS_CONNECTION_CODE,
+      })
+    );
+
+    try {
+      renderView();
+      const panel = await openEditPanelAndChangePhone();
+
+      await waitFor(() =>
+        expect(notifyError).toHaveBeenCalledWith(
+          "Couldn't save your changes",
+          expect.objectContaining({
+            description: expect.stringMatching(/^Reconnect to save changes/),
+          })
+        )
+      );
+      expect(panel).toBeInTheDocument();
+    } finally {
+      onLine.mockRestore();
+    }
   });
 
   it('closes the panel and shows the saved values when the save succeeds', async () => {

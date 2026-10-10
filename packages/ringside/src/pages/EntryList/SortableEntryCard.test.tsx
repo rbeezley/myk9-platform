@@ -337,7 +337,8 @@ describe('SortableEntryCard', () => {
       />
     );
 
-    expect(screen.queryByRole('button', { name: 'Score Rex' })).toBeNull();
+    // The only Score control is the keyboard one, hidden until focused.
+    expect(screen.getByRole('button', { name: 'Score Rex' }).className).toContain('sr-only');
     expect(screen.queryByTestId('primary-action-slot')).toBeNull();
   });
 
@@ -385,6 +386,42 @@ describe('SortableEntryCard', () => {
     expect(screen.getByTestId('dog-card').getAttribute('data-class-name')).not.toContain(
       'bg-primary/'
     );
+  });
+
+  it('gives a scorer a keyboard Score button that opens the scoresheet', () => {
+    const onEntryClick = vi.fn();
+    renderInDndContext(
+      <SortableEntryCard
+        entry={baseEntry}
+        isDragMode={false}
+        hasPermission={allowAll}
+        handleEntryClick={onEntryClick}
+        handleStatusClick={vi.fn()}
+        handleResetMenuClick={vi.fn()}
+        setSelfCheckinDisabledDialog={vi.fn()}
+        DogCard={StubDogCard}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Score Rex' }));
+    expect(onEntryClick).toHaveBeenCalledTimes(1);
+  });
+
+  it('gives a non-scorer no Score button and no extra tab stop', () => {
+    renderInDndContext(
+      <SortableEntryCard
+        entry={baseEntry}
+        isDragMode={false}
+        hasPermission={denyAll}
+        handleEntryClick={vi.fn()}
+        handleStatusClick={vi.fn()}
+        handleResetMenuClick={vi.fn()}
+        setSelfCheckinDisabledDialog={vi.fn()}
+        DogCard={StubDogCard}
+      />
+    );
+
+    expect(screen.queryByRole('button', { name: 'Score Rex' })).toBeNull();
   });
 
   it('shows no Resume on the hero for a viewer who cannot score', () => {

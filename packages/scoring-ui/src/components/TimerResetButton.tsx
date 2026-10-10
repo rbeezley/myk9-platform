@@ -20,7 +20,8 @@ export const TimerResetButton: React.FC<{ visible: boolean; onReset: () => void 
     <Button
       type="button"
       variant="outline"
-      className="mt-3 h-12 gap-2 rounded-full px-6 text-base font-semibold"
+      // mt-6: far enough below Resume that a gloved tap does not land on it.
+      className="mt-6 h-12 gap-2 rounded-full px-6 text-base font-semibold"
       onClick={onReset}
       data-testid="timer-reset"
     >

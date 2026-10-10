@@ -34,6 +34,7 @@ import {
   resolveSportTypeForClass,
   toOptimisticScorePayload,
 } from '@/pages/scoring/types';
+import { resolveLiveScoringBreed } from '@/pages/scoring/liveScoringBreed';
 
 export interface UseAtShowScoresheetOptions {
   showId: string | undefined;
@@ -174,7 +175,16 @@ export function useAtShowScoresheet({
         const dog = rawEntry.dogId ? await replicatedDogsTable.get(rawEntry.dogId) : null;
         if (cancelled) return;
 
-        setEntry(toScoringEntry(rawEntry, dog, 0));
+        const scoringEntry = toScoringEntry(rawEntry, dog, 0, null);
+        setEntry(scoringEntry);
+        // Breed only once confirmed for this class's registry (MYK9-90); the
+        // lookup never blocks the sheet and stays blank offline (MYK9-1086).
+        void resolveLiveScoringBreed(classId, rawEntry.dogId).then(breed => {
+          if (!cancelled && breed) {
+            setEntry(prev => (prev?.entryId === scoringEntry.entryId ? { ...prev, breed } : prev));
+          }
+        });
+
         setClassInfo(toClassInfo(cls, allEntries.length, cls.judgeName));
         setRules(buildResolvedClassRules(cls));
         setLoadedClassId(classId);

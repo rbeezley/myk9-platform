@@ -130,6 +130,16 @@ describe('MYK9-1086 review fixes', () => {
     expect(text).not.toContain('Incorrect call');
   });
 
+  it('shows a bare Excused, never the excusal detail, outside the ring team', () => {
+    render(
+      <CompletedResult
+        entry={entry({ isScored: true, resultText: 'Excused', excusedReason: 'Dog fouled ring' })}
+        showReason={false}
+      />
+    );
+    expect(screen.getByTestId('completed-result').textContent).toBe('Excused');
+  });
+
   it('shows Excused once, not as code plus reason', () => {
     render(<CompletedResult entry={entry({ isScored: true, resultText: 'Excused' })} />);
     expect(screen.getByTestId('completed-result').textContent).toBe('Excused');

@@ -97,7 +97,8 @@ describe('SortableEntryCard — scoringDisabled (MYK9-645)', () => {
   // MYK9-1086: the row tap IS the scoring action; there is no separate button.
   it('opens the scoresheet from the card tap when scoring is allowed', () => {
     const handleEntryClick = renderCard(false);
-    expect(screen.queryByRole('button', { name: 'Score Willow' })).not.toBeInTheDocument();
+    // Only the focus-revealed keyboard control; nothing visible on the card.
+    expect(screen.getByRole('button', { name: 'Score Willow' })).toHaveClass('sr-only');
     screen.getByTestId('dog-card').click();
     expect(handleEntryClick).toHaveBeenCalledTimes(1);
   });

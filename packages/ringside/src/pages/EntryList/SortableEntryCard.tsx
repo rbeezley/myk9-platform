@@ -222,6 +222,23 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
       showReason={canSeeReason}
     />
   );
+  // The row tap is the scoring action. Keyboard and switch-control users get a
+  // real button for it, hidden until it is focused, so the card looks the same
+  // and no button is nested inside another (MYK9-1086 review).
+  const keyboardScoreButton = scoringAllowed && !entry.isScored && !isDragMode && (
+    <button
+      type="button"
+      className="sr-only rounded-lg bg-primary px-3 py-2 text-sm font-bold text-primary-foreground focus:not-sr-only focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      onClick={e => {
+        e.stopPropagation();
+        handleCardClick();
+      }}
+      onMouseDown={stopCardGesture}
+      onTouchStart={stopCardGesture}
+    >
+      Score {entry.callName}
+    </button>
+  );
   const actionPill = (label: string) => (
     <span
       className={cn(
@@ -244,6 +261,7 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
           inverse
         />
         {scoringAllowed && actionPill('Resume')}
+        {keyboardScoreButton}
       </>
     ) : variant === 'next' ? (
       <>
@@ -254,6 +272,7 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
         />
         {isOwnEntry && <OwnDogQueuePill dogsAhead={dogsAhead} />}
         {scoringAllowed && actionPill('Time')}
+        {keyboardScoreButton}
       </>
     ) : showStatus ? (
       <>
@@ -265,6 +284,7 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
           onClick={handleStatusBadgeClick}
         />
         {isOwnEntry && <OwnDogQueuePill dogsAhead={dogsAhead} />}
+        {keyboardScoreButton}
       </>
     ) : (
       <>

@@ -13,13 +13,22 @@ import type { Entry } from '../../stores/entryStore';
 import { getPlacementText, normalizeResultText } from './sortableEntryCardUtils';
 import { getRibbonColor } from './ribbonColors';
 
-function reasonFor(entry: Entry, code: string): string | null {
-  if (code === 'NQ') return entry.nqReason || null;
-  if (code === 'EX') return entry.excusedReason ? `Excused · ${entry.excusedReason}` : 'Excused';
-  if (code === 'ABS') return 'Absent';
-  if (code === 'WD')
-    return entry.withdrawnReason ? `Withdrawn · ${entry.withdrawnReason}` : 'Withdrawn';
-  return null;
+const PLAIN_LABEL: Record<string, string> = { EX: 'Excused', ABS: 'Absent', WD: 'Withdrawn' };
+
+/** `withDetail` adds the judge's / secretary's free text, for the ring team and owner only. */
+function reasonFor(entry: Entry, code: string, withDetail: boolean): string | null {
+  const detail = !withDetail
+    ? null
+    : code === 'NQ'
+      ? entry.nqReason
+      : code === 'EX'
+        ? entry.excusedReason
+        : code === 'WD'
+          ? entry.withdrawnReason
+          : null;
+  const label = PLAIN_LABEL[code];
+  if (label) return detail ? `${label} · ${detail}` : label;
+  return detail || null;
 }
 
 export const CompletedResult: React.FC<{
@@ -34,10 +43,9 @@ export const CompletedResult: React.FC<{
   const placement = entry.placement ?? 0;
   const showPlace = qualified && entry.showPlacement !== false && placement > 0;
   const faults = entry.faultCount ?? 0;
-  const rawReason = showQual && !qualified ? reasonFor(entry, code) : null;
+  const reason = showQual && !qualified ? reasonFor(entry, code, showReason) : null;
   // NQ keeps its code next to the reason; EX / ABS / WD would only repeat it.
   const codeIsTheReason = code === 'EX' || code === 'ABS' || code === 'WD';
-  const reason = rawReason && (showReason || codeIsTheReason) ? rawReason : null;
   const formattedTime = entry.searchTime ? formatTimeForDisplay(entry.searchTime) : '';
   const hasTime = formattedTime !== '' && !/^0+:0+(\.0+)?$/.test(formattedTime);
 

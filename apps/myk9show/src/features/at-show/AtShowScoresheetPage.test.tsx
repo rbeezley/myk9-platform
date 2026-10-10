@@ -10,7 +10,7 @@
  * covered in @myk9/scoring-ui + the secretary ScoresheetPage).
  */
 
-import { Routes, Route, useNavigate } from 'react-router-dom';
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
@@ -291,6 +291,33 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     expect(screen.queryByRole('status', { name: 'Loading scoresheet' })).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Retry' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Back to Entry List' })).toBeInTheDocument();
+  });
+
+  it('returns to the combined A/B list when opened from it', async () => {
+    vi.mocked(replicatedClassesTable.getClassById).mockResolvedValue(null as never);
+
+    render(
+      <ReplicationSyncContext.Provider
+        value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
+      >
+        <Routes>
+          <Route
+            path="/at-show/:showId/class/:classId/score/:entryId"
+            element={<AtShowScoresheetPage />}
+          />
+          <Route path="/at-show/:showId/class/:classId" element={<div>Single list</div>} />
+          <Route
+            path="/at-show/:showId/class/:classIdA/:classIdB"
+            element={<div>Combined list</div>}
+          />
+        </Routes>
+      </ReplicationSyncContext.Provider>,
+      { initialRoute: '/at-show/show-1/class/class-1/score/entry-1?combined=class-1,class-2' }
+    );
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Back to Entry List' }));
+
+    expect(await screen.findByText('Combined list')).toBeInTheDocument();
   });
 
   it('retries the same scoped hydration path from the recoverable error', async () => {
@@ -583,6 +610,55 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
 
     expect(await screen.findByText('Score saved')).toBeInTheDocument();
     expect(replicatedEntriesTable.readScoreFromServer).toHaveBeenCalledWith('entry-1');
+  });
+
+  it('offers the other section after a combined save and opens it under its own class', async () => {
+    vi.mocked(replicatedEntriesTable.getEntriesByClass).mockImplementation(async (id: string) =>
+      id === 'class-2'
+        ? ([
+            {
+              id: 'entry-9',
+              classId: 'class-2',
+              armband: '209',
+              dogCallName: 'Bo',
+              runOrder: 1,
+              checkInStatus: 'no-status',
+            },
+          ] as never)
+        : ([{ id: 'entry-1', armband: 105, dogId: 'dog-1', checkInStatus: 'no-status' }] as never)
+    );
+    submitScoreOptimistically.mockImplementationOnce(
+      async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
+    );
+    const Probe = () => {
+      const location = useLocation();
+      return <div>at {`${location.pathname}${location.search}`}</div>;
+    };
+    render(
+      <ReplicationSyncContext.Provider
+        value={{ status: settledSyncStatus, triggerSync: vi.fn(), syncTable: vi.fn() }}
+      >
+        <Routes>
+          <Route
+            path="/at-show/:showId/class/:classId/score/:entryId"
+            element={<AtShowScoresheetPage />}
+          />
+          <Route path="/at-show/:showId/class/:classIdA/:classIdB" element={<Probe />} />
+        </Routes>
+        <Probe />
+      </ReplicationSyncContext.Provider>,
+      { initialRoute: '/at-show/show-1/class/class-1/score/entry-1?combined=class-1,class-2' }
+    );
+    await screen.findByTestId('live-scoresheet');
+    fireEvent.click(screen.getByText('Submit Score'));
+
+    fireEvent.click(await screen.findByText(/#209 Bo/));
+
+    expect(
+      await screen.findByText(
+        'at /at-show/show-1/class/class-2/score/entry-9?combined=class-1%2Cclass-2'
+      )
+    ).toBeInTheDocument();
   });
 
   it('navigates back to the at-show entry list', async () => {

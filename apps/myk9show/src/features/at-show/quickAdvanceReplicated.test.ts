@@ -27,6 +27,7 @@ describe('toQuickAdvanceChips — no check-in status data (paper gate)', () => {
     expect(chips.map(c => c.entryId)).toEqual(['1', '2', '3']);
     expect(chips[0]).toEqual({
       entryId: '1',
+      classId: 'class-1',
       armband: '1',
       callName: 'Dog 1',
       breed: 'Golden Retriever',
@@ -85,14 +86,29 @@ describe('toQuickAdvanceChips — end of class and queue exclusions', () => {
 describe('formatChipLabel', () => {
   it('degrades gracefully when display fields are missing', () => {
     expect(
-      formatChipLabel({ entryId: 'x', armband: '', callName: '', breed: '', gateLabel: null })
+      formatChipLabel({
+        entryId: 'x',
+        classId: 'c',
+        armband: '',
+        callName: '',
+        breed: '',
+        gateLabel: null,
+      })
     ).toBe('Next dog');
     expect(
-      formatChipLabel({ entryId: 'x', armband: '12', callName: '', breed: '', gateLabel: null })
+      formatChipLabel({
+        entryId: 'x',
+        classId: 'c',
+        armband: '12',
+        callName: '',
+        breed: '',
+        gateLabel: null,
+      })
     ).toBe('#12');
     expect(
       formatChipLabel({
         entryId: 'x',
+        classId: 'c',
         armband: '',
         callName: 'Bella',
         breed: 'Poodle',

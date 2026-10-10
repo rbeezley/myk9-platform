@@ -17,7 +17,7 @@
  */
 
 import { useCallback, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import {
   Loader2,
   AlertCircle,
@@ -57,6 +57,12 @@ import { useAudioWarnings } from '@/hooks/useAudioWarnings';
 import { DEFAULT_AUDIO_SETTINGS } from '@/constants/audioSettings';
 import { speakRemainingSeconds } from './atShowVoiceAnnouncement';
 import { QuickAdvancePanel } from './quickAdvancePanel';
+import {
+  COMBINED_PARAM,
+  buildAtShowScoreSheetRoute,
+  pairedClassIdFor,
+  resolveScoreSheetEntryListRoute,
+} from './atShowScoresheetRoutes';
 
 export const AtShowScoresheetPage: React.FC = () => {
   const { showId, classId, entryId } = useParams<{
@@ -66,7 +72,11 @@ export const AtShowScoresheetPage: React.FC = () => {
   }>();
   const navigate = useNavigate();
 
-  const backRoute = `/at-show/${showId}/class/${classId}`;
+  // A scoresheet opened from a combined A/B list carries the pair, so Back
+  // returns to that list instead of this dog's single section.
+  const [searchParams] = useSearchParams();
+  const combined = searchParams.get(COMBINED_PARAM);
+  const backRoute = resolveScoreSheetEntryListRoute(showId ?? '', classId ?? '', combined);
   const handleBack = useCallback(() => navigate(backRoute), [navigate, backRoute]);
 
   // Fine-grained scoring authorization. The `STAFF_ROLES` route guard admits
@@ -179,7 +189,13 @@ export const AtShowScoresheetPage: React.FC = () => {
   }
 
   return (
-    <ScoresheetContent showId={showId} classId={classId} entryId={entryId} onBack={handleBack} />
+    <ScoresheetContent
+      showId={showId}
+      classId={classId}
+      entryId={entryId}
+      combined={combined}
+      onBack={handleBack}
+    />
   );
 };
 
@@ -187,6 +203,7 @@ interface ScoresheetContentProps {
   showId: string | undefined;
   classId: string | undefined;
   entryId: string | undefined;
+  combined: string | null;
   onBack: () => void;
 }
 
@@ -233,6 +250,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
   showId,
   classId,
   entryId,
+  combined,
   onBack,
 }) => {
   const navigate = useNavigate();
@@ -242,13 +260,21 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
   const [savedEntryId, setSavedEntryId] = useState<string | null>(null);
   const handleScored = useCallback(() => setSavedEntryId(entryId ?? null), [entryId]);
   const handlePickEntry = useCallback(
-    (nextEntryId: string) => {
+    (nextEntryId: string, nextClassId: string) => {
       setSavedEntryId(null);
       // The normal scoresheet route, so the picked dog goes through the same
       // load + `transitionToInRing` path as a tap from the entry list.
-      navigate(`/at-show/${showId}/class/${classId}/score/${nextEntryId}`);
+      // A chip from the other section opens under ITS class, keeping the pair.
+      navigate(
+        buildAtShowScoreSheetRoute(
+          showId ?? '',
+          nextClassId || (classId ?? ''),
+          nextEntryId,
+          combined
+        )
+      );
     },
-    [navigate, showId, classId]
+    [navigate, showId, classId, combined]
   );
   const {
     entry,
@@ -308,6 +334,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     return (
       <QuickAdvancePanel
         classId={classId}
+        pairedClassId={pairedClassIdFor(classId ?? '', combined)}
         scoredEntryId={savedEntryId}
         onBackToList={onBack}
         onCorrectScore={handleCorrectScore}

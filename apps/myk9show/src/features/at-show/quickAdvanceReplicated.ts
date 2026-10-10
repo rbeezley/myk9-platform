@@ -23,6 +23,8 @@ import { toRunQueueEntry } from './replicatedRunQueue';
 /** Everything a chip renders, resolved at render time (no stale locking). */
 export interface QuickAdvanceChip {
   entryId: string;
+  /** The chip's OWN class — a combined A/B list mixes both sections' dogs. */
+  classId: string;
   /** Display armband, e.g. "412". Empty when the row has none. */
   armband: string;
   callName: string;
@@ -54,6 +56,7 @@ function toChip(row: ReplicatedQuickAdvanceEntry): QuickAdvanceChip {
   const { entry } = row;
   return {
     entryId: entry.id,
+    classId: entry.classId ?? entry.class_id ?? '',
     armband: entry.armband ?? entry.armbandNumber ?? '',
     callName: entry.dogCallName ?? '',
     breed: entry.dogBreed ?? '',

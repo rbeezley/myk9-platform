@@ -58,6 +58,13 @@ describe('shouldCombineAllSections', () => {
     expect(shouldCombineAllSections('UKC NOSEWORK')).toBe(true);
   });
 
+  test("should return true for myK9Show's bare UKC registry id", () => {
+    // myK9Show stores the show's organization as the registry id, not the
+    // myK9Q-era "UKC Nosework" label; every UKC level has A/B divisions.
+    expect(shouldCombineAllSections('UKC')).toBe(true);
+    expect(shouldCombineAllSections(' ukc ')).toBe(true);
+  });
+
   test('should return false for AKC', () => {
     expect(shouldCombineAllSections('AKC Scent Work')).toBe(false);
     expect(shouldCombineAllSections('AKC ScentWork')).toBe(false);

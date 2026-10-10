@@ -175,7 +175,7 @@ export function useAtShowScoresheet({
         if (cancelled) return;
 
         setEntry(toScoringEntry(rawEntry, dog, 0));
-        setClassInfo(toClassInfo(cls, allEntries.length));
+        setClassInfo(toClassInfo(cls, allEntries.length, cls.judgeName));
         setRules(buildResolvedClassRules(cls));
         setLoadedClassId(classId);
         setLoadedEntryId(entryId);

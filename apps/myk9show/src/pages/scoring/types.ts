@@ -500,6 +500,7 @@ export function toScoresheetEntry(
     id: entry.entryId,
     armband: entry.armband,
     dogName: entry.callName,
+    ...(entry.breed && { breed: entry.breed }),
     handlerName: entry.handler,
     className: classInfo.name,
     ...(classInfo.element != null && { element: classInfo.element }),
@@ -521,6 +522,7 @@ export function toScoresheetClassInfo(
     ...(trialDate && { trialDate }),
     ...(trialNumber && { trialNumber }),
     ...(trialName && { trialName }),
+    ...(info.judge && { judgeName: info.judge }),
   };
 }
 

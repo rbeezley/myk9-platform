@@ -37,6 +37,8 @@ export interface ScoresheetEntry {
   id: string;
   armband: number;
   dogName: string;
+  /** Shown under the call name on the dog card (MYK9-1086). */
+  breed?: string;
   handlerName: string;
   className: string;
   element?: string;
@@ -54,6 +56,8 @@ export interface ScoresheetClassInfo {
   /** trials.name — the display label (MYK9-704); trialNumber is only its fallback. */
   trialName?: string;
   trialNumber?: string;
+  /** Shown in the scoresheet header beside the class (MYK9-1086). */
+  judgeName?: string;
 }
 
 /** Sport type identifier */

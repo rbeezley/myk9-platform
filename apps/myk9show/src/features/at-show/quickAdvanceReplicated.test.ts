@@ -86,14 +86,29 @@ describe('toQuickAdvanceChips — end of class and queue exclusions', () => {
 describe('formatChipLabel', () => {
   it('degrades gracefully when display fields are missing', () => {
     expect(
-      formatChipLabel({ entryId: 'x', armband: '', callName: '', breed: '', gateLabel: null })
+      formatChipLabel({
+        entryId: 'x',
+        classId: 'c',
+        armband: '',
+        callName: '',
+        breed: '',
+        gateLabel: null,
+      })
     ).toBe('Next dog');
     expect(
-      formatChipLabel({ entryId: 'x', armband: '12', callName: '', breed: '', gateLabel: null })
+      formatChipLabel({
+        entryId: 'x',
+        classId: 'c',
+        armband: '12',
+        callName: '',
+        breed: '',
+        gateLabel: null,
+      })
     ).toBe('#12');
     expect(
       formatChipLabel({
         entryId: 'x',
+        classId: 'c',
         armband: '',
         callName: 'Bella',
         breed: 'Poodle',

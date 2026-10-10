@@ -177,7 +177,9 @@ export const SyncIndicator: React.FC<SyncIndicatorProps> = ({
       {...(status === 'error' && errorMessage ? { title: errorMessage } : {})}
     >
       <Icon size={16} className={cn('shrink-0', status === 'syncing' && 'animate-spin')} />
-      <span>{label}</span>
+      {/* Compact (the ringside header row): phones keep the icon and count only, like
+          CompactOfflineIndicator, so the pill cannot squeeze the class title away. */}
+      <span className={cn(compact && 'max-sm:sr-only')}>{label}</span>
       {hasPending && (
         <span className="at-show-sync-pending rounded-full bg-foreground/10 px-1.5 py-0.5 text-xs font-semibold">
           {pendingCount}

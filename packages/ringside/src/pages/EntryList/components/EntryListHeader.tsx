@@ -202,7 +202,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
         ref={classInfoRef}
         data-class-info-trigger={hasExtraInfo ? '' : undefined}
         className={cn(
-          'flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-md px-1.5 py-1 text-center max-md:min-h-12 md:absolute md:left-1/2 md:top-1/2 md:max-w-[55%] md:flex-none md:-translate-x-1/2 md:-translate-y-1/2',
+          'flex min-h-11 min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-md px-1.5 py-1 text-center max-md:min-h-12 sm:max-md:min-h-[66px] md:absolute md:left-1/2 md:top-1/2 md:max-w-[55%] md:flex-none md:-translate-x-1/2 md:-translate-y-1/2',
           hasExtraInfo &&
             'group cursor-pointer transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2'
         )}
@@ -219,7 +219,7 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
             with every background sync, and a title that rewrapped each time bounced the
             whole list under the sticky header (owner report, 2026-10-09). */}
         <div className="flex items-center justify-center gap-1">
-          <h1 className="m-0 line-clamp-2 text-balance text-center text-base font-[590] leading-tight tracking-tight text-foreground md:whitespace-nowrap md:text-lg md:leading-none">
+          <h1 className="m-0 text-balance max-md:line-clamp-2 text-center text-base font-[590] leading-tight tracking-tight text-foreground md:whitespace-nowrap md:text-lg md:leading-none">
             {classInfo?.className?.toLowerCase().replace(/\b\w/g, l => l.toUpperCase()) ||
               'Loading...'}
           </h1>
@@ -254,7 +254,12 @@ export const EntryListHeader: React.FC<EntryListHeaderProps> = ({
       )}
 
       <div className="relative z-[100] ml-auto flex shrink-0 items-center gap-2">
-        {isRefreshing && <RefreshIndicator isRefreshing={isRefreshing} />}
+        {/* Phones: the refresh button's spinning icon already says this. */}
+        {isRefreshing && (
+          <span className="max-sm:sr-only">
+            <RefreshIndicator isRefreshing={isRefreshing} />
+          </span>
+        )}
 
         {isSyncing && <SyncIndicator status="syncing" compact pendingCount={pendingCount} />}
         {hasError && <SyncIndicator status="error" compact errorMessage="Sync failed" />}

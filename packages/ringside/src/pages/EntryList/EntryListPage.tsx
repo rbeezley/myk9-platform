@@ -229,6 +229,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
           onRunOrderClick: () => setRunOrderDialogOpen(true),
           onRecalculatePlacements: handlers.handleRecalculatePlacements,
           onClassSettingsClick: () => setClassOptionsDialogOpen(true),
+          exitToApp: context.exitToApp,
           printOptions: [
             {
               label: 'Check-In Sheet',
@@ -316,6 +317,13 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
               onOpenDragMode={handleOpenDragMode}
+              showNowAndNext={
+                activeTab === 'pending' &&
+                !isDragMode &&
+                !searchTerm &&
+                // A filtered section cannot see the other section's in-ring dog.
+                (!combined || combined.sectionFilter === 'all')
+              }
               {...(favorites ? { favorites } : {})}
               {...(ownership ? { ownership } : {})}
               DogCard={layout.DogCard}

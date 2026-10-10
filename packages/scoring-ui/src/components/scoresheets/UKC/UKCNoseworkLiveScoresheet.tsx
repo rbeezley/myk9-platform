@@ -11,6 +11,9 @@
 import React, { useState, useCallback } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Button, Input, Card, cn } from '@myk9/ui';
+import { ScoresheetDogCard } from '../../ScoresheetDogCard';
+import { TimerResetButton } from '../../TimerResetButton';
+import { formatScoresheetSubtitle } from '../../../utils/scoresheetSubtitle';
 import { useStopwatch } from '../../../hooks/useStopwatch';
 import { useElementTimer } from '../../../hooks/useElementTimer';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
@@ -169,26 +172,19 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             </Button>
             <div className="flex-1">
               <h1 className="text-lg max-sm:text-base font-semibold">UKC Nosework</h1>
-              <p className="text-sm text-muted-foreground">
-                {classInfo.element} {classInfo.level}
-              </p>
+              <p className="text-sm text-muted-foreground">{formatScoresheetSubtitle(classInfo)}</p>
             </div>
             {headerActions}
           </header>
 
           <div className="p-4 space-y-4">
             {/* Dog Info */}
-            <Card className="p-4">
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-primary flex items-center justify-center shadow-md">
-                  <span className="text-xl font-bold text-primary-foreground">{entry.armband}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xl font-semibold truncate">{entry.dogName}</div>
-                  <div className="text-sm text-muted-foreground">Handler: {entry.handlerName}</div>
-                </div>
-              </div>
-            </Card>
+            <ScoresheetDogCard
+              armband={entry.armband}
+              dogName={entry.dogName}
+              breed={entry.breed}
+              handlerName={entry.handlerName}
+            />
 
             {/* Timer Card */}
             <Card className="p-6 relative overflow-hidden">
@@ -359,6 +355,18 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                     </>
                   )}
                 </div>
+                {/* Single timer: once stopped, the main button reads Resume, so
+                    reset gets its own labelled control. Expiry already shows Reset
+                    as the main button; the dual timer has its own. */}
+                <TimerResetButton
+                  visible={
+                    !isDual &&
+                    !stopwatch.isRunning &&
+                    stopwatch.time > 0 &&
+                    !stopwatch.isTimeExpired()
+                  }
+                  onReset={stopwatch.reset}
+                />
               </div>
             </Card>
 
@@ -509,9 +517,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
           <Card className="w-full max-w-md p-6 space-y-4 animate-in fade-in zoom-in-95">
             <div>
               <h2 className="text-xl font-semibold">Score Confirmation</h2>
-              <p className="text-sm text-muted-foreground">
-                {classInfo.element} {classInfo.level}
-              </p>
+              <p className="text-sm text-muted-foreground">{formatScoresheetSubtitle(classInfo)}</p>
             </div>
 
             <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">

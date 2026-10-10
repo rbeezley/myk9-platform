@@ -9,6 +9,8 @@
 import React, { useState, useCallback } from 'react';
 import { ArrowLeft, Check } from 'lucide-react';
 import { Button, Input, Card, cn } from '@myk9/ui';
+import { ScoresheetDogCard } from '../../ScoresheetDogCard';
+import { formatScoresheetSubtitle } from '../../../utils/scoresheetSubtitle';
 import { useStopwatch } from '../../../hooks/useStopwatch';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
@@ -206,26 +208,19 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             </Button>
             <div className="flex-1">
               <h1 className="text-lg max-sm:text-base font-semibold">AKC Nationals</h1>
-              <p className="text-sm text-muted-foreground">
-                {classInfo.element} {classInfo.level}
-              </p>
+              <p className="text-sm text-muted-foreground">{formatScoresheetSubtitle(classInfo)}</p>
             </div>
             {headerActions}
           </header>
 
           <div className="p-4 space-y-4">
             {/* Dog Info */}
-            <Card className="p-4">
-              <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-primary flex items-center justify-center shadow-md">
-                  <span className="text-xl font-bold text-primary-foreground">{entry.armband}</span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-xl font-semibold truncate">{entry.dogName}</div>
-                  <div className="text-sm text-muted-foreground">Handler: {entry.handlerName}</div>
-                </div>
-              </div>
-            </Card>
+            <ScoresheetDogCard
+              armband={entry.armband}
+              dogName={entry.dogName}
+              breed={entry.breed}
+              handlerName={entry.handlerName}
+            />
 
             {/* Area Navigation Tabs */}
             <div className="flex gap-1 p-1 bg-muted rounded-lg" data-testid="area-tabs">
@@ -536,9 +531,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
           <Card className="w-full max-w-md p-6 space-y-4 max-h-[90vh] overflow-y-auto animate-in fade-in zoom-in-95">
             <div>
               <h2 className="text-xl font-semibold">Score Confirmation</h2>
-              <p className="text-sm text-muted-foreground">
-                {classInfo.element} {classInfo.level}
-              </p>
+              <p className="text-sm text-muted-foreground">{formatScoresheetSubtitle(classInfo)}</p>
             </div>
 
             <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">

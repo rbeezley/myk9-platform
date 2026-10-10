@@ -49,7 +49,11 @@ export const DogCard = React.memo<DogCardProps>(
     sectionBadge,
     onPrefetch,
     dragHandle,
+    trailing,
+    nameAddon,
+    variant,
   }) => {
+    const isHero = variant === 'hero';
     const armbandText = formatArmband(armband);
     const isLong = armbandText.length >= 4;
 
@@ -58,8 +62,10 @@ export const DogCard = React.memo<DogCardProps>(
         className={cn(
           'relative flex min-h-[70px] flex-col overflow-hidden rounded-2xl border border-solid border-border bg-card p-3 shadow-sm transition-[transform,box-shadow,border-color] duration-200',
           onClick &&
-            'cursor-pointer hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg active:scale-[0.98]',
+            'cursor-pointer hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring active:scale-[0.98]',
           RESULT_BORDER[statusBorder] ?? '',
+          isHero && 'border-primary bg-primary text-primary-foreground',
+          variant === 'next' && 'border-2 border-primary',
           dragHandle && 'pl-2',
           className
         )}
@@ -68,7 +74,7 @@ export const DogCard = React.memo<DogCardProps>(
         onTouchStart={onPrefetch}
         data-testid="dog-card"
       >
-        <div className="relative flex items-start gap-3">
+        <div className="relative flex items-center gap-3">
           {dragHandle && (
             <div className="-ml-1 flex shrink-0 cursor-grab touch-none items-center justify-center self-center rounded-sm p-0.5 text-muted-foreground active:cursor-grabbing active:text-primary">
               {dragHandle}
@@ -78,7 +84,8 @@ export const DogCard = React.memo<DogCardProps>(
           <div className="flex shrink-0 flex-col items-center">
             <div
               className={cn(
-                'flex h-14 w-14 min-w-14 items-center justify-center rounded-2xl border-2 border-solid border-white/20 bg-primary font-bold text-primary-foreground shadow-md',
+                'flex h-14 w-14 min-w-14 items-center justify-center rounded-2xl border-2 border-solid border-white/20 font-bold shadow-md',
+                isHero ? 'bg-white text-primary' : 'bg-primary text-primary-foreground',
                 isLong ? 'text-[0.9375rem]' : 'text-lg'
               )}
               data-testid="dog-card-armband"
@@ -87,21 +94,51 @@ export const DogCard = React.memo<DogCardProps>(
             </div>
           </div>
 
-          <div className={cn('min-w-0 flex-1', favoriteButton ? 'pr-12' : 'pr-2')}>
-            <h4 className="mb-1 text-base font-[590] leading-snug tracking-tight text-foreground">
+          <div className={cn('min-w-0 flex-1', favoriteButton && !trailing ? 'pr-12' : 'pr-2')}>
+            <h4
+              className={cn(
+                'mb-1 flex flex-wrap items-center gap-2 font-[590] leading-snug tracking-tight',
+                isHero ? 'text-lg text-primary-foreground' : 'text-base text-foreground'
+              )}
+            >
               {callName}
+              {nameAddon}
             </h4>
-            <p className="mb-0.5 text-sm font-medium text-muted-foreground">{breed}</p>
-            <p className="text-xs font-medium text-muted-foreground">{handler}</p>
+            <p
+              className={cn(
+                'mb-0.5 text-sm font-medium',
+                isHero ? 'text-primary-foreground/85' : 'text-muted-foreground'
+              )}
+            >
+              {breed}
+            </p>
+            <p
+              className={cn(
+                'text-sm font-medium',
+                isHero ? 'text-primary-foreground/85' : 'text-muted-foreground'
+              )}
+            >
+              {handler}
+            </p>
             {resultBadges && (
               <div className="mt-2 flex flex-wrap items-center gap-2">{resultBadges}</div>
             )}
             {primaryAction && <div className="mt-3 flex items-center">{primaryAction}</div>}
           </div>
+
+          {trailing && (
+            <div className="flex min-w-0 max-w-[45%] shrink-0 flex-col items-end gap-1 self-center">
+              {trailing}
+              {/* With a trailing column the heart joins it, so it never sits on top of the check-in icon. */}
+              {favoriteButton}
+            </div>
+          )}
         </div>
 
         {actionButton && <div className="absolute right-0 top-0 z-10">{actionButton}</div>}
-        {favoriteButton && <div className="absolute bottom-2 right-2 z-10">{favoriteButton}</div>}
+        {favoriteButton && !trailing && (
+          <div className="absolute bottom-2 right-2 z-10">{favoriteButton}</div>
+        )}
 
         {sectionBadge && (
           <div

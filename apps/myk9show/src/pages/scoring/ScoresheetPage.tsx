@@ -6,6 +6,7 @@
  * registry to resolve the correct component at runtime.
  */
 
+import { resolveLiveScoringBreed } from './liveScoringBreed';
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Loader2, AlertCircle, ArrowLeft, WifiOff } from 'lucide-react';
@@ -116,10 +117,17 @@ export function ScoresheetPage() {
         // Load only the needed dog
         const dog = rawEntry.dogId ? await replicatedDogsTable.get(rawEntry.dogId) : null;
 
-        const scoringEntry = toScoringEntry(rawEntry, dog, 0);
+        const scoringEntry = toScoringEntry(rawEntry, dog, 0, null);
 
         setEntry(scoringEntry);
-        setClassInfo(toClassInfo(cls, allEntries.length));
+        // Breed only once confirmed for this class's registry (MYK9-90); the
+        // lookup never blocks the sheet and stays blank offline (MYK9-1086).
+        void resolveLiveScoringBreed(classId, rawEntry.dogId).then(breed => {
+          if (breed) {
+            setEntry(prev => (prev?.entryId === scoringEntry.entryId ? { ...prev, breed } : prev));
+          }
+        });
+        setClassInfo(toClassInfo(cls, allEntries.length, cls.judgeName));
         setRules(buildResolvedClassRules(cls));
       } catch (err) {
         logger.error('Failed to load scoresheet data:', 'pages', {}, err as Error);

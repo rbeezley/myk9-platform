@@ -8,9 +8,12 @@
  */
 
 import React, { useState } from 'react';
-import { ArrowLeft, ClipboardCheck, X, RotateCcw } from 'lucide-react';
+import { ArrowLeft, ClipboardCheck, X } from 'lucide-react';
 import { formatTrialLabel } from '@myk9/core';
 import { Button, Input, Card, cn } from '@myk9/ui';
+import { ScoresheetDogCard } from '../../ScoresheetDogCard';
+import { TimerResetButton } from '../../TimerResetButton';
+import { formatScoresheetSubtitle } from '../../../utils/scoresheetSubtitle';
 import { useStopwatch } from '../../../hooks/useStopwatch';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
@@ -134,46 +137,23 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                 <ClipboardCheck className="h-5 w-5 text-primary" />
                 {headerTitle}
               </h1>
-              <p className="text-sm text-muted-foreground">
-                {classInfo.element}
-                {classInfo.level && classInfo.level !== 'Unknown' ? ` ${classInfo.level}` : ''}
-              </p>
+              <p className="text-sm text-muted-foreground">{formatScoresheetSubtitle(classInfo)}</p>
             </div>
             {headerActions}
           </header>
 
           <div className="p-4 space-y-3">
             {/* Dog Info Card - matches myK9Q layout */}
-            <Card className="p-4">
-              <div className="flex items-center gap-4">
-                <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-primary flex items-center justify-center shadow-md">
-                  <span className="text-xl font-bold text-primary-foreground">{entry.armband}</span>
-                </div>
-                <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                  <div className="text-lg font-semibold truncate leading-tight">
-                    {entry.dogName}
-                  </div>
-                  <div className="text-[13px] text-muted-foreground">
-                    Handler: {entry.handlerName}
-                  </div>
-                </div>
-              </div>
-            </Card>
+            <ScoresheetDogCard
+              armband={entry.armband}
+              dogName={entry.dogName}
+              breed={entry.breed}
+              handlerName={entry.handlerName}
+            />
 
             {/* Timer Card - neutral surface like the other sections (no accent
                 background); the Start button carries the accent. */}
             <div className="relative p-6 rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
-              <button
-                className="absolute top-2 right-2 w-11 h-11 rounded-full bg-muted border-0 text-muted-foreground flex items-center justify-center cursor-pointer transition-all duration-200 hover:enabled:bg-accent disabled:opacity-30 disabled:cursor-not-allowed"
-                onClick={stopwatch.reset}
-                disabled={stopwatch.isRunning}
-                title={
-                  stopwatch.isRunning ? 'Reset disabled while timer is running' : 'Reset timer'
-                }
-              >
-                <RotateCcw className="h-5 w-5" />
-              </button>
-
               <div className="text-center">
                 <div
                   className={cn(
@@ -223,6 +203,10 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                     </Button>
                   )}
                 </div>
+                <TimerResetButton
+                  visible={!stopwatch.isRunning && stopwatch.time > 0}
+                  onReset={stopwatch.reset}
+                />
               </div>
             </div>
 
@@ -324,10 +308,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
           <Card className="w-full max-w-md p-6 space-y-4 animate-in fade-in zoom-in-95">
             <div>
               <h2 className="text-xl font-semibold">Score Confirmation</h2>
-              <p className="text-sm text-muted-foreground">
-                {classInfo.element}
-                {classInfo.level && classInfo.level !== 'Unknown' ? ` ${classInfo.level}` : ''}
-              </p>
+              <p className="text-sm text-muted-foreground">{formatScoresheetSubtitle(classInfo)}</p>
             </div>
 
             <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-xl">

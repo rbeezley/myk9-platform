@@ -33,6 +33,7 @@ import {
 } from '@/services/entryDisplay/entryDisplaySelectors';
 import { buildShowArmbandMaps, resolveEntryArmband } from '@/features/_shared/entryArmband';
 import type { ShowChangeSignal } from '@/features/show-live-sync/showChangeSignal';
+import { getTrialRegistry } from '@/features/registries';
 import {
   classifyEntries,
   countEntryAccounting,
@@ -300,6 +301,15 @@ export function transformEntry(re: ReplicatedEntry, cls: ReplicatedClass | null)
  * tell `moved` or `not_accepted` from a live runner. Required, not optional, so
  * a caller cannot silently fall back to raw `entries.length`.
  */
+/** Registry for ribbon colours only; an unknown id must not take the class page down. */
+function safeRegistryId(trial: ReplicatedTrial | null): string {
+  try {
+    return getTrialRegistry(trial).id;
+  } catch {
+    return 'AKC';
+  }
+}
+
 export function buildClassInfo(
   cls: ReplicatedClass,
   trial: ReplicatedTrial | null,
@@ -327,6 +337,8 @@ export function buildClassInfo(
     // sync time so they survive offline (Phase 1h). Fall back to enabled/
     // 'standard' when a row hasn't been enriched yet (e.g. pre-migration cache).
     selfCheckin: cls.selfCheckinEnabled ?? true,
+    // Ribbon colours differ by registry (MYK9-1086); read via the helper, never the raw column.
+    registry: safeRegistryId(trial),
     classStatus: cls.classStatus ?? 'pending',
     totalEntries: counts.expected,
     completedEntries: counts.accounted,

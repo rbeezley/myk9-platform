@@ -27,6 +27,7 @@ import {
   KeyRound,
   Volume2,
   VolumeX,
+  House,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
@@ -47,6 +48,7 @@ import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
 import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { useJudgeAssignedToClass } from './useJudgeAssignedToClass';
 import { useAtShowAudioMute } from './useAtShowAudioMute';
+import { useLeaveRingside } from './useLeaveRingside';
 import { badgeClass } from './slots/atShowChrome.helpers';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
@@ -288,6 +290,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
   // `useStopwatch` (it never calls onWarningChime/onVoiceAnnouncement for
   // Master runs) and must not be duplicated here.
   const [audioMuted, toggleAudioMuted] = useAtShowAudioMute();
+  const leaveRingside = useLeaveRingside();
   const audioSettings = useMemo(
     () => ({ ...DEFAULT_AUDIO_SETTINGS, volume: audioMuted ? 0 : DEFAULT_AUDIO_SETTINGS.volume }),
     [audioMuted]
@@ -433,15 +436,26 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
         onVoiceAnnouncement={handleVoiceAnnouncement}
         enableVoiceAnnouncements={!audioMuted}
         headerActions={
-          <button
-            type="button"
-            onClick={toggleAudioMuted}
-            aria-label={audioMuted ? 'Unmute timer sounds' : 'Mute timer sounds'}
-            aria-pressed={audioMuted}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm"
-          >
-            {audioMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
-          </button>
+          <>
+            <button
+              type="button"
+              onClick={leaveRingside.leave}
+              aria-label={leaveRingside.label}
+              title={leaveRingside.label}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm"
+            >
+              <House className="h-4 w-4" />
+            </button>
+            <button
+              type="button"
+              onClick={toggleAudioMuted}
+              aria-label={audioMuted ? 'Unmute timer sounds' : 'Mute timer sounds'}
+              aria-pressed={audioMuted}
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-card text-muted-foreground shadow-sm"
+            >
+              {audioMuted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+            </button>
+          </>
         }
       />
     </div>

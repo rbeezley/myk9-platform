@@ -59,10 +59,12 @@ import { AtShowAddToHomeNudge } from './AtShowAddToHomeNudge';
 import { useMyAtShowEntries } from './useMyAtShowEntries';
 import { useMyRingConflicts } from './useMyRingConflicts';
 import { useAtShowRealtimeRefresh } from './useAtShowRealtimeRefresh';
+import { useLeaveRingside } from './useLeaveRingside';
 
 export const AtShowEntryListPage: React.FC = () => {
   const { showId, classId } = useParams<{ showId: string; classId: string }>();
   const navigate = useNavigate();
+  const leaveRingside = useLeaveRingside();
   const { status: syncStatus } = useReplicationSync();
 
   // ── Role + permissions ────────────────────────────────────────────────
@@ -359,6 +361,7 @@ export const AtShowEntryListPage: React.FC = () => {
             // at-show surface offers no printing (a myK9Q-era affordance from
             // the Access-upload workflow that doesn't belong here).
             hidePrintOptions: true,
+            exitToApp: { label: leaveRingside.label, onClick: leaveRingside.leave },
           }}
         />
       </div>

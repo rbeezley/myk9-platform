@@ -18,16 +18,18 @@ import React from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, Heart } from 'lucide-react';
-import { cn, getStatusSurfaceClasses } from '@myk9/ui';
+import { cn } from '@myk9/ui';
 import { haptic } from '@myk9/scoring-ui';
 import type { ComponentType } from 'react';
 import type { Entry } from '../../stores/entryStore';
 import { formatArmband } from '../../utils/armband';
 import type { DogCardProps } from './pageProps';
 import type { EntryListPermission } from './permissions';
-import { getStatusBorderClass } from './sortableEntryCardUtils';
-import { ResultBadges, StatusBadgeContent } from './SortableEntryCardComponents';
+import { isNationalsCompetition } from './sortableEntryCardUtils';
+import { ResultBadges } from './SortableEntryCardComponents';
 import { formatDogsAheadInList, type DogsAheadResult } from './dogsAheadInList';
+import { CheckInIndicator, getCheckInPresentation } from './CheckInIndicator';
+import { CompletedResult } from './CompletedResult';
 
 // ========================================
 // TYPES
@@ -41,6 +43,8 @@ export interface SortableEntryCardProps {
   } | null;
   classInfo?: {
     selfCheckin?: boolean;
+    /** Registry id for ribbon colours (MYK9-1086). */
+    registry?: string;
   } | null;
   /**
    * Permission predicate over the narrow EntryList-only union.
@@ -76,6 +80,8 @@ export interface SortableEntryCardProps {
    * existing check-in flow remains the one way back — no new action is added.
    */
   scoringDisabled?: boolean;
+  /** Render as the in-ring hero or the up-next card (MYK9-1086). */
+  variant?: 'hero' | 'next';
   /**
    * Host-injected card primitive. The host renders this with the
    * armband / dog details / badges; ringside controls only what's
@@ -83,33 +89,6 @@ export interface SortableEntryCardProps {
    */
   DogCard: ComponentType<DogCardProps>;
 }
-
-interface PrimaryEntryActionProps {
-  entry: Entry;
-  onActivate: (event: React.MouseEvent) => void;
-  onStopGesture: (event: React.MouseEvent | React.TouchEvent) => void;
-}
-
-const PrimaryEntryAction: React.FC<PrimaryEntryActionProps> = ({
-  entry,
-  onActivate,
-  onStopGesture,
-}) => {
-  if (entry.isScored) return null;
-  const label = entry.inRing ? 'Resume' : 'Score';
-  return (
-    <button
-      type="button"
-      aria-label={`${label} ${entry.callName}`}
-      className="min-h-11 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 active:scale-[0.98] sm:min-h-12"
-      onClick={onActivate}
-      onMouseDown={onStopGesture}
-      onTouchStart={onStopGesture}
-    >
-      {label}
-    </button>
-  );
-};
 
 // ========================================
 // MAIN COMPONENT
@@ -134,6 +113,7 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
   isOwnEntry = false,
   dogsAhead = null,
   conflictLabel = null,
+  variant,
   DogCard,
 }) => {
   const isInRing = entry.inRing || entry.status === 'in-ring';
@@ -169,12 +149,6 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
       haptic.medium();
       handleEntryClick(entry);
     }
-  };
-
-  const handlePrimaryActionClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    handleCardClick();
   };
 
   // Long press handlers
@@ -234,6 +208,101 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
     e.stopPropagation();
   };
 
+  // MYK9-1086: the result replaces the badge strip on a scored row, except at
+  // Nationals, whose per-area badges have no compact form yet.
+  const isNationals = isNationalsCompetition(showContext);
+  const showStatus = !entry.isScored || scoringDisabled;
+  // The judge's NQ/excused reason is for the ring and the dog's own team, not
+  // every exhibitor reading the list (MYK9-1086 review).
+  const canSeeReason = hasPermission('canScore') || hasPermission('canManageClasses') || isOwnEntry;
+  const result = (
+    <CompletedResult
+      entry={entry}
+      registry={classInfo?.registry ?? null}
+      showReason={canSeeReason}
+    />
+  );
+  // The row tap is the scoring action. Keyboard and switch-control users get a
+  // real button for it, hidden until it is focused, so the card looks the same
+  // and no button is nested inside another (MYK9-1086 review).
+  const keyboardScoreButton = scoringAllowed && !entry.isScored && !isDragMode && (
+    <button
+      type="button"
+      className={cn(
+        // focus:px/py because not-sr-only resets padding at higher specificity.
+        'sr-only whitespace-nowrap rounded-lg text-sm font-bold focus:not-sr-only focus:px-3 focus:py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+        // On the solid hero, invert so the focused control stays visible.
+        variant === 'hero'
+          ? 'bg-white text-neutral-900 focus-visible:ring-white'
+          : 'bg-primary text-primary-foreground focus-visible:ring-ring'
+      )}
+      onClick={e => {
+        e.stopPropagation();
+        // Direct, not via handleCardClick: a prior long press on the row
+        // leaves isLongPressRef set and would swallow this activation.
+        haptic.medium();
+        handleEntryClick(entry);
+      }}
+      onMouseDown={stopCardGesture}
+      onTouchStart={stopCardGesture}
+    >
+      Score {entry.callName}
+    </button>
+  );
+  const actionPill = (label: string) => (
+    <span
+      className={cn(
+        'inline-flex min-h-11 items-center rounded-xl px-4 text-[0.9375rem] font-bold',
+        // Hero pill: fixed dark text on white so it reads in both themes.
+        variant === 'hero' ? 'bg-white text-neutral-900' : 'bg-primary text-primary-foreground'
+      )}
+    >
+      {label}
+    </span>
+  );
+  const trailing =
+    variant === 'hero' ? (
+      <>
+        {/* The ring steward can still correct an in-ring dog's status from here. */}
+        <StatusBadge
+          entry={entry}
+          isDisabled={isCheckInDisabled}
+          onClick={handleStatusBadgeClick}
+          inverse
+        />
+        {scoringAllowed && actionPill('Resume')}
+        {keyboardScoreButton}
+      </>
+    ) : variant === 'next' ? (
+      <>
+        <StatusBadge
+          entry={entry}
+          isDisabled={isCheckInDisabled}
+          onClick={handleStatusBadgeClick}
+        />
+        {isOwnEntry && <OwnDogQueuePill dogsAhead={dogsAhead} />}
+        {scoringAllowed && actionPill('Time')}
+        {keyboardScoreButton}
+      </>
+    ) : showStatus ? (
+      <>
+        {/* A dog scored and then moved to Not running keeps its result visible. */}
+        {entry.isScored && !isNationals && result}
+        <StatusBadge
+          entry={entry}
+          isDisabled={isCheckInDisabled}
+          onClick={handleStatusBadgeClick}
+        />
+        {isOwnEntry && <OwnDogQueuePill dogsAhead={dogsAhead} />}
+        {keyboardScoreButton}
+      </>
+    ) : (
+      <>
+        {!isNationals && result}
+        {scoringAllowed && <ResetButton onClick={handleResetClick} callName={entry.callName} />}
+      </>
+    );
+
   return (
     <div
       ref={setNodeRef}
@@ -259,28 +328,33 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
           entry.status === 'in-ring' && 'in-ring',
           // Own-dog highlight: calm primary ring + faint tint. Layered via
           // className so the DogCard primitive's API stays untouched.
-          isOwnEntry && 'ring-1 ring-primary/50 border-primary/40 bg-primary/[0.04]'
+          // Not on the hero: its solid fill must win, or the white text vanishes.
+          isOwnEntry &&
+            variant !== 'hero' &&
+            'ring-1 ring-primary/50 border-primary/40 bg-primary/[0.06]'
         )}
-        statusBorder={getStatusBorderClass(entry)}
-        resultBadges={
-          <>
-            {isOwnEntry && <OwnDogQueuePill dogsAhead={dogsAhead} />}
-            {isOwnEntry && conflictLabel && <OwnDogConflictChip label={conflictLabel} />}
-            <ResultBadges entry={entry} showContext={showContext} />
-          </>
+        nameAddon={
+          isOwnEntry ? (
+            <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-bold text-primary">
+              Your dog
+            </span>
+          ) : undefined
         }
-        primaryAction={
-          scoringAllowed ? (
-            <PrimaryEntryAction
-              entry={entry}
-              onActivate={handlePrimaryActionClick}
-              onStopGesture={stopCardGesture}
-            />
+        trailing={trailing}
+        {...(variant ? { variant } : {})}
+        resultBadges={
+          (isOwnEntry && conflictLabel) || isNationals ? (
+            <>
+              {isOwnEntry && conflictLabel && <OwnDogConflictChip label={conflictLabel} />}
+              {isNationals && <ResultBadges entry={entry} showContext={showContext} />}
+            </>
           ) : undefined
         }
         sectionBadge={sectionBadge}
         favoriteButton={
-          onToggleFavorite ? (
+          // A scorer's tap opens the scoresheet; the heart is an exhibitor
+          // control and only crowds the judge's row (MYK9-1086).
+          onToggleFavorite && !hasPermission('canScore') ? (
             <button
               type="button"
               aria-label={`Favorite ${entry.callName}`}
@@ -319,20 +393,6 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
             </div>
           ) : undefined
         }
-        actionButton={
-          // A row in the "Not running" group ALWAYS shows its chip, scored or
-          // not: a dog scored and then withdrawn would otherwise get neither
-          // the chip nor Reset, leaving no way back at all (MYK9-645).
-          !entry.isScored || scoringDisabled ? (
-            <StatusBadge
-              entry={entry}
-              isDisabled={isCheckInDisabled}
-              onClick={handleStatusBadgeClick}
-            />
-          ) : scoringAllowed ? (
-            <ResetButton onClick={handleResetClick} callName={entry.callName} />
-          ) : undefined
-        }
       />
     </div>
   );
@@ -349,9 +409,11 @@ interface StatusBadgeProps {
   entry: Entry;
   isDisabled: boolean;
   onClick: (e: React.MouseEvent) => void;
+  /** Draw on the solid primary hero card. */
+  inverse?: boolean;
 }
 
-const StatusBadge: React.FC<StatusBadgeProps> = ({ entry, isDisabled, onClick }) => {
+const StatusBadge: React.FC<StatusBadgeProps> = ({ entry, isDisabled, onClick, inverse }) => {
   const displayStatus = entry.inRing ? 'in-ring' : entry.status;
 
   // Track pulse animation state - triggers when timestamp changes
@@ -388,25 +450,24 @@ const StatusBadge: React.FC<StatusBadgeProps> = ({ entry, isDisabled, onClick })
     <button
       type="button"
       aria-disabled={isDisabled}
+      aria-label={`Check-in: ${getCheckInPresentation(displayStatus).label}. ${isDisabled ? 'Self check-in disabled' : 'Change check-in'} for ${entry.callName}`}
       className={cn(
-        // min-h-11 = 44px INTENT touch-target floor — stewards tap this pill
+        // min-h-11 = 44px INTENT touch-target floor — stewards tap this
         // outdoors, often gloved; do not shrink it back for visual density.
-        'relative inline-flex min-h-11 max-w-[140px] items-center justify-center gap-0.5 overflow-hidden text-ellipsis whitespace-nowrap rounded-bl-xl px-3 py-1 text-xs font-semibold leading-tight tracking-wider transition',
-        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+        'relative inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg px-1.5 transition',
+        'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
         isDisabled
-          ? 'cursor-not-allowed bg-muted text-muted-foreground opacity-60'
-          : cn(
-              getStatusSurfaceClasses('entry', displayStatus),
-              'cursor-pointer hover:-translate-y-px hover:shadow-sm active:translate-y-0'
-            ),
+          ? 'cursor-not-allowed opacity-60'
+          : 'cursor-pointer hover:bg-muted active:scale-95',
         pulseClass
       )}
-      style={{ textTransform: 'none' }}
-      data-no-uppercase="true"
+      data-testid="check-in-button"
       onClick={onClick}
-      title={isDisabled ? 'Self check-in disabled' : 'Tap to change status'}
+      onMouseDown={e => e.stopPropagation()}
+      onTouchStart={e => e.stopPropagation()}
+      title={isDisabled ? 'Self check-in disabled' : 'Change check-in'}
     >
-      <StatusBadgeContent status={displayStatus} />
+      <CheckInIndicator status={displayStatus} inverse={inverse} />
     </button>
   );
 };
@@ -428,10 +489,8 @@ const OwnDogQueuePill: React.FC<{ dogsAhead: DogsAheadResult }> = ({ dogsAhead }
     <span
       data-testid="own-dog-queue-pill"
       className={cn(
-        'inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-semibold',
-        emphasis
-          ? 'bg-primary text-primary-foreground'
-          : 'border border-solid border-primary/30 bg-primary/10 text-primary'
+        'whitespace-nowrap text-sm font-bold text-primary',
+        emphasis && 'rounded-full bg-primary px-2 py-0.5 text-primary-foreground'
       )}
     >
       {label}
@@ -468,7 +527,7 @@ const ResetButton: React.FC<ResetButtonProps> = ({ onClick, callName }) => (
     // the announced name and the visible hint disagreed about what the control
     // does, on a button whose only visible content is "⋯". It also had no
     // focus-visible treatment, unlike the primary action beside it.
-    className="reset-menu-button inline-flex min-h-11 min-w-11 items-center justify-center rounded-bl-xl rounded-tr-2xl border-0 bg-muted px-3 text-2xl font-bold leading-none text-muted-foreground shadow-sm transition hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset active:scale-95 sm:min-h-12 sm:min-w-12"
+    className="reset-menu-button inline-flex min-h-11 min-w-11 items-center justify-center rounded-lg border-0 bg-muted px-3 text-2xl font-bold leading-none text-muted-foreground shadow-sm transition hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset active:scale-95 sm:min-h-12 sm:min-w-12"
     data-testid="reset-menu-button"
     onClick={onClick}
     onMouseDown={e => e.stopPropagation()}

@@ -14,10 +14,18 @@ import type { DogCardProps } from './pageProps';
 import type { EntryListPermission } from './permissions';
 import { SortableEntryCard } from './SortableEntryCard';
 
-const StubDogCard: ComponentType<DogCardProps> = ({ callName, className, resultBadges }) => (
+const StubDogCard: ComponentType<DogCardProps> = ({
+  callName,
+  className,
+  resultBadges,
+  trailing,
+  nameAddon,
+}) => (
   <div data-testid="dog-card" data-class-name={className}>
     <span>{callName}</span>
+    {nameAddon && <div data-testid="name-addon-slot">{nameAddon}</div>}
     {resultBadges && <div data-testid="result-badges-slot">{resultBadges}</div>}
+    {trailing && <div data-testid="trailing-slot">{trailing}</div>}
   </div>
 );
 

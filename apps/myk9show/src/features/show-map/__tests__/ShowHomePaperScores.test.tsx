@@ -121,7 +121,7 @@ describe('buildPaperScoringPicker', () => {
 describe('ShowHomePaperScores', () => {
   it('opens a picker listing classes with progress', async () => {
     const { user } = render(<ShowHomePaperScores classes={MIXED} />);
-    await user.click(screen.getByRole('button', { name: 'Enter paper scores' }));
+    await user.click(screen.getByRole('button', { name: 'Enter results from scoresheet' }));
     const dialog = await screen.findByRole('dialog');
     const links = within(dialog).getAllByRole('link');
     expect(links[0]).toHaveAttribute('href', '/scoring/classes/Advanced/entries?mode=split');
@@ -131,7 +131,7 @@ describe('ShowHomePaperScores', () => {
 
   it('lists a completed Trial 2 class after every unfinished class of Trial 1 and 3', async () => {
     const { user } = render(<ShowHomePaperScores classes={TWO_TRIALS} />);
-    await user.click(screen.getByRole('button', { name: 'Enter paper scores' }));
+    await user.click(screen.getByRole('button', { name: 'Enter results from scoresheet' }));
     const dialog = await screen.findByRole('dialog');
     expect(
       within(dialog)
@@ -146,7 +146,7 @@ describe('ShowHomePaperScores', () => {
 
   it('shows finished classes in a Finished group labelled with their trial', async () => {
     const { user } = render(<ShowHomePaperScores classes={TWO_TRIALS} />);
-    await user.click(screen.getByRole('button', { name: 'Enter paper scores' }));
+    await user.click(screen.getByRole('button', { name: 'Enter results from scoresheet' }));
     const dialog = await screen.findByRole('dialog');
     const finished = within(dialog).getByRole('region', { name: 'Finished' });
     expect(within(finished).getByRole('link')).toHaveTextContent('Container Advanced');
@@ -157,7 +157,7 @@ describe('ShowHomePaperScores', () => {
     const { user } = render(
       <ShowHomePaperScores classes={[cls('a'), cls('b', { trialId: 't2' })]} />
     );
-    await user.click(screen.getByRole('button', { name: 'Enter paper scores' }));
+    await user.click(screen.getByRole('button', { name: 'Enter results from scoresheet' }));
     const dialog = await screen.findByRole('dialog');
     expect(within(dialog).queryByRole('region', { name: 'Finished' })).not.toBeInTheDocument();
   });
@@ -167,7 +167,7 @@ describe('ShowHomePaperScores', () => {
     const { user } = render(
       <ShowHomePaperScores classes={[cls('a', done), cls('b', { ...done, trialId: 't2' })]} />
     );
-    await user.click(screen.getByRole('button', { name: 'Enter paper scores' }));
+    await user.click(screen.getByRole('button', { name: 'Enter results from scoresheet' }));
     const dialog = await screen.findByRole('dialog');
     expect(
       within(dialog)
@@ -179,7 +179,7 @@ describe('ShowHomePaperScores', () => {
 
   it('goes straight to the class when the show has exactly one', () => {
     render(<ShowHomePaperScores classes={[cls('only')]} />);
-    expect(screen.getByRole('link', { name: 'Enter paper scores' })).toHaveAttribute(
+    expect(screen.getByRole('link', { name: 'Enter results from scoresheet' })).toHaveAttribute(
       'href',
       '/scoring/classes/only/entries?mode=split'
     );
@@ -192,7 +192,9 @@ describe('ShowHomePaperScores', () => {
         <ShowHomePaperScores classes={MIXED} />
       </TrialSecretaryAccessProvider>
     );
-    expect(screen.getByRole('button', { name: 'Enter paper scores' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Enter results from scoresheet' })
+    ).toBeInTheDocument();
   });
 
   it('is hidden for a club admin who is not the trial secretary', () => {
@@ -201,11 +203,11 @@ describe('ShowHomePaperScores', () => {
         <ShowHomePaperScores classes={MIXED} />
       </TrialSecretaryAccessProvider>
     );
-    expect(screen.queryByText('Enter paper scores')).not.toBeInTheDocument();
+    expect(screen.queryByText('Enter results from scoresheet')).not.toBeInTheDocument();
   });
 
   it('renders nothing when there are no classes', () => {
     render(<ShowHomePaperScores classes={[]} />);
-    expect(screen.queryByText('Enter paper scores')).not.toBeInTheDocument();
+    expect(screen.queryByText('Enter results from scoresheet')).not.toBeInTheDocument();
   });
 });

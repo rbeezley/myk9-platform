@@ -372,12 +372,14 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({
                           {formatTrialTypeLabel(trial.trialType)}
                         </div>
                       </div>
-                      <div>
-                        <div className="text-sm text-muted-foreground">Event Number</div>
-                        <div className="text-foreground font-medium">
-                          {trial.eventNumber ? `#${trial.eventNumber}` : 'Not set'}
+                      {show.organization !== 'UKC' && (
+                        <div>
+                          <div className="text-sm text-muted-foreground">Event Number</div>
+                          <div className="text-foreground font-medium">
+                            {trial.eventNumber ? `#${trial.eventNumber}` : 'Not set'}
+                          </div>
                         </div>
-                      </div>
+                      )}
                       <div>
                         <div className="text-sm text-muted-foreground">Classes</div>
                         <div className="text-foreground font-medium">{trial.classes.length}</div>

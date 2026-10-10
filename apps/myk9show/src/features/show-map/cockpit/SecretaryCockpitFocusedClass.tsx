@@ -21,6 +21,7 @@ import type {
   SecretaryCockpitClass,
   SecretaryCockpitTrial,
 } from './secretaryCockpitTypes';
+import { ClassActualStartEditor } from './ClassActualStartEditor';
 
 export function SecretaryCockpitFocusedClass({
   showId,
@@ -161,6 +162,15 @@ export function SecretaryCockpitFocusedClass({
               {focused.actualFinish.value
                 ? ` · Finished ${formatTime(focused.actualFinish.value, timeZone)}`
                 : ''}
+              {canManageShow && (
+                <ClassActualStartEditor
+                  classId={sourceClass.id}
+                  className={focused.name}
+                  trialDate={trial.date}
+                  timeZone={timeZone}
+                  hasStart={Boolean(focused.actualStart.value)}
+                />
+              )}
             </dd>
             {/* F29b phase 2a: the run-order control's only home (the run sheet,
                 Show Desk link and class setup were a three-hop dead end). Not

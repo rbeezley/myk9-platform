@@ -82,6 +82,20 @@ describe('RingsideEntryPage', () => {
     expect(screen.getByText('IN THE RING: show-9')).toBeInTheDocument();
   });
 
+  // MYK9-1086 (owner): with Heartland live today and Darboshes tomorrow, the
+  // button jumped into Heartland and Darboshes was unreachable.
+  it('shows the chooser instead of jumping when another show is also coming up', () => {
+    mockShows.mockReturnValue({
+      liveShows: [{ showId: 'show-9', showName: 'Heartland', phase: 'live' }],
+      upcomingShows: [{ showId: 'show-10', showName: 'Darboshes', phase: 'upcoming' }],
+      isLoading: false,
+    });
+    renderPage();
+    expect(screen.queryByText('IN THE RING: show-9')).not.toBeInTheDocument();
+    expect(screen.getByText('Heartland')).toBeInTheDocument();
+    expect(screen.getByText('Darboshes')).toBeInTheDocument();
+  });
+
   it.each([
     UserRole.SITE_ADMIN,
     UserRole.SECRETARY,

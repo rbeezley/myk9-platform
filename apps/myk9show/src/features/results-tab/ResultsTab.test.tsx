@@ -139,6 +139,11 @@ const hook = vi.hoisted(() => ({
 }));
 vi.mock('./useResultsTabData', () => ({ useResultsTabData: () => hook.value }));
 
+const scope = vi.hoisted(() => ({ canOperate: true }));
+vi.mock('@/hooks/useShowManageScope', () => ({
+  useShowManageScope: () => ({ status: 'resolved', canManage: true, canOperate: scope.canOperate }),
+}));
+
 const releaseMutate = vi.hoisted(() => vi.fn());
 vi.mock('@/hooks/mutations/useReleaseResults', () => ({
   useReleaseResults: () => ({ mutate: releaseMutate, isPending: false }),
@@ -203,6 +208,7 @@ function renderAt(search = '') {
 
 beforeEach(() => {
   media.wide = false;
+  scope.canOperate = true;
   releaseMutate.mockReset();
   recordSignOff.mockReset();
   verifyMutate.mockReset();
@@ -399,6 +405,16 @@ describe('ResultsTab list', () => {
 });
 
 describe('ResultsTab detail', () => {
+  it('keeps the ringside correction for a manager who cannot open Score from paper', () => {
+    scope.canOperate = false;
+    renderAt('?status=all&classId=class-ready');
+
+    expect(screen.getByRole('link', { name: 'Fix score for Rex' })).toHaveAttribute(
+      'href',
+      '/at-show/show-1/class/class-ready/score/e-ready'
+    );
+  });
+
   it('shows the class scores, a Fix link into the score flow, and releases through the existing mutation', async () => {
     const { user } = renderAt('?status=all&classId=class-ready');
 
@@ -409,7 +425,7 @@ describe('ResultsTab detail', () => {
     expect(within(table).getByText('1:01.25')).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Fix score for Rex' })).toHaveAttribute(
       'href',
-      '/at-show/show-1/class/class-ready/score/e-ready'
+      '/scoring/classes/class-ready/entries?entryId=e-ready&mode=split'
     );
 
     await user.click(screen.getByRole('button', { name: 'Release results' }));

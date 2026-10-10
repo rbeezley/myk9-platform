@@ -1,4 +1,6 @@
 import { format } from 'date-fns';
+import { zonedTimeToUtcDate } from '@/features/lifecycle-emails/schedule';
+import { formatTime } from '@/lib/format/dates';
 
 /** Parse "9:05 AM" / "09:05 pm" into 24-hour parts, or null when it is not a time. */
 export function parseTimeOfDay(text: string): { hours: number; minutes: number } | null {
@@ -96,4 +98,34 @@ export function trialStartTimeMessage(issue: TrialStartTimeIssue, trialName?: st
   return issue === 'blank'
     ? `Please enter a start time${forTrial}`
     : `Please enter a valid start time${forTrial} (e.g., 9:00 AM)`;
+}
+
+/**
+ * `yyyy-MM-dd` + a typed clock time in `timeZone` -> ISO instant, or null if either is
+ * unreadable. Actual start/finish columns are timestamptz, so a typed clock must become an
+ * instant on the trial's own date and zone before it is written (MYK9-1086).
+ */
+export function clockOnDateToIso(date: string, clock: string, timeZone: string): string | null {
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date);
+  const time = parseTimeOfDay(clock);
+  if (!day || !time) return null;
+  return zonedTimeToUtcDate(
+    {
+      year: Number(day[1]),
+      month: Number(day[2]),
+      day: Number(day[3]),
+      hour: time.hours,
+      minute: time.minutes,
+      second: 0,
+      millisecond: 0,
+    },
+    timeZone
+  ).toISOString();
+}
+
+/** A stored instant shown as a clock time in `timeZone`; text that is not an instant passes through. */
+export function isoToClock(value: string | undefined, timeZone: string): string {
+  if (!value) return '';
+  if (parseTimeOfDay(value)) return value;
+  return formatTime(value, timeZone) || value;
 }

@@ -4,8 +4,10 @@
  * docs/plan-ringside-navigation.md):
  *
  *  - Not signed in → the shared SmartSignInPage (passcode / QR front door).
- *  - Signed in, exactly one live show → auto-jump into `/at-show/:showId`.
- *  - Signed in, several or no live shows → RingsideHome (chooser / empty state).
+ *  - Signed in, exactly one live show and nothing upcoming → auto-jump into
+ *    `/at-show/:showId`.
+ *  - Signed in, anything else to choose (several live, or live plus upcoming,
+ *    or nothing) → RingsideHome (chooser, today's show first / empty state).
  *  - "Enter a passcode" from the home → SmartSignInPage, for at-venue staff whose
  *    show isn't tied to their account.
  *
@@ -50,8 +52,11 @@ const RingsideEntryPage: React.FC = () => {
     );
   }
 
-  // Exactly one live show on show day → straight into the ring, no extra tap.
-  if (entry.liveShows.length === 1) {
+  // Exactly one live show on show day, and nothing else to choose → straight into
+  // the ring, no extra tap. With another show coming up the chooser shows instead
+  // (today's show listed first): auto-jumping left no way to reach the other
+  // show, and "Back to Ringside" looped back into the live one (owner, MYK9-1086).
+  if (entry.liveShows.length === 1 && entry.upcomingShows.length === 0) {
     return <Navigate to={`/at-show/${entry.liveShows[0].showId}`} replace />;
   }
 

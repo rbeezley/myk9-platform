@@ -165,7 +165,7 @@ function classWorkActions(input: {
     },
     {
       id: `paper-scoring:${input.classId}`,
-      label: 'Enter paper scores',
+      label: 'Enter results from scoresheet',
       destination: { kind: 'href', href: getCockpitPaperScoringHref(input) },
       group: 'class-work',
       // `/scoring/classes/:id/entries` is ProtectedRoute(SECRETARY | JUDGE |

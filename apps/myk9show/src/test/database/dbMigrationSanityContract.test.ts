@@ -189,14 +189,17 @@ describe('DB migration sanity contracts', () => {
     // The trigger must still fire on deleted_at: a soft delete changes the
     // expected set, so the class has to re-derive.
     expect(trigger).toContain('deleted_at');
-    // The one-time backfill lives in the migration that introduced the handler,
-    // and is asserted there rather than against whatever file most recently
-    // touched the trigger.
-    expect(handlerSql).toContain(
+    // The one-time backfill is asserted in the migration that ran it, not in
+    // whichever file most recently redefined the handler (MYK9-1086 redefines
+    // the handler with no backfill).
+    const { sql: backfillSql } = latestMigrationContaining(
+      /PERFORM public\.refresh_class_scoring_state\(r\.id\);/
+    );
+    expect(backfillSql).toContain(
       'ALTER TABLE public.classes DISABLE TRIGGER trg_notify_class_status_push'
     );
-    expect(handlerSql).toContain('PERFORM public.refresh_class_scoring_state(r.id);');
-    expect(handlerSql).toContain(
+    expect(backfillSql).toContain('PERFORM public.refresh_class_scoring_state(r.id);');
+    expect(backfillSql).toContain(
       'ALTER TABLE public.classes ENABLE TRIGGER trg_notify_class_status_push'
     );
   });

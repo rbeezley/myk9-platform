@@ -4,6 +4,7 @@ import { EditPanelWrapper, type EditPanelDeleteOption } from './EditPanelWrapper
 import { savedMessage } from './panelSaveErrors';
 import { useEditPanel } from './useEditPanel';
 import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
@@ -23,6 +24,8 @@ import { TimeOfDayInput } from '@/components/common/TimeOfDayInput';
 import { TrialDateField } from '@/components/trials/TrialDateField';
 import { TrialStartTimeField } from '@/components/trials/TrialStartTimeField';
 import { parseLocalDateString } from '@/utils/dateLocal';
+import { clockOnDateToIso, hasTrialTime, isoToClock } from '@/components/trials/trialDateTime';
+import { getTrialTimezone } from '@/features/registries';
 import { format } from 'date-fns';
 import { usePanelValidationNavigation, type FieldLocation } from './usePanelValidationNavigation';
 
@@ -59,8 +62,11 @@ interface TrialEditFormData extends Record<string, unknown> {
   image?: string;
 }
 
+const ACTUAL_TIME_MESSAGE = 'Please enter a valid time (e.g., 9:00 AM)';
+const isBlankOrTrialTime = (value: string | undefined) => !value?.trim() || hasTrialTime(value);
+
 // Zod schema for trial edit form validation
-const trialEditSchema = z.object({
+const trialEditSchemaBase = z.object({
   name: z.string().min(1, 'Please enter a trial name'),
   trialNumber: z.string().min(1, 'Please enter a trial number'),
   trialDate: z.string().min(1, 'Please select a trial date'),
@@ -81,12 +87,58 @@ const trialEditSchema = z.object({
   type: z.string().optional().or(z.literal('')),
   trialType: z.string().optional().or(z.literal('')),
   image: z.string().optional().or(z.literal('')),
-  timeStarted: z.string().optional().or(z.literal('')),
-  timeEnded: z.string().optional().or(z.literal('')),
-}) as z.ZodSchema<TrialEditFormData>;
+  // Blank clears the time; anything else must be a readable clock time, or the save would drop it.
+  timeStarted: z.string().optional().refine(isBlankOrTrialTime, ACTUAL_TIME_MESSAGE),
+  timeEnded: z.string().optional().refine(isBlankOrTrialTime, ACTUAL_TIME_MESSAGE),
+});
 
-// Convert Trial to form data
+/**
+ * UKC trials have no event number (owner, MYK9-1086): the field is hidden and
+ * never required there. AKC requires it; other registries keep it optional.
+ * An unknown organization keeps the old required behavior.
+ */
+export function trialEventNumberRules(organization: string | undefined): {
+  show: boolean;
+  required: boolean;
+} {
+  if (organization === 'UKC') return { show: false, required: false };
+  return { show: true, required: !organization || organization === 'AKC' };
+}
+
+const buildTrialEditSchema = (requireEventNumber: boolean) =>
+  trialEditSchemaBase.extend({
+    eventNumber: requireEventNumber
+      ? z.string().min(1, 'Please enter an event number')
+      : z.string().optional().or(z.literal('')),
+  }) as unknown as z.ZodSchema<TrialEditFormData>;
+
+/** A time field with a visible Clear, so a wrong actual time can be reset (MYK9-1086). */
+const ClearableTime: React.FC<{
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}> = ({ id, label, value, onChange }) => (
+  <div className="flex items-center gap-2">
+    <TimeOfDayInput id={id} value={value} onChange={onChange} />
+    {value && (
+      <Button
+        type="button"
+        variant="outline"
+        className="h-10 shrink-0"
+        onClick={() => onChange('')}
+        aria-label={`Clear ${label}`}
+      >
+        Clear
+      </Button>
+    )}
+  </div>
+);
+
+// Convert Trial to form data. Actual times are stored as instants and shown as clock text
+// in the trial's own zone (MYK9-1086).
 const trialToFormData = (trial: Partial<Trial>): TrialEditFormData => {
+  const timeZone = getTrialTimezone(trial);
   return {
     name: trial.name || '',
     showId: trial.showId || '',
@@ -95,8 +147,8 @@ const trialToFormData = (trial: Partial<Trial>): TrialEditFormData => {
     trialNumber: trial.trialNumber || '',
     status: trial.status || 'Upcoming',
     plannedStartTime: trial.plannedStartTime || '',
-    timeStarted: trial.timeStarted || '',
-    timeEnded: trial.timeEnded || '',
+    timeStarted: isoToClock(trial.timeStarted, timeZone),
+    timeEnded: isoToClock(trial.timeEnded, timeZone),
     eventNumber: trial.eventNumber || '',
     type: trial.type || '',
     order: trial.order || '1',
@@ -105,8 +157,17 @@ const trialToFormData = (trial: Partial<Trial>): TrialEditFormData => {
   };
 };
 
+/**
+ * Clock text -> instant on the trial date. Blank stays '' (the store clears the column); text
+ * that cannot be read is dropped rather than written raw into a timestamptz column.
+ */
+const actualTimeToSave = (clock: string | undefined, date: string, timeZone: string) => {
+  if (!clock?.trim()) return '';
+  return clockOnDateToIso(date, clock, timeZone) ?? undefined;
+};
+
 // Convert form data back to Trial
-const formDataToTrial = (formData: TrialEditFormData): Partial<Trial> => ({
+const formDataToTrial = (formData: TrialEditFormData, timeZone: string): Partial<Trial> => ({
   name: formData.name,
   showId: formData.showId,
   showName: formData.showName,
@@ -114,8 +175,8 @@ const formDataToTrial = (formData: TrialEditFormData): Partial<Trial> => ({
   trialNumber: formData.trialNumber,
   status: formData.status,
   plannedStartTime: formData.plannedStartTime,
-  timeStarted: formData.timeStarted,
-  timeEnded: formData.timeEnded,
+  timeStarted: actualTimeToSave(formData.timeStarted, formData.trialDate, timeZone),
+  timeEnded: actualTimeToSave(formData.timeEnded, formData.trialDate, timeZone),
   eventNumber: formData.eventNumber,
   type: formData.type,
   order: formData.order,
@@ -135,11 +196,12 @@ const TAB_FIELDS: Record<TabId, (keyof TrialEditFormData)[]> = {
 
 // Form content component
 interface TrialEditFormProps {
+  eventNumber: { show: boolean; required: boolean };
   activeTab: TabId;
   onTabChange: (tab: TabId) => void;
 }
 
-const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange }) => {
+const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange, eventNumber }) => {
   const { form } = useEditPanel<TrialEditFormData>();
 
   // Touch all fields on the departing tab before switching
@@ -186,12 +248,20 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange })
   const trialDateError = form?.getError('trialDate');
   const orderError = form?.getError('order');
   const plannedStartTimeError = form?.getError('plannedStartTime');
+  const timeStartedError = form?.getError('timeStarted');
+  const timeEndedError = form?.getError('timeEnded');
 
   // Per-tab error counts for tab badges
   const tabErrorCounts = useMemo(
     () => ({
       basic: [nameError, trialNumberError, eventNumberError, statusError].filter(Boolean).length,
-      scheduling: [trialDateError, orderError, plannedStartTimeError].filter(Boolean).length,
+      scheduling: [
+        trialDateError,
+        orderError,
+        plannedStartTimeError,
+        timeStartedError,
+        timeEndedError,
+      ].filter(Boolean).length,
       advanced: 0,
     }),
     [
@@ -202,6 +272,8 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange })
       trialDateError,
       orderError,
       plannedStartTimeError,
+      timeStartedError,
+      timeEndedError,
     ]
   );
   if (!form) return null;
@@ -285,22 +357,24 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange })
                   />
                 </FormField>
 
-                <FormField
-                  label="Event Number"
-                  fieldId="eventNumber"
-                  required
-                  error={eventNumberError}
-                >
-                  <Input
-                    id="eventNumber"
-                    value={form.data.eventNumber}
-                    onChange={handleInputChange('eventNumber')}
-                    onBlur={() => form.touchField('eventNumber')}
-                    placeholder="Assigned by organization"
-                    className={cn(eventNumberError && 'border-destructive')}
-                    {...form.getFieldProps('eventNumber')}
-                  />
-                </FormField>
+                {eventNumber.show && (
+                  <FormField
+                    label="Event Number"
+                    fieldId="eventNumber"
+                    required={eventNumber.required}
+                    error={eventNumberError}
+                  >
+                    <Input
+                      id="eventNumber"
+                      value={form.data.eventNumber}
+                      onChange={handleInputChange('eventNumber')}
+                      onBlur={() => form.touchField('eventNumber')}
+                      placeholder="Assigned by organization"
+                      className={cn(eventNumberError && 'border-destructive')}
+                      {...form.getFieldProps('eventNumber')}
+                    />
+                  </FormField>
+                )}
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -401,17 +475,19 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange })
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField label="Actual Start" fieldId="timeStarted">
-                    <TimeOfDayInput
+                  <FormField label="Actual Start" fieldId="timeStarted" error={timeStartedError}>
+                    <ClearableTime
                       id="timeStarted"
+                      label="Actual Start"
                       value={form.data.timeStarted || ''}
                       onChange={value => form.setValue('timeStarted', value)}
                     />
                   </FormField>
 
-                  <FormField label="Actual Finish" fieldId="timeEnded">
-                    <TimeOfDayInput
+                  <FormField label="Actual Finish" fieldId="timeEnded" error={timeEndedError}>
+                    <ClearableTime
                       id="timeEnded"
+                      label="Actual Finish"
                       value={form.data.timeEnded || ''}
                       onChange={value => form.setValue('timeEnded', value)}
                     />
@@ -483,7 +559,13 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
   onSave,
   enableAutoSave = false,
   onDelete,
+  organization,
 }) => {
+  const eventNumberRules = useMemo(() => trialEventNumberRules(organization), [organization]);
+  const schema = useMemo(
+    () => buildTrialEditSchema(eventNumberRules.required),
+    [eventNumberRules.required]
+  );
   const { activeTab, setActiveTab, handleValidationFail } = usePanelValidationNavigation<TabId>(
     'basic',
     locateTrialField,
@@ -496,12 +578,12 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
   // Handle save
   const handleSave = useCallback(
     async (formData: TrialEditFormData) => {
-      const trialData = formDataToTrial(formData);
+      const trialData = formDataToTrial(formData, getTrialTimezone(initialTrialData));
       if (onSave) {
         await onSave(trialData);
       }
     },
-    [onSave]
+    [onSave, initialTrialData]
   );
 
   return (
@@ -513,7 +595,7 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
       size="xl"
       initialData={initialFormData}
       onSave={handleSave}
-      schema={trialEditSchema}
+      schema={schema}
       enableAutoSave={enableAutoSave}
       saveLabel="Save Changes"
       cancelLabel="Cancel"
@@ -521,7 +603,11 @@ export const TrialEditPanel: React.FC<TrialEditPanelProps> = ({
       successMessage={savedMessage(trialName, 'Trial')}
       onValidationFail={handleValidationFail}
     >
-      <TrialEditForm activeTab={activeTab} onTabChange={setActiveTab} />
+      <TrialEditForm
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        eventNumber={eventNumberRules}
+      />
     </EditPanelWrapper>
   );
 };

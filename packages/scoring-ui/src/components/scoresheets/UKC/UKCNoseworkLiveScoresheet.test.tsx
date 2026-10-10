@@ -107,13 +107,41 @@ describe('UKCNoseworkLiveScoresheet', () => {
     expect(screen.getByTestId('element-timer-row')).toBeInTheDocument();
   });
 
-  it('multi-area: renders correct number of area sections', () => {
+  // MYK9-1086 (owner): UKC Nosework is always one search area, and UKC judges
+  // never record found/correct. A class record claiming 3 areas still gets one.
+  it('shows one recorded time and no found/correct, even for a multi-area class record', () => {
     const threeAreaRules: ResolvedClassRules = { ...singleRules, areaCount: 3 };
     render(<UKCNoseworkLiveScoresheet {...defaultProps} rules={threeAreaRules} />);
 
-    expect(screen.getByLabelText('Area 1 search time')).toBeInTheDocument();
-    expect(screen.getByLabelText('Area 2 search time')).toBeInTheDocument();
-    expect(screen.getByLabelText('Area 3 search time')).toBeInTheDocument();
+    expect(screen.getAllByTestId('ukc-recorded-time')).toHaveLength(1);
+    expect(screen.getByLabelText('Recorded time')).toBeInTheDocument();
+    expect(screen.queryByLabelText(/found/i)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/correct$/i)).not.toBeInTheDocument();
+  });
+
+  it('saves no find counts and no FOUND/CORRECT words for a UKC score', async () => {
+    const onSubmit = vi.fn();
+    render(<UKCNoseworkLiveScoresheet {...defaultProps} onSubmit={onSubmit} />);
+
+    fireEvent.change(screen.getByTestId('ukc-recorded-time'), { target: { value: '1:12.48' } });
+    fireEvent.click(screen.getByTestId('result-Q'));
+    fireEvent.click(screen.getByTestId('submit-btn'));
+    await waitFor(() => {
+      expect(screen.getByTestId('confirmation-dialog')).toBeInTheDocument();
+    });
+    fireEvent.click(screen.getByTestId('confirm-submit-btn'));
+
+    await waitFor(() => {
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          resultText: 'Q',
+          correctCount: 0,
+          incorrectCount: 0,
+          areas: { 'area 1': '1:12.48' },
+          areaTimes: ['1:12.48'],
+        })
+      );
+    });
   });
 
   it('result chips render (Q, NQ, ABS, EX)', () => {

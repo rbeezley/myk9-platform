@@ -228,10 +228,20 @@ export const SortableEntryCard: React.FC<SortableEntryCardProps> = ({
   const keyboardScoreButton = scoringAllowed && !entry.isScored && !isDragMode && (
     <button
       type="button"
-      className="sr-only rounded-lg bg-primary px-3 py-2 text-sm font-bold text-primary-foreground focus:not-sr-only focus:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      className={cn(
+        // focus:px/py because not-sr-only resets padding at higher specificity.
+        'sr-only whitespace-nowrap rounded-lg text-sm font-bold focus:not-sr-only focus:px-3 focus:py-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2',
+        // On the solid hero, invert so the focused control stays visible.
+        variant === 'hero'
+          ? 'bg-white text-neutral-900 focus-visible:ring-white'
+          : 'bg-primary text-primary-foreground focus-visible:ring-ring'
+      )}
       onClick={e => {
         e.stopPropagation();
-        handleCardClick();
+        // Direct, not via handleCardClick: a prior long press on the row
+        // leaves isLongPressRef set and would swallow this activation.
+        haptic.medium();
+        handleEntryClick(entry);
       }}
       onMouseDown={stopCardGesture}
       onTouchStart={stopCardGesture}

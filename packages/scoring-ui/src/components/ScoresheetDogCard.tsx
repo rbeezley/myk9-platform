@@ -33,7 +33,10 @@ export const ScoresheetDogCard: React.FC<ScoresheetDogCardProps> = ({
       </div>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <div className="truncate text-xl font-semibold leading-tight">{dogName}</div>
-        {breed ? <div className="truncate text-sm text-muted-foreground">{breed}</div> : null}
+        {/* Always reserve the line: the breed can arrive a moment after the
+            sheet opens, and the timer controls must not jump while a gloved
+            thumb is moving to them. */}
+        <div className="min-h-5 truncate text-sm text-muted-foreground">{breed ?? ''}</div>
         <div className="truncate text-sm text-muted-foreground">Handler: {handlerName}</div>
       </div>
     </div>

@@ -62,7 +62,7 @@ export const DogCard = React.memo<DogCardProps>(
         className={cn(
           'relative flex min-h-[70px] flex-col overflow-hidden rounded-2xl border border-solid border-border bg-card p-3 shadow-sm transition-[transform,box-shadow,border-color] duration-200',
           onClick &&
-            'cursor-pointer hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg focus-within:ring-2 focus-within:ring-ring active:scale-[0.98]',
+            'cursor-pointer hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lg has-[:focus-visible]:ring-2 has-[:focus-visible]:ring-ring active:scale-[0.98]',
           RESULT_BORDER[statusBorder] ?? '',
           isHero && 'border-primary bg-primary text-primary-foreground',
           variant === 'next' && 'border-2 border-primary',

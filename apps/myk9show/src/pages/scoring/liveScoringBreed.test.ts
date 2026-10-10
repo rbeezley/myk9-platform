@@ -2,40 +2,58 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   loadClassRegistryForClass: vi.fn(),
-  loadRegisteredBreedsByDogId: vi.fn(),
+  getRegistrationsForDogs: vi.fn(),
+  resolveDogIdentityForOrganization: vi.fn(),
 }));
-vi.mock('./paperScoresheetData', () => mocks);
+vi.mock('./paperScoresheetData', () => ({
+  loadClassRegistryForClass: mocks.loadClassRegistryForClass,
+}));
+vi.mock('@/services/replication/ReplicatedDogRegistrationsTable', () => ({
+  replicatedDogRegistrationsTable: { getRegistrationsForDogs: mocks.getRegistrationsForDogs },
+}));
+vi.mock('@/features/dogs/identity', () => ({
+  resolveDogIdentityForOrganization: mocks.resolveDogIdentityForOrganization,
+}));
 
 import { resolveLiveScoringBreed } from './liveScoringBreed';
 
 describe('resolveLiveScoringBreed (MYK9-1086, MYK9-90 rule)', () => {
   beforeEach(() => {
     mocks.loadClassRegistryForClass.mockReset();
-    mocks.loadRegisteredBreedsByDogId.mockReset();
+    mocks.getRegistrationsForDogs.mockReset();
+    mocks.resolveDogIdentityForOrganization.mockReset();
   });
 
-  it('returns the breed registered with the class registry', async () => {
+  it('returns the breed registered with the class registry, from the local replica', async () => {
+    const rows = [{ organization: 'AKC', breed: 'Beagle' }];
     mocks.loadClassRegistryForClass.mockResolvedValue('AKC');
-    mocks.loadRegisteredBreedsByDogId.mockResolvedValue(new Map([['dog-1', 'Beagle']]));
+    mocks.getRegistrationsForDogs.mockResolvedValue(rows);
+    mocks.resolveDogIdentityForOrganization.mockReturnValue({ breed: 'Beagle' });
+
     await expect(resolveLiveScoringBreed('class-1', 'dog-1')).resolves.toBe('Beagle');
-    expect(mocks.loadRegisteredBreedsByDogId).toHaveBeenCalledWith(['dog-1'], 'AKC');
+    expect(mocks.getRegistrationsForDogs).toHaveBeenCalledWith(['dog-1']);
+    expect(mocks.resolveDogIdentityForOrganization).toHaveBeenCalledWith(rows, 'AKC');
   });
 
   it('shows no breed for a dog with no registration for this registry', async () => {
     mocks.loadClassRegistryForClass.mockResolvedValue('AKC');
-    mocks.loadRegisteredBreedsByDogId.mockResolvedValue(new Map([['dog-1', null]]));
+    mocks.getRegistrationsForDogs.mockResolvedValue([{ organization: 'UKC', breed: 'Beagle' }]);
+    mocks.resolveDogIdentityForOrganization.mockReturnValue({ breed: null });
+
     await expect(resolveLiveScoringBreed('class-1', 'dog-1')).resolves.toBeNull();
   });
 
-  it('shows no breed when the lookup cannot be confirmed (offline)', async () => {
+  it('shows no breed when the local read fails', async () => {
     mocks.loadClassRegistryForClass.mockResolvedValue('UKC');
-    mocks.loadRegisteredBreedsByDogId.mockRejectedValue(new Error('Could not verify'));
+    mocks.getRegistrationsForDogs.mockRejectedValue(new Error('IndexedDB closed'));
+
     await expect(resolveLiveScoringBreed('class-1', 'dog-1')).resolves.toBeNull();
   });
 
   it('shows no breed when the class registry is not cached', async () => {
     mocks.loadClassRegistryForClass.mockResolvedValue(undefined);
+
     await expect(resolveLiveScoringBreed('class-1', 'dog-1')).resolves.toBeNull();
-    expect(mocks.loadRegisteredBreedsByDogId).not.toHaveBeenCalled();
+    expect(mocks.getRegistrationsForDogs).not.toHaveBeenCalled();
   });
 });

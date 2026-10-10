@@ -51,8 +51,8 @@ export const UKCRallyLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   const autoQualifying = finalScore >= 70 ? 'Q' : 'NQ';
 
   const handleStopTimer = useCallback(() => {
-    stopwatch.pause();
-    const formattedTime = stopwatch.formatTime(stopwatch.time);
+    const elapsedMs = stopwatch.pause();
+    const formattedTime = stopwatch.formatTime(elapsedMs);
     if (scoring.areas.length > 0) {
       scoring.handleAreaUpdate(0, 'time', formattedTime);
     }

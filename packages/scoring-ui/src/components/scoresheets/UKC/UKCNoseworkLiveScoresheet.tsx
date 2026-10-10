@@ -97,20 +97,20 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
   // Finish: stop both timers, capture times into area 0
   const handleFinish = useCallback(() => {
-    stopwatch.pause();
+    const elapsedMs = stopwatch.pause();
     if (isDual) {
       elementTimer.stop();
     }
     if (scoring.areas.length > 0) {
-      scoring.handleAreaUpdate(0, 'time', stopwatch.formatTime(stopwatch.time));
+      scoring.handleAreaUpdate(0, 'time', stopwatch.formatTime(elapsedMs));
     }
   }, [stopwatch, elementTimer, isDual, scoring]);
 
   // Stop single-timer mode
   const handleStop = useCallback(() => {
-    stopwatch.pause();
+    const elapsedMs = stopwatch.pause();
     if (scoring.areas.length > 0) {
-      scoring.handleAreaUpdate(0, 'time', stopwatch.formatTime(stopwatch.time));
+      scoring.handleAreaUpdate(0, 'time', stopwatch.formatTime(elapsedMs));
     }
   }, [stopwatch, scoring]);
 

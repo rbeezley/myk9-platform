@@ -76,9 +76,9 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   });
 
   const handleStopTimer = () => {
-    stopwatch.pause();
+    const elapsedMs = stopwatch.pause();
     if (scoring.areas.length === 1) {
-      scoring.handleAreaUpdate(0, 'time', stopwatch.formatTime(stopwatch.time));
+      scoring.handleAreaUpdate(0, 'time', stopwatch.formatTime(elapsedMs));
     }
   };
 

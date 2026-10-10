@@ -66,9 +66,9 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
   });
 
   const handleStopTimer = useCallback(() => {
-    stopwatch.pause();
+    const elapsedMs = stopwatch.pause();
     if (scoring.areas.length === 1) {
-      scoring.handleAreaUpdate(0, 'time', stopwatch.formatTime(stopwatch.time));
+      scoring.handleAreaUpdate(0, 'time', stopwatch.formatTime(elapsedMs));
     }
   }, [stopwatch, scoring]);
 

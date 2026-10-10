@@ -4,6 +4,7 @@ import type { ClassStat } from './ClassDetailsMain.types';
 import type { ScentWorkEntry, ScentWorkClassConfig } from '@/types/scent-work-types';
 import { getDogBreedLabel, type Dog } from '@/types/dog-types';
 import { msToDisplay } from '@/lib/timeUtils';
+import { parseTimeLimitSeconds } from '@/services/mappers/classTimeLimits';
 
 /**
  * Count the number of populated (non-empty, non-zero, non-false) fields.
@@ -149,7 +150,7 @@ export function buildClassConfig(classData: ClassData): ScentWorkClassConfig {
   return {
     element: (classData.element as 'Interior' | 'Exterior' | 'Container' | 'Buried') || 'Interior',
     level: (classData.level as 'Novice' | 'Advanced' | 'Excellent' | 'Masters') || 'Novice',
-    timeLimit: (classData.timeLimit1 && parseInt(classData.timeLimit1) * 1000) || 180000,
+    timeLimit: (parseTimeLimitSeconds(classData.timeLimit1 ?? '') ?? 180) * 1000,
     multiArea: false,
     warningsEnabled: true,
   };

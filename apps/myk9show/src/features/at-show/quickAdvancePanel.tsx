@@ -172,19 +172,27 @@ function useScoreSaveState(entryId: string | undefined): {
         schedule();
       }, delay);
     };
+    // Regaining signal or unlocking the phone checks now and restarts the
+    // backoff at 3s, so a just-flushed upload is confirmed promptly.
+    const restart = () => {
+      window.clearTimeout(timer);
+      delay = 3000;
+      schedule();
+      void check();
+    };
     const onVisible = () => {
-      if (document.visibilityState === 'visible') void check();
+      if (document.visibilityState === 'visible') restart();
     };
 
     const unsubscribe = replicatedEntriesTable.subscribe(() => void check());
-    window.addEventListener('online', check);
+    window.addEventListener('online', restart);
     document.addEventListener('visibilitychange', onVisible);
     schedule();
     void check();
     return () => {
       cancelled = true;
       unsubscribe();
-      window.removeEventListener('online', check);
+      window.removeEventListener('online', restart);
       document.removeEventListener('visibilitychange', onVisible);
       window.clearTimeout(timer);
     };

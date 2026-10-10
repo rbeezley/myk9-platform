@@ -114,8 +114,8 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   });
 
   const handleStopTimer = useCallback(() => {
-    stopwatch.pause();
-    scoring.handleAreaUpdate(currentArea, 'time', stopwatch.formatTime(stopwatch.time));
+    const elapsedMs = stopwatch.pause();
+    scoring.handleAreaUpdate(currentArea, 'time', stopwatch.formatTime(elapsedMs));
   }, [stopwatch, scoring, currentArea]);
 
   const handleAreaSelect = (index: number) => {

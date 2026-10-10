@@ -75,8 +75,8 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   });
 
   const handleStopTimer = useCallback(() => {
-    stopwatch.pause();
-    scoring.handleAreaUpdate(0, 'time', stopwatch.formatTime(stopwatch.time));
+    const elapsedMs = stopwatch.pause();
+    scoring.handleAreaUpdate(0, 'time', stopwatch.formatTime(elapsedMs));
   }, [stopwatch, scoring]);
 
   // Derive run time from the single area

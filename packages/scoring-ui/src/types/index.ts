@@ -71,8 +71,11 @@ export interface StopwatchReturn {
   getRemainingTimeMs: () => number;
   /** Start/resume the timer */
   start: () => void;
-  /** Pause the timer (keeps current time) */
-  pause: () => void;
+  /**
+   * Pause the timer (keeps current time). Returns the exact elapsed ms --
+   * save THIS, not `time`, which only updates on the next render.
+   */
+  pause: () => number;
   /** Stop and reset to zero */
   reset: () => void;
   /** Check if 30-second warning should show (non-Master only) */

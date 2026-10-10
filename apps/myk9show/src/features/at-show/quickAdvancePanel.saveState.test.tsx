@@ -134,4 +134,28 @@ describe('QuickAdvancePanel score save state (MYK9-1023)', () => {
       vi.useRealTimers();
     }
   });
+
+  it('regaining signal restarts the readback backoff at 3s', async () => {
+    vi.useFakeTimers();
+    try {
+      renderPanel();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60_000); // backoff now at its 30s cap
+      });
+      const read = vi.mocked(replicatedEntriesTable.readScoreFromServer);
+      act(() => {
+        window.dispatchEvent(new Event('online'));
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      const afterOnline = read.mock.calls.length;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3_000);
+      });
+      expect(read.mock.calls.length).toBe(afterOnline + 1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { shouldShowSection, formatClassTitle } from '../ClassDetailsMain.helpers';
+import { shouldShowSection, formatClassTitle, buildClassConfig } from '../ClassDetailsMain.helpers';
+import type { ClassData } from '../types/classTypes';
 
 describe('shouldShowSection', () => {
   it('returns true for Novice level with section', () => {
@@ -102,5 +103,16 @@ describe('formatClassTitle', () => {
         section: 'A',
       })
     ).toBe('Detective');
+  });
+});
+
+describe('buildClassConfig time limit', () => {
+  it('reads the M:SS limit as minutes and seconds, not as a seconds count', () => {
+    const config = buildClassConfig({ timeLimit1: '05:00' } as ClassData);
+    expect(config.timeLimit).toBe(300_000);
+  });
+
+  it('keeps the 3:00 default when no limit is set', () => {
+    expect(buildClassConfig({} as ClassData).timeLimit).toBe(180_000);
   });
 });

@@ -88,11 +88,13 @@ export function useElementTimer(): ElementTimerReturn {
 
     setIsRunning(false);
 
-    // Save accumulated time
+    // Save accumulated time, and freeze the display on it: the interval paints
+    // every 100ms, so the last painted `time` can trail the real stop instant.
     if (startTimestampRef.current !== null) {
       accumulatedTimeRef.current += Date.now() - startTimestampRef.current;
     }
     startTimestampRef.current = null;
+    setTime(accumulatedTimeRef.current);
 
     // Clear interval
     if (intervalRef.current) {

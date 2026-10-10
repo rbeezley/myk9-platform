@@ -4,8 +4,10 @@
  * docs/plan-ringside-navigation.md):
  *
  *  - Not signed in → the shared SmartSignInPage (passcode / QR front door).
- *  - Signed in, exactly one live show → auto-jump into `/at-show/:showId`.
- *  - Signed in, several or no live shows → RingsideHome (chooser / empty state).
+ *  - Signed in, exactly one live show and nothing upcoming → auto-jump into
+ *    `/at-show/:showId`.
+ *  - Signed in, anything else to choose (several live, or live plus upcoming,
+ *    or nothing) → RingsideHome (chooser, today's show first / empty state).
  *  - "Enter a passcode" from the home → SmartSignInPage, for at-venue staff whose
  *    show isn't tied to their account.
  *

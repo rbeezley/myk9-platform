@@ -1,6 +1,7 @@
 /**
  * RingsideHome — the signed-in landing for the bare `/at-show` route when there
- * is NOT exactly one live show to auto-jump into (zero, or several). Presents the
+ * is NOT a single live show with nothing else to choose (zero live, several, or
+ * live plus upcoming — MYK9-1086). Presents the
  * user's live + upcoming shows as cards that deep-link into ringside, an empty
  * state when there are none, and a passcode affordance for at-venue staff.
  *

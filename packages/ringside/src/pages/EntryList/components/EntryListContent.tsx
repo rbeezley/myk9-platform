@@ -15,6 +15,7 @@
 import React from 'react';
 import type { ComponentType } from 'react';
 import { Target } from 'lucide-react';
+import { useLastHeight } from './useLastHeight';
 import {
   DndContext,
   DragEndEvent,
@@ -130,6 +131,7 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
     }
   }, [entries.length]);
 
+  const [heroRef, lastHeroHeight] = useLastHeight<HTMLDivElement>();
   const inRing = showNowAndNext ? (entries.find(isInRingEntry) ?? null) : null;
   const upNext = showNowAndNext ? (pendingByRunOrder(entries)[0] ?? null) : null;
   const listEntries = showNowAndNext
@@ -214,13 +216,15 @@ export const EntryListContent: React.FC<EntryListContentProps> = ({
           <div className="mb-4 flex flex-col">
             {sectionLabel('In the ring')}
             {inRing ? (
-              renderCard(inRing, 'hero')
+              <div ref={heroRef}>{renderCard(inRing, 'hero')}</div>
             ) : (
-              // As tall as the hero card it stands in for (168px measured live at 375px):
-              // at 70px, every dog leaving and entering the ring shifted the whole list
-              // ~100px up and back, which read as the page bouncing (owner, 2026-10-09).
+              // As tall as the hero card it replaces: at a fixed 70px, every dog leaving
+              // and entering the ring shifted the whole list ~90px up and back, which read
+              // as the page bouncing (owner, 2026-10-09). The class floor covers the
+              // first render, before any hero has been measured.
               <div
-                className="flex min-h-[10.5rem] items-center gap-3 rounded-2xl border-2 border-dashed border-primary/30 bg-primary/[0.05] p-3"
+                className="flex min-h-[7.5rem] items-center gap-3 rounded-2xl border-2 border-dashed border-primary/30 bg-primary/[0.05] p-3 max-md:min-h-[10.5rem]"
+                style={lastHeroHeight ? { minHeight: lastHeroHeight } : undefined}
                 data-testid="ring-clear"
               >
                 <div className="flex h-12 w-12 items-center justify-center rounded-xl border-2 border-dashed border-primary/40 text-primary">

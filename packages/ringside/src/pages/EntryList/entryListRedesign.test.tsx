@@ -237,6 +237,45 @@ describe('EntryListContent now and next (MYK9-1086)', () => {
     expect(screen.getAllByTestId('dog-card')[0]?.getAttribute('data-variant')).toBe('next');
   });
 
+  it('keeps Ring is clear as tall as the hero card it replaced', () => {
+    const original = globalThis.ResizeObserver;
+    class FakeResizeObserver {
+      constructor(private readonly cb: ResizeObserverCallback) {}
+      observe() {
+        this.cb(
+          [{ borderBoxSize: [{ blockSize: 152, inlineSize: 343 }] } as unknown as ResizeObserverEntry],
+          this as unknown as ResizeObserver
+        );
+      }
+      disconnect() {}
+      unobserve() {}
+    }
+    globalThis.ResizeObserver = FakeResizeObserver as unknown as typeof ResizeObserver;
+    try {
+      const view = renderContent(dogs);
+      view.rerender(
+        <EntryListContent
+          entries={dogs.slice(1)}
+          activeTab="pending"
+          isDragMode={false}
+          hasPermission={() => true}
+          onEntryClick={vi.fn()}
+          onStatusClick={vi.fn()}
+          onResetMenuClick={vi.fn()}
+          onSelfCheckinDisabled={vi.fn()}
+          sensors={[]}
+          onDragStart={vi.fn()}
+          onDragEnd={vi.fn() as () => Promise<void>}
+          showNowAndNext
+          DogCard={StubDogCard}
+        />
+      );
+      expect(screen.getByTestId('ring-clear').style.minHeight).toBe('152px');
+    } finally {
+      globalThis.ResizeObserver = original;
+    }
+  });
+
   it('renders a plain list when now-and-next is off', () => {
     renderContent(dogs, false);
     expect(screen.queryByTestId('ring-clear')).toBeNull();

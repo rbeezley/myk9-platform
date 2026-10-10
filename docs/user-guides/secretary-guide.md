@@ -263,7 +263,7 @@ Choose the target class and give a reason. Targets are restricted to the same el
 
 ## 20 · Enter results from paper scoresheets
 
-**Overview → click the class → Enter paper scores.**
+**Overview → click the class → Enter results from scoresheet.**
 
 Per dog, record the result (Q, NQ, ABS, EX), the search time, and any faults. Search time is digit-masked — type `4520` for 45.20 seconds.
 

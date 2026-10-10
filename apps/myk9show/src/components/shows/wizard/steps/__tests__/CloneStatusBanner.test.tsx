@@ -165,6 +165,34 @@ describe('CloneStatusBanner', () => {
     expectTouchTarget(screen.getByRole('button', { name: /choose another show/i }));
   });
 
+  it('after a clone applies, shows what needs confirming, what carried forward and what was cleared', async () => {
+    mockGetClassesByTrialId.mockResolvedValueOnce({
+      data: [{ id: 'c1', name: 'Novice Containers' }],
+      error: null,
+    });
+    await pickSourceShow();
+    await waitFor(() => expect(cloneStatus()).toBe('ready'));
+
+    const confirm = screen.getByTestId('clone-summary-confirm');
+    expect(confirm).toHaveTextContent(/show name copied as 'heartland spring trial'/i);
+    const carried = screen.getByTestId('clone-summary-carried');
+    expect(carried).toHaveTextContent('1 trial');
+    expect(carried).toHaveTextContent('1 class');
+    expect(carried).toHaveTextContent('Fees');
+    const cleared = screen.getByTestId('clone-summary-cleared');
+    expect(cleared).toHaveTextContent('Show dates');
+    expect(cleared).toHaveTextContent('Entry period dates');
+    expect(cleared).toHaveTextContent('Trial dates');
+    expect(cleared).toHaveTextContent('Officials (you are set as secretary)');
+    expect(screen.getByRole('button', { name: /start fresh/i })).toBeVisible();
+  });
+
+  it('shows no clone summary for a draft that is not a clone', () => {
+    render(<CloneStatusBanner />);
+    expect(screen.queryByTestId('clone-status')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('clone-summary-cleared')).not.toBeInTheDocument();
+  });
+
   it('after a clone applies, Start fresh still resets the wizard', async () => {
     mockGetClassesByTrialId.mockResolvedValueOnce({ data: [], error: null });
     const { user } = await pickSourceShow();

@@ -12,9 +12,74 @@ import { Button } from '@/components/ui/button';
 import { useShowsQuery } from '@/hooks/queries/useShowsDatabase';
 import { useWizardStore } from '@/store/wizardStore';
 import { useCloneFromShow } from './useCloneFromShow';
+import { summarizeClone, type CloneSummary, type CloneSummaryItem } from './cloneSummary';
+
+/** Bring an existing field on this step into view and focus it (no new navigation). */
+function goToField(targetId: string) {
+  const el = document.getElementById(targetId);
+  if (!el) return;
+  el.scrollIntoView?.({ block: 'center' });
+  el.focus({ preventScroll: true });
+}
+
+const SummaryGroup: React.FC<{
+  title: string;
+  items: CloneSummaryItem[];
+  testId: string;
+}> = ({ title, items, testId }) => {
+  if (items.length === 0) return null;
+  return (
+    <div data-testid={testId} className="space-y-1">
+      <p className="text-sm font-medium text-foreground">{title}</p>
+      <ul className="space-y-1 text-sm text-muted-foreground">
+        {items.map(({ text, targetId }) => (
+          <li key={text}>
+            {text}
+            {targetId && (
+              <>
+                {' '}
+                <button
+                  type="button"
+                  className="min-h-11 text-primary underline underline-offset-2 sm:min-h-0"
+                  onClick={() => goToField(targetId)}
+                >
+                  Check it
+                </button>
+              </>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
+
+const CloneSummaryGroups: React.FC<{ summary: CloneSummary }> = ({ summary }) => (
+  <div className="space-y-3">
+    <SummaryGroup
+      title="Needs your confirmation"
+      items={summary.needsConfirm}
+      testId="clone-summary-confirm"
+    />
+    <SummaryGroup title="Carried forward" items={summary.carried} testId="clone-summary-carried" />
+    <SummaryGroup
+      title="Left blank or reset"
+      items={summary.cleared}
+      testId="clone-summary-cleared"
+    />
+  </div>
+);
 
 export const CloneStatusBanner: React.FC = () => {
-  const { cloneHydration, cloneGeneration, cancelCloneHydration, resetWizard } = useWizardStore();
+  const {
+    cloneHydration,
+    cloneGeneration,
+    cancelCloneHydration,
+    resetWizard,
+    show,
+    trials,
+    judgeDetails,
+  } = useWizardStore();
   const { data: shows = [] } = useShowsQuery();
   const startClone = useCloneFromShow();
 
@@ -84,9 +149,14 @@ export const CloneStatusBanner: React.FC = () => {
 
       {status === 'ready' && (
         <>
-          <p className="text-sm text-muted-foreground">
-            Show dates and entry period dates were left blank. Fill them in below.
-          </p>
+          <CloneSummaryGroups
+            summary={summarizeClone({
+              sourceShowName: sourceShowName ?? '',
+              show,
+              judgeDetails,
+              trials,
+            })}
+          />
           <Button type="button" variant="outline" size="touch" onClick={resetWizard}>
             Start fresh
           </Button>

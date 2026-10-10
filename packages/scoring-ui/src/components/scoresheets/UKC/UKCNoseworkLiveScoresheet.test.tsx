@@ -1,19 +1,21 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { UKCNoseworkLiveScoresheet } from './UKCNoseworkLiveScoresheet';
 import type { ScoresheetEntry, ScoresheetClassInfo, ResolvedClassRules } from '../../../types';
 
-// Mock useStopwatch to avoid real timers in tests
+// Mock useStopwatch to avoid real timers in tests. `stopwatchState` lets a test
+// put the clock mid-run, with the last painted `time` behind the exact value.
+const stopwatchState = vi.hoisted(() => ({ isRunning: false, time: 0, exactMs: 0 }));
 vi.mock('../../../hooks/useStopwatch', () => ({
   useStopwatch: () => ({
-    time: 0,
-    isRunning: false,
+    time: stopwatchState.time,
+    isRunning: stopwatchState.isRunning,
     formatTime: (ms: number) => {
       const s = ms / 1000;
       return `${Math.floor(s / 60)}:${(s % 60).toFixed(2).padStart(5, '0')}`;
     },
     start: vi.fn(),
-    pause: vi.fn(),
+    pause: vi.fn(() => stopwatchState.exactMs),
     reset: vi.fn(),
     getRemainingTime: () => '3:00.00',
     getMaxTimeMs: () => 180000,
@@ -83,6 +85,20 @@ const defaultProps = {
 };
 
 describe('UKCNoseworkLiveScoresheet', () => {
+  afterEach(() => {
+    Object.assign(stopwatchState, { isRunning: false, time: 0, exactMs: 0 });
+  });
+
+  it('Stop records the exact time pause returns, not the last painted frame', () => {
+    // The display repaints every 100ms, so `time` can trail the real clock.
+    Object.assign(stopwatchState, { isRunning: true, time: 83380, exactMs: 83470 });
+    render(<UKCNoseworkLiveScoresheet {...defaultProps} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /^stop$/i }));
+
+    expect(screen.getByTestId('ukc-recorded-time')).toHaveValue('1:23.47');
+  });
+
   it('renders entry info (dog name, armband, handler)', () => {
     render(<UKCNoseworkLiveScoresheet {...defaultProps} />);
 

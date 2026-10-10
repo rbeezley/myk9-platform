@@ -130,7 +130,8 @@ function useScoreSaveState(entryId: string | undefined): {
     let local: ReplicatedEntry | null = null;
 
     const check = async () => {
-      if (inFlight || cancelled) return;
+      // Battery: a phone in a pocket has nothing to show; re-check on return.
+      if (inFlight || cancelled || document.visibilityState === 'hidden') return;
       inFlight = true;
       try {
         local ??= await replicatedEntriesTable.getEntryById(entryId);
@@ -160,15 +161,40 @@ function useScoreSaveState(entryId: string | undefined): {
       }
     };
 
+    // Battery: back off 3s → 6s → 12s → 24s → 30s while unconfirmed. Replica
+    // changes, regaining signal and unlocking the phone still check at once.
+    let delay = 3000;
+    let timer: number | undefined;
+    const schedule = () => {
+      timer = window.setTimeout(() => {
+        void check();
+        delay = Math.min(delay * 2, 30_000);
+        schedule();
+      }, delay);
+    };
+    // Regaining signal or unlocking the phone checks now and restarts the
+    // backoff at 3s, so a just-flushed upload is confirmed promptly.
+    const restart = () => {
+      window.clearTimeout(timer);
+      delay = 3000;
+      schedule();
+      void check();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') restart();
+    };
+
     const unsubscribe = replicatedEntriesTable.subscribe(() => void check());
-    window.addEventListener('online', check);
-    const interval = window.setInterval(() => void check(), 3000);
+    window.addEventListener('online', restart);
+    document.addEventListener('visibilitychange', onVisible);
+    schedule();
     void check();
     return () => {
       cancelled = true;
       unsubscribe();
-      window.removeEventListener('online', check);
-      window.clearInterval(interval);
+      window.removeEventListener('online', restart);
+      document.removeEventListener('visibilitychange', onVisible);
+      window.clearTimeout(timer);
     };
   }, [entryId, state]);
 

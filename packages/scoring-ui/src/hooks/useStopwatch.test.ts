@@ -92,6 +92,63 @@ describe('useStopwatch', () => {
       expect(result.current.time).toBe(timeAtPause);
     });
 
+    it('records the exact elapsed time on pause, not the last painted frame', () => {
+      const { result } = renderHook(() => useStopwatch());
+
+      act(() => result.current.start());
+      act(() => vi.advanceTimersByTime(1030));
+      act(() => result.current.pause());
+
+      expect(result.current.time).toBe(1030);
+    });
+
+    it('returns the exact elapsed time from pause, in the same tick', () => {
+      const { result } = renderHook(() => useStopwatch());
+
+      act(() => result.current.start());
+      act(() => vi.advanceTimersByTime(1030));
+      let recorded = -1;
+      act(() => {
+        // What a Stop handler saves: read synchronously, before any re-render.
+        recorded = result.current.pause();
+      });
+
+      expect(recorded).toBe(1030);
+    });
+
+    it('never returns more than the max time from pause', () => {
+      const { result } = renderHook(() => useStopwatch({ maxTime: '0:01' }));
+
+      act(() => result.current.start());
+      // Cross the max without a frame running the expiry check.
+      vi.setSystemTime(Date.now() + 1010);
+      let recorded = -1;
+      act(() => {
+        recorded = result.current.pause();
+      });
+
+      expect(recorded).toBe(1000);
+      expect(result.current.time).toBe(1000);
+    });
+
+    it('re-renders at most ~10 times a second while running (battery)', () => {
+      let renders = 0;
+      const { result } = renderHook(() => {
+        renders += 1;
+        return useStopwatch();
+      });
+
+      act(() => result.current.start());
+      const before = renders;
+      // One act per display frame, so React cannot batch the frames together.
+      for (let frame = 0; frame < 60; frame += 1) {
+        act(() => vi.advanceTimersByTime(1000 / 60));
+      }
+
+      expect(renders - before).toBeLessThanOrEqual(11);
+      expect(result.current.time).toBeGreaterThanOrEqual(900);
+    });
+
     it('should reset time to 0 and stop running', () => {
       const { result } = renderHook(() => useStopwatch());
 

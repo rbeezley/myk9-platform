@@ -11,6 +11,16 @@ describe('useElementTimer', () => {
     vi.useRealTimers();
   });
 
+  it('freezes on the exact elapsed time at stop, not the last 100ms tick', () => {
+    const { result } = renderHook(() => useElementTimer());
+
+    act(() => result.current.start());
+    act(() => vi.advanceTimersByTime(1050));
+    act(() => result.current.stop());
+
+    expect(result.current.time).toBe(1050);
+  });
+
   describe('initial state', () => {
     it('should start with time at 0 and not running', () => {
       const { result } = renderHook(() => useElementTimer());

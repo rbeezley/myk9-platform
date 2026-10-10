@@ -103,4 +103,59 @@ describe('QuickAdvancePanel score save state (MYK9-1023)', () => {
     await screen.findByText('Score saved');
     expect(toast.success).not.toHaveBeenCalled();
   });
+
+  it('backs off its server readback while a score stays unconfirmed (battery)', async () => {
+    vi.useFakeTimers();
+    try {
+      renderPanel();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60_000);
+      });
+      // A flat 3s poll would read the server ~20 times a minute.
+      expect(
+        vi.mocked(replicatedEntriesTable.readScoreFromServer).mock.calls.length
+      ).toBeLessThanOrEqual(6);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not poll the server while the screen is hidden', async () => {
+    vi.useFakeTimers();
+    const visibility = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    try {
+      renderPanel();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(30_000);
+      });
+      expect(replicatedEntriesTable.readScoreFromServer).not.toHaveBeenCalled();
+    } finally {
+      visibility.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it('regaining signal restarts the readback backoff at 3s', async () => {
+    vi.useFakeTimers();
+    try {
+      renderPanel();
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(60_000); // backoff now at its 30s cap
+      });
+      const read = vi.mocked(replicatedEntriesTable.readScoreFromServer);
+      act(() => {
+        window.dispatchEvent(new Event('online'));
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(0);
+      });
+      const afterOnline = read.mock.calls.length;
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3_000);
+      });
+      expect(read.mock.calls.length).toBe(afterOnline + 1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });

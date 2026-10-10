@@ -6,7 +6,7 @@ import {
   type TrialStatusKey,
 } from '@myk9/core';
 import { getStatusDescriptor } from '@/components/status';
-import { expectedEntries, isEntryToScore } from '@/features/_shared/entryAccounting';
+import { isExpectedEntry } from '@/features/_shared/entryAccounting';
 import type {
   ShowMapClassInput,
   ShowMapDisplayStatus,
@@ -94,9 +94,6 @@ export function classifyTrialStatus(status: TrialStatusKey): ShowMapDisplayStatu
  */
 export function isClassRunComplete(cls: ShowMapClassInput, entries: ShowMapEntryInput[]): boolean {
   if (classifyClassStatus(cls.status)?.kind === 'complete') return true;
-  // MYK9-1072: rows exist but none is expected to run (all pulled, moved or withdrawn).
-  // A pending-acceptance row is still expected, so it keeps the class open here.
-  if (entries.length > 0 && expectedEntries(entries).length === 0) return true;
   const progress = buildClassProgress(cls, entries);
   return progress ? progress.completed >= progress.total && progress.total > 0 : false;
 }
@@ -237,6 +234,15 @@ export function isEntryComplete(entry: ShowMapEntryInput): boolean {
   return runStatus?.kind === 'complete' || isEntryPulledOrScratched(entry);
 }
 
+/**
+ * MYK9-1072: whether a row belongs in a progress count. A row that will never run (a moved-out
+ * source row, a not-accepted entry) and carries no result is not an outstanding run. Pulled and
+ * scratched dogs still count as accounted for, and a pending-acceptance dog stays outstanding.
+ */
+export function isEntryCountedInProgress(entry: ShowMapEntryInput): boolean {
+  return isExpectedEntry(entry) || isEntryComplete(entry);
+}
+
 export function buildProgress(
   completed: number,
   total: number,
@@ -255,10 +261,8 @@ export function buildClassProgress(
   entries: ShowMapEntryInput[]
 ): ShowMapProgress | undefined {
   if (entries.length > 0) {
-    // MYK9-1072: the denominator is the Results tally's to-score set, so a moved-out source row,
-    // a withdrawn, absent or pulled dog, or one still pending acceptance is not an outstanding run.
-    const expected = entries.filter(isEntryToScore);
-    return buildProgress(expected.filter(isEntryComplete).length, expected.length, 'entries');
+    const counted = entries.filter(isEntryCountedInProgress);
+    return buildProgress(counted.filter(isEntryComplete).length, counted.length, 'entries');
   }
   if (typeof cls.scoredCount === 'number' && typeof cls.entryCount === 'number') {
     return buildProgress(cls.scoredCount, cls.entryCount, 'entries');

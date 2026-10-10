@@ -644,7 +644,7 @@ describe('showMapActions', () => {
     ).toContain('mark-class-complete');
   });
 
-  it('does not let a pending-acceptance entry hold Mark Class Complete, and root progress agrees (MYK9-1072)', () => {
+  it('keeps a pending-acceptance dog as an outstanding run while dropping a moved row (MYK9-1072)', () => {
     const tree = buildShowMapTree({
       show,
       trials: [trial],
@@ -675,12 +675,49 @@ describe('showMapActions', () => {
 
     expect(tree.nodesById['class:class-active'].progress).toMatchObject({
       completed: 1,
-      total: 1,
+      total: 2,
     });
-    expect(tree.root.progress).toMatchObject({ completed: 1, total: 1 });
+    expect(tree.root.progress).toMatchObject({ completed: 1, total: 2 });
     expect(
       getRankedActions(tree.nodesById['class:class-active'], { tree }).map(action => action.id)
-    ).toContain('mark-class-complete');
+    ).not.toContain('mark-class-complete');
+  });
+
+  it('does not offer Mark Class Complete on an active class whose dogs are all pending acceptance (MYK9-1072)', () => {
+    const tree = buildShowMapTree({
+      show,
+      trials: [trial],
+      classes: [
+        {
+          id: 'class-active',
+          trialId: 'trial-1',
+          name: 'Interior Novice A',
+          status: 'In Progress',
+        },
+      ],
+      entries: [
+        {
+          id: 'e1',
+          class_id: 'class-active',
+          dog: { call_name: 'Bella' },
+          entry_status: 'pending',
+        },
+        {
+          id: 'e2',
+          class_id: 'class-active',
+          dog: { call_name: 'Scout' },
+          entry_status: 'pending',
+        },
+      ],
+    });
+
+    expect(tree.nodesById['class:class-active'].progress).toMatchObject({
+      completed: 0,
+      total: 2,
+    });
+    expect(
+      getRankedActions(tree.nodesById['class:class-active'], { tree }).map(action => action.id)
+    ).not.toContain('mark-class-complete');
   });
 
   it('allows empty active classes to be marked complete', () => {

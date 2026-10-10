@@ -19,6 +19,15 @@ describe('showMapStatus', () => {
       expect(classifyClassWrapUpStatus(makeClass('In Progress'), [])).toBeUndefined();
     });
 
+    it('does not ask for a judge signature on a running class whose only rows moved out (MYK9-1072)', () => {
+      expect(
+        classifyClassWrapUpStatus(makeClass('In Progress'), [
+          { entry_status: 'moved' },
+          { entry_status: 'moved' },
+        ])
+      ).toBeUndefined();
+    });
+
     it('marks completed classes without closeout metadata as ready for wrap-up', () => {
       expect(classifyClassWrapUpStatus(makeClass('Complete'), [])).toMatchObject({
         value: 'class-ready-for-wrap-up',
@@ -76,9 +85,9 @@ describe('showMapStatus', () => {
       ];
 
       expect(buildClassProgress(makeClass('In Progress'), entries)).toMatchObject({
-        completed: 1,
-        total: 1,
-        label: '1/1 entries complete',
+        completed: 2,
+        total: 2,
+        label: '2/2 entries complete',
       });
       expect(classifyClassWrapUpStatus(makeSignedClass('In Progress'), entries)).toMatchObject({
         value: 'signed-by-judge',

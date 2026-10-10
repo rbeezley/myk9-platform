@@ -24,7 +24,7 @@ import { TimeOfDayInput } from '@/components/common/TimeOfDayInput';
 import { TrialDateField } from '@/components/trials/TrialDateField';
 import { TrialStartTimeField } from '@/components/trials/TrialStartTimeField';
 import { parseLocalDateString } from '@/utils/dateLocal';
-import { clockOnDateToIso, isoToClock } from '@/components/trials/trialDateTime';
+import { clockOnDateToIso, hasTrialTime, isoToClock } from '@/components/trials/trialDateTime';
 import { getTrialTimezone } from '@/features/registries';
 import { format } from 'date-fns';
 import { usePanelValidationNavigation, type FieldLocation } from './usePanelValidationNavigation';
@@ -62,6 +62,9 @@ interface TrialEditFormData extends Record<string, unknown> {
   image?: string;
 }
 
+const ACTUAL_TIME_MESSAGE = 'Please enter a valid time (e.g., 9:00 AM)';
+const isBlankOrTrialTime = (value: string | undefined) => !value?.trim() || hasTrialTime(value);
+
 // Zod schema for trial edit form validation
 const trialEditSchemaBase = z.object({
   name: z.string().min(1, 'Please enter a trial name'),
@@ -84,8 +87,9 @@ const trialEditSchemaBase = z.object({
   type: z.string().optional().or(z.literal('')),
   trialType: z.string().optional().or(z.literal('')),
   image: z.string().optional().or(z.literal('')),
-  timeStarted: z.string().optional().or(z.literal('')),
-  timeEnded: z.string().optional().or(z.literal('')),
+  // Blank clears the time; anything else must be a readable clock time, or the save would drop it.
+  timeStarted: z.string().optional().refine(isBlankOrTrialTime, ACTUAL_TIME_MESSAGE),
+  timeEnded: z.string().optional().refine(isBlankOrTrialTime, ACTUAL_TIME_MESSAGE),
 });
 
 /**
@@ -244,12 +248,20 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange, e
   const trialDateError = form?.getError('trialDate');
   const orderError = form?.getError('order');
   const plannedStartTimeError = form?.getError('plannedStartTime');
+  const timeStartedError = form?.getError('timeStarted');
+  const timeEndedError = form?.getError('timeEnded');
 
   // Per-tab error counts for tab badges
   const tabErrorCounts = useMemo(
     () => ({
       basic: [nameError, trialNumberError, eventNumberError, statusError].filter(Boolean).length,
-      scheduling: [trialDateError, orderError, plannedStartTimeError].filter(Boolean).length,
+      scheduling: [
+        trialDateError,
+        orderError,
+        plannedStartTimeError,
+        timeStartedError,
+        timeEndedError,
+      ].filter(Boolean).length,
       advanced: 0,
     }),
     [
@@ -260,6 +272,8 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange, e
       trialDateError,
       orderError,
       plannedStartTimeError,
+      timeStartedError,
+      timeEndedError,
     ]
   );
   if (!form) return null;
@@ -461,7 +475,7 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange, e
                 </h4>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <FormField label="Actual Start" fieldId="timeStarted">
+                  <FormField label="Actual Start" fieldId="timeStarted" error={timeStartedError}>
                     <ClearableTime
                       id="timeStarted"
                       label="Actual Start"
@@ -470,7 +484,7 @@ const TrialEditForm: React.FC<TrialEditFormProps> = ({ activeTab, onTabChange, e
                     />
                   </FormField>
 
-                  <FormField label="Actual Finish" fieldId="timeEnded">
+                  <FormField label="Actual Finish" fieldId="timeEnded" error={timeEndedError}>
                     <ClearableTime
                       id="timeEnded"
                       label="Actual Finish"

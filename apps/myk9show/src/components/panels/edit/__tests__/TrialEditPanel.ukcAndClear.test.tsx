@@ -83,6 +83,20 @@ describe('TrialEditPanel (MYK9-1086)', () => {
     expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ timeStarted: '' }));
   });
 
+  it('refuses an unreadable start instead of dropping it on save', async () => {
+    const onSave = vi.fn(async () => undefined);
+    const { user } = renderPanel('UKC', onSave);
+    await user.click(screen.getByRole('tab', { name: /scheduling/i }));
+    await user.click(await screen.findByRole('button', { name: 'Clear Actual Start' }));
+    await user.type(screen.getByLabelText('Actual Start'), '930');
+    await user.click(screen.getAllByRole('button', { name: /save changes/i })[0]!);
+
+    expect(
+      await screen.findByText('Please enter a valid time (e.g., 9:00 AM)')
+    ).toBeInTheDocument();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
   it('saves a typed start as an instant on the trial date', async () => {
     const onSave = vi.fn(async () => undefined);
     const { user } = renderPanel('UKC', onSave);

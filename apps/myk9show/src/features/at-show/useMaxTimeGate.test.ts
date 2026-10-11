@@ -118,6 +118,21 @@ describe('useMaxTimeGate (MYK9-1099)', () => {
     expect(result.current.gateEntryClick()).toBe(false);
   });
 
+  it('asks while the assignment check is still running', async () => {
+    assignment.status = 'checking';
+    seed('c1');
+    const { setMaxTimeDialogOpen } = setup();
+    await waitFor(() => expect(setMaxTimeDialogOpen).toHaveBeenCalledWith(true));
+  });
+
+  it('does not lock the list when the class read fails', async () => {
+    seed('c1');
+    replica.getClassById.mockRejectedValueOnce(new Error('idb'));
+    const { result } = setup();
+    await settle();
+    expect(result.current.gateEntryClick()).toBe(false);
+  });
+
   it('holds a dog tap until the class read answers', () => {
     seed('c1');
     replica.getClassById.mockImplementationOnce(() => new Promise(() => {}));

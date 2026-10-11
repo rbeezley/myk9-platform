@@ -379,6 +379,12 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
       expect(screen.getByRole('textbox', { name: /max time/i })).toBeInTheDocument();
     });
 
+    it('enables Save even when the class read fails, so the error can show', async () => {
+      getClass.mockRejectedValue(new Error('idb'));
+      render(<MaxTimeDialog isOpen classData={classData} onClose={vi.fn()} />);
+      await waitFor(() => expect(screen.getByRole('button', { name: /save/i })).toBeEnabled());
+    });
+
     it('says the time is required when opened before scoring', async () => {
       render(<MaxTimeDialog isOpen showWarning classData={classData} onClose={vi.fn()} />);
       expect(screen.getByRole('status')).toHaveTextContent(/max time required before scoring/i);

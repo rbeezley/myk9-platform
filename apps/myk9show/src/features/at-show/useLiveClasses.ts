@@ -2,7 +2,8 @@
  * The replicated rows for these classes, re-read whenever the class replica
  * changes (a save on this device, or one synced from another). Ringside surfaces
  * that act on a class's max time or rule must not hold the copy they read when
- * they opened (MYK9-1099, MYK9-1100). Null until the first read.
+ * they opened (MYK9-1099, MYK9-1100). Null until the first read; a failed read
+ * reads as no classes (unknown), so nothing waits on it forever.
  */
 import { useEffect, useState } from 'react';
 import { replicatedClassesTable } from '@/services/replication';
@@ -20,7 +21,9 @@ export function useLiveClasses(classIds: string[], enabled = true): ReplicatedCl
         .then(rows => {
           if (!cancelled) setClasses(rows.filter((row): row is ReplicatedClass => !!row));
         })
-        .catch(() => {});
+        .catch(() => {
+          if (!cancelled) setClasses(current => current ?? []);
+        });
     };
     const unsubscribe = replicatedClassesTable.subscribe(read);
     read();

@@ -134,6 +134,43 @@ describe('performanceStatsEngine', () => {
       expect(stats.overall.qRate).toBe(40);
     });
 
+    it('counts a platform disqualification as DQ, never NQ or qualified (MYK9-1011)', () => {
+      const dq = makePlatformResult({ resultStatus: 'disqualified', searchTimeSeconds: null });
+      expect(normalizeExhibitorResult(dq).status).toBe('disqualified');
+      const { overall } = computePerformanceStats([dq], []);
+      expect(overall).toMatchObject({
+        disqualified: 1,
+        nq: 0,
+        excused: 0,
+        qualified: 0,
+        total: 1,
+        qRate: 0,
+      });
+    });
+
+    it('keeps DQ in the total and out of the Q rate for mixed Q/NQ/EX/DQ plus manual results', () => {
+      const stats = computePerformanceStats(
+        [
+          makePlatformResult({ id: 'p1' }),
+          makePlatformResult({ id: 'p2', resultStatus: 'nq', searchTimeSeconds: null }),
+          makePlatformResult({ id: 'p3', resultStatus: 'excused', searchTimeSeconds: null }),
+          makePlatformResult({ id: 'p4', resultStatus: 'disqualified', searchTimeSeconds: null }),
+        ],
+        [
+          makeManualResult({ id: 'm1' }),
+          makeManualResult({ id: 'm2', result_status: 'nq', search_time_seconds: null }),
+        ]
+      );
+      expect(stats.overall).toMatchObject({
+        qualified: 2,
+        nq: 2,
+        excused: 1,
+        disqualified: 1,
+        total: 6,
+        qRate: 33,
+      });
+    });
+
     it('groups by element correctly', () => {
       const stats = computePerformanceStats(
         [

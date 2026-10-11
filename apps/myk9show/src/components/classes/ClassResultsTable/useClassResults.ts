@@ -212,7 +212,10 @@ export function useClassResults({
       if (row.qualification === 'Qualified' && !row.searchTime) {
         return `${row.dogName}: Qualified entries require a time`;
       }
-      if (STATUSES_REQUIRING_REASON.includes(row.qualification) && !row.qualificationReason) {
+      if (
+        STATUSES_REQUIRING_REASON.includes(row.qualification) &&
+        !row.qualificationReason.trim()
+      ) {
         return `${row.dogName}: ${row.qualification} requires a reason`;
       }
       if (row.searchTime && !row.qualification) {
@@ -288,7 +291,7 @@ export function useClassResults({
             judge_notes: row.notes || null,
             finalPlacement,
             final_placement: finalPlacement ?? undefined,
-            disqualification_reason: row.qualificationReason || null,
+            disqualification_reason: row.qualificationReason.trim() || null,
             isScored: true,
             is_scored: true,
             scoringCompletedAt: completedAt,

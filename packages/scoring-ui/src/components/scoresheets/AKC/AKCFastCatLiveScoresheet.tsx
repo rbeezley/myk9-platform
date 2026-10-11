@@ -18,7 +18,7 @@ import { DQ_ACTIVE_CLASS, DisqualifyReason } from '../../DisqualifyReason';
 import type { LiveScoresheetProps } from '../../../types';
 
 // FastCAT results differ from standard Scent Work (E instead of EX, adds DQ)
-type FastCATResult = 'Q' | 'NQ' | 'E' | 'DQ';
+type FastCATResult = 'Q' | 'NQ' | 'EX' | 'DQ';
 
 const RESULT_OPTIONS: { value: FastCATResult; label: string; activeClass: string }[] = [
   {
@@ -27,7 +27,7 @@ const RESULT_OPTIONS: { value: FastCATResult; label: string; activeClass: string
     activeClass: 'bg-green-600 hover:bg-green-700 border-green-600',
   },
   { value: 'NQ', label: 'NQ', activeClass: 'bg-amber-500 hover:bg-amber-600 border-amber-500' },
-  { value: 'E', label: 'Excused', activeClass: 'bg-gray-500 hover:bg-gray-600 border-gray-500' },
+  { value: 'EX', label: 'Excused', activeClass: 'bg-gray-500 hover:bg-gray-600 border-gray-500' },
   { value: 'DQ', label: 'DQ', activeClass: DQ_ACTIVE_CLASS },
 ];
 
@@ -318,7 +318,7 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                     'font-semibold',
                     fastcatResult === 'Q' && 'text-green-600',
                     fastcatResult === 'NQ' && 'text-amber-500',
-                    fastcatResult === 'E' && 'text-gray-500',
+                    fastcatResult === 'EX' && 'text-gray-500',
                     fastcatResult === 'DQ' && 'text-red-600'
                   )}
                 >

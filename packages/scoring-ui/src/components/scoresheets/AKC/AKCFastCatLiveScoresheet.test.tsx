@@ -73,12 +73,12 @@ describe('AKCFastCatLiveScoresheet', () => {
     expect(screen.getByText('Start')).toBeInTheDocument();
   });
 
-  it('renders result chips (Q, NQ, E, DQ)', () => {
+  it('renders result chips (Q, NQ, EX, DQ)', () => {
     render(<AKCFastCatLiveScoresheet {...defaultProps} />);
 
     expect(screen.getByTestId('result-Q')).toBeInTheDocument();
     expect(screen.getByTestId('result-NQ')).toBeInTheDocument();
-    expect(screen.getByTestId('result-E')).toBeInTheDocument();
+    expect(screen.getByTestId('result-EX')).toBeInTheDocument();
     expect(screen.getByTestId('result-DQ')).toBeInTheDocument();
   });
 
@@ -130,6 +130,22 @@ describe('AKCFastCatLiveScoresheet', () => {
         })
       );
     });
+  });
+
+  // MYK9-1094: the app maps resultText with QUALIFICATION_TO_RESULT_STATUS, which
+  // knows 'EX' (the vocabulary every other sheet sends) but not 'E'; an unknown
+  // code is stored as 'pending', so an Excused FastCAT run read as unscored.
+  it('submits resultText EX when Excused is chosen', async () => {
+    const onSubmit = vi.fn();
+    render(<AKCFastCatLiveScoresheet {...defaultProps} onSubmit={onSubmit} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Excused' }));
+    fireEvent.click(screen.getByTestId('submit-btn'));
+    await waitFor(() => expect(screen.getByTestId('confirm-submit-btn')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('confirm-submit-btn'));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0][0].resultText).toBe('EX');
   });
 
   it('calls onBack when back button clicked', () => {

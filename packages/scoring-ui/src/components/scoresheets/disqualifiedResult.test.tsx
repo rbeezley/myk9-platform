@@ -257,7 +257,7 @@ describe('Disqualified result on the sheets that keep their own result state', (
   it('AKC FastCAT: an Excused result carries no reason', async () => {
     const onSubmit = vi.fn();
     render(<AKCFastCatLiveScoresheet {...props(onSubmit)} />);
-    fireEvent.click(screen.getByTestId('result-E'));
+    fireEvent.click(screen.getByTestId('result-EX'));
     fireEvent.click(screen.getByTestId('submit-btn'));
     await waitFor(() => expect(screen.getByTestId('confirm-submit-btn')).toBeInTheDocument());
     fireEvent.click(screen.getByTestId('confirm-submit-btn'));

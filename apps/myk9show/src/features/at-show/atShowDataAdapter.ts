@@ -397,11 +397,12 @@ async function fetchClassData(
     (cls?.trialId ?? cls?.trial_id)
       ? await replicatedTrialsTable.getTrialById((cls?.trialId ?? cls?.trial_id) as string)
       : null;
-  // Only the AKC Scent Work sheet times each area against its own max (MYK9-1098).
+  // The AKC Scent Work and ASCA sheets time each area against its own max
+  // (MYK9-1098, MYK9-1103). Nationals splits one total; UKC is one area.
   const sheet = cls
     ? await scoresheetKeyForClass(cls.trialId ?? cls.trial_id, cls.name ?? '')
     : null;
-  return { cls, trial, entries, rawEntries, perAreaMaxTimes: sheet === 'AKC_SCENT_WORK' };
+  return { cls, trial, entries, rawEntries, perAreaMaxTimes: sheet === 'AKC_SCENT_WORK' || sheet === 'ASCA_SCENT_DETECTION' };
 }
 
 /**

@@ -137,6 +137,32 @@ describe('resolveTimeLimitRulesForClassRows', () => {
     });
   });
 
+  it('withholds the 30-second warning when any section rule does (MYK9-1102)', async () => {
+    const row = (has: boolean | null) => ({
+      element: 'Interior',
+      level: 'Master',
+      max_time_seconds_fixed: null,
+      max_time_seconds_min: 60,
+      max_time_seconds_max: 180,
+      has_30_second_warning: has,
+      sport_templates: { organization: 'AKC' },
+    });
+    for (const [rows, expected] of [
+      [[row(true), row(false)], false],
+      [[row(true), row(null)], true],
+    ] as const) {
+      from.mockImplementation((table: string) =>
+        table === 'trials'
+          ? query({ data: [{ id: 't1', registry_id: 'AKC' }], error: null })
+          : query({ data: rows, error: null })
+      );
+      const rules = await resolveTimeLimitRulesForClassRows([
+        { id: 'c', trial_id: 't1', element: 'Interior', level: 'Master' },
+      ]);
+      expect(rules?.get('c')?.thirtySecondWarning).toBe(expected);
+    }
+  });
+
   it('returns null -- never "no rule" -- when a lookup fails', async () => {
     from.mockImplementation(() => query({ data: null, error: { message: 'boom' } }));
     const rules = await resolveTimeLimitRulesForClassRows([

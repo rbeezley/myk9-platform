@@ -156,6 +156,22 @@ const CLASS_RULE_DELTAS: Readonly<Partial<Record<RegistryId, readonly ClassRuleD
       },
       apply: tuples => tuples,
     },
+    {
+      migration: '20261011211700_myk9_1102_thirty_second_warning.sql',
+      why: 'adds has_30_second_warning and turns it off for AKC Master; no class is added or removed',
+      proves: sql => {
+        expect(sql).toMatch(/ALTER TABLE public\.sport_class_rules/i);
+        expect(sql).toMatch(
+          /ADD COLUMN IF NOT EXISTS has_30_second_warning boolean NOT NULL DEFAULT true/i
+        );
+        expect(sql).toMatch(/SET has_30_second_warning = false/i);
+        expect(sql).toMatch(/organization = 'AKC'/i);
+        expect(sql).toMatch(/level = 'Master'/i);
+        expect(sql).not.toMatch(/INSERT INTO/i);
+        expect(sql).not.toMatch(/DELETE FROM/i);
+      },
+      apply: tuples => tuples,
+    },
   ],
   ASCA: [
     {

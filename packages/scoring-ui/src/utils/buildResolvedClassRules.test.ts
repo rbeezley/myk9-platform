@@ -187,4 +187,9 @@ describe('buildResolvedClassRules', () => {
     const rules = buildResolvedClassRules({ areaCount: 2, timeLimitSeconds: 120 });
     expect(maxTimeForArea({ ...rules, areaMaxTimeSeconds: undefined }, 1)).toBe(120);
   });
+
+  it('carries the class rule 30-second warning when known (MYK9-1102)', () => {
+    expect(buildResolvedClassRules({ thirtySecondWarning: false }).thirtySecondWarning).toBe(false);
+    expect(buildResolvedClassRules({}).thirtySecondWarning).toBeUndefined();
+  });
 });

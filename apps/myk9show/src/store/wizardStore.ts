@@ -24,6 +24,8 @@ export interface CloneHydrationState {
   status: CloneHydrationStatus;
   sourceShowId: string | null;
   sourceShowName: string | null;
+  /** What the clone applied, kept for the banner's summary. Set when status is 'ready'. */
+  snapshot?: CloneHydrationSnapshot | undefined;
   failureReason?: 'load-failed' | undefined;
 }
 
@@ -379,6 +381,7 @@ export const useWizardStore = create<WizardState & WizardActions>()(
               status: 'ready',
               sourceShowId: snapshot.sourceShowId,
               sourceShowName: snapshot.sourceShowName,
+              snapshot,
             },
             show,
             judgeDetails: snapshot.judgeDetails,

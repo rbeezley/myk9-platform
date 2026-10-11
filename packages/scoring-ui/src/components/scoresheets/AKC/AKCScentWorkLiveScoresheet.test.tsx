@@ -59,6 +59,18 @@ const defaultProps = {
 };
 
 describe('AKCScentWorkLiveScoresheet', () => {
+  it('shows "Max Time: Not set" for a class with no saved max time, never 0:00', () => {
+    render(
+      <AKCScentWorkLiveScoresheet
+        {...defaultProps}
+        rules={{ ...defaultRules, maxTimeSeconds: 0 }}
+      />
+    );
+
+    expect(screen.getByText('Max Time: Not set')).toBeInTheDocument();
+    expect(screen.queryByText(/0:00$/)).not.toBeInTheDocument();
+  });
+
   it('renders entry info (dog name, armband, handler)', () => {
     render(<AKCScentWorkLiveScoresheet {...defaultProps} />);
 

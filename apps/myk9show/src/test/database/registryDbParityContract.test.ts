@@ -168,6 +168,20 @@ const CLASS_RULE_DELTAS: Readonly<Partial<Record<RegistryId, readonly ClassRuleD
       },
       apply: tuples => [...tuples, ...tuples.map(t => ({ ...t, section: 'C' }))],
     },
+    {
+      migration: '20261011013700_myk9_1086_asca_open_fixed_max_time.sql',
+      why: "stores ASCA Open's single-value 3:00 range as its fixed max time (MYK9-1086) — times only; no class is added, removed or relabelled",
+      proves: sql => {
+        expect(sql).toMatch(/SET max_time_seconds_fixed = max_time_seconds_min/);
+        expect(sql).toMatch(/max_time_seconds_min = max_time_seconds_max/);
+        expect(sql).toMatch(/v_rules <> 8/);
+        expect(sql).toMatch(/c\.time_limit_seconds IS NULL/);
+        expect(sql).not.toMatch(/INSERT INTO/i);
+        expect(sql).not.toMatch(/DELETE FROM/i);
+        expect(sql).not.toMatch(/SET\s+(level|element|section)\s*=/i);
+      },
+      apply: tuples => tuples,
+    },
   ],
   UKC: [
     {

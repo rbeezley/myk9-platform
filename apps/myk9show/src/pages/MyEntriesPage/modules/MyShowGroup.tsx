@@ -25,6 +25,7 @@ import type { DayCheckInContext } from './dayCheckIn';
 import { indexOrdersById, type MyShowClass, type MyShowDog } from './groupEntriesByShow';
 import type { MyShowGroup as MyShowGroupModel } from './groupEntriesByShow';
 import { MyShowActionsMenu } from './MyShowActionsMenu';
+import { hasYourDogsToday } from './buildYourDogsToday';
 import { MyShowDogCard } from './MyShowDogCard';
 import type { LeaveClassTarget, MyEntry } from './my-entries-types';
 import { deriveMyEntryCardState } from './myEntryCardState';
@@ -33,6 +34,7 @@ import { formatDogNamesPossessive, formatShowHeaderDateRange } from './myShowHea
 import { derivePaidStrip, hasSeenPaidStrip, markPaidStripSeen } from './paidStripSeen';
 import { deriveShowMoneyState, refundNotesByDog, type ShowMoneyKind } from './showMoneyState';
 import { UnconfirmedReadNotice } from './UnconfirmedReadNotice';
+import { YourDogsToday } from './YourDogsToday';
 
 export interface MyShowGroupProps {
   group: MyShowGroupModel;
@@ -310,6 +312,19 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
             Dismiss
           </Button>
         </div>
+      )}
+
+      {/* On the show's day, two or more dogs with a class to run get one list in
+          run order, above the per-dog cards (MYK9-1046). Off show day, or with
+          one dog, nothing renders here. */}
+      {hasYourDogsToday(group.dogs, checkInContext) && (
+        <YourDogsToday
+          showId={group.showId}
+          dogs={group.dogs}
+          checkInContext={checkInContext}
+          source={source}
+          onCheckInClass={(dog, cls) => onCheckInDay(dog, [cls])}
+        />
       )}
 
       <ul className="space-y-4">

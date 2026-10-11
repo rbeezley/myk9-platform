@@ -64,7 +64,20 @@ export function settledQueuePlaces(query: QueuePlacesQueryState, isOnline: boole
   return query.data ?? NO_PLACES;
 }
 
-export function useMyEntryQueuePlaces(entryIds: readonly string[]): QueuePlaces {
+/** The settled places and when the server last counted them (null = no settled answer). */
+export interface QueuePlacesWithFreshness {
+  places: QueuePlaces;
+  /** `Date.now()`-style ms of the last good count; null while nothing is offered. */
+  updatedAt: number | null;
+}
+
+/**
+ * Same answer as `useMyEntryQueuePlaces`, plus when it was counted, so a
+ * surface that shows a place can say how old it is (MYK9-1046).
+ */
+export function useMyEntryQueuePlacesWithFreshness(
+  entryIds: readonly string[]
+): QueuePlacesWithFreshness {
   const { user } = useAuthContext();
   const isOnline = useIsOnline();
   const ids = useMemo(() => [...new Set(entryIds)].sort(), [entryIds]);
@@ -79,5 +92,13 @@ export function useMyEntryQueuePlaces(entryIds: readonly string[]): QueuePlaces 
     refetchInterval: 30_000,
   });
 
-  return settledQueuePlaces(query, isOnline);
+  const places = settledQueuePlaces(query, isOnline);
+  return {
+    places,
+    updatedAt: places.size > 0 && query.dataUpdatedAt > 0 ? query.dataUpdatedAt : null,
+  };
+}
+
+export function useMyEntryQueuePlaces(entryIds: readonly string[]): QueuePlaces {
+  return useMyEntryQueuePlacesWithFreshness(entryIds).places;
 }

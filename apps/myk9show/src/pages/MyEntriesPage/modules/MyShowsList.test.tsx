@@ -16,6 +16,11 @@ import { applyEntryScope } from './entryScopeFilter';
 import { buildScopeMessage } from './entryScopeMessage';
 import { MyShowsList, useMyShowGroups, type MyShowsListProps } from './MyShowsList';
 
+// These tests read the per-dog cards by dog and class name. On a show day with
+// two dogs the "Your dogs today" list repeats both, so it is stubbed out here;
+// it has its own render tests in YourDogsToday.test.tsx.
+vi.mock('./YourDogsToday', () => ({ YourDogsToday: () => null }));
+
 function renderList(overrides: Partial<MyShowsListProps> = {}) {
   const props: MyShowsListProps = {
     filteredEntries: toOrders(heartlandRows()),

@@ -8,15 +8,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
 
-const { updateClass, getClass, resolveRules, getTrial } = vi.hoisted(() => ({
+const { updateClass, getClass, resolveRules } = vi.hoisted(() => ({
   updateClass: vi.fn(),
   getClass: vi.fn(),
   resolveRules: vi.fn(),
-  getTrial: vi.fn(),
 }));
 vi.mock('@/services/replication', () => ({
   replicatedClassesTable: { updateClass, get: getClass },
-  replicatedTrialsTable: { getTrialById: getTrial },
 }));
 vi.mock('@/services/replication/resolveClassTimeLimitRules', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/replication/resolveClassTimeLimitRules')>()),
@@ -44,7 +42,6 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
       timeLimitRule: { min: 60, max: 180, forElement: 'Interior', forLevel: 'Novice' },
     });
     resolveRules.mockReset().mockResolvedValue(new Map());
-    getTrial.mockReset().mockResolvedValue({ id: 't1', registryId: 'AKC' });
   });
 
   it('saves the entered time as seconds and reports the update', async () => {
@@ -245,6 +242,7 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
       level: 'Excellent',
       class_name: 'Interior Excellent A',
       area_count: 2,
+      per_area_times: true,
       time_limit_seconds: 90,
     };
     const areaInput = (n: number) =>
@@ -258,7 +256,7 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
           onClose={vi.fn()}
         />
       );
-      expect(await screen.findByRole('textbox', { name: /area 1 max time/i })).toHaveValue('1:30');
+      expect(areaInput(1)).toHaveValue('1:30');
       expect(areaInput(2)).toHaveValue('');
 
       fireEvent.change(areaInput(2), { target: { value: '2:30' } });
@@ -272,7 +270,6 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
 
     it('needs every area before saving', async () => {
       render(<MaxTimeDialog isOpen classData={twoAreas} onClose={vi.fn()} />);
-      await screen.findByRole('textbox', { name: /area 2 max time/i });
       fireEvent.click(screen.getByRole('button', { name: /save/i }));
 
       expect(screen.getByRole('alert')).toHaveTextContent(/area 2 max time/i);
@@ -281,7 +278,6 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
 
     it('range-checks every area, not just area 1', async () => {
       render(<MaxTimeDialog isOpen classData={twoAreas} onClose={vi.fn()} />);
-      await screen.findByRole('textbox', { name: /area 2 max time/i });
       fireEvent.change(areaInput(2), { target: { value: '5:00' } });
       fireEvent.click(screen.getByRole('button', { name: /save/i }));
 
@@ -289,16 +285,33 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
       expect(updateClass).not.toHaveBeenCalled();
     });
 
-    it('keeps one time for an ASCA class, whose scoresheet does not time areas separately', async () => {
-      getTrial.mockResolvedValue({ id: 't1', registryId: 'ASCA' });
-      render(<MaxTimeDialog isOpen classData={twoAreas} onClose={vi.fn()} />);
-      await waitFor(() => expect(getTrial).toHaveBeenCalled());
-
-      expect(screen.getAllByRole('textbox')).toHaveLength(1);
-      fireEvent.click(screen.getByRole('button', { name: /save/i }));
-      await waitFor(() =>
-        expect(updateClass).toHaveBeenCalledWith('class-a', { timeLimitSeconds: 90 })
+    it('asks for one time when the scoresheet does not time areas separately (ASCA, Nationals)', () => {
+      render(
+        <MaxTimeDialog
+          isOpen
+          classData={{ ...twoAreas, per_area_times: false }}
+          onClose={vi.fn()}
+        />
       );
+      expect(screen.getAllByRole('textbox')).toHaveLength(1);
+    });
+
+    it('clears every area when every area is empty', async () => {
+      render(
+        <MaxTimeDialog
+          isOpen
+          classData={{ ...twoAreas, time_limit_area2_seconds: 120, pairedClassId: 'class-b' }}
+          onClose={vi.fn()}
+        />
+      );
+      fireEvent.change(areaInput(1), { target: { value: '' } });
+      fireEvent.change(areaInput(2), { target: { value: ' ' } });
+      fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+      const cleared = { timeLimitSeconds: undefined, timeLimitArea2Seconds: undefined };
+      await waitFor(() => expect(updateClass).toHaveBeenCalledTimes(2));
+      expect(updateClass).toHaveBeenCalledWith('class-a', cleared);
+      expect(updateClass).toHaveBeenCalledWith('class-b', cleared);
     });
   });
 });

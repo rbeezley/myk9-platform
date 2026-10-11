@@ -9,9 +9,9 @@
  * the rule range server-side.
  *
  * A multi-area class gets one input per area, each with its own time (MYK9-1098);
- * every area must have a time to save.
+ * every area must have a time to save, or every area be empty to clear the time.
  */
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type React from 'react';
 import type { MaxTimeDialogProps } from '@myk9/ringside';
 import {
@@ -27,7 +27,7 @@ import { Label } from '@/components/ui/label';
 import { replicatedClassesTable } from '@/services/replication';
 import { handleOpenChange } from './dialogHelpers';
 import { AREA_TIME_FIELDS, maxTimeAreaCount, parseMaxTimeInput } from './maxTimeInput';
-import { classUsesAreaMaxTimes, maxTimeRangeForClass } from './maxTimeRule';
+import { maxTimeRangeForClass } from './maxTimeRule';
 
 const MAX_SECONDS = 15 * 60;
 
@@ -51,69 +51,64 @@ const MaxTimeForm: React.FC<MaxTimeDialogProps> = ({
   classData,
   onTimeUpdate,
 }) => {
-  // One input per area only where the scoresheet uses per-area times (AKC).
-  const [perArea, setPerArea] = useState(false);
-  useEffect(() => {
-    let cancelled = false;
-    classUsesAreaMaxTimes(classData.id)
-      .catch(() => false)
-      .then(uses => {
-        if (!cancelled) setPerArea(uses);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [classData.id]);
-  const areaCount = perArea ? maxTimeAreaCount(classData.area_count) : 1;
-  const [allValues, setValues] = useState(() =>
+  // One input per area only where the scoresheet times each area (AKC Scent Work).
+  const areaCount = classData.per_area_times ? maxTimeAreaCount(classData.area_count) : 1;
+  const [values, setValues] = useState(() =>
     [
       classData.time_limit_seconds,
       classData.time_limit_area2_seconds,
       classData.time_limit_area3_seconds,
     ]
-      .slice(0, maxTimeAreaCount(classData.area_count))
+      .slice(0, areaCount)
       .map(toMinutesSeconds)
   );
-  const values = allValues.slice(0, areaCount);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const save = async () => {
+  /** The class fields to write, or null after showing why the entry can't be saved. */
+  const checkedUpdates = async (): Promise<Record<string, number | undefined> | null> => {
+    // Every area empty clears the class's max time; a partial set is refused.
+    if (values.every(value => !value.trim())) {
+      return Object.fromEntries(values.map((_, area) => [AREA_TIME_FIELDS[area], undefined]));
+    }
     const seconds = values.map(parseMaxTimeInput);
     const unreadable = seconds.findIndex(s => s === null || s < 1 || s > MAX_SECONDS);
     if (unreadable >= 0) {
       setError(
         `Enter ${areaCount > 1 ? `the Area ${unreadable + 1}` : 'the'} max time in minutes and seconds, like 4:00.`
       );
-      return;
+      return null;
     }
+    const range = await maxTimeRangeForClass(classData.id);
+    if (range === 'unknown-offline') {
+      setError(
+        "You're offline and this class's allowed max time isn't on this device yet. Try again with signal."
+      );
+      return null;
+    }
+    if (range === 'lookup-failed') {
+      setError("Couldn't check this class's allowed max time. Try again.");
+      return null;
+    }
+    if (seconds.some(s => s! < range.low || s! > range.high)) {
+      setError(
+        `Max time for this class must be between ${toMinutesSeconds(range.low)} and ${toMinutesSeconds(range.high)}.`
+      );
+      return null;
+    }
+    return Object.fromEntries(seconds.map((s, area) => [AREA_TIME_FIELDS[area], s as number]));
+  };
+
+  const save = async () => {
     setError(null);
     setSaving(true);
     try {
-      const range = await maxTimeRangeForClass(classData.id);
-      if (range === 'unknown-offline') {
-        setError(
-          "You're offline and this class's allowed max time isn't on this device yet. Try again with signal."
-        );
-        return;
-      }
-      if (range === 'lookup-failed') {
-        setError("Couldn't check this class's allowed max time. Try again.");
-        return;
-      }
-      if (seconds.some(s => s! < range.low || s! > range.high)) {
-        setError(
-          `Max time for this class must be between ${toMinutesSeconds(range.low)} and ${toMinutesSeconds(range.high)}.`
-        );
-        return;
-      }
+      const updates = await checkedUpdates();
+      if (!updates) return;
       const classIds = [
         classData.id,
         ...(classData.pairedClassId ? [classData.pairedClassId] : []),
       ];
-      const updates = Object.fromEntries(
-        seconds.map((s, area) => [AREA_TIME_FIELDS[area], s as number])
-      );
       for (const classId of classIds) {
         await replicatedClassesTable.updateClass(classId, updates);
       }

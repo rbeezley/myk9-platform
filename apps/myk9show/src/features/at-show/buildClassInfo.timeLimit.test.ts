@@ -100,3 +100,10 @@ describe('transformEntry — timeLimit hygiene', () => {
     expect(entry.timeLimit).toBeUndefined();
   });
 });
+
+describe('buildClassInfo per-area max times (MYK9-1098)', () => {
+  it('flags a class whose scoresheet times each area, and only that class', () => {
+    expect(buildClassInfo(makeClass(), null, [], [], true).perAreaMaxTimes).toBe(true);
+    expect(buildClassInfo(makeClass(), null, [], []).perAreaMaxTimes).toBeUndefined();
+  });
+});

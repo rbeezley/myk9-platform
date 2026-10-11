@@ -94,6 +94,20 @@ describe('combined A/B: Set Max Time (MYK9-1086)', () => {
     expect(maxTimeDialogProps?.classData.class_name).toBe('Interior Novice A & B');
   });
 
+  it('passes the per-area flag through to the dialog (MYK9-1098)', () => {
+    const base = makeSingleClassProps({ loaded: true, entries: ENTRIES });
+    renderPage(
+      withMaxTime(
+        {
+          ...base,
+          data: { ...base.data, classInfo: { ...base.data.classInfo, perAreaMaxTimes: true } },
+        } as EntryListPageProps,
+        { open: true }
+      )
+    );
+    expect(maxTimeDialogProps?.classData.per_area_times).toBe(true);
+  });
+
   it('is not offered when the host hides max time', () => {
     renderPage(withMaxTime(makeCombinedProps({ loaded: true, entries: ENTRIES }), { hide: true }));
     fireEvent.click(screen.getByRole('button', { name: /actions menu/i }));

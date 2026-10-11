@@ -9,7 +9,9 @@
  * the rule range server-side.
  *
  * A multi-area class gets one input per area, each with its own time (MYK9-1098);
- * every area must have a time to save.
+ * every area must have a time to save. Before the judge types, the dialog shows the
+ * allowed range with 30-second quick picks, and a time the rulebook fixes is shown
+ * read-only rather than asked for (MYK9-1101, both from myK9Q).
  */
 import { useState } from 'react';
 import type React from 'react';
@@ -26,16 +28,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { replicatedClassesTable } from '@/services/replication';
 import { handleOpenChange } from './dialogHelpers';
-import { AREA_TIME_FIELDS, maxTimeAreaCount, parseMaxTimeInput } from './maxTimeInput';
-import { maxTimeRangeForClass } from './maxTimeRule';
+import {
+  AREA_TIME_FIELDS,
+  maxTimeAreaCount,
+  parseMaxTimeInput,
+  toMinutesSeconds,
+} from './maxTimeInput';
+import { maxTimeRangeForClass, useMaxTimeRange } from './maxTimeRule';
+import { MaxTimeQuickPicks } from './MaxTimeQuickPicks';
 
 const MAX_SECONDS = 15 * 60;
-
-/** 150 → "2:30"; no time → "". */
-function toMinutesSeconds(seconds: number | undefined): string {
-  if (!seconds || seconds <= 0) return '';
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
-}
 
 /**
  * The host keeps this slot mounted while closed, so the form mounts fresh on every
@@ -64,17 +66,17 @@ const MaxTimeForm: React.FC<MaxTimeDialogProps> = ({
   );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [focusedArea, setFocusedArea] = useState(0);
+  const loadedRange = useMaxTimeRange(classData.id);
+  const known = typeof loadedRange === 'object' && loadedRange !== null ? loadedRange : null;
+  const fixedTime = known?.fixed;
+  const setAreaValue = (area: number, value: string) =>
+    setValues(current => current.map((v, i) => (i === area ? value : v)));
 
   /** The class fields to write, or null after showing why the entry can't be saved. */
   const checkedUpdates = async (): Promise<Record<string, number> | null> => {
-    const seconds = values.map(parseMaxTimeInput);
-    const unreadable = seconds.findIndex(s => s === null || s < 1 || s > MAX_SECONDS);
-    if (unreadable >= 0) {
-      setError(
-        `Enter ${areaCount > 1 ? `the Area ${unreadable + 1}` : 'the'} max time in minutes and seconds, like 4:00.`
-      );
-      return null;
-    }
+    // The class's CURRENT rule decides, not the one loaded when the dialog opened:
+    // a synced element or level change must not save an obsolete time.
     const range = await maxTimeRangeForClass(classData.id);
     if (range === 'unknown-offline') {
       setError(
@@ -84,6 +86,17 @@ const MaxTimeForm: React.FC<MaxTimeDialogProps> = ({
     }
     if (range === 'lookup-failed') {
       setError("Couldn't check this class's allowed max time. Try again.");
+      return null;
+    }
+    // A rulebook time is applied as it stands: area 1 carries it, and any other
+    // area falls back to area 1 on the scoresheet.
+    if (range.fixed) return { [AREA_TIME_FIELDS[0]]: range.fixed };
+    const seconds = values.map(parseMaxTimeInput);
+    const unreadable = seconds.findIndex(s => s === null || s < 1 || s > MAX_SECONDS);
+    if (unreadable >= 0) {
+      setError(
+        `Enter ${areaCount > 1 ? `the Area ${unreadable + 1}` : 'the'} max time in minutes and seconds, like 4:00.`
+      );
       return null;
     }
     if (seconds.some(s => s! < range.low || s! > range.high)) {
@@ -119,11 +132,15 @@ const MaxTimeForm: React.FC<MaxTimeDialogProps> = ({
 
   return (
     <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
-      <DialogContent>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{classData.class_name} — Max Time</DialogTitle>
         </DialogHeader>
-        {showWarning && <p>Scoring started without a max time set.</p>}
+        {showWarning && (
+          <p role="status" className="text-sm font-medium text-destructive">
+            Max time required before scoring.
+          </p>
+        )}
         <form
           className="space-y-2"
           onSubmit={event => {
@@ -131,24 +148,38 @@ const MaxTimeForm: React.FC<MaxTimeDialogProps> = ({
             void save();
           }}
         >
-          {values.map((value, area) => (
-            <div key={area} className="space-y-1">
-              <Label htmlFor={`ringside-max-time-${area + 1}`}>
-                {areaCount > 1 ? `Area ${area + 1} max time` : 'Max time'} (minutes:seconds)
-              </Label>
-              <Input
-                id={`ringside-max-time-${area + 1}`}
-                inputMode="decimal"
-                placeholder="4:00"
-                value={value}
-                onChange={event =>
-                  setValues(current => current.map((v, i) => (i === area ? event.target.value : v)))
-                }
-                aria-invalid={error ? true : undefined}
-                className="h-12 text-lg"
-              />
-            </div>
-          ))}
+          {fixedTime ? (
+            <p className="text-base">
+              Set by the rulebook: <strong>{toMinutesSeconds(fixedTime)}</strong>
+            </p>
+          ) : (
+            <>
+              {values.map((value, area) => (
+                <div key={area} className="space-y-1">
+                  <Label htmlFor={`ringside-max-time-${area + 1}`}>
+                    {areaCount > 1 ? `Area ${area + 1} max time` : 'Max time'} (minutes:seconds)
+                  </Label>
+                  <Input
+                    id={`ringside-max-time-${area + 1}`}
+                    inputMode="decimal"
+                    placeholder="4:00"
+                    value={value}
+                    onFocus={() => setFocusedArea(area)}
+                    onChange={event => setAreaValue(area, event.target.value)}
+                    aria-invalid={error ? true : undefined}
+                    className="h-12 text-lg"
+                  />
+                </div>
+              ))}
+              {known?.judgeSet && (
+                <MaxTimeQuickPicks
+                  low={known.low}
+                  high={known.high}
+                  onPick={seconds => setAreaValue(focusedArea, toMinutesSeconds(seconds))}
+                />
+              )}
+            </>
+          )}
           {error && (
             <p role="alert" className="text-sm text-destructive">
               {error}
@@ -158,7 +189,8 @@ const MaxTimeForm: React.FC<MaxTimeDialogProps> = ({
             <Button type="button" variant="ghost" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving}>
+            {/* Wait for the rule: a rulebook-time class must not save a typed time. */}
+            <Button type="submit" disabled={saving || loadedRange === null}>
               Save
             </Button>
           </DialogFooter>

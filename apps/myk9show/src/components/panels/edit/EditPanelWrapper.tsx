@@ -347,8 +347,10 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     if (isLoading) return;
     // The delete dialog is answering for this panel: leaving now would orphan it.
     if (deleteOpen) return;
-    // Escape reaches the host's key handler AND the open prompt; the prompt
-    // answers it ("Keep editing"), so the host's copy must not re-raise it.
+    // Defensive: Escape reaches the host's key handler AND the open prompt, and
+    // the prompt answers it ("Keep editing"), so a host copy must not re-raise
+    // it. Today the prompt's own dismissal already wins (the test passes with
+    // this line removed); it keeps that true if the handlers ever reorder.
     if (showUnsavedDialog) return;
     if (hasChanges && showUnsavedWarning) {
       setShowUnsavedDialog(true);
@@ -482,6 +484,10 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
       <DiscardChangesDialog
         open={showUnsavedDialog}
         onOpenChange={setShowUnsavedDialog}
+        // Inline: Discard unmounts this form and the prompt with it, and the
+        // dialog's default return-focus then falls back to some EARLIER popup's
+        // trigger behind the host's modal. The host places focus itself.
+        {...(variant === 'inline' && { finalFocus: () => !confirmedCloseRef.current })}
         onDiscard={() => {
           confirmedCloseRef.current = true;
           setShowUnsavedDialog(false);

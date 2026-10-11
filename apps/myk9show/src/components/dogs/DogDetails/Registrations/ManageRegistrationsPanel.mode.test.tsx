@@ -6,6 +6,7 @@ import type { Dog } from '@/types/dog-types';
 import { useRegistrationsStore } from '@/store/registrationsStore';
 import ManageRegistrationsPanel from './ManageRegistrationsPanel';
 import DogRegistrationDialogs from './DogRegistrationDialogs';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 /**
  * MYK9-1089: Add and Edit are a MODE of the Manage registrations panel, never a
@@ -44,14 +45,30 @@ const dog = { id: 'dog-1', callName: 'Maple' } as unknown as Dog;
 function Harness({
   initialOpen = true,
   autoOpenAddDialog = false,
+  withEarlierPopover = false,
 }: {
   initialOpen?: boolean;
   autoOpenAddDialog?: boolean;
+  /** An unrelated page popover, opened and closed before Manage ever opens. */
+  withEarlierPopover?: boolean;
 }) {
-  const [open, setOpen] = useState(initialOpen);
+  const [open, setOpen] = useState(initialOpen && !withEarlierPopover);
   // Same sibling order as DogDetailsMain: Manage first, then the shared host.
   return (
     <>
+      {withEarlierPopover && (
+        <>
+          <Popover>
+            <PopoverTrigger>page-menu</PopoverTrigger>
+            <PopoverContent>
+              <button type="button">inside-pop</button>
+            </PopoverContent>
+          </Popover>
+          <button type="button" onClick={() => setOpen(true)}>
+            open-manage
+          </button>
+        </>
+      )}
       <ManageRegistrationsPanel open={open} onClose={() => setOpen(false)} dog={dog} />
       <DogRegistrationDialogs
         dog={dog}
@@ -239,6 +256,103 @@ describe('ManageRegistrationsPanel — Add and Edit are modes of the one panel',
     await waitFor(() => expect(mocks.updateRegistration).toHaveBeenCalled());
     expect(await screen.findByDisplayValue('CH Test Dog II')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'Edit Registration' })).toBeInTheDocument();
+  });
+});
+
+describe('focus stays inside the Manage panel', () => {
+  it('Add moves focus to the first field; Edit moves it to the form’s first control', async () => {
+    const { user } = render(<Harness />);
+    await user.click(screen.getByRole('button', { name: /^add$/i }));
+    await waitFor(() => expect(screen.getByLabelText(/^organization/i)).toHaveFocus());
+    await user.click(screen.getByRole('button', { name: /back/i }));
+    await screen.findByText('CH Test Dog');
+
+    await user.click(editButton());
+    await screen.findByDisplayValue('CH Test Dog');
+    await waitFor(() => {
+      const active = document.activeElement as HTMLElement;
+      expect(active.id).toBe('organization');
+      expect(slideOuts()[0]).toContainElement(active);
+    });
+  });
+
+  it('after a successful Add save focus lands on the header Add button', async () => {
+    const { user } = render(<Harness />);
+    await user.click(screen.getByRole('button', { name: /^add$/i }));
+    await user.selectOptions(
+      await screen.findByLabelText(/^organization/i),
+      'AKC (American Kennel Club)'
+    );
+    await user.type(screen.getByLabelText(/registered name/i), 'CH New Dog');
+    await user.selectOptions(screen.getByLabelText(/^breed/i), 'Beagle');
+    await user.type(screen.getByLabelText(/registration number/i), 'SR999');
+    await user.click(screen.getByRole('button', { name: 'Add Registration' }));
+
+    await screen.findByRole('heading', { name: 'Registrations' });
+    await waitFor(() => expect(screen.getByRole('button', { name: /^add$/i })).toHaveFocus());
+  });
+
+  it('after a successful Edit save focus lands on that row’s Edit control', async () => {
+    const { user } = render(<Harness />);
+    await user.click(editButton());
+    await user.type(await screen.findByDisplayValue('CH Test Dog'), ' II');
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await screen.findByRole('heading', { name: 'Registrations' });
+    await waitFor(() => expect(editButton()).toHaveFocus());
+  });
+
+  it('after Discard focus stays in the panel even when an earlier popup was used', async () => {
+    const { user } = render(<Harness withEarlierPopover />);
+    // An unrelated popup opens and closes first, so Base UI's global focus
+    // history holds its trigger: the stale target a discarded form must not reach.
+    await user.click(screen.getByRole('button', { name: 'page-menu' }));
+    await screen.findByRole('button', { name: 'inside-pop' });
+    await user.keyboard('{Escape}');
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'inside-pop' })).toBeNull());
+
+    await user.click(screen.getByRole('button', { name: 'open-manage' }));
+    await user.click(await screen.findByRole('button', { name: /^add$/i }));
+    await user.type(await screen.findByLabelText(/registered name/i), 'X');
+    await user.click(screen.getByRole('button', { name: /back/i }));
+    await user.click(await screen.findByRole('button', { name: 'Discard changes' }));
+    await screen.findByText('CH Test Dog');
+
+    // Base UI returns focus in a microtask after the prompt unmounts; let it run.
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 50));
+    });
+    expect(screen.getByRole('button', { name: /^add$/i })).toHaveFocus();
+  });
+
+  it('Escape on the discard prompt answers the prompt and does not re-raise it', async () => {
+    const { user } = render(<Harness />);
+    await user.click(screen.getByRole('button', { name: /^add$/i }));
+    await user.type(await screen.findByLabelText(/registered name/i), 'X');
+    await user.keyboard('{Escape}');
+    await screen.findByText('Discard changes?');
+
+    await user.keyboard('{Escape}');
+
+    await waitFor(() => expect(screen.queryByText('Discard changes?')).toBeNull());
+    expect(screen.getByLabelText(/registered name/i)).toHaveValue('X');
+  });
+});
+
+describe('Delete from inside the Manage panel', () => {
+  it('confirms in a dialog, deletes that row, and the panel stays on the list', async () => {
+    const { user } = render(<Harness />);
+    await user.click(screen.getByRole('button', { name: /more actions/i }));
+    await user.click(await screen.findByRole('menuitem', { name: /delete/i }));
+
+    const confirm = await screen.findByRole('button', { name: 'Delete' });
+    await user.click(confirm);
+
+    await waitFor(() =>
+      expect(mocks.deleteRegistration).toHaveBeenCalledWith('registration-1', expect.any(Object))
+    );
+    await waitFor(() => expect(slideOuts()).toHaveLength(1));
+    expect(screen.getByRole('heading', { name: 'Registrations' })).toBeInTheDocument();
   });
 });
 

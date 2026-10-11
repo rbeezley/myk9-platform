@@ -104,7 +104,7 @@ export default function ManageRegistrationsPanel({
         </div>
       )}
       {mode !== 'list' && (
-        <div ref={formRef} tabIndex={-1} className="outline-none">
+        <div ref={formRef} tabIndex={-1} className="h-full outline-none">
           {mode === 'add' ? (
             <AddRegistrationPanel
               open

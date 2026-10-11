@@ -61,8 +61,10 @@ function timerStatus(isDual: boolean, element: ElementMaxTimeStatus, stopwatch: 
   return isDual
     ? {
         warningMessage: element.warningMessage,
-        isWarning: element.isWarning,
-        isExpired: element.isExpired,
+        // The search digits stay neutral: the paused search clock is not the one
+        // running out -- the ring and banner carry the element warning.
+        isWarning: false,
+        isExpired: false,
         remainingTimeMs: element.remainingMs,
       }
     : {
@@ -116,7 +118,8 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   const elementTimer = useElementTimer({
     maxTimeMs: elementMaxTimeMs,
     onExpired: () => {
-      const elapsedMs = stopwatch.pause();
+      // A late tick (e.g. a locked phone) must not record search time past the max.
+      const elapsedMs = Math.min(stopwatch.pause(), maxTimeMs);
       if (scoring.areas.length > 0) {
         scoring.handleAreaUpdate(0, 'time', stopwatch.formatTime(elapsedMs));
       }
@@ -129,7 +132,6 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     maxTimeMs,
     elementTimeMs: elementTimer.time,
     isRunning: elementTimer.isRunning,
-    level: classInfo.level,
     enableVoiceAnnouncements,
     onWarningChime,
     onVoiceAnnouncement,
@@ -155,14 +157,17 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
   // Finish: stop both timers, capture times into area 0
   const handleFinish = useCallback(() => {
-    const elapsedMs = stopwatch.pause();
-    if (isDual) {
-      elementTimer.stop();
-    }
+    const elapsedMs = Math.min(stopwatch.pause(), maxTimeMs);
+    const reachedMax = isDual && elementTimer.stop();
     if (scoring.areas.length > 0) {
       scoring.handleAreaUpdate(0, 'time', stopwatch.formatTime(elapsedMs));
     }
-  }, [stopwatch, elementTimer, isDual, scoring]);
+    // Finish tapped past the element max, before a tick noticed it.
+    if (reachedMax) {
+      scoring.setQualifying('NQ');
+      scoring.setNonQualifyingReason('Max Time');
+    }
+  }, [stopwatch, elementTimer, isDual, scoring, maxTimeMs]);
 
   // Stop single-timer mode
   const handleStop = useCallback(() => {

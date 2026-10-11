@@ -113,4 +113,44 @@ describe('UKC dual-timer max time is the element time (MYK9-1093)', () => {
     expect(onWarningChime).toHaveBeenCalledTimes(1);
     expect(screen.getByText('30 Second Warning')).toBeInTheDocument();
   });
+
+  it('caps the recorded search time at the max when expiry is noticed late (locked phone)', () => {
+    renderSheet('dual');
+    fireEvent.click(screen.getByTestId('timer-start'));
+    // The phone sleeps: wall clock moves 20s with no timer ticks, then one tick.
+    vi.setSystemTime(Date.now() + 20_000);
+    advance(100);
+
+    expect(screen.getByTestId('nq-reason-select')).toHaveValue('Max Time');
+    expect(screen.getByTestId('ukc-recorded-time')).toHaveValue('0:10.00');
+  });
+
+  it('Finish tapped just past the max (before a tick) still records Max Time', () => {
+    renderSheet('dual');
+    fireEvent.click(screen.getByTestId('timer-start'));
+    advance(9_900);
+    vi.setSystemTime(Date.now() + 150); // past 0:10, no tick yet
+    fireEvent.click(screen.getByRole('button', { name: /^finish$/i }));
+
+    expect(screen.getByTestId('nq-reason-select')).toHaveValue('Max Time');
+    expect(screen.getByTestId('ukc-recorded-time')).toHaveValue('0:10.00');
+  });
+
+  it('warns at 30 seconds on the element clock at UKC Master too', () => {
+    const onWarningChime = vi.fn();
+    render(
+      <UKCNoseworkLiveScoresheet
+        entry={{ ...entry, level: 'Master' }}
+        classInfo={{ ...classInfo, level: 'Master' }}
+        rules={{ ...rules('dual'), maxTimeSeconds: 60 }}
+        onSubmit={vi.fn()}
+        onBack={vi.fn()}
+        onWarningChime={onWarningChime}
+      />
+    );
+    fireEvent.click(screen.getByTestId('timer-start'));
+    advance(31_000);
+
+    expect(onWarningChime).toHaveBeenCalledTimes(1);
+  });
 });

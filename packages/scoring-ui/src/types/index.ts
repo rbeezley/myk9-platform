@@ -96,8 +96,11 @@ export interface ElementTimerReturn {
   isRunning: boolean;
   /** Start the timer (records start timestamp) */
   start: () => void;
-  /** Stop the timer (freezes current time) */
-  stop: () => void;
+  /**
+   * Stop the timer (freezes current time, capped at the max). Returns true when
+   * the element time had reached its max -- a Finish tapped just past it.
+   */
+  stop: () => boolean;
   /** Resume the timer after stop */
   resume: () => void;
   /** Reset timer to zero */

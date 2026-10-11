@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { TimeInput } from '@/components/ui/data-table';
 import { ArmbandBadge } from '@/components/common/ArmbandBadge';
 import { cn } from '@/lib/utils';
+import { disqualifyHelpText, type ScoresheetSportType } from '@myk9/scoring-ui';
 import type { ScoringEntry } from '../types';
 import {
   getReasonOptions,
@@ -23,6 +24,8 @@ interface EntryPanelProps {
   isSaving: boolean;
   /** Class time limit in seconds; a Q over it shows a warning (still saveable). Omit when unknown. */
   maxTimeSeconds?: number | undefined;
+  /** Registry of the class, for the DQ help text. Omit when unknown. */
+  sportType?: ScoresheetSportType | null | undefined;
 }
 
 const RESULT_BUTTONS: { code: PaperResult; label: string; description: string }[] = [
@@ -30,6 +33,7 @@ const RESULT_BUTTONS: { code: PaperResult; label: string; description: string }[
   { code: 'NQ', label: 'NQ', description: 'Not Qualified' },
   { code: 'ABS', label: 'ABS', description: 'Absent' },
   { code: 'EX', label: 'EX', description: 'Excused' },
+  { code: 'DQ', label: 'DQ', description: 'Disqualified (rare)' },
 ];
 
 const RESULT_TO_PAPER_RESULT: Record<string, PaperResult> = {
@@ -37,6 +41,7 @@ const RESULT_TO_PAPER_RESULT: Record<string, PaperResult> = {
   'Not Qualified': 'NQ',
   Absent: 'ABS',
   Excused: 'EX',
+  Disqualified: 'DQ',
   Withdrawn: 'EX',
 };
 
@@ -78,6 +83,7 @@ export function EntryPanel({
   onClose,
   isSaving,
   maxTimeSeconds,
+  sportType,
 }: EntryPanelProps) {
   const [isClearConfirmOpen, setIsClearConfirmOpen] = useState(false);
   const [selectedResult, setSelectedResult] = useState<PaperResult | null>(() =>
@@ -147,7 +153,13 @@ export function EntryPanel({
                 data-prefilled={isPrefilled ? 'true' : undefined}
                 className={cn(
                   'flex items-center gap-3 px-4 py-3 rounded-lg border-2 text-left transition-colors font-semibold',
-                  isSelected && !isPrefilled && 'border-primary bg-primary text-primary-foreground',
+                  // DQ is an official record: never styled like the common results.
+                  code === 'DQ' && 'mt-2 border-zinc-900',
+                  isSelected &&
+                    !isPrefilled &&
+                    (code === 'DQ'
+                      ? 'bg-zinc-900 text-white ring-2 ring-red-600'
+                      : 'border-primary bg-primary text-primary-foreground'),
                   isPrefilled && 'border-dashed border-primary bg-primary/10',
                   !isSelected && !isPrefilled && 'border-border hover:bg-accent'
                 )}
@@ -219,7 +231,30 @@ export function EntryPanel({
         </div>
       )}
 
-      {needsReason && (
+      {selectedResult === 'DQ' && (
+        <div className="space-y-1">
+          <label
+            className="text-xs font-semibold text-muted-foreground uppercase tracking-wide"
+            htmlFor="dq-reason"
+          >
+            Disqualification reason (required)
+          </label>
+          <p className="text-sm text-muted-foreground" data-testid="dq-help">
+            {disqualifyHelpText(sportType ?? undefined)}
+          </p>
+          <input
+            id="dq-reason"
+            type="text"
+            value={reason}
+            onChange={event => setReason(event.target.value)}
+            maxLength={500}
+            placeholder="Briefly describe what happened"
+            className="h-11 w-full rounded-lg border-2 border-zinc-900 bg-background px-3 text-sm font-medium focus:outline-none"
+          />
+        </div>
+      )}
+
+      {needsReason && selectedResult !== 'DQ' && (
         <div className="space-y-1">
           <label
             className="text-xs font-semibold text-muted-foreground uppercase tracking-wide"

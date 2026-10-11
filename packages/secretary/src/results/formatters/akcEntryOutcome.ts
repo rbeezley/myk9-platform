@@ -16,7 +16,8 @@
 //                    move_up_requested
 //   check_in_status  no-status | checked-in | conflict | pulled | at-gate |
 //                    come-to-gate | in-ring | completed
-//   result_status    pending | qualified | nq | absent | excused | withdrawn
+//   result_status    pending | qualified | nq | absent | excused | disqualified |
+//                    withdrawn
 //
 // The previous mapping tested `resultStatus === 'Q'`, `resultStatus ===
 // 'disqualified'` and `checkInStatus === 'absent'`. None of those three values
@@ -40,6 +41,7 @@ export type AKCEntryOutcome =
   | 'withdrawn'
   | 'absent'
   | 'excused'
+  | 'disqualified'
   | 'placed'
   | 'qualified'
   | 'not-qualified'
@@ -66,6 +68,7 @@ const AKC_RESULT_STATUSES: readonly AKCResultStatus[] = [
   'nq',
   'absent',
   'excused',
+  'disqualified',
   'withdrawn',
 ];
 
@@ -113,6 +116,7 @@ const RECORDED_RESULTS = new Set<AKCResultStatus>([
   'nq',
   'absent',
   'excused',
+  'disqualified',
   'withdrawn',
 ]);
 
@@ -148,6 +152,8 @@ export function classifyAKCEntryOutcome(entry: AKCSubmissionEntry): AKCEntryOutc
 
   if (result === 'excused') return 'excused';
 
+  if (result === 'disqualified') return 'disqualified';
+
   if (result === 'qualified') {
     return entry.finalPlacement != null && entry.finalPlacement >= 1 && entry.finalPlacement <= 4
       ? 'placed'
@@ -178,6 +184,11 @@ export function akcResultCodesForOutcome(
     case 'absent':
       return { actionCode: 'ABSN', resultCode: 'A' };
     case 'excused':
+    // AKC's electres schema has no distinct disqualified code in this repo; a DQ is
+    // reported with the excused pair so it is accounted for and never counted
+    // as a start-or-qualify. The DQ and its reason live on the marked catalog
+    // and form AEDSQ1 (MYK9-1011).
+    case 'disqualified':
       return { actionCode: 'EXCU', resultCode: 'EXO' };
     case 'placed':
       return { actionCode: 'PLAC', resultCode: String(finalPlacement) };

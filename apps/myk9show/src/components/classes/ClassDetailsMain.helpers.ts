@@ -88,6 +88,7 @@ export function buildClassStats(classEntries: EntryData[], isScentWork: boolean)
   const qualified = classEntries.filter(entry => entry.status === 'Qualified').length;
   const notQualified = classEntries.filter(entry => entry.status === 'Not Qualified').length;
   const excused = classEntries.filter(entry => entry.status === 'Excused').length;
+  const disqualified = classEntries.filter(entry => entry.status === 'Disqualified').length;
   const withdrawn = classEntries.filter(entry => entry.status === 'Withdrawn').length;
   const absent = classEntries.filter(entry => entry.status === 'Absent').length;
 
@@ -95,7 +96,9 @@ export function buildClassStats(classEntries: EntryData[], isScentWork: boolean)
     entry =>
       entry.time ||
       entry.score ||
-      ['Qualified', 'Not Qualified', 'Excused', 'Withdrawn', 'Absent'].includes(entry.status)
+      ['Qualified', 'Not Qualified', 'Excused', 'Disqualified', 'Withdrawn', 'Absent'].includes(
+        entry.status
+      )
   ).length;
   const pendingEntries = totalEntries - completedEntries;
 
@@ -116,7 +119,9 @@ export function buildClassStats(classEntries: EntryData[], isScentWork: boolean)
       detail1: `${qualified} Qualified`,
       detail2: `${notQualified} NQ`,
       detail3:
-        excused + withdrawn + absent > 0 ? `${excused + withdrawn + absent} Other` : undefined,
+        excused + disqualified + withdrawn + absent > 0
+          ? `${excused + disqualified + withdrawn + absent} Other`
+          : undefined,
       progress: totalEntries > 0 ? Math.round((qualified / totalEntries) * 100) : 0,
       type: 'classes',
     },

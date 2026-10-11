@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isNationalsCompetition } from './sortableEntryCardUtils';
+import { getStatusBorderClass, isNationalsCompetition } from './sortableEntryCardUtils';
 
 // Pins the contract between the show-context producers (myK9Show's
 // validate-passcode edge function + the /at-show RingsideShowContext, both of
@@ -23,5 +23,17 @@ describe('isNationalsCompetition', () => {
     expect(isNationalsCompetition({})).toBe(false);
     expect(isNationalsCompetition(null)).toBe(false);
     expect(isNationalsCompetition(undefined)).toBe(false);
+  });
+});
+
+describe('getStatusBorderClass for a disqualified entry', () => {
+  const scored = (resultText: string) =>
+    ({ isScored: true, resultText }) as unknown as Parameters<typeof getStatusBorderClass>[0];
+
+  it('uses the non-qualifying border, never the generic scored one', () => {
+    expect(getStatusBorderClass(scored('disqualified'))).toBe('result-ex');
+    expect(getStatusBorderClass(scored('DQ'))).toBe('result-ex');
+    expect(getStatusBorderClass(scored('excused'))).toBe('result-ex');
+    expect(getStatusBorderClass(scored('mystery'))).toBe('scored');
   });
 });

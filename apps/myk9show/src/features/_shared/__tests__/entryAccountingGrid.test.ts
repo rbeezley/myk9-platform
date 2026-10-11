@@ -37,7 +37,8 @@ import {
  * The live CHECK constraints, pasted verbatim so a constraint change shows up
  * as a diff in this file rather than as a grid that quietly stops covering it.
  *
- * Captured 2026-09-17 from the `myk9-platform` project (`sojmvhhwsjxmfistvzbe`):
+ * Captured 2026-09-17 from the `myk9-platform` project (result_status then extended by
+ * MYK9-1011's migration 20261011003700, which adds 'disqualified') (`sojmvhhwsjxmfistvzbe`):
  *
  *   select conname, pg_get_constraintdef(oid)
  *   from pg_constraint
@@ -53,7 +54,7 @@ const ENTRY_STATUS_CHECK = `CHECK ((entry_status = ANY (ARRAY['no-status'::text,
 
 const CHECK_IN_STATUS_CHECK = `CHECK ((check_in_status = ANY (ARRAY['no-status'::text, 'checked-in'::text, 'conflict'::text, 'pulled'::text, 'at-gate'::text, 'come-to-gate'::text, 'in-ring'::text, 'completed'::text])))`;
 
-const RESULT_STATUS_CHECK = `CHECK ((result_status = ANY (ARRAY['pending'::text, 'qualified'::text, 'nq'::text, 'absent'::text, 'excused'::text, 'withdrawn'::text])))`;
+const RESULT_STATUS_CHECK = `CHECK ((result_status = ANY (ARRAY['pending'::text, 'qualified'::text, 'nq'::text, 'absent'::text, 'excused'::text, 'disqualified'::text, 'withdrawn'::text])))`;
 
 /** Every `'value'::text` literal in a CHECK ... = ANY (ARRAY[...]) definition. */
 function allowedValues(constraintDef: string): string[] {
@@ -120,15 +121,18 @@ describe('entry accounting — one rule across the whole status grid (MYK9-645)'
     expect(ENTRY_STATUSES).not.toContain('scratch_requested');
     expect(CHECK_IN_STATUSES).toHaveLength(9); // 8 permitted values + unset
     expect(CHECK_IN_STATUSES).toContain('completed');
-    expect(RESULT_STATUSES).toHaveLength(7); // 6 permitted values + unset
+    expect(RESULT_STATUSES).toHaveLength(8); // 7 permitted values + unset
     expect(RESULT_STATUSES).toContain('withdrawn');
+    // MYK9-1011: 'disqualified' joined the CHECK (20261011003700); the grid below
+    // proves it behaves as 'excused' does everywhere accounting is decided.
+    expect(RESULT_STATUSES).toContain('disqualified');
   });
 
   it('covers the real cardinality of the grid', () => {
     expect(GRID).toHaveLength(
       ENTRY_STATUSES.length * CHECK_IN_STATUSES.length * RESULT_STATUSES.length * 2
     );
-    expect(GRID).toHaveLength(2394);
+    expect(GRID).toHaveLength(2736);
   });
 
   it('classifies pending exactly where the row is runnable', () => {

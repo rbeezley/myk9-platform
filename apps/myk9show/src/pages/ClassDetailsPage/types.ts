@@ -10,7 +10,14 @@ export interface ClassEntryDisplay {
   armband: string;
   handler: string;
   dog: string;
-  status: 'Qualified' | 'Not Qualified' | 'Absent' | 'Excused' | 'Withdrawn' | 'Eliminated';
+  status:
+    | 'Qualified'
+    | 'Not Qualified'
+    | 'Absent'
+    | 'Excused'
+    | 'Disqualified'
+    | 'Withdrawn'
+    | 'Eliminated';
   qualificationReason?: string;
   score: string;
   time: string;

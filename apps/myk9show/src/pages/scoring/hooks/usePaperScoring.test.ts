@@ -132,6 +132,23 @@ describe('usePaperScoring', () => {
     );
   });
 
+  it('saveEntry writes a DQ as disqualified with its reason, apart from excused', async () => {
+    const { replicatedEntriesTable } =
+      await import('@/services/replication/ReplicatedEntriesTable');
+    const { result } = renderHook(() => usePaperScoring(entries, 'user-1'));
+
+    await act(() => result.current.saveEntry('e1', 'DQ', '', 0, '  Bit the handler  '));
+    expect(replicatedEntriesTable.updateEntry).toHaveBeenLastCalledWith(
+      'e1',
+      expect.objectContaining({
+        result_status: 'disqualified',
+        resultStatus: 'disqualified',
+        disqualification_reason: 'Bit the handler',
+        is_scored: true,
+      })
+    );
+  });
+
   it('saveEntry writes the lowercase DB enum for ABS and EX', async () => {
     const { replicatedEntriesTable } =
       await import('@/services/replication/ReplicatedEntriesTable');

@@ -32,7 +32,10 @@ DECLARE
   v_c11 uuid := gen_random_uuid(); -- 3.12 MYK9-330 not_accepted must not block completion
   v_c12 uuid := gen_random_uuid(); -- 3.13 MYK9-330 a moved-only class is not 'complete'
   v_c13 uuid := gen_random_uuid(); -- 3.14 MYK9-1086 score reset reopens a manual Complete
+  v_c14 uuid := gen_random_uuid(); -- 3.15 MYK9-1011 a DQ is accounted for and never placed
   v_e13 uuid;
+  v_eq14 uuid;
+  v_edq14 uuid;
   v_before_updated timestamptz;
   v_after_updated timestamptz;
   v_before_version integer;
@@ -523,6 +526,50 @@ WHERE NOT EXISTS (
     RAISE EXCEPTION '3.14 FAIL: reopened_after_closeout_at not stamped';
   END IF;
   RAISE NOTICE '3.14 PASS: score reset reopened a manual Complete (status=%, source=%)', v_status, v_source;
+
+  -- =====================================================================
+  -- 3.15 MYK9-1011: a Disqualified result is accounted for (like excused),
+  --      the CHECK admits it, and it never receives a placement -- the
+  --      qualified dog is placed 1st.
+  -- =====================================================================
+  INSERT INTO public.classes (id, trial_id, name, status)
+    VALUES (v_c14, v_trial, '3.15 Disqualified', 'upcoming');
+
+  INSERT INTO public.entries
+    (class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status,
+     search_time_seconds)
+  VALUES
+    (v_c14, v_show, v_trial, 'checked-in', 'checked-in', true, 'qualified', 45)
+  RETURNING id INTO v_eq14;
+  -- Not is_scored: only the result_status accounts for this dog, which is the
+  -- arm refresh_class_scoring_state widened.
+  INSERT INTO public.entries
+    (class_id, show_id, trial_id, entry_status, check_in_status, is_scored, result_status,
+     disqualification_reason)
+  VALUES
+    (v_c14, v_show, v_trial, 'checked-in', 'checked-in', false, 'disqualified',
+     'Attacked a person in the search area')
+  RETURNING id INTO v_edq14;
+
+  SELECT status INTO v_status FROM public.classes WHERE id = v_c14;
+  IF v_status IS DISTINCT FROM 'completed' THEN
+    RAISE EXCEPTION '3.15 FAIL: a class whose last dog is disqualified derived to %, expected completed', v_status;
+  END IF;
+  SELECT final_placement INTO v_p1 FROM public.entries WHERE id = v_eq14;
+  SELECT final_placement INTO v_p2 FROM public.entries WHERE id = v_edq14;
+  IF v_p1 IS DISTINCT FROM 1 THEN
+    RAISE EXCEPTION '3.15 FAIL: the qualified dog placed %, expected 1', v_p1;
+  END IF;
+  IF v_p2 IS NOT NULL THEN
+    RAISE EXCEPTION '3.15 FAIL: a disqualified dog was given placement %', v_p2;
+  END IF;
+  BEGIN
+    UPDATE public.entries SET result_status = 'dq' WHERE id = v_edq14;
+    RAISE EXCEPTION '3.15 FAIL: the CHECK accepted result_status = dq';
+  EXCEPTION WHEN check_violation THEN
+    NULL;
+  END;
+  RAISE NOTICE '3.15 PASS: a disqualified dog is accounted for, unplaced, and the CHECK still rejects unknown values';
 
   RAISE NOTICE 'ALL class-status-auto-derivation assertions passed.';
 END $$;

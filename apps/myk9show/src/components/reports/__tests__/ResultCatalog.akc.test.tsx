@@ -245,6 +245,26 @@ describe('ResultCatalog on an AKC show (marked catalog)', () => {
     expect(row.getByText('Handler corrected the dog in the search area')).toBeInTheDocument();
   });
 
+  it('prints DQ with its reason for a disqualified dog, never EXC', () => {
+    const disqualified = dog({
+      id: 'dq1',
+      armband: '110',
+      callName: 'Bruno',
+      ownerName: 'Sam Reyes',
+      resultText: 'disqualified',
+      searchTimeSeconds: 12,
+      totalFaults: 0,
+      resultReason: 'Attacked a person in the search area',
+    });
+    render(<ResultCatalog {...akcProps} entries={[...entries, disqualified]} />);
+    const row = within(rowFor('110'));
+    expect(row.getByText(/^DQ/)).toBeInTheDocument();
+    expect(row.queryByText(/^EXC/)).not.toBeInTheDocument();
+    expect(row.getByText('Attacked a person in the search area')).toBeInTheDocument();
+    // The excused dog beside it still prints EXC.
+    expect(within(rowFor('104')).getByText(/^EXC/)).toBeInTheDocument();
+  });
+
   it('prints ABS for an absent dog with no time or faults', () => {
     render(<ResultCatalog {...akcProps} />);
     const cells = within(rowFor('105')).getAllByRole('cell');

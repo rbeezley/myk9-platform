@@ -14,6 +14,7 @@ import { Button, Input, Card, cn } from '@myk9/ui';
 import { useStopwatch } from '../../../hooks/useStopwatch';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
+import { DQ_ACTIVE_CLASS, DisqualifyReason } from '../../DisqualifyReason';
 import type { LiveScoresheetProps } from '../../../types';
 
 // FastCAT results differ from standard Scent Work (E instead of EX, adds DQ)
@@ -27,7 +28,7 @@ const RESULT_OPTIONS: { value: FastCATResult; label: string; activeClass: string
   },
   { value: 'NQ', label: 'NQ', activeClass: 'bg-amber-500 hover:bg-amber-600 border-amber-500' },
   { value: 'E', label: 'Excused', activeClass: 'bg-gray-500 hover:bg-gray-600 border-gray-500' },
-  { value: 'DQ', label: 'DQ', activeClass: 'bg-red-600 hover:bg-red-700 border-red-600' },
+  { value: 'DQ', label: 'DQ', activeClass: DQ_ACTIVE_CLASS },
 ];
 
 // 100 yards / time → MPH
@@ -92,19 +93,29 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     };
   }, [runTimeStr]);
 
+  // A DQ is an official record: it cannot be saved without its reason (MYK9-1011).
+  const reasonMissing = fastcatResult === 'DQ' && !scoring.nonQualifyingReason.trim();
+
+  const handleResultSelect = (value: FastCATResult) => {
+    if (value === 'DQ' && fastcatResult !== 'DQ') scoring.setNonQualifyingReason('');
+    setFastcatResult(value);
+  };
+
   const handleSubmitClick = () => {
-    if (!fastcatResult) return;
+    if (!fastcatResult || reasonMissing) return;
     setShowConfirmation(true);
   };
 
   const handleConfirmSubmit = async () => {
-    if (!fastcatResult) return;
+    if (!fastcatResult || reasonMissing) return;
     setIsSubmitting(true);
     try {
       const scoreData = scoring.buildScoreData({
         resultText: fastcatResult,
         points,
         searchTime: runTimeStr || '0.00',
+        nonQualifyingReason:
+          fastcatResult === 'DQ' ? scoring.nonQualifyingReason.trim() : undefined,
       });
       await onSubmit(scoreData);
     } finally {
@@ -242,13 +253,21 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                     key={opt.value}
                     variant={fastcatResult === opt.value ? 'default' : 'outline'}
                     className={cn('h-12', fastcatResult === opt.value && opt.activeClass)}
-                    onClick={() => setFastcatResult(opt.value)}
+                    onClick={() => handleResultSelect(opt.value)}
                     data-testid={`result-${opt.value}`}
                   >
                     {opt.label}
                   </Button>
                 ))}
               </div>
+
+              {fastcatResult === 'DQ' && (
+                <DisqualifyReason
+                  sportType="AKC_FASTCAT"
+                  reason={scoring.nonQualifyingReason}
+                  onReasonChange={scoring.setNonQualifyingReason}
+                />
+              )}
             </Card>
 
             {/* Submit */}
@@ -259,7 +278,7 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               <Button
                 className="flex-1 h-12"
                 onClick={handleSubmitClick}
-                disabled={isSubmitting || !fastcatResult}
+                disabled={isSubmitting || !fastcatResult || reasonMissing}
                 data-testid="submit-btn"
               >
                 {isSubmitting ? 'Saving...' : 'Save'}

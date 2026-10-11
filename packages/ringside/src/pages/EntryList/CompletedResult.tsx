@@ -13,13 +13,18 @@ import type { Entry } from '../../stores/entryStore';
 import { getPlacementText, normalizeResultText } from './sortableEntryCardUtils';
 import { getRibbonColor } from './ribbonColors';
 
-const PLAIN_LABEL: Record<string, string> = { EX: 'Excused', ABS: 'Absent', WD: 'Withdrawn' };
+const PLAIN_LABEL: Record<string, string> = {
+  EX: 'Excused',
+  DQ: 'Disqualified',
+  ABS: 'Absent',
+  WD: 'Withdrawn',
+};
 
 /** `withDetail` adds the judge's / secretary's free text, for the ring team and owner only. */
 function reasonFor(entry: Entry, code: string, withDetail: boolean): string | null {
   const detail = !withDetail
     ? null
-    : code === 'NQ'
+    : code === 'NQ' || code === 'DQ'
       ? entry.nqReason
       : code === 'EX'
         ? entry.excusedReason
@@ -45,7 +50,7 @@ export const CompletedResult: React.FC<{
   const faults = entry.faultCount ?? 0;
   const reason = showQual && !qualified ? reasonFor(entry, code, showReason) : null;
   // NQ keeps its code next to the reason; EX / ABS / WD would only repeat it.
-  const codeIsTheReason = code === 'EX' || code === 'ABS' || code === 'WD';
+  const codeIsTheReason = code === 'EX' || code === 'DQ' || code === 'ABS' || code === 'WD';
   const formattedTime = entry.searchTime ? formatTimeForDisplay(entry.searchTime) : '';
   const hasTime = formattedTime !== '' && !/^0+:0+(\.0+)?$/.test(formattedTime);
 

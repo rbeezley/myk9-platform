@@ -43,6 +43,24 @@ describe('resolveCatalogResult', () => {
     ).toBe('AJC');
   });
 
+  // MYK9-1011: the stored result drives the code, not a legacy placement marker.
+  it('prints DQ for a stored disqualified result and EXC for an excused one', () => {
+    expect(resolveCatalogResult(entry({ resultText: 'disqualified' }))).toBe('DQ');
+    expect(resolveCatalogResult(entry({ resultText: 'excused' }))).toBe('EXC');
+    expect(
+      resolveCatalogResult(entry({ resultText: 'excused', resultReason: 'Handler request' }))
+    ).toBe('EXC');
+    expect(
+      resolveCatalogResult(entry({ resultText: 'disqualified', finalPlacement: null }))
+    ).not.toBe(resolveCatalogResult(entry({ resultText: 'excused' })));
+  });
+
+  it('prints DQ for a disqualified result whatever its stale placement', () => {
+    expect(resolveCatalogResult(entry({ resultText: 'disqualified', finalPlacement: 1 }))).toBe(
+      'DQ'
+    );
+  });
+
   it('prints DQ only for a stored DQ marker, otherwise EXC', () => {
     expect(resolveCatalogResult(entry({ resultText: 'excused' }))).toBe('EXC');
     expect(resolveCatalogResult(entry({ resultText: 'excused', finalPlacement: 10000 }))).toBe(
@@ -68,6 +86,21 @@ describe('resolveCatalogResult', () => {
 
   it('prints nothing for a dog that has not been scored', () => {
     expect(resolveCatalogResult(entry({ resultText: 'pending' }))).toBe('');
+  });
+});
+
+describe('countCatalogClass with a disqualified dog', () => {
+  it('counts a DQ as competing and as not qualifying', () => {
+    const counts = countCatalogClass([
+      entry({ id: 'q', entryStatus: 'checked-in', resultText: 'qualified', isScored: true }),
+      entry({ id: 'dq', entryStatus: 'checked-in', resultText: 'disqualified', isScored: true }),
+      entry({ id: 'ex', entryStatus: 'checked-in', resultText: 'excused', isScored: true }),
+    ]);
+    expect(counts).toEqual({ entries: 3, competing: 3, qualifying: 1, withdrawn: 0 });
+  });
+
+  it('never prints a placement for a DQ', () => {
+    expect(catalogPlacement(entry({ resultText: 'disqualified', finalPlacement: 10000 }))).toBe('');
   });
 });
 

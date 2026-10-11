@@ -46,6 +46,16 @@ describe('calculatePlacements', () => {
     expect(result.every(e => e.placement === undefined)).toBe(true);
   });
 
+  it('gives a Disqualified dog no placement while the qualifier is placed 1st', () => {
+    const entries = [
+      makeEntry('e1', {}, { qualification: 'Disqualified', time: 5, faults: 0 }),
+      makeEntry('e2', {}, { qualification: 'Qualified', time: 60, faults: 0 }),
+    ];
+    const result = calculatePlacements(entries);
+    expect(result.find(e => e.entryId === 'e1')?.placement).toBeUndefined();
+    expect(result.find(e => e.entryId === 'e2')?.placement).toBe(1);
+  });
+
   it('assigns no placements when all entries are NQ', () => {
     const entries = [
       makeEntry('e1', {}, { time: 30000, faults: 0, qualification: 'Not Qualified' }),

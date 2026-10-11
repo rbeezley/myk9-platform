@@ -21,6 +21,7 @@ const COMPLETE_RESULT_STATUSES = new Set([
   'non_qualifying',
   'absent',
   'excused',
+  'disqualified',
 ]);
 const SCRATCH_ENTRY_STATUSES = new Set([
   'scratch',

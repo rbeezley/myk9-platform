@@ -140,6 +140,22 @@ describe('MYK9-1086 review fixes', () => {
     expect(screen.getByTestId('completed-result').textContent).toBe('Excused');
   });
 
+  it('shows a stored disqualification as Disqualified with its reason to the ring team only', () => {
+    const dq = entry({
+      isScored: true,
+      resultText: 'disqualified',
+      nqReason: 'Attacked a person in the search area',
+    });
+    const { unmount } = render(<CompletedResult entry={dq} />);
+    expect(screen.getByTestId('completed-result').textContent).toBe(
+      'Disqualified · Attacked a person in the search area'
+    );
+    unmount();
+
+    render(<CompletedResult entry={dq} showReason={false} />);
+    expect(screen.getByTestId('completed-result').textContent).toBe('Disqualified');
+  });
+
   it('shows Excused once, not as code plus reason', () => {
     render(<CompletedResult entry={entry({ isScored: true, resultText: 'Excused' })} />);
     expect(screen.getByTestId('completed-result').textContent).toBe('Excused');

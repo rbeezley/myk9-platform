@@ -1,7 +1,7 @@
 import React from 'react';
 
 /** Known result status values from the scoring system */
-export type ResultStatus = 'qualified' | 'nq' | 'absent' | 'excused' | 'withdrawn';
+export type ResultStatus = 'qualified' | 'nq' | 'absent' | 'excused' | 'disqualified' | 'withdrawn';
 
 /** Map from raw result_status to abbreviated label */
 const STATUS_LABELS: Record<ResultStatus, string> = {
@@ -9,6 +9,7 @@ const STATUS_LABELS: Record<ResultStatus, string> = {
   nq: 'NQ',
   absent: 'ABS',
   excused: 'EX',
+  disqualified: 'DQ',
   withdrawn: 'WD',
 };
 
@@ -16,6 +17,7 @@ const STATUS_LABELS: Record<ResultStatus, string> = {
 const RESULT_COLORS: Record<string, string> = {
   Q: 'bg-success/15 text-success border-success/30',
   NQ: 'bg-destructive/15 text-destructive border-destructive/30',
+  DQ: 'bg-zinc-900 text-white border-zinc-900',
 };
 
 const DEFAULT_COLOR = 'bg-muted text-muted-foreground border-border';

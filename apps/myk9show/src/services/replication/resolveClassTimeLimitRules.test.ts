@@ -4,6 +4,7 @@ const { from } = vi.hoisted(() => ({ from: vi.fn() }));
 vi.mock('@/services/database/supabaseClient', () => ({ supabase: { from } }));
 
 import {
+  isRuleCurrent,
   resolveTimeLimitRulesForClassRows,
   timeLimitRuleRange,
 } from './resolveClassTimeLimitRules';
@@ -15,6 +16,16 @@ function query(result: { data: unknown; error: unknown }) {
   };
   return chain;
 }
+
+describe('isRuleCurrent', () => {
+  it("accepts a rule only for the class's current element and level", () => {
+    const rule = { min: 60, max: 180, forElement: 'Interior', forLevel: 'Novice' };
+    expect(isRuleCurrent(rule, { element: 'Interior', level: 'Novice' })).toBe(true);
+    expect(isRuleCurrent(rule, { element: 'Exterior', level: 'Novice' })).toBe(false);
+    expect(isRuleCurrent(rule, { element: 'Interior', level: 'Advanced' })).toBe(false);
+    expect(isRuleCurrent(undefined, { element: 'Interior', level: 'Novice' })).toBe(false);
+  });
+});
 
 describe('timeLimitRuleRange (mirrors ringside_update_class)', () => {
   it('caps a fixed rule at its time, spans a judge-set range, else 1..900', () => {
@@ -68,16 +79,22 @@ describe('resolveTimeLimitRulesForClassRows', () => {
       { id: 'c-none', trial_id: 't1', element: 'Buried', level: 'Novice' },
     ]);
 
-    expect(rules.get('c-int')).toEqual({ fixed: undefined, min: 60, max: 180 });
-    expect(rules.get('c-con')).toEqual({ fixed: 120, min: undefined, max: undefined });
-    expect(rules.has('c-none')).toBe(false);
+    expect(rules?.get('c-int')).toMatchObject({
+      min: 60,
+      max: 180,
+      forElement: 'Interior',
+      forLevel: 'Novice',
+    });
+    expect(rules?.get('c-con')).toMatchObject({ fixed: 120, forElement: 'Container' });
+    // Resolved with no rule: an explicit entry with no limits, NOT a missing one.
+    expect(rules?.get('c-none')).toEqual({ forElement: 'Buried', forLevel: 'Novice' });
   });
 
-  it('returns nothing (never throws) when a lookup fails', async () => {
+  it('returns null -- never "no rule" -- when a lookup fails', async () => {
     from.mockImplementation(() => query({ data: null, error: { message: 'boom' } }));
     const rules = await resolveTimeLimitRulesForClassRows([
       { id: 'c', trial_id: 't1', element: 'Interior', level: 'Novice' },
     ]);
-    expect(rules.size).toBe(0);
+    expect(rules).toBeNull();
   });
 });

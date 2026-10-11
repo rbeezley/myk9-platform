@@ -162,7 +162,8 @@ export interface ReplicatedClass {
   hideCount?: number | undefined;
   /**
    * Local-only: the max-time rule the judge may choose within, resolved at sync
-   * from sport_class_rules (MYK9-1086). Never uploaded.
+   * from sport_class_rules (MYK9-1086), tagged with the element/level it was
+   * resolved for so a stale one is detectable. Never uploaded.
    */
   timeLimitRule?: TimeLimitRule | undefined;
 
@@ -582,9 +583,9 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     });
 
     // MYK9-1086: the max-time rule the ringside Set Max Time dialog checks offline.
-    const timeLimitRuleByClassId = await resolveTimeLimitRulesForClassRows(rows).catch(
-      () => new Map<string, TimeLimitRule>()
-    );
+    // null = lookup failed: leave the cached rule (resolveConflict keeps it; the
+    // dialog checks it is still for the class's element/level before using it).
+    const timeLimitRuleByClassId = await resolveTimeLimitRulesForClassRows(rows).catch(() => null);
 
     // MYK9-494: names cannot come from a `people` embed — an exhibitor cannot read
     // another person's row, so the embed (or `people!inner`) yields nothing and every
@@ -606,7 +607,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       num_hides: hideCountByClassId.get(String(row.id)) ?? null,
       _selfCheckinEnabled: visibilityByClassId.get(String(row.id))?.selfCheckinEnabled,
       _visibilityPreset: visibilityByClassId.get(String(row.id))?.visibilityPreset,
-      _timeLimitRule: timeLimitRuleByClassId.get(String(row.id)),
+      _timeLimitRule: timeLimitRuleByClassId?.get(String(row.id)),
     }));
   }
 

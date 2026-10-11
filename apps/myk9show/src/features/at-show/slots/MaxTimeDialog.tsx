@@ -68,6 +68,10 @@ const MaxTimeForm: React.FC<MaxTimeDialogProps> = ({
         );
         return;
       }
+      if (range === 'lookup-failed') {
+        setError("Couldn't check this class's allowed max time. Try again.");
+        return;
+      }
       if (seconds < range.low || seconds > range.high) {
         setError(
           `Max time for this class must be between ${toMinutesSeconds(range.low)} and ${toMinutesSeconds(range.high)}.`

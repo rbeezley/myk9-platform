@@ -39,7 +39,7 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
       trialId: 't1',
       element: 'Interior',
       level: 'Novice',
-      timeLimitRule: { min: 60, max: 180 },
+      timeLimitRule: { min: 60, max: 180, forElement: 'Interior', forLevel: 'Novice' },
     });
     resolveRules.mockReset().mockResolvedValue(new Map());
   });
@@ -102,7 +102,12 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
   });
 
   it('reads keyboard-friendly entries: 4.30, 430 and a bare 4 (iPhone numeric pad has no colon)', async () => {
-    getClass.mockResolvedValue({ id: 'class-a', timeLimitRule: { min: 60, max: 900 } });
+    getClass.mockResolvedValue({
+      id: 'class-a',
+      element: 'Interior',
+      level: 'Novice',
+      timeLimitRule: { min: 60, max: 900, forElement: 'Interior', forLevel: 'Novice' },
+    });
     for (const [typed, seconds] of [
       ['4.30', 270],
       ['430', 270],
@@ -156,7 +161,9 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
       element: 'Container',
       level: 'Novice',
     });
-    resolveRules.mockResolvedValue(new Map([['class-a', { fixed: 120 }]]));
+    resolveRules.mockResolvedValue(
+      new Map([['class-a', { fixed: 120, forElement: 'Container', forLevel: 'Novice' }]])
+    );
     render(<MaxTimeDialog isOpen classData={classData} onClose={vi.fn()} />);
     fireEvent.change(screen.getByRole('textbox', { name: /max time/i }), {
       target: { value: '2:30' },
@@ -188,5 +195,44 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
     } finally {
       online.mockRestore();
     }
+  });
+
+  it("ignores a cached rule from before the class's element changed", async () => {
+    getClass.mockResolvedValue({
+      id: 'class-a',
+      trialId: 't1',
+      element: 'Exterior',
+      level: 'Novice',
+      timeLimitRule: { min: 60, max: 180, forElement: 'Interior', forLevel: 'Novice' },
+    });
+    resolveRules.mockResolvedValue(
+      new Map([['class-a', { min: 120, max: 240, forElement: 'Exterior', forLevel: 'Novice' }]])
+    );
+    render(<MaxTimeDialog isOpen classData={classData} onClose={vi.fn()} />);
+    fireEvent.change(screen.getByRole('textbox', { name: /max time/i }), {
+      target: { value: '1:30' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/2:00 and 4:00/);
+    expect(updateClass).not.toHaveBeenCalled();
+  });
+
+  it('refuses rather than guesses when the online rule lookup fails', async () => {
+    getClass.mockResolvedValue({
+      id: 'class-a',
+      trialId: 't1',
+      element: 'Interior',
+      level: 'Novice',
+    });
+    resolveRules.mockResolvedValue(null);
+    render(<MaxTimeDialog isOpen classData={classData} onClose={vi.fn()} />);
+    fireEvent.change(screen.getByRole('textbox', { name: /max time/i }), {
+      target: { value: '9:00' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/couldn.t check/i);
+    expect(updateClass).not.toHaveBeenCalled();
   });
 });

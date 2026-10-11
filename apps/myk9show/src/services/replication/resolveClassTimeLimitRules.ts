@@ -1,7 +1,8 @@
 /**
  * The max-time rule a class's judge may choose within, resolved at sync and kept on
  * the local class (like hide counts), so the ringside Set Max Time dialog can check
- * it offline before applying a time the server would refuse (MYK9-1086).
+ * it OFFLINE before applying a time the server would refuse (MYK9-1086). The judge
+ * decides the time while setting up the search, often with no signal.
  *
  * `timeLimitRuleRange` is the SAME range ringside_update_class enforces for judges:
  * a fixed rule caps at its fixed time, a judge-set rule spans min..max, otherwise
@@ -11,11 +12,20 @@ import { supabase } from '@/services/database/supabaseClient';
 import { logger } from '@/utils/logger';
 import { getTrialRegistry } from '@/features/registries';
 
+/**
+ * A resolved rule. `forElement`/`forLevel` record which class configuration it was
+ * resolved for, so a consumer can tell a stale rule (the class's element or level
+ * changed since) from a current one. No fixed/min/max means "resolved: no rule".
+ */
 export interface TimeLimitRule {
   fixed?: number | undefined;
   min?: number | undefined;
   max?: number | undefined;
+  forElement: string | null;
+  forLevel: string | null;
 }
+
+type RuleLimits = Pick<TimeLimitRule, 'fixed' | 'min' | 'max'>;
 
 interface RuleClassRow {
   id: string;
@@ -44,19 +54,33 @@ function organizationOf(rule: RuleRow): string | null {
 }
 
 /** The range a judge may set, mirroring the server's check. */
-export function timeLimitRuleRange(rule: TimeLimitRule | undefined): { low: number; high: number } {
+export function timeLimitRuleRange(rule: RuleLimits | undefined): { low: number; high: number } {
   if (rule?.fixed) return { low: 1, high: rule.fixed };
   if (rule?.min && rule?.max) return { low: rule.min, high: rule.max };
   return { low: 1, high: NO_RULE_MAX_SECONDS };
 }
 
-/** Max-time rules for these classes, by class id. Failures yield an empty map. */
+/** True when `rule` was resolved for the class's CURRENT element and level. */
+export function isRuleCurrent(
+  rule: TimeLimitRule | undefined,
+  cls: { element?: string | undefined; level?: string | undefined }
+): rule is TimeLimitRule {
+  return (
+    !!rule && rule.forElement === (cls.element ?? null) && rule.forLevel === (cls.level ?? null)
+  );
+}
+
+/**
+ * Max-time rules for these classes, by class id: every class with a trial gets an
+ * entry, with no limits when its registry has no rule for it. `null` means the
+ * lookup FAILED -- never read that as "no rule".
+ */
 export async function resolveTimeLimitRulesForClassRows(
   rows: RuleClassRow[]
-): Promise<Map<string, TimeLimitRule>> {
-  const byClassId = new Map<string, TimeLimitRule>();
-  const trialIds = [...new Set(rows.map(row => row.trial_id).filter((id): id is string => !!id))];
-  if (trialIds.length === 0) return byClassId;
+): Promise<Map<string, TimeLimitRule> | null> {
+  const withTrial = rows.filter(row => !!row.trial_id);
+  const trialIds = [...new Set(withTrial.map(row => row.trial_id as string))];
+  if (trialIds.length === 0) return new Map();
 
   const { data: trials, error: trialsError } = await supabase
     .from('trials')
@@ -67,13 +91,12 @@ export async function resolveTimeLimitRulesForClassRows(
       `[resolveClassTimeLimitRules] Trial lookup failed: ${trialsError.message}`,
       'replication'
     );
-    return byClassId;
+    return null;
   }
   const trialById = new Map((trials ?? []).map(trial => [trial.id as string, trial]));
   const registries = [
-    ...new Set((trials ?? []).map(trial => trial.registry_id).filter((id): id is string => !!id)),
+    ...new Set(withTrial.map(row => getTrialRegistry(trialById.get(row.trial_id as string)).id)),
   ];
-  if (registries.length === 0) return byClassId;
 
   const { data: rules, error: rulesError } = await supabase
     .from('sport_class_rules')
@@ -86,29 +109,32 @@ export async function resolveTimeLimitRulesForClassRows(
       `[resolveClassTimeLimitRules] Rule lookup failed: ${rulesError.message}`,
       'replication'
     );
-    return byClassId;
+    return null;
   }
 
   // Aggregate over section rows the same way the server does: max(fixed),
   // min(min), max(max).
-  const ruleByKey = new Map<string, TimeLimitRule>();
+  const limitsByKey = new Map<string, RuleLimits>();
   for (const rule of (rules ?? []) as unknown as RuleRow[]) {
     const organization = organizationOf(rule);
     if (!organization) continue;
     const k = key(organization, rule.element, rule.level);
-    const prev = ruleByKey.get(k) ?? {};
-    ruleByKey.set(k, {
+    const prev = limitsByKey.get(k) ?? {};
+    limitsByKey.set(k, {
       fixed: maxOf(prev.fixed, rule.max_time_seconds_fixed),
       min: minOf(prev.min, rule.max_time_seconds_min),
       max: maxOf(prev.max, rule.max_time_seconds_max),
     });
   }
 
-  for (const row of rows) {
-    if (!row.trial_id) continue;
-    const registry = getTrialRegistry(trialById.get(row.trial_id)).id;
-    const rule = registry ? ruleByKey.get(key(registry, row.element, row.level)) : undefined;
-    if (rule) byClassId.set(row.id, rule);
+  const byClassId = new Map<string, TimeLimitRule>();
+  for (const row of withTrial) {
+    const registry = getTrialRegistry(trialById.get(row.trial_id as string)).id;
+    byClassId.set(row.id, {
+      ...limitsByKey.get(key(registry, row.element, row.level)),
+      forElement: row.element ?? null,
+      forLevel: row.level ?? null,
+    });
   }
   return byClassId;
 }

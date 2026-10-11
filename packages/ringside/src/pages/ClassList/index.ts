@@ -26,3 +26,4 @@ export {
   isCombinedEntry,
   getClassIds,
 } from './utils/noviceClassGrouping';
+export { parseClassTime, type ParsedClassTime } from './utils/classTimeValue';

@@ -67,6 +67,8 @@ export {
   groupSectionedClasses,
   isCombinedEntry,
   getClassIds,
+  parseClassTime,
+  type ParsedClassTime,
 } from './pages/ClassList';
 
 // ── Pages: EntryList (PR E2a + E2b) ──────────────────────────────────────

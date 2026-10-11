@@ -8,7 +8,7 @@
  * re-sorts the list under a judge's finger on venue wifi.
  */
 import { describe, it, expect } from 'vitest';
-import type { ClassEntry } from '@myk9/ringside';
+import { groupSectionedClasses, type ClassEntry } from '@myk9/ringside';
 import {
   classScanPriority,
   sortClassesForAtShowScan,
@@ -77,5 +77,30 @@ describe('at-show scan ordering is stable across entry hydration', () => {
     expect(classScanPriority(classEntry({ entry_count: 66 }))).toBe(2);
     expect(yourRingScanPriority(classEntry({ class_status: 'in_progress' }))).toBe(0);
     expect(yourRingScanPriority(classEntry({ entry_count: 66 }))).toBe(1);
+  });
+});
+
+describe('combined A/B card sorts on both sections (MYK9-1092)', () => {
+  const ukcPair = (aStatus: ClassEntry['class_status'], bStatus: ClassEntry['class_status']) => [
+    classEntry({ id: 'a', section: 'A', class_name: 'Interior Advanced A', class_status: aStatus }),
+    classEntry({ id: 'b', section: 'B', class_name: 'Interior Advanced B', class_status: bStatus }),
+  ];
+  const other = classEntry({ id: 'x', class_name: 'Zulu', class_order: 9, class_status: 'setup' });
+
+  it('does not sort as finished while Section B is still running', () => {
+    const grouped = groupSectionedClasses(ukcPair('completed', 'in_progress'), 'UKC');
+    expect(grouped).toHaveLength(1);
+    expect(grouped[0]?.class_status).toBe('in_progress');
+    const sorted = sortClassesForAtShowScan([other, ...grouped]);
+    expect(sorted.map(c => c.id)).toEqual(['a', 'x']);
+  });
+
+  it('is no longer live once both sections are completed', () => {
+    const [live] = groupSectionedClasses(ukcPair('completed', 'in_progress'), 'UKC');
+    const [done] = groupSectionedClasses(ukcPair('completed', 'completed'), 'UKC');
+    expect(done?.class_status).toBe('completed');
+    expect(classScanPriority(live as ClassEntry)).toBeLessThan(
+      classScanPriority(done as ClassEntry)
+    );
   });
 });

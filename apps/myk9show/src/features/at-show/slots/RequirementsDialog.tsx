@@ -33,8 +33,12 @@ export const ClassRequirementsDialog: React.FC<ClassRequirementsDialogProps> = (
   classData,
 }) => {
   // Live: a max time saved on another device shows without reopening.
-  const cls = useLiveClasses(classData.id ? [classData.id] : [], isOpen)?.[0] ?? null;
+  const live = useLiveClasses(classData.id ? [classData.id] : [], isOpen);
   if (!isOpen) return null;
+  const cls = live?.[0] ?? null;
+  // A finished read that found no class (or a list with no single class) is not
+  // loading: say so, and keep Set Max Time reachable.
+  const loading = !!classData.id && live === null;
 
   const requirements = cls ? classRequirementsFromClass(cls, classData.registry ?? '') : null;
   const maxTime = (
@@ -46,6 +50,18 @@ export const ClassRequirementsDialog: React.FC<ClassRequirementsDialogProps> = (
       subtitle={onSetMaxTime ? 'Tap to set' : undefined}
     />
   );
+  const maxTimeCard = onSetMaxTime ? (
+    <button
+      type="button"
+      className="block w-full text-left"
+      onClick={onSetMaxTime}
+      aria-label="Set Max Time"
+    >
+      {maxTime}
+    </button>
+  ) : (
+    maxTime
+  );
 
   return (
     <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
@@ -56,27 +72,21 @@ export const ClassRequirementsDialog: React.FC<ClassRequirementsDialogProps> = (
         <p>
           {classData.element} {classData.level} · {classData.entry_count} entries
         </p>
-        {requirements ? (
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading requirements…</p>
+        ) : requirements ? (
           <ClassRequirementsCards
             requirements={requirements}
             className="space-y-3"
-            leading={
-              onSetMaxTime ? (
-                <button
-                  type="button"
-                  className="block w-full text-left"
-                  onClick={onSetMaxTime}
-                  aria-label="Set Max Time"
-                >
-                  {maxTime}
-                </button>
-              ) : (
-                maxTime
-              )
-            }
+            leading={maxTimeCard}
           />
         ) : (
-          <p className="text-sm text-muted-foreground">Loading requirements…</p>
+          <div className="space-y-3">
+            {maxTimeCard}
+            <p className="text-sm text-muted-foreground">
+              This class&apos;s rules aren&apos;t on this device yet. They load on the next sync.
+            </p>
+          </div>
         )}
         <DialogFooter>
           <Button variant="ghost" onClick={onClose}>

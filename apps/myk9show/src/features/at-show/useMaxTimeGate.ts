@@ -72,25 +72,27 @@ export function useMaxTimeGate({
     setMaxTimeRequiredWarning(true);
     setMaxTimeDialogOpen(true);
   }, [setMaxTimeDialogOpen, setMaxTimeRequiredWarning]);
-  const promptedRef = useRef(false);
+  // The classes already asked about: a list reused for another class asks again.
+  const promptedRef = useRef<string | null>(null);
+  const idsKey = classIds.join(',');
 
   // The judge is asked once when the list opens; a dog tap asks again.
   useEffect(() => {
-    if (ready && needsMaxTime && mayAsk && !promptedRef.current) {
-      promptedRef.current = true;
+    if (ready && needsMaxTime && mayAsk && promptedRef.current !== idsKey) {
+      promptedRef.current = idsKey;
       openRequired();
     }
-  }, [ready, needsMaxTime, mayAsk, openRequired]);
+  }, [ready, needsMaxTime, mayAsk, idsKey, openRequired]);
 
   // Asked while the assignment check was still running, then found unassigned:
   // withdraw the prompt, since the server would refuse that judge's save.
   const denied = assignment.status === 'unassigned';
   useEffect(() => {
-    if (denied && promptedRef.current) {
+    if (denied && promptedRef.current === idsKey) {
       setMaxTimeRequiredWarning(false);
       setMaxTimeDialogOpen(false);
     }
-  }, [denied, setMaxTimeDialogOpen, setMaxTimeRequiredWarning]);
+  }, [denied, idsKey, setMaxTimeDialogOpen, setMaxTimeRequiredWarning]);
 
   /** True when a dog tap must not open the scoresheet yet. */
   const gateEntryClick = useCallback((): boolean => {

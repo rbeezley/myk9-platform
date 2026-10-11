@@ -158,7 +158,7 @@ const CLASS_RULE_DELTAS: Readonly<Partial<Record<RegistryId, readonly ClassRuleD
     },
     {
       migration: '20261011211700_myk9_1102_thirty_second_warning.sql',
-      why: 'adds has_30_second_warning and turns it off for AKC Master; no class is added or removed',
+      why: 'adds has_30_second_warning and turns it off for AKC Master and Detective; no class is added or removed',
       proves: sql => {
         expect(sql).toMatch(/ALTER TABLE public\.sport_class_rules/i);
         expect(sql).toMatch(
@@ -167,6 +167,7 @@ const CLASS_RULE_DELTAS: Readonly<Partial<Record<RegistryId, readonly ClassRuleD
         expect(sql).toMatch(/SET has_30_second_warning = false/i);
         expect(sql).toMatch(/organization = 'AKC'/i);
         expect(sql).toMatch(/level = 'Master'/i);
+        expect(sql).toMatch(/element = 'Detective'/i);
         expect(sql).not.toMatch(/INSERT INTO/i);
         expect(sql).not.toMatch(/DELETE FROM/i);
       },

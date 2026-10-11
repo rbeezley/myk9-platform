@@ -26,8 +26,26 @@ import {
  * assertion would certify a no-op (LESSONS source-text-tests).
  */
 
+/**
+ * `gc --auto` and maintenance can detach and keep writing objects after the git
+ * call that triggered them returns. A cleanup that runs in that window fails with
+ * ENOTEMPTY (MYK9-1077), so every repo here opts out and every call carries the
+ * same flags.
+ */
+const NO_BACKGROUND_GC = ['-c', 'gc.auto=0', '-c', 'maintenance.auto=false'] as const;
+
 function git(args: readonly string[], cwd: string): string {
-  return execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+  return execFileSync('git', [...NO_BACKGROUND_GC, ...args], {
+    cwd,
+    encoding: 'utf8',
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+}
+
+/** Persist the no-background-gc setting in each repo's own config, not only on the call line. */
+function disableBackgroundGc(repo: string): void {
+  git(['config', 'gc.auto', '0'], repo);
+  git(['config', 'maintenance.auto', 'false'], repo);
 }
 
 interface Fixture {
@@ -45,8 +63,10 @@ beforeEach(() => {
   const root = realpathSync(mkdtempSync(join(tmpdir(), 'myk9 primary guard ')));
   git(['init', '--bare', '--initial-branch=main', 'origin repo'], root);
   const origin = join(root, 'origin repo');
+  disableBackgroundGc(origin);
   const primary = join(root, 'primary checkout');
   git(['clone', origin, 'primary checkout'], root);
+  disableBackgroundGc(primary);
   git(['config', 'user.email', 'guard@test.local'], primary);
   git(['config', 'user.name', 'Guard Test'], primary);
   git(['config', 'commit.gpgsign', 'false'], primary);
@@ -58,14 +78,15 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  if (fx?.root) rmSync(fx.root, { recursive: true, force: true });
+  if (fx?.root) rmSync(fx.root, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
 });
 
 /** Advance origin/main by n commits without touching the primary's working tree. */
 function advanceOrigin(n: number): void {
   const pusher = join(fx.root, 'pusher');
-  rmSync(pusher, { recursive: true, force: true });
+  rmSync(pusher, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   git(['clone', fx.origin, 'pusher'], fx.root);
+  disableBackgroundGc(pusher);
   git(['config', 'user.email', 'guard@test.local'], pusher);
   git(['config', 'user.name', 'Guard Test'], pusher);
   git(['config', 'commit.gpgsign', 'false'], pusher);
@@ -231,6 +252,7 @@ describe('render', () => {
     const repo = realpathSync(mkdtempSync(join(tmpdir(), 'primary-checkout-binary-')));
     try {
       git(['init', '-q'], repo);
+      disableBackgroundGc(repo);
       git(['config', 'user.email', 'test@example.test'], repo);
       git(['config', 'user.name', 'Test'], repo);
       writeFileSync(join(repo, 'logo.bin'), Buffer.from([0, 1, 2, 3, 255, 0, 10, 13, 0]));
@@ -252,7 +274,7 @@ describe('render', () => {
 
       expect(readFileSync(join(repo, 'logo.bin'))).toEqual(edited);
     } finally {
-      rmSync(repo, { recursive: true, force: true });
+      rmSync(repo, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
     }
   });
 });

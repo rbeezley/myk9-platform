@@ -203,7 +203,7 @@ describe('getCockpitJudgeDayCatalogHref (MYK9-1036)', () => {
         returnTo: '/shows/show-1/results',
       })
     ).toBe(
-      `/shows/show-1/reports?judgeId=judge%2F1&day=2026-10-10&report=result-catalog&returnTo=${encodeURIComponent('/shows/show-1/results')}`
+      `/shows/show-1/reports?report=result-catalog&judgeId=judge%2F1&day=2026-10-10&returnTo=${encodeURIComponent('/shows/show-1/results')}`
     );
   });
 });

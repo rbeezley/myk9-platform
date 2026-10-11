@@ -388,7 +388,9 @@ describe('ReportControlsBar', () => {
 
   describe("Judge's day picker (MYK9-1036)", () => {
     const judgeDay = {
+      selectedLabel: 'Pat Judge · Sat, Oct 10',
       options: [
+        { key: 'all', label: 'All judges' },
         { key: 'k1', label: 'Pat Judge · Sat, Oct 10' },
         { key: 'k2', label: 'Sam Judge · Sat, Oct 10' },
       ],
@@ -421,8 +423,8 @@ describe('ReportControlsBar', () => {
         />
       );
       await user.click(screen.getByRole('combobox', { name: /judge's day/i }));
-      expect(screen.getByRole('option', { name: 'All judges' })).toBeInTheDocument();
-      await user.click(screen.getByRole('option', { name: 'Sam Judge · Sat, Oct 10' }));
+      expect(await screen.findByRole('option', { name: 'All judges' })).toBeInTheDocument();
+      await user.click(await screen.findByRole('option', { name: 'Sam Judge · Sat, Oct 10' }));
       expect(onChange).toHaveBeenCalledWith('k2');
     });
   });

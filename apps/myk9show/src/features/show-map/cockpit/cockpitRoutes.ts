@@ -136,8 +136,11 @@ export function getCockpitJudgeDayCatalogHref(input: {
   date: string;
   returnTo: string;
 }): string {
-  const params = new URLSearchParams({ judgeId: input.judgeId, day: input.date });
-  params.set('report', 'result-catalog');
+  const params = new URLSearchParams({
+    report: 'result-catalog',
+    judgeId: input.judgeId,
+    day: input.date,
+  });
   return withReturnTo(
     `/shows/${encodeURIComponent(input.showId)}/reports?${params.toString()}`,
     input.returnTo

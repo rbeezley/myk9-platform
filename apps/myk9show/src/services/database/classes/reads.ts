@@ -62,18 +62,19 @@ function mapClassesWithJoins(
     const trial = cls.trialId ? (trialsMap.get(cls.trialId) ?? null) : null;
 
     // Build judge_assignments from denormalized fields on ReplicatedClass
-    const judgeAssignments =
-      cls.judgeId && cls.judgeName
-        ? [
-            {
-              person_id: cls.judgeId,
-              people: {
-                first_name: cls.judgeName.split(' ')[0] || '',
-                last_name: cls.judgeName.split(' ').slice(1).join(' ') || '',
-              },
+    const judgeAssignments = cls.judgeId
+      ? [
+          {
+            person_id: cls.judgeId,
+            // The replica only holds the confirmed judge; a missing name must not drop it.
+            status: 'confirmed',
+            people: {
+              first_name: (cls.judgeName ?? '').split(' ')[0] || '',
+              last_name: (cls.judgeName ?? '').split(' ').slice(1).join(' ') || '',
             },
-          ]
-        : [];
+          },
+        ]
+      : [];
 
     return mapReplicatedClassToDbRow(cls, {
       trial: trial
@@ -230,7 +231,9 @@ async function postgrestGetAllClasses() {
         status
       ),
       judge_assignments!judge_assignments_class_id_fkey (
+        id,
         person_id,
+        status,
         people!inner (
           first_name,
           last_name

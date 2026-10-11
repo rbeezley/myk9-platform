@@ -3,6 +3,7 @@
 // and replication-to-DB-row mapping for offline-first reads.
 
 import { mapFields } from './mapperUtils';
+import { pickConfirmedAssignment } from '@/services/database/_shared/classJudgeFields';
 import { resolveClassSection } from '@/services/entryDisplay/entryDisplaySelectors';
 import type {
   DbClass,
@@ -230,8 +231,19 @@ export const mapDatabaseToClass = (dbClass: DbClassWithRelations): SyncableClass
 
   // Extract judge from joined judge_assignments data
   const judgeAssignments = (dbClass as unknown as Record<string, unknown>).judge_assignments as
-    Array<{ person_id: string; people: { first_name: string; last_name: string } }> | undefined;
-  const firstJudge = judgeAssignments?.[0];
+    | Array<{
+        id?: string | null;
+        person_id: string;
+        status?: string | null;
+        people: { first_name: string; last_name: string } | null;
+      }>
+    | undefined;
+  // Only a CONFIRMED assignment names a judge (as `resolveClassJudgeFields` does), so a declined
+  // or invited person never becomes the class's judge. A row whose read did not select `status`
+  // keeps the first assignment, as before.
+  const firstJudge = judgeAssignments?.some(item => item.status != null)
+    ? pickConfirmedAssignment(judgeAssignments)
+    : judgeAssignments?.[0];
   const assignmentJudgeName = firstJudge?.people
     ? `${firstJudge.people.first_name} ${firstJudge.people.last_name}`.trim()
     : undefined;
@@ -467,6 +479,7 @@ export const mapReplicatedClassToDbRow = (
     entryCount?: number;
     judgeAssignments?: Array<{
       person_id: string;
+      status?: string;
       people: { first_name: string; last_name: string };
     }>;
     entries?: Array<Record<string, unknown>>;

@@ -10,7 +10,7 @@
  *
  * Pure, so the grouping and the record/undo gates are tested on the real row shape.
  */
-import { formatJudgeDayDate } from '@/features/show-map/judgeDay';
+import { formatJudgeDayDate, trialCalendarDate } from '@/features/show-map/judgeDay';
 import type { ReportScope } from '@/lib/reports/types';
 import type { ResultsClassRow } from './buildResultsClassRows';
 
@@ -81,6 +81,7 @@ export function buildJudgeSignOffGroup(
     recordable: row.signOffRecordable && row.judgeSignedOffAt === null,
   }));
   const dayComplete = dayRows.every(row => row.runFinished);
+  const catalogDate = trialCalendarDate(selected.trialDate);
   return {
     key: selected.judgeDayKey,
     judgeName: selected.judgeName,
@@ -91,8 +92,8 @@ export function buildJudgeSignOffGroup(
     signedCount: classes.filter(item => item.signedOffAt !== null).length,
     dayComplete,
     recordClassIds: dayComplete ? classes.filter(item => item.recordable).map(item => item.id) : [],
-    ...(selected.judgeId && selected.trialDate
-      ? { catalogJudgeDay: { judgeId: selected.judgeId, date: selected.trialDate.slice(0, 10) } }
+    ...(selected.judgeId && catalogDate
+      ? { catalogJudgeDay: { judgeId: selected.judgeId, date: catalogDate } }
       : {}),
     catalogScope: catalogScopeFor(showId, members),
   };

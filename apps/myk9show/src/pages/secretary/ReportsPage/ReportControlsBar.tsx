@@ -12,6 +12,7 @@ import { getReportById } from '@/lib/reports/reportRegistry';
 import { formatClassLabel } from '@/lib/utils';
 import { AlertTriangle, Download } from 'lucide-react';
 import type { TrialReportOption } from './reportScopedRegistries';
+import type { JudgeDayControl } from './useJudgeDayReportScope';
 
 // Trial/class rows carry a non-null `name` (the canonical human label) plus
 // nullable element/level/section/trial_number columns. Build the option label
@@ -46,13 +47,6 @@ function formatDogOptionLabel(dog: {
   const registered = dog.registeredName ? ` (${dog.registeredName})` : '';
   const armband = dog.armband != null ? ` · #${dog.armband}` : '';
   return `${dog.callName}${registered}${armband}`;
-}
-
-/** MYK9-1036: the Result Catalog's judge + day picker (see useJudgeDayReportScope). */
-export interface JudgeDayControl {
-  options: ReadonlyArray<{ key: string; label: string }>;
-  value: string;
-  onChange: (key: string) => void;
 }
 
 export interface OfficialPdfAction {
@@ -156,9 +150,6 @@ export function ReportControlsBar({
   // option values are kebab-case strings (`run-order`) and the collapsed trigger would
   // otherwise print them. Resolve the human label from the report registry.
   const isPdfOnlyReport = selectedReport?.pdfOnly ?? false;
-  const selectedJudgeDayLabel =
-    judgeDay?.options.find(option => option.key === judgeDay.value)?.label ??
-    (judgeDay?.value === 'unresolved' ? 'Judge and day not found' : 'All judges');
   const selectedSortLabel =
     selectedReport?.sortOptions.find(opt => opt.value === sortOrder)?.label ?? 'Sort by';
 
@@ -217,10 +208,9 @@ export function ReportControlsBar({
           </label>
           <Select value={judgeDay.value} onValueChange={judgeDay.onChange}>
             <SelectTrigger id="judge-day-select" className="h-11 w-full sm:w-[280px]">
-              <SelectValue placeholder="All judges">{selectedJudgeDayLabel}</SelectValue>
+              <SelectValue placeholder="All judges">{judgeDay.selectedLabel}</SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All judges</SelectItem>
               {judgeDay.options.map(option => (
                 <SelectItem key={option.key} value={option.key}>
                   {option.label}
@@ -228,6 +218,11 @@ export function ReportControlsBar({
               ))}
             </SelectContent>
           </Select>
+          {judgeDay.notice && (
+            <p className="text-xs text-muted-foreground" role="status">
+              {judgeDay.notice}
+            </p>
+          )}
         </div>
       )}
 

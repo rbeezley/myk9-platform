@@ -8,7 +8,11 @@
  * grouping is `groupClassesByJudgeDay`, the same one the sign-off uses. The day is the trial's
  * calendar date, as the Show Map reads it, never the browser's date.
  */
-import { formatJudgeDayDate, groupClassesByJudgeDay } from '@/features/show-map/judgeDay';
+import {
+  formatJudgeDayDate,
+  groupClassesByJudgeDay,
+  trialCalendarDate,
+} from '@/features/show-map/judgeDay';
 import { resolveClassJudgeFields } from '@/services/database/_shared/classJudgeFields';
 
 export interface ReportJudgeDayClassRow {
@@ -34,7 +38,7 @@ export interface ReportJudgeDay {
   classIds: string[];
 }
 
-export const JUDGE_NAME_UNAVAILABLE = 'Judge name unavailable';
+const JUDGE_NAME_UNAVAILABLE = 'Judge name unavailable';
 
 /** Every judge's day among the show's classes, in class order; a class with no judge is in none. */
 export function listReportJudgeDays(
@@ -42,7 +46,7 @@ export function listReportJudgeDays(
   trials: readonly ReportJudgeDayTrialRow[]
 ): ReportJudgeDay[] {
   const dateByTrialId = new Map(
-    trials.map(trial => [trial.id, trial.date?.trim().slice(0, 10) || undefined] as const)
+    trials.map(trial => [trial.id, trialCalendarDate(trial.date)] as const)
   );
   const resolved = classes.flatMap(row => {
     const judge = resolveClassJudgeFields({ judge_assignments: row.judge_assignments });
@@ -76,14 +80,6 @@ export function listReportJudgeDays(
         ]
       : []
   );
-}
-
-export function findReportJudgeDay(
-  days: readonly ReportJudgeDay[],
-  judgeId: string | null | undefined,
-  date: string | null | undefined
-): ReportJudgeDay | undefined {
-  return days.find(day => day.judgeId === judgeId && day.date === date);
 }
 
 /** The day's classes, and only the entries in them. */

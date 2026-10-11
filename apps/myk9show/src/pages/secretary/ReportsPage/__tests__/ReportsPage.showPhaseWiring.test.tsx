@@ -82,14 +82,6 @@ vi.mock('@/hooks/queries/useReportData', () => ({
             section: '',
             trial_id: 'trial-1',
             judge_name: 'Pat Judge',
-            judge_assignments: [
-              {
-                id: 'a-pat',
-                person_id: 'j-pat',
-                status: 'confirmed',
-                people: { first_name: 'Pat', last_name: 'Judge' },
-              },
-            ],
             time_limit_seconds: 120,
             time_limit_area2_seconds: null,
             time_limit_area3_seconds: null,
@@ -102,14 +94,6 @@ vi.mock('@/hooks/queries/useReportData', () => ({
             section: '',
             trial_id: 'trial-2',
             judge_name: 'Sam Judge',
-            judge_assignments: [
-              {
-                id: 'a-sam',
-                person_id: 'j-sam',
-                status: 'confirmed',
-                people: { first_name: 'Sam', last_name: 'Judge' },
-              },
-            ],
           },
         ],
     entries: mockReportState.isLoading
@@ -305,39 +289,6 @@ describe('ReportsPage shows the report phases as visible sections', () => {
       .getAllByTestId('report-card')
       .map(item => item.getAttribute('data-report-id'));
     expect(ids.slice(0, 2)).toEqual(['check-in-sheet', 'scoresheet']);
-  });
-
-  // MYK9-1036: the page hands the preview ONLY the picked judge's classes and entries, and the
-  // picker names that same judge (one source: listReportJudgeDays).
-  it('opens the Result Catalog on one judge’s day from a deep link keyed on the judge id', () => {
-    renderPage('/shows/show-1/reports?report=result-catalog&judgeId=j-sam&day=2026-04-13');
-
-    expect((seenRows.classes as Array<{ id: string }>).map(c => c.id)).toEqual(['class-2']);
-    expect(seenRows.entries).toEqual([]);
-    expect(screen.getByRole('combobox', { name: /judge's day/i }).textContent).toContain(
-      'Sam Judge · Mon, Apr 13'
-    );
-  });
-
-  it('prints nothing, not the whole show, when the linked judge day does not exist', () => {
-    renderPage('/shows/show-1/reports?report=result-catalog&judgeId=j-nobody&day=2026-04-13');
-
-    expect(seenRows.classes).toEqual([]);
-    expect(seenRows.entries).toEqual([]);
-    expect(screen.getByRole('combobox', { name: /judge's day/i }).textContent).toContain(
-      'Judge and day not found'
-    );
-  });
-
-  it('shows every class again with All judges, and has no picker on other reports', () => {
-    renderPage('/shows/show-1/reports?report=result-catalog');
-    expect((seenRows.classes as Array<{ id: string }>).map(c => c.id)).toEqual([
-      'class-1',
-      'class-2',
-    ]);
-    expect(screen.getByRole('combobox', { name: /judge's day/i }).textContent).toContain(
-      'All judges'
-    );
   });
 
   it('still lists the pre-show reports — the order is not a filter', () => {

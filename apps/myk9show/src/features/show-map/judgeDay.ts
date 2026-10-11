@@ -82,6 +82,11 @@ export function openJudgeDayKeys(
   return open;
 }
 
+/** The trial's calendar date (`YYYY-MM-DD`) as the Show Map reads it; undefined when absent. */
+export function trialCalendarDate(raw: string | null | undefined): string | undefined {
+  return raw?.trim().slice(0, 10) || undefined;
+}
+
 /** "Sat, Oct 10" — the day as the sign-off action names it. */
 export function formatJudgeDayDate(date: string | null | undefined): string {
   const full = formatEntryDate(date);

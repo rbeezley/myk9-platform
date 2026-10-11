@@ -163,6 +163,16 @@ describe('classQueries (replication)', () => {
   // getAllClasses
   // -----------------------------------------------------------------------
   describe('getAllClasses', () => {
+    it('keeps the judge as a confirmed assignment when the replica has no judge name (MYK9-1036)', async () => {
+      setupListMocks([makeClass({ judgeId: 'person-1', judgeName: undefined })]);
+
+      const result = await getAllClasses();
+
+      expect((result.data[0] as Record<string, unknown>).judge_assignments).toEqual([
+        { person_id: 'person-1', status: 'confirmed', people: { first_name: '', last_name: '' } },
+      ]);
+    });
+
     it('returns correct snake_case shape with joined data', async () => {
       setupListMocks();
 

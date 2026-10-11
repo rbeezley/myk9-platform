@@ -25,7 +25,7 @@ import { recordPaperworkPrinted } from '@/features/show-map/cockpit/paperworkPri
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useReportDogOptions } from './useReportDogOptions';
 import { useReportScopeOptions } from './useReportScopeOptions';
-import { resolveInitialJudgeDay, useJudgeDayReportScope } from './useJudgeDayReportScope';
+import { useJudgeDayReportScope } from './useJudgeDayReportScope';
 import type { ReportDbEntry } from '@/lib/reports/types';
 import { useHostedReportData } from './useHostedReportData';
 import { resolvePrintReadiness } from './reportReadinessCopy';
@@ -141,10 +141,10 @@ export default function ReportsPage() {
   const { trialOptions, classOptions } = useReportScopeOptions(resolvedTrials, classes);
 
   // MYK9-1036: one judge's day of the Result Catalog, a filter over this show-wide read.
-  const [initialJudgeDay] = useState(() => resolveInitialJudgeDay(searchParams));
   const judgeDay = useJudgeDayReportScope({
     reportType,
-    initial: initialJudgeDay,
+    searchParams,
+    dataState,
     classes: classes as Array<{ id: string; trial_id?: string | null }> | undefined,
     entries: entries as ReportDbEntry[] | undefined,
     trials: resolvedTrials as Array<{ id: string; date?: string | null }>,
@@ -175,9 +175,14 @@ export default function ReportsPage() {
     setClassId('all');
   };
 
+  const handleClassChange = (value: string) => {
+    judgeDay.clear();
+    setClassId(value);
+  };
+
   // A judge's day spans trials, so it reads the whole show: it replaces the trial and class picks.
   const handleJudgeDayChange = (key: string) => {
-    judgeDay.select(key);
+    judgeDay.control?.onChange(key);
     setTrialId('all');
     setClassId('all');
   };
@@ -189,9 +194,6 @@ export default function ReportsPage() {
 
   const paperworkDescriptor = useMemo(() => {
     if (reportType === 'armband-labels') return armbandDescriptor;
-    // A judge's day is not a show, trial or class scope: recording it printed would stamp the
-    // whole show's catalog, so it is not tracked (MYK9-1036).
-    if (judgeDay.isFiltering) return null;
     return buildReportPaperworkDescriptor({
       reportId: reportType,
       scope: effectiveScope,
@@ -202,7 +204,7 @@ export default function ReportsPage() {
         typeof buildReportPaperworkDescriptor
       >[0]['entries'],
     });
-  }, [armbandDescriptor, reportType, effectiveScope, classes, entries, judgeDay.isFiltering]);
+  }, [armbandDescriptor, reportType, effectiveScope, classes, entries]);
   const { printStatusUnavailable, printStatusChecking, printStatusKnown, printState, printChips } =
     useReportPrintStatus({
       showId: showId ?? '',
@@ -216,6 +218,10 @@ export default function ReportsPage() {
       timeZone: showTimeZone,
     });
 
+  type PreviewProps = Parameters<typeof ReportPreview>[0];
+  const previewClasses = (judgeDay.scoped?.classes ?? classes) as PreviewProps['classes'];
+  const previewEntries = (judgeDay.scoped?.entries ?? entries) as PreviewProps['entries'];
+
   const handlePrint = () => {
     // Check the DATA before the iframe. A paused query renders an empty report
     // whose iframe body is non-empty, so printIframe() happily returns true and
@@ -228,6 +234,11 @@ export default function ReportsPage() {
     // are NOT exempt -- they are handed trials/classes/entries as props.
     if (reportType !== 'armband-labels' && printReadiness.blockedMessage) {
       toast(printReadiness.blockedMessage);
+      return;
+    }
+    // A linked judge day that is not in this show would print an empty catalog (MYK9-1036).
+    if (judgeDay.notFoundMessage) {
+      toast(judgeDay.notFoundMessage);
       return;
     }
     if (!printIframe(iframeRef)) {
@@ -364,23 +375,12 @@ export default function ReportsPage() {
           dogs={dogOptions}
           dogsUnavailable={dogOptionsUnavailable}
           onTrialChange={handleTrialChange}
-          onClassChange={value => {
-            judgeDay.clear();
-            setClassId(value);
-          }}
+          onClassChange={handleClassChange}
           onDogChange={setDogId}
           onSortChange={setSortOrder}
           onPrint={handlePrint}
           officialPdfAction={officialPdfAction}
-          judgeDay={
-            reportType === 'result-catalog'
-              ? {
-                  options: judgeDay.options,
-                  value: judgeDay.value,
-                  onChange: handleJudgeDayChange,
-                }
-              : undefined
-          }
+          judgeDay={judgeDay.control && { ...judgeDay.control, onChange: handleJudgeDayChange }}
         />
       </div>
 
@@ -430,16 +430,8 @@ export default function ReportsPage() {
               reportType={reportType}
               show={show}
               trials={trials as Parameters<typeof ReportPreview>[0]['trials']}
-              classes={
-                (judgeDay.scoped?.classes ?? classes) as Parameters<
-                  typeof ReportPreview
-                >[0]['classes']
-              }
-              entries={
-                (judgeDay.scoped?.entries ?? entries) as Parameters<
-                  typeof ReportPreview
-                >[0]['entries']
-              }
+              classes={previewClasses}
+              entries={previewEntries}
               trialId={trialId}
               classId={classId}
               dogId={dogId}

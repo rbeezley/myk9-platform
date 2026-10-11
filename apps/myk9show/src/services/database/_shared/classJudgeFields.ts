@@ -52,7 +52,7 @@ export interface ClassJudgeSource {
  * Lowest `id` wins, so a class with two confirmed assignments resolves to the same one on every
  * device and on every read — the same tie-break `fetchShowJudgeNameParts` applies to the RPC.
  */
-function pickConfirmedAssignment(
+export function pickConfirmedAssignment(
   assignments: readonly ClassJudgeAssignmentEmbed[]
 ): ClassJudgeAssignmentEmbed | undefined {
   let chosen: ClassJudgeAssignmentEmbed | undefined;

@@ -125,6 +125,19 @@ describe('useMaxTimeGate (MYK9-1099)', () => {
     await waitFor(() => expect(setMaxTimeDialogOpen).toHaveBeenCalledWith(true));
   });
 
+  it('withdraws the prompt when the assignment check then finds the judge unassigned', async () => {
+    assignment.status = 'checking';
+    seed('c1');
+    const { setMaxTimeDialogOpen, setMaxTimeRequiredWarning, rerender } = setup();
+    await waitFor(() => expect(setMaxTimeDialogOpen).toHaveBeenCalledWith(true));
+
+    assignment.status = 'unassigned';
+    rerender();
+
+    expect(setMaxTimeDialogOpen).toHaveBeenLastCalledWith(false);
+    expect(setMaxTimeRequiredWarning).toHaveBeenLastCalledWith(false);
+  });
+
   it('does not lock the list when the class read fails', async () => {
     seed('c1');
     replica.getClassById.mockRejectedValueOnce(new Error('idb'));

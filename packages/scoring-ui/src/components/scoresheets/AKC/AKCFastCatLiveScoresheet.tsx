@@ -17,7 +17,7 @@ import { registerScoresheet } from '../../../utils/getScoresheetComponent';
 import { DQ_ACTIVE_CLASS, DisqualifyReason } from '../../DisqualifyReason';
 import type { LiveScoresheetProps } from '../../../types';
 
-// FastCAT results differ from standard Scent Work (E instead of EX, adds DQ)
+// FastCAT results: the standard codes plus DQ
 type FastCATResult = 'Q' | 'NQ' | 'EX' | 'DQ';
 
 const RESULT_OPTIONS: { value: FastCATResult; label: string; activeClass: string }[] = [

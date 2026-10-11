@@ -66,8 +66,10 @@ export class MutationManager {
       this.queueStore,
       () => this.backupStore.writeCurrent(),
       () => this.requireCurrentUploadContext(),
-      (tableName, rowId) => this.rowRefetchers.request(tableName, rowId)
+      (tableName, rowId) => this.rowRefetchers.request(tableName, rowId),
+      (tableName, rowId) => this.rowRefetchers.requestRefusedRepull(tableName, rowId)
     );
+    this.queueStore.repullsRefused = tableName => this.rowRefetchers.repullsRefused(tableName);
   }
 
   private async requireCurrentUserId(): Promise<string> {
@@ -265,15 +267,14 @@ export class MutationManager {
     this.scheduleUpload();
   }
 
-  /**
-   * Permanently discard a failed mutation after user review.
-   */
+  /** Permanently discard a failed mutation after user review. */
   async discardFailedMutation(mutationId: string): Promise<void> {
     const authUserId = await this.requireCurrentUserId();
     const discarded = await this.queueStore.discardFailedMutation(mutationId, authUserId, () =>
       this.requireSameCurrentUserId(authUserId)
     );
     if (!discarded) return;
+    void this.rowRefetchers.requestDiscardedRepull(discarded); // MYK9-1076; skipped offline
     // Refresh the localStorage backup: failed mutations are included in it, so
     // without this a discarded mutation is restored (and re-surfaced) after a
     // circuit-breaker recovery or startup restore — the discard wouldn't be

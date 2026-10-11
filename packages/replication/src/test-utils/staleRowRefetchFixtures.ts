@@ -222,13 +222,18 @@ export async function teardownStaleRowTest(manager: MutationManager | undefined)
   await databaseManager.reset();
 }
 
-export function startStaleRowManager(table: ReplicatedTable<LocalEntry>, supabase: SupabaseClient) {
+export function startStaleRowManager(
+  table: ReplicatedTable<LocalEntry>,
+  supabase: SupabaseClient,
+  options: { maxRetries?: number } = {}
+) {
   const logger: Logger = { log: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() };
   const manager = new MutationManager(supabase, {
     logger,
     // Keep the runner's self-scheduled retry timer (30s cap) out of the way:
     // only the test's explicit passes upload.
     retryBackoffBase: 60_000,
+    ...options,
     getCurrentUserId: async () => AUTH_USER_ID,
     getCurrentUploadContext: async () => ({ authUserId: AUTH_USER_ID, supabaseClient: supabase }),
   });

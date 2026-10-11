@@ -200,6 +200,9 @@ export class MutationQueueStore {
     return db.count(REPLICATION_STORES.FAILED_MUTATIONS);
   }
 
+  /** Set by MutationManager: does the table re-pull refused rows (MYK9-1076)? */
+  repullsRefused: (tableName: string) => boolean = () => false;
+
   async retryFailedMutation(
     mutationId: string,
     authUserId: string,
@@ -224,6 +227,18 @@ export class MutationQueueStore {
     delete requeued.nextRetryAt;
     delete requeued.failedAt;
 
+    // MYK9-1076: a table that re-pulls refused rows replaced the row, and its
+    // OCC token, after this write failed. Retrying on the old token would be
+    // rejected forever (the row is clean, so no sync or conflict ever moves it),
+    // so the retry carries the row's current token. The user chose to resend.
+    if (failed.serverVersion !== undefined && this.repullsRefused(failed.tableName)) {
+      const row = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
+        failed.tableName,
+        String(failed.rowId),
+      ])) as { serverVersion?: number } | undefined;
+      if (row?.serverVersion !== undefined) requeued.serverVersion = row.serverVersion;
+    }
+
     await confirmOwner();
     const tx = db.transaction(
       [REPLICATION_STORES.PENDING_MUTATIONS, REPLICATION_STORES.FAILED_MUTATIONS],
@@ -244,15 +259,15 @@ export class MutationQueueStore {
     mutationId: string,
     authUserId: string,
     confirmOwner: () => Promise<void>
-  ): Promise<boolean> {
+  ): Promise<PendingMutation | undefined> {
     const db = await databaseManager.getDatabase('MutationManager');
     const failed = (await db.get(REPLICATION_STORES.FAILED_MUTATIONS, mutationId)) as
       PendingMutation | undefined;
-    if (!failed || failed.authUserId !== authUserId) return false;
+    if (!failed || failed.authUserId !== authUserId) return undefined;
     await confirmOwner();
     await db.delete(REPLICATION_STORES.FAILED_MUTATIONS, mutationId);
     await removeOrphanedLocalOnlyRow(db, failed);
-    return true;
+    return failed;
   }
 
   async discardPendingMutationsForRow(

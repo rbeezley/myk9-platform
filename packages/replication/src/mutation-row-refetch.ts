@@ -27,6 +27,7 @@ export type RunExclusive = <R>(work: () => Promise<R>) => Promise<R>;
  */
 export class RowRefetchRegistry {
   private readonly refetchers = new Map<string, RowRefetcher>();
+  private readonly refusedRepulls = new Map<string, RowRefetcher>();
   private readonly pending = new Map<string, Promise<void>>();
 
   constructor(
@@ -49,9 +50,62 @@ export class RowRefetchRegistry {
    * behavior: the write keeps backing off).
    */
   request(tableName: string, rowId: string): Promise<void> | undefined {
-    const refetch = this.refetchers.get(tableName);
+    return this.enqueue(
+      this.refetchers.get(tableName),
+      tableName,
+      rowId,
+      'after a stale OCC rejection',
+      'the write stays queued and its next rejection retries the fetch.'
+    );
+  }
+
+  /** @returns an unregister function that removes only this refetcher. */
+  registerRefusedRepull(tableName: string, repull: RowRefetcher): () => void {
+    this.refusedRepulls.set(tableName, repull);
+    return () => {
+      if (this.refusedRepulls.get(tableName) === repull) this.refusedRepulls.delete(tableName);
+    };
+  }
+
+  /** True when the table opted in to re-pulling rows whose edit was refused (MYK9-1076). */
+  repullsRefused(tableName: string): boolean {
+    return this.refusedRepulls.has(tableName);
+  }
+
+  /**
+   * Queue a re-pull of one row whose queued edit was permanently refused or
+   * discarded (MYK9-1076). Same contract as {@link request}: deferred past the
+   * caller, runs under the upload lock, never rejects. A failed fetch (offline)
+   * is logged and dropped: the row is not healed until a later refusal or
+   * discard asks again. Returns undefined for a table that did not opt in.
+   */
+  requestRefusedRepull(tableName: string, rowId: string): Promise<void> | undefined {
+    return this.enqueue(
+      this.refusedRepulls.get(tableName),
+      tableName,
+      rowId,
+      'after a refused or discarded edit',
+      'the local row keeps its value until a later refusal or discard asks again.',
+      'refused:'
+    );
+  }
+
+  /** A discarded UPDATE returns its row to the server's value; other operations have no server row to return to. */
+  requestDiscardedRepull(m: { tableName: string; rowId: string; operation: string }) {
+    if (m.operation === 'UPDATE') void this.requestRefusedRepull(m.tableName, String(m.rowId));
+  }
+
+  private enqueue(
+    refetch: RowRefetcher | undefined,
+    tableName: string,
+    rowId: string,
+    when: string,
+    consequence: string,
+    keyPrefix = ''
+  ): Promise<void> | undefined {
     if (!refetch) return undefined;
-    const key = `${tableName}/${rowId}`;
+    const label = `${tableName}/${rowId}`;
+    const key = `${keyPrefix}${label}`;
     const queued = this.pending.get(key);
     if (queued) return queued;
 
@@ -63,8 +117,7 @@ export class RowRefetchRegistry {
         () => undefined,
         (error: unknown) => {
           this.logger.warn(
-            `[MutationManager] Re-fetch of ${key} after a stale OCC rejection failed; ` +
-              `the write stays queued and its next rejection retries the fetch.`,
+            `[MutationManager] Re-fetch of ${label} ${when} failed; ${consequence}`,
             error
           );
         }

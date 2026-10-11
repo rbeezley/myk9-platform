@@ -213,6 +213,9 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
     };
   }
 
+  /** MYK9-1076: a refused or discarded dog edit re-pulls the dog from the server. */
+  protected override readonly repullsRefusedRows = true;
+
   protected override rebuildUpdatePayload(dog: ReplicatedDog): Record<string, unknown> {
     return this.toSupabaseRow(dog);
   }

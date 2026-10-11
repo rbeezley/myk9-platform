@@ -7,7 +7,7 @@ import { UploadLock } from './upload-lock';
 import { sortMutationsByDependencies } from './mutation-ordering';
 import * as mutationOwner from './mutation-owner';
 import { getMutationQueueCapacity, QUEUE_MAX_SIZE } from './mutation-queue-capacity';
-import { classifyMutationFailure } from './mutation-retry';
+import { classifyMutationFailure, isRefusedUpdate } from './mutation-retry';
 import * as rowSync from './mutation-row-sync';
 import * as uploadEvents from './mutation-upload-events';
 import { markPerf, measurePerf } from './perf';
@@ -55,7 +55,8 @@ export class MutationUploadRunner {
     private readonly queueStore: MutationQueueStore,
     private readonly writeBackup: () => Promise<void>,
     private readonly getCurrentUploadContext: () => Promise<MutationUploadAuthContext>,
-    private readonly requestRowRefetch?: (tableName: string, rowId: string) => unknown
+    private readonly requestRowRefetch?: (tableName: string, rowId: string) => unknown,
+    private readonly requestRefusedRepull?: (tableName: string, rowId: string) => unknown
   ) {}
 
   scheduleUpload(uploadPendingMutations = () => this.uploadPendingMutations()): void {
@@ -411,6 +412,10 @@ export class MutationUploadRunner {
             // RLS/auth failure) with nothing for the user to review or retry.
             await db.put(REPLICATION_STORES.FAILED_MUTATIONS, failure.mutation);
             await db.delete(REPLICATION_STORES.PENDING_MUTATIONS, queuedMutation.id);
+            // MYK9-1076: the local row must stop showing a refused edit.
+            if (isRefusedUpdate(failure.mutation)) {
+              this.requestRefusedRepull?.(queuedMutation.tableName, String(queuedMutation.rowId));
+            }
           } else {
             blockedDependencyIds.add(queuedMutation.id);
             this.logger.warn(

@@ -29,6 +29,8 @@ import type { Logger, ReplicatedTableDependencies } from '../dependencies';
 import { noopLogger } from '../dependencies';
 import type { MutationManager } from '../MutationManager';
 import { refetchDirtyRowsById, type RowRefetchAdapter } from '../refetchDirtyRowsById';
+import { refetchRefusedRowsById } from '../refetchRefusedRowsById';
+import { replaceRefusedRows, type RefusedRowReplacement } from './replaceRefusedRows';
 import { MAX_OPTIMISTIC_UPDATE_RETRIES } from '../constants';
 
 import { databaseManager, REPLICATION_STORES, trackTransaction } from './DatabaseManager';
@@ -148,10 +150,24 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     this.mutationManager = manager;
     this.unregisterRowRefetcher?.();
     const getAdapter = this.getRowRefetchAdapter?.bind(this);
-    this.unregisterRowRefetcher = getAdapter
-      ? manager.rowRefetchers.register(this.tableName, rowIds =>
+    const unregister: Array<() => void> = [];
+    if (getAdapter) {
+      unregister.push(
+        manager.rowRefetchers.register(this.tableName, rowIds =>
           refetchDirtyRowsById(this, getAdapter(), rowIds)
         )
+      );
+      // Opt-in (MYK9-1076): a refused or discarded edit re-pulls its row.
+      if (this.repullsRefusedRows) {
+        unregister.push(
+          manager.rowRefetchers.registerRefusedRepull(this.tableName, rowIds =>
+            refetchRefusedRowsById(this, getAdapter(), rowIds)
+          )
+        );
+      }
+    }
+    this.unregisterRowRefetcher = unregister.length
+      ? () => unregister.forEach(fn => fn())
       : undefined;
   }
 
@@ -166,6 +182,22 @@ export abstract class ReplicatedTable<T extends { id: string }> {
    * off, unchanged.
    */
   protected getRowRefetchAdapter?(): RowRefetchAdapter<unknown, T>;
+
+  /**
+   * Opt-in (MYK9-1076): when the server permanently refuses a queued UPDATE for
+   * a row, or the user discards the failed one, re-pull the row and replace the
+   * local copy, so the device stops showing a value the server rejected. Needs
+   * `getRowRefetchAdapter`. Off by default: scoring tables change refusal
+   * behavior only after their own review.
+   */
+  protected readonly repullsRefusedRows: boolean = false;
+
+  /** Atomically replace rows with the server's copy (see replaceRefusedRows). */
+  async replaceRefusedRows(entries: readonly RefusedRowReplacement<T>[]): Promise<string[]> {
+    const replaced = await replaceRefusedRows(await this.init(), this.tableName, entries);
+    if (replaced.length > 0) this.notifyListeners();
+    return replaced;
+  }
 
   /**
    * Get the number of pending mutations in the queue.

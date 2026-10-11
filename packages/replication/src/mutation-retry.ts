@@ -59,3 +59,12 @@ export function classifyMutationFailure({
 
   return { mutation: pending, message, canRetry, permanentlyFailed };
 }
+
+/**
+ * A dead-lettered UPDATE the server answered for good (MYK9-1076). Retries
+ * exhausted ('max-retries') is not a refusal, and only an UPDATE has a server
+ * row to return to.
+ */
+export function isRefusedUpdate(mutation: PendingMutation): boolean {
+  return mutation.operation === 'UPDATE' && mutation.failureKind !== 'max-retries';
+}

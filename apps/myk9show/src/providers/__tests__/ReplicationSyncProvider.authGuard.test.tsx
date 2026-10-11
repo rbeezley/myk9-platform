@@ -128,7 +128,10 @@ vi.mock(import('@myk9/replication'), async importOriginal => {
   return {
     ...actual,
     MutationManager: class {
-      rowRefetchers = { register: () => () => undefined };
+      rowRefetchers = {
+        register: () => () => undefined,
+        registerRefusedRepull: () => () => undefined,
+      };
       uploadPendingMutations = hoisted.uploadPendingMutations;
       getPendingCount = hoisted.getPendingCount;
       restoreMutationsFromLocalStorage = vi.fn().mockResolvedValue(undefined);

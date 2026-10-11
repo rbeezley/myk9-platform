@@ -192,10 +192,15 @@ describe.each(cases)('$name fetchRowsById (MYK9-771)', ({ name, make, expected }
   it('registers with the mutation manager when wired, so a rejection can ask for it', () => {
     const table = make();
     const register = vi.fn(() => () => undefined);
+    const registerRefusedRepull = vi.fn(() => () => undefined);
 
-    table.setMutationManager({ rowRefetchers: { register } } as unknown as MutationManager);
+    table.setMutationManager({
+      rowRefetchers: { register, registerRefusedRepull },
+    } as unknown as MutationManager);
 
     expect(register).toHaveBeenCalledWith(name, expect.any(Function));
+    // MYK9-1076: dogs, and only dogs, also opt in to re-pull a refused edit.
+    expect(registerRefusedRepull).toHaveBeenCalledTimes(name === 'dogs' ? 1 : 0);
   });
 });
 

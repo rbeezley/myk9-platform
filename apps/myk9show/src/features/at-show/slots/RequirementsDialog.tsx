@@ -67,7 +67,10 @@ export const ClassRequirementsDialog: React.FC<ClassRequirementsDialogProps> = (
     <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
       <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{classData.class_name} — Requirements</DialogTitle>
+          <DialogTitle>
+            <span className="block">{classData.class_name}</span>
+            <span className="block">Requirements</span>
+          </DialogTitle>
         </DialogHeader>
         <p>
           {classData.element} {classData.level} · {classData.entry_count} entries

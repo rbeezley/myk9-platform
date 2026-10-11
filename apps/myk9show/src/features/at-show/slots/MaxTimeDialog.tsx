@@ -55,6 +55,8 @@ const MaxTimeForm: React.FC<MaxTimeDialogProps> = ({
 }) => {
   // One input per area only where the scoresheet times each area (AKC Scent Work).
   const areaCount = classData.per_area_times ? maxTimeAreaCount(classData.area_count) : 1;
+  // An area with no time of its own starts at area 1's: that is the time the
+  // scoresheet and Requirements already use for it.
   const [values, setValues] = useState(() =>
     [
       classData.time_limit_seconds,
@@ -62,7 +64,7 @@ const MaxTimeForm: React.FC<MaxTimeDialogProps> = ({
       classData.time_limit_area3_seconds,
     ]
       .slice(0, areaCount)
-      .map(toMinutesSeconds)
+      .map(seconds => toMinutesSeconds(seconds || classData.time_limit_seconds))
   );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -134,7 +136,10 @@ const MaxTimeForm: React.FC<MaxTimeDialogProps> = ({
     <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{classData.class_name} — Max Time</DialogTitle>
+          <DialogTitle>
+            <span className="block">{classData.class_name}</span>
+            <span className="block">Max Time</span>
+          </DialogTitle>
         </DialogHeader>
         {showWarning && (
           <p role="status" className="text-sm font-medium text-destructive">
@@ -162,7 +167,7 @@ const MaxTimeForm: React.FC<MaxTimeDialogProps> = ({
                   <Input
                     id={`ringside-max-time-${area + 1}`}
                     inputMode="decimal"
-                    placeholder="4:00"
+                    placeholder="m:ss"
                     value={value}
                     onFocus={() => setFocusedArea(area)}
                     onChange={event => setAreaValue(area, event.target.value)}

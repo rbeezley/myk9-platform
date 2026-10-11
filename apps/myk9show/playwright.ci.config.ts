@@ -126,6 +126,11 @@ const REGRESSION_SPECS = [
   // MYK9-1068: known-answer checks for the shared overflow helper every
   // geometry spec imports. setContent only: no sign-in, no data, ~1s.
   '**/horizontalOverflow.selftest.spec.ts',
+  // MYK9-1031 Phase 7: the Results tab secretary journey (score, verify, release, print,
+  // initial) on the show-day fixture. Stateful, so it skips unless the run is the seeded
+  // isolated target (MYK9_PLAYWRIGHT_REGRESSION_ENABLED=true), whose seed-demo.sql builds a
+  // fresh fixture each run.
+  '**/secretary/resultsTabJourney.spec.ts',
 ];
 
 // PR Smoke: stable specs — connectivity, secretary regression proof, the

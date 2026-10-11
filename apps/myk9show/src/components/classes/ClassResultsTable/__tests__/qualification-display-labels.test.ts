@@ -1,6 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { QUALIFICATION_STATUSES } from '@/types/scent-work-types';
-import { DISPLAY_LABELS, QUALIFICATION_REASONS, STATUSES_REQUIRING_REASON } from '../constants';
+import {
+  DISPLAY_LABELS,
+  FREE_TEXT_REASON_STATUSES,
+  QUALIFICATION_REASONS,
+  STATUSES_REQUIRING_REASON,
+} from '../constants';
 
 describe('QualificationCell DISPLAY_LABELS', () => {
   it('has a short-code entry for every QualificationStatus union member', () => {
@@ -30,6 +35,7 @@ describe('QualificationCell DISPLAY_LABELS', () => {
 describe('QUALIFICATION_REASONS / STATUSES_REQUIRING_REASON', () => {
   it('only the reason-bearing statuses require a reason, and each has a reason list', () => {
     for (const status of STATUSES_REQUIRING_REASON) {
+      if (FREE_TEXT_REASON_STATUSES.includes(status)) continue;
       const reasons = QUALIFICATION_REASONS[status as keyof typeof QUALIFICATION_REASONS];
       expect(reasons, `"${status}" requires a reason but has no reason list`).toBeTruthy();
       expect(reasons.length).toBeGreaterThan(0);
@@ -40,7 +46,10 @@ describe('QUALIFICATION_REASONS / STATUSES_REQUIRING_REASON', () => {
     // Both directions: a reason list added without flagging the status would make
     // the reason dropdown silently never render (the editor reads the flag list);
     // a flagged status without a list would render an empty dropdown.
-    const flagged = [...STATUSES_REQUIRING_REASON].sort();
+    // Free-text statuses (DQ) are typed, so they are flagged but have no list.
+    const flagged = STATUSES_REQUIRING_REASON.filter(
+      s => !FREE_TEXT_REASON_STATUSES.includes(s)
+    ).sort();
     const withLists = Object.keys(QUALIFICATION_REASONS).sort();
     expect(withLists).toEqual(flagged);
   });

@@ -72,7 +72,10 @@ export function getStatusBorderClass(entry: Entry): StatusBorderClass {
     const result = (entry.resultText || '').toLowerCase();
     if (result === 'q' || result === 'qualified') return 'result-qualified';
     if (result === 'nq' || result === 'non-qualifying') return 'result-nq';
-    if (result === 'ex' || result === 'excused') return 'result-ex';
+    // A DQ is a non-qualifying outcome like Excused; it shares that border.
+    if (result === 'ex' || result === 'excused' || result === 'dq' || result === 'disqualified') {
+      return 'result-ex';
+    }
     if (result === 'abs' || result === 'absent') return 'result-abs';
     if (result === 'wd' || result === 'withdrawn') return 'result-wd';
     return 'scored'; // Fallback to generic scored

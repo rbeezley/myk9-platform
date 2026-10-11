@@ -226,6 +226,31 @@ describe('EntryPanel', () => {
     expect(onSaveAndNext).toHaveBeenCalledWith('DQ', '', 0, 'Bit the handler');
   });
 
+  it('reopens a saved DQ with DQ selected and its reason filled in', () => {
+    render(
+      <EntryPanel
+        entry={makeEntry({
+          isScored: true,
+          result: {
+            qualification: 'Disqualified',
+            time: 0,
+            faults: 0,
+            reason: 'Bit the handler',
+          },
+        })}
+        settings={DEFAULT_SESSION_SETTINGS}
+        onSave={vi.fn()}
+        onSaveAndNext={vi.fn()}
+        onClose={vi.fn()}
+        isSaving={false}
+      />
+    );
+    expect(screen.getByRole('button', { name: /^DQ$/i })).toHaveAttribute('data-selected', 'true');
+    expect(screen.getByRole('button', { name: /^EX$/i })).not.toHaveAttribute('data-selected');
+    expect(screen.getByLabelText(/disqualification reason/i)).toHaveValue('Bit the handler');
+    expect(screen.getByRole('button', { name: /^save$/i })).toBeEnabled();
+  });
+
   it('keeps Excused on its own preset reasons and out of the DQ reason box', async () => {
     render(
       <EntryPanel

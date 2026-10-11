@@ -117,6 +117,8 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   }, [stopwatch, scoring]);
 
   const handleResultSelect = (value: ExtendedResult) => {
+    // Re-tapping DQ keeps the reason already typed (MYK9-1011).
+    if (value === 'DQ' && scoring.qualifying === 'DQ') return;
     scoring.setQualifying(value);
     if (value === 'NQ') scoring.setNonQualifyingReason('Fault Limit');
     else if (value === 'ABS') scoring.setNonQualifyingReason('Absent');

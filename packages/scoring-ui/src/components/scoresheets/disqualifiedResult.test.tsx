@@ -2,6 +2,8 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { AKCScentWorkLiveScoresheet } from './AKC/AKCScentWorkLiveScoresheet';
 import { AKCNationalsLiveScoresheet } from './AKC/AKCNationalsLiveScoresheet';
+import { AKCFastCatLiveScoresheet } from './AKC/AKCFastCatLiveScoresheet';
+import { UKCObedienceLiveScoresheet } from './UKC/UKCObedienceLiveScoresheet';
 import { UKCNoseworkLiveScoresheet } from './UKC/UKCNoseworkLiveScoresheet';
 import { ASCAScentDetectionLiveScoresheet } from './ASCA/ASCAScentDetectionLiveScoresheet';
 import type { LiveScoresheetProps, ResolvedClassRules } from '../../types';
@@ -140,6 +142,18 @@ describe.each(sheets)('$name scoresheet: Disqualified result', ({ Sheet, helpInc
     );
   });
 
+  it('keeps the typed reason when DQ is tapped again', () => {
+    render(<Sheet {...props()} />);
+    fireEvent.click(screen.getByTestId('result-DQ'));
+    fireEvent.change(screen.getByTestId('dq-reason-input'), {
+      target: { value: 'Bit the handler' },
+    });
+    fireEvent.click(screen.getByTestId('result-DQ'));
+    expect((screen.getByTestId('dq-reason-input') as HTMLInputElement).value).toBe(
+      'Bit the handler'
+    );
+  });
+
   it('does not carry an Excused preset reason into a DQ', () => {
     render(<Sheet {...props()} />);
     fireEvent.click(screen.getByTestId('result-EX'));
@@ -176,5 +190,78 @@ describe('Disqualified result: reopening a saved DQ', () => {
       'Attacked a person in the search area'
     );
     expect(screen.getByTestId('submit-btn')).toBeEnabled();
+  });
+});
+
+describe('Disqualified result on the sheets that keep their own result state', () => {
+  const reason = 'Bit the handler';
+
+  it('UKC Obedience: DQ blocks Save without a reason and writes exact args with one', async () => {
+    const onSubmit = vi.fn();
+    render(<UKCObedienceLiveScoresheet {...props(onSubmit)} />);
+    fireEvent.change(screen.getByTestId('points-input'), { target: { value: '100' } });
+    fireEvent.click(screen.getByTestId('result-DQ'));
+    expect(screen.getByTestId('submit-btn')).toBeDisabled();
+    expect(screen.getByTestId('dq-help').textContent).toContain('bites or attempts to bite');
+
+    fireEvent.change(screen.getByTestId('dq-reason-input'), { target: { value: reason } });
+    fireEvent.click(screen.getByTestId('result-DQ'));
+    expect((screen.getByTestId('dq-reason-input') as HTMLInputElement).value).toBe(reason);
+    fireEvent.click(screen.getByTestId('submit-btn'));
+    await waitFor(() => expect(screen.getByTestId('confirm-submit-btn')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('confirm-submit-btn'));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0][0]).toEqual(
+      expect.objectContaining({
+        resultText: 'DQ',
+        nonQualifyingReason: reason,
+        points: 100,
+        faultCount: 100,
+      })
+    );
+  });
+
+  it('UKC Obedience: a stale NQ reason is not carried into a DQ', () => {
+    render(<UKCObedienceLiveScoresheet {...props()} />);
+    fireEvent.change(screen.getByTestId('points-input'), { target: { value: '100' } });
+    fireEvent.click(screen.getByTestId('result-NQ'));
+    fireEvent.change(screen.getByTestId('nq-reason-input'), { target: { value: 'Broke stay' } });
+    fireEvent.click(screen.getByTestId('result-DQ'));
+    expect((screen.getByTestId('dq-reason-input') as HTMLInputElement).value).toBe('');
+    expect(screen.getByTestId('submit-btn')).toBeDisabled();
+  });
+
+  it('AKC FastCAT: DQ blocks Save without a reason and writes exact args with one', async () => {
+    const onSubmit = vi.fn();
+    render(<AKCFastCatLiveScoresheet {...props(onSubmit)} />);
+    fireEvent.click(screen.getByTestId('result-DQ'));
+    expect(screen.getByTestId('submit-btn')).toBeDisabled();
+    expect(screen.getByTestId('dq-help').textContent).toContain(
+      'attacks a person in the search area'
+    );
+
+    fireEvent.change(screen.getByTestId('dq-reason-input'), { target: { value: reason } });
+    fireEvent.click(screen.getByTestId('result-DQ'));
+    expect((screen.getByTestId('dq-reason-input') as HTMLInputElement).value).toBe(reason);
+    fireEvent.click(screen.getByTestId('submit-btn'));
+    await waitFor(() => expect(screen.getByTestId('confirm-submit-btn')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('confirm-submit-btn'));
+
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0][0]).toEqual(
+      expect.objectContaining({ resultText: 'DQ', nonQualifyingReason: reason })
+    );
+  });
+
+  it('AKC FastCAT: an Excused result carries no reason', async () => {
+    const onSubmit = vi.fn();
+    render(<AKCFastCatLiveScoresheet {...props(onSubmit)} />);
+    fireEvent.click(screen.getByTestId('result-E'));
+    fireEvent.click(screen.getByTestId('submit-btn'));
+    await waitFor(() => expect(screen.getByTestId('confirm-submit-btn')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('confirm-submit-btn'));
+    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    expect(onSubmit.mock.calls[0][0].nonQualifyingReason).toBeUndefined();
   });
 });

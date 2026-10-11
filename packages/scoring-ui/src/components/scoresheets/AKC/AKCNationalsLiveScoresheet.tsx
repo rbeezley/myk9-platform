@@ -147,6 +147,8 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
       setPlacement(prev => (prev === value ? '' : value));
       return;
     }
+    // Re-tapping DQ keeps the reason already typed (MYK9-1011).
+    if (value === 'DQ' && scoring.qualifying === 'DQ') return;
     scoring.setQualifying(value);
     if (value === 'EX' || value === 'DQ') {
       setCorrectAlerts(Array(areaCount).fill(0));

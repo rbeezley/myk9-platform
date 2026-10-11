@@ -6,15 +6,24 @@
  * of a combined A/B pair.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
+import { act, render, screen, fireEvent, waitFor } from '@/test/utils/testUtils';
 
-const { updateClass, getClass, resolveRules } = vi.hoisted(() => ({
+const { updateClass, getClass, resolveRules, listeners } = vi.hoisted(() => ({
   updateClass: vi.fn(),
   getClass: vi.fn(),
   resolveRules: vi.fn(),
+  listeners: new Set<() => void>(),
 }));
 vi.mock('@/services/replication', () => ({
-  replicatedClassesTable: { updateClass, get: getClass },
+  replicatedClassesTable: {
+    updateClass,
+    get: getClass,
+    getClassById: getClass,
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  },
 }));
 vi.mock('@/services/replication/resolveClassTimeLimitRules', async importOriginal => ({
   ...(await importOriginal<typeof import('@/services/replication/resolveClassTimeLimitRules')>()),
@@ -39,6 +48,7 @@ const classData = {
 
 describe('MaxTimeDialog (MYK9-1086)', () => {
   beforeEach(() => {
+    listeners.clear();
     updateClass.mockReset().mockResolvedValue('mutation-1');
     // Interior Novice: judge-set 1:00..3:00, synced onto the class.
     getClass.mockReset().mockResolvedValue({
@@ -345,6 +355,28 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
       render(<MaxTimeDialog isOpen classData={classData} onClose={vi.fn()} />);
       expect(screen.getByRole('button', { name: /save/i })).toBeDisabled();
       await waitFor(() => expect(screen.getByRole('button', { name: /save/i })).toBeEnabled());
+    });
+
+    it('follows a rule change while open, so the inputs match what Save checks', async () => {
+      getClass.mockResolvedValue({
+        id: 'class-a',
+        element: 'Container',
+        level: 'Novice',
+        timeLimitRule: { fixed: 120, forElement: 'Container', forLevel: 'Novice' },
+      });
+      render(<MaxTimeDialog isOpen classData={classData} onClose={vi.fn()} />);
+      expect(await screen.findByText(/set by the rulebook/i)).toBeInTheDocument();
+
+      getClass.mockResolvedValue({
+        id: 'class-a',
+        element: 'Interior',
+        level: 'Novice',
+        timeLimitRule: { min: 60, max: 180, forElement: 'Interior', forLevel: 'Novice' },
+      });
+      await act(async () => listeners.forEach(listener => listener()));
+
+      expect(await screen.findByText(/allowed: 1:00 to 3:00/i)).toBeInTheDocument();
+      expect(screen.getByRole('textbox', { name: /max time/i })).toBeInTheDocument();
     });
 
     it('says the time is required when opened before scoring', async () => {

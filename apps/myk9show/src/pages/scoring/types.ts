@@ -424,6 +424,21 @@ export async function resolveSportTypeForClass(
 }
 
 /**
+ * The live scoresheet a class scores on: the trial's sport type when it resolves,
+ * else the class name -- the same resolution AtShowScoresheetPage makes.
+ */
+export async function scoresheetKeyForClass(
+  trialId: string | undefined,
+  className: string
+): Promise<ScoresheetSportType | null> {
+  const derived = await resolveSportTypeForClass(trialId);
+  const { organization, sportType } = derived
+    ? mapSportType(derived)
+    : detectScoresheetType({ name: className } as ClassInfo);
+  return toRegistryKey(organization, sportType);
+}
+
+/**
  * Detect organization and sport type from class name.
  * @deprecated Use deriveSportType(org, trialType) + mapSportType() instead.
  * Kept as fallback for edge cases where org/trialType are unavailable.

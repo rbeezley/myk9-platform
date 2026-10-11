@@ -235,4 +235,65 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(/couldn.t check/i);
     expect(updateClass).not.toHaveBeenCalled();
   });
+
+  describe('multi-area class (MYK9-1098)', () => {
+    const twoAreas = {
+      ...classData,
+      level: 'Excellent',
+      class_name: 'Interior Excellent A',
+      area_count: 2,
+      per_area_times: true,
+      time_limit_seconds: 90,
+    };
+    const areaInput = (n: number) =>
+      screen.getByRole('textbox', { name: new RegExp(`area ${n} max time`, 'i') });
+
+    it('shows one input per area and saves each area time, for both classes of a pair', async () => {
+      render(
+        <MaxTimeDialog
+          isOpen
+          classData={{ ...twoAreas, pairedClassId: 'class-b' }}
+          onClose={vi.fn()}
+        />
+      );
+      expect(areaInput(1)).toHaveValue('1:30');
+      expect(areaInput(2)).toHaveValue('');
+
+      fireEvent.change(areaInput(2), { target: { value: '2:30' } });
+      fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+      const expected = { timeLimitSeconds: 90, timeLimitArea2Seconds: 150 };
+      await waitFor(() => expect(updateClass).toHaveBeenCalledTimes(2));
+      expect(updateClass).toHaveBeenCalledWith('class-a', expected);
+      expect(updateClass).toHaveBeenCalledWith('class-b', expected);
+    });
+
+    it('needs every area before saving', async () => {
+      render(<MaxTimeDialog isOpen classData={twoAreas} onClose={vi.fn()} />);
+      fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+      expect(screen.getByRole('alert')).toHaveTextContent(/area 2 max time/i);
+      expect(updateClass).not.toHaveBeenCalled();
+    });
+
+    it('range-checks every area, not just area 1', async () => {
+      render(<MaxTimeDialog isOpen classData={twoAreas} onClose={vi.fn()} />);
+      fireEvent.change(areaInput(2), { target: { value: '5:00' } });
+      fireEvent.click(screen.getByRole('button', { name: /save/i }));
+
+      expect(await screen.findByRole('alert')).toHaveTextContent(/1:00 and 3:00/);
+      expect(updateClass).not.toHaveBeenCalled();
+    });
+
+    it('asks for one time when the scoresheet does not time areas separately (ASCA, Nationals)', () => {
+      render(
+        <MaxTimeDialog
+          isOpen
+          classData={{ ...twoAreas, per_area_times: false }}
+          onClose={vi.fn()}
+        />
+      );
+      expect(screen.getAllByRole('textbox')).toHaveLength(1);
+    });
+  });
 });

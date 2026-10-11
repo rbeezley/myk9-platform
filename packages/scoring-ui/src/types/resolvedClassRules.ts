@@ -9,8 +9,13 @@ export interface ResolvedClassRules {
   areaCount: number;
   /** Timer mode: single countdown or dual (search + element) */
   timerMode: 'single' | 'dual';
-  /** Maximum time in seconds for the search */
+  /** Maximum time in seconds for the search (area 1 on a multi-area class) */
   maxTimeSeconds: number;
+  /**
+   * Max time per area, index 0 = area 1 (MYK9-1098). Absent, every area uses
+   * `maxTimeSeconds`; read it through `maxTimeForArea`.
+   */
+  areaMaxTimeSeconds?: number[] | undefined;
   /** Number of hides, or null if not set */
   hideCount: number | null;
   /** Whether the handler knows the hide count */
@@ -35,6 +40,10 @@ export interface ClassRuleFields {
 
   timeLimitSeconds?: number | null | undefined;
   time_limit_seconds?: number | null | undefined;
+  timeLimitArea2Seconds?: number | null | undefined;
+  time_limit_area2_seconds?: number | null | undefined;
+  timeLimitArea3Seconds?: number | null | undefined;
+  time_limit_area3_seconds?: number | null | undefined;
 
   timerMode?: string | null | undefined;
   timer_mode?: string | null | undefined;

@@ -7,6 +7,9 @@
  * applies on this device at once and queues for upload when offline; the upload
  * routes through ringside_update_class, which admits the class's judge and checks
  * the rule range server-side.
+ *
+ * A multi-area class gets one input per area, each with its own time (MYK9-1098);
+ * every area must have a time to save.
  */
 import { useState } from 'react';
 import type React from 'react';
@@ -23,7 +26,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { replicatedClassesTable } from '@/services/replication';
 import { handleOpenChange } from './dialogHelpers';
-import { parseMaxTimeInput } from './maxTimeInput';
+import { AREA_TIME_FIELDS, maxTimeAreaCount, parseMaxTimeInput } from './maxTimeInput';
 import { maxTimeRangeForClass } from './maxTimeRule';
 
 const MAX_SECONDS = 15 * 60;
@@ -48,42 +51,62 @@ const MaxTimeForm: React.FC<MaxTimeDialogProps> = ({
   classData,
   onTimeUpdate,
 }) => {
-  const [value, setValue] = useState(() => toMinutesSeconds(classData.time_limit_seconds));
+  // One input per area only where the scoresheet times each area (AKC Scent Work).
+  const areaCount = classData.per_area_times ? maxTimeAreaCount(classData.area_count) : 1;
+  const [values, setValues] = useState(() =>
+    [
+      classData.time_limit_seconds,
+      classData.time_limit_area2_seconds,
+      classData.time_limit_area3_seconds,
+    ]
+      .slice(0, areaCount)
+      .map(toMinutesSeconds)
+  );
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const save = async () => {
-    const seconds = parseMaxTimeInput(value);
-    if (seconds === null || seconds < 1 || seconds > MAX_SECONDS) {
-      setError('Enter the max time in minutes and seconds, like 4:00.');
-      return;
+  /** The class fields to write, or null after showing why the entry can't be saved. */
+  const checkedUpdates = async (): Promise<Record<string, number> | null> => {
+    const seconds = values.map(parseMaxTimeInput);
+    const unreadable = seconds.findIndex(s => s === null || s < 1 || s > MAX_SECONDS);
+    if (unreadable >= 0) {
+      setError(
+        `Enter ${areaCount > 1 ? `the Area ${unreadable + 1}` : 'the'} max time in minutes and seconds, like 4:00.`
+      );
+      return null;
     }
+    const range = await maxTimeRangeForClass(classData.id);
+    if (range === 'unknown-offline') {
+      setError(
+        "You're offline and this class's allowed max time isn't on this device yet. Try again with signal."
+      );
+      return null;
+    }
+    if (range === 'lookup-failed') {
+      setError("Couldn't check this class's allowed max time. Try again.");
+      return null;
+    }
+    if (seconds.some(s => s! < range.low || s! > range.high)) {
+      setError(
+        `Max time for this class must be between ${toMinutesSeconds(range.low)} and ${toMinutesSeconds(range.high)}.`
+      );
+      return null;
+    }
+    return Object.fromEntries(seconds.map((s, area) => [AREA_TIME_FIELDS[area], s as number]));
+  };
+
+  const save = async () => {
     setError(null);
     setSaving(true);
     try {
-      const range = await maxTimeRangeForClass(classData.id);
-      if (range === 'unknown-offline') {
-        setError(
-          "You're offline and this class's allowed max time isn't on this device yet. Try again with signal."
-        );
-        return;
-      }
-      if (range === 'lookup-failed') {
-        setError("Couldn't check this class's allowed max time. Try again.");
-        return;
-      }
-      if (seconds < range.low || seconds > range.high) {
-        setError(
-          `Max time for this class must be between ${toMinutesSeconds(range.low)} and ${toMinutesSeconds(range.high)}.`
-        );
-        return;
-      }
+      const updates = await checkedUpdates();
+      if (!updates) return;
       const classIds = [
         classData.id,
         ...(classData.pairedClassId ? [classData.pairedClassId] : []),
       ];
       for (const classId of classIds) {
-        await replicatedClassesTable.updateClass(classId, { timeLimitSeconds: seconds });
+        await replicatedClassesTable.updateClass(classId, updates);
       }
       onTimeUpdate?.();
       onClose();
@@ -108,16 +131,24 @@ const MaxTimeForm: React.FC<MaxTimeDialogProps> = ({
             void save();
           }}
         >
-          <Label htmlFor="ringside-max-time">Max time (minutes:seconds)</Label>
-          <Input
-            id="ringside-max-time"
-            inputMode="decimal"
-            placeholder="4:00"
-            value={value}
-            onChange={event => setValue(event.target.value)}
-            aria-invalid={error ? true : undefined}
-            className="h-12 text-lg"
-          />
+          {values.map((value, area) => (
+            <div key={area} className="space-y-1">
+              <Label htmlFor={`ringside-max-time-${area + 1}`}>
+                {areaCount > 1 ? `Area ${area + 1} max time` : 'Max time'} (minutes:seconds)
+              </Label>
+              <Input
+                id={`ringside-max-time-${area + 1}`}
+                inputMode="decimal"
+                placeholder="4:00"
+                value={value}
+                onChange={event =>
+                  setValues(current => current.map((v, i) => (i === area ? event.target.value : v)))
+                }
+                aria-invalid={error ? true : undefined}
+                className="h-12 text-lg"
+              />
+            </div>
+          ))}
           {error && (
             <p role="alert" className="text-sm text-destructive">
               {error}

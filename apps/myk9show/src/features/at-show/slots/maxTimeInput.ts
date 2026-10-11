@@ -18,3 +18,15 @@ export function parseMaxTimeInput(raw: string): number | null {
 function toSeconds(minutes: string, seconds: string): number | null {
   return Number(seconds) > 59 ? null : Number(minutes) * 60 + Number(seconds);
 }
+
+/** The class fields holding each area's max time, area 1 first (MYK9-1098). */
+export const AREA_TIME_FIELDS = [
+  'timeLimitSeconds',
+  'timeLimitArea2Seconds',
+  'timeLimitArea3Seconds',
+] as const;
+
+/** How many max-time inputs a class gets: its area count, 1..3. */
+export function maxTimeAreaCount(areaCount: number | undefined): number {
+  return Math.min(AREA_TIME_FIELDS.length, Math.max(1, areaCount ?? 1));
+}

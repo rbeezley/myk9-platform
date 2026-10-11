@@ -100,6 +100,7 @@ TEST_FILES=(
   "$TEST_DIR/myk9_691_update_show_style_test.sql"
   "$TEST_DIR/myk9_740_ringside_replay_idempotent_test.sql"
   "$TEST_DIR/myk9_1086_ringside_update_class_test.sql"
+  "$TEST_DIR/myk9_1098_ringside_update_class_area_times_test.sql"
   "$TEST_DIR/myk9_677_show_payments_ledger_test.sql"
   "$TEST_DIR/myk9_677_submit_entries_payment_test.sql"
   "$TEST_DIR/myk9_773_inherited_refund_follows_payment_test.sql"

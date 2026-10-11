@@ -15,4 +15,4 @@ export {
   formatTimeInputToMMSS,
 } from './timeUtils';
 
-export { buildResolvedClassRules } from './buildResolvedClassRules';
+export { buildResolvedClassRules, maxTimeForArea } from './buildResolvedClassRules';

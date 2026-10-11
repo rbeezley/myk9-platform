@@ -3,7 +3,6 @@ import 'fake-indexeddb/auto';
 
 // Store imports
 import { useTemplateStore } from '@/store/templateStore';
-import { useClassTemplateStore } from '@/store/classTemplateStore';
 import { useShowTemplateStore } from '@/store/showTemplateStore';
 import { useClassCreationStore } from '@/store/classCreationStore';
 
@@ -15,7 +14,6 @@ import {
   TrialType,
   type ClassTemplate,
 } from '@/types/template.types';
-import type { ClassTemplate as ClassTemplateType } from '@/types/class-template-types';
 import type { ShowTemplateDefinition } from '@/types/show-template-types';
 // CreatedClass type removed - not used in tests
 
@@ -37,16 +35,6 @@ describe('Phase 4 Template System Tests', () => {
       expect(asRecord.createTemplate).toBeUndefined();
       expect(asRecord.updateTemplate).toBeUndefined();
       expect(asRecord.deleteTemplate).toBeUndefined();
-    });
-
-    it('should have properly configured class template store', () => {
-      const store = useClassTemplateStore.getState();
-
-      expect(typeof store.addTemplate).toBe('function');
-      expect(typeof store.updateTemplate).toBe('function');
-      expect(typeof store.deleteTemplate).toBe('function');
-      expect(typeof store.getTemplate).toBe('function');
-      expect(Array.isArray(store.templates)).toBe(true);
     });
 
     it('should have properly configured show template store', () => {
@@ -122,51 +110,6 @@ describe('Phase 4 Template System Tests', () => {
 
       // And the read path resolves by id
       expect(store.getTemplate(template1.id)).toEqual(template1);
-    });
-  });
-
-  describe('Class Template Store Operations', () => {
-    it('should handle class template operations', () => {
-      const store = useClassTemplateStore.getState();
-
-      const testTemplate: Omit<ClassTemplateType, 'id' | 'createdAt' | 'updatedAt'> = {
-        name: 'Test Class Template',
-        organization: 'AKC',
-        trialType: 'Agility',
-        classPattern: '{level} {element}',
-        description: 'Test class template',
-        fields: [],
-        maxEntriesDefault: 40,
-        requiresJumpHeight: true,
-      };
-
-      // Test add
-      const added = store.addTemplate(testTemplate);
-      expect(added.name).toBe('Test Class Template');
-      expect(added.id).toBeDefined();
-
-      // Test get
-      const retrieved = store.getTemplate(added.id);
-      expect(retrieved).toEqual(added);
-
-      // Test update
-      store.updateTemplate(added.id, { maxEntriesDefault: 50 });
-      const updated = store.getTemplate(added.id);
-      expect(updated?.maxEntriesDefault).toBe(50);
-    });
-
-    it('should generate classes from presets', () => {
-      const store = useClassTemplateStore.getState();
-
-      const presets = store.getPresets();
-      expect(typeof presets).toBe('object');
-
-      // Test generating classes from a preset (if available)
-      const presetKeys = Object.keys(presets);
-      if (presetKeys.length > 0) {
-        const classes = store.generateClassesFromPreset(presetKeys[0]);
-        expect(Array.isArray(classes)).toBe(true);
-      }
     });
   });
 
@@ -272,10 +215,9 @@ describe('Phase 4 Template System Tests', () => {
   describe('Cross-Store Integration', () => {
     it('should handle related operations across template stores', () => {
       const templateStore = useTemplateStore.getState();
-      const classTemplateStore = useClassTemplateStore.getState();
       const showTemplateStore = useShowTemplateStore.getState();
 
-      // The sport-rule store is read-only: seed it, then create in the writable stores.
+      // The sport-rule store is read-only: seed it, then create in the writable store.
       const mainTemplate: ClassTemplate = {
         id: 'integration-akc-agility',
         createdAt: new Date(),
@@ -298,17 +240,6 @@ describe('Phase 4 Template System Tests', () => {
       };
       useTemplateStore.setState({ templates: [mainTemplate], error: null });
 
-      const classTemplate = classTemplateStore.addTemplate({
-        name: 'Integration Class Template',
-        organization: 'AKC',
-        trialType: 'Agility',
-        classPattern: '{level} {element}',
-        description: 'Integration class test',
-        fields: [],
-        maxEntriesDefault: 40,
-        requiresJumpHeight: true,
-      });
-
       const showTemplate = showTemplateStore.addTemplate({
         name: 'Integration Show Template',
         organization: 'AKC',
@@ -326,16 +257,13 @@ describe('Phase 4 Template System Tests', () => {
 
       // Verify all templates were created
       expect(templateStore.getTemplate(mainTemplate.id)).toBeDefined();
-      expect(classTemplateStore.getTemplate(classTemplate.id)).toBeDefined();
       expect(showTemplateStore.getTemplate(showTemplate.id)).toBeDefined();
 
       // Test cross-store queries
       const akcMainTemplates = templateStore.getTemplatesByOrganization(Organization.AKC);
-      const akcClassTemplates = classTemplateStore.getTemplatesByOrganization(Organization.AKC);
       const akcShowTemplates = showTemplateStore.getTemplatesByOrganization(Organization.AKC);
 
       expect(akcMainTemplates.some(t => t.id === mainTemplate.id)).toBe(true);
-      expect(akcClassTemplates.some(t => t.id === classTemplate.id)).toBe(true);
       expect(akcShowTemplates.some(t => t.id === showTemplate.id)).toBe(true);
     });
   });
@@ -345,7 +273,6 @@ describe('Phase 4 Template System Tests', () => {
       // This test verifies that the stores are configured to use the optimal storage
       const stores = [
         { name: 'template', store: useTemplateStore },
-        { name: 'classTemplate', store: useClassTemplateStore },
         { name: 'showTemplate', store: useShowTemplateStore },
         { name: 'classCreation', store: useClassCreationStore },
       ];

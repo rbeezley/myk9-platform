@@ -169,14 +169,14 @@ Resolved — see §4.0 Q3.
 
 ### 3.7 Navigation, help, and lazy-load config
 
-| Path                                                                                                                               | Action                                                                                                       |
-| ---------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| [`store/navigationStore.ts:76`](../apps/myk9show/src/store/navigationStore.ts:76)                                                  | keep `'/admin/templates'`; retitle "Template Management" → **"Sport Rules"** (it no longer manages anything) |
-| [`components/layout/AccountMenuContent.tsx:167`](../apps/myk9show/src/components/layout/AccountMenuContent.tsx:167)                | keep the link; update the label to match                                                                     |
-| [`features/admin-help/utils/resolveExamplePath.ts:73-79`](../apps/myk9show/src/features/admin-help/utils/resolveExamplePath.ts:73) | remove the `edit` and `test` resolvers                                                                       |
-| [`features/admin-help/data/pageDirectory.ts:118,140,163`](../apps/myk9show/src/features/admin-help/data/pageDirectory.ts:118)      | rewrite the entry as read-only; verify `linksTo` still resolves                                              |
-| [`hooks/useLazyStore.ts:93,126`](../apps/myk9show/src/hooks/useLazyStore.ts:93)                                                    | `admin-templates` group drops `classTemplateStore`/`showTemplateStore` if unused by the read-only page       |
-| [`components/layout/sidebar/unifiedSidebarConfig.ts`](../apps/myk9show/src/components/layout/sidebar/unifiedSidebarConfig.ts)      | confirm whether a sidebar entry exists; no `/admin/templates` match was found, so likely nothing to change   |
+| Path                                                                                                                               | Action                                                                                                                        |
+| ---------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| [`store/navigationStore.ts:76`](../apps/myk9show/src/store/navigationStore.ts:76)                                                  | keep `'/admin/templates'`; retitle "Template Management" → **"Sport Rules"** (it no longer manages anything)                  |
+| [`components/layout/AccountMenuContent.tsx:167`](../apps/myk9show/src/components/layout/AccountMenuContent.tsx:167)                | keep the link; update the label to match                                                                                      |
+| [`features/admin-help/utils/resolveExamplePath.ts:73-79`](../apps/myk9show/src/features/admin-help/utils/resolveExamplePath.ts:73) | remove the `edit` and `test` resolvers                                                                                        |
+| [`features/admin-help/data/pageDirectory.ts:118,140,163`](../apps/myk9show/src/features/admin-help/data/pageDirectory.ts:118)      | rewrite the entry as read-only; verify `linksTo` still resolves                                                               |
+| [`hooks/useLazyStore.ts:93,126`](../apps/myk9show/src/hooks/useLazyStore.ts:93)                                                    | `admin-templates` group drops `showTemplateStore` if unused by the read-only page (`classTemplateStore` removed by MYK9-1087) |
+| [`components/layout/sidebar/unifiedSidebarConfig.ts`](../apps/myk9show/src/components/layout/sidebar/unifiedSidebarConfig.ts)      | confirm whether a sidebar entry exists; no `/admin/templates` match was found, so likely nothing to change                    |
 
 ### 3.8 Orphaned table — `template_fields`
 

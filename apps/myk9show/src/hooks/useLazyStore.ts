@@ -90,7 +90,7 @@ export function usePageStores(pageName: string) {
     'show-create': ['showStore', 'wizardStore', 'templateStore'],
 
     // Admin pages
-    'admin-templates': ['templateStore', 'classTemplateStore', 'showTemplateStore'],
+    'admin-templates': ['templateStore', 'showTemplateStore'],
     'admin-dashboard': ['showStore', 'entryStore', 'userStore', 'dogStore'],
 
     // Secretary pages

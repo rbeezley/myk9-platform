@@ -56,7 +56,6 @@ const STORE_IMPORTS: Record<StoreName, () => Promise<Record<string, unknown>>> =
 
   // Feature-specific stores
   templateStore: () => import('@/store/templateStore'),
-  classTemplateStore: () => import('@/store/classTemplateStore'),
   showTemplateStore: () => import('@/store/showTemplateStore'),
   classCreationStore: () => import('@/store/classCreationStore'),
   wizardStore: () => import('@/store/wizardStore'),

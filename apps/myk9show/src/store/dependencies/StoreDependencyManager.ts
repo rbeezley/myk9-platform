@@ -96,13 +96,6 @@ export class StoreDependencyManager {
       canLazyLoad: true,
     });
 
-    this.addDependency('classTemplateStore', {
-      requiredStores: ['templateStore'],
-      optionalStores: [],
-      loadPriority: 3,
-      canLazyLoad: true,
-    });
-
     this.addDependency('showTemplateStore', {
       requiredStores: ['templateStore'],
       optionalStores: [],
@@ -113,7 +106,7 @@ export class StoreDependencyManager {
     // Class and trial stores
     this.addDependency('classStore', {
       requiredStores: ['showStore'],
-      optionalStores: ['templateStore', 'classTemplateStore'],
+      optionalStores: ['templateStore'],
       loadPriority: 3,
       canLazyLoad: true,
     });
@@ -128,7 +121,7 @@ export class StoreDependencyManager {
     // Workflow stores
     this.addDependency('classCreationStore', {
       requiredStores: ['classStore', 'templateStore'],
-      optionalStores: ['classTemplateStore'],
+      optionalStores: [],
       loadPriority: 3,
       canLazyLoad: true,
     });

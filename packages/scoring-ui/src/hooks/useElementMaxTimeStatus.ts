@@ -17,6 +17,8 @@ export interface ElementMaxTimeStatusOptions {
   maxTimeMs: number;
   elementTimeMs: number;
   isRunning: boolean;
+  /** The class rule's 30-second warning (MYK9-1102); absent, the element warns. */
+  thirtySecondWarning?: boolean | undefined;
   enableVoiceAnnouncements?: boolean | undefined;
   onWarningChime?: (() => void) | undefined;
   onVoiceAnnouncement?: ((secondsRemaining: number) => void) | undefined;
@@ -34,6 +36,7 @@ export function useElementMaxTimeStatus({
   maxTimeMs,
   elementTimeMs,
   isRunning,
+  thirtySecondWarning,
   enableVoiceAnnouncements = false,
   onWarningChime,
   onVoiceAnnouncement,
@@ -41,7 +44,12 @@ export function useElementMaxTimeStatus({
   const active = enabled && maxTimeMs > 0;
   const remainingMs = active ? Math.max(0, maxTimeMs - elementTimeMs) : 0;
   const isExpired = active && elementTimeMs > 0 && elementTimeMs >= maxTimeMs;
-  const isWarning = active && isRunning && remainingMs > 0 && remainingMs <= 30_000;
+  const isWarning =
+    active &&
+    thirtySecondWarning !== false &&
+    isRunning &&
+    remainingMs > 0 &&
+    remainingMs <= 30_000;
 
   // Once per run: a reset (element time back to 0) re-arms it.
   const announcedRef = useRef(false);

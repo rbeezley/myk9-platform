@@ -4,6 +4,7 @@
  * copied onto the class when it was created for a rule cached before that.
  */
 import { formatTimeLimitSeconds } from '@myk9/core';
+import { givesThirtySecondWarning } from '@myk9/scoring-ui';
 import { formatIntRange, type ClassRequirements } from '@/hooks/queries/useClassRequirements';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import { isRuleCurrent } from '@/services/replication/resolveClassTimeLimitRules';
@@ -45,7 +46,11 @@ export function classRequirementsFromClass(
     has_blank: rule?.hasBlank ?? false,
     timer_mode: rule?.timerMode ?? cls.timerMode ?? 'single',
     odors: rule?.odors ?? [],
-    thirty_second_warning: cls.timeLimitRule?.thirtySecondWarning !== false,
+    // Same answer as the clock: the rule, else no warning at Master.
+    thirty_second_warning: givesThirtySecondWarning(
+      isRuleCurrent(cls.timeLimitRule, cls) ? cls.timeLimitRule.thirtySecondWarning : undefined,
+      cls.level
+    ),
   };
 }
 

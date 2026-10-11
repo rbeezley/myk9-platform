@@ -48,6 +48,20 @@ function parseMaxTimeToMs(maxTime: string): number {
  * <div>{stopwatch.formatTime(stopwatch.time)}</div>
  * ```
  */
+/**
+ * Whether the timer gives the 30-second warning: the class rule decides
+ * (MYK9-1102); without one, Master gets none. Shared with the Requirements cards
+ * so what they say matches the clock.
+ */
+export function givesThirtySecondWarning(
+  rule: boolean | undefined,
+  level: string | undefined
+): boolean {
+  if (rule !== undefined) return rule;
+  const normalizedLevel = level?.toLowerCase() || '';
+  return !(normalizedLevel === 'master' || normalizedLevel === 'masters');
+}
+
 export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
   const {
     maxTime: rawMaxTime,
@@ -62,10 +76,7 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
   // A zero max ("0:00" -- a class with no time set) is NO limit: no expiry, no
   // warning, no auto-stop. Every check below keys on `maxTime` being set.
   const maxTime = rawMaxTime && parseMaxTimeToMs(rawMaxTime) > 0 ? rawMaxTime : undefined;
-  // The class rule decides the 30-second warning; without one, Master gets none.
-  const normalizedLevel = level?.toLowerCase() || '';
-  const warns =
-    thirtySecondWarning ?? !(normalizedLevel === 'master' || normalizedLevel === 'masters');
+  const warns = givesThirtySecondWarning(thirtySecondWarning, level);
 
   // Timer state
   const [time, setTime] = useState(0);

@@ -143,6 +143,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     maxTimeMs,
     elementTimeMs: elementTimer.time,
     isRunning: elementTimer.isRunning,
+    thirtySecondWarning: rules.thirtySecondWarning,
     enableVoiceAnnouncements,
     onWarningChime,
     onVoiceAnnouncement,

@@ -18,7 +18,7 @@
  */
 
 // Hooks
-export { useStopwatch } from './hooks/useStopwatch';
+export { useStopwatch, givesThirtySecondWarning } from './hooks/useStopwatch';
 export { useElementTimer } from './hooks/useElementTimer';
 export { useDragAndDropEntries } from './hooks/useDragAndDropEntries';
 export { useScoresheetScoring } from './hooks/useScoresheetScoring';

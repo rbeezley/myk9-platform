@@ -219,6 +219,21 @@ const CLASS_RULE_DELTAS: Readonly<Partial<Record<RegistryId, readonly ClassRuleD
       },
       apply: tuples => tuples,
     },
+    {
+      migration: '20261010235300_myk9_1086_ukc_rulebook_max_times.sql',
+      why: 'sets the rulebook max element time on every UKC rule (MYK9-1086) — times only; no class is added, removed or relabelled',
+      proves: sql => {
+        expect(sql).toMatch(/SET max_time_seconds_fixed = t\.seconds/);
+        expect(sql).toMatch(/\('Vehicle', 'Superior', 300\)/);
+        expect(sql).toMatch(/\('Handler Discrimination', 'Master', 240\)/);
+        expect(sql).toMatch(/v_rules <> 48/);
+        expect(sql).toMatch(/c\.time_limit_seconds IS NULL/);
+        expect(sql).not.toMatch(/INSERT INTO/i);
+        expect(sql).not.toMatch(/DELETE FROM/i);
+        expect(sql).not.toMatch(/SET\s+(level|element|section)\s*=/i);
+      },
+      apply: tuples => tuples,
+    },
   ],
 };
 

@@ -1,9 +1,8 @@
 /**
  * Class search time limits: the class editor's "M:SS" strings ↔ the
  * `classes.time_limit_seconds` / `time_limit_area{2,3}_seconds` columns the
- * live scoresheet reads. UKC Nosework times are set per class (the rule only
- * gives a range), so a limit that is not persisted leaves the scoresheet on
- * its fallback.
+ * live scoresheet reads. A limit that is not persisted leaves the scoresheet
+ * on its fallback, so a time the secretary enters must reach the column.
  */
 
 /** "05:00" / "5:00" → 300; blank or unparseable → null (clears the limit). */

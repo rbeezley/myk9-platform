@@ -19,10 +19,14 @@ import { TimerResetButton } from '../../TimerResetButton';
 import { formatScoresheetSubtitle } from '../../../utils/scoresheetSubtitle';
 import { useStopwatch } from '../../../hooks/useStopwatch';
 import { useElementTimer } from '../../../hooks/useElementTimer';
+import {
+  useElementMaxTimeStatus,
+  type ElementMaxTimeStatus,
+} from '../../../hooks/useElementMaxTimeStatus';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
 import { DQ_ACTIVE_CLASS, DisqualifyReason } from '../../DisqualifyReason';
-import type { LiveScoresheetProps } from '../../../types';
+import type { LiveScoresheetProps, ResolvedClassRules, StopwatchReturn } from '../../../types';
 import type { ExtendedResult } from '../../../types/scoreData';
 
 const RESULT_OPTIONS: { value: ExtendedResult; label: string; activeClass: string }[] = [
@@ -38,6 +42,50 @@ const RESULT_OPTIONS: { value: ExtendedResult; label: string; activeClass: strin
 ];
 
 const NQ_REASONS = ['Fault Limit', 'Max Time', 'False Alert', 'Handler Error'];
+
+/**
+ * Which clock carries the max. The rulebook maximum is an ELEMENT time
+ * (MYK9-1093): single mode has one clock, so it carries the max; in dual mode
+ * the element clock does, and the search clock (which pauses at each alert)
+ * has none of its own.
+ */
+function splitMaxTime(isDual: boolean, rules: ResolvedClassRules, maxTimeStr: string) {
+  const maxTimeMs = rules.maxTimeSeconds * 1000;
+  return {
+    maxTimeMs,
+    searchMaxTime: isDual ? undefined : maxTimeStr,
+    // Undefined = no element limit: single mode, or a class with none (0).
+    elementMaxTimeMs: isDual && maxTimeMs > 0 ? maxTimeMs : undefined,
+  };
+}
+
+/**
+ * A dual-mode search time as recorded: never past the element max, which a late
+ * tick (locked phone) or a Finish just past the max would otherwise allow. No
+ * element max, no cap -- a class without a limit records the real time.
+ */
+function capAtElementMax(searchMs: number, elementMaxTimeMs: number | undefined): number {
+  return elementMaxTimeMs === undefined ? searchMs : Math.min(searchMs, elementMaxTimeMs);
+}
+
+/** Warning / expiry / remaining time from whichever clock carries the max. */
+function timerStatus(isDual: boolean, element: ElementMaxTimeStatus, stopwatch: StopwatchReturn) {
+  return isDual
+    ? {
+        warningMessage: element.warningMessage,
+        // The search digits stay neutral: the paused search clock is not the one
+        // running out -- the ring and banner carry the element warning.
+        isWarning: false,
+        isExpired: false,
+        remainingTimeMs: element.remainingMs,
+      }
+    : {
+        warningMessage: stopwatch.getWarningMessage(),
+        isWarning: stopwatch.shouldShow30SecondWarning(),
+        isExpired: stopwatch.isTimeExpired(),
+        remainingTimeMs: stopwatch.getRemainingTimeMs(),
+      };
+}
 
 export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   entry,
@@ -62,8 +110,10 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     recordFinds: false,
   });
 
+  const { maxTimeMs, searchMaxTime, elementMaxTimeMs } = splitMaxTime(isDual, rules, maxTimeStr);
+
   const stopwatch = useStopwatch({
-    maxTime: maxTimeStr,
+    maxTime: searchMaxTime,
     level: classInfo.level,
     enableVoiceAnnouncements,
     onWarningChime,
@@ -77,7 +127,26 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     },
   });
 
-  const elementTimer = useElementTimer();
+  const elementTimer = useElementTimer({
+    maxTimeMs: elementMaxTimeMs,
+    onExpired: () => {
+      const elapsedMs = capAtElementMax(stopwatch.pause(), elementMaxTimeMs);
+      if (scoring.areas.length > 0) {
+        scoring.handleAreaUpdate(0, 'time', stopwatch.formatTime(elapsedMs));
+      }
+      scoring.setQualifying('NQ');
+      scoring.setNonQualifyingReason('Max Time');
+    },
+  });
+  const elementStatus = useElementMaxTimeStatus({
+    enabled: isDual,
+    maxTimeMs,
+    elementTimeMs: elementTimer.time,
+    isRunning: elementTimer.isRunning,
+    enableVoiceAnnouncements,
+    onWarningChime,
+    onVoiceAnnouncement,
+  });
 
   // Start both timers (dual mode) or just search timer (single mode)
   const handleStart = useCallback(() => {
@@ -99,14 +168,17 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
   // Finish: stop both timers, capture times into area 0
   const handleFinish = useCallback(() => {
-    const elapsedMs = stopwatch.pause();
-    if (isDual) {
-      elementTimer.stop();
-    }
+    const elapsedMs = capAtElementMax(stopwatch.pause(), elementMaxTimeMs);
+    const reachedMax = isDual && elementTimer.stop();
     if (scoring.areas.length > 0) {
       scoring.handleAreaUpdate(0, 'time', stopwatch.formatTime(elapsedMs));
     }
-  }, [stopwatch, elementTimer, isDual, scoring]);
+    // Finish tapped past the element max, before a tick noticed it.
+    if (reachedMax) {
+      scoring.setQualifying('NQ');
+      scoring.setNonQualifyingReason('Max Time');
+    }
+  }, [stopwatch, elementTimer, isDual, scoring, elementMaxTimeMs]);
 
   // Stop single-timer mode
   const handleStop = useCallback(() => {
@@ -139,11 +211,11 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   };
 
   // Timer visuals
-  const warningMessage = stopwatch.getWarningMessage();
-  const maxTimeMs = stopwatch.getMaxTimeMs();
-  const remainingTimeMs = isDual
-    ? Math.max(0, maxTimeMs - elementTimer.time)
-    : stopwatch.getRemainingTimeMs();
+  const { warningMessage, isWarning, isExpired, remainingTimeMs } = timerStatus(
+    isDual,
+    elementStatus,
+    stopwatch
+  );
   const remainingSeconds = remainingTimeMs / 1000;
 
   const getRingColor = (): string => {
@@ -267,8 +339,8 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                 <div
                   className={cn(
                     'text-5xl font-mono font-bold tracking-tight',
-                    stopwatch.shouldShow30SecondWarning() && 'text-amber-500',
-                    stopwatch.isTimeExpired() && 'text-destructive'
+                    isWarning && 'text-amber-500',
+                    isExpired && 'text-destructive'
                   )}
                   data-testid="search-timer-display"
                 >
@@ -277,7 +349,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
                 <div className="text-sm text-muted-foreground mt-2 tabular-nums">
                   {stopwatch.time > 0 ? (
-                    <>Remaining: {stopwatch.getRemainingTime()}</>
+                    <>Remaining: {stopwatch.formatTime(remainingTimeMs)}</>
                   ) : (
                     <>Max Time: {maxTimeStr}</>
                   )}

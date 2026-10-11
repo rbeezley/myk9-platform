@@ -33,7 +33,29 @@ import type { ElementTimerReturn } from '../types';
  * };
  * ```
  */
-export function useElementTimer(): ElementTimerReturn {
+export interface ElementTimerOptions {
+  /**
+   * The class's maximum element time (ms). UKC's rulebook maximums are ELEMENT
+   * times: when this clock reaches it the run is over, whatever the search
+   * clock reads (MYK9-1093). Omit for no limit.
+   */
+  maxTimeMs?: number | undefined;
+  /** Called once when the element time reaches `maxTimeMs`. */
+  onExpired?: (() => void) | undefined;
+}
+
+export function useElementTimer(options: ElementTimerOptions = {}): ElementTimerReturn {
+  const { maxTimeMs } = options;
+  // Latest callback without restarting the interval on every render.
+  // Latest max and callback, read by the running interval: a class limit
+  // corrected mid-run applies on the next tick.
+  const maxTimeMsRef = useRef(maxTimeMs);
+  const onExpiredRef = useRef(options.onExpired);
+  useEffect(() => {
+    maxTimeMsRef.current = maxTimeMs;
+    onExpiredRef.current = options.onExpired;
+  });
+
   // Current displayed time (updated every 100ms while running)
   const [time, setTime] = useState(0);
   const [isRunning, setIsRunning] = useState(false);
@@ -63,28 +85,46 @@ export function useElementTimer(): ElementTimerReturn {
   }, []);
 
   /**
+   * Run from now, painting every 100ms (battery). Reaching `maxTimeMs` freezes
+   * the clock exactly on the max and reports expiry once.
+   */
+  const run = useCallback(() => {
+    // Never orphan a running interval (two starts within one render).
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    setIsRunning(true);
+    startTimestampRef.current = Date.now();
+    intervalRef.current = setInterval(() => {
+      if (startTimestampRef.current === null) return;
+      const elapsed = Date.now() - startTimestampRef.current + accumulatedTimeRef.current;
+      const maxTimeMs = maxTimeMsRef.current;
+      if (maxTimeMs && elapsed >= maxTimeMs) {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        intervalRef.current = null;
+        startTimestampRef.current = null;
+        accumulatedTimeRef.current = maxTimeMs;
+        setTime(maxTimeMs);
+        setIsRunning(false);
+        onExpiredRef.current?.();
+        return;
+      }
+      setTime(elapsed);
+    }, 100);
+  }, []);
+
+  /**
    * Start the timer
    */
   const start = useCallback(() => {
     if (isRunning) return;
 
-    setIsRunning(true);
-    startTimestampRef.current = Date.now();
-
-    // Update time every 100ms (10x/sec) - smooth display, better battery life
-    intervalRef.current = setInterval(() => {
-      if (startTimestampRef.current !== null) {
-        const elapsed = Date.now() - startTimestampRef.current + accumulatedTimeRef.current;
-        setTime(elapsed);
-      }
-    }, 100);
-  }, [isRunning]);
+    run();
+  }, [isRunning, run]);
 
   /**
    * Stop the timer (freezes current time, can be resumed)
    */
-  const stop = useCallback(() => {
-    if (!isRunning) return;
+  const stop = useCallback((): boolean => {
+    if (!isRunning) return false;
 
     setIsRunning(false);
 
@@ -93,6 +133,10 @@ export function useElementTimer(): ElementTimerReturn {
     if (startTimestampRef.current !== null) {
       accumulatedTimeRef.current += Date.now() - startTimestampRef.current;
     }
+    // Stopped at or past the max before a tick noticed it: report it to the caller,
+    // which owns the stop and records the result (onExpired is for tick expiry).
+    const reachedMax = Boolean(maxTimeMs) && accumulatedTimeRef.current >= (maxTimeMs ?? 0);
+    if (maxTimeMs) accumulatedTimeRef.current = Math.min(accumulatedTimeRef.current, maxTimeMs);
     startTimestampRef.current = null;
     setTime(accumulatedTimeRef.current);
 
@@ -101,7 +145,8 @@ export function useElementTimer(): ElementTimerReturn {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-  }, [isRunning]);
+    return reachedMax;
+  }, [isRunning, maxTimeMs]);
 
   /**
    * Resume the timer after stop
@@ -109,17 +154,8 @@ export function useElementTimer(): ElementTimerReturn {
   const resume = useCallback(() => {
     if (isRunning) return;
 
-    setIsRunning(true);
-    startTimestampRef.current = Date.now();
-
-    // Continue updating time (100ms for better battery life)
-    intervalRef.current = setInterval(() => {
-      if (startTimestampRef.current !== null) {
-        const elapsed = Date.now() - startTimestampRef.current + accumulatedTimeRef.current;
-        setTime(elapsed);
-      }
-    }, 100);
-  }, [isRunning]);
+    run();
+  }, [isRunning, run]);
 
   /**
    * Reset timer to zero

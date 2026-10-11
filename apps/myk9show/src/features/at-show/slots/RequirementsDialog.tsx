@@ -36,7 +36,7 @@ function useReplicatedClass(classId: string, enabled: boolean): ReplicatedClass 
     if (!enabled || !classId) return;
     let cancelled = false;
     replicatedClassesTable
-      .get(classId)
+      .getClassById(classId)
       .then(row => {
         if (!cancelled) setCls(row ?? null);
       })

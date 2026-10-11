@@ -49,6 +49,9 @@ export function buildResolvedClassRules(classRecord: ClassRuleFields): ResolvedC
     timerMode,
     maxTimeSeconds,
     areaMaxTimeSeconds,
+    ...(classRecord.thirtySecondWarning != null && {
+      thirtySecondWarning: classRecord.thirtySecondWarning,
+    }),
     hideCount,
     hidesKnown,
     distractionCount,

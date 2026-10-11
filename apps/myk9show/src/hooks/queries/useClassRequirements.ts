@@ -31,6 +31,7 @@ interface SportClassRuleRow {
   distraction_count_max: number;
   timer_mode: string;
   odors: string[];
+  has_30_second_warning?: boolean | null;
   sport_templates: {
     organization: string;
   };
@@ -50,6 +51,8 @@ export interface ClassRequirements {
   has_blank: boolean;
   timer_mode: string;
   odors: string[];
+  /** False when the judge's timer gives no 30-second warning (MYK9-1102). */
+  thirty_second_warning?: boolean | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -118,6 +121,7 @@ function mapRowToRequirements(row: SportClassRuleRow): ClassRequirements {
     has_blank: row.has_blank,
     timer_mode: row.timer_mode,
     odors: row.odors ?? [],
+    thirty_second_warning: row.has_30_second_warning !== false,
   };
 }
 
@@ -210,6 +214,7 @@ export function useClassRequirements({
           distraction_count_min,
           distraction_count_max,
           timer_mode,
+          has_30_second_warning,
           odors,
           sport_templates!inner ( organization )
         `

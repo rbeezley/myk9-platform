@@ -40,6 +40,7 @@ export function classRequirementsFromClass(
     has_blank: false,
     timer_mode: cls.timerMode ?? 'single',
     odors: [],
+    thirty_second_warning: cls.timeLimitRule?.thirtySecondWarning !== false,
   };
 }
 

@@ -57,9 +57,12 @@ export function RequirementCard({
   );
 }
 
-function buildTimeSubtitle(timeType: 'fixed' | 'range' | null): string | undefined {
-  if (timeType === 'range') return 'Judge sets within range';
-  return undefined;
+function buildTimeSubtitle(req: ClassRequirements): string | undefined {
+  const parts = [
+    req.time_type === 'range' ? 'Judge sets within range' : null,
+    req.thirty_second_warning === false ? 'No 30-second warning' : null,
+  ].filter(Boolean);
+  return parts.length ? parts.join(' \u00b7 ') : undefined;
 }
 
 /** Returns true if the requirements object has at least one card worth rendering. */
@@ -100,7 +103,7 @@ export function ClassRequirementsCards({
           colorClass={iconColors.blue}
           label="Time Limit"
           value={requirements.time_limit_text}
-          subtitle={buildTimeSubtitle(requirements.time_type)}
+          subtitle={buildTimeSubtitle(requirements)}
         />
       )}
 

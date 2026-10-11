@@ -16,6 +16,11 @@ export interface ResolvedClassRules {
    * `maxTimeSeconds`; read it through `maxTimeForArea`.
    */
   areaMaxTimeSeconds?: number[] | undefined;
+  /**
+   * Whether the timer gives the 30-second warning, from the class's rule
+   * (MYK9-1102). Absent, the stopwatch falls back to "not for Master".
+   */
+  thirtySecondWarning?: boolean | undefined;
   /** Number of hides, or null if not set */
   hideCount: number | null;
   /** Whether the handler knows the hide count */
@@ -44,6 +49,8 @@ export interface ClassRuleFields {
   time_limit_area2_seconds?: number | null | undefined;
   timeLimitArea3Seconds?: number | null | undefined;
   time_limit_area3_seconds?: number | null | undefined;
+
+  thirtySecondWarning?: boolean | null | undefined;
 
   timerMode?: string | null | undefined;
   timer_mode?: string | null | undefined;

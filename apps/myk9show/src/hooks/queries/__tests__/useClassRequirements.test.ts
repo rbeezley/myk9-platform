@@ -70,6 +70,7 @@ const SAMPLE_REQUIREMENTS: ClassRequirements = {
   has_blank: false,
   timer_mode: 'single',
   odors: ['Birch', 'Anise', 'Clove', 'Cypress'],
+  thirty_second_warning: true,
 };
 
 /** Sample raw row as returned by the Supabase query. */

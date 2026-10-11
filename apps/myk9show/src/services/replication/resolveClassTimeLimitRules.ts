@@ -21,11 +21,13 @@ export interface TimeLimitRule {
   fixed?: number | undefined;
   min?: number | undefined;
   max?: number | undefined;
+  /** False when the rulebook withholds the 30-second warning (AKC Master; MYK9-1102). */
+  thirtySecondWarning?: boolean | undefined;
   forElement: string | null;
   forLevel: string | null;
 }
 
-type RuleLimits = Pick<TimeLimitRule, 'fixed' | 'min' | 'max'>;
+type RuleLimits = Pick<TimeLimitRule, 'fixed' | 'min' | 'max' | 'thirtySecondWarning'>;
 
 interface RuleClassRow {
   id: string;
@@ -40,6 +42,7 @@ interface RuleRow {
   max_time_seconds_fixed: number | null;
   max_time_seconds_min: number | null;
   max_time_seconds_max: number | null;
+  has_30_second_warning: boolean | null;
   sport_templates: { organization: string } | Array<{ organization: string }> | null;
 }
 
@@ -101,7 +104,7 @@ export async function resolveTimeLimitRulesForClassRows(
   const { data: rules, error: rulesError } = await supabase
     .from('sport_class_rules')
     .select(
-      'element, level, max_time_seconds_fixed, max_time_seconds_min, max_time_seconds_max, sport_templates!inner(organization)'
+      'element, level, max_time_seconds_fixed, max_time_seconds_min, max_time_seconds_max, has_30_second_warning, sport_templates!inner(organization)'
     )
     .in('sport_templates.organization', registries);
   if (rulesError) {
@@ -124,6 +127,9 @@ export async function resolveTimeLimitRulesForClassRows(
       fixed: maxOf(prev.fixed, rule.max_time_seconds_fixed),
       min: minOf(prev.min, rule.max_time_seconds_min),
       max: maxOf(prev.max, rule.max_time_seconds_max),
+      // Withheld if any section's rule withholds it.
+      thirtySecondWarning:
+        (prev.thirtySecondWarning ?? true) && rule.has_30_second_warning !== false,
     });
   }
 

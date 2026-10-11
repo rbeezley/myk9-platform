@@ -100,6 +100,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   const stopwatch = useStopwatch({
     maxTime: maxTimeStr,
     level: classInfo.level,
+    thirtySecondWarning: rules.thirtySecondWarning,
     enableVoiceAnnouncements,
     onWarningChime,
     onVoiceAnnouncement,

@@ -132,7 +132,7 @@ const MaxTimeForm: React.FC<MaxTimeDialogProps> = ({
 
   return (
     <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
-      <DialogContent>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{classData.class_name} — Max Time</DialogTitle>
         </DialogHeader>

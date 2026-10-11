@@ -48,14 +48,17 @@ export function classRequirementsFromClass(
   };
 }
 
-/** The class's saved max time(s): "2:00", "Area 1 2:00 · Area 2 2:30", or "Not set". */
+/**
+ * The class's saved max time(s): "2:00", "Area 1 2:00 · Area 2 2:30", or "Not set".
+ * Each area shows its own time, falling back to area 1's as the scoresheet does;
+ * an area with neither says "Not set" without hiding the others.
+ */
 export function setMaxTimeText(cls: ReplicatedClass | null, perArea: boolean): string {
   const times = [cls?.timeLimitSeconds, cls?.timeLimitArea2Seconds, cls?.timeLimitArea3Seconds];
-  if (!times[0]) return 'Not set';
   const areas = perArea ? Math.min(3, Math.max(1, cls?.areaCount ?? 1)) : 1;
-  if (areas === 1) return formatTimeLimitSeconds(times[0]);
-  return times
-    .slice(0, areas)
-    .map((t, i) => `Area ${i + 1} ${formatTimeLimitSeconds(t || times[0])}`)
-    .join(' · ');
+  const shown = times.slice(0, areas).map(t => t || times[0]);
+  if (!shown.some(Boolean)) return 'Not set';
+  const label = (t: number | undefined) => (t ? formatTimeLimitSeconds(t) : 'Not set');
+  if (areas === 1) return label(shown[0]);
+  return shown.map((t, i) => `Area ${i + 1} ${label(t)}`).join(' · ');
 }

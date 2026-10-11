@@ -129,4 +129,28 @@ describe('ringside ClassRequirementsDialog (MYK9-1100)', () => {
     expect(await screen.findByText('Not set')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /set max time/i })).not.toBeInTheDocument();
   });
+
+  it('shows saved area 2 and 3 times even when area 1 is unset', async () => {
+    seed({ timeLimitSeconds: undefined });
+    render(<ClassRequirementsDialog isOpen onClose={vi.fn()} classData={classData} />);
+    expect(
+      await screen.findByText('Area 1 Not set \u00b7 Area 2 2:00 \u00b7 Area 3 2:30')
+    ).toBeInTheDocument();
+  });
+
+  it('keeps Set Max Time reachable when the class is not on this device', async () => {
+    replica.rows.clear();
+    const onSetMaxTime = vi.fn();
+    render(
+      <ClassRequirementsDialog
+        isOpen
+        onClose={vi.fn()}
+        onSetMaxTime={onSetMaxTime}
+        classData={classData}
+      />
+    );
+    expect(await screen.findByText(/aren.t on this device yet/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /set max time/i }));
+    expect(onSetMaxTime).toHaveBeenCalled();
+  });
 });

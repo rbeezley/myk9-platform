@@ -402,7 +402,13 @@ async function fetchClassData(
   const sheet = cls
     ? await scoresheetKeyForClass(cls.trialId ?? cls.trial_id, cls.name ?? '')
     : null;
-  return { cls, trial, entries, rawEntries, perAreaMaxTimes: sheet === 'AKC_SCENT_WORK' || sheet === 'ASCA_SCENT_DETECTION' };
+  return {
+    cls,
+    trial,
+    entries,
+    rawEntries,
+    perAreaMaxTimes: sheet === 'AKC_SCENT_WORK' || sheet === 'ASCA_SCENT_DETECTION',
+  };
 }
 
 /**

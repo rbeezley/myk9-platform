@@ -130,9 +130,17 @@ describe('ringside ClassRequirementsDialog (MYK9-1100)', () => {
     expect(screen.queryByRole('button', { name: /set max time/i })).not.toBeInTheDocument();
   });
 
-  it('says No 30-second warning for a Master class whose cached rule predates the field', async () => {
+  it('notes No 30-second warning only when the cached rule says so', async () => {
+    seed({ timeLimitRule: { ...rule, thirtySecondWarning: false } });
+    const { unmount } = render(
+      <ClassRequirementsDialog isOpen onClose={vi.fn()} classData={classData} />
+    );
+    expect(await screen.findByText(/No 30-second warning/)).toBeInTheDocument();
+    unmount();
+
     seed({ timeLimitRule: { ...rule, thirtySecondWarning: undefined } });
     render(<ClassRequirementsDialog isOpen onClose={vi.fn()} classData={classData} />);
-    expect(await screen.findByText(/No 30-second warning/)).toBeInTheDocument();
+    await screen.findByText(/Area 1 1:30/);
+    expect(screen.queryByText(/No 30-second warning/)).not.toBeInTheDocument();
   });
 });

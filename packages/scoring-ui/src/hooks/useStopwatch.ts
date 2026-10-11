@@ -50,13 +50,9 @@ function parseMaxTimeToMs(maxTime: string): number {
  */
 /**
  * Whether the timer gives the 30-second warning: the class rule decides
- * (MYK9-1102); without one, Master gets none. Shared with the Requirements cards
- * so what they say matches the clock.
+ * (MYK9-1102); without one, Master gets none.
  */
-export function givesThirtySecondWarning(
-  rule: boolean | undefined,
-  level: string | undefined
-): boolean {
+function givesThirtySecondWarning(rule: boolean | undefined, level: string | undefined): boolean {
   if (rule !== undefined) return rule;
   const normalizedLevel = level?.toLowerCase() || '';
   return !(normalizedLevel === 'master' || normalizedLevel === 'masters');

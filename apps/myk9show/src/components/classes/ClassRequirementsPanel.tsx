@@ -14,7 +14,7 @@ interface ClassRequirementsPanelProps {
 }
 
 /** Icon color mappings for requirement cards. */
-export const iconColors = {
+const iconColors = {
   blue: 'bg-blue-500/15 text-blue-500',
   red: 'bg-red-500/15 text-red-500',
   amber: 'bg-amber-500/15 text-amber-500',
@@ -63,7 +63,7 @@ function buildTimeSubtitle(timeType: 'fixed' | 'range' | null): string | undefin
 }
 
 /** Returns true if the requirements object has at least one card worth rendering. */
-export function hasAnyDisplayableData(req: ClassRequirements | null): boolean {
+function hasAnyDisplayableData(req: ClassRequirements | null): boolean {
   if (!req) return false;
   return (
     !!req.time_limit_text ||
@@ -84,12 +84,14 @@ export function hasAnyDisplayableData(req: ClassRequirements | null): boolean {
 export function ClassRequirementsCards({
   requirements,
   leading,
+  className = 'space-y-3 p-6',
 }: {
   requirements: ClassRequirements;
   leading?: React.ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="space-y-3 p-6">
+    <div className={className}>
       {leading}
       {/* Time Limit */}
       {requirements.time_limit_text && (

@@ -338,6 +338,8 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
             level: classInfo.level,
             class_name: classInfo.className,
             entry_count: classDialogCounts(classInfo).entry_count,
+            registry: classInfo.registry,
+            per_area_times: classInfo.perAreaMaxTimes,
           }}
         />
       )}

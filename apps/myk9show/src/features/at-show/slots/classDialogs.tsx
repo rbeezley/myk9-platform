@@ -8,7 +8,6 @@ import type React from 'react';
 import type {
   AreaCountSelectionDialogProps,
   ClassOptionsDialogProps,
-  ClassRequirementsDialogProps,
   ClassSettingsDialogProps,
   ClassStatusDialogProps,
 } from '@myk9/ringside';
@@ -151,40 +150,10 @@ export const ClassStatusDialog: React.FC<ClassStatusDialogProps> = ({
 };
 
 // ---------------------------------------------------------------------------
-// ClassRequirementsDialog — read-only rules/requirements.
+// ClassRequirementsDialog — the class's rules; see RequirementsDialog (MYK9-1100).
 // ---------------------------------------------------------------------------
 
-export const ClassRequirementsDialog: React.FC<ClassRequirementsDialogProps> = ({
-  isOpen,
-  onClose,
-  onSetMaxTime,
-  classData,
-}) => {
-  if (!isOpen) return null;
-
-  return (
-    <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{classData.class_name} — Requirements</DialogTitle>
-        </DialogHeader>
-        <p>
-          {classData.element} {classData.level} · {classData.entry_count} entries
-        </p>
-        <DialogFooter>
-          {onSetMaxTime && (
-            <Button variant="outline" onClick={onSetMaxTime}>
-              Set Max Time
-            </Button>
-          )}
-          <Button variant="ghost" onClick={onClose}>
-            Close
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
+export { ClassRequirementsDialog } from './RequirementsDialog';
 
 // ---------------------------------------------------------------------------
 // ClassSettingsDialog — per-class settings.

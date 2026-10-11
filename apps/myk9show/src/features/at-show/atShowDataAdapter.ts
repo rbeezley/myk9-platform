@@ -399,7 +399,7 @@ async function fetchClassData(
       : null;
   // Only the AKC Scent Work sheet times each area against its own max (MYK9-1098).
   const sheet = cls
-    ? await scoresheetKeyForClass(cls.trialId ?? cls.trial_id, buildClassName(cls))
+    ? await scoresheetKeyForClass(cls.trialId ?? cls.trial_id, cls.name ?? '')
     : null;
   return { cls, trial, entries, rawEntries, perAreaMaxTimes: sheet === 'AKC_SCENT_WORK' };
 }

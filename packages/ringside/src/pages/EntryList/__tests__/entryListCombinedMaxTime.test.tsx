@@ -41,9 +41,9 @@ function withMaxTime(
   return {
     ...props,
     uiState: { ...props.uiState, maxTimeDialogOpen: overrides.open ?? false },
-    dialogs: new Proxy(dialogSlots, {
+    dialogs: new Proxy(dialogSlots as unknown as Record<string, unknown>, {
       get: (target, prop: string) => (prop === 'MaxTimeDialog' ? MaxTimeDialogSpy : target[prop]),
-    }) as EntryListPageProps['dialogs'],
+    }) as unknown as EntryListPageProps['dialogs'],
     context: { ...props.context, hideMaxTimeOption: overrides.hide ?? false },
   } as EntryListPageProps;
 }

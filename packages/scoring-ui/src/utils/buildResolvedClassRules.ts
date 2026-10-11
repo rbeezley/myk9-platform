@@ -23,6 +23,18 @@ export function buildResolvedClassRules(classRecord: ClassRuleFields): ResolvedC
   const maxTimeSeconds =
     classRecord.timeLimitSeconds ?? classRecord.time_limit_seconds ?? NO_MAX_TIME_SECONDS;
 
+  // Area 2 and 3 fall back to area 1's time: a class saved before per-area times
+  // (MYK9-1098) kept one time for every area.
+  const areaTimes = [
+    maxTimeSeconds,
+    classRecord.timeLimitArea2Seconds ?? classRecord.time_limit_area2_seconds,
+    classRecord.timeLimitArea3Seconds ?? classRecord.time_limit_area3_seconds,
+  ];
+  const areaMaxTimeSeconds = Array.from(
+    { length: areaCount },
+    (_, index) => areaTimes[index] || maxTimeSeconds
+  );
+
   const rawTimerMode = classRecord.timerMode ?? classRecord.timer_mode ?? 'single';
   const timerMode: 'single' | 'dual' = rawTimerMode === 'dual' ? 'dual' : 'single';
 
@@ -36,8 +48,14 @@ export function buildResolvedClassRules(classRecord: ClassRuleFields): ResolvedC
     areaCount,
     timerMode,
     maxTimeSeconds,
+    areaMaxTimeSeconds,
     hideCount,
     hidesKnown,
     distractionCount,
   };
+}
+
+/** The max time for one area (0-based); 0 means no limit. */
+export function maxTimeForArea(rules: ResolvedClassRules, areaIndex: number): number {
+  return rules.areaMaxTimeSeconds?.[areaIndex] || rules.maxTimeSeconds;
 }

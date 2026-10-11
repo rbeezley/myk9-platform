@@ -49,7 +49,7 @@ export {
   parseTimeToMs,
   formatTimeInputToMMSS,
 } from './utils/timeUtils';
-export { buildResolvedClassRules } from './utils/buildResolvedClassRules';
+export { buildResolvedClassRules, maxTimeForArea } from './utils/buildResolvedClassRules';
 export {
   getScoresheetComponent,
   registerScoresheet,

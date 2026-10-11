@@ -28,6 +28,23 @@ describe('buildRingsideClassRpc (MYK9-1086 / MYK9-1096)', () => {
     ).toEqual({ time_limit_seconds: null });
   });
 
+  it('routes per-area max times (MYK9-1098)', () => {
+    expect(
+      buildRingsideClassRpc(
+        ['timeLimitSeconds', 'timeLimitArea2Seconds', 'timeLimitArea3Seconds'],
+        {
+          ...row,
+          time_limit_area2_seconds: 120,
+          time_limit_area3_seconds: 90,
+        }
+      )?.fields
+    ).toEqual({
+      time_limit_seconds: 150,
+      time_limit_area2_seconds: 120,
+      time_limit_area3_seconds: 90,
+    });
+  });
+
   it('ignores bookkeeping keys when deciding', () => {
     expect(
       buildRingsideClassRpc(['classStatus', '_lastModified', '_syncStatus'], row)?.fields

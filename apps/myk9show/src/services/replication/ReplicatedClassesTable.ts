@@ -474,6 +474,8 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       section: cls.section ?? null,
       num_areas: cls.areaCount ?? null,
       time_limit_seconds: cls.timeLimitSeconds ?? null,
+      time_limit_area2_seconds: cls.timeLimitArea2Seconds ?? null,
+      time_limit_area3_seconds: cls.timeLimitArea3Seconds ?? null,
       timer_mode: cls.timerMode ?? null,
       hides_known: cls.hidesKnown ?? null,
       distraction_count: cls.distractionCount ?? null,

@@ -23,6 +23,7 @@ import type {
   SyncOptions,
   CacheStats,
   ReplicatedReadResult,
+  PendingMutation,
 } from '../types';
 import type { Logger, ReplicatedTableDependencies } from '../dependencies';
 import { noopLogger } from '../dependencies';
@@ -239,12 +240,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     supabasePayload: Record<string, unknown>,
     dependsOn?: string[],
     /** Optional: apply via a SECURITY DEFINER RPC (see PendingMutation.rpc). */
-    rpc?: {
-      name: string;
-      fields?: Record<string, unknown>;
-      args?: Record<string, unknown>;
-      expectRowId?: boolean;
-    },
+    rpc?: PendingMutation['rpc'],
     /**
      * When true, persist the mutation but DON'T schedule the upload yet — the
      * caller will mark the cache row dirty and then call {@link requestUpload}.

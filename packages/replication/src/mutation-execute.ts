@@ -119,7 +119,7 @@ export async function executeMutation(
           supabase.rpc(
             mutation.rpc.name,
             mutation.rpc.args ?? {
-              p_entry_id: data.id as string,
+              [mutation.rpc.idParam ?? 'p_entry_id']: data.id as string,
               p_fields: mutation.rpc.fields ?? {},
               p_expected_version: mutation.serverVersion ?? null,
             }

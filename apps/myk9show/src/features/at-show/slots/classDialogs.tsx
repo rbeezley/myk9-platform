@@ -11,7 +11,6 @@ import type {
   ClassRequirementsDialogProps,
   ClassSettingsDialogProps,
   ClassStatusDialogProps,
-  MaxTimeDialogProps,
 } from '@myk9/ringside';
 import {
   Dialog,
@@ -220,40 +219,8 @@ export const ClassSettingsDialog: React.FC<ClassSettingsDialogProps> = ({
   );
 };
 
-// ---------------------------------------------------------------------------
-// MaxTimeDialog — per-area max-time configuration.
-// ---------------------------------------------------------------------------
-
-export const MaxTimeDialog: React.FC<MaxTimeDialogProps> = ({
-  isOpen,
-  onClose,
-  showWarning,
-  classData,
-  onTimeUpdate,
-}) => {
-  if (!isOpen) return null;
-
-  return (
-    <Dialog open onOpenChange={open => handleOpenChange(open, onClose)}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{classData.class_name} — Max Time</DialogTitle>
-        </DialogHeader>
-        {showWarning && <p>Scoring started without a max time set.</p>}
-        <DialogFooter>
-          {onTimeUpdate && (
-            <Button variant="outline" onClick={onTimeUpdate}>
-              Save
-            </Button>
-          )}
-          <Button variant="ghost" onClick={onClose}>
-            Close
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-};
+// MaxTimeDialog lives in ./MaxTimeDialog (it saves through the class replica).
+export { MaxTimeDialog } from './MaxTimeDialog';
 
 // ---------------------------------------------------------------------------
 // AreaCountSelectionDialog — pick an area count for flexible-area classes.

@@ -9,6 +9,7 @@
  */
 
 import type { ClassEntry } from '../types';
+import { withMergedSectionState } from './combinedSectionState';
 
 /**
  * Check if the organization uses A/B sections for all levels
@@ -21,6 +22,9 @@ export function shouldCombineAllSections(organization: string | undefined): bool
   if (orgLower === 'ukc') return true;
   return orgLower.includes('ukc') && orgLower.includes('nosework');
 }
+
+const judgeKey = (c: ClassEntry) => c.judge_name.trim().toLowerCase();
+const sameJudge = (a: ClassEntry, b: ClassEntry) => judgeKey(a) === judgeKey(b);
 
 /**
  * Find the paired class for a given class entry with A/B sections
@@ -67,11 +71,14 @@ export function findPairedSectionedClass(
   const pairedSection = clickedClass.section === 'A' ? 'B' : 'A';
 
   // Find the matching class with same element, level, but different section
+  // Judge must match too: each judge scores and signs off their own section,
+  // so A and B under different judges stay two cards (MYK9-1092).
   const paired = allClasses.find(
     c =>
       c.element === clickedClass.element &&
       c.level === clickedClass.level &&
-      c.section === pairedSection
+      c.section === pairedSection &&
+      sameJudge(c, clickedClass)
   );
 
   return paired || null;
@@ -87,7 +94,8 @@ export function findPairedSectionedClass(
  * **Combination rules depend on organization:**
  * - UKC Nosework: ALL levels with section 'A' or 'B' are combined
  * - AKC (default): Only Novice level classes are combined
- * - Classes must match on `element` and `level`
+ * - Classes must match on `element`, `level` and judge (different judges stay separate)
+ * - Status, release, finalization and times reflect BOTH sections
  * - Combined entry uses section 'A' as primary ID
  * - Entry counts, completion counts, and dog arrays are merged
  * - Favorite status is true if either class is favorited
@@ -147,7 +155,7 @@ export function groupSectionedClasses(
 
         // Create combined entry
         const combined: ClassEntry = {
-          ...first, // Use first class as base
+          ...withMergedSectionState(first, second), // Section A base, status/release/times of BOTH
           id: first.id, // Primary ID for navigation
           section: 'A & B', // Combined section label
           class_name: `${first.element} ${first.level} A & B`, // Combined name

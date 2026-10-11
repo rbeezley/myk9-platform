@@ -24,7 +24,7 @@ import { formatRelativeTime } from '@/lib/timeUtils';
 import { PRIORITY_BORDER } from './notification-styles';
 import { AnnouncementItem } from '@/components/announcements/AnnouncementItem';
 import { getAnnouncementAuthor } from '@/types/announcement-types';
-import { MessageCenterComposeDialog } from './MessageCenterComposeDialog';
+import { MessageCenterComposeForm } from './MessageCenterComposeForm';
 import { useMyJudgedShows } from '@/features/messages/hooks/useMyJudgedShows';
 import { readRouteShowId, selectComposeShows } from '@/features/messages/messageComposeShows';
 import type {
@@ -180,7 +180,9 @@ export function MessageCenterPanel() {
   const showsLoading = useShowStore(s => s.isLoading);
   const [activeTab, setActiveTab] = useState<MessageCenterTab>('notifications');
   const [unreadOnly, setUnreadOnly] = useState(false);
-  const [isComposeOpen, setIsComposeOpen] = useState(false);
+  const [isComposing, setIsComposing] = useState(false);
+  // A closed Message Center always reopens on the list, never mid-compose.
+  if (!isCenterOpen && isComposing) setIsComposing(false);
 
   const isStaffDestination = isSecretary || isAdmin || hasRole('club_admin');
   const canPostShowWideMessage = author.isOfficial;
@@ -243,8 +245,20 @@ export function MessageCenterPanel() {
     void retryMessageSubscribe(messageShowIds);
   }
 
+  // Compose is a mode of this one panel (MYK9-1088), never a dialog stacked on it.
   function handleOpenCompose() {
-    setIsComposeOpen(true);
+    setIsComposing(true);
+  }
+
+  function handleCloseCompose() {
+    setIsComposing(false);
+  }
+
+  // Escape, the backdrop and the X all land here: while composing they step
+  // back to the list first; a second press closes the Message Center.
+  function handlePanelClose() {
+    if (isComposing) handleCloseCompose();
+    else closeCenter();
   }
 
   function handleOpenFullView() {
@@ -392,69 +406,17 @@ export function MessageCenterPanel() {
       : {};
 
   return (
-    <>
-      <SlideOverPanel
-        open={isCenterOpen}
-        onClose={closeCenter}
-        title="Message Center"
-        side="right"
-        size="sm"
-        {...unreadHeaderProps}
-      >
-        {canComposeShowMessage && (
-          <div className="flex gap-2 border-b border-border/50 p-3">
-            <Button variant="default" size="sm" className="flex-1" onClick={handleOpenCompose}>
-              <Plus className="mr-1.5 h-4 w-4" />
-              Compose
-            </Button>
-            {isStaffDestination && (
-              <Button variant="outline" size="sm" onClick={handleOpenFullView}>
-                Open full view
-              </Button>
-            )}
-          </div>
-        )}
-        <div className="flex border-b border-border/50 px-4" role="tablist">
-          {[
-            { key: 'notifications' as const, label: 'Notifications', icon: Bell },
-            { key: 'showMessages' as const, label: 'Show messages', icon: MessageSquare },
-          ].map(tab => (
-            <button
-              key={tab.key}
-              type="button"
-              role="tab"
-              aria-selected={activeTab === tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium ${
-                activeTab === tab.key
-                  ? 'border-b-2 border-orange-500 text-orange-500'
-                  : 'text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              <tab.icon className="h-3 w-3" />
-              {tab.label}
-            </button>
-          ))}
-          <div className="flex-1" />
-          <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-muted-foreground">
-            <input
-              type="checkbox"
-              checked={unreadOnly}
-              onChange={event => setUnreadOnly(event.target.checked)}
-              aria-label="Unread only"
-              className="h-3 w-3 rounded border-border"
-            />
-            Unread only
-          </label>
-        </div>
-        {activeTab === 'notifications' && renderNotificationsTab()}
-        {activeTab === 'showMessages' && renderShowMessagesTab()}
-      </SlideOverPanel>
-
-      {isComposeOpen && (
-        <MessageCenterComposeDialog
-          open={isComposeOpen}
-          onOpenChange={setIsComposeOpen}
+    <SlideOverPanel
+      open={isCenterOpen}
+      onClose={handlePanelClose}
+      title={isComposing ? 'Compose show message' : 'Message Center'}
+      side="right"
+      size="sm"
+      {...(isComposing ? { showBackButton: true, onBack: handleCloseCompose } : unreadHeaderProps)}
+    >
+      {isComposing ? (
+        <MessageCenterComposeForm
+          onSent={handleCloseCompose}
           options={composeShows}
           routeShowId={readRouteShowId(location.pathname, location.search)}
           pendingMessage={composeListPending}
@@ -462,7 +424,58 @@ export function MessageCenterPanel() {
           manageRecipients={composeAllowedRecipients}
           manageShowWideLane={composeShowWideDeliveryLane}
         />
+      ) : (
+        <>
+          {canComposeShowMessage && (
+            <div className="flex gap-2 border-b border-border/50 p-3">
+              <Button variant="default" size="sm" className="flex-1" onClick={handleOpenCompose}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                Compose
+              </Button>
+              {isStaffDestination && (
+                <Button variant="outline" size="sm" onClick={handleOpenFullView}>
+                  Open full view
+                </Button>
+              )}
+            </div>
+          )}
+          <div className="flex border-b border-border/50 px-4" role="tablist">
+            {[
+              { key: 'notifications' as const, label: 'Notifications', icon: Bell },
+              { key: 'showMessages' as const, label: 'Show messages', icon: MessageSquare },
+            ].map(tab => (
+              <button
+                key={tab.key}
+                type="button"
+                role="tab"
+                aria-selected={activeTab === tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={`flex items-center gap-1.5 px-3 py-2.5 text-xs font-medium ${
+                  activeTab === tab.key
+                    ? 'border-b-2 border-orange-500 text-orange-500'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                <tab.icon className="h-3 w-3" />
+                {tab.label}
+              </button>
+            ))}
+            <div className="flex-1" />
+            <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={unreadOnly}
+                onChange={event => setUnreadOnly(event.target.checked)}
+                aria-label="Unread only"
+                className="h-3 w-3 rounded border-border"
+              />
+              Unread only
+            </label>
+          </div>
+          {activeTab === 'notifications' && renderNotificationsTab()}
+          {activeTab === 'showMessages' && renderShowMessagesTab()}
+        </>
       )}
-    </>
+    </SlideOverPanel>
   );
 }

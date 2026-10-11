@@ -163,6 +163,16 @@ describe('classQueries (replication)', () => {
   // getAllClasses
   // -----------------------------------------------------------------------
   describe('getAllClasses', () => {
+    it('keeps the judge as a confirmed assignment when the replica has no judge name (MYK9-1036)', async () => {
+      setupListMocks([makeClass({ judgeId: 'person-1', judgeName: undefined })]);
+
+      const result = await getAllClasses();
+
+      expect((result.data[0] as Record<string, unknown>).judge_assignments).toEqual([
+        { person_id: 'person-1', status: 'confirmed', people: { first_name: '', last_name: '' } },
+      ]);
+    });
+
     it('returns correct snake_case shape with joined data', async () => {
       setupListMocks();
 
@@ -504,6 +514,23 @@ describe('classQueries (replication)', () => {
       expect(mockClassesTable.getClassesByTrial).not.toHaveBeenCalled();
       expect(result.data).toHaveLength(1);
       expect((result.data[0] as Record<string, unknown>).id).toBe('pg-class-1');
+    });
+
+    it('cold fallback asks for the assignment id and status, so a declined judge can be told apart (MYK9-1036)', async () => {
+      mockSupabase.auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+      const query = createChainableQuery({ data: [], error: null });
+      mockSupabase.from.mockReturnValue(query);
+
+      await getClassesByTrialId('trial-1');
+
+      const select = String(
+        (query.select as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]![0]
+      );
+      const embed = select.slice(select.indexOf('judge_assignments'));
+      expect(embed).toMatch(/\bid\b/);
+      expect(embed).toMatch(/\bstatus\b/);
+      // An inner join on people drops a judge whose name the caller cannot read.
+      expect(embed).not.toContain('people!inner');
     });
 
     it('returns judge data on each class via the synthesized join', async () => {

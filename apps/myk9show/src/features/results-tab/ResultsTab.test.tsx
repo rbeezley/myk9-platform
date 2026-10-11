@@ -582,10 +582,15 @@ describe('ResultsTab judge sign-off', () => {
     expect(
       within(section).queryByRole('button', { name: /Record initials/ })
     ).not.toBeInTheDocument();
-    expect(within(section).getByRole('link', { name: /Print marked catalog/ })).toHaveAttribute(
-      'href',
-      expect.stringContaining('report=result-catalog')
-    );
+    const href = within(section)
+      .getByRole('link', { name: /Print marked catalog/ })
+      .getAttribute('href')!;
+    expect(href).toContain('report=result-catalog');
+    // MYK9-1036: one judge's day, never the trial or the show.
+    expect(href).toContain('judgeId=j1');
+    expect(href).toContain('day=2026-10-10');
+    expect(href).not.toContain('trialId=');
+    expect(href).not.toContain('classId=');
   });
 
   it('records the whole completed day at once, once the judge is done for the day', async () => {

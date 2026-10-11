@@ -51,6 +51,7 @@ describe('mapReplicatedClassToDbRow — judge data round-trip', () => {
     expect(dbRow.judge_assignments).toEqual([
       {
         person_id: 'judge-uuid-1',
+        status: 'confirmed',
         people: { first_name: 'Richard', last_name: 'Beezley' },
       },
     ]);
@@ -65,7 +66,11 @@ describe('mapReplicatedClassToDbRow — judge data round-trip', () => {
     const dbRow = mapReplicatedClassToDbRow(replicated);
 
     expect(dbRow.judge_assignments).toEqual([
-      { person_id: 'judge-uuid-2', people: { first_name: 'Madonna', last_name: '' } },
+      {
+        person_id: 'judge-uuid-2',
+        status: 'confirmed',
+        people: { first_name: 'Madonna', last_name: '' },
+      },
     ]);
   });
 
@@ -80,6 +85,7 @@ describe('mapReplicatedClassToDbRow — judge data round-trip', () => {
     expect(dbRow.judge_assignments).toEqual([
       {
         person_id: 'judge-uuid-3',
+        status: 'confirmed',
         people: { first_name: 'Mary', last_name: 'Van Der Berg' },
       },
     ]);

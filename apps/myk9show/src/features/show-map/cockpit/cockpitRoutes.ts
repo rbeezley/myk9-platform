@@ -125,6 +125,28 @@ export function getCockpitReportHref(input: {
   );
 }
 
+/**
+ * MYK9-1036: the Result Catalog for ONE judge's day. The judge is named by id, the same identity
+ * the Show Map groups on; the day is the trial date. The Reports page resolves both against the
+ * show's classes, so no trial or class rides along.
+ */
+export function getCockpitJudgeDayCatalogHref(input: {
+  showId: string;
+  judgeId: string;
+  date: string;
+  returnTo: string;
+}): string {
+  const params = new URLSearchParams({
+    report: 'result-catalog',
+    judgeId: input.judgeId,
+    day: input.date,
+  });
+  return withReturnTo(
+    `/shows/${encodeURIComponent(input.showId)}/reports?${params.toString()}`,
+    input.returnTo
+  );
+}
+
 export function getCockpitResultsControlHref(input: {
   showId: string;
   trialId?: string;

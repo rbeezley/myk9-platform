@@ -385,4 +385,47 @@ describe('ReportControlsBar', () => {
       expect(trigger.textContent ?? '').not.toMatch(/run-order/);
     });
   });
+
+  describe("Judge's day picker (MYK9-1036)", () => {
+    const judgeDay = {
+      selectedLabel: 'Pat Judge · Sat, Oct 10',
+      options: [
+        { key: 'all', label: 'All judges' },
+        { key: 'k1', label: 'Pat Judge · Sat, Oct 10' },
+        { key: 'k2', label: 'Sam Judge · Sat, Oct 10' },
+      ],
+      value: 'k1',
+      onChange: vi.fn(),
+    };
+
+    it('is absent unless a judge-day control is supplied', () => {
+      render(<ReportControlsBar {...defaultProps} reportType="result-catalog" />);
+      expect(screen.queryByRole('combobox', { name: /judge's day/i })).not.toBeInTheDocument();
+    });
+
+    it('names the selected judge in the trigger, with a 44px touch target', () => {
+      render(
+        <ReportControlsBar {...defaultProps} reportType="result-catalog" judgeDay={judgeDay} />
+      );
+      const trigger = screen.getByRole('combobox', { name: /judge's day/i });
+      expect(trigger.textContent).toContain('Pat Judge · Sat, Oct 10');
+      expect(trigger.className).toContain('h-11');
+    });
+
+    it('lists every judge day and reports the pick by key', async () => {
+      const user = userEvent.setup();
+      const onChange = vi.fn();
+      render(
+        <ReportControlsBar
+          {...defaultProps}
+          reportType="result-catalog"
+          judgeDay={{ ...judgeDay, onChange }}
+        />
+      );
+      await user.click(screen.getByRole('combobox', { name: /judge's day/i }));
+      expect(await screen.findByRole('option', { name: 'All judges' })).toBeInTheDocument();
+      await user.click(await screen.findByRole('option', { name: 'Sam Judge · Sat, Oct 10' }));
+      expect(onChange).toHaveBeenCalledWith('k2');
+    });
+  });
 });

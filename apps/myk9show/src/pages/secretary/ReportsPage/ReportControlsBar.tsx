@@ -12,6 +12,7 @@ import { getReportById } from '@/lib/reports/reportRegistry';
 import { formatClassLabel } from '@/lib/utils';
 import { AlertTriangle, Download } from 'lucide-react';
 import type { TrialReportOption } from './reportScopedRegistries';
+import type { JudgeDayControl } from './useJudgeDayReportScope';
 
 // Trial/class rows carry a non-null `name` (the canonical human label) plus
 // nullable element/level/section/trial_number columns. Build the option label
@@ -87,6 +88,7 @@ interface ReportControlsBarProps {
   onSortChange: (value: string) => void;
   onPrint: () => void;
   officialPdfAction?: OfficialPdfAction | undefined;
+  judgeDay?: JudgeDayControl | undefined;
 }
 
 export function ReportControlsBar({
@@ -105,6 +107,7 @@ export function ReportControlsBar({
   onSortChange,
   onPrint,
   officialPdfAction,
+  judgeDay,
 }: ReportControlsBarProps) {
   const selectedReport = getReportById(reportType);
   const hasTrialScope = selectedReport?.scopes.includes('trial') ?? false;
@@ -193,6 +196,33 @@ export function ReportControlsBar({
               ))}
             </SelectContent>
           </Select>
+        </div>
+      )}
+
+      {/* Judge's day — the Result Catalog for one judge on one date, across trials. h-11: the
+          secretary taps this at the ring, so it takes the 44px touch target. */}
+      {judgeDay && (
+        <div className="flex min-w-0 flex-col gap-1 sm:w-auto">
+          <label htmlFor="judge-day-select" className="text-xs font-medium text-muted-foreground">
+            Judge's day
+          </label>
+          <Select value={judgeDay.value} onValueChange={judgeDay.onChange}>
+            <SelectTrigger id="judge-day-select" className="h-11 w-full sm:w-[280px]">
+              <SelectValue placeholder="All judges">{judgeDay.selectedLabel}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              {judgeDay.options.map(option => (
+                <SelectItem key={option.key} value={option.key}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {judgeDay.notice && (
+            <p className="text-xs text-muted-foreground" role="status">
+              {judgeDay.notice}
+            </p>
+          )}
         </div>
       )}
 

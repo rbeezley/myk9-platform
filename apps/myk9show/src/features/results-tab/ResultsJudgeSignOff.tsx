@@ -2,7 +2,10 @@ import { CheckCircle2, Circle, Printer } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
-import { getCockpitReportHref } from '@/features/show-map/cockpit/cockpitRoutes';
+import {
+  getCockpitJudgeDayCatalogHref,
+  getCockpitReportHref,
+} from '@/features/show-map/cockpit/cockpitRoutes';
 import { getOverviewFocusHref } from './resultsTabRoutes';
 import { judgeSignOffWording } from '@/features/show-map/judgeSignOff';
 import type { JudgeSignOffGroup } from './judgeSignOffGroup';
@@ -38,11 +41,10 @@ export function ResultsJudgeSignOff({
   // Two trials on one judge day can hold a class of the same name: say which one each row is.
   const spansTrials = new Set(group.classes.map(item => item.trialLabel)).size > 1;
   const heading = [group.judgeName || 'Judge not set', group.dayLabel].filter(Boolean).join(' · ');
-  const printHref = getCockpitReportHref({
-    reportId: 'result-catalog',
-    scope: group.catalogScope,
-    returnTo,
-  });
+  // MYK9-1036: the catalog for this judge's day alone, not the trial or show that contains it.
+  const printHref = group.catalogJudgeDay
+    ? getCockpitJudgeDayCatalogHref({ showId, ...group.catalogJudgeDay, returnTo })
+    : getCockpitReportHref({ reportId: 'result-catalog', scope: group.catalogScope, returnTo });
   return (
     <section
       id={JUDGE_SIGN_OFF_SECTION_ID}

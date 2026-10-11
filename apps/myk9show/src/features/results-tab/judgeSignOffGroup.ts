@@ -10,7 +10,7 @@
  *
  * Pure, so the grouping and the record/undo gates are tested on the real row shape.
  */
-import { formatJudgeDayDate } from '@/features/show-map/judgeDay';
+import { formatJudgeDayDate, trialCalendarDate } from '@/features/show-map/judgeDay';
 import type { ReportScope } from '@/lib/reports/types';
 import type { ResultsClassRow } from './buildResultsClassRows';
 
@@ -39,7 +39,12 @@ export interface JudgeSignOffGroup {
   dayComplete: boolean;
   /** The classes one record writes. Empty until the day is complete. */
   recordClassIds: readonly string[];
-  /** The narrowest existing Result Catalog scope that covers the whole day. */
+  /**
+   * MYK9-1036: the judge (the Show Map's id) and date the marked catalog prints. Absent when the
+   * class has no judge id or no date, where `catalogScope` is all there is to print.
+   */
+  catalogJudgeDay?: { judgeId: string; date: string };
+  /** The narrowest existing Result Catalog scope that covers the whole day (no-judge fallback). */
   catalogScope: ReportScope;
 }
 
@@ -76,6 +81,7 @@ export function buildJudgeSignOffGroup(
     recordable: row.signOffRecordable && row.judgeSignedOffAt === null,
   }));
   const dayComplete = dayRows.every(row => row.runFinished);
+  const catalogDate = trialCalendarDate(selected.trialDate);
   return {
     key: selected.judgeDayKey,
     judgeName: selected.judgeName,
@@ -86,6 +92,9 @@ export function buildJudgeSignOffGroup(
     signedCount: classes.filter(item => item.signedOffAt !== null).length,
     dayComplete,
     recordClassIds: dayComplete ? classes.filter(item => item.recordable).map(item => item.id) : [],
+    ...(selected.judgeId && catalogDate
+      ? { catalogJudgeDay: { judgeId: selected.judgeId, date: catalogDate } }
+      : {}),
     catalogScope: catalogScopeFor(showId, members),
   };
 }

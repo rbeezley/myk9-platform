@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
 import {
-  dogFilterLabel,
   filterByDog,
   orderMyEntriesToday,
   resolveDogSelection,
@@ -160,10 +159,5 @@ describe('dog filter', () => {
     expect(resolveDogSelection('dog-juni', dogs)).toBe('dog-juni');
     expect(resolveDogSelection('dog-gone', dogs)).toBeNull();
     expect(resolveDogSelection(null, dogs)).toBeNull();
-  });
-
-  it('names the filter with the dog and its class count', () => {
-    expect(dogFilterLabel({ dogKey: 'k', dogName: 'Juni', count: 2 })).toBe('Juni, 2 classes');
-    expect(dogFilterLabel({ dogKey: 'k', dogName: 'Rex', count: 1 })).toBe('Rex, 1 class');
   });
 });

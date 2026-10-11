@@ -21,7 +21,7 @@ import { useMyEntryQueuePlacesWithFreshness } from '@/hooks/queries/useMyEntryQu
 import { useIsOnline } from '@/hooks/useNetworkStatus';
 import { isAwaitingPlaceInLine, type AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
 import { MyEntryRow } from './MyEntryRow';
-import { MyEntriesTodayDogFilter } from './MyEntriesTodayDogFilter';
+import { ListViewTabs, type ListView } from '@/components/list-toolkit';
 import { SAVED_INFO_NOTICE } from './myEntriesTodayCopy';
 import {
   filterByDog,
@@ -31,6 +31,9 @@ import {
 } from './orderMyEntriesToday';
 import { detectPlaceRingConflicts } from './placeRingConflicts';
 import { useNotificationStore } from '@/store/notificationStore';
+
+/** Reserved id for the unfiltered view; a dog key is a dog id or call name. */
+const ALL_DOGS_VIEW = '__all-dogs__';
 
 export interface AtShowMyEntriesTodayProps {
   showId: string;
@@ -119,6 +122,14 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
   const dogs = useMemo(() => summarizeDogs(displayEntries), [displayEntries]);
   const [selectedDog, setSelectedDog] = useState<string | null>(null);
   const activeDog = resolveDogSelection(selectedDog, dogs);
+  // Counts cover the whole day, so they never shift under the selection.
+  const dogViews = useMemo<ListView[]>(
+    () => [
+      { id: ALL_DOGS_VIEW, label: 'All dogs', count: displayEntries.length },
+      ...dogs.map(dog => ({ id: dog.dogKey, label: dog.dogName, count: dog.count })),
+    ],
+    [dogs, displayEntries.length]
+  );
   const visibleEntries = useMemo(
     () => filterByDog(orderedEntries, activeDog),
     [orderedEntries, activeDog]
@@ -244,11 +255,12 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
             </div>
           )}
           {dogs.length >= 2 && (
-            <MyEntriesTodayDogFilter
-              dogs={dogs}
-              totalCount={displayEntries.length}
-              selected={activeDog}
-              onSelect={setSelectedDog}
+            <ListViewTabs
+              className="mt-3"
+              label="which dog"
+              views={dogViews}
+              activeId={activeDog ?? ALL_DOGS_VIEW}
+              onSelect={id => setSelectedDog(id === ALL_DOGS_VIEW ? null : id)}
             />
           )}
           <ul className="mt-3 space-y-2">

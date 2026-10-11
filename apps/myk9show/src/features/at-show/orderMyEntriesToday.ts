@@ -11,7 +11,6 @@
  */
 import { parseClassTime } from '@myk9/ringside';
 import { compareByRunOrder, type RunQueueEntry } from '@myk9/ringside/run-queue';
-import { countLabel } from '@/utils/pluralize';
 import type { AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
 
 type Places = ReadonlyMap<string, number>;
@@ -132,8 +131,4 @@ export function resolveDogSelection(
   dogs: readonly MyDogSummary[]
 ): string | null {
   return selected !== null && dogs.some(dog => dog.dogKey === selected) ? selected : null;
-}
-
-export function dogFilterLabel(dog: MyDogSummary): string {
-  return `${dog.dogName}, ${countLabel(dog.count, 'class', 'classes')}`;
 }

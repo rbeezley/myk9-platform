@@ -110,31 +110,25 @@ describe('AtShowMyEntriesToday — one ordered list (MYK9-1046)', () => {
 
   it('shows no dog filter for a single dog', () => {
     renderList([ENTRIES[2] as AtShowEntryDetail]);
-    expect(screen.queryByTestId('at-show-my-entries-dog-filter')).not.toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: /show: which dog/i })).not.toBeInTheDocument();
   });
 
   it('narrows to one dog with honest counts, and falls back to All when its rows vanish', async () => {
     const user = userEvent.setup();
     const view = renderList();
-    const filter = screen.getByTestId('at-show-my-entries-dog-filter');
-    expect(within(filter).getByRole('button', { name: 'Juni, 2 classes' })).toHaveAttribute(
-      'aria-pressed',
-      'false'
-    );
-    expect(within(filter).getByRole('button', { name: 'Rex, 1 class' })).toBeInTheDocument();
-    expect(within(filter).getByRole('button', { name: 'All dogs, 3 classes' })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
+    const select = screen.getByRole('combobox', { name: /show: which dog/i });
+    expect(select).toHaveTextContent('All dogs (3)');
 
-    await user.click(within(filter).getByRole('button', { name: 'Rex, 1 class' }));
+    await user.click(select);
+    expect(await screen.findByRole('option', { name: 'Juni (2)' })).toBeInTheDocument();
+    await user.click(screen.getByRole('option', { name: 'Rex (1)' }));
     expect(rowIds()).toEqual(['at-show-my-entry-rex-pm']);
+
     // Counts still describe the whole day.
-    expect(within(filter).getByRole('button', { name: 'Juni, 2 classes' })).toBeInTheDocument();
-    expect(within(filter).getByRole('button', { name: 'Rex, 1 class' })).toHaveAttribute(
-      'aria-pressed',
-      'true'
-    );
+    await user.click(screen.getByRole('combobox', { name: /show: which dog/i }));
+    expect(await screen.findByRole('option', { name: 'Juni (2)' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'All dogs (3)' })).toBeInTheDocument();
+    await user.keyboard('{Escape}');
 
     view.rerender(
       <AtShowMyEntriesToday

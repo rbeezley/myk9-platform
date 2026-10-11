@@ -9,7 +9,9 @@
  * A conflict = two or more of MY entries, in DIFFERENT classes that are in
  * progress, each within the `leadDogs` notification preference of going in
  * (same threshold and wording as `ringConflicts`: dogsAhead = place - 1).
- * No places (offline, not loaded) means no conflicts.
+ * A dog IN the ring now (its own check-in status, the signal the row badge
+ * shows) is near the front as a fact, so it counts even with no confirmed
+ * places; only place-based entries need them.
  */
 import { describeNearUp, type NearUpItem } from './ringConflicts';
 import type { AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
@@ -20,19 +22,18 @@ export function detectPlaceRingConflicts(
   leadDogs: number
 ): ReadonlyMap<string, string> {
   const result = new Map<string, string>();
-  if (!places || places.size === 0) return result;
-
   const nearUp: NearUpItem[] = [];
   for (const detail of entries) {
-    const place = places.get(detail.entryId);
-    if (place === undefined || !detail.classId || detail.classStatus !== 'in_progress') continue;
-    if (place - 1 > leadDogs) continue;
+    if (!detail.classId || detail.classStatus !== 'in_progress' || detail.isScored) continue;
+    const place = places?.get(detail.entryId);
+    const inRing = detail.checkInStatus === 'in-ring';
+    if (!inRing && (place === undefined || place - 1 > leadDogs)) continue;
     nearUp.push({
       entryId: detail.entryId,
       classId: detail.classId,
       className: detail.className ?? detail.classId,
       callName: detail.dogName,
-      result: { kind: 'waiting', dogsAhead: place - 1 },
+      result: inRing ? { kind: 'in-ring' } : { kind: 'waiting', dogsAhead: (place as number) - 1 },
     });
   }
 

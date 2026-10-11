@@ -76,4 +76,28 @@ describe('detectPlaceRingConflicts', () => {
     expect(detectPlaceRingConflicts([juni, rex], undefined, 2).size).toBe(0);
     expect(detectPlaceRingConflicts([juni, rex], new Map(), 2).size).toBe(0);
   });
+
+  describe('a dog in the ring', () => {
+    const inRing = { ...juni, checkInStatus: 'in-ring' as const };
+
+    it('counts with a near dog at another running class, and is worded as in the ring', () => {
+      const result = detectPlaceRingConflicts([inRing, rex], new Map([['rex', 2]]), 2);
+      expect(result.get('rex')).toBe('Juni in the ring in Container Novice');
+      expect(result.get('juni')).toBe('Rex 1 away in Interior Excellent');
+    });
+
+    it('does not count when the other dog is 30th', () => {
+      expect(detectPlaceRingConflicts([inRing, rex], new Map([['rex', 30]]), 2).size).toBe(0);
+    });
+
+    it('is fact even offline, but alone it is no conflict', () => {
+      expect(detectPlaceRingConflicts([inRing, rex], undefined, 2).size).toBe(0);
+      expect(detectPlaceRingConflicts([inRing], undefined, 2).size).toBe(0);
+    });
+
+    it('needs its class to be running', () => {
+      const idle = { ...inRing, classStatus: 'upcoming' };
+      expect(detectPlaceRingConflicts([idle, rex], new Map([['rex', 1]]), 2).size).toBe(0);
+    });
+  });
 });

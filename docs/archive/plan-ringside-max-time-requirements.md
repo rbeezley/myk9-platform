@@ -1,6 +1,6 @@
 # Ringside max time and class requirements, modelled on myK9Q
 
-> **Status:** Active
+> **Status:** Complete
 
 myK9Q (`myK9Qv3`) handles max time and class requirements in a way judges like. This plan brings its proven flow into myK9Show's ringside, on top of the offline-first, server-checked foundation from MYK9-1086 (#2901, #2903). myK9Q is a template, not a spec: where myK9Show is already better it stays as it is.
 
@@ -25,9 +25,9 @@ No new surfaces. Each part extends a surface that exists: the ringside Set Max T
 | 3    | MYK9-1100 | Medium   | Ringside Requirements dialog reuses `ClassRequirementsPanel`; its max time row opens Set Max Time.                                                   |
 | 4    | MYK9-1101 | Medium   | Set Max Time shows the allowed range, 30-second quick picks, and fixed times read-only.                                                              |
 | 5    | MYK9-1102 | Low      | 30-second warning as a per-rule setting instead of hardcoded off for Master.                                                                         |
-| 6    | MYK9-1103 | Low      | ASCA flexible area count with the total time split across areas (needs part 1).                                                                      |
+| 6    | MYK9-1103 | Low      | ASCA multi-area classes get one max time per area, like AKC (owner decision 2026-10-11; no area-count choice or split).                              |
 
-Order: 1, 2, 3, 4. Parts 5 and 6 wait until after the fall launch shows unless a club needs them.
+Shipped 2026-10-11 as #2905 (part 1), #2907 (parts 2 and 4), #2908 (part 3) and #2909 (parts 5 and 6); migrations 20261011195300 and 20261011211700 pushed. Review restructures: the per-area decision moved into the entry-list data adapter; the ringside rulebook-time write was deleted (class creation sets it); the block stays at the list when it opens (owner decision).
 
 ## myK9Q references
 

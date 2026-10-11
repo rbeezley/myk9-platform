@@ -92,6 +92,51 @@ describe('resolveTimeLimitRulesForClassRows', () => {
     expect(rules?.get('c-none')).toEqual({ forElement: 'Buried', forLevel: 'Novice' });
   });
 
+  it('caches the rule requirement values for the offline Requirements dialog (MYK9-1100)', async () => {
+    from.mockImplementation((table: string) =>
+      table === 'trials'
+        ? query({ data: [{ id: 't1', registry_id: 'AKC' }], error: null })
+        : query({
+            data: [
+              {
+                element: 'Interior',
+                level: 'Master',
+                max_time_seconds_fixed: null,
+                max_time_seconds_min: 60,
+                max_time_seconds_max: 180,
+                hide_count_fixed: null,
+                hide_count_min: 2,
+                hide_count_max: 6,
+                hides_known: false,
+                distraction_count_min: 1,
+                distraction_count_max: 2,
+                area_count: 3,
+                has_blank: true,
+                timer_mode: 'single',
+                odors: ['Birch'],
+                sport_templates: { organization: 'AKC' },
+              },
+            ],
+            error: null,
+          })
+    );
+    const rules = await resolveTimeLimitRulesForClassRows([
+      { id: 'c', trial_id: 't1', element: 'Interior', level: 'Master' },
+    ]);
+    expect(rules?.get('c')?.display).toEqual({
+      hideFixed: null,
+      hideMin: 2,
+      hideMax: 6,
+      hidesKnown: false,
+      distractionMin: 1,
+      distractionMax: 2,
+      areaCount: 3,
+      hasBlank: true,
+      timerMode: 'single',
+      odors: ['Birch'],
+    });
+  });
+
   it('returns null -- never "no rule" -- when a lookup fails', async () => {
     from.mockImplementation(() => query({ data: null, error: { message: 'boom' } }));
     const rules = await resolveTimeLimitRulesForClassRows([

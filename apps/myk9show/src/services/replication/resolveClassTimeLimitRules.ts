@@ -21,11 +21,30 @@ export interface TimeLimitRule {
   fixed?: number | undefined;
   min?: number | undefined;
   max?: number | undefined;
+  /**
+   * The rest of the rule, for the ringside Requirements dialog offline
+   * (MYK9-1100). Absent on a rule cached before it was added.
+   */
+  display?: RuleDisplay | undefined;
   forElement: string | null;
   forLevel: string | null;
 }
 
-type RuleLimits = Pick<TimeLimitRule, 'fixed' | 'min' | 'max'>;
+/** The rule's requirement values, as sport_class_rules holds them. */
+export interface RuleDisplay {
+  hideFixed: number | null;
+  hideMin: number | null;
+  hideMax: number | null;
+  hidesKnown: boolean;
+  distractionMin: number | null;
+  distractionMax: number | null;
+  areaCount: number;
+  hasBlank: boolean;
+  timerMode: string;
+  odors: string[];
+}
+
+type RuleLimits = Pick<TimeLimitRule, 'fixed' | 'min' | 'max' | 'display'>;
 
 interface RuleClassRow {
   id: string;
@@ -40,6 +59,16 @@ interface RuleRow {
   max_time_seconds_fixed: number | null;
   max_time_seconds_min: number | null;
   max_time_seconds_max: number | null;
+  hide_count_fixed?: number | null;
+  hide_count_min?: number | null;
+  hide_count_max?: number | null;
+  hides_known?: boolean | null;
+  distraction_count_min?: number | null;
+  distraction_count_max?: number | null;
+  area_count?: number | null;
+  has_blank?: boolean | null;
+  timer_mode?: string | null;
+  odors?: string[] | null;
   sport_templates: { organization: string } | Array<{ organization: string }> | null;
 }
 
@@ -101,7 +130,7 @@ export async function resolveTimeLimitRulesForClassRows(
   const { data: rules, error: rulesError } = await supabase
     .from('sport_class_rules')
     .select(
-      'element, level, max_time_seconds_fixed, max_time_seconds_min, max_time_seconds_max, sport_templates!inner(organization)'
+      'element, level, max_time_seconds_fixed, max_time_seconds_min, max_time_seconds_max, hide_count_fixed, hide_count_min, hide_count_max, hides_known, distraction_count_min, distraction_count_max, area_count, has_blank, timer_mode, odors, sport_templates!inner(organization)'
     )
     .in('sport_templates.organization', registries);
   if (rulesError) {
@@ -124,6 +153,8 @@ export async function resolveTimeLimitRulesForClassRows(
       fixed: maxOf(prev.fixed, rule.max_time_seconds_fixed),
       min: minOf(prev.min, rule.max_time_seconds_min),
       max: maxOf(prev.max, rule.max_time_seconds_max),
+      // Requirement values come from the first section row (A and B share them).
+      display: prev.display ?? ruleDisplay(rule),
     });
   }
 
@@ -137,6 +168,21 @@ export async function resolveTimeLimitRulesForClassRows(
     });
   }
   return byClassId;
+}
+
+function ruleDisplay(rule: RuleRow): RuleDisplay {
+  return {
+    hideFixed: rule.hide_count_fixed ?? null,
+    hideMin: rule.hide_count_min ?? null,
+    hideMax: rule.hide_count_max ?? null,
+    hidesKnown: rule.hides_known ?? true,
+    distractionMin: rule.distraction_count_min ?? null,
+    distractionMax: rule.distraction_count_max ?? null,
+    areaCount: rule.area_count ?? 1,
+    hasBlank: rule.has_blank ?? false,
+    timerMode: rule.timer_mode ?? 'single',
+    odors: rule.odors ?? [],
+  };
 }
 
 function maxOf(a: number | undefined, b: number | null): number | undefined {

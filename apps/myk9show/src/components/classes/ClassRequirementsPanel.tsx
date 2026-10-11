@@ -31,7 +31,13 @@ interface RequirementCardProps {
   subtitle?: string | undefined;
 }
 
-function RequirementCard({ icon, colorClass, label, value, subtitle }: RequirementCardProps) {
+export function RequirementCard({
+  icon,
+  colorClass,
+  label,
+  value,
+  subtitle,
+}: RequirementCardProps) {
   return (
     <div className="rounded-lg border bg-card p-3 flex items-start gap-3">
       <div
@@ -67,6 +73,104 @@ function hasAnyDisplayableData(req: ClassRequirements | null): boolean {
     req.has_blank ||
     req.timer_mode === 'dual' ||
     (req.odors != null && req.odors.length > 0)
+  );
+}
+
+/**
+ * The requirement cards, shared by the secretary panel and the ringside
+ * Requirements dialog (MYK9-1100). `leading` renders first -- ringside puts the
+ * class's set max time there.
+ */
+export function ClassRequirementsCards({
+  requirements,
+  leading,
+  className = 'space-y-3 p-6',
+}: {
+  requirements: ClassRequirements;
+  leading?: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <div className={className}>
+      {leading}
+      {/* Time Limit */}
+      {requirements.time_limit_text && (
+        <RequirementCard
+          icon={<Clock className="h-4 w-4" />}
+          colorClass={iconColors.blue}
+          label="Time Limit"
+          value={requirements.time_limit_text}
+          subtitle={buildTimeSubtitle(requirements.time_type)}
+        />
+      )}
+
+      {/* Hides */}
+      {requirements.hides && (
+        <RequirementCard
+          icon={<Target className="h-4 w-4" />}
+          colorClass={iconColors.red}
+          label="Hides"
+          value={requirements.hides}
+          subtitle={
+            requirements.hides_known
+              ? 'Number of hides known to handler'
+              : 'Number of hides unknown (blind)'
+          }
+        />
+      )}
+
+      {/* Distractions */}
+      {requirements.distractions && requirements.distractions !== '0' && (
+        <RequirementCard
+          icon={<AlertTriangle className="h-4 w-4" />}
+          colorClass={iconColors.amber}
+          label="Distractions"
+          value={requirements.distractions}
+        />
+      )}
+
+      {/* Search Areas */}
+      {requirements.area_count > 1 && (
+        <RequirementCard
+          icon={<MapPin className="h-4 w-4" />}
+          colorClass={iconColors.purple}
+          label="Search Areas"
+          value={requirements.area_count}
+        />
+      )}
+
+      {/* Has Blank */}
+      {requirements.has_blank && (
+        <RequirementCard
+          icon={<Eye className="h-4 w-4" />}
+          colorClass={iconColors.slate}
+          label="Blank Area"
+          value="Yes"
+          subtitle="May include an area with no hides"
+        />
+      )}
+
+      {/* Timer Mode */}
+      {requirements.timer_mode === 'dual' && (
+        <RequirementCard
+          icon={<Timer className="h-4 w-4" />}
+          colorClass={iconColors.emerald}
+          label="Timer Mode"
+          value="Dual Timer"
+          subtitle="Search time and call time tracked separately"
+        />
+      )}
+
+      {/* Odors */}
+      {requirements.odors && requirements.odors.length > 0 && (
+        <RequirementCard
+          icon={<Target className="h-4 w-4" />}
+          colorClass={iconColors.emerald}
+          label="Odors"
+          value={requirements.odors.join(', ')}
+        />
+      )}
+    </div>
   );
 }
 
@@ -132,85 +236,7 @@ export const ClassRequirementsPanel: React.FC<ClassRequirementsPanelProps> = ({
           </p>
         </div>
       ) : (
-        <div className="space-y-3 p-6">
-          {/* Time Limit */}
-          {requirements.time_limit_text && (
-            <RequirementCard
-              icon={<Clock className="h-4 w-4" />}
-              colorClass={iconColors.blue}
-              label="Time Limit"
-              value={requirements.time_limit_text}
-              subtitle={buildTimeSubtitle(requirements.time_type)}
-            />
-          )}
-
-          {/* Hides */}
-          {requirements.hides && (
-            <RequirementCard
-              icon={<Target className="h-4 w-4" />}
-              colorClass={iconColors.red}
-              label="Hides"
-              value={requirements.hides}
-              subtitle={
-                requirements.hides_known
-                  ? 'Number of hides known to handler'
-                  : 'Number of hides unknown (blind)'
-              }
-            />
-          )}
-
-          {/* Distractions */}
-          {requirements.distractions && requirements.distractions !== '0' && (
-            <RequirementCard
-              icon={<AlertTriangle className="h-4 w-4" />}
-              colorClass={iconColors.amber}
-              label="Distractions"
-              value={requirements.distractions}
-            />
-          )}
-
-          {/* Search Areas */}
-          {requirements.area_count > 1 && (
-            <RequirementCard
-              icon={<MapPin className="h-4 w-4" />}
-              colorClass={iconColors.purple}
-              label="Search Areas"
-              value={requirements.area_count}
-            />
-          )}
-
-          {/* Has Blank */}
-          {requirements.has_blank && (
-            <RequirementCard
-              icon={<Eye className="h-4 w-4" />}
-              colorClass={iconColors.slate}
-              label="Blank Area"
-              value="Yes"
-              subtitle="May include an area with no hides"
-            />
-          )}
-
-          {/* Timer Mode */}
-          {requirements.timer_mode === 'dual' && (
-            <RequirementCard
-              icon={<Timer className="h-4 w-4" />}
-              colorClass={iconColors.emerald}
-              label="Timer Mode"
-              value="Dual Timer"
-              subtitle="Search time and call time tracked separately"
-            />
-          )}
-
-          {/* Odors */}
-          {requirements.odors && requirements.odors.length > 0 && (
-            <RequirementCard
-              icon={<Target className="h-4 w-4" />}
-              colorClass={iconColors.emerald}
-              label="Odors"
-              value={requirements.odors.join(', ')}
-            />
-          )}
-        </div>
+        <ClassRequirementsCards requirements={requirements} />
       )}
     </SlideOverPanel>
   );

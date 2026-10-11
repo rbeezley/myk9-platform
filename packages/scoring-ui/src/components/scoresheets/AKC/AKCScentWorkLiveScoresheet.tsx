@@ -17,6 +17,7 @@ import { formatScoresheetSubtitle } from '../../../utils/scoresheetSubtitle';
 import { useStopwatch } from '../../../hooks/useStopwatch';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
+import { maxTimeLabel } from '../../../utils/maxTimeLabel';
 import { ResultChoiceChips } from '../../ResultChoiceChips';
 import type { LiveScoresheetProps, QualifyingResult } from '../../../types/scoreData';
 
@@ -169,7 +170,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                   {stopwatch.time > 0 ? (
                     <>Remaining: {stopwatch.getRemainingTime()}</>
                   ) : (
-                    <>Max Time: {maxTimeStr}</>
+                    <>Max Time: {maxTimeLabel(rules.maxTimeSeconds)}</>
                   )}
                 </div>
 
@@ -254,7 +255,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                     )}
                   </div>
                   <span className="text-xs text-muted-foreground flex-shrink-0">
-                    Max: {maxTimeStr}
+                    Max: {maxTimeLabel(rules.maxTimeSeconds)}
                   </span>
                 </div>
               </Card>

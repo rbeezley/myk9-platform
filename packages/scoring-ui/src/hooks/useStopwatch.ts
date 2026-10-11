@@ -50,7 +50,7 @@ function parseMaxTimeToMs(maxTime: string): number {
  */
 export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
   const {
-    maxTime,
+    maxTime: rawMaxTime,
     level,
     enableVoiceAnnouncements = false,
     onTimeExpired,
@@ -58,6 +58,9 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
     onVoiceAnnouncement,
     onScoringActiveChange,
   } = options;
+  // A zero max ("0:00" -- a class with no time set) is NO limit: no expiry, no
+  // warning, no auto-stop. Every check below keys on `maxTime` being set.
+  const maxTime = rawMaxTime && parseMaxTimeToMs(rawMaxTime) > 0 ? rawMaxTime : undefined;
 
   // Timer state
   const [time, setTime] = useState(0);

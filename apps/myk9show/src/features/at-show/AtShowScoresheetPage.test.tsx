@@ -151,7 +151,10 @@ const StubLiveScoresheet = ({
 );
 vi.mock('@myk9/scoring-ui', () => ({
   getScoresheetComponent: () => StubLiveScoresheet,
-  buildResolvedClassRules: () => ({ maxTimeSeconds: 120 }),
+  // Like the real builder: no saved limit means no limit (0).
+  buildResolvedClassRules: (cls: { timeLimitSeconds?: number }) => ({
+    maxTimeSeconds: cls.timeLimitSeconds ?? 0,
+  }),
 }));
 
 const playWarning = vi.fn();
@@ -659,6 +662,27 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
         'at /at-show/show-1/class/class-2/score/entry-9?combined=class-1%2Cclass-2'
       )
     ).toBeInTheDocument();
+  });
+
+  it('warns the judge when the class has no max time set (no silent 3:00)', async () => {
+    renderPage();
+    await screen.findByTestId('live-scoresheet');
+
+    expect(screen.getByRole('note')).toHaveTextContent(/no max time is set for this class/i);
+  });
+
+  it('shows no max-time notice when the class has a max time', async () => {
+    vi.mocked(replicatedClassesTable.getClassById).mockResolvedValue({
+      id: 'class-1',
+      trialId: 'trial-1',
+      element: 'Container',
+      level: 'Novice',
+      timeLimitSeconds: 180,
+    } as never);
+    renderPage();
+    await screen.findByTestId('live-scoresheet');
+
+    expect(screen.queryByText(/no max time is set/i)).not.toBeInTheDocument();
   });
 
   it('navigates back to the at-show entry list', async () => {

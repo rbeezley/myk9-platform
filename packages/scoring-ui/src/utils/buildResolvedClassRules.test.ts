@@ -45,9 +45,11 @@ describe('buildResolvedClassRules', () => {
   it('provides safe defaults for missing fields (old classes)', () => {
     const rules = buildResolvedClassRules({});
 
+    // No saved max time means NO limit, never an invented 3:00 (owner decision,
+    // 2026-10-10): a judge-set AKC class without a time must not auto-stop at 3:00.
     expect(rules).toEqual({
       areaCount: 1,
-      maxTimeSeconds: 180,
+      maxTimeSeconds: 0,
       timerMode: 'single',
       hideCount: null,
       hidesKnown: true,

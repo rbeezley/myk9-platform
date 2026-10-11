@@ -149,6 +149,20 @@ describe('useStopwatch', () => {
       expect(result.current.time).toBeGreaterThanOrEqual(900);
     });
 
+    it('treats a zero max time as no limit: no expiry, no warning, no auto-stop', () => {
+      const onTimeExpired = vi.fn();
+      const { result } = renderHook(() => useStopwatch({ maxTime: '0:00', onTimeExpired }));
+
+      act(() => result.current.start());
+      act(() => vi.advanceTimersByTime(5000));
+
+      expect(result.current.isRunning).toBe(true);
+      expect(result.current.isTimeExpired()).toBe(false);
+      expect(result.current.shouldShow30SecondWarning()).toBe(false);
+      expect(result.current.getRemainingTime()).toBe('');
+      expect(onTimeExpired).not.toHaveBeenCalled();
+    });
+
     it('should reset time to 0 and stop running', () => {
       const { result } = renderHook(() => useStopwatch());
 

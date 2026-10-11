@@ -25,6 +25,7 @@ import {
 } from '../../../hooks/useElementMaxTimeStatus';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
+import { maxTimeLabel } from '../../../utils/maxTimeLabel';
 import type { LiveScoresheetProps, ResolvedClassRules, StopwatchReturn } from '../../../types';
 import type { ExtendedResult } from '../../../types/scoreData';
 
@@ -347,7 +348,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                   {stopwatch.time > 0 ? (
                     <>Remaining: {stopwatch.formatTime(remainingTimeMs)}</>
                   ) : (
-                    <>Max Time: {maxTimeStr}</>
+                    <>Max Time: {maxTimeLabel(rules.maxTimeSeconds)}</>
                   )}
                 </div>
 

@@ -16,6 +16,7 @@ import { formatScoresheetSubtitle } from '../../../utils/scoresheetSubtitle';
 import { useStopwatch } from '../../../hooks/useStopwatch';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
+import { maxTimeLabel } from '../../../utils/maxTimeLabel';
 import type { LiveScoresheetProps } from '../../../types/scoreData';
 import type { ExtendedResult } from '../../../types/scoreData';
 
@@ -192,7 +193,7 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
                   {stopwatch.time > 0 ? (
                     <>Remaining: {stopwatch.getRemainingTime()}</>
                   ) : (
-                    <>Max Time: {maxTimeStr}</>
+                    <>Max Time: {maxTimeLabel(rules.maxTimeSeconds)}</>
                   )}
                 </div>
 

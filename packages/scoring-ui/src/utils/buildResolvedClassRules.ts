@@ -10,13 +10,18 @@
  */
 import type { ClassRuleFields, ResolvedClassRules } from '../types/resolvedClassRules';
 
-const DEFAULT_MAX_TIME_SECONDS = 180; // 3 minutes
+/**
+ * No saved max time means NO limit (0), never an invented one: a judge-set AKC
+ * class without a time used to auto-stop at a silent 3:00 (owner decision,
+ * 2026-10-10). Consumers treat 0 as "no limit"; the ringside scoresheet warns.
+ */
+const NO_MAX_TIME_SECONDS = 0;
 
 export function buildResolvedClassRules(classRecord: ClassRuleFields): ResolvedClassRules {
   const areaCount = classRecord.areaCount ?? classRecord.area_count ?? 1;
 
   const maxTimeSeconds =
-    classRecord.timeLimitSeconds ?? classRecord.time_limit_seconds ?? DEFAULT_MAX_TIME_SECONDS;
+    classRecord.timeLimitSeconds ?? classRecord.time_limit_seconds ?? NO_MAX_TIME_SECONDS;
 
   const rawTimerMode = classRecord.timerMode ?? classRecord.timer_mode ?? 'single';
   const timerMode: 'single' | 'dual' = rawTimerMode === 'dual' ? 'dual' : 'single';

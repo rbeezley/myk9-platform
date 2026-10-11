@@ -122,8 +122,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
       if (scoring.areas.length > 0) {
         scoring.handleAreaUpdate(0, 'time', formattedTime);
       }
-      scoring.setQualifying('NQ');
-      scoring.setNonQualifyingReason('Max Time');
+      scoring.applyMaxTimeNQ();
     },
   });
 
@@ -134,8 +133,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
       if (scoring.areas.length > 0) {
         scoring.handleAreaUpdate(0, 'time', stopwatch.formatTime(elapsedMs));
       }
-      scoring.setQualifying('NQ');
-      scoring.setNonQualifyingReason('Max Time');
+      scoring.applyMaxTimeNQ();
     },
   });
   const elementStatus = useElementMaxTimeStatus({
@@ -175,8 +173,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     }
     // Finish tapped past the element max, before a tick noticed it.
     if (reachedMax) {
-      scoring.setQualifying('NQ');
-      scoring.setNonQualifyingReason('Max Time');
+      scoring.applyMaxTimeNQ();
     }
   }, [stopwatch, elementTimer, isDual, scoring, elementMaxTimeMs]);
 

@@ -34,6 +34,12 @@ export interface ScoresheetScoringReturn {
   qualifying: ExtendedResult | '';
   setQualifying: (value: ExtendedResult | '') => void;
   nonQualifyingReason: string;
+  /**
+   * Max-time expiry: auto-sets NQ "Max Time" unless the judge already chose a
+   * DQ, EX or ABS, which an expiry must never overwrite. Safe to call from a
+   * timer callback that captured an older `scoring` (it reads a ref).
+   */
+  applyMaxTimeNQ: () => void;
   /** A DQ with no reason: the result cannot be saved until the judge states one. */
   disqualifyReasonMissing: boolean;
   setNonQualifyingReason: (value: string) => void;
@@ -104,7 +110,12 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
   // correction keeps the saved totals instead of recomputing them from defaults.
   const findFlagsEditedRef = useRef(false);
 
+  // The current result, kept in step with every write so a timer callback that
+  // captured an older render still sees what the judge chose.
+  const qualifyingRef = useRef<ExtendedResult | ''>(qualifying);
+
   const setQualifying = useCallback((value: ExtendedResult | '') => {
+    qualifyingRef.current = value;
     setQualifyingRaw(value);
     if (value === 'EX' || value === 'DQ') {
       findFlagsEditedRef.current = true;
@@ -112,6 +123,13 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
       setAreas(prev => prev.map(area => ({ ...area, found: false, correct: false })));
     }
   }, []);
+
+  const applyMaxTimeNQ = useCallback(() => {
+    const chosen = qualifyingRef.current;
+    if (chosen === 'DQ' || chosen === 'EX' || chosen === 'ABS') return;
+    setQualifying('NQ');
+    setNonQualifyingReason('Max Time');
+  }, [setQualifying]);
 
   const handleAreaUpdate = useCallback(
     (index: number, field: keyof AreaScore, value: AreaScore[keyof AreaScore]) => {
@@ -239,6 +257,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
   const reset = useCallback(() => {
     submitInFlightRef.current = false;
     setAreas(initializeAreas(rules, areaNames));
+    qualifyingRef.current = '';
     setQualifyingRaw('');
     setNonQualifyingReason('');
     setFaultCount(0);
@@ -251,6 +270,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
     setQualifying,
     nonQualifyingReason,
     disqualifyReasonMissing,
+    applyMaxTimeNQ,
     setNonQualifyingReason,
     faultCount,
     setFaultCount,

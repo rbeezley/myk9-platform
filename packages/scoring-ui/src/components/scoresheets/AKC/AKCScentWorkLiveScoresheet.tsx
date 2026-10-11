@@ -71,8 +71,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     onVoiceAnnouncement,
     onTimeExpired: formattedTime => {
       scoring.handleAreaUpdate(0, 'time', formattedTime);
-      scoring.setQualifying('NQ');
-      scoring.setNonQualifyingReason('Max Time');
+      scoring.applyMaxTimeNQ();
     },
   });
 

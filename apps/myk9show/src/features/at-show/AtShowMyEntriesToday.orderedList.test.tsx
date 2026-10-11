@@ -14,12 +14,10 @@ import type { AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
 
 const rpc = vi.hoisted(() => vi.fn());
 const online = vi.hoisted(() => ({ current: true }));
-const conflicts = vi.hoisted(() => ({ current: new Map<string, string>() }));
 
 vi.mock('@/services/database/supabaseClient', () => ({ supabase: { rpc } }));
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: () => ({ user: { id: 'u1' } }) }));
 vi.mock('@/hooks/useNetworkStatus', () => ({ useIsOnline: () => online.current }));
-vi.mock('./useMyRingConflicts', () => ({ useMyRingConflicts: () => conflicts.current }));
 vi.mock('@/hooks/mutations/useCheckInMutation', () => ({
   useCheckInMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
@@ -98,7 +96,6 @@ beforeEach(() => {
   rpc.mockReset();
   rpc.mockResolvedValue({ data: [], error: null });
   online.current = true;
-  conflicts.current = new Map();
 });
 
 describe('AtShowMyEntriesToday — one ordered list (MYK9-1046)', () => {
@@ -164,24 +161,42 @@ describe('AtShowMyEntriesToday — one ordered list (MYK9-1046)', () => {
 });
 
 describe('AtShowMyEntriesToday — ring conflict in words (MYK9-1046)', () => {
-  it('says what the detector found, calmly, with an icon and the words', () => {
-    conflicts.current = new Map([['juni-pm', 'Rex next in Interior Excellent']]);
-    renderList();
-    const notice = screen.getByTestId('at-show-my-entry-conflict');
+  const running = ENTRIES.map(item => ({ ...item, classStatus: 'in_progress' }));
+
+  it('says what was found, calmly, with an icon and the words, when both server places are near', async () => {
+    rpc.mockResolvedValue({
+      data: [
+        { entry_id: 'juni-am', place: 1 },
+        { entry_id: 'rex-pm', place: 2 },
+      ],
+      error: null,
+    });
+    renderList(running);
+    const row = await screen.findByTestId('at-show-my-entry-juni-am');
+    const notice = await within(row).findByTestId('at-show-my-entry-conflict');
     expect(notice).toHaveTextContent(
-      'Close to going in at more than one ring. Also near the front: Rex next in Interior Excellent. The ring steward can help.'
+      'Close to going in at more than one ring. Also near the front: Rex 1 away in Interior Excellent. The ring steward can help.'
     );
     expect(notice.querySelector('svg')).not.toBeNull();
     expect(notice.textContent).not.toMatch(/same time|two of your dogs/i);
-    expect(
-      within(screen.getByTestId('at-show-my-entry-juni-pm')).getByTestId(
-        'at-show-my-entry-conflict'
-      )
-    ).toBe(notice);
   });
 
-  it('shows nothing when there is no conflict', () => {
-    renderList();
+  it('does not warn when the server places the other dog 30th, though this account holds few rows', async () => {
+    rpc.mockResolvedValue({
+      data: [
+        { entry_id: 'juni-am', place: 1 },
+        { entry_id: 'rex-pm', place: 30 },
+      ],
+      error: null,
+    });
+    renderList(running);
+    expect(await screen.findByText('30th up')).toBeInTheDocument();
+    expect(screen.queryByTestId('at-show-my-entry-conflict')).not.toBeInTheDocument();
+  });
+
+  it('shows nothing offline, where no places are confirmed', () => {
+    online.current = false;
+    renderList(running);
     expect(screen.queryByTestId('at-show-my-entry-conflict')).not.toBeInTheDocument();
   });
 });

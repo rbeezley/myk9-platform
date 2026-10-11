@@ -87,6 +87,16 @@ describe('orderMyEntriesToday', () => {
     ]);
   });
 
+  it('breaks a tie between equal or unknown starts by class_order, then class id', () => {
+    const entries = [
+      row({ entryId: 'b', classId: 'c-b', startTime: null, classOrder: 1 }),
+      row({ entryId: 'a', classId: 'c-a', startTime: null, classOrder: 2 }),
+      row({ entryId: 'x', classId: 'c-x', startTime: '9:00 AM', classOrder: 9 }),
+      row({ entryId: 'y', classId: 'c-y', startTime: '9:00 AM', classOrder: 3 }),
+    ];
+    expect(ids(orderMyEntriesToday(entries, NO_PLACES))).toEqual(['y', 'x', 'b', 'a']);
+  });
+
   it('orders inside a class by the server place when every row there has one', () => {
     const entries = [
       row({ entryId: 'a', runOrder: 1, armband: '101' }),

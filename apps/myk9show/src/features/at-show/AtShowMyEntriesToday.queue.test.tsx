@@ -15,9 +15,6 @@ vi.mock('@/hooks/queries/useMyEntryQueuePlaces', () => ({
   },
 }));
 
-// The conflict scan reads the replica; this file is about place in line.
-vi.mock('./useMyRingConflicts', () => ({ useMyRingConflicts: () => new Map() }));
-
 vi.mock('@/hooks/mutations/useCheckInMutation', () => ({
   useCheckInMutation: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));

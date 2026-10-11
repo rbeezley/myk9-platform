@@ -26,7 +26,7 @@ function getExhibitorStatusLabel(detail: AtShowEntryDetail): string {
   );
 }
 
-export function EntryRow({
+export function MyEntryRow({
   detail,
   place,
   placeUpdatedAt,
@@ -150,7 +150,7 @@ export function EntryRow({
           variant="ghost"
           size="sm"
           className="min-h-11 shrink-0 gap-1"
-          aria-label={`View class ${detail.className ?? ''} for ${detail.dogName}`}
+          aria-label={`View class${detail.className ? ` ${detail.className}` : ''} for ${detail.dogName}`}
           onClick={() => detail.classId && onOpenClass(detail.classId)}
         >
           View class

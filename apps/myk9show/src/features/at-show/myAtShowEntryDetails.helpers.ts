@@ -45,6 +45,8 @@ export interface AtShowClassSummary {
   expectedStartLabel?: string | undefined;
   /** The class's raw `start_time` (ISO instant or clock string), for ordering only. */
   startTime?: string | undefined;
+  /** The class's `class_order`, the secretary's own sequence, for ordering ties. */
+  classOrder?: number | undefined;
   isRevisedStart?: boolean | undefined;
   /**
    * The class/trial/show self-check-in cascade already resolved by the
@@ -76,6 +78,10 @@ export interface AtShowEntryDetail {
   selfCheckinState: SelfCheckinState;
   /** "<trial label> · <date>" (`formatAtShowTrialHeading`), or null before the trial replica resolves. */
   trialLabel: string | null;
+  /** The class's status, so a notice can tell a running class from a waiting one. */
+  classStatus?: string | undefined;
+  /** The class's `class_order`; breaks ties between classes with equal or unknown starts. */
+  classOrder?: number | undefined;
   /** The dog's id, so two dogs sharing a call name stay two dogs. Falls back to the name. */
   dogKey?: string | undefined;
   /** The stored run order, for the run-queue tie-break (never displayed). */
@@ -166,6 +172,8 @@ export function buildMyAtShowEntryDetails(
       dogKey: entry.dogId ?? entry.dogCallName ?? entry.id,
       runOrder: entry.runOrder ?? null,
       startTime: classSummary?.startTime ?? null,
+      classStatus: classSummary?.classStatus,
+      classOrder: classSummary?.classOrder,
       trialTimezone: trial?.timezone ?? null,
     });
   }

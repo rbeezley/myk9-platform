@@ -20,7 +20,7 @@ import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
 import { useMyEntryQueuePlacesWithFreshness } from '@/hooks/queries/useMyEntryQueuePlaces';
 import { useIsOnline } from '@/hooks/useNetworkStatus';
 import { isAwaitingPlaceInLine, type AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
-import { EntryRow } from './MyEntryRow';
+import { MyEntryRow } from './MyEntryRow';
 import { MyEntriesTodayDogFilter } from './MyEntriesTodayDogFilter';
 import { SAVED_INFO_NOTICE } from './myEntriesTodayCopy';
 import {
@@ -29,7 +29,8 @@ import {
   resolveDogSelection,
   summarizeDogs,
 } from './orderMyEntriesToday';
-import { useMyRingConflicts } from './useMyRingConflicts';
+import { detectPlaceRingConflicts } from './placeRingConflicts';
+import { useNotificationStore } from '@/store/notificationStore';
 
 export interface AtShowMyEntriesTodayProps {
   showId: string;
@@ -115,18 +116,26 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
     () => orderMyEntriesToday(displayEntries, places),
     [displayEntries, places]
   );
-  const dogs = useMemo(() => summarizeDogs(orderedEntries), [orderedEntries]);
+  const dogs = useMemo(() => summarizeDogs(displayEntries), [displayEntries]);
   const [selectedDog, setSelectedDog] = useState<string | null>(null);
   const activeDog = resolveDogSelection(selectedDog, dogs);
   const visibleEntries = useMemo(
     () => filterByDog(orderedEntries, activeDog),
     [orderedEntries, activeDog]
   );
-  const ownEntryIds = useMemo(
-    () => new Set(displayEntries.map(detail => detail.entryId)),
-    [displayEntries]
+  // The notice follows the server place the row already shows: this account
+  // holds only its own entries, so counting dogs ahead locally would call a
+  // dog with 30 ahead "next". No confirmed places, no notice.
+  const leadDogs = useNotificationStore(s => s.preferences.leadDogs);
+  const conflicts = useMemo(
+    () =>
+      detectPlaceRingConflicts(
+        displayEntries,
+        placesUpdatedAt === null ? undefined : places,
+        leadDogs
+      ),
+    [displayEntries, places, placesUpdatedAt, leadDogs]
   );
-  const conflicts = useMyRingConflicts(showId, ownEntryIds);
 
   const handleOpenClass = useCallback(
     (classId: string) => {
@@ -237,14 +246,14 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
           {dogs.length >= 2 && (
             <MyEntriesTodayDogFilter
               dogs={dogs}
-              totalCount={orderedEntries.length}
+              totalCount={displayEntries.length}
               selected={activeDog}
               onSelect={setSelectedDog}
             />
           )}
           <ul className="mt-3 space-y-2">
             {visibleEntries.map(detail => (
-              <EntryRow
+              <MyEntryRow
                 key={detail.entryId}
                 detail={detail}
                 place={places.get(detail.entryId)}

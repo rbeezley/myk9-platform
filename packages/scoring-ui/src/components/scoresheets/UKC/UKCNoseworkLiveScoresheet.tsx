@@ -52,8 +52,18 @@ function splitMaxTime(isDual: boolean, rules: ResolvedClassRules, maxTimeStr: st
   return {
     maxTimeMs,
     searchMaxTime: isDual ? undefined : maxTimeStr,
-    elementMaxTimeMs: isDual ? maxTimeMs : undefined,
+    // Undefined = no element limit: single mode, or a class with none (0).
+    elementMaxTimeMs: isDual && maxTimeMs > 0 ? maxTimeMs : undefined,
   };
+}
+
+/**
+ * A dual-mode search time as recorded: never past the element max, which a late
+ * tick (locked phone) or a Finish just past the max would otherwise allow. No
+ * element max, no cap -- a class without a limit records the real time.
+ */
+function capAtElementMax(searchMs: number, elementMaxTimeMs: number | undefined): number {
+  return elementMaxTimeMs === undefined ? searchMs : Math.min(searchMs, elementMaxTimeMs);
 }
 
 /** Warning / expiry / remaining time from whichever clock carries the max. */
@@ -118,8 +128,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   const elementTimer = useElementTimer({
     maxTimeMs: elementMaxTimeMs,
     onExpired: () => {
-      // A late tick (e.g. a locked phone) must not record search time past the max.
-      const elapsedMs = Math.min(stopwatch.pause(), maxTimeMs);
+      const elapsedMs = capAtElementMax(stopwatch.pause(), elementMaxTimeMs);
       if (scoring.areas.length > 0) {
         scoring.handleAreaUpdate(0, 'time', stopwatch.formatTime(elapsedMs));
       }
@@ -157,7 +166,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
   // Finish: stop both timers, capture times into area 0
   const handleFinish = useCallback(() => {
-    const elapsedMs = Math.min(stopwatch.pause(), maxTimeMs);
+    const elapsedMs = capAtElementMax(stopwatch.pause(), elementMaxTimeMs);
     const reachedMax = isDual && elementTimer.stop();
     if (scoring.areas.length > 0) {
       scoring.handleAreaUpdate(0, 'time', stopwatch.formatTime(elapsedMs));
@@ -167,7 +176,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
       scoring.setQualifying('NQ');
       scoring.setNonQualifyingReason('Max Time');
     }
-  }, [stopwatch, elementTimer, isDual, scoring, maxTimeMs]);
+  }, [stopwatch, elementTimer, isDual, scoring, elementMaxTimeMs]);
 
   // Stop single-timer mode
   const handleStop = useCallback(() => {

@@ -153,4 +153,22 @@ describe('UKC dual-timer max time is the element time (MYK9-1093)', () => {
 
     expect(onWarningChime).toHaveBeenCalledTimes(1);
   });
+
+  it('a class with no limit (0) records the real search time, never 0:00.00', () => {
+    render(
+      <UKCNoseworkLiveScoresheet
+        entry={entry}
+        classInfo={classInfo}
+        rules={{ ...rules('dual'), maxTimeSeconds: 0 }}
+        onSubmit={vi.fn()}
+        onBack={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByTestId('timer-start'));
+    advance(4_000);
+    fireEvent.click(screen.getByRole('button', { name: /^finish$/i }));
+
+    expect(screen.getByTestId('ukc-recorded-time')).toHaveValue('0:04.00');
+    expect(screen.queryByTestId('nq-reason-select')).not.toBeInTheDocument();
+  });
 });

@@ -71,7 +71,19 @@ describe('combined A/B: Set Max Time (MYK9-1086)', () => {
   });
 
   it('opens the dialog on class A with class B as its pair', () => {
-    renderPage(withMaxTime(makeCombinedProps({ loaded: true, entries: ENTRIES }), { open: true }));
+    const base = makeCombinedProps({ loaded: true, entries: ENTRIES });
+    renderPage(
+      withMaxTime(
+        {
+          ...base,
+          data: {
+            ...base.data,
+            classInfo: { ...base.data.classInfo, element: 'Interior', level: 'Novice' },
+          },
+        } as EntryListPageProps,
+        { open: true }
+      )
+    );
 
     expect(maxTimeDialogProps?.isOpen).toBe(true);
     expect(maxTimeDialogProps?.classData).toMatchObject({
@@ -79,7 +91,7 @@ describe('combined A/B: Set Max Time (MYK9-1086)', () => {
       pairedClassId: 'class-b',
     });
     // The title names both sections: one save sets both.
-    expect(maxTimeDialogProps?.classData.class_name).toMatch(/A & B$/);
+    expect(maxTimeDialogProps?.classData.class_name).toBe('Interior Novice A & B');
   });
 
   it('is not offered when the host hides max time', () => {

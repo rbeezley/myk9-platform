@@ -19,6 +19,12 @@
 --     refused, not ignored, so a client bug cannot silently drop a field. Status is
 --     limited to what ringside sends (upcoming / setup / in_progress / completed);
 --     cancelling a class stays a manager action on the normal path.
+--   * Status semantics are exactly the manager's ringside write on the direct path:
+--     only `status` changes; status_source is untouched, so a class whose status is
+--     derived is re-derived by refresh_class_scoring_state on its next scoring
+--     change, and a status change fires the same push triggers it would for a
+--     manager (in_progress -> class status push; completed -> the one-shot class
+--     results push).
 --   * Rule range (owner decision 2026-10-10), for judges and judge passcodes: a
 --     class whose rule has a fixed time (UKC, ASCA Open, AKC fixed) accepts
 --     1..fixed; a judge-set range accepts min..max; with no rule, 1..900. Managers
@@ -161,6 +167,11 @@ BEGIN
   IF v_has_time AND jsonb_typeof(v_fields -> 'time_limit_seconds') = 'null' THEN
     v_seconds := NULL;
   ELSIF v_has_time AND jsonb_typeof(v_fields -> 'time_limit_seconds') = 'number' THEN
+    -- Every caller, managers included: a real time, never 0 / negative / overflow.
+    IF (v_fields ->> 'time_limit_seconds')::numeric < 1
+       OR (v_fields ->> 'time_limit_seconds')::numeric > 86400 THEN
+      RAISE EXCEPTION 'Max time must be between 1 second and 24 hours' USING errcode = '22023';
+    END IF;
     v_seconds := (v_fields ->> 'time_limit_seconds')::numeric::integer;
   ELSIF v_has_time THEN
     RAISE EXCEPTION 'time_limit_seconds must be a number or null' USING errcode = '22023';
@@ -220,9 +231,17 @@ BEGIN
   RETURNING version INTO v_new_version;
 
   IF NOT FOUND THEN
-    -- Lost a race between the check above and the write: report the fresh version
-    -- in DETAIL like every other conflict, so the client rebases its OCC token.
-    SELECT c.version INTO v_current_version FROM public.classes c WHERE c.id = p_class_id;
+    -- Lost a race between the check above and the write. If an identical call
+    -- landed in between, this replay already applied: success. Otherwise report
+    -- the fresh version in DETAIL so the client rebases its OCC token.
+    SELECT c.version, c.time_limit_seconds, c.status, c.start_time
+      INTO v_current_version, v_cur_time, v_cur_status, v_cur_start
+      FROM public.classes c WHERE c.id = p_class_id;
+    IF (NOT v_has_time OR v_cur_time IS NOT DISTINCT FROM v_seconds)
+       AND (NOT v_has_status OR v_cur_status IS NOT DISTINCT FROM v_status)
+       AND (NOT v_has_start OR v_cur_start IS NOT DISTINCT FROM v_start) THEN
+      RETURN v_current_version;
+    END IF;
     RAISE EXCEPTION 'Version conflict updating class % (expected %)', p_class_id, p_expected_version
       USING errcode = '40001', detail = v_current_version::text;
   END IF;

@@ -8,11 +8,14 @@
 --   D. a signed-in account with no tier, and a steward passcode, are refused
 --   E. the rule range binds judges: below min / above max refused; a fixed rule caps
 --      at the fixed time; a manager is not range-checked
---   F. any key but time_limit_seconds is refused, not ignored
+--   F. a key outside the allow-list (status, start_time, time_limit_seconds) is
+--      refused, not ignored
 --   G. OCC: a stale version is 40001; a replay of an already-applied value is success
 --   H. NULL clears the limit
 --   J. status and start_time: the assigned judge starts the class; 'cancelled' and a
 --      malformed start time are refused
+--   K. a soft-deleted class is not found; a regenerated passcode is refused; a status
+--      replay with a stale version is success; 0 is refused even for a manager
 --   I. grants: no EXECUTE for anon
 --
 -- Fixtures roll back.
@@ -45,6 +48,9 @@ insert into public.classes (id, trial_id, name, status, element, level, section)
    'Interior Novice A', 'upcoming', 'Interior', 'Novice', 'A'),
   ('00000000-0000-0000-0000-000001086024', '00000000-0000-0000-0000-000001086022',
    'Container Novice A', 'upcoming', 'Container', 'Novice', 'A');
+insert into public.classes (id, trial_id, name, status, element, level, section, deleted_at) values
+  ('00000000-0000-0000-0000-000001086025', '00000000-0000-0000-0000-000001086022',
+   'Exterior Novice A', 'upcoming', 'Exterior', 'Novice', 'A', now() - interval '1 hour');
 insert into public.judge_assignments (person_id, show_id, trial_id, class_id, status, confirmed_at)
 values ('00000000-0000-0000-0000-000001086012', '00000000-0000-0000-0000-000001086021',
         '00000000-0000-0000-0000-000001086022', '00000000-0000-0000-0000-000001086023',
@@ -193,10 +199,10 @@ do $$
 begin
   begin
     perform public.ringside_update_class('00000000-0000-0000-0000-000001086023',
-              jsonb_build_object('time_limit_seconds', 120, 'status', 'completed'), null);
+              jsonb_build_object('time_limit_seconds', 120, 'name', 'Renamed'), null);
     raise exception 'FAIL F an extra key was accepted';
   exception when insufficient_privilege then
-    raise notice 'PASS F any key but time_limit_seconds is refused';
+    raise notice 'PASS F a key outside the allow-list is refused';
   end;
 end $$;
 
@@ -245,6 +251,54 @@ begin
   end;
 end $$;
 select pg_temp.as_account('00000000-0000-0000-0000-000001086101');
+
+-- K. edges
+select pg_temp.as_passcode('00000000-0000-0000-0000-000001086021', 'judge');
+select set_config('request.jwt.claims', jsonb_set(current_setting('request.jwt.claims')::jsonb,
+  '{app_metadata,passcode_generation}', '"2026-01-01T00:00:00Z"')::text, true);
+do $$
+begin
+  begin
+    perform public.ringside_update_class('00000000-0000-0000-0000-000001086023',
+              jsonb_build_object('status', 'setup'), null);
+    raise exception 'FAIL K a regenerated (stale) passcode was allowed';
+  exception when insufficient_privilege then
+    raise notice 'PASS K a regenerated passcode is refused';
+  end;
+end $$;
+select pg_temp.as_account('00000000-0000-0000-0000-000001086101');
+do $$
+declare v_now integer; v_ret integer;
+begin
+  v_now := public.ringside_update_class('00000000-0000-0000-0000-000001086023',
+             jsonb_build_object('status', 'setup'), null);
+  v_ret := public.ringside_update_class('00000000-0000-0000-0000-000001086023',
+             jsonb_build_object('status', 'setup'), v_now - 1);
+  if v_ret <> v_now then
+    raise exception 'FAIL K a status replay returned % not %', v_ret, v_now;
+  end if;
+  raise notice 'PASS K a status replay of the applied value is success';
+  begin
+    perform public.ringside_update_class('00000000-0000-0000-0000-000001086023',
+              jsonb_build_object('time_limit_seconds', 0), null);
+    raise exception 'FAIL K 0 was accepted';
+  exception when invalid_parameter_value then
+    raise notice 'PASS K 0 is refused even for a manager';
+  end;
+  -- Put the class back in progress for section J's final assertion.
+  perform public.ringside_update_class('00000000-0000-0000-0000-000001086023',
+            jsonb_build_object('status', 'in_progress'), null);
+end $$;
+do $$
+begin
+  begin
+    perform public.ringside_update_class('00000000-0000-0000-0000-000001086025',
+              jsonb_build_object('status', 'setup'), null);
+    raise exception 'FAIL K a soft-deleted class was updated';
+  exception when no_data_found then
+    raise notice 'PASS K a soft-deleted class is not found';
+  end;
+end $$;
 
 -- H. NULL clears
 do $$

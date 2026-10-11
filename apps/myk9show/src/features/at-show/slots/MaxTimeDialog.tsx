@@ -22,8 +22,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { replicatedClassesTable } from '@/services/replication';
-import { parseTimeLimitSeconds } from '@/services/mappers/classTimeLimits';
 import { handleOpenChange } from './dialogHelpers';
+import { parseMaxTimeInput } from './maxTimeInput';
 
 const MAX_SECONDS = 15 * 60;
 
@@ -33,8 +33,15 @@ function toMinutesSeconds(seconds: number | undefined): string {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
 }
 
-export const MaxTimeDialog: React.FC<MaxTimeDialogProps> = ({
-  isOpen,
+/**
+ * The host keeps this slot mounted while closed, so the form mounts fresh on every
+ * open (and per class): it starts from the class's current time, and an edit
+ * abandoned with Cancel is gone.
+ */
+export const MaxTimeDialog: React.FC<MaxTimeDialogProps> = props =>
+  props.isOpen ? <MaxTimeForm key={props.classData.id} {...props} /> : null;
+
+const MaxTimeForm: React.FC<MaxTimeDialogProps> = ({
   onClose,
   showWarning,
   classData,
@@ -44,11 +51,9 @@ export const MaxTimeDialog: React.FC<MaxTimeDialogProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  if (!isOpen) return null;
-
   const save = async () => {
-    const seconds = parseTimeLimitSeconds(value);
-    if (seconds === null || seconds > MAX_SECONDS) {
+    const seconds = parseMaxTimeInput(value);
+    if (seconds === null || seconds < 1 || seconds > MAX_SECONDS) {
       setError('Enter the max time in minutes and seconds, like 4:00.');
       return;
     }
@@ -88,7 +93,7 @@ export const MaxTimeDialog: React.FC<MaxTimeDialogProps> = ({
           <Label htmlFor="ringside-max-time">Max time (minutes:seconds)</Label>
           <Input
             id="ringside-max-time"
-            inputMode="numeric"
+            inputMode="decimal"
             placeholder="4:00"
             value={value}
             onChange={event => setValue(event.target.value)}

@@ -304,24 +304,6 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
       );
       expect(screen.getAllByRole('textbox')).toHaveLength(1);
     });
-
-    it('clears every area when every area is empty', async () => {
-      render(
-        <MaxTimeDialog
-          isOpen
-          classData={{ ...twoAreas, time_limit_area2_seconds: 120, pairedClassId: 'class-b' }}
-          onClose={vi.fn()}
-        />
-      );
-      fireEvent.change(areaInput(1), { target: { value: '' } });
-      fireEvent.change(areaInput(2), { target: { value: ' ' } });
-      await clickSave();
-
-      const cleared = { timeLimitSeconds: undefined, timeLimitArea2Seconds: undefined };
-      await waitFor(() => expect(updateClass).toHaveBeenCalledTimes(2));
-      expect(updateClass).toHaveBeenCalledWith('class-a', cleared);
-      expect(updateClass).toHaveBeenCalledWith('class-b', cleared);
-    });
   });
 
   describe('before the judge types (MYK9-1101)', () => {

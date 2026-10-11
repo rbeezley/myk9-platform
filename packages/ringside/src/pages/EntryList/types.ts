@@ -113,6 +113,11 @@ export interface ClassInfo {
   timeLimit2?: string;
   timeLimit3?: string;
   areas?: number;
+  /**
+   * The class's scoresheet times each area against its own max (MYK9-1098), so
+   * Set Max Time asks for one time per area. Otherwise it asks for one time.
+   */
+  perAreaMaxTimes?: boolean;
   visibilityPreset?: 'open' | 'standard' | 'review' | 'custom';
   /** Server timestamp that authorizes released-results presentation. */
   resultsReleasedAt?: string | null;

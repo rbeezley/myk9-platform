@@ -71,6 +71,7 @@ function maxTimeClassData(
     time_limit_area2_seconds: toSeconds(classInfo.timeLimit2),
     time_limit_area3_seconds: toSeconds(classInfo.timeLimit3),
     area_count: classInfo.areas,
+    per_area_times: classInfo.perAreaMaxTimes,
   };
 }
 

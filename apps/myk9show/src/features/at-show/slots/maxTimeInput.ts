@@ -30,3 +30,20 @@ export const AREA_TIME_FIELDS = [
 export function maxTimeAreaCount(areaCount: number | undefined): number {
   return Math.min(AREA_TIME_FIELDS.length, Math.max(1, areaCount ?? 1));
 }
+
+/** 150 → "2:30"; no time → "". */
+export function toMinutesSeconds(seconds: number | undefined): string {
+  if (!seconds || seconds <= 0) return '';
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`;
+}
+
+const STEP_SECONDS = 30;
+
+/** Every 30 s from the first step at or above `low` up to `high`. */
+export function quickPickTimes(low: number, high: number): number[] {
+  const times: number[] = [];
+  for (let t = Math.ceil(low / STEP_SECONDS) * STEP_SECONDS; t <= high; t += STEP_SECONDS) {
+    times.push(t);
+  }
+  return times;
+}

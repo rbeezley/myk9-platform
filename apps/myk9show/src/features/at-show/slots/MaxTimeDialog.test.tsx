@@ -154,7 +154,7 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
     expect(updateClass).not.toHaveBeenCalled();
   });
 
-  it('looks the rule up online when the class has none cached', async () => {
+  it('looks the rule up online when none is cached, and shows a rulebook time read-only', async () => {
     getClass.mockResolvedValue({
       id: 'class-a',
       trialId: 't1',
@@ -165,13 +165,15 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
       new Map([['class-a', { fixed: 120, forElement: 'Container', forLevel: 'Novice' }]])
     );
     render(<MaxTimeDialog isOpen classData={classData} onClose={vi.fn()} />);
-    fireEvent.change(screen.getByRole('textbox', { name: /max time/i }), {
-      target: { value: '2:30' },
-    });
-    fireEvent.click(screen.getByRole('button', { name: /save/i }));
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(/0:01 and 2:00/);
-    expect(updateClass).not.toHaveBeenCalled();
+    expect(await screen.findByText('2:00')).toBeInTheDocument();
+    expect(screen.getByText(/set by the rulebook/i)).toBeInTheDocument();
+    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /save/i }));
+    await waitFor(() =>
+      expect(updateClass).toHaveBeenCalledWith('class-a', { timeLimitSeconds: 120 })
+    );
   });
 
   it('will not guess offline when the rule is unknown', async () => {
@@ -282,6 +284,43 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
 
       expect(await screen.findByRole('alert')).toHaveTextContent(/1:00 and 3:00/);
       expect(updateClass).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('before the judge types (MYK9-1101)', () => {
+    it('shows the allowed range with 30-second quick picks that fill the time', async () => {
+      render(<MaxTimeDialog isOpen classData={classData} onClose={vi.fn()} />);
+
+      expect(await screen.findByText(/allowed: 1:00 to 3:00/i)).toBeInTheDocument();
+      const picks = screen.getByRole('group', { name: /quick max times/i });
+      expect(
+        Array.from(picks.querySelectorAll('button')).map(button => button.textContent)
+      ).toEqual(['1:00', '1:30', '2:00', '2:30', '3:00']);
+
+      fireEvent.click(screen.getByRole('button', { name: '2:30' }));
+      expect(screen.getByRole('textbox', { name: /max time/i })).toHaveValue('2:30');
+      fireEvent.click(screen.getByRole('button', { name: /save/i }));
+      await waitFor(() =>
+        expect(updateClass).toHaveBeenCalledWith('class-a', { timeLimitSeconds: 150 })
+      );
+    });
+
+    it('fills the area the judge last tapped', async () => {
+      render(
+        <MaxTimeDialog isOpen classData={{ ...classData, area_count: 2 }} onClose={vi.fn()} />
+      );
+      await screen.findByText(/allowed: 1:00 to 3:00/i);
+
+      fireEvent.focus(screen.getByRole('textbox', { name: /area 2 max time/i }));
+      fireEvent.click(screen.getByRole('button', { name: '1:30' }));
+
+      expect(screen.getByRole('textbox', { name: /area 1 max time/i })).toHaveValue('');
+      expect(screen.getByRole('textbox', { name: /area 2 max time/i })).toHaveValue('1:30');
+    });
+
+    it('says the time is required when opened before scoring', () => {
+      render(<MaxTimeDialog isOpen showWarning classData={classData} onClose={vi.fn()} />);
+      expect(screen.getByRole('status')).toHaveTextContent(/max time required before scoring/i);
     });
   });
 });

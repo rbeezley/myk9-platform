@@ -23,7 +23,7 @@
  *    in ringside since PR E2d-2a.
  */
 
-import React, { Dispatch, SetStateAction } from 'react';
+import React, { Dispatch, SetStateAction, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ComponentType } from 'react';
 import type { Entry } from '../../../stores/entryStore';
@@ -234,6 +234,18 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
   AreaCountSelectionDialog,
 }) => {
   const navigate = useNavigate();
+  // The max-time dialog closes after a save as well as on Cancel. Only a Cancel of
+  // the "required before scoring" prompt leaves the list (myK9Q behaviour); after a
+  // save the judge stays to score (MYK9-1099).
+  const maxTimeSavedRef = useRef(false);
+  const closeMaxTimeDialog = () => {
+    setMaxTimeDialogOpen(false);
+    if (maxTimeRequiredWarning) {
+      setMaxTimeRequiredWarning(false);
+      if (!maxTimeSavedRef.current) navigate(-1);
+    }
+    maxTimeSavedRef.current = false;
+  };
 
   // The dialogs describe the SAME class the badges and the class header do, so
   // they report the host's expected/accounted pair rather than raw row counts
@@ -332,16 +344,13 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
       {classInfo && (
         <MaxTimeDialog
           isOpen={maxTimeDialogOpen}
-          onClose={() => {
-            setMaxTimeDialogOpen(false);
-            if (maxTimeRequiredWarning) {
-              setMaxTimeRequiredWarning(false);
-              navigate(-1);
-            }
-          }}
+          onClose={closeMaxTimeDialog}
           showWarning={maxTimeRequiredWarning}
           classData={maxTimeClassData(classInfo, classId, combined?.classIds)}
-          onTimeUpdate={refresh}
+          onTimeUpdate={() => {
+            maxTimeSavedRef.current = true;
+            refresh();
+          }}
         />
       )}
 

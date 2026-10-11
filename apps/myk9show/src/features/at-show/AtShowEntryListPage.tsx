@@ -50,6 +50,7 @@ import { useRingsideEffectiveRole } from './useRingsideEffectiveRole';
 import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
 import { useAtShowEntryListHandlers } from './useAtShowEntryListHandlers';
+import { useMaxTimeGate } from './useMaxTimeGate';
 import { useAtShowEntryListUiState } from './useAtShowEntryListUiState';
 import { atShowLayoutSlots } from './slots/atShowLayoutSlots';
 import { atShowDialogSlots } from './slots/atShowDialogSlots';
@@ -235,6 +236,16 @@ export const AtShowEntryListPage: React.FC = () => {
     setSearchTerm,
   });
 
+  // MYK9-1099: a judge-set class with no max time asks for it before the first dog.
+  const { gateEntryClick } = useMaxTimeGate({
+    classIds: classId ? [classId] : [],
+    timeLimitKey: classInfo?.timeLimit,
+    ready: uiState.hasCompletedInitialLoad,
+    canSetMaxTime: hasPermission('canManageClasses'),
+    setMaxTimeDialogOpen: uiActions.setMaxTimeDialogOpen,
+    setMaxTimeRequiredWarning: uiActions.setMaxTimeRequiredWarning,
+  });
+
   // ── Scoresheet route (wired fully in Phase 1h — may 404 until then) ────
   const buildScoreSheetRoute = useCallback(
     (entry: Entry) => `/at-show/${showId}/class/${classId}/score/${entry.id}`,
@@ -250,6 +261,7 @@ export const AtShowEntryListPage: React.FC = () => {
     hasPermission,
     navigate,
     buildScoreSheetRoute,
+    gateEntryClick,
     refresh,
     setActiveStatusPopup: uiActions.setActiveStatusPopup,
     setActiveResetMenu: uiActions.setActiveResetMenu,

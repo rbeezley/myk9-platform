@@ -10,7 +10,7 @@
  *   adapter), drag-mode toggle.
  * STUB (spike, INTENT-noted): run-order apply (`run_order` write deferred),
  *   placement recalc (myK9Show uses a different calculator), print reports,
- *   statistics nav, the max-time gate inside handleEntryClick.
+ *   statistics nav.
  */
 
 import { useCallback, useEffect, useRef } from 'react';
@@ -48,6 +48,11 @@ export interface UseAtShowEntryListHandlersDeps {
   navigate: (to: string, options?: { state?: unknown }) => void;
   /** Build the scoresheet route for an entry (wired fully in Phase 1h). */
   buildScoreSheetRoute: (entry: Entry) => string;
+  /**
+   * MYK9-1099: true when the tap must open Set Max Time instead of the scoresheet
+   * (a judge-set class with no max time yet). See useMaxTimeGate.
+   */
+  gateEntryClick?: () => boolean;
   /** Force-refresh from the data hook. */
   refresh: (forceSync?: boolean) => Promise<void>;
 
@@ -80,6 +85,7 @@ export function useAtShowEntryListHandlers(
     hasPermission,
     navigate,
     buildScoreSheetRoute,
+    gateEntryClick,
     refresh,
     setActiveStatusPopup,
     setActiveResetMenu,
@@ -169,11 +175,12 @@ export function useAtShowEntryListHandlers(
         toast.error('You do not have permission to score entries.');
         return;
       }
+      if (gateEntryClick?.()) return;
       // INTENT: A card tap is a view/navigation intent. It must not enqueue a
       // ringside status mutation; explicit in-ring controls own that write.
       navigate(buildScoreSheetRoute(entry));
     },
-    [hasPermission, navigate, buildScoreSheetRoute]
+    [hasPermission, navigate, buildScoreSheetRoute, gateEntryClick]
   );
 
   // INTENT (spike): no prefetch cache in myK9Show yet — pure no-op.

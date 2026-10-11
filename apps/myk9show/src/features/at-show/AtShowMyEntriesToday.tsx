@@ -9,25 +9,31 @@
  */
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, ChevronRight, Clock3, Info, ListChecks } from 'lucide-react';
+import { ArrowLeft, ListChecks, WifiOff } from 'lucide-react';
 import type { CheckInStatus } from '@myk9/core';
 import { Button } from '@/components/ui/button';
-import { ResultBadge } from '@/components/common/ResultBadge';
-import { getStatusDescriptor, StatusBadge } from '@/components/status';
 import { Skeleton } from '@/components/common/SkeletonLoaders';
 import { cn } from '@/lib/utils';
 import { notifications } from '@/lib/notifications';
 import { replicatedEntriesTable } from '@/services/replication';
 import { useCheckInMutation } from '@/hooks/mutations/useCheckInMutation';
-import { EXHIBITOR_STATUS_LABELS } from '@/types/check-in-types';
-import { formatRunQueueState } from '@myk9/ringside/run-queue';
-import { useMyEntryQueuePlaces } from '@/hooks/queries/useMyEntryQueuePlaces';
+import { useMyEntryQueuePlacesWithFreshness } from '@/hooks/queries/useMyEntryQueuePlaces';
+import { useIsOnline } from '@/hooks/useNetworkStatus';
+import { isAwaitingPlaceInLine, type AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
+import { MyEntryRow } from './MyEntryRow';
+import { ListViewTabs, type ListView } from '@/components/list-toolkit';
+import { SAVED_INFO_NOTICE } from './myEntriesTodayCopy';
 import {
-  deriveAtShowNextAction,
-  deriveAtShowQueueLine,
-  isAwaitingPlaceInLine,
-  type AtShowEntryDetail,
-} from './myAtShowEntryDetails.helpers';
+  filterByDog,
+  orderMyEntriesToday,
+  resolveDogSelection,
+  summarizeDogs,
+} from './orderMyEntriesToday';
+import { detectPlaceRingConflicts } from './placeRingConflicts';
+import { useNotificationStore } from '@/store/notificationStore';
+
+/** Reserved id for the unfiltered view; a dog key is a dog id or call name. */
+const ALL_DOGS_VIEW = '__all-dogs__';
 
 export interface AtShowMyEntriesTodayProps {
   showId: string;
@@ -39,130 +45,6 @@ export interface AtShowMyEntriesTodayProps {
   loadFailed: boolean;
   onRetry: () => void;
   onSeeAllClasses: () => void;
-}
-
-// Plain-language override where one exists (no-status/checked-in/conflict/
-// pulled); falls back to the staff-grade label — same fallback order
-// CheckInStatusDialog uses — so a status without a plain override (at-gate,
-// come-to-gate, in-ring, completed) still reads correctly instead of always
-// showing "not checked in".
-function getExhibitorStatusLabel(detail: AtShowEntryDetail): string {
-  return (
-    EXHIBITOR_STATUS_LABELS[detail.checkInStatus] ??
-    getStatusDescriptor('entry', detail.checkInStatus).label
-  );
-}
-
-function EntryRow({
-  detail,
-  place,
-  onOpenClass,
-  onCheckIn,
-  checkInPending,
-}: {
-  detail: AtShowEntryDetail;
-  /** The server-counted place in line, when known (`useMyEntryQueuePlaces`). */
-  place: number | undefined;
-  onOpenClass: (classId: string) => void;
-  onCheckIn: (detail: AtShowEntryDetail) => void;
-  checkInPending: boolean;
-}) {
-  const action = deriveAtShowNextAction(detail);
-  const queueLine = deriveAtShowQueueLine(detail, place);
-
-  return (
-    <li
-      className="flex min-h-12 items-center gap-3 rounded-xl border bg-card px-4 py-3 shadow-sm"
-      data-testid={`at-show-my-entry-${detail.entryId}`}
-    >
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <span className="truncate font-medium">{detail.dogName}</span>
-          {detail.armband && (
-            <span className="shrink-0 rounded-full bg-[color:var(--chip-stone-bg)] px-2 py-0.5 text-xs font-medium text-[color:var(--chip-stone-fg)]">
-              #{detail.armband}
-            </span>
-          )}
-        </div>
-        <div className="mt-0.5 truncate text-sm text-muted-foreground">
-          {detail.trialLabel ? `${detail.trialLabel} · ` : ''}
-          {detail.className ?? 'Running order not posted yet'}
-        </div>
-        {detail.expectedStartLabel && (
-          <div className="mt-0.5 flex items-center gap-1 text-xs font-medium text-muted-foreground">
-            <Clock3 className="h-3.5 w-3.5" aria-hidden />
-            {detail.isRevisedStart ? 'Expected' : 'Scheduled'} {detail.expectedStartLabel}
-          </div>
-        )}
-        <StatusBadge
-          family="entry"
-          status={detail.checkInStatus}
-          label={getExhibitorStatusLabel(detail)}
-          className="mt-1 text-xs"
-        />
-        {queueLine && (
-          <div className="mt-1 text-sm font-medium" data-testid="at-show-my-entry-place">
-            {queueLine.kind === 'pending'
-              ? 'Position pending: running order not posted yet'
-              : formatRunQueueState(queueLine)}
-          </div>
-        )}
-        {detail.resultStatus && (
-          <div className="mt-1 flex items-center gap-2 text-sm" role="group" aria-label="Result">
-            <ResultBadge resultStatus={detail.resultStatus} />
-            {detail.resultTimeSeconds != null && (
-              <span className="tabular-nums text-muted-foreground">
-                {detail.resultTimeSeconds.toFixed(1)}s
-              </span>
-            )}
-          </div>
-        )}
-        {action.kind === 'self-checkin-disabled' && (
-          <div className="mt-1 flex items-start gap-1 text-xs text-muted-foreground">
-            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-            Self check-in is off for this class. Please check in at the secretary table.
-          </div>
-        )}
-        {action.kind === 'self-checkin-unknown' && (
-          <div className="mt-1 flex items-start gap-1 text-xs text-muted-foreground">
-            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-            Check-in isn't available right now. Ask at the show desk.
-          </div>
-        )}
-      </div>
-
-      {action.kind === 'check-in' && (
-        <Button
-          type="button"
-          size="sm"
-          className="min-h-11 shrink-0 gap-1.5"
-          disabled={checkInPending}
-          onClick={() => onCheckIn(detail)}
-        >
-          <CheckCircle2 className="h-4 w-4" aria-hidden />
-          Check in
-        </Button>
-      )}
-      {action.kind === 'wait-running-order' && (
-        <span className="flex shrink-0 items-center gap-1.5 text-sm text-muted-foreground">
-          <Clock3 className="h-4 w-4" aria-hidden />
-          Not posted yet
-        </span>
-      )}
-      {(action.kind === 'view-class' || action.kind === 'scored') && detail.classId && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="min-h-11 shrink-0 gap-1"
-          onClick={() => detail.classId && onOpenClass(detail.classId)}
-        >
-          View class
-          <ChevronRight className="h-4 w-4" aria-hidden />
-        </Button>
-      )}
-    </li>
-  );
 }
 
 function AtShowMyEntriesTodaySkeleton() {
@@ -228,7 +110,43 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
     () => displayEntries.filter(isAwaitingPlaceInLine).map(detail => detail.entryId),
     [displayEntries]
   );
-  const places = useMyEntryQueuePlaces(awaitingIds);
+  const { places, updatedAt: placesUpdatedAt } = useMyEntryQueuePlacesWithFreshness(awaitingIds);
+  const isOnline = useIsOnline();
+
+  // One time-ordered list across every dog; the filter narrows it. Counts come
+  // from the whole day so they never shift under the filter (MYK9-1046).
+  const orderedEntries = useMemo(
+    () => orderMyEntriesToday(displayEntries, places),
+    [displayEntries, places]
+  );
+  const dogs = useMemo(() => summarizeDogs(displayEntries), [displayEntries]);
+  const [selectedDog, setSelectedDog] = useState<string | null>(null);
+  const activeDog = resolveDogSelection(selectedDog, dogs);
+  // Counts cover the whole day, so they never shift under the selection.
+  const dogViews = useMemo<ListView[]>(
+    () => [
+      { id: ALL_DOGS_VIEW, label: 'All dogs', count: displayEntries.length },
+      ...dogs.map(dog => ({ id: dog.dogKey, label: dog.dogName, count: dog.count })),
+    ],
+    [dogs, displayEntries.length]
+  );
+  const visibleEntries = useMemo(
+    () => filterByDog(orderedEntries, activeDog),
+    [orderedEntries, activeDog]
+  );
+  // The notice follows the server place the row already shows: this account
+  // holds only its own entries, so counting dogs ahead locally would call a
+  // dog with 30 ahead "next". No confirmed places, no notice.
+  const leadDogs = useNotificationStore(s => s.preferences.leadDogs);
+  const conflicts = useMemo(
+    () =>
+      detectPlaceRingConflicts(
+        displayEntries,
+        placesUpdatedAt === null ? undefined : places,
+        leadDogs
+      ),
+    [displayEntries, places, placesUpdatedAt, leadDogs]
+  );
 
   const handleOpenClass = useCallback(
     (classId: string) => {
@@ -312,7 +230,16 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
         </div>
       ) : (
         <>
-          {loadFailed && (
+          {!isOnline && (
+            <div
+              className="mt-3 flex items-start gap-2 rounded-md border px-3 py-2 text-sm text-muted-foreground"
+              role="status"
+            >
+              <WifiOff className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+              <p>{SAVED_INFO_NOTICE}</p>
+            </div>
+          )}
+          {isOnline && loadFailed && (
             // The last list read is still shown, since stale is better than
             // nothing at the ring, but it is marked as not current (MYK9-774).
             <div
@@ -327,12 +254,23 @@ export const AtShowMyEntriesToday: React.FC<AtShowMyEntriesTodayProps> = ({
               </Button>
             </div>
           )}
+          {dogs.length >= 2 && (
+            <ListViewTabs
+              className="mt-3"
+              label="which dog"
+              views={dogViews}
+              activeId={activeDog ?? ALL_DOGS_VIEW}
+              onSelect={id => setSelectedDog(id === ALL_DOGS_VIEW ? null : id)}
+            />
+          )}
           <ul className="mt-3 space-y-2">
-            {displayEntries.map(detail => (
-              <EntryRow
+            {visibleEntries.map(detail => (
+              <MyEntryRow
                 key={detail.entryId}
                 detail={detail}
                 place={places.get(detail.entryId)}
+                placeUpdatedAt={placesUpdatedAt}
+                conflictLabel={conflicts.get(detail.entryId)}
                 onOpenClass={handleOpenClass}
                 onCheckIn={handleCheckIn}
                 checkInPending={pendingEntryId === detail.entryId}

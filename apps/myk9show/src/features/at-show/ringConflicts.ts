@@ -70,7 +70,7 @@ function toQueueEntry(entry: RingConflictEntry): Entry {
   } satisfies Partial<Entry> as unknown as Entry;
 }
 
-interface NearUpItem {
+export interface NearUpItem {
   entryId: string;
   classId: string;
   className: string;
@@ -78,7 +78,7 @@ interface NearUpItem {
   result: DogsAheadResult;
 }
 
-function describe(item: NearUpItem): string {
+export function describeNearUp(item: NearUpItem): string {
   if (item.result?.kind === 'in-ring') return `${item.callName} in the ring in ${item.className}`;
   if (item.result?.kind === 'waiting' && item.result.dogsAhead === 0) {
     return `${item.callName} next in ${item.className}`;
@@ -147,7 +147,7 @@ export function detectMyRingConflicts(
   for (const item of nearUp) {
     const others = nearUp.filter(other => other.classId !== item.classId);
     if (others.length === 0) continue;
-    result.set(item.entryId, others.map(describe).join(' · '));
+    result.set(item.entryId, others.map(describeNearUp).join(' · '));
   }
   return result;
 }

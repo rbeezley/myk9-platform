@@ -5,12 +5,13 @@ import { AtShowMyEntriesToday } from './AtShowMyEntriesToday';
 import type { AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
 
 const mockPlaces = vi.hoisted(() => ({ current: new Map<string, number>() }));
+const mockUpdatedAt = vi.hoisted(() => ({ current: 1_761_325_500_000 as number | null }));
 const mockPlaceRequests = vi.hoisted(() => vi.fn());
 
 vi.mock('@/hooks/queries/useMyEntryQueuePlaces', () => ({
-  useMyEntryQueuePlaces: (ids: readonly string[]) => {
+  useMyEntryQueuePlacesWithFreshness: (ids: readonly string[]) => {
     mockPlaceRequests(ids);
-    return mockPlaces.current;
+    return { places: mockPlaces.current, updatedAt: mockUpdatedAt.current };
   },
 }));
 
@@ -42,6 +43,7 @@ function entry(overrides: Partial<AtShowEntryDetail>): AtShowEntryDetail {
     resultTimeSeconds: null,
     selfCheckinState: 'allowed',
     trialLabel: null,
+    trialTimezone: 'America/Chicago',
     ...overrides,
   };
 }
@@ -74,6 +76,7 @@ describe('AtShowMyEntriesToday — place in line (MYK9-992)', () => {
     renderRow(entry({}));
 
     expect(screen.getByText('3rd up')).toBeInTheDocument();
+    expect(screen.getByText('updated 12:05 PM')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /view class/i })).toBeInTheDocument();
     expect(mockPlaceRequests).toHaveBeenLastCalledWith(['entry-1']);
   });
@@ -98,5 +101,30 @@ describe('AtShowMyEntriesToday — place in line (MYK9-992)', () => {
     expect(screen.queryByText(/\bup$/)).not.toBeInTheDocument();
     expect(screen.queryByText(/not posted|position pending|^Waiting$/i)).not.toBeInTheDocument();
     expect(mockPlaceRequests).toHaveBeenLastCalledWith([]);
+  });
+
+  it.each([
+    [1, 'Next up'],
+    [12, '12th up'],
+  ])('labels place %i with when it was counted, on the trial clock', (place, text) => {
+    mockPlaces.current = new Map([['entry-1', place]]);
+    renderRow(entry({}));
+
+    expect(screen.getByText(text)).toBeInTheDocument();
+    expect(screen.getByText('updated 12:05 PM')).toBeInTheDocument();
+  });
+
+  it('shows no number at all when the place has no timestamp', () => {
+    mockPlaces.current = new Map([['entry-1', 3]]);
+    mockUpdatedAt.current = null;
+    try {
+      renderRow(entry({}));
+
+      expect(screen.queryByText('3rd up')).not.toBeInTheDocument();
+      expect(screen.queryByText(/updated/)).not.toBeInTheDocument();
+      expect(screen.getByText('Waiting')).toBeInTheDocument();
+    } finally {
+      mockUpdatedAt.current = 1_761_325_500_000;
+    }
   });
 });

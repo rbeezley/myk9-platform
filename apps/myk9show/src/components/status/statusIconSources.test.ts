@@ -54,7 +54,7 @@ const MIGRATED_RENDERERS = [
   'features/pipeline/components/ScoringDaySummary.tsx',
   'features/show-desk-people-roster/ShowDeskPeopleRoster.tsx',
   'features/at-show/AtShowClassRow.tsx',
-  'features/at-show/AtShowMyEntriesToday.tsx',
+  'features/at-show/MyEntryRow.tsx',
   'features/at-show/slots/CheckinStatusDialog.tsx',
   'features/at-show/slots/ClassDetailsPopoverSlot.tsx',
   'pages/ClassDetailsPage/ClassReadinessStrip.tsx',

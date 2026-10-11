@@ -19,10 +19,9 @@ import { replicatedEntriesTable } from '@/services/replication/ReplicatedEntries
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable';
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
-import { isRuleCurrent } from '@/services/replication/resolveClassTimeLimitRules';
 import { logger } from '@/services/LoggingService';
 import { transitionToInRing, transitionToCompleted } from '@/utils/checkInTransitions';
-import { buildResolvedClassRules } from '@myk9/scoring-ui';
+import { classScoringRules } from '@/pages/scoring/classScoringRules';
 import type { ResolvedClassRules, ScoreData } from '@myk9/scoring-ui';
 import type { ScoringEntry, ClassInfo } from '@/pages/scoring/types';
 import {
@@ -187,11 +186,7 @@ export function useAtShowScoresheet({
         });
 
         setClassInfo(toClassInfo(cls, allEntries.length, cls.judgeName));
-        // The 30-second warning comes from the class's cached rule (MYK9-1102).
-        const rule = isRuleCurrent(cls.timeLimitRule, cls) ? cls.timeLimitRule : undefined;
-        setRules(
-          buildResolvedClassRules({ ...cls, thirtySecondWarning: rule?.thirtySecondWarning })
-        );
+        setRules(classScoringRules(cls));
         setLoadedClassId(classId);
         setLoadedEntryId(entryId);
         if (hasCachedSheet && !forceRefresh && cls.trialId) {

@@ -21,7 +21,8 @@ import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTa
 
 import { logger } from '@/services/LoggingService';
 import { transitionToInRing, transitionToCompleted } from '@/utils/checkInTransitions';
-import { getScoresheetComponent, buildResolvedClassRules } from '@myk9/scoring-ui';
+import { getScoresheetComponent } from '@myk9/scoring-ui';
+import { classScoringRules } from './classScoringRules';
 import type { ResolvedClassRules, ScoreData } from '@myk9/scoring-ui';
 
 // Ensure all live scoresheets are registered (import triggers self-registration)
@@ -129,7 +130,7 @@ export function ScoresheetPage() {
           }
         });
         setClassInfo(toClassInfo(cls, allEntries.length, cls.judgeName));
-        setRules(buildResolvedClassRules(cls));
+        setRules(classScoringRules(cls));
       } catch (err) {
         logger.error('Failed to load scoresheet data:', 'pages', {}, err as Error);
         setError(err instanceof Error ? err.message : 'Failed to load data');

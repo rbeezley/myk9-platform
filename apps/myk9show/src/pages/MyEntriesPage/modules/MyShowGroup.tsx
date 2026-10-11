@@ -12,7 +12,7 @@
 
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Check, CreditCard } from 'lucide-react';
+import { ArrowRight, Check, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { AddToCalendarDialog } from '@/features/calendar-subscribe';
 import { formatPaymentCents } from '@/features/payments/moneyPresentation';
@@ -21,7 +21,7 @@ import { buildVenueMapsUrls, formatVenueAddress } from '@/utils/venueMaps';
 import type { ResultCardModel } from '@/features/result-card';
 import { EntryStatus } from '@/types/show-registration-types';
 import type { UserEntriesSource } from '@/services/database/entries';
-import type { DayCheckInContext } from './dayCheckIn';
+import { isTrialDayToday, type DayCheckInContext } from './dayCheckIn';
 import { indexOrdersById, type MyShowClass, type MyShowDog } from './groupEntriesByShow';
 import type { MyShowGroup as MyShowGroupModel } from './groupEntriesByShow';
 import { MyShowActionsMenu } from './MyShowActionsMenu';
@@ -127,6 +127,18 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
     isPastShow,
   };
 
+  // A show day is a day on which one of the exhibitor's entered classes runs, in
+  // that trial's own zone (never the browser's). The at-show page answers
+  // "where do I go next?" for every dog; this is only the way in (MYK9-1046).
+  const hasClassToday =
+    !isPastShow &&
+    !!group.showId &&
+    group.dogs.some(dog =>
+      dog.classes.some(
+        cls => cls.status === 'entered' && isTrialDayToday(cls.trialDate, cls.trialTimezone, now)
+      )
+    );
+
   const mapAddress = formatVenueAddress([
     group.location.venue,
     group.location.city,
@@ -220,6 +232,16 @@ export const MyShowGroupCard: React.FC<MyShowGroupProps> = ({
           />
         </div>
       </div>
+
+      {hasClassToday && (
+        <Link
+          to={`/at-show/${group.showId}`}
+          className="myk9-entries-strip min-h-[44px] items-center justify-between border-primary/20 bg-primary/10 font-semibold text-primary hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+        >
+          <span>Where to be today</span>
+          <ArrowRight className="h-5 w-5" aria-hidden="true" />
+        </Link>
+      )}
 
       {/* INTENT: the exhibitor is not told their entries are gone or wrong —
           only that we could not confirm them just now. Receipts stay reachable

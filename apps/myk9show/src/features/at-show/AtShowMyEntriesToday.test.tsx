@@ -20,6 +20,9 @@ vi.mock('@/services/replication', () => ({
   replicatedEntriesTable: { sync: mockSync },
 }));
 
+// The conflict scan reads the replica; these tests are about the row itself.
+vi.mock('./useMyRingConflicts', () => ({ useMyRingConflicts: () => new Map() }));
+
 function entry(overrides: Partial<AtShowEntryDetail>): AtShowEntryDetail {
   return {
     entryId: 'entry-1',

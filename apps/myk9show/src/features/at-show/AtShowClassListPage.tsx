@@ -201,6 +201,7 @@ export const AtShowClassListPage: React.FC = () => {
           ...(cls.start_time
             ? { expectedStartLabel: formatAtShowClassTime(cls.start_time, timeZone) }
             : {}),
+          ...(cls.start_time ? { startTime: cls.start_time } : {}),
           isRevisedStart: Boolean(cls.revised_expected_start),
           resultsReleasedAt: cls.results_released_at ?? null,
           selfCheckinState: selfCheckinByClassId[cls.id] ?? 'unknown',

@@ -64,7 +64,31 @@ export function settledQueuePlaces(query: QueuePlacesQueryState, isOnline: boole
   return query.data ?? NO_PLACES;
 }
 
-export function useMyEntryQueuePlaces(entryIds: readonly string[]): QueuePlaces {
+/** The settled places plus when that answer landed (`null` = no confirmed answer). */
+export interface QueuePlacesWithFreshness {
+  places: QueuePlaces;
+  /** `dataUpdatedAt` of the settled answer; null whenever `places` is the empty fallback. */
+  updatedAt: number | null;
+}
+
+/**
+ * `settledQueuePlaces` plus the moment the answer landed, so a surface can say
+ * how fresh a place in line is. A place offered with no timestamp is a number
+ * with no freshness, so an unsettled query (offline, paused, placeholder,
+ * failed, unanswered) reports `null`, and so does a timestamp of 0.
+ */
+export function settledQueuePlacesWithFreshness(
+  query: QueuePlacesQueryState & { dataUpdatedAt: number },
+  isOnline: boolean
+): QueuePlacesWithFreshness {
+  const places = settledQueuePlaces(query, isOnline);
+  const settled = places !== NO_PLACES && query.dataUpdatedAt > 0;
+  return { places: settled ? places : NO_PLACES, updatedAt: settled ? query.dataUpdatedAt : null };
+}
+
+export function useMyEntryQueuePlacesWithFreshness(
+  entryIds: readonly string[]
+): QueuePlacesWithFreshness {
   const { user } = useAuthContext();
   const isOnline = useIsOnline();
   const ids = useMemo(() => [...new Set(entryIds)].sort(), [entryIds]);
@@ -79,5 +103,9 @@ export function useMyEntryQueuePlaces(entryIds: readonly string[]): QueuePlaces 
     refetchInterval: 30_000,
   });
 
-  return settledQueuePlaces(query, isOnline);
+  return settledQueuePlacesWithFreshness(query, isOnline);
+}
+
+export function useMyEntryQueuePlaces(entryIds: readonly string[]): QueuePlaces {
+  return useMyEntryQueuePlacesWithFreshness(entryIds).places;
 }

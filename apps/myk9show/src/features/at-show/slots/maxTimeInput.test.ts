@@ -11,7 +11,7 @@ describe('parseMaxTimeInput', () => {
   });
 
   it('refuses anything else', () => {
-    for (const bad of ['', 'soon', '4:3', '12345', '4:30:00', '-4']) {
+    for (const bad of ['', 'soon', '4:3', '12345', '4:30:00', '-4', '1:99', '1.60', '199']) {
       expect(parseMaxTimeInput(bad)).toBeNull();
     }
   });

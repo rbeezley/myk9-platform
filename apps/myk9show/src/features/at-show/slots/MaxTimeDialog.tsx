@@ -24,6 +24,7 @@ import { Label } from '@/components/ui/label';
 import { replicatedClassesTable } from '@/services/replication';
 import { handleOpenChange } from './dialogHelpers';
 import { parseMaxTimeInput } from './maxTimeInput';
+import { maxTimeRangeForClass } from './maxTimeRule';
 
 const MAX_SECONDS = 15 * 60;
 
@@ -60,6 +61,19 @@ const MaxTimeForm: React.FC<MaxTimeDialogProps> = ({
     setError(null);
     setSaving(true);
     try {
+      const range = await maxTimeRangeForClass(classData.id);
+      if (range === 'unknown-offline') {
+        setError(
+          "You're offline and this class's allowed max time isn't on this device yet. Try again with signal."
+        );
+        return;
+      }
+      if (seconds < range.low || seconds > range.high) {
+        setError(
+          `Max time for this class must be between ${toMinutesSeconds(range.low)} and ${toMinutesSeconds(range.high)}.`
+        );
+        return;
+      }
       const classIds = [
         classData.id,
         ...(classData.pairedClassId ? [classData.pairedClassId] : []),

@@ -41,6 +41,7 @@ import {
 } from './types';
 import { Breadcrumb } from '@/components/common/Breadcrumb';
 import { useScoringBreadcrumb } from './useScoringBreadcrumb';
+import { MaxTimeNotSetNotice } from '@/features/at-show/MaxTimeNotSetNotice';
 
 /**
  * Main scoresheet page - routes to correct scoresheet component
@@ -284,6 +285,7 @@ export function ScoresheetPage() {
           )}
         </div>
       )}
+      <MaxTimeNotSetNotice maxTimeSeconds={rules.maxTimeSeconds} registryKey={registryKey} />
       <LiveScoresheet
         entry={toScoresheetEntry(entry, classInfo)}
         classInfo={toScoresheetClassInfo(classInfo, trialDate, trialNumber, trialName)}

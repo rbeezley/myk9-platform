@@ -336,10 +336,11 @@ export function toClassInfo(
 
 /**
  * Format timeLimitSeconds from the class record to M:SS display string.
- * Falls back to 3:00 (180s) if the field is missing (pre-migration classes).
+ * A class with no saved time has no limit -- never an invented 3:00 (MYK9-1086).
  */
 function formatTimeLimitFromClass(timeLimitSeconds?: number): string {
-  const seconds = timeLimitSeconds ?? 180; // Default 3 minutes
+  if (!timeLimitSeconds || timeLimitSeconds <= 0) return 'Not set';
+  const seconds = timeLimitSeconds;
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
   return `${mins}:${secs.toString().padStart(2, '0')}`;

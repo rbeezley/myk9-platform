@@ -14,6 +14,7 @@ import { formatScoresheetSubtitle } from '../../../utils/scoresheetSubtitle';
 import { useStopwatch } from '../../../hooks/useStopwatch';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
+import { maxTimeLabel } from '../../../utils/maxTimeLabel';
 import type { LiveScoresheetProps } from '../../../types/scoreData';
 import type { ExtendedResult } from '../../../types/scoreData';
 
@@ -94,7 +95,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   const [showConfirmation, setShowConfirmation] = useState(false);
 
   const areaMaxSeconds =
-    rules.maxTimeSeconds > 0 ? Math.floor(rules.maxTimeSeconds / areaCount) : 180;
+    rules.maxTimeSeconds > 0 ? Math.floor(rules.maxTimeSeconds / areaCount) : 0; // no limit
   const areaMaxTimeStr = `${Math.floor(areaMaxSeconds / 60)}:${String(areaMaxSeconds % 60).padStart(2, '0')}`;
 
   const scoring = useScoresheetScoring({
@@ -288,7 +289,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                   {stopwatch.formatTime(stopwatch.time)}
                 </div>
                 <div className="text-sm text-muted-foreground mt-2">
-                  Area {currentArea + 1} — Max: {areaMaxTimeStr}
+                  Area {currentArea + 1} — Max: {maxTimeLabel(areaMaxSeconds)}
                 </div>
                 <div className="mt-6">
                   {stopwatch.isRunning ? (

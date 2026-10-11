@@ -453,7 +453,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
       {/* `LiveScoresheet` is a stable registry lookup (getScoresheetComponent by
           a fixed sport key), not a component created during render — same
           dispatch pattern as the secretary ScoresheetPage. */}
-      <MaxTimeNotSetNotice maxTimeSeconds={rules.maxTimeSeconds} />
+      <MaxTimeNotSetNotice maxTimeSeconds={rules.maxTimeSeconds} registryKey={registryKey} />
       {/* eslint-disable-next-line react-hooks/static-components */}
       <LiveScoresheet
         entry={toScoresheetEntry(entry, classInfo, registryKey)}

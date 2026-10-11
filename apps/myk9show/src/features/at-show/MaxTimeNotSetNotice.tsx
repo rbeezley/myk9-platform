@@ -10,8 +10,28 @@
 import { AlertCircle } from 'lucide-react';
 import { badgeClass } from './slots/atShowChrome.helpers';
 
-export function MaxTimeNotSetNotice({ maxTimeSeconds }: { maxTimeSeconds: number }) {
-  if (maxTimeSeconds > 0) return null;
+/**
+ * The live sheets whose timer takes the CLASS's max time. FastCat and UKC Rally
+ * carry their own fixed limits and Obedience has none, so a missing class time
+ * means nothing there and the notice would be false.
+ */
+const SHEETS_USING_CLASS_MAX_TIME = new Set([
+  'AKC_SCENT_WORK',
+  'AKC_SCENT_WORK_NATIONAL',
+  'ASCA_SCENT_DETECTION',
+  'UKC_NOSEWORK',
+]);
+
+export function MaxTimeNotSetNotice({
+  maxTimeSeconds,
+  registryKey,
+}: {
+  maxTimeSeconds: number;
+  registryKey: string | null;
+}) {
+  if (maxTimeSeconds > 0 || !registryKey || !SHEETS_USING_CLASS_MAX_TIME.has(registryKey)) {
+    return null;
+  }
   return (
     <div
       role="note"
@@ -20,7 +40,7 @@ export function MaxTimeNotSetNotice({ maxTimeSeconds }: { maxTimeSeconds: number
       <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
       <span>
         No max time is set for this class, so the timer won&apos;t stop on its own. Ask the
-        secretary to set the max time in the class settings.
+        secretary to set this class&apos;s Time Limit.
       </span>
     </div>
   );

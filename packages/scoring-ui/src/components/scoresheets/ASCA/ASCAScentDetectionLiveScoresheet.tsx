@@ -16,7 +16,7 @@ import { formatScoresheetSubtitle } from '../../../utils/scoresheetSubtitle';
 import { useStopwatch } from '../../../hooks/useStopwatch';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
-import { maxTimeLabel } from '../../../utils/maxTimeLabel';
+import { timerLimitLine } from '../../../utils/maxTimeLabel';
 import type { LiveScoresheetProps } from '../../../types/scoreData';
 import type { ExtendedResult } from '../../../types/scoreData';
 
@@ -190,10 +190,10 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
                 </div>
 
                 <div className="text-sm text-muted-foreground mt-2 tabular-nums">
-                  {stopwatch.time > 0 ? (
-                    <>Remaining: {stopwatch.getRemainingTime()}</>
-                  ) : (
-                    <>Max Time: {maxTimeLabel(rules.maxTimeSeconds)}</>
+                  {timerLimitLine(
+                    stopwatch.time,
+                    rules.maxTimeSeconds,
+                    stopwatch.getRemainingTime()
                   )}
                 </div>
 

@@ -30,6 +30,11 @@ import { resolveClassJudgeFields } from '@/services/database/_shared/classJudgeF
 import type { JudgeNameParts } from '@/services/database/_shared/judgeNamesByClass';
 import { CLASS_AUTHENTICATED_COLUMN_SELECT } from '@/services/database/classes/reads';
 import type { Database } from '@/types/supabase';
+import { buildRingsideClassRpc } from './ringsideClassRpc';
+import {
+  resolveTimeLimitRulesForClassRows,
+  type TimeLimitRule,
+} from './resolveClassTimeLimitRules';
 
 /**
  * Database row type from Supabase schema
@@ -155,6 +160,11 @@ export interface ReplicatedClass {
    * judge-set totals arrive only through the authorized show-scoped RPC.
    */
   hideCount?: number | undefined;
+  /**
+   * Local-only: the max-time rule the judge may choose within, resolved at sync
+   * from sport_class_rules (MYK9-1086). Never uploaded.
+   */
+  timeLimitRule?: TimeLimitRule | undefined;
 
   // Scent Work specific fields (snake_case for Compatibility with older hooks)
   trial_id?: string | undefined;
@@ -330,6 +340,7 @@ export function stripUnsetServerOwnedKeys(
 type EnrichedClassRow = ClassRow & {
   _selfCheckinEnabled?: boolean | undefined;
   _visibilityPreset?: string | undefined;
+  _timeLimitRule?: TimeLimitRule | undefined;
   _judge?: JudgeNameParts | null | undefined;
   _judgeResolved?: boolean | undefined;
 };
@@ -537,6 +548,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
         ...rowToClass(remote),
         selfCheckinEnabled: remote._selfCheckinEnabled,
         visibilityPreset: remote._visibilityPreset,
+        timeLimitRule: remote._timeLimitRule,
       }),
       rebuildUpdatePayload: cls => this.rebuildUpdatePayload(cls),
     };
@@ -569,6 +581,11 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       return new Map<string, number>();
     });
 
+    // MYK9-1086: the max-time rule the ringside Set Max Time dialog checks offline.
+    const timeLimitRuleByClassId = await resolveTimeLimitRulesForClassRows(rows).catch(
+      () => new Map<string, TimeLimitRule>()
+    );
+
     // MYK9-494: names cannot come from a `people` embed — an exhibitor cannot read
     // another person's row, so the embed (or `people!inner`) yields nothing and every
     // schedule row reads `Judge TBD`. get_show_judges is the authorized source.
@@ -589,6 +606,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       num_hides: hideCountByClassId.get(String(row.id)) ?? null,
       _selfCheckinEnabled: visibilityByClassId.get(String(row.id))?.selfCheckinEnabled,
       _visibilityPreset: visibilityByClassId.get(String(row.id))?.visibilityPreset,
+      _timeLimitRule: timeLimitRuleByClassId.get(String(row.id)),
     }));
   }
 
@@ -677,6 +695,7 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       ...remote,
       selfCheckinEnabled: remote.selfCheckinEnabled ?? local.selfCheckinEnabled,
       visibilityPreset: remote.visibilityPreset ?? local.visibilityPreset,
+      timeLimitRule: remote.timeLimitRule ?? local.timeLimitRule,
     };
 
     // MYK9-494: judge NAMES are enrichment too, and their resolver is allowed to fail (the
@@ -740,11 +759,14 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     // strip the ones this mutation didn't explicitly set before queueing — see
     // stripUnsetServerOwnedKeys. Prevents an unrelated edit from re-uploading a
     // stale local status / status_source and clobbering server-derived state.
-    const mutationId = await this.queueMutation(
-      'UPDATE',
-      classId,
-      stripUnsetServerOwnedKeys(this.toSupabaseRow(updatedClass), updates)
-    );
+    const payload = stripUnsetServerOwnedKeys(this.toSupabaseRow(updatedClass), updates);
+    // A ringside-only write (status / start time / max time) goes through
+    // ringside_update_class, which admits the class's judge; classes_update RLS
+    // would deny it (MYK9-1096, MYK9-1086). Anything else stays direct.
+    const rpc = buildRingsideClassRpc(Object.keys(updates), payload);
+    const mutationId = rpc
+      ? await this.queueMutation('UPDATE', classId, payload, undefined, rpc)
+      : await this.queueMutation('UPDATE', classId, payload);
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated class ${classId}`);
     return mutationId;

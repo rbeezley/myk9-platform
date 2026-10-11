@@ -387,6 +387,13 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
       await waitFor(() => expect(screen.getByRole('button', { name: /save/i })).toBeEnabled());
     });
 
+    it('titles the class on one line and Max Time on the next, with no dash', () => {
+      render(<MaxTimeDialog isOpen classData={classData} onClose={vi.fn()} />);
+      expect(screen.getByText('Interior Novice A', { exact: true })).toBeInTheDocument();
+      expect(screen.getByText('Max Time', { exact: true })).toBeInTheDocument();
+      expect(document.body.textContent).not.toContain('\u2014');
+    });
+
     it('says the time is required when opened before scoring', async () => {
       render(<MaxTimeDialog isOpen showWarning classData={classData} onClose={vi.fn()} />);
       expect(screen.getByRole('status')).toHaveTextContent(/max time required before scoring/i);

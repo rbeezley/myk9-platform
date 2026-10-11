@@ -2,9 +2,9 @@
 -- UKC Nosework maximum element times come from the rulebook, not a range
 -- =============================================================================
 -- Migration 030 seeded every ukc-nosework rule with max_time_seconds_fixed = NULL
--- and an invented min/max range, as if UKC times were judge-set. They are not:
--- docs/rulebooks/ukc-nose-work-rules.txt, "Below are the maximum element times for
--- each class", fixes them per level:
+-- and an invented min/max range. The rulebook fixes the MAXIMUM element time per
+-- level (docs/rulebooks/ukc-nose-work-rules.txt, "Below are the maximum element
+-- times for each class"); a competition may post a lower time, never a higher one:
 --
 --   Container / Interior / Exterior / Vehicle:
 --     Novice 3 min, Advanced 4, Superior 5, Master 6, Elite 6

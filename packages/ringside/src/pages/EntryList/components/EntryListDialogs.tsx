@@ -63,7 +63,10 @@ function maxTimeClassData(
     ...(combinedClassIds && { pairedClassId: combinedClassIds.b }),
     element: classInfo.element,
     level: classInfo.level,
-    class_name: classInfo.className,
+    // Name both sections: one save sets both, and "…Novice A" alone reads as A only.
+    class_name: combinedClassIds
+      ? `${classInfo.element} ${classInfo.level} A & B`
+      : classInfo.className,
     time_limit_seconds: toSeconds(classInfo.timeLimit),
     time_limit_area2_seconds: toSeconds(classInfo.timeLimit2),
     time_limit_area3_seconds: toSeconds(classInfo.timeLimit3),
@@ -73,8 +76,8 @@ function maxTimeClassData(
 
 export interface EntryListDialogsProps {
   classId: string | undefined;
-  /** A combined A/B list's two classes: max time is set on both. */
-  combinedClassIds?: { a: string; b: string } | undefined;
+  /** A combined A/B list: max time is set on both of its classes. */
+  combined?: { classIds: { a: string; b: string } } | undefined;
   classInfo: ClassInfo | null;
   localEntries: Entry[];
 
@@ -175,7 +178,7 @@ export interface EntryListDialogsProps {
 
 export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
   classId,
-  combinedClassIds,
+  combined,
   classInfo,
   localEntries,
   hasPermission,
@@ -337,7 +340,7 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
             }
           }}
           showWarning={maxTimeRequiredWarning}
-          classData={maxTimeClassData(classInfo, classId, combinedClassIds)}
+          classData={maxTimeClassData(classInfo, classId, combined?.classIds)}
           onTimeUpdate={refresh}
         />
       )}

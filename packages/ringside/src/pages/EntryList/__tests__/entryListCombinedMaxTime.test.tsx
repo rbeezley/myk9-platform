@@ -78,9 +78,11 @@ describe('combined A/B: Set Max Time (MYK9-1086)', () => {
       id: 'class-a',
       pairedClassId: 'class-b',
     });
+    // The title names both sections: one save sets both.
+    expect(maxTimeDialogProps?.classData.class_name).toMatch(/A & B$/);
   });
 
-  it('is not offered when the host hides max time, nor on a single-class list', () => {
+  it('is not offered when the host hides max time', () => {
     renderPage(withMaxTime(makeCombinedProps({ loaded: true, entries: ENTRIES }), { hide: true }));
     fireEvent.click(screen.getByRole('button', { name: /actions menu/i }));
     expect(screen.queryByRole('button', { name: /set max time/i })).not.toBeInTheDocument();

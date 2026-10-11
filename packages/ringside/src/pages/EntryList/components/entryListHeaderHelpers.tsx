@@ -62,6 +62,19 @@ export interface ActionsMenuConfig {
   exitToApp?: { label: string; onClick: () => void } | undefined;
 }
 
+/**
+ * A combined A/B list's "Set Max Time (A & B)" action, or nothing. Max time is
+ * the one class setting shared by both sections (one search); the host folds
+ * permission into `hideMaxTimeOption`.
+ */
+export function pairMaxTimeAction(
+  isCombined: boolean,
+  hideMaxTimeOption: boolean | undefined,
+  openMaxTime: (open: boolean) => void
+): Pick<ActionsMenuConfig, 'onSetMaxTimeClick'> {
+  return isCombined && !hideMaxTimeOption ? { onSetMaxTimeClick: () => openMaxTime(true) } : {};
+}
+
 // ============================================================================
 // Actions Dropdown Menu
 // ============================================================================

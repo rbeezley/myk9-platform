@@ -42,6 +42,7 @@ import {
   SuccessToast,
   FloatingDoneButton,
 } from './components';
+import { pairMaxTimeAction } from './components/entryListHeaderHelpers';
 
 export const EntryListPage: React.FC<EntryListPageProps> = ({
   classId,
@@ -65,7 +66,6 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
   const { entries, classInfo } = data;
   const { isRefreshing, fetchError, refresh } = dataStatus;
   const { showContext, hasPermission, role } = context;
-  const canSetPairMaxTime = isCombined && !context.hideMaxTimeOption; // host folds in permission
   const {
     localEntries,
     activeStatusPopup,
@@ -219,9 +219,9 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
         showSectionsBadge={isCombined}
         actionsMenu={{
           showRunOrder: hasPermission('canChangeRunOrder'),
-          // Both act on ONE class: a combined A/B view has two, with no unambiguous
-          // target. Max time is the exception -- one search, both sections.
-          ...(canSetPairMaxTime && { onSetMaxTimeClick: () => setMaxTimeDialogOpen(true) }),
+          ...pairMaxTimeAction(isCombined, context.hideMaxTimeOption, setMaxTimeDialogOpen),
+          // These two act on ONE class: a combined A/B view has two, with no
+          // unambiguous target. (Max time, above, is one search for both.)
           showRecalculatePlacements: !isCombined && hasPermission('canManageClasses'),
           showClassSettings: !isCombined && hasPermission('canManageClasses'),
           showPrintOptions: Boolean(role && role !== 'exhibitor') && !context.hidePrintOptions,
@@ -402,7 +402,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
 
       <EntryListDialogs
         classId={classId}
-        combinedClassIds={combined?.classIds}
+        combined={combined}
         classInfo={classInfo}
         localEntries={localEntries}
         hasPermission={hasPermission}

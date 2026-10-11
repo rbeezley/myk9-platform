@@ -102,7 +102,7 @@ export const STORE_COMPOSITIONS = {
   // Template-related stores
   TEMPLATE_SYSTEM: {
     core: 'templateStore',
-    slices: ['classTemplateStore', 'showTemplateStore', 'templateCacheStore'],
+    slices: ['showTemplateStore', 'templateCacheStore'],
     dependencies: [],
   },
 

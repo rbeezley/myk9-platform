@@ -24,7 +24,6 @@ export const STORE_CATEGORIES = {
   // Tier 3: Feature-specific stores - Load when feature is accessed
   FEATURE_SPECIFIC: [
     'templateStore', // Template management
-    'classTemplateStore', // Class template specific
     'showTemplateStore', // Show template specific
     'classCreationStore', // Class creation workflow
     'wizardStore', // Wizard states

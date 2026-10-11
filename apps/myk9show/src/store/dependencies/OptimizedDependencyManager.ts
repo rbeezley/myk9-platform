@@ -113,14 +113,6 @@ export class OptimizedDependencyManager {
       parallelGroup: 'template-core',
     });
 
-    this.addDependency('classTemplateStore', {
-      requiredStores: ['templateStore'],
-      optionalStores: [],
-      loadPriority: 7,
-      canLazyLoad: true,
-      parallelGroup: 'template-secondary',
-    });
-
     this.addDependency('showTemplateStore', {
       requiredStores: ['templateStore'],
       optionalStores: [],
@@ -132,7 +124,7 @@ export class OptimizedDependencyManager {
     // Class and trial stores - can load in parallel
     this.addDependency('classStore', {
       requiredStores: ['showStore'],
-      optionalStores: ['templateStore', 'classTemplateStore'],
+      optionalStores: ['templateStore'],
       loadPriority: 8,
       canLazyLoad: true,
       parallelGroup: 'class-trial',
@@ -149,7 +141,7 @@ export class OptimizedDependencyManager {
     // Workflow stores - mixed dependencies
     this.addDependency('classCreationStore', {
       requiredStores: ['classStore', 'templateStore'],
-      optionalStores: ['classTemplateStore'],
+      optionalStores: [],
       loadPriority: 9,
       canLazyLoad: true,
       parallelGroup: 'workflow',

@@ -32,6 +32,14 @@ vi.mock('@/services/replication', () => ({
   },
 }));
 
+const assignment = vi.hoisted(() => ({ status: 'not-applicable' as string }));
+vi.mock('./useJudgeAssignedToClass', () => ({
+  useJudgeAssignedToClass: () => ({ status: assignment.status }),
+}));
+vi.mock('@/hooks/useAuthContext', () => ({
+  useAuthContext: () => ({ user: { is_anonymous: false } }),
+}));
+
 import { useMaxTimeGate } from './useMaxTimeGate';
 
 const judgeSet = { min: 60, max: 180, forElement: 'Interior', forLevel: 'Excellent' };
@@ -56,6 +64,7 @@ function setup(canSetMaxTime = true, classIds = ['c1']) {
       classIds,
       ready: true,
       canSetMaxTime,
+      showRole: undefined,
       setMaxTimeDialogOpen,
       setMaxTimeRequiredWarning,
     })
@@ -70,6 +79,8 @@ describe('useMaxTimeGate (MYK9-1099)', () => {
     replica.rows.clear();
     replica.listeners.clear();
     replica.updateClass.mockClear();
+    replica.getClassById.mockClear();
+    assignment.status = 'not-applicable';
   });
 
   it('opens Set Max Time with the required banner for a judge-set class with no time', async () => {
@@ -88,23 +99,36 @@ describe('useMaxTimeGate (MYK9-1099)', () => {
     expect(setMaxTimeDialogOpen).toHaveBeenCalledWith(true);
   });
 
-  it('applies a rulebook time once, without asking', async () => {
+  it('never writes or asks for a rulebook time: class creation sets it', async () => {
     seed('c1', { element: 'Container', level: 'Novice', timeLimitRule: fixed });
     const { result, setMaxTimeDialogOpen } = setup();
-
-    await waitFor(() =>
-      expect(replica.updateClass).toHaveBeenCalledWith('c1', { timeLimitSeconds: 120 })
-    );
     await settle();
-    expect(replica.updateClass).toHaveBeenCalledTimes(1);
+    expect(replica.updateClass).not.toHaveBeenCalled();
     expect(setMaxTimeDialogOpen).not.toHaveBeenCalled();
     expect(result.current.gateEntryClick()).toBe(false);
   });
 
-  it('never gates or writes for someone who cannot set the time', async () => {
+  it('does not ask a signed-in judge who is not assigned to the class', async () => {
+    assignment.status = 'unassigned';
     seed('c1');
-    seed('c2', { element: 'Container', level: 'Novice', timeLimitRule: fixed });
-    const { result, setMaxTimeDialogOpen } = setup(false, ['c1', 'c2']);
+    const { result, setMaxTimeDialogOpen } = setup();
+    await waitFor(() => expect(result.current.needsMaxTime).toBe(true));
+    await settle();
+    expect(setMaxTimeDialogOpen).not.toHaveBeenCalled();
+    expect(result.current.gateEntryClick()).toBe(false);
+  });
+
+  it('holds a dog tap until the class read answers', () => {
+    seed('c1');
+    replica.getClassById.mockImplementationOnce(() => new Promise(() => {}));
+    const { result, setMaxTimeDialogOpen } = setup();
+    expect(result.current.gateEntryClick()).toBe(true);
+    expect(setMaxTimeDialogOpen).not.toHaveBeenCalled();
+  });
+
+  it('never gates someone who cannot set the time', async () => {
+    seed('c1');
+    const { result, setMaxTimeDialogOpen } = setup(false);
 
     await waitFor(() => expect(result.current.needsMaxTime).toBe(true));
     await settle();

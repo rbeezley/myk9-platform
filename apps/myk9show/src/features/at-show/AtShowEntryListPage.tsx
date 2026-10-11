@@ -241,6 +241,7 @@ export const AtShowEntryListPage: React.FC = () => {
     classIds: classId ? [classId] : [],
     ready: uiState.hasCompletedInitialLoad,
     canSetMaxTime: hasPermission('canManageClasses'),
+    showRole,
     setMaxTimeDialogOpen: uiActions.setMaxTimeDialogOpen,
     setMaxTimeRequiredWarning: uiActions.setMaxTimeRequiredWarning,
   });

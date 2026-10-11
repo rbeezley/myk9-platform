@@ -1,16 +1,35 @@
 /**
  * MYK9-1099: a judge-set class with no max time asks for it before the first dog;
- * a rulebook (fixed) time is applied without asking.
+ * a rulebook (fixed) time is applied without asking; the gate re-reads the
+ * classes on every replica change.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, waitFor, act } from '@testing-library/react';
 
-const { getClass, updateClass } = vi.hoisted(() => ({
-  getClass: vi.fn(),
-  updateClass: vi.fn(),
-}));
+const replica = vi.hoisted(() => {
+  const rows = new Map<string, Record<string, unknown>>();
+  const listeners = new Set<() => void>();
+  return {
+    rows,
+    listeners,
+    getClassById: vi.fn(async (id: string) => rows.get(id) ?? null),
+    updateClass: vi.fn(async (id: string, updates: Record<string, unknown>) => {
+      rows.set(id, { ...rows.get(id), ...updates });
+      listeners.forEach(listener => listener());
+      return 'm1';
+    }),
+    subscribe: vi.fn((listener: () => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    }),
+  };
+});
 vi.mock('@/services/replication', () => ({
-  replicatedClassesTable: { get: getClass, updateClass },
+  replicatedClassesTable: {
+    getClassById: replica.getClassById,
+    updateClass: replica.updateClass,
+    subscribe: replica.subscribe,
+  },
 }));
 
 import { useMaxTimeGate } from './useMaxTimeGate';
@@ -18,8 +37,15 @@ import { useMaxTimeGate } from './useMaxTimeGate';
 const judgeSet = { min: 60, max: 180, forElement: 'Interior', forLevel: 'Excellent' };
 const fixed = { fixed: 120, forElement: 'Container', forLevel: 'Novice' };
 
-function cls(over: Record<string, unknown>) {
-  return { id: 'c1', element: 'Interior', level: 'Excellent', classStatus: 'upcoming', ...over };
+function seed(id: string, over: Record<string, unknown> = {}) {
+  replica.rows.set(id, {
+    id,
+    element: 'Interior',
+    level: 'Excellent',
+    classStatus: 'upcoming',
+    timeLimitRule: judgeSet,
+    ...over,
+  });
 }
 
 function setup(canSetMaxTime = true, classIds = ['c1']) {
@@ -28,7 +54,6 @@ function setup(canSetMaxTime = true, classIds = ['c1']) {
   const hook = renderHook(() =>
     useMaxTimeGate({
       classIds,
-      timeLimitKey: undefined,
       ready: true,
       canSetMaxTime,
       setMaxTimeDialogOpen,
@@ -38,19 +63,21 @@ function setup(canSetMaxTime = true, classIds = ['c1']) {
   return { ...hook, setMaxTimeDialogOpen, setMaxTimeRequiredWarning };
 }
 
+const settle = () => act(() => new Promise(resolve => setTimeout(resolve, 0)));
+
 describe('useMaxTimeGate (MYK9-1099)', () => {
   beforeEach(() => {
-    getClass.mockReset();
-    updateClass.mockReset().mockResolvedValue('m1');
+    replica.rows.clear();
+    replica.listeners.clear();
+    replica.updateClass.mockClear();
   });
 
   it('opens Set Max Time with the required banner for a judge-set class with no time', async () => {
-    getClass.mockResolvedValue(cls({ timeLimitRule: judgeSet }));
+    seed('c1');
     const { result, setMaxTimeDialogOpen, setMaxTimeRequiredWarning } = setup();
 
     await waitFor(() => expect(setMaxTimeDialogOpen).toHaveBeenCalledWith(true));
     expect(setMaxTimeRequiredWarning).toHaveBeenCalledWith(true);
-    expect(result.current.needsMaxTime).toBe(true);
 
     setMaxTimeDialogOpen.mockClear();
     let blocked = false;
@@ -61,56 +88,61 @@ describe('useMaxTimeGate (MYK9-1099)', () => {
     expect(setMaxTimeDialogOpen).toHaveBeenCalledWith(true);
   });
 
-  it('applies a rulebook time without asking', async () => {
-    getClass.mockResolvedValue(
-      cls({ element: 'Container', level: 'Novice', timeLimitRule: fixed })
-    );
+  it('applies a rulebook time once, without asking', async () => {
+    seed('c1', { element: 'Container', level: 'Novice', timeLimitRule: fixed });
     const { result, setMaxTimeDialogOpen } = setup();
 
-    await waitFor(() => expect(updateClass).toHaveBeenCalledWith('c1', { timeLimitSeconds: 120 }));
+    await waitFor(() =>
+      expect(replica.updateClass).toHaveBeenCalledWith('c1', { timeLimitSeconds: 120 })
+    );
+    await settle();
+    expect(replica.updateClass).toHaveBeenCalledTimes(1);
     expect(setMaxTimeDialogOpen).not.toHaveBeenCalled();
     expect(result.current.gateEntryClick()).toBe(false);
   });
 
   it('never gates or writes for someone who cannot set the time', async () => {
-    getClass.mockResolvedValue(cls({ timeLimitRule: judgeSet }));
-    const { result, setMaxTimeDialogOpen } = setup(false);
+    seed('c1');
+    seed('c2', { element: 'Container', level: 'Novice', timeLimitRule: fixed });
+    const { result, setMaxTimeDialogOpen } = setup(false, ['c1', 'c2']);
 
     await waitFor(() => expect(result.current.needsMaxTime).toBe(true));
+    await settle();
     expect(setMaxTimeDialogOpen).not.toHaveBeenCalled();
     expect(result.current.gateEntryClick()).toBe(false);
-
-    getClass.mockResolvedValue(
-      cls({ element: 'Container', level: 'Novice', timeLimitRule: fixed })
-    );
-    setup(false);
-    await new Promise(resolve => setTimeout(resolve, 0));
-    expect(updateClass).not.toHaveBeenCalled();
+    expect(replica.updateClass).not.toHaveBeenCalled();
   });
 
   it('leaves a class alone when it has a time, is completed, or has no time rule', async () => {
     for (const over of [
-      { timeLimitSeconds: 150, timeLimitRule: judgeSet },
-      { classStatus: 'Completed', timeLimitRule: judgeSet },
+      { timeLimitSeconds: 150 },
+      { classStatus: 'Completed' },
       { timeLimitRule: { forElement: 'Interior', forLevel: 'Excellent' } },
-      {},
+      { timeLimitRule: undefined },
     ]) {
-      getClass.mockResolvedValue(cls(over));
+      replica.rows.clear();
+      seed('c1', over);
       const { result, setMaxTimeDialogOpen, unmount } = setup();
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await settle();
       expect(setMaxTimeDialogOpen).not.toHaveBeenCalled();
       expect(result.current.needsMaxTime).toBe(false);
       unmount();
     }
   });
 
-  it('gates a combined list when either section has no time', async () => {
-    getClass.mockImplementation(async (id: string) =>
-      id === 'a'
-        ? cls({ id: 'a', timeLimitSeconds: 120, timeLimitRule: judgeSet })
-        : cls({ id: 'b', timeLimitRule: judgeSet })
-    );
-    const { setMaxTimeDialogOpen } = setup(true, ['a', 'b']);
-    await waitFor(() => expect(setMaxTimeDialogOpen).toHaveBeenCalledWith(true));
+  it('clears on a combined list once the section without a time gets one', async () => {
+    seed('a', { timeLimitSeconds: 120 });
+    seed('b');
+    const { result } = setup(true, ['a', 'b']);
+    await waitFor(() => expect(result.current.needsMaxTime).toBe(true));
+
+    // The dialog saves A's unchanged time to both sections.
+    await act(async () => {
+      await replica.updateClass('a', { timeLimitSeconds: 120 });
+      await replica.updateClass('b', { timeLimitSeconds: 120 });
+    });
+
+    await waitFor(() => expect(result.current.needsMaxTime).toBe(false));
+    expect(result.current.gateEntryClick()).toBe(false);
   });
 });

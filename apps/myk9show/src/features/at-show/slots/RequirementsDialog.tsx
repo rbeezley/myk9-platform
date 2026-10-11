@@ -3,12 +3,10 @@
  * myK9Q, built from the same cards as the secretary's Class Requirements panel --
  * one component, not a second copy.
  *
- * Works offline: the cards come from the rule values stored on the class (see
- * classRequirementsFromClass), and the full rule replaces them when it loads
- * online. The class's saved max time leads; tapping it opens Set Max Time for
- * those who can set it.
+ * Works offline: the cards come from the class's rule as cached on it at sync
+ * (see classRequirementsFromClass), read live from the replica. The class's
+ * saved max time leads; tapping it opens Set Max Time for those who can set it.
  */
-import { useEffect, useState } from 'react';
 import type React from 'react';
 import { Clock } from 'lucide-react';
 import type { ClassRequirementsDialogProps } from '@myk9/ringside';
@@ -24,29 +22,9 @@ import {
   ClassRequirementsCards,
   RequirementCard,
 } from '@/components/classes/ClassRequirementsPanel';
-import { useClassRequirements } from '@/hooks/queries/useClassRequirements';
-import { replicatedClassesTable } from '@/services/replication';
-import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
+import { useLiveClasses } from '../useLiveClasses';
 import { handleOpenChange } from './dialogHelpers';
 import { classRequirementsFromClass, setMaxTimeText } from './classRequirementsFromClass';
-
-function useReplicatedClass(classId: string, enabled: boolean): ReplicatedClass | null {
-  const [cls, setCls] = useState<ReplicatedClass | null>(null);
-  useEffect(() => {
-    if (!enabled || !classId) return;
-    let cancelled = false;
-    replicatedClassesTable
-      .getClassById(classId)
-      .then(row => {
-        if (!cancelled) setCls(row ?? null);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, [classId, enabled]);
-  return cls;
-}
 
 export const ClassRequirementsDialog: React.FC<ClassRequirementsDialogProps> = ({
   isOpen,
@@ -54,17 +32,11 @@ export const ClassRequirementsDialog: React.FC<ClassRequirementsDialogProps> = (
   onSetMaxTime,
   classData,
 }) => {
-  const registry = classData.registry ?? null;
-  const cls = useReplicatedClass(classData.id, isOpen);
-  const { requirements: online } = useClassRequirements({
-    organization: registry,
-    element: classData.element,
-    level: classData.level,
-    enabled: isOpen,
-  });
+  // Live: a max time saved on another device shows without reopening.
+  const cls = useLiveClasses(classData.id ? [classData.id] : [], isOpen)?.[0] ?? null;
   if (!isOpen) return null;
 
-  const requirements = online ?? (cls ? classRequirementsFromClass(cls, registry ?? '') : null);
+  const requirements = cls ? classRequirementsFromClass(cls, classData.registry ?? '') : null;
   const maxTime = (
     <RequirementCard
       icon={<Clock className="h-4 w-4" />}

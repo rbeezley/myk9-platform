@@ -75,17 +75,8 @@ const MaxTimeForm: React.FC<MaxTimeDialogProps> = ({
 
   /** The class fields to write, or null after showing why the entry can't be saved. */
   const checkedUpdates = async (): Promise<Record<string, number> | null> => {
-    // A rulebook time is applied as it stands: area 1 carries it, and any other
-    // area falls back to area 1 on the scoresheet.
-    if (fixedTime) return { [AREA_TIME_FIELDS[0]]: fixedTime };
-    const seconds = values.map(parseMaxTimeInput);
-    const unreadable = seconds.findIndex(s => s === null || s < 1 || s > MAX_SECONDS);
-    if (unreadable >= 0) {
-      setError(
-        `Enter ${areaCount > 1 ? `the Area ${unreadable + 1}` : 'the'} max time in minutes and seconds, like 4:00.`
-      );
-      return null;
-    }
+    // The class's CURRENT rule decides, not the one loaded when the dialog opened:
+    // a synced element or level change must not save an obsolete time.
     const range = await maxTimeRangeForClass(classData.id);
     if (range === 'unknown-offline') {
       setError(
@@ -95,6 +86,17 @@ const MaxTimeForm: React.FC<MaxTimeDialogProps> = ({
     }
     if (range === 'lookup-failed') {
       setError("Couldn't check this class's allowed max time. Try again.");
+      return null;
+    }
+    // A rulebook time is applied as it stands: area 1 carries it, and any other
+    // area falls back to area 1 on the scoresheet.
+    if (range.fixed) return { [AREA_TIME_FIELDS[0]]: range.fixed };
+    const seconds = values.map(parseMaxTimeInput);
+    const unreadable = seconds.findIndex(s => s === null || s < 1 || s > MAX_SECONDS);
+    if (unreadable >= 0) {
+      setError(
+        `Enter ${areaCount > 1 ? `the Area ${unreadable + 1}` : 'the'} max time in minutes and seconds, like 4:00.`
+      );
       return null;
     }
     if (seconds.some(s => s! < range.low || s! > range.high)) {

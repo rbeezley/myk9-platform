@@ -104,7 +104,7 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
     });
     await clickSave();
 
-    expect(screen.getByRole('alert')).toHaveTextContent(/like 4:00/i);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/like 4:00/i);
     expect(updateClass).not.toHaveBeenCalled();
   });
 
@@ -281,7 +281,7 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
       render(<MaxTimeDialog isOpen classData={twoAreas} onClose={vi.fn()} />);
       await clickSave();
 
-      expect(screen.getByRole('alert')).toHaveTextContent(/area 2 max time/i);
+      expect(await screen.findByRole('alert')).toHaveTextContent(/area 2 max time/i);
       expect(updateClass).not.toHaveBeenCalled();
     });
 

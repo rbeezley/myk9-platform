@@ -1,20 +1,27 @@
 /**
  * MYK9-1100: ringside Requirements shows the class's rules from the shared
- * requirement cards, offline from the class itself, and leads with the class's
- * saved max time, which opens Set Max Time for those who can set it.
+ * requirement cards, offline from the rule cached on the class, read live, and
+ * leads with the class's saved max time, which opens Set Max Time for those who
+ * can set it.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@/test/utils/testUtils';
+import { act, render, screen, fireEvent } from '@/test/utils/testUtils';
 
-const { getClassById, useRequirements } = vi.hoisted(() => ({
-  getClassById: vi.fn(),
-  useRequirements: vi.fn(),
-}));
+const replica = vi.hoisted(() => {
+  const rows = new Map<string, Record<string, unknown>>();
+  const listeners = new Set<() => void>();
+  return {
+    rows,
+    listeners,
+    getClassById: vi.fn(async (id: string) => rows.get(id) ?? null),
+    subscribe: vi.fn((listener: () => void) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    }),
+  };
+});
 vi.mock('@/services/replication', () => ({
-  replicatedClassesTable: { getClassById },
-}));
-vi.mock('@/hooks/queries/useClassRequirements', () => ({
-  useClassRequirements: (options: unknown) => useRequirements(options),
+  replicatedClassesTable: { getClassById: replica.getClassById, subscribe: replica.subscribe },
 }));
 
 import { ClassRequirementsDialog } from './RequirementsDialog';
@@ -22,46 +29,80 @@ import { ClassRequirementsDialog } from './RequirementsDialog';
 const classData = {
   id: 'c1',
   element: 'Interior',
-  level: 'Excellent',
-  class_name: 'Interior Excellent A',
+  level: 'Master',
+  class_name: 'Interior Master',
   entry_count: 12,
   registry: 'AKC',
   per_area_times: true,
 };
 
-const cls = {
-  id: 'c1',
-  name: 'Interior Excellent A',
-  element: 'Interior',
-  level: 'Excellent',
-  areaCount: 2,
-  hideCount: 3,
-  hidesKnown: false,
-  distractionCount: 1,
-  timerMode: 'single',
-  timeLimitSeconds: 90,
-  timeLimitArea2Seconds: 150,
-  timeLimitRule: { min: 60, max: 180, forElement: 'Interior', forLevel: 'Excellent' },
+const rule = {
+  min: 60,
+  max: 180,
+  forElement: 'Interior',
+  forLevel: 'Master',
+  display: {
+    hideFixed: null,
+    hideMin: 2,
+    hideMax: 6,
+    hidesKnown: false,
+    distractionMin: 1,
+    distractionMax: 2,
+    areaCount: 3,
+    hasBlank: true,
+    timerMode: 'single',
+    odors: ['Birch', 'Anise', 'Clove'],
+  },
 };
+
+function seed(over: Record<string, unknown> = {}) {
+  replica.rows.set('c1', {
+    id: 'c1',
+    element: 'Interior',
+    level: 'Master',
+    areaCount: 3,
+    hideCount: 4,
+    timeLimitSeconds: 90,
+    timeLimitArea2Seconds: 120,
+    timeLimitArea3Seconds: 150,
+    timeLimitRule: rule,
+    ...over,
+  });
+}
 
 describe('ringside ClassRequirementsDialog (MYK9-1100)', () => {
   beforeEach(() => {
-    getClassById.mockReset().mockResolvedValue(cls);
-    // Offline: the full rule query has nothing.
-    useRequirements
-      .mockReset()
-      .mockReturnValue({ requirements: null, isLoading: false, error: null });
+    replica.rows.clear();
+    replica.listeners.clear();
+    seed();
   });
 
-  it('shows the rules offline from the class, led by its saved max times', async () => {
+  it('shows the cached rule offline, led by the saved max time per area', async () => {
     render(<ClassRequirementsDialog isOpen onClose={vi.fn()} classData={classData} />);
 
-    expect(await screen.findByText('Area 1 1:30 · Area 2 2:30')).toBeInTheDocument();
+    expect(await screen.findByText('Area 1 1:30 · Area 2 2:00 · Area 3 2:30')).toBeInTheDocument();
     expect(screen.getByText('1:00–3:00')).toBeInTheDocument();
-    expect(screen.getByText('Judge sets within range')).toBeInTheDocument();
-    expect(screen.getByText('Number of hides unknown (blind)')).toBeInTheDocument();
-    expect(screen.getByText('Search Areas')).toBeInTheDocument();
-    expect(screen.getByText('Interior Excellent · 12 entries')).toBeInTheDocument();
+    // The rule's range, not the class's chosen total.
+    expect(screen.getByText('2–6')).toBeInTheDocument();
+    expect(screen.getByText('Birch, Anise, Clove')).toBeInTheDocument();
+    expect(screen.getByText('Blank Area')).toBeInTheDocument();
+    expect(screen.getByText('Interior Master · 12 entries')).toBeInTheDocument();
+  });
+
+  it('falls back to the class values for a rule cached before display fields', async () => {
+    seed({ timeLimitRule: { ...rule, display: undefined } });
+    render(<ClassRequirementsDialog isOpen onClose={vi.fn()} classData={classData} />);
+    expect(await screen.findByText('4')).toBeInTheDocument();
+  });
+
+  it('shows a max time saved elsewhere without reopening', async () => {
+    render(<ClassRequirementsDialog isOpen onClose={vi.fn()} classData={classData} />);
+    await screen.findByText(/Area 1 1:30/);
+
+    seed({ timeLimitSeconds: 180 });
+    await act(async () => replica.listeners.forEach(listener => listener()));
+
+    expect(await screen.findByText(/Area 1 3:00/)).toBeInTheDocument();
   });
 
   it('opens Set Max Time from the max time card', async () => {
@@ -78,43 +119,14 @@ describe('ringside ClassRequirementsDialog (MYK9-1100)', () => {
     expect(onSetMaxTime).toHaveBeenCalled();
   });
 
-  it('is read-only for someone who cannot set the time', async () => {
-    render(<ClassRequirementsDialog isOpen onClose={vi.fn()} classData={classData} />);
-    await screen.findByText(/Area 1 1:30/);
-    expect(screen.queryByRole('button', { name: /set max time/i })).not.toBeInTheDocument();
-  });
-
-  it('says Not set when the class has no max time', async () => {
-    getClassById.mockResolvedValue({
-      ...cls,
+  it('is read-only for someone who cannot set the time, and says Not set', async () => {
+    seed({
       timeLimitSeconds: undefined,
       timeLimitArea2Seconds: undefined,
+      timeLimitArea3Seconds: undefined,
     });
     render(<ClassRequirementsDialog isOpen onClose={vi.fn()} classData={classData} />);
     expect(await screen.findByText('Not set')).toBeInTheDocument();
-  });
-
-  it('uses the full rule when it loads online', async () => {
-    useRequirements.mockReturnValue({
-      requirements: {
-        organization: 'AKC',
-        element: 'Interior',
-        level: 'Excellent',
-        hides: '1–3',
-        distractions: '',
-        time_limit_text: '1:00–3:00',
-        time_type: 'range',
-        area_count: 2,
-        hides_known: false,
-        has_blank: true,
-        timer_mode: 'single',
-        odors: ['Birch', 'Anise'],
-      },
-      isLoading: false,
-      error: null,
-    });
-    render(<ClassRequirementsDialog isOpen onClose={vi.fn()} classData={classData} />);
-    expect(await screen.findByText('Birch, Anise')).toBeInTheDocument();
-    expect(screen.getByText('Blank Area')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /set max time/i })).not.toBeInTheDocument();
   });
 });

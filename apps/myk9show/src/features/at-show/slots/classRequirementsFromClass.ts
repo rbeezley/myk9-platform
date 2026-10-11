@@ -1,12 +1,10 @@
 /**
- * Class requirements built from the class itself, for ringside with no signal
- * (MYK9-1100). Rule values are copied onto the class when it is created (hides,
- * distractions, areas, timer mode) and the max-time rule is cached on it at sync,
- * so the Requirements dialog can show them offline. Online, the full rule from
- * sport_class_rules (odors, blank area) replaces this.
+ * Class requirements for ringside, offline (MYK9-1100): from the class's rule as
+ * cached on it at sync (resolveClassTimeLimitRules), falling back to the values
+ * copied onto the class when it was created for a rule cached before that.
  */
 import { formatTimeLimitSeconds } from '@myk9/core';
-import type { ClassRequirements } from '@/hooks/queries/useClassRequirements';
+import { formatIntRange, type ClassRequirements } from '@/hooks/queries/useClassRequirements';
 import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTable';
 import { isRuleCurrent } from '@/services/replication/resolveClassTimeLimitRules';
 
@@ -28,18 +26,25 @@ export function classRequirementsFromClass(
   cls: ReplicatedClass,
   organization: string
 ): ClassRequirements {
+  // The rule's own values (cached at sync) where present; the values copied onto
+  // the class when it was created otherwise.
+  const rule = isRuleCurrent(cls.timeLimitRule, cls) ? cls.timeLimitRule.display : undefined;
+  const classHides = cls.hideCount != null ? String(cls.hideCount) : '';
+  const classDistractions = cls.distractionCount != null ? String(cls.distractionCount) : '';
   return {
     organization,
     element: cls.element ?? '',
     level: cls.level ?? '',
-    hides: cls.hideCount != null ? String(cls.hideCount) : '',
-    distractions: cls.distractionCount != null ? String(cls.distractionCount) : '',
+    hides: rule ? formatIntRange(rule.hideFixed, rule.hideMin, rule.hideMax) : classHides,
+    distractions: rule
+      ? formatIntRange(null, rule.distractionMin, rule.distractionMax)
+      : classDistractions,
     ...ruleTime(cls),
-    area_count: cls.areaCount ?? 1,
-    hides_known: cls.hidesKnown ?? true,
-    has_blank: false,
-    timer_mode: cls.timerMode ?? 'single',
-    odors: [],
+    area_count: rule?.areaCount ?? cls.areaCount ?? 1,
+    hides_known: rule?.hidesKnown ?? cls.hidesKnown ?? true,
+    has_blank: rule?.hasBlank ?? false,
+    timer_mode: rule?.timerMode ?? cls.timerMode ?? 'single',
+    odors: rule?.odors ?? [],
     thirty_second_warning: cls.timeLimitRule?.thirtySecondWarning !== false,
   };
 }

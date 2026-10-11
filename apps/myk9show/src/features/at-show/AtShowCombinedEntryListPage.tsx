@@ -210,7 +210,6 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
   // MYK9-1099: a judge-set class with no max time asks for it before the first dog.
   const { gateEntryClick } = useMaxTimeGate({
     classIds: [classIdA, classIdB].filter((id): id is string => !!id),
-    timeLimitKey: classInfo?.timeLimit,
     ready: uiState.hasCompletedInitialLoad,
     canSetMaxTime: hasPermission('canManageClasses'),
     setMaxTimeDialogOpen: uiActions.setMaxTimeDialogOpen,

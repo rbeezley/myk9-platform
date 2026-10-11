@@ -21,6 +21,18 @@ describe('useElementTimer', () => {
     expect(result.current.time).toBe(1050);
   });
 
+  it('freezes exactly on maxTimeMs and reports expiry once (MYK9-1093)', () => {
+    const onExpired = vi.fn();
+    const { result } = renderHook(() => useElementTimer({ maxTimeMs: 1000, onExpired }));
+
+    act(() => result.current.start());
+    act(() => vi.advanceTimersByTime(1500));
+
+    expect(result.current.time).toBe(1000);
+    expect(result.current.isRunning).toBe(false);
+    expect(onExpired).toHaveBeenCalledTimes(1);
+  });
+
   describe('initial state', () => {
     it('should start with time at 0 and not running', () => {
       const { result } = renderHook(() => useElementTimer());

@@ -43,6 +43,7 @@ interface RegistrationsSectionProps {
 }
 
 import { useRegistrationsStore } from '@/store/registrationsStore';
+import { EDIT_REGISTRATION_ATTR } from './useRegistrationModeFocus';
 
 /**
  * The dog's registrations as a list of cards, with per-row Edit / Delete.
@@ -190,6 +191,7 @@ export default function RegistrationsSection({ dog, canEdit }: RegistrationsSect
                     variant="outline"
                     size="sm"
                     className="mt-2 min-h-11"
+                    {...{ [EDIT_REGISTRATION_ATTR]: reg.id }}
                     aria-label={`Edit ${reg.organization} registered name for ${reg.registeredName || reg.registered_name}`}
                     onClick={() => {
                       setSelectedRegistration(reg as Registration);

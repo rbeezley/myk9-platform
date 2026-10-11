@@ -212,6 +212,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     classIds: [classIdA, classIdB].filter((id): id is string => !!id),
     ready: uiState.hasCompletedInitialLoad,
     canSetMaxTime: hasPermission('canManageClasses'),
+    showRole,
     setMaxTimeDialogOpen: uiActions.setMaxTimeDialogOpen,
     setMaxTimeRequiredWarning: uiActions.setMaxTimeRequiredWarning,
   });

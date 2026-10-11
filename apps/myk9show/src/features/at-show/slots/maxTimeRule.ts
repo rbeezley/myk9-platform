@@ -9,6 +9,7 @@
  */
 import { useEffect, useState } from 'react';
 import { replicatedClassesTable } from '@/services/replication';
+import { useLiveClasses } from '../useLiveClasses';
 import {
   type TimeLimitRule,
   isRuleCurrent,
@@ -55,10 +56,17 @@ export async function maxTimeRangeForClass(classId: string): Promise<MaxTimeRang
   return rule ? describe(rule) : 'lookup-failed';
 }
 
-/** The class's range for the open dialog; null while it loads (MYK9-1101). */
+/**
+ * The class's range for the open dialog; null while it loads (MYK9-1101). Re-read
+ * when the class's element, level or rule changes in the replica, so the inputs
+ * shown always match what Save will check.
+ */
 export function useMaxTimeRange(classId: string): MaxTimeRange | null {
+  const cls = useLiveClasses([classId])?.[0];
+  const ruleKey = cls ? JSON.stringify([cls.element, cls.level, cls.timeLimitRule ?? null]) : null;
   const [range, setRange] = useState<MaxTimeRange | null>(null);
   useEffect(() => {
+    if (ruleKey === null) return;
     let cancelled = false;
     maxTimeRangeForClass(classId)
       .catch((): MaxTimeRange => 'lookup-failed')
@@ -68,6 +76,6 @@ export function useMaxTimeRange(classId: string): MaxTimeRange | null {
     return () => {
       cancelled = true;
     };
-  }, [classId]);
+  }, [classId, ruleKey]);
   return range;
 }

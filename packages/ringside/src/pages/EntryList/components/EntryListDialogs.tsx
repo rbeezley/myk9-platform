@@ -35,6 +35,7 @@ import type {
   ClassOptionsDialogProps,
   ClassRequirementsDialogProps,
   MaxTimeDialogProps,
+  MaxTimeClassData,
   ClassSettingsDialogProps,
   NoStatsDialogProps,
   ClassStatusDialogProps,
@@ -45,8 +46,35 @@ import type {
 import { ResetConfirmDialog, ResetMenuPopup, SelfCheckinDisabledDialog } from './index';
 import { classDialogCounts } from './classDialogCounts';
 
+/** "180s" → 180; absent → undefined. */
+const toSeconds = (value: string | undefined) => (value ? parseInt(value) : undefined);
+
+/**
+ * The class the max-time dialog acts on. A combined A/B list has no single class
+ * id: it is class A, with class B as its pair, so one save sets both (MYK9-1086).
+ */
+function maxTimeClassData(
+  classInfo: ClassInfo,
+  classId: string | undefined,
+  combinedClassIds: { a: string; b: string } | undefined
+): MaxTimeClassData {
+  return {
+    id: combinedClassIds?.a ?? classId ?? '',
+    ...(combinedClassIds && { pairedClassId: combinedClassIds.b }),
+    element: classInfo.element,
+    level: classInfo.level,
+    class_name: classInfo.className,
+    time_limit_seconds: toSeconds(classInfo.timeLimit),
+    time_limit_area2_seconds: toSeconds(classInfo.timeLimit2),
+    time_limit_area3_seconds: toSeconds(classInfo.timeLimit3),
+    area_count: classInfo.areas,
+  };
+}
+
 export interface EntryListDialogsProps {
   classId: string | undefined;
+  /** A combined A/B list's two classes: max time is set on both. */
+  combinedClassIds?: { a: string; b: string } | undefined;
   classInfo: ClassInfo | null;
   localEntries: Entry[];
 
@@ -147,6 +175,7 @@ export interface EntryListDialogsProps {
 
 export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
   classId,
+  combinedClassIds,
   classInfo,
   localEntries,
   hasPermission,
@@ -308,20 +337,7 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
             }
           }}
           showWarning={maxTimeRequiredWarning}
-          classData={{
-            id: classId ?? '',
-            element: classInfo.element,
-            level: classInfo.level,
-            class_name: classInfo.className,
-            time_limit_seconds: classInfo.timeLimit ? parseInt(classInfo.timeLimit) : undefined,
-            time_limit_area2_seconds: classInfo.timeLimit2
-              ? parseInt(classInfo.timeLimit2)
-              : undefined,
-            time_limit_area3_seconds: classInfo.timeLimit3
-              ? parseInt(classInfo.timeLimit3)
-              : undefined,
-            area_count: classInfo.areas,
-          }}
+          classData={maxTimeClassData(classInfo, classId, combinedClassIds)}
           onTimeUpdate={refresh}
         />
       )}

@@ -1,6 +1,6 @@
 # Ringside: set a class's max time
 
-> **Status:** Active
+> **Status:** Complete
 
 MYK9-1086 follow-up. Since #2894 a class with no saved max time runs with no limit and the
 ringside scoresheet tells the judge to ask the secretary. AKC leaves Interior, Exterior,
@@ -44,11 +44,11 @@ p_expected_version)`, modelled on the latest `ringside_update_entry`.
    `replicatedClassesTable.updateClass`, so it applies locally at once and is queued offline,
    and it sets both classes of a pair.
 
-**PR 2:**
-
-- Show the rule range in the dialog, offline: class rows are enriched at sync, like hide counts.
-- Open the dialog from combined A/B lists. Combined mode hides class options today, and AKC
-  Interior and Exterior Novice are judge-set and run combined.
+**PR 2: combined A/B lists.** The rule-range check moved into PR 1, after Codex review: an
+out-of-range time must never apply locally. That covers caching the rule at sync, using it only
+while it matches the class's current element/level, and refusing offline or when the lookup
+fails. PR 2 adds "Set Max Time (A & B)" to the combined list's actions menu. The dialog acts on
+class A with class B as its pair, so one save sets both.
 
 ## Non-goals
 

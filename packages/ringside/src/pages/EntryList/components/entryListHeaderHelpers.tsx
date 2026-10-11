@@ -27,6 +27,7 @@ import {
   Trophy,
   Settings,
   House,
+  Timer,
 } from 'lucide-react';
 import { formatTrialDate, formatTrialLabel } from '@myk9/core';
 import { getStatusDescriptor } from '@myk9/ui';
@@ -51,12 +52,27 @@ export interface ActionsMenuConfig {
   onRunOrderClick?: () => void;
   onRecalculatePlacements?: () => void;
   onClassSettingsClick?: () => void;
+  /** Combined A/B only: set the shared max time for both sections (MYK9-1086). */
+  onSetMaxTimeClick?: (() => void) | undefined;
   printOptions: PrintOption[];
   /**
    * Leave Ringside for the main app (MYK9-1086). Host-supplied because the
    * destination depends on the signed-in user's role.
    */
   exitToApp?: { label: string; onClick: () => void } | undefined;
+}
+
+/**
+ * A combined A/B list's "Set Max Time (A & B)" action, or nothing. Max time is
+ * the one class setting shared by both sections (one search); the host folds
+ * permission into `hideMaxTimeOption`.
+ */
+export function pairMaxTimeAction(
+  isCombined: boolean,
+  hideMaxTimeOption: boolean | undefined,
+  openMaxTime: (open: boolean) => void
+): Pick<ActionsMenuConfig, 'onSetMaxTimeClick'> {
+  return isCombined && !hideMaxTimeOption ? { onSetMaxTimeClick: () => openMaxTime(true) } : {};
 }
 
 // ============================================================================
@@ -124,6 +140,11 @@ export const ActionsDropdownMenu: React.FC<ActionsDropdownMenuProps> = ({
     actionsMenu.onClassSettingsClick?.();
   };
 
+  const handleSetMaxTime = () => {
+    onClose();
+    actionsMenu.onSetMaxTimeClick?.();
+  };
+
   const handlePrintOption = (option: PrintOption) => {
     onClose();
     option.onClick();
@@ -133,7 +154,8 @@ export const ActionsDropdownMenu: React.FC<ActionsDropdownMenuProps> = ({
   const hasSecondaryActions =
     (actionsMenu.showRunOrder && actionsMenu.onRunOrderClick) ||
     (actionsMenu.showRecalculatePlacements && actionsMenu.onRecalculatePlacements) ||
-    (actionsMenu.showClassSettings && actionsMenu.onClassSettingsClick);
+    (actionsMenu.showClassSettings && actionsMenu.onClassSettingsClick) ||
+    actionsMenu.onSetMaxTimeClick;
 
   return (
     <div className="relative" data-actions-menu>
@@ -186,6 +208,12 @@ export const ActionsDropdownMenu: React.FC<ActionsDropdownMenuProps> = ({
             <button onClick={handleClassSettings} className={ACTION_MENU_ITEM_CLASS}>
               <Settings className="h-4 w-4" />
               Class Options
+            </button>
+          )}
+          {actionsMenu.onSetMaxTimeClick && (
+            <button onClick={handleSetMaxTime} className={ACTION_MENU_ITEM_CLASS}>
+              <Timer className="h-4 w-4" />
+              Set Max Time (A &amp; B)
             </button>
           )}
 

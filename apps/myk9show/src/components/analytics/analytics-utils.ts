@@ -9,7 +9,7 @@ export interface StatsEntry {
   className: string;
   classElement: string | null;
   classLevel: string | null;
-  resultText: 'Q' | 'NQ' | 'ABS' | 'EX' | 'WD' | 'pending';
+  resultText: 'Q' | 'NQ' | 'ABS' | 'EX' | 'DQ' | 'WD' | 'pending';
   searchTimeSeconds: number | null;
   totalFaults: number | null;
   finalPlacement: number | null;
@@ -59,7 +59,7 @@ export interface DogStats {
 }
 
 export interface ResultDistributionItem {
-  status: 'Q' | 'NQ' | 'EX' | 'ABS' | 'WD';
+  status: 'Q' | 'NQ' | 'EX' | 'DQ' | 'ABS' | 'WD';
   label: string;
   count: number;
   color: string;
@@ -199,13 +199,14 @@ export function computePerDogStats(entries: StatsEntry[]): DogStats[] {
 }
 
 const RESULT_CONFIG: {
-  status: 'Q' | 'NQ' | 'EX' | 'ABS' | 'WD';
+  status: 'Q' | 'NQ' | 'EX' | 'DQ' | 'ABS' | 'WD';
   label: string;
   color: string;
 }[] = [
   { status: 'Q', label: 'Qualified', color: '#10b981' },
   { status: 'NQ', label: 'Not Qualified', color: '#ef4444' },
   { status: 'EX', label: 'Excused', color: '#fbbf24' },
+  { status: 'DQ', label: 'Disqualified', color: '#27272a' },
   { status: 'ABS', label: 'Absent', color: '#8b5cf6' },
   { status: 'WD', label: 'Withdrawn', color: '#6b7280' },
 ];

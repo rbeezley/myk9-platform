@@ -13,6 +13,7 @@ import { ArrowLeft } from 'lucide-react';
 import { Button, Input, Card, cn } from '@myk9/ui';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
+import { DQ_ACTIVE_CLASS, DisqualifyReason } from '../../DisqualifyReason';
 import type { LiveScoresheetProps } from '../../../types';
 
 const POINTS_REGEX = /^\d{0,3}(\.\d{0,1})?$/;
@@ -28,7 +29,7 @@ const RESULT_OPTIONS: { value: ObedienceResult; label: string; activeClass: stri
   },
   { value: 'NQ', label: 'NQ', activeClass: 'bg-amber-500 hover:bg-amber-600 border-amber-500' },
   { value: 'EX', label: 'Excused', activeClass: 'bg-gray-500 hover:bg-gray-600 border-gray-500' },
-  { value: 'DQ', label: 'DQ', activeClass: 'bg-red-600 hover:bg-red-700 border-red-600' },
+  { value: 'DQ', label: 'DQ', activeClass: DQ_ACTIVE_CLASS },
 ];
 
 function calcAutoQualifying(pts: number): 'Q' | 'NQ' {
@@ -74,34 +75,37 @@ export const UKCObedienceLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
   const handleResultSelect = (result: ObedienceResult) => {
     setManualResult(result);
-    // DQ is not in ExtendedResult; map to NQ in hook to keep nonQualifyingReason accessible
-    if (result === 'EX') {
+    if (result === 'DQ') {
+      // Entering DQ starts a fresh reason; re-tapping it keeps what was typed.
+      if (manualResult !== 'DQ') scoring.setNonQualifyingReason('');
+      scoring.setQualifying('DQ');
+    } else if (result === 'EX') {
       scoring.setQualifying('EX');
       scoring.setNonQualifyingReason('Excused');
     } else if (result === 'Q') {
       scoring.setQualifying('Q');
       scoring.setNonQualifyingReason('');
     } else {
-      // NQ or DQ
       scoring.setQualifying('NQ');
     }
   };
 
   const handleSubmitClick = () => {
-    if (!points) return;
+    if (!points || scoring.disqualifyReasonMissing) return;
     setShowConfirmation(true);
   };
 
   const handleConfirmSubmit = async () => {
+    if (scoring.disqualifyReasonMissing) return;
     const pts = parseFloat(points) || 0;
     const deductions = Math.max(0, 200 - pts);
-    // Build ScoreData directly — DQ is not in ExtendedResult so we bypass handleSubmit
+    // Build ScoreData directly: the result is the sheet's own (Q/NQ/EX/DQ) code
     const scoreData = scoring.buildScoreData({
       points: pts,
       faultCount: deductions,
       resultText: effectiveResult,
       nonQualifyingReason:
-        effectiveResult !== 'Q' ? scoring.nonQualifyingReason || undefined : undefined,
+        effectiveResult !== 'Q' ? scoring.nonQualifyingReason.trim() || undefined : undefined,
     });
     try {
       await onSubmit(scoreData);
@@ -205,8 +209,16 @@ export const UKCObedienceLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                 ))}
               </div>
 
-              {/* NQ/DQ/EX reason input */}
-              {effectiveResult !== 'Q' && (
+              {effectiveResult === 'DQ' && (
+                <DisqualifyReason
+                  sportType="UKC_OBEDIENCE"
+                  reason={scoring.nonQualifyingReason}
+                  onReasonChange={scoring.setNonQualifyingReason}
+                />
+              )}
+
+              {/* NQ/EX reason input */}
+              {effectiveResult !== 'Q' && effectiveResult !== 'DQ' && (
                 <div className="space-y-2">
                   <label className="text-sm font-medium">Reason:</label>
                   <textarea
@@ -236,7 +248,7 @@ export const UKCObedienceLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               <Button
                 className="flex-1 h-12"
                 onClick={handleSubmitClick}
-                disabled={scoring.isSubmitting || !points}
+                disabled={scoring.isSubmitting || !points || scoring.disqualifyReasonMissing}
                 data-testid="submit-btn"
               >
                 {scoring.isSubmitting ? 'Saving...' : 'Save'}

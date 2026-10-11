@@ -8,7 +8,7 @@
  *   expected  = entry_status NOT IN ('scratched','withdrawn','moved',
  *                                   'not_accepted','absent')
  *               AND check_in_status IS DISTINCT FROM 'pulled'
- *   accounted = is_scored = true OR result_status IN ('absent','excused')
+ *   accounted = is_scored = true OR result_status IN ('absent','excused','disqualified')
  *   complete  = expected > 0 AND accounted = expected
  *
  * Any surface that reports outstanding scoring work must use these, not its own
@@ -60,7 +60,7 @@ export const EXCLUDED_ENTRY_STATUSES: ReadonlySet<string> = new Set([
  * anything actually scored carries `is_scored`, and `result_status` defaults to
  * `'pending'`, so a broader match would count untouched entries as done.
  */
-const ACCOUNTED_RESULT_STATUSES = new Set(['absent', 'excused']);
+const ACCOUNTED_RESULT_STATUSES = new Set(['absent', 'excused', 'disqualified']);
 
 /** Fields the rules read, in either casing the mappers emit. */
 export interface EntryAccountingFields {

@@ -48,7 +48,8 @@ export function usePaperScoring(entries: ScoringEntry[], userId: string) {
     ) => {
       const seconds = digitsToSeconds(timeDigits);
       const statusValue = mapQualificationToResultStatus(result);
-      const resultReason = result === 'NQ' || result === 'EX' ? reason?.trim() || null : null;
+      const resultReason =
+        result === 'NQ' || result === 'EX' || result === 'DQ' ? reason?.trim() || null : null;
       const completedAt = new Date().toISOString();
       setIsSaving(true);
       try {

@@ -64,4 +64,20 @@ describe('ClassEntryRow', () => {
     render(<ClassEntryRow entry={makeEntry()} isActive={true} onClick={vi.fn()} />);
     expect(screen.getByRole('button')).toHaveAttribute('data-active', 'true');
   });
+
+  it('shows a DQ badge and the saved reason for a disqualified entry', () => {
+    const entry = makeEntry({
+      isScored: true,
+      status: 'scored',
+      result: {
+        time: 0,
+        faults: 0,
+        qualification: 'Disqualified',
+        reason: 'Attacked a person in the search area',
+      },
+    });
+    render(<ClassEntryRow entry={entry} isActive={false} onClick={vi.fn()} />);
+    expect(screen.getByText('DQ')).toBeInTheDocument();
+    expect(screen.getByText('Attacked a person in the search area')).toBeInTheDocument();
+  });
 });

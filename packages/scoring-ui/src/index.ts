@@ -90,6 +90,7 @@ export type {
 
 // Components
 export { ResultChoiceChips, type ResultChoiceChipsProps } from './components/ResultChoiceChips';
+export { disqualifyHelpText } from './components/DisqualifyReason';
 
 // Scoresheets - AKC
 export { AKCScentWorkLiveScoresheet } from './components/scoresheets/AKC/AKCScentWorkLiveScoresheet';

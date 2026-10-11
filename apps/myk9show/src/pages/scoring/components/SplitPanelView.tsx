@@ -3,6 +3,7 @@ import { Card } from '@/components/ui/card';
 import { ClassEntryRow } from './ClassEntryRow';
 import { EntryPanel } from './EntryPanel';
 import { sortByExhibitorOrder } from '../paper-scoring-types';
+import type { ScoresheetSportType } from '@myk9/scoring-ui';
 import type { ScoringEntry } from '../types';
 import type { PaperResult, SessionSettings } from '../paper-scoring-types';
 
@@ -16,6 +17,7 @@ interface SplitPanelViewProps {
   onClearResult?: (() => void) | undefined;
   isSaving: boolean;
   maxTimeSeconds?: number | undefined;
+  sportType?: ScoresheetSportType | null | undefined;
 }
 
 export function SplitPanelView({
@@ -28,6 +30,7 @@ export function SplitPanelView({
   onClearResult,
   isSaving,
   maxTimeSeconds,
+  sportType,
 }: SplitPanelViewProps) {
   const sorted = useMemo(() => sortByExhibitorOrder(entries), [entries]);
   const selectedEntry = sorted.find(e => e.entryId === selectedEntryId) ?? null;
@@ -58,6 +61,7 @@ export function SplitPanelView({
             onClose={() => onSelectEntry(null)}
             isSaving={isSaving}
             maxTimeSeconds={maxTimeSeconds}
+            sportType={sportType}
           />
         </Card>
       )}

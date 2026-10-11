@@ -19,12 +19,13 @@ function statusLabel(status: CheckInStatus): string {
   return getStatusDescriptor('entry', status).label;
 }
 
-// Short codes match ClassResultsTable's DISPLAY_LABELS (Q / NQ / ABS / EXC / WD).
+// Short codes match ClassResultsTable's DISPLAY_LABELS (Q / NQ / ABS / EXC / DQ / WD).
 const OUTCOME_CHIP: Record<RunOutcome, { label: string; color: ChipColor }> = {
   qualified: { label: 'Qualified', color: 'green' },
   nq: { label: 'NQ', color: 'red' },
   absent: { label: 'ABS', color: 'red' },
   excused: { label: 'EXC', color: 'amber' },
+  disqualified: { label: 'DQ', color: 'red' },
   withdrawn: { label: 'WD', color: 'amber' },
 };
 

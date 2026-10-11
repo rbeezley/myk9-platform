@@ -12,6 +12,7 @@ describe('mapResultStatusToQualification', () => {
     expect(mapResultStatusToQualification('absent')).toBe('Absent');
     expect(mapResultStatusToQualification('excused')).toBe('Excused');
     expect(mapResultStatusToQualification('withdrawn')).toBe('Withdrawn');
+    expect(mapResultStatusToQualification('disqualified')).toBe('Disqualified');
   });
 
   it('returns empty string for pending or null', () => {
@@ -29,6 +30,12 @@ describe('mapQualificationToResultStatus', () => {
     expect(mapQualificationToResultStatus('Excused')).toBe('excused');
     expect(mapQualificationToResultStatus('Withdrawn')).toBe('withdrawn');
     expect(mapQualificationToResultStatus('Eliminated')).toBe('nq');
+    expect(mapQualificationToResultStatus('Disqualified')).toBe('disqualified');
+  });
+
+  it('maps the scoresheet DQ code to disqualified, separately from EX', () => {
+    expect(mapQualificationToResultStatus('DQ')).toBe('disqualified');
+    expect(mapQualificationToResultStatus('EX')).toBe('excused');
   });
 
   it('returns pending for empty string', () => {

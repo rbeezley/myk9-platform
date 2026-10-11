@@ -2,6 +2,7 @@ import React from 'react';
 import { cn } from '@myk9/ui';
 import { haptic } from '../hooks/useHapticFeedback';
 import type { QualifyingResult, ScoresheetSportType } from '../types/scoreData';
+import { DQ_ACTIVE_CLASS, DisqualifyReason } from './DisqualifyReason';
 
 // Each option carries its own label colour beside its own fill. A blanket
 // `text-white` on the active branch would work only by twMerge ordering — the
@@ -33,6 +34,8 @@ const RESULT_OPTIONS: { value: QualifyingResult; label: string; activeClass: str
     activeClass:
       'bg-red-700 hover:bg-red-800 border-red-700 text-white shadow-lg shadow-red-700/20',
   },
+  // Rare, official record: kept last and styled apart from Excused (MYK9-1011).
+  { value: 'DQ', label: 'DQ', activeClass: DQ_ACTIVE_CLASS },
 ];
 
 const NQ_REASONS: Record<string, string[]> = {
@@ -105,6 +108,8 @@ export interface ResultChoiceChipsProps {
   onNQReasonChange?: (reason: string) => void;
   excusedReason?: string;
   onExcusedReasonChange?: (reason: string) => void;
+  disqualifyReason?: string;
+  onDisqualifyReasonChange?: (reason: string) => void;
   sportType?: ScoresheetSportType;
   level?: string;
   hideFaults?: boolean;
@@ -120,6 +125,8 @@ export const ResultChoiceChips: React.FC<ResultChoiceChipsProps> = ({
   onNQReasonChange,
   excusedReason,
   onExcusedReasonChange,
+  disqualifyReason = '',
+  onDisqualifyReasonChange,
   sportType,
   level,
   hideFaults = false,
@@ -132,7 +139,7 @@ export const ResultChoiceChips: React.FC<ResultChoiceChipsProps> = ({
 
   return (
     <div className={cn('space-y-4', className)}>
-      <div className="flex gap-1.5 justify-center">
+      <div className="flex flex-wrap gap-1.5 justify-center">
         {RESULT_OPTIONS.map(opt => {
           const isActive = selectedResult === opt.value;
           return (
@@ -249,6 +256,14 @@ export const ResultChoiceChips: React.FC<ResultChoiceChipsProps> = ({
             ))}
           </div>
         </div>
+      )}
+
+      {selectedResult === 'DQ' && onDisqualifyReasonChange && (
+        <DisqualifyReason
+          sportType={sportType}
+          reason={disqualifyReason}
+          onReasonChange={onDisqualifyReasonChange}
+        />
       )}
     </div>
   );

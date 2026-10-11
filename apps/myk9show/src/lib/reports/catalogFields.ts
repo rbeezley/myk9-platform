@@ -149,9 +149,11 @@ export function resolveCatalogResult(entry: ReportEntry): string {
   if (entryStatus === 'absent' || result === 'absent') return CATALOG_RESULT.ABSENT;
   if (result === 'q' || result === 'qualified') return CATALOG_RESULT.QUALIFIED;
   if (result === 'nq') return CATALOG_RESULT.NOT_QUALIFIED;
-  // No stored DQ result exists today (`entries.result_status` has no such value),
-  // so a DQ prints only when a row carries the legacy DQ placement or word.
-  if (result === 'dq' || result === 'disqualified' || placementNumber(entry) === 10000) {
+  // MYK9-1011: a DQ is stored as `result_status = 'disqualified'`. 'dq' and the 10000
+  // placement are the pre-existing markers (the scoring function's old sentinel
+  // codes, still read by getPlacementText), kept so an imported or older row that
+  // carries one still prints DQ rather than falling through to blank.
+  if (result === 'disqualified' || result === 'dq' || placementNumber(entry) === 10000) {
     return CATALOG_RESULT.DISQUALIFIED;
   }
   if (result === 'excused') return CATALOG_RESULT.EXCUSED;

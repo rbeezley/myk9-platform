@@ -40,6 +40,7 @@ export function normalizeResultText(result: string | null | undefined): string {
   if (normalized === 'nq' || normalized === 'non-qualifying') return 'NQ';
   if (normalized === 'abs' || normalized === 'absent' || normalized === 'e') return 'ABS';
   if (normalized === 'ex' || normalized === 'excused') return 'EX';
+  if (normalized === 'dq' || normalized === 'disqualified') return 'DQ';
   if (normalized === 'wd' || normalized === 'withdrawn') return 'WD';
   return result || 'N/A';
 }
@@ -56,6 +57,8 @@ export function isNonQualifyingResult(result: string | null | undefined): boolea
     resultLower.includes('absent') ||
     resultLower.includes('ex') ||
     resultLower.includes('excused') ||
+    resultLower.includes('dq') ||
+    resultLower.includes('disqualified') ||
     resultLower.includes('wd') ||
     resultLower.includes('withdrawn')
   );
@@ -69,7 +72,10 @@ export function getStatusBorderClass(entry: Entry): StatusBorderClass {
     const result = (entry.resultText || '').toLowerCase();
     if (result === 'q' || result === 'qualified') return 'result-qualified';
     if (result === 'nq' || result === 'non-qualifying') return 'result-nq';
-    if (result === 'ex' || result === 'excused') return 'result-ex';
+    // A DQ is a non-qualifying outcome like Excused; it shares that border.
+    if (result === 'ex' || result === 'excused' || result === 'dq' || result === 'disqualified') {
+      return 'result-ex';
+    }
     if (result === 'abs' || result === 'absent') return 'result-abs';
     if (result === 'wd' || result === 'withdrawn') return 'result-wd';
     return 'scored'; // Fallback to generic scored

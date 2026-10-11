@@ -51,6 +51,7 @@ function normalizeResultText(value: string | null): StatsEntry['resultText'] {
     case 'NQ':
     case 'ABS':
     case 'EX':
+    case 'DQ':
     case 'WD':
       return value;
     default:

@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { shouldShowSection, formatClassTitle, buildClassConfig } from '../ClassDetailsMain.helpers';
+import {
+  shouldShowSection,
+  formatClassTitle,
+  buildClassConfig,
+  buildClassStats,
+} from '../ClassDetailsMain.helpers';
 import type { ClassData } from '../types/classTypes';
 
 describe('shouldShowSection', () => {
@@ -114,5 +119,19 @@ describe('buildClassConfig time limit', () => {
 
   it('keeps the 3:00 default when no limit is set', () => {
     expect(buildClassConfig({} as ClassData).timeLimit).toBe(180_000);
+  });
+});
+
+describe('buildClassStats with a Disqualified dog', () => {
+  const entry = (status: string, extra: Record<string, unknown> = {}) =>
+    ({ status, ...extra }) as unknown as Parameters<typeof buildClassStats>[0][number];
+
+  it('counts a DQ as completed, not pending, and includes it in Other', () => {
+    const stats = buildClassStats(
+      [entry('Qualified'), entry('Disqualified'), entry('Excused'), entry('Pending')],
+      true
+    );
+    expect(stats[0]).toMatchObject({ detail1: '3 completed', detail2: '1 pending' });
+    expect(stats[1]).toMatchObject({ detail1: '1 Qualified', detail3: '2 Other' });
   });
 });

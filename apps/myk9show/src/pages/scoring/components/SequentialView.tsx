@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EntryPanel } from './EntryPanel';
 import { sortByExhibitorOrder } from '../paper-scoring-types';
+import type { ScoresheetSportType } from '@myk9/scoring-ui';
 import type { ScoringEntry } from '../types';
 import type { PaperResult, SessionSettings } from '../paper-scoring-types';
 
@@ -17,6 +18,7 @@ interface SequentialViewProps {
   onClearResult?: (() => void) | undefined;
   isSaving: boolean;
   maxTimeSeconds?: number | undefined;
+  sportType?: ScoresheetSportType | null | undefined;
 }
 
 export function SequentialView({
@@ -29,6 +31,7 @@ export function SequentialView({
   onClearResult,
   isSaving,
   maxTimeSeconds,
+  sportType,
 }: SequentialViewProps) {
   const sorted = useMemo(() => sortByExhibitorOrder(entries), [entries]);
   const currentEntry = sorted[currentIndex] ?? null;
@@ -87,6 +90,7 @@ export function SequentialView({
           onClose={() => {}}
           isSaving={isSaving}
           maxTimeSeconds={maxTimeSeconds}
+          sportType={sportType}
         />
       </Card>
     </div>

@@ -22,7 +22,7 @@ export interface ExhibitorResult {
   className: string;
   classLevel: string | null;
   classElement: string | null;
-  resultText: 'Q' | 'NQ' | 'ABS' | 'EX' | 'WD' | 'pending';
+  resultText: 'Q' | 'NQ' | 'ABS' | 'EX' | 'DQ' | 'WD' | 'pending';
   resultStatus: ResultStatus;
   searchTimeSeconds: number | null;
   totalFaults: number | null;

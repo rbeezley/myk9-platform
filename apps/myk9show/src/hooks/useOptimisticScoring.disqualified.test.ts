@@ -79,4 +79,23 @@ describe('useOptimisticScoring: Disqualified', () => {
       expect.objectContaining({ result_status: 'excused', resultStatus: 'excused' })
     );
   });
+
+  // MYK9-1094: AKC FastCAT's Excused chip emits 'EX' (see
+  // AKCFastCatLiveScoresheet.test.tsx); that exact code must reach updateEntry
+  // as 'excused', never fall through to 'pending'.
+  it('writes excused, scored, for the code the FastCAT sheet emits', async () => {
+    const { result } = renderHook(() => useOptimisticScoring());
+    await act(async () => {
+      await result.current.submitScoreOptimistically(options('EX'));
+    });
+
+    expect(updateEntry).toHaveBeenCalledWith(
+      'entry-1',
+      expect.objectContaining({
+        result_status: 'excused',
+        resultStatus: 'excused',
+        is_scored: true,
+      })
+    );
+  });
 });

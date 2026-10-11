@@ -206,9 +206,14 @@ BEGIN
   -- 6. OCC (nullable) and write. A replay whose write already landed (the
   -- response was lost and the offline queue resends it with the old version) is
   -- success, not a conflict: same rule as ringside_update_entry (MYK9-740).
-  SELECT c.time_limit_seconds, c.status, c.start_time
-    INTO v_cur_time, v_cur_status, v_cur_start
-    FROM public.classes c WHERE c.id = p_class_id;
+  -- Lock the row and read its version WITH the values compared below, so the replay
+  -- check, the version it returns and the write all see one consistent row. No
+  -- back-off sleep follows (unlike the entry RPC's containment gate), so the lock
+  -- is held only for this call.
+  SELECT c.version, c.time_limit_seconds, c.status, c.start_time
+    INTO v_current_version, v_cur_time, v_cur_status, v_cur_start
+    FROM public.classes c WHERE c.id = p_class_id
+     FOR UPDATE;
 
   IF p_expected_version IS NOT NULL AND p_expected_version <> v_current_version
      AND (NOT v_has_time OR v_cur_time IS NOT DISTINCT FROM v_seconds)

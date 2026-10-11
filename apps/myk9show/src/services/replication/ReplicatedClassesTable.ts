@@ -583,9 +583,13 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     });
 
     // MYK9-1086: the max-time rule the ringside Set Max Time dialog checks offline.
-    // null = lookup failed: leave the cached rule (resolveConflict keeps it; the
-    // dialog checks it is still for the class's element/level before using it).
-    const timeLimitRuleByClassId = await resolveTimeLimitRulesForClassRows(rows).catch(() => null);
+    // A failed lookup must not read as "no rule": carry the rule already on this
+    // device into the synced row, so no merge path (clean, conflict or dirty-row
+    // reconcile) sees it disappear. The dialog checks it is still for the class's
+    // element/level before using it.
+    const timeLimitRuleByClassId =
+      (await resolveTimeLimitRulesForClassRows(rows).catch(() => null)) ??
+      (await this.cachedTimeLimitRules(rows.map(row => String(row.id))));
 
     // MYK9-494: names cannot come from a `people` embed — an exhibitor cannot read
     // another person's row, so the embed (or `people!inner`) yields nothing and every
@@ -607,8 +611,18 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
       num_hides: hideCountByClassId.get(String(row.id)) ?? null,
       _selfCheckinEnabled: visibilityByClassId.get(String(row.id))?.selfCheckinEnabled,
       _visibilityPreset: visibilityByClassId.get(String(row.id))?.visibilityPreset,
-      _timeLimitRule: timeLimitRuleByClassId?.get(String(row.id)),
+      _timeLimitRule: timeLimitRuleByClassId.get(String(row.id)),
     }));
+  }
+
+  /** The max-time rules already cached on this device, by class id. */
+  private async cachedTimeLimitRules(ids: string[]): Promise<Map<string, TimeLimitRule>> {
+    const byId = new Map<string, TimeLimitRule>();
+    for (const id of ids) {
+      const rule = (await this.get(id))?.timeLimitRule;
+      if (rule) byId.set(id, rule);
+    }
+    return byId;
   }
 
   async sync(syncScopeId: string, options?: Partial<SyncOptions>): Promise<SyncResult> {

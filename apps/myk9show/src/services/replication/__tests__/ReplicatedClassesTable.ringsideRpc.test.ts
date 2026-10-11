@@ -102,3 +102,30 @@ describe('ReplicatedClassesTable ringside routing (MYK9-1096 / MYK9-1086)', () =
     expect(queueMutation.mock.calls.at(-1)![4]).toBeUndefined();
   });
 });
+
+describe('max-time rule enrichment keeps the cached rule when the lookup fails (MYK9-1086)', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("carries the device's rule into the synced row instead of dropping it", async () => {
+    const table = new ReplicatedClassesTable();
+    const rule = { min: 60, max: 180, forElement: 'Interior', forLevel: 'Novice' };
+    await table.set('class-rule', {
+      ...baseClass({ id: 'class-rule', element: 'Interior', level: 'Novice' }),
+      timeLimitRule: rule,
+    });
+    const resolver = await import('../resolveClassTimeLimitRules');
+    vi.spyOn(resolver, 'resolveTimeLimitRulesForClassRows').mockResolvedValue(null);
+
+    const enriched = await (
+      table as unknown as {
+        enrichClassRows: (rows: unknown[]) => Promise<Array<{ _timeLimitRule?: unknown }>>;
+      }
+    ).enrichClassRows([
+      { id: 'class-rule', trial_id: 'trial-1', element: 'Interior', level: 'Novice' },
+    ]);
+
+    expect(enriched[0]?._timeLimitRule).toEqual(rule);
+  });
+});

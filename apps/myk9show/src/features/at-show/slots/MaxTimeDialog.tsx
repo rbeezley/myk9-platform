@@ -9,7 +9,7 @@
  * the rule range server-side.
  *
  * A multi-area class gets one input per area, each with its own time (MYK9-1098);
- * every area must have a time to save, or every area be empty to clear the time.
+ * every area must have a time to save.
  */
 import { useState } from 'react';
 import type React from 'react';
@@ -66,11 +66,7 @@ const MaxTimeForm: React.FC<MaxTimeDialogProps> = ({
   const [saving, setSaving] = useState(false);
 
   /** The class fields to write, or null after showing why the entry can't be saved. */
-  const checkedUpdates = async (): Promise<Record<string, number | undefined> | null> => {
-    // Every area empty clears the class's max time; a partial set is refused.
-    if (values.every(value => !value.trim())) {
-      return Object.fromEntries(values.map((_, area) => [AREA_TIME_FIELDS[area], undefined]));
-    }
+  const checkedUpdates = async (): Promise<Record<string, number> | null> => {
     const seconds = values.map(parseMaxTimeInput);
     const unreadable = seconds.findIndex(s => s === null || s < 1 || s > MAX_SECONDS);
     if (unreadable >= 0) {

@@ -139,7 +139,7 @@ export function MessageCenterComposeForm({
   }
 
   return (
-    <div className="space-y-4 p-4">
+    <div className="space-y-4 p-3">
       <p className="text-sm text-muted-foreground">
         Send a show message to everyone, a class, or checked-in exhibitors.
       </p>

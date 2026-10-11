@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { MessageCenterPanel } from '../MessageCenterPanel';
 import { useNotificationStore } from '@/store/notificationStore';
@@ -746,7 +746,7 @@ describe('MessageCenterPanel', () => {
   });
 
   describe('compose is a mode of the one panel (MYK9-1088)', () => {
-    async function openComposeAsSecretary(route?: string) {
+    function openComposeAsSecretary(route?: string) {
       authContext = {
         user: { id: 'secretary-1', email: 'secretary@test.com' },
         userWithRoles: {
@@ -764,7 +764,7 @@ describe('MessageCenterPanel', () => {
     }
 
     it('renders the compose form inside the single panel, not a second dialog', async () => {
-      await openComposeAsSecretary();
+      openComposeAsSecretary();
 
       const dialogs = screen.getAllByRole('dialog');
       expect(dialogs).toHaveLength(1);
@@ -773,8 +773,29 @@ describe('MessageCenterPanel', () => {
       expect(dialogs[0].querySelector('.slide-over-panel')).not.toBeNull();
     });
 
+    it('keeps focus inside the panel after Compose and after Back', () => {
+      openComposeAsSecretary();
+      const panel = () => screen.getByRole('dialog').querySelector('.slide-over-panel');
+      expect(panel()).toContainElement(document.activeElement as HTMLElement);
+      expect(document.activeElement).not.toBe(document.body);
+
+      fireEvent.click(screen.getByRole('button', { name: /back/i }));
+      expect(panel()).toContainElement(document.activeElement as HTMLElement);
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: /compose/i }));
+    });
+
+    it('Escape inside the show picker closes the popup but stays in compose', async () => {
+      openComposeAsSecretary();
+      fireEvent.click(screen.getByRole('combobox'));
+      expect(await screen.findByRole('listbox')).toBeInTheDocument();
+      fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+
+      await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
+      expect(screen.getByRole('dialog', { name: /compose show message/i })).toBeInTheDocument();
+    });
+
     it('Back returns to the Message Center list', async () => {
-      await openComposeAsSecretary();
+      openComposeAsSecretary();
 
       fireEvent.click(screen.getByRole('button', { name: /back/i }));
 
@@ -784,7 +805,7 @@ describe('MessageCenterPanel', () => {
     });
 
     it('returns to the list after a message is sent', async () => {
-      await openComposeAsSecretary('/secretary/messages?showId=show-1');
+      openComposeAsSecretary('/secretary/messages?showId=show-1');
 
       fireEvent.click(screen.getByRole('button', { name: /mock send/i }));
 
@@ -793,7 +814,7 @@ describe('MessageCenterPanel', () => {
     });
 
     it('Escape steps back to the list before closing the panel', async () => {
-      await openComposeAsSecretary();
+      openComposeAsSecretary();
 
       fireEvent.keyDown(document, { key: 'Escape' });
       expect(screen.getByRole('dialog', { name: /message center/i })).toBeInTheDocument();

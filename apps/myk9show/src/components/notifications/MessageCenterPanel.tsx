@@ -1,4 +1,4 @@
-import { useState, type MouseEvent } from 'react';
+import { useRef, useState, type MouseEvent } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   AlertCircle,
@@ -24,6 +24,7 @@ import { formatRelativeTime } from '@/lib/timeUtils';
 import { PRIORITY_BORDER } from './notification-styles';
 import { AnnouncementItem } from '@/components/announcements/AnnouncementItem';
 import { getAnnouncementAuthor } from '@/types/announcement-types';
+import { useComposeModeFocus } from './useComposeModeFocus';
 import { MessageCenterComposeForm } from './MessageCenterComposeForm';
 import { useMyJudgedShows } from '@/features/messages/hooks/useMyJudgedShows';
 import { readRouteShowId, selectComposeShows } from '@/features/messages/messageComposeShows';
@@ -181,6 +182,9 @@ export function MessageCenterPanel() {
   const [activeTab, setActiveTab] = useState<MessageCenterTab>('notifications');
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [isComposing, setIsComposing] = useState(false);
+  const composeBarRef = useRef<HTMLDivElement>(null);
+  const composeBodyRef = useRef<HTMLDivElement>(null);
+  useComposeModeFocus(isComposing, composeBarRef, composeBodyRef);
   // A closed Message Center always reopens on the list, never mid-compose.
   if (!isCenterOpen && isComposing) setIsComposing(false);
 
@@ -412,22 +416,26 @@ export function MessageCenterPanel() {
       title={isComposing ? 'Compose show message' : 'Message Center'}
       side="right"
       size="sm"
+      // sm:max-w-none governs 640-767px, so the width goes through className.
+      className={isComposing ? 'md:max-w-2xl' : ''}
       {...(isComposing ? { showBackButton: true, onBack: handleCloseCompose } : unreadHeaderProps)}
     >
       {isComposing ? (
-        <MessageCenterComposeForm
-          onSent={handleCloseCompose}
-          options={composeShows}
-          routeShowId={readRouteShowId(location.pathname, location.search)}
-          pendingMessage={composeListPending}
-          emptyMessage={composeEmptyMessage}
-          manageRecipients={composeAllowedRecipients}
-          manageShowWideLane={composeShowWideDeliveryLane}
-        />
+        <div ref={composeBodyRef} tabIndex={-1} className="outline-none">
+          <MessageCenterComposeForm
+            onSent={handleCloseCompose}
+            options={composeShows}
+            routeShowId={readRouteShowId(location.pathname, location.search)}
+            pendingMessage={composeListPending}
+            emptyMessage={composeEmptyMessage}
+            manageRecipients={composeAllowedRecipients}
+            manageShowWideLane={composeShowWideDeliveryLane}
+          />
+        </div>
       ) : (
         <>
           {canComposeShowMessage && (
-            <div className="flex gap-2 border-b border-border/50 p-3">
+            <div ref={composeBarRef} className="flex gap-2 border-b border-border/50 p-3">
               <Button variant="default" size="sm" className="flex-1" onClick={handleOpenCompose}>
                 <Plus className="mr-1.5 h-4 w-4" />
                 Compose

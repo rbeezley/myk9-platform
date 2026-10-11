@@ -57,7 +57,11 @@ export interface ClassRequirements {
 // ---------------------------------------------------------------------------
 
 /** Format an integer range (fixed, min/max, or min-only) into a display string. */
-function formatIntRange(fixed: number | null, min: number | null, max: number | null): string {
+function formatIntRange(
+  fixed: number | null,
+  min: number | null,
+  max: number | null
+): string {
   if (fixed != null) return String(fixed);
   if (min != null && max != null) {
     return min === max ? String(min) : `${min}\u2013${max}`;

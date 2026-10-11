@@ -15,8 +15,7 @@ import { printIframe } from './reportPreviewUtils';
 import { ArmbandLabelsReport } from '@/components/reports/labels/ArmbandLabelsReport';
 import { ResultLabelsReport } from '@/components/reports/labels/ResultLabelsReport';
 import { LabelModeHeader } from '@/components/reports/labels/LabelModeChrome';
-import { buildClassReportProps, buildTrialReportProps } from './reportDataMapping';
-import { useAKCOfficialPdfAction } from './useAKCOfficialPdfAction';
+import { useOfficialReportDownload } from './useOfficialReportDownload';
 import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLink';
 import type { ReportScope } from '@/lib/reports/types';
 import { resolveReportScope } from '@/lib/reports/reportScope';
@@ -25,12 +24,12 @@ import type { PaperworkDescriptor } from '@/features/show-map/cockpit/paperworkP
 import { recordPaperworkPrinted } from '@/features/show-map/cockpit/paperworkPrintActions';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import { useReportDogOptions } from './useReportDogOptions';
+import { useReportScopeOptions } from './useReportScopeOptions';
+import { resolveInitialJudgeDay, useJudgeDayReportScope } from './useJudgeDayReportScope';
+import type { ReportDbEntry } from '@/lib/reports/types';
 import { useHostedReportData } from './useHostedReportData';
 import { resolvePrintReadiness } from './reportReadinessCopy';
 import { ReportPrintStatus } from './ReportPrintStatus';
-import { useUKCTrialReportContext } from '@/hooks/queries/useUKCTrialReportContext';
-
-const UKC_TRIAL_REPORT_TYPES = new Set(['ukc-nosework-trial-report', 'trial-secretary-report']);
 
 const DEFAULT_REPORT_ID = 'check-in-sheet';
 
@@ -139,31 +138,17 @@ export default function ReportsPage() {
   );
   const showTimePhase = resolveShowTimePhase(currentShow, new Date(), showTimeZone);
 
-  const trialOptions = useMemo(
-    () =>
-      (resolvedTrials as Array<Record<string, unknown>>).map(t => ({
-        id: t.id as string,
-        name: (t.name ?? '') as string,
-        trial_number: String(t.trial_number ?? t.trialNumber ?? ''),
-        date: (t.date ?? t.trialDate ?? '') as string,
-        registry_id: (t.registry_id ?? t.registryId ?? null) as string | null,
-      })),
-    [resolvedTrials]
-  );
+  const { trialOptions, classOptions } = useReportScopeOptions(resolvedTrials, classes);
 
-  const classOptions = useMemo(
-    () =>
-      ((classes ?? []) as Array<Record<string, unknown>>).map(c => ({
-        id: c.id as string,
-        name: (c.name ?? '') as string,
-        element: (c.element ?? '') as string,
-        level: (c.level ?? '') as string,
-        section: (c.section ?? '') as string,
-        trial_id: (c.trial_id ?? '') as string,
-      })),
-    [classes]
-  );
-
+  // MYK9-1036: one judge's day of the Result Catalog, a filter over this show-wide read.
+  const [initialJudgeDay] = useState(() => resolveInitialJudgeDay(searchParams));
+  const judgeDay = useJudgeDayReportScope({
+    reportType,
+    initial: initialJudgeDay,
+    classes: classes as Array<{ id: string; trial_id?: string | null }> | undefined,
+    entries: entries as ReportDbEntry[] | undefined,
+    trials: resolvedTrials as Array<{ id: string; date?: string | null }>,
+  });
   const { dogs: dogOptions, unavailable: dogOptionsUnavailable } = useReportDogOptions(
     showId,
     report?.supportsDogFilter ?? false
@@ -184,8 +169,16 @@ export default function ReportsPage() {
   };
 
   const handleTrialChange = (value: string) => {
+    judgeDay.clear();
     setTrialId(value);
     setDogId('all');
+    setClassId('all');
+  };
+
+  // A judge's day spans trials, so it reads the whole show: it replaces the trial and class picks.
+  const handleJudgeDayChange = (key: string) => {
+    judgeDay.select(key);
+    setTrialId('all');
     setClassId('all');
   };
 
@@ -196,6 +189,9 @@ export default function ReportsPage() {
 
   const paperworkDescriptor = useMemo(() => {
     if (reportType === 'armband-labels') return armbandDescriptor;
+    // A judge's day is not a show, trial or class scope: recording it printed would stamp the
+    // whole show's catalog, so it is not tracked (MYK9-1036).
+    if (judgeDay.isFiltering) return null;
     return buildReportPaperworkDescriptor({
       reportId: reportType,
       scope: effectiveScope,
@@ -206,7 +202,7 @@ export default function ReportsPage() {
         typeof buildReportPaperworkDescriptor
       >[0]['entries'],
     });
-  }, [armbandDescriptor, reportType, effectiveScope, classes, entries]);
+  }, [armbandDescriptor, reportType, effectiveScope, classes, entries, judgeDay.isFiltering]);
   const { printStatusUnavailable, printStatusChecking, printStatusKnown, printState, printChips } =
     useReportPrintStatus({
       showId: showId ?? '',
@@ -287,67 +283,19 @@ export default function ReportsPage() {
     }
   };
 
-  // Scoped by the selected trial's actual registry, not just the reportType
-  // string: 'trial-secretary-report' serves both AKC and UKC trials, and the
-  // AKC one never reads this context, so it should not fetch officials'
-  // personal contact data it will never print (MYK9-828 review).
-  const selectedTrialIsUKC = useMemo(() => {
-    const trial = (trials as Array<{ id: string; registry_id?: string | null }> | undefined)?.find(
-      t => t.id === trialId
-    );
-    return trial?.registry_id?.trim().toUpperCase() === 'UKC';
-  }, [trials, trialId]);
-
-  const ukcTrialReportContextQuery = useUKCTrialReportContext(
-    show?.id,
-    UKC_TRIAL_REPORT_TYPES.has(reportType) && selectedTrialIsUKC
-  );
-
-  const officialPdfProps = useMemo(() => {
-    if (!show || trialId === 'all') return null;
-    const props = buildTrialReportProps({
-      show,
-      trials: trials as Parameters<typeof buildTrialReportProps>[0]['trials'],
-      classes: classes as Parameters<typeof buildTrialReportProps>[0]['classes'],
-      entries: entries as Parameters<typeof buildTrialReportProps>[0]['entries'],
-      scope:
-        trialId === 'all'
-          ? { kind: 'show', showId: show.id }
-          : { kind: 'trial', showId: show.id, trialId },
-      sortOrder,
-    })[0];
-    if (!props) return null;
-    return { ...props, ukcTrialReportContext: ukcTrialReportContextQuery.data ?? null };
-  }, [show, trials, classes, entries, trialId, sortOrder, ukcTrialReportContextQuery.data]);
-
-  const officialClassPdfProps = useMemo(() => {
-    if (!show || trialId === 'all' || classId === 'all') return null;
-    return buildClassReportProps({
-      show,
-      trials: trials as Parameters<typeof buildClassReportProps>[0]['trials'],
-      classes: classes as Parameters<typeof buildClassReportProps>[0]['classes'],
-      entries: entries as Parameters<typeof buildClassReportProps>[0]['entries'],
-      scope: { kind: 'class', showId: show.id, trialId, classId },
-      sortOrder,
-    });
-  }, [show, trials, classes, entries, trialId, classId, sortOrder]);
-
-  const officialPdfAction = useAKCOfficialPdfAction({
+  const officialPdfAction = useOfficialReportDownload({
     reportType,
     showId,
-    showName: show?.name,
     currentShowName: currentShow?.name,
-    isDataReady: isReady,
-    hasShow: Boolean(show),
+    show,
+    trials,
+    classes,
+    entries,
     trialId,
     classId,
     dogId,
-    officialPdfProps,
-    officialClassPdfProps,
-    ukcTrialReportContextLoading:
-      UKC_TRIAL_REPORT_TYPES.has(reportType) &&
-      selectedTrialIsUKC &&
-      ukcTrialReportContextQuery.isLoading,
+    sortOrder,
+    isReady,
   });
 
   return (
@@ -416,11 +364,23 @@ export default function ReportsPage() {
           dogs={dogOptions}
           dogsUnavailable={dogOptionsUnavailable}
           onTrialChange={handleTrialChange}
-          onClassChange={setClassId}
+          onClassChange={value => {
+            judgeDay.clear();
+            setClassId(value);
+          }}
           onDogChange={setDogId}
           onSortChange={setSortOrder}
           onPrint={handlePrint}
           officialPdfAction={officialPdfAction}
+          judgeDay={
+            reportType === 'result-catalog'
+              ? {
+                  options: judgeDay.options,
+                  value: judgeDay.value,
+                  onChange: handleJudgeDayChange,
+                }
+              : undefined
+          }
         />
       </div>
 
@@ -470,8 +430,16 @@ export default function ReportsPage() {
               reportType={reportType}
               show={show}
               trials={trials as Parameters<typeof ReportPreview>[0]['trials']}
-              classes={classes as Parameters<typeof ReportPreview>[0]['classes']}
-              entries={entries as Parameters<typeof ReportPreview>[0]['entries']}
+              classes={
+                (judgeDay.scoped?.classes ?? classes) as Parameters<
+                  typeof ReportPreview
+                >[0]['classes']
+              }
+              entries={
+                (judgeDay.scoped?.entries ?? entries) as Parameters<
+                  typeof ReportPreview
+                >[0]['entries']
+              }
               trialId={trialId}
               classId={classId}
               dogId={dogId}

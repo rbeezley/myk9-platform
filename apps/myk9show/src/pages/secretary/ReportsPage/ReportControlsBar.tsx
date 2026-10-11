@@ -48,6 +48,13 @@ function formatDogOptionLabel(dog: {
   return `${dog.callName}${registered}${armband}`;
 }
 
+/** MYK9-1036: the Result Catalog's judge + day picker (see useJudgeDayReportScope). */
+export interface JudgeDayControl {
+  options: ReadonlyArray<{ key: string; label: string }>;
+  value: string;
+  onChange: (key: string) => void;
+}
+
 export interface OfficialPdfAction {
   disabled: boolean;
   isLoading: boolean;
@@ -87,6 +94,7 @@ interface ReportControlsBarProps {
   onSortChange: (value: string) => void;
   onPrint: () => void;
   officialPdfAction?: OfficialPdfAction | undefined;
+  judgeDay?: JudgeDayControl | undefined;
 }
 
 export function ReportControlsBar({
@@ -105,6 +113,7 @@ export function ReportControlsBar({
   onSortChange,
   onPrint,
   officialPdfAction,
+  judgeDay,
 }: ReportControlsBarProps) {
   const selectedReport = getReportById(reportType);
   const hasTrialScope = selectedReport?.scopes.includes('trial') ?? false;
@@ -147,6 +156,9 @@ export function ReportControlsBar({
   // option values are kebab-case strings (`run-order`) and the collapsed trigger would
   // otherwise print them. Resolve the human label from the report registry.
   const isPdfOnlyReport = selectedReport?.pdfOnly ?? false;
+  const selectedJudgeDayLabel =
+    judgeDay?.options.find(option => option.key === judgeDay.value)?.label ??
+    (judgeDay?.value === 'unresolved' ? 'Judge and day not found' : 'All judges');
   const selectedSortLabel =
     selectedReport?.sortOptions.find(opt => opt.value === sortOrder)?.label ?? 'Sort by';
 
@@ -189,6 +201,29 @@ export function ReportControlsBar({
               {filteredClasses.map(cls => (
                 <SelectItem key={cls.id} value={cls.id}>
                   {formatClassOptionLabel(cls)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Judge's day — the Result Catalog for one judge on one date, across trials. h-11: the
+          secretary taps this at the ring, so it takes the 44px touch target. */}
+      {judgeDay && (
+        <div className="flex min-w-0 flex-col gap-1 sm:w-auto">
+          <label htmlFor="judge-day-select" className="text-xs font-medium text-muted-foreground">
+            Judge's day
+          </label>
+          <Select value={judgeDay.value} onValueChange={judgeDay.onChange}>
+            <SelectTrigger id="judge-day-select" className="h-11 w-full sm:w-[280px]">
+              <SelectValue placeholder="All judges">{selectedJudgeDayLabel}</SelectValue>
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All judges</SelectItem>
+              {judgeDay.options.map(option => (
+                <SelectItem key={option.key} value={option.key}>
+                  {option.label}
                 </SelectItem>
               ))}
             </SelectContent>

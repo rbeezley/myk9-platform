@@ -39,7 +39,12 @@ export interface JudgeSignOffGroup {
   dayComplete: boolean;
   /** The classes one record writes. Empty until the day is complete. */
   recordClassIds: readonly string[];
-  /** The narrowest existing Result Catalog scope that covers the whole day. */
+  /**
+   * MYK9-1036: the judge (the Show Map's id) and date the marked catalog prints. Absent when the
+   * class has no judge id or no date, where `catalogScope` is all there is to print.
+   */
+  catalogJudgeDay?: { judgeId: string; date: string };
+  /** The narrowest existing Result Catalog scope that covers the whole day (no-judge fallback). */
   catalogScope: ReportScope;
 }
 
@@ -86,6 +91,9 @@ export function buildJudgeSignOffGroup(
     signedCount: classes.filter(item => item.signedOffAt !== null).length,
     dayComplete,
     recordClassIds: dayComplete ? classes.filter(item => item.recordable).map(item => item.id) : [],
+    ...(selected.judgeId && selected.trialDate
+      ? { catalogJudgeDay: { judgeId: selected.judgeId, date: selected.trialDate.slice(0, 10) } }
+      : {}),
     catalogScope: catalogScopeFor(showId, members),
   };
 }

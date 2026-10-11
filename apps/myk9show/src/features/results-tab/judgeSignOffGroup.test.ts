@@ -132,4 +132,22 @@ describe('buildJudgeSignOffGroup', () => {
       showId: 'show-1',
     });
   });
+
+  it('names the judge and date the marked catalog covers, from the Show Map judge id', () => {
+    const group = buildJudgeSignOffGroup(
+      'show-1',
+      [row('c1'), row('c2', { trialId: 'trial-2', trialLabel: 'Trial 2' })],
+      'c1'
+    );
+    expect(group?.catalogJudgeDay).toEqual({ judgeId: 'judge-1', date: '2026-10-10' });
+  });
+
+  it('has no judge day when the class has no judge id or no date (the narrow scope remains)', () => {
+    expect(
+      buildJudgeSignOffGroup('show-1', [row('c1', { judgeId: '' })], 'c1')?.catalogJudgeDay
+    ).toBeUndefined();
+    expect(
+      buildJudgeSignOffGroup('show-1', [row('c1', { trialDate: '' })], 'c1')?.catalogJudgeDay
+    ).toBeUndefined();
+  });
 });

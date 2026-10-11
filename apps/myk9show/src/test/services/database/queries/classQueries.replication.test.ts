@@ -506,6 +506,23 @@ describe('classQueries (replication)', () => {
       expect((result.data[0] as Record<string, unknown>).id).toBe('pg-class-1');
     });
 
+    it('cold fallback asks for the assignment id and status, so a declined judge can be told apart (MYK9-1036)', async () => {
+      mockSupabase.auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+      const query = createChainableQuery({ data: [], error: null });
+      mockSupabase.from.mockReturnValue(query);
+
+      await getClassesByTrialId('trial-1');
+
+      const select = String(
+        (query.select as unknown as { mock: { calls: unknown[][] } }).mock.calls[0]![0]
+      );
+      const embed = select.slice(select.indexOf('judge_assignments'));
+      expect(embed).toMatch(/\bid\b/);
+      expect(embed).toMatch(/\bstatus\b/);
+      // An inner join on people drops a judge whose name the caller cannot read.
+      expect(embed).not.toContain('people!inner');
+    });
+
     it('returns judge data on each class via the synthesized join', async () => {
       // Regression: prior to this fix the replication path dropped judge data
       // because mapReplicatedClassToDbRow only attached judge_assignments when

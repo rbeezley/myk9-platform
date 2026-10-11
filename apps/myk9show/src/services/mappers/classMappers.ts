@@ -554,11 +554,15 @@ export const mapReplicatedClassToDbRow = (
   // even though the replicated row knows the answer.
   if (options?.judgeAssignments) {
     row.judge_assignments = options.judgeAssignments;
-  } else if (cls.judgeId && cls.judgeName) {
-    const [first, ...rest] = cls.judgeName.trim().split(' ');
+  } else if (cls.judgeId) {
+    // The replica only ever holds the CONFIRMED judge (`resolveClassJudgeFields` in `rowToClass`),
+    // so the synthesized assignment says so; `resolveClassJudgeFields` on this row then yields the
+    // same judge id the Show Map uses. A missing name must not drop the judge (MYK9-1036).
+    const [first, ...rest] = (cls.judgeName ?? '').trim().split(' ');
     row.judge_assignments = [
       {
         person_id: cls.judgeId,
+        status: 'confirmed',
         people: { first_name: first ?? '', last_name: rest.join(' ') },
       },
     ];

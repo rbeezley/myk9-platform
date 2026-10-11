@@ -4,6 +4,7 @@ import {
   getCockpitClassDetailsHref,
   getCockpitClassManagementHref,
   getCockpitEntryManagementHref,
+  getCockpitJudgeDayCatalogHref,
   getCockpitPaperScoringHref,
   getCockpitReportHref,
   getCockpitResultsControlHref,
@@ -189,5 +190,20 @@ describe('Show Desk context routes', () => {
       resolveShowDeskReturnHref('https://evil.example/shows/show-1/show-desk', 'show-1')
     ).toBeNull();
     expect(resolveShowDeskReturnHref('/shows/show-2/show-desk', 'show-1')).toBeNull();
+  });
+});
+
+describe('getCockpitJudgeDayCatalogHref (MYK9-1036)', () => {
+  it('opens the Result Catalog on one judge and one day, keyed on the judge id', () => {
+    expect(
+      getCockpitJudgeDayCatalogHref({
+        showId: 'show-1',
+        judgeId: 'judge/1',
+        date: '2026-10-10',
+        returnTo: '/shows/show-1/results',
+      })
+    ).toBe(
+      `/shows/show-1/reports?judgeId=judge%2F1&day=2026-10-10&report=result-catalog&returnTo=${encodeURIComponent('/shows/show-1/results')}`
+    );
   });
 });

@@ -7,6 +7,7 @@ const RESULT_STATUS_TO_SHEET_CODE: Record<string, string> = {
   qualified: 'Q',
   nq: 'NQ',
   excused: 'EX',
+  disqualified: 'DQ',
   absent: 'ABS',
 };
 

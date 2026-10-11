@@ -10,6 +10,7 @@ const RESULT_BADGE: Record<string, { label: string; className: string }> = {
   },
   Absent: { label: 'ABS', className: 'bg-muted text-muted-foreground' },
   Excused: { label: 'EX', className: 'bg-muted text-muted-foreground' },
+  Disqualified: { label: 'DQ', className: 'bg-zinc-900 text-white' },
   Withdrawn: { label: 'WD', className: 'bg-muted text-muted-foreground' },
 };
 
@@ -48,7 +49,11 @@ function getResultDetails(entry: ScoringEntry): string | null {
     return `${formatTime(result.time)} · ${formatFaults(result.faults)}`;
   }
 
-  if (result.qualification === 'Not Qualified' || result.qualification === 'Excused') {
+  if (
+    result.qualification === 'Not Qualified' ||
+    result.qualification === 'Excused' ||
+    result.qualification === 'Disqualified'
+  ) {
     return result.reason ? result.reason : 'Reason missing';
   }
 

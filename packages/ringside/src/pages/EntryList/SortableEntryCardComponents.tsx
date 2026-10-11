@@ -49,6 +49,8 @@ const RESULT_BADGE_COLOR: Record<string, string> = {
   'non-qualifying': 'bg-red-600 text-white',
   ex: 'bg-red-600 text-white',
   excused: 'bg-red-600 text-white',
+  dq: 'bg-zinc-900 text-white',
+  disqualified: 'bg-zinc-900 text-white',
   abs: 'bg-violet-600 text-white',
   absent: 'bg-violet-600 text-white',
   e: 'bg-violet-600 text-white',

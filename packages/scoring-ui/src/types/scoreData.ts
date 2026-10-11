@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 
 /** Qualifying result options */
-export type QualifyingResult = 'Q' | 'NQ' | 'EX' | 'ABS';
+export type QualifyingResult = 'Q' | 'NQ' | 'EX' | 'DQ' | 'ABS';
 
 /** Extended results for Nationals scoresheets */
 export type NationalsResult = '1st' | '2nd' | '3rd' | '4th';

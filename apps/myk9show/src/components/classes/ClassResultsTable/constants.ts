@@ -15,6 +15,7 @@ export const DISPLAY_LABELS: Record<string, string> = {
   'Not Qualified': 'NQ',
   Absent: 'ABS',
   Excused: 'EXC',
+  Disqualified: 'DQ',
   Withdrawn: 'WD',
   Eliminated: 'E',
 };

@@ -58,7 +58,8 @@ export interface ScoringEntry extends BaseEntry {
 export interface ScoringResult {
   time: number; // milliseconds
   faults: number;
-  qualification: 'Qualified' | 'Not Qualified' | 'Absent' | 'Excused' | 'Withdrawn';
+  qualification:
+    'Qualified' | 'Not Qualified' | 'Absent' | 'Excused' | 'Disqualified' | 'Withdrawn';
   placement?: number;
   points?: number;
   notes?: string;
@@ -207,7 +208,7 @@ export function secretaryEntryToScoringEntry(entry: SecretaryEntry, index: numbe
 /**
  * Calculate placements for scored entries.
  * Qualified dogs ranked by: fewest faults first, then fastest time.
- * NQ/Absent/Excused entries get no placement.
+ * NQ/Absent/Excused/Disqualified entries get no placement.
  */
 export function calculatePlacements(entries: ScoringEntry[]): ScoringEntry[] {
   const qualified = entries
@@ -263,6 +264,9 @@ function mapResultStatusToQualification(resultStatus: string): ScoringResult['qu
     case 'excused':
     case 'ex':
       return 'Excused';
+    case 'disqualified':
+    case 'dq':
+      return 'Disqualified';
     case 'withdrawn':
       return 'Withdrawn';
     default:

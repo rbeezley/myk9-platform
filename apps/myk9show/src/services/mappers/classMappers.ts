@@ -399,6 +399,7 @@ const mapEntryStatus = (status: string): string => {
     'Not Qualified': 'not_qualified',
     Absent: 'absent',
     Excused: 'excused',
+    Disqualified: 'disqualified',
     Withdrawn: 'withdrawn',
   };
   return statusMap[status] || 'pending';
@@ -409,17 +410,31 @@ const mapEntryStatus = (status: string): string => {
  */
 const mapDatabaseEntryStatus = (
   status: string | null
-): 'Qualified' | 'Not Qualified' | 'Absent' | 'Excused' | 'Withdrawn' | 'Eliminated' => {
+):
+  | 'Qualified'
+  | 'Not Qualified'
+  | 'Absent'
+  | 'Excused'
+  | 'Disqualified'
+  | 'Withdrawn'
+  | 'Eliminated' => {
   if (!status) return 'Not Qualified';
 
   const statusMap: Record<
     string,
-    'Qualified' | 'Not Qualified' | 'Absent' | 'Excused' | 'Withdrawn' | 'Eliminated'
+    | 'Qualified'
+    | 'Not Qualified'
+    | 'Absent'
+    | 'Excused'
+    | 'Disqualified'
+    | 'Withdrawn'
+    | 'Eliminated'
   > = {
     qualified: 'Qualified',
     not_qualified: 'Not Qualified',
     absent: 'Absent',
     excused: 'Excused',
+    disqualified: 'Disqualified',
     withdrawn: 'Withdrawn',
     pending: 'Not Qualified',
   };

@@ -17,6 +17,7 @@ export const QUALIFICATION_STATUSES = [
   'Not Qualified',
   'Absent',
   'Excused',
+  'Disqualified',
   'Withdrawn',
   'Eliminated',
 ] as const;

@@ -21,6 +21,7 @@ import { useStopwatch } from '../../../hooks/useStopwatch';
 import { useElementTimer } from '../../../hooks/useElementTimer';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
+import { DQ_ACTIVE_CLASS, DisqualifyReason } from '../../DisqualifyReason';
 import type { LiveScoresheetProps } from '../../../types';
 import type { ExtendedResult } from '../../../types/scoreData';
 
@@ -33,6 +34,7 @@ const RESULT_OPTIONS: { value: ExtendedResult; label: string; activeClass: strin
   { value: 'NQ', label: 'NQ', activeClass: 'bg-amber-500 hover:bg-amber-600 border-amber-500' },
   { value: 'ABS', label: 'Absent', activeClass: 'bg-gray-500 hover:bg-gray-600 border-gray-500' },
   { value: 'EX', label: 'Excused', activeClass: 'bg-red-600 hover:bg-red-700 border-red-600' },
+  { value: 'DQ', label: 'DQ', activeClass: DQ_ACTIVE_CLASS },
 ];
 
 const NQ_REASONS = ['Fault Limit', 'Max Time', 'False Alert', 'Handler Error'];
@@ -449,7 +451,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 
             {/* Result Chips */}
             <Card className="p-4 space-y-4">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                 {RESULT_OPTIONS.map(opt => (
                   <Button
                     key={opt.value}
@@ -462,6 +464,14 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                   </Button>
                 ))}
               </div>
+
+              {scoring.qualifying === 'DQ' && (
+                <DisqualifyReason
+                  sportType="UKC_NOSEWORK"
+                  reason={scoring.nonQualifyingReason}
+                  onReasonChange={scoring.setNonQualifyingReason}
+                />
+              )}
 
               {/* NQ Reason */}
               {scoring.qualifying === 'NQ' && (
@@ -491,7 +501,9 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               <Button
                 className="flex-1 h-12"
                 onClick={handleSubmitClick}
-                disabled={scoring.isSubmitting || !scoring.qualifying}
+                disabled={
+                  scoring.isSubmitting || !scoring.qualifying || scoring.disqualifyReasonMissing
+                }
                 data-testid="submit-btn"
               >
                 {scoring.isSubmitting ? 'Saving...' : 'Save'}
@@ -532,7 +544,8 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                     scoring.qualifying === 'Q' && 'text-green-600',
                     scoring.qualifying === 'NQ' && 'text-amber-500',
                     scoring.qualifying === 'ABS' && 'text-gray-500',
-                    scoring.qualifying === 'EX' && 'text-red-600'
+                    scoring.qualifying === 'EX' && 'text-red-600',
+                    scoring.qualifying === 'DQ' && 'font-bold'
                   )}
                 >
                   {scoring.qualifying}
@@ -548,6 +561,12 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                   <span className="font-mono font-semibold">
                     {elementTimer.formatTime(elementTimer.time)}
                   </span>
+                </div>
+              )}
+              {scoring.qualifying === 'DQ' && (
+                <div className="flex justify-between py-2 border-b border-border">
+                  <span className="text-muted-foreground">DQ Reason</span>
+                  <span className="font-medium">{scoring.nonQualifyingReason}</span>
                 </div>
               )}
               {scoring.faultCount > 0 && (

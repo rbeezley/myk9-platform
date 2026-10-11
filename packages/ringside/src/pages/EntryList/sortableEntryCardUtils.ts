@@ -40,6 +40,7 @@ export function normalizeResultText(result: string | null | undefined): string {
   if (normalized === 'nq' || normalized === 'non-qualifying') return 'NQ';
   if (normalized === 'abs' || normalized === 'absent' || normalized === 'e') return 'ABS';
   if (normalized === 'ex' || normalized === 'excused') return 'EX';
+  if (normalized === 'dq' || normalized === 'disqualified') return 'DQ';
   if (normalized === 'wd' || normalized === 'withdrawn') return 'WD';
   return result || 'N/A';
 }
@@ -56,6 +57,8 @@ export function isNonQualifyingResult(result: string | null | undefined): boolea
     resultLower.includes('absent') ||
     resultLower.includes('ex') ||
     resultLower.includes('excused') ||
+    resultLower.includes('dq') ||
+    resultLower.includes('disqualified') ||
     resultLower.includes('wd') ||
     resultLower.includes('withdrawn')
   );

@@ -71,7 +71,14 @@ export interface CompetitionResult {
   armband: string;
   handler: string;
   dog: string;
-  status: 'Qualified' | 'Not Qualified' | 'Absent' | 'Excused' | 'Withdrawn' | 'Eliminated';
+  status:
+    | 'Qualified'
+    | 'Not Qualified'
+    | 'Absent'
+    | 'Excused'
+    | 'Disqualified'
+    | 'Withdrawn'
+    | 'Eliminated';
   qualificationReason?: string | undefined; // Reason for NQ, Excused, or Withdrawn
   score: string;
   time: string;

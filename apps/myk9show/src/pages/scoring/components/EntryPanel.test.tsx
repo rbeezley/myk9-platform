@@ -197,6 +197,52 @@ describe('EntryPanel', () => {
     expect(onSaveAndNext).toHaveBeenCalledWith('EX', '', 0, 'Handler Request');
   });
 
+  it('requires a typed reason before saving a DQ, shows the registry rule, and passes the reason', async () => {
+    const onSaveAndNext = vi.fn();
+    render(
+      <EntryPanel
+        entry={makeEntry()}
+        settings={DEFAULT_SESSION_SETTINGS}
+        onSave={vi.fn()}
+        onSaveAndNext={onSaveAndNext}
+        onClose={vi.fn()}
+        isSaving={false}
+        sportType="UKC_NOSEWORK"
+      />
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /^DQ$/i }));
+    expect(screen.getByRole('button', { name: /save & next/i })).toBeDisabled();
+    expect(screen.getByTestId('dq-help').textContent).toContain(
+      'bites or attempts to bite any person'
+    );
+
+    await userEvent.type(screen.getByLabelText(/disqualification reason/i), '   ');
+    expect(screen.getByRole('button', { name: /save & next/i })).toBeDisabled();
+
+    await userEvent.type(screen.getByLabelText(/disqualification reason/i), 'Bit the handler');
+    await userEvent.click(screen.getByRole('button', { name: /save & next/i }));
+
+    expect(onSaveAndNext).toHaveBeenCalledWith('DQ', '', 0, 'Bit the handler');
+  });
+
+  it('keeps Excused on its own preset reasons and out of the DQ reason box', async () => {
+    render(
+      <EntryPanel
+        entry={makeEntry()}
+        settings={DEFAULT_SESSION_SETTINGS}
+        onSave={vi.fn()}
+        onSaveAndNext={vi.fn()}
+        onClose={vi.fn()}
+        isSaving={false}
+      />
+    );
+
+    await userEvent.click(screen.getByRole('button', { name: /^EX$/i }));
+    expect(screen.queryByTestId('dq-help')).not.toBeInTheDocument();
+    expect(screen.getByRole('combobox', { name: /reason/i })).toBeInTheDocument();
+  });
+
   it('opens an already-scored entry with its saved result ready to edit', () => {
     render(
       <EntryPanel

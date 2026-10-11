@@ -83,9 +83,12 @@ describe('isAccountedFor', () => {
     expect(isAccountedFor({ is_scored: true })).toBe(true);
   });
 
-  it.each(['absent', 'excused'])('counts a %s result, which settles without a score', status => {
-    expect(isAccountedFor({ is_scored: false, result_status: status })).toBe(true);
-  });
+  it.each(['absent', 'excused', 'disqualified'])(
+    'counts a %s result, which settles without a score',
+    status => {
+      expect(isAccountedFor({ is_scored: false, result_status: status })).toBe(true);
+    }
+  );
 
   it('does not count a pending result', () => {
     expect(isAccountedFor({ is_scored: false, result_status: 'pending' })).toBe(false);

@@ -62,8 +62,8 @@ export function sortByPlacement(entries: ReportEntry[]): ReportEntry[] {
 
     const aIsAbsent = aResultText === 'absent';
     const bIsAbsent = bResultText === 'absent';
-    const aIsExcused = aResultText === 'excused';
-    const bIsExcused = bResultText === 'excused';
+    const aIsExcused = aResultText === 'excused' || aResultText === 'disqualified';
+    const bIsExcused = bResultText === 'excused' || bResultText === 'disqualified';
 
     // Qualified entries with numbered placements come first
     if (aIsQualified && !bIsQualified) return -1;
@@ -116,6 +116,7 @@ export function getResultStatusText(entry: ReportEntry): string {
   if (resultText === 'nq') return 'NQ';
   if (resultText === 'absent') return 'Absent';
   if (resultText === 'excused') return 'Excused';
+  if (resultText === 'disqualified') return 'Disqualified';
   if (resultText === 'withdrawn') return 'Withdrawn';
 
   return entry.resultText || '';

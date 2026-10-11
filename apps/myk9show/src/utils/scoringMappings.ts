@@ -5,6 +5,7 @@ const RESULT_STATUS_TO_QUALIFICATION: Record<string, QualificationStatus> = {
   nq: 'Not Qualified',
   absent: 'Absent',
   excused: 'Excused',
+  disqualified: 'Disqualified',
   withdrawn: 'Withdrawn',
 };
 
@@ -14,6 +15,7 @@ const QUALIFICATION_TO_RESULT_STATUS: Record<string, string> = {
   'Not Qualified': 'nq',
   Absent: 'absent',
   Excused: 'excused',
+  Disqualified: 'disqualified',
   Withdrawn: 'withdrawn',
   Eliminated: 'nq',
   // Short scoresheet codes
@@ -21,6 +23,7 @@ const QUALIFICATION_TO_RESULT_STATUS: Record<string, string> = {
   NQ: 'nq',
   ABS: 'absent',
   EX: 'excused',
+  DQ: 'disqualified',
   WD: 'withdrawn',
 };
 

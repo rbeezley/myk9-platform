@@ -26,6 +26,7 @@ const RESULT_LABELS: Record<string, string> = {
   NQ: 'NQ',
   ABS: 'Absent',
   EX: 'Excused',
+  DQ: 'Disqualified',
 };
 
 /** Header title: trial date + the trial's label (MYK9-704), falling back to the sport name. */
@@ -267,7 +268,8 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                   scoring.qualifying === 'Q' ||
                   scoring.qualifying === 'NQ' ||
                   scoring.qualifying === 'ABS' ||
-                  scoring.qualifying === 'EX'
+                  scoring.qualifying === 'EX' ||
+                  scoring.qualifying === 'DQ'
                     ? scoring.qualifying
                     : null
                 }
@@ -278,6 +280,9 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                 onNQReasonChange={scoring.setNonQualifyingReason}
                 excusedReason={scoring.nonQualifyingReason}
                 onExcusedReasonChange={scoring.setNonQualifyingReason}
+                disqualifyReason={scoring.nonQualifyingReason}
+                onDisqualifyReasonChange={scoring.setNonQualifyingReason}
+                sportType="AKC_SCENT_WORK"
               />
             </Card>
 
@@ -289,7 +294,9 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                 size="xl"
                 className="flex-1 rounded-xl hover:brightness-110"
                 onClick={handleSubmitClick}
-                disabled={scoring.isSubmitting || !scoring.qualifying}
+                disabled={
+                  scoring.isSubmitting || !scoring.qualifying || scoring.disqualifyReasonMissing
+                }
                 data-testid="submit-btn"
               >
                 {scoring.isSubmitting ? 'Saving...' : 'Save'}
@@ -330,7 +337,8 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                     scoring.qualifying === 'Q' && 'text-primary',
                     scoring.qualifying === 'NQ' && 'text-red-600',
                     scoring.qualifying === 'ABS' && 'text-purple-600',
-                    scoring.qualifying === 'EX' && 'text-red-700'
+                    scoring.qualifying === 'EX' && 'text-red-700',
+                    scoring.qualifying === 'DQ' && 'font-bold text-zinc-900 dark:text-zinc-100'
                   )}
                 >
                   {RESULT_LABELS[scoring.qualifying ?? ''] ?? scoring.qualifying}
@@ -347,10 +355,17 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                 </div>
               )}
               {scoring.nonQualifyingReason &&
-                (scoring.qualifying === 'NQ' || scoring.qualifying === 'EX') && (
+                (scoring.qualifying === 'NQ' ||
+                  scoring.qualifying === 'EX' ||
+                  scoring.qualifying === 'DQ') && (
                   <div className="flex justify-between py-2 border-b border-border">
                     <span className="text-muted-foreground">
-                      {scoring.qualifying === 'EX' ? 'Excused' : 'NQ'} Reason
+                      {scoring.qualifying === 'EX'
+                        ? 'Excused'
+                        : scoring.qualifying === 'DQ'
+                          ? 'DQ'
+                          : 'NQ'}{' '}
+                      Reason
                     </span>
                     <span className="font-semibold">{scoring.nonQualifyingReason}</span>
                   </div>

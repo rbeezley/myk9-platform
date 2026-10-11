@@ -29,7 +29,14 @@ function registeredBreedForOrganization(
   return row.dog?.breed ?? storeDog?.breed ?? null;
 }
 
-const RUN_OUTCOMES: readonly RunOutcome[] = ['qualified', 'nq', 'absent', 'excused', 'withdrawn'];
+const RUN_OUTCOMES: readonly RunOutcome[] = [
+  'qualified',
+  'nq',
+  'absent',
+  'excused',
+  'disqualified',
+  'withdrawn',
+];
 
 /** Unknown or missing scored status reads as NQ, the prior behaviour for non-qualifying runs. */
 function readOutcome(value: string | null): RunOutcome {

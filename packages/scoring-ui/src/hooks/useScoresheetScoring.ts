@@ -34,6 +34,8 @@ export interface ScoresheetScoringReturn {
   qualifying: ExtendedResult | '';
   setQualifying: (value: ExtendedResult | '') => void;
   nonQualifyingReason: string;
+  /** A DQ with no reason: the result cannot be saved until the judge states one. */
+  disqualifyReasonMissing: boolean;
   setNonQualifyingReason: (value: string) => void;
   faultCount: number;
   setFaultCount: (value: number) => void;
@@ -91,6 +93,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
     existingScore?.nonQualifyingReason ?? ''
   );
   const [faultCount, setFaultCount] = useState(existingScore?.faultCount ?? 0);
+  const disqualifyReasonMissing = qualifying === 'DQ' && !nonQualifyingReason.trim();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   // React state updates after the current event. A ref closes the gap where a
@@ -103,7 +106,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
 
   const setQualifying = useCallback((value: ExtendedResult | '') => {
     setQualifyingRaw(value);
-    if (value === 'EX') {
+    if (value === 'EX' || value === 'DQ') {
       findFlagsEditedRef.current = true;
       setFaultCount(0);
       setAreas(prev => prev.map(area => ({ ...area, found: false, correct: false })));
@@ -182,6 +185,10 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
       errors.push('No result selected');
     }
 
+    if (disqualifyReasonMissing) {
+      errors.push('A disqualification needs a reason');
+    }
+
     if (rules.maxTimeSeconds > 0) {
       const totalTime = calculateTotalTime();
       if (totalTime !== '0.00') {
@@ -199,7 +206,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
     }
 
     return { valid: errors.length === 0, errors, warnings };
-  }, [qualifying, rules.maxTimeSeconds, calculateTotalTime]);
+  }, [qualifying, disqualifyReasonMissing, rules.maxTimeSeconds, calculateTotalTime]);
 
   const handleSubmit = useCallback(
     async (onSubmit: (data: ScoreData) => void | Promise<void>, extra?: Partial<ScoreData>) => {
@@ -243,6 +250,7 @@ export function useScoresheetScoring(config: ScoresheetScoringConfig): Scoreshee
     qualifying,
     setQualifying,
     nonQualifyingReason,
+    disqualifyReasonMissing,
     setNonQualifyingReason,
     faultCount,
     setFaultCount,

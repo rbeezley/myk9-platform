@@ -10,7 +10,8 @@
 //                    move_up_requested
 //   check_in_status  no-status | checked-in | conflict | pulled | at-gate |
 //                    come-to-gate | in-ring | completed
-//   result_status    pending | qualified | nq | absent | excused | withdrawn
+//   result_status    pending | qualified | nq | absent | excused | disqualified |
+//                    withdrawn
 //
 // The bug this pins was invisible because the old fixtures invented their own
 // vocabulary ('Q', 'present', 'accepted', 'disqualified') and were internally
@@ -93,6 +94,25 @@ describe('classifyAKCEntryOutcome', () => {
 
   it('classifies result_status "excused" as excused', () => {
     const entry = makeEntry({ resultStatus: 'excused' });
+    expect(codesFor(entry)).toEqual({ actionCode: 'EXCU', resultCode: 'EXO' });
+  });
+
+  // MYK9-1011: a DQ is its own outcome, accounted for, and never a qualifying run.
+  it('classifies result_status "disqualified" apart from excused, as a ran-and-not-qualified dog', () => {
+    const entry = makeEntry({ resultStatus: 'disqualified' });
+    expect(classifyAKCEntryOutcome(entry)).toBe('disqualified');
+    expect(classifyAKCEntryOutcome(entry)).not.toBe('unscored');
+    expect(codesFor(entry)).toEqual({ actionCode: 'EXCU', resultCode: 'EXO' });
+    expect(countUnscoredAKCEntries([entry])).toBe(0);
+    expect(tallyAKCClass([entry])).toMatchObject({
+      numEntries: 1,
+      numStarters: 1,
+      numQualifying: 0,
+    });
+  });
+
+  it('never gives a disqualified dog a placement code, even with a stale placement', () => {
+    const entry = makeEntry({ resultStatus: 'disqualified', finalPlacement: 1 });
     expect(codesFor(entry)).toEqual({ actionCode: 'EXCU', resultCode: 'EXO' });
   });
 
@@ -181,7 +201,14 @@ describe('classifyAKCEntryOutcome', () => {
     it('keeps a dog whose result was actually recorded, whatever the lifecycle says', () => {
       // Dropping a SCORED dog is the one direction of this call a re-send
       // cannot repair, so a recorded result always wins.
-      const recorded: AKCResultStatus[] = ['qualified', 'nq', 'absent', 'excused', 'withdrawn'];
+      const recorded: AKCResultStatus[] = [
+        'qualified',
+        'nq',
+        'absent',
+        'excused',
+        'disqualified',
+        'withdrawn',
+      ];
       for (const resultStatus of recorded) {
         const entry = makeEntry({ entryStatus: 'moved', resultStatus });
         expect(classifyAKCEntryOutcome(entry)).not.toBe('excluded');
@@ -235,6 +262,7 @@ describe('classifyAKCEntryOutcome', () => {
       nq: 'not-qualified',
       absent: 'absent',
       excused: 'excused',
+      disqualified: 'disqualified',
       withdrawn: 'withdrawn',
     };
     for (const [resultStatus, outcome] of Object.entries(expected) as [
@@ -353,7 +381,9 @@ describe('parseAKCResultStatus', () => {
     // 'Q' is the literal that caused this issue. It must not resolve to
     // 'qualified' -- an unrecognised value means "no result recorded", which
     // blocks the submission instead of shipping a guess.
-    for (const raw of ['Q', 'disqualified', 'present', '', 'QUALIFIED!']) {
+    // 'disqualified' used to be in this list as an invented value; MYK9-1011 made it
+    // a real one, so the invented spelling here is the abbreviation instead.
+    for (const raw of ['Q', 'dq', 'present', '', 'QUALIFIED!']) {
       expect(parseAKCResultStatus(raw)).toBeNull();
     }
     expect(parseAKCResultStatus(null)).toBeNull();

@@ -2,7 +2,7 @@ import { formatTimeLimitSeconds } from '@myk9/scoring-ui';
 import { parseSearchTimeDigits } from '@/components/ui/data-table/sorting';
 
 /** Display codes used in UI buttons */
-export type PaperResult = 'Q' | 'NQ' | 'ABS' | 'EX';
+export type PaperResult = 'Q' | 'NQ' | 'ABS' | 'EX' | 'DQ';
 
 export const PAPER_NQ_REASONS = [
   'Incorrect Call',
@@ -20,13 +20,14 @@ export const PAPER_EXCUSED_REASONS = [
   'Other',
 ] as const;
 
-export function resultRequiresReason(result: PaperResult | null): result is 'NQ' | 'EX' {
-  return result === 'NQ' || result === 'EX';
+export function resultRequiresReason(result: PaperResult | null): result is 'NQ' | 'EX' | 'DQ' {
+  return result === 'NQ' || result === 'EX' || result === 'DQ';
 }
 
 export function getReasonOptions(result: PaperResult | null): readonly string[] {
   if (result === 'NQ') return PAPER_NQ_REASONS;
   if (result === 'EX') return PAPER_EXCUSED_REASONS;
+  // A DQ's reason is free text ("brief description", AKC Ch.3 s.36), not a preset.
   return [];
 }
 

@@ -1,14 +1,18 @@
--- MYK9-1086: ringside_update_class lets a judge set a class's max time at ringside.
+-- MYK9-1086 / MYK9-1096: ringside_update_class is the judge's ringside write path for
+-- a class: its max time, and its status / start time.
 --
 -- Sections:
 --   A. manager (site admin) sets a time within the rule range
 --   B. the class's assigned judge (an account) sets it
 --   C. a judge passcode for THIS show sets it; for another show it is refused
 --   D. a signed-in account with no tier, and a steward passcode, are refused
---   E. the rule range: below min / above max refused; fixed rule caps at the fixed time
+--   E. the rule range binds judges: below min / above max refused; a fixed rule caps
+--      at the fixed time; a manager is not range-checked
 --   F. any key but time_limit_seconds is refused, not ignored
 --   G. OCC: a stale version is 40001; a replay of an already-applied value is success
 --   H. NULL clears the limit
+--   J. status and start_time: the assigned judge starts the class; 'cancelled' and a
+--      malformed start time are refused
 --   I. grants: no EXECUTE for anon
 --
 -- Fixtures roll back.
@@ -139,8 +143,16 @@ begin
   end;
 end $$;
 
--- E. rule range (as the manager)
-select pg_temp.as_account('00000000-0000-0000-0000-000001086101');
+-- E. rule range binds the judge (the assigned judge account; the Container class is
+--    assigned to the same judge below for the fixed-rule case). Managers are not
+--    range-checked.
+reset role;
+insert into public.judge_assignments (person_id, show_id, trial_id, class_id, status, confirmed_at)
+values ('00000000-0000-0000-0000-000001086012', '00000000-0000-0000-0000-000001086021',
+        '00000000-0000-0000-0000-000001086022', '00000000-0000-0000-0000-000001086024',
+        'confirmed', now());
+set local role authenticated;
+select pg_temp.as_account('00000000-0000-0000-0000-000001086102');
 do $$
 begin
   begin
@@ -167,6 +179,13 @@ begin
   perform public.ringside_update_class('00000000-0000-0000-0000-000001086024',
             jsonb_build_object('time_limit_seconds', 120), null);
   raise notice 'PASS E the fixed time itself is accepted';
+end $$;
+select pg_temp.as_account('00000000-0000-0000-0000-000001086101');
+do $$
+begin
+  perform public.ringside_update_class('00000000-0000-0000-0000-000001086023',
+            jsonb_build_object('time_limit_seconds', 240), null);
+  raise notice 'PASS E a manager is not range-checked';
 end $$;
 
 -- F. allow-list
@@ -203,6 +222,30 @@ begin
   end;
 end $$;
 
+-- J. status / start_time (as the assigned judge)
+select pg_temp.as_account('00000000-0000-0000-0000-000001086102');
+do $$
+begin
+  perform public.ringside_update_class('00000000-0000-0000-0000-000001086023',
+            jsonb_build_object('status', 'in_progress', 'start_time', '09:30'), null);
+  raise notice 'PASS J the assigned judge started the class';
+  begin
+    perform public.ringside_update_class('00000000-0000-0000-0000-000001086023',
+              jsonb_build_object('status', 'cancelled'), null);
+    raise exception 'FAIL J cancelled was accepted from ringside';
+  exception when invalid_parameter_value then
+    raise notice 'PASS J cancelled is refused from ringside';
+  end;
+  begin
+    perform public.ringside_update_class('00000000-0000-0000-0000-000001086023',
+              jsonb_build_object('start_time', 'soon'), null);
+    raise exception 'FAIL J a malformed start time was accepted';
+  exception when invalid_parameter_value then
+    raise notice 'PASS J a malformed start time is refused';
+  end;
+end $$;
+select pg_temp.as_account('00000000-0000-0000-0000-000001086101');
+
 -- H. NULL clears
 do $$
 begin
@@ -217,6 +260,10 @@ begin
   if (select time_limit_seconds from public.classes
        where id = '00000000-0000-0000-0000-000001086023') is not null then
     raise exception 'FAIL H the limit was not cleared';
+  end if;
+  if (select status from public.classes
+       where id = '00000000-0000-0000-0000-000001086023') <> 'in_progress' then
+    raise exception 'FAIL J the judge''s status change did not land';
   end if;
   if (select time_limit_seconds from public.classes
        where id = '00000000-0000-0000-0000-000001086024') <> 120 then

@@ -188,6 +188,12 @@ export interface PendingMutation {
     args?: Record<string, unknown>;
     /** When true, a UUID/string RPC return must match `rowId` or the mutation fails. */
     expectRowId?: boolean;
+    /**
+     * The RPC's row-id parameter for the default `fields` shape (e.g. `p_class_id`).
+     * Defaults to `p_entry_id`. Unlike baked `args`, the default shape re-reads
+     * `serverVersion` at upload, so an OCC rebase reaches the RPC.
+     */
+    idParam?: string;
   };
 }
 

@@ -30,6 +30,7 @@ import { resolveClassJudgeFields } from '@/services/database/_shared/classJudgeF
 import type { JudgeNameParts } from '@/services/database/_shared/judgeNamesByClass';
 import { CLASS_AUTHENTICATED_COLUMN_SELECT } from '@/services/database/classes/reads';
 import type { Database } from '@/types/supabase';
+import { buildRingsideClassRpc } from './ringsideClassRpc';
 
 /**
  * Database row type from Supabase schema
@@ -740,11 +741,14 @@ export class ReplicatedClassesTable extends ReplicatedTable<ReplicatedClass> {
     // strip the ones this mutation didn't explicitly set before queueing — see
     // stripUnsetServerOwnedKeys. Prevents an unrelated edit from re-uploading a
     // stale local status / status_source and clobbering server-derived state.
-    const mutationId = await this.queueMutation(
-      'UPDATE',
-      classId,
-      stripUnsetServerOwnedKeys(this.toSupabaseRow(updatedClass), updates)
-    );
+    const payload = stripUnsetServerOwnedKeys(this.toSupabaseRow(updatedClass), updates);
+    // A ringside-only write (status / start time / max time) goes through
+    // ringside_update_class, which admits the class's judge; classes_update RLS
+    // would deny it (MYK9-1096, MYK9-1086). Anything else stays direct.
+    const rpc = buildRingsideClassRpc(Object.keys(updates), payload);
+    const mutationId = rpc
+      ? await this.queueMutation('UPDATE', classId, payload, undefined, rpc)
+      : await this.queueMutation('UPDATE', classId, payload);
     this._lastMutationId = mutationId;
     logger.log(`[${this.getTableName()}] Updated class ${classId}`);
     return mutationId;

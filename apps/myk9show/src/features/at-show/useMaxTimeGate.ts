@@ -82,6 +82,16 @@ export function useMaxTimeGate({
     }
   }, [ready, needsMaxTime, mayAsk, openRequired]);
 
+  // Asked while the assignment check was still running, then found unassigned:
+  // withdraw the prompt, since the server would refuse that judge's save.
+  const denied = assignment.status === 'unassigned';
+  useEffect(() => {
+    if (denied && promptedRef.current) {
+      setMaxTimeRequiredWarning(false);
+      setMaxTimeDialogOpen(false);
+    }
+  }, [denied, setMaxTimeDialogOpen, setMaxTimeRequiredWarning]);
+
   /** True when a dog tap must not open the scoresheet yet. */
   const gateEntryClick = useCallback((): boolean => {
     if (!mayAsk) return false;

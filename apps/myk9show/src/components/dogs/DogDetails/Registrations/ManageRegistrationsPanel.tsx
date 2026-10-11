@@ -7,13 +7,25 @@
  * delete controls until they are asked for. A panel rather than an in-page
  * disclosure on purpose: no reveal state to place, no history contract, no
  * focus choreography, and no layout rule for the hidden case.
+ *
+ * Add and Edit are MODES of this one panel (MYK9-1089), never a second slide-out
+ * stacked on it: the body swaps from the list to the form, the header gains Back,
+ * and DogRegistrationDialogs stands down while this panel is open. Escape, the
+ * backdrop, X and Back all leave the mode first; a second Escape closes the
+ * panel. A dirty form answers each of them with the discard prompt.
  */
+import { useRef } from 'react';
 import type { Dog } from '@/types/dog-types';
 import { useRegistrationsStore } from '@/store/registrationsStore';
+import { useDogRegistrationManagement } from '@/hooks/queries/useRegistrationsDatabase';
 import SlideOverPanel from '@/components/panels/SlideOverPanel';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import RegistrationsSection from './RegistrationsSection';
+import AddRegistrationPanel from './AddRegistrationPanel';
+import EditRegistrationPanel from './EditRegistrationPanel';
+import { useRegistrationFormSaves } from './useRegistrationFormSaves';
+import { useRegistrationModeFocus } from './useRegistrationModeFocus';
 
 interface ManageRegistrationsPanelProps {
   open: boolean;
@@ -26,26 +38,95 @@ export default function ManageRegistrationsPanel({
   onClose,
   dog,
 }: ManageRegistrationsPanelProps) {
+  const isAddOpen = useRegistrationsStore(state => state.isAddRegistrationDialogOpen);
   const setIsAddOpen = useRegistrationsStore(state => state.setIsAddRegistrationDialogOpen);
+  const isEditOpen = useRegistrationsStore(state => state.isEditRegistrationDialogOpen);
+  const setIsEditOpen = useRegistrationsStore(state => state.setIsEditRegistrationDialogOpen);
+  const selectedRegistration = useRegistrationsStore(state => state.selectedRegistration);
+  const setSelectedRegistration = useRegistrationsStore(state => state.setSelectedRegistration);
+
+  const { createRegistration, updateRegistration } = useDogRegistrationManagement(dog.id);
+  const { handleAdd, handleUpdate } = useRegistrationFormSaves({
+    createRegistration,
+    updateRegistration,
+  });
+
+  // The store's flags are the single source of truth for the mode, so the rail
+  // and the list raise Add / Edit the same way whichever surface hosts them.
+  const mode = isAddOpen ? 'add' : isEditOpen ? 'edit' : 'list';
+  const listRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLDivElement>(null);
+  const addButtonRef = useRef<HTMLButtonElement>(null);
+  const closeFormRef = useRef<(() => void) | null>(null);
+  useRegistrationModeFocus(mode, selectedRegistration?.id ?? null, listRef, formRef, addButtonRef);
+
+  function leaveMode() {
+    setIsAddOpen(false);
+    setIsEditOpen(false);
+    setSelectedRegistration(null);
+  }
+
+  // Escape, the backdrop, X and Back all land here. In a mode they ask the form
+  // to close (which raises the discard prompt when dirty); on the list they
+  // close the panel.
+  function handlePanelClose() {
+    if (mode === 'list') onClose();
+    else closeFormRef.current?.();
+  }
+
+  const title =
+    mode === 'add' ? 'Add Registration' : mode === 'edit' ? 'Edit Registration' : 'Registrations';
 
   return (
     <SlideOverPanel
       open={open}
-      onClose={onClose}
-      title="Registrations"
+      onClose={handlePanelClose}
+      title={title}
       {...(dog.callName ? { subtitle: dog.callName } : {})}
       size="lg"
-      // The rail's Add sits behind this backdrop, so the panel carries its own
-      // for the loaded-list and error states as well as the empty one.
-      headerActions={
-        <Button size="sm" onClick={() => setIsAddOpen(true)}>
-          <Plus className="h-4 w-4 mr-1" />
-          Add
-        </Button>
-      }
+      {...(mode === 'list'
+        ? {
+            // The rail's Add sits behind this backdrop, so the panel carries its
+            // own for the loaded-list and error states as well as the empty one.
+            headerActions: (
+              <Button ref={addButtonRef} size="sm" onClick={() => setIsAddOpen(true)}>
+                <Plus className="h-4 w-4 mr-1" />
+                Add
+              </Button>
+            ),
+          }
+        : { showBackButton: true, onBack: handlePanelClose })}
     >
-      {/* Mounted only behind canManageDogRegistrations (DogDetailsMain). */}
-      <RegistrationsSection dog={dog} canEdit />
+      {mode === 'list' && (
+        <div ref={listRef}>
+          {/* Mounted only behind canManageDogRegistrations (DogDetailsMain). */}
+          <RegistrationsSection dog={dog} canEdit />
+        </div>
+      )}
+      {mode !== 'list' && (
+        <div ref={formRef} tabIndex={-1} className="h-full outline-none">
+          {mode === 'add' ? (
+            <AddRegistrationPanel
+              open
+              variant="inline"
+              closeRequestRef={closeFormRef}
+              onClose={leaveMode}
+              onSave={handleAdd}
+              dogName={dog.callName}
+            />
+          ) : (
+            <EditRegistrationPanel
+              open
+              variant="inline"
+              closeRequestRef={closeFormRef}
+              onClose={leaveMode}
+              onSave={handleUpdate}
+              registration={selectedRegistration}
+              dogName={dog.callName}
+            />
+          )}
+        </div>
+      )}
     </SlideOverPanel>
   );
 }

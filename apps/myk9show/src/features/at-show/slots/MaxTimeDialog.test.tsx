@@ -276,7 +276,8 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
         />
       );
       expect(areaInput(1)).toHaveValue('1:30');
-      expect(areaInput(2)).toHaveValue('');
+      // An area with no time of its own starts at area 1's (the time it runs on).
+      expect(areaInput(2)).toHaveValue('1:30');
 
       fireEvent.change(areaInput(2), { target: { value: '2:30' } });
       await clickSave();
@@ -289,6 +290,7 @@ describe('MaxTimeDialog (MYK9-1086)', () => {
 
     it('needs every area before saving', async () => {
       render(<MaxTimeDialog isOpen classData={twoAreas} onClose={vi.fn()} />);
+      fireEvent.change(areaInput(2), { target: { value: '' } });
       await clickSave();
 
       expect(await screen.findByRole('alert')).toHaveTextContent(/area 2 max time/i);

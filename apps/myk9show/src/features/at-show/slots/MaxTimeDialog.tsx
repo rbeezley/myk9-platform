@@ -11,7 +11,7 @@
  * A multi-area class gets one input per area, each with its own time (MYK9-1098);
  * every area must have a time to save.
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type React from 'react';
 import type { MaxTimeDialogProps } from '@myk9/ringside';
 import {
@@ -27,7 +27,7 @@ import { Label } from '@/components/ui/label';
 import { replicatedClassesTable } from '@/services/replication';
 import { handleOpenChange } from './dialogHelpers';
 import { AREA_TIME_FIELDS, maxTimeAreaCount, parseMaxTimeInput } from './maxTimeInput';
-import { maxTimeRangeForClass } from './maxTimeRule';
+import { classUsesAreaMaxTimes, maxTimeRangeForClass } from './maxTimeRule';
 
 const MAX_SECONDS = 15 * 60;
 
@@ -51,16 +51,30 @@ const MaxTimeForm: React.FC<MaxTimeDialogProps> = ({
   classData,
   onTimeUpdate,
 }) => {
-  const areaCount = maxTimeAreaCount(classData.area_count);
-  const [values, setValues] = useState(() =>
+  // One input per area only where the scoresheet uses per-area times (AKC).
+  const [perArea, setPerArea] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    classUsesAreaMaxTimes(classData.id)
+      .catch(() => false)
+      .then(uses => {
+        if (!cancelled) setPerArea(uses);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [classData.id]);
+  const areaCount = perArea ? maxTimeAreaCount(classData.area_count) : 1;
+  const [allValues, setValues] = useState(() =>
     [
       classData.time_limit_seconds,
       classData.time_limit_area2_seconds,
       classData.time_limit_area3_seconds,
     ]
-      .slice(0, areaCount)
+      .slice(0, maxTimeAreaCount(classData.area_count))
       .map(toMinutesSeconds)
   );
+  const values = allValues.slice(0, areaCount);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 

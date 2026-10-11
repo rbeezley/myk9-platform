@@ -7,7 +7,8 @@
  * rule is for the class's CURRENT element and level. Otherwise it asks the server,
  * and refuses rather than guesses when offline or when the lookup fails.
  */
-import { replicatedClassesTable } from '@/services/replication';
+import { replicatedClassesTable, replicatedTrialsTable } from '@/services/replication';
+import { getTrialRegistry } from '@/features/registries';
 import {
   isRuleCurrent,
   resolveTimeLimitRulesForClassRows,
@@ -32,4 +33,16 @@ export async function maxTimeRangeForClass(classId: string): Promise<MaxTimeRang
   ]).catch(() => null);
   const rule = rules?.get(classId);
   return rule ? timeLimitRuleRange(rule) : 'lookup-failed';
+}
+
+/**
+ * Whether the class's scoresheet times each area against its own max (MYK9-1098).
+ * Only the AKC Scent Work sheet does; ASCA keeps one time until its area work
+ * (MYK9-1103), so its dialog keeps one input. Unknown trial: one input.
+ */
+export async function classUsesAreaMaxTimes(classId: string): Promise<boolean> {
+  const cls = await replicatedClassesTable.get(classId);
+  if (!cls?.trialId) return false;
+  const trial = await replicatedTrialsTable.getTrialById(cls.trialId);
+  return !!trial && getTrialRegistry(trial).id === 'AKC';
 }

@@ -8,7 +8,8 @@
  * and refuses rather than guesses when offline or when the lookup fails.
  */
 import { useEffect, useState } from 'react';
-import { replicatedClassesTable } from '@/services/replication';
+import { replicatedClassesTable, replicatedTrialsTable } from '@/services/replication';
+import { getTrialRegistry } from '@/features/registries';
 import {
   type TimeLimitRule,
   isRuleCurrent,
@@ -70,4 +71,16 @@ export function useMaxTimeRange(classId: string): MaxTimeRange | null {
     };
   }, [classId]);
   return range;
+}
+
+/**
+ * Whether the class's scoresheet times each area against its own max (MYK9-1098).
+ * Only the AKC Scent Work sheet does; ASCA keeps one time until its area work
+ * (MYK9-1103), so its dialog keeps one input. Unknown trial: one input.
+ */
+export async function classUsesAreaMaxTimes(classId: string): Promise<boolean> {
+  const cls = await replicatedClassesTable.get(classId);
+  if (!cls?.trialId) return false;
+  const trial = await replicatedTrialsTable.getTrialById(cls.trialId);
+  return !!trial && getTrialRegistry(trial).id === 'AKC';
 }

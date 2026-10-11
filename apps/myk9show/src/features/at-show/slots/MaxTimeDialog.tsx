@@ -13,7 +13,7 @@
  * allowed range with 30-second quick picks, and a time the rulebook fixes is shown
  * read-only rather than asked for (MYK9-1101, both from myK9Q).
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type React from 'react';
 import type { MaxTimeDialogProps } from '@myk9/ringside';
 import {
@@ -34,7 +34,7 @@ import {
   parseMaxTimeInput,
   toMinutesSeconds,
 } from './maxTimeInput';
-import { maxTimeRangeForClass, useMaxTimeRange } from './maxTimeRule';
+import { classUsesAreaMaxTimes, maxTimeRangeForClass, useMaxTimeRange } from './maxTimeRule';
 import { MaxTimeQuickPicks } from './MaxTimeQuickPicks';
 
 const MAX_SECONDS = 15 * 60;
@@ -53,16 +53,30 @@ const MaxTimeForm: React.FC<MaxTimeDialogProps> = ({
   classData,
   onTimeUpdate,
 }) => {
-  const areaCount = maxTimeAreaCount(classData.area_count);
-  const [values, setValues] = useState(() =>
+  // One input per area only where the scoresheet uses per-area times (AKC).
+  const [perArea, setPerArea] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    classUsesAreaMaxTimes(classData.id)
+      .catch(() => false)
+      .then(uses => {
+        if (!cancelled) setPerArea(uses);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [classData.id]);
+  const areaCount = perArea ? maxTimeAreaCount(classData.area_count) : 1;
+  const [allValues, setValues] = useState(() =>
     [
       classData.time_limit_seconds,
       classData.time_limit_area2_seconds,
       classData.time_limit_area3_seconds,
     ]
-      .slice(0, areaCount)
+      .slice(0, maxTimeAreaCount(classData.area_count))
       .map(toMinutesSeconds)
   );
+  const values = allValues.slice(0, areaCount);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [focusedArea, setFocusedArea] = useState(0);

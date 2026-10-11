@@ -222,7 +222,7 @@ describe('combined card merges both sections (MYK9-1092)', () => {
       'in_progress'
     );
     expect(pair({ class_status: 'completed' }, { class_status: 'setup' }).class_status).toBe(
-      'setup'
+      'in_progress'
     );
     expect(pair({ class_status: 'completed' }, { class_status: 'completed' }).class_status).toBe(
       'completed'
@@ -239,6 +239,72 @@ describe('combined card merges both sections (MYK9-1092)', () => {
     expect(pair({ class_status: 'no-status' }, { class_status: 'break' }).class_status).toBe(
       'no-status'
     );
+  });
+
+  test('status matrix: every A/B combination', () => {
+    const all = [
+      'no-status',
+      'setup',
+      'briefing',
+      'break',
+      'start_time',
+      'in_progress',
+      'offline-scoring',
+      'completed',
+    ] as const;
+    const rank = ['no-status', 'setup', 'briefing', 'break', 'start_time'];
+    for (const a of all) {
+      for (const b of all) {
+        let want: string;
+        if (a === 'offline-scoring' || b === 'offline-scoring') want = 'offline-scoring';
+        else if (a === 'in_progress' || b === 'in_progress') want = 'in_progress';
+        else if (a === 'completed' && b === 'completed') want = 'completed';
+        else if (a === 'completed' || b === 'completed') want = 'in_progress';
+        else want = rank.indexOf(a) <= rank.indexOf(b) ? a : b;
+        expect(pair({ class_status: a }, { class_status: b }).class_status, `${a}/${b}`).toBe(want);
+      }
+    }
+  });
+
+  test('offline-scoring survives against completed and in progress', () => {
+    expect(
+      pair({ class_status: 'completed' }, { class_status: 'offline-scoring' }).class_status
+    ).toBe('offline-scoring');
+    expect(
+      pair({ class_status: 'offline-scoring' }, { class_status: 'in_progress' }).class_status
+    ).toBe('offline-scoring');
+  });
+
+  test('times compare as instants, not strings', () => {
+    const z = pair(
+      { planned_start_time: '2026-10-10T15:00:00Z' },
+      {
+        planned_start_time: '2026-10-10T10:30:00-05:00',
+      }
+    ).planned_start_time;
+    // 15:00Z is earlier than 15:30Z (10:30-05:00); winner keeps its original string.
+    expect(z).toBe('2026-10-10T15:00:00Z');
+    const same = pair(
+      { start_time: '2026-10-10T09:00:00+00:00' },
+      {
+        start_time: '2026-10-10T08:30:00Z',
+      }
+    ).start_time;
+    expect(same).toBe('2026-10-10T08:30:00Z');
+  });
+
+  test('clock times compare numerically and with AM/PM', () => {
+    expect(pair({ start_time: '10:00' }, { start_time: '9:00' }).start_time).toBe('9:00');
+    expect(pair({ start_time: '1:00 PM' }, { start_time: '11:30 AM' }).start_time).toBe('11:30 AM');
+    expect(pair({ start_time: '12:15 AM' }, { start_time: '9:00 AM' }).start_time).toBe('12:15 AM');
+  });
+
+  test('ISO vs HH:MM keeps the dated instant; unparseable loses to parseable', () => {
+    expect(pair({ start_time: '8:00' }, { start_time: '2026-10-10T15:00:00Z' }).start_time).toBe(
+      '2026-10-10T15:00:00Z'
+    );
+    expect(pair({ start_time: 'soon' }, { start_time: '9:00' }).start_time).toBe('9:00');
+    expect(pair({ start_time: '9:00' }, { start_time: 'soon' }).start_time).toBe('9:00');
   });
 
   test('release shows only when both are released, at the later stamp', () => {

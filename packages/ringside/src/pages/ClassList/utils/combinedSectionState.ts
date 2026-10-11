@@ -9,6 +9,7 @@
  */
 
 import type { ClassEntry, ClassStatusValue } from '../types';
+import { pickClassTime } from './classTimeValue';
 
 /** Order of the lifecycle before a class is actively being scored. */
 const PRE_SCORING_RANK: Record<ClassStatusValue, number> = {
@@ -22,16 +23,21 @@ const PRE_SCORING_RANK: Record<ClassStatusValue, number> = {
   completed: 7,
 };
 
-/** Completed only when both are; in progress if either is; else the earlier state. */
+/**
+ * Offline scoring wins (the warning must survive). Otherwise in progress if
+ * either section is, or if only one is completed (half the pair is scored).
+ * Completed only when both are; else the earlier pre-scoring state.
+ */
 export function mergeSectionStatus(a: ClassStatusValue, b: ClassStatusValue): ClassStatusValue {
-  if (a === 'completed' && b === 'completed') return 'completed';
-  if (a === 'in_progress' || b === 'in_progress') return 'in_progress';
   if (a === 'offline-scoring' || b === 'offline-scoring') return 'offline-scoring';
+  if (a === 'in_progress' || b === 'in_progress') return 'in_progress';
+  if (a === 'completed' && b === 'completed') return 'completed';
+  if (a === 'completed' || b === 'completed') return 'in_progress';
   return PRE_SCORING_RANK[a] <= PRE_SCORING_RANK[b] ? a : b;
 }
 
-const earlier = (a?: string, b?: string) => (a && b ? (a < b ? a : b) : (a ?? b));
-const later = (a?: string, b?: string) => (a && b ? (a > b ? a : b) : (a ?? b));
+const earlier = (a?: string, b?: string) => pickClassTime(a, b, 'earlier');
+const later = (a?: string, b?: string) => pickClassTime(a, b, 'later');
 
 type TimeKey =
   | 'planned_start_time'

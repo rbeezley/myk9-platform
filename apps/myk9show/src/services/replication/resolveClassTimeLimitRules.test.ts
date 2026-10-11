@@ -36,7 +36,9 @@ describe('timeLimitRuleRange (mirrors ringside_update_class)', () => {
 });
 
 describe('resolveTimeLimitRulesForClassRows', () => {
-  beforeEach(() => from.mockReset());
+  beforeEach(() => {
+    from.mockReset();
+  });
 
   it('aggregates section rows and maps each class by registry, element and level', async () => {
     from.mockImplementation((table: string) =>

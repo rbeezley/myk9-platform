@@ -30,6 +30,8 @@ import { signInAsSecretary } from '../helpers/testUsers';
  * isolated target is rebuilt per Nightly run (`qa:isolated-e2e:reset`), so the reset is the
  * restore. Re-running against an already-used local database will fail at the first step the
  * previous run already completed; reseed it.
+ *
+ * Each phase is a `test.step`, so a red run names the phase that broke.
  */
 
 const CLASS_NAME = 'Container Novice A';
@@ -68,21 +70,47 @@ async function findFixtureClass(page: Page, auth: RestAuth, today: string) {
   return { showId: target.trials.show_id, classId: target.id };
 }
 
-/** Paper-score both fixture dogs Qualified, unless a previous step already scored the class. */
-async function scoreFromPaper(page: Page, classId: string) {
+/**
+ * Paper-score both fixture dogs Qualified, unless a previous run already scored the class.
+ *
+ * The paper page reads the LOCAL replica once on mount (PaperScoresheetPage.tsx load effect) and
+ * never re-reads when entries sync in, so a cold direct load can list zero dogs while its
+ * "0 of 0 scored" counter is already on screen (the first CI run timed out waiting for a dog
+ * button for this reason). The Results tab reads reactively, so it is opened first and given time
+ * to show the class's two dogs; only then does the paper page load, from a warm replica. The dog
+ * wait reloads once more in case the replica was still filling.
+ */
+async function scoreFromPaper(page: Page, resultsUrl: string, classId: string) {
+  await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
+  await expect(
+    page.getByRole('list', { name: 'Classes' }).getByText(/Scored\s*\d+\s*\/\s*2/)
+  ).toBeVisible({ timeout: 45_000 });
+
   await page.goto(`/scoring/classes/${classId}/entries?mode=split`, {
     waitUntil: 'domcontentloaded',
   });
   await expect(page.getByRole('heading', { name: CLASS_NAME })).toBeVisible({ timeout: 20_000 });
-  const progress = page.getByText(/\d+ of \d+ scored/).first();
-  await expect(progress).toBeVisible({ timeout: 20_000 });
-  if ((await progress.innerText()).startsWith('2 of 2')) return;
+  const willow = page.getByRole('button', { name: /Willow/ });
+  await expect(async () => {
+    if (!(await willow.isVisible())) await page.reload({ waitUntil: 'domcontentloaded' });
+    await expect(willow).toBeVisible({ timeout: 10_000 });
+  }).toPass({ timeout: 60_000 });
+
+  if (await page.getByText('2 of 2 scored').first().isVisible()) return;
 
   for (const dog of ['Willow', 'Cooper']) {
-    await page.getByRole('button', { name: new RegExp(dog) }).click();
-    await page.locator('button[aria-label="Q"]').filter({ hasText: 'Qualified' }).click();
-    await page.getByLabel('Search Time').fill(dog === 'Willow' ? '4231' : '5107');
-    await page.getByRole('button', { name: 'Save & Next' }).click();
+    const row = page.getByRole('button', { name: new RegExp(dog) });
+    await row.click();
+    const qualified = page.locator('button[aria-label="Q"]').filter({ hasText: 'Qualified' });
+    await expect(qualified).toBeVisible();
+    await qualified.click();
+    const time = page.getByLabel('Search Time');
+    await expect(time).toBeVisible();
+    await time.fill(dog === 'Willow' ? '4231' : '5107');
+    const saveNext = page.getByRole('button', { name: 'Save & Next' });
+    await expect(saveNext).toBeEnabled();
+    await saveNext.click();
+    await expect(row).toContainText('Q', { timeout: 20_000 });
   }
   await expect(page.getByText('2 of 2 scored').first()).toBeVisible({ timeout: 20_000 });
 }
@@ -120,7 +148,7 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
   test('a secretary takes the fixture class from scores to a signed-off class (MYK9-1031)', async ({
     page,
   }) => {
-    test.setTimeout(240_000);
+    test.setTimeout(300_000);
     // A second net behind the DATA_REQUIRED skip: nothing here may reach shared staging.
     await installSharedStagingWriteGuard(page);
     // The system print dialog is not testable; stub it in every frame (the report prints from an
@@ -131,111 +159,132 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
     });
 
     const capture = captureRestAuth(page);
-    await signInAsSecretary(page);
-    const { showId, classId } = await findFixtureClass(
-      page,
-      await capture.get(),
-      todayInFixtureZone()
-    );
-    const resultsUrl = `/shows/${encodeURIComponent(showId)}/results?classId=${encodeURIComponent(classId)}`;
+    let showId = '';
+    let classId = '';
+    let resultsUrl = '';
     const detail = page.getByRole('region', { name: `${CLASS_NAME} results` });
-
-    // 1. Scored: both dogs from paper.
-    await scoreFromPaper(page, classId);
-
-    // 2. Open the class on Results. A scored class that is not Complete sends the secretary to
-    // Overview to complete it (Results never completes a class itself).
-    await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
     const verifyButton = detail.getByRole('button', { name: 'Scores match the paper' });
-    const completeFirst = detail.getByRole('link', { name: /Mark Class Complete on Overview/ });
-    await expect(verifyButton.or(completeFirst).first()).toBeVisible({ timeout: 30_000 });
-    if (await completeFirst.isVisible()) {
-      await completeFirst.click();
-      await markClassComplete(page);
-      await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
-    }
-
-    // 3. Verify: Release is held until every dog is ticked against the paper.
-    await expect(verifyButton).toBeVisible({ timeout: 30_000 });
-    await expect(verifyButton).toBeDisabled();
-    await expect(detail.getByRole('button', { name: 'Release results' })).toBeDisabled();
-    const ticks = detail.getByRole('checkbox');
-    const dogCount = await ticks.count();
-    expect(dogCount, 'the fixture class holds two dogs').toBe(2);
-    for (let index = 0; index < dogCount; index += 1) {
-      await ticks.nth(index).check();
-      await expect(ticks.nth(index)).toBeChecked();
-    }
-    await expect(verifyButton).toBeEnabled();
-    await verifyButton.click();
-    await expect(detail.getByText(/Scores checked against the paper by you/)).toBeVisible({
-      timeout: 20_000,
-    });
-
-    // 4. Release: the server is asked first, then the release lands.
-    const release = detail.getByRole('button', { name: 'Release results' });
-    await expect(release).toBeEnabled({ timeout: 20_000 });
-    await release.click();
-    await expect(page.getByText('Results released').first()).toBeVisible({ timeout: 20_000 });
-    await expect(detail.getByText('Print the results sheet and ribbon labels')).toBeVisible({
-      timeout: 20_000,
-    });
-
-    // 5. Print the Results sheet: the link opens the report, Print fires, and the print is
-    // recorded from the toast it offers.
-    const sheetRow = paperworkRow(detail, 'Results sheet');
-    await expect(sheetRow.getByText('Not confirmed printed')).toBeVisible({ timeout: 20_000 });
-    await sheetRow.getByRole('link', { name: /Print/ }).click();
-    await expect(page).toHaveURL(/\/reports\?.*report=results-sheet/);
-    const printButton = page.getByRole('button', { name: 'Print', exact: true });
-    await expect(printButton).toBeVisible({ timeout: 30_000 });
-    // The preview builds asynchronously; Print answers "Still building the preview" until then.
-    await expect(async () => {
-      await printButton.click();
-      await expect(page.getByText('Print dialog opened.').first()).toBeVisible({ timeout: 3_000 });
-    }).toPass({ timeout: 30_000 });
-    await page.getByRole('button', { name: 'Mark printed' }).click();
-    await expect(page.getByText('Marked as printed.').first()).toBeVisible({ timeout: 15_000 });
-
-    // 6. Back on Results the sheet reads printed, and the judge's day can be initialed.
-    await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
-    await expect(paperworkRow(detail, 'Results sheet').getByText(/^Printed /)).toBeVisible({
-      timeout: 20_000,
-    });
+    const releaseButton = detail.getByRole('button', { name: 'Release results' });
     const signOff = detail.locator('section[aria-labelledby="judge-sign-off-heading"]');
-    await expect(signOff).toBeVisible({ timeout: 20_000 });
-    await signOff.getByRole('button', { name: /^Record initials/ }).click();
-    await expect(page.getByText('Initials recorded on 1 class')).toBeVisible({ timeout: 20_000 });
 
-    // 7. Reload: the class reads released, checked and initialed from the server's copy.
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await expect(detail.getByText('Released', { exact: true }).first()).toBeVisible({
-      timeout: 30_000,
+    await test.step('1. sign in and find the fixture class', async () => {
+      await signInAsSecretary(page);
+      ({ showId, classId } = await findFixtureClass(
+        page,
+        await capture.get(),
+        todayInFixtureZone()
+      ));
+      resultsUrl = `/shows/${encodeURIComponent(showId)}/results?classId=${encodeURIComponent(classId)}`;
     });
-    await expect(detail.getByText(/Scores checked against the paper by you/)).toBeVisible();
-    const signOffAfter = detail.locator('section[aria-labelledby="judge-sign-off-heading"]');
-    await expect(signOffAfter.getByText('Initialed by judge').first()).toBeVisible({
-      timeout: 20_000,
-    });
-    await expect(
-      signOffAfter.getByRole('button', { name: `Undo initials: ${CLASS_NAME}` })
-    ).toBeVisible();
-    await expect(detail.getByText('All done for this class')).toBeVisible();
 
-    // 8. The same class on a phone: the list and the detail each fit the screen.
-    await page.setViewportSize(PHONE);
-    await page.goto(`/shows/${encodeURIComponent(showId)}/results`, {
-      waitUntil: 'domcontentloaded',
+    await test.step('2. score both dogs from paper', async () => {
+      await scoreFromPaper(page, resultsUrl, classId);
     });
-    await expect(
-      page
-        .getByRole('list', { name: 'Classes' })
-        .getByRole('link', { name: new RegExp(CLASS_NAME) })
-        .first()
-    ).toBeVisible({ timeout: 30_000 });
-    await expectNoHorizontalOverflow(page, 'Results class list at 375px');
-    await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
-    await expect(detail).toBeVisible({ timeout: 30_000 });
-    await expectNoHorizontalOverflow(page, 'Results class detail at 375px');
+
+    await test.step('3. open the class on Results (complete it first if needed)', async () => {
+      await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
+      // A scored class that is not Complete sends the secretary to Overview to complete it;
+      // Results never completes a class itself.
+      const completeFirst = detail.getByRole('link', { name: /Mark Class Complete on Overview/ });
+      await expect(verifyButton.or(completeFirst).first()).toBeVisible({ timeout: 30_000 });
+      if (await completeFirst.isVisible()) {
+        await completeFirst.click();
+        await markClassComplete(page);
+        await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
+      }
+    });
+
+    await test.step('4. tick every dog against the paper and verify', async () => {
+      await expect(verifyButton).toBeVisible({ timeout: 30_000 });
+      // Release stays held until the check is saved.
+      await expect(verifyButton).toBeDisabled();
+      await expect(releaseButton).toBeDisabled();
+      const ticks = detail.getByRole('checkbox');
+      await expect(ticks).toHaveCount(2);
+      for (let index = 0; index < 2; index += 1) {
+        await ticks.nth(index).check();
+        await expect(ticks.nth(index)).toBeChecked();
+      }
+      await expect(verifyButton).toBeEnabled();
+      await verifyButton.click();
+      await expect(detail.getByText(/Scores checked against the paper by you/)).toBeVisible({
+        timeout: 20_000,
+      });
+    });
+
+    await test.step('5. release the results', async () => {
+      await expect(releaseButton).toBeEnabled({ timeout: 20_000 });
+      await releaseButton.click();
+      await expect(page.getByText('Results released').first()).toBeVisible({ timeout: 20_000 });
+      await expect(detail.getByText('Print the results sheet and ribbon labels')).toBeVisible({
+        timeout: 20_000,
+      });
+    });
+
+    await test.step('6. print the Results sheet from the report and record it', async () => {
+      const sheetRow = paperworkRow(detail, 'Results sheet');
+      await expect(sheetRow.getByText('Not confirmed printed')).toBeVisible({ timeout: 20_000 });
+      await sheetRow.getByRole('link', { name: /Print/ }).click();
+      await expect(page).toHaveURL(/\/reports\?.*report=results-sheet/);
+      const printButton = page.getByRole('button', { name: 'Print', exact: true });
+      await expect(printButton).toBeVisible({ timeout: 30_000 });
+      // The preview builds asynchronously; Print answers "Still building the preview" until then.
+      await expect(async () => {
+        await printButton.click();
+        await expect(page.getByText('Print dialog opened.').first()).toBeVisible({
+          timeout: 3_000,
+        });
+      }).toPass({ timeout: 30_000 });
+      const markPrinted = page.getByRole('button', { name: 'Mark printed' });
+      await expect(markPrinted).toBeVisible();
+      await markPrinted.click();
+      await expect(page.getByText('Marked as printed.').first()).toBeVisible({ timeout: 15_000 });
+    });
+
+    await test.step('7. back on Results: sheet reads printed, record the judge initials', async () => {
+      await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
+      await expect(paperworkRow(detail, 'Results sheet').getByText(/^Printed /)).toBeVisible({
+        timeout: 30_000,
+      });
+      await expect(signOff).toBeVisible({ timeout: 20_000 });
+      const record = signOff.getByRole('button', { name: /^Record initials/ });
+      await expect(record).toBeEnabled();
+      await record.click();
+      await expect(page.getByText('Initials recorded on 1 class')).toBeVisible({
+        timeout: 20_000,
+      });
+    });
+
+    await test.step('8. reload: released, checked and initialed', async () => {
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await expect(detail.getByText('Released', { exact: true }).first()).toBeVisible({
+        timeout: 30_000,
+      });
+      await expect(detail.getByText(/Scores checked against the paper by you/)).toBeVisible();
+      await expect(signOff.getByText('Initialed by judge').first()).toBeVisible({
+        timeout: 20_000,
+      });
+      await expect(
+        signOff.getByRole('button', { name: `Undo initials: ${CLASS_NAME}` })
+      ).toBeVisible();
+      await expect(detail.getByText('All done for this class')).toBeVisible();
+    });
+
+    await test.step('9. the same class on a 375px phone fits the screen', async () => {
+      await page.setViewportSize(PHONE);
+      await page.goto(`/shows/${encodeURIComponent(showId)}/results`, {
+        waitUntil: 'domcontentloaded',
+      });
+      await expect(
+        page
+          .getByRole('list', { name: 'Classes' })
+          .getByRole('link', { name: new RegExp(CLASS_NAME) })
+          .first()
+      ).toBeVisible({ timeout: 30_000 });
+      await expectNoHorizontalOverflow(page, 'Results class list at 375px');
+      await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
+      await expect(detail).toBeVisible({ timeout: 30_000 });
+      await expectNoHorizontalOverflow(page, 'Results class detail at 375px');
+    });
   });
 });

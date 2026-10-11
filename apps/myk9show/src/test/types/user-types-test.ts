@@ -24,6 +24,7 @@ const personRow: PersonTable['Row'] = {
   status: 'active',
   street_address: null,
   updated_at: null,
+  version: 1,
   zip_code: null,
 };
 

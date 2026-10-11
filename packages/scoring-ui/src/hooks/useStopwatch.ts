@@ -6,7 +6,7 @@
  * Features:
  * - Start/stop/reset timer controls
  * - Auto-stop when max time is reached
- * - 30-second warning for non-Master levels
+ * - 30-second warning unless the class rule withholds it (AKC Master)
  * - Voice announcements integration (via callbacks)
  * - Remaining time calculations
  */
@@ -48,10 +48,21 @@ function parseMaxTimeToMs(maxTime: string): number {
  * <div>{stopwatch.formatTime(stopwatch.time)}</div>
  * ```
  */
+/**
+ * Whether the timer gives the 30-second warning: the class rule decides
+ * (MYK9-1102); without one, Master gets none.
+ */
+function givesThirtySecondWarning(rule: boolean | undefined, level: string | undefined): boolean {
+  if (rule !== undefined) return rule;
+  const normalizedLevel = level?.toLowerCase() || '';
+  return !(normalizedLevel === 'master' || normalizedLevel === 'masters');
+}
+
 export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
   const {
     maxTime: rawMaxTime,
     level,
+    thirtySecondWarning,
     enableVoiceAnnouncements = false,
     onTimeExpired,
     onWarningChime,
@@ -61,6 +72,7 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
   // A zero max ("0:00" -- a class with no time set) is NO limit: no expiry, no
   // warning, no auto-stop. Every check below keys on `maxTime` being set.
   const maxTime = rawMaxTime && parseMaxTimeToMs(rawMaxTime) > 0 ? rawMaxTime : undefined;
+  const warns = givesThirtySecondWarning(thirtySecondWarning, level);
 
   // Timer state
   const [time, setTime] = useState(0);
@@ -129,14 +141,12 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
   };
 
   /**
-   * Check if 30-second warning should be shown (non-Master only)
+   * Check if 30-second warning should be shown (unless the rule withholds it)
    */
   const shouldShow30SecondWarning = (): boolean => {
     if (!isRunning || !maxTime) return false;
 
-    // No warnings for Master level
-    const normalizedLevel = level?.toLowerCase() || '';
-    if (normalizedLevel === 'master' || normalizedLevel === 'masters') return false;
+    if (!warns) return false;
 
     // Parse max time to milliseconds
     const maxTimeMs = parseMaxTimeToMs(maxTime);
@@ -263,9 +273,7 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
       return;
     }
 
-    // No warnings for Master level
-    const normalizedLevel = level?.toLowerCase() || '';
-    if (normalizedLevel === 'master' || normalizedLevel === 'masters') return;
+    if (!warns) return;
 
     // Parse max time to milliseconds
     const maxTimeMs = parseMaxTimeToMs(maxTime);
@@ -300,7 +308,7 @@ export function useStopwatch(options: StopwatchOptions = {}): StopwatchReturn {
     time,
     isRunning,
     enableVoiceAnnouncements,
-    level,
+    warns,
     maxTime,
     onWarningChime,
     onVoiceAnnouncement,

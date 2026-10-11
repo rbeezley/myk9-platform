@@ -13,6 +13,7 @@ import { formatTrialLabel } from '@myk9/core';
 import { Button, Input, Card, cn } from '@myk9/ui';
 import { ScoresheetDogCard } from '../../ScoresheetDogCard';
 import { TimerResetButton } from '../../TimerResetButton';
+import { RecordAreaTimeButton } from '../../RecordAreaTimeButton';
 import { formatScoresheetSubtitle } from '../../../utils/scoresheetSubtitle';
 import { useStopwatch } from '../../../hooks/useStopwatch';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
@@ -46,34 +47,6 @@ function buildHeaderTitle(classInfo: LiveScoresheetProps['classInfo']): string {
     : formatted;
 }
 
-/** Multi-area: copy the stopped clock into the area it timed (MYK9-1098). */
-function RecordAreaTimeButton({
-  areaNames,
-  timedArea,
-  isRunning,
-  elapsedMs,
-  onRecord,
-}: {
-  areaNames: string[];
-  timedArea: number;
-  isRunning: boolean;
-  elapsedMs: number;
-  onRecord: () => void;
-}) {
-  if (areaNames.length < 2 || isRunning || elapsedMs === 0) return null;
-  const areaName = areaNames[timedArea];
-  return (
-    <Button
-      variant="outline"
-      className="mt-3 h-11"
-      onClick={onRecord}
-      data-testid="timer-record-area"
-    >
-      Record {areaName ?? 'area'} time
-    </Button>
-  );
-}
-
 export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   entry,
   classInfo,
@@ -100,6 +73,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   const stopwatch = useStopwatch({
     maxTime: maxTimeStr,
     level: classInfo.level,
+    thirtySecondWarning: rules.thirtySecondWarning,
     enableVoiceAnnouncements,
     onWarningChime,
     onVoiceAnnouncement,

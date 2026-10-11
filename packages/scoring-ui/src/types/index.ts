@@ -41,6 +41,11 @@ export interface StopwatchOptions {
   maxTime?: string;
   /** Current level (e.g., "Novice", "Master") - Master excludes 30-second warning */
   level?: string;
+  /**
+   * The class rule's 30-second warning (MYK9-1102). When set it decides; when
+   * absent the level fallback applies (no warning for Master).
+   */
+  thirtySecondWarning?: boolean | undefined;
   /** Enable voice announcements including 30-second warning */
   enableVoiceAnnouncements?: boolean;
   /** Callback when timer expires (auto-stop) */

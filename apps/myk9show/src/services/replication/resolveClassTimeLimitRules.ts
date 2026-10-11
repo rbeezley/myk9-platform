@@ -21,6 +21,8 @@ export interface TimeLimitRule {
   fixed?: number | undefined;
   min?: number | undefined;
   max?: number | undefined;
+  /** False when the rulebook withholds the 30-second warning (AKC Master; MYK9-1102). */
+  thirtySecondWarning?: boolean | undefined;
   /**
    * The rest of the rule, for the ringside Requirements dialog offline
    * (MYK9-1100). Absent on a rule cached before it was added.
@@ -44,7 +46,7 @@ export interface RuleDisplay {
   odors: string[];
 }
 
-type RuleLimits = Pick<TimeLimitRule, 'fixed' | 'min' | 'max' | 'display'>;
+type RuleLimits = Pick<TimeLimitRule, 'fixed' | 'min' | 'max' | 'thirtySecondWarning' | 'display'>;
 
 interface RuleClassRow {
   id: string;
@@ -59,6 +61,7 @@ interface RuleRow {
   max_time_seconds_fixed: number | null;
   max_time_seconds_min: number | null;
   max_time_seconds_max: number | null;
+  has_30_second_warning?: boolean | null;
   hide_count_fixed?: number | null;
   hide_count_min?: number | null;
   hide_count_max?: number | null;
@@ -130,7 +133,7 @@ export async function resolveTimeLimitRulesForClassRows(
   const { data: rules, error: rulesError } = await supabase
     .from('sport_class_rules')
     .select(
-      'element, level, max_time_seconds_fixed, max_time_seconds_min, max_time_seconds_max, hide_count_fixed, hide_count_min, hide_count_max, hides_known, distraction_count_min, distraction_count_max, area_count, has_blank, timer_mode, odors, sport_templates!inner(organization)'
+      'element, level, max_time_seconds_fixed, max_time_seconds_min, max_time_seconds_max, has_30_second_warning, hide_count_fixed, hide_count_min, hide_count_max, hides_known, distraction_count_min, distraction_count_max, area_count, has_blank, timer_mode, odors, sport_templates!inner(organization)'
     )
     .in('sport_templates.organization', registries);
   if (rulesError) {
@@ -153,6 +156,9 @@ export async function resolveTimeLimitRulesForClassRows(
       fixed: maxOf(prev.fixed, rule.max_time_seconds_fixed),
       min: minOf(prev.min, rule.max_time_seconds_min),
       max: maxOf(prev.max, rule.max_time_seconds_max),
+      // Withheld if any section's rule withholds it.
+      thirtySecondWarning:
+        (prev.thirtySecondWarning ?? true) && rule.has_30_second_warning !== false,
       // Requirement values come from the first section row (A and B share them).
       display: prev.display ?? ruleDisplay(rule),
     });

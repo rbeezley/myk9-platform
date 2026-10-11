@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
+import { classScoringRules } from './classScoringRules';
 import type { ReactNode } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, AlertCircle, List, PanelTop } from 'lucide-react';
@@ -10,7 +11,7 @@ import { ShowDeskReturnLink } from '@/features/show-map/cockpit/ShowDeskReturnLi
 import { replicatedClassesTable } from '@/services/replication/ReplicatedClassesTable';
 import { loadEntriesWithDogs } from './paperScoresheetData';
 import { REFRESH_FAILED_MESSAGE, refreshEntriesAfterSave } from './paperScoresheetReload';
-import { buildResolvedClassRules, type ScoresheetSportType } from '@myk9/scoring-ui';
+import { type ScoresheetSportType } from '@myk9/scoring-ui';
 import { useAuthContext } from '@/hooks/useAuthContext';
 import {
   calculatePlacements,
@@ -102,7 +103,7 @@ export function PaperScoresheetPage() {
           const { organization, sportType } = mapSportType(derivedSport);
           setSportKey(toRegistryKey(organization, sportType));
         }
-        const rules = buildResolvedClassRules(cls);
+        const rules = classScoringRules(cls);
         setMaxTimeSeconds(rules.areaCount > 1 ? undefined : rules.maxTimeSeconds);
       } catch (err) {
         if (cancelled) return;

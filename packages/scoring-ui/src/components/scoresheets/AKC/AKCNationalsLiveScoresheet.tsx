@@ -108,6 +108,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   const stopwatch = useStopwatch({
     maxTime: areaMaxTimeStr,
     level: classInfo.level,
+    thirtySecondWarning: rules.thirtySecondWarning,
     enableVoiceAnnouncements,
     onWarningChime,
     onVoiceAnnouncement,

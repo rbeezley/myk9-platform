@@ -116,6 +116,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
   const stopwatch = useStopwatch({
     maxTime: searchMaxTime,
     level: classInfo.level,
+    thirtySecondWarning: rules.thirtySecondWarning,
     enableVoiceAnnouncements,
     onWarningChime,
     onVoiceAnnouncement,
@@ -142,6 +143,7 @@ export const UKCNoseworkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
     maxTimeMs,
     elementTimeMs: elementTimer.time,
     isRunning: elementTimer.isRunning,
+    thirtySecondWarning: rules.thirtySecondWarning,
     enableVoiceAnnouncements,
     onWarningChime,
     onVoiceAnnouncement,

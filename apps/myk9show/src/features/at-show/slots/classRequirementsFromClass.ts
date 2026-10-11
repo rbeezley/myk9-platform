@@ -45,6 +45,11 @@ export function classRequirementsFromClass(
     has_blank: rule?.hasBlank ?? false,
     timer_mode: rule?.timerMode ?? cls.timerMode ?? 'single',
     odors: rule?.odors ?? [],
+    // Only what the cached rule says: an older cache shows no note until the next
+    // sync refreshes it, rather than guessing a timer's fallback.
+    thirty_second_warning: isRuleCurrent(cls.timeLimitRule, cls)
+      ? cls.timeLimitRule.thirtySecondWarning
+      : undefined,
   };
 }
 

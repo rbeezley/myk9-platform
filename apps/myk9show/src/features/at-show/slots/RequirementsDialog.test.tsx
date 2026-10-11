@@ -130,6 +130,20 @@ describe('ringside ClassRequirementsDialog (MYK9-1100)', () => {
     expect(screen.queryByRole('button', { name: /set max time/i })).not.toBeInTheDocument();
   });
 
+  it('notes No 30-second warning only when the cached rule says so', async () => {
+    seed({ timeLimitRule: { ...rule, thirtySecondWarning: false } });
+    const { unmount } = render(
+      <ClassRequirementsDialog isOpen onClose={vi.fn()} classData={classData} />
+    );
+    expect(await screen.findByText(/No 30-second warning/)).toBeInTheDocument();
+    unmount();
+
+    seed({ timeLimitRule: { ...rule, thirtySecondWarning: undefined } });
+    render(<ClassRequirementsDialog isOpen onClose={vi.fn()} classData={classData} />);
+    await screen.findByText(/Area 1 1:30/);
+    expect(screen.queryByText(/No 30-second warning/)).not.toBeInTheDocument();
+  });
+
   it('shows saved area 2 and 3 times even when area 1 is unset', async () => {
     seed({ timeLimitSeconds: undefined });
     render(<ClassRequirementsDialog isOpen onClose={vi.fn()} classData={classData} />);

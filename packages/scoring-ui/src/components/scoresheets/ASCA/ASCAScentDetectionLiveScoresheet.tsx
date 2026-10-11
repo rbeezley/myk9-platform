@@ -15,8 +15,11 @@ import { ScoresheetDogCard } from '../../ScoresheetDogCard';
 import { formatScoresheetSubtitle } from '../../../utils/scoresheetSubtitle';
 import { useStopwatch } from '../../../hooks/useStopwatch';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
+import { useTimedArea } from '../../../hooks/useTimedArea';
+import { maxTimeForArea } from '../../../utils/buildResolvedClassRules';
+import { RecordAreaTimeButton } from '../../RecordAreaTimeButton';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
-import { timerLimitLine } from '../../../utils/maxTimeLabel';
+import { maxTimeLabel, timerLimitLine } from '../../../utils/maxTimeLabel';
 import { DQ_ACTIVE_CLASS, DisqualifyReason } from '../../DisqualifyReason';
 import type { LiveScoresheetProps } from '../../../types/scoreData';
 import type { ExtendedResult } from '../../../types/scoreData';
@@ -48,24 +51,44 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
 }) => {
   const [showConfirmation, setShowConfirmation] = useState(false);
 
-  const maxTimeStr = `${Math.floor(rules.maxTimeSeconds / 60)}:${String(rules.maxTimeSeconds % 60).padStart(2, '0')}`;
-
   const scoring = useScoresheetScoring({
     rules,
     existingScore: entry.existingScore,
   });
 
+  // Each area runs against its own max time, as on the AKC sheet (MYK9-1103).
+  const area = useTimedArea(scoring.areas.map(a => a.time));
+  const areaMaxSeconds = maxTimeForArea(rules, area.timedArea);
+  const maxTimeStr = `${Math.floor(areaMaxSeconds / 60)}:${String(areaMaxSeconds % 60).padStart(2, '0')}`;
+
   const stopwatch = useStopwatch({
     maxTime: maxTimeStr,
     level: classInfo.level,
+    thirtySecondWarning: rules.thirtySecondWarning,
     enableVoiceAnnouncements,
     onWarningChime,
     onVoiceAnnouncement,
     onTimeExpired: formattedTime => {
-      scoring.handleAreaUpdate(0, 'time', formattedTime);
+      scoring.handleAreaUpdate(area.timedAreaRef.current, 'time', formattedTime);
       scoring.applyMaxTimeNQ();
     },
   });
+
+  const handleStartTimer = () => {
+    area.pinOnStart(stopwatch.time);
+    stopwatch.start();
+  };
+
+  const handleResetTimer = () => {
+    area.release();
+    stopwatch.reset();
+  };
+
+  // Multi-area: record the clock into the area it timed; reset for the next.
+  const handleRecordArea = () => {
+    scoring.handleAreaUpdate(area.timedArea, 'time', stopwatch.formatTime(stopwatch.time));
+    handleResetTimer();
+  };
 
   const handleStopTimer = useCallback(() => {
     const elapsedMs = stopwatch.pause();
@@ -193,11 +216,7 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
                 </div>
 
                 <div className="text-sm text-muted-foreground mt-2 tabular-nums">
-                  {timerLimitLine(
-                    stopwatch.time,
-                    rules.maxTimeSeconds,
-                    stopwatch.getRemainingTime()
-                  )}
+                  {timerLimitLine(stopwatch.time, areaMaxSeconds, stopwatch.getRemainingTime())}
                 </div>
 
                 <div className="mt-6">
@@ -216,7 +235,7 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
                       size="lg"
                       variant="outline"
                       className="w-32 h-12 text-lg font-semibold"
-                      onClick={stopwatch.reset}
+                      onClick={handleResetTimer}
                     >
                       Reset
                     </Button>
@@ -225,7 +244,7 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
                       size="lg"
                       variant="secondary"
                       className="w-32 h-12 text-lg font-semibold"
-                      onClick={stopwatch.start}
+                      onClick={handleStartTimer}
                     >
                       Resume
                     </Button>
@@ -233,13 +252,20 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
                     <Button
                       size="lg"
                       className="w-32 h-12 text-lg font-semibold bg-green-600 hover:bg-green-700"
-                      onClick={stopwatch.start}
+                      onClick={handleStartTimer}
                       data-testid="timer-start"
                     >
                       Start
                     </Button>
                   )}
                 </div>
+                <RecordAreaTimeButton
+                  areaNames={scoring.areas.map(a => a.areaName)}
+                  timedArea={area.timedArea}
+                  isRunning={stopwatch.isRunning}
+                  elapsedMs={stopwatch.time}
+                  onRecord={handleRecordArea}
+                />
               </div>
             </Card>
 
@@ -258,25 +284,26 @@ export const ASCAScentDetectionLiveScoresheet: React.FC<LiveScoresheetProps> = (
             )}
 
             {/* Area Times */}
-            {scoring.areas.map((area, index) => (
+            {scoring.areas.map((searchArea, index) => (
               <Card key={index} className="p-4">
-                <label className="text-sm font-medium text-muted-foreground mb-1 block">
-                  {area.areaName}
+                <label className="text-sm font-medium text-muted-foreground mb-1 flex justify-between">
+                  <span>{searchArea.areaName}</span>
+                  <span className="text-xs">Max: {maxTimeLabel(maxTimeForArea(rules, index))}</span>
                 </label>
                 <div className="relative">
                   <Input
                     type="text"
-                    value={area.time}
+                    value={searchArea.time}
                     onChange={e => scoring.handleAreaUpdate(index, 'time', e.target.value)}
                     placeholder="0:00.00"
                     className="text-center text-xl font-mono pr-12"
-                    aria-label={`${area.areaName} time`}
+                    aria-label={`${searchArea.areaName} time`}
                   />
-                  {area.time && (
+                  {searchArea.time && (
                     <button
                       type="button"
                       className="absolute right-0 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center text-muted-foreground hover:text-foreground"
-                      aria-label={`Clear ${area.areaName} time`}
+                      aria-label={`Clear ${searchArea.areaName} time`}
                       onClick={() => scoring.handleAreaUpdate(index, 'time', '')}
                     >
                       <X className="h-4 w-4" />

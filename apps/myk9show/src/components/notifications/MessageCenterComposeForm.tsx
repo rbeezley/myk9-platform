@@ -1,13 +1,6 @@
 import { useState } from 'react';
 import { AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -27,9 +20,9 @@ import type {
   MessageShowRecipientType,
 } from '@/features/show-workbench/messageShow';
 
-export interface MessageCenterComposeDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+export interface MessageCenterComposeFormProps {
+  /** Called after a message is sent, so the host can leave compose mode. */
+  onSent: () => void;
   /** The shows this person may post to (`selectComposeShows`). */
   options: readonly ComposeShowOption[];
   /** The show of the page the composer was opened from, or ''. */
@@ -45,16 +38,15 @@ export interface MessageCenterComposeDialogProps {
 
 const JUDGE_RECIPIENTS: MessageShowRecipientType[] = ['all_show'];
 
-export function MessageCenterComposeDialog({
-  open,
-  onOpenChange,
+export function MessageCenterComposeForm({
+  onSent,
   options,
   routeShowId,
   pendingMessage,
   emptyMessage,
   manageRecipients,
   manageShowWideLane,
-}: MessageCenterComposeDialogProps) {
+}: MessageCenterComposeFormProps) {
   const [pickedShowId, setPickedShowId] = useState('');
   const { selected, locked } = resolveComposeShow(options, routeShowId, pickedShowId);
   const selectedShowId = selected?.id ?? '';
@@ -66,8 +58,8 @@ export function MessageCenterComposeDialog({
     data: classes = [],
     isError: classesError,
     refetch: retryClasses,
-  } = useMessageShowClassOptions(open && needsClasses ? selectedShowId : null, {
-    enabled: open && needsClasses,
+  } = useMessageShowClassOptions(needsClasses ? selectedShowId : null, {
+    enabled: needsClasses,
   });
 
   function renderShowField() {
@@ -141,24 +133,19 @@ export function MessageCenterComposeDialog({
         allowedRecipients={recipients}
         showWideDeliveryLane={isJudgeLane ? 'announcement' : manageShowWideLane}
         showHistoryLink={false}
-        onSent={() => onOpenChange(false)}
+        onSent={onSent}
       />
     );
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Compose show message</DialogTitle>
-          <DialogDescription>
-            Send a show message to everyone, a class, or checked-in exhibitors.
-          </DialogDescription>
-        </DialogHeader>
-        {pendingMessage && <p className="text-sm text-muted-foreground">{pendingMessage}</p>}
-        {renderShowField()}
-        {renderComposer()}
-      </DialogContent>
-    </Dialog>
+    <div className="space-y-4 p-3">
+      <p className="text-sm text-muted-foreground">
+        Send a show message to everyone, a class, or checked-in exhibitors.
+      </p>
+      {pendingMessage && <p className="text-sm text-muted-foreground">{pendingMessage}</p>}
+      {renderShowField()}
+      {renderComposer()}
+    </div>
   );
 }

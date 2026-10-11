@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { screen, fireEvent } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { MessageCenterPanel } from '../MessageCenterPanel';
 import { useNotificationStore } from '@/store/notificationStore';
@@ -84,7 +84,9 @@ vi.mock('@/features/show-workbench/MessageShowComposer', () => ({
     showId,
     allowedRecipients,
     showWideDeliveryLane,
+    onSent,
   }: {
+    onSent?: () => void;
     showId: string;
     allowedRecipients?: string[];
     showWideDeliveryLane?: string;
@@ -95,6 +97,9 @@ vi.mock('@/features/show-workbench/MessageShowComposer', () => ({
       data-show-wide-lane={showWideDeliveryLane ?? ''}
     >
       Composer for {showId}
+      <button type="button" onClick={onSent}>
+        Mock send
+      </button>
     </div>
   ),
 }));
@@ -738,5 +743,85 @@ describe('MessageCenterPanel', () => {
 
     expect(markThreadRead).toHaveBeenCalledWith('thread-1');
     expect(markThreadRead).not.toHaveBeenCalledWith('thread-2');
+  });
+
+  describe('compose is a mode of the one panel (MYK9-1088)', () => {
+    function openComposeAsSecretary(route?: string) {
+      authContext = {
+        user: { id: 'secretary-1', email: 'secretary@test.com' },
+        userWithRoles: {
+          id: 'secretary-1',
+          roles: ['secretary'],
+          scopes: SECRETARY_SCOPES,
+          user_metadata: {},
+        },
+        isSecretary: true,
+        isAdmin: false,
+        hasRole: (role: string) => role === 'secretary',
+      };
+      renderPanel(route);
+      fireEvent.click(screen.getByRole('button', { name: /compose/i }));
+    }
+
+    it('renders the compose form inside the single panel, not a second dialog', async () => {
+      openComposeAsSecretary();
+
+      const dialogs = screen.getAllByRole('dialog');
+      expect(dialogs).toHaveLength(1);
+      expect(dialogs[0]).toHaveAccessibleName(/compose show message/i);
+      expect(dialogs[0]).toContainElement(screen.getByRole('combobox'));
+      expect(dialogs[0].querySelector('.slide-over-panel')).not.toBeNull();
+    });
+
+    it('keeps focus inside the panel after Compose and after Back', () => {
+      openComposeAsSecretary();
+      const panel = () => screen.getByRole('dialog').querySelector('.slide-over-panel');
+      expect(panel()).toContainElement(document.activeElement as HTMLElement);
+      expect(document.activeElement).not.toBe(document.body);
+
+      fireEvent.click(screen.getByRole('button', { name: /back/i }));
+      expect(panel()).toContainElement(document.activeElement as HTMLElement);
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: /compose/i }));
+    });
+
+    it('Escape inside the show picker closes the popup but stays in compose', async () => {
+      openComposeAsSecretary();
+      fireEvent.click(screen.getByRole('combobox'));
+      expect(await screen.findByRole('listbox')).toBeInTheDocument();
+      fireEvent.keyDown(document.activeElement ?? document.body, { key: 'Escape' });
+
+      await waitFor(() => expect(screen.queryByRole('listbox')).not.toBeInTheDocument());
+      expect(screen.getByRole('dialog', { name: /compose show message/i })).toBeInTheDocument();
+    });
+
+    it('Back returns to the Message Center list', async () => {
+      openComposeAsSecretary();
+
+      fireEvent.click(screen.getByRole('button', { name: /back/i }));
+
+      expect(screen.getByRole('dialog', { name: /message center/i })).toBeInTheDocument();
+      expect(screen.getByRole('tablist')).toBeInTheDocument();
+      expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    });
+
+    it('returns to the list after a message is sent', async () => {
+      openComposeAsSecretary('/secretary/messages?showId=show-1');
+
+      fireEvent.click(screen.getByRole('button', { name: /mock send/i }));
+
+      expect(screen.getByRole('dialog', { name: /message center/i })).toBeInTheDocument();
+      expect(screen.queryByTestId('message-show-composer')).not.toBeInTheDocument();
+    });
+
+    it('Escape steps back to the list before closing the panel', async () => {
+      openComposeAsSecretary();
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(screen.getByRole('dialog', { name: /message center/i })).toBeInTheDocument();
+      expect(useNotificationStore.getState().isCenterOpen).toBe(true);
+
+      fireEvent.keyDown(document, { key: 'Escape' });
+      expect(useNotificationStore.getState().isCenterOpen).toBe(false);
+    });
   });
 });

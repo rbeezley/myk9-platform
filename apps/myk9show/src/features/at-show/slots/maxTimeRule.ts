@@ -62,8 +62,14 @@ export async function maxTimeRangeForClass(classId: string): Promise<MaxTimeRang
  * shown always match what Save will check.
  */
 export function useMaxTimeRange(classId: string): MaxTimeRange | null {
-  const cls = useLiveClasses([classId])?.[0];
-  const ruleKey = cls ? JSON.stringify([cls.element, cls.level, cls.timeLimitRule ?? null]) : null;
+  const classes = useLiveClasses([classId]);
+  const cls = classes?.[0];
+  // Null only while the class read is pending; a missing class still resolves (to
+  // 'lookup-failed') so Save never stays disabled.
+  const ruleKey =
+    classes === null
+      ? null
+      : JSON.stringify([cls?.element, cls?.level, cls?.timeLimitRule ?? null]);
   const [range, setRange] = useState<MaxTimeRange | null>(null);
   useEffect(() => {
     if (ruleKey === null) return;

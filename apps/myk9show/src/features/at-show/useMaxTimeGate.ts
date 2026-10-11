@@ -8,9 +8,11 @@
  * classDataToReplicatedClass; every live fixed-rule class carried it on
  * 2026-10-11), so ringside never writes one.
  *
- * Only someone whose save the server will accept is asked: a judge or admin
- * (canManageClasses) who, signed in as a judge account, is assigned to the class
- * (the scoresheet's own check). Everyone else's tap goes on to the scoresheet,
+ * The block is at the list, when it opens (owner decision 2026-10-11: the dog is
+ * already at the ring, so the scoresheet is too late). A judge or admin
+ * (canManageClasses) is asked unless the assignment check has CONFIRMED a signed-in
+ * judge is not assigned to the class -- while it is still checking, they are asked,
+ * so the prompt never waits on it. Everyone else's tap goes on to the scoresheet,
  * which gates them itself. A completed or cancelled class, or one with no
  * judge-set rule on this device, is never gated.
  */
@@ -63,8 +65,7 @@ export function useMaxTimeGate({
     isAnonymous: user?.is_anonymous === true,
     classId: classIds[0],
   });
-  const mayAsk =
-    canSetMaxTime && (assignment.status === 'assigned' || assignment.status === 'not-applicable');
+  const mayAsk = canSetMaxTime && assignment.status !== 'unassigned';
 
   // Set Max Time with the "required before scoring" banner.
   const openRequired = useCallback(() => {

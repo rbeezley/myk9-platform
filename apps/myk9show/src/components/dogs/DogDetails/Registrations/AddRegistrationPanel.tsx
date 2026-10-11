@@ -1,6 +1,7 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, type MutableRefObject } from 'react';
 import { z } from 'zod';
 import { EditPanelWrapper } from '@/components/panels/edit/EditPanelWrapper';
+import type { EditPanelVariant } from '@/components/panels/edit/EditPanelWrapper.types';
 import { addedMessage } from '@/components/panels/edit/panelSaveErrors';
 import { useEditPanel } from '@/components/panels/edit/useEditPanel';
 import { Input } from '@/components/ui/input';
@@ -28,6 +29,9 @@ interface AddRegistrationPanelProps {
   onClose: () => void;
   onSave: (data: AddRegistrationFormData) => Promise<void>;
   dogName?: string | undefined;
+  /** `inline` renders the form inside a host panel (the Manage registrations panel). */
+  variant?: EditPanelVariant;
+  closeRequestRef?: MutableRefObject<(() => void) | null>;
 }
 
 const INITIAL_FORM_DATA: AddRegistrationFormData = {
@@ -269,6 +273,8 @@ export function AddRegistrationPanel({
   onClose,
   onSave,
   dogName,
+  variant,
+  closeRequestRef,
 }: AddRegistrationPanelProps) {
   return (
     <EditPanelWrapper
@@ -280,6 +286,8 @@ export function AddRegistrationPanel({
       onSave={onSave}
       schema={addRegistrationFormSchema}
       size="lg"
+      {...(variant !== undefined && { variant })}
+      {...(closeRequestRef !== undefined && { closeRequestRef })}
       saveLabel="Add Registration"
       successMessage={addedMessage(undefined, 'Registration')}
       showUnsavedWarning={true}

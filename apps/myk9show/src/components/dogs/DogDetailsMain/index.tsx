@@ -367,13 +367,9 @@ const DogDetailsLoaded: React.FC<DogDetailsMainProps & { gates: DogPageGates }> 
         </div>
       </PageShell>
 
-      {/* ORDER IS LOAD-BEARING. SlideOverPanel does not portal and its root is
-          `fixed inset-0 z-50`, so among equal-z siblings the LATER one paints on
-          top. The Add/Edit/Delete panels are raised FROM the Manage panel, so
-          they must come after it or they mount invisibly behind its backdrop —
-          and since Overview no longer carries a registrations list, that is the
-          exhibitor's only route to edit or delete one. Pinned by a DOM-order
-          test in ownerResolution.test.tsx. */}
+      {/* Add and Edit are a mode INSIDE the Manage panel (MYK9-1089), so the
+          host below stands down while it is open (`managePanelOpen`): one
+          slide-out on screen, never two. Pinned in ownerResolution.test.tsx. */}
       {canManageRegistrations && (
         <ManageRegistrationsPanel
           open={isManageRegistrationsOpen}
@@ -387,6 +383,7 @@ const DogDetailsLoaded: React.FC<DogDetailsMainProps & { gates: DogPageGates }> 
       {canManageRegistrations && (
         <DogRegistrationDialogs
           dog={updatedDog}
+          managePanelOpen={isManageRegistrationsOpen}
           autoOpenAddDialog={addRegistrationDogId === dog.id}
           onAddRequestConsumed={() => setAddRegistrationDogId(null)}
         />

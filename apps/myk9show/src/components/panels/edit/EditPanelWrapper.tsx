@@ -7,7 +7,6 @@ import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { useFormValidation, FormValidation } from '@/hooks/useFormValidation';
 import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { UnsavedChangesRouteGuard } from '@/components/navigation/UnsavedChangesRouteGuard';
 import { DiscardChangesDialog } from './DiscardChangesDialog';
 import { PanelSaveHandledError, offlineAwareMessage } from './panelSaveErrors';
@@ -15,6 +14,7 @@ import { friendlySaveError } from '@/utils/friendlySaveError';
 import { EditPanelDeleteDialog } from './EditPanelDelete';
 import type { DeleteRecordsResult } from '@/features/delete';
 import { EditPanelFooter } from './EditPanelFooter';
+import { EditPanelDialogShell, EditPanelInlineShell } from './EditPanelShells';
 import { RequiredLegend } from '@/components/common/RequiredMark';
 import { useEditPanelSteps } from './useEditPanelSteps';
 import type { EditPanelWrapperProps } from './EditPanelWrapper.types';
@@ -54,6 +54,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   className,
   onDelete,
   variant = 'panel',
+  closeRequestRef,
   forceHasChanges = false,
   successMessage,
   onDataChange,
@@ -346,12 +347,34 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     if (isLoading) return;
     // The delete dialog is answering for this panel: leaving now would orphan it.
     if (deleteOpen) return;
+    // Defensive: Escape reaches the host's key handler AND the open prompt, and
+    // the prompt answers it ("Keep editing"), so a host copy must not re-raise
+    // it. Today the prompt's own dismissal already wins (the test passes with
+    // this line removed); it keeps that true if the handlers ever reorder.
+    if (showUnsavedDialog) return;
     if (hasChanges && showUnsavedWarning) {
       setShowUnsavedDialog(true);
       return;
     }
     closeWithoutRouteGuard();
-  }, [hasChanges, showUnsavedWarning, closeWithoutRouteGuard, isLoading, deleteOpen]);
+  }, [
+    hasChanges,
+    showUnsavedWarning,
+    showUnsavedDialog,
+    closeWithoutRouteGuard,
+    isLoading,
+    deleteOpen,
+  ]);
+
+  // An inline host owns Back / Escape / X and routes them here, so the discard
+  // prompt and the save-in-flight hold apply exactly as they do to Cancel.
+  useEffect(() => {
+    if (!closeRequestRef) return;
+    closeRequestRef.current = handleClose;
+    return () => {
+      closeRequestRef.current = null;
+    };
+  }, [closeRequestRef, handleClose]);
 
   const routeLeaveGuard = (
     <UnsavedChangesRouteGuard
@@ -461,6 +484,10 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
       <DiscardChangesDialog
         open={showUnsavedDialog}
         onOpenChange={setShowUnsavedDialog}
+        // Inline: Discard unmounts this form and the prompt with it, and the
+        // dialog's default return-focus then falls back to some EARLIER popup's
+        // trigger behind the host's modal. The host places focus itself.
+        {...(variant === 'inline' && { finalFocus: () => !confirmedCloseRef.current })}
         onDiscard={() => {
           confirmedCloseRef.current = true;
           setShowUnsavedDialog(false);
@@ -474,25 +501,26 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   if (variant === 'dialog') {
     return (
       <EditPanelContext.Provider value={contextValue}>
-        <Dialog
+        <EditPanelDialogShell
           open={open}
-          onOpenChange={(isOpen: boolean) => {
-            if (!isOpen) handleClose();
-          }}
-        >
-          <DialogContent className="max-w-2xl max-h-[90vh] flex flex-col gap-0 p-0 overflow-hidden">
-            <DialogHeader className="px-6 pt-6 pb-4 border-b shrink-0">
-              <DialogTitle>{title}</DialogTitle>
-            </DialogHeader>
-            <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4">{body}</div>
-            <div ref={actionBarRef} className="border-t px-6 py-4 shrink-0">
-              {footer}
-            </div>
-            {deleteDialog}
-          </DialogContent>
-        </Dialog>
-
+          onRequestClose={handleClose}
+          title={title}
+          body={body}
+          footer={footer}
+          actionBarRef={actionBarRef}
+          deleteDialog={deleteDialog}
+        />
         {overlays}
+      </EditPanelContext.Provider>
+    );
+  }
+
+  if (variant === 'inline') {
+    return (
+      <EditPanelContext.Provider value={contextValue}>
+        <EditPanelInlineShell body={body} footer={footer} actionBarRef={actionBarRef} />
+        {overlays}
+        {deleteDialog}
       </EditPanelContext.Provider>
     );
   }

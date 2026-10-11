@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, type ComponentProps } from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,14 +15,17 @@ export function DiscardChangesDialog({
   open,
   onOpenChange,
   onDiscard,
+  finalFocus,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDiscard: () => void;
+  /** Base UI's return-focus rule for this dialog; omit for the default. */
+  finalFocus?: ComponentProps<typeof AlertDialogContent>['finalFocus'];
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent {...(finalFocus !== undefined && { finalFocus })}>
         <AlertDialogHeader>
           <AlertDialogTitle>Discard changes?</AlertDialogTitle>
           <AlertDialogDescription>

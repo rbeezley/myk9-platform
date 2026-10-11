@@ -138,6 +138,53 @@ describe('useMaxTimeGate (MYK9-1099)', () => {
     expect(setMaxTimeRequiredWarning).toHaveBeenLastCalledWith(false);
   });
 
+  it('asks again, and holds taps, when a reused list moves to another class', async () => {
+    seed('c1', { timeLimitSeconds: 120 });
+    seed('c2');
+    const setMaxTimeDialogOpen = vi.fn();
+    const setMaxTimeRequiredWarning = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ ids }: { ids: string[] }) =>
+        useMaxTimeGate({
+          classIds: ids,
+          ready: true,
+          canSetMaxTime: true,
+          showRole: undefined,
+          setMaxTimeDialogOpen,
+          setMaxTimeRequiredWarning,
+        }),
+      { initialProps: { ids: ['c1'] } }
+    );
+    await settle();
+    expect(setMaxTimeDialogOpen).not.toHaveBeenCalled();
+
+    replica.getClassById.mockImplementationOnce(() => new Promise(() => {}));
+    rerender({ ids: ['c2'] });
+    // The previous class's snapshot must not answer for the new one.
+    expect(result.current.gateEntryClick()).toBe(true);
+  });
+
+  it('prompts on a second class after a first one in the same list', async () => {
+    seed('c1');
+    seed('c2');
+    const setMaxTimeDialogOpen = vi.fn();
+    const { rerender } = renderHook(
+      ({ ids }: { ids: string[] }) =>
+        useMaxTimeGate({
+          classIds: ids,
+          ready: true,
+          canSetMaxTime: true,
+          showRole: undefined,
+          setMaxTimeDialogOpen,
+          setMaxTimeRequiredWarning: vi.fn(),
+        }),
+      { initialProps: { ids: ['c1'] } }
+    );
+    await waitFor(() => expect(setMaxTimeDialogOpen).toHaveBeenCalledTimes(1));
+    rerender({ ids: ['c2'] });
+    await waitFor(() => expect(setMaxTimeDialogOpen).toHaveBeenCalledTimes(2));
+  });
+
   it('does not lock the list when the class read fails', async () => {
     seed('c1');
     replica.getClassById.mockRejectedValueOnce(new Error('idb'));

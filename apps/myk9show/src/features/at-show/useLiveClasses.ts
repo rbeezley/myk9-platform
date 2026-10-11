@@ -11,7 +11,9 @@ import type { ReplicatedClass } from '@/services/replication/ReplicatedClassesTa
 
 export function useLiveClasses(classIds: string[], enabled = true): ReplicatedClass[] | null {
   const idsKey = classIds.join(',');
-  const [classes, setClasses] = useState<ReplicatedClass[] | null>(null);
+  // Keyed by the ids read: a list reused for another class (no remount) must not
+  // answer with the previous class while the new read runs.
+  const [snapshot, setSnapshot] = useState<{ key: string; rows: ReplicatedClass[] } | null>(null);
 
   useEffect(() => {
     if (!enabled || !idsKey) return;
@@ -19,10 +21,14 @@ export function useLiveClasses(classIds: string[], enabled = true): ReplicatedCl
     const read = () => {
       Promise.all(idsKey.split(',').map(id => replicatedClassesTable.getClassById(id)))
         .then(rows => {
-          if (!cancelled) setClasses(rows.filter((row): row is ReplicatedClass => !!row));
+          if (!cancelled) {
+            setSnapshot({ key: idsKey, rows: rows.filter((row): row is ReplicatedClass => !!row) });
+          }
         })
         .catch(() => {
-          if (!cancelled) setClasses(current => current ?? []);
+          if (!cancelled) {
+            setSnapshot(current => (current?.key === idsKey ? current : { key: idsKey, rows: [] }));
+          }
         });
     };
     const unsubscribe = replicatedClassesTable.subscribe(read);
@@ -33,5 +39,5 @@ export function useLiveClasses(classIds: string[], enabled = true): ReplicatedCl
     };
   }, [idsKey, enabled]);
 
-  return classes;
+  return snapshot?.key === idsKey ? snapshot.rows : null;
 }

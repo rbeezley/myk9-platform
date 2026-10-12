@@ -336,7 +336,7 @@ describe('Quick Create person Edit Details', { timeout: JOURNEY_TIMEOUT_MS }, ()
   it('offline, Edit Details refuses the save and the secretary can still leave the panel', async () => {
     // A direct update is paused while offline and never settles, and a panel will not close
     // under a save in flight: without a refusal the secretary is stuck until the signal returns.
-    const warning = vi.spyOn(notifications, 'warning').mockImplementation(() => undefined);
+    const warning = vi.spyOn(notifications, 'warning').mockImplementation(() => 'toast-1');
     const { user } = renderFlow();
     await user.click(await reachPersonStep(user));
     setField(await screen.findByLabelText(/First Name/i), 'Mollie');

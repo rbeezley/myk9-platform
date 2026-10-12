@@ -20,6 +20,7 @@ import { getMutationQueueCapacity } from './mutation-queue-capacity';
 import { MutationBackupStore } from './MutationBackupStore';
 import { MutationQueueStore } from './MutationQueueStore';
 import { MutationUploadRunner } from './MutationUploadRunner';
+import { DiscardRevertRegistry } from './mutation-discard-revert';
 import { RowRefetchRegistry } from './mutation-row-refetch';
 import { type PendingMutation, type SyncResult } from './types';
 import type { MutationManagerOptions, MutationUploadAuthContext } from './mutation-manager-options';
@@ -43,8 +44,9 @@ export class MutationManager {
   private readonly getCurrentUploadContext: () => Promise<MutationUploadAuthContext | null>;
   private readonly acquireQueueMutationLock: (() => () => void) | undefined;
   private readonly acquireQueueMutationLockAsync: (() => Promise<() => void>) | undefined;
-  /** Tables that re-fetch a row after a stale full-row OCC rejection (MYK9-771). */
+  /** Per-table hooks: re-fetch on a stale OCC token (MYK9-771), revert on Discard (MYK9-1076). */
   readonly rowRefetchers: RowRefetchRegistry;
+  readonly discardReverters: DiscardRevertRegistry;
 
   constructor(supabaseClient: SupabaseClient, options: MutationManagerOptions = {}) {
     if (!supabaseClient) throw new Error('[MutationManager] Supabase client is required');
@@ -53,7 +55,8 @@ export class MutationManager {
     this.getCurrentUploadContext = options.getCurrentUploadContext ?? (async () => null);
     this.acquireQueueMutationLock = options.acquireQueueMutationLock;
     this.acquireQueueMutationLockAsync = options.acquireQueueMutationLockAsync;
-    this.queueStore = new MutationQueueStore(this.logger);
+    this.discardReverters = new DiscardRevertRegistry(this.logger);
+    this.queueStore = new MutationQueueStore(this.logger, this.discardReverters);
     this.backupStore = new MutationBackupStore(this.logger);
     this.rowRefetchers = new RowRefetchRegistry(this.logger, work =>
       this.uploadRunner.runExclusive(work)
@@ -127,7 +130,8 @@ export class MutationManager {
     dependsOn?: string[],
     serverVersion?: number,
     rpc?: PendingMutation['rpc'],
-    scheduleUploadNow = true
+    scheduleUploadNow = true,
+    rowRevision?: number
   ): Promise<string> {
     const releaseQueueLock = this.acquireQueueMutationLock?.();
     try {
@@ -158,17 +162,14 @@ export class MutationManager {
         authUserId,
         dependsOn,
         serverVersion,
-        rpc
+        rpc,
+        rowRevision
       );
-      // Backup synchronously (not debounced): a page reload inside a debounce
-      // window would leave the newest mutations only in IndexedDB, where browser
-      // cache eviction can destroy them. Offline scores must hit localStorage
-      // before queueMutation resolves.
-      //
-      // But the backup is a SECONDARY safety net: the score is already durable in
-      // IndexedDB above. A localStorage-full failure (Safari private mode, a large
-      // queue) must NOT fail a successfully-queued score, so swallow it here
-      // instead of rejecting queueMutation (audit M2).
+      // Backup synchronously (not debounced): after a reload inside a debounce
+      // window the newest mutations would live only in evictable IndexedDB.
+      // It is a SECONDARY safety net, so a localStorage-full failure (Safari
+      // private mode, a large queue) is swallowed, never failing a durably
+      // queued score (audit M2).
       try {
         await this.backupStore.writeCurrent();
       } catch (backupErr) {

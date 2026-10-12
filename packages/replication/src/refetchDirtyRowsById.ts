@@ -69,3 +69,22 @@ export async function refetchDirtyRowsById<TRemote, TLocal extends { id: string 
   }
   return changed;
 }
+
+/**
+ * Fetch one row for the Discard re-fetch (MYK9-1076), in local shape with its
+ * server `version`. Undefined when the server no longer returns it.
+ */
+export async function fetchRowForDiscard<TRemote, TLocal extends { id: string }>(
+  adapter: RowRefetchAdapter<TRemote, TLocal>,
+  rowId: string
+): Promise<{ data: TLocal; serverVersion: number | undefined } | undefined> {
+  const remote = (await adapter.fetchRowsById([rowId])).find(
+    row => String(adapter.getRemoteId(row)) === rowId
+  );
+  if (remote === undefined) return undefined;
+  const version = (remote as Record<string, unknown>).version;
+  return {
+    data: { ...adapter.toLocalRow(remote), id: rowId } as TLocal,
+    serverVersion: typeof version === 'number' ? version : undefined,
+  };
+}

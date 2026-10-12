@@ -60,6 +60,7 @@ import {
   DOWNLOAD_SYNC_FAILURE_TOAST_ID,
 } from './replicationSyncFormatters';
 import { useSyncPassScheduler } from './useSyncPassScheduler';
+import { useDiscardRevertCacheSync } from './useDiscardRevertCacheSync';
 import {
   classifyTableSyncResults,
   createTablesStatus,
@@ -200,6 +201,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
 }) => {
   const { isOnline } = useNetworkStatus();
   const queryClient = useQueryClient();
+  useDiscardRevertCacheSync();
   const wasOffline = useRef(false);
   const hasInitialSynced = useRef(false);
   const triggerSyncRef = useRef<((targets?: UploadSyncTarget[]) => Promise<void>) | undefined>(

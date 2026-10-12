@@ -18,6 +18,8 @@ export const quickCreateMocks = {
   updateDog: vi.fn(),
   recordOwnerCreated: vi.fn(),
   recordDogCreated: vi.fn(),
+  refreshOwnerCreated: vi.fn(),
+  refreshDogCreated: vi.fn(),
 };
 
 export const usersModule = {
@@ -49,6 +51,8 @@ export const createdInSessionModule = {
     created: { owners: [], dogs: [] },
     recordOwnerCreated: quickCreateMocks.recordOwnerCreated,
     recordDogCreated: quickCreateMocks.recordDogCreated,
+    refreshOwnerCreated: quickCreateMocks.refreshOwnerCreated,
+    refreshDogCreated: quickCreateMocks.refreshDogCreated,
   }),
 };
 

@@ -90,6 +90,7 @@ describe('Quick Create dog Edit', { timeout: JOURNEY_TIMEOUT_MS }, () => {
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(await screen.findByText('Dogs Added (1):')).toBeInTheDocument();
     expect(mocks.updateDog).not.toHaveBeenCalled();
+    expect(mocks.refreshDogCreated).not.toHaveBeenCalled();
     expect(mocks.addDog).toHaveBeenCalledTimes(1);
 
     await completeSetup(user);
@@ -109,6 +110,7 @@ describe('Quick Create dog Edit', { timeout: JOURNEY_TIMEOUT_MS }, () => {
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
 
     await waitFor(() => expect(mocks.updateDog).toHaveBeenCalledTimes(1));
+    expect(mocks.refreshDogCreated).not.toHaveBeenCalled();
     // Still the edit form, with what was typed, so the secretary can retry.
     expect(screen.getByLabelText(/Call Name/i)).toHaveValue('Zig');
 
@@ -143,6 +145,10 @@ describe('Quick Create dog Edit', { timeout: JOURNEY_TIMEOUT_MS }, () => {
     expect(mocks.addDog).toHaveBeenCalledTimes(1);
     expect(mocks.addDogOfflineFirst).not.toHaveBeenCalled();
     expect(mocks.recordDogCreated).toHaveBeenCalledTimes(1);
+    // The "no entry yet" prompt names the dog by its current name.
+    expect(mocks.refreshDogCreated).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'dog-1', callName: 'Ziggy Zoom' })
+    );
 
     await completeSetup(user);
     expect(onFlowCompleted).toHaveBeenCalledWith(expect.objectContaining({ id: 'person-1' }), [
@@ -150,10 +156,11 @@ describe('Quick Create dog Edit', { timeout: JOURNEY_TIMEOUT_MS }, () => {
     ]);
   });
 
-  it('a save keeps the dog registrations even when updateDog returns them stale', async () => {
-    // The real updateDog builds its returned dog from registrations already in
-    // memory, which for a dog made in this flow is usually none. The flow's own
-    // copy must not be replaced by that.
+  it('a save keeps the flow dog whole when updateDog returns a stale derived dog', async () => {
+    // The real updateDog builds its returned dog from data already in memory (no
+    // owner, no health records, registrations from a cache a dog made seconds ago
+    // is not in), so none of it may overwrite what the flow holds. The registrations
+    // card is read-only, so they are not sent for a re-sync either.
     const registration = {
       id: 'reg-1',
       organization: 'AKC',
@@ -164,13 +171,16 @@ describe('Quick Create dog Edit', { timeout: JOURNEY_TIMEOUT_MS }, () => {
     const createDog = mocks.addDog.getMockImplementation();
     mocks.addDog.mockImplementation(async (...args: unknown[]) => ({
       ...(await createDog?.(...args)),
+      breed: 'Border Collie',
+      ownerName: 'Molly Mailbox',
       registrations: [registration],
     }));
     mocks.updateDog.mockImplementation(async (_id: string, updates: object) => ({
       id: 'dog-1',
       name: 'Ziggy',
-      callName: 'Ziggy',
       ...updates,
+      breed: '',
+      ownerName: '',
       registrations: [],
     }));
     const { user, onFlowCompleted } = renderFlow();
@@ -181,11 +191,17 @@ describe('Quick Create dog Edit', { timeout: JOURNEY_TIMEOUT_MS }, () => {
     await user.click(screen.getByRole('button', { name: 'Save Changes' }));
     expect(await screen.findByText('Dogs Added (1):')).toBeInTheDocument();
 
+    expect(mocks.updateDog).toHaveBeenCalledWith(
+      'dog-1',
+      expect.not.objectContaining({ registrations: expect.anything() })
+    );
     await completeSetup(user);
     expect(onFlowCompleted).toHaveBeenCalledWith(expect.objectContaining({ id: 'person-1' }), [
       expect.objectContaining({
         id: 'dog-1',
         callName: 'Ziggy Zoom',
+        breed: 'Border Collie',
+        ownerName: 'Molly Mailbox',
         registrations: [expect.objectContaining({ registrationNumber: 'SR12345678' })],
       }),
     ]);
@@ -250,6 +266,9 @@ describe('Quick Create person Edit Details', { timeout: JOURNEY_TIMEOUT_MS }, ()
     );
     expect(mocks.createUser).toHaveBeenCalledTimes(1);
     expect(mocks.recordOwnerCreated).toHaveBeenCalledTimes(1);
+    expect(mocks.refreshOwnerCreated).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'person-1', firstName: 'Mollie' })
+    );
   });
 
   it('a refused save keeps the person selected and the form open', async () => {

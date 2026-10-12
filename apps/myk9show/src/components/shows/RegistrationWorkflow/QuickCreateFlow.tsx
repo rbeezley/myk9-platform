@@ -113,12 +113,17 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
     setEditingDogId(dog.id);
     setView('dog-edit');
   };
-  const handleDogEdited = (saved: Dog) =>
+  const handleDogEdited = (saved: Dog) => {
+    createdInSession?.refreshDogCreated(saved);
     setFlowState(prev => ({
       ...prev,
       dogs: prev.dogs.map(dog => (dog.id === saved.id ? saved : dog)),
     }));
-  const handlePersonEdited = (saved: User) => setFlowState(prev => ({ ...prev, exhibitor: saved }));
+  };
+  const handlePersonEdited = (saved: User) => {
+    createdInSession?.refreshOwnerCreated(saved);
+    setFlowState(prev => ({ ...prev, exhibitor: saved }));
+  };
   const removedIndexRef = useRef<number | null>(null);
   const handleRemoveDog = (index: number) => {
     removedIndexRef.current = index;

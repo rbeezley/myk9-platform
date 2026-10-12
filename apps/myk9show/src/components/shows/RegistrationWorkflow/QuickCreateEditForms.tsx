@@ -34,13 +34,21 @@ export const QuickCreateDogEdit: React.FC<EditFormProps<Dog>> = ({
   const { updateDog } = useDogStoreCompat();
 
   const handleSave = async (data: Partial<Dog>) => {
-    const saved = await updateDog(dog.id, convertDogToDogInput(data, dog));
+    // The registrations card is read-only, so they are not sent: updateDog would
+    // re-sync them against the server, and a dog made seconds ago offline may not
+    // have its rows there yet.
+    const input = convertDogToDogInput(data, dog);
+    delete input.registrations;
+    const saved = await updateDog(dog.id, input);
     // updateDog has already told the user why (the dog is not on this device yet).
     if (!saved) throw new PanelSaveHandledError();
-    // updateDog builds its returned registrations from data already in memory, which
-    // for a dog made in this flow is stale or empty, so the flow keeps its own copy
-    // unless the form edited them.
-    onSaved({ ...dog, ...saved, registrations: data.registrations ?? dog.registrations });
+    // What the flow holds is the dog as it was plus what the form submitted. `saved` is
+    // rebuilt from data already in memory (no owner, no health records, registrations from
+    // a cache this dog may not be in yet), so none of it is merged back over the flow's copy.
+    const edited = Object.fromEntries(
+      Object.entries(data).filter(([, value]) => value !== undefined)
+    ) as Partial<Dog>;
+    onSaved({ ...dog, ...edited });
   };
 
   return (

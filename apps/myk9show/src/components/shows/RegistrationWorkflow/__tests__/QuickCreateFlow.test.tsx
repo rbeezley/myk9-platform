@@ -4,7 +4,11 @@ import { UserRole } from '@/types/auth-types';
 import type { AddDogPanelProps } from '@/components/panels/edit/AddDogPanel/types';
 import { AddDogPanel } from '@/components/panels/edit';
 import { QuickCreateFlow } from '../QuickCreateFlow';
-import { shouldShowQuickCreateShell } from '../QuickCreateFlow.helpers';
+import {
+  quickCreateProgress,
+  quickCreateStepLabel,
+  quickCreateTitle,
+} from '../QuickCreateFlow.helpers';
 
 vi.mock('@/components/panels/edit', () => ({
   AddDogPanel: vi.fn((props: AddDogPanelProps) =>
@@ -66,21 +70,27 @@ describe('QuickCreateFlow', () => {
     vi.clearAllMocks();
   });
 
-  describe('shouldShowQuickCreateShell (MYK9-832 #4)', () => {
-    it('hides the shell while Create Exhibitor is open', () => {
-      expect(shouldShowQuickCreateShell(true, true, false)).toBe(false);
+  // MYK9-1081: one slide-out whose title follows the view and whose subtitle
+  // says where the secretary is in the three steps (replaces the MYK9-832 #4
+  // shell-hiding helper: there is no second surface to hide any more).
+  describe('panel copy helpers', () => {
+    it.each([
+      ['steps', 'dog', 'Quick Registration Setup'],
+      ['person-form', 'dog', 'Add Person'],
+      ['dog-form', 'dog', 'Add Dog'],
+      ['dog-form', 'registration-add', 'Add New Registration'],
+      ['dog-form', 'registration-edit', 'Edit Registration'],
+    ] as const)('titles the %s view (%s) "%s"', (view, subMode, title) => {
+      expect(quickCreateTitle(view, subMode)).toBe(title);
     });
 
-    it('hides the shell while Add Dog is open', () => {
-      expect(shouldShowQuickCreateShell(true, false, true)).toBe(false);
-    });
-
-    it('shows the shell between child dialogs', () => {
-      expect(shouldShowQuickCreateShell(true, false, false)).toBe(true);
-    });
-
-    it('never shows the shell when the flow itself is closed', () => {
-      expect(shouldShowQuickCreateShell(false, false, false)).toBe(false);
+    it.each([
+      ['exhibitor', 'Step 1 of 3: Add Person', 25],
+      ['dogs', 'Step 2 of 3: Add Dog(s)', 65],
+      ['review', 'Step 3 of 3: Review & Complete', 90],
+    ] as const)('labels the %s step "%s" at %i%%', (step, label, progress) => {
+      expect(quickCreateStepLabel(step)).toBe(label);
+      expect(quickCreateProgress(step)).toBe(progress);
     });
   });
 
@@ -99,7 +109,7 @@ describe('QuickCreateFlow', () => {
         userRole: UserRole.SECRETARY,
         currentUserPersonId: 'person-mailin-1',
         offlineDependsOn: ['person-mutation-1'],
-        variant: 'dialog',
+        variant: 'inline',
       }),
       undefined
     );

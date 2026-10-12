@@ -1,32 +1,28 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EditPanelWrapper, type EditPanelSaveContext } from '../EditPanelWrapper';
-import { useEditPanel } from '../useEditPanel';
-import { Tabs, TabsContent } from '@/components/ui/tabs';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import { AlertCircle } from 'lucide-react';
-import PhotoDialog from '@/components/common/PhotoDialog';
-import { AddEditRegistrationDialog } from '@/components/dogs/AddEditRegistrationDialog';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { DogInput } from '@/store/dogStore';
-import type { Dog } from '@/types/dog-types';
+import type { Dog, Registration } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
 import { logger } from '@/services/LoggingService';
 import { notifications } from '@/lib/notifications';
 import { friendlySaveMessage } from '@/utils/friendlySaveError';
 import { PanelSaveHandledError } from '../panelSaveErrors';
-import type { AddDogPanelProps, DogFormData } from './types';
+import type { AddDogPanelProps, AddDogSubMode, DogFormData } from './types';
 import { createInitialFormData } from './types';
-import { addDogSchema, isTabValid } from './validation';
-import { locateInvalidField, DOG_STEP_TABS } from './validationTab';
+import { addDogSchema } from './validation';
+import {
+  locateInvalidField,
+  DOG_STEP_TABS,
+  ADD_REGISTRATION_ATTR,
+  EDIT_REGISTRATION_ATTR,
+} from './validationTab';
 import { usePanelValidationNavigation } from '../usePanelValidationNavigation';
 import type { TabValue } from './types';
 import { buildDogSavedToast } from './dogSavedToast';
-import { useAddDogForm } from './useAddDogForm';
-import { TabNavigation } from './TabNavigation';
-import { BasicInfoTab } from './BasicInfoTab';
-import { RegistrationTab } from './RegistrationTab';
-import { AdditionalInfoTab } from './AdditionalInfoTab';
+import { AddDogPanelContent } from './AddDogPanelContent';
+import { RegistrationFormInline } from './RegistrationFormInline';
+import { usePanelModeFocus } from '../../usePanelModeFocus';
 import { findLikelyDuplicateDogCandidate, type DogIdentityCandidate } from '@/utils/dogIdentity';
 
 export type { AddDogPanelProps } from './types';
@@ -47,6 +43,8 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
   onEnterShowWithDog,
   showStartDate,
   createdFromShowId,
+  closeRequestRef,
+  onSubModeChange,
 }) => {
   const { addDog, addDogOfflineFirst, dogs, error: saveError } = useDogStoreCompat();
   const [localSaveError, setLocalSaveError] = useState<string | null>(null);
@@ -188,7 +186,66 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
     }
   };
 
-  return (
+  // --- Inline only (MYK9-1081): the registration form is a sub-mode of this
+  // panel's host, shown in place of the dog form. The dog form stays mounted
+  // (hidden and inert) so its values and active tab survive the round trip.
+  const inline = variant === 'inline';
+  const [registration, setRegistration] = useState<{ editing?: Registration } | null>(null);
+  const subMode: AddDogSubMode = !registration
+    ? 'dog'
+    : registration.editing
+      ? 'registration-edit'
+      : 'registration-add';
+  const saveRegistrationRef = useRef<((registration: Registration) => void) | null>(null);
+  const dogCloseRef = useRef<(() => void) | null>(null);
+  const dogFormRef = useRef<HTMLDivElement>(null);
+  const registrationFormRef = useRef<HTMLDivElement>(null);
+  const lastEditedIdRef = useRef<string | null>(null);
+
+  const openRegistration = useCallback(
+    (editing: Registration | undefined) => {
+      lastEditedIdRef.current = editing?.id ?? null;
+      setRegistration(editing ? { editing } : {});
+      onSubModeChange?.(editing ? 'registration-edit' : 'registration-add');
+    },
+    [onSubModeChange]
+  );
+  const leaveRegistration = useCallback(() => {
+    setRegistration(null);
+    onSubModeChange?.('dog');
+  }, [onSubModeChange]);
+
+  // The host's Back / Escape / X: leave the sub-mode, else the dog form's own
+  // close request (the discard prompt when dirty).
+  const inSubMode = registration !== null;
+  useEffect(() => {
+    if (!closeRequestRef) return;
+    closeRequestRef.current = () => (inSubMode ? leaveRegistration() : dogCloseRef.current?.());
+    return () => {
+      closeRequestRef.current = null;
+    };
+  }, [closeRequestRef, inSubMode, leaveRegistration]);
+
+  const registrationReturnTarget = useCallback((left: AddDogSubMode) => {
+    const dogForm = dogFormRef.current;
+    const editedId = lastEditedIdRef.current;
+    const target =
+      left === 'registration-edit' && editedId
+        ? dogForm?.querySelector<HTMLElement>(
+            `[${EDIT_REGISTRATION_ATTR}="${CSS.escape(editedId)}"]`
+          )
+        : dogForm?.querySelector<HTMLElement>(`[${ADD_REGISTRATION_ATTR}]`);
+    return target ?? dogForm;
+  }, []);
+  usePanelModeFocus({
+    mode: subMode,
+    home: 'dog',
+    formRef: registrationFormRef,
+    returnTarget: registrationReturnTarget,
+    enabled: inline,
+  });
+
+  const dogForm = (
     <EditPanelWrapper<DogFormData>
       open={open}
       onClose={onClose}
@@ -202,6 +259,7 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
       enableAutoSave={false}
       showUnsavedWarning={true}
       variant={variant}
+      {...(inline && { closeRequestRef: dogCloseRef })}
       onValidationFail={handleValidationFail}
       steps={{
         mode: 'create',
@@ -225,208 +283,36 @@ const AddDogPanelSession: React.FC<AddDogPanelProps> = ({
           setAllowSeparateDog(true);
           setDuplicateCandidate(null);
         }}
+        {...(inline && {
+          onOpenRegistration: openRegistration,
+          saveRegistrationRef,
+        })}
       />
     </EditPanelWrapper>
   );
-};
 
-/** Inner component rendered within EditPanelWrapper so it can access useEditPanel context */
-interface AddDogPanelContentProps {
-  open: boolean;
-  activeTab: TabValue;
-  onActiveTabChange: (tab: TabValue) => void;
-  userRole: UserRole;
-  currentUserPersonId?: string | undefined;
-  showStartDate?: string | undefined;
-  saveError: string | null;
-  duplicateCandidate: DogIdentityCandidate | null;
-  onUseExistingDog: (dog: Dog) => void;
-  onCreateSeparateDog: () => void;
-}
-
-const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
-  open,
-  activeTab,
-  onActiveTabChange,
-  userRole,
-  currentUserPersonId,
-  showStartDate,
-  saveError,
-  duplicateCandidate,
-  onUseExistingDog,
-  onCreateSeparateDog,
-}) => {
-  const { form, runSelfNavigation, requestTab } = useEditPanel<DogFormData>();
-
-  // The hook needs form to manage registrations/photos via context
-  const uiState = useAddDogForm({ open, form });
-
-  const {
-    // Photo state
-    isPhotoDialogOpen,
-    photoPreview,
-    isPhotoDragging,
-    setIsPhotoDragging,
-    // Registration dialog state
-    isAddEditRegDialogOpen,
-    setIsAddEditRegDialogOpen,
-    currentRegToEdit,
-    // Handlers
-    handleSaveRegistration,
-    handleRemoveRegistration,
-    handlePhotoDialogOpen,
-    handlePhotoDrop,
-    handlePhotoFileInput,
-    handlePhotoSave,
-    openAddRegistration,
-    openEditRegistration,
-  } = uiState;
-
-  // Sync ownerId when currentUserPersonId resolves asynchronously
-  const ownerIdValue = form?.data.ownerId;
-  const setFormValue = form?.setValue;
-  useEffect(() => {
-    if (currentUserPersonId && setFormValue && !ownerIdValue) {
-      setFormValue('ownerId', currentUserPersonId);
-    }
-  }, [currentUserPersonId, setFormValue, ownerIdValue]);
-
-  // Reset form when panel re-opens
-  const [prevOpen, setPrevOpen] = React.useState(open);
-  if (open !== prevOpen) {
-    setPrevOpen(open);
-    if (open && form) {
-      form.reset({
-        ...createInitialFormData(),
-        ownerId: currentUserPersonId || '',
-      });
-    }
-  }
-
-  if (!form) return null;
-
-  const formData = form.data;
-
-  // Tab validity for navigation indicators. The Optional tab has no required
-  // fields, so it carries no completion indicator (4.E).
-  const isBasicValid = isTabValid('basic', formData);
-  const hasRegistrations = formData.registrations.length > 0;
-  const isRegistrationValid = isTabValid('registration', formData);
+  if (!inline) return dogForm;
 
   return (
     <>
-      <div className="space-y-8">
-        {/* Error Display */}
-        {saveError && (
-          <Alert className="border-destructive/30 bg-destructive/10 ">
-            <AlertCircle className="h-4 w-4 text-destructive " />
-            <AlertDescription className="text-destructive ">{saveError}</AlertDescription>
-          </Alert>
-        )}
-
-        {duplicateCandidate && (
-          <Alert className="border-amber-300 bg-amber-50 text-amber-950">
-            <AlertCircle className="h-4 w-4 text-amber-700" />
-            <AlertDescription>
-              <div className="space-y-3">
-                <p>
-                  This looks like {duplicateCandidate.dog.callName || duplicateCandidate.dog.name},
-                  already saved for this owner.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    onClick={() =>
-                      runSelfNavigation(() => onUseExistingDog(duplicateCandidate.dog))
-                    }
-                  >
-                    Use existing dog
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={onCreateSeparateDog}>
-                    Create separate dog
-                  </Button>
-                </div>
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Tabbed Content */}
-        <Tabs
-          value={activeTab}
-          onValueChange={value =>
-            requestTab ? requestTab(value) : onActiveTabChange(value as TabValue)
-          }
-        >
-          <TabNavigation
-            isBasicValid={isBasicValid}
-            hasRegistrations={hasRegistrations}
-            isRegistrationValid={isRegistrationValid}
+      <div
+        ref={dogFormRef}
+        tabIndex={-1}
+        hidden={inSubMode}
+        inert={inSubMode}
+        className="h-full outline-none"
+      >
+        {dogForm}
+      </div>
+      {registration && (
+        <div ref={registrationFormRef} tabIndex={-1} className="h-full outline-none">
+          <RegistrationFormInline
+            initialData={registration.editing}
+            onSave={reg => saveRegistrationRef.current?.(reg)}
+            onDone={leaveRegistration}
           />
-
-          <TabsContent
-            value="basic"
-            className="space-y-8 mt-8 animate-in slide-in-from-bottom-2 duration-500 ease-apple"
-          >
-            <BasicInfoTab
-              userRole={userRole}
-              currentUserPersonId={currentUserPersonId}
-              referenceDate={showStartDate}
-              onPhotoOpen={() => handlePhotoDialogOpen(true)}
-              onAddRegistration={openAddRegistration}
-            />
-          </TabsContent>
-
-          <TabsContent value="registration" className="space-y-8 mt-8">
-            <RegistrationTab
-              onRemoveRegistration={handleRemoveRegistration}
-              onEditRegistration={openEditRegistration}
-              onAddRegistration={openAddRegistration}
-            />
-          </TabsContent>
-
-          <TabsContent value="optional" className="space-y-8 mt-8">
-            <AdditionalInfoTab />
-          </TabsContent>
-        </Tabs>
-      </div>
-
-      {/* Photo Dialog */}
-      <PhotoDialog
-        open={isPhotoDialogOpen}
-        onOpenChange={handlePhotoDialogOpen}
-        previewImage={photoPreview}
-        currentPhoto={formData.imageUrl || ''}
-        isDragging={isPhotoDragging}
-        onDrop={handlePhotoDrop}
-        onDragOver={e => {
-          e.preventDefault();
-          setIsPhotoDragging(true);
-        }}
-        onDragLeave={e => {
-          e.preventDefault();
-          setIsPhotoDragging(false);
-        }}
-        onFileInput={handlePhotoFileInput}
-        onCancel={() => handlePhotoDialogOpen(false)}
-        onSave={handlePhotoSave}
-        title="Add Dog Photo"
-        previewAlt="Dog photo preview"
-      />
-
-      {/* Registration slide-over. The wizard's dog isn't persisted yet, so this
-          writes to wizard state (handleSaveRegistration), not the DB — do not
-          swap it for AddRegistrationPanel's DB mutation path. Wrapped with an
-          explicit z-index above the wizard's own SlideOverPanel (z-50) so it
-          layers correctly on top even though both are position:fixed. */}
-      <div className="relative z-[60]">
-        <AddEditRegistrationDialog
-          open={isAddEditRegDialogOpen}
-          onOpenChange={setIsAddEditRegDialogOpen}
-          onSave={handleSaveRegistration}
-          initialData={currentRegToEdit}
-        />
-      </div>
+        </div>
+      )}
     </>
   );
 };

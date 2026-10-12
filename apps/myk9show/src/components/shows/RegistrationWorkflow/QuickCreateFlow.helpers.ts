@@ -1,16 +1,63 @@
+import type { AddDogSubMode } from '@/components/panels/edit/AddDogPanel/types';
+
+/** The three steps a Quick Create walks through. */
+export type QuickCreateStep = 'exhibitor' | 'dogs' | 'review';
+
 /**
- * Whether the "Quick Registration Setup" shell dialog should be visible.
- *
- * MYK9-832 #4: Create Exhibitor and Add Dog are each their own dialog, opened
- * ON TOP of this shell. While either is open the shell has no content of its
- * own to show through it — it only added a second, dimmed dialog stacked
- * behind the one the secretary is actually using. Hiding it for that span
- * leaves exactly the dialog in use, never more than one at a time.
+ * What the one Quick Create slide-out shows (MYK9-1081): the step screens, or
+ * the Person or Dog form in their place. Never a second overlay.
  */
-export function shouldShowQuickCreateShell(
-  open: boolean,
-  showExhibitorDialog: boolean,
-  showDogDialog: boolean
-): boolean {
-  return open && !showExhibitorDialog && !showDogDialog;
+export type QuickCreateView = 'steps' | 'person-form' | 'dog-form';
+
+const STEP_LABELS: Record<QuickCreateStep, { number: number; label: string }> = {
+  exhibitor: { number: 1, label: 'Add Person' },
+  dogs: { number: 2, label: 'Add Dog(s)' },
+  review: { number: 3, label: 'Review & Complete' },
+};
+
+/** The panel's title for the view showing now. */
+export function quickCreateTitle(view: QuickCreateView, dogSubMode: AddDogSubMode): string {
+  if (view === 'person-form') return 'Add Person';
+  if (view === 'dog-form') {
+    if (dogSubMode === 'registration-add') return 'Add New Registration';
+    if (dogSubMode === 'registration-edit') return 'Edit Registration';
+    return 'Add Dog';
+  }
+  return 'Quick Registration Setup';
+}
+
+/** The panel's subtitle: where the secretary is in the three steps. */
+export function quickCreateStepLabel(step: QuickCreateStep): string {
+  const { number, label } = STEP_LABELS[step];
+  return `Step ${number} of 3: ${label}`;
+}
+
+/** The progress bar's value for a step. */
+export function quickCreateProgress(step: QuickCreateStep): number {
+  if (step === 'exhibitor') return 25;
+  if (step === 'dogs') return 65;
+  return 90;
+}
+
+/** Marks each step's primary control: focus returns there when a form closes. */
+export const QUICK_CREATE_ENTRY_ATTR = 'data-quick-create-entry';
+/** Each dog row's Remove: focus moves to the next row's after a removal. */
+export const QUICK_CREATE_REMOVE_DOG_ATTR = 'data-remove-dog';
+
+/**
+ * Where focus lands on the step screens (MYK9-1081): after a Remove, the Remove
+ * of the row that moved into the removed one's place; otherwise the step's
+ * primary control (Add Person / Edit Details, Add First / Another Dog, the
+ * Review heading); failing both, the step screens themselves.
+ */
+export function quickCreateStepsFocusTarget(
+  steps: HTMLElement | null,
+  removedIndex: number | null
+): HTMLElement | null {
+  if (!steps) return null;
+  const nextRemove =
+    removedIndex === null
+      ? undefined
+      : steps.querySelectorAll<HTMLElement>(`[${QUICK_CREATE_REMOVE_DOG_ATTR}]`)[removedIndex];
+  return nextRemove ?? steps.querySelector<HTMLElement>(`[${QUICK_CREATE_ENTRY_ATTR}]`) ?? steps;
 }

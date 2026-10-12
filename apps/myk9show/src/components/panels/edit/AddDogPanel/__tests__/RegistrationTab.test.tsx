@@ -79,3 +79,32 @@ describe('RegistrationTab empty state (4.E — no silent Mixed Breed)', () => {
     expect(screen.queryByText(/saved as/i)).toBeNull();
   });
 });
+
+// MYK9-1081 review (partly closes plan follow-up F7): leaving Edit Registration
+// returns focus to the row's Edit button, so the icon-only buttons need names.
+describe('RegistrationTab row actions are named', () => {
+  it('names Edit and Remove after the registration they act on', () => {
+    renderTab({
+      registrations: [
+        {
+          id: 'reg-1',
+          organization: 'AKC (American Kennel Club)',
+          registeredName: 'Mailbox Special Delivery',
+          breed: 'Golden Retriever',
+          registrationNumber: 'DN12345601',
+          status: 'Active',
+        },
+      ],
+    });
+    expect(
+      screen.getByRole('button', {
+        name: 'Edit AKC (American Kennel Club) registration DN12345601',
+      })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', {
+        name: 'Remove AKC (American Kennel Club) registration DN12345601',
+      })
+    ).toBeInTheDocument();
+  });
+});

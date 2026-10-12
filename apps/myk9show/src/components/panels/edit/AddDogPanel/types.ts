@@ -1,3 +1,4 @@
+import type { MutableRefObject } from 'react';
 import type { Dog as DogType, Registration } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
 import type { EditPanelVariant } from '../EditPanelWrapper';
@@ -31,7 +32,18 @@ export interface AddDogPanelProps {
    * entered (MYK9-1059). Left unset everywhere else.
    */
   createdFromShowId?: string | undefined;
+  /**
+   * `inline` only (MYK9-1081): filled with this form's close request. While the
+   * registration sub-mode shows it leaves the sub-mode; otherwise it is the
+   * dog form's own Cancel (discard prompt when dirty).
+   */
+  closeRequestRef?: MutableRefObject<(() => void) | null> | undefined;
+  /** `inline` only: which view of Add Dog is showing, so the host can title it. */
+  onSubModeChange?: ((mode: AddDogSubMode) => void) | undefined;
 }
+
+/** Add Dog's views when inline: the dog form, or its registration form in place of it. */
+export type AddDogSubMode = 'dog' | 'registration-add' | 'registration-edit';
 
 export interface DogFormData extends Record<string, unknown> {
   // Basic Information

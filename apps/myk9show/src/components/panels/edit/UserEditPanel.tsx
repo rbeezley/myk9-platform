@@ -344,6 +344,7 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
   enableAutoSave = false,
   onDelete,
   variant,
+  closeRequestRef,
   notice,
   onBeforeNext,
   onDataChange,
@@ -392,6 +393,7 @@ export const UserEditPanel: React.FC<UserEditPanelProps> = ({
       cancelLabel="Cancel"
       onDelete={isCreateMode ? undefined : onDelete}
       {...(variant ? { variant } : {})}
+      {...(closeRequestRef ? { closeRequestRef } : {})}
       onValidationFail={handleValidationFail}
       // A valid create form (e.g. a name prefilled from search) saves without edits.
       forceHasChanges={isCreateMode}

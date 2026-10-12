@@ -361,3 +361,42 @@ describe('SlideOverPanel focus return', () => {
     expect(document.activeElement).toBe(elsewhere);
   });
 });
+
+// MYK9-1081: a host may keep a form mounted but `hidden` and `inert` while a
+// sub-mode shows (Add Dog's registration form). The trap's first and last
+// stops must be the first and last VISIBLE controls, or Tab lands on a hidden
+// control and leaves the modal.
+describe('SlideOverPanel focus trap skips hidden and inert controls', () => {
+  function renderWithHiddenControls() {
+    render(
+      <SlideOverPanel open onClose={vi.fn()} title="Trap">
+        <div hidden>
+          <input aria-label="hidden-field" />
+        </div>
+        <input aria-label="last-visible" />
+        <div inert>
+          <button type="button">inert-button</button>
+        </div>
+      </SlideOverPanel>
+    );
+  }
+
+  it('Tab from the last visible control wraps to the first visible one', () => {
+    renderWithHiddenControls();
+    const last = screen.getByLabelText('last-visible');
+    last.focus();
+
+    fireEvent.keyDown(document, { key: 'Tab' });
+
+    expect(screen.getByRole('button', { name: 'Close panel' })).toHaveFocus();
+  });
+
+  it('Shift+Tab from the first visible control wraps to the last visible one', () => {
+    renderWithHiddenControls();
+    screen.getByRole('button', { name: 'Close panel' }).focus();
+
+    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
+
+    expect(screen.getByLabelText('last-visible')).toHaveFocus();
+  });
+});

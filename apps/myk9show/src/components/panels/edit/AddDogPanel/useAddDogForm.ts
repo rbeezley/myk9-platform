@@ -7,11 +7,17 @@ import type { DogFormData } from './types';
 interface UseAddDogFormOptions {
   open: boolean;
   form?: FormValidation<DogFormData> | undefined;
+  /**
+   * Inline Add Dog (MYK9-1081): the registration form is a sub-mode its session
+   * owns, so Add / Edit hand the registration to it (undefined for Add) instead
+   * of opening this hook's slide-out.
+   */
+  onOpenRegistration?: ((registration: Registration | undefined) => void) | undefined;
 }
 
 const ALLOWED_PHOTO_MIME = new Set<string>(ALLOWED_IMAGE_TYPES);
 
-export function useAddDogForm({ open, form }: UseAddDogFormOptions) {
+export function useAddDogForm({ open, form, onOpenRegistration }: UseAddDogFormOptions) {
   // Photo dialog state
   const [isPhotoDialogOpen, setIsPhotoDialogOpen] = useState(false);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
@@ -157,14 +163,19 @@ export function useAddDogForm({ open, form }: UseAddDogFormOptions) {
   };
 
   const openAddRegistration = useCallback(() => {
+    if (onOpenRegistration) return onOpenRegistration(undefined);
     setCurrentRegToEdit(undefined);
     setIsAddEditRegDialogOpen(true);
-  }, []);
+  }, [onOpenRegistration]);
 
-  const openEditRegistration = useCallback((reg: Registration) => {
-    setCurrentRegToEdit(reg);
-    setIsAddEditRegDialogOpen(true);
-  }, []);
+  const openEditRegistration = useCallback(
+    (reg: Registration) => {
+      if (onOpenRegistration) return onOpenRegistration(reg);
+      setCurrentRegToEdit(reg);
+      setIsAddEditRegDialogOpen(true);
+    },
+    [onOpenRegistration]
+  );
 
   return {
     // Photo state

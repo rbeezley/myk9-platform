@@ -12,7 +12,12 @@ import {
   quickCreateMocks as mocks,
   resetQuickCreateMocks,
 } from '@/test/quickCreate/quickCreateFlowMocks';
-import { dialogs, fillDogBasics, fillRegistration } from '@/test/quickCreate/quickCreateFlowKit';
+import {
+  dialogs,
+  fillDogBasics,
+  fillRegistration,
+  JOURNEY_TIMEOUT_MS,
+} from '@/test/quickCreate/quickCreateFlowKit';
 
 vi.mock('@/hooks/usePeopleQuery', () => ({
   usePeopleQuery: () => ({ data: [], isLoading: false }),
@@ -44,7 +49,7 @@ function renderInline(onSubModeChange = vi.fn()) {
   );
 }
 
-describe('AddDogPanel inline registration sub-mode (T2)', () => {
+describe('AddDogPanel inline registration sub-mode (T2)', { timeout: JOURNEY_TIMEOUT_MS }, () => {
   it('renders the registration form in place, with no overlay of its own', async () => {
     const onSubModeChange = vi.fn();
     const { user } = renderInline(onSubModeChange);

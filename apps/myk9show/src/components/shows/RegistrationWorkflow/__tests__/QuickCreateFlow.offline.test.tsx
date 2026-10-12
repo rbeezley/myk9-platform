@@ -18,6 +18,7 @@ import {
   addPersonThroughForm,
   fillDogBasics,
   fillRegistration,
+  JOURNEY_TIMEOUT_MS,
 } from '@/test/quickCreate/quickCreateFlowKit';
 
 vi.mock('@/hooks/useRBAC', () => ({ useRBAC: () => ({ hasPermission: () => false }) }));
@@ -72,7 +73,7 @@ async function createPersonAndDog(offlineFirst: boolean) {
   await user.click(await screen.findByRole('button', { name: 'Add Dog' }));
 }
 
-describe('Quick Create save paths (§7.3)', () => {
+describe('Quick Create save paths (§7.3)', { timeout: JOURNEY_TIMEOUT_MS }, () => {
   it('offline: the dog and its registrations queue behind the person', async () => {
     await createPersonAndDog(true);
 

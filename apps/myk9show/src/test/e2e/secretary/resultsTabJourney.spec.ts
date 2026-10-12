@@ -16,10 +16,10 @@ import { signInAsSecretary } from '../helpers/testUsers';
  * MYK9-1031, plan-results-tab-redesign Phase 7: ONE secretary journey through the Results tab on
  * the show-day fixture show (`seed_demo_restore_show_day_fixture`, MYK9-731):
  *
- *   scored class -> verified against the paper -> released -> results sheet printed -> judge
+ *   scored class -> verified against the paper -> released -> results sheet and ribbon labels printed -> judge
  *   initialed -> reload reads released + initialed.
  *
- * Why seeded-only: every step writes (scores, the check, Release, the print record, the judge's
+ * Why seeded-only: every step writes (scores, the check, Release, the print records, the judge's
  * initials). `test.skip` unless MYK9_PLAYWRIGHT_REGRESSION_ENABLED=true, which only the isolated
  * Supabase target sets (`scripts/qa/run-playwright-regression.sh`), and the shared-staging write
  * guard stays installed as a second net. The fixture show has exactly one class per day, so that
@@ -115,6 +115,25 @@ async function scoreFromPaper(page: Page, resultsUrl: string, classId: string) {
   await expect(page.getByText('2 of 2 scored').first()).toBeVisible({ timeout: 20_000 });
 }
 
+/** Follow a paperwork row's Print link to Reports, print, and record it as printed. */
+async function printFromResults(page: Page, detail: Locator, label: string, reportId: string) {
+  const row = paperworkRow(detail, label);
+  await expect(row.getByText('Not confirmed printed')).toBeVisible({ timeout: 20_000 });
+  await row.getByRole('link', { name: /Print/ }).click();
+  await expect(page).toHaveURL(new RegExp(`/reports\\?.*report=${reportId}`));
+  const printButton = page.getByRole('button', { name: 'Print', exact: true });
+  await expect(printButton).toBeVisible({ timeout: 30_000 });
+  // The preview builds asynchronously; Print answers "Still building the preview" until then.
+  await expect(async () => {
+    await printButton.click();
+    await expect(page.getByText('Print dialog opened.').first()).toBeVisible({ timeout: 3_000 });
+  }).toPass({ timeout: 30_000 });
+  const markPrinted = page.getByRole('button', { name: 'Mark printed' });
+  await expect(markPrinted).toBeVisible();
+  await markPrinted.click();
+  await expect(page.getByText('Marked as printed.').first()).toBeVisible({ timeout: 15_000 });
+}
+
 /** Rows of the "Then" list: one paperwork row per report, found by its label. */
 function paperworkRow(detail: Locator, label: string): Locator {
   return detail.locator('li').filter({ hasText: label }).last();
@@ -123,7 +142,7 @@ function paperworkRow(detail: Locator, label: string): Locator {
 test.describe('Results tab: scored -> verified -> released -> printed -> initialed', () => {
   test.skip(
     !DATA_REQUIRED,
-    'Stateful: writes scores, the paper check, a release, a print record and judge initials. ' +
+    'Stateful: writes scores, the paper check, a release, print records and judge initials. ' +
       'Runs only on the seeded isolated Playwright Regression target.'
   );
 
@@ -202,31 +221,21 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
       });
     });
 
-    await test.step('6. print the Results sheet from the report and record it', async () => {
-      const sheetRow = paperworkRow(detail, 'Results sheet');
-      await expect(sheetRow.getByText('Not confirmed printed')).toBeVisible({ timeout: 20_000 });
-      await sheetRow.getByRole('link', { name: /Print/ }).click();
-      await expect(page).toHaveURL(/\/reports\?.*report=results-sheet/);
-      const printButton = page.getByRole('button', { name: 'Print', exact: true });
-      await expect(printButton).toBeVisible({ timeout: 30_000 });
-      // The preview builds asynchronously; Print answers "Still building the preview" until then.
-      await expect(async () => {
-        await printButton.click();
-        await expect(page.getByText('Print dialog opened.').first()).toBeVisible({
-          timeout: 3_000,
-        });
-      }).toPass({ timeout: 30_000 });
-      const markPrinted = page.getByRole('button', { name: 'Mark printed' });
-      await expect(markPrinted).toBeVisible();
-      await markPrinted.click();
-      await expect(page.getByText('Marked as printed.').first()).toBeVisible({ timeout: 15_000 });
+    await test.step('6. print the Results sheet and Ribbon labels from their reports', async () => {
+      await printFromResults(page, detail, 'Results sheet', 'results-sheet');
+      await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
+      await printFromResults(page, detail, 'Ribbon labels', 'result-labels');
     });
 
-    await test.step('7. back on Results: sheet reads printed, record the judge initials', async () => {
+    await test.step('7. back on Results: both read printed, record the judge initials', async () => {
       await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
-      await expect(paperworkRow(detail, 'Results sheet').getByText(/^Printed /)).toBeVisible({
-        timeout: 30_000,
-      });
+      // A print Reports just recorded must read Printed here too, not Stale: the two pages
+      // fingerprint the class from different read paths (buildReportPaperworkDescriptor).
+      for (const label of ['Results sheet', 'Ribbon labels']) {
+        await expect(paperworkRow(detail, label).getByText(/^Printed /)).toBeVisible({
+          timeout: 30_000,
+        });
+      }
       await expect(signOff).toBeVisible({ timeout: 20_000 });
       const record = signOff.getByRole('button', { name: /^Record initials/ });
       await expect(record).toBeEnabled();

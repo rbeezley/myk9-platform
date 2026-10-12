@@ -6,7 +6,7 @@
  * StepDogs.test.tsx stubs it for the step's own behaviour.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { screen, within } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { resetQuickCreateMocks } from '@/test/quickCreate/quickCreateFlowMocks';
 import { dialogs, panel } from '@/test/quickCreate/quickCreateFlowKit';
@@ -47,5 +47,27 @@ describe('StepDogs Add Dog', () => {
     for (let el = overlay.parentElement; el && el !== document.body; el = el.parentElement) {
       expect(el.className).not.toMatch(SPACE_STACK);
     }
+  });
+
+  // PR #2920 review: Add Dog was a dialog here, where Escape asked before
+  // dropping edits; as a slide-out it must ask too, not ignore Escape.
+  it('asks before Escape drops a typed call name, and Discard returns focus to Add a dog', async () => {
+    const { user } = render(
+      <StepDogs personId="person-1" onNext={vi.fn()} onBack={vi.fn()} onSkip={vi.fn()} />
+    );
+    const opener = await screen.findByRole('button', { name: /add a dog/i });
+    opener.focus();
+    await user.click(opener);
+    const callName = await screen.findByLabelText(/Call Name/i);
+    await user.click(callName);
+    await user.paste('Ziggy');
+
+    await user.keyboard('{Escape}');
+    expect(await screen.findByRole('alertdialog', { name: 'Discard changes?' })).toBeVisible();
+    expect(screen.getByLabelText(/Call Name/i)).toHaveValue('Ziggy');
+
+    await user.click(screen.getByRole('button', { name: 'Discard changes' }));
+    await waitFor(() => expect(panel()).toBeNull(), { timeout: 2000 });
+    await waitFor(() => expect(document.activeElement).toBe(opener), { timeout: 2000 });
   });
 });

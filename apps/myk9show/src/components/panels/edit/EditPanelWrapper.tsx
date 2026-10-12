@@ -469,7 +469,9 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         footer={footer}
         headerActions={headerActions}
         className={cn('edit-panel-wrapper', className)}
-        preventClose={(hasChanges && showUnsavedWarning) || deleteOpen}
+        // Escape, the backdrop and the X reach handleClose, which asks before a
+        // dirty form closes; only an open delete confirm blocks them (MYK9-910).
+        preventClose={deleteOpen}
         {...(onExited && { onExited })}
       >
         <div className="flex flex-col h-full animate-in fade-in-0 duration-300 ease-out">

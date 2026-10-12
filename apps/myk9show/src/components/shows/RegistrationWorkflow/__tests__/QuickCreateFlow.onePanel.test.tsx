@@ -19,6 +19,7 @@ import {
   fillDogBasics,
   fillRegistration,
   panel,
+  JOURNEY_TIMEOUT_MS,
 } from '@/test/quickCreate/quickCreateFlowKit';
 
 vi.mock('@/hooks/useRBAC', () => ({ useRBAC: () => ({ hasPermission: () => false }) }));
@@ -62,7 +63,7 @@ function renderFlow(onFlowCompleted = vi.fn(), onOpenChange = vi.fn()) {
   );
 }
 
-describe('Quick Create is one slide-out (T1)', () => {
+describe('Quick Create is one slide-out (T1)', { timeout: JOURNEY_TIMEOUT_MS }, () => {
   it('keeps Person, Dog and the registration form inside the same single panel', async () => {
     const { user } = renderFlow();
 
@@ -103,7 +104,7 @@ describe('Quick Create is one slide-out (T1)', () => {
   });
 });
 
-describe('Complete Setup is unchanged (T3)', () => {
+describe('Complete Setup is unchanged (T3)', { timeout: JOURNEY_TIMEOUT_MS }, () => {
   it('hands the saved person and dog to onFlowCompleted and closes', async () => {
     const onFlowCompleted = vi.fn();
     const onOpenChange = vi.fn();

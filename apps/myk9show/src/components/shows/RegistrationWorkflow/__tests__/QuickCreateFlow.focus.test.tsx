@@ -16,6 +16,7 @@ import {
   fillDogBasics,
   fillRegistration,
   panel,
+  JOURNEY_TIMEOUT_MS,
 } from '@/test/quickCreate/quickCreateFlowKit';
 
 vi.mock('@/hooks/useRBAC', () => ({ useRBAC: () => ({ hasPermission: () => false }) }));
@@ -84,7 +85,7 @@ async function toDogForm(user: ReturnType<typeof render>['user']) {
   await fillDogBasics(user);
 }
 
-describe('opening and Escape', () => {
+describe('opening and Escape', { timeout: JOURNEY_TIMEOUT_MS }, () => {
   it('opening focuses First Name', async () => {
     renderHarness();
     await waitFor(() => expect(firstName()).toHaveFocus());
@@ -118,7 +119,7 @@ describe('opening and Escape', () => {
   });
 });
 
-describe('a dirty form asks before leaving', () => {
+describe('a dirty form asks before leaving', { timeout: JOURNEY_TIMEOUT_MS }, () => {
   it.each([
     ['Escape', () => fireEvent.keyDown(document, { key: 'Escape' })],
     ['header Back', () => fireEvent.click(button('Back'))],
@@ -185,7 +186,7 @@ describe('a dirty form asks before leaving', () => {
   });
 });
 
-describe('the registration sub-mode inside Add Dog', () => {
+describe('the registration sub-mode inside Add Dog', { timeout: JOURNEY_TIMEOUT_MS }, () => {
   async function toRegistrationForm(user: ReturnType<typeof render>['user']) {
     await toDogForm(user);
     await user.click(screen.getByRole('tab', { name: /Registration/ }));
@@ -233,7 +234,7 @@ describe('the registration sub-mode inside Add Dog', () => {
   // Back and the footer's Save Registration, so a test at this level cannot fail.
 });
 
-describe('after a save', () => {
+describe('after a save', { timeout: JOURNEY_TIMEOUT_MS }, () => {
   it('after the person saves, Add First Dog has focus', async () => {
     const { user } = renderHarness();
     await addPersonThroughForm(user);

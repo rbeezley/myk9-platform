@@ -14,12 +14,15 @@ export const quickCreateMocks = {
   getPendingMutationIdsForRow: vi.fn(),
   addDog: vi.fn(),
   addDogOfflineFirst: vi.fn(),
+  updateUser: vi.fn(),
+  updateDog: vi.fn(),
   recordOwnerCreated: vi.fn(),
   recordDogCreated: vi.fn(),
 };
 
 export const usersModule = {
   createUser: quickCreateMocks.createUser,
+  updateUser: quickCreateMocks.updateUser,
   fetchPersonEmailLockFacts: vi.fn().mockResolvedValue(null),
 };
 
@@ -34,6 +37,7 @@ export const dogStoreModule = {
   useDogStoreCompat: () => ({
     addDog: quickCreateMocks.addDog,
     addDogOfflineFirst: quickCreateMocks.addDogOfflineFirst,
+    updateDog: quickCreateMocks.updateDog,
     dogs: [],
     isLoading: false,
     error: null,
@@ -88,4 +92,12 @@ export function resetQuickCreateMocks() {
   };
   quickCreateMocks.addDog.mockResolvedValue(savedDog);
   quickCreateMocks.addDogOfflineFirst.mockResolvedValue(savedDog);
+  quickCreateMocks.updateUser.mockResolvedValue({
+    data: { id: 'person-1', first_name: 'Molly', last_name: 'Mailbox', email: null },
+    error: null,
+  });
+  quickCreateMocks.updateDog.mockImplementation(async (_id: string, updates: object) => ({
+    ...savedDog,
+    ...updates,
+  }));
 }

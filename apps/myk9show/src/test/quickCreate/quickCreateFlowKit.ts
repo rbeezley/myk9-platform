@@ -3,7 +3,7 @@
  * the real Person, Dog and registration forms the way a secretary does.
  */
 import { expect } from 'vitest';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { fireEvent, isInaccessible, screen, waitFor } from '@testing-library/react';
 import type userEvent from '@testing-library/user-event';
 
 type User = ReturnType<typeof userEvent.setup>;
@@ -44,9 +44,13 @@ export async function addPersonThroughForm(user: User) {
 /** Picks one option from a Base UI Select and waits for its popup to close. */
 export async function chooseOption(user: User, trigger: HTMLElement, option: RegExp | string) {
   await user.click(trigger);
-  await user.click(await screen.findByRole('option', { name: option }));
-  // Not "no listbox": the breed picker's own list is one, and it stays open.
-  await waitFor(() => expect(screen.queryByRole('option', { name: option })).toBeNull());
+  const choice = await screen.findByRole('option', { name: option });
+  await user.click(choice);
+  // Closed = the chosen option is hidden (Base UI keeps it mounted). Watch that
+  // one node: once AKC is chosen the breed picker mounts ~300 options, and
+  // re-running a screen-wide ByRole query over them took 2-3s per close under
+  // coverage. Not "no listbox" either: the breed list is one, and stays open.
+  await waitFor(() => expect(isInaccessible(choice)).toBe(true));
 }
 
 /** The Essential tab's required fields: call name, sex and date of birth. */

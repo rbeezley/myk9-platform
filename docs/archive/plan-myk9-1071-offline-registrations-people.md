@@ -1,6 +1,8 @@
 # MYK9-1071 — Offline edits for dog registrations and people
 
-> **Status:** Active
+> **Status:** Abandoned
+>
+> PR 1 (the migration) shipped; the app half (PR 2, #2873) was closed unmerged. Superseded on 2026-10-12 by [`../plan-offline-record-edits.md`](../plan-offline-record-edits.md) (MYK9-1090).
 
 Owner decision 2026-10-09: option (a) for both tables. Each table gets a real `sync()` and a queued UPDATE with OCC. Precedent: MYK9-1067 (#2855) and MYK9-1070 (#2858). Phase 1 is this design. **Phase 2 needs a migration (§3), so the owner must approve the `db push`.**
 

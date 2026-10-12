@@ -23,6 +23,30 @@ vi.mock('@/hooks/useShowStoreCompat', () => ({
   useShowStoreCompat: vi.fn(),
 }));
 
+// MYK9-1115: an exhibitor's results come from the own masked read.
+const ownResults = vi.hoisted(() => ({ current: new Map() as ReadonlyMap<string, unknown> }));
+vi.mock('@/features/at-show/useMyShowResults', () => ({
+  useMyShowResults: () => ownResults.current,
+}));
+
+/** The own masked read's answer for one entry. */
+function own(entryId: string, fields: Record<string, unknown>) {
+  ownResults.current = new Map([
+    [
+      entryId,
+      {
+        isScored: true,
+        resultStatus: 'qualified',
+        searchTimeSeconds: null,
+        totalFaults: null,
+        finalPlacement: null,
+        resultsReleasedAt: '2026-10-24T15:00:00Z',
+        ...fields,
+      },
+    ],
+  ]);
+}
+
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: vi.fn(),
 }));
@@ -138,6 +162,7 @@ function setMocks({
 
 describe('useShowEntriesForUser', () => {
   beforeEach(() => {
+    ownResults.current = new Map();
     vi.clearAllMocks();
   });
 
@@ -330,7 +355,19 @@ describe('useShowEntriesForUser', () => {
     expect(result.current.allEntries[0].hasResult).toBe(false);
   });
 
-  it('hasResult is true and result is populated when competitionData present', () => {
+  it("populates the result from the exhibitor's own masked read (MYK9-1115)", () => {
+    setMocks();
+    own(makeEntry().id, { searchTimeSeconds: 38.2, finalPlacement: 1, totalFaults: 0 });
+    const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
+    const entry = result.current.allEntries[0];
+    expect(entry.hasResult).toBe(true);
+    expect(entry.result?.qualified).toBe(true);
+    expect(entry.result?.time).toBe('0:38.20');
+    expect(entry.result?.placement).toBe(1);
+    expect(entry.result?.faults).toBe(0);
+  });
+
+  it('ignores a result in the device row when the own read withheld it (MYK9-1115)', () => {
     const compData = {
       qualified: true,
       time: '00:38.2',
@@ -341,12 +378,8 @@ describe('useShowEntriesForUser', () => {
     };
     setMocks({ entries: [makeEntry({ competitionData: compData })] });
     const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
-    const entry = result.current.allEntries[0];
-    expect(entry.hasResult).toBe(true);
-    expect(entry.result?.qualified).toBe(true);
-    expect(entry.result?.time).toBe('00:38.2');
-    expect(entry.result?.placement).toBe(1);
-    expect(entry.result?.faults).toBe(0);
+    expect(result.current.allEntries[0].hasResult).toBe(false);
+    expect(result.current.allEntries[0].result).toBeUndefined();
   });
 
   it('groups entries by dog', () => {
@@ -751,6 +784,7 @@ describe('useShowEntriesForUser', () => {
 // The show page's "My run schedule" is one of them.
 describe('useShowEntriesForUser — class-label disambiguation and result release (MYK9-805)', () => {
   beforeEach(() => {
+    ownResults.current = new Map();
     vi.clearAllMocks();
   });
 
@@ -813,6 +847,7 @@ describe('useShowEntriesForUser — class-label disambiguation and result releas
       ],
     });
 
+    own('entry-prelim', { searchTimeSeconds: 52.4, finalPlacement: 1, resultsReleasedAt: null });
     const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
     expect(result.current.allEntries[0].result?.isPreliminary).toBe(true);
   });
@@ -829,6 +864,7 @@ describe('useShowEntriesForUser — class-label disambiguation and result releas
       classes: [makeClass({ id: CLASS_ID, results_released_at: '2026-10-24T15:00:00Z' })],
     });
 
+    own('entry-released', { searchTimeSeconds: 38.5 });
     const { result } = renderHook(() => useShowEntriesForUser(SHOW_ID));
     expect(result.current.allEntries[0].result?.isPreliminary).toBe(false);
   });

@@ -65,6 +65,8 @@ export interface OwnShowResult {
   resultStatus: string | null;
   searchTimeSeconds: number | null;
   totalFaults: number | null;
+  /** Null until the class is released; the masked read withholds it before. */
+  finalPlacement: number | null;
   resultsReleasedAt: string | null;
 }
 

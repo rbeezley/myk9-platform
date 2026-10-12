@@ -58,6 +58,7 @@ describe('useMyShowResults (MYK9-1026)', () => {
       resultStatus: 'qualified',
       searchTimeSeconds: 58,
       totalFaults: 2,
+      finalPlacement: null,
       resultsReleasedAt: null,
     });
     expect(result.current.has('e2')).toBe(false);

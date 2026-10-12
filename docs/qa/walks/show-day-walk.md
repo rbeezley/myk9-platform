@@ -13,7 +13,19 @@ Working directory: /Users/richardbeezley/AI Projects/myk9-platform
 - **SQL access.** Every assertion below is checked against the database through the Supabase MCP server. Run `select 1` first. If the server is missing or needs authentication, say so at the top of the report and stop: this walk's whole claim is "the database holds exactly what each role saw", and without SQL it cannot make it.
 - **Record two SHAs:** the `origin/main` commit the worktree is cut from, and the prior show-day walk's baseline SHA (the newest `docs/audits/*-show-day-walk-*.md`). List, in the report, the commits since then touching `/at-show`, ringside scoring, check-in, the replication packages or entries' result columns (`git log --oneline <prior>..<current> -- apps/myk9show/src packages supabase/migrations`), and walk those first.
 - **Surface.** Say whether you walked the deployed staging bundle (and the commit it was built from, named by the latest Deploy myK9Show run summary) or a local dev server on `origin/main`. Both share the staging database.
-- **A show must be running today.** The walk runs on the show-day fixture `Heartland Scent Work Week`, created by `public.seed_demo_restore_show_day_fixture()` (seed section 19 and the owner's restore, MYK9-731). There is no fixed id: each fixture is a new show with an id starting `dededede-0000-0000-0731-`, and older ones with the same name stay behind in the past. Find today's show and class:
+- **A show must be running today: restore it first.** The walk runs on the show-day fixture `Heartland Scent Work Week`, created by `public.seed_demo_restore_show_day_fixture()` (seed section 19, MYK9-731). There is no fixed id: each fixture is a new show with an id starting `dededede-0000-0000-0731-`, covering seven days from the day it was made, and older ones with the same name stay behind in the past. A weekly walk always lands on its fixture's last day, so the walk restores the fixture itself before every run. Call the restore through `psql`, because the MCP connection is read-only and the function is granted only to `postgres` and `service_role`:
+
+  ```bash
+  # From the walk's worktree (bootstrap copies supabase/.env); otherwise read
+  # supabase/.env from the primary checkout. Never print the password.
+  PGPASSWORD="$(grep '^SUPABASE_DB_PASSWORD=' supabase/.env | cut -d= -f2-)" \
+    psql "postgresql://postgres.sojmvhhwsjxmfistvzbe@aws-1-us-east-2.pooler.supabase.com:5432/postgres" \
+    -X -At -v ON_ERROR_STOP=1 -c "select public.seed_demo_restore_show_day_fixture();"
+  ```
+
+  It is insert-only and idempotent: when a fixture already covers today it returns that show with `"created": false` and writes nothing; otherwise it inserts a brand-new fixture show and returns `"created": true`. It never updates or deletes a row. Record the returned JSON at the top of the report. If the call errors or refuses (for example `P0002`, the Heartland demo club is missing; the refusals are listed in [`docs/operations/staging-reseed.md`](../../operations/staging-reseed.md#show-day-fixture-restore-between-reseeds)), or `supabase/.env` is missing, stop and write a short report saying the walk is **blocked: show-day fixture restore failed**, with the error. Call it once per run; never retry it in a loop, and never create, re-date or edit a show by any other means.
+
+  Then find today's class through MCP, using the `show_id` the restore returned:
 
   ```sql
   select s.id as show_id, t.id as trial_id, t.date, c.id as class_id, c.name, c.start_time, c.status,
@@ -21,11 +33,11 @@ Working directory: /Users/richardbeezley/AI Projects/myk9-platform
   from shows s
   join trials t on t.show_id = s.id and t.deleted_at is null
   join classes c on c.trial_id = t.id and c.deleted_at is null
-  where s.id = public.seed_demo_show_day_fixture_today()
+  where s.id = '<show_id from the restore>'
     and t.date = (now() at time zone t.timezone)::date;
   ```
 
-  One row is the fixture working. Use that `show_id` for every page and query below; never pick a `Heartland Scent Work Week` by name, because older fixtures share it. Zero rows means no fixture is ready today: its window lapsed, or it was soft-deleted (the old fixed show was, from the app, on 2026-10-01). Then stop, write a short report saying the walk is **blocked: show-day fixture stale**, and say the owner's restore is due (`select public.seed_demo_restore_show_day_fixture();`, [`docs/operations/staging-reseed.md`](../../operations/staging-reseed.md#show-day-fixture-restore-between-reseeds)). Do not walk anything else. Never run the restore, or create or re-date a show, yourself.
+  One row is the fixture working. Use that `show_id` for every page and query below; never pick a `Heartland Scent Work Week` by name, because older fixtures share it. Zero rows after a successful restore is a defect in the restore itself: stop, write a short report saying the walk is **blocked: restored fixture has no class today**, with the returned JSON, and do not walk anything else.
 
 - **Pick the walk's dog.** The walk enters `exhibitor@`'s seeded dog **Ranger** (`dededede-0000-0000-0000-000000000042`) in today's class. Assert first that Ranger has no entry in that class (`select count(*) from entries where dog_id = '…042' and class_id = '<today's class>'` is 0). If one exists, an earlier run left residue: report it, do not reuse or delete it, and stop.
 
@@ -49,15 +61,16 @@ The exhibitor's variables do NOT follow the `E2E_<ROLE>_*` pattern; guessing `E2
 
 This runs against SHARED STAGING. The walk makes exactly these writes, and no others:
 
+0. **The fixture restore** (Preconditions): one `psql` call to `public.seed_demo_restore_show_day_fixture()`, which writes only when no fixture covers today, and then only inserts a new fixture show.
 1. **One mail-in entry**, by the secretary, for Ranger in today's class, with no payment taken (a waived or unpaid mail-in). Record its id the moment it exists: `WALK ENTRY <entry id>` in the report file.
 2. **Checking that entry in**, by the secretary.
 3. **Scoring that entry**, by the judge: one online score, then one offline edit.
 4. **Teardown** of that entry (below).
 
-It never touches the seeded Willow or Cooper entries, never completes or releases the class (that would place the seeded entries too), never sends a message or announcement, never takes a payment, and never writes SQL: every write goes through the UI, and the MCP connection is for reading.
+It never touches the seeded Willow or Cooper entries, never completes or releases the class (that would place the seeded entries too), never sends a message or announcement, never takes a payment, and writes no SQL beyond the one restore call: every other write goes through the UI, and the MCP connection is for reading.
 
 - **Anchor every destructive click to the row that owns it** — the row holding Ranger's armband and name, never `.last()` or an index into a list whose length you did not assert. Scope every confirm click to `[role="dialog"]`, assert the dialog appeared before looking inside it, and assert the count you expect afterwards (LESSONS `confirm-click-destructive`).
-- **Teardown runs on ANY exit**, including a run that stops half way. Remove the walk's entry through the secretary's own controls: delete it if the UI offers delete for an unpaid mail-in entry, otherwise pull it. If the UI refuses both for a scored entry, that refusal is a finding to judge on its merits, and the entry is declared residue with its id. It sits on a seeded dog, so the next reseed's dog delete removes it, and with no payment on it the reseed's money guard lets it go. Assert afterwards, in SQL, that no other entry in today's class changed (`check_in_status`, `is_scored`, `run_order` of Willow and Cooper equal their values at the start).
+- **Teardown runs on ANY exit**, including a run that stops half way. Remove the walk's entry through the secretary's own controls: delete it if the UI offers delete for an unpaid mail-in entry, otherwise pull it. The UI refuses delete for a scored entry, so after a full walk the expected path is Pull. If the UI refuses both for a scored entry, that refusal is a finding to judge on its merits, and the entry is declared residue with its id. It sits on a seeded dog, so the next reseed's dog delete removes it, and with no payment on it the reseed's money guard lets it go. Assert afterwards, in SQL, that no other entry in today's class changed (`check_in_status`, `is_scored`, `run_order` of Willow and Cooper equal their values at the start).
 
 ## What to walk
 
@@ -101,7 +114,7 @@ Facts, at minimum: judge name, class start time, check-in state, armband, runnin
 
 ## Hard constraint
 
-**Audit only, with one exception.** No source edits, no PRs, no merges, no `supabase db push`, no function deploys, no SQL writes. If you find something trivial to fix, still do not fix it — record it and let a human decide. The only repo writes permitted are committing and pushing your own report file and, in that same commit, Part 2 corrections to this walk's own file, per the Output section above. (The four staging writes in the Safe mutation boundary are unchanged by this, and go through the UI only.)
+**Audit only, with one exception.** No source edits, no PRs, no merges, no `supabase db push`, no function deploys, no SQL writes other than the one fixture restore call in Preconditions. If you find something trivial to fix, still do not fix it — record it and let a human decide. The only repo writes permitted are committing and pushing your own report file and, in that same commit, Part 2 corrections to this walk's own file, per the Output section above. (The staging writes in the Safe mutation boundary are unchanged by this: the restore through `psql`, the other four through the UI only.)
 
 # Part 2 — Known mechanics (expected to churn)
 
@@ -119,7 +132,7 @@ Written before the first run, from the code and the other walks' reports. **Veri
 - **A normal score submission can make two `ringside_update_entry` calls**: one for the score and one for the subsequent check-in transition to `completed`. Judge entry into the score screen can also transition the row to `in-ring`. Identify each write by its resulting fields and count HTTP conflicts before judging version increments or duplicate scores.
 - **Adding the entry.** Entry Management (`/shows/:id/entries`) → Add Entry → `Add entry for someone else` → pick the dog (Ranger's owner and handler are Casey Morgan, i.e. exhibitor@), the class, then Payment: choose `Check (pay at show)` and tick the AKC agreement box (no payment taken); the submit button reads `Submit — bring check to show`; confirmation `MK9-…` on step 5. The class step lists every trial of the 7-day fixture, past days included: pick the one dated today. A day-of entry for today's trial is allowed. The entry gets an armband (202) and a `run_order` at creation (3, after Willow and Cooper; 2026-10-12, MYK9-1048). A dog that already has an enrollment on the show (Ranger, from earlier runs' residue) gets the new entry added to it, so the receipt repeats that enrollment's confirmation number. Check in only on the entry's own row; `Check in all eligible` would also check in Willow.
 - **Scored entries cannot be deleted from the UI.** Remove entry on a scored entry shows a dialog with Delete disabled; its `Withdraw / Pull entries` link lands on that entry form with the All view (MYK9-1024, fixed by 2026-10-12). Teardown is Pull from the per-class status chip (Accepted → Pull, applied at once with no confirm dialog) after searching the entry. The entry form's per-entry rows say only `Container Novice A` with no trial or date (MYK9-1107), so when earlier residue sits on the same form, identify today's row by its status (Accepted vs Pulled) after confirming in SQL which entry is which. Pull sets `entry_status = scratched`, `check_in_status = pulled`, keeps `is_scored`, and the row stays live (`deleted_at` null), so declare it residue.
-- **`public.seed_demo_show_day_fixture_today()` is not callable over MCP** (42501, again 2026-10-12); inline its body from `pg_get_functiondef` as a CTE and select from it.
+- **`public.seed_demo_show_day_fixture_today()` is not callable over MCP** (42501, 2026-10-06 and 2026-10-12). The walk no longer needs it: the restore call in Preconditions returns the `show_id`. If you need it elsewhere, inline its body from `pg_get_functiondef` as a CTE.
 - **Secretary Remove Entry soft-deletes the entry** (unscored entries only). It sets `entries.deleted_at` and leaves the row in SQL. Count live Ranger entries with `deleted_at is null` after teardown; compare the secretary UI separately, because the 2026-09-28 run still showed the removed registration in search after reload.
 - **Offline.** `context.setOffline(true)` is the only offline switch that the service worker and the replication layer both see. DevTools throttling is not. After reconnecting, give the queue up to 30 seconds and poll SQL, rather than reading the UI once. To make the offline edit, use `Correct this score` on the post-save panel: it opens the prefilled form, but offline it sat on the `Loading scoresheet` skeleton for 10-40 s on 2026-10-12 (MYK9-1106), so wait for the time field rather than reading the skeleton as a failure. The offline confirmation reads `Saved on this device — will send when you're back online` and flips to `Score saved` after sync.
 - **A fresh browser context is the only cold replica.** Capture `storageState()` after sign-in and open a new context for the exhibitor's read; re-navigating one context leaves `myK9_Replication` warm.

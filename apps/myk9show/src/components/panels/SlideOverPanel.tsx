@@ -27,6 +27,12 @@ export interface SlideOverPanelProps {
   headerActions?: React.ReactNode;
   footer?: React.ReactNode;
   preventClose?: boolean;
+  /**
+   * Fires once the panel has finished closing and left the DOM, after focus has
+   * gone back to its opener. A caller that opens another slide-out as this one
+   * closes waits for it, so only one slide-out is ever on screen.
+   */
+  onExited?: () => void;
 }
 
 // Matches the `duration-300` slide/fade classes below; the panel stays mounted
@@ -77,6 +83,7 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
   headerActions,
   footer,
   preventClose = false,
+  onExited,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const actionBarRef = useRegisterActionBar<HTMLDivElement>();
@@ -137,8 +144,17 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
     }, 0);
   }, []);
 
+  // Latest `onExited`, read when the exit lands: an inline callback must not
+  // re-run (and so cancel) the effect that schedules it.
+  const onExitedRef = useRef(onExited);
+  useEffect(() => {
+    onExitedRef.current = onExited;
+  });
+  const exitPendingRef = useRef(false);
+
   useEffect(() => {
     if (open) {
+      exitPendingRef.current = true;
       returnFocusRef.current = document.activeElement as HTMLElement | null;
       // Some callers remount the panel subtree on open/close (AddDogPanel keys
       // on `open`), destroying this instance before the closed branch below
@@ -150,8 +166,14 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
     // (`!open && !isAnimating` is what renders null below) rather than a delay
     // racing the close animation: until then the focused control inside the
     // panel is still mounted, and taking focus from it would be wrong.
-    if (!isAnimating) returnFocus();
-    return;
+    if (isAnimating) return;
+    returnFocus();
+    if (!exitPendingRef.current) return;
+    exitPendingRef.current = false;
+    // Queued after returnFocus's tick, so a panel opened from here records the
+    // opener as its own return target rather than <body>.
+    const exited = setTimeout(() => onExitedRef.current?.(), 0);
+    return () => clearTimeout(exited);
   }, [open, isAnimating, returnFocus]);
 
   // Handle focus management and cleanup animations

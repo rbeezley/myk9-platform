@@ -1,5 +1,5 @@
 /**
- * The footer Delete with the REAL shared dialog inside the REAL panel and dialog
+ * The footer Delete with the REAL shared dialog inside the REAL panel and inline
  * variants (only the server and device halves are mocked). Pins what a stand-in
  * dialog cannot: Escape on the delete dialog must not close the panel behind it
  * (MYK9-910), and a refused delete must leave the panel open with the reason.
@@ -50,7 +50,7 @@ function Fields() {
   );
 }
 
-function renderPanel(variant: 'panel' | 'dialog') {
+function renderPanel(variant: 'panel' | 'inline') {
   const onClose = vi.fn();
   const onDeleted = vi.fn();
   const rendered = render(
@@ -75,7 +75,7 @@ function renderPanel(variant: 'panel' | 'dialog') {
   return { ...rendered, onClose, onDeleted };
 }
 
-describe.each(['panel', 'dialog'] as const)('real delete dialog in the %s variant', variant => {
+describe.each(['panel', 'inline'] as const)('real delete dialog in the %s variant', variant => {
   beforeEach(() => {
     mocks.preview.mockReset().mockResolvedValue(NOTHING);
     mocks.remove.mockReset().mockResolvedValue(undefined);

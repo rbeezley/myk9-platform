@@ -7,11 +7,15 @@ import { FileText, AlertCircle, Plus, Edit, Trash2 } from 'lucide-react';
 import type { Registration } from '@/types/dog-types';
 import { useEditPanel } from '@/components/panels/edit/useEditPanel';
 import type { DogFormData } from './types';
+import { tabCardClasses } from './tabCard';
+import { cn } from '@/lib/utils';
 
 interface RegistrationTabProps {
   onRemoveRegistration: (id: string) => void;
   onEditRegistration: (reg: Registration) => void;
   onAddRegistration: () => void;
+  /** Inline: no card chrome of its own (see `tabCardClasses`). */
+  flat?: boolean | undefined;
 }
 
 import {
@@ -24,16 +28,18 @@ export const RegistrationTab: React.FC<RegistrationTabProps> = ({
   onRemoveRegistration,
   onEditRegistration,
   onAddRegistration,
+  flat = false,
 }) => {
   const { form } = useEditPanel<DogFormData>();
 
   if (!form) return null;
 
   const registrations = form.data.registrations;
+  const card = tabCardClasses(flat);
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className={card.card}>
+      <CardHeader className={card.header}>
         <CardTitle
           id={REGISTRATION_HEADING_ID}
           tabIndex={-1}
@@ -43,7 +49,7 @@ export const RegistrationTab: React.FC<RegistrationTabProps> = ({
           Registration Information
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className={cn('space-y-6', card.content)}>
         {registrations.length === 0 ? (
           <Alert>
             <AlertCircle className="h-4 w-4" />

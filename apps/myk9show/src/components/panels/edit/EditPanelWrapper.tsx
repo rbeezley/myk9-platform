@@ -4,19 +4,18 @@ import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
 import { cn } from '@/lib/utils';
 import { EditPanelContext, EditPanelContextValue } from './useEditPanel';
 import { logger } from '@/services/LoggingService';
-import { notifications } from '@/lib/notifications';
 import { useFormValidation, FormValidation } from '@/hooks/useFormValidation';
 import { useRegisterActionBar } from '@/hooks/useRegisterActionBar';
 import { UnsavedChangesRouteGuard } from '@/components/navigation/UnsavedChangesRouteGuard';
 import { DiscardChangesDialog } from './DiscardChangesDialog';
-import { PanelSaveHandledError, offlineAwareMessage } from './panelSaveErrors';
-import { friendlySaveError } from '@/utils/friendlySaveError';
+import { announcePanelSaved, reportPanelSaveFailure } from './editPanelSaveFeedback';
 import { EditPanelDeleteDialog } from './EditPanelDelete';
 import type { DeleteRecordsResult } from '@/features/delete';
 import { EditPanelFooter } from './EditPanelFooter';
-import { EditPanelDialogShell, EditPanelInlineShell } from './EditPanelShells';
+import { EditPanelInlineShell } from './EditPanelShells';
 import { RequiredLegend } from '@/components/common/RequiredMark';
 import { useEditPanelSteps } from './useEditPanelSteps';
+import { useSelfNavigation } from './useSelfNavigation';
 import type { EditPanelWrapperProps } from './EditPanelWrapper.types';
 
 export type { EditPanelDeleteOption } from './EditPanelDelete';
@@ -55,6 +54,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   onDelete,
   variant = 'panel',
   closeRequestRef,
+  onExited,
   forceHasChanges = false,
   successMessage,
   onDataChange,
@@ -222,49 +222,14 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     [useSchemaPath, form]
   );
 
-  // While this counter is above zero the route guard stands down: the panel is
-  // navigating on its own behalf, and the user already answered for those
-  // changes in the panel's own dialog. Without it, closing a panel whose parent
-  // drops a `?add=true` param produces a second "Leave this page?" prompt for
-  // changes just discarded (MYK9-165).
-  //
-  // The counter is raised around the navigating CALL only — never across an
-  // await — so a slow save leaves the form guarded the whole time it is in
-  // flight. A ref rather than state because nothing can re-render between a
-  // click handler and the navigation it dispatches in the same tick.
-  const selfNavigationRef = useRef(0);
-  const runSelfNavigation = useCallback((navigate: () => void) => {
-    selfNavigationRef.current += 1;
-    try {
-      navigate();
-    } finally {
-      selfNavigationRef.current -= 1;
-    }
-  }, []);
+  const { selfNavigationRef, runSelfNavigation } = useSelfNavigation();
   const closeWithoutRouteGuard = useCallback(
     () => runSelfNavigation(onClose),
     [onClose, runSelfNavigation]
   );
 
-  // One report for both save paths. A failed save keeps the form open and says
-  // so in friendly words; the raw error text goes to the log only (H1).
-  const reportSaveFailure = useCallback((error: unknown) => {
-    // A handled refusal is a UX path the panel already explained, not an error.
-    if (error instanceof PanelSaveHandledError) return;
-    logger.error('Save failed:', 'components', {}, error as Error);
-    const { title, description } = friendlySaveError(error);
-    notifications.error(title, { description });
-  }, []);
-
   const confirmSaved = useCallback(
-    (saved: T) => {
-      if (successMessage === undefined) return;
-      notifications.success(
-        offlineAwareMessage(
-          typeof successMessage === 'function' ? successMessage(saved) : successMessage
-        )
-      );
-    },
+    (saved: T) => announcePanelSaved(successMessage, saved),
     [successMessage]
   );
 
@@ -277,12 +242,12 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         confirmSaved(validatedData);
         closeWithoutRouteGuard();
       } catch (error) {
-        reportSaveFailure(error);
+        reportPanelSaveFailure(error);
       } finally {
         setIsLoading(false);
       }
     },
-    [onSave, closeWithoutRouteGuard, runSelfNavigation, confirmSaved, reportSaveFailure]
+    [onSave, closeWithoutRouteGuard, runSelfNavigation, confirmSaved]
   );
 
   const handleSave = useMemo(() => {
@@ -304,7 +269,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         confirmSaved(legacyData);
         closeWithoutRouteGuard();
       } catch (error) {
-        reportSaveFailure(error);
+        reportPanelSaveFailure(error);
       } finally {
         setIsLoading(false);
       }
@@ -320,7 +285,6 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     runSelfNavigation,
     onValidationFail,
     confirmSaved,
-    reportSaveFailure,
   ]);
 
   const actionBarRef = useRegisterActionBar<HTMLDivElement>();
@@ -423,7 +387,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     });
   };
 
-  // Footer content. Dialogs register this whole footer below; SlideOverPanel
+  // Footer content. The inline shell registers this footer; SlideOverPanel
   // registers its generic footer container so every slide-out consumer gets
   // the same toast clearance without each caller remembering the hook.
   const footer = (
@@ -456,19 +420,12 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
   const body = (
     <>
       {steps?.mode === 'create' && (
-        <RequiredLegend
-          className={cn(
-            'text-xs text-muted-foreground',
-            variant === 'dialog' ? 'pb-3' : 'px-6 pt-4'
-          )}
-        />
+        <RequiredLegend className="px-6 pt-4 text-xs text-muted-foreground" />
       )}
       {children}
     </>
   );
 
-  // In the dialog variant it is mounted INSIDE the dialog so Base UI treats it as
-  // a nested dialog: a sibling would sit under the outer dialog's inert layer.
   const deleteDialog = onDelete && (
     <EditPanelDeleteDialog
       option={onDelete}
@@ -478,7 +435,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     />
   );
 
-  // The prompts that answer for this panel, rendered beside it in both variants.
+  // The prompts that answer for this panel, rendered beside it in every variant.
   const overlays = (
     <>
       <DiscardChangesDialog
@@ -498,35 +455,10 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
     </>
   );
 
-  if (variant === 'dialog') {
-    return (
-      <EditPanelContext.Provider value={contextValue}>
-        <EditPanelDialogShell
-          open={open}
-          onRequestClose={handleClose}
-          title={title}
-          body={body}
-          footer={footer}
-          actionBarRef={actionBarRef}
-          deleteDialog={deleteDialog}
-        />
-        {overlays}
-      </EditPanelContext.Provider>
-    );
-  }
-
-  if (variant === 'inline') {
-    return (
-      <EditPanelContext.Provider value={contextValue}>
-        <EditPanelInlineShell body={body} footer={footer} actionBarRef={actionBarRef} />
-        {overlays}
-        {deleteDialog}
-      </EditPanelContext.Provider>
-    );
-  }
-
-  return (
-    <EditPanelContext.Provider value={contextValue}>
+  const shell =
+    variant === 'inline' ? (
+      <EditPanelInlineShell body={body} footer={footer} actionBarRef={actionBarRef} />
+    ) : (
       <SlideOverPanel
         open={open}
         onClose={handleClose}
@@ -538,6 +470,7 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
         headerActions={headerActions}
         className={cn('edit-panel-wrapper', className)}
         preventClose={(hasChanges && showUnsavedWarning) || deleteOpen}
+        {...(onExited && { onExited })}
       >
         <div className="flex flex-col h-full animate-in fade-in-0 duration-300 ease-out">
           {/* Main content - no overflow here, SlideOverPanel handles scrolling */}
@@ -546,7 +479,11 @@ export function EditPanelWrapper<T extends Record<string, unknown> = Record<stri
           </div>
         </div>
       </SlideOverPanel>
+    );
 
+  return (
+    <EditPanelContext.Provider value={contextValue}>
+      {shell}
       {overlays}
       {deleteDialog}
     </EditPanelContext.Provider>

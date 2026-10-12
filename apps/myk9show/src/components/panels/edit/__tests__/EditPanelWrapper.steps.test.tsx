@@ -92,7 +92,6 @@ function Harness({
       open
       onClose={() => {}}
       title="Thing"
-      variant="dialog"
       initialData={
         mode === 'create'
           ? { name: '', phone: '', note: '' }

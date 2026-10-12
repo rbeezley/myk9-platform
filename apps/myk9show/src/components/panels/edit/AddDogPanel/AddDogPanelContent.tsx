@@ -173,6 +173,7 @@ export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
             isBasicValid={isBasicValid}
             hasRegistrations={hasRegistrations}
             isRegistrationValid={isRegistrationValid}
+            compact={inline}
           />
 
           <TabsContent
@@ -186,6 +187,7 @@ export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
               onPhotoOpen={() => handlePhotoDialogOpen(true)}
               onAddRegistration={openAddRegistration}
               showPhoto={!inline}
+              flat={inline}
             />
           </TabsContent>
 
@@ -194,11 +196,12 @@ export const AddDogPanelContent: React.FC<AddDogPanelContentProps> = ({
               onRemoveRegistration={handleRemoveRegistration}
               onEditRegistration={openEditRegistration}
               onAddRegistration={openAddRegistration}
+              flat={inline}
             />
           </TabsContent>
 
           <TabsContent value="optional" className="space-y-8 mt-8">
-            <AdditionalInfoTab />
+            <AdditionalInfoTab flat={inline} />
           </TabsContent>
         </Tabs>
       </div>

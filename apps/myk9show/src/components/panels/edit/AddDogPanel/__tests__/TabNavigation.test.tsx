@@ -81,3 +81,33 @@ describe('TabNavigation completion indicators (4.E)', () => {
     expect(checkCount(container)).toBe(0);
   });
 });
+
+/**
+ * MYK9-1081: inside Quick Create's 375px slide-out the default strip overflowed
+ * "Registration" and "Optional details" into their neighbours (measured in
+ * Montserrat with Playwright; see the `compact` prop). Below `sm` the compact
+ * strip drops the decorative icons and lets a label wrap; the panel variant
+ * keeps its strip as it was.
+ */
+describe('TabNavigation compact (inline) strip', () => {
+  const tabs = () => screen.getAllByRole('tab');
+  const leadingIcons = () => tabs().map(tab => tab.querySelector('svg') as SVGElement);
+  const props = { isBasicValid: true, hasRegistrations: true, isRegistrationValid: true };
+
+  it('hides the leading icons and lets labels wrap below sm', () => {
+    renderTabs({ ...props, compact: true });
+    for (const icon of leadingIcons()) expect(icon).toHaveClass('hidden', 'sm:block');
+    for (const tab of tabs()) {
+      expect(tab).toHaveClass('whitespace-normal', 'px-1', 'text-xs', 'sm:px-4', 'sm:text-sm');
+      expect(tab).not.toHaveClass('whitespace-nowrap', 'px-4');
+    }
+    // The completion checks still show: they carry meaning, the icons do not.
+    expect(screen.getAllByRole('tab')[0]?.querySelectorAll('.text-emerald-500')).toHaveLength(1);
+  });
+
+  it('leaves the default strip unchanged', () => {
+    renderTabs(props);
+    for (const icon of leadingIcons()) expect(icon).not.toHaveClass('hidden');
+    for (const tab of tabs()) expect(tab).toHaveClass('whitespace-nowrap', 'px-4');
+  });
+});

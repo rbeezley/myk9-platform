@@ -7,6 +7,8 @@ import {
   APP_FUNCTIONS_DIR,
   ISOLATED_FUNCTION_SECRETS,
   ROOT_FUNCTIONS_DIR,
+  SUPABASE_CONFIG_FILE,
+  noVerifyJwtConfig,
   planAppFunctionStaging,
   stageAppEdgeFunctions,
 } from './isolated-e2e-functions';
@@ -23,6 +25,7 @@ function fixtureRepo(overrides: { sameSharedFile?: string; extraRootFunction?: s
   const app = join(repo, APP_FUNCTIONS_DIR);
   write(join(root, 'admin-delete-user/index.ts'), 'root fn');
   write(join(root, '_shared/cors.ts'), 'cors v1');
+  write(join(repo, SUPABASE_CONFIG_FILE), '[api]\nenabled = true\n');
   write(join(app, 'cron-waitlist-expiration/index.ts'), 'cron');
   write(join(app, 'cron-waitlist-expiration/offerStep.ts'), 'offer');
   write(join(app, 'decline-waitlist-offer/index.ts'), 'decline');
@@ -85,5 +88,24 @@ describe('stageAppEdgeFunctions', () => {
     // Never a live key: the journey must not be able to reach real Stripe.
     expect(envFile).toMatch(/^STRIPE_SECRET_KEY=sk_test_/m);
     expect(existsSync(join(root, 'decline-waitlist-offer/index.ts'))).toBe(true);
+    // The cron authenticates with CRON_SECRET, not a JWT; the gateway must let it through.
+    const config = readFileSync(join(repo, SUPABASE_CONFIG_FILE), 'utf8');
+    for (const name of [
+      'admin-delete-user',
+      'cron-waitlist-expiration',
+      'decline-waitlist-offer',
+    ]) {
+      expect(config).toContain(`[functions.${name}]\nverify_jwt = false`);
+    }
+    expect(config).not.toContain('[functions._shared]');
+    expect(config.startsWith('[api]\nenabled = true\n')).toBe(true);
+  });
+});
+
+describe('noVerifyJwtConfig', () => {
+  it('skips a function the config already declares', () => {
+    expect(noVerifyJwtConfig('[functions.a]\nverify_jwt = true\n', ['a', 'b'])).toBe(
+      '\n[functions.b]\nverify_jwt = false\n'
+    );
   });
 });

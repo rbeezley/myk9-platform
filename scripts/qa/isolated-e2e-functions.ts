@@ -10,12 +10,25 @@
  * The union is staged INTO THE CI CHECKOUT before `supabase start`, never committed: the runner is
  * thrown away afterwards. Anything that would make the union lossy (a function in both trees, or a
  * `_shared` file that differs) aborts instead of choosing a side.
+ *
+ * Production deploys every function with `--no-verify-jwt` (each one authenticates its own caller),
+ * but the local gateway verifies JWTs unless `config.toml` says otherwise. Without the same setting
+ * here, the cron's `Bearer <CRON_SECRET>` is rejected as an invalid JWT before the function runs.
  */
-import { cpSync, existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import {
+  appendFileSync,
+  cpSync,
+  existsSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { join, relative } from 'node:path';
 
 export const ROOT_FUNCTIONS_DIR = 'supabase/functions';
 export const APP_FUNCTIONS_DIR = 'apps/myk9show/supabase/functions';
+export const SUPABASE_CONFIG_FILE = 'supabase/config.toml';
 const SHARED_DIR = '_shared';
 
 /**
@@ -91,6 +104,14 @@ export function planAppFunctionStaging(repoRoot: string): FunctionStagingPlan {
   return { functionDirs, sharedFiles };
 }
 
+/** `[functions.<name>] verify_jwt = false` for each function the config does not already declare. */
+export function noVerifyJwtConfig(existingConfig: string, functionNames: string[]): string {
+  return functionNames
+    .filter(name => !existingConfig.includes(`[functions.${name}]`))
+    .map(name => `\n[functions.${name}]\nverify_jwt = false\n`)
+    .join('');
+}
+
 export function functionSecretsEnvFile(): string {
   return `${Object.entries(ISOLATED_FUNCTION_SECRETS)
     .map(([key, value]) => `${key}=${value}`)
@@ -98,7 +119,8 @@ export function functionSecretsEnvFile(): string {
 }
 
 /**
- * Copies the app's functions into the root tree and writes the test-only `functions/.env`.
+ * Copies the app's functions into the root tree, writes the test-only `functions/.env`, and turns
+ * off gateway JWT verification for every served function, as production's deploy does.
  * Refuses outside CI unless explicitly allowed, because it writes into the checkout.
  */
 export function stageAppEdgeFunctions(
@@ -128,5 +150,8 @@ export function stageAppEdgeFunctions(
     });
   }
   writeFileSync(join(rootDir, '.env'), functionSecretsEnvFile(), 'utf8');
+  const configPath = join(repoRoot, SUPABASE_CONFIG_FILE);
+  const served = listDirs(rootDir).filter(name => name !== SHARED_DIR);
+  appendFileSync(configPath, noVerifyJwtConfig(readFileSync(configPath, 'utf8'), served), 'utf8');
   return plan;
 }

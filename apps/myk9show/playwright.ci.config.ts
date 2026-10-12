@@ -131,6 +131,10 @@ const REGRESSION_SPECS = [
   // isolated target (MYK9_PLAYWRIGHT_REGRESSION_ENABLED=true), whose seed-demo.sql builds a
   // fresh fixture each run.
   '**/secretary/resultsTabJourney.spec.ts',
+  // MYK9-971: the wait-list journey (join, offer, decline, cron expiry, mail-in head notice and its
+  // dedupe). Stateful and local-only: it calls the real cron-waitlist-expiration function on the
+  // isolated target's edge runtime and restores the seed's full-class fixture in afterAll.
+  '**/secretary/waitlistJourney.spec.ts',
 ];
 
 // PR Smoke: stable specs — connectivity, secretary regression proof, the

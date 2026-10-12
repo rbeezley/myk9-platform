@@ -188,6 +188,7 @@ describe('AtShowClassListPage — exhibitor "Your dogs today" default', () => {
           resultStatus: 'qualified',
           searchTimeSeconds: 58,
           totalFaults: 1,
+          finalPlacement: null,
           resultsReleasedAt,
         },
       ],

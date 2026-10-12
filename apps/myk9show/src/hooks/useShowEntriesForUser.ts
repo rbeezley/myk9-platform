@@ -9,7 +9,8 @@ import { getDogDisplayName } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
 import { getClassName } from '@/components/classes/types/classTypes';
 import { buildTrialDisambiguators } from '@/features/_shared/classLabel';
-import { deriveResultReleaseDisplay } from '@/features/result-card';
+import { useMyShowResults } from '@/features/at-show/useMyShowResults';
+import { buildScheduleResult } from './scheduleEntryResult';
 import {
   isRunnableScheduleStatus,
   resolveClassSection,
@@ -273,6 +274,8 @@ export function useShowEntriesForUser(
     (hasScopedClubRole(userWithRoles, UserRole.SECRETARY, showClubId) ||
       hasScopedShowRole(userWithRoles, UserRole.SECRETARY, showId));
   const canSeeAll = isAdmin || secretaryCanSeeShow || clubAdminCanSeeShow;
+  // Staff read the device rows; everyone else reads their own masked results.
+  const ownResults = useMyShowResults(canSeeAll ? undefined : showId);
 
   return useMemo(() => {
     const sourceIsLoading = canonicalSource ? canonicalSource.state === 'loading' : isLoading;
@@ -406,8 +409,13 @@ export function useShowEntriesForUser(
       const level = cls?.level ?? '';
       const section = cls?.section ?? '';
 
-      const compData = entry.competitionData;
-      const hasResult = !!compData;
+      const result = buildScheduleResult(
+        canSeeAll,
+        entry.competitionData,
+        ownResults.get(entry.id),
+        cls?.results_released_at
+      );
+      const hasResult = !!result;
 
       const classTitleBase = cls ? classDisplayName(cls) || fallbackClassTitle : fallbackClassTitle;
       const classExtra = cls
@@ -443,21 +451,7 @@ export function useShowEntriesForUser(
         paymentStatus: entry.registrationData.paymentStatus,
         hasResult,
         ...(movedUpFrom ? { movedUpFrom } : {}),
-        ...(hasResult && compData
-          ? {
-              result: {
-                qualified: compData.qualified ?? false,
-                ...(compData.time != null ? { time: compData.time } : {}),
-                ...(compData.placement ? { placement: parseInt(compData.placement, 10) } : {}),
-                ...(compData.faults != null ? { faults: compData.faults } : {}),
-                isPreliminary: deriveResultReleaseDisplay({
-                  resultsReleasedAt: cls?.results_released_at,
-                  resultStatus: compData.qualified ? 'qualified' : 'nq',
-                  finalPlacement: null,
-                }).isPreliminary,
-              },
-            }
-          : {}),
+        ...(result ? { result } : {}),
       });
     }
 
@@ -500,5 +494,6 @@ export function useShowEntriesForUser(
     isLoading,
     error,
     canonicalSource,
+    ownResults,
   ]);
 }

@@ -12,6 +12,7 @@ type OwnRow = {
   result_status?: string | null;
   search_time_seconds?: number | null;
   total_faults?: number | null;
+  final_placement?: number | null;
   class_results_released_at?: string | null;
 };
 
@@ -53,6 +54,7 @@ export function useMyShowResults(showId: string | undefined): ReadonlyMap<string
           resultStatus: row.result_status ?? null,
           searchTimeSeconds: row.search_time_seconds ?? null,
           totalFaults: row.total_faults ?? null,
+          finalPlacement: row.final_placement ?? null,
           resultsReleasedAt: row.class_results_released_at ?? null,
         });
       }

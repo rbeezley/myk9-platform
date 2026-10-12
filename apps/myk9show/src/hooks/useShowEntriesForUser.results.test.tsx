@@ -5,12 +5,19 @@ import { MyEntriesTab } from '@/components/shows/tabs/MyEntriesTab';
 import type { SubmittedEntryDbRow } from '@/features/exhibitor-entry/submittedEntryProjection';
 import type { SyncableShowEntry } from '@/store/entry-store-types';
 import { mergeCanonicalEntry, normalizeCanonicalEntry } from './useShowEntriesForUser';
+import type { OwnShowResult } from '@/features/at-show/myAtShowEntryDetails.helpers';
 
 vi.mock('@/store/entryStore', () => ({ useEntryStore: vi.fn() }));
 vi.mock('@/hooks/useClassStoreCompat', () => ({ useClassStoreCompat: vi.fn() }));
 vi.mock('@/hooks/useDogStoreCompat', () => ({ useDogStoreCompat: vi.fn() }));
 vi.mock('@/hooks/useShowStoreCompat', () => ({ useShowStoreCompat: vi.fn() }));
 vi.mock('@/hooks/useAuthContext', () => ({ useAuthContext: vi.fn() }));
+// MYK9-1115: an exhibitor's results come from their own masked read, never
+// from the device rows; the read itself is tested in useMyShowResults.test.ts.
+const ownResults = vi.hoisted(() => ({ current: new Map() as ReadonlyMap<string, unknown> }));
+vi.mock('@/features/at-show/useMyShowResults', () => ({
+  useMyShowResults: () => ownResults.current,
+}));
 
 import { useEntryStore } from '@/store/entryStore';
 import { useClassStoreCompat } from '@/hooks/useClassStoreCompat';
@@ -33,6 +40,23 @@ const released: SubmittedEntryDbRow = {
   total_faults: 0,
 };
 
+/** What the masked own read returns for a row, released (the fixtures' class is). */
+function ownFrom(row: SubmittedEntryDbRow): OwnShowResult {
+  return {
+    isScored: row.is_scored === true,
+    resultStatus: (row.result_status as string | null | undefined) ?? null,
+    searchTimeSeconds: (row.search_time_seconds as number | null | undefined) ?? null,
+    totalFaults: (row.total_faults as number | null | undefined) ?? null,
+    finalPlacement: (row.final_placement as number | null | undefined) ?? null,
+    resultsReleasedAt: '2020-08-01T00:00:00Z',
+  };
+}
+
+/** The own read answers for these rows. */
+function setOwn(...rows: SubmittedEntryDbRow[]) {
+  ownResults.current = new Map(rows.map(row => [String(row.id), ownFrom(row)]));
+}
+
 function storedEntry(row: SubmittedEntryDbRow): SyncableShowEntry {
   const entry = normalizeCanonicalEntry(row);
   if (!entry) throw new Error('Invalid test entry');
@@ -54,6 +78,7 @@ function setStored(entry: SyncableShowEntry) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  ownResults.current = new Map();
   vi.mocked(useAuthContext).mockReturnValue(
     fromPartial({
       userWithRoles: { databaseUserId: 'person-1' },
@@ -110,6 +135,7 @@ beforeEach(() => {
 describe('canonical results with existing local entries (MYK9-381)', () => {
   it('renders a newly released qualification and time through the real hook and schedule', () => {
     setStored(storedEntry({ ...released, is_scored: false, result_status: null }));
+    setOwn(released);
     render(<MyEntriesTab showId={SHOW_ID} canonicalEntries={[released]} />);
 
     expect(screen.getByText('Q · 0:38.50')).toBeInTheDocument();
@@ -119,6 +145,7 @@ describe('canonical results with existing local entries (MYK9-381)', () => {
 
   it('updates corrected times and qualifications on the existing row', () => {
     setStored(storedEntry(released));
+    setOwn({ ...released, search_time_seconds: 41.2 });
     const { rerender } = render(
       <MyEntriesTab
         showId={SHOW_ID}
@@ -128,6 +155,7 @@ describe('canonical results with existing local entries (MYK9-381)', () => {
     expect(screen.getByText('Q · 0:41.20')).toBeInTheDocument();
     expect(screen.queryByText('Q · 0:38.50')).not.toBeInTheDocument();
 
+    setOwn({ ...released, result_status: 'not_qualified', total_faults: 1 });
     rerender(
       <MyEntriesTab
         showId={SHOW_ID}
@@ -142,9 +170,11 @@ describe('canonical results with existing local entries (MYK9-381)', () => {
     'clears stale Q/time when the canonical result is %s',
     resultStatus => {
       setStored(storedEntry(released));
+      setOwn(released);
       const { rerender } = render(<MyEntriesTab showId={SHOW_ID} canonicalEntries={[released]} />);
       expect(screen.getByText('Q · 0:38.50')).toBeInTheDocument();
 
+      setOwn({ ...released, result_status: resultStatus, search_time_seconds: null });
       rerender(
         <MyEntriesTab
           showId={SHOW_ID}
@@ -161,6 +191,7 @@ describe('canonical results with existing local entries (MYK9-381)', () => {
 
   it('clears a locally cached placement while retaining independently released Q/time', () => {
     setStored(storedEntry({ ...released, final_placement: 1 }));
+    setOwn(released);
     render(<MyEntriesTab showId={SHOW_ID} canonicalEntries={[released]} />);
     expect(screen.getByText('Q · 0:38.50')).toBeInTheDocument();
     expect(screen.queryByText('1st')).not.toBeInTheDocument();
@@ -189,5 +220,31 @@ describe('canonical results with existing local entries (MYK9-381)', () => {
     expect(merged._syncStatus).toBe('pending');
     expect(merged.statusHistory).toBe(stored.statusHistory);
     expect(stored).toEqual(before);
+  });
+});
+
+describe("the exhibitor's schedule reads results from the own masked read (MYK9-1115)", () => {
+  it('never shows a result the own read withheld, even when the device rows hold one', () => {
+    // A staff session on this device left unmasked scores in the replica.
+    setStored(storedEntry(released));
+    render(<MyEntriesTab showId={SHOW_ID} canonicalEntries={[released]} />);
+
+    expect(screen.queryByText(/Q ·/)).not.toBeInTheDocument();
+    expect(screen.queryByText('NQ')).not.toBeInTheDocument();
+  });
+
+  it('keeps the device rows for an admin who can see the whole show', () => {
+    vi.mocked(useAuthContext).mockReturnValue(
+      fromPartial({
+        userWithRoles: { databaseUserId: 'person-1' },
+        isAdmin: true,
+        isSecretary: false,
+        hasRole: () => false,
+      })
+    );
+    setStored(storedEntry(released));
+    render(<MyEntriesTab showId={SHOW_ID} canonicalEntries={[released]} />);
+
+    expect(screen.getByText('Q · 0:38.50')).toBeInTheDocument();
   });
 });

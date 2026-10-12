@@ -266,8 +266,28 @@ describe('Quick Create person Edit Details', { timeout: JOURNEY_TIMEOUT_MS }, ()
     );
     expect(mocks.createUser).toHaveBeenCalledTimes(1);
     expect(mocks.recordOwnerCreated).toHaveBeenCalledTimes(1);
+    // The leave-early prompt reads the display name, so it must follow the rename.
     expect(mocks.refreshOwnerCreated).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'person-1', firstName: 'Mollie' })
+      expect.objectContaining({ id: 'person-1', firstName: 'Mollie', name: 'Mollie Mailbox' })
+    );
+  });
+
+  it('an edited street address reaches both address fields the flow reads', async () => {
+    const { user } = renderFlow();
+    await user.click(await reachPersonStep(user));
+    await user.click(await screen.findByRole('tab', { name: /Contact/i }));
+    setField(await screen.findByLabelText(/Street Address/i), '12 Mail St');
+    setField(screen.getByLabelText(/^City/i), 'Springfield');
+    setField(screen.getByLabelText(/^State/i), 'IL');
+    await user.click(await screen.findByRole('button', { name: 'Save Changes' }));
+
+    await waitFor(() => expect(mocks.refreshOwnerCreated).toHaveBeenCalledTimes(1));
+    expect(mocks.refreshOwnerCreated).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'person-1',
+        streetAddress: '12 Mail St',
+        address: '12 Mail St',
+      })
     );
   });
 

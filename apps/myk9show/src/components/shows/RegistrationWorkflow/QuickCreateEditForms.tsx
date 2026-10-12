@@ -98,13 +98,20 @@ export const QuickCreatePersonEdit: React.FC<EditFormProps<User>> = ({
 
   const handleSave = async (data: Partial<PersonRecord>) => {
     await updateUser.mutateAsync({ id: exhibitor.id, updates: buildUserEditSavePayload(data) });
+    const firstName = data.firstName ?? exhibitor.firstName;
+    const lastName = data.lastName ?? exhibitor.lastName;
+    const street = data.address || undefined;
     onSaved({
       ...exhibitor,
-      firstName: data.firstName ?? exhibitor.firstName,
-      lastName: data.lastName ?? exhibitor.lastName,
+      firstName,
+      lastName,
+      // Derived copies the flow reads: the display name (the leave-early prompt) and the
+      // `address` alias of `streetAddress`.
+      name: `${firstName} ${lastName}`.trim(),
       email: data.email ?? exhibitor.email,
       phone: data.phone ?? exhibitor.phone,
-      streetAddress: data.address || undefined,
+      streetAddress: street,
+      address: street,
       city: data.city || undefined,
       state: data.state || undefined,
       zipCode: data.zipCode || undefined,

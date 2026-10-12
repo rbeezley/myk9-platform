@@ -21,6 +21,18 @@ function entryInScope(entry: DbEntry, scope: ReportScope, classes: readonly DbCl
   return true;
 }
 
+/**
+ * A NUMERIC column reaches this file as a number from one read path and as its text from another
+ * (Reports reads `mapReplicatedEntryToDbRow` rows as stored; Results and Overview read
+ * `toSecretaryEntry` rows, which coerce). The fingerprint hashes the facts' text, so `"42.31"` and
+ * `42.31` would make a just-recorded print read as stale on the other page (MYK9-1031).
+ */
+function numberOrNull(value: unknown): number | null {
+  if (value === null || value === undefined || value === '') return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export function buildReportPaperworkDescriptor(input: {
   reportId: string;
   scope: ReportScope;
@@ -95,9 +107,9 @@ export function buildReportPaperworkDescriptor(input: {
         dogId: entry.dog_id ?? '',
         armband: entry.armband == null ? null : Number(entry.armband),
         resultStatus: entry.result_status,
-        placement: entry.final_placement,
-        searchTimeSeconds: entry.search_time_seconds,
-        totalFaults: entry.total_faults,
+        placement: numberOrNull(entry.final_placement),
+        searchTimeSeconds: numberOrNull(entry.search_time_seconds),
+        totalFaults: numberOrNull(entry.total_faults),
         trialId: classById.get(entry.class_id ?? '')?.trial_id ?? undefined,
       })),
       classFacts

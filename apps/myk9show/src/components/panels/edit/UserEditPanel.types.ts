@@ -13,8 +13,10 @@ export interface UserEditPanelProps {
   showAdvancedFields?: boolean;
   /** "Delete person" in the footer. Edit mode only; omit for a viewer who cannot delete. */
   onDelete?: EditPanelDeleteOption | undefined;
-  /** 'dialog' for the entry flow's Add Person; the default is the slide-over panel. */
+  /** 'dialog' or 'inline' for the entry flow's Add Person; the default is the slide-over panel. */
   variant?: EditPanelVariant | undefined;
+  /** `inline` only: filled with the form's close request, for the host's Back / Escape / X. */
+  closeRequestRef?: import('react').MutableRefObject<(() => void) | null> | undefined;
   /** Shown above the tabs (create mode): the entry flow's possible-duplicate card. */
   notice?: import('react').ReactNode;
   /** Create mode: called as the user leaves Basic Info with Next; false keeps them there. */

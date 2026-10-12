@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { UserEditPanel } from '@/components/panels/edit/UserEditPanel';
+import type { EditPanelVariant } from '@/components/panels/edit/EditPanelWrapper';
 import { PanelSaveHandledError } from '@/components/panels/edit/panelSaveErrors';
 import { CreateExhibitorDuplicates } from './CreateExhibitorDuplicates';
 import { User } from '@/types/dog-types';
@@ -27,6 +28,10 @@ interface CreateExhibitorDialogProps {
   offlineFirst?: boolean;
   /** The show whose add-entry flow this is; recorded as `created_from_show_id` (MYK9-1059). */
   createdFromShowId?: string | undefined;
+  /** `inline` inside Quick Create's one slide-out (MYK9-1081); a dialog everywhere else. */
+  variant?: EditPanelVariant;
+  /** `inline` only: the host's Back / Escape / X route through the form's close request. */
+  closeRequestRef?: React.MutableRefObject<(() => void) | null> | undefined;
 }
 
 /** The possible-duplicate card: announced, focused and scrolled into view when it appears. */
@@ -74,6 +79,8 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
   searchQuery = '',
   offlineFirst = false,
   createdFromShowId,
+  variant = 'dialog',
+  closeRequestRef,
 }) => {
   const { people, loadUsers } = useUserStore();
   // The candidates and the "add anyway" answer belong to ONE identity (name and
@@ -225,7 +232,8 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
       userName="New Person"
       initialUserData={initialUserData}
       onSave={handleSave}
-      variant="dialog"
+      variant={variant}
+      closeRequestRef={closeRequestRef}
       notice={notice}
       onDataChange={handleDataChange}
       onBeforeNext={data => !holdForDuplicate(data)}

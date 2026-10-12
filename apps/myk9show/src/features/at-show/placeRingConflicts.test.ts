@@ -15,6 +15,8 @@ function row(overrides: Partial<AtShowEntryDetail> & { entryId: string }): AtSho
     isScored: false,
     resultStatus: null,
     resultTimeSeconds: null,
+    resultFaults: null,
+    isPreliminary: false,
     selfCheckinState: 'allowed',
     trialLabel: null,
     classStatus: 'in_progress',

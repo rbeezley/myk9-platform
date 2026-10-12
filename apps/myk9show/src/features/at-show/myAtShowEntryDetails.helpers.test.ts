@@ -408,6 +408,8 @@ describe('deriveAtShowNextAction', () => {
     isScored: false,
     resultStatus: null,
     resultTimeSeconds: null,
+    resultFaults: null,
+    isPreliminary: false,
     selfCheckinState: 'allowed',
     trialLabel: null,
   };

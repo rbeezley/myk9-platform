@@ -8,20 +8,24 @@
  * those writes with queued ones.
  *
  * Never throws: the server write already succeeded. When the mirror fails, the
- * table still tells its subscribers to re-read, so the refresh listener runs
- * either way, and the next sync puts the replica right.
+ * replica is distrusted (the readers go to the server) and the table still
+ * tells its subscribers to re-read; the next clean full sync restores trust.
  */
 import { logger } from '@/services/LoggingService';
 import {
   replicatedDogRegistrationsTable,
   type DogRegistrationRow,
 } from '@/services/replication/ReplicatedDogRegistrationsTable';
+import { distrustRegistrationsReplica } from '@/services/replication/dogRegistrationsTrust';
 
 async function notifyAfterFailedMirror(operation: string, error: unknown): Promise<void> {
   logger.warn('Registration write not mirrored to this device', 'replication', {
     operation,
     error: error instanceof Error ? error.message : String(error),
   });
+  // The replica now disagrees with the server, so it must not answer alone;
+  // distrust BEFORE the readers refetch, so the refetch goes to the server.
+  distrustRegistrationsReplica(`mirror-failed:${operation}`);
   try {
     await replicatedDogRegistrationsTable.notifyChanged();
   } catch {

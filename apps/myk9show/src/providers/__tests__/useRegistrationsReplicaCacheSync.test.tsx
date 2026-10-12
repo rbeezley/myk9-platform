@@ -16,10 +16,12 @@ import RegistrationsSection from '@/components/dogs/DogDetails/Registrations/Reg
 import type { Dog } from '@/types/dog-types';
 import {
   installRegistrationsServer,
-  markWarm,
+  trustReplica,
   newServer,
   serverRow,
 } from '@/services/replication/__tests__/dogRegistrationFixtures';
+import { resetRegistrationsTrustForTests } from '@/services/replication/dogRegistrationsTrust';
+import { useRegistrationsByDogQuery } from '@/hooks/queries/useRegistrationsDatabase';
 import { useRegistrationsReplicaCacheSync } from '../useRegistrationsReplicaCacheSync';
 
 const READER_KEYS = [
@@ -45,10 +47,12 @@ function invalidated(queryClient: QueryClient): boolean[] {
 }
 
 beforeEach(async () => {
+  resetRegistrationsTrustForTests();
   await databaseManager.reset();
 });
 
 afterEach(async () => {
+  resetRegistrationsTrustForTests();
   await databaseManager.reset();
 });
 
@@ -91,6 +95,47 @@ describe('useRegistrationsReplicaCacheSync', () => {
   });
 });
 
+// Codex round 2: invalidating while a cold PostgREST read is in flight
+// dedupes onto it, so its older answer lands after the change it predates.
+describe('a cold read in flight when the replica changes', () => {
+  it('is replaced by a fresh read, not left to land late', async () => {
+    let releaseOld!: () => void;
+    const answers = [
+      new Promise(resolve => {
+        releaseOld = () => resolve({ data: [serverRow({ registered_name: 'Old' })], error: null });
+      }),
+      Promise.resolve({ data: [serverRow({ registered_name: 'New' })], error: null }),
+    ];
+    const builder = {
+      select: () => builder,
+      eq: () => builder,
+      order: () => answers.shift() ?? Promise.resolve({ data: [], error: null }),
+    };
+    vi.mocked(supabase.from).mockImplementation((() => builder) as unknown as typeof supabase.from);
+    const queryClient = createTestQueryClient();
+    const { result } = renderHook(
+      () => {
+        useRegistrationsReplicaCacheSync();
+        return useRegistrationsByDogQuery('dog-1');
+      },
+      {
+        wrapper: ({ children }: { children: React.ReactNode }) => (
+          <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+        ),
+      }
+    );
+    await waitFor(() => expect(answers).toHaveLength(1));
+
+    await replicatedDogRegistrationsTable.applyServerRows([serverRow({ id: 'other' })]);
+    await waitFor(() => expect(answers).toHaveLength(0));
+    releaseOld();
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true));
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(result.current.data).toEqual([expect.objectContaining({ registered_name: 'New' })]);
+  });
+});
+
 /** PostgREST answers a direct update or delete with `row`. */
 function serverWriteReturns(row: Record<string, unknown>) {
   const single = vi.fn(async () => ({ data: row, error: null }));
@@ -114,7 +159,7 @@ describe('a direct write reaches the dog page without a sync', () => {
     await replicatedDogRegistrationsTable.applyServerRows([
       serverRow({ registered_name: 'Old Name', version: 3 }),
     ]);
-    await markWarm(replicatedDogRegistrationsTable);
+    trustReplica();
     // Any sync attempt would read nothing.
     installRegistrationsServer(newServer());
   });

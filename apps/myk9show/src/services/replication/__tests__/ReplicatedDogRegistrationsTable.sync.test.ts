@@ -11,7 +11,15 @@ import {
   registrationToDbRow,
   rowToRegistration,
 } from '../dogRegistrationRows';
-import { installRegistrationsServer, newServer, serverRow } from './dogRegistrationFixtures';
+import {
+  installRegistrationsServer,
+  newServer,
+  serverRow,
+  signedInAs,
+  TEST_AUTH_USER,
+  trustReplica,
+} from './dogRegistrationFixtures';
+import { readRegistrationsTrust, resetRegistrationsTrustForTests } from '../dogRegistrationsTrust';
 
 vi.mock('@myk9/core', () => ({
   logger: { log: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
@@ -24,11 +32,14 @@ const EXPECTED_SELECT =
 let table: ReplicatedDogRegistrationsTable;
 
 beforeEach(async () => {
+  resetRegistrationsTrustForTests();
+  signedInAs(TEST_AUTH_USER);
   await databaseManager.reset();
   table = new ReplicatedDogRegistrationsTable();
 });
 
 afterEach(async () => {
+  resetRegistrationsTrustForTests();
   await databaseManager.reset();
 });
 
@@ -74,11 +85,16 @@ describe('registrations changes pass', () => {
         status: 'active',
       },
     ]);
-    installRegistrationsServer(newServer({ changePages: [[serverRow()]], idPages: [[]] }));
+    const server = newServer({ changePages: [[serverRow()]], idPages: [[{ id: 'reg-1' }]] });
+    installRegistrationsServer(server);
 
     await table.sync();
 
-    expect((await table.getSyncMetadata())?.lastFullSyncAt).toBeGreaterThan(0);
+    expect(server.calls.find(c => c.method === 'gt')?.args).toEqual([
+      'updated_at',
+      new Date(0).toISOString(),
+    ]);
+    expect(readRegistrationsTrust()?.authUserId).toBe(TEST_AUTH_USER);
     expect((await table.readForDogs(['dog-1'])).state).toBe('warm');
   });
 
@@ -118,6 +134,90 @@ describe('registrations changes pass', () => {
     } finally {
       configureConflictSurfacing(false);
     }
+  });
+});
+
+function fullServer() {
+  return newServer({
+    changePages: [[serverRow({ id: 'r1' }), serverRow({ id: 'r2' }), serverRow({ id: 'r3' })]],
+    idPages: [[{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }]],
+  });
+}
+
+// Only a clean full sync for the signed-in account earns trust (Codex round 2).
+describe('registrations replica trust earned by sync', () => {
+  it('distrusts another account at sync start, forces a full fetch, and trusts only the new one', async () => {
+    trustReplica('auth-a');
+    signedInAs('auth-b');
+    const server = fullServer();
+    installRegistrationsServer(server);
+
+    await table.sync();
+
+    expect(server.calls.find(c => c.method === 'gt')?.args[1]).toBe(new Date(0).toISOString());
+    expect(readRegistrationsTrust()?.authUserId).toBe('auth-b');
+    signedInAs('auth-a');
+    expect((await table.readForDogs(['dog-1'])).state).toBe('cold');
+  });
+
+  it('runs incrementally and keeps trust when the replica is already trusted for this account', async () => {
+    await table.applyServerRows([serverRow({ id: 'r1' })]);
+    await table.updateSyncMetadata({ lastIncrementalSyncAt: Date.parse('2026-10-01T00:00:00Z') });
+    trustReplica();
+    const before = readRegistrationsTrust();
+    const server = fullServer();
+    installRegistrationsServer(server);
+
+    await table.sync();
+
+    expect(server.calls.find(c => c.method === 'gt')?.args[1]).not.toBe(new Date(0).toISOString());
+    expect(readRegistrationsTrust()).toEqual(before);
+  });
+
+  it('does not earn trust without a resolved account', async () => {
+    signedInAs(null);
+    installRegistrationsServer(fullServer());
+
+    await table.sync();
+
+    expect(readRegistrationsTrust()).toBeNull();
+  });
+
+  it('does not earn trust when the ID pass cannot hydrate a missing id, and the next clean sync does', async () => {
+    const server = fullServer();
+    server.idPages = [[{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }, { id: 'r4' }]];
+    installRegistrationsServer(server);
+    server.failIdLookups = true;
+
+    await table.sync();
+
+    expect(readRegistrationsTrust()).toBeNull();
+    installRegistrationsServer(fullServer());
+    await table.sync();
+    expect(readRegistrationsTrust()?.authUserId).toBe(TEST_AUTH_USER);
+  });
+
+  it('stops trusting the replica when a later ID pass cannot hydrate a missing id', async () => {
+    await table.applyServerRows([serverRow({ id: 'r1' })]);
+    await table.updateSyncMetadata({ lastIncrementalSyncAt: Date.parse('2026-10-01T00:00:00Z') });
+    trustReplica();
+    const server = newServer({ idPages: [[{ id: 'r1' }, { id: 'r-new' }]] });
+    server.failIdLookups = true;
+    installRegistrationsServer(server);
+
+    await table.sync();
+
+    expect(readRegistrationsTrust()).toBeNull();
+  });
+
+  it('does not earn trust when an ID page fails', async () => {
+    const server = fullServer();
+    server.idPages = [new Error('timeout')];
+    installRegistrationsServer(server);
+
+    await table.sync();
+
+    expect(readRegistrationsTrust()).toBeNull();
   });
 });
 

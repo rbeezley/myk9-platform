@@ -1,5 +1,10 @@
 import { useEffect } from 'react';
-import { useQueryClient, type QueryClient } from '@tanstack/react-query';
+import {
+  useQueryClient,
+  type Query,
+  type QueryClient,
+  type QueryFilters,
+} from '@tanstack/react-query';
 import { queryKeys } from '@/lib/queryClient';
 import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
 
@@ -12,11 +17,20 @@ const REGISTRATIONS_BY_DOG_PREFIX = ['registrations', 'dog'] as const;
  * `loadDogRegistrations`), and every owner's dogs under `['users', id, 'dogs']`.
  */
 export function refreshRegistrationReads(queryClient: QueryClient): void {
-  void queryClient.invalidateQueries({ queryKey: REGISTRATIONS_BY_DOG_PREFIX });
-  void queryClient.invalidateQueries({ queryKey: queryKeys.dogs });
-  void queryClient.invalidateQueries({
-    predicate: query => query.queryKey[0] === 'users' && query.queryKey[2] === 'dogs',
-  });
+  const filters: QueryFilters[] = [
+    { queryKey: REGISTRATIONS_BY_DOG_PREFIX },
+    { queryKey: queryKeys.dogs },
+    { predicate: (query: Query) => query.queryKey[0] === 'users' && query.queryKey[2] === 'dogs' },
+  ];
+  // Cancel first: invalidating dedupes onto a read already in flight, and a
+  // cold PostgREST read that started before this change can land after it
+  // and put the older answer back (refetchShowEntriesAfterScopedSync).
+  for (const filter of filters) {
+    void queryClient
+      .cancelQueries(filter)
+      .then(() => queryClient.invalidateQueries(filter))
+      .catch(() => undefined);
+  }
 }
 
 /**

@@ -3,10 +3,11 @@
  * Manage registrations panel), read from the replica when it is warm
  * (MYK9-1090, plan §2).
  *
- * Warm: the replica answers, with no network request, so it works offline,
- * and an empty answer means the dog has no registrations. Cold (never fully
- * synced here) or unreadable: PostgREST answers, and a failed read throws so
- * the screen shows an error, never an empty list (MYK9-90).
+ * Warm (trusted, see dogRegistrationsTrust.ts): the replica answers, with no
+ * network request, so it works offline, and an empty answer means the dog has
+ * no registrations. Cold (not trusted) or unreadable: PostgREST answers, and a
+ * failed read throws so the screen shows an error, never an empty list
+ * (MYK9-90).
  */
 import {
   replicatedDogRegistrationsTable,

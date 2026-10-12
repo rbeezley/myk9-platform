@@ -15,7 +15,14 @@ import { loadDogRegistrations } from '@/services/database/dogs/reads';
 import { replicatedDogRegistrationsTable } from '@/services/replication/ReplicatedDogRegistrationsTable';
 import RegistrationsSection from '@/components/dogs/DogDetails/Registrations/RegistrationsSection';
 import type { Dog } from '@/types/dog-types';
-import { markWarm, serverRow } from '@/services/replication/__tests__/dogRegistrationFixtures';
+import {
+  serverRow,
+  setOnline,
+  signedInAs,
+  trustReplica,
+} from '@/services/replication/__tests__/dogRegistrationFixtures';
+import { resetRegistrationsTrustForTests } from '@/services/replication/dogRegistrationsTrust';
+import { mirrorServerRegistration } from '@/services/database/registrations/replicaMirror';
 
 /** PostgREST `dog_registrations` reads answer `answer`; anything else is unexpected. */
 function postgrestAnswers(answer: { data: unknown; error: unknown }) {
@@ -39,20 +46,21 @@ function renderRegistrationsQuery(dogId: string) {
 }
 
 beforeEach(async () => {
+  resetRegistrationsTrustForTests();
   await databaseManager.reset();
 });
 
 afterEach(async () => {
   onlineManager.setOnline(true);
-  // The singleton remembers an eviction in memory; clearing it resets that.
-  await replicatedDogRegistrationsTable.clearCache();
+  setOnline(true);
+  resetRegistrationsTrustForTests();
   await databaseManager.reset();
 });
 
 describe('useRegistrationsByDogQuery', () => {
   it('answers from a warm replica while offline, without pausing', async () => {
     await replicatedDogRegistrationsTable.applyServerRows([serverRow()]);
-    await markWarm(replicatedDogRegistrationsTable);
+    trustReplica();
     onlineManager.setOnline(false);
 
     const { result } = renderRegistrationsQuery('dog-1');
@@ -66,7 +74,7 @@ describe('useRegistrationsByDogQuery', () => {
   });
 
   it('treats an empty warm answer as "no registrations"', async () => {
-    await markWarm(replicatedDogRegistrationsTable);
+    trustReplica();
 
     const { result } = renderRegistrationsQuery('dog-1');
 
@@ -109,7 +117,7 @@ describe('useRegistrationsByDogQuery', () => {
 describe('loadDogRegistrations', () => {
   it('answers from a warm replica alone, complete', async () => {
     await replicatedDogRegistrationsTable.applyServerRows([serverRow()]);
-    await markWarm(replicatedDogRegistrationsTable);
+    trustReplica();
 
     const result = await loadDogRegistrations(['dog-1', 'dog-2']);
 
@@ -129,6 +137,52 @@ describe('loadDogRegistrations', () => {
   });
 });
 
+describe('registrations replica trust', () => {
+  beforeEach(async () => {
+    await replicatedDogRegistrationsTable.applyServerRows([serverRow({ id: 'from-a' })]);
+    postgrestAnswers({ data: [serverRow({ id: 'srv-1' })], error: null });
+  });
+
+  // Codex round 2, P1: account B must never be served account A's replica.
+  it('serves another account from PostgREST, not the replica account A verified', async () => {
+    trustReplica('auth-a');
+    signedInAs('auth-b');
+
+    const result = await loadDogRegistrations(['dog-1']);
+
+    expect(result.byDog.get('dog-1')).toEqual([expect.objectContaining({ id: 'srv-1' })]);
+    expect(supabase.from).toHaveBeenCalledWith('dog_registrations');
+  });
+
+  it('does not trust an unresolved identity while online', async () => {
+    trustReplica('auth-a');
+    signedInAs(null);
+
+    expect((await replicatedDogRegistrationsTable.readForDogs(['dog-1'])).state).toBe('cold');
+  });
+
+  // auth-js reports no session offline once the access token expired.
+  it('keeps the recorded trust for an unresolved identity while offline', async () => {
+    trustReplica('auth-a');
+    signedInAs(null);
+    setOnline(false);
+
+    expect((await replicatedDogRegistrationsTable.readForDogs(['dog-1'])).state).toBe('warm');
+  });
+
+  it('stops trusting the replica when a direct write cannot be mirrored', async () => {
+    trustReplica();
+    const apply = vi
+      .spyOn(replicatedDogRegistrationsTable, 'applyServerRows')
+      .mockRejectedValueOnce(new Error('QuotaExceededError'));
+
+    await mirrorServerRegistration(serverRow({ registered_name: 'New Name' }));
+    apply.mockRestore();
+
+    expect((await replicatedDogRegistrationsTable.readForDogs(['dog-1'])).state).toBe('cold');
+  });
+});
+
 describe('after a quota eviction', () => {
   it('falls back to PostgREST instead of trusting a partial replica', async () => {
     await replicatedDogRegistrationsTable.applyServerRows([
@@ -136,7 +190,7 @@ describe('after a quota eviction', () => {
       serverRow({ id: 'r2', dog_id: 'dog-2' }),
       serverRow({ id: 'r3', dog_id: 'dog-3' }),
     ]);
-    await markWarm(replicatedDogRegistrationsTable);
+    trustReplica();
     const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 60 * 60 * 1000);
     const evicted = await replicatedDogRegistrationsTable.relieveQuota();
     clock.mockRestore();
@@ -158,7 +212,7 @@ describe('after a quota eviction', () => {
 describe('Registrations section on the real query', () => {
   it('shows the replica rows offline', async () => {
     await replicatedDogRegistrationsTable.applyServerRows([serverRow()]);
-    await markWarm(replicatedDogRegistrationsTable);
+    trustReplica();
     onlineManager.setOnline(false);
 
     render(<RegistrationsSection dog={{ id: 'dog-1' } as Dog} canEdit={false} />);

@@ -5,6 +5,7 @@ import { captureAuthEmailRequestFailure } from '@/services/observability/sentry'
 import { clearAppearanceCache } from '@/context/themeClasses';
 import { replicatedClassesTable } from '@/services/replication';
 import { ringsideClaimMatchesUser } from '@/features/at-show/ringsideClaimCache';
+import { distrustRegistrationsOnAuthEvent } from '@/services/replication/dogRegistrationsTrust';
 import { useRingsideGrantStore } from '@/store/ringsideGrantStore';
 import type { User } from '@supabase/supabase-js';
 import {
@@ -179,6 +180,10 @@ export function useAuth() {
         clearAppearanceCache();
         useRingsideGrantStore.getState().clearGrant();
       }
+      // The registrations replica answers alone only for the account that
+      // verified it: sign-out or a different account ends that, a same-user
+      // SIGNED_IN (refocus) does not (MYK9-1090, as MYK9-834 for ringside).
+      distrustRegistrationsOnAuthEvent(_event, session?.user?.id);
       if (
         _event === 'SIGNED_IN' &&
         (!session?.user?.id ||

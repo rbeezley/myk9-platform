@@ -151,7 +151,7 @@ function overlayLocalCreationOrder(
 /**
  * These dogs' registrations, plus whether the read was complete.
  *
- * A warm replica (fully synced on this device, MYK9-1090) answers alone, with
+ * A trusted replica (dogRegistrationsTrust.ts, MYK9-1090) answers alone, with
  * no network request, and its empty answer means "no registrations". A cold or
  * unreadable one cannot say that, so the server and whatever the replica holds
  * (registrations created offline) are merged, and a failed leg marks the read

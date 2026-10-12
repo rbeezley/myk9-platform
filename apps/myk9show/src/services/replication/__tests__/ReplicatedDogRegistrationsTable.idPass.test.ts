@@ -14,7 +14,9 @@ import {
   newServer,
   putQueueRecord,
   serverRow,
+  trustReplica,
 } from './dogRegistrationFixtures';
+import { readRegistrationsTrust, resetRegistrationsTrustForTests } from '../dogRegistrationsTrust';
 
 vi.mock('@myk9/core', () => ({
   logger: { log: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
@@ -23,6 +25,8 @@ vi.mock('@myk9/core', () => ({
 let table: ReplicatedDogRegistrationsTable;
 
 beforeEach(async () => {
+  resetRegistrationsTrustForTests();
+  trustReplica();
   await databaseManager.reset();
   table = new ReplicatedDogRegistrationsTable();
   // Two synced registrations on this device.
@@ -208,6 +212,8 @@ describe('registrations ID pass', () => {
     await expect(table.reconcileWithServerIds()).resolves.toBeNull();
 
     expect(await table.get('reg-gone')).not.toBeNull();
+    // An incomplete id set is a doubt: the replica stops answering alone.
+    expect(readRegistrationsTrust()).toBeNull();
   });
 
   it('removes nothing when any id page fails', async () => {
@@ -218,5 +224,6 @@ describe('registrations ID pass', () => {
 
     expect(await table.get('reg-gone')).not.toBeNull();
     expect(await table.get('reg-kept')).not.toBeNull();
+    expect(readRegistrationsTrust()).toBeNull();
   });
 });

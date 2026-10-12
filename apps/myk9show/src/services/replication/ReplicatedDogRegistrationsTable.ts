@@ -42,6 +42,14 @@ import {
   pruneRegistrationsMissingFromServer,
   snapshotRegistrationRevisions,
 } from './dogRegistrationsIdPass';
+import {
+  currentAuthUserId,
+  distrustRegistrationsReplica,
+  isRegistrationsReplicaTrusted,
+  readRegistrationsTrust,
+  recordRegistrationsTrust,
+  registrationsDistrustEpoch,
+} from './dogRegistrationsTrust';
 
 export type { DogRegistrationReadRow, DogRegistrationRow, ReplicatedDogRegistration };
 
@@ -49,7 +57,7 @@ type RegistrationInput = NonNullable<DogInput['registrations']>[number];
 
 /**
  * What the replica can say about some dogs' registrations. `warm` is an
- * answer, an empty one included. `cold` (never fully synced on this device)
+ * answer, an empty one included. `cold` (not trusted, see dogRegistrationsTrust.ts)
  * and `unreadable` are not: the caller asks the server or reports an error,
  * never "no registrations".
  */
@@ -115,23 +123,11 @@ function normalizeRegistration(
 }
 
 export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedDogRegistration> {
-  /** Bumped by every eviction, so a sync can tell one landed while it ran. */
-  private evictionEpoch = 0;
-  /**
-   * Evicted rows mean the replica no longer holds every visible registration.
-   * Held in memory as well as in `lastFullSyncAt`, so the readers go cold even
-   * when the metadata write fails under the same storage pressure.
-   */
-  private coverageLost = false;
-
   constructor() {
     super('dog_registrations', { logger });
   }
 
-  /**
-   * Quota eviction drops clean rows, so an empty answer stops meaning "no
-   * registrations": the readers go cold and the next sync is a full one.
-   */
+  /** Evicted rows leave the replica partial, so it can no longer answer alone. */
   override async relieveQuota(): Promise<number> {
     return this.afterEviction(await super.relieveQuota());
   }
@@ -140,27 +136,14 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     return this.afterEviction(await super.evictLRU(targetSizeBytes));
   }
 
-  /** An emptied replica is cold through its metadata; nothing partial is left. */
   override async clearCache(): Promise<void> {
+    distrustRegistrationsReplica('cache-cleared');
     await super.clearCache();
-    this.coverageLost = false;
   }
 
-  private async afterEviction(evicted: number): Promise<number> {
-    if (evicted > 0) {
-      this.evictionEpoch++;
-      await this.invalidateCoverage();
-    }
+  private afterEviction(evicted: number): number {
+    if (evicted > 0) distrustRegistrationsReplica('quota-eviction');
     return evicted;
-  }
-
-  private async invalidateCoverage(): Promise<void> {
-    this.coverageLost = true;
-    try {
-      await this.updateSyncMetadata({ lastFullSyncAt: 0 });
-    } catch (err) {
-      logger.warn(`[${this.getTableName()}] Could not record lost coverage`, err);
-    }
   }
 
   protected override rebuildUpdatePayload(
@@ -200,14 +183,16 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
       resolveConflict: (local, remote) => this.resolveConflict(local, remote),
     };
 
-    // The readers call this replica warm only once a FULL fetch has landed
-    // (`lastFullSyncAt`). The engine forces a full fetch only on an empty
-    // replica, and an offline dog create leaves placeholder rows in a
-    // never-synced one, so force it here until the first full fetch succeeds.
-    // The same after an eviction, which leaves the replica partial.
-    const metadata = await this.getSyncMetadata();
-    const forceFullSync = !metadata?.lastFullSyncAt || this.coverageLost;
-    const epoch = this.evictionEpoch;
+    // Trust (dogRegistrationsTrust.ts) is earned only by a clean full sync
+    // for the signed-in account. A record for another account is a doubt in
+    // itself; any sync that does not start trusted is a full one.
+    const userId = await currentAuthUserId();
+    const record = readRegistrationsTrust();
+    if (userId && record && record.authUserId !== userId) {
+      distrustRegistrationsReplica('account-mismatch');
+    }
+    const forceFullSync = !userId || readRegistrationsTrust()?.authUserId !== userId;
+    const epoch = registrationsDistrustEpoch();
     const result = await syncReplicatedTable(
       this,
       adapter,
@@ -217,30 +202,30 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
         ...(forceFullSync && { forceFullSync }),
       }
     );
-    // An eviction during this sync happened before the engine stamped
-    // `lastFullSyncAt`: undo the stamp. Otherwise a completed full fetch
-    // restores coverage.
-    if (this.evictionEpoch !== epoch) await this.invalidateCoverage();
-    else if (result.success && forceFullSync) this.coverageLost = false;
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);
       return { ...result, error: getSyncErrorMessage(result.error) };
     }
+    if (!result.success) return result;
 
-    if (result.success) {
-      // Side effect only: a failure here never turns a good download into a
-      // failed sync.
-      try {
-        const idPass = await this.reconcileWithServerIds();
-        if (idPass && idPass.removed + idPass.fetched > 0) {
-          logger.log(`[${this.getTableName()}] ID pass`, idPass);
-        }
-      } catch (err) {
-        logger.warn(`[${this.getTableName()}] ID pass skipped`, err);
+    // Side effect only: a failure here never turns a good download into a
+    // failed sync, but it does stop the replica answering alone.
+    // An incomplete or failed ID pass distrusts the replica itself, so the
+    // epoch check below is the one test of "nothing doubted it".
+    try {
+      const idPass = await this.reconcileWithServerIds();
+      if (idPass && idPass.removed + idPass.fetched > 0) {
+        logger.log(`[${this.getTableName()}] ID pass`, idPass);
       }
+    } catch (err) {
+      distrustRegistrationsReplica('id-pass-failed');
+      logger.warn(`[${this.getTableName()}] ID pass skipped`, err);
     }
 
+    if (forceFullSync && userId && registrationsDistrustEpoch() === epoch) {
+      recordRegistrationsTrust(userId);
+    }
     return result;
   }
 
@@ -281,13 +266,15 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
    * server ids this device lacks and remove local ids the server no longer
    * shows (guarded, see `pruneRegistrationsMissingFromServer`). Returns `null`
    * when the id read was incomplete (a page failed or the page cap was hit):
-   * nothing is fetched or removed then.
+   * nothing is fetched or removed then, and the replica is distrusted. A
+   * failed fetch of the missing ids throws; `sync` distrusts on any throw.
    */
   async reconcileWithServerIds(): Promise<RegistrationIdPassResult | null> {
     const db = await this.init();
     const snapshot = await snapshotRegistrationRevisions(db, this.getTableName());
     const serverIds = await fetchVisibleRegistrationIds();
     if (!serverIds) {
+      distrustRegistrationsReplica('id-pass-incomplete');
       logger.warn(`[${this.getTableName()}] ID pass read was incomplete; nothing removed`);
       return null;
     }
@@ -350,15 +337,14 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
 
   /**
    * These dogs' registrations from the replica, through the shared visibility
-   * rule. Warm means a full sync has completed on this device since the store
-   * was last cleared; only then is an empty answer "no registrations".
+   * rule. Warm only while the replica is trusted (dogRegistrationsTrust.ts);
+   * only then is an empty answer "no registrations".
    */
   async readForDogs(dogIds: readonly string[]): Promise<RegistrationReplicaRead> {
     try {
       const read = await this.getAllWithStatus();
       if (!read.ok) return { state: 'unreadable', error: read.error };
-      const metadata = await this.getSyncMetadata();
-      if (!metadata?.lastFullSyncAt || this.coverageLost) return { state: 'cold' };
+      if (!(await isRegistrationsReplicaTrusted())) return { state: 'cold' };
       return {
         state: 'warm',
         rows: visibleRegistrationRows(read.rows, dogIds).map(registrationToDbRow),

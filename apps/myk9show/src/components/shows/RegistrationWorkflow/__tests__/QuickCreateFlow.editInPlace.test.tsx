@@ -100,6 +100,28 @@ describe('Quick Create dog Edit', { timeout: JOURNEY_TIMEOUT_MS }, () => {
     );
   });
 
+  it('a save updateDog declines (resolves null) keeps the form open and the dog unchanged', async () => {
+    mocks.updateDog.mockResolvedValue(null);
+    const { user, onFlowCompleted } = renderFlow();
+    await reachDogsWithZiggy(user);
+
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    setField(await screen.findByLabelText(/Call Name/i), 'Zig');
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await waitFor(() => expect(mocks.updateDog).toHaveBeenCalledTimes(1));
+    expect(mocks.refreshDogCreated).not.toHaveBeenCalled();
+    expect(screen.getByLabelText(/Call Name/i)).toHaveValue('Zig');
+
+    await user.click(screen.getByRole('button', { name: 'Cancel' }));
+    await user.click(await screen.findByRole('button', { name: /Discard/i }));
+    expect(await screen.findByText('Dogs Added (1):')).toBeInTheDocument();
+    await completeSetup(user);
+    expect(onFlowCompleted).toHaveBeenCalledWith(expect.objectContaining({ id: 'person-1' }), [
+      expect.objectContaining({ id: 'dog-1', callName: 'Ziggy' }),
+    ]);
+  });
+
   it('a refused save keeps the form open and the selected dog unchanged', async () => {
     mocks.updateDog.mockRejectedValue(new Error('server said no'));
     const { user, onFlowCompleted } = renderFlow();
@@ -245,6 +267,7 @@ describe('Quick Create person Edit Details', { timeout: JOURNEY_TIMEOUT_MS }, ()
     expect(await screen.findByText('Person Added')).toBeInTheDocument();
     expect(screen.getByText('Molly Mailbox')).toBeInTheDocument();
     expect(mocks.updateUser).not.toHaveBeenCalled();
+    expect(mocks.refreshOwnerCreated).not.toHaveBeenCalled();
     expect(mocks.createUser).toHaveBeenCalledTimes(1);
   });
 
@@ -291,6 +314,23 @@ describe('Quick Create person Edit Details', { timeout: JOURNEY_TIMEOUT_MS }, ()
     );
   });
 
+  it('keeps the People page address rule: a partial address needs a city and state', async () => {
+    // Add Person lets a ZIP stand alone; the canonical Edit Person form does not. Edit
+    // Details reuses that form on purpose (one address rule per surface), so a person added
+    // with only a ZIP needs a city and state before an edit saves.
+    const { user } = renderFlow();
+    await user.click(await reachPersonStep(user));
+    await user.click(await screen.findByRole('tab', { name: /Contact/i }));
+    setField(await screen.findByLabelText(/ZIP/i), '90210');
+    await user.click(await screen.findByRole('button', { name: 'Save Changes' }));
+
+    expect(
+      (await screen.findAllByText(/Please enter a city when providing address/i)).length
+    ).toBeGreaterThan(0);
+    expect(mocks.updateUser).not.toHaveBeenCalled();
+    expect(mocks.refreshOwnerCreated).not.toHaveBeenCalled();
+  });
+
   it('a refused save keeps the person selected and the form open', async () => {
     mocks.updateUser.mockResolvedValue({ data: null, error: { message: 'no', code: 'X' } });
     const { user } = renderFlow();
@@ -299,6 +339,7 @@ describe('Quick Create person Edit Details', { timeout: JOURNEY_TIMEOUT_MS }, ()
     await user.click(await screen.findByRole('button', { name: 'Save Changes' }));
 
     await waitFor(() => expect(mocks.updateUser).toHaveBeenCalledTimes(1));
+    expect(mocks.refreshOwnerCreated).not.toHaveBeenCalled();
     expect(screen.queryByText('Person Added')).toBeNull();
 
     await user.click(screen.getByRole('button', { name: 'Cancel' }));

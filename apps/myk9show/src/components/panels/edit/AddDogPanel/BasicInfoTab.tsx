@@ -39,6 +39,8 @@ interface BasicInfoTabProps {
   referenceDate?: string | undefined;
   onPhotoOpen: () => void;
   onAddRegistration: () => void;
+  /** False inline (MYK9-1081, D4): the photo dialog would stack on the host panel. */
+  showPhoto?: boolean | undefined;
 }
 
 export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
@@ -47,6 +49,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   referenceDate,
   onPhotoOpen,
   onAddRegistration,
+  showPhoto = true,
 }) => {
   const { form } = useEditPanel<DogFormData>();
 
@@ -91,35 +94,37 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
         )}
         {/* Photo Section */}
         <div className="flex items-start gap-6 p-6 bg-gradient-to-r from-muted/20 via-muted/10 to-transparent border border-border/20 rounded-2xl backdrop-blur-sm">
-          <button
-            type="button"
-            id="dog-photo-button"
-            onClick={onPhotoOpen}
-            aria-label={formData.imageUrl ? 'Change dog photo' : 'Add dog photo'}
-            className="relative group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-all duration-300 hover:scale-105 active:scale-95"
-          >
-            <Avatar className="w-24 h-24 border-2 border-border/30 group-hover:border-primary/50 transition-all duration-500 shadow-lg group-hover:shadow-xl group-hover:shadow-primary/10">
-              {formData.imageUrl ? (
-                <AvatarImage src={formData.imageUrl} alt="Dog photo" className="object-cover" />
-              ) : (
-                <AvatarFallback className="bg-gradient-to-br from-primary/15 to-primary/8 text-2xl font-semibold text-primary">
-                  {formData.callName ? (
-                    firstGraphemeUpper(formData.callName)
-                  ) : (
-                    <PawPrint className="h-8 w-8 text-primary/60" />
-                  )}
-                </AvatarFallback>
-              )}
-            </Avatar>
-            <div className="absolute inset-0 flex items-center justify-center group-hover:bg-black/20 transition-all duration-300 rounded-full">
-              <div className="p-3 bg-card rounded-full opacity-0 group-hover:opacity-100 transform scale-50 group-hover:scale-100 transition-all duration-300 shadow-md">
-                <Camera className="w-5 h-5 text-primary" />
+          {showPhoto && (
+            <button
+              type="button"
+              id="dog-photo-button"
+              onClick={onPhotoOpen}
+              aria-label={formData.imageUrl ? 'Change dog photo' : 'Add dog photo'}
+              className="relative group focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background transition-all duration-300 hover:scale-105 active:scale-95"
+            >
+              <Avatar className="w-24 h-24 border-2 border-border/30 group-hover:border-primary/50 transition-all duration-500 shadow-lg group-hover:shadow-xl group-hover:shadow-primary/10">
+                {formData.imageUrl ? (
+                  <AvatarImage src={formData.imageUrl} alt="Dog photo" className="object-cover" />
+                ) : (
+                  <AvatarFallback className="bg-gradient-to-br from-primary/15 to-primary/8 text-2xl font-semibold text-primary">
+                    {formData.callName ? (
+                      firstGraphemeUpper(formData.callName)
+                    ) : (
+                      <PawPrint className="h-8 w-8 text-primary/60" />
+                    )}
+                  </AvatarFallback>
+                )}
+              </Avatar>
+              <div className="absolute inset-0 flex items-center justify-center group-hover:bg-black/20 transition-all duration-300 rounded-full">
+                <div className="p-3 bg-card rounded-full opacity-0 group-hover:opacity-100 transform scale-50 group-hover:scale-100 transition-all duration-300 shadow-md">
+                  <Camera className="w-5 h-5 text-primary" />
+                </div>
               </div>
-            </div>
-            <div className="absolute -bottom-2 -right-2 w-6 h-6 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-lg">
-              <Edit className="w-3 h-3 text-white" />
-            </div>
-          </button>
+              <div className="absolute -bottom-2 -right-2 w-6 h-6 bg-gradient-to-r from-primary to-secondary rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-lg">
+                <Edit className="w-3 h-3 text-white" />
+              </div>
+            </button>
+          )}
           <div className="flex-1 space-y-3">
             <FormField
               label="Call Name"

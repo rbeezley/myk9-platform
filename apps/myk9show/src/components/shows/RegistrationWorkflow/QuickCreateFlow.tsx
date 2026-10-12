@@ -1,22 +1,24 @@
-import React, { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import React, { useCallback, useRef, useState } from 'react';
+import { SlideOverPanel } from '@/components/panels/SlideOverPanel';
+import { usePanelModeFocus } from '@/components/panels/usePanelModeFocus';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Separator } from '@/components/ui/separator';
-import { User as UserIcon, CheckCircle, Plus, Info } from 'lucide-react';
 import { CreateExhibitorDialog } from './CreateExhibitorDialog';
 import { AddDogPanel } from '@/components/panels/edit';
-import {
-  formatDogAge,
-  getDogBreedLabel,
-  getDogDistinctRegisteredName,
-  User,
-  Dog,
-} from '@/types/dog-types';
+import type { AddDogSubMode } from '@/components/panels/edit/AddDogPanel/types';
+import { User, Dog } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
-import { shouldShowQuickCreateShell } from './QuickCreateFlow.helpers';
+import {
+  quickCreateStepLabel,
+  quickCreateStepsFocusTarget,
+  quickCreateTitle,
+  type QuickCreateView,
+} from './QuickCreateFlow.helpers';
+import {
+  INITIAL_QUICK_CREATE_FLOW_STATE,
+  type QuickCreateFlowState,
+} from './QuickCreateFlow.types';
+import { QuickCreateSteps } from './QuickCreateSteps';
+import { QuickCreateFooter } from './QuickCreateFooter';
 import { useCreatedInSession } from './CreatedInSessionContext';
 
 interface QuickCreateFlowProps {
@@ -32,22 +34,16 @@ interface QuickCreateFlowProps {
   createdFromShowId?: string | undefined;
 }
 
-interface FlowState {
-  step: 'exhibitor' | 'dogs' | 'review';
-  exhibitor: User | null;
-  exhibitorPendingMutationIds: string[];
-  dogs: Dog[];
-  isComplete: boolean;
-}
-
-const INITIAL_FLOW_STATE: FlowState = {
-  step: 'exhibitor',
-  exhibitor: null,
-  exhibitorPendingMutationIds: [],
-  dogs: [],
-  isComplete: false,
-};
-
+/**
+ * Quick Create: Add Person, Add Dog(s) and Review in ONE right slide-out
+ * (MYK9-1081, docs/INTENT.md "Dialog or Slide-Out"). The Person and Dog forms
+ * are views of this panel, rendered inline, never a dialog over it; Add Dog's
+ * registration form is a sub-mode of the Dog view.
+ *
+ * Escape, the backdrop, X and Back leave a form first (with the discard prompt
+ * when it is dirty). On a step screen they close the panel WITHOUT resetting,
+ * so reopening resumes where the secretary was; only Cancel and Complete reset.
+ */
 export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   open,
   onOpenChange,
@@ -59,25 +55,24 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
   createdFromShowId,
 }) => {
   const createdInSession = useCreatedInSession();
-  const [flowState, setFlowState] = useState<FlowState>(INITIAL_FLOW_STATE);
-  const [showExhibitorDialog, setShowExhibitorDialog] = useState(false);
-  const [showDogDialog, setShowDogDialog] = useState(false);
-  const prevOpenRef = React.useRef(false);
+  const [flowState, setFlowState] = useState<QuickCreateFlowState>(INITIAL_QUICK_CREATE_FLOW_STATE);
+  const [view, setView] = useState<QuickCreateView>('steps');
+  const [dogSubMode, setDogSubMode] = useState<AddDogSubMode>('dog');
+  const closeFormRef = useRef<(() => void) | null>(null);
+  const stepsRef = useRef<HTMLDivElement>(null);
+  const formRef = useRef<HTMLDivElement>(null);
 
-  // Calculate progress
-  const getProgress = (): number => {
-    if (flowState.step === 'exhibitor') return 25;
-    if (flowState.step === 'dogs') return 65;
-    if (flowState.step === 'review') return 90;
-    return 100;
+  const showSteps = useCallback(() => setView('steps'), []);
+  const openDogForm = () => {
+    setDogSubMode('dog');
+    setView('dog-form');
   };
 
-  // Handle exhibitor creation
   const handleExhibitorCreated = (
     exhibitor: User,
     metadata?: { pendingMutationIds?: string[] | undefined }
   ) => {
-    // Saved the moment the dialog saves, even if the flow is closed before it completes.
+    // Saved the moment the form saves, even if the flow is closed before it completes.
     createdInSession?.recordOwnerCreated(exhibitor);
     setFlowState(prev => ({
       ...prev,
@@ -85,10 +80,9 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
       exhibitorPendingMutationIds: metadata?.pendingMutationIds ?? [],
       step: 'dogs',
     }));
-    setShowExhibitorDialog(false);
+    setView('steps');
   };
 
-  // Handle dog creation
   const handleDogCreated = (dog: Dog, options?: { existing?: boolean }) => {
     if (!options?.existing) createdInSession?.recordDogCreated(dog);
     setFlowState(prev => ({
@@ -97,21 +91,32 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
       // In single-dog mode, advance to review as soon as the first dog is added
       step: mode === 'single' && prev.dogs.length === 0 ? 'review' : prev.step,
     }));
-    setShowDogDialog(false);
+    setView('steps');
   };
 
-  // Handle dog removal
+  // Edit re-creates the dog through a blank form (unchanged, follow-up F6).
+  const handleEditDog = (index: number) => {
+    setFlowState(prev => ({ ...prev, dogs: prev.dogs.filter((_, i) => i !== index) }));
+    openDogForm();
+  };
+  const removedIndexRef = useRef<number | null>(null);
   const handleRemoveDog = (index: number) => {
+    removedIndexRef.current = index;
     setFlowState(prev => ({
       ...prev,
       dogs: prev.dogs.filter((_, i) => i !== index),
     }));
   };
 
-  // Handle flow completion
+  // Cancel and Complete: reset, then close.
+  const handleClose = () => {
+    setFlowState(INITIAL_QUICK_CREATE_FLOW_STATE);
+    setView('steps');
+    onOpenChange(false);
+  };
+
   const handleCompleteFlow = () => {
     if (flowState.exhibitor && flowState.dogs.length > 0) {
-      // Update exhibitor with dog IDs
       const updatedExhibitor: User = {
         ...flowState.exhibitor,
         dogs: flowState.dogs.map(dog => dog.id),
@@ -122,350 +127,102 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
     }
   };
 
-  // Handle dialog close
-  const handleClose = () => {
-    setFlowState(INITIAL_FLOW_STATE);
-    setShowExhibitorDialog(false);
-    setShowDogDialog(false);
-    onOpenChange(false);
+  // Escape, the backdrop, X and Back. In a form they ask it to close (the
+  // discard prompt when dirty); on a step screen they close without a reset.
+  const handlePanelClose = () => {
+    if (view === 'steps') onOpenChange(false);
+    else closeFormRef.current?.();
   };
 
-  // Open exhibitor dialog only when the outer dialog transitions from closed → open
-  React.useEffect(() => {
-    const justOpened = open && !prevOpenRef.current;
-    prevOpenRef.current = open;
-    if (justOpened && flowState.step === 'exhibitor' && !flowState.exhibitor) {
-      setShowExhibitorDialog(true);
-    }
-  }, [open, flowState.step, flowState.exhibitor]);
+  // Open the Person form when the flow goes from closed to open on a fresh start.
+  const [wasOpen, setWasOpen] = useState(false);
+  if (open !== wasOpen) {
+    setWasOpen(open);
+    if (open && flowState.step === 'exhibitor' && !flowState.exhibitor) setView('person-form');
+  }
 
-  const shellOpen = shouldShowQuickCreateShell(open, showExhibitorDialog, showDogDialog);
+  // Focus: a form's first field going in; on the step screens, see
+  // quickCreateStepsFocusTarget (also after Discard, a step change or a Remove).
+  const stepsReturnTarget = useCallback(() => {
+    const removed = removedIndexRef.current;
+    removedIndexRef.current = null;
+    return quickCreateStepsFocusTarget(stepsRef.current, removed);
+  }, []);
+  usePanelModeFocus({
+    mode: view,
+    home: 'steps',
+    formRef,
+    returnTarget: stepsReturnTarget,
+    enabled: open,
+    homeKey: `${flowState.step}:${flowState.dogs.length}`,
+  });
 
+  const onSteps = view === 'steps';
   return (
-    <>
-      <Dialog open={shellOpen} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <UserIcon className="h-5 w-5" />
-              Quick Registration Setup
-              <Badge variant="outline" className="ml-2">
-                {mode === 'single' ? 'Single Dog' : 'Multiple Dogs'}
-              </Badge>
-            </DialogTitle>
-          </DialogHeader>
-
-          {/* Progress Indicator */}
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm text-muted-foreground">
-              <span>Progress</span>
-              <span>{Math.round(getProgress())}%</span>
-            </div>
-            <Progress value={getProgress()} className="w-full" />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span className={flowState.step === 'exhibitor' ? 'font-semibold' : ''}>
-                Add Person
-              </span>
-              <span className={flowState.step === 'dogs' ? 'font-semibold' : ''}>Add Dog(s)</span>
-              <span className={flowState.step === 'review' ? 'font-semibold' : ''}>
-                Review & Complete
-              </span>
-            </div>
-          </div>
-
-          {/* Step Content */}
-          <div className="space-y-6">
-            {/* Exhibitor Step */}
-            {flowState.step === 'exhibitor' && (
-              <div className="text-center space-y-4">
-                <div className="space-y-2">
-                  <h3 className="text-lg font-semibold">Add Person</h3>
-                  <p className="text-muted-foreground">
-                    First, let's add the person. This person will own the dog(s) being registered.
-                  </p>
-                </div>
-
-                {!flowState.exhibitor && (
-                  <Button
-                    onClick={() => setShowExhibitorDialog(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <UserIcon className="h-4 w-4" />
-                    Add Person
-                  </Button>
-                )}
-
-                {flowState.exhibitor && (
-                  <div className="p-4 border rounded-lg bg-success/10 border-success/20">
-                    <div className="flex items-center justify-center gap-2 mb-2">
-                      <CheckCircle className="h-5 w-5 text-success" />
-                      <span className="font-semibold text-success">Person Added</span>
-                    </div>
-                    <p className="text-sm">
-                      {flowState.exhibitor.firstName} {flowState.exhibitor.lastName}
-                    </p>
-                    <p className="text-sm text-muted-foreground">{flowState.exhibitor.email}</p>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-2"
-                      onClick={() => setShowExhibitorDialog(true)}
-                    >
-                      Edit Details
-                    </Button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* Dogs Step */}
-            {flowState.step === 'dogs' && (
-              <div className="space-y-4">
-                <div className="text-center space-y-2">
-                  <h3 className="text-lg font-semibold">Add Dog(s)</h3>
-                  <p className="text-muted-foreground">
-                    Now let's add the dog(s) for {flowState.exhibitor?.firstName}{' '}
-                    {flowState.exhibitor?.lastName}.
-                    {mode === 'batch' ? ' You can add multiple dogs.' : ' Add one dog to continue.'}
-                  </p>
-                </div>
-
-                {/* Dogs List */}
-                {flowState.dogs.length > 0 && (
-                  <div className="space-y-3">
-                    <h4 className="font-medium">Dogs Added ({flowState.dogs.length}):</h4>
-                    {flowState.dogs.map((dog, index) => (
-                      <div
-                        key={dog.id}
-                        className="flex items-center justify-between p-3 border rounded-lg"
-                      >
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <span className="font-medium">{dog.callName}</span>
-                            <Badge variant="outline">{getDogBreedLabel(dog)}</Badge>
-                            <Badge variant="secondary">{dog.gender}</Badge>
-                          </div>
-                          <p className="text-sm text-muted-foreground">{dog.name}</p>
-                        </div>
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              handleRemoveDog(index);
-                              setShowDogDialog(true);
-                            }}
-                          >
-                            Edit
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleRemoveDog(index)}
-                            className="text-destructive hover:text-destructive"
-                          >
-                            Remove
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Add Dog Button */}
-                <div className="text-center">
-                  <Button
-                    onClick={() => setShowDogDialog(true)}
-                    className="flex items-center gap-2"
-                    variant={flowState.dogs.length === 0 ? 'default' : 'outline'}
-                  >
-                    <Plus className="h-4 w-4" />
-                    {flowState.dogs.length === 0 ? 'Add First Dog' : 'Add Another Dog'}
-                  </Button>
-                </div>
-
-                {mode === 'batch' && flowState.dogs.length > 0 && (
-                  <Alert>
-                    <Info className="h-4 w-4" />
-                    <AlertDescription>
-                      You can add more dogs or proceed to review. All dogs will be registered for
-                      the same exhibitor.
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </div>
-            )}
-
-            {/* Review Step */}
-            {flowState.step === 'review' && (
-              <div className="space-y-6">
-                <div className="text-center space-y-2">
-                  <h3 className="text-lg font-semibold">Review & Complete</h3>
-                  <p className="text-muted-foreground">
-                    Please review the person and dog information before completing the setup.
-                  </p>
-                </div>
-
-                {/* Exhibitor Summary */}
-                {flowState.exhibitor && (
-                  <div className="space-y-3">
-                    <h4 className="font-medium flex items-center gap-2">
-                      <UserIcon className="h-4 w-4" />
-                      Person Information
-                    </h4>
-                    <div className="p-4 border border-border rounded-lg bg-muted">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <p className="font-medium">
-                            {flowState.exhibitor.firstName} {flowState.exhibitor.lastName}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {flowState.exhibitor.email}
-                          </p>
-                          <p className="text-sm text-muted-foreground">
-                            {flowState.exhibitor.phone}
-                          </p>
-                        </div>
-                        <div>
-                          {flowState.exhibitor.streetAddress && (
-                            <div className="text-sm text-muted-foreground">
-                              <p>{flowState.exhibitor.streetAddress}</p>
-                              <p>
-                                {flowState.exhibitor.city}, {flowState.exhibitor.state}{' '}
-                                {flowState.exhibitor.zipCode}
-                              </p>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                <Separator />
-
-                {/* Dogs Summary */}
-                <div className="space-y-3">
-                  <h4 className="font-medium">Dog Information ({flowState.dogs.length})</h4>
-                  <div className="space-y-3">
-                    {flowState.dogs.map(dog => (
-                      <div key={dog.id} className="p-4 border rounded-lg">
-                        <div className="flex justify-between items-start">
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium">{dog.callName}</span>
-                              <Badge variant="outline">{getDogBreedLabel(dog)}</Badge>
-                              <Badge variant="secondary">{dog.gender}</Badge>
-                            </div>
-                            {/* Suppressed when it would only repeat the call
-                              name printed just above (MYK9-485 review round 2):
-                              "Registered Name: Maple" under Maple is noise on a
-                              summary a secretary is checking for mistakes. */}
-                            {getDogDistinctRegisteredName(dog) && (
-                              <p className="text-sm text-muted-foreground">
-                                Registered Name: {getDogDistinctRegisteredName(dog)}
-                              </p>
-                            )}
-                            <p className="text-sm text-muted-foreground">
-                              Born: {dog.dateOfBirth}
-                              {formatDogAge({ dateOfBirth: dog.dateOfBirth })
-                                ? ` (${formatDogAge({ dateOfBirth: dog.dateOfBirth })})`
-                                : ''}
-                            </p>
-                            {dog.registrations && dog.registrations.length > 0 && (
-                              <p className="text-sm text-muted-foreground">
-                                Registration: {dog.registrations[0].organization} -{' '}
-                                {dog.registrations[0].registrationNumber}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <Alert>
-                  <CheckCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    {/* MYK9-832 #6: the person and dog(s) are already saved by this
-                        point (CreateExhibitorDialog / AddDogPanel write on their own
-                        Save) — Complete Setup only carries them into this
-                        registration, and Cancel does NOT remove the saved rows. */}
-                    The person and {flowState.dogs.length === 1 ? 'dog have' : 'dogs have'} already
-                    been saved. Complete Setup to use them for this registration.
-                  </AlertDescription>
-                </Alert>
-              </div>
-            )}
-          </div>
-
-          {/* Navigation */}
-          <div className="flex justify-between pt-4 border-t">
-            <div>
-              {flowState.step !== 'exhibitor' && (
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    if (flowState.step === 'dogs') {
-                      setFlowState(prev => ({ ...prev, step: 'exhibitor' }));
-                    } else if (flowState.step === 'review') {
-                      setFlowState(prev => ({ ...prev, step: 'dogs' }));
-                    }
-                  }}
-                >
-                  Back
-                </Button>
-              )}
-            </div>
-
-            <div className="flex gap-3">
-              <Button variant="outline" onClick={handleClose}>
-                Cancel
-              </Button>
-
-              {flowState.step === 'exhibitor' && flowState.exhibitor && (
-                <Button onClick={() => setFlowState(prev => ({ ...prev, step: 'dogs' }))}>
-                  Next: Add Dogs
-                </Button>
-              )}
-
-              {flowState.step === 'dogs' && flowState.dogs.length > 0 && (
-                <Button onClick={() => setFlowState(prev => ({ ...prev, step: 'review' }))}>
-                  Review
-                </Button>
-              )}
-
-              {flowState.step === 'review' && (
-                <Button onClick={handleCompleteFlow}>Complete Setup</Button>
-              )}
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Child Dialogs */}
-      <CreateExhibitorDialog
-        open={showExhibitorDialog}
-        onOpenChange={setShowExhibitorDialog}
-        onExhibitorCreated={handleExhibitorCreated}
-        searchQuery={searchQuery}
-        offlineFirst={offlineFirst}
-        createdFromShowId={createdFromShowId}
-      />
-
-      <AddDogPanel
-        open={showDogDialog}
-        onClose={() => setShowDogDialog(false)}
-        onDogCreated={handleDogCreated}
-        userRole={UserRole.SECRETARY}
-        currentUserPersonId={flowState.exhibitor?.id}
-        variant="dialog"
-        offlineFirst={offlineFirst}
-        offlineDependsOn={flowState.exhibitorPendingMutationIds}
-        showStartDate={showStartDate}
-        createdFromShowId={createdFromShowId}
-      />
-    </>
+    <SlideOverPanel
+      open={open}
+      onClose={handlePanelClose}
+      title={quickCreateTitle(view, dogSubMode)}
+      subtitle={quickCreateStepLabel(flowState.step)}
+      size="xl"
+      {...(onSteps
+        ? {
+            headerActions: (
+              <Badge variant="outline">{mode === 'single' ? 'Single Dog' : 'Multiple Dogs'}</Badge>
+            ),
+            footer: (
+              <QuickCreateFooter
+                flowState={flowState}
+                onStepChange={step => setFlowState(prev => ({ ...prev, step }))}
+                onCancel={handleClose}
+                onComplete={handleCompleteFlow}
+              />
+            ),
+          }
+        : { showBackButton: true, onBack: handlePanelClose })}
+    >
+      {onSteps ? (
+        <div ref={stepsRef} tabIndex={-1} className="p-6 outline-none">
+          <QuickCreateSteps
+            flowState={flowState}
+            mode={mode}
+            onOpenPersonForm={() => setView('person-form')}
+            onOpenDogForm={openDogForm}
+            onEditDog={handleEditDog}
+            onRemoveDog={handleRemoveDog}
+          />
+        </div>
+      ) : (
+        <div ref={formRef} tabIndex={-1} className="h-full outline-none">
+          {view === 'person-form' ? (
+            <CreateExhibitorDialog
+              open
+              variant="inline"
+              closeRequestRef={closeFormRef}
+              onOpenChange={isOpen => !isOpen && showSteps()}
+              onExhibitorCreated={handleExhibitorCreated}
+              searchQuery={searchQuery}
+              offlineFirst={offlineFirst}
+              createdFromShowId={createdFromShowId}
+            />
+          ) : (
+            <AddDogPanel
+              open
+              onClose={showSteps}
+              onDogCreated={handleDogCreated}
+              userRole={UserRole.SECRETARY}
+              currentUserPersonId={flowState.exhibitor?.id}
+              variant="inline"
+              closeRequestRef={closeFormRef}
+              onSubModeChange={setDogSubMode}
+              offlineFirst={offlineFirst}
+              offlineDependsOn={flowState.exhibitorPendingMutationIds}
+              showStartDate={showStartDate}
+              createdFromShowId={createdFromShowId}
+            />
+          )}
+        </div>
+      )}
+    </SlideOverPanel>
   );
 };

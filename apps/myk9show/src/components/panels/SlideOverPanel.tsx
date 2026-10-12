@@ -219,9 +219,14 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
 
       // Focus trap: handle Tab key
       if (e.key === 'Tab') {
-        const focusableElements = panelRef.current.querySelectorAll(
-          'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
-        );
+        // A host may keep a form mounted but `hidden` and `inert` behind a
+        // sub-mode (MYK9-1081); its controls are not stops, or Tab would land
+        // on one and leave the modal.
+        const focusableElements = Array.from(
+          panelRef.current.querySelectorAll<HTMLElement>(
+            'input:not([disabled]), select:not([disabled]), textarea:not([disabled]), button:not([disabled]), [href], [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter(el => !el.closest('[hidden],[inert]'));
         const firstFocusable = focusableElements[0] as HTMLElement;
         const lastFocusable = focusableElements[focusableElements.length - 1] as HTMLElement;
 

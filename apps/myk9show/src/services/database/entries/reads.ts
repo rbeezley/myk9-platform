@@ -1180,7 +1180,7 @@ export const getEntriesByDog = async (dogId: string): Promise<DogEntriesReadResu
       const { data: scoredRows, error: scoredError } = await supabase
         .from('view_authenticated_entry_results')
         .select(
-          'id,is_scored,result_status,search_time_seconds,final_placement,class_results_released_at'
+          'id,is_scored,result_status,search_time_seconds,total_faults,final_placement,class_results_released_at'
         )
         .eq('dog_id', dogId)
         .is('deleted_at', null)

@@ -9,6 +9,7 @@ import { useShowTrials } from '@/hooks/queries/useShowTrials';
 import { isTrialDayPast } from '@/pages/MyEntriesPage/modules/dayCheckIn';
 import { parseLocalDateString } from '@/utils/dateLocal';
 import { withServerPlace } from '@/utils/showEntryRunQueue';
+import { formatFaultCount } from '@/features/_shared/faultLabel';
 import {
   getPendingResultLabel,
   hasUnpublishedScheduleDetails,
@@ -205,7 +206,10 @@ function ResultChip({ entry, didNotRun }: { entry: EnrichedShowEntry; didNotRun:
   const result = entry.result;
   if (!result) return null;
 
-  const { qualified, time, isPreliminary } = result;
+  const { qualified, time, isPreliminary, faults } = result;
+  // Same rule as the at-show Completed tab: faults only on a qualifying run.
+  const faultLabel = qualified ? formatFaultCount(faults) : null;
+  const faultSuffix = faultLabel ? ` · ${faultLabel}` : '';
   // MYK9-263/MYK9-805: an unreleased result reads "preliminary" here exactly
   // as it does on My Shows — the one result the schedule can still change.
   const preliminarySuffix = isPreliminary ? ' · preliminary' : '';
@@ -213,6 +217,7 @@ function ResultChip({ entry, didNotRun }: { entry: EnrichedShowEntry; didNotRun:
     return (
       <Chip color="green" size="sm" leadingIcon={<CheckCircle2 className="h-3 w-3" />}>
         Q{time ? ` · ${time}` : ''}
+        {faultSuffix}
         {preliminarySuffix}
       </Chip>
     );

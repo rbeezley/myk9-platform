@@ -171,6 +171,46 @@ describe('WhereToBe', () => {
     expect(screen.queryByText(/preliminary/)).not.toBeInTheDocument();
   });
 
+  it('shows the fault count on a qualified result with faults', () => {
+    const entry = makeEntry({
+      hasResult: true,
+      result: { qualified: true, time: '00:38.2', faults: 2 },
+    });
+    render(<WhereToBe entries={[entry]} showId={SHOW_ID} />);
+    expect(screen.getByText(/2 faults/)).toBeInTheDocument();
+  });
+
+  it('uses the singular for one fault', () => {
+    const entry = makeEntry({
+      hasResult: true,
+      result: { qualified: true, time: '00:38.2', faults: 1 },
+    });
+    render(<WhereToBe entries={[entry]} showId={SHOW_ID} />);
+    expect(screen.getByText(/1 fault(?!s)/)).toBeInTheDocument();
+  });
+
+  it('hides zero or withheld faults', () => {
+    render(
+      <WhereToBe
+        entries={[
+          makeEntry({
+            entryId: 'e1',
+            hasResult: true,
+            result: { qualified: true, time: '00:38.2', faults: 0 },
+          }),
+          makeEntry({
+            entryId: 'e2',
+            classId: 'c2',
+            hasResult: true,
+            result: { qualified: true, time: '00:40.0' },
+          }),
+        ]}
+        showId={SHOW_ID}
+      />
+    );
+    expect(screen.queryByText(/fault/)).not.toBeInTheDocument();
+  });
+
   it('links to the correct class detail URL', () => {
     render(<WhereToBe entries={[makeEntry()]} showId={SHOW_ID} />);
     const link = screen.getByRole('link');

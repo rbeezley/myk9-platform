@@ -25,6 +25,8 @@ export interface DogActivityEntry {
   result_status?: string | null;
   is_scored?: boolean | null;
   search_time_seconds?: number | null;
+  /** Null when the result view withholds faults for this viewer. */
+  total_faults?: number | null;
   final_placement?: string | number | null;
   class_results_released_at?: string | null;
   trial_id?: string | null;

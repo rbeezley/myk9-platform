@@ -12,6 +12,7 @@ import {
 import { useDogActivity } from '@/features/_shared/hooks/useDogActivity';
 import { deriveEntryPresentation } from '@/services/entryDisplay/entryPresentation';
 import { deriveResultReleaseDisplay } from '@/features/result-card';
+import { formatFaultCount } from '@/features/_shared/faultLabel';
 
 interface ActivityTabProps {
   dogId: string;
@@ -88,6 +89,9 @@ function ResultRow({
   const className = entry.class?.name ?? 'Unknown class';
   const formattedDate = formatActivityDate(getEntryDisplayDate(entry));
   const qualified = entry.result_status === 'qualified';
+  // Faults only on a qualifying run and only when present (at-show Completed
+  // tab rule); the authorized result view already nulls withheld faults.
+  const faultLabel = qualified ? formatFaultCount(entry.total_faults) : null;
   const showHref = entry.show?.id
     ? entry.trial_id && entry.class?.id
       ? `/shows/${entry.show.id}/trials/${entry.trial_id}/classes/${entry.class.id}`
@@ -140,7 +144,8 @@ function ResultRow({
             )}
           </div>
         )}
-        {release?.isPreliminary && <div className="text-xs text-muted-foreground">preliminary</div>}
+        {faultLabel && <div className="text-xs text-muted-foreground">{faultLabel}</div>}
+        {release?.isPreliminary &&<div className="text-xs text-muted-foreground">preliminary</div>}
         {!releaseKnown && (
           <div className="text-xs text-muted-foreground">Release status unavailable</div>
         )}

@@ -145,7 +145,7 @@ function ResultRow({
           </div>
         )}
         {faultLabel && <div className="text-xs text-muted-foreground">{faultLabel}</div>}
-        {release?.isPreliminary &&<div className="text-xs text-muted-foreground">preliminary</div>}
+        {release?.isPreliminary && <div className="text-xs text-muted-foreground">preliminary</div>}
         {!releaseKnown && (
           <div className="text-xs text-muted-foreground">Release status unavailable</div>
         )}

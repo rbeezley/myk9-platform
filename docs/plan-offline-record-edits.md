@@ -45,6 +45,7 @@ Owner-approved design, 2026-10-12. It supersedes the abandoned app half of [`arc
 2. **ID pass.** A keyset-paged `select('id')` over every visible registration, the same shape as dogs' `reconcileDeleted`, bounded by a page cap that skips pruning when exceeded.
    - A server id missing locally is fetched by id through the row refetch adapter. That closes the coverage gap: a registration that becomes visible without an `updated_at` change, for example when its dog gains a co-owner.
    - A local id missing from the server is removed, **unless** a pending or failed mutation names the row, **or** the row was written locally after the pass began (snapshot of local ids and revisions taken before the first page). That closes the reconcile-versus-upload race.
+   - **Placeholders (found while building PR 2).** An offline dog create writes its registrations to the replica as clean `_localOnly` rows with device ids, and uploads them inside `create_dog_with_registrations`, which inserts server rows with **server-generated** ids. The two never match by id. A `_localOnly` row is therefore a placeholder: the ID pass keeps it while a pending or failed `dogs` mutation names its dog, and removes it once the dog has uploaded. The changes pass of the same sync has by then brought the server's rows, so the screen never shows both. This also covers the RPC returning an existing dog's id (the placeholders' dog id no longer exists).
 
 At 10,000 registrations a changes pass moves a handful of rows, and the ID pass about 400 KB, the same cost dogs already pay. The first sync on a fresh device downloads every row once, as dogs do.
 
@@ -64,6 +65,8 @@ At 10,000 registrations a changes pass moves a handful of rows, and the ID pass 
 Both queries set `networkMode: 'always'` because their query functions never touch the network when warm.
 
 **Stay on PostgREST:** the all-registrations, organization, search, statistics and validate queries; `useAKCSubmissionData`, `useEntryFormData`, `useReportDogOptions`. Offline, the duplicate-number validate check is skipped; the server's rule catches a real duplicate at upload, which surfaces through Retry/Discard.
+
+**Direct writes in PR 2 (found while building it).** Until PR 3 queues them, add, edit and delete still go straight to PostgREST. Each successful direct write must also update the replica at once — set the returned row clean, or delete it locally — or the screens, now reading the replica, would show the old value until the next sync. PR 3 replaces these with queued writes.
 
 **One refresh rule.** `ReplicationSyncProvider` subscribes once to `replicatedDogRegistrationsTable` (`subscribe(cb, { emitCurrent: false })`). On any change it invalidates `['registrations','dog']`, `['dogs']` and the owner-dogs keys. Every source of change reaches the screens through this listener, because every one of them changes the replica: local add/edit/delete, sync, upload complete, Take theirs, Keep mine and Discard. No path patches a React Query cache by hand.
 

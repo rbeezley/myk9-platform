@@ -267,6 +267,38 @@ describe('useStopwatch', () => {
     });
   });
 
+  // MYK9-1102: the class rule decides; the level is only the fallback.
+  describe('30-second warning from the class rule', () => {
+    function chimesWith(options: { level: string; thirtySecondWarning?: boolean }) {
+      const onWarningChime = vi.fn();
+      const { result } = renderHook(() =>
+        useStopwatch({ maxTime: '1:00', onWarningChime, ...options })
+      );
+      act(() => {
+        result.current.start();
+      });
+      for (let i = 0; i < 310; i++) {
+        act(() => {
+          vi.advanceTimersByTime(100);
+        });
+      }
+      return onWarningChime.mock.calls.length > 0;
+    }
+
+    it('withholds the warning when the rule says so, whatever the level', () => {
+      expect(chimesWith({ level: 'Novice', thirtySecondWarning: false })).toBe(false);
+    });
+
+    it('gives the warning when the rule says so, even at Master', () => {
+      expect(chimesWith({ level: 'Master', thirtySecondWarning: true })).toBe(true);
+    });
+
+    it('falls back to "not for Master" when the rule is unknown', () => {
+      expect(chimesWith({ level: 'Master' })).toBe(false);
+      expect(chimesWith({ level: 'Novice' })).toBe(true);
+    });
+  });
+
   describe('getWarningMessage', () => {
     it('should return null when no warnings', () => {
       const { result } = renderHook(() => useStopwatch());

@@ -3,7 +3,13 @@ import type { z } from 'zod';
 import type { EditPanelDeleteOption } from './EditPanelDelete';
 import type { FieldLocation } from './usePanelValidationNavigation';
 
-export type EditPanelVariant = 'panel' | 'dialog';
+/**
+ * `inline` renders the form body and footer with no container of its own, for a
+ * host that is already a slide-out and swaps this form into its body as a mode
+ * (MYK9-1089). The host owns the header, Back and Escape, and routes each of
+ * them through `closeRequestRef` so the discard prompt still guards a dirty form.
+ */
+export type EditPanelVariant = 'panel' | 'dialog' | 'inline';
 
 export interface EditPanelSaveContext {
   /**
@@ -75,6 +81,13 @@ export interface EditPanelWrapperProps<T = Record<string, unknown>> {
   onDelete?: EditPanelDeleteOption | undefined;
 
   variant?: EditPanelVariant;
+
+  /**
+   * `inline` only: filled with this form's close request (the same one Cancel
+   * uses, so a dirty form raises the discard prompt and a save in flight holds
+   * the form open). Cleared on unmount.
+   */
+  closeRequestRef?: React.MutableRefObject<(() => void) | null>;
 
   /** Tab walk: Next on every tab but the last in create mode. Needs `schema`. */
   steps?: EditPanelSteps;

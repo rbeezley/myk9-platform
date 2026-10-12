@@ -28,13 +28,23 @@ const emptyOverall = {
   absent: 0,
   excused: 0,
   withdrawn: 0,
+  disqualified: 0,
   total: 0,
   qRate: 0,
 };
 
 function makeStats(overrides: Partial<PerformanceStats> = {}): PerformanceStats {
   return {
-    overall: { qualified: 2, nq: 0, absent: 0, excused: 0, withdrawn: 0, total: 2, qRate: 100 },
+    overall: {
+      qualified: 2,
+      nq: 0,
+      absent: 0,
+      excused: 0,
+      withdrawn: 0,
+      disqualified: 0,
+      total: 2,
+      qRate: 100,
+    },
     byElement: [],
     byLevel: [],
     byJudge: [],
@@ -86,5 +96,26 @@ describe('PerformanceStatisticsSection', () => {
 
     expect(screen.queryByText(/no scored results yet/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+  });
+
+  it('shows disqualifications as their own DQ series, not folded into NQ (MYK9-1011)', () => {
+    mockStats({
+      stats: makeStats({
+        overall: {
+          qualified: 1,
+          nq: 0,
+          absent: 0,
+          excused: 0,
+          withdrawn: 0,
+          disqualified: 2,
+          total: 3,
+          qRate: 33,
+        },
+      }),
+    });
+    render(<PerformanceStatisticsSection dogId="dog-1" />);
+
+    expect(screen.getByText('Disqualified (DQ): 2')).toBeInTheDocument();
+    expect(screen.queryByText(/^NQ: /)).not.toBeInTheDocument();
   });
 });

@@ -205,4 +205,16 @@ describe('AKCScentWorkLiveScoresheet', () => {
     const submitBtn = screen.getByTestId('submit-btn');
     expect(submitBtn).toBeDisabled();
   });
+
+  it('titles the trial date and the trial on separate lines, with no em dash', () => {
+    render(
+      <AKCScentWorkLiveScoresheet
+        {...defaultProps}
+        classInfo={{ ...defaultClassInfo, trialDate: '2026-11-09', trialNumber: '1' }}
+      />
+    );
+    const heading = screen.getByRole('heading', { level: 1 });
+    expect(heading.textContent).not.toContain('\u2014');
+    expect(heading.querySelectorAll('span.block')).toHaveLength(2);
+  });
 });

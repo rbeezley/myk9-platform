@@ -13,9 +13,12 @@ import { formatTrialLabel } from '@myk9/core';
 import { Button, Input, Card, cn } from '@myk9/ui';
 import { ScoresheetDogCard } from '../../ScoresheetDogCard';
 import { TimerResetButton } from '../../TimerResetButton';
+import { RecordAreaTimeButton } from '../../RecordAreaTimeButton';
 import { formatScoresheetSubtitle } from '../../../utils/scoresheetSubtitle';
 import { useStopwatch } from '../../../hooks/useStopwatch';
 import { useScoresheetScoring } from '../../../hooks/useScoresheetScoring';
+import { useTimedArea } from '../../../hooks/useTimedArea';
+import { maxTimeForArea } from '../../../utils/buildResolvedClassRules';
 import { registerScoresheet } from '../../../utils/getScoresheetComponent';
 import { maxTimeLabel, timerLimitLine } from '../../../utils/maxTimeLabel';
 import { ResultChoiceChips } from '../../ResultChoiceChips';
@@ -30,9 +33,12 @@ const RESULT_LABELS: Record<string, string> = {
   DQ: 'Disqualified',
 };
 
-/** Header title: trial date + the trial's label (MYK9-704), falling back to the sport name. */
-function buildHeaderTitle(classInfo: LiveScoresheetProps['classInfo']): string {
-  if (!classInfo.trialDate) return 'AKC Scent Work';
+/**
+ * Header title lines: trial date, then the trial's label on its own line (MYK9-704;
+ * no em dash), falling back to the sport name.
+ */
+function buildHeaderTitle(classInfo: LiveScoresheetProps['classInfo']): string[] {
+  if (!classInfo.trialDate) return ['AKC Scent Work'];
   const formatted = new Date(classInfo.trialDate + 'T00:00:00').toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
@@ -40,8 +46,8 @@ function buildHeaderTitle(classInfo: LiveScoresheetProps['classInfo']): string {
   });
   const { trialName, trialNumber } = classInfo;
   return trialName || trialNumber
-    ? `${formatted} — ${formatTrialLabel({ name: trialName, trialNumber })}`
-    : formatted;
+    ? [formatted, formatTrialLabel({ name: trialName, trialNumber })]
+    : [formatted];
 }
 
 export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
@@ -57,24 +63,45 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
 }) => {
   const [showConfirmation, setShowConfirmation] = useState(false);
 
-  const maxTimeStr = `${Math.floor(rules.maxTimeSeconds / 60)}:${String(rules.maxTimeSeconds % 60).padStart(2, '0')}`;
-
   const scoring = useScoresheetScoring({
     rules,
     existingScore: entry.existingScore,
   });
 
+  // Each area runs against its own max time (MYK9-1098).
+  const area = useTimedArea(scoring.areas.map(a => a.time));
+  const areaMaxSeconds = maxTimeForArea(rules, area.timedArea);
+  const maxTimeStr = `${Math.floor(areaMaxSeconds / 60)}:${String(areaMaxSeconds % 60).padStart(2, '0')}`;
+
   const stopwatch = useStopwatch({
     maxTime: maxTimeStr,
     level: classInfo.level,
+    thirtySecondWarning: rules.thirtySecondWarning,
     enableVoiceAnnouncements,
     onWarningChime,
     onVoiceAnnouncement,
     onTimeExpired: formattedTime => {
-      scoring.handleAreaUpdate(0, 'time', formattedTime);
+      scoring.handleAreaUpdate(area.timedAreaRef.current, 'time', formattedTime);
       scoring.applyMaxTimeNQ();
     },
   });
+
+  const handleStartTimer = () => {
+    area.pinOnStart(stopwatch.time);
+    stopwatch.start();
+  };
+
+  const handleResetTimer = () => {
+    area.release();
+    stopwatch.reset();
+  };
+
+  // Multi-area: the judge records the clock into the area it timed, and the
+  // clock resets for the next area.
+  const handleRecordArea = () => {
+    scoring.handleAreaUpdate(area.timedArea, 'time', stopwatch.formatTime(stopwatch.time));
+    handleResetTimer();
+  };
 
   const handleStopTimer = () => {
     const elapsedMs = stopwatch.pause();
@@ -138,7 +165,13 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             <div className="flex-1">
               <h1 className="text-lg max-sm:text-base font-semibold flex items-center gap-2">
                 <ClipboardCheck className="h-5 w-5 text-primary" />
-                {headerTitle}
+                <span>
+                  {headerTitle.map(line => (
+                    <span key={line} className="block">
+                      {line}
+                    </span>
+                  ))}
+                </span>
               </h1>
               <p className="text-sm text-muted-foreground">{formatScoresheetSubtitle(classInfo)}</p>
             </div>
@@ -169,11 +202,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                 </div>
 
                 <div className="text-base text-muted-foreground mt-2 mb-4 tabular-nums">
-                  {timerLimitLine(
-                    stopwatch.time,
-                    rules.maxTimeSeconds,
-                    stopwatch.getRemainingTime()
-                  )}
+                  {timerLimitLine(stopwatch.time, areaMaxSeconds, stopwatch.getRemainingTime())}
                 </div>
 
                 {/* Time remaining progress bar */}
@@ -199,16 +228,23 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                   ) : (
                     <Button
                       className="w-48 h-[72px] rounded-full text-[1.375rem] font-semibold shadow-lg hover:brightness-110 hover:scale-105 active:scale-95 bg-primary text-primary-foreground"
-                      onClick={stopwatch.start}
+                      onClick={handleStartTimer}
                       data-testid={stopwatch.time > 0 ? undefined : 'timer-start'}
                     >
                       {stopwatch.time > 0 ? 'Resume' : 'Start'}
                     </Button>
                   )}
                 </div>
+                <RecordAreaTimeButton
+                  areaNames={scoring.areas.map(a => a.areaName)}
+                  timedArea={area.timedArea}
+                  isRunning={stopwatch.isRunning}
+                  elapsedMs={stopwatch.time}
+                  onRecord={handleRecordArea}
+                />
                 <TimerResetButton
                   visible={!stopwatch.isRunning && stopwatch.time > 0}
-                  onReset={stopwatch.reset}
+                  onReset={handleResetTimer}
                 />
               </div>
             </div>
@@ -228,28 +264,28 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             )}
 
             {/* Area Times - compact card style */}
-            {scoring.areas.map((area, index) => (
+            {scoring.areas.map((searchArea, index) => (
               <Card key={index} className="p-3">
                 <div className="flex items-center justify-center gap-3">
                   {scoring.areas.length > 1 && (
                     <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wide flex-shrink-0">
-                      {area.areaName}
+                      {searchArea.areaName}
                     </span>
                   )}
                   <div className="relative flex-1 max-w-48">
                     <Input
                       type="text"
-                      value={area.time}
+                      value={searchArea.time}
                       onChange={e => scoring.handleAreaUpdate(index, 'time', e.target.value)}
                       placeholder="0:00.00"
                       className="text-center text-base font-mono font-medium pr-12 h-12 rounded-xl border-2 focus:border-primary focus:ring-2 focus:ring-primary/20"
-                      aria-label={`${area.areaName} time`}
+                      aria-label={`${searchArea.areaName} time`}
                     />
-                    {area.time && (
+                    {searchArea.time && (
                       <Button
                         variant="ghost"
                         className="absolute right-0.5 top-1/2 -translate-y-1/2 hover:-translate-y-1/2 active:-translate-y-1/2 h-11 w-11 p-0 text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
-                        aria-label={`Clear ${area.areaName} time`}
+                        aria-label={`Clear ${searchArea.areaName} time`}
                         onClick={() => scoring.handleAreaUpdate(index, 'time', '')}
                       >
                         <X className="h-4 w-4" />
@@ -257,7 +293,7 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                     )}
                   </div>
                   <span className="text-xs text-muted-foreground flex-shrink-0">
-                    Max: {maxTimeLabel(rules.maxTimeSeconds)}
+                    Max: {maxTimeLabel(maxTimeForArea(rules, index))}
                   </span>
                 </div>
               </Card>

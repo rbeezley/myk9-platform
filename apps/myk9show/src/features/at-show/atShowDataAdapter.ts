@@ -34,6 +34,7 @@ import {
 import { buildShowArmbandMaps, resolveEntryArmband } from '@/features/_shared/entryArmband';
 import type { ShowChangeSignal } from '@/features/show-live-sync/showChangeSignal';
 import { getTrialRegistry } from '@/features/registries';
+import { scoresheetKeyForClass } from '@/pages/scoring/types';
 import {
   classifyEntries,
   countEntryAccounting,
@@ -314,7 +315,8 @@ export function buildClassInfo(
   cls: ReplicatedClass,
   trial: ReplicatedTrial | null,
   entries: Entry[],
-  accountingEntries: (EntryAccountingFields & { id: string })[]
+  accountingEntries: (EntryAccountingFields & { id: string })[],
+  perAreaMaxTimes = false
 ): ClassInfo {
   const trialId = cls.trialId ?? cls.trial_id;
   const trialNumber = trial?.trialNumber ?? trial?.trial_number;
@@ -369,6 +371,7 @@ export function buildClassInfo(
     ...(timeLimit2 != null && { timeLimit2 }),
     ...(timeLimit3 != null && { timeLimit3 }),
     ...(areas != null && { areas }),
+    ...(perAreaMaxTimes && { perAreaMaxTimes }),
     ...(cls.hidesKnown != null && { hidesKnown: cls.hidesKnown }),
     ...(cls.distractionCount != null && { distractionCount: cls.distractionCount }),
   };
@@ -382,6 +385,7 @@ async function fetchClassData(
   trial: ReplicatedTrial | null;
   entries: Entry[];
   rawEntries: ReplicatedEntry[];
+  perAreaMaxTimes: boolean;
 }> {
   const cls = await replicatedClassesTable.getClassById(classId);
   const rawEntries = await replicatedEntriesTable.getEntriesByClass(classId);
@@ -393,7 +397,18 @@ async function fetchClassData(
     (cls?.trialId ?? cls?.trial_id)
       ? await replicatedTrialsTable.getTrialById((cls?.trialId ?? cls?.trial_id) as string)
       : null;
-  return { cls, trial, entries, rawEntries };
+  // The AKC Scent Work and ASCA sheets time each area against its own max
+  // (MYK9-1098, MYK9-1103). Nationals splits one total; UKC is one area.
+  const sheet = cls
+    ? await scoresheetKeyForClass(cls.trialId ?? cls.trial_id, cls.name ?? '')
+    : null;
+  return {
+    cls,
+    trial,
+    entries,
+    rawEntries,
+    perAreaMaxTimes: sheet === 'AKC_SCENT_WORK' || sheet === 'ASCA_SCENT_DETECTION',
+  };
 }
 
 /**
@@ -409,10 +424,13 @@ export function createAtShowDataDependencies(): Pick<
 > {
   return {
     fetchSingleClass: async (classId, showId): Promise<EntryListData> => {
-      const { cls, trial, entries, rawEntries } = await fetchClassData(classId, showId);
+      const { cls, trial, entries, rawEntries, perAreaMaxTimes } = await fetchClassData(
+        classId,
+        showId
+      );
       return {
         entries,
-        classInfo: cls ? buildClassInfo(cls, trial, entries, rawEntries) : null,
+        classInfo: cls ? buildClassInfo(cls, trial, entries, rawEntries, perAreaMaxTimes) : null,
       };
     },
 
@@ -439,7 +457,7 @@ export function createAtShowDataDependencies(): Pick<
 
       const classInfo = a.cls
         ? {
-            ...buildClassInfo(a.cls, a.trial, entries, rawEntries),
+            ...buildClassInfo(a.cls, a.trial, entries, rawEntries, a.perAreaMaxTimes),
             actualClassIdA: classIdA,
             actualClassIdB: classIdB,
             judgeNameB: b.cls?.judgeName ?? 'No Judge Assigned',

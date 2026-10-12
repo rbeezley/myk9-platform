@@ -56,3 +56,21 @@ describe('useElementMaxTimeStatus (MYK9-1093)', () => {
     expect(result.current.remainingMs).toBe(0);
   });
 });
+
+describe('useElementMaxTimeStatus — class rule (MYK9-1102)', () => {
+  it('gives no 30-second warning when the class rule withholds it', () => {
+    const onWarningChime = vi.fn();
+    const { result } = renderHook(() =>
+      useElementMaxTimeStatus({
+        enabled: true,
+        maxTimeMs: 60_000,
+        elementTimeMs: 40_000,
+        isRunning: true,
+        thirtySecondWarning: false,
+        onWarningChime,
+      })
+    );
+    expect(result.current.isWarning).toBe(false);
+    expect(onWarningChime).not.toHaveBeenCalled();
+  });
+});

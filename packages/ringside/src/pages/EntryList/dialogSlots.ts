@@ -147,6 +147,8 @@ export interface MaxTimeClassData {
   time_limit_area2_seconds?: number;
   time_limit_area3_seconds?: number;
   area_count?: number;
+  /** One max time per area (MYK9-1098); otherwise one time for the class. */
+  per_area_times?: boolean;
   pairedClassId?: string;
 }
 
@@ -319,6 +321,10 @@ export interface ClassRequirementsDialogProps {
     time_limit2?: string;
     time_limit3?: string;
     entry_count: number;
+    /** AKC / UKC / ASCA, for the host's rule lookup (MYK9-1100). */
+    registry?: string;
+    /** One max time per area (MYK9-1098). */
+    per_area_times?: boolean;
   };
 }
 

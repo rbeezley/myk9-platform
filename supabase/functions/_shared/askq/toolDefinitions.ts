@@ -63,7 +63,7 @@ export const TOOLS: ToolDefinition[] = [
         },
         result_status: {
           type: 'string',
-          enum: ['qualified', 'nq', 'absent', 'excused'],
+          enum: ['qualified', 'nq', 'absent', 'excused', 'disqualified'],
           description: 'Filter by result status',
         },
         top_n: {

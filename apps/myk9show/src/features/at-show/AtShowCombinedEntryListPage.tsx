@@ -55,6 +55,7 @@ import { createAtShowDataDependencies } from './atShowDataAdapter';
 import { useAtShowEntryListActions } from './useAtShowEntryListActions';
 import { useAtShowEntryListUiState } from './useAtShowEntryListUiState';
 import { useAtShowEntryListHandlers } from './useAtShowEntryListHandlers';
+import { useMaxTimeGate } from './useMaxTimeGate';
 import { atShowLayoutSlots } from './slots/atShowLayoutSlots';
 import { atShowDialogSlots } from './slots/atShowDialogSlots';
 import { useAtShowDogFavoritesSynced } from './dogFavoritesSync';
@@ -206,6 +207,16 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     setSearchTerm,
   });
 
+  // MYK9-1099: a judge-set class with no max time asks for it before the first dog.
+  const { gateEntryClick } = useMaxTimeGate({
+    classIds: [classIdA, classIdB].filter((id): id is string => !!id),
+    ready: uiState.hasCompletedInitialLoad,
+    canSetMaxTime: hasPermission('canManageClasses'),
+    showRole,
+    setMaxTimeDialogOpen: uiActions.setMaxTimeDialogOpen,
+    setMaxTimeRequiredWarning: uiActions.setMaxTimeRequiredWarning,
+  });
+
   const replication = useMemo(() => buildRingsideReplication(), []);
   // The pair rides on the scoresheet URL so its Back (and next-dog) return to
   // THIS combined list rather than the dog's single section.
@@ -230,6 +241,7 @@ export const AtShowCombinedEntryListPage: React.FC = () => {
     hasPermission,
     navigate,
     buildScoreSheetRoute,
+    gateEntryClick,
     refresh,
     setActiveStatusPopup: uiActions.setActiveStatusPopup,
     setActiveResetMenu: uiActions.setActiveResetMenu,

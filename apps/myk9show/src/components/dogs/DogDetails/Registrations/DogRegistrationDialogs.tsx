@@ -20,44 +20,34 @@ import EditRegistrationPanel from './EditRegistrationPanel';
 import ConfirmDeleteRegistrationDialog from './ConfirmDeleteRegistrationDialog';
 import { useDogRegistrationManagement } from '@/hooks/queries/useRegistrationsDatabase';
 import { useRegistrationsStore } from '@/store/registrationsStore';
-import { dogSaveFailure, dogSaveMessage } from '@/hooks/translateDogDbError';
+import { dogSaveMessage } from '@/hooks/translateDogDbError';
+import { useRegistrationFormSaves } from './useRegistrationFormSaves';
 
 interface DogRegistrationDialogsProps {
   dog?: Dog | undefined;
   /** One-shot request from the rail button or the `?addRegistration=true` link. */
   autoOpenAddDialog?: boolean;
   onAddRequestConsumed?: (() => void) | undefined;
-}
-
-interface RegistrationFormData {
-  organization: string;
-  registeredName: string;
-  breed: string;
-  variety: string;
-  registrationNumber: string;
-  status: string;
-  registrationDate: string;
-}
-
-function toDbRegistration(data: RegistrationFormData) {
-  return {
-    organization: data.organization,
-    registered_name: data.registeredName,
-    breed: data.breed,
-    variety: data.variety || null,
-    registration_number: data.registrationNumber,
-    status: data.status,
-    registration_date: data.registrationDate || null,
-  };
+  /**
+   * The Manage registrations panel is open. Add and Edit are then a mode INSIDE
+   * it (MYK9-1089), so this host stands down rather than stack a second
+   * slide-out. Delete stays here: a destructive confirm is a dialog by design.
+   */
+  managePanelOpen?: boolean;
 }
 
 export default function DogRegistrationDialogs({
   dog,
   autoOpenAddDialog = false,
   onAddRequestConsumed,
+  managePanelOpen = false,
 }: DogRegistrationDialogsProps) {
   const { createRegistration, updateRegistration, deleteRegistration } =
     useDogRegistrationManagement(dog?.id || '');
+  const { handleAdd, handleUpdate } = useRegistrationFormSaves({
+    createRegistration,
+    updateRegistration,
+  });
 
   const isAddOpen = useRegistrationsStore(state => state.isAddRegistrationDialogOpen);
   const setIsAddOpen = useRegistrationsStore(state => state.setIsAddRegistrationDialogOpen);
@@ -103,36 +93,6 @@ export default function DogRegistrationDialogs({
   // so its failures need a toast.
   const reportSaveError = (error: unknown) => toast.error(dogSaveMessage(error));
 
-  // Add and Edit REJECT instead: EditPanelWrapper.wrappedSave catches, reports,
-  // and deliberately does not close, so the user keeps the form they typed. Add
-  // clears itself on its next open, so a swallowed failure would throw the whole
-  // form away and leave only a toast.
-  const handleAdd = (data: RegistrationFormData) =>
-    new Promise<void>((resolve, reject) => {
-      createRegistration(toDbRegistration(data), {
-        onSuccess: () => {
-          setIsAddOpen(false);
-          resolve();
-        },
-        onError: error => reject(dogSaveFailure(error)),
-      });
-    });
-
-  const handleUpdate = (data: RegistrationFormData & { id: string }) =>
-    new Promise<void>((resolve, reject) => {
-      updateRegistration(
-        { id: data.id, updates: toDbRegistration(data) },
-        {
-          onSuccess: () => {
-            setIsEditOpen(false);
-            setSelectedRegistration(null);
-            resolve();
-          },
-          onError: error => reject(dogSaveFailure(error)),
-        }
-      );
-    });
-
   const handleDelete = () => {
     // Same onError as add and update: the optimistic update targets a different
     // query key, so a rejected delete leaves the row on screen and would
@@ -147,13 +107,13 @@ export default function DogRegistrationDialogs({
   return (
     <>
       <AddRegistrationPanel
-        open={isAddOpen}
+        open={isAddOpen && !managePanelOpen}
         onClose={() => setIsAddOpen(false)}
         onSave={handleAdd}
         dogName={dog?.callName}
       />
       <EditRegistrationPanel
-        open={isEditOpen}
+        open={isEditOpen && !managePanelOpen}
         onClose={() => {
           setIsEditOpen(false);
           setSelectedRegistration(null);

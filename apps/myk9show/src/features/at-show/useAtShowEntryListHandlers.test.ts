@@ -347,3 +347,45 @@ describe('useAtShowEntryListHandlers - optimistic check-in', () => {
     expect(mirror[0]?.status).toBe('no-status');
   });
 });
+
+describe('useAtShowEntryListHandlers — max time gate (MYK9-1099)', () => {
+  function renderGated(gated: boolean) {
+    const navigate = vi.fn();
+    const gateEntryClick = vi.fn(() => gated);
+    const hook = renderHook(() =>
+      useAtShowEntryListHandlers({
+        actions: makeActions(),
+        replication: { updateClassStatus: vi.fn(() => Promise.resolve()) } as never,
+        classId: 'class-1',
+        localEntries: [],
+        hasPermission: () => true,
+        navigate,
+        buildScoreSheetRoute: () => '/route',
+        gateEntryClick,
+        refresh: vi.fn(() => Promise.resolve()),
+        setActiveStatusPopup: vi.fn(),
+        setActiveResetMenu: vi.fn(),
+        setResetMenuPosition: vi.fn(),
+        setResetConfirmDialog: vi.fn(),
+        setIsDragMode: vi.fn(),
+        setIsManualRefreshing: vi.fn(),
+        setActiveTab: vi.fn(),
+        setLocalEntries: vi.fn() as never,
+      })
+    );
+    return { ...hook, navigate, gateEntryClick };
+  }
+
+  it('opens Set Max Time instead of the scoresheet while the class has no max time', () => {
+    const { result, navigate, gateEntryClick } = renderGated(true);
+    act(() => result.current.handleEntryClick(makeEntry({ id: 'entry-1' })));
+    expect(gateEntryClick).toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it('goes to the scoresheet once the gate is clear', () => {
+    const { result, navigate } = renderGated(false);
+    act(() => result.current.handleEntryClick(makeEntry({ id: 'entry-1' })));
+    expect(navigate).toHaveBeenCalledWith('/route');
+  });
+});

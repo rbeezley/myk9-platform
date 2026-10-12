@@ -293,19 +293,15 @@ describe('DogDetailsMain — owner resolution', () => {
     expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-search', '');
     expect(screen.getByTestId('dog-tabs')).toHaveAttribute('data-navigation-type', 'POP');
 
-    // SlideOverPanel does not portal and every panel is `fixed inset-0 z-50`, so
-    // among equal-z siblings the LATER one paints on top. The panels raised FROM
-    // the Manage panel must therefore follow it in document order, or they mount
-    // invisibly behind its backdrop — and this is the exhibitor's only route to
-    // edit or delete a registration.
+    // Add and Edit are a MODE of the Manage panel (MYK9-1089), not a second
+    // slide-out raised over it: the form replaces the list inside the same
+    // dialog, and the page's standalone host stands down while Manage is open.
     act(() => {
       useRegistrationsStore.getState().setIsAddRegistrationDialogOpen(true);
     });
-    const dialogs = await screen.findAllByRole('dialog');
-    expect(dialogs).toHaveLength(2);
-    expect(
-      manage.compareDocumentPosition(dialogs[dialogs.length - 1]) & Node.DOCUMENT_POSITION_FOLLOWING
-    ).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    const form = await within(manage).findByLabelText(/registered name/i);
+    expect(form).toBeInTheDocument();
+    expect(screen.getAllByRole('dialog')).toHaveLength(1);
     act(() => {
       useRegistrationsStore.getState().setIsAddRegistrationDialogOpen(false);
     });

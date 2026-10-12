@@ -42,6 +42,7 @@ import {
   SuccessToast,
   FloatingDoneButton,
 } from './components';
+import { pairMaxTimeAction } from './components/entryListHeaderHelpers';
 
 export const EntryListPage: React.FC<EntryListPageProps> = ({
   classId,
@@ -163,11 +164,9 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
 
   const completionKey = combined ? `${combined.classIds.a}+${combined.classIds.b}` : classId;
 
-  // Loading state.
-  // Gate on LOAD COMPLETION, not emptiness. `!entries.length` -- the test the
-  // combined page used -- meant a class that genuinely has no entries shimmered
-  // forever, and a partially-arrived list read as complete the moment one entry
-  // landed.
+  // Loading state. Gate on LOAD COMPLETION, not emptiness. `!entries.length` -- the
+  // test the combined page used -- meant a class with no entries shimmered forever,
+  // and a partially-arrived list read as complete the moment one entry landed.
   if (!hasCompletedInitialLoad && !fetchError) {
     return (
       <EntryListSkeleton
@@ -220,9 +219,9 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
         showSectionsBadge={isCombined}
         actionsMenu={{
           showRunOrder: hasPermission('canChangeRunOrder'),
-          // Both act on ONE class. A combined A/B view has two, so there is no
-          // unambiguous target -- offering them would make the steward guess
-          // which section they were about to renumber or reconfigure.
+          ...pairMaxTimeAction(isCombined, context.hideMaxTimeOption, setMaxTimeDialogOpen),
+          // These two act on ONE class: a combined A/B view has two, with no
+          // unambiguous target. (Max time, above, is one search for both.)
           showRecalculatePlacements: !isCombined && hasPermission('canManageClasses'),
           showClassSettings: !isCombined && hasPermission('canManageClasses'),
           showPrintOptions: Boolean(role && role !== 'exhibitor') && !context.hidePrintOptions,
@@ -403,6 +402,7 @@ export const EntryListPage: React.FC<EntryListPageProps> = ({
 
       <EntryListDialogs
         classId={classId}
+        combined={combined}
         classInfo={classInfo}
         localEntries={localEntries}
         hasPermission={hasPermission}

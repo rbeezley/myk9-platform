@@ -47,10 +47,18 @@ export const QUALIFICATION_REASONS = {
   Withdrawn: ['In Season', 'Judge Change'],
 } as const;
 
+/**
+ * Statuses whose required reason is typed, not picked. A disqualification is an
+ * official record, so the judge describes what happened (same as the scoresheet's
+ * "Disqualification reason (required)"). These have no QUALIFICATION_REASONS list.
+ */
+export const FREE_TEXT_REASON_STATUSES: readonly string[] = ['Disqualified'] as const;
+
 /** Qualification statuses that require a reason */
 export const STATUSES_REQUIRING_REASON: readonly string[] = [
   'Not Qualified',
   'Excused',
+  'Disqualified',
   'Withdrawn',
 ] as const;
 

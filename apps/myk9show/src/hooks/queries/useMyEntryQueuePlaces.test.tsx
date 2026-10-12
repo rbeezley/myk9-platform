@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import {
   fetchMyEntryQueuePlaces,
   settledQueuePlaces,
+  settledQueuePlacesWithFreshness,
   useMyEntryQueuePlaces,
   type QueuePlacesQueryState,
 } from './useMyEntryQueuePlaces';
@@ -46,6 +47,25 @@ describe('settledQueuePlaces', () => {
     ['not answered yet', state({ data: undefined, fetchStatus: 'fetching' }), true],
   ] as const)('offers no place when %s', (_label, query, isOnline) => {
     expect(settledQueuePlaces(query, isOnline).size).toBe(0);
+  });
+});
+
+describe('settledQueuePlacesWithFreshness', () => {
+  it('stamps a settled online answer with when it landed', () => {
+    const result = settledQueuePlacesWithFreshness({ ...state({}), dataUpdatedAt: 1234 }, true);
+    expect(result.places.get('e1')).toBe(1);
+    expect(result.updatedAt).toBe(1234);
+  });
+
+  it.each([
+    ['offline', { ...state({}), dataUpdatedAt: 1234 }, false],
+    ['errored', { ...state({ isError: true }), dataUpdatedAt: 1234 }, true],
+    ['never answered', { ...state({ data: undefined }), dataUpdatedAt: 0 }, true],
+    ['answered with no timestamp', { ...state({}), dataUpdatedAt: 0 }, true],
+  ] as const)('reports no places and no time when %s', (_label, query, isOnline) => {
+    const result = settledQueuePlacesWithFreshness(query, isOnline);
+    expect(result.places.size).toBe(0);
+    expect(result.updatedAt).toBeNull();
   });
 });
 

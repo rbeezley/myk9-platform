@@ -193,4 +193,20 @@ describe('ClassRequirementsPanel', () => {
     render(<ClassRequirementsPanel {...defaultProps} organization="AKC" />);
     expect(screen.getByText('Source: AKC Scent Work Regulations')).toBeInTheDocument();
   });
+
+  it('notes a class with no 30-second warning (MYK9-1102)', () => {
+    mockUseClassRequirements.mockReturnValue({
+      requirements: makeRequirements({
+        time_limit_text: '1:00\u20133:00',
+        time_type: 'range',
+        thirty_second_warning: false,
+      }),
+      isLoading: false,
+      error: null,
+    });
+    render(<ClassRequirementsPanel {...defaultProps} />);
+    expect(
+      screen.getByText('Judge sets within range \u00b7 No 30-second warning')
+    ).toBeInTheDocument();
+  });
 });

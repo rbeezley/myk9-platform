@@ -431,6 +431,32 @@ Copy this block for each new finding.
 
 ## Open Findings
 
+### MYK9-1011 — DQ downstream reader gaps
+
+- **Status:** open (canonical issue reopened to Todo)
+- **Severity:** medium; canonical P2; source: codex
+- **Role / workflow:** exhibitor dog statistics; secretary inline results; AskQ results filtering
+- **Pattern:** stale-derived-state
+- **First / last seen:** residual 2026-10-11 / 2026-10-11; original issue 2026-10-04
+- **Baseline:** `7021fe423f8bbf715fcec40de6eee8aa5e43868d`; introduced by #2892
+- **Evidence:** real statistics engine turns a synthetic stored DQ into NQ; expected-DQ assertion fails. Inline editor/reason and AskQ status enum omit DQ. No stored-score corruption alleged.
+- **Owner / canonical contract:** Richard Beezley; [MYK9-1011](https://linear.app/myk9-platform/issue/MYK9-1011), including separate authoritative AKC electronic-format proof prerequisite.
+- **Proof required:** distinct DQ engine/chart fixture; reason-preserving existing editor flow; exact AskQ filter test and deployed smoke; authoritative electronic mapping plus generated output fixture. Merge alone is insufficient.
+- **Evidence report:** [October 11 review](/Users/richardbeezley/AI%20Projects/myk9-platform/docs/qa/codex-daily-commit-review-2026-10-11.md). Linear owns the work and closure state.
+
+### MYK9-1097 — Clear start hides write failure
+
+- **Status:** open
+- **Severity:** medium; canonical P2; source: codex
+- **Role / workflow:** secretary cockpit, actual-start correction
+- **Pattern:** missing-feedback
+- **First / last seen:** 2026-10-11 / 2026-10-11; first nightly occurrence; alias NCR-2026-10-11-01
+- **Baseline:** `7021fe423f8bbf715fcec40de6eee8aa5e43868d`; introduced by #2882
+- **Evidence:** real ClassActualStartEditor with rejected updateClass calls the expected clear mutation, but queryByRole('alert') is null. Existing five editor controls pass; new error-visibility assertion fails. Error is only rendered in editing mode.
+- **Owner / canonical contract:** Richard Beezley; [MYK9-1097](https://linear.app/myk9-platform/issue/MYK9-1097).
+- **Proof required:** rejected-clear visible feedback, preserved time, successful retry clears stale error, edit/save controls; focused rendered-component/browser replay.
+- **Evidence report:** [October 11 review](/Users/richardbeezley/AI%20Projects/myk9-platform/docs/qa/codex-daily-commit-review-2026-10-11.md). Linear owns the work and closure state.
+
 ### Codex commit-review reconciliation — 2026-09-19
 
 source: codex; reviewed through `71537ced65ef8b6b3d773fe94e9e023f9817e63f`; code baseline `0c684debe573f02fe9e57c4927f5c1d5baec85a0`. [Report and proof](codex-daily-commit-review-2026-09-19.md). Linear is the work queue.

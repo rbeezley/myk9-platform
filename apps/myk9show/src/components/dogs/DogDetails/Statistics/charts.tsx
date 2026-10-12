@@ -37,6 +37,7 @@ const STATUS_COLORS: Record<string, string> = {
   Absent: '#8b5cf6',
   Excused: '#fbbf24',
   Withdrawn: '#6b7280',
+  DQ: '#b91c1c',
 };
 
 const Q_RATE_COLOR = (rate: number) => {
@@ -109,6 +110,7 @@ export const ResultsDistributionChart: React.FC<ResultsDistributionChartProps> =
     { name: 'Absent', value: overall.absent, percentage: 0, color: STATUS_COLORS.Absent },
     { name: 'Excused', value: overall.excused, percentage: 0, color: STATUS_COLORS.Excused },
     { name: 'Withdrawn', value: overall.withdrawn, percentage: 0, color: STATUS_COLORS.Withdrawn },
+    { name: 'DQ', value: overall.disqualified, percentage: 0, color: STATUS_COLORS.DQ },
   ].filter(e => e.value > 0);
 
   const total = entries.reduce((s, e) => s + e.value, 0);
@@ -151,6 +153,18 @@ export const ResultsDistributionChart: React.FC<ResultsDistributionChartProps> =
           />
         </PieChart>
       </ResponsiveContainer>
+      <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+        {entries.map(e => (
+          <li key={e.name} className="flex items-center gap-1.5">
+            <span
+              aria-hidden="true"
+              className="inline-block h-2.5 w-2.5 rounded-full"
+              style={{ backgroundColor: e.color }}
+            />
+            {e.name === 'DQ' ? 'Disqualified (DQ)' : e.name}: {e.value}
+          </li>
+        ))}
+      </ul>
     </div>
   );
 };

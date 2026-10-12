@@ -23,7 +23,7 @@
  *    in ringside since PR E2d-2a.
  */
 
-import React, { Dispatch, SetStateAction } from 'react';
+import React, { Dispatch, SetStateAction, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ComponentType } from 'react';
 import type { Entry } from '../../../stores/entryStore';
@@ -35,6 +35,7 @@ import type {
   ClassOptionsDialogProps,
   ClassRequirementsDialogProps,
   MaxTimeDialogProps,
+  MaxTimeClassData,
   ClassSettingsDialogProps,
   NoStatsDialogProps,
   ClassStatusDialogProps,
@@ -45,8 +46,39 @@ import type {
 import { ResetConfirmDialog, ResetMenuPopup, SelfCheckinDisabledDialog } from './index';
 import { classDialogCounts } from './classDialogCounts';
 
+/** "180s" → 180; absent → undefined. */
+const toSeconds = (value: string | undefined) => (value ? parseInt(value) : undefined);
+
+/**
+ * The class the max-time dialog acts on. A combined A/B list has no single class
+ * id: it is class A, with class B as its pair, so one save sets both (MYK9-1086).
+ */
+function maxTimeClassData(
+  classInfo: ClassInfo,
+  classId: string | undefined,
+  combinedClassIds: { a: string; b: string } | undefined
+): MaxTimeClassData {
+  return {
+    id: combinedClassIds?.a ?? classId ?? '',
+    ...(combinedClassIds && { pairedClassId: combinedClassIds.b }),
+    element: classInfo.element,
+    level: classInfo.level,
+    // Name both sections: one save sets both, and "…Novice A" alone reads as A only.
+    class_name: combinedClassIds
+      ? `${classInfo.element} ${classInfo.level} A & B`
+      : classInfo.className,
+    time_limit_seconds: toSeconds(classInfo.timeLimit),
+    time_limit_area2_seconds: toSeconds(classInfo.timeLimit2),
+    time_limit_area3_seconds: toSeconds(classInfo.timeLimit3),
+    area_count: classInfo.areas,
+    per_area_times: classInfo.perAreaMaxTimes,
+  };
+}
+
 export interface EntryListDialogsProps {
   classId: string | undefined;
+  /** A combined A/B list: max time is set on both of its classes. */
+  combined?: { classIds: { a: string; b: string } } | undefined;
   classInfo: ClassInfo | null;
   localEntries: Entry[];
 
@@ -147,6 +179,7 @@ export interface EntryListDialogsProps {
 
 export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
   classId,
+  combined,
   classInfo,
   localEntries,
   hasPermission,
@@ -202,6 +235,18 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
   AreaCountSelectionDialog,
 }) => {
   const navigate = useNavigate();
+  // The max-time dialog closes after a save as well as on Cancel. Only a Cancel of
+  // the "required before scoring" prompt leaves the list (myK9Q behaviour); after a
+  // save the judge stays to score (MYK9-1099).
+  const maxTimeSavedRef = useRef(false);
+  const closeMaxTimeDialog = () => {
+    setMaxTimeDialogOpen(false);
+    if (maxTimeRequiredWarning) {
+      setMaxTimeRequiredWarning(false);
+      if (!maxTimeSavedRef.current) navigate(-1);
+    }
+    maxTimeSavedRef.current = false;
+  };
 
   // The dialogs describe the SAME class the badges and the class header do, so
   // they report the host's expected/accounted pair rather than raw row counts
@@ -293,6 +338,8 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
             level: classInfo.level,
             class_name: classInfo.className,
             entry_count: classDialogCounts(classInfo).entry_count,
+            registry: classInfo.registry,
+            per_area_times: classInfo.perAreaMaxTimes,
           }}
         />
       )}
@@ -300,29 +347,13 @@ export const EntryListDialogs: React.FC<EntryListDialogsProps> = ({
       {classInfo && (
         <MaxTimeDialog
           isOpen={maxTimeDialogOpen}
-          onClose={() => {
-            setMaxTimeDialogOpen(false);
-            if (maxTimeRequiredWarning) {
-              setMaxTimeRequiredWarning(false);
-              navigate(-1);
-            }
-          }}
+          onClose={closeMaxTimeDialog}
           showWarning={maxTimeRequiredWarning}
-          classData={{
-            id: classId ?? '',
-            element: classInfo.element,
-            level: classInfo.level,
-            class_name: classInfo.className,
-            time_limit_seconds: classInfo.timeLimit ? parseInt(classInfo.timeLimit) : undefined,
-            time_limit_area2_seconds: classInfo.timeLimit2
-              ? parseInt(classInfo.timeLimit2)
-              : undefined,
-            time_limit_area3_seconds: classInfo.timeLimit3
-              ? parseInt(classInfo.timeLimit3)
-              : undefined,
-            area_count: classInfo.areas,
+          classData={maxTimeClassData(classInfo, classId, combined?.classIds)}
+          onTimeUpdate={() => {
+            maxTimeSavedRef.current = true;
+            refresh();
           }}
-          onTimeUpdate={refresh}
         />
       )}
 

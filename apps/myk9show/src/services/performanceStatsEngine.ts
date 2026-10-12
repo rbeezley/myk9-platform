@@ -5,11 +5,19 @@
  * then computes summary statistics, breakdowns, and timelines.
  */
 import type { ExhibitorResult } from '@/hooks/queries/useExhibitorResults';
-import type { ManualResult, ManualResultStatus } from '@/types/manual-result-types';
+import type { ManualResult } from '@/types/manual-result-types';
 
 // ========================================
 // TYPES
 // ========================================
+
+/**
+ * Statuses the engine counts. Superset of ManualResultStatus: a stored
+ * disqualification only exists on platform-scored entries (manual_results
+ * has its own CHECK without it), and it must never be folded into NQ.
+ */
+export type StatsResultStatus =
+  'qualified' | 'nq' | 'absent' | 'excused' | 'withdrawn' | 'disqualified';
 
 /** Unified result shape for stats computation */
 export interface NormalizedResult {
@@ -20,7 +28,7 @@ export interface NormalizedResult {
   element: string | null;
   level: string | null;
   judge: string | null;
-  status: 'qualified' | 'nq' | 'absent' | 'excused' | 'withdrawn';
+  status: StatsResultStatus;
   searchTimeSeconds: number | null;
   className: string | null;
 }
@@ -31,6 +39,7 @@ export interface StatusBreakdown {
   absent: number;
   excused: number;
   withdrawn: number;
+  disqualified: number;
   total: number;
   qRate: number;
 }
@@ -77,7 +86,14 @@ export interface PerformanceStats {
 // NORMALIZATION
 // ========================================
 
-const VALID_STATUSES = ['qualified', 'nq', 'absent', 'excused', 'withdrawn'] as const;
+const VALID_STATUSES = [
+  'qualified',
+  'nq',
+  'absent',
+  'excused',
+  'withdrawn',
+  'disqualified',
+] as const satisfies readonly StatsResultStatus[];
 
 function normalizeStatus(status: string): NormalizedResult['status'] {
   if ((VALID_STATUSES as readonly string[]).includes(status)) {
@@ -121,12 +137,13 @@ export function normalizeManualResult(r: ManualResult): NormalizedResult {
 // ========================================
 
 function computeBreakdown(results: NormalizedResult[]): StatusBreakdown {
-  const counts: Record<ManualResultStatus, number> = {
+  const counts: Record<StatsResultStatus, number> = {
     qualified: 0,
     nq: 0,
     absent: 0,
     excused: 0,
     withdrawn: 0,
+    disqualified: 0,
   };
   for (const r of results) {
     counts[r.status]++;
@@ -158,7 +175,16 @@ export function computePerformanceStats(
 
   if (normalized.length === 0) {
     return {
-      overall: { qualified: 0, nq: 0, absent: 0, excused: 0, withdrawn: 0, total: 0, qRate: 0 },
+      overall: {
+        qualified: 0,
+        nq: 0,
+        absent: 0,
+        excused: 0,
+        withdrawn: 0,
+        disqualified: 0,
+        total: 0,
+        qRate: 0,
+      },
       byElement: [],
       byLevel: [],
       byJudge: [],

@@ -1914,6 +1914,7 @@ export type Database = {
           updated_at: string | null
           variety: string | null
           verified: boolean | null
+          version: number
         }
         Insert: {
           application_number?: string | null
@@ -1933,6 +1934,7 @@ export type Database = {
           updated_at?: string | null
           variety?: string | null
           verified?: boolean | null
+          version?: number
         }
         Update: {
           application_number?: string | null
@@ -1952,6 +1954,7 @@ export type Database = {
           updated_at?: string | null
           variety?: string | null
           verified?: boolean | null
+          version?: number
         }
         Relationships: [
           {
@@ -5088,6 +5091,7 @@ export type Database = {
           status: string
           street_address: string | null
           updated_at: string | null
+          version: number
           zip_code: string | null
         }
         Insert: {
@@ -5112,6 +5116,7 @@ export type Database = {
           status?: string
           street_address?: string | null
           updated_at?: string | null
+          version?: number
           zip_code?: string | null
         }
         Update: {
@@ -5136,6 +5141,7 @@ export type Database = {
           status?: string
           street_address?: string | null
           updated_at?: string | null
+          version?: number
           zip_code?: string | null
         }
         Relationships: [
@@ -13724,6 +13730,7 @@ export type Database = {
           status: string
           street_address: string | null
           updated_at: string | null
+          version: number
           zip_code: string | null
         }[]
         SetofOptions: {
@@ -14782,6 +14789,7 @@ export type Database = {
           status: string
           street_address: string | null
           updated_at: string | null
+          version: number
           zip_code: string | null
         }[]
         SetofOptions: {
@@ -14928,6 +14936,10 @@ export type Database = {
         Args: { p_allowed_fields: Json; p_entry_id: string }
         Returns: number
       }
+      ringside_update_class: {
+        Args: { p_class_id: string; p_expected_version: number; p_fields: Json }
+        Returns: number
+      }
       ringside_update_entry: {
         Args: { p_entry_id: string; p_expected_version: number; p_fields: Json }
         Returns: number
@@ -15044,6 +15056,7 @@ export type Database = {
           status: string
           street_address: string | null
           updated_at: string | null
+          version: number
           zip_code: string | null
         }[]
         SetofOptions: {
@@ -15173,6 +15186,15 @@ export type Database = {
           p_require_unlinked?: boolean
         }
         Returns: Json
+      }
+      update_person_details_versioned: {
+        Args: {
+          p_expected_version: number
+          p_people?: Json
+          p_person_id: string
+          p_private?: Json
+        }
+        Returns: number
       }
       update_show_style: {
         Args: { p_show_id: string; p_style: string }

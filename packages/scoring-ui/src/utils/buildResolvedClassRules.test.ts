@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildResolvedClassRules } from './buildResolvedClassRules';
+import { buildResolvedClassRules, maxTimeForArea } from './buildResolvedClassRules';
 
 describe('buildResolvedClassRules', () => {
   it('builds from a complete camelCase class record', () => {
@@ -15,6 +15,7 @@ describe('buildResolvedClassRules', () => {
     expect(rules).toEqual({
       areaCount: 3,
       maxTimeSeconds: 210,
+      areaMaxTimeSeconds: [210, 210, 210],
       timerMode: 'dual',
       hideCount: 4,
       hidesKnown: false,
@@ -35,6 +36,7 @@ describe('buildResolvedClassRules', () => {
     expect(rules).toEqual({
       areaCount: 2,
       maxTimeSeconds: 150,
+      areaMaxTimeSeconds: [150, 150],
       timerMode: 'single',
       hideCount: 3,
       hidesKnown: true,
@@ -50,6 +52,7 @@ describe('buildResolvedClassRules', () => {
     expect(rules).toEqual({
       areaCount: 1,
       maxTimeSeconds: 0,
+      areaMaxTimeSeconds: [0],
       timerMode: 'single',
       hideCount: null,
       hidesKnown: true,
@@ -159,5 +162,34 @@ describe('buildResolvedClassRules', () => {
     expect(ukcRules.timerMode).toBe('dual');
     expect(akcRules.maxTimeSeconds).not.toBe(ukcRules.maxTimeSeconds);
     expect(akcRules.hideCount).not.toBe(ukcRules.hideCount);
+  });
+
+  // MYK9-1098: a multi-area class carries one max time per area.
+  it('gives each area its own max time, falling back to area 1', () => {
+    const camel = buildResolvedClassRules({
+      areaCount: 3,
+      timeLimitSeconds: 90,
+      timeLimitArea2Seconds: 120,
+      timeLimitArea3Seconds: 150,
+    });
+    expect(camel.areaMaxTimeSeconds).toEqual([90, 120, 150]);
+    expect(maxTimeForArea(camel, 2)).toBe(150);
+
+    const snake = buildResolvedClassRules({
+      area_count: 3,
+      time_limit_seconds: 60,
+      time_limit_area2_seconds: 180,
+    });
+    expect(snake.areaMaxTimeSeconds).toEqual([60, 180, 60]);
+  });
+
+  it('maxTimeForArea falls back to maxTimeSeconds for rules without per-area times', () => {
+    const rules = buildResolvedClassRules({ areaCount: 2, timeLimitSeconds: 120 });
+    expect(maxTimeForArea({ ...rules, areaMaxTimeSeconds: undefined }, 1)).toBe(120);
+  });
+
+  it('carries the class rule 30-second warning when known (MYK9-1102)', () => {
+    expect(buildResolvedClassRules({ thirtySecondWarning: false }).thirtySecondWarning).toBe(false);
+    expect(buildResolvedClassRules({}).thirtySecondWarning).toBeUndefined();
   });
 });

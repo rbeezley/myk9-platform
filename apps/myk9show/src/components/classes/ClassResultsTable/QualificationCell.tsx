@@ -3,6 +3,7 @@ import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -11,7 +12,12 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { ScoringRow } from './types';
-import { DISPLAY_LABELS, QUALIFICATION_REASONS, STATUSES_REQUIRING_REASON } from './constants';
+import {
+  DISPLAY_LABELS,
+  FREE_TEXT_REASON_STATUSES,
+  QUALIFICATION_REASONS,
+  STATUSES_REQUIRING_REASON,
+} from './constants';
 import { PendingCell } from './PendingCell';
 import { RESULTS_PRIVATE_LABEL } from '@/lib/resultsPrivacy';
 
@@ -53,7 +59,9 @@ export const QualificationCell: React.FC<QualificationCellProps> = ({
     );
   }
 
-  const showReasonDropdown = STATUSES_REQUIRING_REASON.includes(item.qualification);
+  const needsReason = STATUSES_REQUIRING_REASON.includes(item.qualification);
+  const isFreeTextReason = FREE_TEXT_REASON_STATUSES.includes(item.qualification);
+  const showReasonDropdown = needsReason && !isFreeTextReason;
 
   const handleClear = () => {
     onUpdate(item.entryId, 'qualification', '');
@@ -80,6 +88,7 @@ export const QualificationCell: React.FC<QualificationCellProps> = ({
             <SelectItem value="Not Qualified">NQ</SelectItem>
             <SelectItem value="Absent">Absent</SelectItem>
             <SelectItem value="Excused">Excused</SelectItem>
+            <SelectItem value="Disqualified">Disqualified (DQ)</SelectItem>
             <SelectItem value="Withdrawn">Withdrawn</SelectItem>
           </SelectContent>
         </Select>
@@ -95,6 +104,21 @@ export const QualificationCell: React.FC<QualificationCellProps> = ({
           </Button>
         )}
       </div>
+
+      {isFreeTextReason && (
+        <Input
+          value={item.qualificationReason}
+          onChange={event => onUpdate(item.entryId, 'qualificationReason', event.target.value)}
+          maxLength={500}
+          aria-label="Disqualification reason (required)"
+          placeholder="Reason (required)"
+          data-field="qualificationReason"
+          className={cn(
+            'w-44 h-7 text-xs',
+            item.hasEdits && 'ring-2 ring-blue-500/30 border-blue-500'
+          )}
+        />
+      )}
 
       {showReasonDropdown && (
         <Select

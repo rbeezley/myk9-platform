@@ -302,6 +302,33 @@ describe('executeMutation', () => {
       );
     });
 
+    it("passes the row id under the RPC's own id parameter when one is named", async () => {
+      const supabase = {
+        from: vi.fn(),
+        rpc: vi.fn(() => Promise.resolve({ data: 4, error: null })),
+      } as unknown as SupabaseClient;
+
+      const mutation = makeMutation({
+        operation: 'UPDATE',
+        serverVersion: 3,
+        data: { id: 'class-1' },
+        rpc: {
+          name: 'ringside_update_class',
+          fields: { status: 'in_progress' },
+          idParam: 'p_class_id',
+        },
+      });
+
+      expect(await executeMutation(supabase, makeLogger(), mutation)).toEqual({
+        newServerVersion: 4,
+      });
+      expect(vi.mocked(supabase.rpc)).toHaveBeenCalledWith('ringside_update_class', {
+        p_class_id: 'class-1',
+        p_fields: { status: 'in_progress' },
+        p_expected_version: 3,
+      });
+    });
+
     it('re-throws an RPC version-conflict as an OccRejectionError carrying the fresh server version', async () => {
       const supabase = {
         from: vi.fn(),

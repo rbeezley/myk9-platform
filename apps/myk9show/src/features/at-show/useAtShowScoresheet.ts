@@ -21,7 +21,7 @@ import { replicatedDogsTable } from '@/services/replication/ReplicatedDogsTable'
 import { replicatedTrialsTable } from '@/services/replication/ReplicatedTrialsTable';
 import { logger } from '@/services/LoggingService';
 import { transitionToInRing, transitionToCompleted } from '@/utils/checkInTransitions';
-import { buildResolvedClassRules } from '@myk9/scoring-ui';
+import { classScoringRules } from '@/pages/scoring/classScoringRules';
 import type { ResolvedClassRules, ScoreData } from '@myk9/scoring-ui';
 import type { ScoringEntry, ClassInfo } from '@/pages/scoring/types';
 import {
@@ -186,7 +186,7 @@ export function useAtShowScoresheet({
         });
 
         setClassInfo(toClassInfo(cls, allEntries.length, cls.judgeName));
-        setRules(buildResolvedClassRules(cls));
+        setRules(classScoringRules(cls));
         setLoadedClassId(classId);
         setLoadedEntryId(entryId);
         if (hasCachedSheet && !forceRefresh && cls.trialId) {

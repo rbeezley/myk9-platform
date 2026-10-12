@@ -101,5 +101,15 @@ describe('inline Add Dog field inset matches inline Add Person (MYK9-1081)', () 
 
     expect(personInset).toBe(24);
     expect({ callName: callNameInset, sex: sexInset }).toEqual({ callName: 24, sex: 24 });
+
+    // With no padding between them, a clipping ancestor would crop the fields'
+    // focus rings (ring-2 is a box-shadow drawn outside the field).
+    for (
+      let el = screen.getByLabelText(/Call Name/i).parentElement;
+      el && el !== host;
+      el = el.parentElement
+    ) {
+      expect(el).not.toHaveClass('overflow-hidden');
+    }
   });
 });

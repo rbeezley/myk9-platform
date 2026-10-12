@@ -39,6 +39,18 @@ export interface SlideOverPanelProps {
 // for this long after `open` goes false.
 const PANEL_ANIMATION_MS = 300;
 
+/**
+ * True when `el` is on the page BEHIND this panel: inside the same top-level
+ * tree as the panel's overlay (which is not portaled), but outside the overlay.
+ * A portaled popup lives in its own child of <body>, so it is never "behind".
+ */
+function isBehindPanel(el: Element | null, overlay: Element | null | undefined): boolean {
+  if (!el || !overlay || el === document.body || overlay.contains(el)) return false;
+  let root: Element = overlay;
+  while (root.parentElement && root.parentElement !== document.body) root = root.parentElement;
+  return root.contains(el);
+}
+
 const sizeClasses = {
   sm: 'max-w-md w-full md:max-w-md',
   md: 'max-w-lg w-full md:max-w-lg',
@@ -182,9 +194,20 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
       // Focus management - focus the panel container first, then first input
       const activeElementAtOpen = openFocusBaselineRef.current;
       const timer = setTimeout(() => {
-        // Respect focus changes made anywhere in the document, including
-        // controls rendered in a portal outside the panel subtree.
-        if (document.activeElement !== activeElementAtOpen) return;
+        const active = document.activeElement;
+        const overlay = panelRef.current?.parentElement;
+        // Focus on the page behind this modal panel is never a choice the user
+        // made: a menu that opened the panel hands focus back to its trigger as
+        // it closes (MYK9-1081). That trigger, not the vanished menu item, is
+        // where focus goes back on close.
+        const behind = isBehindPanel(active, overlay);
+        const opener = returnFocusRef.current;
+        if (behind && (!opener || !opener.isConnected || opener === document.body)) {
+          returnFocusRef.current = active as HTMLElement;
+        }
+        // Otherwise respect a focus change made since opening: into the panel,
+        // or into a control rendered in a portal outside the panel subtree.
+        if (active !== activeElementAtOpen && active !== document.body && !behind) return;
 
         if (panelRef.current) {
           // Focus the first focusable element in the panel

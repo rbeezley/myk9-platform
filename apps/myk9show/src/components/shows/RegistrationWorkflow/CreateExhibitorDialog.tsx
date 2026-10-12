@@ -23,7 +23,15 @@ interface CreateExhibitorDialogProps {
     exhibitor: User,
     metadata?: { pendingMutationIds?: string[] | undefined }
   ) => void;
-  onDuplicateSelected?: (existingExhibitor: User) => void;
+  /**
+   * "Use This Person" on the duplicate prompt: continue with the EXISTING person.
+   * Offline-first, `metadata.pendingMutationIds` carries any write still queued
+   * for that row, so a dog queued next waits behind it (MYK9-1111).
+   */
+  onDuplicateSelected?: (
+    existingExhibitor: User,
+    metadata?: { pendingMutationIds?: string[] | undefined }
+  ) => void;
   searchQuery?: string; // Pre-fill from search if provided
   offlineFirst?: boolean;
   /** The show whose add-entry flow this is; recorded as `created_from_show_id` (MYK9-1059). */
@@ -208,6 +216,29 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
     });
   };
 
+  const handleUseExisting = async (existing: User) => {
+    if (!onDuplicateSelected) return;
+    if (!offlineFirst) {
+      onDuplicateSelected(existing);
+      return;
+    }
+    let pendingMutationIds: string[] = [];
+    try {
+      pendingMutationIds = await replicatedShowDeskPeopleTable.getPendingMutationIdsForRow(
+        existing.id
+      );
+    } catch (error) {
+      // The person already exists; losing the ordering hint must not lose the selection.
+      logger.error(
+        'Could not read pending writes for the selected person:',
+        'shows',
+        {},
+        error as Error
+      );
+    }
+    onDuplicateSelected(existing, { pendingMutationIds });
+  };
+
   const shown = duplicates.key === identityKey ? duplicates.candidates : [];
   const notice =
     shown.length > 0 ? (
@@ -215,8 +246,7 @@ export const CreateExhibitorDialog: React.FC<CreateExhibitorDialogProps> = ({
         <CreateExhibitorDuplicates
           duplicates={shown}
           onSelect={candidate => {
-            onDuplicateSelected?.(candidate.person);
-            handleClose();
+            void handleUseExisting(candidate.person).then(handleClose);
           }}
           onAddAnyway={() => {
             setAllowedKey(identityKey);

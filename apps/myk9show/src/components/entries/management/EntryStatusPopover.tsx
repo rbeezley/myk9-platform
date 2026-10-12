@@ -12,6 +12,8 @@ import { REVERT_CANCELLED, useScoredRevertGuard } from './useScoredRevertGuard';
 interface EntryStatusPopoverProps {
   entry: EntryManagementEntry;
   entryClassName: string;
+  /** "Mon, Oct 12 · Trial 7": which day's run of the class this chip changes. Empty when unknown. */
+  trialLabel?: string;
   onStatusChange: (
     entryId: string,
     status: EntryStatus
@@ -22,6 +24,7 @@ interface EntryStatusPopoverProps {
 export function EntryStatusPopover({
   entry,
   entryClassName,
+  trialLabel,
   onStatusChange,
   additionalContent,
 }: EntryStatusPopoverProps) {
@@ -78,7 +81,7 @@ export function EntryStatusPopover({
             className={cn(
               'inline-flex min-h-11 min-w-11 items-center justify-start gap-1 rounded-md px-1 transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-wait disabled:opacity-70'
             )}
-            aria-label={`${visibleStatusLabel}, change entry status for ${entry.dogName} in ${entryClassName}`}
+            aria-label={`${visibleStatusLabel}, change entry status for ${entry.dogName} in ${entryClassName}${trialLabel ? `, ${trialLabel}` : ''}`}
           >
             <StatusBadge family="entry" status={entry.entryStatus} variant="outline" />
             {isPending ? (

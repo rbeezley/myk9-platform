@@ -50,7 +50,6 @@ function DirtyEditPage() {
       initialData={{ name: 'Original name' }}
       schema={testSchema}
       onSave={vi.fn()}
-      variant="dialog"
       footerActions={<Link to="/next">Leave form</Link>}
     >
       <TestFormFields />
@@ -86,7 +85,6 @@ function SelfNavigatingEditPage() {
           // Mirrors AddDogPanel: the save routes to the record it just created.
           runSelfNavigation(() => navigate('/next'));
         }}
-        variant="dialog"
       >
         <TestFormFields />
       </EditPanelWrapper>
@@ -128,7 +126,6 @@ function FailingSaveEditPage() {
         setFailed(true);
         throw new Error('save failed');
       }}
-      variant="dialog"
       footerActions={
         <>
           {failed && <span>Save failed</span>}
@@ -155,7 +152,6 @@ function SlowSaveEditPage({ onSaveStarted }: { onSaveStarted: (release: () => vo
         setSaving(true);
         return new Promise<void>(resolve => onSaveStarted(resolve));
       }}
-      variant="dialog"
       footerActions={
         <>
           {saving && <span>Saving in progress</span>}
@@ -297,7 +293,6 @@ describe('EditPanelWrapper self-navigation context', () => {
         initialData={{ name: 'Original name' }}
         schema={testSchema}
         onSave={vi.fn()}
-        variant="dialog"
       >
         <TestFormFields />
         <AdoptExistingButton />

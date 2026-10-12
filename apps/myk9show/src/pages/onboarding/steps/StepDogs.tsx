@@ -58,51 +58,73 @@ export function StepDogs({ personId, onNext, onBack, onSkip, canGoBack = true }:
     refetch();
   };
 
+  // The slide-out is not portaled: it renders beside the step, never inside its
+  // `space-y-4` stack, whose margin would push the fixed overlay down the screen.
   return (
-    <div className="space-y-4" data-testid="step-dogs">
-      <div>
-        <h2 className="text-xl font-semibold">Do you show dogs?</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Add them now so entering a show takes seconds. Not showing dogs? Skip this step. You can
-          add dogs from Account any time.
-        </p>
-      </div>
-
-      {isLoading ? (
-        <p className="text-sm text-muted-foreground py-4 text-center">Loading...</p>
-      ) : dogs.length === 0 ? (
-        <div className="rounded-md border border-dashed p-6 text-center space-y-3">
-          <PawPrint className="h-8 w-8 mx-auto text-muted-foreground/50" />
-          <p className="text-sm text-muted-foreground">No dogs added yet.</p>
-          <Button type="button" variant="outline" size="sm" onClick={() => setAddPanelOpen(true)}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add a dog
-          </Button>
+    <>
+      <div className="space-y-4" data-testid="step-dogs">
+        <div>
+          <h2 className="text-xl font-semibold">Do you show dogs?</h2>
+          <p className="text-sm text-muted-foreground mt-1">
+            Add them now so entering a show takes seconds. Not showing dogs? Skip this step. You can
+            add dogs from Account any time.
+          </p>
         </div>
-      ) : (
-        <div className="space-y-3">
-          {dogs.map(dog => {
-            const identity = resolveDogIdentity(dog.registrations);
-            return (
-              <div key={dog.id} className="flex items-center gap-3 rounded-md border px-4 py-3">
-                <PawPrint className="h-4 w-4 text-muted-foreground shrink-0" />
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate">{dog.call_name || dog.name}</p>
-                  <p className="text-xs text-muted-foreground truncate">
-                    {getDogBreedLabel({ registrations: dog.registrations })}
-                    {identity.organization ? ` · ${identity.organization}` : ''}
-                  </p>
+
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground py-4 text-center">Loading...</p>
+        ) : dogs.length === 0 ? (
+          <div className="rounded-md border border-dashed p-6 text-center space-y-3">
+            <PawPrint className="h-8 w-8 mx-auto text-muted-foreground/50" />
+            <p className="text-sm text-muted-foreground">No dogs added yet.</p>
+            <Button type="button" variant="outline" size="sm" onClick={() => setAddPanelOpen(true)}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add a dog
+            </Button>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {dogs.map(dog => {
+              const identity = resolveDogIdentity(dog.registrations);
+              return (
+                <div key={dog.id} className="flex items-center gap-3 rounded-md border px-4 py-3">
+                  <PawPrint className="h-4 w-4 text-muted-foreground shrink-0" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{dog.call_name || dog.name}</p>
+                    <p className="text-xs text-muted-foreground truncate">
+                      {getDogBreedLabel({ registrations: dog.registrations })}
+                      {identity.organization ? ` · ${identity.organization}` : ''}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
+              );
+            })}
 
-          <Button type="button" variant="outline" size="sm" onClick={() => setAddPanelOpen(true)}>
-            <Plus className="h-4 w-4 mr-1" />
-            Add another dog
-          </Button>
+            <Button type="button" variant="outline" size="sm" onClick={() => setAddPanelOpen(true)}>
+              <Plus className="h-4 w-4 mr-1" />
+              Add another dog
+            </Button>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between pt-2">
+          {canGoBack ? (
+            <Button type="button" variant="ghost" onClick={onBack}>
+              Back
+            </Button>
+          ) : (
+            <span aria-hidden="true" />
+          )}
+          <div className="flex items-center gap-2">
+            <Button type="button" variant="ghost" onClick={onSkip}>
+              Skip for now
+            </Button>
+            <Button type="button" onClick={onNext}>
+              Next
+            </Button>
+          </div>
         </div>
-      )}
+      </div>
 
       <AddDogPanel
         open={addPanelOpen}
@@ -110,26 +132,7 @@ export function StepDogs({ personId, onNext, onBack, onSkip, canGoBack = true }:
         onDogCreated={handleDogCreated}
         userRole={UserRole.EXHIBITOR}
         currentUserPersonId={personId}
-        variant="dialog"
       />
-
-      <div className="flex items-center justify-between pt-2">
-        {canGoBack ? (
-          <Button type="button" variant="ghost" onClick={onBack}>
-            Back
-          </Button>
-        ) : (
-          <span aria-hidden="true" />
-        )}
-        <div className="flex items-center gap-2">
-          <Button type="button" variant="ghost" onClick={onSkip}>
-            Skip for now
-          </Button>
-          <Button type="button" onClick={onNext}>
-            Next
-          </Button>
-        </div>
-      </div>
-    </div>
+    </>
   );
 }

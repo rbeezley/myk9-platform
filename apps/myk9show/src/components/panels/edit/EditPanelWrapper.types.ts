@@ -9,7 +9,7 @@ import type { FieldLocation } from './usePanelValidationNavigation';
  * (MYK9-1089). The host owns the header, Back and Escape, and routes each of
  * them through `closeRequestRef` so the discard prompt still guards a dirty form.
  */
-export type EditPanelVariant = 'panel' | 'dialog' | 'inline';
+export type EditPanelVariant = 'panel' | 'inline';
 
 export interface EditPanelSaveContext {
   /**
@@ -88,6 +88,9 @@ export interface EditPanelWrapperProps<T = Record<string, unknown>> {
    * the form open). Cleared on unmount.
    */
   closeRequestRef?: React.MutableRefObject<(() => void) | null>;
+
+  /** `panel` only: the slide-out has finished closing (SlideOverPanel `onExited`). */
+  onExited?: (() => void) | undefined;
 
   /** Tab walk: Next on every tab but the last in create mode. Needs `schema`. */
   steps?: EditPanelSteps;

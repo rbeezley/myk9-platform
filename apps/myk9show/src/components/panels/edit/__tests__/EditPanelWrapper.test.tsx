@@ -114,7 +114,6 @@ describe('EditPanelWrapper with schema', () => {
         schema={testSchema}
         onSave={vi.fn()}
         forceHasChanges
-        variant="dialog"
       >
         <TestFormFields />
       </EditPanelWrapper>
@@ -135,7 +134,6 @@ describe('EditPanelWrapper with schema', () => {
         initialData={{ name: 'Original' }}
         schema={testSchema}
         onSave={vi.fn()}
-        variant="dialog"
       >
         <TestFormFields />
       </EditPanelWrapper>
@@ -170,7 +168,6 @@ describe('EditPanelWrapper with schema', () => {
         schema={multiErrorSchema}
         onSave={vi.fn()}
         forceHasChanges
-        variant="dialog"
       >
         <MultiErrorFormFields />
       </EditPanelWrapper>

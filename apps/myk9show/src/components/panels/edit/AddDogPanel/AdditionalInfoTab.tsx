@@ -7,23 +7,27 @@ import { Settings } from 'lucide-react';
 import { FormField } from '@/components/common/FormField';
 import { useEditPanel } from '@/components/panels/edit/useEditPanel';
 import type { DogFormData } from './types';
+import { tabCardClasses } from './tabCard';
+import { cn } from '@/lib/utils';
 
-export const AdditionalInfoTab: React.FC = () => {
+/** `flat` inline: no card chrome of its own (see `tabCardClasses`). */
+export const AdditionalInfoTab: React.FC<{ flat?: boolean | undefined }> = ({ flat = false }) => {
   const { form } = useEditPanel<DogFormData>();
 
   if (!form) return null;
 
   const { data: formData } = form;
+  const card = tabCardClasses(flat);
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className={card.card}>
+      <CardHeader className={card.header}>
         <CardTitle className="flex items-center gap-2">
           <Settings className="h-5 w-5 text-primary" />
           Additional Information
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-6">
+      <CardContent className={cn('space-y-6', card.content)}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <FormField
             label="Color & Markings"

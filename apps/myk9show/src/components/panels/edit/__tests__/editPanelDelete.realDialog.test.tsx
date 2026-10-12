@@ -1,5 +1,5 @@
 /**
- * The footer Delete with the REAL shared dialog inside the REAL panel and dialog
+ * The footer Delete with the REAL shared dialog inside the REAL panel and inline
  * variants (only the server and device halves are mocked). Pins what a stand-in
  * dialog cannot: Escape on the delete dialog must not close the panel behind it
  * (MYK9-910), and a refused delete must leave the panel open with the reason.
@@ -50,7 +50,7 @@ function Fields() {
   );
 }
 
-function renderPanel(variant: 'panel' | 'dialog') {
+function renderPanel(variant: 'panel' | 'inline') {
   const onClose = vi.fn();
   const onDeleted = vi.fn();
   const rendered = render(
@@ -75,47 +75,59 @@ function renderPanel(variant: 'panel' | 'dialog') {
   return { ...rendered, onClose, onDeleted };
 }
 
-describe.each(['panel', 'dialog'] as const)('real delete dialog in the %s variant', variant => {
+describe.each(['panel', 'inline'] as const)('real delete dialog in the %s variant', variant => {
   beforeEach(() => {
     mocks.preview.mockReset().mockResolvedValue(NOTHING);
     mocks.remove.mockReset().mockResolvedValue(undefined);
     mocks.purge.mockReset().mockResolvedValue(undefined);
   });
 
-  it('Escape closes only the delete dialog; the panel and its edits stay (MYK9-910)', async () => {
-    const { user, onClose } = renderPanel(variant);
-    await user.type(screen.getByLabelText('Name'), 'y');
-    await user.click(screen.getByRole('button', { name: 'Delete show' }));
-    await screen.findByRole('alertdialog', { name: 'Delete the show Heartland Classic?' });
+  // The Escape cases need something that WOULD close on Escape. The panel
+  // variant handles Escape itself; inline has no handler of its own (its host
+  // routes Escape through closeRequestRef), so with no host here those cases
+  // would pass whatever the delete dialog did. Run them for the panel only.
+  const escapeCase = variant === 'panel' ? it : it.skip;
 
-    await user.keyboard('{Escape}');
+  escapeCase(
+    'Escape closes only the delete dialog; the panel and its edits stay (MYK9-910)',
+    async () => {
+      const { user, onClose } = renderPanel(variant);
+      await user.type(screen.getByLabelText('Name'), 'y');
+      await user.click(screen.getByRole('button', { name: 'Delete show' }));
+      await screen.findByRole('alertdialog', { name: 'Delete the show Heartland Classic?' });
 
-    await waitFor(() =>
-      expect(
-        screen.queryByRole('alertdialog', { name: /^Delete the show/ })
-      ).not.toBeInTheDocument()
-    );
-    expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByDisplayValue('Rexy')).toBeInTheDocument();
-    expect(mocks.remove).not.toHaveBeenCalled();
-  });
+      await user.keyboard('{Escape}');
 
-  it('Escape on the delete dialog does not close a CLEAN panel either (MYK9-910)', async () => {
-    // No edits, so nothing but the delete guard stands between Escape and onClose.
-    const { user, onClose } = renderPanel(variant);
-    await user.click(screen.getByRole('button', { name: 'Delete show' }));
-    await screen.findByRole('alertdialog', { name: 'Delete the show Heartland Classic?' });
+      await waitFor(() =>
+        expect(
+          screen.queryByRole('alertdialog', { name: /^Delete the show/ })
+        ).not.toBeInTheDocument()
+      );
+      expect(onClose).not.toHaveBeenCalled();
+      expect(screen.getByDisplayValue('Rexy')).toBeInTheDocument();
+      expect(mocks.remove).not.toHaveBeenCalled();
+    }
+  );
 
-    await user.keyboard('{Escape}');
+  escapeCase(
+    'Escape on the delete dialog does not close a CLEAN panel either (MYK9-910)',
+    async () => {
+      // No edits, so nothing but the delete guard stands between Escape and onClose.
+      const { user, onClose } = renderPanel(variant);
+      await user.click(screen.getByRole('button', { name: 'Delete show' }));
+      await screen.findByRole('alertdialog', { name: 'Delete the show Heartland Classic?' });
 
-    await waitFor(() =>
-      expect(
-        screen.queryByRole('alertdialog', { name: /^Delete the show/ })
-      ).not.toBeInTheDocument()
-    );
-    expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getByTestId('edit-panel-action-row')).toBeInTheDocument();
-  });
+      await user.keyboard('{Escape}');
+
+      await waitFor(() =>
+        expect(
+          screen.queryByRole('alertdialog', { name: /^Delete the show/ })
+        ).not.toBeInTheDocument()
+      );
+      expect(onClose).not.toHaveBeenCalled();
+      expect(screen.getByTestId('edit-panel-action-row')).toBeInTheDocument();
+    }
+  );
 
   it('a refused delete keeps the panel open, shows the reason, and never closes it', async () => {
     mocks.remove.mockRejectedValue(new Error('boom'));

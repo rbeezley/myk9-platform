@@ -59,9 +59,9 @@ export function usePanelValidationNavigation<TTab extends string>(
       el?.focus({ preventScroll: true });
     };
     focusTarget();
-    // In the dialog variant the focus manager re-focuses the previously
-    // focused control on the next animation frame; focus again after it so the
-    // field keeps focus.
+    // A Base UI focus manager around the form (the retired dialog variant had
+    // one) re-focuses the previously focused control on the next animation
+    // frame; focus again after it so the field keeps focus.
     const raf = requestAnimationFrame(focusTarget);
     return () => cancelAnimationFrame(raf);
   }, [pendingFocus]);

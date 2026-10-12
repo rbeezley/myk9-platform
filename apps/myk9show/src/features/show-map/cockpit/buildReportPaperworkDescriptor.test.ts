@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ReplicatedEntry } from '@myk9/replication';
 import type { ReportScope } from '@/lib/reports/types';
 import {
   toSecretaryEntry,
   type SecretaryEntryRelations,
 } from '@/services/database/entries/secretaryReadReplication';
 import { mapReplicatedEntryToDbRow } from '@/services/mappers/entryMappers';
+import type { ReplicatedEntry } from '@/services/replication/ReplicatedEntriesTable';
 import type { DbClass, DbEntry } from '@/types/database-mappings';
 
 import { buildReportPaperworkDescriptor } from './buildReportPaperworkDescriptor';

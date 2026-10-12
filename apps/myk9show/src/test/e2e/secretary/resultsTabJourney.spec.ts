@@ -133,6 +133,20 @@ async function markClassComplete(page: Page) {
   await expect(changed).toBeVisible({ timeout: 15_000 });
 }
 
+/**
+ * Nothing waiting to upload from this device and no sync conflict showing. A pending change or an
+ * unresolved "changed elsewhere" conflict on the class row keeps the replica from learning what
+ * the server later records, so the screen would stop moving without any error. Fails fast with a
+ * message that names the cause instead of timing out on a downstream locator.
+ */
+async function settled(page: Page) {
+  const conflict = page.getByText('This record was changed elsewhere');
+  await expect(async () => {
+    expect(await conflict.count(), 'a sync conflict toast is showing').toBe(0);
+    await expect(page.getByText(/^\d+ changes? saved on this device$/)).toHaveCount(0);
+  }, 'device changes never finished uploading').toPass({ timeout: 45_000 });
+}
+
 /** Rows of the "Then" list: one paperwork row per report, found by its label. */
 function paperworkRow(detail: Locator, label: string): Locator {
   return detail.locator('li').filter({ hasText: label }).last();
@@ -179,19 +193,32 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
 
     await test.step('2. score both dogs from paper', async () => {
       await scoreFromPaper(page, resultsUrl, classId);
+      await settled(page);
     });
 
-    await test.step('3. open the class on Results (complete it first if needed)', async () => {
+    await test.step('3. open the class on Results (it completes itself once scored)', async () => {
+      await settled(page);
       await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
-      // A scored class that is not Complete sends the secretary to Overview to complete it;
-      // Results never completes a class itself.
-      const completeFirst = detail.getByRole('link', { name: /Mark Class Complete on Overview/ });
-      await expect(verifyButton.or(completeFirst).first()).toBeVisible({ timeout: 30_000 });
-      if (await completeFirst.isVisible()) {
+      // Scoring the last dog completes the class on the server (the first CI run saw
+      // actual_end_time and classStatus change under the spec), so the check button appears once
+      // that reaches this device. Only a class that NEVER completes needs the Overview path, and
+      // only after the wait: queueing a second Complete over the server's own is a version
+      // conflict that leaves the class row dirty on this device, and a dirty row never takes the
+      // server's paper-check stamp (ReplicatedTable.ts "dirty-row-preserved"), so Verify would
+      // save on the server and the screen would not move.
+      const completed = await verifyButton.waitFor({ state: 'visible', timeout: 45_000 }).then(
+        () => true,
+        () => false
+      );
+      if (!completed) {
+        const completeFirst = detail.getByRole('link', { name: /Mark Class Complete on Overview/ });
+        await expect(completeFirst).toBeVisible();
         await completeFirst.click();
         await markClassComplete(page);
+        await settled(page);
         await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
       }
+      await settled(page);
     });
 
     await test.step('4. tick every dog against the paper and verify', async () => {
@@ -206,6 +233,7 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
         await expect(ticks.nth(index)).toBeChecked();
       }
       await expect(verifyButton).toBeEnabled();
+      await settled(page);
       await verifyButton.click();
       await expect(detail.getByText(/Scores checked against the paper by you/)).toBeVisible({
         timeout: 20_000,

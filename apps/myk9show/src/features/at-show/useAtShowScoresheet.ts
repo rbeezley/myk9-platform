@@ -57,7 +57,10 @@ export interface UseAtShowScoresheetResult {
   error: string | null;
   loadedClassId: string | null;
   loadedEntryId: string | null;
+  /** Error-screen Retry: forces a foreground scoped sync before rendering. */
   retry: () => void;
+  /** Re-read from the local replica; never waits on the network (MYK9-1106). */
+  reload: () => void;
   submit: (scoreData: ScoreData) => Promise<void>;
   isSyncing: boolean;
   hasSyncError: boolean;
@@ -88,6 +91,7 @@ export function useAtShowScoresheet({
   const [loadedEntryId, setLoadedEntryId] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [loadAttempt, setLoadAttempt] = useState(0);
+  const [reloadCount, setReloadCount] = useState(0);
   const handledLoadAttempt = useRef(0);
 
   useEffect(() => {
@@ -213,7 +217,7 @@ export function useAtShowScoresheet({
     return () => {
       cancelled = true;
     };
-  }, [showId, classId, entryId, loadAttempt]);
+  }, [showId, classId, entryId, loadAttempt, reloadCount]);
 
   const submit = async (scoreData: ScoreData): Promise<void> => {
     if (!entry || !classInfo) return;
@@ -280,6 +284,7 @@ export function useAtShowScoresheet({
     loadedClassId,
     loadedEntryId,
     retry: () => setLoadAttempt(attempt => attempt + 1),
+    reload: () => setReloadCount(count => count + 1),
     submit,
     isSyncing,
     hasSyncError,

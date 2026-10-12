@@ -331,7 +331,7 @@ describe('ReplicationSyncProvider — replication:sync-failed listener', () => {
 });
 
 describe('ReplicationSyncProvider — replication:rows-replaced listener (MYK9-1076)', () => {
-  it('refreshes the dog queries a discarded edit re-pull replaced, and only those', () => {
+  it('refreshes the dog queries a discarded edit re-pull replaced, and only those', async () => {
     const { queryClient } = renderProvider();
     const keys = {
       list: ['dogs', 'person-1', 'scope'],
@@ -349,10 +349,13 @@ describe('ReplicationSyncProvider — replication:rows-replaced listener (MYK9-1
       );
     });
 
+    // Invalidation follows the cancel of any in-flight read, so it lands a tick later.
     const invalidated = (key: string[]) => queryClient.getQueryState(key)?.isInvalidated;
-    expect(invalidated(keys.list)).toBe(true);
-    expect(invalidated(keys.one)).toBe(true);
-    expect(invalidated(keys.owned)).toBe(true);
+    await vi.waitFor(() => {
+      expect(invalidated(keys.list)).toBe(true);
+      expect(invalidated(keys.one)).toBe(true);
+      expect(invalidated(keys.owned)).toBe(true);
+    });
     expect(invalidated(keys.other)).toBe(false);
   });
 });

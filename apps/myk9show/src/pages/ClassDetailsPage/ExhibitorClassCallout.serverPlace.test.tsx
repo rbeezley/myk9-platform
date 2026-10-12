@@ -141,7 +141,7 @@ describe('WhereToBe with a server place in line', () => {
       level: 'Novice',
       section: 'A',
       classTitle: 'Container Novice A',
-      trialDate: '2026-05-10',
+      trialDate: '2099-05-10',
       dayLabel: 'Sunday, May 10',
       trialName: 'Trial 1',
       startTime: '9:00 AM',

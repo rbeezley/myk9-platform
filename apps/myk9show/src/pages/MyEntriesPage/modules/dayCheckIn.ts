@@ -100,6 +100,21 @@ export function isTrialDayAhead(
 }
 
 /**
+ * Is the trial's calendar day already behind `now` in the trial's timezone?
+ * False when the class carries no (valid) trial date. The one "this day is
+ * over" rule: My Entries' "not run" row and the show page's run schedule both
+ * read it.
+ */
+export function isTrialDayPast(
+  trialDate: Date | undefined,
+  trialTimezone: string | undefined,
+  now: Date
+): boolean {
+  if (!trialDate || Number.isNaN(trialDate.getTime())) return false;
+  return calendarDayOf(trialDate) < calendarDayInZone(now, trialTimezone || DEFAULT_TIMEZONE);
+}
+
+/**
  * The weekday name of the trial's calendar day ("Saturday"), or `undefined`
  * when the class carries no trial date.
  *

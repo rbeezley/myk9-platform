@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { WhereToBe } from './WhereToBe';
@@ -31,6 +31,12 @@ function makeEntry(overrides: Partial<EnrichedShowEntry> = {}): EnrichedShowEntr
 }
 
 const SHOW_ID = 'show-1';
+
+// Trial timezone comes from the replicated trials read; each test sets it.
+const mockTrials = vi.hoisted(() => ({ data: [] as Array<{ id: string; timezone?: string }> }));
+vi.mock('@/hooks/queries/useShowTrials', () => ({
+  useShowTrials: () => ({ data: mockTrials.data }),
+}));
 
 describe('WhereToBe', () => {
   it('renders nothing when entries are empty', () => {
@@ -112,6 +118,7 @@ describe('WhereToBe', () => {
         entries={[
           makeEntry({
             hasResult: false,
+            checkInStatus: 'completed',
             trialDate: '2020-05-10',
             dayLabel: 'Sunday, May 10',
           }),
@@ -251,5 +258,145 @@ describe('WhereToBe', () => {
     expect(screen.queryByText('Ranger')).not.toBeInTheDocument();
     expect(screen.queryByText('Daisy')).not.toBeInTheDocument();
     expect(screen.queryByText('Scout')).not.toBeInTheDocument();
+  });
+
+  // MYK9-1109: a day that has passed without the dog running reads "not run"
+  // (the My Entries word), never a queue position or "Next up".
+  describe('past trial days that never ran', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+      mockTrials.data = [];
+    });
+
+    const pin = (iso: string) => {
+      vi.useFakeTimers({ toFake: ['Date'] });
+      vi.setSystemTime(new Date(iso));
+    };
+
+    it('reads "not run" on a past day, with no queue position and no "Not checked in"', () => {
+      pin('2026-10-09T15:00:00Z');
+      mockTrials.data = [{ id: 't1', timezone: 'America/Chicago' }];
+      render(
+        <WhereToBe
+          entries={[
+            makeEntry({
+              queue: { kind: 'waiting-unknown' },
+              checkInStatus: 'no-status',
+              trialDate: '2026-10-08',
+              dayLabel: 'Thursday, Oct 8',
+            }),
+          ]}
+          showId={SHOW_ID}
+        />
+      );
+      expect(screen.getByText('Not run')).toBeInTheDocument();
+      // A dog that never ran is not waiting on a result either.
+      expect(screen.queryByText('Awaiting results')).not.toBeInTheDocument();
+      expect(screen.queryByText(/next up|^waiting$/i)).not.toBeInTheDocument();
+      expect(screen.queryByText('Not checked in')).not.toBeInTheDocument();
+      expect(screen.getByRole('link').getAttribute('aria-label')).not.toMatch(
+        /next up|not checked in/i
+      );
+    });
+
+    it("keeps today's entry on its queue position and check-in state", () => {
+      pin('2026-10-09T15:00:00Z');
+      render(
+        <WhereToBe
+          entries={[
+            makeEntry({
+              queue: { kind: 'waiting-unknown' },
+              checkInStatus: 'no-status',
+              trialDate: '2026-10-09',
+              dayLabel: 'Friday, Oct 9',
+            }),
+          ]}
+          showId={SHOW_ID}
+        />
+      );
+      expect(screen.getByText('Waiting')).toBeInTheDocument();
+      expect(screen.getByText('Not checked in')).toBeInTheDocument();
+      expect(screen.queryByText('Not run')).not.toBeInTheDocument();
+    });
+
+    it("makes no past claim while the trial's timezone is unresolved", () => {
+      pin('2026-10-09T15:00:00Z');
+      mockTrials.data = [];
+      render(
+        <WhereToBe
+          entries={[
+            makeEntry({
+              queue: { kind: 'waiting-unknown' },
+              checkInStatus: 'no-status',
+              trialDate: '2026-10-08',
+              dayLabel: 'Thursday, Oct 8',
+            }),
+          ]}
+          showId={SHOW_ID}
+        />
+      );
+      expect(screen.queryByText('Not run')).not.toBeInTheDocument();
+    });
+
+    it('resolves an invalid stored zone safely instead of breaking the schedule', () => {
+      pin('2026-10-09T15:00:00Z');
+      mockTrials.data = [{ id: 't1', timezone: 'America/Nowhere' }];
+      render(
+        <WhereToBe
+          entries={[
+            makeEntry({
+              queue: { kind: 'waiting-unknown' },
+              checkInStatus: 'no-status',
+              trialDate: '2026-10-08',
+              dayLabel: 'Thursday, Oct 8',
+            }),
+          ]}
+          showId={SHOW_ID}
+        />
+      );
+      expect(screen.getByText('Not run')).toBeInTheDocument();
+    });
+
+    it("reckons the day in the trial's timezone, not the device's", () => {
+      // 03:00Z on Oct 9 is still the evening of Oct 8 in Los Angeles.
+      pin('2026-10-09T03:00:00Z');
+      mockTrials.data = [{ id: 't1', timezone: 'America/Los_Angeles' }];
+      render(
+        <WhereToBe
+          entries={[
+            makeEntry({
+              queue: { kind: 'waiting-unknown' },
+              checkInStatus: 'no-status',
+              trialDate: '2026-10-08',
+              dayLabel: 'Thursday, Oct 8',
+            }),
+          ]}
+          showId={SHOW_ID}
+        />
+      );
+      expect(screen.getByText('Waiting')).toBeInTheDocument();
+      expect(screen.queryByText('Not run')).not.toBeInTheDocument();
+    });
+
+    it('leaves a scored past row on its result', () => {
+      pin('2026-10-09T15:00:00Z');
+      render(
+        <WhereToBe
+          entries={[
+            makeEntry({
+              queue: { kind: 'done' },
+              checkInStatus: 'completed',
+              hasResult: true,
+              result: { qualified: true, time: '00:38.2' },
+              trialDate: '2026-10-08',
+              dayLabel: 'Thursday, Oct 8',
+            }),
+          ]}
+          showId={SHOW_ID}
+        />
+      );
+      expect(screen.getByText(/Q · 00:38\.2/)).toBeInTheDocument();
+      expect(screen.queryByText('Not run')).not.toBeInTheDocument();
+    });
   });
 });

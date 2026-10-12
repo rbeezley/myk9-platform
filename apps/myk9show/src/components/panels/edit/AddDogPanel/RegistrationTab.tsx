@@ -14,7 +14,11 @@ interface RegistrationTabProps {
   onAddRegistration: () => void;
 }
 
-import { REGISTRATION_HEADING_ID } from './validationTab';
+import {
+  ADD_REGISTRATION_ATTR,
+  EDIT_REGISTRATION_ATTR,
+  REGISTRATION_HEADING_ID,
+} from './validationTab';
 
 export const RegistrationTab: React.FC<RegistrationTabProps> = ({
   onRemoveRegistration,
@@ -77,7 +81,12 @@ export const RegistrationTab: React.FC<RegistrationTabProps> = ({
                       </div>
                     </div>
                     <div className="flex gap-2">
-                      <Button variant="ghost" size="sm" onClick={() => onEditRegistration(reg)}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onEditRegistration(reg)}
+                        {...{ [EDIT_REGISTRATION_ATTR]: reg.id }}
+                      >
                         <Edit className="h-4 w-4" />
                       </Button>
                       <Button
@@ -100,6 +109,7 @@ export const RegistrationTab: React.FC<RegistrationTabProps> = ({
           variant="outline"
           className="w-full border-dashed border-2 h-12 hover:border-primary/50 hover:text-primary"
           onClick={onAddRegistration}
+          {...{ [ADD_REGISTRATION_ATTR]: '' }}
         >
           <Plus className="h-4 w-4 mr-2" />
           Add New Registration

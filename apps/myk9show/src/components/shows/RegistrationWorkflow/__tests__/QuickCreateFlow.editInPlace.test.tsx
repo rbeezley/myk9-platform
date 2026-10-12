@@ -6,8 +6,10 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen, waitFor, within } from '@testing-library/react';
+import { onlineManager } from '@tanstack/react-query';
 import { render } from '@/test/utils/testUtils';
 import { useUserStore } from '@/store/userStore';
+import { notifications } from '@/lib/notifications';
 import { QuickCreateFlow } from '../QuickCreateFlow';
 import {
   quickCreateMocks as mocks,
@@ -329,6 +331,32 @@ describe('Quick Create person Edit Details', { timeout: JOURNEY_TIMEOUT_MS }, ()
     ).toBeGreaterThan(0);
     expect(mocks.updateUser).not.toHaveBeenCalled();
     expect(mocks.refreshOwnerCreated).not.toHaveBeenCalled();
+  });
+
+  it('offline, Edit Details refuses the save and the secretary can still leave the panel', async () => {
+    // A direct update is paused while offline and never settles, and a panel will not close
+    // under a save in flight: without a refusal the secretary is stuck until the signal returns.
+    const warning = vi.spyOn(notifications, 'warning').mockImplementation(() => undefined);
+    const { user } = renderFlow();
+    await user.click(await reachPersonStep(user));
+    setField(await screen.findByLabelText(/First Name/i), 'Mollie');
+    onlineManager.setOnline(false);
+    try {
+      await user.click(await screen.findByRole('button', { name: 'Save Changes' }));
+
+      await waitFor(() => expect(warning).toHaveBeenCalledTimes(1));
+      expect(warning).toHaveBeenCalledWith(expect.stringMatching(/connection/i));
+      expect(mocks.updateUser).not.toHaveBeenCalled();
+      expect(mocks.refreshOwnerCreated).not.toHaveBeenCalled();
+
+      await user.click(screen.getByRole('button', { name: 'Cancel' }));
+      await user.click(await screen.findByRole('button', { name: /Discard/i }));
+      expect(await screen.findByText('Person Added')).toBeInTheDocument();
+      expect(screen.getByText('Molly Mailbox')).toBeInTheDocument();
+    } finally {
+      onlineManager.setOnline(true);
+      warning.mockRestore();
+    }
   });
 
   it('a refused save keeps the person selected and the form open', async () => {

@@ -1,4 +1,5 @@
 import React, { useMemo, type MutableRefObject } from 'react';
+import { onlineManager } from '@tanstack/react-query';
 import { DogEditPanel } from '@/components/panels/edit/DogEditPanel';
 import { UserEditPanel } from '@/components/panels/edit/UserEditPanel';
 import { PanelSaveHandledError } from '@/components/panels/edit/panelSaveErrors';
@@ -6,6 +7,7 @@ import { convertDogToDogInput } from '@/components/dogs/DogDetailsMain/utils';
 import { buildUserEditSavePayload } from '@/components/users/UserDetails/userEditSavePayload';
 import { useDogStoreCompat } from '@/hooks/useDogStoreCompat';
 import { useUpdateUserMutation } from '@/hooks/queries/useUsersQuery';
+import { notifications } from '@/lib/notifications';
 import { UserRole } from '@/types/auth-types';
 import type { Dog, User } from '@/types/dog-types';
 import type { User as PersonRecord } from '@/types/user-types';
@@ -97,6 +99,13 @@ export const QuickCreatePersonEdit: React.FC<EditFormProps<User>> = ({
   );
 
   const handleSave = async (data: Partial<PersonRecord>) => {
+    // The update is a direct write that React Query PAUSES while offline, and a panel will not
+    // close under a save in flight, so without this refusal the secretary is stuck here until
+    // the signal returns (D6). MYK9-1090 replaces this with the service's own coded refusal.
+    if (!onlineManager.isOnline()) {
+      notifications.warning('Editing a person needs a connection. Reconnect to save changes.');
+      throw new PanelSaveHandledError();
+    }
     await updateUser.mutateAsync({ id: exhibitor.id, updates: buildUserEditSavePayload(data) });
     const firstName = data.firstName ?? exhibitor.firstName;
     const lastName = data.lastName ?? exhibitor.lastName;

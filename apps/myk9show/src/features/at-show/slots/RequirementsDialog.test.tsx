@@ -167,4 +167,15 @@ describe('ringside ClassRequirementsDialog (MYK9-1100)', () => {
     fireEvent.click(screen.getByRole('button', { name: /set max time/i }));
     expect(onSetMaxTime).toHaveBeenCalled();
   });
+
+  it('says 1 entry, not 1 entries', async () => {
+    render(
+      <ClassRequirementsDialog
+        isOpen
+        onClose={vi.fn()}
+        classData={{ ...classData, entry_count: 1 }}
+      />
+    );
+    expect(await screen.findByText('Interior Master \u00b7 1 entry')).toBeInTheDocument();
+  });
 });

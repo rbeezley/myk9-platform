@@ -327,7 +327,7 @@ export const AKCFastCatLiveScoresheet: React.FC<LiveScoresheetProps> = ({
               </div>
               <div className="flex justify-between py-2 border-b border-border">
                 <span className="text-muted-foreground">Run Time</span>
-                <span className="font-mono font-semibold">{runTimeStr || '—'}</span>
+                <span className="font-mono font-semibold">{runTimeStr || 'Not entered'}</span>
               </div>
               {mph > 0 && (
                 <>

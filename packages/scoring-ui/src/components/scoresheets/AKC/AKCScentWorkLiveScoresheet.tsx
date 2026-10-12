@@ -33,9 +33,12 @@ const RESULT_LABELS: Record<string, string> = {
   DQ: 'Disqualified',
 };
 
-/** Header title: trial date + the trial's label (MYK9-704), falling back to the sport name. */
-function buildHeaderTitle(classInfo: LiveScoresheetProps['classInfo']): string {
-  if (!classInfo.trialDate) return 'AKC Scent Work';
+/**
+ * Header title lines: trial date, then the trial's label on its own line (MYK9-704;
+ * no em dash), falling back to the sport name.
+ */
+function buildHeaderTitle(classInfo: LiveScoresheetProps['classInfo']): string[] {
+  if (!classInfo.trialDate) return ['AKC Scent Work'];
   const formatted = new Date(classInfo.trialDate + 'T00:00:00').toLocaleDateString(undefined, {
     month: 'short',
     day: 'numeric',
@@ -43,8 +46,8 @@ function buildHeaderTitle(classInfo: LiveScoresheetProps['classInfo']): string {
   });
   const { trialName, trialNumber } = classInfo;
   return trialName || trialNumber
-    ? `${formatted} — ${formatTrialLabel({ name: trialName, trialNumber })}`
-    : formatted;
+    ? [formatted, formatTrialLabel({ name: trialName, trialNumber })]
+    : [formatted];
 }
 
 export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
@@ -162,7 +165,13 @@ export const AKCScentWorkLiveScoresheet: React.FC<LiveScoresheetProps> = ({
             <div className="flex-1">
               <h1 className="text-lg max-sm:text-base font-semibold flex items-center gap-2">
                 <ClipboardCheck className="h-5 w-5 text-primary" />
-                {headerTitle}
+                <span>
+                  {headerTitle.map(line => (
+                    <span key={line} className="block">
+                      {line}
+                    </span>
+                  ))}
+                </span>
               </h1>
               <p className="text-sm text-muted-foreground">{formatScoresheetSubtitle(classInfo)}</p>
             </div>

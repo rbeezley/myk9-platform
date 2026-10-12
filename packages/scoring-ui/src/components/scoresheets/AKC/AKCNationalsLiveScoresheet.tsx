@@ -296,7 +296,7 @@ export const AKCNationalsLiveScoresheet: React.FC<LiveScoresheetProps> = ({
                   {stopwatch.formatTime(stopwatch.time)}
                 </div>
                 <div className="text-sm text-muted-foreground mt-2">
-                  Area {currentArea + 1} — Max: {maxTimeLabel(areaMaxSeconds)}
+                  Area {currentArea + 1} · Max: {maxTimeLabel(areaMaxSeconds)}
                 </div>
                 <div className="mt-6">
                   {stopwatch.isRunning ? (

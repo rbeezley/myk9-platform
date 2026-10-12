@@ -24,6 +24,11 @@ interface PanelModeFocusOptions<M extends string> {
   returnTarget: (left: M) => HTMLElement | null | undefined;
   /** False while the host is closed: track the mode, move nothing. */
   enabled?: boolean;
+  /**
+   * Changes when `home` swaps its own content (a new step, a removed row) and
+   * unmounts the control that had focus. Focus then goes to `returnTarget(home)`.
+   */
+  homeKey?: string | undefined;
 }
 
 /**
@@ -42,12 +47,13 @@ export function usePanelModeFocus<M extends string>({
   formRef,
   returnTarget,
   enabled = true,
+  homeKey,
 }: PanelModeFocusOptions<M>) {
-  const previous = useRef(mode);
+  const previous = useRef({ mode, homeKey });
   useEffect(() => {
-    const left = previous.current;
-    if (left === mode) return;
-    previous.current = mode;
+    const { mode: left, homeKey: leftKey } = previous.current;
+    if (left === mode && (mode !== home || leftKey === homeKey)) return;
+    previous.current = { mode, homeKey };
     if (!enabled) return;
     if (mode !== home) {
       const body = formRef.current;
@@ -55,5 +61,5 @@ export function usePanelModeFocus<M extends string>({
       return;
     }
     returnTarget(left)?.focus();
-  }, [mode, home, formRef, returnTarget, enabled]);
+  }, [mode, home, formRef, returnTarget, enabled, homeKey]);
 }

@@ -38,3 +38,26 @@ export function quickCreateProgress(step: QuickCreateStep): number {
   if (step === 'dogs') return 65;
   return 90;
 }
+
+/** Marks each step's primary control: focus returns there when a form closes. */
+export const QUICK_CREATE_ENTRY_ATTR = 'data-quick-create-entry';
+/** Each dog row's Remove: focus moves to the next row's after a removal. */
+export const QUICK_CREATE_REMOVE_DOG_ATTR = 'data-remove-dog';
+
+/**
+ * Where focus lands on the step screens (MYK9-1081): after a Remove, the Remove
+ * of the row that moved into the removed one's place; otherwise the step's
+ * primary control (Add Person / Edit Details, Add First / Another Dog, the
+ * Review heading); failing both, the step screens themselves.
+ */
+export function quickCreateStepsFocusTarget(
+  steps: HTMLElement | null,
+  removedIndex: number | null
+): HTMLElement | null {
+  if (!steps) return null;
+  const nextRemove =
+    removedIndex === null
+      ? undefined
+      : steps.querySelectorAll<HTMLElement>(`[${QUICK_CREATE_REMOVE_DOG_ATTR}]`)[removedIndex];
+  return nextRemove ?? steps.querySelector<HTMLElement>(`[${QUICK_CREATE_ENTRY_ATTR}]`) ?? steps;
+}

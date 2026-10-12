@@ -228,21 +228,9 @@ describe('the registration sub-mode inside Add Dog', () => {
 
     await waitFor(() => expect(edit).toHaveFocus());
   });
-
-  it('Tab wraps between the first and last VISIBLE controls', async () => {
-    const { user } = renderHarness();
-    await toRegistrationForm(user);
-    const back = button('Back');
-    const save = button('Save Registration');
-
-    save.focus();
-    fireEvent.keyDown(document, { key: 'Tab' });
-    expect(back).toHaveFocus();
-
-    fireEvent.keyDown(document, { key: 'Tab', shiftKey: true });
-    expect(save).toHaveFocus();
-    expect(panel()).toContainElement(document.activeElement as HTMLElement);
-  });
+  // Tab wrapping past the hidden dog form is owned by SlideOverPanel's
+  // known-answer tests: here the hidden form sits mid-DOM, between the header's
+  // Back and the footer's Save Registration, so a test at this level cannot fail.
 });
 
 describe('after a save', () => {

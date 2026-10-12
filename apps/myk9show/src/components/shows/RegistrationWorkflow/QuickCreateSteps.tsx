@@ -6,18 +6,22 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
 import { User as UserIcon, CheckCircle, Plus, Info } from 'lucide-react';
 import { formatDogAge, getDogBreedLabel, getDogDistinctRegisteredName } from '@/types/dog-types';
-import { quickCreateProgress } from './QuickCreateFlow.helpers';
+import {
+  QUICK_CREATE_ENTRY_ATTR,
+  QUICK_CREATE_REMOVE_DOG_ATTR,
+  quickCreateProgress,
+} from './QuickCreateFlow.helpers';
 import type { QuickCreateFlowState } from './QuickCreateFlow.types';
 
-/** Marks each step's primary control: focus returns there when a form closes. */
-export const QUICK_CREATE_ENTRY_ATTR = 'data-quick-create-entry';
 const ENTRY = { [QUICK_CREATE_ENTRY_ATTR]: '' };
+const REMOVE_DOG = { [QUICK_CREATE_REMOVE_DOG_ATTR]: '' };
 
 interface QuickCreateStepsProps {
   flowState: QuickCreateFlowState;
   mode: 'single' | 'batch';
   onOpenPersonForm: () => void;
   onOpenDogForm: () => void;
+  onEditDog: (index: number) => void;
   onRemoveDog: (index: number) => void;
 }
 
@@ -27,6 +31,7 @@ export const QuickCreateSteps: React.FC<QuickCreateStepsProps> = ({
   mode,
   onOpenPersonForm,
   onOpenDogForm,
+  onEditDog,
   onRemoveDog,
 }) => (
   <div className="space-y-6">
@@ -119,14 +124,7 @@ export const QuickCreateSteps: React.FC<QuickCreateStepsProps> = ({
                     <p className="text-sm text-muted-foreground">{dog.name}</p>
                   </div>
                   <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => {
-                        onRemoveDog(index);
-                        onOpenDogForm();
-                      }}
-                    >
+                    <Button variant="outline" size="sm" onClick={() => onEditDog(index)}>
                       Edit
                     </Button>
                     <Button
@@ -134,6 +132,7 @@ export const QuickCreateSteps: React.FC<QuickCreateStepsProps> = ({
                       size="sm"
                       onClick={() => onRemoveDog(index)}
                       className="text-destructive hover:text-destructive"
+                      {...REMOVE_DOG}
                     >
                       Remove
                     </Button>
@@ -172,7 +171,10 @@ export const QuickCreateSteps: React.FC<QuickCreateStepsProps> = ({
       {flowState.step === 'review' && (
         <div className="space-y-6">
           <div className="text-center space-y-2">
-            <h3 className="text-lg font-semibold">Review & Complete</h3>
+            {/* Review has no primary control of its own; its heading takes focus. */}
+            <h3 className="text-lg font-semibold outline-none" tabIndex={-1} {...ENTRY}>
+              Review & Complete
+            </h3>
             <p className="text-muted-foreground">
               Please review the person and dog information before completing the setup.
             </p>

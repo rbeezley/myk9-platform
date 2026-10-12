@@ -85,6 +85,7 @@ export const RegistrationTab: React.FC<RegistrationTabProps> = ({
                         variant="ghost"
                         size="sm"
                         onClick={() => onEditRegistration(reg)}
+                        aria-label={`Edit ${reg.organization} registration ${reg.registrationNumber}`}
                         {...{ [EDIT_REGISTRATION_ATTR]: reg.id }}
                       >
                         <Edit className="h-4 w-4" />
@@ -93,6 +94,7 @@ export const RegistrationTab: React.FC<RegistrationTabProps> = ({
                         variant="ghost"
                         size="sm"
                         onClick={() => onRemoveRegistration(reg.id)}
+                        aria-label={`Remove ${reg.organization} registration ${reg.registrationNumber}`}
                         className="text-destructive hover:text-destructive"
                       >
                         <Trash2 className="h-4 w-4" />

@@ -9,6 +9,7 @@ import { User, Dog } from '@/types/dog-types';
 import { UserRole } from '@/types/auth-types';
 import {
   quickCreateStepLabel,
+  quickCreateStepsFocusTarget,
   quickCreateTitle,
   type QuickCreateView,
 } from './QuickCreateFlow.helpers';
@@ -16,7 +17,7 @@ import {
   INITIAL_QUICK_CREATE_FLOW_STATE,
   type QuickCreateFlowState,
 } from './QuickCreateFlow.types';
-import { QUICK_CREATE_ENTRY_ATTR, QuickCreateSteps } from './QuickCreateSteps';
+import { QuickCreateSteps } from './QuickCreateSteps';
 import { QuickCreateFooter } from './QuickCreateFooter';
 import { useCreatedInSession } from './CreatedInSessionContext';
 
@@ -93,7 +94,14 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
     setView('steps');
   };
 
+  // Edit re-creates the dog through a blank form (unchanged, follow-up F6).
+  const handleEditDog = (index: number) => {
+    setFlowState(prev => ({ ...prev, dogs: prev.dogs.filter((_, i) => i !== index) }));
+    openDogForm();
+  };
+  const removedIndexRef = useRef<number | null>(null);
   const handleRemoveDog = (index: number) => {
+    removedIndexRef.current = index;
     setFlowState(prev => ({
       ...prev,
       dogs: prev.dogs.filter((_, i) => i !== index),
@@ -133,20 +141,20 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
     if (open && flowState.step === 'exhibitor' && !flowState.exhibitor) setView('person-form');
   }
 
-  // Focus: a form's first field going in; the step's primary control coming back
-  // (Add Person, Add First / Another Dog), which also places it after Discard.
-  const stepsReturnTarget = useCallback(
-    () =>
-      stepsRef.current?.querySelector<HTMLElement>(`[${QUICK_CREATE_ENTRY_ATTR}]`) ??
-      stepsRef.current,
-    []
-  );
+  // Focus: a form's first field going in; on the step screens, see
+  // quickCreateStepsFocusTarget (also after Discard, a step change or a Remove).
+  const stepsReturnTarget = useCallback(() => {
+    const removed = removedIndexRef.current;
+    removedIndexRef.current = null;
+    return quickCreateStepsFocusTarget(stepsRef.current, removed);
+  }, []);
   usePanelModeFocus({
     mode: view,
     home: 'steps',
     formRef,
     returnTarget: stepsReturnTarget,
     enabled: open,
+    homeKey: `${flowState.step}:${flowState.dogs.length}`,
   });
 
   const onSteps = view === 'steps';
@@ -180,6 +188,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
             mode={mode}
             onOpenPersonForm={() => setView('person-form')}
             onOpenDogForm={openDogForm}
+            onEditDog={handleEditDog}
             onRemoveDog={handleRemoveDog}
           />
         </div>

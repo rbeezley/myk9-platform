@@ -66,6 +66,13 @@ import {
   type ReplicatedSetResult,
 } from './coldInsertGuard';
 
+/** What one {@link ReplicatedTable.set} call learns across its retried attempts. */
+interface SetAttempt {
+  rowExisted: boolean;
+  /** The row's local revision after the write that landed. */
+  revision?: number;
+}
+
 /**
  * Fraction of a table's current footprint to retain when relieving storage
  * quota pressure — evict roughly the remaining 30% (oldest/least-used first).
@@ -135,6 +142,21 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   private mutationManager: MutationManager | null = null;
   /** Locks acquired before dirty cache writes are released after queueing. */
   private readonly pendingWriteLocks = new Map<string, Array<() => void>>();
+  /**
+   * The revision each dirty write produced, waiting for its queueMutation to
+   * stamp it as `rowRevision` (MYK9-1076). FIFO per row, the same pairing as
+   * pendingWriteLocks. A dirty write that never queues leaves an older entry
+   * behind, which can only make a later stamp too old: that blocks a revert,
+   * it never allows a wrong one.
+   */
+  private readonly pendingWriteRevisions = new Map<string, number[]>();
+
+  /**
+   * Opt in to putting a row back to its last known server state when the user
+   * discards its failed UPDATE or DELETE (MYK9-1076, revertDiscardedRowWrite).
+   * Off by default: ringside and entries keep today's Discard behaviour.
+   */
+  protected readonly revertsOnDiscard: boolean = false;
   /** Rows whose mutation was queued first with deferUpload=true. */
   private readonly deferredMutationRows = new Map<string, number>();
   /** Queue locks retained until the dependent deferred dirty writes complete. */
@@ -153,9 +175,14 @@ export abstract class ReplicatedTable<T extends { id: string }> {
           refetchDirtyRowsById(this, getAdapter(), rowIds)
         )
       : undefined;
+    this.unregisterDiscardReverter?.();
+    this.unregisterDiscardReverter = this.revertsOnDiscard
+      ? manager.discardReverters.register(this.tableName, () => this.notifyListeners())
+      : undefined;
   }
 
   private unregisterRowRefetcher: (() => void) | undefined;
+  private unregisterDiscardReverter: (() => void) | undefined;
 
   /**
    * The download-adapter slice that re-reads rows by id, used after a full-row
@@ -258,6 +285,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     if (deferUpload) {
       this.deferredMutationRows.set(lockKey, (this.deferredMutationRows.get(lockKey) ?? 0) + 1);
     }
+    // A deferred queue runs BEFORE its dirty write, so it has no revision yet.
+    const rowRevision = deferUpload ? undefined : this.takeWriteRevision(lockKey);
     const pendingLocks = this.pendingWriteLocks.get(lockKey);
     const releaseLocalWriteLock = pendingLocks?.shift();
     if (pendingLocks && pendingLocks.length === 0) this.pendingWriteLocks.delete(lockKey);
@@ -289,7 +318,8 @@ export abstract class ReplicatedTable<T extends { id: string }> {
         dependsOn,
         serverVersion,
         rpc,
-        !deferUpload
+        !deferUpload,
+        rowRevision
       );
       queueSucceeded = true;
       return mutationId;
@@ -476,7 +506,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     // legitimate UPDATE can find its own row gone and would otherwise be
     // refused as an INSERT. `attempt.rowExisted`, recorded inside the first
     // transaction, carries that fact into the retry.
-    const attempt = { rowExisted: false };
+    const attempt: SetAttempt = { rowExisted: false };
     try {
       const result = await withQuotaEviction(
         () =>
@@ -492,6 +522,11 @@ export abstract class ReplicatedTable<T extends { id: string }> {
         () => this.relieveQuota(),
         this.logger
       );
+      if (isDirty && !deferred && result.written && attempt.revision !== undefined) {
+        const revisions = this.pendingWriteRevisions.get(lockKey) ?? [];
+        revisions.push(attempt.revision);
+        this.pendingWriteRevisions.set(lockKey, revisions);
+      }
       if (deferredWriteLock) {
         deferredWriteLock();
       } else if (releaseWriteLock) {
@@ -511,6 +546,14 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     }
   }
 
+  /** The oldest revision recorded for this row's dirty writes, consumed by its queue. */
+  private takeWriteRevision(lockKey: string): number | undefined {
+    const revisions = this.pendingWriteRevisions.get(lockKey);
+    const revision = revisions?.shift();
+    if (revisions && revisions.length === 0) this.pendingWriteRevisions.delete(lockKey);
+    return revision;
+  }
+
   /** Single attempt of {@link set}; opens its own transaction so it is safe to retry. */
   private async setOnce(
     id: string,
@@ -519,7 +562,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
     expectedVersion?: number,
     incomingServerVersion?: number,
     options?: ReplicatedSetOptions,
-    attempt?: { rowExisted: boolean }
+    attempt?: SetAttempt
   ): Promise<ReplicatedSetResult> {
     const db = await this.init();
     const tx = db.transaction(REPLICATION_STORES.REPLICATED_TABLES, 'readwrite');
@@ -583,6 +626,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
 
     await tx.store.put(row);
     await tx.done;
+    if (attempt) attempt.revision = row.version;
 
     this.logger.log(
       `[${this.tableName}] Cached row: ${normalizedId} (version: ${row.version}, dirty: ${isDirty})`

@@ -153,6 +153,9 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
   /** Most recent mutation ID from a create/update operation */
   private _lastMutationId: string | null = null;
 
+  /** Discarding a refused dog edit puts the dog back as the server has it (MYK9-1076). */
+  protected override readonly revertsOnDiscard = true;
+
   constructor() {
     super('dogs', { logger });
   }

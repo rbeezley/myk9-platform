@@ -42,6 +42,7 @@ vi.mock(import('@myk9/replication'), async importOriginal => {
     ...actual,
     MutationManager: class {
       rowRefetchers = { register: () => () => undefined };
+      discardReverters = { register: () => () => undefined };
       uploadPendingMutations = vi.fn().mockResolvedValue([]);
       getPendingCount = vi.fn().mockResolvedValue(0);
       restoreMutationsFromLocalStorage = vi.fn().mockResolvedValue(undefined);
@@ -312,6 +313,24 @@ describe('ReplicationSyncProvider — replication:sync-failed listener', () => {
     expect(discardFailedMutationMock).toHaveBeenCalledWith('mut-1');
     expect(retryFailedMutationMock).not.toHaveBeenCalled();
     expect(toast.dismiss).toHaveBeenCalledWith('sync-failed:mut-1');
+  });
+
+  it('Discard refreshes the discarded table once the discard lands (MYK9-1076)', async () => {
+    const invalidate = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
+    renderProvider();
+
+    act(() => {
+      dispatchSyncFailed();
+    });
+    invalidate.mockClear();
+
+    const options = vi.mocked(toast.error).mock.calls[0]?.[1] as ToastOptions;
+    act(() => {
+      options.cancel!.onClick();
+    });
+
+    await vi.waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['shows'] }));
+    invalidate.mockRestore();
   });
 
   it('removes the listener on unmount so late events do not toast', () => {

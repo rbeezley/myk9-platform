@@ -162,6 +162,12 @@ export interface PendingMutation {
    *  silent last-write-wins. Absent on INSERT/DELETE or legacy queued mutations. */
   serverVersion?: number;
 
+  /** The local row revision (`ReplicatedRow.version`) this mutation's own dirty
+   *  write produced. Discard reverts the row only while the row still holds this
+   *  revision, so a newer local edit, queued or not, is never undone (MYK9-1076).
+   *  Absent when the mutation was queued without a paired dirty write. */
+  rowRevision?: number;
+
   /** @internal Set by MutationManager; do not read or mutate externally. */
   nextRetryAt?: number;
 

@@ -671,7 +671,16 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
           cancel: {
             label: 'Discard',
             onClick: () => {
-              void Promise.allSettled(ids.map(id => mutationManager.discardFailedMutation(id)));
+              // A discard can put a dog's row back to its last server state
+              // (MYK9-1076), so refresh that table's screens once it lands.
+              const tables = new Set(failureDetail.mutations.map(m => m.tableName));
+              void Promise.allSettled(
+                ids.map(id => mutationManager.discardFailedMutation(id))
+              ).then(() => {
+                tables.forEach(tableName => {
+                  void queryClient.invalidateQueries({ queryKey: [tableName] });
+                });
+              });
               clearToastId();
             },
           },
@@ -680,7 +689,7 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     };
     window.addEventListener('replication:sync-failed', handleSyncFailed);
     return () => window.removeEventListener('replication:sync-failed', handleSyncFailed);
-  }, []);
+  }, [queryClient]);
 
   // Re-surface persisted sync failures from previous sessions when the user
   // authenticates. A failure toast lost to navigation or reload must not bury

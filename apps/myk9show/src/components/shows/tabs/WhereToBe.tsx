@@ -5,6 +5,9 @@ import { PersonAvatar } from '@/components/common/PersonAvatar';
 import { formatRunQueueState } from '@myk9/ringside/run-queue';
 import type { EnrichedShowEntry } from '@/hooks/useShowEntriesForUser';
 import { useMyEntryQueuePlaces, type QueuePlaces } from '@/hooks/queries/useMyEntryQueuePlaces';
+import { useShowTrials } from '@/hooks/queries/useShowTrials';
+import { isTrialDayPast } from '@/pages/MyEntriesPage/modules/dayCheckIn';
+import { parseLocalDateString } from '@/utils/dateLocal';
 import { withServerPlace } from '@/utils/showEntryRunQueue';
 import {
   getPendingResultLabel,
@@ -26,7 +29,14 @@ export function WhereToBe({ entries, showId }: WhereToBeProps) {
   const places = useMyEntryQueuePlaces(
     scheduleEntries.filter(entry => entry.queue?.kind === 'waiting-unknown').map(e => e.entryId)
   );
+  const { data: trials } = useShowTrials(showId);
   if (scheduleEntries.length === 0) return null;
+  const timezoneByTrialId = new Map(
+    (trials ?? []).map(trial => [
+      trial.id,
+      typeof trial.timezone === 'string' ? trial.timezone : undefined,
+    ])
+  );
   const hasPendingScheduleDetails = hasUnpublishedScheduleDetails(scheduleEntries);
 
   // Group by day, preserving the sorted order from the hook (already by date+time).
@@ -55,7 +65,13 @@ export function WhereToBe({ entries, showId }: WhereToBeProps) {
           </p>
           <div className="space-y-1.5">
             {dayEntries.map(entry => (
-              <TimelineRow key={entry.entryId} entry={entry} showId={showId} places={places} />
+              <TimelineRow
+                key={entry.entryId}
+                entry={entry}
+                showId={showId}
+                places={places}
+                trialTimezone={timezoneByTrialId.get(entry.trialId)}
+              />
             ))}
           </div>
         </div>
@@ -68,30 +84,50 @@ interface TimelineRowProps {
   entry: EnrichedShowEntry;
   showId: string;
   places: QueuePlaces;
+  trialTimezone: string | undefined;
 }
 
-function TimelineRow({ entry, showId, places }: TimelineRowProps) {
+/**
+ * MYK9-1109: a dog on a trial day that has passed, with no result and no
+ * check-in state of its own, never ran. This is My Entries' "not run" rule
+ * (`deriveClassRowState`), reckoned with the same trial-timezone day math.
+ * Rows with a recorded state (in ring, done, pulled, withdrawn) keep it.
+ */
+function neverRan(entry: EnrichedShowEntry, trialTimezone: string | undefined): boolean {
+  if (entry.hasResult || entry.result) return false;
+  if (entry.checkInStatus && entry.checkInStatus !== 'no-status') return false;
+  const kind = entry.queue?.kind;
+  if (kind && kind !== 'waiting' && kind !== 'waiting-unknown') return false;
+  return isTrialDayPast(parseLocalDateString(entry.trialDate), trialTimezone, new Date());
+}
+
+function TimelineRow({ entry, showId, places, trialTimezone }: TimelineRowProps) {
   const href = `/shows/${showId}/trials/${entry.trialId}/classes/${entry.classId}`;
   const accessibleTimeLabel = entry.startTime || 'schedule details pending';
   // MYK9-992: place in line or the dog's state, never the stored run number.
   // MYK9-995: the place is the server's count; offline it stays the state.
   const queue = withServerPlace(entry.queue, places.get(entry.entryId));
-  const positionLabel = queue
-    ? formatRunQueueState(queue)
-    : isRunnableScheduleStatus(entry.entryStatus)
-      ? 'Order not set yet'
-      : null;
-  const checkInLabel = entry.checkInStatus
-    ? entry.checkInStatus === 'no-status'
-      ? 'Not checked in'
-      : getStatusDescriptor('entry', entry.checkInStatus).label
-    : 'Check-in pending';
+  const didNotRun = neverRan(entry, trialTimezone);
+  const positionLabel = didNotRun
+    ? 'Not run'
+    : queue
+      ? formatRunQueueState(queue)
+      : isRunnableScheduleStatus(entry.entryStatus)
+        ? 'Order not set yet'
+        : null;
+  const checkInLabel = didNotRun
+    ? null
+    : entry.checkInStatus
+      ? entry.checkInStatus === 'no-status'
+        ? 'Not checked in'
+        : getStatusDescriptor('entry', entry.checkInStatus).label
+      : 'Check-in pending';
 
   return (
     <Link
       to={href}
       className="flex items-center gap-3 rounded-lg bg-muted/40 px-3 py-3 transition-colors hover:bg-muted/70"
-      aria-label={`${entry.classTitle} — ${entry.dayLabel} ${accessibleTimeLabel} — ${positionLabel ? `${positionLabel} — ` : ''}${checkInLabel}`}
+      aria-label={`${entry.classTitle} — ${entry.dayLabel} ${accessibleTimeLabel} — ${[positionLabel, checkInLabel].filter(Boolean).join(' — ')}`}
     >
       {(entry.startTime || entry.armband) && (
         <span className="flex w-28 shrink-0 flex-col gap-1">
@@ -131,7 +167,7 @@ function TimelineRow({ entry, showId, places }: TimelineRowProps) {
         )}
         <p className="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
           {positionLabel && <span>{positionLabel}</span>}
-          <span>{checkInLabel}</span>
+          {checkInLabel && <span>{checkInLabel}</span>}
         </p>
       </div>
 

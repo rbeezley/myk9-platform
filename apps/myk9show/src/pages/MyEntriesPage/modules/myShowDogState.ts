@@ -19,7 +19,7 @@ import { getEntryStatusStateLabel } from '@/components/entries/management/review
 import {
   isClassCheckInAvailableToday,
   isClassCheckInEligibleAnyDay,
-  isTrialDayAhead,
+  isTrialDayPast,
   isTrialDayToday,
   type DayCheckInContext,
 } from './dayCheckIn';
@@ -131,9 +131,8 @@ export function deriveClassRowState(cls: MyShowClass, ctx: DayCheckInContext): C
   // (self-check-in closed by the secretary, entry not accepted yet, class
   // relation unresolved) gets its own kind: "opens Saturday" ON Saturday reads
   // as a broken clock, and "not run" would be a lie — the run is still ahead.
-  const dayAhead = isTrialDayAhead(cls.trialDate, cls.trialTimezone, ctx.now);
   const dayToday = isTrialDayToday(cls.trialDate, cls.trialTimezone, ctx.now);
-  const dayPast = cls.trialDate ? !dayAhead && !dayToday : false;
+  const dayPast = isTrialDayPast(cls.trialDate, cls.trialTimezone, ctx.now);
   if (!ctx.isPastShow && dayToday) return { kind: 'closed-today' };
   if (!ctx.isPastShow && !dayPast) {
     // A day still ahead may promise check-in ONLY when the same eligibility

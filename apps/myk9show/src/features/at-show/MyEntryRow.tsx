@@ -102,7 +102,11 @@ export function MyEntryRow({
           </div>
         )}
         {detail.resultStatus && (
-          <div className="mt-1 flex items-center gap-2 text-sm" role="group" aria-label="Result">
+          <div
+            className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm"
+            role="group"
+            aria-label="Result"
+          >
             <ResultBadge resultStatus={detail.resultStatus} />
             {detail.resultTimeSeconds != null && (
               <span className="tabular-nums text-muted-foreground">

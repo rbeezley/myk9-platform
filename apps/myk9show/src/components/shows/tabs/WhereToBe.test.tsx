@@ -118,6 +118,7 @@ describe('WhereToBe', () => {
         entries={[
           makeEntry({
             hasResult: false,
+            checkInStatus: 'completed',
             trialDate: '2020-05-10',
             dayLabel: 'Sunday, May 10',
           }),
@@ -288,6 +289,8 @@ describe('WhereToBe', () => {
         />
       );
       expect(screen.getByText('Not run')).toBeInTheDocument();
+      // A dog that never ran is not waiting on a result either.
+      expect(screen.queryByText('Awaiting results')).not.toBeInTheDocument();
       expect(screen.queryByText(/next up|^waiting$/i)).not.toBeInTheDocument();
       expect(screen.queryByText('Not checked in')).not.toBeInTheDocument();
       expect(screen.getByRole('link').getAttribute('aria-label')).not.toMatch(

@@ -171,14 +171,14 @@ function TimelineRow({ entry, showId, places, trialTimezone }: TimelineRowProps)
         </p>
       </div>
 
-      <ResultChip entry={entry} />
+      <ResultChip entry={entry} didNotRun={didNotRun} />
 
       <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
     </Link>
   );
 }
 
-function ResultChip({ entry }: { entry: EnrichedShowEntry }) {
+function ResultChip({ entry, didNotRun }: { entry: EnrichedShowEntry; didNotRun: boolean }) {
   const reviewLabel = getExhibitorLifecycleReviewLabel(entry.entryStatus);
   if (reviewLabel) {
     return (
@@ -188,7 +188,8 @@ function ResultChip({ entry }: { entry: EnrichedShowEntry }) {
     );
   }
 
-  const pendingLabel = getPendingResultLabel(entry);
+  // A dog that never ran is not waiting on a result (MYK9-1109).
+  const pendingLabel = didNotRun ? null : getPendingResultLabel(entry);
 
   if (pendingLabel) {
     return (

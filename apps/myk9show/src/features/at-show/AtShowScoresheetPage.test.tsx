@@ -441,7 +441,7 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
     expect(screen.queryByText('Score saved')).not.toBeInTheDocument();
   });
 
-  it('rehydrates the saved entry when correcting a score from Quick Advance', async () => {
+  it('reopens a saved score from the device without waiting on the network (MYK9-1106)', async () => {
     submitScoreOptimistically.mockImplementationOnce(
       async ({ onSuccess }: { onSuccess?: () => void }) => onSuccess?.()
     );
@@ -452,13 +452,21 @@ describe('AtShowScoresheetPage (Phase 1h live scoresheet)', () => {
 
     await waitFor(() => expect(submitScoreOptimistically).toHaveBeenCalledTimes(1));
     expect(await screen.findByText(/Saved on this device.*waiting to sync/i)).toBeInTheDocument();
+
+    // Offline at the ring: every network sync hangs until the venue reconnects.
+    const offline = () => new Promise<never>(() => undefined);
+    vi.mocked(replicatedTrialsTable.sync).mockImplementation(offline);
+    vi.mocked(replicatedClassesTable.sync).mockImplementation(offline);
+    vi.mocked(replicatedEntriesTable.sync).mockImplementation(offline);
+    const localReadsBefore = vi.mocked(replicatedEntriesTable.getEntriesByClass).mock.calls.length;
+
     fireEvent.click(screen.getByRole('button', { name: /correct this score/i }));
 
     expect(await screen.findByTestId('live-scoresheet')).toBeInTheDocument();
-    // Opening the cached sheet skipped a foreground sync; explicit correction
-    // still forces the canonical scoped refresh once.
-    expect(replicatedTrialsTable.sync).toHaveBeenCalledTimes(1);
-    expect(replicatedEntriesTable.sync).toHaveBeenCalledTimes(2);
+    expect(vi.mocked(replicatedEntriesTable.getEntriesByClass).mock.calls.length).toBeGreaterThan(
+      localReadsBefore
+    );
+    expect(replicatedTrialsTable.sync).not.toHaveBeenCalled();
   });
 
   it('shows server-saved only after the uploaded score matches an authenticated readback', async () => {

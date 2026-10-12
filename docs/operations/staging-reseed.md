@@ -98,10 +98,13 @@ look the fixture up by a fixed id. Use:
 select public.seed_demo_show_day_fixture_today();   -- today's ready fixture show id, or null
 ```
 
-- **Who runs it:** the owner. It writes to the shared staging database, so an
-  agent does not run it unprompted, even in auto mode.
-- **When:** before a scheduled show-day or exhibitor walk whose precondition
-  reports no ready fixture, or on any day a show-day walk is planned. It is
+- **Who runs it:** the owner, and the scheduled show-day walk, whose reviewed
+  prompt (`docs/qa/walks/show-day-walk.md`, Preconditions) calls it once at the
+  start of every run. It writes to the shared staging database, so no other
+  agent runs it unprompted, even in auto mode.
+- **When:** before a scheduled exhibitor walk whose precondition reports no
+  ready fixture, or before any hand-run show-day test. The show-day walk needs
+  no manual restore. It is
   idempotent: a second call while a fixture is ready returns
   `"created": false` and inserts nothing.
 - **Precondition:** migration `20261006014300` is on the database

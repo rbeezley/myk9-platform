@@ -150,6 +150,47 @@ describe('Quick Create dog Edit', { timeout: JOURNEY_TIMEOUT_MS }, () => {
     ]);
   });
 
+  it('a save keeps the dog registrations even when updateDog returns them stale', async () => {
+    // The real updateDog builds its returned dog from registrations already in
+    // memory, which for a dog made in this flow is usually none. The flow's own
+    // copy must not be replaced by that.
+    const registration = {
+      id: 'reg-1',
+      organization: 'AKC',
+      registeredName: 'Ziggy of Mailbox',
+      breed: 'Border Collie',
+      registrationNumber: 'SR12345678',
+    };
+    const createDog = mocks.addDog.getMockImplementation();
+    mocks.addDog.mockImplementation(async (...args: unknown[]) => ({
+      ...(await createDog?.(...args)),
+      registrations: [registration],
+    }));
+    mocks.updateDog.mockImplementation(async (_id: string, updates: object) => ({
+      id: 'dog-1',
+      name: 'Ziggy',
+      callName: 'Ziggy',
+      ...updates,
+      registrations: [],
+    }));
+    const { user, onFlowCompleted } = renderFlow();
+    await reachDogsWithZiggy(user);
+
+    await user.click(screen.getByRole('button', { name: 'Edit' }));
+    setField(await screen.findByLabelText(/Call Name/i), 'Ziggy Zoom');
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+    expect(await screen.findByText('Dogs Added (1):')).toBeInTheDocument();
+
+    await completeSetup(user);
+    expect(onFlowCompleted).toHaveBeenCalledWith(expect.objectContaining({ id: 'person-1' }), [
+      expect.objectContaining({
+        id: 'dog-1',
+        callName: 'Ziggy Zoom',
+        registrations: [expect.objectContaining({ registrationNumber: 'SR12345678' })],
+      }),
+    ]);
+  });
+
   it('Add Another Dog still opens a blank create form and creates a second dog', async () => {
     mocks.addDog.mockResolvedValueOnce({
       id: 'dog-1',

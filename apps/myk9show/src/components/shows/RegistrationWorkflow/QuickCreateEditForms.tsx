@@ -37,7 +37,10 @@ export const QuickCreateDogEdit: React.FC<EditFormProps<Dog>> = ({
     const saved = await updateDog(dog.id, convertDogToDogInput(data, dog));
     // updateDog has already told the user why (the dog is not on this device yet).
     if (!saved) throw new PanelSaveHandledError();
-    onSaved({ ...dog, ...saved });
+    // updateDog builds its returned registrations from data already in memory, which
+    // for a dog made in this flow is stale or empty, so the flow keeps its own copy
+    // unless the form edited them.
+    onSaved({ ...dog, ...saved, registrations: data.registrations ?? dog.registrations });
   };
 
   return (

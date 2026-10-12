@@ -4,8 +4,12 @@ import {
   formatClassTitle,
   buildClassConfig,
   buildClassStats,
+  buildScentWorkEntries,
 } from '../ClassDetailsMain.helpers';
-import type { ClassData } from '../types/classTypes';
+import type { ClassData, EntryData } from '../types/classTypes';
+import type { ScentWorkResult } from '@/types/scent-work-types';
+import type { ValidationResult } from '@/types/scoring-types';
+import { validateScentWorkScore } from '@/services/scoring/formatValidators';
 
 describe('shouldShowSection', () => {
   it('returns true for Novice level with section', () => {
@@ -117,8 +121,30 @@ describe('buildClassConfig time limit', () => {
     expect(config.timeLimit).toBe(300_000);
   });
 
-  it('keeps the 3:00 default when no limit is set', () => {
-    expect(buildClassConfig({} as ClassData).timeLimit).toBe(180_000);
+  // MYK9-1095: no saved max time means no limit (0), never an invented 3:00 (#2894).
+  it.each([
+    ['missing', {}],
+    ['blank', { timeLimit1: '' }],
+    ['zero', { timeLimit1: '0:00' }],
+  ])('reads a %s limit as no limit (0), not an invented 3:00', (_label, data) => {
+    expect(buildClassConfig(data as ClassData).timeLimit).toBe(0);
+  });
+
+  it('carries no limit onto a stored result, so a 4:00 qualifier draws no over-time warning', async () => {
+    const classData = { id: 'c1', entryFee: 0 } as ClassData;
+    const config = buildClassConfig(classData);
+    const [entry] = buildScentWorkEntries(
+      [{ id: 'e1', dog: 'Rex', handler: 'H', score: '240', status: 'Qualified' } as EntryData],
+      classData,
+      config,
+      []
+    );
+    const stored = entry?.judgingState?.currentResult;
+    expect(stored?.maxTimeAllowed).toBe(0);
+
+    const validation: ValidationResult = { isValid: true, errors: [], warnings: [] };
+    await validateScentWorkScore(stored as ScentWorkResult, validation);
+    expect(validation.warnings).toEqual([]);
   });
 });
 

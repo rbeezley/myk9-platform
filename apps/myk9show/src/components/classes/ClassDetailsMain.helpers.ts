@@ -149,13 +149,14 @@ export function buildClassStats(classEntries: EntryData[], isScentWork: boolean)
 }
 
 /**
- * Build a ScentWorkClassConfig from ClassData.
+ * Build a ScentWorkClassConfig from ClassData. `timeLimit` is 0 when the class
+ * has no saved max time: no limit, never an invented 3:00 (#2894, MYK9-1095).
  */
 export function buildClassConfig(classData: ClassData): ScentWorkClassConfig {
   return {
     element: (classData.element as 'Interior' | 'Exterior' | 'Container' | 'Buried') || 'Interior',
     level: (classData.level as 'Novice' | 'Advanced' | 'Excellent' | 'Masters') || 'Novice',
-    timeLimit: (parseTimeLimitSeconds(classData.timeLimit1 ?? '') ?? 180) * 1000,
+    timeLimit: (parseTimeLimitSeconds(classData.timeLimit1 ?? '') ?? 0) * 1000,
     multiArea: false,
     warningsEnabled: true,
   };

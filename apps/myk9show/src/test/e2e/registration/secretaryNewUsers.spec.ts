@@ -141,8 +141,9 @@ test('secretary can create a mail-in exhibitor and dog without auth user creatio
   await page.getByRole('button', { name: /Create New/i }).click();
   await page.getByRole('menuitem', { name: /Exhibitor & Dog/i }).click();
 
-  await expect(page.getByText('Quick Registration Setup')).toBeVisible();
-  await expect(page.getByText('Add Person').first()).toBeVisible();
+  // MYK9-1081: Quick Create is one slide-out; it opens on its Add Person view.
+  await expect(page.getByRole('dialog', { name: 'Add Person' })).toBeVisible();
+  await expect(page.getByText('Step 1 of 3: Add Person')).toBeVisible();
 
   await page.getByLabel(/First Name/i).fill('Molly');
   await page.getByLabel(/Last Name/i).fill('Mailbox');
@@ -158,6 +159,7 @@ test('secretary can create a mail-in exhibitor and dog without auth user creatio
 
   await expect(page.getByRole('heading', { name: 'Add Dog(s)' })).toBeVisible();
   await page.getByRole('button', { name: 'Add First Dog' }).click();
+  // The same slide-out, titled for its Add Dog view.
   const dogDialog = page.getByRole('dialog', { name: 'Add Dog' });
   await expect(dogDialog).toBeVisible();
 
@@ -174,8 +176,11 @@ test('secretary can create a mail-in exhibitor and dog without auth user creatio
 
   await dogDialog.getByRole('tab', { name: /Registration/i }).click();
   await dogDialog.getByRole('button', { name: 'Add New Registration' }).click();
+  // Still the one slide-out (MYK9-1081): the registration form replaces the dog
+  // form inside it rather than stacking a second panel on top.
   const registrationDialog = page.getByRole('dialog', { name: 'Add New Registration' });
   await expect(registrationDialog).toBeVisible();
+  await expect(page.locator('.slide-over-panel')).toHaveCount(1);
 
   await registrationDialog.getByRole('combobox').nth(0).click();
   await page.getByRole('option', { name: /AKC \(American Kennel Club\)/i }).click();

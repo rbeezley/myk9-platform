@@ -42,6 +42,7 @@ import { isPaymentRequestable } from './paymentRequestEligibility';
 import { EntryDecisionEmailStatusBadge } from '@/features/lifecycle-emails';
 import type { EntryListCardProps } from './EntryListCard.types';
 import { EntryStatusPopover } from './EntryStatusPopover';
+import { formatTrialLabel } from './entryFormTrialSummary';
 
 export const EntryListCard: React.FC<EntryListCardProps> = ({
   entries,
@@ -271,130 +272,140 @@ export const EntryListCard: React.FC<EntryListCardProps> = ({
           </div>
 
           <div className="space-y-1">
-            {entry.classes.map(cls => (
-              <div key={cls.id} className="flex items-center gap-2 text-sm flex-wrap">
-                <span className="text-muted-foreground font-medium min-w-[120px]">{cls.name}:</span>
+            {entry.classes.map(cls => {
+              // MYK9-1107: the same class runs every day of a multi-day show, so the row
+              // names its trial and day; the status chip carries it in its accessible name.
+              const trialLabel = formatTrialLabel(cls.trialDate, cls.trialNumber);
+              return (
+                <div key={cls.id} className="flex items-center gap-2 text-sm flex-wrap">
+                  <span className="text-muted-foreground font-medium min-w-[120px]">
+                    {trialLabel && <span>{trialLabel}</span>}
+                    {trialLabel && ' · '}
+                    {cls.name}:
+                  </span>
 
-                {/* Moved entries remain read-only; the status popover owns only
+                  {/* Moved entries remain read-only; the status popover owns only
                     the frequent transitions and leaves check-in independent. */}
-                {entry.entryStatus === EntryStatus.MOVED ? (
-                  <div className="flex items-center gap-1.5">
-                    {getEntryStatusBadge(entry.entryStatus)}
-                    {entry.notes && (
-                      <span className="text-xs text-muted-foreground">{entry.notes}</span>
-                    )}
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-0.5">
-                    <EntryStatusPopover
-                      entry={entry}
-                      entryClassName={cls.name}
-                      onStatusChange={onStatusChange}
-                      additionalContent={
-                        <>
-                          <p className="px-2 pb-1 text-xs font-medium text-muted-foreground">
-                            Other entry actions
-                          </p>
-                          <button
-                            type="button"
-                            role="menuitem"
-                            data-status-popover-action
-                            className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
-                            onClick={() => openWithdrawalDialog(entry.id)}
-                          >
-                            Withdrawn
-                          </button>
-                          {(isPaymentRequestable(entry) || isStripeRefundable(entry)) && (
-                            <>
-                              <p className="mt-2 px-2 pb-1 text-xs font-medium text-muted-foreground">
-                                Payment
-                              </p>
-                              {isPaymentRequestable(entry) && (
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  data-status-popover-action
-                                  className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
-                                  onClick={() => setRequestPaymentDialog({ open: true, entry })}
-                                >
-                                  <CreditCard className="h-4 w-4" aria-hidden />
-                                  Request payment…
-                                </button>
-                              )}
-                              {isStripeRefundable(entry) && (
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  data-status-popover-action
-                                  className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
-                                  onClick={() =>
-                                    setRefundDialog({
-                                      open: true,
-                                      // The row itself: it carries the rooted
-                                      // figures to show AND `moneyRootEntryId`,
-                                      // the row the refund is issued against.
-                                      entry,
-                                    })
-                                  }
-                                >
-                                  <CreditCard className="h-4 w-4" aria-hidden />
-                                  Refund payment…
-                                </button>
-                              )}
-                            </>
-                          )}
-                        </>
-                      }
-                    />
-                    {/* MYK9-632: WHICH act happened, and why. A withdrawal
+                  {entry.entryStatus === EntryStatus.MOVED ? (
+                    <div className="flex items-center gap-1.5">
+                      {getEntryStatusBadge(entry.entryStatus)}
+                      {entry.notes && (
+                        <span className="text-xs text-muted-foreground">{entry.notes}</span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-0.5">
+                      <EntryStatusPopover
+                        entry={entry}
+                        entryClassName={cls.name}
+                        trialLabel={trialLabel}
+                        onStatusChange={onStatusChange}
+                        additionalContent={
+                          <>
+                            <p className="px-2 pb-1 text-xs font-medium text-muted-foreground">
+                              Other entry actions
+                            </p>
+                            <button
+                              type="button"
+                              role="menuitem"
+                              data-status-popover-action
+                              className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+                              onClick={() => openWithdrawalDialog(entry.id)}
+                            >
+                              Withdrawn
+                            </button>
+                            {(isPaymentRequestable(entry) || isStripeRefundable(entry)) && (
+                              <>
+                                <p className="mt-2 px-2 pb-1 text-xs font-medium text-muted-foreground">
+                                  Payment
+                                </p>
+                                {isPaymentRequestable(entry) && (
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    data-status-popover-action
+                                    className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+                                    onClick={() => setRequestPaymentDialog({ open: true, entry })}
+                                  >
+                                    <CreditCard className="h-4 w-4" aria-hidden />
+                                    Request payment…
+                                  </button>
+                                )}
+                                {isStripeRefundable(entry) && (
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    data-status-popover-action
+                                    className="flex min-h-11 w-full items-center gap-2 rounded-md px-2 text-left text-sm hover:bg-accent focus-visible:bg-accent focus-visible:outline-none"
+                                    onClick={() =>
+                                      setRefundDialog({
+                                        open: true,
+                                        // The row itself: it carries the rooted
+                                        // figures to show AND `moneyRootEntryId`,
+                                        // the row the refund is issued against.
+                                        entry,
+                                      })
+                                    }
+                                  >
+                                    <CreditCard className="h-4 w-4" aria-hidden />
+                                    Refund payment…
+                                  </button>
+                                )}
+                              </>
+                            )}
+                          </>
+                        }
+                      />
+                      {/* MYK9-632: WHICH act happened, and why. A withdrawal
                         carries one of the two recognised reasons; a pull carries
                         none by definition, and its refund is the club's call on
                         the Pull tab. Telling them apart is the point of the
                         issue — the secretary used to see "withdrawn" for an
                         entry the exhibitor was told would not be refunded. */}
-                    {(entry.entryStatus === EntryStatus.CANCELLED ||
-                      entry.entryStatus === EntryStatus.SCRATCHED) && (
-                      <span className="text-xs text-muted-foreground pl-0.5">
-                        {removalSummaryLine(entry)}
-                      </span>
-                    )}
-                  </div>
-                )}
+                      {(entry.entryStatus === EntryStatus.CANCELLED ||
+                        entry.entryStatus === EntryStatus.SCRATCHED) && (
+                        <span className="text-xs text-muted-foreground pl-0.5">
+                          {removalSummaryLine(entry)}
+                        </span>
+                      )}
+                    </div>
+                  )}
 
-                {/* Check-in has its own high-throughput desk. Keep this legacy
+                  {/* Check-in has its own high-throughput desk. Keep this legacy
                     control for callers that still need it, but do not duplicate
                     it inside the registration cockpit. */}
-                {showCheckInStatus && (
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <button
-                        type="button"
-                        className="inline-flex min-h-11 cursor-pointer items-center gap-1 rounded border border-border/40 px-1.5 transition-colors hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                        aria-label={`${getStatusDescriptor('entry', cls.checkInStatus || 'no-status').label}, change check-in status for ${entry.dogName} in ${cls.name}`}
-                      >
-                        <CheckInStatusIndicator
-                          status={cls.checkInStatus || 'no-status'}
-                          size="sm"
-                          showLabel={true}
-                          showTooltip={false}
-                        />
-                        <ChevronDown className="h-3 w-3 text-muted-foreground" />
-                      </button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="start">
-                      {CHECKIN_STATUSES.map(status => (
-                        <DropdownMenuItem
-                          key={status}
-                          onClick={() => onCheckInStatusChange(entry, cls, status)}
+                  {showCheckInStatus && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          type="button"
+                          className="inline-flex min-h-11 cursor-pointer items-center gap-1 rounded border border-border/40 px-1.5 transition-colors hover:border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                          aria-label={`${getStatusDescriptor('entry', cls.checkInStatus || 'no-status').label}, change check-in status for ${entry.dogName} in ${cls.name}${trialLabel ? `, ${trialLabel}` : ''}`}
                         >
-                          {getStatusDescriptor('entry', status).label}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                )}
-              </div>
-            ))}
+                          <CheckInStatusIndicator
+                            status={cls.checkInStatus || 'no-status'}
+                            size="sm"
+                            showLabel={true}
+                            showTooltip={false}
+                          />
+                          <ChevronDown className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="start">
+                        {CHECKIN_STATUSES.map(status => (
+                          <DropdownMenuItem
+                            key={status}
+                            onClick={() => onCheckInStatusChange(entry, cls, status)}
+                          >
+                            {getStatusDescriptor('entry', status).label}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       ))}

@@ -61,10 +61,22 @@ function offerCard(page: Page, dogName: string) {
   return page.getByRole('region', { name: `Waitlist offer for ${dogName}` });
 }
 
-/** My Shows reads the wait list on load; reload until the server's change shows. */
-async function expectOnMyShows(page: Page, dogName: string, text: RegExp | string) {
+/**
+ * My Shows reads the wait list on load; reload until the server's change shows. The list holds
+ * only waiting and offered rows, so a closed offer is opened the way its notification links to it
+ * (`?waitlistOffer=<id>`), which is the only place the app explains a terminal state.
+ */
+async function expectOnMyShows(
+  page: Page,
+  dogName: string,
+  text: RegExp | string,
+  focusedOfferId?: string
+) {
+  const url = focusedOfferId
+    ? `/exhibitor/entries?waitlistOffer=${focusedOfferId}`
+    : '/exhibitor/entries';
   await expect(async () => {
-    await page.goto('/exhibitor/entries');
+    await page.goto(url);
     await expect(offerCard(page, dogName)).toContainText(text, { timeout: 10_000 });
   }).toPass({ timeout: 60_000 });
 }
@@ -164,9 +176,10 @@ test.describe('Wait list: join -> offer -> decline -> expire -> mail-in head', (
         });
       }).toPass({ timeout: 90_000 });
       await willowRow.getByRole('button', { name: 'Offer Spot' }).click();
-      const dialog = secretary.getByRole('dialog');
-      await expect(dialog.getByRole('heading', { name: 'Offer Spot?' })).toBeVisible();
-      await dialog.getByRole('button', { name: 'Offer Spot' }).click();
+      // WaitlistActionDialog is an AlertDialog: role alertdialog, named by its title.
+      const dialog = secretary.getByRole('alertdialog', { name: 'Offer Spot?' });
+      await expect(dialog).toBeVisible();
+      await dialog.getByRole('button', { name: 'Offer Spot', exact: true }).click();
       await expect(secretary.getByTestId('waitlist-offered-group')).toContainText('Willow', {
         timeout: 20_000,
       });
@@ -214,7 +227,7 @@ test.describe('Wait list: join -> offer -> decline -> expire -> mail-in head', (
       expect((await rowFor(admin, DOGS.scout)).status).toBe('waiting');
       expect((await rowFor(admin, DOGS.maple)).status).toBe('waiting');
       expect(await mailInHeadNoticeCount(admin, secretaryAuthId, since)).toBe(1);
-      await expectOnMyShows(exhibitor, 'Ranger', 'This offer has expired.');
+      await expectOnMyShows(exhibitor, 'Ranger', 'This offer has expired.', ranger.id);
     });
 
     await test.step('a second cron run sends no repeat notice and still offers no one', async () => {

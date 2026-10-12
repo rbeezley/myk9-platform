@@ -333,31 +333,49 @@ describe('Quick Create person Edit Details', { timeout: JOURNEY_TIMEOUT_MS }, ()
     expect(mocks.refreshOwnerCreated).not.toHaveBeenCalled();
   });
 
-  it('offline, Edit Details refuses the save and the secretary can still leave the panel', async () => {
-    // A direct update is paused while offline and never settles, and a panel will not close
-    // under a save in flight: without a refusal the secretary is stuck until the signal returns.
-    const warning = vi.spyOn(notifications, 'warning').mockImplementation(() => 'toast-1');
-    const { user } = renderFlow();
-    await user.click(await reachPersonStep(user));
-    setField(await screen.findByLabelText(/First Name/i), 'Mollie');
-    onlineManager.setOnline(false);
-    try {
-      await user.click(await screen.findByRole('button', { name: 'Save Changes' }));
+  it.each([
+    [
+      'React Query reports offline',
+      () => {
+        onlineManager.setOnline(false);
+        return () => onlineManager.setOnline(true);
+      },
+    ],
+    [
+      'only the browser reports offline, as on a page that booted offline',
+      () => {
+        const spy = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false);
+        return () => spy.mockRestore();
+      },
+    ],
+  ])(
+    'offline (%s), Edit Details refuses the save and the panel can still be left',
+    async (_signal, goOffline) => {
+      // A direct update is paused while offline and never settles, and a panel will not close
+      // under a save in flight: without a refusal the secretary is stuck until the signal returns.
+      const warning = vi.spyOn(notifications, 'warning').mockImplementation(() => 'toast-1');
+      const { user } = renderFlow();
+      await user.click(await reachPersonStep(user));
+      setField(await screen.findByLabelText(/First Name/i), 'Mollie');
+      const backOnline = goOffline();
+      try {
+        await user.click(await screen.findByRole('button', { name: 'Save Changes' }));
 
-      await waitFor(() => expect(warning).toHaveBeenCalledTimes(1));
-      expect(warning).toHaveBeenCalledWith(expect.stringMatching(/connection/i));
-      expect(mocks.updateUser).not.toHaveBeenCalled();
-      expect(mocks.refreshOwnerCreated).not.toHaveBeenCalled();
+        await waitFor(() => expect(warning).toHaveBeenCalledTimes(1));
+        expect(warning).toHaveBeenCalledWith(expect.stringMatching(/connection/i));
+        expect(mocks.updateUser).not.toHaveBeenCalled();
+        expect(mocks.refreshOwnerCreated).not.toHaveBeenCalled();
 
-      await user.click(screen.getByRole('button', { name: 'Cancel' }));
-      await user.click(await screen.findByRole('button', { name: /Discard/i }));
-      expect(await screen.findByText('Person Added')).toBeInTheDocument();
-      expect(screen.getByText('Molly Mailbox')).toBeInTheDocument();
-    } finally {
-      onlineManager.setOnline(true);
-      warning.mockRestore();
+        await user.click(screen.getByRole('button', { name: 'Cancel' }));
+        await user.click(await screen.findByRole('button', { name: /Discard/i }));
+        expect(await screen.findByText('Person Added')).toBeInTheDocument();
+        expect(screen.getByText('Molly Mailbox')).toBeInTheDocument();
+      } finally {
+        backOnline();
+        warning.mockRestore();
+      }
     }
-  });
+  );
 
   it('a refused save keeps the person selected and the form open', async () => {
     mocks.updateUser.mockResolvedValue({ data: null, error: { message: 'no', code: 'X' } });

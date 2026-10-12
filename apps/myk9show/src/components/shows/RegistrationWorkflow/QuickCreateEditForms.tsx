@@ -102,7 +102,8 @@ export const QuickCreatePersonEdit: React.FC<EditFormProps<User>> = ({
     // The update is a direct write that React Query PAUSES while offline, and a panel will not
     // close under a save in flight, so without this refusal the secretary is stuck here until
     // the signal returns (D6). MYK9-1090 replaces this with the service's own coded refusal.
-    if (!onlineManager.isOnline()) {
+    // A page that booted offline leaves onlineManager reporting online, so ask the browser too.
+    if (!onlineManager.isOnline() || !navigator.onLine) {
       notifications.warning('Editing a person needs a connection. Reconnect to save changes.');
       throw new PanelSaveHandledError();
     }

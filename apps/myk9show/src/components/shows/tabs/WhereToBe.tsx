@@ -17,6 +17,7 @@ import {
 import { isRunnableScheduleStatus } from '@/services/entryDisplay/entryDisplaySelectors';
 import { getStatusDescriptor } from '@/components/status';
 import { getExhibitorLifecycleReviewLabel } from '@/components/entries/management/reviewStateLabels';
+import { getTrialTimezone } from '@/features/registries';
 
 interface WhereToBeProps {
   entries: EnrichedShowEntry[];
@@ -31,11 +32,10 @@ export function WhereToBe({ entries, showId }: WhereToBeProps) {
   );
   const { data: trials } = useShowTrials(showId);
   if (scheduleEntries.length === 0) return null;
+  // Validated through the registries helper; a trial not loaded yet has no
+  // entry, and an unresolved zone makes no "past day" claim (see neverRan).
   const timezoneByTrialId = new Map(
-    (trials ?? []).map(trial => [
-      trial.id,
-      typeof trial.timezone === 'string' ? trial.timezone : undefined,
-    ])
+    (trials ?? []).map(trial => [trial.id, getTrialTimezone(trial)])
   );
   const hasPendingScheduleDetails = hasUnpublishedScheduleDetails(scheduleEntries);
 
@@ -98,6 +98,9 @@ function neverRan(entry: EnrichedShowEntry, trialTimezone: string | undefined): 
   if (entry.checkInStatus && entry.checkInStatus !== 'no-status') return false;
   const kind = entry.queue?.kind;
   if (kind && kind !== 'waiting' && kind !== 'waiting-unknown') return false;
+  // Never declare a day over before the trial's own zone is known: a guessed
+  // zone would call a West Coast trial "Not run" while it is still that day.
+  if (!trialTimezone) return false;
   return isTrialDayPast(parseLocalDateString(entry.trialDate), trialTimezone, new Date());
 }
 

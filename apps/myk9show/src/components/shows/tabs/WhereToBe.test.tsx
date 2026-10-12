@@ -275,6 +275,7 @@ describe('WhereToBe', () => {
 
     it('reads "not run" on a past day, with no queue position and no "Not checked in"', () => {
       pin('2026-10-09T15:00:00Z');
+      mockTrials.data = [{ id: 't1', timezone: 'America/Chicago' }];
       render(
         <WhereToBe
           entries={[
@@ -316,6 +317,44 @@ describe('WhereToBe', () => {
       expect(screen.getByText('Waiting')).toBeInTheDocument();
       expect(screen.getByText('Not checked in')).toBeInTheDocument();
       expect(screen.queryByText('Not run')).not.toBeInTheDocument();
+    });
+
+    it("makes no past claim while the trial's timezone is unresolved", () => {
+      pin('2026-10-09T15:00:00Z');
+      mockTrials.data = [];
+      render(
+        <WhereToBe
+          entries={[
+            makeEntry({
+              queue: { kind: 'waiting-unknown' },
+              checkInStatus: 'no-status',
+              trialDate: '2026-10-08',
+              dayLabel: 'Thursday, Oct 8',
+            }),
+          ]}
+          showId={SHOW_ID}
+        />
+      );
+      expect(screen.queryByText('Not run')).not.toBeInTheDocument();
+    });
+
+    it('resolves an invalid stored zone safely instead of breaking the schedule', () => {
+      pin('2026-10-09T15:00:00Z');
+      mockTrials.data = [{ id: 't1', timezone: 'America/Nowhere' }];
+      render(
+        <WhereToBe
+          entries={[
+            makeEntry({
+              queue: { kind: 'waiting-unknown' },
+              checkInStatus: 'no-status',
+              trialDate: '2026-10-08',
+              dayLabel: 'Thursday, Oct 8',
+            }),
+          ]}
+          showId={SHOW_ID}
+        />
+      );
+      expect(screen.getByText('Not run')).toBeInTheDocument();
     });
 
     it("reckons the day in the trial's timezone, not the device's", () => {

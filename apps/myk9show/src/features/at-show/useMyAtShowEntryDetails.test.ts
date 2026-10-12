@@ -14,6 +14,9 @@ vi.mock('@/services/replication', () => ({
   },
 }));
 
+// The own-results read has its own test; keep this one about the replica subscription.
+vi.mock('./useMyShowResults', () => ({ useMyShowResults: () => new Map() }));
+
 const emptyClasses: ReadonlyMap<string, AtShowClassSummary> = new Map();
 const emptyTrials: ReadonlyMap<string, AtShowTrialSummary> = new Map();
 

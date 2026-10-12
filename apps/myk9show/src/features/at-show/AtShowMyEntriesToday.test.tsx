@@ -3,7 +3,6 @@ import { screen, fireEvent, waitFor } from '@testing-library/react';
 import { render } from '@/test/utils/testUtils';
 import { AtShowMyEntriesToday } from './AtShowMyEntriesToday';
 import type { AtShowEntryDetail } from './myAtShowEntryDetails.helpers';
-import { buildMyAtShowEntryDetails, type AtShowClassSummary } from './myAtShowEntryDetails.helpers';
 
 const mockMutateAsync = vi.hoisted(() => vi.fn());
 const mockSync = vi.hoisted(() => vi.fn());
@@ -34,6 +33,8 @@ function entry(overrides: Partial<AtShowEntryDetail>): AtShowEntryDetail {
     isScored: false,
     resultStatus: null,
     resultTimeSeconds: null,
+    resultFaults: null,
+    isPreliminary: false,
     selfCheckinState: 'allowed',
     trialLabel: null,
     ...overrides,
@@ -85,34 +86,8 @@ describe('AtShowMyEntriesToday — status badge falls back to the staff-grade la
   });
 });
 
-describe('AtShowMyEntriesToday — released result on the existing row', () => {
-  it('shows Ranger’s Q and time beside Completed', async () => {
-    const classes = new Map<string, AtShowClassSummary>([
-      [
-        'class-1',
-        {
-          className: 'Novice Container',
-          classStatus: 'completed',
-          resultsReleasedAt: '2026-10-06T15:00:00Z',
-        },
-      ],
-    ]);
-    const entries = buildMyAtShowEntryDetails(
-      [
-        {
-          id: 'entry-1',
-          classId: 'class-1',
-          dogCallName: 'Ranger',
-          checkInStatus: 'completed',
-          isScored: true,
-          resultStatus: 'qualified',
-          searchTimeSeconds: 58,
-        },
-      ],
-      new Set(['entry-1']),
-      classes,
-      new Map()
-    );
+describe('AtShowMyEntriesToday — own result on the existing row (MYK9-1026)', () => {
+  const renderToday = (entries: AtShowEntryDetail[]) =>
     render(
       <AtShowMyEntriesToday
         showId="show-1"
@@ -125,9 +100,56 @@ describe('AtShowMyEntriesToday — released result on the existing row', () => {
       />
     );
 
+  it('shows a released Q and time beside Completed, with no preliminary label', async () => {
+    renderToday([
+      entry({
+        dogName: 'Ranger',
+        checkInStatus: 'completed',
+        isScored: true,
+        resultStatus: 'qualified',
+        resultTimeSeconds: 58,
+      }),
+    ]);
+
     expect(await screen.findByText('Completed')).toBeInTheDocument();
     expect(screen.getByText('Q')).toBeInTheDocument();
     expect(screen.getByText('58.0s')).toBeInTheDocument();
+    expect(screen.queryByText(/preliminary/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/fault/i)).not.toBeInTheDocument();
+  });
+
+  it('labels an unreleased result preliminary and shows its faults', async () => {
+    renderToday([
+      entry({
+        dogName: 'Ranger',
+        checkInStatus: 'completed',
+        isScored: true,
+        resultStatus: 'qualified',
+        resultTimeSeconds: 58,
+        resultFaults: 2,
+        isPreliminary: true,
+      }),
+    ]);
+
+    expect(await screen.findByText('Q')).toBeInTheDocument();
+    expect(screen.getByText('58.0s')).toBeInTheDocument();
+    expect(screen.getByText('2 faults')).toBeInTheDocument();
+    expect(screen.getByText('preliminary')).toBeInTheDocument();
+  });
+
+  it('shows faults only on a qualified run, like the at-show Completed tab', async () => {
+    renderToday([
+      entry({
+        checkInStatus: 'completed',
+        isScored: true,
+        resultStatus: 'nq',
+        resultTimeSeconds: 58,
+        resultFaults: 3,
+      }),
+    ]);
+
+    expect(await screen.findByText('Completed')).toBeInTheDocument();
+    expect(screen.queryByText(/fault/i)).not.toBeInTheDocument();
   });
 
   it('does not display a result or time when visibility masked the score', () => {

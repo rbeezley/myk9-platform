@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  type OwnShowResult,
   buildMyAtShowEntryDetails,
   deriveAtShowNextAction,
   isExhibitorOnlyForAtShow,
@@ -69,68 +70,99 @@ const trialWithLabel: ReadonlyMap<string, AtShowTrialSummary> = new Map([
 ]);
 
 describe('buildMyAtShowEntryDetails', () => {
-  it('carries a released Q and time from the owned, visibility-filtered entry', () => {
-    const scored: ReplicatedEntry = {
-      id: 'scored-1',
-      classId: 'class-1',
-      dogCallName: 'Ranger',
-      isScored: true,
-      resultStatus: 'qualified',
-      searchTimeSeconds: 58,
-    };
-    const released = new Map<string, AtShowClassSummary>([
+  // MYK9-1026: the row's result comes from the exhibitor's own masked read
+  // (`getUserEntries`, the source My Entries uses), never from the raw show
+  // replica, which a staff session on the same device may have filled unmasked.
+  const ownScored: ReplicatedEntry = { id: 'scored-1', classId: 'class-1', dogCallName: 'Ranger' };
+  const classAt = (resultsReleasedAt: string | null) =>
+    new Map<string, AtShowClassSummary>([
+      ['class-1', { className: 'Novice Container', classStatus: 'completed', resultsReleasedAt }],
+    ]);
+  const ownResult = (resultsReleasedAt: string | null): ReadonlyMap<string, OwnShowResult> =>
+    new Map([
       [
-        'class-1',
+        'scored-1',
         {
-          className: 'Novice Container',
-          classStatus: 'completed',
-          resultsReleasedAt: '2026-10-06T15:00:00Z',
+          isScored: true,
+          resultStatus: 'qualified',
+          searchTimeSeconds: 58,
+          totalFaults: 2,
+          resultsReleasedAt,
         },
       ],
     ]);
 
-    expect(
-      buildMyAtShowEntryDetails([scored], new Set(['scored-1']), released, noTrials)[0]
-    ).toMatchObject({ resultStatus: 'qualified', resultTimeSeconds: 58 });
-  });
-
-  it('does not reveal withheld, unreleased, or unowned results', () => {
-    const scored: ReplicatedEntry = {
-      id: 'scored-1',
-      classId: 'class-1',
-      isScored: true,
-      resultStatus: 'qualified',
-      searchTimeSeconds: 58,
-    };
-    const released = new Map<string, AtShowClassSummary>([
-      [
-        'class-1',
-        {
-          className: 'Novice Container',
-          classStatus: 'completed',
-          resultsReleasedAt: '2026-10-06T15:00:00Z',
-        },
-      ],
-    ]);
-    const unreleased = new Map<string, AtShowClassSummary>([
-      [
-        'class-1',
-        { className: 'Novice Container', classStatus: 'completed', resultsReleasedAt: null },
-      ],
-    ]);
-
-    expect(
-      buildMyAtShowEntryDetails([scored], new Set(['scored-1']), unreleased, noTrials)[0]
-    ).toMatchObject({ resultStatus: null, resultTimeSeconds: null });
+  it('shows a released own result as final', () => {
     expect(
       buildMyAtShowEntryDetails(
-        [{ ...scored, resultStatus: undefined, searchTimeSeconds: undefined }],
+        [ownScored],
         new Set(['scored-1']),
-        released,
+        classAt('2026-10-06T15:00:00Z'),
+        noTrials,
+        ownResult('2026-10-06T15:00:00Z')
+      )[0]
+    ).toMatchObject({
+      resultStatus: 'qualified',
+      resultTimeSeconds: 58,
+      resultFaults: 2,
+      isPreliminary: false,
+    });
+  });
+
+  it('shows an unreleased own result labelled preliminary', () => {
+    expect(
+      buildMyAtShowEntryDetails(
+        [ownScored],
+        new Set(['scored-1']),
+        classAt(null),
+        noTrials,
+        ownResult(null)
+      )[0]
+    ).toMatchObject({ resultStatus: 'qualified', resultTimeSeconds: 58, isPreliminary: true });
+  });
+
+  it('never reads a result from the raw show replica', () => {
+    const unmaskedReplicaRow: ReplicatedEntry = {
+      ...ownScored,
+      isScored: true,
+      resultStatus: 'qualified',
+      searchTimeSeconds: 58,
+    };
+    expect(
+      buildMyAtShowEntryDetails(
+        [unmaskedReplicaRow],
+        new Set(['scored-1']),
+        classAt('2026-10-06T15:00:00Z'),
         noTrials
       )[0]
     ).toMatchObject({ resultStatus: null, resultTimeSeconds: null });
-    expect(buildMyAtShowEntryDetails([scored], new Set(), released, noTrials)).toEqual([]);
+  });
+
+  it('shows nothing when the own read withheld the result, or for an unowned entry', () => {
+    const withheld: ReadonlyMap<string, OwnShowResult> = new Map([
+      [
+        'scored-1',
+        {
+          isScored: true,
+          resultStatus: null,
+          searchTimeSeconds: null,
+          totalFaults: null,
+          resultsReleasedAt: null,
+        },
+      ],
+    ]);
+    expect(
+      buildMyAtShowEntryDetails(
+        [ownScored],
+        new Set(['scored-1']),
+        classAt(null),
+        noTrials,
+        withheld
+      )[0]
+    ).toMatchObject({ resultStatus: null, resultTimeSeconds: null, resultFaults: null });
+    expect(
+      buildMyAtShowEntryDetails([ownScored], new Set(), classAt(null), noTrials, ownResult(null))
+    ).toEqual([]);
   });
 
   it('only includes owned entries, in entry order', () => {
@@ -211,6 +243,7 @@ describe('buildMyAtShowEntryDetails', () => {
       new Set(['entry-t1']),
       classesById,
       trialWithLabel,
+      new Map(),
       new Date('2026-09-27T17:00:00Z') // midday Chicago on the trial's own date, well clear of the day-filter's midnight edge
     );
 

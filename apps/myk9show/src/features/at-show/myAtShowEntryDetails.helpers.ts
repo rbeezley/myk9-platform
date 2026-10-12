@@ -17,6 +17,7 @@ import { parseShowDate } from '@/pages/MyEntriesPage/modules/myEntriesStats.help
 import type { SelfCheckinState } from '@/hooks/queries/useSelfCheckinEnabled';
 import type { RunQueueState } from '@myk9/ringside/run-queue';
 import { withServerPlace } from '@/utils/showEntryRunQueue';
+import { deriveResultReleaseDisplay } from '@/features/result-card/resultReleaseDisplay';
 
 const STAFF_ROLES: readonly UserRole[] = [
   UserRole.SITE_ADMIN,
@@ -58,6 +59,17 @@ export interface AtShowClassSummary {
   selfCheckinState?: SelfCheckinState | undefined;
 }
 
+/** One own entry's result as the exhibitor's masked read returned it (MYK9-1026). */
+export interface OwnShowResult {
+  isScored: boolean;
+  resultStatus: string | null;
+  searchTimeSeconds: number | null;
+  totalFaults: number | null;
+  resultsReleasedAt: string | null;
+}
+
+export const NO_OWN_RESULTS: ReadonlyMap<string, OwnShowResult> = new Map();
+
 export interface AtShowEntryDetail {
   entryId: string;
   classId: string | null;
@@ -71,9 +83,13 @@ export interface AtShowEntryDetail {
   /** Whether the exhibitor's row has a run-order position assigned. */
   hasRunOrder: boolean;
   isScored: boolean;
-  /** Server-exposed result, shown only once this class is released. Null when withheld. */
+  /** The exhibitor's own masked result (MYK9-1026). Null when withheld or not scored. */
   resultStatus: string | null;
   resultTimeSeconds: number | null;
+  /** Fault count; the row shows it on a Q above zero (the #2879 rule). Null when withheld. */
+  resultFaults: number | null;
+  /** True while the class is unreleased: the row labels the result "preliminary". */
+  isPreliminary: boolean;
   /** The class's resolved self-check-in cascade (MYK9-800 follow-up). */
   selfCheckinState: SelfCheckinState;
   /** "<trial label> · <date>" (`formatAtShowTrialHeading`), or null before the trial replica resolves. */
@@ -128,6 +144,7 @@ export function buildMyAtShowEntryDetails(
   ownEntryIds: ReadonlySet<string>,
   classesById: ReadonlyMap<string, AtShowClassSummary>,
   trialsById: ReadonlyMap<string, AtShowTrialSummary>,
+  resultsByEntryId: ReadonlyMap<string, OwnShowResult> = NO_OWN_RESULTS,
   now: Date = new Date()
 ): AtShowEntryDetail[] {
   const details: AtShowEntryDetail[] = [];
@@ -140,16 +157,21 @@ export function buildMyAtShowEntryDetails(
     if (trial && !isTrialDayToday(parseShowDate(trial.date), trial.timezone, now)) continue;
 
     const classSummary = entry.classId ? (classesById.get(entry.classId) ?? null) : null;
-    // The replication view already masks qualification/time by visibility and
-    // privacy. Require the class release too: an old staff-populated cache must
-    // never turn a preliminary result into a final exhibitor result.
-    const status = entry.resultStatus ?? entry.result_status;
-    const hasVisibleResult =
-      Boolean(classSummary?.resultsReleasedAt) &&
-      (entry.isScored ?? entry.is_scored) === true &&
-      status != null &&
-      status !== 'pending';
-    const seconds = entry.searchTimeSeconds ?? entry.search_time_seconds;
+    // INTENT: the result comes ONLY from the exhibitor's own masked read
+    // (`getUserEntries`), never from this show replica. Sign-out does not wipe
+    // the replica, so a staff session on the same device can leave unmasked
+    // scores here that a preset or privacy setting withholds from exhibitors.
+    // An unreleased result is shown labelled preliminary, as My Entries, the
+    // dog page and the show page do (owner decision, MYK9-1026).
+    const own = resultsByEntryId.get(entry.id);
+    const status = own?.resultStatus ?? null;
+    const hasVisibleResult = own?.isScored === true && status != null && status !== 'pending';
+    const seconds = own?.searchTimeSeconds;
+    const { isPreliminary } = deriveResultReleaseDisplay({
+      resultsReleasedAt: own?.resultsReleasedAt ?? classSummary?.resultsReleasedAt,
+      resultStatus: status,
+      finalPlacement: null,
+    });
 
     details.push({
       entryId: entry.id,
@@ -167,6 +189,8 @@ export function buildMyAtShowEntryDetails(
         hasVisibleResult && typeof seconds === 'number' && Number.isFinite(seconds) && seconds >= 0
           ? seconds
           : null,
+      resultFaults: hasVisibleResult ? (own?.totalFaults ?? null) : null,
+      isPreliminary: hasVisibleResult && isPreliminary,
       selfCheckinState: classSummary?.selfCheckinState ?? 'unknown',
       trialLabel: trial?.label ?? null,
       dogKey: entry.dogId ?? entry.dogCallName ?? entry.id,

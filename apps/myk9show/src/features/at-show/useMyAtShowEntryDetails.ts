@@ -7,6 +7,7 @@ import {
   type AtShowEntryDetail,
   type AtShowTrialSummary,
 } from './myAtShowEntryDetails.helpers';
+import { useMyShowResults } from './useMyShowResults';
 
 export interface UseMyAtShowEntryDetailsResult {
   entries: AtShowEntryDetail[];
@@ -51,6 +52,7 @@ export function useMyAtShowEntryDetails(
   trialsById: ReadonlyMap<string, AtShowTrialSummary>
 ): UseMyAtShowEntryDetailsResult {
   const queryClient = useQueryClient();
+  const ownResults = useMyShowResults(showId);
 
   useEffect(() => {
     if (!showId) return;
@@ -70,8 +72,14 @@ export function useMyAtShowEntryDetails(
 
   const entries = useMemo(() => {
     if (!entriesQuery.data) return [];
-    return buildMyAtShowEntryDetails(entriesQuery.data, ownEntryIds, classesById, trialsById);
-  }, [entriesQuery.data, ownEntryIds, classesById, trialsById]);
+    return buildMyAtShowEntryDetails(
+      entriesQuery.data,
+      ownEntryIds,
+      classesById,
+      trialsById,
+      ownResults
+    );
+  }, [entriesQuery.data, ownEntryIds, classesById, trialsById, ownResults]);
 
   return {
     entries,

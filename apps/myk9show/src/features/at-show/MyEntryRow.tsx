@@ -109,6 +109,14 @@ export function MyEntryRow({
                 {detail.resultTimeSeconds.toFixed(1)}s
               </span>
             )}
+            {detail.resultStatus === 'qualified' &&
+              detail.resultFaults != null &&
+              detail.resultFaults > 0 && (
+                <span className="font-semibold text-warning">
+                  {detail.resultFaults === 1 ? '1 fault' : `${detail.resultFaults} faults`}
+                </span>
+              )}
+            {detail.isPreliminary && <span className="text-muted-foreground">preliminary</span>}
           </div>
         )}
         {action.kind === 'self-checkin-disabled' && (

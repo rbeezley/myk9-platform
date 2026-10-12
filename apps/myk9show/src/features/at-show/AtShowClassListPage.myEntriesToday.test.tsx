@@ -9,6 +9,7 @@ import { ReplicationSyncContext } from '@/context/ReplicationSyncContext';
 import type { ReplicationSyncContextValue } from '@/context/ReplicationSyncContext';
 import { UserRole } from '@/types/auth-types';
 import { mockSupabase } from '@/test/mocks/supabase';
+import type { OwnShowResult } from './myAtShowEntryDetails.helpers';
 
 vi.mock('@/services/replication', () => ({
   replicatedArmbandsTable: {
@@ -55,6 +56,11 @@ const mockAuthState = vi.hoisted(() => ({
   userWithRoles: null as unknown,
   user: null as { id: string } | null,
 }));
+
+// The row's results come from the exhibitor's own masked read (MYK9-1026);
+// `useMyShowResults` has its own test, so the page test controls its answer.
+const ownResults: { current: ReadonlyMap<string, OwnShowResult> } = { current: new Map() };
+vi.mock('./useMyShowResults', () => ({ useMyShowResults: () => ownResults.current }));
 
 vi.mock('@/hooks/useAuthContext', () => ({
   useAuthContext: () => mockAuthState,
@@ -149,6 +155,7 @@ const renderPage = () =>
 
 describe('AtShowClassListPage — exhibitor "Your dogs today" default', () => {
   beforeEach(() => {
+    ownResults.current = new Map();
     vi.clearAllMocks();
     window.localStorage.clear();
     seed();
@@ -172,45 +179,61 @@ describe('AtShowClassListPage — exhibitor "Your dogs today" default', () => {
     expect(screen.getByText('#101')).toBeInTheDocument();
   });
 
-  it('shows the released Q and time on the owned show-day row', async () => {
+  const ownQualified = (resultsReleasedAt: string | null) =>
+    new Map<string, OwnShowResult>([
+      [
+        'entry-1',
+        {
+          isScored: true,
+          resultStatus: 'qualified',
+          searchTimeSeconds: 58,
+          totalFaults: 1,
+          resultsReleasedAt,
+        },
+      ],
+    ]);
+
+  it('shows the released Q, time and faults from the own masked read', async () => {
     mockAuthState.hasRole = role => role === UserRole.EXHIBITOR;
     mockAuthState.user = { id: 'user-1' };
-    seedOwnedEntry({
-      dogCallName: 'Ranger',
-      checkInStatus: 'completed',
-      isScored: true,
-      resultStatus: 'qualified',
-      searchTimeSeconds: 58,
-    });
-    vi.mocked(replicatedClassesTable.getClassesByTrial).mockResolvedValue([
-      {
-        id: 'class-1',
-        element: 'Container',
-        level: 'Novice',
-        section: '-',
-        classStatus: 'completed',
-        classOrder: 1,
-        resultsReleasedAt: '2026-06-01T18:00:00Z',
-      },
-    ] as never);
+    seedOwnedEntry({ dogCallName: 'Ranger', checkInStatus: 'completed', isScored: true });
+    ownResults.current = ownQualified('2026-06-01T18:00:00Z');
 
     renderPage();
 
     expect(await screen.findByText('Ranger')).toBeInTheDocument();
     expect(screen.getByText('Completed')).toBeInTheDocument();
-    expect(screen.getByText('Q')).toBeInTheDocument();
+    expect(await screen.findByText('Q')).toBeInTheDocument();
     expect(screen.getByText('58.0s')).toBeInTheDocument();
+    expect(screen.getByText('1 fault')).toBeInTheDocument();
+    expect(screen.queryByText('preliminary')).not.toBeInTheDocument();
   });
 
-  it('keeps a completed score hidden while the class is unreleased', async () => {
+  it('labels an unreleased own result preliminary (owner decision, MYK9-1026)', async () => {
     mockAuthState.hasRole = role => role === UserRole.EXHIBITOR;
     mockAuthState.user = { id: 'user-1' };
+    seedOwnedEntry({ checkInStatus: 'completed', isScored: true });
+    ownResults.current = ownQualified(null);
+
+    renderPage();
+
+    expect(await screen.findByText('Rex')).toBeInTheDocument();
+    expect(await screen.findByText('Q')).toBeInTheDocument();
+    expect(screen.getByText('58.0s')).toBeInTheDocument();
+    expect(screen.getByText('preliminary')).toBeInTheDocument();
+  });
+
+  it('never shows a score the own read withheld, even when the show replica holds one', async () => {
+    mockAuthState.hasRole = role => role === UserRole.EXHIBITOR;
+    mockAuthState.user = { id: 'user-1' };
+    // A staff session on this device left an unmasked score in the replica.
     seedOwnedEntry({
       checkInStatus: 'completed',
       isScored: true,
       resultStatus: 'qualified',
       searchTimeSeconds: 58,
     });
+    ownResults.current = new Map();
 
     renderPage();
 

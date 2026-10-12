@@ -32,7 +32,7 @@ function refusingClient(error: Record<string, unknown>): SupabaseClient {
 }
 const RLS_DENIAL = { code: '42501', message: 'new row violates row-level security policy' };
 
-describe('a refused or discarded queued UPDATE re-pulls its row (MYK9-1076)', () => {
+describe('a discarded failed UPDATE re-pulls its row (MYK9-1076)', () => {
   let manager: MutationManager;
   let tableName: string;
   const serverRow: ServerRow = { status: 'scored', final_placement: 2, version: 8 };
@@ -52,31 +52,55 @@ describe('a refused or discarded queued UPDATE re-pulls its row (MYK9-1076)', ()
     await manager.uploadPendingMutations();
   }
 
-  it('a dead-lettered UPDATE replaces the local row with the server row, for that row only', async () => {
+  it('a dead-lettered UPDATE is NOT re-pulled: the user keeps seeing their edit until Retry or Discard', async () => {
     const adapter = adapterFor(serverRow);
     const table = new RepullingEntriesTable(tableName, adapter);
     await refuseWith(table, RLS_DENIAL);
+    await Promise.resolve();
 
     expect(await manager.getFailedMutations()).toHaveLength(1);
+    expect(adapter.fetchRowsById).not.toHaveBeenCalled();
+    expect((await localOf(table)).data.status).toBe('done');
+  });
+
+  it('a discarded failed UPDATE replaces only that row with the server row and announces it', async () => {
+    const adapter = adapterFor(serverRow);
+    const table = new RepullingEntriesTable(tableName, adapter);
+    await refuseWith(table, RLS_DENIAL);
+    const replaced: unknown[] = [];
+    const listener = (event: Event) => replaced.push((event as CustomEvent).detail);
+    window.addEventListener('replication:rows-replaced', listener);
+
+    const [failed] = await manager.getFailedMutations();
+    await manager.discardFailedMutation(failed!.id);
+
     await vi.waitFor(async () => expect((await localOf(table)).data.status).toBe('scored'));
+    window.removeEventListener('replication:rows-replaced', listener);
     expect(adapter.fetchRowsById).toHaveBeenCalledWith(['1']);
     const row = await localOf(table);
     expect(row).toMatchObject({ isDirty: false, serverVersion: 8 });
     expect(row.data).toEqual({ id: '1', status: 'scored', finalPlacement: 2 });
+    expect(replaced).toEqual([{ tableName, rowIds: ['1'] }]);
   });
 
-  it('a discarded failed UPDATE replaces the local row with the server row', async () => {
-    // The refusal's own re-pull finds nothing, so only the discard can heal it.
-    const adapter = adapterFor(serverRow, async () => []);
+  it('a second failed edit for the row holds it: only the last discard re-pulls', async () => {
+    const adapter = adapterFor(serverRow);
     const table = new RepullingEntriesTable(tableName, adapter);
     await refuseWith(table, RLS_DENIAL);
+    const db = await databaseManager.getDatabase('test');
+    const [first] = await manager.getFailedMutations();
+    await db.put(REPLICATION_STORES.FAILED_MUTATIONS, {
+      ...first!,
+      id: 'second-failed',
+      failureKind: 'max-retries',
+    });
+
+    await manager.discardFailedMutation(first!.id);
     await vi.waitFor(() => expect(adapter.fetchRowsById).toHaveBeenCalledTimes(1));
+    await Promise.resolve();
     expect((await localOf(table)).data.status).toBe('done');
 
-    vi.mocked(adapter.fetchRowsById).mockResolvedValue([{ id: '1', ...serverRow }]);
-    const [failed] = await manager.getFailedMutations();
-    await manager.discardFailedMutation(failed!.id);
-
+    await manager.discardFailedMutation('second-failed');
     await vi.waitFor(async () => expect((await localOf(table)).data.status).toBe('scored'));
   });
 
@@ -92,33 +116,18 @@ describe('a refused or discarded queued UPDATE re-pulls its row (MYK9-1076)', ()
     expect((await localOf(table)).data.status).toBe('done');
   });
 
-  it('retries exhausted is not a refusal: the row keeps the edit', async () => {
-    const adapter = adapterFor(serverRow);
-    const table = new RepullingEntriesTable(tableName, adapter);
-    // A 5xx that is retryable, with a single allowed attempt, dead-letters as max-retries.
-    const client = refusingClient({ code: '500', message: 'upstream unavailable' });
-    manager = startStaleRowManager(table, client, { maxRetries: 1 }).manager;
-    await seedStaleWrite(table);
-    await manager.uploadPendingMutations();
-
-    const [failed] = await manager.getFailedMutations();
-    expect(failed?.failureKind).toBe('max-retries');
-    await Promise.resolve();
-    expect(adapter.fetchRowsById).not.toHaveBeenCalled();
-    expect((await localOf(table)).data.status).toBe('done');
-  });
-
-  it('Retry after the re-pull carries the row’s current token, not the stale one', async () => {
+  it('Retry is unchanged: the failed write keeps its own token and payload', async () => {
     const adapter = adapterFor(serverRow);
     const table = new RepullingEntriesTable(tableName, adapter);
     await refuseWith(table, RLS_DENIAL);
-    await vi.waitFor(async () => expect((await localOf(table)).serverVersion).toBe(8));
     const [failed] = await manager.getFailedMutations();
-    expect(failed?.serverVersion).toBe(3);
 
     await manager.retryFailedMutation(failed!.id);
 
-    expect((await pendingFor(tableName))[0]?.serverVersion).toBe(8);
+    const [requeued] = await pendingFor(tableName);
+    expect(requeued?.serverVersion).toBe(3);
+    expect(requeued?.data).toEqual(failed?.data);
+    expect(adapter.fetchRowsById).not.toHaveBeenCalled();
   });
 
   it('an offline discard neither throws nor wedges the queue', async () => {

@@ -7,8 +7,8 @@
  * the queue stores, each row is replaced only when:
  *  - its local revision is unchanged: a new edit writes the row (bumping the
  *    revision) before it queues, so this also covers the write-then-queue gap;
- *  - no pending or offline-queue mutation names it (a failed one does not: that
- *    is the refused write itself, kept for the user's Retry or Discard);
+ *  - no pending, offline-queue or failed mutation names it: any of them is an
+ *    edit the user still holds, and the server copy would hide it;
  *  - the server copy is not older than the row's own OCC token.
  * Every await is an IndexedDB request on that transaction, so another tab cannot
  * slip an edit in between the checks and the write.
@@ -30,7 +30,13 @@ export interface RefusedRowReplacement<T> {
   remoteServerVersion?: number | undefined;
 }
 
-const QUEUE_STORES = [REPLICATION_STORES.PENDING_MUTATIONS, REPLICATION_STORES.OFFLINE_QUEUE];
+// A FAILED mutation holds the row too: it is an edit the user has not given up
+// yet (the discarded one is already gone from the failed store when this runs).
+const QUEUE_STORES = [
+  REPLICATION_STORES.PENDING_MUTATIONS,
+  REPLICATION_STORES.OFFLINE_QUEUE,
+  REPLICATION_STORES.FAILED_MUTATIONS,
+];
 
 /** @returns the ids that were replaced; the rest were skipped. */
 export async function replaceRefusedRows<T extends { id: string }>(

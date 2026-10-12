@@ -49,7 +49,7 @@ function mockServerRows(rows: Record<string, unknown>[]) {
   vi.mocked(supabase.from).mockReturnValue(chain as never);
 }
 
-describe('a refused or discarded dog edit is replaced by the server row (MYK9-1076)', () => {
+describe('a discarded failed dog edit is replaced by the server row (MYK9-1076)', () => {
   let table: ReplicatedDogsTable;
   let manager: MutationManager;
 
@@ -74,24 +74,20 @@ describe('a refused or discarded dog edit is replaced by the server row (MYK9-10
     await databaseManager.reset();
   });
 
-  it('shows the server value after the server permanently refuses the edit', async () => {
+  it("keeps showing the user's edit after the server permanently refuses it (until Retry or Discard)", async () => {
     mockServerRows([serverDog]);
     await table.updateDog(DOG_ID, { breed: 'Poodle' });
-    expect((await table.get(DOG_ID))?.breed).toBe('Poodle');
 
     await manager.uploadPendingMutations();
+    await Promise.resolve();
 
     expect(await manager.getFailedMutations()).toHaveLength(1);
-    await vi.waitFor(async () => expect((await table.get(DOG_ID))?.breed).toBe('Beagle'));
-    const row = await table.getReplicatedRow(DOG_ID);
-    expect(row?.isDirty).toBe(false);
-    expect(row?.serverVersion).toBe(4);
+    expect((await table.get(DOG_ID))?.breed).toBe('Poodle');
+    expect(vi.mocked(supabase.from)).not.toHaveBeenCalledWith('dogs');
   });
 
   it('shows the server value after the user discards the failed edit', async () => {
     await table.updateDog(DOG_ID, { breed: 'Poodle' });
-    // The refusal's own re-pull finds no server row, so only the discard can heal it.
-    mockServerRows([]);
     await manager.uploadPendingMutations();
     const [failed] = await manager.getFailedMutations();
     expect((await table.get(DOG_ID))?.breed).toBe('Poodle');
@@ -100,11 +96,13 @@ describe('a refused or discarded dog edit is replaced by the server row (MYK9-10
     await manager.discardFailedMutation(failed!.id);
 
     await vi.waitFor(async () => expect((await table.get(DOG_ID))?.breed).toBe('Beagle'));
+    const row = await table.getReplicatedRow(DOG_ID);
+    expect(row?.isDirty).toBe(false);
+    expect(row?.serverVersion).toBe(4);
   });
 
   it('keeps the edit and the queue intact when the device is offline at discard', async () => {
     await table.updateDog(DOG_ID, { breed: 'Poodle' });
-    mockServerRows([]);
     await manager.uploadPendingMutations();
     const [failed] = await manager.getFailedMutations();
     vi.mocked(supabase.from).mockImplementation(() => {

@@ -66,10 +66,8 @@ export class MutationManager {
       this.queueStore,
       () => this.backupStore.writeCurrent(),
       () => this.requireCurrentUploadContext(),
-      (tableName, rowId) => this.rowRefetchers.request(tableName, rowId),
-      (tableName, rowId) => this.rowRefetchers.requestRefusedRepull(tableName, rowId)
+      (tableName, rowId) => this.rowRefetchers.request(tableName, rowId)
     );
-    this.queueStore.repullsRefused = tableName => this.rowRefetchers.repullsRefused(tableName);
   }
 
   private async requireCurrentUserId(): Promise<string> {

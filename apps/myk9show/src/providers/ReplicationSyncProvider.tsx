@@ -11,6 +11,7 @@
  * Uses @myk9/replication package for offline-first data sync.
  */
 
+import { invalidateReplacedRows, type RowsReplacedDetail } from './rowsReplacedInvalidation';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNetworkStatus } from '@/hooks/useNetworkStatus';
@@ -606,6 +607,14 @@ export const ReplicationSyncProvider: React.FC<ReplicationSyncProviderProps> = (
     };
     window.addEventListener('replication:upload-complete', handleUploadComplete);
     return () => window.removeEventListener('replication:upload-complete', handleUploadComplete);
+  }, [queryClient]);
+
+  // A discarded failed edit re-pulls its row (MYK9-1076): refresh what shows it.
+  useEffect(() => {
+    const handleRowsReplaced = (event: Event) =>
+      invalidateReplacedRows(queryClient, (event as CustomEvent<RowsReplacedDetail>).detail);
+    window.addEventListener('replication:rows-replaced', handleRowsReplaced);
+    return () => window.removeEventListener('replication:rows-replaced', handleRowsReplaced);
   }, [queryClient]);
 
   // Surface mutation sync failures so silent RLS rejections, timeouts, and

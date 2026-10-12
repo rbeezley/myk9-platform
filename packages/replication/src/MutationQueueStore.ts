@@ -200,9 +200,6 @@ export class MutationQueueStore {
     return db.count(REPLICATION_STORES.FAILED_MUTATIONS);
   }
 
-  /** Set by MutationManager: does the table re-pull refused rows (MYK9-1076)? */
-  repullsRefused: (tableName: string) => boolean = () => false;
-
   async retryFailedMutation(
     mutationId: string,
     authUserId: string,
@@ -226,18 +223,6 @@ export class MutationQueueStore {
     delete requeued.failureKind;
     delete requeued.nextRetryAt;
     delete requeued.failedAt;
-
-    // MYK9-1076: a table that re-pulls refused rows replaced the row, and its
-    // OCC token, after this write failed. Retrying on the old token would be
-    // rejected forever (the row is clean, so no sync or conflict ever moves it),
-    // so the retry carries the row's current token. The user chose to resend.
-    if (failed.serverVersion !== undefined && this.repullsRefused(failed.tableName)) {
-      const row = (await db.get(REPLICATION_STORES.REPLICATED_TABLES, [
-        failed.tableName,
-        String(failed.rowId),
-      ])) as { serverVersion?: number } | undefined;
-      if (row?.serverVersion !== undefined) requeued.serverVersion = row.serverVersion;
-    }
 
     await confirmOwner();
     const tx = db.transaction(

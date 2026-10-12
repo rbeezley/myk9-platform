@@ -69,7 +69,7 @@ function renderProvider() {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   });
-  return render(
+  const rendered = render(
     <QueryClientProvider client={queryClient}>
       <NetworkStatusContext.Provider
         value={{
@@ -85,6 +85,7 @@ function renderProvider() {
       </NetworkStatusContext.Provider>
     </QueryClientProvider>
   );
+  return { ...rendered, queryClient };
 }
 
 function dispatchSyncFailed() {
@@ -326,5 +327,32 @@ describe('ReplicationSyncProvider — replication:sync-failed listener', () => {
     });
 
     expect(toast.error).not.toHaveBeenCalled();
+  });
+});
+
+describe('ReplicationSyncProvider — replication:rows-replaced listener (MYK9-1076)', () => {
+  it('refreshes the dog queries a discarded edit re-pull replaced, and only those', () => {
+    const { queryClient } = renderProvider();
+    const keys = {
+      list: ['dogs', 'person-1', 'scope'],
+      one: ['dogs', 'dog-1'],
+      owned: ['users', 'person-1', 'dogs'],
+      other: ['entries'],
+    };
+    for (const key of Object.values(keys)) queryClient.setQueryData(key, []);
+
+    act(() => {
+      window.dispatchEvent(
+        new CustomEvent('replication:rows-replaced', {
+          detail: { tableName: 'dogs', rowIds: ['dog-1'] },
+        })
+      );
+    });
+
+    const invalidated = (key: string[]) => queryClient.getQueryState(key)?.isInvalidated;
+    expect(invalidated(keys.list)).toBe(true);
+    expect(invalidated(keys.one)).toBe(true);
+    expect(invalidated(keys.owned)).toBe(true);
+    expect(invalidated(keys.other)).toBe(false);
   });
 });

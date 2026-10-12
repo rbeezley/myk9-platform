@@ -67,11 +67,6 @@ export class RowRefetchRegistry {
     };
   }
 
-  /** True when the table opted in to re-pulling rows whose edit was refused (MYK9-1076). */
-  repullsRefused(tableName: string): boolean {
-    return this.refusedRepulls.has(tableName);
-  }
-
   /**
    * Queue a re-pull of one row whose queued edit was permanently refused or
    * discarded (MYK9-1076). Same contract as {@link request}: deferred past the

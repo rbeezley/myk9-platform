@@ -195,7 +195,17 @@ export abstract class ReplicatedTable<T extends { id: string }> {
   /** Atomically replace rows with the server's copy (see replaceRefusedRows). */
   async replaceRefusedRows(entries: readonly RefusedRowReplacement<T>[]): Promise<string[]> {
     const replaced = await replaceRefusedRows(await this.init(), this.tableName, entries);
-    if (replaced.length > 0) this.notifyListeners();
+    if (replaced.length > 0) {
+      this.notifyListeners();
+      // Consumers that cache this table (React Query) do not subscribe to it.
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+          new CustomEvent('replication:rows-replaced', {
+            detail: { tableName: this.tableName, rowIds: replaced },
+          })
+        );
+      }
+    }
     return replaced;
   }
 

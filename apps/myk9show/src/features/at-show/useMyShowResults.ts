@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEntriesPersonId } from '@/hooks/useEntriesPersonId';
 import { getUserEntries } from '@/services/database/entries';
-import { replicatedEntriesTable } from '@/services/replication';
+import { replicatedClassesTable, replicatedEntriesTable } from '@/services/replication';
 import { NO_OWN_RESULTS, type OwnShowResult } from './myAtShowEntryDetails.helpers';
 
 type OwnRow = {
@@ -27,12 +27,17 @@ export function useMyShowResults(showId: string | undefined): ReadonlyMap<string
   const queryClient = useQueryClient();
   const queryKey = useMemo(() => ['at-show', 'my-results', personId, showId], [personId, showId]);
 
-  // A judge's score lands in the replica first; re-read so the row follows it.
+  // Re-read when a judge's score lands (entries) or a secretary releases or
+  // unreleases a class (classes), so the row follows both.
   useEffect(() => {
     if (!showId || !personId) return;
-    return replicatedEntriesTable.subscribe(() => {
-      void queryClient.invalidateQueries({ queryKey });
-    });
+    const refresh = () => void queryClient.invalidateQueries({ queryKey });
+    const unsubscribeEntries = replicatedEntriesTable.subscribe(refresh);
+    const unsubscribeClasses = replicatedClassesTable.subscribe(refresh, { emitCurrent: false });
+    return () => {
+      unsubscribeEntries();
+      unsubscribeClasses();
+    };
   }, [queryClient, queryKey, showId, personId]);
 
   const { data } = useQuery({

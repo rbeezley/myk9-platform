@@ -121,6 +121,18 @@ describe('buildMyAtShowEntryDetails', () => {
     ).toMatchObject({ resultStatus: 'qualified', resultTimeSeconds: 58, isPreliminary: true });
   });
 
+  it("trusts the own read's unreleased state over a stale class release time", () => {
+    expect(
+      buildMyAtShowEntryDetails(
+        [ownScored],
+        new Set(['scored-1']),
+        classAt('2026-10-06T15:00:00Z'),
+        noTrials,
+        ownResult(null)
+      )[0]
+    ).toMatchObject({ resultStatus: 'qualified', isPreliminary: true });
+  });
+
   it('never reads a result from the raw show replica', () => {
     const unmaskedReplicaRow: ReplicatedEntry = {
       ...ownScored,

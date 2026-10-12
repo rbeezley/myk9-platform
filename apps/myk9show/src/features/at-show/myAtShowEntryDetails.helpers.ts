@@ -168,7 +168,9 @@ export function buildMyAtShowEntryDetails(
     const hasVisibleResult = own?.isScored === true && status != null && status !== 'pending';
     const seconds = own?.searchTimeSeconds;
     const { isPreliminary } = deriveResultReleaseDisplay({
-      resultsReleasedAt: own?.resultsReleasedAt ?? classSummary?.resultsReleasedAt,
+      // The own read is authoritative: a stale class replica must never turn
+      // an unreleased result final.
+      resultsReleasedAt: own?.resultsReleasedAt ?? null,
       resultStatus: status,
       finalPlacement: null,
     });

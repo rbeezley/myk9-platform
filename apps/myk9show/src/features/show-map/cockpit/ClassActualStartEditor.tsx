@@ -14,19 +14,30 @@ import { TimeOfDayInput } from '@/components/common/TimeOfDayInput';
 import { clockOnDateToIso } from '@/components/trials/trialDateTime';
 import { replicatedClassesTable } from '@/services/replication';
 
-export function ClassActualStartEditor({
-  classId,
-  className,
-  trialDate,
-  timeZone,
-  hasStart,
-}: {
+interface ClassActualStartEditorProps {
   classId: string;
   className: string;
   trialDate: string;
   timeZone: string;
   hasStart: boolean;
-}) {
+}
+
+/**
+ * Keyed by class so the focused-class panel, which reuses one instance as the
+ * secretary moves between classes, never carries a draft or an error from one
+ * class onto the next.
+ */
+export function ClassActualStartEditor(props: ClassActualStartEditorProps) {
+  return <ClassActualStartEditorForm key={props.classId} {...props} />;
+}
+
+function ClassActualStartEditorForm({
+  classId,
+  className,
+  trialDate,
+  timeZone,
+  hasStart,
+}: ClassActualStartEditorProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -54,6 +65,7 @@ export function ClassActualStartEditor({
           variant="ghost"
           size="sm"
           className="h-8 px-2 text-xs"
+          disabled={saving}
           onClick={() => {
             setError(null);
             setEditing(true);

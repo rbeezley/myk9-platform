@@ -290,6 +290,7 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
     loadedClassId,
     loadedEntryId,
     retry,
+    reload,
     submit,
     isSyncing,
     hasSyncError,
@@ -298,11 +299,13 @@ const ScoresheetContent: React.FC<ScoresheetContentProps> = ({
   } = useAtShowScoresheet({ showId, classId, entryId, onScored: handleScored });
   const handleCorrectScore = useCallback(() => {
     setSavedEntryId(null);
-    // The route is already the scored entry, so navigating to the same URL is
-    // a no-op in React Router. Explicitly rehydrate the replicated row so the
-    // correction sheet reflects the just-saved score rather than stale state.
-    retry();
-  }, [retry]);
+    // Same URL is a no-op in React Router, so re-read the row instead.
+    // INTENT: the optimistic save already wrote that score to the local
+    // replica, so this reads it from the device and never waits on the venue
+    // network. A forced foreground sync here held a judge on the skeleton for
+    // 10-40 s offline (MYK9-1106); the error screen's Retry still forces one.
+    reload();
+  }, [reload]);
   // Requests persistent storage on entering the scoring surface; may surface an
   // iOS "Add to Home Screen" nudge when durable storage isn't granted.
   const { showAddToHomeNudge, nudgeReason, installInstructions, dismissNudge } =

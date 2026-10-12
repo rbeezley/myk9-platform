@@ -4,7 +4,7 @@ import { render } from '@/test/utils/testUtils';
 import { UserRole } from '@/types/auth-types';
 import { useUserStore } from '@/store/userStore';
 import { resetQuickCreateMocks } from '@/test/quickCreate/quickCreateFlowMocks';
-import { dialogs, panel } from '@/test/quickCreate/quickCreateFlowKit';
+import { dialogs, JOURNEY_TIMEOUT_MS, panel } from '@/test/quickCreate/quickCreateFlowKit';
 import { DogSelectionStepEnhanced } from './DogSelectionStepEnhanced';
 
 // MYK9-1081: the wizard's "Add Person & Dog(s)" opens ONE slide-out with the
@@ -39,7 +39,7 @@ beforeEach(() => {
   useUserStore.setState({ people: [], users: [] });
 });
 
-describe('DogSelectionStepEnhanced Add Person & Dog(s)', () => {
+describe('DogSelectionStepEnhanced Add Person & Dog(s)', { timeout: JOURNEY_TIMEOUT_MS }, () => {
   it('opens one slide-out with the Person form inside it', async () => {
     const { user } = render(
       <DogSelectionStepEnhanced selectedDogs={[]} onSelectionChange={vi.fn()} />

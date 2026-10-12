@@ -84,7 +84,6 @@ vi.mock('@/components/panels/edit/ClassEditPanel', async () => {
         initialData={{}}
         onSave={async () => undefined}
         onDelete={onDelete}
-        variant="dialog"
       >
         <button
           type="button"

@@ -63,7 +63,7 @@ describe('QuickAdvancePanel score save state (MYK9-1023)', () => {
     renderPanel();
 
     expect(
-      await screen.findByText(/Saved on this device.*will send when you.re back online/i)
+      await screen.findByText("Saved on this device. It will send when you're back online.")
     ).toBeInTheDocument();
     expect(screen.queryByText('Score saved')).not.toBeInTheDocument();
   });

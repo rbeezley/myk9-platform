@@ -50,7 +50,7 @@ const deleteOption = (extra: Partial<EditPanelDeleteOption> = {}): EditPanelDele
   ...extra,
 });
 
-function renderPanel(extra: Record<string, unknown> = {}, variant: 'panel' | 'dialog' = 'dialog') {
+function renderPanel(extra: Record<string, unknown> = {}, variant: 'panel' | 'inline' = 'panel') {
   const onClose = vi.fn();
   render(
     <EditPanelWrapper
@@ -69,7 +69,7 @@ function renderPanel(extra: Record<string, unknown> = {}, variant: 'panel' | 'di
   return { onClose };
 }
 
-describe.each(['dialog', 'panel'] as const)('EditPanelWrapper delete footer (%s)', variant => {
+describe.each(['panel', 'inline'] as const)('EditPanelWrapper delete footer (%s)', variant => {
   it('renders Delete ‹object› as the first thing in the footer row', () => {
     renderPanel({ onDelete: deleteOption() }, variant);
     const row = screen.getByTestId('edit-panel-action-row');

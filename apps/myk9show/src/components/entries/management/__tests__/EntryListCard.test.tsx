@@ -381,3 +381,48 @@ describe('EntryListCard - check-in button affordance', () => {
     expect(screen.queryByText('Payment record not loaded')).not.toBeInTheDocument();
   });
 });
+
+describe('EntryListCard - class rows name their trial and day (MYK9-1107)', () => {
+  it('tells apart the same class on two days, in the row text and the status chip name', () => {
+    render(
+      <EntryListCard
+        {...defaultProps}
+        entries={[
+          makeEntry({
+            classes: [
+              makeClass({
+                id: 'cls-mon',
+                name: 'Container Novice A',
+                trialDate: '2026-10-12',
+                trialNumber: '7',
+              }),
+              makeClass({
+                id: 'cls-tue',
+                name: 'Container Novice A',
+                trialDate: '2026-10-13',
+                trialNumber: '8',
+              }),
+            ],
+          }),
+        ]}
+      />
+    );
+
+    expect(screen.getByText('Mon, Oct 12 · Trial 7')).toBeInTheDocument();
+    expect(screen.getByText('Tue, Oct 13 · Trial 8')).toBeInTheDocument();
+
+    const chips = screen.getAllByRole('button', {
+      name: /change entry status for Fido in Container Novice A/i,
+    });
+    expect(chips).toHaveLength(2);
+    expect(chips[0]).toHaveAccessibleName(/Mon, Oct 12 · Trial 7/);
+    expect(chips[1]).toHaveAccessibleName(/Tue, Oct 13 · Trial 8/);
+  });
+
+  it('falls back to the bare class name when the trial is unknown', () => {
+    render(<EntryListCard {...defaultProps} entries={[makeEntry()]} />);
+    const chip = screen.getByRole('button', { name: /change entry status for Fido in Novice A/i });
+    expect(chip.getAttribute('aria-label')).not.toMatch(/undefined|Invalid|null/);
+    expect(chip.getAttribute('aria-label')).toMatch(/in Novice A$/);
+  });
+});

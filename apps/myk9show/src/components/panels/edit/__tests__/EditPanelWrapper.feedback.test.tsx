@@ -45,7 +45,6 @@ function renderPanel(
       initialData={{ name: 'Rex' }}
       schema={schema}
       onSave={onSave}
-      variant="dialog"
       {...extra}
     >
       <Fields />

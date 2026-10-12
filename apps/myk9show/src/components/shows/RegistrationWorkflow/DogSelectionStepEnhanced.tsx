@@ -151,6 +151,9 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
   const [showQuickCreateFlow, setShowQuickCreateFlow] = useState(false);
   const [showExhibitorDialog, setShowExhibitorDialog] = useState(false);
   const [showDogDialog, setShowDogDialog] = useState(false);
+  // Add Person Only hands over to Add Dog for that person once its slide-out has
+  // left the screen, so the two never show at once (MYK9-1081).
+  const addDogAfterPersonRef = useRef(false);
   const [createdExhibitorId, setCreatedExhibitorId] = useState<string | undefined>(undefined);
   const [createdExhibitorMutationIds, setCreatedExhibitorMutationIds] = useState<string[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -301,6 +304,12 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
     createdInSession?.recordOwnerCreated(exhibitor);
     setCreatedExhibitorId(exhibitor.id);
     setCreatedExhibitorMutationIds(metadata?.pendingMutationIds ?? []);
+    addDogAfterPersonRef.current = true;
+  };
+
+  const handleExhibitorPanelExited = () => {
+    if (!addDogAfterPersonRef.current) return;
+    addDogAfterPersonRef.current = false;
     setShowDogDialog(true);
   };
 
@@ -398,6 +407,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
         open={showExhibitorDialog}
         onOpenChange={setShowExhibitorDialog}
         onExhibitorCreated={handleExhibitorCreated}
+        onExited={handleExhibitorPanelExited}
         searchQuery={searchQuery}
         offlineFirst={offlineFirst}
         createdFromShowId={createdFromShowId}
@@ -409,7 +419,6 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
         userRole={getPrimaryRole(roles)}
         onClose={() => setShowDogDialog(false)}
         onDogCreated={handleDogCreated}
-        variant="dialog"
         offlineFirst={offlineFirst}
         currentUserPersonId={createdExhibitorId}
         offlineDependsOn={createdExhibitorMutationIds}

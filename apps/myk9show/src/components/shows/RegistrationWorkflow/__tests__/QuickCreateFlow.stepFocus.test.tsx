@@ -12,7 +12,12 @@ import {
   quickCreateMocks as mocks,
   resetQuickCreateMocks,
 } from '@/test/quickCreate/quickCreateFlowMocks';
-import { addPersonThroughForm, fillDogBasics, panel } from '@/test/quickCreate/quickCreateFlowKit';
+import {
+  addPersonThroughForm,
+  fillDogBasics,
+  JOURNEY_TIMEOUT_MS,
+  panel,
+} from '@/test/quickCreate/quickCreateFlowKit';
 
 vi.mock('@/hooks/useRBAC', () => ({ useRBAC: () => ({ hasPermission: () => false }) }));
 vi.mock('@/hooks/usePeopleQuery', () => ({
@@ -71,7 +76,7 @@ function expectFocusInPanelOn(element: HTMLElement) {
   expect(element).toHaveFocus();
 }
 
-describe('focus on step changes within the step screens', () => {
+describe('focus on step changes within the step screens', { timeout: JOURNEY_TIMEOUT_MS }, () => {
   it('footer Back from Dogs to Person lands on Edit Details', async () => {
     const { user } = renderFlow();
     await addPersonThroughForm(user);
@@ -105,7 +110,7 @@ describe('focus on step changes within the step screens', () => {
   });
 });
 
-describe('focus after removing a dog', () => {
+describe('focus after removing a dog', { timeout: JOURNEY_TIMEOUT_MS }, () => {
   it('removing the only dog lands on Add First Dog', async () => {
     const { user } = renderFlow();
     await addPersonThroughForm(user);

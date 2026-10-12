@@ -19,6 +19,8 @@ import { useEditPanel } from '@/components/panels/edit/useEditPanel';
 import { calculateAge } from './validation';
 import type { DogFormData } from './types';
 import { DobYoungDogWarning } from '../DobYoungDogWarning';
+import { tabCardClasses } from './tabCard';
+import { cn } from '@/lib/utils';
 
 /**
  * First Unicode code point of a string, uppercased. `Array.from` iterates by
@@ -41,6 +43,8 @@ interface BasicInfoTabProps {
   onAddRegistration: () => void;
   /** False inline (MYK9-1081, D4): the photo dialog would stack on the host panel. */
   showPhoto?: boolean | undefined;
+  /** Inline: no card chrome of its own (see `tabCardClasses`). */
+  flat?: boolean | undefined;
 }
 
 export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
@@ -50,6 +54,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   onPhotoOpen,
   onAddRegistration,
   showPhoto = true,
+  flat = false,
 }) => {
   const { form } = useEditPanel<DogFormData>();
 
@@ -66,10 +71,16 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
   }, [people, ownerIdForMemo]);
 
   if (!form || !formData) return null;
+  const card = tabCardClasses(flat);
 
   return (
-    <Card className="group relative overflow-hidden border border-border/30 rounded-2xl transition-all duration-300 hover:shadow-md">
-      <CardHeader className="relative">
+    <Card
+      className={cn(
+        'group relative overflow-hidden border border-border/30 rounded-2xl transition-all duration-300 hover:shadow-md',
+        card.card
+      )}
+    >
+      <CardHeader className={cn('relative', card.header)}>
         <CardTitle className="flex items-center gap-3 text-lg font-semibold tracking-tight">
           <div className="p-2 bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl">
             <Heart className="h-5 w-5 text-primary" />
@@ -80,7 +91,7 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           Basic details to get started with your dog's profile
         </p>
       </CardHeader>
-      <CardContent className="space-y-8 relative">
+      <CardContent className={cn('space-y-8 relative', card.content)}>
         {userRole === UserRole.EXHIBITOR && formData.registrations.length === 0 && (
           <div className="rounded-xl border border-border bg-muted/30 p-4 space-y-3">
             <p className="text-sm text-foreground">
@@ -93,7 +104,13 @@ export const BasicInfoTab: React.FC<BasicInfoTabProps> = ({
           </div>
         )}
         {/* Photo Section */}
-        <div className="flex items-start gap-6 p-6 bg-gradient-to-r from-muted/20 via-muted/10 to-transparent border border-border/20 rounded-2xl backdrop-blur-sm">
+        <div
+          className={
+            flat
+              ? 'flex items-start'
+              : 'flex items-start gap-6 p-6 bg-gradient-to-r from-muted/20 via-muted/10 to-transparent border border-border/20 rounded-2xl backdrop-blur-sm'
+          }
+        >
           {showPhoto && (
             <button
               type="button"

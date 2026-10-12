@@ -282,7 +282,7 @@ export const QuickAdvancePanel: React.FC<QuickAdvancePanelProps> = ({
               ? 'Saved on this device. Sync needs attention.'
               : online
                 ? 'Saved on this device · waiting to sync'
-                : "Saved on this device — will send when you're back online"}
+                : "Saved on this device. It will send when you're back online."}
         </div>
 
         <Button className="mt-5 h-12 w-full text-base" onClick={onBackToList}>

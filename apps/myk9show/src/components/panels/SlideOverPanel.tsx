@@ -27,11 +27,29 @@ export interface SlideOverPanelProps {
   headerActions?: React.ReactNode;
   footer?: React.ReactNode;
   preventClose?: boolean;
+  /**
+   * Fires once the panel has finished closing and left the DOM, after focus has
+   * gone back to its opener. A caller that opens another slide-out as this one
+   * closes waits for it, so only one slide-out is ever on screen.
+   */
+  onExited?: () => void;
 }
 
 // Matches the `duration-300` slide/fade classes below; the panel stays mounted
 // for this long after `open` goes false.
 const PANEL_ANIMATION_MS = 300;
+
+/**
+ * True when `el` is on the page BEHIND this panel: inside the same top-level
+ * tree as the panel's overlay (which is not portaled), but outside the overlay.
+ * A portaled popup lives in its own child of <body>, so it is never "behind".
+ */
+function isBehindPanel(el: Element | null, overlay: Element | null | undefined): boolean {
+  if (!el || !overlay || el === document.body || overlay.contains(el)) return false;
+  let root: Element = overlay;
+  while (root.parentElement && root.parentElement !== document.body) root = root.parentElement;
+  return root.contains(el);
+}
 
 const sizeClasses = {
   sm: 'max-w-md w-full md:max-w-md',
@@ -77,6 +95,7 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
   headerActions,
   footer,
   preventClose = false,
+  onExited,
 }) => {
   const panelRef = useRef<HTMLDivElement>(null);
   const actionBarRef = useRegisterActionBar<HTMLDivElement>();
@@ -137,8 +156,17 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
     }, 0);
   }, []);
 
+  // Latest `onExited`, read when the exit lands: an inline callback must not
+  // re-run (and so cancel) the effect that schedules it.
+  const onExitedRef = useRef(onExited);
+  useEffect(() => {
+    onExitedRef.current = onExited;
+  });
+  const exitPendingRef = useRef(false);
+
   useEffect(() => {
     if (open) {
+      exitPendingRef.current = true;
       returnFocusRef.current = document.activeElement as HTMLElement | null;
       // Some callers remount the panel subtree on open/close (AddDogPanel keys
       // on `open`), destroying this instance before the closed branch below
@@ -150,8 +178,14 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
     // (`!open && !isAnimating` is what renders null below) rather than a delay
     // racing the close animation: until then the focused control inside the
     // panel is still mounted, and taking focus from it would be wrong.
-    if (!isAnimating) returnFocus();
-    return;
+    if (isAnimating) return;
+    returnFocus();
+    if (!exitPendingRef.current) return;
+    exitPendingRef.current = false;
+    // Queued after returnFocus's tick, so a panel opened from here records the
+    // opener as its own return target rather than <body>.
+    const exited = setTimeout(() => onExitedRef.current?.(), 0);
+    return () => clearTimeout(exited);
   }, [open, isAnimating, returnFocus]);
 
   // Handle focus management and cleanup animations
@@ -160,9 +194,20 @@ export const SlideOverPanel: React.FC<SlideOverPanelProps> = ({
       // Focus management - focus the panel container first, then first input
       const activeElementAtOpen = openFocusBaselineRef.current;
       const timer = setTimeout(() => {
-        // Respect focus changes made anywhere in the document, including
-        // controls rendered in a portal outside the panel subtree.
-        if (document.activeElement !== activeElementAtOpen) return;
+        const active = document.activeElement;
+        const overlay = panelRef.current?.parentElement;
+        // Focus on the page behind this modal panel is never a choice the user
+        // made: a menu that opened the panel hands focus back to its trigger as
+        // it closes (MYK9-1081). That trigger, not the vanished menu item, is
+        // where focus goes back on close.
+        const behind = isBehindPanel(active, overlay);
+        const opener = returnFocusRef.current;
+        if (behind && (!opener || !opener.isConnected || opener === document.body)) {
+          returnFocusRef.current = active as HTMLElement;
+        }
+        // Otherwise respect a focus change made since opening: into the panel,
+        // or into a control rendered in a portal outside the panel subtree.
+        if (active !== activeElementAtOpen && active !== document.body && !behind) return;
 
         if (panelRef.current) {
           // Focus the first focusable element in the panel

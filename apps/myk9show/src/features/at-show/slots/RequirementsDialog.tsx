@@ -73,7 +73,8 @@ export const ClassRequirementsDialog: React.FC<ClassRequirementsDialogProps> = (
           </DialogTitle>
         </DialogHeader>
         <p>
-          {classData.element} {classData.level} · {classData.entry_count} entries
+          {classData.element} {classData.level} · {classData.entry_count}{' '}
+          {classData.entry_count === 1 ? 'entry' : 'entries'}
         </p>
         {loading ? (
           <p className="text-sm text-muted-foreground">Loading requirements…</p>

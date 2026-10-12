@@ -151,7 +151,7 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
   }) => {
     test.setTimeout(300_000);
     // A second net behind the DATA_REQUIRED skip: nothing here may reach shared staging.
-    await installSharedStagingWriteGuard(page);
+    await installSharedStagingWriteGuard(page, { strictRpcWrites: true });
     // The system print dialog is not testable; stub it in every frame (the report prints from an
     // iframe) so a headed run never stops on it. The app's own "Print dialog opened." toast and
     // the recorded print are what this spec asserts.

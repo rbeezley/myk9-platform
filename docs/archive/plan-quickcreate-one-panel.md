@@ -1,6 +1,8 @@
 # QuickCreateFlow: one slide-out hosting Add Person, Add Dog(s) and Review inline
 
-> **Status:** Active
+> **Status:** Complete
+>
+> Completed 2026-10-12: PR A [#2915](https://github.com/rbeezley/myk9-platform/pull/2915), test fix [#2917](https://github.com/rbeezley/myk9-platform/pull/2917), PR B [#2920](https://github.com/rbeezley/myk9-platform/pull/2920). Follow-ups F1–F9 are filed or reconciled on MYK9-1081 (MYK9-1116..1121, 1111, 1112; F7 done in #2915).
 
 **Linear:** [MYK9-1081](https://linear.app/myk9-platform/issue/MYK9-1081) · **Date:** 2026-10-11 · **Owner decision 2026-10-09:** option (a), ONE right slide-out hosting all three steps inline · **Precedents:** MYK9-1088 (#2898, Message Center compose mode), MYK9-1089 (#2906, `EditPanelWrapper` `variant: 'inline'` and the Manage Registrations modes) · **Related ledger:** MYK9-1085 (overlay-stack audit)
 

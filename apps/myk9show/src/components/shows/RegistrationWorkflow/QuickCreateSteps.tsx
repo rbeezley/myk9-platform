@@ -20,6 +20,7 @@ interface QuickCreateStepsProps {
   flowState: QuickCreateFlowState;
   mode: 'single' | 'batch';
   onOpenPersonForm: () => void;
+  onEditPerson: () => void;
   onOpenDogForm: () => void;
   onEditDog: (index: number) => void;
   onRemoveDog: (index: number) => void;
@@ -30,6 +31,7 @@ export const QuickCreateSteps: React.FC<QuickCreateStepsProps> = ({
   flowState,
   mode,
   onOpenPersonForm,
+  onEditPerson,
   onOpenDogForm,
   onEditDog,
   onRemoveDog,
@@ -84,7 +86,7 @@ export const QuickCreateSteps: React.FC<QuickCreateStepsProps> = ({
                 variant="outline"
                 size="sm"
                 className="mt-2"
-                onClick={onOpenPersonForm}
+                onClick={onEditPerson}
                 {...ENTRY}
               >
                 Edit Details

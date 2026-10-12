@@ -68,12 +68,12 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
     setView('dog-form');
   };
 
-  const handleExhibitorCreated = (
+  // The person the flow continues with, whether just created or chosen from the
+  // duplicate prompt; only a created one is recorded below.
+  const continueWithExhibitor = (
     exhibitor: User,
     metadata?: { pendingMutationIds?: string[] | undefined }
   ) => {
-    // Saved the moment the form saves, even if the flow is closed before it completes.
-    createdInSession?.recordOwnerCreated(exhibitor);
     setFlowState(prev => ({
       ...prev,
       exhibitor,
@@ -81,6 +81,15 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
       step: 'dogs',
     }));
     setView('steps');
+  };
+
+  const handleExhibitorCreated = (
+    exhibitor: User,
+    metadata?: { pendingMutationIds?: string[] | undefined }
+  ) => {
+    // Saved the moment the form saves, even if the flow is closed before it completes.
+    createdInSession?.recordOwnerCreated(exhibitor);
+    continueWithExhibitor(exhibitor, metadata);
   };
 
   const handleDogCreated = (dog: Dog, options?: { existing?: boolean }) => {
@@ -201,6 +210,7 @@ export const QuickCreateFlow: React.FC<QuickCreateFlowProps> = ({
               closeRequestRef={closeFormRef}
               onOpenChange={isOpen => !isOpen && showSteps()}
               onExhibitorCreated={handleExhibitorCreated}
+              onDuplicateSelected={continueWithExhibitor}
               searchQuery={searchQuery}
               offlineFirst={offlineFirst}
               createdFromShowId={createdFromShowId}

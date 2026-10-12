@@ -296,15 +296,24 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
     onSelectionChange([...selectedDogs, ...newDogIds]);
   };
 
+  // The person Add Dog continues with, whether just created or chosen from the
+  // duplicate prompt; only a created one is recorded below.
+  const continueWithExhibitor = (
+    exhibitor: User,
+    metadata?: { pendingMutationIds?: string[] | undefined }
+  ) => {
+    setCreatedExhibitorId(exhibitor.id);
+    setCreatedExhibitorMutationIds(metadata?.pendingMutationIds ?? []);
+    addDogAfterPersonRef.current = true;
+  };
+
   const handleExhibitorCreated = (
     exhibitor: User,
     metadata?: { pendingMutationIds?: string[] | undefined }
   ) => {
     logger.debug('Exhibitor created:', 'shows', { data: exhibitor });
     createdInSession?.recordOwnerCreated(exhibitor);
-    setCreatedExhibitorId(exhibitor.id);
-    setCreatedExhibitorMutationIds(metadata?.pendingMutationIds ?? []);
-    addDogAfterPersonRef.current = true;
+    continueWithExhibitor(exhibitor, metadata);
   };
 
   const handleExhibitorPanelExited = () => {
@@ -407,6 +416,7 @@ export const DogSelectionStepEnhanced: React.FC<DogSelectionStepProps> = ({
         open={showExhibitorDialog}
         onOpenChange={setShowExhibitorDialog}
         onExhibitorCreated={handleExhibitorCreated}
+        onDuplicateSelected={continueWithExhibitor}
         onExited={handleExhibitorPanelExited}
         searchQuery={searchQuery}
         offlineFirst={offlineFirst}

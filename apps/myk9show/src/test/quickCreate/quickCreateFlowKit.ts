@@ -46,7 +46,8 @@ export async function chooseOption(user: User, trigger: HTMLElement, option: Reg
   await user.click(trigger);
   const choice = await screen.findByRole('option', { name: option });
   await user.click(choice);
-  // Closed = the chosen option is hidden (Base UI keeps it mounted). Watch that
+  // Closed = the chosen option is hidden (Base UI keeps the popup mounted via
+  // forceMount; if that ever changes this times out loudly). Watch that
   // one node: once AKC is chosen the breed picker mounts ~300 options, and
   // re-running a screen-wide ByRole query over them took 2-3s per close under
   // coverage. Not "no listbox" either: the breed list is one, and stays open.

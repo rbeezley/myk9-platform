@@ -115,24 +115,6 @@ async function scoreFromPaper(page: Page, resultsUrl: string, classId: string) {
   await expect(page.getByText('2 of 2 scored').first()).toBeVisible({ timeout: 20_000 });
 }
 
-/** Mark the class Complete from the Overview's focused-class panel (the only place that owns it). */
-async function markClassComplete(page: Page) {
-  const focused = page.locator('aside').filter({ hasText: 'Focused Class' });
-  await expect(focused).toBeVisible({ timeout: 20_000 });
-  await focused.getByRole('button', { name: /Change class status/ }).click();
-  await page.getByRole('menuitem', { name: 'Complete', exact: true }).click();
-
-  const changed = page.getByText('Class status changed to Complete.');
-  const warning = page
-    .locator('[role="dialog"], [role="alertdialog"]')
-    .filter({ hasText: 'Mark this Class complete?' });
-  await expect(changed.or(warning).first()).toBeVisible({ timeout: 15_000 });
-  if (await warning.isVisible()) {
-    await warning.getByRole('button', { name: 'Mark complete' }).click();
-  }
-  await expect(changed).toBeVisible({ timeout: 15_000 });
-}
-
 /** Rows of the "Then" list: one paperwork row per report, found by its label. */
 function paperworkRow(detail: Locator, label: string): Locator {
   return detail.locator('li').filter({ hasText: label }).last();
@@ -181,17 +163,16 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
       await scoreFromPaper(page, resultsUrl, classId);
     });
 
-    await test.step('3. open the class on Results (complete it first if needed)', async () => {
-      await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
-      // A scored class that is not Complete sends the secretary to Overview to complete it;
-      // Results never completes a class itself.
-      const completeFirst = detail.getByRole('link', { name: /Mark Class Complete on Overview/ });
-      await expect(verifyButton.or(completeFirst).first()).toBeVisible({ timeout: 30_000 });
-      if (await completeFirst.isVisible()) {
-        await completeFirst.click();
-        await markClassComplete(page);
+    await test.step('3. open the class on Results once the server has completed it', async () => {
+      // Scoring the last dog completes the class on the server (refresh_class_scoring_state; every
+      // fixture class is status_source 'derived'). Until that reaches this device the detail reads
+      // "Mark Class Complete on Overview", and completing it by hand from the stale row collides
+      // with the server's own completion ("This record was changed elsewhere"), which leaves the
+      // class row unsynced. So wait for the sync; each load re-reads the show's classes.
+      await expect(async () => {
         await page.goto(resultsUrl, { waitUntil: 'domcontentloaded' });
-      }
+        await expect(verifyButton).toBeVisible({ timeout: 10_000 });
+      }).toPass({ timeout: 90_000 });
     });
 
     await test.step('4. tick every dog against the paper and verify', async () => {

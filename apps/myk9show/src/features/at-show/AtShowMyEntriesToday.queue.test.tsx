@@ -41,6 +41,8 @@ function entry(overrides: Partial<AtShowEntryDetail>): AtShowEntryDetail {
     isScored: false,
     resultStatus: null,
     resultTimeSeconds: null,
+    resultFaults: null,
+    isPreliminary: false,
     selfCheckinState: 'allowed',
     trialLabel: null,
     trialTimezone: 'America/Chicago',

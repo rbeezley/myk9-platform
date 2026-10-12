@@ -102,13 +102,25 @@ export function MyEntryRow({
           </div>
         )}
         {detail.resultStatus && (
-          <div className="mt-1 flex items-center gap-2 text-sm" role="group" aria-label="Result">
+          <div
+            className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm"
+            role="group"
+            aria-label="Result"
+          >
             <ResultBadge resultStatus={detail.resultStatus} />
             {detail.resultTimeSeconds != null && (
               <span className="tabular-nums text-muted-foreground">
                 {detail.resultTimeSeconds.toFixed(1)}s
               </span>
             )}
+            {detail.resultStatus === 'qualified' &&
+              detail.resultFaults != null &&
+              detail.resultFaults > 0 && (
+                <span className="font-semibold text-warning">
+                  {detail.resultFaults === 1 ? '1 fault' : `${detail.resultFaults} faults`}
+                </span>
+              )}
+            {detail.isPreliminary && <span className="text-muted-foreground">preliminary</span>}
           </div>
         )}
         {action.kind === 'self-checkin-disabled' && (

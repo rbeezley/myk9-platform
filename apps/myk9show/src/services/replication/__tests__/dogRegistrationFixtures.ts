@@ -58,6 +58,8 @@ export interface RegistrationsServer {
   idPages: Array<Array<{ id: string }> | Error>;
   /** Rows the server holds, answered to `.in('id' | 'dog_id', …)` reads. */
   rows: DogRegistrationRow[];
+  /** Called as each changes-pass page is answered. */
+  onChangePage?: () => Promise<void>;
   /** Called as each ID page is answered (to simulate a write mid-pass). */
   onIdPage?: (index: number) => Promise<void>;
   /** Every select list and filter the code sent. */
@@ -86,6 +88,7 @@ export function installRegistrationsServer(server: RegistrationsServer): void {
       order: chain('order'),
       range: async (...args: unknown[]) => {
         record('range', args);
+        await server.onChangePage?.();
         return { data: server.changePages.shift() ?? [], error: null };
       },
       in: async (column: string, values: string[]) => {

@@ -44,6 +44,8 @@ beforeEach(async () => {
 
 afterEach(async () => {
   onlineManager.setOnline(true);
+  // The singleton remembers an eviction in memory; clearing it resets that.
+  await replicatedDogRegistrationsTable.clearCache();
   await databaseManager.reset();
 });
 
@@ -124,6 +126,32 @@ describe('loadDogRegistrations', () => {
 
     expect(result.byDog.get('dog-1')).toEqual([expect.objectContaining({ id: 'srv-1' })]);
     expect(supabase.from).toHaveBeenCalledWith('dog_registrations');
+  });
+});
+
+describe('after a quota eviction', () => {
+  it('falls back to PostgREST instead of trusting a partial replica', async () => {
+    await replicatedDogRegistrationsTable.applyServerRows([
+      serverRow({ id: 'r1' }),
+      serverRow({ id: 'r2', dog_id: 'dog-2' }),
+      serverRow({ id: 'r3', dog_id: 'dog-3' }),
+    ]);
+    await markWarm(replicatedDogRegistrationsTable);
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(Date.now() + 60 * 60 * 1000);
+    const evicted = await replicatedDogRegistrationsTable.relieveQuota();
+    clock.mockRestore();
+    expect(evicted).toBeGreaterThan(0);
+    postgrestAnswers({ data: [serverRow({ id: 'srv-1' })], error: null });
+
+    const result = await loadDogRegistrations(['dog-1', 'dog-2', 'dog-3']);
+    const { result: query } = renderRegistrationsQuery('dog-1');
+
+    expect(supabase.from).toHaveBeenCalledWith('dog_registrations');
+    expect(result.byDog.get('dog-1')).toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'srv-1' })])
+    );
+    await waitFor(() => expect(query.current.isSuccess).toBe(true));
+    expect(query.current.data).toEqual([expect.objectContaining({ id: 'srv-1' })]);
   });
 });
 

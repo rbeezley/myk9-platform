@@ -115,8 +115,52 @@ function normalizeRegistration(
 }
 
 export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedDogRegistration> {
+  /** Bumped by every eviction, so a sync can tell one landed while it ran. */
+  private evictionEpoch = 0;
+  /**
+   * Evicted rows mean the replica no longer holds every visible registration.
+   * Held in memory as well as in `lastFullSyncAt`, so the readers go cold even
+   * when the metadata write fails under the same storage pressure.
+   */
+  private coverageLost = false;
+
   constructor() {
     super('dog_registrations', { logger });
+  }
+
+  /**
+   * Quota eviction drops clean rows, so an empty answer stops meaning "no
+   * registrations": the readers go cold and the next sync is a full one.
+   */
+  override async relieveQuota(): Promise<number> {
+    return this.afterEviction(await super.relieveQuota());
+  }
+
+  override async evictLRU(targetSizeBytes: number): Promise<number> {
+    return this.afterEviction(await super.evictLRU(targetSizeBytes));
+  }
+
+  /** An emptied replica is cold through its metadata; nothing partial is left. */
+  override async clearCache(): Promise<void> {
+    await super.clearCache();
+    this.coverageLost = false;
+  }
+
+  private async afterEviction(evicted: number): Promise<number> {
+    if (evicted > 0) {
+      this.evictionEpoch++;
+      await this.invalidateCoverage();
+    }
+    return evicted;
+  }
+
+  private async invalidateCoverage(): Promise<void> {
+    this.coverageLost = true;
+    try {
+      await this.updateSyncMetadata({ lastFullSyncAt: 0 });
+    } catch (err) {
+      logger.warn(`[${this.getTableName()}] Could not record lost coverage`, err);
+    }
   }
 
   protected override rebuildUpdatePayload(
@@ -160,16 +204,24 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     // (`lastFullSyncAt`). The engine forces a full fetch only on an empty
     // replica, and an offline dog create leaves placeholder rows in a
     // never-synced one, so force it here until the first full fetch succeeds.
+    // The same after an eviction, which leaves the replica partial.
     const metadata = await this.getSyncMetadata();
+    const forceFullSync = !metadata?.lastFullSyncAt || this.coverageLost;
+    const epoch = this.evictionEpoch;
     const result = await syncReplicatedTable(
       this,
       adapter,
       {},
       {
         incrementalBufferMs: REPLICATION_INCREMENTAL_BUFFER_MS,
-        ...(!metadata?.lastFullSyncAt && { forceFullSync: true }),
+        ...(forceFullSync && { forceFullSync }),
       }
     );
+    // An eviction during this sync happened before the engine stamped
+    // `lastFullSyncAt`: undo the stamp. Otherwise a completed full fetch
+    // restores coverage.
+    if (this.evictionEpoch !== epoch) await this.invalidateCoverage();
+    else if (result.success && forceFullSync) this.coverageLost = false;
 
     if (!result.success && result.error && !isAbortSyncError(result.error)) {
       logger.error(`[${this.getTableName()}] Sync failed:`, result.error);
@@ -306,7 +358,7 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
       const read = await this.getAllWithStatus();
       if (!read.ok) return { state: 'unreadable', error: read.error };
       const metadata = await this.getSyncMetadata();
-      if (!metadata?.lastFullSyncAt) return { state: 'cold' };
+      if (!metadata?.lastFullSyncAt || this.coverageLost) return { state: 'cold' };
       return {
         state: 'warm',
         rows: visibleRegistrationRows(read.rows, dogIds).map(registrationToDbRow),
@@ -352,16 +404,21 @@ export class ReplicatedDogRegistrationsTable extends ReplicatedTable<ReplicatedD
     return saved;
   }
 
+  /**
+   * Write placeholder rows for a dog created on this device. Pass the
+   * `createdAts` the dog's upload carries, so the placeholders and the server
+   * rows agree on creation order (MYK9-90).
+   */
   async createLocalRegistrationsForDog(
     dogId: string,
-    registrations: RegistrationInput[]
+    registrations: RegistrationInput[],
+    createdAts: readonly string[] = createRegistrationTimestamps(registrations.length)
   ): Promise<ReplicatedDogRegistration[]> {
     const saved: ReplicatedDogRegistration[] = [];
 
     // `createdAt` comes from `creationTimestamps`, NOT from a per-row
     // `new Date()`: rows created in the same millisecond would tie, and a tie
     // sends the resolver back to its random-UUID tiebreak.
-    const createdAts = createRegistrationTimestamps(registrations.length);
     for (const [index, input] of registrations.entries()) {
       const normalized = normalizeRegistration(input, createdAts[index]!);
       const registration: ReplicatedDogRegistration = {

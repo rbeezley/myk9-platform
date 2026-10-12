@@ -76,8 +76,9 @@ const DOGS_TABLE = 'dogs';
  * - it was written after the pass began (revision differs from `snapshot`, or
  *   it is not in the snapshot at all);
  * - it is dirty, or a pending or failed mutation names it;
- * - it is a `_localOnly` placeholder whose dog still has a pending or failed
- *   `dogs` mutation. Once the dog has uploaded, the server holds its
+ * - it is a `_localOnly` placeholder whose dog has not reached the server: the
+ *   dog's replica row is dirty or `_localOnly`, or a pending or failed `dogs`
+ *   mutation names it. Once the dog has uploaded, the server holds its
  *   registrations under server ids, so the placeholder goes.
  *
  * Failed mutations of every user count: keeping a row is the safe error.
@@ -108,6 +109,20 @@ export async function pruneRegistrationsMissingFromServer(
   const failedRegistrations = await failedIds(tableName);
   const failedDogs = await failedIds(DOGS_TABLE);
 
+  // The dog's own row counts as well as its queue: an offline create writes
+  // the dog dirty before it queues the upload, so between the two there is
+  // no dogs mutation yet but the dog has not reached the server either.
+  const dogHoldsLocalWork = async (dogId: string): Promise<boolean> => {
+    const dog = (await rows.get([DOGS_TABLE, dogId])) as
+      ReplicatedRow<{ _localOnly?: boolean }> | undefined;
+    return (
+      dog?.isDirty === true ||
+      dog?.data?._localOnly === true ||
+      failedDogs.has(dogId) ||
+      (await pending.count([DOGS_TABLE, dogId])) > 0
+    );
+  };
+
   for (const id of candidates) {
     const row = (await rows.get([tableName, id])) as
       ReplicatedRow<ReplicatedDogRegistration> | undefined;
@@ -119,8 +134,7 @@ export async function pruneRegistrationsMissingFromServer(
       (await pending.count([tableName, id])) > 0;
     const dogId = String(row.data?.dogId ?? '');
     const placeholderAwaitingDog =
-      row.data?._localOnly === true &&
-      (failedDogs.has(dogId) || (await pending.count([DOGS_TABLE, dogId])) > 0);
+      row.data?._localOnly === true && (await dogHoldsLocalWork(dogId));
     if (ownWork || placeholderAwaitingDog) {
       result.kept.push(id);
     } else {

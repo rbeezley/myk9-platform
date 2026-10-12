@@ -121,6 +121,71 @@ describe('registrations changes pass', () => {
   });
 });
 
+/** Run a quota eviction as the package does on a storage-quota failure. */
+async function evictUnderQuota(): Promise<number> {
+  // Rows touched in the last few minutes are protected; step past that.
+  const later = Date.now() + 60 * 60 * 1000;
+  const clock = vi.spyOn(Date, 'now').mockReturnValue(later);
+  try {
+    return await table.relieveQuota();
+  } finally {
+    clock.mockRestore();
+  }
+}
+
+async function warmReplicaWithRows(): Promise<void> {
+  installRegistrationsServer(
+    newServer({
+      changePages: [[serverRow({ id: 'r1' }), serverRow({ id: 'r2' }), serverRow({ id: 'r3' })]],
+      idPages: [[{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }]],
+    })
+  );
+  await table.sync();
+  expect((await table.readForDogs(['dog-1'])).state).toBe('warm');
+}
+
+// A quota eviction drops clean rows: the replica is no longer every visible
+// registration, so "none here" stops meaning "none" (Codex review, P2).
+describe('registrations coverage after a quota eviction', () => {
+  it('goes cold, and the next sync is a full one that makes it warm again', async () => {
+    await warmReplicaWithRows();
+
+    expect(await evictUnderQuota()).toBeGreaterThan(0);
+    expect((await table.readForDogs(['dog-1'])).state).toBe('cold');
+
+    const server = newServer({
+      changePages: [[serverRow({ id: 'r1' }), serverRow({ id: 'r2' }), serverRow({ id: 'r3' })]],
+      idPages: [[{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }]],
+    });
+    installRegistrationsServer(server);
+    await table.sync();
+
+    expect(server.calls.find(c => c.method === 'gt')?.args).toEqual([
+      'updated_at',
+      new Date(0).toISOString(),
+    ]);
+    expect((await table.readForDogs(['dog-1'])).state).toBe('warm');
+    expect(await table.getAllLocalIds()).toEqual(new Set(['r1', 'r2', 'r3']));
+  });
+
+  it('stays cold when the eviction lands during the sync that would restore it', async () => {
+    await warmReplicaWithRows();
+    await evictUnderQuota();
+    const server = newServer({
+      changePages: [[serverRow({ id: 'r1' })]],
+      idPages: [[{ id: 'r1' }, { id: 'r2' }, { id: 'r3' }]],
+    });
+    server.onChangePage = async () => {
+      await evictUnderQuota();
+    };
+    installRegistrationsServer(server);
+
+    await table.sync();
+
+    expect((await table.readForDogs(['dog-1'])).state).toBe('cold');
+  });
+});
+
 describe('registrations row mapping', () => {
   it('round-trips every read column through the local row', () => {
     const { version, ...readColumns } = serverRow({ variety: 'Rough', certificate: 'c.pdf' });

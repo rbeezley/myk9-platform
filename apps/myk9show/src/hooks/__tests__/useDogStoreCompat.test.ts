@@ -403,7 +403,7 @@ describe('useDogStoreCompat.addDog — local-first', () => {
       })
     );
     // MYK9-90 round 4: the RPC payload must carry the ordered creation
-    // timestamp from the local mirror. Without it every registration in the
+    // timestamp the local mirror also gets. Without it every registration in the
     // RPC's transaction gets an identical server `created_at` and the primary
     // registration is decided by a random server UUID.
     expect(registrationRows).toEqual([
@@ -417,9 +417,17 @@ describe('useDogStoreCompat.addDog — local-first', () => {
       },
     ]);
     expect(options).toEqual({ dependsOn: ['person-mutation-1'] });
+    // The placeholders carry the same ordered timestamps as the RPC payload.
     expect(mockCreateLocalReplicatedDogRegistrationsForDog).toHaveBeenCalledWith(
       replicatedDog.id,
-      registrations
+      registrations,
+      ['2024-01-01T00:00:00.000Z']
+    );
+    // MYK9-1090: the dog is written dirty and queued BEFORE its placeholders
+    // exist, so the registrations ID pass never finds a placeholder whose dog
+    // holds no local work yet.
+    expect(mockCreateReplicatedDogWithRegistrationsRpc.mock.invocationCallOrder[0]).toBeLessThan(
+      mockCreateLocalReplicatedDogRegistrationsForDog.mock.invocationCallOrder[0]!
     );
     expect(mockCreateReplicatedDogWithId).not.toHaveBeenCalled();
     expect(mockCreateReplicatedDogRegistrationsForDog).not.toHaveBeenCalled();

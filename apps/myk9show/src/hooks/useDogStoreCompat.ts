@@ -203,29 +203,34 @@ export const useDogStoreCompat = () => {
 
     let registrations: Record<string, unknown>[] = [];
     if (dogData.registrations && dogData.registrations.length > 0) {
-      // Create the local mirror FIRST so the RPC payload can carry the same
-      // ordered creation timestamps. Without them every registration in the
-      // RPC's transaction gets an identical server `created_at` and the primary
-      // is decided by a random UUID (MYK9-90 review round 4). Safe with respect
-      // to §5.1: the call-name check above has already thrown by this point.
-      const savedRegistrations =
-        await replicatedDogRegistrationsTable.createLocalRegistrationsForDog(
-          dogId,
-          dogData.registrations
-        );
+      // One set of ordered creation timestamps for the RPC payload and the
+      // local placeholders. Without them every registration in the RPC's
+      // transaction gets an identical server `created_at` and the primary is
+      // decided by a random UUID (MYK9-90 review round 4).
+      const createdAts = createRegistrationTimestamps(dogData.registrations.length);
       const registrationRows = dogData.registrations.map((registration, index) => ({
         organization: registration.organization || 'AKC',
         registered_name: registration.registeredName || null,
         registration_number: registration.number || '',
         breed: registration.type || null,
         status: registration.status || 'pending',
-        created_at: savedRegistrations[index]?.createdAt ?? null,
+        created_at: createdAts[index] ?? null,
       }));
+      // The dog is written dirty and queued BEFORE its placeholders exist, so
+      // the registrations ID pass never sees a placeholder whose dog holds no
+      // local work yet and prunes it (MYK9-1090). Safe with respect to §5.1:
+      // the call-name check above has already thrown by this point.
       const savedDog = await replicatedDogsTable.createDogWithRegistrationsRpc(
         replicatedDog,
         registrationRows,
         createOptions
       );
+      const savedRegistrations =
+        await replicatedDogRegistrationsTable.createLocalRegistrationsForDog(
+          dogId,
+          dogData.registrations,
+          createdAts
+        );
       registrations = savedRegistrations.map(registration =>
         replicatedDogRegistrationsTable.toSupabaseRow(registration)
       );

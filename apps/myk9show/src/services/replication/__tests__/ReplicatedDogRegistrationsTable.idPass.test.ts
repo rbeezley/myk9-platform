@@ -7,6 +7,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { databaseManager } from '@myk9/replication';
 import { ReplicatedDogRegistrationsTable } from '../ReplicatedDogRegistrationsTable';
+import { ReplicatedDogsTable, type ReplicatedDog } from '../ReplicatedDogsTable';
 import { DOG_REGISTRATION_ID_PASS_MAX_PAGES } from '../dogRegistrationsIdPass';
 import {
   installRegistrationsServer,
@@ -42,6 +43,10 @@ function serverShows(...extraIds: string[]) {
   });
   installRegistrationsServer(server);
   return server;
+}
+
+function offlineDog(): ReplicatedDog {
+  return { id: 'dog-offline', name: 'Scout', callName: 'Scout', breed: '', _localOnly: true };
 }
 
 async function placeholderFor(dogId: string): Promise<string> {
@@ -148,8 +153,41 @@ describe('registrations ID pass', () => {
     expect(await table.get(id)).not.toBeNull();
   });
 
+  // An offline create writes the dog dirty, then queues its upload: between
+  // the two, no dogs mutation names the dog yet (Codex review, P2).
+  it('keeps a placeholder while its dog row is dirty with nothing queued yet', async () => {
+    const id = await placeholderFor('dog-offline');
+    // Dirty alone, so this pins the dirty check apart from the local-only one.
+    await new ReplicatedDogsTable().set(
+      'dog-offline',
+      { ...offlineDog(), _localOnly: undefined },
+      true
+    );
+    serverShows('reg-gone');
+
+    await table.reconcileWithServerIds();
+
+    expect(await table.get(id)).not.toBeNull();
+  });
+
+  it('keeps a placeholder while its dog exists only on this device', async () => {
+    const id = await placeholderFor('dog-offline');
+    await new ReplicatedDogsTable().set('dog-offline', offlineDog(), false);
+    serverShows('reg-gone');
+
+    await table.reconcileWithServerIds();
+
+    expect(await table.get(id)).not.toBeNull();
+  });
+
   it('removes a placeholder once its dog has uploaded', async () => {
     const id = await placeholderFor('dog-offline');
+    // The uploaded dog: clean and no longer local-only.
+    await new ReplicatedDogsTable().set(
+      'dog-offline',
+      { ...offlineDog(), _localOnly: undefined },
+      false
+    );
     // Another dog's queued work does not hold this placeholder.
     await putQueueRecord('pending', { id: 'm-dog', tableName: 'dogs', rowId: 'dog-other' });
     serverShows('reg-gone');

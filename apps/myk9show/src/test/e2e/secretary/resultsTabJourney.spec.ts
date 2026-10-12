@@ -262,7 +262,8 @@ test.describe('Results tab: scored -> verified -> released -> printed -> initial
 
     await test.step('9. the same class on a 375px phone fits the screen', async () => {
       await page.setViewportSize(PHONE);
-      await page.goto(`/shows/${encodeURIComponent(showId)}/results`, {
+      // The class is done now, so the default "Needs me" filter no longer lists it.
+      await page.goto(`/shows/${encodeURIComponent(showId)}/results?status=all`, {
         waitUntil: 'domcontentloaded',
       });
       await expect(

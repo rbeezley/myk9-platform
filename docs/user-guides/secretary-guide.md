@@ -2,7 +2,7 @@
 
 **Status:** `active`
 **Audience:** Trial secretaries
-**Last verified:** 2026-10-04 — card 7 (the waitlist) walked in a browser on localhost against the Heartland demo show and read against the code; every other card was last checked label by label against the code on 2026-10-03 (four-tab show home, MYK9-957, and the layout A class cards, #2698). The previous full browser walk was 2026-08-30.
+**Last verified:** 2026-10-12 — card 7 (the waitlist) re-checked against the code and walked in a real browser by the Nightly waitlist journey (run 38266836797, Heartland demo show): join from a full class, Offer Spot, the exhibitor's Claim by deadline and Decline, the automatic offer, a lapsed offer, and the one-time Mail-in dog needs an offer notice. Paying for an offer is not yet walked. Every other card was last checked label by label against the code on 2026-10-03 (four-tab show home, MYK9-957, and the layout A class cards, #2698). The previous full browser walk was 2026-08-30.
 **Verified by:** the secretary task walk (`docs/audits/2026-08-28-secretary-task-walk.md`), its 2026-08-29 verification pass, and a 2026-10-03 label-by-label code check
 
 > **What "verified" covers here.** Each card's path, tab and button label was checked against the
@@ -136,18 +136,22 @@ Whether open spots are offered automatically, the judge's daily capacity, how lo
 1. Each judge-day shows as a card — the judge's name, the date, and how full it is (for example _3 / 200 entries_). A day at or over its limit reads **Full** with 0 spots available. It can read over the limit (for example _3 / 2_) when the limit was lowered after entries came in, or when a late entry was added with the capacity override.
 2. **View Wait List** on a card lists every dog waiting in that judge-day's classes, one block per class in the order people joined, with the day's own numbers (limit, entered, available) above it. **Show every class** goes back to the whole show, which is what the tab lists until you pick a day.
 3. When a spot opens, who offers it depends on **Offer open spots automatically** under **Wait list settings**. It is on for every show until you turn it off, and it saves the moment you flip it.
-   - **On:** within 15 minutes the system offers the spot to the dog at the top of the queue (the order people joined), and you get a notification in the bell naming the dog and the class, with a **View** link back to this tab. It makes one offer per class at a time and never offers a mail-in entry; when the dog at the top joined by mail, offer it yourself. You can still offer a spot yourself, and the system never adds a second offer to a class that already has one.
+   - **On:** within 15 minutes the system offers the spot to the dog at the top of the queue (the order people joined), and you get a notification in the bell naming the dog and the class, with a **View** link back to this tab. It makes one offer per class at a time, and the system never adds a second offer to a class that already has one. You can still offer a spot yourself.
+   - **A mail-in dog at the top is never offered automatically.** You get one bell notification, **Mail-in dog needs an offer**, naming the class and the dog, and the class waits for you: the dogs behind it are not offered in its place. Offer it yourself with **Offer Spot**. The notice is sent once, not again at every check.
    - **Off:** nothing is offered for you. Click **Offer Spot** on the dog at the top of the queue (the button only appears while the class has a free spot).
 
    Either way the dog moves off the queue and the exhibitor gets an email, a push notification and an in-app message; your own offer's message carries a payment link, and an automatic one sends them to My Entries to pay. The spot is held for the offer window (48 hours unless you change it under **Wait list settings**) and counts as taken until it is paid or lapses. Once a trial's date has passed, nobody can offer its spots, you or the system.
 
-4. **Remove** takes a dog off the queue for good. The exhibitor is not told.
+4. **Offered (N)**, above the queue, lists every open offer: the dog, the class, when it was offered, **Pay by** with the deadline (or **No automatic deadline** for a mail-in dog), and where payment stands. **Withdraw offer** takes an offer back: the payment link stops working, the entry waiting for payment is cancelled, the dog leaves the wait list, and the exhibitor is told no payment is due.
+5. **Remove** takes a waiting dog off the queue for good. The exhibitor is not told.
+
+**What the exhibitor sees.** On My Shows, under **My Wait List Positions**, each dog shows its place in line. An offer reads **Spot offered** with **Claim by** and the deadline in the trial's time zone, and two buttons: **Complete payment** and **Decline**. A mail-in offer instead says the club is holding the spot until they pay the club directly. Declining ends the offer at once, and the spot goes to the next dog the same way a lapsed offer does.
 
 > **Capacity is enforced by the server, not just displayed.** Since 2026-07-12 an online entry that would put a class or a judge's day over its limit is refused or, where the class takes a wait list, queued. The numbers on the cards are a view of that limit. Only a late entry added with the capacity override, or lowering the limit after entries exist, can take a day past it. A class can also read **Full** for up to 30 minutes while an exhibitor pays for its last spots: those spots are held at checkout and open again if the payment is not finished.
 
 > **When an offer lapses.** If an offer is not paid in time it lapses and no money is taken. With automatic offers on, the next dog in line is offered at the same 15-minute check and you are notified; with them off, the spot waits for you to offer it.
 
-> **Not working yet (MYK9-971 findings).** A dog you have offered a spot disappears from this tab, and you cannot withdraw an offer from it (MYK9-1001). Offers and removals need a connection.
+> **Needs a connection.** Offer Spot, Withdraw offer and Remove need a signal; at the show with none, they read **Online only**.
 
 ## 8 · Handle pulls, scratches and refunds
 
@@ -361,9 +365,9 @@ The report works out who is eligible and ranks them for you. One section per dif
 
 Honest list, so nothing surprises you mid-show.
 
-| What            | Status                                                                                                                                 |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Waitlist offers | Never run on real data; offers can't be tracked or withdrawn from the tab, and the deadline isn't shown (card 7, MYK9-1001, MYK9-1002) |
+| What            | Status                                                                                                     |
+| --------------- | ---------------------------------------------------------------------------------------------------------- |
+| Waitlist offers | Paying for an offer through Stripe is not yet covered by the automated waitlist journey (card 7, MYK9-971) |
 
 ---
 

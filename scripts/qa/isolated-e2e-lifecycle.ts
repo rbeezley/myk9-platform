@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 
 import { LOAD_SHOW_ENTRY_COUNT } from '../../apps/myk9show/src/test/load/loadFixture';
+import { ISOLATED_FUNCTION_SECRETS, stageAppEdgeFunctions } from './isolated-e2e-functions';
 import { LOCAL_E2E_PROJECT_REF, resolveIsolatedE2eTarget } from './isolated-e2e-target';
 
 export interface LocalSupabaseEnvironment {
@@ -14,8 +15,8 @@ export interface LocalSupabaseEnvironment {
 
 const REQUIRED_STATUS_KEYS = ['API_URL', 'ANON_KEY', 'SERVICE_ROLE_KEY', 'DB_URL'] as const;
 const DEMO_SHOW_ID = 'dededede-0000-0000-0000-000000000010';
+// edge-runtime is served since MYK9-971: the waitlist journey drives the app's edge functions.
 const UNUSED_BROWSER_SUITE_SERVICES = [
-  'edge-runtime',
   'imgproxy',
   'logflare',
   'mailpit',
@@ -95,6 +96,8 @@ export function buildJobEnvironment(local: LocalSupabaseEnvironment): Record<str
     VITE_SUPABASE_ANON_KEY: local.anonKey,
     SUPABASE_SERVICE_ROLE_KEY: local.serviceRoleKey,
     SUPABASE_DB_URL: local.dbUrl,
+    // The local edge runtime's test-only cron secret, so a spec can run a cron on demand.
+    MYK9_E2E_CRON_SECRET: ISOLATED_FUNCTION_SECRETS.CRON_SECRET,
   };
 }
 
@@ -280,6 +283,8 @@ function assertPreparationIntent(env: NodeJS.ProcessEnv) {
 
 function prepare() {
   assertPreparationIntent(process.env);
+  const staged = stageAppEdgeFunctions(process.cwd(), process.env);
+  console.log(`Staged ${staged.functionDirs.length} app edge functions beside the root ones`);
   runCommand(
     'Supabase start',
     resolveSupabaseCliCommand(process.env),

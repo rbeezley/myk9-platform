@@ -76,7 +76,7 @@ describe('lifecycle safety', () => {
     expect(localSupabaseStartArgs()).toEqual([
       'start',
       '--exclude',
-      'edge-runtime,imgproxy,logflare,mailpit,postgres-meta,studio,supavisor,vector',
+      'imgproxy,logflare,mailpit,postgres-meta,studio,supavisor,vector',
     ]);
   });
 

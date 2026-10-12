@@ -18,7 +18,11 @@ describe('Discard revert opt-in (MYK9-1076)', () => {
 
     new ReplicatedDogsTable().setMutationManager(manager);
 
-    expect(register).toHaveBeenCalledWith('dogs', expect.any(Function));
+    expect(register).toHaveBeenCalledWith('dogs', {
+      onChanged: expect.any(Function),
+      // Online, Discard also re-fetches the dog from the server.
+      fetchRow: expect.any(Function),
+    });
   });
 
   it('entries keep the existing Discard behaviour', () => {

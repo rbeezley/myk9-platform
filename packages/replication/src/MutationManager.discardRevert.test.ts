@@ -2,11 +2,16 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { MutationManager } from './MutationManager';
+import type { RowRefetchAdapter } from './refetchDirtyRowsById';
 import {
+  adapterFor,
   PlainEntriesTable,
   resetForStaleRowTest,
   startStaleRowManager,
   teardownStaleRowTest,
+  type LocalEntry,
+  type RemoteEntry,
+  type ServerRow,
 } from './test-utils/staleRowRefetchFixtures';
 import type { PendingMutation } from './types';
 
@@ -43,6 +48,33 @@ class RevertingEntriesTable extends EditableEntriesTable {
   protected override readonly revertsOnDiscard = true;
 }
 
+/** Reverting, and able to fetch one row from the server for the online step. */
+class RefetchingRevertingTable extends RevertingEntriesTable {
+  constructor(
+    tableName: string,
+    private readonly adapter: RowRefetchAdapter<RemoteEntry, LocalEntry>
+  ) {
+    super(tableName);
+  }
+
+  protected override getRowRefetchAdapter(): RowRefetchAdapter<RemoteEntry, LocalEntry> {
+    return this.adapter;
+  }
+}
+
+/** A server that accepts the first UPDATE (to version 4) and refuses the rest. */
+function acceptFirstServer(): SupabaseClient {
+  let calls = 0;
+  const builder = {
+    eq: () => builder,
+    select: async () =>
+      ++calls === 1
+        ? { data: [{ id: '1', version: 4 }], error: null }
+        : { data: null, error: { code: '42501', message: 'permission denied' } },
+  };
+  return { from: () => ({ update: () => builder }) } as unknown as SupabaseClient;
+}
+
 describe('Discard reverts the row (MYK9-1076)', () => {
   let manager: MutationManager | undefined;
   let tableName: string;
@@ -53,8 +85,8 @@ describe('Discard reverts the row (MYK9-1076)', () => {
 
   afterEach(() => teardownStaleRowTest(manager));
 
-  async function start(table: EditableEntriesTable) {
-    manager = startStaleRowManager(table, refusingServer()).manager;
+  async function start(table: EditableEntriesTable, supabase = refusingServer()) {
+    manager = startStaleRowManager(table, supabase).manager;
     // A clean row the server holds at version 3.
     await table.set('1', { id: '1', status: 'scored', finalPlacement: null }, false, undefined, 3);
   }
@@ -201,5 +233,98 @@ describe('Discard reverts the row (MYK9-1076)', () => {
     await manager!.discardFailedMutation(id!);
 
     expect((await table.getReplicatedRow('1'))?.data.status).toBe('done');
+  });
+
+  describe('after an own upload was accepted while the row stayed dirty', () => {
+    // First edit uploads (server -> version 4), second is refused. The base still
+    // predates both edits, so restoring it would undo the accepted first edit.
+    async function acceptedThenRefused(table: EditableEntriesTable) {
+      await start(table, acceptFirstServer());
+      await table.edit('1', 'first');
+      const second = await table.edit('1', 'second');
+      await refuseAll(1);
+      return second!;
+    }
+
+    it('does not restore the stale base offline', async () => {
+      const table = new RevertingEntriesTable(tableName);
+      const second = await acceptedThenRefused(table);
+
+      await manager!.discardFailedMutation(second);
+
+      const row = await table.getReplicatedRow('1');
+      expect(row?.data.status).toBe('second');
+      expect(row?.isDirty).toBe(true);
+    });
+
+    it("online, replaces the row with the server's copy", async () => {
+      const server: ServerRow = { status: 'first', final_placement: null, version: 4 };
+      const table = new RefetchingRevertingTable(tableName, adapterFor(server));
+      const second = await acceptedThenRefused(table);
+
+      await manager!.discardFailedMutation(second);
+
+      await vi.waitFor(async () => {
+        const row = await table.getReplicatedRow('1');
+        expect(row?.data.status).toBe('first');
+        expect(row?.isDirty).toBe(false);
+        expect(row?.serverVersion).toBe(4);
+      });
+    });
+  });
+
+  it('online, a revert is followed by the newer server value', async () => {
+    const server: ServerRow = { status: 'changed elsewhere', final_placement: 1, version: 5 };
+    const table = new RefetchingRevertingTable(tableName, adapterFor(server));
+    await start(table);
+    const id = await table.edit('1', 'done');
+    await refuseAll(1);
+
+    await manager!.discardFailedMutation(id!);
+
+    await vi.waitFor(async () => {
+      const row = await table.getReplicatedRow('1');
+      expect(row?.data).toEqual({ id: '1', status: 'changed elsewhere', finalPlacement: 1 });
+      expect(row?.serverVersion).toBe(5);
+    });
+  });
+
+  it('the re-fetch never replaces a local edit made after the discard', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>(resolve => (release = resolve));
+    const server: ServerRow = { status: 'server', final_placement: null, version: 5 };
+    const adapter = adapterFor(server, async () => {
+      await gate;
+      return [{ id: '1', ...server }];
+    });
+    const table = new RefetchingRevertingTable(tableName, adapter);
+    await start(table);
+    const id = await table.edit('1', 'done');
+    await refuseAll(1);
+
+    await manager!.discardFailedMutation(id!);
+    await table.set('1', { id: '1', status: 'newer', finalPlacement: null }, true);
+    release();
+
+    await vi.waitFor(() => expect(adapter.fetchRowsById).toHaveBeenCalled());
+    await new Promise(resolve => setTimeout(resolve, 20));
+    const row = await table.getReplicatedRow('1');
+    expect(row?.data.status).toBe('newer');
+    expect(row?.isDirty).toBe(true);
+  });
+
+  it('announces the replaced row so the app can refresh its caches', async () => {
+    const table = new RevertingEntriesTable(tableName);
+    await start(table);
+    const id = await table.edit('1', 'done');
+    await refuseAll(1);
+    const events: unknown[] = [];
+    const listen = (event: Event) => events.push((event as CustomEvent).detail);
+    window.addEventListener('replication:discard-row-replaced', listen);
+
+    await manager!.discardFailedMutation(id!);
+
+    window.removeEventListener('replication:discard-row-replaced', listen);
+    expect(events).toEqual([{ tableName, rowId: '1' }]);
   });
 });

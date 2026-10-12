@@ -46,7 +46,7 @@ export class MutationManager {
   private readonly acquireQueueMutationLockAsync: (() => Promise<() => void>) | undefined;
   /** Per-table hooks: re-fetch on a stale OCC token (MYK9-771), revert on Discard (MYK9-1076). */
   readonly rowRefetchers: RowRefetchRegistry;
-  readonly discardReverters = new DiscardRevertRegistry();
+  readonly discardReverters: DiscardRevertRegistry;
 
   constructor(supabaseClient: SupabaseClient, options: MutationManagerOptions = {}) {
     if (!supabaseClient) throw new Error('[MutationManager] Supabase client is required');
@@ -55,6 +55,7 @@ export class MutationManager {
     this.getCurrentUploadContext = options.getCurrentUploadContext ?? (async () => null);
     this.acquireQueueMutationLock = options.acquireQueueMutationLock;
     this.acquireQueueMutationLockAsync = options.acquireQueueMutationLockAsync;
+    this.discardReverters = new DiscardRevertRegistry(this.logger);
     this.queueStore = new MutationQueueStore(this.logger, this.discardReverters);
     this.backupStore = new MutationBackupStore(this.logger);
     this.rowRefetchers = new RowRefetchRegistry(this.logger, work =>

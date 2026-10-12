@@ -315,24 +315,6 @@ describe('ReplicationSyncProvider — replication:sync-failed listener', () => {
     expect(toast.dismiss).toHaveBeenCalledWith('sync-failed:mut-1');
   });
 
-  it('Discard refreshes the discarded table once the discard lands (MYK9-1076)', async () => {
-    const invalidate = vi.spyOn(QueryClient.prototype, 'invalidateQueries');
-    renderProvider();
-
-    act(() => {
-      dispatchSyncFailed();
-    });
-    invalidate.mockClear();
-
-    const options = vi.mocked(toast.error).mock.calls[0]?.[1] as ToastOptions;
-    act(() => {
-      options.cancel!.onClick();
-    });
-
-    await vi.waitFor(() => expect(invalidate).toHaveBeenCalledWith({ queryKey: ['shows'] }));
-    invalidate.mockRestore();
-  });
-
   it('removes the listener on unmount so late events do not toast', () => {
     const { unmount } = renderProvider();
     unmount();

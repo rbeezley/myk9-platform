@@ -1,40 +1,51 @@
 import type { IDBPDatabase } from 'idb';
 import { REPLICATION_STORES } from './core/DatabaseManager';
+import { buildRemoteReplacementRow } from './core/ReplicatedTableConflict';
 import { buildSyncedReplicatedRow } from './core/ReplicatedTableRowState';
+import type { Logger } from './dependencies';
 import type { PendingMutation, ReplicatedRow } from './types';
 
 /**
- * Put a row back to the last server state this device knew after the user
- * discards a refused UPDATE or DELETE for it (MYK9-1076). Without this the row
- * stays dirty with the refused value, and nothing ever replaces it: a clean
- * server row never overwrites a dirty one, and a server row that has not
- * changed is never downloaded again.
+ * Discard of a refused UPDATE or DELETE puts the row back to the server's state
+ * (MYK9-1076). Without this the row stays dirty with the refused value, and
+ * nothing replaces it: a clean server row never overwrites a dirty one, and a
+ * server row that has not changed is never downloaded again.
  *
- * The row reverts only when BOTH hold, or a newer local edit would be lost:
- * - it still holds the revision the discarded write produced
- *   (`rowRevision`), so nothing newer was written to it, queued or not; and
- * - no other pending or failed mutation names it.
+ * Two steps, both guarded so a newer local edit is never undone:
+ * 1. Offline-capable local revert, to the conflict's remote copy or the dirty
+ *    base, but only when that copy IS the server's state at the row's current
+ *    token (`baseServerVersion === serverVersion`). An own upload acknowledged
+ *    while the row stayed dirty moves the token past the base, and restoring
+ *    the base would undo that accepted edit.
+ * 2. Online re-fetch of the row, replacing it when nothing newer is local.
  *
- * The restored data is the conflict's remote copy when the row is in conflict
- * (the newest server state seen), else the base captured when the row first
- * went dirty, which dirty-row reconciliation keeps at the latest server copy.
- * No network: this works offline, and the next sync carries on from there.
- *
- * The row and both queues are read, and the row written, in ONE readwrite
+ * Each step reads the row and both queues, and writes, in ONE readwrite
  * transaction (the removeOrphanedLocalOnlyRow pattern): a write another tab
- * queues for this row lands either before (and blocks the revert) or after.
- * Every await here is an IndexedDB request, so the transaction stays open.
- *
- * @returns true when the row was reverted.
+ * queues for this row lands either before (and blocks the step) or after.
+ * Every await inside is an IndexedDB request, so the transaction stays open.
  */
-export async function revertDiscardedRowWrite(
-  db: IDBPDatabase,
-  discarded: PendingMutation
-): Promise<boolean> {
-  if (discarded.operation === 'INSERT' || discarded.rowRevision === undefined) return false;
+
+/** A row the server returned for a re-fetch, in local shape. */
+export interface DiscardedRowRemote {
+  data: unknown;
+  serverVersion: number | undefined;
+}
+
+export interface DiscardRevertHooks {
+  /** Tell the table's listeners a row changed. */
+  onChanged: () => void;
+  /** Fetch one row from the server; undefined when it is gone or unreadable. */
+  fetchRow?: (rowId: string) => Promise<DiscardedRowRemote | undefined>;
+}
+
+/**
+ * Open the transaction and decide whether anything else still names the row:
+ * a newer local write (`version` moved past the discarded write's revision,
+ * queued or not), or another pending or failed mutation.
+ */
+async function openGuarded(db: IDBPDatabase, discarded: PendingMutation) {
   const rowId = String(discarded.rowId);
   const key = [discarded.tableName, rowId];
-
   const tx = db.transaction(
     [
       REPLICATION_STORES.REPLICATED_TABLES,
@@ -45,13 +56,6 @@ export async function revertDiscardedRowWrite(
   );
   const rows = tx.objectStore(REPLICATION_STORES.REPLICATED_TABLES);
   const row = (await rows.get(key)) as ReplicatedRow<unknown> | undefined;
-  const conflict = row?.conflict;
-  const restored = conflict ? conflict.remoteData : row?.baseData;
-  if (!row || !row.isDirty || row.version !== discarded.rowRevision || restored === undefined) {
-    await tx.done;
-    return false;
-  }
-
   const pending = await tx
     .objectStore(REPLICATION_STORES.PENDING_MUTATIONS)
     .index('tableName_rowId')
@@ -60,7 +64,29 @@ export async function revertDiscardedRowWrite(
     .objectStore(REPLICATION_STORES.FAILED_MUTATIONS)
     .index('tableName')
     .getAll(discarded.tableName)) as PendingMutation[];
-  if (pending > 0 || failed.some(m => String(m.rowId) === rowId && m.id !== discarded.id)) {
+  const otherFailed = failed.some(m => String(m.rowId) === rowId && m.id !== discarded.id);
+  const newerLocalWrite = row?.isDirty === true && row.version !== discarded.rowRevision;
+  return { tx, rows, row, blocked: pending > 0 || otherFailed || newerLocalWrite };
+}
+
+/** Step 1. @returns true when the row was reverted. */
+export async function revertDiscardedRowWrite(
+  db: IDBPDatabase,
+  discarded: PendingMutation
+): Promise<boolean> {
+  if (discarded.operation === 'INSERT' || discarded.rowRevision === undefined) return false;
+  const { tx, rows, row, blocked } = await openGuarded(db, discarded);
+
+  const conflict = row?.conflict;
+  // The copy to restore, only when it is the server's state at the row's token.
+  const restored = conflict
+    ? conflict.remoteServerVersion >= (row?.serverVersion ?? -Infinity)
+      ? conflict.remoteData
+      : undefined
+    : row?.baseServerVersion !== undefined && row.baseServerVersion === row.serverVersion
+      ? row.baseData
+      : undefined;
+  if (!row || !row.isDirty || blocked || restored === undefined) {
     await tx.done;
     return false;
   }
@@ -87,25 +113,86 @@ export async function revertDiscardedRowWrite(
 }
 
 /**
- * Tables that opted in to {@link revertDiscardedRowWrite}, keyed by table name,
- * each with the callback that tells its listeners a row changed.
+ * Step 2: replace the row with the server's copy when it is still the
+ * discarded write's row (or already clean), nothing else names it, and the
+ * copy is not older than the token the row holds.
+ * @returns true when the row was replaced.
  */
+export async function replaceDiscardedRow(
+  db: IDBPDatabase,
+  discarded: PendingMutation,
+  remote: DiscardedRowRemote
+): Promise<boolean> {
+  if (discarded.rowRevision === undefined) return false;
+  const { tx, rows, row, blocked } = await openGuarded(db, discarded);
+  const older =
+    remote.serverVersion !== undefined &&
+    row?.serverVersion !== undefined &&
+    remote.serverVersion < row.serverVersion;
+  if (!row || blocked || older) {
+    await tx.done;
+    return false;
+  }
+  await rows.put(
+    buildRemoteReplacementRow({
+      tableName: discarded.tableName,
+      id: String(discarded.rowId),
+      remoteData: remote.data as { id: string },
+      existingRow: row as ReplicatedRow<{ id: string }>,
+      remoteServerVersion: remote.serverVersion,
+    })
+  );
+  await tx.done;
+  return true;
+}
+
+/** Tells the app a row changed outside a write it made, so it can refresh caches. */
+function announceRowReplaced(tableName: string, rowId: string): void {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(
+    new CustomEvent('replication:discard-row-replaced', { detail: { tableName, rowId } })
+  );
+}
+
+/** Tables that opted in to the Discard revert, keyed by table name. */
 export class DiscardRevertRegistry {
-  private readonly onReverted = new Map<string, () => void>();
+  private readonly hooks = new Map<string, DiscardRevertHooks>();
+
+  constructor(private readonly logger?: Logger) {}
 
   /** @returns an unregister function that removes only this registration. */
-  register(tableName: string, onReverted: () => void): () => void {
-    this.onReverted.set(tableName, onReverted);
+  register(tableName: string, hooks: DiscardRevertHooks): () => void {
+    this.hooks.set(tableName, hooks);
     return () => {
-      if (this.onReverted.get(tableName) === onReverted) this.onReverted.delete(tableName);
+      if (this.hooks.get(tableName) === hooks) this.hooks.delete(tableName);
     };
   }
 
-  has(tableName: string): boolean {
-    return this.onReverted.has(tableName);
-  }
-
-  notify(tableName: string): void {
-    this.onReverted.get(tableName)?.();
+  /**
+   * Run both steps for a discarded mutation. The local revert is awaited; the
+   * re-fetch is not (it fails quietly offline and the next sync carries on).
+   */
+  async afterDiscard(db: IDBPDatabase, discarded: PendingMutation): Promise<void> {
+    const hooks = this.hooks.get(discarded.tableName);
+    if (!hooks || discarded.operation === 'INSERT') return;
+    const rowId = String(discarded.rowId);
+    const changed = () => {
+      hooks.onChanged();
+      announceRowReplaced(discarded.tableName, rowId);
+    };
+    if (await revertDiscardedRowWrite(db, discarded)) changed();
+    if (!hooks.fetchRow) return;
+    void hooks
+      .fetchRow(rowId)
+      .then(async remote => {
+        if (remote && (await replaceDiscardedRow(db, discarded, remote))) changed();
+      })
+      .catch((error: unknown) => {
+        this.logger?.warn(
+          `[MutationManager] Re-fetch of ${discarded.tableName}/${rowId} after Discard failed; ` +
+            `the next sync brings the server's copy.`,
+          error
+        );
+      });
   }
 }

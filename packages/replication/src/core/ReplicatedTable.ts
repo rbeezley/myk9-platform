@@ -28,7 +28,11 @@ import type {
 import type { Logger, ReplicatedTableDependencies } from '../dependencies';
 import { noopLogger } from '../dependencies';
 import type { MutationManager } from '../MutationManager';
-import { refetchDirtyRowsById, type RowRefetchAdapter } from '../refetchDirtyRowsById';
+import {
+  fetchRowForDiscard,
+  refetchDirtyRowsById,
+  type RowRefetchAdapter,
+} from '../refetchDirtyRowsById';
 import { MAX_OPTIMISTIC_UPDATE_RETRIES } from '../constants';
 
 import { databaseManager, REPLICATION_STORES, trackTransaction } from './DatabaseManager';
@@ -177,7 +181,10 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       : undefined;
     this.unregisterDiscardReverter?.();
     this.unregisterDiscardReverter = this.revertsOnDiscard
-      ? manager.discardReverters.register(this.tableName, () => this.notifyListeners())
+      ? manager.discardReverters.register(this.tableName, {
+          onChanged: () => this.notifyListeners(),
+          fetchRow: getAdapter ? rowId => fetchRowForDiscard(getAdapter(), rowId) : undefined,
+        })
       : undefined;
   }
 
@@ -701,6 +708,10 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       data: nextData,
       ...(options?.newBaseData ? { baseData: options.newBaseData } : {}),
     };
+    if (options?.newBaseData) {
+      if (newServerVersion === undefined) delete nextRow.baseServerVersion;
+      else nextRow.baseServerVersion = newServerVersion;
+    }
 
     await tx.store.put(nextRow);
     await tx.done;
@@ -910,6 +921,7 @@ export abstract class ReplicatedTable<T extends { id: string }> {
       existingRow,
       mergedData: normalizedMerged,
       newBaseData: params.remote,
+      baseServerVersion: params.remoteServerVersion,
       serverVersion: nextServerVersion,
       now: Date.now(),
     });

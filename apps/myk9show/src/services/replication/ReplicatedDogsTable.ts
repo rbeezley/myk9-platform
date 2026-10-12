@@ -221,6 +221,17 @@ export class ReplicatedDogsTable extends ReplicatedTable<ReplicatedDog> {
   }
 
   /**
+   * The dog's own columns as the cached dog reads hold them (snake_case), for
+   * patching those caches from the replica (MYK9-1076). No `updated_at`: the
+   * row did not change on the server.
+   */
+  cachedRowFields(dog: ReplicatedDog): Record<string, unknown> {
+    const fields = this.toSupabaseRow(dog);
+    delete fields.updated_at;
+    return fields;
+  }
+
+  /**
    * Reads rows by id the way `sync` does, so a full-row UPDATE rejected for a
    * stale OCC token can re-fetch its row and rebase or surface (MYK9-771).
    */

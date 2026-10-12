@@ -2,7 +2,7 @@ import { unwrap, type IDBPDatabase } from 'idb';
 import { databaseManager, REPLICATION_STORES } from './core/DatabaseManager';
 import type { Logger } from './dependencies';
 import { removeOrphanedLocalOnlyRow } from './mutation-row-sync';
-import { DiscardRevertRegistry, revertDiscardedRowWrite } from './mutation-discard-revert';
+import { DiscardRevertRegistry } from './mutation-discard-revert';
 import { rebaseQueuedMutation, rewriteQueuedMutations } from './mutation-queue-rewrite';
 import { withQuotaEviction } from './quota-eviction';
 import { type PendingMutation, type ReplicatedRow } from './types';
@@ -259,12 +259,7 @@ export class MutationQueueStore {
     await confirmOwner();
     await db.delete(REPLICATION_STORES.FAILED_MUTATIONS, mutationId);
     await removeOrphanedLocalOnlyRow(db, failed);
-    if (
-      this.discardReverters.has(failed.tableName) &&
-      (await revertDiscardedRowWrite(db, failed))
-    ) {
-      this.discardReverters.notify(failed.tableName);
-    }
+    await this.discardReverters.afterDiscard(db, failed);
     return true;
   }
 

@@ -50,6 +50,10 @@ export interface ReplicatedRow<T> {
   syncStatus: SyncStatus;
   baseData?: T; // Clean row snapshot captured when the row first became dirty
   baseVersion?: number; // Version of the clean base snapshot
+  /** The server `version` the base snapshot is a copy of. When it differs from
+   *  `serverVersion` (an own upload or an OCC rejection moved the token while the
+   *  row stayed dirty) the base is no longer the server's state (MYK9-1076). */
+  baseServerVersion?: number;
   /** Server-side `version` column value from the last successful sync.
    *  Used as the OCC precondition on the next UPDATE: WHERE version = serverVersion.
    *  Updated by set() when a clean row arrives from the server. */
